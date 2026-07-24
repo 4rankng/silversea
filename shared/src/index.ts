@@ -89,6 +89,7 @@ export {
   ACKED_DIRECTIVE_KINDS,
   agentActionResultSchema,
   faqEntryCreateSchema, faqEntryUpdateSchema, FAQ_ADMIN_PATHS,
+  geotagSchema, GEOTAG_ENTITY_TYPES, GEOTAG_SOURCES, GEOTAG_PATHS,
 } from './schemas';
 
 export { appSettingsSchema } from './schemas/app-settings';
@@ -125,6 +126,7 @@ export type {
   AgentMessage, AgentConversation, AgentEvent, AgentRouteKey,
   AckedDirectiveKind, AgentActionResult,
   FaqEntry, FaqEntryCreate, FaqEntryUpdate, FaqEmbeddingStatus, FaqEntryMutationResponse,
+  GeotagInput, GeotagEntityType, GeotagSource, PhotoGeotag,
 } from './schemas';
 
 export { round2dp, roundInt } from './calculations/round';

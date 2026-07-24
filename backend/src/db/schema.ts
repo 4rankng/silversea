@@ -1328,3 +1328,51 @@ export const onboardingEvents = pgTable(
     index('onboarding_events_name_created_idx').on(table.eventName, table.createdAt),
   ],
 );
+
+/**
+ * Event-driven mobile GPS geotag for a photo submission (foundation module).
+ *
+ * Captures an accurate phone GPS fix at the moment a portal user submits a
+ * photo (container/seal, port receipt, fuel pump, …) so the photo's claimed
+ * location is provable — anti-fraud + compliance. This is the CLIENT-push
+ * counterpart to the server-pulled Bách Khoa truck GPS (trip_gps_tracks /
+ * vehicle_last_positions): those track the vehicle; this geotags a moment.
+ *
+ * Polymorphic over (entity_type, entity_id) so one table serves all three photo
+ * tables — trip_photos (driver), trip_expense_photos (forwarder), expense_photos
+ * (office) — plus future entities without further schema changes. One geotag per
+ * entity: the service upserts on (entity_type, entity_id) so resubmits don't
+ * duplicate (idempotency, M0X-HT-04). Ownership is resolved per-entity-type
+ * inside the service (driver→own trip_photo, forwarder→own trip_expense_photo,
+ * office→any) — not encoded here.
+ *
+ * Requirements: M08-05 / M09-05 / M12-03-03 (photo capture flows +
+ * "thiếu vị trí phải cảnh báo"), M0X-HT-03 (audit trail via recordedBy).
+ */
+export const photoGeotags = pgTable('photo_geotags', {
+  id: serial('id').primaryKey(),
+  // entity_type is a free-form varchar (not a pgEnum) so the set of geotaggable
+  // entities can grow without a migration — the shared GEOTAG_ENTITY_TYPES
+  // const is the validated whitelist at the API boundary.
+  entityType: varchar('entity_type', { length: 32 }).notNull(),
+  entityId: integer('entity_id').notNull(),
+  lat: doublePrecision('lat').notNull(),
+  lng: doublePrecision('lng').notNull(),
+  accuracy: doublePrecision('accuracy'),           // meters, device-reported
+  altitude: doublePrecision('altitude'),           // meters
+  // Device fix timestamp — the anti-replay freshness key. The service rejects
+  // fixes >300s stale or >60s future (ported from the payroll reference).
+  gpsAt: timestamp('gps_at', { withTimezone: true }),
+  source: varchar('source', { length: 16 }).notNull().default('phone'), // phone | exif | manual
+  // Diagnostic fields captured by the warm-fix hook — stored for triage, not
+  // used for acceptance gating.
+  sampleCount: integer('sample_count'),
+  bestAccuracy: doublePrecision('best_accuracy'),
+  elapsedMs: integer('elapsed_ms'),
+  recordedBy: integer('recorded_by').references(() => users.id).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  // UNIQUE so the service upsert (ON CONFLICT entity_type, entity_id) enforces
+  // one geotag per photo — idempotency on resubmit (M0X-HT-04).
+  uniqueIndex('photo_geotags_entity_uniq').on(table.entityType, table.entityId),
+]);

@@ -37,6 +37,7 @@ import ocrRoutes from './routes/ocr';
 import mapsRoutes from './routes/maps';
 import notificationRoutes from './routes/notifications';
 import salaryRoutes from './routes/salary';
+import geotagRoutes from './routes/geotag';
 
 await initAuditService();
 await initNotificationService();
@@ -129,6 +130,10 @@ app.use('/api/photos', assetAuthMiddleware, casbinAuthz('photos'), photosRouter)
 app.use('/api/upload', authMiddleware, casbinAuthz('upload'), uploadRouter);
 // OCR (container/seal recognition) — must mount before the catch-all /api
 app.use('/api/ocr', authMiddleware, casbinAuthz('ocr'), ocrRoutes);
+// Event-driven mobile GPS geotagging — phone fix captured on photo submission
+// (container/seal, port receipt, fuel pump). Portal-facing; per-portal
+// ownership resolved inside the service. MUST mount before the catch-all /api.
+app.use('/api/geotag', authMiddleware, casbinAuthz('geotag'), geotagRoutes);
 app.use('/api/notifications', authMiddleware, casbinAuthz('notifications'), notificationRoutes);
 app.use('/api/trips', authMiddleware, casbinAuthz('trips'), tripRoutes);
 // Command-and-insight assistant (bot). Acts as the caller; office roles only.

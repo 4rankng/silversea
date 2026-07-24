@@ -23,6 +23,10 @@ export * from './llm-settings';
 // automatic embedding regeneration on save. Backs the chatbot fast lane.
 export * from './faq';
 
+// Event-driven mobile GPS geotagging — Zod submit schema + types consumed by
+// the geotag route/service (backend) and the geotag client (frontend).
+export * from './geotag';
+
 // Reusable numeric transform helpers to prevent string concatenation bugs and parse PG numeric types
 export const numericMoney = z.union([z.number(), z.string()]).transform((val, ctx) => {
   const num = Number(val);

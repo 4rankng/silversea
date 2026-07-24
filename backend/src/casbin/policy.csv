@@ -67,3 +67,11 @@ p, MANAGER, onboarding, read
 p, MANAGER, onboarding, write
 p, ACCOUNTANT, onboarding, read
 p, ACCOUNTANT, onboarding, write
+p, DRIVER, geotag, write
+p, DRIVER, geotag, read
+p, FORWARDER, geotag, write
+p, FORWARDER, geotag, read
+p, MANAGER, geotag, write
+p, MANAGER, geotag, read
+p, ACCOUNTANT, geotag, write
+p, ACCOUNTANT, geotag, read

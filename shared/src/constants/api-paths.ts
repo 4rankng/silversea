@@ -44,6 +44,13 @@ export const TRACKING = {
   LIVE_FLEET: '/trips/live-fleet',
 } as const;
 
+// ─── Geotag (mobile phone GPS geotagging on photo submission) ─────────────────
+// Event-driven: capture a phone GPS fix the instant a portal user submits a
+// photo (container/seal, port receipt, fuel pump). Mounted at /api/geotag with
+// a dedicated `geotag` Casbin resource; per-portal ownership resolved inside
+// the service. Share path constants are in @tingting/shared schemas/geotag.ts
+// (GEOTAG_PATHS) to keep the entity-type enum co-located with the schema.
+
 // ─── Catalogs & Pricing ────────────────────────────────────────────────────────
 export const CATALOGS = {
   BOOTSTRAP: '/catalogs/bootstrap',
