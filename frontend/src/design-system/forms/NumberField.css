@@ -1,0 +1,3 @@
+/* NumberField shares its base CSS with TextField.css (imported at the top of
+ * NumberField.tsx). This file is reserved for any number-input-specific tweaks.
+ * Currently empty by design — the shared rules cover the input chrome. */

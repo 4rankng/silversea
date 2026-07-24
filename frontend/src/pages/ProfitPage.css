@@ -1,0 +1,232 @@
+/* ============================================================================
+ * Profit Hero + Partner cards + Calc breakdown
+ * Refactored to match Dashboard (.dash-wf) design language:
+ * - Tighter spacing, smaller fonts, consistent 14px border-radius
+ * - Deeper green palette (#005A2D) matching dashboard sidebar/theme
+ * ========================================================================== */
+.profit-layout {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 20px;
+  align-items: stretch;
+}
+.profit-layout > * {
+  min-width: 0;
+}
+.profit-bento-hero {
+  grid-column: span 8;
+}
+.profit-bento-breakdown {
+  grid-column: span 4;
+  grid-row: span 2;
+}
+.profit-bento-shareholders {
+  grid-column: span 8;
+}
+.profit-bento-settlement {
+  grid-column: span 8;
+}
+.profit-bento-history {
+  grid-column: span 4;
+}
+.profit-bento-settlement--full {
+  grid-column: span 12;
+}
+
+@media (max-width: 1100px) {
+  .profit-layout {
+    grid-template-columns: 1fr;
+  }
+  .profit-bento-hero,
+  .profit-bento-breakdown,
+  .profit-bento-shareholders,
+  .profit-bento-settlement,
+  .profit-bento-history,
+  .profit-bento-settlement--full {
+    grid-column: span 1 / auto;
+    grid-row: span 1 / auto;
+  }
+}
+
+.profit-hero {
+  background:
+    linear-gradient(135deg, rgba(0, 90, 45, 0.08), rgba(255, 255, 255, 0) 42%),
+    var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 22px 24px;
+  margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.profit-hero::after {
+  content: none;
+}
+.profit-hero__label {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  color: var(--accent-ink);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+  margin-bottom: 8px;
+  position: relative;
+  z-index: 1;
+}
+.profit-hero__value {
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.25;
+  color: var(--ink);
+  position: relative;
+  z-index: 1;
+}
+.profit-hero__currency {
+  font-family: var(--font-display);
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  margin-left: 6px;
+  font-weight: 500;
+}
+.profit-hero__sub {
+  margin-top: 8px;
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+  position: relative;
+  z-index: 1;
+}
+
+.partner-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 1023px) { .partner-grid { grid-template-columns: 1fr; } }
+
+.partner-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.partner-card--primary { border-color: var(--sb-bg); }
+.partner-card__head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.partner-card__info { flex: 1; min-width: 0; }
+.partner-card__avatar {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  color: var(--fg-on-brand);
+  flex-shrink: 0;
+}
+.partner-card__avatar--phung,
+.partner-card__avatar--primary { background: linear-gradient(135deg, var(--sb-bg), var(--accent-2)); }
+.partner-card__avatar--thuong,
+.partner-card__avatar--secondary { background: linear-gradient(135deg, #6E9DCB, #3D6FA3); }
+.partner-card__name { font-family: var(--font-display); font-size: var(--fs-sm); font-weight: 600; letter-spacing: 0; margin-bottom: 2px; color: var(--ink); }
+.partner-card__role { font-size: var(--fs-xs); color: var(--ink-3); }
+.partner-card__pct { margin-left: auto; font-family: var(--font-display); font-weight: 700; font-size: var(--fs-sm); color: var(--accent); letter-spacing: 0; }
+.partner-card__amount { font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 700; letter-spacing: 0; line-height: 1.25; margin-bottom: 6px; color: var(--ink); }
+.partner-card__amount-label { font-family: var(--font-mono); font-size: var(--fs-2xs); color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; margin-bottom: 6px; }
+
+.calc-breakdown { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.calc-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.calc-row:last-child { border-bottom: none; }
+.calc-row--total { background: var(--surface-2); font-weight: 700; }
+.calc-row--final {
+  background: linear-gradient(180deg, var(--surface-accent), var(--surface));
+  border-top: 2px solid var(--sb-bg);
+}
+.calc-row__label { font-size: var(--fs-sm); color: var(--ink-2); display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.calc-row__label--bold { color: var(--ink); font-weight: 600; }
+.calc-row__op { font-family: var(--font-mono); font-weight: 700; color: var(--ink-3); width: 16px; display: inline-block; text-align: center; flex-shrink: 0; }
+.calc-row__value { font-family: var(--font-display); font-size: var(--fs-sm); font-weight: 600; letter-spacing: 0; color: var(--ink); white-space: nowrap; flex-shrink: 0; }
+.calc-row__value--neg { color: var(--danger); }
+.calc-row__value--positive { color: var(--sb-bg); }
+.calc-row--final .calc-row__value { font-size: var(--fs-lg); color: var(--sb-bg); }
+
+.profit-history-scroll {
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+/* ── History cards (replaces old table — no horizontal scroll) ─── */
+.profit-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.profit-history-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 14px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.profit-history-item__top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.profit-history-item__period {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: var(--fs-2xs);
+  color: var(--sb-bg);
+  background: var(--surface-accent);
+  padding: 2px 8px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+.profit-history-item__partner {
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  color: var(--ink);
+  min-width: 0;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.profit-history-item__bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.profit-history-item__amount {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--sb-bg);
+}
+.profit-history-item__date {
+  font-size: var(--fs-2xs);
+  color: var(--ink-3);
+  flex-shrink: 0;
+}
+
+/* ── Responsive overrides (from responsive.css decomposition) ── */
+@media (max-width: 640px) {
+  /* ── Profit page ── */
+  .profit-hero { padding: 18px 16px; border-radius: 14px; margin-bottom: 16px; }
+  .profit-hero__label { font-size: var(--fs-2xs); margin-bottom: 6px; letter-spacing: 0.06em; }
+  .profit-hero__value { font-size: var(--fs-2xl); letter-spacing: 0; word-break: break-word; }
+  .profit-hero__currency { font-size: var(--fs-xs); margin-left: 4px; }
+  .profit-hero__sub { font-size: var(--fs-xs); margin-top: 8px; line-height: 1.4; }
+  .partner-grid { gap: 10px; }
+  .partner-card { padding: 14px; border-radius: 12px; }
+  .partner-card__head { gap: 10px; margin-bottom: 8px; }
+  .partner-card__avatar { width: 36px; height: 36px; font-size: var(--fs-sm); }
+  .partner-card__name { font-size: var(--fs-sm); }
+  .partner-card__role { font-size: var(--fs-2xs); }
+  .partner-card__pct { font-size: var(--fs-sm); }
+  .partner-card__amount-label { font-size: var(--fs-2xs); margin-bottom: 4px; letter-spacing: 0.04em; }
+  .partner-card__amount { font-size: var(--fs-xl); letter-spacing: 0; word-break: break-word; }
+  .calc-row { padding: 10px 12px; gap: 8px; }
+  .calc-row__label { font-size: var(--fs-sm); }
+  .calc-row__value { font-size: var(--fs-sm); }
+  .calc-row--final .calc-row__value { font-size: var(--fs-lg); }
+} /* end 640px */

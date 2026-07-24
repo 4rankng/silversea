@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NEPO · Điều vận & Phân xe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green-900: #003D1F;
+    --green-800: #005A2D;
+    --green-700: #007038;
+    --green-600: #00873F;
+    --green-500: #16A34A;
+    --green-100: #DCFCE7;
+    --green-50:  #F0FDF4;
+
+    --charcoal:    #14181A;
+    --charcoal-2:  #1C2124;
+    --charcoal-3:  #262C30;
+    --line-dark:   #2D3438;
+
+    --ink:        #0E1311;
+    --ink-2:      #34423D;
+    --muted:      #6B7773;
+    --muted-2:    #94A19C;
+
+    --bg:         #F2F4F1;
+    --surface:    #FFFFFF;
+    --surface-2:  #FAFBF9;
+    --line:       #E4E8E2;
+    --line-2:     #EFF1EC;
+
+    --amber:      #B45309;
+    --amber-bg:   #FEF3C7;
+    --amber-dot:  #F59E0B;
+    --red:        #B91C1C;
+    --red-bg:     #FEE2E2;
+    --blue:       #1D4ED8;
+    --blue-bg:    #DBEAFE;
+
+    --shadow-sm:  0 1px 0 rgba(15, 25, 20, 0.04);
+    --shadow-md:  0 1px 2px rgba(15, 25, 20, 0.04), 0 8px 24px -12px rgba(15, 25, 20, 0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: var(--bg);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: "ss01", "cv11";
+  }
+
+  .mono { font-family: 'JetBrains Mono', monospace; font-feature-settings: "tnum"; }
+
+  /* ============ LAYOUT ============ */
+  .app { display: grid; grid-template-columns: 248px 1fr; min-height: 100vh; }
+
+  /* ============ SIDEBAR (kept as-is, refined) ============ */
+  .sidebar {
+    background: var(--green-800);
+    color: #fff;
+    display: flex; flex-direction: column;
+    position: sticky; top: 0; height: 100vh;
+  }
+  .brand {
+    padding: 22px 22px 26px;
+    display: flex; align-items: center; gap: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .brand-logo {
+    width: 38px; height: 38px; border-radius: 10px;
+    background: rgba(255,255,255,0.08);
+    display: grid; place-items: center;
+  }
+  .brand-logo svg { width: 22px; height: 22px; }
+  .brand-name { font-weight: 800; letter-spacing: 0.5px; font-size: 15px; }
+  .brand-sub { font-size: 9.5px; letter-spacing: 1.6px; color: rgba(255,255,255,0.6); }
+
+  .nav-group { padding: 16px 12px 4px; }
+  .nav-label {
+    color: rgba(255,255,255,0.45);
+    font-size: 10.5px; letter-spacing: 1.6px; font-weight: 600;
+    padding: 10px 12px 6px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 11px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    font-size: 13.5px; font-weight: 500;
+    color: rgba(255,255,255,0.85);
+    cursor: pointer;
+    transition: background 120ms ease;
+    margin-bottom: 2px;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.06); }
+  .nav-item.active { background: rgba(255,255,255,0.12); color: #fff; font-weight: 600; }
+  .nav-item svg { width: 16px; height: 16px; stroke-width: 1.8; }
+  .nav-item .badge {
+    margin-left: auto;
+    background: #fff; color: var(--green-800);
+    font-size: 10.5px; font-weight: 700;
+    padding: 1px 7px; border-radius: 10px;
+    min-width: 20px; text-align: center;
+  }
+
+  .sidebar-foot {
+    margin-top: auto;
+    padding: 14px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .user-chip {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: 10px;
+    background: rgba(0,0,0,0.18);
+  }
+  .avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: linear-gradient(135deg, #34D399, #059669);
+    display: grid; place-items: center;
+    font-weight: 700; font-size: 12px; color: #fff;
+  }
+  .user-info { line-height: 1.25; }
+  .user-info .name { font-size: 12.5px; font-weight: 600; }
+  .user-info .role { font-size: 10.5px; color: rgba(255,255,255,0.6); }
+  .logout {
+    margin-left: auto;
+    width: 26px; height: 26px;
+    display: grid; place-items: center;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .logout:hover { background: rgba(255,255,255,0.08); }
+
+  /* ============ MAIN ============ */
+  .main { display: flex; flex-direction: column; min-width: 0; }
+
+  /* Top bar */
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    padding: 12px 28px;
+    display: flex; align-items: center; gap: 18px;
+    height: 60px;
+    position: sticky; top: 0; z-index: 30;
+  }
+  .icon-btn {
+    width: 34px; height: 34px;
+    display: grid; place-items: center;
+    border-radius: 8px; cursor: pointer;
+    color: var(--ink-2);
+    background: transparent; border: none;
+    position: relative;
+  }
+  .icon-btn:hover { background: var(--line-2); }
+  .icon-btn svg { width: 18px; height: 18px; stroke-width: 1.8; }
+  .icon-btn .dot {
+    position: absolute; top: 7px; right: 7px;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--red); border: 1.5px solid var(--surface);
+  }
+  .icon-btn .count {
+    position: absolute; top: 3px; right: 2px;
+    background: var(--red); color: #fff;
+    font-size: 9.5px; font-weight: 700;
+    padding: 1px 4px; border-radius: 9px;
+    min-width: 16px; text-align: center;
+    line-height: 1.3;
+    border: 1.5px solid var(--surface);
+  }
+
+  .crumbs {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13.5px;
+  }
+  .crumb-mute { color: var(--muted); }
+  .crumb-curr { color: var(--ink); font-weight: 600; }
+  .crumb-sep { color: var(--muted-2); }
+
+  .search {
+    flex: 1; max-width: 520px;
+    position: relative;
+    margin: 0 auto;
+  }
+  .search input {
+    width: 100%;
+    padding: 9px 16px 9px 38px;
+    background: var(--bg);
+    border: 1px solid transparent;
+    border-radius: 10px;
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--ink);
+    transition: all 120ms;
+  }
+  .search input::placeholder { color: var(--muted-2); }
+  .search input:focus {
+    outline: none;
+    background: var(--surface);
+    border-color: var(--green-600);
+    box-shadow: 0 0 0 3px var(--green-100);
+  }
+  .search svg {
+    position: absolute; left: 13px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    width: 15px; height: 15px;
+  }
+  .search .kbd {
+    position: absolute; right: 10px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 10.5px; color: var(--muted);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: 1px 6px;
+    background: var(--surface);
+  }
+
+  .date-chip {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 12px;
+    background: var(--bg);
+    border-radius: 9px;
+    font-size: 12.5px;
+  }
+  .date-chip svg { width: 14px; height: 14px; color: var(--muted); }
+  .date-chip .d-label { color: var(--muted); }
+  .date-chip .d-val { font-weight: 600; }
+
+  /* Content area */
+  .content { padding: 26px 28px 48px; max-width: 1480px; width: 100%; align-self: center; }
+
+  /* ============ HERO (charcoal command bar) ============ */
+  .hero {
+    background: linear-gradient(135deg, var(--charcoal) 0%, #1A2220 60%, #1F2D27 100%);
+    color: #fff;
+    border-radius: 18px;
+    padding: 26px 30px;
+    margin-bottom: 22px;
+    position: relative; overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    right: -120px; top: -80px;
+    width: 360px; height: 360px;
+    background: radial-gradient(circle, rgba(22, 163, 74, 0.18), transparent 65%);
+    pointer-events: none;
+  }
+  .hero::after {
+    content: '';
+    position: absolute;
+    left: 40%; bottom: -60px;
+    width: 200px; height: 120px;
+    background: radial-gradient(ellipse, rgba(0, 135, 63, 0.14), transparent 70%);
+    pointer-events: none;
+  }
+  .hero-top {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 24px;
+    position: relative;
+  }
+  .hero-title-block { min-width: 0; }
+  .hero-eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 10.5px; letter-spacing: 1.8px; font-weight: 700;
+    color: #5EE99B;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .hero-eyebrow::before {
+    content: ''; width: 6px; height: 6px;
+    background: #5EE99B; border-radius: 50%;
+    box-shadow: 0 0 0 4px rgba(94, 233, 155, 0.18);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 4px rgba(94, 233, 155, 0.18); }
+    50% { box-shadow: 0 0 0 7px rgba(94, 233, 155, 0.08); }
+  }
+  .hero-h1 {
+    font-size: 28px; font-weight: 800;
+    letter-spacing: -0.6px;
+    line-height: 1.15;
+    margin-bottom: 6px;
+  }
+  .hero-sub {
+    font-size: 13.5px; color: rgba(255,255,255,0.62);
+  }
+  .hero-actions { display: flex; gap: 10px; flex-shrink: 0; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-size: 13px; font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 120ms;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+  .btn svg { width: 15px; height: 15px; stroke-width: 2; }
+  .btn-primary {
+    background: var(--green-500); color: #fff;
+  }
+  .btn-primary:hover { background: var(--green-600); transform: translateY(-1px); }
+  .btn-ghost-dark {
+    background: rgba(255,255,255,0.08); color: #fff;
+    border-color: rgba(255,255,255,0.12);
+  }
+  .btn-ghost-dark:hover { background: rgba(255,255,255,0.14); }
+
+  /* Metric strip */
+  .metrics {
+    margin-top: 26px;
+    display: grid;
+    grid-template-columns: 1.4fr repeat(4, 1fr);
+    gap: 1px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 14px;
+    overflow: hidden;
+    position: relative;
+  }
+  .metric {
+    background: rgba(255,255,255,0.025);
+    padding: 16px 20px;
+    backdrop-filter: blur(8px);
+  }
+  .metric-label {
+    font-size: 10.5px;
+    letter-spacing: 1.4px;
+    color: rgba(255,255,255,0.5);
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .metric-value {
+    font-size: 26px; font-weight: 700;
+    line-height: 1; letter-spacing: -0.5px;
+  }
+  .metric-unit { font-size: 13px; color: rgba(255,255,255,0.5); font-weight: 500; margin-left: 4px; }
+  .metric-delta {
+    margin-top: 8px;
+    font-size: 11px; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .delta-up { color: #5EE99B; }
+  .delta-down { color: #FCA5A5; }
+  .delta-flat { color: rgba(255,255,255,0.55); }
+
+  .metric.featured { background: rgba(94, 233, 155, 0.06); }
+  .metric.featured .metric-label { color: #5EE99B; }
+  .utilization-bar {
+    margin-top: 12px;
+    height: 5px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 99px;
+    position: relative; overflow: hidden;
+  }
+  .utilization-fill {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    background: linear-gradient(90deg, #16A34A, #5EE99B);
+    border-radius: 99px;
+    width: 75%;
+  }
+
+  /* ============ FLEET SECTION ============ */
+  .section-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px; gap: 18px;
+    flex-wrap: wrap;
+  }
+  .section-title {
+    display: flex; align-items: baseline; gap: 12px;
+  }
+  .section-title h2 {
+    font-size: 18px; font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+  .section-title .count {
+    font-size: 12px; font-weight: 600;
+    color: var(--muted);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    padding: 2px 9px;
+    border-radius: 99px;
+  }
+
+  .filter-tabs {
+    display: flex; gap: 4px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    padding: 4px;
+    border-radius: 10px;
+  }
+  .tab {
+    padding: 6px 12px;
+    font-size: 12.5px; font-weight: 500;
+    color: var(--ink-2);
+    border-radius: 7px;
+    cursor: pointer;
+    transition: all 120ms;
+    background: transparent; border: none;
+    font-family: inherit;
+    display: inline-flex; align-items: center; gap: 6px;
+    white-space: nowrap;
+  }
+  .tab:hover { color: var(--ink); }
+  .tab.active { background: var(--ink); color: #fff; font-weight: 600; }
+  .tab .tc {
+    font-size: 10.5px; font-weight: 700;
+    background: rgba(0,0,0,0.06);
+    padding: 0 6px; border-radius: 99px;
+    min-width: 18px; text-align: center;
+  }
+  .tab.active .tc { background: rgba(255,255,255,0.18); color: #fff; }
+
+  /* Fleet grid */
+  .fleet-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(258px, 1fr));
+    gap: 12px;
+    margin-bottom: 30px;
+  }
+  .vcard {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px 16px 14px;
+    transition: all 160ms;
+    cursor: pointer;
+    position: relative;
+  }
+  .vcard:hover {
+    border-color: var(--ink-2);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+  .vcard-top {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .plate {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700; font-size: 12.5px;
+    background: var(--ink);
+    color: #fff;
+    padding: 5px 10px;
+    border-radius: 6px;
+    letter-spacing: 0.5px;
+    font-feature-settings: "tnum";
+  }
+  .plate.maint { background: var(--amber); }
+
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 10.5px; font-weight: 700;
+    letter-spacing: 0.8px;
+    padding: 4px 9px;
+    border-radius: 99px;
+    text-transform: uppercase;
+  }
+  .status-pill .sd {
+    width: 6px; height: 6px; border-radius: 50%;
+  }
+  .pill-running {
+    background: var(--green-50); color: var(--green-800);
+  }
+  .pill-running .sd {
+    background: var(--green-600);
+    box-shadow: 0 0 0 3px rgba(0, 135, 63, 0.15);
+    animation: pulse-dot 1.8s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { box-shadow: 0 0 0 3px rgba(0, 135, 63, 0.15); }
+    50% { box-shadow: 0 0 0 5px rgba(0, 135, 63, 0.05); }
+  }
+  .pill-ready {
+    background: #ECFDF5; color: #047857;
+  }
+  .pill-ready .sd { background: #10B981; }
+  .pill-maint {
+    background: var(--amber-bg); color: var(--amber);
+  }
+  .pill-maint .sd { background: var(--amber-dot); }
+  .pill-noassign {
+    background: #F1F5F9; color: #475569;
+  }
+  .pill-noassign .sd { background: #64748B; }
+
+  .v-driver-row {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 12px;
+    min-height: 32px;
+  }
+  .driver-avatar {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    font-size: 11px; font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .da-1 { background: linear-gradient(135deg, #0EA5E9, #0369A1); }
+  .da-2 { background: linear-gradient(135deg, #F59E0B, #D97706); }
+  .da-3 { background: linear-gradient(135deg, #8B5CF6, #6D28D9); }
+  .da-4 { background: linear-gradient(135deg, #EC4899, #BE185D); }
+  .da-5 { background: linear-gradient(135deg, #10B981, #047857); }
+
+  .driver-name { font-size: 13.5px; font-weight: 600; line-height: 1.2; }
+  .driver-meta { font-size: 11px; color: var(--muted); }
+  .no-driver {
+    color: var(--muted);
+    font-size: 12.5px;
+    font-style: italic;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .no-driver svg { width: 14px; height: 14px; }
+
+  .v-body {
+    border-top: 1px dashed var(--line);
+    padding-top: 12px;
+    font-size: 12.5px;
+  }
+  .vrow {
+    display: flex; align-items: flex-start; gap: 8px;
+    margin-bottom: 6px;
+  }
+  .vrow:last-child { margin-bottom: 0; }
+  .vrow .lab {
+    color: var(--muted);
+    min-width: 56px;
+    font-size: 11.5px;
+    padding-top: 1px;
+  }
+  .vrow .val {
+    flex: 1; font-weight: 500; color: var(--ink);
+    line-height: 1.4;
+  }
+  .route-arrow { color: var(--muted-2); margin: 0 4px; }
+  .v-bottom-meta {
+    margin-top: 11px;
+    padding-top: 11px;
+    border-top: 1px solid var(--line-2);
+    font-size: 11px;
+    color: var(--muted);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .v-bottom-meta svg { width: 12px; height: 12px; }
+
+  /* ============ ORDERS QUEUE ============ */
+  .orders-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .orders-toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--line);
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .o-tools { display: flex; gap: 8px; align-items: center; }
+  .o-tools .pill-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 11px;
+    font-size: 12px; font-weight: 500;
+    color: var(--ink-2);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .o-tools .pill-btn:hover { border-color: var(--ink-2); color: var(--ink); }
+  .o-tools .pill-btn svg { width: 13px; height: 13px; }
+
+  .orders-head {
+    display: grid;
+    grid-template-columns: 96px 1fr 1.3fr 1.4fr 132px;
+    padding: 12px 20px;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--line);
+    gap: 16px;
+  }
+  .orders-head > div {
+    font-size: 10.5px; letter-spacing: 1.4px;
+    color: var(--muted); font-weight: 600;
+    text-transform: uppercase;
+  }
+  .orders-head > div.right { text-align: right; }
+
+  .order-row {
+    display: grid;
+    grid-template-columns: 96px 1fr 1.3fr 1.4fr 132px;
+    padding: 16px 20px;
+    gap: 16px;
+    align-items: center;
+    border-bottom: 1px solid var(--line-2);
+    transition: background 120ms;
+  }
+  .order-row:hover { background: var(--surface-2); }
+  .order-row:last-child { border-bottom: none; }
+
+  .o-date {
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .o-date .day {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px; font-weight: 700;
+  }
+  .o-date .lbl {
+    font-size: 10px; letter-spacing: 1px;
+    color: var(--muted);
+    font-weight: 600; text-transform: uppercase;
+  }
+  .o-date.urgent .day { color: var(--amber); }
+  .o-date.urgent .lbl { color: var(--amber); }
+
+  .o-route {
+    display: flex; align-items: center; gap: 8px;
+    font-weight: 600; font-size: 13.5px;
+  }
+  .o-route .from, .o-route .to {
+    padding: 3px 10px;
+    background: var(--green-50);
+    color: var(--green-800);
+    border-radius: 99px;
+    font-size: 12px; font-weight: 600;
+    white-space: nowrap;
+  }
+  .o-route .arr {
+    color: var(--muted-2);
+    flex-shrink: 0;
+  }
+  .o-route .arr svg { width: 14px; height: 14px; display: block; }
+
+  .o-customer {
+    display: flex; align-items: center; gap: 10px;
+    min-width: 0;
+  }
+  .cust-icon {
+    width: 32px; height: 32px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    display: grid; place-items: center;
+    color: var(--ink-2);
+    flex-shrink: 0;
+  }
+  .cust-icon svg { width: 15px; height: 15px; }
+  .o-customer .info { min-width: 0; }
+  .o-customer .name {
+    font-weight: 600; font-size: 13.5px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .o-customer .meta {
+    font-size: 11.5px; color: var(--muted);
+  }
+
+  .o-assign {
+    display: flex; align-items: center; gap: 8px;
+    min-width: 0;
+  }
+  .assign-card {
+    display: flex; align-items: center; gap: 9px;
+    padding: 7px 10px;
+    background: var(--green-50);
+    border: 1px solid #BFE9CE;
+    border-radius: 9px;
+    min-width: 0; flex: 1;
+  }
+  .assign-card .ap {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700; font-size: 11px;
+    background: var(--ink); color: #fff;
+    padding: 2px 6px; border-radius: 4px;
+    flex-shrink: 0;
+  }
+  .assign-card .ai {
+    font-size: 12px; line-height: 1.25; min-width: 0;
+    flex: 1;
+  }
+  .assign-card .dn {
+    font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .assign-card .lb {
+    font-size: 10px; letter-spacing: 0.8px;
+    color: var(--green-700); font-weight: 600;
+    text-transform: uppercase;
+  }
+  .swap-btn {
+    width: 30px; height: 30px;
+    display: grid; place-items: center;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--muted);
+    transition: all 120ms;
+    flex-shrink: 0;
+  }
+  .swap-btn:hover { color: var(--ink); border-color: var(--ink-2); }
+  .swap-btn svg { width: 13px; height: 13px; }
+
+  .o-actions {
+    display: flex; justify-content: flex-end;
+  }
+  .dispatch-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 14px;
+    background: var(--ink);
+    color: #fff;
+    font-size: 12.5px; font-weight: 600;
+    border-radius: 9px;
+    cursor: pointer;
+    transition: all 120ms;
+    font-family: inherit;
+    border: none;
+    white-space: nowrap;
+  }
+  .dispatch-btn:hover { background: var(--green-800); transform: translateY(-1px); }
+  .dispatch-btn svg { width: 12px; height: 12px; }
+
+  .urgent-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; letter-spacing: 0.8px;
+    background: #FEF3C7; color: var(--amber);
+    padding: 2px 7px; border-radius: 99px;
+    font-weight: 700; text-transform: uppercase;
+    margin-top: 4px;
+  }
+  .urgent-badge svg { width: 10px; height: 10px; }
+
+  .orders-foot {
+    padding: 14px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface-2);
+    border-top: 1px solid var(--line);
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .orders-foot a {
+    color: var(--green-700);
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .orders-foot a:hover { color: var(--green-800); }
+
+  /* Responsive niceties */
+  @media (max-width: 1100px) {
+    .metrics { grid-template-columns: 1fr 1fr; }
+    .orders-head, .order-row {
+      grid-template-columns: 80px 1fr 1fr 130px;
+    }
+    .orders-head .col-assign, .order-row .o-assign { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ============ SIDEBAR (kept) ============ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>
+      </div>
+      <div>
+        <div class="brand-name">TingTing</div>
+        <div class="brand-sub">LOGISTICS SYSTEM</div>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label">VẬN HÀNH</div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Tổng quan
+      </div>
+      <div class="nav-item active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+        Phân xe
+        <span class="badge">9</span>
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>
+        Sổ chuyến đi
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Kỷ luật
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label">TÀI CHÍNH</div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+        Báo cáo lãi lỗ
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Phân chia lợi nhuận
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Công nợ phải thu
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label">DANH MỤC</div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Khách hàng
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Tuyến đường
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Cấu hình
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>
+        Người dùng
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        Nhật ký hệ thống
+      </div>
+    </div>
+
+    <div class="sidebar-foot">
+      <div class="user-chip">
+        <div class="avatar">QL</div>
+        <div class="user-info">
+          <div class="name">Quản lý</div>
+          <div class="role">giamdoc@nepo.vn</div>
+        </div>
+        <div class="logout">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main class="main">
+
+    <!-- Top bar -->
+    <div class="topbar">
+      <button class="icon-btn" aria-label="Menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="crumbs">
+        <span class="crumb-mute">NEPO</span>
+        <span class="crumb-sep">›</span>
+        <span class="crumb-curr">Điều vận & Phân xe</span>
+      </div>
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input placeholder="Tìm chuyến đi, khách hàng, xe…" />
+        <span class="kbd">⌘ K</span>
+      </div>
+      <div class="date-chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span class="d-label">Tháng 5</span>
+        <span class="d-val">26/5/2026</span>
+      </div>
+      <button class="icon-btn" aria-label="Trợ giúp">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      </button>
+      <button class="icon-btn" aria-label="Thông báo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span class="count">5</span>
+      </button>
+    </div>
+
+    <div class="content">
+
+      <!-- ============ HERO ============ -->
+      <section class="hero">
+        <div class="hero-top">
+          <div class="hero-title-block">
+            <div class="hero-eyebrow">Phiên điều vận đang mở</div>
+            <h1 class="hero-h1">Điều vận hôm nay</h1>
+            <div class="hero-sub">Thứ Ba · 26 tháng 5, 2026 · 9 đơn hàng chờ phân xe · cập nhật 2 phút trước</div>
+          </div>
+          <div class="hero-actions">
+            <button class="btn btn-ghost-dark">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
+              Xuất báo cáo
+            </button>
+            <button class="btn btn-primary">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Tạo chuyến mới
+            </button>
+          </div>
+        </div>
+
+        <div class="metrics">
+          <div class="metric featured">
+            <div class="metric-label">Tỉ lệ vận dụng</div>
+            <div class="metric-value">75<span class="metric-unit">%</span></div>
+            <div class="utilization-bar"><div class="utilization-fill"></div></div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Tổng đội xe</div>
+            <div class="metric-value mono">12</div>
+            <div class="metric-delta delta-flat">— so với hôm qua</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Đang chạy</div>
+            <div class="metric-value mono">5</div>
+            <div class="metric-delta delta-up">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px"><polyline points="18 15 12 9 6 15"/></svg>
+              +2 chuyến
+            </div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Sẵn sàng</div>
+            <div class="metric-value mono">4</div>
+            <div class="metric-delta delta-up">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px"><polyline points="18 15 12 9 6 15"/></svg>
+              +1 xe
+            </div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Cần lưu ý</div>
+            <div class="metric-value mono">3</div>
+            <div class="metric-delta delta-down">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px"><polyline points="6 9 12 15 18 9"/></svg>
+              1 bảo dưỡng · 2 chờ giao
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ FLEET ============ -->
+      <div class="section-head">
+        <div class="section-title">
+          <h2>Trạng thái đội xe</h2>
+          <span class="count">12 xe</span>
+        </div>
+        <div class="filter-tabs">
+          <button class="tab active">Tất cả <span class="tc">12</span></button>
+          <button class="tab">Đang chạy <span class="tc">5</span></button>
+          <button class="tab">Sẵn sàng <span class="tc">4</span></button>
+          <button class="tab">Chưa giao tài xế <span class="tc">2</span></button>
+          <button class="tab">Bảo dưỡng <span class="tc">1</span></button>
+        </div>
+      </div>
+
+      <div class="fleet-grid">
+
+        <!-- Running -->
+        <div class="vcard">
+          <div class="vcard-top">
+            <span class="plate mono">30A-12345</span>
+            <span class="status-pill pill-running"><span class="sd"></span>Đang chạy</span>
+          </div>
+          <div class="v-driver-row">
+            <div class="driver-avatar da-1">LT</div>
+            <div>
+              <div class="driver-name">Lê Văn Tài</div>
+              <div class="driver-meta">Tài xế chính · 4,8★</div>
+            </div>
+          </div>
+          <div class="v-body">
+            <div class="vrow">
+              <span class="lab">Tuyến</span>
+              <span class="val">Hà Nội <span class="route-arrow">→</span> Hải Phòng</span>
+            </div>
+            <div class="vrow">
+              <span class="lab">Khách</span>
+              <span class="val">Công ty CP Vận tải ABC</span>
+            </div>
+          </div>
+          <div class="v-bottom-meta">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Khởi hành 17/2/2026 · ETA 2h 15ph
+          </div>
+        </div>
+
+        <!-- Ready, no driver -->
+        <div class="vcard">
+          <div class="vcard-top">
+            <span class="plate mono">30A-67890</span>
+            <span class="status-pill pill-ready"><span class="sd"></span>Sẵn sàng</span>
+          </div>
+          <div class="v-driver-row">
+            <div class="no-driver">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+              Chưa giao tài xế
+            </div>
+          </div>
+          <div class="v-body">
+            <div class="vrow">
+              <span class="lab">Bãi đỗ</span>
+              <span class="val">Long Biên, Hà Nội</span>
+            </div>
+            <div class="vrow">
+              <span class="lab">Trạng thái</span>
+              <span class="val">Đỗ tại bãi, chờ lệnh xuất phát</span>
+            </div>
+          </div>
+          <div class="v-bottom-meta">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            Xe có thể nhận lệnh điều vận
+          </div>
+        </div>
+
+        <!-- Running -->
+        <div class="vcard">
+          <div class="vcard-top">
+            <span class="plate mono">29C-11111</span>
+            <span class="status-pill pill-running"><span class="sd"></span>Đang chạy</span>
+          </div>
+          <div class="v-driver-row">
+            <div class="driver-avatar da-2">HN</div>
+            <div>
+              <div class="driver-name">Hoàng Nam</div>
+              <div class="driver-meta">Tài xế chính · 4,6★</div>
+            </div>
+          </div>
+          <div class="v-body">
+            <div class="vrow">
+              <span class="lab">Tuyến</span>
+              <span class="val">Hà Nội <span class="route-arrow">→</span> Mộc Châu</span>
+            </div>
+            <div class="vrow">
+              <span class="lab">Khách</span>
+              <span class="val">Công ty TNHH Logistics XYZ</span>
+            </div>
+          </div>
+          <div class="v-bottom-meta">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Khởi hành 18/2/2026 · ETA 4h 30ph
+          </div>
+        </div>
+
+        <!-- Ready, no driver -->
+        <div class="vcard">
+          <div class="vcard-top">
+            <span class="plate mono">29H-98765</span>
+            <span class="status-pill pill-ready"><span class="sd"></span>Sẵn sàng</span>
+          </div>
+          <div class="v-driver-row">
+            <div class="no-driver">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+              Chưa giao tài xế
+            </div>
+          </div>
+          <div class="v-body">
+            <div class="vrow">
+              <span class="lab">Bãi đỗ</span>
+              <span class="val">Long Biên, Hà Nội</span>
+            </div>
+            <div class="vrow">
+              <span class="lab">Trạng thái</span>
+              <span class="val">Đỗ tại bãi, chờ lệnh xuất phát</span>
+            </div>
+          </div>
+          <div class="v-bottom-meta">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            Xe có thể nhận lệnh điều vận
+          </div>
+        </div>
+
+        <!-- Maintenance -->
+        <div class="vcard">
+          <div class="vcard-top">
+            <span class="plate mono maint">30K-54321</span>
+            <span class="status-pill pill-maint"><span class="sd"></span>Bảo dưỡng</span>
+          </div>
+          <div class="v-driver-row">
+            <div class="no-driver">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+              Chưa có tài xế
+            </div>
+          </div>
+          <div class="v-body">
+            <div class="vrow">
+              <span class="lab">Trạng thái</span>
+              <span class="val">Đang sửa chữa / bảo dưỡng định kỳ</span>
+            </div>
+            <div class="vrow">
+              <span class="lab">Không khả dụng điều vận lúc này</span>
+            </div>
+          </div>
+          <div class="v-bottom-meta">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Dự kiến hoàn thành 28/5/2026
+          </div>
+        </div>
+
+        <!-- Ready, no driver -->
+        <div class="vcard">
+          <div class="vcard-top">
+            <span class="plate mono">29C-24680</span>
+            <span class="status-pill pill-ready"><span class="sd"></span>Sẵn sàng</span>
+          </div>
+          <div class="v-driver-row">
+            <div class="no-driver">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+              Chưa giao tài xế
+            </div>
+          </div>
+          <div class="v-body">
+            <div class="vrow">
+              <span class="lab">Bãi đỗ</span>
+              <span class="val">Long Biên, Hà Nội</span>
+            </div>
+            <div class="vrow">
+              <span class="lab">Trạng thái</span>
+              <span class="val">Đỗ tại bãi, chờ lệnh xuất phát</span>
+            </div>
+          </div>
+          <div class="v-bottom-meta">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            Đã đề xuất cho đơn Vinh Phát Trading
+          </div>
+        </div>
+
+        <!-- Ready, no driver -->
+        <div class="vcard">
+          <div class="vcard-top">
+            <span class="plate mono">30H-13579</span>
+            <span class="status-pill pill-ready"><span class="sd"></span>Sẵn sàng</span>
+          </div>
+          <div class="v-driver-row">
+            <div class="no-driver">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+              Chưa giao tài xế
+            </div>
+          </div>
+          <div class="v-body">
+            <div class="vrow">
+              <span class="lab">Bãi đỗ</span>
+              <span class="val">Long Biên, Hà Nội</span>
+            </div>
+            <div class="vrow">
+              <span class="lab">Trạng thái</span>
+              <span class="val">Đỗ tại bãi, chờ lệnh xuất phát</span>
+            </div>
+          </div>
+          <div class="v-bottom-meta">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            Xe có thể nhận lệnh điều vận
+          </div>
+        </div>
+
+        <!-- Running -->
+        <div class="vcard">
+          <div class="vcard-top">
+            <span class="plate mono">29F-22468</span>
+            <span class="status-pill pill-running"><span class="sd"></span>Đang chạy</span>
+          </div>
+          <div class="v-driver-row">
+            <div class="driver-avatar da-3">TM</div>
+            <div>
+              <div class="driver-name">Trần Minh</div>
+              <div class="driver-meta">Tài xế chính · 4,9★</div>
+            </div>
+          </div>
+          <div class="v-body">
+            <div class="vrow">
+              <span class="lab">Tuyến</span>
+              <span class="val">Hà Nội <span class="route-arrow">→</span> Lào Cai</span>
+            </div>
+            <div class="vrow">
+              <span class="lab">Khách</span>
+              <span class="val">Sao Việt Logistics</span>
+            </div>
+          </div>
+          <div class="v-bottom-meta">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Khởi hành 19/2/2026 · ETA 5h 10ph
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ ORDERS ============ -->
+      <div class="section-head">
+        <div class="section-title">
+          <h2>Đơn hàng cần điều vận</h2>
+          <span class="count">9 đơn</span>
+        </div>
+      </div>
+
+      <div class="orders-card">
+        <div class="orders-toolbar">
+          <div class="o-tools">
+            <button class="pill-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+              Lọc
+            </button>
+            <button class="pill-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="10" y1="18" x2="14" y2="18"/></svg>
+              Sắp xếp: Ngày xuất phát
+            </button>
+            <button class="pill-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Tự động đề xuất xe
+            </button>
+          </div>
+          <div class="o-tools">
+            <button class="pill-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>
+              Xuất CSV
+            </button>
+          </div>
+        </div>
+
+        <div class="orders-head">
+          <div>Ngày</div>
+          <div>Tuyến</div>
+          <div>Khách hàng</div>
+          <div class="col-assign">Xe & Tài xế đề xuất</div>
+          <div class="right">Thao tác</div>
+        </div>
+
+        <!-- Order 1 -->
+        <div class="order-row">
+          <div class="o-date urgent">
+            <span class="day">22/2</span>
+            <span class="lbl">Khởi hành</span>
+          </div>
+          <div class="o-route">
+            <span class="from">Hà Nội</span>
+            <span class="arr">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </span>
+            <span class="to">Sơn La</span>
+          </div>
+          <div class="o-customer">
+            <div class="cust-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
+            </div>
+            <div class="info">
+              <div class="name">Vinh Phát Trading</div>
+              <div class="meta">Container 40' · 18 tấn</div>
+            </div>
+          </div>
+          <div class="o-assign">
+            <div class="assign-card">
+              <span class="ap mono">29C-24680</span>
+              <div class="ai">
+                <div class="dn">Phạm Đức Minh</div>
+                <div class="lb">Đề xuất AI · 92% phù hợp</div>
+              </div>
+            </div>
+            <button class="swap-btn" title="Đổi xe / tài xế">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+            </button>
+          </div>
+          <div class="o-actions">
+            <button class="dispatch-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              Khởi hành
+            </button>
+          </div>
+        </div>
+
+        <!-- Order 2 -->
+        <div class="order-row">
+          <div class="o-date">
+            <span class="day">21/2</span>
+            <span class="lbl">Khởi hành</span>
+          </div>
+          <div class="o-route">
+            <span class="from">Hà Nội</span>
+            <span class="arr">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </span>
+            <span class="to">Quảng Ninh</span>
+          </div>
+          <div class="o-customer">
+            <div class="cust-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
+            </div>
+            <div class="info">
+              <div class="name">Đông Á Logistics</div>
+              <div class="meta">Container 20' · 12 tấn</div>
+            </div>
+          </div>
+          <div class="o-assign">
+            <div class="assign-card">
+              <span class="ap mono">29H-98765</span>
+              <div class="ai">
+                <div class="dn">Nguyễn Văn Hùng</div>
+                <div class="lb">Đề xuất AI · 88% phù hợp</div>
+              </div>
+            </div>
+            <button class="swap-btn" title="Đổi xe / tài xế">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+            </button>
+          </div>
+          <div class="o-actions">
+            <button class="dispatch-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              Khởi hành
+            </button>
+          </div>
+        </div>
+
+        <!-- Order 3 -->
+        <div class="order-row">
+          <div class="o-date">
+            <span class="day">21/2</span>
+            <span class="lbl">Khởi hành</span>
+          </div>
+          <div class="o-route">
+            <span class="from">Hà Nội</span>
+            <span class="arr">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </span>
+            <span class="to">Thái Nguyên</span>
+          </div>
+          <div class="o-customer">
+            <div class="cust-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
+            </div>
+            <div class="info">
+              <div class="name">Công ty CP Vận tải ABC</div>
+              <div class="meta">Container 40' · 22 tấn</div>
+            </div>
+          </div>
+          <div class="o-assign">
+            <div class="assign-card">
+              <span class="ap mono">29C-11111</span>
+              <div class="ai">
+                <div class="dn">Hoàng Nam</div>
+                <div class="lb">Đề xuất AI · 95% phù hợp</div>
+              </div>
+            </div>
+            <button class="swap-btn" title="Đổi xe / tài xế">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+            </button>
+          </div>
+          <div class="o-actions">
+            <button class="dispatch-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              Khởi hành
+            </button>
+          </div>
+        </div>
+
+        <!-- Order 4 -->
+        <div class="order-row">
+          <div class="o-date">
+            <span class="day">23/2</span>
+            <span class="lbl">Khởi hành</span>
+          </div>
+          <div class="o-route">
+            <span class="from">Hà Nội</span>
+            <span class="arr">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </span>
+            <span class="to">Hải Phòng</span>
+          </div>
+          <div class="o-customer">
+            <div class="cust-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
+            </div>
+            <div class="info">
+              <div class="name">Hà Thành Trading</div>
+              <div class="meta">Container 20' · 10 tấn</div>
+            </div>
+          </div>
+          <div class="o-assign">
+            <div class="assign-card">
+              <span class="ap mono">30H-13579</span>
+              <div class="ai">
+                <div class="dn">Lê Quang Hải</div>
+                <div class="lb">Đề xuất AI · 90% phù hợp</div>
+              </div>
+            </div>
+            <button class="swap-btn" title="Đổi xe / tài xế">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+            </button>
+          </div>
+          <div class="o-actions">
+            <button class="dispatch-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              Khởi hành
+            </button>
+          </div>
+        </div>
+
+        <div class="orders-foot">
+          <span>Hiển thị 4 / 9 đơn hàng</span>
+          <a href="#">Xem tất cả · Lịch sử điều vận →</a>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+</div>
+</body>
+</html>

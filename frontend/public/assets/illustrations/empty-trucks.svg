@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 200" fill="none">
+  <defs>
+    <linearGradient id="etk-ground" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F4F4F5"/>
+      <stop offset="100%" stop-color="#E4E4E7"/>
+    </linearGradient>
+    <linearGradient id="etk-truck" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#F4F4F5"/>
+    </linearGradient>
+    <linearGradient id="etk-cab" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+    <linearGradient id="etk-bar-empty" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#E4E4E7"/>
+      <stop offset="100%" stop-color="#F4F4F5"/>
+    </linearGradient>
+    <filter id="etk-shadow" x="-15%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#09090B" flood-opacity="0.07"/>
+    </filter>
+  </defs>
+  <!-- Shadow under truck -->
+  <ellipse cx="108" cy="158" rx="68" ry="6" fill="#09090B" opacity="0.06"/>
+  <!-- Ground -->
+  <rect x="0" y="156" width="240" height="44" fill="url(#etk-ground)"/>
+  <line x1="0" y1="156" x2="240" y2="156" stroke="#E4E4E7" stroke-width="1"/>
+  <!-- Empty profit bars on right (greyed out) -->
+  <g opacity="0.55">
+    <rect x="168" y="58" width="52" height="10" rx="5" fill="url(#etk-bar-empty)"/>
+    <rect x="168" y="76" width="52" height="10" rx="5" fill="url(#etk-bar-empty)"/>
+    <rect x="168" y="94" width="52" height="10" rx="5" fill="url(#etk-bar-empty)"/>
+    <rect x="168" y="112" width="52" height="10" rx="5" fill="url(#etk-bar-empty)"/>
+    <!-- Bar labels -->
+    <rect x="154" y="60" width="10" height="6" rx="3" fill="#E4E4E7"/>
+    <rect x="154" y="78" width="10" height="6" rx="3" fill="#E4E4E7"/>
+    <rect x="154" y="96" width="10" height="6" rx="3" fill="#E4E4E7"/>
+    <rect x="154" y="114" width="10" height="6" rx="3" fill="#E4E4E7"/>
+  </g>
+  <!-- Dashed chart border -->
+  <rect x="148" y="48" width="78" height="88" rx="8" stroke="#E4E4E7" stroke-width="1.2" stroke-dasharray="4 3" fill="none"/>
+  <!-- Truck body -->
+  <rect x="30" y="100" width="84" height="56" rx="6" fill="url(#etk-truck)" stroke="#E4E4E7" stroke-width="1.5" filter="url(#etk-shadow)"/>
+  <!-- Cab -->
+  <path d="M114 110 L138 110 Q146 110 146 118 L146 148 Q146 152 142 152 L114 152 Z" fill="url(#etk-cab)"/>
+  <!-- Cab window -->
+  <rect x="118" y="114" width="20" height="14" rx="3" fill="#ECFDF5" stroke="#FFFFFF" stroke-width="1"/>
+  <line x1="114" y1="128" x2="146" y2="128" stroke="#047857" stroke-width="0.9" opacity="0.4"/>
+  <!-- Cargo door -->
+  <line x1="72" y1="102" x2="72" y2="154" stroke="#E4E4E7" stroke-width="1.2"/>
+  <!-- Wheels -->
+  <circle cx="56" cy="156" r="13" fill="#3F3F46" stroke="#27272A" stroke-width="1"/>
+  <circle cx="56" cy="156" r="6" fill="#71717A"/>
+  <circle cx="56" cy="156" r="2.5" fill="#A1A1AA"/>
+  <circle cx="100" cy="156" r="13" fill="#3F3F46" stroke="#27272A" stroke-width="1"/>
+  <circle cx="100" cy="156" r="6" fill="#71717A"/>
+  <circle cx="100" cy="156" r="2.5" fill="#A1A1AA"/>
+  <circle cx="134" cy="156" r="13" fill="#3F3F46" stroke="#27272A" stroke-width="1"/>
+  <circle cx="134" cy="156" r="6" fill="#71717A"/>
+  <circle cx="134" cy="156" r="2.5" fill="#A1A1AA"/>
+  <!-- Empty cargo area suggestion -->
+  <rect x="36" y="108" width="72" height="40" rx="3" fill="#F9FAFB" stroke="#E4E4E7" stroke-width="1" stroke-dasharray="4 3"/>
+  <text x="72" y="132" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="500" fill="#A1A1AA">0 ₫</text>
+</svg>

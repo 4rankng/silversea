@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 200" fill="none">
+  <defs>
+    <linearGradient id="ep-paper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#F9FAFB"/>
+    </linearGradient>
+    <linearGradient id="ep-stamp" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+    <filter id="ep-shadow" x="-15%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#09090B" flood-opacity="0.07"/>
+    </filter>
+  </defs>
+  <!-- Stack of bills behind -->
+  <rect x="74" y="42" width="100" height="128" rx="7" fill="#E5E7EB" transform="rotate(5 124 106)"/>
+  <rect x="74" y="42" width="100" height="128" rx="7" fill="#F3F4F6" transform="rotate(2 124 106)"/>
+  <!-- Main invoice document -->
+  <rect x="70" y="36" width="100" height="132" rx="8" fill="url(#ep-paper)" filter="url(#ep-shadow)"/>
+  <!-- Folder tab at top -->
+  <path d="M70 36 L90 36 L96 28 L170 28 L170 36" fill="#F3F4F6" stroke="#E4E4E7" stroke-width="1"/>
+  <!-- Header bar -->
+  <rect x="70" y="36" width="100" height="24" rx="8" fill="#F9FAFB"/>
+  <rect x="70" y="48" width="100" height="12" fill="#F9FAFB"/>
+  <!-- Company name lines -->
+  <rect x="80" y="44" width="52" height="6" rx="3" fill="#E4E4E7"/>
+  <rect x="138" y="44" width="20" height="6" rx="3" fill="#D1FAE5"/>
+  <!-- Divider -->
+  <line x1="78" y1="66" x2="162" y2="66" stroke="#F3F4F6" stroke-width="1.5"/>
+  <!-- Invoice rows: supplier + amount -->
+  <rect x="78" y="74" width="48" height="5" rx="2.5" fill="#F3F4F6"/>
+  <rect x="138" y="74" width="24" height="5" rx="2.5" fill="#F3F4F6"/>
+  <rect x="78" y="87" width="36" height="5" rx="2.5" fill="#F3F4F6"/>
+  <rect x="138" y="87" width="24" height="5" rx="2.5" fill="#F3F4F6"/>
+  <rect x="78" y="100" width="52" height="5" rx="2.5" fill="#F3F4F6"/>
+  <rect x="138" y="100" width="24" height="5" rx="2.5" fill="#F3F4F6"/>
+  <rect x="78" y="113" width="40" height="5" rx="2.5" fill="#F3F4F6"/>
+  <rect x="138" y="113" width="24" height="5" rx="2.5" fill="#F3F4F6"/>
+  <!-- Divider -->
+  <line x1="78" y1="126" x2="162" y2="126" stroke="#E4E4E7" stroke-width="1.2"/>
+  <!-- Total row -->
+  <rect x="78" y="134" width="32" height="7" rx="3.5" fill="#E4E4E7"/>
+  <rect x="130" y="134" width="32" height="7" rx="3.5" fill="#D1FAE5"/>
+  <!-- "PAID" stamp rotated -->
+  <g transform="translate(130 90) rotate(-18)">
+    <rect x="-24" y="-13" width="48" height="26" rx="5" fill="none" stroke="url(#ep-stamp)" stroke-width="2.5"/>
+    <text x="0" y="6" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="800" fill="#059669" opacity="0.55" letter-spacing="2">ĐÃ TT</text>
+  </g>
+  <!-- Pen -->
+  <g transform="translate(178 46) rotate(30)">
+    <rect x="-3" y="-28" width="6" height="42" rx="3" fill="#059669"/>
+    <polygon points="-3,14 3,14 0,22" fill="#047857"/>
+    <rect x="-3" y="-30" width="6" height="6" rx="1" fill="#6EE7B7"/>
+  </g>
+</svg>

@@ -1,0 +1,12 @@
+/* ── Responsive overrides (from responsive.css decomposition) ── */
+@media (max-width: 640px) {
+  /* ── Driver portal ── */
+  .driver-bottom-nav { padding-bottom: env(safe-area-inset-bottom); }
+
+  /* Prevent KPI text truncation on mobile for driver portal */
+  .is-driver .kpi__value {
+    white-space: normal !important;
+    font-size: clamp(14px, 4.5vw, 18px) !important;
+    word-break: break-all;
+  }
+} /* end 640px */

@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEPO · Lệnh vận chuyển</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --green-900:#003D1F;
+    --green-700:#005A2D;
+    --green-600:#0A6E3A;
+    --green-100:#E3F2E9;
+    --green-050:#F1F8F4;
+    --ink-900:#10211A;
+    --ink-700:#374842;
+    --ink-500:#647069;
+    --ink-400:#8A958F;
+    --line:#E8ECEA;
+    --line-strong:#D7DEDB;
+    --paper:#FFFFFF;
+    --canvas:#F5F7F6;
+    --amber-700:#9A6400;
+    --amber-100:#FBEFD3;
+    --blue-700:#1F5FB0;
+    --blue-100:#E0ECFA;
+    --red-700:#B23030;
+    --red-100:#FBE3E3;
+    --slate-700:#4A5650;
+    --slate-100:#EDF0EE;
+    --radius:12px;
+    --radius-sm:8px;
+    --shadow-sm:0 1px 2px rgba(16,33,26,.05);
+    --shadow-md:0 4px 16px rgba(16,33,26,.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:'Plus Jakarta Sans',sans-serif;
+    background:var(--canvas);
+    color:var(--ink-900);
+    -webkit-font-smoothing:antialiased;
+    font-size:14px;
+    line-height:1.45;
+  }
+  .mono{font-family:'JetBrains Mono',monospace;font-feature-settings:"tnum";}
+
+  /* ---------- Layout shell ---------- */
+  .app{display:flex;min-height:100vh}
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{
+    width:248px;flex-shrink:0;
+    background:var(--green-900);
+    color:#fff;
+    display:flex;flex-direction:column;
+    position:sticky;top:0;height:100vh;
+  }
+  .brand{display:flex;align-items:center;gap:12px;padding:22px 20px 24px}
+  .brand-mark{
+    width:40px;height:40px;border-radius:10px;
+    background:linear-gradient(135deg,#0A6E3A,#005A2D);
+    display:flex;align-items:center;justify-content:center;font-size:20px;
+    border:1px solid rgba(255,255,255,.14);
+  }
+  .brand-name{font-weight:800;font-size:17px;letter-spacing:.5px;line-height:1}
+  .brand-sub{font-size:9.5px;letter-spacing:2.5px;color:rgba(255,255,255,.55);margin-top:4px}
+  .nav-group{padding:8px 12px}
+  .nav-label{font-size:10px;letter-spacing:2px;color:rgba(255,255,255,.4);padding:14px 12px 8px;font-weight:700}
+  .nav-item{
+    display:flex;align-items:center;gap:12px;
+    padding:11px 12px;border-radius:10px;
+    color:rgba(255,255,255,.78);
+    font-weight:500;cursor:pointer;font-size:14px;
+    transition:background .15s,color .15s;
+    position:relative;
+  }
+  .nav-item:hover{background:rgba(255,255,255,.07);color:#fff}
+  .nav-item.active{background:rgba(255,255,255,.12);color:#fff;font-weight:600}
+  .nav-item svg{width:18px;height:18px;flex-shrink:0;opacity:.9}
+  .nav-item .chev{margin-left:auto;opacity:.5}
+  .nav-spacer{flex:1}
+  .user-card{
+    margin:12px;padding:12px;border-radius:12px;
+    background:rgba(255,255,255,.06);
+    display:flex;align-items:center;gap:11px;cursor:pointer;
+    border:1px solid rgba(255,255,255,.08);
+  }
+  .avatar{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center}
+  .user-name{font-weight:700;font-size:13.5px}
+  .user-role{font-size:11px;color:rgba(255,255,255,.55)}
+
+  /* ---------- Main ---------- */
+  .main{flex:1;min-width:0;display:flex;flex-direction:column}
+
+  /* Topbar */
+  .topbar{
+    height:64px;background:var(--paper);
+    border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:18px;
+    padding:0 24px;position:sticky;top:0;z-index:20;
+  }
+  .crumbs{display:flex;align-items:center;gap:9px;font-weight:500;color:var(--ink-500);white-space:nowrap}
+  .crumbs .sep{color:var(--ink-400)}
+  .crumbs .here{color:var(--ink-900);font-weight:700}
+  .topbar-search{
+    flex:1;max-width:560px;position:relative;
+  }
+  .topbar-search input{
+    width:100%;height:40px;border:1px solid var(--line-strong);
+    border-radius:10px;padding:0 44px 0 42px;font-family:inherit;font-size:14px;
+    background:var(--canvas);color:var(--ink-900);
+  }
+  .topbar-search input::placeholder{color:var(--ink-400)}
+  .topbar-search input:focus{outline:none;border-color:var(--green-600);background:#fff;box-shadow:0 0 0 3px var(--green-100)}
+  .topbar-search .ic{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--ink-400)}
+  .topbar-search .kbd{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--ink-400);border:1px solid var(--line-strong);border-radius:6px;padding:2px 6px;background:#fff}
+  .topbar-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+  .date-pill{display:flex;align-items:center;gap:8px;height:38px;padding:0 14px;border:1px solid var(--line-strong);border-radius:10px;font-weight:600;color:var(--ink-700);background:#fff}
+  .date-pill .d2{color:var(--green-700);font-weight:700}
+  .icon-btn{width:38px;height:38px;border-radius:10px;border:1px solid var(--line-strong);background:#fff;display:flex;align-items:center;justify-content:center;color:var(--ink-500);cursor:pointer}
+  .icon-btn:hover{background:var(--canvas);color:var(--ink-900)}
+
+  /* Content */
+  .content{padding:24px;display:flex;flex-direction:column;gap:18px}
+  .page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .page-title{font-size:22px;font-weight:800;letter-spacing:-.3px}
+  .page-sub{color:var(--ink-500);font-weight:500;margin-top:3px}
+  .btn-primary{
+    height:42px;padding:0 18px;border-radius:10px;border:none;
+    background:var(--green-700);color:#fff;font-family:inherit;font-weight:700;font-size:14px;
+    display:flex;align-items:center;gap:8px;cursor:pointer;box-shadow:var(--shadow-sm);
+  }
+  .btn-primary:hover{background:var(--green-600)}
+
+  /* KPI cards (replaces dark panel) */
+  .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
+  .kpi{
+    background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);
+    padding:14px 16px;box-shadow:var(--shadow-sm);
+    display:flex;flex-direction:column;gap:8px;
+  }
+  .kpi-top{display:flex;align-items:center;gap:8px}
+  .dot{width:8px;height:8px;border-radius:50%}
+  .kpi-label{font-size:12px;font-weight:600;color:var(--ink-500)}
+  .kpi-val{font-size:26px;font-weight:800;letter-spacing:-.5px;line-height:1}
+  .kpi-val small{font-size:13px;font-weight:600;color:var(--ink-400)}
+
+  /* Toolbar */
+  .panel{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+  .toolbar{display:flex;align-items:center;gap:12px;padding:14px 16px;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+  .tabs{display:flex;align-items:center;gap:4px;background:var(--canvas);padding:4px;border-radius:10px;border:1px solid var(--line)}
+  .tab{
+    height:32px;padding:0 12px;border-radius:7px;border:none;background:transparent;
+    font-family:inherit;font-weight:600;font-size:13px;color:var(--ink-500);cursor:pointer;
+    display:flex;align-items:center;gap:7px;white-space:nowrap;
+  }
+  .tab:hover{color:var(--ink-900)}
+  .tab.active{background:#fff;color:var(--ink-900);box-shadow:var(--shadow-sm)}
+  .tab .count{font-size:11px;font-weight:700;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--slate-100);color:var(--slate-700);display:flex;align-items:center;justify-content:center}
+  .tab.active.t-run .count{background:var(--green-100);color:var(--green-700)}
+  .tab.active.t-done .count{background:var(--amber-100);color:var(--amber-700)}
+  .tab.active.t-all .count{background:var(--ink-900);color:#fff}
+  .toolbar .spacer{flex:1}
+  .select{
+    height:38px;border:1px solid var(--line-strong);border-radius:9px;background:#fff;
+    padding:0 34px 0 12px;font-family:inherit;font-size:13.5px;font-weight:600;color:var(--ink-700);cursor:pointer;
+    appearance:none;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23647069' stroke-width='2.4' stroke-linecap='round'><path d='M6 9l6 6 6-6'/></svg>");
+    background-repeat:no-repeat;background-position:right 11px center;
+  }
+  .select:focus{outline:none;border-color:var(--green-600);box-shadow:0 0 0 3px var(--green-100)}
+
+  /* ---------- Table ---------- */
+  .table-scroll{overflow-x:auto;border-radius:0 0 var(--radius) var(--radius)}
+  table{width:100%;border-collapse:separate;border-spacing:0;min-width:1180px}
+  thead th{
+    background:var(--green-050);
+    font-size:11px;font-weight:700;letter-spacing:.7px;color:var(--ink-500);text-transform:uppercase;
+    text-align:left;padding:13px 16px;white-space:nowrap;
+    border-bottom:1px solid var(--line);
+    position:sticky;top:0;
+  }
+  th.num,td.num{text-align:right}
+  tbody td{padding:14px 16px;border-bottom:1px solid var(--line);vertical-align:middle;height:64px}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover td{background:var(--green-050)}
+
+  /* sticky checkbox + sticky actions */
+  th.sel,td.sel{position:sticky;left:0;z-index:5;width:48px;padding-left:18px;padding-right:0}
+  thead th.sel{background:var(--green-050)}
+  tbody td.sel{background:var(--paper)}
+  tbody tr:hover td.sel{background:var(--green-050)}
+  th.act,td.act{position:sticky;right:0;z-index:5;width:96px;text-align:center;
+    box-shadow:-8px 0 12px -10px rgba(16,33,26,.18);}
+  thead th.act{background:var(--green-050)}
+  tbody td.act{background:var(--paper)}
+  tbody tr:hover td.act{background:var(--green-050)}
+
+  .cbx{width:18px;height:18px;border:1.6px solid var(--line-strong);border-radius:5px;cursor:pointer;display:block;background:#fff}
+  .cbx:hover{border-color:var(--green-600)}
+
+  /* Trip cell */
+  .trip-code{font-weight:700;font-size:13.5px;color:var(--ink-900);letter-spacing:.2px}
+  .trip-meta{display:flex;align-items:center;gap:8px;margin-top:4px}
+  .trip-date{font-size:12px;color:var(--ink-400);font-weight:500}
+  .trip-cust{font-size:12.5px;color:var(--ink-500);font-weight:500;margin-top:3px;max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  /* Plate chip (light, replaces black pill) */
+  .plate{
+    display:inline-flex;align-items:center;gap:6px;
+    font-family:'JetBrains Mono',monospace;font-weight:600;font-size:13px;
+    color:var(--ink-900);background:#fff;border:1px solid var(--line-strong);
+    border-radius:8px;padding:6px 10px;white-space:nowrap;
+  }
+  .plate::before{content:"";width:6px;height:6px;border-radius:2px;background:var(--green-600)}
+
+  /* Route */
+  .route{display:flex;flex-direction:column;gap:3px;max-width:280px}
+  .route-from{font-size:12px;color:var(--ink-500);font-weight:500;display:flex;align-items:center;gap:6px}
+  .route-to{font-weight:600;font-size:13.5px;color:var(--ink-900);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .arrow{color:var(--green-600)}
+
+  /* Container chip */
+  .cont-type{display:inline-flex;flex-direction:column;gap:3px}
+  .cont-iso{font-family:'JetBrains Mono',monospace;font-weight:600;font-size:12.5px;color:var(--ink-900);background:var(--slate-100);border-radius:6px;padding:3px 8px;display:inline-block;width:fit-content}
+  .cont-trailer{font-size:11px;color:var(--ink-400);font-weight:600;padding-left:1px}
+  .cont-no{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;color:var(--ink-700);letter-spacing:.3px}
+
+  .km-val{font-family:'JetBrains Mono',monospace;font-weight:600;font-size:13.5px;color:var(--ink-900)}
+  .km-unit{font-size:11px;color:var(--ink-400);font-weight:600;margin-left:2px}
+  .money{font-family:'JetBrains Mono',monospace;font-weight:600;font-size:13.5px;color:var(--ink-900)}
+  .money small{font-weight:600;color:var(--ink-400)}
+
+  /* standardized empty / pending */
+  .empty{color:var(--ink-400);font-weight:500;font-size:13px}
+  .pending{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--slate-700);background:var(--slate-100);border-radius:7px;padding:4px 9px;white-space:nowrap}
+
+  /* Status badges */
+  .badge{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;letter-spacing:.3px;padding:5px 11px;border-radius:8px;white-space:nowrap}
+  .badge .bdot{width:7px;height:7px;border-radius:50%}
+  .b-run{background:var(--green-100);color:var(--green-700)}
+  .b-run .bdot{background:var(--green-600)}
+  .b-done{background:var(--amber-100);color:var(--amber-700)}
+  .b-done .bdot{background:#C98A0A}
+  .b-new{background:var(--blue-100);color:var(--blue-700)}
+  .b-new .bdot{background:var(--blue-700)}
+  .b-cancel{background:var(--red-100);color:var(--red-700)}
+  .b-cancel .bdot{background:var(--red-700)}
+
+  /* Actions */
+  .row-actions{display:inline-flex;gap:4px}
+  .row-actions button{width:32px;height:32px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--ink-500);display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .row-actions button:hover{border-color:var(--green-600);color:var(--green-700);background:var(--green-050)}
+
+  /* Footer */
+  .table-foot{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;border-top:1px solid var(--line);flex-wrap:wrap}
+  .foot-info{color:var(--ink-500);font-weight:500;font-size:13px}
+  .foot-info b{color:var(--ink-900);font-weight:700}
+  .pager{display:flex;align-items:center;gap:6px}
+  .pg{width:34px;height:34px;border-radius:8px;border:1px solid var(--line-strong);background:#fff;font-family:inherit;font-weight:600;color:var(--ink-700);cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .pg.active{background:var(--green-700);border-color:var(--green-700);color:#fff}
+  .pg:disabled{opacity:.4;cursor:default}
+  .foot-size{display:flex;align-items:center;gap:8px;color:var(--ink-500);font-weight:500;font-size:13px}
+
+  @media(max-width:1200px){.kpis{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:760px){.sidebar{display:none}.kpis{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">🚛</div>
+      <div>
+        <div class="brand-name">TingTing</div>
+        <div class="brand-sub">LOGISTICS SYSTEM</div>
+      </div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Vận hành</div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        Tổng quan
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M16 8l-2 6-6 2 2-6z"/></svg>
+        Phân xe
+      </div>
+      <div class="nav-item active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 6h13v9H1z"/><path d="M14 9h4l3 3v3h-7z"/><circle cx="6" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>
+        Sổ chuyến đi
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg>
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17v.5"/></svg>
+        Kỷ luật
+      </div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Tài chính</div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.2a2.5 2 0 0 1 5 0c0 2.5-5 1.5-5 4a2.5 2 0 0 0 5 0"/></svg>
+        Công nợ
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg>
+      </div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Danh mục</div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        Quản lý chung
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg>
+      </div>
+    </div>
+    <div class="nav-spacer"></div>
+    <div class="user-card">
+      <div class="avatar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+      </div>
+      <div>
+        <div class="user-name">Nguyễn Việt Dũng</div>
+        <div class="user-role">Quản trị viên</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Topbar: single global search -->
+    <header class="topbar">
+      <div class="crumbs">
+        <span>NEPO</span><span class="sep">›</span><span class="here">Lệnh vận chuyển</span>
+      </div>
+      <div class="topbar-search">
+        <svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+        <input type="text" placeholder="Tìm mã chuyến, khách hàng, biển số, số cont…">
+        <span class="kbd">⌘ K</span>
+      </div>
+      <div class="topbar-right">
+        <div class="date-pill">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
+          Tháng 6 · <span class="d2">01/06/2026</span>
+        </div>
+        <button class="icon-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8v.5"/></svg></button>
+        <button class="icon-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 21a2 2 0 0 0 4 0"/></svg></button>
+      </div>
+    </header>
+
+    <main class="content">
+      <!-- Page head -->
+      <div class="page-head">
+        <div>
+          <div class="page-title">Lệnh vận chuyển</div>
+          <div class="page-sub">Tháng 6/2026 · bao gồm tất cả trạng thái chuyến</div>
+        </div>
+        <button class="btn-primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>
+          Tạo chuyến mới
+        </button>
+      </div>
+
+      <!-- KPI cards (light, replaces dark panel) -->
+      <div class="kpis">
+        <div class="kpi">
+          <div class="kpi-top"><span class="dot" style="background:var(--ink-900)"></span><span class="kpi-label">Tổng chuyến</span></div>
+          <div class="kpi-val">3</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-top"><span class="dot" style="background:var(--green-600)"></span><span class="kpi-label">Đang chạy</span></div>
+          <div class="kpi-val">2</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-top"><span class="dot" style="background:#C98A0A"></span><span class="kpi-label">Hoàn thành</span></div>
+          <div class="kpi-val">1</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-top"><span class="dot" style="background:var(--blue-700)"></span><span class="kpi-label">Mới tạo</span></div>
+          <div class="kpi-val">0</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-top"><span class="dot" style="background:var(--slate-700)"></span><span class="kpi-label">Đã khóa</span></div>
+          <div class="kpi-val">0</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-top"><span class="dot" style="background:var(--red-700)"></span><span class="kpi-label">Đã hủy</span></div>
+          <div class="kpi-val">0</div>
+        </div>
+      </div>
+
+      <!-- Table panel -->
+      <div class="panel">
+        <!-- Toolbar -->
+        <div class="toolbar">
+          <div class="tabs">
+            <button class="tab t-all active">Tất cả <span class="count">3</span></button>
+            <button class="tab">Mới tạo <span class="count">0</span></button>
+            <button class="tab t-run">Đang chạy <span class="count">2</span></button>
+            <button class="tab t-done">Hoàn thành <span class="count">1</span></button>
+            <button class="tab">Đã khóa <span class="count">0</span></button>
+            <button class="tab">Đã hủy <span class="count">0</span></button>
+          </div>
+          <div class="spacer"></div>
+          <select class="select"><option>Tất cả khách hàng</option></select>
+          <select class="select"><option>Tất cả thời gian</option></select>
+          <select class="select"><option>Tất cả xe</option></select>
+        </div>
+
+        <!-- Table -->
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th class="sel"><span class="cbx"></span></th>
+                <th>Chuyến · Mã</th>
+                <th>Xe</th>
+                <th>Tuyến</th>
+                <th>Loại cont</th>
+                <th>Số cont</th>
+                <th class="num">Km</th>
+                <th class="num">Tiêu hao</th>
+                <th class="num">Tiền đường</th>
+                <th>Trạng thái</th>
+                <th class="act">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Row 1 -->
+              <tr>
+                <td class="sel"><span class="cbx"></span></td>
+                <td>
+                  <div class="trip-code mono">TRP-202605-0003</div>
+                  <div class="trip-meta"><span class="trip-date">31/05/2026</span></div>
+                  <div class="trip-cust" title="Công ty Cổ phần Nitoda">Công ty Cổ phần Nitoda</div>
+                </td>
+                <td><span class="plate">15C-180.99</span></td>
+                <td>
+                  <div class="route">
+                    <div class="route-from">Hải Phòng <span class="arrow">→</span></div>
+                    <div class="route-to" title="Chè Ngọc Thanh, Phù Ninh, Phú Thọ">Chè Ngọc Thanh, Phù Ninh, Phú Thọ</div>
+                  </div>
+                </td>
+                <td><div class="cont-type"><span class="cont-iso">20DC</span><span class="cont-trailer">Rơ-moóc 40FT</span></div></td>
+                <td><span class="cont-no">SEGU3231738</span></td>
+                <td class="num"><span class="km-val">424</span><span class="km-unit">km</span></td>
+                <td class="num"><span class="empty">—</span></td>
+                <td class="num"><span class="pending">Chờ khai báo</span></td>
+                <td><span class="badge b-run"><span class="bdot"></span>Đang chạy</span></td>
+                <td class="act">
+                  <div class="row-actions">
+                    <button title="Chỉnh sửa"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
+                    <button title="Xem chi tiết"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                  </div>
+                </td>
+              </tr>
+              <!-- Row 2 -->
+              <tr>
+                <td class="sel"><span class="cbx"></span></td>
+                <td>
+                  <div class="trip-code mono">TRP-202605-0002</div>
+                  <div class="trip-meta"><span class="trip-date">31/05/2026</span></div>
+                  <div class="trip-cust" title="Công ty TNHH MTV Kho vận Tân Cảng">Công ty TNHH MTV Kho vận Tân Cảng</div>
+                </td>
+                <td><span class="plate">15C-139.82</span></td>
+                <td>
+                  <div class="route">
+                    <div class="route-from">Hải Phòng <span class="arrow">→</span></div>
+                    <div class="route-to" title="KCN Quế Võ, Bắc Ninh">KCN Quế Võ, Bắc Ninh</div>
+                  </div>
+                </td>
+                <td><div class="cont-type"><span class="cont-iso">40HC</span><span class="cont-trailer">Rơ-moóc 40FT</span></div></td>
+                <td><span class="cont-no">VSGU4253820</span></td>
+                <td class="num"><span class="empty">—</span></td>
+                <td class="num"><span class="empty">—</span></td>
+                <td class="num"><span class="money">1.080.000 <small>₫</small></span></td>
+                <td><span class="badge b-done"><span class="bdot"></span>Hoàn thành</span></td>
+                <td class="act">
+                  <div class="row-actions">
+                    <button title="Chỉnh sửa"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
+                    <button title="Xem chi tiết"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                  </div>
+                </td>
+              </tr>
+              <!-- Row 3 -->
+              <tr>
+                <td class="sel"><span class="cbx"></span></td>
+                <td>
+                  <div class="trip-code mono">TRP-202605-0001</div>
+                  <div class="trip-meta"><span class="trip-date">31/05/2026</span></div>
+                  <div class="trip-cust" title="Chi nhánh Tổng Công ty Chè Việt Nam">Chi nhánh Tổng Công ty Chè Việt Nam</div>
+                </td>
+                <td><span class="plate">15H-168.73</span></td>
+                <td>
+                  <div class="route">
+                    <div class="route-from">Hải Phòng <span class="arrow">→</span></div>
+                    <div class="route-to" title="Vinatea Mộc Châu, Mộc Châu">Vinatea Mộc Châu, Mộc Châu</div>
+                  </div>
+                </td>
+                <td><div class="cont-type"><span class="cont-iso">40HC</span><span class="cont-trailer">Rơ-moóc 40FT</span></div></td>
+                <td><span class="cont-no">EGSU6078403</span></td>
+                <td class="num"><span class="empty">—</span></td>
+                <td class="num"><span class="empty">—</span></td>
+                <td class="num"><span class="pending">Chờ khai báo</span></td>
+                <td><span class="badge b-run"><span class="bdot"></span>Đang chạy</span></td>
+                <td class="act">
+                  <div class="row-actions">
+                    <button title="Chỉnh sửa"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
+                    <button title="Xem chi tiết"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Footer -->
+        <div class="table-foot">
+          <div class="foot-info">Hiển thị <b>1–3</b> trong <b>3</b> chuyến</div>
+          <div class="pager">
+            <button class="pg" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg></button>
+            <button class="pg active">1</button>
+            <button class="pg" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg></button>
+          </div>
+          <div class="foot-size">
+            <span>Hiển thị</span>
+            <select class="select" style="height:34px"><option>10</option><option>20</option><option>50</option></select>
+            <span>chuyến / trang</span>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+</body>
+</html>

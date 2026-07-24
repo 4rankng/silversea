@@ -1,0 +1,12 @@
+/* ==========================================================================
+   TripListPage — section barrel
+   Each section lives in ./trip-list/. Do not add rules here; CSS @import must
+   precede all other rules, and cascade order == import order == original.
+   ========================================================================== */
+
+@import "./trip-list/hero-metrics.css";
+@import "./trip-list/filters.css";
+@import "./trip-list/table.css";
+@import "./trip-list/table-extras.css";
+@import "./trip-list/mobile-cards.css";
+@import "./trip-list/responsive.css";

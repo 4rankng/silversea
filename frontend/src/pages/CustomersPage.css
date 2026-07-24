@@ -1,0 +1,10 @@
+/* Keep customer filters on the page canvas instead of painting a second
+   white panel directly against the bordered mobile card list. */
+@media (max-width: 820px) {
+  .customers-page > .toolbar {
+    background: transparent;
+    border-bottom: 0;
+    padding: 10px 0 0;
+    margin-bottom: 8px;
+  }
+}

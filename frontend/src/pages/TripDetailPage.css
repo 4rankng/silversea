@@ -1,0 +1,12 @@
+/* ==========================================================================
+   TripDetailPage — section barrel
+   Each section lives in ./trip-detail/. Do not add rules here; CSS @import must
+   precede all other rules, and cascade order == import order == original.
+   ========================================================================== */
+
+@import "./trip-detail/header.css";
+@import "./trip-detail/bento-cards.css";
+@import "./trip-detail/pnl-fuel.css";
+@import "./trip-detail/journey-legs.css";
+@import "./trip-detail/details.css";
+@import "./trip-detail/responsive.css";

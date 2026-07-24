@@ -1,0 +1,88 @@
+/* ============================================================================
+ * Pill — TingTing
+ * Extracted from UI.css during architecture refactoring (Phase 4)
+ * ========================================================================== */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: var(--fs-status-pill);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+.pill .dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.pill--success { background: var(--accent-soft); color: var(--accent-ink); }
+.pill--success .dot { background: var(--accent-2); }
+.pill--warn { background: var(--warning-soft); color: var(--warning-deep); }
+.pill--warn .dot { background: var(--warning); }
+.pill--danger { background: var(--danger-soft); color: var(--danger); }
+.pill--danger .dot { background: var(--danger); }
+.pill--info { background: var(--info-soft); color: var(--info); }
+.pill--info .dot { background: var(--info); }
+.pill--neutral { background: var(--surface-3); color: var(--ink-2); }
+.pill--neutral .dot { background: var(--ink-3); }
+
+/* Pill size + solid variants — for header-level status emphasis */
+.pill--md { font-size: var(--fs-xs); padding: 5px 12px; letter-spacing: 0.04em; }
+.pill--md .dot { width: 6px; height: 6px; }
+.pill--solid { color: var(--fg-on-brand); text-transform: none; letter-spacing: 0.01em; font-weight: 600; }
+.pill--solid.pill--success { background: var(--accent); }
+.pill--solid.pill--success { color: var(--fg-on-accent); }
+.pill--solid.pill--success .dot { background: var(--accent-ink); }
+.pill--solid.pill--warn { background: var(--warning); color: var(--warning-text); }
+.pill--solid.pill--warn .dot { background: var(--warning-text); }
+.pill--solid.pill--danger { background: var(--danger); }
+.pill--solid.pill--danger .dot { background: rgba(255, 255, 255, 0.85); }
+.pill--solid.pill--info { background: var(--info); }
+.pill--solid.pill--info .dot { background: rgba(255, 255, 255, 0.85); }
+.pill--solid.pill--neutral { background: var(--ink); color: var(--fg-on-brand); }
+.pill--solid.pill--neutral .dot { background: rgba(255, 255, 255, 0.7); }
+
+/* Legacy badge classes (keep tonal scale) */
+.badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 26px; padding: 4px 10px;
+  font-size: var(--fs-xs); font-weight: 700;
+  line-height: 1.35;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.badge-success { background: var(--accent-soft); color: var(--accent-ink); border-color: rgba(0, 177, 79, 0.2); }
+.badge-warning { background: var(--warning-soft); color: var(--warning-text); border-color: rgba(245, 166, 35, 0.2); }
+.badge-danger  { background: var(--danger-soft); color: var(--danger-text); border-color: rgba(227, 36, 52, 0.2); }
+.badge-info    { background: var(--info-soft); color: var(--info-text); border-color: rgba(30, 91, 184, 0.2); }
+.badge-neutral { background: var(--surface-3); color: var(--ink-2); border-color: var(--line-2); }
+.badge-brand   { background: var(--accent-2); color: var(--fg-on-brand); }
+.badge-outline { border-color: var(--line); color: var(--ink-2); background: var(--surface); }
+
+/* Plate tag */
+.plate {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-xs);
+  padding: 2px 6px;
+  background: var(--ink);
+  color: var(--fg-on-brand);
+  border-radius: 4px;
+  display: inline-block;
+  letter-spacing: 0.02em;
+}
+.plate.external {
+  background: var(--surface-3);
+  color: var(--info);
+  border: 1px solid var(--line-2);
+}

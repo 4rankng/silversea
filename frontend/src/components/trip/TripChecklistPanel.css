@@ -1,0 +1,90 @@
+/* TripChecklistPanel — completion checklist in the right rail */
+
+.tc-checklist {
+  background: var(--surface);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-lg);
+  padding: 18px 20px;
+}
+.tc-checklist__title {
+  margin: 0 0 10px;
+  font-size: var(--fs-xs);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--fg-2);
+  font-weight: var(--fw-bold);
+}
+.tc-check-item {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 7px 0;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  color: var(--fg-2);
+  text-decoration: none;
+}
+.tc-check-item:hover { color: var(--fg-1); }
+.tc-check-item__dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ink-4);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast);
+}
+.tc-check-item--done .tc-check-item__dot {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--fg-on-brand);
+}
+.tc-check-item--active .tc-check-item__dot {
+  border-color: var(--accent);
+}
+.tc-check-item__name {
+  min-width: 0;
+  color: var(--fg-1);
+  font-weight: var(--fw-semibold);
+  line-height: 1.35;
+}
+.tc-check-item__badge {
+  min-width: 48px;
+  justify-self: end;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-1);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  line-height: 1.35;
+  text-align: center;
+  white-space: nowrap;
+}
+.tc-check-item__badge--done {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  border-color: rgba(0, 177, 79, 0.18);
+}
+.tc-check-item__badge--pending {
+  color: var(--fg-2);
+}
+.tc-check-item__badge--req { color: var(--danger); letter-spacing: 0.5px; }
+
+@media (max-width: 640px) {
+  .tc-checklist {
+    padding: 14px 16px;
+  }
+  .tc-check-item {
+    min-height: 45px;
+    gap: 9px;
+    font-size: 14px;
+  }
+  .tc-check-item__badge {
+    min-width: 54px;
+    font-size: var(--fs-xs);
+  }
+}

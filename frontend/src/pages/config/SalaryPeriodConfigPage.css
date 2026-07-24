@@ -1,0 +1,327 @@
+/* ============================================================================
+ * SalaryPeriodConfigPage — scoped styles
+ * ========================================================================== */
+
+/* ── Outer wrapper — adds gap between default card and the CrudTable ── */
+.sp-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 960px;
+}
+
+.sp-page-header h1 {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--fs-2xl);
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.sp-page-header p {
+  margin: 4px 0 0;
+  color: var(--ink-3);
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+}
+
+/* ── Mode Selector Cards ── */
+.sp-mode-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.sp-mode-card {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.sp-mode-card:hover {
+  border-color: var(--accent);
+  background: var(--surface-2);
+}
+
+.sp-mode-card.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.sp-mode-card__title {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+
+.sp-mode-card__desc {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  line-height: 1.4;
+}
+
+/* Hide checkbox/radio visually but keep accessible */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+
+/* ── Default rule card ── */
+.sp-default-card {
+  background: var(--surface, #fff);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.sp-default-card__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+.sp-default-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.sp-default-card__title {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 1px;
+  letter-spacing: 0;
+}
+
+.sp-default-card__subtitle {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  margin: 0;
+}
+
+.sp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+.sp-badge--active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.sp-badge__dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.sp-default-card__body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── Mode hint banner ── */
+.sp-mode-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border-radius: 8px;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.sp-mode-hint--same {
+  background: rgba(16, 185, 129, 0.08);
+  color: #065F46;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.sp-mode-hint--cross {
+  background: rgba(245, 158, 11, 0.08);
+  color: #92400E;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .sp-mode-hint--same { background: rgba(16, 185, 129, 0.1); color: #6EE7B7; border-color: rgba(16, 185, 129, 0.25); }
+  .sp-mode-hint--cross { background: rgba(245, 158, 11, 0.1); color: #FCD34D; border-color: rgba(245, 158, 11, 0.25); }
+}
+
+/* ── Field row for the default card ── */
+.sp-default-card__fields {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* ── Live preview ── */
+.sp-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-width: 200px;
+  align-self: flex-end;
+  margin-bottom: 4px; /* align with inputs */
+}
+
+.sp-preview__label {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sp-preview__value {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* ── Save actions row ── */
+.sp-default-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sp-save-success {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--accent);
+  animation: spFadeIn 200ms ease both;
+}
+
+@keyframes spFadeIn {
+  from { opacity: 0; transform: translateX(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ── Current rule display ── */
+.sp-current-rule {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+}
+
+.sp-current-rule strong {
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
+/* ── Hints ── */
+.sp-hint {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.sp-hint--warn {
+  color: var(--warning-text);
+}
+
+/* ── Table cell treatments in the CrudTable ── */
+.sp-month-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  background: var(--surface-3);
+  color: var(--ink-2);
+  letter-spacing: 0.02em;
+}
+
+.sp-date-cell {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+
+.sp-label-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  background: rgba(99, 102, 241, 0.1);
+  color: #4338CA;
+}
+
+/* ── Override form grid ── */
+.sp-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .sp-wrap { gap: 16px; }
+  .sp-page-header h1 { font-size: 24px; }
+  .sp-page-header p { font-size: var(--fs-xs); }
+  .sp-default-card__header { flex-wrap: wrap; }
+  .sp-badge { margin-left: 0; }
+  .sp-default-card__fields { flex-direction: column; align-items: stretch; }
+  .sp-preview { min-width: unset; }
+  .sp-form-grid { grid-template-columns: 1fr 1fr; }
+}

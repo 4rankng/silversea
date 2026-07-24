@@ -1,0 +1,154 @@
+import { useState, useEffect } from 'react';
+import { usePageAnimations } from '../../hooks/animations';
+import { useNavigate } from 'react-router-dom';
+import { Save, Loader2 } from 'lucide-react';
+import { configClient } from '../../api/configClient';
+import { useFuelConfig, useSaveFuelConfig } from '../../hooks/useCatalogQueries';
+import { PageHeader, Panel } from '../../components/UI';
+import type { FuelPriceHistory } from '@tingting/shared';
+import './config-page.css';
+import { resolveEmptyIllustration } from '../../lib/emptyIllustrations';
+import { onboardingEvents } from '../../lib/onboardingEvents';
+
+export default function FuelConfigPage() {
+  const { rootRef: pageRef } = usePageAnimations({ ready: true, selectors: ['.cfg-row'] });
+  const navigate = useNavigate();
+  const { data: fuelConfig } = useFuelConfig();
+  const saveFuel = useSaveFuelConfig();
+  const [form, setForm] = useState({
+    loadedNorm: '', emptyNorm: '', supplement: '', unitPrice: '',
+    warningThreshold: '37', criticalThreshold: '40',
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<FuelPriceHistory[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+
+  useEffect(() => {
+    if (fuelConfig) {
+      // Accept both camelCase and legacy snake_case field names from the API.
+      const f = fuelConfig as unknown as Record<string, string | null>;
+      setForm({
+        loadedNorm: f.loadedNorm ?? f.loaded_norm ?? '',
+        emptyNorm: f.emptyNorm ?? f.empty_norm ?? '',
+        supplement: f.supplement ?? '0',
+        unitPrice: f.unitPrice ?? f.unit_price ?? '',
+        warningThreshold: f.warningThreshold ?? f.warning_threshold ?? '37',
+        criticalThreshold: f.criticalThreshold ?? f.critical_threshold ?? '40',
+      });
+    }
+  }, [fuelConfig]);
+
+  useEffect(() => {
+    configClient.getFuelPriceHistory().then(setHistory).catch(() => {}).finally(() => setHistoryLoading(false));
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      await saveFuel.mutateAsync({
+        loadedNorm: Number(form.loadedNorm),
+        emptyNorm: Number(form.emptyNorm),
+        supplement: Number(form.supplement) || 0,
+        unitPrice: Number(form.unitPrice),
+        warningThreshold: form.warningThreshold ? Number(form.warningThreshold) : 37,
+        criticalThreshold: form.criticalThreshold ? Number(form.criticalThreshold) : 40,
+      });
+      // Onboarding product event: fuel config was saved. The fuel-config tour
+      // and any future checklist item keyed on this wait on it.
+      onboardingEvents.emit('config.fuel_saved');
+      navigate('/config');
+    } catch (e) { setError(e instanceof Error ? e.message : 'Lỗi lưu'); } finally { setSaving(false); }
+  };
+
+  return (
+    <div ref={pageRef} className="cfg-page cfg-page--fuel">
+      <PageHeader title="Định mức nhiên liệu" description="Định mức tiêu hao theo xe và loại tải · đơn giá dầu hiện hành · ngưỡng cảnh báo TTBQ" onBack={() => navigate('/config')} iconName="fuel" />
+      <Panel title="Cấu hình tính nhiên liệu" subtitle="Thông số dùng để tính chi phí nhiên liệu cho mỗi chuyến">
+        <div className="cfg-form-grid">
+          <div className="field" id="fuel-loaded-norm-field">
+            <label htmlFor="fuel-loaded-norm">Định mức có tải (lít/100km)</label>
+            <input id="fuel-loaded-norm" name="loadedNorm" className="input" type="number" step="0.1" value={form.loadedNorm} onChange={e => setForm(f => ({ ...f, loadedNorm: e.target.value }))} placeholder="VD: 35" />
+          </div>
+          <div className="field" id="fuel-empty-norm-field">
+            <label htmlFor="fuel-empty-norm">Định mức xe không (lít/100km)</label>
+            <input id="fuel-empty-norm" name="emptyNorm" className="input" type="number" step="0.1" value={form.emptyNorm} onChange={e => setForm(f => ({ ...f, emptyNorm: e.target.value }))} placeholder="VD: 22" />
+          </div>
+        </div>
+        <div className="cfg-form-grid">
+          <div className="field" id="fuel-supplement-field">
+            <label htmlFor="fuel-supplement">Bổ sung mặc định (lít)</label>
+            <input id="fuel-supplement" name="supplement" className="input" type="number" step="0.1" value={form.supplement} onChange={e => setForm(f => ({ ...f, supplement: e.target.value }))} placeholder="VD: 3" />
+            <p className="cfg-field-hint">Số lít bổ sung thêm mặc định cho mỗi chuyến.</p>
+          </div>
+          <div className="field" id="fuel-unit-price-field">
+            <label htmlFor="fuel-unit-price">Đơn giá nhiên liệu hiện hành (đ/lít)</label>
+            <input id="fuel-unit-price" name="unitPrice" className="input" type="number" value={form.unitPrice} onChange={e => setForm(f => ({ ...f, unitPrice: e.target.value }))} placeholder="VD: 23000" />
+          </div>
+        </div>
+
+        <div className="cfg-section">
+          <h3 className="cfg-section__heading">
+            Ngưỡng cảnh báo tiêu hao
+            <span className="cfg-section__heading-pill">TTBQ</span>
+          </h3>
+          <div className="cfg-form-grid">
+            <div className="field" id="fuel-warning-threshold-field">
+              <label htmlFor="fuel-warning-threshold">Ngưỡng cảnh báo (lít/100km)</label>
+              <input id="fuel-warning-threshold" name="warningThreshold" className="input" type="number" step="0.1" value={form.warningThreshold} onChange={e => setForm(f => ({ ...f, warningThreshold: e.target.value }))} placeholder="VD: 37" />
+              <p className="cfg-field-hint cfg-field-hint--warn">TTBQ vượt ngưỡng này → cảnh báo vàng.</p>
+            </div>
+            <div className="field" id="fuel-critical-threshold-field">
+              <label htmlFor="fuel-critical-threshold">Ngưỡng nghiêm trọng (lít/100km)</label>
+              <input id="fuel-critical-threshold" name="criticalThreshold" className="input" type="number" step="0.1" value={form.criticalThreshold} onChange={e => setForm(f => ({ ...f, criticalThreshold: e.target.value }))} placeholder="VD: 40" />
+              <p className="cfg-field-hint cfg-field-hint--danger">TTBQ vượt ngưỡng này → cảnh báo đỏ.</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="cfg-form-actions">
+          <button id="fuel-save-config-button" className="btn btn--primary" disabled={saving || !(Number(form.loadedNorm) > 0) || !(Number(form.emptyNorm) > 0) || !(Number(form.unitPrice) > 0)} onClick={handleSave}>
+            {saving ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
+            Lưu cấu hình
+          </button>
+          {error && <span style={{ color: 'var(--danger)', fontSize: 13 }}>{error}</span>}
+        </div>
+      </Panel>
+      <Panel title="Lịch sử giá nhiên liệu" subtitle="Theo dõi các lần thay đổi đơn giá nhiên liệu" style={{ marginTop: 20 }}>
+        {historyLoading ? (
+          <div style={{ textAlign: 'center', padding: 20, color: 'var(--ink-3)' }}>Đang tải…</div>
+        ) : history.length === 0 ? (
+          <div className="cfg-empty" style={{ padding: '24px 16px' }}>
+            <img src={resolveEmptyIllustration('empty-config')} alt="" aria-hidden="true" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+            <div className="cfg-empty__title">Chưa có lịch sử</div>
+            <div className="cfg-empty__hint">Lịch sử thay đổi giá sẽ hiển thị sau lần lưu đầu tiên.</div>
+          </div>
+        ) : (
+          <div className="table-scroll">
+            <table className="tt-table">
+              <thead>
+                <tr>
+                  <th>Ngày hiệu lực</th>
+                  <th className="num">Đơn giá (₫/lít)</th>
+                  <th>Người thay đổi</th>
+                  <th>Ghi chú</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((row) => (
+                  <tr key={row.id}>
+                    <td style={{ whiteSpace: 'nowrap' }}>{new Date(row.effectiveDate).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
+                    <td className="num" style={{ fontWeight: 600 }}>{Number(row.unitPrice).toLocaleString('vi-VN')}</td>
+                    <td style={{ color: 'var(--ink-3)' }}>—</td>
+                    <td style={{ color: 'var(--ink-3)', fontSize: 12 }}>{row.note || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+    </div>
+  );
+}

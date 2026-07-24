@@ -1,0 +1,156 @@
+/* SelectField shares its base CSS with TextField.css (imported at the top of
+ * SelectField.tsx). This file adds custom popover select styles. */
+
+.ds-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 44px;
+  height: auto;
+  padding: 0 12px;
+  font-size: var(--fs-md);
+  line-height: 1.35;
+  font-family: inherit;
+  color: var(--ink, var(--fg-1));
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 249, 0.94));
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 150ms, box-shadow 150ms, background-color 150ms;
+  text-align: left;
+}
+
+.ds-select-trigger:focus-visible,
+.ds-select-trigger--open {
+  border-color: var(--brand, var(--accent));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand, var(--accent)) 20%, transparent);
+}
+
+.ds-select-trigger:disabled {
+  background: var(--surface-2, var(--bg-2-wire));
+  color: var(--fg-3, var(--ink-3));
+  cursor: not-allowed;
+}
+
+.ds-select-trigger__value {
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.ds-select-trigger__icon {
+  color: var(--ink-3);
+  transition: transform 150ms ease;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.ds-select-trigger__icon--rotated {
+  transform: rotate(180deg);
+}
+
+/* Custom Dropdown Popover */
+.ds-select-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 50;
+  width: 100%;
+  max-height: 240px;
+  margin-top: 6px;
+  padding: 6px;
+  overflow-y: auto;
+  list-style: none;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  box-shadow: var(--sh-lg, 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1));
+  animation: dsSelectSlideIn 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: top;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Custom scrollbar for popover */
+.ds-select-popover::-webkit-scrollbar {
+  width: 6px;
+}
+.ds-select-popover::-webkit-scrollbar-track {
+  background: transparent;
+}
+.ds-select-popover::-webkit-scrollbar-thumb {
+  background: var(--line-3, #ccc);
+  border-radius: 3px;
+}
+
+.ds-select-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  font-size: var(--fs-sm);
+  line-height: 1.35;
+  color: var(--ink, var(--fg-1));
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 100ms, color 100ms;
+}
+
+.ds-select-item:hover {
+  background: var(--brand-soft, var(--accent-soft, #e6f7ee));
+  color: var(--accent-ink, #004d22);
+}
+
+@media (min-width: 641px) {
+  .ds-select-trigger {
+    font-size: var(--fs-sm);
+  }
+}
+
+@media (max-width: 640px) {
+  .ds-select-trigger {
+    min-height: 44px;
+  }
+
+  .ds-select-item {
+    min-height: 44px;
+    font-size: var(--fs-md);
+  }
+}
+
+.ds-select-item--selected {
+  font-weight: 500;
+}
+
+.ds-select-item__check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-right: 6px;
+  color: var(--brand, var(--accent));
+  flex-shrink: 0;
+}
+
+.ds-select-item__label {
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+@keyframes dsSelectSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scaleY(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+}

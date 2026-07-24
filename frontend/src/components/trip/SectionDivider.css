@@ -1,0 +1,17 @@
+/* SectionDivider — centered-label divider line */
+
+.tc-section-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 14px;
+}
+.tc-section-divider__line { flex: 1; height: 1px; background: var(--border-1); }
+.tc-section-divider__text {
+  font-size: var(--fs-2xs);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--fg-3);
+  font-weight: var(--fw-bold);
+  white-space: nowrap;
+}

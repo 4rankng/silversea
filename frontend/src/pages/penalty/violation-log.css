@@ -1,0 +1,522 @@
+/* ─── PenaltyPage — discipline dashboard ─── */
+
+.penalty-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ─── Violation log card list ─── */
+
+.plog-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.plog-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  transition: background 0.12s;
+}
+
+.plog-item:last-child { border-bottom: none; }
+.plog-item:hover { background: var(--surface-2); }
+
+.plog-item--canceled {
+  opacity: 0.45;
+}
+
+.plog-item--canceled .plog-reason,
+.plog-item--canceled .plog-name {
+  text-decoration: line-through;
+}
+
+.plog-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  flex-shrink: 0;
+}
+
+.plog-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.plog-name {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.3;
+}
+
+.plog-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 1px;
+}
+
+.plog-reason {
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+}
+
+.plog-date {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+}
+
+.plog-sep {
+  font-size: var(--fs-2xs);
+  color: var(--ink-4);
+}
+
+.plog-trip {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  font-family: var(--font-mono);
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.plog-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.plog-amount {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--danger);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+/* ─── Month pill badge (header) ─── */
+
+.penalty-month-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--accent-soft);
+  border: 1px solid rgba(0, 177, 79, 0.15);
+  border-radius: 999px;
+  color: var(--accent-ink);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.penalty-month-pill .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0, 177, 79, 0.18);
+}
+
+/* ─── Segmented time filter ─── */
+
+.penalty-seg {
+  display: inline-flex;
+  padding: 3px;
+  background: var(--surface-3);
+  border-radius: 8px;
+  border: 1px solid var(--line);
+}
+
+.penalty-seg button {
+  border: 0;
+  background: transparent;
+  min-height: 36px;
+  padding: 7px 12px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--ink-3);
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 120ms var(--ease), color 120ms var(--ease), box-shadow 120ms var(--ease);
+}
+
+.penalty-config-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 6px 0;
+  color: var(--accent-2);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.penalty-seg button.active {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.penalty-seg button:hover:not(.active) {
+  color: var(--ink-2);
+}
+
+/* ─── Card header (reuse fleet pattern) ─── */
+
+.penalty-page .penalty-card-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.penalty-page .penalty-card-lead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 300px;
+  min-width: 0;
+}
+
+.penalty-page .penalty-card-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent-2);
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(0, 177, 79, 0.15);
+  flex-shrink: 0;
+}
+
+.penalty-page .penalty-card-icon.alt {
+  background: var(--surface-3);
+  color: var(--ink-2);
+  border-color: var(--line-2);
+}
+
+.penalty-page .penalty-card-title {
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.penalty-page .count-pill {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--ink-2);
+}
+
+.penalty-page .penalty-card-sub {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  margin-top: 1px;
+}
+
+.penalty-page .penalty-head-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ─── Rank badge ─── */
+
+.penalty-rank {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  background: var(--surface-3);
+  color: var(--ink-3);
+}
+
+.penalty-rank.gold {
+  background: #FEF3C7;
+  color: #92400E;
+}
+
+.penalty-rank.silver {
+  background: #F1F5F9;
+  color: #475569;
+}
+
+.penalty-rank.bronze {
+  background: #FED7AA;
+  color: #9A3412;
+}
+
+/* ─── Driver cell ─── */
+
+.penalty-driver-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.penalty-driver-mini {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  flex-shrink: 0;
+}
+
+.penalty-driver-info .name {
+  font-weight: 600;
+  color: var(--ink);
+  font-size: var(--fs-sm);
+  line-height: 1.2;
+}
+
+.penalty-driver-info .role {
+  font-size: var(--fs-2xs);
+  color: var(--ink-3);
+  margin-top: 1px;
+}
+
+/* ─── Streak bar ─── */
+
+.penalty-streak {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.penalty-streak-num {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: var(--fs-sm);
+  color: var(--ink);
+}
+
+.penalty-streak-num .unit {
+  font-size: var(--fs-2xs);
+  color: var(--ink-3);
+  font-weight: 500;
+  margin-left: 3px;
+}
+
+.penalty-streak-bar {
+  width: 56px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-3);
+  overflow: hidden;
+  position: relative;
+}
+
+.penalty-streak-bar .fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+.penalty-streak-bar .fill.gold {
+  background: linear-gradient(90deg, var(--accent), #FCD34D);
+}
+
+/* ─── Violation count indicator ─── */
+
+.penalty-violation-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.penalty-violation-count .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.penalty-violation-count.zero {
+  color: var(--accent-2);
+}
+
+.penalty-violation-count.warn {
+  color: var(--warning-text);
+}
+
+.penalty-violation-count.warn .dot {
+  background: var(--warning);
+}
+
+.penalty-violation-count.bad {
+  color: var(--danger-text);
+}
+
+.penalty-violation-count.bad .dot {
+  background: var(--danger);
+}
+
+/* ─── Money display ─── */
+
+.penalty-money {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.penalty-money.zero {
+  color: var(--ink-4);
+  font-weight: 500;
+}
+
+.penalty-money .unit {
+  font-size: var(--fs-2xs);
+  color: var(--ink-3);
+  font-weight: 500;
+  margin-left: 3px;
+}
+
+/* ─── Grade pill ─── */
+
+.penalty-grade {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  font-family: var(--font-mono);
+}
+
+.penalty-grade.a-plus {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  border: 1px solid rgba(0, 177, 79, 0.15);
+}
+
+.penalty-grade.a {
+  background: var(--info-soft);
+  color: var(--info);
+  border: 1px solid rgba(30, 91, 184, 0.15);
+}
+
+.penalty-grade.b {
+  background: var(--warning-soft);
+  color: var(--warning-text);
+  border: 1px solid rgba(245, 166, 35, 0.2);
+}
+
+.penalty-grade.c {
+  background: var(--danger-soft);
+  color: var(--danger-text);
+  border: 1px solid rgba(227, 36, 52, 0.15);
+}
+
+/* ─── Row action buttons ─── */
+
+.penalty-row-act {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  display: inline-grid;
+  place-items: center;
+  color: var(--ink-3);
+  transition: background 120ms var(--ease), color 120ms var(--ease), border-color 120ms var(--ease);
+}
+
+.penalty-row-act:hover {
+  background: var(--surface-3);
+  color: var(--ink-2);
+}
+
+.penalty-row-act.primary:hover {
+  background: var(--accent-soft);
+  color: var(--accent-2);
+  border-color: rgba(0, 177, 79, 0.15);
+}
+
+/* ─── Filter chips ─── */
+
+.penalty-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: background 120ms var(--ease), color 120ms var(--ease), border-color 120ms var(--ease);
+  font-family: inherit;
+}
+
+.penalty-chip:hover {
+  background: var(--surface-2);
+}
+
+.penalty-chip.active {
+  background: var(--ink);
+  color: var(--fg-on-brand);
+  border-color: var(--ink);
+}
+
+.penalty-chip .count {
+  font-family: var(--font-mono);
+  background: var(--surface-3);
+  color: var(--ink-3);
+  padding: 0 5px;
+  border-radius: 4px;
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+}
+
+.penalty-chip.active .count {
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--fg-on-brand);
+}

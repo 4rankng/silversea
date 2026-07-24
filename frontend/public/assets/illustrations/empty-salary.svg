@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 200" fill="none" role="img" aria-label="Payroll and attendance illustration">
+  <defs>
+    <linearGradient id="salary-card" x1="56" y1="50" x2="188" y2="158" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F1F8F4"/>
+    </linearGradient>
+    <linearGradient id="salary-accent" x1="84" y1="71" x2="154" y2="144" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#00B14F"/>
+      <stop offset="1" stop-color="#005A2D"/>
+    </linearGradient>
+    <filter id="salary-shadow" x="34" y="30" width="174" height="150" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#005A2D" flood-opacity=".13"/>
+    </filter>
+  </defs>
+  <ellipse cx="120" cy="164" rx="78" ry="10" fill="#005A2D" opacity=".08"/>
+  <path d="M33 134C52 92 83 70 126 68c38-2 62-15 82-40" stroke="#00B14F" stroke-opacity=".14" stroke-width="2" stroke-linecap="round" stroke-dasharray="5 8"/>
+  <circle cx="43" cy="131" r="4" fill="#00B14F" opacity=".18"/>
+  <circle cx="207" cy="30" r="4" fill="#00B14F" opacity=".18"/>
+  <g filter="url(#salary-shadow)">
+    <rect x="58" y="48" width="124" height="112" rx="18" fill="url(#salary-card)" stroke="#D7DEDB"/>
+    <path d="M58 74h124" stroke="#E2E7E4"/>
+    <rect x="76" y="62" width="38" height="8" rx="4" fill="#00B14F" opacity=".16"/>
+    <rect x="132" y="60" width="30" height="12" rx="6" fill="#E6F7EE" stroke="#BCE8CE"/>
+    <path d="M83 93h74M83 112h74M83 131h56" stroke="#CBD3CE" stroke-width="2" stroke-linecap="round"/>
+    <path d="M83 93h30M83 112h44M83 131h22" stroke="#00B14F" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="165" cy="119" r="28" fill="#E6F7EE" stroke="#BCE8CE"/>
+    <path d="M154 119l7 7 16-18" stroke="url(#salary-accent)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <g transform="translate(46 58)">
+    <rect x="0" y="0" width="34" height="42" rx="9" fill="#FFFFFF" stroke="#D7DEDB"/>
+    <path d="M10 14h14M10 22h14M10 30h8" stroke="#8B919B" stroke-width="1.6" stroke-linecap="round"/>
+    <circle cx="27" cy="9" r="6" fill="#E6F7EE" stroke="#BCE8CE"/>
+  </g>
+  <g transform="translate(163 43)">
+    <rect x="0" y="0" width="30" height="34" rx="8" fill="#FFFFFF" stroke="#D7DEDB"/>
+    <path d="M8 12h14M8 20h9" stroke="#8B919B" stroke-width="1.6" stroke-linecap="round"/>
+  </g>
+</svg>

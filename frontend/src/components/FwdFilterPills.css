@@ -1,0 +1,123 @@
+/* ============================================================================
+ * FwdFilterPills — TingTing
+ * Extracted from UI.css during architecture refactoring (Phase 4)
+ * Status accent colors kept as rgb() (matching the rgba() tints below) rather
+ * than hex literals, per the shared-primitive semantic-token contract.
+ * ========================================================================== */
+.fwd-filter-pills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 0 0 16px;
+  margin-bottom: 4px;
+}
+.fwd-filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 9999px;
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 150ms ease;
+  white-space: nowrap;
+  min-height: 44px;
+}
+.fwd-filter-pill[data-status="CREATED"] {
+  border-color: rgba(2, 132, 199, 0.22);
+  background: rgba(2, 132, 199, 0.08);
+  color: rgb(7, 89, 133);
+}
+.fwd-filter-pill[data-status="LOCKED"] {
+  border-color: rgba(124, 58, 237, 0.24);
+  background: rgba(124, 58, 237, 0.08);
+  color: rgb(91, 33, 182);
+}
+.fwd-filter-pill:hover {
+  border-color: var(--line-2);
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.fwd-filter-pill[data-status="CREATED"]:hover {
+  border-color: rgba(2, 132, 199, 0.36);
+  background: rgba(2, 132, 199, 0.12);
+  color: rgb(7, 89, 133);
+}
+.fwd-filter-pill[data-status="LOCKED"]:hover {
+  border-color: rgba(124, 58, 237, 0.38);
+  background: rgba(124, 58, 237, 0.12);
+  color: rgb(91, 33, 182);
+}
+.fwd-filter-pill--active {
+  background: var(--ink);
+  color: var(--fg-on-brand);
+  border-color: var(--ink);
+}
+.fwd-filter-pill--active[data-status="CREATED"] {
+  background: rgb(2, 132, 199);
+  border-color: rgb(2, 132, 199);
+  color: white;
+}
+.fwd-filter-pill--active[data-status="LOCKED"] {
+  background: rgb(124, 58, 237);
+  border-color: rgb(124, 58, 237);
+  color: white;
+}
+.fwd-filter-pill--active:hover {
+  background: var(--ink);
+  color: var(--fg-on-brand);
+  opacity: 0.9;
+}
+.fwd-filter-pill--active[data-status="CREATED"]:hover {
+  background: rgb(3, 105, 161);
+  border-color: rgb(3, 105, 161);
+  color: white;
+}
+.fwd-filter-pill--active[data-status="LOCKED"]:hover {
+  background: rgb(109, 40, 217);
+  border-color: rgb(109, 40, 217);
+  color: white;
+}
+.fwd-filter-pill__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.fwd-filter-pill--active .fwd-filter-pill__dot {
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.3);
+}
+.fwd-filter-pill__count {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  min-width: 18px;
+  min-height: 20px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 9999px;
+  background: rgba(0,0,0,0.08);
+  padding: 0 5px;
+  line-height: 1.35;
+}
+.fwd-filter-pill--active .fwd-filter-pill__count {
+  background: rgba(255,255,255,0.25);
+}
+
+@media (max-width: 640px) {
+  .fwd-filter-pills {
+    gap: 7px;
+    padding-bottom: 12px;
+  }
+
+  .fwd-filter-pill {
+    min-height: 44px;
+    padding: 8px 14px;
+    border-radius: 12px;
+  }
+}

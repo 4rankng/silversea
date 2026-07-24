@@ -1,0 +1,167 @@
+/* ============================================================================
+ * FilterBar — TingTing
+ * Extracted from UI.css during architecture refactoring (Phase 4)
+ * ========================================================================== */
+.filter-bar {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  transition: border-color 0.2s ease;
+}
+.filter-bar:focus-within {
+  border-color: var(--line-2);
+}
+
+/* Generic filter tabs — clean, pill-like toggle buttons. Some pages render
+   these outside .filter-bar, so the base selector carries the tap target. */
+.filter-tab,
+.filter-bar .filter-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--ink-2);
+  background: var(--surface-2);
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  line-height: 1.35;
+}
+.filter-tab:hover,
+.filter-bar .filter-tab:hover {
+  background: var(--surface);
+  border-color: var(--line-2);
+  color: var(--ink);
+}
+.filter-tab.is-active,
+.filter-bar .filter-tab.is-active {
+  background: var(--ink);
+  color: var(--fg-on-brand);
+  border-color: var(--ink);
+}
+
+/* Spacer pushes subsequent items to the right */
+.filter-bar__spacer { flex: 1; min-width: 0; }
+
+/* Search input inside the filter bar */
+.filter-bar__search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  background: var(--surface-2);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  min-width: 180px;
+  max-width: 260px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.filter-bar__search:focus-within {
+  background: var(--surface);
+  border-color: var(--accent);
+  outline: 2px solid var(--accent-soft);
+  outline-offset: 2px;
+}
+.filter-bar__search svg {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink-3);
+  pointer-events: none;
+  flex-shrink: 0;
+}
+.filter-bar__search input {
+  width: 100%;
+  padding: 0 10px 0 32px;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: var(--fs-xs);
+  color: var(--ink);
+  height: 100%;
+}
+.filter-bar__search input::placeholder { color: var(--ink-3); }
+
+/* filter-pill — generic filter pill component */
+.filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 9px 13px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 200ms var(--ease), border-color 200ms var(--ease), color 200ms var(--ease);
+}
+.filter-pill:hover {
+  border-color: var(--line-2);
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.filter-pill.is-active {
+  background: var(--ink);
+  color: var(--fg-on-brand);
+  border-color: var(--ink);
+}
+.filter-pill svg { width: 14px; height: 14px; }
+.filter-pill__count {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  padding: 2px 7px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 999px;
+  margin-left: 2px;
+}
+.filter-pill.is-active .filter-pill__count {
+  background: rgba(255, 255, 255, 0.18);
+  color: var(--fg-on-brand);
+}
+
+/* Expense list filter toolbar — desktop defaults */
+.expense-filters {
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow: auto;
+}
+.expense-filters__select { font-size: var(--fs-xs); min-width: 120px; }
+.expense-filters__date { font-size: var(--fs-xs); width: auto; min-width: 130px; }
+/* Responsive: tighten on mobile */
+@media (max-width: 640px) {
+  .filter-bar {
+    padding: 10px;
+    gap: 6px;
+    border-radius: 12px;
+    margin-bottom: 14px;
+  }
+  .filter-tab,
+  .filter-bar .filter-tab {
+    min-height: 44px;
+    padding: 0 11px;
+    font-size: var(--fs-xs);
+  }
+  .filter-bar__search {
+    min-width: 0;
+    min-height: 44px;
+    flex: 1;
+    max-width: none;
+  }
+}

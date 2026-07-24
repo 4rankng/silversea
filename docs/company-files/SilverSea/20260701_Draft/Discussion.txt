@@ -1,0 +1,173 @@
+[14/07/2026 10:42:53] Mai Phương: TẢ CÔNG VIỆC – NHÂN VIÊN CUSTOMER SERVICE (CUS)
+
+1. Tiếp nhận và xử lý thông tin lô hàng
+
+* Tiếp nhận booking hoặc yêu cầu vận chuyển từ khách hàng.
+* Nhập đầy đủ thông tin lô hàng lên phần mềm quản lý.
+* Kiểm tra tính chính xác của chứng từ (Booking, Bill, lệnh giao hàng, thông tin container…).
+
+2. Chăm sóc và trao đổi với khách hàng
+
+* Liên hệ với khách hàng để xác nhận kế hoạch vận chuyển.
+* Thông báo, cập nhật tiến độ lô hàng.
+* Xác nhận và thống nhất ngày giao hàng, thời gian trả/rút container.
+* Giải đáp các thắc mắc của khách hàng trong quá trình vận chuyển.
+
+3. Kiểm tra chi phí
+
+* Kiểm tra hóa đơn chi trả hộ (nâng hạ, lưu bãi, phí cảng, phí hãng tàu…).
+* Đối chiếu các khoản phí với chứng từ thực tế.
+* Phối hợp với kế toán khi có sai lệch hoặc phát sinh.
+
+4. Lập Debit Note
+
+* Tổng hợp các khoản cước và phí dịch vụ.
+* Lập Debit Note gửi khách hàng đúng, đủ và kịp thời.
+* Theo dõi việc khách hàng xác nhận Debit Note
+[14/07/2026 10:48:39] Mai Phương: 4. Công nợ phải thu (AR)
+
+Theo dõi
+
+Khách hàng
+
+Debit
+
+Hóa đơn
+
+Đã thu
+
+Còn nợ
+
+Quá hạn
+
+Có chức năng
+
+* Nhắc nợ
+* Báo cáo tuổi nợ
+* Hạn mức tín dụng
+
+⸻
+
+5. Công nợ phải trả (AP)
+
+Theo dõi
+
+* Hãng tàu
+* Nhà xe
+* Cảng
+* Kho
+* Nhà cung cấp
+
+Thông tin
+
+* Hóa đơn
+* Ngày đến hạn
+* Đã thanh toán
+* Chưa thanh toán
+
+⸻
+
+6. Chi hộ - Thu hộ
+
+Đây là nghiệp vụ rất đặc thù logistics.
+
+Ví dụ
+
+Chi hộ
+
+Silver Sea trả trước
+
+* THC
+* D/O
+* Nâng hạ
+* Hải quan
+
+Sau đó thu lại khách.
+
+Phần mềm phải tự động:
+
+Chi hộ
+↓
+
+Sinh Debit
+
+↓
+
+Khách thanh toán
+
+↓
+
+Đóng công nợ
+[14/07/2026 10:50:00] Mai Phương: Báo cáo lợi nhuận
+
+Theo
+
+Khách hàng
+
+Theo tuyến
+
+Theo xe
+
+Theo điều vận
+
+Theo nhân viên kinh doanh
+
+Theo tháng
+
+Theo năm
+
+Theo container
+
+Ví dụ
+
+Lô hàng A
+
+Doanh thu
+
+25.000.000
+
+Chi phí
+
+20.800.000
+
+Lợi nhuận
+
+4.200.000
+
+Biên lợi nhuận
+
+16,8%
+
+⸻
+
+10. Dashboard tài chính
+
+CEO mở lên sẽ thấy ngay:
+
+Doanh thu hôm nay
+
+Doanh thu tháng
+
+Chi phí tháng
+
+Lợi nhuận
+
+Công nợ phải thu
+
+Công nợ quá hạn
+
+Tiền mặt
+
+Ngân hàng
+
+Top 10 khách hàng
+
+Top 10 khách nợ nhiều nhất
+
+Chi phí theo từng loại
+
+Lợi nhuận từng xe
+[14/07/2026 17:52:23] Ht Ting Ting: @Mai Phương anh hỏi thêm về phần xe tải hàng rời bên em tính cước xe tải hàng rời theo đơn vị nào — chuyến cố định, tấn, per m³?
+[14/07/2026 17:53:29] Silversea Dũng: @Ht Ting Ting theo tuyến và trọng lượng ạ
+[14/07/2026 18:26:49] Namthien: @Ht Ting Ting xe tải sẽ có các tải trọng của xe : 1.25T - 2.5T - 3.5T - 5T - 8T -10 T
+[14/07/2026 18:27:55] Namthien: hàng cont : Cont20 ; Cont40 ; Cont45 ;  Cont 20/40 Lạnh  ; cont20 FR ;  cont40 FR ;  Cont20 /40 OT

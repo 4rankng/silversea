@@ -1,0 +1,170 @@
+.ds-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--fg-3, var(--ink-3));
+  gap: 8px;
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-lg, 16px);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0)),
+    transparent;
+  box-shadow: var(--sh-sm);
+}
+
+.ds-empty-state__illustration {
+  width: 160px;
+  height: 132px;
+  object-fit: contain;
+  opacity: 0.85;
+}
+
+.ds-empty-state__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-2, var(--fg-2));
+}
+
+.ds-empty-state__description {
+  margin: 0;
+  font-size: 13px;
+  color: var(--fg-3, var(--ink-3));
+  width: 100%;
+  min-width: 0;
+  max-width: min(100%, 420px);
+  box-sizing: border-box;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+
+.ds-empty-state__action {
+  margin-top: 8px;
+}
+
+/* ─── Icon variant ──────────────────────────────────────────────────────── */
+.ds-empty-state__icon {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  background: var(--accent-soft);
+  color: var(--accent-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+/* ─── Preview variant (T1 — retokenized from a-c-empty-states-05) ─────────
+ * When `preview` is set, the message sits on top and faded placeholder
+ * shapes appear underneath so users see what content will look like. */
+.ds-empty-state--with-preview {
+  padding: 48px 24px 32px;
+  gap: 24px;
+  border: 2px dashed var(--line-2);
+  background: var(--surface);
+  box-shadow: none;
+  border-radius: var(--r-lg);
+}
+
+.ds-empty-state__message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  max-width: 480px;
+}
+
+.ds-empty-state--with-preview .ds-empty-state__title {
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-bold);
+  color: var(--ink);
+}
+
+.ds-empty-state--with-preview .ds-empty-state__description {
+  font-size: var(--fs-sm);
+  line-height: var(--lh-relaxed);
+  color: var(--ink-3);
+}
+
+.ds-empty-state--with-preview .ds-empty-state__action {
+  margin-top: 8px;
+}
+
+/* Preview container — grid layout per variant. */
+.ds-empty-state__preview {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.ds-empty-state--preview-cards .ds-empty-state__preview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (min-width: 640px) {
+  .ds-empty-state--preview-cards .ds-empty-state__preview {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.ds-empty-state--preview-rows .ds-empty-state__preview,
+.ds-empty-state--preview-list .ds-empty-state__preview {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 520px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ─── Preview shapes (token-driven, no Tailwind palette) ────────────────── */
+.ds-empty-state__preview-card {
+  height: 130px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+
+.ds-empty-state__preview-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: var(--line-2);
+}
+
+.ds-empty-state__preview-row,
+.ds-empty-state__preview-list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+
+.ds-empty-state__preview-line {
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--line);
+}
+.ds-empty-state__preview-line--w10 { width: 10%; background: var(--line-2); }
+.ds-empty-state__preview-line--w20 { width: 20%; background: var(--line-2); }
+.ds-empty-state__preview-line--w25 { width: 25%; background: var(--line-2); }
+.ds-empty-state__preview-line--w30 { width: 30%; background: var(--line-2); }
+.ds-empty-state__preview-line--w33 { width: 33%; background: var(--line-2); }
+.ds-empty-state__preview-line--w40 { width: 40%; }
+.ds-empty-state__preview-line--w50 { width: 50%; }
+.ds-empty-state__preview-line--w60 { width: 60%; }
+.ds-empty-state__preview-line--w75 { width: 75%; }

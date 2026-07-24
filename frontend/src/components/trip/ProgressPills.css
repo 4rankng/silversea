@@ -1,0 +1,29 @@
+/* ProgressPills — step progress indicator */
+
+.tc-progress-pills {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border-1);
+  padding: 6px 10px;
+  border-radius: var(--radius-full);
+  font-size: var(--fs-xs);
+  color: var(--fg-2);
+  white-space: nowrap;
+}
+.tc-pill-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ink-4);
+}
+.tc-pill-dot--done { background: var(--accent); }
+.tc-pill-dot--active {
+  background: var(--accent-2);
+  border: 2px solid var(--accent-soft);
+}
+
+@media (max-width: 640px) {
+  .tc-progress-pills { order: 99; flex-basis: 100%; justify-content: flex-start; }
+}

@@ -1,0 +1,426 @@
+/* ============================================================================
+ * Sidebar
+ * ========================================================================== */
+.sidebar {
+  background: linear-gradient(180deg, var(--sb-gradient-start) 0%, var(--sb-gradient-end) 100%);
+  color: var(--sb-text);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  border-right: 1px solid var(--sb-line);
+  position: relative;
+}
+.sidebar::before {
+  content: none;
+}
+.sidebar > * {
+  position: relative;
+  z-index: 1;
+}
+.sidebar-brand {
+  padding: 16px 18px 15px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  border-bottom: 1px solid var(--sb-line);
+  flex-shrink: 0;
+  position: relative;
+}
+
+.sidebar-toggle-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-h);
+  height: var(--control-h);
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--sb-text-muted);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.2s ease, color 0.2s ease;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 80px;
+}
+
+.sidebar-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--sb-text);
+}
+
+.sidebar-brand-logo {
+  width: 40px;
+  height: 40px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  flex-shrink: 0;
+}
+.sidebar-brand-logo img { width: 100%; height: 100%; object-fit: contain; }
+.sidebar-brand-meta {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+  line-height: 1.35;
+  overflow: hidden;
+}
+.sidebar-brand-meta strong {
+  display: block;
+  color: var(--fg-on-brand);
+  font-family: var(--font-display);
+  font-size: var(--fs-sm);
+  font-weight: 800;
+  line-height: 1.35;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+.sidebar-brand-meta span {
+  font-family: var(--font-body);
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+  color: var(--sb-text-muted);
+  letter-spacing: 0;
+  font-weight: 600;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+/* nav container */
+.sidebar-nav,
+.sidebar__nav {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px 12px 12px;
+  overscroll-behavior: contain;
+}
+
+/* legacy sidebar section labels */
+.sidebar-section-label {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--sb-text-muted);
+  padding: 20px 12px 8px;
+}
+
+/* collapsible section toggle */
+.sidebar-section-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: color 150ms ease;
+}
+.sidebar-section-toggle:hover {
+  color: rgba(255, 255, 255, 0.75);
+}
+.sidebar-section-chevron {
+  margin-left: auto;
+  opacity: 0.5;
+  flex-shrink: 0;
+  transition: transform 200ms ease, opacity 150ms ease;
+}
+.sidebar-section-toggle:hover .sidebar-section-chevron {
+  opacity: 0.8;
+}
+.sidebar-section-chevron.collapsed {
+  transform: rotate(-90deg);
+}
+/* wireframe-canonical section label */
+.nav-section-label {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--sb-text-muted);
+  margin: 20px 12px 8px;
+  font-weight: 700;
+}
+
+/* legacy sidebar item */
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  min-height: 44px;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: var(--fs-sm);
+  line-height: 1.35;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 150ms var(--ease), color 150ms var(--ease);
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  margin-bottom: 2px;
+  position: relative;
+}
+.sidebar-item::before {
+  content: "";
+  position: absolute;
+  left: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 18px;
+  width: 3px;
+  background: var(--surface);
+  border-radius: 0 3px 3px 0;
+  opacity: 0;
+  transition: opacity 150ms var(--ease);
+}
+.sidebar-item:hover { background: rgba(255, 255, 255, 0.11); color: var(--fg-on-brand); }
+.sidebar-item.active {
+  background: var(--sb-active-bg);
+  color: var(--fg-on-brand);
+  font-weight: 600;
+}
+.sidebar-item.active svg {
+  color: #8FE9B6;
+}
+.sidebar-item.active::before { opacity: 1; }
+.sidebar-item svg {
+  width: 16px; height: 16px; stroke-width: 1.8; flex-shrink: 0;
+  transition: transform 150ms var(--ease);
+}
+.sidebar-item .sidebar-item-label { flex: 1; pointer-events: none; }
+.sidebar-item .sidebar-item-trail { font-size: var(--fs-xs); line-height: 1.35; opacity: .7; pointer-events: none; }
+
+/* wireframe-canonical nav item */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  width: 100%;
+  text-align: left;
+  margin-bottom: 2px;
+  position: relative;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 150ms var(--ease), color 150ms var(--ease);
+}
+.nav-item:hover { background: rgba(255, 255, 255, 0.10); color: var(--fg-on-brand); }
+.nav-item.is-active {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--fg-on-brand);
+  font-weight: 600;
+}
+.nav-item.is-active::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 18px;
+  background: var(--surface);
+  border-radius: 0 3px 3px 0;
+}
+.nav-item svg { width: 16px; height: 16px; stroke-width: 1.8; flex-shrink: 0; }
+.nav-item__badge {
+  background: var(--surface);
+  color: var(--accent);
+  min-width: 20px;
+  height: 18px;
+  border-radius: 999px;
+  padding: 0 6px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  margin-left: auto;
+}
+.nav-item__badge--neutral {
+  background: rgba(255, 255, 255, 0.18);
+  color: var(--fg-on-brand);
+}
+.nav-item__badge--danger {
+  background: var(--danger);
+  color: var(--fg-on-brand);
+}
+
+.sidebar-footer {
+  padding: 12px;
+  border-top: 1px solid var(--sb-line);
+  flex-shrink: 0;
+  position: relative;
+}
+.sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  color: inherit;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: background 150ms var(--ease);
+}
+.sidebar-user:hover { background: rgba(255, 255, 255, 0.08); }
+.sidebar-user .avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.85);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700;
+  flex-shrink: 0;
+}
+.sidebar-user .meta { line-height: 1.35; min-width: 0; flex: 1; overflow: hidden; }
+.sidebar-user .meta .name {
+  font-size: var(--fs-sm); font-weight: 600; color: var(--fg-on-brand);
+  line-height: 1.35;
+  word-break: break-word;
+}
+.sidebar-user .meta .role {
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+  color: var(--sb-text-muted);
+  font-family: var(--font-mono);
+  word-break: break-word;
+}
+
+/* ---- User dropdown menu ---- */
+.sidebar-user-dropdown {
+  position: absolute;
+  bottom: 100%;
+  left: 12px;
+  right: 12px;
+  margin-bottom: 4px;
+  background: var(--surface);
+  border-radius: 10px;
+  border: 1px solid var(--line-2);
+  padding: 6px;
+  z-index: var(--z-sticky);
+  animation: dropdownUp 150ms ease-out;
+}
+
+@keyframes dropdownUp {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.sidebar-user-dropdown-header {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar-user-dropdown-header .name {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink, #1a1a2e);
+  overflow-wrap: anywhere;
+}
+
+.sidebar-user-dropdown-header .role {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--ink-3, #888);
+  font-family: var(--font-mono, monospace);
+  overflow-wrap: anywhere;
+}
+
+.sidebar-user-dropdown-divider {
+  height: 1px;
+  background: var(--line, #e5e5e5);
+  margin: 4px 8px;
+}
+
+.sidebar-user-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1.35;
+  font-weight: 500;
+  color: var(--danger, #dc2626);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  transition: background 120ms ease;
+}
+
+.sidebar-user-dropdown-item:hover {
+  background: rgba(220, 38, 38, 0.06);
+}
+
+.sidebar-user-dropdown-item svg {
+  width: 16px;
+  height: 16px;
+}
+
+.sidebar-user-dropdown-item--neutral {
+  color: var(--ink, #1a1a2e);
+}
+
+.sidebar-user-dropdown-item--neutral:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+/* ---- Collapsed-rail tooltip ------------------------------------------------
+ * Portal-rendered (see Sidebar.tsx) so it escapes the sidebar's overflow:hidden
+ * and the nav's overflow scroll. Shown only in icon-only (collapsed) mode, where
+ * the item labels are hidden and the native title attribute is too slow/unstyled.
+ */
+.rail-tooltip {
+  position: fixed;
+  transform: translateY(-50%);
+  z-index: var(--z-tooltip);
+  background: var(--surface, #ffffff);
+  color: var(--ink, #1a1a2e);
+  padding: 5px 9px;
+  border-radius: 6px;
+  font-family: var(--font-body, inherit);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  border: 1px solid var(--line-2);
+  animation: railTipIn 110ms ease-out;
+}
+@keyframes railTipIn {
+  from { opacity: 0; transform: translate(4px, -50%); }
+  to { opacity: 1; transform: translate(0, -50%); }
+}

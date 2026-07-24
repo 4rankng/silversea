@@ -1,0 +1,98 @@
+.ds-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 2px;
+  flex-wrap: wrap;
+}
+
+.ds-pagination__summary-slot {
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+  color: var(--fg-3, var(--ink-3));
+}
+
+.ds-pagination__summary b {
+  color: var(--ink, var(--fg));
+  font-weight: 600;
+}
+
+.ds-pagination__controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ds-pagination__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 8px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--surface), var(--surface-2));
+  color: var(--ink-2, var(--fg-2));
+  font-size: var(--fs-sm);
+  line-height: 1.35;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms var(--ease), border-color 120ms var(--ease), color 120ms var(--ease), box-shadow 120ms var(--ease);
+}
+
+.ds-pagination__btn:hover:not(:disabled) {
+  background: var(--surface-2, var(--bg-2));
+  border-color: var(--brand);
+  color: var(--ink, var(--fg));
+  box-shadow: var(--sh-sm);
+}
+
+.ds-pagination__btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 22%, transparent);
+}
+
+.ds-pagination__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ds-pagination__btn--active {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--fg-on-brand);
+}
+
+.ds-pagination__btn--active:hover {
+  background: var(--brand);
+  color: var(--fg-on-brand);
+}
+
+.ds-pagination__ellipsis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  min-height: 44px;
+  color: var(--fg-3, var(--ink-3));
+  font-size: var(--fs-sm);
+  line-height: 1.35;
+}
+
+@media (max-width: 640px) {
+  .ds-pagination {
+    align-items: stretch;
+  }
+
+  .ds-pagination__controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .ds-pagination__btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}

@@ -1,0 +1,453 @@
+/* ============================================================================
+ * PayableListPage — Bento Grid Layout (Vantai Design System)
+ *
+ * Zone 1: Hero KPI Row (4-column grid: hero span-3 + mini-KPI stack span-1)
+ * Zone 2: Aging Distribution (4 equal cards with progress bars)
+ * Zone 3: Data Card (full-width card wrapping toolbar + table/mobile cards)
+ * ========================================================================== */
+
+/* ── Page wrapper ──────────────────────────────────────────────────────────── */
+.payables-page {
+  /* Ensures animation selectors are scoped */
+}
+
+/* ============================================================================
+ * Zone 2 — Aging Distribution (4 equal cards)
+ * ========================================================================== */
+.payables-aging-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.aging-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: var(--r-lg, 18px);
+  padding: 16px 18px 14px;
+  box-shadow: 0 1px 2px rgba(9, 9, 11, 0.04);
+  transition: transform 0.2s var(--ease, cubic-bezier(0.4, 0, 0.2, 1)),
+              box-shadow 0.2s var(--ease, cubic-bezier(0.4, 0, 0.2, 1));
+}
+
+.aging-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(9, 9, 11, 0.07);
+}
+
+.aging-card__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.aging-card__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.aging-card__dot--ok     { background: var(--accent, #00B14F); }
+.aging-card__dot--warn   { background: var(--warning, #F5A623); }
+.aging-card__dot--deep   { background: var(--warning-deep, #DD5A1F); }
+.aging-card__dot--danger { background: var(--danger, #E32434); }
+
+.aging-card__label {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-3, #8B919B);
+}
+
+.aging-card__value {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.35;
+  color: var(--ink, #0A0A0A);
+  margin-bottom: 4px;
+}
+
+/* Currency unit / compact suffix rendered at subtitle size */
+.aging-card__unit {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-3, #8B919B);
+  white-space: nowrap;
+}
+
+.aging-card__count {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+  color: var(--ink-3, #8B919B);
+  margin-bottom: 10px;
+}
+
+/* ── Progress bars ───────────────────────────────────────────────────────── */
+.aging-card__bar-track {
+  width: 100%;
+  height: 4px;
+  background: var(--line, #EAECEF);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.aging-card__bar {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.6s var(--ease, cubic-bezier(0.4, 0, 0.2, 1));
+}
+
+.aging-card__bar--ok     { background: var(--accent, #00B14F); }
+.aging-card__bar--warn   { background: var(--warning, #F5A623); }
+.aging-card__bar--deep   { background: var(--warning-deep, #DD5A1F); }
+.aging-card__bar--danger { background: var(--danger, #E32434); }
+
+/* ============================================================================
+ * Zone 3 — Data Card
+ * ========================================================================== */
+.payables-data-card {
+  background: var(--surface, #FFFFFF);
+  border: 1px solid var(--line, #EAECEF);
+  border-radius: var(--r-lg, 18px);
+  padding: 20px 24px;
+  box-shadow: 0 1px 2px rgba(9, 9, 11, 0.04);
+}
+
+/* ── Toolbar inside data card ────────────────────────────────────────────── */
+.payables-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.payables-toolbar__spacer {
+  flex: 1;
+}
+
+.payables-toolbar__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-1, #F7F8FA);
+  border: 1px solid var(--line, #EAECEF);
+  border-radius: var(--r-sm, 8px);
+  padding: 8px 14px;
+  min-height: 42px;
+  width: 300px;
+  transition: border-color 0.15s var(--ease, cubic-bezier(0.4, 0, 0.2, 1)),
+              box-shadow 0.15s var(--ease, cubic-bezier(0.4, 0, 0.2, 1));
+}
+
+.payables-toolbar__search:focus-within {
+  border-color: var(--accent, #00B14F);
+  box-shadow: 0 0 0 3px rgba(0, 177, 79, 0.1);
+}
+
+.payables-toolbar__search input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: var(--fs-sm, 14px);
+  line-height: 1.35;
+  min-height: 32px;
+  color: var(--ink, #0A0A0A);
+  width: 100%;
+  font-family: inherit;
+}
+
+.payables-toolbar__search input::placeholder {
+  color: var(--ink-3, #8B919B);
+}
+
+/* ============================================================================
+ * Responsive — Tablet (<=1023px)
+ * ========================================================================== */
+@media (max-width: 1023px) {
+  .payables-page .hero-kpi-row {
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  .payables-aging-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .payables-data-card {
+    padding: 16px;
+  }
+
+  .payables-toolbar__search {
+    width: 240px;
+  }
+}
+
+/* ============================================================================
+ * Responsive — Phone (<=640px)
+ * ========================================================================== */
+@media (max-width: 640px) {
+  .payables-page .page-header {
+    margin-bottom: 14px;
+  }
+
+  .payables-page .page-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .payables-page .page-actions .btn {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  .payables-page .hero-kpi-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .payables-page .hero-kpi-card {
+    min-height: 116px;
+    padding: 18px 20px;
+  }
+
+  .payables-page .hero-kpi-stack {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .payables-page .hero-kpi-mini {
+    min-height: 82px;
+    padding: 14px 16px;
+  }
+
+  .payables-page .hero-kpi-mini__value {
+    font-size: 22px;
+  }
+
+  .payables-page .hero-kpi-mini__label {
+    max-width: 88px;
+    line-height: 1.25;
+  }
+
+  .payables-page .hero-kpi-mini__watermark {
+    right: 8px;
+    bottom: 6px;
+    opacity: 0.8;
+  }
+
+  .payables-aging-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .aging-card {
+    padding: 13px 16px 12px;
+    border-radius: var(--r, 12px);
+  }
+
+  .aging-card__header {
+    margin-bottom: 8px;
+  }
+
+  .aging-card__value {
+    font-size: 19px;
+  }
+
+  .aging-card__count {
+    margin-bottom: 8px;
+  }
+
+  .payables-data-card {
+    padding: 12px;
+    border-radius: var(--r, 12px);
+  }
+
+  .payables-toolbar {
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+
+  .payables-toolbar__search {
+    width: 100%;
+    order: -1;
+    min-height: 44px;
+  }
+
+  .payables-page .payables-category-chips {
+    gap: 8px;
+    margin-bottom: 12px;
+    scrollbar-width: none;
+  }
+
+  .payables-page .payables-category-chips::-webkit-scrollbar {
+    display: none;
+  }
+
+  .payables-page .payables-category-chip {
+    min-height: 44px;
+    padding: 9px 14px;
+  }
+
+  /* Mobile amount text in card list */
+  .payables-page .m-card .m-card__row-value {
+    font-family: var(--font-mono);
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0;
+  }
+}
+
+/* ============================================================================
+ * Responsive — Narrow phone (<=420px)
+ * ========================================================================== */
+@media (max-width: 420px) {
+  .payables-page .page-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .payables-page .hero-kpi-card__amount {
+    font-size: 26px;
+  }
+
+  .payables-page .hero-kpi-mini {
+    min-height: 76px;
+  }
+}
+
+/* ============================================================================
+ * V2 — Category filter chips + commission posting form
+ * ========================================================================== */
+
+/* Category chip row above the table (inside data card). */
+.payables-page .payables-category-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.payables-page .payables-category-chip {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.08));
+  background: var(--surface-2, #fff);
+  color: var(--fg-2, #475569);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  min-height: 44px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.payables-page .payables-category-chip:hover {
+  background: var(--surface-3, #f1f5f9);
+  color: var(--fg-1, #1e293b);
+}
+
+.payables-page .payables-category-chip.is-active {
+  background: var(--primary, #0f766e);
+  border-color: var(--primary, #0f766e);
+  color: #fff;
+}
+
+.payables-page .payables-category-chip:focus-visible {
+  outline: 2px solid var(--primary, #0f766e);
+  outline-offset: 2px;
+}
+
+/* Commission posting form (inside Modal).
+   NOTE: the Modal is rendered through a portal at document.body, OUTSIDE the
+   .payables-page wrapper — so these rules MUST NOT be scoped under .payables-page
+   or they will never match and the form renders unstyled. */
+.commission-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 2px;
+}
+.commission-form .field {
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.commission-form .field label {
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.commission-form .input {
+  height: 44px;
+  font-size: 15px;
+}
+
+.commission-form__error {
+  background: rgba(220, 38, 38, 0.08);
+  color: var(--danger, #dc2626);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+.commission-form .req {
+  color: var(--danger, #dc2626);
+  margin-left: 2px;
+}
+
+@media (max-width: 640px) {
+  .commission-form {
+    gap: 15px;
+  }
+
+  .commission-form .input {
+    height: 46px;
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 420px) {
+  .payables-page .payables-category-chips {
+    gap: 6px;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 4px;
+    padding-right: 26px;
+    mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+  }
+
+  .payables-page .payables-category-chips::-webkit-scrollbar {
+    display: none;
+  }
+}

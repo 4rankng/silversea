@@ -1,0 +1,415 @@
+/* ─── Page Layout ─── */
+.salary-page-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+  align-items: start;
+  max-width: 1180px; /* 840px calendar + 20px gap + 320px sidebar */
+}
+
+@media (min-width: 1025px) {
+  .salary-page-layout.has-selected {
+    grid-template-columns: minmax(auto, 840px) 320px;
+  }
+}
+
+@media (max-width: 1023px) {
+  .salary-page-layout.salary-page-layout {
+    width: 100%;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .mobile-back-btn {
+    display: flex !important;
+  }
+}
+
+/* ─── Driver Selector Strip ─── */
+.driver-select-row {
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+.driver-select-row__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 2px 0 4px;
+}
+
+/* ─── Individual Driver Card (Selector) ─── */
+.driver-select-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+  min-width: 120px;
+}
+
+.driver-select-card:hover {
+  border-color: var(--border-2);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.05);
+}
+
+.driver-select-card.is-active {
+  border-color: var(--accent);
+  border-width: 1.5px;
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 3px rgba(0, 177, 79, 0.07);
+}
+
+.driver-select-card__dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.driver-select-card__name {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--fg-1);
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  max-width: 160px;
+}
+
+.driver-select-card.is-active .driver-select-card__name {
+  color: var(--accent-ink);
+}
+
+.driver-select-card__salary {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
+.driver-select-card.is-active .driver-select-card__salary {
+  /* color already set inline via success/danger var */
+}
+
+.salary-empty-inline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  color: var(--ink-3);
+  font-size: 13px;
+}
+
+.salary-empty-inline img {
+  width: 56px;
+  height: 46px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.salary-empty-panel {
+  padding: 42px 24px 46px;
+  text-align: center;
+  color: var(--fg-3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.salary-empty-panel img {
+  width: 168px;
+  height: 140px;
+  object-fit: contain;
+}
+
+@media (max-width: 640px) {
+  .driver-select-card {
+    padding: 7px 12px;
+    border-radius: 7px;
+    min-width: 100px;
+  }
+}
+
+/* ─── Calendar Panel ─── */
+.salary-calendar-area {
+  width: 100%;
+  max-width: 840px;
+}
+
+.calendar-card-header {
+  padding: 16px 20px 14px;
+  border-bottom: 1px solid var(--border-1);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.calendar-header-title {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--fg-1);
+  margin: 0;
+  letter-spacing: 0;
+}
+
+.calendar-container {
+  padding: 14px;
+}
+
+/* ─── Day-of-Week Header ─── */
+.calendar-dow-header {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.calendar-dow-cell {
+  text-align: center;
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 5px 0;
+  color: var(--fg-3);
+  text-transform: uppercase;
+}
+
+.calendar-dow-cell.is-sunday {
+  color: var(--danger);
+}
+
+/* ─── Calendar Grid ─── */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+}
+
+/* ─── Calendar Day Cell ─── */
+.cal-cell {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 9px;
+  border: 1px solid var(--border-1);
+  background: linear-gradient(180deg, var(--surface), rgba(248, 250, 249, 0.86));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 5px 5px;
+  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+  min-width: 0;
+  user-select: none;
+  overflow: hidden;
+}
+
+.cal-cell.is-empty {
+  background: var(--bg-2);
+  border-color: transparent;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.cal-cell.is-clickable {
+  cursor: pointer;
+}
+
+.cal-cell.is-clickable:hover {
+  border-color: var(--accent);
+  background: linear-gradient(180deg, var(--accent-soft), rgba(255, 255, 255, 0.92));
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px -16px rgba(0, 90, 45, 0.55);
+}
+
+.cal-cell.is-clickable:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.cal-cell-day-num {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  color: var(--fg-3);
+  line-height: 1.35;
+  align-self: flex-start;
+}
+
+.cal-cell-status-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  width: 100%;
+}
+
+.cal-cell-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  opacity: 0.85;
+  transition: transform 140ms ease;
+}
+
+.cal-cell:hover .cal-cell-icon-wrap {
+  transform: scale(1.08);
+  opacity: 1;
+}
+
+.cal-cell-trip-code {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  color: var(--accent-ink);
+  background: rgba(0, 177, 79, 0.1);
+  padding: 1px 3px;
+  border-radius: 3px;
+  margin-top: 2px;
+  max-width: 90%;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  font-family: var(--font-mono);
+}
+
+.cal-cell-note-dot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* ─── Status Variants ─── */
+/* Đi chuyến — subtle green tint */
+.cal-cell.status-trip_day {
+  background: linear-gradient(180deg, #f0fdf4, #ffffff);
+  border-color: #bbf7d0;
+}
+.cal-cell.status-trip_day .cal-cell-day-num {
+  color: #15803d;
+}
+.cal-cell.status-trip_day .cal-cell-icon-wrap {
+  color: #16a34a;
+  background: rgba(34, 197, 94, 0.10);
+}
+
+/* Chờ việc — subtle amber tint */
+.cal-cell.status-standby {
+  background: linear-gradient(180deg, #fffbea, #ffffff);
+  border-color: #fde68a;
+}
+.cal-cell.status-standby .cal-cell-day-num {
+  color: #a16207;
+}
+.cal-cell.status-standby .cal-cell-icon-wrap {
+  color: #ca8a04;
+  background: rgba(245, 158, 11, 0.11);
+}
+
+/* Nghỉ riêng — subtle rose tint */
+.cal-cell.status-personal_leave {
+  background: linear-gradient(180deg, #fff1f2, #ffffff);
+  border-color: #fecdd3;
+}
+.cal-cell.status-personal_leave .cal-cell-day-num {
+  color: #be123c;
+}
+.cal-cell.status-personal_leave .cal-cell-icon-wrap {
+  color: #e11d48;
+  background: rgba(225, 29, 72, 0.10);
+}
+
+/* Nghỉ tuần — neutral slate */
+.cal-cell.status-weekly_off {
+  background: linear-gradient(180deg, var(--surface-2), var(--surface));
+  border-color: var(--border-1);
+}
+.cal-cell.status-weekly_off .cal-cell-day-num {
+  color: var(--fg-3);
+}
+.cal-cell.status-weekly_off .cal-cell-icon-wrap {
+  color: var(--fg-3);
+  opacity: 0.6;
+  background: var(--surface-3);
+}
+
+/* ─── Calendar Footer: Legend + Instruction ─── */
+.calendar-legend-bar {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-1);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.calendar-legend-items {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.calendar-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-2xs);
+  font-weight: 500;
+  color: var(--fg-2);
+  padding: 3px 9px;
+  border-radius: 99px;
+  border: 1px solid var(--border-1);
+  background: var(--surface);
+}
+
+/* Semantic legend tints — match cell colors */
+.calendar-legend-item:nth-child(1) {
+  color: #15803d;
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+.calendar-legend-item:nth-child(2) {
+  color: #a16207;
+  border-color: #fde68a;
+  background: #fefce8;
+}
+.calendar-legend-item:nth-child(3) {
+  color: #be123c;
+  border-color: #fecdd3;
+  background: #fff1f2;
+}
+.calendar-legend-item:nth-child(4) {
+  color: var(--fg-3);
+  border-color: var(--border-1);
+  background: var(--surface);
+}
+
+.calendar-legend-instruction {
+  font-size: var(--fs-xs);
+  color: var(--fg-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border-1);
+  border-radius: 6px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  line-height: 1.4;
+}

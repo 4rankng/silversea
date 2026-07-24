@@ -1,0 +1,183 @@
+.billing-panel {
+  width: 100%;
+  margin: 2px 0 18px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  box-shadow: var(--sh-sm);
+  animation: fade-up .38s var(--ease) both;
+  animation-delay: .03s;
+}
+
+.billing-panel__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.billing-panel__title {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.billing-panel__title svg,
+.billing-panel__doc svg {
+  color: var(--ink-3);
+  flex-shrink: 0;
+}
+
+.billing-panel__title span {
+  white-space: nowrap;
+}
+
+.billing-panel__title small {
+  padding-left: 4px;
+  color: var(--ink-3);
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.billing-panel__create {
+  flex-shrink: 0;
+}
+
+.billing-panel__head-actions {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.billing-panel__history-toggle {
+  flex-shrink: 0;
+}
+
+.billing-panel__history-toggle .is-open {
+  transform: rotate(180deg);
+}
+
+.billing-panel__empty {
+  padding: 10px 2px 2px;
+  color: var(--ink-3);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.billing-panel__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr));
+  gap: 6px;
+  max-height: min(55vh, 420px);
+  overflow: auto;
+  padding-right: 2px;
+  scrollbar-gutter: stable;
+}
+
+.billing-panel__list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.billing-panel__list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink-3) 28%, transparent);
+}
+
+.billing-panel__row {
+  min-height: 38px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.billing-panel__doc {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.billing-panel__doc span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.billing-panel__doc strong {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.billing-panel__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.billing-panel__actions .btn-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: var(--ink-3);
+}
+
+.billing-panel__actions .btn-icon:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+@media (max-width: 760px) {
+  .billing-panel {
+    margin-bottom: 14px;
+    padding: 12px;
+  }
+
+  .billing-panel__head {
+    align-items: stretch;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .billing-panel__head-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .billing-panel__history-toggle,
+  .billing-panel__create {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .billing-panel__list {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .billing-panel__row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .billing-panel__actions {
+    justify-content: flex-end;
+  }
+}

@@ -1,0 +1,222 @@
+/**
+ * OCR OpenRouter (Qwen3-VL) migration — provider ordering, failover, and the
+ * OpenRouter-specific parsing edge cases (<think> stripping, parts-array
+ * content, HTTP error handling). Run with the project's tsx --test runner.
+ *
+ * globalThis.fetch is mocked per-test and routed by URL so we can prove:
+ *   - OpenRouter is tried FIRST and, on success, Gemini is never called.
+ *   - an OpenRouter failure (HTTP 429) transparently fails over to Gemini.
+ *   - <think> reasoning and parts-array `content` are normalized before parsing.
+ *
+ * Note: no before/after hooks — this Node/tsx ESM surface doesn't expose
+ * `afterAll`. Config keys are pinned at module top-level (each test file runs
+ * in its own process under `tsx --test`, so there is no cross-file leakage),
+ * and per-test state is set up inline with try/finally.
+ */
+import { describe, test } from 'node:test';
+import assert from 'node:assert/strict';
+import { callOpenRouterVision, extractContainerAndSeal } from '../services/ocr.service';
+import { config } from '../config';
+
+const originalFetch = globalThis.fetch;
+
+// Pin both keys so orderedProviders() = [openrouter, gemini] regardless of the
+// local .env (hermetic). Restore is unnecessary: each test file runs in its own
+// process under `tsx --test`.
+config.openrouterApiKey = 'test-or-key';
+config.geminiApiKey = 'test-gemini-key';
+
+// 1×1 PNG — a valid image so sharp's preprocessImage succeeds cleanly (the
+// mocked fetch ignores the bytes; we just want no preprocessing noise).
+const IMG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+  'base64',
+);
+
+// Valid ISO 6346 container number (check digit 5) — autoCorrect keeps it as-is.
+const VALID_CONTAINER = 'ALLU5216535';
+
+/** Minimal Response stand-in for the mocked global fetch. */
+function res(body: unknown, status = 200): Response {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => body,
+    text: async () => (typeof body === 'string' ? body : JSON.stringify(body)),
+    headers: new Headers(),
+  } as Response;
+}
+
+const orBody = (content: unknown) => ({ choices: [{ message: { content } }], model: 'qwen/qwen3-vl-32b-instruct' });
+const geminiBody = (text: string) => ({ candidates: [{ content: { parts: [{ text }] } }] });
+
+describe('OCR: OpenRouter (Qwen3-VL) migration', () => {
+  test('callOpenRouterVision: success → provider=openrouter + parsed JSON text', async () => {
+    const urls: string[] = [];
+    globalThis.fetch = (async (url: string | URL | Request) => {
+      urls.push(String(url));
+      return res(orBody(JSON.stringify({ container_numbers: [VALID_CONTAINER] })));
+    }) as unknown as typeof globalThis.fetch;
+    try {
+      const r = await callOpenRouterVision('prompt', IMG, 'image/jpeg');
+      assert.equal(r.success, true);
+      assert.equal(r.provider, 'openrouter');
+      assert.equal(r.model, 'qwen/qwen3-vl-32b-instruct');
+      assert.deepEqual(JSON.parse(r.text!), { container_numbers: [VALID_CONTAINER] });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('callOpenRouterVision: strips <think> reasoning before the JSON answer', async () => {
+    globalThis.fetch = (async (_url: string | URL | Request) => {
+      return res(orBody(`<think>reasoning about the image...</think>{"container_numbers":["${VALID_CONTAINER}"]}`));
+    }) as unknown as typeof globalThis.fetch;
+    try {
+      const r = await callOpenRouterVision('prompt', IMG, 'image/jpeg');
+      assert.equal(r.success, true);
+      assert.equal(r.text!.includes('<think>'), false);
+      assert.deepEqual(JSON.parse(r.text!), { container_numbers: [VALID_CONTAINER] });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('callOpenRouterVision: normalizes parts-array content (not only string)', async () => {
+    globalThis.fetch = (async () =>
+      res(orBody([{ type: 'text', text: `{"container_numbers":["${VALID_CONTAINER}"]}` }]))) as unknown as typeof globalThis.fetch;
+    try {
+      const r = await callOpenRouterVision('prompt', IMG, 'image/jpeg');
+      assert.equal(r.success, true);
+      assert.deepEqual(JSON.parse(r.text!), { container_numbers: [VALID_CONTAINER] });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('callOpenRouterVision: HTTP 429 → failure "HTTP 429", no throw', async () => {
+    globalThis.fetch = (async () => res({ error: 'rate limited' }, 429)) as unknown as typeof globalThis.fetch;
+    try {
+      const r = await callOpenRouterVision('prompt', IMG, 'image/jpeg');
+      assert.equal(r.success, false);
+      assert.equal(r.provider, 'openrouter');
+      assert.equal(r.error, 'HTTP 429');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('callOpenRouterVision: empty key → friendly error, fetch NOT called', async () => {
+    const saved = config.openrouterApiKey;
+    let calls = 0;
+    config.openrouterApiKey = '';
+    globalThis.fetch = (async () => { calls++; return res(orBody('{}')); }) as unknown as typeof globalThis.fetch;
+    try {
+      const r = await callOpenRouterVision('prompt', IMG, 'image/jpeg');
+      assert.equal(r.success, false);
+      assert.equal(r.provider, 'openrouter');
+      assert.match(r.error!, /OPENROUTER_API_KEY/);
+      assert.equal(calls, 0);
+    } finally {
+      config.openrouterApiKey = saved;
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('extractContainerAndSeal: OpenRouter succeeds first → Gemini NOT called', async () => {
+    const urls: string[] = [];
+    let geminiCalled = 0;
+    globalThis.fetch = (async (url: string | URL | Request) => {
+      const u = String(url);
+      urls.push(u);
+      if (u.includes('openrouter.ai')) {
+        return res(orBody(JSON.stringify({ container_numbers: [VALID_CONTAINER] })));
+      }
+      geminiCalled++;
+      return res(geminiBody(JSON.stringify({ container_numbers: ['TEMU0000000'] })));
+    }) as unknown as typeof globalThis.fetch;
+    try {
+      const r = await extractContainerAndSeal(IMG, 'CONTAINER', 'image/jpeg');
+      assert.equal(r.success, true);
+      assert.equal(r.provider, 'openrouter');
+      assert.deepEqual(r.containerNumbers, [VALID_CONTAINER]);
+      assert.equal(geminiCalled, 0, 'Gemini must not be called when OpenRouter succeeds');
+      assert.equal(urls.filter((u) => u.includes('openrouter.ai')).length, 1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('extractContainerAndSeal: OpenRouter 429 → transparent failover to Gemini', async () => {
+    const urls: string[] = [];
+    globalThis.fetch = (async (url: string | URL | Request) => {
+      const u = String(url);
+      urls.push(u);
+      if (u.includes('openrouter.ai')) return res({ error: 'rate limited' }, 429);
+      return res(geminiBody(JSON.stringify({ container_numbers: [VALID_CONTAINER] })));
+    }) as unknown as typeof globalThis.fetch;
+    try {
+      const r = await extractContainerAndSeal(IMG, 'CONTAINER', 'image/jpeg');
+      assert.equal(r.success, true);
+      assert.equal(r.provider, 'gemini');
+      assert.deepEqual(r.containerNumbers, [VALID_CONTAINER]);
+      assert.ok(urls.some((u) => u.includes('openrouter.ai')), 'OpenRouter was tried first');
+      assert.ok(urls.some((u) => u.includes('generativelanguage')), 'Gemini was tried as fallback');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('extractContainerAndSeal: SEAL path returns the seal via OpenRouter', async () => {
+    globalThis.fetch = (async () => res(orBody(JSON.stringify({ seal_number: 'VN123456' })))) as unknown as typeof globalThis.fetch;
+    try {
+      const r = await extractContainerAndSeal(IMG, 'SEAL', 'image/jpeg');
+      assert.equal(r.success, true);
+      assert.equal(r.provider, 'openrouter');
+      assert.equal(r.sealNumber, 'VN123456');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('extractContainerAndSeal: wrong-key JSON (no schema) → regex net recovers the number', async () => {
+    // OpenRouter sends NO response_format, so the model may emit valid JSON
+    // under a different key. parseResponse must fall through to the regex net
+    // and recover the number rather than returning an empty miss that silently
+    // regresses every request to Gemini. Parity with vantaiphucloc ocr.py.
+    globalThis.fetch = (async (url: string | URL | Request) => {
+      const u = String(url);
+      if (u.includes('openrouter.ai')) return res(orBody('{"numbers":["ALLU5216535"]}'));
+      // Gemini canary — a different number; if reached, the assertion fails.
+      return res(geminiBody(JSON.stringify({ container_numbers: ['TEMU0000000'] })));
+    }) as unknown as typeof globalThis.fetch;
+    try {
+      const r = await extractContainerAndSeal(IMG, 'CONTAINER', 'image/jpeg');
+      assert.equal(r.success, true);
+      assert.equal(r.provider, 'openrouter');
+      assert.deepEqual(r.containerNumbers, [VALID_CONTAINER]);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('extractContainerAndSeal: no keys configured → friendly "chưa cấu hình" error', async () => {
+    const savedOr = config.openrouterApiKey;
+    const savedG = config.geminiApiKey;
+    let calls = 0;
+    config.openrouterApiKey = '';
+    config.geminiApiKey = '';
+    globalThis.fetch = (async () => { calls++; return res({}); }) as unknown as typeof globalThis.fetch;
+    try {
+      const r = await extractContainerAndSeal(IMG, 'CONTAINER', 'image/jpeg');
+      assert.equal(r.success, false);
+      assert.equal(r.provider, null);
+      assert.match(r.error!, /chưa cấu hình/);
+      assert.equal(calls, 0);
+    } finally {
+      config.openrouterApiKey = savedOr;
+      config.geminiApiKey = savedG;
+      globalThis.fetch = originalFetch;
+    }
+  });
+});

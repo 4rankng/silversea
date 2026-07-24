@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 200" fill="none">
+  <defs>
+    <linearGradient id="es-bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#F9FAFB"/>
+    </linearGradient>
+    <linearGradient id="es-lens" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+    <filter id="es-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#09090B" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+  <!-- Document stack -->
+  <rect x="62" y="52" width="116" height="120" rx="8" fill="#F3F4F6" transform="rotate(4 120 112)"/>
+  <rect x="62" y="52" width="116" height="120" rx="8" fill="url(#es-bg)" filter="url(#es-shadow)"/>
+  <!-- Doc lines -->
+  <rect x="76" y="70" width="72" height="6" rx="3" fill="#F3F4F6"/>
+  <rect x="76" y="83" width="56" height="5" rx="2.5" fill="#F3F4F6"/>
+  <rect x="76" y="95" width="64" height="5" rx="2.5" fill="#F3F4F6"/>
+  <rect x="76" y="107" width="48" height="5" rx="2.5" fill="#F3F4F6"/>
+  <rect x="76" y="119" width="60" height="5" rx="2.5" fill="#F3F4F6"/>
+  <rect x="76" y="131" width="40" height="5" rx="2.5" fill="#F3F4F6"/>
+  <!-- Magnifier -->
+  <circle cx="148" cy="110" r="36" fill="#FFFFFF" filter="url(#es-shadow)"/>
+  <circle cx="144" cy="106" r="28" fill="url(#es-bg)" stroke="url(#es-lens)" stroke-width="5"/>
+  <!-- No results X inside lens -->
+  <g stroke="#D1FAE5" stroke-width="2.5" stroke-linecap="round">
+    <line x1="137" y1="99" x2="151" y2="113"/>
+    <line x1="151" y1="99" x2="137" y2="113"/>
+  </g>
+  <line x1="169" y1="131" x2="182" y2="144" stroke="url(#es-lens)" stroke-width="5" stroke-linecap="round"/>
+</svg>

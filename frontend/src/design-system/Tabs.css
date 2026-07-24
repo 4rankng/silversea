@@ -1,0 +1,127 @@
+/* ds-tabs — shared Tabs primitive.
+ * daisyUI provides the `.d-tabs` / `.d-tab` base; this file adds NEPO-specific
+ * spacing, count badges, and the 'plain' chip variant. Tokens-only — no
+ * Tailwind palette classes, no dark: variants (NEPO is light-only).
+ * -------------------------------------------------------------------------- */
+
+.ds-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.ds-tabs--boxed {
+  padding: 4px;
+  background: var(--surface-3);
+  border-radius: var(--r);
+  gap: 2px;
+}
+
+.ds-tabs--bordered {
+  gap: 0;
+  border-bottom: 1px solid var(--line);
+  width: 100%;
+  align-items: flex-end;
+}
+
+.ds-tabs--plain {
+  gap: 8px;
+}
+
+/* Tab button — daisyUI .d-tab provides base typography + active color;
+ * we add NEPO-specific shape + transition. */
+.ds-tabs__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink-2);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  line-height: 1;
+  padding: 8px 14px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+  white-space: nowrap;
+}
+
+.ds-tabs__btn:hover:not(:disabled):not(.ds-tabs__btn--active) {
+  color: var(--ink);
+  background: var(--surface-2);
+}
+
+.ds-tabs__btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.ds-tabs__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Active state — uses NEPO brand for fill (boxed), underline (bordered), tint (plain). */
+.ds-tabs__btn--active {
+  font-weight: var(--fw-semibold);
+}
+
+.ds-tabs--boxed .ds-tabs__btn--active {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--sh-sm);
+}
+
+.ds-tabs--bordered .ds-tabs__btn {
+  border-radius: 0;
+  padding: 10px 14px 12px;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.ds-tabs--bordered .ds-tabs__btn--active {
+  color: var(--accent-2);
+  border-bottom-color: var(--accent-2);
+  background: transparent;
+}
+
+.ds-tabs--plain .ds-tabs__btn--active {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  border-color: var(--accent-soft);
+}
+
+.ds-tabs__label {
+  display: inline-block;
+}
+
+/* Count badge — small, low-contrast by default; inverted on active for plain/boxed. */
+.ds-tabs__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: var(--radius-full);
+  background: var(--surface-3);
+  color: var(--ink-3);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.ds-tabs__count--active {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+.ds-tabs--boxed .ds-tabs__btn--active .ds-tabs__count,
+.ds-tabs--bordered .ds-tabs__btn--active .ds-tabs__count {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}

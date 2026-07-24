@@ -1,0 +1,292 @@
+/* ── Responsive collapses ─────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .trip-list-page .metrics { grid-template-columns: 1fr 1fr; }
+  .trip-list-page .metric.featured { grid-column: 1 / -1; grid-row: auto; }
+}
+
+@media (max-width: 1680px) {
+  .trip-list-page.quick-edit-mode .table-card {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    overflow: visible;
+    box-shadow: none;
+  }
+  .trip-list-page.quick-edit-mode .table-hint,
+  .trip-list-page.quick-edit-mode .table-scroll-wrapper,
+  .trip-list-page.quick-edit-mode .table-head,
+  .trip-list-page.quick-edit-mode .table-row {
+    display: none;
+  }
+  .trip-list-page.quick-edit-mode .trip-mobile-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .trip-list-page.quick-edit-mode .trip-mcard {
+    margin-bottom: 0;
+  }
+}
+
+@media (max-width: 1023px) {
+  .trip-list-page .table-head,
+  .trip-list-page .table-row {
+    /* 7 visible cols: trip | truck | route | consumption | revenue | gross profit | status */
+    grid-template-columns: minmax(180px, 1.4fr) 116px minmax(160px, 1.2fr) 92px 100px 100px 90px;
+    min-width: unset;
+    gap: 10px;
+  }
+  .trip-list-page.quick-edit-mode .table-head,
+  .trip-list-page.quick-edit-mode .table-row {
+    min-width: 1280px;
+  }
+  .trip-list-page.quick-edit-mode .table-scroll-body {
+    overflow-x: auto;
+  }
+  .trip-list-page .table-head .col-container,
+  .trip-list-page .table-row .col-container,
+  .trip-list-page .table-head .col-road,
+  .trip-list-page .table-row .col-road,
+  .trip-list-page .table-head .col-total-cost,
+  .trip-list-page .table-row .col-total-cost { display: none; }
+}
+
+@media (max-width: 1180px) {
+  .trip-list-page .table-card {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    overflow: visible;
+    box-shadow: none;
+  }
+  .trip-list-page .table-hint,
+  .trip-list-page .table-scroll-wrapper,
+  .trip-list-page .table-head,
+  .trip-list-page .table-row {
+    display: none;
+  }
+  .trip-list-page .trip-mobile-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .trip-list-page .trip-mcard {
+    margin-bottom: 0;
+    min-width: 0;
+  }
+  .trip-list-page .table-foot {
+    margin-top: 12px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+  .trip-list-page .quick-edit-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .trip-list-page .quick-edit-toolbar__main {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+  }
+  .trip-list-page .quick-edit-toolbar__main .btn {
+    justify-content: center;
+    min-width: 0;
+  }
+  .trip-list-page .quick-edit-message {
+    text-align: left;
+  }
+}
+
+@media (max-width: 640px) {
+  .trip-list-page .hero { padding: 20px; }
+  .trip-list-page .hero-h1 { font-size: var(--fs-xl); }
+  .trip-list-page .hero-top { flex-direction: column; gap: 14px; }
+  .trip-list-page .hero-actions { width: 100%; }
+  .trip-list-page .hero-actions .btn { flex: 1; justify-content: center; }
+  .trip-list-page .metrics { grid-template-columns: 1fr 1fr; }
+  .trip-list-page .metric.featured { grid-column: 1 / -1; grid-row: auto; }
+  .trip-list-page .filters-row-top { flex-direction: column; align-items: stretch; }
+  .trip-list-page .filters-search { width: 100%; }
+  .trip-list-page .filters-row-bottom { flex-wrap: wrap; }
+  .trip-list-page .trip-mobile-list {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .trip-list-page.quick-edit-mode .trip-mobile-list {
+    grid-template-columns: 1fr;
+  }
+  .trip-list-page .quick-edit-toolbar__main {
+    grid-template-columns: 1fr;
+  }
+  .trip-list-page .quick-edit-toolbar__main .btn {
+    min-height: 44px;
+  }
+  .trip-list-page .table-foot {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .trip-list-page .pagination {
+    justify-content: center;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  /* Desktop table is hidden and mobile cards shown by the (max-width: 1180px)
+     block above, which already covers this narrower breakpoint. */
+  .trip-list-page .infinite-sentinel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    margin-top: 10px;
+  }
+}
+
+/* ── Responsive overrides (from responsive.css decomposition) ── */
+@media (max-width: 640px) {
+  /* ── Trip list page — Mobile Pass 2 (2026-06-02) ──
+     Tightens above-the-fold density and adds a scroll affordance to the
+     horizontally-scrollable status-tab strip (was previously cutting "Đang chạy"
+     off the right edge with no swipe hint). */
+  .trip-list-page .hero { padding: 14px 14px 12px; }
+  .trip-list-page .hero-top { flex-direction: column; gap: 10px; align-items: flex-start; }
+  .trip-list-page .hero-h1 { font-size: var(--fs-xl); line-height: 1.25; }
+  .trip-list-page .hero-sub { font-size: var(--fs-xs); }
+  .trip-list-page .hero-actions { width: 100%; flex-wrap: wrap; }
+  .trip-list-page .hero-actions .btn { flex: 1 1 auto; justify-content: center; min-height: 44px; }
+
+  .trip-list-page .metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 14px 0 0;
+    padding: 0;
+    overflow: visible;
+  }
+  .trip-list-page .metric {
+    padding: 9px 10px;
+    min-width: 0;
+  }
+  .trip-list-page .metric-label {
+    font-size: var(--fs-xs);
+    /* Force single-line so cards align on the 2-col grid. Long labels like
+       "Tổng KM tháng này" used to wrap to 2 lines, throwing off the rhythm. */
+    white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  }
+  /* "Tổng giá trị lệnh (tất cả trạng thái)" — drop the parenthetical on phones,
+     it doesn't fit and the metric-delta line below repeats the same info. */
+  .trip-list-page .metric-label > span { display: none; }
+  .trip-list-page .metric-value { font-size: var(--fs-md); }
+  .trip-list-page .metric-value .metric-unit { margin-left: 2px; }
+  .trip-list-page .metric-delta { font-size: var(--fs-xs); line-height: 1.3; }
+  .trip-list-page .metric.featured {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+  .trip-list-page .metric:not(.featured) {
+    display: none;
+  }
+  .trip-list-page .metric.featured .metric-value {
+    display: inline-block;
+    margin-right: 10px;
+  }
+  .trip-list-page .metric.featured .breakdown-legend { gap: 6px 10px; font-size: var(--fs-xs); }
+
+  .trip-list-page .stats-strip { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .trip-list-page .section-head { flex-direction: column; align-items: stretch; gap: 10px; padding: 14px 16px; }
+
+  /* Keep status choices on one scannable row; touch users can swipe for more. */
+  .trip-list-page .status-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 4px;
+    position: relative;
+  }
+  .trip-list-page .status-tabs::-webkit-scrollbar { display: none; }
+  .trip-list-page .status-tabs .stab-pill {
+    padding: 6px 10px;
+    font-size: var(--fs-xs);
+    gap: 6px;
+  }
+  .trip-list-page .status-tabs .stab-pill .stab-count {
+    font-size: var(--fs-xs);
+    padding: 1px 6px;
+  }
+  /* Right-edge fade — sits inside the scroll container so it pins to the
+     visible right edge regardless of scroll position. */
+  .trip-list-page .filters-row-top {
+    position: relative;
+    padding-right: 0;
+  }
+  .trip-list-page .filters-row-top::after {
+    content: none;
+  }
+  .trip-list-page .hero-actions {
+    display: grid;
+    grid-template-columns: 44px 44px minmax(0, 1fr);
+  }
+  .trip-list-page .hero-actions .btn {
+    min-width: 0;
+    width: 100%;
+    padding-inline: 0;
+  }
+  .trip-list-page .hero-actions .hero-action--add {
+    padding-inline: 14px;
+  }
+  .trip-list-page .hero-action--quick .hero-action-label,
+  .trip-list-page .hero-action--export .hero-action-label {
+    display: none;
+  }
+  .trip-list-page .filters-card {
+    padding: 12px;
+  }
+  .trip-list-page .filters-divider {
+    margin: 10px 0;
+  }
+  .trip-list-page .filters-row-bottom {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .trip-list-page .filters-row-bottom .filters-search,
+  .trip-list-page .filters-search-hint {
+    grid-column: 1 / -1;
+  }
+} /* end 640px */
+
+/* ── Responsive overrides (from responsive.css decomposition) ── */
+@media (max-width: 640px) {
+  /* ── TripListPage: larger filter pill tap targets, breakdown bar fix ── */
+  .trip-list-page .filter-pill {
+    height: auto;
+    min-height: 48px;
+    padding: 8px 12px;
+    font-size: var(--fs-xs);
+    align-items: center;
+  }
+  .trip-list-page .filter-pill .filter-lbl-wrap {
+    gap: 3px;
+    line-height: 1.35;
+  }
+  .trip-list-page .filter-pill .filter-lbl-cap {
+    line-height: 1.35;
+  }
+  .trip-list-page .filter-pill select {
+    min-height: 44px;
+    line-height: 1.35;
+  }
+  .trip-list-page .breakdown-bar {
+    height: 6px;
+    border-radius: 99px;
+  }
+  .trip-list-page .breakdown-legend {
+    gap: 4px 8px;
+    font-size: var(--fs-xs);
+  }
+} /* end 640px */
+
+/* ── Responsive overrides (from responsive.css decomposition) ── */
+@media (max-width: 420px) {
+  .trip-list-page .stats-strip { grid-template-columns: 1fr; }
+} /* end 420px */

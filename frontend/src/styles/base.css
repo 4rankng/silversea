@@ -1,0 +1,77 @@
+/* ============================================================================
+ * Base
+ * ========================================================================== */
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Disable iOS Safari pull-to-refresh bounce inside the app shell. */
+  overscroll-behavior-y: contain;
+}
+button { font: inherit; cursor: pointer; }
+input, select, textarea { font: inherit; }
+img { display: block; }
+::selection { background: var(--accent-soft); color: var(--accent-ink); }
+
+.asset-route-grid {
+  background-image: url("/assets/illustrations/pattern-route-grid.svg");
+  background-size: 240px 240px;
+  background-repeat: repeat;
+}
+
+.asset-ledger-watermark {
+  background-image: url("/assets/illustrations/watermark-ledger.svg");
+  background-position: right 16px bottom 12px;
+  background-repeat: no-repeat;
+  background-size: 96px 96px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
+}
+
+/* Product-wide flat-surface contract.
+   Page and vendor styles may still define shadows internally, but the app
+   deliberately renders hierarchy with borders, spacing, and solid color. */
+#root .app *,
+#root .app *::before,
+#root .app *::after {
+  box-shadow: none;
+  text-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+#root .app img {
+  filter: none;
+}
+
+#root .app :where(button, a, [role='button']):hover {
+  transform: none;
+}
+
+/* ============================================================================
+ * Leaflet overrides
+ * ========================================================================== */
+/* The zoom control (.leaflet-control) is z-index 800 by default.
+   The popup pane (.leaflet-popup-pane) is z-index 700 by default.
+   Raise the popup pane above the controls. Scope under .leaflet-container for
+   higher specificity so we beat Leaflet's own rule without resorting to
+   !important. */
+.leaflet-container .leaflet-popup-pane {
+  z-index: 850;
+}
+
+.leaflet-touch .leaflet-control-zoom a,
+.leaflet-control-zoom a {
+  width: 44px;
+  height: 44px;
+  line-height: 44px;
+}

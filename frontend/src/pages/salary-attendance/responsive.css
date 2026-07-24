@@ -1,0 +1,397 @@
+/* ============================================================================
+ * MOBILE REDESIGN — 768px and below
+ * Replaces calendar grid with vertical day-list,
+ * horizontal-scroll driver strip, collapsible salary summary.
+ * ========================================================================== */
+
+/* ── Base: hide mobile-only elements on desktop ── */
+.mobile-day-list-wrapper {
+  display: none;
+}
+
+.mobile-back-bar {
+  display: none;
+}
+
+/* ── 1023px Mobile Breakpoint ── */
+@media (max-width: 1023px) {
+
+  /* --- Hide desktop calendar, show mobile day list --- */
+  .salary-calendar-area {
+    display: none !important;
+  }
+
+  .mobile-day-list-wrapper {
+    display: block !important;
+    width: 100%;
+  }
+
+  /* --- Month nav: compact --- */
+  .month-strip {
+    padding: 10px 12px;
+    gap: 10px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+  }
+
+  .month-strip__label,
+  .month-strip__year {
+    font-size: var(--fs-md);
+  }
+
+  .month-strip__btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  /* --- Page header search: full width --- */
+  .input-icon {
+    width: 100% !important;
+  }
+
+  /* --- Driver selector: wrap instead of requiring a horizontal swipe --- */
+  .driver-select-row {
+    margin-bottom: 12px;
+  }
+
+  .driver-select-row__list {
+    flex-wrap: wrap;
+    overflow: visible;
+    padding: 2px 0 6px;
+    gap: 8px;
+  }
+
+  .driver-select-row__list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .driver-select-card {
+    flex: 1 1 150px;
+    min-width: auto;
+    padding: 8px 14px;
+    border-radius: 10px;
+  }
+
+  .driver-select-card__name {
+    font-size: var(--fs-xs);
+    max-width: 100px;
+  }
+
+  .driver-select-card__salary {
+    font-size: var(--fs-2xs);
+  }
+
+  /* --- Day list wrapper --- */
+  .mobile-day-list {
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(180deg, var(--surface), rgba(248, 250, 249, 0.92));
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(16, 24, 20, 0.04), 0 14px 30px -28px rgba(0, 90, 45, 0.42);
+  }
+
+  /* --- Day list row --- */
+  .mobile-day-row {
+    display: flex;
+    align-items: center;
+    position: relative;
+    min-height: 50px;
+    padding: 0 14px 0 10px;
+    border-bottom: 1px solid var(--line);
+    gap: 10px;
+    transition: background 120ms ease, transform 120ms ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-day-row:last-of-type {
+    border-bottom: none;
+  }
+
+  /* Status strip — 3×20px centered indicator, NOT full-height border */
+  .mobile-day-row::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 20px;
+    border-radius: 0 2px 2px 0;
+    background: transparent;
+  }
+
+  .mobile-day-row.status-trip_day::before {
+    background: var(--accent);
+  }
+
+  .mobile-day-row.status-standby::before {
+    background: var(--warning);
+  }
+
+  .mobile-day-row.status-personal_leave::before {
+    background: #e11d48;
+  }
+
+  .mobile-day-row.status-weekly_off::before {
+    background: var(--ink-4, #BABDC3);
+  }
+
+  /* Tappable rows */
+  .mobile-day-row.is-clickable {
+    cursor: pointer;
+  }
+
+  .mobile-day-row.is-clickable:active {
+    background: var(--surface-2);
+    transform: scale(0.995);
+  }
+
+  /* --- Date column --- */
+  .mobile-day-row__date-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 48px;
+    padding: 8px 0;
+    gap: 1px;
+    flex-shrink: 0;
+  }
+
+  .mobile-day-row__day-num {
+    font-size: var(--fs-sm);
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.35;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .mobile-day-row__dow {
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    color: var(--ink-3);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1.35;
+  }
+
+  .mobile-day-row__dow.is-sunday {
+    color: var(--danger);
+  }
+
+  /* --- Status column --- */
+  .mobile-day-row__status-col {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .mobile-day-row__status-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    flex-shrink: 0;
+    border: 1px solid rgba(255, 255, 255, 0.72);
+  }
+
+  .mobile-day-row__status-label {
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    color: var(--ink-2);
+    white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  }
+
+  /* --- Right column --- */
+  .mobile-day-row__right-col {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-shrink: 0;
+    min-width: 0;
+  }
+
+  .mobile-day-row__trip-badge {
+    font-family: var(--font-mono);
+    font-size: var(--fs-2xs);
+    font-weight: 700;
+    color: var(--accent-ink);
+    background: var(--accent-soft);
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(0, 177, 79, 0.15);
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+  }
+
+  .mobile-day-row__tap-hint {
+    font-size: var(--fs-sm);
+    opacity: 0.4;
+    padding: 0 4px;
+  }
+
+  /* --- Day list legend (compact) --- */
+  .mobile-day-legend {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    padding: 10px 14px;
+    border-top: 1px solid var(--line);
+    background: var(--surface-2, #F7F8FA);
+  }
+
+  .mobile-day-legend__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--fs-2xs);
+    font-weight: 500;
+    color: var(--ink-3);
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+  }
+
+  /* Legend status tints */
+  .mobile-day-legend__item.status-trip_day {
+    color: #15803d;
+    border-color: #bbf7d0;
+    background: #f0fdf4;
+  }
+
+  .mobile-day-legend__item.status-standby {
+    color: #a16207;
+    border-color: #fde68a;
+    background: #fefce8;
+  }
+
+  .mobile-day-legend__item.status-personal_leave {
+    color: #be123c;
+    border-color: #fecdd3;
+    background: #fff1f2;
+  }
+
+  .mobile-day-legend__item.status-weekly_off {
+    color: var(--ink-3);
+    border-color: var(--line);
+    background: var(--surface);
+  }
+
+  /* --- Summary card mobile adjustments --- */
+  .salary-summary-dark {
+    border-radius: 12px;
+  }
+
+  /* --- Sidebar on mobile: no special positioning --- */
+  .salary-page-layout__sidebar {
+    width: 100%;
+  }
+
+  /* --- Mobile back bar: sticky bottom --- */
+  .mobile-back-bar {
+    display: block;
+    position: sticky;
+    bottom: 0;
+    padding: 12px 0 0;
+    background: linear-gradient(to top, var(--bg, #F7F8FA) 60%, transparent);
+    z-index: 10;
+  }
+
+  .mobile-back-bar .btn {
+    min-height: 44px;
+    border-radius: 10px;
+    font-size: var(--fs-sm);
+    font-weight: 600;
+  }
+}
+
+/* ── Small phones (≤640px) — tighter spacing ── */
+@media (max-width: 640px) {
+  .mobile-day-row {
+    min-height: 48px;
+    padding-right: 10px;
+    gap: 8px;
+  }
+
+  .mobile-day-row__date-col {
+    min-width: 42px;
+  }
+
+  .mobile-day-row__day-num {
+    font-size: var(--fs-sm);
+  }
+
+  .mobile-day-row__status-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+  }
+
+  .mobile-day-row__status-label {
+    font-size: var(--fs-xs);
+  }
+
+
+  .driver-select-card {
+    padding: 6px 10px;
+  }
+
+  .driver-select-card__name {
+    font-size: var(--fs-2xs);
+    max-width: 72px;
+  }
+}
+
+.period-config-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+
+/* ── Responsive overrides (from responsive.css decomposition) ── */
+@media (max-width: 640px) {
+  /* ── SalaryAttendancePage: calendar cell breathing room, action buttons ── */
+  .cal-cell {
+    aspect-ratio: auto;
+    min-height: 42px;
+    padding: 4px 2px !important;
+    border-radius: 5px !important;
+  }
+  .cal-cell-day-num { font-size: var(--fs-xs) !important; line-height: 1.35; }
+  .cal-cell-icon-wrap svg { width: 14px; height: 14px; }
+  .calendar-legend-item {
+    font-size: var(--fs-2xs);
+    padding: 2px 7px;
+    gap: 4px;
+  }
+  .calendar-legend-instruction {
+    font-size: var(--fs-2xs);
+    padding: 6px 10px;
+    gap: 5px;
+    line-height: 1.4;
+  }
+  .salary-summary-dark {
+    padding: 14px;
+  }
+  .salary-summary-dark__big { font-size: var(--fs-2xl); }
+  .salary-summary-dark__label { font-size: var(--fs-xs); line-height: 1.35; }
+  .salary-summary-dark__mini { font-size: var(--fs-2xs); }
+  .salary-summary-dark__row { font-size: var(--fs-xs); }
+  .salary-summary-dark__row-val { font-size: var(--fs-xs); }
+  .driver-select-card {
+    min-width: 88px;
+    padding: 6px 10px;
+  }
+  .driver-select-card__name { font-size: var(--fs-xs); max-width: 120px; }
+  .driver-select-card__salary { font-size: var(--fs-2xs); }
+} /* end 640px */

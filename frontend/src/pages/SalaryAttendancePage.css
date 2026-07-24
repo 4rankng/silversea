@@ -1,0 +1,11 @@
+/* ==========================================================================
+   SalaryAttendancePage — section barrel
+   Each section lives in ./salary-attendance/. Do not add rules here; CSS @import must
+   precede all other rules, and cascade order == import order == original.
+   ========================================================================== */
+
+@import "./salary-attendance/hero-metrics.css";
+@import "./salary-attendance/month-nav.css";
+@import "./salary-attendance/calendar.css";
+@import "./salary-attendance/salary-summary.css";
+@import "./salary-attendance/responsive.css";

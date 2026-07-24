@@ -1,0 +1,35 @@
+/* Aggregator. Global component stylesheets (className-based, no owning .tsx)
+   are imported here ahead of responsive.css. Page- and feature-scoped CSS is
+   co-located — imported by its own .tsx.
+   Fonts are self-hosted via /public/fonts/fonts.css (linked in index.html) —
+   Be Vietnam Pro (text/UI) + JetBrains Mono (numerics). */
+@import "./styles/tokens.css";     /* @import "tailwindcss" + :root design tokens */
+@import "./styles/base.css";
+@import "./styles/typography.css";
+@import "./styles/utilities.css";
+@import "./styles/animations.css";
+@import "./components/Layout.css";
+@import "./components/Button.css";
+@import "./components/Input.css";
+@import "./components/Panel.css";
+@import "./components/KpiCard.css";
+@import "./components/Toolbar.css";
+@import "./components/FilterBar.css";
+@import "./components/Table.css";
+@import "./components/Pill.css";
+@import "./components/Modal.css";
+@import "./components/Drawer.css";
+@import "./components/ConfirmDialog.css";
+@import "./components/InfoRow.css";
+@import "./components/TripHero.css";
+@import "./components/DriverTripCard.css";
+@import "./components/EarningsHero.css";
+@import "./components/FuelAllocCard.css";
+@import "./components/FwdFilterPills.css";
+@import "./components/PageHeader.css";
+@import "./components/UI.css";
+
+/* Responsive overrides MUST be imported last — they win the cascade against
+   per-component / per-page rules that would otherwise clobber the mobile
+   media queries. See styles/responsive.css for the reasoning. */
+@import "./styles/responsive.css";

@@ -1,0 +1,79 @@
+/* ================================================================
+   Toast notifications
+   ================================================================ */
+
+.toast-container {
+  position: fixed;
+  bottom: var(--space-lg, 16px);
+  right: var(--space-lg, 16px);
+  z-index: var(--z-toast, 500);
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--space-sm, 8px);
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm, 8px);
+  padding: var(--space-md, 12px);
+  border-radius: var(--r, 12px);
+  box-shadow: var(--sh-lg);
+  background: var(--surface, #fff);
+  min-width: 280px;
+  max-width: 420px;
+  pointer-events: auto;
+  /* anime.js handles opacity/transform — these are the resting state */
+  opacity: 1;
+  transform: none;
+}
+
+.toast--success .toast__icon { color: var(--success); }
+
+.toast--error .toast__icon { color: var(--danger); }
+
+.toast--warning .toast__icon { color: var(--warning); }
+
+.toast--info .toast__icon { color: var(--info); }
+
+.toast__icon {
+  flex-shrink: 0;
+  margin-top: 7px;
+}
+
+.toast__body { flex: 1; min-width: 0; }
+
+.toast__message {
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.toast__close {
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  margin: -4px -4px -4px 0;
+  padding: 0; border: none; background: transparent;
+  color: var(--ink-3); cursor: pointer; border-radius: 6px;
+  opacity: 0.5; transition: opacity 150ms ease, background 150ms ease;
+}
+.toast__close:hover { opacity: 1; background: var(--bg-3); }
+
+@media (max-width: 640px) {
+  .toast-container { left: var(--space-md, 12px); right: var(--space-md, 12px); }
+  .toast { min-width: 0; max-width: 100%; }
+  .toast__close {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast { opacity: 1; transform: none; }
+}

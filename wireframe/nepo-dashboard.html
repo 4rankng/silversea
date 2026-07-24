@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NEPO · Tổng quan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#EFF2F0;
+    --card:#FFFFFF;
+    --border:#E5E9E7;
+    --border-2:#DCE2DF;
+    --ink:#0E1F16;
+    --ink-2:#56655C;
+    --ink-3:#8A988F;
+    --green:#005A2D;
+    --green-700:#0A6E3A;
+    --green-500:#16A34A;
+    --green-soft:#E7F2EC;
+    --blue:#2563EB;
+    --blue-soft:#E8EFFD;
+    --amber:#C2780B;
+    --amber-soft:#FBF1DE;
+    --red:#C7372F;
+    --shadow:0 1px 2px rgba(14,31,22,.04), 0 1px 1px rgba(14,31,22,.03);
+    --mono:'JetBrains Mono',ui-monospace,monospace;
+    --sans:'Plus Jakarta Sans',system-ui,sans-serif;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:var(--sans);background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;font-size:14px;line-height:1.45}
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .lbl{font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em;font-size:10.5px;font-weight:600;color:var(--ink-3)}
+
+  /* ===== APP SHELL ===== */
+  .app{display:flex;min-height:100vh}
+
+  /* sidebar */
+  .sb{width:236px;flex:0 0 236px;background:var(--green);color:#DCEBE2;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+  .sb-logo{display:flex;align-items:center;gap:10px;padding:18px 18px 16px}
+  .sb-logo .mark{width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,.10);display:grid;place-items:center;flex:0 0 auto}
+  .sb-logo .mark svg{width:20px;height:20px;color:#fff}
+  .sb-logo .t1{font-weight:800;font-size:15px;color:#fff;letter-spacing:.01em;line-height:1}
+  .sb-logo .t2{font-family:var(--mono);font-size:8.5px;letter-spacing:.18em;color:#A7CDB8;margin-top:4px}
+  .sb-nav{flex:1;padding:6px 12px;overflow:auto}
+  .sb-sec{font-family:var(--mono);text-transform:uppercase;letter-spacing:.14em;font-size:9.5px;color:#7FB394;padding:16px 10px 7px}
+  .sb-item{display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:9px;color:#CFE5D8;cursor:pointer;font-weight:500;font-size:13.5px;position:relative}
+  .sb-item svg{width:17px;height:17px;flex:0 0 auto;opacity:.85}
+  .sb-item:hover{background:rgba(255,255,255,.07);color:#fff}
+  .sb-item.active{background:#fff;color:var(--green);font-weight:700}
+  .sb-item.active svg{opacity:1}
+  .sb-item .chev{margin-left:auto;width:14px;height:14px;opacity:.5}
+  .sb-user{margin:10px;padding:10px;border-radius:11px;background:rgba(0,0,0,.16);display:flex;align-items:center;gap:10px}
+  .sb-user .av{width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,.14);display:grid;place-items:center;flex:0 0 auto}
+  .sb-user .av svg{width:16px;height:16px;color:#fff}
+  .sb-user .n{font-weight:700;font-size:12.5px;color:#fff;line-height:1.2}
+  .sb-user .r{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:#9AC6AB;text-transform:uppercase;margin-top:2px}
+
+  /* main */
+  .main{flex:1;min-width:0;display:flex;flex-direction:column}
+
+  /* topbar */
+  .top{position:sticky;top:0;z-index:20;height:58px;background:rgba(255,255,255,.82);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 22px}
+  .top .crumb{display:flex;align-items:center;gap:8px;color:var(--ink-3);font-size:13px}
+  .top .crumb .ham{width:18px;height:18px;color:var(--ink-2);cursor:pointer}
+  .top .crumb b{color:var(--ink);font-weight:700}
+  .search{flex:1;max-width:440px;height:36px;display:flex;align-items:center;gap:9px;padding:0 12px;background:var(--bg);border:1px solid var(--border-2);border-radius:9px;color:var(--ink-3)}
+  .search svg{width:15px;height:15px}
+  .search input{border:0;background:none;outline:none;flex:1;font-family:var(--sans);font-size:13px;color:var(--ink)}
+  .search input::placeholder{color:var(--ink-3)}
+  .search .kbd{font-family:var(--mono);font-size:10px;border:1px solid var(--border-2);background:#fff;border-radius:5px;padding:2px 6px;color:var(--ink-3)}
+  .top .right{margin-left:auto;display:flex;align-items:center;gap:8px}
+  .datepill{display:flex;align-items:center;gap:8px;height:34px;padding:0 12px;border:1px solid var(--border-2);border-radius:9px;background:#fff;font-size:12.5px;color:var(--ink-2);cursor:pointer}
+  .datepill svg{width:15px;height:15px;color:var(--ink-3)}
+  .datepill b{color:var(--ink);font-family:var(--mono);font-size:12px;font-weight:600}
+  .iconbtn{width:34px;height:34px;border-radius:9px;border:1px solid var(--border-2);background:#fff;display:grid;place-items:center;cursor:pointer;color:var(--ink-2);position:relative}
+  .iconbtn svg{width:16px;height:16px}
+  .iconbtn .dot{position:absolute;top:7px;right:8px;width:7px;height:7px;border-radius:50%;background:var(--red);border:1.5px solid #fff}
+
+  /* content */
+  .content{padding:18px 22px 28px;display:flex;flex-direction:column;gap:14px;max-width:1640px;width:100%}
+
+  /* page head */
+  .head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px}
+  .head h1{font-size:22px;font-weight:800;letter-spacing:-.02em;line-height:1.1}
+  .head .sum{margin-top:6px;color:var(--ink-2);font-size:13px;max-width:640px}
+  .head .sum b{color:var(--ink);font-weight:700}
+  .head .sum .pos{color:var(--green-500);font-weight:700}
+  .head .acts{display:flex;gap:9px;flex:0 0 auto}
+  .btn{height:38px;padding:0 15px;border-radius:10px;font-family:var(--sans);font-weight:600;font-size:13px;display:inline-flex;align-items:center;gap:8px;cursor:pointer;border:1px solid var(--border-2);background:#fff;color:var(--ink)}
+  .btn svg{width:15px;height:15px}
+  .btn:hover{border-color:var(--ink-3)}
+  .btn.primary{background:var(--green);border-color:var(--green);color:#fff;box-shadow:0 2px 6px rgba(0,90,45,.22)}
+  .btn.primary:hover{background:var(--green-700)}
+
+  /* card base */
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .card-h{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px 0}
+  .card-h .ttl{font-size:14px;font-weight:700;letter-spacing:-.01em}
+  .card-h .sub{font-size:11.5px;color:var(--ink-3);margin-top:2px}
+  .link{font-size:12px;font-weight:600;color:var(--green);cursor:pointer;display:inline-flex;align-items:center;gap:3px;white-space:nowrap}
+  .link svg{width:13px;height:13px}
+  .link:hover{color:var(--green-700)}
+
+  /* KPI row */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .kpi{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;position:relative;overflow:hidden}
+  .kpi .row1{display:flex;align-items:center;justify-content:space-between}
+  .kpi .delta{font-family:var(--mono);font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:20px}
+  .kpi .delta.up{color:var(--green-700);background:var(--green-soft)}
+  .kpi .delta.flat{color:var(--ink-2);background:var(--bg)}
+  .kpi .delta.warn{color:var(--amber);background:var(--amber-soft)}
+  .kpi .val{font-family:var(--mono);font-size:25px;font-weight:700;letter-spacing:-.03em;margin-top:9px;line-height:1}
+  .kpi .val i{font-style:normal;font-size:15px;color:var(--ink-3);font-weight:500;margin-left:1px}
+  .kpi .foot{font-size:11.5px;color:var(--ink-2);margin-top:7px}
+  .kpi.accent{box-shadow:var(--shadow),inset 3px 0 0 var(--green)}
+
+  /* layout grid */
+  .grid{display:grid;grid-template-columns:minmax(0,1.62fr) minmax(0,1fr);gap:14px;align-items:start}
+  .col{display:flex;flex-direction:column;gap:14px;min-width:0}
+
+  /* chart card */
+  .chart-card .body{padding:8px 8px 6px}
+  .legend{display:flex;gap:16px;padding:10px 12px 0}
+  .legend .li{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-2);font-weight:500}
+  .legend .sw{width:14px;height:3px;border-radius:2px}
+  #chart{display:block;width:100%;height:auto}
+
+  /* sub grid (vehicle + routes) */
+  .sub2{display:grid;grid-template-columns:1.15fr 1fr;gap:14px}
+
+  .vlist{padding:12px 16px 14px;display:flex;flex-direction:column;gap:10px}
+  .vrow{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:11px}
+  .vrow .plate{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--ink);width:78px}
+  .vrow .bar{height:7px;border-radius:5px;background:var(--bg);overflow:hidden}
+  .vrow .bar i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,var(--green),var(--green-500))}
+  .vrow .pct{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--ink-2);width:34px;text-align:right}
+
+  .rlist{padding:8px 8px 8px;display:flex;flex-direction:column}
+  .rrow{display:flex;align-items:center;gap:11px;padding:8px;border-radius:9px}
+  .rrow:hover{background:var(--bg)}
+  .rrow .rk{width:20px;height:20px;border-radius:6px;background:var(--green-soft);color:var(--green-700);font-family:var(--mono);font-size:11px;font-weight:700;display:grid;place-items:center;flex:0 0 auto}
+  .rrow .rt{font-size:12.5px;font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rrow .rv{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--green-700)}
+
+  /* fleet card */
+  .fleet .body{padding:12px 16px 15px}
+  .seg{display:flex;height:9px;border-radius:6px;overflow:hidden;margin-bottom:13px;gap:2px}
+  .seg i{display:block;height:100%;border-radius:3px}
+  .fstats{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
+  .fstat{padding:9px 10px;border:1px solid var(--border);border-radius:10px;background:var(--card)}
+  .fstat .v{font-family:var(--mono);font-size:20px;font-weight:700;line-height:1;display:flex;align-items:center;gap:6px}
+  .fstat .v .pip{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+  .fstat .k{font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;font-size:9px;font-weight:600;color:var(--ink-3);margin-top:6px}
+  .util{display:flex;align-items:center;gap:11px;margin-top:13px}
+  .util .track{flex:1;height:8px;border-radius:5px;background:var(--bg);overflow:hidden}
+  .util .track i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,var(--green),var(--green-500))}
+  .util .pct{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--green-700)}
+  .util .cap{font-size:11px;color:var(--ink-3)}
+
+  /* cost donut */
+  .cost .body{padding:14px 16px 16px;display:flex;align-items:center;gap:18px}
+  .donut{flex:0 0 auto;position:relative;width:118px;height:118px}
+  .donut .ctr{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+  .donut .ctr .big{font-family:var(--mono);font-size:17px;font-weight:700;line-height:1}
+  .donut .ctr .sm{font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;font-size:8.5px;color:var(--ink-3);margin-top:3px}
+  .clegend{flex:1;display:flex;flex-direction:column;gap:9px;min-width:0}
+  .crow{display:flex;align-items:center;gap:9px;font-size:12px}
+  .crow .sw{width:9px;height:9px;border-radius:3px;flex:0 0 auto}
+  .crow .nm{flex:1;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .crow .pc{font-family:var(--mono);font-weight:600;color:var(--ink)}
+
+  /* attention list */
+  .att .body{padding:6px 8px 8px}
+  .arow{display:flex;align-items:center;gap:11px;padding:9px 8px;border-radius:10px}
+  .arow:hover{background:var(--bg)}
+  .arow .ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;flex:0 0 auto}
+  .arow .ic svg{width:15px;height:15px}
+  .ic.ok{background:var(--green-soft);color:var(--green-700)}
+  .ic.info{background:var(--blue-soft);color:var(--blue)}
+  .ic.cal{background:var(--amber-soft);color:var(--amber)}
+  .arow .tx{flex:1;min-width:0}
+  .arow .tx .t{font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .arow .tx .s{font-size:11px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+  .arow .go{flex:0 0 auto}
+  .minibtn{height:30px;padding:0 11px;border-radius:8px;border:1px solid var(--border-2);background:#fff;font-family:var(--sans);font-weight:600;font-size:11.5px;cursor:pointer;color:var(--ink)}
+  .minibtn.green{background:var(--green);border-color:var(--green);color:#fff}
+  .minibtn:hover{filter:brightness(.98)}
+
+  .divider{height:1px;background:var(--border);margin:2px 8px}
+
+  @media(max-width:1180px){.grid{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sb">
+    <div class="sb-logo">
+      <div class="mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 3h15v13H1z"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+      </div>
+      <div><div class="t1">TingTing</div><div class="t2">LOGISTICS SYSTEM</div></div>
+    </div>
+
+    <nav class="sb-nav">
+      <div class="sb-sec">Vận hành</div>
+      <div class="sb-item active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+        Tổng quan <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+      </div>
+      <div class="sb-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M16.2 7.8l-2.9 6.3-6.3 2.9 2.9-6.3z"/></svg>
+        Phân xe
+      </div>
+      <div class="sb-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        Sổ chuyến đi
+      </div>
+      <div class="sb-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+        Kỷ luật
+      </div>
+
+      <div class="sb-sec">Tài chính</div>
+      <div class="sb-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Công nợ &amp; chi phí <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+      </div>
+
+      <div class="sb-sec">Danh mục</div>
+      <div class="sb-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        Khách hàng &amp; xe <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+      </div>
+    </nav>
+
+    <div class="sb-user">
+      <div class="av"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+      <div><div class="n">Nguyễn Việt Dũng</div><div class="r">Quản trị viên</div></div>
+    </div>
+  </aside>
+
+  <!-- ===== MAIN ===== -->
+  <div class="main">
+
+    <!-- topbar -->
+    <header class="top">
+      <div class="crumb">
+        <svg class="ham" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        NEPO <span>›</span> <b>Tổng quan</b>
+      </div>
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input placeholder="Tìm chuyến đi, khách hàng, xe…" />
+        <span class="kbd">⌘K</span>
+      </div>
+      <div class="right">
+        <div class="datepill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Tháng 6 · <b>01/06/2026</b>
+        </div>
+        <div class="iconbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></div>
+        <div class="iconbtn"><span class="dot"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></div>
+      </div>
+    </header>
+
+    <!-- content -->
+    <main class="content">
+
+      <!-- page head -->
+      <div class="head">
+        <div>
+          <h1>Chào buổi tối, Nguyễn Việt Dũng</h1>
+          <div class="sum">Tháng 6/2026 đang hoạt động — doanh thu <span class="pos">+5,7% so với tháng trước</span>. Lợi nhuận ròng dự kiến <b>248.000.000&nbsp;đ</b> sau phí quản lý.</div>
+        </div>
+        <div class="acts">
+          <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Báo cáo lãi lỗ</button>
+          <button class="btn primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 3h15v13H1z"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>Phân xe</button>
+        </div>
+      </div>
+
+      <!-- KPI row -->
+      <div class="kpis">
+        <div class="kpi accent">
+          <div class="row1"><span class="lbl">Doanh thu · 06/2026</span><span class="delta up">▲ 5,7%</span></div>
+          <div class="val">890.000.000 <i>đ</i></div>
+          <div class="foot">Tháng trước · 842,0 Tr đ</div>
+        </div>
+        <div class="kpi">
+          <div class="row1"><span class="lbl">Tổng chi phí</span><span class="delta warn">▲ 4,2%</span></div>
+          <div class="val">595.000.000 <i>đ</i></div>
+          <div class="foot">66,9% doanh thu</div>
+        </div>
+        <div class="kpi">
+          <div class="row1"><span class="lbl">Lợi nhuận gộp</span><span class="delta up">▲ 5,0%</span></div>
+          <div class="val">295.000.000 <i>đ</i></div>
+          <div class="foot">Biên gộp · 33,1%</div>
+        </div>
+        <div class="kpi">
+          <div class="row1"><span class="lbl">Lợi nhuận ròng</span><span class="delta up">▲ 6,1%</span></div>
+          <div class="val">248.000.000 <i>đ</i></div>
+          <div class="foot">Sau phí quản lý · <span style="color:var(--green-700);font-weight:600">Phân chia →</span></div>
+        </div>
+      </div>
+
+      <!-- main grid -->
+      <div class="grid">
+
+        <!-- LEFT -->
+        <div class="col">
+
+          <!-- chart -->
+          <div class="card chart-card">
+            <div class="card-h">
+              <div>
+                <div class="ttl">Doanh thu &amp; Lợi nhuận gộp</div>
+                <div class="sub">12 tháng gần nhất · tăng trưởng đều, đỉnh tại 06/2026</div>
+              </div>
+              <span class="link">Xem báo cáo <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+            </div>
+            <div class="legend">
+              <span class="li"><span class="sw" style="background:var(--green)"></span>Doanh thu</span>
+              <span class="li"><span class="sw" style="background:var(--blue)"></span>Lợi nhuận gộp</span>
+            </div>
+            <div class="body"><svg id="chart" viewBox="0 0 760 280"></svg></div>
+          </div>
+
+          <!-- vehicle + routes -->
+          <div class="sub2">
+            <div class="card">
+              <div class="card-h"><div><div class="ttl">Lợi nhuận theo xe</div><div class="sub">Biên gộp từng đầu kéo · 06/2026</div></div></div>
+              <div class="vlist">
+                <div class="vrow"><span class="plate">51C-145.82</span><span class="bar"><i style="width:97%"></i></span><span class="pct">38%</span></div>
+                <div class="vrow"><span class="plate">51C-203.17</span><span class="bar"><i style="width:90%"></i></span><span class="pct">35%</span></div>
+                <div class="vrow"><span class="plate">50H-411.90</span><span class="bar"><i style="width:85%"></i></span><span class="pct">33%</span></div>
+                <div class="vrow"><span class="plate">51D-099.24</span><span class="bar"><i style="width:80%"></i></span><span class="pct">31%</span></div>
+                <div class="vrow"><span class="plate">51C-678.30</span><span class="bar"><i style="width:72%"></i></span><span class="pct">28%</span></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-h"><div><div class="ttl">Top tuyến sinh lời</div><div class="sub">Theo lợi nhuận gộp · 06/2026</div></div><span class="link">Tất cả</span></div>
+              <div class="rlist">
+                <div class="rrow"><span class="rk">1</span><span class="rt">TP.HCM → Hà Nội</span><span class="rv">78,5 Tr</span></div>
+                <div class="rrow"><span class="rk">2</span><span class="rt">TP.HCM → Đà Nẵng</span><span class="rv">52,0 Tr</span></div>
+                <div class="rrow"><span class="rk">3</span><span class="rt">Bình Dương → Hải Phòng</span><span class="rv">41,2 Tr</span></div>
+                <div class="rrow"><span class="rk">4</span><span class="rt">TP.HCM → Cần Thơ</span><span class="rv">28,4 Tr</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT RAIL -->
+        <div class="col">
+
+          <!-- fleet -->
+          <div class="card fleet">
+            <div class="card-h"><div><div class="ttl">Tình trạng đội xe</div><div class="sub">9 đầu kéo · 4 tài xế</div></div><span class="link">Quản lý</span></div>
+            <div class="body">
+              <div class="seg">
+                <i style="background:var(--green-500);flex:8"></i>
+                <i style="background:var(--amber);flex:1"></i>
+              </div>
+              <div class="fstats">
+                <div class="fstat"><div class="v"><span class="pip" style="background:var(--green-500)"></span>8</div><div class="k">Hoạt động</div></div>
+                <div class="fstat"><div class="v"><span class="pip" style="background:var(--green)"></span>2</div><div class="k">Đang chạy</div></div>
+                <div class="fstat"><div class="v"><span class="pip" style="background:var(--amber)"></span>1</div><div class="k">Bảo dưỡng</div></div>
+                <div class="fstat"><div class="v"><span class="pip" style="background:var(--ink-3)"></span>0</div><div class="k">Ngừng</div></div>
+              </div>
+              <div class="util">
+                <span class="cap">Tỷ lệ sử dụng</span>
+                <span class="track"><i style="width:89%"></i></span>
+                <span class="pct">89%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- cost donut -->
+          <div class="card cost">
+            <div class="card-h"><div><div class="ttl">Cơ cấu chi phí</div><div class="sub">06/2026 · tổng 595,0 Tr đ</div></div></div>
+            <div class="body">
+              <div class="donut">
+                <svg viewBox="0 0 42 42" style="width:118px;height:118px;transform:rotate(-90deg)">
+                  <circle cx="21" cy="21" r="15.9" fill="none" stroke="#eef1ef" stroke-width="7"/>
+                  <circle cx="21" cy="21" r="15.9" fill="none" stroke="#005A2D" stroke-width="7" stroke-dasharray="42 58" stroke-dashoffset="0"/>
+                  <circle cx="21" cy="21" r="15.9" fill="none" stroke="#16A34A" stroke-width="7" stroke-dasharray="23 77" stroke-dashoffset="-42"/>
+                  <circle cx="21" cy="21" r="15.9" fill="none" stroke="#2563EB" stroke-width="7" stroke-dasharray="14 86" stroke-dashoffset="-65"/>
+                  <circle cx="21" cy="21" r="15.9" fill="none" stroke="#C2780B" stroke-width="7" stroke-dasharray="11 89" stroke-dashoffset="-79"/>
+                  <circle cx="21" cy="21" r="15.9" fill="none" stroke="#9AA8A0" stroke-width="7" stroke-dasharray="10 90" stroke-dashoffset="-90"/>
+                </svg>
+                <div class="ctr"><span class="big">595,0</span><span class="sm">Triệu đ</span></div>
+              </div>
+              <div class="clegend">
+                <div class="crow"><span class="sw" style="background:#005A2D"></span><span class="nm">Nhiên liệu</span><span class="pc">42%</span></div>
+                <div class="crow"><span class="sw" style="background:#16A34A"></span><span class="nm">Lương tài xế</span><span class="pc">23%</span></div>
+                <div class="crow"><span class="sw" style="background:#2563EB"></span><span class="nm">Phí cầu đường</span><span class="pc">14%</span></div>
+                <div class="crow"><span class="sw" style="background:#C2780B"></span><span class="nm">Bảo dưỡng &amp; lốp</span><span class="pc">11%</span></div>
+                <div class="crow"><span class="sw" style="background:#9AA8A0"></span><span class="nm">Chi phí khác</span><span class="pc">10%</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- attention -->
+          <div class="card att">
+            <div class="card-h"><div><div class="ttl">Cần chú ý</div><div class="sub">Vấn đề cần quyết định của giám đốc</div></div></div>
+            <div class="body">
+              <div class="arow">
+                <div class="ic ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+                <div class="tx"><div class="t">Không có công nợ quá hạn</div><div class="s">Toàn bộ khách hàng đã thanh toán đúng hạn</div></div>
+              </div>
+              <div class="arow">
+                <div class="ic ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+                <div class="tx"><div class="t">Không có đơn hàng chờ phân xe</div><div class="s">Tất cả đơn hàng đã được phân xe</div></div>
+              </div>
+              <div class="arow">
+                <div class="ic cal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+                <div class="tx"><div class="t">Không có hạng mục cần gia hạn</div><div class="s">Bảo hiểm · đăng kiểm · phí đường bộ</div></div>
+                <div class="go"><button class="minibtn">Xem chi phí</button></div>
+              </div>
+              <div class="divider"></div>
+              <div class="arow">
+                <div class="ic info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></div>
+                <div class="tx"><div class="t">Báo cáo lợi nhuận 06/2026 sẵn sàng</div><div class="s">Xác nhận để chốt sổ tháng — phần Ông Thương</div></div>
+                <div class="go"><button class="minibtn green">Xem &amp; xác nhận</button></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script>
+(function(){
+  const rev = [612,645,590,668,705,690,742,718,780,815,842,890];
+  const gp  = [188,205,176,210,228,215,240,232,258,270,281,295];
+  const months = ['T7','T8','T9','T10','T11','T12','T1','T2','T3','T4','T5','T6'];
+  const W=760,H=280, mL=46,mR=18,mT=14,mB=30;
+  const pW=W-mL-mR, pH=H-mT-mB, yMax=1000;
+  const X=i=> mL + pW*(i/(rev.length-1));
+  const Y=v=> mT + pH*(1 - v/yMax);
+  const NS='http://www.w3.org/2000/svg';
+  const svg=document.getElementById('chart');
+  const el=(t,a)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;};
+
+  // gradient
+  const defs=el('defs',{});
+  const g=el('linearGradient',{id:'gRev',x1:0,y1:0,x2:0,y2:1});
+  g.appendChild(el('stop',{offset:'0%','stop-color':'#005A2D','stop-opacity':'.16'}));
+  g.appendChild(el('stop',{offset:'100%','stop-color':'#005A2D','stop-opacity':'0'}));
+  defs.appendChild(g); svg.appendChild(defs);
+
+  // gridlines + y labels
+  [0,250,500,750,1000].forEach(v=>{
+    const y=Y(v);
+    svg.appendChild(el('line',{x1:mL,y1:y,x2:W-mR,y2:y,stroke:'#EEF1EF','stroke-width':1}));
+    const t=el('text',{x:mL-10,y:y+3.5,'text-anchor':'end','font-family':"'JetBrains Mono',monospace",'font-size':10,fill:'#A4B1A9'});
+    t.textContent = v===0 ? '0' : (v + 'M');
+    svg.appendChild(t);
+  });
+
+  // x labels
+  months.forEach((m,i)=>{
+    const t=el('text',{x:X(i),y:H-10,'text-anchor':'middle','font-family':"'JetBrains Mono',monospace",'font-size':10,fill:'#8A988F'});
+    t.textContent=m; svg.appendChild(t);
+  });
+
+  const path=arr=> arr.map((v,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1)).join(' ');
+
+  // area under revenue
+  const area=path(rev)+` L ${X(rev.length-1)} ${Y(0)} L ${X(0)} ${Y(0)} Z`;
+  svg.appendChild(el('path',{d:area,fill:'url(#gRev)'}));
+
+  // gross profit line
+  svg.appendChild(el('path',{d:path(gp),fill:'none',stroke:'#2563EB','stroke-width':2.2,'stroke-linecap':'round','stroke-linejoin':'round'}));
+  // revenue line
+  svg.appendChild(el('path',{d:path(rev),fill:'none',stroke:'#005A2D','stroke-width':2.6,'stroke-linecap':'round','stroke-linejoin':'round'}));
+
+  // last point marker + tooltip
+  const li=rev.length-1, lx=X(li), ly=Y(rev[li]);
+  svg.appendChild(el('line',{x1:lx,y1:mT,x2:lx,y2:mT+pH,stroke:'#005A2D','stroke-width':1,'stroke-dasharray':'3 4','opacity':.45}));
+  svg.appendChild(el('circle',{cx:lx,cy:Y(gp[li]),r:3.5,fill:'#fff',stroke:'#2563EB','stroke-width':2}));
+  svg.appendChild(el('circle',{cx:lx,cy:ly,r:4,fill:'#fff',stroke:'#005A2D','stroke-width':2.6}));
+
+  // tooltip box
+  const tw=110,th=42, tx=lx-tw-12, ty=ly-th-8;
+  svg.appendChild(el('rect',{x:tx,y:ty,width:tw,height:th,rx:8,fill:'#0E1F16'}));
+  const t1=el('text',{x:tx+12,y:ty+17,'font-family':"'JetBrains Mono',monospace",'font-size':10,fill:'#9AC6AB'}); t1.textContent='06/2026'; svg.appendChild(t1);
+  const t2=el('text',{x:tx+12,y:ty+32,'font-family':"'JetBrains Mono',monospace",'font-size':12.5,'font-weight':700,fill:'#fff'}); t2.textContent='890,0 Tr đ'; svg.appendChild(t2);
+})();
+</script>
+</body>
+</html>

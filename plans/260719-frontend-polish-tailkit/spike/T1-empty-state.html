@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>T1 Spike — EmptyState with placeholder previews (retokenized)</title>
+  <!--
+    Phase 3 spike. Proves that mcp__tailkit__get_component_code output
+    (a-c-empty-states-05) can be retokenized against NEPO design tokens
+    and look on-brand.
+
+    Open in a browser: file://.../plans/260719-frontend-polish-tailkit/spike/T1-empty-state.html
+
+    What this proves:
+      1. The Tailkit structural pattern (icon + title + desc + action + faded
+         preview cards behind it) is adoptable.
+      2. Every Tailwind palette class is replaceable by a NEPO var(--*).
+      3. No dark: variants, no Heroicons, no hardcoded buttons.
+      4. Responsive at 420 / 640 / 1023 / 1100 px (NEPO breakpoints).
+  -->
+  <link rel="stylesheet" href="../../../frontend/src/styles/tokens.css">
+  <style>
+    /* tokens.css only defines vars + daisyUI plugins; we add minimal page CSS here. */
+    body {
+      margin: 0;
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--ink);
+      padding: 24px;
+    }
+
+    /* ─── EmptyState (retokenized from a-c-empty-states-05) ─────────────── */
+    .empty-state {
+      /* Tailkit: rounded-xl border-2 border-dashed border-secondary-200
+                 px-6 py-20 md:py-30 dark:border-secondary-700 */
+      border: 2px dashed var(--line-2);
+      border-radius: var(--r-lg);
+      padding: 48px 24px;
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      text-align: center;
+    }
+    @media (min-width: 640px) {
+      .empty-state { padding: 80px 24px; }
+    }
+
+    .empty-state__icon-wrap {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      align-self: center;
+    }
+    .empty-state__icon {
+      /* Tailkit: size-12 text-secondary-300 dark:text-secondary-700 */
+      width: 48px;
+      height: 48px;
+      color: var(--accent-2);
+      opacity: 0.7;
+    }
+
+    .empty-state__heading-wrap {
+      max-width: 480px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    .empty-state__title {
+      /* Tailkit: text-2xl font-bold */
+      font-size: var(--fs-2xl);
+      font-weight: var(--fw-bold);
+      margin: 0 0 8px;
+      color: var(--ink);
+    }
+    .empty-state__desc {
+      /* Tailkit: text-sm/relaxed font-medium text-secondary-600 */
+      font-size: var(--fs-sm);
+      line-height: var(--lh-relaxed);
+      font-weight: var(--fw-medium);
+      color: var(--ink-3);
+      margin: 0;
+    }
+
+    .empty-state__actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+    /* In production: <Btn variant="primary" icon={<Plus size={14} />}> */
+    .empty-state__btn {
+      /* Mirrors frontend/src/components/Button.css .btn--primary */
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent-2);
+      color: var(--fg-on-brand);
+      border: 1px solid var(--accent-2);
+      border-radius: var(--r-sm);
+      padding: 8px 14px;
+      font-size: var(--fs-sm);
+      font-weight: var(--fw-semibold);
+      cursor: pointer;
+      transition: all var(--t-normal);
+      font-family: inherit;
+    }
+    .empty-state__btn:hover {
+      background: var(--accent-ink);
+      border-color: var(--accent-ink);
+    }
+
+    /* ─── Placeholder preview cards (the new variant) ──────────────────── */
+    /* Tailkit: grid grid-cols-2 gap-6 px-6 md:grid-cols-3
+                bg-linear-to-b from-secondary-100 to-transparent */
+    .empty-state__preview {
+      margin-top: 24px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      padding: 0 16px;
+    }
+    @media (min-width: 640px) {
+      .empty-state__preview { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+
+    .preview-card {
+      /* Tailkit: h-40 space-y-3 rounded-xl bg-linear-to-b from-secondary-100
+                  to-transparent p-6 dark:from-secondary-700/50 */
+      height: 160px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      border-radius: var(--r-lg);
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      padding: 20px;
+    }
+    .preview-card__avatar {
+      /* Tailkit: h-12 w-12 rounded-full bg-secondary-300 */
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-full);
+      background: var(--line-2);
+    }
+    .preview-card__line {
+      height: 6px;
+      border-radius: var(--radius-full);
+      background: var(--line);
+    }
+    .preview-card__line--w33 { width: 33%; background: var(--line-2); }
+    .preview-card__line--w50 { width: 50%; }
+    .preview-card__line--w75 { width: 75%; }
+  </style>
+</head>
+<body>
+
+<div class="empty-state">
+  <div class="empty-state__icon-wrap">
+    <!-- lucide-react <Users size={48} /> in production -->
+    <svg class="empty-state__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.305 0-4.47-.612-6.337-1.689A4.063 4.063 0 0 1 4.5 16.5c0-1.09.44-2.077 1.155-2.79M15 19.128v.003-.003M12 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
+    </svg>
+  </div>
+
+  <div class="empty-state__heading-wrap">
+    <h3 class="empty-state__title">Chưa có chuyến nào trong tháng này</h3>
+    <p class="empty-state__desc">Bắt đầu bằng cách tạo chuyến mới. Danh sách sẽ hiển thị tại đây, giúp bạn theo dõi tình trạng và doanh thu dễ dàng hơn.</p>
+  </div>
+
+  <div class="empty-state__actions">
+    <!-- In production: <Btn variant="primary" icon={<Plus size={14} />}>Tạo chuyến mới</Btn> -->
+    <button class="empty-state__btn" type="button">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+      </svg>
+      <span>Tạo chuyến mới</span>
+    </button>
+  </div>
+
+  <!-- The new variant: faded preview cards showing what content will look like -->
+  <div class="empty-state__preview" aria-hidden="true">
+    <div class="preview-card">
+      <div class="preview-card__avatar"></div>
+      <div class="preview-card__line preview-card__line--w33"></div>
+      <div class="preview-card__line preview-card__line--w75"></div>
+      <div class="preview-card__line preview-card__line--w50"></div>
+      <div class="preview-card__line preview-card__line--w75"></div>
+    </div>
+    <div class="preview-card">
+      <div class="preview-card__avatar"></div>
+      <div class="preview-card__line preview-card__line--w33"></div>
+      <div class="preview-card__line preview-card__line--w75"></div>
+      <div class="preview-card__line preview-card__line--w50"></div>
+      <div class="preview-card__line preview-card__line--w75"></div>
+    </div>
+    <div class="preview-card">
+      <div class="preview-card__avatar"></div>
+      <div class="preview-card__line preview-card__line--w33"></div>
+      <div class="preview-card__line preview-card__line--w75"></div>
+      <div class="preview-card__line preview-card__line--w50"></div>
+      <div class="preview-card__line preview-card__line--w75"></div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

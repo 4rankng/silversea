@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NEPO · Lệnh vận chuyển</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --brand:#005A2D;
+    --accent:#00B14F;
+    --accent-700:#00984A;
+    --accent-soft:#E7F7EE;
+    --accent-soft-2:#F1FBF5;
+
+    --ink:#0E1A13;
+    --ink-2:#46554C;
+    --ink-3:#8A958F;
+    --ink-4:#AAB3AD;
+
+    --line:#E7EBE9;
+    --line-2:#EFF2F0;
+    --surface:#FFFFFF;
+    --canvas:#F4F7F5;
+
+    --danger:#DC2B2B;
+    --danger-soft:#FCEAEA;
+    --warn:#E8730C;
+    --warn-soft:#FDF1E6;
+    --amber:#C77F0A;
+    --amber-soft:#FBF1DC;
+
+    --r-lg:18px;
+    --r-md:14px;
+    --r-sm:10px;
+    --shadow:0 1px 2px rgba(16,26,19,.04), 0 1px 3px rgba(16,26,19,.05);
+    --shadow-md:0 4px 16px rgba(16,26,19,.06), 0 1px 3px rgba(16,26,19,.04);
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:'Plus Jakarta Sans',system-ui,sans-serif;
+    background:var(--canvas);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+    line-height:1.45;
+    padding:28px;
+  }
+  .mono{font-family:'JetBrains Mono',monospace;font-feature-settings:"tnum" 1;}
+
+  .wrap{max-width:1240px;margin:0 auto;}
+
+  /* ============ HEADER ============ */
+  .page-header{
+    display:flex;align-items:flex-start;justify-content:space-between;gap:24px;
+    margin-bottom:22px;
+  }
+  .header-left{display:flex;gap:14px;align-items:flex-start;min-width:0;}
+  .back-btn{
+    width:38px;height:38px;flex:0 0 auto;border:1px solid var(--line);background:var(--surface);
+    border-radius:11px;display:grid;place-items:center;cursor:pointer;color:var(--ink-2);
+    transition:.15s ease;box-shadow:var(--shadow);margin-top:4px;
+  }
+  .back-btn:hover{border-color:var(--accent);color:var(--accent);transform:translateX(-2px);}
+  .title-block{min-width:0;}
+  .title-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .title-row h1{font-size:25px;font-weight:800;letter-spacing:-.02em;color:var(--ink);}
+  .status-badge{
+    display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;
+    padding:5px 11px 5px 9px;border-radius:999px;letter-spacing:.01em;
+    background:var(--amber-soft);color:var(--amber);
+  }
+  .status-badge .pulse{width:7px;height:7px;border-radius:50%;background:currentColor;
+    box-shadow:0 0 0 0 currentColor;animation:pulse 2s infinite;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(199,127,10,.45)}70%{box-shadow:0 0 0 6px rgba(199,127,10,0)}100%{box-shadow:0 0 0 0 rgba(199,127,10,0)}}
+
+  .company{display:flex;align-items:center;gap:7px;margin-top:8px;color:var(--ink-2);
+    font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:560px;}
+  .company svg{flex:0 0 auto;color:var(--ink-3);}
+
+  .route-chips{display:flex;align-items:center;gap:9px;margin-top:11px;flex-wrap:nowrap;}
+  .chip{
+    display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);
+    padding:5px 12px;border-radius:999px;font-size:12.5px;font-weight:600;color:var(--ink);
+    white-space:nowrap;box-shadow:var(--shadow);
+  }
+  .chip .pin{width:6px;height:6px;border-radius:50%;}
+  .chip .pin.go{background:var(--accent);}
+  .chip .pin.end{background:var(--danger);}
+  .route-arrow{color:var(--ink-4);display:grid;place-items:center;}
+
+  .header-actions{display:flex;gap:9px;flex:0 0 auto;align-items:center;}
+  .btn{
+    display:inline-flex;align-items:center;gap:7px;font-family:inherit;font-size:13px;font-weight:700;
+    padding:9px 15px;border-radius:11px;cursor:pointer;border:1px solid transparent;
+    transition:.15s ease;white-space:nowrap;
+  }
+  .btn svg{flex:0 0 auto;}
+  .btn-ghost{background:var(--surface);border-color:var(--line);color:var(--ink-2);box-shadow:var(--shadow);}
+  .btn-ghost:hover{border-color:#D4DAD7;color:var(--ink);background:#FCFDFC;}
+  .btn-danger{background:var(--surface);border-color:var(--line);color:var(--danger);box-shadow:var(--shadow);}
+  .btn-danger:hover{background:var(--danger-soft);border-color:#F3C6C6;}
+  .btn-primary{
+    background:var(--accent);color:#fff;border-color:var(--accent);
+    box-shadow:0 1px 2px rgba(0,177,79,.25),0 6px 16px rgba(0,177,79,.22);
+  }
+  .btn-primary:hover{background:var(--accent-700);transform:translateY(-1px);
+    box-shadow:0 2px 4px rgba(0,177,79,.3),0 10px 22px rgba(0,177,79,.26);}
+
+  /* ============ KPI STRIP ============ */
+  .kpi-strip{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px;
+  }
+  .kpi{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);
+    padding:18px 20px;box-shadow:var(--shadow);position:relative;overflow:hidden;
+  }
+  .kpi-label{display:flex;align-items:center;gap:8px;font-size:11.5px;font-weight:700;
+    letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);}
+  .kpi-label .dot{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;
+    background:var(--line-2);color:var(--ink-3);flex:0 0 auto;}
+  .kpi-value{font-family:'JetBrains Mono',monospace;font-size:27px;font-weight:600;
+    letter-spacing:-.02em;margin-top:13px;color:var(--ink);font-feature-settings:"tnum" 1;}
+  .kpi-value .u{font-size:15px;font-weight:500;color:var(--ink-3);margin-left:3px;}
+  .kpi-sub{font-size:11.5px;color:var(--ink-3);margin-top:6px;font-weight:500;}
+
+  .kpi.accent{background:linear-gradient(160deg,#03220F 0%,#063D1E 55%,#005A2D 100%);border-color:#063D1E;}
+  .kpi.accent .kpi-label{color:#8FE9B6;}
+  .kpi.accent .kpi-label .dot{background:rgba(255,255,255,.12);color:#9DEFC0;}
+  .kpi.accent .kpi-value{color:#fff;}
+  .kpi.accent .kpi-value .u{color:#7FDDA6;}
+  .kpi.accent .kpi-sub{color:#86D9A8;}
+  .kpi.accent::after{content:"";position:absolute;right:-30px;top:-30px;width:120px;height:120px;
+    background:radial-gradient(circle,rgba(0,177,79,.35),transparent 70%);}
+
+  /* ============ DETAIL GRID ============ */
+  .detail-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px;align-items:start;}
+  .card{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);
+    box-shadow:var(--shadow);
+  }
+  .card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:17px 20px;border-bottom:1px solid var(--line-2);}
+  .card-head h2{font-size:15px;font-weight:700;letter-spacing:-.01em;display:flex;align-items:center;gap:9px;}
+  .card-head h2 .hicon{width:26px;height:26px;border-radius:8px;background:var(--accent-soft);
+    color:var(--accent-700);display:grid;place-items:center;flex:0 0 auto;}
+  .card-head .sub{font-size:12px;color:var(--ink-3);margin-top:3px;font-weight:500;}
+  .card-body{padding:8px 20px 18px;}
+
+  /* info list (label over value) */
+  .info-list{display:flex;flex-direction:column;}
+  .info-row{display:flex;align-items:center;gap:13px;padding:11px 0;border-bottom:1px solid var(--line-2);}
+  .info-row:last-child{border-bottom:none;}
+  .info-row .ri{width:34px;height:34px;border-radius:9px;background:var(--canvas);color:var(--ink-3);
+    display:grid;place-items:center;flex:0 0 auto;}
+  .info-meta{min-width:0;}
+  .info-meta .lbl{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);}
+  .info-meta .val{font-size:14px;font-weight:600;color:var(--ink);margin-top:1px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .info-meta .val.muted{color:var(--ink-4);font-weight:500;}
+
+  /* P&L statement */
+  .pl{display:flex;flex-direction:column;gap:2px;padding-top:6px;}
+  .pl-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;}
+  .pl-row .k{font-size:13px;color:var(--ink-2);font-weight:500;display:flex;align-items:center;gap:8px;}
+  .pl-row .k .swatch{width:8px;height:8px;border-radius:2px;flex:0 0 auto;}
+  .pl-row .v{font-family:'JetBrains Mono',monospace;font-size:13.5px;font-weight:600;color:var(--ink);font-feature-settings:"tnum" 1;}
+  .pl-row .v.neg{color:var(--ink-2);}
+  .pl-row .v.zero{color:var(--ink-4);font-weight:500;}
+  .pl-divider{height:1px;background:var(--line-2);margin:4px 0;}
+  .pl-divider.dashed{background:none;border-top:1px dashed var(--line);}
+  .pl-row.subtotal .k{font-weight:700;color:var(--ink);}
+  .pl-row.subtotal .v{font-weight:700;}
+  .pl-total{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    background:var(--accent-soft-2);border:1px solid #D8F0E2;border-radius:var(--r-md);
+    padding:13px 15px;margin-top:8px;
+  }
+  .pl-total .k{font-size:13px;font-weight:700;color:var(--brand);}
+  .pl-total .v{font-family:'JetBrains Mono',monospace;font-size:19px;font-weight:700;color:var(--accent-700);letter-spacing:-.01em;}
+  .pl-total .u{font-size:13px;font-weight:500;}
+
+  /* fuel */
+  .fuel-list .pl-row{padding:8px 0;border-bottom:1px solid var(--line-2);}
+  .fuel-list .pl-row:last-of-type{border-bottom:none;}
+  .fuel-compare{margin-top:14px;background:var(--canvas);border-radius:var(--r-md);padding:14px 15px;}
+  .fc-title{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);margin-bottom:12px;}
+  .bullet{margin-bottom:11px;}
+  .bullet:last-of-type{margin-bottom:0;}
+  .bullet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;}
+  .bullet-head .bl{font-size:12px;font-weight:600;color:var(--ink-2);}
+  .bullet-head .bv{font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:600;color:var(--ink);}
+  .track{height:8px;border-radius:6px;background:#E4E9E6;overflow:hidden;position:relative;}
+  .track .fill{height:100%;border-radius:6px;}
+  .fill.actual{background:linear-gradient(90deg,var(--accent),var(--accent-700));}
+  .fill.norm{background:#C2CAC6;}
+  .fc-flag{display:flex;align-items:center;gap:7px;margin-top:12px;padding:8px 11px;
+    background:var(--danger-soft);border-radius:9px;color:var(--danger);font-size:12.5px;font-weight:700;}
+  .fc-flag svg{flex:0 0 auto;}
+
+  /* ============ SERVICE COSTS (compact) ============ */
+  .service-card{margin-bottom:20px;}
+  .empty-inline{
+    display:flex;align-items:center;gap:13px;padding:16px 20px;margin:4px 20px 18px;
+    background:var(--canvas);border:1px dashed var(--line);border-radius:var(--r-md);
+  }
+  .empty-inline .eicon{width:40px;height:40px;border-radius:11px;background:var(--surface);border:1px solid var(--line);
+    display:grid;place-items:center;color:var(--ink-3);flex:0 0 auto;}
+  .empty-inline .etxt{font-size:13px;color:var(--ink-2);font-weight:500;}
+  .empty-inline .etxt b{color:var(--ink);font-weight:700;}
+  .btn-soft{background:var(--accent-soft);color:var(--accent-700);border-color:transparent;}
+  .btn-soft:hover{background:#D8F0E2;}
+
+  /* ============ JOURNEY ============ */
+  .journey-pills{display:flex;gap:8px;}
+  .jp{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;
+    padding:5px 11px;border-radius:999px;}
+  .jp.km{background:var(--canvas);color:var(--ink-2);}
+  .jp.km .mono{font-size:12px;}
+  .journey-body{display:grid;grid-template-columns:1.35fr 1fr;gap:0;}
+  .map-wrap{position:relative;border-right:1px solid var(--line-2);}
+  .map-wrap svg.map{display:block;width:100%;height:100%;border-bottom-left-radius:var(--r-lg);}
+  .map-zoom{position:absolute;top:14px;left:14px;display:flex;flex-direction:column;
+    background:var(--surface);border:1px solid var(--line);border-radius:9px;overflow:hidden;box-shadow:var(--shadow);}
+  .map-zoom button{width:30px;height:30px;border:none;background:var(--surface);cursor:pointer;
+    color:var(--ink-2);font-size:16px;display:grid;place-items:center;}
+  .map-zoom button:first-child{border-bottom:1px solid var(--line-2);}
+  .map-zoom button:hover{background:var(--canvas);color:var(--accent-700);}
+  .map-badge{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.92);backdrop-filter:blur(4px);
+    border:1px solid var(--line);border-radius:9px;padding:6px 11px;font-size:11.5px;font-weight:700;color:var(--ink-2);
+    box-shadow:var(--shadow);display:flex;align-items:center;gap:6px;}
+
+  .legs{padding:18px 20px;display:flex;flex-direction:column;gap:10px;}
+  .leg{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;
+    padding:13px 14px;border:1px solid var(--line);border-radius:var(--r-md);transition:.15s ease;}
+  .leg:hover{border-color:#D4DAD7;box-shadow:var(--shadow);}
+  .leg-no{width:26px;height:26px;border-radius:8px;background:var(--brand);color:#fff;
+    font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;display:grid;place-items:center;flex:0 0 auto;}
+  .leg-route{min-width:0;}
+  .leg-stops{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--ink);}
+  .leg-stops .st{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px;}
+  .leg-stops .ar{color:var(--ink-4);flex:0 0 auto;}
+  .leg-meta{display:flex;align-items:center;gap:14px;margin-top:7px;}
+  .leg-meta span{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--ink-3);font-weight:600;}
+  .leg-meta .mono{font-size:11.5px;color:var(--ink-2);}
+  .leg-right{display:flex;flex-direction:column;align-items:flex-end;gap:7px;}
+  .badge{font-size:10.5px;font-weight:800;letter-spacing:.04em;padding:4px 9px;border-radius:7px;}
+  .badge.load{background:var(--accent-soft);color:var(--accent-700);}
+  .badge.empty{background:var(--line-2);color:var(--ink-2);}
+  .leg-fuel{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:var(--ink);}
+
+  .journey-foot{display:flex;align-items:center;gap:9px;padding:13px 20px;border-top:1px solid var(--line-2);
+    color:var(--ink-3);font-size:12.5px;font-weight:500;}
+  .journey-foot svg{color:var(--ink-4);}
+  .journey-foot .add-note{margin-left:auto;color:var(--accent-700);font-weight:700;cursor:pointer;
+    display:inline-flex;align-items:center;gap:6px;}
+  .journey-foot .add-note:hover{text-decoration:underline;}
+
+  /* entrance */
+  .anim{opacity:0;transform:translateY(8px);animation:rise .5s cubic-bezier(.2,.7,.3,1) forwards;}
+  @keyframes rise{to{opacity:1;transform:none}}
+  .d1{animation-delay:.02s}.d2{animation-delay:.08s}.d3{animation-delay:.14s}
+  .d4{animation-delay:.2s}.d5{animation-delay:.26s}.d6{animation-delay:.32s}
+
+  @media(max-width:1080px){
+    .detail-grid{grid-template-columns:1fr;}
+    .kpi-strip{grid-template-columns:repeat(2,1fr);}
+    .journey-body{grid-template-columns:1fr;}
+    .map-wrap{border-right:none;border-bottom:1px solid var(--line-2);min-height:280px;}
+  }
+  @media(max-width:720px){
+    body{padding:16px;}
+    .page-header{flex-direction:column;}
+    .header-actions{flex-wrap:wrap;}
+    .kpi-strip{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ICON SPRITE -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-building" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M19 21v-8a1 1 0 0 0-1-1h-3M9 7h2M9 11h2M9 15h2"/></symbol>
+    <symbol id="i-truck" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 17h4V5H2v12h3M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5v8h1M14 17h1"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+    <symbol id="i-trailer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="16" height="10" rx="1"/><path d="M18 12h3M9 16v2"/><circle cx="9" cy="18" r="2"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
+    <symbol id="i-box" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5M12 13v8"/></symbol>
+    <symbol id="i-hash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></symbol>
+    <symbol id="i-wallet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><path d="M21 12h-6a2 2 0 0 0 0 4h6v-4z"/></symbol>
+    <symbol id="i-fuel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 22h12V4a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v18zM3 11h12"/><path d="M15 8h2a2 2 0 0 1 2 2v6a1.5 1.5 0 0 0 3 0V9l-3-3"/></symbol>
+    <symbol id="i-gauge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14 8.5 9.5M21 12a9 9 0 1 0-18 0"/><path d="M3 12h2M19 12h2M12 5V3"/></symbol>
+    <symbol id="i-tag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.6a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1.2" fill="currentColor"/></symbol>
+    <symbol id="i-route" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><path d="M9 19h6a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h3"/></symbol>
+    <symbol id="i-receipt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1z"/><path d="M8 7h8M8 11h8M8 15h5"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.5-3.5L9 20"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></symbol>
+    <symbol id="i-shuffle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m15 9-6 6M9 9l6 6"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86A1 1 0 0 0 8 5.14z"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></symbol>
+    <symbol id="i-ruler" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.3 8.7 8.7 21.3a1 1 0 0 1-1.4 0l-4.6-4.6a1 1 0 0 1 0-1.4L15.3 2.7a1 1 0 0 1 1.4 0l4.6 4.6a1 1 0 0 1 0 1.4z"/><path d="M7.5 10.5l2 2M10.5 7.5l2 2M13.5 4.5l2 2"/></symbol>
+  </svg>
+
+  <!-- ============ HEADER ============ -->
+  <header class="page-header anim d1">
+    <div class="header-left">
+      <button class="back-btn" aria-label="Quay lại"><svg class="ico" width="18" height="18"><use href="#i-back"/></svg></button>
+      <div class="title-block">
+        <div class="title-row">
+          <h1>Lệnh vận chuyển</h1>
+          <span class="status-badge"><span class="pulse"></span>Mới tạo</span>
+        </div>
+        <div class="company">
+          <svg width="15" height="15"><use href="#i-building"/></svg>
+          CÔNG TY TNHH PHÁT TRIỂN DỊCH VỤ VẬN TẢI NAM PHONG
+        </div>
+        <div class="route-chips">
+          <span class="chip"><span class="pin go"></span>Hải Phòng</span>
+          <span class="route-arrow"><svg width="16" height="16"><use href="#i-arrow"/></svg></span>
+          <span class="chip"><span class="pin end"></span>KCN Quang Minh, Hà Nội</span>
+        </div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-ghost"><svg width="15" height="15"><use href="#i-edit"/></svg>Chỉnh sửa</button>
+      <button class="btn btn-ghost"><svg width="15" height="15"><use href="#i-shuffle"/></svg>Phân xe lại</button>
+      <button class="btn btn-danger"><svg width="15" height="15"><use href="#i-x"/></svg>Hủy chuyến</button>
+      <button class="btn btn-primary"><svg width="14" height="14"><use href="#i-play"/></svg>Xuất phát</button>
+    </div>
+  </header>
+
+  <!-- ============ KPI STRIP ============ -->
+  <section class="kpi-strip anim d2">
+    <div class="kpi">
+      <div class="kpi-label"><span class="dot"><svg width="13" height="13"><use href="#i-wallet"/></svg></span>Doanh thu</div>
+      <div class="kpi-value">6.696.000<span class="u">đ</span></div>
+      <div class="kpi-sub">Cước vận chuyển hợp đồng</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label"><span class="dot"><svg width="13" height="13"><use href="#i-receipt"/></svg></span>Tổng chi phí</div>
+      <div class="kpi-value">2.621.220<span class="u">đ</span></div>
+      <div class="kpi-sub">100% từ nhiên liệu</div>
+    </div>
+    <div class="kpi accent">
+      <div class="kpi-label"><span class="dot"><svg width="13" height="13"><use href="#i-tag"/></svg></span>Lợi nhuận gộp</div>
+      <div class="kpi-value">4.074.780<span class="u">đ</span></div>
+      <div class="kpi-sub">Doanh thu − Tổng chi phí</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label"><span class="dot"><svg width="13" height="13"><use href="#i-gauge"/></svg></span>Biên lợi nhuận</div>
+      <div class="kpi-value">60,9<span class="u">%</span></div>
+      <div class="kpi-sub">Trên doanh thu</div>
+    </div>
+  </section>
+
+  <!-- ============ DETAIL GRID ============ -->
+  <section class="detail-grid anim d3">
+
+    <!-- Thông tin cơ bản -->
+    <div class="card">
+      <div class="card-head"><h2><span class="hicon"><svg width="15" height="15"><use href="#i-truck"/></svg></span>Thông tin cơ bản</h2></div>
+      <div class="card-body">
+        <div class="info-list">
+          <div class="info-row">
+            <span class="ri"><svg width="17" height="17"><use href="#i-truck"/></svg></span>
+            <div class="info-meta"><div class="lbl">Xe đầu</div><div class="val mono">15C-139.82</div></div>
+          </div>
+          <div class="info-row">
+            <span class="ri"><svg width="17" height="17"><use href="#i-user"/></svg></span>
+            <div class="info-meta"><div class="lbl">Tài xế</div><div class="val">Nguyễn Thắng Quân</div></div>
+          </div>
+          <div class="info-row">
+            <span class="ri"><svg width="17" height="17"><use href="#i-trailer"/></svg></span>
+            <div class="info-meta"><div class="lbl">Rơ moóc</div><div class="val mono">15R-070.51 · 40FT</div></div>
+          </div>
+          <div class="info-row">
+            <span class="ri"><svg width="17" height="17"><use href="#i-calendar"/></svg></span>
+            <div class="info-meta"><div class="lbl">Ngày khởi hành</div><div class="val mono">02/06/2026</div></div>
+          </div>
+          <div class="info-row">
+            <span class="ri"><svg width="17" height="17"><use href="#i-box"/></svg></span>
+            <div class="info-meta"><div class="lbl">Số container</div><div class="val mono">1</div></div>
+          </div>
+          <div class="info-row">
+            <span class="ri"><svg width="17" height="17"><use href="#i-hash"/></svg></span>
+            <div class="info-meta"><div class="lbl">Mã tham chiếu</div><div class="val muted">Chưa có</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phân tích tài chính (P&L) -->
+    <div class="card">
+      <div class="card-head"><h2><span class="hicon"><svg width="15" height="15"><use href="#i-wallet"/></svg></span>Phân tích tài chính</h2></div>
+      <div class="card-body">
+        <div class="pl">
+          <div class="pl-row">
+            <span class="k">Doanh thu</span>
+            <span class="v">6.696.000 đ</span>
+          </div>
+          <div class="pl-divider dashed"></div>
+          <div class="pl-row">
+            <span class="k"><span class="swatch" style="background:var(--accent)"></span>Chi phí nhiên liệu</span>
+            <span class="v neg">− 2.621.220 đ</span>
+          </div>
+          <div class="pl-row">
+            <span class="k"><span class="swatch" style="background:#C2CAC6"></span>Tiền đi đường</span>
+            <span class="v zero">0 đ</span>
+          </div>
+          <div class="pl-row">
+            <span class="k"><span class="swatch" style="background:#C2CAC6"></span>Tiền kết hợp</span>
+            <span class="v zero">0 đ</span>
+          </div>
+          <div class="pl-row">
+            <span class="k"><span class="swatch" style="background:#C2CAC6"></span>Chi phí dịch vụ</span>
+            <span class="v zero">0 đ</span>
+          </div>
+          <div class="pl-divider"></div>
+          <div class="pl-row subtotal">
+            <span class="k">Tổng chi phí</span>
+            <span class="v">2.621.220 đ</span>
+          </div>
+          <div class="pl-total">
+            <span class="k">Lợi nhuận gộp</span>
+            <span class="v">4.074.780<span class="u"> đ</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Nhiên liệu -->
+    <div class="card">
+      <div class="card-head"><h2><span class="hicon"><svg width="15" height="15"><use href="#i-fuel"/></svg></span>Nhiên liệu</h2></div>
+      <div class="card-body">
+        <div class="fuel-list">
+          <div class="pl-row"><span class="k">Chế độ tính</span><span class="v">Tự động</span></div>
+          <div class="pl-row"><span class="k">Đơn giá cấu hình</span><span class="v">27.650 đ/lít</span></div>
+          <div class="pl-row"><span class="k">Tiêu thụ bình quân</span><span class="v">35,1 L/100km</span></div>
+        </div>
+
+        <div class="fuel-compare">
+          <div class="fc-title">So sánh nhiên liệu</div>
+          <div class="bullet">
+            <div class="bullet-head"><span class="bl">Phát hành</span><span class="bv">94,8 L</span></div>
+            <div class="track"><div class="fill actual" style="width:94.8%"></div></div>
+          </div>
+          <div class="bullet">
+            <div class="bullet-head"><span class="bl">Định mức</span><span class="bv">91,8 L</span></div>
+            <div class="track"><div class="fill norm" style="width:91.8%"></div></div>
+          </div>
+          <div class="fc-flag"><svg width="15" height="15"><use href="#i-alert"/></svg>Vượt định mức +3,0 L</div>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ============ SERVICE COSTS ============ -->
+  <section class="card service-card anim d4">
+    <div class="card-head">
+      <div>
+        <h2><span class="hicon"><svg width="15" height="15"><use href="#i-receipt"/></svg></span>Chi phí dịch vụ đi kèm</h2>
+        <p class="sub">Phí nâng/hạ, hải quan, cân hàng…</p>
+      </div>
+      <button class="btn btn-soft"><svg width="14" height="14"><use href="#i-plus"/></svg>Thêm phí</button>
+    </div>
+    <div class="empty-inline">
+      <span class="eicon"><svg width="19" height="19"><use href="#i-receipt"/></svg></span>
+      <span class="etxt"><b>Chưa có chi phí dịch vụ.</b> Thêm phí nâng/hạ, hải quan, cân hàng… để theo dõi lãi dịch vụ cho chuyến này.</span>
+    </div>
+  </section>
+
+  <!-- ============ JOURNEY ============ -->
+  <section class="card journey-card anim d5">
+    <div class="card-head">
+      <div>
+        <h2><span class="hicon"><svg width="15" height="15"><use href="#i-route"/></svg></span>Hành trình</h2>
+        <p class="sub">2 chặng đường</p>
+      </div>
+      <div class="journey-pills">
+        <span class="jp km"><svg width="13" height="13"><use href="#i-ruler"/></svg><span class="mono">270 km</span> tổng</span>
+      </div>
+    </div>
+
+    <div class="journey-body">
+      <!-- stylized corridor map -->
+      <div class="map-wrap">
+        <svg class="map" viewBox="0 0 560 380" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Bản đồ tuyến Hải Phòng – Hà Nội">
+          <defs>
+            <linearGradient id="land" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#EFF4F0"/><stop offset="1" stop-color="#E6EDE8"/>
+            </linearGradient>
+            <linearGradient id="route" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#00B14F"/><stop offset="1" stop-color="#00984A"/>
+            </linearGradient>
+            <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+
+          <rect width="560" height="380" fill="url(#land)"/>
+          <!-- coastal water bottom-right (near Hải Phòng) -->
+          <path d="M560 230 C 500 250, 470 300, 480 380 L 560 380 Z" fill="#DCEAF2"/>
+          <path d="M560 300 C 520 310, 505 340, 510 380 L 560 380 Z" fill="#CFE2EE"/>
+          <!-- faint minor roads -->
+          <g stroke="#D7DEDA" stroke-width="2" fill="none" opacity=".8">
+            <path d="M0 120 C 140 90, 300 140, 560 95"/>
+            <path d="M40 380 C 120 280, 260 250, 400 300 S 540 250, 560 220"/>
+            <path d="M150 0 C 170 90, 130 200, 200 380"/>
+            <path d="M380 0 C 360 110, 420 220, 380 380"/>
+          </g>
+          <g stroke="#E0E6E2" stroke-width="1.5" fill="none" opacity=".7">
+            <path d="M0 200 H 560"/><path d="M0 60 C 200 70, 380 50, 560 60"/>
+          </g>
+
+          <!-- main route Hải Phòng (right) -> Hà Nội (left) -->
+          <path d="M468 252 C 400 250, 360 230, 300 222 S 180 215, 118 182"
+                fill="none" stroke="#9FE3BD" stroke-width="11" stroke-linecap="round" opacity=".5"/>
+          <path d="M468 252 C 400 250, 360 230, 300 222 S 180 215, 118 182"
+                fill="none" stroke="url(#route)" stroke-width="4.5" stroke-linecap="round" filter="url(#glow)"/>
+
+          <!-- distance label on route -->
+          <g transform="translate(293,196)">
+            <rect x="-30" y="-13" width="60" height="24" rx="12" fill="#fff" stroke="#E7EBE9"/>
+            <text x="0" y="4" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="12" font-weight="700" fill="#46554C">135 km</text>
+          </g>
+
+          <!-- destination: Hà Nội / KCN Quang Minh (left) -->
+          <g transform="translate(118,182)">
+            <circle r="13" fill="#DC2B2B" opacity=".16"/>
+            <circle r="6.5" fill="#DC2B2B" stroke="#fff" stroke-width="2.5"/>
+            <text x="0" y="-22" text-anchor="middle" font-family="'Plus Jakarta Sans',sans-serif" font-size="13" font-weight="800" fill="#0E1A13">HÀ NỘI</text>
+            <text x="0" y="-7" text-anchor="middle" font-family="'Plus Jakarta Sans',sans-serif" font-size="10.5" font-weight="600" fill="#8A958F">KCN Quang Minh</text>
+          </g>
+
+          <!-- origin: Hải Phòng (right) -->
+          <g transform="translate(468,252)">
+            <circle r="13" fill="#00B14F" opacity=".18"/>
+            <circle r="6.5" fill="#00B14F" stroke="#fff" stroke-width="2.5"/>
+            <text x="0" y="-20" text-anchor="middle" font-family="'Plus Jakarta Sans',sans-serif" font-size="13" font-weight="800" fill="#0E1A13">HẢI PHÒNG</text>
+          </g>
+        </svg>
+
+        <div class="map-zoom"><button>+</button><button>−</button></div>
+        <div class="map-badge"><svg width="13" height="13" style="color:var(--accent-700)"><use href="#i-pin"/></svg>Khứ hồi</div>
+      </div>
+
+      <!-- legs -->
+      <div class="legs">
+        <div class="leg">
+          <span class="leg-no">1</span>
+          <div class="leg-route">
+            <div class="leg-stops"><span class="st">Hải Phòng</span><span class="ar"><svg width="14" height="14"><use href="#i-arrow"/></svg></span><span class="st">KCN Quang Minh</span></div>
+            <div class="leg-meta">
+              <span><svg width="13" height="13"><use href="#i-ruler"/></svg><span class="mono">135 km</span></span>
+              <span><svg width="13" height="13"><use href="#i-fuel"/></svg><span class="mono">58,2 L</span></span>
+            </div>
+          </div>
+          <div class="leg-right"><span class="badge load">CÓ HÀNG</span></div>
+        </div>
+
+        <div class="leg">
+          <span class="leg-no">2</span>
+          <div class="leg-route">
+            <div class="leg-stops"><span class="st">KCN Quang Minh</span><span class="ar"><svg width="14" height="14"><use href="#i-arrow"/></svg></span><span class="st">Hải Phòng</span></div>
+            <div class="leg-meta">
+              <span><svg width="13" height="13"><use href="#i-ruler"/></svg><span class="mono">135 km</span></span>
+              <span><svg width="13" height="13"><use href="#i-fuel"/></svg><span class="mono">36,6 L</span></span>
+            </div>
+          </div>
+          <div class="leg-right"><span class="badge empty">CHẠY VỎ</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="journey-foot">
+      <svg width="15" height="15"><use href="#i-image"/></svg>
+      Chưa có ảnh hoặc ghi chú cho chuyến này.
+      <span class="add-note"><svg width="13" height="13"><use href="#i-plus"/></svg>Thêm ảnh / ghi chú</span>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

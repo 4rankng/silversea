@@ -1,0 +1,75 @@
+// Trip Instructions (N2 / B1.3) — manager-authored contact + free-text guidance.
+// One row per trip. Manager writes via TripEdit; driver reads read-only via
+// the driver portal (getDriverTripDetail includes `instructions`).
+
+import { db } from '../db';
+import * as s from '../db/schema';
+import { eq } from 'drizzle-orm';
+
+export interface UpsertTripInstructionsInput {
+  contactName?: string | null;
+  contactPhone?: string | null;
+  notes?: string | null;
+}
+
+// Shared select shape. `updatedAt` is a JS Date at the Drizzle layer; Express
+// serializes it to an ISO string in the JSON response, matching the shared
+// TripInstruction type over the wire.
+const instructionSelect = {
+  id: s.tripInstructions.id,
+  tripId: s.tripInstructions.tripId,
+  contactName: s.tripInstructions.contactName,
+  contactPhone: s.tripInstructions.contactPhone,
+  notes: s.tripInstructions.notes,
+  updatedAt: s.tripInstructions.updatedAt,
+} as const;
+
+export type TripInstructionRow = {
+  id: number;
+  tripId: number;
+  contactName: string | null;
+  contactPhone: string | null;
+  notes: string | null;
+  updatedAt: Date;
+};
+
+/**
+ * Fetch the instructions row for a trip. Returns null when no row exists yet.
+ */
+export async function getTripInstructions(tripId: number): Promise<TripInstructionRow | null> {
+  const [row] = await db.select(instructionSelect).from(s.tripInstructions)
+    .where(eq(s.tripInstructions.tripId, tripId))
+    .limit(1);
+  return row ?? null;
+}
+
+/**
+ * Upsert instructions for a trip. Coerces undefined → null so omitted fields
+ * clear the stored value (managers can wipe guidance by leaving a field blank).
+ */
+export async function upsertTripInstructions(
+  tripId: number,
+  input: UpsertTripInstructionsInput,
+  userId: number,
+): Promise<TripInstructionRow> {
+  const [row] = await db.insert(s.tripInstructions)
+    .values({
+      tripId,
+      contactName: input.contactName ?? null,
+      contactPhone: input.contactPhone ?? null,
+      notes: input.notes ?? null,
+      updatedBy: userId,
+    })
+    .onConflictDoUpdate({
+      target: s.tripInstructions.tripId,
+      set: {
+        contactName: input.contactName ?? null,
+        contactPhone: input.contactPhone ?? null,
+        notes: input.notes ?? null,
+        updatedBy: userId,
+        updatedAt: new Date(),
+      },
+    })
+    .returning(instructionSelect);
+  return row;
+}

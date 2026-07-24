@@ -1,0 +1,2 @@
+CREATE INDEX "expense_photos_storage_key_idx" ON "expense_photos" USING btree ("storage_key");--> statement-breakpoint
+CREATE INDEX "trip_expense_photos_storage_key_idx" ON "trip_expense_photos" USING btree ("storage_key");

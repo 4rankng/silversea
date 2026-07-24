@@ -1,0 +1,499 @@
+/* ── Two-column body layout (main + sticky rail) ────────────── */
+.trip-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 26px;
+  align-items: start;
+  margin-bottom: 20px;
+}
+
+.trip-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.trip-col--main { min-width: 0; }
+
+.trip-col--rail {
+  position: sticky;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  /* No internal scrollbar — the rail stretches to fit its content and the
+     whole page scrolls naturally. Sticky keeps it pinned to the viewport
+     top while the main column scrolls past. */
+}
+
+/* The right rail is rendered on top of a soft dot-grid background so it
+   reads as a "secondary column" instead of just a list of cards. */
+.trip-rail-bg {
+  position: relative;
+  background: transparent;
+  padding: 0;
+}
+
+.trip-rail-bg::before {
+  content: none;
+}
+
+.trip-rail-bg > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── KPI rail (2×2 micro-grid inside one glass card) ──────────────────── */
+.kpi-rail {
+  background: var(--surface);
+  border: 1px solid rgba(203, 211, 206, 0.82);
+  border-radius: var(--r);
+  padding: 14px 16px 12px;
+}
+
+.kpi-rail__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line-2, #EFF2F0);
+}
+
+.kpi-rail__eyebrow {
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.kpi-rail__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 14px;
+}
+
+.kpi-rail__cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0;
+  min-width: 0;
+}
+
+/* Cells in column 2 (revenue row 1 col 2, profit row 2 col 2) — border-left */
+.kpi-rail__cell:nth-of-type(2),
+.kpi-rail__cell:nth-of-type(4) {
+  border-left: 1px solid var(--line-2, #EFF2F0);
+  padding-left: 14px;
+}
+
+/* Cells in row 2 (cost + margin) — border-top */
+.kpi-rail__cell:nth-of-type(3),
+.kpi-rail__cell:nth-of-type(4) {
+  border-top: 1px solid var(--line-2, #EFF2F0);
+  padding-top: 12px;
+  margin-top: 2px;
+}
+
+.kpi-value--sm {
+  font-size: var(--fs-md);
+  margin-top: 4px;
+}
+
+.kpi-value--sm .u {
+  font-size: var(--fs-xs);
+}
+
+.kpi {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg, 18px);
+  padding: 18px 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.kpi-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.kpi-label .dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  background: var(--line-2, #EFF2F0);
+  color: var(--ink-3);
+  flex: 0 0 auto;
+}
+
+.kpi-value {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xl);
+  font-weight: 600;
+  letter-spacing: 0;
+  margin-top: 13px;
+  color: var(--ink);
+  font-feature-settings: "tnum" 1;
+}
+
+.kpi-value .u {
+  font-size: var(--fs-md);
+  font-weight: 500;
+  color: var(--ink-3);
+  margin-left: 3px;
+}
+
+.kpi-sub {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  margin-top: 6px;
+  font-weight: 500;
+}
+
+.kpi.accent {
+  background: #063D1E;
+  border-color: #063D1E;
+}
+
+.kpi.accent .kpi-label {
+  color: #8FE9B6;
+}
+
+.kpi.accent .kpi-label .dot {
+  background: rgba(255, 255, 255, 0.12);
+  color: #9DEFC0;
+}
+
+.kpi.accent .kpi-value {
+  color: var(--fg-on-brand);
+}
+
+.kpi.accent .kpi-value .u {
+  color: #7FDDA6;
+}
+
+.kpi.accent .kpi-sub {
+  color: #86D9A8;
+}
+
+.kpi.accent::after {
+  content: none;
+}
+
+/* ── Card ───────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid rgba(203, 211, 206, 0.82);
+  border-radius: var(--r);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.card:hover {
+  border-color: var(--line-strong, var(--line));
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--line-2, #EFF2F0);
+  /* Mirrors the .tc-card-head gradient on TripEditPage — a faint surface-2
+     fade at the top of the header to add depth without color noise. */
+  background: var(--surface-2);
+}
+
+.card-head h2 {
+  font-size: var(--fs-md);
+  font-weight: 700;
+  letter-spacing: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.card-head h2 .hicon {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  /* Mirrors the .tc-card-num gradient on TripEditPage so the two pages read
+     as a unified family. The hue is forest-sage (--accent-2); the icon
+     glyph stays in the soft accent tint for legibility on the gradient. */
+  background: var(--accent-2);
+  color: var(--fg-on-brand);
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+/* Smaller hicon variant — used by ServiceCostsCard and similar compact headers. */
+.card-head h2 .hicon--sm {
+  width: 24px;
+  height: 24px;
+}
+
+.card-head .sub {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  margin-top: 3px;
+  font-weight: 500;
+}
+
+/* Inline sub: sits next to the title (no top margin), with a small left gap.
+   Use when the subtitle is rendered as a sibling of the title text. */
+.card-head .sub--inline {
+  margin-top: 0;
+  margin-left: 4px;
+}
+
+.card-body {
+  padding: 10px 20px 20px;
+}
+
+/* ── Info List (2-col grid inside BasicInfoCard / ExternalCarrierCard) ───
+   Auto-fits 1–2 columns: a single row when the card is ≥ ~584px wide
+   (260 + 24 + 260 + padding), otherwise collapses to one-per-row so long
+   Vietnamese values like "CÔNG TY TNHH THƯƠNG MẠI VÀ DỊCH VỤ VẬN TẢI AN
+   KHÁNH" don't get squeezed into a 150px column. */
+.info-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  column-gap: 24px;
+  row-gap: 0;
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line-2, #EFF2F0);
+  min-width: 0;
+}
+
+.info-row--full {
+  grid-column: 1 / -1;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-row .ri {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--surface-3, #EFF1F5);
+  color: var(--ink-2);
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.info-meta {
+  min-width: 0;
+}
+
+.info-meta .lbl {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.info-meta .val {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--ink);
+  margin-top: 1px;
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+}
+
+.info-meta .val.mono {
+  font-family: var(--font-mono);
+}
+
+.info-meta .val.muted {
+  color: var(--ink-4);
+  font-weight: 500;
+}
+
+.info-meta .val.muted-pos {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.info-meta .val.muted-neg {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+/* ── Containers & Seal card ─────────────────────────────────────────────── */
+.cs-galleries {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(120px, 0.8fr);
+  gap: 10px;
+  padding: 8px 0 12px;
+  border-bottom: 1px solid var(--line-2, #EFF2F0);
+  margin-bottom: 2px;
+}
+
+.cs-gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line-2, #EFF2F0);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 74%, var(--surface-2));
+}
+
+.cs-gallery__label {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.cs-thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cs-thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 3px;
+  width: 82px;
+  height: 58px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md, 14px);
+  overflow: hidden;
+  background: var(--bg-3, #EFF1F5);
+  cursor: pointer;
+  transition: 0.15s ease;
+  color: var(--ink-4);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+}
+
+.cs-thumb:hover:not(:disabled) {
+  border-color: var(--accent-2, #008B3E);
+}
+
+.cs-thumb:disabled {
+  cursor: default;
+}
+
+.cs-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cs-thumb--empty,
+.cs-thumb__broken {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 100%;
+  height: 100%;
+  color: var(--ink-4);
+}
+
+.containers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0 4px;
+}
+
+.container-row {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 11px 12px;
+  border: 1px solid var(--line-2, #EFF2F0);
+  border-radius: var(--r-md, 14px);
+  background: var(--surface-2);
+}
+
+.container-no {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent-2, #008B3E);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+}
+
+.container-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  column-gap: 14px;
+  row-gap: 8px;
+  min-width: 0;
+}
+
+.cf {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cf--full {
+  grid-column: 1 / -1;
+}
+
+.cf-label {
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.cf-value {
+  font-size: 13px;
+  line-height: 1.35;
+  font-weight: 600;
+  color: var(--ink);
+  word-break: break-word;
+}
+
+.cf-value.mono {
+  font-family: var(--font-mono);
+}

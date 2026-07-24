@@ -1,0 +1,292 @@
+/* ============================================================================
+ * Login page
+ * ========================================================================== */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  position: relative;
+  overflow-x: hidden;
+  padding: 24px;
+}
+.login-page::before {
+  content: none;
+}
+.login-bg-svg {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+  opacity: 0.36;
+  pointer-events: none;
+  z-index: 0;
+  mix-blend-mode: multiply;
+}
+.login-card {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 392px;
+  background: var(--surface);
+  border-radius: var(--r);
+  border: 1px solid var(--line-2);
+  overflow: hidden;
+  margin-bottom: 40px;
+}
+.login-form { padding: 34px 34px 36px; }
+.login-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 28px;
+  position: relative;
+}
+.login-brand::after {
+  content: "";
+  width: 96px;
+  height: 1px;
+  margin-top: 16px;
+  background: var(--line);
+}
+.login-brand .brand-logo {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.login-brand .brand-logo img { width: 100%; height: 100%; object-fit: contain; }
+.login-brand h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 31px;
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: 0;
+  line-height: 1.18;
+}
+.login-brand p {
+  margin: 8px 0 0;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink-2);
+  letter-spacing: 0;
+}
+.login-divider {
+  height: 1px;
+  background: var(--line);
+  margin-bottom: 28px;
+  transform-origin: center;
+}
+.login-form h2 {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 25px;
+  font-weight: 750;
+  letter-spacing: 0;
+  line-height: 1.22;
+  color: var(--ink);
+}
+.login-form .sub {
+  margin: 0 0 26px;
+  font-size: 15px;
+  line-height: 1.45;
+  color: #8b938f;
+  letter-spacing: 0;
+}
+
+.login-form .field {
+  margin-bottom: 20px;
+}
+
+.login-form label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #4d5752;
+  letter-spacing: 0;
+}
+
+.login-form .input-icon {
+  min-height: 48px;
+}
+
+.login-form .input {
+  min-height: 48px;
+  font-size: 16px;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.login-form .input::placeholder {
+  color: #9aa2ad;
+}
+
+.login-error {
+  padding: 10px 14px;
+  background: var(--danger-soft);
+  color: var(--danger-text);
+  border-radius: 8px;
+  font-size: var(--fs-xs);
+  margin-bottom: 16px;
+  font-weight: 500;
+}
+.login-session-notice {
+  padding: 10px 14px;
+  background: var(--warning-soft);
+  color: var(--warning-text);
+  border-radius: 8px;
+  font-size: var(--fs-xs);
+  margin-bottom: 16px;
+  font-weight: 500;
+}
+.login-submit {
+  width: 100%;
+  margin-top: 4px;
+  font-weight: 700;
+  height: 48px;
+}
+.login-footer {
+  position: absolute;
+  bottom: 16px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-family: var(--font-body);
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  font-weight: 600;
+  letter-spacing: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.password-toggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  padding: 0;
+  width: 45px;
+  height: 45px;
+  min-width: 45px;
+  min-height: 45px;
+  border-radius: 10px;
+  color: var(--ink-3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--t-fast);
+}
+.password-toggle:hover { color: var(--ink); }
+
+/* Demo hints */
+.login-hints {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--line);
+  text-align: center;
+}
+.login-hints__title {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 8px;
+}
+.login-hints__accounts {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.login-hints__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast);
+}
+.login-hints__chip span {
+  font-family: var(--font-body);
+  font-weight: 400;
+  color: var(--ink-3);
+  font-size: var(--fs-2xs);
+}
+.login-hints__chip:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.login-hints__pw {
+  margin: 10px 0 0;
+  font-size: var(--fs-2xs);
+  color: var(--ink-3);
+}
+.login-hints__pw code {
+  font-family: var(--font-mono);
+  background: var(--surface);
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  font-size: var(--fs-2xs);
+}
+
+/* ── Mobile (≤640px): tighten chrome, fix dvh, bump touch target ──
+ * The page is what PWA-installed users see on cold start, so make it
+ * survive both the browser URL bar (use 100dvh) and small Android handsets. */
+@media (max-width: 640px) {
+  .login-page {
+    /* 100vh ignores the URL bar; 100dvh tracks it. Fallback retained. */
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: 14px;
+  }
+  .login-card { margin-bottom: 58px; max-width: 100%; border-radius: var(--r); }
+  .login-form { padding: 28px 24px 30px; }
+  .login-brand { margin-bottom: 22px; }
+  .login-brand::after { margin-top: 14px; width: 88px; }
+  .login-brand .brand-logo { width: 58px; height: 58px; border-radius: 16px; margin-bottom: 13px; }
+  .login-brand h1 { font-size: 29px; line-height: 1.18; }
+  .login-brand p { font-size: 12.75px; letter-spacing: 0; }
+  .login-divider { margin-bottom: 24px; }
+  .login-form h2 { font-size: 24px; line-height: 1.22; }
+  .login-form .sub { margin-bottom: 22px; font-size: 15px; }
+  .login-form label { font-size: 13.5px; }
+  .login-form .field { margin-bottom: 18px; }
+  .login-submit { height: 48px; font-size: 16px; }
+  .login-footer { font-size: var(--fs-2xs); bottom: 12px; padding: 0 16px; }
+  /* Password toggle: keep the tap area comfortable on phones. */
+  .password-toggle { padding: 10px; min-width: 45px; min-height: 45px; }
+  /* Username placeholder was getting clipped — give the input the full row width */
+  .login-form .input { width: 100%; min-width: 0; }
+  .login-form .field { min-width: 0; }
+}
+
+/* ── Responsive overrides (from responsive.css decomposition) ── */
+@media (max-width: 640px) {
+  /* ── Login page ── */
+  .login-card { padding: 0; }
+} /* end 640px */

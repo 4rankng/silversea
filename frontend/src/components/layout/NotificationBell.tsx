@@ -1,0 +1,123 @@
+import { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useClickOutside } from '../../hooks/useClickOutside';
+import { useUnreadCount, useNotifications, useMarkAllAsRead, useMarkAsRead } from '../../hooks/useNotificationQueries';
+import { usePushNotifications } from '../../hooks/usePushNotifications';
+import { AssetIcon } from '../AssetIcon';
+import type { Notification } from '@tingting/shared';
+
+/** Relative time in Vietnamese, e.g. "5 phút trước". */
+function timeAgo(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const s = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (s < 60) return 'vừa xong';
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m} phút trước`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} giờ trước`;
+  const days = Math.floor(h / 24);
+  if (days < 30) return `${days} ngày trước`;
+  return d.toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+}
+
+/**
+ * Topbar notification bell — the entry point for in-app + push notifications.
+ * Replaces the dead "?" help button. Shows an unread badge, a dropdown of recent
+ * notifications, mark-all-read, and (where supported) a Web Push opt-in toggle.
+ */
+export function NotificationBell() {
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const { data: unreadData } = useUnreadCount();
+  const { data, isLoading } = useNotifications(1, 20);
+  const markAll = useMarkAllAsRead();
+  const markAsRead = useMarkAsRead();
+  const push = usePushNotifications();
+
+  const unread = unreadData?.count ?? 0;
+  const items = data?.items ?? [];
+
+  useClickOutside(containerRef, () => setOpen(false), { escapeKey: true, enabled: open });
+
+  const openNotification = (notification: Notification) => {
+    if (!notification.isRead) markAsRead.mutate(notification.id);
+    if (notification.relatedEntityType === 'advance_settlements' && notification.relatedEntityId) {
+      setOpen(false);
+      navigate(`/my-settlements/${notification.relatedEntityId}`);
+    }
+  };
+
+  return (
+    <div className="notif-bell" ref={containerRef}>
+      <button
+        type="button"
+        className="icon-btn notif-bell__btn"
+        aria-label="Thông báo"
+        aria-expanded={open}
+        onClick={() => setOpen(v => !v)}
+      >
+        <AssetIcon name="notification" size={20} alt="Thông báo" />
+        {unread > 0 && <span className="badge">{unread > 99 ? '99+' : unread}</span>}
+      </button>
+
+      {open && (
+        <div className="notif-panel" role="dialog" aria-label="Thông báo">
+          <div className="notif-panel__head">
+            <span>Thông báo{unread > 0 ? ` (${unread})` : ''}</span>
+            {unread > 0 && (
+              <button
+                type="button"
+                className="notif-panel__markall"
+                disabled={markAll.isPending}
+                onClick={() => markAll.mutate()}
+              >
+                Đánh dấu đã đọc
+              </button>
+            )}
+          </div>
+
+          <div className="notif-panel__list">
+            {isLoading ? (
+              <div className="notif-panel__empty">Đang tải…</div>
+            ) : items.length === 0 ? (
+              <div className="notif-panel__empty">Không có thông báo</div>
+            ) : (
+              items.map(n => (
+                <button
+                  type="button"
+                  key={n.id}
+                  className={`notif-item ${n.isRead ? '' : 'is-unread'}`}
+                  onClick={() => openNotification(n)}
+                >
+                  <span className="notif-item__dot" aria-hidden="true" />
+                  <div className="notif-item__body">
+                    <div className="notif-item__title">{n.title}</div>
+                    {n.message && <div className="notif-item__msg">{n.message}</div>}
+                    <div className="notif-item__time">{timeAgo(n.createdAt)}</div>
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+
+          {push.isSupported && (
+            <div className="notif-panel__foot">
+              <button
+                type="button"
+                className="notif-panel__push"
+                disabled={push.isLoading}
+                onClick={() => { void (push.isSubscribed ? push.unsubscribe() : push.subscribe()); }}
+              >
+                {push.isSubscribed ? '🔔 Tắt thông báo đẩy' : '🔔 Bật thông báo đẩy trên thiết bị này'}
+              </button>
+              {push.errorMessage && <div className="notif-panel__push-err">{push.errorMessage}</div>}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

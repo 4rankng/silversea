@@ -1,0 +1,202 @@
+/* ============================================================================
+ * HeroKpiRow — Shared Hero KPI Row Component
+ * Vantai design system · Used by Debt, Payables, and Forwarder pages
+ * ========================================================================== */
+
+.hero-kpi-row {
+  display: grid;
+  grid-template-columns: 3fr 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.hero-kpi-card {
+  --stat-rail: var(--accent);
+  position: relative;
+  overflow: hidden;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line, rgba(0, 0, 0, 0.08));
+  border-radius: var(--r-lg, 16px);
+  padding: 20px 24px 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 104px;
+}
+.hero-kpi-card::before,
+.hero-kpi-mini::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: var(--status-strip-width);
+  height: var(--status-strip-height);
+  border-radius: var(--status-strip-radius);
+  background: var(--stat-rail, var(--accent));
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.hero-kpi-card.asset-ledger-watermark {
+  background-image: url("/assets/illustrations/watermark-ledger.svg");
+  background-position: right 18px bottom 10px;
+  background-repeat: no-repeat;
+  background-size: auto, 106px 106px;
+}
+
+.hero-kpi-card__eyebrow {
+  display: block;
+  font-size: var(--fs-xs, 12px);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent-ink);
+  margin-bottom: 6px;
+}
+
+.hero-kpi-card__amount {
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.35;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+
+.hero-kpi-card__subtitle {
+  font-size: 13px;
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+
+/* Currency unit rendered at subtitle size next to the hero amount digits */
+.hero-kpi-card__currency {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--ink-2);
+  margin-left: 6px;
+  line-height: 1.35;
+}
+
+.hero-kpi-card__watermark {
+  position: absolute;
+  right: 18px;
+  bottom: 10px;
+  color: rgba(0, 177, 79, 0.10);
+  pointer-events: none;
+}
+
+.hero-kpi-card__watermark--asset {
+  width: 86px;
+  height: 86px;
+  object-fit: contain;
+  opacity: 0.18;
+}
+
+.hero-kpi-card.asset-ledger-watermark .hero-kpi-card__watermark {
+  display: none;
+}
+
+.hero-kpi-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hero-kpi-mini {
+  --stat-rail: var(--accent);
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 76px;
+  background: var(--surface);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: var(--r-lg, 14px);
+  padding: 14px 16px;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.hero-kpi-mini--accent { --stat-rail: var(--accent); }
+.hero-kpi-mini--danger { --stat-rail: var(--danger); }
+.hero-kpi-mini--warn { --stat-rail: var(--warning); }
+
+.hero-kpi-mini:hover {
+  background: var(--surface-2);
+  border-color: var(--line-2);
+}
+
+/* Overlay watermark icon (replaces the old inline icon box) */
+.hero-kpi-mini__watermark {
+  position: absolute;
+  right: 10px;
+  bottom: 6px;
+  pointer-events: none;
+  color: rgba(9, 9, 11, 0.06);
+}
+
+.hero-kpi-mini__watermark svg {
+  width: 40px;
+  height: 40px;
+}
+
+.hero-kpi-mini__watermark--asset {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  opacity: 0.18;
+}
+
+.hero-kpi-mini--accent .hero-kpi-mini__watermark { color: rgba(0, 177, 79, 0.14); }
+.hero-kpi-mini--danger .hero-kpi-mini__watermark { color: rgba(227, 36, 52, 0.14); }
+.hero-kpi-mini--warn   .hero-kpi-mini__watermark { color: rgba(217, 119, 6, 0.14); }
+
+.hero-kpi-mini__body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.hero-kpi-mini__value {
+  font-family: var(--font-mono);
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.35;
+  color: var(--ink, #0A0A0A);
+}
+
+.hero-kpi-mini__value > span {
+  line-height: 1.35;
+}
+
+.hero-kpi-mini__label {
+  font-size: var(--fs-xs, 12px);
+  font-weight: 500;
+  color: var(--ink-3, #8B919B);
+  margin-top: 2px;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .hero-kpi-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 420px) {
+  .hero-kpi-mini {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+  .hero-kpi-mini__value {
+    font-size: 16px;
+  }
+  .hero-kpi-mini__watermark svg {
+    width: 28px;
+    height: 28px;
+  }
+}

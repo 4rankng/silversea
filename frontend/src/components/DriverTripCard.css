@@ -1,0 +1,79 @@
+/* ============================================================================
+ * DriverTripCard — TingTing
+ * Extracted from UI.css during architecture refactoring (Phase 4)
+ * ========================================================================== */
+.driver-trip-card__body {
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.driver-trip-card__icon {
+  width: 42px; height: 42px;
+  border-radius: var(--radius-md);
+  background: var(--brand-soft);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.driver-trip-card__main { flex: 1; min-width: 0; }
+.driver-trip-card__head {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+.driver-trip-card__route {
+  font-weight: 600; font-size: var(--fs-sm); color: var(--fg-1);
+}
+.driver-trip-card__meta {
+  display: flex; align-items: center; gap: 16px;
+  font-size: var(--fs-xs); color: var(--fg-3);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.driver-trip-card__meta-item {
+  display: inline-flex; align-items: center; gap: 4px;
+  min-width: 0;
+}
+.driver-trip-card__salary { text-align: right; flex-shrink: 0; }
+.driver-trip-card__salary-value {
+  font-size: 15px; font-weight: 700; color: var(--fg-1);
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+}
+.driver-trip-card__arrow { color: var(--fg-3); flex-shrink: 0; }
+.driver-trip-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 50%;
+  transform: translateY(-50%);
+  width: var(--status-strip-width); height: var(--status-strip-height);
+  border-radius: var(--status-strip-radius);
+  background: linear-gradient(to bottom, var(--strip-top) 50%, var(--strip-bottom) 50%);
+}
+
+.driver-trip-card__plate-badge {
+  font-family: var(--font-mono);
+  font-weight: 600; font-size: var(--fs-xs);
+  color: var(--ink);
+  background: var(--surface-2);
+  padding: 4px 10px;
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  letter-spacing: 0.02em;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.01);
+  font-feature-settings: "tnum";
+  white-space: nowrap;
+  max-width: 100%;
+  min-width: 0;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.driver-trip-card__badge-text {
+  min-width: 0;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}

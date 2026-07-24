@@ -1,0 +1,164 @@
+import { EventEmitter } from 'events';
+import { db } from '../db';
+import { notifications } from '../db/schema';
+import { eq, and, desc, count, inArray } from 'drizzle-orm';
+import * as s from '../db/schema';
+import { NotificationType, FINANCIAL_ROLES, PUSH_RULES, Role, isFinancialRole } from '@tingting/shared';
+import * as pushService from './push.service';
+
+const eventBus = new EventEmitter();
+eventBus.setMaxListeners(50);
+const NOTIFICATION_EVENT = 'notification:generate';
+
+// ─── Types ─────────────────────────────────────────────────────────────────
+
+export interface NotificationPayload {
+  type: NotificationType;
+  title: string;
+  message: string;
+  relatedEntityType?: string;
+  relatedEntityId?: number;
+  targetUserId?: number;
+  targetRoles?: string[];
+  targetDriverId?: number;
+}
+
+// ─── Core CRUD ─────────────────────────────────────────────────────────────
+
+export async function getNotifications(userId: number, page = 1, limit = 20) {
+  const offset = (page - 1) * limit;
+  const [items, [{ total }]] = await Promise.all([
+    db.select()
+      .from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(desc(notifications.createdAt))
+      .limit(limit)
+      .offset(offset),
+    db.select({ total: count() })
+      .from(notifications)
+      .where(eq(notifications.userId, userId)),
+  ]);
+  return { items, total, page, limit };
+}
+
+export async function getUnreadCount(userId: number) {
+  const [{ total }] = await db.select({ total: count() })
+    .from(notifications)
+    .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
+  return total;
+}
+
+export async function markAsRead(id: number, userId: number) {
+  const [updated] = await db.update(notifications)
+    .set({ isRead: true })
+    .where(and(eq(notifications.id, id), eq(notifications.userId, userId)))
+    .returning();
+  return updated;
+}
+
+export async function markAllAsRead(userId: number) {
+  await db.update(notifications)
+    .set({ isRead: true })
+    .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
+}
+
+// ─── Event bus ─────────────────────────────────────────────────────────────
+
+export function initNotificationService() {
+  eventBus.on(NOTIFICATION_EVENT, async (payload: NotificationPayload) => {
+    try {
+      const targets = await resolveTargets(payload);
+      if (targets.length === 0) return;
+
+      const rows = targets.map(t => ({
+        userId: t.userId,
+        type: payload.type as (typeof notifications.type.enumValues)[number],
+        title: payload.title,
+        message: payload.message,
+        relatedEntityType: payload.relatedEntityType ?? null,
+        relatedEntityId: payload.relatedEntityId ?? null,
+        isRead: false,
+      }));
+      await db.insert(notifications).values(rows);
+
+      // High-value push whitelist: only listed event types wake a device, and
+      // only the configured audience. Best-effort — must never block in-app
+      // delivery, and push failures are swallowed inside sendToUser.
+      const audience = PUSH_RULES[payload.type];
+      if (audience) {
+        const pushable = targets.filter(t =>
+          audience === 'all' ||
+          (audience === 'driver' && t.role === Role.DRIVER) ||
+          (audience === 'financial' && isFinancialRole(t.role)),
+        );
+        await Promise.allSettled(pushable.map(t =>
+          pushService.sendToUser(t.userId, payload.title, payload.message, urlFor(payload, t.role), payload.type),
+        ));
+      }
+    } catch (err) {
+      console.error('Notification generation failed:', err);
+    }
+  });
+}
+
+export function emitNotification(payload: NotificationPayload) {
+  eventBus.emit(NOTIFICATION_EVENT, payload);
+}
+
+// ─── Target resolution ─────────────────────────────────────────────────────
+
+async function resolveTargets(payload: NotificationPayload): Promise<{ userId: number; role: Role }[]> {
+  const byId = new Map<number, Role | undefined>();
+
+  if (payload.targetUserId) byId.set(payload.targetUserId, undefined);
+
+  const roles = payload.targetRoles ?? [...FINANCIAL_ROLES];
+  const roleUsers = await db.select({ id: s.users.id, role: s.users.role })
+    .from(s.users)
+    .where(and(inArray(s.users.role, roles as (typeof s.users.role.enumValues)[number][]), eq(s.users.status, 'ACTIVE')));
+  for (const u of roleUsers) byId.set(u.id, u.role as Role);
+
+  if (payload.targetDriverId) {
+    const [driver] = await db.select({ userId: s.drivers.userId })
+      .from(s.drivers)
+      .where(eq(s.drivers.id, payload.targetDriverId))
+      .limit(1);
+    if (driver?.userId) byId.set(driver.userId, Role.DRIVER);
+  }
+
+  // Resolve roles for any explicitly-targeted user ids we don't yet know.
+  const unknown = [...byId.entries()].filter(([, r]) => r === undefined).map(([uid]) => uid);
+  if (unknown.length > 0) {
+    const found = await db.select({ id: s.users.id, role: s.users.role })
+      .from(s.users).where(inArray(s.users.id, unknown));
+    for (const u of found) byId.set(u.id, u.role as Role);
+  }
+
+  return [...byId.entries()]
+    .filter(([, role]) => role !== undefined)
+    .map(([userId, role]) => ({ userId, role: role as Role }));
+}
+
+/** Best-effort deep link for push clicks. Role-specific portals keep users in
+ *  their own app surface instead of landing them on a forbidden desktop route.
+ *  Mirrors frontend urlForNotification() in NotificationDrawer.tsx — the two
+ *  must agree so a push and a drawer tap open the same screen. */
+function urlFor(payload: NotificationPayload, role: Role): string | undefined {
+  const id = payload.relatedEntityId;
+  switch (payload.relatedEntityType) {
+    case 'trips':
+      if (role === Role.DRIVER) return id ? `/my-trips/${id}` : '/my-trips';
+      if (role === Role.FORWARDER) return id ? `/my-forwarder-trips/${id}` : '/my-forwarder-trips';
+      return id ? `/trips/${id}` : '/trips';
+    case 'penalties':
+      return role === Role.DRIVER ? '/my-penalties' : '/penalties';
+    case 'payments':
+      return role === Role.DRIVER ? '/my-earnings' : '/finance';
+    case 'advance_settlements':
+      return role === Role.FORWARDER
+        ? (id ? `/my-settlements/${id}` : '/my-settlements')
+        : (id ? `/settlements/${id}` : '/payables/forwarder-advances');
+    default:
+      return undefined;
+  }
+}

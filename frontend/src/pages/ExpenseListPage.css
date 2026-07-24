@@ -1,0 +1,718 @@
+/* ============================================================================
+ * Expense List Page — Refined Design
+ * Polished KPI cards, filter bar, and data table
+ * ========================================================================== */
+
+/* ── KPI Cards ──────────────────────────────────────────────────────────── */
+
+.expense-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.expense-kpi-card {
+  --stat-rail: var(--accent);
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 20px 24px;
+  overflow: hidden;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.25s ease,
+              border-color 0.25s ease;
+}
+.expense-kpi-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: var(--status-strip-width);
+  height: var(--status-strip-height);
+  border-radius: var(--status-strip-radius);
+  background: var(--stat-rail);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.expense-kpi-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
+  border-color: var(--line-2);
+}
+
+/* Variant: total (default) */
+.expense-kpi-card--total {
+  --stat-rail: var(--ink-3);
+  background: var(--surface);
+}
+
+/* Variant: unpaid */
+.expense-kpi-card--unpaid {
+  --stat-rail: var(--warning);
+  background: var(--surface);
+  border-color: rgba(245, 166, 35, 0.25);
+}
+
+/* Variant: paid */
+.expense-kpi-card--paid {
+  --stat-rail: var(--accent);
+  background: var(--surface);
+  border-color: rgba(0, 177, 79, 0.25);
+}
+
+.expense-kpi-label {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.expense-kpi-label__icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.expense-kpi-label__icon img {
+  width: 22px;
+  height: 22px;
+}
+
+.expense-kpi-card--total .expense-kpi-label__icon {
+  background: var(--surface-3);
+  color: var(--ink-2);
+}
+
+.expense-kpi-card--unpaid .expense-kpi-label__icon {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.expense-kpi-card--paid .expense-kpi-label__icon {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.expense-kpi-value {
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.35;
+  margin-bottom: 4px;
+  color: var(--ink);
+}
+
+.expense-kpi-value-unit {
+  font-size: var(--fs-md);
+  line-height: 1.35;
+  color: var(--ink-3);
+  font-weight: 500;
+  margin-left: 3px;
+}
+
+.expense-kpi-meta {
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+
+.expense-kpi-card--unpaid .expense-kpi-meta {
+  color: var(--warning-text);
+}
+
+.expense-kpi-card--paid .expense-kpi-meta {
+  color: var(--accent);
+}
+
+/* ── Filter Bar ─────────────────────────────────────────────────────────── */
+
+.expense-filter-bar {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 20px;
+  display: grid;
+  grid-template-columns: minmax(220px, 1.2fr) minmax(180px, 0.9fr) minmax(160px, 0.8fr) auto minmax(150px, 0.7fr) minmax(150px, 0.7fr) auto;
+  align-items: center;
+  gap: 12px;
+  transition: box-shadow 0.2s ease;
+}
+
+.expense-filter-bar:focus-within {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.expense-filter-bar__select,
+.expense-filter-bar__date {
+  min-height: 44px;
+  padding: 0 32px 0 12px;
+  background: var(--surface-2);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-size: var(--fs-sm);
+  color: var(--ink);
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%238B919B' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 10px center;
+  background-repeat: no-repeat;
+  background-size: 16px 16px;
+  min-width: 0;
+  width: 100%;
+}
+
+.expense-filter-bar__select:hover,
+.expense-filter-bar__date:hover {
+  background: var(--surface);
+  border-color: var(--line-2);
+}
+
+.expense-filter-bar__select:focus,
+.expense-filter-bar__date:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.expense-filter-bar__date {
+  min-width: 140px;
+  padding-right: 12px;
+  background-image: none;
+}
+
+.expense-filter-bar__divider {
+  width: 1px;
+  height: 24px;
+  background: var(--line-2);
+  flex-shrink: 0;
+}
+
+.expense-filter-bar__reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 10px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--ink-3);
+  background: transparent;
+  border: 1px dashed var(--line-2);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.expense-filter-bar__reset:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+/* ── Data Table ─────────────────────────────────────────────────────────── */
+
+.expense-table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.expense-table-scroll {
+  overflow-x: auto;
+}
+
+.expense-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+  min-width: 860px;
+}
+
+.expense-table thead th {
+  text-align: left;
+  padding: 12px 16px;
+  background: linear-gradient(180deg, var(--surface-2) 0%, rgba(247, 248, 250, 0.8) 100%);
+  border-bottom: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.expense-table thead th.num {
+  text-align: right;
+}
+
+.expense-table tbody td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+  color: var(--ink);
+  white-space: nowrap;
+  transition: background 0.12s ease;
+}
+
+.expense-table tbody td.num {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.expense-table tbody tr {
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.expense-table tbody tr:hover {
+  background: linear-gradient(90deg, rgba(0, 177, 79, 0.03) 0%, rgba(0, 177, 79, 0.01) 100%);
+}
+
+.expense-table tbody tr:hover td {
+  color: var(--ink);
+}
+
+.expense-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Zebra striping — very subtle */
+.expense-table tbody tr:nth-child(even) {
+  background: rgba(247, 248, 250, 0.4);
+}
+
+.expense-table tbody tr:nth-child(even):hover {
+  background: linear-gradient(90deg, rgba(0, 177, 79, 0.03) 0%, rgba(0, 177, 79, 0.015) 100%);
+}
+
+/* ── Amount Cell ────────────────────────────────────────────────────────── */
+
+.expense-amount {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: var(--fs-sm);
+  letter-spacing: 0;
+  line-height: 1.35;
+}
+
+.expense-amount--unpaid {
+  color: var(--danger);
+}
+
+.expense-amount--paid {
+  color: var(--accent);
+}
+
+/* ── Status Badge ───────────────────────────────────────────────────────── */
+
+.expense-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  line-height: 1.35;
+}
+
+.expense-status--unpaid {
+  background: var(--warning-soft);
+  color: var(--warning-text);
+  border: 1px solid rgba(245, 166, 35, 0.15);
+}
+
+.expense-status--paid {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  border: 1px solid rgba(0, 177, 79, 0.15);
+}
+
+.expense-status__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.expense-status--unpaid .expense-status__dot {
+  background: var(--warning);
+  box-shadow: 0 0 0 2px rgba(245, 166, 35, 0.2);
+}
+
+.expense-status--paid .expense-status__dot {
+  background: var(--accent);
+  box-shadow: 0 0 0 2px rgba(0, 177, 79, 0.2);
+}
+
+/* ── Plate Tag ──────────────────────────────────────────────────────────── */
+
+.expense-plate {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-xs);
+  padding: 2px 8px;
+  background: var(--surface-3);
+  color: var(--ink);
+  border-radius: 6px;
+  display: inline-block;
+  letter-spacing: 0.02em;
+  border: 1px solid var(--line);
+}
+
+/* ── Table Footer / Pagination ──────────────────────────────────────────── */
+
+.expense-table-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--surface-2);
+  border-top: 1px solid var(--line);
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+}
+
+.expense-pagination {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.expense-page-btn {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 8px;
+  border-radius: 8px;
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  font-family: var(--font-mono);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.expense-page-btn:hover:not(:disabled) {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.expense-page-btn.is-active {
+  background: var(--ink);
+  color: var(--fg-on-brand);
+  border-color: var(--ink);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.expense-page-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Empty state uses the shared <EmptyState> (design-system); the page-scoped
+   .expense-empty* rules were retired during CTA unification. */
+
+.expense-loading {
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--ink-3);
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 1023px) {
+  .expense-kpi-grid {
+    gap: 12px;
+  }
+
+  .expense-filter-bar {
+    padding: 12px;
+    gap: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .expense-filter-bar__select,
+  .expense-filter-bar__date {
+    min-width: 0;
+  }
+
+  .expense-filter-bar__divider {
+    display: none;
+  }
+
+  .expense-filter-bar__reset {
+    justify-content: center;
+  }
+}
+
+/* ── Status Strip ──────────────────────────────────────────────────────── */
+
+.expense-list-page .m-card--strip {
+  position: relative;
+}
+
+.expense-list-page .expense-row--strip td:first-child {
+  position: relative;
+}
+
+/* ── Pass 15 mobile tweaks (2026-06-02) ──
+   The 3-select + date + reset filter bar was 150px tall on phone with
+   3 wrap rows of 36px controls. Tighten to ~110px by shrinking the
+   controls and padding. Page-scoped so it doesn't affect any other page
+   that reuses .expense-filter-bar styles. */
+@media (max-width: 640px) {
+  .expense-list-page .page-header {
+    margin-bottom: 12px;
+  }
+
+  .expense-list-page .page-title {
+    font-size: 27px;
+    line-height: 1.35;
+    letter-spacing: 0;
+  }
+
+  .expense-list-page .page-subtitle {
+    font-size: 14px;
+  }
+
+  .expense-list-page .page-actions,
+  .expense-list-page .page-actions .btn {
+    width: auto;
+  }
+
+  .expense-list-page .page-actions {
+    align-self: stretch;
+  }
+
+  .expense-list-page .page-actions .btn {
+    min-height: 40px;
+    border-radius: 13px;
+    padding-inline: 18px;
+    flex: 0 0 auto;
+    justify-content: center;
+  }
+
+  .expense-list-page .expense-kpi-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .expense-list-page .expense-kpi-card {
+    min-height: 0;
+    padding: 12px 14px;
+    border-radius: 13px;
+  }
+
+  .expense-list-page .expense-kpi-card--total {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 14px 16px;
+  }
+
+  .expense-list-page .expense-kpi-label {
+    gap: 7px;
+    margin-bottom: 6px;
+    font-size: 12px;
+    line-height: 1.35;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--ink-2);
+  }
+
+  .expense-list-page .expense-kpi-label__icon {
+    width: 26px;
+    height: 26px;
+  }
+
+  .expense-list-page .expense-kpi-value {
+    font-size: var(--fs-xl);
+    line-height: 1.35;
+    margin-bottom: 0;
+  }
+
+  .expense-list-page .expense-kpi-card:not(.expense-kpi-card--total) .expense-kpi-value {
+    font-size: 25px;
+  }
+
+  .expense-list-page .expense-kpi-value-unit {
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  .expense-list-page .expense-kpi-meta {
+    font-size: var(--fs-xs);
+    line-height: 1.35;
+    margin-top: 1px;
+  }
+
+  .expense-list-page .expense-filter-bar {
+    padding: 10px;
+    gap: 8px;
+    border-radius: 14px;
+    margin-bottom: 12px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .expense-list-page .expense-filter-bar__select,
+  .expense-list-page .expense-filter-bar__date {
+    min-height: 44px;
+    font-size: 13px;
+    padding: 0 28px 0 11px;
+    background-size: 14px 14px;
+    background-position: right 8px center;
+    border-radius: 10px;
+    border-color: rgba(16, 24, 20, 0.05);
+  }
+  .expense-list-page .expense-filter-bar__date {
+    padding-right: 10px;
+  }
+  .expense-list-page .expense-filter-bar__reset {
+    min-height: 44px;
+    padding: 0 11px;
+    font-size: var(--fs-xs);
+    grid-column: 1 / -1;
+  }
+
+  .expense-list-page .mobile-table-wrap {
+    padding: 0;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: var(--sh-sm);
+  }
+
+  .expense-list-page .m-card-list {
+    gap: 0;
+  }
+
+  .expense-list-page .m-card {
+    padding: 13px 14px 12px;
+    border-bottom-color: var(--line);
+  }
+
+  .expense-list-page .m-card__top {
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+
+  .expense-list-page .m-card__title {
+    font-size: 15px;
+    letter-spacing: 0;
+    line-height: 1.35;
+  }
+
+  .expense-list-page .m-card__meta {
+    margin-bottom: 8px;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .expense-list-page .expense-mobile-card__summary {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 8px;
+  }
+
+  .expense-list-page .expense-mobile-card__vehicle {
+    display: inline-flex;
+    align-items: flex-end;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+    color: var(--ink-2);
+    font-size: 12px;
+    font-weight: 650;
+    text-align: right;
+  }
+
+  .expense-list-page .expense-mobile-card__component {
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .expense-list-page .expense-mobile-card__muted {
+    color: var(--ink-3);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .expense-list-page .m-card__row {
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr);
+    align-items: center;
+    margin-top: 4px;
+    gap: 8px;
+  }
+
+  .expense-list-page .m-card__row-label {
+    font-size: 12px;
+  }
+
+  .expense-list-page .m-card__row-value {
+    justify-self: end;
+    text-align: right;
+    font-size: 13px;
+  }
+
+  .expense-list-page .m-card__row-value.expense-amount {
+    font-size: 16px;
+    line-height: 1.35;
+  }
+
+  .expense-list-page .expense-mobile-card__summary .expense-amount {
+    font-size: 18px;
+    line-height: 1.35;
+  }
+
+  .expense-list-page .expense-status {
+    padding: 5px 9px;
+    font-size: var(--fs-xs);
+    line-height: 1.35;
+    letter-spacing: 0.035em;
+  }
+
+  .expense-list-page .expense-plate {
+    font-size: 12px;
+    padding: 3px 8px;
+  }
+}

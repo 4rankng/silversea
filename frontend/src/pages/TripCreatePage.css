@@ -1,0 +1,239 @@
+/* ==========================================================================
+   TripCreatePage — Bento layout
+   Scoped to .tc-create-wrap. Create page ONLY — TripEditPage keeps the
+   legacy .tc-content / .tc-rail layout in TripEditPage.css.
+   ========================================================================== */
+
+/* Page scoper: centers hero + bento on a shared max-width so they always align */
+.tc-create-wrap {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 12px 28px 0;
+  width: 100%;
+}
+
+/* ── Hero band ── light operational summary, matches app-wide hero treatment */
+.tc-create-hero {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 24px 28px;
+  margin-bottom: 22px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+.tc-create-hero::before {
+  content: none;
+}
+.tc-create-hero::after {
+  content: none;
+}
+.tc-hero-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  position: relative;
+  z-index: 1;
+}
+.tc-hero-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+/* Re-skin the shared header primitives for the light hero surface */
+.tc-create-hero .tc-back-btn {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  transition: background 150ms ease, border-color 150ms ease;
+}
+.tc-create-hero .tc-back-btn:hover {
+  background: var(--surface);
+  border-color: var(--ink-2);
+}
+.tc-create-hero .tc-hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-2xs);
+  letter-spacing: 1.8px;
+  font-weight: 700;
+  color: var(--accent-ink);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.tc-create-hero .tc-hero-eyebrow::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: var(--accent);
+  border-radius: 50%;
+}
+
+.tc-create-hero .tc-hero-h1 {
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.35;
+  margin: 0 0 6px;
+  color: var(--ink);
+}
+.tc-create-hero .tc-hero-sub {
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+  line-height: 1.5;
+}
+
+/* Custom styled progress pills inside the hero */
+.tc-create-hero .tc-progress-pills {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+}
+.tc-create-hero .tc-progress-pills strong {
+  color: var(--ink);
+}
+.tc-create-hero .tc-pill-dot {
+  background: var(--ink-4, #BABDC3);
+}
+.tc-create-hero .tc-pill-dot--done {
+  background: var(--accent);
+}
+.tc-create-hero .tc-pill-dot--active {
+  background: var(--accent);
+}
+
+/* ── Hero widgets container ── side-by-side estimate + checklist */
+.tc-hero-widgets {
+  margin-top: 22px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  background: transparent;
+  border-radius: 12px;
+  overflow: visible;
+  position: relative;
+  z-index: 1;
+}
+.tc-hero-widgets .tc-summary-card,
+.tc-hero-widgets .tc-checklist {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 0;
+}
+
+/* Override summary card styles inside the light hero */
+.tc-hero-widgets .tc-summary-card::before {
+  display: none;
+}
+.tc-hero-widgets .tc-summary-card__label {
+  color: var(--ink-3);
+}
+.tc-hero-widgets .tc-summary-card__big {
+  color: var(--ink);
+}
+.tc-hero-widgets .tc-summary-card__currency {
+  color: var(--ink-3);
+}
+.tc-hero-widgets .tc-summary-card__mini {
+  color: var(--ink-3);
+}
+.tc-hero-widgets .tc-summary-rows {
+  border-top-color: var(--line);
+}
+.tc-hero-widgets .tc-summary-row__lbl {
+  color: var(--ink-2);
+}
+.tc-hero-widgets .tc-summary-row__val--neg {
+  color: var(--danger);
+}
+.tc-hero-widgets .tc-summary-row__val--pos {
+  color: var(--accent);
+}
+.tc-hero-widgets .tc-summary-row--total {
+  border-top-color: var(--line);
+}
+.tc-hero-widgets .tc-summary-row--total .tc-summary-row__val {
+  color: var(--accent);
+}
+.tc-hero-widgets .tc-summary-row--total .tc-summary-row__lbl {
+  color: var(--ink);
+}
+
+/* Override checklist styles inside the light hero */
+.tc-hero-widgets .tc-checklist__title {
+  color: var(--ink-2);
+}
+.tc-hero-widgets .tc-check-item {
+  color: var(--ink-2);
+  transition: all 120ms ease;
+}
+.tc-hero-widgets .tc-check-item:hover {
+  color: var(--ink);
+}
+.tc-hero-widgets .tc-check-item__dot {
+  border-color: var(--line);
+  background: var(--surface);
+}
+.tc-hero-widgets .tc-check-item--done .tc-check-item__dot {
+  background: #00873F;
+  border-color: #5EE99B;
+  color: #fff;
+}
+.tc-hero-widgets .tc-check-item--active .tc-check-item__dot {
+  border-color: #5EE99B;
+}
+.tc-hero-widgets .tc-check-item__name {
+  color: var(--ink);
+}
+.tc-hero-widgets .tc-check-item__badge--done {
+  color: var(--accent-ink);
+}
+.tc-hero-widgets .tc-check-item__badge--pending {
+  color: var(--ink-2);
+  background: var(--surface);
+}
+
+/* ── Unified panel ── 12-col; all card sections span 12 for full row width */
+.tc-create-bento {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 24px;
+  align-items: start;
+  padding: 28px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  margin-bottom: 120px; /* ActionBar clearance */
+}
+.tc-create-bento > * { min-width: 0; grid-column: span 12; }
+
+/* Drop the cards' own 16px bottom margin inside tiles */
+.tc-create-bento .tc-card {
+  margin-bottom: 0;
+}
+
+/* ── Responsive ── */
+@media (max-width: 1200px) {
+  .tc-create-hero {
+    padding: 20px;
+  }
+  .tc-create-bento { grid-template-columns: 1fr; }
+  .tc-create-bento > * { grid-column: span 1; }
+}
+@media (max-width: 640px) {
+  .tc-create-wrap { padding: 8px 12px 0; }
+  .tc-create-hero { padding: 16px; margin-bottom: 14px; }
+  .tc-hero-top { gap: 12px; flex-wrap: wrap; }
+  .tc-create-hero .tc-hero-h1 { font-size: var(--fs-xl); line-height: 1.35; }
+  .tc-hero-widgets {
+    display: none;
+  }
+  .tc-create-bento { padding: 16px; margin-bottom: 100px; gap: 16px; }
+}

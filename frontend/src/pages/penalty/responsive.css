@@ -1,0 +1,453 @@
+/* ─── Two-column layout ─── */
+
+.penalty-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+/* ─── Table footer ─── */
+
+.penalty-table-foot {
+  padding: 6px 12px;
+  border-top: 1px solid var(--surface-3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface-2);
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+}
+
+.penalty-table-foot .legend {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* ─── KPI meta with dot ─── */
+
+.penalty-kpi-meta {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.penalty-kpi-meta .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.penalty-kpi-meta .pos {
+  color: var(--accent-2);
+  font-weight: 600;
+}
+
+.penalty-kpi-meta .sep {
+  opacity: 0.4;
+}
+
+/* ─── Responsive ─── */
+
+@media (max-width: 1100px) {
+  .penalty-two-col {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1023px) {
+  .penalty-two-col {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─── Mobile driver cards (mirrors trip-mcard design) ─── */
+
+.penalty-m-cards {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+}
+
+.penalty-m-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.penalty-m-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--status-strip-width);
+  height: var(--status-strip-height);
+  border-radius: var(--status-strip-radius);
+  background: var(--strip-bg, var(--line-3));
+}
+
+.penalty-m-card:hover { border-color: var(--ink-2); }
+
+.penalty-m-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.penalty-m-card__top .left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.penalty-driver-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  flex-shrink: 0;
+}
+
+.penalty-m-card__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.penalty-m-card__name {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--ink);
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+}
+
+.penalty-m-card__id {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  color: var(--ink-3);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.penalty-grade-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 4px 10px;
+  border-radius: 8px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+.penalty-grade-badge.a-plus { background: #ECFDF5; color: #047857; border: 1px solid rgba(16, 185, 129, 0.2); }
+.penalty-grade-badge.a { background: #EFF6FF; color: #1E40AF; border: 1px solid rgba(59, 130, 246, 0.2); }
+.penalty-grade-badge.b { background: #FFFBEB; color: #92400E; border: 1px solid rgba(245, 158, 11, 0.2); }
+.penalty-grade-badge.c { background: #FEF2F2; color: #991B1B; border: 1px solid rgba(239, 68, 68, 0.2); }
+
+.penalty-m-card__meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+  margin-top: 6px;
+}
+
+.penalty-m-card__meta .mm {
+  display: flex; flex-direction: column; gap: 2px;
+}
+
+.penalty-m-card__meta .lab {
+  font-size: var(--fs-2xs); letter-spacing: 0.8px;
+  color: var(--ink-3); text-transform: uppercase; font-weight: 600;
+}
+
+.penalty-m-card__meta .val {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm); font-weight: 600; color: var(--ink);
+}
+
+.penalty-m-card__meta .val.warn { color: var(--warning-text); }
+.penalty-m-card__meta .val.danger { color: var(--danger-text); }
+.penalty-m-card__meta .val.empty { color: var(--ink-3); opacity: 0.7; font-style: italic; font-family: var(--font-body); font-weight: 500; }
+
+/* ─── Mobile breakpoint ─── */
+
+@media (max-width: 640px) {
+  /* Tighten page-level gap on mobile */
+  .penalty-page {
+    gap: 12px;
+  }
+
+  /* Remove card wrapper on mobile for all transparent panels */
+  .penalty-page .penalty-transparent-panel {
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  /* Flatten card headers inside transparent panels */
+  .penalty-page .penalty-transparent-panel .penalty-card-head {
+    padding: 0 0 8px;
+    gap: 6px;
+    border-bottom: none;
+  }
+
+  .penalty-page .penalty-card-head {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0;
+    gap: 6px;
+    border-bottom: none;
+  }
+
+  .penalty-page .penalty-m-cards {
+    padding: 0;
+  }
+
+  .penalty-page .penalty-card-lead {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    flex: none; /* Prevent flex-basis: 300px from turning into vertical height */
+  }
+
+  .penalty-page .penalty-card-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent-soft) 0%, rgba(0,177,79,0.05) 100%);
+  }
+
+  .penalty-page .penalty-card-title {
+    font-size: var(--fs-md);
+    margin-bottom: 0;
+  }
+
+  .penalty-page .penalty-card-sub {
+    font-size: var(--fs-xs);
+    line-height: 1.3;
+    margin-top: 0;
+  }
+
+  .penalty-page .penalty-head-tools {
+    width: 100%;
+    margin-top: 2px;
+  }
+  
+  .penalty-seg {
+    display: flex;
+    width: 100%;
+    background: var(--surface-2);
+    padding: 4px;
+    border-radius: 10px;
+  }
+  
+  .penalty-seg button {
+    flex: 1;
+    text-align: center;
+    padding: 8px 0;
+    font-size: var(--fs-sm);
+    border-radius: 8px;
+  }
+
+  /* Page header — stack, full-width actions */
+  .penalty-page .page-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .penalty-page .page-actions {
+    width: 100%;
+  }
+  .penalty-page .page-actions .btn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  /* KPI grid — compact 2×2 */
+  .penalty-page .kpi-grid {
+    gap: 8px;
+  }
+  .penalty-page .kpi__watermark {
+    display: none;
+  }
+  .penalty-page .kpi__meta {
+    display: none;
+  }
+
+  /* Row action touch targets */
+  .penalty-row-act {
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  /* Violation log items */
+  .penalty-page .plog-item {
+    padding: 12px 14px;
+    gap: 10px;
+  }
+  .penalty-page .plog-avatar {
+    width: 36px;
+    height: 36px;
+  }
+  .penalty-page .plog-amount {
+    font-size: var(--fs-sm);
+  }
+
+  /* Violation type rows */
+  .penalty-page .penalty-vio-type-row {
+    padding: 12px 14px;
+    gap: 10px;
+  }
+  .penalty-page .penalty-vio-type-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+  }
+  .penalty-page .penalty-vio-type-fine .amt {
+    font-size: var(--fs-xs);
+    white-space: nowrap;
+  }
+
+  /* Empty state */
+  .penalty-page .penalty-empty-log {
+    padding: 28px 16px;
+  }
+  .penalty-page .penalty-empty-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    padding: 10px 12px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .penalty-page .penalty-empty-divider {
+    display: none;
+  }
+  .penalty-page .penalty-empty-stat .val {
+    font-size: var(--fs-sm);
+  }
+  .penalty-page .penalty-empty-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+  .penalty-page .penalty-empty-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Footer */
+  .penalty-page .penalty-transparent-panel .penalty-table-foot {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 12px 0;
+    background: transparent;
+    border: none;
+  }
+  .penalty-page .penalty-table-foot {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 12px 16px;
+  }
+  .penalty-page .penalty-table-foot .legend {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
+
+/* ── Responsive overrides (from responsive.css decomposition) ── */
+@media (max-width: 640px) {
+  /* ── Penalty page ── */
+  .penalty-page .penalty-card-head,
+  .fleet-page .fleet-card-head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 14px 16px;
+  }
+  .penalty-page .penalty-card-lead,
+  .fleet-page .fleet-card-lead { 
+    width: 100%; 
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 12px;
+  }
+  .penalty-page .penalty-card-title,
+  .fleet-page .fleet-card-title { flex-wrap: wrap; word-break: keep-all; overflow-wrap: anywhere; }
+  .penalty-page .penalty-card-sub,
+  .fleet-page .fleet-card-sub { white-space: normal; word-break: keep-all; }
+  .penalty-page .penalty-head-tools,
+  .fleet-page .fleet-card-tools {
+    width: 100%; overflow-x: auto;
+    flex-wrap: nowrap; -webkit-overflow-scrolling: touch;
+  }
+  .penalty-page .penalty-head-tools::-webkit-scrollbar,
+  .fleet-page .fleet-card-tools::-webkit-scrollbar { display: none; }
+  .penalty-page .penalty-head-tools > *,
+  .fleet-page .fleet-card-tools > * { flex-shrink: 0; }
+  .penalty-page .penalty-two-col { grid-template-columns: 1fr; }
+  .penalty-page .penalty-grid { grid-template-columns: 1fr; }
+} /* end 640px */
+
+/* ── Responsive overrides (from responsive.css decomposition) ── */
+@media (max-width: 640px) {
+  /* ── PenaltyPage: larger chip/seg tap targets ── */
+  .penalty-chip {
+    min-height: 36px;
+    padding: 6px 12px;
+    font-size: var(--fs-xs);
+  }
+  .penalty-seg button {
+    min-height: 40px;
+    padding: 8px 14px;
+    font-size: var(--fs-xs);
+  }
+  .penalty-row-act {
+    min-width: 38px;
+    min-height: 38px;
+  }
+  .penalty-page .kpi-grid { gap: 8px; }
+} /* end 640px */

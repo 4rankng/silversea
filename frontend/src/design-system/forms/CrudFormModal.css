@@ -1,0 +1,117 @@
+.ds-crud-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 26, 20, 0.45);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal);
+  padding: 20px;
+}
+
+.ds-crud-modal {
+  width: 100%;
+  max-height: calc(100vh - 40px);
+  background: var(--surface, #fff);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18);
+}
+
+.ds-crud-modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-2, var(--line));
+}
+
+.ds-crud-modal__title {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.35;
+  font-weight: 600;
+  color: var(--ink, var(--fg));
+}
+
+.ds-crud-modal__close {
+  background: transparent;
+  border: none;
+  color: var(--fg-3, var(--ink-3));
+  cursor: pointer;
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ds-crud-modal__close:hover:not(:disabled) {
+  background: var(--surface-2, var(--bg-2));
+  color: var(--ink, var(--fg));
+}
+
+.ds-crud-modal__body {
+  padding: 18px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ds-crud-modal__foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--border-2, var(--line));
+  background: var(--surface-2, var(--bg-2));
+}
+
+@media (max-width: 640px) {
+  .ds-crud-overlay {
+    padding: 0;
+    align-items: flex-end;
+    background: rgba(10, 10, 10, 0.45);
+    backdrop-filter: blur(6px);
+  }
+  .ds-crud-modal {
+    max-width: 100%;
+    max-height: 90vh;
+    border-radius: 24px 24px 0 0;
+    box-shadow: 0 -8px 40px -8px rgba(0, 0, 0, 0.12),
+                0 0 0 1px rgba(0, 0, 0, 0.04);
+  }
+
+  .ds-crud-modal__head {
+    padding: 16px 18px 12px;
+  }
+
+  .ds-crud-modal__title {
+    font-size: 18px;
+    line-height: 1.35;
+  }
+
+  .ds-crud-modal__close {
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .ds-crud-modal__foot {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px 18px max(12px, env(safe-area-inset-bottom));
+  }
+
+  .ds-crud-modal__foot .btn {
+    min-height: 44px;
+  }
+}

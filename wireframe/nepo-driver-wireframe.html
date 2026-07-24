@@ -1,0 +1,2004 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#005A2D" />
+<title>NEPO Driver — Wireframe</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+<style>
+  /* ════════════════════════════════════════
+     DESIGN TOKENS — Grab-inspired
+     ════════════════════════════════════════ */
+  :root {
+    --bg: #F7F8FA;
+    --bg-2: #EEF0F4;
+    --surface: #FFFFFF;
+    --surface-2: #F7F8FA;
+    --surface-3: #EFF1F5;
+    --ink: #0A0A0A;
+    --ink-2: #535963;
+    --ink-3: #8B919B;
+    --ink-4: #BABDC3;
+    --line: #EAECEF;
+    --line-2: #D6D9DE;
+
+    --accent: #00B14F;
+    --accent-2: #008B3E;
+    --accent-3: #005A2D;
+    --accent-soft: #E6F7EE;
+    --accent-ink: #004D22;
+
+    --success: #00B14F;
+    --success-soft: #E6F7EE;
+    --warning: #F5A623;
+    --warning-soft: #FFF4E0;
+    --danger: #E32434;
+    --danger-soft: #FFEAEC;
+    --info: #1E5BB8;
+    --info-soft: #DCE9FC;
+
+    --font-display: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+    --font-body: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+    --r-sm: 10px;
+    --r: 16px;
+    --r-lg: 22px;
+    --r-xl: 30px;
+
+    --sh-sm: 0 1px 2px rgba(10, 10, 10, 0.04);
+    --sh: 0 4px 14px rgba(10, 10, 10, 0.06), 0 1px 2px rgba(10, 10, 10, 0.03);
+    --sh-lg: 0 14px 44px rgba(10, 10, 10, 0.09), 0 4px 12px rgba(10, 10, 10, 0.04);
+    --sh-phone: 0 40px 80px -20px rgba(10, 10, 10, 0.28), 0 20px 40px -10px rgba(10, 10, 10, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+  }
+
+  /* ════════ Base ════════ */
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-body);
+    color: var(--ink);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+  button { font: inherit; color: inherit; cursor: pointer; border: none; background: none; padding: 0; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+  img, svg { display: block; max-width: 100%; }
+  .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+  /* ════════════════════════════════════════
+     DESKTOP SHOWCASE
+     ════════════════════════════════════════ */
+  .stage {
+    min-height: 100dvh;
+    display: grid;
+    grid-template-columns: 1fr;
+    background:
+      radial-gradient(900px 600px at 85% -10%, rgba(0, 177, 79, 0.08), transparent 60%),
+      radial-gradient(800px 500px at -10% 80%, rgba(30, 91, 184, 0.06), transparent 60%),
+      linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+  }
+  .stage__inner {
+    width: 100%;
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: clamp(20px, 4vw, 56px) clamp(16px, 4vw, 56px);
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: clamp(24px, 4vw, 48px);
+    align-items: start;
+  }
+  @media (min-width: 1024px) {
+    .stage__inner { grid-template-columns: 1fr auto 1fr; }
+  }
+  .showcase-left, .showcase-right { display: none; }
+  @media (min-width: 1024px) {
+    .showcase-left, .showcase-right { display: flex; flex-direction: column; padding-top: 60px; }
+    .showcase-right { padding-top: 100px; }
+  }
+
+  .meta { display: flex; flex-direction: column; gap: 20px; }
+  .meta__brand {
+    display: flex; align-items: center; gap: 12px;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 22px;
+    letter-spacing: -0.02em;
+  }
+  .meta__brand .dot {
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 4px var(--accent-soft);
+  }
+  .meta__title {
+    font-family: var(--font-display);
+    font-size: clamp(36px, 4.4vw, 60px);
+    line-height: 0.95;
+    letter-spacing: -0.035em;
+    font-weight: 600;
+    margin: 0;
+  }
+  .meta__title em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--accent);
+  }
+  .meta__lede {
+    font-size: 15.5px;
+    line-height: 1.55;
+    color: var(--ink-2);
+    max-width: 38ch;
+    margin: 0;
+  }
+  .meta__tag {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 12px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-2);
+    width: fit-content;
+    box-shadow: var(--sh-sm);
+  }
+  .meta__tag .pulse {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--success); position: relative;
+  }
+  .meta__tag .pulse::after {
+    content: ''; position: absolute; inset: -3px; border-radius: 50%;
+    background: var(--success); opacity: 0.3;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 0.3; }
+    50% { transform: scale(1.4); opacity: 0; }
+  }
+
+  .legend { display: flex; flex-direction: column; gap: 14px; }
+  .legend__item {
+    display: flex; gap: 14px; align-items: flex-start;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    box-shadow: var(--sh-sm);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+  }
+  .legend__item:hover { transform: translateY(-2px); box-shadow: var(--sh); }
+  .legend__num {
+    flex-shrink: 0;
+    width: 28px; height: 28px;
+    display: grid; place-items: center;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 12px;
+  }
+  .legend__text { font-size: 13.5px; line-height: 1.5; color: var(--ink-2); }
+  .legend__text strong { color: var(--ink); font-weight: 600; }
+
+  /* ════════════════════════════════════════
+     PHONE FRAME
+     ════════════════════════════════════════ */
+  .phone-wrap { display: grid; place-items: center; position: relative; }
+  .phone {
+    width: 100%;
+    max-width: 100%;
+    background: var(--surface);
+    overflow: hidden;
+    position: relative;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+  @media (min-width: 768px) {
+    .phone {
+      width: 390px;
+      height: 844px;
+      min-height: 844px;
+      border-radius: 48px;
+      box-shadow: var(--sh-phone);
+      border: 10px solid #18181B;
+      background-clip: padding-box;
+    }
+  }
+
+  /* iOS status bar — desktop only */
+  .statusbar {
+    display: none;
+    padding: 14px 28px 6px;
+    align-items: center;
+    justify-content: space-between;
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 14px;
+    flex-shrink: 0;
+    background: var(--accent-3);
+    color: #fff;
+  }
+  @media (min-width: 768px) { .statusbar { display: flex; } }
+  .statusbar__icons { display: flex; gap: 6px; align-items: center; color: #fff; }
+  .notch { display: none; }
+  @media (min-width: 768px) {
+    .notch {
+      display: block;
+      position: absolute;
+      top: 8px; left: 50%;
+      transform: translateX(-50%);
+      width: 110px; height: 32px;
+      background: #18181B;
+      border-radius: 0 0 18px 18px;
+      z-index: 30;
+    }
+  }
+
+  /* ════════════════════════════════════════
+     APP SHELL
+     ════════════════════════════════════════ */
+  .app {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .app__header {
+    padding: 14px 20px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: var(--accent-3);
+    color: #fff;
+    z-index: 5;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .app__header::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 120px; height: 100%;
+    background: radial-gradient(circle at 70% 30%, rgba(255,255,255,0.08), transparent 70%);
+    pointer-events: none;
+  }
+  .header-greet { flex: 1; min-width: 0; line-height: 1.25; position: relative; z-index: 1; }
+  .header-greet__hello {
+    font-size: 12.5px;
+    color: rgba(255,255,255,0.7);
+    font-weight: 500;
+    margin-bottom: 2px;
+  }
+  .header-greet__name {
+    font-family: var(--font-display);
+    font-size: 19px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.02em;
+    margin-bottom: 4px;
+  }
+  .header-greet__date {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: rgba(255,255,255,0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .header-actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; position: relative; z-index: 1; }
+  .icon-btn {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    color: var(--ink-2);
+    position: relative;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .icon-btn:hover, .icon-btn:active { background: var(--surface-3); color: var(--ink); }
+  .icon-btn .badge {
+    position: absolute;
+    top: 6px; right: 6px;
+    min-width: 16px; height: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: var(--danger);
+    color: #fff;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    display: grid; place-items: center;
+    border: 2px solid var(--accent-3);
+  }
+  .app__header .icon-btn { color: rgba(255,255,255,0.95); }
+  .app__header .icon-btn:hover, .app__header .icon-btn:active {
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+  }
+  .avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.18);
+    color: #fff;
+    border: 2px solid rgba(255,255,255,0.4);
+    display: grid; place-items: center;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: -0.02em;
+  }
+
+  /* ════════════════════════════════════════
+     SCREEN CONTAINER
+     ════════════════════════════════════════ */
+  .app__main {
+    flex: 1;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    position: relative;
+    background: var(--bg);
+  }
+  .screen {
+    display: none;
+    padding: 18px 20px 96px;
+    animation: screenIn 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .screen.is-active { display: block; }
+  @keyframes screenIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .screen.is-active > * {
+    animation: fadeUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  }
+  .screen.is-active > *:nth-child(1) { animation-delay: 0.04s; }
+  .screen.is-active > *:nth-child(2) { animation-delay: 0.09s; }
+  .screen.is-active > *:nth-child(3) { animation-delay: 0.14s; }
+  .screen.is-active > *:nth-child(4) { animation-delay: 0.19s; }
+  .screen.is-active > *:nth-child(5) { animation-delay: 0.24s; }
+  .screen.is-active > *:nth-child(6) { animation-delay: 0.29s; }
+  .screen.is-active > *:nth-child(7) { animation-delay: 0.34s; }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ════════════════════════════════════════
+     COMMON ATOMS
+     ════════════════════════════════════════ */
+  .screen-head { margin-bottom: 18px; }
+  .screen-head__eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-3);
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .screen-head__title {
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    margin: 0;
+    line-height: 1.1;
+  }
+  .screen-head__sub {
+    font-size: 13.5px;
+    color: var(--ink-2);
+    margin: 6px 0 0;
+  }
+
+  .section-title {
+    display: flex; justify-content: space-between; align-items: center;
+    margin: 22px 0 12px;
+  }
+  .section-title h3 {
+    font-family: var(--font-display);
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-3);
+    font-weight: 600;
+    margin: 0;
+  }
+  .section-title a {
+    font-size: 12.5px;
+    color: var(--accent-2);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  /* Badge pills */
+  .badge-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 1;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+  }
+  .badge-pill .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor;
+  }
+  .badge-pill--live {
+    background: var(--accent);
+    color: #fff;
+  }
+  .badge-pill--live .dot {
+    background: #fff;
+    animation: livePulse 1.4s infinite;
+  }
+  @keyframes livePulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+  .badge-pill--scheduled { background: var(--info-soft); color: var(--info); }
+  .badge-pill--completed { background: var(--accent-soft); color: var(--accent-2); }
+  .badge-pill--canceled { background: var(--surface-3); color: var(--ink-3); }
+  .badge-pill--warning { background: var(--warning-soft); color: #B8770C; }
+  .badge-pill--danger { background: var(--danger-soft); color: var(--danger); }
+
+  /* ════════════════════════════════════════
+     SCREEN 1: HOME — Active trip + fuel allocation
+     Shares the same dark "hero card" treatment as the
+     pay-summary on the Earnings tab for visual consistency.
+     ════════════════════════════════════════ */
+  .active-trip {
+    background: linear-gradient(160deg, var(--ink) 0%, #1A1F26 100%);
+    border-radius: var(--r-lg);
+    padding: 20px;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--sh-lg);
+  }
+  /* Green corner glow — matches pay-summary */
+  .active-trip::before {
+    content: '';
+    position: absolute;
+    top: -50px; right: -50px;
+    width: 200px; height: 200px;
+    background: radial-gradient(circle, rgba(0, 177, 79, 0.25), transparent 70%);
+    pointer-events: none;
+  }
+  .active-trip__top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 14px;
+    position: relative;
+  }
+  .active-trip__vehicle {
+    margin-top: 8px;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: rgba(255,255,255,0.55);
+    letter-spacing: 0.04em;
+  }
+  .active-trip__route {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+    color: #fff;
+    position: relative;
+  }
+  .active-trip__route .arrow { color: rgba(255,255,255,0.45); flex-shrink: 0; }
+  .active-trip__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.7);
+    position: relative;
+  }
+  .active-trip__meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .active-trip__meta svg { color: rgba(255,255,255,0.5); }
+
+  /* Fuel allocation strip — translucent white card on dark parent,
+     echoing the "breakdown" section of the pay-summary */
+  .fuel-allocation {
+    margin-top: 18px;
+    padding: 14px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: var(--r);
+    position: relative;
+  }
+  .fuel-allocation__label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: rgba(255,255,255,0.55);
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+  .fuel-allocation__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+  }
+  .fuel-allocation__cell {
+    text-align: left;
+  }
+  .fuel-allocation__val {
+    font-family: var(--font-mono);
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+    margin-bottom: 3px;
+  }
+  .fuel-allocation__cap {
+    font-size: 10.5px;
+    color: rgba(255,255,255,0.55);
+  }
+
+  /* Today stats grid */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    padding: 14px 12px 12px;
+    box-shadow: var(--sh-sm);
+  }
+  .stat__label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-3);
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .stat__value {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    line-height: 1;
+  }
+  .stat__unit {
+    font-size: 12px;
+    color: var(--ink-3);
+    font-weight: 500;
+    margin-left: 2px;
+  }
+
+  /* Next trip card */
+  .next-trip {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    padding: 14px 16px;
+    box-shadow: var(--sh-sm);
+    cursor: pointer;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+  }
+  .next-trip:hover, .next-trip:active {
+    transform: translateY(-1px);
+    box-shadow: var(--sh);
+  }
+  .next-trip__time {
+    flex-shrink: 0;
+    text-align: center;
+    padding-right: 14px;
+  }
+  .next-trip__hour {
+    font-family: var(--font-mono);
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1;
+  }
+  .next-trip__period {
+    font-size: 10px;
+    color: var(--ink-3);
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+  }
+  .next-trip__divider {
+    width: 1px;
+    height: 36px;
+    background: var(--line);
+    flex-shrink: 0;
+  }
+  .next-trip__info { flex: 1; min-width: 0; }
+  .next-trip__route {
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: -0.015em;
+    margin-bottom: 3px;
+  }
+  .next-trip__meta {
+    font-size: 11.5px;
+    color: var(--ink-3);
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  /* Alert banner — view-only reminders */
+  /* (removed: was used for chuyến chè photo reminder — that's accountant's job) */
+
+  /* ════════════════════════════════════════
+     SCREEN 2: TRIPS — schedule (view only)
+     ════════════════════════════════════════ */
+  .filter-tabs {
+    display: flex;
+    gap: 6px;
+    margin: 8px 0 18px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .filter-tabs::-webkit-scrollbar { display: none; }
+  .filter-tab {
+    flex-shrink: 0;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ink-2);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+  .filter-tab:hover { border-color: var(--line-2); }
+  .filter-tab.is-active {
+    background: var(--accent-3);
+    color: #fff;
+    border-color: var(--accent-3);
+  }
+  .filter-tab .count {
+    margin-left: 4px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    opacity: 0.7;
+  }
+
+  .day-header {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin: 20px 0 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--line);
+  }
+  .day-header__date {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .day-header__day {
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .day-header__count {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--ink-3);
+    font-family: var(--font-mono);
+  }
+
+  /* Trip card */
+  .trip-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    padding: 14px;
+    margin-bottom: 10px;
+    box-shadow: var(--sh-sm);
+    transition: all 0.18s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .trip-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--ink-4);
+  }
+  .trip-card.is-live::before { background: var(--accent); }
+  .trip-card.is-scheduled::before { background: var(--info); }
+  .trip-card.is-completed::before { background: var(--ink-4); }
+  .trip-card.is-canceled::before { background: var(--ink-4); opacity: 0.3; }
+  .trip-card.is-canceled { opacity: 0.65; }
+  .trip-card:hover { box-shadow: var(--sh); }
+
+  .trip-card__top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+  }
+  .trip-card__route {
+    font-family: var(--font-display);
+    font-size: 15.5px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.015em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .trip-card__route .arrow {
+    color: var(--ink-4);
+    flex-shrink: 0;
+  }
+  .trip-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    font-size: 11.5px;
+    color: var(--ink-2);
+    margin-bottom: 10px;
+  }
+  .trip-card__meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .trip-card__meta svg { color: var(--ink-3); }
+  .trip-card__footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 10px;
+    border-top: 1px dashed var(--line);
+    font-size: 12px;
+  }
+  .trip-card__fuel {
+    font-family: var(--font-mono);
+    color: var(--ink-2);
+    font-weight: 600;
+  }
+  .trip-card__fuel strong { color: var(--accent-2); }
+  .trip-card__income {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .trip-card__income .lbl {
+    color: var(--ink-3);
+    font-weight: 500;
+    font-size: 10.5px;
+    margin-right: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  /* Empty state */
+  .empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--ink-3);
+  }
+  .empty__icon {
+    width: 56px; height: 56px;
+    margin: 0 auto 14px;
+    background: var(--surface-3);
+    border-radius: 50%;
+    display: grid; place-items: center;
+    color: var(--ink-3);
+  }
+  .empty__title {
+    font-family: var(--font-display);
+    font-size: 15px;
+    color: var(--ink-2);
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .empty__text {
+    font-size: 12.5px;
+    color: var(--ink-3);
+  }
+
+  /* ════════════════════════════════════════
+     SCREEN 3: EARNINGS
+     ════════════════════════════════════════ */
+  .month-picker {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    padding: 10px 14px;
+    margin-bottom: 18px;
+    box-shadow: var(--sh-sm);
+  }
+  .month-picker__label {
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.015em;
+  }
+  .month-picker__nav {
+    display: flex;
+    gap: 4px;
+  }
+  .month-picker__btn {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: grid; place-items: center;
+    color: var(--ink-2);
+    background: var(--surface-3);
+  }
+
+  .pay-summary {
+    background: linear-gradient(160deg, var(--ink) 0%, #1A1F26 100%);
+    border-radius: var(--r-lg);
+    padding: 20px;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--sh-lg);
+  }
+  .pay-summary::before {
+    content: '';
+    position: absolute;
+    top: -50px; right: -50px;
+    width: 200px; height: 200px;
+    background: radial-gradient(circle, rgba(0, 177, 79, 0.25), transparent 70%);
+    pointer-events: none;
+  }
+  .pay-summary__label {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: rgba(255,255,255,0.6);
+    margin-bottom: 8px;
+    position: relative;
+  }
+  .pay-summary__total {
+    font-family: var(--font-display);
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    color: #fff;
+    margin-bottom: 4px;
+    position: relative;
+  }
+  .pay-summary__total .currency {
+    font-size: 16px;
+    color: rgba(255,255,255,0.6);
+    font-weight: 500;
+    margin-left: 4px;
+  }
+  .pay-summary__sub {
+    font-size: 12.5px;
+    color: rgba(255,255,255,0.55);
+    position: relative;
+  }
+  .pay-summary__sub .delta--up { color: #4DC678; font-weight: 600; }
+  .pay-summary__breakdown {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255,255,255,0.12);
+    display: grid;
+    gap: 10px;
+    position: relative;
+  }
+  .pay-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+  }
+  .pay-row__lbl {
+    color: rgba(255,255,255,0.7);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .pay-row__lbl .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  .pay-row__lbl .dot--income { background: #4DC678; }
+  .pay-row__lbl .dot--penalty { background: var(--danger); }
+  .pay-row__val {
+    font-family: var(--font-mono);
+    color: #fff;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .pay-row__val.is-penalty { color: #FF8B95; }
+
+  /* Trip income list */
+  .income-trip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    margin-bottom: 8px;
+    box-shadow: var(--sh-sm);
+  }
+  .income-trip__info {
+    flex: 1; min-width: 0;
+  }
+  .income-trip__route {
+    font-family: var(--font-display);
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+    margin-bottom: 2px;
+  }
+  .income-trip__date {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--ink-3);
+  }
+  .income-trip__amount {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent-2);
+    letter-spacing: -0.01em;
+  }
+
+  /* ════════════════════════════════════════
+     SCREEN 4: PENALTIES (Kỷ luật)
+     ════════════════════════════════════════ */
+  .penalty-summary {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .penalty-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    padding: 14px;
+    box-shadow: var(--sh-sm);
+    position: relative;
+    overflow: hidden;
+  }
+  .penalty-card--total {
+    background: linear-gradient(160deg, #FFEAEC 0%, #FFF5F6 100%);
+    border-color: rgba(227, 36, 52, 0.18);
+  }
+  .penalty-card__label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-3);
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .penalty-card__value {
+    font-family: var(--font-display);
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    line-height: 1;
+  }
+  .penalty-card--total .penalty-card__value { color: var(--danger); }
+  .penalty-card__unit {
+    font-size: 11px;
+    color: var(--ink-3);
+    margin-left: 4px;
+    font-weight: 500;
+  }
+
+  .penalty-entry {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    margin-bottom: 10px;
+    box-shadow: var(--sh-sm);
+  }
+  .penalty-entry__icon {
+    flex-shrink: 0;
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: var(--danger-soft);
+    color: var(--danger);
+    display: grid; place-items: center;
+  }
+  .penalty-entry__body {
+    flex: 1; min-width: 0;
+  }
+  .penalty-entry__reason {
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+    margin-bottom: 4px;
+  }
+  .penalty-entry__date {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--ink-3);
+    letter-spacing: 0.02em;
+  }
+  .penalty-entry__date .sep { margin: 0 5px; opacity: 0.5; }
+  .penalty-entry__amount {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--danger);
+    text-align: right;
+  }
+  .penalty-entry__amount .lbl {
+    display: block;
+    font-size: 9.5px;
+    color: var(--ink-3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+
+  /* ════════════════════════════════════════
+     NOTIFICATIONS SCREEN (header bell)
+     ════════════════════════════════════════ */
+  .notif-back {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-2);
+    margin-bottom: 14px;
+  }
+
+  .notif-card {
+    display: flex;
+    gap: 12px;
+    padding: 14px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    margin-bottom: 8px;
+    box-shadow: var(--sh-sm);
+    position: relative;
+  }
+  .notif-card.is-unread {
+    border-color: rgba(0, 177, 79, 0.3);
+    background: linear-gradient(160deg, #F4FCF7 0%, var(--surface) 60%);
+  }
+  .notif-card.is-unread::after {
+    content: '';
+    position: absolute;
+    top: 14px; right: 14px;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  .notif-card__icon {
+    flex-shrink: 0;
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: grid; place-items: center;
+  }
+  .notif-card__icon--trip { background: var(--info-soft); color: var(--info); }
+  .notif-card__icon--pay { background: var(--accent-soft); color: var(--accent-2); }
+  .notif-card__icon--penalty { background: var(--danger-soft); color: var(--danger); }
+  .notif-card__body { flex: 1; min-width: 0; padding-right: 16px; }
+  .notif-card__title {
+    font-family: var(--font-display);
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 3px;
+    line-height: 1.3;
+  }
+  .notif-card__desc {
+    font-size: 12px;
+    color: var(--ink-2);
+    line-height: 1.4;
+    margin-bottom: 4px;
+  }
+  .notif-card__time {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--ink-3);
+    letter-spacing: 0.02em;
+  }
+
+  /* ════════════════════════════════════════
+     BOTTOM TAB BAR
+     ════════════════════════════════════════ */
+  .tabbar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(255,255,255,0.96);
+    backdrop-filter: saturate(150%) blur(14px);
+    -webkit-backdrop-filter: saturate(150%) blur(14px);
+    border-top: 1px solid var(--line);
+    padding: 6px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2px;
+    z-index: 10;
+  }
+  .tabbar__btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 6px 4px;
+    border-radius: 12px;
+    color: var(--ink-3);
+    transition: color 0.15s ease;
+    position: relative;
+    min-height: 50px;
+  }
+  .tabbar__btn:hover { color: var(--ink-2); }
+  .tabbar__btn.is-active { color: var(--accent-3); }
+  .tabbar__btn.is-active .tabbar__icon {
+    background: var(--accent-soft);
+  }
+  .tabbar__icon {
+    width: 28px; height: 28px;
+    display: grid; place-items: center;
+    border-radius: 8px;
+    transition: background 0.15s ease;
+  }
+  .tabbar__label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0;
+  }
+  .tabbar__btn .badge {
+    position: absolute;
+    top: 4px; right: 18px;
+    min-width: 14px; height: 14px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: var(--danger);
+    color: #fff;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 700;
+    display: grid; place-items: center;
+    border: 2px solid #fff;
+  }
+</style>
+</head>
+
+<body>
+
+<div class="stage">
+  <div class="stage__inner">
+
+    <!-- ═════════ SHOWCASE LEFT ═════════ -->
+    <aside class="showcase-left">
+      <div class="meta">
+        <div class="meta__brand">
+          <span class="dot"></span>
+          NEPO Logistics
+        </div>
+        <h1 class="meta__title">Mọi chuyến đi,<br/><em>trong lòng bàn tay.</em></h1>
+        <p class="meta__lede">
+          Ứng dụng tài xế NEPO — xem lịch trình, kiểm tra số dầu được cấp và theo dõi thu nhập. Thiết kế chỉ-xem cho người lái xe đầu kéo container đường dài.
+        </p>
+        <div class="meta__tag">
+          <span class="pulse"></span>
+          Wireframe v2 · Tháng 5 / 2026
+        </div>
+      </div>
+    </aside>
+
+    <!-- ═════════ PHONE FRAME ═════════ -->
+    <div class="phone-wrap">
+      <div class="phone" role="application" aria-label="NEPO Driver App">
+        <span class="notch" aria-hidden="true"></span>
+
+        <!-- iOS-style status bar (desktop only) -->
+        <div class="statusbar" aria-hidden="true">
+          <span class="num">9:41</span>
+          <div class="statusbar__icons">
+            <svg width="16" height="11" viewBox="0 0 16 11" fill="none"><path d="M1 8.5h2v2H1zm4-2h2v4H5zm4-3h2v7H9zm4-3h2v10h-2z" fill="currentColor"/></svg>
+            <svg width="14" height="11" viewBox="0 0 14 11" fill="none"><path d="M7 2.5a6 6 0 014.2 1.8l-.7.7A5 5 0 007 3.5a5 5 0 00-3.5 1.4l-.7-.6A6 6 0 017 2.5zM7 0a8.5 8.5 0 016 2.5l-.7.7A7.5 7.5 0 007 1a7.5 7.5 0 00-5.3 2.2l-.7-.7A8.5 8.5 0 017 0zm0 4.5a3.5 3.5 0 012.5 1l-.7.7A2.5 2.5 0 007 5.5a2.5 2.5 0 00-1.8.7l-.7-.7A3.5 3.5 0 017 4.5zm0 2a1.5 1.5 0 011 .4l-1 1-1-1A1.5 1.5 0 017 6.5z" fill="currentColor"/></svg>
+            <svg width="24" height="11" viewBox="0 0 24 11" fill="none"><rect x="0.5" y="0.5" width="20" height="10" rx="2.5" stroke="currentColor"/><rect x="22" y="3.5" width="1.5" height="4" rx="0.5" fill="currentColor"/><rect x="2" y="2" width="15" height="7" rx="1" fill="currentColor"/></svg>
+          </div>
+        </div>
+
+        <div class="app">
+
+          <!-- ───────── APP HEADER ───────── -->
+          <header class="app__header">
+            <div class="header-greet">
+              <div class="header-greet__hello">Xin chào,</div>
+              <div class="header-greet__name">Anh Thương 👋</div>
+              <div class="header-greet__date">Thứ Hai · 18 Tháng 5, 2026</div>
+            </div>
+            <div class="header-actions">
+              <button class="icon-btn" aria-label="Thông báo" data-nav="notifs">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+                <span class="badge">3</span>
+              </button>
+              <div class="avatar" aria-label="Hồ sơ tài xế">TH</div>
+            </div>
+          </header>
+
+          <!-- ───────── SCREENS ───────── -->
+          <main class="app__main">
+
+            <!-- ━━━━━━━━━━━ SCREEN 1: HOME ━━━━━━━━━━━ -->
+            <section class="screen is-active" data-screen="home">
+
+              <!-- Active trip card with fuel allocation -->
+              <div class="active-trip">
+                <div class="active-trip__top">
+                  <div>
+                    <span class="badge-pill badge-pill--live"><span class="dot"></span>Đang vận chuyển</span>
+                    <div class="active-trip__vehicle">29H–12345 · Rơ-mooc 40ft</div>
+                  </div>
+                </div>
+
+                <div class="active-trip__route">
+                  <span>Hải Phòng</span>
+                  <svg class="arrow" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 5 7 7-7 7"/></svg>
+                  <span>Hà Nội</span>
+                </div>
+
+                <div class="active-trip__meta">
+                  <span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    XP 07:15
+                  </span>
+                  <span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    120 km
+                  </span>
+                  <span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                    Vinh Phát Co.
+                  </span>
+                </div>
+
+                <!-- FUEL ALLOCATION — Spec Module 1.5 -->
+                <div class="fuel-allocation">
+                  <div class="fuel-allocation__label">Cấp cho chuyến này (chỉ xem)</div>
+                  <div class="fuel-allocation__grid">
+                    <div class="fuel-allocation__cell">
+                      <div class="fuel-allocation__val">55 <span style="font-size:11px;color:rgba(255,255,255,0.55);">L</span></div>
+                      <div class="fuel-allocation__cap">Định mức dầu</div>
+                    </div>
+                    <div class="fuel-allocation__cell">
+                      <div class="fuel-allocation__val">450K</div>
+                      <div class="fuel-allocation__cap">Tiền đi đường</div>
+                    </div>
+                    <div class="fuel-allocation__cell">
+                      <div class="fuel-allocation__val">40ft</div>
+                      <div class="fuel-allocation__cap">Rơ-mooc</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Today's stats -->
+              <div class="section-title">
+                <h3>Hôm nay</h3>
+                <a href="#" data-nav="trips">Lịch trình →</a>
+              </div>
+              <div class="stat-grid">
+                <div class="stat">
+                  <div class="stat__label">Chuyến</div>
+                  <div class="stat__value">2<span class="stat__unit">/3</span></div>
+                </div>
+                <div class="stat">
+                  <div class="stat__label">Km</div>
+                  <div class="stat__value">248</div>
+                </div>
+                <div class="stat">
+                  <div class="stat__label">Dầu</div>
+                  <div class="stat__value">87<span class="stat__unit">L</span></div>
+                </div>
+              </div>
+
+              <!-- Next trip -->
+              <div class="section-title">
+                <h3>Chuyến tiếp theo</h3>
+              </div>
+              <div class="next-trip" data-nav="trips" role="button" tabindex="0">
+                <div class="next-trip__time">
+                  <div class="next-trip__hour">14:30</div>
+                  <div class="next-trip__period">Chiều</div>
+                </div>
+                <div class="next-trip__divider"></div>
+                <div class="next-trip__info">
+                  <div class="next-trip__route">Hà Nội → Hải Dương</div>
+                  <div class="next-trip__meta">
+                    <span>20ft</span>
+                    <span>·</span>
+                    <span>Đông Á Logistics</span>
+                  </div>
+                </div>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--ink-3);"><path d="m9 18 6-6-6-6"/></svg>
+              </div>
+
+            </section>
+
+            <!-- ━━━━━━━━━━━ SCREEN 2: TRIPS ━━━━━━━━━━━ -->
+            <section class="screen" data-screen="trips">
+
+              <div class="screen-head">
+                <div class="screen-head__eyebrow">Lịch trình của tôi</div>
+                <h1 class="screen-head__title">Chuyến đi</h1>
+                <p class="screen-head__sub">Xem các chuyến được phân công · Chỉ xem</p>
+              </div>
+
+              <div class="filter-tabs">
+                <button class="filter-tab is-active">Tất cả <span class="count">14</span></button>
+                <button class="filter-tab">Đang chạy <span class="count">1</span></button>
+                <button class="filter-tab">Sắp tới <span class="count">2</span></button>
+                <button class="filter-tab">Hoàn thành <span class="count">10</span></button>
+                <button class="filter-tab">Đã hủy <span class="count">1</span></button>
+              </div>
+
+              <!-- Day: Today -->
+              <div class="day-header">
+                <span class="day-header__day">Hôm nay</span>
+                <span class="day-header__date">Thứ 2 · 18/05</span>
+                <span class="day-header__count">3 chuyến</span>
+              </div>
+
+              <div class="trip-card is-live">
+                <div class="trip-card__top">
+                  <div class="trip-card__route">
+                    <span>Hải Phòng</span>
+                    <svg class="arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 5 7 7-7 7"/></svg>
+                    <span>Hà Nội</span>
+                  </div>
+                  <span class="badge-pill badge-pill--scheduled" style="background:var(--accent-soft);color:var(--accent-2);"><span class="dot"></span>Đang chạy</span>
+                </div>
+                <div class="trip-card__meta">
+                  <span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    07:15 · 120 km
+                  </span>
+                  <span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/></svg>
+                    40ft · Vinh Phát Co.
+                  </span>
+                </div>
+                <div class="trip-card__footer">
+                  <span class="trip-card__fuel">⛽ <strong>55L</strong> · 450K đường</span>
+                  <span class="trip-card__income"><span class="lbl">Lương</span>320K</span>
+                </div>
+              </div>
+
+              <div class="trip-card is-scheduled">
+                <div class="trip-card__top">
+                  <div class="trip-card__route">
+                    <span>Hà Nội</span>
+                    <svg class="arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 5 7 7-7 7"/></svg>
+                    <span>Hải Dương</span>
+                  </div>
+                  <span class="badge-pill badge-pill--scheduled">14:30</span>
+                </div>
+                <div class="trip-card__meta">
+                  <span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/></svg>
+                    62 km
+                  </span>
+                  <span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/></svg>
+                    20ft · Đông Á Logistics
+                  </span>
+                </div>
+                <div class="trip-card__footer">
+                  <span class="trip-card__fuel">⛽ <strong>28L</strong> · 220K đường</span>
+                  <span class="trip-card__income"><span class="lbl">Lương</span>180K</span>
+                </div>
+              </div>
+
+              <div class="trip-card is-scheduled">
+                <div class="trip-card__top">
+                  <div class="trip-card__route">
+                    <span>Hải Dương</span>
+                    <svg class="arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 5 7 7-7 7"/></svg>
+                    <span>Hà Nội (vỏ)</span>
+                  </div>
+                  <span class="badge-pill badge-pill--scheduled">18:00</span>
+                </div>
+                <div class="trip-card__meta">
+                  <span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/></svg>
+                    62 km
+                  </span>
+                  <span>Chạy vỏ về kho</span>
+                </div>
+                <div class="trip-card__footer">
+                  <span class="trip-card__fuel">⛽ <strong>16L</strong> · 0K đường</span>
+                  <span class="trip-card__income"><span class="lbl">Lương</span>100K</span>
+                </div>
+              </div>
+
+              <!-- Day: Tomorrow -->
+              <div class="day-header">
+                <span class="day-header__day">Ngày mai</span>
+                <span class="day-header__date">Thứ 3 · 19/05</span>
+                <span class="day-header__count">2 chuyến</span>
+              </div>
+
+              <div class="trip-card is-scheduled">
+                <div class="trip-card__top">
+                  <div class="trip-card__route">
+                    <span>Hà Nội</span>
+                    <svg class="arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 5 7 7-7 7"/></svg>
+                    <span>Mộc Châu</span>
+                  </div>
+                  <span class="badge-pill badge-pill--warning">Đèo</span>
+                </div>
+                <div class="trip-card__meta">
+                  <span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    05:30 · 195 km
+                  </span>
+                  <span>40ft · Tea Vina Co.</span>
+                </div>
+                <div class="trip-card__footer">
+                  <span class="trip-card__fuel">⛽ <strong>240L</strong> (đèo) · 750K đường</span>
+                  <span class="trip-card__income"><span class="lbl">Lương</span>650K</span>
+                </div>
+              </div>
+
+              <div class="trip-card is-scheduled">
+                <div class="trip-card__top">
+                  <div class="trip-card__route">
+                    <span>Mộc Châu</span>
+                    <svg class="arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 5 7 7-7 7"/></svg>
+                    <span>Hà Nội (về có hàng)</span>
+                  </div>
+                  <span class="badge-pill badge-pill--warning">Đèo</span>
+                </div>
+                <div class="trip-card__meta">
+                  <span>195 km</span>
+                  <span>Về có hàng + 300K</span>
+                </div>
+                <div class="trip-card__footer">
+                  <span class="trip-card__fuel">⛽ tính chung lượt đi · 1.050K đường</span>
+                  <span class="trip-card__income"><span class="lbl">Lương</span>650K</span>
+                </div>
+              </div>
+
+              <!-- Day: Last week -->
+              <div class="day-header">
+                <span class="day-header__day">Thứ Sáu vừa rồi</span>
+                <span class="day-header__date">15/05</span>
+                <span class="day-header__count">2 chuyến</span>
+              </div>
+
+              <div class="trip-card is-completed">
+                <div class="trip-card__top">
+                  <div class="trip-card__route">
+                    <span>Hà Nội</span>
+                    <svg class="arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 5 7 7-7 7"/></svg>
+                    <span>Hải Phòng</span>
+                  </div>
+                  <span class="badge-pill badge-pill--completed"><span class="dot"></span>Hoàn thành</span>
+                </div>
+                <div class="trip-card__meta">
+                  <span>118 km · 40ft</span>
+                  <span>Tổng Cty Cảng HP</span>
+                </div>
+                <div class="trip-card__footer">
+                  <span class="trip-card__fuel">⛽ 52L · TTBQ 44L/100km</span>
+                  <span class="trip-card__income"><span class="lbl">Đã nhận</span>320K</span>
+                </div>
+              </div>
+
+              <div class="trip-card is-canceled">
+                <div class="trip-card__top">
+                  <div class="trip-card__route">
+                    <span>Hà Nội</span>
+                    <svg class="arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 5 7 7-7 7"/></svg>
+                    <span>Bắc Ninh</span>
+                  </div>
+                  <span class="badge-pill badge-pill--canceled"><span class="dot"></span>Đã hủy</span>
+                </div>
+                <div class="trip-card__meta">
+                  <span>Khách hủy đột xuất</span>
+                </div>
+                <div class="trip-card__footer">
+                  <span class="trip-card__fuel">—</span>
+                  <span class="trip-card__income"><span class="lbl">Lương</span>0₫</span>
+                </div>
+              </div>
+
+            </section>
+
+            <!-- ━━━━━━━━━━━ SCREEN 3: EARNINGS ━━━━━━━━━━━ -->
+            <section class="screen" data-screen="wallet">
+
+              <div class="screen-head">
+                <div class="screen-head__eyebrow">Thu nhập của tôi</div>
+                <h1 class="screen-head__title">Tiền lương</h1>
+                <p class="screen-head__sub">Tổng kết tháng · Chỉ xem</p>
+              </div>
+
+              <div class="month-picker">
+                <button class="month-picker__btn" aria-label="Tháng trước">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                </button>
+                <div class="month-picker__label">Tháng 5 / 2026</div>
+                <button class="month-picker__btn" aria-label="Tháng sau">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                </button>
+              </div>
+
+              <!-- Pay summary card -->
+              <div class="pay-summary">
+                <div class="pay-summary__label">Thực nhận dự kiến</div>
+                <div class="pay-summary__total">14.250.000<span class="currency">₫</span></div>
+                <div class="pay-summary__sub">
+                  Cập nhật 18/05 · <span class="delta--up">+8% so tháng trước</span>
+                </div>
+
+                <div class="pay-summary__breakdown">
+                  <div class="pay-row">
+                    <span class="pay-row__lbl"><span class="dot"></span>Lương cơ bản</span>
+                    <span class="pay-row__val">8.000.000 ₫</span>
+                  </div>
+                  <div class="pay-row">
+                    <span class="pay-row__lbl"><span class="dot dot--income"></span>Lương sản lượng <span style="opacity:0.5;font-size:11px;">· 14 chuyến</span></span>
+                    <span class="pay-row__val">+ 6.550.000 ₫</span>
+                  </div>
+                  <div class="pay-row">
+                    <span class="pay-row__lbl"><span class="dot dot--penalty"></span>Phạt kỷ luật <span style="opacity:0.5;font-size:11px;">· 2 lần</span></span>
+                    <span class="pay-row__val is-penalty">− 300.000 ₫</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Trip-by-trip income list -->
+              <div class="section-title">
+                <h3>Chi tiết theo chuyến · 14</h3>
+                <a href="#" data-nav="trips">Xem tất cả →</a>
+              </div>
+
+              <div class="income-trip">
+                <div class="income-trip__info">
+                  <div class="income-trip__route">HN → Hải Phòng</div>
+                  <div class="income-trip__date">15/05 · Hoàn thành · 40ft</div>
+                </div>
+                <div class="income-trip__amount">+ 320.000 ₫</div>
+              </div>
+              <div class="income-trip">
+                <div class="income-trip__info">
+                  <div class="income-trip__route">Hải Phòng → HN (vỏ)</div>
+                  <div class="income-trip__date">15/05 · Hoàn thành</div>
+                </div>
+                <div class="income-trip__amount">+ 180.000 ₫</div>
+              </div>
+              <div class="income-trip">
+                <div class="income-trip__info">
+                  <div class="income-trip__route">HN → Mộc Châu (chè)</div>
+                  <div class="income-trip__date">13/05 · Đã chốt · Đèo</div>
+                </div>
+                <div class="income-trip__amount">+ 650.000 ₫</div>
+              </div>
+              <div class="income-trip">
+                <div class="income-trip__info">
+                  <div class="income-trip__route">Mộc Châu → HN</div>
+                  <div class="income-trip__date">13/05 · Đã chốt · Về có hàng</div>
+                </div>
+                <div class="income-trip__amount">+ 650.000 ₫</div>
+              </div>
+              <div class="income-trip">
+                <div class="income-trip__info">
+                  <div class="income-trip__route">HN → Bắc Giang</div>
+                  <div class="income-trip__date">11/05 · Đã chốt · 20ft</div>
+                </div>
+                <div class="income-trip__amount">+ 210.000 ₫</div>
+              </div>
+              <div class="income-trip">
+                <div class="income-trip__info">
+                  <div class="income-trip__route">HN → Hải Phòng</div>
+                  <div class="income-trip__date">09/05 · Đã chốt · 40ft</div>
+                </div>
+                <div class="income-trip__amount">+ 320.000 ₫</div>
+              </div>
+
+              <div class="section-title" style="margin-top:24px;">
+                <h3>Lịch sử tháng · 6 tháng qua</h3>
+              </div>
+
+              <!-- Mini bar chart of months -->
+              <div style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 14px;box-shadow:var(--sh-sm);">
+                <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:8px;height:110px;">
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;">
+                    <div style="height:60%;width:100%;background:linear-gradient(180deg,var(--accent-soft),var(--accent));border-radius:6px 6px 2px 2px;"></div>
+                    <div style="font-size:10px;color:var(--ink-3);font-family:var(--font-mono);">T12</div>
+                  </div>
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;">
+                    <div style="height:72%;width:100%;background:linear-gradient(180deg,var(--accent-soft),var(--accent));border-radius:6px 6px 2px 2px;"></div>
+                    <div style="font-size:10px;color:var(--ink-3);font-family:var(--font-mono);">T1</div>
+                  </div>
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;">
+                    <div style="height:55%;width:100%;background:linear-gradient(180deg,var(--accent-soft),var(--accent));border-radius:6px 6px 2px 2px;"></div>
+                    <div style="font-size:10px;color:var(--ink-3);font-family:var(--font-mono);">T2</div>
+                  </div>
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;">
+                    <div style="height:80%;width:100%;background:linear-gradient(180deg,var(--accent-soft),var(--accent));border-radius:6px 6px 2px 2px;"></div>
+                    <div style="font-size:10px;color:var(--ink-3);font-family:var(--font-mono);">T3</div>
+                  </div>
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;">
+                    <div style="height:78%;width:100%;background:linear-gradient(180deg,var(--accent-soft),var(--accent));border-radius:6px 6px 2px 2px;"></div>
+                    <div style="font-size:10px;color:var(--ink-3);font-family:var(--font-mono);">T4</div>
+                  </div>
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;">
+                    <div style="height:90%;width:100%;background:linear-gradient(180deg,var(--accent-2),#003F1F);border-radius:6px 6px 2px 2px;box-shadow:0 0 0 2px rgba(0,177,79,0.15);"></div>
+                    <div style="font-size:10px;color:var(--accent-2);font-family:var(--font-mono);font-weight:700;">T5</div>
+                  </div>
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:11.5px;">
+                  <span style="color:var(--ink-3);">Trung bình</span>
+                  <span style="font-family:var(--font-mono);font-weight:700;color:var(--ink);">13.180.000 ₫/tháng</span>
+                </div>
+              </div>
+
+            </section>
+
+            <!-- ━━━━━━━━━━━ SCREEN 4: PENALTIES ━━━━━━━━━━━ -->
+            <section class="screen" data-screen="penalty">
+
+              <div class="screen-head">
+                <div class="screen-head__eyebrow">Kỷ luật của tôi</div>
+                <h1 class="screen-head__title">Vi phạm</h1>
+                <p class="screen-head__sub">Tích lũy trừ vào lương · Chỉ xem</p>
+              </div>
+
+              <!-- Summary cards -->
+              <div class="penalty-summary">
+                <div class="penalty-card penalty-card--total">
+                  <div class="penalty-card__label">Tháng này</div>
+                  <div class="penalty-card__value">300.000<span class="penalty-card__unit">₫</span></div>
+                </div>
+                <div class="penalty-card">
+                  <div class="penalty-card__label">Số lần</div>
+                  <div class="penalty-card__value">2<span class="penalty-card__unit">vi phạm</span></div>
+                </div>
+              </div>
+
+              <!-- Penalties this month -->
+              <div class="section-title" style="margin-top:0;">
+                <h3>Tháng 5 / 2026</h3>
+                <a href="#">Xuất sao kê →</a>
+              </div>
+
+              <div class="penalty-entry">
+                <div class="penalty-entry__icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/></svg>
+                </div>
+                <div class="penalty-entry__body">
+                  <div class="penalty-entry__reason">Thiếu hóa đơn dầu</div>
+                  <div class="penalty-entry__date">12/05/2026 <span class="sep">·</span> Chuyến HN → Hải Phòng</div>
+                </div>
+                <div class="penalty-entry__amount">
+                  <span class="lbl">Phạt</span>
+                  −100K
+                </div>
+              </div>
+
+              <div class="penalty-entry">
+                <div class="penalty-entry__icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                </div>
+                <div class="penalty-entry__body">
+                  <div class="penalty-entry__reason">Về kho trễ giờ &gt; 30 phút</div>
+                  <div class="penalty-entry__date">05/05/2026 <span class="sep">·</span> Chuyến Bắc Giang → HN</div>
+                </div>
+                <div class="penalty-entry__amount">
+                  <span class="lbl">Phạt</span>
+                  −200K
+                </div>
+              </div>
+
+              <!-- Previous months collapsed -->
+              <div class="section-title" style="margin-top:24px;">
+                <h3>Lịch sử · 3 tháng gần nhất</h3>
+              </div>
+
+              <div class="penalty-entry">
+                <div class="penalty-entry__icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+                </div>
+                <div class="penalty-entry__body">
+                  <div class="penalty-entry__reason">Tháng 4 / 2026 — Sạch</div>
+                  <div class="penalty-entry__date">Không có vi phạm</div>
+                </div>
+                <div class="penalty-entry__amount" style="color:var(--accent-2);">
+                  <span class="lbl">Phạt</span>
+                  0₫
+                </div>
+              </div>
+
+              <div class="penalty-entry">
+                <div class="penalty-entry__icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                </div>
+                <div class="penalty-entry__body">
+                  <div class="penalty-entry__reason">Tháng 3 / 2026 — 1 vi phạm</div>
+                  <div class="penalty-entry__date">Thiếu hóa đơn dầu</div>
+                </div>
+                <div class="penalty-entry__amount">
+                  <span class="lbl">Phạt</span>
+                  −100K
+                </div>
+              </div>
+
+              <div class="penalty-entry">
+                <div class="penalty-entry__icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+                </div>
+                <div class="penalty-entry__body">
+                  <div class="penalty-entry__reason">Tháng 2 / 2026 — Sạch</div>
+                  <div class="penalty-entry__date">Không có vi phạm</div>
+                </div>
+                <div class="penalty-entry__amount" style="color:var(--accent-2);">
+                  <span class="lbl">Phạt</span>
+                  0₫
+                </div>
+              </div>
+
+            </section>
+
+            <!-- ━━━━━━━━━━━ SCREEN 5: NOTIFICATIONS (header bell) ━━━━━━━━━━━ -->
+            <section class="screen" data-screen="notifs">
+
+              <button class="notif-back" data-nav="home">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                Quay lại
+              </button>
+
+              <div class="screen-head">
+                <div class="screen-head__eyebrow">3 mới · 12 tổng</div>
+                <h1 class="screen-head__title">Thông báo</h1>
+              </div>
+
+              <div class="section-title" style="margin-top:6px;">
+                <h3>Hôm nay</h3>
+                <a href="#">Đánh dấu đã đọc</a>
+              </div>
+
+              <div class="notif-card is-unread">
+                <div class="notif-card__icon notif-card__icon--trip">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                </div>
+                <div class="notif-card__body">
+                  <div class="notif-card__title">Chuyến mới được phân công</div>
+                  <div class="notif-card__desc">19/05 · Hà Nội → Mộc Châu · Tea Vina Co. · 40ft. Định mức đèo 240L.</div>
+                  <div class="notif-card__time">07:42</div>
+                </div>
+              </div>
+
+              <div class="notif-card is-unread">
+                <div class="notif-card__icon notif-card__icon--trip">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+                </div>
+                <div class="notif-card__body">
+                  <div class="notif-card__title">Lịch trình hôm nay đã cập nhật</div>
+                  <div class="notif-card__desc">3 chuyến đã được sắp lịch. Chuyến đầu khởi hành 07:15.</div>
+                  <div class="notif-card__time">06:00</div>
+                </div>
+              </div>
+
+              <div class="notif-card is-unread">
+                <div class="notif-card__icon notif-card__icon--pay">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.5 9a2.5 2.5 0 1 1 5 0c0 1.7-2.5 2.5-2.5 4"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                </div>
+                <div class="notif-card__body">
+                  <div class="notif-card__title">Lương sản lượng 13/05 đã chốt</div>
+                  <div class="notif-card__desc">2 chuyến HN ↔ Mộc Châu · Cộng dồn 1.300.000 ₫ vào tháng này.</div>
+                  <div class="notif-card__time">Hôm qua · 18:20</div>
+                </div>
+              </div>
+
+              <div class="section-title">
+                <h3>Tuần này</h3>
+              </div>
+
+              <div class="notif-card">
+                <div class="notif-card__icon notif-card__icon--penalty">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                </div>
+                <div class="notif-card__body">
+                  <div class="notif-card__title">Ghi nhận vi phạm</div>
+                  <div class="notif-card__desc">Thiếu hóa đơn dầu chuyến HN → HP. Trừ 100K vào lương tháng 5.</div>
+                  <div class="notif-card__time">12/05 · 14:30</div>
+                </div>
+              </div>
+
+              <div class="notif-card">
+                <div class="notif-card__icon notif-card__icon--trip">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+                </div>
+                <div class="notif-card__body">
+                  <div class="notif-card__title">Chuyến đã chốt sổ</div>
+                  <div class="notif-card__desc">Chuyến HN → Hải Phòng (15/05) đã được kế toán chốt. Lương 320K ghi nhận.</div>
+                  <div class="notif-card__time">11/05 · 09:15</div>
+                </div>
+              </div>
+
+            </section>
+
+          </main>
+
+          <!-- ───────── BOTTOM TAB BAR ───────── -->
+          <nav class="tabbar" role="navigation" aria-label="Điều hướng chính">
+            <button class="tabbar__btn is-active" data-nav="home" aria-label="Trang chủ">
+              <div class="tabbar__icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              </div>
+              <span class="tabbar__label">Trang chủ</span>
+            </button>
+            <button class="tabbar__btn" data-nav="trips" aria-label="Lịch trình">
+              <div class="tabbar__icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              </div>
+              <span class="tabbar__label">Lịch trình</span>
+            </button>
+            <button class="tabbar__btn" data-nav="wallet" aria-label="Thu nhập">
+              <div class="tabbar__icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3"/><path d="M18 12a2 2 0 0 0 0 4h3v-4Z"/></svg>
+              </div>
+              <span class="tabbar__label">Thu nhập</span>
+            </button>
+            <button class="tabbar__btn" data-nav="penalty" aria-label="Kỷ luật">
+              <div class="tabbar__icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/></svg>
+              </div>
+              <span class="tabbar__label">Kỷ luật</span>
+              <span class="badge">2</span>
+            </button>
+          </nav>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════ SHOWCASE RIGHT ═════════ -->
+    <aside class="showcase-right">
+      <div class="legend">
+        <div class="legend__item">
+          <div class="legend__num">1</div>
+          <div class="legend__text"><strong>Trang chủ — chuyến đang chạy.</strong> Hiển thị chuyến đang vận chuyển kèm <strong>số dầu được cấp</strong>, tiền đi đường và loại rơ-mooc. Khớp Module 1.5.</div>
+        </div>
+        <div class="legend__item">
+          <div class="legend__num">2</div>
+          <div class="legend__text"><strong>Lịch trình — view-only.</strong> Mọi chuyến phân công, nhóm theo ngày. Tab lọc theo 5 trạng thái chuyến đi: Mới tạo · Đang chạy · Hoàn thành · Đã chốt · Đã hủy.</div>
+        </div>
+        <div class="legend__item">
+          <div class="legend__num">3</div>
+          <div class="legend__text"><strong>Thu nhập.</strong> Tổng kết tháng: lương cơ bản + lương sản lượng (theo chuyến) − phạt kỷ luật. Biểu đồ 6 tháng để so sánh xu hướng.</div>
+        </div>
+        <div class="legend__item">
+          <div class="legend__num">4</div>
+          <div class="legend__text"><strong>Kỷ luật.</strong> Tổng số vi phạm và mức phạt tích lũy. Lịch sử theo tháng. Khớp Module 7.3.</div>
+        </div>
+        <div class="legend__item">
+          <div class="legend__num">5</div>
+          <div class="legend__text"><strong>Không có nút nhập liệu.</strong> Tài xế chỉ-xem, không gửi báo cáo. Mọi cập nhật số liệu do kế toán nhập sau khi xe về.</div>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+</div>
+
+<script>
+  // ═══════ Screen navigation ═══════
+  const screens = document.querySelectorAll('.screen');
+  const tabBtns = document.querySelectorAll('.tabbar__btn');
+  const navTriggers = document.querySelectorAll('[data-nav]');
+
+  function showScreen(name) {
+    let found = false;
+    screens.forEach(s => {
+      const match = s.dataset.screen === name;
+      s.classList.toggle('is-active', match);
+      if (match) found = true;
+    });
+    if (!found) return;
+
+    tabBtns.forEach(b => {
+      b.classList.toggle('is-active', b.dataset.nav === name);
+    });
+
+    // Restart child fade-in animations
+    const active = document.querySelector('.screen.is-active');
+    if (active) {
+      const kids = active.children;
+      for (let i = 0; i < kids.length; i++) {
+        const el = kids[i];
+        el.style.animation = 'none';
+        // force reflow
+        void el.offsetWidth;
+        el.style.animation = '';
+      }
+    }
+
+    // Scroll to top
+    document.querySelector('.app__main').scrollTop = 0;
+  }
+
+  navTriggers.forEach(el => {
+    el.addEventListener('click', (e) => {
+      const target = el.dataset.nav;
+      if (target) {
+        e.preventDefault();
+        showScreen(target);
+      }
+    });
+  });
+</script>
+
+</body>
+</html>

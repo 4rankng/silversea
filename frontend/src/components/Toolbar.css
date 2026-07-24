@@ -1,0 +1,75 @@
+/* ============================================================================
+ * Toolbar — TingTing
+ * Extracted from UI.css during architecture refactoring (Phase 4)
+ * ========================================================================== */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.toolbar > .grow,
+.toolbar .toolbar-grow { flex: 1; min-width: 0; }
+.toolbar .toolbar-spacer,
+.toolbar .toolbar__spacer { flex: 1; }
+
+/* Toolbar inline search (BEM variant used in list pages) */
+.toolbar__search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  min-width: 180px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.toolbar__search:focus-within {
+  background: var(--surface);
+  border-color: var(--accent);
+  outline: 2px solid var(--accent-soft);
+  outline-offset: 2px;
+}
+.toolbar__search svg {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink-3);
+  pointer-events: none;
+  flex-shrink: 0;
+}
+.toolbar__search input {
+  width: 100%;
+  padding: 0 10px 0 32px;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: var(--fs-sm);
+  line-height: 1.35;
+  min-height: 44px;
+  color: var(--ink);
+  height: 100%;
+}
+.toolbar__search input::placeholder { color: var(--ink-3); }
+
+@media (max-width: 640px) {
+  .toolbar {
+    padding: 10px;
+  }
+
+  .toolbar__search {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+  }
+
+  .toolbar__search input {
+    font-size: 16px;
+    min-height: 44px;
+  }
+}

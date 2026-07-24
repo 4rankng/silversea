@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tạo lệnh vận chuyển mới · NEPO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green-900: #003D1F;
+    --green-800: #005A2D;
+    --green-700: #00803F;
+    --green-600: #16A34A;
+    --green-500: #22C55E;
+    --green-50: #ECFDF5;
+    --green-100: #D1FAE5;
+
+    --ink-900: #0F1611;
+    --ink-800: #1F2A22;
+    --ink-700: #374151;
+    --ink-600: #4B5563;
+    --ink-500: #6B7280;
+    --ink-400: #9CA3AF;
+    --ink-300: #D1D5DB;
+    --ink-200: #E5E7EB;
+    --ink-100: #F3F4F6;
+    --ink-50:  #F9FAFB;
+
+    --surface: #FFFFFF;
+    --bg: #F4F6F4;
+    --border: #E5E7EB;
+    --border-strong: #D1D5DB;
+
+    --red-600: #DC2626;
+    --amber-500: #F59E0B;
+    --blue-50: #EFF6FF;
+    --blue-600: #2563EB;
+
+    --shadow-sm: 0 1px 2px rgba(15,22,17,0.04);
+    --shadow-md: 0 4px 12px rgba(15,22,17,0.06);
+    --shadow-lg: 0 10px 30px rgba(15,22,17,0.08);
+    --radius-sm: 6px;
+    --radius: 10px;
+    --radius-lg: 14px;
+
+    --sidebar-w: 248px;
+    --rail-w: 320px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink-900);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: 'JetBrains Mono', monospace; font-feature-settings: "tnum"; }
+
+  /* ====== APP SHELL ====== */
+  .app { display: grid; grid-template-columns: var(--sidebar-w) 1fr; min-height: 100vh; }
+
+  /* SIDEBAR */
+  .sidebar {
+    background: linear-gradient(180deg, var(--green-800) 0%, var(--green-900) 100%);
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+  }
+  .sidebar-brand {
+    padding: 18px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .brand-mark {
+    width: 36px; height: 36px; border-radius: 8px;
+    background: rgba(255,255,255,0.12);
+    display: grid; place-items: center;
+    font-size: 18px;
+  }
+  .brand-text .name { font-weight: 800; letter-spacing: 0.5px; font-size: 15px; }
+  .brand-text .sub { font-size: 10px; opacity: 0.65; letter-spacing: 1.5px; text-transform: uppercase; }
+
+  .nav-section { padding: 16px 12px 4px; }
+  .nav-label { font-size: 10px; letter-spacing: 1.5px; opacity: 0.55; padding: 0 10px 8px; text-transform: uppercase; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px; border-radius: 8px;
+    color: rgba(255,255,255,0.78);
+    text-decoration: none; font-size: 13.5px; font-weight: 500;
+    margin-bottom: 2px;
+    transition: all 0.15s;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+  .nav-item.active {
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    box-shadow: inset 3px 0 0 var(--green-500);
+  }
+  .nav-item .ico { width: 16px; height: 16px; opacity: 0.9; }
+  .nav-item .badge {
+    margin-left: auto;
+    background: var(--green-500); color: var(--green-900);
+    padding: 1px 7px; border-radius: 20px;
+    font-size: 11px; font-weight: 700;
+  }
+
+  .sidebar-user {
+    margin-top: auto;
+    padding: 14px 16px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .avatar {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: rgba(255,255,255,0.12);
+    display: grid; place-items: center; font-weight: 600;
+  }
+  .user-info .name { font-size: 13px; font-weight: 600; }
+  .user-info .email { font-size: 11px; opacity: 0.65; }
+  .icon-btn-light {
+    margin-left: auto; background: transparent; border: 0; color: rgba(255,255,255,0.6);
+    width: 28px; height: 28px; border-radius: 6px; cursor: pointer;
+  }
+  .icon-btn-light:hover { background: rgba(255,255,255,0.08); color: #fff; }
+
+  /* ====== MAIN ====== */
+  .main { display: flex; flex-direction: column; min-width: 0; }
+
+  /* TOPBAR */
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 28px;
+    display: flex; align-items: center; gap: 16px;
+    position: sticky; top: 0; z-index: 30;
+  }
+  .menu-btn {
+    width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface); cursor: pointer; display: grid; place-items: center;
+    color: var(--ink-600);
+  }
+  .breadcrumbs { display: flex; align-items: center; gap: 8px; color: var(--ink-500); font-size: 13px; }
+  .breadcrumbs .crumb-current { color: var(--ink-900); font-weight: 600; }
+  .breadcrumbs .sep { opacity: 0.4; }
+
+  .search-box {
+    flex: 1; max-width: 420px; margin-left: auto;
+    position: relative;
+  }
+  .search-box input {
+    width: 100%; padding: 9px 14px 9px 38px;
+    background: var(--ink-50); border: 1px solid var(--border);
+    border-radius: 8px; font-family: inherit; font-size: 13px;
+    color: var(--ink-900);
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .search-box input:focus { outline: none; border-color: var(--green-600); background: #fff; }
+  .search-box .ico { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--ink-400); }
+  .kbd { position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    background: #fff; border: 1px solid var(--border); border-radius: 4px;
+    padding: 1px 6px; font-size: 11px; color: var(--ink-500); font-family: 'JetBrains Mono', monospace; }
+
+  .topbar-actions { display: flex; align-items: center; gap: 10px; }
+  .date-chip {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 12px; background: var(--ink-50); border: 1px solid var(--border);
+    border-radius: 8px; font-size: 12.5px; color: var(--ink-700);
+  }
+  .date-chip .month { color: var(--ink-500); }
+  .date-chip .day { font-weight: 600; color: var(--ink-900); }
+  .icon-btn {
+    width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface); cursor: pointer; display: grid; place-items: center;
+    color: var(--ink-600); position: relative;
+  }
+  .icon-btn:hover { background: var(--ink-50); }
+  .notif-dot { position: absolute; top: 4px; right: 4px; width: 16px; height: 16px;
+    background: var(--green-600); color: #fff; border-radius: 50%;
+    font-size: 10px; font-weight: 700; display: grid; place-items: center; }
+
+  /* PAGE HEADER */
+  .page-head {
+    padding: 22px 28px 8px;
+    display: flex; align-items: flex-start; gap: 16px;
+  }
+  .back-btn {
+    width: 38px; height: 38px; border-radius: 10px;
+    background: var(--surface); border: 1px solid var(--border);
+    cursor: pointer; display: grid; place-items: center;
+    color: var(--ink-700);
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .back-btn:hover { background: var(--ink-50); transform: translateX(-2px); }
+  .page-title-wrap { flex: 1; min-width: 0; }
+  .page-title {
+    margin: 0;
+    font-size: 24px; font-weight: 700; letter-spacing: -0.02em;
+    color: var(--ink-900);
+    line-height: 1.2;
+  }
+  .page-sub {
+    margin: 4px 0 0; font-size: 13.5px; color: var(--ink-500);
+  }
+
+  /* PROGRESS PILL */
+  .progress-pills {
+    display: flex; gap: 6px; align-items: center;
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 6px 10px; border-radius: 999px;
+    font-size: 12px; color: var(--ink-600);
+  }
+  .pill-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-300); }
+  .pill-dot.done { background: var(--green-500); }
+  .pill-dot.active { background: var(--green-600); box-shadow: 0 0 0 3px var(--green-100); }
+
+  /* ====== CONTENT GRID ====== */
+  .content {
+    padding: 12px 28px 120px; /* bottom padding for sticky bar */
+    display: grid;
+    grid-template-columns: 1fr var(--rail-w);
+    gap: 24px;
+    align-items: start;
+    max-width: 1600px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  /* CARD */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .card-head {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .card-head .num {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: var(--green-50); color: var(--green-800);
+    display: grid; place-items: center;
+    font-weight: 700; font-size: 13px;
+    border: 1px solid var(--green-100);
+  }
+  .card-head .title {
+    font-size: 15px; font-weight: 700; color: var(--ink-900);
+  }
+  .card-head .sub {
+    font-size: 12.5px; color: var(--ink-500); margin-top: 1px;
+  }
+  .card-head .text { flex: 1; min-width: 0; }
+  .card-head .action {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 12px; border-radius: 8px;
+    background: var(--green-50); color: var(--green-800);
+    border: 1px solid var(--green-100);
+    font-size: 12.5px; font-weight: 600;
+    cursor: pointer;
+  }
+  .card-head .action:hover { background: var(--green-100); }
+
+  .badge-required {
+    background: #FEF2F2; color: var(--red-600);
+    font-size: 10.5px; font-weight: 700; padding: 3px 8px;
+    border-radius: 4px; letter-spacing: 0.5px; text-transform: uppercase;
+  }
+  .badge-optional {
+    background: var(--ink-50); color: var(--ink-500);
+    font-size: 10.5px; font-weight: 600; padding: 3px 8px;
+    border-radius: 4px; letter-spacing: 0.5px; text-transform: uppercase;
+  }
+
+  .card-body { padding: 20px; }
+
+  /* FORM */
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .form-row.three { grid-template-columns: 1fr 1fr 1fr; }
+  .form-row.split-3-2 { grid-template-columns: 1.4fr 1fr; }
+
+  .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .field label {
+    font-size: 12.5px; font-weight: 600; color: var(--ink-700);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .field label .req { color: var(--red-600); }
+  .field label .hint { color: var(--ink-400); font-weight: 400; font-size: 11.5px; }
+  .input, .select, .textarea {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 13.5px;
+    color: var(--ink-900);
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  }
+  .input.mono { font-family: 'JetBrains Mono', monospace; }
+  .input:hover, .select:hover, .textarea:hover { border-color: var(--ink-400); }
+  .input:focus, .select:focus, .textarea:focus {
+    outline: none;
+    border-color: var(--green-600);
+    box-shadow: 0 0 0 3px var(--green-100);
+  }
+  .input::placeholder, .textarea::placeholder { color: var(--ink-400); }
+  .input-prefix {
+    position: relative;
+  }
+  .input-prefix .prefix-label {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    font-size: 11.5px; color: var(--ink-500); font-weight: 600;
+    pointer-events: none;
+  }
+  .input-prefix input { padding-right: 48px; }
+
+  .select {
+    appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%236B7280' d='M5 6L0 0h10z'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+    cursor: pointer;
+  }
+
+  .field-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* CHECKBOX FIX (the original had collision) */
+  .checkbox-card {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 11px 12px;
+    background: var(--ink-50);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .checkbox-card:hover { background: #fff; border-color: var(--ink-400); }
+  .checkbox-card input { margin-top: 2px; accent-color: var(--green-700); width: 16px; height: 16px; cursor: pointer; }
+  .checkbox-card .cb-text { display: flex; flex-direction: column; gap: 1px; }
+  .checkbox-card .cb-text .lbl { font-size: 13px; font-weight: 600; color: var(--ink-800); }
+  .checkbox-card .cb-text .desc { font-size: 11.5px; color: var(--ink-500); }
+
+  /* JOURNEY EMPTY STATE */
+  .journey-empty {
+    padding: 32px 24px;
+    border: 2px dashed var(--border-strong);
+    border-radius: 12px;
+    background: var(--ink-50);
+    display: flex; align-items: center; gap: 20px;
+  }
+  .journey-empty .illustration {
+    width: 80px; height: 60px;
+    background: var(--surface);
+    border-radius: 10px;
+    display: grid; place-items: center;
+    position: relative;
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .route-svg { width: 60px; height: 40px; }
+  .journey-empty .text { flex: 1; }
+  .journey-empty h4 { margin: 0 0 4px; font-size: 14.5px; font-weight: 700; color: var(--ink-800); }
+  .journey-empty p { margin: 0; font-size: 12.5px; color: var(--ink-500); }
+  .journey-empty .btn { white-space: nowrap; }
+
+  /* SUGGESTED ROUTES */
+  .route-suggest {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px;
+  }
+  .route-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 10px;
+    background: #fff; border: 1px solid var(--border);
+    border-radius: 999px; font-size: 12px; color: var(--ink-700);
+    cursor: pointer; transition: all 0.15s;
+  }
+  .route-chip:hover { background: var(--green-50); border-color: var(--green-600); color: var(--green-800); }
+  .route-chip .arrow { color: var(--ink-400); }
+
+  /* FUEL MODE TABS */
+  .fuel-mode {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    background: var(--ink-50);
+    padding: 4px;
+    border-radius: 10px;
+    margin-bottom: 16px;
+  }
+  .fuel-mode label {
+    cursor: pointer;
+    padding: 10px 12px;
+    border-radius: 7px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-600);
+    transition: all 0.15s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .fuel-mode input { display: none; }
+  .fuel-mode input:checked + label {
+    background: var(--surface);
+    color: var(--green-800);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* UPLOAD ZONE */
+  .upload-zone {
+    border: 2px dashed var(--border-strong);
+    border-radius: 12px;
+    background: var(--ink-50);
+    padding: 28px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .upload-zone:hover { background: var(--green-50); border-color: var(--green-600); }
+  .upload-zone .ico-wrap {
+    width: 44px; height: 44px; margin: 0 auto 10px;
+    background: var(--surface); border-radius: 10px;
+    display: grid; place-items: center; color: var(--green-700);
+    border: 1px solid var(--border);
+  }
+  .upload-zone .main-text { font-size: 13.5px; font-weight: 600; color: var(--ink-800); }
+  .upload-zone .sub-text { font-size: 12px; color: var(--ink-500); margin-top: 2px; }
+  .upload-zone .formats { font-size: 11px; color: var(--ink-400); margin-top: 8px; }
+
+  /* ====== RIGHT RAIL (SUMMARY) ====== */
+  .rail {
+    position: sticky;
+    top: 76px; /* below topbar */
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .summary-card {
+    background: var(--ink-900);
+    color: #fff;
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .summary-card::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 160px; height: 160px;
+    background: radial-gradient(circle, var(--green-700) 0%, transparent 70%);
+    opacity: 0.35;
+    pointer-events: none;
+  }
+  .summary-card h3 {
+    margin: 0 0 4px;
+    font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: rgba(255,255,255,0.5);
+    font-weight: 600;
+  }
+  .summary-card .big {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 28px; font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 6px 0 2px;
+  }
+  .summary-card .currency { font-size: 14px; opacity: 0.6; margin-left: 6px; }
+  .summary-card .label-mini {
+    font-size: 12px; color: rgba(255,255,255,0.55);
+  }
+  .summary-rows {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    display: flex; flex-direction: column; gap: 10px;
+    position: relative; z-index: 1;
+  }
+  .summary-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 12.5px;
+  }
+  .summary-row .lbl { color: rgba(255,255,255,0.65); display: flex; align-items: center; gap: 6px; }
+  .summary-row .val { font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+  .summary-row .val.neg { color: #FCA5A5; }
+  .summary-row .val.pos { color: var(--green-500); }
+  .summary-row.total {
+    margin-top: 6px; padding-top: 12px;
+    border-top: 1px dashed rgba(255,255,255,0.15);
+    font-size: 14px; font-weight: 700;
+  }
+  .summary-row.total .val { color: var(--green-500); font-size: 16px; }
+
+  /* CHECKLIST */
+  .checklist {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px;
+  }
+  .checklist h4 {
+    margin: 0 0 12px; font-size: 12px; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--ink-500);
+    font-weight: 700;
+  }
+  .check-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 0;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--ink-700);
+    text-decoration: none;
+  }
+  .check-item:hover { color: var(--ink-900); }
+  .check-item .dot {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 1.5px solid var(--ink-300);
+    display: grid; place-items: center; flex-shrink: 0;
+    transition: all 0.15s;
+  }
+  .check-item.done .dot {
+    background: var(--green-600); border-color: var(--green-600);
+    color: #fff;
+  }
+  .check-item.active .dot {
+    border-color: var(--green-600);
+    box-shadow: 0 0 0 3px var(--green-100);
+  }
+  .check-item .name { flex: 1; }
+  .check-item .badge-req {
+    font-size: 10px; color: var(--red-600); font-weight: 700; letter-spacing: 0.5px;
+  }
+
+  /* TIP CARD */
+  .tip-card {
+    background: var(--blue-50);
+    border: 1px solid #DBEAFE;
+    border-radius: 12px;
+    padding: 14px;
+    display: flex; gap: 10px;
+    font-size: 12.5px; color: #1E3A8A;
+  }
+  .tip-card .ico { color: var(--blue-600); flex-shrink: 0; margin-top: 1px; }
+  .tip-card strong { color: #1E40AF; }
+
+  /* ====== STICKY ACTION BAR ====== */
+  .action-bar {
+    position: fixed;
+    bottom: 0; left: var(--sidebar-w); right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 14px 28px;
+    display: flex; align-items: center; gap: 16px;
+    box-shadow: 0 -4px 20px rgba(15,22,17,0.04);
+    z-index: 20;
+  }
+  .action-bar .status {
+    display: flex; align-items: center; gap: 12px;
+    font-size: 13px; color: var(--ink-600);
+  }
+  .action-bar .status-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: #FEF3C7; color: var(--amber-500);
+    display: grid; place-items: center;
+  }
+  .action-bar .status .main { font-weight: 600; color: var(--ink-800); }
+  .action-bar .status .sub { font-size: 11.5px; color: var(--ink-500); }
+  .action-bar .spacer { flex: 1; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 18px;
+    border-radius: 9px;
+    font-family: inherit; font-size: 13.5px; font-weight: 600;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-primary {
+    background: var(--green-700);
+    color: #fff;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.1), 0 2px 8px rgba(0,128,63,0.25);
+  }
+  .btn-primary:hover { background: var(--green-800); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--ink-700);
+  }
+  .btn-ghost:hover { background: var(--ink-100); }
+  .btn-secondary {
+    background: var(--surface);
+    color: var(--ink-800);
+    border-color: var(--border-strong);
+  }
+  .btn-secondary:hover { background: var(--ink-50); }
+
+  /* DIVIDER LABEL */
+  .section-divider {
+    display: flex; align-items: center; gap: 12px;
+    margin: 24px 0 12px;
+  }
+  .section-divider .line { flex: 1; height: 1px; background: var(--border); }
+  .section-divider .text {
+    font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--ink-500); font-weight: 700;
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 1280px) {
+    .content { grid-template-columns: 1fr; }
+    .rail { position: static; }
+  }
+  @media (max-width: 880px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .action-bar { left: 0; }
+    .form-row, .form-row.three { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">🚛</div>
+      <div class="brand-text">
+        <div class="name">TingTing</div>
+        <div class="sub">Logistics System</div>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Vận hành</div>
+      <a class="nav-item"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Tổng quan</a>
+      <a class="nav-item"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h13l5 6v6H3zM7 18a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm10 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></svg>Phân xe<span class="badge">9</span></a>
+      <a class="nav-item active"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h12l4 4v12H4zM4 12h16M8 4v8"/></svg>Sổ chuyến đi</a>
+      <a class="nav-item"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l9 4-9 4-9-4zM3 7v8l9 4 9-4V7"/></svg>Kỷ luật</a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Tài chính</div>
+      <a class="nav-item"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/></svg>Báo cáo lãi lỗ</a>
+      <a class="nav-item"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Phân chia lợi nhuận</a>
+      <a class="nav-item"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/></svg>Công nợ phải thu</a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Danh mục</div>
+      <a class="nav-item"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2M17 11a4 4 0 0 0 0-8M22 21v-2a4 4 0 0 0-3-3.87"/></svg>Khách hàng</a>
+      <a class="nav-item"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l-6 6 6 6M15 6l6 6-6 6"/></svg>Tuyến đường</a>
+      <a class="nav-item"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Cấu hình</a>
+      <a class="nav-item"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2"/></svg>Người dùng</a>
+      <a class="nav-item"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>Nhật ký hệ thống</a>
+    </div>
+
+    <div class="sidebar-user">
+      <div class="avatar">Q</div>
+      <div class="user-info">
+        <div class="name">Quản lý</div>
+        <div class="email">giamdoc@nepo.vn</div>
+      </div>
+      <button class="icon-btn-light" aria-label="Đăng xuất">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ===== MAIN ===== -->
+  <main class="main">
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <button class="menu-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg></button>
+      <nav class="breadcrumbs">
+        <span>NEPO</span>
+        <svg class="sep" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        <span>Sổ chuyến đi</span>
+        <svg class="sep" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        <span class="crumb-current">Tạo lệnh mới</span>
+      </nav>
+      <div class="search-box">
+        <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input type="text" placeholder="Tìm chuyến đi, khách hàng, xe…" />
+        <span class="kbd">⌘K</span>
+      </div>
+      <div class="topbar-actions">
+        <div class="date-chip">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          <span class="month">Tháng 5</span>·<span class="day">27/5/2026</span>
+        </div>
+        <button class="icon-btn" aria-label="Trợ giúp">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/></svg>
+        </button>
+        <button class="icon-btn" aria-label="Thông báo">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span class="notif-dot">5</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- PAGE HEADER -->
+    <header class="page-head">
+      <button class="back-btn" aria-label="Quay lại">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </button>
+      <div class="page-title-wrap">
+        <h1 class="page-title">Tạo lệnh vận chuyển mới</h1>
+        <p class="page-sub">Điền các trường bắt buộc để tạo lệnh. Thông tin nhiên liệu, vé đường và ảnh có thể bổ sung sau.</p>
+      </div>
+      <div class="progress-pills">
+        <span class="pill-dot done"></span>
+        <span class="pill-dot active"></span>
+        <span class="pill-dot"></span>
+        <span class="pill-dot"></span>
+        <span style="margin-left:6px"><strong style="color:var(--ink-900)">1</strong>/<span style="color:var(--ink-500)">4</span> hoàn tất</span>
+      </div>
+    </header>
+
+    <!-- CONTENT GRID -->
+    <div class="content">
+
+      <!-- ============ LEFT COLUMN: FORM ============ -->
+      <div class="form-col">
+
+        <!-- CARD 1: MAIN INFO + VEHICLE (combined into one wider card) -->
+        <section class="card">
+          <div class="card-head">
+            <span class="num">1</span>
+            <div class="text">
+              <div class="title">Thông tin chuyến đi</div>
+              <div class="sub">Khách hàng, tuyến, hàng hóa và phương tiện</div>
+            </div>
+            <span class="badge-required">Bắt buộc</span>
+          </div>
+          <div class="card-body">
+            <div class="form-row">
+              <!-- LEFT: Trip info -->
+              <div>
+                <div style="display:flex; flex-direction:column; gap:14px;">
+                  <div class="field">
+                    <label>Khách hàng <span class="req">*</span></label>
+                    <select class="select"><option>Chọn khách hàng</option></select>
+                  </div>
+                  <div class="field">
+                    <label>Tuyến đường <span class="req">*</span></label>
+                    <select class="select"><option>Chọn tuyến đường</option></select>
+                    <div class="route-suggest">
+                      <span class="route-chip">Hà Nội <span class="arrow">→</span> Hải Phòng</span>
+                      <span class="route-chip">Hà Nội <span class="arrow">→</span> Lào Cai</span>
+                      <span class="route-chip">Hà Nội <span class="arrow">→</span> Quảng Ninh</span>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label>Loại hàng <span class="req">*</span></label>
+                    <select class="select"><option>Chọn loại hàng</option></select>
+                  </div>
+                  <div class="field">
+                    <label>Mã tham chiếu khách hàng <span class="hint">(không bắt buộc)</span></label>
+                    <input class="input mono" type="text" placeholder="VD: PO-12345" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- RIGHT: Vehicle & driver -->
+              <div>
+                <div style="display:flex; flex-direction:column; gap:14px;">
+                  <div class="field">
+                    <label>Xe đầu <span class="req">*</span></label>
+                    <select class="select"><option>Chọn xe đầu</option></select>
+                  </div>
+                  <div class="field">
+                    <label>Rơ moóc <span class="req">*</span></label>
+                    <select class="select"><option>Chọn rơ moóc</option></select>
+                  </div>
+                  <div class="field">
+                    <label>Tài xế <span class="req">*</span></label>
+                    <select class="select"><option>Chọn tài xế</option></select>
+                  </div>
+                  <div class="field">
+                    <label>Ngày khởi hành <span class="req">*</span></label>
+                    <input class="input mono" type="date" value="2026-05-27" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="section-divider">
+          <div class="line"></div>
+          <span class="text">Các mục dưới đây là tùy chọn — có thể bổ sung sau khi tạo lệnh</span>
+          <div class="line"></div>
+        </div>
+
+        <!-- CARD 2: HÀNH TRÌNH -->
+        <section class="card">
+          <div class="card-head">
+            <span class="num">2</span>
+            <div class="text">
+              <div class="title">Hành trình chi tiết</div>
+              <div class="sub">Khai báo các chặng đường, cự ly và tải trọng</div>
+            </div>
+            <span class="badge-optional">Tùy chọn</span>
+            <button class="action">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+              Thêm chặng
+            </button>
+          </div>
+          <div class="card-body">
+            <div class="journey-empty">
+              <div class="illustration">
+                <svg class="route-svg" viewBox="0 0 60 40">
+                  <circle cx="8" cy="32" r="4" fill="#16A34A"/>
+                  <path d="M8 28 Q 15 8, 30 20 T 52 8" stroke="#9CA3AF" stroke-width="2" stroke-dasharray="3,3" fill="none"/>
+                  <circle cx="52" cy="8" r="4" fill="#DC2626"/>
+                </svg>
+              </div>
+              <div class="text">
+                <h4>Chưa có chặng nào</h4>
+                <p>Khai báo từng chặng để tự động tính nhiên liệu theo định mức × Km. Bạn cũng có thể bỏ qua và nhập thủ công.</p>
+              </div>
+              <button class="btn btn-secondary">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                Thêm chặng đầu tiên
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- CARD 3: NHIÊN LIỆU + VÉ + DOANH THU (one card, 3 columns) -->
+        <section class="card">
+          <div class="card-head">
+            <span class="num">3</span>
+            <div class="text">
+              <div class="title">Nhiên liệu, vé đường & doanh thu</div>
+              <div class="sub">Định mức, chi phí đường bộ và doanh thu chuyến</div>
+            </div>
+            <span class="badge-optional">Tùy chọn</span>
+          </div>
+          <div class="card-body">
+
+            <!-- FUEL MODE TABS (replaces awkward select) -->
+            <label style="font-size:12.5px; font-weight:600; color:var(--ink-700); display:block; margin-bottom:8px;">
+              Chế độ tính dầu
+            </label>
+            <div class="fuel-mode">
+              <input type="radio" name="fuelmode" id="auto" checked>
+              <label for="auto">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                Tự động (Định mức × Km chặng)
+              </label>
+              <input type="radio" name="fuelmode" id="manual">
+              <label for="manual">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4z"/></svg>
+                Thủ công
+              </label>
+            </div>
+
+            <div class="form-row three">
+              <div class="field">
+                <label>Số lít bổ sung</label>
+                <div class="input-prefix">
+                  <input class="input mono" type="text" placeholder="3" />
+                  <span class="prefix-label">L</span>
+                </div>
+              </div>
+              <div class="field" style="grid-column: span 2;">
+                <label>Lý do bổ sung</label>
+                <input class="input" type="text" placeholder="VD: Chạy máy lạnh kéo dài" />
+              </div>
+            </div>
+
+            <div class="section-divider" style="margin: 20px 0 14px;">
+              <div class="line"></div>
+              <span class="text">Vé đường bộ & doanh thu</span>
+              <div class="line"></div>
+            </div>
+
+            <div class="form-row three">
+              <div class="field">
+                <label>Tăng vé theo lệnh</label>
+                <div class="input-prefix">
+                  <input class="input mono" type="text" placeholder="150,000" />
+                  <span class="prefix-label">₫</span>
+                </div>
+              </div>
+              <div class="field">
+                <label>Giảm vé QL5</label>
+                <div class="input-prefix">
+                  <input class="input mono" type="text" placeholder="40,000" />
+                  <span class="prefix-label">₫</span>
+                </div>
+              </div>
+              <div class="field">
+                <label>Số trạm thu phí</label>
+                <input class="input mono" type="text" placeholder="4" />
+              </div>
+
+              <div class="field">
+                <label>Lương sản lượng tài xế</label>
+                <div class="input-prefix">
+                  <input class="input mono" type="text" placeholder="850,000" />
+                  <span class="prefix-label">₫</span>
+                </div>
+              </div>
+              <div class="field">
+                <label>Doanh thu chuyến</label>
+                <div class="input-prefix">
+                  <input class="input mono" type="text" placeholder="4,200,000" />
+                  <span class="prefix-label">₫</span>
+                </div>
+              </div>
+              <!-- FIXED: checkbox is now its own card, no label collision -->
+              <label class="checkbox-card" for="cb-return">
+                <input type="checkbox" id="cb-return" />
+                <div class="cb-text">
+                  <div class="lbl">Chuyến về có hàng</div>
+                  <div class="desc">Áp dụng định mức chuyến đôi</div>
+                </div>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <!-- CARD 4: ATTACHMENTS + NOTES -->
+        <section class="card">
+          <div class="card-head">
+            <span class="num">4</span>
+            <div class="text">
+              <div class="title">Hình ảnh & ghi chú</div>
+              <div class="sub">Ảnh đính kèm và lưu ý chuyến đi</div>
+            </div>
+            <span class="badge-optional">Tùy chọn</span>
+          </div>
+          <div class="card-body">
+            <div class="form-row split-3-2">
+              <div class="field">
+                <label>Ghi chú chuyến đi</label>
+                <textarea class="textarea" rows="7" placeholder="Ghi chú chi tiết chuyến đi, các lưu ý đặc biệt, yêu cầu của khách hàng…"></textarea>
+              </div>
+              <div class="field">
+                <label>Ảnh đính kèm</label>
+                <div class="upload-zone">
+                  <div class="ico-wrap">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+                  </div>
+                  <div class="main-text">Kéo & thả ảnh vào đây</div>
+                  <div class="sub-text">hoặc bấm để chọn từ máy</div>
+                  <div class="formats">PNG, JPG, HEIC · tối đa 10 ảnh</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- ============ RIGHT RAIL ============ -->
+      <aside class="rail">
+
+        <!-- LIVE SUMMARY -->
+        <div class="summary-card">
+          <h3>Ước tính lệnh</h3>
+          <div class="big mono">4.200.000<span class="currency">₫</span></div>
+          <div class="label-mini">Doanh thu chuyến · chưa trừ chi phí</div>
+
+          <div class="summary-rows">
+            <div class="summary-row">
+              <span class="lbl">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                Nhiên liệu (ước)
+              </span>
+              <span class="val neg">−1.250.000</span>
+            </div>
+            <div class="summary-row">
+              <span class="lbl">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M3 12h18"/></svg>
+                Vé đường (4 trạm)
+              </span>
+              <span class="val neg">−110.000</span>
+            </div>
+            <div class="summary-row">
+              <span class="lbl">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2"/></svg>
+                Lương tài xế
+              </span>
+              <span class="val neg">−850.000</span>
+            </div>
+            <div class="summary-row total">
+              <span class="lbl" style="color:rgba(255,255,255,0.85)">Lợi nhuận dự kiến</span>
+              <span class="val pos">+1.990.000</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- CHECKLIST -->
+        <div class="checklist">
+          <h4>Hoàn tất lệnh</h4>
+          <a class="check-item done">
+            <span class="dot">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>
+            </span>
+            <span class="name">Thông tin chính</span>
+            <span style="font-size:11px; color:var(--green-600); font-weight:600;">8/8</span>
+          </a>
+          <a class="check-item active">
+            <span class="dot"></span>
+            <span class="name">Hành trình chi tiết</span>
+            <span style="font-size:11px; color:var(--ink-400)">0 chặng</span>
+          </a>
+          <a class="check-item">
+            <span class="dot"></span>
+            <span class="name">Nhiên liệu & doanh thu</span>
+            <span style="font-size:11px; color:var(--ink-400)">2/8</span>
+          </a>
+          <a class="check-item">
+            <span class="dot"></span>
+            <span class="name">Hình ảnh & ghi chú</span>
+            <span style="font-size:11px; color:var(--ink-400)">—</span>
+          </a>
+        </div>
+
+        <!-- TIP -->
+        <div class="tip-card">
+          <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          <div>
+            <strong>Mẹo:</strong> Chọn <strong>tuyến đường</strong> để tự động điền số trạm thu phí, định mức dầu và lương sản lượng từ cấu hình tuyến.
+          </div>
+        </div>
+
+      </aside>
+
+    </div>
+
+    <!-- ===== STICKY ACTION BAR ===== -->
+    <div class="action-bar">
+      <div class="status">
+        <div class="status-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+        </div>
+        <div>
+          <div class="main">Còn 8 trường bắt buộc chưa điền</div>
+          <div class="sub">Bản nháp được lưu tự động lúc 14:32</div>
+        </div>
+      </div>
+      <div class="spacer"></div>
+      <button class="btn btn-ghost">Hủy</button>
+      <button class="btn btn-secondary">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+        Lưu nháp
+      </button>
+      <button class="btn btn-primary">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+        Tạo lệnh
+      </button>
+    </div>
+
+  </main>
+</div>
+
+</body>
+</html>

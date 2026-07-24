@@ -1,0 +1,241 @@
+/* ============================================================================
+ * ForwarderTripsPage (.ftrip-page)
+ * Vantai design system: hero KPI row, glassmorphism cards, status strips.
+ * ========================================================================== */
+
+/* ── Trip cards ──────────────────────────────────────────────────────────── */
+.ftrip-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: border-color var(--t-normal, 180ms ease),
+              box-shadow var(--t-normal, 180ms ease),
+              transform var(--t-normal, 180ms ease);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 1px rgba(0, 0, 0, 0.03);
+}
+
+.ftrip-card:hover {
+  border-color: var(--line-2);
+  box-shadow: 0 4px 16px -4px rgba(9, 9, 11, 0.06);
+  transform: translateY(-2px);
+}
+
+/* Icon tile */
+.ftrip-card__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--accent-soft, #E6F7EE);
+  color: var(--accent, #00B14F);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+  transition: background var(--t-fast, 120ms ease), color var(--t-fast, 120ms ease);
+}
+
+.ftrip-card:hover .ftrip-card__icon {
+  background: var(--accent, #00B14F);
+  color: var(--fg-on-brand);
+}
+
+/* Arrow slide on hover */
+.ftrip-card:hover .driver-trip-card__arrow {
+  color: var(--accent, #00B14F);
+  transform: translateX(2px);
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .hero-kpi-stack {
+    flex-direction: row;
+  }
+
+  .driver-trip-card__body {
+    padding: 14px 16px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .ftrip-card__icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+  }
+
+  .driver-trip-card__arrow {
+    display: none;
+  }
+}
+
+/* ── Reduced motion ──────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .ftrip-card { transition: none; }
+  .hero-kpi-mini { transition: none; }
+}
+
+/* ============================================================================
+ * N4: Search + date-range filter bar and payment/approval row coloring.
+ * Row colors use design-system tokens (--success-soft / --warning-soft) and
+ * higher-specificity compound selectors (.ftrip-card.fwd-row--*) so they win
+ * over the base translucent card background without `!important`.
+ * ========================================================================== */
+
+/* ── Filter bar ── */
+.fwd-trip-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 16px;
+}
+
+.fwd-trip-filters__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 280px;
+  min-width: 220px;
+  padding: 8px 12px;
+  min-height: 44px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink-3, var(--fg-3, #6b7280));
+}
+
+.fwd-trip-filters__search input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  min-height: 44px;
+  line-height: 1.35;
+  color: var(--ink, var(--fg, #111827));
+}
+
+.fwd-trip-filters__dates {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.fwd-trip-filters__date {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink-3, var(--fg-3, #6b7280));
+}
+
+.fwd-trip-filters__date input {
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  min-height: 44px;
+  color: var(--ink, var(--fg, #111827));
+  outline: none;
+}
+
+.fwd-trip-filters__date input:focus {
+  border-color: var(--accent, #00B14F);
+}
+
+.fwd-row-legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin: -2px 0 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  color: var(--ink-2, #475569);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.fwd-row-legend__label {
+  color: var(--ink, #0f172a);
+  font-weight: 800;
+}
+
+.fwd-row-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fwd-row-legend__swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 5px;
+  border: 1px solid currentColor;
+  flex: 0 0 auto;
+}
+
+.fwd-row-legend__swatch--pending {
+  background: var(--warning-soft, #FFF4E0);
+  color: var(--warning, #F5A623);
+}
+
+.fwd-row-legend__swatch--paid {
+  background: var(--success-soft, #E6F7EE);
+  color: var(--success, #00B14F);
+}
+
+@media (max-width: 640px) {
+  .fwd-trip-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .fwd-trip-filters__search {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 44px;
+  }
+  .fwd-trip-filters__search input {
+    min-height: 44px;
+  }
+  .fwd-trip-filters__dates {
+    justify-content: space-between;
+  }
+
+  .fwd-row-legend {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
+  }
+}
+
+/* ── Row coloring by derived payment/approval status ── */
+/* paid (green tint): at least one expense on an APPROVED settlement */
+.ftrip-card.fwd-row--paid {
+  background: var(--success-soft, #E6F7EE);
+  border-color: var(--success, #00B14F);
+}
+
+/* pending (yellow tint): PENDING expense or non-APPROVED settlement */
+.ftrip-card.fwd-row--pending {
+  background: var(--warning-soft, #FFF4E0);
+  border-color: var(--warning, #F5A623);
+}
+
+/* Keep the hover lift but tint the border to match the row state */
+.ftrip-card.fwd-row--paid:hover {
+  border-color: var(--success, #00B14F);
+}
+
+.ftrip-card.fwd-row--pending:hover {
+  border-color: var(--warning, #F5A623);
+}

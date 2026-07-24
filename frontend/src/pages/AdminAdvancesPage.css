@@ -1,0 +1,409 @@
+/* ============================================================================
+ * AdminAdvancesPage (.adv-page)
+ * BEM-scoped styles: desktop CSS-grid table + mobile stacked cards.
+ * Design tokens from styles/tokens.css; responsive breakpoints match
+ * TripListPage (≤760px for mobile card switch).
+ * ========================================================================== */
+
+.adv-page .adv-panel {
+  background: linear-gradient(180deg, var(--surface), rgba(248, 250, 249, 0.94));
+  border: 1px solid var(--line);
+  border-radius: 14px;       /* matches dashboard --wf-radius */
+  overflow: hidden;
+  box-shadow: var(--sh-sm);
+  min-height: 280px;
+}
+
+/* page-header / page-title / page-subtitle sizes come from global UI.css */
+
+/* ── KPI row grid ──────────────────────────────────────────────────────── */
+.adv-page .adv-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+/* ── AdvKPI component — exact same sizing as .dash-wf .wf-kpi ─────────── */
+.adv-page .adv-kpi {
+  --stat-rail: var(--accent);
+  --stat-tint: var(--accent-soft);
+  --stat-ink: var(--accent);
+  background: linear-gradient(180deg, var(--surface), rgba(248, 250, 249, 0.94));
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--sh-sm);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: background var(--t-fast), box-shadow var(--t-fast);
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+}
+.adv-page .adv-kpi__asset {
+  position: absolute;
+  right: 12px;
+  bottom: 8px;
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+  opacity: 0.18;
+  pointer-events: none;
+}
+.adv-page .adv-kpi--warn {
+  --stat-rail: var(--warning);
+  --stat-tint: var(--warning-soft);
+  --stat-ink: var(--warning-text);
+}
+.adv-page .adv-kpi--success {
+  --stat-rail: var(--success);
+  --stat-tint: var(--success-soft);
+  --stat-ink: var(--success);
+}
+.adv-page .adv-kpi--danger {
+  --stat-rail: var(--danger);
+  --stat-tint: var(--danger-soft);
+  --stat-ink: var(--danger);
+}
+.adv-page .adv-kpi:hover {
+  background: var(--surface-2);
+}
+/* Summary-only stat (no filter): neutral cursor, no hover affordance, and
+   stays out of the tab order so it isn't mistaken for a clickable control. */
+.adv-page .adv-kpi.adv-kpi--static {
+  cursor: default;
+  user-select: text;
+}
+.adv-page .adv-kpi.adv-kpi--static:hover {
+  background: linear-gradient(180deg, var(--surface), rgba(248, 250, 249, 0.94));
+}
+.adv-page .adv-kpi__label {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.adv-page .adv-kpi__value {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.25;
+  margin-top: 8px;
+  color: var(--ink);
+}
+.adv-page .adv-kpi__meta {
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+  margin-top: 6px;
+  padding-right: 48px;
+}
+
+/* Active selection ring per variant */
+.adv-page .adv-kpi.is-active {
+  border-color: color-mix(in srgb, var(--stat-rail) 42%, var(--line));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--stat-rail) 84%, transparent),
+              0 0 0 5px var(--stat-tint),
+              var(--sh-sm);
+}
+
+/* Keep attention states refined: rail + ink, no half-filled yellow cards. */
+.adv-page .adv-kpi.has-items {
+  border-color: color-mix(in srgb, var(--stat-rail) 26%, var(--line));
+}
+.adv-page .adv-kpi.has-items .adv-kpi__value,
+.adv-page .adv-kpi.has-items .adv-kpi__meta {
+  color: var(--stat-ink);
+}
+
+/* ── Desktop grid header ──────────────────────────────────────────────── */
+.adv-page .adv-grid-head {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.4fr) 130px 110px 130px minmax(160px, 2fr) 150px;
+  padding: 11px 16px;
+  gap: 12px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+  align-items: center;
+}
+.adv-page .adv-grid-head > div {
+  font-size: var(--fs-2xs);           /* dashboard .lbl uses 10.5px */
+  font-weight: var(--fw-bold);
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;      /* dashboard .lbl letter-spacing */
+  font-family: var(--font-mono);
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+}
+.adv-page .adv-grid-head .col-right { text-align: right; }
+.adv-page .adv-grid-head .col-center { text-align: center; }
+
+/* ── Desktop grid row ─────────────────────────────────────────────────── */
+.adv-page .adv-grid-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.4fr) 130px 110px 130px minmax(160px, 2fr) 150px;
+  padding: 12px 16px;
+  gap: 12px;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  transition: background var(--t-fast);
+}
+.adv-page .adv-grid-row:last-child { border-bottom: none; }
+.adv-page .adv-grid-row:hover { background: var(--surface-2); }
+.adv-page .adv-grid-row > div {
+  line-height: var(--lh-normal);
+  min-width: 0;
+}
+
+/* ── Row cells ────────────────────────────────────────────────────────── */
+.adv-page .adv-requester {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.adv-page .adv-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;          /* dashboard icon chips: 9–10px radius */
+  background: var(--surface-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-3);
+  flex-shrink: 0;
+}
+.adv-page .adv-requester-name {
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-sm);             /* dashboard row titles: 12.5–13px */
+  color: var(--ink);
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.adv-page .adv-amount {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: var(--fs-sm);             /* dashboard values: 13px mono 700 */
+  color: var(--ink);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+.adv-page .adv-date {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  text-align: center;
+}
+.adv-page .adv-reason {
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.adv-page .adv-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+}
+.adv-page .adv-approver {
+  font-size: var(--fs-2xs);
+  color: var(--ink-3);
+  text-align: right;
+}
+.adv-page .adv-approver strong {
+  color: var(--ink-2);
+  font-weight: var(--fw-semibold);
+}
+
+/* ── Loading / empty states ───────────────────────────────────────────── */
+.adv-page .adv-loading {
+  text-align: center;
+  padding: 48px 24px;
+}
+.adv-page .adv-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 36px 24px;
+}
+.adv-page .adv-empty-icon {
+  color: var(--ink-4);
+  margin: 0 auto 12px;
+}
+.adv-page .adv-empty-text {
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+  font-weight: var(--fw-medium);
+}
+.adv-page .adv-empty-hint {
+  margin-top: 4px;
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+}
+
+/* ── Footer count ─────────────────────────────────────────────────────── */
+.adv-page .adv-footer {
+  margin-top: 8px;
+  padding-left: 4px;
+  font-size: var(--fs-xs);
+  color: var(--ink-4);
+}
+
+/* ── Mobile cards (hidden on desktop) ─────────────────────────────────── */
+.adv-page .adv-cards { display: none; }
+
+.adv-page .adv-mcard {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 10px;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+.adv-page .adv-mcard:hover { border-color: var(--line-2); }
+
+.adv-page .adv-mcard__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.adv-page .adv-mcard__left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+.adv-page .adv-mcard__avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-sm);
+  background: var(--surface-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-3);
+  flex-shrink: 0;
+}
+.adv-page .adv-mcard__name {
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-sm);
+  color: var(--ink);
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.adv-page .adv-mcard__amount {
+  font-family: var(--font-mono);
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-lg);
+  color: var(--ink);
+  margin-bottom: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.adv-page .adv-mcard__meta {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+  margin-bottom: 10px;
+}
+.adv-page .adv-mcard__meta-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.adv-page .adv-mcard__meta-label {
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  font-weight: var(--fw-semibold);
+  flex-shrink: 0;
+}
+.adv-page .adv-mcard__meta-value {
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+  text-align: right;
+  min-width: 0;
+  word-break: break-word;
+}
+
+/* Mobile action buttons */
+.adv-page .adv-mcard__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+.adv-page .adv-mcard__actions .btn {
+  flex: 1;
+  justify-content: center;
+  min-height: 44px;
+}
+
+/* ── Responsive: compact tablets and phones ───────────────────────────── */
+@media (max-width: 820px) {
+  /* KPI row collapses to a balanced 2 × 2 grid. */
+  .adv-page .adv-kpi-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .adv-page .adv-kpi {
+    padding: 10px 12px;
+  }
+  .adv-page .adv-kpi__value {
+    font-size: var(--fs-xl);
+    margin-top: 6px;
+  }
+  .adv-page .adv-kpi__meta {
+    font-size: var(--fs-2xs);
+    margin-top: 4px;
+  }
+
+  /* Hide desktop grid, show mobile cards */
+  .adv-page .adv-grid-head,
+  .adv-page .adv-grid-row { display: none; }
+  .adv-page .adv-cards {
+    display: block;
+    padding: 10px 0;
+  }
+
+  /* Panel becomes transparent wrapper for cards */
+  .adv-page .adv-panel {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    overflow: visible;
+    box-shadow: none;
+  }
+
+  /* Toolbar stays readable without panel backdrop */
+  .adv-page .adv-panel .toolbar {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    margin-bottom: 8px;
+  }
+
+  .adv-page .adv-footer {
+    padding-left: 6px;
+  }
+}

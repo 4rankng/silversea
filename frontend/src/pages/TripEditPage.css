@@ -1,0 +1,432 @@
+/* ==========================================================================
+   TripEditPage — Soft Bento layout (Deep-Luxe brass + Forest Sage)
+   2-col bento grid with sticky right rail; refines visual rhythm,
+   card chrome, and entrance choreography.
+   ========================================================================== */
+
+/* ── Hero header ── */
+.tc-page-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 26px 32px 22px;
+  max-width: 1600px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.tc-page-head::after {
+  content: '';
+  position: absolute;
+  left: 32px;
+  right: 32px;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--line) 18%,
+    var(--line) 82%,
+    transparent 100%
+  );
+}
+
+.tc-back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--fg-2);
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
+}
+.tc-back-btn:hover {
+  background: var(--surface-2, var(--surface));
+  color: var(--fg-1, var(--fg-2));
+  border-color: var(--brass-3);
+  transform: translateX(-1px);
+}
+
+.tc-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.tc-page-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--fg-1, #0A0A0A);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  line-height: 1.35;
+  line-height: 1.25;
+}
+
+.tc-page-sub {
+  margin: 0;
+  font-size: 13px;
+  color: var(--fg-3);
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  letter-spacing: 0.005em;
+}
+
+.tc-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 11px;
+  border-radius: 999px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--surface-2, #F7F8FA);
+  color: var(--fg-2);
+  border: 1px solid var(--line);
+  line-height: 1.35;
+}
+.tc-status-pill::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--fg-3);
+}
+.tc-status-pill--draft::before { background: var(--slate-1); }
+.tc-status-pill--in-transit::before { background: var(--slate-2); }
+.tc-status-pill--completed::before { background: var(--slate-3); }
+.tc-status-pill--locked::before { background: var(--slate-4); }
+.tc-status-pill--canceled::before { background: var(--danger); }
+.tc-status-pill--locked { color: var(--slate-4); background: var(--slate-5); border-color: var(--slate-6); }
+.tc-status-pill--canceled { color: var(--danger); background: var(--danger-soft); border-color: #f3c6c6; }
+
+/* ── Bento grid shell ── */
+.tc-content {
+  padding: 24px 32px 140px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 24px;
+  align-items: start;
+  max-width: 1600px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.tc-bento {
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 32px;
+}
+
+/* Span classes no longer needed for flex layout, but kept to avoid breaking TSX */
+.tc-card--span-1 { }
+.tc-card--span-2 { }
+
+/* ── Flat Section (Formerly Bento card) ── */
+.tc-card {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.tc-card-head {
+  display: flex;
+  align-items: center;
+  padding: 0 0 12px 0;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 16px;
+}
+
+.tc-card-num {
+  display: none; /* Hide numbers in the flat layout */
+}
+
+.tc-card-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.tc-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--fg-1, #0A0A0A);
+  letter-spacing: 0;
+}
+
+.tc-card-sub {
+  font-size: 13px;
+  color: var(--fg-3);
+  line-height: 1.45;
+  letter-spacing: 0.005em;
+}
+
+.tc-card-body {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  container-type: inline-size;
+}
+
+/* ── Field layout primitives ── */
+.tc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.tc-field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg-2);
+  letter-spacing: 0.01em;
+}
+.tc-field-hint {
+  font-size: var(--fs-xs);
+  color: var(--fg-3);
+  line-height: 1.35;
+  margin-top: 2px;
+  font-style: italic;
+}
+.tc-textarea {
+  min-height: 88px;
+  resize: vertical;
+  width: 100%;
+  line-height: 1.5;
+}
+
+.tc-field-row {
+  display: grid;
+  gap: 14px;
+}
+.tc-field-row--2,
+.tc-field-row--3 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@container (max-width: 620px) {
+  .tc-field-row--2,
+  .tc-field-row--3 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Input polish — match the deep-luxe palette */
+.tc-card .input {
+  border-color: var(--line);
+  background: var(--surface);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.tc-card .input:hover {
+  border-color: var(--line-2, var(--line));
+}
+.tc-card .input:focus,
+.tc-card select.input:focus,
+.tc-card textarea.input:focus {
+  border-color: var(--brass-3);
+  box-shadow: 0 0 0 3px rgba(212, 165, 116, 0.18);
+  outline: none;
+}
+.tc-card textarea.input {
+  font-family: inherit;
+}
+
+/* ── Right rail (sticky) ── */
+.tc-rail {
+  position: sticky;
+  top: 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tc-rail-actions {
+  margin-top: 0;
+  padding: 20px 20px 22px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.02);
+  position: relative;
+  overflow: hidden;
+}
+.tc-rail-actions::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 16px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.6) 50%, transparent 100%);
+  opacity: 0.5;
+}
+
+.tc-rail-notice {
+  font-size: 12.5px;
+  color: var(--fg-3);
+  line-height: 1.5;
+  letter-spacing: 0.005em;
+}
+.tc-rail-notice-title {
+  font-weight: 600;
+  color: var(--fg-2);
+  margin-bottom: 3px;
+  font-size: 13px;
+}
+
+.tc-rail-error {
+  padding: 11px 13px;
+  background: rgba(199, 123, 92, 0.08);
+  border: 1px solid rgba(199, 123, 92, 0.25);
+  border-radius: 10px;
+  color: var(--copper);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.tc-rail-error-title {
+  font-weight: 700;
+  margin-bottom: 2px;
+  color: var(--copper);
+  font-size: 13px;
+}
+
+.tc-rail-btn {
+  width: 100%;
+  justify-content: center;
+  min-height: 45px;
+  font-weight: 600;
+  letter-spacing: 0.005em;
+}
+
+/* Primary + secondary rail/mobile actions inherit the Global .btn--primary /
+ * .btn--secondary recipe (green gradient + --shadow-brand). tc-rail-btn and
+ * tc-mobile-btn remain layout-only (full width / flex sizing). */
+
+/* ── Mobile save bar ── */
+.tc-edit-mobile-bar {
+  display: none;
+}
+
+/* ── Responsive ── */
+@media (max-width: 1200px) {
+  .tc-content {
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 20px;
+    padding: 22px 24px 140px;
+  }
+  .tc-bento { gap: 24px; padding: 24px; }
+}
+
+@media (max-width: 1023px) {
+  .tc-content {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 18px 20px 140px;
+  }
+  .tc-rail { position: static; }
+}
+
+@media (max-width: 640px) {
+  .app-body:has(.trip-edit-page) {
+    padding-inline: 0;
+    scrollbar-gutter: auto;
+  }
+
+  .tc-content {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 14px 0 110px;
+    max-width: none;
+  }
+  .tc-bento {
+    gap: 24px;
+    padding: 16px;
+    border-inline: 0;
+    border-radius: 0;
+  }
+  .tc-page-head {
+    padding: 16px 14px 14px;
+  }
+  .tc-page-head::after {
+    left: 14px;
+    right: 14px;
+  }
+  .tc-page-title { font-size: 19px; }
+  
+  .tc-card-head {
+    margin-bottom: 12px;
+  }
+  .tc-card-title { font-size: 15px; }
+  .tc-card-sub { font-size: 12px; }
+  .tc-card-body {
+    gap: 12px;
+  }
+  .tc-edit-mobile-bar {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+    padding: 12px 16px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    gap: 8px;
+    z-index: 40;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
+  }
+  .tc-mobile-btn {
+    flex: 1;
+    justify-content: center;
+    min-height: 45px;
+  }
+  .tc-mobile-btn--primary {
+    flex: 2;
+  }
+}
+
+/* ── Staggered entrance ── */
+.tc-card {
+  animation: tcCardIn 0.42s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+@keyframes tcCardIn {
+  from { opacity: 0; transform: translateY(6px) scale(0.992); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);     }
+}
+.tc-bento > .tc-card:nth-child(1)  { animation-delay: 0.00s; }
+.tc-bento > .tc-card:nth-child(2)  { animation-delay: 0.05s; }
+.tc-bento > .tc-card:nth-child(3)  { animation-delay: 0.10s; }
+.tc-bento > .tc-card:nth-child(4)  { animation-delay: 0.15s; }
+.tc-bento > .tc-card:nth-child(5)  { animation-delay: 0.20s; }
+.tc-bento > .tc-card:nth-child(6)  { animation-delay: 0.25s; }
+.tc-bento > .tc-card:nth-child(7)  { animation-delay: 0.30s; }
+.tc-bento > .tc-card:nth-child(8)  { animation-delay: 0.35s; }
+.tc-rail { animation: tcRailIn 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) 0.10s both; }
+@keyframes tcRailIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}

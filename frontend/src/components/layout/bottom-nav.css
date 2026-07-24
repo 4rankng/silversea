@@ -1,0 +1,439 @@
+/* ============================================================================
+ * Bottom Navigation (Driver App)
+ * ========================================================================== */
+.bottom-nav {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .app.is-driver .sidebar,
+  .app.is-driver .sidebar-overlay {
+    display: none !important;
+  }
+  
+  .driver-mode .app-body {
+    padding-bottom: calc(70px + env(safe-area-inset-bottom, 12px));
+  }
+
+  /* Driver full-bleed: strip the app-main gradient so driver pages own their bg */
+  .app.is-driver .app-main {
+    background: none;
+  }
+  /* Zero padding only when the driver detail page is rendered (full-bleed card layout) */
+  .app.is-driver .app-body:has(.driver-trip-detail-page) {
+    padding: 0;
+  }
+  
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: calc(56px + env(safe-area-inset-bottom, 12px));
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(14px);
+    border-top: 1px solid var(--line);
+    z-index: var(--z-sticky, 100);
+    justify-content: space-around;
+    align-items: stretch;
+    padding-bottom: env(safe-area-inset-bottom, 12px);
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.03);
+  }
+  
+  .bottom-nav-item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    background: transparent;
+    border: none;
+    flex: 1;
+    cursor: pointer;
+    transition: color 0.3s ease;
+    padding-top: 4px; /* Space for the indicator */
+    will-change: transform;
+    opacity: 0; /* starts hidden for anime.js entrance */
+  }
+
+  .bottom-nav-indicator {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40px;
+    height: 6px;
+    background: var(--accent);
+    border-radius: 0 0 999px 999px;
+    box-shadow: 0 4px 12px rgba(0, 177, 79, 0.4);
+    opacity: 0;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+  
+  .bottom-nav-item.active .bottom-nav-indicator {
+    opacity: 1;
+  }
+  
+  .bottom-nav-icon-wrap {
+    padding: 6px;
+    border-radius: 999px;
+    transition: all 0.3s ease;
+    color: var(--ink-3);
+  }
+  
+  .bottom-nav-item:hover .bottom-nav-icon-wrap {
+    background: var(--surface-3);
+  }
+  
+  .bottom-nav-item.active .bottom-nav-icon-wrap {
+    background: rgba(0, 177, 79, 0.1);
+    color: var(--accent-2);
+    transform: translateY(-4px);
+  }
+  
+  .bottom-nav-label {
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    color: var(--ink-3);
+    opacity: 1;
+    line-height: 1.35;
+    transition: all 0.3s ease;
+  }
+  
+  .bottom-nav-item.active .bottom-nav-label {
+    color: var(--accent-2);
+    opacity: 1;
+  }
+  
+  /* ── Mobile User Menu Sheet (Vantai Design System Redesign) ── */
+  .mobile-user-sheet-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 10, 10, 0.5);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: var(--z-modal, 1000);
+    display: flex;
+    align-items: flex-end;
+    animation: sheetOverlayIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .mobile-user-sheet {
+    background: var(--surface);
+    width: 100%;
+    border-radius: 28px 28px 0 0;
+    padding: 0 0 calc(12px + env(safe-area-inset-bottom, 16px));
+    box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.15),
+                0 0 0 1px rgba(0, 0, 0, 0.05);
+    animation: sheetUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    transform-origin: bottom;
+    overflow: hidden;
+    border-top: 1px solid rgba(255, 255, 255, 0.8);
+  }
+
+  /* Drag handle */
+  .mobile-user-sheet-handle {
+    display: flex;
+    justify-content: center;
+    padding: 16px 0 6px;
+    cursor: grab;
+  }
+  .mobile-user-sheet-handle::after {
+    content: '';
+    width: 36px;
+    height: 5px;
+    border-radius: 999px;
+    background: var(--line-3, #B8BCC4);
+    opacity: 0.6;
+    transition: opacity 0.2s;
+  }
+  .mobile-user-sheet-handle:active::after {
+    opacity: 1;
+  }
+
+  /* Profile Bento Grid Layout */
+  .profile-bento-grid {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    grid-template-rows: auto auto;
+    gap: 8px;
+    padding: 12px 16px 16px;
+    width: 100%;
+    box-sizing: border-box;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .profile-bento-card {
+    background: var(--surface-2, #F7F8FA);
+    border: 1px solid var(--line, #EAECEF);
+    border-radius: 16px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    transition: transform 0.2s, background 0.2s;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  }
+
+  /* Avatar Card (spans both rows) */
+  .profile-bento-card--avatar {
+    grid-row: 1 / span 2;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 8px 12px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(0, 177, 79, 0.25);
+  }
+
+  .profile-bento-card--avatar .bento-avatar {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid rgba(255, 255, 255, 0.45);
+    margin-bottom: 10px;
+  }
+
+  .profile-bento-card--avatar .bento-role-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 6px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.25);
+    color: #fff;
+    font-size: var(--fs-xs);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  /* Name Card */
+  .profile-bento-card--name {
+    grid-column: 2;
+    grid-row: 1;
+    justify-content: center;
+    background: var(--surface);
+    border-color: var(--line-2);
+  }
+
+  .profile-bento-card .bento-label {
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    color: var(--ink-3, #8B919B);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 2px;
+  }
+
+  .profile-bento-card .bento-value {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--ink);
+    line-height: 1.35;
+  }
+
+  /* Contact Cards (Row 2, right side sub-grid) */
+  .profile-bento-row {
+    grid-column: 2;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .profile-bento-card--username,
+  .profile-bento-card--phone {
+    padding: 8px 10px;
+  }
+
+  .profile-bento-card--username .bento-value,
+  .profile-bento-card--phone .bento-value {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink-2);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 1px;
+  }
+
+  .profile-bento-card--username .bento-value svg,
+  .profile-bento-card--phone .bento-value svg {
+    color: var(--ink-3);
+    flex-shrink: 0;
+  }
+
+  /* Section Title */
+  .mobile-user-sheet-section-title {
+    font-size: var(--fs-xs);
+    line-height: 1.35;
+    font-weight: 700;
+    color: var(--ink-3);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 16px 8px 8px;
+  }
+
+  /* Menu body */
+  .mobile-user-sheet-body {
+    display: flex;
+    flex-direction: column;
+    padding: 12px 16px 8px;
+  }
+
+  .mobile-user-sheet-btn {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 16px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink);
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    min-height: 56px;
+    position: relative;
+    opacity: 0;
+    animation: sheetItemIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    margin-bottom: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.01);
+  }
+
+  .mobile-user-sheet-btn:nth-child(2) { animation-delay: 0.08s; }
+  .mobile-user-sheet-btn:nth-child(3) { animation-delay: 0.12s; }
+  .mobile-user-sheet-btn:nth-child(5) { animation-delay: 0.16s; }
+
+  .mobile-user-sheet-btn:hover {
+    background: var(--surface-3);
+  }
+
+  .mobile-user-sheet-btn:active {
+    background: var(--line);
+    transform: scale(0.97);
+    box-shadow: none;
+  }
+
+  /* Icon tile with modern glass/gradient colors */
+  .mobile-user-sheet-btn .icon-tile {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.2s, transform 0.2s;
+  }
+
+  /* Profile icon color scheme (indigo) */
+  .mobile-user-sheet-btn.profile .icon-tile {
+    background: #EEF2FF;
+  }
+  .mobile-user-sheet-btn.profile .icon-tile svg {
+    color: #4F46E5;
+  }
+  .mobile-user-sheet-btn.profile:active .icon-tile {
+    background: #E0E7FF;
+  }
+
+  /* Password icon color scheme (purple) */
+  .mobile-user-sheet-btn.password .icon-tile {
+    background: #FAF5FF;
+  }
+  .mobile-user-sheet-btn.password .icon-tile svg {
+    color: #9333EA;
+  }
+  .mobile-user-sheet-btn.password:active .icon-tile {
+    background: #F3E8FF;
+  }
+
+  /* Danger/Logout icon color scheme (red) */
+  .mobile-user-sheet-btn.danger {
+    color: var(--danger);
+    background: var(--surface-2);
+    border-color: var(--danger-soft);
+  }
+  .mobile-user-sheet-btn.danger .icon-tile {
+    background: var(--danger-soft);
+  }
+  .mobile-user-sheet-btn.danger .icon-tile svg {
+    color: var(--danger);
+  }
+  .mobile-user-sheet-btn.danger:hover {
+    background: var(--danger-soft);
+  }
+  .mobile-user-sheet-btn.danger:active {
+    background: color-mix(in srgb, var(--danger-soft) 85%, #000);
+    border-color: color-mix(in srgb, var(--danger) 20%, transparent);
+  }
+
+  .mobile-user-sheet-btn .icon-tile svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .mobile-user-sheet-btn .btn-label {
+    flex: 1;
+    text-align: left;
+  }
+
+  /* Trailing chevron */
+  .mobile-user-sheet-btn .btn-chevron {
+    color: var(--ink-3);
+    opacity: 0.5;
+    transition: opacity 180ms ease, transform 180ms ease;
+  }
+  .mobile-user-sheet-btn:active .btn-chevron {
+    opacity: 0.8;
+    transform: translateX(2px);
+  }
+
+  .mobile-user-sheet-footer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 8px 16px 16px;
+  }
+
+  .mobile-user-sheet-footer .app-version {
+    font-size: var(--fs-xs);
+    line-height: 1.35;
+    font-weight: 500;
+    color: var(--ink-3);
+    opacity: 0.7;
+  }
+
+  /* Sheet animations */
+  @keyframes sheetOverlayIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes sheetUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+
+  @keyframes sheetItemIn {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}

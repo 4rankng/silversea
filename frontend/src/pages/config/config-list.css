@@ -1,0 +1,146 @@
+/* ============================================================================
+ * Shared config list row — used by container types, ports, and similar pages
+ * with an inline list (NOT the CrudTable scaffold).
+ *
+ * Desktop: actions reveal on row hover. Mobile: actions always visible and the
+ * whole row is tap-to-edit.
+ * ========================================================================== */
+
+.cfg-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  transition: background 0.1s var(--ease);
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+}
+.cfg-row:hover { background: var(--surface-2); }
+.cfg-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.cfg-row__code {
+  flex-shrink: 0;
+  width: 56px;
+  text-align: center;
+  background: var(--accent-soft);
+  color: var(--accent-2);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.06em;
+  border-radius: 5px;
+  padding: 3px 0;
+}
+.cfg-row__code--empty { background: transparent; }
+
+.cfg-row__name {
+  width: 100px;
+  flex-shrink: 0;
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  color: var(--ink);
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.cfg-row__name--wide { width: 220px; }
+
+.cfg-row__city {
+  width: 100px;
+  flex-shrink: 0;
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.cfg-row__notes {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-sm);
+  color: var(--ink-3);
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.cfg-row__actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.1s var(--ease);
+}
+.cfg-row:hover .cfg-row__actions,
+.cfg-row:focus-within .cfg-row__actions { opacity: 1; }
+
+.cfg-row__delete { color: var(--ink-3); }
+.cfg-row__delete:hover { color: var(--danger); }
+
+/* ── Panel wrapper for cfg-row lists (container-types, ports) ── */
+.cfg-list-panel {
+  background: var(--surface, #fff);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.cfg-list-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+}
+.cfg-list-header__col {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  color: var(--ink-3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.cfg-list-header__col--code { width: 56px; flex-shrink: 0; text-align: center; }
+.cfg-list-header__col--name { width: 100px; flex-shrink: 0; }
+.cfg-list-header__col--name-wide { width: 220px; flex-shrink: 0; }
+.cfg-list-header__col--city { width: 100px; flex-shrink: 0; }
+.cfg-list-header__col--notes { flex: 1; min-width: 0; }
+.cfg-list-header__col--spacer { width: 56px; flex-shrink: 0; }
+
+.cfg-list-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 0 4px;
+}
+.cfg-list-footer__add {
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+}
+.cfg-list-footer__add:hover { color: var(--accent); }
+
+@media (max-width: 640px) {
+  .cfg-list-header { display: none; }
+  .cfg-list-footer { flex-direction: column; align-items: stretch; gap: 8px; }
+}
+
+/* ── Mobile (≤640px): always show actions, tighten layout ── */
+@media (max-width: 640px) {
+  .cfg-row {
+    gap: 10px;
+    padding: 10px 12px;
+    flex-wrap: wrap;
+  }
+  .cfg-row__actions { opacity: 1; margin-left: auto; }
+  /* Port row has extra columns — let name flex and hide city on phone */
+  .cfg-row--port .cfg-row__name--wide { width: auto; flex: 1; min-width: 0; }
+  .cfg-row--port .cfg-row__city,
+  .cfg-row--port .cfg-row__notes { flex-basis: 100%; padding-left: 66px; }
+}

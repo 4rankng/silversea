@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 200" fill="none">
+  <defs>
+    <linearGradient id="en-bell" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0%" stop-color="#F0FDF4"></stop>
+      <stop offset="100%" stop-color="#DCFCE7"></stop>
+    </linearGradient>
+    <linearGradient id="en-badge-r" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#EF4444"></stop>
+      <stop offset="100%" stop-color="#DC2626"></stop>
+    </linearGradient>
+    <linearGradient id="en-badge-g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#059669"></stop>
+      <stop offset="100%" stop-color="#047857"></stop>
+    </linearGradient>
+    <radialGradient id="en-shadow" cx="50%" cy="30%" r="60%">
+      <stop offset="0%" stop-color="#059669" stop-opacity="0.1"></stop>
+      <stop offset="100%" stop-color="#059669" stop-opacity="0"></stop>
+    </radialGradient>
+    <radialGradient id="en-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#059669" stop-opacity="0.15"></stop>
+      <stop offset="100%" stop-color="#059669" stop-opacity="0"></stop>
+    </radialGradient>
+    <filter id="en-drop-bell" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="5" stdDeviation="7" flood-color="#059669" flood-opacity="0.16"></feDropShadow>
+    </filter>
+    <filter id="en-drop-badge" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#DC2626" flood-opacity="0.25"></feDropShadow>
+    </filter>
+    <filter id="en-drop-notif" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#09090B" flood-opacity="0.07"></feDropShadow>
+    </filter>
+  </defs>
+
+  
+  <ellipse cx="120" cy="172" rx="70" ry="7.5" fill="url(#en-shadow)"></ellipse>
+
+  
+  <ellipse cx="120" cy="100" rx="56" ry="52" fill="url(#en-glow)"></ellipse>
+
+  
+  <circle cx="120" cy="100" r="62" stroke="#059669" stroke-width="1" stroke-opacity="0.07" fill="none"></circle>
+  <circle cx="120" cy="100" r="50" stroke="#059669" stroke-width="1.2" stroke-opacity="0.1" fill="none"></circle>
+  <circle cx="120" cy="100" r="38" stroke="#059669" stroke-width="1.5" stroke-opacity="0.14" fill="none"></circle>
+
+  
+  <g filter="url(#en-drop-bell)">
+    
+    <path d="M120 48 Q84 48 84 88 L84 118 Q84 128 74 134 L74 140 L166 140 L166 134 Q156 128 156 118 L156 88 Q156 48 120 48 Z" fill="url(#en-bell)" stroke="#059669" stroke-width="2" stroke-linejoin="round"></path>
+
+    
+    <path d="M156 88 Q156 48 120 48 L130 48 Q166 48 166 88 L166 118 Q166 128 176 134 L166 134 Q156 128 156 118 Z" fill="#059669" fill-opacity="0.07"></path>
+
+    
+    <path d="M98 64 Q100 54 110 52" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-opacity="0.85"></path>
+    
+    <path d="M88 90 Q87 80 88 72" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.45"></path>
+
+    
+    <path d="M90 110 Q90 86 120 82 Q150 86 150 110" stroke="#059669" stroke-width="0.9" stroke-opacity="0.18" fill="none"></path>
+
+    
+    <rect x="72" y="136" width="96" height="10" rx="4" fill="#D1FAE5" stroke="#059669" stroke-width="1.5"></rect>
+    
+    <rect x="74" y="137" width="92" height="4" rx="2" fill="#FFFFFF" fill-opacity="0.4"></rect>
+
+    
+    <rect x="115" y="38" width="10" height="12" rx="3" fill="#059669" stroke="#047857" stroke-width="0.8"></rect>
+    <circle cx="120" cy="38" r="4" fill="#047857"></circle>
+    <circle cx="120" cy="38" r="1.8" fill="#ECFDF5" fill-opacity="0.5"></circle>
+
+    
+    <path d="M113 146 Q113 156 120 158 Q127 156 127 146 Z" fill="#18181B"></path>
+    <ellipse cx="120" cy="158" rx="5" ry="3" fill="#09090B"></ellipse>
+  </g>
+
+  
+  
+  <g filter="url(#en-drop-badge)" transform="translate(162 60)">
+    <circle r="13" cx="0" cy="0" fill="url(#en-badge-r)"></circle>
+    <text x="0" y="4.5" font-family="ui-sans-serif, system-ui" font-size="11" font-weight="700" fill="#FFFFFF" text-anchor="middle">3</text>
+    
+    <path d="M-8 -8 Q-2 -12 4 -9" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.4"></path>
+  </g>
+
+  
+  <g filter="url(#en-drop-notif)" transform="translate(46 80)">
+    <rect x="-22" y="-12" width="44" height="24" rx="7" fill="#FFFFFF" stroke="#E4E4E7" stroke-width="1"></rect>
+    
+    <circle cx="-12" cy="0" r="4" fill="#059669" fill-opacity="0.8"></circle>
+    
+    <rect x="-4" y="-4" width="20" height="4" rx="2" fill="#E4E4E7"></rect>
+    <rect x="-4" y="2" width="14" height="3" rx="1.5" fill="#F4F4F5"></rect>
+  </g>
+
+  
+  <g filter="url(#en-drop-notif)" transform="translate(194 90)">
+    <rect x="-20" y="-10" width="40" height="20" rx="6" fill="#ECFDF5" stroke="#059669" stroke-width="0.8"></rect>
+    <circle cx="-10" cy="0" r="3.5" fill="#059669" fill-opacity="0.7"></circle>
+    <rect x="-3" y="-3" width="18" height="3.5" rx="1.5" fill="#A7F3D0"></rect>
+    <rect x="-3" y="2" width="12" height="3" rx="1.5" fill="#D1FAE5"></rect>
+  </g>
+
+  
+  <g stroke="#059669" stroke-width="1.8" stroke-linecap="round" opacity="0.5">
+    <line x1="58" y1="54" x2="64" y2="60"></line>
+    <line x1="64" y1="54" x2="58" y2="60"></line>
+  </g>
+  <g stroke="#A1A1AA" stroke-width="1.4" stroke-linecap="round" opacity="0.45">
+    <line x1="176" y1="44" x2="180" y2="48"></line>
+    <line x1="180" y1="44" x2="176" y2="48"></line>
+  </g>
+  <circle cx="52" cy="130" r="2" fill="#059669" fill-opacity="0.2"></circle>
+  <circle cx="194" cy="130" r="1.5" fill="#059669" fill-opacity="0.22"></circle>
+  <circle cx="202" cy="56" r="1.2" fill="#A1A1AA" fill-opacity="0.4"></circle>
+</svg>
