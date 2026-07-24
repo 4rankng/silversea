@@ -4,15 +4,17 @@ services:
     # preinstalled. Required for the FAQ fast lane (vector(1536) cosine index).
     # Switched from postgres:16-alpine — the stock alpine image lacks the extension.
     image: pgvector/pgvector:pg16
-    container_name: tingting-db
+    # Namespaced silversea-* (not tingting-*) so this stack runs alongside the
+    # nepocorp project without Docker container-name collisions.
+    container_name: silversea-db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: tingting
+      POSTGRES_DB: silversea
     ports:
-      - "5440:5432"
+      - "5441:5432"
     volumes:
-      - tingting-pgdata:/var/lib/postgresql/data
+      - silversea-pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 2s
@@ -21,9 +23,9 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: tingting-redis
+    container_name: silversea-redis
     ports:
-      - "6390:6379"
+      - "6391:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 2s
@@ -32,12 +34,12 @@ services:
 
   adminer:
     image: adminer
-    container_name: tingting-adminer
+    container_name: silversea-adminer
     ports:
-      - "8081:8080"
+      - "8083:8080"
     depends_on:
       db:
         condition: service_healthy
 
 volumes:
-  tingting-pgdata:
+  silversea-pgdata:

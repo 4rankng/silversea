@@ -173,8 +173,8 @@ const raw = {
 const withDefaults = {
   ...raw,
   port: raw.port || '3001',
-  databaseUrl: raw.databaseUrl || (isProd ? undefined : 'postgres://postgres:postgres@localhost:5432/tingting'),
-  redisUrl: raw.redisUrl || (isProd ? undefined : 'redis://localhost:6390'),
+  databaseUrl: raw.databaseUrl || (isProd ? undefined : 'postgres://postgres:postgres@localhost:5441/silversea'),
+  redisUrl: raw.redisUrl || (isProd ? undefined : 'redis://localhost:6391'),
   jwtSecret: raw.jwtSecret || (isProd ? undefined : 'dev-secret-change-in-production'),
   jwtExpiresIn: raw.jwtExpiresIn || '7d',
   uploadDir: raw.uploadDir || './uploads',
@@ -225,8 +225,8 @@ if (!result.success) {
 
 export const config = result.success ? result.data : configSchema.parse({
   port: 3001,
-  databaseUrl: 'postgres://postgres:postgres@localhost:5432/tingting',
-  redisUrl: 'redis://localhost:6390',
+  databaseUrl: 'postgres://postgres:postgres@localhost:5441/silversea',
+  redisUrl: 'redis://localhost:6391',
   jwtSecret: 'dev-secret-change-in-production',
   jwtExpiresIn: '7d',
   uploadDir: './uploads',

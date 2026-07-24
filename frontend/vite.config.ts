@@ -12,16 +12,16 @@ export default defineConfig({
     },
   },
   server: {
-    port: 7173,
+    port: 7174,
     proxy: {
       '/api': {
-        target: 'http://localhost:3090',
+        target: 'http://localhost:3001',
         changeOrigin: true,
       },
       // socket.io (assistant transport). `ws: true` proxies the WebSocket
       // upgrade handshake; without it the engine.io upgrade fails in dev.
       '/socket.io': {
-        target: 'http://localhost:3090',
+        target: 'http://localhost:3001',
         changeOrigin: true,
         ws: true,
       },

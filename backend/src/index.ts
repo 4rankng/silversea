@@ -67,7 +67,7 @@ app.use(cors({
   origin: config.corsOrigin
     ? config.corsOrigin.split(',').map(s => s.trim())
     : config.nodeEnv === 'development'
-      ? 'http://localhost:7173'
+      ? 'http://localhost:7174'
       : false,
 }));
 app.use(express.json());
