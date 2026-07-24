@@ -5,6 +5,7 @@ import { financialClient } from '../api/financialClient';
 import { qk } from '../api/keys';
 import type { TripDetail, Truck as TruckType, Driver as DriverType } from '@tingting/shared';
 import { useSalaryPeriod } from './useCatalogQueries';
+import { useAppSettings } from './useAppSettings';
 
 export interface NormalizedTrip {
   id: number;
@@ -170,10 +171,14 @@ export function useDispatchData() {
  * cache forever.
  */
 export function useLiveFleet(options?: { enabled?: boolean }) {
+  // The Bách Khoa feature toggle is the master switch: when the admin has it
+  // off, the endpoint returns no vehicles and we shouldn't poll it at all.
+  const { data: appSettings } = useAppSettings();
+  const gpsEnabled = appSettings?.gpsEnabled ?? false;
   return useQuery({
     queryKey: qk.liveFleet.all,
     queryFn: () => tripClient.getLiveFleet(),
-    enabled: options?.enabled ?? true,
+    enabled: (options?.enabled ?? true) && gpsEnabled,
     refetchInterval: 10_000,
     staleTime: 0,
     refetchOnWindowFocus: true,

@@ -134,7 +134,7 @@ export default function AppSettingsConfigPage() {
   const gpsSettings = useGpsSettings();
   const saveGpsSettings = useSaveGpsSettings();
 
-  const [features, setFeatures] = useState<AppSettings>({ botEnabled: false, tutorialEnabled: true });
+  const [features, setFeatures] = useState<AppSettings>({ botEnabled: false, tutorialEnabled: true, gpsEnabled: false });
   const [provider, setProvider] = useState<LlmProvider>('minimax');
   const [minimaxKey, setMinimaxKey] = useState('');
   const [openrouterKey, setOpenrouterKey] = useState('');
@@ -194,7 +194,11 @@ export default function AppSettingsConfigPage() {
   const chosenKeyReady = provider === 'openrouter'
     ? openrouterKeySet || openrouterKey.trim() !== ''
     : minimaxKeySet || minimaxKey.trim() !== '';
-  const gpsReady = gpsUsername.trim() !== ''
+  // Credentials are only required while the feature is enabled. When off, the
+  // fields are disabled and the save button stays inert — no validation pressure.
+  const gpsCredsRequired = features.gpsEnabled;
+  const gpsReady = gpsCredsRequired
+    && gpsUsername.trim() !== ''
     && (gpsSettings.data?.passwordSet || gpsPassword.trim() !== '');
 
   return (
@@ -329,6 +333,14 @@ export default function AppSettingsConfigPage() {
           subtitle="Tài khoản dùng để đồng bộ vị trí xe và lộ trình GPS"
           action={<MapPin size={18} className="cfg-panel-action-icon" />}
         >
+          <FeatureSwitch
+            icon={<MapPin size={19} />}
+            label="Định vị Bách Khoa"
+            description="Bật để đồng bộ vị trí xe từ hệ thống Bách Khoa. Tắt để dừng đồng bộ — tài khoản bên dưới được giữ lại để bật lại nhanh."
+            enabled={features.gpsEnabled}
+            onChange={() => updateFeature('gpsEnabled')}
+            disabled={appSettings.isLoading || appSettings.isError || saveAppSettings.isPending}
+          />
           <div className="cfg-security-note">
             <ShieldCheck size={16} aria-hidden="true" />
             <span>Tên đăng nhập và mật khẩu được mã hóa khi lưu. Thay đổi có hiệu lực ngay, không cần khởi động lại.</span>
@@ -344,7 +356,7 @@ export default function AppSettingsConfigPage() {
                 placeholder="Nhập tên đăng nhập"
                 autoComplete="username"
                 spellCheck={false}
-                disabled={gpsSettings.isLoading || gpsSettings.isError || saveGpsSettings.isPending}
+                disabled={!features.gpsEnabled || gpsSettings.isLoading || gpsSettings.isError || saveGpsSettings.isPending}
               />
             </div>
             <SecretField
@@ -355,7 +367,7 @@ export default function AppSettingsConfigPage() {
               saved={!!gpsSettings.data?.passwordSet}
               maskedPreview={gpsSettings.data?.passwordMasked ?? ''}
               placeholder="Nhập mật khẩu"
-              disabled={gpsSettings.isLoading || gpsSettings.isError || saveGpsSettings.isPending}
+              disabled={!features.gpsEnabled || gpsSettings.isLoading || gpsSettings.isError || saveGpsSettings.isPending}
             />
           </div>
           <div className="cfg-form-actions">

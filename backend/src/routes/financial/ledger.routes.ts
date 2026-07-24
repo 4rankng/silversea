@@ -51,7 +51,7 @@ router.get('/ledger/customers/:id/statement/export', asyncHandler(async (req: Re
   const dateStr = formatLocalDate();
 
   if (format === 'pdf') {
-    const html = exportStatementHtml(data, dateStr);
+    const html = await exportStatementHtml(data, dateStr);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(html);
     return;

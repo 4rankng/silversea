@@ -406,8 +406,10 @@ async function seed() {
   console.log(`✅ Forwarder expense types upserted! (${fetUpsertCount} codes)`);
 
   // ─── Own company info (used on config/document surfaces) ─────────────────
-  // Single source: COMPANY_INFO_DEFAULTS (services/company-info.service.ts),
-  // shared with routes/config.ts. Keep 0094 + 0099 company_info_settings SQL in sync.
+  // Seeds empty placeholder rows from COMPANY_INFO_DEFAULTS (white-label — no
+  // company identity is baked in). The admin fills the real profile on
+  // /config/company-info. Idempotent (onConflictDoNothing) so it never clobbers
+  // an admin-configured profile.
   for (const field of Object.keys(COMPANY_INFO_SETTING_KEYS) as Array<keyof typeof COMPANY_INFO_SETTING_KEYS>) {
     await db.insert(schema.appSettings)
       .values({ key: COMPANY_INFO_SETTING_KEYS[field], value: COMPANY_INFO_DEFAULTS[field] ?? '' })

@@ -1,6 +1,7 @@
 import { getAdvanceSettlement } from './advance.service';
 import { validateSettlementInputs } from './settlement-validation';
 import { getCompanyInfo } from './company-info.service';
+import { stampCompanyHeaderXlsx, companyHeaderHtml, loadLogoDataUrl } from './lib/export-company';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { eq, inArray, sql } from 'drizzle-orm';
@@ -136,7 +137,10 @@ const PRINT_CSS = `
   @media print { body { margin: 0; } }
 `;
 
-export function renderSettlementHtml(data: SettlementExportData): string {
+export async function renderSettlementHtml(data: SettlementExportData): Promise<string> {
+  const company = await getCompanyInfo();
+  const logoDataUrl = await loadLogoDataUrl(company.logoStorageKey);
+  const header = companyHeaderHtml(company, logoDataUrl);
   const expenses: LinkedExpense[] = data.linkedExpenses || [];
   const requests: LinkedRequest[] = data.linkedRequests || [];
   const totalAdvance = requests.reduce((sum: number, r) => sum + Number(r.amount), 0);
@@ -168,6 +172,7 @@ export function renderSettlementHtml(data: SettlementExportData): string {
 <title>Phiếu thanh toán ${docCode}</title>
 <style>${PRINT_CSS}</style>
 </head><body>
+${header}
 <h1>Phiếu thanh toán</h1>
 <div class="meta">
   <span>Số: <strong>${docCode}</strong></span>
@@ -290,30 +295,36 @@ export function renderSettlementXlsx(data: SettlementExportData, writable: impor
 
     let row = 1;
 
+    // Company letterhead (configured on /config/company-info) — rows 1..4.
+    const afterHeader = await stampCompanyHeaderXlsx(workbook, sheet, company, { lastCol: LAST_COL });
+
     // ── 1. Document title ──
-    sheet.mergeCells('A1:F1');
-    const c1 = sheet.getCell('A1');
+    const titleRow = afterHeader + 1;
+    sheet.mergeCells(titleRow, 1, titleRow, LAST_COL);
+    const c1 = sheet.getCell(titleRow, 1);
     c1.value = 'PHIẾU THANH TOÁN TẠM ỨNG';
     c1.font = { name: F, size: 16, bold: true, color: { argb: CLR.accent } };
     c1.alignment = { horizontal: 'center', vertical: 'middle' };
-    sheet.getRow(1).height = 30;
+    sheet.getRow(titleRow).height = 30;
 
     // ── 2. Metadata ──
-    sheet.mergeCells('A2:C2');
-    sheet.getCell('A2').value = `Số phiếu: ${code}`;
-    sheet.getCell('A2').font = { name: F, size: 10, color: { argb: CLR.ink } };
+    const metaRow = titleRow + 1;
+    sheet.mergeCells(metaRow, 1, metaRow, 3);
+    sheet.getCell(metaRow, 1).value = `Số phiếu: ${code}`;
+    sheet.getCell(metaRow, 1).font = { name: F, size: 10, color: { argb: CLR.ink } };
 
-    sheet.mergeCells('D2:F2');
-    sheet.getCell('D2').value = `Ngày lập: ${new Date(data.createdAt).toLocaleDateString('vi-VN')}`;
-    sheet.getCell('D2').font = { name: F, size: 10, color: { argb: CLR.ink } };
-    sheet.getCell('D2').alignment = { horizontal: 'right' };
-    sheet.getRow(2).height = 18;
+    sheet.mergeCells(metaRow, 4, metaRow, LAST_COL);
+    sheet.getCell(metaRow, 4).value = `Ngày lập: ${new Date(data.createdAt).toLocaleDateString('vi-VN')}`;
+    sheet.getCell(metaRow, 4).font = { name: F, size: 10, color: { argb: CLR.ink } };
+    sheet.getCell(metaRow, 4).alignment = { horizontal: 'right' };
+    sheet.getRow(metaRow).height = 18;
 
-    sheet.mergeCells('A3:F3');
-    sheet.getCell('A3').value = `Nhân viên giao nhận: ${data.forwarderName || '—'}`;
-    sheet.getCell('A3').font = { name: F, size: 10, color: { argb: CLR.ink } };
-    sheet.getRow(3).height = 18;
-    row = 5;
+    const forwarderRow = metaRow + 1;
+    sheet.mergeCells(forwarderRow, 1, forwarderRow, LAST_COL);
+    sheet.getCell(forwarderRow, 1).value = `Nhân viên giao nhận: ${data.forwarderName || '—'}`;
+    sheet.getCell(forwarderRow, 1).font = { name: F, size: 10, color: { argb: CLR.ink } };
+    sheet.getRow(forwarderRow).height = 18;
+    row = forwarderRow + 2;
 
     // ── 4. Advances section ──
     if (requests.length > 0) {
@@ -544,7 +555,7 @@ export function renderSettlementXlsx(data: SettlementExportData, writable: impor
     sheet.getCell(`A${footerRow}`).font = { name: F, size: 8, italic: true, color: { argb: 'FF94A3B8' } };
     sheet.getCell(`A${footerRow}`).alignment = { horizontal: 'center', vertical: 'middle' };
 
-    sheet.pageSetup.printTitlesRow = '1:2';
+    sheet.pageSetup.printTitlesRow = `${titleRow}:${metaRow}`;
 
     await workbook.xlsx.write(writable);
     return true;

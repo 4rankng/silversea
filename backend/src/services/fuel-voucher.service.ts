@@ -3,6 +3,7 @@ import * as s from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { getCompanyInfo } from './company-info.service';
+import { stampCompanyHeaderXlsx, companyHeaderHtml, loadLogoDataUrl } from './lib/export-company';
 
 // ── Helpers ──
 import { escapeHtml, formatVND, formatDateVi } from '../lib/format';
@@ -246,10 +247,13 @@ const PRINT_CSS = `
   }
 `;
 
-export function renderFuelVoucherHtml(data: FuelVoucherData): string {
+export async function renderFuelVoucherHtml(data: FuelVoucherData): Promise<string> {
   const dateStr = formatDateVi(data.departureDate);
   const voucherNo = `PCNL-${data.tripCode ?? ''}`;
   const today = new Date().toLocaleDateString('vi-VN');
+  const company = await getCompanyInfo();
+  const logoDataUrl = await loadLogoDataUrl(company.logoStorageKey);
+  const header = companyHeaderHtml(company, logoDataUrl);
 
   return `<!doctype html>
 <html lang="vi">
@@ -269,6 +273,7 @@ export function renderFuelVoucherHtml(data: FuelVoucherData): string {
   </div>
 
   <div class="sheet">
+    ${header}
     <div class="voucher-no">Số phiếu: ${escapeHtml(voucherNo)} &nbsp;&middot;&nbsp; Ngày in: ${today}</div>
     <h1>PHIẾU CẤP NHIÊN LIỆU</h1>
 
@@ -340,7 +345,7 @@ export function renderFuelVoucherHtml(data: FuelVoucherData): string {
       </div>
     </div>
 
-    <div class="footer">In bởi TransTing &middot; Ngày in: ${today}</div>
+    <div class="footer">${company.name ? `In bởi ${escapeHtml(company.name)} &middot; ` : ''}Ngày in: ${today}</div>
   </div>
 </body>
 </html>`;
@@ -376,7 +381,9 @@ export async function renderFuelVoucherXlsx(data: FuelVoucherData, writable: imp
     { width: 20 },  // E: Thành tiền
   ];
 
-  let row = 1;
+  // Company letterhead (configured on /config/company-info) — rows 1..4.
+  let row = await stampCompanyHeaderXlsx(wb, ws, company, { lastCol: 5 });
+  row++; // spacer
 
   // Số phiếu / ngày in (top right)
   const noRow = ws.getRow(row);
@@ -554,7 +561,8 @@ export async function renderFuelVoucherXlsx(data: FuelVoucherData, writable: imp
   const footerRow = ws.getRow(row);
   footerRow.height = 14;
   ws.mergeCells(`A${row}:E${row}`);
-  footerRow.getCell(1).value = `In bởi TransTing — ${new Date().toLocaleDateString('vi-VN')}`;
+  const printDate = new Date().toLocaleDateString('vi-VN');
+  footerRow.getCell(1).value = company.name ? `In bởi ${company.name} — ${printDate}` : `Ngày in: ${printDate}`;
   footerRow.getCell(1).font = { name: F, size: 8, italic: true, color: { argb: 'FF9CA3AF' } };
   footerRow.getCell(1).alignment = { horizontal: 'center' };
 

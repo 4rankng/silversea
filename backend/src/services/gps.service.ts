@@ -9,6 +9,7 @@ import type { NormalizedGpsVehicle } from './gps/providers/types';
 import { normalizePlate, isStale, deriveStatus, reviveDate } from './gps/parse';
 import { resolveRoute, decodePolyline } from './gps/route-capture';
 import { fetchRouteMap } from './gps/route-lookup';
+import { getAppSettings } from './app-settings.service';
 
 // Re-export the pure helpers (consumed by unit tests and the providers).
 export { normalizePlate, parseBachKhoaDate, parseAspDate, isStale, deriveStatus, reviveDate } from './gps/parse';
@@ -447,6 +448,14 @@ export function composeFleet(args: {
 export async function getLiveFleet(): Promise<LiveFleetResponse> {
   const fetchedAt = new Date().toISOString();
   const now = new Date();
+
+  // Admin kill-switch: when the Bách Khoa feature is off, expose no fleet data
+  // at all — no live fixes, no last-known fallback, no map markers. The empty
+  // payload hides every GPS-derived component on the dispatch + trip-detail UIs.
+  const { gpsEnabled } = await getAppSettings();
+  if (!gpsEnabled) {
+    return { vehicles: [], stale: false, fetchedAt };
+  }
 
   // Active trips first — needed for both the live join and the fallback, so the
   // original provider-down short-circuits no longer blank the map.

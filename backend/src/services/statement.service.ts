@@ -6,6 +6,8 @@ import type { PeriodSummary } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
 import { ApiError } from '../errors';
 import { escapeHtml } from '../lib/format';
+import { getCompanyInfo } from './company-info.service';
+import { stampCompanyHeaderXlsx, companyHeaderHtml, loadLogoDataUrl } from './lib/export-company';
 import { CustomerAgingListItem } from './aging.service';
 
 type LedgerRow = typeof s.ledger.$inferSelect;
@@ -587,7 +589,7 @@ export async function exportStatementXlsx(data: CustomerStatementData, dateStr: 
   }, dateStr, writable);
 }
 
-export function exportStatementHtml(data: CustomerStatementData, dateStr: string): string {
+export async function exportStatementHtml(data: CustomerStatementData, dateStr: string): Promise<string> {
   return buildStatementHtml({
     heading: 'Sao kê công nợ',
     entityLabel: 'Khách hàng',
@@ -833,10 +835,10 @@ export async function exportSupplierStatementXlsx(
   }, dateStr, writable);
 }
 
-export function exportSupplierStatementHtml(
+export async function exportSupplierStatementHtml(
   data: SupplierStatementData,
   dateStr: string,
-): string {
+): Promise<string> {
   return buildStatementHtml({
     heading: 'Sao kê công nợ nhà cung cấp',
     entityLabel: 'Nhà cung cấp',
@@ -871,25 +873,31 @@ async function buildStatementXlsx(config: StatementExportConfig, dateStr: string
     right: { style: 'thin' as const, color: { argb: 'FFD1D5DB' } }
   };
 
-  // Header/Title Row (Row 2)
-  sheet.mergeCells('A2:H2');
-  const titleCell = sheet.getCell('A2');
+  // Company letterhead (configured on /config/company-info) — rows 1..4.
+  const company = await getCompanyInfo();
+  const afterHeader = await stampCompanyHeaderXlsx(workbook, sheet, company, { lastCol: 8 });
+
+  // Header/Title Row
+  const titleRow = afterHeader + 1;
+  sheet.mergeCells(titleRow, 1, titleRow, 8);
+  const titleCell = sheet.getCell(titleRow, 1);
   titleCell.value = config.heading.toUpperCase();
   titleCell.font = { name: 'Segoe UI', size: 13, bold: true, color: { argb: 'FFFFFFFF' } };
   titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF00702F' } };
   titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
-  sheet.getRow(2).height = 36;
+  sheet.getRow(titleRow).height = 36;
 
-  // Partner Info (Row 4)
-  sheet.getCell('A4').value = `${config.entityLabel}:`;
-  sheet.getCell('A4').font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FF374151' } };
-  sheet.getCell('B4').value = config.entityName;
-  sheet.getCell('B4').font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FF111827' } };
-  sheet.mergeCells('B4:H4');
-  sheet.getRow(4).height = 20;
+  // Partner Info
+  const partnerRow = titleRow + 2;
+  sheet.getCell(partnerRow, 1).value = `${config.entityLabel}:`;
+  sheet.getCell(partnerRow, 1).font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FF374151' } };
+  sheet.getCell(partnerRow, 2).value = config.entityName;
+  sheet.getCell(partnerRow, 2).font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FF111827' } };
+  sheet.mergeCells(partnerRow, 2, partnerRow, 8);
+  sheet.getRow(partnerRow).height = 20;
 
-  // Contact Info (Row 5+)
-  let currentOffset = 5;
+  // Contact Info
+  let currentOffset = partnerRow + 1;
   config.contactLines.forEach((line) => {
     sheet.getCell(`A${currentOffset}`).value = line;
     sheet.getCell(`A${currentOffset}`).font = { name: 'Segoe UI', size: 10, color: { argb: 'FF4B5563' } };
@@ -1081,7 +1089,10 @@ async function buildStatementXlsx(config: StatementExportConfig, dateStr: string
   await workbook.xlsx.write(writable);
 }
 
-function buildStatementHtml(config: StatementExportConfig, dateStr: string): string {
+async function buildStatementHtml(config: StatementExportConfig, dateStr: string): Promise<string> {
+  const company = await getCompanyInfo();
+  const logoDataUrl = await loadLogoDataUrl(company.logoStorageKey);
+  const header = companyHeaderHtml(company, logoDataUrl);
   const rows = config.ledgerRows.map((row) => {
     const debit = parseFloat(row.debit || '0');
     const credit = parseFloat(row.credit || '0');
@@ -1117,6 +1128,7 @@ function buildStatementHtml(config: StatementExportConfig, dateStr: string): str
   ${SHARED_CSS}
 </style>
 </head><body>
+${header}
 <h1>${escapeHtml(config.heading)}</h1>
 <div class="meta">
   ${config.entityLabel}: <strong>${escapeHtml(config.entityName)}</strong><br>
@@ -1153,22 +1165,28 @@ export async function exportReceivablesAgingXlsx(data: CustomerAgingListItem[], 
     right: { style: 'thin' as const, color: { argb: 'FFD1D5DB' } }
   };
 
-  // Header/Title Row (Row 2)
-  sheet.mergeCells('A2:H2');
-  const titleCell = sheet.getCell('A2');
+  // Company letterhead (configured on /config/company-info) — rows 1..4.
+  const company = await getCompanyInfo();
+  const afterHeader = await stampCompanyHeaderXlsx(workbook, sheet, company, { lastCol: 8 });
+
+  // Header/Title Row
+  const titleRow = afterHeader + 1;
+  sheet.mergeCells(titleRow, 1, titleRow, 8);
+  const titleCell = sheet.getCell(titleRow, 1);
   titleCell.value = 'BÁO CÁO CÔNG NỢ PHẢI THU';
   titleCell.font = { name: 'Segoe UI', size: 13, bold: true, color: { argb: 'FFFFFFFF' } };
   titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF00702F' } };
   titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
-  sheet.getRow(2).height = 36;
+  sheet.getRow(titleRow).height = 36;
 
-  // Export date (Row 4)
-  sheet.getCell('A4').value = `Ngày xuất: ${dateStr}`;
-  sheet.getCell('A4').font = { name: 'Segoe UI', size: 10, italic: true, color: { argb: 'FF6B7280' } };
-  sheet.mergeCells('A4:H4');
-  sheet.getRow(4).height = 20;
+  // Export date
+  const dateRow = titleRow + 2;
+  sheet.getCell(dateRow, 1).value = `Ngày xuất: ${dateStr}`;
+  sheet.getCell(dateRow, 1).font = { name: 'Segoe UI', size: 10, italic: true, color: { argb: 'FF6B7280' } };
+  sheet.mergeCells(dateRow, 1, dateRow, 8);
+  sheet.getRow(dateRow).height = 20;
 
-  let currentOffset = 6;
+  let currentOffset = dateRow + 2;
 
   // Table header row
   const tableHeaderRow = currentOffset;

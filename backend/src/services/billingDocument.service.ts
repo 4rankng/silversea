@@ -14,7 +14,7 @@ import {
 } from '@tingting/shared';
 import { getCompanyInfo } from './company-info.service';
 import type { Tx } from './trip-shared';
-import { storageService } from './storage.service';
+import { loadLogoBytes } from './lib/export-company';
 import type {
   BillingDocument,
   BillingDocumentDraft,
@@ -1501,13 +1501,6 @@ function groupDebitNoteLines(lines: BillingDocumentLine[]): DebitNoteLineGroup[]
     group.lines.push(line);
   }
   return groups;
-}
-
-/** Read the company logo bytes from storage. Graceful skip (null) when no key
- *  is set or the file is unreadable, so a missing logo never fails an export. */
-async function loadLogoBytes(logoStorageKey?: string | null): Promise<Buffer | null> {
-  if (!logoStorageKey) return null;
-  return storageService.read(logoStorageKey);
 }
 
 /**

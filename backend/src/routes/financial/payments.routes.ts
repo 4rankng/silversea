@@ -87,7 +87,7 @@ router.get('/ledger/suppliers/:id/statement/export', requireRoles(Role.ADMIN, Ro
   const dateStr = formatLocalDate();
 
   if (format === 'pdf') {
-    const html = exportSupplierStatementHtml(data, dateStr);
+    const html = await exportSupplierStatementHtml(data, dateStr);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(html);
     return;

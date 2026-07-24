@@ -1,9 +1,11 @@
 // Own-company profile, stored as key/value rows in app_settings under the
 // `company.*` prefix. This module is the single source of truth for the field→
 // setting-key map, the default values, and the row→typed-object reassembly —
-// consumed by routes/config.ts (GET/PUT) and seed.ts (dev defaults).
-// 0094_company_info_settings.sql mirrors these defaults for prod bootstrap;
-// keep them in sync when the company's legal profile changes.
+// consumed by routes/config.ts (GET/PUT) and seed.ts (dev defaults). Defaults
+// are intentionally empty (white-label): no company identity is baked in, and
+// the admin configures the real profile on /config/company-info.
+// 0109_neutralize_company_defaults.sql scrubs the legacy NePO seed rows
+// (0094/0099) so fresh and existing installs alike start from a clean slate.
 import { db } from '../db';
 import * as s from '../db/schema';
 import { like } from 'drizzle-orm';
@@ -25,15 +27,21 @@ export const COMPANY_INFO_SETTING_KEYS = {
 
 export type CompanyInfoField = keyof typeof COMPANY_INFO_SETTING_KEYS;
 
-/** Defaults used when a row is absent (e.g. fresh DB before the admin saves). */
+/**
+ * Factory defaults used when a row is absent (e.g. fresh DB before the admin
+ * saves). Intentionally EMPTY — the app is white-label, so no company identity
+ * is baked in. The admin configures the real profile on /config/company-info,
+ * which is the single source of truth. Migration 0109 scrubs the legacy NePO
+ * seed values (0094/0099) so installs start clean.
+ */
 export const COMPANY_INFO_DEFAULTS: Record<CompanyInfoField, string | null> = {
-  name: 'CÔNG TY TNHH NEPO',
-  address: 'Số 26/63/36 đường Vạn Mỹ, Phường Ngô Quyền, Thành phố Hải Phòng, Việt Nam',
-  taxCode: '0201588208',
-  representative: 'Ông Phan Kim Phụng',
-  representativeTitle: 'Giám Đốc',
-  bankAccount: '190466529',
-  bankName: 'Ngân hàng TMCP Á Châu PGD Thái Phiên - Hải Phòng',
+  name: '',
+  address: '',
+  taxCode: '',
+  representative: '',
+  representativeTitle: '',
+  bankAccount: '',
+  bankName: '',
   phone: '',
   email: '',
   logoStorageKey: null,
