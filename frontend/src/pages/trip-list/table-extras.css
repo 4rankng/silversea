@@ -1,0 +1,140 @@
+/* ── Footer pagination ────────────────────────────────────────────────── */
+.trip-list-page .table-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px;
+  border-top: 1px solid var(--line);
+  font-size: var(--fs-sm); color: var(--ink-3);
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.trip-list-page .page-info { display: flex; align-items: center; gap: 6px; }
+.trip-list-page .page-info b { color: var(--ink); font-weight: 700; }
+.trip-list-page .pagination { display: flex; align-items: center; gap: 6px; }
+.trip-list-page .page-btn {
+  min-width: 44px; min-height: 44px;
+  padding: 0 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--surface);
+  border: 1px solid var(--tbl-line-strong);
+  border-radius: 8px;
+  font-size: var(--fs-xs); font-weight: 600; line-height: 1.35;
+  color: var(--ink-2);
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+}
+.trip-list-page .page-btn:hover:not(:disabled):not(.active) { border-color: var(--ink-2); color: var(--ink); }
+.trip-list-page .page-btn.active { background: var(--tbl-green-700); color: var(--fg-on-brand); border-color: var(--tbl-green-700); font-weight: 600; }
+.trip-list-page .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.trip-list-page .ps-select {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--fs-xs); color: var(--ink-3);
+}
+.trip-list-page .ps-select select {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 6px;
+  font-size: var(--fs-xs);
+  background: var(--surface);
+  font-family: var(--font-body);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+/* ── Empty + loading states ───────────────────────────────────────────── */
+.trip-list-page .table-empty {
+  padding: 56px 20px;
+  text-align: center;
+  color: var(--ink-3);
+  font-size: var(--fs-sm);
+}
+
+/* ── Container merged cell (type + number in one column) ─────────── */
+.trip-list-page .container-merged-cell {
+  min-width: 0;
+}
+.trip-list-page .container-numbers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: var(--fs-xs);
+  font-family: var(--font-mono);
+  color: var(--ink-2);
+  margin-top: 2px;
+}
+.trip-list-page .container-numbers-list span {
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+}
+.trip-list-page .container-numbers-more {
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+}
+
+/* ── Route KM inline ──────────────────────────────────────────────── */
+.trip-list-page .route-km-inline {
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+}
+
+/* ── Column-specific sizing ────────────────────────────────────────── */
+.trip-list-page .col-truck,
+.trip-list-page .col-route,
+.trip-list-page .col-consumption {
+  min-width: 0;
+}
+.trip-list-page .col-consumption {
+  min-width: 116px;
+}
+.trip-list-page .col-revenue {
+  min-width: 100px;
+}
+
+/* ── Sticky status column ─────────────────────────────────────────── */
+.trip-list-page .col-status {
+  position: sticky;
+  right: 0;
+  background: var(--surface);
+  z-index: 2;
+  border-left: 1px solid var(--line);
+  transition: background 150ms ease;
+}
+.trip-list-page .table-row:hover .col-status {
+  background: var(--tbl-green-050);
+}
+.trip-list-page .table-head .col-status {
+  position: sticky;
+  right: 0;
+  background: var(--surface-2);
+  z-index: 11;
+  border-left: 1px solid var(--line);
+}
+
+/* ── Infinite scroll sentinel ─────────────────────────────────────────── */
+.trip-list-page .infinite-sentinel {
+  padding: 16px 20px;
+  text-align: center;
+  border-top: 1px solid var(--line);
+}
+.trip-list-page .infinite-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-3);
+  font-size: var(--fs-sm);
+}
+.trip-list-page .infinite-end {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+}
+.trip-list-page .infinite-end b { color: var(--ink); }
+.trip-list-page .spin {
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}

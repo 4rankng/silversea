@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "route_distance_cache_uniq_idx" ON "route_distance_cache" USING btree ("origin_cleaned","destination_cleaned");

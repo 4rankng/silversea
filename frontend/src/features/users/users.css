@@ -1,0 +1,1115 @@
+/* ============================================================================
+ * users.css — Scoped styles for the Users page
+ * ========================================================================== */
+
+.users-admin-page .page-header {
+  margin-bottom: 18px;
+}
+
+.users-admin-page {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.users-admin-page .users-kpi-grid {
+  margin-bottom: 24px;
+}
+
+.users-admin-page .page-title {
+  font-size: var(--fs-2xl);
+  line-height: 1.35;
+  letter-spacing: 0;
+  font-weight: 700;
+}
+
+.users-admin-page .page-title em {
+  color: var(--accent-ink);
+  font-style: normal;
+}
+
+.users-admin-page .page-subtitle {
+  margin-top: 6px;
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+}
+
+/* ── User avatars with role-colored ring ────────────────────────────────── */
+
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2.5px solid transparent;
+}
+
+/* Role-colored ring variants */
+.user-avatar--admin {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.user-avatar--manager {
+  border-color: var(--warning);
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.user-avatar--accountant {
+  border-color: var(--ink-3);
+  background: var(--surface-3);
+  color: var(--ink-2);
+}
+
+.user-avatar--driver {
+  border-color: var(--success);
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.user-avatar--forwarder {
+  border-color: var(--info);
+  background: var(--info-soft);
+  color: var(--info);
+}
+
+/* ── User name column ───────────────────────────────────────────────────── */
+
+.user-name {
+  font-weight: 700;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.user-name__you {
+  margin-left: 6px;
+  font-size: var(--fs-2xs);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.user-handle {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-3);
+  margin-top: 2px;
+}
+
+/* ── Contact info rows ──────────────────────────────────────────────────── */
+
+.user-contact {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.user-contact__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.user-contact__row svg {
+  width: 13px;
+  height: 13px;
+  color: var(--ink-3);
+  flex-shrink: 0;
+}
+
+/* ── Filter pills with subtle role-colored tints ───────────────────────── */
+
+.filter-pill--admin {
+  --fp-color: var(--danger);
+  --fp-soft: var(--danger-soft);
+}
+.filter-pill--manager {
+  --fp-color: var(--warning);
+  --fp-soft: var(--warning-soft);
+}
+.filter-pill--accountant {
+  --fp-color: var(--ink-2);
+  --fp-soft: var(--surface-3);
+}
+.filter-pill--driver {
+  --fp-color: var(--success);
+  --fp-soft: var(--success-soft);
+}
+.filter-pill--forwarder {
+  --fp-color: var(--info);
+  --fp-soft: var(--info-soft);
+}
+
+/* Inactive state: subtle tinted border hint */
+.filter-pill[class*="filter-pill--"] {
+  border-color: color-mix(in srgb, var(--fp-color) 20%, transparent);
+}
+
+.filter-pill[class*="filter-pill--"]:hover {
+  background: var(--fp-soft);
+  border-color: color-mix(in srgb, var(--fp-color) 40%, transparent);
+  color: var(--fp-color);
+}
+
+/* Active state: solid role color */
+.filter-pill[class*="filter-pill--"].is-active {
+  background: var(--fp-color);
+  border-color: var(--fp-color);
+  color: var(--fg-on-brand);
+}
+
+.filter-pill[class*="filter-pill--"].is-active .filter-pill__count {
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--fg-on-brand);
+}
+
+/* ── Users table panel (unified wrapper) ────────────────────────────────── */
+
+.users-table-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow: hidden;
+  transition: border-color 0.3s ease;
+}
+
+.users-table-panel:hover {
+  border-color: var(--line-2);
+}
+
+/* Toolbar inside the panel — flush with top, no bottom border */
+.users-table-panel .toolbar {
+  border-bottom: 1px solid var(--line);
+  padding: 12px 14px;
+  background: var(--surface-2);
+}
+
+.users-list-legend {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 10px 18px;
+  color: var(--ink-3);
+  font-size: 12px;
+  border-bottom: 1px solid var(--line-2);
+}
+
+.users-table-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.users-pagination {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+}
+
+/* Override .tt-table for users — no row cursor (non-clickable rows) */
+.users-table-panel .tt-table tbody tr {
+  cursor: default;
+}
+
+.users-table-panel .tt-table tbody tr:hover {
+  background: rgba(0, 177, 79, 0.03);
+  transform: none;
+}
+
+/* Better row spacing inside the panel */
+.users-table-panel .tt-table thead th {
+  padding: 12px 16px;
+  color: var(--ink-3);
+  font-family: var(--font-body);
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  line-height: 1.35;
+}
+
+.users-sort-button {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.users-sort-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.users-table-panel .tt-table tbody td {
+  padding: 13px 16px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+/* Table footer inside panel */
+.users-table-panel .table-foot {
+  border-top: 1px solid var(--line);
+  padding: 10px 16px;
+  background: rgba(247, 248, 250, 0.6);
+}
+
+.users-admin-page .btn-page {
+  min-width: 44px;
+  min-height: 44px;
+  height: 44px;
+  line-height: 1.35;
+}
+
+/* ── Empty state for users ──────────────────────────────────────────────── */
+
+.users-empty {
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.users-empty__icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: var(--surface-3);
+  display: grid;
+  place-items: center;
+  margin: 0 auto 16px;
+  color: var(--ink-3);
+}
+
+.users-empty__illustration {
+  width: 140px;
+  height: 116px;
+  object-fit: contain;
+  margin: 0 auto 16px;
+  display: block;
+  user-select: none;
+  pointer-events: none;
+}
+
+.users-empty__title {
+  font-family: var(--font-display);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 6px;
+}
+
+.users-empty__desc {
+  font-size: var(--fs-sm);
+  color: var(--ink-3);
+  margin: 0;
+}
+
+/* ── Form sections inside drawer ──────────────────────────────────────────── */
+
+.users-form-section__title {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.users-form-divider {
+  height: 1px;
+  background: var(--line-2);
+  margin: 16px 0;
+}
+
+/* ── KPI value emphasis ───────────────────────────────────────────────────── */
+
+.users-admin-page .kpi-grid .kpi__value {
+  font-size: var(--fs-xl);
+  line-height: 1.25;
+}
+
+/* ── Icon Input ─────────────────────────────────────────────────────────────── */
+
+.icon-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border: 1.5px solid var(--line-2);
+  border-radius: 9px;
+  min-height: 44px;
+  height: 44px;
+  background: var(--surface);
+  transition: border-color 0.15s ease;
+}
+
+.icon-input:focus-within {
+  border-color: var(--brand);
+  outline: 2px solid var(--brand-soft);
+  outline-offset: 2px;
+}
+
+.icon-input__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: 12px;
+  color: var(--ink-4);
+  flex-shrink: 0;
+  opacity: 0.5;
+}
+
+.icon-input__field {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 0 12px;
+  height: 100%;
+  font-size: 13px;
+  color: var(--ink);
+  outline: none;
+  font-family: inherit;
+}
+
+.icon-input__field::placeholder {
+  color: var(--ink-4);
+}
+
+.icon-input__check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-right: 12px;
+  color: var(--success);
+  flex-shrink: 0;
+}
+
+/* Valid state — green border */
+.icon-input--valid {
+  border-color: color-mix(in srgb, var(--success) 50%, var(--line-2));
+}
+
+.icon-input--valid:focus-within {
+  border-color: var(--success);
+}
+
+/* Error state — red border */
+.icon-input--error {
+  border-color: var(--danger);
+}
+
+.icon-input--error:focus-within {
+  border-color: var(--danger);
+}
+
+/* ── Form Inner Cards ──────────────────────────────────────────────────────── */
+
+/* Widen drawer to fit two-column card layout */
+.drawer:has(.users-form-cards) {
+  max-width: 700px;
+}
+
+.drawer:has(.users-form-cards) .drawer__head {
+  padding: 18px 24px 14px;
+}
+
+.drawer:has(.users-form-cards) .drawer__body {
+  padding: 16px 24px 84px;
+}
+
+.drawer:has(.users-form-cards) .drawer__foot {
+  padding: 12px 24px;
+}
+
+.drawer:has(.users-form-cards) .drawer__title {
+  font-size: 20px;
+}
+
+/* Desktop: cards side by side */
+.users-form-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.users-form-card {
+  background: color-mix(in srgb, var(--surface-2) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Reset form-group spacing inside cards (card gap handles it) */
+.users-form-card .form-group {
+  margin-bottom: 0;
+}
+
+.users-form-cards--driver {
+  grid-template-columns: 2fr 1fr;
+}
+
+/* ── Password Toggle ──────────────────────────────────────────────────────── */
+
+.pw-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
+  background: none;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  color: var(--ink-3);
+  flex-shrink: 0;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.pw-toggle:hover {
+  background: var(--surface-3);
+  color: var(--ink-2);
+}
+
+/* ── Error Banner ──────────────────────────────────────────────────────────── */
+
+.users-error-banner {
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-radius: 8px;
+  font-size: var(--fs-xs);
+}
+
+/* ── Mobile card enhancements ───────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .users-admin-page .page-header {
+    margin-bottom: 12px;
+  }
+
+  .users-admin-page .page-title {
+    font-size: 24px;
+    line-height: 1.35;
+    letter-spacing: 0;
+  }
+
+  .users-admin-page .page-subtitle {
+    font-size: 13px;
+  }
+
+  .users-admin-page .page-header-main {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .users-table-panel {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .users-table-panel .users-role-toolbar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+    max-width: 100%;
+    overflow: visible;
+    padding: 10px;
+  }
+
+  .users-role-toolbar .filter-pill {
+    width: 100%;
+    min-width: 0;
+    justify-content: center;
+    padding-inline: 8px;
+    line-height: 1.25;
+    text-align: center;
+    white-space: normal;
+  }
+
+  .users-role-toolbar .toolbar__spacer {
+    display: none;
+  }
+
+  .users-role-toolbar .toolbar__search {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .users-list-legend {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
+    padding: 10px 12px;
+  }
+
+  .users-list-legend > span:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .drawer:has(.users-form-cards) .drawer__head {
+    padding: 16px 18px 12px;
+  }
+
+  .drawer:has(.users-form-cards) .drawer__body {
+    padding: 14px 18px 76px;
+  }
+
+  .drawer:has(.users-form-cards) .drawer__foot {
+    padding: 10px 18px;
+  }
+
+  .drawer:has(.users-form-cards) .drawer__title {
+    font-size: 18px;
+  }
+
+  .drawer:has(.users-form-cards) .drawer__subtitle {
+    font-size: 12px;
+  }
+
+  .users-form-section__title {
+    margin-bottom: 7px;
+  }
+
+  .users-form-divider {
+    margin: 14px 0;
+  }
+
+  .users-form-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .users-form-card {
+    padding: 0;
+    gap: 10px;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .users-form-card .form-group > label,
+  .drawer:has(.users-form-cards) .form-group > label {
+    margin-bottom: 5px;
+    font-size: 12px;
+  }
+
+  .drawer:has(.users-form-cards) .field {
+    gap: 4px !important;
+  }
+
+  .drawer:has(.users-form-cards) .row-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+
+  .drawer:has(.users-form-cards) .input,
+  .drawer:has(.users-form-cards) select.input {
+    min-height: 44px;
+    height: 44px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    font-size: 16px;
+  }
+
+  .icon-input {
+    min-height: 44px;
+    height: 44px;
+  }
+
+  .icon-input__icon {
+    padding-left: 10px;
+  }
+
+  .icon-input__field {
+    padding-inline: 10px;
+  }
+
+  .drawer:has(.users-form-cards) .input,
+  .drawer:has(.users-form-cards) .icon-input__field {
+    font-size: 16px;
+  }
+
+  .drawer:has(.users-form-cards) select.input {
+    padding-inline: 10px 30px;
+  }
+
+  .user-avatar {
+    width: 40px;
+    height: 40px;
+    font-size: var(--fs-sm);
+    border-width: 2.5px;
+  }
+
+  .users-mobile-card {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding: 14px 12px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .users-mobile-card:last-child {
+    border-bottom: none;
+  }
+
+  .users-mobile-card__header {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+
+  .users-mobile-card__info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .users-mobile-card__name {
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--ink);
+    overflow: visible;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .users-mobile-card__handle {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-3);
+    margin-top: 1px;
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .users-mobile-card__identity-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 8px;
+    min-width: 0;
+    margin-top: 3px;
+  }
+
+  .users-mobile-card__role {
+    max-width: 100%;
+    flex-shrink: 0;
+  }
+
+  .users-mobile-card__menu {
+    position: relative;
+    align-self: center;
+  }
+
+  .users-mobile-card__details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    padding-left: 52px;
+    min-width: 0;
+  }
+
+  .users-mobile-card__detail-list {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 7px 12px;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .users-mobile-card__detail {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--ink-3);
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .users-mobile-card__detail svg {
+    width: 12px;
+    height: 12px;
+    color: var(--ink-4);
+  }
+
+  .users-mobile-card__actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+  }
+
+  .users-mobile-card__action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    min-height: 44px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--surface-2);
+    color: var(--ink-2);
+    border: 1px solid var(--line);
+    cursor: pointer;
+    transition: background 0.12s var(--ease), color 0.12s var(--ease), border-color 0.12s var(--ease);
+  }
+
+  .users-mobile-card__action-btn:hover {
+    background: var(--surface);
+    color: var(--ink);
+    border-color: var(--line-2);
+  }
+
+  .users-mobile-card__action-btn--danger {
+    color: var(--danger);
+    border-color: var(--danger-soft);
+  }
+
+  .users-mobile-card__action-btn--danger:hover {
+    background: var(--danger-soft);
+    color: var(--danger);
+    border-color: var(--danger-soft);
+  }
+
+  .users-table-foot {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .users-table-foot__summary {
+    width: 100%;
+    text-align: center;
+  }
+
+  .users-pagination {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .users-pagination__page:not(.is-active) {
+    display: none;
+  }
+}
+
+/* ─── Premium Enhancements & Dynamic Interactions ─── */
+
+/* Kebab button & dropdown styling */
+.kebab-btn {
+  background: none;
+  border: none;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-3);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.kebab-btn:hover {
+  background: var(--surface-3);
+  color: var(--ink);
+}
+
+.users-mobile-card__dropdown {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 100;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  overflow: hidden;
+  min-width: 130px;
+  padding: 4px;
+}
+
+.users-mobile-card__dropdown button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  font-size: var(--fs-sm);
+  line-height: 1.35;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  color: var(--ink);
+  border-radius: 6px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.users-mobile-card__dropdown button:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.users-mobile-card__dropdown button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Clear search button styling */
+.search-clear-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink-3);
+  background: none;
+  border: none;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+  z-index: 2;
+}
+
+.search-clear-btn:hover {
+  background: var(--surface-3);
+  color: var(--ink-2);
+}
+
+.users-table-panel .toolbar__search input {
+  padding-right: 28px;
+  line-height: 1.35;
+  min-height: 44px;
+}
+
+/* KPI Premium Styling overrides */
+.users-admin-page .kpi-grid .kpi {
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  transition: background 0.22s var(--ease), border-color 0.22s var(--ease);
+}
+
+.users-admin-page .kpi-grid .kpi:hover {
+  background: var(--surface-2);
+  border-color: var(--line);
+}
+
+@media (max-width: 640px) {
+  .users-admin-page .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 14px;
+    width: 100%;
+    max-width: 100%;
+    overflow: visible;
+    padding-bottom: 0;
+  }
+
+  .users-admin-page .kpi-grid .kpi {
+    min-width: 0;
+    min-height: 92px;
+    padding: 10px 12px;
+  }
+
+  .users-admin-page .kpi-grid .kpi__meta,
+  .users-admin-page .kpi-grid .kpi__watermark {
+    display: none;
+  }
+}
+
+.users-admin-page .kpi-grid .kpi .kpi__value {
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: 0;
+  margin: 4px 0 6px 0;
+  line-height: 1.35;
+}
+
+.users-admin-page .kpi-grid .kpi .kpi__label {
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  letter-spacing: 0.085em;
+  line-height: 1.35;
+}
+
+.users-admin-page .kpi-grid .kpi .kpi__meta {
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+}
+
+.users-admin-page .kpi__meta-pill {
+  align-items: center;
+  background: var(--brand-soft);
+  border-radius: 6px;
+  color: var(--brand);
+  display: inline-flex;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  gap: 4px;
+  line-height: 1.35;
+  padding: 3px 8px;
+}
+
+.users-admin-page .kpi__meta-pill--warn {
+  background: rgba(245, 158, 11, 0.1);
+  color: rgb(217, 119, 6);
+}
+
+.users-admin-page .kpi__meta-pill--success {
+  background: rgba(16, 185, 129, 0.1);
+  color: rgb(5, 150, 105);
+}
+
+.users-admin-page .kpi__meta-pill--danger {
+  background: rgba(239, 68, 68, 0.1);
+  color: rgb(220, 38, 38);
+}
+
+.users-admin-page .kpi__meta-pill--neutral {
+  background: rgba(107, 114, 128, 0.1);
+  color: rgb(107, 114, 128);
+}
+
+.users-admin-page .kpi__meta-note {
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+}
+
+.users-admin-page .kpi-grid .kpi .kpi__icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--brand-soft);
+  color: var(--brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.users-admin-page .kpi-grid .kpi.kpi--warn .kpi__icon {
+  background: rgba(245, 158, 11, 0.12);
+  color: rgb(217, 119, 6);
+}
+
+.users-admin-page .kpi-grid .kpi.kpi--success .kpi__icon {
+  background: rgba(16, 185, 129, 0.12);
+  color: rgb(5, 150, 105);
+}
+
+.users-admin-page .kpi-grid .kpi.kpi--danger .kpi__icon {
+  background: rgba(239, 68, 68, 0.12);
+  color: rgb(220, 38, 38);
+}
+
+/* License-plate badge for the assigned-truck ("Xe") column on driver rows.
+   Vantai plate pattern — light variant: mono, hairline border, no truncation. */
+.users-admin-page .user-truck-plate {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-xs);
+  color: var(--ink);
+  background: var(--surface-2);
+  padding: 3px 9px;
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  letter-spacing: 0.02em;
+  font-feature-settings: "tnum";
+  white-space: nowrap;
+  display: inline-block;
+}
+
+/* ── Responsive overrides (from responsive.css decomposition) ── */
+@media (max-width: 640px) {
+  /* ── Users admin page — Mobile Pass 4 (2026-06-02) ──
+     Same family of fixes as Routes page Pass 1 — hide the decorative KPI
+     watermark icon (lucide outline at 72px) that crowds the tile value,
+     and let the longer two-word labels (NHÂN SỰ VĂN PHÒNG, BỊ KHOÁ / NGƯNG)
+     wrap gracefully instead of butting up against the badge.
+     Page-scope class lives on the root <div className="fade-up …">. */
+  .users-admin-page .kpi__watermark { display: none; }
+  .users-admin-page .kpi { overflow: hidden; padding: 12px 14px; }
+  .users-admin-page .kpi__top {
+    /* The role badge ("· Văn phòng", "· An toàn") in .kpi__top was forcing
+       the label into a narrow column. Wrap the badge below the label so the
+       label always gets the full width. */
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  .users-admin-page .kpi__label {
+    font-size: var(--fs-xs);
+    line-height: 1.35;
+    flex: 1 1 100%;
+  }
+  .users-admin-page .kpi__value { font-size: var(--fs-2xl); line-height: 1.35; }
+  .users-admin-page .kpi__meta { font-size: var(--fs-xs); line-height: 1.35; margin-top: 6px; }
+} /* end 640px */
+
+@media (max-width: 360px) {
+  .users-admin-page .page-title {
+    font-size: 22px;
+  }
+
+  .users-admin-page .kpi-grid .kpi {
+    min-height: 86px;
+    padding: 9px 10px;
+  }
+
+  .users-admin-page .kpi-grid .kpi .kpi__label {
+    font-size: 10px;
+    letter-spacing: 0.04em;
+  }
+
+  .users-mobile-card__details {
+    padding-left: 0;
+  }
+}

@@ -1,0 +1,174 @@
+/* ============================================================================
+ * App shell
+ * ========================================================================== */
+
+/* Skip-link: visible only on keyboard focus, lets keyboard users bypass sidebar */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 16px;
+  z-index: var(--z-max);
+  min-height: 44px;
+  padding: 10px 16px;
+  background: var(--brand, #4f46e5);
+  color: var(--fg-on-brand);
+  border-radius: 6px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  transition: top 0.15s ease;
+}
+.skip-link:focus {
+  top: 12px;
+}
+
+.app {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  grid-template-rows: 100vh;
+  grid-template-rows: 100dvh;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  transition: grid-template-columns 240ms var(--ease);
+}
+
+/* Desktop sidebar toggle (1024px and above) */
+@media (min-width: 1024px) {
+  .app.sidebar-closed {
+    grid-template-columns: 48px 1fr;
+  }
+
+  .app.sidebar-closed .sidebar {
+    width: 48px;
+    min-width: 48px;
+  }
+
+  /* Hide only text/meta elements when sidebar is collapsed */
+  .app.sidebar-closed .sidebar-brand-meta {
+    display: none;
+  }
+
+  .app.sidebar-closed .sidebar-brand {
+    justify-content: center;
+    padding: 14px 4px 12px;
+  }
+
+  .app.sidebar-closed .sidebar-brand-logo {
+    margin: 0;
+    opacity: 1;
+    transition: opacity 0.2s ease;
+  }
+
+  /* Collapsed nav: show icons only */
+  .app.sidebar-closed .sidebar-nav {
+    padding: 8px 4px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: none;
+  }
+
+  .app.sidebar-closed .sidebar-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .app.sidebar-closed .sidebar-section-label {
+    display: none;
+  }
+
+  .app.sidebar-closed .sidebar-item {
+    min-height: var(--control-h);
+    padding: 10px 0;
+    justify-content: center;
+    gap: 0;
+  }
+
+  .app.sidebar-closed .sidebar-item-label {
+    display: none;
+  }
+
+  /* Hide text, badges, and active chevrons in collapsed mode. */
+  .app.sidebar-closed .sidebar-item-label,
+  .app.sidebar-closed .nav-item__badge {
+    display: none;
+  }
+
+  .app.sidebar-closed .sidebar-item > svg:not(:first-child) {
+    display: none;
+  }
+  /* Hide the left accent bar — it bleeds outside the narrow rail */
+  .app.sidebar-closed .sidebar-item::before {
+    display: none;
+  }
+
+  /* Collapsed footer: show only avatar */
+  .app.sidebar-closed .sidebar-footer {
+    padding: 8px 4px;
+  }
+
+  .app.sidebar-closed .sidebar-user {
+    justify-content: center;
+    padding: 8px 0;
+  }
+
+  .app.sidebar-closed .sidebar-user .meta,
+  .app.sidebar-closed .sidebar-user > svg:last-child {
+    display: none;
+  }
+
+  .app.sidebar-closed .sidebar-user-dropdown {
+    position: fixed;
+    bottom: 8px;
+    left: 56px;
+    right: auto;
+    min-width: 200px;
+    margin-bottom: 0;
+    max-height: calc(100dvh - 16px);
+    overflow-y: auto;
+    z-index: var(--z-overlay);
+  }
+
+  .app.sidebar-closed .sidebar-user-chevron {
+    display: none;
+  }
+
+  .app:not(.sidebar-closed) .sidebar {
+    width: var(--sidebar-w);
+    min-width: var(--sidebar-w);
+  }
+
+  .sidebar {
+    transition: width 240ms var(--ease), min-width 240ms var(--ease);
+  }
+
+  .sidebar-brand {
+    transition: padding 240ms var(--ease);
+  }
+}
+.app-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--bg);
+}
+.app-body,
+.content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 30px 34px 40px;
+  scrollbar-gutter: stable;
+  scroll-behavior: smooth;
+}
+
+@media (min-width: 1024px) and (max-width: 1280px) {
+  .app-body,
+  .content {
+    padding: 26px 24px 38px;
+  }
+}

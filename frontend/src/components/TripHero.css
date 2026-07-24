@@ -1,0 +1,117 @@
+/* ============================================================================
+ * TripHero — TingTing
+ * Extracted from UI.css during architecture refactoring (Phase 4)
+ * ========================================================================== */
+.trip-hero {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 18px 22px 16px;
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.trip-hero__top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.trip-hero__back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px; height: 44px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.trip-hero__back:hover { background: var(--surface-3); color: var(--ink); border-color: var(--line-2); }
+.trip-hero__crumb {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-eyebrow);
+  font-family: var(--font-mono);
+}
+.trip-hero__title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.trip-hero__title {
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0;
+  line-height: 1.25;
+  color: var(--ink);
+  margin: 0;
+}
+.trip-hero__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+.trip-hero__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px 5px 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.trip-hero__chip svg { width: 14px; height: 14px; color: var(--ink-3); flex-shrink: 0; }
+.trip-hero__chip strong { color: var(--ink); font-weight: 600; }
+.trip-hero__chip--route {
+  background: var(--accent-soft);
+  border-color: rgba(0, 177, 79, 0.2);
+  color: var(--ink);
+  font-weight: 500;
+}
+.trip-hero__chip--route svg { color: var(--accent); }
+.trip-hero__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+  border-top: 1px dashed var(--line);
+  margin-top: 4px;
+  padding-top: 14px;
+}
+.trip-hero__actions-spacer { flex: 1; min-width: 0; }
+.trip-hero__actions-divider {
+  width: 1px;
+  height: 22px;
+  background: var(--line-2);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+.trip-hero__actions .btn--sm { min-height: 44px; }
+.trip-hero__warn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-xs);
+  color: var(--warning-text);
+  font-weight: 500;
+  padding: 4px 8px;
+  background: var(--warning-soft);
+  border: 1px solid rgba(245, 166, 35, 0.2);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.trip-hero__warn svg { width: 13px; height: 13px; color: var(--warning); }

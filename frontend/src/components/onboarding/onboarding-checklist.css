@@ -1,0 +1,189 @@
+/* OnboardingChecklist — floating activation panel (Phase 6).
+ * Visual family matches .agent-tour (bottom-right fixed, dark overlay card),
+ * kept self-contained so the panel can mount at the Layout root. */
+
+.ob-checklist,
+.ob-checklist--badge {
+  position: fixed;
+  right: 20px;
+  bottom: calc(var(--trip-action-bar-height, 0px) + 20px);
+  z-index: 60; /* below the agent drawer (z-index 70) but above page content */
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.16);
+  font-family: inherit;
+  color: #0f172a;
+}
+
+.ob-checklist {
+  width: 320px;
+  max-width: calc(100vw - 32px);
+}
+
+/* ── Badge (collapsed-dismissed) ─────────────────────────────────────────── */
+.ob-checklist--badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 13px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #b45309; /* amber accent — "you have onboarding left" */
+  border-color: #fcd34d;
+  background: #fffbeb;
+}
+.ob-checklist--badge:hover {
+  background: #fef3c7;
+}
+
+/* ── Header (click to expand/collapse) ───────────────────────────────────── */
+.ob-checklist__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 14px;
+  background: none;
+  border: none;
+  border-radius: 12px 12px 0 0;
+  cursor: pointer;
+  text-align: left;
+}
+.ob-checklist__head-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ob-checklist__eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+.ob-checklist__title {
+  font-size: 14px;
+  font-weight: 600;
+}
+.ob-checklist__head-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #6b7280;
+}
+.ob-checklist__pct {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Progress bar ────────────────────────────────────────────────────────── */
+.ob-checklist__bar {
+  height: 4px;
+  background: #f1f5f9;
+  margin: 0 14px;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.ob-checklist__bar-fill {
+  height: 100%;
+  background: #16a34a;
+  transition: width 0.3s ease;
+}
+
+/* ── Task list ───────────────────────────────────────────────────────────── */
+.ob-checklist__list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 6px 10px 4px;
+}
+.ob-checklist__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 6px;
+  border-radius: 8px;
+}
+.ob-checklist__item.is-done {
+  opacity: 0.55;
+}
+.ob-checklist__item.is-done .ob-checklist__item-title {
+  text-decoration: line-through;
+}
+.ob-checklist__check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+.ob-checklist__item.is-done .ob-checklist__check {
+  background: #16a34a;
+  color: #fff;
+}
+.ob-checklist__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #cbd5e1;
+}
+.ob-checklist__item-title {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.35;
+}
+.ob-checklist__tour-btn {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--brand);
+  background: var(--brand-soft);
+  border: 1px solid color-mix(in srgb, var(--brand) 24%, var(--line));
+  border-radius: 6px;
+  cursor: pointer;
+}
+.ob-checklist__tour-btn:hover {
+  background: var(--brand-soft);
+  border-color: var(--brand);
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────────── */
+.ob-checklist__foot {
+  display: flex;
+  justify-content: flex-end;
+  padding: 6px 12px 10px;
+}
+.ob-checklist__dismiss {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  font-size: 12px;
+  color: #6b7280;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.ob-checklist__dismiss:hover {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+@media (max-width: 640px) {
+  .ob-checklist {
+    right: 12px;
+    left: 12px;
+    width: auto;
+    bottom: calc(var(--trip-action-bar-height, 0px) + 12px);
+  }
+}

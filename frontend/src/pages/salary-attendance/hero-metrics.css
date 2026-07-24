@@ -1,0 +1,272 @@
+/* ============================================================================
+ * TingTing — Salary & Attendance Page
+ * Professional, refined design aligned with the app's charcoal/green language.
+ * ========================================================================== */
+
+/* ─── Local design tokens (charcoal hero gradient) ─── */
+.salary-page {
+  --d-charcoal-1: #14181A;
+  --d-charcoal-2: #1A2220;
+  --d-charcoal-3: #1F2D27;
+  --d-green-500:  #16A34A;
+  --d-green-800:  #005A2D;
+}
+
+/* ── Hero (light operational summary) ────────────────────────────────── */
+.salary-page .hero {
+  background:
+    linear-gradient(135deg, rgba(0, 90, 45, 0.08), rgba(255, 255, 255, 0) 42%),
+    var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 10px 28px -22px rgba(0, 90, 45, 0.45);
+  padding: 22px 24px;
+  margin-bottom: 18px;
+  position: relative;
+  overflow: hidden;
+}
+.salary-page .hero::before {
+  content: '';
+  position: absolute;
+  right: -110px; top: -120px;
+  width: 300px; height: 300px;
+  background: radial-gradient(circle, rgba(0, 177, 79, 0.10), transparent 68%);
+  pointer-events: none;
+}
+.salary-page .hero::after {
+  content: '';
+  position: absolute;
+  left: 24px; right: 24px; bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(0, 90, 45, 0.18), transparent 72%);
+  pointer-events: none;
+}
+.salary-page .hero-top {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 24px;
+  position: relative;
+}
+.salary-page .hero-title-block { min-width: 0; }
+.salary-page .hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: var(--fs-xs); line-height: 1.35; letter-spacing: 1.2px; font-weight: 700;
+  color: var(--accent-ink);
+  text-transform: uppercase;
+  margin-bottom: 9px;
+}
+.salary-page .hero-eyebrow::before {
+  content: ''; width: 6px; height: 6px;
+  background: var(--accent); border-radius: 50%;
+  box-shadow: 0 0 0 4px rgba(0, 177, 79, 0.12);
+}
+.salary-page .hero-h1 {
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl); font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.35;
+  margin: 0 0 6px;
+}
+.salary-page .hero-sub {
+  font-size: var(--fs-sm); color: var(--ink-2);
+}
+.salary-page .hero-actions {
+  display: flex; align-items: center; gap: 8px;
+  flex-shrink: 0;
+}
+.salary-page .hero-month-label {
+  color: var(--ink-2);
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  padding: 0 4px;
+  min-width: 72px;
+  text-align: center;
+}
+
+/* Hero month-nav buttons use the Global .btn / .btn--secondary / .btn--icon
+   system (components/Button.css). The page-scoped .btn-d* recipes were
+   retired during CTA unification. */
+
+/* ── Metric strip (bento grid) ──────────────────────────────────────── */
+.salary-page .metrics {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: minmax(260px, 1.35fr) repeat(4, minmax(150px, 1fr));
+  gap: 10px;
+  background: transparent;
+  border-radius: 0;
+  overflow: visible;
+  position: relative;
+}
+.salary-page .metric {
+  background: rgba(255, 255, 255, 0.76);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.035);
+}
+.salary-page .metric.featured {
+  grid-row: auto;
+  grid-column: auto;
+  background: linear-gradient(135deg, rgba(0, 177, 79, 0.10), rgba(255, 255, 255, 0.86));
+  border-color: rgba(0, 177, 79, 0.18);
+}
+.salary-page .metric.featured .metric-label { color: var(--accent-ink); }
+.salary-page .metric-label {
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+  letter-spacing: 1.4px;
+  color: var(--ink-3);
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.salary-page .metric-value {
+  font-size: var(--fs-2xl); font-weight: 700;
+  line-height: 1.35; letter-spacing: 0;
+  color: var(--ink);
+}
+.salary-page .metric-value.d-mono { font-family: var(--font-mono); font-feature-settings: "tnum"; }
+.salary-page .metric-value-unit {
+  font-size: var(--fs-sm); line-height: 1.35; color: var(--ink-3); font-weight: 500; margin-left: 2px;
+}
+.salary-page .metric-delta {
+  margin-top: 8px;
+  font-size: var(--fs-2xs); font-weight: 600;
+  display: inline-flex; align-items: center; gap: 4px;
+  color: var(--ink-3);
+  line-height: 1.4;
+}
+.salary-page .delta-up { color: var(--accent-ink); }
+.salary-page .delta-flat { color: var(--ink-3); }
+.salary-page .utilization-bar {
+  margin-top: 12px;
+  height: 5px;
+  background: var(--surface-3);
+  border-radius: 99px;
+  position: relative; overflow: hidden;
+}
+.salary-page .utilization-fill {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  background: linear-gradient(90deg, #16A34A, #5EE99B);
+  border-radius: 99px;
+}
+
+/* ── Driver selector grid ───────────────────────────────────────────── */
+.salary-page .driver-select-row__search {
+  margin-bottom: 12px;
+}
+.salary-page .driver-select-row {
+  padding: 12px;
+  border: 1px solid rgba(203, 211, 206, 0.72);
+  border-radius: 16px;
+  background:
+    linear-gradient(90deg, rgba(0, 177, 79, 0.045), rgba(255, 255, 255, 0) 42%),
+    rgba(255, 255, 255, 0.72);
+  box-shadow: 0 1px 2px rgba(16, 24, 20, 0.035);
+}
+.salary-page .driver-select-row__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+/* ── Responsive: hero + metrics ─────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .salary-page .metrics { grid-template-columns: 1fr 1fr; }
+  .salary-page .metric.featured { grid-column: 1 / -1; grid-row: auto; }
+}
+@media (max-width: 1023px) {
+  .salary-page .hero { padding: 20px; }
+  .salary-page .hero-h1 { font-size: var(--fs-xl); }
+  .salary-page .hero-top { flex-direction: column; gap: 14px; }
+  .salary-page .hero-actions { width: 100%; justify-content: center; }
+  .salary-page .driver-select-row__list {
+    flex-wrap: wrap;
+    overflow: visible;
+    display: flex;
+    gap: 8px;
+    padding: 2px 0 6px;
+  }
+  .salary-page .driver-select-row__list::-webkit-scrollbar { display: none; }
+}
+@media (max-width: 640px) {
+  .salary-page .hero {
+    padding: 12px;
+    border-radius: 14px;
+    margin-bottom: 12px;
+  }
+  .salary-page .hero-top { flex-direction: column; gap: 10px; align-items: stretch; }
+  .salary-page .hero-h1 { font-size: var(--fs-lg); line-height: 1.35; margin-bottom: 3px; }
+  .salary-page .hero-eyebrow { font-size: var(--fs-xs); line-height: 1.35; margin-bottom: 6px; letter-spacing: 1.2px; }
+  .salary-page .hero-sub { font-size: var(--fs-xs); }
+  .salary-page .hero-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .salary-page .hero-actions .btn {
+    height: 34px;
+    border-radius: 9px;
+  }
+  .salary-page .hero-actions .btn--primary {
+    width: auto;
+    max-width: 100%;
+    padding: 0 10px;
+    flex: 0 1 auto;
+  }
+  .salary-page .hero-actions .btn--icon {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    flex: 0 0 44px;
+  }
+  .salary-page .hero-month-label {
+    min-width: 54px;
+    font-size: var(--fs-xs);
+    padding: 0;
+  }
+  .salary-page .metrics {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin: 10px 0 0;
+    padding: 0;
+    overflow: visible;
+  }
+  .salary-page .metric.featured { grid-column: 1 / -1; grid-row: auto; }
+  .salary-page .metric { padding: 8px 9px; min-width: 0; border-radius: 10px; }
+  .salary-page .metric-label {
+    font-size: var(--fs-xs);
+    line-height: 1.35;
+    white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+    letter-spacing: 1.1px;
+    margin-bottom: 5px;
+  }
+  .salary-page .metric-value { font-size: var(--fs-md); }
+  .salary-page .metric.featured .metric-value { font-size: var(--fs-lg); }
+  .salary-page .metric-delta { margin-top: 5px; }
+  .salary-page .metric.featured .metric-delta.delta-flat { display: none; }
+  .salary-page .utilization-bar { margin-top: 8px; height: 4px; }
+  .salary-page .driver-select-row {
+    padding: 8px;
+    border-radius: 14px;
+    margin-bottom: 10px;
+  }
+  .salary-page .driver-select-row__search { margin-bottom: 8px; }
+  .salary-page .driver-select-row__list {
+    display: flex;
+    flex-wrap: wrap;
+    overflow: visible;
+    gap: 8px;
+  }
+}
+@media (max-width: 420px) {
+  .salary-page .metrics { grid-template-columns: 1fr 1fr; }
+  .salary-page .metric.featured { grid-column: 1 / -1; grid-row: auto; }
+}

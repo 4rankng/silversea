@@ -1,0 +1,656 @@
+/* ============================================================================
+ * P&L Report Table
+ * ========================================================================== */
+.pnl-table {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  overflow: hidden;
+}
+.pnl-row {
+  display: grid;
+  grid-template-columns: 1fr 160px 160px 120px;
+  align-items: center;
+  padding: 12px 22px;
+  border-bottom: 1px solid var(--line);
+  gap: 16px;
+}
+@media (max-width: 1023px) {
+  .pnl-row { grid-template-columns: 1fr 120px; }
+  .pnl-row__yoy, .pnl-row__pct { display: none; }
+  .pnl-row--final .pnl-row__amount { font-size: var(--fs-sm); }
+}
+.pnl-row:last-child { border-bottom: none; }
+.pnl-row--section {
+  background: var(--surface-2);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--ink);
+  text-transform: uppercase;
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.08em;
+}
+.pnl-row--subtotal { background: var(--surface-2); border-top: 1px solid var(--line); font-weight: 600; }
+.pnl-row--final {
+  background: var(--accent-soft);
+  border-top: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
+}
+.pnl-row__label { font-size: var(--fs-sm); color: var(--ink); }
+.pnl-row__label-sub { font-size: var(--fs-2xs); color: var(--ink-3); font-family: var(--font-mono); margin-top: 2px; }
+.pnl-row__amount { font-family: var(--font-mono); font-weight: 500; font-size: var(--fs-sm); text-align: right; color: var(--ink); }
+.pnl-row--subtotal .pnl-row__amount { font-weight: 600; font-size: var(--fs-sm); letter-spacing: 0; }
+.pnl-row--final .pnl-row__amount {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-xl);
+  letter-spacing: 0;
+  color: var(--accent);
+}
+.pnl-row__yoy { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--ink-3); text-align: right; }
+.pnl-row__pct { text-align: right; font-family: var(--font-mono); font-size: var(--fs-xs); font-weight: 600; }
+.pnl-row__pct--up { color: var(--accent); }
+.pnl-row__pct--down { color: var(--danger); }
+
+.pnl-head {
+  display: grid;
+  grid-template-columns: 1fr 160px 160px 120px;
+  align-items: center;
+  padding: 14px 22px;
+  background: var(--ink);
+  color: var(--fg-on-brand);
+  gap: 16px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+@media (max-width: 1023px) {
+  .pnl-head { grid-template-columns: 1fr 120px; }
+  .pnl-head .pnl-head__yoy, .pnl-head .pnl-head__pct { display: none; }
+}
+.pnl-head__amount, .pnl-head__yoy, .pnl-head__pct { text-align: right; }
+
+/* ============================================================================
+ * KPI Hero Strip
+ * ========================================================================== */
+.pnl-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+@media (max-width: 1023px) {
+  .pnl-kpi-strip { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 420px) {
+  .pnl-kpi-strip { grid-template-columns: 1fr 1fr; gap: 8px; }
+}
+
+.pnl-kpi {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.pnl-kpi__label {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  color: var(--fg-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+}
+.pnl-kpi__value {
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  font-family: var(--font-mono);
+  letter-spacing: 0;
+  color: var(--fg-1);
+  line-height: 1.25;
+  margin-bottom: 4px;
+  white-space: nowrap;
+}
+@media (max-width: 1100px) {
+  .pnl-kpi__value { font-size: var(--fs-md); line-height: 1.25; }
+}
+.pnl-kpi__unit {
+  font-size: var(--fs-xs);
+  line-height: 1.25;
+  font-weight: 500;
+  margin-left: 2px;
+  color: var(--fg-2);
+}
+.pnl-kpi__delta {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  font-family: var(--font-mono);
+  padding-right: 42px;
+}
+.pnl-kpi__asset {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  width: 54px;
+  height: 54px;
+  object-fit: contain;
+  opacity: 0.16;
+  pointer-events: none;
+}
+.pnl-kpi__delta--up   { color: var(--success, #10b981); }
+.pnl-kpi__delta--down { color: var(--danger,  #ef4444); }
+.pnl-kpi__delta--neutral { color: var(--fg-3); font-weight: 400; }
+
+.pnl-kpi--profit .pnl-kpi__value { color: var(--success, #10b981); }
+.pnl-kpi--net    .pnl-kpi__value { color: var(--brand,   #22c55e); }
+
+@media (max-width: 640px) {
+  .finance-page .finance-charts-row {
+    flex-direction: column;
+  }
+  .finance-page .finance-charts-row > .panel {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .finance-page .finance-revenue-chart {
+    height: 260px;
+  }
+  .finance-page .finance-chart-xlabel {
+    display: none;
+  }
+}
+@media (max-width: 420px) {
+  .finance-page .finance-revenue-svg text {
+    font-size: var(--fs-2xs);
+  }
+  .finance-page .finance-charts-row > .panel {
+    padding: 12px 14px;
+  }
+}
+
+/* ── Responsive overrides (from responsive.css decomposition) ── */
+@media (max-width: 640px) {
+  /* ── Finance page ── */
+  .finance-page .charts-row { flex-direction: column; }
+  .finance-page .panel { width: 100%; min-width: 0; }
+  .finance-page .panel, .pnl-row { min-width: 0; }
+  .pnl-row { padding-left: 14px; padding-right: 14px; }
+  .profit-layout { grid-template-columns: 1fr; }
+  .dash-grid { grid-template-columns: 1fr; }
+} /* end 640px */
+
+/* ============================================================================
+ * Per-truck mobile cards
+ * ========================================================================== */
+.truck-card-list {
+  display: flex;
+  flex-direction: column;
+}
+.truck-card {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.truck-card--expanded { background: var(--surface-2); }
+.truck-card:last-child { border-bottom: none; }
+.truck-card__toggle {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.truck-card__toggle:focus-visible,
+.truck-row-toggle:focus-visible,
+.truck-trip-link:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.truck-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.truck-card__plate {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: var(--fs-sm);
+  color: var(--ink);
+  letter-spacing: 0;
+}
+.truck-card__profit {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: var(--fs-sm);
+  letter-spacing: 0;
+}
+.truck-card__profit--up { color: var(--brand); }
+.truck-card__profit--down { color: var(--danger); }
+.truck-card__stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px 12px;
+  margin-bottom: 10px;
+}
+.truck-card__stat-label {
+  display: block;
+  font-size: var(--fs-2xs);
+  color: var(--ink-3);
+  margin-bottom: 1px;
+}
+.truck-card__stat-value {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--ink);
+}
+.truck-card__bar-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+.truck-card__bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+.truck-card__bar-fill--up { background: var(--brand); }
+.truck-card__bar-fill--down { background: var(--danger); }
+.truck-card__margin {
+  font-size: var(--fs-2xs);
+  font-family: var(--font-mono);
+  color: var(--ink-3);
+  font-weight: 500;
+}
+
+.truck-expand-icon {
+  flex: 0 0 auto;
+  transition: transform 160ms ease;
+}
+[aria-expanded='true'] .truck-expand-icon { transform: rotate(180deg); }
+
+.truck-row-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.truck-row-toggle__hint {
+  color: var(--fg-3);
+  font-family: var(--font-sans);
+  font-size: var(--fs-2xs);
+  font-style: normal;
+  font-weight: 500;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.truck-summary-row:hover .truck-row-toggle__hint,
+.truck-summary-row.is-expanded .truck-row-toggle__hint,
+.truck-row-toggle:focus-visible .truck-row-toggle__hint { opacity: 1; }
+.truck-summary-row.is-expanded > td { background: var(--surface-2); }
+
+.truck-details-row > td {
+  padding: 0 !important;
+  background: color-mix(in srgb, var(--brand) 3%, var(--surface));
+  border-bottom: 1px solid var(--line-2);
+}
+.truck-details-panel { padding: 14px 18px 16px; }
+.truck-details-panel__intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+  color: var(--fg-3);
+  font-size: var(--fs-2xs);
+}
+.truck-details-panel__intro strong { color: var(--fg-1); }
+.truck-trip-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.truck-trip-table { min-width: 1050px; }
+.truck-trip-table thead th {
+  padding: 9px 10px;
+  background: var(--surface-2);
+  color: var(--fg-3);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+.truck-trip-table tbody td {
+  padding: 10px;
+  font-size: var(--fs-xs);
+  vertical-align: middle;
+}
+.truck-trip-table tbody tr:last-child td { border-bottom: 0; }
+.truck-trip-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--brand);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  text-decoration: none;
+}
+.truck-trip-link:hover { text-decoration: underline; }
+.truck-trip-route {
+  max-width: 240px;
+  margin-top: 3px;
+  color: var(--fg-3);
+  font-size: 10px;
+  white-space: normal;
+}
+.cost-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: max-content;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.cost-check--ok { color: var(--success); background: var(--success-soft); }
+.cost-check--warning { color: var(--warning, #b45309); background: var(--warning-soft, #fef3c7); }
+.truck-maintenance-note {
+  position: relative;
+  margin-top: 10px;
+  padding: 9px 11px;
+  border-radius: 5px;
+  background: var(--surface-2);
+  color: var(--fg-2);
+  font-size: var(--fs-xs);
+}
+.truck-maintenance-note::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--status-strip-width);
+  height: var(--status-strip-height);
+  border-radius: var(--status-strip-radius);
+  background: var(--brand);
+  pointer-events: none;
+}
+.truck-maintenance-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+.truck-maintenance-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--fg-1);
+  text-decoration: none;
+}
+.truck-maintenance-item:hover { border-color: var(--brand); background: var(--surface-2); }
+.truck-maintenance-item__main { min-width: 0; }
+.truck-maintenance-item__main strong { display: block; font-size: var(--fs-xs); }
+.truck-maintenance-item__main small {
+  display: block;
+  overflow: hidden;
+  margin-top: 2px;
+  color: var(--fg-3);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.truck-maintenance-item__amount {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  color: var(--fg-1);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+}
+
+.truck-mobile-details {
+  margin: 14px -18px -14px;
+  border-top: 1px solid var(--line);
+}
+.truck-trip-card { padding: 13px 18px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.truck-trip-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: var(--fg-3);
+  font-size: 10px;
+}
+.truck-trip-card__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+}
+.truck-trip-amount span {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--fg-3);
+  font-size: 10px;
+}
+.truck-trip-amount strong {
+  color: var(--fg-1);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+}
+.truck-trip-amount--emphasized strong { color: var(--brand); }
+.truck-mobile-details .truck-maintenance-details { margin: 10px 18px 14px; }
+.truck-mobile-details .truck-maintenance-list { grid-template-columns: 1fr; }
+@media (max-width: 900px) {
+  .truck-maintenance-list { grid-template-columns: 1fr; }
+}
+
+/* ============================================================================
+ * Finance Chart Polish
+ * ========================================================================== */
+
+/* Revenue area chart — path entrance */
+.finance-revenue-svg path {
+  transition: opacity 0.3s ease;
+}
+.finance-revenue-svg circle {
+  transition: r 0.15s ease, filter 0.15s ease;
+}
+.finance-revenue-svg circle:hover {
+  r: 6;
+}
+
+/* Donut segment hover */
+.finance-cost-donut svg path {
+  transition: opacity 0.15s ease;
+}
+.finance-cost-donut svg:hover path {
+  opacity: 0.7;
+}
+.finance-cost-donut svg:hover path:hover {
+  opacity: 1;
+}
+
+/* Top truck bar hover */
+.finance-top-trucks svg rect {
+  transition: opacity 0.15s ease;
+}
+.finance-top-trucks svg rect:hover {
+  opacity: 1;
+  filter: brightness(1.1);
+}
+
+/* Chart panel header */
+.finance-chart-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+  margin-bottom: 12px;
+}
+
+/* Legend items */
+.finance-chart-legend {
+  display: flex;
+  gap: 14px;
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+}
+.finance-chart-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.finance-chart-legend__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+/* ============================================================================
+ * Dashboard Card Styles (copied from DashboardPage.css)
+ * ========================================================================== */
+.dash-wf {
+  --wf-bg: #EFF2F0;
+  --wf-card: #FFFFFF;
+  --wf-border: #E5E9E7;
+  --wf-border-2: #DCE2DF;
+  --wf-ink: #0E1F16;
+  --wf-ink-2: #56655C;
+  --wf-ink-3: #8A988F;
+  --wf-green: #005A2D;
+  --wf-green-700: #0A6E3A;
+  --wf-green-500: #16A34A;
+  --wf-green-soft: #E7F2EC;
+  --wf-blue: #2563EB;
+  --wf-blue-soft: #E8EFFD;
+  --wf-amber: #C2780B;
+  --wf-amber-soft: #FBF1DE;
+  --wf-red: #C7372F;
+  --wf-shadow: none;
+  --wf-shadow-hover: none;
+  --wf-radius: 14px;
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-wf .wf-card {
+  background: var(--wf-card);
+  border: 1px solid var(--wf-border);
+  border-radius: var(--wf-radius);
+  box-shadow: var(--wf-shadow);
+  overflow: hidden;
+  min-width: 0;
+  position: relative;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+.dash-wf .wf-card:hover {
+  border-color: var(--wf-border-2);
+}
+
+.dash-wf .wf-card-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px 0; }
+.dash-wf .wf-card-h .ttl { font-size: var(--fs-sm); font-weight: 700; letter-spacing: 0; color: var(--wf-ink); }
+.dash-wf .wf-card-h .sub { font-size: var(--fs-2xs); color: var(--wf-ink-3); margin-top: 2px; }
+
+.dash-wf .wf-legend {
+  display: flex;
+  gap: 20px;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--wf-line, #EEF1EF);
+  background: var(--wf-bg, #F8FAF9);
+  border-radius: 8px 8px 0 0;
+}
+.dash-wf .wf-legend .li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-sm);
+  color: var(--wf-ink);
+  font-weight: 600;
+}
+.dash-wf .wf-legend .sw {
+  width: 22px;
+  height: 4px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.dash-wf .wf-chart { display: flex; flex-direction: column; }
+.dash-wf .wf-chart .body { padding: 8px 8px 6px; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.dash-wf .wf-chart .body svg { display: block; width: 100%; height: 100%; }
+
+.dash-wf svg {
+  width: 16px !important;
+  height: 16px !important;
+  max-width: 16px !important;
+  max-height: 16px !important;
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+.dash-wf .wf-chart .body svg {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  display: block;
+}
+
+/* ── Chart day/month toggle ── */
+.dash-wf .wf-chart-toggle {
+  display: inline-flex;
+  border: 1px solid var(--wf-border-2);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--wf-card);
+}
+.dash-wf .wf-chart-toggle__btn {
+  min-height: 45px;
+  padding: 8px 14px;
+  font-family: var(--font-body);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--wf-ink-3);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+  line-height: 1.4;
+  min-height: 45px;
+}
+.dash-wf .wf-chart-toggle__btn:hover {
+  color: var(--wf-ink);
+  background: var(--wf-bg);
+}
+.dash-wf .wf-chart-toggle__btn.is-active {
+  color: var(--fg-on-brand);
+  background: var(--wf-green);
+}

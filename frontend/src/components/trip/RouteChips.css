@@ -1,0 +1,29 @@
+/* RouteChips — suggested route pill chips */
+
+.tc-route-suggest {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+.tc-route-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 45px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border-1);
+  border-radius: var(--radius-full);
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+  color: var(--fg-2);
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast);
+}
+.tc-route-chip:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+.tc-route-chip__arrow { color: var(--fg-3); }

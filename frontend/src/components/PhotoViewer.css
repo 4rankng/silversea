@@ -1,0 +1,231 @@
+/* ============================================================================
+ * PhotoViewer — full-screen lightbox with zoom/pan/navigation
+ * Scoped with .pv- prefix, uses app design tokens from tokens.css
+ * ========================================================================== */
+
+.pv-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: pv-fade-in 0.2s var(--ease) forwards;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+@keyframes pv-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* --- Backdrop --- */
+.pv-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.88);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+/* --- Top bar --- */
+.pv-topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, transparent 100%);
+}
+
+.pv-counter {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: var(--tracking-wide);
+  min-width: 52px;
+}
+
+.pv-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.pv-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border: none;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  transition: background 120ms var(--ease), color 120ms var(--ease);
+}
+
+.pv-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--fg-on-brand);
+}
+
+.pv-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.pv-btn--close:hover {
+  background: rgba(227, 36, 52, 0.25);
+  color: var(--danger);
+}
+
+.pv-zoom-label {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: rgba(255, 255, 255, 0.5);
+  min-width: 38px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.pv-divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.15);
+  margin: 0 6px;
+}
+
+/* --- Stage (image area) --- */
+.pv-stage {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  padding: 56px 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.pv-image {
+  max-width: 92vw;
+  max-height: calc(100vh - 96px);
+  object-fit: contain;
+  transform-origin: center center;
+  will-change: transform;
+  pointer-events: none;
+}
+
+/* --- Navigation arrows --- */
+.pv-nav {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--r);
+  background: rgba(0, 0, 0, 0.35);
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  transition: background 150ms var(--ease), color 150ms var(--ease),
+              transform 150ms var(--ease);
+}
+
+.pv-nav:hover {
+  background: rgba(0, 0, 0, 0.6);
+  color: var(--fg-on-brand);
+  transform: translateY(-50%) scale(1.05);
+}
+
+.pv-nav:active {
+  transform: translateY(-50%) scale(0.97);
+}
+
+.pv-nav--prev { left: 16px; }
+.pv-nav--next { right: 16px; }
+
+/* --- Mobile adjustments --- */
+@media (max-width: 640px) {
+  .pv-overlay {
+    background: #080a09;
+  }
+
+  .pv-backdrop {
+    background: rgba(0, 0, 0, 0.94);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+  }
+
+  .pv-topbar {
+    padding: max(10px, env(safe-area-inset-top)) 10px 8px;
+    min-height: calc(48px + env(safe-area-inset-top));
+    background: linear-gradient(to bottom, rgba(0,0,0,0.72), rgba(0,0,0,0.18) 74%, transparent);
+  }
+
+  .pv-btn {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255,255,255,0.9);
+  }
+
+  .pv-actions {
+    gap: 5px;
+  }
+
+  .pv-counter {
+    min-width: 42px;
+    padding-left: 2px;
+    font-size: 13px;
+    color: rgba(255,255,255,0.86);
+  }
+
+  .pv-zoom-label {
+    display: none;
+  }
+
+  .pv-divider,
+  .pv-actions .pv-btn[title^="Đặt"] {
+    display: none;
+  }
+
+  .pv-stage {
+    padding: calc(54px + env(safe-area-inset-top)) 0 max(18px, env(safe-area-inset-bottom));
+  }
+
+  .pv-nav {
+    width: 42px;
+    height: 56px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.38);
+  }
+
+  .pv-nav--prev { left: 6px; }
+  .pv-nav--next { right: 6px; }
+
+  .pv-image {
+    max-width: 100vw;
+    max-height: calc(100dvh - 82px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+}

@@ -1,0 +1,80 @@
+name: nepocorp
+
+services:
+  postgres:
+    # pgvector/pgvector:pg16 = upstream postgres:16 + the `vector` extension
+    # preinstalled. Required for the FAQ fast lane (vector(1536) cosine index).
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nepocorp
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-NepoProd2026}
+      POSTGRES_DB: nepocorp
+    volumes:
+      - /opt/nepocorp/data/postgres:/var/lib/postgresql/data
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nepocorp -d nepocorp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru --appendonly yes
+    expose:
+      - "6379"
+    volumes:
+      - /opt/nepocorp/data/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: franknguyenvd/tingting-backend:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgres://nepocorp:${DB_PASSWORD:-NepoProd2026}@postgres:5432/nepocorp
+      - REDIS_URL=redis://redis:6379
+      - NODE_ENV=production
+      - PORT=3090
+      - UPLOAD_DIR=/app/backend/uploads
+      - CORS_ORIGIN=https://nepo.tingting.vip
+    expose:
+      - "3090"
+    ports:
+      - "127.0.0.1:3090:3090"
+    volumes:
+      - /opt/nepocorp/data/uploads:/app/backend/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    image: franknguyenvd/tingting-frontend:latest
+    restart: unless-stopped
+    expose:
+      - "80"
+    ports:
+      - "127.0.0.1:3000:80"
+
+  adminer:
+    image: adminer:latest
+    restart: unless-stopped
+    expose:
+      - "8080"
+    ports:
+      - "127.0.0.1:8080:8080"
+    profiles:
+      - adminer
+    depends_on:
+      postgres:
+        condition: service_healthy

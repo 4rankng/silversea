@@ -1,0 +1,200 @@
+/* ==========================================================================
+   Trip Form — shared primitives
+   Cross-page / cross-component rules with no single owning component:
+   page chrome (.tc-page-*), the card system (.tc-card* / .tc-badge-*), and
+   the form-layout primitives (.tc-form-row* / .tc-form-col). Imported by both
+   TripCreatePage and TripEditPage (before their page-specific CSS).
+
+   Component-scoped styles live next to each component in components/trip/
+   (JourneyLegRow, JourneyLegsCard, ImagesNotesCard, TripSummaryCard,
+   TripChecklistPanel, TipCard, CheckboxCard, FuelModeToggle, RouteChips,
+   SectionDivider, ActionBar, ProgressPills). Page-specific layout lives in
+   TripCreatePage.css (bento) and TripEditPage.css (content + rail).
+   ========================================================================== */
+
+/* ── Page header (shared by both pages) ── */
+.tc-page-head {
+  padding: 22px 28px 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+.tc-back-btn {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: var(--r);
+  background: var(--surface);
+  border: 1px solid var(--border-1);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  color: var(--fg-2);
+  transition: background var(--t-fast), border-color var(--t-fast);
+  flex-shrink: 0;
+}
+.tc-back-btn:hover {
+  background: var(--bg-3);
+}
+.tc-title-wrap { flex: 1; min-width: 0; }
+.tc-page-title {
+  margin: 0;
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg-1);
+  line-height: 1.35;
+}
+.tc-page-sub {
+  margin: 4px 0 0;
+  font-size: var(--fs-sm);
+  color: var(--fg-3);
+}
+
+/* ── Card system (CardSection + hand-rolled .tc-card markup in TripEditPage) ── */
+.tc-card {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  margin-bottom: 32px;
+  padding-bottom: 32px;
+  border-bottom: 1px solid var(--border-1);
+}
+.tc-card:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+.tc-card-head {
+  padding: 0 0 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.tc-card-num {
+  display: none;
+}
+.tc-card-text { flex: 1; min-width: 0; }
+.tc-card-title {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  color: var(--fg-1);
+}
+.tc-card-sub {
+  font-size: var(--fs-xs);
+  color: var(--fg-3);
+  line-height: 1.35;
+  margin-top: 1px;
+}
+
+.tc-field-hint {
+  color: var(--fg-3);
+  display: inline-block;
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+  margin-top: 4px;
+}
+.tc-card-body { 
+  padding: 0; 
+  container-type: inline-size;
+}
+
+/* ── Collapsible section variant ───────────────────────────────────────── */
+/* When `collapsible` is true on CardSection, the head becomes a full-width
+   button. The chevron rotates 180° in the open state. When collapsed, the
+   bottom border on the head is dropped so the card reads as a single pill,
+   not a chopped-off card waiting for content. */
+.tc-card.is-collapsible .tc-card-head-btn {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+.tc-card.is-collapsible .tc-card-head-btn:hover {
+  background: var(--bg-2, #F7F5F1);
+}
+.tc-card.is-collapsible .tc-card-head-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.tc-card.is-collapsed .tc-card-head { border-bottom: none; }
+.tc-card-chev {
+  color: var(--fg-3);
+  transition: transform 200ms ease, color 120ms ease;
+  flex-shrink: 0;
+}
+.tc-card-chev.is-open { transform: rotate(180deg); color: var(--fg-2); }
+.tc-card.is-collapsible .tc-card-head-btn:hover .tc-card-chev { color: var(--fg-1); }
+
+/* Badges */
+.tc-badge-required {
+  background: var(--danger-soft);
+  color: var(--danger-text);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  padding: 3px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.tc-badge-optional {
+  background: var(--bg-3);
+  color: var(--fg-3);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  padding: 3px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* ── Form layout primitives (shared across trip card components) ── */
+.tc-form-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.tc-form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 16px;
+}
+.tc-form-row--three { grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); }
+.tc-form-row--split-3-2 { grid-template-columns: 1.4fr 1fr; }
+
+/* ── Responsive (cross-cutting) ── */
+@media (max-width: 1023px) {
+  .tc-form-row--three { grid-template-columns: minmax(0, 1fr); }
+  /* Same min-width:0 trick on the form rows — selects with long option
+   * text would otherwise expand the column. */
+  .tc-form-col, .tc-form-row > * { min-width: 0; }
+  .tc-form-col select.input,
+  .tc-form-col input.input,
+  .tc-form-row select.input,
+  .tc-form-row input.input { max-width: 100%; width: 100%; }
+}
+@media (max-width: 640px) {
+  .tc-form-col { gap: 12px; }
+  .tc-form-col .input,
+  .tc-form-row .input {
+    font-size: 16px;
+  }
+  .tc-page-head { padding: 16px 14px 8px; flex-wrap: wrap; gap: 12px; }
+  .tc-page-title { font-size: var(--fs-xl); line-height: 1.35; }
+  .tc-page-sub { font-size: var(--fs-xs); }
+  .tc-back-btn { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }
+  .tc-form-row,
+  .tc-form-row--three { grid-template-columns: 1fr; }
+  .tc-card { margin-bottom: 24px; padding-bottom: 24px; border-radius: 0; }
+  .tc-card-head { padding: 0 0 12px 0; gap: 10px; }
+  .tc-card-num { display: none; }
+  .tc-card-title { font-size: var(--fs-sm); }
+  .tc-card-sub { font-size: var(--fs-xs); }
+  .tc-card-body { padding: 0; }
+  .tc-badge-required, .tc-badge-optional { font-size: var(--fs-2xs); padding: 2px 6px; }
+}

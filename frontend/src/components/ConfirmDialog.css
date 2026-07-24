@@ -1,0 +1,61 @@
+/* ============================================================================
+ * ConfirmDialog — TingTing
+ * Extracted from UI.css during architecture refactoring (Phase 4)
+ * Enhanced with anime.js spring physics (Phase 5)
+ * ========================================================================== */
+
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-confirm);
+  background: rgba(10, 10, 10, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  /* anime.js handles opacity animation */
+  opacity: 1;
+}
+.confirm-box {
+  background: var(--surface, #fff);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  width: 100%;
+  max-width: 400px;
+  padding: 28px 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  /* anime.js handles opacity/scale animation */
+  opacity: 1;
+  transform: none;
+}
+.confirm-body {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.confirm-icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+}
+.confirm-icon--danger { background: var(--danger-soft, #FFEAEC); }
+.confirm-icon--warning { background: var(--warning-soft, #FFF4E0); }
+.confirm-icon--primary { background: var(--accent-soft, #E6F7EE); }
+.confirm-message {
+  margin: 0;
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+  color: var(--ink);
+  font-weight: 500;
+  padding-top: 10px;
+}
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}

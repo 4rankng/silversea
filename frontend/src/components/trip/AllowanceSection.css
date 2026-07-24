@@ -1,0 +1,30 @@
+/* AllowanceSection.css — scoped 2-col grid that holds at tablet width
+   and aligns fields to the bottom so that multi-line labels don't misalign inputs. */
+
+.as-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+  align-items: stretch; /* make columns equal height */
+}
+
+.as-row > .field {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.as-row > .field > .input,
+.as-row > .field > .tc-input-prefix,
+.as-row > .field > .as-input-wrapper {
+  margin-top: auto;
+}
+
+.as-helper {
+  color: var(--fg-3);
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}

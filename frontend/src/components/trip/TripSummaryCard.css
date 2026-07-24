@@ -1,0 +1,447 @@
+/* ============================================================================
+ * TripSummaryCard / TotalsPanel — shared CSS for the trip-summary cards.
+ *
+ * Two coexisting card families:
+ *  1. .tc-summary-card* — used by TripSummaryCard.tsx (trip create page).
+ *  2. .tc-totals*      — used by TotalsPanel.tsx (trip edit page, right rail).
+ *
+ * Color tokens are reused from the global design system (--ink, --line,
+ * --accent, --danger, --warning) so both families match the rest of the app.
+ * ========================================================================== */
+
+/* ============================================================================
+ * 1. TripSummaryCard — light surface summary card (used by TripSummaryCard.tsx).
+ * ========================================================================== */
+
+.tc-summary-card {
+  --stat-rail: var(--accent);
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+.tc-summary-card::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: var(--status-strip-width);
+  height: var(--status-strip-height);
+  border-radius: var(--status-strip-radius);
+  background: var(--stat-rail);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.tc-summary-card::before {
+  content: none;
+}
+.tc-summary-card__label {
+  margin: 0 0 4px;
+  font-size: var(--fs-xs);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  font-weight: var(--fw-semibold);
+}
+.tc-summary-card__big {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0;
+  margin: 6px 0 2px;
+}
+.tc-summary-card__currency {
+  font-size: var(--fs-sm);
+  opacity: 0.7;
+  margin-left: 6px;
+  color: var(--ink-3);
+}
+.tc-summary-card__mini {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+}
+.tc-summary-rows {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  z-index: 1;
+}
+.tc-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--fs-xs);
+}
+.tc-summary-row__lbl {
+  color: var(--ink-2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tc-summary-row__val {
+  font-family: var(--font-mono);
+  font-weight: var(--fw-semibold);
+}
+.tc-summary-row__val--neg { color: var(--danger); }
+.tc-summary-row__val--pos { color: var(--accent); }
+.tc-summary-row--total {
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+}
+.tc-summary-row--total .tc-summary-row__val {
+  color: var(--accent);
+  font-size: var(--fs-md);
+}
+
+/* ============================================================================
+ * 2. TotalsPanel — light surface right-rail summary for /trips/:id/edit.
+ * ========================================================================== */
+
+.tc-totals {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 22px 22px 18px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.tc-totals::before {
+  content: none;
+}
+.tc-totals > * { position: relative; z-index: 1; }
+
+/* ── Header band ── */
+.tc-totals__head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tc-totals__eyebrow {
+  margin: 0;
+  font-size: var(--fs-2xs);
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  font-weight: var(--fw-semibold);
+}
+.tc-totals__title {
+  margin: 0;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
+  color: var(--ink);
+  letter-spacing: var(--tracking-tight);
+}
+
+/* ── Revenue hero (inset) ── */
+.tc-totals__revenue {
+  background: rgba(0, 177, 79, 0.06);
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+  border-radius: 14px;
+  padding: 14px 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.tc-totals__revenue-label {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.02em;
+}
+.tc-totals__revenue-value {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-extrabold);
+  color: var(--ink);
+  letter-spacing: 0;
+  line-height: 1.35;
+}
+.tc-totals__revenue-value .money__unit {
+  color: var(--ink-3);
+  opacity: 1;
+  font-weight: var(--fw-semibold);
+  margin-left: 4px;
+  line-height: 1.35;
+}
+.tc-totals__revenue-split {
+  margin: 6px 0 0;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--fs-xs);
+}
+.tc-totals__revenue-split > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.tc-totals__revenue-split dt {
+  margin: 0;
+  color: var(--ink-3);
+}
+.tc-totals__revenue-split dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  color: var(--ink);
+  font-weight: var(--fw-semibold);
+}
+.tc-totals__revenue-split dd .money__unit {
+  color: var(--ink-3);
+  opacity: 1;
+}
+
+/* ── Allocation bar ── */
+.tc-totals__alloc {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tc-totals__alloc-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+  font-weight: var(--fw-semibold);
+}
+.tc-totals__alloc-head .money {
+  font-family: var(--font-mono);
+  color: var(--ink);
+  font-weight: var(--fw-bold);
+}
+.tc-totals__alloc-head .money__unit {
+  color: var(--ink-3);
+  opacity: 1;
+}
+.tc-totals__alloc-bar {
+  display: flex;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--surface-3);
+  gap: 0;
+}
+.tc-totals__alloc-seg {
+  height: 100%;
+  min-width: 2px;
+  display: block;
+  transition: width var(--t-normal, 180ms);
+}
+.tc-totals__alloc-seg--fuel   { background: var(--accent, #00B14F); }
+.tc-totals__alloc-seg--road   { background: #1D4ED8; }
+.tc-totals__alloc-seg--salary { background: #B45309; }
+.tc-totals__alloc-seg--other  { background: var(--ink-4, #BABDC3); }
+
+.tc-totals__alloc-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+}
+.tc-totals__alloc-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.tc-totals__alloc-legend i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  flex: 0 0 auto;
+}
+.tc-totals__alloc-legend .tc-totals__legend-dot--fuel   { background: var(--accent, #00B14F); }
+.tc-totals__alloc-legend .tc-totals__legend-dot--road   { background: #1D4ED8; }
+.tc-totals__alloc-legend .tc-totals__legend-dot--salary { background: #B45309; }
+.tc-totals__alloc-legend .tc-totals__legend-dot--other  { background: var(--ink-4, #BABDC3); }
+.tc-totals__alloc-legend strong {
+  font-family: var(--font-mono);
+  font-weight: var(--fw-semibold);
+  color: var(--ink);
+}
+
+/* ── Cost rows + profit ── */
+.tc-totals__rows {
+  display: flex;
+  flex-direction: column;
+}
+.tc-totals-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  min-height: 45px;
+  font-size: 13px;
+  border-radius: 6px;
+  transition: background var(--t-fast, 120ms);
+}
+.tc-totals-row:hover { background: var(--surface-2); }
+.tc-totals-row--clickable {
+  cursor: pointer;
+  user-select: none;
+}
+.tc-totals-row__lbl {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ink-2);
+  min-width: 0;
+}
+.tc-totals-row__lbl svg {
+  color: var(--accent, #00B14F);
+  flex: 0 0 auto;
+}
+.tc-totals-row__val {
+  font-family: var(--font-mono);
+  font-weight: var(--fw-bold);
+  color: var(--danger);
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.15em;
+}
+.tc-totals-row__val .money__unit {
+  color: var(--danger);
+  opacity: 1;
+  line-height: 1.35;
+}
+.tc-totals-row__adjusted-pill {
+  font-size: var(--fs-xs);
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  margin-left: 4px;
+}
+.tc-totals-row__chev {
+  opacity: 0.55;
+  color: var(--ink-3);
+  flex: 0 0 auto;
+}
+
+.tc-totals-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 0 8px 26px;
+  margin-left: 6px;
+  border-left: 1px dashed var(--line);
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+}
+.tc-totals-breakdown__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+}
+.tc-totals-breakdown__row span:first-child {
+  min-width: 0;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.tc-totals-breakdown__row .money {
+  font-family: var(--font-mono);
+  color: var(--danger);
+  font-weight: var(--fw-semibold);
+  flex: 0 0 auto;
+}
+.tc-totals-breakdown__row--override {
+  padding-top: 6px;
+  margin-top: 2px;
+  border-top: 1px dashed var(--line);
+}
+.tc-totals-breakdown__row--override span:first-child {
+  color: var(--accent);
+}
+.tc-totals-breakdown__row--override .money {
+  color: var(--accent);
+  font-weight: var(--fw-bold);
+}
+
+.tc-totals__profit {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--line);
+}
+.tc-totals__profit-label {
+  font-size: 13px;
+  font-weight: var(--fw-bold);
+  color: var(--ink);
+  letter-spacing: 0.01em;
+}
+.tc-totals__profit-val {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: var(--fw-extrabold);
+  letter-spacing: var(--tracking-tight);
+}
+.tc-totals__profit-val .money__unit {
+  opacity: 1;
+  font-weight: var(--fw-semibold);
+  font-size: 0.55em;
+}
+.tc-totals__profit-val.is-pos {
+  color: var(--accent);
+}
+.tc-totals__profit-val.is-pos .money__unit { color: var(--accent); }
+.tc-totals__profit-val.is-neg {
+  color: var(--danger);
+}
+.tc-totals__profit-val.is-neg .money__unit { color: var(--danger); }
+.tc-totals__profit-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  flex: 0 0 auto;
+}
+.tc-totals__profit-val.is-neg .tc-totals__profit-pill {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .tc-totals { padding: 18px 18px 14px; }
+  .tc-totals__revenue-value { font-size: var(--fs-xl); }
+  .tc-totals__profit-val { font-size: 18px; }
+}

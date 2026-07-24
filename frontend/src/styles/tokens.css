@@ -1,0 +1,309 @@
+@import "tailwindcss";
+
+/* daisyUI 5 — added for polish primitives (Tooltip, Alert, Breadcrumbs).
+   `prefix: "d-"` renames every daisyUI component class (.btn → .d-btn, etc.)
+   so it CANNOT collide with this project's existing .btn/.badge/.modal/.input
+   custom classes. Semantic color utilities (bg-primary, text-error, …) remain
+   unprefixed and inherit the `nepo` theme below. */
+@plugin "daisyui" {
+  prefix: "d-";
+  themes: nepo --default;
+  root: ":root";
+  logs: false;
+}
+
+/* TransTing brand theme — tokens mirror the hand-crafted design system in :root
+   below, so daisyUI components and the existing custom CSS share the same
+   deep-emerald primary, signal-green accent, and soft neutral surfaces. */
+@plugin "daisyui/theme" {
+  name: "nepo";
+  default: true;
+  prefersdark: false;
+  color-scheme: light;
+
+  --color-base-100: #FFFFFF;
+  --color-base-200: #F8FAF9;
+  --color-base-300: #EEF3F0;
+  --color-base-content: #101513;
+
+  --color-primary: #005A2D;
+  --color-primary-content: #FFFFFF;
+
+  --color-secondary: #4D5852;
+  --color-secondary-content: #FFFFFF;
+
+  --color-accent: #10B956;
+  --color-accent-content: #06264A;
+
+  --color-neutral: #101513;
+  --color-neutral-content: #F8FAF9;
+
+  --color-info: #1E5BB8;
+  --color-info-content: #FFFFFF;
+  --color-success: #00B14F;
+  --color-success-content: #00381A;
+  --color-warning: #F5A623;
+  --color-warning-content: #2A1B04;
+  --color-error: #E32434;
+  --color-error-content: #FFFFFF;
+
+  --radius-selector: 0.5rem;
+  --radius-field: 0.5rem;
+  --radius-box: 1rem;
+
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+/* ============================================================================
+ * TransTing -- Wireframe Design System
+ * Be Vietnam Pro (Vietnamese-aware text/UI) + JetBrains Mono (numerics).
+ * Deep emerald shell and primary actions, signal-green accent.
+ * ========================================================================== */
+
+:root {
+  /* --- Wireframe canonical tokens --- */
+  --bg: #F5F7F6;
+  --bg-2-wire: #E9EDEB;
+  --surface: #FFFFFF;
+  --surface-2: #F8FAF9;
+  --surface-3: #EEF3F0;
+  --surface-accent: #ECF8F1;
+
+  --ink: #101513;
+  --ink-2: #4D5852;
+  --ink-3: #5F6872;
+  --ink-4: #BABDC3;
+
+  --line: #E2E7E4;
+  --line-2: #CBD3CE;
+  --line-3: #AEB8B2;
+  --line-strong: #BAC5BE;
+
+  --accent: #10B956;
+  --accent-2: #005A2D;
+  --accent-soft: #E8F8EE;
+  --accent-ink: #00361B;
+
+  /* --- Backward-compat aliases (existing code uses these var names) --- */
+  --bg-1: #F5F7F6;
+  --bg-2: #FFFFFF;
+  --bg-3: #EEF3F0;
+  --bg-glass: rgba(255, 255, 255, 0.82);
+
+  --brand: #005A2D;
+  --brand-hover: #00361B;
+  --brand-soft: #E6F7EE;
+  --brand-2: #10B956;
+  --brand-grad: #005A2D;
+  --brand-glow: none;
+
+  --fg-1: #0A0A0A;
+  --fg-2: #535963;
+  --fg-3: #5F6872;
+  --fg-on-brand: #FFFFFF;
+  --fg-on-accent: #00381A;
+  --fg-inverse: #FFFFFF;
+
+  --border-1: #EAECEF;
+  --border-2: #D6D9DE;
+  --border-glass: rgba(255, 255, 255, 0.4);
+
+  /* --- Semantic status --- */
+  --success: #00B14F;
+  --success-soft: #E6F7EE;
+  --success-text: #004D22;
+  --warning: #F5A623;
+  --warning-soft: #FFF4E0;
+  --warning-text: #4B2800;
+  --warning-deep: #DD5A1F;
+  --danger: #E32434;
+  --danger-soft: #FFEAEC;
+  --danger-text: #B91C1C;
+  --info: #1E5BB8;
+  --info-soft: #DCE9FC;
+  --info-text: #1E40AF;
+
+  /* --- Sidebar (forest green) --- */
+  --sb-bg: #005A2D;
+  --sb-gradient-start: #005A2D;
+  --sb-gradient-end: #00361B;
+  --sb-surface: rgba(255, 255, 255, 0.08);
+  --sb-line: rgba(255, 255, 255, 0.12);
+  --sb-text: rgba(255, 255, 255, 0.85);
+  --sb-text-muted: rgba(255, 255, 255, 0.65);
+  --sb-active: #FFFFFF;
+  --sb-active-bg: rgba(255, 255, 255, 0.15);
+  /* aliases */
+  --sidebar: #005A2D;
+  --sidebar-border: rgba(255, 255, 255, 0.12);
+  --sidebar-text: rgba(255, 255, 255, 0.85);
+  --sidebar-text-muted: rgba(255, 255, 255, 0.65);
+  --sidebar-active: rgba(255, 255, 255, 0.15);
+  --sidebar-active-text: #FFFFFF;
+  --sidebar-hover: rgba(255, 255, 255, 0.10);
+
+  /* --- Header (translucent + hairline) --- */
+  --header: rgba(255, 255, 255, 0.86);
+  --header-border: #E2E7E4;
+
+  /* --- Shadows --- */
+  --sh-sm: none;
+  --sh: none;
+  --sh-lg: none;
+  --sh-drawer: none;
+  /* aliases */
+  --shadow-sm: var(--sh-sm);
+  --shadow-card: var(--sh);
+  --shadow-md: var(--sh);
+  --shadow-elevated: var(--sh-lg);
+  --shadow-brand: none;
+
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.4);
+  --glass-blur: blur(14px) saturate(140%);
+
+  /* --- Radii --- */
+  --r-sm: 8px;
+  --r: 12px;
+  --r-lg: 18px;
+  --r-xl: 24px;
+  /* aliases */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --radius-full: 9999px;
+
+  /* --- Spacing scale --- */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-2xl: 32px;
+  --space-3xl: 48px;
+
+  /* --- Sizing --- */
+  --icon-sm: 14px;
+  --icon-md: 18px;
+  --icon-lg: 22px;
+  --avatar-sm: 28px;
+  --avatar-md: 36px;
+  --avatar-lg: 44px;
+
+  --sidebar-w: 248px;
+  --topbar-h: 48px;
+  --control-h: 44px;
+
+  /* --- Canonical status strip (Vantai invariant) ---
+   * Per docs/design-guidelines.md: every status marker is a centered 3x20px
+   * strip, NEVER a full-height colored left border or a legacy 4x32 rail.
+   * Consumed by StatusStrip.tsx and .status-strip rules across the app. */
+  --status-strip-width: 3px;
+  --status-strip-height: 20px;
+  --status-strip-radius: 0 999px 999px 0;
+
+  /* --- Motion --- */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-drawer: cubic-bezier(0.22, 1, 0.36, 1);
+  --t-fast: 120ms var(--ease);
+  --t-normal: 180ms var(--ease);
+  --t-slow: 240ms var(--ease);
+  --t-spring: 300ms var(--ease-spring);
+
+  /* --- Type families — Be Vietnam Pro (text/UI) + JetBrains Mono (numerics),
+         both self-hosted from /public/fonts/fonts.css. --- */
+  --font-display: 'Be Vietnam Pro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-body: 'Be Vietnam Pro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Be Vietnam Pro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* legacy aliases */
+  --ff-sans: var(--font-display);
+  --ff-mono: var(--font-mono);
+
+  /* --- Type scale --- */
+  --fs-2xs: 12px;
+  --fs-xs:  12px;
+  --fs-status-pill: 11px;
+  --fs-sm:  14px;
+  --fs-md:  16px;
+  --fs-lg:  18px;
+  --fs-xl:  20px;
+  --fs-2xl: 24px;
+  --fs-3xl: 30px;
+  --fs-4xl: 36px;
+  --fs-5xl: 48px;
+
+  --fw-light:    300;
+  --fw-regular:  400;
+  --fw-medium:   500;
+  --fw-semibold: 600;
+  --fw-bold:     700;
+  --fw-extrabold:800;
+
+  --lh-tight: 1.15;
+  --lh-snug:  1.3;
+  --lh-normal:1.4;
+  --lh-relaxed:1.5;
+
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide:  0.03em;
+  --tracking-wider:  0.08em;
+  --tracking-eyebrow: 0.08em;
+
+  /* Hero display numbers (24-28px, used for revenue / profit metrics) */
+  --fs-display: 24px;
+  --fs-display-lg: 28px;
+
+  /* --- Z-index scale --- */
+  --z-base: 0;
+  --z-dropdown: 50;
+  --z-sticky: 100;
+  --z-overlay: 200;
+  --z-modal: 300;
+  --z-confirm: 350;
+  --z-popover: 400;
+  --z-toast: 500;
+  --z-tooltip: 600;
+  --z-max: 700;
+
+  /* --- Breakpoint tiers (use ONLY these values in @media) ---
+   * 420px  — narrow phone
+   * 640px  — phone
+   * 1023px — tablet
+   * 1100px — small desktop
+   * No other breakpoint values without updating this list. --- */
+
+  /* --- Accent ramp: brass / copper / Forest Sage ---
+   * Used by trip-card number badges, hairline gradients, and the bento
+   * active-state. Values match the hex fallbacks that were previously
+   * inlined in TripEditPage.css / trip-detail/details.css /
+   * TripSummaryCard.css, so the bare var() refs that previously resolved
+   * to nothing now pick up these colors. Note the ramp runs DARK→LIGHT
+   * (--brass-1 dark → --brass-3 light); do not invert. */
+  --brass-1: #8B6F47;
+  --brass-2: #B8895A;
+  --brass-3: #D4A574;
+  --copper:  #C77B5C;
+  --brass-grad: linear-gradient(135deg, var(--brass-1) 0%, var(--brass-3) 100%);
+
+  --sage-1: #4F8A6F;
+  --sage-2: #6BA88A;
+  --sage-grad:  linear-gradient(135deg, var(--sage-1) 0%, var(--sage-2) 100%);
+
+  /* Status-pill palette — Tailwind canonical values previously hardcoded
+   * in the trip-edit status-pill rules. */
+  --slate-1: #94A3B8;  /* slate-400 */
+  --slate-2: #0EA5E9;  /* sky-500   */
+  --slate-3: #10B981;  /* emerald-500 */
+  --slate-4: #0F172A;  /* slate-900 */
+  --slate-5: #F1F5F9;  /* slate-100 */
+  --slate-6: #E2E8F0;  /* slate-200 */
+}

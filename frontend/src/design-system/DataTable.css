@@ -1,0 +1,137 @@
+.ds-table-wrap {
+  width: 100%;
+}
+
+.ds-table-scroll {
+  overflow-x: auto;
+  border-radius: var(--r);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  scrollbar-color: rgba(0, 90, 45, 0.25) transparent;
+  scrollbar-width: thin;
+}
+
+.ds-table-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+
+.ds-table-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 90, 45, 0.22);
+  border-radius: 999px;
+}
+
+.ds-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+
+.ds-table thead th {
+  text-align: left;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-2);
+  padding: 11px 12px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line-2);
+  white-space: nowrap;
+}
+
+.ds-table th.num,
+.ds-table td.num {
+  text-align: right;
+}
+
+.ds-table tbody td {
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink, var(--fg));
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+}
+
+.ds-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.ds-table tbody tr.is-clickable {
+  cursor: pointer;
+  transition: background 120ms var(--ease);
+}
+
+.ds-table tbody tr.is-clickable:hover {
+  background: color-mix(in srgb, var(--accent-soft) 38%, white);
+}
+
+.ds-table tbody tr.is-clickable:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 68%, white);
+  outline-offset: -2px;
+}
+
+.ds-table__skeleton-row td {
+  padding: 14px 12px;
+}
+
+.ds-table__skeleton-bar {
+  display: block;
+  height: 12px;
+  background: linear-gradient(
+    90deg,
+    var(--surface-2, var(--bg-2)) 0%,
+    var(--surface-3, #e5e7eb) 50%,
+    var(--surface-2, var(--bg-2)) 100%
+  );
+  background-size: 200% 100%;
+  border-radius: 4px;
+  animation: ds-skeleton 1.2s ease-in-out infinite;
+}
+
+@keyframes ds-skeleton {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.ds-table-empty {
+  padding: 32px;
+  text-align: center;
+  color: var(--fg-3, var(--ink-3));
+}
+
+.ds-mobile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ds-mobile-card {
+  background: var(--surface, #fff);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 12px 14px;
+  color: var(--ink, var(--fg));
+}
+
+.ds-mobile-card.is-clickable {
+  cursor: pointer;
+  transition: background 120ms var(--ease), border-color 120ms var(--ease);
+}
+
+.ds-mobile-card.is-clickable:hover {
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+}
+
+.ds-table-wrap--mobile {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .ds-table-wrap--desktop {
+    display: none;
+  }
+  .ds-table-wrap--mobile {
+    display: block;
+  }
+}

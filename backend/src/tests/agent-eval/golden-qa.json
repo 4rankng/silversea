@@ -1,0 +1,78 @@
+[
+  {
+    "id": "eval-nav-debt",
+    "message": "mở trang công nợ",
+    "expectedLane": "nav",
+    "expectedRouteKey": "debt",
+    "desc": "Navigation to debt page"
+  },
+  {
+    "id": "eval-nav-dashboard",
+    "message": "open dashboard",
+    "expectedLane": "nav",
+    "expectedRouteKey": "dashboard",
+    "desc": "Navigation to dashboard (English)"
+  },
+  {
+    "id": "eval-nav-salary",
+    "message": "mở trang lương",
+    "expectedLane": "nav",
+    "expectedRouteKey": "salary",
+    "desc": "Navigation to salary page"
+  },
+  {
+    "id": "eval-summary",
+    "message": "tóm tắt việc hôm nay",
+    "expectedLane": "summary",
+    "desc": "Daily work summary"
+  },
+  {
+    "id": "eval-react-profit",
+    "message": "lợi nhuận xe 15C-136.31 tháng 6 là bao nhiêu?",
+    "expectedLane": "react",
+    "desc": "Specific profit query (needs data tool)"
+  },
+  {
+    "id": "eval-react-truck-count",
+    "message": "cty có bao nhiêu xe",
+    "expectedLane": "react",
+    "desc": "Fleet count query (needs data tool)"
+  },
+  {
+    "id": "eval-react-analytical",
+    "message": "tại sao lợi nhuận giảm?",
+    "expectedLane": "react",
+    "desc": "Analytical question (needs reasoning)"
+  },
+  {
+    "id": "eval-react-greeting",
+    "message": "hi",
+    "expectedLane": "react",
+    "desc": "Greeting (conversational)"
+  },
+  {
+    "id": "eval-react-write",
+    "message": "sửa tên công ty thành TNHH ABC",
+    "expectedLane": "react",
+    "desc": "Write action (v1 read-only, but not nav)"
+  },
+  {
+    "id": "eval-nav-tires",
+    "message": "mở trang lốp",
+    "expectedLane": "nav",
+    "expectedRouteKey": "fleetTires",
+    "desc": "Navigation to tires via alias"
+  },
+  {
+    "id": "eval-summary-can-lam",
+    "message": "cần làm gì hôm nay",
+    "expectedLane": "summary",
+    "desc": "Daily work summary (variant phrasing)"
+  },
+  {
+    "id": "eval-react-specific-receivable",
+    "message": "Công nợ công ty cổ phần nitoda bao nhiêu",
+    "expectedLane": "react",
+    "desc": "Specific customer receivable (needs data tool)"
+  }
+]

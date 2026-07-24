@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 200" fill="none">
+  <defs>
+    <linearGradient id="edb-scale-a" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+    <linearGradient id="edb-pan" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#F0FDF4"/>
+    </linearGradient>
+    <filter id="edb-shadow" x="-20%" y="-10%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="7" flood-color="#059669" flood-opacity="0.10"/>
+    </filter>
+  </defs>
+  <!-- Scale post -->
+  <rect x="117" y="80" width="6" height="80" rx="3" fill="url(#edb-scale-a)" filter="url(#edb-shadow)"/>
+  <!-- Scale base -->
+  <rect x="86" y="156" width="68" height="12" rx="6" fill="url(#edb-scale-a)"/>
+  <rect x="100" y="150" width="40" height="10" rx="5" fill="#047857"/>
+  <!-- Scale beam (balanced) -->
+  <rect x="60" y="82" width="120" height="6" rx="3" fill="url(#edb-scale-a)" filter="url(#edb-shadow)"/>
+  <!-- Center pin -->
+  <circle cx="120" cy="85" r="7" fill="#047857" stroke="#059669" stroke-width="1.5"/>
+  <circle cx="120" cy="85" r="3" fill="#ECFDF5"/>
+  <!-- Left pan chain -->
+  <line x1="72" y1="88" x2="72" y2="116" stroke="#059669" stroke-width="1.5" stroke-dasharray="3 2"/>
+  <!-- Right pan chain -->
+  <line x1="168" y1="88" x2="168" y2="116" stroke="#059669" stroke-width="1.5" stroke-dasharray="3 2"/>
+  <!-- Left pan (empty) -->
+  <ellipse cx="72" cy="122" rx="22" ry="7" fill="url(#edb-pan)" stroke="#059669" stroke-width="1.5" filter="url(#edb-shadow)"/>
+  <text x="72" y="126" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#059669" opacity="0.5">0</text>
+  <!-- Right pan (empty) -->
+  <ellipse cx="168" cy="122" rx="22" ry="7" fill="url(#edb-pan)" stroke="#059669" stroke-width="1.5" filter="url(#edb-shadow)"/>
+  <text x="168" y="126" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#059669" opacity="0.5">0</text>
+  <!-- Check badge above -->
+  <circle cx="120" cy="50" r="22" fill="#059669" filter="url(#edb-shadow)"/>
+  <circle cx="120" cy="50" r="18" fill="none" stroke="#FFFFFF" stroke-width="1" opacity="0.2"/>
+  <polyline points="109,50 117,59 131,40" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Decorative dots -->
+  <circle cx="44" cy="106" r="3.5" fill="#D1FAE5"/>
+  <circle cx="196" cy="106" r="3.5" fill="#D1FAE5"/>
+  <circle cx="44" cy="118" r="2" fill="#A7F3D0" opacity="0.6"/>
+  <circle cx="196" cy="118" r="2" fill="#A7F3D0" opacity="0.6"/>
+</svg>

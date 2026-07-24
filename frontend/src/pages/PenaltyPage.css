@@ -1,0 +1,9 @@
+/* ==========================================================================
+   PenaltyPage — section barrel
+   Each section lives in ./penalty/. Do not add rules here; CSS @import must
+   precede all other rules, and cascade order == import order == original.
+   ========================================================================== */
+
+@import "./penalty/violation-log.css";
+@import "./penalty/violation-types.css";
+@import "./penalty/responsive.css";

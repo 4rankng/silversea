@@ -1,0 +1,254 @@
+/* Expense Entry Page */
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+.animate-shake {
+  animation: shake 0.3s ease-in-out;
+}
+
+/* Page wrapper */
+.expense-page-wrap {
+  min-height: calc(100vh - 64px);
+  padding: 16px 16px 32px;
+}
+
+.expense-page-container {
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.expense-page-form {
+  margin-top: 24px;
+  padding-bottom: 16px;
+}
+
+.expense-page-error {
+  background: var(--danger-soft);
+  color: var(--danger-text);
+  padding: 16px 20px;
+  border-radius: 16px;
+  border: 1px solid var(--danger);
+  margin-bottom: 20px;
+}
+
+/* ── Two-column layout (desktop) ── */
+.expense-page-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .expense-page-layout {
+    grid-template-columns: 1fr 360px;
+    gap: 24px;
+  }
+}
+
+.expense-layout__main {
+  min-width: 0;
+}
+
+.expense-layout__aside {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Panel card */
+.expense-panel {
+  background: var(--surface);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.expense-panel--photo {
+  flex: 1;
+}
+
+.expense-panel__header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--line-3);
+}
+.expense-panel__body {
+  padding: 24px;
+}
+
+.expense-photo-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Inputs */
+.expense-input {
+  width: 100%;
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 15px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.expense-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.expense-input::placeholder {
+  color: var(--ink-4);
+}
+
+select.expense-input {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%238B919B' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 12px center;
+  background-repeat: no-repeat;
+  background-size: 20px 20px;
+  padding-right: 40px;
+}
+
+/* Grid */
+.expense-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+@media (min-width: 560px) {
+  .expense-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+}
+
+.expense-label {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--ink-2);
+  margin-bottom: 6px;
+  display: block;
+}
+
+/* Photo thumbnails */
+.expense-photo-grid {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.expense-photo-thumb {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border-radius: 12px;
+  border: 1px solid var(--line-2);
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  flex-shrink: 0;
+}
+
+.expense-photo-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.6);
+  border: none;
+  color: var(--fg-on-brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(4px);
+}
+
+/* Photo upload zone */
+.expense-upload-zone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 120px;
+  border: 2px dashed var(--line-2);
+  border-radius: 12px;
+  background: var(--bg-2);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+  color: var(--ink-2);
+  font-weight: 500;
+  text-align: center;
+  padding: 20px 16px;
+}
+.expense-upload-zone:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* Action buttons */
+.expense-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.expense-btn-cancel {
+  padding: 12px 20px;
+  font-size: var(--fs-sm);
+  border-radius: 10px;
+  border: 1px solid var(--line-3);
+  background: transparent;
+  font-weight: 600;
+  color: var(--ink-2);
+  cursor: pointer;
+  text-align: center;
+  width: 100%;
+}
+.expense-btn-cancel:hover {
+  background: var(--bg-2);
+}
+
+/* Save button — uses Global .btn--primary (components/Button.css). Only the
+   full-width layout modifier (.expense-btn-submit) is defined here. */
+
+.expense-btn-submit {
+  width: 100%;
+  justify-content: center;
+  padding: 13px 24px;
+}
+
+/* ── Mobile responsive ── */
+@media (max-width: 640px) {
+  .expense-page-wrap {
+    padding: 12px 12px 24px;
+  }
+  .expense-panel__header {
+    padding: 16px;
+  }
+  .expense-panel__body {
+    padding: 16px;
+  }
+  .expense-input {
+    font-size: var(--fs-md); /* prevents iOS zoom */
+    min-height: 44px;
+  }
+  .expense-btn-submit,
+  .expense-btn-cancel {
+    min-height: 44px;
+  }
+  .expense-upload-zone {
+    min-height: 100px;
+  }
+}

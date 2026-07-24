@@ -1,0 +1,12 @@
+/* FuelSection — scoped 2-col grid that holds at tablet width.
+   Unlike the global .row-2 (which collapses at ≤1023px),
+   this keeps side-by-side layout down to 560px where the
+   individual inputs still have enough room. */
+
+.fs-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+  align-items: start;
+}

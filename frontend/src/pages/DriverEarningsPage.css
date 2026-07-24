@@ -1,0 +1,529 @@
+.driver-earnings-page {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.earnings-hero-bento {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 124px;
+  padding: 20px 22px;
+  border-radius: 18px;
+  overflow: hidden;
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 13%, transparent), transparent 52%),
+    var(--surface);
+}
+
+.earnings-hero-bento--positive {
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 10px 28px -22px rgba(0, 90, 45, 0.45);
+}
+
+.earnings-hero-bento--negative {
+  color: var(--ink);
+  border-color: color-mix(in srgb, var(--danger) 20%, var(--line));
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.earnings-hero-bento__content {
+  position: relative;
+  z-index: 1;
+}
+
+.earnings-hero-bento__eyebrow {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent-ink);
+  margin-bottom: 8px;
+}
+
+.earnings-hero-bento__amount {
+  font-size: var(--fs-2xl);
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.25;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.earnings-hero-bento__currency {
+  font-size: 0.48em;
+  color: var(--ink-3);
+  margin-left: 4px;
+}
+
+.earnings-hero-bento__note {
+  max-width: 460px;
+  margin: 10px 0 0;
+  color: var(--ink-3);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.earnings-hero-bento__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.earnings-hero-bento__watermark {
+  position: absolute;
+  right: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0.045;
+  z-index: 0;
+  color: var(--ink);
+}
+
+.earnings-equation-card,
+.earnings-ledger-card,
+.earnings-penalties-panel {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(9, 9, 11, 0.04);
+  backdrop-filter: blur(12px);
+}
+
+.earnings-equation-card {
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.earnings-equation-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  color: var(--ink-3);
+  font-size: 13px;
+}
+
+.earnings-equation-card__head strong {
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.earnings-equation {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.earnings-equation__item {
+  min-width: 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+
+.earnings-equation__item span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.earnings-equation__item strong {
+  display: block;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.earnings-equation__item--success strong {
+  color: var(--success);
+}
+
+.earnings-equation__item--danger strong {
+  color: var(--danger);
+}
+
+.earnings-equation__item--total {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--line));
+}
+
+.earnings-ledger-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.earnings-ledger-card {
+  overflow: hidden;
+}
+
+.earnings-ledger-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.earnings-ledger-card__header span {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.earnings-ledger-card__header strong {
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.earnings-ledger-list {
+  margin: 0;
+  padding: 4px 16px 12px;
+}
+
+.earnings-ledger-list div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+.earnings-ledger-list div:last-child {
+  border-bottom: 0;
+}
+
+.earnings-ledger-list dt {
+  color: var(--ink-3);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.earnings-ledger-list dd {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-align: right;
+}
+
+.earnings-ledger-list dd.is-success {
+  color: var(--success);
+}
+
+.earnings-ledger-list dd.is-danger {
+  color: var(--danger);
+}
+
+.earnings-ledger-list__note {
+  align-items: flex-start;
+}
+
+.earnings-ledger-list__note dd {
+  max-width: 280px;
+  color: var(--ink-3);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.earnings-workday-strip {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--ink-3);
+  margin-bottom: 14px;
+}
+
+.earnings-workday-strip strong {
+  color: var(--ink-2);
+}
+
+.earnings-penalties-panel {
+  overflow: hidden;
+}
+
+.earnings-penalties-panel__header {
+  padding: 16px 20px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.earnings-penalties-panel__title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.earnings-penalties-panel__count {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.earnings-penalty-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--line);
+  transition: background 120ms ease;
+}
+
+.earnings-penalty-row:hover {
+  background: var(--surface-2);
+}
+
+.earnings-penalty-row__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--danger-soft);
+  color: var(--danger);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.earnings-penalty-row__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.earnings-penalty-row__reason {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.earnings-penalty-row__date {
+  font-size: 12px;
+  color: var(--ink-3);
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.earnings-penalty-row__amount {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--danger);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.earnings-penalties-empty {
+  padding: 26px 20px 28px;
+  text-align: center;
+  color: var(--ink-3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.earnings-penalties-empty img {
+  width: 108px;
+  height: 90px;
+  object-fit: contain;
+}
+
+.earnings-loading {
+  padding: 32px;
+  text-align: center;
+  color: var(--ink-3);
+}
+
+.earnings-loading p {
+  margin-top: 8px;
+}
+
+@media (max-width: 640px) {
+  .earnings-hero-bento {
+    min-height: auto;
+    padding: 20px;
+    border-radius: 16px;
+  }
+
+  .earnings-hero-bento__icon {
+    width: 42px;
+    height: 42px;
+  }
+
+  .earnings-equation {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .earnings-equation-card {
+    padding: 14px;
+  }
+
+  .earnings-equation__item {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+  }
+
+  .earnings-equation__item span {
+    margin-bottom: 0;
+    font-size: var(--fs-xs);
+  }
+
+  .earnings-equation__item strong {
+    font-size: 14px;
+    text-align: right;
+  }
+
+  .earnings-ledger-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── N5 / B4: vehicle reminders strip ──────────────────────────────────────
+   Surfaces overdue/due compliance dates for the driver's truck. Scoped under
+   .driver-earnings-page (page-scoped, no !important). Reuses --danger /
+   --warning + their -soft variants from tokens.css. */
+.driver-earnings-page .vehicle-alerts-strip {
+  margin: 0 0 20px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--warning-soft);
+  border: 1px solid var(--warning);
+}
+.driver-earnings-page .vehicle-alerts-strip__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--warning);
+  margin-bottom: 10px;
+}
+.driver-earnings-page .vehicle-alerts-strip__title {
+  font-size: 13px;
+  font-weight: 700;
+}
+.driver-earnings-page .vehicle-alerts-strip__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+.driver-earnings-page .vehicle-alerts-strip__item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 13px;
+}
+/* Severity uses the canonical 3×20px status strip (::before), not a
+   full-height colored left border. */
+.driver-earnings-page .vehicle-alerts-strip__item--overdue { --strip: var(--danger); }
+.driver-earnings-page .vehicle-alerts-strip__item--due { --strip: var(--warning); }
+.driver-earnings-page .vehicle-alerts-strip__item--overdue::before,
+.driver-earnings-page .vehicle-alerts-strip__item--due::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--status-strip-width);
+  height: var(--status-strip-height);
+  border-radius: var(--status-strip-radius);
+  background: var(--strip);
+  pointer-events: none;
+}
+.driver-earnings-page .vehicle-alerts-strip__label {
+  font-weight: 600;
+  color: var(--fg-1, #1a1a1a);
+}
+.driver-earnings-page .vehicle-alerts-strip__date {
+  color: var(--fg-2, #666);
+  font-variant-numeric: tabular-nums;
+}
+.driver-earnings-page .vehicle-alerts-strip__days {
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.driver-earnings-page .vehicle-alerts-strip__item--overdue .vehicle-alerts-strip__days {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.driver-earnings-page .vehicle-alerts-strip__item--due .vehicle-alerts-strip__days {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+@media (max-width: 480px) {
+  .driver-earnings-page .vehicle-alerts-strip__item {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "label days"
+      "date  days";
+  }
+  .driver-earnings-page .vehicle-alerts-strip__label { grid-area: label; }
+  .driver-earnings-page .vehicle-alerts-strip__date { grid-area: date; }
+  .driver-earnings-page .vehicle-alerts-strip__days { grid-area: days; align-self: center; }
+}
+
+/* A9 / B2 — honest unpaid-salary disclosure under the payable card.
+   No fabricated paid figure; Phase A surfaces unpaid only. */
+.driver-earnings-page .earnings-payable-note {
+  margin: 8px 4px 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-3);
+}
+.driver-earnings-page .earnings-payable-note strong {
+  color: var(--ink-2);
+  font-weight: 600;
+}

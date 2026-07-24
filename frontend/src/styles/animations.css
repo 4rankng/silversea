@@ -1,0 +1,164 @@
+/* ============================================================================
+ * TingTing — Shared Animation Utilities
+ * Consolidates scattered @keyframes into single source of truth.
+ * Uses vantai motion tokens from tokens.css.
+ * ========================================================================== */
+
+/* --- Entrance keyframes --- */
+
+@keyframes tt-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes tt-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes tt-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes tt-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes tt-slide-right {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* --- Status / attention keyframes --- */
+
+@keyframes tt-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes tt-pulse-soft {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.7; }
+}
+
+@keyframes tt-glow-accent {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(0, 177, 79, 0);
+  }
+  50% {
+    box-shadow: 0 0 8px 2px rgba(0, 177, 79, 0.2);
+  }
+}
+
+/* --- Loading keyframes --- */
+
+@keyframes tt-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes tt-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* --- Float keyframes (empty states, illustrations) --- */
+
+@keyframes tt-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* --- Utility classes --- */
+
+.tt-animate-fade-up {
+  animation: tt-fade-up 0.4s var(--ease) both;
+}
+
+.tt-animate-fade-in {
+  animation: tt-fade-in 0.3s var(--ease) both;
+}
+
+.tt-animate-scale-in {
+  animation: tt-scale-in 0.28s var(--ease-spring) both;
+}
+
+.tt-animate-slide-up {
+  animation: tt-slide-up 0.4s var(--ease) both;
+}
+
+.tt-animate-slide-right {
+  animation: tt-slide-right 0.35s var(--ease) both;
+}
+
+.tt-animate-pulse {
+  animation: tt-pulse 2s var(--ease) infinite;
+}
+
+.tt-animate-float {
+  animation: tt-float 3s var(--ease) infinite;
+}
+
+.tt-animate-spin {
+  animation: tt-spin 1s linear infinite;
+}
+
+/* Shimmer loading placeholder */
+.tt-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--surface-3) 25%,
+    var(--surface-2) 37%,
+    var(--surface-3) 63%
+  );
+  background-size: 200% 100%;
+  animation: tt-shimmer 1.4s linear infinite;
+}
+
+/* Stagger helpers — apply to parent, children animate with increasing delay */
+.tt-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.tt-stagger > *:nth-child(2) { animation-delay: 50ms; }
+.tt-stagger > *:nth-child(3) { animation-delay: 100ms; }
+.tt-stagger > *:nth-child(4) { animation-delay: 150ms; }
+.tt-stagger > *:nth-child(5) { animation-delay: 200ms; }
+.tt-stagger > *:nth-child(6) { animation-delay: 250ms; }
+.tt-stagger > *:nth-child(7) { animation-delay: 300ms; }
+.tt-stagger > *:nth-child(8) { animation-delay: 350ms; }
+.tt-stagger > *:nth-child(9) { animation-delay: 400ms; }
+.tt-stagger > *:nth-child(10) { animation-delay: 450ms; }
+
+/* Reduced motion — disable all animations */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

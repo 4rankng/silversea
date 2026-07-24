@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "TaskUpdate",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{ ts=$(jq -r '.tool_input.status // empty'); if [ \"$ts\" = \"completed\" ]; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"Task marked completed. Update HANDOFF.md now with goal, files changed, what worked, gotchas, next steps. Run git status && git diff --stat to gather state.\"}}'; fi; }"
+          }
+        ]
+      }
+    ]
+  }
+}

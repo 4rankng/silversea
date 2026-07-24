@@ -1,0 +1,26 @@
+{
+  "name": "tingting",
+  "private": true,
+  "scripts": {
+    "dev": "make dev",
+    "setup": "make setup",
+    "build": "cd shared && npx tsc && cd ../backend && npx tsc && cd ../frontend && npx vite build",
+    "lint": "eslint ."
+  },
+  "pnpm": {
+    "overrides": {
+      "esbuild": "~0.25.5",
+      "uuid": ">=11.1.1",
+      "undici": "~7.28.0",
+      "@babel/core": ">=7.29.6"
+    }
+  },
+  "dependencies": {
+    "puppeteer": "^25.1.0"
+  },
+  "devDependencies": {
+    "eslint": "^10.4.1",
+    "puppeteer-core": "^25.3.0",
+    "typescript-eslint": "^8.61.0"
+  }
+}

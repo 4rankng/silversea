@@ -1,0 +1,216 @@
+/* ============================================================================
+ * Trip list page (.trip-list-page wireframe)
+ * Shares visual language with .dispatch-page — same charcoal hero, same metric
+ * strip pattern, same scoped naming — but adds a data table with breakdown bar,
+ * filter dropdowns, pagination, and mobile-card fallback.
+ * ========================================================================== */
+
+.trip-list-page {
+  --d-charcoal-1: #14181A;
+  --d-charcoal-2: #1A2220;
+  --d-charcoal-3: #1F2D27;
+  --d-green-50:   #F0FDF4;
+  --d-green-100:  #DCFCE7;
+  --d-green-500:  #16A34A;
+  --d-green-700:  #007038;
+  --d-green-800:  #005A2D;
+  --d-amber:      #B45309;
+  --d-amber-bg:   #FEF3C7;
+  --d-amber-dot:  #F59E0B;
+  --d-red:        #B91C1C;
+  --d-red-bg:     #FEE2E2;
+  --d-red-dot:    #DC2626;
+  --d-blue:       #1D4ED8;
+  --d-blue-bg:    #DBEAFE;
+  --d-blue-dot:   #3B82F6;
+  /* Wireframe table design tokens */
+  --tbl-green-050: #F1F8F4;
+  --tbl-line-strong: #D7DEDB;
+  --tbl-slate-100: #EDF0EE;
+  --tbl-slate-700: #4A5650;
+  --tbl-green-100: #E3F2E9;
+  --tbl-green-700: #005A2D;
+  --tbl-green-600: #0A6E3A;
+  --tbl-amber-100: #FBEFD3;
+  --tbl-amber-700: #9A6400;
+  --tbl-blue-100: #E0ECFA;
+  --tbl-blue-700: #1F5FB0;
+  --tbl-red-100: #FBE3E3;
+  --tbl-red-700: #B23030;
+}
+
+/* ── Hero (same pattern as dispatch) ──────────────────────────────────── */
+/* Breadcrumb trail — sits above the hero so users get a "you are here"
+   cue. Muted color so it doesn't compete with the hero metrics below. */
+.trip-list-page .trip-list-page__crumbs {
+  margin: 2px 0 10px;
+  color: var(--ink-3);
+  font-size: 12px;
+}
+.trip-list-page .trip-list-page__crumbs ul {
+  /* daisyUI ships breadcrumbs with default list styles; tighten the gap so
+     it reads as one line on the dense list page. */
+  gap: 4px;
+}
+
+.trip-list-page .hero {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 22px 24px;
+  margin-bottom: 18px;
+  position: relative;
+  overflow: hidden;
+  container-type: inline-size;
+}
+.trip-list-page .hero.hero--route-network {
+  background-image: url("/assets/illustrations/hero-route-network.svg");
+  background-color: var(--surface);
+  background-repeat: no-repeat;
+  background-position: right 24px bottom 10px;
+  background-size: min(260px, 24vw) auto;
+}
+.trip-list-page .hero::before {
+  content: none;
+}
+.trip-list-page .hero::after {
+  content: none;
+}
+.trip-list-page .hero-top {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 24px; position: relative;
+}
+.trip-list-page .hero-title-block { min-width: 0; }
+.trip-list-page .hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: var(--fs-xs); letter-spacing: 1.2px; font-weight: 700;
+  color: var(--accent-ink);
+  text-transform: uppercase;
+  margin-bottom: 9px;
+}
+.trip-list-page .hero-eyebrow::before {
+  content: ''; width: 6px; height: 6px;
+  background: var(--accent); border-radius: 50%;
+}
+.trip-list-page .hero-h1 {
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl); font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.25;
+  margin: 0 0 6px;
+}
+.trip-list-page .hero-sub { font-size: var(--fs-sm); color: var(--ink-2); }
+.trip-list-page .hero-actions { display: flex; gap: 10px; flex-shrink: 0; }
+.trip-list-page .hero-actions .btn {
+  min-width: 132px;
+}
+
+/* Hero action buttons use the Global .btn / .btn--primary / .btn--secondary
+   system (components/Button.css). The page-scoped .btn-d* recipes were
+   retired during CTA unification. */
+
+/* ── Metric bento grid ─────────────────────────────────────────────────
+   Layout: featured card spans 2 rows on the left, 4 tiles in 2×2 on the right.
+   gap: 1px with rgba background creates hairline dividers (same pattern as before). */
+.trip-list-page .metrics {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: minmax(260px, 1.35fr) repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  background: transparent;
+  border-radius: 0;
+  overflow: visible;
+  position: relative;
+}
+.trip-list-page .metric {
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 14px 16px;
+  transition: background 160ms var(--ease), border-color 160ms var(--ease);
+}
+.trip-list-page .metric:hover {
+  border-color: color-mix(in srgb, var(--accent) 18%, var(--line-2));
+  background: var(--surface-2);
+}
+.trip-list-page .metric.featured {
+  grid-row: auto;
+  grid-column: auto;
+  background: var(--brand-soft);
+  border-color: rgba(0, 177, 79, 0.18);
+}
+.trip-list-page .metric.featured .metric-label { color: var(--accent-ink); }
+.trip-list-page .metric-label {
+  font-size: var(--fs-xs); letter-spacing: 1px;
+  color: var(--ink-3);
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  overflow-wrap: anywhere;
+}
+.trip-list-page .metric-value {
+  max-width: 100%;
+  font-size: clamp(18px, 1.85vw, var(--fs-2xl)); font-weight: 700;
+  line-height: 1.35; letter-spacing: 0;
+  color: var(--ink);
+}
+.trip-list-page .metric-value.d-mono { font-family: var(--font-mono); font-feature-settings: "tnum"; }
+.trip-list-page .metric-unit { font-size: var(--fs-sm); color: var(--ink-3); font-weight: 500; margin-left: 4px; line-height: 1.35; }
+.trip-list-page .metric-delta {
+  margin-top: 8px;
+  font-size: var(--fs-xs); font-weight: 600;
+  display: inline-flex; align-items: center; gap: 4px;
+  line-height: 1.4;
+  word-break: break-word;
+}
+.trip-list-page .delta-up { color: var(--accent-ink); }
+/* Use the foreground --danger token, not the --danger-soft background tint
+   (which rendered negative deltas near-invisible). Mirrors DispatchPage. */
+.trip-list-page .delta-down { color: var(--danger); }
+.trip-list-page .delta-flat { color: var(--ink-3); }
+.trip-list-page .delta-warn { color: var(--warning-text); }
+
+.trip-list-page .breakdown-bar {
+  margin-top: 12px;
+  height: 6px;
+  background: var(--surface-3);
+  border-radius: 99px;
+  display: flex; overflow: hidden;
+}
+.trip-list-page .bb-seg { height: 100%; transition: width 200ms ease; }
+.trip-list-page .bb-moi  { background: #6B7280; }
+.trip-list-page .bb-dang { background: #3B82F6; }
+.trip-list-page .bb-htth { background: #10B981; }
+.trip-list-page .bb-chot { background: #1E293B; }
+.trip-list-page .bb-huy  { background: #EF4444; }
+.trip-list-page .breakdown-legend {
+  margin-top: 8px;
+  display: flex; flex-wrap: wrap; gap: 10px 14px;
+  font-size: var(--fs-xs); color: var(--ink-2);
+  line-height: 1.35;
+}
+.trip-list-page .legend-item { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.trip-list-page .legend-dot { width: 7px; height: 7px; border-radius: 2px; }
+
+@container (max-width: 1180px) {
+  .trip-list-page .metrics {
+    grid-template-columns: minmax(280px, 1.15fr) repeat(2, minmax(190px, 1fr));
+  }
+
+  .trip-list-page .metric.featured {
+    grid-row: span 2;
+  }
+}
+
+@container (max-width: 820px) {
+  .trip-list-page .metrics {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .trip-list-page .metric.featured {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+}

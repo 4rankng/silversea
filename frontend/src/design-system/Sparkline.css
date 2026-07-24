@@ -1,0 +1,10 @@
+.ds-sparkline {
+  display: block;
+  /* allow shrink inside KPI meta slot */
+  max-width: 100%;
+  height: auto;
+}
+
+.ds-sparkline--up path[stroke] { stroke: var(--accent); }
+.ds-sparkline--down path[stroke] { stroke: var(--danger); }
+.ds-sparkline--neutral path[stroke] { stroke: var(--ink-3); }

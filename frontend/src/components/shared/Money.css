@@ -1,0 +1,28 @@
+/* ============================================================================
+ * Money — inline money value with a subtitle-sized currency unit.
+ * The unit scales with the surrounding font-size via em, so this works
+ * anywhere: a 34px hero, a 16px line item, a 13px table cell.
+ * ========================================================================== */
+
+.money {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.15em;
+  flex-wrap: wrap;
+  line-height: 1.35;
+}
+
+/* Digits + sign inherit size / weight / color from the parent context. */
+.money__num,
+.money__sign {
+  font-family: var(--font-mono, inherit);
+  line-height: 1.35;
+}
+
+.money__unit {
+  font-size: 12px !important;
+  line-height: 1.35;
+  font-weight: 500;
+  opacity: 0.65;
+  white-space: nowrap;
+}

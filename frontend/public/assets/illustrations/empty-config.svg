@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 200" fill="none">
+  <defs>
+    <linearGradient id="ecfg-gear" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+    <linearGradient id="ecfg-panel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#F9FAFB"/>
+    </linearGradient>
+    <filter id="ecfg-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#09090B" flood-opacity="0.07"/>
+    </filter>
+  </defs>
+  <!-- Panel card -->
+  <rect x="50" y="52" width="140" height="112" rx="10" fill="url(#ecfg-panel)" filter="url(#ecfg-shadow)"/>
+  <!-- Panel header -->
+  <rect x="50" y="52" width="140" height="28" rx="10" fill="#F9FAFB"/>
+  <rect x="50" y="68" width="140" height="12" fill="#F9FAFB"/>
+  <rect x="62" y="61" width="48" height="7" rx="3.5" fill="#E5E7EB"/>
+  <!-- Sliders rows -->
+  <!-- Row 1 -->
+  <rect x="62" y="92" width="32" height="5" rx="2.5" fill="#E5E7EB"/>
+  <rect x="104" y="88" width="72" height="12" rx="6" fill="#F3F4F6" stroke="#E4E4E7" stroke-width="1"/>
+  <circle cx="128" cy="94" r="8" fill="#E4E4E7" stroke="#D4D4D8" stroke-width="1"/>
+  <!-- Row 2 -->
+  <rect x="62" y="114" width="28" height="5" rx="2.5" fill="#E5E7EB"/>
+  <rect x="104" y="110" width="72" height="12" rx="6" fill="#F3F4F6" stroke="#E4E4E7" stroke-width="1"/>
+  <circle cx="148" cy="116" r="8" fill="#E4E4E7" stroke="#D4D4D8" stroke-width="1"/>
+  <!-- Row 3 (with green slider = something configured) -->
+  <rect x="62" y="136" width="36" height="5" rx="2.5" fill="#E5E7EB"/>
+  <rect x="104" y="132" width="72" height="12" rx="6" fill="#ECFDF5" stroke="#A7F3D0" stroke-width="1"/>
+  <rect x="104" y="132" width="40" height="12" rx="6" fill="url(#ecfg-gear)" opacity="0.35"/>
+  <circle cx="144" cy="138" r="8" fill="url(#ecfg-gear)" stroke="#FFFFFF" stroke-width="1.5"/>
+  <!-- Big gear floating -->
+  <g transform="translate(170 58)" filter="url(#ecfg-shadow)">
+    <!-- Gear teeth -->
+    <path d="M0 -22 L3.5 -16 L-3.5 -16 Z M15.5 -15.5 L12 -10 L16 -6.5 Z M22 0 L16 3.5 L16 -3.5 Z M15.5 15.5 L10 12 L6.5 16 Z M0 22 L3.5 16 L-3.5 16 Z M-15.5 15.5 L-12 10 L-16 6.5 Z M-22 0 L-16 3.5 L-16 -3.5 Z M-15.5 -15.5 L-10 -12 L-6.5 -16 Z" fill="url(#ecfg-gear)"/>
+    <circle r="18" fill="url(#ecfg-gear)"/>
+    <circle r="8" fill="#ECFDF5"/>
+    <circle r="4" fill="url(#ecfg-gear)" opacity="0.4"/>
+  </g>
+  <!-- Small gear -->
+  <g transform="translate(58 60)" opacity="0.45">
+    <path d="M0 -13 L2 -9.5 L-2 -9.5 Z M9 -9 L7 -5.5 L9.5 -3.5 Z M13 0 L9.5 2 L9.5 -2 Z M9 9 L5.5 7 L3.5 9.5 Z M0 13 L2 9.5 L-2 9.5 Z M-9 9 L-7 5.5 L-9.5 3.5 Z M-13 0 L-9.5 2 L-9.5 -2 Z M-9 -9 L-5.5 -7 L-3.5 -9.5 Z" fill="url(#ecfg-gear)"/>
+    <circle r="11" fill="url(#ecfg-gear)"/>
+    <circle r="4.5" fill="#ECFDF5"/>
+  </g>
+</svg>

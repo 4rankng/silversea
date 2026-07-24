@@ -1,0 +1,193 @@
+/* ============================================================================
+ * TripDetailPage — page-level inline-style extractions
+ * Bridges the .card chrome from bento-cards.css with the .tc-card chrome from
+ * TripEditPage.css. Page-level helpers that don't belong on a single card live
+ * here: loading guard, error banner, notes card, action-panel buttons.
+ * ========================================================================== */
+
+/* ── Loading guard (matches TripEditPage.tsx loading state) ── */
+.tdp-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  gap: 10px;
+  color: var(--fg-3);
+  font-size: 14px;
+}
+
+/* ── Error banner (page-level, above KPI strip) ── */
+.tdp-error-banner {
+  padding: 10px 14px;
+  background: var(--danger-soft);
+  color: var(--danger-text);
+  border-radius: var(--radius-md, 10px);
+  font-size: 13px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(220, 38, 38, 0.12);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Notes card (replaces inline <section class="card">) ── */
+.tdp-notes-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg, 18px);
+  padding: 20px;
+}
+.tdp-notes-title {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 8px;
+  color: var(--ink);
+}
+.tdp-notes-body {
+  white-space: pre-wrap;
+  font-size: 14px;
+  color: var(--fg-2);
+  margin: 0;
+  line-height: 1.55;
+}
+
+/* ── Instructions card (Liên hệ & hướng dẫn) ── */
+.tdp-instructions-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tdp-instructions-row {
+  display: flex;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.5;
+  align-items: baseline;
+}
+.tdp-instructions-label {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  min-width: 60px;
+  flex-shrink: 0;
+}
+.tdp-instructions-value {
+  color: var(--ink);
+  font-weight: 500;
+}
+a.tdp-instructions-value {
+  color: var(--brand, #00B14F);
+  text-decoration: none;
+}
+a.tdp-instructions-value:hover {
+  text-decoration: underline;
+}
+
+/* ── Error & action-panel buttons (Modal + Drawer) ── */
+.tdp-modal-error {
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  background: var(--danger-soft);
+  color: var(--danger-text);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.tdp-drawer-hint {
+  font-size: 12px;
+  color: var(--fg-3);
+  margin: 0 0 16px;
+  line-height: 1.5;
+}
+
+.tdp-drawer-textarea {
+  resize: vertical;
+}
+
+.tdp-drawer-submit {
+  width: 100%;
+  margin-top: 4px;
+}
+
+/* ── Adjustment list (Drawer history) ── */
+.tdp-adjustments-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg-2);
+  margin: 20px 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tdp-adjustment-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-2, var(--line));
+  font-size: 13px;
+  align-items: baseline;
+  gap: 12px;
+}
+.tdp-adjustment-row:last-child {
+  border-bottom: none;
+}
+.tdp-adjustment-note {
+  color: var(--fg-2);
+  min-width: 0;
+  overflow: visible;
+  overflow-wrap: anywhere;
+}
+.tdp-adjustment-amount {
+  font-weight: 600;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+.tdp-adjustment-amount--pos { color: var(--success, #00B14F); }
+.tdp-adjustment-amount--neg { color: var(--danger, #E32434); }
+
+/* ── Bridge the action buttons to the edit page's brass/amber palette ── */
+/* Detail page header buttons (TripHeader) — same shape as edit page buttons,
+   but lighter ghost style (no shadow) so they don't compete with the hero. */
+.tdp-header-btn {
+  background: var(--surface);
+  color: var(--ink-2);
+  border: 1px solid var(--line);
+  box-shadow: none;
+}
+.tdp-header-btn:hover:not(:disabled) {
+  background: var(--bg-2, #FAFBFC);
+  border-color: var(--line-strong, #D4DAD7);
+  color: var(--ink);
+  box-shadow: none;
+}
+
+.tdp-header-btn--primary {
+  background: var(--brass-3);
+  color: var(--ink, #0A0A0A);
+  border: none;
+  box-shadow: none;
+}
+.tdp-header-btn--primary:hover:not(:disabled) {
+  background: var(--brass-2);
+  box-shadow: none;
+}
+.tdp-header-btn--primary:disabled {
+  background: var(--brass-1);
+  color: rgba(255, 255, 255, 0.75);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.tdp-header-btn--danger {
+  background: var(--surface);
+  color: var(--danger, #E32434);
+  border: 1px solid var(--line);
+  box-shadow: none;
+}
+.tdp-header-btn--danger:hover:not(:disabled) {
+  background: var(--danger-soft, #FFEAEC);
+  border-color: #F3C6C6;
+  box-shadow: none;
+}

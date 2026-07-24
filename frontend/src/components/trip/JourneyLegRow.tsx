@@ -1,0 +1,66 @@
+import React from 'react';
+import './JourneyLegRow.css';
+import { Trash2 } from 'lucide-react';
+import type { FormLeg } from '../../hooks/useTripForm';
+import { LocationAutocomplete } from '../LocationAutocomplete';
+
+interface JourneyLegRowProps {
+  leg: FormLeg;
+  onRemove: () => void;
+  onUpdate: (field: keyof FormLeg, value: string) => void;
+  canRemove: boolean;
+}
+
+export function JourneyLegRow({ leg, onRemove, onUpdate, canRemove }: JourneyLegRowProps) {
+  return (
+    <div className="leg-card">
+      <div className="leg-card__head">
+        <div className="leg-card__label">
+          <span className="leg-card__seq">{leg.sequence}</span>
+          Chặng {leg.sequence}
+        </div>
+        {canRemove && (
+          <button type="button" className="btn btn--ghost btn--icon btn--sm" onClick={onRemove} aria-label="Xóa chặng">
+            <Trash2 size={15} style={{ color: 'var(--danger)' }} />
+          </button>
+        )}
+      </div>
+      <div className="leg-card__route">
+        <LocationAutocomplete
+          className="input input--sm"
+          placeholder="Điểm đi"
+          value={leg.origin}
+          onChange={(val) => onUpdate('origin', val)}
+          required
+        />
+        <span className="leg-card__arrow">→</span>
+        <LocationAutocomplete
+          className="input input--sm"
+          placeholder="Điểm đến"
+          value={leg.destination}
+          onChange={(val) => onUpdate('destination', val)}
+          required
+        />
+      </div>
+      <div className="leg-card__fields">
+        <div>
+          <div className="leg-card__mini-label">Cự ly (Km)</div>
+          <input
+            className="input input--sm"
+            type="number"
+            placeholder="Km"
+            value={leg.km}
+            onChange={(e) => onUpdate('km', e.target.value)}
+          />
+        </div>
+        <div>
+          <div className="leg-card__mini-label">Tải trọng</div>
+          <select className="input input--sm" value={leg.loadingType} onChange={(e) => onUpdate('loadingType', e.target.value)}>
+            <option value="HANG">Có hàng</option>
+            <option value="VO">Vỏ rỗng</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  );
+}

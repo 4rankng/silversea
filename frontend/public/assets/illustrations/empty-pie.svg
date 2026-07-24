@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 200" fill="none">
+  <defs>
+    <linearGradient id="epie-glow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#059669" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#059669" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="epie-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#09090B" flood-opacity="0.07"/>
+    </filter>
+  </defs>
+  <!-- Outer ring glow -->
+  <circle cx="120" cy="100" r="72" fill="url(#epie-glow)"/>
+  <!-- Empty pie dashes around circle -->
+  <circle cx="120" cy="100" r="60" stroke="#E4E4E7" stroke-width="1.5" stroke-dasharray="8 5" fill="#F9FAFB" filter="url(#epie-shadow)"/>
+  <!-- Pie slice outlines (empty) -->
+  <line x1="120" y1="100" x2="180" y2="100" stroke="#E4E4E7" stroke-width="1.2"/>
+  <line x1="120" y1="100" x2="150" y2="48" stroke="#E4E4E7" stroke-width="1.2"/>
+  <line x1="120" y1="100" x2="75" y2="50" stroke="#E4E4E7" stroke-width="1.2"/>
+  <line x1="120" y1="100" x2="62" y2="116" stroke="#E4E4E7" stroke-width="1.2"/>
+  <line x1="120" y1="100" x2="98" y2="156" stroke="#E4E4E7" stroke-width="1.2"/>
+  <!-- One "ghost" filled slice -->
+  <path d="M120 100 L180 100 A60 60 0 0 1 150 148 Z" fill="#F0FDF4" stroke="#D1FAE5" stroke-width="1"/>
+  <!-- Center donut hole -->
+  <circle cx="120" cy="100" r="28" fill="#FFFFFF" stroke="#F3F4F6" stroke-width="1.5" filter="url(#epie-shadow)"/>
+  <!-- Center icon: no data -->
+  <circle cx="120" cy="95" r="10" fill="#F3F4F6"/>
+  <line x1="115" y1="95" x2="125" y2="95" stroke="#D4D4D8" stroke-width="2" stroke-linecap="round"/>
+  <line x1="120" y1="90" x2="120" y2="100" stroke="#D4D4D8" stroke-width="2" stroke-linecap="round"/>
+  <text x="120" y="111" text-anchor="middle" font-family="Inter, sans-serif" font-size="7" fill="#A1A1AA">0 ₫</text>
+  <!-- Legend items (all greyed) -->
+  <rect x="172" y="76" width="8" height="8" rx="2" fill="#E4E4E7"/>
+  <rect x="184" y="79" width="32" height="5" rx="2.5" fill="#F3F4F6"/>
+  <rect x="172" y="92" width="8" height="8" rx="2" fill="#E4E4E7"/>
+  <rect x="184" y="95" width="24" height="5" rx="2.5" fill="#F3F4F6"/>
+  <rect x="172" y="108" width="8" height="8" rx="2" fill="#E4E4E7"/>
+  <rect x="184" y="111" width="28" height="5" rx="2.5" fill="#F3F4F6"/>
+  <rect x="172" y="124" width="8" height="8" rx="2" fill="#D1FAE5"/>
+  <rect x="184" y="127" width="20" height="5" rx="2.5" fill="#F0FDF4"/>
+  <!-- Top label -->
+  <rect x="78" y="24" width="84" height="16" rx="8" fill="#F0FDF4" stroke="#D1FAE5" stroke-width="1"/>
+  <text x="120" y="36" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" font-weight="600" fill="#059669">Chưa có dữ liệu chi phí</text>
+</svg>

@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 200" fill="none">
+  <defs>
+    <linearGradient id="ec-avatar-bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F0FDF4"></stop>
+      <stop offset="100%" stop-color="#DCFCE7"></stop>
+    </linearGradient>
+    <linearGradient id="ec-body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ECFDF5"></stop>
+      <stop offset="100%" stop-color="#D1FAE5"></stop>
+    </linearGradient>
+    <linearGradient id="ec-card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF"></stop>
+      <stop offset="100%" stop-color="#F9FAFB"></stop>
+    </linearGradient>
+    <linearGradient id="ec-plus" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#059669"></stop>
+      <stop offset="100%" stop-color="#047857"></stop>
+    </linearGradient>
+    <radialGradient id="ec-shadow" cx="50%" cy="30%" r="60%">
+      <stop offset="0%" stop-color="#059669" stop-opacity="0.1"></stop>
+      <stop offset="100%" stop-color="#059669" stop-opacity="0"></stop>
+    </radialGradient>
+    <filter id="ec-drop" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#059669" flood-opacity="0.12"></feDropShadow>
+    </filter>
+    <filter id="ec-card-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#09090B" flood-opacity="0.08"></feDropShadow>
+    </filter>
+  </defs>
+
+  
+  <ellipse cx="120" cy="172" rx="78" ry="8" fill="url(#ec-shadow)"></ellipse>
+
+  
+  <g opacity="0.38">
+    
+    <circle cx="163" cy="70" r="17" fill="#E4E4E7" stroke="#D4D4D8" stroke-width="1.5"></circle>
+    
+    <path d="M148 68 Q148 55 163 53 Q178 55 178 68" fill="#D4D4D8" fill-opacity="0.6"></path>
+    
+    <path d="M134 148 Q136 112 163 112 Q190 112 192 148 Z" fill="#E4E4E7" stroke="#D4D4D8" stroke-width="1.5" stroke-linejoin="round"></path>
+    
+    <path d="M155 112 L163 120 L171 112" stroke="#D4D4D8" stroke-width="1.5" stroke-linejoin="round" fill="none"></path>
+  </g>
+
+  
+  <g filter="url(#ec-drop)">
+    
+    <path d="M65 156 Q67 112 98 112 Q129 112 131 156 Z" fill="url(#ec-body)" stroke="#059669" stroke-width="2" stroke-linejoin="round"></path>
+    
+    <path d="M91 112 L98 120 L105 112" stroke="#059669" stroke-width="1.8" stroke-linejoin="round" fill="none"></path>
+    <line x1="98" y1="120" x2="98" y2="144" stroke="#059669" stroke-width="1.2" stroke-opacity="0.4"></line>
+    
+    <circle cx="98" cy="130" r="1.2" fill="#059669" fill-opacity="0.4"></circle>
+    <circle cx="98" cy="137" r="1.2" fill="#059669" fill-opacity="0.4"></circle>
+    
+    <circle cx="98" cy="70" r="22" fill="url(#ec-avatar-bg)" stroke="#059669" stroke-width="2"></circle>
+    
+    <path d="M79 67 Q79 52 98 50 Q117 52 117 67" fill="#059669" fill-opacity="0.2"></path>
+    
+    <path d="M77 70 Q74 72 76 76 Q78 78 80 76" fill="#ECFDF5" stroke="#059669" stroke-width="1" stroke-opacity="0.5"></path>
+    
+    <path d="M119 70 Q122 72 120 76 Q118 78 116 76" fill="#ECFDF5" stroke="#059669" stroke-width="1" stroke-opacity="0.5"></path>
+    
+    <circle cx="91" cy="68" r="2.2" fill="#059669"></circle>
+    <circle cx="105" cy="68" r="2.2" fill="#059669"></circle>
+    
+    <circle cx="92" cy="67" r="0.8" fill="#FFFFFF" fill-opacity="0.7"></circle>
+    <circle cx="106" cy="67" r="0.8" fill="#FFFFFF" fill-opacity="0.7"></circle>
+    
+    <path d="M89 76 Q98 83 107 76" stroke="#059669" stroke-width="2" stroke-linecap="round" fill="none"></path>
+    
+    <ellipse cx="85" cy="75" rx="4" ry="2.5" fill="#059669" fill-opacity="0.08"></ellipse>
+    <ellipse cx="111" cy="75" rx="4" ry="2.5" fill="#059669" fill-opacity="0.08"></ellipse>
+  </g>
+
+  
+  <g filter="url(#ec-card-shadow)" transform="translate(52 158)">
+    <rect width="96" height="28" rx="7" fill="url(#ec-card)" stroke="#E4E4E7" stroke-width="1.2"></rect>
+    
+    <rect x="0" y="0" width="4" height="28" rx="2" fill="#059669"></rect>
+    
+    <rect x="12" y="7" width="40" height="5" rx="2" fill="#D1FAE5"></rect>
+    
+    <rect x="12" y="17" width="60" height="3.5" rx="1.5" fill="#E4E4E7"></rect>
+    
+    <circle cx="84" cy="14" r="7" fill="#ECFDF5" stroke="#059669" stroke-width="1"></circle>
+    <circle cx="84" cy="11.5" r="3" fill="#059669" fill-opacity="0.35"></circle>
+    <path d="M76 20 Q78 17 84 17 Q90 17 92 20" fill="#ECFDF5" stroke="#059669" stroke-width="0.8" stroke-opacity="0.5"></path>
+  </g>
+
+  
+  <g filter="url(#ec-drop)" transform="translate(181 136)">
+    <circle r="18" cx="0" cy="0" fill="url(#ec-plus)" stroke="#047857" stroke-width="1"></circle>
+    
+    <line x1="0" y1="-8" x2="0" y2="8" stroke="#FFFFFF" stroke-width="2.8" stroke-linecap="round"></line>
+    <line x1="-8" y1="0" x2="8" y2="0" stroke="#FFFFFF" stroke-width="2.8" stroke-linecap="round"></line>
+    
+    <path d="M-12 -12 Q-4 -16 4 -14" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.3"></path>
+  </g>
+
+  
+  <g stroke="#059669" stroke-width="1.6" stroke-linecap="round" opacity="0.45">
+    <line x1="32" y1="52" x2="38" y2="58"></line>
+    <line x1="38" y1="52" x2="32" y2="58"></line>
+  </g>
+  <g stroke="#059669" stroke-width="1.2" stroke-linecap="round" opacity="0.3">
+    <line x1="206" y1="60" x2="210" y2="64"></line>
+    <line x1="210" y1="60" x2="206" y2="64"></line>
+  </g>
+  <circle cx="40" cy="128" r="2" fill="#059669" fill-opacity="0.18"></circle>
+  <circle cx="208" cy="100" r="1.5" fill="#059669" fill-opacity="0.22"></circle>
+  <circle cx="200" cy="148" r="1.2" fill="#A1A1AA" fill-opacity="0.4"></circle>
+</svg>

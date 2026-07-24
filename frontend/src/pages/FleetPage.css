@@ -1,0 +1,1122 @@
+/* ─── FleetPage — single-page fleet dashboard ─── */
+
+.fleet-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.fleet-page .kpi {
+  min-height: 112px;
+  padding: 16px 18px;
+  background:
+    radial-gradient(96px 64px at 96% 42%, color-mix(in srgb, var(--stat-rail) 8%, transparent), transparent 76%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(250, 252, 251, 0.94));
+  border-color: rgba(203, 211, 206, 0.82);
+}
+
+.fleet-page .kpi-grid {
+  gap: 12px 14px;
+  margin-bottom: 18px;
+}
+
+.fleet-page .kpi__top {
+  margin-bottom: 8px;
+}
+
+.fleet-page .kpi__label {
+  color: var(--ink-2);
+  letter-spacing: 0.05em;
+}
+
+.fleet-page .kpi__value {
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.fleet-page .kpi__watermark {
+  right: 18px;
+  bottom: 14px;
+  width: 64px;
+  height: 64px;
+  opacity: 0.055;
+  color: var(--stat-rail);
+}
+
+.fleet-page .kpi__watermark svg {
+  width: 64px;
+  height: 64px;
+  stroke-width: 1.7;
+}
+
+.fleet-page .kpi__watermark img {
+  width: 64px;
+  height: 64px;
+}
+
+.fleet-page .kpi--warn .kpi__watermark,
+.fleet-page .kpi--success .kpi__watermark,
+.fleet-page .kpi--accent .kpi__watermark,
+.fleet-page .kpi--info .kpi__watermark,
+.fleet-page .kpi--danger .kpi__watermark {
+  opacity: 0.06;
+  color: var(--stat-rail);
+}
+
+.fleet-page .fleet-kpi-meta {
+  min-width: 0;
+}
+
+/* Two-column layout for trucks + trailers */
+.fleet-page .fleet-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+/* Card header with icon + count pill */
+.fleet-page .fleet-card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.fleet-page .fleet-card-lead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.fleet-page .fleet-card-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, var(--accent-soft), #DDF7E8);
+  color: var(--accent-2);
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(0, 177, 79, 0.22);
+  box-shadow: 0 8px 18px -12px rgba(0, 90, 45, 0.45);
+  flex-shrink: 0;
+}
+
+.fleet-page .fleet-card-icon.alt {
+  background: linear-gradient(180deg, var(--surface-3), var(--surface-2));
+  color: var(--ink-2);
+  border-color: var(--line-2);
+}
+
+.fleet-page .fleet-card-title {
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fleet-page .count-pill {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--ink-2);
+}
+
+.fleet-page .fleet-card-sub {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  margin-top: 1px;
+}
+
+.fleet-page .fleet-card-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Plate tag prefix (VN / RM) */
+.fleet-page .fleet-plate {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: var(--fs-sm);
+  color: var(--ink);
+}
+
+.fleet-page .fleet-plate-tag {
+  background: var(--ink);
+  color: var(--fg-on-brand);
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: var(--fs-xs);
+  letter-spacing: 0.5px;
+  margin-right: 6px;
+}
+
+/* Driver avatar icon */
+.fleet-page .fleet-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  flex-shrink: 0;
+}
+
+.fleet-page .fleet-assigned {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fleet-page .fleet-assigned .name {
+  font-weight: 600;
+  color: var(--ink);
+  font-size: var(--fs-sm);
+}
+
+.fleet-page .fleet-unassigned {
+  color: var(--ink-3);
+  font-style: italic;
+  font-size: var(--fs-xs);
+}
+
+/* Trailer type chip */
+.fleet-page .fleet-type-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 6px;
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.fleet-page .fleet-type-chip.ft40 {
+  background: linear-gradient(180deg, #EFF6FF, #E6F0FF);
+  color: var(--info);
+  border-color: #DBEAFE;
+}
+
+.fleet-page .fleet-type-chip.ft20 {
+  background: linear-gradient(180deg, var(--accent-soft), #DDF7E8);
+  color: var(--accent-2);
+  border-color: rgba(0, 177, 79, 0.15);
+}
+
+/* Truck+trailer pair display */
+.fleet-page .fleet-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+  padding: 3px 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.fleet-page .fleet-pair .arrow {
+  color: var(--ink-3);
+}
+
+/* Direct tire-management affordance in the truck list. This keeps lốp visible
+   without making it compete with primary create/edit actions. */
+.fleet-page .fleet-tire-link,
+.fleet-detail .fleet-tire-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  min-height: 44px;
+  padding: 6px 11px 6px 7px;
+  border: 1px solid rgba(0, 177, 79, 0.18);
+  border-radius: 8px;
+  background: rgba(230, 247, 237, 0.65);
+  color: var(--accent-2);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  text-decoration: none;
+  transition: background 140ms var(--ease), border-color 140ms var(--ease), color 140ms var(--ease), transform 140ms var(--ease);
+}
+
+.fleet-page .fleet-tire-link:hover,
+.fleet-detail .fleet-tire-link:hover {
+  border-color: rgba(0, 177, 79, 0.34);
+  background: rgba(221, 247, 232, 0.95);
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.fleet-page .fleet-tire-link__count,
+.fleet-detail .fleet-tire-link__count {
+  display: grid;
+  min-width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  box-shadow: inset 0 0 0 1px rgba(203, 211, 206, 0.8);
+}
+
+.fleet-page .fleet-tire-link--empty,
+.fleet-detail .fleet-tire-link--empty {
+  border-color: var(--line);
+  background: var(--surface-2);
+  color: var(--ink-3);
+}
+
+/* Phone display */
+.fleet-page .fleet-phone {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+  letter-spacing: 0.3px;
+}
+
+/* Salary display */
+.fleet-page .fleet-salary {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.fleet-page .fleet-salary .unit {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  font-weight: 500;
+  margin-left: 3px;
+}
+
+.fleet-page .fleet-salary.empty {
+  color: var(--ink-3);
+  font-weight: 500;
+}
+
+/* Mini search in drivers card */
+.fleet-page .fleet-mini-search {
+  position: relative;
+  width: 220px;
+}
+
+.fleet-page .fleet-mini-search input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 10px 10px 32px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.fleet-page .fleet-mini-search input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+.fleet-page .fleet-mini-search svg {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink-3);
+}
+
+/* Table footer legend */
+.fleet-page .fleet-legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.fleet-page .fleet-status-legend {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.fleet-page .fleet-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+}
+
+.fleet-page .fleet-legend-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* ─── Inline edit row ─────────────────────────────────────────────────────── */
+
+/* Pin the STT (#) column to a compact width. .tt-table uses table-layout: fixed,
+   so without an explicit width the first numeric column gets ~1/N of the table
+   (way too wide for a 1–3 digit index). 56px holds up to 3 digits comfortably. */
+.fleet-page .tt-table th.num:first-child,
+.fleet-page .tt-table td.num:first-child {
+  width: 56px;
+  text-align: center;
+}
+
+.fleet-page .tt-table td.fleet-status-cell {
+  position: relative;
+}
+
+.fleet-page .tt-table td.fleet-status-cell > span:first-child {
+  left: 0;
+}
+
+.fleet-page .m-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.fleet-page .fleet-driver-card {
+  padding: 16px 18px 16px 22px;
+  touch-action: manipulation;
+}
+
+.fleet-page .fleet-driver-card:focus-visible {
+  z-index: 1;
+  outline: 2px solid var(--accent);
+  outline-offset: -3px;
+}
+
+.fleet-page .fleet-driver-card__identity {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  margin-bottom: 12px;
+}
+
+.fleet-page .fleet-driver-card__identity-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.fleet-page .fleet-driver-card__name {
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-size: var(--fs-md);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.fleet-page .fleet-driver-card__phone {
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  line-height: 1.4;
+}
+
+.fleet-page .fleet-driver-card .fleet-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  color: var(--accent-2);
+}
+
+.fleet-page .fleet-driver-card .m-card__row {
+  min-height: 24px;
+  margin-top: 2px;
+}
+
+.fleet-page .fleet-driver-card .m-card__row-value {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.fleet-page .fleet-edit-row td {
+  background: var(--surface-2);
+  border-top: 1px solid var(--accent);
+  border-bottom: 1px solid var(--accent);
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.fleet-page .fleet-edit-row td:first-child {
+  border-radius: 0;
+}
+
+.fleet-page .fleet-edit-row td:last-child {
+  border-right: 1px solid var(--accent);
+}
+
+/* compact inputs inside the edit row */
+.fleet-page .fleet-edit-row .input--sm {
+  padding: 5px 8px;
+  font-size: var(--fs-sm);
+  height: 32px;
+  width: 100%;
+}
+
+/* trailer plate + type side-by-side */
+.fleet-page .fleet-edit-pair {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.fleet-page .fleet-edit-pair .input--sm:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.fleet-page .fleet-edit-select-sm {
+  width: 72px;
+  flex-shrink: 0;
+}
+
+/* save / cancel buttons in the actions cell */
+.fleet-page .fleet-edit-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+/* Responsive */
+/* Stack trucks/trailers panels earlier — at 2-column on viewports under
+   ~1400px the embedded tables become narrow enough that the "Trạng thái"
+   and "Thao tác" columns clip off the right edge (table-scroll's
+   overflow-x: auto fires but users miss the hidden columns). */
+@media (max-width: 1100px) {
+  .fleet-page .fleet-two-col {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Action row at bottom of each mobile m-card (trucks/trailers/drivers).
+   On desktop renders inline buttons aligned to the right. The class
+   replaces inline `style={{ display: 'flex' ... }}` so a mobile media
+   query can hide it without inline-style fighting back. */
+.fleet-page .fleet-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+/* ─── Fleet detail modal ────────────────────────────────────────────────────
+   The shared Modal is portaled outside .fleet-page, so modal-specific fleet
+   styles must be scoped by .fleet-detail instead of nesting under .fleet-page. */
+.fleet-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.fleet-detail__hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(203, 211, 206, 0.86);
+  border-radius: 12px;
+  background:
+    radial-gradient(140px 80px at 100% 0%, rgba(0, 177, 79, 0.09), transparent 72%),
+    linear-gradient(180deg, rgba(250, 252, 251, 0.98), rgba(246, 249, 247, 0.9));
+}
+
+.fleet-detail__identity,
+.fleet-detail__status,
+.fleet-detail__item {
+  min-width: 0;
+}
+
+.fleet-detail__label {
+  margin-bottom: 7px;
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.fleet-detail__primary {
+  color: var(--ink);
+  font-size: var(--fs-lg);
+  font-weight: 750;
+  line-height: 1.25;
+}
+
+.fleet-detail__status {
+  justify-self: end;
+  text-align: right;
+}
+
+.fleet-detail__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.fleet-detail__item {
+  padding: 13px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.fleet-detail__item--wide {
+  grid-column: 1 / -1;
+}
+
+.fleet-detail__value {
+  color: var(--ink);
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+}
+
+.fleet-detail .fleet-plate {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: inherit;
+  font-weight: 750;
+}
+
+.fleet-detail .fleet-plate-tag {
+  margin-right: 7px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: var(--ink);
+  color: var(--fg-on-brand);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.5px;
+  line-height: 1.25;
+}
+
+.fleet-detail .fleet-pair,
+.fleet-detail .fleet-assigned {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+}
+
+.fleet-detail .fleet-pair {
+  flex-wrap: wrap;
+}
+
+.fleet-detail .fleet-assigned .name {
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.fleet-detail .fleet-unassigned {
+  color: var(--ink-3);
+  font-size: var(--fs-sm);
+  font-style: italic;
+}
+
+.fleet-detail .fleet-avatar {
+  display: grid;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.fleet-detail .fleet-type-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-3);
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.fleet-detail .fleet-type-chip.ft40 {
+  background: linear-gradient(180deg, #EFF6FF, #E6F0FF);
+  border-color: #DBEAFE;
+  color: var(--info);
+}
+
+.fleet-detail .fleet-type-chip.ft20 {
+  background: linear-gradient(180deg, var(--accent-soft), #DDF7E8);
+  border-color: rgba(0, 177, 79, 0.15);
+  color: var(--accent-2);
+}
+
+.fleet-tire-detail {
+  display: grid;
+  gap: 9px;
+  width: 100%;
+}
+
+.fleet-tire-detail__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+}
+
+.fleet-tire-detail__head strong {
+  color: var(--ink);
+  font-family: var(--font-mono);
+}
+
+.fleet-tire-detail__list {
+  display: grid;
+  gap: 7px;
+}
+
+.fleet-tire-detail__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid rgba(203, 211, 206, 0.72);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.fleet-tire-detail__main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.fleet-tire-detail__serial {
+  overflow: hidden;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fleet-tire-detail__position {
+  overflow: hidden;
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fleet-tire-detail__meta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+
+.fleet-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  width: 100%;
+}
+
+/* ─── Fleet form modals ─────────────────────────────────────────────────────
+   The form modals are also portaled, so these classes intentionally are not
+   nested under .fleet-page. */
+.fleet-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fleet-form__section {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.fleet-form__section--identity {
+  border-color: rgba(203, 211, 206, 0.9);
+  background:
+    radial-gradient(160px 96px at 100% 0%, rgba(0, 177, 79, 0.08), transparent 72%),
+    linear-gradient(180deg, rgba(250, 252, 251, 0.98), rgba(247, 250, 248, 0.92));
+}
+
+.fleet-form__section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.fleet-form__section-head h4 {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--fs-sm);
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.fleet-form__section-head p {
+  margin: 4px 0 0;
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+}
+
+.fleet-form__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.fleet-form__grid--truck {
+  grid-template-columns: minmax(220px, 1.35fr) minmax(180px, 1fr) minmax(140px, 0.8fr);
+}
+
+.fleet-form__field {
+  margin: 0;
+  min-width: 0;
+}
+
+.fleet-form__field--wide {
+  grid-column: span 2;
+}
+
+.fleet-form__grid--truck .fleet-form__field--wide {
+  grid-column: auto;
+}
+
+.fleet-form__field label,
+.truck-alert-field__label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 7px;
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.fleet-form__field label span {
+  color: var(--danger);
+}
+
+.fleet-form__inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fleet-form__interval {
+  flex: 0 0 130px;
+}
+
+.fleet-form__note {
+  padding: 11px 13px;
+  border: 1px solid rgba(203, 211, 206, 0.82);
+  border-radius: 10px;
+  background: rgba(247, 250, 248, 0.88);
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+}
+
+.fleet-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .fleet-page {
+    gap: 14px;
+  }
+
+  .fleet-page .kpi-grid {
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .fleet-page .kpi {
+    min-height: 76px;
+    padding: 12px 14px;
+    border-radius: 14px;
+  }
+
+  .fleet-page .kpi__top {
+    margin-bottom: 6px;
+  }
+
+  .fleet-page .kpi__label {
+    font-size: var(--fs-xs);
+    letter-spacing: 0.045em;
+    line-height: 1.35;
+  }
+
+  .fleet-page .kpi__value {
+    font-size: 24px;
+    margin-bottom: 6px;
+  }
+
+  .fleet-page .kpi__value-unit {
+    font-size: 13px;
+  }
+
+  .fleet-page .kpi__meta {
+    font-size: var(--fs-xs);
+    gap: 4px 6px !important;
+    line-height: 1.35;
+    align-items: center;
+  }
+
+  .fleet-page .fleet-kpi-meta {
+    display: flex !important;
+    flex-wrap: nowrap;
+    width: 100%;
+  }
+
+  .fleet-page .fleet-kpi-meta > span {
+    min-width: 0;
+  }
+
+  .fleet-page .fleet-kpi-meta__good,
+  .fleet-page .fleet-kpi-meta__warn,
+  .fleet-page .fleet-kpi-meta__mono {
+    white-space: nowrap;
+    font-weight: 650 !important;
+  }
+
+  .fleet-page .fleet-kpi-dot {
+    width: 5px !important;
+    height: 5px !important;
+    align-self: center;
+  }
+
+  .fleet-page .fleet-kpi-meta__sep {
+    flex: 0 0 auto;
+  }
+
+  .fleet-page .page-actions .btn {
+    min-height: 44px;
+    padding-inline: 14px;
+    border-radius: 12px;
+  }
+
+  .fleet-page .kpi__watermark {
+    right: 12px;
+    bottom: 10px;
+    width: 42px;
+    height: 42px;
+    opacity: 0.045;
+  }
+
+  .fleet-page .kpi__watermark svg {
+    width: 42px;
+    height: 42px;
+  }
+
+  .fleet-page .fleet-mini-search {
+    width: 140px;
+  }
+  .fleet-page .fleet-card-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .fleet-page .fleet-card-tools {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .fleet-page .fleet-mini-search {
+    width: 100%;
+    flex: 1;
+  }
+
+  /* ── Pass 13 mobile tweaks (2026-06-02) ── */
+
+  /* Hide the per-card Sửa/Xem/Xóa action row on phone — tapping the
+     whole card opens the DetailModal which already has Edit + Delete
+     in its footer. Saves ~46px per card across 17 cards (~780px scroll). */
+  .fleet-page .fleet-card-actions {
+    display: none;
+  }
+
+  .fleet-page .m-card__row .fleet-tire-link {
+    margin-left: auto;
+  }
+  /* Shrink the panel-head icon for the 3 fleet panels (trucks / trailers /
+     drivers) — matches the penalty-page mobile sizing. */
+  .fleet-page .fleet-card-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+  }
+  .fleet-page .fleet-card-lead {
+    gap: 10px;
+  }
+
+  .fleet-detail__hero {
+    grid-template-columns: 1fr;
+    align-items: start;
+    padding: 14px;
+  }
+
+  .fleet-detail__status {
+    justify-self: start;
+    text-align: left;
+  }
+
+  .fleet-detail__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fleet-tire-detail__head,
+  .fleet-tire-detail__row,
+  .fleet-tire-detail__meta {
+    align-items: flex-start;
+    grid-template-columns: 1fr;
+    justify-content: flex-start;
+    white-space: normal;
+  }
+
+  .fleet-detail-actions .btn {
+    flex: 1 1 0;
+    justify-content: center;
+  }
+}
+
+/* ── Responsive overrides (from responsive.css decomposition) ── */
+@media (max-width: 420px) {
+  .fleet-page .fleet-two-col { grid-template-columns: 1fr; }
+} /* end 420px */
+
+/* ── N5 / A12: truck compliance & service date alert badges ──────────────────
+   Shown inside TruckFormModal next to each date field. Scoped by the
+   truck-alert-* class prefix (unique to this feature) so they don't leak;
+   the modal renders in a portal outside .fleet-page, so a class scope is
+   used instead of nesting under .fleet-page.
+   Colors reuse --danger / --warning / their -soft variants (tokens.css). */
+.truck-alert-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 640px) {
+  .truck-alert-fields {
+    grid-template-columns: 1fr;
+  }
+}
+.truck-alert-field__label {
+  margin-bottom: 7px;
+}
+.truck-alert-badge {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.truck-alert-badge--overdue {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.truck-alert-badge--due {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.truck-alert-field {
+  margin: 0;
+  min-width: 0;
+}
+
+.truck-alert-field--wide {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 760px) {
+  .fleet-form__grid,
+  .fleet-form__grid--truck,
+  .truck-alert-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .fleet-form__field--wide,
+  .fleet-form__grid--truck .fleet-form__field--wide,
+  .truck-alert-field--wide {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .fleet-form__section {
+    padding: 12px;
+  }
+
+  .fleet-form__inline {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .fleet-form__interval {
+    flex-basis: auto;
+  }
+
+  .fleet-form-actions .btn {
+    flex: 1 1 0;
+    justify-content: center;
+  }
+}

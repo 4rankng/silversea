@@ -1,0 +1,168 @@
+/* ============================================================================
+ * DriverTripsPage — TingTing
+ * Card-based trip list with bento grid cards, status strips, filter pills
+ * ========================================================================== */
+
+.driver-trips-page {
+}
+
+/* Filter pill bar — reuse .fwd-filter-pill classes from FwdFilterPills.css */
+.driver-trips-filter-bar {
+  margin-bottom: 4px;
+}
+
+/* Trip list container */
+.driver-trips-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ── Card shell ───────────────────────────────────────────────────────────── */
+
+.driver-trips-page .driver-trip-card {
+  position: relative;
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: transform 150ms var(--ease), box-shadow 150ms var(--ease), border-color 150ms var(--ease);
+}
+
+/* Left status strip */
+.driver-trips-page .driver-trip-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--status-strip-width);
+  height: var(--status-strip-height);
+  border-radius: var(--status-strip-radius);
+  background: var(--strip);
+  pointer-events: none;
+}
+
+.driver-trips-page .driver-trip-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px -8px rgba(9, 9, 11, 0.08);
+  border-color: var(--line-2);
+}
+
+/* ── Bento grid inside card ───────────────────────────────────────────────── */
+
+.dt-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto;
+  gap: 6px 16px;
+  padding: 16px 20px;
+}
+
+/* Top-left: route name */
+.dt-card__route {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  color: var(--fg-1);
+  line-height: 1.35;
+  align-self: center;
+  overflow-wrap: anywhere;
+}
+
+/* Top-right: salary */
+.dt-card__salary {
+  grid-column: 2;
+  grid-row: 1;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-1);
+  white-space: nowrap;
+  align-self: center;
+  text-align: right;
+}
+
+/* Bottom-left: meta row */
+.dt-card__meta {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  font-size: var(--fs-xs);
+  color: var(--fg-3);
+  line-height: 1.35;
+  min-width: 0;
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+.dt-card__meta--secondary {
+  grid-column: 1 / -1;
+  grid-row: 3;
+}
+
+.dt-card__meta-item {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  line-height: 1.35;
+}
+
+.dt-card__meta-item svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.dt-card__meta-text {
+  min-width: 0;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+/* Bottom-right: arrow */
+.dt-card__arrow {
+  grid-column: 2;
+  grid-row: 2 / 4;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  color: var(--fg-3);
+}
+
+.driver-trips-page .driver-trip-card:hover .dt-card__arrow {
+  color: var(--accent);
+  transform: translateX(2px);
+  transition: transform 150ms var(--ease), color 150ms var(--ease);
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .driver-trips-filter-bar {
+    padding-top: 6px;
+    margin-bottom: 8px;
+  }
+  .driver-trips-page .driver-trip-card:hover {
+    transform: none;
+  }
+  .dt-card {
+    padding: 14px 16px;
+    gap: 6px 12px;
+  }
+  .dt-card__salary {
+    font-size: var(--fs-sm);
+  }
+  .dt-card__meta {
+    gap: 8px 12px;
+  }
+  .dt-card__arrow {
+    display: none;
+  }
+}

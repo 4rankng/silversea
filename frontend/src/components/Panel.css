@@ -1,0 +1,219 @@
+/* ============================================================================
+ * Panel — TingTing
+ * Extracted from UI.css during architecture refactoring (Phase 4)
+ * ========================================================================== */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow: hidden;
+  transition: border-color 150ms var(--ease), background 150ms var(--ease);
+}
+.panel--solid {
+  background: var(--surface);
+  border-color: var(--line);
+}
+.panel[role="button"]:hover,
+.panel--clickable:hover {
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+}
+.panel[role="button"]:focus-visible,
+.panel--clickable:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 72%, white);
+  outline-offset: 2px;
+}
+.panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 22px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  gap: 12px;
+}
+.panel__title {
+  font-family: var(--font-display);
+  font-size: var(--fs-md);
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--ink);
+  margin: 0;
+}
+.panel__subtitle {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  margin-top: 2px;
+  line-height: 1.45;
+}
+.panel__body {
+  padding: 18px 22px 22px;
+}
+.panel__body--flush { padding: 0 !important; }
+
+/* Legacy card-shell — match panel styling for visual consistency */
+.card-shell {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.card-header h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-md);
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--ink);
+}
+.card-header p { margin: 3px 0 0; font-size: var(--fs-xs); color: var(--ink-3); }
+
+/* subsection-card — a soft-bordered block used INSIDE a panel for grouping
+   related fields. Has a left accent bar + eyebrow title. */
+.subsection-card {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+  padding: 14px 16px;
+  margin-top: 8px;
+}
+/* Callout accents use the canonical 3×20px status strip (::before), never a
+   full-height colored left border. Each variant sets its --strip + soft fill. */
+.subsection-card--accent { background: var(--accent-soft);  --strip: var(--accent); }
+.subsection-card--info   { background: var(--info-soft);    --strip: var(--info); }
+.subsection-card--warn   { background: var(--warning-soft); --strip: var(--warning); }
+.subsection-card--danger { background: var(--danger-soft);  --strip: var(--danger); }
+.subsection-card--accent::before,
+.subsection-card--info::before,
+.subsection-card--warn::before,
+.subsection-card--danger::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--status-strip-width);
+  height: var(--status-strip-height);
+  border-radius: var(--status-strip-radius);
+  background: var(--strip);
+  pointer-events: none;
+}
+.subsection-card__title {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-eyebrow);
+  color: var(--ink-2);
+  margin: 0 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.subsection-card__title svg { width: 13px; height: 13px; }
+
+/* ============================================================================
+ * Mobile Grouped Card — iOS settings-style list pattern
+ *
+ * Usage:
+ *   <div class="m-group">
+ *     <div class="m-group__card">…</div>
+ *     <div class="m-group__card">…</div>
+ *   </div>
+ *
+ * The parent page should set background: var(--surface-2) to show the gray
+ * inset that makes the white cards "pop". Use .m-group__card--accent-* for
+ * a coloured left-border status variant.
+ * ========================================================================== */
+.m-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 12px;
+}
+
+.m-group__card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: none;
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .panel,
+  .card-shell {
+    border-radius: 14px;
+  }
+
+  .panel__head,
+  .card-header {
+    padding: 14px 16px 12px;
+    align-items: flex-start;
+  }
+
+  .panel__body {
+    padding: 16px;
+  }
+
+  .panel__title,
+  .card-header h3 {
+    font-size: var(--fs-sm);
+    line-height: 1.35;
+  }
+
+  .subsection-card {
+    padding: 13px 14px;
+  }
+}
+
+/* Section header row inside a grouped card */
+.m-group__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 16px 8px;
+  border-bottom: 1px solid var(--line-3);
+}
+
+.m-group__head-title {
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+  font-weight: 700;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+/* Content area */
+.m-group__body {
+  padding: 10px 16px 14px;
+}
+
+/* Categorical accent variants — canonical 3×20px status strip, semantic tokens. */
+.m-group__card--accent-blue   { --strip: var(--info); }
+.m-group__card--accent-green  { --strip: var(--accent); }
+.m-group__card--accent-amber  { --strip: var(--warning); }
+.m-group__card--accent-accent { --strip: var(--accent); }
+.m-group__card--accent-red    { --strip: var(--danger); }
+.m-group__card[class~="m-group__card"][class*="m-group__card--accent-"]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--status-strip-width);
+  height: var(--status-strip-height);
+  border-radius: var(--status-strip-radius);
+  background: var(--strip, var(--accent));
+  pointer-events: none;
+}

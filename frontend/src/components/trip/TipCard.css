@@ -1,0 +1,18 @@
+/* TipCard — informational tip banner */
+
+.tc-tip-card {
+  background: var(--info-soft);
+  border: 1px solid color-mix(in srgb, var(--info) 20%, transparent);
+  border-radius: var(--r);
+  padding: 14px;
+  display: flex;
+  gap: 10px;
+  font-size: var(--fs-xs);
+  color: var(--info-text);
+}
+.tc-tip-card__ico {
+  color: var(--info);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.tc-tip-card strong { color: var(--info-text); }

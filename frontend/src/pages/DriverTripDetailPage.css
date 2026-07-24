@@ -1,0 +1,877 @@
+/* ============================================================================
+   DriverTripDetailPage — TingTing
+   iOS grouped-list style: gray page bg, white rounded cards with gaps.
+   ========================================================================== */
+
+.driver-trip-detail-page {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 0 0 calc(80px + env(safe-area-inset-bottom, 12px));
+  width: 100%;
+  min-height: 100%;
+  background: var(--surface-2);  /* subtle gray to frame the white cards */
+}
+
+/* Header bar layout — sits directly on gray bg */
+.dt-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px 8px;
+  margin-bottom: 0;
+}
+
+/* Back button — 40px glass tile, 44px-equivalent touch zone */
+.dt-back-btn {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  border: 1px solid var(--border-glass);
+  color: var(--ink-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.dt-back-btn:hover {
+  background: var(--surface);
+  color: var(--ink);
+  transform: translateX(-2px);
+  border-color: var(--line-2);
+}
+.dt-back-btn:active { transform: translateX(0) scale(0.96); }
+
+.dt-header-title-block {
+  flex: 1;
+  min-width: 0;
+}
+
+.dt-title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--ink);
+  margin: 0 0 9px;
+  letter-spacing: 0;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+/* Meta row: status pill + customer, sit neatly under the route title */
+.dt-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.dt-subtitle {
+  font-size: 13px;
+  color: var(--ink-3);
+  font-weight: 500;
+}
+
+/* ============================================================================
+   Grouped-list card sections
+   Each section is a white rounded card with side margins — iOS settings pattern.
+   ========================================================================== */
+
+.dt-section {
+  position: relative;
+  background: var(--surface);
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  margin: 8px 16px 0;
+  overflow: hidden;
+}
+
+/* Divider between rows inside a section */
+.dt-section + .dt-section {
+  /* gap handled by margin-top on each */
+}
+
+.dt-section__head {
+  padding: 12px 16px 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--line-3);
+}
+
+.dt-section__title {
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+  font-weight: 700;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.dt-section__body {
+  padding: 8px 16px 14px;
+}
+
+/* Status accent — canonical 3×20px strip via ::before (base .dt-section is
+   position:relative + overflow:hidden). Only variants that set --strip show it. */
+.dt-section::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--status-strip-width);
+  height: var(--status-strip-height);
+  border-radius: var(--status-strip-radius);
+  background: var(--strip, transparent);
+  pointer-events: none;
+  z-index: 1;
+}
+.dt-section--CREATED { --strip: var(--info); }
+.dt-section--IN_TRANSIT { --strip: var(--accent); }
+.dt-section--COMPLETED { --strip: var(--warning); }
+.dt-section--LOCKED { --strip: var(--accent); }
+.dt-section--CANCELED { --strip: var(--danger); }
+
+/* DriverContainerCard — flat section, NO card wrapper. The bento grid (and
+   the entry form) are the visual containers; the section only carries a
+   lightweight title so the bento is never double-wrapped in a card. */
+.dcc-section {
+  margin: 16px 16px 0;
+}
+.dcc-section__head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 2px 10px;
+}
+.dcc-section__title {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  line-height: 1.35;
+}
+.dcc-section__body {
+  /* flat — bento / form manage their own containers */
+}
+
+/* Keep fuel card — visually prominent widget, same card frame */
+/* Special Fuel Allocation Card */
+.driver-trip-detail-page .fuel-alloc-card {
+  border: 1px solid rgba(0, 177, 79, 0.18);
+  background: var(--surface);
+  backdrop-filter: none;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: none;
+  margin: 8px 16px 0;
+}
+
+.fuel-alloc-card__header {
+  padding: 14px 16px;
+  background: var(--accent-soft);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid rgba(0, 177, 79, 0.12);
+}
+
+.fuel-alloc-card__icon {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.fuel-alloc-card__title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fuel-alloc-card__label {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--accent-ink);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  line-height: 1.35;
+}
+
+.fuel-alloc-card__value {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--accent-ink);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+}
+
+.fuel-alloc-card__body {
+  padding: 14px 16px;
+  font-size: 14px;
+  color: var(--ink-2);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--surface);
+}
+
+.fuel-alloc-card__body strong {
+  color: var(--ink);
+}
+
+/* Earnings card customizations */
+.earnings-highlight {
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 17px;
+  font-family: var(--font-mono);
+}
+
+/* Income & expenses — two columns side by side with a hairline divider,
+   so Tiền kết hợp and Tiền đi đường read at a glance. */
+.dt-earnings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.dt-earnings-grid .info-row {
+  border-bottom: none;
+  padding: 6px 0;
+}
+.dt-earnings-grid .info-row:first-child {
+  border-right: 1px solid var(--line);
+  padding-right: 14px;
+}
+.dt-earnings-grid .info-row:last-child {
+  padding-left: 14px;
+}
+
+.return-cargo-badge {
+  padding: 8px 12px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  border-radius: 10px;
+  border: 1px solid rgba(0, 177, 79, 0.15);
+  font-size: 12.5px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.return-cargo-badge svg {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+/* Notes Section */
+.notes-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+}
+
+.notes-text {
+  font-size: 14px;
+  color: var(--ink-2);
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* Error/Loading Views */
+.dt-loader-container {
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--ink-3);
+}
+
+.dt-loader-text {
+  margin-top: 12px;
+  font-size: 14px;
+}
+
+.dt-error-container {
+  padding: 24px;
+}
+
+.dt-error-card {
+  text-align: center;
+  padding: 40px 24px;
+  color: var(--danger);
+}
+
+.dt-error-text {
+  margin-top: 12px;
+  font-size: 14px;
+  color: var(--danger-text);
+}
+
+/* Custom info-row scaling for comfortable reading on mobile driver view */
+.dt-section .info-row__label,
+.driver-trip-detail-page .info-row__label {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.35;
+  color: var(--ink-3);
+  text-transform: uppercase;
+}
+
+.dt-section .info-row__value,
+.driver-trip-detail-page .info-row__value {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+/* ============================================================================
+   Driver Container Card — Số cont &amp; seal
+   Photo-capture entry card. Solid surface so the white inputs/tiles read
+   cleanly; dashed drop-tiles for capture, stacked single-column fields.
+   ========================================================================== */
+/* .dcc margin/border handled above in dt-section override */
+
+/* Override TripLegsPanel to use the same grouped-card style */
+.driver-trip-detail-page .trip-legs.panel {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: none;
+  background: var(--surface);
+  margin: 8px 16px 0;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+
+/* Existing (saved) containers */
+.dcc-existing-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.dcc-existing {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--surface-2);
+}
+.dcc-existing__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.dcc-existing__num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+}
+.dcc-existing__type {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.dcc-existing__meta {
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+/* Error + warning banners */
+.dcc-error {
+  margin-bottom: 12px;
+  padding: 9px 12px;
+  font-size: 12.5px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  border: 1px solid rgba(220, 38, 38, 0.12);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dcc-error svg { flex-shrink: 0; }
+.dcc-warn {
+  margin-top: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  background: var(--warning-soft);
+  color: var(--warning);
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+/* Capture zones — dashed drop-tiles (full-width feel, clear affordance) */
+.dcc-capture {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.dcc-capture-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 80px;
+  padding: 14px 10px;
+  border: 1.5px dashed var(--line-2);
+  border-radius: 14px;
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease);
+}
+.dcc-capture-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  transform: translateY(-1px);
+}
+.dcc-capture-btn:active:not(:disabled) { transform: translateY(0); }
+.dcc-capture-btn:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+/* Uploaded photos — square thumbnails shown side-by-side so the driver can
+   verify both the cont and seal capture at a glance. */
+.dcc-photos {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.dcc-photo-fig {
+  position: relative; /* anchor for the remove-photo overlay button */
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.dcc-photo {
+  width: 92px;
+  height: 92px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  display: block;
+}
+.dcc-photo-fig figcaption {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--ink-3);
+  text-align: center;
+}
+
+/* Remove-photo overlay — edit flow only. Small circular X badge pinned to the
+   top-right corner of each thumbnail. Destructive intent is signalled by a
+   danger border/soft fill on hover only, so the resting state stays calm. */
+.dcc-photo-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 9999px;
+  border: 1px solid var(--line-2);
+  background: var(--surface);
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease);
+  z-index: 1;
+  box-shadow: var(--shadow-sm);
+}
+.dcc-photo-remove:hover:not(:disabled) {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+.dcc-photo-remove:active:not(:disabled) { transform: scale(0.92); }
+.dcc-photo-remove:disabled { opacity: 0.6; cursor: progress; }
+/* Thumbnail strip shown inside the read-only saved-container card */
+.dcc-photos--saved {
+  margin-top: 12px;
+  margin-bottom: 0;
+}
+
+/* Fields — single column, DS TextField/SelectField stacked (touch-friendly) */
+.dcc-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Save — full-width primary, 44px touch target */
+.driver-trip-detail-page .dcc-save {
+  width: 100%;
+  height: 44px;
+  margin-top: 16px;
+}
+
+/* Helper text */
+.dcc-help {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--ink-3);
+  line-height: 1.5;
+}
+
+/* ============================================================================
+   Bento read-only view (saved container) — dispatch-style metric strip:
+   a full-width featured hero over a hairline-split 1×2 row (Seal + photos).
+   The 1px gap sits over a shared --line background so dividers are single
+   hairlines, not double borders. Brand accent is a centered 3×20 status
+   strip on the hero (NEVER a full-height bar). Photos are pinned to fixed
+   square dimensions so the grid can never stretch them.
+   ========================================================================== */
+.dcc-bento {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+/* Hero — full-width featured tile with the container number as a license-
+   plate badge, type below, Sửa button top-right. Soft brand tint. The
+   centered 3×20 strip carries the accent (NOT full height). */
+.dcc-bento__hero {
+  grid-column: 1 / -1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 14px 14px 18px;
+  background: linear-gradient(135deg, var(--accent-soft) 0%, var(--surface) 72%);
+}
+
+.dcc-bento__hero::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 20px;
+  border-radius: 0 2px 2px 0;
+  background: var(--accent);
+}
+
+.dcc-bento__hero-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.dcc-bento__eyebrow {
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+  font-weight: 700;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 6px;
+}
+
+.dcc-bento__plate {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  background: var(--surface);
+  padding: 6px 11px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.dcc-bento__hero-meta {
+  margin-top: 7px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  font-weight: 500;
+}
+
+/* Sửa — pill button, top-right of the hero. Hover lifts to brand green so
+   it reads as a discoverable affordance without screaming. */
+.dcc-bento__edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 9999px;
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease);
+  flex-shrink: 0;
+  font-family: inherit;
+}
+.dcc-bento__edit-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  transform: translateY(-1px);
+}
+.dcc-bento__edit-btn:active { transform: translateY(0); }
+
+/* Seal + photos cells — equal halves, white surface so the 1px grid gap
+   reads as a hairline divider between them. Grid stretch makes both cells
+   share the row height (set by the photos cell). */
+.dcc-bento__seal,
+.dcc-bento__photos {
+  background: var(--surface);
+  padding: 13px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dcc-bento__seal-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: 0.01em;
+  word-break: break-all;
+  line-height: 1.35;
+  margin-top: 2px;
+}
+
+.dcc-bento__dash {
+  color: var(--ink-3);
+  font-weight: 500;
+}
+
+/* Photo thumbnails — two FIXED square tiles side-by-side inside one cell.
+   Width + height are both pinned (not aspect-ratio on a flexible width),
+   so the bento grid can never stretch them; object-fit crops instead. */
+.dcc-bento__thumbs {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.dcc-bento__thumb {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  display: block;
+  background: var(--surface-3);
+  flex-shrink: 0;
+}
+
+/* Empty thumbnail — dashed square matching the filled thumbnail's footprint
+   so the pair stays balanced when one photo is missing. */
+.dcc-bento__thumb-empty {
+  width: 64px;
+  height: 64px;
+  border-radius: 10px;
+  border: 1.5px dashed var(--line-2);
+  background: var(--surface-2);
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  line-height: 1.35;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+/* ============================================================================
+   Edit form actions — Save + Cancel as a row; Cancel uses the secondary
+   variant so Save (primary, brand green) keeps the dominant affordance.
+   ========================================================================== */
+.dcc-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.driver-trip-detail-page .dcc-cancel {
+  flex: 0 0 auto;
+  height: 44px;
+  padding: 0 18px;
+}
+
+.driver-trip-detail-page .dcc-save {
+  flex: 1 1 auto;
+  height: 44px;
+  margin-top: 0;
+}
+
+/* ─── Contact & guidance (N2 / B1.3) — read-only instructions section ─── */
+.driver-trip-detail-page .dt-section--instructions {
+  --strip: var(--accent);
+}
+
+.driver-trip-detail-page .dt-tel-link {
+  color: var(--accent, #c79a3a);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.driver-trip-detail-page .dt-tel-link:hover,
+.driver-trip-detail-page .dt-tel-link:active {
+  text-decoration: underline;
+}
+
+.driver-trip-detail-page .dt-instructions-notes {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--bg-2, rgba(0, 0, 0, 0.03));
+  border-radius: 8px;
+}
+
+.driver-trip-detail-page .dt-instructions-notes__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-2, #555);
+  margin-bottom: 6px;
+}
+
+.driver-trip-detail-page .dt-instructions-notes__text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--fg-1, #222);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (max-width: 640px) {
+  .dt-header {
+    gap: 10px;
+    padding: 10px 14px 6px;
+  }
+
+  .dt-back-btn {
+    min-width: 44px;
+    min-height: 44px;
+    border-radius: 10px;
+  }
+
+  .dt-title {
+    font-size: 20px;
+    line-height: 1.35;
+    margin-bottom: 7px;
+  }
+
+  .dt-subtitle {
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .dt-section {
+    margin: 8px 14px 0;
+    border-radius: 14px;
+  }
+
+  .dt-section__head {
+    padding: 10px 14px 4px;
+  }
+
+  .dt-section__body {
+    padding: 7px 14px 12px;
+  }
+
+  .dt-section .info-row__label,
+  .driver-trip-detail-page .info-row__label {
+    font-size: var(--fs-xs);
+    line-height: 1.35;
+    letter-spacing: 0.06em;
+  }
+
+  .dt-section .info-row__value,
+  .driver-trip-detail-page .info-row__value {
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  .dcc-section,
+  .driver-trip-detail-page .fuel-alloc-card,
+  .driver-trip-detail-page .trip-legs.panel {
+    margin-left: 14px;
+    margin-right: 14px;
+  }
+
+  .dcc-bento__hero {
+    padding: 12px 12px 12px 16px;
+  }
+
+  .dcc-bento__plate {
+    font-size: 16px;
+    line-height: 1.35;
+    padding: 5px 9px;
+  }
+
+  .dcc-bento__seal,
+  .dcc-bento__photos {
+    padding: 11px 12px;
+  }
+
+  .dcc-bento__seal-value {
+    font-size: 15px;
+    line-height: 1.35;
+  }
+
+  .fuel-alloc-card__header {
+    padding: 12px 14px;
+  }
+
+  .fuel-alloc-card__value {
+    font-size: 22px;
+    line-height: 1.35;
+  }
+}

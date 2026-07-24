@@ -1,0 +1,105 @@
+/* ============================================================================
+ * Button — TransTing
+ * Extracted from UI.css during architecture refactoring (Phase 4)
+ * ========================================================================== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 45px;
+  padding: 10px 15px;
+  border-radius: 11px;
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  line-height: 1.35;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: none;
+  transition: background 140ms var(--ease), border-color 140ms var(--ease),
+              color 140ms var(--ease);
+}
+.btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 72%, white);
+  outline-offset: 2px;
+}
+
+/* wireframe variants */
+.btn--primary {
+  background: var(--accent-2);
+  color: var(--fg-on-brand);
+  border-color: var(--accent-2);
+}
+.btn--primary:hover {
+  background: var(--accent-ink);
+  border-color: var(--accent-ink);
+}
+.d-btn-primary:hover:not(:disabled) {
+  background-color: var(--brand-hover);
+  border-color: var(--brand-hover);
+}
+.btn--secondary {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--line-2);
+}
+.btn--secondary:hover {
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--line-strong));
+  background: var(--surface-2);
+}
+.btn--ghost {
+  background: transparent;
+  color: var(--ink-2);
+  padding: 10px 11px;
+}
+.btn--ghost:hover { background: var(--surface-2); color: var(--ink); }
+.btn--danger {
+  background: var(--danger);
+  color: var(--fg-on-brand);
+  border-color: var(--danger);
+}
+.btn--danger:hover {
+  background: var(--danger-text);
+  border-color: var(--danger-text);
+}
+.btn--sm { min-height: 45px; padding: 9px 12px; font-size: var(--fs-xs); line-height: 1.35; }
+.btn--lg { padding: 12px 22px; font-size: 15px; border-radius: 12px; min-height: 46px; }
+.btn--icon { width: 45px; min-width: 45px; height: 45px; min-height: 45px; padding: 0; }
+.btn--icon.btn--sm { width: 45px; min-width: 45px; height: 45px; min-height: 45px; padding: 0; }
+
+/* Legacy single-dash variants (.btn-primary/.btn-secondary/.btn-ghost/.btn-sm/
+   .btn-icon) were retired during CTA unification — all call sites now use the
+   double-dash Global classes above. */
+.btn[disabled] { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+
+@media (max-width: 640px) {
+  .btn {
+    min-height: 45px;
+    padding: 11px 14px;
+    font-size: var(--fs-sm);
+    white-space: normal;
+  }
+
+  .btn--sm {
+    min-height: 45px;
+    padding: 9px 11px;
+  }
+
+  .btn--icon {
+    width: 45px;
+    min-width: 45px;
+    height: 45px;
+    min-height: 45px;
+  }
+
+  .btn--icon.btn--sm {
+    width: 45px;
+    min-width: 45px;
+    height: 45px;
+    min-height: 45px;
+  }
+}

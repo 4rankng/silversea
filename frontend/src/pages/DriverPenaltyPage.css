@@ -1,0 +1,381 @@
+.driver-penalty-page {
+  --driver-penalty-title: var(--fs-xl);
+  --driver-penalty-subtitle: var(--fs-xs);
+  --driver-penalty-section: var(--fs-xs);
+  --driver-penalty-body: var(--fs-sm);
+  --driver-penalty-muted: var(--fs-xs);
+  --driver-penalty-kpi: 22px;
+  padding-bottom: 40px;
+}
+
+.driver-penalty-page .page-header {
+  margin-bottom: 16px;
+}
+
+.driver-penalty-page .page-title {
+  font-size: var(--driver-penalty-title);
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.driver-penalty-page .page-subtitle {
+  font-size: var(--driver-penalty-subtitle);
+  line-height: var(--lh-normal);
+  color: var(--ink-2);
+}
+
+/* ═══ ZONE 1 — Status Banner ═══ */
+.penalty-status-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 16px;
+  margin-bottom: 20px;
+}
+.penalty-status-banner--safe {
+  background: var(--success-soft);
+  border: 1px solid var(--success);
+}
+.penalty-status-banner--violation {
+  background: var(--danger-soft);
+  border: 1px solid var(--danger);
+}
+.penalty-status-banner__icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+.penalty-status-banner--safe .penalty-status-banner__icon {
+  background: var(--success);
+}
+.penalty-status-banner--violation .penalty-status-banner__icon {
+  background: var(--danger);
+}
+.penalty-status-banner__title {
+  font-size: var(--fs-md);
+  font-weight: 700;
+  line-height: var(--lh-snug);
+  letter-spacing: 0;
+}
+.penalty-status-banner__subtitle {
+  font-size: var(--driver-penalty-body);
+  color: var(--ink-2);
+  margin-top: 2px;
+  line-height: var(--lh-normal);
+}
+.penalty-status-banner--safe .penalty-status-banner__title {
+  color: var(--success-text);
+}
+.penalty-status-banner--violation .penalty-status-banner__title {
+  color: var(--danger-text);
+}
+
+/* Loading banner */
+.penalty-loading-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  background: var(--surface-2);
+  border: 1px solid var(--line-2);
+  color: var(--ink-3);
+  font-size: var(--driver-penalty-muted);
+}
+
+/* ═══ ZONE 2 — KPI Grid (reuse shared .kpi-grid and .kpi classes) ═══ */
+.penalty-kpi-grid {
+  margin-bottom: 24px;
+}
+
+.penalty-kpi-grid .kpi {
+  min-height: 108px;
+  padding: 16px 88px 16px 20px;
+}
+
+.penalty-kpi-grid .kpi__top {
+  margin-bottom: 10px;
+}
+
+.penalty-kpi-grid .kpi__label {
+  font-size: var(--driver-penalty-section);
+  letter-spacing: var(--tracking-wide);
+}
+
+.penalty-kpi-grid .kpi__value {
+  font-size: var(--driver-penalty-kpi) !important;
+  line-height: 1.25;
+  margin-bottom: 6px;
+  letter-spacing: 0;
+  word-break: normal;
+  white-space: nowrap;
+}
+
+.penalty-kpi-grid .kpi__value-unit {
+  font-size: var(--driver-penalty-muted);
+  letter-spacing: 0;
+}
+
+.penalty-kpi-grid .kpi__meta {
+  font-size: var(--driver-penalty-muted);
+  line-height: var(--lh-snug);
+}
+
+.penalty-kpi-grid .kpi__watermark {
+  top: 50%;
+  right: 24px;
+  bottom: auto;
+  width: 58px;
+  height: 58px;
+  color: var(--stat-rail);
+  opacity: 0.08;
+  transform: translateY(-50%);
+}
+
+.penalty-kpi-grid .kpi__watermark svg {
+  width: 58px;
+  height: 58px;
+  stroke-width: 1.7;
+}
+
+.penalty-kpi-grid .kpi--warn .kpi__watermark,
+.penalty-kpi-grid .kpi--success .kpi__watermark,
+.penalty-kpi-grid .kpi--danger .kpi__watermark,
+.penalty-kpi-grid .kpi--neutral .kpi__watermark {
+  color: var(--stat-rail);
+  opacity: 0.08;
+}
+
+/* ═══ ZONE 3 — Violations Data Card ═══ */
+.penalty-data-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 18px;
+  overflow: hidden;
+}
+.penalty-data-card__header {
+  padding: 16px 20px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+}
+.penalty-data-card__title {
+  font-size: var(--driver-penalty-section);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  color: var(--ink-3);
+  line-height: var(--lh-snug);
+}
+.driver-penalty-page select.penalty-month-select {
+  flex: 0 0 auto;
+  width: 158px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0 34px 0 12px;
+  border-radius: 9px;
+  font-size: var(--driver-penalty-muted);
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--ink);
+  background-position: right 12px center;
+  background-size: 14px 14px;
+}
+
+/* Violation rows */
+.penalty-violation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.penalty-violation-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--line);
+  transition: background 120ms ease;
+}
+.penalty-violation-row:hover {
+  background: var(--surface-2);
+}
+.penalty-violation-row__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 2px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.penalty-violation-row__content {
+  flex: 1;
+  min-width: 0;
+}
+.penalty-violation-row__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.penalty-violation-row__reason {
+  font-size: var(--driver-penalty-body);
+  font-weight: 600;
+  color: var(--ink);
+  line-height: var(--lh-snug);
+}
+.penalty-violation-row__amount {
+  font-size: var(--driver-penalty-body);
+  font-weight: 700;
+  color: var(--danger);
+  white-space: nowrap;
+}
+.penalty-violation-row__meta {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+  font-size: var(--driver-penalty-muted);
+  color: var(--ink-3);
+}
+.penalty-violation-row__meta span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.penalty-violation-row__note {
+  margin-top: 6px;
+  font-size: var(--driver-penalty-muted);
+  color: var(--ink-3);
+  font-style: italic;
+}
+
+/* Empty state */
+.penalty-empty-state {
+  text-align: center;
+  padding: 42px 20px;
+  color: var(--ink-3);
+  border-top: 1px solid var(--line);
+}
+.penalty-empty-state__icon {
+  color: var(--success);
+  margin-bottom: 12px;
+}
+.penalty-empty-state__loading-text {
+  margin-top: 12px;
+}
+.penalty-empty-state__title {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0;
+  line-height: var(--lh-snug);
+}
+.penalty-empty-state__desc {
+  margin: 6px 0 0;
+  font-size: var(--driver-penalty-muted);
+  line-height: var(--lh-normal);
+}
+
+/* ═══ ZONE 4 — Footer Note ═══ */
+.penalty-footer-note {
+  margin-top: 24px;
+  padding: 12px 16px;
+  background: var(--surface-2);
+  border-radius: 8px;
+  font-size: var(--driver-penalty-muted);
+  color: var(--ink-3);
+  text-align: center;
+}
+
+/* ═══ Responsive ═══ */
+@media (max-width: 640px) {
+  .driver-penalty-page {
+    --driver-penalty-title: var(--fs-xl);
+    --driver-penalty-subtitle: 13px;
+    --driver-penalty-section: 11px;
+    --driver-penalty-body: 13px;
+    --driver-penalty-muted: 11.5px;
+    --driver-penalty-kpi: 22px;
+  }
+  .driver-penalty-page .page-header {
+    margin-bottom: 14px;
+  }
+  .driver-penalty-page .page-title {
+    font-weight: 800;
+  }
+  .penalty-violation-row {
+    padding: 12px 16px;
+  }
+  .penalty-data-card {
+    border-radius: 14px;
+  }
+  .penalty-status-banner {
+    padding: 14px 16px;
+    border-radius: 14px;
+    gap: 12px;
+  }
+  .penalty-status-banner__icon {
+    width: 38px;
+    height: 38px;
+  }
+  .penalty-status-banner__title {
+    font-size: var(--fs-sm);
+  }
+  .penalty-status-banner__subtitle {
+    font-size: var(--driver-penalty-body);
+  }
+  .penalty-kpi-grid .kpi {
+    min-height: 96px;
+    padding: 14px 58px 14px 16px;
+  }
+  .penalty-kpi-grid .kpi__top {
+    margin-bottom: 8px;
+  }
+  .penalty-kpi-grid .kpi__watermark {
+    right: 14px;
+    width: 40px;
+    height: 40px;
+    opacity: 0.065;
+  }
+  .penalty-kpi-grid .kpi__watermark svg {
+    width: 40px;
+    height: 40px;
+  }
+  .penalty-data-card__header {
+    padding: 14px 16px 12px;
+  }
+  .driver-penalty-page select.penalty-month-select {
+    width: 150px;
+    height: 44px;
+    min-height: 44px;
+    padding-inline: 11px 32px;
+    font-size: var(--driver-penalty-muted);
+  }
+}
+
+@media (max-width: 420px) {
+  .penalty-data-card__header {
+    align-items: center;
+    flex-direction: row;
+    gap: 10px;
+  }
+  .driver-penalty-page select.penalty-month-select {
+    width: 150px;
+    min-height: 44px;
+  }
+}

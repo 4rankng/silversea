@@ -1,0 +1,347 @@
+/* ─── Salary Summary Card (Right sidebar) ─── */
+.salary-page-layout__sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.salary-summary-area {
+  /* wrapper */
+}
+
+/* Light premium card — matches app-wide hero treatment */
+.salary-summary-dark {
+  background:
+    linear-gradient(135deg, rgba(0, 90, 45, 0.08), rgba(255, 255, 255, 0) 42%),
+    var(--surface);
+  color: var(--ink);
+  border-radius: 16px;
+  padding: 22px 22px 20px;
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 16px 34px -30px rgba(0, 90, 45, 0.48);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle accent glow — top right */
+.salary-summary-dark::before {
+  content: none;
+}
+
+.salary-summary-dark__topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  position: relative;
+  margin-bottom: 10px;
+}
+
+.salary-summary-dark__label {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  margin: 0;
+  line-height: 1.35;
+  position: relative;
+}
+
+.salary-summary-dark__status {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: var(--warning-soft);
+  color: var(--warning-text);
+  border: 1px solid rgba(245, 166, 35, 0.24);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.salary-summary-dark__status.is-confirmed {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  border-color: rgba(0, 177, 79, 0.20);
+}
+
+.salary-summary-dark__big {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--ink);
+  line-height: 1.35;
+  margin-bottom: 4px;
+  position: relative;
+}
+
+.salary-summary-dark__mini {
+  font-size: var(--fs-2xs);
+  color: var(--ink-3);
+  margin-bottom: 0;
+  position: relative;
+}
+
+.salary-summary-dark__rows {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  position: relative;
+}
+
+.salary-summary-dark__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--fs-xs);
+  gap: 12px;
+}
+
+.salary-summary-dark__row-lbl {
+  color: var(--ink-2);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.salary-summary-dark__row-lbl svg {
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.salary-summary-dark__row-val {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.salary-edit-link {
+  color: var(--ink-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 10px;
+  transition: color 0.15s ease;
+}
+
+.salary-edit-link:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.salary-summary-dark__row-val--neg {
+  color: var(--danger);
+}
+
+.salary-summary-dark__row-val--pos {
+  color: var(--accent);
+}
+
+.salary-summary-dark__row--total {
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px dashed var(--line);
+  padding-bottom: 12px;
+  font-size: var(--fs-sm);
+}
+
+.salary-summary-dark__row--total .salary-summary-dark__row-lbl {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.salary-summary-dark__row--total .salary-summary-dark__row-val {
+  color: var(--accent);
+  font-size: var(--fs-md);
+  font-weight: 700;
+}
+
+.salary-summary-dark__section {
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-top: 4px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.35;
+}
+
+.salary-summary-dark__row--muted {
+  opacity: 0.78;
+}
+
+.salary-confirm-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--success-soft);
+  color: var(--success);
+  border: 1px solid rgba(0, 177, 79, 0.16);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Standby callout inside summary card */
+.payslip-callout {
+  display: flex;
+  gap: 10px;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-top: 14px;
+  align-items: flex-start;
+  background: var(--warning-soft, #FFFBEB);
+  border: 1px solid color-mix(in srgb, var(--warning, #D97706) 25%, transparent);
+}
+
+.payslip-callout-icon {
+  color: var(--warning, #D97706);
+  flex-shrink: 0;
+  margin-top: 1px;
+  opacity: 0.9;
+}
+
+.payslip-callout-text {
+  font-size: var(--fs-2xs);
+  line-height: 1.5;
+  color: var(--warning-text, #92400E);
+}
+
+/* ─── Mobile back button ─── */
+.mobile-back-btn {
+  display: none;
+}
+
+/* ─── Utility: Spin animation ─── */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 0.8s linear infinite;
+}
+
+/* ─── Payslip (legacy, keep for other pages) ─── */
+.payslip-container { display: flex; flex-direction: column; gap: 16px; }
+.payslip-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-1);
+  font-size: var(--fs-sm);
+}
+.payslip-row:last-of-type { border-bottom: none; }
+.payslip-label { color: var(--fg-2); font-weight: 500; }
+.payslip-value { font-weight: 700; font-family: var(--font-mono); color: var(--fg-1); }
+.payslip-value.is-negative { color: var(--danger); }
+.payslip-value.is-positive { color: var(--success); }
+
+/* ─── Period Config Widget ─── */
+.period-config-container {
+  margin-bottom: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border-1);
+  border-radius: 10px;
+  padding: 12px 16px;
+  transition: all 140ms ease;
+}
+
+.period-config-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.period-config-label {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--fg-2);
+}
+
+.period-config-value {
+  color: var(--fg-1);
+  font-weight: 600;
+}
+
+.period-config-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--accent);
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 140ms ease;
+}
+
+.period-config-edit-btn:hover {
+  background: var(--accent-soft);
+}
+
+.period-config-form {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-1);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.period-config-form__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.period-config-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-sm);
+  color: var(--fg-2);
+  cursor: pointer;
+  user-select: none;
+}
+
+.period-config-checkbox-label input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 15px;
+  height: 15px;
+}
+
+.period-config-form__selects {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.period-config-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-sm);
+  color: var(--fg-3);
+}

@@ -1,0 +1,12 @@
+/* ==========================================================================
+   Layout — section barrel
+   Each section lives in ./layout/. Do not add rules here; CSS @import must
+   precede all other rules, and cascade order == import order == original.
+   ========================================================================== */
+
+@import "./layout/app-shell.css";
+@import "./layout/sidebar.css";
+@import "./layout/topbar.css";
+@import "./layout/sidebar-overlay.css";
+@import "./layout/bottom-nav.css";
+@import "./layout/responsive.css";

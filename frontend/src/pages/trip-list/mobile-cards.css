@@ -1,0 +1,258 @@
+/* ── Mobile: cards instead of table ───────────────────────────────────── */
+.trip-list-page .trip-mobile-list { display: none; }
+.trip-list-page .trip-mcard {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+  position: relative;
+}
+.trip-list-page .trip-mcard::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--status-strip-width);
+  height: var(--status-strip-height);
+  border-radius: var(--status-strip-radius);
+  background: linear-gradient(to bottom, var(--strip-top) 50%, var(--strip-bottom) 50%);
+}
+.trip-list-page .trip-mcard:hover {
+  background: var(--surface-2);
+  border-color: var(--ink-2);
+}
+.trip-list-page .trip-mcard__main-link {
+  color: inherit;
+  display: block;
+  text-decoration: none;
+}
+.trip-list-page .trip-copy-btn--mobile {
+  width: fit-content;
+  margin-top: 10px;
+  min-height: 44px;
+  align-self: flex-start;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-2px);
+}
+.trip-list-page .trip-mcard:hover .trip-copy-btn--mobile,
+.trip-list-page .trip-mcard:focus-within .trip-copy-btn--mobile,
+.trip-list-page .trip-copy-btn--mobile:focus-visible,
+.trip-list-page .trip-copy-btn--mobile.is-copying {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+@media (hover: none), (pointer: coarse) {
+  .trip-list-page .trip-copy-btn--mobile {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+}
+.trip-list-page .trip-mcard__top {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; margin-bottom: 10px;
+}
+.trip-list-page .trip-mcard__top .left { min-width: 0; flex: 1; }
+.trip-list-page .trip-mcard__name {
+  font-size: var(--fs-sm); font-weight: 600; color: var(--ink);
+  margin-bottom: 2px;
+  overflow-wrap: anywhere;
+}
+.trip-list-page .trip-mcard__id {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs); font-weight: 600; color: var(--ink-3);
+  display: inline-flex; align-items: center; gap: 6px;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+.trip-list-page .trip-mcard__id .plate {
+  font-size: var(--fs-xs);
+  padding: 4px 9px;
+}
+.trip-list-page .trip-mcard__route {
+  display: flex; align-items: center; gap: 8px;
+  font-size: var(--fs-sm); font-weight: 600; color: var(--ink);
+  margin-bottom: 8px; flex-wrap: wrap;
+  overflow-wrap: anywhere;
+}
+.trip-list-page .trip-mcard__route .arr { display: inline-flex; color: var(--ink-3); opacity: 0.6; }
+
+.trip-list-page .trip-mcard__containers .container-tag {
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+}
+
+.trip-list-page .trip-mcard__container-numbers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 8px;
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+}
+.trip-list-page .trip-mcard__meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+}
+.trip-list-page .trip-mcard__meta .mm {
+  display: flex; flex-direction: column; gap: 2px;
+}
+.trip-list-page .trip-mcard__meta .lab {
+  font-size: var(--fs-xs); letter-spacing: 0.8px;
+  color: var(--ink-3); text-transform: uppercase; font-weight: 600;
+}
+.trip-list-page .trip-mcard__meta .val {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm); font-weight: 600; color: var(--ink);
+}
+.trip-list-page .trip-mcard__meta .val.warn { color: var(--d-amber); }
+.trip-list-page .trip-mcard__meta .val.empty { color: var(--ink-3); opacity: 0.7; font-style: italic; font-family: var(--font-body); font-weight: 500; }
+
+.trip-list-page .trip-mcard--quick {
+  cursor: default;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.trip-list-page .trip-mcard--quick.selected {
+  border-color: color-mix(in srgb, var(--tbl-green-600) 42%, var(--line));
+  outline: 2px solid var(--tbl-green-100);
+  outline-offset: 2px;
+}
+.trip-list-page .trip-mcard--quick.locked {
+  opacity: 0.72;
+}
+.trip-list-page .trip-mcard__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 28px;
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+}
+.trip-list-page .trip-mcard__check input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--tbl-green-700);
+}
+.trip-list-page .quick-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding-top: 4px;
+}
+.trip-list-page .quick-card-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+}
+.trip-list-page .quick-card-field > span {
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.trip-list-page .quick-card-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+}
+.trip-list-page .quick-card-summary div {
+  min-width: 0;
+}
+.trip-list-page .quick-card-summary span {
+  display: block;
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.trip-list-page .quick-card-summary b {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.trip-list-page .quick-card-error {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 9%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
+  border-radius: 8px;
+  padding: 7px 9px;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+}
+
+@media (max-width: 420px) {
+  .trip-list-page .trip-mcard {
+    padding: 12px;
+  }
+  .trip-list-page .trip-mcard__top {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .trip-list-page .quick-card-grid,
+  .trip-list-page .quick-card-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Mobile card missing indicators ──────────────────────────────────── */
+.trip-list-page .trip-mcard__missing {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+/* ── Data completeness row tinting ────────────────────────────────────── */
+/* Pete (8/6): "nhận diện bằng màu sắc dòng nào đã nhập đủ số liệu"     */
+/* Complete = all financials entered (revenue + fuel + road + salary)     */
+
+/* Color legend in table hint bar */
+.trip-list-page .table-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  margin-left: auto;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.trip-list-page .legend-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.trip-list-page .legend-dot--ok { background: #10B981; }
+.trip-list-page .legend-dot--warn { background: #F59E0B; }
+/* Table row completeness uses edge strip now, removing old background tints */
+/* Hover overrides completeness tint with standard hover */
+.trip-list-page .table-row:hover {
+  background: var(--tbl-green-050);
+}
+/* Mobile cards completeness uses edge strip now, removing old borders */

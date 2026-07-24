@@ -1,0 +1,112 @@
+.fwd-expense-form {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border-1);
+  background: var(--bg-2);
+  container-type: inline-size;
+}
+
+.fwd-expense-grid {
+  display: grid;
+  gap: 8px 12px;
+  align-items: start;
+  margin-bottom: 8px;
+}
+
+.fwd-expense-grid > .field {
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.fwd-expense-grid > .field label {
+  min-height: 18px;
+  white-space: nowrap;
+}
+
+.fwd-expense-grid--primary {
+  grid-template-columns:
+    minmax(280px, 2fr)
+    minmax(145px, 0.85fr)
+    minmax(145px, 0.85fr)
+    minmax(220px, 1.55fr);
+}
+
+.fwd-expense-grid--context {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 12px;
+}
+
+.fwd-expense-grid--invoice {
+  grid-template-columns:
+    minmax(150px, 0.9fr)
+    minmax(170px, 0.95fr)
+    minmax(180px, 1.05fr)
+    minmax(210px, 1.25fr);
+}
+
+.fwd-expense-empty-container {
+  grid-column: 1 / -1;
+  color: var(--fg-3);
+  font-size: 13px;
+  line-height: 1.45;
+  padding: 0 0 2px;
+}
+
+.fwd-expense-form .input {
+  min-width: 0;
+}
+
+.fwd-expense-form select.input {
+  padding-right: 44px;
+}
+
+.fwd-expense-form input[type="date"].input {
+  padding-right: 10px;
+}
+
+@container (max-width: 860px) {
+  .fwd-expense-grid--primary,
+  .fwd-expense-grid--context,
+  .fwd-expense-grid--invoice {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (max-width: 520px) {
+  .fwd-expense-form {
+    padding: 12px 16px;
+  }
+
+  .fwd-expense-grid--primary,
+  .fwd-expense-grid--context,
+  .fwd-expense-grid--invoice {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .fwd-expense-grid > .field label {
+    white-space: normal;
+  }
+}
+.fwd-expense-group {
+  border-bottom: 1px solid var(--border-1);
+}
+
+.fwd-expense-group__header {
+  min-height: 56px;
+  padding: 8px 16px 8px 20px;
+  background: var(--bg-2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.fwd-expense-group__header > div { display: grid; gap: 2px; }
+.fwd-expense-group__header strong { font-size: 13px; color: var(--fg-1); }
+.fwd-expense-group__header span, .fwd-expense-group__empty { font-size: 12px; color: var(--fg-3); }
+.fwd-expense-group__empty { padding: 12px 20px; }
+.fwd-expense-action { min-width: 44px; min-height: 44px; display: inline-grid; place-items: center; }
+
+@media (max-width: 560px) {
+  .fwd-expense-group__header { align-items: flex-start; }
+  .fwd-expense-group__header .btn { min-height: 44px; }
+}

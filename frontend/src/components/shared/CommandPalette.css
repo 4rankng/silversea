@@ -1,0 +1,215 @@
+/* cmd-palette — command palette overlay.
+ * Portal-rendered, opacity transitions, full keyboard navigation.
+ * Pure NEPO tokens, no Tailwind palette, no daisyUI .d-modal — bespoke layout
+ * for combobox + listbox semantics. T4 adoption (a-c-command-palettes-07).
+ * -------------------------------------------------------------------------- */
+
+.cmd-palette__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  background: rgba(16, 21, 19, 0.5);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 10vh 16px 16px;
+  animation: cmd-palette-fade-in var(--t-fast);
+}
+
+@keyframes cmd-palette-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.cmd-palette {
+  width: 100%;
+  max-width: 560px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: cmd-palette-pop var(--t-normal);
+}
+
+@keyframes cmd-palette-pop {
+  from { transform: translateY(-8px) scale(0.98); opacity: 0; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* ─── Search input ──────────────────────────────────────────────────────── */
+.cmd-palette__search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+.cmd-palette__search-icon {
+  color: var(--ink-3);
+  flex-shrink: 0;
+}
+
+.cmd-palette__input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--fs-md);
+  color: var(--ink);
+  padding: 4px 0;
+}
+.cmd-palette__input::placeholder { color: var(--ink-3); }
+
+/* ─── List ──────────────────────────────────────────────────────────────── */
+.cmd-palette__list {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  max-height: min(50vh, 360px);
+  overflow-y: auto;
+}
+
+.cmd-palette__empty {
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--ink-3);
+  font-size: var(--fs-sm);
+}
+
+.cmd-palette__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  text-align: left;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+
+.cmd-palette__item--active,
+.cmd-palette__item:focus-visible {
+  background: var(--accent-2);
+  color: var(--fg-on-brand);
+  outline: 0;
+}
+
+.cmd-palette__item-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.cmd-palette__item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+.cmd-palette__item--active .cmd-palette__item-icon { opacity: 1; }
+
+.cmd-palette__item-label {
+  font-weight: var(--fw-medium);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cmd-palette__item-hint {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  margin-left: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cmd-palette__item--active .cmd-palette__item-hint { color: rgba(255, 255, 255, 0.7); }
+
+/* ─── Shortcut chips ────────────────────────────────────────────────────── */
+.cmd-palette__shortcut {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.cmd-palette__kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--r-sm);
+  background: var(--surface-3);
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: var(--fw-semibold);
+  line-height: 1;
+  border: 1px solid var(--line);
+}
+.cmd-palette__item--active .cmd-palette__kbd {
+  background: rgba(255, 255, 255, 0.18);
+  color: var(--fg-on-brand);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* ─── Footer hint bar ───────────────────────────────────────────────────── */
+.cmd-palette__foot {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+}
+.cmd-palette__foot span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.cmd-palette__foot .cmd-palette__kbd {
+  min-width: 16px;
+  height: 16px;
+  font-size: 9px;
+}
+
+/* ─── Mobile — full-bleed, larger touch targets ─────────────────────────── */
+@media (max-width: 640px) {
+  .cmd-palette__backdrop {
+    padding: 0;
+    align-items: stretch;
+  }
+  .cmd-palette {
+    max-width: 100%;
+    min-height: 100vh;
+    border-radius: 0;
+    border: 0;
+  }
+  .cmd-palette__list {
+    max-height: none;
+    flex: 1;
+  }
+}

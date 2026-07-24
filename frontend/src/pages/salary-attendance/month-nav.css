@@ -1,0 +1,81 @@
+/* ─── Month Navigation Strip ─── */
+.month-strip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 14px 20px;
+  margin-bottom: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 10px);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.month-strip__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--bg);
+  color: var(--fg-1);
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.month-strip__btn:hover {
+  background: var(--brand);
+  color: var(--fg-on-brand);
+  border-color: var(--brand);
+}
+
+.month-strip__btn:active {
+  transform: scale(0.95);
+}
+
+.month-strip__center {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 160px;
+  justify-content: center;
+}
+
+.month-strip__label {
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: 0;
+}
+
+.month-strip__year {
+  font-size: var(--fs-2xl);
+  font-weight: 300;
+  color: var(--fg-3);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .month-strip {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+  .month-strip__label,
+  .month-strip__year {
+    font-size: var(--fs-lg);
+  }
+  .month-strip__btn {
+    width: 36px;
+    height: 36px;
+  }
+  /* Driver cards use horizontal scroll — no wrapping */
+  .driver-select-card {
+    padding: 7px 12px;
+    border-radius: 8px;
+    min-width: auto;
+  }
+}
+

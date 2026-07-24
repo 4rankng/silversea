@@ -1,0 +1,1004 @@
+import { db } from '../db';
+import * as s from '../db/schema';
+import { eq, and, desc, inArray, notInArray, ne, sql, count } from 'drizzle-orm';
+import { NotificationType, TxnType, round2dp } from '@tingting/shared';
+import { LedgerService } from './ledger.service';
+import { emitNotification } from './notification.service';
+import { AdvanceError, validateSettlementInputs } from './settlement-validation';
+import type { Tx } from './trip-shared';
+import { getTripExpenseRequiredFieldError } from './forwarder.service';
+
+type ExpenseSnapshotSource = Pick<typeof s.tripExpenses.$inferSelect,
+  'expenseType' | 'buyAmount' | 'sellAmount' | 'containerNumber' |
+  'invoiceNumber' | 'invoiceDate' | 'declarationNumber' | 'note'>;
+
+function expenseSnapshot(expense: ExpenseSnapshotSource): Record<string, unknown> {
+  return {
+    expenseType: expense.expenseType,
+    buyAmount: expense.buyAmount,
+    sellAmount: expense.sellAmount,
+    containerNumber: expense.containerNumber,
+    invoiceNumber: expense.invoiceNumber,
+    invoiceDate: expense.invoiceDate,
+    declarationNumber: expense.declarationNumber,
+    note: expense.note,
+  };
+}
+
+export async function generateSettlementCode(tx: Tx, now: Date = new Date()): Promise<string> {
+  const yy = String(now.getFullYear()).slice(-2);
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const prefix = `PT-${yy}${mm}`;
+
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(6001, hashtext(${prefix}))`);
+
+  const [row] = await tx.select({ maxCode: sql<string | null>`max(${s.advanceSettlements.code})` })
+    .from(s.advanceSettlements)
+    .where(sql`${s.advanceSettlements.code} like ${prefix + '%'}`);
+
+  let seq = 1;
+  if (row?.maxCode) {
+    const lastSeq = parseInt(row.maxCode.split('-').pop() || '0', 10);
+    seq = lastSeq + 1;
+  }
+
+  return `${prefix}-${String(seq).padStart(4, '0')}`;
+}
+
+
+// Re-export AdvanceError for backward compatibility with route imports
+export { AdvanceError } from './settlement-validation';
+
+type EnrichableRow = {
+  requesterId?: number | null;
+  approvedBy?: number | null;
+  forwarderId?: number | null;
+  checkedBy?: number | null;
+};
+
+type EnrichedWithNames<T> = T & {
+  requesterName: string | null;
+  approverName: string | null;
+  forwarderName: string | null;
+  checkerName: string | null;
+};
+
+async function enrichWithNames<T extends EnrichableRow>(rows: T[]): Promise<EnrichedWithNames<T>[]> {
+  if (rows.length === 0) return rows as EnrichedWithNames<T>[];
+  const userIds = new Set<number>();
+  rows.forEach(r => {
+    if (r.requesterId) userIds.add(r.requesterId);
+    if (r.approvedBy) userIds.add(r.approvedBy);
+    if (r.forwarderId) userIds.add(r.forwarderId);
+    if (r.checkedBy) userIds.add(r.checkedBy);
+  });
+  if (userIds.size === 0) return rows as EnrichedWithNames<T>[];
+  const users = await db.select({ id: s.users.id, fullName: s.users.fullName })
+    .from(s.users).where(inArray(s.users.id, [...userIds]));
+  const nameMap = new Map<number | null | undefined, string | null>(users.map(u => [u.id, u.fullName]));
+  return rows.map(r => ({
+    ...r,
+    requesterName: nameMap.get(r.requesterId) ?? null,
+    approverName: nameMap.get(r.approvedBy) ?? null,
+    forwarderName: nameMap.get(r.forwarderId) ?? null,
+    checkerName: nameMap.get(r.checkedBy) ?? null,
+  }));
+}
+
+async function enrichSettlementWithRequests(settlement: typeof s.advanceSettlements.$inferSelect & Record<string, unknown>) {
+  const links = await db.select()
+    .from(s.advanceSettlementRequests)
+    .where(eq(s.advanceSettlementRequests.settlementId, settlement.id));
+  const requestIds = links.map(l => l.advanceRequestId);
+  let linkedRequests: typeof s.advanceRequests.$inferSelect[] = [];
+  if (requestIds.length > 0) {
+    linkedRequests = await db.select()
+      .from(s.advanceRequests)
+      .where(inArray(s.advanceRequests.id, requestIds));
+  }
+
+  // Also fetch linked trip expenses with breakdown by type + print form fields
+  const expenseLinks = await db.select()
+    .from(s.settlementExpenses)
+    .where(eq(s.settlementExpenses.settlementId, settlement.id));
+  const expenseIds = expenseLinks.map(l => l.tripExpenseId);
+  let linkedExpenses: {
+    id: number;
+    tripId: number;
+    expenseType: string;
+    buyAmount: string;
+    sellAmount: string;
+    containerNumber: string | null;
+    invoiceNumber: string | null;
+    note: string | null;
+    createdAt: Date;
+    tripCode: string | null;
+    departureDate: string | null;
+    customerName: string | null;
+  }[] = [];
+  if (expenseIds.length > 0) {
+    linkedExpenses = await db.select({
+      id: s.tripExpenses.id,
+      tripId: s.tripExpenses.tripId,
+      expenseType: s.tripExpenses.expenseType,
+      buyAmount: s.tripExpenses.buyAmount,
+      sellAmount: s.tripExpenses.sellAmount,
+      containerNumber: sql<string | null>`COALESCE(${s.tripContainers.containerNumber}, ${s.tripExpenses.containerNumber})`.as('resolved_container_number'),
+      invoiceNumber: s.tripExpenses.invoiceNumber,
+      note: s.tripExpenses.note,
+      createdAt: s.tripExpenses.createdAt,
+      tripCode: s.trips.tripCode,
+      departureDate: s.trips.departureDate,
+      customerName: s.customers.name,
+    }).from(s.tripExpenses)
+      .leftJoin(s.trips, eq(s.tripExpenses.tripId, s.trips.id))
+      .leftJoin(s.customers, eq(s.trips.customerId, s.customers.id))
+      .leftJoin(s.tripContainers, eq(s.tripExpenses.tripContainerId, s.tripContainers.id))
+      .where(inArray(s.tripExpenses.id, expenseIds));
+    const linkByExpense = new Map(expenseLinks.map(link => [link.tripExpenseId, link]));
+    linkedExpenses = linkedExpenses.map(expense => {
+      const link = linkByExpense.get(expense.id);
+      const snapshot = (link?.adjustedSnapshot ?? {}) as Record<string, unknown>;
+      return Object.assign(expense, snapshot, {
+        buyAmount: String(snapshot.buyAmount ?? link?.adjustedBuyAmount ?? expense.buyAmount),
+        sellAmount: String(snapshot.sellAmount ?? expense.sellAmount),
+        submittedBuyAmount: link?.originalBuyAmount ?? null,
+        submittedSellAmount: link?.submittedSellAmount ?? null,
+        adjustmentReason: link?.adjustmentReason ?? null,
+        adjustedAt: link?.adjustedAt ?? null,
+      });
+    });
+  }
+
+  return { ...settlement, linkedRequests, linkedExpenses };
+}
+
+export async function createAdvanceRequest(
+  requesterId: number,
+  data: { amount: number; reason: string },
+) {
+  const [inserted] = await db.insert(s.advanceRequests).values({
+    requesterId,
+    amount: String(data.amount),
+    reason: data.reason,
+    status: 'PENDING',
+  }).returning();
+  const [enriched] = await enrichWithNames([inserted]);
+  return enriched;
+}
+
+export async function listAdvanceRequests(filters?: {
+  requesterId?: number;
+  status?: string;
+  excludeLinkedToActiveSettlement?: boolean;
+}) {
+  const conditions = [];
+  if (filters?.requesterId) conditions.push(eq(s.advanceRequests.requesterId, filters.requesterId));
+  if (filters?.status) conditions.push(eq(s.advanceRequests.status, filters.status as ('PENDING' | 'APPROVED' | 'REJECTED')));
+  if (filters?.excludeLinkedToActiveSettlement) {
+    const claimedRequestIds = db.select({ id: s.advanceSettlementRequests.advanceRequestId })
+      .from(s.advanceSettlementRequests)
+      .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.advanceSettlementRequests.settlementId))
+      .where(notInArray(s.advanceSettlements.status, ['REJECTED']));
+    conditions.push(notInArray(s.advanceRequests.id, claimedRequestIds));
+  }
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const rows = await db.select()
+    .from(s.advanceRequests)
+    .where(where)
+    .orderBy(desc(s.advanceRequests.createdAt));
+  return enrichWithNames(rows);
+}
+
+export async function getAdvanceRequestCounts(requesterId?: number) {
+  const conditions = [];
+  if (requesterId) conditions.push(eq(s.advanceRequests.requesterId, requesterId));
+
+  const rows = await db.select({
+    status: s.advanceRequests.status,
+    count: count(),
+  }).from(s.advanceRequests)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .groupBy(s.advanceRequests.status);
+
+  const counts: Record<string, number> = {};
+  for (const row of rows) {
+    counts[row.status] = row.count;
+  }
+  return counts;
+}
+
+export async function getAdvanceRequest(id: number) {
+  const [row] = await db.select()
+    .from(s.advanceRequests)
+    .where(eq(s.advanceRequests.id, id));
+  if (!row) return null;
+  const [enriched] = await enrichWithNames([row]);
+  return enriched;
+}
+
+export async function approveAdvanceRequest(id: number, approvedBy: number) {
+  return db.transaction(async (tx) => {
+    const [request] = await tx.select()
+      .from(s.advanceRequests)
+      .where(eq(s.advanceRequests.id, id))
+      .for('update');
+    if (!request) throw new AdvanceError(404, 'Advance request not found');
+    if (request.status !== 'PENDING') {
+      throw new AdvanceError(400, `Cannot approve request with status ${request.status}`);
+    }
+    if (request.requesterId === approvedBy) {
+      throw new AdvanceError(403, 'Không thể duyệt yêu cầu tạm ứng của chính mình');
+    }
+
+    const [user] = await tx.select({ fullName: s.users.fullName })
+      .from(s.users)
+      .where(eq(s.users.id, request.requesterId));
+    const requesterName = user?.fullName ?? `#${request.requesterId}`;
+
+    const now = new Date();
+    const [updated] = await tx.update(s.advanceRequests)
+      .set({ status: 'APPROVED', approvedBy, approvedAt: now, updatedAt: now })
+      .where(and(eq(s.advanceRequests.id, id), eq(s.advanceRequests.status, 'PENDING')))
+      .returning();
+    if (!updated) throw new AdvanceError(409, 'Request was modified by another operation');
+
+    await LedgerService.postEntry(tx, {
+      txnType: TxnType.FORWARDER_ADVANCE,
+      txnId: request.id,
+      entityType: 'FORWARDER',
+      entityId: request.requesterId,
+      debit: 0,
+      credit: Number(request.amount),
+      note: `Tạm ứng cho ${requesterName}`,
+    });
+
+    const [enriched] = await enrichWithNames([updated]);
+    return enriched;
+  });
+}
+
+export async function rejectAdvanceRequest(id: number, rejectedBy: number) {
+  return db.transaction(async (tx) => {
+    const [request] = await tx.select()
+      .from(s.advanceRequests)
+      .where(eq(s.advanceRequests.id, id))
+      .for('update');
+    if (!request) throw new AdvanceError(404, 'Advance request not found');
+    if (request.status !== 'PENDING') {
+      throw new AdvanceError(400, `Cannot reject request with status ${request.status}`);
+    }
+
+    const now = new Date();
+    const [updated] = await tx.update(s.advanceRequests)
+      .set({ status: 'REJECTED', approvedBy: rejectedBy, approvedAt: now, updatedAt: now })
+      .where(and(eq(s.advanceRequests.id, id), eq(s.advanceRequests.status, 'PENDING')))
+      .returning();
+    if (!updated) throw new AdvanceError(409, 'Request was modified by another operation');
+
+    const [enriched] = await enrichWithNames([updated]);
+    return enriched;
+  });
+}
+
+export async function createAdvanceSettlement(
+  forwarderId: number,
+  data: { totalExpenseAmount?: number; refundAmount?: number; note?: string; advanceRequestIds: number[]; tripExpenseIds?: number[] },
+) {
+  if (!data.advanceRequestIds || data.advanceRequestIds.length === 0) {
+    throw new AdvanceError(400, 'At least one advance request ID is required');
+  }
+
+  return db.transaction(async (tx) => {
+    // Serialize claims before validation. After a concurrent creator commits,
+    // READ COMMITTED makes the subsequent validation see its new links.
+    for (const requestId of [...data.advanceRequestIds].sort((a, b) => a - b)) {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(6101, ${requestId})`);
+    }
+    const requestedExpenseIds = [...(data.tripExpenseIds ?? [])].sort((a, b) => a - b);
+    for (const expenseId of requestedExpenseIds) {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
+    }
+    if (requestedExpenseIds.length > 0) {
+      const scopes = await tx.select({
+        tripId: s.tripExpenses.tripId,
+        tripContainerId: s.tripExpenses.tripContainerId,
+      }).from(s.tripExpenses).where(inArray(s.tripExpenses.id, requestedExpenseIds));
+      const scopeKeys = [...new Set(scopes.map(scope => scope.tripContainerId ?? -scope.tripId))].sort((a, b) => a - b);
+      for (const scopeKey of scopeKeys) {
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);
+      }
+    }
+    // Shared validation: existence, ownership, status, and already-linked checks
+    const { tripExpenses: tripExpenseRows } =
+      await validateSettlementInputs({
+        dbOrTx: tx,
+        forwarderId,
+        advanceRequestIds: data.advanceRequestIds,
+        tripExpenseIds: data.tripExpenseIds,
+        checkAlreadyLinked: true,
+      });
+
+    // Auto-calculate total from selected expenses
+    let totalExpenseAmount = data.totalExpenseAmount ?? 0;
+    if (tripExpenseRows.length > 0) {
+      totalExpenseAmount = tripExpenseRows.reduce((sum, exp: typeof s.tripExpenses.$inferSelect) => sum + Number(exp.buyAmount), 0);
+    }
+
+    const code = await generateSettlementCode(tx);
+
+    const [settlement] = await tx.insert(s.advanceSettlements).values({
+      code,
+      forwarderId,
+      totalExpenseAmount: String(totalExpenseAmount),
+      refundAmount: String(data.refundAmount ?? 0),
+      status: 'PENDING',
+      note: data.note ?? null,
+    }).returning();
+
+    await tx.insert(s.advanceSettlementRequests).values(
+      data.advanceRequestIds.map(advanceRequestId => ({
+        settlementId: settlement.id,
+        advanceRequestId,
+      })),
+    );
+
+    // Link trip expenses to settlement
+    if (data.tripExpenseIds && data.tripExpenseIds.length > 0) {
+      await tx.insert(s.settlementExpenses).values(
+        tripExpenseRows.map(expense => ({
+          settlementId: settlement.id,
+          tripExpenseId: expense.id,
+          originalBuyAmount: expense.buyAmount,
+          adjustedBuyAmount: expense.buyAmount,
+          submittedSellAmount: expense.sellAmount,
+          originalSnapshot: expenseSnapshot(expense),
+          adjustedSnapshot: expenseSnapshot(expense),
+        })),
+      );
+    }
+
+    return enrichSettlementWithRequests(settlement);
+  });
+}
+
+export async function listAdvanceSettlements(filters?: { forwarderId?: number; status?: string }) {
+  const conditions = [];
+  if (filters?.forwarderId) conditions.push(eq(s.advanceSettlements.forwarderId, filters.forwarderId));
+  if (filters?.status) conditions.push(eq(s.advanceSettlements.status, filters.status as ('PENDING' | 'CHECKED_BY_ACCOUNTANT' | 'APPROVED' | 'REJECTED')));
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const rows = await db.select()
+    .from(s.advanceSettlements)
+    .where(where)
+    .orderBy(desc(s.advanceSettlements.createdAt));
+
+  const enriched = await enrichWithNames(rows);
+
+  if (enriched.length > 0) {
+    const settlementIds = enriched.map(s => s.id);
+
+    const links = await db.select()
+      .from(s.advanceSettlementRequests)
+      .where(inArray(s.advanceSettlementRequests.settlementId, settlementIds));
+
+    if (links.length > 0) {
+      const requestIds = [...new Set(links.map(l => l.advanceRequestId))];
+      const requests = await db.select()
+        .from(s.advanceRequests)
+        .where(inArray(s.advanceRequests.id, requestIds));
+
+      const requestMap = new Map(requests.map(r => [r.id, r]));
+      const linksBySettlement = new Map<number, typeof links>();
+
+      for (const link of links) {
+        if (!linksBySettlement.has(link.settlementId)) {
+          linksBySettlement.set(link.settlementId, []);
+        }
+        linksBySettlement.get(link.settlementId)!.push(link);
+      }
+
+      for (const settlement of enriched) {
+        const settlementLinks = linksBySettlement.get(settlement.id) || [];
+        (settlement as typeof s.advanceSettlements.$inferSelect & {
+          linkedRequests?: typeof s.advanceRequests.$inferSelect[];
+        }).linkedRequests = settlementLinks
+          .map(l => requestMap.get(l.advanceRequestId))
+          .filter((r): r is typeof s.advanceRequests.$inferSelect => Boolean(r));
+      }
+    }
+
+    // Attach linked trip expenses plus transport-plan context so the approval
+    // list can render one decision row per trip. Batched across all settlements.
+    const expenseLinks = await db.select()
+      .from(s.settlementExpenses)
+      .where(inArray(s.settlementExpenses.settlementId, settlementIds));
+    if (expenseLinks.length > 0) {
+      const expenseIds = [...new Set(expenseLinks.map(l => l.tripExpenseId))];
+      const expenses = await db.select({
+        id: s.tripExpenses.id,
+        tripId: s.tripExpenses.tripId,
+        expenseType: s.tripExpenses.expenseType,
+        buyAmount: s.tripExpenses.buyAmount,
+        containerNumber: sql<string | null>`COALESCE(${s.tripContainers.containerNumber}, ${s.tripExpenses.containerNumber})`.as('resolved_container_number'),
+        note: s.tripExpenses.note,
+        createdAt: s.tripExpenses.createdAt,
+        tripCode: s.trips.tripCode,
+        departureDate: s.trips.departureDate,
+        customerName: s.customers.name,
+        routeName: s.routes.name,
+        tripContainerCount: s.trips.containerCount,
+        expenseTypeName: s.forwarderExpenseTypes.name,
+        truckPlate: s.trucks.licensePlate,
+      }).from(s.tripExpenses)
+        .leftJoin(s.trips, eq(s.tripExpenses.tripId, s.trips.id))
+        .leftJoin(s.customers, eq(s.trips.customerId, s.customers.id))
+        .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
+        .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
+        .leftJoin(s.tripContainers, eq(s.tripExpenses.tripContainerId, s.tripContainers.id))
+        .leftJoin(s.forwarderExpenseTypes, eq(s.tripExpenses.expenseType, s.forwarderExpenseTypes.code))
+        .where(inArray(s.tripExpenses.id, expenseIds));
+      const expenseById = new Map(expenses.map(e => [e.id, e]));
+      const bySettlement = new Map<number, typeof expenses>();
+      for (const l of expenseLinks) {
+        const rawExpense = expenseById.get(l.tripExpenseId);
+        if (!rawExpense) continue;
+        const snapshot = (l.adjustedSnapshot ?? {}) as Record<string, unknown>;
+        const exp = Object.assign({}, rawExpense, snapshot, {
+          buyAmount: String(snapshot.buyAmount ?? l.adjustedBuyAmount ?? rawExpense.buyAmount),
+        });
+        const arr = bySettlement.get(l.settlementId);
+        if (arr) arr.push(exp); else bySettlement.set(l.settlementId, [exp]);
+      }
+      for (const settlement of enriched) {
+        (settlement as typeof s.advanceSettlements.$inferSelect & {
+          linkedExpenses?: typeof expenses;
+        }).linkedExpenses = bySettlement.get(settlement.id) ?? [];
+      }
+    }
+  }
+
+  return enriched;
+}
+
+export async function getAdvanceSettlement(id: number) {
+  const [row] = await db.select()
+    .from(s.advanceSettlements)
+    .where(eq(s.advanceSettlements.id, id));
+  if (!row) return null;
+  const [enriched] = await enrichWithNames([row]);
+  const detail = await enrichSettlementWithRequests(enriched);
+  const [blockedRequests, blockedExpenses, requestCandidates, expenseCandidates] = await Promise.all([
+    db.select({ id: s.advanceSettlementRequests.advanceRequestId })
+      .from(s.advanceSettlementRequests)
+      .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.advanceSettlementRequests.settlementId))
+      .where(and(ne(s.advanceSettlements.id, id), notInArray(s.advanceSettlements.status, ['REJECTED']))),
+    db.select({ id: s.settlementExpenses.tripExpenseId })
+      .from(s.settlementExpenses)
+      .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.settlementExpenses.settlementId))
+      .where(and(ne(s.advanceSettlements.id, id), notInArray(s.advanceSettlements.status, ['REJECTED']))),
+    db.select().from(s.advanceRequests).where(and(
+      eq(s.advanceRequests.requesterId, row.forwarderId),
+      eq(s.advanceRequests.status, 'APPROVED'),
+    )).orderBy(desc(s.advanceRequests.createdAt)),
+    db.select({
+      id: s.tripExpenses.id,
+      tripId: s.tripExpenses.tripId,
+      forwarderId: s.tripExpenses.forwarderId,
+      expenseType: s.tripExpenses.expenseType,
+      buyAmount: s.tripExpenses.buyAmount,
+      sellAmount: s.tripExpenses.sellAmount,
+      settlementMethod: s.tripExpenses.settlementMethod,
+      supplierId: s.tripExpenses.supplierId,
+      invoiceNumber: s.tripExpenses.invoiceNumber,
+      invoiceDate: s.tripExpenses.invoiceDate,
+      declarationNumber: s.tripExpenses.declarationNumber,
+      containerNumber: s.tripExpenses.containerNumber,
+      tripContainerId: s.tripExpenses.tripContainerId,
+      approvalStatus: s.tripExpenses.approvalStatus,
+      note: s.tripExpenses.note,
+      createdAt: s.tripExpenses.createdAt,
+      updatedAt: s.tripExpenses.updatedAt,
+      tripCode: s.trips.tripCode,
+      departureDate: s.trips.departureDate,
+      completionStatus: sql<string>`COALESCE((
+        SELECT scope.status FROM trip_expense_completion_scopes scope
+        WHERE scope.trip_id = ${s.tripExpenses.tripId}
+          AND (scope.trip_container_id = ${s.tripExpenses.tripContainerId}
+            OR (scope.trip_container_id IS NULL AND ${s.tripExpenses.tripContainerId} IS NULL))
+        LIMIT 1
+      ), 'IN_PROGRESS')`,
+    }).from(s.tripExpenses)
+      .leftJoin(s.trips, eq(s.trips.id, s.tripExpenses.tripId))
+      .where(and(
+        eq(s.tripExpenses.forwarderId, row.forwarderId),
+        inArray(s.tripExpenses.approvalStatus, ['PENDING', 'APPROVED']),
+      )).orderBy(desc(s.tripExpenses.createdAt)),
+  ]);
+  const blockedRequestIds = new Set(blockedRequests.map(item => item.id));
+  const blockedExpenseIds = new Set(blockedExpenses.map(item => item.id));
+  return {
+    ...detail,
+    eligibleAdvanceRequests: requestCandidates.filter(item => !blockedRequestIds.has(item.id)),
+    eligibleExpenses: expenseCandidates.filter(item =>
+      !blockedExpenseIds.has(item.id) && item.completionStatus === 'COMPLETED',
+    ),
+  };
+}
+
+function assertSettlementBalanced(input: {
+  advanceRequests: Array<{ amount: string }>;
+  tripExpenses: Array<{ buyAmount: string }>;
+  refundAmount: number;
+}) {
+  const advanceTotal = round2dp(input.advanceRequests.reduce((sum, item) => sum + Number(item.amount), 0));
+  const expenseTotal = round2dp(input.tripExpenses.reduce((sum, item) => sum + Number(item.buyAmount), 0));
+  const difference = round2dp(advanceTotal - expenseTotal - input.refundAmount);
+  if (Math.abs(difference) > 1) {
+    throw new AdvanceError(400, `Phiếu chưa cân đối: tạm ứng ${advanceTotal}, chi phí ${expenseTotal}, hoàn lại ${input.refundAmount}`);
+  }
+  return { advanceTotal, expenseTotal };
+}
+
+export async function updateAdvanceSettlement(
+  settlementId: number,
+  data: { advanceRequestIds: number[]; tripExpenseIds: number[]; refundAmount: number; note?: string | null },
+) {
+  await db.transaction(async (tx) => {
+    const [settlement] = await tx.select().from(s.advanceSettlements)
+      .where(eq(s.advanceSettlements.id, settlementId)).for('update');
+    if (!settlement) throw new AdvanceError(404, 'Không tìm thấy phiếu hoàn ứng');
+    if (settlement.status !== 'PENDING' && settlement.status !== 'CHECKED_BY_ACCOUNTANT') {
+      throw new AdvanceError(409, 'Chỉ được sửa phiếu đang chờ kế toán');
+    }
+    for (const requestId of [...data.advanceRequestIds].sort((a, b) => a - b)) {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(6101, ${requestId})`);
+    }
+    const expenseIds = [...data.tripExpenseIds].sort((a, b) => a - b);
+    for (const expenseId of expenseIds) {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
+    }
+    if (expenseIds.length > 0) {
+      const scopes = await tx.select({ tripId: s.tripExpenses.tripId, tripContainerId: s.tripExpenses.tripContainerId })
+        .from(s.tripExpenses).where(inArray(s.tripExpenses.id, expenseIds));
+      const scopeKeys = [...new Set(scopes.map(scope => scope.tripContainerId ?? -scope.tripId))].sort((a, b) => a - b);
+      for (const scopeKey of scopeKeys) {
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);
+      }
+    }
+    const validated = await validateSettlementInputs({
+      dbOrTx: tx,
+      forwarderId: settlement.forwarderId,
+      advanceRequestIds: data.advanceRequestIds,
+      tripExpenseIds: data.tripExpenseIds,
+      checkAlreadyLinked: true,
+      excludeSettlementId: settlementId,
+    });
+    const { expenseTotal } = assertSettlementBalanced({
+      advanceRequests: validated.advanceRequests,
+      tripExpenses: validated.tripExpenses,
+      refundAmount: data.refundAmount,
+    });
+
+    const existingExpenseLinks = await tx.select().from(s.settlementExpenses)
+      .where(eq(s.settlementExpenses.settlementId, settlementId));
+    const existingByExpense = new Map(existingExpenseLinks.map(link => [link.tripExpenseId, link]));
+    await tx.delete(s.advanceSettlementRequests).where(eq(s.advanceSettlementRequests.settlementId, settlementId));
+    await tx.insert(s.advanceSettlementRequests).values(data.advanceRequestIds.map(advanceRequestId => ({
+      settlementId,
+      advanceRequestId,
+    })));
+    await tx.delete(s.settlementExpenses).where(eq(s.settlementExpenses.settlementId, settlementId));
+    if (validated.tripExpenses.length > 0) {
+      await tx.insert(s.settlementExpenses).values(validated.tripExpenses.map(expense => {
+        const previous = existingByExpense.get(expense.id);
+        return {
+          settlementId,
+          tripExpenseId: expense.id,
+          originalBuyAmount: previous?.originalBuyAmount ?? expense.buyAmount,
+          adjustedBuyAmount: expense.buyAmount,
+          submittedSellAmount: previous?.submittedSellAmount ?? expense.sellAmount,
+          originalSnapshot: previous?.originalSnapshot ?? expenseSnapshot(expense),
+          adjustedSnapshot: expenseSnapshot(expense),
+          adjustmentReason: previous?.adjustmentReason ?? null,
+          adjustedBy: previous?.adjustedBy ?? null,
+          adjustedAt: previous?.adjustedAt ?? null,
+        };
+      }));
+    }
+    await tx.update(s.advanceSettlements).set({
+      totalExpenseAmount: String(expenseTotal),
+      refundAmount: String(data.refundAmount),
+      note: data.note ?? null,
+      updatedAt: new Date(),
+    }).where(eq(s.advanceSettlements.id, settlementId));
+  });
+  const detail = await getAdvanceSettlement(settlementId);
+  if (!detail) throw new AdvanceError(404, 'Không tìm thấy phiếu hoàn ứng sau khi cập nhật');
+  emitNotification({
+    type: NotificationType.SYSTEM_ANNOUNCEMENT,
+    title: 'Kế toán đã cập nhật phiếu hoàn ứng',
+    message: `Phiếu ${detail.code} đã được cập nhật danh sách tạm ứng, chi phí hoặc số tiền hoàn lại.`,
+    relatedEntityType: 'advance_settlements',
+    relatedEntityId: settlementId,
+    targetUserId: detail.forwarderId,
+    targetRoles: [],
+  });
+  return detail;
+}
+
+export async function checkAdvanceSettlement(id: number, checkedBy: number) {
+  // Deprecated compatibility transition for stale clients. New clients call
+  // approve directly; an old "check" action must not unexpectedly post ledger.
+  return db.transaction(async (tx) => {
+    const [settlement] = await tx.select().from(s.advanceSettlements)
+      .where(eq(s.advanceSettlements.id, id)).for('update');
+    if (!settlement) throw new AdvanceError(404, 'Advance settlement not found');
+    if (settlement.status !== 'PENDING') {
+      throw new AdvanceError(400, `Cannot check settlement with status ${settlement.status}`);
+    }
+    const now = new Date();
+    const [updated] = await tx.update(s.advanceSettlements).set({
+      status: 'CHECKED_BY_ACCOUNTANT', checkedBy, checkedAt: now, updatedAt: now,
+    }).where(and(eq(s.advanceSettlements.id, id), eq(s.advanceSettlements.status, 'PENDING'))).returning();
+    if (!updated) throw new AdvanceError(409, 'Request was modified by another operation');
+    const [enriched] = await enrichWithNames([updated]);
+    return enrichSettlementWithRequests(enriched);
+  });
+}
+
+export async function approveAdvanceSettlement(id: number, approvedBy: number) {
+  const approved = await db.transaction(async (tx) => {
+    const [settlement] = await tx.select()
+      .from(s.advanceSettlements)
+      .where(eq(s.advanceSettlements.id, id))
+      .for('update');
+    if (!settlement) throw new AdvanceError(404, 'Advance settlement not found');
+    if (settlement.status !== 'PENDING' && settlement.status !== 'CHECKED_BY_ACCOUNTANT') {
+      throw new AdvanceError(400, `Cannot approve settlement with status ${settlement.status}`);
+    }
+    if (settlement.forwarderId === approvedBy) {
+      throw new AdvanceError(403, 'Không thể duyệt phiếu thanh toán của chính mình');
+    }
+
+    const requestLinks = await tx.select({ id: s.advanceSettlementRequests.advanceRequestId })
+      .from(s.advanceSettlementRequests)
+      .where(eq(s.advanceSettlementRequests.settlementId, id));
+    const expenseLinkIds = await tx.select({ id: s.settlementExpenses.tripExpenseId })
+      .from(s.settlementExpenses)
+      .where(eq(s.settlementExpenses.settlementId, id));
+    const linkedExpenseIds = expenseLinkIds.map(link => link.id);
+    // Keep the exact completion scopes stable from eligibility validation until
+    // approval commits. This uses the same lock namespace/order as Ops updates.
+    for (const expenseId of [...new Set(linkedExpenseIds)].sort((a, b) => a - b)) {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
+    }
+    const approvalScopes = linkedExpenseIds.length === 0
+      ? []
+      : await tx.select({
+        tripId: s.tripExpenses.tripId,
+        tripContainerId: s.tripExpenses.tripContainerId,
+      }).from(s.tripExpenses).where(inArray(s.tripExpenses.id, linkedExpenseIds));
+    const scopeKeys = [...new Set(approvalScopes.map(expense =>
+      expense.tripContainerId ?? -expense.tripId,
+    ))].sort((a, b) => a - b);
+    for (const scopeKey of scopeKeys) {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);
+    }
+    const validated = await validateSettlementInputs({
+      dbOrTx: tx,
+      forwarderId: settlement.forwarderId,
+      advanceRequestIds: requestLinks.map(link => link.id),
+      tripExpenseIds: linkedExpenseIds,
+      checkAlreadyLinked: true,
+      excludeSettlementId: id,
+    });
+    assertSettlementBalanced({
+      advanceRequests: validated.advanceRequests,
+      tripExpenses: validated.tripExpenses,
+      refundAmount: Number(settlement.refundAmount),
+    });
+
+    const links = await tx.select({
+      expenseId: s.tripExpenses.id,
+      buyAmount: s.tripExpenses.buyAmount,
+      sellAmount: s.tripExpenses.sellAmount,
+      approvalStatus: s.tripExpenses.approvalStatus,
+      tripStatus: s.trips.status,
+      customerId: s.trips.customerId,
+      tripCode: s.trips.tripCode,
+      adjustmentReason: s.settlementExpenses.adjustmentReason,
+    }).from(s.settlementExpenses)
+      .innerJoin(s.tripExpenses, eq(s.tripExpenses.id, s.settlementExpenses.tripExpenseId))
+      .innerJoin(s.trips, eq(s.trips.id, s.tripExpenses.tripId))
+      .where(eq(s.settlementExpenses.settlementId, id));
+
+    const totalExpenseAmount = round2dp(links.reduce((sum, link) => sum + Number(link.buyAmount), 0));
+    const now = new Date();
+    const [updated] = await tx.update(s.advanceSettlements)
+      .set({
+        status: 'APPROVED',
+        totalExpenseAmount: String(totalExpenseAmount),
+        checkedBy: approvedBy,
+        checkedAt: now,
+        approvedBy,
+        approvedAt: now,
+        updatedAt: now,
+      })
+      .where(and(
+        eq(s.advanceSettlements.id, id),
+        inArray(s.advanceSettlements.status, ['PENDING', 'CHECKED_BY_ACCOUNTANT']),
+      ))
+      .returning();
+    if (!updated) throw new AdvanceError(409, 'Request was modified by another operation');
+
+    const pendingExpenseIds = links.filter(link => link.approvalStatus === 'PENDING').map(link => link.expenseId);
+    if (pendingExpenseIds.length > 0) {
+      await tx.update(s.tripExpenses).set({ approvalStatus: 'APPROVED', updatedAt: now })
+        .where(inArray(s.tripExpenses.id, pendingExpenseIds));
+    }
+
+    // If the trip was already completed, post the accepted service fee now.
+    // Existing rows are never mutated; corrections become ADJUSTMENT entries.
+    for (const link of links) {
+      if (link.tripStatus !== 'COMPLETED' && link.tripStatus !== 'LOCKED') continue;
+      const currentSell = Number(link.sellAmount);
+      const existingRows = await tx.select({ debit: s.ledger.debit, credit: s.ledger.credit })
+        .from(s.ledger)
+        .where(and(eq(s.ledger.txnType, TxnType.SERVICE_FEE), eq(s.ledger.txnId, link.expenseId)));
+      const posted = existingRows.reduce((sum, row) => sum + Number(row.debit) - Number(row.credit), 0);
+      const delta = round2dp(currentSell - posted);
+      if (delta === 0) continue;
+      await LedgerService.postEntry(tx, {
+        txnType: existingRows.length === 0 ? TxnType.SERVICE_FEE : TxnType.ADJUSTMENT,
+        txnId: link.expenseId,
+        entityType: 'CUSTOMER',
+        entityId: link.customerId,
+        debit: delta > 0 ? delta : 0,
+        credit: delta < 0 ? Math.abs(delta) : 0,
+        note: `Điều chỉnh phí chi hộ chuyến ${link.tripCode ?? ''}`.trim(),
+      });
+    }
+
+    const totalAmount = totalExpenseAmount + Number(settlement.refundAmount);
+    await LedgerService.postEntry(tx, {
+      txnType: TxnType.FORWARDER_SETTLEMENT,
+      txnId: settlement.id,
+      entityType: 'FORWARDER',
+      entityId: settlement.forwarderId,
+      debit: totalAmount,
+      credit: 0,
+      note: `Thanh toán tạm ứng #${settlement.id}`,
+    });
+
+    return {
+      updated,
+      adjustmentCount: links.filter(link => Boolean(link.adjustmentReason)).length,
+    };
+  });
+
+  emitNotification({
+    type: NotificationType.ADVANCE_SETTLEMENT_APPROVED,
+    title: 'Phiếu hoàn ứng đã duyệt',
+    message: `Phiếu ${approved.updated.code} được duyệt ${Number(approved.updated.totalExpenseAmount).toLocaleString('vi-VN')} ₫${approved.adjustmentCount > 0 ? `, có ${approved.adjustmentCount} khoản kế toán điều chỉnh` : ''}.`,
+    relatedEntityType: 'advance_settlements',
+    relatedEntityId: approved.updated.id,
+    targetUserId: approved.updated.forwarderId,
+    targetRoles: [],
+  });
+
+  const [enriched] = await enrichWithNames([approved.updated]);
+  return enrichSettlementWithRequests(enriched);
+}
+
+export async function adjustSettlementExpense(
+  settlementId: number,
+  expenseId: number,
+  actorId: number,
+  patch: {
+    expenseType?: string;
+    buyAmount?: number;
+    sellAmount?: number;
+    supplierId?: number | null;
+    invoiceNumber?: string | null;
+    invoiceDate?: string | null;
+    declarationNumber?: string | null;
+    containerNumber?: string | null;
+    tripContainerId?: number | null;
+    note?: string | null;
+    adjustmentReason: string;
+  },
+) {
+  const result = await db.transaction(async (tx) => {
+    const [settlement] = await tx.select().from(s.advanceSettlements)
+      .where(eq(s.advanceSettlements.id, settlementId)).for('update');
+    if (!settlement) throw new AdvanceError(404, 'Không tìm thấy phiếu hoàn ứng');
+    if (settlement.status !== 'PENDING' && settlement.status !== 'CHECKED_BY_ACCOUNTANT') {
+      throw new AdvanceError(409, 'Chỉ được sửa phiếu đang chờ kế toán');
+    }
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
+    const [linked] = await tx.select({
+      linkId: s.settlementExpenses.id,
+      tripId: s.tripExpenses.tripId,
+      expenseType: s.tripExpenses.expenseType,
+      declarationNumber: s.tripExpenses.declarationNumber,
+    }).from(s.settlementExpenses)
+      .innerJoin(s.tripExpenses, eq(s.tripExpenses.id, s.settlementExpenses.tripExpenseId))
+      .where(and(
+        eq(s.settlementExpenses.settlementId, settlementId),
+        eq(s.settlementExpenses.tripExpenseId, expenseId),
+      )).limit(1);
+    if (!linked) throw new AdvanceError(404, 'Khoản chi không thuộc phiếu hoàn ứng này');
+
+    const [trip] = await tx.select({ status: s.trips.status }).from(s.trips)
+      .where(eq(s.trips.id, linked.tripId)).limit(1);
+    if (trip?.status === 'LOCKED' || trip?.status === 'CANCELED') {
+      throw new AdvanceError(409, 'Không thể sửa chi phí của chuyến đã khóa hoặc đã hủy');
+    }
+
+    const requiredFieldError = getTripExpenseRequiredFieldError({
+      expenseType: patch.expenseType ?? linked.expenseType,
+      declarationNumber: patch.declarationNumber === undefined
+        ? linked.declarationNumber
+        : patch.declarationNumber,
+    });
+    if (requiredFieldError) throw new AdvanceError(400, requiredFieldError);
+
+    const { adjustmentReason, ...expensePatch } = patch;
+    const values: Record<string, unknown> = { ...expensePatch, updatedAt: new Date() };
+    if (expensePatch.buyAmount !== undefined) values.buyAmount = String(expensePatch.buyAmount);
+    if (expensePatch.sellAmount !== undefined) values.sellAmount = String(expensePatch.sellAmount);
+    if (expensePatch.buyAmount !== undefined && expensePatch.sellAmount === undefined) {
+      const effectiveType = expensePatch.expenseType ?? linked.expenseType;
+      const [typeConfig] = await tx.select({ defaultMarkup: s.forwarderExpenseTypes.defaultMarkup })
+        .from(s.forwarderExpenseTypes).where(eq(s.forwarderExpenseTypes.code, effectiveType)).limit(1);
+      if (!typeConfig?.defaultMarkup) values.sellAmount = String(expensePatch.buyAmount);
+    }
+    if (expensePatch.tripContainerId !== undefined) {
+      if (expensePatch.tripContainerId == null) {
+        values.tripContainerId = null;
+        values.containerNumber = null;
+      } else {
+        const [container] = await tx.select({ tripId: s.tripContainers.tripId, number: s.tripContainers.containerNumber })
+          .from(s.tripContainers).where(eq(s.tripContainers.id, expensePatch.tripContainerId)).limit(1);
+        if (!container || container.tripId !== linked.tripId) {
+          throw new AdvanceError(400, 'Container không thuộc chuyến này');
+        }
+        values.containerNumber = container.number;
+      }
+    }
+    const [updatedExpense] = await tx.update(s.tripExpenses).set(values)
+      .where(eq(s.tripExpenses.id, expenseId)).returning();
+    const now = new Date();
+    await tx.update(s.settlementExpenses).set({
+      adjustmentReason,
+      adjustedBuyAmount: String(updatedExpense.buyAmount),
+      adjustedSnapshot: expenseSnapshot(updatedExpense),
+      adjustedBy: actorId,
+      adjustedAt: now,
+    }).where(eq(s.settlementExpenses.id, linked.linkId));
+    const totals = await tx.select({ buyAmount: s.tripExpenses.buyAmount })
+      .from(s.settlementExpenses)
+      .innerJoin(s.tripExpenses, eq(s.tripExpenses.id, s.settlementExpenses.tripExpenseId))
+      .where(eq(s.settlementExpenses.settlementId, settlementId));
+    const totalExpenseAmount = round2dp(totals.reduce((sum, row) => sum + Number(row.buyAmount), 0));
+    await tx.update(s.advanceSettlements).set({
+      totalExpenseAmount: String(totalExpenseAmount),
+      updatedAt: now,
+    }).where(eq(s.advanceSettlements.id, settlementId));
+    return {
+      item: updatedExpense,
+      totalExpenseAmount: String(totalExpenseAmount),
+      settlementCode: settlement.code,
+      forwarderId: settlement.forwarderId,
+      adjustmentReason,
+    };
+  });
+  emitNotification({
+    type: NotificationType.SYSTEM_ANNOUNCEMENT,
+    title: 'Kế toán đã điều chỉnh phiếu hoàn ứng',
+    message: `Phiếu ${result.settlementCode}: ${result.adjustmentReason}.`,
+    relatedEntityType: 'advance_settlements',
+    relatedEntityId: settlementId,
+    targetUserId: result.forwarderId,
+    targetRoles: [],
+  });
+  return { item: result.item, totalExpenseAmount: result.totalExpenseAmount };
+}
+
+export async function rejectAdvanceSettlement(id: number, rejectedBy: number) {
+  return db.transaction(async (tx) => {
+    const [settlement] = await tx.select()
+      .from(s.advanceSettlements)
+      .where(eq(s.advanceSettlements.id, id))
+      .for('update');
+    if (!settlement) throw new AdvanceError(404, 'Advance settlement not found');
+    if (settlement.status !== 'PENDING' && settlement.status !== 'CHECKED_BY_ACCOUNTANT') {
+      throw new AdvanceError(400, `Cannot reject settlement with status ${settlement.status}`);
+    }
+
+    const now = new Date();
+    const [updated] = await tx.update(s.advanceSettlements)
+      .set({ status: 'REJECTED', approvedBy: rejectedBy, approvedAt: now, updatedAt: now })
+      .where(and(
+        eq(s.advanceSettlements.id, id),
+        inArray(s.advanceSettlements.status, ['PENDING', 'CHECKED_BY_ACCOUNTANT']),
+      ))
+      .returning();
+    if (!updated) throw new AdvanceError(409, 'Request was modified by another operation');
+
+    const [enriched] = await enrichWithNames([updated]);
+    return enrichSettlementWithRequests(enriched);
+  });
+}
+
+// ── Outstanding advance balance (F1) ─────────────────────────────────────────
+//
+// Locked formula (Option 1, customer-confirmed):
+//   outstanding = Σ APPROVED advance_requests.amount
+//                 NOT linked to any APPROVED advance_settlement.
+// A request is "settled" only when its id appears in
+// advance_settlement_requests.advance_request_id AND the linked
+// advance_settlements.status = 'APPROVED'. PENDING / CHECKED_BY_ACCOUNTANT
+// settlements do NOT reduce the balance (conservative). LedgerService is
+// intentionally NOT used — forwarder ancillary-fee debits pollute it.
+
+// Subquery: advance_request_ids that are linked to an APPROVED settlement.
+// Reused by both balance functions so the "settled" definition stays in one place.
+const settledRequestIds = db.select({ advanceRequestId: s.advanceSettlementRequests.advanceRequestId })
+  .from(s.advanceSettlementRequests)
+  .innerJoin(
+    s.advanceSettlements,
+    eq(s.advanceSettlementRequests.settlementId, s.advanceSettlements.id),
+  )
+  .where(eq(s.advanceSettlements.status, 'APPROVED'));
+
+/**
+ * Sum of APPROVED advance_requests.amount not covered by any APPROVED settlement.
+ * Pass `forwarderUserId` to scope to one forwarder; omit for the cross-forwarder total.
+ */
+export async function getOutstandingAdvanceBalance(forwarderUserId?: number): Promise<number> {
+  const conditions = [
+    eq(s.advanceRequests.status, 'APPROVED'),
+    notInArray(s.advanceRequests.id, settledRequestIds),
+  ];
+  if (forwarderUserId) {
+    conditions.push(eq(s.advanceRequests.requesterId, forwarderUserId));
+  }
+
+  const [row] = await db.select({
+    total: sql<string>`coalesce(sum(${s.advanceRequests.amount}::numeric), 0)`,
+  }).from(s.advanceRequests)
+    .where(and(...conditions));
+
+  return round2dp(Number(row?.total ?? 0));
+}
+
+/**
+ * Per-forwarder breakdown of outstanding advance balances across ALL forwarders.
+ * Drops zero-outstanding rows. `totalOutstanding` is the sum of all items.
+ */
+export async function getOutstandingAdvanceBalances(): Promise<{
+  totalOutstanding: number;
+  items: Array<{ forwarderId: number; name: string | null; outstanding: number }>;
+}> {
+  const rows = await db.select({
+    forwarderId: s.advanceRequests.requesterId,
+    name: s.users.fullName,
+    outstanding: sql<string>`sum(${s.advanceRequests.amount}::numeric)`,
+  }).from(s.advanceRequests)
+    .innerJoin(s.users, eq(s.advanceRequests.requesterId, s.users.id))
+    .where(and(
+      eq(s.advanceRequests.status, 'APPROVED'),
+      notInArray(s.advanceRequests.id, settledRequestIds),
+    ))
+    .groupBy(s.advanceRequests.requesterId, s.users.fullName);
+
+  const items = rows
+    .map(r => ({ forwarderId: r.forwarderId, name: r.name, outstanding: round2dp(Number(r.outstanding)) }))
+    .filter(r => r.outstanding > 0);
+
+  const totalOutstanding = round2dp(items.reduce((sum, r) => sum + r.outstanding, 0));
+  return { totalOutstanding, items };
+}

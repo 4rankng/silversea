@@ -1,0 +1,53 @@
+/* ============================================================================
+ * FuelAllocCard — TingTing
+ * Extracted from UI.css during architecture refactoring (Phase 4)
+ * ========================================================================== */
+.fuel-alloc-card {
+  border: 2px solid var(--brand-soft);
+  padding: 0;
+  overflow: hidden;
+}
+.fuel-alloc-card__header {
+  padding: 12px 20px;
+  background: var(--brand-soft);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+.fuel-alloc-card__icon {
+  color: var(--brand);
+}
+.fuel-alloc-card__title-wrap {
+  display: flex;
+  flex-direction: column;
+}
+.fuel-alloc-card__label {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  color: var(--brand);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.fuel-alloc-card__value {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--brand);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.fuel-alloc-card__body {
+  padding: 12px 20px;
+  font-size: var(--fs-xs);
+  color: var(--fg-3);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+@media (max-width: 640px) {
+  .fuel-alloc-card { padding: 0 !important; }
+  .fuel-alloc-card__header { padding: 10px 14px; gap: 10px; }
+  .fuel-alloc-card__value { font-size: var(--fs-2xl); }
+  .fuel-alloc-card__body { padding: 10px 14px; gap: 4px; }
+}

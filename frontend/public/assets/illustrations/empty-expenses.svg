@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 200" fill="none">
+  <defs>
+    <linearGradient id="ex-receipt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#F9FAFB"/>
+    </linearGradient>
+    <linearGradient id="ex-tag" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+    <filter id="ex-shadow" x="-15%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#09090B" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+  <!-- Receipt back shadow -->
+  <rect x="78" y="34" width="90" height="132" rx="8" fill="#F3F4F6" transform="rotate(3 123 100)" filter="url(#ex-shadow)"/>
+  <!-- Receipt -->
+  <rect x="72" y="28" width="96" height="140" rx="8" fill="url(#ex-receipt)" filter="url(#ex-shadow)"/>
+  <!-- Torn bottom edge -->
+  <path d="M72 162 Q78 168 84 162 Q90 168 96 162 Q102 168 108 162 Q114 168 120 162 Q126 168 132 162 Q138 168 144 162 Q150 168 156 162 Q162 168 168 162 L168 168 L72 168 Z" fill="#F3F4F6"/>
+  <path d="M72 162 Q78 168 84 162 Q90 168 96 162 Q102 168 108 162 Q114 168 120 162 Q126 168 132 162 Q138 168 144 162 Q150 168 156 162 Q162 168 168 162" stroke="#E4E4E7" stroke-width="1"/>
+  <!-- Receipt header -->
+  <rect x="88" y="42" width="64" height="8" rx="4" fill="#F0FDF4"/>
+  <rect x="96" y="56" width="48" height="6" rx="3" fill="#E5E7EB"/>
+  <!-- Divider -->
+  <line x1="80" y1="70" x2="160" y2="70" stroke="#F3F4F6" stroke-width="1.5"/>
+  <!-- Empty line items (dashed = nothing entered) -->
+  <rect x="84" y="80" width="44" height="6" rx="3" fill="#F3F4F6"/>
+  <rect x="136" y="80" width="24" height="6" rx="3" fill="#F3F4F6"/>
+  <rect x="84" y="94" width="36" height="6" rx="3" fill="#F3F4F6"/>
+  <rect x="136" y="94" width="24" height="6" rx="3" fill="#F3F4F6"/>
+  <rect x="84" y="108" width="52" height="6" rx="3" fill="#F3F4F6"/>
+  <rect x="136" y="108" width="24" height="6" rx="3" fill="#F3F4F6"/>
+  <!-- Divider -->
+  <line x1="80" y1="122" x2="160" y2="122" stroke="#F0FDF4" stroke-width="1.5" stroke-dasharray="3 2"/>
+  <!-- Total row (zero) -->
+  <rect x="84" y="130" width="32" height="7" rx="3.5" fill="#E5E7EB"/>
+  <rect x="130" y="130" width="30" height="7" rx="3.5" fill="#D1FAE5"/>
+  <!-- Price tag floating -->
+  <g transform="translate(170 52)" filter="url(#ex-shadow)">
+    <path d="M0 12 L12 0 L32 0 L32 24 L12 24 Z" fill="url(#ex-tag)"/>
+    <circle cx="8" cy="8" r="3" fill="#FFFFFF" opacity="0.7"/>
+    <line x1="14" y1="12" x2="26" y2="12" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" opacity="0.85"/>
+    <line x1="14" y1="17" x2="22" y2="17" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+  </g>
+  <!-- Coin stack -->
+  <ellipse cx="54" cy="130" rx="14" ry="5" fill="#FEF3C7" stroke="#D97706" stroke-width="1.2"/>
+  <rect x="40" y="118" width="28" height="12" rx="0" fill="#FEF9C3" stroke="#D97706" stroke-width="1.2"/>
+  <ellipse cx="54" cy="118" rx="14" ry="5" fill="#FDE68A" stroke="#D97706" stroke-width="1.2"/>
+  <ellipse cx="54" cy="112" rx="14" ry="5" fill="#FEF9C3" stroke="#D97706" stroke-width="1.2"/>
+  <!-- Question mark on coin -->
+  <text x="54" y="116" text-anchor="middle" font-family="Inter, sans-serif" font-size="8" font-weight="700" fill="#D97706" opacity="0.7">₫</text>
+</svg>

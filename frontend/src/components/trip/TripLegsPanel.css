@@ -1,0 +1,146 @@
+/* ============================================================================
+ * TripLegsPanel — Route timeline visualization
+ * Vertical timeline with stop markers, leg distance & loading type
+ * ========================================================================== */
+
+.trip-legs__title {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.trip-legs__count {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.trip-legs__empty {
+  padding: 24px 20px;
+  color: var(--ink-3);
+  font-size: var(--fs-sm);
+  text-align: center;
+}
+
+.trip-legs__body {
+  padding: 6px 20px 20px;
+}
+
+/* --- Timeline stop row --- */
+.trip-legs__stop {
+  display: flex;
+  gap: 14px;
+  min-height: 0;
+}
+
+/* --- Timeline track (dot + line) --- */
+.trip-legs__track {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 18px;
+  flex-shrink: 0;
+}
+
+.trip-legs__dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.trip-legs__dot--origin {
+  background: var(--accent);
+  border: 3px solid var(--accent-soft);
+}
+
+.trip-legs__dot--dest {
+  background: var(--accent);
+  border: 3px solid var(--accent-soft);
+}
+
+.trip-legs__dot--mid {
+  width: 10px;
+  height: 10px;
+  margin: 2px;
+  background: var(--surface);
+  border: 2.5px solid var(--line-2);
+  box-shadow: none;
+}
+
+.trip-legs__line {
+  width: 2.5px;
+  flex: 1;
+  min-height: 28px;
+  background: var(--line-2);
+  border-radius: 2px;
+  margin: 2px 0;
+}
+
+/* --- Stop content --- */
+.trip-legs__content {
+  flex: 1;
+  min-width: 0;
+  padding-bottom: 16px;
+}
+
+.trip-legs__stop:last-child .trip-legs__content {
+  padding-bottom: 4px;
+}
+
+.trip-legs__stop-name {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.4;
+  padding-top: 0;
+  word-break: break-word;
+}
+
+/* --- Leg segment info --- */
+.trip-legs__leg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: var(--surface-2);
+  border-radius: 10px;
+  border: 1px solid var(--line);
+}
+
+.trip-legs__km {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+.trip-legs__badge {
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.trip-legs__badge--loaded {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+.trip-legs__badge--empty {
+  background: var(--surface-3);
+  color: var(--ink-3);
+}

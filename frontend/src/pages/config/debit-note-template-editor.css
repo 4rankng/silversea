@@ -1,0 +1,2042 @@
+.debit-editor-page {
+  min-height: calc(100vh - 64px);
+  margin: -24px;
+  background: #f7faf8;
+}
+
+.debit-editor-topbar {
+  min-height: 78px;
+  padding: 14px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+}
+
+.debit-editor-title {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.debit-editor-page .billing-builder__close {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.debit-editor-page .billing-builder__close:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.debit-editor-page .billing-builder__icon {
+  width: 50px;
+  height: 50px;
+  border: 1px solid rgba(0, 105, 56, 0.18);
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(0, 63, 34, 0.08);
+}
+
+.debit-editor-page .billing-builder__eyebrow {
+  margin: 0 0 3px;
+  font-size: var(--fs-xs);
+  line-height: 1.4;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: var(--ink-3);
+}
+
+.debit-editor-page .billing-builder__meta {
+  min-width: 0;
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--ink-3);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.debit-editor-page .billing-builder__meta span + span::before {
+  content: '';
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin: 0 8px 2px 0;
+  border-radius: 999px;
+  background: var(--line-strong, #cfd8d3);
+}
+
+.debit-editor-title h1,
+.debit-editor-template-name {
+  width: min(520px, 56vw);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 22px;
+  line-height: 1.25;
+  letter-spacing: 0;
+  font-weight: 850;
+}
+
+.debit-editor-template-name {
+  display: block;
+  min-width: 220px;
+  min-height: 44px;
+  outline: none;
+}
+
+.debit-editor-template-name:hover:not(:disabled),
+.debit-editor-template-name:focus {
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--accent) 42%, var(--line));
+}
+
+.debit-editor-template-name::placeholder {
+  color: var(--ink-3);
+}
+
+.debit-editor-topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.debit-editor-loading {
+  min-height: 420px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  color: var(--ink-3);
+  font-weight: 700;
+}
+
+.debit-editor-workspace {
+  min-height: calc(100vh - 142px);
+  padding: 14px 28px 24px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.debit-editor-main {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.debit-editor-settings {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.2fr) minmax(180px, 1.4fr) minmax(130px, 0.7fr) minmax(150px, 0.8fr) auto;
+  gap: 8px;
+  align-items: end;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: var(--sh-sm);
+}
+
+.debit-editor-settings--issuer {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    "issuer-name issuer-name"
+    "issuer-tax issuer-rep"
+    "issuer-address issuer-address"
+    "issuer-position issuer-account"
+    "issuer-bank issuer-bank";
+  align-items: stretch;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.debit-editor-settings--issuer .debit-editor-field {
+  min-height: 82px;
+  align-content: space-between;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: var(--sh-sm);
+}
+
+.debit-editor-settings--issuer .debit-editor-field:nth-child(1) {
+  grid-area: issuer-name;
+}
+
+.debit-editor-settings--issuer .debit-editor-field:nth-child(2) {
+  grid-area: issuer-tax;
+}
+
+.debit-editor-settings--issuer .debit-editor-field:nth-child(3) {
+  grid-area: issuer-address;
+}
+
+.debit-editor-settings--issuer .debit-editor-field:nth-child(4) {
+  grid-area: issuer-rep;
+}
+
+.debit-editor-settings--issuer .debit-editor-field:nth-child(5) {
+  grid-area: issuer-position;
+}
+
+.debit-editor-settings--issuer .debit-editor-field:nth-child(6) {
+  grid-area: issuer-account;
+}
+
+.debit-editor-settings--issuer .debit-editor-field:nth-child(7) {
+  grid-area: issuer-bank;
+}
+
+.debit-editor-settings--footer {
+  grid-template-columns: minmax(160px, 0.7fr) minmax(180px, 0.8fr) minmax(180px, 0.8fr) minmax(320px, 1.4fr);
+}
+
+.debit-editor-field {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.debit-editor-field > span {
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.debit-editor-color {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.debit-editor-color input[type='color'] {
+  width: 34px;
+  height: 34px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.debit-editor-check {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 700;
+  background: #fff;
+  white-space: nowrap;
+}
+
+.debit-editor-check input[type='checkbox'] {
+  width: 36px;
+  height: 36px;
+  accent-color: var(--accent);
+}
+
+.debit-editor-table-wrap {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: var(--sh-sm);
+  overflow: hidden;
+}
+
+.debit-editor-table-toolbar {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+}
+
+.debit-editor-table-toolbar > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.debit-editor-table-toolbar strong {
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.debit-editor-table-toolbar span {
+  color: var(--ink-3);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.debit-editor-column-designer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px;
+  align-items: start;
+}
+
+.debit-editor-column-preview {
+  min-width: 0;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.debit-editor-column-preview__table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.debit-editor-column-preview__table th,
+.debit-editor-column-preview__table td {
+  border: 1px solid #dbe3de;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.debit-editor-column-preview__table th {
+  min-width: 84px;
+  padding: 0;
+  background: var(--accent, #245982);
+}
+
+.debit-editor-column-preview__table th.is-hidden,
+.debit-editor-column-preview__table td.is-hidden {
+  opacity: 0.42;
+}
+
+.debit-editor-column-preview__table th.is-selected {
+  outline: 3px solid rgba(245, 158, 11, 0.9);
+  outline-offset: -3px;
+}
+
+.debit-editor-column-preview__table th button {
+  width: 100%;
+  min-height: 68px;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  padding: 8px;
+  border: 0;
+  color: #fff;
+  background: transparent;
+  cursor: pointer;
+}
+
+.debit-editor-column-preview__table th button:disabled {
+  cursor: default;
+}
+
+.debit-editor-column-preview__table th button:hover:not(:disabled),
+.debit-editor-column-preview__table th button:focus-visible {
+  background: rgba(255, 255, 255, 0.14);
+  outline: none;
+}
+
+.debit-editor-column-preview__table th span {
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.2;
+  font-weight: 850;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.debit-editor-column-preview__table td {
+  height: 42px;
+  padding: 7px 8px;
+  color: #111827;
+  background: #fff;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.debit-editor-column-preview__table tbody tr:nth-child(even) td {
+  background: #f7faf8;
+}
+
+.debit-editor-column-preview__table td.is-total {
+  color: #111827;
+  background: #e5e7eb !important;
+  border-top: 2px double #111827;
+  font-weight: 850;
+}
+
+.debit-editor-column-inspector {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(260px, 0.34fr) minmax(0, 1fr) minmax(260px, 0.32fr);
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8faf9;
+}
+
+.debit-editor-column-stack {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.debit-editor-column-inspector__header {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.debit-editor-column-inspector__header span {
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.debit-editor-column-inspector__header strong {
+  min-width: 0;
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.debit-editor-variable-grid {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(130px, 1fr));
+  gap: 6px;
+}
+
+.debit-editor-variable-grid button {
+  min-width: 0;
+  min-height: 48px;
+  display: grid;
+  gap: 2px;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.debit-editor-variable-grid button:hover:not(:disabled),
+.debit-editor-variable-grid button:focus-visible,
+.debit-editor-variable-grid button.is-active {
+  border-color: rgba(0, 105, 56, 0.36);
+  background: #f0fdf4;
+  outline: none;
+}
+
+.debit-editor-variable-grid button span {
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.debit-editor-variable-grid button small {
+  min-width: 0;
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.debit-editor-column-options {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  align-content: start;
+}
+
+.debit-editor-table {
+  width: 100%;
+  min-width: 560px;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.debit-editor-table__col-order { width: 46px; }
+.debit-editor-table__col-label { width: 180px; }
+.debit-editor-table__col-variable { width: auto; }
+.debit-editor-table__col-total { width: 54px; }
+.debit-editor-table__col-show { width: 54px; }
+
+.debit-editor-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 7px 8px;
+  background: #f4f7f5;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+  font-weight: 850;
+}
+
+.debit-editor-table td {
+  padding: 5px 8px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+  background: #fff;
+}
+
+.debit-editor-table tbody tr:nth-child(even) td {
+  background: #f6fbf8;
+}
+
+.debit-editor-table tr.is-hidden {
+  opacity: 0.52;
+}
+
+.debit-editor-table tr.is-hidden .debit-editor-label-textarea {
+  text-decoration: line-through;
+}
+
+.debit-editor-label-textarea {
+  min-height: 34px;
+  height: 34px;
+  resize: vertical;
+  line-height: 1.24;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.debit-editor-table select.input,
+.debit-editor-table input.input {
+  height: 34px;
+  min-height: 34px;
+}
+
+.debit-editor-inline-textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  box-shadow: none;
+  color: #111827;
+  line-height: 1.22;
+}
+
+.debit-editor-inline-textarea:focus,
+.debit-editor-inline-input:focus,
+.debit-editor-inline-select:focus,
+.debit-editor-inline-number:focus {
+  outline: 2px solid rgba(36, 89, 130, 0.24);
+  outline-offset: 2px;
+}
+
+.debit-editor-table .debit-editor-inline-input,
+.debit-editor-table .debit-editor-inline-select,
+.debit-editor-table .debit-editor-inline-number {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  min-height: 34px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #111827;
+  font-size: 12px;
+  font-weight: 550;
+}
+
+.debit-editor-table .debit-editor-inline-number {
+  text-align: right;
+}
+
+.debit-editor-table .debit-editor-inline-input {
+  font-weight: 650;
+}
+
+.debit-editor-settings .debit-editor-inline-textarea,
+.debit-editor-settings .debit-editor-inline-input,
+.debit-editor-settings .debit-editor-inline-select {
+  height: 30px;
+  min-height: 30px;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  box-shadow: none;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.debit-editor-settings .debit-editor-inline-select {
+  padding-right: 20px;
+}
+
+.debit-editor-settings textarea.debit-editor-inline-textarea {
+  height: auto;
+  min-height: 58px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.debit-editor-settings-textarea {
+  white-space: nowrap;
+}
+
+.debit-editor-table td:nth-child(1),
+.debit-editor-table td:nth-child(4) {
+  text-align: center;
+}
+
+.debit-editor-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.debit-editor-row-actions .btn {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+}
+
+.debit-editor-row-actions .btn:hover:not(:disabled) {
+  background: var(--surface-3);
+  color: var(--ink);
+}
+
+.debit-editor-delete {
+  color: var(--danger);
+}
+
+.debit-editor-preview {
+  position: static;
+  min-width: 0;
+  order: -1;
+}
+
+.debit-editor-preview__sheet {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: var(--sh-sm);
+  overflow: hidden;
+  max-width: 100%;
+}
+
+.debit-editor-preview__issuer {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.debit-editor-preview__issuer div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+}
+
+.debit-editor-preview__issuer strong {
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.debit-editor-preview__issuer span {
+  color: var(--ink-3);
+  overflow-wrap: anywhere;
+}
+
+.debit-editor-preview__issuer img {
+  max-width: 96px;
+  max-height: 40px;
+  object-fit: contain;
+}
+
+.debit-editor-preview__title {
+  padding: 14px 12px 2px;
+  color: #111827;
+  text-align: center;
+  font-size: 18px;
+  line-height: 1.2;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.debit-editor-preview__subtitle {
+  padding: 0 12px 12px;
+  color: var(--ink-3);
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.debit-editor-preview__table-wrap {
+  overflow: auto;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  max-height: 360px;
+}
+
+.debit-editor-preview__table {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: collapse;
+}
+
+.debit-editor-preview__table th {
+  padding: 7px 8px;
+  color: #fff;
+  border: 1px solid #dbe3de;
+  font-size: var(--fs-xs);
+  line-height: 1.18;
+  font-weight: 850;
+  white-space: pre-line;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.debit-editor-preview__table td {
+  padding: 7px 8px;
+  border: 1px solid #e5e7eb;
+  color: #111827;
+  font-size: 12px;
+  white-space: nowrap;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.debit-editor-preview__table tbody tr:nth-child(even) td {
+  background: #f7faf8;
+}
+
+.debit-editor-preview__total {
+  text-align: center;
+  font-weight: 850;
+  background: #e5e7eb !important;
+  border-top: 2px double #111827 !important;
+}
+
+.debit-editor-preview__signatures {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  min-height: 74px;
+  padding: 12px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+@media (min-width: 1500px) {
+  .debit-editor-workspace {
+    padding-left: 36px;
+    padding-right: 36px;
+  }
+
+  .debit-editor-preview__table-wrap {
+    max-height: 430px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .debit-editor-column-inspector {
+    grid-template-columns: minmax(240px, 0.4fr) minmax(0, 1fr);
+  }
+
+  .debit-editor-column-options {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .debit-editor-variable-grid {
+    grid-template-columns: repeat(3, minmax(120px, 1fr));
+  }
+}
+
+@media (max-width: 860px) {
+  .debit-editor-page {
+    margin: -16px;
+  }
+
+  .debit-editor-topbar {
+    padding: 12px 16px;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .debit-editor-workspace {
+    padding: 12px 16px 18px;
+    gap: 10px;
+  }
+
+  .debit-editor-settings,
+  .debit-editor-settings--issuer,
+  .debit-editor-settings--footer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .debit-editor-settings--issuer {
+    grid-template-areas:
+      "issuer-name"
+      "issuer-tax"
+      "issuer-address"
+      "issuer-rep"
+      "issuer-position"
+      "issuer-account"
+      "issuer-bank";
+  }
+
+  .debit-editor-column-inspector,
+  .debit-editor-column-options,
+  .debit-editor-variable-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .debit-editor-column-options {
+    grid-column: auto;
+  }
+
+  .debit-editor-table-wrap {
+    overflow: auto;
+  }
+
+  .debit-editor-table {
+    min-width: 520px;
+  }
+
+  .debit-editor-table__col-order {
+    width: 42px;
+  }
+
+  .debit-editor-table__col-label {
+    width: 150px;
+  }
+
+  .debit-editor-table__col-total,
+  .debit-editor-table__col-show {
+    width: 48px;
+  }
+
+  .debit-editor-preview__table {
+    min-width: 760px;
+  }
+
+  .debit-editor-preview__table-wrap {
+    max-height: 300px;
+  }
+}
+
+/* Document-template editor layout: nav + live preview + focused inspector. */
+.debit-editor-page {
+  background: var(--bg);
+}
+
+.debit-editor-topbar {
+  position: static;
+  z-index: auto;
+  background: #fff;
+  backdrop-filter: none;
+}
+
+.debit-editor-workspace {
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+  grid-template-areas:
+    "nav inspector"
+    "preview preview";
+  gap: 18px;
+  max-width: 1680px;
+  margin: 0 auto;
+  align-items: start;
+}
+
+.debit-editor-side-nav {
+  grid-area: nav;
+  position: static;
+  display: grid;
+  gap: 10px;
+}
+
+.debit-editor-side-nav button {
+  position: relative;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 2px 10px;
+  min-height: 58px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ink-2);
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.debit-editor-side-nav button::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: var(--status-strip-width);
+  height: var(--status-strip-height);
+  border-radius: var(--status-strip-radius);
+  background: transparent;
+  transform: translateY(-50%);
+}
+
+.debit-editor-side-nav button:hover,
+.debit-editor-side-nav button:focus-visible {
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
+  color: var(--ink);
+  outline: none;
+}
+
+.debit-editor-side-nav button.is-active {
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--line));
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+}
+
+.debit-editor-side-nav button.is-active::before {
+  background: var(--accent);
+}
+
+.debit-editor-side-nav svg {
+  grid-row: span 2;
+  align-self: center;
+  color: currentColor;
+  stroke-width: 1.8;
+  width: 20px;
+  height: 20px;
+}
+
+.debit-editor-side-nav span {
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.debit-editor-side-nav small {
+  min-width: 0;
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.debit-editor-preview-pane,
+.debit-editor-inspector {
+  min-width: 0;
+}
+
+.debit-editor-preview {
+  position: static;
+  order: initial;
+  width: 100%;
+  min-width: 0;
+}
+
+.debit-editor-preview__sheet {
+  width: 100%;
+  min-width: 0;
+  border-radius: 10px;
+  box-shadow: var(--sh);
+}
+
+.debit-editor-inspector {
+  grid-area: inspector;
+  position: static;
+  display: grid;
+  gap: 0;
+  width: 100%;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: none;
+  backdrop-filter: blur(12px) saturate(140%);
+}
+
+.debit-editor-inspector .debit-editor-settings,
+.debit-editor-inspector .debit-editor-settings--issuer,
+.debit-editor-inspector .debit-editor-settings--footer {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-areas: none;
+  gap: 16px 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.debit-editor-inspector .debit-editor-settings--issuer {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    "issuer-name issuer-name"
+    "issuer-tax issuer-rep"
+    "issuer-address issuer-address"
+    "issuer-position issuer-account"
+    "issuer-bank issuer-bank";
+}
+
+.debit-editor-inspector .debit-editor-settings--issuer .debit-editor-field {
+  min-height: 82px;
+}
+
+@media (max-width: 620px) {
+  .debit-editor-inspector .debit-editor-settings--issuer {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "issuer-name"
+      "issuer-tax"
+      "issuer-address"
+      "issuer-rep"
+      "issuer-position"
+      "issuer-account"
+      "issuer-bank";
+  }
+}
+
+.debit-editor-inspector .debit-editor-settings--footer {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    "group group"
+    "left-label left-name"
+    "right-label right-name"
+    "terms terms";
+}
+
+.debit-editor-inspector .debit-editor-settings--footer .debit-editor-field:nth-child(1) {
+  grid-area: group;
+}
+
+.debit-editor-inspector .debit-editor-settings--footer .debit-editor-field:nth-child(2) {
+  grid-area: left-label;
+}
+
+.debit-editor-inspector .debit-editor-settings--footer .debit-editor-field:nth-child(3) {
+  grid-area: left-name;
+}
+
+.debit-editor-inspector .debit-editor-settings--footer .debit-editor-field:nth-child(4) {
+  grid-area: right-label;
+}
+
+.debit-editor-inspector .debit-editor-settings--footer .debit-editor-field:nth-child(5) {
+  grid-area: right-name;
+}
+
+.debit-editor-inspector .debit-editor-settings--footer .debit-editor-field:nth-child(6) {
+  grid-area: terms;
+}
+
+.debit-editor-inspector .debit-editor-field {
+  gap: 7px;
+}
+
+.debit-editor-inspector .debit-editor-field > span {
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.debit-editor-inspector .debit-editor-settings .debit-editor-inline-textarea,
+.debit-editor-inspector .debit-editor-settings .debit-editor-inline-input,
+.debit-editor-inspector .debit-editor-settings .debit-editor-inline-select {
+  height: 40px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: none;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.debit-editor-inspector .debit-editor-settings .debit-editor-inline-select {
+  padding-right: 34px;
+}
+
+.debit-editor-inspector .debit-editor-color {
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.debit-editor-inspector .debit-editor-color input[type='color'] {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+}
+
+.debit-editor-inspector .debit-editor-check {
+  width: fit-content;
+  min-height: 40px;
+  align-self: end;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.debit-editor-inspector .debit-editor-table-wrap {
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.debit-editor-inspector .debit-editor-column-designer {
+  grid-template-columns: minmax(0, 1fr);
+  padding: 10px;
+}
+
+.debit-editor-inspector .debit-editor-column-inspector {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.debit-editor-inspector .debit-editor-variable-grid {
+  max-height: 260px;
+  overflow: auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.debit-editor-column-inspector__header {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.debit-editor-column-inspector__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.debit-editor-column-cards {
+  display: none;
+}
+
+.debit-editor-column-preview__table th small {
+  min-width: 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.debit-editor-column-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.debit-editor-column-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 20px;
+  border-radius: 0 2px 2px 0;
+  background: transparent;
+  transform: translateY(-50%);
+}
+
+.debit-editor-column-card.is-selected {
+  border-color: color-mix(in srgb, var(--accent) 36%, var(--line));
+}
+
+.debit-editor-column-card.is-selected::before {
+  background: var(--accent);
+}
+
+.debit-editor-column-card.is-hidden {
+  opacity: 0.62;
+}
+
+.debit-editor-column-card > button {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.debit-editor-column-card > button span {
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.debit-editor-column-card > button small {
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.debit-editor-column-card > div:nth-child(2) {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.debit-editor-column-card > div:nth-child(2) span {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+  font-weight: 800;
+}
+
+.debit-editor-column-card__actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 4px;
+}
+
+@media (max-width: 1200px) {
+  .debit-editor-workspace {
+    grid-template-columns: minmax(176px, 240px) minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .debit-editor-side-nav button {
+    grid-template-columns: 22px minmax(0, 1fr);
+    min-height: 68px;
+    padding: 12px;
+  }
+
+  .debit-editor-side-nav small {
+    display: none;
+  }
+}
+
+@media (max-width: 1023px) {
+  .debit-editor-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "nav"
+      "inspector"
+      "preview";
+    padding: 12px 16px 18px;
+  }
+
+  .debit-editor-side-nav,
+  .debit-editor-preview,
+  .debit-editor-inspector {
+    position: static;
+  }
+
+  .debit-editor-side-nav {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .debit-editor-side-nav button {
+    min-width: 128px;
+  }
+
+  .debit-editor-inspector {
+    padding: 12px;
+  }
+
+  .debit-editor-inspector .debit-editor-settings--footer {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "group"
+      "left-label"
+      "left-name"
+      "right-label"
+      "right-name"
+      "terms";
+  }
+}
+
+@media (max-width: 640px) {
+  .debit-editor-topbar {
+    gap: 12px;
+  }
+
+  .debit-editor-title {
+    align-items: flex-start;
+  }
+
+  .debit-editor-page .billing-builder__icon {
+    display: none;
+  }
+
+  .debit-editor-topbar__actions {
+    width: 100%;
+  }
+
+  .debit-editor-topbar__actions .btn {
+    flex: 1;
+  }
+
+  .debit-editor-preview__sheet,
+  .debit-editor-inspector {
+    border-radius: 8px;
+  }
+
+  .debit-editor-column-preview {
+    display: none;
+  }
+
+  .debit-editor-column-cards {
+    display: grid;
+    gap: 8px;
+  }
+
+  .debit-editor-column-inspector__header {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+}
+
+/* Direct-edit canvas mode. */
+.debit-editor-history-actions {
+  display: inline-flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.debit-editor-history-actions .btn {
+  border-radius: 0;
+  border: 0;
+}
+
+.debit-editor-history-actions .btn + .btn {
+  border-left: 1px solid var(--line);
+}
+
+.debit-editor-preview-pane {
+  grid-area: preview;
+  position: relative;
+  display: grid;
+  gap: 14px;
+  justify-items: stretch;
+}
+
+.debit-editor-canvas-frame {
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--sh);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.debit-editor-canvas-dragbar {
+  height: 30px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 0 6px 10px;
+  color: var(--ink-3);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.debit-editor-canvas-dragbar span:nth-child(2) {
+  text-align: center;
+}
+
+.debit-editor-page-boundary {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  min-height: 620px;
+  padding: 22px 28px 72px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: #fff;
+  color: #000;
+  font-family: "Times New Roman", Times, serif;
+}
+
+.debit-editor-canvas-input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  min-height: 45px;
+  height: auto;
+  padding-block: 4px;
+  line-height: 1.35;
+  text-align: inherit;
+}
+
+.debit-editor-canvas-input:hover:not(:disabled) {
+  border-color: var(--line);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.debit-editor-canvas-input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+  background: var(--surface);
+}
+
+.debit-editor-page-boundary .debit-editor-canvas-input:disabled,
+.debit-editor-page-boundary .debit-editor-canvas-th-input:disabled {
+  opacity: 1;
+  -webkit-text-fill-color: currentColor;
+  cursor: default;
+}
+
+.debit-editor-canvas-input.is-selected,
+.debit-editor-preview__issuer.is-selected,
+.debit-editor-preview__signatures label.is-selected {
+  border-color: color-mix(in srgb, var(--accent) 52%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.debit-editor-canvas-input--issuer {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  min-height: 45px;
+}
+
+.debit-editor-preview__title.debit-editor-canvas-input {
+  display: block;
+  height: auto;
+  margin: 0 auto;
+  min-height: 45px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  resize: none;
+  overflow: hidden;
+  white-space: normal;
+  color: #000;
+  text-align: center;
+  font-family: "Times New Roman", Times, serif;
+  font-size: 16px;
+  line-height: 1.2;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.debit-editor-preview__export-header {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.debit-editor-preview__export-header > div {
+  color: #000;
+  font-size: 12px;
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+.debit-editor-preview__intro {
+  display: grid;
+  gap: 0;
+  margin-bottom: 7px;
+  padding: 2px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: #000;
+  font-size: var(--fs-xs);
+  line-height: 1.28;
+}
+
+.debit-editor-preview__intro.is-selected {
+  border-color: color-mix(in srgb, var(--accent) 52%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.debit-editor-preview__intro p {
+  min-height: 32px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.debit-editor-preview__intro strong {
+  font-weight: 700;
+}
+
+.debit-editor-preview__inline-field {
+  min-width: 180px;
+  flex: 1;
+}
+
+.debit-editor-preview__intro .debit-editor-canvas-input {
+  min-height: 45px;
+  padding: 5px 4px;
+  border-radius: 3px;
+  font-family: "Times New Roman", Times, serif;
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+  font-weight: 400;
+}
+
+.debit-editor-preview__table-wrap {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  max-height: none;
+  overflow: auto;
+}
+
+.debit-editor-preview__table {
+  width: max-content;
+  min-width: 100%;
+  table-layout: fixed;
+}
+
+.debit-editor-preview__table th {
+  position: relative;
+  padding: 0;
+  box-sizing: border-box;
+  min-width: 96px;
+  border: 1px solid #000;
+  background: #fff;
+}
+
+.debit-editor-preview__table th.is-selected {
+  z-index: 2;
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.debit-editor-preview__table th.is-selected::before,
+.debit-editor-preview__table th.is-selected::after {
+  content: '';
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--accent);
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+.debit-editor-preview__table th.is-selected::before {
+  left: -5px;
+  top: -5px;
+}
+
+.debit-editor-preview__table th.is-selected::after {
+  right: -5px;
+  bottom: -5px;
+}
+
+.debit-editor-preview__table th button {
+  width: 100%;
+  min-height: 45px;
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  padding: 8px 6px;
+  border: 0;
+  background: transparent;
+  color: #000;
+  cursor: pointer;
+}
+
+.debit-editor-preview__table th button span {
+  font-family: "Times New Roman", Times, serif;
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+  font-weight: 700;
+  white-space: pre-line;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.debit-editor-preview__table th button small {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+}
+
+.debit-editor-canvas-th-input {
+  width: 100%;
+  min-height: 45px;
+  padding: 7px 6px;
+  border: 0;
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  color: #000;
+  text-align: center;
+  font-family: "Times New Roman", Times, serif;
+  font-size: var(--fs-xs);
+  line-height: 1.3;
+  font-weight: 700;
+  outline: none;
+}
+
+.debit-editor-preview__table td {
+  height: 27px;
+  padding: 5px 6px;
+  border: 1px solid #000;
+  color: #000;
+  background: #fff;
+  font-family: "Times New Roman", Times, serif;
+  font-size: var(--fs-xs);
+  line-height: 1.3;
+}
+
+.debit-editor-preview__table tbody tr:nth-child(even) td {
+  background: #fff;
+}
+
+.debit-editor-preview__total {
+  background: #fff !important;
+  border-top: 1px solid #000 !important;
+  font-weight: 700;
+}
+
+.debit-editor-preview__signatures {
+  min-height: 78px;
+  padding-top: 18px;
+  border: 0;
+}
+
+.debit-editor-preview__signatures label {
+  min-width: 0;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+
+.debit-editor-canvas-input--signature {
+  max-width: 220px;
+  font-family: "Times New Roman", Times, serif;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  min-height: 45px;
+}
+
+.debit-editor-canvas-input--signature-name {
+  max-width: 220px;
+  margin-top: 18px;
+  font-family: "Times New Roman", Times, serif;
+  font-size: var(--fs-xs);
+  min-height: 45px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.debit-editor-preview__signatures label span {
+  color: var(--ink-3);
+  font-size: 12px;
+  font-style: italic;
+  font-weight: 650;
+}
+
+.debit-editor-preview__signatures label strong {
+  margin-top: 14px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.debit-editor-selected-panel {
+  display: grid;
+  gap: 0;
+}
+
+.debit-editor-selected-group > strong {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.debit-editor-column-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(178px, 1fr));
+  gap: 8px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.debit-editor-column-picker__card {
+  min-width: 0;
+  min-height: 54px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  align-items: stretch;
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  overflow: hidden;
+}
+
+.debit-editor-column-picker__select,
+.debit-editor-column-picker__visibility {
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.debit-editor-column-picker__select {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  padding: 9px 11px;
+  text-align: left;
+}
+
+.debit-editor-column-picker__visibility {
+  display: grid;
+  place-items: center;
+  border-left: 1px solid var(--line);
+  color: var(--ink-3);
+}
+
+.debit-editor-column-picker__card:hover,
+.debit-editor-column-picker__card:focus-within {
+  border-color: rgba(16, 185, 129, 0.45);
+  outline: 0;
+}
+
+.debit-editor-column-picker__card.is-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.debit-editor-column-picker__card.is-hidden {
+  border-style: dashed;
+  background: color-mix(in srgb, var(--surface) 74%, var(--surface-2));
+  color: var(--ink-3);
+}
+
+.debit-editor-column-picker__select:disabled,
+.debit-editor-column-picker__visibility:disabled {
+  cursor: not-allowed;
+}
+
+.debit-editor-column-picker span,
+.debit-editor-column-picker small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.debit-editor-column-picker span {
+  font-size: var(--fs-xs);
+  font-weight: 850;
+  line-height: 1.3;
+}
+
+.debit-editor-column-picker small {
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.debit-editor-column-picker__card.is-active small,
+.debit-editor-column-picker__card.is-active .debit-editor-column-picker__visibility {
+  color: var(--accent-ink);
+}
+
+.debit-editor-column-picker__card.is-hidden .debit-editor-column-picker__visibility {
+  color: var(--ink-2);
+}
+
+.debit-editor-selected-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px 18px;
+  padding: 16px 0;
+  border-top: 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.debit-editor-selected-group > strong {
+  grid-column: 1 / -1;
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.debit-editor-selected-group .debit-editor-field {
+  gap: 6px;
+}
+
+.debit-editor-selected-group .debit-editor-field > span {
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.debit-editor-selected-group .input {
+  min-height: 44px;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.debit-editor-align-control {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.debit-editor-align-control button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.debit-editor-align-control button.is-active {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+.debit-editor-switch-list {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px 18px;
+}
+
+.debit-editor-switch-list label {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 2px;
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.debit-editor-switch-list input {
+  width: 44px;
+  height: 44px;
+  accent-color: var(--accent);
+}
+
+@media (max-width: 1023px) {
+  .debit-editor-page {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  .debit-editor-topbar {
+    min-width: 0;
+  }
+
+  .debit-editor-title {
+    width: 100%;
+  }
+
+  .debit-editor-template-name {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .debit-editor-page .billing-builder__meta {
+    gap: 6px;
+  }
+
+  .debit-editor-canvas-frame {
+    width: 100%;
+  }
+
+  .debit-editor-preview__sheet {
+    width: max-content;
+    min-width: 920px;
+    max-width: none;
+  }
+
+  .debit-editor-page-boundary {
+    width: 920px;
+    min-width: 920px;
+    min-height: 620px;
+    padding: 20px 18px 150px;
+  }
+
+  .debit-editor-preview__table {
+    min-width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .debit-editor-page {
+    margin: -12px;
+  }
+
+  .debit-editor-topbar {
+    padding: 10px 12px;
+  }
+
+  .debit-editor-workspace {
+    padding: 10px 12px 16px;
+  }
+
+  .debit-editor-page .billing-builder__close {
+    width: 44px;
+    height: 44px;
+    flex: 0 0 auto;
+  }
+
+  .debit-editor-page .billing-builder__eyebrow {
+    font-size: var(--fs-xs);
+    line-height: 1.4;
+  }
+
+  .debit-editor-template-name {
+    font-size: 20px;
+    line-height: 1.25;
+    min-height: 44px;
+  }
+
+  .debit-editor-history-actions {
+    flex: 0 0 auto;
+  }
+
+  .debit-editor-topbar__actions .btn--primary {
+    flex: 1 1 180px;
+  }
+
+  .debit-editor-side-nav button {
+    min-width: 118px;
+    min-height: 54px;
+    padding: 10px 12px;
+  }
+
+  .debit-editor-canvas-frame {
+    padding: 8px;
+  }
+
+  .debit-editor-preview__sheet {
+    min-width: 880px;
+  }
+
+  .debit-editor-page-boundary {
+    width: 880px;
+    min-width: 880px;
+    padding: 16px 14px 110px;
+  }
+
+  .debit-editor-preview__title.debit-editor-canvas-input {
+    font-size: 18px;
+    line-height: 1.35;
+    min-height: 45px;
+  }
+
+}

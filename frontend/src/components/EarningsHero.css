@@ -1,0 +1,86 @@
+/* ============================================================================
+ * EarningsHero — TingTing
+ * Extracted from UI.css during architecture refactoring (Phase 4)
+ * ========================================================================== */
+.earnings-hero {
+  margin-bottom: 16px;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.earnings-hero--positive {
+  border: 1px solid var(--success);
+  box-shadow: 0 8px 24px -8px rgba(0, 177, 79, 0.25);
+}
+.earnings-hero--negative {
+  border: 1px solid var(--danger);
+  box-shadow: 0 8px 24px -8px rgba(227, 36, 52, 0.25);
+}
+.earnings-hero__inner {
+  padding: 24px;
+}
+.earnings-hero--positive .earnings-hero__inner {
+  background: linear-gradient(135deg, var(--success-soft) 0%, var(--bg-2) 100%);
+}
+.earnings-hero--negative .earnings-hero__inner {
+  background: linear-gradient(135deg, var(--danger-soft) 0%, var(--bg-2) 100%);
+}
+.earnings-hero__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.earnings-hero__content {
+  flex: 1;
+  min-width: 0;
+}
+.earnings-hero__label {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--fg-2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+.earnings-hero__value-container {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.earnings-hero__value {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+  word-break: break-word;
+}
+.earnings-hero--positive .earnings-hero__value {
+  color: var(--success-text);
+}
+.earnings-hero--negative .earnings-hero__value {
+  color: var(--danger-text);
+}
+.earnings-hero__unit {
+  font-size: 0.65em;
+  opacity: 0.8;
+}
+.earnings-hero__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.earnings-hero--positive .earnings-hero__icon {
+  background: var(--success);
+  box-shadow: 0 4px 12px rgba(0, 177, 79, 0.3);
+}
+.earnings-hero--negative .earnings-hero__icon {
+  background: var(--danger);
+  box-shadow: 0 4px 12px rgba(227, 36, 52, 0.3);
+}

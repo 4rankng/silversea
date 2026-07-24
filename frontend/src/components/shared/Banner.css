@@ -1,0 +1,131 @@
+/* nepo-banner — persistent page-top banner.
+ * Sticky by default, spans page width, dismissible, optional per-key memory.
+ * Pure NEPO tokens. No daisyUI .d-alert — sticky + full-bleed needs bespoke layout.
+ * -------------------------------------------------------------------------- */
+
+.nepo-banner {
+  width: 100%;
+  z-index: var(--z-sticky);
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-snug);
+  border-bottom: 1px solid transparent;
+}
+
+.nepo-banner--sticky {
+  position: sticky;
+  top: 0;
+}
+
+.nepo-banner__inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  max-width: 100%;
+}
+
+.nepo-banner__content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.nepo-banner__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.nepo-banner__message {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.nepo-banner__message a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  opacity: 0.85;
+}
+.nepo-banner__message a:hover {
+  opacity: 1;
+}
+
+.nepo-banner__action {
+  flex-shrink: 0;
+}
+
+.nepo-banner__close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-h);
+  height: var(--control-h);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+  border-radius: var(--r-sm);
+  transition: opacity var(--t-fast), background var(--t-fast);
+  padding: 0;
+}
+.nepo-banner__close:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.15);
+}
+.nepo-banner__close:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+  opacity: 1;
+}
+
+/* ─── Variants — each uses NEPO semantic token pair (fill + on-fill text) ── */
+
+.nepo-banner--info {
+  background: var(--info);
+  color: #ffffff;
+  border-bottom-color: var(--info-text);
+}
+.nepo-banner--info .nepo-banner__icon { color: #ffffff; }
+
+.nepo-banner--success {
+  background: var(--accent-2);
+  color: var(--fg-on-brand);
+  border-bottom-color: var(--accent-ink);
+}
+.nepo-banner--success .nepo-banner__icon { color: var(--fg-on-brand); }
+
+.nepo-banner--warning {
+  background: var(--warning);
+  color: var(--warning-text);
+  border-bottom-color: var(--warning-deep);
+}
+.nepo-banner--warning .nepo-banner__icon { color: var(--warning-text); }
+.nepo-banner--warning .nepo-banner__close:hover {
+  background: rgba(122, 67, 8, 0.12);
+}
+
+.nepo-banner--danger {
+  background: var(--danger);
+  color: #ffffff;
+  border-bottom-color: var(--danger-text);
+}
+.nepo-banner--danger .nepo-banner__icon { color: #ffffff; }
+
+/* ─── Mobile — tighten padding so the message stays legible at 420px ────── */
+@media (max-width: 640px) {
+  .nepo-banner__inner {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+  .nepo-banner__close {
+    width: var(--control-h);
+    height: var(--control-h);
+  }
+}

@@ -1,0 +1,43 @@
+services:
+  db:
+    # pgvector/pgvector:pg16 = upstream postgres:16 + the `vector` extension
+    # preinstalled. Required for the FAQ fast lane (vector(1536) cosine index).
+    # Switched from postgres:16-alpine — the stock alpine image lacks the extension.
+    image: pgvector/pgvector:pg16
+    container_name: tingting-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: tingting
+    ports:
+      - "5440:5432"
+    volumes:
+      - tingting-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: tingting-redis
+    ports:
+      - "6390:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 5
+
+  adminer:
+    image: adminer
+    container_name: tingting-adminer
+    ports:
+      - "8081:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  tingting-pgdata:

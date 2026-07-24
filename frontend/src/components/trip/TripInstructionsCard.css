@@ -1,0 +1,81 @@
+/* TripInstructionsCard (N2 / B1.3) — manager-authored contact + guidance block.
+   Page-scoped under .ti-* to avoid colliding with the rest of the trip form.
+   The card has no save button — its fields are part of the trip form state
+   and are persisted by the unified "Lưu cập nhật" submit. */
+
+.ti-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ti-row {
+  display: grid;
+  grid-template-columns: 1fr 200px;
+  gap: 12px;
+}
+
+.ti-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ti-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-2, #444);
+}
+
+.ti-textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
+.ti-hint {
+  font-size: 12px;
+  color: var(--fg-3, #888);
+}
+
+@media (max-width: 560px) {
+  .ti-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* B1c — one-tap reminder chips that append a bullet line to the notes. */
+.ti-reminders {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.ti-reminders__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg-3, #888);
+  margin-right: 2px;
+}
+
+.ti-chip {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent-ink, #065f46);
+  background: var(--accent-soft, rgba(0, 177, 79, 0.08));
+  border: 1px solid var(--accent, rgba(0, 177, 79, 0.25));
+  border-radius: 999px;
+  min-height: 45px;
+  padding: 8px 12px;
+  line-height: 1.35;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.ti-chip:hover {
+  background: var(--accent, rgba(0, 177, 79, 0.16));
+}
+
+.ti-chip:active {
+  transform: translateY(1px);
+}

@@ -1,0 +1,25 @@
+/* ── Input with prefix/suffix ── */
+.tc-input-prefix {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.tc-input-prefix .input {
+  padding-right: 48px;
+}
+
+.tc-input-prefix .input.mono {
+  padding-right: 48px;
+}
+
+.tc-prefix-label {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: var(--fs-2xs);
+  color: var(--fg-3);
+  font-weight: var(--fw-semibold);
+  pointer-events: none;
+}

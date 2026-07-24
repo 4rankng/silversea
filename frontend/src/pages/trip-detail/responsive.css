@@ -1,0 +1,324 @@
+/* ── Responsive (TripDetailPage 2-col body layout) ─────────────────────── */
+
+@media (max-width: 1200px) {
+  .trip-body {
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 20px;
+  }
+}
+
+/* Tablet (≤ 1023px): Collapse to a single column. */
+@media (max-width: 1023px) {
+  .td-page-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .td-page-head .header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .trip-body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .trip-col--rail {
+    position: static;
+  }
+
+  .trip-rail-bg {
+    background-image: none;
+    padding: 0;
+  }
+
+  .trip-rail-bg::before {
+    display: none;
+  }
+
+  .journey-body {
+    grid-template-columns: 1fr;
+  }
+
+  .map-wrap {
+    border-right: none;
+    border-bottom: 1px solid var(--line-2, #EFF2F0);
+    min-height: 280px;
+  }
+
+  .leaflet-touch .leaflet-control-zoom a,
+  .leaflet-control-zoom a {
+    width: 44px;
+    height: 44px;
+    line-height: 44px;
+  }
+}
+
+/* Narrow tablet / small laptop (≤ 860px): gap tightens more, but the 2-col
+   body still holds. KPI rail stays 2x2. */
+@media (max-width: 860px) {
+  .trip-body {
+    gap: 14px;
+  }
+}
+
+/* Mobile (≤ 640px): collapse to a single column with explicit source order
+   so the financial summary leads and operational content follows. */
+@media (max-width: 640px) {
+  .tc-page-head,
+  .td-page-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .tc-page-head::after,
+  .td-page-head::after {
+    left: 14px;
+    right: 14px;
+  }
+
+  /* The .company (customer name) is set to max-width: 560px + nowrap on
+     desktop, which forces the entire title-block wider than the viewport
+     on phones. Cap it to the available width and let it ellipsis. */
+  .company {
+    max-width: 100%;
+  }
+
+  /* Action buttons wrap onto their own row below the title. Right-aligned
+     with top/bottom padding so they don't touch the title above or the
+     content below. The desktop .header-actions is `flex` (single row) —
+     on phones we keep the buttons at their natural size and let them
+     flow into multiple rows if the viewport is narrow. */
+  .td-page-head .header-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px;
+    width: 100%;
+    gap: 8px;
+    padding-top: 8px;
+    padding-bottom: 6px;
+  }
+
+  .td-page-head .header-actions .btn {
+    width: auto;
+    min-width: 0;
+    justify-content: center;
+    min-height: 44px;
+    padding: 8px 14px;
+    font-size: var(--fs-xs);
+    line-height: 1.35;
+  }
+
+  .td-page-head .header-actions .header-overflow {
+    grid-column: 2;
+    grid-row: 1;
+    margin-left: 0;
+  }
+
+  .td-page-head .header-actions .header-overflow > summary.btn {
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+  }
+
+  /* "Hủy chuyến" (btn--danger) is a rare / destructive action — on mobile
+     it should be visually subordinate to the primary CTA, but it still needs
+     the same comfortable tap target as the rest of the action cluster. */
+  .td-page-head .header-actions .btn--danger {
+    min-height: 44px;
+    padding: 8px 14px;
+    font-size: var(--fs-xs);
+    line-height: 1.35;
+  }
+
+  .td-page-head .header-actions .btn--primary {
+    grid-column: 1 / -1;
+  }
+
+  /* Tighter title on phones */
+  .tc-page-title {
+    font-size: var(--fs-xl);
+  }
+
+  /* 2-col body becomes a single column on phones. The two .trip-col
+     wrappers flatten with `display: contents` so each card becomes a
+     direct child of .trip-body and we can reorder with `order`. */
+  .trip-body {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .trip-col {
+    display: contents;
+  }
+
+  .trip-rail-bg,
+  .trip-rail-bg::before {
+    background: none;
+    padding: 0;
+  }
+
+  .trip-rail-bg > * {
+    z-index: auto;
+  }
+
+  /* Mobile source order follows the operational job before analysis:
+       1  BasicInfoCard (main)
+       2  JourneyCard (main)
+       3  KpiStrip (rail)
+       4  FinancialCard (rail)
+       5  ServiceCostsCard (main)
+       6  ContainersCard (main)
+       7  FuelCard (rail)
+       8  ExternalCarrierCard (rail, optional)
+       9  PhotosCard (main, optional)
+      10  Notes (main, optional) */
+  .tdp-m3 { order: 1; }
+  .tdp-m1 { order: 2; }
+  .tdp-r1 { order: 3; }
+  .tdp-r2 { order: 4; }
+  .tdp-m2 { order: 5; }
+  .tdp-m4 { order: 6; }
+  .tdp-r3 { order: 7; }
+  .tdp-r4 { order: 8; }
+  .tdp-r5 { order: 9; }
+  .tdp-m6 { order: 10; }
+
+  /* On phones, BasicInfoCard fields stack to a single column too */
+  .info-list {
+    grid-template-columns: 1fr;
+  }
+
+  .cs-galleries {
+    grid-template-columns: 1fr 92px;
+    gap: 8px;
+  }
+
+  .cs-gallery {
+    padding: 8px;
+  }
+
+  .cs-thumb {
+    width: 72px;
+    height: 52px;
+  }
+
+  .cs-gallery--seal .cs-thumb {
+    width: 76px;
+  }
+
+  .container-row {
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 9px;
+    padding: 10px;
+  }
+
+  .container-fields {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px 10px;
+  }
+
+  .container-fields .cf:nth-child(3),
+  .container-fields .cf--full {
+    grid-column: 1 / -1;
+  }
+
+  .cf-label {
+    font-size: var(--fs-xs);
+    line-height: 1.35;
+  }
+
+  .cf-value {
+    font-size: 12.5px;
+    line-height: 1.35;
+  }
+
+  /* KPI rail micro-grid stays 2x2 on mobile, but tighter */
+  .kpi-rail {
+    padding: 12px 14px 10px;
+  }
+  .kpi-rail__grid {
+    gap: 8px 10px;
+  }
+}
+
+/* Very narrow phones (≤ 420px) — three buttons per row get cramped, so
+   drop to 2 per row by giving each button a slightly larger basis. */
+@media (max-width: 420px) {
+  .td-page-head .header-actions .btn {
+    flex: 1 1 100%;
+  }
+
+  /* .btn--ghost has no background by default (it's designed for desktop
+     where it sits next to filled buttons). On phones it ends up looking
+     like a plain text link, not a button. Promote it to a filled card so
+     the action cluster reads as a uniform list of tappable buttons. */
+  .td-page-head .header-actions .btn--ghost {
+    background: var(--surface);
+    color: var(--ink);
+    border-color: var(--line-2);
+    /* Force centered content in case .btn--ghost's `padding: 9px 10px`
+       rule from the base CSS file wins the cascade over the mobile
+       `justify-content: center` rule (it doesn't normally, but be explicit
+       so the button never reads as a left-aligned text link). */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .td-page-head .header-actions .btn--ghost:hover {
+    background: var(--surface-2, var(--surface));
+  }
+}
+
+/* ── Journey legs: stack origin / arrow / destination on phones ────────── */
+@media (max-width: 640px) {
+  .leg {
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    row-gap: 8px;
+  }
+  /* Push the loading-type badge to a second row spanning the full width */
+  .leg-right {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+  /* Stack stops on two visual lines so the full stop name fits */
+  .leg-stops {
+    flex-wrap: wrap;
+    row-gap: 4px;
+    column-gap: 8px;
+  }
+  .leg-stops .st {
+    max-width: 100%;
+  }
+  .leg-stops .ar {
+    transform: rotate(90deg);
+  }
+  /* Compact meta line */
+  .leg-meta {
+    flex-wrap: wrap;
+    gap: 6px 12px;
+  }
+}
+
+/* ── Journey foot: let it wrap; keep the CTA on one line ───────────────── */
+@media (max-width: 640px) {
+  .journey-foot {
+    flex-wrap: wrap;
+    row-gap: 8px;
+    padding: 12px 16px;
+  }
+  .journey-foot .add-note {
+    margin-left: auto;
+    white-space: nowrap;
+  }
+}
+
+/* ── Responsive overrides (from responsive.css decomposition) ── */
+@media (max-width: 640px) {
+  .trip-detail-cols { flex-direction: column; }
+} /* end 640px */

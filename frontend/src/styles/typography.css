@@ -1,0 +1,44 @@
+/* ============================================================================
+ * Typography utilities
+ * ========================================================================== */
+.typo-display {
+  font-family: var(--font-display);
+  font-size: var(--fs-3xl);
+  font-weight: var(--fw-extrabold);
+  line-height: var(--lh-snug);
+  letter-spacing: 0;
+  color: var(--ink);
+}
+.typo-h1 { font-family: var(--font-display); font-size: var(--fs-2xl); font-weight: 700; line-height: var(--lh-snug); letter-spacing: 0; color: var(--ink); overflow-wrap: anywhere; }
+.typo-h2 { font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 700; line-height: var(--lh-snug); letter-spacing: 0; color: var(--ink); overflow-wrap: anywhere; }
+.typo-h3 { font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 600; line-height: var(--lh-snug); color: var(--ink); overflow-wrap: anywhere; }
+.typo-h4 { font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 600; line-height: var(--lh-snug); color: var(--ink); }
+.typo-lead { font-size: var(--fs-md); font-weight: 400; line-height: var(--lh-relaxed); color: var(--ink-2); }
+.typo-body { font-size: var(--fs-md); font-weight: 400; line-height: var(--lh-relaxed); color: var(--ink-2); }
+.typo-body-sm { font-size: var(--fs-sm); font-weight: 400; line-height: var(--lh-relaxed); color: var(--ink-2); }
+.typo-label { font-size: var(--fs-sm); font-weight: 500; line-height: var(--lh-normal); color: var(--ink); }
+.typo-caption { font-size: var(--fs-xs); font-weight: 400; line-height: var(--lh-normal); color: var(--ink-3); }
+.typo-eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-3);
+}
+.typo-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.typo-num,
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+.text-muted { color: var(--ink-3); }
+.typo-code {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  background: var(--surface-3);
+  padding: 1px 6px;
+  border-radius: 6px;
+  color: var(--ink);
+}

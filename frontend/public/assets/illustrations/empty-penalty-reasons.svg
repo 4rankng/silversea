@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 200" fill="none">
+  <defs>
+    <linearGradient id="epr-book" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+    <linearGradient id="epr-page" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#F9FAFB"/>
+    </linearGradient>
+    <filter id="epr-shadow" x="-15%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#09090B" flood-opacity="0.07"/>
+    </filter>
+    <filter id="epr-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="4" stdDeviation="10" flood-color="#059669" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <!-- Clipboard / rulebook body -->
+  <rect x="58" y="38" width="124" height="144" rx="10" fill="url(#epr-page)" filter="url(#epr-shadow)"/>
+  <!-- Clipboard spine -->
+  <rect x="58" y="38" width="124" height="8" rx="4" fill="url(#epr-book)" opacity="0.8"/>
+  <rect x="58" y="42" width="124" height="4" fill="url(#epr-book)" opacity="0.8"/>
+  <!-- Clip at top -->
+  <rect x="100" y="28" width="40" height="18" rx="4" fill="url(#epr-book)" filter="url(#epr-glow)"/>
+  <rect x="106" y="34" width="28" height="8" rx="3" fill="#ECFDF5"/>
+  <!-- Empty lines (placeholder rows) -->
+  <rect x="74" y="64" width="92" height="6" rx="3" fill="#E5E7EB"/>
+  <rect x="74" y="80" width="72" height="6" rx="3" fill="#F3F4F6"/>
+  <rect x="74" y="96" width="84" height="6" rx="3" fill="#F3F4F6"/>
+  <!-- Dashed border area — "add first rule" -->
+  <rect x="74" y="118" width="92" height="40" rx="8" fill="#ECFDF5" fill-opacity="0.5" stroke="#A7F3D0" stroke-width="1.5" stroke-dasharray="5 4"/>
+  <!-- Plus icon -->
+  <circle cx="120" cy="138" r="12" fill="url(#epr-book)" opacity="0.9"/>
+  <line x1="120" y1="131" x2="120" y2="145" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="113" y1="138" x2="127" y2="138" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Sparkle top-left -->
+  <g stroke="#059669" stroke-width="1.4" stroke-linecap="round" opacity="0.4" transform="translate(42 56)">
+    <line x1="0" y1="-6" x2="0" y2="6"/>
+    <line x1="-6" y1="0" x2="6" y2="0"/>
+    <line x1="-4" y1="-4" x2="4" y2="4"/>
+    <line x1="4" y1="-4" x2="-4" y2="4"/>
+  </g>
+  <!-- Sparkle bottom-right -->
+  <g stroke="#059669" stroke-width="1.2" stroke-linecap="round" opacity="0.3" transform="translate(198 140)">
+    <line x1="0" y1="-5" x2="0" y2="5"/>
+    <line x1="-5" y1="0" x2="5" y2="0"/>
+  </g>
+  <!-- Floating dot accents -->
+  <circle cx="46" cy="120" r="3" fill="#D1FAE5" opacity="0.7"/>
+  <circle cx="196" cy="72" r="4" fill="#D1FAE5" opacity="0.5"/>
+  <circle cx="188" cy="168" r="2.5" fill="#A7F3D0" opacity="0.6"/>
+</svg>

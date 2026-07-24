@@ -1,0 +1,1 @@
+ALTER TABLE "penalty_reasons" ADD COLUMN "severity" text DEFAULT 'mid' NOT NULL;

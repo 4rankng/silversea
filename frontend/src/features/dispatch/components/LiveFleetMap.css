@@ -1,0 +1,24 @@
+/* Permanent biển-số label on each dispatch truck dot (Leaflet tooltip).
+   Global because Leaflet renders tooltips outside the component subtree. */
+.leaflet-tooltip.fleet-plate-label {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid var(--line, #E5E7EB);
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+  color: var(--ink, #111827);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: var(--fs-xs, 12px);
+  font-weight: 600;
+  line-height: 1.35;
+  padding: 3px 8px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.leaflet-tooltip.fleet-plate-label:hover {
+  background: #FFFFFF;
+  border-color: var(--brand, #00B14F);
+  color: var(--brand, #00B14F);
+}
+.leaflet-tooltip.fleet-plate-label::before {
+  display: none; /* hide the default tooltip arrow */
+}
