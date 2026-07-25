@@ -440,7 +440,8 @@ biggest new surface area and the biggest customer-facing differentiator.
 <!-- autonomous-sdlc:completed task=wave3-m51-ar-status -->
 - [x] M5.1: surface paid/outstanding/overdue-days/payment-history per document; void leaves
       offsetting line.
-- [ ] M5.3: credit-limit + threshold service; block on exceed unless approver override.
+<!-- autonomous-sdlc:completed task=wave3-m53-credit-limit -->
+- [x] M5.3: credit-limit + threshold service; block on exceed unless approver override.
 - [ ] M5.4: freight/disbursement/other split report; invariant
       `freight + disbursement + other == total_ar`.
 - [ ] M5.5: total AR report — opening/activity/receipts/adjustments/closing per customer;
