@@ -88,6 +88,13 @@ export const createTripSchema = z.object({
   customerReference: z.string().optional(),
   containerCount: z.coerce.number().int().min(1).max(10).optional(),
   containerTypeId: z.coerce.number().int().positive({ message: 'Loại container là bắt buộc' }),
+  // Wave 0: optional link to the shipment (lô hàng) this trip fulfills.
+  // Required only when the backend feature flag SHIPMENT_FIRST_CREATE is ON;
+  // the flag-conditional check lives in the route handler (the shared schema
+  // is also consumed by the frontend, which does not see the server flag).
+  // When provided, the trip-create flow links the new trip to the shipment
+  // and snapshots the shipment's containers into the trip.
+  shipmentId: z.coerce.number().int().positive().optional().nullable(),
   fuelMode: z.nativeEnum(FuelMode).optional(),
   fuelSupplierId: z.coerce.number().int().positive().optional().nullable(),
   // Per-trip actual pump price (₫/lít). Optional — when blank the trip falls
