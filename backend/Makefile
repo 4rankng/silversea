@@ -4,7 +4,7 @@ export
 
 .PHONY: push deploy link-drivers link-drivers-apply
 
-IMAGE_NAME  := $(DOCKERHUB_USERNAME)/tingting-backend
+IMAGE_NAME  := $(DOCKERHUB_USERNAME)/transting-backend
 GIT_SHA     := $(shell cd .. && git rev-parse --short HEAD)
 BUILDER     := bb
 PROD_SERVER := nepo.tingting.vip
