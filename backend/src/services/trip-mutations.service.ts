@@ -3,11 +3,13 @@
 
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq, and, isNull, sql, desc, lte, ne } from 'drizzle-orm';
+import { eq, and, isNull, sql, ne } from 'drizzle-orm';
 import { TripStatus, FuelMode, Role, TxnType } from '@tingting/shared';
 import type { TripLegInput } from '@tingting/shared';
 import { resolveTripDriverSalary, computeTripTotals, type ComputeTripTotalsOutput } from '@tingting/shared';
 import { ApiError } from '../errors';
+import { resolveFreightPrice } from './pricing.service';
+import { resolveFuelNorm } from './fuel.service';
 
 // Postgres unique-violation detector — 23505 is the SQLSTATE for any unique
 // constraint violation. Drizzle wraps the underlying postgres-js error, so the
@@ -301,27 +303,30 @@ export async function createTrip(data: {
       }
     }
 
-    // 1. Timezone-pinned pricing lookup
-    const [pricing] = await tx.select()
-      .from(s.pricingTables)
-      .where(and(
-        eq(s.pricingTables.customerId, data.customerId),
-        eq(s.pricingTables.routeId, data.routeId),
-        lte(s.pricingTables.effectiveDate, data.departureDate),
-        isNull(s.pricingTables.deletedAt)
-      ))
-      .orderBy(desc(s.pricingTables.effectiveDate))
-      .limit(1);
+    // 1. Pricing resolution — replaced the inline pricing_tables lookup with
+    //    the Wave 1 resolveFreightPrice service. This handles BOTH the
+    //    fixed-price model (TABLE) AND the new weight-tier model (TIER),
+    //    falling back to MANUAL (price 0) when no pricing exists — same
+    //    behavior as before for routes without a pricing table.
+    const freightPrice = await resolveFreightPrice({
+      customerId: data.customerId,
+      routeId: data.routeId,
+      cargoTypeId: data.cargoTypeId,
+      date: data.departureDate,
+      containerCount,
+    });
 
-    const basePrice = pricing ? Number(pricing.price) : 0;
-    const revenue = basePrice * containerCount;
+    const revenue = freightPrice.price;
 
-    // 2. Fetch current global configuration rates to snapshot them.
-    // We do NOT throw errors if configurations are missing during creation,
-    // so that managers can create transport plans with basic information.
-    // Accounting will supplement the data (costs, quota) later.
-
-    const [fuelCfg] = await tx.select().from(s.fuelConfig).where(isNull(s.fuelConfig.deletedAt)).limit(1);
+    // 2. Fuel-norm resolution — replaced the inline fuel_config lookup with
+    //    the Wave 1 resolveFuelNorm service. This resolves per-route/per-
+    //    truck norms from fuel_norms, falling back to the legacy fuel_config
+    //    singleton. Same values when only fuel_config exists.
+    const fuelNorm = await resolveFuelNorm({
+      routeId: data.routeId,
+      truckId: data.truckId ?? undefined,
+      date: data.departureDate,
+    });
 
     const [route] = await tx.select().from(s.routes).where(eq(s.routes.id, data.routeId)).limit(1);
     if (!route) {
@@ -356,11 +361,17 @@ export async function createTrip(data: {
       roadAllowanceBase = allowance ? Number(allowance.baseAmount) : 0;
     }
 
-    const fuelPriceApplied = fuelCfg ? Number(fuelCfg.unitPrice) : 0;
-    const fuelLoadedNormApplied = fuelCfg ? Number(fuelCfg.loadedNorm) : 0;
-    const fuelEmptyNormApplied = fuelCfg ? Number(fuelCfg.emptyNorm) : 0;
+    // Fuel-norm snapshot values come from the resolved norm. When source is
+    // FUEL_CONFIG (legacy singleton), the values are identical to the old
+    // inline lookup. When source is FUEL_NORMS, the per-route/per-truck
+    // values are used. The fuel unit price still comes from fuel_config
+    // (it's a global price, not per-route) — this matches the existing model.
+    const [fuelCfgForPrice] = await db.select().from(s.fuelConfig).where(isNull(s.fuelConfig.deletedAt)).limit(1);
+    const fuelPriceApplied = fuelCfgForPrice ? Number(fuelCfgForPrice.unitPrice) : 0;
+    const fuelLoadedNormApplied = fuelNorm.loadedLitersPer100Km;
+    const fuelEmptyNormApplied = fuelNorm.emptyLitersPer100Km;
     const fuelFixedAllowanceApplied = route.fixedFuelAllowance ? Number(route.fixedFuelAllowance) : 0;
-    const fuelSupplementNormApplied = fuelCfg ? Number(fuelCfg.supplement) : 0;
+    const fuelSupplementNormApplied = fuelNorm.supplementLiters;
     const tollPerStationApplied = roadCfg ? Number(roadCfg.tollPerStation) : 0;
     const returnCargoBonusApplied = roadCfg ? Number(roadCfg.returnCargoBonus) : 0;
 
@@ -401,6 +412,12 @@ export async function createTrip(data: {
       twoPointDeliveryBonus: '0',
       vehicleShiftAllowance: '0',
       revenueOriginal: String(revenue),
+
+      // Wave 1: pricing-source snapshot. Populated by resolveFreightPrice
+      // so accountants can distinguish AUTO (TIER/TABLE) from MANUAL.
+      pricingSource: freightPrice.source,
+      pricingFormula: freightPrice.formula,
+      pricingSnapshot: freightPrice.snapshot,
 
       // Snapshots
       fuelPriceApplied: String(fuelPriceApplied),
