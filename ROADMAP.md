@@ -305,7 +305,17 @@ mobile/reporting polish (builds on the closed loop).
       `resolveFreightPrice` (TIER/TABLE/MANUAL resolution with Vietnamese
       formula string + snapshot) + `validateWeightTierOverlap` +
       `validatePricingTableOverlap`. 13 new DB-backed tests. All gates green.
-- [ ] Build `fuel.service.ts` with `resolveFuelNorm(routeId, truckTypeId, date)`.
+<!-- autonomous-sdlc:completed task=wave1-fuel-service -->
+- [x] Build `fuel.service.ts` with `resolveFuelNorm(routeId, truckTypeId, date)`.
+      ✅ Done — `backend/src/services/fuel.service.ts` ships
+      `resolveFuelNorm({routeId?, truckId?, date})` with a 3-tier fallback:
+      (1) fuel_norms with routeId+truckId (most specific), (2) fuel_norms
+      routeId-only, (3) legacy fuel_config singleton, (4) NONE (zeros).
+      Mountain-route flat-rate: when `routes.isMountain=true` AND the norm
+      has `flatRateLiters` set → `useFlatRate=true` (caller uses flat-rate
+      instead of per-100km). Returns `ResolvedFuelNorm` with loaded/empty
+      liters, supplement, flatRate, useFlatRate, Vietnamese description,
+      and snapshot for the trip. 8 new DB-backed tests. All gates green.
 - [ ] Wire auto-revenue into trip create/update; surface formula in trip detail.
 - [ ] M2.1: prevent price-range overlaps on `pricing_tables`; override-before-lock + reason.
 - [ ] M2.2: weight-tier pricing for bulk cargo; boundary + overlap tests.
