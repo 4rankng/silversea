@@ -14,6 +14,7 @@ import { globalErrorHandler } from './middleware/errorHandler';
 import { initAuditService } from './services/audit.service';
 import { initNotificationService } from './services/notification.service';
 import { initPushService } from './services/push.service';
+import { registerJob, startScheduler, stopScheduler } from './scheduler';
 import authRoutes from './routes/auth';
 import configRoutes, { auditLogRouter, catalogBootstrapRouter, salaryPeriodsRouter, salaryPeriodsAdminRouter, tireLifecycleRouter } from './routes/config';
 import tripRoutes from './routes/trips';
@@ -43,6 +44,29 @@ await initAuditService();
 await initNotificationService();
 await initPushService();
 await initEnforcer();
+
+// ─── Scheduler (Wave 0) ─────────────────────────────────────────────────────
+// Self-test heartbeat: 1-min cadence, disabled in test (NODE_ENV=test) and in
+// CI when SCHEDULER_DISABLE is set. Wave 2/3 will register real jobs (email
+// retry, receivable reminders, salary-period close) next to this one.
+//
+// Env knobs:
+//   NODE_ENV=test                 — auto-disables (avoids firing during `npm test`)
+//   SCHEDULER_DISABLE=1           — manually disable (one-off scripts, migrations)
+const schedulerEnabled =
+  config.nodeEnv !== 'test' && process.env.SCHEDULER_DISABLE !== '1';
+if (schedulerEnabled) {
+  registerJob({
+    name: 'scheduler-heartbeat',
+    cron: '* * * * *',
+    handler: async () => {
+      // No-op heartbeat; visible as a row in scheduler_run_logs every minute.
+      // Wave 2/3 replace this with real jobs.
+      console.log('[scheduler] heartbeat tick');
+    },
+  });
+  startScheduler();
+}
 
 // Enable unaccent extension
 try {
@@ -180,6 +204,7 @@ async function shutdown(signal: string) {
   console.log(`\n${signal} received — shutting down…`);
 
   agentIo?.close();              // stop the assistant socket.io server
+  stopScheduler();               // cancel all cron tasks (Wave 0)
   server.close();                // stop accepting new connections
   await dbClient.end();          // drain Postgres pool
   await disconnectRedis();       // close Redis connection

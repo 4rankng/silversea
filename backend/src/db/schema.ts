@@ -1376,3 +1376,29 @@ export const photoGeotags = pgTable('photo_geotags', {
   // one geotag per photo — idempotency on resubmit (M0X-HT-04).
   uniqueIndex('photo_geotags_entity_uniq').on(table.entityType, table.entityId),
 ]);
+
+// ─── Scheduler (Wave 0) ─────────────────────────────────────────────────────
+// Run-log for the cron scheduler introduced in Wave 0. Every job tick acquires
+// a Postgres advisory lock (so two backend instances can't double-run the same
+// job at the same instant), writes a row at RUNNING, and updates it to SUCCESS
+// or FAILED when the handler returns/throws. Wave 2 (email retries) and Wave 3
+// (receivable reminders, salary-period close) register jobs against this table.
+export const schedulerRunStatusEnum = pgEnum('scheduler_run_status', ['RUNNING', 'SUCCESS', 'FAILED']);
+
+export const schedulerRunLogs = pgTable('scheduler_run_logs', {
+  id: serial('id').primaryKey(),
+  // Free-form job name (matches registry key). varchar not enum so new jobs
+  // don't need a migration.
+  jobName: varchar('job_name', { length: 64 }).notNull(),
+  // Cron expression actually scheduled (useful when a job's cadence is env-driven).
+  cron: varchar('cron', { length: 32 }).notNull(),
+  status: schedulerRunStatusEnum('status').notNull().default('RUNNING'),
+  attempt: integer('attempt').notNull().default(1),
+  // Null on SUCCESS; the thrown error message on FAILED. Text (not jsonb) so
+  // a quick SELECT is readable without parsing.
+  error: text('error'),
+  startedAt: timestamp('started_at', { withTimezone: true }).defaultNow().notNull(),
+  endedAt: timestamp('ended_at', { withTimezone: true }),
+}, (table) => [
+  index('scheduler_run_logs_job_started_idx').on(table.jobName, table.startedAt),
+]);
