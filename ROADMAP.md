@@ -404,7 +404,8 @@ biggest new surface area and the biggest customer-facing differentiator.
       late-approved → roll to next period or adjustment.
 - [ ] Customer portal frontend: `/portal/*` route tree; shipment list/detail, debit-note
       list/confirm/dispute, statement download, optional two-way messaging.
-- [ ] PDF export for debit notes (extend statement.service.ts PDF path).
+<!-- autonomous-sdlc:completed task=wave2-pdf-export -->
+- [x] PDF export for debit notes (extend statement.service.ts PDF path).
 <!-- autonomous-sdlc:completed task=wave2-cross-customer-isolation -->
 - [x] Cross-customer isolation integration tests (every portal endpoint, A's token vs B's IDs).
 
