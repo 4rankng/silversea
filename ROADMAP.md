@@ -202,7 +202,30 @@ mobile/reporting polish (builds on the closed loop).
       (was 212; +8 new), build. E2E skipped with justification (no
       API/schema/RBAC change); see
       `qa/2026-07-25_wave0-shipment-frontend_e2e.md`.
-- [ ] Seed test shipments + a `CUSTOMER`-role user for QA.
+<!-- autonomous-sdlc:completed task=wave0-seed-shipments -->
+- [x] Seed test shipments + a `CUSTOMER`-role user for QA.
+      ✅ Done — `backend/src/seed.ts` ships a new exported
+      `seedShipments(passwordHash)` block that idempotently seeds:
+      (a) a CUSTOMER demo user (`customer` / `admin123`,
+      onConflictDoUpdate on username so QA login is guaranteed); (b) 2
+      sample AR customers (lookup by `lower(btrim(taxCode))` matching the
+      partial unique index); (c) 3 sample shipments across DRAFT /
+      IN_PROGRESS / DELIVERED (idempotent via stable bookingRef sentinels
+      `SEED-SHIP-1/2/3` checked BEFORE createShipment), with SEED-SHIP-2
+      carrying 2 containers, SEED-SHIP-3 carrying 1 container + 1 BL
+      document + 1 declaration + the 3 transition-history rows. The seed
+      CLI auto-run is now guarded by
+      `import.meta.url === \`file://${process.argv[1]}\`` so tests can
+      import the function without triggering the full seed + exit. 4 new
+      tests in `seed-shipments.test.ts` (CUSTOMER user; shipments + statuses;
+      children counts; idempotency). Self-review caught 3 blockers
+      (process.exit in after, test ordering, onConflict target) + 4
+      should-fix items (taxCode normalization, customer delete try/catch,
+      user snapshot, Wave 2 FK comment) — all fixed before QA. All gates
+      green: lint, backend tsc, 865/865 backend tests (was 861; +4 new),
+      frontend tsc, 220/220 frontend tests, build. E2E skipped with
+      justification (no API/schema/RBAC change); see
+      `qa/2026-07-25_wave0-seed-shipments_e2e.md`.
 - [ ] Audit-log every shipment write.
 - [ ] Row-scope helper `scopedByCustomer(req.user, query)` — reusable in Waves 2 & 3.
 

@@ -2,8 +2,14 @@ import bcrypt from 'bcryptjs';
 import { db } from './db';
 import * as schema from './db/schema';
 import { Role, FORWARDER_EXPENSE_TYPE_DEFAULTS } from '@tingting/shared';
-import { eq, and, desc, isNull } from 'drizzle-orm';
+import { eq, and, desc, isNull, sql } from 'drizzle-orm';
 import { COMPANY_INFO_SETTING_KEYS, COMPANY_INFO_DEFAULTS } from './services/company-info.service';
+import {
+  createShipment,
+  transitionShipmentStatus,
+  batchUpsertShipmentContainers,
+  attachShipmentDocument,
+} from './services/shipment.service';
 
 async function seed() {
   const passwordHash = await bcrypt.hash('admin123', 10);
@@ -417,10 +423,213 @@ async function seed() {
   }
   console.log('✅ Company information defaults seeded!');
 
+  await seedShipments(passwordHash);
+
   process.exit(0);
 }
 
-seed().catch(err => {
-  console.error('Seed failed:', err);
-  process.exit(1);
-});
+// ─── Wave 0: shipments + CUSTOMER demo user ──────────────────────────────────
+//
+// Seeds a CUSTOMER-role demo login + sample shipments in mixed statuses so
+// the Wave 0 ShipmentsPage has something to render during QA and the
+// eventual Wave 2 customer portal has a login to test against.
+//
+// Idempotency contract:
+//   - CUSTOMER user:               onConflictDoNothing on unique username.
+//   - Sample customers:            existence check by stable taxCode.
+//   - Sample shipments:            existence check by stable bookingRef
+//                                  sentinel (SEED-SHIP-1/2/3) BEFORE calling
+//                                  createShipment (which would otherwise
+//                                  generate a new shipmentCode + row each
+//                                  invocation).
+//   - Status transitions + children: only attached when the shipment is
+//                                  first created (gated by the same
+//                                  existence check).
+//
+// Exported so the test in tests/seed-shipments.test.ts can exercise it
+// directly without re-running the full `pnpm seed` flow.
+export async function seedShipments(passwordHash: string) {
+  console.log('\n📦 Seeding Wave 0 shipments + CUSTOMER demo user...');
+
+  // 1. CUSTOMER demo user — username `customer` / admin123.
+  //    onConflictDoUpdate on the username target so a re-run after a manual
+  //    edit restores the canonical password + role (QA login guarantee).
+  //    Wave 2 will need a `customers.userId` (or equivalent) FK to scope this
+  //    login to a specific `customers.id` for the row-scope helper — today no
+  //    such FK exists, so the user is unscoped.
+  await db.insert(schema.users).values({
+    username: 'customer',
+    email: 'customer@nepo.vn',
+    phone: '0900000020',
+    passwordHash,
+    role: Role.CUSTOMER,
+    fullName: 'Khách hàng Demo',
+  }).onConflictDoUpdate({
+    target: schema.users.username,
+    set: { passwordHash, role: Role.CUSTOMER, email: 'customer@nepo.vn', phone: '0900000020', fullName: 'Khách hàng Demo' },
+  });
+  console.log('  ✅ CUSTOMER demo user (customer / admin123)');
+
+  // 2. Two sample customers (operator-side AR customers — distinct from the
+  //    CUSTOMER demo user above). Stable tax codes make the seed idempotent.
+  //    The lookup uses the SAME expression as the partial unique index
+  //    `customers_active_tax_code_uniq_idx` (lower(btrim(taxCode)) WHERE
+  //    deletedAt IS NULL AND taxCode <> '') so case/whitespace variants
+  //    resolve to the same row.
+  const sampleCustomerSeeds = [
+    { name: 'Công ty CP Vận tải Biển Bạc', taxCode: '0101234567', contactPerson: 'Phạm Thị Biển', phone: '02253555555' },
+    { name: 'Công ty TNHH XNK Hà Nội', taxCode: '0107654321', contactPerson: 'Trịnh Văn Hà', phone: '02438888888' },
+  ];
+  const sampleCustomers: { id: number; name: string }[] = [];
+  for (const c of sampleCustomerSeeds) {
+    const normalisedTaxCode = c.taxCode.toLowerCase().trim();
+    const [existing] = await db.select({ id: schema.customers.id, name: schema.customers.name })
+      .from(schema.customers)
+      .where(and(
+        eq(sql`lower(btrim(${schema.customers.taxCode}))`, normalisedTaxCode),
+        isNull(schema.customers.deletedAt),
+      ))
+      .limit(1);
+    if (existing) {
+      sampleCustomers.push(existing);
+      continue;
+    }
+    const [created] = await db.insert(schema.customers).values(c).returning({ id: schema.customers.id, name: schema.customers.name });
+    sampleCustomers.push(created);
+  }
+  console.log(`  ✅ Sample customers (${sampleCustomers.length} stable rows)`);
+
+  // 3. Sample shipments — three across DRAFT / IN_PROGRESS / DELIVERED.
+  //    Sentinels via bookingRef so re-runs do NOT call createShipment twice.
+  type ShipmentSeed = {
+    sentinel: string; // bookingRef sentinel — must be unique + stable
+    customerId: number;
+    blNumber: string;
+    expectedDeliveryDate: string;
+    pickupLocation: string;
+    deliveryLocation: string;
+    contactName: string;
+    contactPhone: string;
+    advanceTo?: 'IN_PROGRESS' | 'DELIVERED';
+    containers?: Array<{ containerNumber: string; sealNumber: string; cargoWeightKg: number }>;
+    document?: { type: 'BOOKING' | 'BL' | 'DO' | 'DECLARATION' | 'OTHER'; storageKey: string };
+    declaration?: { declarationNumber: string; scope: 'SINGLE' | 'SHARED'; note: string };
+  };
+
+  const [bienBac, haNoi] = sampleCustomers;
+  const shipmentSeeds: ShipmentSeed[] = [
+    {
+      sentinel: 'SEED-SHIP-1',
+      customerId: bienBac.id,
+      blNumber: 'BL-SEED-001',
+      expectedDeliveryDate: '2026-08-15',
+      pickupLocation: 'Cảng Hải Phòng',
+      deliveryLocation: 'Kho Biển Bạc',
+      contactName: 'Phạm Thị Biển',
+      contactPhone: '02253555555',
+      // Stays in DRAFT — represents a freshly-created booking not yet dispatched.
+    },
+    {
+      sentinel: 'SEED-SHIP-2',
+      customerId: haNoi.id,
+      blNumber: 'BL-SEED-002',
+      expectedDeliveryDate: '2026-08-10',
+      pickupLocation: 'Cảng Hải Phòng',
+      deliveryLocation: 'ICD Hà Nội',
+      contactName: 'Trịnh Văn Hà',
+      contactPhone: '02438888888',
+      advanceTo: 'IN_PROGRESS',
+      containers: [
+        { containerNumber: 'SEED-MSKU-001', sealNumber: 'SEED-SEAL-001', cargoWeightKg: 18500 },
+        { containerNumber: 'SEED-MSKU-002', sealNumber: 'SEED-SEAL-002', cargoWeightKg: 19200 },
+      ],
+    },
+    {
+      sentinel: 'SEED-SHIP-3',
+      customerId: bienBac.id,
+      blNumber: 'BL-SEED-003',
+      expectedDeliveryDate: '2026-07-30',
+      pickupLocation: 'Cảng Đà Nẵng',
+      deliveryLocation: 'Kho Biển Bạc',
+      contactName: 'Phạm Thị Biển',
+      contactPhone: '02253555555',
+      advanceTo: 'DELIVERED',
+      containers: [
+        { containerNumber: 'SEED-MSKU-003', sealNumber: 'SEED-SEAL-003', cargoWeightKg: 17800 },
+      ],
+      document: { type: 'BL', storageKey: 'uploads/seed/SEED-SHIP-3/bl.pdf' },
+      declaration: { declarationNumber: 'SEED-DECL-003', scope: 'SINGLE', note: 'Tờ khai mẫu (seed)' },
+    },
+  ];
+
+  let createdCount = 0;
+  for (const s of shipmentSeeds) {
+    // Idempotency: skip if a shipment with this sentinel bookingRef already
+    // exists. createShipment would otherwise mint a new shipmentCode each call.
+    const [existing] = await db.select({ id: schema.shipments.id })
+      .from(schema.shipments)
+      .where(eq(schema.shipments.bookingRef, s.sentinel))
+      .limit(1);
+    if (existing) {
+      continue; // Already seeded — leave its status + children alone.
+    }
+
+    // Use createShipment so the row gets the canonical shipmentCode + an
+    // initial DRAFT history row, matching the production path.
+    const shipment = await createShipment({
+      customerId: s.customerId,
+      bookingRef: s.sentinel,
+      blNumber: s.blNumber,
+      expectedDeliveryDate: s.expectedDeliveryDate,
+      pickupLocation: s.pickupLocation,
+      deliveryLocation: s.deliveryLocation,
+      contactName: s.contactName,
+      contactPhone: s.contactPhone,
+    });
+
+    // Children + status transition attach ONLY on first creation.
+    if (s.containers && s.containers.length > 0) {
+      await batchUpsertShipmentContainers(shipment.id, null, s.containers.map((c) => ({
+        containerNumber: c.containerNumber,
+        sealNumber: c.sealNumber,
+        cargoWeightKg: c.cargoWeightKg,
+      })));
+    }
+    if (s.document) {
+      await attachShipmentDocument(shipment.id, {
+        type: s.document.type,
+        storageKey: s.document.storageKey,
+      });
+    }
+    if (s.declaration) {
+      await db.insert(schema.shipmentDeclarations).values({
+        shipmentId: shipment.id,
+        declarationNumber: s.declaration.declarationNumber,
+        scope: s.declaration.scope,
+        note: s.declaration.note,
+      });
+    }
+    if (s.advanceTo === 'IN_PROGRESS') {
+      await transitionShipmentStatus(shipment.id, 'IN_PROGRESS', { reason: 'Điều vận (seed)' });
+    } else if (s.advanceTo === 'DELIVERED') {
+      // Two legal edges required: DRAFT → IN_PROGRESS → DELIVERED.
+      await transitionShipmentStatus(shipment.id, 'IN_PROGRESS', { reason: 'Điều vận (seed)' });
+      await transitionShipmentStatus(shipment.id, 'DELIVERED', { reason: 'Giao hàng (seed)' });
+    }
+    createdCount++;
+  }
+  console.log(`  ✅ Sample shipments (${createdCount} new; ${shipmentSeeds.length - createdCount} already existed)`);
+  console.log('✅ Wave 0 shipment seed complete!');
+}
+
+// CLI entry point — only auto-run when invoked directly via `pnpm seed`
+// (npx tsx src/seed.ts). The guard lets tests import { seedShipments } from
+// '../seed' without triggering the full seed flow + process.exit at module
+// load. Mirrors the pattern in services/agent/retention-job.ts.
+const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+if (isMainModule) {
+  seed().catch(err => {
+    console.error('Seed failed:', err);
+    process.exit(1);
+  });
+}
