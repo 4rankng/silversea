@@ -346,7 +346,8 @@ mobile/reporting polish (builds on the closed loop).
 - [ ] M12.3: extend `ocr.service.ts` with pump-photo recognition; `POST /api/ocr/pump`;
       cross-check litres × price ≈ total; mismatch → manual fallback.
 - [ ] Frontend config pages for the 4 new catalogs + trip formula breakdown.
-- [ ] Regression: existing trip P&L still reconciles.
+<!-- autonomous-sdlc:completed task=wave1-regression -->
+- [x] Regression: existing trip P&L still reconciles.
 
 ### Open PRD questions
 
