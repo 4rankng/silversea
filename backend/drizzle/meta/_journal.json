@@ -785,6 +785,13 @@
       "when": 1784962504949,
       "tag": "0116_concerned_switch",
       "breakpoints": true
+    },
+    {
+      "idx": 117,
+      "version": "7",
+      "when": 1784963507202,
+      "tag": "0117_new_power_man",
+      "breakpoints": true
     }
   ]
 }

@@ -52,6 +52,20 @@ export const workDayStatusEnum = pgEnum('work_day_status', ['TRIP_DAY', 'STANDBY
 // task_id are plain strings — see plans/2026-07-13-onboarding-orchestration-layer.
 export const onboardingStatusEnum = pgEnum('onboarding_status', ['in_progress', 'completed', 'skipped']);
 export const onboardingTaskStatusEnum = pgEnum('onboarding_task_status', ['pending', 'completed', 'dismissed']);
+
+// ─── Wave 1: Pricing & Fuel enums ───────────────────────────────────────────
+// Direction of a lift (nâng/hạ) container movement at a port/yard.
+export const liftDirectionEnum = pgEnum('lift_direction', ['LIFT_UP', 'LIFT_DOWN']);
+// Type of ancillary (non-transport) revenue. PRD M2.5 §1 proposes this set;
+// additional types can be added via ALTER TYPE ADD VALUE if the customer
+// confirms more.
+export const ancillaryRevenueTypeEnum = pgEnum('ancillary_revenue_type', [
+  'LCL', 'CONSOLIDATION', 'SERVICE_DIFF', 'OTHER',
+]);
+// How a trip's freight revenue was computed: TIER = weight-tier pricing,
+// TABLE = fixed customer-route pricing, MANUAL = operator override.
+export const pricingSourceEnum = pgEnum('pricing_source', ['TIER', 'TABLE', 'MANUAL']);
+
 // ─── Config tables ───────────────────────────────────────────────────────────
 
 export const users = pgTable('users', {
@@ -238,6 +252,10 @@ export const cargoTypes = pgTable('cargo_types', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
   requiresPhotos: boolean('requires_photos').default(false),
+  // Wave 1: when true, resolveFreightPrice uses weight_pricing_tiers;
+  // when false, uses pricing_tables. Defaults false so existing cargo
+  // types keep the fixed-price model.
+  isBulk: boolean('is_bulk').default(false),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
@@ -289,6 +307,109 @@ export const fuelPriceHistory = pgTable('fuel_price_history', {
   note: text('note'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
+
+// ─── Wave 1: Pricing & Fuel Data Layer ──────────────────────────────────────
+//
+// These tables close the revenue/fuel-correctness gap before Wave 3
+// (financial close) touches P&L. See
+// `plans/silversea-prd-roadmap/phase-02-wave-1-pricing-fuel-data-layer.md`
+// for the full design.
+//
+// Scope of THIS slice: schema (tables + enums + columns) + migration only.
+// The service layer (resolveFreightPrice, resolveFuelNorm, etc.) and route
+// integrations are subsequent Wave 1 roadmap items.
+
+// M2.2: weight-tier pricing for bulk cargo. Each tier covers a half-open
+// [minKg, maxKg) weight range; `resolveFreightPrice` picks the matching
+// tier by trip weight × route × cargoType at the trip date. No two tiers
+// for the same (route, cargoType, effectiveDate) may overlap — enforced
+// by the service layer (M02-02-03) because PG has no native range-overlap
+// constraint without the `range` type.
+export const weightPricingTiers = pgTable('weight_pricing_tiers', {
+  id: serial('id').primaryKey(),
+  routeId: integer('route_id').references(() => routes.id).notNull(),
+  cargoTypeId: integer('cargo_type_id').references(() => cargoTypes.id).notNull(),
+  minKg: numeric('min_kg', { precision: 12, scale: 2 }).notNull(),
+  maxKg: numeric('max_kg', { precision: 12, scale: 2 }).notNull(),
+  pricePerKg: numeric('price_per_kg', { precision: 12, scale: 4 }).notNull(),
+  effectiveDate: date('effective_date').notNull().defaultNow(),
+  note: text('note'),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),
+}, (table) => [
+  index('weight_pricing_tiers_route_cargo_date_idx').on(table.routeId, table.cargoTypeId, table.effectiveDate),
+]);
+
+// M2.4: lift/up-down (nâng/hạ) price catalog. Port × containerType ×
+// direction × effectiveDate → unitPrice. The forwarder expense-entry flow
+// (future item) suggests the price and shows suggested/actual/delta.
+export const liftPricing = pgTable('lift_pricing', {
+  id: serial('id').primaryKey(),
+  portId: integer('port_id').references(() => ports.id).notNull(),
+  containerTypeId: integer('container_type_id').references(() => containerTypes.id).notNull(),
+  direction: liftDirectionEnum('direction').notNull(),
+  unitPrice: numeric('unit_price', { precision: 15, scale: 0 }).notNull(),
+  effectiveDate: date('effective_date').notNull().defaultNow(),
+  note: text('note'),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),
+}, (table) => [
+  index('lift_pricing_port_type_dir_date_idx').on(table.portId, table.containerTypeId, table.direction, table.effectiveDate),
+]);
+
+// M2.5: ancillary (non-transport) revenue. Each entry is recorded exactly
+// once; refunds use negative amounts with reason. Links to EITHER a
+// shipment OR a trip (at least one expected at the application layer).
+export const ancillaryRevenue = pgTable('ancillary_revenue', {
+  id: serial('id').primaryKey(),
+  customerId: integer('customer_id').references(() => customers.id).notNull(),
+  shipmentId: integer('shipment_id').references(() => shipments.id),
+  tripId: integer('trip_id').references(() => trips.id),
+  type: ancillaryRevenueTypeEnum('type').notNull(),
+  amount: numeric('amount', { precision: 15, scale: 0 }).notNull(),
+  tax: numeric('tax', { precision: 15, scale: 0 }).default('0'),
+  date: date('date').notNull().defaultNow(),
+  documentRef: varchar('document_ref', { length: 100 }),
+  note: text('note'),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),
+}, (table) => [
+  index('ancillary_revenue_customer_date_idx').on(table.customerId, table.date),
+  index('ancillary_revenue_shipment_idx').on(table.shipmentId),
+  index('ancillary_revenue_trip_idx').on(table.tripId),
+]);
+
+// M12.1: per-route / per-truck fuel norms. Replaces the singleton fuel_config
+// for new trips (legacy fuel_config stays as the fallback for trips created
+// before this table existed). Both routeId and truckId are optional — a row
+// with routeId set + truckId NULL = per-route norm; a row with both set =
+// per-route-per-truck norm; a row with routeId NULL + truckId set =
+// per-truck default. `flatRateLiters` is used for mountain routes
+// (M12.1 §5, open PRD question on exact behaviour — the column is here so
+// the service layer can apply it without another migration).
+export const fuelNorms = pgTable('fuel_norms', {
+  id: serial('id').primaryKey(),
+  routeId: integer('route_id').references(() => routes.id),
+  truckId: integer('truck_id').references(() => trucks.id),
+  loadedLitersPer100Km: numeric('loaded_liters_per_100km', { precision: 8, scale: 2 }).notNull(),
+  emptyLitersPer100Km: numeric('empty_liters_per_100km', { precision: 8, scale: 2 }).notNull(),
+  supplementLiters: numeric('supplement_liters', { precision: 8, scale: 2 }).default('0'),
+  flatRateLiters: numeric('flat_rate_liters', { precision: 8, scale: 2 }),
+  effectiveDate: date('effective_date').notNull().defaultNow(),
+  note: text('note'),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),
+}, (table) => [
+  index('fuel_norms_route_truck_date_idx').on(table.routeId, table.truckId, table.effectiveDate),
+]);
 
 export const penaltyReasons = pgTable('penalty_reasons', {
   id: serial('id').primaryKey(),
@@ -353,6 +474,13 @@ export const trips = pgTable('trips', {
   revenueOriginal: numeric('revenue_original', { precision: 15, scale: 0 }),
   revenueOverriddenBy: integer('revenue_overridden_by'),
   revenueOverriddenAt: timestamp('revenue_overridden_at'),
+  // Wave 1: pricing-snapshot columns. Track how the revenue was computed
+  // so accountants can distinguish AUTO (tier/table) from MANUAL. Nullable
+  // — existing trips have NULL (no regression); new trips get populated by
+  // resolveFreightPrice (future service-layer item).
+  pricingSource: pricingSourceEnum('pricing_source'),
+  pricingFormula: text('pricing_formula'),
+  pricingSnapshot: jsonb('pricing_snapshot').$type<Record<string, unknown>>(),
   notes: text('notes'),
   // Per-trip customer commission (hoa hồng). Deducted from freightExVat to produce recordedRevenue.
   // Recorded immediately on data entry (not at lock). Default 0 = no commission.
