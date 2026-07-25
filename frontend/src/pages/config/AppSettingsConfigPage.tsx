@@ -177,12 +177,30 @@ export default function AppSettingsConfigPage() {
   const saveGps = async () => {
     setGpsMessage(null);
     try {
-      await saveGpsSettings.mutateAsync({
-        username: gpsUsername.trim(),
-        ...(gpsPassword.trim() ? { password: gpsPassword } : {}),
-      });
+      // The gpsEnabled toggle lives in this panel, so saving the panel must
+      // also persist the toggle. Previously only the credentials were saved
+      // here, which silently dropped the toggle flip — a user who turned GPS
+      // off in this panel and then refreshed found it back on.
+      const tasks: Promise<unknown>[] = [];
+      const previous = appSettings.data;
+      if (previous && previous.gpsEnabled !== features.gpsEnabled) {
+        tasks.push(saveAppSettings.mutateAsync(features));
+      }
+      // Credentials are only meaningful while GPS is on. When the user has
+      // also typed something into the credential fields, send them along.
+      const hasCredentialEdit = gpsUsername.trim() !== '' || gpsPassword.trim() !== '';
+      if (features.gpsEnabled && hasCredentialEdit) {
+        tasks.push(
+          saveGpsSettings.mutateAsync({
+            username: gpsUsername.trim(),
+            ...(gpsPassword.trim() ? { password: gpsPassword } : {}),
+          }),
+        );
+      }
+      if (tasks.length === 0) return;
+      await Promise.all(tasks);
       setGpsPassword('');
-      setGpsMessage('Đã lưu tài khoản định vị Bách Khoa.');
+      setGpsMessage('Đã lưu cài đặt định vị Bách Khoa.');
     } catch {
       setGpsMessage(null);
     }
@@ -197,9 +215,15 @@ export default function AppSettingsConfigPage() {
   // Credentials are only required while the feature is enabled. When off, the
   // fields are disabled and the save button stays inert — no validation pressure.
   const gpsCredsRequired = features.gpsEnabled;
-  const gpsReady = gpsCredsRequired
-    && gpsUsername.trim() !== ''
-    && (gpsSettings.data?.passwordSet || gpsPassword.trim() !== '');
+  // The save button must also be enabled when the user has only flipped the
+  // gpsEnabled toggle in this panel — otherwise the toggle flip is lost on
+  // refresh because "Lưu cài đặt" (the only place that persists app_settings)
+  // sits in a different panel above.
+  const gpsToggleChanged = !!appSettings.data && appSettings.data.gpsEnabled !== features.gpsEnabled;
+  const gpsReady = gpsToggleChanged
+    || (gpsCredsRequired
+      && gpsUsername.trim() !== ''
+      && (gpsSettings.data?.passwordSet || gpsPassword.trim() !== ''));
 
   return (
     <div ref={pageRef} className="cfg-page cfg-page--app-settings">

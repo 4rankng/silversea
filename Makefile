@@ -1,5 +1,5 @@
 .PHONY: dev stop down setup seed migrate generate build studio help \
-        logs-db logs-redis infra
+        logs-db logs-redis infra demo demo-push demo-deploy demo-health
 
 # ─── Ports (silversea — de-conflicted from nepocorp) ─────────────────────────
 # PostgreSQL: 5441  |  Redis: 6391  |  Backend: 3001  |  Frontend: 7174  |  Adminer: 8083
@@ -84,6 +84,61 @@ logs-redis: ## Show redis logs
 	@docker compose -f docker-compose.dev.yml logs -f redis 2>/dev/null || \
 		docker-compose -f docker-compose.dev.yml logs -f redis
 
+# ─── Demo deploy (vantai.tingting.vip) ─────────────────────────────────────────
+# Deploys the current working tree to the demo server. The demo stack already
+# runs at /opt/vantai with its own postgres (persisted at /opt/vantai/data/
+# postgres) — this target only rebuilds + restarts the backend and frontend
+# containers and applies pending Drizzle migrations on top of the existing DB.
+# It never touches the database volume, so existing data is preserved.
+#
+# Flow:  build+push images → pull on server → recreate backend/frontend only
+#        → drizzle-kit migrate (additive, on top of live DB) → health check.
+#
+# Prereqs: backend/.env with DOCKERHUB_USERNAME / DOCKERHUB_PASSWORD, and SSH
+# access to root@vantai.tingting.vip.
+
+DEMO_SERVER := vantai.tingting.vip
+DEMO_PATH   := /opt/vantai
+DEMO_COMPOSE := docker compose -f deploy/docker-compose.prod.yml
+
+demo: ## Deploy silversea to demo (vantai.tingting.vip) — keeps existing DB
+	@echo "=== Deploying silversea to $(DEMO_SERVER) ==="
+	@echo ""
+	@echo "1/3  Building + pushing images to Docker Hub..."
+	@cd backend && $(MAKE) push
+	@cd frontend && $(MAKE) push
+	@echo ""
+	@echo "2/3  Pulling + restarting services on $(DEMO_SERVER) (DB volume untouched)..."
+	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) pull backend frontend"
+	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) up -d --force-recreate --no-deps backend frontend"
+	@echo "Running pending migrations on top of existing DB..."
+	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) exec -T backend npx drizzle-kit migrate"
+	@ssh root@$(DEMO_SERVER) "docker image prune -f"
+	@echo ""
+	@echo "3/3  Health check..."
+	@$(MAKE) --no-print-directory demo-health
+	@echo ""
+	@echo "✅ Demo deployed: https://$(DEMO_SERVER)  (login: admin / admin123)"
+
+demo-push: ## Build + push demo images only (no server-side changes)
+	@cd backend && $(MAKE) push
+	@cd frontend && $(MAKE) push
+
+demo-deploy: ## Pull + restart + migrate on the demo server (no rebuild)
+	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) pull backend frontend"
+	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) up -d --force-recreate --no-deps backend frontend"
+	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) exec -T backend npx drizzle-kit migrate"
+	@ssh root@$(DEMO_SERVER) "docker image prune -f"
+	@$(MAKE) --no-print-directory demo-health
+
+demo-health: ## Hit the demo backend health endpoint
+	@echo "  Backend: https://$(DEMO_SERVER)/api/health"
+	@curl -fsS --max-time 30 https://$(DEMO_SERVER)/api/health \
+		| sed 's/^/    /' \
+		|| (echo "    ⚠️  health check failed — check logs:" \
+			&& echo "    ssh root@$(DEMO_SERVER) 'cd $(DEMO_PATH) && $(DEMO_COMPOSE) logs --tail=80 backend'" \
+			&& exit 1)
+
 # ─── Help ──────────────────────────────────────────────────────────────────────
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -91,5 +146,7 @@ help: ## Show this help
 	@echo ""
 	@echo "silversea dev ports (de-conflicted from nepocorp):"
 	@echo "  Frontend 7174  ·  Backend 3001  ·  Postgres 5441  ·  Redis 6391  ·  Adminer 8083"
+	@echo ""
+	@echo "demo:  make demo  →  https://vantai.tingting.vip  (DB preserved)"
 
 .DEFAULT_GOAL := help

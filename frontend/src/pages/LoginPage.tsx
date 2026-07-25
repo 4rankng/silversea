@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Lock, Eye, EyeOff } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, Lock, ShieldCheck, User } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { BRAND } from '../brand';
 import './LoginPage.css';
@@ -28,93 +28,145 @@ export default function LoginPage() {
 
   return (
     <main className="login-page">
-      <div className="login-card">
-        <form className="login-form" onSubmit={submit}>
-          <div className="login-brand">
-            <div className="brand-logo">
-              <img src={BRAND.logoPath} alt={`Biểu trưng ${BRAND.name}`} />
+      <section className="login-shell" aria-labelledby="login-title">
+        <div className="login-auth-panel">
+          <header className="login-topbar">
+            <div className="login-brand">
+              <span className="login-brand__logo">
+                <img src={BRAND.logoPath} alt="" />
+              </span>
+              <span className="login-brand__copy">
+                <strong>{BRAND.name}</strong>
+                <span>{BRAND.shellDescriptor}</span>
+              </span>
             </div>
-            <h1>{BRAND.name}</h1>
-            <p>{BRAND.tagline}</p>
-          </div>
 
-          <div className="login-divider" />
+            <span className="login-security">
+              <ShieldCheck size={15} aria-hidden="true" />
+              Kết nối bảo mật
+            </span>
+          </header>
 
-          <h2>Đăng nhập</h2>
-          <p className="sub">Nhập thông tin tài khoản của bạn</p>
+          <div className="login-form-wrap">
+            <form className="login-form" onSubmit={submit}>
+              <div className="login-intro">
+                <p className="login-eyebrow">Cổng vận hành</p>
+                <h1 id="login-title">Chào mừng trở lại</h1>
+                <p className="login-subtitle">
+                  Đăng nhập để tiếp tục quản lý vận tải và logistics.
+                </p>
+              </div>
 
-          {sessionExpired && (
-            <div className="login-session-notice" role="status">
-              Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để tiếp tục.
-            </div>
-          )}
+              {sessionExpired && (
+                <div className="login-session-notice" role="status">
+                  Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để tiếp tục.
+                </div>
+              )}
 
-          <div className="field">
-            <label htmlFor="username-input">Tên đăng nhập / Số điện thoại</label>
-            <div className="input-icon">
-              <User size={16} />
-              <input
-                id="username-input"
-                name="username"
-                className="input"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                placeholder="Tên đăng nhập hoặc SĐT"
-                autoComplete="username"
-                autoCapitalize="none"
-              />
-            </div>
-          </div>
+              <div className="field">
+                <label htmlFor="username-input">Tên đăng nhập hoặc số điện thoại</label>
+                <div className="input-icon">
+                  <User size={18} aria-hidden="true" />
+                  <input
+                    id="username-input"
+                    name="username"
+                    className="input"
+                    value={username}
+                    onChange={e => setUsername(e.target.value)}
+                    placeholder="Nhập tên đăng nhập hoặc số điện thoại"
+                    autoComplete="username"
+                    autoCapitalize="none"
+                    aria-invalid={Boolean(error)}
+                    aria-describedby={error ? 'login-error' : undefined}
+                    required
+                    autoFocus
+                  />
+                </div>
+              </div>
 
-          <div className="field">
-            <label htmlFor="password-input">Mật khẩu</label>
-            <div className="input-icon" style={{ position: 'relative' }}>
-              <Lock size={16} />
-              <input
-                id="password-input"
-                name="password"
-                className="input"
-                type={showPw ? 'text' : 'password'}
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="Mật khẩu"
-                autoComplete="current-password"
-                style={{ paddingRight: 40 }}
-              />
+              <div className="field">
+                <label htmlFor="password-input">Mật khẩu</label>
+                <div className="input-icon">
+                  <Lock size={18} aria-hidden="true" />
+                  <input
+                    id="password-input"
+                    name="password"
+                    className="input"
+                    type={showPw ? 'text' : 'password'}
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="Nhập mật khẩu"
+                    autoComplete="current-password"
+                    aria-invalid={Boolean(error)}
+                    aria-describedby={error ? 'login-error' : undefined}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle"
+                    onClick={() => setShowPw(!showPw)}
+                    aria-label={showPw ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                    aria-pressed={showPw}
+                  >
+                    {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              {error && (
+                <div id="login-error" className="login-error" role="alert">
+                  {error}
+                </div>
+              )}
+
               <button
-                type="button"
-                className="password-toggle"
-                onClick={() => setShowPw(!showPw)}
-                aria-label={showPw ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                className="btn btn--primary btn--lg login-submit"
+                type="submit"
+                disabled={!username || !password || submitting}
+                aria-busy={submitting}
               >
-                {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                <span>{submitting ? 'Đang đăng nhập…' : 'Đăng nhập'}</span>
+                {!submitting && <ArrowRight size={18} aria-hidden="true" />}
               </button>
-            </div>
+
+              <p className="login-help">
+                Tài khoản được cấp bởi quản trị viên doanh nghiệp.
+              </p>
+            </form>
           </div>
 
-          {error && (
-            <div className="login-error" role="alert">
-              {error}
-            </div>
-          )}
+          <footer className="login-footer">
+            <span>&copy; {new Date().getFullYear()} {BRAND.name}</span>
+            <span aria-hidden="true">•</span>
+            <span>Hải Phòng, Việt Nam</span>
+          </footer>
+        </div>
 
-          <button
-            className="btn btn--primary btn--lg login-submit"
-            type="submit"
-            disabled={!username || !password || submitting}
-          >
-            {submitting ? 'Đang đăng nhập…' : 'Đăng nhập'}
-          </button>
+        <aside className="login-visual" aria-label="Hệ thống vận hành logistics TransTing">
+          <img
+            src="/assets/illustrations/login-port-illustration-v3.webp"
+            alt=""
+            className="login-visual__image"
+          />
+          <div className="login-visual__veil" />
 
-
-        </form>
-      </div>
-
-      <img src="/assets/illustrations/bg-transport-world.svg" alt="" className="login-bg-svg" />
-
-      <p className="login-footer">
-        &copy; {new Date().getFullYear()} {BRAND.name} &middot; Hải Phòng
-      </p>
+          <div className="login-visual__content">
+            <p className="login-visual__eyebrow">
+              <span className="login-status-dot" />
+              Hệ thống sẵn sàng
+            </p>
+            <h2>Mỗi hành trình, một luồng dữ liệu liền mạch.</h2>
+            <p>
+              Điều phối chuyến, theo dõi chi phí và đối soát công nợ trên cùng một nền tảng.
+            </p>
+            <ul className="login-capabilities" aria-label="Năng lực hệ thống">
+              <li>Điều phối vận tải</li>
+              <li>Kiểm soát chi phí</li>
+              <li>Đối soát minh bạch</li>
+            </ul>
+          </div>
+        </aside>
+      </section>
     </main>
   );
 }
