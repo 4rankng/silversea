@@ -21,6 +21,23 @@ function isUniqueViolation(err: unknown): boolean {
   return e.code === '23505' || e.cause?.code === '23505';
 }
 
+/**
+ * M2.3: Build the full visible pricing formula: freight + VAT.
+ * The freight component comes from resolveFreightPrice (e.g.
+ * "15000kg × 4.500 ₫/kg = 67.500.000 ₫"). This appends the VAT line
+ * when vatRate > 0, producing e.g. "15000kg × 4.500 ₫/kg = 67.500.000 ₫ + VAT 10% = 74.250.000 ₫".
+ * Surcharges (twoPointDeliveryBonus, vehicleShiftAllowance) are 0 at createTrip
+ * time and added later via updateTripFigures — they don't appear here.
+ */
+function buildFullPricingFormula(freightFormula: string, freightPrice: number, vatRate: number): string {
+  if (vatRate > 0) {
+    const vatMultiplier = 1 + vatRate;
+    const totalInclVat = Math.round(freightPrice * vatMultiplier);
+    return `${freightFormula} + VAT ${(vatRate * 100).toFixed(0)}% = ${totalInclVat.toLocaleString('vi-VN')} ₫`;
+  }
+  return freightFormula;
+}
+
 export function assertCustomerCommissionWithinRevenue(
   revenueInclVat: number,
   vatRate: number,
@@ -418,7 +435,12 @@ export async function createTrip(data: {
       // Wave 1: pricing-source snapshot. Populated by resolveFreightPrice
       // so accountants can distinguish AUTO (TIER/TABLE) from MANUAL.
       pricingSource: freightPrice.source,
-      pricingFormula: freightPrice.formula,
+      // M2.3: enhance the base freight formula with surcharges + VAT so the
+      // UI shows the complete revenue breakdown. When the source is MANUAL,
+      // keep the original "thủ công" message.
+      pricingFormula: freightPrice.source === 'MANUAL' ? freightPrice.formula
+        : buildFullPricingFormula(freightPrice.formula, freightPrice.price,
+            data.vatRate ?? 0),
       pricingSnapshot: freightPrice.snapshot,
 
       // Snapshots
