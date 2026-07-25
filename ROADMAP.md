@@ -126,7 +126,24 @@ mobile/reporting polish (builds on the closed loop).
       gps-admin.rbac.test.ts). All gates green: lint, backend tsc, 777/777
       backend tests, frontend tsc, 212/212 frontend tests, build. Policy rows
       are forward-looking (shipment routes + portal ship in later checkboxes).
-- [ ] Build `shipment.service.ts` (CRUD, status transitions, container snapshot into trips).
+<!-- autonomous-sdlc:completed task=wave0-shipment-service -->
+- [x] Build `shipment.service.ts` (CRUD, status transitions, container snapshot into trips).
+      ✅ Done — `backend/src/services/shipment.service.ts` ships `createShipment`
+      (DRAFT + initial history row + PK-backed `shipmentCode` `SHP-<YYMM>-<NNNNN>`),
+      `getShipment`/`listShipments` (exclude soft-deleted, filter+paginate),
+      `updateShipment` (`version` optimistic-lock, 409 on stale),
+      `transitionShipmentStatus` (legal-edge state machine
+      DRAFT→IN_PROGRESS→DELIVERED→CLOSED, CANCELED terminal; idempotent same-status;
+      append-only `shipment_status_history` row per transition), `softDeleteShipment`
+      (DRAFT/CANCELED only), and `snapshotContainersIntoTrip` (idempotent copy of
+      `shipment_containers` → `trip_containers` via `__shipment_snapshot:<id>` marker).
+      18 new tests in `backend/src/tests/shipment-service.test.ts` (real DB, mirrors
+      carrier-payment-ledger.test.ts). All gates green: lint, backend tsc, 795/795
+      backend tests, frontend tsc, 212/212 frontend tests, build. Assumption:
+      `shipmentCode` format pending PRD M3.1 §5 (`customers` has no `code` column
+      yet, so customer-code prefix is impossible without a schema change outside
+      this task). Router, dispatch-refactor, frontend, seed, audit, RBAC-row-scope
+      are the subsequent Wave 0 checkboxes.
 - [ ] Build `routes/shipments.ts`: list, detail, create (draft), update, dispatch (→ trip),
       status transitions, document upload, container upsert.
 - [ ] Refactor trip creation to set `shipmentId`; back-compat auto-shipment path + feature
