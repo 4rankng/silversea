@@ -183,8 +183,25 @@ mobile/reporting polish (builds on the closed loop).
       boot in `index.ts`. ✅ Wave 0 done — see `backend/src/scheduler/` +
       migration `0111_peaceful_lenny_balinger.sql` + tests in
       `backend/src/tests/scheduler.test.ts` (15 tests, all pass).
-- [ ] Frontend: minimal `ShipmentsPage` + `ShipmentDetailPage`; route in `App.tsx`.
+<!-- autonomous-sdlc:completed task=wave0-shipment-frontend -->
+- [x] Frontend: minimal `ShipmentsPage` + `ShipmentDetailPage`; route in `App.tsx`.
       (Full CUS UI comes in Wave 2.)
+      ✅ Done — read-only `ShipmentsPage` (paginated list, status filter
+      pills, debounced search box with honest client-side-only filtering +
+      truncation messaging, empty/loading/error states) + read-only
+      `ShipmentDetailPage` (header + containers table + documents +
+      declarations + status-history timeline, 404 handling, stale-response
+      guard). PAGE_CATALOG + routes.ts projections + 2 title rules added;
+      routes wired via `officeStaffOnly` guard; "Lô hàng" nav item in the
+      operations section. 8 new vitest tests covering render / empty / list
+      / error / status-filter / page / client-side search / page-reset.
+      Self-review caught 1 lint blocker (dead local) + 4 should-fix items
+      (search refetch storm, truncation UX, stale-response race, a11y
+      aria-label) — all fixed. All gates green: lint, shared tsc, backend
+      tsc, 861/861 backend tests, frontend tsc, 220/220 frontend tests
+      (was 212; +8 new), build. E2E skipped with justification (no
+      API/schema/RBAC change); see
+      `qa/2026-07-25_wave0-shipment-frontend_e2e.md`.
 - [ ] Seed test shipments + a `CUSTOMER`-role user for QA.
 - [ ] Audit-log every shipment write.
 - [ ] Row-scope helper `scopedByCustomer(req.user, query)` — reusable in Waves 2 & 3.

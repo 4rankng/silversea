@@ -57,6 +57,9 @@ function getNavItems(role: Role, dispatchCount?: number, penaltiesCount?: number
 
         { key: 'dispatch', label: 'Phân xe', path: routes.dispatch, icon: Compass, section: 'operations', count: dispatchCount },
         { key: 'trips', label: 'Sổ chuyến đi', path: routes.trips, icon: Truck, section: 'operations' },
+        // Wave 0: shipment (lô hàng) — minimal read-only list. A shipment
+        // precedes and outlives any single trip, so it sits adjacent to trips.
+        { key: 'shipments', label: 'Lô hàng', path: routes.shipments, icon: Package, section: 'operations' },
 
         { key: 'salary', label: 'Lương & Chấm công', path: routes.salary, icon: CalendarDays, section: 'hr' },
         { key: 'penalties', label: 'Kỷ luật', path: routes.penalties, icon: AlertTriangle, section: 'hr', count: penaltiesCount },
