@@ -107,9 +107,15 @@ mobile/reporting polish (builds on the closed loop).
 
 ### Items
 
-<!-- autonomous-sdlc:in-progress task=wave0-shipments-schema -->
-- [ ] Add `shipments`, `shipment_documents`, `shipment_declarations`,
+<!-- autonomous-sdlc:completed task=wave0-shipments-schema -->
+- [x] Add `shipments`, `shipment_documents`, `shipment_declarations`,
       `shipment_status_history` tables + `trips.shipmentId` FK. `drizzle-kit generate`.
+      ✅ Schema slice done — see `backend/src/db/schema.ts` (Shipments section) +
+      migration `0112_calm_madrox.sql`. 5 new tables + 3 enums + nullable
+      `trips.shipmentId` FK (NO ACTION) + `shipment_containers` mirror. Additive,
+      forward-only. Backend tsc clean, 761/761 backend tests pass, 212/212
+      frontend tests pass, build green. (Service/router/RBAC/frontend/seed are
+      the subsequent Wave 0 checkboxes.)
 - [ ] Add `CUSTOMER` and `CLERK` to `roleEnum`; update `casbin/policy.csv` + enforcer.
 - [ ] Build `shipment.service.ts` (CRUD, status transitions, container snapshot into trips).
 - [ ] Build `routes/shipments.ts`: list, detail, create (draft), update, dispatch (→ trip),
