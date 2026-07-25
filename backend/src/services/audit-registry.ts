@@ -57,8 +57,15 @@ export function registerAuditEvent(
 /**
  * Look up the registered audit event for a method + path.
  */
-export function resolveAuditEvent(method: string, path: string): AuditEventType {
+export function resolveAuditEvent(method: string, rawPath: string): AuditEventType {
   const methodKey = method.toUpperCase();
+  // Normalize a trailing slash so `POST /api/shipments/` resolves the same
+  // exact-match registration as `POST /api/shipments`. Without this, every
+  // exact-match audit registration (POST /api/trips, POST /api/shipments,
+  // …) silently fell through to the generic ENTITY_* fallback whenever the
+  // client added a trailing slash — producing misleading audit messages.
+  // Keep the root path `/` intact (do not turn it into an empty string).
+  const path = rawPath.length > 1 && rawPath.endsWith('/') ? rawPath.slice(0, -1) : rawPath;
 
   // Custom overrides for trip expenses approve/reject
   if (methodKey === 'POST' && path.includes('/expenses/') && path.endsWith('/approve')) {

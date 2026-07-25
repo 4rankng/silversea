@@ -58,17 +58,19 @@ import { throwValidation } from '../lib/validation';
 import { ShipmentStatus } from '@tingting/shared';
 
 // Audit event registrations — matched by the audit middleware on every write.
-// Suffix-mode registrations (prefix + suffix) cover all /:id sub-paths.
+// Suffix-mode registrations (prefix + suffix) cover all /:id sub-paths. The
+// registry's "longest suffix wins" rule means a sub-path like `/containers`
+// (length 11) beats the empty-suffix (length 0) registration for the path
+// `/api/shipments/42/containers`, so the two PUT registrations below are
+// orthogonal: empty-suffix handles `/api/shipments/42` (the basic update),
+// `/containers` handles the container-batch upsert.
 registerAuditEvent('POST', '/api/shipments', AuditEvent.SHIPMENT_CREATED);
 registerAuditEvent('POST', '/api/shipments/', '/dispatch', AuditEvent.SHIPMENT_DISPATCHED);
 registerAuditEvent('POST', '/api/shipments/', '/transition', AuditEvent.SHIPMENT_STATUS_CHANGED);
 registerAuditEvent('POST', '/api/shipments/', '/documents', AuditEvent.SHIPMENT_DOCUMENT_UPLOADED);
 registerAuditEvent('PUT', '/api/shipments/', '/containers', AuditEvent.SHIPMENT_CONTAINERS_UPDATED);
+registerAuditEvent('PUT', '/api/shipments/', '', AuditEvent.SHIPMENT_UPDATED);
 registerAuditEvent('DELETE', '/api/shipments/', '', AuditEvent.SHIPMENT_DELETED);
-// PUT /api/shipments/:id (suffix-less update) falls back to the generic
-// ENTITY_UPDATED via the registry's default; that's the same behaviour as
-// other routes. The /containers PUT above overrides with the more specific
-// SHIPMENT_CONTAINERS_UPDATED.
 
 const router = Router();
 
@@ -185,13 +187,19 @@ router.post(
     const parsed = dispatchShipmentSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     const user = getUser(req);
+    // Fetch the shipment up front for the audit entityKey. The audit row's
+    // entityId is the SHIPMENT id (not the trip id), so its entityKey must
+    // be the shipmentCode — otherwise the dispatch event is unsearchable by
+    // shipment code. The new trip's code goes into the response body and the
+    // audit metadata.path; it is not lost.
+    const shipment = await getShipment(id);
     const result = await dispatchShipmentToTrip(
       id,
       parsed.data,
       { userId: user.userId, role: user.role },
     );
     res.locals.auditEntityId = id;
-    res.locals.auditEntityKey = result.trip.tripCode;
+    res.locals.auditEntityKey = shipment.shipmentCode ?? `#${id}`;
     res.status(result.created ? 201 : 200).json(result);
   }),
 );
