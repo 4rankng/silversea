@@ -385,7 +385,8 @@ biggest new surface area and the biggest customer-facing differentiator.
 <!-- autonomous-sdlc:completed task=wave2-m34-delivery -->
 - [x] M3.4: three-party delivery confirm (driver / CUS / customer); partial delivery per
       container; free-time overrun calc + fee warning.
-- [ ] M3.5: extend `billingDocument.service.ts` to assemble lines from approved expenses +
+<!-- autonomous-sdlc:completed task=wave2-m35-billing-assembly -->
+- [x] M3.5: extend `billingDocument.service.ts` to assemble lines from approved expenses +
       freight snapshot + ancillary revenue; per-customer template; VAT per line.
 <!-- autonomous-sdlc:completed task=wave2-m35-unapproved-exclusion -->
 - [x] M3.5: unapproved disbursement excluded from official doc; pending list shown.
