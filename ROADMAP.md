@@ -401,7 +401,8 @@ biggest new surface area and the biggest customer-facing differentiator.
 - [ ] Customer portal frontend: `/portal/*` route tree; shipment list/detail, debit-note
       list/confirm/dispute, statement download, optional two-way messaging.
 - [ ] PDF export for debit notes (extend statement.service.ts PDF path).
-- [ ] Cross-customer isolation integration tests (every portal endpoint, A's token vs B's IDs).
+<!-- autonomous-sdlc:completed task=wave2-cross-customer-isolation -->
+- [x] Cross-customer isolation integration tests (every portal endpoint, A's token vs B's IDs).
 
 ### Open PRD questions
 
