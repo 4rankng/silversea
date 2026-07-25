@@ -6,7 +6,7 @@
  */
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { inArray } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
@@ -369,5 +369,66 @@ describe('validatePricingTableOverlap', () => {
 
     const overlaps = await validatePricingTableOverlap(customer.id, route.id, '2026-01-01');
     assert.equal(overlaps.length, 0);
+  });
+});
+
+// ─── M2.4: resolveLiftPrice ─────────────────────────────────────────────────
+
+import { resolveLiftPrice } from '../services/pricing.service';
+
+describe('M2.4 — resolveLiftPrice', () => {
+  test('finds the matching lift price for port + container + direction', async () => {
+    // Use existing seeded ports/containerTypes if possible
+    const [port] = await db.select().from(s.ports).limit(1);
+    const [ct] = await db.select().from(s.containerTypes).limit(1);
+    if (!port || !ct) return; // skip if no seed data
+
+    // Insert a lift_pricing row
+    const [lp] = await db.insert(s.liftPricing).values({
+      portId: port.id, containerTypeId: ct.id, direction: 'LIFT_UP',
+      unitPrice: '1200000', effectiveDate: '2026-01-01',
+    }).returning();
+
+    const result = await resolveLiftPrice({
+      portId: port.id, containerTypeId: ct.id, direction: 'LIFT_UP', date: '2026-07-01',
+    });
+    assert.ok(result, 'found a lift price');
+    assert.equal(result!.suggestedPrice, 1_200_000);
+
+    // Cleanup
+    await db.delete(s.liftPricing).where(eq(s.liftPricing.id, lp.id));
+    createdTierIds.pop();
+  });
+
+  test('returns null when no lift_pricing exists', async () => {
+    const result = await resolveLiftPrice({
+      portId: 99_999_999, containerTypeId: 99_999_999,
+      direction: 'LIFT_DOWN', date: '2026-07-01',
+    });
+    assert.equal(result, null);
+  });
+
+  test('picks the most recent effectiveDate', async () => {
+    const [port] = await db.select().from(s.ports).limit(1);
+    const [ct] = await db.select().from(s.containerTypes).limit(1);
+    if (!port || !ct) return;
+
+    const [lp1] = await db.insert(s.liftPricing).values({
+      portId: port.id, containerTypeId: ct.id, direction: 'LIFT_DOWN',
+      unitPrice: '800000', effectiveDate: '2026-01-01',
+    }).returning();
+    const [lp2] = await db.insert(s.liftPricing).values({
+      portId: port.id, containerTypeId: ct.id, direction: 'LIFT_DOWN',
+      unitPrice: '900000', effectiveDate: '2026-06-01',
+    }).returning();
+
+    const result = await resolveLiftPrice({
+      portId: port.id, containerTypeId: ct.id, direction: 'LIFT_DOWN', date: '2026-07-01',
+    });
+    assert.ok(result);
+    assert.equal(result!.suggestedPrice, 900_000);
+
+    // Cleanup
+    await db.delete(s.liftPricing).where(inArray(s.liftPricing.id, [lp1.id, lp2.id]));
   });
 });
