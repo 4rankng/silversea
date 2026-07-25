@@ -49,7 +49,7 @@ function startSdk(): NodeSDK {
 
   const sdk = new NodeSDK({
     resource: resourceFromAttributes({
-      [ATTR_SERVICE_NAME]: 'tingting-backend',
+      [ATTR_SERVICE_NAME]: 'transting-backend',
     }),
     traceExporter: buildExporter(),
     // Disable metrics: the SDK otherwise defaults OTEL_METRICS_EXPORTER to

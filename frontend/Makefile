@@ -4,7 +4,7 @@ export
 
 .PHONY: push deploy
 
-IMAGE_NAME  := $(DOCKERHUB_USERNAME)/tingting-frontend
+IMAGE_NAME  := $(DOCKERHUB_USERNAME)/transting-frontend
 GIT_SHA     := $(shell cd .. && git rev-parse --short HEAD)
 BUILDER     := bb
 PROD_SERVER := nepo.tingting.vip
