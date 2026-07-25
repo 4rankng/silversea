@@ -6,6 +6,7 @@ describe('TransTing brand contract', () => {
     expect(BRAND).toEqual({
       name: 'TransTing',
       productName: 'TransTing Logistics',
+      legalEntity: 'Ting Ting Software Solution',
       tagline: 'Vận tải thông minh. Doanh nghiệp vững mạnh.',
       shellDescriptor: 'Quản lý vận tải và logistics',
       logoPath: '/assets/transting-logo-192.png?v=4',
