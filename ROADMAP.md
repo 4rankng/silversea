@@ -339,7 +339,8 @@ mobile/reporting polish (builds on the closed loop).
 <!-- autonomous-sdlc:completed task=wave1-m24-lift-pricing -->
 - [x] M2.4: lift/up-down catalog `lift_pricing` (port × type × direction × date); show
       suggested/actual/delta on expense entry.
-- [ ] M2.5: ancillary revenue CRUD; refunds via negative amounts with reason; no silent edits.
+<!-- autonomous-sdlc:completed task=wave1-m25-ancillary -->
+- [x] M2.5: ancillary revenue CRUD; refunds via negative amounts with reason; no silent edits.
 <!-- autonomous-sdlc:completed task=wave1-m121-catalog-crud -->
 - [x] M12.1: extend `fuel_config` to per-route/per-truck-type norms; mountain flat-rate.
 - [ ] M12.3: extend `ocr.service.ts` with pump-photo recognition; `POST /api/ocr/pump`;
