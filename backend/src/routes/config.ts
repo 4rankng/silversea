@@ -130,7 +130,25 @@ router.use('/road-allowances', createCrudRouter(s.roadAllowances, roadAllowanceS
 router.use('/fuel-norms', createCrudRouter(s.fuelNorms, fuelNormSchema));
 router.use('/weight-pricing-tiers', createCrudRouter(s.weightPricingTiers, weightPricingTierSchema));
 router.use('/lift-pricing', createCrudRouter(s.liftPricing, liftPricingSchema));
-router.use('/ancillary-revenue', createCrudRouter(s.ancillaryRevenue, ancillaryRevenueSchema));
+// M2.5: ancillary revenue with refund validation. Refunds (negative amounts)
+// require a non-empty note. The createCrudRouter doesn't support superRefine
+// (its type expects AnyZodObject), so we validate the refund rule as a
+// beforeCreate/beforeUpdate hook that throws ApiError when the rule is violated.
+const ancillaryRevenueRouter = createCrudRouter(s.ancillaryRevenue, ancillaryRevenueSchema, {
+  beforeCreate: (data) => {
+    if (Number(data.amount) < 0 && (!data.note || !String(data.note).trim())) {
+      throw new ApiError(400, 'Lý do hoàn tiền là bắt buộc khi số tiền âm');
+    }
+    return data;
+  },
+  beforeUpdate: (_id, data) => {
+    if (data.amount !== undefined && Number(data.amount) < 0 && (!data.note || !String(data.note).trim())) {
+      throw new ApiError(400, 'Lý do hoàn tiền là bắt buộc khi số tiền âm');
+    }
+    return data;
+  },
+});
+router.use('/ancillary-revenue', ancillaryRevenueRouter);
 
 router.get('/penalty-reasons/stats', asyncHandler(async (req: Request, res: Response) => {
   res.json(await getPenaltyStats());
