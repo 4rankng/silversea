@@ -771,6 +771,20 @@
       "when": 1784953470616,
       "tag": "0114_clear_katie_power",
       "breakpoints": true
+    },
+    {
+      "idx": 115,
+      "version": "7",
+      "when": 1784962367868,
+      "tag": "0115_premium_juggernaut",
+      "breakpoints": true
+    },
+    {
+      "idx": 116,
+      "version": "7",
+      "when": 1784962504949,
+      "tag": "0116_concerned_switch",
+      "breakpoints": true
     }
   ]
 }

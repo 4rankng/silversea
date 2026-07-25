@@ -12,6 +12,15 @@ export interface AuthUser {
   /** Human-readable Vietnamese name. Used as the actor label in audit logs. */
   fullName: string | null;
   role: Role;
+  /**
+   * Wave 0: optional 1:1 link from a CUSTOMER-role user to the AR customer
+   * whose data they may see in the customer portal (Wave 2). Populated from
+   * the `users.customer_id` column at login and carried in the JWT. Non-
+   * CUSTOMER roles leave this undefined. The `scopedByCustomer` helper
+   * reads it to row-scope list queries; for an unmapped CUSTOMER (undefined)
+   * it applies a deny-all sentinel.
+   */
+  customerId?: number | null;
 }
 
 declare global {

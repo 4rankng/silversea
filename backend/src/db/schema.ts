@@ -66,6 +66,21 @@ export const users = pgTable('users', {
   passwordHash: text('password_hash').notNull(),
   role: roleEnum('role').notNull().default('DRIVER'),
   status: varchar('status', { length: 20 }).notNull().default('ACTIVE'),
+  // Wave 0: optional 1:1 link from a CUSTOMER-role user to the AR customer
+  // whose data they may see in the customer portal (Wave 2). Nullable +
+  // ON DELETE SET NULL so deleting a customer unlinks its users (rather
+  // than cascading the delete onto the user accounts). Non-CUSTOMER roles
+  // leave this NULL. M:N expansion (multiple logins per customer org) can
+  // layer a customer_users join table on top without changing the helper's
+  // signature.
+  //
+  // NOTE: declared as a plain integer (no Drizzle `.references()`) to avoid
+  // a TypeScript circular-initializer error. The chain
+  // `users → customers → debitNoteTemplates → users` is valid at runtime
+  // (Drizzle's lazy `() =>` resolves it) but TS strict mode rejects the
+  // cycle. The actual FK constraint is added in migration 0115 via raw
+  // ALTER TABLE — see `drizzle/0115_premium_juggernaut.sql`.
+  customerId: integer('customer_id'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
