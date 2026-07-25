@@ -392,7 +392,8 @@ biggest new surface area and the biggest customer-facing differentiator.
 <!-- autonomous-sdlc:completed task=wave2-m36-debit-note-lifecycle -->
 - [x] M3.6: debit-note statuses DRAFT/SENT/PENDING_CONFIRM/CONFIRMED/PARTIAL_PAID/PAID/
       REJECTED/CANCELED; lock after customer confirm; adjustment-document flow for changes.
-- [ ] M3.6: overpayment handling — don't drive AR negative silently.
+<!-- autonomous-sdlc:completed task=wave2-m36-overpayment -->
+- [x] M3.6: overpayment handling — don't drive AR negative silently.
 - [ ] M3.7: configurable disbursement catalog with per-type invoice-required rule.
 - [ ] M4.5: only approved disbursements enter the right period; never on two debit notes;
       late-approved → roll to next period or adjustment.
