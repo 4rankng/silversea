@@ -8,6 +8,7 @@ import { listTripContainers, batchUpsertTripContainers, createTripExpense, updat
 import { processExpenseApproval } from '../services/approval.service';
 import { requireRoles } from '../middleware/casbin';
 import { getUser } from '../middleware/auth';
+import { config } from '../config';
 import { db } from '../db';
 import * as dbSchema from '../db/schema';
 import { eq } from 'drizzle-orm';
@@ -74,6 +75,13 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
 // Create trip — only ADMIN/MANAGER can create (accountant still has trips:write for figure updates)
 router.post('/', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
   const data = createTripSchema.parse(req.body);
+  // Wave 0: SHIPMENT_FIRST_CREATE flag — when ON, shipmentId is mandatory on
+  // every trip-create. When OFF (default), it stays optional. The schema
+  // itself cannot encode this because it is shared with the frontend, which
+  // does not see the server-side flag.
+  if (config.shipmentFirstCreate && data.shipmentId == null) {
+    return res.status(400).json({ error: 'shipmentId là bắt buộc khi SHIPMENT_FIRST_CREATE đang bật' });
+  }
   const trip = await createTripCommand(data, getUser(req));
   res.status(201).json(trip);
 }));

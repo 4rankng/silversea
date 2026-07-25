@@ -160,8 +160,25 @@ mobile/reporting polish (builds on the closed loop).
       (HTTP + RBAC matrix + concurrency) + 6 new tests in `shipment-rbac.test.ts`.
       All gates green: lint, backend tsc, shared tsc, 850/850 backend tests,
       frontend tsc, 212/212 frontend tests, build. E2E re-run as RBAC changed.
-- [ ] Refactor trip creation to set `shipmentId`; back-compat auto-shipment path + feature
+<!-- autonomous-sdlc:completed task=wave0-trip-shipment-refactor -->
+- [x] Refactor trip creation to set `shipmentId`; back-compat auto-shipment path + feature
       flag `SHIPMENT_FIRST_CREATE`.
+      ✅ Done — `createTrip` (and the shared `createTripSchema`) accept an
+      optional `shipmentId`. When provided, the shipment is validated (exists,
+      DRAFT, matches the trip's customerId) and the new trip is linked + the
+      shipment's containers snapshotted into it (reuses
+      `snapshotContainersIntoTrip`). New env-driven flag
+      `SHIPMENT_FIRST_CREATE` (default OFF) — when ON, the route rejects
+      `/api/trips` POST without `shipmentId` (400); when OFF, `shipmentId`
+      stays optional and legacy trip-create is unchanged (regression-guarded).
+      Link is set via a guarded `UPDATE` so a concurrent createTrip /
+      dispatchShipmentToTrip race surfaces as a clean domain 409 (not a
+      generic 23505). 11 new tests in `trip-shipment.test.ts` including a
+      concurrent-race test. All gates green: lint, shared tsc, backend tsc,
+      861/861 backend tests, frontend tsc, 212/212 frontend tests, build.
+      E2E skipped with justification (no API/schema/RBAC contract change when
+      flag is OFF, which is the default); see
+      `qa/2026-07-25_wave0-trip-shipment_e2e.md`.
 - [x] Build scheduler skeleton: `scheduler/registry.ts`, `runner.ts`, `scheduler_run_logs`,
       boot in `index.ts`. ✅ Wave 0 done — see `backend/src/scheduler/` +
       migration `0111_peaceful_lenny_balinger.sql` + tests in

@@ -90,6 +90,16 @@ const configSchema = z.object({
   // MINIMAX_TIMEOUT_MS / AGENT_MAX_ITERATIONS). See that file for the rationale.
   botEnabled: z.boolean().default(false),
   minimaxApiKey: z.string().default(''),
+  // Wave 0: shipment-first trip creation. When ON, `/api/trips` POST requires
+  // a `shipmentId` at the HTTP boundary and the new trip is linked +
+  // container-snapshotted from that shipment. When OFF (default),
+  // `shipmentId` is optional — legacy trip creation keeps working unchanged,
+  // but callers MAY pass a `shipmentId` to link + snapshot. The check is
+  // enforced in `routes/trips.ts`, not the service, so other callers (seeds,
+  // CLIs, internal services) can still create unlinked trips even with the
+  // flag ON. Default OFF for backward compatibility; flip to ON
+  // per-environment once the shipment-first migration is complete.
+  shipmentFirstCreate: z.boolean().default(false),
   // Master key for at-rest encryption of DB-stored secrets (LLM API keys set
   // via the admin settings page). Optional; when empty, services/crypto.ts
   // derives a key from JWT_SECRET so existing deployments keep working. Set an
@@ -157,6 +167,7 @@ const raw = {
   vapidSubject: process.env.VAPID_SUBJECT,
   botEnabled: parseFlag(process.env.BOT_ENABLE),
   minimaxApiKey: process.env.MINIMAX_API_KEY,
+  shipmentFirstCreate: parseFlag(process.env.SHIPMENT_FIRST_CREATE),
   settingsEncryptionKey: process.env.SETTINGS_ENCRYPTION_KEY,
   agentSlaP95GreenMs: process.env.AGENT_SLA_P95_GREEN_MS,
   agentSlaP95AmberMs: process.env.AGENT_SLA_P95_AMBER_MS,

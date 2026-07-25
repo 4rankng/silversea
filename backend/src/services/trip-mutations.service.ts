@@ -9,6 +9,16 @@ import type { TripLegInput } from '@tingting/shared';
 import { resolveTripDriverSalary, computeTripTotals, type ComputeTripTotalsOutput } from '@tingting/shared';
 import { ApiError } from '../errors';
 
+// Postgres unique-violation detector — 23505 is the SQLSTATE for any unique
+// constraint violation. Drizzle wraps the underlying postgres-js error, so the
+// code may live on either `err.code` (postgres-js direct) or `err.cause.code`
+// (Drizzle-wrapped). Mirrors `shipment.service.ts`'s helper.
+function isUniqueViolation(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const e = err as { code?: string; cause?: { code?: string } };
+  return e.code === '23505' || e.cause?.code === '23505';
+}
+
 export function assertCustomerCommissionWithinRevenue(
   revenueInclVat: number,
   vatRate: number,
@@ -252,9 +262,44 @@ export async function createTrip(data: {
   externalDriverPhone?: string | null;
   fuelSupplierId?: number | null;
   fuelActualUnitPrice?: number | null;
+  // Wave 0: optional link to the shipment this trip fulfills. When set, the
+  // shipment must exist + be DRAFT, and the shipment's containers are
+  // snapshotted into the new trip (mirrors `dispatchShipmentToTrip`). When
+  // absent, the trip is created without a shipment link (legacy behaviour).
+  shipmentId?: number | null;
 }) {
   return await db.transaction(async (tx) => {
     const containerCount = data.containerCount ?? 1;
+
+    // 0. Wave 0: if a shipmentId was provided, validate the shipment up front
+    //    so a bad link fails the create cleanly (404 / 409) rather than
+    //    silently inserting an unlinked trip. The cross-check runs in the
+    //    same transaction so a concurrent shipment soft-delete/cancel is
+    //    visible. We do NOT advance the shipment's status here — advancing
+    //    remains the dispatch endpoint's responsibility. This keeps the two
+    //    flows orthogonal: trip-create LINKS, dispatch ADVANCES.
+    if (data.shipmentId != null) {
+      const [shipment] = await tx.select({ id: s.shipments.id, status: s.shipments.status, customerId: s.shipments.customerId })
+        .from(s.shipments)
+        .where(and(eq(s.shipments.id, data.shipmentId), isNull(s.shipments.deletedAt)))
+        .for('update')
+        .limit(1);
+      if (!shipment) {
+        throw new ApiError(404, 'Không tìm thấy lô hàng');
+      }
+      if (shipment.status !== 'DRAFT') {
+        throw new ApiError(
+          409,
+          `Không thể gắn lô hàng ở trạng thái "${shipment.status}".`,
+        );
+      }
+      if (shipment.customerId !== data.customerId) {
+        throw new ApiError(
+          400,
+          'Lô hàng không thuộc khách hàng của chuyến đi.',
+        );
+      }
+    }
 
     // 1. Timezone-pinned pricing lookup
     const [pricing] = await tx.select()
@@ -322,7 +367,12 @@ export async function createTrip(data: {
     // 3. Atomic tripCode generation
     const tripCode = await generateTripCode(tx, data.departureDate);
 
-    // 4. Create trip with snapshotted rates
+    // 4. Create trip with snapshotted rates. The trip is inserted with
+    //    shipmentId = NULL even when one was provided — the link is set in a
+    //    guarded UPDATE below (see step 4b) so a concurrent createTrip /
+    //    dispatchShipmentToTrip against the same shipment surfaces as a clean
+    //    409 with a domain message rather than a generic 23505. Mirrors the
+    //    canonical pattern in `dispatchShipmentToTrip`.
     const [trip] = await tx.insert(s.trips).values({
       tripCode,
       version: 1,
@@ -338,6 +388,7 @@ export async function createTrip(data: {
       departureDate: data.departureDate,
       customerReference: data.customerReference ?? null,
       status: TripStatus.CREATED,
+      shipmentId: null,
       fuelSupplierId: data.fuelSupplierId ?? null,
       // Persist the chosen fuel mode (defaults to AUTO at the DB layer).
       fuelMode: data.fuelMode ?? FuelMode.AUTO,
@@ -380,6 +431,50 @@ export async function createTrip(data: {
         createdBy: data.createdBy ?? null,
       })),
     );
+
+    // Wave 0: if a shipmentId was provided, snapshot the shipment's real
+    // containers into the trip (mirrors `dispatchShipmentToTrip`). The
+    // default empty rows inserted above are kept so a shipment with no
+    // containers still has `containerCount` placeholder rows to render in
+    // the trip UI; the snapshot ADDS the real ones when present. The snapshot
+    // helper is idempotent and carries a `__shipment_snapshot:<id>` marker.
+    if (data.shipmentId != null) {
+      // Imported lazily to avoid a circular import at module init:
+      // shipment.service.ts imports trip-command.service.ts (which imports
+      // trip.service.ts → trip-mutations.service.ts → back here). Deferring
+      // the import to call-time breaks the cycle.
+      const { snapshotContainersIntoTrip } = await import('./shipment.service');
+      await snapshotContainersIntoTrip(data.shipmentId, trip.id, data.createdBy ?? null, tx);
+
+      // 4b. Link the trip to the shipment via UPDATE so a concurrent
+      //     createTrip / dispatchShipmentToTrip against the same shipment
+      //     surfaces as a clean domain 409 (not a generic 23505 "Dữ liệu đã
+      //     tồn tại"). The partial unique index `trips_shipment_id_live_uniq`
+      //     is the concurrency guard. On conflict the whole transaction
+      //     rolls back (including the trip insert + snapshot), so no orphan
+      //     trip persists — the loser just gets a clear 409 and can refresh
+      //     to see the winner's trip. Mirrors the dispatch path's contract.
+      try {
+        const [linked] = await tx.update(s.trips)
+          .set({ shipmentId: data.shipmentId })
+          .where(eq(s.trips.id, trip.id))
+          .returning();
+        // Refresh the local trip object so callers see the post-link state.
+        if (linked) {
+          // Object.assign preserves the identity consumers may already hold
+          // while picking up the new shipmentId.
+          Object.assign(trip, linked);
+        }
+      } catch (err) {
+        if (isUniqueViolation(err)) {
+          throw new ApiError(
+            409,
+            'Lô hàng đã được gắn vào một chuyến khác. Vui lòng tải lại.',
+          );
+        }
+        throw err;
+      }
+    }
 
     // Audit row is produced by auditLogMiddleware on POST /api/trips as
     // "Quản lý <actor> tạo lệnh vận chuyển <tripCode>". A service-level write
