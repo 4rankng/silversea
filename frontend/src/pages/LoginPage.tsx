@@ -137,18 +137,20 @@ export default function LoginPage() {
 
           <footer className="login-footer">
             <span>&copy; {new Date().getFullYear()} {BRAND.name}</span>
-            <span aria-hidden="true">•</span>
-            <span>Hải Phòng, Việt Nam</span>
           </footer>
         </div>
 
-        <aside className="login-visual" aria-label="Hệ thống vận hành logistics TransTing">
+        <aside className="login-visual" aria-label={`Hệ thống vận hành logistics ${BRAND.name}`}>
           <img
-            src="/assets/illustrations/login-port-illustration-v3.webp"
+            src="/assets/illustrations/login-logistics-network.webp"
             alt=""
             className="login-visual__image"
+            width="803"
+            height="1959"
+            decoding="async"
+            fetchPriority="high"
           />
-          <div className="login-visual__veil" />
+          <div className="login-visual__veil" aria-hidden="true" />
 
           <div className="login-visual__content">
             <p className="login-visual__eyebrow">
