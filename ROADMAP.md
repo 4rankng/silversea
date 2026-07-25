@@ -380,7 +380,8 @@ biggest new surface area and the biggest customer-facing differentiator.
 <!-- autonomous-sdlc:completed task=wave2-m33-milestone -->
 - [x] M3.3: milestone service deriving from trip status; manual CUS notifications preserving
       history; cross-customer isolation.
-- [ ] Email service + provider (Resend/SES); wire to Wave-0 scheduler for retries.
+<!-- autonomous-sdlc:completed task=wave2-email-service -->
+- [x] Email service + provider (Resend/SES); wire to Wave-0 scheduler for retries.
 - [ ] M3.4: three-party delivery confirm (driver / CUS / customer); partial delivery per
       container; free-time overrun calc + fee warning.
 - [ ] M3.5: extend `billingDocument.service.ts` to assemble lines from approved expenses +
