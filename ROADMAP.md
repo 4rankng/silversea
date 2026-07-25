@@ -433,7 +433,8 @@ biggest new surface area and the biggest customer-facing differentiator.
 
 ### Items
 
-- [ ] Schema: `customers.creditWarningThreshold` + `paymentTermDays`; new
+<!-- autonomous-sdlc:completed task=wave3-schema -->
+- [x] Schema: `customers.creditWarningThreshold` + `paymentTermDays`; new
       `payment_allocations`; `supplier_type` on suppliers; new `salary_period_closes`;
       `expense_categories.requiresInvoice` + `substituteEvidenceAllowed`.
 - [ ] M5.1: surface paid/outstanding/overdue-days/payment-history per document; void leaves

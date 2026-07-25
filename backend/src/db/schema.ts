@@ -232,6 +232,12 @@ export const customers = pgTable('customers', {
   phone: varchar('phone', { length: 20 }),
   contactInfo: text('contact_info'),
   creditLimit: numeric('credit_limit', { precision: 15, scale: 0 }),
+  // Wave 3 M5.3: credit-warning threshold (percentage of creditLimit, e.g. 0.8
+  // = warn at 80% utilization). NULL = no warning (use the global default).
+  creditWarningThreshold: numeric('credit_warning_threshold', { precision: 3, scale: 2 }),
+  // Wave 3: payment-term days for this customer (e.g. 30 = net 30). Used by
+  // M5.1 to compute overdue-days. NULL = use the global default.
+  paymentTermDays: integer('payment_term_days'),
   status: customerStatusEnum('status').default('ACTIVE'),
   isCarrier: boolean('is_carrier').notNull().default(false),
   debitNoteMode: varchar('debit_note_mode', { length: 20 }).notNull().default('MONTHLY'),
@@ -834,6 +840,10 @@ export const expenseCategories = pgTable('expense_categories', {
   // approval. When false, substitute evidence is accepted. Defaults false
   // (back-compat — existing categories accept any evidence).
   requiresInvoice: boolean('requires_invoice').default(false),
+  // Wave 3 M4.7: when requiresInvoice is false, this flag indicates whether
+  // substitute evidence is explicitly allowed. Defaults true (back-compat —
+  // non-invoice categories accept substitute evidence).
+  substituteEvidenceAllowed: boolean('substitute_evidence_allowed').default(true),
   status: varchar('status', { length: 20 }).notNull().default('ACTIVE'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -1788,4 +1798,48 @@ export const customerEmailLogs = pgTable('customer_email_logs', {
 }, (table) => [
   index('customer_email_logs_customer_idx').on(table.customerId, table.status),
   index('customer_email_logs_status_idx').on(table.status),
+]);
+
+// ─── Wave 3: Financial Close tables ─────────────────────────────────────────
+
+// M5.6: payment allocations. A single receipt (payment) can be split across
+// multiple trips/shipments. Each allocation links a payment to one document
+// (trip or billing_document) with the amount applied.
+export const paymentAllocations = pgTable('payment_allocations', {
+  id: serial('id').primaryKey(),
+  // The receipt/payment that this allocation belongs to.
+  receiptId: integer('receipt_id'),
+  // The customer receiving the allocation.
+  customerId: integer('customer_id').references(() => customers.id).notNull(),
+  // What this allocation is applied to: a trip or a billing document.
+  targetType: varchar('target_type', { length: 20 }).notNull(), // TRIP | BILLING_DOCUMENT
+  targetId: integer('target_id').notNull(),
+  amount: numeric('amount', { precision: 15, scale: 0 }).notNull(),
+  // Allocation strategy: OLDEST_FIRST (default), PROPORTIONAL, MANUAL.
+  allocationMethod: varchar('allocation_method', { length: 20 }).notNull().default('OLDEST_FIRST'),
+  allocatedBy: integer('allocated_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  index('payment_allocations_customer_idx').on(table.customerId),
+  index('payment_allocations_target_idx').on(table.targetType, table.targetId),
+  index('payment_allocations_receipt_idx').on(table.receiptId),
+]);
+
+// M7.3: salary period closes. An accountant closes a salary period; after
+// close, no further changes to driver salary for that period. Each period has
+// at most one close row (enforced by a unique index).
+export const salaryPeriodCloses = pgTable('salary_period_closes', {
+  id: serial('id').primaryKey(),
+  // Period identifier: YYYY-MM format (e.g. '2026-07').
+  period: varchar('period', { length: 7 }).notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('CLOSED'), // CLOSED | REOPENED
+  // The ledger entry posted when the period was closed (single entry per close).
+  ledgerEntryId: integer('ledger_entry_id'),
+  closedBy: integer('closed_by').references(() => users.id),
+  closedAt: timestamp('closed_at', { withTimezone: true }).defaultNow().notNull(),
+  note: text('note'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('salary_period_closes_period_uniq').on(table.period),
 ]);
