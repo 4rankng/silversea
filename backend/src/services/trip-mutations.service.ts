@@ -116,6 +116,8 @@ export interface RevenueUpdateInput {
   revenue?: number;
   revenueEmptyReturn?: number;
   revenueCombine?: number;
+  /** M2.1: mandatory reason when overriding an auto-computed (TIER/TABLE) revenue. */
+  revenueOverrideReason?: string;
 }
 
 /** Stored trip revenue fields (drizzle numeric columns → string | null). */
@@ -585,6 +587,8 @@ export async function updateTripFigures(
     revenue?: number;
     revenueEmptyReturn?: number;
     revenueCombine?: number;
+    /** M2.1: mandatory reason when overriding an auto-computed (TIER/TABLE) revenue. */
+    revenueOverrideReason?: string;
     twoPointDeliveryBonus?: number;
     vehicleShiftAllowance?: number;
     customerCommission?: number;
@@ -777,11 +781,32 @@ export async function updateTripFigures(
     let revenueOriginal = Number(trip.revenueOriginal || 0);
     let revenueOverriddenBy = trip.revenueOverriddenBy;
     let revenueOverriddenAt = trip.revenueOverriddenAt ? new Date(trip.revenueOverriddenAt) : null;
+    // Wave 1 M2.1: when the operator overrides the auto-computed revenue
+    // (pricingSource is TIER or TABLE), a reason is mandatory. When
+    // pricingSource is MANUAL there was no auto-computation, so no reason
+    // is required.
+    let revenueOverrideReason: string | null = trip.revenueOverrideReason ?? null;
 
     if (shouldMarkRevenueOverride(data, trip)) {
       revenueOriginal = revenueOriginal || Number(trip.revenue || 0);
       revenueOverriddenBy = data.userId ?? null;
       revenueOverriddenAt = new Date();
+
+      // M2.1: require a reason when overriding an auto-computed price.
+      // The caller passes `revenueOverrideReason` in the update data; if
+      // the trip's pricingSource is TIER/TABLE and no reason is provided,
+      // reject with 400.
+      const isAutoPriced = trip.pricingSource === 'TABLE' || trip.pricingSource === 'TIER';
+      if (isAutoPriced) {
+        const reason = data.revenueOverrideReason;
+        if (!reason || !reason.trim()) {
+          throw new ApiError(
+            400,
+            'Lý do ghi đè giá là bắt buộc khi thay đổi doanh thu đã tự động tính.',
+          );
+        }
+        revenueOverrideReason = reason.trim();
+      }
     }
 
     // Auto-populate driverSalary from route config if not yet set.
@@ -948,6 +973,7 @@ export async function updateTripFigures(
       revenueOriginal: String(revenueOriginal),
       revenueOverriddenBy,
       revenueOverriddenAt,
+      revenueOverrideReason,
       notes: data.notes ?? null,
       carrierType: data.carrierType !== undefined ? data.carrierType : trip.carrierType,
       externalCarrierId: data.externalCarrierId !== undefined ? data.externalCarrierId : trip.externalCarrierId,

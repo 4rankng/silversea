@@ -474,6 +474,11 @@ export const trips = pgTable('trips', {
   revenueOriginal: numeric('revenue_original', { precision: 15, scale: 0 }),
   revenueOverriddenBy: integer('revenue_overridden_by'),
   revenueOverriddenAt: timestamp('revenue_overridden_at'),
+  // Wave 1 M2.1: mandatory reason when the operator overrides the auto-
+  // computed revenue (pricingSource = TIER or TABLE). NULL when revenue was
+  // never overridden or when pricingSource is MANUAL (no auto-computation to
+  // deviate from).
+  revenueOverrideReason: text('revenue_override_reason'),
   // Wave 1: pricing-snapshot columns. Track how the revenue was computed
   // so accountants can distinguish AUTO (tier/table) from MANUAL. Nullable
   // — existing trips have NULL (no regression); new trips get populated by

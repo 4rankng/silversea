@@ -330,7 +330,8 @@ mobile/reporting polish (builds on the closed loop).
       test's after hook killing the DB pool for subsequent test files — fixed
       with `client.end()`. All gates green: lint, backend tsc, 930/930
       backend tests, frontend tsc, 220/220 frontend tests, build.
-- [ ] M2.1: prevent price-range overlaps on `pricing_tables`; override-before-lock + reason.
+<!-- autonomous-sdlc:completed task=wave1-m21-override-reason -->
+- [x] M2.1: prevent price-range overlaps on `pricing_tables`; override-before-lock + reason.
 - [ ] M2.2: weight-tier pricing for bulk cargo; boundary + overlap tests.
 - [ ] M2.3: auto-revenue from lot weight, visible formula `weight × price + surcharges + VAT`.
 - [ ] M2.4: lift/up-down catalog `lift_pricing` (port × type × direction × date); show
