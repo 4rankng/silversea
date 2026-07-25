@@ -299,7 +299,12 @@ mobile/reporting polish (builds on the closed loop).
       green: lint, backend tsc, 905/905 backend tests (was 891; +14 new),
       frontend tsc, 220/220 frontend tests, build, E2E (no new failures beyond
       documented pre-existing stale-login-selector issues).
-- [ ] Build `pricing.service.ts` with `resolveFreightPrice` + overlap validators.
+<!-- autonomous-sdlc:completed task=wave1-pricing-service -->
+- [x] Build `pricing.service.ts` with `resolveFreightPrice` + overlap validators.
+      ✅ Done — `backend/src/services/pricing.service.ts` ships
+      `resolveFreightPrice` (TIER/TABLE/MANUAL resolution with Vietnamese
+      formula string + snapshot) + `validateWeightTierOverlap` +
+      `validatePricingTableOverlap`. 13 new DB-backed tests. All gates green.
 - [ ] Build `fuel.service.ts` with `resolveFuelNorm(routeId, truckTypeId, date)`.
 - [ ] Wire auto-revenue into trip create/update; surface formula in trip detail.
 - [ ] M2.1: prevent price-range overlaps on `pricing_tables`; override-before-lock + reason.
