@@ -15,6 +15,7 @@ import {
   forwarderExpenseTypeSchema,
   companyInfoSchema,
   tireSchema, installTireSchema, disposeTireSchema, transferTireSchema, tirePositionSchema,
+  fuelNormSchema, weightPricingTierSchema, liftPricingSchema, ancillaryRevenueSchema,
 } from '@tingting/shared';
 import type { Request, Response } from 'express';
 import { createCrudRouter } from './utils/crud-factory';
@@ -123,6 +124,13 @@ router.use('/ports', createCrudRouter(s.ports, portSchema, { searchableField: 'n
 router.use('/forwarder-expense-types', createCrudRouter(s.forwarderExpenseTypes, forwarderExpenseTypeSchema, { searchableField: 'name' }));
 router.use('/pricing-tables', createCrudRouter(s.pricingTables, pricingTableSchema));
 router.use('/road-allowances', createCrudRouter(s.roadAllowances, roadAllowanceSchema));
+
+// Wave 1: pricing & fuel catalog CRUD routes. All behind the existing
+// config RBAC (office staff: ADMIN/MANAGER/ACCOUNTANT).
+router.use('/fuel-norms', createCrudRouter(s.fuelNorms, fuelNormSchema));
+router.use('/weight-pricing-tiers', createCrudRouter(s.weightPricingTiers, weightPricingTierSchema));
+router.use('/lift-pricing', createCrudRouter(s.liftPricing, liftPricingSchema));
+router.use('/ancillary-revenue', createCrudRouter(s.ancillaryRevenue, ancillaryRevenueSchema));
 
 router.get('/penalty-reasons/stats', asyncHandler(async (req: Request, res: Response) => {
   res.json(await getPenaltyStats());
