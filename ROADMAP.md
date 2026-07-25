@@ -107,6 +107,7 @@ mobile/reporting polish (builds on the closed loop).
 
 ### Items
 
+<!-- autonomous-sdlc:in-progress task=wave0-shipments-schema -->
 - [ ] Add `shipments`, `shipment_documents`, `shipment_declarations`,
       `shipment_status_history` tables + `trips.shipmentId` FK. `drizzle-kit generate`.
 - [ ] Add `CUSTOMER` and `CLERK` to `roleEnum`; update `casbin/policy.csv` + enforcer.

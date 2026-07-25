@@ -352,6 +352,13 @@ export const trips = pgTable('trips', {
   externalPlateNumber: varchar('external_plate_number', { length: 20 }),
   externalDriverName: varchar('external_driver_name', { length: 100 }),
   externalDriverPhone: varchar('external_driver_phone', { length: 20 }),
+  // Wave 0: optional link to the shipment (lô hàng) this trip fulfills. Nullable
+  // so legacy trip-create flows keep working unchanged (auto-shipment path is a
+  // later checkbox). Trip creation refactor to *require* this comes with the
+  // SHIPMENT_FIRST_CREATE feature flag in a separate Wave 0 item.
+  // FK is intentionally ON DELETE NO ACTION (the default): a shipment with live
+  // trips must never be hard-deleted. Use shipments.deletedAt for tombstoning.
+  shipmentId: integer('shipment_id').references(() => shipments.id),
   completedAt: timestamp('completed_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -362,6 +369,8 @@ export const trips = pgTable('trips', {
   index('trips_status_idx').on(table.status),
   index('trips_departure_date_idx').on(table.departureDate),
   index('trips_customer_departure_idx').on(table.customerId, table.departureDate),
+  // Wave 0: look up a shipment's trips.
+  index('trips_shipment_id_idx').on(table.shipmentId),
 ]);
 
 export const tripLegs = pgTable('trip_legs', {
@@ -1401,4 +1410,131 @@ export const schedulerRunLogs = pgTable('scheduler_run_logs', {
   endedAt: timestamp('ended_at', { withTimezone: true }),
 }, (table) => [
   index('scheduler_run_logs_job_started_idx').on(table.jobName, table.startedAt),
+]);
+
+// ─── Shipments (Wave 0) ─────────────────────────────────────────────────────
+// First-class `shipments` (lô hàng) entity. A shipment owns booking docs,
+// containers, and declarations, and *precedes and outlives* any single trip:
+// booking → documents → dispatch → delivery → debit-note. A trip becomes a
+// fulfillment of (part of) a shipment via `trips.shipmentId` (added above).
+// This is the keystone for M3 (CUS), M4 (debit-note from approved expenses),
+// M5.6 (payment allocation), M9/M10 (forwarder/clerk mobile).
+//
+// Scope of this Wave 0 schema slice: tables + FK + migration only. The
+// service, router, RBAC, and frontend are subsequent Wave 0 checkboxes.
+export const shipmentStatusEnum = pgEnum('shipment_status', [
+  'DRAFT', 'IN_PROGRESS', 'DELIVERED', 'CLOSED', 'CANCELED',
+]);
+
+export const shipmentDocumentTypeEnum = pgEnum('shipment_document_type', [
+  'BOOKING', 'BL', 'DO', 'DECLARATION', 'OTHER',
+]);
+
+// Customs declaration scope: SINGLE = one declaration per container; SHARED =
+// one declaration covers multiple containers (issued on approval). M3.1 §3.
+export const shipmentDeclarationScopeEnum = pgEnum('shipment_declaration_scope', [
+  'SINGLE', 'SHARED',
+]);
+
+export const shipments = pgTable('shipments', {
+  id: serial('id').primaryKey(),
+  // Auto-generated unique code. Format pending PRD M3.1 §5 (proposed
+  // `{customerCode}-{YYMMDD}-{NNN}`); the gen logic ships with the service in
+  // a later Wave 0 checkbox. Nullable here so draft rows can exist before code
+  // assignment.
+  shipmentCode: varchar('shipment_code', { length: 50 }).unique(),
+  // Optimistic locking, mirroring trips.
+  version: integer('version').default(1).notNull(),
+  customerId: integer('customer_id').references(() => customers.id).notNull(),
+  status: shipmentStatusEnum('status').default('DRAFT'),
+  bookingRef: varchar('booking_ref', { length: 100 }),
+  blNumber: varchar('bl_number', { length: 100 }),
+  expectedDeliveryDate: date('expected_delivery_date'),
+  pickupLocation: varchar('pickup_location', { length: 255 }),
+  deliveryLocation: varchar('delivery_location', { length: 255 }),
+  contactName: varchar('contact_name', { length: 100 }),
+  contactPhone: varchar('contact_phone', { length: 20 }),
+  createdBy: integer('created_by').references(() => users.id),
+  updatedBy: integer('updated_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),
+}, (table) => [
+  index('shipments_customer_status_idx').on(table.customerId, table.status),
+  index('shipments_status_idx').on(table.status),
+]);
+
+// Booking confirmation, bill of lading, delivery order, customs declaration
+// PDFs, etc. storageKey points at the same object-storage / uploads path
+// convention used by other uploads (e.g. trip photos).
+export const shipmentDocuments = pgTable('shipment_documents', {
+  id: serial('id').primaryKey(),
+  shipmentId: integer('shipment_id')
+    .references(() => shipments.id, { onDelete: 'cascade' }).notNull(),
+  type: shipmentDocumentTypeEnum('type'),
+  storageKey: varchar('storage_key', { length: 255 }).notNull(),
+  uploadedBy: integer('uploaded_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  index('shipment_documents_shipment_id_idx').on(table.shipmentId),
+]);
+
+// Customs declarations. Per M3.1 §3, one declaration may cover N containers
+// (SHARED) or be per-container (SINGLE). The link from a declaration to the
+// containers it covers is many-to-many in full; this Wave 0 slice captures
+// the declaration row itself. Container-level linkage ships with the
+// container-snapshot service in a later Wave 0 checkbox.
+export const shipmentDeclarations = pgTable('shipment_declarations', {
+  id: serial('id').primaryKey(),
+  shipmentId: integer('shipment_id')
+    .references(() => shipments.id, { onDelete: 'cascade' }).notNull(),
+  declarationNumber: varchar('declaration_number', { length: 50 }),
+  issuedAt: timestamp('issued_at', { withTimezone: true }),
+  scope: shipmentDeclarationScopeEnum('scope').default('SINGLE'),
+  note: text('note'),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  index('shipment_declarations_shipment_id_idx').on(table.shipmentId),
+]);
+
+// Append-only status transitions. Every status change writes a row with the
+// reason (free text) and the acting user. fromStatus is nullable for the
+// initial DRAFT creation row.
+export const shipmentStatusHistory = pgTable('shipment_status_history', {
+  id: serial('id').primaryKey(),
+  shipmentId: integer('shipment_id')
+    .references(() => shipments.id, { onDelete: 'cascade' }).notNull(),
+  fromStatus: shipmentStatusEnum('from_status'),
+  toStatus: shipmentStatusEnum('to_status').notNull(),
+  reason: text('reason'),
+  changedBy: integer('changed_by').references(() => users.id),
+  // timestamptz: an audit-style timestamp, kept unambiguous across deploy
+  // regions (matches the file's recent direction for similar audit columns).
+  changedAt: timestamp('changed_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('shipment_status_history_shipment_id_idx').on(table.shipmentId),
+]);
+
+// Shipment-side container record. Per phase-01 architecture, reusing
+// trip_containers is wrong because a shipment can exist before any trip. This
+// table mirrors trip_containers' shape; on dispatch, the relevant containers
+// are snapshotted into trip_containers (which is tightly coupled to trip
+// expense photos, geotags, multi-seal). Multi-seal on the shipment side will
+// mirror trip_container_seals when the dispatch service lands.
+export const shipmentContainers = pgTable('shipment_containers', {
+  id: serial('id').primaryKey(),
+  shipmentId: integer('shipment_id')
+    .references(() => shipments.id, { onDelete: 'cascade' }).notNull(),
+  containerTypeId: integer('container_type_id').references(() => containerTypes.id),
+  containerNumber: varchar('container_number', { length: 50 }),
+  sealNumber: varchar('seal_number', { length: 50 }),
+  cargoWeightKg: numeric('cargo_weight_kg', { precision: 10, scale: 2 }),
+  notes: text('notes'),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  index('shipment_containers_shipment_id_idx').on(table.shipmentId),
 ]);

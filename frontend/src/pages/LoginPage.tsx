@@ -140,31 +140,38 @@ export default function LoginPage() {
           </footer>
         </div>
 
-        <aside className="login-visual" aria-label={`Hệ thống vận hành logistics ${BRAND.name}`}>
-          <img
-            src="/assets/illustrations/login-logistics-network.webp"
-            alt=""
-            className="login-visual__image"
-            width="803"
-            height="1959"
-            decoding="async"
-            fetchPriority="high"
-          />
+        <aside className="login-visual" aria-labelledby="login-visual-title">
+          <picture>
+            <source
+              media="(max-width: 900px)"
+              srcSet="/assets/illustrations/login-business-control-mobile-v3.webp"
+            />
+            <img
+              src="/assets/illustrations/login-business-control-v3.webp"
+              alt=""
+              className="login-visual__image"
+              width="1024"
+              height="1536"
+              decoding="async"
+              fetchPriority="high"
+            />
+          </picture>
           <div className="login-visual__veil" aria-hidden="true" />
 
           <div className="login-visual__content">
             <p className="login-visual__eyebrow">
               <span className="login-status-dot" />
-              Hệ thống sẵn sàng
+              Một nguồn dữ liệu
             </p>
-            <h2>Mỗi hành trình, một luồng dữ liệu liền mạch.</h2>
+            <h2 id="login-visual-title">Mọi hoạt động. Một hệ thống.</h2>
             <p>
-              Điều phối chuyến, theo dõi chi phí và đối soát công nợ trên cùng một nền tảng.
+              Tập trung chuyến, đội xe, chi phí, chứng từ và công nợ thay cho dữ liệu rời rạc
+              trên nhiều công cụ.
             </p>
             <ul className="login-capabilities" aria-label="Năng lực hệ thống">
-              <li>Điều phối vận tải</li>
-              <li>Kiểm soát chi phí</li>
-              <li>Đối soát minh bạch</li>
+              <li>Điều hành tập trung</li>
+              <li>Tài chính rõ ràng</li>
+              <li>Quyết định nhanh hơn</li>
             </ul>
           </div>
         </aside>

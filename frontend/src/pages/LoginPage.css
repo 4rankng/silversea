@@ -297,7 +297,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: 50% 58%;
+  object-position: 50% 50%;
   z-index: -2;
   animation: login-image-reveal 900ms var(--ease-drawer) both;
 }
@@ -438,7 +438,7 @@
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .login-page {
     padding: 0;
     background: var(--surface);
@@ -523,7 +523,7 @@
   }
 
   .login-visual__image {
-    object-position: 50% 68%;
+    object-position: 50% 45%;
   }
 
   .login-visual__veil {
@@ -567,7 +567,7 @@
   }
 }
 
-@media (max-height: 740px) and (max-width: 760px) {
+@media (max-height: 740px) and (max-width: 900px) {
   .login-visual {
     min-height: 164px;
   }
