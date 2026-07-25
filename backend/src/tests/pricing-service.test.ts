@@ -244,6 +244,106 @@ describe('validateWeightTierOverlap', () => {
   });
 });
 
+// ─── M2.2: boundary + gap + multi-date tests ───────────────────────────────
+
+describe('M2.2 — weight-tier boundary + gap + multi-date', () => {
+  test('weight exactly at maxKg boundary falls into the next tier (half-open [minKg, maxKg))', async () => {
+    const route = await mkRoute();
+    const cargo = await mkCargoType(true);
+    await mkTier(route.id, cargo.id, '0', '10000', '5000');
+    await mkTier(route.id, cargo.id, '10000', '20000', '4500');
+    await mkTier(route.id, cargo.id, '20000', '30000', '4000');
+
+    // Weight = 20000 should be in the THIRD tier [20000, 30000), not the
+    // second [10000, 20000), because maxKg is exclusive.
+    const result = await resolveFreightPrice({
+      customerId: 1, routeId: route.id, cargoTypeId: cargo.id,
+      weightKg: 20000, date: '2026-07-01',
+    });
+    assert.equal(result.source, 'TIER');
+    assert.equal(result.unitPrice, 4000);
+  });
+
+  test('weight in a gap between two tiers → MANUAL fallback', async () => {
+    const route = await mkRoute();
+    const cargo = await mkCargoType(true);
+    // Tiers with a gap: [0, 5000) and [10000, 20000). Weight 7500 falls in
+    // the gap → MANUAL.
+    await mkTier(route.id, cargo.id, '0', '5000', '5000');
+    await mkTier(route.id, cargo.id, '10000', '20000', '4000');
+
+    const result = await resolveFreightPrice({
+      customerId: 1, routeId: route.id, cargoTypeId: cargo.id,
+      weightKg: 7500, date: '2026-07-01',
+    });
+    assert.equal(result.source, 'MANUAL');
+    assert.match(result.formula, /ngoài khoảng/);
+  });
+
+  test('multiple effectiveDates → uses only the latest date set', async () => {
+    const route = await mkRoute();
+    const cargo = await mkCargoType(true);
+    // Old tiers (Jan) with price 5000/kg
+    await mkTier(route.id, cargo.id, '0', '20000', '5000', '2026-01-01');
+    // New tiers (Jun) with price 6000/kg — only these should be used
+    await mkTier(route.id, cargo.id, '0', '20000', '6000', '2026-06-01');
+
+    const result = await resolveFreightPrice({
+      customerId: 1, routeId: route.id, cargoTypeId: cargo.id,
+      weightKg: 10000, date: '2026-07-01',
+    });
+    assert.equal(result.source, 'TIER');
+    assert.equal(result.unitPrice, 6000, 'uses the latest effectiveDate tier set');
+    assert.equal(result.price, 10000 * 6000);
+  });
+
+  test('zero-weight bulk cargo → MANUAL (weightKg <= 0)', async () => {
+    const route = await mkRoute();
+    const cargo = await mkCargoType(true);
+    await mkTier(route.id, cargo.id, '0', '20000', '5000');
+
+    const result = await resolveFreightPrice({
+      customerId: 1, routeId: route.id, cargoTypeId: cargo.id,
+      weightKg: 0, date: '2026-07-01',
+    });
+    assert.equal(result.source, 'MANUAL');
+    assert.match(result.formula, /Thiếu trọng lượng/);
+  });
+
+  test('single tier covering full range resolves correctly', async () => {
+    const route = await mkRoute();
+    const cargo = await mkCargoType(true);
+    await mkTier(route.id, cargo.id, '0', '999999', '3000');
+
+    const result = await resolveFreightPrice({
+      customerId: 1, routeId: route.id, cargoTypeId: cargo.id,
+      weightKg: 50000, date: '2026-07-01',
+    });
+    assert.equal(result.source, 'TIER');
+    assert.equal(result.price, 50000 * 3000);
+  });
+
+  test('overlap validator detects partial overlap (one range contained within another)', async () => {
+    const route = await mkRoute();
+    const cargo = await mkCargoType(true);
+    await mkTier(route.id, cargo.id, '0', '20000', '5000');
+    await mkTier(route.id, cargo.id, '5000', '15000', '4500'); // partially overlaps
+
+    const overlaps = await validateWeightTierOverlap(route.id, cargo.id, '2026-01-01');
+    assert.ok(overlaps.length > 0, 'partial overlap detected');
+  });
+
+  test('overlap validator detects full containment (one range entirely within another)', async () => {
+    const route = await mkRoute();
+    const cargo = await mkCargoType(true);
+    await mkTier(route.id, cargo.id, '0', '30000', '5000');
+    await mkTier(route.id, cargo.id, '5000', '10000', '4500'); // fully contained
+
+    const overlaps = await validateWeightTierOverlap(route.id, cargo.id, '2026-01-01');
+    assert.ok(overlaps.length > 0, 'containment detected');
+  });
+});
+
 describe('validatePricingTableOverlap', () => {
   test('DB unique index prevents duplicate effectiveDate — insert throws', async () => {
     // The existing unique index `pricing_tables_customer_route_date_idx` on
