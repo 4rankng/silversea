@@ -226,7 +226,25 @@ mobile/reporting polish (builds on the closed loop).
       frontend tsc, 220/220 frontend tests, build. E2E skipped with
       justification (no API/schema/RBAC change); see
       `qa/2026-07-25_wave0-seed-shipments_e2e.md`.
-- [ ] Audit-log every shipment write.
+<!-- autonomous-sdlc:completed task=wave0-shipment-audit -->
+- [x] Audit-log every shipment write.
+      ✅ Done — closed the last audit-coverage gap: registered
+      `SHIPMENT_UPDATED` for `PUT /api/shipments/:id` (was falling back to
+      generic ENTITY_UPDATED). Added 7 SHIPMENT_* Vietnamese templates to
+      `audit-templates.ts` + the `shipments` ENTITY_LABEL. Fixed a pre-existing
+      trailing-slash normalization bug in `resolveAuditEvent` that silently
+      broke EVERY exact-match audit registration (POST /api/shipments/ was
+      missing POST /api/shipments and falling through to ENTITY_CREATED) —
+      now both forms resolve correctly. Fixed the dispatch handler's
+      `auditEntityKey` to use the shipmentCode (was the tripCode, making
+      dispatch audit rows unsearchable by shipment). 7 new HTTP-level tests
+      in `shipment-audit.test.ts` prove every write produces an audit row
+      with the correct event / actor / entityId / message. Self-review
+      caught the dispatch entityKey gap + missing actor assertions — both
+      fixed. All gates green: lint, backend tsc, 872/872 backend tests
+      (was 865; +7 new), frontend tsc, 220/220 frontend tests, build. E2E
+      skipped with justification (no API/schema/RBAC change); see
+      `qa/2026-07-25_wave0-shipment-audit_e2e.md`.
 - [ ] Row-scope helper `scopedByCustomer(req.user, query)` — reusable in Waves 2 & 3.
 
 ### Open PRD questions (block Wave 2+, not Wave 0)

@@ -16,6 +16,7 @@ const ENTITY_LABELS: Record<string, string> = {
   'management-fees': 'phí quản lý',
   'cap-table': 'cổ đông',
   trips: 'lệnh vận chuyển',
+  shipments: 'lô hàng',
   payments: 'thanh toán',
   penalties: 'kỷ luật',
   adjustments: 'điều chỉnh',
@@ -127,6 +128,17 @@ const templates: Record<string, (c: TemplateContext) => string> = {
   [AuditEvent.TRIP_CANCELED]: (c) => `${subj(c)} đã hủy bỏ lệnh vận chuyển${c.entityKey ? ` ${c.entityKey}` : ''}`,
   [AuditEvent.TRIP_UNLOCKED]: (c) => `${subj(c)} đã mở khóa lệnh vận chuyển${c.entityKey ? ` ${c.entityKey}` : ''} (cho phép chỉnh sửa lại số liệu)`,
   [AuditEvent.TRIP_DEPARTURE_DATE_CHANGED]: (c) => `${subj(c)} đã thay đổi ngày khởi hành của lệnh vận chuyển${c.entityKey ? ` ${c.entityKey}` : ''}`,
+
+  // ─── Shipment (lô hàng) lifecycle — Wave 0 ──────────────────────────────
+  // Mirrors the TRIP_* shape: each line names the actor, the verb, the
+  // entity ("lô hàng"), and the shipmentCode as the human-readable key.
+  [AuditEvent.SHIPMENT_CREATED]: (c) => `${subj(c)} đã tạo mới lô hàng${c.entityKey ? ` ${c.entityKey}` : ''}`,
+  [AuditEvent.SHIPMENT_UPDATED]: (c) => `${subj(c)} đã cập nhật thông tin lô hàng${c.entityKey ? ` ${c.entityKey}` : ''}`,
+  [AuditEvent.SHIPMENT_STATUS_CHANGED]: (c) => `${subj(c)} đã chuyển trạng thái lô hàng${c.entityKey ? ` ${c.entityKey}` : ''}`,
+  [AuditEvent.SHIPMENT_DISPATCHED]: (c) => `${subj(c)} đã điều vận lô hàng sang chuyến đi${c.entityKey ? ` ${c.entityKey}` : ''}`,
+  [AuditEvent.SHIPMENT_DOCUMENT_UPLOADED]: (c) => `${subj(c)} đã đính kèm tài liệu cho lô hàng${c.entityKey ? ` ${c.entityKey}` : ''}`,
+  [AuditEvent.SHIPMENT_CONTAINERS_UPDATED]: (c) => `${subj(c)} đã cập nhật danh sách container của lô hàng${c.entityKey ? ` ${c.entityKey}` : ''}`,
+  [AuditEvent.SHIPMENT_DELETED]: (c) => `${subj(c)} đã xóa lô hàng${c.entityKey ? ` ${c.entityKey}` : ''}`,
 
   [AuditEvent.PAYMENT_RECEIVED]: (c) => `${subj(c)} đã ghi nhận thanh toán${c.entityKey ? ` ${c.entityKey}` : ''}`,
   [AuditEvent.ADJUSTMENT_CREATED]: (c) => `${subj(c)} đã tạo bút toán điều chỉnh công nợ${c.entityKey ? ` ${c.entityKey}` : ''}`,
