@@ -442,7 +442,8 @@ biggest new surface area and the biggest customer-facing differentiator.
       offsetting line.
 <!-- autonomous-sdlc:completed task=wave3-m53-credit-limit -->
 - [x] M5.3: credit-limit + threshold service; block on exceed unless approver override.
-- [ ] M5.4: freight/disbursement/other split report; invariant
+<!-- autonomous-sdlc:completed task=wave3-m54-ar-split -->
+- [x] M5.4: freight/disbursement/other split report; invariant
       `freight + disbursement + other == total_ar`.
 - [ ] M5.5: total AR report — opening/activity/receipts/adjustments/closing per customer;
       zero-activity-with-balance still appears.
