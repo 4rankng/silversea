@@ -208,8 +208,16 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     conditions.push(eq(s.shipments.status, options.status));
   }
 
+  // Join customers so the list can show a human-readable customer name
+  // instead of a bare `customerId` ("KH #2698" is meaningless to users).
+  // leftJoin (not innerJoin): a shipment whose customer was hard-deleted
+  // must still appear, with customerName = null.
   const [items, totalRows] = await Promise.all([
-    db.select().from(s.shipments)
+    db.select({
+      shipment: s.shipments,
+      customerName: s.customers.name,
+    }).from(s.shipments)
+      .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
       .where(and(...conditions))
       .orderBy(desc(s.shipments.createdAt))
       .limit(limit)
@@ -217,7 +225,10 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     db.select({ value: count() }).from(s.shipments).where(and(...conditions)),
   ]);
   const total = Number(totalRows[0]?.value ?? 0);
-  return { items, total, page, limit };
+  // Flatten `shipment` + `customerName` into a single object so the route
+  // layer returns `{ ...shipmentColumns, customerName }` directly.
+  const flatItems = items.map((row) => ({ ...row.shipment, customerName: row.customerName }));
+  return { items: flatItems, total, page, limit };
 }
 
 // ─── Update (optimistic-lock) ───────────────────────────────────────────────
@@ -427,7 +438,9 @@ export async function snapshotContainersIntoTrip(
 // so there is no N+1.
 
 export interface ShipmentDetail {
-  shipment: Awaited<ReturnType<typeof getShipment>>;
+  // Raw shipment row + the joined customer name (nullable: leftJoin, so a
+  // hard-deleted customer yields customerName = null).
+  shipment: Awaited<ReturnType<typeof getShipment>> & { customerName: string | null };
   containers: Awaited<ReturnType<typeof listShipmentContainers>>;
   documents: Awaited<ReturnType<typeof listShipmentDocuments>>;
   declarations: Awaited<ReturnType<typeof listShipmentDeclarations>>;
@@ -466,13 +479,21 @@ export async function getShipmentDetail(id: number): Promise<ShipmentDetail> {
   // Fetch the shipment first so a missing row 404s cleanly rather than
   // returning an empty payload.
   const shipment = await getShipment(id);
+  // Join the customer name so the detail page can show a readable label
+  // instead of "Khách hàng #{id}". leftJoin keeps the row even if the
+  // customer was hard-deleted (customerName = null in that case).
+  const [joined] = await db.select({ customerName: s.customers.name })
+    .from(s.shipments)
+    .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
+    .where(eq(s.shipments.id, id));
+  const shipmentWithCustomer = { ...shipment, customerName: joined?.customerName ?? null };
   const [containers, documents, declarations, statusHistory] = await Promise.all([
     listShipmentContainers(id),
     listShipmentDocuments(id),
     listShipmentDeclarations(id),
     listShipmentStatusHistory(id),
   ]);
-  return { shipment, containers, documents, declarations, statusHistory };
+  return { shipment: shipmentWithCustomer, containers, documents, declarations, statusHistory };
 }
 
 // ─── Container batch upsert (full reconcile) ────────────────────────────────
@@ -630,6 +651,16 @@ export async function dispatchShipmentToTrip(
     .limit(1);
   if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
 
+  // M3.2: check for expired DO (Delivery Order) documents before dispatch.
+  // An expired DO blocks dispatch — the operator must upload a renewed DO.
+  const expiredDocs = await checkExpiredDocuments(shipmentId);
+  if (expiredDocs.length > 0) {
+    throw new ApiError(
+      409,
+      `Lệnh giao hàng (D/O) đã hết hạn. Vui lòng tải lên D/O mới.`,
+    );
+  }
+
   // 2. Idempotent short-circuit FIRST: a live (non-CANCELED) trip is already
   //    linked → return it with `created: false`, regardless of the shipment's
   //    current status. This makes a retry after a successful dispatch safe
@@ -753,4 +784,60 @@ function isUniqueViolation(err: unknown): boolean {
   if (!err || typeof err !== 'object') return false;
   const e = err as { code?: string; cause?: { code?: string } };
   return e.code === '23505' || e.cause?.code === '23505';
+}
+
+// ─── M3.2: expired document check + document replacement ────────────────────
+
+/**
+ * Check if a shipment has any expired documents (DO type with expiresAt in the
+ * past). Returns the list of expired document rows. Empty = no expired docs.
+ */
+export async function checkExpiredDocuments(shipmentId: number) {
+  const today = new Date().toISOString().slice(0, 10);
+  const docs = await db.select()
+    .from(s.shipmentDocuments)
+    .where(and(
+      eq(s.shipmentDocuments.shipmentId, shipmentId),
+      eq(s.shipmentDocuments.type, 'DO'),
+      sql`${s.shipmentDocuments.expiresAt} IS NOT NULL`,
+      sql`${s.shipmentDocuments.expiresAt} < ${today}`,
+      isNull(s.shipmentDocuments.replacedBy), // not superseded by a newer version
+    ));
+  return docs;
+}
+
+/**
+ * M3.2: Replace a shipment document with a new version. The old document is
+ * NOT deleted — its `replacedBy` is set to the new document's id, preserving
+ * the full audit history. The new document inherits the old one's type and
+ * can have a new expiry date.
+ */
+export async function replaceShipmentDocument(
+  oldDocId: number,
+  newDocData: { storageKey: string; expiresAt?: string | null; uploadedBy?: number | null },
+) {
+  return await db.transaction(async (tx) => {
+    // 1. Fetch the old document to inherit type + shipmentId.
+    const [oldDoc] = await tx.select()
+      .from(s.shipmentDocuments)
+      .where(eq(s.shipmentDocuments.id, oldDocId))
+      .limit(1);
+    if (!oldDoc) throw new ApiError(404, 'Không tìm thấy tài liệu cần thay thế');
+
+    // 2. Insert the new document.
+    const [newDoc] = await tx.insert(s.shipmentDocuments).values({
+      shipmentId: oldDoc.shipmentId,
+      type: oldDoc.type,
+      storageKey: newDocData.storageKey,
+      expiresAt: newDocData.expiresAt ?? null,
+      uploadedBy: newDocData.uploadedBy ?? null,
+    }).returning();
+
+    // 3. Mark the old document as replaced.
+    await tx.update(s.shipmentDocuments)
+      .set({ replacedBy: newDoc.id })
+      .where(eq(s.shipmentDocuments.id, oldDocId));
+
+    return newDoc;
+  });
 }

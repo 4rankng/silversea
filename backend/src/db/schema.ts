@@ -1658,6 +1658,13 @@ export const shipmentDocuments = pgTable('shipment_documents', {
   type: shipmentDocumentTypeEnum('type'),
   storageKey: varchar('storage_key', { length: 255 }).notNull(),
   uploadedBy: integer('uploaded_by').references(() => users.id),
+  // Wave 2 M3.2: document expiry date. When set and past, an expired DO
+  // blocks dispatch. NULL = no expiry (permanent document).
+  expiresAt: date('expires_at'),
+  // Wave 2 M3.2: when this document replaces a previous version, the old
+  // document's id is stored here so the replacement history is traceable.
+  // The old document is NOT deleted — it stays for audit.
+  replacedBy: integer('replaced_by'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => [
   index('shipment_documents_shipment_id_idx').on(table.shipmentId),

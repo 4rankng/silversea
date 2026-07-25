@@ -374,7 +374,8 @@ biggest new surface area and the biggest customer-facing differentiator.
 <!-- autonomous-sdlc:completed task=wave2-schema -->
 - [x] Schema: shipment milestone timestamps; debit-note status enum extension; new
       `customer_email_logs` table.
-- [ ] M3.2: ISO 6346 container-number check-digit validator; shared-declaration override
+<!-- autonomous-sdlc:completed task=wave2-m32-doc-expiry -->
+- [x] M3.2: ISO 6346 container-number check-digit validator; shared-declaration override
       flow; expired-DO blocks dispatch; replacing a doc keeps history.
 - [ ] M3.3: milestone service deriving from trip status; manual CUS notifications preserving
       history; cross-customer isolation.
