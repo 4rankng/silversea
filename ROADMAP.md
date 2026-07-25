@@ -116,7 +116,16 @@ mobile/reporting polish (builds on the closed loop).
       forward-only. Backend tsc clean, 761/761 backend tests pass, 212/212
       frontend tests pass, build green. (Service/router/RBAC/frontend/seed are
       the subsequent Wave 0 checkboxes.)
-- [ ] Add `CUSTOMER` and `CLERK` to `roleEnum`; update `casbin/policy.csv` + enforcer.
+<!-- autonomous-sdlc:completed task=wave0-roles-customer-clerk -->
+- [x] Add `CUSTOMER` and `CLERK` to `roleEnum`; update `casbin/policy.csv` + enforcer.
+      ✅ Done — schema roleEnum + shared `Role`/`ROLE_LABELS` + 4 casbin rows
+      (`p, CUSTOMER, customer_portal, read`; `p, CLERK, shipments, read|write` +
+      `customer_portal, read`) + frontend `ROLE_PILL`/avatar/filter maps.
+      Migration `0113_romantic_penance.sql` (ALTER TYPE ADD VALUE, additive).
+      New `backend/src/tests/shipment-rbac.test.ts` (16 tests, mirrors
+      gps-admin.rbac.test.ts). All gates green: lint, backend tsc, 777/777
+      backend tests, frontend tsc, 212/212 frontend tests, build. Policy rows
+      are forward-looking (shipment routes + portal ship in later checkboxes).
 - [ ] Build `shipment.service.ts` (CRUD, status transitions, container snapshot into trips).
 - [ ] Build `routes/shipments.ts`: list, detail, create (draft), update, dispatch (→ trip),
       status transitions, document upload, container upsert.

@@ -6,7 +6,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // policy.csv is loaded at process boot; tsx watch reloads this module only
 // when source files change, so policy edits require a process restart or a
-// no-op edit here to trigger the watcher. Last reload: 2026-06-26.
+// no-op edit here to trigger the watcher. Last reload: 2026-07-25 (Wave 0:
+// added CUSTOMER + CLERK rows for shipments/customer_portal resources).
 let enforcerInstance: Enforcer | null = null;
 
 export async function initEnforcer(): Promise<Enforcer> {

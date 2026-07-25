@@ -30,6 +30,14 @@ export enum Role {
   ACCOUNTANT = 'ACCOUNTANT',
   DRIVER = 'DRIVER',
   FORWARDER = 'FORWARDER',
+  // Wave 0: customer-portal user (M3 customer portal, ships Wave 2). Row-scoped
+  // to their own shipments via scopedByCustomer. Today has no UI; the role +
+  // `p, CUSTOMER, customer_portal, read` policy row are the forward-looking gate.
+  CUSTOMER = 'CUSTOMER',
+  // Wave 0: nhân viên chứng từ (M10 document clerk). Creates/edits shipments
+  // and their docs/declarations; cannot dispatch or post to ledger. Gets
+  // `shipments read|write` + `customer_portal read` per phase-01 architecture.
+  CLERK = 'CLERK',
 }
 
 /** Roles that can approve expense approvals and access financial reports. */
@@ -151,6 +159,8 @@ export const ROLE_LABELS: Record<Role, string> = {
   [Role.ACCOUNTANT]: 'Kế toán',
   [Role.DRIVER]: 'Lái xe',
   [Role.FORWARDER]: 'Giao nhận',
+  [Role.CUSTOMER]: 'Khách hàng',
+  [Role.CLERK]: 'Nhân viên chứng từ',
 };
 
 export const FUEL_MODE_LABELS: Record<FuelMode, string> = {
