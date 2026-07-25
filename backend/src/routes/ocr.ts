@@ -9,7 +9,7 @@ import { asyncHandler } from '../middleware/asyncHandler';
 import { getUser } from '../middleware/auth';
 import { sniffImageType } from '../lib/format';
 import { saveTripPhoto } from './upload';
-import { extractContainerAndSeal } from '../services/ocr.service';
+import { extractContainerAndSeal, extractPumpReading } from '../services/ocr.service';
 import { ApiError } from '../errors';
 
 // auth + Casbin ('ocr') applied at mount point in index.ts. Both routes below
@@ -179,6 +179,35 @@ router.post('/', upload.single('file'), asyncHandler(async (req: Request, res: R
     checkDigitWarnings: result.checkDigitWarnings,
     photoUrl,
     storageKey,
+    model: result.model,
+    error: result.error,
+  });
+}));
+
+/**
+ * POST /api/ocr/pump — recognize litres × unit_price ≈ total from a fuel-pump
+ * display photo (M12.3).
+ *
+ * Body (multipart): file (image of fuel pump display).
+ *
+ * Returns a SUGGESTION — the caller (expense entry) must let the user confirm
+ * or edit before committing. When litres × unitPrice deviates from total beyond
+ * 5%, `mismatch: true` warns the caller to fall back to manual entry.
+ */
+router.post('/pump', upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+  const file = req.file;
+  if (!file) throw new ApiError(400, 'Không có file tải lên');
+
+  const mimeType = sniffImageType(file.buffer) ?? 'image/jpeg';
+  const result = await extractPumpReading(file.buffer, mimeType);
+
+  res.status(200).json({
+    ok: result.success,
+    litres: result.litres,
+    unitPrice: result.unitPrice,
+    total: result.total,
+    mismatch: result.mismatch,
+    computedTotal: result.computedTotal,
     model: result.model,
     error: result.error,
   });

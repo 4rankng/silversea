@@ -343,7 +343,8 @@ mobile/reporting polish (builds on the closed loop).
 - [x] M2.5: ancillary revenue CRUD; refunds via negative amounts with reason; no silent edits.
 <!-- autonomous-sdlc:completed task=wave1-m121-catalog-crud -->
 - [x] M12.1: extend `fuel_config` to per-route/per-truck-type norms; mountain flat-rate.
-- [ ] M12.3: extend `ocr.service.ts` with pump-photo recognition; `POST /api/ocr/pump`;
+<!-- autonomous-sdlc:completed task=wave1-m123-pump-ocr -->
+- [x] M12.3: extend `ocr.service.ts` with pump-photo recognition; `POST /api/ocr/pump`;
       cross-check litres × price ≈ total; mismatch → manual fallback.
 - [ ] Frontend config pages for the 4 new catalogs + trip formula breakdown.
 <!-- autonomous-sdlc:completed task=wave1-regression -->
