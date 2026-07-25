@@ -85,7 +85,7 @@ Wave 4 MOBILE & REPORTING  ◄──  Wave 3 FINANCIAL CLOSE
 
 | # | Wave | Status | PRD modules | Phase file |
 |---|------|--------|-------------|------------|
-| 0 | Foundation: shipments + scheduler | ⏳ Pending | M3.1, M4.1 (partial) | [`phase-01`](plans/silversea-prd-roadmap/phase-01-wave-0-foundation.md) |
+| 0 | Foundation: shipments + scheduler | ✅ Done | M3.1, M4.1 (partial) | [`phase-01`](plans/silversea-prd-roadmap/phase-01-wave-0-foundation.md) |
 | 1 | Pricing & Fuel Data Layer | ⏳ Pending | M2, M12.1, M12.3 | [`phase-02`](plans/silversea-prd-roadmap/phase-02-wave-1-pricing-fuel-data-layer.md) |
 | 2 | CUS Core & Customer Portal | ⏳ Pending | M3 (rest), M4.5 | [`phase-03`](plans/silversea-prd-roadmap/phase-03-wave-2-cus-core-customer-portal.md) |
 | 3 | Financial Close | ⏳ Pending | M5, M6, M7.3, M4.6/4.7 | [`phase-04`](plans/silversea-prd-roadmap/phase-04-wave-3-financial-close.md) |
@@ -245,7 +245,29 @@ mobile/reporting polish (builds on the closed loop).
       (was 865; +7 new), frontend tsc, 220/220 frontend tests, build. E2E
       skipped with justification (no API/schema/RBAC change); see
       `qa/2026-07-25_wave0-shipment-audit_e2e.md`.
-- [ ] Row-scope helper `scopedByCustomer(req.user, query)` — reusable in Waves 2 & 3.
+<!-- autonomous-sdlc:completed task=wave0-scoped-by-customer -->
+- [x] Row-scope helper `scopedByCustomer(req.user, query)` — reusable in Waves 2 & 3.
+      ✅ Done — added a nullable `users.customer_id` FK (ON DELETE SET NULL;
+      migration `0116_concerned_switch.sql`) so a CUSTOMER-role user can be
+      linked 1:1 to the AR customer whose data they may see in the Wave 2
+      portal. The FK is declared as a plain integer in the Drizzle schema
+      (no `.references()`) to avoid a TypeScript circular-initializer error
+      on the `users → customers → debitNoteTemplates → users` chain; the
+      actual FK constraint is added via the migration. Login now carries
+      `customerId` in the JWT. The pure helper `scopedByCustomer(user, query)`
+      forces the query's `customerId` for CUSTOMER role (overriding any
+      caller-supplied value — impersonation guard), applies a deny-all
+      sentinel (`-1`) for unmapped CUSTOMER users, and passes through for
+      operator roles. Bonus helpers: `isCustomerScoped(user)` for
+      short-circuiting customer-inapplicable writes, `canAccessCustomer(user,
+      customerId)` for single-row gating (404-not-403). 19 new tests (pure
+      branches + DB integration against `listShipments` proving scope,
+      impersonation guard, deny-all, and admin passthrough). All gates green:
+      lint, backend tsc, 891/891 backend tests (was 872; +19 new), frontend
+      tsc, 220/220 frontend tests, build, E2E (schema change → gate run; no
+      new failures beyond the documented pre-existing stale-login-selector
+      issues). Wave 0 Foundation is now **complete** — all 9 checkboxes
+      checked.
 
 ### Open PRD questions (block Wave 2+, not Wave 0)
 

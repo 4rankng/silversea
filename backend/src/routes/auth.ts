@@ -43,7 +43,14 @@ router.post('/login', asyncHandler(async (req: Request, res: Response) => {
   const displayName = await userService.resolveDisplayName(user);
 
   const token = jwt.sign(
-    { userId: user.id, username: user.username, email: user.email, fullName: displayName, role: user.role, jti: crypto.randomUUID() },
+    {
+      userId: user.id, username: user.username, email: user.email,
+      fullName: displayName, role: user.role, jti: crypto.randomUUID(),
+      // Wave 0: carry customerId on the JWT so scopedByCustomer can read it
+      // without a per-request DB lookup. Undefined for non-CUSTOMER roles
+      // or unmapped CUSTOMER users; the helper treats that as deny-all.
+      customerId: user.customerId ?? undefined,
+    },
     config.jwtSecret,
     { expiresIn: config.jwtExpiresIn as DurationString }
   );
