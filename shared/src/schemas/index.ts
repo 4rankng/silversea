@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
   FuelMode, LoadingType, Role,
   TrailerType, TruckStatus, TrailerStatus, DriverStatus, CustomerStatus,
+  ShipmentStatus, ShipmentDocumentType,
   TIRE_STATUSES,
 } from '../constants';
 
@@ -900,6 +901,88 @@ export const upsertTripInstructionsSchema = z.object({
   notes: z.string().max(2000).nullish(),
 });
 
+// ─── Shipments (Wave 0 — lô hàng) ────────────────────────────────────────────
+//
+// Zod schemas for `/api/shipments/*`. These mirror the input shapes already
+// accepted by `shipment.service.ts` so the route handler is a thin validation
+// + forwarding layer. Shared here so the Wave 2 frontend can reuse the exact
+// same schemas for client-side validation.
+
+// Create draft shipment. Only `customerId` is required — everything else is
+// optional booking metadata that may be filled in before dispatch.
+export const createShipmentSchema = z.object({
+  customerId: z.coerce.number().int().positive('Khách hàng là bắt buộc'),
+  bookingRef: z.string().max(100).optional().nullable(),
+  blNumber: z.string().max(100).optional().nullable(),
+  expectedDeliveryDate: z.string().optional().nullable(),
+  pickupLocation: z.string().max(255).optional().nullable(),
+  deliveryLocation: z.string().max(255).optional().nullable(),
+  contactName: z.string().max(100).optional().nullable(),
+  contactPhone: z.string().max(20).optional().nullable(),
+});
+
+// Update shipment. `version` is REQUIRED for the optimistic-lock check
+// performed by `updateShipment` (409 on stale). All other fields are optional
+// and use the `!== undefined` convention so callers can patch a subset.
+export const updateShipmentSchema = z.object({
+  version: z.number().int().nonnegative('version là bắt buộc để kiểm soát đồng thời'),
+  customerId: z.coerce.number().int().positive().optional(),
+  bookingRef: z.string().max(100).nullish(),
+  blNumber: z.string().max(100).nullish(),
+  expectedDeliveryDate: z.string().nullish(),
+  pickupLocation: z.string().max(255).nullish(),
+  deliveryLocation: z.string().max(255).nullish(),
+  contactName: z.string().max(100).nullish(),
+  contactPhone: z.string().max(20).nullish(),
+});
+
+// Status transition. The service is the source of truth for legal edges; the
+// schema only validates the shape and the enum value.
+export const transitionShipmentStatusSchema = z.object({
+  status: z.nativeEnum(ShipmentStatus),
+  reason: z.string().max(500).optional().nullable(),
+});
+
+// Shipment document upload. The file itself goes through `/api/upload`; this
+// endpoint records the metadata row referencing the storage key. Multipart
+// upload is a Wave 2 portal concern.
+export const attachShipmentDocumentSchema = z.object({
+  type: z.nativeEnum(ShipmentDocumentType),
+  storageKey: z.string().min(1, 'storageKey là bắt buộc').max(255),
+});
+
+// Full reconcile of shipment containers — same shape contract as
+// `tripContainerBatchSchema`: incoming `containers[]` becomes the desired full
+// list (insert new, update by id, delete the rest).
+export const shipmentContainerBatchSchema = z.object({
+  containers: z.array(z.object({
+    id: z.coerce.number().int().positive().optional(),
+    containerTypeId: z.coerce.number().int().positive().optional().nullable(),
+    containerNumber: z.string().max(50, 'Số container không được quá 50 ký tự').optional().nullable()
+      .transform(v => (v === '' ? null : v)),
+    sealNumber: z.string().max(50).optional().nullable().transform(v => (v === '' ? null : v)),
+    cargoWeightKg: nonNegNumeric.optional().nullable(),
+    notes: z.string().optional().nullable().transform(v => (v === '' ? null : v)),
+  })),
+});
+
+// Dispatch a shipment → create a linked trip. Fulfillment-time fields
+// (route/cargo/container-type/truck/driver) are NOT on the shipment per the
+// phase-01 architecture; they are provided at dispatch. `createTripCommand`
+// requires customerId + routeId + cargoTypeId + containerTypeId; the rest are
+// optional. truckId/driverId may be null for external carriers.
+export const dispatchShipmentSchema = z.object({
+  routeId: z.coerce.number().int().positive('Tuyến đường là bắt buộc khi điều vận'),
+  cargoTypeId: z.coerce.number().int().positive('Loại hàng là bắt buộc khi điều vận'),
+  containerTypeId: z.coerce.number().int().positive('Loại container là bắt buộc khi điều vận'),
+  truckId: z.coerce.number().int().positive().optional().nullable(),
+  driverId: z.coerce.number().int().positive().optional().nullable(),
+  departureDate: z.string().min(1, 'Ngày khởi hành là bắt buộc'),
+  customerReference: z.string().optional(),
+  containerCount: z.coerce.number().int().min(1).max(10).optional(),
+  fuelMode: z.nativeEnum(FuelMode).optional(),
+});
+
 // ─── Inferred types ──────────────────────────────────────────────────────────
 
 export type CreateTripInput = z.infer<typeof createTripSchema>;
@@ -908,6 +991,12 @@ export type BulkUpdateTripFiguresInput = z.infer<typeof bulkUpdateTripFiguresSch
 export type CreatePaymentInput = z.infer<typeof createPaymentSchema>;
 export type CreatePenaltyInput = z.infer<typeof createPenaltySchema>;
 export type CreateAdjustmentInput = z.infer<typeof createAdjustmentSchema>;
+export type CreateShipmentInput = z.infer<typeof createShipmentSchema>;
+export type UpdateShipmentInput = z.infer<typeof updateShipmentSchema>;
+export type TransitionShipmentStatusInput = z.infer<typeof transitionShipmentStatusSchema>;
+export type AttachShipmentDocumentInput = z.infer<typeof attachShipmentDocumentSchema>;
+export type ShipmentContainerBatchInput = z.infer<typeof shipmentContainerBatchSchema>;
+export type DispatchShipmentInput = z.infer<typeof dispatchShipmentSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;

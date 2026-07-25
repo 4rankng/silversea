@@ -18,6 +18,7 @@ import { registerJob, startScheduler, stopScheduler } from './scheduler';
 import authRoutes from './routes/auth';
 import configRoutes, { auditLogRouter, catalogBootstrapRouter, salaryPeriodsRouter, salaryPeriodsAdminRouter, tireLifecycleRouter } from './routes/config';
 import tripRoutes from './routes/trips';
+import shipmentRoutes from './routes/shipments';
 import { agentRoutes } from './routes/agent';
 import { initAgentSocket } from './agentSocket';
 import financialRoutes from './routes/financial';
@@ -160,6 +161,12 @@ app.use('/api/ocr', authMiddleware, casbinAuthz('ocr'), ocrRoutes);
 app.use('/api/geotag', authMiddleware, casbinAuthz('geotag'), geotagRoutes);
 app.use('/api/notifications', authMiddleware, casbinAuthz('notifications'), notificationRoutes);
 app.use('/api/trips', authMiddleware, casbinAuthz('trips'), tripRoutes);
+// Shipments (Wave 0 — lô hàng): first-class shipment entity that every later
+// wave (CUS portal, debit-note, dispatch handoff) builds on. RBAC matrix:
+// ADMIN wildcard · MANAGER read+write+delete · ACCOUNTANT read · CLERK
+// read+write. CUSTOMER/DRIVER/FORWARDER are denied at this mount; the customer
+// portal ships its own row-scoped surface in Wave 2.
+app.use('/api/shipments', authMiddleware, casbinAuthz('shipments'), shipmentRoutes);
 // Command-and-insight assistant (bot). Acts as the caller; office roles only.
 // 503 while BOT_ENABLE is off. Mounts before the catch-all /api.
 app.use('/api/agent', authMiddleware, casbinAuthz('agent'), agentRoutes);

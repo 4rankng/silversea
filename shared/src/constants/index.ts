@@ -14,6 +14,52 @@ export enum TripStatus {
  *  distinct concept (grossProfit is finalized at lock) — and must NOT use this set. */
 export const BILLABLE_TRIP_STATUSES = [TripStatus.COMPLETED, TripStatus.LOCKED] as const;
 
+/**
+ * Shipment (lô hàng) lifecycle. Mirrors `shipment_status` in
+ * `backend/src/db/schema.ts` and the legal edges in
+ * `shipment.service.ts`'s `LEGAL_TRANSITIONS`:
+ *
+ *   DRAFT ──► IN_PROGRESS ──► DELIVERED ──► CLOSED
+ *                │
+ *                └──► CANCELED   (DRAFT can also go straight to CANCELED)
+ *
+ * CANCELED and CLOSED are terminal sinks. Kept in shared so the zod schema,
+ * the frontend, and the service all share one source of truth.
+ */
+export enum ShipmentStatus {
+  DRAFT = 'DRAFT',
+  IN_PROGRESS = 'IN_PROGRESS',
+  DELIVERED = 'DELIVERED',
+  CLOSED = 'CLOSED',
+  CANCELED = 'CANCELED',
+}
+
+/** Shipment document types — mirrors `shipment_document_type` PG enum. */
+export enum ShipmentDocumentType {
+  BOOKING = 'BOOKING',
+  BL = 'BL',
+  DO = 'DO',
+  DECLARATION = 'DECLARATION',
+  OTHER = 'OTHER',
+}
+
+/** Vietnamese labels for shipment statuses (PRD Mxx-HT-01). */
+export const SHIPMENT_STATUS_LABELS: Record<ShipmentStatus, string> = {
+  [ShipmentStatus.DRAFT]: 'Bản nháp',
+  [ShipmentStatus.IN_PROGRESS]: 'Đang xử lý',
+  [ShipmentStatus.DELIVERED]: 'Đã giao',
+  [ShipmentStatus.CLOSED]: 'Đã đóng',
+  [ShipmentStatus.CANCELED]: 'Đã hủy',
+};
+
+export const SHIPMENT_DOCUMENT_TYPE_LABELS: Record<ShipmentDocumentType, string> = {
+  [ShipmentDocumentType.BOOKING]: 'Xác nhận đặt chỗ',
+  [ShipmentDocumentType.BL]: 'Vận đơn (B/L)',
+  [ShipmentDocumentType.DO]: 'Lệnh giao hàng (D/O)',
+  [ShipmentDocumentType.DECLARATION]: 'Tờ khai hải quan',
+  [ShipmentDocumentType.OTHER]: 'Khác',
+};
+
 export enum FuelMode {
   AUTO = 'AUTO',
   FLAT_RATE = 'FLAT_RATE',

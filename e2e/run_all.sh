@@ -22,29 +22,40 @@ fi
 
 # Check server connectivity
 check_port() {
+    # Try IPv4 first, then IPv6 — vite/node often binds to only one stack.
     python3 -c "
 import socket
-s = socket.socket()
-s.settimeout(2)
-try:
-    s.connect(('localhost', $1))
-    s.close()
-    exit(0)
-except:
-    exit(1)
+for fam, addr in ((socket.AF_INET, ('127.0.0.1', $1)), (socket.AF_INET6, ('::1', $1))):
+    s = socket.socket(fam)
+    s.settimeout(2)
+    try:
+        s.connect(addr)
+        s.close()
+        exit(0)
+    except OSError:
+        continue
+exit(1)
 " 2>/dev/null
 }
 
 echo "🔍 Checking servers..."
-if ! check_port 7173; then
-    echo "❌ Frontend not running on :7173. Run 'make dev' first."
+# Default to the silversea stack ports (7174 frontend, 3001 backend) but allow
+# override via NEPO_FRONTEND_PORT / NEPO_BACKEND_PORT for the legacy
+# nepocorp stack (7173 / 3090). helpers.py reads BASE_URL/API_URL from
+# NEPO_URL / NEPO_API env vars.
+FRONTEND_PORT="${NEPO_FRONTEND_PORT:-7174}"
+BACKEND_PORT="${NEPO_BACKEND_PORT:-3001}"
+if ! check_port "$FRONTEND_PORT"; then
+    echo "❌ Frontend not running on :$FRONTEND_PORT. Run 'make dev' first."
     exit 1
 fi
-if ! check_port 3090; then
-    echo "❌ Backend not running on :3090. Run 'make dev' first."
+if ! check_port "$BACKEND_PORT"; then
+    echo "❌ Backend not running on :$BACKEND_PORT. Run 'make dev' first."
     exit 1
 fi
-echo "✅ Servers ready"
+export NEPO_URL="${NEPO_URL:-http://localhost:$FRONTEND_PORT}"
+export NEPO_API="${NEPO_API:-http://localhost:$BACKEND_PORT}"
+echo "✅ Servers ready (frontend :$FRONTEND_PORT, backend :$BACKEND_PORT)"
 
 # Determine which suites to run
 SUITES=()

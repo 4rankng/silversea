@@ -5,6 +5,8 @@ export {
   TIRE_STATUSES, TIRE_STATUS_LABELS, TIRE_DISPOSAL_REASONS,
   TRIP_STATUS_LABELS, ROLE_LABELS, FUEL_MODE_LABELS, LOADING_TYPE_LABELS,
   TRIP_STATUS_COLORS, DATA_COMPLETENESS_COLORS,
+  ShipmentStatus, ShipmentDocumentType,
+  SHIPMENT_STATUS_LABELS, SHIPMENT_DOCUMENT_TYPE_LABELS,
   AdvanceRequestStatus, AdvanceSettlementStatus, ExpenseEntryStatus,
   FORWARDER_EXPENSE_TYPE_DEFAULTS, ADVANCE_REQUEST_STATUS_LABELS, ADVANCE_SETTLEMENT_STATUS_LABELS,
   NotificationType, NOTIFICATION_TYPE_LABELS, PUSH_RULES,
@@ -74,6 +76,8 @@ export {
   tripContainerSchema, tripContainerBatchSchema, tripContainerPatchSchema, tripContainerSealSchema, tripContainerSealBatchSchema, tripExpenseSchema, baseTripExpenseSchema, tripExpensePatchSchema, tripExpenseCompletionSchema, accountantSettlementExpensePatchSchema, forwarderExpenseTypeSchema,
   createAdvanceRequestSchema, createAdvanceSettlementSchema, updateAdvanceSettlementSchema,
   upsertTripInstructionsSchema,
+  createShipmentSchema, updateShipmentSchema, transitionShipmentStatusSchema,
+  attachShipmentDocumentSchema, shipmentContainerBatchSchema, dispatchShipmentSchema,
   containerTypeSchema, portSchema, sealTypeSchema,
   debtOffsetSchema, ANCILLARY_EXPENSE_TYPES,
   commissionSchema,
@@ -127,6 +131,8 @@ export type {
   AckedDirectiveKind, AgentActionResult,
   FaqEntry, FaqEntryCreate, FaqEntryUpdate, FaqEmbeddingStatus, FaqEntryMutationResponse,
   GeotagInput, GeotagEntityType, GeotagSource, PhotoGeotag,
+  CreateShipmentInput, UpdateShipmentInput, TransitionShipmentStatusInput,
+  AttachShipmentDocumentInput, ShipmentContainerBatchInput, DispatchShipmentInput,
 } from './schemas';
 
 export { round2dp, roundInt } from './calculations/round';

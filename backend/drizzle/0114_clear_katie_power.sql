@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "trips_shipment_id_live_uniq" ON "trips" USING btree ("shipment_id") WHERE "trips"."shipment_id" is not null and "trips"."status" <> 'CANCELED';

@@ -88,3 +88,27 @@ describe('Wave 0: existing roles unchanged (regression guard)', () => {
     assert.equal(await (await enforcer()).enforce('FORWARDER', 'shipments', 'read'), false);
   });
 });
+
+// Wave 0 (shipment-routes slice): MANAGER + ACCOUNTANT shipments policy rows
+// added alongside the existing CLERK rows. These assertions guard the RBAC
+// surface that `/api/shipments` relies on.
+describe('Wave 0 MANAGER/ACCOUNTANT shipments RBAC (route mount surface)', () => {
+  test('MANAGER can read shipments', async () => {
+    assert.equal(await (await enforcer()).enforce('MANAGER', 'shipments', 'read'), true);
+  });
+  test('MANAGER can write shipments', async () => {
+    assert.equal(await (await enforcer()).enforce('MANAGER', 'shipments', 'write'), true);
+  });
+  test('MANAGER can delete shipments', async () => {
+    assert.equal(await (await enforcer()).enforce('MANAGER', 'shipments', 'delete'), true);
+  });
+  test('ACCOUNTANT can read shipments', async () => {
+    assert.equal(await (await enforcer()).enforce('ACCOUNTANT', 'shipments', 'read'), true);
+  });
+  test('ACCOUNTANT is denied shipments write (read-only)', async () => {
+    assert.equal(await (await enforcer()).enforce('ACCOUNTANT', 'shipments', 'write'), false);
+  });
+  test('ACCOUNTANT is denied shipments delete', async () => {
+    assert.equal(await (await enforcer()).enforce('ACCOUNTANT', 'shipments', 'delete'), false);
+  });
+});

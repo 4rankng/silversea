@@ -764,6 +764,13 @@
       "when": 1784948674868,
       "tag": "0113_romantic_penance",
       "breakpoints": true
+    },
+    {
+      "idx": 114,
+      "version": "7",
+      "when": 1784953470616,
+      "tag": "0114_clear_katie_power",
+      "breakpoints": true
     }
   ]
 }
