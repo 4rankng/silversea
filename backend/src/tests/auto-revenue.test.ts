@@ -166,4 +166,33 @@ describe('createTrip — Wave 1 auto-revenue wiring', () => {
     assert.ok(loadedNorm > 0 || emptyNorm > 0,
       `fuel norms populated (loaded=${loadedNorm}, empty=${emptyNorm})`);
   });
+
+  test('M2.3: pricingFormula shows full breakdown with VAT when vatRate > 0', async () => {
+    const customer = await mkCustomer();
+    const cat = await mkCatalogs();
+    await mkPricingTable(customer.id, cat.route.id, '5000000');
+
+    const trip = await createTrip({
+      ...baseInput(customer.id, cat.route.id, cat.cargoType.id, cat.containerType.id),
+      vatRate: 0.10, // 10% VAT
+    });
+    createdTripIds.push(trip.id);
+
+    // The formula should include the freight + VAT breakdown.
+    assert.ok(trip.pricingFormula, 'formula is set');
+    assert.match(trip.pricingFormula!, /VAT 10%/);
+    assert.match(trip.pricingFormula!, /5\.500\.000/); // 5M × 1.1
+  });
+
+  test('M2.3: pricingFormula omits VAT when vatRate is 0', async () => {
+    const customer = await mkCustomer();
+    const cat = await mkCatalogs();
+    await mkPricingTable(customer.id, cat.route.id, '2000000');
+
+    const trip = await createTrip(baseInput(customer.id, cat.route.id, cat.cargoType.id, cat.containerType.id));
+    createdTripIds.push(trip.id);
+
+    // No VAT → formula is just the freight line, no VAT suffix.
+    assert.ok(!trip.pricingFormula!.includes('VAT'), 'no VAT in formula when vatRate=0');
+  });
 });
