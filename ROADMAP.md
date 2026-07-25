@@ -402,7 +402,8 @@ biggest new surface area and the biggest customer-facing differentiator.
 <!-- autonomous-sdlc:completed task=wave2-m45-period-allocation -->
 - [x] M4.5: only approved disbursements enter the right period; never on two debit notes;
       late-approved → roll to next period or adjustment.
-- [ ] Customer portal frontend: `/portal/*` route tree; shipment list/detail, debit-note
+<!-- autonomous-sdlc:completed task=wave2-portal-frontend -->
+- [x] Customer portal frontend: `/portal/*` route tree; shipment list/detail, debit-note
       list/confirm/dispute, statement download, optional two-way messaging.
 <!-- autonomous-sdlc:completed task=wave2-pdf-export -->
 - [x] PDF export for debit notes (extend statement.service.ts PDF path).
