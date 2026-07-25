@@ -302,3 +302,52 @@ export async function validatePricingTableOverlap(
   }
   return overlaps;
 }
+
+// ─── M2.4: lift/up-down (nâng/hạ) price resolution ─────────────────────────
+//
+// Looks up the lift_pricing catalog for a given port × containerType ×
+// direction × date and returns the suggested price. Used by the forwarder
+// expense-entry flow (future wiring) to suggest a price and show the delta
+// between suggested and actual.
+//
+// Resolution rule:
+//   1. Find the most recent lift_pricing row matching port + containerType +
+//      direction + effectiveDate ≤ trip date.
+//   2. Return { suggestedPrice, liftPricingId, effectiveDate } or null if no
+//      matching row.
+
+export interface ResolveLiftPriceInput {
+  portId: number;
+  containerTypeId: number;
+  direction: 'LIFT_UP' | 'LIFT_DOWN';
+  /** Trip or expense date (YYYY-MM-DD). */
+  date: string;
+}
+
+export interface ResolvedLiftPrice {
+  suggestedPrice: number;
+  liftPricingId: number;
+  effectiveDate: string;
+}
+
+export async function resolveLiftPrice(input: ResolveLiftPriceInput): Promise<ResolvedLiftPrice | null> {
+  const [row] = await db.select()
+    .from(s.liftPricing)
+    .where(and(
+      eq(s.liftPricing.portId, input.portId),
+      eq(s.liftPricing.containerTypeId, input.containerTypeId),
+      eq(s.liftPricing.direction, input.direction),
+      lte(s.liftPricing.effectiveDate, input.date),
+      isNull(s.liftPricing.deletedAt),
+    ))
+    .orderBy(desc(s.liftPricing.effectiveDate))
+    .limit(1);
+
+  if (!row) return null;
+
+  return {
+    suggestedPrice: Number(row.unitPrice),
+    liftPricingId: row.id,
+    effectiveDate: row.effectiveDate,
+  };
+}

@@ -336,7 +336,8 @@ mobile/reporting polish (builds on the closed loop).
 - [x] M2.2: weight-tier pricing for bulk cargo; boundary + overlap tests.
 <!-- autonomous-sdlc:completed task=wave1-m23-formula -->
 - [x] M2.3: auto-revenue from lot weight, visible formula `weight × price + surcharges + VAT`.
-- [ ] M2.4: lift/up-down catalog `lift_pricing` (port × type × direction × date); show
+<!-- autonomous-sdlc:completed task=wave1-m24-lift-pricing -->
+- [x] M2.4: lift/up-down catalog `lift_pricing` (port × type × direction × date); show
       suggested/actual/delta on expense entry.
 - [ ] M2.5: ancillary revenue CRUD; refunds via negative amounts with reason; no silent edits.
 <!-- autonomous-sdlc:completed task=wave1-m121-catalog-crud -->
