@@ -382,7 +382,8 @@ biggest new surface area and the biggest customer-facing differentiator.
       history; cross-customer isolation.
 <!-- autonomous-sdlc:completed task=wave2-email-service -->
 - [x] Email service + provider (Resend/SES); wire to Wave-0 scheduler for retries.
-- [ ] M3.4: three-party delivery confirm (driver / CUS / customer); partial delivery per
+<!-- autonomous-sdlc:completed task=wave2-m34-delivery -->
+- [x] M3.4: three-party delivery confirm (driver / CUS / customer); partial delivery per
       container; free-time overrun calc + fee warning.
 - [ ] M3.5: extend `billingDocument.service.ts` to assemble lines from approved expenses +
       freight snapshot + ancillary revenue; per-customer template; VAT per line.
