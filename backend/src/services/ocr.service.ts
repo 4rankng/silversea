@@ -621,3 +621,140 @@ export async function extractContainerAndSeal(
     model: lastModel,
   };
 }
+
+// ─── M12.3: Pump-photo OCR ──────────────────────────────────────────────────
+//
+// Recognises litres × unit_price ≈ total from a fuel-pump display photo.
+// The result is a SUGGESTION — the caller (expense entry) must let the user
+// confirm/edit before committing. When litres × unitPrice deviates from total
+// beyond a tolerance, the result is flagged `mismatch: true` so the UI warns
+// the user and falls back to manual entry.
+
+const PUMP_PROMPT = `Role: You are an expert OCR assistant specializing in fuel pump displays at Vietnamese petrol stations. Examine the image and extract the fuel pump reading.
+
+Extract these values from the pump display:
+- litres: the volume of fuel dispensed (in litres)
+- unit_price: the price per litre (in VND)
+- total: the total amount to pay (in VND)
+
+Important notes:
+- Vietnamese pump displays may show amounts with dots as thousand separators (e.g. "25.000" means 25000).
+- Some pumps may not show all three values. Extract only what is visible.
+- Numbers may be partially obscured or blurry — extract the best reading you can.
+
+Output: Return ONLY a clean JSON object: {"litres": number, "unit_price": number, "total": number}. Use null for any value that cannot be read. Do not include any conversational text.`;
+
+const PUMP_SCHEMA = {
+  type: 'object',
+  properties: {
+    litres: { type: 'number' },
+    unit_price: { type: 'number' },
+    total: { type: 'number' },
+  },
+};
+
+export interface PumpReading {
+  success: boolean;
+  litres: number | null;
+  unitPrice: number | null;
+  total: number | null;
+  /** True when litres × unitPrice deviates from total by more than 5%. */
+  mismatch: boolean;
+  /** The computed expected total (litres × unitPrice) for the UI to display. */
+  computedTotal: number | null;
+  error: string | null;
+  provider: VisionProvider | null;
+  model: string | null;
+}
+
+/**
+ * Cross-check: litres × unitPrice should approximately equal total.
+ * Tolerance is 5% (Vietnamese pump displays round to the nearest VND; small
+ * rounding differences are expected). Returns { mismatch, computedTotal }.
+ */
+export function crossCheckPumpReading(
+  litres: number | null,
+  unitPrice: number | null,
+  total: number | null,
+): { mismatch: boolean; computedTotal: number | null } {
+  if (litres == null || unitPrice == null || total == null || total === 0) {
+    return { mismatch: false, computedTotal: null };
+  }
+  const computed = Math.round(litres * unitPrice);
+  const deviation = Math.abs(computed - total) / total;
+  return { mismatch: deviation > 0.05, computedTotal: computed };
+}
+
+/**
+ * Extract litres, unit_price, and total from a fuel-pump display photo.
+ * Uses the same Gemini/OpenRouter vision pipeline as container/seal OCR.
+ */
+export async function extractPumpReading(
+  imageBuffer: Buffer,
+  mimeType = 'image/jpeg',
+): Promise<PumpReading> {
+  let buffer = imageBuffer;
+  let mime = mimeType;
+  try {
+    const pre = await preprocessImage(imageBuffer);
+    buffer = pre.buffer;
+    mime = pre.mimeType;
+  } catch {
+    // keep raw image if preprocessing fails
+  }
+
+  const providers = orderedProviders();
+  if (providers.length === 0) {
+    return {
+      success: false, litres: null, unitPrice: null, total: null,
+      mismatch: false, computedTotal: null,
+      error: 'OCR chưa cấu hình (thiếu OPENROUTER_API_KEY / GEMINI_API_KEY)',
+      provider: null, model: null,
+    };
+  }
+
+  let lastProvider: VisionProvider | null = null;
+  let lastModel: string | null = null;
+  let lastError: string | null = null;
+
+  for (const name of providers) {
+    const result = await callProvider(name, PUMP_PROMPT, PUMP_SCHEMA, buffer, mime);
+    lastProvider = name;
+    lastModel = result.model;
+
+    if (!result.success || !result.text) {
+      lastError = result.error ?? 'Provider returned empty';
+      continue;
+    }
+
+    try {
+      const parsed = JSON.parse(result.text);
+      const litres = parsed.litres != null ? Number(parsed.litres) : null;
+      const unitPrice = parsed.unit_price != null ? Number(parsed.unit_price) : null;
+      const total = parsed.total != null ? Number(parsed.total) : null;
+
+      if (litres == null && unitPrice == null && total == null) {
+        lastError = 'Không đọc được giá trị nào từ ảnh';
+        continue;
+      }
+
+      const { mismatch, computedTotal } = crossCheckPumpReading(litres, unitPrice, total);
+
+      return {
+        success: true, litres, unitPrice, total,
+        mismatch, computedTotal,
+        error: null, provider: name, model: result.model,
+      };
+    } catch {
+      lastError = 'Không thể phân tích kết quả OCR';
+      continue;
+    }
+  }
+
+  return {
+    success: false, litres: null, unitPrice: null, total: null,
+    mismatch: false, computedTotal: null,
+    error: lastError ?? 'Tất cả provider đều thất bại',
+    provider: lastProvider, model: lastModel,
+  };
+}
