@@ -316,7 +316,20 @@ mobile/reporting polish (builds on the closed loop).
       instead of per-100km). Returns `ResolvedFuelNorm` with loaded/empty
       liters, supplement, flatRate, useFlatRate, Vietnamese description,
       and snapshot for the trip. 8 new DB-backed tests. All gates green.
-- [ ] Wire auto-revenue into trip create/update; surface formula in trip detail.
+<!-- autonomous-sdlc:completed task=wave1-auto-revenue -->
+- [x] Wire auto-revenue into trip create/update; surface formula in trip detail. (createTrip slice)
+      ✅ Done (createTrip slice) — replaced inline `pricing_tables` + `fuel_config`
+      lookups in `createTrip` with calls to `resolveFreightPrice` +
+      `resolveFuelNorm`. New trips now get: pricingSource (TIER/TABLE/MANUAL),
+      pricingFormula (Vietnamese breakdown for UI), pricingSnapshot (jsonb
+      with resolved price components), and fuel-norm values from fuel_norms
+      (with fuel_config singleton fallback). Backward-compatible: when
+      resolveFreightPrice returns MANUAL, revenue=0 — same as before. The
+      update path (override-before-lock + reason) is deferred to a separate
+      slice. 4 new tests. Regression root cause was `process.exit(0)` in the
+      test's after hook killing the DB pool for subsequent test files — fixed
+      with `client.end()`. All gates green: lint, backend tsc, 930/930
+      backend tests, frontend tsc, 220/220 frontend tests, build.
 - [ ] M2.1: prevent price-range overlaps on `pricing_tables`; override-before-lock + reason.
 - [ ] M2.2: weight-tier pricing for bulk cargo; boundary + overlap tests.
 - [ ] M2.3: auto-revenue from lot weight, visible formula `weight × price + surcharges + VAT`.
