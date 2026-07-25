@@ -28,6 +28,10 @@ const CustomersPage = lazy(() => import('./pages/CustomersPage'));
 // ships in Wave 2.
 const ShipmentsPage = lazy(() => import('./pages/ShipmentsPage'));
 const ShipmentDetailPage = lazy(() => import('./pages/ShipmentDetailPage'));
+// Wave 2: Customer portal pages.
+const PortalShipmentsPage = lazy(() => import('./pages/portal/PortalShipmentsPage'));
+const PortalShipmentDetailPage = lazy(() => import('./pages/portal/PortalShipmentDetailPage'));
+const PortalDebitNotesPage = lazy(() => import('./pages/portal/PortalDebitNotesPage'));
 const AuditLogPage = lazy(() => import('./pages/AuditLogPage'));
 const DriverTripsPage = lazy(() => import('./pages/DriverTripsPage'));
 const DriverTripDetailPage = lazy(() => import('./pages/DriverTripDetailPage'));
@@ -109,10 +113,13 @@ function AppRoutes() {
   const adminHome = '/dashboard';
   const isPortalUser = isDriver || isForwarder;
   const portalHome = isDriver ? driverHome : forwarderHome;
-  const adminOnly = (el: ReactElement) => (isPortalUser ? <Navigate to={portalHome} replace /> : el);
-  const driverOnly = (el: ReactElement) => (isDriver ? el : <Navigate to={isForwarder ? forwarderHome : adminHome} replace />);
-  const forwarderOnly = (el: ReactElement) => (isForwarder ? el : <Navigate to={isDriver ? driverHome : adminHome} replace />);
-  const managerOrAdminOnly = (el: ReactElement) => (isAdmin || user?.role === Role.MANAGER ? el : <Navigate to={isPortalUser ? portalHome : adminHome} replace />);
+  const customerHome = '/portal/shipments';
+  const isCustomer = user?.role === Role.CUSTOMER;
+  const adminOnly = (el: ReactElement) => (isPortalUser || isCustomer ? <Navigate to={isCustomer ? customerHome : portalHome} replace /> : el);
+  const driverOnly = (el: ReactElement) => (isDriver ? el : <Navigate to={isForwarder ? forwarderHome : isCustomer ? customerHome : adminHome} replace />);
+  const forwarderOnly = (el: ReactElement) => (isForwarder ? el : <Navigate to={isDriver ? driverHome : isCustomer ? customerHome : adminHome} replace />);
+  const customerOnly = (el: ReactElement) => (isCustomer ? el : <Navigate to={isPortalUser ? portalHome : adminHome} replace />);
+  const managerOrAdminOnly = (el: ReactElement) => (isAdmin || user?.role === Role.MANAGER ? el : <Navigate to={isPortalUser ? portalHome : isCustomer ? customerHome : adminHome} replace />);
   // /users is the single home for everyone; accountants get scoped (driver-only) access.
   const officeStaffOnly = (el: ReactElement) => (isAdmin || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT ? el : <Navigate to={isPortalUser ? portalHome : adminHome} replace />);
   // Strict ADMIN-only — chatbot monitoring exposes raw turns and must never
@@ -227,8 +234,13 @@ function AppRoutes() {
           <Route path="/settlements/:id" element={officeStaffOnly(page(<SettlementPrintPage />))} />
           <Route
             path="*"
-            element={<Navigate to={isPortalUser ? portalHome : adminHome} replace />}
+            element={<Navigate to={isPortalUser ? portalHome : isCustomer ? customerHome : adminHome} replace />}
           />
+
+          {/* Wave 2: Customer portal routes. Only CUSTOMER role can access. */}
+          <Route path="/portal/shipments" element={customerOnly(page(<PortalShipmentsPage />))} />
+          <Route path="/portal/shipments/:id" element={customerOnly(page(<PortalShipmentDetailPage />))} />
+          <Route path="/portal/debit-notes" element={customerOnly(page(<PortalDebitNotesPage />))} />
         </Routes>
       </Layout>
   );
