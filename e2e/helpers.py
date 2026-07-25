@@ -160,8 +160,12 @@ class NepoTestContext:
     def __exit__(self, *args):
         if self.browser:
             self.browser.close()
+        # Playwright's `Playwright` object (returned by sync_playwright().__enter__())
+        # does not implement __exit__; `.stop()` is the correct shutdown call.
+        # The previous `self.playwright.__exit__(*args)` raised AttributeError on
+        # every suite, masking the actual test results.
         if self.playwright:
-            self.playwright.__exit__(*args)
+            self.playwright.stop()
 
     def new_page(self, viewport: dict = None) -> Page:
         vp = viewport or {'width': 1280, 'height': 900}

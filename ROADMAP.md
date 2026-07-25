@@ -144,8 +144,22 @@ mobile/reporting polish (builds on the closed loop).
       yet, so customer-code prefix is impossible without a schema change outside
       this task). Router, dispatch-refactor, frontend, seed, audit, RBAC-row-scope
       are the subsequent Wave 0 checkboxes.
-- [ ] Build `routes/shipments.ts`: list, detail, create (draft), update, dispatch (→ trip),
+<!-- autonomous-sdlc:completed task=wave0-shipment-routes -->
+- [x] Build `routes/shipments.ts`: list, detail, create (draft), update, dispatch (→ trip),
       status transitions, document upload, container upsert.
+      ✅ Done — `backend/src/routes/shipments.ts` ships the full `/api/shipments`
+      surface (list/detail/create/update/transition/dispatch/documents/containers/delete)
+      gated by `casbinAuthz('shipments')` + per-handler `requireRoles`. Service
+      extended: `listShipmentsPaginated`, `getShipmentDetail` (parallel
+      assembler), `batchUpsertShipmentContainers` (full reconcile),
+      `attachShipmentDocument`, `dispatchShipmentToTrip` (idempotent via new
+      `trips_shipment_id_live_uniq` partial unique index — migration
+      `0114_clear_katie_power.sql`). Casbin rows added: MANAGER read+write+delete,
+      ACCOUNTANT read. Shared: `ShipmentStatus` + `ShipmentDocumentType` enums +
+      labels + 6 new Zod schemas. 49 new tests in `shipment-routes.test.ts`
+      (HTTP + RBAC matrix + concurrency) + 6 new tests in `shipment-rbac.test.ts`.
+      All gates green: lint, backend tsc, shared tsc, 850/850 backend tests,
+      frontend tsc, 212/212 frontend tests, build. E2E re-run as RBAC changed.
 - [ ] Refactor trip creation to set `shipmentId`; back-compat auto-shipment path + feature
       flag `SHIPMENT_FIRST_CREATE`.
 - [x] Build scheduler skeleton: `scheduler/registry.ts`, `runner.ts`, `scheduler_run_logs`,

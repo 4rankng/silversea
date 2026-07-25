@@ -371,6 +371,16 @@ export const trips = pgTable('trips', {
   index('trips_customer_departure_idx').on(table.customerId, table.departureDate),
   // Wave 0: look up a shipment's trips.
   index('trips_shipment_id_idx').on(table.shipmentId),
+  // Wave 0 (shipment-routes slice): one LIVE trip per shipment. A partial
+  // unique index — scoped to non-CANCELED trips with a non-null shipmentId —
+  // lets a shipment have multiple historical/canceled trips over its lifecycle
+  // while preventing two concurrent dispatches from each creating a trip for
+  // the same shipment. Enforced at the DB so it holds regardless of how many
+  // backend processes are running. Canceled trips are excluded so a
+  // re-dispatch after a cancel is allowed.
+  uniqueIndex('trips_shipment_id_live_uniq')
+    .on(table.shipmentId)
+    .where(sql`${table.shipmentId} is not null and ${table.status} <> 'CANCELED'`),
 ]);
 
 export const tripLegs = pgTable('trip_legs', {

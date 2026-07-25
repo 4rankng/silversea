@@ -22,9 +22,11 @@
 
 import { db } from '../db';
 import * as s from '../db/schema';
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
+import { createTripCommand } from './trip-command.service';
+import { cacheInvalidate, cacheInvalidatePattern } from '../lib/redis';
 
 // ─── Status machine ─────────────────────────────────────────────────────────
 //
@@ -109,7 +111,7 @@ export function formatShipmentCode(id: number, createdAt: Date = new Date()): st
 }
 
 function assertLegalTransition(from: ShipmentStatus, to: ShipmentStatus): void {
-  if (from === to) return; // Idempotent short-circuit (caller still records history? no — see transition)
+  if (from === to) return; // Idempotent — transitionShipmentStatus handles same-status no-op before calling.
   const allowed = LEGAL_TRANSITIONS[from] ?? [];
   if (!allowed.includes(to)) {
     throw new ApiError(
@@ -186,6 +188,36 @@ export async function listShipments(options: ListShipmentsOptions = {}) {
     .orderBy(desc(s.shipments.createdAt))
     .limit(limit)
     .offset(offset);
+}
+
+/**
+ * Paginated list with total count — the response shape the route layer needs
+ * (`{ items, total, page, limit }`). Kept separate from `listShipments` so the
+ * service-test suite's array-style assertions stay intact.
+ */
+export async function listShipmentsPaginated(options: ListShipmentsOptions & { page?: number }) {
+  const limit = Math.max(1, Math.min(options.limit ?? 50, 200));
+  const page = Math.max(1, options.page ?? 1);
+  const offset = (page - 1) * limit;
+
+  const conditions = [isNull(s.shipments.deletedAt)];
+  if (options.customerId != null) {
+    conditions.push(eq(s.shipments.customerId, options.customerId));
+  }
+  if (options.status != null) {
+    conditions.push(eq(s.shipments.status, options.status));
+  }
+
+  const [items, totalRows] = await Promise.all([
+    db.select().from(s.shipments)
+      .where(and(...conditions))
+      .orderBy(desc(s.shipments.createdAt))
+      .limit(limit)
+      .offset(offset),
+    db.select({ value: count() }).from(s.shipments).where(and(...conditions)),
+  ]);
+  const total = Number(totalRows[0]?.value ?? 0);
+  return { items, total, page, limit };
 }
 
 // ─── Update (optimistic-lock) ───────────────────────────────────────────────
@@ -289,7 +321,7 @@ export async function transitionShipmentStatus(
 
 export async function softDeleteShipment(
   shipmentId: number,
-  options: { deletedBy?: number | null; version: number } = { version: 0 },
+  options: { deletedBy?: number | null; version: number },
 ) {
   return await db.transaction(async (tx) => {
     const [existing] = await tx.select().from(s.shipments)
@@ -385,4 +417,340 @@ export async function snapshotContainersIntoTrip(
 
   const inserted = await client.insert(s.tripContainers).values(rows).returning({ id: s.tripContainers.id });
   return { copied: inserted.length, skipped: false };
+}
+
+// ─── Detail assembler (read model) ──────────────────────────────────────────
+//
+// `getShipment` returns the bare row; the route detail endpoint wants the full
+// picture — containers, documents, declarations, status history — assembled in
+// a single response. Each child query is a single indexed lookup by shipmentId,
+// so there is no N+1.
+
+export interface ShipmentDetail {
+  shipment: Awaited<ReturnType<typeof getShipment>>;
+  containers: Awaited<ReturnType<typeof listShipmentContainers>>;
+  documents: Awaited<ReturnType<typeof listShipmentDocuments>>;
+  declarations: Awaited<ReturnType<typeof listShipmentDeclarations>>;
+  statusHistory: Awaited<ReturnType<typeof listShipmentStatusHistory>>;
+}
+
+export async function listShipmentContainers(shipmentId: number, tx?: Tx) {
+  const client = tx ?? db;
+  return await client.select().from(s.shipmentContainers)
+    .where(eq(s.shipmentContainers.shipmentId, shipmentId))
+    .orderBy(desc(s.shipmentContainers.createdAt));
+}
+
+export async function listShipmentDocuments(shipmentId: number, tx?: Tx) {
+  const client = tx ?? db;
+  return await client.select().from(s.shipmentDocuments)
+    .where(eq(s.shipmentDocuments.shipmentId, shipmentId))
+    .orderBy(desc(s.shipmentDocuments.createdAt));
+}
+
+export async function listShipmentDeclarations(shipmentId: number, tx?: Tx) {
+  const client = tx ?? db;
+  return await client.select().from(s.shipmentDeclarations)
+    .where(eq(s.shipmentDeclarations.shipmentId, shipmentId))
+    .orderBy(desc(s.shipmentDeclarations.createdAt));
+}
+
+export async function listShipmentStatusHistory(shipmentId: number, tx?: Tx) {
+  const client = tx ?? db;
+  return await client.select().from(s.shipmentStatusHistory)
+    .where(eq(s.shipmentStatusHistory.shipmentId, shipmentId))
+    .orderBy(desc(s.shipmentStatusHistory.changedAt));
+}
+
+export async function getShipmentDetail(id: number): Promise<ShipmentDetail> {
+  // Fetch the shipment first so a missing row 404s cleanly rather than
+  // returning an empty payload.
+  const shipment = await getShipment(id);
+  const [containers, documents, declarations, statusHistory] = await Promise.all([
+    listShipmentContainers(id),
+    listShipmentDocuments(id),
+    listShipmentDeclarations(id),
+    listShipmentStatusHistory(id),
+  ]);
+  return { shipment, containers, documents, declarations, statusHistory };
+}
+
+// ─── Container batch upsert (full reconcile) ────────────────────────────────
+//
+// Mirrors `batchUpsertTripContainers`: the incoming list becomes the desired
+// full state — new rows are inserted, existing rows are updated by id, and any
+// existing row whose id is missing from the incoming list is deleted. This is
+// the same contract the trip-edit form uses, so the shipment UI behaves
+// identically.
+
+export async function batchUpsertShipmentContainers(
+  shipmentId: number,
+  userId: number | null,
+  containers: Array<{
+    id?: number;
+    containerTypeId?: number | null;
+    containerNumber?: string | null;
+    sealNumber?: string | null;
+    cargoWeightKg?: string | number | null;
+    notes?: string | null;
+  }>,
+) {
+  return await db.transaction(async (tx) => {
+    // Existence + ownership guard: a missing (or soft-deleted) shipment must
+    // surface as a 404, not an FK violation.
+    const [existing] = await tx.select({ id: s.shipments.id })
+      .from(s.shipments)
+      .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
+      .limit(1);
+    if (!existing) throw new ApiError(404, 'Không tìm thấy lô hàng');
+
+    const current = await tx.select({ id: s.shipmentContainers.id })
+      .from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.shipmentId, shipmentId));
+    const existingIds = new Set(current.map(r => r.id));
+    const incomingIds = new Set(containers.filter(c => c.id).map(c => c.id as number));
+
+    const toDelete = [...existingIds].filter(id => !incomingIds.has(id));
+    if (toDelete.length > 0) {
+      await tx.delete(s.shipmentContainers)
+        .where(inArray(s.shipmentContainers.id, toDelete));
+    }
+
+    const upserted: Array<{ id: number }> = [];
+    for (const c of containers) {
+      const payload = {
+        shipmentId,
+        containerTypeId: c.containerTypeId ?? null,
+        containerNumber: c.containerNumber?.trim() || null,
+        sealNumber: c.sealNumber?.trim() || null,
+        cargoWeightKg: c.cargoWeightKg != null ? String(c.cargoWeightKg) : null,
+        notes: c.notes ?? null,
+        updatedAt: new Date(),
+      };
+      if (c.id && existingIds.has(c.id)) {
+        const [updated] = await tx.update(s.shipmentContainers)
+          .set(payload)
+          .where(eq(s.shipmentContainers.id, c.id))
+          .returning({ id: s.shipmentContainers.id });
+        if (updated) upserted.push(updated);
+      } else {
+        const [inserted] = await tx.insert(s.shipmentContainers)
+          .values({ ...payload, createdBy: userId })
+          .returning({ id: s.shipmentContainers.id });
+        if (inserted) upserted.push(inserted);
+      }
+    }
+
+    // Bump the shipment's version so any open editor is told to reload — the
+    // container set is part of the shipment's editable surface.
+    await tx.update(s.shipments)
+      .set({ version: sql`${s.shipments.version} + 1`, updatedAt: new Date() })
+      .where(eq(s.shipments.id, shipmentId));
+
+    return upserted;
+  });
+}
+
+// ─── Document attach ────────────────────────────────────────────────────────
+//
+// The file bytes themselves are uploaded separately via `/api/upload` (the same
+// path trip photos use); this endpoint records the metadata row that references
+// the resulting `storageKey`. Multipart upload is a Wave 2 portal concern.
+
+export async function attachShipmentDocument(
+  shipmentId: number,
+  input: { type: typeof s.shipmentDocuments.type.enumValues[number]; storageKey: string; uploadedBy?: number | null },
+) {
+  return await db.transaction(async (tx) => {
+    const [existing] = await tx.select({ id: s.shipments.id })
+      .from(s.shipments)
+      .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
+      .limit(1);
+    if (!existing) throw new ApiError(404, 'Không tìm thấy lô hàng');
+
+    const [doc] = await tx.insert(s.shipmentDocuments).values({
+      shipmentId,
+      type: input.type,
+      storageKey: input.storageKey,
+      uploadedBy: input.uploadedBy ?? null,
+    }).returning();
+    return doc;
+  });
+}
+
+// ─── Dispatch: shipment → linked trip ───────────────────────────────────────
+//
+// Phase-01 architecture: a shipment exists before any trip; on dispatch, a
+// trip is created and linked via `trips.shipmentId`, and the shipment's
+// containers are snapshotted into the new trip's `trip_containers`.
+//
+// Fulfillment-time fields (route/cargo/container-type/truck/driver) are NOT on
+// the shipment — they are decided at dispatch and forwarded to
+// `createTripCommand`. Customer comes from the shipment.
+//
+// Concurrency / idempotency model:
+//
+//   - The `trips_shipment_id_live_uniq` partial unique index (see schema.ts +
+//     migration 0114) enforces "at most one non-CANCELED trip per shipment" at
+//     the DB level. Two concurrent dispatches each create their own trip (no
+//     collision — `shipmentId` is NULL on insert), but only one of the
+//     subsequent `UPDATE trips SET shipmentId = …` updates can win: the loser
+//     raises 23505 and is caught here, after which we read + return the
+//     winner's trip. The loser's now-orphan trip is hard-deleted in the catch
+//     so it does not pollute reporting.
+//
+//   - A retry after a successful dispatch short-circuits at the existing-trip
+//     lookup and returns the existing trip with `created: false`.
+//
+//   - DRAFT-only precondition: a shipment that has already advanced past
+//     DRAFT cannot be re-dispatched. CANCELED shipments cannot be dispatched
+//     at all. This mirrors the legal-edge state machine in
+//     `transitionShipmentStatus`.
+
+export async function dispatchShipmentToTrip(
+  shipmentId: number,
+  fulfillment: {
+    routeId: number;
+    cargoTypeId: number;
+    containerTypeId: number;
+    truckId?: number | null;
+    driverId?: number | null;
+    departureDate: string;
+    customerReference?: string;
+    containerCount?: number;
+    fuelMode?: import('@tingting/shared').FuelMode;
+  },
+  actor: { userId: number; role: import('@tingting/shared').Role },
+) {
+  // 1. Read the shipment (404 if missing). No `FOR UPDATE` — the partial
+  //    unique index `trips_shipment_id_live_uniq` is the concurrency guard.
+  const [shipment] = await db.select()
+    .from(s.shipments)
+    .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
+    .limit(1);
+  if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
+
+  // 2. Idempotent short-circuit FIRST: a live (non-CANCELED) trip is already
+  //    linked → return it with `created: false`, regardless of the shipment's
+  //    current status. This makes a retry after a successful dispatch safe
+  //    (the shipment is now IN_PROGRESS, which would otherwise trip the
+  //    DRAFT-only precondition below).
+  const [existingLiveTrip] = await db.select()
+    .from(s.trips)
+    .where(and(
+      eq(s.trips.shipmentId, shipmentId),
+      sql`${s.trips.status} <> 'CANCELED'`,
+    ))
+    .limit(1);
+  if (existingLiveTrip) {
+    return { trip: existingLiveTrip, created: false as const };
+  }
+
+  // 3. No existing live trip — this is a fresh dispatch. Require DRAFT: a
+  //    CANCELED shipment cannot be dispatched, and a shipment already advanced
+  //    past DRAFT without a linked trip is in an inconsistent state we refuse
+  //    to paper over. (Re-dispatch after a cancel-and-re-open is a future
+  //    Wave 2 audit-reason flow; for now the only way forward is a new
+  //    shipment.)
+  if (shipment.status !== 'DRAFT') {
+    throw new ApiError(
+      409,
+      `Không thể điều vận lô hàng ở trạng thái "${shipment.status}".`,
+    );
+  }
+
+  // 3. Create the trip via the canonical command (handles pricing lookup,
+  //    notification, cache invalidation). Customer comes from the shipment.
+  //    `createTripCommand` manages its own transaction; the trip's
+  //    `shipmentId` is NULL on insert, so this never trips the unique index.
+  const trip = await createTripCommand({
+    customerId: shipment.customerId,
+    routeId: fulfillment.routeId,
+    cargoTypeId: fulfillment.cargoTypeId,
+    containerTypeId: fulfillment.containerTypeId,
+    truckId: fulfillment.truckId ?? null,
+    driverId: fulfillment.driverId ?? null,
+    departureDate: fulfillment.departureDate,
+    customerReference: fulfillment.customerReference,
+    containerCount: fulfillment.containerCount,
+    fuelMode: fulfillment.fuelMode,
+    createdBy: actor.userId,
+  }, { userId: actor.userId, role: actor.role });
+
+  // 4. Link + snapshot + transition in one tx. The UPDATE on trips.shipmentId
+  //    is the concurrency pinch point: if a concurrent dispatch already linked
+  //    a different trip, this UPDATE fails the partial unique index (23505).
+  //    We catch that, clean up the orphan trip we just created, and return the
+  //    winner's trip.
+  try {
+    await db.transaction(async (tx) => {
+      await tx.update(s.trips)
+        .set({ shipmentId })
+        .where(eq(s.trips.id, trip.id));
+
+      await snapshotContainersIntoTrip(shipmentId, trip.id, actor.userId, tx);
+
+      // Move shipment DRAFT → IN_PROGRESS. Guarded by `status = 'DRAFT'` so a
+      // concurrent status change can't double-advance; if zero rows match,
+      // the shipment was changed out from under us and we surface a 409.
+      const [updated] = await tx.update(s.shipments)
+        .set({ status: 'IN_PROGRESS', version: sql`${s.shipments.version} + 1`, updatedAt: new Date() })
+        .where(and(eq(s.shipments.id, shipmentId), eq(s.shipments.status, 'DRAFT')))
+        .returning({ id: s.shipments.id });
+      if (!updated) {
+        throw new ApiError(
+          409,
+          'Trạng thái lô hàng đã bị thay đổi bởi người khác. Vui lòng tải lại.',
+        );
+      }
+
+      await tx.insert(s.shipmentStatusHistory).values({
+        shipmentId,
+        fromStatus: 'DRAFT',
+        toStatus: 'IN_PROGRESS',
+        reason: `Điều vận sang chuyến ${trip.tripCode}`,
+        changedBy: actor.userId,
+      });
+    });
+  } catch (err) {
+    if (isUniqueViolation(err)) {
+      // Concurrent dispatch won. Clean up the orphan trip we just created so
+      // it doesn't pollute reporting / tripCode sequencing, then return the
+      // winner's trip with `created: false`.
+      await db.delete(s.trips).where(eq(s.trips.id, trip.id)).catch(() => {});
+      const [winner] = await db.select()
+        .from(s.trips)
+        .where(and(
+          eq(s.trips.shipmentId, shipmentId),
+          sql`${s.trips.status} <> 'CANCELED'`,
+        ))
+        .limit(1);
+      if (winner) return { trip: winner, created: false as const };
+    }
+    throw err;
+  }
+
+  // 5. Reload to pick up the link for the response (snapshot fields etc.).
+  const [finalTrip] = await db.select().from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+
+  // Shipment status change affects AR/AP aging reports (a trip now exists).
+  await Promise.all([
+    cacheInvalidate('reports:dashboard'),
+    cacheInvalidatePattern('reports:entity-results:*'),
+  ]).catch((err: unknown) => console.warn(
+    '[cache] dispatch invalidate failed', { shipmentId, err },
+  ));
+
+  return { trip: finalTrip ?? trip, created: true as const };
+}
+
+// Postgres unique-violation detector — 23505 is the SQLSTATE for any unique
+// constraint violation. Drizzle wraps the underlying postgres-js error, so the
+// code may live on either `err.code` (postgres-js direct) or `err.cause.code`
+// (Drizzle-wrapped). Mirrors `apiErrorFromUniqueConstraint` in
+// `routes/utils/crud-factory.ts`.
+function isUniqueViolation(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const e = err as { code?: string; cause?: { code?: string } };
+  return e.code === '23505' || e.cause?.code === '23505';
 }

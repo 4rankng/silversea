@@ -79,3 +79,13 @@ p, CUSTOMER, customer_portal, read
 p, CLERK, shipments, read
 p, CLERK, shipments, write
 p, CLERK, customer_portal, read
+// Wave 0 shipments RBAC — operator-side access to the shipment entity.
+// ADMIN is wildcard (line 1). MANAGER gets full CRUD; ACCOUNTANT gets read
+// (accountants view shipments for debit-note work but do not mutate them);
+// CLERK rows above were added in the earlier Wave 0 roles slice.
+// CUSTOMER/DRIVER/FORWARDER are deliberately absent — they have no shipments
+// access (the customer portal ships its own row-scoped surface in Wave 2).
+p, MANAGER, shipments, read
+p, MANAGER, shipments, write
+p, MANAGER, shipments, delete
+p, ACCOUNTANT, shipments, read
