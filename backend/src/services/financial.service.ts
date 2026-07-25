@@ -56,10 +56,13 @@ export async function recordPayment(input: PaymentInput) {
           eq(s.ledger.txnId, payment.tripId),
         ));
       const remaining = Number(revenue) - Number(paid);
-      if (payment.amount > remaining + 1) {  // +1 to absorb rounding
-        throw new ApiError(422,
-          `Thanh toán vượt quá số còn lại của chuyến ${tripLabel || payment.tripId} (còn ${remaining.toLocaleString('vi-VN')} ₫, nhập ${payment.amount.toLocaleString('vi-VN')} ₫)`);
-      }
+      // M3.6 §2: overpayment handling — don't drive AR negative silently.
+      // Instead of rejecting (old 422 behavior), clamp the applied amount to
+      // the remaining balance and post the overpayment as a separate CREDIT
+      // on the customer's AR with a clear note. The customer's balance never
+      // goes negative; the excess stays as a credit for future invoices.
+      const appliedAmount = Math.min(payment.amount, Math.max(0, remaining));
+      const overpayment = Math.max(0, payment.amount - Math.max(0, remaining));
 
       await LedgerService.postEntry(tx, {
         txnType: TxnType.PAYMENT_RECEIVED,
@@ -68,9 +71,25 @@ export async function recordPayment(input: PaymentInput) {
         entityType: 'CUSTOMER',
         entityId: input.customerId,
         debit: 0,
-        credit: payment.amount,
+        credit: appliedAmount,
         note: tripLabel ? `Thanh toán chuyến ${tripLabel}` : 'Thanh toán chuyến',
       });
+
+      // Post the overpayment as a customer-level credit (not tied to a specific
+      // trip) so it's available for future invoices.
+      if (overpayment > 0) {
+        await LedgerService.postEntry(tx, {
+          txnType: TxnType.PAYMENT_RECEIVED,
+          txnId: 0, // customer-level credit, not trip-specific
+          receiptId: input.receiptId,
+          entityType: 'CUSTOMER',
+          entityId: input.customerId,
+          debit: 0,
+          credit: overpayment,
+          note: `Thanh toán thừa — giữ làm công nợ có (overpayment)`,
+        });
+        console.log(`[payment] overpayment ${overpayment.toLocaleString('vi-VN')} ₫ posted as customer credit (customerId=${input.customerId}, tripId=${payment.tripId})`);
+      }
     }
   });
 }
