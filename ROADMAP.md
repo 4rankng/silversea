@@ -389,7 +389,8 @@ biggest new surface area and the biggest customer-facing differentiator.
       freight snapshot + ancillary revenue; per-customer template; VAT per line.
 - [ ] M3.5: unapproved disbursement excluded from official doc; pending list shown.
 - [ ] M3.5: re-issue guard — warn on duplicate range; no double-issue.
-- [ ] M3.6: debit-note statuses DRAFT/SENT/PENDING_CONFIRM/CONFIRMED/PARTIAL_PAID/PAID/
+<!-- autonomous-sdlc:completed task=wave2-m36-debit-note-lifecycle -->
+- [x] M3.6: debit-note statuses DRAFT/SENT/PENDING_CONFIRM/CONFIRMED/PARTIAL_PAID/PAID/
       REJECTED/CANCELED; lock after customer confirm; adjustment-document flow for changes.
 - [ ] M3.6: overpayment handling — don't drive AR negative silently.
 - [ ] M3.7: configurable disbursement catalog with per-type invoice-required rule.
