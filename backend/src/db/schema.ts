@@ -66,6 +66,24 @@ export const ancillaryRevenueTypeEnum = pgEnum('ancillary_revenue_type', [
 // TABLE = fixed customer-route pricing, MANUAL = operator override.
 export const pricingSourceEnum = pgEnum('pricing_source', ['TIER', 'TABLE', 'MANUAL']);
 
+// ─── Wave 2: CUS enums ─────────────────────────────────────────────────────
+// Debit-note lifecycle (M3.6). Extends the implicit 'DRAFT' default the
+// existing billing_documents table already uses (no status column yet).
+export const debitNoteStatusEnum = pgEnum('debit_note_status', [
+  'DRAFT', 'SENT', 'PENDING_CONFIRM', 'CONFIRMED', 'PARTIAL_PAID',
+  'PAID', 'REJECTED', 'CANCELED',
+]);
+// Milestone type for shipment tracking (M3.3). Derived from trip status +
+// manual CUS notifications.
+export const milestoneTypeEnum = pgEnum('milestone_type', [
+  'BOOKING_RECEIVED', 'DISPATCHED', 'IN_TRANSIT', 'DELIVERED',
+  'CUSTOMS_CLEARED', 'PICKED_UP', 'MANUAL',
+]);
+// Email log status for the customer_email_logs table (M3.3).
+export const emailStatusEnum = pgEnum('email_status', [
+  'PENDING', 'SENT', 'FAILED', 'OPENED',
+]);
+
 // ─── Config tables ───────────────────────────────────────────────────────────
 
 export const users = pgTable('users', {
@@ -633,6 +651,14 @@ export const billingDocuments = pgTable('billing_documents', {
   // service casts to DebitNoteTemplateSnapshot.
   debitNoteTemplateSnapshot: jsonb('debit_note_template_snapshot'),
   totalInclVat: numeric('total_incl_vat', { precision: 15, scale: 0 }).notNull().default('0'),
+  // Wave 2 M3.6: debit-note lifecycle status. Defaults to DRAFT (existing
+  // documents are treated as DRAFT until explicitly transitioned). Nullable
+  // for backward compat (old documents get NULL = implicitly DRAFT).
+  debitNoteStatus: debitNoteStatusEnum('debit_note_status').default('DRAFT'),
+  // Wave 2 M3.6: when the customer confirmed/rejected the note. NULL = no
+  // customer action yet.
+  customerConfirmedAt: timestamp('customer_confirmed_at', { withTimezone: true }),
+  customerConfirmedBy: varchar('customer_confirmed_by', { length: 255 }),
   // Net AR delta contributed by this debit note beyond the trip/fee amounts
   // that were already posted when the trip completed. Kept separately so an
   // edit can post only the difference and repeated saves stay idempotent.
@@ -1695,4 +1721,56 @@ export const shipmentContainers = pgTable('shipment_containers', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
   index('shipment_containers_shipment_id_idx').on(table.shipmentId),
+]);
+
+// ─── Wave 2: CUS Core tables ────────────────────────────────────────────────
+//
+// Schema-only slice for Wave 2. The service/route/UI items are subsequent
+// roadmap checkboxes. See phase-03 plan for full design.
+
+// M3.3: shipment milestones. Each milestone tracks a point in the shipment
+// lifecycle (booking, dispatch, transit, delivery, customs, pickup) derived
+// from trip status changes or entered manually by CUS staff. Append-only.
+export const shipmentMilestones = pgTable('shipment_milestones', {
+  id: serial('id').primaryKey(),
+  shipmentId: integer('shipment_id')
+    .references(() => shipments.id, { onDelete: 'cascade' }).notNull(),
+  type: milestoneTypeEnum('type').notNull(),
+  note: text('note'),
+  // Optional link to the trip that triggered this milestone (e.g. IN_TRANSIT
+  // when the dispatched trip enters transit). NULL for manual milestones.
+  tripId: integer('trip_id').references(() => trips.id),
+  changedBy: integer('changed_by').references(() => users.id),
+  // Timestamp when the milestone occurred (not when it was recorded — the
+  // operator may backdate to the actual event time).
+  occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  index('shipment_milestones_shipment_idx').on(table.shipmentId, table.occurredAt),
+]);
+
+// M3.3: customer email logs. Tracks every email sent to a customer (debit
+// note sent, delivery confirmation, milestone notification). Used for retry
+// via the Wave-0 scheduler and for audit of customer communication.
+export const customerEmailLogs = pgTable('customer_email_logs', {
+  id: serial('id').primaryKey(),
+  customerId: integer('customer_id').references(() => customers.id).notNull(),
+  shipmentId: integer('shipment_id').references(() => shipments.id),
+  billingDocumentId: integer('billing_document_id').references(() => billingDocuments.id),
+  // The email template / event type (e.g. 'DEBIT_NOTE_SENT', 'DELIVERY_CONFIRM').
+  subject: varchar('subject', { length: 255 }).notNull(),
+  recipientEmail: varchar('recipient_email', { length: 255 }),
+  status: emailStatusEnum('status').default('PENDING'),
+  // Error message from the email provider when status=FAILED.
+  errorMessage: text('error_message'),
+  // Provider message ID for tracking opens/clicks.
+  providerMessageId: varchar('provider_message_id', { length: 255 }),
+  // Retry count for the scheduler (0 = first attempt).
+  retryCount: integer('retry_count').default(0).notNull(),
+  sentBy: integer('sent_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  index('customer_email_logs_customer_idx').on(table.customerId, table.status),
+  index('customer_email_logs_status_idx').on(table.status),
 ]);

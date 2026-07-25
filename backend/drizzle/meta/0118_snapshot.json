@@ -1,6 +1,6 @@
 {
-  "id": "3ae27c41-2a01-4a2f-8348-3578c37c4de2",
-  "prevId": "a13bfc7f-68db-446c-baef-5e68e6e5f6be",
+  "id": "47fe0741-8d0d-4975-ba60-8adb3b2bcaa4",
+  "prevId": "3ae27c41-2a01-4a2f-8348-3578c37c4de2",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1310,6 +1310,26 @@
           "notNull": true,
           "default": "'0'"
         },
+        "debit_note_status": {
+          "name": "debit_note_status",
+          "type": "debit_note_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'DRAFT'"
+        },
+        "customer_confirmed_at": {
+          "name": "customer_confirmed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "customer_confirmed_by": {
+          "name": "customer_confirmed_by",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
         "ledger_adjustment_amount": {
           "name": "ledger_adjustment_amount",
           "type": "numeric(15, 0)",
@@ -1620,6 +1640,192 @@
           ]
         }
       },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.customer_email_logs": {
+      "name": "customer_email_logs",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "customer_id": {
+          "name": "customer_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shipment_id": {
+          "name": "shipment_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "billing_document_id": {
+          "name": "billing_document_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "subject": {
+          "name": "subject",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "recipient_email": {
+          "name": "recipient_email",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "email_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'PENDING'"
+        },
+        "error_message": {
+          "name": "error_message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "provider_message_id": {
+          "name": "provider_message_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "retry_count": {
+          "name": "retry_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "sent_by": {
+          "name": "sent_by",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "customer_email_logs_customer_idx": {
+          "name": "customer_email_logs_customer_idx",
+          "columns": [
+            {
+              "expression": "customer_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "customer_email_logs_status_idx": {
+          "name": "customer_email_logs_status_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "customer_email_logs_customer_id_customers_id_fk": {
+          "name": "customer_email_logs_customer_id_customers_id_fk",
+          "tableFrom": "customer_email_logs",
+          "tableTo": "customers",
+          "columnsFrom": [
+            "customer_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "customer_email_logs_shipment_id_shipments_id_fk": {
+          "name": "customer_email_logs_shipment_id_shipments_id_fk",
+          "tableFrom": "customer_email_logs",
+          "tableTo": "shipments",
+          "columnsFrom": [
+            "shipment_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "customer_email_logs_billing_document_id_billing_documents_id_fk": {
+          "name": "customer_email_logs_billing_document_id_billing_documents_id_fk",
+          "tableFrom": "customer_email_logs",
+          "tableTo": "billing_documents",
+          "columnsFrom": [
+            "billing_document_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "customer_email_logs_sent_by_users_id_fk": {
+          "name": "customer_email_logs_sent_by_users_id_fk",
+          "tableFrom": "customer_email_logs",
+          "tableTo": "users",
+          "columnsFrom": [
+            "sent_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -5960,6 +6166,131 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.shipment_milestones": {
+      "name": "shipment_milestones",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "shipment_id": {
+          "name": "shipment_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "milestone_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "trip_id": {
+          "name": "trip_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "changed_by": {
+          "name": "changed_by",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "occurred_at": {
+          "name": "occurred_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "shipment_milestones_shipment_idx": {
+          "name": "shipment_milestones_shipment_idx",
+          "columns": [
+            {
+              "expression": "shipment_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "occurred_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "shipment_milestones_shipment_id_shipments_id_fk": {
+          "name": "shipment_milestones_shipment_id_shipments_id_fk",
+          "tableFrom": "shipment_milestones",
+          "tableTo": "shipments",
+          "columnsFrom": [
+            "shipment_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "shipment_milestones_trip_id_trips_id_fk": {
+          "name": "shipment_milestones_trip_id_trips_id_fk",
+          "tableFrom": "shipment_milestones",
+          "tableTo": "trips",
+          "columnsFrom": [
+            "trip_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "shipment_milestones_changed_by_users_id_fk": {
+          "name": "shipment_milestones_changed_by_users_id_fk",
+          "tableFrom": "shipment_milestones",
+          "tableTo": "users",
+          "columnsFrom": [
+            "changed_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.shipment_status_history": {
       "name": "shipment_status_history",
       "schema": "",
@@ -9435,12 +9766,36 @@
         "LOCKED"
       ]
     },
+    "public.debit_note_status": {
+      "name": "debit_note_status",
+      "schema": "public",
+      "values": [
+        "DRAFT",
+        "SENT",
+        "PENDING_CONFIRM",
+        "CONFIRMED",
+        "PARTIAL_PAID",
+        "PAID",
+        "REJECTED",
+        "CANCELED"
+      ]
+    },
     "public.driver_status": {
       "name": "driver_status",
       "schema": "public",
       "values": [
         "ACTIVE",
         "INACTIVE"
+      ]
+    },
+    "public.email_status": {
+      "name": "email_status",
+      "schema": "public",
+      "values": [
+        "PENDING",
+        "SENT",
+        "FAILED",
+        "OPENED"
       ]
     },
     "public.fuel_mode": {
@@ -9465,6 +9820,19 @@
       "values": [
         "HANG",
         "VO"
+      ]
+    },
+    "public.milestone_type": {
+      "name": "milestone_type",
+      "schema": "public",
+      "values": [
+        "BOOKING_RECEIVED",
+        "DISPATCHED",
+        "IN_TRANSIT",
+        "DELIVERED",
+        "CUSTOMS_CLEARED",
+        "PICKED_UP",
+        "MANUAL"
       ]
     },
     "public.notification_type": {

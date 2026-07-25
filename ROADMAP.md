@@ -371,7 +371,8 @@ biggest new surface area and the biggest customer-facing differentiator.
 
 ### Items
 
-- [ ] Schema: shipment milestone timestamps; debit-note status enum extension; new
+<!-- autonomous-sdlc:completed task=wave2-schema -->
+- [x] Schema: shipment milestone timestamps; debit-note status enum extension; new
       `customer_email_logs` table.
 - [ ] M3.2: ISO 6346 container-number check-digit validator; shared-declaration override
       flow; expired-DO blocks dispatch; replacing a doc keeps history.
