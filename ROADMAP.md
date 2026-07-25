@@ -395,7 +395,8 @@ biggest new surface area and the biggest customer-facing differentiator.
       REJECTED/CANCELED; lock after customer confirm; adjustment-document flow for changes.
 <!-- autonomous-sdlc:completed task=wave2-m36-overpayment -->
 - [x] M3.6: overpayment handling — don't drive AR negative silently.
-- [ ] M3.7: configurable disbursement catalog with per-type invoice-required rule.
+<!-- autonomous-sdlc:completed task=wave2-m37-disbursement-catalog -->
+- [x] M3.7: configurable disbursement catalog with per-type invoice-required rule.
 - [ ] M4.5: only approved disbursements enter the right period; never on two debit notes;
       late-approved → roll to next period or adjustment.
 - [ ] Customer portal frontend: `/portal/*` route tree; shipment list/detail, debit-note

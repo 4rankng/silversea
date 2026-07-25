@@ -829,6 +829,11 @@ export const expenseCategories = pgTable('expense_categories', {
   name: varchar('name', { length: 255 }).notNull(),
   isRenewable: boolean('is_renewable').default(false),
   reminderLeadDays: integer('reminder_lead_days').default(30),
+  // Wave 2 M3.7: per-type invoice-required rule. When true, expenses in this
+  // category MUST have a supplier invoice (invoiceNumber + invoiceDate) before
+  // approval. When false, substitute evidence is accepted. Defaults false
+  // (back-compat — existing categories accept any evidence).
+  requiresInvoice: boolean('requires_invoice').default(false),
   status: varchar('status', { length: 20 }).notNull().default('ACTIVE'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -910,9 +915,12 @@ export const ports = pgTable('ports', {
 
 export const forwarderExpenseTypes = pgTable('forwarder_expense_types', {
   id: serial('id').primaryKey(),
-  code: varchar('code', { length: 50 }).notNull().unique(), // e.g. "LIFTING", "CUSTOMS"
-  name: varchar('name', { length: 100 }).notNull(),         // Vietnamese label e.g. "Nâng hạ"
+  code: varchar('code', { length: 50 }).notNull().unique(),
+  name: varchar('name', { length: 100 }).notNull(),
   status: varchar('status', { length: 20 }).notNull().default('ACTIVE'),
+  // Wave 2 M3.7: when true, trip expenses of this type MUST have an invoice
+  // number before approval. When false (default), substitute evidence is OK.
+  requiresInvoice: boolean('requires_invoice').default(false),
   defaultMarkup: boolean('default_markup').notNull().default(false),
   billingLabel: varchar('billing_label', { length: 120 }),
   vatRate: numeric('vat_rate', { precision: 5, scale: 3 }).notNull().default('0.080'),
