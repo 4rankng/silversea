@@ -591,6 +591,50 @@ export const fuelPriceHistorySchema = z.object({
   note: z.string().optional(),
 });
 
+// ─── Wave 1: Pricing & Fuel catalog schemas ─────────────────────────────────
+
+export const fuelNormSchema = z.object({
+  routeId: z.coerce.number().int().positive().optional().nullable(),
+  truckId: z.coerce.number().int().positive().optional().nullable(),
+  loadedLitersPer100Km: positiveNumeric,
+  emptyLitersPer100Km: positiveNumeric,
+  supplementLiters: nonNegNumeric.optional().default(0),
+  flatRateLiters: nonNegNumeric.optional().nullable(),
+  effectiveDate: z.string().min(1).default(() => new Date().toISOString().slice(0, 10)),
+  note: z.string().optional().nullable(),
+});
+
+export const weightPricingTierSchema = z.object({
+  routeId: z.coerce.number().int().positive(),
+  cargoTypeId: z.coerce.number().int().positive(),
+  minKg: nonNegNumeric,
+  maxKg: positiveNumeric,
+  pricePerKg: positiveNumeric,
+  effectiveDate: z.string().min(1).default(() => new Date().toISOString().slice(0, 10)),
+  note: z.string().optional().nullable(),
+});
+
+export const liftPricingSchema = z.object({
+  portId: z.coerce.number().int().positive(),
+  containerTypeId: z.coerce.number().int().positive(),
+  direction: z.enum(['LIFT_UP', 'LIFT_DOWN']),
+  unitPrice: positiveNumeric,
+  effectiveDate: z.string().min(1).default(() => new Date().toISOString().slice(0, 10)),
+  note: z.string().optional().nullable(),
+});
+
+export const ancillaryRevenueSchema = z.object({
+  customerId: z.coerce.number().int().positive(),
+  shipmentId: z.coerce.number().int().positive().optional().nullable(),
+  tripId: z.coerce.number().int().positive().optional().nullable(),
+  type: z.enum(['LCL', 'CONSOLIDATION', 'SERVICE_DIFF', 'OTHER']),
+  amount: numericMoney,
+  tax: numericMoney.optional().default(0),
+  date: z.string().min(1).default(() => new Date().toISOString().slice(0, 10)),
+  documentRef: z.string().max(100).optional().nullable(),
+  note: z.string().optional().nullable(),
+});
+
 export const companyInfoSchema = z.object({
   name: z.string().trim().min(1, 'Tên công ty là bắt buộc'),
   address: z.string().trim().min(1, 'Địa chỉ là bắt buộc'),
