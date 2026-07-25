@@ -285,8 +285,20 @@ mobile/reporting polish (builds on the closed loop).
 
 ### Items
 
-- [ ] Schema: `weight_pricing_tiers`, `lift_pricing`, `ancillary_revenue`, `fuel_norms` +
+<!-- autonomous-sdlc:completed task=wave1-pricing-schema -->
+- [x] Schema: `weight_pricing_tiers`, `lift_pricing`, `ancillary_revenue`, `fuel_norms` +
       trip pricing-snapshot columns. Generate migration.
+      ✅ Done — 4 new tables (`weight_pricing_tiers`, `lift_pricing`,
+      `ancillary_revenue`, `fuel_norms`) + 3 new enums (`lift_direction`,
+      `ancillary_revenue_type`, `pricing_source`) + `cargo_types.is_bulk`
+      (default false) + `trips.pricing_source/pricing_formula/pricing_snapshot`
+      (nullable). Migration `0117_new_power_man.sql` is additive + forward-only.
+      PRD open questions assessed: none block schema creation — they block
+      behavior (rounding, unit conversion, etc.) which is handled by the
+      subsequent service-layer items. 14 new schema validation tests. All gates
+      green: lint, backend tsc, 905/905 backend tests (was 891; +14 new),
+      frontend tsc, 220/220 frontend tests, build, E2E (no new failures beyond
+      documented pre-existing stale-login-selector issues).
 - [ ] Build `pricing.service.ts` with `resolveFreightPrice` + overlap validators.
 - [ ] Build `fuel.service.ts` with `resolveFuelNorm(routeId, truckTypeId, date)`.
 - [ ] Wire auto-revenue into trip create/update; surface formula in trip detail.
