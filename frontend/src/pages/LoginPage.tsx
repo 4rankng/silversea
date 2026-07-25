@@ -136,7 +136,7 @@ export default function LoginPage() {
           </div>
 
           <footer className="login-footer">
-            <span>&copy; {new Date().getFullYear()} {BRAND.name}</span>
+            <span>&copy; {new Date().getFullYear()} {BRAND.legalEntity}</span>
           </footer>
         </div>
 
