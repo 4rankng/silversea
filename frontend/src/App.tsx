@@ -24,6 +24,10 @@ const DebtDetailPage = lazy(() => import('./pages/DebtDetailPage'));
 const PenaltyPage = lazy(() => import('./pages/PenaltyPage'));
 const ConfigPage = lazy(() => import('./pages/ConfigPage'));
 const CustomersPage = lazy(() => import('./pages/CustomersPage'));
+// Wave 0: minimal shipment (lô hàng) list + detail. Read-only — full CUS UI
+// ships in Wave 2.
+const ShipmentsPage = lazy(() => import('./pages/ShipmentsPage'));
+const ShipmentDetailPage = lazy(() => import('./pages/ShipmentDetailPage'));
 const AuditLogPage = lazy(() => import('./pages/AuditLogPage'));
 const DriverTripsPage = lazy(() => import('./pages/DriverTripsPage'));
 const DriverTripDetailPage = lazy(() => import('./pages/DriverTripDetailPage'));
@@ -151,6 +155,11 @@ function AppRoutes() {
           <Route path="/customers" element={adminOnly(page(<CustomersPage />))} />
           <Route path="/customers/:id" element={adminOnly(page(<DebtDetailPage />))} />
           <Route path="/customers/:id/billing/new" element={adminOnly(page(<DebtDetailPage />))} />
+          {/* Wave 0: shipment (lô hàng) read-only list + detail. RBAC mirrors
+              the shipments Casbin resource (ADMIN wildcard, MANAGER/ACCOUNTANT
+              read). CLERK gets its own portal surface in a later wave. */}
+          <Route path="/shipments" element={officeStaffOnly(page(<ShipmentsPage />))} />
+          <Route path="/shipments/:id" element={officeStaffOnly(page(<ShipmentDetailPage />))} />
           <Route path="/routes" element={<Navigate to="/config/routes" replace />} />
           <Route path="/trucks" element={<Navigate to="/fleet" replace />} />
           <Route path="/drivers" element={<Navigate to="/fleet" replace />} />

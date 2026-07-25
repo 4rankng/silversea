@@ -198,6 +198,22 @@ export const PAGE_CATALOG = {
     section: 'master-data',
     agent: { description: 'Khách hàng — danh sách.' },
   },
+  shipments: {
+    title: 'Lô hàng',
+    // Wave 0: minimal read-only list/detail surface. Path is its own top-level
+    // (/shipments) rather than nested under /trips because a shipment precedes
+    // and outlives any single trip (phase-01 architecture). No `agent` meta
+    // yet — the AI assistant's page-search coverage ships with the Wave 2 CUS
+    // UI when the page becomes operator-relevant in daily flow.
+    path: '/shipments',
+    section: 'operations',
+  },
+  shipmentDetail: {
+    title: 'Chi tiết lô hàng',
+    path: (p: Record<string, string | number>) => `/shipments/${p.id}`,
+    pathPattern: '/shipments/:id',
+    requiresParams: ['id'],
+  },
   suppliers: {
     title: 'Nhà cung cấp',
     path: '/suppliers',

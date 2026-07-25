@@ -47,6 +47,9 @@ export const routes = {
   chatbotMonitoring: PAGE_CATALOG.chatbotMonitoring.path,
   customers: PAGE_CATALOG.customers.path,
   suppliers: PAGE_CATALOG.suppliers.path,
+  // Wave 0: shipment (lô hàng) — minimal read-only list + detail.
+  shipments: PAGE_CATALOG.shipments.path,
+  shipmentDetail: (id: number | string) => PAGE_CATALOG.shipmentDetail.path({ id }),
   expenses: PAGE_CATALOG.expenses.path,
   expenseNew: PAGE_CATALOG.expenseNew.path,
   expenseEdit: (id: number | string) => PAGE_CATALOG.expenseEdit.path({ id }),
@@ -137,6 +140,8 @@ const titleRules: TitleRule[] = [
   { test: p => /^\/expenses\/\d+\/edit$/.test(p), title: PAGE_CATALOG.expenseEdit.title },
   { test: p => p.startsWith(routes.expenses), title: PAGE_CATALOG.expenses.title },
   { test: p => p.startsWith(routes.suppliers), title: PAGE_CATALOG.suppliers.title },
+  { test: p => /^\/shipments\/\d+/.test(p), title: PAGE_CATALOG.shipmentDetail.title },
+  { test: p => p.startsWith(routes.shipments), title: PAGE_CATALOG.shipments.title },
   { test: p => p === routes.penalties || p === routes.myPenalties, title: PAGE_CATALOG.penalties.title },
   { test: p => p.startsWith(routes.customers), title: PAGE_CATALOG.customers.title },
   { test: p => p.startsWith(routes.configRoutes) || p.startsWith(routes.legacy.routes), title: PAGE_CATALOG.configRoutes.title },

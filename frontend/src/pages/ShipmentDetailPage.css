@@ -1,0 +1,266 @@
+/* ShipmentDetailPage — read-only Wave 0 detail.
+   Layout: stacked cards in a responsive grid. Cards mirror the panel
+   aesthetic used by DebitNote / Trip detail pages. */
+
+.shipment-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.shipment-detail--loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 80px 16px;
+  color: var(--fg-3);
+  font-size: 14px;
+}
+
+.shipment-detail__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 900px) {
+  .shipment-detail__grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .shipment-detail__header {
+    grid-column: 1 / -1;
+  }
+}
+
+.shipment-detail__card {
+  background: var(--bg-1, #fff);
+  border: 1px solid var(--border-2, #e5e7eb);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.shipment-detail__header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.shipment-detail__status-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--fg-2);
+}
+
+.shipment-detail__status-label {
+  font-weight: 600;
+  color: var(--fg-1);
+}
+
+.shipment-detail__version {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--fg-3);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg-2, #f3f4f6);
+}
+
+.shipment-detail__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px 24px;
+  margin: 0;
+}
+
+.shipment-detail__fields > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.shipment-detail__fields dt {
+  font-size: 12px;
+  color: var(--fg-3);
+  font-weight: 500;
+}
+
+.shipment-detail__fields dd {
+  margin: 0;
+  font-size: 14px;
+  color: var(--fg-1);
+}
+
+.shipment-detail__section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg-1);
+  margin: 0 0 12px 0;
+}
+
+.shipment-detail__empty {
+  color: var(--fg-3);
+  font-size: 13px;
+  margin: 0;
+  padding: 12px 0;
+}
+
+.shipment-detail__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.shipment-detail__table th,
+.shipment-detail__table td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-2, #e5e7eb);
+}
+
+.shipment-detail__table th {
+  font-weight: 600;
+  color: var(--fg-2);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.shipment-detail__table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.shipment-detail__docs,
+.shipment-detail__decls,
+.shipment-detail__timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.shipment-detail__doc {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--bg-2, #f9fafb);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.shipment-detail__doc-type {
+  font-weight: 600;
+  color: var(--fg-1);
+}
+
+.shipment-detail__doc-key {
+  color: var(--fg-3);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shipment-detail__doc-date {
+  color: var(--fg-3);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.shipment-detail__decl {
+  padding: 8px 10px;
+  background: var(--bg-2, #f9fafb);
+  border-radius: 6px;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.shipment-detail__decl-meta {
+  color: var(--fg-3);
+  font-size: 12px;
+}
+
+.shipment-detail__decl-note {
+  color: var(--fg-2);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.shipment-detail__timeline-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 6px 0;
+}
+
+.shipment-detail__timeline-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.shipment-detail__timeline-transition {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--fg-1);
+}
+
+.shipment-detail__timeline-transition strong {
+  color: var(--fg-1);
+}
+
+.shipment-detail__timeline-reason {
+  color: var(--fg-2);
+  font-size: 12px;
+}
+
+.shipment-detail__timeline-date {
+  color: var(--fg-3);
+  font-size: 12px;
+}
+
+/* Status dot — palette mirrors ShipmentsPage pill variants. */
+.shipment-detail__dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.shipment-detail__dot--draft   { background: #6B7280; }
+.shipment-detail__dot--info    { background: #3B82F6; }
+.shipment-detail__dot--success { background: #10B981; }
+.shipment-detail__dot--muted   { background: #1E293B; }
+.shipment-detail__dot--danger  { background: #EF4444; }
+
+@media (max-width: 640px) {
+  .shipment-detail {
+    padding: 12px;
+  }
+  .shipment-detail__table {
+    font-size: 12px;
+  }
+  .shipment-detail__table th,
+  .shipment-detail__table td {
+    padding: 6px 8px;
+  }
+}
