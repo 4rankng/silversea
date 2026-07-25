@@ -437,7 +437,8 @@ biggest new surface area and the biggest customer-facing differentiator.
 - [x] Schema: `customers.creditWarningThreshold` + `paymentTermDays`; new
       `payment_allocations`; `supplier_type` on suppliers; new `salary_period_closes`;
       `expense_categories.requiresInvoice` + `substituteEvidenceAllowed`.
-- [ ] M5.1: surface paid/outstanding/overdue-days/payment-history per document; void leaves
+<!-- autonomous-sdlc:completed task=wave3-m51-ar-status -->
+- [x] M5.1: surface paid/outstanding/overdue-days/payment-history per document; void leaves
       offsetting line.
 - [ ] M5.3: credit-limit + threshold service; block on exceed unless approver override.
 - [ ] M5.4: freight/disbursement/other split report; invariant
