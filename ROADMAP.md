@@ -38,6 +38,22 @@ requirements only after Silver Sea signs off.
 that wave starts. Do not treat anything below as a locked spec — treat it as the proposed
 order of work.
 
+### 📋 Business-logic Q&A — TingTing's proposed defaults (2026-07-26)
+
+A companion document captures TingTing's proposed defaults for **23 cross-cutting
+business-logic questions** raised by Silver Sea — AR reminders, AP/fuel, salary close,
+no-invoice disbursements, roles/scope, time/periods, and cross-module linkage:
+
+- **Source:** `docs/prd/Business_Logic_QA_Proposals_SilverSea.docx` (original Vietnamese).
+- **Indexed, navigable copy:** [`docs/prd/business-logic-qa-proposals.md`](docs/prd/business-logic-qa-proposals.md)
+  — each Q has a stable ID (`Q01`…`Q23`) and a `Status` column tracking sign-off
+  (`pending` / `accepted` / `modified` / `rejected`).
+- **Status today:** all 23 are TingTing **proposals** — the source cover note explicitly
+  says Silver Sea must confirm before deployment. **Do not implement any value as a locked
+  spec** until the matching `Status` flips to `accepted`/`modified`.
+- Where an open PRD question in a wave below has a matching TingTing default, it is now
+  tagged with the proposal ID (e.g. `→ Q01`) so the proposed default is one click away.
+
 ---
 
 ## 📦 Current codebase coverage (already built — don't rebuild)
@@ -413,16 +429,25 @@ biggest new surface area and the biggest customer-facing differentiator.
 ### Open PRD questions
 
 - M3.1 §1: which shipment fields mandatory at creation vs. before dispatch?
-- M3.3 §1: customer portal primary channel, email fallback? (assumed yes)
+- M3.3 §1: customer portal primary channel, email fallback? (assumed yes) → **Q05**
+  proposes email-primary + in-app backup for customers.
 - M3.3 §4: two-way messaging in v1, or notifications + ack only?
 - M3.3 §5: real-time vehicle location in portal during transit only? (assumed)
 - M3.4 §3: provide the free-time rules table (customer × port × carrier × type).
 - M3.5 §1: per-shipment vs. per-period default per customer?
 - M3.5 §3: per-customer template customisation (logo, payment info, columns, signers)?
-- M3.6 §3: payment-allocation default rule (oldest-first proposed)?
-- M3.7 §2: which disbursement types mandatorily require an invoice?
-- M4.5 §6: period definition (weekly vs. monthly) per customer + cross-period rule?
-- Customer portal: authentication method (email+password / SSO / magic link)?
+- M3.6 §3: payment-allocation default rule (oldest-first proposed)? → **Q03** confirms
+  oldest-due-date first (then oldest-issue-date tiebreaker); no proportional / no freight
+  priority by default; overpayment stays unallocated.
+- M3.7 §2: which disbursement types mandatorily require an invoice? → **Q12** proposes the
+  default no-invoice category list + accepted substitute evidence; everything outside this
+  list requires an invoice by default.
+- M4.5 §6: period definition (weekly vs. monthly) per customer + cross-period rule? →
+  **Q21** proposes debit-note lock = customer payment cycle (default monthly, weekly only
+  if contract says so); late data → adjustment in open period linked back to origin period.
+- Customer portal: authentication method (email+password / SSO / magic link)? → **Q16**
+  proposes default 1 legal-entity per CUSTOMER account; multi-customer only for
+  admin-linked corporate/agency accounts (not email-domain based).
 
 ---
 
@@ -463,6 +488,7 @@ biggest new surface area and the biggest customer-facing differentiator.
       <!-- autonomous-sdlc:completed task=wave3-m62-supplier-type-taxonomy -->
 - [ ] M6.3: AP aging (mirror of AR); partial payment; no double-record of same payment ref;
       overpayment stays unallocated.
+      <!-- autonomous-sdlc:in-progress task=wave3-m63-ap-aging -->
 - [ ] M6.4: verify existing `debt_offsets` against M06-04 rules (offset ≤ smaller side;
       booked only after approval; cancel-after-approve uses reversal).
 - [ ] M7.3: salary period-close service + endpoint; idempotent; single ledger entry; lock.
@@ -473,15 +499,58 @@ biggest new surface area and the biggest customer-facing differentiator.
 
 ### Open PRD questions
 
-- M5.3 §1: credit-warning threshold default (80%? per customer?).
-- M5.3 §5: who can approve an over-limit exception?
+- M5.3 §1: credit-warning threshold default (80%? per customer?). → **Q01** proposes
+  early-warning **80%** + hard-limit **100%**, 80% as the new-customer default but
+  per-customer overridable; exposure = current balance + approved-but-unbilled + pending
+  shipment/trip value.
+- M5.3 §5: who can approve an over-limit exception? → **Q02** proposes: CUS/dispatch ✗;
+  Chief Accountant/Finance Manager approves tier-1 if over-amount ≤ **10%** and under a
+  configurable money cap; Director approves larger/repeat cases; approval is per
+  shipment/trip or until a fixed expiry, with mandatory reason.
 - M5.4 §5: allocation rule for unallocated payments (proportional / oldest-first / freight-priority)?
-- M5.7 §4: reminder frequency + quiet-hours; email vs. in-app priority?
-- M6.1 §1: fuel invoices per-truck or aggregated?
-- M6.2 §1: supplier-type taxonomy + can a supplier have multiple types?
-- M7.3 §1: period close per-driver or per-company-period? (assumed per-company)
-- M4.7 §2: which categories permit substitute evidence + what counts as evidence?
-- M4.7 §5: over-threshold rule (auto-reject vs. route-to-approval)?
+  → **Q03** confirms oldest-due-date first, oldest-issue-date tiebreaker, no proportional
+  / no freight-priority by default; overpayment stays unallocated (refund only on request
+  + approval).
+- M5.7 §4: reminder frequency + quiet-hours; email vs. in-app priority? → **Q04** proposes
+  schedule **T-3 / due-date / T+3 / then every 7 days**, **08:00–17:30 workdays only**,
+  weekend/holiday → 09:00 next workday, **max 1 consolidated reminder per customer per
+  day**; **Q05** adds email-primary for customers (in-app concurrent for backup/audit),
+  3 retries at **+15min / +2h / +24h** then mark failed + alert CUS.
+- M6.1 §1: fuel invoices per-truck or aggregated? → **Q06** proposes one invoice may cover
+  many trucks with per-truck allocation lines, basis = actual fuel-slip/log per plate +
+  date + litres × invoice unit price; **no even split; missing basis = unallocated, not
+  approvable.**
+- M6.2 §1: supplier-type taxonomy + can a supplier have multiple types? → **Q07** confirms
+  a supplier may belong to **multiple service categories** with one **primary** for
+  reporting/default; each invoice/charge still records its actual category.
+- M7.3 §1: period close per-driver or per-company-period? (assumed per-company) → **Q09**
+  confirms per-company (or configured payroll-unit) period, never per-driver; per-driver
+  state must be Ready/Pending before close.
+- M4.7 §2: which categories permit substitute evidence + what counts as evidence? → **Q12**
+  proposes default allowed list (stevedoring/temporary labour, yard/ferry/road small-fee
+  tickets, port/warehouse emergency, small trip consumables) + accepted substitutes
+  (receipt/ticket, bank/e-wallet transfer, timestamped+geotagged site photo,
+  recipient/manager signed confirmation); every line needs amount, date, recipient,
+  shipment/trip, reason, ≥1 evidence.
+- M4.7 §5: over-threshold rule (auto-reject vs. route-to-approval)? → **Q13** proposes
+  per-item cap **1,000,000 VND** and per-person-per-day cap **5,000,000 VND**
+  (configurable by category & role), with anti-splitting aggregation across same
+  person/day/category; **Q14** adds: missing-evidence = return for补充 (not approve),
+  over-threshold-but-complete = tiered approve (Chief Accountant ≤ **5M**, Director >
+  **5M** or > **10M/day**), no self-approval, mandatory reason.
+
+**Additional Wave-3-relevant rules from the Q&A doc (no prior ROADMAP line):**
+
+- **Q08** (AP/AR duality): one partner profile per tax code with both Customer + Supplier
+  roles; AR and AP ledgers stay separate; offset allowed but **never automatic** — only
+  same legal entity + same currency, with minutes + approval, offset ≤ smaller side.
+  Confirms existing M6.4 invariant and adds the approval/minutes requirement.
+- **Q10** (salary close blocking): on any driver with money-affecting error, default
+  **block the entire period**; partial close only with approver + reason — excluded
+  drivers marked "Pending补充" and handled via supplementary period or adjustment.
+- **Q11** (post-close salary change): prefer **adjustment in the open period**; reopen
+  only pre-issue/pre-payment/pre-ledger; only Director/delegate may reopen; post-payment
+  = adjustment/reversal only.
 
 ---
 
@@ -523,7 +592,14 @@ biggest new surface area and the biggest customer-facing differentiator.
 - M8.3 §3: late-first-order warning threshold (minutes? GPS-based?)?
 - M8.4 §3: which evidences mandatory before completion (photo / signature / GPS)?
 - M10.1 §1: minimum data set for a quick-draft shipment?
-- M10.3 §3: can multiple dispatchers accept the same handoff, or only one?
+- M10.2 §1: clerk editable surface + scope → **Q17** proposes CLERK may create/edit
+  shipment profile, BL, containers, seals, declarations, delivery orders, receive/deliver
+  points, document files; edits allowed directly **pre-dispatch**, info-additions only
+  **post-dispatch** (no plan-changing edits — those require a new version + dispatch
+  notification); scope = **simultaneous by responsible unit AND assigned customer/shipment**;
+  no edit rights on price, cost, AR, or salary.
+- M10.3 §3: can multiple dispatchers accept the same handoff, or only one? → **Q23**
+  proposes first-accept-wins locks state; later attempts rejected; all attempts logged.
 - M11.2 §3: cost-allocation policy (what is truck-specific vs. shared)?
 - M11.4 §3: payment-term eval per-invoice or averaged per customer?
 - M11.5 §3: exact KPI list + each KPI's definition?
@@ -534,18 +610,34 @@ biggest new surface area and the biggest customer-facing differentiator.
 ## 🔑 Cross-cutting open questions (every module, every wave)
 
 These come from every module's "Câu hỏi dùng chung cần chốt" and govern schema/policy
-everywhere. Track separately with the customer:
+everywhere. Track separately with the customer. Where TingTing's 2026-07-26 Q&A proposals
+(`docs/prd/business-logic-qa-proposals.md`) offer a default, the proposal ID is cited:
 
 1. **Roles & permissions** — confirm creators/checkers/approvers/view-only per module. Need
    `CUSTOMER` and `CLERK` roles + per-customer data scoping (Wave 0 introduces them).
+   → **Q15** proposes maker/checker/approver separation for money, price, AR, exceptions,
+   period close, and adjustments; no self-approval; view-only cannot edit or approve.
+   → **Q16** proposes 1 legal-entity per CUSTOMER account by default; multi-customer only
+   for admin-linked corporate/agency accounts (never email-domain based).
+   → **Q18** proposes: approved/locked data is never edited in place — adjustment or undo
+   only, with mandatory reason + before/after values + actor + approver captured.
 2. **Catalog master data** — confirm initial catalogs (customers, suppliers, ports, routes,
    container types, expense categories, pricing tables, fuel norms) + owner + delivery
    deadline before trial data entry.
 3. **Date/time & periods** — Vietnam TZ confirmed; need weekend/holiday handling, cross-day
    trips, and period-close (`khoá kỳ`) rules for salary/billing/fuel.
+   → **Q19** proposes: payment/processing dates roll to next workday but original date is
+   kept + shown; overdue + reminders use the rolled date; contract-calendar rule overrides
+   if the contract says so.
+   → **Q20** proposes: trip revenue/salary/count/P&L → completion-date period; attendance,
+   fuel, expenses → actual-event date; in-progress trips excluded from official totals.
+   → **Q21** proposes: salary + fuel lock monthly; debit-note lock = customer payment cycle
+   (default monthly, weekly only by contract); late data → adjustment in open period linked
+   to origin; reopen only pre-issue/pre-payment, with approval.
 4. **Notifications** — confirm events/recipients/channels/failure handling. Today: in-app +
    web-push only. M3 wants customer portal channel; M5.7 wants scheduled email (needs email
-   provider + Wave-0 scheduler).
+   provider + Wave-0 scheduler). → **Q04** + **Q05** pin the reminder cadence + channel
+   priority + retry policy (see Wave 3 open questions).
 5. **Attachments & exports** — file types, size limits, retention, who may download,
    official templates (debit-note, statement, salary slip, fuel voucher). Most exist as
    ExcelJS; PDF partial (statements only).
@@ -553,6 +645,14 @@ everywhere. Track separately with the customer:
    Drives whether a one-off import script is part of Wave 0 or separate.
 7. **Cross-module integration** — confirm input/output + sync timing for each module pair to
    avoid double entry or number drift (esp. trip ↔ shipment ↔ expense ↔ debit-note ↔ ledger).
+   → **Q22** proposes a source-of-truth table per data type (shipment = customer+goods+
+   containers; trip = truck+driver+time+status; approved expense = cost; issued debit-note
+   = AR; receipt+allocation = paid/outstanding); pre-lock changes recompute downstream +
+   alert; post-lock changes use versions / adjustments / undo, with full history.
+   → **Q23** proposes: every write carries a unique transaction id (idempotency key);
+   duplicate submit returns the original result; unique business numbers block duplicates;
+   concurrent edits force reload (no silent overwrite — already implemented via `version`);
+   concurrent approvals = first-wins, rest rejected; all attempts + conflicts audit-logged.
 8. **Post-deployment support** — contact, issue intake, priority levels, evidence of fix.
 
 ---
@@ -567,3 +667,5 @@ everywhere. Track separately with the customer:
 - Wave 4: [`phase-05`](plans/silversea-prd-roadmap/phase-05-wave-4-mobile-director-reporting.md)
 - Dev commands: `make dev` (everything) · `make setup` (first time) · `make studio` (Drizzle GUI)
 - PRD source: `docs/prd/Module1.docx` … `Module12.docx`
+- Business-logic Q&A proposals (2026-07-26): `docs/prd/Business_Logic_QA_Proposals_SilverSea.docx`
+  · indexed: [`docs/prd/business-logic-qa-proposals.md`](docs/prd/business-logic-qa-proposals.md)

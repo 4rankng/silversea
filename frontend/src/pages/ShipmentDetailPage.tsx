@@ -22,6 +22,8 @@ interface Shipment {
   id: number;
   shipmentCode: string | null;
   customerId: number;
+  // Joined from customers.name by getShipmentDetail. Nullable (leftJoin).
+  customerName: string | null;
   status: ShipmentStatus;
   bookingRef: string | null;
   blNumber: string | null;
@@ -128,7 +130,7 @@ export default function ShipmentDetailPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get<ShipmentDetailResponse>(`/api/shipments/${shipmentId}`);
+      const res = await api.get<ShipmentDetailResponse>(`/shipments/${shipmentId}`);
       // A newer fetch started — drop this response on the floor.
       if (reqId !== requestIdRef.current) return;
       setData(res);
@@ -195,7 +197,7 @@ export default function ShipmentDetailPage() {
             <span className="shipment-detail__version">v{shipment.version}</span>
           </div>
           <dl className="shipment-detail__fields">
-            <div><dt>Khách hàng</dt><dd>#{shipment.customerId}</dd></div>
+            <div><dt>Khách hàng</dt><dd>{shipment.customerName ?? `#${shipment.customerId}`}</dd></div>
             <div><dt>Mã đặt chỗ</dt><dd>{shipment.bookingRef ?? '—'}</dd></div>
             <div><dt>Số B/L</dt><dd>{shipment.blNumber ?? '—'}</dd></div>
             <div><dt>Giao dự kiến</dt><dd>{formatDate(shipment.expectedDeliveryDate)}</dd></div>

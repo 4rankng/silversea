@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Package, ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
+import { Package, Search, X, Loader2, ChevronRight, CalendarClock, MapPin, User } from 'lucide-react';
 import { api } from '../lib/api';
 import { ApiError } from '../lib/api';
-import { PageHeader, FilterPill } from '../components/UI';
+import { PageHeader, FilterPill, StatusPill } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
-import { EmptyState } from '../design-system';
+import { EmptyState, Pagination } from '../design-system';
 import { ClickableCard } from '../components/shared/ClickableCard';
 import { SHIPMENT_STATUS_LABELS, ShipmentStatus } from '@tingting/shared';
 import { usePageAnimations } from '../hooks/animations';
@@ -20,6 +20,9 @@ interface ShipmentRow {
   id: number;
   shipmentCode: string | null;
   customerId: number;
+  // Joined from customers.name by listShipmentsPaginated. Nullable because
+  // the join is a leftJoin (a hard-deleted customer still has its shipments).
+  customerName: string | null;
   status: ShipmentStatus;
   bookingRef: string | null;
   blNumber: string | null;
@@ -57,13 +60,35 @@ const STATUS_FILTER_LABELS: Record<StatusFilter, string> = {
 };
 
 // Status → StatusPill variant (mirrors the trip status-color pattern).
-const STATUS_VARIANT: Record<ShipmentStatus, 'draft' | 'info' | 'success' | 'muted' | 'danger'> = {
-  DRAFT: 'draft',
+const STATUS_PILL_VARIANT: Record<ShipmentStatus, 'neutral' | 'info' | 'success' | 'danger'> = {
+  DRAFT: 'neutral',
   IN_PROGRESS: 'info',
   DELIVERED: 'success',
-  CLOSED: 'muted',
+  CLOSED: 'neutral',
   CANCELED: 'danger',
 };
+
+// Comma-separated route "Nơi nhận → Nơi giao", shown when either leg is set.
+function formatRoute(s: ShipmentRow): string | null {
+  if (!s.pickupLocation && !s.deliveryLocation) return null;
+  return [s.pickupLocation ?? '—', s.deliveryLocation ?? '—']
+    .filter((v) => v && v !== '—')
+    .join(' → ');
+}
+
+// Human-readable customer label. The backend joins customers.name onto each
+// list row; we only fall back to the bare id in the rare case the join
+// returned null (hard-deleted customer).
+function customerLabel(s: ShipmentRow): string {
+  return s.customerName ?? `#${s.customerId}`;
+}
+
+function formatDeliveryDate(iso: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('vi-VN');
+}
 
 const PAGE_SIZE = 20;
 
@@ -121,7 +146,7 @@ export default function ShipmentsPage() {
       // the backend can pick it up transparently when the filter ships.
       // Importantly `q` is NOT a fetch dependency — typing in the search box
       // must NOT trigger a server refetch.
-      const res = await api.get<ShipmentListResponse>(`/api/shipments?${qs.toString()}`);
+      const res = await api.get<ShipmentListResponse>(`/shipments?${qs.toString()}`);
       setData(res);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Không thể tải danh sách lô hàng');
@@ -134,40 +159,57 @@ export default function ShipmentsPage() {
 
   // Client-side text filter (see note above).
   const q = (searchParams.get('q') ?? '').trim().toLowerCase();
-  const visibleItems = (data?.items ?? []).filter((s) => {
+  const visibleItems = useMemo(() => (data?.items ?? []).filter((s) => {
     if (!q) return true;
     return (
       (s.shipmentCode ?? '').toLowerCase().includes(q) ||
       (s.blNumber ?? '').toLowerCase().includes(q) ||
       (s.bookingRef ?? '').toLowerCase().includes(q)
     );
-  });
+  }), [data?.items, q]);
 
-  const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE_SIZE));
+  const total = data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <div className="shipments-page page-anim" ref={pageAnimRef}>
-      <Breadcrumbs items={[{ label: 'Lô hàng' }]} />
-      <PageHeader title="Lô hàng" description="Danh sách lô hàng (lô hàng precedes and outlives any single trip)." />
+      <Breadcrumbs
+        className="shipments-page__crumbs"
+        items={[
+          { label: 'Tổng quan', to: '/dashboard' },
+          { label: 'Lô hàng' },
+        ]}
+      />
+      <PageHeader
+        title="Lô hàng"
+        iconName="cargo"
+        description={total > 0 ? `${total} lô hàng đang quản lý` : 'Quản lý lô hàng theo khách hàng'}
+      />
 
-      <div className="shipments-page__toolbar">
-        <div className="shipments-page__filters">
-          {STATUS_FILTER_ORDER.map((key) => (
-            <FilterPill
-              key={key}
-              active={statusFilter === key}
-              onClick={() => updateFilter('status', key === 'all' ? null : key)}
-            >
-              {STATUS_FILTER_LABELS[key]}
-            </FilterPill>
-          ))}
-        </div>
+      {/* Toolbar: status filter pills + free-text search */}
+      <div className="toolbar shipments-page__toolbar">
+        <FilterPill
+          active={statusFilter === 'all'}
+          onClick={() => updateFilter('status', null)}
+        >
+          Tất cả · {total}
+        </FilterPill>
+        {STATUS_FILTER_ORDER.filter((k) => k !== 'all').map((key) => (
+          <FilterPill
+            key={key}
+            active={statusFilter === key}
+            onClick={() => updateFilter('status', key)}
+          >
+            {STATUS_FILTER_LABELS[key]}
+          </FilterPill>
+        ))}
+        <div className="toolbar__spacer" />
         <div className="shipments-page__search">
-          <Search size={16} className="shipments-page__search-icon" />
+          <Search size={14} className="shipments-page__search-icon" />
           <input
             type="text"
             className="input shipments-page__search-input"
-            placeholder="Tìm theo mã lô, số B/L, mã đặt chỗ…"
+            placeholder="Tìm mã lô, số B/L, mã đặt chỗ…"
             aria-label="Tìm lô hàng theo mã, số B/L, hoặc mã đặt chỗ"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
@@ -187,73 +229,165 @@ export default function ShipmentsPage() {
 
       {error && (
         <div className="shipments-page__error" role="alert">
-          {error}
+          <span>{error}</span>
+          <button type="button" className="btn btn--secondary btn--sm" onClick={() => void fetchData()}>
+            Thử lại
+          </button>
         </div>
       )}
 
-      {loading ? (
-        <div className="shipments-page__loading">
-          <div className="spin" style={{ width: 24, height: 24, border: '3px solid var(--border-2)', borderTopColor: 'var(--brand)', borderRadius: '50%' }} />
-          <span>Đang tải…</span>
-        </div>
-      ) : visibleItems.length === 0 ? (
-        <EmptyState
-          icon={Package}
-          title={q ? 'Không tìm thấy lô hàng phù hợp ở trang này' : 'Chưa có lô hàng nào'}
-          description={q
-            ? (data && data.total > data.items.length
-                ? 'Tìm kiếm hiện chỉ áp dụng trong trang đang xem. Thử sang trang kế hoặc xoá tìm kiếm để xem toàn bộ.'
-                : 'Thử bỏ bộ lọc hoặc thay từ khoá tìm kiếm.')
-            : 'Lô hàng (lô hàng) sẽ xuất hiện ở đây khi được tạo qua /api/shipments.'}
-        />
-      ) : (
-        <>
-          <ul className="shipments-page__list" aria-label="Danh sách lô hàng">
-            {visibleItems.map((s) => (
-              <li key={s.id}>
-                <ClickableCard to={`/shipments/${s.id}`} className="shipments-page__row">
-                  <div className="shipments-page__row-main">
-                    <div className="shipments-page__row-code">
-                      {s.shipmentCode ?? `#${s.id}`}
-                    </div>
-                    <div className="shipments-page__row-meta">
-                      {s.blNumber && <span>B/L: {s.blNumber}</span>}
-                      {s.bookingRef && <span>Đặt chỗ: {s.bookingRef}</span>}
-                      {s.expectedDeliveryDate && <span>Giao dự kiến: {s.expectedDeliveryDate}</span>}
-                    </div>
-                  </div>
-                  <span className={`shipments-page__status shipments-page__status--${STATUS_VARIANT[s.status]}`}>
-                    {SHIPMENT_STATUS_LABELS[s.status]}
-                  </span>
-                </ClickableCard>
-              </li>
-            ))}
-          </ul>
-
-          {/* Pagination */}
-          <div className="shipments-page__pager">
-            <button
-              type="button"
-              className="btn btn--ghost btn--sm"
-              disabled={page <= 1}
-              onClick={() => updateFilter('page', String(page - 1))}
-            >
-              <ChevronLeft size={14} /> Trang trước
-            </button>
-            <span className="shipments-page__pager-info">
-              Trang {page} / {totalPages} · {(data?.total ?? 0)} lô
-            </span>
-            <button
-              type="button"
-              className="btn btn--ghost btn--sm"
-              disabled={page >= totalPages}
-              onClick={() => updateFilter('page', String(page + 1))}
-            >
-              Trang sau <ChevronRight size={14} />
-            </button>
+      {/* ── Mobile card list (≤820px) ──────────────────────────────────── */}
+      <div className="mobile-only table-wrap shipments-page__mobile">
+        {loading ? (
+          <div className="shipments-page__loading">
+            <Loader2 size={22} className="spin" />
+            <span>Đang tải…</span>
           </div>
-        </>
-      )}
+        ) : visibleItems.length === 0 ? (
+          <EmptyState
+            illustration="/assets/illustrations/empty-clients.svg"
+            icon={Package}
+            title={q ? 'Không tìm thấy lô hàng phù hợp ở trang này' : 'Chưa có lô hàng nào'}
+            description={q
+              ? (data && data.total > data.items.length
+                  ? 'Tìm kiếm hiện chỉ áp dụng trong trang đang xem. Thử sang trang kế hoặc xoá tìm kiếm để xem toàn bộ.'
+                  : 'Thử bỏ bộ lọc hoặc thay từ khoá tìm kiếm.')
+              : 'Lô hàng sẽ xuất hiện ở đây khi được tạo.'}
+          />
+        ) : (
+          <div className="m-card-list">
+            {visibleItems.map((s) => (
+              <ClickableCard
+                key={s.id}
+                as="div"
+                className="m-card shipments-page__card"
+                to={`/shipments/${s.id}`}
+                ariaLabel={`Lô hàng ${s.shipmentCode ?? `#${s.id}`}`}
+              >
+                <div className="m-card__top">
+                  <span className="m-card__title shipments-page__card-code">
+                    {s.shipmentCode ?? `#${s.id}`}
+                  </span>
+                  <StatusPill variant={STATUS_PILL_VARIANT[s.status]}>
+                    {SHIPMENT_STATUS_LABELS[s.status]}
+                  </StatusPill>
+                </div>
+                <div className="m-card__meta shipments-page__card-meta">
+                  {s.blNumber && <span>Số B/L: <strong>{s.blNumber}</strong></span>}
+                  {s.bookingRef && <span>Đặt chỗ: {s.bookingRef}</span>}
+                </div>
+                {formatRoute(s) && (
+                  <div className="m-card__meta shipments-page__card-route">
+                    <MapPin size={12} aria-hidden="true" />
+                    <span>{formatRoute(s)}</span>
+                  </div>
+                )}
+                <div className="m-card__row shipments-page__card-foot">
+                  <span className="m-card__row-label">
+                    {s.expectedDeliveryDate ? (
+                      <><CalendarClock size={12} aria-hidden="true" /> Giao dự kiến</>
+                    ) : s.contactName ? (
+                      <><User size={12} aria-hidden="true" /> {s.contactName}</>
+                    ) : (
+                      <><User size={12} aria-hidden="true" /> {customerLabel(s)}</>
+                    )}
+                  </span>
+                  <span className="m-card__row-value shipments-page__card-cta">
+                    {s.expectedDeliveryDate ? formatDeliveryDate(s.expectedDeliveryDate) : 'Xem chi tiết'}
+                    <ChevronRight size={14} aria-hidden="true" />
+                  </span>
+                </div>
+              </ClickableCard>
+            ))}
+          </div>
+        )}
+        {!loading && visibleItems.length > 0 && (
+          <div className="table-foot">
+            <span>Hiển thị <strong style={{ fontFamily: 'var(--font-mono)' }}>{visibleItems.length}</strong> lô hàng</span>
+          </div>
+        )}
+      </div>
+
+      {/* ── Desktop table (>820px) ─────────────────────────────────────── */}
+      <div className="desktop-only table-wrap shipments-page__desktop">
+        <div className="table-scroll">
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 880, tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: '20%' }} />
+              <col style={{ width: '18%' }} />
+              <col style={{ width: '18%' }} />
+              <col style={{ width: '20%' }} />
+              <col style={{ width: '14%' }} />
+              <col style={{ width: 40 }} />
+            </colgroup>
+            <thead>
+              <tr>
+                {['Mã lô hàng', 'Số B/L', 'Mã đặt chỗ', 'Tuyến', 'Trạng thái'].map((h) => (
+                  <th key={h} className="shipments-page__th">{h}</th>
+                ))}
+                <th style={{ width: 40 }} />
+              </tr>
+            </thead>
+            <tbody>
+              {loading && (
+                <tr><td colSpan={6} className="shipments-page__cell-msg">
+                  <Loader2 size={22} className="spin" />
+                  <p>Đang tải…</p>
+                </td></tr>
+              )}
+              {!loading && visibleItems.length === 0 && (
+                <tr><td colSpan={6} className="shipments-page__cell-msg">
+                  <Package size={28} aria-hidden="true" style={{ color: 'var(--ink-4)' }} />
+                  <p>{q ? 'Không tìm thấy lô hàng phù hợp ở trang này' : 'Chưa có lô hàng nào'}</p>
+                </td></tr>
+              )}
+              {!loading && visibleItems.map((s) => (
+                <ClickableCard
+                  key={s.id}
+                  as="tr"
+                  className="shipments-page__tr"
+                  to={`/shipments/${s.id}`}
+                  ariaLabel={`Lô hàng ${s.shipmentCode ?? `#${s.id}`}`}
+                >
+                  <td className="shipments-page__td shipments-page__td--code">
+                    <span className="shipments-page__code">{s.shipmentCode ?? `#${s.id}`}</span>
+                    <span className="shipments-page__sub">{customerLabel(s)}</span>
+                  </td>
+                  <td className="shipments-page__td shipments-page__td--mono">
+                    {s.blNumber ?? <span className="shipments-page__muted">—</span>}
+                  </td>
+                  <td className="shipments-page__td shipments-page__td--mono">
+                    {s.bookingRef ?? <span className="shipments-page__muted">—</span>}
+                  </td>
+                  <td className="shipments-page__td">
+                    {formatRoute(s)
+                      ? <span className="shipments-page__route"><MapPin size={12} aria-hidden="true" /> {formatRoute(s)}</span>
+                      : <span className="shipments-page__muted">—</span>}
+                  </td>
+                  <td className="shipments-page__td">
+                    <StatusPill variant={STATUS_PILL_VARIANT[s.status]}>
+                      {SHIPMENT_STATUS_LABELS[s.status]}
+                    </StatusPill>
+                  </td>
+                  <td className="shipments-page__td shipments-page__td--chev">
+                    <ChevronRight size={16} aria-hidden="true" />
+                  </td>
+                </ClickableCard>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {!loading && total > 0 && (
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            totalItems={total}
+            pageSize={PAGE_SIZE}
+            onChange={(p) => updateFilter('page', String(p))}
+          />
+        )}
+      </div>
     </div>
   );
 }
