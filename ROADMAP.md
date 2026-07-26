@@ -486,9 +486,9 @@ biggest new surface area and the biggest customer-facing differentiator.
       <!-- autonomous-sdlc:completed task=wave3-m61-fuel-ap-recon -->
 - [x] M6.2: supplier-type taxonomy (CARRIER/PORT/WAREHOUSE/SHIPPING_LINE/CUSTOMS/SERVICE/FUEL).
       <!-- autonomous-sdlc:completed task=wave3-m62-supplier-type-taxonomy -->
-- [ ] M6.3: AP aging (mirror of AR); partial payment; no double-record of same payment ref;
+- [x] M6.3: AP aging (mirror of AR); partial payment; no double-record of same payment ref;
       overpayment stays unallocated.
-      <!-- autonomous-sdlc:in-progress task=wave3-m63-ap-aging -->
+      <!-- autonomous-sdlc:completed task=wave3-m63-ap-aging -->
 - [ ] M6.4: verify existing `debt_offsets` against M06-04 rules (offset ≤ smaller side;
       booked only after approval; cancel-after-approve uses reversal).
 - [ ] M7.3: salary period-close service + endpoint; idempotent; single ledger entry; lock.
