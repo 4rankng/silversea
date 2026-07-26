@@ -3,7 +3,7 @@ import * as s from '../db/schema';
 import { eq, and, isNull, desc } from 'drizzle-orm';
 import { LedgerService } from './ledger.service';
 import { ApiError } from '../errors';
-import { TxnType } from '@tingting/shared';
+import { TxnType, FINANCIAL_ROLES } from '@tingting/shared';
 import { transitionApproval } from './approval.service';
 
 /**
@@ -161,6 +161,98 @@ export async function approveDebtOffset(
       .where(eq(s.debtOffsets.id, id));
 
     return offset;
+  });
+}
+
+/**
+ * Cancel an APPROVED debt offset by posting REVERSING ADJUSTMENT entries
+ * (M06-04 §5: "hủy sau phê duyệt phải dùng bút toán hoàn tác").
+ *
+ * Behaviour:
+ *   - Only allowed on APPROVED offsets. PENDING offsets must use the
+ *     rejection path (which writes no ledger entries); CANCELED offsets
+ *     are already dead.
+ *   - Posts the mirror of the original approval entries:
+ *       DEBIT  on customer (restores AR)
+ *       CREDIT on vendor   (restores AP)
+ *   - Each reversing entry carries the note "Hoàn tác đối trừ công nợ #{id}"
+ *     so the audit trail distinguishes it from other ADJUSTMENT entries.
+ *   - Sets approvalStatus to 'CANCELED'.
+ *
+ * After cancel, the customer's AR and the supplier's AP balances are
+ * restored to their pre-approval values.
+ */
+export async function cancelDebtOffset(
+  id: number,
+  actorId: number,
+  actorRole: string,
+) {
+  // Role guard: same as approve (ADMIN/MANAGER only).
+  if (!(FINANCIAL_ROLES as readonly string[]).includes(actorRole)) {
+    throw new ApiError(403, 'Bạn không có quyền hủy đối trừ công nợ');
+  }
+
+  return db.transaction(async (tx) => {
+    const [offset] = await tx
+      .select()
+      .from(s.debtOffsets)
+      .where(eq(s.debtOffsets.id, id))
+      .limit(1);
+
+    if (!offset) {
+      throw new ApiError(404, 'Không tìm thấy bản ghi đối trừ');
+    }
+    if (offset.approvalStatus === 'CANCELED') {
+      throw new ApiError(400, 'Bản ghi đã hủy, không thể hoàn tác lại');
+    }
+    if (offset.approvalStatus !== 'APPROVED') {
+      // PENDING → use the rejection path (it writes no ledger entries).
+      throw new ApiError(
+        400,
+        `Không thể hủy bản ghi đang ở ${offset.approvalStatus}; chỉ đối trừ đã phê duyệt mới có thể hủy`,
+      );
+    }
+
+    const amount = Number(offset.amount);
+
+    // Lock both entities (sorted internally by lockEntities to prevent deadlock).
+    await LedgerService.lockEntities(tx, [
+      { entityType: 'CUSTOMER', entityId: offset.customerId },
+      { entityType: 'VENDOR',   entityId: offset.supplierId },
+    ]);
+
+    // Reversing entries — mirror of approveDebtOffset.
+    // DEBIT on customer: restores AR (CUSTOMER balance += debit − credit).
+    await LedgerService.postEntry(tx, {
+      txnType: TxnType.ADJUSTMENT,
+      txnId: id,
+      entityType: 'CUSTOMER',
+      entityId: offset.customerId,
+      debit: amount,
+      credit: 0,
+      note: `Hoàn tác đối trừ công nợ #${id}`,
+    });
+
+    // CREDIT on vendor: restores AP (VENDOR balance += credit − debit).
+    await LedgerService.postEntry(tx, {
+      txnType: TxnType.ADJUSTMENT,
+      txnId: id,
+      entityType: 'VENDOR',
+      entityId: offset.supplierId,
+      debit: 0,
+      credit: amount,
+      note: `Hoàn tác đối trừ công nợ #${id}`,
+    });
+
+    // Flip status to CANCELED. approvedBy / approvedAt left intact so the
+    // audit trail still shows who approved originally.
+    const [updated] = await tx
+      .update(s.debtOffsets)
+      .set({ approvalStatus: 'CANCELED' })
+      .where(eq(s.debtOffsets.id, id))
+      .returning();
+
+    return updated;
   });
 }
 
