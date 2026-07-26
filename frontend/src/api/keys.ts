@@ -165,6 +165,8 @@ export const qk = {
     vehicleAlerts: ['driver-vehicle-alerts'],
     /** M8.3: two-orders-per-day view (active + next today, firstOrderLate). */
     twoOrders: ['driver-two-orders'],
+    /** M8.6: driver payslip periods (issued salary periods with earnings). */
+    payslips: ['driver-payslips'],
   },
 
   /* ── Forwarder portal ──────────────────────────────────────────────── */

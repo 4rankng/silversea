@@ -42,3 +42,11 @@ export function useDriverTwoOrders() {
     queryFn: () => driverClient.getTwoOrders(),
   });
 }
+
+/** M8.6 — driver payslip periods (own issued salary periods with earnings). */
+export function useDriverPayslips() {
+  return useQuery({
+    queryKey: qk.driver.payslips,
+    queryFn: () => driverClient.getPayslips(),
+  });
+}

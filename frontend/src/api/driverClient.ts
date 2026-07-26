@@ -125,4 +125,25 @@ export const driverClient = {
       headers: { 'Idempotency-Key': idempotencyKey },
     });
   },
+
+  /** M8.6 — list the driver's issued payslip periods with earnings. */
+  getPayslips: async () => {
+    return api.get<{ items: Array<{
+      period: string;
+      status: string;
+      closedAt: string | null;
+      closedByName: string | null;
+      note: string | null;
+      earnings: {
+        netIncome: string;
+        productionSalary: string;
+        roadAllowance: string;
+        penalties: string;
+        paidOrAdvanced: string;
+        payableBalance: string;
+        periodStart: string;
+        periodEnd: string;
+      };
+    }> }>(DRIVER.PAYSLIPS);
+  },
 };

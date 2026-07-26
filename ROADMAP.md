@@ -634,9 +634,9 @@ biggest new surface area and the biggest customer-facing differentiator.
       (locked design decision #1: numbers are NEVER auto-committed). ISO 6346
       check-digit advisory validation runs on the draft. Backend OCR tests
       (13/13 pass) confirm the pipeline + ownership guards.
-- [ ] M8.6: driver payslip view — own issued periods only; adjusted period shows both
+- [x] M8.6: driver payslip view — own issued periods only; adjusted period shows both
       versions + reason; line links to basis.
-      <!-- autonomous-sdlc:in-progress task=wave4-m86-payslip-frontend -->
+      <!-- autonomous-sdlc:completed task=wave4-m86-payslip-frontend -->
       Decomposed into independently testable slices (scope unchanged):
       - slice 1 — backend `getDriverPayslipPeriods` service + route (lists
         the driver's issued salary periods with per-period earnings summary).
