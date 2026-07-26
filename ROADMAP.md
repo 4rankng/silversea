@@ -580,13 +580,16 @@ biggest new surface area and the biggest customer-facing differentiator.
       - slice 2 — frontend `ClerkShipmentCreatePage.tsx` mobile page calling
         slice 1 with a client-generated UUID v4 `Idempotency-Key`.
 - [ ] M10.2: clerk doc-entry page; format + duplicate checks; mandatory fields before dispatch.
-      <!-- autonomous-sdlc:in-progress task=wave4-m102-mandatory-fields -->
+      <!-- autonomous-sdlc:in-progress task=wave4-m102-doc-entry-frontend -->
       Decomposed into independently testable slices (scope unchanged):
       - slice 1 — backend container-number format (ISO 6346) + duplicate-
         within-shipment checks in `batchUpsertShipmentContainers`.
         <!-- autonomous-sdlc:completed task=wave4-m102-container-validation -->
-      - slice 2 — mandatory-fields-before-dispatch gate in
-        `dispatchShipmentToTrip` (at least one container + BL number).
+      - slice 2 — advisory dispatch-readiness check (`getDispatchReadiness`
+        + `preDispatchWarnings` in the dispatch response). Advisory, not
+        enforcing — the mandatory field set is pending customer sign-off
+        (Q17 / M10.2 §1); a follow-up flip enforces once confirmed.
+        <!-- autonomous-sdlc:completed task=wave4-m102-mandatory-fields -->
       - slice 3 — frontend `ClerkShipmentDocsPage.tsx` wiring slice 1+2.
 - [ ] Offline-queue client lib (`idb-keyval`) + idempotent sync endpoint; client-gen request
       id + server dedupe table.

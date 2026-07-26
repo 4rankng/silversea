@@ -736,6 +736,14 @@ export async function dispatchShipmentToTrip(
     );
   }
 
+  // M10.2 slice 2: advisory dispatch readiness. Compute the missing
+  // recommended fields once so both return paths (fresh dispatch + the
+  // idempotent short-circuit below) surface the same warnings. Advisory,
+  // not enforcing — the mandatory field set is pending customer sign-off
+  // (Q17 / M10.2 §1). The UI shows a confirm dialog; a follow-up slice
+  // flips enforcing on once confirmed.
+  const preDispatchWarnings = (await getDispatchReadiness(shipmentId)).missing;
+
   // 2. Idempotent short-circuit FIRST: a live (non-CANCELED) trip is already
   //    linked → return it with `created: false`, regardless of the shipment's
   //    current status. This makes a retry after a successful dispatch safe
@@ -749,7 +757,7 @@ export async function dispatchShipmentToTrip(
     ))
     .limit(1);
   if (existingLiveTrip) {
-    return { trip: existingLiveTrip, created: false as const };
+    return { trip: existingLiveTrip, created: false as const, preDispatchWarnings };
   }
 
   // 3. No existing live trip — this is a fresh dispatch. Require DRAFT: a
@@ -847,7 +855,7 @@ export async function dispatchShipmentToTrip(
     '[cache] dispatch invalidate failed', { shipmentId, err },
   ));
 
-  return { trip: finalTrip ?? trip, created: true as const };
+  return { trip: finalTrip ?? trip, created: true as const, preDispatchWarnings };
 }
 
 // Postgres unique-violation detector — 23505 is the SQLSTATE for any unique
@@ -879,6 +887,58 @@ export async function checkExpiredDocuments(shipmentId: number) {
       isNull(s.shipmentDocuments.replacedBy), // not superseded by a newer version
     ));
   return docs;
+}
+
+// ─── M10.2 slice 2: dispatch readiness (advisory) ───────────────────────────
+//
+// PRD M10-02-03 ("mandatory fields defined before dispatch") + Q17 (clerk
+// editable surface, status `pending`). A hard mandatory gate would be a
+// breaking behavioural change while the field set is still unconfirmed, so
+// slice 2 ships the check as advisory: this helper returns the list of
+// missing recommended fields and `dispatchShipmentToTrip` surfaces them as
+// `preDispatchWarnings` in its response without blocking dispatch. The UI
+// (slice 3) shows a confirm dialog; a follow-up slice flips enforcing on
+// once Q17 / M10.2 §1 sign-off lands (mirrors the M12.2 "advisory first"
+// precedent).
+//
+// Recommended set today: BL number + ≥1 shipment container. BL is the legal
+// shipping document; containers are what get snapshotted into the trip.
+
+export interface DispatchReadiness {
+  /** True when no recommended fields are missing. */
+  ready: boolean;
+  /** Vietnamese field labels not yet set (empty when `ready`). */
+  missing: string[];
+}
+
+/**
+ * Return the list of recommended pre-dispatch fields that are not yet set on
+ * the shipment. Throws 404 on a missing/soft-deleted shipment so callers can
+ * surface the canonical not-found error before dispatch attempts.
+ */
+export async function getDispatchReadiness(shipmentId: number): Promise<DispatchReadiness> {
+  const [shipment] = await db.select({
+    blNumber: s.shipments.blNumber,
+  })
+    .from(s.shipments)
+    .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
+    .limit(1);
+  if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
+
+  const missing: string[] = [];
+  if (!shipment.blNumber || shipment.blNumber.trim() === '') {
+    missing.push('Số vận đơn (B/L)');
+  }
+
+  const [containerCountRow] = await db.select({ count: count() })
+    .from(s.shipmentContainers)
+    .where(eq(s.shipmentContainers.shipmentId, shipmentId));
+  const containerCount = containerCountRow?.count ?? 0;
+  if (containerCount === 0) {
+    missing.push('Công-te-nơ (ít nhất một)');
+  }
+
+  return { ready: missing.length === 0, missing };
 }
 
 /**
