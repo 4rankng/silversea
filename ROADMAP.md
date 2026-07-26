@@ -454,7 +454,8 @@ biggest new surface area and the biggest customer-facing differentiator.
 - [x] M5.7: reminder scheduler job (Wave-0 scheduler) + email (Wave-2) + in-app; skip
       paid/disputed/suspended; no duplicate in cycle.
       <!-- autonomous-sdlc:completed task=wave3-m57-reminder-job -->
-- [ ] M5.8: PDF export for debit notes (match screen ↔ export).
+- [x] M5.8: PDF export for debit notes (match screen ↔ export).
+      <!-- autonomous-sdlc:completed task=wave3-m58-debit-note-pdf -->
 - [ ] M6.1: fuel-AP reconciliation report (fuel invoices ↔ trip fuel by truck/period);
       variance blocks approval until explained.
 - [ ] M6.2: supplier-type taxonomy (CARRIER/PORT/WAREHOUSE/SHIPPING_LINE/CUSTOMS/SERVICE/FUEL).

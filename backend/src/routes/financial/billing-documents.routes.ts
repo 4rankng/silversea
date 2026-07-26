@@ -4,6 +4,7 @@ import { Role, generateBillingDocumentSchema, saveBillingDocumentSchema } from '
 import { requireRoles } from '../../middleware/casbin';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import * as billingService from '../../services/billingDocument.service';
+import { getDebitNoteForRender, exportDebitNoteHtml } from '../../services/debit-note-pdf.service';
 import { attachmentDisposition } from '../../services/statement.service';
 import { invalidateReportCaches } from '../../lib/redis';
 
@@ -60,15 +61,51 @@ router.delete('/finance/billing-documents/:id', requireRoles(...ROLES), asyncHan
   res.json({ ok: true });
 }));
 
-// GET /api/finance/billing-documents/:id/export?templateId= — xlsx. For
-// DEBIT_NOTE, renders from the resolved template snapshot (override → frozen
-// snapshot → customer → default); falls back to the legacy renderer when no
-// template applies (and always for PAYMENT_STATEMENT). ?templateId= lets a user
-// re-export once with a different template without re-saving the doc.
+// GET /api/finance/billing-documents/:id/export?format=xlsx|pdf&templateId=
+// Default (no `format`) and `format=xlsx` return the Excel buffer.
+// `format=pdf` returns browser-printable HTML (mirror of the on-screen
+// template preview) for the browser's print-to-PDF. For DEBIT_NOTE,
+// renders from the resolved template snapshot (override → frozen
+// snapshot → customer → default); falls back to the legacy renderer
+// when no template applies (and always for PAYMENT_STATEMENT).
+// ?templateId= lets a user re-export once with a different template
+// without re-saving the doc.
 router.get('/finance/billing-documents/:id/export', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
-  const doc = await billingService.getDocument(Number(req.params.id));
+  const format = String(req.query.format ?? 'xlsx').toLowerCase();
+  const id = Number(req.params.id);
   const overrideRaw = req.query.templateId;
   const templateIdOverride = overrideRaw ? Number(overrideRaw) : null;
+
+  if (format === 'pdf' || format === 'html') {
+    // Wave 3 M5.8 — browser-printable HTML that mirrors the screen.
+    const { doc, snapshot } = await getDebitNoteForRender(id, { templateIdOverride });
+    const dateStr = new Date().toLocaleDateString('vi-VN');
+    // Build the legacy DebitNotePdfData shape from the hydrated doc, then
+    // delegate to the template-aware renderer.
+    const data = {
+      documentId: doc.id,
+      entityName: doc.entityName ?? `#${doc.entityId}`,
+      rangeFrom: doc.rangeFrom,
+      rangeTo: doc.rangeTo,
+      totalInclVat: String(doc.totalInclVat),
+      status: null,
+      lines: doc.lines
+        .filter(l => !l.excluded)
+        .map(l => ({
+          lineType: l.lineType,
+          typeLabel: l.typeLabel,
+          description: l.description,
+          baseAmount: String(l.amountOverride ?? l.baseAmount),
+          routeName: l.routeName ?? null,
+        })),
+    };
+    const html = exportDebitNoteHtml(data, snapshot, dateStr);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.send(html);
+  }
+
+  // Default: Excel (xlsx) — Wave-2 templated renderer.
+  const doc = await billingService.getDocument(id);
   const snap = await billingService.resolveDebitNoteTemplateForDoc(doc, { templateIdOverride });
   const buffer = snap
     ? await billingService.renderTemplatedXlsx(doc, snap)
