@@ -7,6 +7,7 @@ import { TRIP_STATUS_LABELS, type TripStatus } from '@tingting/shared';
 import { StatusPill } from '../components/UI';
 import TripLegsPanel from '../components/trip/TripLegsPanel';
 import { DriverContainerCard } from '../components/trip/DriverContainerCard';
+import { DriverProgressCard } from '../components/trip/DriverProgressCard';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import './DriverTripDetailPage.css';
@@ -288,6 +289,9 @@ export default function DriverTripDetailPage() {
             </div>
           </section>
         )}
+
+        {/* M8.4 — driver progress-event form + timeline (offline-safe). */}
+        <DriverProgressCard tripId={trip.id} />
     </div>
   );
 }

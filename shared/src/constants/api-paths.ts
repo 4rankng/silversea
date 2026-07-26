@@ -171,6 +171,8 @@ export const DRIVER = {
   VEHICLE_ALERTS: '/driver/me/vehicle-alerts',
   /** M8.3 — two-orders-per-day view (active + next today, firstOrderLate). */
   TWO_ORDERS: '/driver/me/two-orders',
+  /** M8.4 — driver progress-event log (append-only timeline). */
+  PROGRESS: (tripId: number) => `/driver/me/trips/${tripId}/progress`,
 } as const;
 
 // ─── Forwarder portal ───────────────────────────────────────────────────────────
