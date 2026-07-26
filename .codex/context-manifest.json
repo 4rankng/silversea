@@ -1,0 +1,222 @@
+{
+  "version": 1,
+  "base": [
+    "CONTEXT.md"
+  ],
+  "optional": [
+    "HANDOFF.md"
+  ],
+  "profiles": [
+    {
+      "id": "product-planning",
+      "description": "Requirements, scope, PRD decisions, roadmap, and phase planning.",
+      "match": {
+        "prefixes": ["plans/", "docs/prd/"],
+        "exact": ["ROADMAP.md"],
+        "contains": [],
+        "keywords": ["roadmap", "prd", "requirement", "scope", "wave", "planning"]
+      },
+      "context": [
+        "ROADMAP.md",
+        "plans/silversea-prd-roadmap/plan.md",
+        "docs/prd/business-logic-qa-proposals.md"
+      ],
+      "qa": [
+        "pnpm context:check"
+      ]
+    },
+    {
+      "id": "backend-api",
+      "description": "Express routes, backend services, authentication, and API behavior.",
+      "match": {
+        "prefixes": ["backend/src/routes/", "backend/src/services/", "backend/src/middleware/"],
+        "exact": ["backend/src/index.ts", "backend/package.json"],
+        "contains": [],
+        "keywords": ["backend", "api", "route", "service", "auth"]
+      },
+      "context": [
+        "backend/package.json",
+        "backend/src/index.ts",
+        "backend/src/middleware/auth.ts"
+      ],
+      "qa": [
+        "cd backend && npx tsc --noEmit",
+        "cd backend && pnpm test",
+        "pnpm lint",
+        "make build",
+        "cd e2e && ./run_all.sh"
+      ]
+    },
+    {
+      "id": "database",
+      "description": "Drizzle schema, migrations, persistence, and data integrity.",
+      "match": {
+        "prefixes": ["backend/src/db/", "backend/drizzle/"],
+        "exact": [],
+        "contains": ["/schema", "/migration"],
+        "keywords": ["database", "drizzle", "schema", "migration", "postgres"]
+      },
+      "context": [
+        "backend/src/db/schema.ts",
+        "backend/package.json"
+      ],
+      "qa": [
+        "cd backend && npx tsc --noEmit",
+        "cd backend && pnpm test",
+        "cd frontend && npx tsc -b",
+        "cd frontend && pnpm test",
+        "pnpm lint",
+        "make build",
+        "cd e2e && ./run_all.sh"
+      ]
+    },
+    {
+      "id": "shared-contracts",
+      "description": "Cross-package schemas, types, navigation, and calculations.",
+      "match": {
+        "prefixes": ["shared/"],
+        "exact": [],
+        "contains": [],
+        "keywords": ["shared", "contract", "zod", "schema", "type"]
+      },
+      "context": [
+        "shared/package.json",
+        "shared/src/index.ts",
+        "shared/src/schemas/index.ts"
+      ],
+      "qa": [
+        "cd shared && npx tsc",
+        "cd backend && npx tsc --noEmit",
+        "cd frontend && npx tsc -b",
+        "cd backend && pnpm test",
+        "cd frontend && pnpm test",
+        "pnpm lint",
+        "make build",
+        "cd e2e && ./run_all.sh"
+      ]
+    },
+    {
+      "id": "financial",
+      "description": "Financial calculations, ledger, pricing, salary, receivables, and payables.",
+      "match": {
+        "prefixes": ["shared/src/calculations/"],
+        "exact": [],
+        "contains": ["/financial", "/ledger", "/pricing", "/salary", "/receivable", "/payable", "/debt", "/billing"],
+        "keywords": ["financial", "finance", "ledger", "pricing", "salary", "receivable", "payable", "debt", "billing"]
+      },
+      "context": [
+        "shared/src/calculations/round.ts",
+        "shared/src/calculations/tripTotals.ts",
+        "shared/src/calculations/tripTotals.test.ts",
+        "docs/prd/business-logic-qa-proposals.md"
+      ],
+      "qa": [
+        "cd shared && npx tsc",
+        "cd backend && npx tsc --noEmit",
+        "cd backend && pnpm test",
+        "cd frontend && npx tsc -b",
+        "cd frontend && pnpm test",
+        "pnpm lint",
+        "make build",
+        "cd e2e && ./run_all.sh"
+      ]
+    },
+    {
+      "id": "frontend",
+      "description": "React/Vite UI, routing, API clients, design system, and responsive behavior.",
+      "match": {
+        "prefixes": ["frontend/"],
+        "exact": [],
+        "contains": [],
+        "keywords": ["frontend", "react", "ui", "responsive", "mobile", "vite"]
+      },
+      "context": [
+        "frontend/package.json",
+        "frontend/src/App.tsx",
+        "frontend/src/lib/routes.ts",
+        "frontend/docs/api-layers.md",
+        "frontend/docs/design-system.md",
+        "frontend/docs/adding-a-page.md"
+      ],
+      "qa": [
+        "cd frontend && npx tsc -b",
+        "cd frontend && pnpm test",
+        "pnpm lint",
+        "make build",
+        "cd e2e && ./run_all.sh"
+      ]
+    },
+    {
+      "id": "agent-runtime",
+      "description": "The product's AI assistant runtime, tools, contracts, and frontend bridge.",
+      "match": {
+        "prefixes": ["backend/src/services/agent/"],
+        "exact": [
+          "backend/src/agentSocket.ts",
+          "backend/src/routes/agent.ts",
+          "shared/src/schemas/agent.ts",
+          "frontend/src/api/agentClient.ts"
+        ],
+        "contains": ["/agent", "chatbot"],
+        "keywords": ["agent runtime", "chatbot", "llm", "minimax", "openrouter", "rag"]
+      },
+      "context": [
+        "backend/src/agentSocket.ts",
+        "backend/src/services/agent/orchestrator.ts",
+        "backend/src/services/agent/tool.types.ts",
+        "shared/src/schemas/agent.ts"
+      ],
+      "qa": [
+        "cd backend && npx tsc --noEmit",
+        "cd backend && pnpm test",
+        "cd frontend && npx tsc -b",
+        "cd frontend && pnpm test",
+        "pnpm lint",
+        "make build",
+        "cd e2e && ./run_all.sh"
+      ]
+    },
+    {
+      "id": "deployment",
+      "description": "Local stack, container images, demo deployment, and health checks.",
+      "match": {
+        "prefixes": ["deploy/"],
+        "exact": ["Makefile", "backend/Makefile", "frontend/Makefile", "docker-compose.dev.yml"],
+        "contains": ["docker-compose"],
+        "keywords": ["deploy", "deployment", "docker", "demo", "release", "health"]
+      },
+      "context": [
+        "Makefile",
+        "backend/Makefile",
+        "frontend/Makefile",
+        "deploy/docker-compose.prod.yml",
+        "docker-compose.dev.yml"
+      ],
+      "qa": [
+        "make build",
+        "make demo-health"
+      ]
+    },
+    {
+      "id": "documentation",
+      "description": "Agent instructions, development context, handoff, and repository documentation.",
+      "match": {
+        "prefixes": ["docs/"],
+        "exact": ["AGENTS.md", "CONTEXT.md", "HANDOFF.md", ".codex/context-manifest.json"],
+        "contains": [],
+        "keywords": ["documentation", "docs", "handoff", "context engineering", "agent instructions"]
+      },
+      "context": [
+        "AGENTS.md",
+        "CONTEXT.md",
+        "HANDOFF.example.md",
+        "qa/README.md"
+      ],
+      "qa": [
+        "pnpm context:test",
+        "pnpm context:check",
+        "pnpm lint"
+      ]
+    }
+  ]
+}

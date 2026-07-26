@@ -47,7 +47,6 @@ import {
   type MiniMaxTool,
   type MiniMaxFunctionCall,
 } from '../llm/minimax.client';
-import { todayIsoVn } from './tools/period';
 import { compactToolResult, cutAtSafeBoundary } from './tool-result-compact';
 import { estimateTokensByComponent, formatAttribution } from './token-attribution';
 import { getToolsForRole } from './tool.registry';
@@ -126,33 +125,10 @@ export function computeLatencies(
   };
 }
 
-const STRUCTURED_RESPONSE_HINT = `Kết quả cuối phải là một JSON hợp lệ:
-- text: {"type":"text","content":"...","actions":[{"label":"...","directive":{...}}]} (actions is optional)
-- insight_card: {"type":"insight_card","title":"...","summary":"...","widgets":[...]}
-- tutorial: {"type":"tutorial","title":"...","summary":"...","steps":[...]}
-- start_tour: {"type":"start_tour","tourId":"..."}
-- directive: {"type":"directive","directive":{...}}
-Widget: kpi_grid, bar_chart, line_chart, table, callout hoặc anomaly_list. KPI value phải là số VND đầy đủ; format chỉ vnd|percent|number|days. Không có directive hợp lệ thì bỏ actions.`;
-
-function buildSystemPrompt(ctx: AgentContext, tools: AgentToolDef[], message: string): string {
-  const names = new Set(tools.map((tool) => tool.name));
-  const hasData = [...names].some((name) => name.startsWith('data.') || name === 'report.run');
-  const hasTours = names.has('tours.search');
-  const needsUiDetail = /(mo|vao|them|sua|xoa|nut|form|trang|huong dan|cach lam)/i.test(normalizeForIntent(message));
-
-  return [
-    `Bạn là trợ lý TransTing cho công ty vận tải Việt Nam. Vai trò người dùng: ${ctx.role}. Bot chỉ đọc; người dùng tự lưu mọi thay đổi.`,
-    `Hôm nay: ${todayIsoVn()}. "Tháng này/nay" luôn là kỳ hiện tại. Trả lời tiếng Việt, ngắn và trực tiếp.`,
-    hasData ? '- Mọi số liệu phải lấy từ công cụ. Tổng tiền tài chính dùng report.run; không tự cộng bằng data.aggregate.' : '',
-    hasData ? '- Định danh mơ hồ: data.search trước, data.detail chỉ khi cần thêm trường.' : '',
-    hasTours ? '- Luồng hướng dẫn có sẵn: gọi tours.search rồi dùng start_tour. Câu hỏi thao tác hẹp dùng tutorial ngắn.' : '',
-    needsUiDetail ? '- Cần mở/thao tác: dùng directive thật; không viết đường dẫn. Bot không sửa dữ liệu, chỉ dẫn tới đúng trang/nút.' : '',
-    needsUiDetail ? '- open/prefill chỉ hỗ trợ componentId debt.record-payment; trường hợp khác dùng navigate/focus/highlight.' : '',
-    ctx.currentRouteKey ? `Trang hiện tại: ${ctx.currentRouteKey}.` : '',
-    // No-tool conversation is streamed as prose and needs no JSON burden.
-    tools.length === 0 ? 'Trả lời trực tiếp bằng văn bản, không JSON.' : STRUCTURED_RESPONSE_HINT,
-  ].filter(Boolean).join('\n');
-}
+// System-prompt construction + structured-response contract live in
+// system-prompt.ts so they can be unit-tested in isolation and extended without
+// touching the ReAct loop. See docs/context-engineering/playbook.md §Instructions.
+import { buildSystemPrompt } from './system-prompt.js';
 
 function toolsToMiniMax(tools: AgentToolDef[]): MiniMaxTool[] {
   return tools.map((t) => ({
