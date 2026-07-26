@@ -124,6 +124,22 @@ async function seed() {
     console.log('✅ Suppliers already exist, skipping.');
   }
 
+  // Wave 3 M6.2 — classify the seed suppliers into the type taxonomy.
+  // Idempotent: classifySuppliersByName skips rows that already match.
+  const { classifySuppliersByName, SupplierType } = await import('./services/supplier-types.service');
+  const classifiedCount = await classifySuppliersByName([
+    { namePattern: 'Petrolimex', types: [SupplierType.FUEL] },
+    { namePattern: 'PV Oil', types: [SupplierType.FUEL] },
+    { namePattern: 'Gara Thành Đông', types: [SupplierType.SERVICE] },
+    { namePattern: 'Trạm Đăng kiểm 15-01S', types: [SupplierType.SERVICE] },
+    { namePattern: 'Bảo hiểm Bảo Việt', types: [SupplierType.SERVICE] },
+  ]);
+  if (classifiedCount > 0) {
+    console.log(`✅ Supplier type taxonomy applied (${classifiedCount} updated).`);
+  } else {
+    console.log('✅ Supplier types already classified.');
+  }
+
   const categories = [
     { name: 'Sửa chữa', isRenewable: false, status: 'ACTIVE' },
     { name: 'Phụ tùng', isRenewable: false, status: 'ACTIVE' },

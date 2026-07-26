@@ -176,6 +176,11 @@ export const suppliers = pgTable('suppliers', {
   status: varchar('status', { length: 20 }).notNull().default('ACTIVE'),
   linkedCustomerId: integer('linked_customer_id'), // FK → customers(id), enforced at DB level
   isFuelSupplier: boolean('is_fuel_supplier').default(false).notNull(),
+  // Wave 3 M6.2: supplier-type taxonomy (multi-value). NULL or empty =
+  // uncategorized. The `isFuelSupplier` boolean above is mirrored from
+  // `types.includes('FUEL')` by supplier-types.service.syncFuelFlag, so
+  // existing reads keep working unchanged.
+  types: text('types').array(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
