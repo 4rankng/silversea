@@ -65,7 +65,7 @@ def test_trips(ctx: NepoTestContext, results: TestResults):
         trip_id = resp['data']['id']
         results.pass_('TC-0101', f'Create trip via API → id={trip_id}')
     else:
-        results.fail_('TC-0101', 'Create trip', f'Got: {resp}')
+        results.fail(('TC-0101', 'Create trip', f'Got: {resp}')
         trip_id = resp.get('data', {}).get('id') or get_first_trip_id(api)
         if not trip_id:
             return
@@ -80,7 +80,7 @@ def test_trips(ctx: NepoTestContext, results: TestResults):
     if '/trips/' in page.url and str(trip_id) in page.url:
         results.pass_('TC-0102', 'Trip detail page loads')
     else:
-        results.fail_('TC-0102', 'Trip detail page', f'Got URL: {page.url}')
+        results.fail(('TC-0102', 'Trip detail page', f'Got URL: {page.url}')
     ctx.screenshot(page, 'TC-0102_trip_detail')
     page.close()
 
@@ -96,7 +96,7 @@ def test_trips(ctx: NepoTestContext, results: TestResults):
         cards = page.locator('table tbody tr, [class*="trip"], [class*="card"]').count()
         results.pass_('TC-0103', f'Trip list loads ({cards} elements found)')
     else:
-        results.fail_('TC-0103', 'Trip list', f'Got URL: {page.url}')
+        results.fail(('TC-0103', 'Trip list', f'Got URL: {page.url}')
     ctx.screenshot(page, 'TC-0103_trip_list')
     page.close()
 
@@ -110,7 +110,7 @@ def test_trips(ctx: NepoTestContext, results: TestResults):
     if '/edit' in page.url:
         results.pass_('TC-0104', 'Trip edit page loads')
     else:
-        results.fail_('TC-0104', 'Trip edit', f'Got URL: {page.url}')
+        results.fail(('TC-0104', 'Trip edit', f'Got URL: {page.url}')
     ctx.screenshot(page, 'TC-0104_trip_edit')
     page.close()
 
@@ -121,7 +121,7 @@ def test_trips(ctx: NepoTestContext, results: TestResults):
     if resp.get('status') == 200:
         results.pass_('TC-0105', 'ACCOUNTANT can list trips')
     else:
-        results.fail_('TC-0105', 'ACCOUNTANT trips access', f'Status: {resp.get("status")}')
+        results.fail(('TC-0105', 'ACCOUNTANT trips access', f'Status: {resp.get("status")}')
 
     # ── TC-0106: DRIVER cannot create trip via API ──
     api_driver = ApiClient()
@@ -130,7 +130,7 @@ def test_trips(ctx: NepoTestContext, results: TestResults):
     if resp.get('status') in (403, 401):
         results.pass_('TC-0106', 'DRIVER cannot create trip → 403')
     else:
-        results.fail_('TC-0106', 'DRIVER create trip', f'Expected 403, got {resp.get("status")}')
+        results.fail(('TC-0106', 'DRIVER create trip', f'Expected 403, got {resp.get("status")}')
 
     # ── TC-0107: Trip list page shows trip code ──
     page = ctx.new_page()
@@ -152,7 +152,7 @@ def test_trips(ctx: NepoTestContext, results: TestResults):
     if resp.get('status') == 200:
         results.pass_('TC-0108', 'Health check → 200')
     else:
-        results.fail_('TC-0108', 'Health check', f'Status: {resp.get("status")}')
+        results.fail(('TC-0108', 'Health check', f'Status: {resp.get("status")}')
 
 if __name__ == '__main__':
     sys.exit(run_suite('01-trip-lifecycle', test_trips))

@@ -26,7 +26,7 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
     if '/users' in page.url:
         results.pass_('TC-1001', 'Users page loads for ADMIN')
     else:
-        results.fail_('TC-1001', 'Users page loads', f'URL: {page.url}')
+        results.fail(('TC-1001', 'Users page loads', f'URL: {page.url}')
     ctx.screenshot(page, 'TC-1001_users_page')
     page.close()
 
@@ -43,10 +43,10 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
         if str(user_count) in kpi_text:
             results.pass_('TC-1002', f'KPI cards match API count ({user_count})')
         else:
-            results.fail_('TC-1002', 'KPI cards', f'API total={user_count}, KPI text missing count')
+            results.fail(('TC-1002', 'KPI cards', f'API total={user_count}, KPI text missing count')
         page.close()
     else:
-        results.fail_('TC-1002', 'KPI cards', f'API status: {resp.get("status")}')
+        results.fail(('TC-1002', 'KPI cards', f'API status: {resp.get("status")}')
 
     # TC-1003: Role pill filters visible
     page = ctx.new_page()
@@ -66,7 +66,7 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
     if found:
         results.pass_('TC-1003', f'Role filter pills visible ({len(pill_labels)} pills)')
     else:
-        results.fail_('TC-1003', 'Role filter pills', f'Found labels: {pill_labels}')
+        results.fail(('TC-1003', 'Role filter pills', f'Found labels: {pill_labels}')
     ctx.screenshot(page, 'TC-1003_role_pills')
     page.close()
 
@@ -79,7 +79,7 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
     if assert_element_visible(page, '.toolbar__search input', timeout=3000):
         results.pass_('TC-1004', 'User search input exists')
     else:
-        results.fail_('TC-1004', 'User search input', 'Search input not found')
+        results.fail(('TC-1004', 'User search input', 'Search input not found')
     page.close()
 
     # TC-1005: Create user via API
@@ -89,21 +89,21 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
         created_user = resp.get('data', {})
         results.pass_('TC-1005', f'Create user via API (id={created_user.get("id")})')
     else:
-        results.fail_('TC-1005', 'Create user via API', f'Status: {resp.get("status")}, body: {resp.get("error")}')
+        results.fail(('TC-1005', 'Create user via API', f'Status: {resp.get("status")}, body: {resp.get("error")}')
 
     # TC-1006: Create user missing password
     resp = api.post('/api/auth/users', {'username': 'no_pwd_user', 'role': 'DRIVER'})
     if resp.get('status') in (400, 422):
         results.pass_('TC-1006', 'Create user missing password → validation error')
     else:
-        results.fail_('TC-1006', 'Create user missing password', f'Expected 400, got {resp.get("status")}')
+        results.fail(('TC-1006', 'Create user missing password', f'Expected 400, got {resp.get("status")}')
 
     # TC-1007: Create user short password
     resp = api.post('/api/auth/users', {'username': 'short_pwd', 'password': 'abc', 'role': 'DRIVER'})
     if resp.get('status') in (400, 422):
         results.pass_('TC-1007', 'Create user short password → validation error')
     else:
-        results.fail_('TC-1007', 'Create user short password', f'Expected 400, got {resp.get("status")}')
+        results.fail(('TC-1007', 'Create user short password', f'Expected 400, got {resp.get("status")}')
 
     # TC-1008: Edit user change role
     if created_user and created_user.get('id'):
@@ -112,7 +112,7 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
         if resp.get('status') == 200:
             results.pass_('TC-1008', 'Edit user change role → MANAGER')
         else:
-            results.fail_('TC-1008', 'Edit user role', f'Status: {resp.get("status")}')
+            results.fail(('TC-1008', 'Edit user role', f'Status: {resp.get("status")}')
     else:
         results.skip('TC-1008', 'Edit user role', 'No test user created from TC-1005')
 
@@ -123,7 +123,7 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
         if resp.get('status') == 200:
             results.pass_('TC-1009', 'Edit user change status → INACTIVE')
         else:
-            results.fail_('TC-1009', 'Edit user status', f'Status: {resp.get("status")}')
+            results.fail(('TC-1009', 'Edit user status', f'Status: {resp.get("status")}')
     else:
         results.skip('TC-1009', 'Edit user status', 'No test user created from TC-1005')
 
@@ -134,7 +134,7 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
         if resp.get('status') == 200:
             results.pass_('TC-1010', f'Delete user via API (id={uid})')
         else:
-            results.fail_('TC-1010', 'Delete user', f'Status: {resp.get("status")}')
+            results.fail(('TC-1010', 'Delete user', f'Status: {resp.get("status")}')
     else:
         results.skip('TC-1010', 'Delete user', 'No test user created from TC-1005')
 
@@ -147,7 +147,7 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
             if resp.get('status') in (400, 403):
                 results.pass_('TC-1011', 'Cannot delete self → blocked')
             else:
-                results.fail_('TC-1011', 'Cannot delete self', f'Expected 400, got {resp.get("status")}')
+                results.fail(('TC-1011', 'Cannot delete self', f'Expected 400, got {resp.get("status")}')
         else:
             results.skip('TC-1011', 'Cannot delete self', 'Could not determine current user ID')
     else:
@@ -163,7 +163,7 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
     if len(colored_pills) > 0:
         results.pass_('TC-1012', f'Role pill colors visible ({len(colored_pills)} colored pills)')
     else:
-        results.fail_('TC-1012', 'Role pill colors', 'No colored role pills found')
+        results.fail(('TC-1012', 'Role pill colors', 'No colored role pills found')
     ctx.screenshot(page, 'TC-1012_role_pill_colors')
     page.close()
 
@@ -179,7 +179,7 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
     if '/users' in page.url and resp.get('status') == 200:
         results.pass_('TC-1013', 'MANAGER can view /users')
     else:
-        results.fail_('TC-1013', 'MANAGER users access', f'URL: {page.url}, API status: {resp.get("status")}')
+        results.fail(('TC-1013', 'MANAGER users access', f'URL: {page.url}, API status: {resp.get("status")}')
     ctx.screenshot(page, 'TC-1013_manager_users')
     page.close()
 
@@ -197,7 +197,7 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
     elif '/users' in page.url:
         results.pass_('TC-1014', 'ACCOUNTANT can view /users page')
     else:
-        results.fail_('TC-1014', 'ACCOUNTANT users', f'API: {resp.get("status")}, URL: {page.url}')
+        results.fail(('TC-1014', 'ACCOUNTANT users', f'API: {resp.get("status")}, URL: {page.url}')
     page.close()
 
     # TC-1015: DRIVER blocked from /users
@@ -209,7 +209,7 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
     if '/my-trips' in page.url:
         results.pass_('TC-1015', 'DRIVER → /users → redirect /my-trips')
     else:
-        results.fail_('TC-1015', 'DRIVER blocked from /users', f'Expected /my-trips, got {page.url}')
+        results.fail(('TC-1015', 'DRIVER blocked from /users', f'Expected /my-trips, got {page.url}')
     page.close()
 
     # TC-1016: Mobile card view
@@ -223,7 +223,7 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
         ctx.screenshot(page, 'TC-1016_mobile_users')
         results.pass_('TC-1016', f'Mobile users page renders ({len(mobile_cards)} mobile elements)')
     else:
-        results.fail_('TC-1016', 'Mobile card view', f'URL: {page.url}')
+        results.fail(('TC-1016', 'Mobile card view', f'URL: {page.url}')
     page.close()
 
     # TC-1017: Duplicate user error
@@ -235,7 +235,7 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
         if resp2.get('status') == 409:
             results.pass_('TC-1017', 'Duplicate username → 409')
         else:
-            results.fail_('TC-1017', 'Duplicate username', f'Expected 409, got {resp2.get("status")}')
+            results.fail(('TC-1017', 'Duplicate username', f'Expected 409, got {resp2.get("status")}')
         if dup_id:
             api.delete(f'/api/auth/users/{dup_id}')
     else:
@@ -252,7 +252,7 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
     if '/audit-logs' in page.url:
         results.pass_('TC-1020', 'Audit logs page loads for ADMIN')
     else:
-        results.fail_('TC-1020', 'Audit logs page', f'URL: {page.url}')
+        results.fail(('TC-1020', 'Audit logs page', f'URL: {page.url}')
     ctx.screenshot(page, 'TC-1020_audit_logs')
     page.close()
 
@@ -262,21 +262,21 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
         total = resp.get('data', {}).get('total', 0)
         results.pass_('TC-1021', f'Audit log API returns 200 ({total} entries)')
     else:
-        results.fail_('TC-1021', 'Audit log API', f'Status: {resp.get("status")}')
+        results.fail(('TC-1021', 'Audit log API', f'Status: {resp.get("status")}')
 
     # TC-1022: Filter audit by category
     resp = api.get('/api/audit-logs?category=trip')
     if resp.get('status') == 200:
         results.pass_('TC-1022', 'Filter audit by category=trip returns 200')
     else:
-        results.fail_('TC-1022', 'Filter audit category', f'Status: {resp.get("status")}')
+        results.fail(('TC-1022', 'Filter audit category', f'Status: {resp.get("status")}')
 
     # TC-1023: Search audit log
     resp = api.get('/api/audit-logs?search=login')
     if resp.get('status') == 200:
         results.pass_('TC-1023', 'Search audit logs (search=login) returns 200')
     else:
-        results.fail_('TC-1023', 'Search audit log', f'Status: {resp.get("status")}')
+        results.fail(('TC-1023', 'Search audit log', f'Status: {resp.get("status")}')
 
     # TC-1024: Audit pagination
     resp = api.get('/api/audit-logs?page=1&limit=10')
@@ -285,7 +285,7 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
         items = data.get('items', [])
         results.pass_('TC-1024', f'Audit pagination returns 200 ({len(items)} items)')
     else:
-        results.fail_('TC-1024', 'Audit pagination', f'Status: {resp.get("status")}')
+        results.fail(('TC-1024', 'Audit pagination', f'Status: {resp.get("status")}')
 
     # TC-1025: Vietnamese action labels
     page = ctx.new_page()
@@ -314,7 +314,7 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
     if '/audit-logs' in page.url and resp.get('status') == 200:
         results.pass_('TC-1026', 'MANAGER can view audit logs')
     else:
-        results.fail_('TC-1026', 'MANAGER audit logs', f'URL: {page.url}, API: {resp.get("status")}')
+        results.fail(('TC-1026', 'MANAGER audit logs', f'URL: {page.url}, API: {resp.get("status")}')
     page.close()
 
     # TC-1027: ACCOUNTANT view audit logs
@@ -329,7 +329,7 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
     if '/audit-logs' in page.url and resp.get('status') == 200:
         results.pass_('TC-1027', 'ACCOUNTANT can view audit logs')
     else:
-        results.fail_('TC-1027', 'ACCOUNTANT audit logs', f'URL: {page.url}, API: {resp.get("status")}')
+        results.fail(('TC-1027', 'ACCOUNTANT audit logs', f'URL: {page.url}, API: {resp.get("status")}')
     page.close()
 
     # TC-1028: Audit sorted newest first
@@ -342,11 +342,11 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
             if ts_first >= ts_second:
                 results.pass_('TC-1028', 'Audit logs sorted newest first')
             else:
-                results.fail_('TC-1028', 'Audit sort order', f'{ts_first} < {ts_second}')
+                results.fail(('TC-1028', 'Audit sort order', f'{ts_first} < {ts_second}')
         else:
             results.skip('TC-1028', 'Audit sort order', f'Only {len(items)} entries, need >=2')
     else:
-        results.fail_('TC-1028', 'Audit sort order', f'API status: {resp.get("status")}')
+        results.fail(('TC-1028', 'Audit sort order', f'API status: {resp.get("status")}')
 
     # TC-1029: DRIVER blocked from audit logs
     page = ctx.new_page()
@@ -357,7 +357,7 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
     if '/my-trips' in page.url:
         results.pass_('TC-1029', 'DRIVER → /audit-logs → redirect /my-trips')
     else:
-        results.fail_('TC-1029', 'DRIVER audit logs', f'Expected /my-trips, got {page.url}')
+        results.fail(('TC-1029', 'DRIVER audit logs', f'Expected /my-trips, got {page.url}')
     page.close()
 
     # TC-1030: Audit log user column shows avatar/name

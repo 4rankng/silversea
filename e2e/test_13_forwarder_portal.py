@@ -35,7 +35,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         else:
             results.pass_('TC-1301', f'FORWARDER portal loads (API status: {resp.get("status")})')
     else:
-        results.fail_('TC-1301', 'FORWARDER portal access', f'URL: {page.url}')
+        results.fail(('TC-1301', 'FORWARDER portal access', f'URL: {page.url}')
     ctx.screenshot(page, 'TC-1301_forwarder_portal')
     page.close()
 
@@ -49,7 +49,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
     if '/my-forwarder-trips' not in page.url:
         results.pass_('TC-1302', 'ADMIN redirected from /my-forwarder-trips')
     else:
-        results.fail_('TC-1302', 'ADMIN forwarder portal UI', f'URL: {page.url}')
+        results.fail(('TC-1302', 'ADMIN forwarder portal UI', f'URL: {page.url}')
     page.close()
 
     # TC-1303: DRIVER blocked from forwarder portal
@@ -62,7 +62,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
     if '/my-forwarder-trips' not in page.url:
         results.pass_('TC-1303', 'DRIVER redirected from /my-forwarder-trips')
     else:
-        results.fail_('TC-1303', 'DRIVER forwarder portal', f'URL: {page.url}')
+        results.fail(('TC-1303', 'DRIVER forwarder portal', f'URL: {page.url}')
     page.close()
 
     # TC-1304: FORWARDER blocked from admin pages
@@ -75,7 +75,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
     if '/trips' not in page.url or '/my-forwarder-trips' in page.url:
         results.pass_('TC-1304', 'FORWARDER redirected from /trips')
     else:
-        results.fail_('TC-1304', 'FORWARDER admin pages', f'URL: {page.url}')
+        results.fail(('TC-1304', 'FORWARDER admin pages', f'URL: {page.url}')
     page.close()
 
     # TC-1305: FORWARDER blocked from admin API
@@ -83,7 +83,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
     if resp.get('status') in (403, 401):
         results.pass_('TC-1305', 'FORWARDER GET /api/trips → 403')
     else:
-        results.fail_('TC-1305', 'FORWARDER admin API', f'Expected 403, got {resp.get("status")}')
+        results.fail(('TC-1305', 'FORWARDER admin API', f'Expected 403, got {resp.get("status")}')
 
     # TC-1306: Non-FORWARDER calls forwarder API
     api_admin = ApiClient()
@@ -92,7 +92,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
     if resp.get('status') in (403, 401):
         results.pass_('TC-1306', 'ADMIN GET /api/forwarder/me/trips → 403')
     else:
-        results.fail_('TC-1306', 'Non-FORWARDER forwarder API', f'Expected 403, got {resp.get("status")}')
+        results.fail(('TC-1306', 'Non-FORWARDER forwarder API', f'Expected 403, got {resp.get("status")}')
 
     # TC-1307: Expired/invalid token
     api_bad = ApiClient()
@@ -101,7 +101,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
     if resp.get('status') in (401, 403):
         results.pass_('TC-1307', 'Invalid token → 401')
     else:
-        results.fail_('TC-1307', 'Invalid token', f'Expected 401, got {resp.get("status")}')
+        results.fail(('TC-1307', 'Invalid token', f'Expected 401, got {resp.get("status")}')
 
     # TC-1308: FORWARDER sidebar shows limited menus
     page = ctx.new_page()
@@ -192,7 +192,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
             results.pass_('TC-1313', 'Trip API response has no financial fields')
         else:
             found = [k for k in FINANCIAL_KEYS if k in first_trip]
-            results.fail_('TC-1313', 'No financial fields', f'Found keys: {found}')
+            results.fail(('TC-1313', 'No financial fields', f'Found keys: {found}')
     else:
         results.skip('TC-1313', 'No financial fields check', 'No trips returned')
 
@@ -241,7 +241,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         if str(trip_id) in page.url:
             results.pass_('TC-1320', f'Trip detail page loads (trip {trip_id})')
         else:
-            results.fail_('TC-1320', 'Trip detail page', f'URL: {page.url}')
+            results.fail(('TC-1320', 'Trip detail page', f'URL: {page.url}')
         ctx.screenshot(page, 'TC-1320_trip_detail')
         page.close()
     else:
@@ -252,7 +252,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
     if resp.get('status') in (404, 403):
         results.pass_('TC-1321', 'Non-existent trip → 404')
     else:
-        results.fail_('TC-1321', 'Non-existent trip', f'Expected 404, got {resp.get("status")}')
+        results.fail(('TC-1321', 'Non-existent trip', f'Expected 404, got {resp.get("status")}')
 
     # TC-1322: Back button
     if trip_id:
@@ -362,7 +362,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
             created_container_ids.append(ctn_id)
             results.pass_('TC-1330', f'Add container → id={ctn_id}')
         else:
-            results.fail_('TC-1330', 'Add container', f'Status: {resp.get("status")}, Body: {resp}')
+            results.fail(('TC-1330', 'Add container', f'Status: {resp.get("status")}, Body: {resp}')
 
         # TC-1331: Add container no seal
         resp = api_fwd.post(f'/api/forwarder/me/trips/{trip_id}/containers', {
@@ -374,7 +374,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
             created_container_ids.append(ctn_id)
             results.pass_('TC-1331', 'Add container without seal → id=%s' % ctn_id)
         else:
-            results.fail_('TC-1331', 'Add container no seal', f'Status: {resp.get("status")}, Body: {resp}')
+            results.fail(('TC-1331', 'Add container no seal', f'Status: {resp.get("status")}, Body: {resp}')
 
         # TC-1332: Add container missing number
         resp = api_fwd.post(f'/api/forwarder/me/trips/{trip_id}/containers', {
@@ -383,7 +383,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         if resp.get('status') in (400, 422):
             results.pass_('TC-1332', 'Missing containerNumber → 400')
         else:
-            results.fail_('TC-1332', 'Missing container number', f'Expected 400, got {resp.get("status")}')
+            results.fail(('TC-1332', 'Missing container number', f'Expected 400, got {resp.get("status")}')
 
         # TC-1333: Container list updates
         detail_resp = api_fwd.get(f'/api/forwarder/me/trips/{trip_id}')
@@ -396,7 +396,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
             else:
                 results.pass_('TC-1333', f'Trip detail loaded ({len(containers)} containers, may be nested)')
         else:
-            results.fail_('TC-1333', 'Container list update', f'Status: {detail_resp.get("status")}')
+            results.fail(('TC-1333', 'Container list update', f'Status: {detail_resp.get("status")}')
 
         # TC-1334: Multiple containers
         if len(created_container_ids) >= 2:
@@ -473,7 +473,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
             created_expense_ids.append(exp_id)
             results.pass_('TC-1340', f'Create LIFTING expense → id={exp_id}')
         else:
-            results.fail_('TC-1340', 'Create LIFTING expense', f'Status: {resp.get("status")}, Body: {resp}')
+            results.fail(('TC-1340', 'Create LIFTING expense', f'Status: {resp.get("status")}, Body: {resp}')
 
         # TC-1341: Create CUSTOMS expense
         resp = api_fwd.post('/api/forwarder/me/expenses', {
@@ -486,7 +486,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
             created_expense_ids.append(exp_id)
             results.pass_('TC-1341', f'Create CUSTOMS expense → id={exp_id}')
         else:
-            results.fail_('TC-1341', 'Create CUSTOMS expense', f'Status: {resp.get("status")}, Body: {resp}')
+            results.fail(('TC-1341', 'Create CUSTOMS expense', f'Status: {resp.get("status")}, Body: {resp}')
 
         # TC-1342: Create expense with note
         resp = api_fwd.post('/api/forwarder/me/expenses', {
@@ -500,7 +500,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
             created_expense_ids.append(exp_id)
             results.pass_('TC-1342', f'Create expense with note → id={exp_id}')
         else:
-            results.fail_('TC-1342', 'Create expense with note', f'Status: {resp.get("status")}, Body: {resp}')
+            results.fail(('TC-1342', 'Create expense with note', f'Status: {resp.get("status")}, Body: {resp}')
 
         # TC-1343: Invalid amount (0)
         resp = api_fwd.post('/api/forwarder/me/expenses', {
@@ -511,7 +511,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         if resp.get('status') in (400, 422):
             results.pass_('TC-1343', 'Amount 0 → 400')
         else:
-            results.fail_('TC-1343', 'Invalid amount 0', f'Expected 400, got {resp.get("status")}')
+            results.fail(('TC-1343', 'Invalid amount 0', f'Expected 400, got {resp.get("status")}')
 
         # TC-1344: Invalid amount (negative)
         resp = api_fwd.post('/api/forwarder/me/expenses', {
@@ -522,7 +522,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         if resp.get('status') in (400, 422):
             results.pass_('TC-1344', 'Negative amount → 400')
         else:
-            results.fail_('TC-1344', 'Invalid negative amount', f'Expected 400, got {resp.get("status")}')
+            results.fail(('TC-1344', 'Invalid negative amount', f'Expected 400, got {resp.get("status")}')
 
         # TC-1345: Multiple different-type expenses
         multi_types = [
@@ -587,14 +587,14 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         if resp.get('status') in (200, 204):
             results.pass_('TC-1350', f'Delete own expense {delete_expense_id} → 200')
         else:
-            results.fail_('TC-1350', 'Delete own expense', f'Expected 200, got {resp.get("status")}')
+            results.fail(('TC-1350', 'Delete own expense', f'Expected 200, got {resp.get("status")}')
 
         # TC-1351: Delete non-existent expense
         resp = api_fwd.delete('/api/forwarder/me/expenses/999999')
         if resp.get('status') in (404, 410):
             results.pass_('TC-1351', 'Delete non-existent expense → 404')
         else:
-            results.fail_('TC-1351', 'Delete non-existent', f'Expected 404, got {resp.get("status")}')
+            results.fail(('TC-1351', 'Delete non-existent', f'Expected 404, got {resp.get("status")}')
 
         # TC-1352: Delete updates list
         if trip_id:
@@ -620,7 +620,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         if resp.get('status') in (404, 410):
             results.pass_('TC-1354', 'Delete already-deleted expense → 404')
         else:
-            results.fail_('TC-1354', 'Delete already deleted', f'Expected 404, got {resp.get("status")}')
+            results.fail(('TC-1354', 'Delete already deleted', f'Expected 404, got {resp.get("status")}')
 
     # ── Section 7: Admin Expense Views (TC-1360 to TC-1364) ──
 
@@ -629,7 +629,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
     if resp.get('status') == 200:
         results.pass_('TC-1360', 'ADMIN views forwarder expenses → 200')
     else:
-        results.fail_('TC-1360', 'ADMIN forwarder expenses', f'Expected 200, got {resp.get("status")}')
+        results.fail(('TC-1360', 'ADMIN forwarder expenses', f'Expected 200, got {resp.get("status")}')
 
     # TC-1361: Filter by trip
     if trip_id:
@@ -637,27 +637,27 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         if resp.get('status') == 200:
             results.pass_('TC-1361', f'Filter by tripId={trip_id} → 200')
         else:
-            results.fail_('TC-1361', 'Filter by trip', f'Expected 200, got {resp.get("status")}')
+            results.fail(('TC-1361', 'Filter by trip', f'Expected 200, got {resp.get("status")}')
     else:
         resp = api_admin.get('/api/forwarder-expenses?tripId=1')
         if resp.get('status') == 200:
             results.pass_('TC-1361', 'Filter by tripId → 200')
         else:
-            results.fail_('TC-1361', 'Filter by trip', f'Expected 200, got {resp.get("status")}')
+            results.fail(('TC-1361', 'Filter by trip', f'Expected 200, got {resp.get("status")}')
 
     # TC-1362: Filter by type
     resp = api_admin.get('/api/forwarder-expenses?expenseType=LIFTING')
     if resp.get('status') == 200:
         results.pass_('TC-1362', 'Filter by expenseType=LIFTING → 200')
     else:
-        results.fail_('TC-1362', 'Filter by type', f'Expected 200, got {resp.get("status")}')
+        results.fail(('TC-1362', 'Filter by type', f'Expected 200, got {resp.get("status")}')
 
     # TC-1363: FORWARDER blocked from admin expense API
     resp = api_fwd.get('/api/forwarder-expenses')
     if resp.get('status') in (403, 401):
         results.pass_('TC-1363', 'FORWARDER GET /api/forwarder-expenses → 403')
     else:
-        results.fail_('TC-1363', 'FORWARDER admin expense API', f'Expected 403, got {resp.get("status")}')
+        results.fail(('TC-1363', 'FORWARDER admin expense API', f'Expected 403, got {resp.get("status")}')
 
     # TC-1364: MANAGER views forwarder expenses
     api_mgr = ApiClient()
@@ -666,7 +666,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
     if resp.get('status') == 200:
         results.pass_('TC-1364', 'MANAGER views forwarder expenses → 200')
     else:
-        results.fail_('TC-1364', 'MANAGER forwarder expenses', f'Expected 200, got {resp.get("status")}')
+        results.fail(('TC-1364', 'MANAGER forwarder expenses', f'Expected 200, got {resp.get("status")}')
 
     # ── Section 8: Mobile (TC-1370 to TC-1373) ──
     mobile_vp = {'width': 375, 'height': 812}
