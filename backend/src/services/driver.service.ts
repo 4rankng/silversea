@@ -2,7 +2,7 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { eq, ne, and, isNull, desc, asc, gte, lte, sql, inArray } from 'drizzle-orm';
 import { ApiError } from '../errors';
-import { computeVehicleAlerts, type VehicleAlert, round2dp, TxnType, type DriverProgressEventType } from '@tingting/shared';
+import { computeVehicleAlerts, type VehicleAlert, round2dp, TxnType, type DriverProgressEventType, type DriverIncidentalCostType } from '@tingting/shared';
 
 import { computeSalary } from './attendance.service';
 import { LedgerService } from './ledger.service';
@@ -548,4 +548,87 @@ export async function listDriverProgress(tripId: number, driverId: number): Prom
     .where(eq(s.driverProgressEvents.tripId, tripId))
     .orderBy(asc(s.driverProgressEvents.occurredAt));
   return rows as DriverProgressEvent[];
+}
+
+// ─── M8.4 slice 3: driver incidental costs ───────────────────────────────────
+//
+// Driver-reported out-of-pocket expenses (per-diem, lift fee, parking, toll,
+// fuel, other) against a trip. Distinct from `tripExpenses` (forwarder-scoped,
+// buy/sell, supplier, approval workflow) — this is a lightweight driver-only
+// record that feeds salary/settlement reconciliation. Idempotent create
+// (reuses `runIdempotent` + `idempotency_keys` from M10.1) so the offline-
+// queue replay doesn't duplicate (PRD M08-04-03).
+//
+// LOCKED trips reject new incidental costs — unlike progress events (append-
+// only audit logs), costs affect financials, so lock = immutable.
+
+export interface DriverIncidentalCost {
+  id: number;
+  tripId: number;
+  driverId: number;
+  costType: DriverIncidentalCostType;
+  amount: string;
+  occurredAt: string;
+  note: string | null;
+  recordedBy: number | null;
+  createdAt: Date;
+}
+
+/**
+ * Record a driver incidental cost. Server-side idempotent: same key + same
+ * body → 201 first / 200 replay (no duplicate); same key + different body →
+ * 409 (Q23). LOCKED trips reject (409) — costs affect financials.
+ */
+export async function recordIncidentalCost(
+  tripId: number,
+  driverId: number,
+  input: { costType: DriverIncidentalCostType; amount: number; occurredAt: string; note?: string },
+  recordedBy: number,
+  idempotencyKey: string | undefined,
+): Promise<{ cost: DriverIncidentalCost; replayed: boolean }> {
+  // Ownership check (reuses the progress-event helper).
+  await assertTripOwnedByDriver(tripId, driverId);
+
+  // LOCKED trips reject — costs affect financials (unlike progress events).
+  const [trip] = await db.select({ status: s.trips.status })
+    .from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+  if (trip?.status === 'LOCKED') {
+    throw new ApiError(409, 'Không thể thêm chi phí cho chuyến đã chốt');
+  }
+
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_INCIDENTAL_COST,
+    idempotencyKey,
+    payload: { tripId, driverId, ...input },
+    createdBy: recordedBy,
+    entityType: 'driver_incidental_cost',
+    create: async () => {
+      const [row] = await db.insert(s.driverIncidentalCosts).values({
+        tripId,
+        driverId,
+        costType: input.costType,
+        amount: String(input.amount),
+        occurredAt: input.occurredAt,
+        note: input.note ?? null,
+        recordedBy,
+      }).returning();
+      return row as DriverIncidentalCost;
+    },
+    load: async (id) => {
+      const [row] = await db.select().from(s.driverIncidentalCosts)
+        .where(eq(s.driverIncidentalCosts.id, id)).limit(1);
+      if (!row) throw new ApiError(404, 'Chi phí không tồn tại');
+      return row as DriverIncidentalCost;
+    },
+  });
+  return { cost: result, replayed };
+}
+
+/** List a trip's incidental costs, newest-first. */
+export async function listIncidentalCosts(tripId: number, driverId: number): Promise<DriverIncidentalCost[]> {
+  await assertTripOwnedByDriver(tripId, driverId);
+  const rows = await db.select().from(s.driverIncidentalCosts)
+    .where(eq(s.driverIncidentalCosts.tripId, tripId))
+    .orderBy(desc(s.driverIncidentalCosts.createdAt));
+  return rows as DriverIncidentalCost[];
 }

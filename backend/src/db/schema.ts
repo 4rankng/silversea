@@ -2015,3 +2015,35 @@ export const driverProgressEvents = pgTable('driver_progress_events', {
   index('driver_progress_events_trip_idx').on(table.tripId, table.occurredAt),
   index('driver_progress_events_driver_idx').on(table.driverId),
 ]);
+
+// M8.4 slice 3 — driver incidental costs. Driver-reported out-of-pocket
+// expenses (per-diem, lift fee, parking, toll, fuel, other) against a trip.
+// Distinct from `tripExpenses` (forwarder-scoped, buy/sell, supplier,
+// approval workflow) — this is a lightweight driver-only record that feeds
+// salary/settlement reconciliation. Idempotent create (reuses
+// `idempotency_keys`) so the offline-queue replay doesn't duplicate.
+//
+// LOCKED trips reject new incidental costs — unlike progress events (which
+// are append-only audit logs), costs affect financials, so lock = immutable.
+export const driverIncidentalCostTypeEnum = pgEnum('driver_incidental_cost_type', [
+  'PER_DIEM', 'LIFT_FEE', 'PARKING', 'TOLL', 'FUEL', 'OTHER',
+]);
+
+export const driverIncidentalCosts = pgTable('driver_incidental_costs', {
+  id: serial('id').primaryKey(),
+  tripId: integer('trip_id')
+    .references(() => trips.id, { onDelete: 'cascade' }).notNull(),
+  driverId: integer('driver_id')
+    .references(() => drivers.id, { onDelete: 'cascade' }).notNull(),
+  costType: driverIncidentalCostTypeEnum('cost_type').notNull(),
+  // VND amount — integer, no decimals (matches tripExpenses.buyAmount convention).
+  amount: numeric('amount', { precision: 15, scale: 0 }).notNull(),
+  // The date the cost was incurred (driver-reported). Distinct from createdAt.
+  occurredAt: date('occurred_at').notNull(),
+  note: text('note'),
+  recordedBy: integer('recorded_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  index('driver_incidental_costs_trip_idx').on(table.tripId, table.occurredAt),
+  index('driver_incidental_costs_driver_idx').on(table.driverId),
+]);
