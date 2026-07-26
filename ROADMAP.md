@@ -494,7 +494,8 @@ biggest new surface area and the biggest customer-facing differentiator.
       <!-- autonomous-sdlc:completed task=wave3-m64-debt-offsets-verify -->
 - [x] M7.3: salary period-close service + endpoint; idempotent; single ledger entry; lock.
       <!-- autonomous-sdlc:completed task=wave3-m73-salary-period-close -->
-- [ ] M4.6: invoice-required categories enforce full invoice data before approval.
+- [x] M4.6: invoice-required categories enforce full invoice data before approval.
+      <!-- autonomous-sdlc:completed task=wave3-m46-invoice-required -->
 - [ ] M4.7: no-invoice items permitted only for allowed categories; over-threshold routes
       to approval; report separates and traces to approver.
 - [ ] Reconciliation tests: AR sum = ledger sum; AP sum = ledger sum; salary close posts once.

@@ -5,6 +5,7 @@ import { db } from '../db';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import { assertFuelReconClear } from './fuel-recon-guard.service';
+import { assertInvoiceRequiredForExpense } from './invoice-required.service';
 
 export type ApprovableTable = 'trip_expenses' | 'debt_offsets';
 export type ApprovalTransition = 'APPROVED' | 'REJECTED';
@@ -57,6 +58,10 @@ export async function transitionApproval(
   // checked. Rejections, debt_offsets, and non-fuel expenses bypass it.
   if (opts.table === 'trip_expenses' && opts.toStatus === 'APPROVED') {
     await assertFuelReconClear(opts.id, tx);
+    // M4.6: invoice-required enforcement. When the expense's
+    // forwarderExpenseType has requiresInvoice=true, the expense must carry
+    // both invoiceNumber and invoiceDate before approval. Rejections bypass.
+    await assertInvoiceRequiredForExpense(opts.id, tx);
   }
 
   // trip_expenses has updatedAt; debt_offsets does not
