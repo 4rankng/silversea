@@ -636,6 +636,12 @@ biggest new surface area and the biggest customer-facing differentiator.
       (13/13 pass) confirm the pipeline + ownership guards.
 - [ ] M8.6: driver payslip view — own issued periods only; adjusted period shows both
       versions + reason; line links to basis.
+      <!-- autonomous-sdlc:in-progress task=wave4-m86-payslip-frontend -->
+      Decomposed into independently testable slices (scope unchanged):
+      - slice 1 — backend `getDriverPayslipPeriods` service + route (lists
+        the driver's issued salary periods with per-period earnings summary).
+        <!-- autonomous-sdlc:completed task=wave4-m86-payslip-backend -->
+      - slice 2 — frontend payslip list page + per-line link to earnings detail.
 - [ ] M8.1: mobile UX pass across driver + clerk + forwarder pages — touch targets, font
       scaling, slow-network states (target device matrix only).
 - [ ] M11.2: per-truck P&L report; truck-specific costs only; shared costs in separate

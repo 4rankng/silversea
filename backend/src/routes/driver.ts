@@ -14,6 +14,7 @@ import {
   listDriverProgress,
   recordIncidentalCost,
   listIncidentalCosts,
+  getDriverPayslipPeriods,
 } from '../services/driver.service';
 import { createTripContainer, listTripContainers, updateTripContainer, batchUpsertContainerSeals } from '../services/forwarder.service';
 import { deleteTripPhotosByType, type TripPhotoType } from './upload';
@@ -97,6 +98,14 @@ router.get('/trips/:tripId/incidental-costs', asyncHandler(async (req: Request, 
   if (!Number.isInteger(tripId) || tripId <= 0) throw new ApiError(400, 'ID chuyến đi không hợp lệ');
   const driver = await getDriverByUserId(getUser(req).userId);
   const items = await listIncidentalCosts(tripId, driver.id);
+  res.json({ items });
+}));
+
+// M8.6 — driver payslip periods (own issued salary periods with earnings).
+// Read-only; RBAC inherits the driver_portal mount (DRIVER read).
+router.get('/payslips', asyncHandler(async (req: Request, res: Response) => {
+  const driver = await getDriverByUserId(getUser(req).userId);
+  const items = await getDriverPayslipPeriods(driver.id);
   res.json({ items });
 }));
 

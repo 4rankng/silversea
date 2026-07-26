@@ -173,6 +173,8 @@ export const DRIVER = {
   TWO_ORDERS: '/driver/me/two-orders',
   /** M8.4 — driver progress-event log (append-only timeline). */
   PROGRESS: (tripId: number) => `/driver/me/trips/${tripId}/progress`,
+  /** M8.6 — driver payslip periods (issued salary periods with earnings). */
+  PAYSLIPS: '/driver/me/payslips',
 } as const;
 
 // ─── Forwarder portal ───────────────────────────────────────────────────────────
