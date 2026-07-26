@@ -25,7 +25,7 @@
  */
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { and, desc, eq, gte, lte, or, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import { Role } from '@tingting/shared';
@@ -117,4 +117,188 @@ export async function assertNoInvoiceDisbursementAllowed(
       );
     }
   }
+}
+
+// ─── M4.7 slice 2: no-invoice disbursement report ────────────────────────────
+
+export interface NoInvoiceDisbursementItem {
+  expenseId: number;
+  tripId: number;
+  tripCode: string | null;
+  expenseTypeCode: string;
+  expenseTypeName: string;
+  buyAmount: number;
+  note: string | null;
+  supplierId: number | null;
+  supplierName: string | null;
+  approverId: number | null;
+  approverName: string | null;
+  approvedAt: string | null;
+  overThreshold: boolean;
+  createdAt: string;
+}
+
+export interface NoInvoiceDisbursementReport {
+  from: string;
+  to: string;
+  items: NoInvoiceDisbursementItem[];
+  totals: {
+    count: number;
+    sumBuyAmount: number;
+    overThresholdCount: number;
+    overThresholdSum: number;
+  };
+}
+
+/**
+ * M04-07-01 report: "Báo cáo tách riêng khoản không có hóa đơn và vẫn
+ * truy ngược được người duyệt".
+ *
+ * Lists APPROVED trip_expenses where invoiceNumber IS NULL or empty
+ * (the no-invoice set), joined with:
+ *   - forwarderExpenseTypes (type name)
+ *   - trips (trip code)
+ *   - suppliers (supplier name)
+ *   - audit_logs (approver attribution — latest TRIP_EXPENSE_APPROVED
+ *     entry for the expenseId)
+ *
+ * Filters: date range on the audit timestamp (approval moment),
+   optional approverId, optional categoryCode.
+ */
+export async function getNoInvoiceDisbursementReport(opts: {
+  from: string;
+  to: string;
+  approverId?: number;
+  categoryCode?: string;
+} = { from: '1970-01-01', to: '2999-12-31' }): Promise<NoInvoiceDisbursementReport> {
+  // 1. Fetch APPROVED no-invoice expenses in the date range.
+  //    "No-invoice" = invoiceNumber IS NULL or trim(invoiceNumber) = ''.
+  //    Date axis: expense.createdAt (the audit timestamp join happens next).
+  const expenseRows = await db.select({
+    id: s.tripExpenses.id,
+    tripId: s.tripExpenses.tripId,
+    expenseType: s.tripExpenses.expenseType,
+    buyAmount: s.tripExpenses.buyAmount,
+    note: s.tripExpenses.note,
+    supplierId: s.tripExpenses.supplierId,
+    invoiceNumber: s.tripExpenses.invoiceNumber,
+    createdAt: s.tripExpenses.createdAt,
+  })
+    .from(s.tripExpenses)
+    .where(and(
+      eq(s.tripExpenses.approvalStatus, 'APPROVED'),
+      or(
+        sql`${s.tripExpenses.invoiceNumber} IS NULL`,
+        sql`btrim(${s.tripExpenses.invoiceNumber}) = ''`,
+      ),
+      gte(sql`DATE(${s.tripExpenses.createdAt})`, opts.from),
+      lte(sql`DATE(${s.tripExpenses.createdAt})`, opts.to),
+      opts.categoryCode ? eq(s.tripExpenses.expenseType, opts.categoryCode) : sql`TRUE`,
+    ));
+
+  if (expenseRows.length === 0) {
+    return {
+      from: opts.from, to: opts.to, items: [],
+      totals: { count: 0, sumBuyAmount: 0, overThresholdCount: 0, overThresholdSum: 0 },
+    };
+  }
+
+  const expenseIds = expenseRows.map(e => e.id);
+
+  // 2. Resolve type names, trip codes, supplier names.
+  const typeCodes = [...new Set(expenseRows.map(e => e.expenseType))];
+  const [typeRows, tripRows, supplierRows] = await Promise.all([
+    db.select({ code: s.forwarderExpenseTypes.code, name: s.forwarderExpenseTypes.name })
+      .from(s.forwarderExpenseTypes)
+      .where(inArrayFallback(s.forwarderExpenseTypes.code, typeCodes)),
+    db.select({ id: s.trips.id, tripCode: s.trips.tripCode })
+      .from(s.trips)
+      .where(inArrayFallback(s.trips.id, expenseRows.map(e => e.tripId))),
+    (async () => {
+      const supplierIds = [...new Set(expenseRows.map(e => e.supplierId).filter((v): v is number => v != null))];
+      if (supplierIds.length === 0) return [];
+      return db.select({ id: s.suppliers.id, name: s.suppliers.name })
+        .from(s.suppliers)
+        .where(inArrayFallback(s.suppliers.id, supplierIds));
+    })(),
+  ]);
+
+  // 3. Resolve approver attribution from audit_logs.
+  //    entityType = 'trip-expenses', event_type = 'TRIP_EXPENSE_APPROVED'.
+  //    Take the LATEST entry per entityId (re-approvals overwrite).
+  const auditRows = await db.select({
+    entityId: s.auditLogs.entityId,
+    userId: s.auditLogs.userId,
+    actorName: s.auditLogs.actorName,
+    timestamp: s.auditLogs.timestamp,
+  })
+    .from(s.auditLogs)
+    .where(and(
+      eq(s.auditLogs.entityType, 'trip-expenses'),
+      inArrayFallback(s.auditLogs.entityId, expenseIds),
+      // Filter by message pattern since audit_logs has no event_type column;
+      // the message for TRIP_EXPENSE_APPROVED starts with actor + "đã phê duyệt".
+      sql`${s.auditLogs.message} LIKE '%đã phê duyệt%'`,
+    ))
+    .orderBy(desc(s.auditLogs.timestamp));
+
+  // Build maps.
+  const typeMap = new Map(typeRows.map(r => [r.code, r.name]));
+  const tripMap = new Map(tripRows.map(r => [r.id, r.tripCode]));
+  const supplierMap = new Map(supplierRows.map(r => [r.id, r.name]));
+  // Latest audit entry per entityId wins.
+  const auditMap = new Map<number, { userId: number | null; actorName: string | null; timestamp: Date }>();
+  for (const a of auditRows) {
+    if (a.entityId != null && !auditMap.has(a.entityId)) {
+      auditMap.set(a.entityId, { userId: a.userId, actorName: a.actorName, timestamp: a.timestamp });
+    }
+  }
+
+  // 4. Assemble items.
+  const items: NoInvoiceDisbursementItem[] = [];
+  for (const e of expenseRows) {
+    const audit = auditMap.get(e.id);
+    const approverId = audit?.userId ?? null;
+    // Apply optional approverId filter.
+    if (opts.approverId != null && approverId !== opts.approverId) continue;
+
+    const buyAmount = Number(e.buyAmount);
+    const overThreshold = buyAmount > DIRECTOR_THRESHOLD;
+    items.push({
+      expenseId: e.id,
+      tripId: e.tripId,
+      tripCode: tripMap.get(e.tripId) ?? null,
+      expenseTypeCode: e.expenseType,
+      expenseTypeName: typeMap.get(e.expenseType) ?? e.expenseType,
+      buyAmount,
+      note: e.note,
+      supplierId: e.supplierId,
+      supplierName: e.supplierId ? (supplierMap.get(e.supplierId) ?? null) : null,
+      approverId,
+      approverName: audit?.actorName ?? null,
+      approvedAt: audit ? audit.timestamp.toISOString() : null,
+      overThreshold,
+      createdAt: e.createdAt.toISOString(),
+    });
+  }
+
+  items.sort((a, b) => b.buyAmount - a.buyAmount);
+
+  const totals = {
+    count: items.length,
+    sumBuyAmount: items.reduce((sum, i) => sum + i.buyAmount, 0),
+    overThresholdCount: items.filter(i => i.overThreshold).length,
+    overThresholdSum: items.filter(i => i.overThreshold).reduce((sum, i) => sum + i.buyAmount, 0),
+  };
+
+  return { from: opts.from, to: opts.to, items, totals };
+}
+
+/** Helper: inArray with a safe fallback for empty arrays (drizzle's inArray
+ *  throws on empty arrays; we want a no-op filter instead). */
+function inArrayFallback<T>(column: T, values: unknown[]) {
+  if (values.length === 0) return sql`FALSE`;
+  // Use sql.raw to build a safe IN list — values are already validated
+  // numbers from our own queries, not user input.
+  return sql`${column} IN (${sql.join(values.map(v => sql`${v}`), sql`, `)})`;
 }
