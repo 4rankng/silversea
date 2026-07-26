@@ -74,7 +74,11 @@ class ApiClient {
   get<T>(path: string) {
     return this.request<T>(path);
   }
-  post<T>(path: string, body: unknown, opts?: { expectedUpdatedAt?: string }) {
+  post<T>(
+    path: string,
+    body: unknown,
+    opts?: { expectedUpdatedAt?: string; headers?: Record<string, string> },
+  ) {
     return this.request<T>(path, {
       method: 'POST',
       body: JSON.stringify(body),
