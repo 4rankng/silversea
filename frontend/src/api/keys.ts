@@ -163,6 +163,8 @@ export const qk = {
       ['driver-penalties', params] as const,
     /** N5 / B4: the driver's truck compliance/service reminders. */
     vehicleAlerts: ['driver-vehicle-alerts'],
+    /** M8.3: two-orders-per-day view (active + next today, firstOrderLate). */
+    twoOrders: ['driver-two-orders'],
   },
 
   /* ── Forwarder portal ──────────────────────────────────────────────── */

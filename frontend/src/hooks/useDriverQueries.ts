@@ -34,3 +34,11 @@ export function useDriverVehicleAlerts() {
     staleTime: 60 * 60 * 1000,
   });
 }
+
+/** M8.3 — two-orders-per-day view (active + next today, firstOrderLate). */
+export function useDriverTwoOrders() {
+  return useQuery({
+    queryKey: qk.driver.twoOrders,
+    queryFn: () => driverClient.getTwoOrders(),
+  });
+}

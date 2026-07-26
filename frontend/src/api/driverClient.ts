@@ -72,4 +72,27 @@ export const driverClient = {
   getVehicleAlerts: async () => {
     return api.get<{ items: VehicleAlert[] }>(DRIVER.VEHICLE_ALERTS);
   },
+
+  /** M8.3 — two-orders-per-day view (active + next today, firstOrderLate). */
+  getTwoOrders: async () => {
+    return api.get<{
+      date: string;
+      active: {
+        id: number; tripCode: string | null; departureDate: string; status: string;
+        routeName: string | null; truckPlate: string | null; customerName: string | null;
+        containerNumbers: string[];
+      } | null;
+      next: {
+        id: number; tripCode: string | null; departureDate: string; status: string;
+        routeName: string | null; truckPlate: string | null; customerName: string | null;
+        containerNumbers: string[];
+      } | null;
+      firstOrderLate: boolean;
+      allToday: Array<{
+        id: number; tripCode: string | null; departureDate: string; status: string;
+        routeName: string | null; truckPlate: string | null; customerName: string | null;
+        containerNumbers: string[];
+      }>;
+    }>(DRIVER.TWO_ORDERS);
+  },
 };
