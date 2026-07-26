@@ -43,6 +43,24 @@ export enum ShipmentDocumentType {
   OTHER = 'OTHER',
 }
 
+/** M8.4 — driver-reported progress event types (append-only log). */
+export enum DriverProgressEventType {
+  DEPARTED = 'DEPARTED',
+  ARRIVED = 'ARRIVED',
+  FUELED = 'FUELED',
+  INCIDENT = 'INCIDENT',
+  NOTE = 'NOTE',
+}
+
+/** Vietnamese labels for driver progress events (PRD Mxx-HT-01). */
+export const DRIVER_PROGRESS_EVENT_LABELS: Record<DriverProgressEventType, string> = {
+  [DriverProgressEventType.DEPARTED]: 'Xuất phát',
+  [DriverProgressEventType.ARRIVED]: 'Đến nơi',
+  [DriverProgressEventType.FUELED]: 'Đổ dầu',
+  [DriverProgressEventType.INCIDENT]: 'Sự cố',
+  [DriverProgressEventType.NOTE]: 'Ghi chú',
+} as const;
+
 /** Vietnamese labels for shipment statuses (PRD Mxx-HT-01). */
 export const SHIPMENT_STATUS_LABELS: Record<ShipmentStatus, string> = {
   [ShipmentStatus.DRAFT]: 'Bản nháp',

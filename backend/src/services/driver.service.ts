@@ -2,13 +2,14 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { eq, ne, and, isNull, desc, asc, gte, lte, sql, inArray } from 'drizzle-orm';
 import { ApiError } from '../errors';
-import { computeVehicleAlerts, type VehicleAlert, round2dp, TxnType } from '@tingting/shared';
+import { computeVehicleAlerts, type VehicleAlert, round2dp, TxnType, type DriverProgressEventType } from '@tingting/shared';
 
 import { computeSalary } from './attendance.service';
 import { LedgerService } from './ledger.service';
 import { listTripContainers, listTripPhotoKeys } from './forwarder.service';
 import { getTripInstructions } from './trip-instructions.service';
 import { storageService } from './storage.service';
+import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 
 /**
  * Ledger txn types that count as cash the company has actually paid out / advanced
@@ -459,4 +460,92 @@ export async function getDriverPenalties(driverId: number, dateFrom?: string, da
     .leftJoin(s.trips, eq(s.penalties.tripId, s.trips.id))
     .where(and(...conditions))
     .orderBy(desc(s.penalties.date));
+}
+
+// ─── M8.4: driver progress events ───────────────────────────────────────────
+//
+// Append-only log of driver-reported milestones (DEPARTED, ARRIVED, FUELED,
+// INCIDENT, NOTE) against a trip. PRD M08-04-03: the create path is
+// server-side idempotent (reuses `runIdempotent` + the `idempotency_keys`
+// table from M10.1) so the offline-queue replay (slice 2 frontend) does not
+// duplicate events. These events are audit-style records only — they do NOT
+// mutate trip status; lifecycle transitions stay with `transitionTripStatus`.
+
+export interface DriverProgressEvent {
+  id: number;
+  tripId: number;
+  driverId: number;
+  eventType: DriverProgressEventType;
+  occurredAt: Date;
+  note: string | null;
+  recordedBy: number | null;
+  createdAt: Date;
+}
+
+/**
+ * Verify the trip belongs to `driverId` and return its row. Throws 404 if the
+ * trip is missing, 403 if it belongs to a different driver. Used by both the
+ * create and list paths so ownership is enforced consistently.
+ */
+async function assertTripOwnedByDriver(tripId: number, driverId: number) {
+  const [trip] = await db.select({ id: s.trips.id, driverId: s.trips.driverId, deletedAt: s.trips.deletedAt })
+    .from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+  if (!trip || trip.deletedAt) {
+    throw new ApiError(404, 'Không tìm thấy chuyến đi');
+  }
+  if (trip.driverId !== driverId) {
+    throw new ApiError(403, 'Bạn không được phân công chuyến đi này');
+  }
+  return trip;
+}
+
+/**
+ * Record a driver progress event. Server-side idempotent: a replay with the
+ * same `idempotencyKey` + same payload returns the original event (201 first,
+ * 200 replay); the same key with a different payload is rejected 409 (Q23).
+ * `replayed` is true on a replay so the route can set the right status code.
+ */
+export async function recordDriverProgress(
+  tripId: number,
+  driverId: number,
+  input: { eventType: DriverProgressEventType; occurredAt: string; note?: string },
+  recordedBy: number,
+  idempotencyKey: string | undefined,
+): Promise<{ event: DriverProgressEvent; replayed: boolean }> {
+  await assertTripOwnedByDriver(tripId, driverId);
+
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_PROGRESS,
+    idempotencyKey,
+    payload: { tripId, driverId, ...input },
+    createdBy: recordedBy,
+    entityType: 'driver_progress_event',
+    create: async () => {
+      const [row] = await db.insert(s.driverProgressEvents).values({
+        tripId,
+        driverId,
+        eventType: input.eventType,
+        occurredAt: new Date(input.occurredAt),
+        note: input.note ?? null,
+        recordedBy,
+      }).returning();
+      return row as DriverProgressEvent;
+    },
+    load: async (id) => {
+      const [row] = await db.select().from(s.driverProgressEvents)
+        .where(eq(s.driverProgressEvents.id, id)).limit(1);
+      if (!row) throw new ApiError(404, 'Sự kiện tiến độ không tồn tại');
+      return row as DriverProgressEvent;
+    },
+  });
+  return { event: result, replayed };
+}
+
+/** List a trip's progress events, oldest-first (timeline order). */
+export async function listDriverProgress(tripId: number, driverId: number): Promise<DriverProgressEvent[]> {
+  await assertTripOwnedByDriver(tripId, driverId);
+  const rows = await db.select().from(s.driverProgressEvents)
+    .where(eq(s.driverProgressEvents.tripId, tripId))
+    .orderBy(asc(s.driverProgressEvents.occurredAt));
+  return rows as DriverProgressEvent[];
 }

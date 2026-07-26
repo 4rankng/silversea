@@ -3,6 +3,7 @@ import {
   FuelMode, LoadingType, Role,
   TrailerType, TruckStatus, TrailerStatus, DriverStatus, CustomerStatus,
   ShipmentStatus, ShipmentDocumentType,
+  DriverProgressEventType,
   TIRE_STATUSES,
 } from '../constants';
 
@@ -1064,6 +1065,21 @@ export type TransitionShipmentStatusInput = z.infer<typeof transitionShipmentSta
 export type AttachShipmentDocumentInput = z.infer<typeof attachShipmentDocumentSchema>;
 export type ShipmentContainerBatchInput = z.infer<typeof shipmentContainerBatchSchema>;
 export type DispatchShipmentInput = z.infer<typeof dispatchShipmentSchema>;
+
+// M8.4 — driver progress event. The driver records what actually happened on
+// the road (departure/arrival/fuel/incident/note) with a client-supplied
+// event time + optional note. The create endpoint is server-side idempotent
+// (PRD M08-04-03 offline-safe replay).
+export const driverProgressSchema = z.object({
+  eventType: z.nativeEnum(DriverProgressEventType),
+  // ISO 8601 timestamp of when the event occurred (driver-reported; may be
+  // backdated to the actual event time). The server records `createdAt`
+  // separately for record-time audit.
+  occurredAt: z.string().min(1, 'Thời điểm xảy ra là bắt buộc'),
+  note: z.string().max(1000).optional(),
+});
+
+export type DriverProgressInput = z.infer<typeof driverProgressSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
