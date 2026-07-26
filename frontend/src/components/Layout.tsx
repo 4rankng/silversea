@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { OfflineBanner } from './shared/OfflineBanner';
 import {
   LayoutDashboard,
   Truck,
@@ -370,6 +371,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className={`app ${!sidebarOpen ? 'sidebar-closed' : ''} ${isDriver ? 'is-driver' : ''}`}>
       <a href="#main-content" className="skip-link">Bỏ qua đến nội dung chính</a>
+      {/* M8.1 — global offline banner (slow-network state) */}
+      <OfflineBanner />
       {/* Screen reader live region for route changes */}
       <div aria-live="polite" aria-atomic="true" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>{ariaLiveMsg}</div>
 
