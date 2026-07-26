@@ -6,6 +6,7 @@ import { asyncHandler } from '../../middleware/asyncHandler';
 import { getUser } from '../../middleware/auth';
 import { getDashboardStats, getPnlReport, distributeProfit, getReceivablesSummary, previewDistribution, getDistributionHistory } from '../../services/reporting.service';
 import { getFuelVarianceReport } from '../../services/pnl.service';
+import { getPaymentTermEvalReport } from '../../services/payment-term.service';
 import { getCustomerAgingList } from '../../services/receivables.service';
 import { getApprovalQueue } from '../../services/approval-queue.service';
 import { parsePagination } from '../utils/pagination';
@@ -89,6 +90,12 @@ router.post('/reports/distribute-profit', requireRoles(Role.ADMIN, Role.MANAGER)
   if (!quarter || !year) return res.status(400).json({ error: 'Cần nhập quý và năm' });
   if (quarter < 1 || quarter > 4) return res.status(400).json({ error: 'Quý phải từ 1 đến 4' });
   res.status(201).json(await distributeProfit(quarter, year));
+}));
+
+// M11.4 — payment-term evaluation report. Per-customer days-to-pay +
+// overdue analysis. ADMIN/MANAGER/ACCOUNTANT only.
+router.get('/reports/payment-term-eval', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (_req: Request, res: Response) => {
+  res.json({ items: await getPaymentTermEvalReport() });
 }));
 
 export default router;
