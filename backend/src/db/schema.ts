@@ -936,6 +936,12 @@ export const forwarderExpenseTypes = pgTable('forwarder_expense_types', {
   // Wave 2 M3.7: when true, trip expenses of this type MUST have an invoice
   // number before approval. When false (default), substitute evidence is OK.
   requiresInvoice: boolean('requires_invoice').default(false),
+  // Wave 3 M4.7: when requiresInvoice is false, this flag controls whether
+  // substitute evidence (e.g.现场 biên nhận, ảnh hiện trường) is accepted
+  // for this type. Default true = backward compat (existing types accept
+  // substitute evidence). When false, no-invoice expenses of this type are
+  // blocked at approval.
+  substituteEvidenceAllowed: boolean('substitute_evidence_allowed').default(true),
   defaultMarkup: boolean('default_markup').notNull().default(false),
   billingLabel: varchar('billing_label', { length: 120 }),
   vatRate: numeric('vat_rate', { precision: 5, scale: 3 }).notNull().default('0.080'),

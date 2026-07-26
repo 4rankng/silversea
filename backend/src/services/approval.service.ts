@@ -6,6 +6,7 @@ import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import { assertFuelReconClear } from './fuel-recon-guard.service';
 import { assertInvoiceRequiredForExpense } from './invoice-required.service';
+import { assertNoInvoiceDisbursementAllowed } from './no-invoice-disbursement.service';
 
 export type ApprovableTable = 'trip_expenses' | 'debt_offsets';
 export type ApprovalTransition = 'APPROVED' | 'REJECTED';
@@ -62,6 +63,10 @@ export async function transitionApproval(
     // forwarderExpenseType has requiresInvoice=true, the expense must carry
     // both invoiceNumber and invoiceDate before approval. Rejections bypass.
     await assertInvoiceRequiredForExpense(opts.id, tx);
+    // M4.7: no-invoice disbursement enforcement. For the requiresInvoice=
+    // false branch, enforces substituteEvidenceAllowed + evidence note +
+    // tiered approval by amount. Rejections bypass.
+    await assertNoInvoiceDisbursementAllowed(opts.id, opts.actorRole, tx);
   }
 
   // trip_expenses has updatedAt; debt_offsets does not
