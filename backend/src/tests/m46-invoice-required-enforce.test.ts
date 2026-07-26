@@ -58,6 +58,7 @@ async function mkExpense(opts: {
   expenseTypeCode: string;
   invoiceNumber?: string | null;
   invoiceDate?: string | null;
+  note?: string | null;
   approvalStatus?: string;
 }) {
   const [e] = await db.insert(s.tripExpenses).values({
@@ -68,6 +69,7 @@ async function mkExpense(opts: {
     supplierId: null,
     invoiceNumber: opts.invoiceNumber ?? null,
     invoiceDate: opts.invoiceDate ?? null,
+    note: opts.note ?? null,
     approvalStatus: opts.approvalStatus ?? 'PENDING',
   }).returning();
   createdExpenseIds.push(e.id);
@@ -198,10 +200,13 @@ describe('M4.6 — transitionApproval wiring', () => {
     await runApproveTx(e.id);
   });
 
-  test('APPROVE requiresInvoice=false expense → guard bypassed', async () => {
+  test('APPROVE requiresInvoice=false expense → M4.6 guard bypassed (note satisfies M4.7)', async () => {
     const fet = await mkFet(false, 'wiring-skip');
     const trip = await mkTrip();
-    const e = await mkExpense({ tripId: trip.id, expenseTypeCode: fet.code, invoiceNumber: null, invoiceDate: null });
+    // M4.7 (no-invoice disbursement) now also requires a note for the
+    // requiresInvoice=false branch — provide one so this test isolates the
+    // M4.6 guard's bypass behavior without tripping M4.7's evidence rule.
+    const e = await mkExpense({ tripId: trip.id, expenseTypeCode: fet.code, invoiceNumber: null, invoiceDate: null, note: 'tiền nước' });
     await runApproveTx(e.id);
   });
 

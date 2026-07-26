@@ -498,6 +498,7 @@ biggest new surface area and the biggest customer-facing differentiator.
       <!-- autonomous-sdlc:completed task=wave3-m46-invoice-required -->
 - [ ] M4.7: no-invoice items permitted only for allowed categories; over-threshold routes
       to approval; report separates and traces to approver.
+      <!-- autonomous-sdlc:in-progress task=wave3-m47-no-invoice-substitute slice=1 -->
 - [ ] Reconciliation tests: AR sum = ledger sum; AP sum = ledger sum; salary close posts once.
 
 ### Open PRD questions
