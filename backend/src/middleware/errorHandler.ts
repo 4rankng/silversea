@@ -34,9 +34,19 @@ export function globalErrorHandler(err: Error, req: Request, res: Response, _nex
     return;
   }
 
-  // PostgreSQL unique constraint violation
-  if ('code' in err && (err as { code?: unknown }).code === '23505') {
-    res.status(409).json({ error: 'Dữ liệu đã tồn tại' });
+  // PostgreSQL unique constraint violation (23505). Drizzle wraps the underlying
+  // postgres-js error, so the SQLSTATE may live on either `err.code` (direct
+  // driver throw) or `err.cause.code` (Drizzle-wrapped throw). Mirror the logic
+  // in routes/utils/crud-factory.ts and services/trip-mutations.service.ts —
+  // without the `.cause` fallback, duplicate usernames/emails here surface as a
+  // generic 500 instead of a clean 409.
+  const pgErr = err as { code?: string; cause?: { code?: string; detail?: string }; detail?: string };
+  const pgCode = pgErr.code || pgErr.cause?.code;
+  if (pgCode === '23505') {
+    const detail = pgErr.cause?.detail || pgErr.detail || '';
+    const fieldMatch = detail.match(/Key \(([^)]+)\)/);
+    const field = fieldMatch ? fieldMatch[1] : 'dữ liệu';
+    res.status(409).json({ error: `${field} đã tồn tại` });
     return;
   }
 

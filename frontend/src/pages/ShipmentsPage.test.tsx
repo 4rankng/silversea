@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { ShipmentStatus } from '@tingting/shared';
@@ -42,6 +42,26 @@ function pageTitleH1() {
   return document.querySelector('h1.page-title');
 }
 
+// The page renders two parallel surfaces — a desktop <table> and a mobile
+// card list — that CSS shows/hides by viewport. jsdom doesn't compute CSS
+// layout, so both stay in the DOM. Scope row-level queries to one surface to
+// avoid "multiple elements" errors. The desktop surface is the canonical
+// list view, so prefer it.
+function desktopSurface() {
+  const el = document.querySelector('.shipments-page__desktop');
+  if (!el) throw new Error('desktop surface not rendered');
+  return within(el as HTMLElement);
+}
+
+// The toolbar is the third shared surface. KPI labels ("Bản nháp",
+// "Đang xử lý", "Đã giao") collide with filter-pill text, so filter-pill
+// assertions must scope to the toolbar.
+function toolbar() {
+  const el = document.querySelector('.shipments-page__toolbar');
+  if (!el) throw new Error('toolbar not rendered');
+  return within(el as HTMLElement);
+}
+
 describe('ShipmentsPage — minimal Wave 0 list surface', () => {
   beforeEach(() => {
     apiGet.mockReset();
@@ -51,32 +71,38 @@ describe('ShipmentsPage — minimal Wave 0 list surface', () => {
     apiGet.mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 });
     renderAt('/shipments');
     expect(pageTitleH1()?.textContent).toBe('Lô hàng');
-    // Filter pills render the catalogue.
-    expect(screen.getByText('Tất cả')).toBeTruthy();
-    expect(screen.getByText('Bản nháp')).toBeTruthy();
-    expect(screen.getByText('Đang xử lý')).toBeTruthy();
+    // Filter pills render the catalogue. Scope to the toolbar — KPI labels
+    // ("Bản nháp", "Đang xử lý", "Đã giao") would otherwise collide.
+    const tb = toolbar();
+    expect(tb.getByText(/Tất cả/)).toBeTruthy();
+    expect(tb.getByText('Bản nháp')).toBeTruthy();
+    expect(tb.getByText('Đang xử lý')).toBeTruthy();
     await waitFor(() => expect(apiGet).toHaveBeenCalled());
   });
 
   it('renders the empty state when the API returns no shipments', async () => {
     apiGet.mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 });
     renderAt('/shipments');
-    await waitFor(() => expect(screen.getByText(/Chưa có lô hàng nào/)).toBeTruthy());
-    expect(apiGet).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/shipments\?/));
+    // Both surfaces show an empty state; assert against the desktop one.
+    await waitFor(() => expect(desktopSurface().getByText(/Chưa có lô hàng nào/)).toBeTruthy());
+    // The api client prepends API_BASE ('/api') at fetch time, so the
+    // call-site path must be '/shipments' (NOT '/api/shipments') — otherwise
+    // the request goes to /api/api/shipments and 404s in production.
+    expect(apiGet).toHaveBeenCalledWith(expect.stringMatching(/^\/shipments\?/));
   });
 
   it('renders the list rows when the API returns shipments', async () => {
     apiGet.mockResolvedValue({
       items: [
         {
-          id: 1, shipmentCode: 'SHP-2607-00001', customerId: 7,
+          id: 1, shipmentCode: 'SHP-2607-00001', customerId: 7, customerName: 'Công ty CP Vận tải ABC',
           status: ShipmentStatus.DRAFT, bookingRef: 'BK-1', blNumber: 'BL-1',
           expectedDeliveryDate: '2026-08-01', pickupLocation: null,
           deliveryLocation: null, contactName: null, contactPhone: null,
           version: 1, createdAt: '2026-07-25T00:00:00Z', updatedAt: '2026-07-25T00:00:00Z',
         },
         {
-          id: 2, shipmentCode: 'SHP-2607-00002', customerId: 9,
+          id: 2, shipmentCode: 'SHP-2607-00002', customerId: 9, customerName: 'Công ty TNHH XYZ Logistik',
           status: ShipmentStatus.IN_PROGRESS, bookingRef: null, blNumber: 'BL-2',
           expectedDeliveryDate: null, pickupLocation: null, deliveryLocation: null,
           contactName: null, contactPhone: null,
@@ -86,12 +112,16 @@ describe('ShipmentsPage — minimal Wave 0 list surface', () => {
       total: 2, page: 1, limit: 20,
     });
     renderAt('/shipments');
-    await waitFor(() => expect(screen.getByText('SHP-2607-00001')).toBeTruthy());
-    expect(screen.getByText('SHP-2607-00002')).toBeTruthy();
-    // Status labels render in the row pills. (Bản nháp / Đang xử lý also
-    // appear as filter pills — use getAllByText to tolerate the duplicates.)
-    expect(screen.getAllByText('Bản nháp').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('Đang xử lý').length).toBeGreaterThanOrEqual(1);
+    const desktop = desktopSurface();
+    await waitFor(() => expect(desktop.getByText('SHP-2607-00001')).toBeTruthy());
+    expect(desktop.getByText('SHP-2607-00002')).toBeTruthy();
+    // Customer name renders (joined from customers.name by the backend).
+    // Guards against regressing to the meaningless "KH #id" label.
+    expect(desktop.getByText('Công ty CP Vận tải ABC')).toBeTruthy();
+    // Status labels render in the row pills. Scoped to the desktop table to
+    // avoid colliding with the mobile card pills.
+    expect(desktop.getAllByText('Bản nháp').length).toBeGreaterThanOrEqual(1);
+    expect(desktop.getAllByText('Đang xử lý').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders the error message when the API call fails', async () => {
@@ -119,11 +149,11 @@ describe('ShipmentsPage — minimal Wave 0 list surface', () => {
   it('client-side-filters rows by the q= search term across code/BL/booking', async () => {
     apiGet.mockResolvedValue({
       items: [
-        { id: 1, shipmentCode: 'SHP-AAA', customerId: 1, status: ShipmentStatus.DRAFT,
+        { id: 1, shipmentCode: 'SHP-AAA', customerId: 1, customerName: 'KH Alpha', status: ShipmentStatus.DRAFT,
           bookingRef: 'BK-1', blNumber: 'BL-1', expectedDeliveryDate: null,
           pickupLocation: null, deliveryLocation: null, contactName: null,
           contactPhone: null, version: 1, createdAt: '', updatedAt: '' },
-        { id: 2, shipmentCode: 'SHP-BBB', customerId: 1, status: ShipmentStatus.DRAFT,
+        { id: 2, shipmentCode: 'SHP-BBB', customerId: 1, customerName: 'KH Beta', status: ShipmentStatus.DRAFT,
           bookingRef: 'BK-2', blNumber: 'BL-XYZ', expectedDeliveryDate: null,
           pickupLocation: null, deliveryLocation: null, contactName: null,
           contactPhone: null, version: 1, createdAt: '', updatedAt: '' },
@@ -132,9 +162,10 @@ describe('ShipmentsPage — minimal Wave 0 list surface', () => {
     });
     renderAt('/shipments?q=XYZ');
     await waitFor(() => expect(apiGet).toHaveBeenCalled());
-    // Only the row whose BL matches "XYZ" should render.
-    await waitFor(() => expect(screen.getByText('SHP-BBB')).toBeTruthy());
-    expect(screen.queryByText('SHP-AAA')).toBeNull();
+    // Only the row whose BL matches "XYZ" should render — on both surfaces.
+    const desktop = desktopSurface();
+    await waitFor(() => expect(desktop.getByText('SHP-BBB')).toBeTruthy());
+    expect(desktop.queryByText('SHP-AAA')).toBeNull();
   });
 
   it('resets the page when a status filter is clicked', async () => {
@@ -142,7 +173,7 @@ describe('ShipmentsPage — minimal Wave 0 list surface', () => {
     renderAt('/shipments?page=3');
     await waitFor(() => expect(apiGet).toHaveBeenCalled());
     // Clicking the "Đã giao" pill should drop page=3 and set status=DELIVERED.
-    fireEvent.click(screen.getByText('Đã giao'));
+    fireEvent.click(toolbar().getByText('Đã giao'));
     await waitFor(() => {
       const lastCall = apiGet.mock.calls.at(-1)?.[0] as string;
       expect(lastCall).toMatch(/status=DELIVERED/);

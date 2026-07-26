@@ -214,6 +214,35 @@ test('E2E — Auth flow (Login, Me, User List, Create, Delete)', async () => {
   assert.strictEqual(deleteRes.status, 200);
 });
 
+// Regression: duplicate username must surface as a clean 409, not a 500.
+// Drizzle wraps the underlying postgres-js error so the SQLSTATE 23505 lives on
+// `err.cause.code`, not `err.code`. The global error handler must read both —
+// otherwise the second create below returns HTTP 500 ("Lỗi máy chủ") and the
+// user sees a generic server error instead of a field-specific conflict.
+test('E2E — Duplicate username yields 409 (not 500) with field message', async () => {
+  const dupUsername = `dup_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const baseBody = {
+    username: dupUsername, password: 'password123', role: Role.CUSTOMER,
+    fullName: 'Dup Test', email: `${dupUsername}@nepo.vn`,
+  };
+  const first = await testFetch('/api/auth/users', {
+    method: 'POST', token: adminToken, body: JSON.stringify(baseBody),
+  });
+  assert.strictEqual(first.status, 201);
+  const createdId = first.data.id;
+
+  // Same username, different email/phone so the only conflict is the username.
+  const second = await testFetch('/api/auth/users', {
+    method: 'POST', token: adminToken,
+    body: JSON.stringify({ ...baseBody, email: `alt-${dupUsername}@nepo.vn` }),
+  });
+  assert.strictEqual(second.status, 409);
+  assert.match(String(second.data.error), /username|đã tồn tại/i);
+
+  // Clean up so the row doesn't leak into other tests / the users list.
+  await testFetch(`/api/auth/users/${createdId}`, { method: 'DELETE', token: adminToken });
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // FLOW 2: Catalog Tables Configurations (Config Pages)
 // ─────────────────────────────────────────────────────────────────────────────
