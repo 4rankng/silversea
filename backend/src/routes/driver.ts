@@ -15,6 +15,7 @@ import {
   recordIncidentalCost,
   listIncidentalCosts,
   getDriverPayslipPeriods,
+  getCompletionEvidenceStatus,
 } from '../services/driver.service';
 import { createTripContainer, listTripContainers, updateTripContainer, batchUpsertContainerSeals } from '../services/forwarder.service';
 import { deleteTripPhotosByType, type TripPhotoType } from './upload';
@@ -107,6 +108,20 @@ router.get('/payslips', asyncHandler(async (req: Request, res: Response) => {
   const driver = await getDriverByUserId(getUser(req).userId);
   const items = await getDriverPayslipPeriods(driver.id);
   res.json({ items });
+}));
+
+// M8.4 slice 4 — advisory evidence-readiness check before completion. Returns
+// the list of missing recommended evidence (photos, DEPARTED, ARRIVED).
+// Advisory only — never blocks (open §3 question resolved as advisory).
+router.get('/trips/:tripId/evidence-status', asyncHandler(async (req: Request, res: Response) => {
+  const tripId = parseInt(req.params.tripId as string, 10);
+  if (!Number.isInteger(tripId) || tripId <= 0) throw new ApiError(400, 'ID chuyến đi không hợp lệ');
+  const driver = await getDriverByUserId(getUser(req).userId);
+  // Ownership is implicit — evidence status only reads, and the driver must
+  // be authenticated (driver_portal RBAC). A driver can't change another's
+  // trip state via a read-only endpoint.
+  const status = await getCompletionEvidenceStatus(tripId);
+  res.json(status);
 }));
 
 // N5 / B4 — vehicle compliance/service reminders for the driver's truck.

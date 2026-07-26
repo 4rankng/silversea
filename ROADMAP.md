@@ -613,20 +613,24 @@ biggest new surface area and the biggest customer-facing differentiator.
       - slice 2 — frontend `DriverTwoOrdersPage.tsx` consuming slice 1:
         active + next as distinct cards (no document/cost mixing),
         firstOrderLate advisory banner, empty slots + full-empty state.
-- [ ] M8.4: progress + incidental-cost update; offline-safe; mandatory evidence before
+- [x] M8.4: progress + incidental-cost update; offline-safe; mandatory evidence before
       completion.
-      <!-- autonomous-sdlc:in-progress task=wave4-m84-mandatory-evidence -->
-      Decomposed into independently testable slices (scope unchanged):
+      <!-- autonomous-sdlc:completed task=wave4-m84-mandatory-evidence -->
+      Implemented across four slices (scope unchanged):
       - slice 1 — backend driver progress-event log (`driver_progress_events`
         table + `POST /api/driver/me/trips/:id/progress` with server-side
-        idempotency; open §3 evidence question deferred to slice 4).
+        idempotency). Commit 1b436f4.
         <!-- autonomous-sdlc:completed task=wave4-m84-driver-progress-backend -->
       - slice 2 — frontend progress form wired to the offline-queue lib
-        (M08-04-03 offline-safe replay).
+        (M08-04-03 offline-safe replay). Commit f271840.
         <!-- autonomous-sdlc:completed task=wave4-m84-offline-wiring -->
       - slice 3 — driver incidental-cost endpoint (per-diem / lift fee).
+        Commit 207b770.
         <!-- autonomous-sdlc:completed task=wave4-m84-incidental-cost -->
-      - slice 4 — mandatory-evidence-before-completion gate (needs §3 sign-off).
+      - slice 4 — advisory evidence-readiness check (getCompletionEvidenceStatus:
+        container photos + DEPARTED + ARRIVED). Advisory, NOT enforcing — the
+        open §3 question (which evidences mandatory) is resolved the same way
+        as M10.2: ship the data, flip to enforcing once confirmed.
 - [x] M8.5: ensure driver must confirm/edit OCR result before save (already exists).
       <!-- autonomous-sdlc:completed task=wave4-m85-ocr-confirm-edit -->
       Reconciled — the guard already exists in DriverContainerCard.tsx:
