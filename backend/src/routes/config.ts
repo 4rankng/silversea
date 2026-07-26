@@ -35,6 +35,12 @@ import {
   deleteSalaryPeriodOverride,
   resolveSalaryPeriodDateRange,
 } from '../services/salary-period.service';
+import {
+  closeSalaryPeriod,
+  reopenSalaryPeriod,
+  getSalaryPeriodClose,
+  listSalaryPeriodCloses,
+} from '../services/salary-period-close.service';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { getUser } from '../middleware/auth';
 import { parsePagination } from './utils/pagination';
@@ -450,6 +456,44 @@ salaryPeriodsAdminRouter.delete('/:id', asyncHandler(async (req: Request, res: R
   const deleted = await deleteSalaryPeriodOverride(id);
   if (!deleted) return res.status(404).json({ error: 'Không tìm thấy' });
   res.json({ ok: true });
+}));
+
+// M7.3 — salary period close / reopen. Idempotent; close posts ONE
+// consolidated summary ledger entry; reopen posts the reversing entry.
+// Both mount under salaryPeriodsAdminRouter (already gated by
+// casbinAuthz('config') so only ADMIN/MANAGER/ACCOUNTANT reach them).
+// The service re-checks the role for the actual operation (reopen is
+// ADMIN/MANAGER only — stricter than close).
+salaryPeriodsAdminRouter.get('/closes', asyncHandler(async (_req: Request, res: Response) => {
+  res.json(await listSalaryPeriodCloses());
+}));
+
+salaryPeriodsAdminRouter.get('/closes/:period', asyncHandler(async (req: Request, res: Response) => {
+  const row = await getSalaryPeriodClose(req.params.period as string);
+  if (!row) return res.status(404).json({ error: 'Kỳ này chưa chốt' });
+  res.json(row);
+}));
+
+salaryPeriodsAdminRouter.post('/:period/close', asyncHandler(async (req: Request, res: Response) => {
+  const u = getUser(req);
+  const result = await closeSalaryPeriod({
+    period: req.params.period as string,
+    actorId: u.userId,
+    actorRole: u.role,
+    note: typeof req.body?.note === 'string' ? req.body.note : null,
+  });
+  res.status(result.idempotentNoop ? 200 : 201).json(result);
+}));
+
+salaryPeriodsAdminRouter.post('/:period/reopen', asyncHandler(async (req: Request, res: Response) => {
+  const u = getUser(req);
+  const result = await reopenSalaryPeriod({
+    period: req.params.period as string,
+    actorId: u.userId,
+    actorRole: u.role,
+    note: typeof req.body?.note === 'string' ? req.body.note : null,
+  });
+  res.status(result.idempotentNoop ? 200 : 201).json(result);
 }));
 
 // ─── Audit logs (mounted separately with ADMIN-only Casbin resource) ────────
