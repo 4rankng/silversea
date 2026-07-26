@@ -627,7 +627,13 @@ biggest new surface area and the biggest customer-facing differentiator.
       - slice 3 — driver incidental-cost endpoint (per-diem / lift fee).
         <!-- autonomous-sdlc:completed task=wave4-m84-incidental-cost -->
       - slice 4 — mandatory-evidence-before-completion gate (needs §3 sign-off).
-- [ ] M8.5: ensure driver must confirm/edit OCR result before save (already exists).
+- [x] M8.5: ensure driver must confirm/edit OCR result before save (already exists).
+      <!-- autonomous-sdlc:completed task=wave4-m85-ocr-confirm-edit -->
+      Reconciled — the guard already exists in DriverContainerCard.tsx:
+      OCR auto-fills a draft form; the driver must press "Lưu" to commit
+      (locked design decision #1: numbers are NEVER auto-committed). ISO 6346
+      check-digit advisory validation runs on the draft. Backend OCR tests
+      (13/13 pass) confirm the pipeline + ownership guards.
 - [ ] M8.6: driver payslip view — own issued periods only; adjusted period shows both
       versions + reason; line links to basis.
 - [ ] M8.1: mobile UX pass across driver + clerk + forwarder pages — touch targets, font
