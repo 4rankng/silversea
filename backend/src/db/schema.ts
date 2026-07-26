@@ -1808,7 +1808,7 @@ export const customerEmailLogs = pgTable('customer_email_logs', {
 export const paymentAllocations = pgTable('payment_allocations', {
   id: serial('id').primaryKey(),
   // The receipt/payment that this allocation belongs to.
-  receiptId: integer('receipt_id'),
+  receiptId: varchar('receipt_id', { length: 100 }),
   // The customer receiving the allocation.
   customerId: integer('customer_id').references(() => customers.id).notNull(),
   // What this allocation is applied to: a trip or a billing document.
