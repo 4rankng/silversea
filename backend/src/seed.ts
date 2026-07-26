@@ -556,8 +556,8 @@ export async function seedShipments(passwordHash: string) {
       contactPhone: '02438888888',
       advanceTo: 'IN_PROGRESS',
       containers: [
-        { containerNumber: 'SEED-MSKU-001', sealNumber: 'SEED-SEAL-001', cargoWeightKg: 18500 },
-        { containerNumber: 'SEED-MSKU-002', sealNumber: 'SEED-SEAL-002', cargoWeightKg: 19200 },
+        { containerNumber: 'MSKU1234565', sealNumber: 'SEED-SEAL-001', cargoWeightKg: 18500 },
+        { containerNumber: 'TCNU7425363', sealNumber: 'SEED-SEAL-002', cargoWeightKg: 19200 },
       ],
     },
     {
@@ -571,7 +571,7 @@ export async function seedShipments(passwordHash: string) {
       contactPhone: '02253555555',
       advanceTo: 'DELIVERED',
       containers: [
-        { containerNumber: 'SEED-MSKU-003', sealNumber: 'SEED-SEAL-003', cargoWeightKg: 17800 },
+        { containerNumber: 'OOLU8312661', sealNumber: 'SEED-SEAL-003', cargoWeightKg: 17800 },
       ],
       document: { type: 'BL', storageKey: 'uploads/seed/SEED-SHIP-3/bl.pdf' },
       declaration: { declarationNumber: 'SEED-DECL-003', scope: 'SINGLE', note: 'Tờ khai mẫu (seed)' },

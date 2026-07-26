@@ -318,7 +318,7 @@ describe('Audit-log every shipment write', () => {
     const shipment = await mkShipmentViaService();
     const r = await testFetch(`/${shipment.id}/containers`, {
       method: 'PUT', token: adminToken,
-      body: { containers: [{ containerTypeId, containerNumber: `AUDIT-CTN-${suffix}` }] },
+      body: { containers: [{ containerTypeId, containerNumber: 'FCIU8392736' }] },
     });
     assert.equal(r.status, 200);
 

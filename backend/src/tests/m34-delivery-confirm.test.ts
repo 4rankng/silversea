@@ -80,8 +80,8 @@ describe('M3.4 — confirmDelivery', () => {
     const shipment = await createShipment({ customerId: customer.id });
     createdShipmentIds.push(shipment.id);
     const [c1] = await batchUpsertShipmentContainers(shipment.id, null, [
-      { containerNumber: 'TEST-001' },
-      { containerNumber: 'TEST-002' },
+      { containerNumber: 'MSKU1234565' },
+      { containerNumber: 'TCNU7425363' },
     ]);
 
     const result = await confirmDelivery({

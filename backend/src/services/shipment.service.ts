@@ -28,6 +28,7 @@ import type { Tx } from './trip-shared';
 import { createTripCommand } from './trip-command.service';
 import { cacheInvalidate, cacheInvalidatePattern } from '../lib/redis';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
+import { validateContainerNumber } from '@tingting/shared';
 
 // ─── Status machine ─────────────────────────────────────────────────────────
 //
@@ -529,6 +530,46 @@ export async function getShipmentDetail(id: number): Promise<ShipmentDetail> {
 // the same contract the trip-edit form uses, so the shipment UI behaves
 // identically.
 
+/**
+ * M10.2 slice 1 — validate the desired container set of a shipment.
+ *
+ * Two checks, both PRD M10-02-03 ("format + duplicate checks"):
+ *   1. Each non-null `containerNumber` must pass the shared ISO 6346
+ *      validator (format + check digit). Null numbers are allowed — a
+ *      shipment can hold placeholder rows before the BL arrives.
+ *   2. No two containers in the desired set may share the same number.
+ *      Cross-shipment reuse is legal (shared container pool), so the check
+ *      is scoped to this batch only.
+ *
+ * Throws `ApiError(400, …)` on the first violation with a Vietnamese
+ * message ready to surface in the UI. Runs inside the caller's transaction
+ * BEFORE any write, so a rejected batch leaves the shipment untouched.
+ */
+function assertContainerSetValid(
+  containers: ReadonlyArray<{
+    id?: number;
+    containerNumber?: string | null;
+  }>,
+): void {
+  const seen = new Set<string>();
+  for (const c of containers) {
+    const num = c.containerNumber?.trim() || null;
+    if (!num) continue; // placeholder row — allowed
+    const [ok, message] = validateContainerNumber(num);
+    if (!ok) {
+      throw new ApiError(400, `Số container "${num}" không hợp lệ: ${message}`);
+    }
+    const key = num.toUpperCase();
+    if (seen.has(key)) {
+      throw new ApiError(
+        400,
+        `Số container "${num}" bị trùng trong cùng lô hàng. Mỗi container phải có số duy nhất.`,
+      );
+    }
+    seen.add(key);
+  }
+}
+
 export async function batchUpsertShipmentContainers(
   shipmentId: number,
   userId: number | null,
@@ -549,6 +590,15 @@ export async function batchUpsertShipmentContainers(
       .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
       .limit(1);
     if (!existing) throw new ApiError(404, 'Không tìm thấy lô hàng');
+
+    // M10.2 slice 1: validate the desired container set BEFORE any write so a
+    // rejected batch leaves the shipment untouched. The batch is a full
+    // reconcile — `containers` becomes the desired final list — so duplicate
+    // and format checks against it cover the post-state correctly. Null
+    // numbers are allowed (placeholder rows before the BL arrives); only
+    // non-null values are validated. Reuses the shared ISO 6346 validator
+    // already ported from vantaiphucloc.
+    assertContainerSetValid(containers);
 
     const current = await tx.select({ id: s.shipmentContainers.id })
       .from(s.shipmentContainers)

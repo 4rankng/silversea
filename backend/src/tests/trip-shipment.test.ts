@@ -136,10 +136,10 @@ describe('createTrip with shipmentId', () => {
     const shipment = await createShipment({ customerId: customer.id });
     createdShipmentIds.push(shipment.id);
 
-    // Seed two shipment containers.
+    // Seed two shipment containers (valid ISO 6346 numbers — M10.2 enforces format).
     await batchUpsertShipmentContainers(shipment.id, null, [
-      { containerTypeId: cat.containerType.id, containerNumber: `CONT-A-${suffix}`, sealNumber: 'SEAL-A', cargoWeightKg: 12000 },
-      { containerTypeId: cat.containerType.id, containerNumber: `CONT-B-${suffix}`, cargoWeightKg: 8000 },
+      { containerTypeId: cat.containerType.id, containerNumber: 'MSKU1234565', sealNumber: 'SEAL-A', cargoWeightKg: 12000 },
+      { containerTypeId: cat.containerType.id, containerNumber: 'TCNU7425363', cargoWeightKg: 8000 },
     ]);
 
     const trip = await createTrip({
@@ -158,7 +158,7 @@ describe('createTrip with shipmentId', () => {
     const snapshotRows = tripRows.filter((r) => r.notes?.startsWith('__shipment_snapshot:'));
     assert.equal(snapshotRows.length, 2, 'snapshot copied both shipment containers');
     const numbers = snapshotRows.map((r) => r.containerNumber).sort();
-    assert.deepEqual(numbers, [`CONT-A-${suffix}`, `CONT-B-${suffix}`].sort());
+    assert.deepEqual(numbers, ['MSKU1234565', 'TCNU7425363'].sort());
   });
 
   test('shipmentId with no shipment containers still creates the trip (no snapshot rows added)', async () => {
