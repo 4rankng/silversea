@@ -593,8 +593,15 @@ biggest new surface area and the biggest customer-facing differentiator.
       - slice 3 — frontend `ClerkShipmentDocsPage.tsx` wiring slice 1+2:
         BL + container entry, inline validation surfacing, readiness banner,
         dispatch gated to MANAGER/ADMIN (Q17).
-- [ ] Offline-queue client lib (`idb-keyval`) + idempotent sync endpoint; client-gen request
+- [x] Offline-queue client lib (`idb-keyval`) + idempotent sync endpoint; client-gen request
       id + server dedupe table.
+      <!-- autonomous-sdlc:completed task=wave4-offline-queue-client -->
+      Server half built in M10.1 slice 1 (`idempotency_keys` table +
+      `runIdempotent()` + `Idempotency-Key` header on `api.post()`). Client
+      half: `frontend/src/lib/offline-queue.ts` — `OfflineQueue` class with
+      storage injection (`idbStore` production / `memoryStore` tests), no new
+      runtime dep. UUID v4 idempotency keys; QUEUED→IN_PROGRESS→DONE/FAILED/
+      CONFLICT machine; idempotent re-drain; conflict terminal; single-flight.
 - [ ] M8.3: driver two-orders-per-day view; warn when first order late.
 - [ ] M8.4: progress + incidental-cost update; offline-safe; mandatory evidence before
       completion.
