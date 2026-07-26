@@ -59,3 +59,109 @@ export async function quickCreateShipment(
     headers: { 'Idempotency-Key': idempotencyKey },
   });
 }
+
+// ─── M10.2 slice 3 — clerk doc-entry surface ────────────────────────────────
+//
+// The doc-entry page edits an existing DRAFT shipment's BL number + container
+// set and (for MANAGER/ADMIN) dispatches it. Container numbers are validated
+// server-side via ISO 6346 + duplicate-within-shipment checks (slice 1); the
+// dispatch response carries `preDispatchWarnings` (slice 2) shown in a confirm
+// dialog before the operator commits.
+
+/** Container row on a shipment detail payload. */
+export interface ShipmentContainer {
+  id: number;
+  shipmentId: number;
+  containerTypeId: number | null;
+  containerNumber: string | null;
+  sealNumber: string | null;
+  cargoWeightKg: string | null;
+  notes: string | null;
+}
+
+/** Full detail payload returned by `GET /api/shipments/:id`. */
+export interface ShipmentDetail {
+  shipment: Shipment & { customerName: string | null };
+  containers: ShipmentContainer[];
+  documents: unknown[];
+  declarations: unknown[];
+  statusHistory: unknown[];
+}
+
+/** Body for `PUT /api/shipments/:id` — version is required (optimistic lock). */
+export interface UpdateShipmentRequest {
+  version: number;
+  blNumber?: string | null;
+  bookingRef?: string | null;
+  expectedDeliveryDate?: string | null;
+  pickupLocation?: string | null;
+  deliveryLocation?: string | null;
+  contactName?: string | null;
+  contactPhone?: string | null;
+}
+
+/** Body for `PUT /api/shipments/:id/containers` (full reconcile). */
+export interface ShipmentContainerBatch {
+  containers: Array<{
+    id?: number;
+    containerTypeId?: number | null;
+    containerNumber?: string | null;
+    sealNumber?: string | null;
+    cargoWeightKg?: string | number | null;
+    notes?: string | null;
+  }>;
+}
+
+/** Response shape from `PUT /api/shipments/:id/containers`. */
+export interface ShipmentContainerBatchResponse {
+  items: ShipmentContainer[];
+  upsertedIds: number[];
+}
+
+/** Body for `POST /api/shipments/:id/dispatch`. */
+export interface DispatchShipmentRequest {
+  routeId: number;
+  cargoTypeId: number;
+  containerTypeId: number;
+  truckId?: number | null;
+  driverId?: number | null;
+  departureDate: string;
+  customerReference?: string;
+  containerCount?: number;
+}
+
+/** Response from `POST /api/shipments/:id/dispatch` — carries slice-2 warnings. */
+export interface DispatchShipmentResponse {
+  trip: { id: number; tripCode: string | null; shipmentId: number | null };
+  created: boolean;
+  preDispatchWarnings: string[];
+}
+
+/** Fetch the full detail (shipment + containers + documents + …). */
+export async function getShipmentDetail(id: number): Promise<ShipmentDetail> {
+  return api.get<ShipmentDetail>(`/api/shipments/${id}`);
+}
+
+/** Update BL number (and optionally other fields) — version-gated (409 on stale). */
+export async function updateShipment(
+  id: number,
+  body: UpdateShipmentRequest,
+): Promise<Shipment> {
+  return api.put<Shipment>(`/api/shipments/${id}`, body);
+}
+
+/** Full-reconcile the shipment's container set (slice-1 validation applies). */
+export async function saveShipmentContainers(
+  id: number,
+  body: ShipmentContainerBatch,
+): Promise<ShipmentContainerBatchResponse> {
+  return api.put<ShipmentContainerBatchResponse>(`/api/shipments/${id}/containers`, body);
+}
+
+/** Dispatch the shipment → linked trip. Carries slice-2 preDispatchWarnings. */
+export async function dispatchShipment(
+  id: number,
+  body: DispatchShipmentRequest,
+): Promise<DispatchShipmentResponse> {
+  return api.post<DispatchShipmentResponse>(`/api/shipments/${id}/dispatch`, body);
+}
