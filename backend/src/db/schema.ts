@@ -41,7 +41,7 @@ export const notificationTypeEnum = pgEnum('notification_type', [
   'TRIP_CREATED', 'TRIP_DISPATCHED', 'TRIP_IN_TRANSIT', 'TRIP_COMPLETED',
   'TRIP_LOCKED', 'TRIP_UNLOCKED', 'TRIP_CANCELED', 'PAYMENT_RECEIVED', 'PENALTY_CREATED',
   'PENALTY_CANCELED', 'OVERDUE_PAYMENT', 'SALARY_PERIOD_CLOSING', 'SYSTEM_ANNOUNCEMENT',
-  'ADVANCE_SETTLEMENT_APPROVED',
+  'ADVANCE_SETTLEMENT_APPROVED', 'SHIPMENT_HANDOFF',
 ]);
 export const workDayStatusEnum = pgEnum('work_day_status', ['TRIP_DAY', 'STANDBY', 'PERSONAL_LEAVE', 'WEEKLY_OFF']);
 // ─── Onboarding (Phase 4) ───────────────────────────────────────────────────

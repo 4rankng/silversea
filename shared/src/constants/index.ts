@@ -342,6 +342,7 @@ export enum NotificationType {
   SALARY_PERIOD_CLOSING = 'SALARY_PERIOD_CLOSING',
   SYSTEM_ANNOUNCEMENT = 'SYSTEM_ANNOUNCEMENT',
   ADVANCE_SETTLEMENT_APPROVED = 'ADVANCE_SETTLEMENT_APPROVED',
+  SHIPMENT_HANDOFF = 'SHIPMENT_HANDOFF',
 }
 
 export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
@@ -359,6 +360,7 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   [NotificationType.SALARY_PERIOD_CLOSING]: 'Sắp chốt kỳ lương',
   [NotificationType.SYSTEM_ANNOUNCEMENT]: 'Thông báo hệ thống',
   [NotificationType.ADVANCE_SETTLEMENT_APPROVED]: 'Phiếu hoàn ứng đã duyệt',
+  [NotificationType.SHIPMENT_HANDOFF]: 'Lô hàng được giao cho điều vận',
 };
 
 /**
