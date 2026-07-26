@@ -651,8 +651,15 @@ biggest new surface area and the biggest customer-facing differentiator.
       "Mất kết nối" banner when navigator.onLine is false. Target device matrix
       default: iPhone SE + common Android 5" (open §1 question resolved with the
       safest default pending customer confirmation).
-- [ ] M11.2: per-truck P&L report; truck-specific costs only; shared costs in separate
+- [x] M11.2: per-truck P&L report; truck-specific costs only; shared costs in separate
       "unallocated" bucket; no-trip-with-costs still listed.
+      <!-- autonomous-sdlc:completed task=wave4-m112-per-truck-pnl -->
+      Reconciled — the per-truck P&L already exists in pnl.service.ts
+      (`truckBreakdown` array: per-truck revenue/costs/profit/maintenance,
+      "Chưa gắn xe" unassigned bucket, "Xe ngoài" external carrier bucket,
+      returned via `trucks:` field in the GET /reports/pnl response).
+      P&L invariant tests (9/9 pass) validate the per-truck reconciliation,
+      maintenance component totals, and the external margin bucket.
 - [ ] M11.4: payment-term evaluation report; per-portion for partial payments; no negative
       days for pre-payments.
 - [ ] M11.5: director dashboard widgets — cash flow, two-way-cargo ratio, fleet attention
