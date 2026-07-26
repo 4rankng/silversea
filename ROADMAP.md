@@ -458,6 +458,7 @@ biggest new surface area and the biggest customer-facing differentiator.
       <!-- autonomous-sdlc:completed task=wave3-m58-debit-note-pdf -->
 - [ ] M6.1: fuel-AP reconciliation report (fuel invoices ↔ trip fuel by truck/period);
       variance blocks approval until explained.
+      <!-- autonomous-sdlc:in-progress task=wave3-m61-fuel-ap-recon slice=1 -->
 - [ ] M6.2: supplier-type taxonomy (CARRIER/PORT/WAREHOUSE/SHIPPING_LINE/CUSTOMS/SERVICE/FUEL).
 - [ ] M6.3: AP aging (mirror of AR); partial payment; no double-record of same payment ref;
       overpayment stays unallocated.
