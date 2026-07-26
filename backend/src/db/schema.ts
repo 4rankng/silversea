@@ -1883,3 +1883,58 @@ export const fuelReconExplanations = pgTable('fuel_recon_explanations', {
     .on(table.supplierId, table.periodFrom, table.periodTo),
   index('fuel_recon_explanations_supplier_idx').on(table.supplierId),
 ]);
+
+// Wave 4: dispatch handoffs. When a clerk creates/qualifies a shipment,
+// they hand it off to a dispatcher (điều vận). This table tracks the
+// handoff lifecycle: UNSEEN → SEEN → ACCEPTED (or REJECTED), with the
+// handler, priority, vehicle-needed-by time, operational note, and the
+// shipment version at handoff time (for conflict detection — M10-03-03:
+// "Nếu dữ liệu bị sửa trong lúc điều vận đang xem, phải cảnh báo có
+// phiên bản mới").
+export const handoffStatusEnum = pgEnum('handoff_status', [
+  'UNSEEN',   // dispatched to dispatcher, not yet opened
+  'SEEN',     // dispatcher opened the handoff
+  'ACCEPTED', // dispatcher took ownership
+  'REJECTED', // dispatcher declined (with reason)
+]);
+
+export const dispatchHandoffs = pgTable('dispatch_handoffs', {
+  id: serial('id').primaryKey(),
+  // The shipment being handed off.
+  shipmentId: integer('shipment_id')
+    .references(() => shipments.id, { onDelete: 'cascade' }).notNull(),
+  // The dispatcher (user) assigned to handle this handoff.
+  handlerId: integer('handler_id').references(() => users.id),
+  // M10-03 §1: priority level (e.g. 'NORMAL', 'URGENT'). Free-text for now;
+  // can be enum-ified when the PRD confirms the levels.
+  priority: varchar('priority', { length: 20 }).notNull().default('NORMAL'),
+  // M10-03 §1: when the vehicle is needed (thời gian cần xe).
+  vehicleNeededBy: timestamp('vehicle_needed_by'),
+  // M10-03 §1: operational note (ghi chú vận hành).
+  operationalNote: text('operational_note'),
+  // Handoff status lifecycle.
+  status: handoffStatusEnum('status').default('UNSEEN').notNull(),
+  // Snapshot of shipment.version at handoff time — used by M10-03-03 to
+  // detect if the shipment was edited after handoff (version conflict).
+  handoffVersion: integer('handoff_version').notNull(),
+  // Who created the handoff (the clerk).
+  createdBy: integer('created_by').references(() => users.id),
+  // Timestamps for each lifecycle transition (for audit/tracking).
+  dispatchedAt: timestamp('dispatched_at').defaultNow().notNull(),
+  seenAt: timestamp('seen_at'),
+  resolvedAt: timestamp('resolved_at'),
+  // Free-text reason for REJECTED status.
+  rejectReason: text('reject_reason'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  index('dispatch_handoffs_shipment_idx').on(table.shipmentId),
+  index('dispatch_handoffs_handler_idx').on(table.handlerId),
+  index('dispatch_handoffs_status_idx').on(table.status),
+  // One active handoff per shipment at a time (UNSEEN or SEEN). ACCEPTED/
+  // REJECTED rows are historical; a new handoff can be created after one
+  // is resolved.
+  uniqueIndex('dispatch_handoffs_shipment_active_uniq')
+    .on(table.shipmentId)
+    .where(sql`${table.status} IN ('UNSEEN', 'SEEN')`),
+]);
