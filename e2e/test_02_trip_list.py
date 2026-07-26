@@ -14,7 +14,7 @@ def test_trip_list(ctx: NepoTestContext, results: TestResults):
         items = resp['data']['items']
         results.pass_('TC-0201', f'Trip list API returns {len(items)} trips')
     else:
-        results.fail_('TC-0201', 'Trip list API', f'Got: {resp.get("status")}')
+        results.fail(('TC-0201', 'Trip list API', f'Got: {resp.get("status")}')
 
     # TC-0202: Trip list page renders
     page = ctx.new_page()
@@ -26,7 +26,7 @@ def test_trip_list(ctx: NepoTestContext, results: TestResults):
     if '/trips' in page.url:
         results.pass_('TC-0202', 'Trip list page renders')
     else:
-        results.fail_('TC-0202', 'Trip list page', f'URL: {page.url}')
+        results.fail(('TC-0202', 'Trip list page', f'URL: {page.url}')
     ctx.screenshot(page, 'TC-0202_trip_list')
     page.close()
 
@@ -36,21 +36,21 @@ def test_trip_list(ctx: NepoTestContext, results: TestResults):
         data = resp.get('data', {})
         results.pass_('TC-0203', f'Pagination works (total={data.get("total")})')
     else:
-        results.fail_('TC-0203', 'Trip pagination', f'Status: {resp.get("status")}')
+        results.fail(('TC-0203', 'Trip pagination', f'Status: {resp.get("status")}')
 
     # TC-0204: Trip list filter by status
     resp = api.get('/api/trips?status=CREATED')
     if resp.get('status') == 200:
         results.pass_('TC-0204', 'Filter by status works')
     else:
-        results.fail_('TC-0204', 'Status filter', f'Status: {resp.get("status")}')
+        results.fail(('TC-0204', 'Status filter', f'Status: {resp.get("status")}')
 
     # TC-0205: Trip stats API
     resp = api.get('/api/trips/stats')
     if resp.get('status') == 200:
         results.pass_('TC-0205', 'Trip stats API works')
     else:
-        results.fail_('TC-0205', 'Trip stats', f'Status: {resp.get("status")}')
+        results.fail(('TC-0205', 'Trip stats', f'Status: {resp.get("status")}')
 
     # TC-0206: ACCOUNTANT can view trip list
     api_acct = ApiClient()
@@ -59,7 +59,7 @@ def test_trip_list(ctx: NepoTestContext, results: TestResults):
     if resp.get('status') == 200:
         results.pass_('TC-0206', 'ACCOUNTANT views trip list')
     else:
-        results.fail_('TC-0206', 'ACCOUNTANT trips', f'Status: {resp.get("status")}')
+        results.fail(('TC-0206', 'ACCOUNTANT trips', f'Status: {resp.get("status")}')
 
 if __name__ == '__main__':
     sys.exit(run_suite('02-trip-list-search', test_trip_list))

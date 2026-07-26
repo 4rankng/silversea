@@ -18,7 +18,7 @@ def test_penalties(ctx: NepoTestContext, results: TestResults):
     if '/penalties' in page.url:
         results.pass_('TC-0601', 'Penalties page loads')
     else:
-        results.fail_('TC-0601', 'Penalties page', f'URL: {page.url}')
+        results.fail(('TC-0601', 'Penalties page', f'URL: {page.url}')
     ctx.screenshot(page, 'TC-0601_penalties')
     page.close()
 
@@ -27,14 +27,14 @@ def test_penalties(ctx: NepoTestContext, results: TestResults):
     if resp.get('status') == 200:
         results.pass_('TC-0602', 'Penalties list API works')
     else:
-        results.fail_('TC-0602', 'Penalties API', f'Status: {resp.get("status")}')
+        results.fail(('TC-0602', 'Penalties API', f'Status: {resp.get("status")}')
 
     # TC-0603: Penalty reasons API
     resp = api.get('/api/penalty-reasons')
     if resp.get('status') == 200:
         results.pass_('TC-0603', 'Penalty reasons API works')
     else:
-        results.fail_('TC-0603', 'Penalty reasons', f'Status: {resp.get("status")}')
+        results.fail(('TC-0603', 'Penalty reasons', f'Status: {resp.get("status")}')
 
     # TC-0604: Create penalty via API
     drivers_resp = api.get('/api/drivers')
@@ -52,7 +52,7 @@ def test_penalties(ctx: NepoTestContext, results: TestResults):
         if resp.get('status') in (200, 201) or (resp.get('data') and resp.get('data', {}).get('id')):
             results.pass_('TC-0604', 'Create penalty via API')
         else:
-            results.fail_('TC-0604', 'Create penalty', f'Status: {resp.get("status")}, Body: {resp}')
+            results.fail(('TC-0604', 'Create penalty', f'Status: {resp.get("status")}, Body: {resp}')
     else:
         results.skip('TC-0604', 'Create penalty', 'No drivers in system')
 
@@ -69,7 +69,7 @@ def test_penalties(ctx: NepoTestContext, results: TestResults):
         if resp.get('status') in (403, 401):
             results.pass_('TC-0605', 'DRIVER cannot create penalty → 403')
         else:
-            results.fail_('TC-0605', 'DRIVER penalty create', f'Expected 403, got {resp.get("status")}')
+            results.fail(('TC-0605', 'DRIVER penalty create', f'Expected 403, got {resp.get("status")}')
     else:
         results.skip('TC-0605', 'DRIVER penalty create', 'No drivers')
 

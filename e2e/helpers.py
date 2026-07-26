@@ -182,7 +182,7 @@ class NepoTestContext:
         if page:
             page.goto(f'{BASE_URL}/login')
             page.wait_for_load_state('networkidle')
-            page.fill('input[id="identifier"], input[placeholder*="Tên đăng nhập"]', account['identifier'])
+            page.fill('input[id="username-input"], input[id="identifier"], input[placeholder*="Tên đăng nhập"]', account['identifier'])
             page.fill('input[type="password"]', account['password'])
             page.click('button[type="submit"], button:has-text("Đăng nhập")')
             page.wait_for_load_state('networkidle')
