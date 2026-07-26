@@ -32,6 +32,7 @@ const ShipmentDetailPage = lazy(() => import('./pages/ShipmentDetailPage'));
 const PortalShipmentsPage = lazy(() => import('./pages/portal/PortalShipmentsPage'));
 const PortalShipmentDetailPage = lazy(() => import('./pages/portal/PortalShipmentDetailPage'));
 const ClerkShipmentCreatePage = lazy(() => import('./pages/clerk/ClerkShipmentCreatePage'));
+const ClerkShipmentDocsPage = lazy(() => import('./pages/clerk/ClerkShipmentDocsPage'));
 const PortalDebitNotesPage = lazy(() => import('./pages/portal/PortalDebitNotesPage'));
 const AuditLogPage = lazy(() => import('./pages/AuditLogPage'));
 const DriverTripsPage = lazy(() => import('./pages/DriverTripsPage'));
@@ -250,6 +251,8 @@ function AppRoutes() {
               admitted as superuser; the clerk home is this create page until
               a clerk landing page ships. */}
           <Route path="/clerk/shipments/new" element={clerkOrAdminOnly(page(<ClerkShipmentCreatePage />))} />
+          {/* Wave 4 M10.2: clerk doc-entry page (BL + containers + dispatch-readiness). */}
+          <Route path="/clerk/shipments/:id/docs" element={clerkOrAdminOnly(page(<ClerkShipmentDocsPage />))} />
         </Routes>
       </Layout>
   );
