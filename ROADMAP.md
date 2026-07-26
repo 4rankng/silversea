@@ -569,7 +569,8 @@ biggest new surface area and the biggest customer-facing differentiator.
 
 - [x] Schema: new `dispatch_handoffs` table (UNSEEN/SEEN/ACCEPTED + handler + version).
       <!-- autonomous-sdlc:completed task=wave4-dispatch-handoffs-schema -->
-- [ ] M10.3: handoff service + notification on handoff; version-conflict warning.
+- [x] M10.3: handoff service + notification on handoff; version-conflict warning.
+      <!-- autonomous-sdlc:completed task=wave4-m103-handoff-service -->
 - [ ] M10.1: clerk router + mobile quick-shipment-create page.
 - [ ] M10.2: clerk doc-entry page; format + duplicate checks; mandatory fields before dispatch.
 - [ ] Offline-queue client lib (`idb-keyval`) + idempotent sync endpoint; client-gen request
