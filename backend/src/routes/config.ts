@@ -40,6 +40,32 @@ import { getUser } from '../middleware/auth';
 import { parsePagination } from './utils/pagination';
 import { queryAuditLogs } from '../services/audit-query.service';
 import { getPenaltyStats } from '../services/reporting.service';
+import { normalizeSupplierTypes, syncFuelFlag } from '../services/supplier-types.service';
+
+/**
+ * Wave 3 M6.2 — afterCreate/afterUpdate hook for suppliers. Normalizes
+ * the raw `types` input from the form (which can be lowercase, duped,
+ * or contain invalid strings) into the canonical sorted array, persists
+ * it, and mirrors `isFuelSupplier` from the FUEL membership so legacy
+ * boolean readers see consistent state. Runs after the linked-customer
+ * mirror hook.
+ */
+async function syncSupplierTypesHook(
+  item: { id: number },
+  data: { types?: unknown },
+): Promise<void> {
+  // No `types` key in the payload → leave the column untouched (caller
+  // is updating some other field).
+  if (data == null || !('types' in data) || data.types === undefined) return;
+  const normalized = normalizeSupplierTypes(data.types);
+  await db.update(s.suppliers)
+    .set({
+      types: normalized,
+      isFuelSupplier: syncFuelFlag(normalized),
+      updatedAt: new Date(),
+    })
+    .where(eq(s.suppliers.id, item.id));
+}
 
 const router = Router();
 
@@ -169,8 +195,14 @@ router.use('/cap-table', createCrudRouter(s.capTableHistory, capTableSchema));
 router.use('/truck-cap', createCrudRouter(s.truckCapTable, truckCapSchema));
 router.use('/suppliers', createCrudRouter(s.suppliers, supplierSchema, {
   searchableField: 'name',
-  afterCreate: mirrorSupplierLink,
-  afterUpdate: mirrorSupplierLink,
+  afterCreate: async (item, data) => {
+    await mirrorSupplierLink(item, data);
+    await syncSupplierTypesHook(item, data);
+  },
+  afterUpdate: async (item, data) => {
+    await mirrorSupplierLink(item, data);
+    await syncSupplierTypesHook(item, data);
+  },
 }));
 router.use('/expense-categories', createCrudRouter(s.expenseCategories, expenseCategorySchema, { searchableField: 'name' }));
 // Debit-note templates — dedicated transactional router (NOT crud-factory) so the

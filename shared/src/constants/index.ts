@@ -381,3 +381,43 @@ export const PUSH_RULES: Partial<Record<NotificationType, PushAudience>> = {
 };
 
 export * from './api-paths';
+
+// ─── Supplier type taxonomy (Wave 3 M6.2) ──────────────────────────────────
+
+/**
+ * Canonical supplier-type taxonomy. A supplier may have multiple types
+ * (e.g. a PORT that is also a WAREHOUSE, or a CARRIER that also sells
+ * FUEL). Stored on `suppliers.types` as a Postgres text[].
+ *
+ * Backward-compat: `isFuelSupplier` (boolean) is mirrored from
+ * `types.includes('FUEL')` by supplier-types.service.syncFuelFlag.
+ */
+export enum SupplierType {
+  CARRIER = 'CARRIER',
+  PORT = 'PORT',
+  WAREHOUSE = 'WAREHOUSE',
+  SHIPPING_LINE = 'SHIPPING_LINE',
+  CUSTOMS = 'CUSTOMS',
+  SERVICE = 'SERVICE',
+  FUEL = 'FUEL',
+}
+
+export const SUPPLIER_TYPES: readonly SupplierType[] = Object.freeze([
+  SupplierType.CARRIER,
+  SupplierType.PORT,
+  SupplierType.WAREHOUSE,
+  SupplierType.SHIPPING_LINE,
+  SupplierType.CUSTOMS,
+  SupplierType.SERVICE,
+  SupplierType.FUEL,
+]);
+
+export const SUPPLIER_TYPE_LABELS: Record<SupplierType, string> = {
+  [SupplierType.CARRIER]: 'Vận chuyển',
+  [SupplierType.PORT]: 'Cảng',
+  [SupplierType.WAREHOUSE]: 'Kho',
+  [SupplierType.SHIPPING_LINE]: 'Hãng tàu',
+  [SupplierType.CUSTOMS]: 'Hải quan',
+  [SupplierType.SERVICE]: 'Dịch vụ',
+  [SupplierType.FUEL]: 'Nhiên liệu',
+};

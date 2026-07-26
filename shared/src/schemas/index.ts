@@ -727,6 +727,10 @@ export const supplierSchema = z.object({
   status: z.enum(['ACTIVE', 'INACTIVE']).optional().default('ACTIVE'),
   linkedCustomerId: z.number().int().positive().optional().nullable(),
   isFuelSupplier: z.boolean().optional().default(false),
+  // Wave 3 M6.2: multi-value type taxonomy. The service normalizes the
+  // array (uppercase, dedupe, filter to the canonical enum). When 'FUEL'
+  // is present, isFuelSupplier is mirrored to true by the CRUD hook.
+  types: z.array(z.string()).optional().nullable(),
 });
 
 export const expenseCategorySchema = z.object({
