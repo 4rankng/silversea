@@ -4,7 +4,7 @@ import { Role, debtOffsetSchema } from '@tingting/shared';
 import { requireRoles } from '../../middleware/casbin';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { getUser } from '../../middleware/auth';
-import { getDualEntities, createDebtOffset, approveDebtOffset, listDebtOffsets } from '../../services/debtOffset.service';
+import { getDualEntities, createDebtOffset, approveDebtOffset, cancelDebtOffset, listDebtOffsets } from '../../services/debtOffset.service';
 import { invalidateReportCaches } from '../../lib/redis';
 
 const router = Router();
@@ -43,6 +43,18 @@ router.post('/finance/debt-offsets/:id/approve',
     const id = parseInt(req.params.id as string, 10);
     const result = await approveDebtOffset(id, getUser(req).userId, getUser(req).role);
     await invalidateReportCaches();   // was missing — approve posts ADJUSTMENT ledger entries but busted no cache
+    res.json(result);
+  }),
+);
+
+// M6.4 — cancel an APPROVED debt offset via reversing entries. Mirrors
+// approveDebtOffset's authz (ADMIN/MANAGER). Invalidates the same caches.
+router.post('/finance/debt-offsets/:id/cancel',
+  requireRoles(Role.ADMIN, Role.MANAGER),
+  asyncHandler(async (req: Request, res: Response) => {
+    const id = parseInt(req.params.id as string, 10);
+    const result = await cancelDebtOffset(id, getUser(req).userId, getUser(req).role);
+    await invalidateReportCaches();
     res.json(result);
   }),
 );

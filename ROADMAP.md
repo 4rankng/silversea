@@ -489,8 +489,9 @@ biggest new surface area and the biggest customer-facing differentiator.
 - [x] M6.3: AP aging (mirror of AR); partial payment; no double-record of same payment ref;
       overpayment stays unallocated.
       <!-- autonomous-sdlc:completed task=wave3-m63-ap-aging -->
-- [ ] M6.4: verify existing `debt_offsets` against M06-04 rules (offset ≤ smaller side;
+- [x] M6.4: verify existing `debt_offsets` against M06-04 rules (offset ≤ smaller side;
       booked only after approval; cancel-after-approve uses reversal).
+      <!-- autonomous-sdlc:completed task=wave3-m64-debt-offsets-verify -->
 - [ ] M7.3: salary period-close service + endpoint; idempotent; single ledger entry; lock.
 - [ ] M4.6: invoice-required categories enforce full invoice data before approval.
 - [ ] M4.7: no-invoice items permitted only for allowed categories; over-threshold routes
