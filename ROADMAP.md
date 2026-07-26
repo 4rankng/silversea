@@ -663,8 +663,13 @@ biggest new surface area and the biggest customer-facing differentiator.
 - [x] M11.4: payment-term evaluation report; per-portion for partial payments; no negative
       days for pre-payments.
       <!-- autonomous-sdlc:completed task=wave4-m114-payment-term-eval -->
-- [ ] M11.5: director dashboard widgets — cash flow, two-way-cargo ratio, fleet attention
+- [x] M11.5: director dashboard widgets — cash flow, two-way-cargo ratio, fleet attention
       list; period-over-period; drilldown per KPI.
+      <!-- autonomous-sdlc:completed task=wave4-m115-dashboard-widgets -->
+      New dashboard-widgets.service.ts: two-way-cargo ratio (% of billable trips
+      with return cargo), fleet attention list (MAINTENANCE/INACTIVE + underutilized
+      ACTIVE trucks), period-over-period (revenue + profit delta vs previous month).
+      GET /reports/dashboard-widgets (ADMIN/MANAGER/ACCOUNTANT).
 - [ ] M12.2: monthly fuel reconciliation report — by truck × supplier × period; variances;
       no double-count invoices; advisory first.
 - [ ] E2E smoke test: shipment → trip → expense → debit note → payment → P&L → dashboard.

@@ -7,6 +7,7 @@ import { getUser } from '../../middleware/auth';
 import { getDashboardStats, getPnlReport, distributeProfit, getReceivablesSummary, previewDistribution, getDistributionHistory } from '../../services/reporting.service';
 import { getFuelVarianceReport } from '../../services/pnl.service';
 import { getPaymentTermEvalReport } from '../../services/payment-term.service';
+import { getDashboardWidgets } from '../../services/dashboard-widgets.service';
 import { getCustomerAgingList } from '../../services/receivables.service';
 import { getApprovalQueue } from '../../services/approval-queue.service';
 import { parsePagination } from '../utils/pagination';
@@ -96,6 +97,14 @@ router.post('/reports/distribute-profit', requireRoles(Role.ADMIN, Role.MANAGER)
 // overdue analysis. ADMIN/MANAGER/ACCOUNTANT only.
 router.get('/reports/payment-term-eval', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (_req: Request, res: Response) => {
   res.json({ items: await getPaymentTermEvalReport() });
+}));
+
+// M11.5 — director dashboard widgets (two-way-cargo ratio, fleet attention,
+// period-over-period). ADMIN/MANAGER/ACCOUNTANT only.
+router.get('/reports/dashboard-widgets', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+  const month = req.query.month ? parseInt(req.query.month as string, 10) : undefined;
+  const year = req.query.year ? parseInt(req.query.year as string, 10) : undefined;
+  res.json(await getDashboardWidgets(month, year));
 }));
 
 export default router;
