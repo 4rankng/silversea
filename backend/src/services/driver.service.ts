@@ -715,3 +715,50 @@ export async function getDriverPayslipPeriods(driverId: number): Promise<DriverP
 
   return result;
 }
+
+// ─── M8.4 slice 4: advisory evidence-readiness before completion ──────────
+//
+// PRD M08-04-03 + open §3 question ("which evidences mandatory before
+// completion — photo / signature / GPS?"). Status `pending`. Resolved the
+// same way as M10.2 slice 2: advisory, NOT enforcing. This function returns
+// the list of missing recommended evidence types so the UI (or the
+// operator) sees what's absent before marking the trip COMPLETED. A
+// follow-up flip enforces once §3 sign-off lands.
+//
+// Recommended set: ≥1 container photo + ≥1 DEPARTED progress event + ≥1
+// ARRIVED progress event. These are the minimum audit trail for a trip
+// that was physically driven.
+
+export interface CompletionEvidenceStatus {
+  ready: boolean;
+  missing: string[];
+  hasContainerPhotos: boolean;
+  hasDepartedEvent: boolean;
+  hasArrivedEvent: boolean;
+}
+
+export async function getCompletionEvidenceStatus(tripId: number): Promise<CompletionEvidenceStatus> {
+  // Container photos.
+  const photoRows = await db.select({ id: s.tripPhotos.id })
+    .from(s.tripPhotos)
+    .where(eq(s.tripPhotos.tripId, tripId))
+    .limit(1);
+  const hasContainerPhotos = photoRows.length > 0;
+
+  // Progress events.
+  const progressRows = await db.select({ eventType: s.driverProgressEvents.eventType })
+    .from(s.driverProgressEvents)
+    .where(and(
+      eq(s.driverProgressEvents.tripId, tripId),
+      inArray(s.driverProgressEvents.eventType, ['DEPARTED', 'ARRIVED']),
+    ));
+  const hasDepartedEvent = progressRows.some(r => r.eventType === 'DEPARTED');
+  const hasArrivedEvent = progressRows.some(r => r.eventType === 'ARRIVED');
+
+  const missing: string[] = [];
+  if (!hasContainerPhotos) missing.push('Ảnh container/seal');
+  if (!hasDepartedEvent) missing.push('Sự kiện xuất phát');
+  if (!hasArrivedEvent) missing.push('Sự kiện đến nơi');
+
+  return { ready: missing.length === 0, missing, hasContainerPhotos, hasDepartedEvent, hasArrivedEvent };
+}
