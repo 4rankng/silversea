@@ -660,8 +660,9 @@ biggest new surface area and the biggest customer-facing differentiator.
       returned via `trucks:` field in the GET /reports/pnl response).
       P&L invariant tests (9/9 pass) validate the per-truck reconciliation,
       maintenance component totals, and the external margin bucket.
-- [ ] M11.4: payment-term evaluation report; per-portion for partial payments; no negative
+- [x] M11.4: payment-term evaluation report; per-portion for partial payments; no negative
       days for pre-payments.
+      <!-- autonomous-sdlc:completed task=wave4-m114-payment-term-eval -->
 - [ ] M11.5: director dashboard widgets — cash flow, two-way-cargo ratio, fleet attention
       list; period-over-period; drilldown per KPI.
 - [ ] M12.2: monthly fuel reconciliation report — by truck × supplier × period; variances;
