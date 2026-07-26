@@ -572,6 +572,13 @@ biggest new surface area and the biggest customer-facing differentiator.
 - [x] M10.3: handoff service + notification on handoff; version-conflict warning.
       <!-- autonomous-sdlc:completed task=wave4-m103-handoff-service -->
 - [ ] M10.1: clerk router + mobile quick-shipment-create page.
+      <!-- autonomous-sdlc:in-progress task=wave4-m101-quick-create-frontend -->
+      Decomposed into independently testable slices (scope unchanged):
+      - slice 1 — backend idempotent quick-create (`POST /api/shipments/quick`
+        + `Idempotency-Key` dedupe via `idempotency_keys` table).
+        <!-- autonomous-sdlc:completed task=wave4-m101-quick-create-backend -->
+      - slice 2 — frontend `ClerkShipmentCreatePage.tsx` mobile page calling
+        slice 1 with a client-generated request id.
 - [ ] M10.2: clerk doc-entry page; format + duplicate checks; mandatory fields before dispatch.
 - [ ] Offline-queue client lib (`idb-keyval`) + idempotent sync endpoint; client-gen request
       id + server dedupe table.

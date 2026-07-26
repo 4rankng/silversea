@@ -79,7 +79,7 @@ export {
   tripContainerSchema, tripContainerBatchSchema, tripContainerPatchSchema, tripContainerSealSchema, tripContainerSealBatchSchema, tripExpenseSchema, baseTripExpenseSchema, tripExpensePatchSchema, tripExpenseCompletionSchema, accountantSettlementExpensePatchSchema, forwarderExpenseTypeSchema,
   createAdvanceRequestSchema, createAdvanceSettlementSchema, updateAdvanceSettlementSchema,
   upsertTripInstructionsSchema,
-  createShipmentSchema, updateShipmentSchema, transitionShipmentStatusSchema,
+  createShipmentSchema, quickCreateShipmentSchema, updateShipmentSchema, transitionShipmentStatusSchema,
   attachShipmentDocumentSchema, shipmentContainerBatchSchema, dispatchShipmentSchema,
   containerTypeSchema, portSchema, sealTypeSchema,
   debtOffsetSchema, ANCILLARY_EXPENSE_TYPES,
