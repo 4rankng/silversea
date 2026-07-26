@@ -976,6 +976,17 @@ export const createShipmentSchema = z.object({
   contactPhone: z.string().max(20).optional().nullable(),
 });
 
+// Quick create — M10.1 clerk mobile entry point. Minimum data set is just
+// `customerId` (the only NOT NULL column); every other field is optional
+// and typically filled later from the M10.2 doc-entry page. Optional
+// `_requestId` mirrors the `Idempotency-Key` header so a request generated
+// by the offline-queue client lib can carry its dedupe token in the body
+// when headers are not convenient (e.g. multipart). The header wins when
+// both are present; see `routes/shipments.ts` POST /quick.
+export const quickCreateShipmentSchema = createShipmentSchema.extend({
+  _requestId: z.string().min(1).max(100).optional(),
+});
+
 // Update shipment. `version` is REQUIRED for the optimistic-lock check
 // performed by `updateShipment` (409 on stale). All other fields are optional
 // and use the `!== undefined` convention so callers can patch a subset.
@@ -1047,6 +1058,7 @@ export type CreatePaymentInput = z.infer<typeof createPaymentSchema>;
 export type CreatePenaltyInput = z.infer<typeof createPenaltySchema>;
 export type CreateAdjustmentInput = z.infer<typeof createAdjustmentSchema>;
 export type CreateShipmentInput = z.infer<typeof createShipmentSchema>;
+export type QuickCreateShipmentInput = z.infer<typeof quickCreateShipmentSchema>;
 export type UpdateShipmentInput = z.infer<typeof updateShipmentSchema>;
 export type TransitionShipmentStatusInput = z.infer<typeof transitionShipmentStatusSchema>;
 export type AttachShipmentDocumentInput = z.infer<typeof attachShipmentDocumentSchema>;

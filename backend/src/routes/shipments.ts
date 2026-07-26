@@ -33,9 +33,11 @@ import {
   attachShipmentDocumentSchema,
   shipmentContainerBatchSchema,
   dispatchShipmentSchema,
+  quickCreateShipmentSchema,
 } from '@tingting/shared';
 import {
   createShipment,
+  createShipmentIdempotent,
   getShipment,
   getShipmentDetail,
   listShipmentsPaginated,
@@ -65,6 +67,7 @@ import { ShipmentStatus } from '@tingting/shared';
 // orthogonal: empty-suffix handles `/api/shipments/42` (the basic update),
 // `/containers` handles the container-batch upsert.
 registerAuditEvent('POST', '/api/shipments', AuditEvent.SHIPMENT_CREATED);
+registerAuditEvent('POST', '/api/shipments/', '/quick', AuditEvent.SHIPMENT_CREATED);
 registerAuditEvent('POST', '/api/shipments/', '/dispatch', AuditEvent.SHIPMENT_DISPATCHED);
 registerAuditEvent('POST', '/api/shipments/', '/transition', AuditEvent.SHIPMENT_STATUS_CHANGED);
 registerAuditEvent('POST', '/api/shipments/', '/documents', AuditEvent.SHIPMENT_DOCUMENT_UPLOADED);
@@ -125,6 +128,49 @@ router.post(
     res.locals.auditEntityId = shipment.id;
     res.locals.auditEntityKey = shipment.shipmentCode ?? `#${shipment.id}`;
     res.status(201).json(shipment);
+  }),
+);
+
+// ─── POST /quick — M10.1 clerk mobile quick-create ──────────────────────────
+//
+// Same minimum data set as `POST /` (customerId required; all other fields
+// optional), wrapped with server-side idempotency so a flaky-network
+// resubmit returns the original shipment instead of creating a duplicate
+// (PRD M10-01-03, Q23 proposal). The dedupe token is the `Idempotency-Key`
+// header when present, otherwise the body `_requestId` (the offline-queue
+// client lib prefers the body channel). A replay with a differing payload
+// is rejected 409 — never silently overwritten.
+//
+// RBAC: same mount-level `casbinAuthz('shipments')` applies (CLERK has
+// shipments read|write; ACCOUNTANT has read only → 403; CUSTOMER/DRIVER/
+// FORWARDER denied at the mount). The explicit `requireRoles` guard is
+// belt-and-suspenders, mirroring `POST /`.
+router.post(
+  '/quick',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CLERK),
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = quickCreateShipmentSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    // Header wins; fall back to body channel for the offline-queue lib.
+    const idempotencyKey =
+      (req.header('Idempotency-Key') as string | undefined) ?? parsed.data._requestId;
+    const { shipment, replayed } = await createShipmentIdempotent(
+      {
+        customerId: parsed.data.customerId,
+        bookingRef: parsed.data.bookingRef,
+        blNumber: parsed.data.blNumber,
+        expectedDeliveryDate: parsed.data.expectedDeliveryDate,
+        pickupLocation: parsed.data.pickupLocation,
+        deliveryLocation: parsed.data.deliveryLocation,
+        contactName: parsed.data.contactName,
+        contactPhone: parsed.data.contactPhone,
+        createdBy: getUser(req).userId,
+      },
+      idempotencyKey,
+    );
+    res.locals.auditEntityId = shipment.id;
+    res.locals.auditEntityKey = shipment.shipmentCode ?? `#${shipment.id}`;
+    res.status(replayed ? 200 : 201).json(shipment);
   }),
 );
 

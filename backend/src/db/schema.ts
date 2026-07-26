@@ -1938,3 +1938,45 @@ export const dispatchHandoffs = pgTable('dispatch_handoffs', {
     .on(table.shipmentId)
     .where(sql`${table.status} IN ('UNSEEN', 'SEEN')`),
 ]);
+
+// Idempotency key registry — server-side dedupe for "resubmit doesn't
+// duplicate" (PRD M10-01-03; Q23 proposal: same request id → same result,
+// no extra row). Currently used by the M10.1 clerk quick-create endpoint
+// (`POST /api/shipments/quick`); future write paths (offline-queue sync,
+// driver progress update) reuse the same generic shape.
+//
+// Design notes:
+//   - Primary de-dup key is `(endpoint, idempotencyKey)` — a client-generated
+//     opaque token (UUID v4 recommended, any string ≤ 100 chars). The endpoint
+//     tag prevents an offline-queue replay for `/shipments/quick` from
+//     silently matching a future `/trips/progress` key.
+//   - On first write: insert the key with the created entity id, return 201.
+//   - On replay with the same key + same payload: return 200 with the stored
+//     shipment.
+//   - On replay with the same key but a *different* payload: reject 409. This
+//     is a client bug per Q23 — never silently overwrite.
+//   - `payloadHash` is a shallow SHA-256 over the canonicalised body, used
+//     only for the conflict check. We do NOT match on it for the success
+//     path: the client-generated key is authoritative.
+//   - Retention: rows are kept indefinitely (table size is bounded by total
+//     write count). A cleanup job is out of scope for M10.1 slice 1.
+export const idempotencyKeys = pgTable('idempotency_keys', {
+  id: serial('id').primaryKey(),
+  // Logical endpoint tag, e.g. 'shipments.quick-create'. Keeps unrelated
+  // endpoints from sharing a keyspace.
+  endpoint: varchar('endpoint', { length: 100 }).notNull(),
+  // Client-generated idempotency key. Case-sensitive, treated as opaque.
+  idempotencyKey: varchar('idempotency_key', { length: 100 }).notNull(),
+  // The entity created by the original request. Nullable so future
+  // non-entity-producing writes (e.g. "mark seen") can dedupe too.
+  entityType: varchar('entity_type', { length: 50 }),
+  entityId: integer('entity_id'),
+  // SHA-256 hex of the canonicalised request body, for conflict detection.
+  payloadHash: varchar('payload_hash', { length: 64 }).notNull(),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('idempotency_keys_endpoint_key_uniq')
+    .on(table.endpoint, table.idempotencyKey),
+  index('idempotency_keys_entity_idx').on(table.entityType, table.entityId),
+]);

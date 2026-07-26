@@ -27,6 +27,7 @@ import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import { createTripCommand } from './trip-command.service';
 import { cacheInvalidate, cacheInvalidatePattern } from '../lib/redis';
+import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 
 // ─── Status machine ─────────────────────────────────────────────────────────
 //
@@ -159,6 +160,30 @@ export async function createShipment(input: CreateShipmentInput) {
 
     return finalized;
   });
+}
+
+// ─── Quick create (M10.1) ───────────────────────────────────────────────────
+//
+// Clerk-facing mobile entry point. Wraps `createShipment` with server-side
+// idempotency so a flaky-network resubmit (same `Idempotency-Key`) returns
+// the original shipment instead of creating a duplicate (PRD M10-01-03,
+// Q23 proposal). The minimum data set is just `customerId` (the only
+// NOT NULL column on `shipments`); every other field is optional and
+// typically filled in later from the M10.2 doc-entry page.
+export async function createShipmentIdempotent(
+  input: CreateShipmentInput,
+  idempotencyKey: string | undefined,
+): Promise<{ shipment: Awaited<ReturnType<typeof createShipment>>; replayed: boolean }> {
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_QUICK_CREATE,
+    idempotencyKey,
+    payload: input,
+    createdBy: input.createdBy ?? null,
+    entityType: 'shipment',
+    create: async () => createShipment(input),
+    load: async (id) => getShipment(id),
+  });
+  return { shipment: result, replayed };
 }
 
 // ─── Read ───────────────────────────────────────────────────────────────────
