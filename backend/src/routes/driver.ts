@@ -12,10 +12,12 @@ import {
   getDriverTwoOrdersView,
   recordDriverProgress,
   listDriverProgress,
+  recordIncidentalCost,
+  listIncidentalCosts,
 } from '../services/driver.service';
 import { createTripContainer, listTripContainers, updateTripContainer, batchUpsertContainerSeals } from '../services/forwarder.service';
 import { deleteTripPhotosByType, type TripPhotoType } from './upload';
-import { tripContainerSchema, tripContainerPatchSchema, tripContainerSealBatchSchema, driverProgressSchema } from '@tingting/shared';
+import { tripContainerSchema, tripContainerPatchSchema, tripContainerSealBatchSchema, driverProgressSchema, driverIncidentalCostSchema } from '@tingting/shared';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { ApiError } from '../errors';
 
@@ -65,6 +67,36 @@ router.get('/trips/:tripId/progress', asyncHandler(async (req: Request, res: Res
   if (!Number.isInteger(tripId) || tripId <= 0) throw new ApiError(400, 'ID chuyến đi không hợp lệ');
   const driver = await getDriverByUserId(getUser(req).userId);
   const items = await listDriverProgress(tripId, driver.id);
+  res.json({ items });
+}));
+
+// M8.4 slice 3 — driver incidental costs (per-diem, lift fee, parking, toll,
+// fuel, other). Idempotent create (Idempotency-Key header) so the offline-
+// queue replay doesn't duplicate. LOCKED trips reject (costs affect financials).
+router.post('/trips/:tripId/incidental-costs', asyncHandler(async (req: Request, res: Response) => {
+  const tripId = parseInt(req.params.tripId as string, 10);
+  if (!Number.isInteger(tripId) || tripId <= 0) throw new ApiError(400, 'ID chuyến đi không hợp lệ');
+  const parsed = driverIncidentalCostSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw new ApiError(400, parsed.error.issues.map((i: { message: string }) => i.message).join('; '));
+  }
+  const driver = await getDriverByUserId(getUser(req).userId);
+  const idempotencyKey = req.header('Idempotency-Key') as string | undefined;
+  const { cost, replayed } = await recordIncidentalCost(
+    tripId,
+    driver.id,
+    parsed.data,
+    getUser(req).userId,
+    idempotencyKey,
+  );
+  res.status(replayed ? 200 : 201).json(cost);
+}));
+
+router.get('/trips/:tripId/incidental-costs', asyncHandler(async (req: Request, res: Response) => {
+  const tripId = parseInt(req.params.tripId as string, 10);
+  if (!Number.isInteger(tripId) || tripId <= 0) throw new ApiError(400, 'ID chuyến đi không hợp lệ');
+  const driver = await getDriverByUserId(getUser(req).userId);
+  const items = await listIncidentalCosts(tripId, driver.id);
   res.json({ items });
 }));
 

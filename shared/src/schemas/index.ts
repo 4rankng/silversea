@@ -4,6 +4,7 @@ import {
   TrailerType, TruckStatus, TrailerStatus, DriverStatus, CustomerStatus,
   ShipmentStatus, ShipmentDocumentType,
   DriverProgressEventType,
+  DriverIncidentalCostType,
   TIRE_STATUSES,
 } from '../constants';
 
@@ -1080,6 +1081,18 @@ export const driverProgressSchema = z.object({
 });
 
 export type DriverProgressInput = z.infer<typeof driverProgressSchema>;
+
+// M8.4 slice 3 — driver incidental cost. The driver records an out-of-pocket
+// expense (per-diem, lift fee, parking, toll, fuel, other) against a trip.
+// Server-side idempotent (PRD M08-04-03 offline-safe replay).
+export const driverIncidentalCostSchema = z.object({
+  costType: z.nativeEnum(DriverIncidentalCostType),
+  amount: z.number().int().positive('Số tiền phải lớn hơn 0'),
+  occurredAt: z.string().min(1, 'Ngày phát sinh là bắt buộc'),
+  note: z.string().max(1000).optional(),
+});
+
+export type DriverIncidentalCostInput = z.infer<typeof driverIncidentalCostSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;

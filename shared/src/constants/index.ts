@@ -61,6 +61,26 @@ export const DRIVER_PROGRESS_EVENT_LABELS: Record<DriverProgressEventType, strin
   [DriverProgressEventType.NOTE]: 'Ghi chú',
 } as const;
 
+/** M8.4 — driver incidental cost types (out-of-pocket expenses). */
+export enum DriverIncidentalCostType {
+  PER_DIEM = 'PER_DIEM',
+  LIFT_FEE = 'LIFT_FEE',
+  PARKING = 'PARKING',
+  TOLL = 'TOLL',
+  FUEL = 'FUEL',
+  OTHER = 'OTHER',
+}
+
+/** Vietnamese labels for driver incidental cost types (PRD Mxx-HT-01). */
+export const DRIVER_INCIDENTAL_COST_LABELS: Record<DriverIncidentalCostType, string> = {
+  [DriverIncidentalCostType.PER_DIEM]: 'Phụ cấp ngày',
+  [DriverIncidentalCostType.LIFT_FEE]: 'Phí nâng hạ',
+  [DriverIncidentalCostType.PARKING]: 'Phí đậu xe',
+  [DriverIncidentalCostType.TOLL]: 'Phí cầu đường',
+  [DriverIncidentalCostType.FUEL]: 'Tiền dầu',
+  [DriverIncidentalCostType.OTHER]: 'Khác',
+} as const;
+
 /** Vietnamese labels for shipment statuses (PRD Mxx-HT-01). */
 export const SHIPMENT_STATUS_LABELS: Record<ShipmentStatus, string> = {
   [ShipmentStatus.DRAFT]: 'Bản nháp',

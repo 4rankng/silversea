@@ -25,6 +25,7 @@ import { ApiError } from '../errors';
 export const IDEMPOTENCY_ENDPOINTS = {
   SHIPMENT_QUICK_CREATE: 'shipments.quick-create',
   DRIVER_PROGRESS: 'driver.progress',
+  DRIVER_INCIDENTAL_COST: 'driver.incidental-cost',
 } as const;
 
 /** Stable, sorted-key JSON used as the hash input so key order doesn't matter. */
