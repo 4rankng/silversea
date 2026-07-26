@@ -95,4 +95,34 @@ export const driverClient = {
       }>;
     }>(DRIVER.TWO_ORDERS);
   },
+
+  /** M8.4 — list a trip's progress events (timeline, oldest-first). */
+  listProgress: async (tripId: number) => {
+    return api.get<{ items: Array<{
+      id: number; tripId: number; driverId: number;
+      eventType: string; occurredAt: string; note: string | null;
+      recordedBy: number | null; createdAt: string;
+    }> }>(DRIVER.PROGRESS(tripId));
+  },
+
+  /**
+   * M8.4 — record a progress event. The `idempotencyKey` is sent in the
+   * `Idempotency-Key` header so an offline-queue replay returns the original
+   * event instead of duplicating (PRD M08-04-03, Q23). Returns the event +
+   * a flag the caller can ignore (the HTTP status 201/200 distinction is
+   * handled by the api wrapper resolving either as success).
+   */
+  recordProgress: async (
+    tripId: number,
+    body: { eventType: string; occurredAt: string; note?: string },
+    idempotencyKey: string,
+  ) => {
+    return api.post<{
+      id: number; tripId: number; driverId: number;
+      eventType: string; occurredAt: string; note: string | null;
+      recordedBy: number | null; createdAt: string;
+    }>(DRIVER.PROGRESS(tripId), body, {
+      headers: { 'Idempotency-Key': idempotencyKey },
+    });
+  },
 };
