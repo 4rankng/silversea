@@ -615,6 +615,16 @@ biggest new surface area and the biggest customer-facing differentiator.
         firstOrderLate advisory banner, empty slots + full-empty state.
 - [ ] M8.4: progress + incidental-cost update; offline-safe; mandatory evidence before
       completion.
+      <!-- autonomous-sdlc:in-progress task=wave4-m84-offline-wiring -->
+      Decomposed into independently testable slices (scope unchanged):
+      - slice 1 — backend driver progress-event log (`driver_progress_events`
+        table + `POST /api/driver/me/trips/:id/progress` with server-side
+        idempotency; open §3 evidence question deferred to slice 4).
+        <!-- autonomous-sdlc:completed task=wave4-m84-driver-progress-backend -->
+      - slice 2 — frontend progress form wired to the offline-queue lib
+        (M08-04-03 offline-safe replay).
+      - slice 3 — driver incidental-cost endpoint (per-diem / lift fee).
+      - slice 4 — mandatory-evidence-before-completion gate (needs §3 sign-off).
 - [ ] M8.5: ensure driver must confirm/edit OCR result before save (already exists).
 - [ ] M8.6: driver payslip view — own issued periods only; adjusted period shows both
       versions + reason; line links to basis.

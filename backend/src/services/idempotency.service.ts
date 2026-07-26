@@ -24,6 +24,7 @@ import { ApiError } from '../errors';
 /** Tag identifying the logical endpoint (e.g. 'shipments.quick-create'). */
 export const IDEMPOTENCY_ENDPOINTS = {
   SHIPMENT_QUICK_CREATE: 'shipments.quick-create',
+  DRIVER_PROGRESS: 'driver.progress',
 } as const;
 
 /** Stable, sorted-key JSON used as the hash input so key order doesn't matter. */

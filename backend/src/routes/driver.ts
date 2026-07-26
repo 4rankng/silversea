@@ -10,10 +10,12 @@ import {
   getDriverPenalties,
   getDriverVehicleAlerts,
   getDriverTwoOrdersView,
+  recordDriverProgress,
+  listDriverProgress,
 } from '../services/driver.service';
 import { createTripContainer, listTripContainers, updateTripContainer, batchUpsertContainerSeals } from '../services/forwarder.service';
 import { deleteTripPhotosByType, type TripPhotoType } from './upload';
-import { tripContainerSchema, tripContainerPatchSchema, tripContainerSealBatchSchema } from '@tingting/shared';
+import { tripContainerSchema, tripContainerPatchSchema, tripContainerSealBatchSchema, driverProgressSchema } from '@tingting/shared';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { ApiError } from '../errors';
 
@@ -33,6 +35,37 @@ router.get('/two-orders', asyncHandler(async (req: Request, res: Response) => {
   const driver = await getDriverByUserId(getUser(req).userId);
   const view = await getDriverTwoOrdersView(driver.id);
   res.json(view);
+}));
+
+// M8.4 — driver progress events (append-only log). The create path is
+// server-side idempotent (Idempotency-Key header) so an offline-queue replay
+// (slice 2 frontend) does not duplicate events (PRD M08-04-03). Ownership is
+// enforced inside the service (trip.driverId must match the caller).
+router.post('/trips/:tripId/progress', asyncHandler(async (req: Request, res: Response) => {
+  const tripId = parseInt(req.params.tripId as string, 10);
+  if (!Number.isInteger(tripId) || tripId <= 0) throw new ApiError(400, 'ID chuyến đi không hợp lệ');
+  const parsed = driverProgressSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw new ApiError(400, parsed.error.issues.map((i: { message: string }) => i.message).join('; '));
+  }
+  const driver = await getDriverByUserId(getUser(req).userId);
+  const idempotencyKey = req.header('Idempotency-Key') as string | undefined;
+  const { event, replayed } = await recordDriverProgress(
+    tripId,
+    driver.id,
+    parsed.data,
+    getUser(req).userId,
+    idempotencyKey,
+  );
+  res.status(replayed ? 200 : 201).json(event);
+}));
+
+router.get('/trips/:tripId/progress', asyncHandler(async (req: Request, res: Response) => {
+  const tripId = parseInt(req.params.tripId as string, 10);
+  if (!Number.isInteger(tripId) || tripId <= 0) throw new ApiError(400, 'ID chuyến đi không hợp lệ');
+  const driver = await getDriverByUserId(getUser(req).userId);
+  const items = await listDriverProgress(tripId, driver.id);
+  res.json({ items });
 }));
 
 // N5 / B4 — vehicle compliance/service reminders for the driver's truck.

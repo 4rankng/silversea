@@ -1980,3 +1980,38 @@ export const idempotencyKeys = pgTable('idempotency_keys', {
     .on(table.endpoint, table.idempotencyKey),
   index('idempotency_keys_entity_idx').on(table.entityType, table.entityId),
 ]);
+
+// M8.4 — driver progress events. Append-only log of driver-reported
+// milestones (DEPARTED, ARRIVED, FUELED, INCIDENT, NOTE) against a trip.
+// This is the foundation for the M8.4 driver mobile progress update: a
+// driver records what actually happened on the road, with a client-supplied
+// event time (`occurredAt` — may be backdated) and an optional note. The
+// create endpoint is server-side idempotent (reuses `idempotency_keys` from
+// M10.1) so the offline-queue replay (slice 2) doesn't duplicate events
+// (PRD M08-04-03).
+//
+// These events are audit-style records only — they do NOT mutate trip
+// status. Lifecycle transitions stay with `transitionTripStatus`.
+export const driverProgressEventTypeEnum = pgEnum('driver_progress_event_type', [
+  'DEPARTED', 'ARRIVED', 'FUELED', 'INCIDENT', 'NOTE',
+]);
+
+export const driverProgressEvents = pgTable('driver_progress_events', {
+  id: serial('id').primaryKey(),
+  tripId: integer('trip_id')
+    .references(() => trips.id, { onDelete: 'cascade' }).notNull(),
+  driverId: integer('driver_id')
+    .references(() => drivers.id, { onDelete: 'cascade' }).notNull(),
+  eventType: driverProgressEventTypeEnum('event_type').notNull(),
+  // The time the event occurred (driver-reported; may be backdated to the
+  // actual event). Distinct from `createdAt` (record-time audit).
+  occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull(),
+  note: text('note'),
+  // The user who recorded the event (audit). Usually the driver; ADMIN may
+  // record on a driver's behalf in edge cases.
+  recordedBy: integer('recorded_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  index('driver_progress_events_trip_idx').on(table.tripId, table.occurredAt),
+  index('driver_progress_events_driver_idx').on(table.driverId),
+]);
