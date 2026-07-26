@@ -9,6 +9,7 @@ import {
   getDriverEarnings,
   getDriverPenalties,
   getDriverVehicleAlerts,
+  getDriverTwoOrdersView,
 } from '../services/driver.service';
 import { createTripContainer, listTripContainers, updateTripContainer, batchUpsertContainerSeals } from '../services/forwarder.service';
 import { deleteTripPhotosByType, type TripPhotoType } from './upload';
@@ -23,6 +24,15 @@ router.get('/trips', asyncHandler(async (req: Request, res: Response) => {
   const driver = await getDriverByUserId(getUser(req).userId);
   const items = await getDriverTrips(driver.id);
   res.json({ items });
+}));
+
+// M8.3 — two-orders-per-day view: today's active + next trip distinctly,
+// with an advisory firstOrderLate flag. Read-only; RBAC inherits the
+// driver_portal mount (DRIVER read).
+router.get('/two-orders', asyncHandler(async (req: Request, res: Response) => {
+  const driver = await getDriverByUserId(getUser(req).userId);
+  const view = await getDriverTwoOrdersView(driver.id);
+  res.json(view);
 }));
 
 // N5 / B4 — vehicle compliance/service reminders for the driver's truck.
