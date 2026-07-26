@@ -445,8 +445,9 @@ biggest new surface area and the biggest customer-facing differentiator.
 <!-- autonomous-sdlc:completed task=wave3-m54-ar-split -->
 - [x] M5.4: freight/disbursement/other split report; invariant
       `freight + disbursement + other == total_ar`.
-- [ ] M5.5: total AR report — opening/activity/receipts/adjustments/closing per customer;
+- [x] M5.5: total AR report — opening/activity/receipts/adjustments/closing per customer;
       zero-activity-with-balance still appears.
+      <!-- autonomous-sdlc:completed task=wave3-m55-total-ar -->
 - [ ] M5.6: `payment-allocation.service.ts`; one receipt → many shipments/trips; default
       oldest-first; cannot over-allocate.
 - [ ] M5.7: reminder scheduler job (Wave-0 scheduler) + email (Wave-2) + in-app; skip
