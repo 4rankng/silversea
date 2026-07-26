@@ -169,6 +169,8 @@ export const DRIVER = {
   EARNINGS: '/driver/me/earnings',
   PENALTIES: '/driver/me/penalties',
   VEHICLE_ALERTS: '/driver/me/vehicle-alerts',
+  /** M8.3 — two-orders-per-day view (active + next today, firstOrderLate). */
+  TWO_ORDERS: '/driver/me/two-orders',
 } as const;
 
 // ─── Forwarder portal ───────────────────────────────────────────────────────────

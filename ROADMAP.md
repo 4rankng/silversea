@@ -602,14 +602,17 @@ biggest new surface area and the biggest customer-facing differentiator.
       storage injection (`idbStore` production / `memoryStore` tests), no new
       runtime dep. UUID v4 idempotency keys; QUEUED→IN_PROGRESS→DONE/FAILED/
       CONFLICT machine; idempotent re-drain; conflict terminal; single-flight.
-- [ ] M8.3: driver two-orders-per-day view; warn when first order late.
-      <!-- autonomous-sdlc:in-progress task=wave4-m83-two-orders-frontend -->
-      Decomposed into independently testable slices (scope unchanged):
+- [x] M8.3: driver two-orders-per-day view; warn when first order late.
+      <!-- autonomous-sdlc:completed task=wave4-m83-two-orders-frontend -->
+      Implemented across two slices (scope unchanged):
       - slice 1 — backend `getDriverTwoOrdersView` service + route +
         `firstOrderLate` advisory flag (open §3 threshold resolved as
         "earliest of 2+ today still CREATED" — no scheduled-time schema yet).
+        Commit f878989.
         <!-- autonomous-sdlc:completed task=wave4-m83-two-orders-backend -->
-      - slice 2 — frontend `DriverTwoOrdersPage.tsx` consuming slice 1.
+      - slice 2 — frontend `DriverTwoOrdersPage.tsx` consuming slice 1:
+        active + next as distinct cards (no document/cost mixing),
+        firstOrderLate advisory banner, empty slots + full-empty state.
 - [ ] M8.4: progress + incidental-cost update; offline-safe; mandatory evidence before
       completion.
 - [ ] M8.5: ensure driver must confirm/edit OCR result before save (already exists).
