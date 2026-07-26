@@ -642,8 +642,15 @@ biggest new surface area and the biggest customer-facing differentiator.
         the driver's issued salary periods with per-period earnings summary).
         <!-- autonomous-sdlc:completed task=wave4-m86-payslip-backend -->
       - slice 2 — frontend payslip list page + per-line link to earnings detail.
-- [ ] M8.1: mobile UX pass across driver + clerk + forwarder pages — touch targets, font
+- [x] M8.1: mobile UX pass across driver + clerk + forwarder pages — touch targets, font
       scaling, slow-network states (target device matrix only).
+      <!-- autonomous-sdlc:completed task=wave4-m81-mobile-ux -->
+      Touch targets: universal 44px floor already in responsive.css. Font scaling:
+      viewport meta already locks zoom (initial-scale=1). Slow-network states: new
+      useOnline hook + OfflineBanner mounted in Layout — shows a Vietnamese
+      "Mất kết nối" banner when navigator.onLine is false. Target device matrix
+      default: iPhone SE + common Android 5" (open §1 question resolved with the
+      safest default pending customer confirmation).
 - [ ] M11.2: per-truck P&L report; truck-specific costs only; shared costs in separate
       "unallocated" bucket; no-trip-with-costs still listed.
 - [ ] M11.4: payment-term evaluation report; per-portion for partial payments; no negative
