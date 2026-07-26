@@ -567,7 +567,8 @@ biggest new surface area and the biggest customer-facing differentiator.
 
 ### Items
 
-- [ ] Schema: new `dispatch_handoffs` table (UNSEEN/SEEN/ACCEPTED + handler + version).
+- [x] Schema: new `dispatch_handoffs` table (UNSEEN/SEEN/ACCEPTED + handler + version).
+      <!-- autonomous-sdlc:completed task=wave4-dispatch-handoffs-schema -->
 - [ ] M10.3: handoff service + notification on handoff; version-conflict warning.
 - [ ] M10.1: clerk router + mobile quick-shipment-create page.
 - [ ] M10.2: clerk doc-entry page; format + duplicate checks; mandatory fields before dispatch.
