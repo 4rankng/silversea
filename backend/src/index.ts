@@ -15,6 +15,7 @@ import { initAuditService } from './services/audit.service';
 import { initNotificationService } from './services/notification.service';
 import { initPushService } from './services/push.service';
 import { registerJob, startScheduler, stopScheduler } from './scheduler';
+import { runReceivableReminders, REMINDER_CRON } from './services/receivable-reminder.service';
 import authRoutes from './routes/auth';
 import configRoutes, { auditLogRouter, catalogBootstrapRouter, salaryPeriodsRouter, salaryPeriodsAdminRouter, tireLifecycleRouter } from './routes/config';
 import tripRoutes from './routes/trips';
@@ -48,7 +49,7 @@ await initEnforcer();
 
 // ─── Scheduler (Wave 0) ─────────────────────────────────────────────────────
 // Self-test heartbeat: 1-min cadence, disabled in test (NODE_ENV=test) and in
-// CI when SCHEDULER_DISABLE is set. Wave 2/3 will register real jobs (email
+// CI when SCHEDULER_DISABLE is set. Wave 2/3 register real jobs (email
 // retry, receivable reminders, salary-period close) next to this one.
 //
 // Env knobs:
@@ -62,10 +63,22 @@ if (schedulerEnabled) {
     cron: '* * * * *',
     handler: async () => {
       // No-op heartbeat; visible as a row in scheduler_run_logs every minute.
-      // Wave 2/3 replace this with real jobs.
       console.log('[scheduler] heartbeat tick');
     },
   });
+
+  // Wave 3 M5.7 — daily receivable-overdue reminder. Sends an email to
+  // the customer + an in-app notification to financial roles. Skips
+  // paid / disputed / suspended customers; dedupes per calendar day.
+  registerJob({
+    name: 'receivable-reminder',
+    cron: REMINDER_CRON,
+    handler: async () => {
+      const stats = await runReceivableReminders();
+      console.log(`[scheduler] receivable-reminder: ${stats.reminded} reminded, ${stats.skipped} skipped, ${stats.deduped} deduped, ${stats.failed} failed`);
+    },
+  });
+
   startScheduler();
 }
 
