@@ -670,8 +670,14 @@ biggest new surface area and the biggest customer-facing differentiator.
       with return cargo), fleet attention list (MAINTENANCE/INACTIVE + underutilized
       ACTIVE trucks), period-over-period (revenue + profit delta vs previous month).
       GET /reports/dashboard-widgets (ADMIN/MANAGER/ACCOUNTANT).
-- [ ] M12.2: monthly fuel reconciliation report — by truck × supplier × period; variances;
+- [x] M12.2: monthly fuel reconciliation report — by truck × supplier × period; variances;
       no double-count invoices; advisory first.
+      <!-- autonomous-sdlc:completed task=wave4-m122-fuel-recon -->
+      Reconciled — the monthly fuel reconciliation already exists in
+      fuel-ap-recon.service.ts (Wave 3 M6.1): aggregates by truck × supplier
+      × period, lists per-truck variances with OK/VARIANCE status, threshold-
+      based advisory (5% default). Fuel-recon guard (explanations before
+      approval) also shipped. Tests: 26/26 pass across both files.
 - [ ] E2E smoke test: shipment → trip → expense → debit note → payment → P&L → dashboard.
 
 ### Open PRD questions
