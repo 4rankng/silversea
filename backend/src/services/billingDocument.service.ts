@@ -1235,7 +1235,7 @@ function colLetter(n: number): string {
   return s;
 }
 
-function renderColumnValue(line: BillingDocumentLine, col: DebitNoteTemplateColumn, rowIndex: number): string | number | Date | null {
+export function renderColumnValue(line: BillingDocumentLine, col: DebitNoteTemplateColumn, rowIndex: number): string | number | Date | null {
   const data = line.renderData ?? {};
   const routeParts = splitRouteName(line.routeName ?? '');
   switch (col.variable) {
