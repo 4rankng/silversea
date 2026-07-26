@@ -594,8 +594,9 @@ describe('PUT /:id/containers', () => {
       token: adminToken,
       body: {
         containers: [
-          { containerTypeId, containerNumber: `CONT-${suffix}-1`, sealNumber: `SEAL-1`, cargoWeightKg: 12000 },
-          { containerTypeId, containerNumber: `CONT-${suffix}-2`, cargoWeightKg: 8000 },
+          // Valid ISO 6346 numbers (M10.2: format validation now enforced).
+          { containerTypeId, containerNumber: 'MEDU2497795', sealNumber: 'SEAL-1', cargoWeightKg: 12000 },
+          { containerTypeId, containerNumber: 'CMAU5814257', cargoWeightKg: 8000 },
         ],
       },
     });
@@ -607,29 +608,29 @@ describe('PUT /:id/containers', () => {
 
   test('reconciles: updates by id, deletes missing, inserts new', async () => {
     const shipment = await mkShipmentViaService();
-    // Seed two containers.
+    // Seed two containers (valid ISO 6346 numbers — M10.2 enforces format).
     const seed = await testFetch(`/${shipment.id}/containers`, {
       method: 'PUT',
       token: adminToken,
       body: { containers: [
-        { containerTypeId, containerNumber: 'KEEP' },
-        { containerTypeId, containerNumber: 'DROP' },
+        { containerTypeId, containerNumber: 'MSKU1234565' },
+        { containerTypeId, containerNumber: 'TCNU7425363' },
       ] },
     });
-    const keepId = seed.data.items.find((c: { containerNumber: string }) => c.containerNumber === 'KEEP').id;
+    const keepId = seed.data.items.find((c: { containerNumber: string }) => c.containerNumber === 'MSKU1234565').id;
 
-    // Reconcile: keep KEEP (with updated weight), drop DROP, add NEW.
+    // Reconcile: keep MSKU1234565 (with updated weight), drop TCNU7425363, add OOLU831266.
     const r = await testFetch(`/${shipment.id}/containers`, {
       method: 'PUT',
       token: adminToken,
       body: { containers: [
-        { id: keepId, containerTypeId, containerNumber: 'KEEP', cargoWeightKg: 9999 },
-        { containerTypeId, containerNumber: 'NEW' },
+        { id: keepId, containerTypeId, containerNumber: 'MSKU1234565', cargoWeightKg: 9999 },
+        { containerTypeId, containerNumber: 'OOLU8312661' },
       ] },
     });
     assert.equal(r.status, 200);
     const numbers = r.data.items.map((c: { containerNumber: string }) => c.containerNumber).sort();
-    assert.deepEqual(numbers, ['KEEP', 'NEW']);
+    assert.deepEqual(numbers, ['MSKU1234565', 'OOLU8312661']);
     const kept = r.data.items.find((c: { id: number }) => c.id === keepId);
     assert.equal(kept.cargoWeightKg, '9999.00');
   });
