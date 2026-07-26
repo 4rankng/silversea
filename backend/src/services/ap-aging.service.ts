@@ -200,14 +200,12 @@ export async function getApAgingDetail(opts: {
       }))
       .sort((a, b) => a.ageDays - b.ageDays);
 
-    let unpaid = acc.totalPayable;
     let paymentRemaining = acc.totalPaid;
     for (const p of payables) {
       if (paymentRemaining <= 0) break;
       const applied = Math.min(p.remaining, paymentRemaining);
       p.remaining -= applied;
       paymentRemaining -= applied;
-      unpaid -= applied;
     }
 
     const aging = { current: 0, d30: 0, d60: 0, over90: 0 };
