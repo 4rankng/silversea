@@ -1843,3 +1843,32 @@ export const salaryPeriodCloses = pgTable('salary_period_closes', {
 }, (table) => [
   uniqueIndex('salary_period_closes_period_uniq').on(table.period),
 ]);
+
+// M6.1 slice 2: fuel-reconciliation explanations. When the fuel-AP recon
+// report flags a supplier as 'VARIANCE' for a period, accountants must
+// record an explanation before any of that supplier's fuel expenses in the
+// same period can be approved (approval guard in fuel-recon-guard.service).
+// Unique on (supplierId, periodFrom, periodTo) so the same period can be
+// explained once and re-explained via upsert.
+export const fuelReconExplanations = pgTable('fuel_recon_explanations', {
+  id: serial('id').primaryKey(),
+  supplierId: integer('supplier_id').references(() => suppliers.id).notNull(),
+  // ISO date range (YYYY-MM-DD). The guard uses calendar-month boundaries
+  // [first-of-month, last-of-month] derived from the expense's invoiceDate.
+  periodFrom: date('period_from').notNull(),
+  periodTo: date('period_to').notNull(),
+  // Free-text accountant explanation (e.g. "price changed mid-month",
+  // "pump calibration drift", "extra top-up not yet invoiced").
+  explanationText: text('explanation_text').notNull(),
+  // Captured-for-audit: the absolute variance at the moment the explanation
+  // was recorded. Stored as a positive integer (VND).
+  resolvedVariance: numeric('resolved_variance', { precision: 15, scale: 0 }).notNull(),
+  createdBy: integer('created_by').references(() => users.id),
+  note: text('note'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('fuel_recon_explanations_supplier_period_uniq')
+    .on(table.supplierId, table.periodFrom, table.periodTo),
+  index('fuel_recon_explanations_supplier_idx').on(table.supplierId),
+]);

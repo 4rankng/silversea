@@ -4,6 +4,7 @@ import { FINANCIAL_ROLES } from '@tingting/shared';
 import { db } from '../db';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
+import { assertFuelReconClear } from './fuel-recon-guard.service';
 
 export type ApprovableTable = 'trip_expenses' | 'debt_offsets';
 export type ApprovalTransition = 'APPROVED' | 'REJECTED';
@@ -17,6 +18,11 @@ const APPROVABLE_TABLES = {
  * Transitions an approvable record from PENDING → APPROVED or REJECTED.
  * Must be called inside a db.transaction().
  * ADMIN, MANAGER, and ACCOUNTANT may approve.
+ *
+ * M6.1 slice 2: APPROVED transitions on trip_expenses are first vetted by
+ * the fuel-recon guard, which rejects with 409 when the expense is a fuel
+ * purchase whose supplier has an unexplained variance for the invoice
+ * month. Rejections are never blocked.
  */
 export async function transitionApproval(
   tx: Tx,
@@ -45,6 +51,12 @@ export async function transitionApproval(
   }
   if (record.approvalStatus !== 'PENDING') {
     throw new ApiError(400, `Không thể chuyển trạng thái: bản ghi đang ở ${record.approvalStatus}`);
+  }
+
+  // Fuel-recon guard: only fuel-typed trip_expenses going TO APPROVED are
+  // checked. Rejections, debt_offsets, and non-fuel expenses bypass it.
+  if (opts.table === 'trip_expenses' && opts.toStatus === 'APPROVED') {
+    await assertFuelReconClear(opts.id, tx);
   }
 
   // trip_expenses has updatedAt; debt_offsets does not
