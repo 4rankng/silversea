@@ -4,6 +4,31 @@ This repo is the TingTing Vietnamese trucking logistics platform deployed for th
 Every coding agent (Claude Code, Codex, Cursor, etc.) working here **must** follow the closed-loop
 SDLC below. There are no exceptions for "small" or "quick" changes.
 
+## Development context loading (mandatory)
+
+`AGENTS.md` defines **how to work**. [`CONTEXT.md`](CONTEXT.md) defines **what to
+load for the current task**. Keep those concerns separate.
+
+At the start of a task:
+
+1. Read `CONTEXT.md` and `HANDOFF.md` when it exists. `HANDOFF.md` is ignored
+   local state, not a source of product truth; use `HANDOFF.example.md` as its
+   structure.
+2. Resolve the smallest task-specific context set:
+   `pnpm context -- <changed-path-or-task-keyword>`.
+3. Read only the returned sources plus the code immediately around the target.
+   Do not bulk-load every PRD, plan, route, or test.
+4. State expected output, acceptance criteria, scope boundary, constraints, and
+   touchpoints before implementation.
+5. Before handoff, the controller updates `HANDOFF.md` and runs
+   `pnpm context:check`. Subagents and parallel sessions report through their
+   assigned `plans/.../reports/` path and must not overwrite `HANDOFF.md`.
+
+If the resolver returns no profile, scout with `rg`/code intelligence first,
+then use `pnpm context -- --profile <profile-id>`. The manifest at
+`.codex/context-manifest.json` is versioned and must not contain secrets,
+machine-specific paths, customer data, or transient command output.
+
 ## Closed-loop SDLC (mandatory)
 
 Every task runs this loop. **"Done" means the loop exited green — not that code was written.**
@@ -72,6 +97,7 @@ A task is done **only when all** are true:
 
 ## Local dev quick reference
 
+- **Agent context engineering:** see [`docs/context-engineering/playbook.md`](docs/context-engineering/playbook.md) — the system-prompt builder, lanes, tool-selection, and governance mapped to code.
 - Start everything: `make dev` → Postgres `:5441` · Redis `:6391` · Backend `:3001` · Frontend `:7174` · Adminer `:8083`
 - First-time setup: `make setup` (infra + migrate + seed)
 - Backend health: http://localhost:3001/api/health
