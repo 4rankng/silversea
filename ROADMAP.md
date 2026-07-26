@@ -603,6 +603,13 @@ biggest new surface area and the biggest customer-facing differentiator.
       runtime dep. UUID v4 idempotency keys; QUEUED→IN_PROGRESS→DONE/FAILED/
       CONFLICT machine; idempotent re-drain; conflict terminal; single-flight.
 - [ ] M8.3: driver two-orders-per-day view; warn when first order late.
+      <!-- autonomous-sdlc:in-progress task=wave4-m83-two-orders-frontend -->
+      Decomposed into independently testable slices (scope unchanged):
+      - slice 1 — backend `getDriverTwoOrdersView` service + route +
+        `firstOrderLate` advisory flag (open §3 threshold resolved as
+        "earliest of 2+ today still CREATED" — no scheduled-time schema yet).
+        <!-- autonomous-sdlc:completed task=wave4-m83-two-orders-backend -->
+      - slice 2 — frontend `DriverTwoOrdersPage.tsx` consuming slice 1.
 - [ ] M8.4: progress + incidental-cost update; offline-safe; mandatory evidence before
       completion.
 - [ ] M8.5: ensure driver must confirm/edit OCR result before save (already exists).

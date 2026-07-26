@@ -1,6 +1,6 @@
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq, ne, and, isNull, desc, gte, lte, sql, inArray } from 'drizzle-orm';
+import { eq, ne, and, isNull, desc, asc, gte, lte, sql, inArray } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { computeVehicleAlerts, type VehicleAlert, round2dp, TxnType } from '@tingting/shared';
 
@@ -105,6 +105,139 @@ export async function getDriverTrips(driverId: number) {
   }
 
   return trips.map(t => ({ ...t, containerNumbers: containersByTrip.get(t.id) ?? [] }));
+}
+
+// ─── M8.3: two-orders-per-day view ──────────────────────────────────────────
+//
+// PRD M08-03-03: a driver with two orders on the same day must see the active
+// order and the next order distinctly — no mixing of documents or costs between
+// them. This view groups today's trips into `{ active, next }` (active =
+// IN_TRANSIT; next = earliest CREATED that isn't the active one) and surfaces
+// an advisory `firstOrderLate` flag.
+//
+// Open question M8.3 §3 ("late threshold — minutes? GPS-based?") is status
+// `pending`; the trips table has only `departureDate` (a DATE, no scheduled
+// time) and no GPS ping to compare against. The safest backward-compatible
+// interpretation: `firstOrderLate` is true when there are 2+ non-CANCELED
+// trips today AND the earliest (by `createdAt`) is still CREATED — i.e. the
+// day's first order has not started. Advisory only; never blocks. A
+// GPS/time-based threshold is a follow-up once the schema carries scheduled
+// times.
+
+export interface DriverTripSummary {
+  id: number;
+  tripCode: string | null;
+  departureDate: string;
+  status: 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | 'LOCKED' | 'CANCELED';
+  fuelLiters: string | null;
+  totalRoadAllowance: string | null;
+  driverSalary: string | null;
+  routeName: string | null;
+  truckPlate: string | null;
+  customerName: string | null;
+  containerNumbers: string[];
+}
+
+export interface DriverTwoOrdersView {
+  /** Today's date (YYYY-MM-DD, server-local). */
+  date: string;
+  /** The trip currently IN_TRANSIT today (at most one expected; if two,
+   *  the earlier `createdAt` wins — a data-quality issue worth surfacing). */
+  active: DriverTripSummary | null;
+  /** The earliest CREATED trip today that is NOT the active one. */
+  next: DriverTripSummary | null;
+  /** Advisory: 2+ non-CANCELED trips today AND the earliest is still CREATED. */
+  firstOrderLate: boolean;
+  /** Every non-CANCELED trip today (for UI context / debugging). */
+  allToday: DriverTripSummary[];
+}
+
+/** Format a Date as YYYY-MM-DD in the server's local timezone. */
+function todayYyyyMmDd(now: Date = new Date()): string {
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * Build the two-orders-per-day view for a driver. Reads today's trips only
+ * (PRD M08-03-03); trips on other days are excluded. CANCELED trips are
+ * excluded throughout. The view is read-only — it never mutates trip status.
+ */
+export async function getDriverTwoOrdersView(driverId: number): Promise<DriverTwoOrdersView> {
+  const today = todayYyyyMmDd();
+  const rows = await db.select({
+    id: s.trips.id,
+    tripCode: s.trips.tripCode,
+    departureDate: s.trips.departureDate,
+    status: s.trips.status,
+    fuelLiters: s.trips.fuelLiters,
+    totalRoadAllowance: s.trips.totalRoadAllowance,
+    driverSalary: s.trips.driverSalary,
+    routeName: s.routes.name,
+    truckPlate: s.trucks.licensePlate,
+    customerName: s.customers.name,
+    createdAt: s.trips.createdAt,
+  }).from(s.trips)
+    .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
+    .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
+    .leftJoin(s.customers, eq(s.trips.customerId, s.customers.id))
+    .where(and(
+      eq(s.trips.driverId, driverId),
+      eq(s.trips.departureDate, today),
+      isNull(s.trips.deletedAt),
+      sql`${s.trips.status} <> 'CANCELED'`,
+    ))
+    .orderBy(asc(s.trips.createdAt));
+
+  // Attach container numbers (batched single query, mirroring getDriverTrips).
+  const tripIds = rows.map(r => r.id);
+  const containersByTrip = new Map<number, string[]>();
+  if (tripIds.length > 0) {
+    const containerRows = await db.select({
+      tripId: s.tripContainers.tripId,
+      containerNumber: s.tripContainers.containerNumber,
+    }).from(s.tripContainers).where(inArray(s.tripContainers.tripId, tripIds));
+    for (const c of containerRows) {
+      if (!c.containerNumber) continue;
+      const list = containersByTrip.get(c.tripId);
+      if (list) list.push(c.containerNumber);
+      else containersByTrip.set(c.tripId, [c.containerNumber]);
+    }
+  }
+
+  const allToday: DriverTripSummary[] = rows.map(r => ({
+    id: r.id,
+    tripCode: r.tripCode,
+    departureDate: r.departureDate,
+    // status has a DB default but is typed nullable; coalesce to 'CREATED'
+    // (the column default) so the union stays narrow.
+    status: r.status ?? 'CREATED',
+    fuelLiters: r.fuelLiters,
+    totalRoadAllowance: r.totalRoadAllowance,
+    driverSalary: r.driverSalary,
+    routeName: r.routeName,
+    truckPlate: r.truckPlate,
+    customerName: r.customerName,
+    containerNumbers: containersByTrip.get(r.id) ?? [],
+  }));
+
+  // active = the IN_TRANSIT trip today (earliest createdAt if 2, data-quality guard).
+  const inTransit = allToday.filter(t => t.status === 'IN_TRANSIT');
+  inTransit.sort((a, b) => String(a.id) === String(b.id) ? 0 : (a.id - b.id));
+  const active = inTransit[0] ?? null;
+
+  // next = earliest CREATED trip today that is NOT the active one.
+  const created = allToday.filter(t => t.status === 'CREATED' && (active === null || t.id !== active.id));
+  const next = created[0] ?? null;
+
+  // firstOrderLate = 2+ today AND the earliest (rows is already asc by createdAt)
+  // is still CREATED — the day's first order hasn't started. Advisory only.
+  const earliest = allToday[0] ?? null;
+  const firstOrderLate = allToday.length >= 2 && earliest !== null && earliest.status === 'CREATED';
+
+  return { date: today, active, next, firstOrderLate, allToday };
 }
 
 /**
