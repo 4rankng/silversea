@@ -31,6 +31,7 @@ const ShipmentDetailPage = lazy(() => import('./pages/ShipmentDetailPage'));
 // Wave 2: Customer portal pages.
 const PortalShipmentsPage = lazy(() => import('./pages/portal/PortalShipmentsPage'));
 const PortalShipmentDetailPage = lazy(() => import('./pages/portal/PortalShipmentDetailPage'));
+const ClerkShipmentCreatePage = lazy(() => import('./pages/clerk/ClerkShipmentCreatePage'));
 const PortalDebitNotesPage = lazy(() => import('./pages/portal/PortalDebitNotesPage'));
 const AuditLogPage = lazy(() => import('./pages/AuditLogPage'));
 const DriverTripsPage = lazy(() => import('./pages/DriverTripsPage'));
@@ -122,6 +123,10 @@ function AppRoutes() {
   const managerOrAdminOnly = (el: ReactElement) => (isAdmin || user?.role === Role.MANAGER ? el : <Navigate to={isPortalUser ? portalHome : isCustomer ? customerHome : adminHome} replace />);
   // /users is the single home for everyone; accountants get scoped (driver-only) access.
   const officeStaffOnly = (el: ReactElement) => (isAdmin || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT ? el : <Navigate to={isPortalUser ? portalHome : adminHome} replace />);
+  // M10.1: CLERK (nhân viên chứng từ) mobile surfaces. ADMIN is admitted as
+  // superuser; every other role is bounced to its own home. CLERK's home is
+  // the create page itself until a clerk landing page ships.
+  const clerkOrAdminOnly = (el: ReactElement) => (isAdmin || user?.role === Role.CLERK ? el : <Navigate to={isPortalUser ? portalHome : isCustomer ? customerHome : adminHome} replace />);
   // Strict ADMIN-only — chatbot monitoring exposes raw turns and must never
   // be reachable by MANAGER/ACCOUNTANT. Mirrors managerOrAdminOnly's shape:
   // admit only when the role matches, else bounce to the portal or staff home.
@@ -241,6 +246,10 @@ function AppRoutes() {
           <Route path="/portal/shipments" element={customerOnly(page(<PortalShipmentsPage />))} />
           <Route path="/portal/shipments/:id" element={customerOnly(page(<PortalShipmentDetailPage />))} />
           <Route path="/portal/debit-notes" element={customerOnly(page(<PortalDebitNotesPage />))} />
+          {/* Wave 4 M10.1: CLERK mobile quick-shipment-create. ADMIN is
+              admitted as superuser; the clerk home is this create page until
+              a clerk landing page ships. */}
+          <Route path="/clerk/shipments/new" element={clerkOrAdminOnly(page(<ClerkShipmentCreatePage />))} />
         </Routes>
       </Layout>
   );
