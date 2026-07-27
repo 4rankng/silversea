@@ -1,6 +1,6 @@
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq, and, gte, lte, isNull, inArray, desc, notInArray, or, type SQL } from 'drizzle-orm';
+import { eq, and, gte, lte, isNull, inArray, desc, or, type SQL } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { getSupplierStatement } from './statement.service';
 import { LedgerService } from './ledger.service';
@@ -15,7 +15,17 @@ import {
 import { getCompanyInfo } from './company-info.service';
 import type { Tx } from './trip-shared';
 import { loadLogoBytes } from './lib/export-company';
-import { assertNotLocked } from './debit-note-lifecycle.service';
+import {
+  resolveCustomerPaymentDueDate,
+  type PaymentDatePolicy,
+} from './business-calendar.service';
+import {
+  assertDebitNotePeriodWritable,
+  replaceBillingDocumentSourcePeriodLocks,
+  resolveBillingDocumentSourcePeriodLocks,
+  resolveDebitNotePeriodAuthority,
+} from './period-lock.service';
+import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
 import type {
   BillingDocument,
   BillingDocumentDraft,
@@ -42,6 +52,35 @@ export function splitContainers(raw: string | null): string[] | null {
 export function joinContainers(list: string[] | null | undefined): string | null {
   if (!list || list.length === 0) return null;
   return list.filter(Boolean).join(', ');
+}
+
+function tripSourceIds(lines: readonly BillingDocumentLine[]): number[] {
+  return [...new Set(lines
+    .filter(line => line.sourceType === 'TRIP' && line.sourceId != null)
+    .map(line => line.sourceId as number))]
+    .sort((left, right) => left - right);
+}
+
+async function persistedTripSourceIds(tx: Tx, documentId: number): Promise<number[]> {
+  const rows = await tx.select({ tripId: s.billingDocumentLines.sourceId })
+    .from(s.billingDocumentLines)
+    .where(and(
+      eq(s.billingDocumentLines.documentId, documentId),
+      eq(s.billingDocumentLines.sourceType, 'TRIP'),
+    ));
+  return [...new Set(rows
+    .map(row => row.tripId)
+    .filter((tripId): tripId is number => tripId != null))]
+    .sort((left, right) => left - right);
+}
+
+function assertDraftDocumentLinesEditable(status: string | null): void {
+  if ((status ?? 'DRAFT') !== 'DRAFT') {
+    throw new ApiError(
+      409,
+      'Giấy báo nợ đã phát hành hoặc khóa — không thể thay đổi nguồn hoặc nội dung dòng.',
+    );
+  }
 }
 
 /** Effective incl-VAT amount for a line: excluded → 0, else override ?? base. */
@@ -646,7 +685,15 @@ export async function generateDraft(input: GenerateBillingDocumentInput): Promis
 
 async function postDebitNoteDelta(
   tx: Tx,
-  input: { documentId: number; customerId: number; delta: number },
+  input: {
+    documentId: number;
+    customerId: number;
+    delta: number;
+    originalDueDate?: string | null;
+    processingDueDate?: string | null;
+    paymentTermDaysApplied?: number | null;
+    paymentDatePolicyApplied?: PaymentDatePolicy | null;
+  },
 ): Promise<void> {
   const delta = Math.round(input.delta);
   if (delta === 0) return;
@@ -659,6 +706,10 @@ async function postDebitNoteDelta(
     debit: delta > 0 ? delta : 0,
     credit: delta < 0 ? Math.abs(delta) : 0,
     note: `Điều chỉnh công nợ theo Giấy báo nợ #${input.documentId}`,
+    originalDueDate: input.originalDueDate,
+    processingDueDate: input.processingDueDate,
+    paymentTermDaysApplied: input.paymentTermDaysApplied,
+    paymentDatePolicyApplied: input.paymentDatePolicyApplied,
   });
 }
 
@@ -682,17 +733,100 @@ export async function saveDocument(input: SaveBillingDocumentInput, userId: numb
   const docId = await db.transaction(async (tx) => {
     if (input.type === 'DEBIT_NOTE' && input.entityType === 'CUSTOMER') {
       await LedgerService.lockEntity(tx, 'CUSTOMER', input.entityId);
-    }
-    const [existing] = input.type === 'DEBIT_NOTE'
-      ? await tx.select().from(s.billingDocuments).where(and(
+      const authority = await resolveDebitNotePeriodAuthority(tx, input.entityId, input.rangeFrom, input.rangeTo);
+      await assertDebitNotePeriodWritable(tx, authority);
+      const sourceLockIds = await resolveBillingDocumentSourcePeriodLocks(
+        tx,
+        input.entityId,
+        input.rangeFrom,
+        input.rangeTo,
+        input.lines as BillingDocumentLine[],
+      );
+      const dueDateSnapshot = await resolveCustomerPaymentDueDate(tx, input.entityId, input.rangeTo);
+      const [existing] = await tx.select().from(s.billingDocuments).where(and(
         eq(s.billingDocuments.type, input.type),
         eq(s.billingDocuments.entityType, input.entityType),
         eq(s.billingDocuments.entityId, input.entityId),
         eq(s.billingDocuments.rangeFrom, input.rangeFrom),
         eq(s.billingDocuments.rangeTo, input.rangeTo),
         isNull(s.billingDocuments.deletedAt),
-      )).limit(1)
-      : [undefined];
+      )).limit(1).for('update');
+
+      if (existing) {
+        const currentTripIds = await persistedTripSourceIds(tx, existing.id);
+        await lockTripFinancialAuthority(tx, [
+          ...currentTripIds,
+          ...tripSourceIds(input.lines as BillingDocumentLine[]),
+        ]);
+        assertDraftDocumentLinesEditable(existing.debitNoteStatus);
+        const [updated] = await tx.update(s.billingDocuments).set({
+          entityName: input.entityName ?? null,
+          note: input.note ?? null,
+          totalInclVat: String(total),
+          ledgerAdjustmentAmount: String(desiredAdjustment),
+          updatedAt: new Date(),
+          debitNoteTemplateId: template?.id ?? null,
+          debitNoteTemplateSnapshot: snapshot,
+        }).where(and(
+          eq(s.billingDocuments.id, existing.id),
+          isNull(s.billingDocuments.deletedAt),
+          or(
+            isNull(s.billingDocuments.debitNoteStatus),
+            eq(s.billingDocuments.debitNoteStatus, 'DRAFT'),
+          ),
+        )).returning({ id: s.billingDocuments.id });
+        if (!updated) {
+          throw new ApiError(
+            409,
+            'Giấy báo nợ vừa được xác nhận hoặc khóa — không thể chỉnh sửa. Vui lòng tải lại.',
+          );
+        }
+        await tx.delete(s.billingDocumentLines).where(eq(s.billingDocumentLines.documentId, existing.id));
+        await persistLines(tx, existing.id, input.lines);
+        await replaceBillingDocumentSourcePeriodLocks(tx, existing.id, sourceLockIds);
+        await postDebitNoteDelta(tx, {
+          documentId: existing.id,
+          customerId: input.entityId,
+          delta: desiredAdjustment - Number(existing.ledgerAdjustmentAmount),
+          originalDueDate: existing.originalDueDate,
+          processingDueDate: existing.processingDueDate,
+          paymentTermDaysApplied: existing.paymentTermDaysApplied,
+          paymentDatePolicyApplied: existing.paymentDatePolicyApplied as PaymentDatePolicy | null,
+        });
+        return existing.id;
+      }
+
+      await lockTripFinancialAuthority(
+        tx,
+        tripSourceIds(input.lines as BillingDocumentLine[]),
+      );
+      const [doc] = await tx.insert(s.billingDocuments).values({
+        type: input.type, entityType: input.entityType, entityId: input.entityId,
+        entityName: input.entityName ?? null, rangeFrom: input.rangeFrom, rangeTo: input.rangeTo,
+        note: input.note ?? null, totalInclVat: String(total), createdBy: userId,
+        ledgerAdjustmentAmount: String(desiredAdjustment),
+        debitNoteTemplateId: template?.id ?? null,
+        debitNoteTemplateSnapshot: snapshot,
+        originalDueDate: dueDateSnapshot.originalDate,
+        processingDueDate: dueDateSnapshot.processingDate,
+        paymentTermDaysApplied: dueDateSnapshot.paymentTermDays,
+        paymentDatePolicyApplied: dueDateSnapshot.policy,
+      }).returning();
+      if (!doc) throw new ApiError(500, 'Không lưu được tài liệu');
+      await persistLines(tx, doc.id, input.lines);
+      await replaceBillingDocumentSourcePeriodLocks(tx, doc.id, sourceLockIds);
+      await postDebitNoteDelta(tx, {
+        documentId: doc.id,
+        customerId: input.entityId,
+        delta: desiredAdjustment,
+        originalDueDate: dueDateSnapshot.originalDate,
+        processingDueDate: dueDateSnapshot.processingDate,
+        paymentTermDaysApplied: dueDateSnapshot.paymentTermDays,
+        paymentDatePolicyApplied: dueDateSnapshot.policy,
+      });
+      return doc.id;
+    }
+    let existing: typeof s.billingDocuments.$inferSelect | undefined;
 
     if (existing) {
       await tx.update(s.billingDocuments).set({
@@ -710,6 +844,10 @@ export async function saveDocument(input: SaveBillingDocumentInput, userId: numb
         documentId: existing.id,
         customerId: input.entityId,
         delta: desiredAdjustment - Number(existing.ledgerAdjustmentAmount),
+        originalDueDate: existing.originalDueDate,
+        processingDueDate: existing.processingDueDate,
+        paymentTermDaysApplied: existing.paymentTermDaysApplied,
+        paymentDatePolicyApplied: existing.paymentDatePolicyApplied as PaymentDatePolicy | null,
       });
       return existing.id;
     }
@@ -721,14 +859,13 @@ export async function saveDocument(input: SaveBillingDocumentInput, userId: numb
       ledgerAdjustmentAmount: String(desiredAdjustment),
       debitNoteTemplateId: template?.id ?? null,
       debitNoteTemplateSnapshot: snapshot,
+      originalDueDate: null,
+      processingDueDate: null,
+      paymentTermDaysApplied: null,
+      paymentDatePolicyApplied: null,
     }).returning();
     if (!doc) throw new ApiError(500, 'Không lưu được tài liệu');
     await persistLines(tx, doc.id, input.lines);
-    await postDebitNoteDelta(tx, {
-      documentId: doc.id,
-      customerId: input.entityId,
-      delta: desiredAdjustment,
-    });
     return doc.id;
   });
   return getDocument(docId);
@@ -761,14 +898,32 @@ export async function updateDocument(id: number, input: SaveBillingDocumentInput
   await db.transaction(async (tx) => {
     if (input.type === 'DEBIT_NOTE' && input.entityType === 'CUSTOMER') {
       await LedgerService.lockEntity(tx, 'CUSTOMER', input.entityId);
+      const authority = await resolveDebitNotePeriodAuthority(tx, input.entityId, input.rangeFrom, input.rangeTo);
+      await assertDebitNotePeriodWritable(tx, authority);
     }
     const [current] = await tx.select().from(s.billingDocuments)
-      .where(and(eq(s.billingDocuments.id, id), isNull(s.billingDocuments.deletedAt))).limit(1);
+      .where(and(eq(s.billingDocuments.id, id), isNull(s.billingDocuments.deletedAt)))
+      .limit(1)
+      .for('update');
     if (!current) throw new ApiError(404, 'Không tìm thấy tài liệu');
     if (current.type !== input.type || current.entityType !== input.entityType || current.entityId !== input.entityId) {
       throw new ApiError(400, 'Không thể đổi khách hàng hoặc loại của tài liệu đã lưu');
     }
-    assertNotLocked(current.debitNoteStatus);
+    const currentTripIds = await persistedTripSourceIds(tx, id);
+    await lockTripFinancialAuthority(tx, [
+      ...currentTripIds,
+      ...tripSourceIds(input.lines as BillingDocumentLine[]),
+    ]);
+    assertDraftDocumentLinesEditable(current.debitNoteStatus);
+    const sourceLockIds = input.type === 'DEBIT_NOTE' && input.entityType === 'CUSTOMER'
+      ? await resolveBillingDocumentSourcePeriodLocks(
+        tx,
+        input.entityId,
+        input.rangeFrom,
+        input.rangeTo,
+        input.lines as BillingDocumentLine[],
+      )
+      : [];
     const [updated] = await tx.update(s.billingDocuments).set({
       entityName: input.entityName ?? null, rangeFrom: input.rangeFrom, rangeTo: input.rangeTo,
       note: input.note ?? null, totalInclVat: String(total), updatedAt: new Date(),
@@ -780,7 +935,7 @@ export async function updateDocument(id: number, input: SaveBillingDocumentInput
       isNull(s.billingDocuments.deletedAt),
       or(
         isNull(s.billingDocuments.debitNoteStatus),
-        notInArray(s.billingDocuments.debitNoteStatus, ['CONFIRMED', 'PARTIAL_PAID', 'PAID', 'CANCELED']),
+        eq(s.billingDocuments.debitNoteStatus, 'DRAFT'),
       ),
     )).returning({ id: s.billingDocuments.id });
     if (!updated) {
@@ -791,10 +946,15 @@ export async function updateDocument(id: number, input: SaveBillingDocumentInput
     }
     await tx.delete(s.billingDocumentLines).where(eq(s.billingDocumentLines.documentId, id));
     await persistLines(tx, id, input.lines);
+    await replaceBillingDocumentSourcePeriodLocks(tx, id, sourceLockIds);
     await postDebitNoteDelta(tx, {
       documentId: id,
       customerId: input.entityId,
       delta: desiredAdjustment - Number(current.ledgerAdjustmentAmount),
+      originalDueDate: current.originalDueDate,
+      processingDueDate: current.processingDueDate,
+      paymentTermDaysApplied: current.paymentTermDaysApplied,
+      paymentDatePolicyApplied: current.paymentDatePolicyApplied as PaymentDatePolicy | null,
     });
   });
   return getDocument(id);
@@ -853,6 +1013,10 @@ async function hydrateDocument(doc: typeof s.billingDocuments.$inferSelect): Pro
     customerConfirmedAt: doc.customerConfirmedAt?.toISOString() ?? null,
     customerConfirmedBy: doc.customerConfirmedBy,
     ledgerAdjustmentAmount: Number(doc.ledgerAdjustmentAmount),
+    originalDueDate: doc.originalDueDate,
+    processingDueDate: doc.processingDueDate,
+    paymentTermDaysApplied: doc.paymentTermDaysApplied,
+    paymentDatePolicyApplied: doc.paymentDatePolicyApplied as PaymentDatePolicy | null,
     debitNoteTemplateId: doc.debitNoteTemplateId ?? null,
     debitNoteTemplateSnapshot: (doc.debitNoteTemplateSnapshot as DebitNoteTemplateSnapshot | null) ?? null,
     createdAt: doc.createdAt.toISOString(), updatedAt: doc.updatedAt.toISOString(),
@@ -877,14 +1041,23 @@ export async function deleteDocument(id: number): Promise<void> {
     const [initial] = await tx.select().from(s.billingDocuments)
       .where(and(eq(s.billingDocuments.id, id), isNull(s.billingDocuments.deletedAt))).limit(1);
     if (!initial) throw new ApiError(404, 'Không tìm thấy tài liệu');
-    if (initial.type === 'DEBIT_NOTE' && initial.entityType === 'CUSTOMER') {
-      await LedgerService.lockEntity(tx, 'CUSTOMER', initial.entityId);
+    if (initial.type === 'DEBIT_NOTE') {
+      if (initial.entityType === 'CUSTOMER') {
+        await LedgerService.lockEntity(tx, 'CUSTOMER', initial.entityId);
+        const authority = await resolveDebitNotePeriodAuthority(tx, initial.entityId, initial.rangeFrom, initial.rangeTo);
+        await assertDebitNotePeriodWritable(tx, authority);
+      }
       // Re-read after acquiring the entity lock so a concurrent save cannot
       // leave us reversing a stale adjustment amount.
       const [doc] = await tx.select().from(s.billingDocuments)
         .where(and(eq(s.billingDocuments.id, id), isNull(s.billingDocuments.deletedAt))).limit(1);
       if (!doc) throw new ApiError(404, 'Không tìm thấy tài liệu');
-      assertNotLocked(doc.debitNoteStatus);
+      if (doc.debitNoteStatus != null && doc.debitNoteStatus !== 'DRAFT') {
+        throw new ApiError(
+          409,
+          'Giấy báo nợ đã phát hành hoặc kết thúc vòng đời — không thể xóa. Tạo giấy điều chỉnh hoặc hủy theo quy trình nếu cần.',
+        );
+      }
       const [deleted] = await tx.update(s.billingDocuments)
         .set({ deletedAt: new Date(), updatedAt: new Date() })
         .where(and(
@@ -892,21 +1065,23 @@ export async function deleteDocument(id: number): Promise<void> {
           isNull(s.billingDocuments.deletedAt),
           or(
             isNull(s.billingDocuments.debitNoteStatus),
-            notInArray(s.billingDocuments.debitNoteStatus, ['CONFIRMED', 'PARTIAL_PAID', 'PAID', 'CANCELED']),
+            eq(s.billingDocuments.debitNoteStatus, 'DRAFT'),
           ),
         ))
         .returning({ id: s.billingDocuments.id });
       if (!deleted) {
         throw new ApiError(
           409,
-          'Giấy báo nợ vừa được xác nhận hoặc khóa — không thể xóa. Vui lòng tải lại.',
+          'Giấy báo nợ vừa được phát hành hoặc đổi trạng thái — không thể xóa. Vui lòng tải lại.',
         );
       }
-      await postDebitNoteDelta(tx, {
-        documentId: id,
-        customerId: doc.entityId,
-        delta: -Number(doc.ledgerAdjustmentAmount),
-      });
+      if (doc.entityType === 'CUSTOMER') {
+        await postDebitNoteDelta(tx, {
+          documentId: id,
+          customerId: doc.entityId,
+          delta: -Number(doc.ledgerAdjustmentAmount),
+        });
+      }
       return;
     }
     await tx.update(s.billingDocuments).set({ deletedAt: new Date(), updatedAt: new Date() })
@@ -1090,7 +1265,7 @@ export async function buildLegacyXlsx(doc: BillingDocument): Promise<Buffer> {
   const isDebitNote = doc.type === 'DEBIT_NOTE';
   const title = isDebitNote ? 'GIẤY BÁO NỢ' : 'BẢNG KÊ THANH TOÁN';
   const entityLabel = isDebitNote ? 'Khách hàng' : 'Đối tác';
-  const tableStart = doc.note ? 6 : 5;
+  const tableStart = isDebitNote ? (doc.note ? 7 : 6) : (doc.note ? 6 : 5);
   const dataStart = tableStart + 1;
 
   ws.properties.defaultRowHeight = 22;
@@ -1121,12 +1296,22 @@ export async function buildLegacyXlsx(doc: BillingDocument): Promise<Buffer> {
   ws.getCell('A3').font = { name: 'Arial', size: 11, color: { argb: 'FF374151' } };
   ws.getCell('A3').alignment = { horizontal: 'center', vertical: 'middle' };
 
-  if (doc.note) {
+  if (isDebitNote) {
     ws.mergeCells('A4:D4');
-    ws.getCell('A4').value = `Ghi chú: ${doc.note}`;
-    ws.getCell('A4').font = { name: 'Arial', italic: true, size: 10, color: { argb: 'FF4B5563' } };
-    ws.getCell('A4').alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
-    ws.getRow(4).height = 30;
+    ws.getCell('A4').value = doc.originalDueDate
+      ? `Hạn hợp đồng: ${formatVietnameseDate(doc.originalDueDate)} · Ngày xử lý: ${formatVietnameseDate(doc.processingDueDate ?? doc.originalDueDate)}`
+      : 'Hạn thanh toán: Chưa có dữ liệu lịch sử';
+    ws.getCell('A4').font = { name: 'Arial', size: 10, color: { argb: 'FF374151' } };
+    ws.getCell('A4').alignment = { horizontal: 'center', vertical: 'middle' };
+  }
+
+  if (doc.note) {
+    const noteRow = isDebitNote ? 5 : 4;
+    ws.mergeCells(noteRow, 1, noteRow, 4);
+    ws.getCell(noteRow, 1).value = `Ghi chú: ${doc.note}`;
+    ws.getCell(noteRow, 1).font = { name: 'Arial', italic: true, size: 10, color: { argb: 'FF4B5563' } };
+    ws.getCell(noteRow, 1).alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
+    ws.getRow(noteRow).height = 30;
   }
 
   for (let r = 1; r <= 5; r++) {
@@ -1691,6 +1876,8 @@ async function renderDebitNoteXlsx(
   ws.mergeCells('C9:D9');
   ws.mergeCells('C10:D10');
   ws.mergeCells('C11:D11');
+  ws.mergeCells('C12:D12');
+  ws.mergeCells('C13:D13');
   ws.mergeCells('F9:H9');
   ws.mergeCells('E10:H10');
   ws.mergeCells('E11:H11');
@@ -1700,6 +1887,8 @@ async function renderDebitNoteXlsx(
     ['Số :', noticeNo],
     ['Ngày tháng:', parseDateOnly(doc.rangeTo)],
     ['Mã khách:', customerCode(partner.name, doc.entityId)],
+    ['Hạn hợp đồng:', doc.originalDueDate ? parseDateOnly(doc.originalDueDate) : 'Chưa có dữ liệu lịch sử'],
+    ['Ngày xử lý:', doc.processingDueDate ? parseDateOnly(doc.processingDueDate) : 'Chưa có dữ liệu lịch sử'],
   ];
   leftMeta.forEach(([label, value], index) => {
     const row = 9 + index;

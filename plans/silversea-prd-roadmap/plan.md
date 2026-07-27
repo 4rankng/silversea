@@ -1,6 +1,6 @@
 ---
 title: "Silversea PRD Roadmap — 12-module implementation order"
-description: "Roadmap-level implementation order for the 12-module Silver Sea logistics PRD, sequenced by dependency and revenue-correctness risk. Each wave lists PRD modules touched, key deliverables, and the open PRD questions that must be confirmed before that wave starts."
+description: "Roadmap-level implementation order for the 12-module Silver Sea logistics PRD, sequenced by dependency and revenue-correctness risk. Q01-Q23 were accepted as written on 2026-07-27; implementation proof remains wave-scoped."
 status: pending
 priority: P1
 branch: "main"
@@ -21,9 +21,9 @@ PRD into 5 dependency-ordered waves. It is intentionally **roadmap-level**: each
 lists the PRD modules touched, the key deliverables, the existing code it builds on, and
 the open PRD questions that must be confirmed with the customer before the wave starts.
 
-This is **not** a per-task build plan. Per-wave detailed plans (schema, routes, acceptance-
-criteria traceability) are produced separately once (a) the customer has filled in the
-"Ghi nhận của Silver Sea" response columns and (b) Wave 0 has landed.
+This is **not** a per-task build plan. Q01-Q23 were accepted as written on
+2026-07-27. Detailed execution and acceptance traceability for those decisions
+is owned by `plans/260727-1230-approved-business-rules/`.
 
 ### Source material
 
@@ -34,13 +34,11 @@ criteria traceability) are produced separately once (a) the customer has filled 
 - Basis: Báo giá TTransport cho Silver Sea — Phiên bản 2, 20/07/2026.
 - Working version 1.0; dated 21/07/2026.
 
-### Critical reality check
+### Authority status
 
-**The PRD is a survey/confirmation document, not an approved spec.** In all 12 modules the
-"Đề xuất của TingTing" (TingTing proposal) column is populated but the
-"Ghi nhận của Silver Sea" (customer response) column is **empty**. The proposals become
-formal requirements only after Silver Sea signs off. Treat all wave contents as proposed
-until confirmed.
+SilverSea approved all TingTing proposals Q01-Q23 as written on 2026-07-27.
+They are formal requirements. This approval removes the authority blocker but
+does not prove that any behavior is implemented or tested.
 
 ### Current codebase coverage (already built)
 
@@ -103,13 +101,13 @@ phase's `dependencies:` frontmatter and `Risk Assessment`).
 
 External cross-plan dependencies: none (no other plans in `./plans/` at creation time).
 
-Upstream blocker on **all** waves: customer sign-off on the per-module PRD response columns.
-Track in `## Open PRD questions` per phase.
+The Q01-Q23 authority blocker is resolved. Other module-specific catalog,
+template, historical-data or support inputs remain separate dependencies.
 
-## Open PRD questions (cross-cutting — must be confirmed with Silver Sea before any wave)
+## Approved cross-cutting decisions
 
-These come from every module's "Câu hỏi dùng chung cần chốt" and recur identically across
-M1–M12. They govern schema and policy decisions everywhere:
+Q01-Q23 are accepted and govern schema and policy decisions everywhere. The
+list below remains as an implementation checklist, not an approval request:
 
 1. **Roles & permissions** — confirm who creates / checks / approves / view-only in each
    module. Today's Casbin policy has 5 roles (ADMIN/MANAGER/ACCOUNTANT/DRIVER/FORWARDER).

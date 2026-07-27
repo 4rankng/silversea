@@ -41,6 +41,8 @@ export interface DebitNotePdfData {
   entityName: string;
   rangeFrom: string;
   rangeTo: string;
+  originalDueDate?: string | null;
+  processingDueDate?: string | null;
   totalInclVat: string;
   lines: Array<{
     lineType: string;
@@ -74,6 +76,8 @@ export async function getDebitNoteData(documentId: number): Promise<DebitNotePdf
     entityName: doc.entityName ?? `#${doc.entityId}`,
     rangeFrom: doc.rangeFrom,
     rangeTo: doc.rangeTo,
+    originalDueDate: doc.originalDueDate,
+    processingDueDate: doc.processingDueDate,
     totalInclVat: doc.totalInclVat,
     status: doc.debitNoteStatus,
     lines: lines
@@ -258,6 +262,10 @@ export function exportDebitNoteHtml(
   const signatureLeftName = escapeHtml(snapshot.signatureLeftName ?? '');
   const signatureRight = escapeHtml(snapshot.signatureRightLabel ?? 'Kế toán trưởng');
   const signatureRightName = escapeHtml(snapshot.signatureRightName ?? '');
+  const dueDateLine = data.originalDueDate
+    ? `· Hạn hợp đồng: ${escapeHtml(data.originalDueDate)}
+    · Ngày xử lý: ${escapeHtml(data.processingDueDate ?? data.originalDueDate)}`
+    : '· Hạn thanh toán: Chưa có dữ liệu lịch sử';
 
   return `<!DOCTYPE html>
 <html lang="vi">
@@ -289,6 +297,7 @@ export function exportDebitNoteHtml(
   <h1>${title}</h1>
   <div class="subheader">
     Kỳ: ${data.rangeFrom} → ${data.rangeTo}
+    ${dueDateLine}
     · Trạng thái: ${escapeHtml(data.status ?? 'DRAFT')}
     · Ngày xuất: ${escapeHtml(dateStr)}
   </div>
@@ -353,6 +362,10 @@ function exportLegacyHtml(data: DebitNotePdfData, dateStr: string): string {
   `).join('');
 
   const total = Number(data.totalInclVat).toLocaleString('vi-VN');
+  const dueDateHtml = data.originalDueDate
+    ? `<strong>Hạn hợp đồng:</strong> ${escapeHtml(data.originalDueDate)}<br>
+    <strong>Ngày xử lý:</strong> ${escapeHtml(data.processingDueDate ?? data.originalDueDate)}<br>`
+    : '<strong>Hạn thanh toán:</strong> Chưa có dữ liệu lịch sử<br>';
 
   return `<!DOCTYPE html>
 <html lang="vi">
@@ -377,6 +390,7 @@ function exportLegacyHtml(data: DebitNotePdfData, dateStr: string): string {
   <div class="meta">
     <strong>Khách hàng:</strong> ${escapeHtml(data.entityName)}<br>
     <strong>Kỳ:</strong> ${data.rangeFrom} → ${data.rangeTo}<br>
+    ${dueDateHtml}
     <strong>Trạng thái:</strong> ${escapeHtml(data.status ?? 'DRAFT')}<br>
     <strong>Ngày xuất:</strong> ${escapeHtml(dateStr)}
   </div>

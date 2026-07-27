@@ -13,8 +13,9 @@
 
 import { db } from '../db';
 import * as s from '../db/schema';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { ApiError } from '../errors';
+import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
 
 type DebitNoteStatus = typeof s.debitNoteStatusEnum.enumValues[number];
 
@@ -48,48 +49,90 @@ export interface TransitionInput {
 }
 
 export async function transitionDebitNoteStatus(input: TransitionInput) {
-  const [doc] = await db.select().from(s.billingDocuments)
-    .where(eq(s.billingDocuments.id, input.documentId))
-    .limit(1);
-  if (!doc) throw new ApiError(404, 'Không tìm thấy giấy báo nợ');
+  return db.transaction(async (tx) => {
+    const [doc] = await tx.select().from(s.billingDocuments)
+      .where(eq(s.billingDocuments.id, input.documentId))
+      .limit(1)
+      .for('update');
+    if (!doc) throw new ApiError(404, 'Không tìm thấy giấy báo nợ');
 
-  const currentStatus = (doc.debitNoteStatus ?? 'DRAFT') as DebitNoteStatus;
+    const currentStatus = (doc.debitNoteStatus ?? 'DRAFT') as DebitNoteStatus;
+    if (!isValidTransition(currentStatus, input.targetStatus)) {
+      throw new ApiError(
+        409,
+        `Không thể chuyển giấy báo nợ từ "${currentStatus}" sang "${input.targetStatus}".`,
+      );
+    }
 
-  if (!isValidTransition(currentStatus, input.targetStatus)) {
-    throw new ApiError(
-      409,
-      `Không thể chuyển giấy báo nợ từ "${currentStatus}" sang "${input.targetStatus}".`,
-    );
-  }
+    const readTripSourceIds = async () => {
+      const sourceRows = await tx.select({ tripId: s.billingDocumentLines.sourceId })
+        .from(s.billingDocumentLines)
+        .where(and(
+          eq(s.billingDocumentLines.documentId, input.documentId),
+          eq(s.billingDocumentLines.sourceType, 'TRIP'),
+        ));
+      return [...new Set(sourceRows
+        .map(row => row.tripId)
+        .filter((tripId): tripId is number => tripId != null))]
+        .sort((left, right) => left - right);
+    };
+    const lockedTripIds = await readTripSourceIds();
+    await lockTripFinancialAuthority(tx, lockedTripIds);
+    const tripIds = await readTripSourceIds();
+    if (
+      tripIds.length !== lockedTripIds.length
+      || tripIds.some((tripId, index) => tripId !== lockedTripIds[index])
+    ) {
+      throw new ApiError(
+        409,
+        'Nguồn chuyến của giấy báo nợ vừa thay đổi. Vui lòng tải lại và thử lại.',
+      );
+    }
 
-  const updates: Partial<typeof s.billingDocuments.$inferInsert> = {
-    debitNoteStatus: input.targetStatus,
-    updatedAt: new Date(),
-  };
+    if (currentStatus === 'DRAFT' && input.targetStatus === 'SENT' && tripIds.length > 0) {
+      const sourceTrips = await tx.select({ id: s.trips.id, status: s.trips.status })
+        .from(s.trips)
+        .where(inArray(s.trips.id, tripIds));
+      if (
+        sourceTrips.length !== new Set(tripIds).size
+        || sourceTrips.some(trip => trip.status !== 'LOCKED')
+      ) {
+        throw new ApiError(
+          409,
+          'Giấy báo nợ chỉ được phát hành khi mọi chuyến nguồn vẫn ở trạng thái đã chốt',
+        );
+      }
+    }
 
-  // When transitioning to CONFIRMED, record who confirmed + lock the document.
-  if (input.targetStatus === 'CONFIRMED') {
-    updates.customerConfirmedAt = new Date();
-    if (input.confirmedBy) updates.customerConfirmedBy = input.confirmedBy;
-  }
+    const updates: Partial<typeof s.billingDocuments.$inferInsert> = {
+      debitNoteStatus: input.targetStatus,
+      updatedAt: new Date(),
+    };
 
-  const statusCondition = doc.debitNoteStatus === null
-    ? isNull(s.billingDocuments.debitNoteStatus)
-    : eq(s.billingDocuments.debitNoteStatus, currentStatus);
-  const [updated] = await db.update(s.billingDocuments)
-    .set(updates)
-    .where(and(
-      eq(s.billingDocuments.id, input.documentId),
-      isNull(s.billingDocuments.deletedAt),
-      statusCondition,
-    ))
-    .returning();
+    // When transitioning to CONFIRMED, record who confirmed + lock the document.
+    if (input.targetStatus === 'CONFIRMED') {
+      updates.customerConfirmedAt = new Date();
+      if (input.confirmedBy) updates.customerConfirmedBy = input.confirmedBy;
+    }
 
-  if (!updated) {
-    throw new ApiError(409, 'Trạng thái giấy báo nợ vừa thay đổi. Vui lòng tải lại và thử lại.');
-  }
+    const statusCondition = doc.debitNoteStatus === null
+      ? isNull(s.billingDocuments.debitNoteStatus)
+      : eq(s.billingDocuments.debitNoteStatus, currentStatus);
+    const [updated] = await tx.update(s.billingDocuments)
+      .set(updates)
+      .where(and(
+        eq(s.billingDocuments.id, input.documentId),
+        isNull(s.billingDocuments.deletedAt),
+        statusCondition,
+      ))
+      .returning();
 
-  return updated;
+    if (!updated) {
+      throw new ApiError(409, 'Trạng thái giấy báo nợ vừa thay đổi. Vui lòng tải lại và thử lại.');
+    }
+
+    return updated;
+  });
 }
 
 // ─── Lock check ─────────────────────────────────────────────────────────────

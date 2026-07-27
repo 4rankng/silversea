@@ -183,9 +183,9 @@ Các tiêu chí này giống nhau về mặt ý nghĩa; tệp này viết ca ki�
 
 ## B. 23 câu hỏi logic nghiệp vụ (Q01–Q23)
 
-> **Lưu ý quan trọng:** Các câu hỏi Q01–Q23 trong `business-logic-qa-proposals.md` đều ở trạng thái
-> `pending`. Ca kiểm thử dưới đây mô tả **hành vi kỳ vọng theo đề xuất TingTing**. Khi Silver Sea ký
-> duyệt với giá trị khác, cập nhật cột *Phụ thuộc* và kỳ vọng tương ứng.
+> **Trạng thái thẩm quyền:** SilverSea đã chấp thuận toàn bộ đề xuất TingTing
+> Q01–Q23 ngày 27/07/2026. Các hành vi dưới đây là tiêu chí nghiệm thu chính
+> thức. Trạng thái `accepted` không đồng nghĩa đã triển khai hoặc đã Pass.
 
 ### Q01 — Ngưỡng cảnh báo sớm hạn mức công nợ
 
@@ -393,9 +393,9 @@ Các tiêu chí này giống nhau về mặt ý nghĩa; tệp này viết ca ki�
 - **Đề xuất:** mặc định chuyển sang ngày làm việc tiếp theo, nhưng vẫn lưu + hiển thị ngày gốc theo hợp
   đồng. Tính quá hạn + gửi nhắc theo ngày đã điều chỉnh. Hợp đồng ưu tiên nếu quy định khác.
 - **Ca kiểm thử:**
-  1. Tạo giấy báo nợ hạn thanh toán = Chủ nhật 03/08/2026.
-  2. Hệ thống hiển thị: ngày gốc 03/08 (Chủ nhật), ngày điều chỉnh 04/08 (Thứ 2).
-  3. Tính quá hạn tính từ 04/08. Nhắc gửi theo 04/08.
+  1. Tạo giấy báo nợ hạn thanh toán = Chủ nhật 02/08/2026.
+  2. Hệ thống hiển thị: ngày gốc 02/08 (Chủ nhật), ngày điều chỉnh 03/08 (Thứ 2).
+  3. Tính quá hạn tính từ 03/08. Nhắc gửi theo 03/08.
 
 ### Q20 — Chuyến qua hai kỳ
 

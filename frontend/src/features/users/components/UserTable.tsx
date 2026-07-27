@@ -1,7 +1,7 @@
 import {
   Users, ShieldCheck, UserCog, Lock, Plus, Pencil, Trash2,
   Loader2, KeyRound, Mail, Phone, Search, UserX, MoreVertical, X,
-  ArrowUpDown, ArrowUp, ArrowDown
+  ArrowUpDown, ArrowUp, ArrowDown, Building2,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { formatDate } from '../../../lib/format';
@@ -28,6 +28,8 @@ interface UserTableProps {
   canEditDriversOnly?: boolean;
   /** truckId → licensePlate, for the "Xe" column on driver rows. */
   truckMap?: Map<number, string>;
+  customerMap?: Map<number, string>;
+  businessUnitMap?: Map<number, string>;
   deleting: number | null;
   currentUserId?: number;
   onFilterChange: (f: FilterKey) => void;
@@ -94,10 +96,42 @@ function getPlate(u: UserRow, truckMap?: Map<number, string>) {
   return u.role === Role.DRIVER && u.assignedTruckId != null ? truckMap?.get(u.assignedTruckId) : undefined;
 }
 
+function getCustomerScopeLabel(u: UserRow, customerMap?: Map<number, string>) {
+  if (u.role !== Role.CUSTOMER) return undefined;
+  const ids = u.customerIds?.length ? u.customerIds : u.customerId ? [u.customerId] : [];
+  if (ids.length === 0) return 'Chưa liên kết khách hàng';
+  const names = ids.map(id => customerMap?.get(id) ?? `Khách hàng #${id}`);
+  return names.join(', ');
+}
+
+function getClerkScopeLabel(
+  u: UserRow,
+  customerMap?: Map<number, string>,
+  businessUnitMap?: Map<number, string>,
+) {
+  if (u.role !== Role.CLERK) return undefined;
+  const parts: string[] = [];
+  const unitIds = u.businessUnitIds ?? [];
+  if (unitIds.length > 0) {
+    const unitNames = unitIds.map((id) => businessUnitMap?.get(id) ?? `Đơn vị #${id}`);
+    parts.push(`Đơn vị: ${unitNames.join(', ')}`);
+  }
+  const customerIds = u.customerIds?.length ? u.customerIds : u.customerId ? [u.customerId] : [];
+  if (customerIds.length > 0) {
+    const names = customerIds.map((id) => customerMap?.get(id) ?? `Khách hàng #${id}`);
+    parts.push(`Khách hàng: ${names.join(', ')}`);
+  }
+  if ((u.shipmentIds?.length ?? 0) > 0) {
+    parts.push(`Lô chỉ định: ${u.shipmentIds!.length}`);
+  }
+  return parts.length > 0 ? parts.join(' · ') : 'Chưa gán phạm vi';
+}
+
 export function UserTable({
   users, filtered, paginated, total, staffCount, driverCount, inactiveCount,
   filter, search, canManage, canDelete = canManage, canEditDriversOnly = false,
   truckMap, deleting, currentUserId,
+  customerMap, businessUnitMap,
   onFilterChange, onSearchChange, onEdit, onDelete, onAdd,
   sortBy, sortOrder, onSort,
   currentPage, pageSize, onPageChange,
@@ -257,6 +291,8 @@ export function UserTable({
           canDelete={canDelete}
           canEditDriversOnly={canEditDriversOnly}
           truckMap={truckMap}
+          customerMap={customerMap}
+          businessUnitMap={businessUnitMap}
           deleting={deleting}
           currentUserId={currentUserId}
           onEdit={onEdit}
@@ -273,6 +309,8 @@ export function UserTable({
           canDelete={canDelete}
           canEditDriversOnly={canEditDriversOnly}
           truckMap={truckMap}
+          customerMap={customerMap}
+          businessUnitMap={businessUnitMap}
           deleting={deleting}
           currentUserId={currentUserId}
           onEdit={onEdit}
@@ -366,6 +404,7 @@ export function UserTable({
 
 function DesktopTable({
   filtered, canManage, canDelete: _canDelete, canEditDriversOnly, truckMap, deleting: _deleting, currentUserId,
+  customerMap, businessUnitMap,
   onEdit, onDelete: _onDelete,
   sortBy, sortOrder, onSort,
 }: {
@@ -374,6 +413,8 @@ function DesktopTable({
   canDelete: boolean;
   canEditDriversOnly: boolean;
   truckMap?: Map<number, string>;
+  customerMap?: Map<number, string>;
+  businessUnitMap?: Map<number, string>;
   deleting: number | null;
   currentUserId?: number;
   onEdit: (u: UserRow) => void;
@@ -429,6 +470,8 @@ function DesktopTable({
               const isMe = u.id === currentUserId;
               const editable = canEditRow(u, canManage, canEditDriversOnly);
               const plate = getPlate(u, truckMap);
+              const customerScope = getCustomerScopeLabel(u, customerMap);
+              const clerkScope = getClerkScopeLabel(u, customerMap, businessUnitMap);
               return (
                 <tr
                   key={u.id}
@@ -474,7 +517,21 @@ function DesktopTable({
                       {!u.email && !u.phone && <span style={{ color: 'var(--ink-3)' }}>—</span>}
                     </div>
                   </td>
-                  <td><span className={pill.cls}><span className="dot" />{pill.label}</span></td>
+                  <td>
+                    <span className={pill.cls}><span className="dot" />{pill.label}</span>
+                    {customerScope && (
+                      <div className="user-customer-scope-label" title={customerScope}>
+                        <Building2 size={12} aria-hidden="true" />
+                        <span>{customerScope}</span>
+                      </div>
+                    )}
+                    {!customerScope && clerkScope && (
+                      <div className="user-customer-scope-label" title={clerkScope}>
+                        <Building2 size={12} aria-hidden="true" />
+                        <span>{clerkScope}</span>
+                      </div>
+                    )}
+                  </td>
                   <td>
                     {plate
                       ? <span className="user-truck-plate">{plate}</span>
@@ -495,12 +552,14 @@ function DesktopTable({
 
 /* ── Mobile card list (inside panel) ──────────────────────────────────────── */
 
-function MobileCardList({ filtered, canManage, canDelete, canEditDriversOnly, truckMap, deleting, currentUserId, onEdit, onDelete }: {
+function MobileCardList({ filtered, canManage, canDelete, canEditDriversOnly, truckMap, customerMap, businessUnitMap, deleting, currentUserId, onEdit, onDelete }: {
   filtered: UserRow[];
   canManage: boolean;
   canDelete: boolean;
   canEditDriversOnly: boolean;
   truckMap?: Map<number, string>;
+  customerMap?: Map<number, string>;
+  businessUnitMap?: Map<number, string>;
   deleting: number | null;
   currentUserId?: number;
   onEdit: (u: UserRow) => void;
@@ -530,6 +589,8 @@ function MobileCardList({ filtered, canManage, canDelete, canEditDriversOnly, tr
           const isMe = u.id === currentUserId;
           const editable = canEditRow(u, canManage, canEditDriversOnly);
           const plate = getPlate(u, truckMap);
+          const customerScope = getCustomerScopeLabel(u, customerMap);
+          const clerkScope = getClerkScopeLabel(u, customerMap, businessUnitMap);
           return (
             <div
                   key={u.id}
@@ -597,6 +658,16 @@ function MobileCardList({ filtered, canManage, canDelete, canEditDriversOnly, tr
                 <div className="users-mobile-card__detail-list">
                   {plate && (
                     <span className="user-truck-plate">{plate}</span>
+                  )}
+                  {customerScope && (
+                    <span className="users-mobile-card__detail">
+                      <Building2 size={12} /> {customerScope}
+                    </span>
+                  )}
+                  {!customerScope && clerkScope && (
+                    <span className="users-mobile-card__detail">
+                      <Building2 size={12} /> {clerkScope}
+                    </span>
                   )}
                   {u.email && (
                     <span className="users-mobile-card__detail">

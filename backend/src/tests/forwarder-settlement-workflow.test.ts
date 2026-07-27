@@ -5,11 +5,15 @@ import { createAdvanceSettlementSchema, TxnType, updateAdvanceSettlementSchema }
 import { db, client } from '../db';
 import * as s from '../db/schema';
 import {
+  approveAdvanceRequest,
   adjustSettlementExpense,
   approveAdvanceSettlement,
+  checkAdvanceSettlement,
   createAdvanceSettlement,
+  createAdvanceRequest,
   getAdvanceSettlement,
   listAdvanceRequests,
+  rejectAdvanceSettlement,
   updateAdvanceSettlement,
 } from '../services/advance.service';
 import { validateSettlementInputs } from '../services/settlement-validation';
@@ -35,6 +39,8 @@ describe('forwarder settlement streamlined workflow', () => {
   let forwarderId: number;
   let otherForwarderId: number;
   let accountantId: number;
+  let approverId: number;
+  let secondApproverId: number;
   let tripId: number;
   let containerId: number;
   let requestId: number;
@@ -56,10 +62,12 @@ describe('forwarder settlement streamlined workflow', () => {
     tripContainerId?: number | null;
     buyAmount?: number;
     sellAmount?: number;
+    createdBy?: number | null;
   } = {}) {
     const [expense] = await db.insert(s.tripExpenses).values({
       tripId,
       forwarderId,
+      createdBy: options.createdBy === undefined ? forwarderId : options.createdBy,
       expenseType: 'LIFTING',
       buyAmount: String(options.buyAmount ?? 100_000),
       sellAmount: String(options.sellAmount ?? 120_000),
@@ -111,8 +119,10 @@ describe('forwarder settlement streamlined workflow', () => {
       { username: `fwd-${suffix}`, passwordHash: 'x', fullName: 'Ops test', role: 'DRIVER' },
       { username: `other-${suffix}`, passwordHash: 'x', fullName: 'Ops khác', role: 'DRIVER' },
       { username: `kt-${suffix}`, passwordHash: 'x', fullName: 'Kế toán test', role: 'ACCOUNTANT' },
+      { username: `mgr-${suffix}`, passwordHash: 'x', fullName: 'Duyệt test', role: 'MANAGER' },
+      { username: `admin-${suffix}`, passwordHash: 'x', fullName: 'Duyệt độc lập', role: 'ADMIN' },
     ]).returning();
-    [forwarderId, otherForwarderId, accountantId] = users.map(row => row.id);
+    [forwarderId, otherForwarderId, accountantId, approverId, secondApproverId] = users.map(row => row.id);
     ids.users.push(...users.map(row => row.id));
 
     const [customer] = await db.insert(s.customers).values({ name: `Settlement customer ${suffix}` }).returning();
@@ -159,6 +169,8 @@ describe('forwarder settlement streamlined workflow', () => {
         eq(s.ledger.txnType, TxnType.FORWARDER_SETTLEMENT),
         inArray(s.ledger.txnId, ids.settlements),
       ));
+      await db.delete(s.settlementExpenseAdjustments)
+        .where(inArray(s.settlementExpenseAdjustments.settlementId, ids.settlements));
       await db.delete(s.settlementExpenses).where(inArray(s.settlementExpenses.settlementId, ids.settlements));
       await db.delete(s.advanceSettlementRequests).where(inArray(s.advanceSettlementRequests.settlementId, ids.settlements));
       await db.delete(s.advanceSettlements).where(inArray(s.advanceSettlements.id, ids.settlements));
@@ -287,7 +299,158 @@ describe('forwarder settlement streamlined workflow', () => {
     ids.settlements.push(successes[0].value.id);
   });
 
-  test('accountant approval performs PENDING -> APPROVED once and approves linked expenses', async () => {
+  test('requester cannot approve their own advance request', async () => {
+    const request = await createAdvanceRequest(forwarderId, {
+      amount: 410_000,
+      reason: 'Q15 tự duyệt',
+    });
+    ids.requests.push(request.id);
+
+    await assert.rejects(
+      () => approveAdvanceRequest(request.id, forwarderId),
+      /Không thể duyệt yêu cầu tạm ứng của chính mình/,
+    );
+  });
+
+  test('checker must differ from the forwarder', async () => {
+    const expense = await insertExpense({ buyAmount: 150_000, sellAmount: 150_000 });
+    await markCompleted(null);
+    const checkRequestId = await insertApprovedRequest(150_000);
+    const settlement = await createAdvanceSettlement(forwarderId, {
+      advanceRequestIds: [checkRequestId], tripExpenseIds: [expense.id],
+    });
+    ids.settlements.push(settlement.id);
+
+    await assert.rejects(
+      () => checkAdvanceSettlement(settlement.id, forwarderId),
+      /Người lập phiếu không được tự kiểm tra phiếu hoàn ứng của mình/,
+    );
+  });
+
+  test('approval requires a prior accountant check and a distinct approver', async () => {
+    const expense = await insertExpense({ buyAmount: 205_000, sellAmount: 205_000 });
+    await markCompleted(null);
+    const approvalRequestId = await insertApprovedRequest(205_000);
+    const settlement = await createAdvanceSettlement(forwarderId, {
+      advanceRequestIds: [approvalRequestId], tripExpenseIds: [expense.id],
+    });
+    ids.settlements.push(settlement.id);
+
+    await assert.rejects(
+      () => approveAdvanceSettlement(settlement.id, approverId),
+      /Phiếu hoàn ứng phải được kế toán kiểm tra trước khi duyệt/,
+    );
+
+    await checkAdvanceSettlement(settlement.id, accountantId);
+
+    await assert.rejects(
+      () => approveAdvanceSettlement(settlement.id, accountantId),
+      /Người kiểm tra không được đồng thời phê duyệt phiếu hoàn ứng/,
+    );
+  });
+
+  test('material update after check invalidates the checker and requires a fresh check', async () => {
+    const expense = await insertExpense({ buyAmount: 200_000, sellAmount: 200_000 });
+    await markCompleted(null);
+    const originalRequestId = await insertApprovedRequest(250_000);
+    const replacementRequestId = await insertApprovedRequest(240_000);
+    const settlement = await createAdvanceSettlement(forwarderId, {
+      advanceRequestIds: [originalRequestId],
+      tripExpenseIds: [expense.id],
+      refundAmount: 50_000,
+    });
+    ids.settlements.push(settlement.id);
+
+    await checkAdvanceSettlement(settlement.id, accountantId);
+    await updateAdvanceSettlement(settlement.id, {
+      advanceRequestIds: [replacementRequestId],
+      tripExpenseIds: [expense.id],
+      refundAmount: 40_000,
+      note: 'Thay đổi nguồn tạm ứng sau kiểm tra',
+    });
+    const [invalidated] = await db.select().from(s.advanceSettlements)
+      .where(eq(s.advanceSettlements.id, settlement.id));
+    assert.equal(invalidated.status, 'PENDING');
+    assert.equal(invalidated.checkedBy, null);
+    assert.equal(invalidated.checkedAt, null);
+    await assert.rejects(
+      () => approveAdvanceSettlement(settlement.id, approverId),
+      /phải được kế toán kiểm tra trước/,
+    );
+
+    await checkAdvanceSettlement(settlement.id, approverId);
+    await approveAdvanceSettlement(settlement.id, secondApproverId);
+  });
+
+  test('correction after check invalidates it and its actor cannot approve the correction', async () => {
+    const expense = await insertExpense({
+      approvalStatus: 'APPROVED',
+      buyAmount: 300_000,
+      sellAmount: 300_000,
+    });
+    await markCompleted(null);
+    const correctionRequestId = await insertApprovedRequest(300_000);
+    const settlement = await createAdvanceSettlement(forwarderId, {
+      advanceRequestIds: [correctionRequestId],
+      tripExpenseIds: [expense.id],
+    });
+    ids.settlements.push(settlement.id);
+
+    await checkAdvanceSettlement(settlement.id, accountantId);
+    await adjustSettlementExpense(settlement.id, expense.id, approverId, {
+      sellAmount: 310_000,
+      adjustmentReason: 'Điều chỉnh phí bán sau kiểm tra',
+    });
+    const [invalidated] = await db.select().from(s.advanceSettlements)
+      .where(eq(s.advanceSettlements.id, settlement.id));
+    assert.equal(invalidated.status, 'PENDING');
+    assert.equal(invalidated.checkedBy, null);
+    assert.equal(invalidated.checkedAt, null);
+    await assert.rejects(
+      () => approveAdvanceSettlement(settlement.id, secondApproverId),
+      /phải được kế toán kiểm tra trước/,
+    );
+
+    await assert.rejects(
+      () => checkAdvanceSettlement(settlement.id, approverId),
+      /người điều chỉnh|tự kiểm tra/i,
+    );
+    await checkAdvanceSettlement(settlement.id, accountantId);
+    await assert.rejects(
+      () => approveAdvanceSettlement(settlement.id, approverId),
+      /người điều chỉnh|tự phê duyệt/i,
+    );
+    await approveAdvanceSettlement(settlement.id, secondApproverId);
+    const history = await db.select().from(s.settlementExpenseAdjustments)
+      .where(eq(s.settlementExpenseAdjustments.settlementId, settlement.id));
+    assert.equal(history.length, 1);
+    assert.equal(history[0]!.adjustedBy, approverId);
+    assert.equal(history[0]!.approvedBy, secondApproverId);
+  });
+
+  test('checked settlement can still be rejected without posting ledger entries', async () => {
+    const expense = await insertExpense({ buyAmount: 210_000, sellAmount: 210_000 });
+    await markCompleted(null);
+    const rejectRequestId = await insertApprovedRequest(210_000);
+    const settlement = await createAdvanceSettlement(forwarderId, {
+      advanceRequestIds: [rejectRequestId], tripExpenseIds: [expense.id],
+    });
+    ids.settlements.push(settlement.id);
+
+    await checkAdvanceSettlement(settlement.id, accountantId);
+    await rejectAdvanceSettlement(settlement.id, approverId);
+
+    const [savedSettlement] = await db.select().from(s.advanceSettlements).where(eq(s.advanceSettlements.id, settlement.id));
+    const ledgerRows = await db.select().from(s.ledger).where(and(
+      eq(s.ledger.txnType, TxnType.FORWARDER_SETTLEMENT), eq(s.ledger.txnId, settlement.id),
+    ));
+    assert.equal(savedSettlement.status, 'REJECTED');
+    assert.equal(savedSettlement.checkedBy, accountantId);
+    assert.equal(savedSettlement.approvedBy, approverId);
+    assert.equal(ledgerRows.length, 0);
+  });
+
+  test('checked settlement approves once and preserves checker/approver separation', async () => {
     const expense = await insertExpense({ buyAmount: 230_000 });
     await markCompleted(null);
     const approvalRequestId = await insertApprovedRequest(250_000);
@@ -296,7 +459,8 @@ describe('forwarder settlement streamlined workflow', () => {
     });
     ids.settlements.push(settlement.id);
 
-    await approveAdvanceSettlement(settlement.id, accountantId);
+    await checkAdvanceSettlement(settlement.id, accountantId);
+    await approveAdvanceSettlement(settlement.id, approverId);
     const [savedSettlement] = await db.select().from(s.advanceSettlements).where(eq(s.advanceSettlements.id, settlement.id));
     const [savedExpense] = await db.select().from(s.tripExpenses).where(eq(s.tripExpenses.id, expense.id));
     const ledgerRows = await db.select().from(s.ledger).where(and(
@@ -304,12 +468,12 @@ describe('forwarder settlement streamlined workflow', () => {
     ));
     assert.equal(savedSettlement.status, 'APPROVED');
     assert.equal(savedSettlement.checkedBy, accountantId);
-    assert.equal(savedSettlement.approvedBy, accountantId);
+    assert.equal(savedSettlement.approvedBy, approverId);
     assert.equal(savedExpense.approvalStatus, 'APPROVED');
     assert.equal(ledgerRows.length, 1);
     assert.equal(ledgerRows[0].debit, '250000');
 
-    await assert.rejects(() => approveAdvanceSettlement(settlement.id, accountantId), /Cannot approve settlement with status APPROVED/);
+    await assert.rejects(() => approveAdvanceSettlement(settlement.id, approverId), /Cannot approve settlement with status APPROVED/);
     const ledgerRowsAfterRetry = await db.select().from(s.ledger).where(and(
       eq(s.ledger.txnType, TxnType.FORWARDER_SETTLEMENT), eq(s.ledger.txnId, settlement.id),
     ));
@@ -370,7 +534,7 @@ describe('forwarder settlement streamlined workflow', () => {
     assert.equal(afterRejectedUpdate?.note, 'Kế toán thay bộ chứng từ');
   });
 
-  test('legacy CHECKED_BY_ACCOUNTANT settlement can be finalized directly', async () => {
+  test('legacy CHECKED_BY_ACCOUNTANT settlement can be finalized directly by a distinct approver', async () => {
     const expense = await insertExpense({ buyAmount: 180_000, sellAmount: 180_000 });
     await markCompleted(null);
     const legacyRequestId = await insertApprovedRequest(180_000);
@@ -384,7 +548,7 @@ describe('forwarder settlement streamlined workflow', () => {
       checkedAt: new Date(),
     }).where(eq(s.advanceSettlements.id, settlement.id));
 
-    await approveAdvanceSettlement(settlement.id, accountantId);
+    await approveAdvanceSettlement(settlement.id, approverId);
     const [saved] = await db.select().from(s.advanceSettlements)
       .where(eq(s.advanceSettlements.id, settlement.id));
     const ledgerRows = await db.select().from(s.ledger).where(and(
@@ -392,9 +556,38 @@ describe('forwarder settlement streamlined workflow', () => {
       eq(s.ledger.txnId, settlement.id),
     ));
     assert.equal(saved.status, 'APPROVED');
-    assert.equal(saved.approvedBy, accountantId);
+    assert.equal(saved.checkedBy, accountantId);
+    assert.equal(saved.approvedBy, approverId);
     assert.equal(ledgerRows.length, 1);
     assert.equal(ledgerRows[0].debit, '180000');
+  });
+
+  test('late-approved customer service fee freezes its payment-date authority', async () => {
+    const expense = await insertExpense({ buyAmount: 125_000, sellAmount: 145_000 });
+    await markCompleted(null);
+    await db.update(s.trips).set({ status: 'COMPLETED' }).where(eq(s.trips.id, tripId));
+    const lateRequestId = await insertApprovedRequest(125_000);
+    const settlement = await createAdvanceSettlement(forwarderId, {
+      advanceRequestIds: [lateRequestId],
+      tripExpenseIds: [expense.id],
+    });
+    ids.settlements.push(settlement.id);
+
+    try {
+      await checkAdvanceSettlement(settlement.id, accountantId);
+      await approveAdvanceSettlement(settlement.id, approverId);
+      const [feeRow] = await db.select().from(s.ledger).where(and(
+        eq(s.ledger.txnType, TxnType.SERVICE_FEE),
+        eq(s.ledger.txnId, expense.id),
+      )).limit(1);
+      assert.ok(feeRow);
+      assert.equal(feeRow.originalDueDate, '2026-08-10');
+      assert.equal(feeRow.processingDueDate, '2026-08-10');
+      assert.equal(feeRow.paymentTermDaysApplied, 30);
+      assert.equal(feeRow.paymentDatePolicyApplied, 'NEXT_BUSINESS_DAY');
+    } finally {
+      await db.update(s.trips).set({ status: 'IN_TRANSIT' }).where(eq(s.trips.id, tripId));
+    }
   });
 
   test('accountant adjustment requires a linked pending settlement and recalculates its total', async () => {
@@ -421,12 +614,118 @@ describe('forwarder settlement streamlined workflow', () => {
     ));
     assert.equal(link.adjustmentReason, 'Đối chiếu lại hóa đơn');
     assert.equal(link.adjustedBy, accountantId);
+    assert.equal(link.adjustedBuyAmount, '275000');
+    const [originalExpense] = await db.select().from(s.tripExpenses)
+      .where(eq(s.tripExpenses.id, expense.id));
+    assert.equal(
+      originalExpense.buyAmount,
+      '300000',
+      'approved source expense stays immutable; settlement link carries the adjustment',
+    );
 
-    await approveAdvanceSettlement(settlement.id, accountantId);
+    await checkAdvanceSettlement(settlement.id, approverId);
+    await approveAdvanceSettlement(settlement.id, secondApproverId);
     await assert.rejects(
       () => adjustSettlementExpense(settlement.id, expense.id, accountantId, { buyAmount: 1, adjustmentReason: 'Quá muộn' }),
       /Chỉ được sửa phiếu đang chờ kế toán/,
     );
+  });
+
+  test('fails closed when settlement approval encounters an expense with unknown maker', async () => {
+    const legacyExpense = await insertExpense({
+      approvalStatus: 'PENDING',
+      buyAmount: 90_000,
+      sellAmount: 90_000,
+      createdBy: null,
+    });
+    await markCompleted(null);
+    const legacyRequestId = await insertApprovedRequest(90_000);
+    const settlement = await createAdvanceSettlement(forwarderId, {
+      advanceRequestIds: [legacyRequestId],
+      tripExpenseIds: [legacyExpense.id],
+    });
+    ids.settlements.push(settlement.id);
+    await checkAdvanceSettlement(settlement.id, accountantId);
+    await assert.rejects(
+      () => approveAdvanceSettlement(settlement.id, approverId),
+      /không xác định được người tạo|đối soát thủ công/,
+    );
+    const [unchanged] = await db.select().from(s.tripExpenses)
+      .where(eq(s.tripExpenses.id, legacyExpense.id));
+    assert.equal(unchanged.approvalStatus, 'PENDING');
+  });
+
+  test('keeps corrections append-only and exact across ordinary settlement update and approval', async () => {
+    const expense = await insertExpense({
+      approvalStatus: 'APPROVED',
+      buyAmount: 300_000,
+      sellAmount: 300_000,
+    });
+    await markCompleted(null);
+    const correctedRequestId = await insertApprovedRequest(275_000);
+    const settlement = await createAdvanceSettlement(forwarderId, {
+      advanceRequestIds: [correctedRequestId],
+      tripExpenseIds: [expense.id],
+    });
+    ids.settlements.push(settlement.id);
+    await adjustSettlementExpense(settlement.id, expense.id, accountantId, {
+      buyAmount: 280_000,
+      adjustmentReason: 'Điều chỉnh lần một',
+    });
+    await adjustSettlementExpense(settlement.id, expense.id, accountantId, {
+      buyAmount: 275_000,
+      adjustmentReason: 'Điều chỉnh lần hai',
+    });
+    const [beforeUpdate] = await db.select().from(s.settlementExpenses).where(and(
+      eq(s.settlementExpenses.settlementId, settlement.id),
+      eq(s.settlementExpenses.tripExpenseId, expense.id),
+    ));
+
+    await updateAdvanceSettlement(settlement.id, {
+      advanceRequestIds: [correctedRequestId],
+      tripExpenseIds: [expense.id],
+      refundAmount: 0,
+      note: 'Giữ nguyên khoản đã điều chỉnh',
+    });
+    const [afterUpdate] = await db.select().from(s.settlementExpenses).where(and(
+      eq(s.settlementExpenses.settlementId, settlement.id),
+      eq(s.settlementExpenses.tripExpenseId, expense.id),
+    ));
+    assert.equal(afterUpdate.id, beforeUpdate.id, 'retained corrected link is updated in place');
+    assert.equal(afterUpdate.adjustedBuyAmount, '275000');
+    assert.equal(afterUpdate.adjustmentReason, 'Điều chỉnh lần hai');
+    assert.equal(
+      (afterUpdate.adjustedSnapshot as Record<string, unknown>).buyAmount,
+      '275000',
+    );
+    const history = await db.select().from(s.settlementExpenseAdjustments)
+      .where(eq(s.settlementExpenseAdjustments.settlementExpenseId, afterUpdate.id))
+      .orderBy(s.settlementExpenseAdjustments.sequence);
+    assert.equal(history.length, 2);
+    assert.equal(history[0]!.sequence, 1);
+    assert.equal(history[0]!.reason, 'Điều chỉnh lần một');
+    assert.equal((history[0]!.beforeSnapshot as Record<string, unknown>).buyAmount, '300000');
+    assert.equal((history[0]!.afterSnapshot as Record<string, unknown>).buyAmount, '280000');
+    assert.equal(history[1]!.sequence, 2);
+    assert.equal(history[1]!.reason, 'Điều chỉnh lần hai');
+    assert.equal((history[1]!.beforeSnapshot as Record<string, unknown>).buyAmount, '280000');
+    assert.equal((history[1]!.afterSnapshot as Record<string, unknown>).buyAmount, '275000');
+
+    await db.update(s.trips).set({ status: 'COMPLETED' }).where(eq(s.trips.id, tripId));
+    try {
+      await checkAdvanceSettlement(settlement.id, approverId);
+      await approveAdvanceSettlement(settlement.id, secondApproverId);
+      const approvedHistory = await db.select().from(s.settlementExpenseAdjustments)
+        .where(eq(s.settlementExpenseAdjustments.settlementExpenseId, afterUpdate.id));
+      assert.ok(approvedHistory.every(row => row.approvedBy === secondApproverId && row.approvedAt));
+      const [fee] = await db.select().from(s.ledger).where(and(
+        eq(s.ledger.txnType, TxnType.SERVICE_FEE),
+        eq(s.ledger.txnId, expense.id),
+      )).limit(1);
+      assert.equal(fee.debit, '275000');
+    } finally {
+      await db.update(s.trips).set({ status: 'IN_TRANSIT' }).where(eq(s.trips.id, tripId));
+    }
   });
 
   test('forwarder edit enforces ownership and rejects expenses in an active settlement', async () => {

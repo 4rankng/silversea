@@ -5,6 +5,7 @@ import { SHIPMENT_STATUS_LABELS, type ShipmentStatus } from '@tingting/shared';
 import { ClickableCard } from '../../components/shared/ClickableCard';
 import { EmptyState } from '../../design-system';
 import { routes } from '../../lib/routes';
+import { useCustomerPortalScope, withCustomerScope } from './CustomerPortalScope';
 import './PortalPages.css';
 
 interface ShipmentRow {
@@ -17,6 +18,7 @@ interface ShipmentRow {
 }
 
 export default function PortalShipmentsPage() {
+  const { selectedCustomerId, ready: customerScopeReady } = useCustomerPortalScope();
   const [items, setItems] = useState<ShipmentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,10 +26,13 @@ export default function PortalShipmentsPage() {
   const [total, setTotal] = useState(0);
 
   useEffect(() => {
+    if (!customerScopeReady) return;
     let active = true;
     setLoading(true);
     setError(null);
-    api.get<{ items: ShipmentRow[]; total: number }>(`/portal/shipments?page=${page}&limit=10`)
+    api.get<{ items: ShipmentRow[]; total: number }>(
+      withCustomerScope(`/portal/shipments?page=${page}&limit=10`, selectedCustomerId),
+    )
       .then((res) => {
         if (!active) return;
         setItems(res.items);
@@ -40,7 +45,11 @@ export default function PortalShipmentsPage() {
         if (active) setLoading(false);
       });
     return () => { active = false; };
-  }, [page]);
+  }, [customerScopeReady, page, selectedCustomerId]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [selectedCustomerId]);
 
   const totalPages = Math.max(1, Math.ceil(total / 10));
 
@@ -62,7 +71,11 @@ export default function PortalShipmentsPage() {
         <div className="portal-panel">
           <div className="portal-list">
             {items.map((s) => (
-              <ClickableCard key={s.id} to={routes.portalShipmentDetail(s.id)} className="portal-list__row">
+              <ClickableCard
+                key={s.id}
+                to={withCustomerScope(routes.portalShipmentDetail(s.id), selectedCustomerId)}
+                className="portal-list__row"
+              >
                 <div className="portal-list__primary">
                   <strong>{s.shipmentCode ?? `Lô hàng #${s.id}`}</strong>
                   <div className="portal-list__meta">

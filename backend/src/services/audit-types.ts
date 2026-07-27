@@ -41,6 +41,8 @@ export const AuditEvent = {
   USER_LOGOUT: 'USER_LOGOUT',
   LOGIN_FAILED: 'LOGIN_FAILED',
   ACCESS_DENIED: 'ACCESS_DENIED',
+  MUTATION_REJECTED: 'MUTATION_REJECTED',
+  MUTATION_CONFLICT: 'MUTATION_CONFLICT',
 } as const;
 
 export type AuditEventType = (typeof AuditEvent)[keyof typeof AuditEvent];

@@ -48,9 +48,10 @@ no-invoice disbursements, roles/scope, time/periods, and cross-module linkage:
 - **Indexed, navigable copy:** [`docs/prd/business-logic-qa-proposals.md`](docs/prd/business-logic-qa-proposals.md)
   — each Q has a stable ID (`Q01`…`Q23`) and a `Status` column tracking sign-off
   (`pending` / `accepted` / `modified` / `rejected`).
-- **Status today:** all 23 are TingTing **proposals** — the source cover note explicitly
-  says Silver Sea must confirm before deployment. **Do not implement any value as a locked
-  spec** until the matching `Status` flips to `accepted`/`modified`.
+- **Status today:** SilverSea accepted all 23 TingTing proposals as written on
+  **2026-07-27** and instructed TingTing to implement them. These are now
+  authoritative requirements; implementation and QA status remain tracked
+  separately.
 - Where an open PRD question in a wave below has a matching TingTing default, it is now
   tagged with the proposal ID (e.g. `→ Q01`) so the proposed default is one click away.
 

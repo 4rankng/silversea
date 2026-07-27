@@ -3,6 +3,10 @@ import * as s from '../db/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { TxnType } from '@tingting/shared';
 import type { Tx } from './trip-shared';
+import {
+  resolveCustomerPaymentDueDate,
+  type PaymentDatePolicy,
+} from './business-calendar.service';
 
 /** Common trip shape for ledger lock/unlock operations */
 interface TripLedgerParams {
@@ -10,6 +14,7 @@ interface TripLedgerParams {
   customerId: number;
   driverId: number | null;
   tripCode: string | null;
+  departureDate?: string | Date;
   revenue: string | null;
   driverSalary: string | null;
   carrierType?: string;
@@ -38,6 +43,10 @@ export interface LedgerPostRequest {
   credit: number;
   note?: string;
   timestamp?: Date;
+  originalDueDate?: string | null;
+  processingDueDate?: string | null;
+  paymentTermDaysApplied?: number | null;
+  paymentDatePolicyApplied?: PaymentDatePolicy | null;
 }
 
 export class LedgerService {
@@ -144,6 +153,10 @@ export class LedgerService {
       balance: String(newBalance),
       note: request.note ?? null,
       timestamp: request.timestamp,
+      originalDueDate: request.originalDueDate ?? null,
+      processingDueDate: request.processingDueDate ?? null,
+      paymentTermDaysApplied: request.paymentTermDaysApplied ?? null,
+      paymentDatePolicyApplied: request.paymentDatePolicyApplied ?? null,
     }).returning();
 
     return inserted;
@@ -195,6 +208,34 @@ export class LedgerService {
     const entitiesToLock = this.collectTripEntities(tripForLock);
     await this.lockEntities(tx, entitiesToLock);
 
+    // Resolve once, inside this transaction, and stamp every customer debit
+    // created by this trip with the same immutable contract/calendar snapshot.
+    let departureDate = trip.departureDate;
+    if (!departureDate) {
+      const [storedTrip] = await tx.select({ departureDate: s.trips.departureDate })
+        .from(s.trips)
+        .where(eq(s.trips.id, trip.id))
+        .limit(1);
+      departureDate = storedTrip?.departureDate;
+    }
+    if (!departureDate) {
+      throw new Error(`Chuyến #${trip.id} không có ngày khởi hành để chốt hạn thanh toán`);
+    }
+    const basisDate = departureDate instanceof Date
+      ? departureDate.toISOString().slice(0, 10)
+      : String(departureDate).slice(0, 10);
+    const dueDateSnapshot = await resolveCustomerPaymentDueDate(
+      tx,
+      trip.customerId,
+      basisDate,
+    );
+    const dueDateFields = {
+      originalDueDate: dueDateSnapshot.originalDate,
+      processingDueDate: dueDateSnapshot.processingDate,
+      paymentTermDaysApplied: dueDateSnapshot.paymentTermDays,
+      paymentDatePolicyApplied: dueDateSnapshot.policy,
+    } as const;
+
     // ── 2. Customer freight revenue (always incl-VAT, unchanged) ──
     // Skip zero-value entries to avoid polluting ledger with meaningless rows.
     if (revenue > 0) {
@@ -206,6 +247,7 @@ export class LedgerService {
         debit: revenue,
         credit: 0,
         note: label ? `Doanh thu chuyến ${label}` : 'Doanh thu chuyến',
+        ...dueDateFields,
       });
     }
 
@@ -265,6 +307,7 @@ export class LedgerService {
         debit: sellAmt,
         credit: 0,
         note: label ? `Phí chi hộ chuyến ${label}` : 'Phí chi hộ',
+        ...dueDateFields,
       });
     }
 

@@ -157,6 +157,8 @@ const templates: Record<string, (c: TemplateContext) => string> = {
   [AuditEvent.USER_LOGOUT]: (c) => `${subj(c)} đã đăng xuất khỏi hệ thống`,
   [AuditEvent.LOGIN_FAILED]: (c) => `Phát hiện nỗ lực đăng nhập thất bại${c.entityKey ? ` cho tài khoản ${c.entityKey}` : ''}${c.ipAddress ? ` từ địa chỉ IP ${c.ipAddress}` : ''}`,
   [AuditEvent.ACCESS_DENIED]: (c) => `Từ chối truy cập của ${subj(c)} vào tài nguyên ${c.entityLabel}${c.entityKey ? ` (${c.entityKey})` : ''}`,
+  [AuditEvent.MUTATION_REJECTED]: (c) => `Từ chối thao tác của ${subj(c)} trên ${c.entityLabel}${c.entityKey ? ` (${c.entityKey})` : ''}`,
+  [AuditEvent.MUTATION_CONFLICT]: (c) => `Phát hiện xung đột khi ${subj(c)} thao tác trên ${c.entityLabel}${c.entityKey ? ` (${c.entityKey})` : ''}`,
 
   [AuditEvent.PROFIT_DISTRIBUTED]: (c) => `${subj(c)} đã thực hiện phân phối lợi nhuận cho các cổ đông của ${c.entityKey || 'hệ thống'}`,
 };

@@ -14,6 +14,23 @@ function driverPayload(data: CreateData | EditData) {
   } : {};
 }
 
+function customerScopePayload(data: CreateData | EditData) {
+  if (data.role !== Role.CUSTOMER && data.role !== Role.CLERK) return {};
+  const customerIds = [...new Set(data.customerIds ?? [])].filter((id) => id > 0);
+  return {
+    customerIds,
+    customerId: customerIds[0] ?? null,
+  };
+}
+
+function clerkScopePayload(data: CreateData | EditData) {
+  if (data.role !== Role.CLERK) return {};
+  return {
+    businessUnitIds: [...new Set(data.businessUnitIds ?? [])].filter((id) => id > 0),
+    shipmentIds: [...new Set(data.shipmentIds ?? [])].filter((id) => id > 0),
+  };
+}
+
 export function useUserMutations(refetch: () => void) {
   const [saving, setSaving] = useState(false);
   const [panelError, setPanelError] = useState<string | null>(null);
@@ -37,6 +54,8 @@ export function useUserMutations(refetch: () => void) {
         password: data.password,
         role:     data.role,
         ...driverPayload(data),
+        ...customerScopePayload(data),
+        ...clerkScopePayload(data),
       });
       refetch();
       showToast({ kind: 'success', message: 'Tạo tài khoản thành công' });
@@ -61,6 +80,8 @@ export function useUserMutations(refetch: () => void) {
         email:    data.email,
         phone:    data.phone,
         ...driverPayload(data),
+        ...customerScopePayload(data),
+        ...clerkScopePayload(data),
       };
       if (data.password) body.password = data.password;
       await userClient.updateUser(id, body);

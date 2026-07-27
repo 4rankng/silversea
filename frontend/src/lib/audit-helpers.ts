@@ -21,6 +21,8 @@ export const ACTION_LABELS: Record<string, string> = {
   PENALTY_CANCELED: 'Hủy kỷ luật',
   DRIVER_SALARY_RECORDED: 'Ghi lương',
   PROFIT_DISTRIBUTED: 'Chia lợi nhuận',
+  TRIP_EXPENSE_APPROVED: 'Duyệt chi phí',
+  TRIP_EXPENSE_REJECTED: 'Từ chối chi phí',
   // Generic CRUD
   ENTITY_CREATED: 'Tạo mới',
   ENTITY_UPDATED: 'Cập nhật',
@@ -30,17 +32,38 @@ export const ACTION_LABELS: Record<string, string> = {
   USER_LOGOUT: 'Đăng xuất',
   LOGIN_FAILED: 'Đăng nhập thất bại',
   ACCESS_DENIED: 'Bị từ chối quyền',
+  MUTATION_REJECTED: 'Thao tác bị từ chối',
+  MUTATION_CONFLICT: 'Xung đột dữ liệu',
 };
 
 // ─── Category resolution ───────────────────────────────────────────────────────
 
 export type AuditCategory = 'trip' | 'config' | 'finance' | 'auth' | 'penalty';
 
-export function resolveCategory(action: string): AuditCategory {
+const FINANCE_PATH_PREFIXES = [
+  '/api/finance',
+  '/api/payments',
+  '/api/adjustments',
+  '/api/debt',
+  '/api/payables',
+  '/api/expenses',
+  '/api/advances',
+  '/api/settlements',
+  '/api/admin/advance-settlements',
+  '/api/salary',
+  '/api/salary-periods',
+  '/api/reports/receivables',
+  '/api/reports/payables',
+  '/api/reports/statement',
+  '/api/reports/supplier-statement',
+] as const;
+
+export function resolveCategory(action: string, context?: { path?: string | null }): AuditCategory {
+  if (['PAYMENT_RECEIVED', 'ADJUSTMENT_CREATED', 'PROFIT_DISTRIBUTED', 'DRIVER_SALARY_RECORDED', 'TRIP_EXPENSE_APPROVED', 'TRIP_EXPENSE_REJECTED'].includes(action)) return 'finance';
   if (action.startsWith('TRIP_')) return 'trip';
-  if (['PAYMENT_RECEIVED', 'ADJUSTMENT_CREATED', 'PROFIT_DISTRIBUTED'].includes(action)) return 'finance';
   if (action === 'PENALTY_CREATED' || action === 'PENALTY_CANCELED') return 'penalty';
-  if (['USER_LOGIN', 'USER_LOGOUT', 'LOGIN_FAILED', 'ACCESS_DENIED'].includes(action)) return 'auth';
+  if (['USER_LOGIN', 'USER_LOGOUT', 'LOGIN_FAILED', 'ACCESS_DENIED', 'MUTATION_REJECTED', 'MUTATION_CONFLICT'].includes(action)) return 'auth';
+  if (FINANCE_PATH_PREFIXES.some((prefix) => (context?.path ?? '').startsWith(prefix))) return 'finance';
   return 'config';
 }
 

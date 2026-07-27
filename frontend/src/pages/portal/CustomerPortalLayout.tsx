@@ -4,6 +4,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { BRAND } from '../../brand';
 import { routes, titleForPath } from '../../lib/routes';
+import { CustomerPortalScopeProvider, useCustomerPortalScope } from './CustomerPortalScope';
 import './CustomerPortalLayout.css';
 
 const portalNav = [
@@ -12,8 +13,15 @@ const portalNav = [
   { to: routes.portalStatement, label: 'Sao kê', fullLabel: 'Sao kê công nợ', icon: Landmark },
 ] as const;
 
-export default function CustomerPortalLayout({ children }: { children: React.ReactNode }) {
+function CustomerPortalLayoutBody({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
+  const {
+    customers,
+    selectedCustomerId,
+    error: customerScopeError,
+    retry: retryCustomerScope,
+    setSelectedCustomerId,
+  } = useCustomerPortalScope();
   const location = useLocation();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -145,6 +153,27 @@ export default function CustomerPortalLayout({ children }: { children: React.Rea
           </div>
           <button type="button" onClick={handleLogout}><LogOut size={17} /> Đăng xuất</button>
         </div>
+        {customers.length > 1 && (
+          <div className="customer-shell__scope-bar">
+            <label htmlFor="customer-portal-scope">Pháp nhân đang xem</label>
+            <select
+              id="customer-portal-scope"
+              value={selectedCustomerId ?? ''}
+              onChange={(event) => setSelectedCustomerId(Number(event.target.value))}
+            >
+              {customers.map(customer => (
+                <option key={customer.id} value={customer.id}>{customer.name}</option>
+              ))}
+            </select>
+            <span>Dữ liệu được tách riêng theo từng pháp nhân.</span>
+          </div>
+        )}
+        {customerScopeError && (
+          <div className="customer-shell__scope-error" role="alert">
+            <span>{customerScopeError}</span>
+            <button type="button" onClick={retryCustomerScope}>Thử lại</button>
+          </div>
+        )}
         <main id="customer-main" className="customer-shell__main">{children}</main>
       </div>
 
@@ -165,5 +194,13 @@ export default function CustomerPortalLayout({ children }: { children: React.Rea
         ))}
       </nav>
     </div>
+  );
+}
+
+export default function CustomerPortalLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <CustomerPortalScopeProvider>
+      <CustomerPortalLayoutBody>{children}</CustomerPortalLayoutBody>
+    </CustomerPortalScopeProvider>
   );
 }

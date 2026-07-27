@@ -72,6 +72,12 @@ function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, suppliers }
   const [contactPerson, setContactPerson] = useState(item?.contactPerson || '');
   const [phone, setPhone] = useState(item?.phone || '');
   const [creditLimit, setCreditLimit] = useState(item?.creditLimit || '');
+  const [paymentTermDays, setPaymentTermDays] = useState(
+    item?.paymentTermDays != null ? String(item.paymentTermDays) : '30',
+  );
+  const [paymentDatePolicy, setPaymentDatePolicy] = useState(
+    item?.paymentDatePolicy ?? 'NEXT_BUSINESS_DAY',
+  );
   const [status, setStatus] = useState<string>(item?.status || CustomerStatus.ACTIVE);
   const [isCarrier, setIsCarrier] = useState(item?.isCarrier ?? false);
   const [debitNoteMode, setDebitNoteMode] = useState<string>(item?.debitNoteMode ?? 'MONTHLY');
@@ -84,6 +90,8 @@ function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, suppliers }
       setContactPerson(item?.contactPerson || '');
       setPhone(item?.phone || '');
       setCreditLimit(item?.creditLimit || '');
+      setPaymentTermDays(item?.paymentTermDays != null ? String(item.paymentTermDays) : '30');
+      setPaymentDatePolicy(item?.paymentDatePolicy ?? 'NEXT_BUSINESS_DAY');
       setStatus(item?.status || CustomerStatus.ACTIVE);
       setIsCarrier(item?.isCarrier ?? false);
       setDebitNoteMode(item?.debitNoteMode ?? 'MONTHLY');
@@ -100,6 +108,8 @@ function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, suppliers }
       contactPerson: contactPerson.trim() || undefined,
       phone: phone.trim() || undefined,
       creditLimit: creditLimit ? Number(creditLimit) : undefined,
+      paymentTermDays: paymentTermDays ? Number(paymentTermDays) : null,
+      paymentDatePolicy,
       status,
       isCarrier,
       debitNoteMode,
@@ -157,6 +167,32 @@ function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, suppliers }
         <div className="field">
           <label htmlFor="cust-credit" style={labelStyle}>Hạn mức tín dụng (đ)</label>
           <input id="cust-credit" className="input" type="number" value={creditLimit} onChange={e => setCreditLimit(e.target.value)} placeholder="0" />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="field">
+            <label htmlFor="cust-payment-term" style={labelStyle}>Thời hạn thanh toán (ngày)</label>
+            <input
+              id="cust-payment-term"
+              className="input"
+              type="number"
+              min={0}
+              max={3650}
+              value={paymentTermDays}
+              onChange={e => setPaymentTermDays(e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="cust-payment-date-policy" style={labelStyle}>Ngày đến hạn rơi vào ngày nghỉ</label>
+            <select
+              id="cust-payment-date-policy"
+              className="input"
+              value={paymentDatePolicy}
+              onChange={e => setPaymentDatePolicy(e.target.value as 'NEXT_BUSINESS_DAY' | 'CALENDAR_DAY')}
+            >
+              <option value="NEXT_BUSINESS_DAY">Chuyển sang ngày làm việc tiếp theo</option>
+              <option value="CALENDAR_DAY">Giữ nguyên theo hợp đồng</option>
+            </select>
+          </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div className="field">

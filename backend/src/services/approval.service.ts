@@ -40,19 +40,65 @@ export async function transitionApproval(
     throw new ApiError(403, 'Bạn không có quyền phê duyệt hoặc từ chối');
   }
 
+  // Pessimistic row lock so concurrent approvals serialize on this row.
+  // Without `FOR UPDATE`, two parallel txns both read PENDING, both pass
+  // the guard below, and both flip the row to APPROVED — letting guards
+  // (`assertFuelReconClear`, `assertInvoiceRequiredForExpense`,
+  // `assertNoInvoiceDisbursementAllowed`) fire twice and any future side
+  // effect double-post. For `debt_offsets` the entity locks in
+  // approveDebtOffset currently mask the race, but `trip_expenses`
+  // (processExpenseApproval) has no such second lock. Locking here closes
+  // the hole for both tables. See qa/2026-07-27_m12-02_session-report.md
+  // defect D1 and qa/2026-07-27_m12-ht_session-report.md HT04-001.
   const table = APPROVABLE_TABLES[opts.table];
-
-  const [record] = await tx
-    .select({ id: table.id, approvalStatus: table.approvalStatus })
-    .from(table)
-    .where(eq(table.id, opts.id))
-    .limit(1);
+  const [record] = opts.table === 'debt_offsets'
+    ? await tx
+      .select({
+        id: s.debtOffsets.id,
+        approvalStatus: s.debtOffsets.approvalStatus,
+        createdBy: s.debtOffsets.createdBy,
+      })
+      .from(s.debtOffsets)
+      .where(eq(s.debtOffsets.id, opts.id))
+      .limit(1)
+      .for('update')
+    : await tx
+      .select({
+        id: s.tripExpenses.id,
+        approvalStatus: s.tripExpenses.approvalStatus,
+        createdBy: s.tripExpenses.createdBy,
+      })
+      .from(s.tripExpenses)
+      .where(eq(s.tripExpenses.id, opts.id))
+      .limit(1)
+      .for('update');
 
   if (!record) {
     throw new ApiError(404, 'Không tìm thấy bản ghi');
   }
   if (record.approvalStatus !== 'PENDING') {
-    throw new ApiError(400, `Không thể chuyển trạng thái: bản ghi đang ở ${record.approvalStatus}`);
+    throw new ApiError(409, `Không thể chuyển trạng thái: bản ghi đang ở ${record.approvalStatus}`);
+  }
+  if (
+    opts.toStatus === 'APPROVED'
+    && 'createdBy' in record
+    && opts.table === 'trip_expenses'
+    && record.createdBy == null
+  ) {
+    throw new ApiError(
+      409,
+      'Không xác định được người tạo chi phí; cần đối soát thủ công trước khi duyệt',
+    );
+  }
+  if (
+    opts.toStatus === 'APPROVED'
+    && 'createdBy' in record
+    && record.createdBy === opts.actorId
+  ) {
+    const subject = opts.table === 'trip_expenses'
+      ? 'chi phí'
+      : 'phiếu đối trừ công nợ';
+    throw new ApiError(403, `Không thể duyệt ${subject} do chính mình tạo`);
   }
 
   // Fuel-recon guard: only fuel-typed trip_expenses going TO APPROVED are

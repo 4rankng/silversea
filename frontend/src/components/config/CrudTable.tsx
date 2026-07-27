@@ -22,6 +22,8 @@ interface CrudTableProps<T extends { id: number }> {
   title: string;
   description: string;
   endpoint: string;
+  /** Optional query string used only by the list request; mutations keep the base endpoint. */
+  listQuery?: string;
   columns: CrudColumn<T>[];
   renderForm: (props: {
     item?: T;
@@ -48,7 +50,7 @@ interface CrudTableProps<T extends { id: number }> {
 }
 
 export function CrudTable<T extends { id: number }>({
-  title, description, endpoint, columns, renderForm, colSpan,
+  title, description, endpoint, listQuery = '', columns, renderForm, colSpan,
   showDelete = true, onDelete, sortFn, computeActiveIds, rowStyle,
   toolbarLeft, backTo = '/config',
   emptyIllustration = 'empty-config.svg',
@@ -60,13 +62,10 @@ export function CrudTable<T extends { id: number }>({
   const navigate = useNavigate();
   const { confirm, dialog } = useConfirm();
 
-  // NOTE: fetches with no page/limit params — backend defaults to limit=50.
-  // Config tables are small (< 50 rows) so this is fine for now.
-  // If any table grows beyond 50 items, add pagination controls here.
   const { data, refetch } = useQuery({
-    queryKey: qk.crud.entity(endpoint),
+    queryKey: [...qk.crud.entity(endpoint), listQuery],
     queryFn: async () => {
-      const r = await api.get<PaginatedResponse<T>>(endpoint);
+      const r = await api.get<PaginatedResponse<T>>(`${endpoint}${listQuery}`);
       return r.items;
     },
   });

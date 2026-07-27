@@ -62,7 +62,15 @@ export interface CustomerStatementData {
   customer: { id: number; name: string; contactInfo: string | null; debitNoteMode?: string | null; isCarrier?: boolean };
   ledgerRows: EnrichedLedgerRow[];
   totalOutstanding: number;
-  unpaidTrips: Array<{ tripId: number; date: string; outstanding: number; note: string }>;
+  unpaidTrips: Array<{
+    tripId: number;
+    date: string;
+    outstanding: number;
+    note: string;
+    originalDueDate: string | null;
+    processingDueDate: string | null;
+    dueDateAdjusted: boolean;
+  }>;
   agingBuckets: Array<{ range: string; amount: number }>;
   periodSummary?: PeriodSummary;
 }
@@ -185,6 +193,7 @@ interface StatementExportConfig {
   ledgerRows: EnrichedLedgerRow[];
   totalOutstanding: number;
   agingBuckets: Array<{ range: string; amount: number }>;
+  unpaidTrips?: CustomerStatementData['unpaidTrips'];
 }
 
 export function safeFilename(name: string): string {
@@ -445,11 +454,17 @@ export async function getStatementData(customerId: number, dateFrom?: string, da
     }
   }
 
-  const tripDetailsMap = new Map<number, { tripCode: string | null; routeName: string | null; containerNumbers: string[] }>();
+  const tripDetailsMap = new Map<number, {
+    tripCode: string | null;
+    routeName: string | null;
+    departureDate: string | null;
+    containerNumbers: string[];
+  }>();
   if (tripIds.length > 0) {
     const tripRows = await db.select({
       tripId: s.trips.id,
       tripCode: s.trips.tripCode,
+      departureDate: s.trips.departureDate,
       routeName: s.routes.name,
     }).from(s.trips)
       .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
@@ -474,6 +489,7 @@ export async function getStatementData(customerId: number, dateFrom?: string, da
       tripDetailsMap.set(t.tripId, {
         tripCode: t.tripCode,
         routeName: t.routeName,
+        departureDate: t.departureDate,
         containerNumbers: containersByTrip.get(t.tripId) ?? [],
       });
     }
@@ -523,9 +539,16 @@ export async function getStatementData(customerId: number, dateFrom?: string, da
 
   const revenueEntries = enrichedLedgerRows.filter((r) => r.txnType === TxnType.TRIP_REVENUE);
   const tripNotes = new Map<number, string>();
+  const revenueAuthorityByTrip = new Map<number, EnrichedLedgerRow>();
   for (const entry of revenueEntries) {
     if (entry.txnId && !tripNotes.has(entry.txnId)) {
       tripNotes.set(entry.txnId, entry.note || '');
+    }
+    if (entry.txnId) {
+      const current = revenueAuthorityByTrip.get(entry.txnId);
+      if (!current || entry.id > current.id) {
+        revenueAuthorityByTrip.set(entry.txnId, entry);
+      }
     }
   }
 
@@ -536,7 +559,15 @@ export async function getStatementData(customerId: number, dateFrom?: string, da
     }
   }
 
-  const tripOutstanding = new Map<number, { tripId: number; date: string; outstanding: number; note: string }>();
+  const tripOutstanding = new Map<number, {
+    tripId: number;
+    date: string;
+    issueTimestamp: string;
+    outstanding: number;
+    note: string;
+    originalDueDate: string | null;
+    processingDueDate: string | null;
+  }>();
   for (const inv of openInvoices) {
     if (inv.open <= 0) continue;
     const tsRaw: unknown = inv.ts;
@@ -551,14 +582,32 @@ export async function getStatementData(customerId: number, dateFrom?: string, da
       tripOutstanding.set(tripId, {
         tripId,
         date: tsKey.slice(0, 10),
+        issueTimestamp: tsKey,
         outstanding: inv.open,
         note: tripNotes.get(tripId) || '',
+        originalDueDate: revenueAuthorityByTrip.get(tripId)?.originalDueDate ?? null,
+        processingDueDate: revenueAuthorityByTrip.get(tripId)?.processingDueDate ?? null,
       });
     }
   }
 
-  const unpaidTrips = Array.from(tripOutstanding.values())
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const unpaidTrips = Array.from(tripOutstanding.values()).map((item) => ({
+    ...item,
+    dueDateAdjusted: item.originalDueDate != null
+      && item.processingDueDate != null
+      && item.originalDueDate !== item.processingDueDate,
+  }));
+  unpaidTrips.sort((a, b) => {
+    if (a.processingDueDate !== b.processingDueDate) {
+      if (a.processingDueDate == null) return 1;
+      if (b.processingDueDate == null) return -1;
+      return a.processingDueDate.localeCompare(b.processingDueDate);
+    }
+    if (a.issueTimestamp !== b.issueTimestamp) {
+      return a.issueTimestamp.localeCompare(b.issueTimestamp);
+    }
+    return a.tripId - b.tripId;
+  });
 
   return {
     customer: { id: customer.id, name: customer.name, contactInfo: customer.contactInfo, debitNoteMode: customer.debitNoteMode ?? 'MONTHLY', isCarrier: customer.isCarrier },
@@ -586,6 +635,7 @@ export async function exportStatementXlsx(data: CustomerStatementData, dateStr: 
     ledgerRows: data.ledgerRows,
     totalOutstanding: data.totalOutstanding,
     agingBuckets: data.agingBuckets,
+    unpaidTrips: data.unpaidTrips,
   }, dateStr, writable);
 }
 
@@ -599,6 +649,7 @@ export async function exportStatementHtml(data: CustomerStatementData, dateStr: 
     ledgerRows: data.ledgerRows,
     totalOutstanding: data.totalOutstanding,
     agingBuckets: data.agingBuckets,
+    unpaidTrips: data.unpaidTrips,
   }, dateStr);
 }
 
@@ -989,6 +1040,43 @@ async function buildStatementXlsx(config: StatementExportConfig, dateStr: string
   // Space
   currentOffset++;
 
+  if (config.unpaidTrips && config.unpaidTrips.length > 0) {
+    sheet.mergeCells(currentOffset, 1, currentOffset, 8);
+    const dueHeader = sheet.getCell(currentOffset, 1);
+    dueHeader.value = 'HẠN THANH TOÁN CÁC KHOẢN CHƯA THU';
+    dueHeader.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FF00702F' } };
+    dueHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6F4EA' } };
+    currentOffset++;
+
+    const dueHeaders = ['Chuyến', 'Ngày phát sinh', 'Hạn hợp đồng', 'Ngày xử lý', 'Còn phải thu'];
+    dueHeaders.forEach((label, index) => {
+      const cell = sheet.getCell(currentOffset, index + 1);
+      cell.value = label;
+      cell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FF374151' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } };
+      cell.border = borderStyle;
+    });
+    currentOffset++;
+
+    for (const item of config.unpaidTrips) {
+      const values = [
+        `#${item.tripId}`,
+        item.date,
+        item.originalDueDate ?? 'Chưa có dữ liệu lịch sử',
+        item.processingDueDate ?? 'Chưa có dữ liệu lịch sử',
+        item.outstanding,
+      ];
+      values.forEach((value, index) => {
+        const cell = sheet.getCell(currentOffset, index + 1);
+        cell.value = value;
+        cell.border = borderStyle;
+        if (index === 4) cell.numFmt = '#,##0';
+      });
+      currentOffset++;
+    }
+    currentOffset++;
+  }
+
   // Transaction Detail Header (Row 13+)
   const transHeaderRow = currentOffset;
   sheet.mergeCells(`A${transHeaderRow}:H${transHeaderRow}`);
@@ -1119,6 +1207,20 @@ async function buildStatementHtml(config: StatementExportConfig, dateStr: string
   ).join('');
 
   const contactHtml = config.contactLines.map(l => escapeHtml(l)).join('<br>\n  ');
+  const dueDateRows = (config.unpaidTrips ?? []).map(item => `<tr>
+    <td>#${item.tripId}</td>
+    <td>${escapeHtml(item.date)}</td>
+    <td>${escapeHtml(item.originalDueDate ?? 'Chưa có dữ liệu lịch sử')}</td>
+    <td>${escapeHtml(item.processingDueDate ?? 'Chưa có dữ liệu lịch sử')}</td>
+    <td class="num">${item.outstanding.toLocaleString('vi-VN')} ₫</td>
+  </tr>`).join('');
+  const dueDateTable = dueDateRows
+    ? `<h2>Hạn thanh toán các khoản chưa thu</h2>
+<table>
+  <thead><tr><th>Chuyến</th><th>Ngày phát sinh</th><th>Hạn hợp đồng</th><th>Ngày xử lý</th><th class="num">Còn phải thu</th></tr></thead>
+  <tbody>${dueDateRows}</tbody>
+</table>`
+    : '';
 
   return `<!doctype html>
 <html lang="vi"><head>
@@ -1137,6 +1239,7 @@ ${header}
 </div>
 <div class="total">Tổng nợ: ${config.totalOutstanding.toLocaleString('vi-VN')} ₫</div>
 <table class="aging">${agingRows}</table>
+${dueDateTable}
 <table>
   <thead><tr><th>Ngày</th><th>Tuyến</th><th>Số Cont</th><th>Loại GD</th><th class="num">Nợ</th><th class="num">Có</th><th class="num">Số dư</th><th>Ghi chú</th></tr></thead>
   <tbody>${rows}</tbody>

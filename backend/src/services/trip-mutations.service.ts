@@ -639,7 +639,15 @@ export async function updateTripFigures(
 
   return await db.transaction(async (tx) => {
     // 1. Fetch trip and check lock status
-    const [trip] = await tx.select().from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+    // Use the same controlling-row-first lock order as lifecycle transitions.
+    // This prevents a completed-trip edit from holding a customer ledger lock
+    // while cancellation holds the trip row and waits for that same ledger
+    // lock. It also makes the status/version checks below observe the committed
+    // winner before any derived financial work starts.
+    const [trip] = await tx.select().from(s.trips)
+      .where(eq(s.trips.id, tripId))
+      .limit(1)
+      .for('update');
     if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
     if (trip.status === TripStatus.LOCKED || trip.status === TripStatus.CANCELED) {
       throw new ApiError(400, 'Chuyến đi đã chốt hoặc đã hủy, không thể sửa');

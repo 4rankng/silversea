@@ -351,6 +351,12 @@ describe('US-007 statement XLSX labels SERVICE_FEE as "Phí chi hộ"', () => {
       'XLSX contains the "Phí chi hộ" label');
     assert.ok(!labels.includes('Khác'),
       'no SERVICE_FEE row fell back to the "Khác" default');
+    const unpaidTrip = statement.unpaidTrips.find((item) => item.tripId === trip.id);
+    assert.ok(unpaidTrip?.originalDueDate, 'statement exposes the frozen contract due date');
+    assert.ok(unpaidTrip.processingDueDate, 'statement exposes the frozen processing date');
+    assert.ok(labels.includes('HẠN THANH TOÁN CÁC KHOẢN CHƯA THU'));
+    assert.ok(labels.includes(unpaidTrip.originalDueDate));
+    assert.ok(labels.includes(unpaidTrip.processingDueDate));
 
     // Reference trip id to keep it in scope for tooling; no further assertion.
     assert.ok(trip.id > 0);

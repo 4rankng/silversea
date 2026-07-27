@@ -20,11 +20,16 @@ export async function transitionTripStatus(
   // on the corresponding endpoint (POST /dispatch, /lock, /cancel) with full
   // Subject + Verb + Natural Key sentences.
   return await db.transaction(async (tx) => {
-    const [trip] = await tx.select().from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+    const [trip] = await tx.select().from(s.trips).where(eq(s.trips.id, tripId)).limit(1).for('update');
     if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
 
     const currentStatus = trip.status as TripStatus;
-    if (currentStatus === targetStatus) return trip; // Idempotent short-circuit
+    if (currentStatus === targetStatus) {
+      if (targetStatus === TripStatus.CANCELED) {
+        throw new ApiError(409, 'Chuyến đi đã bị hủy');
+      }
+      return trip; // Idempotent short-circuit
+    }
 
     // Verify role permissions and transition matrix
     if (targetStatus === TripStatus.IN_TRANSIT) {
@@ -70,24 +75,13 @@ export async function transitionTripStatus(
         );
       }
     } else if (targetStatus === TripStatus.COMPLETED && currentStatus === TripStatus.LOCKED) {
-      // UNLOCK: LOCKED → COMPLETED — reopen the trip for editing. Ledger rows
-      // are posted at completion time, so unlocking must not reverse them.
-      if (userRole !== Role.ADMIN && userRole !== Role.MANAGER) {
-        throw new ApiError(403, 'Chỉ Quản lý hoặc Quản trị viên mới có quyền mở khóa chuyến đi');
-      }
-
-      // Conditional guard status update
-      const [unlockedTrip] = await tx.update(s.trips).set({
-        status: TripStatus.COMPLETED,
-        version: sql`${s.trips.version} + 1`,
-        updatedAt: new Date(),
-      }).where(and(eq(s.trips.id, tripId), eq(s.trips.status, TripStatus.LOCKED))).returning();
-
-      if (!unlockedTrip) {
-        throw new ApiError(409, 'Chuyến đi không thể mở khóa hoặc đã bị thay đổi. Vui lòng tải lại.');
-      }
-
-      return unlockedTrip;
+      // Q18: a locked trip cannot be reopened by a direct lifecycle edit.
+      // The bounded governance service records the reason and requires a
+      // distinct maker, checker and approver before it applies this status.
+      throw new ApiError(
+        409,
+        'Chuyến đã chốt chỉ được mở lại bằng yêu cầu có kiểm tra và phê duyệt',
+      );
     } else if (targetStatus === TripStatus.COMPLETED) {
       if (userRole !== Role.ADMIN && userRole !== Role.MANAGER) {
         throw new ApiError(403, 'Chỉ Quản lý hoặc Quản trị viên mới có quyền hoàn thành chuyến đi');
@@ -175,9 +169,11 @@ export async function transitionTripStatus(
         ? await tx.select().from(s.tripExpenses).where(eq(s.tripExpenses.tripId, trip.id))
         : [];
 
-      // Canceled: zero all financials
+      // Canceled: zero all financials. The status predicate is the final
+      // winner check after the controlling row lock above.
       const [updated] = await tx.update(s.trips).set({
         status: TripStatus.CANCELED,
+        version: sql`${s.trips.version} + 1`,
         fuelLiters: '0',
         totalFuelCost: '0',
         totalRoadAllowance: '0',
@@ -186,7 +182,11 @@ export async function transitionTripStatus(
         grossProfit: '0',
         driverSalary: '0',
         updatedAt: new Date(),
-      }).where(eq(s.trips.id, tripId)).returning();
+      }).where(and(eq(s.trips.id, tripId), eq(s.trips.status, currentStatus))).returning();
+
+      if (!updated) {
+        throw new ApiError(409, 'Chuyến đi đã bị thay đổi bởi người khác. Vui lòng tải lại.');
+      }
 
       if (currentStatus === TripStatus.COMPLETED) {
         await LedgerService.postTripUnlock(tx, {

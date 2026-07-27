@@ -41,7 +41,7 @@ function normalizeEntry(e: RawAuditEntry): NormalizedEntry {
     ...e,
     userName: name,
     userEmail: email,
-    category: e.category || resolveCategory(action),
+    category: e.category || resolveCategory(action, { path: e.path }),
   };
 }
 

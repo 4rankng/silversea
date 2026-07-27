@@ -11,7 +11,7 @@
 import { db } from '../db';
 import * as s from '../db/schema';
 import { and, eq, sql } from 'drizzle-orm';
-import { TxnType } from '@tingting/shared';
+import { calendarDaysOverdue } from './business-calendar.service';
 
 export interface ArDocumentStatus {
   documentType: 'TRIP' | 'BILLING_DOCUMENT';
@@ -23,6 +23,10 @@ export interface ArDocumentStatus {
   isFullyPaid: boolean;
   /** Days since the document's due date (if past). 0 = not overdue. */
   overdueDays: number;
+  /** Contract date before weekend/holiday handling (Q19). */
+  originalDueDate: string | null;
+  /** Effective date used for overdue and reminder calculations (Q19). */
+  processingDueDate: string | null;
   paymentHistory: Array<{
     ledgerId: number;
     txnType: string;
@@ -44,6 +48,9 @@ export async function getTripArStatus(
   tripId: number,
   paymentTermDays: number = 30,
 ): Promise<ArDocumentStatus> {
+  // Kept for API compatibility. The authoritative term is the immutable value
+  // captured on the obligation, never a caller-supplied/current default.
+  void paymentTermDays;
   const entries = await db.select()
     .from(s.ledger)
     .where(and(
@@ -76,20 +83,14 @@ export async function getTripArStatus(
   const outstanding = Math.max(0, totalDebit - totalCredit);
   const isFullyPaid = outstanding === 0;
 
-  // Overdue: compute from the trip's departureDate + paymentTermDays.
-  const [trip] = await db.select({ departureDate: s.trips.departureDate })
-    .from(s.trips)
-    .where(eq(s.trips.id, tripId))
-    .limit(1);
-
   let overdueDays = 0;
-  if (trip?.departureDate && !isFullyPaid) {
-    const dueDate = new Date(trip.departureDate);
-    dueDate.setDate(dueDate.getDate() + paymentTermDays);
-    const now = new Date();
-    if (now > dueDate) {
-      overdueDays = Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
-    }
+  const obligation = [...entries].reverse().find((entry) =>
+    entry.txnType === 'TRIP_REVENUE' && Number(entry.debit ?? 0) > 0
+  );
+  const originalDueDate = obligation?.originalDueDate ?? null;
+  const processingDueDate = obligation?.processingDueDate ?? null;
+  if (processingDueDate && !isFullyPaid) {
+    overdueDays = calendarDaysOverdue(processingDueDate);
   }
 
   return {
@@ -101,6 +102,8 @@ export async function getTripArStatus(
     outstanding,
     isFullyPaid,
     overdueDays,
+    originalDueDate,
+    processingDueDate,
     paymentHistory,
   };
 }

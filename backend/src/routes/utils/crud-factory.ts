@@ -7,7 +7,7 @@
  */
 import { Router } from 'express';
 import { db } from '../../db';
-import { eq, isNull, sql, and } from 'drizzle-orm';
+import { asc, eq, isNull, sql, and } from 'drizzle-orm';
 import type { AnyPgTable, PgColumn, PgTable } from 'drizzle-orm/pg-core';
 import type { AnyZodObject, output } from 'zod';
 import type { Request, Response } from 'express';
@@ -37,6 +37,8 @@ export interface CrudRouterOptions<
   /** Override the default list-page maxLimit (100) for catalogs that may exceed
    *  it (e.g. tires), so list endpoints don't silently truncate. */
   maxLimit?: number;
+  /** Deterministic ascending order for configuration lists that have chronology. */
+  orderByField?: string;
   beforeCreate?: (data: TData, req: Request) => Promise<Partial<TData>> | Partial<TData>;
   afterCreate?: (item: TRow, data: Partial<TData>, req: Request) => Promise<void> | void;
   beforeUpdate?: (id: number, data: Partial<TData>, req: Request) => Promise<Partial<TData>> | Partial<TData>;
@@ -70,6 +72,7 @@ export function createCrudRouter<
     disableDelete = false,
     deleteMode = 'soft',
     maxLimit,
+    orderByField,
     beforeCreate,
     afterCreate,
     beforeUpdate,
@@ -100,9 +103,13 @@ export function createCrudRouter<
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
 
-    const items = await db.select().from(tbl)
+    let itemsQuery = db.select().from(tbl)
       .where(where)
-      .limit(limit).offset(offset);
+      .$dynamic();
+    if (orderByField) {
+      itemsQuery = itemsQuery.orderBy(asc(column(table, orderByField)));
+    }
+    const items = await itemsQuery.limit(limit).offset(offset);
 
     const [countRow] = await db.select({ count: sql<number>`count(*)` }).from(tbl)
       .where(where);

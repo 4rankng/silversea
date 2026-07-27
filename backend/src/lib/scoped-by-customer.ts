@@ -8,12 +8,14 @@
 //
 // Semantics:
 //
-//   - CUSTOMER + customerId set      → force the query to that customer.
-//     Any caller-supplied customerId is OVERWRITTEN so a portal user cannot
-//     impersonate another customer by passing `?customerId=<other>` in the
-//     query string. Defense in depth: the route handler should ALSO strip
-//     user-supplied customer filters before calling this, but the override
-//     is the load-bearing guarantee.
+//   - CUSTOMER + customerId set      → force the query to the primary customer
+//     link for that user. Any caller-supplied customerId is OVERWRITTEN so a
+//     portal user cannot impersonate another customer by passing
+//     `?customerId=<other>` in the query string.
+//
+//   - CUSTOMER + customerIds set      → force the query to the full linked
+//     customer set. Use this for portal list endpoints that need to show all
+//     linked accounts, not just the primary pointer.
 //
 //   - CUSTOMER + customerId absent   → apply a deny-all sentinel
 //     (customerId = DENY_ALL_CUSTOMER_ID). The user is misconfigured (no
@@ -51,6 +53,23 @@ export function isCustomerScoped(user: Pick<AuthUser, 'role'>): boolean {
   return user.role === Role.CUSTOMER;
 }
 
+function normalizeCustomerIds(values: Array<number | null | undefined>): number[] {
+  return [...new Set(values.filter((value): value is number => value != null && Number.isInteger(value) && value > 0))].sort((a, b) => a - b);
+}
+
+function primaryCustomerId(user: Pick<AuthUser, 'customerId' | 'customerIds'>): number | null {
+  return user.customerId ?? user.customerIds?.[0] ?? null;
+}
+
+/** Full linked customer set for a CUSTOMER-role account. Non-CUSTOMER → empty set. */
+export function customerScopeIds(user: Pick<AuthUser, 'role' | 'customerId' | 'customerIds'>): number[] {
+  if (!isCustomerScoped(user)) return [];
+  return normalizeCustomerIds([
+    ...(user.customerIds ?? []),
+    user.customerId,
+  ]);
+}
+
 /**
  * Row-scope a list query by the user's customer link.
  *
@@ -59,7 +78,7 @@ export function isCustomerScoped(user: Pick<AuthUser, 'role'>): boolean {
  * See the file header for the full semantics matrix.
  */
 export function scopedByCustomer<Q extends { customerId?: number }>(
-  user: Pick<AuthUser, 'role' | 'customerId'>,
+  user: Pick<AuthUser, 'role' | 'customerId' | 'customerIds'>,
   query: Q,
 ): Q {
   if (!isCustomerScoped(user)) {
@@ -68,7 +87,24 @@ export function scopedByCustomer<Q extends { customerId?: number }>(
   }
   // CUSTOMER role: force the filter, regardless of what the caller passed.
   // This is the impersonation guard.
-  return { ...query, customerId: user.customerId ?? DENY_ALL_CUSTOMER_ID };
+  return { ...query, customerId: primaryCustomerId(user) ?? DENY_ALL_CUSTOMER_ID };
+}
+
+/**
+ * Row-scope a list query by the user's full customer link set.
+ *
+ * CUSTOMER users with one or more linked customers receive an `in (...)`
+ * scope. Unmapped CUSTOMER users get the deny-all sentinel list.
+ */
+export function scopedByCustomerIds<Q extends { customerIds?: number[] }>(
+  user: Pick<AuthUser, 'role' | 'customerId' | 'customerIds'>,
+  query: Q,
+): Q {
+  if (!isCustomerScoped(user)) {
+    return { ...query };
+  }
+  const ids = customerScopeIds(user);
+  return { ...query, customerIds: ids.length > 0 ? ids : [DENY_ALL_CUSTOMER_ID] };
 }
 
 /**
@@ -79,9 +115,9 @@ export function scopedByCustomer<Q extends { customerId?: number }>(
  * existence).
  */
 export function canAccessCustomer(
-  user: Pick<AuthUser, 'role' | 'customerId'>,
+  user: Pick<AuthUser, 'role' | 'customerId' | 'customerIds'>,
   customerId: number,
 ): boolean {
   if (!isCustomerScoped(user)) return true; // operator roles see all customers
-  return user.customerId === customerId;
+  return customerScopeIds(user).includes(customerId);
 }

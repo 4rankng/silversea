@@ -62,6 +62,7 @@ export interface DashboardAuditEntry {
   userName: string;
   action: string;
   message: string;
+  path?: string;
   category?: 'trip' | 'config' | 'finance' | 'auth' | 'penalty';
 }
 

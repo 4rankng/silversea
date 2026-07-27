@@ -3,13 +3,15 @@ import { Download, Landmark, Printer } from 'lucide-react';
 import type { CustomerStatement } from '@tingting/shared';
 import { api } from '../../lib/api';
 import { EmptyState } from '../../design-system';
+import { useCustomerPortalScope } from './CustomerPortalScope';
 import './PortalPages.css';
 
-function queryFor(dateFrom: string, dateTo: string, format?: 'xlsx' | 'pdf') {
+function queryFor(dateFrom: string, dateTo: string, format?: 'xlsx' | 'pdf', customerId?: number | null) {
   const query = new URLSearchParams();
   if (dateFrom) query.set('dateFrom', dateFrom);
   if (dateTo) query.set('dateTo', dateTo);
   if (format) query.set('format', format);
+  if (customerId != null) query.set('customerId', String(customerId));
   return query.toString() ? `?${query}` : '';
 }
 
@@ -22,7 +24,14 @@ function triggerDownload(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+function formatIsoDisplayDate(value: string | null | undefined): string {
+  if (!value) return '—';
+  const [year, month, day] = value.split('-');
+  return year && month && day ? `${day}/${month}/${year}` : '—';
+}
+
 export default function PortalStatementPage() {
+  const { selectedCustomerId, ready: customerScopeReady } = useCustomerPortalScope();
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [appliedRange, setAppliedRange] = useState({ dateFrom: '', dateTo: '' });
@@ -32,21 +41,29 @@ export default function PortalStatementPage() {
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
+    if (!customerScopeReady) return;
     let active = true;
     setLoading(true);
     setError(null);
-    api.get<CustomerStatement>(`/portal/statement${queryFor(appliedRange.dateFrom, appliedRange.dateTo)}`)
+    api.get<CustomerStatement>(
+      `/portal/statement${queryFor(appliedRange.dateFrom, appliedRange.dateTo, undefined, selectedCustomerId)}`,
+    )
       .then((response) => { if (active) setData(response); })
       .catch(() => { if (active) setError('Không thể tải sao kê công nợ. Vui lòng thử lại.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [appliedRange]);
+  }, [appliedRange, customerScopeReady, selectedCustomerId]);
 
   const exportStatement = async (format: 'xlsx' | 'pdf') => {
     setExporting(true);
     setError(null);
     try {
-      const path = `/portal/statement/export${queryFor(appliedRange.dateFrom, appliedRange.dateTo, format)}`;
+      const path = `/portal/statement/export${queryFor(
+        appliedRange.dateFrom,
+        appliedRange.dateTo,
+        format,
+        selectedCustomerId,
+      )}`;
       if (format === 'xlsx') {
         triggerDownload(await api.getBlob(path), 'sao-ke-cong-no.xlsx');
       } else {
@@ -100,6 +117,31 @@ export default function PortalStatementPage() {
               <div><span>Phát sinh trong kỳ</span><strong>{Number(summary?.periodActivity ?? data.totalOutstanding).toLocaleString('vi-VN')} ₫</strong></div>
               <div><span>Số dư cuối kỳ</span><strong>{Number(summary?.closingBalance ?? data.totalOutstanding).toLocaleString('vi-VN')} ₫</strong></div>
             </div>
+            {data.unpaidTrips.length > 0 && (
+              <section className="portal-due-list" aria-labelledby="portal-due-list-title">
+                <div>
+                  <span className="portal-page__eyebrow">Các khoản chưa thanh toán</span>
+                  <h2 id="portal-due-list-title">Ngày đến hạn</h2>
+                </div>
+                {data.unpaidTrips.map((trip) => (
+                  <article key={trip.tripId} className="portal-due-row">
+                    <div>
+                      <strong>{trip.note || `Chuyến #${trip.tripId}`}</strong>
+                      <span>{trip.outstanding.toLocaleString('vi-VN')} ₫ còn phải thanh toán</span>
+                    </div>
+                    <div>
+                      <span>Ngày theo hợp đồng</span>
+                      <strong>{formatIsoDisplayDate(trip.originalDueDate)}</strong>
+                    </div>
+                    <div>
+                      <span>Ngày xử lý</span>
+                      <strong>{formatIsoDisplayDate(trip.processingDueDate)}</strong>
+                      {trip.dueDateAdjusted && <small>Đã chuyển sang ngày làm việc tiếp theo</small>}
+                    </div>
+                  </article>
+                ))}
+              </section>
+            )}
             {rows.length === 0 ? (
               <EmptyState icon={Landmark} title="Không có phát sinh trong khoảng thời gian này" />
             ) : (

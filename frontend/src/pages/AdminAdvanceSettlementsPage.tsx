@@ -49,7 +49,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 function settlementStatusLabel(status: AdvanceSettlementStatus): string {
   return status === AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT
-    ? 'Chờ xử lý'
+    ? 'Đã kiểm tra · Chờ phê duyệt'
     : ADVANCE_SETTLEMENT_STATUS_LABELS[status];
 }
 

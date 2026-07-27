@@ -1,12 +1,16 @@
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq, and, desc, inArray, notInArray, ne, sql, count } from 'drizzle-orm';
+import { eq, and, desc, inArray, isNull, notInArray, ne, sql, count } from 'drizzle-orm';
 import { NotificationType, TxnType, round2dp } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
 import { emitNotification } from './notification.service';
 import { AdvanceError, validateSettlementInputs } from './settlement-validation';
 import type { Tx } from './trip-shared';
 import { getTripExpenseRequiredFieldError } from './forwarder.service';
+import {
+  resolveCustomerPaymentDueDate,
+  type PaymentDatePolicy,
+} from './business-calendar.service';
 
 type ExpenseSnapshotSource = Pick<typeof s.tripExpenses.$inferSelect,
   'expenseType' | 'buyAmount' | 'sellAmount' | 'containerNumber' |
@@ -226,7 +230,7 @@ export async function approveAdvanceRequest(id: number, approvedBy: number) {
       .for('update');
     if (!request) throw new AdvanceError(404, 'Advance request not found');
     if (request.status !== 'PENDING') {
-      throw new AdvanceError(400, `Cannot approve request with status ${request.status}`);
+      throw new AdvanceError(409, `Cannot approve request with status ${request.status}`);
     }
     if (request.requesterId === approvedBy) {
       throw new AdvanceError(403, 'Không thể duyệt yêu cầu tạm ứng của chính mình');
@@ -267,7 +271,7 @@ export async function rejectAdvanceRequest(id: number, rejectedBy: number) {
       .for('update');
     if (!request) throw new AdvanceError(404, 'Advance request not found');
     if (request.status !== 'PENDING') {
-      throw new AdvanceError(400, `Cannot reject request with status ${request.status}`);
+      throw new AdvanceError(409, `Cannot reject request with status ${request.status}`);
     }
 
     const now = new Date();
@@ -575,39 +579,67 @@ export async function updateAdvanceSettlement(
       checkAlreadyLinked: true,
       excludeSettlementId: settlementId,
     });
-    const { expenseTotal } = assertSettlementBalanced({
-      advanceRequests: validated.advanceRequests,
-      tripExpenses: validated.tripExpenses,
-      refundAmount: data.refundAmount,
-    });
-
     const existingExpenseLinks = await tx.select().from(s.settlementExpenses)
       .where(eq(s.settlementExpenses.settlementId, settlementId));
     const existingByExpense = new Map(existingExpenseLinks.map(link => [link.tripExpenseId, link]));
+    const effectiveTripExpenses = validated.tripExpenses.map(expense => {
+      const existing = existingByExpense.get(expense.id);
+      return existing
+        ? { ...expense, buyAmount: existing.adjustedBuyAmount }
+        : expense;
+    });
+    const { expenseTotal } = assertSettlementBalanced({
+      advanceRequests: validated.advanceRequests,
+      tripExpenses: effectiveTripExpenses,
+      refundAmount: data.refundAmount,
+    });
+
+    const retainedExpenseIds = new Set(validated.tripExpenses.map(expense => expense.id));
+    const removedLinks = existingExpenseLinks.filter(
+      link => !retainedExpenseIds.has(link.tripExpenseId),
+    );
+    if (removedLinks.length > 0) {
+      const [correctedRemoval] = await tx.select({ id: s.settlementExpenseAdjustments.id })
+        .from(s.settlementExpenseAdjustments)
+        .where(inArray(
+          s.settlementExpenseAdjustments.settlementExpenseId,
+          removedLinks.map(link => link.id),
+        ))
+        .limit(1);
+      if (correctedRemoval) {
+        throw new AdvanceError(
+          409,
+          'Không thể gỡ khoản chi đã có lịch sử điều chỉnh; hãy từ chối phiếu và lập phiếu mới',
+        );
+      }
+    }
     await tx.delete(s.advanceSettlementRequests).where(eq(s.advanceSettlementRequests.settlementId, settlementId));
     await tx.insert(s.advanceSettlementRequests).values(data.advanceRequestIds.map(advanceRequestId => ({
       settlementId,
       advanceRequestId,
     })));
-    await tx.delete(s.settlementExpenses).where(eq(s.settlementExpenses.settlementId, settlementId));
-    if (validated.tripExpenses.length > 0) {
-      await tx.insert(s.settlementExpenses).values(validated.tripExpenses.map(expense => {
-        const previous = existingByExpense.get(expense.id);
-        return {
+    if (removedLinks.length > 0) {
+      await tx.delete(s.settlementExpenses)
+        .where(inArray(s.settlementExpenses.id, removedLinks.map(link => link.id)));
+    }
+    const addedExpenses = validated.tripExpenses.filter(
+      expense => !existingByExpense.has(expense.id),
+    );
+    if (addedExpenses.length > 0) {
+      await tx.insert(s.settlementExpenses).values(addedExpenses.map(expense => ({
           settlementId,
           tripExpenseId: expense.id,
-          originalBuyAmount: previous?.originalBuyAmount ?? expense.buyAmount,
+          originalBuyAmount: expense.buyAmount,
           adjustedBuyAmount: expense.buyAmount,
-          submittedSellAmount: previous?.submittedSellAmount ?? expense.sellAmount,
-          originalSnapshot: previous?.originalSnapshot ?? expenseSnapshot(expense),
+          submittedSellAmount: expense.sellAmount,
+          originalSnapshot: expenseSnapshot(expense),
           adjustedSnapshot: expenseSnapshot(expense),
-          adjustmentReason: previous?.adjustmentReason ?? null,
-          adjustedBy: previous?.adjustedBy ?? null,
-          adjustedAt: previous?.adjustedAt ?? null,
-        };
-      }));
+      })));
     }
     await tx.update(s.advanceSettlements).set({
+      status: 'PENDING',
+      checkedBy: null,
+      checkedAt: null,
       totalExpenseAmount: String(expenseTotal),
       refundAmount: String(data.refundAmount),
       note: data.note ?? null,
@@ -636,7 +668,23 @@ export async function checkAdvanceSettlement(id: number, checkedBy: number) {
       .where(eq(s.advanceSettlements.id, id)).for('update');
     if (!settlement) throw new AdvanceError(404, 'Advance settlement not found');
     if (settlement.status !== 'PENDING') {
-      throw new AdvanceError(400, `Cannot check settlement with status ${settlement.status}`);
+      throw new AdvanceError(409, `Cannot check settlement with status ${settlement.status}`);
+    }
+    if (settlement.forwarderId === checkedBy) {
+      throw new AdvanceError(403, 'Người lập phiếu không được tự kiểm tra phiếu hoàn ứng của mình');
+    }
+    const [correctionMakerConflict] = await tx.select({
+      adjustedBy: s.settlementExpenseAdjustments.adjustedBy,
+    }).from(s.settlementExpenseAdjustments).where(and(
+      eq(s.settlementExpenseAdjustments.settlementId, id),
+      eq(s.settlementExpenseAdjustments.adjustedBy, checkedBy),
+      isNull(s.settlementExpenseAdjustments.approvedAt),
+    )).limit(1);
+    if (correctionMakerConflict) {
+      throw new AdvanceError(
+        403,
+        'Người điều chỉnh không được tự kiểm tra điều chỉnh của mình',
+      );
     }
     const now = new Date();
     const [updated] = await tx.update(s.advanceSettlements).set({
@@ -655,11 +703,33 @@ export async function approveAdvanceSettlement(id: number, approvedBy: number) {
       .where(eq(s.advanceSettlements.id, id))
       .for('update');
     if (!settlement) throw new AdvanceError(404, 'Advance settlement not found');
-    if (settlement.status !== 'PENDING' && settlement.status !== 'CHECKED_BY_ACCOUNTANT') {
-      throw new AdvanceError(400, `Cannot approve settlement with status ${settlement.status}`);
+    if (settlement.status !== 'CHECKED_BY_ACCOUNTANT') {
+      if (settlement.status === 'PENDING') {
+        throw new AdvanceError(409, 'Phiếu hoàn ứng phải được kế toán kiểm tra trước khi duyệt');
+      }
+      throw new AdvanceError(409, `Cannot approve settlement with status ${settlement.status}`);
     }
     if (settlement.forwarderId === approvedBy) {
       throw new AdvanceError(403, 'Không thể duyệt phiếu thanh toán của chính mình');
+    }
+    if (settlement.checkedBy == null) {
+      throw new AdvanceError(409, 'Phiếu hoàn ứng thiếu thông tin người kiểm tra');
+    }
+    if (settlement.checkedBy === approvedBy) {
+      throw new AdvanceError(403, 'Người kiểm tra không được đồng thời phê duyệt phiếu hoàn ứng');
+    }
+    const [correctionConflict] = await tx.select({
+      adjustedBy: s.settlementExpenseAdjustments.adjustedBy,
+    }).from(s.settlementExpenseAdjustments).where(and(
+      eq(s.settlementExpenseAdjustments.settlementId, id),
+      eq(s.settlementExpenseAdjustments.adjustedBy, approvedBy),
+      isNull(s.settlementExpenseAdjustments.approvedAt),
+    )).limit(1);
+    if (correctionConflict) {
+      throw new AdvanceError(
+        403,
+        'Người điều chỉnh không được tự phê duyệt điều chỉnh của mình',
+      );
     }
 
     const requestLinks = await tx.select({ id: s.advanceSettlementRequests.advanceRequestId })
@@ -694,25 +764,50 @@ export async function approveAdvanceSettlement(id: number, approvedBy: number) {
       checkAlreadyLinked: true,
       excludeSettlementId: id,
     });
+    const effectiveExpenseAmounts = linkedExpenseIds.length === 0
+      ? []
+      : await tx.select({ buyAmount: s.settlementExpenses.adjustedBuyAmount })
+        .from(s.settlementExpenses)
+        .where(eq(s.settlementExpenses.settlementId, id));
     assertSettlementBalanced({
       advanceRequests: validated.advanceRequests,
-      tripExpenses: validated.tripExpenses,
+      tripExpenses: effectiveExpenseAmounts,
       refundAmount: Number(settlement.refundAmount),
     });
 
     const links = await tx.select({
       expenseId: s.tripExpenses.id,
-      buyAmount: s.tripExpenses.buyAmount,
+      buyAmount: s.settlementExpenses.adjustedBuyAmount,
       sellAmount: s.tripExpenses.sellAmount,
+      adjustedSnapshot: s.settlementExpenses.adjustedSnapshot,
       approvalStatus: s.tripExpenses.approvalStatus,
+      createdBy: s.tripExpenses.createdBy,
       tripStatus: s.trips.status,
       customerId: s.trips.customerId,
       tripCode: s.trips.tripCode,
+      departureDate: s.trips.departureDate,
       adjustmentReason: s.settlementExpenses.adjustmentReason,
     }).from(s.settlementExpenses)
       .innerJoin(s.tripExpenses, eq(s.tripExpenses.id, s.settlementExpenses.tripExpenseId))
       .innerJoin(s.trips, eq(s.trips.id, s.tripExpenses.tripId))
       .where(eq(s.settlementExpenses.settlementId, id));
+
+    const unknownMaker = links.find(link => link.createdBy == null);
+    if (unknownMaker) {
+      throw new AdvanceError(
+        409,
+        'Không xác định được người tạo chi phí; cần đối soát thủ công trước khi duyệt phiếu hoàn ứng',
+      );
+    }
+    const makerConflict = links.find(link =>
+      link.approvalStatus === 'PENDING' && link.createdBy === approvedBy,
+    );
+    if (makerConflict) {
+      throw new AdvanceError(
+        403,
+        'Người tạo chi phí không được tự phê duyệt chi phí trong phiếu hoàn ứng',
+      );
+    }
 
     const totalExpenseAmount = round2dp(links.reduce((sum, link) => sum + Number(link.buyAmount), 0));
     const now = new Date();
@@ -720,18 +815,24 @@ export async function approveAdvanceSettlement(id: number, approvedBy: number) {
       .set({
         status: 'APPROVED',
         totalExpenseAmount: String(totalExpenseAmount),
-        checkedBy: approvedBy,
-        checkedAt: now,
         approvedBy,
         approvedAt: now,
         updatedAt: now,
       })
       .where(and(
         eq(s.advanceSettlements.id, id),
-        inArray(s.advanceSettlements.status, ['PENDING', 'CHECKED_BY_ACCOUNTANT']),
+        eq(s.advanceSettlements.status, 'CHECKED_BY_ACCOUNTANT'),
       ))
       .returning();
     if (!updated) throw new AdvanceError(409, 'Request was modified by another operation');
+
+    await tx.update(s.settlementExpenseAdjustments).set({
+      approvedBy,
+      approvedAt: now,
+    }).where(and(
+      eq(s.settlementExpenseAdjustments.settlementId, id),
+      isNull(s.settlementExpenseAdjustments.approvedAt),
+    ));
 
     const pendingExpenseIds = links.filter(link => link.approvalStatus === 'PENDING').map(link => link.expenseId);
     if (pendingExpenseIds.length > 0) {
@@ -743,13 +844,46 @@ export async function approveAdvanceSettlement(id: number, approvedBy: number) {
     // Existing rows are never mutated; corrections become ADJUSTMENT entries.
     for (const link of links) {
       if (link.tripStatus !== 'COMPLETED' && link.tripStatus !== 'LOCKED') continue;
-      const currentSell = Number(link.sellAmount);
-      const existingRows = await tx.select({ debit: s.ledger.debit, credit: s.ledger.credit })
+      const adjustedSnapshot = link.adjustedSnapshot as Record<string, unknown>;
+      const currentSell = Number(adjustedSnapshot.sellAmount ?? link.sellAmount);
+      const existingRows = await tx.select({
+        id: s.ledger.id,
+        debit: s.ledger.debit,
+        credit: s.ledger.credit,
+        originalDueDate: s.ledger.originalDueDate,
+        processingDueDate: s.ledger.processingDueDate,
+        paymentTermDaysApplied: s.ledger.paymentTermDaysApplied,
+        paymentDatePolicyApplied: s.ledger.paymentDatePolicyApplied,
+      })
         .from(s.ledger)
         .where(and(eq(s.ledger.txnType, TxnType.SERVICE_FEE), eq(s.ledger.txnId, link.expenseId)));
       const posted = existingRows.reduce((sum, row) => sum + Number(row.debit) - Number(row.credit), 0);
       const delta = round2dp(currentSell - posted);
       if (delta === 0) continue;
+      const existingAuthority = [...existingRows]
+        .sort((left, right) => right.id - left.id)
+        .find((row) => row.originalDueDate && row.processingDueDate);
+      const resolvedAuthority = existingAuthority
+        ? null
+        : await resolveCustomerPaymentDueDate(
+            tx,
+            link.customerId,
+            String(link.departureDate).slice(0, 10),
+          );
+      const dueDateFields = existingAuthority
+        ? {
+            originalDueDate: existingAuthority.originalDueDate,
+            processingDueDate: existingAuthority.processingDueDate,
+            paymentTermDaysApplied: existingAuthority.paymentTermDaysApplied,
+            paymentDatePolicyApplied:
+              existingAuthority.paymentDatePolicyApplied as PaymentDatePolicy | null,
+          }
+        : {
+            originalDueDate: resolvedAuthority!.originalDate,
+            processingDueDate: resolvedAuthority!.processingDate,
+            paymentTermDaysApplied: resolvedAuthority!.paymentTermDays,
+            paymentDatePolicyApplied: resolvedAuthority!.policy,
+          };
       await LedgerService.postEntry(tx, {
         txnType: existingRows.length === 0 ? TxnType.SERVICE_FEE : TxnType.ADJUSTMENT,
         txnId: link.expenseId,
@@ -758,6 +892,7 @@ export async function approveAdvanceSettlement(id: number, approvedBy: number) {
         debit: delta > 0 ? delta : 0,
         credit: delta < 0 ? Math.abs(delta) : 0,
         note: `Điều chỉnh phí chi hộ chuyến ${link.tripCode ?? ''}`.trim(),
+        ...dueDateFields,
       });
     }
 
@@ -810,6 +945,10 @@ export async function adjustSettlementExpense(
     adjustmentReason: string;
   },
 ) {
+  const reason = patch.adjustmentReason.trim();
+  if (!reason) {
+    throw new AdvanceError(400, 'Lý do điều chỉnh là bắt buộc');
+  }
   const result = await db.transaction(async (tx) => {
     const [settlement] = await tx.select().from(s.advanceSettlements)
       .where(eq(s.advanceSettlements.id, settlementId)).for('update');
@@ -820,9 +959,19 @@ export async function adjustSettlementExpense(
     await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
     const [linked] = await tx.select({
       linkId: s.settlementExpenses.id,
+      expenseId: s.tripExpenses.id,
       tripId: s.tripExpenses.tripId,
       expenseType: s.tripExpenses.expenseType,
+      buyAmount: s.tripExpenses.buyAmount,
+      sellAmount: s.tripExpenses.sellAmount,
+      supplierId: s.tripExpenses.supplierId,
+      invoiceNumber: s.tripExpenses.invoiceNumber,
+      invoiceDate: s.tripExpenses.invoiceDate,
       declarationNumber: s.tripExpenses.declarationNumber,
+      containerNumber: s.tripExpenses.containerNumber,
+      tripContainerId: s.tripExpenses.tripContainerId,
+      note: s.tripExpenses.note,
+      adjustedSnapshot: s.settlementExpenses.adjustedSnapshot,
     }).from(s.settlementExpenses)
       .innerJoin(s.tripExpenses, eq(s.tripExpenses.id, s.settlementExpenses.tripExpenseId))
       .where(and(
@@ -837,20 +986,37 @@ export async function adjustSettlementExpense(
       throw new AdvanceError(409, 'Không thể sửa chi phí của chuyến đã khóa hoặc đã hủy');
     }
 
+    const currentSnapshot: Record<string, unknown> = {
+      expenseType: linked.expenseType,
+      buyAmount: linked.buyAmount,
+      sellAmount: linked.sellAmount,
+      supplierId: linked.supplierId,
+      invoiceNumber: linked.invoiceNumber,
+      invoiceDate: linked.invoiceDate,
+      declarationNumber: linked.declarationNumber,
+      containerNumber: linked.containerNumber,
+      tripContainerId: linked.tripContainerId,
+      note: linked.note,
+      ...linked.adjustedSnapshot as Record<string, unknown>,
+    };
     const requiredFieldError = getTripExpenseRequiredFieldError({
-      expenseType: patch.expenseType ?? linked.expenseType,
+      expenseType: String(patch.expenseType ?? currentSnapshot.expenseType),
       declarationNumber: patch.declarationNumber === undefined
-        ? linked.declarationNumber
+        ? currentSnapshot.declarationNumber as string | null
         : patch.declarationNumber,
     });
     if (requiredFieldError) throw new AdvanceError(400, requiredFieldError);
 
-    const { adjustmentReason, ...expensePatch } = patch;
-    const values: Record<string, unknown> = { ...expensePatch, updatedAt: new Date() };
+    const { adjustmentReason: _adjustmentReason, ...expensePatch } = patch;
+    void _adjustmentReason;
+    const values: Record<string, unknown> = {
+      ...currentSnapshot,
+      ...expensePatch,
+    };
     if (expensePatch.buyAmount !== undefined) values.buyAmount = String(expensePatch.buyAmount);
     if (expensePatch.sellAmount !== undefined) values.sellAmount = String(expensePatch.sellAmount);
     if (expensePatch.buyAmount !== undefined && expensePatch.sellAmount === undefined) {
-      const effectiveType = expensePatch.expenseType ?? linked.expenseType;
+      const effectiveType = expensePatch.expenseType ?? String(currentSnapshot.expenseType);
       const [typeConfig] = await tx.select({ defaultMarkup: s.forwarderExpenseTypes.defaultMarkup })
         .from(s.forwarderExpenseTypes).where(eq(s.forwarderExpenseTypes.code, effectiveType)).limit(1);
       if (!typeConfig?.defaultMarkup) values.sellAmount = String(expensePatch.buyAmount);
@@ -868,31 +1034,55 @@ export async function adjustSettlementExpense(
         values.containerNumber = container.number;
       }
     }
-    const [updatedExpense] = await tx.update(s.tripExpenses).set(values)
-      .where(eq(s.tripExpenses.id, expenseId)).returning();
     const now = new Date();
-    await tx.update(s.settlementExpenses).set({
-      adjustmentReason,
-      adjustedBuyAmount: String(updatedExpense.buyAmount),
-      adjustedSnapshot: expenseSnapshot(updatedExpense),
+    const [latestAdjustment] = await tx.select({
+      sequence: s.settlementExpenseAdjustments.sequence,
+    }).from(s.settlementExpenseAdjustments)
+      .where(eq(s.settlementExpenseAdjustments.settlementExpenseId, linked.linkId))
+      .orderBy(desc(s.settlementExpenseAdjustments.sequence))
+      .limit(1);
+    const nextSequence = (latestAdjustment?.sequence ?? 0) + 1;
+    await tx.insert(s.settlementExpenseAdjustments).values({
+      settlementId,
+      settlementExpenseId: linked.linkId,
+      tripExpenseId: linked.expenseId,
+      sequence: nextSequence,
+      sourceVersion: nextSequence,
+      beforeSnapshot: currentSnapshot,
+      afterSnapshot: values,
+      reason,
       adjustedBy: actorId,
       adjustedAt: now,
-    }).where(eq(s.settlementExpenses.id, linked.linkId));
-    const totals = await tx.select({ buyAmount: s.tripExpenses.buyAmount })
+    });
+    const [updatedLink] = await tx.update(s.settlementExpenses).set({
+      adjustmentReason: reason,
+      adjustedBuyAmount: String(values.buyAmount),
+      adjustedSnapshot: values,
+      adjustedBy: actorId,
+      adjustedAt: now,
+    }).where(eq(s.settlementExpenses.id, linked.linkId)).returning();
+    const totals = await tx.select({ buyAmount: s.settlementExpenses.adjustedBuyAmount })
       .from(s.settlementExpenses)
-      .innerJoin(s.tripExpenses, eq(s.tripExpenses.id, s.settlementExpenses.tripExpenseId))
       .where(eq(s.settlementExpenses.settlementId, settlementId));
     const totalExpenseAmount = round2dp(totals.reduce((sum, row) => sum + Number(row.buyAmount), 0));
     await tx.update(s.advanceSettlements).set({
+      status: 'PENDING',
+      checkedBy: null,
+      checkedAt: null,
       totalExpenseAmount: String(totalExpenseAmount),
       updatedAt: now,
     }).where(eq(s.advanceSettlements.id, settlementId));
     return {
-      item: updatedExpense,
+      item: {
+        id: linked.expenseId,
+        tripId: linked.tripId,
+        ...values,
+      },
+      adjustment: updatedLink,
       totalExpenseAmount: String(totalExpenseAmount),
       settlementCode: settlement.code,
       forwarderId: settlement.forwarderId,
-      adjustmentReason,
+      adjustmentReason: reason,
     };
   });
   emitNotification({
@@ -915,7 +1105,7 @@ export async function rejectAdvanceSettlement(id: number, rejectedBy: number) {
       .for('update');
     if (!settlement) throw new AdvanceError(404, 'Advance settlement not found');
     if (settlement.status !== 'PENDING' && settlement.status !== 'CHECKED_BY_ACCOUNTANT') {
-      throw new AdvanceError(400, `Cannot reject settlement with status ${settlement.status}`);
+      throw new AdvanceError(409, `Cannot reject settlement with status ${settlement.status}`);
     }
 
     const now = new Date();

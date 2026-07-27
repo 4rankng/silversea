@@ -14,6 +14,8 @@ import { initEnforcer } from '../casbin/enforcer';
 import { authMiddleware } from '../middleware/auth';
 import { casbinAuthz, requireRoles } from '../middleware/casbin';
 import { globalErrorHandler } from '../middleware/errorHandler';
+import { createShipment } from '../services/shipment.service';
+import { createUser } from '../services/user.service';
 import portalRoutes from '../routes/portal/index';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -21,6 +23,7 @@ const customerIds: number[] = [];
 const userIds: number[] = [];
 const documentIds: number[] = [];
 let customerToken: string;
+let multiCustomerToken: string;
 let unmappedCustomerToken: string;
 let server: http.Server;
 let baseUrl: string;
@@ -29,6 +32,9 @@ let ownCustomerName: string;
 let ownPendingId: number;
 let ownSentId: number;
 let foreignPendingId: number;
+let multiCustomerId: number;
+let multiShipmentId: number;
+let multiPendingId: number;
 
 async function createCustomer(name: string) {
   const [customer] = await db.insert(s.customers).values({ name: `${name} ${suffix}` }).returning();
@@ -102,6 +108,8 @@ before(async () => {
   ownCustomerId = ownCustomer.id;
   ownCustomerName = ownCustomer.name;
   const foreignCustomer = await createCustomer('Portal foreign');
+  const multiCustomer = await createCustomer('Portal multi');
+  multiCustomerId = multiCustomer.id;
   const [user] = await db.insert(s.users).values({
     username: `portal-customer-${suffix}`,
     passwordHash: await bcrypt.hash('admin123', 10),
@@ -125,6 +133,24 @@ before(async () => {
     config.jwtSecret,
   );
 
+  const multiUser = await createUser({
+    username: `portal-customer-multi-${suffix}`,
+    password: 'admin123',
+    role: Role.CUSTOMER,
+    customerIds: [ownCustomer.id, multiCustomer.id],
+  });
+  userIds.push(multiUser.id);
+  multiCustomerToken = jwt.sign(
+    {
+      userId: multiUser.id,
+      username: multiUser.username,
+      role: multiUser.role,
+      customerId: multiUser.customerId ?? undefined,
+      customerIds: multiUser.customerIds,
+    },
+    config.jwtSecret,
+  );
+
   ownPendingId = (await createDocument(ownCustomer.id, 'PENDING_CONFIRM')).id;
   await db.update(s.billingDocumentLines)
     .set({ amountOverride: '1250000' })
@@ -144,6 +170,8 @@ before(async () => {
   });
   ownSentId = (await createDocument(ownCustomer.id, 'SENT')).id;
   foreignPendingId = (await createDocument(foreignCustomer.id, 'PENDING_CONFIRM')).id;
+  multiPendingId = (await createDocument(multiCustomer.id, 'PENDING_CONFIRM')).id;
+  multiShipmentId = (await createShipment({ customerId: multiCustomer.id })).id;
 });
 
 after(async () => {
@@ -151,6 +179,10 @@ after(async () => {
   if (documentIds.length > 0) {
     await db.delete(s.billingDocumentLines).where(inArray(s.billingDocumentLines.documentId, documentIds));
     await db.delete(s.billingDocuments).where(inArray(s.billingDocuments.id, documentIds));
+  }
+  if (multiShipmentId) {
+    await db.delete(s.customerEmailLogs).where(eq(s.customerEmailLogs.shipmentId, multiShipmentId));
+    await db.delete(s.shipments).where(eq(s.shipments.id, multiShipmentId));
   }
   if (userIds.length > 0) await db.delete(s.users).where(inArray(s.users.id, userIds));
   if (customerIds.length > 0) await db.delete(s.customers).where(inArray(s.customers.id, customerIds));
@@ -176,6 +208,61 @@ describe('CUSTOMER portal HTTP security contract', () => {
       request(`/debit-notes/${foreignPendingId}/export?format=pdf`, { token: customerToken }),
     ]);
     assert.deepEqual([detail.status, action.status, exported.status], [404, 404, 404]);
+  });
+
+  test('customer-scope endpoint exposes linked customer choices', async () => {
+    const response = await request('/customer-scope', { token: multiCustomerToken });
+    assert.equal(response.status, 200);
+    const body = response.body as {
+      primaryCustomerId: number | null;
+      customers: Array<{ id: number; name: string }>;
+    };
+    assert.equal(body.primaryCustomerId, ownCustomerId);
+    assert.deepEqual(body.customers.map((item) => item.id).sort((a, b) => a - b), [ownCustomerId, multiCustomerId]);
+  });
+
+  test('selected customerId scopes list and statement routes to that customer only', async () => {
+    const shipments = await request(`/shipments?customerId=${multiCustomerId}`, { token: multiCustomerToken });
+    assert.equal(shipments.status, 200);
+    const shipmentBody = shipments.body as { items: Array<{ id: number }>; total: number };
+    assert.equal(shipmentBody.total, 1);
+    assert.equal(shipmentBody.items[0].id, multiShipmentId);
+
+    const debitNotes = await request(`/debit-notes?customerId=${multiCustomerId}`, { token: multiCustomerToken });
+    assert.equal(debitNotes.status, 200);
+    const debitNoteBody = debitNotes.body as { items: Array<{ id: number }>; total: number };
+    assert.equal(debitNoteBody.total, 1);
+    assert.equal(debitNoteBody.items[0].id, multiPendingId);
+
+    const detail = await request(`/debit-notes/${multiPendingId}?customerId=${multiCustomerId}`, { token: multiCustomerToken });
+    assert.equal(detail.status, 200);
+
+    const statement = await request(`/statement?customerId=${multiCustomerId}`, { token: multiCustomerToken });
+    assert.equal(statement.status, 200);
+    const statementBody = statement.body as { customer: { id: number } };
+    assert.equal(statementBody.customer.id, multiCustomerId);
+
+    const exported = await request(`/statement/export?format=pdf&customerId=${multiCustomerId}`, { token: multiCustomerToken });
+    assert.equal(exported.status, 200);
+    assert.match(exported.contentType, /^application\/pdf/);
+  });
+
+  test('detail and mutation routes are bound to the explicitly selected customer', async () => {
+    const [
+      shipmentWrongScope,
+      detailWrongScope,
+      confirmWrongScope,
+      exportWrongScope,
+    ] = await Promise.all([
+      request(`/shipments/${multiShipmentId}?customerId=${ownCustomerId}`, { token: multiCustomerToken }),
+      request(`/debit-notes/${multiPendingId}?customerId=${ownCustomerId}`, { token: multiCustomerToken }),
+      request(`/debit-notes/${multiPendingId}/confirm?customerId=${ownCustomerId}`, { method: 'POST', token: multiCustomerToken }),
+      request(`/debit-notes/${multiPendingId}/export?format=pdf&customerId=${ownCustomerId}`, { token: multiCustomerToken }),
+    ]);
+    assert.deepEqual(
+      [shipmentWrongScope.status, detailWrongScope.status, confirmWrongScope.status, exportWrongScope.status],
+      [404, 404, 404, 404],
+    );
   });
 
   test('own debit-note detail omits internal creator/template/source fields', async () => {

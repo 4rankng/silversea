@@ -55,6 +55,9 @@ if ! check_port "$BACKEND_PORT"; then
 fi
 export NEPO_URL="${NEPO_URL:-http://localhost:$FRONTEND_PORT}"
 export NEPO_API="${NEPO_API:-http://localhost:$BACKEND_PORT}"
+E2E_ARTIFACT_ROOT="${NEPO_SCREENSHOTS:-/tmp/tingting-e2e}"
+export NEPO_SCREENSHOTS="$E2E_ARTIFACT_ROOT/$(date +%Y%m%d-%H%M%S)-$$"
+mkdir -p "$NEPO_SCREENSHOTS"
 echo "✅ Servers ready (frontend :$FRONTEND_PORT, backend :$BACKEND_PORT)"
 
 # Determine which suites to run
@@ -98,8 +101,8 @@ echo "============================================================"
 
 # Aggregate from JSON results
 python3 -c "
-import json, glob
-files = sorted(glob.glob('/tmp/tingting-e2e/*_results.json'))
+import json, glob, os
+files = sorted(glob.glob(os.path.join(os.environ['NEPO_SCREENSHOTS'], '*_results.json')))
 total = passed = failed = skipped = 0
 for f in files:
     d = json.load(open(f))
@@ -121,4 +124,4 @@ if failed > 0:
 
 echo "============================================================"
 echo ""
-echo "📁 Screenshots & results: /tmp/tingting-e2e/"
+echo "📁 Screenshots & results: $NEPO_SCREENSHOTS"

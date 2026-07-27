@@ -87,6 +87,8 @@ router.get('/finance/billing-documents/:id/export', requireRoles(...ROLES), asyn
       entityName: doc.entityName ?? `#${doc.entityId}`,
       rangeFrom: doc.rangeFrom,
       rangeTo: doc.rangeTo,
+      originalDueDate: doc.originalDueDate,
+      processingDueDate: doc.processingDueDate,
       totalInclVat: String(doc.totalInclVat),
       status: null,
       lines: doc.lines

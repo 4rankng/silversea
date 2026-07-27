@@ -1,18 +1,14 @@
-/**
- * Wave 3 M5.6 — payment allocation service tests.
- *
- * Verifies: oldest-first default, manual allocation, no over-allocation,
- * idempotency on receiptId, leftover (unallocated) reporting, persistence
- * of payment_allocations rows, and ledger posting via recordPayment.
- */
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
-import { allocatePayment, listAllocationsForReceipt } from '../services/payment-allocation.service';
-import { getTripArStatus } from '../services/ar-status.service';
+import {
+  listAllocationsForReceipt,
+  recordPaymentReceipt,
+  recordPaymentReceiptIdempotent,
+} from '../services/payment-allocation.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdTripIds: number[] = [];
@@ -20,50 +16,70 @@ const createdCustomerIds: number[] = [];
 const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
 const createdLedgerIds: number[] = [];
-const createdPaymentAllocationIds: number[] = [];
+const createdPaymentReceiptIds: number[] = [];
 const receiptCounter = { n: 0 };
 
 async function mkCustomer() {
-  const [c] = await db.insert(s.customers).values({ name: `M56 customer ${suffix}-${createdCustomerIds.length}` }).returning();
-  createdCustomerIds.push(c.id);
-  return c;
+  const [customer] = await db.insert(s.customers)
+    .values({ name: `M56 customer ${suffix}-${createdCustomerIds.length}` })
+    .returning();
+  createdCustomerIds.push(customer.id);
+  return customer;
 }
 
 async function mkRoute() {
-  const [r] = await db.insert(s.routes).values({ name: `M56 route ${suffix}-${createdRouteIds.length}` }).returning();
-  createdRouteIds.push(r.id);
-  return r;
+  const [route] = await db.insert(s.routes)
+    .values({ name: `M56 route ${suffix}-${createdRouteIds.length}` })
+    .returning();
+  createdRouteIds.push(route.id);
+  return route;
 }
 
 async function mkCargo() {
-  const [c] = await db.insert(s.cargoTypes).values({ name: `M56 cargo ${suffix}-${createdCargoTypeIds.length}` }).returning();
-  createdCargoTypeIds.push(c.id);
-  return c;
+  const [cargo] = await db.insert(s.cargoTypes)
+    .values({ name: `M56 cargo ${suffix}-${createdCargoTypeIds.length}` })
+    .returning();
+  createdCargoTypeIds.push(cargo.id);
+  return cargo;
 }
 
 async function mkTrip(customerId: number, routeId: number, cargoTypeId: number, departureDate: string) {
-  const [t] = await db.insert(s.trips).values({
+  const [trip] = await db.insert(s.trips).values({
     tripCode: `M56-${suffix}-${createdTripIds.length}`.slice(0, 50),
-    customerId, routeId, cargoTypeId,
-    status: 'COMPLETED', departureDate, carrierType: 'OWN',
+    customerId,
+    routeId,
+    cargoTypeId,
+    status: 'COMPLETED',
+    departureDate,
+    carrierType: 'OWN',
   }).returning();
-  createdTripIds.push(t.id);
-  return t;
+  createdTripIds.push(trip.id);
+  return trip;
 }
 
-async function mkRevenue(customerId: number, tripId: number, amount: number) {
-  const [e] = await db.insert(s.ledger).values({
-    entityType: 'CUSTOMER' as const,
-    entityId: customerId,
-    txnType: 'TRIP_REVENUE' as const,
-    txnId: tripId,
-    debit: String(amount),
+async function mkRevenue(args: {
+  customerId: number;
+  tripId: number;
+  amount: number;
+  timestamp: string;
+  originalDueDate: string;
+  processingDueDate: string;
+}) {
+  const [entry] = await db.insert(s.ledger).values({
+    entityType: 'CUSTOMER',
+    entityId: args.customerId,
+    txnType: 'TRIP_REVENUE',
+    txnId: args.tripId,
+    debit: String(args.amount),
     credit: '0',
-    balance: String(amount),
+    balance: String(args.amount),
     note: null,
+    timestamp: new Date(args.timestamp),
+    originalDueDate: args.originalDueDate,
+    processingDueDate: args.processingDueDate,
   }).returning();
-  createdLedgerIds.push(e.id);
-  return e;
+  createdLedgerIds.push(entry.id);
+  return entry;
 }
 
 function nextReceipt() {
@@ -71,10 +87,19 @@ function nextReceipt() {
   return `M56-RCPT-${suffix}-${receiptCounter.n}`;
 }
 
-async function fetchAllocRows(receiptId: string) {
-  const rows = await db.select().from(s.paymentAllocations).where(eq(s.paymentAllocations.receiptId, receiptId));
-  for (const r of rows) if (!createdPaymentAllocationIds.includes(r.id)) createdPaymentAllocationIds.push(r.id);
-  return rows;
+async function fetchReceipt(receiptId: string) {
+  const [row] = await db.select().from(s.paymentReceipts)
+    .where(eq(s.paymentReceipts.receiptId, receiptId))
+    .limit(1);
+  if (row && !createdPaymentReceiptIds.includes(row.id)) createdPaymentReceiptIds.push(row.id);
+  return row ?? null;
+}
+
+async function fetchReceiptCount(receiptId: string) {
+  const [{ total }] = await db.select({ total: sql<number>`count(*)::int` })
+    .from(s.paymentReceipts)
+    .where(eq(s.paymentReceipts.receiptId, receiptId));
+  return Number(total ?? 0);
 }
 
 async function fetchPostedCredits(customerId: number, tripId: number) {
@@ -89,29 +114,38 @@ async function fetchPostedCredits(customerId: number, tripId: number) {
   return Number(row?.paid ?? 0);
 }
 
+async function fetchUnappliedCredit(customerId: number, receiptId: string) {
+  const [row] = await db.select({
+    credit: sql<string>`coalesce(sum(${s.ledger.credit}), 0)`,
+  }).from(s.ledger)
+    .where(and(
+      eq(s.ledger.entityType, 'CUSTOMER'),
+      eq(s.ledger.entityId, customerId),
+      eq(s.ledger.txnType, 'PAYMENT_RECEIVED'),
+      eq(s.ledger.txnId, 0),
+      eq(s.ledger.receiptId, receiptId),
+    ));
+  return Number(row?.credit ?? 0);
+}
+
 after(async () => {
-  // Pattern-based sweep: any row created by this test file (or any prior
-  // interrupted run of it) carries our `suffix` marker. Delete in FK-safe
-  // order. We deliberately don't rely solely on the `createdXxxIds` arrays
-  // because interrupted runs leak rows not tracked in those arrays.
-  const rcptPattern = `M56-RCPT-${suffix}%`;
+  const receiptPattern = `M56-RCPT-${suffix}%`;
   const tripCodePattern = `M56-${suffix}%`;
   const namePattern = `M56 %${suffix}%`;
   try {
-    // 1. payment_allocations for this run's receipts (also covers orphan rows
-    //    from prior interrupted runs of this same test file).
-    await db.delete(s.paymentAllocations).where(sql`${s.paymentAllocations.receiptId} LIKE ${rcptPattern}`);
-    // 2. PAYMENT_RECEIVED ledger rows posted by allocatePayment.
-    await db.delete(s.ledger).where(sql`${s.ledger.receiptId} LIKE ${rcptPattern}`);
-    // 3. TRIP_REVENUE ledger rows we inserted directly.
+    if (createdPaymentReceiptIds.length > 0) {
+      await db.delete(s.idempotencyKeys).where(and(
+        eq(s.idempotencyKeys.entityType, 'payment_receipt'),
+        inArray(s.idempotencyKeys.entityId, createdPaymentReceiptIds),
+      ));
+    }
+    await db.delete(s.paymentAllocations).where(sql`${s.paymentAllocations.receiptId} LIKE ${receiptPattern}`);
+    await db.delete(s.paymentReceipts).where(sql`${s.paymentReceipts.receiptId} LIKE ${receiptPattern}`);
+    await db.delete(s.ledger).where(sql`${s.ledger.receiptId} LIKE ${receiptPattern}`);
     if (createdLedgerIds.length > 0) {
       await db.delete(s.ledger).where(inArray(s.ledger.id, createdLedgerIds));
     }
-    // 4. Trips created by this test file (matched by trip_code prefix).
     await db.delete(s.trips).where(sql`${s.trips.tripCode} LIKE ${tripCodePattern}`);
-    // 5. Customers/routes/cargo types — these don't have a clean pattern
-    //    sentinel beyond the name, so use the per-run tracked IDs but as a
-    //    fallback also sweep by name pattern.
     if (createdCargoTypeIds.length > 0) {
       await db.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, createdCargoTypeIds));
     }
@@ -124,161 +158,310 @@ after(async () => {
       await db.delete(s.customers).where(inArray(s.customers.id, createdCustomerIds));
     }
     await db.delete(s.customers).where(sql`${s.customers.name} LIKE ${namePattern}`);
-  } catch (err) { console.warn('[m56] cleanup:', (err as Error).message); }
+  } catch (err) {
+    console.warn('[m56] cleanup:', (err as Error).message);
+  }
   await client.end();
 });
 
-describe('M5.6 — allocatePayment', () => {
-  test('rejects non-positive amount', async () => {
-    const c = await mkCustomer();
-    await assert.rejects(
-      () => allocatePayment({ customerId: c.id, receiptId: nextReceipt(), amount: 0 }),
-      (e: Error & { statusCode?: number }) => e.statusCode === 400,
-    );
-    await assert.rejects(
-      () => allocatePayment({ customerId: c.id, receiptId: nextReceipt(), amount: -100 }),
-      (e: Error & { statusCode?: number }) => e.statusCode === 400,
-    );
-  });
+describe('M5.6 / Q03 payment receipts', () => {
+  test('OLDEST_DUE allocates by processingDueDate, then issue timestamp, then trip id', async () => {
+    const customer = await mkCustomer();
+    const route = await mkRoute();
+    const cargo = await mkCargo();
+    const tripA = await mkTrip(customer.id, route.id, cargo.id, '2026-07-10');
+    const tripB = await mkTrip(customer.id, route.id, cargo.id, '2026-07-11');
+    const tripC = await mkTrip(customer.id, route.id, cargo.id, '2026-07-12');
 
-  test('rejects missing receiptId', async () => {
-    const c = await mkCustomer();
-    await assert.rejects(
-      () => allocatePayment({ customerId: c.id, receiptId: '  ', amount: 1000 }),
-      (e: Error & { statusCode?: number }) => e.statusCode === 400,
-    );
-  });
-
-  test('MANUAL requires manual list', async () => {
-    const c = await mkCustomer();
-    await assert.rejects(
-      () => allocatePayment({ customerId: c.id, receiptId: nextReceipt(), amount: 1000, method: 'MANUAL' }),
-      (e: Error & { statusCode?: number }) => e.statusCode === 400,
-    );
-  });
-
-  test('OLDEST_FIRST: pays oldest trip first, then next', async () => {
-    const c = await mkCustomer(); const r = await mkRoute(); const cg = await mkCargo();
-    const t1 = await mkTrip(c.id, r.id, cg.id, '2026-06-01');
-    const t2 = await mkTrip(c.id, r.id, cg.id, '2026-06-10');
-    await mkRevenue(c.id, t1.id, 3_000_000);
-    await mkRevenue(c.id, t2.id, 2_000_000);
-
-    const receipt = nextReceipt();
-    const result = await allocatePayment({ customerId: c.id, receiptId: receipt, amount: 4_000_000 });
-
-    assert.equal(result.method, 'OLDEST_FIRST');
-    assert.equal(result.allocations.length, 2);
-    assert.equal(result.allocations[0].tripId, t1.id);
-    assert.equal(result.allocations[0].amount, 3_000_000);
-    assert.equal(result.allocations[1].tripId, t2.id);
-    assert.equal(result.allocations[1].amount, 1_000_000);
-    assert.equal(result.allocatedTotal, 4_000_000);
-    assert.equal(result.unallocated, 0);
-
-    // Rows persisted.
-    const rows = await fetchAllocRows(receipt);
-    assert.equal(rows.length, 2);
-
-    // Ledger credits posted via recordPayment.
-    assert.equal(await fetchPostedCredits(c.id, t1.id), 3_000_000);
-    assert.equal(await fetchPostedCredits(c.id, t2.id), 1_000_000);
-  });
-
-  test('OLDEST_FIRST: leftover returned when receipt exceeds total outstanding', async () => {
-    const c = await mkCustomer(); const r = await mkRoute(); const cg = await mkCargo();
-    const t1 = await mkTrip(c.id, r.id, cg.id, '2026-07-01');
-    await mkRevenue(c.id, t1.id, 1_000_000);
-
-    const result = await allocatePayment({ customerId: c.id, receiptId: nextReceipt(), amount: 5_000_000 });
-    assert.equal(result.allocations.length, 1);
-    assert.equal(result.allocatedTotal, 1_000_000);
-    assert.equal(result.unallocated, 4_000_000);
-  });
-
-  test('OLDEST_FIRST: no outstanding trips → empty allocations, full leftover, no rows', async () => {
-    const c = await mkCustomer(); const r = await mkRoute(); const cg = await mkCargo();
-    await mkTrip(c.id, r.id, cg.id, '2026-07-01'); // no revenue → no outstanding
-
-    const receipt = nextReceipt();
-    const result = await allocatePayment({ customerId: c.id, receiptId: receipt, amount: 1_000_000 });
-    assert.equal(result.allocations.length, 0);
-    assert.equal(result.allocatedTotal, 0);
-    assert.equal(result.unallocated, 1_000_000);
-    const rows = await fetchAllocRows(receipt);
-    assert.equal(rows.length, 0);
-  });
-
-  test('cannot over-allocate per trip: amount clamped to outstanding', async () => {
-    const c = await mkCustomer(); const r = await mkRoute(); const cg = await mkCargo();
-    const t1 = await mkTrip(c.id, r.id, cg.id, '2026-07-01');
-    await mkRevenue(c.id, t1.id, 2_000_000);
-
-    const result = await allocatePayment({ customerId: c.id, receiptId: nextReceipt(), amount: 10_000_000 });
-    assert.equal(result.allocations.length, 1);
-    assert.equal(result.allocations[0].amount, 2_000_000);
-    assert.equal(result.allocatedTotal, 2_000_000);
-    assert.equal(result.unallocated, 8_000_000);
-    // Trip is now fully paid.
-    const status = await getTripArStatus(t1.id);
-    assert.equal(status.outstanding, 0);
-    assert.equal(status.isFullyPaid, true);
-  });
-
-  test('MANUAL: applies explicit per-trip amounts, clamps over-outstanding intent', async () => {
-    const c = await mkCustomer(); const r = await mkRoute(); const cg = await mkCargo();
-    const t1 = await mkTrip(c.id, r.id, cg.id, '2026-07-01');
-    const t2 = await mkTrip(c.id, r.id, cg.id, '2026-07-02');
-    await mkRevenue(c.id, t1.id, 1_000_000);
-    await mkRevenue(c.id, t2.id, 1_000_000);
-
-    // Caller asks for 1.5M on t1 (only 1M outstanding) + 0.5M on t2 → 1.5M total
-    const result = await allocatePayment({
-      customerId: c.id, receiptId: nextReceipt(), amount: 2_000_000, method: 'MANUAL',
-      manual: [{ tripId: t1.id, amount: 1_500_000 }, { tripId: t2.id, amount: 500_000 }],
+    await mkRevenue({
+      customerId: customer.id,
+      tripId: tripA.id,
+      amount: 1_000_000,
+      timestamp: '2026-07-02T09:00:00.000Z',
+      originalDueDate: '2026-07-05',
+      processingDueDate: '2026-07-05',
     });
-    assert.equal(result.method, 'MANUAL');
-    assert.equal(result.allocations.length, 2);
-    assert.equal(result.allocations[0].amount, 1_000_000); // clamped
-    assert.equal(result.allocations[1].amount, 500_000);
-    assert.equal(result.allocatedTotal, 1_500_000);
-    assert.equal(result.unallocated, 500_000);
+    await mkRevenue({
+      customerId: customer.id,
+      tripId: tripB.id,
+      amount: 1_000_000,
+      timestamp: '2026-07-01T09:00:00.000Z',
+      originalDueDate: '2026-07-05',
+      processingDueDate: '2026-07-05',
+    });
+    await mkRevenue({
+      customerId: customer.id,
+      tripId: tripC.id,
+      amount: 1_000_000,
+      timestamp: '2026-07-03T09:00:00.000Z',
+      originalDueDate: '2026-07-04',
+      processingDueDate: '2026-07-04',
+    });
+
+    const receiptId = nextReceipt();
+    const result = await recordPaymentReceipt({
+      customerId: customer.id,
+      receiptId,
+      amount: 2_500_000,
+    });
+
+    assert.equal(result.created, true);
+    assert.equal(result.allocationMethod, 'OLDEST_DUE');
+    assert.deepEqual(
+      result.allocations.map((allocation) => [allocation.tripId, allocation.amount]),
+      [
+        [tripC.id, 1_000_000],
+        [tripB.id, 1_000_000],
+        [tripA.id, 500_000],
+      ],
+    );
+    assert.equal(result.allocatedTotal, 2_500_000);
+    assert.equal(result.unappliedAmount, 0);
   });
 
-  test('idempotent on receiptId: second call does not double-allocate', async () => {
-    const c = await mkCustomer(); const r = await mkRoute(); const cg = await mkCargo();
-    const t1 = await mkTrip(c.id, r.id, cg.id, '2026-07-01');
-    await mkRevenue(c.id, t1.id, 5_000_000);
+  test('EXPLICIT honors the instructed trips exactly and persists unapplied credit', async () => {
+    const customer = await mkCustomer();
+    const route = await mkRoute();
+    const cargo = await mkCargo();
+    const trip1 = await mkTrip(customer.id, route.id, cargo.id, '2026-07-20');
+    const trip2 = await mkTrip(customer.id, route.id, cargo.id, '2026-07-21');
 
-    const receipt = nextReceipt();
-    const r1 = await allocatePayment({ customerId: c.id, receiptId: receipt, amount: 3_000_000 });
-    assert.equal(r1.allocatedTotal, 3_000_000);
+    await mkRevenue({
+      customerId: customer.id,
+      tripId: trip1.id,
+      amount: 1_000_000,
+      timestamp: '2026-07-20T08:00:00.000Z',
+      originalDueDate: '2026-07-25',
+      processingDueDate: '2026-07-25',
+    });
+    await mkRevenue({
+      customerId: customer.id,
+      tripId: trip2.id,
+      amount: 1_500_000,
+      timestamp: '2026-07-21T08:00:00.000Z',
+      originalDueDate: '2026-07-26',
+      processingDueDate: '2026-07-26',
+    });
 
-    // Second call with same receipt: t1's effective outstanding is now
-    // 5_000_000 - 3_000_000 (prior) = 2_000_000; receipt amount 3_000_000.
-    // Should allocate only the remaining 2_000_000, not 5_000_000 again.
-    const r2 = await allocatePayment({ customerId: c.id, receiptId: receipt, amount: 3_000_000 });
-    assert.equal(r2.allocatedTotal, 2_000_000);
-    assert.equal(r2.unallocated, 1_000_000);
+    const receiptId = nextReceipt();
+    const result = await recordPaymentReceipt({
+      customerId: customer.id,
+      receiptId,
+      amount: 3_000_000,
+      payments: [{ tripId: trip2.id, amount: 500_000 }],
+    });
 
-    // Total posted = 3M + 2M = 5M; trip fully paid, never negative.
-    const paid = await fetchPostedCredits(c.id, t1.id);
-    assert.equal(paid, 5_000_000);
-    const status = await getTripArStatus(t1.id);
-    assert.equal(status.outstanding, 0);
+    assert.equal(result.allocationMethod, 'EXPLICIT');
+    assert.deepEqual(
+      result.allocations.map((allocation) => [allocation.tripId, allocation.amount]),
+      [[trip2.id, 500_000]],
+    );
+    assert.equal(result.allocatedTotal, 500_000);
+    assert.equal(result.unappliedAmount, 2_500_000);
+    assert.equal(await fetchPostedCredits(customer.id, trip2.id), 500_000);
+    assert.equal(await fetchPostedCredits(customer.id, trip1.id), 0);
+    assert.equal(await fetchUnappliedCredit(customer.id, receiptId), 2_500_000);
   });
 
-  test('listAllocationsForReceipt returns persisted rows', async () => {
-    const c = await mkCustomer(); const r = await mkRoute(); const cg = await mkCargo();
-    const t1 = await mkTrip(c.id, r.id, cg.id, '2026-07-01');
-    await mkRevenue(c.id, t1.id, 1_000_000);
-    const receipt = nextReceipt();
-    await allocatePayment({ customerId: c.id, receiptId: receipt, amount: 1_000_000 });
-    const rows = await listAllocationsForReceipt(receipt);
-    assert.equal(rows.length, 1);
-    assert.equal(rows[0].targetType, 'TRIP');
-    assert.equal(rows[0].targetId, t1.id);
-    assert.equal(Number(rows[0].amount), 1_000_000);
-    assert.equal(rows[0].allocationMethod, 'OLDEST_FIRST');
+  test('EXPLICIT rejects instructions that exceed the remaining outstanding amount', async () => {
+    const customer = await mkCustomer();
+    const route = await mkRoute();
+    const cargo = await mkCargo();
+    const trip = await mkTrip(customer.id, route.id, cargo.id, '2026-07-22');
+
+    await mkRevenue({
+      customerId: customer.id,
+      tripId: trip.id,
+      amount: 1_000_000,
+      timestamp: '2026-07-22T08:00:00.000Z',
+      originalDueDate: '2026-07-27',
+      processingDueDate: '2026-07-27',
+    });
+
+    const receiptId = nextReceipt();
+    await assert.rejects(
+      () => recordPaymentReceipt({
+        customerId: customer.id,
+        receiptId,
+        payments: [{ tripId: trip.id, amount: 1_100_000 }],
+      }),
+      (error: Error & { statusCode?: number }) =>
+        error.statusCode === 422 && error.message.includes('vượt quá số dư'),
+    );
+    assert.equal(await fetchReceiptCount(receiptId), 0);
+  });
+
+  test('same receipt id + same canonical payload replays; changed payload conflicts', async () => {
+    const customer = await mkCustomer();
+    const route = await mkRoute();
+    const cargo = await mkCargo();
+    const trip = await mkTrip(customer.id, route.id, cargo.id, '2026-07-23');
+
+    await mkRevenue({
+      customerId: customer.id,
+      tripId: trip.id,
+      amount: 2_000_000,
+      timestamp: '2026-07-23T08:00:00.000Z',
+      originalDueDate: '2026-07-28',
+      processingDueDate: '2026-07-28',
+    });
+
+    const receiptId = nextReceipt();
+    const first = await recordPaymentReceipt({
+      customerId: customer.id,
+      receiptId,
+      amount: 2_000_000,
+    });
+    const replay = await recordPaymentReceipt({
+      customerId: customer.id,
+      receiptId,
+      amount: 2_000_000,
+    });
+
+    assert.equal(first.id, replay.id);
+    assert.equal(replay.created, false);
+    assert.equal(await fetchReceiptCount(receiptId), 1);
+    assert.equal(await fetchPostedCredits(customer.id, trip.id), 2_000_000);
+
+    await assert.rejects(
+      () => recordPaymentReceipt({
+        customerId: customer.id,
+        receiptId,
+        amount: 1_000_000,
+      }),
+      (error: Error & { statusCode?: number }) =>
+        error.statusCode === 409 && error.message.includes('Mã biên lai đã tồn tại'),
+    );
+  });
+
+  test('legacy ambiguous receipt id fails closed', async () => {
+    const customer = await mkCustomer();
+    const route = await mkRoute();
+    const cargo = await mkCargo();
+    const trip = await mkTrip(customer.id, route.id, cargo.id, '2026-07-24');
+
+    const receiptId = nextReceipt();
+    const [legacyEntry] = await db.insert(s.ledger).values({
+      entityType: 'CUSTOMER',
+      entityId: customer.id,
+      txnType: 'PAYMENT_RECEIVED',
+      txnId: trip.id,
+      receiptId,
+      debit: '0',
+      credit: '1000',
+      balance: '0',
+      note: 'legacy payment',
+    }).returning();
+    createdLedgerIds.push(legacyEntry.id);
+
+    await assert.rejects(
+      () => recordPaymentReceipt({
+        customerId: customer.id,
+        receiptId,
+        amount: 1_000,
+      }),
+      (error: Error & { statusCode?: number }) =>
+        error.statusCode === 409 && error.message.includes('dữ liệu cũ'),
+    );
+  });
+
+  test('request idempotency key replays same result and rejects a changed payload', async () => {
+    const customer = await mkCustomer();
+    const route = await mkRoute();
+    const cargo = await mkCargo();
+    const trip = await mkTrip(customer.id, route.id, cargo.id, '2026-07-25');
+
+    await mkRevenue({
+      customerId: customer.id,
+      tripId: trip.id,
+      amount: 1_000_000,
+      timestamp: '2026-07-25T08:00:00.000Z',
+      originalDueDate: '2026-07-30',
+      processingDueDate: '2026-07-30',
+    });
+
+    const receiptId = nextReceipt();
+    const key = `m56-idempotency-${suffix}`;
+    const first = await recordPaymentReceiptIdempotent({
+      input: {
+        customerId: customer.id,
+        receiptId,
+        amount: 1_000_000,
+      },
+      idempotencyKey: key,
+    });
+    const replay = await recordPaymentReceiptIdempotent({
+      input: {
+        customerId: customer.id,
+        receiptId,
+        amount: 1_000_000,
+      },
+      idempotencyKey: key,
+    });
+
+    assert.equal(first.replayed, false);
+    assert.equal(replay.replayed, true);
+    assert.equal(first.result.id, replay.result.id);
+
+    await assert.rejects(
+      () => recordPaymentReceiptIdempotent({
+        input: {
+          customerId: customer.id,
+          receiptId: nextReceipt(),
+          amount: 900_000,
+        },
+        idempotencyKey: key,
+      }),
+      (error: Error & { statusCode?: number }) =>
+        error.statusCode === 409 && error.message.includes('Khóa giao dịch trùng'),
+    );
+  });
+
+  test('listAllocationsForReceipt returns persisted rows in allocation order', async () => {
+    const customer = await mkCustomer();
+    const route = await mkRoute();
+    const cargo = await mkCargo();
+    const trip1 = await mkTrip(customer.id, route.id, cargo.id, '2026-07-26');
+    const trip2 = await mkTrip(customer.id, route.id, cargo.id, '2026-07-27');
+
+    await mkRevenue({
+      customerId: customer.id,
+      tripId: trip1.id,
+      amount: 1_000_000,
+      timestamp: '2026-07-26T08:00:00.000Z',
+      originalDueDate: '2026-07-31',
+      processingDueDate: '2026-07-31',
+    });
+    await mkRevenue({
+      customerId: customer.id,
+      tripId: trip2.id,
+      amount: 1_000_000,
+      timestamp: '2026-07-27T08:00:00.000Z',
+      originalDueDate: '2026-08-01',
+      processingDueDate: '2026-08-01',
+    });
+
+    const receiptId = nextReceipt();
+    await recordPaymentReceipt({
+      customerId: customer.id,
+      receiptId,
+      payments: [
+        { tripId: trip2.id, amount: 250_000 },
+        { tripId: trip1.id, amount: 500_000 },
+      ],
+      amount: 750_000,
+    });
+
+    const rows = await listAllocationsForReceipt(receiptId);
+    assert.deepEqual(
+      rows.map((row) => [row.targetId, Number(row.amount), row.allocationOrder]),
+      [
+        [trip1.id, 500_000, 1],
+        [trip2.id, 250_000, 2],
+      ],
+    );
+    const receipt = await fetchReceipt(receiptId);
+    assert.ok(receipt);
+    assert.equal(Number(receipt!.allocatedTotal), 750_000);
   });
 });

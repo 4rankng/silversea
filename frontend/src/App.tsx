@@ -61,6 +61,7 @@ const TruckTiresPage = lazy(() => import('./pages/TruckTiresPage'));
 const TrucksConfigPage = lazy(() => import('./pages/config/TrucksConfigPage'));
 const TruckOwnersConfigPage = lazy(() => import('./pages/config/TruckOwnersConfigPage'));
 const RoutesConfigPage = lazy(() => import('./pages/config/RoutesConfigPage'));
+const BusinessCalendarConfigPage = lazy(() => import('./pages/config/BusinessCalendarConfigPage'));
 const CargoTypesConfigPage = lazy(() => import('./pages/config/CargoTypesConfigPage'));
 const PricingTablesConfigPage = lazy(() => import('./pages/config/PricingTablesConfigPage'));
 const RoadAllowancesConfigPage = lazy(() => import('./pages/config/RoadAllowancesConfigPage'));
@@ -101,7 +102,7 @@ function PageLoader() {
   );
 }
 
-function AppRoutes() {
+export function AppRoutes() {
   const { isAuthenticated, user, loading } = useAuth();
 
   if (loading) return <PageLoader />;
@@ -204,6 +205,7 @@ function AppRoutes() {
           <Route path="/config/trucks" element={adminOnly(page(<TrucksConfigPage />))} />
           <Route path="/config/trucks/:truckId/owners" element={adminOnly(page(<TruckOwnersConfigPage />))} />
           <Route path="/config/routes" element={adminOnly(page(<RoutesConfigPage />))} />
+          <Route path="/config/business-calendar" element={strictAdminOnly(page(<BusinessCalendarConfigPage />))} />
           <Route path="/config/cargo-types" element={adminOnly(page(<CargoTypesConfigPage />))} />
           <Route path="/config/pricing-tables" element={adminOnly(page(<PricingTablesConfigPage />))} />
           <Route path="/config/road-allowances" element={adminOnly(page(<RoadAllowancesConfigPage />))} />

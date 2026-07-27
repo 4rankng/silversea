@@ -27,6 +27,11 @@ import { LedgerService } from './ledger.service';
 import { resolveSalaryPeriodDateRange } from './salary-period.service';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
+import {
+  closePeriodLock,
+  reopenPeriodLock,
+  resolveSalaryPeriodAuthority,
+} from './period-lock.service';
 
 const PERIOD_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 const CLOSE_ENTITY_TYPE = 'SALARY_PERIOD_CLOSE';
@@ -105,6 +110,7 @@ export async function closeSalaryPeriod(input: {
     throw new ApiError(403, 'Bạn không có quyền chốt kỳ lương');
   }
   const { year, month } = parsePeriod(input.period);
+  const authority = await resolveSalaryPeriodAuthority(input.period);
 
   return db.transaction(async (tx) => {
     // Per-period advisory lock — concurrent closes serialize here.
@@ -116,6 +122,7 @@ export async function closeSalaryPeriod(input: {
       .where(eq(s.salaryPeriodCloses.period, input.period))
       .limit(1);
     if (existing && existing.status === 'CLOSED') {
+      await closePeriodLock(tx, authority, input.actorId, existing.note);
       // Pull the summary amount from the original ledger entry.
       const summaryAmt = await readSummaryAmount(tx, existing.ledgerEntryId);
       return {
@@ -173,6 +180,7 @@ export async function closeSalaryPeriod(input: {
       }).returning();
       closeRow = inserted!;
     }
+    await closePeriodLock(tx, authority, input.actorId, note);
 
     return {
       closeId: closeRow.id,
@@ -204,6 +212,7 @@ export async function reopenSalaryPeriod(input: {
     throw new ApiError(403, 'Bạn không có quyền mở lại kỳ lương');
   }
   parsePeriod(input.period); // validate format
+  const authority = await resolveSalaryPeriodAuthority(input.period);
 
   return db.transaction(async (tx) => {
     await LedgerService.lockEntity(tx, CLOSE_ENTITY_TYPE, periodLockKey(input.period));
@@ -251,6 +260,7 @@ export async function reopenSalaryPeriod(input: {
       })
       .where(eq(s.salaryPeriodCloses.id, existing.id))
       .returning();
+    await reopenPeriodLock(tx, authority, input.actorId, reopenNote);
 
     return {
       closeId: updated!.id,

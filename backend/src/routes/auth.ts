@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import { z } from 'zod';
 
 /** ms-compatible duration string (e.g. '7d', '24h', '3600s') for jwt SignOptions.expiresIn. */
 type DurationString = `${number}` | `${number}${'s' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
@@ -22,6 +23,12 @@ registerAuditEvent('POST', '/api/auth/login', AuditEvent.USER_LOGIN);
 registerAuditEvent('POST', '/api/auth/logout', AuditEvent.USER_LOGOUT);
 
 const router = Router();
+
+function requireAdmin(req: Request, message: string): void {
+  if (req.user?.role !== Role.ADMIN) {
+    throw new ApiError(403, message);
+  }
+}
 
 async function blacklistCurrentToken(req: Request) {
   const token = req.headers.authorization?.replace('Bearer ', '');
@@ -46,10 +53,11 @@ router.post('/login', asyncHandler(async (req: Request, res: Response) => {
     {
       userId: user.id, username: user.username, email: user.email,
       fullName: displayName, role: user.role, jti: crypto.randomUUID(),
-      // Wave 0: carry customerId on the JWT so scopedByCustomer can read it
-      // without a per-request DB lookup. Undefined for non-CUSTOMER roles
-      // or unmapped CUSTOMER users; the helper treats that as deny-all.
+      // Wave 0: carry both the legacy primary customerId and the full
+      // customerIds link set so portal scoping can stay DB-backed while
+      // old single-link payloads remain compatible.
       customerId: user.customerId ?? undefined,
+      customerIds: user.customerIds?.length ? user.customerIds : undefined,
     },
     config.jwtSecret,
     { expiresIn: config.jwtExpiresIn as DurationString }
@@ -115,6 +123,10 @@ router.post('/users', authMiddleware, casbinAuthz('users'), asyncHandler(async (
     socialInsurance: data.socialInsurance,
     assignedTruckId: data.assignedTruckId,
     customerId: data.customerId,
+    customerIds: data.customerIds,
+    businessUnitIds: data.businessUnitIds,
+    shipmentIds: data.shipmentIds,
+    assignmentAdminOnly: req.user?.role !== Role.ADMIN,
   });
   res.status(201).json(created);
 }));
@@ -153,7 +165,51 @@ router.patch('/users/:id', authMiddleware, casbinAuthz('users'), asyncHandler(as
     socialInsurance: data.socialInsurance,
     assignedTruckId: data.assignedTruckId,
     customerId: data.customerId,
+    customerIds: data.customerIds,
+    businessUnitIds: data.businessUnitIds,
+    shipmentIds: data.shipmentIds,
+    assignmentAdminOnly: req.user?.role !== Role.ADMIN,
   });
+  res.json(updated);
+}));
+
+const businessUnitSchema = z.object({
+  code: z.string().trim().min(1).max(50).optional().nullable(),
+  name: z.string().trim().min(1, 'Tên đơn vị là bắt buộc').max(255),
+  status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
+});
+
+const updateBusinessUnitSchema = z.object({
+  code: z.string().trim().min(1).max(50).optional().nullable(),
+  name: z.string().trim().min(1, 'Tên đơn vị là bắt buộc').max(255).optional(),
+  status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
+});
+
+router.get('/business-units', authMiddleware, casbinAuthz('users'), asyncHandler(async (req: Request, res: Response) => {
+  res.json({ items: await userService.listBusinessUnits() });
+}));
+
+router.post('/business-units', authMiddleware, casbinAuthz('users'), asyncHandler(async (req: Request, res: Response) => {
+  requireAdmin(req, 'Chỉ quản trị viên mới có thể tạo đơn vị phụ trách');
+  const data = businessUnitSchema.parse(req.body);
+  const created = await userService.createBusinessUnit(data);
+  res.status(201).json(created);
+}));
+
+router.patch('/business-units/:id', authMiddleware, casbinAuthz('users'), asyncHandler(async (req: Request, res: Response) => {
+  requireAdmin(req, 'Chỉ quản trị viên mới có thể cập nhật đơn vị phụ trách');
+  const id = parseInt(req.params.id as string, 10);
+  if (isNaN(id)) throw new ApiError(400, 'ID không hợp lệ');
+  const data = updateBusinessUnitSchema.parse(req.body);
+  const updated = await userService.updateBusinessUnit(id, data);
+  res.json(updated);
+}));
+
+router.delete('/business-units/:id', authMiddleware, casbinAuthz('users'), asyncHandler(async (req: Request, res: Response) => {
+  requireAdmin(req, 'Chỉ quản trị viên mới có thể ngưng sử dụng đơn vị phụ trách');
+  const id = parseInt(req.params.id as string, 10);
+  if (isNaN(id)) throw new ApiError(400, 'ID không hợp lệ');
+  const updated = await userService.updateBusinessUnit(id, { status: 'INACTIVE' });
   res.json(updated);
 }));
 

@@ -184,6 +184,7 @@ export async function createTripExpense(
   data: {
     tripId: number;
     forwarderId: number | null;
+    createdBy?: number | null;
     expenseType: string;
     buyAmount: string;
     sellAmount?: string;
@@ -235,14 +236,18 @@ export async function createTripExpense(
   // and customer AR. They no longer require a payable counterparty because no
   // vendor/forwarder payable is posted when the trip is completed.
 
-  // By default, forwarder-owned rows need manager approval. Office routes can
-  // explicitly mark a row APPROVED when accountant/manager staff enter it on a
-  // forwarder's behalf after checking the invoice.
-  const approvalStatus = data.approvalStatus ?? (data.forwarderId == null ? 'APPROVED' : 'PENDING');
+  // Authenticated actor-backed writes start pending: office creation is not
+  // approval and Q15 requires a distinct approver. Preserve the historical
+  // trusted/internal helper behavior for actor-less office imports; those
+  // legacy callers carry no maker authority and are not inferred from a
+  // payable counterparty.
+  const approvalStatus = data.approvalStatus
+    ?? (data.createdBy != null || data.forwarderId != null ? 'PENDING' : 'APPROVED');
 
   const [inserted] = await txOrDb.insert(s.tripExpenses).values({
     tripId: data.tripId,
     forwarderId: data.forwarderId,
+    createdBy: data.createdBy ?? null,
     expenseType: data.expenseType,
     buyAmount: data.buyAmount,
     sellAmount: data.sellAmount ?? '0',
@@ -291,12 +296,16 @@ export async function updateTripExpense(
       tripContainerId: s.tripExpenses.tripContainerId,
       expenseType: s.tripExpenses.expenseType,
       declarationNumber: s.tripExpenses.declarationNumber,
+      approvalStatus: s.tripExpenses.approvalStatus,
     })
     .from(s.tripExpenses)
     .where(eq(s.tripExpenses.id, id))
     .limit(1);
 
   if (!existing) return null;
+  if (existing.approvalStatus === 'APPROVED') {
+    throw new ApiError(409, 'Chi phí đã duyệt không được sửa trực tiếp; hãy lập yêu cầu điều chỉnh');
+  }
   if (existing.forwarderId != null) {
     const [activeLink] = await txOrDb.select({ id: s.settlementExpenses.id })
       .from(s.settlementExpenses)
@@ -436,6 +445,9 @@ export async function deleteTripExpense(expenseId: number, forwarderId: number) 
       .where(eq(s.tripExpenses.id, expenseId)).limit(1);
     if (!existing) return null;
     if (existing.forwarderId == null || existing.forwarderId !== forwarderId) return 'FORBIDDEN';
+    if (existing.approvalStatus === 'APPROVED') {
+      throw new ApiError(409, 'Chi phí đã duyệt không được xóa trực tiếp; hãy lập yêu cầu điều chỉnh');
+    }
     const scopeKey = existing.tripContainerId ?? -existing.tripId;
     await tx.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);
     const [trip] = await tx.select({ status: s.trips.status }).from(s.trips)
@@ -486,9 +498,16 @@ export async function deleteTripExpenseGuarded(tripId: number, expenseId: number
     const [expense] = await tx.select({
       tripId: s.tripExpenses.tripId,
       tripContainerId: s.tripExpenses.tripContainerId,
+      approvalStatus: s.tripExpenses.approvalStatus,
     }).from(s.tripExpenses).where(eq(s.tripExpenses.id, expenseId)).limit(1);
     if (!expense || expense.tripId !== tripId) {
       return { error: 'Không tìm thấy chi phí của chuyến xe', status: 404 };
+    }
+    if (expense.approvalStatus === 'APPROVED') {
+      return {
+        error: 'Chi phí đã duyệt không được xóa trực tiếp; hãy lập yêu cầu điều chỉnh',
+        status: 409,
+      };
     }
     const scopeKey = expense.tripContainerId ?? -expense.tripId;
     await tx.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);
