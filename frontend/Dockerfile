@@ -1,7 +1,7 @@
 # ── Stage 1: Build ────────────────────────────────────────────────────────────
 FROM node:22-alpine AS build
 
-ARG NODE_OPTIONS=--max-old-space-size=768
+ARG NODE_OPTIONS=--max-old-space-size=2048
 ENV NODE_OPTIONS=${NODE_OPTIONS}
 
 RUN corepack enable && corepack prepare pnpm@10.33.0 --activate

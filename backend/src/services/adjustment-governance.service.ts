@@ -1,5 +1,5 @@
 import { and, desc, eq, sql } from 'drizzle-orm';
-import { Role, TxnType } from '@tingting/shared';
+import { TxnType } from '@tingting/shared';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
@@ -14,32 +14,19 @@ import {
   type PaymentDatePolicy,
 } from './business-calendar.service';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
+import { assertCanMakeGovernanceAction } from './governance-policy';
+import {
+  approveGovernanceActionWithAdapter,
+  type GovernanceActionRow,
+} from './governance-transition.service';
+import { applyBillingDocumentGovernanceAction } from './billing-document-governance.service';
 
-export type GovernanceActionKind = 'TRIP_AR_ADJUSTMENT' | 'TRIP_REOPEN';
-
-const FINANCIAL_ROLES = new Set<string>([Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT]);
-const REOPEN_ROLES = new Set<string>([Role.ADMIN, Role.MANAGER]);
+export { checkGovernanceAction } from './governance-transition.service';
 
 function requireReason(reason: string): string {
   const normalized = reason.trim();
   if (!normalized) throw new ApiError(400, 'Lý do điều chỉnh là bắt buộc');
   return normalized;
-}
-
-function assertRole(kind: GovernanceActionKind, role: string): void {
-  const roles = kind === 'TRIP_REOPEN' ? REOPEN_ROLES : FINANCIAL_ROLES;
-  if (!roles.has(role)) {
-    throw new ApiError(403, 'Bạn không có quyền thực hiện bước phê duyệt này');
-  }
-}
-
-function assertExpectedActionVersion(actual: number, expected: number): void {
-  if (!Number.isInteger(expected) || expected <= 0) {
-    throw new ApiError(400, 'expectedVersion không hợp lệ');
-  }
-  if (actual !== expected) {
-    throw new ApiError(409, 'Yêu cầu đã được người khác xử lý. Vui lòng tải lại.');
-  }
 }
 
 function assertExpectedTripVersion(expected: number): void {
@@ -122,7 +109,7 @@ export async function requestTripArAdjustment(input: {
   makerRole: string;
   expectedTripVersion: number;
 }) {
-  assertRole('TRIP_AR_ADJUSTMENT', input.makerRole);
+  assertCanMakeGovernanceAction('TRIP_AR_ADJUSTMENT', input.makerRole);
   assertExpectedTripVersion(input.expectedTripVersion);
   const reason = requireReason(input.reason);
   const agreementRef = input.signedAgreementRef.trim();
@@ -168,6 +155,7 @@ export async function requestTripArAdjustment(input: {
         signedAgreementRef: agreementRef,
       },
       makerId: input.makerId,
+      makerRole: input.makerRole,
     }).returning();
     return action;
   });
@@ -180,7 +168,7 @@ export async function requestTripReopen(input: {
   makerRole: string;
   expectedTripVersion: number;
 }) {
-  assertRole('TRIP_REOPEN', input.makerRole);
+  assertCanMakeGovernanceAction('TRIP_REOPEN', input.makerRole);
   assertExpectedTripVersion(input.expectedTripVersion);
   const reason = requireReason(input.reason);
   return db.transaction(async (tx) => {
@@ -206,44 +194,9 @@ export async function requestTripReopen(input: {
       afterSnapshot: { status: 'COMPLETED' },
       deltaSnapshot: null,
       makerId: input.makerId,
+      makerRole: input.makerRole,
     }).returning();
     return action;
-  });
-}
-
-export async function checkGovernanceAction(input: {
-  actionId: number;
-  checkerId: number;
-  checkerRole: string;
-  expectedVersion: number;
-}) {
-  return db.transaction(async (tx) => {
-    const [action] = await tx.select().from(s.governanceActions)
-      .where(eq(s.governanceActions.id, input.actionId)).limit(1).for('update');
-    if (!action) throw new ApiError(404, 'Không tìm thấy yêu cầu điều chỉnh');
-    assertRole(action.actionKind as GovernanceActionKind, input.checkerRole);
-    assertExpectedActionVersion(action.version, input.expectedVersion);
-    if (action.status !== 'PENDING_CHECK') {
-      throw new ApiError(409, 'Yêu cầu không còn ở bước kiểm tra');
-    }
-    if (action.makerId === input.checkerId) {
-      throw new ApiError(403, 'Người tạo không được tự kiểm tra yêu cầu');
-    }
-
-    const [updated] = await tx.update(s.governanceActions).set({
-      status: 'PENDING_APPROVAL',
-      checkerId: input.checkerId,
-      checkedAt: new Date(),
-      version: sql`${s.governanceActions.version} + 1`,
-    }).where(and(
-      eq(s.governanceActions.id, action.id),
-      eq(s.governanceActions.status, 'PENDING_CHECK'),
-      eq(s.governanceActions.version, input.expectedVersion),
-    )).returning();
-    if (!updated) {
-      throw new ApiError(409, 'Yêu cầu đã được người khác xử lý. Vui lòng tải lại.');
-    }
-    return updated;
   });
 }
 
@@ -253,113 +206,121 @@ export async function approveGovernanceAction(input: {
   approverRole: string;
   expectedVersion: number;
 }) {
-  return db.transaction(async (tx) => {
-    const [action] = await tx.select().from(s.governanceActions)
-      .where(eq(s.governanceActions.id, input.actionId)).limit(1).for('update');
-    if (!action) throw new ApiError(404, 'Không tìm thấy yêu cầu điều chỉnh');
-    const kind = action.actionKind as GovernanceActionKind;
-    assertRole(kind, input.approverRole);
-    assertExpectedActionVersion(action.version, input.expectedVersion);
-    if (action.status !== 'PENDING_APPROVAL' || action.checkerId == null) {
-      throw new ApiError(409, 'Yêu cầu chưa được kiểm tra hoặc đã được xử lý');
-    }
-    if (action.makerId === input.approverId || action.checkerId === input.approverId) {
-      throw new ApiError(403, 'Người phê duyệt phải khác người tạo và người kiểm tra');
-    }
-
-    if (kind === 'TRIP_REOPEN') {
-      await lockTripFinancialAuthority(tx, [action.subjectId]);
-    }
-    const [trip] = await tx.select().from(s.trips)
-      .where(eq(s.trips.id, action.subjectId)).limit(1).for('update');
-    if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi gốc');
-    if (trip.version !== action.originalVersion) {
-      throw new ApiError(409, 'Dữ liệu gốc đã thay đổi; yêu cầu này không thể áp dụng');
-    }
-
-    let ledgerEntryId: number | null = null;
-    if (kind === 'TRIP_AR_ADJUSTMENT') {
-      const delta = action.deltaSnapshot as Record<string, unknown> | null;
-      const amount = Number(delta?.customerBalanceDelta);
-      const signedAgreementRef = String(delta?.signedAgreementRef ?? '').trim();
-      if (!Number.isFinite(amount) || amount === 0 || !signedAgreementRef) {
-        throw new ApiError(409, 'Yêu cầu điều chỉnh thiếu dữ liệu áp dụng hợp lệ');
-      }
-
-      const [existingAuthority] = await tx.select({
-        originalDueDate: s.ledger.originalDueDate,
-        processingDueDate: s.ledger.processingDueDate,
-        paymentTermDaysApplied: s.ledger.paymentTermDaysApplied,
-        paymentDatePolicyApplied: s.ledger.paymentDatePolicyApplied,
-      }).from(s.ledger).where(and(
-        eq(s.ledger.entityType, 'CUSTOMER'),
-        eq(s.ledger.txnType, TxnType.TRIP_REVENUE),
-        eq(s.ledger.txnId, trip.id),
-      )).orderBy(desc(s.ledger.id)).limit(1);
-      const resolvedAuthority = existingAuthority?.originalDueDate
-        && existingAuthority.processingDueDate
-        ? null
-        : await resolveCustomerPaymentDueDate(
-            tx,
-            trip.customerId,
-            String(trip.departureDate).slice(0, 10),
-          );
-      const posted = await LedgerService.postEntry(tx, {
-        txnType: TxnType.ADJUSTMENT,
-        txnId: trip.id,
-        entityType: 'CUSTOMER',
-        entityId: trip.customerId,
-        debit: amount > 0 ? amount : 0,
-        credit: amount > 0 ? 0 : Math.abs(amount),
-        note: `${action.reason} (HĐ: ${signedAgreementRef})`,
-        originalDueDate: existingAuthority?.originalDueDate ?? resolvedAuthority?.originalDate,
-        processingDueDate:
-          existingAuthority?.processingDueDate ?? resolvedAuthority?.processingDate,
-        paymentTermDaysApplied:
-          existingAuthority?.paymentTermDaysApplied ?? resolvedAuthority?.paymentTermDays,
-        paymentDatePolicyApplied: (
-          existingAuthority?.paymentDatePolicyApplied as PaymentDatePolicy | null
-        ) ?? resolvedAuthority?.policy,
-      });
-      ledgerEntryId = posted.id;
-    } else {
-      if (trip.status !== 'LOCKED') {
-        throw new ApiError(409, 'Chuyến đi không còn ở trạng thái đã chốt');
-      }
-      await assertTripCanBeReopened(tx, trip.id);
-    }
-
-    const [versionedTrip] = await tx.update(s.trips).set({
-      ...(kind === 'TRIP_REOPEN' ? { status: 'COMPLETED' as const } : {}),
-      version: sql`${s.trips.version} + 1`,
-      updatedAt: new Date(),
-    }).where(and(
-      eq(s.trips.id, trip.id),
-      eq(s.trips.version, action.originalVersion),
-      ...(kind === 'TRIP_REOPEN' ? [eq(s.trips.status, 'LOCKED')] : []),
-    )).returning({ id: s.trips.id });
-    if (!versionedTrip) {
-      throw new ApiError(409, 'Dữ liệu gốc đã thay đổi; yêu cầu này không thể áp dụng');
-    }
-
-    const now = new Date();
-    const [approved] = await tx.update(s.governanceActions).set({
-      status: 'APPROVED',
-      approverId: input.approverId,
-      approvedAt: now,
-      appliedAt: now,
-      ledgerEntryId,
-      version: sql`${s.governanceActions.version} + 1`,
-    }).where(and(
-      eq(s.governanceActions.id, action.id),
-      eq(s.governanceActions.status, 'PENDING_APPROVAL'),
-      eq(s.governanceActions.version, input.expectedVersion),
-    )).returning();
-    if (!approved) {
-      throw new ApiError(409, 'Yêu cầu đã được người khác xử lý. Vui lòng tải lại.');
-    }
-    return approved;
+  const approved = await approveGovernanceActionWithAdapter({
+    ...input,
+    apply: applyGovernanceAction,
   });
+  if (approved.subjectId == null) {
+    throw new ApiError(409, 'Yêu cầu điều chỉnh không có đối tượng hợp lệ');
+  }
+  return { ...approved, subjectId: approved.subjectId };
+}
+
+async function applyGovernanceAction(
+  tx: Tx,
+  action: GovernanceActionRow,
+) {
+  if (action.subjectType === 'BILLING_DOCUMENT') {
+    return applyBillingDocumentGovernanceAction(tx, action);
+  }
+  return applyTripGovernanceAction(tx, action);
+}
+
+async function applyTripGovernanceAction(
+  tx: Tx,
+  action: GovernanceActionRow,
+) {
+  if (action.subjectType !== 'TRIP' || action.subjectId == null) {
+    throw new ApiError(409, 'Yêu cầu điều chỉnh không có chuyến đi hợp lệ');
+  }
+  if (action.actionKind !== 'TRIP_AR_ADJUSTMENT' && action.actionKind !== 'TRIP_REOPEN') {
+    throw new ApiError(409, 'Loại yêu cầu không thuộc quản trị chuyến đi');
+  }
+  const kind = action.actionKind;
+
+  if (kind === 'TRIP_REOPEN') {
+    await lockTripFinancialAuthority(tx, [action.subjectId]);
+  }
+  const [trip] = await tx.select().from(s.trips)
+    .where(eq(s.trips.id, action.subjectId)).limit(1).for('update');
+  if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi gốc');
+  if (trip.version !== action.originalVersion) {
+    throw new ApiError(409, 'Dữ liệu gốc đã thay đổi; yêu cầu này không thể áp dụng');
+  }
+
+  let ledgerEntryId: number | null = null;
+  if (kind === 'TRIP_AR_ADJUSTMENT') {
+    const delta = action.deltaSnapshot as Record<string, unknown> | null;
+    const amount = Number(delta?.customerBalanceDelta);
+    const signedAgreementRef = String(delta?.signedAgreementRef ?? '').trim();
+    if (!Number.isFinite(amount) || amount === 0 || !signedAgreementRef) {
+      throw new ApiError(409, 'Yêu cầu điều chỉnh thiếu dữ liệu áp dụng hợp lệ');
+    }
+
+    const [existingAuthority] = await tx.select({
+      originalDueDate: s.ledger.originalDueDate,
+      processingDueDate: s.ledger.processingDueDate,
+      paymentTermDaysApplied: s.ledger.paymentTermDaysApplied,
+      paymentDatePolicyApplied: s.ledger.paymentDatePolicyApplied,
+    }).from(s.ledger).where(and(
+      eq(s.ledger.entityType, 'CUSTOMER'),
+      eq(s.ledger.txnType, TxnType.TRIP_REVENUE),
+      eq(s.ledger.txnId, trip.id),
+    )).orderBy(desc(s.ledger.id)).limit(1);
+    const resolvedAuthority = existingAuthority?.originalDueDate
+      && existingAuthority.processingDueDate
+      ? null
+      : await resolveCustomerPaymentDueDate(
+          tx,
+          trip.customerId,
+          String(trip.departureDate).slice(0, 10),
+        );
+    const posted = await LedgerService.postEntry(tx, {
+      txnType: TxnType.ADJUSTMENT,
+      txnId: trip.id,
+      entityType: 'CUSTOMER',
+      entityId: trip.customerId,
+      debit: amount > 0 ? amount : 0,
+      credit: amount > 0 ? 0 : Math.abs(amount),
+      note: `${action.reason} (HĐ: ${signedAgreementRef})`,
+      originalDueDate: existingAuthority?.originalDueDate ?? resolvedAuthority?.originalDate,
+      processingDueDate:
+        existingAuthority?.processingDueDate ?? resolvedAuthority?.processingDate,
+      paymentTermDaysApplied:
+        existingAuthority?.paymentTermDaysApplied ?? resolvedAuthority?.paymentTermDays,
+      paymentDatePolicyApplied: (
+        existingAuthority?.paymentDatePolicyApplied as PaymentDatePolicy | null
+      ) ?? resolvedAuthority?.policy,
+    });
+    ledgerEntryId = posted.id;
+  } else {
+    if (trip.status !== 'LOCKED') {
+      throw new ApiError(409, 'Chuyến đi không còn ở trạng thái đã chốt');
+    }
+    await assertTripCanBeReopened(tx, trip.id);
+  }
+
+  const [versionedTrip] = await tx.update(s.trips).set({
+    ...(kind === 'TRIP_REOPEN' ? { status: 'COMPLETED' as const } : {}),
+    version: sql`${s.trips.version} + 1`,
+    updatedAt: new Date(),
+  }).where(and(
+    eq(s.trips.id, trip.id),
+    eq(s.trips.version, action.originalVersion),
+    ...(kind === 'TRIP_REOPEN' ? [eq(s.trips.status, 'LOCKED')] : []),
+  )).returning({ id: s.trips.id });
+  if (!versionedTrip) {
+    throw new ApiError(409, 'Dữ liệu gốc đã thay đổi; yêu cầu này không thể áp dụng');
+  }
+
+  return {
+    ledgerEntryId,
+    applicationResult: {
+      subjectType: 'TRIP',
+      subjectId: trip.id,
+      resultingVersion: action.originalVersion + 1,
+    },
+  };
 }
 
 export async function listTripGovernanceActions(tripId: number) {

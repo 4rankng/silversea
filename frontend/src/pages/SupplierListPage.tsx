@@ -12,7 +12,7 @@ import { PageHeader, KPI, StatusPill, Modal } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { EmptyState } from '../design-system';
 import type { Supplier, Customer } from '@tingting/shared';
-import { CONFIG } from '@tingting/shared';
+import { CONFIG, SUPPLIER_TYPES, SUPPLIER_TYPE_LABELS } from '@tingting/shared';
 import { useSuppliers } from '../hooks/useQueries';
 import { useCatalogs } from '../hooks/useCatalogs';
 import { usePayablesSummary } from '../hooks/useFinancialQueries';
@@ -39,7 +39,8 @@ function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, customers }
   const [note, setNote] = useState(item?.note || '');
   const [status, setStatus] = useState<string>(item?.status || 'ACTIVE');
   const [linkedCustomerId, setLinkedCustomerId] = useState<number | null>(item?.linkedCustomerId ?? null);
-  const [isFuelSupplier, setIsFuelSupplier] = useState<boolean>(item?.isFuelSupplier ?? false);
+  const [types, setTypes] = useState<string[]>(item?.types ?? []);
+  const [primaryType, setPrimaryType] = useState<string>(item?.primaryType ?? '');
 
   useEffect(() => {
     if (isOpen) {
@@ -50,7 +51,8 @@ function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, customers }
       setNote(item?.note || '');
       setStatus(item?.status || 'ACTIVE');
       setLinkedCustomerId(item?.linkedCustomerId ?? null);
-      setIsFuelSupplier(item?.isFuelSupplier ?? false);
+      setTypes(item?.types ?? []);
+      setPrimaryType(item?.primaryType ?? '');
     }
     // Reset form fields only when the modal opens or switches item; field-level
     // deps intentionally omitted to avoid clobbering in-progress edits.
@@ -67,7 +69,20 @@ function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, customers }
       note: note.trim() || undefined,
       status,
       linkedCustomerId: linkedCustomerId ?? null,
-      isFuelSupplier,
+      types,
+      primaryType: primaryType || null,
+    });
+  };
+
+  const toggleType = (type: string) => {
+    setTypes((current) => {
+      const next = current.includes(type)
+        ? current.filter((itemType) => itemType !== type)
+        : [...current, type];
+      if (primaryType && !next.includes(primaryType)) {
+        setPrimaryType('');
+      }
+      return next;
     });
   };
   return (
@@ -135,17 +150,52 @@ function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, customers }
             ))}
           </select>
         </div>
-        <div className="field" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-          <input
-            id="supp-is-fuel"
-            type="checkbox"
-            checked={isFuelSupplier}
-            onChange={e => setIsFuelSupplier(e.target.checked)}
-            style={{ width: 16, height: 16, cursor: 'pointer' }}
-          />
-          <label htmlFor="supp-is-fuel" style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-2)', cursor: 'pointer', margin: 0 }}>
-            Là nhà cung cấp nhiên liệu (xăng, dầu)
-          </label>
+        <div className="field">
+          <label style={labelStyle}>Nhóm dịch vụ</label>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
+            {SUPPLIER_TYPES.map((type) => (
+              <label
+                key={type}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  minHeight: 44,
+                  padding: '10px 12px',
+                  borderRadius: 12,
+                  border: '1px solid var(--line)',
+                  background: types.includes(type) ? 'var(--bg-soft)' : 'var(--card)',
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={types.includes(type)}
+                  onChange={() => toggleType(type)}
+                  style={{ width: 16, height: 16, cursor: 'pointer' }}
+                />
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{SUPPLIER_TYPE_LABELS[type]}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+        <div className="field">
+          <label htmlFor="supp-primary-type" style={labelStyle}>Nhóm chính cho báo cáo</label>
+          <select
+            id="supp-primary-type"
+            className="input"
+            value={primaryType}
+            onChange={(e) => setPrimaryType(e.target.value)}
+            disabled={types.length === 0}
+          >
+            <option value="">-- Không chọn nhóm chính --</option>
+            {types.map((type) => (
+              <option key={type} value={type}>{SUPPLIER_TYPE_LABELS[type as keyof typeof SUPPLIER_TYPE_LABELS]}</option>
+            ))}
+          </select>
+          <div style={{ marginTop: 6, fontSize: 12, color: 'var(--ink-3)' }}>
+            Nhóm chính chỉ dùng cho mặc định và báo cáo; từng khoản chi vẫn giữ đúng nhóm thực tế.
+          </div>
         </div>
       </div>
     </Modal>

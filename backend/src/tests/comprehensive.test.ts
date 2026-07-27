@@ -386,8 +386,6 @@ test('E2E — Trip dispatch lifecycle (Create, Reassign, Pre-departure, Dispatch
     })
   });
   assert.strictEqual(preDepartureRes.status, 200);
-  const updatedVersion = preDepartureRes.data.version;
-
   // 4. Dispatch the trip (CREATED -> IN_TRANSIT)
   const dispatchRes = await testFetch(`/api/trips/${tripId}/dispatch`, {
     method: 'POST',
@@ -396,6 +394,7 @@ test('E2E — Trip dispatch lifecycle (Create, Reassign, Pre-departure, Dispatch
   if (dispatchRes.status !== 200) console.log('DISPATCH FAIL:', dispatchRes);
   assert.strictEqual(dispatchRes.status, 200);
   assert.strictEqual(dispatchRes.data.status, TripStatus.IN_TRANSIT);
+  const dispatchedVersion = dispatchRes.data.version;
 
   // 5. Upload confirmation photo (mocking photo insertion to bypass photo completion gate)
   await db.insert(s.tripPhotos).values({
@@ -410,7 +409,7 @@ test('E2E — Trip dispatch lifecycle (Create, Reassign, Pre-departure, Dispatch
     method: 'PUT',
     token: adminToken,
     body: JSON.stringify({
-      version: updatedVersion,
+      version: dispatchedVersion,
       fuelMode: FuelMode.AUTO,
       legs: [{ sequence: 1, origin: 'Hà Nội', destination: 'Hải Phòng', km: 120, loadingType: LoadingType.HANG }],
       fuelSupplementLiters: 5, // supplementary liters

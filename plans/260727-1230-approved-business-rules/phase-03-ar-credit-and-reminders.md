@@ -38,7 +38,9 @@ delivery, retry, deduplication, and stop conditions.
 
 - [ ] Q01 exposure authority and production enforcement.
 - [ ] Q02 tiered, expiring over-limit approval.
-- [ ] Q03 immutable-due-date allocation and receipt replay safety.
+- [x] Q03 immutable original/processing due snapshots, oldest-due allocation,
+  explicit-order allocation, unapplied credit, atomic request replay, bounded
+  ledger posting, and conflict audit. Independent review: GO.
 - [x] Q04 business-calendar cadence, working-hour rollover, recurring
   reminders, customer/day claim and obligation-scoped dispute suppression.
 - [x] Q05 honest email delivery/retry, customer-scoped portal fallback,

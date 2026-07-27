@@ -4,11 +4,18 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+  saveAppSettings: vi.fn(),
   saveEmail: vi.fn(),
   confirm: vi.fn(),
   emailSettings: vi.fn(),
   appSettings: {
-    data: { botEnabled: true, tutorialEnabled: true, gpsEnabled: false },
+    data: {
+      botEnabled: true,
+      tutorialEnabled: true,
+      gpsEnabled: false,
+      creditWarningThresholdDefault: 0.8,
+      creditTierOneAmountCap: 1000000,
+    },
     isLoading: false,
     isError: false,
     error: null,
@@ -69,7 +76,7 @@ vi.mock('../../hooks/animations', () => ({
 
 vi.mock('../../hooks/useAppSettings', () => ({
   useAppSettings: () => mocks.appSettings,
-  useSaveAppSettings: () => mutationResult(),
+  useSaveAppSettings: () => mutationResult(mocks.saveAppSettings),
   useEmailSettings: () => mocks.emailSettings(),
   useSaveEmailSettings: () => mutationResult(mocks.saveEmail),
 }));
@@ -96,6 +103,13 @@ function renderPage() {
 
 describe('AppSettingsConfigPage — Resend credential', () => {
   beforeEach(() => {
+    mocks.saveAppSettings.mockReset().mockResolvedValue({
+      botEnabled: true,
+      tutorialEnabled: true,
+      gpsEnabled: false,
+      creditWarningThresholdDefault: 0.75,
+      creditTierOneAmountCap: 1500000,
+    });
     mocks.saveEmail.mockReset().mockResolvedValue({
       resendKeySet: true,
       resendKeyMasked: '••••••••7890',
@@ -141,5 +155,27 @@ describe('AppSettingsConfigPage — Resend credential', () => {
       expect(mocks.saveEmail).toHaveBeenCalledWith({ clearResendApiKey: true });
     });
     expect(screen.getByRole('status').textContent).toContain('Đã xóa Resend API key');
+  });
+
+  it('saves global credit warning defaults with the shared app-settings shape', async () => {
+    renderPage();
+
+    fireEvent.change(screen.getByLabelText('Ngưỡng cảnh báo công nợ mặc định (%)'), {
+      target: { value: '75' },
+    });
+    fireEvent.change(screen.getByLabelText('Ngưỡng tiền duyệt cấp 1 (VND)'), {
+      target: { value: '1500000' },
+    });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Lưu cài đặt' })[0]);
+
+    await waitFor(() => {
+      expect(mocks.saveAppSettings).toHaveBeenCalledWith({
+        botEnabled: true,
+        tutorialEnabled: true,
+        gpsEnabled: false,
+        creditWarningThresholdDefault: 0.75,
+        creditTierOneAmountCap: 1500000,
+      });
+    });
   });
 });

@@ -34,11 +34,14 @@ unsigned PRD proposals or Q01-Q23 into accepted customer requirements.
 - In: all reachable pages; role navigation and direct-URL denial; core workflows;
   desktop/tablet/mobile visuals; Vietnamese copy; exports; error/empty/loading
   states; cross-module reconciliation; customer-ready evidence.
-- In: creation and later retention/disablement of one controlled CLERK staging
-  account. This is the only staging mutation currently authorized. Keep
-  credentials out of Git, screenshots, logs, reports, and chat summaries.
-- Out: product redesign, deployment, production testing, silent PRD decisions,
-  and business/configuration/profile/password mutation.
+- In: serialized, prefixed staging fixtures and stateful mutations across all
+  roles, including account creation, dispatch, approvals, evidence uploads,
+  financial controls, close/reopen, and cleanup where recovery is safe. The
+  user extended this authorization after the original read-only baseline.
+  Simulated GPS is explicitly acceptable on staging.
+- Out: unrelated redesign, production testing/deployment, destructive cleanup
+  of customer-owned fixtures, and secrets in Git, screenshots, logs, reports,
+  or chat summaries.
 - Known non-pass items to classify explicitly: M1.7 is not implemented; M7.2
   proposed acceptance cases lack direct proof; all 66 PRD sections, 122
   module-wide criteria, and Q01-Q23 remain unsigned customer authority.
@@ -84,6 +87,12 @@ or edit records. Session 09 is read-only reconciliation/RBAC by default.
 Mutation-dependent cases use execution `NOT_RUN` with reason
 `MUTATION_NOT_AUTHORIZED`. A serialized disposable-data extension may run only
 after separate user authorization.
+
+That separate authorization was subsequently granted. The completed
+read-only sessions remain immutable baseline evidence; after the approved-rule
+release, a new serialized stateful extension must replace every
+`MUTATION_NOT_AUTHORIZED` row with observed postconditions or a concrete
+environment/fixture blocker.
 
 Recommended scheduler within a four-slot controller/worker budget:
 

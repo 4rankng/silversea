@@ -39,6 +39,13 @@ function nextPaymentRequestKey(): string {
     ?? `payment-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function paymentDraftFingerprint(amount: string, receiptId: string): string {
+  return JSON.stringify({
+    amount: amount.trim().replace(/[.,\s]/g, ''),
+    receiptId: receiptId.trim(),
+  });
+}
+
 function paymentResultMessage(result: PaymentReceiptResult, replayed: boolean): string {
   const allocated = formatCurrency(result.allocatedTotal);
   const unapplied = formatCurrency(result.unappliedAmount);
@@ -136,6 +143,16 @@ export default function DebtDetailPage() {
   const queryClient = useQueryClient();
   const { toast: showToast } = useToast();
 
+  const updatePaymentDraft = useCallback((next: { amount?: string; receiptId?: string }) => {
+    const nextAmount = next.amount ?? payAmount;
+    const nextReceiptId = next.receiptId ?? payReceipt;
+    if (paymentDraftFingerprint(nextAmount, nextReceiptId) !== paymentDraftFingerprint(payAmount, payReceipt)) {
+      setPayRequestKey(nextPaymentRequestKey());
+    }
+    if (next.amount !== undefined) setPayAmount(next.amount);
+    if (next.receiptId !== undefined) setPayReceipt(next.receiptId);
+  }, [payAmount, payReceipt]);
+
   // Agent "open/prefill" target: the bot can open this payment modal (and
   // prefill the amount) when the user is on this page — the "do it for you"
   // half of guidance. Read-only-safe: the user still reviews + submits.
@@ -144,9 +161,9 @@ export default function DebtDetailPage() {
     useCallback((d) => {
       const prefill = d.kind === 'prefill' ? d.values : d.prefill;
       const amount = prefill && typeof prefill.amount === 'number' ? prefill.amount : undefined;
-      if (amount !== undefined) setPayAmount(String(amount));
+      if (amount !== undefined) updatePaymentDraft({ amount: String(amount) });
       setShowPay(true);
-    }, []),
+    }, [updatePaymentDraft]),
   );
 
   const downloadExport = async (format: string) => {
@@ -736,8 +753,7 @@ export default function DebtDetailPage() {
               type="number"
               value={payAmount}
               onChange={e => {
-                setPayAmount(e.target.value);
-                setPayRequestKey(nextPaymentRequestKey());
+                updatePaymentDraft({ amount: e.target.value });
               }}
               placeholder="VD: 5000000"
               autoFocus
@@ -755,8 +771,7 @@ export default function DebtDetailPage() {
               className="input"
               value={payReceipt}
               onChange={e => {
-                setPayReceipt(e.target.value);
-                setPayRequestKey(nextPaymentRequestKey());
+                updatePaymentDraft({ receiptId: e.target.value });
               }}
               placeholder="VD: PT-20260601-01"
             />

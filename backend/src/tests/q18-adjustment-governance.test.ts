@@ -244,6 +244,7 @@ describe('Q18 bounded adjustment governance', () => {
       expectedTripVersion: trip.version,
     });
     assert.equal(action.status, 'PENDING_CHECK');
+    assert.equal(action.makerRole, Role.ACCOUNTANT);
     assert.equal(action.originalPeriodLockId, periodLock.id);
     assert.deepEqual(action.beforeSnapshot, {
       tripStatus: 'COMPLETED',
@@ -278,6 +279,7 @@ describe('Q18 bounded adjustment governance', () => {
       checkerRole: Role.MANAGER,
       expectedVersion: action.version,
     });
+    assert.equal(checked.checkerRole, Role.MANAGER);
     await expectApiError(
       approveGovernanceAction({
         actionId: action.id,
@@ -298,6 +300,12 @@ describe('Q18 bounded adjustment governance', () => {
     assert.equal(approved.makerId, actors[0]!.id);
     assert.equal(approved.checkerId, actors[1]!.id);
     assert.equal(approved.approverId, actors[2]!.id);
+    assert.equal(approved.approverRole, Role.ADMIN);
+    assert.deepEqual(approved.applicationResult, {
+      subjectType: 'TRIP',
+      subjectId: trip.id,
+      resultingVersion: trip.version + 1,
+    });
     assert.ok(approved.ledgerEntryId);
     const [unchangedTrip] = await db.select().from(s.trips).where(eq(s.trips.id, trip.id));
     assert.equal(unchangedTrip.revenue, '1000000');

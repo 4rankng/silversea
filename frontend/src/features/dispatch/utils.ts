@@ -31,6 +31,24 @@ export interface Toast {
   text: string;
 }
 
+export interface PairTripDraftState {
+  plannedStartAt: string;
+  plannedEndAt: string;
+  canonicalOrigin: string;
+  canonicalDestination: string;
+  cargoWeightKg: string;
+  vehicleCapacityKg: string;
+  expectedVersion?: number;
+}
+
+export interface PairingState {
+  secondTripId: string;
+  firstTrip: PairTripDraftState;
+  secondTrip: PairTripDraftState;
+  loading: boolean;
+  error: string;
+}
+
 const VN_WEEKDAYS = ['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
 const VN_MONTHS = ['tháng 1', 'tháng 2', 'tháng 3', 'tháng 4', 'tháng 5', 'tháng 6', 'tháng 7', 'tháng 8', 'tháng 9', 'tháng 10', 'tháng 11', 'tháng 12'];
 

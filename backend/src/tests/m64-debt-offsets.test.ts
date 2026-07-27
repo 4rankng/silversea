@@ -29,6 +29,7 @@ import {
 } from '../services/debtOffset.service';
 import { transitionApproval } from '../services/approval.service';
 import { LedgerService } from '../services/ledger.service';
+import { upsertPartnerFromTaxCode } from '../services/legal-partner.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdCustomerIds: number[] = [];
@@ -55,13 +56,19 @@ async function mkUser(role: 'ADMIN' | 'MANAGER' | 'DRIVER', tag: string) {
 
 /** Build a customer linked to a supplier (the dual-role partner). */
 async function mkLinkedPair() {
+  const taxCode = `0312${String(createdCustomerIds.length + 1).padStart(6, '0')}`;
+  const partnerId = await upsertPartnerFromTaxCode(taxCode);
   const [cust] = await db.insert(s.customers).values({
     name: `M64 customer ${suffix}-${createdCustomerIds.length}`,
+    taxCode,
+    partnerId,
   }).returning();
   createdCustomerIds.push(cust.id);
 
   const [sup] = await db.insert(s.suppliers).values({
     name: `M64 supplier ${suffix}-${createdSupplierIds.length}`,
+    taxCode,
+    partnerId,
     linkedCustomerId: cust.id,
   }).returning();
   createdSupplierIds.push(sup.id);
@@ -72,6 +79,19 @@ async function mkLinkedPair() {
     .where(eq(s.customers.id, cust.id));
 
   return { cust, sup };
+}
+
+async function mkDriftedPair() {
+  const pair = await mkLinkedPair();
+  const otherTaxCode = `0999${String(createdSupplierIds.length + 1).padStart(6, '0')}`;
+  const otherPartnerId = await upsertPartnerFromTaxCode(otherTaxCode);
+  await db.update(s.suppliers)
+    .set({ taxCode: otherTaxCode, partnerId: otherPartnerId, updatedAt: new Date() })
+    .where(eq(s.suppliers.id, pair.sup.id));
+  return {
+    cust: { ...pair.cust, partnerId: pair.cust.partnerId },
+    sup: { ...pair.sup, partnerId: otherPartnerId },
+  };
 }
 
 /** Post an AR debit on the customer (creates a receivable). */
@@ -108,6 +128,31 @@ async function postAp(supplierId: number, amount: number) {
 
 async function balance(entityType: 'CUSTOMER' | 'VENDOR', entityId: number): Promise<number> {
   return LedgerService.getBalance(entityType, entityId);
+}
+
+function offsetDraft(
+  customerId: number,
+  supplierId: number,
+  createdBy: number,
+  overrides: Partial<{
+    currency: 'VND';
+    offsetDate: string;
+    note: string;
+    minutesReference: string;
+    minutesDocumentHash: string | null;
+  }> = {},
+) {
+  return {
+    customerId,
+    supplierId,
+    currency: 'VND' as const,
+    offsetDate: '2026-07-15',
+    note: 'Biên bản đối trừ công nợ thử nghiệm',
+    minutesReference: `BB-M64-${suffix}-${customerId}-${supplierId}`,
+    minutesDocumentHash: 'm64-hash',
+    createdBy,
+    ...overrides,
+  };
 }
 
 // Node test runner runs `describe` blocks in order; the first describe
@@ -147,10 +192,7 @@ describe('M6.4 — M06-04-02 createDebtOffset validation', () => {
     await postAr(cust.id, 5_000_000);
     await postAp(sup.id, 3_000_000);
 
-    const offset = await createDebtOffset({
-      customerId: cust.id, supplierId: sup.id,
-      offsetDate: '2026-07-15', createdBy: adminUserId,
-    });
+    const offset = await createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId));
     createdOffsetIds.push(offset.id);
     assert.equal(Number(offset.amount), 3_000_000, 'clamped to smaller side');
     assert.equal(offset.approvalStatus, 'PENDING');
@@ -160,11 +202,38 @@ describe('M6.4 — M06-04-02 createDebtOffset validation', () => {
     const { cust, sup } = await mkLinkedPair();
     // No ledger entries → both balances zero.
     await assert.rejects(
-      () => createDebtOffset({
-        customerId: cust.id, supplierId: sup.id,
-        offsetDate: '2026-07-15', createdBy: adminUserId,
-      }),
+      () => createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId)),
       (err: Error & { statusCode?: number }) => err.statusCode === 400,
+    );
+  });
+
+  test('rejects when customer and supplier no longer share the same canonical partner', async () => {
+    const { cust, sup } = await mkDriftedPair();
+    await postAr(cust.id, 1_500_000);
+    await postAp(sup.id, 1_500_000);
+
+    await assert.rejects(
+      () => createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId)),
+      (err: Error & { statusCode?: number }) =>
+        err.statusCode === 400 && /không cùng pháp nhân/i.test(err.message),
+    );
+  });
+
+  test('rejects blank minutes reference and non-VND currency', async () => {
+    const { cust, sup } = await mkLinkedPair();
+    await postAr(cust.id, 1_500_000);
+    await postAp(sup.id, 1_500_000);
+
+    await assert.rejects(
+      () => createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId, { minutesReference: '   ' })),
+      (err: Error & { statusCode?: number }) =>
+        err.statusCode === 400 && /biên bản đối trừ/i.test(err.message),
+    );
+
+    await assert.rejects(
+      () => createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId, { currency: 'USD' as 'VND' })),
+      (err: Error & { statusCode?: number }) =>
+        err.statusCode === 400 && /cùng loại tiền/i.test(err.message),
     );
   });
 });
@@ -175,10 +244,7 @@ describe('M6.4 — M06-04-01 approve posts paired entries', () => {
     await postAr(cust.id, 4_000_000);
     await postAp(sup.id, 4_000_000);
 
-    const offset = await createDebtOffset({
-      customerId: cust.id, supplierId: sup.id,
-      offsetDate: '2026-07-15', createdBy: adminUserId,
-    });
+    const offset = await createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId));
     createdOffsetIds.push(offset.id);
 
     const arBefore = await balance('CUSTOMER', cust.id);
@@ -205,10 +271,7 @@ describe('M6.4 — M06-04-01 approve posts paired entries', () => {
     await postAr(cust.id, 1_000_000);
     await postAp(sup.id, 1_000_000);
 
-    const offset = await createDebtOffset({
-      customerId: cust.id, supplierId: sup.id,
-      offsetDate: '2026-07-15', createdBy: adminUserId,
-    });
+    const offset = await createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId));
     createdOffsetIds.push(offset.id);
     assert.equal(Number(offset.amount), 1_000_000);
 
@@ -236,10 +299,7 @@ describe('M6.4 — M06-04-03 rejection writes nothing', () => {
     await postAr(cust.id, 2_000_000);
     await postAp(sup.id, 1_500_000);
 
-    const offset = await createDebtOffset({
-      customerId: cust.id, supplierId: sup.id,
-      offsetDate: '2026-07-15', createdBy: adminUserId,
-    });
+    const offset = await createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId));
     createdOffsetIds.push(offset.id);
 
     const arBefore = await balance('CUSTOMER', cust.id);
@@ -265,10 +325,7 @@ describe('M6.4 — M06-04-03 cancel-after-approve uses reversal', () => {
     await postAr(cust.id, 6_000_000);
     await postAp(sup.id, 6_000_000);
 
-    const offset = await createDebtOffset({
-      customerId: cust.id, supplierId: sup.id,
-      offsetDate: '2026-07-15', createdBy: adminUserId,
-    });
+    const offset = await createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId));
     createdOffsetIds.push(offset.id);
 
     await approveDebtOffset(offset.id, managerUserId, 'MANAGER');
@@ -296,10 +353,7 @@ describe('M6.4 — M06-04-03 cancel-after-approve uses reversal', () => {
     await postAr(cust.id, 1_000_000);
     await postAp(sup.id, 1_000_000);
 
-    const offset = await createDebtOffset({
-      customerId: cust.id, supplierId: sup.id,
-      offsetDate: '2026-07-15', createdBy: adminUserId,
-    });
+    const offset = await createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId));
     createdOffsetIds.push(offset.id);
 
     await assert.rejects(
@@ -313,10 +367,7 @@ describe('M6.4 — M06-04-03 cancel-after-approve uses reversal', () => {
     await postAr(cust.id, 1_000_000);
     await postAp(sup.id, 1_000_000);
 
-    const offset = await createDebtOffset({
-      customerId: cust.id, supplierId: sup.id,
-      offsetDate: '2026-07-15', createdBy: adminUserId,
-    });
+    const offset = await createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId));
     createdOffsetIds.push(offset.id);
     await approveDebtOffset(offset.id, managerUserId, 'MANAGER');
     await cancelDebtOffset(offset.id, adminUserId, 'ADMIN');
@@ -339,10 +390,7 @@ describe('M6.4 — M06-04-03 cancel-after-approve uses reversal', () => {
     await postAr(cust.id, 6_000_000);
     await postAp(sup.id, 6_000_000);
 
-    const offset = await createDebtOffset({
-      customerId: cust.id, supplierId: sup.id,
-      offsetDate: '2026-07-15', createdBy: adminUserId,
-    });
+    const offset = await createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId));
     createdOffsetIds.push(offset.id);
     await approveDebtOffset(offset.id, managerUserId, 'MANAGER');
 
@@ -406,10 +454,7 @@ describe('M6.4 — M06-04-04 role guard', () => {
     const { cust, sup } = await mkLinkedPair();
     await postAr(cust.id, 1_000_000);
     await postAp(sup.id, 1_000_000);
-    const offset = await createDebtOffset({
-      customerId: cust.id, supplierId: sup.id,
-      offsetDate: '2026-07-15', createdBy: adminUserId,
-    });
+    const offset = await createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId));
     createdOffsetIds.push(offset.id);
     await approveDebtOffset(offset.id, managerUserId, 'MANAGER');
 
@@ -423,10 +468,7 @@ describe('M6.4 — M06-04-04 role guard', () => {
     const { cust, sup } = await mkLinkedPair();
     await postAr(cust.id, 1_000_000);
     await postAp(sup.id, 1_000_000);
-    const offset = await createDebtOffset({
-      customerId: cust.id, supplierId: sup.id,
-      offsetDate: '2026-07-15', createdBy: adminUserId,
-    });
+    const offset = await createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId));
     createdOffsetIds.push(offset.id);
 
     await assert.rejects(
@@ -439,10 +481,7 @@ describe('M6.4 — M06-04-04 role guard', () => {
     const { cust, sup } = await mkLinkedPair();
     await postAr(cust.id, 1_000_000);
     await postAp(sup.id, 1_000_000);
-    const offset = await createDebtOffset({
-      customerId: cust.id, supplierId: sup.id,
-      offsetDate: '2026-07-15', createdBy: adminUserId,
-    });
+    const offset = await createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId));
     createdOffsetIds.push(offset.id);
 
     await assert.rejects(
@@ -458,10 +497,7 @@ describe('M6.4 — M06-04-05 duplicate / concurrent approve', () => {
     const { cust, sup } = await mkLinkedPair();
     await postAr(cust.id, 1_000_000);
     await postAp(sup.id, 1_000_000);
-    const offset = await createDebtOffset({
-      customerId: cust.id, supplierId: sup.id,
-      offsetDate: '2026-07-15', createdBy: adminUserId,
-    });
+    const offset = await createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId));
     createdOffsetIds.push(offset.id);
 
     await approveDebtOffset(offset.id, managerUserId, 'MANAGER');
@@ -482,10 +518,7 @@ describe('M6.4 — M06-04-05 duplicate / concurrent approve', () => {
     const { cust, sup } = await mkLinkedPair();
     await postAr(cust.id, 4_000_000);
     await postAp(sup.id, 4_000_000);
-    const offset = await createDebtOffset({
-      customerId: cust.id, supplierId: sup.id,
-      offsetDate: '2026-07-15', createdBy: adminUserId,
-    });
+    const offset = await createDebtOffset(offsetDraft(cust.id, sup.id, adminUserId));
     createdOffsetIds.push(offset.id);
 
     // Fire both approvals concurrently. Resolve into a settled-result array

@@ -3,12 +3,18 @@ import { tripClient } from '../api/tripClient';
 import { configClient } from '../api/configClient';
 import { financialClient } from '../api/financialClient';
 import { qk } from '../api/keys';
-import type { TripDetail, Truck as TruckType, Driver as DriverType } from '@tingting/shared';
+import type {
+  TripDetail,
+  TripPairSummary,
+  Truck as TruckType,
+  Driver as DriverType,
+} from '@tingting/shared';
 import { useSalaryPeriod } from './useCatalogQueries';
 import { useAppSettings } from './useAppSettings';
 
 export interface NormalizedTrip {
   id: number;
+  version: number;
   customerId: number;
   customerName: string;
   customerReference?: string;
@@ -22,8 +28,15 @@ export interface NormalizedTrip {
   cargoTypeId: number;
   status: string;
   departureDate: string;
+  plannedStartAt?: string | null;
+  plannedEndAt?: string | null;
+  canonicalOrigin?: string | null;
+  canonicalDestination?: string | null;
+  cargoWeightKg?: string | null;
+  vehicleCapacityKg?: string | null;
   notes?: string;
   tripCode?: string;
+  pairing?: TripPairSummary | null;
   carrierType?: 'OWN' | 'EXTERNAL';
   externalCarrierId?: number | null;
   externalPlateNumber?: string | null;
@@ -35,6 +48,7 @@ export function normalizeTrip(t: TripDetail): NormalizedTrip {
   const isExternal = t.carrierType === 'EXTERNAL';
   return {
     id: t.id,
+    version: t.version,
     customerId: t.customerId,
     customerName: t.customer?.name ?? '',
     customerReference: t.customerReference ?? undefined,
@@ -48,8 +62,15 @@ export function normalizeTrip(t: TripDetail): NormalizedTrip {
     cargoTypeId: t.cargoTypeId,
     status: t.status,
     departureDate: t.departureDate ?? '',
+    plannedStartAt: t.plannedStartAt ?? null,
+    plannedEndAt: t.plannedEndAt ?? null,
+    canonicalOrigin: t.canonicalOrigin ?? null,
+    canonicalDestination: t.canonicalDestination ?? null,
+    cargoWeightKg: t.cargoWeightKg ?? null,
+    vehicleCapacityKg: t.vehicleCapacityKg ?? null,
     notes: t.notes ?? undefined,
     tripCode: t.tripCode ?? undefined,
+    pairing: t.pairing ?? null,
     carrierType: t.carrierType as 'OWN' | 'EXTERNAL' | undefined,
     externalCarrierId: t.externalCarrierId,
     externalPlateNumber: t.externalPlateNumber,

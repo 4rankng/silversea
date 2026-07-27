@@ -74,7 +74,7 @@ async function persistedTripSourceIds(tx: Tx, documentId: number): Promise<numbe
     .sort((left, right) => left - right);
 }
 
-function assertDraftDocumentLinesEditable(status: string | null): void {
+export function assertDraftDocumentLinesEditable(status: string | null): void {
   if ((status ?? 'DRAFT') !== 'DRAFT') {
     throw new ApiError(
       409,
@@ -104,6 +104,148 @@ export function documentLedgerAdjustment(lines: BillingDocumentLine[]): number {
     const effective = effectiveAmount(line);
     return sum + (line.sourceType === 'ADHOC' ? effective : effective - Number(line.baseAmount));
   }, 0));
+}
+
+export function buildTripSourceVersionToken(version: number | null | undefined): string | null {
+  return Number.isInteger(version) && Number(version) > 0 ? `trip:${version}` : null;
+}
+
+export function buildExpenseSourceVersionToken(input: {
+  updatedAt: Date | string | null | undefined;
+  approvalStatus: string | null | undefined;
+  sellAmount: string | number | null | undefined;
+}): string | null {
+  if (!input.updatedAt || !input.approvalStatus) return null;
+  const updatedAt = input.updatedAt instanceof Date
+    ? input.updatedAt.toISOString()
+    : new Date(input.updatedAt).toISOString();
+  return `expense:${updatedAt}:${input.approvalStatus}:${Number(input.sellAmount ?? 0)}`;
+}
+
+function renderSourceVersion(line: Pick<BillingDocumentLine, 'renderData'>): string | null {
+  const raw = line.renderData?.sourceVersion;
+  return typeof raw === 'string' && raw.trim() ? raw.trim() : null;
+}
+
+function renderSourceChangedAt(line: Pick<BillingDocumentLine, 'renderData'>): string | null {
+  const raw = line.renderData?.sourceChangedAt;
+  return typeof raw === 'string' && raw.trim() ? raw.trim() : null;
+}
+
+async function loadLineProvenance(
+  line: BillingDocumentLine,
+): Promise<BillingDocumentLine['provenance']> {
+  if (line.sourceType === 'ADHOC' || line.sourceId == null) return null;
+
+  const storedVersion = renderSourceVersion(line);
+  const storedChangedAt = renderSourceChangedAt(line);
+
+  if (line.sourceType === 'TRIP') {
+    const [trip] = await db.select({
+      id: s.trips.id,
+      version: s.trips.version,
+      updatedAt: s.trips.updatedAt,
+    })
+      .from(s.trips)
+      .where(and(eq(s.trips.id, line.sourceId), isNull(s.trips.deletedAt)))
+      .limit(1);
+
+    if (!trip) {
+      return {
+        sourceVersion: storedVersion,
+        currentSourceVersion: null,
+        sourceChangedAt: storedChangedAt,
+        status: 'REMOVED',
+        reason: 'Nguồn chuyến không còn tồn tại',
+      };
+    }
+
+    const currentVersion = buildTripSourceVersionToken(trip.version);
+    return {
+      sourceVersion: storedVersion,
+      currentSourceVersion: currentVersion,
+      sourceChangedAt: trip.updatedAt.toISOString(),
+      status: storedVersion === currentVersion ? 'CURRENT' : 'STALE',
+      reason: storedVersion === currentVersion ? null : 'Nguồn chuyến đã thay đổi sau khi lưu giấy báo nợ',
+    };
+  }
+
+  const [expense] = await db.select({
+    id: s.tripExpenses.id,
+    approvalStatus: s.tripExpenses.approvalStatus,
+    sellAmount: s.tripExpenses.sellAmount,
+    updatedAt: s.tripExpenses.updatedAt,
+  })
+    .from(s.tripExpenses)
+    .where(eq(s.tripExpenses.id, line.sourceId))
+    .limit(1);
+
+  if (!expense) {
+    return {
+      sourceVersion: storedVersion,
+      currentSourceVersion: null,
+      sourceChangedAt: storedChangedAt,
+      status: 'REMOVED',
+      reason: 'Nguồn chi phí không còn tồn tại',
+    };
+  }
+
+  const currentVersion = expense.approvalStatus === 'APPROVED'
+    ? buildExpenseSourceVersionToken(expense)
+    : null;
+  const removedReason = expense.approvalStatus === 'APPROVED'
+    ? null
+    : 'Chi phí không còn ở trạng thái APPROVED';
+  return {
+    sourceVersion: storedVersion,
+    currentSourceVersion: currentVersion,
+    sourceChangedAt: expense.updatedAt.toISOString(),
+    status: currentVersion == null
+      ? 'REMOVED'
+      : storedVersion === currentVersion
+        ? 'CURRENT'
+        : 'STALE',
+    reason: currentVersion == null
+      ? removedReason
+      : storedVersion === currentVersion
+        ? null
+        : 'Nguồn chi phí đã thay đổi sau khi lưu giấy báo nợ',
+  };
+}
+
+async function listDocumentCorrections(
+  documentId: number,
+): Promise<NonNullable<BillingDocument['corrections']>> {
+  const actions = await db.select({
+    id: s.governanceActions.id,
+    status: s.governanceActions.status,
+    reason: s.governanceActions.reason,
+    createdAt: s.governanceActions.createdAt,
+    approvedAt: s.governanceActions.approvedAt,
+    appliedAt: s.governanceActions.appliedAt,
+    ledgerEntryId: s.governanceActions.ledgerEntryId,
+    deltaSnapshot: s.governanceActions.deltaSnapshot,
+    applicationResult: s.governanceActions.applicationResult,
+  })
+    .from(s.governanceActions)
+    .where(and(
+      eq(s.governanceActions.subjectType, 'BILLING_DOCUMENT'),
+      eq(s.governanceActions.subjectId, documentId),
+      eq(s.governanceActions.actionKind, 'DEBIT_NOTE_ADJUSTMENT'),
+    ))
+    .orderBy(desc(s.governanceActions.createdAt));
+
+  return actions.map((action) => ({
+    actionId: action.id,
+    status: action.status,
+    reason: action.reason,
+    amount: Number((action.deltaSnapshot as Record<string, unknown> | null)?.adjustmentAmount ?? 0),
+    createdAt: action.createdAt.toISOString(),
+    approvedAt: action.approvedAt?.toISOString() ?? null,
+    appliedAt: action.appliedAt?.toISOString() ?? null,
+    ledgerEntryId: action.ledgerEntryId ?? null,
+    applicationResult: (action.applicationResult as Record<string, unknown> | null) ?? null,
+  }));
 }
 
 // ─── Billing document templates ───────────────────────────────────────────────
@@ -314,6 +456,7 @@ async function buildCustomerDebitLines(customerId: number, from: string, to: str
     id: s.trips.id, tripCode: s.trips.tripCode, departureDate: s.trips.departureDate,
     revenue: s.trips.revenue, routeName: s.routes.name, notes: s.trips.notes,
     truckPlate: s.trucks.licensePlate, externalPlateNumber: s.trips.externalPlateNumber,
+    version: s.trips.version, updatedAt: s.trips.updatedAt,
   }).from(s.trips)
     .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
     .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
@@ -336,6 +479,8 @@ async function buildCustomerDebitLines(customerId: number, from: string, to: str
       legs: legsByTrip.get(trip.id),
       note: trip.notes ?? null,
     });
+    renderData.sourceVersion = buildTripSourceVersionToken(trip.version);
+    renderData.sourceChangedAt = trip.updatedAt.toISOString();
     lines.push({
       sourceType: 'TRIP', sourceId: trip.id, lineType: 'FREIGHT',
       // Trip code is NOT inlined here — it has its own "Số chứng từ" column
@@ -366,6 +511,8 @@ async function buildCustomerDebitLines(customerId: number, from: string, to: str
           ...renderData,
           documentCode: expenseDocumentCode(fee),
           note: fee.billingLabel ?? fee.name ?? fee.expenseType,
+          sourceVersion: buildExpenseSourceVersionToken(fee),
+          sourceChangedAt: fee.updatedAt?.toISOString() ?? null,
         },
         baseAmount: amt, amountOverride: null, excluded: false, sortOrder: sortOrder++,
       });
@@ -527,14 +674,16 @@ type ApprovedFeeRenderInfo = {
   name: string | null;
   invoiceNumber: string | null;
   declarationNumber: string | null;
+  approvalStatus: string | null;
+  updatedAt: Date | null;
 };
 
-function containerNumbers(containers: ContainerRenderInfo[]): string[] | null {
+export function containerNumbers(containers: ContainerRenderInfo[]): string[] | null {
   const list = containers.map((c) => c.containerNumber).filter((n): n is string => Boolean(n));
   return list.length > 0 ? list : null;
 }
 
-function containerUnit(containers: ContainerRenderInfo[]): string {
+export function containerUnit(containers: ContainerRenderInfo[]): string {
   const c20 = countContainers(containers, '20');
   const c40 = countContainers(containers, '40');
   if (c20 > 0 && c40 === 0) return "20'";
@@ -542,7 +691,7 @@ function containerUnit(containers: ContainerRenderInfo[]): string {
   return 'cont';
 }
 
-function expenseDocumentCode(fee: Pick<ApprovedFeeRenderInfo, 'invoiceNumber' | 'declarationNumber'>): string | null {
+export function expenseDocumentCode(fee: Pick<ApprovedFeeRenderInfo, 'invoiceNumber' | 'declarationNumber'>): string | null {
   return fee.invoiceNumber?.trim() || fee.declarationNumber?.trim() || null;
 }
 
@@ -553,7 +702,7 @@ function countContainers(containers: ContainerRenderInfo[], size: '20' | '40'): 
   }).length;
 }
 
-function buildTripRenderData(input: {
+export function buildTripRenderData(input: {
   trip: {
     tripCode: string | null;
     departureDate: string;
@@ -589,10 +738,13 @@ function buildTripRenderData(input: {
   };
 }
 
-async function loadContainersByTrip(tripIds: number[]): Promise<Map<number, ContainerRenderInfo[]>> {
+export async function loadContainersByTrip(
+  tripIds: number[],
+  executor: Pick<Tx, 'select'> | typeof db = db,
+): Promise<Map<number, ContainerRenderInfo[]>> {
   const map = new Map<number, ContainerRenderInfo[]>();
   if (tripIds.length === 0) return map;
-  const rows = await db.select({
+  const rows = await executor.select({
     tripId: s.tripContainers.tripId,
     containerNumber: s.tripContainers.containerNumber,
     containerTypeCode: s.containerTypes.code,
@@ -611,10 +763,13 @@ async function loadContainersByTrip(tripIds: number[]): Promise<Map<number, Cont
   return map;
 }
 
-async function loadLegRenderDataByTrip(tripIds: number[]): Promise<Map<number, LegRenderInfo>> {
+export async function loadLegRenderDataByTrip(
+  tripIds: number[],
+  executor: Pick<Tx, 'select'> | typeof db = db,
+): Promise<Map<number, LegRenderInfo>> {
   const map = new Map<number, LegRenderInfo>();
   if (tripIds.length === 0) return map;
-  const rows = await db.select({
+  const rows = await executor.select({
     tripId: s.tripLegs.tripId,
     sequence: s.tripLegs.sequence,
     origin: s.tripLegs.origin,
@@ -644,6 +799,7 @@ async function loadApprovedFeesByTrip(tripIds: number[]): Promise<Map<number, Ap
     tripId: s.tripExpenses.tripId, id: s.tripExpenses.id,
     sellAmount: s.tripExpenses.sellAmount, expenseType: s.tripExpenses.expenseType,
     invoiceNumber: s.tripExpenses.invoiceNumber, declarationNumber: s.tripExpenses.declarationNumber,
+    approvalStatus: s.tripExpenses.approvalStatus, updatedAt: s.tripExpenses.updatedAt,
     billingLabel: s.forwarderExpenseTypes.billingLabel, name: s.forwarderExpenseTypes.name,
   }).from(s.tripExpenses)
     .leftJoin(s.forwarderExpenseTypes, eq(s.tripExpenses.expenseType, s.forwarderExpenseTypes.code))
@@ -683,7 +839,7 @@ export async function generateDraft(input: GenerateBillingDocumentInput): Promis
 
 // ─── Persistence + receivables reconciliation ────────────────────────────────
 
-async function postDebitNoteDelta(
+export async function postDebitNoteDelta(
   tx: Tx,
   input: {
     documentId: number;
@@ -1004,6 +1160,27 @@ async function hydrateDocument(doc: typeof s.billingDocuments.$inferSelect): Pro
   const lines = await db.select().from(s.billingDocumentLines)
     .where(eq(s.billingDocumentLines.documentId, doc.id))
     .orderBy(s.billingDocumentLines.sortOrder);
+  const hydratedLines = await Promise.all(lines.map(async (l) => {
+    const line: BillingDocumentLine = {
+      id: l.id, documentId: l.documentId, sourceType: l.sourceType as BillingDocumentLine['sourceType'],
+      sourceId: l.sourceId ?? null, lineType: l.lineType as BillingDocumentLine['lineType'],
+      typeLabel: l.typeLabel, unit: l.unit,
+      description: l.description, routeName: l.routeName,
+      containerNumbers: splitContainers(l.containerNumbers),
+      renderData: (l.renderData as BillingLineRenderData | null) ?? null,
+      baseAmount: Number(l.baseAmount), amountOverride: l.amountOverride != null ? Number(l.amountOverride) : null,
+      excluded: l.excluded, sortOrder: l.sortOrder,
+    };
+    const normalized = { ...line, description: canonicalFreightDescription(line) };
+    return {
+      ...normalized,
+      provenance: await loadLineProvenance(normalized),
+    };
+  }));
+  const authorityState = hydratedLines.some((line) => line.provenance?.status && line.provenance.status !== 'CURRENT')
+    ? ((doc.debitNoteStatus ?? 'DRAFT') === 'DRAFT' ? 'STALE' : 'ADJUSTMENT_REQUIRED')
+    : 'CURRENT';
+  const corrections = await listDocumentCorrections(doc.id);
   return {
     id: doc.id, type: doc.type as BillingDocumentType, entityType: doc.entityType as BillingDocumentEntityType,
     entityId: doc.entityId, entityName: doc.entityName ?? undefined,
@@ -1019,20 +1196,10 @@ async function hydrateDocument(doc: typeof s.billingDocuments.$inferSelect): Pro
     paymentDatePolicyApplied: doc.paymentDatePolicyApplied as PaymentDatePolicy | null,
     debitNoteTemplateId: doc.debitNoteTemplateId ?? null,
     debitNoteTemplateSnapshot: (doc.debitNoteTemplateSnapshot as DebitNoteTemplateSnapshot | null) ?? null,
+    authorityState,
+    corrections,
     createdAt: doc.createdAt.toISOString(), updatedAt: doc.updatedAt.toISOString(),
-    lines: lines.map((l) => {
-      const line: BillingDocumentLine = {
-        id: l.id, documentId: l.documentId, sourceType: l.sourceType as BillingDocumentLine['sourceType'],
-        sourceId: l.sourceId ?? null, lineType: l.lineType as BillingDocumentLine['lineType'],
-        typeLabel: l.typeLabel, unit: l.unit,
-        description: l.description, routeName: l.routeName,
-        containerNumbers: splitContainers(l.containerNumbers),
-        renderData: (l.renderData as BillingLineRenderData | null) ?? null,
-        baseAmount: Number(l.baseAmount), amountOverride: l.amountOverride != null ? Number(l.amountOverride) : null,
-        excluded: l.excluded, sortOrder: l.sortOrder,
-      };
-      return { ...line, description: canonicalFreightDescription(line) };
-    }),
+    lines: hydratedLines,
   };
 }
 

@@ -17,12 +17,27 @@ function moneyOrUndefined(value: string): number | undefined { return moneyInput
 function moneyOrNull(value: string): number | null { return moneyInputToNumber(value) ?? null; }
 type ServerContainerAfterSave = { id: number; containerTypeId?: number | null; containerNumber?: string | null; sealNumber?: string | null; cargoWeightKg?: string | number | null; notes?: string | null; seals?: Array<{ id: number; sealNumber: string; sealType?: string | null; notes?: string | null }>; photos?: Array<{ id: number; type: 'CONTAINER' | 'SEAL'; storageKey: string; uploadedAt: string }> };
 
-interface Params { state: UseTripFormStateReturn; isEditMode: boolean; existingTrip: TripDetail | undefined; legs: FormLeg[]; requiredFieldsFilled: number; hasOptionalData: boolean; photoUrls: string[]; flushPendingPhotos: (tripId: number) => Promise<string[]>; flushPendingContainerPhotos: (tripId: number, rowKeyToContainerId: Map<string, number>) => Promise<Map<string, string>>; }
-export function useTripFormSubmit({ state: s, isEditMode, existingTrip, legs, requiredFieldsFilled, hasOptionalData, photoUrls, flushPendingPhotos, flushPendingContainerPhotos }: Params): (e?: React.FormEvent) => Promise<number | undefined> {
+interface SubmitOptions {
+  creditApprovalRequestId?: number | null;
+}
+
+interface Params {
+  state: UseTripFormStateReturn;
+  isEditMode: boolean;
+  existingTrip: TripDetail | undefined;
+  legs: FormLeg[];
+  requiredFieldsFilled: number;
+  hasOptionalData: boolean;
+  photoUrls: string[];
+  flushPendingPhotos: (tripId: number) => Promise<string[]>;
+  flushPendingContainerPhotos: (tripId: number, rowKeyToContainerId: Map<string, number>) => Promise<Map<string, string>>;
+  onCreditLimitBlocked?: (details: { message: string; customerId: number; proposedAmount: number }) => void;
+}
+export function useTripFormSubmit({ state: s, isEditMode, existingTrip, legs, requiredFieldsFilled, hasOptionalData, photoUrls, flushPendingPhotos, flushPendingContainerPhotos, onCreditLimitBlocked }: Params): (e?: React.FormEvent, options?: SubmitOptions) => Promise<number | undefined> {
 const queryClient = useQueryClient();
 const { toast: showToast } = useToast();
 const handleSubmit = useCallback(
-  async (e?: React.FormEvent): Promise<number | undefined> => {
+  async (e?: React.FormEvent, options?: SubmitOptions): Promise<number | undefined> => {
     e?.preventDefault();
     s.setError("");
 
@@ -419,6 +434,10 @@ const handleSubmit = useCallback(
       const count = resolveContainerCount(s.containerCount);
       createPayload.containerCount = count;
       createPayload.containerTypeId = Number(s.plannedContainerTypeId || s.containerRows.find(r => r.containerTypeId)?.containerTypeId);
+      const effectiveCreditApprovalRequestId = options?.creditApprovalRequestId ?? null;
+      if (effectiveCreditApprovalRequestId != null) {
+        createPayload.creditApprovalRequestId = effectiveCreditApprovalRequestId;
+      }
       const trip = await api.post<{ id: number }>("/trips", createPayload);
 
       // Upload any create-mode OCR photos now that we have a trip id,
@@ -509,6 +528,18 @@ const handleSubmit = useCallback(
       await queryClient.invalidateQueries({ queryKey: qk.trips.all });
       return trip.id;
     } catch (err) {
+      if (
+        !isEditMode
+        && err instanceof ApiError
+        && err.status === 403
+        && err.message.includes('Khách hàng đã vượt hạn mức tín dụng')
+      ) {
+        onCreditLimitBlocked?.({
+          message: err.message,
+          customerId: Number(s.customerId),
+          proposedAmount: (Number(s.revenueEmptyReturn || 0) + Number(s.revenueCombine || 0)) || 0,
+        });
+      }
       if (isEditMode && err instanceof ApiError && err.status === 409) {
         const msg = "Version conflict: your local data is stale. Please reload.";
         s.setError(msg);
@@ -548,6 +579,7 @@ const handleSubmit = useCallback(
     s.contactName, s.contactPhone, s.instructionsNotes,
     flushPendingPhotos,
     flushPendingContainerPhotos,
+    onCreditLimitBlocked,
     s.carrierType, s.vatRate, s.externalCarrierId, s.externalFreightCost,
     s.externalPlateNumber, s.externalDriverName, s.externalDriverPhone,
     queryClient,

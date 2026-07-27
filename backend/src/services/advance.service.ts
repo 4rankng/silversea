@@ -11,6 +11,7 @@ import {
   resolveCustomerPaymentDueDate,
   type PaymentDatePolicy,
 } from './business-calendar.service';
+import { propagateExpenseApprovals } from './source-change.service';
 
 type ExpenseSnapshotSource = Pick<typeof s.tripExpenses.$inferSelect,
   'expenseType' | 'buyAmount' | 'sellAmount' | 'containerNumber' |
@@ -894,6 +895,10 @@ export async function approveAdvanceSettlement(id: number, approvedBy: number) {
         note: `Điều chỉnh phí chi hộ chuyến ${link.tripCode ?? ''}`.trim(),
         ...dueDateFields,
       });
+    }
+
+    if (pendingExpenseIds.length > 0) {
+      await propagateExpenseApprovals(tx, pendingExpenseIds);
     }
 
     const totalAmount = totalExpenseAmount + Number(settlement.refundAmount);

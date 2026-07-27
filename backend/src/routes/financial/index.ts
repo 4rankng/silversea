@@ -9,12 +9,17 @@ import reportsRoutes from './reports.routes';
 import advancesRoutes from './advances.routes';
 import debtOffsetsRoutes from './debt-offsets.routes';
 import billingDocumentsRoutes from './billing-documents.routes';
+import governanceActionsRoutes from './governance-actions.routes';
+import creditOverridesRoutes from './credit-overrides.routes';
 
 // Audit event registrations
 registerAuditEvent('POST', '/api/payments/receive', AuditEvent.PAYMENT_RECEIVED);
 registerAuditEvent('POST', '/api/adjustments', AuditEvent.ADJUSTMENT_CREATED);
 registerAuditEvent('POST', '/api/governance-actions/', '/check', AuditEvent.ENTITY_UPDATED);
 registerAuditEvent('POST', '/api/governance-actions/', '/approve', AuditEvent.ENTITY_UPDATED);
+registerAuditEvent('POST', '/api/governance-actions/', '/reject', AuditEvent.ENTITY_UPDATED);
+registerAuditEvent('POST', '/api/governance-actions/', '/return-for-evidence', AuditEvent.ENTITY_UPDATED);
+registerAuditEvent('POST', '/api/governance-actions/', '/cancel', AuditEvent.ENTITY_UPDATED);
 registerAuditEvent('POST', '/api/penalties', AuditEvent.PENALTY_CREATED);
 registerAuditEvent('POST', '/api/penalties/', '/cancel', AuditEvent.PENALTY_CANCELED);
 registerAuditEvent('POST', '/api/payments/vendor', AuditEvent.PAYMENT_RECEIVED);
@@ -27,9 +32,13 @@ registerAuditEvent('POST', '/api/advance-settlements/', '/approve', AuditEvent.E
 registerAuditEvent('POST', '/api/advance-settlements/', '/reject', AuditEvent.ENTITY_UPDATED);
 registerAuditEvent('POST', '/api/finance/debt-offsets/', '/approve', AuditEvent.ENTITY_UPDATED);
 registerAuditEvent('POST', '/api/finance/debt-offsets', AuditEvent.ENTITY_CREATED);
+registerAuditEvent('POST', '/api/finance/credit-overrides', AuditEvent.ENTITY_CREATED);
+registerAuditEvent('POST', '/api/finance/credit-overrides/', '/approve', AuditEvent.ENTITY_UPDATED);
 
 const router = Router();
 
+router.use(governanceActionsRoutes);
+router.use(creditOverridesRoutes);
 router.use(ledgerRoutes);
 router.use(paymentsRoutes);
 router.use(penaltiesRoutes);

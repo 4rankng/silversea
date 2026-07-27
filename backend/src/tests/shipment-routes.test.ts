@@ -74,6 +74,7 @@ let cargoTypeId: number;
 let containerTypeId: number;
 let adminUserId: number;
 let managerUserId: number;
+let accountantUserId: number;
 let clerkUserId: number;
 let clerkBusinessUnitId: number;
 let secondaryClerkBusinessUnitId: number;
@@ -215,6 +216,7 @@ before(async () => {
   forwarderToken = sign(forwarder);
   adminUserId = admin.id;
   managerUserId = manager.id;
+  accountantUserId = accountant.id;
   clerkUserId = clerk.id;
 
   const customerRow = await mkCustomer();
@@ -421,6 +423,124 @@ describe('GET /', () => {
     const r = await testFetch('/?status=DRAFT', { token: adminToken });
     assert.equal(r.status, 200);
     assert.ok(r.data.items.some((x: { id: number }) => x.id === draft.id));
+  });
+
+  test('enforces unit AND customer-or-explicit-shipment scope for list totals and every child write', async () => {
+    const baseline = await testFetch('/?page=1&limit=200', { token: clerkToken });
+    assert.equal(baseline.status, 200);
+
+    const unassignedCustomer = await mkCustomer();
+    const wrongUnit = await mkBusinessUnit();
+    const customerScoped = await mkShipmentViaService({
+      customerId,
+      responsibleUnitId: clerkBusinessUnitId,
+    });
+    const explicitlyScoped = await mkShipmentViaService({
+      customerId: unassignedCustomer.id,
+      responsibleUnitId: clerkBusinessUnitId,
+    });
+    const sameUnitUnassignedCustomer = await mkShipmentViaService({
+      customerId: unassignedCustomer.id,
+      responsibleUnitId: clerkBusinessUnitId,
+    });
+    const assignedCustomerWrongUnit = await mkShipmentViaService({
+      customerId,
+      responsibleUnitId: wrongUnit.id,
+    });
+    await db.insert(s.userShipmentLinks).values({
+      userId: clerkUserId,
+      shipmentId: explicitlyScoped.id,
+    });
+
+    const scopedList = await testFetch('/?page=1&limit=200', { token: clerkToken });
+    assert.equal(scopedList.status, 200);
+    assert.equal(scopedList.data.total, baseline.data.total + 2);
+    assert.equal(scopedList.data.items.length, scopedList.data.total);
+    const visibleIds = new Set(scopedList.data.items.map((row: { id: number }) => row.id));
+    assert.ok(visibleIds.has(customerScoped.id), 'same unit + assigned customer is visible');
+    assert.ok(visibleIds.has(explicitlyScoped.id), 'same unit + explicit shipment is visible');
+    assert.ok(!visibleIds.has(sameUnitUnassignedCustomer.id), 'same unit without customer/shipment assignment is hidden');
+    assert.ok(!visibleIds.has(assignedCustomerWrongUnit.id), 'assigned customer in a wrong unit is hidden');
+
+    const wrongUnitDetail = await testFetch(`/${assignedCustomerWrongUnit.id}`, { token: clerkToken });
+    assert.equal(wrongUnitDetail.status, 404);
+    const unassignedDetail = await testFetch(`/${sameUnitUnassignedCustomer.id}`, { token: clerkToken });
+    assert.equal(unassignedDetail.status, 404);
+
+    const deniedUpdate = await testFetch(`/${sameUnitUnassignedCustomer.id}`, {
+      method: 'PUT',
+      token: clerkToken,
+      body: {
+        expectedVersion: sameUnitUnassignedCustomer.version,
+        contactName: 'Không được phép',
+      },
+    });
+    assert.equal(deniedUpdate.status, 404);
+
+    const deniedContainers = await testFetch(`/${sameUnitUnassignedCustomer.id}/containers`, {
+      method: 'PUT',
+      token: clerkToken,
+      body: {
+        expectedVersion: sameUnitUnassignedCustomer.version,
+        containers: [],
+      },
+    });
+    assert.equal(deniedContainers.status, 404);
+
+    const deniedDocument = await testFetch(`/${sameUnitUnassignedCustomer.id}/documents`, {
+      method: 'POST',
+      token: clerkToken,
+      body: {
+        type: ShipmentDocumentType.BL,
+        storageKey: `uploads/shipment-${sameUnitUnassignedCustomer.id}/denied.pdf`,
+      },
+    });
+    assert.equal(deniedDocument.status, 404);
+
+    const adminDocument = await testFetch(`/${sameUnitUnassignedCustomer.id}/documents`, {
+      method: 'POST',
+      token: adminToken,
+      body: {
+        type: ShipmentDocumentType.BL,
+        storageKey: `uploads/shipment-${sameUnitUnassignedCustomer.id}/admin.pdf`,
+      },
+    });
+    assert.equal(adminDocument.status, 201);
+    const deniedReplacement = await testFetch(
+      `/${sameUnitUnassignedCustomer.id}/documents/${adminDocument.data.id}/replace`,
+      {
+        method: 'POST',
+        token: clerkToken,
+        body: {
+          expectedVersion: sameUnitUnassignedCustomer.version,
+          storageKey: `uploads/shipment-${sameUnitUnassignedCustomer.id}/denied-v2.pdf`,
+        },
+      },
+    );
+    assert.equal(deniedReplacement.status, 404);
+
+    const deniedDeclarationCreate = await testFetch(`/${sameUnitUnassignedCustomer.id}/declarations`, {
+      method: 'POST',
+      token: clerkToken,
+      body: { declarationNumber: 'DENIED-Q17' },
+    });
+    assert.equal(deniedDeclarationCreate.status, 404);
+
+    const adminDeclaration = await testFetch(`/${sameUnitUnassignedCustomer.id}/declarations`, {
+      method: 'POST',
+      token: adminToken,
+      body: { declarationNumber: 'ADMIN-Q17' },
+    });
+    assert.equal(adminDeclaration.status, 201);
+    const deniedDeclarationUpdate = await testFetch(
+      `/${sameUnitUnassignedCustomer.id}/declarations/${adminDeclaration.data.id}`,
+      {
+        method: 'PUT',
+        token: clerkToken,
+        body: { declarationNumber: 'DENIED-Q17-UPDATE' },
+      },
+    );
+    assert.equal(deniedDeclarationUpdate.status, 404);
   });
 
   test('rejects an invalid status with 400', async () => {
@@ -786,7 +906,7 @@ describe('PUT /:id/containers', () => {
     const shipment = await mkShipmentViaService();
     const body = {
       expectedVersion: shipment.version,
-      containers: [{ containerTypeId, containerNumber: 'MSCU6639871' }],
+      containers: [{ containerTypeId, containerNumber: 'MSKU1234565' }],
     };
     const [first, second] = await Promise.all([
       testFetch(`/${shipment.id}/containers`, { method: 'PUT', token: adminToken, body }),
@@ -846,7 +966,11 @@ describe('POST /:id/documents', () => {
     const replaced = await testFetch(`/${shipment.id}/documents/${created.data.id}/replace`, {
       method: 'POST',
       token: clerkToken,
-      body: { storageKey: `uploads/shipment-${shipment.id}/do-v2.pdf`, expiresAt: '2026-08-01' },
+      body: {
+        expectedVersion: shipment.version,
+        storageKey: `uploads/shipment-${shipment.id}/do-v2.pdf`,
+        expiresAt: '2026-08-01',
+      },
     });
     assert.equal(replaced.status, 201);
     assert.equal(replaced.data.storageKey, `uploads/shipment-${shipment.id}/do-v2.pdf`);
@@ -856,6 +980,63 @@ describe('POST /:id/documents', () => {
       .where(eq(s.shipmentDocuments.shipmentId, shipment.id));
     const oldRow = rows.find((row) => row.id === created.data.id);
     assert.equal(oldRow?.replacedBy, replaced.data.id);
+  });
+
+  test('binds replacement to the path shipment and rejects concurrent successors', async () => {
+    const shipmentA = await mkClerkScopedShipmentViaService();
+    const shipmentB = await mkClerkScopedShipmentViaService();
+    const created = await testFetch(`/${shipmentB.id}/documents`, {
+      method: 'POST',
+      token: clerkToken,
+      body: { type: ShipmentDocumentType.BL, storageKey: `uploads/shipment-${shipmentB.id}/bl-v1.pdf` },
+    });
+    assert.equal(created.status, 201);
+
+    const wrongPath = await testFetch(`/${shipmentA.id}/documents/${created.data.id}/replace`, {
+      method: 'POST',
+      token: clerkToken,
+      body: {
+        expectedVersion: shipmentA.version,
+        storageKey: `uploads/shipment-${shipmentA.id}/wrong.pdf`,
+      },
+    });
+    assert.equal(wrongPath.status, 404);
+
+    const body = {
+      expectedVersion: shipmentB.version,
+      storageKey: `uploads/shipment-${shipmentB.id}/bl-v2.pdf`,
+    };
+    const [first, second] = await Promise.all([
+      testFetch(`/${shipmentB.id}/documents/${created.data.id}/replace`, {
+        method: 'POST',
+        token: clerkToken,
+        body,
+      }),
+      testFetch(`/${shipmentB.id}/documents/${created.data.id}/replace`, {
+        method: 'POST',
+        token: clerkToken,
+        body: { ...body, storageKey: `uploads/shipment-${shipmentB.id}/bl-v3.pdf` },
+      }),
+    ]);
+    assert.deepEqual([first.status, second.status].sort(), [201, 409]);
+
+    const oldRows = await db.select()
+      .from(s.shipmentDocuments)
+      .where(eq(s.shipmentDocuments.id, created.data.id));
+    assert.ok(oldRows[0]?.replacedBy, 'old document links exactly one winning successor');
+    const successors = await db.select()
+      .from(s.shipmentDocuments)
+      .where(and(
+        eq(s.shipmentDocuments.shipmentId, shipmentB.id),
+        inArray(
+          s.shipmentDocuments.storageKey,
+          [
+            `uploads/shipment-${shipmentB.id}/bl-v2.pdf`,
+            `uploads/shipment-${shipmentB.id}/bl-v3.pdf`,
+          ],
+        ),
+      ));
+    assert.equal(successors.length, 1);
   });
 });
 
@@ -1069,6 +1250,126 @@ describe('POST /:id/change-requests/:requestId/review', () => {
       ));
     const recipientIds = notifications.map((row) => row.userId).sort((a, b) => a - b);
     assert.deepEqual(recipientIds, [adminUserId, managerUserId]);
+  });
+
+  test('stale apply conflicts but stale reject closes the request and targets only its requester', async () => {
+    const { transitionShipmentStatus } = await import('../services/shipment.service');
+    const shipment = await mkClerkScopedShipmentViaService({ pickupLocation: 'Kho nguồn' });
+    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.IN_PROGRESS);
+    const requestResponse = await testFetch(`/${shipment.id}`, {
+      method: 'PUT',
+      token: clerkToken,
+      body: { expectedVersion: dispatched.version, pickupLocation: 'Kho đề xuất' },
+    });
+    assert.equal(requestResponse.status, 200);
+    const requestId = requestResponse.data.changeRequestId as number;
+
+    const directUpdate = await testFetch(`/${shipment.id}`, {
+      method: 'PUT',
+      token: adminToken,
+      body: {
+        expectedVersion: dispatched.version,
+        contactName: 'Điều phối cập nhật',
+      },
+    });
+    assert.equal(directUpdate.status, 200);
+    assert.equal(directUpdate.data.version, dispatched.version + 1);
+
+    const staleApply = await testFetch(`/${shipment.id}/change-requests/${requestId}/review`, {
+      method: 'POST',
+      token: managerToken,
+      body: { resolution: 'APPLIED' },
+    });
+    assert.equal(staleApply.status, 409);
+
+    const staleReject = await testFetch(`/${shipment.id}/change-requests/${requestId}/review`, {
+      method: 'POST',
+      token: managerToken,
+      body: { resolution: 'REJECTED' },
+    });
+    assert.equal(staleReject.status, 200);
+    assert.equal(staleReject.data.resolution, 'REJECTED');
+    assert.equal(staleReject.data.shipmentVersion, dispatched.version + 1);
+
+    const pending = await db.select({ id: s.shipmentChangeRequests.id })
+      .from(s.shipmentChangeRequests)
+      .where(eq(s.shipmentChangeRequests.id, requestId));
+    assert.equal(pending.length, 0);
+
+    const decisionRows = await db.select({ userId: s.notifications.userId })
+      .from(s.notifications)
+      .where(and(
+        eq(s.notifications.relatedEntityType, 'shipments'),
+        eq(s.notifications.relatedEntityId, shipment.id),
+        eq(s.notifications.title, 'Yêu cầu thay đổi lô hàng đã bị từ chối'),
+      ));
+    assert.deepEqual(decisionRows.map((row) => row.userId), [clerkUserId]);
+    assert.ok(!decisionRows.some((row) => row.userId === accountantUserId));
+  });
+
+  test('ADMIN and MANAGER first-decision review has exactly one winner', async () => {
+    const { transitionShipmentStatus } = await import('../services/shipment.service');
+    const shipment = await mkClerkScopedShipmentViaService({ deliveryLocation: 'Điểm cũ' });
+    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.IN_PROGRESS);
+    const requestResponse = await testFetch(`/${shipment.id}`, {
+      method: 'PUT',
+      token: clerkToken,
+      body: { expectedVersion: dispatched.version, deliveryLocation: 'Điểm mới' },
+    });
+    assert.equal(requestResponse.status, 200);
+    const requestId = requestResponse.data.changeRequestId as number;
+
+    const [apply, reject] = await Promise.all([
+      testFetch(`/${shipment.id}/change-requests/${requestId}/review`, {
+        method: 'POST',
+        token: managerToken,
+        body: { resolution: 'APPLIED' },
+      }),
+      testFetch(`/${shipment.id}/change-requests/${requestId}/review`, {
+        method: 'POST',
+        token: adminToken,
+        body: { resolution: 'REJECTED' },
+      }),
+    ]);
+    assert.deepEqual([apply.status, reject.status].sort(), [200, 404]);
+
+    const pending = await db.select({ id: s.shipmentChangeRequests.id })
+      .from(s.shipmentChangeRequests)
+      .where(eq(s.shipmentChangeRequests.id, requestId));
+    assert.equal(pending.length, 0);
+    const decisionRows = await db.select({ id: s.notifications.id })
+      .from(s.notifications)
+      .where(and(
+        eq(s.notifications.relatedEntityType, 'shipments'),
+        eq(s.notifications.relatedEntityId, shipment.id),
+        inArray(s.notifications.title, [
+          'Yêu cầu thay đổi lô hàng đã được áp dụng',
+          'Yêu cầu thay đổi lô hàng đã bị từ chối',
+        ]),
+      ));
+    assert.equal(decisionRows.length, 1);
+  });
+
+  test('ACCOUNTANT cannot review a shipment change request', async () => {
+    const { transitionShipmentStatus } = await import('../services/shipment.service');
+    const shipment = await mkClerkScopedShipmentViaService({ pickupLocation: 'Kho A' });
+    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.IN_PROGRESS);
+    const requestResponse = await testFetch(`/${shipment.id}`, {
+      method: 'PUT',
+      token: clerkToken,
+      body: { expectedVersion: dispatched.version, pickupLocation: 'Kho B' },
+    });
+    assert.equal(requestResponse.status, 200);
+
+    const denied = await testFetch(
+      `/${shipment.id}/change-requests/${requestResponse.data.changeRequestId}/review`,
+      {
+        method: 'POST',
+        token: accountantToken,
+        body: { resolution: 'REJECTED' },
+      },
+    );
+    assert.equal(denied.status, 403);
   });
 });
 

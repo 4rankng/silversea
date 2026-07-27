@@ -16,6 +16,8 @@ import {
   recordPaymentReceiptIdempotent,
   type PaymentReceiptInput,
 } from './payment-allocation.service';
+import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from './idempotency.service';
+import type { Tx } from './trip-shared';
 
 // ─── Payment recording ─────────────────────────────────────────────────────────
 
@@ -30,6 +32,46 @@ export async function recordPayment(input: PaymentInput) {
 }
 
 export { recordPaymentReceiptIdempotent };
+
+type LedgerEntryRow = typeof s.ledger.$inferSelect;
+type PenaltyRow = typeof s.penalties.$inferSelect;
+type VendorPaymentResult = LedgerEntryRow & {
+  warning?: string;
+  overpayment?: number;
+};
+
+function buildVendorOverpaymentWarning(previousBalance: number, paymentAmount: number) {
+  return `Thanh toán ${paymentAmount.toLocaleString('vi-VN')}₫ vượt công nợ hiện tại ${previousBalance.toLocaleString('vi-VN')}₫. Số dư sẽ âm. Bạn có chắc chắn muốn tiếp tục?`;
+}
+
+function buildCarrierOverpaymentWarning(previousBalance: number, paymentAmount: number) {
+  return `Thanh toán ${paymentAmount.toLocaleString('vi-VN')}₫ vượt công nợ thuê ngoài hiện tại ${previousBalance.toLocaleString('vi-VN')}₫. Bạn có chắc chắn muốn tiếp tục?`;
+}
+
+async function loadLedgerEntryTx(tx: Tx, ledgerId: number): Promise<LedgerEntryRow> {
+  const [row] = await tx.select().from(s.ledger)
+    .where(eq(s.ledger.id, ledgerId))
+    .limit(1);
+  if (!row) {
+    throw new ApiError(404, 'Không tìm thấy bút toán');
+  }
+  return row;
+}
+
+function applyOverpaymentMetadata(
+  row: LedgerEntryRow,
+  warningBuilder: (previousBalance: number, paymentAmount: number) => string,
+): VendorPaymentResult {
+  const newBalance = Number(row.balance);
+  if (newBalance >= 0) return row;
+  const paymentAmount = Number(row.debit);
+  const previousBalance = newBalance + paymentAmount;
+  return {
+    ...row,
+    warning: warningBuilder(previousBalance, paymentAmount),
+    overpayment: Math.abs(newBalance),
+  };
+}
 
 // ─── Driver payout (B1 — feedback202606 GAP 4) ───────────────────────────────
 
@@ -50,38 +92,63 @@ export interface DriverPayoutInput {
  * (debit may not exceed the current payable balance + 1 for rounding), then
  * post a single append-only ledger entry.
  */
+async function recordDriverPayoutTx(tx: Tx, input: DriverPayoutInput): Promise<LedgerEntryRow> {
+  // Resolve driver name for a human-readable overpay error message
+  // (no raw IDs in UI text — per project convention).
+  const [driver] = await tx.select({ name: s.drivers.name })
+    .from(s.drivers)
+    .where(eq(s.drivers.id, input.driverId))
+    .limit(1);
+  const driverLabel = driver?.name ?? `ID ${input.driverId}`;
+
+  // Advisory lock — serialize concurrent payouts for the same driver
+  await LedgerService.lockEntity(tx, 'DRIVER', input.driverId);
+
+  // DRIVER ledger balance = payable (what the company still owes the driver).
+  const balance = await LedgerService.getBalanceTx(tx, 'DRIVER', input.driverId);
+  if (input.amount > balance + 1) {  // +1 to absorb rounding
+    throw new ApiError(422,
+      `Số thanh toán vượt quá số công nợ còn lại của lái xe ${driverLabel} (còn ${balance.toLocaleString('vi-VN')} ₫, nhập ${input.amount.toLocaleString('vi-VN')} ₫)`);
+  }
+
+  const methodLabel = input.method === 'BANK' ? 'chuyển khoản' : 'tiền mặt';
+  const note = `Thanh toán lương (${methodLabel}) — ${input.payoutDate}${input.note ? ' — ' + input.note : ''}`;
+
+  return LedgerService.postEntry(tx, {
+    txnType: TxnType.DRIVER_PAYOUT,
+    entityType: 'DRIVER',
+    entityId: input.driverId,
+    debit: input.amount,
+    credit: 0,
+    receiptId: input.receiptId,
+    note,
+  });
+}
+
 export async function recordDriverPayout(input: DriverPayoutInput) {
-  return db.transaction(async (tx) => {
-    // Resolve driver name for a human-readable overpay error message
-    // (no raw IDs in UI text — per project convention).
-    const [driver] = await tx.select({ name: s.drivers.name })
-      .from(s.drivers)
-      .where(eq(s.drivers.id, input.driverId))
-      .limit(1);
-    const driverLabel = driver?.name ?? `ID ${input.driverId}`;
+  return db.transaction((tx) => recordDriverPayoutTx(tx, input));
+}
 
-    // Advisory lock — serialize concurrent payouts for the same driver
-    await LedgerService.lockEntity(tx, 'DRIVER', input.driverId);
-
-    // DRIVER ledger balance = payable (what the company still owes the driver).
-    const balance = await LedgerService.getBalanceTx(tx, 'DRIVER', input.driverId);
-    if (input.amount > balance + 1) {  // +1 to absorb rounding
-      throw new ApiError(422,
-        `Số thanh toán vượt quá số công nợ còn lại của lái xe ${driverLabel} (còn ${balance.toLocaleString('vi-VN')} ₫, nhập ${input.amount.toLocaleString('vi-VN')} ₫)`);
-    }
-
-    const methodLabel = input.method === 'BANK' ? 'chuyển khoản' : 'tiền mặt';
-    const note = `Thanh toán lương (${methodLabel}) — ${input.payoutDate}${input.note ? ' — ' + input.note : ''}`;
-
-    return LedgerService.postEntry(tx, {
-      txnType: TxnType.DRIVER_PAYOUT,
-      entityType: 'DRIVER',
-      entityId: input.driverId,
-      debit: input.amount,
-      credit: 0,
-      receiptId: input.receiptId,
-      note,
-    });
+export async function recordDriverPayoutIdempotent(args: {
+  input: DriverPayoutInput;
+  idempotencyKey: string | undefined;
+  createdBy?: number | null;
+}) {
+  return runIdempotent<LedgerEntryRow>({
+    endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_PAYOUT,
+    idempotencyKey: args.idempotencyKey,
+    payload: {
+      driverId: args.input.driverId,
+      amount: args.input.amount,
+      method: args.input.method,
+      payoutDate: args.input.payoutDate,
+      note: args.input.note ?? '',
+      receiptId: args.input.receiptId ?? '',
+    },
+    createdBy: args.createdBy ?? null,
+    entityType: 'ledger',
+    create: async (tx) => recordDriverPayoutTx(tx, args.input),
+    load: async (entityId, tx) => loadLedgerEntryTx(tx, entityId),
   });
 }
 
@@ -136,41 +203,83 @@ export interface PenaltyInput {
 /**
  * Create a driver penalty and post the corresponding ledger entry.
  */
+async function loadPenaltyTx(tx: Tx, penaltyId: number): Promise<PenaltyRow> {
+  const [row] = await tx.select().from(s.penalties)
+    .where(eq(s.penalties.id, penaltyId))
+    .limit(1);
+  if (!row) {
+    throw new ApiError(404, 'Không tìm thấy kỷ luật');
+  }
+  return row;
+}
+
+function toPenaltyCreateSnapshot(row: PenaltyRow): PenaltyRow {
+  return {
+    ...row,
+    status: 'ACTIVE',
+    updatedAt: row.createdAt,
+  };
+}
+
+async function createPenaltyTx(tx: Tx, input: PenaltyInput): Promise<PenaltyRow> {
+  // Advisory lock to prevent concurrent penalty races
+  await LedgerService.lockEntity(tx, 'DRIVER', input.driverId);
+
+  const [penalty] = await tx.insert(s.penalties).values({
+    driverId: input.driverId,
+    tripId: input.tripId ?? null,
+    reasonId: input.reasonId ?? null,
+    customReason: input.customReason ?? null,
+    amount: String(input.amount),
+    date: input.date,
+  }).returning();
+
+  // Resolve trip code so the driver's ledger note reads naturally.
+  let tripLabel = '';
+  if (input.tripId) {
+    const [trip] = await tx.select({ tripCode: s.trips.tripCode })
+      .from(s.trips).where(eq(s.trips.id, input.tripId)).limit(1);
+    tripLabel = trip?.tripCode || '';
+  }
+
+  await LedgerService.postEntry(tx, {
+    txnType: TxnType.PENALTY,
+    txnId: penalty.id,
+    entityType: 'DRIVER',
+    entityId: input.driverId,
+    debit: input.amount,
+    credit: 0,
+    note: input.customReason
+      || (tripLabel ? `Kỷ luật chuyến ${tripLabel}` : 'Kỷ luật vi phạm'),
+  });
+
+  return penalty;
+}
+
 export async function createPenalty(input: PenaltyInput) {
-  return db.transaction(async (tx) => {
-    // Advisory lock to prevent concurrent penalty races
-    await LedgerService.lockEntity(tx, 'DRIVER', input.driverId);
+  return db.transaction((tx) => createPenaltyTx(tx, input));
+}
 
-    const [penalty] = await tx.insert(s.penalties).values({
-      driverId: input.driverId,
-      tripId: input.tripId ?? null,
-      reasonId: input.reasonId ?? null,
-      customReason: input.customReason ?? null,
-      amount: String(input.amount),
-      date: input.date,
-    }).returning();
-
-    // Resolve trip code so the driver's ledger note reads naturally.
-    let tripLabel = '';
-    if (input.tripId) {
-      const [trip] = await tx.select({ tripCode: s.trips.tripCode })
-        .from(s.trips).where(eq(s.trips.id, input.tripId)).limit(1);
-      tripLabel = trip?.tripCode || '';
-    }
-
-    // Create ledger entry for driver
-    await LedgerService.postEntry(tx, {
-      txnType: TxnType.PENALTY,
-      txnId: penalty.id,
-      entityType: 'DRIVER',
-      entityId: input.driverId,
-      debit: input.amount,
-      credit: 0,
-      note: input.customReason
-        || (tripLabel ? `Kỷ luật chuyến ${tripLabel}` : 'Kỷ luật vi phạm'),
-    });
-
-    return penalty;
+export async function createPenaltyIdempotent(args: {
+  input: PenaltyInput;
+  idempotencyKey: string | undefined;
+  createdBy?: number | null;
+}) {
+  return runIdempotent<PenaltyRow>({
+    endpoint: IDEMPOTENCY_ENDPOINTS.PENALTIES_CREATE,
+    idempotencyKey: args.idempotencyKey,
+    payload: {
+      driverId: args.input.driverId,
+      tripId: args.input.tripId ?? null,
+      reasonId: args.input.reasonId ?? null,
+      customReason: args.input.customReason ?? '',
+      amount: args.input.amount,
+      date: args.input.date,
+    },
+    createdBy: args.createdBy ?? null,
+    entityType: 'penalty',
+    create: async (tx) => createPenaltyTx(tx, args.input),
+    load: async (entityId, tx) => toPenaltyCreateSnapshot(await loadPenaltyTx(tx, entityId)),
   });
 }
 
@@ -201,39 +310,61 @@ export async function getPenalties(driverId?: number) {
 /**
  * Cancel (void) a penalty — reverses the driver ledger entry.
  */
+async function cancelPenaltyTx(tx: Tx, penaltyId: number, reason?: string): Promise<PenaltyRow> {
+  const [penalty] = await tx.select().from(s.penalties)
+    .where(eq(s.penalties.id, penaltyId))
+    .limit(1)
+    .for('update');
+  if (!penalty) throw new ApiError(404, 'Không tìm thấy kỷ luật');
+  if (penalty.status === 'CANCELED') throw new ApiError(409, 'Kỷ luật đã được hủy trước đó');
+
+  // Lock order: controlling penalty row first, then shared driver ledger lock.
+  // That matches the Q23 first-winner pattern and avoids duplicate reversals.
+  await LedgerService.lockEntity(tx, 'DRIVER', penalty.driverId);
+
+  const [claimed] = await tx.update(s.penalties)
+    .set({ status: 'CANCELED', updatedAt: new Date() })
+    .where(and(
+      eq(s.penalties.id, penaltyId),
+      eq(s.penalties.status, 'ACTIVE'),
+    ))
+    .returning();
+  if (!claimed) throw new ApiError(409, 'Kỷ luật đã bị hủy bởi người khác. Vui lòng tải lại.');
+
+  await LedgerService.postEntry(tx, {
+    txnType: TxnType.ADJUSTMENT,
+    txnId: penalty.id,
+    entityType: 'DRIVER',
+    entityId: penalty.driverId,
+    debit: 0,
+    credit: Number(penalty.amount),
+    note: reason || `Hủy kỷ luật #${penalty.id}`,
+  });
+
+  return claimed;
+}
+
 export async function cancelPenalty(penaltyId: number, reason?: string) {
-  return db.transaction(async (tx) => {
-    const [penalty] = await tx.select().from(s.penalties)
-      .where(eq(s.penalties.id, penaltyId))
-      .limit(1)
-      .for('update');
-    if (!penalty) throw new ApiError(404, 'Không tìm thấy kỷ luật');
-    if (penalty.status === 'CANCELED') throw new ApiError(409, 'Kỷ luật đã được hủy trước đó');
+  return db.transaction((tx) => cancelPenaltyTx(tx, penaltyId, reason));
+}
 
-    // Lock order: controlling penalty row first, then shared driver ledger lock.
-    // That matches the Q23 first-winner pattern and avoids duplicate reversals.
-    await LedgerService.lockEntity(tx, 'DRIVER', penalty.driverId);
-
-    const [claimed] = await tx.update(s.penalties)
-      .set({ status: 'CANCELED', updatedAt: new Date() })
-      .where(and(
-        eq(s.penalties.id, penaltyId),
-        eq(s.penalties.status, 'ACTIVE'),
-      ))
-      .returning();
-    if (!claimed) throw new ApiError(409, 'Kỷ luật đã bị hủy bởi người khác. Vui lòng tải lại.');
-
-    await LedgerService.postEntry(tx, {
-      txnType: TxnType.ADJUSTMENT,
-      txnId: penalty.id,
-      entityType: 'DRIVER',
-      entityId: penalty.driverId,
-      debit: 0,
-      credit: Number(penalty.amount),
-      note: reason || `Hủy kỷ luật #${penalty.id}`,
-    });
-
-    return claimed;
+export async function cancelPenaltyIdempotent(args: {
+  penaltyId: number;
+  reason?: string;
+  idempotencyKey: string | undefined;
+  createdBy?: number | null;
+}) {
+  return runIdempotent<PenaltyRow>({
+    endpoint: IDEMPOTENCY_ENDPOINTS.PENALTIES_CANCEL,
+    idempotencyKey: args.idempotencyKey,
+    payload: {
+      penaltyId: args.penaltyId,
+      reason: args.reason ?? '',
+    },
+    createdBy: args.createdBy ?? null,
+    entityType: 'penalty',
+    create: async (tx) => cancelPenaltyTx(tx, args.penaltyId, args.reason),
+    load: async (entityId, tx) => loadPenaltyTx(tx, entityId),
   });
 }
 
@@ -271,46 +402,75 @@ export interface VendorPaymentInput {
   confirmOverpay?: boolean;
 }
 
-export async function recordVendorPayment(input: VendorPaymentInput) {
-  return db.transaction(async (tx) => {
-    const [latestRow] = await tx.select({ balance: s.ledger.balance })
-      .from(s.ledger)
-      .where(and(eq(s.ledger.entityType, 'VENDOR'), eq(s.ledger.entityId, input.supplierId)))
-      .orderBy(desc(s.ledger.id))
-      .limit(1);
+async function recordVendorPaymentTx(tx: Tx, input: VendorPaymentInput): Promise<VendorPaymentResult> {
+  await LedgerService.lockEntity(tx, 'VENDOR', input.supplierId);
 
-    const currentBalance = latestRow ? parseFloat(latestRow.balance) : 0;
-    const paymentAmount = parseFloat(input.amount);
-    const wouldOverpay = paymentAmount > currentBalance;
+  const [latestRow] = await tx.select({ balance: s.ledger.balance })
+    .from(s.ledger)
+    .where(and(eq(s.ledger.entityType, 'VENDOR'), eq(s.ledger.entityId, input.supplierId)))
+    .orderBy(desc(s.ledger.id))
+    .limit(1);
 
-    if (wouldOverpay && !input.confirmOverpay) {
-      throw new ApiError(
-        422,
-        `Thanh toán ${paymentAmount.toLocaleString('vi-VN')}₫ vượt công nợ hiện tại ${currentBalance.toLocaleString('vi-VN')}₫. Số dư sẽ âm. Bạn có chắc chắn muốn tiếp tục?`
-      );
-    }
+  const currentBalance = latestRow ? parseFloat(latestRow.balance) : 0;
+  const paymentAmount = parseFloat(input.amount);
+  const wouldOverpay = paymentAmount > currentBalance;
 
-    const posted = await LedgerService.postEntry(tx, {
-      txnType: TxnType.VENDOR_PAYMENT,
-      entityType: 'VENDOR',
-      entityId: input.supplierId,
-      debit: paymentAmount,
-      credit: 0,
-      receiptId: input.receiptId,
-      note: input.note || 'Thanh toán nhà cung cấp',
-    });
+  if (wouldOverpay && !input.confirmOverpay) {
+    throw new ApiError(
+      422,
+      buildVendorOverpaymentWarning(currentBalance, paymentAmount),
+    );
+  }
 
-    // Per spec §4.15: "Khớp FIFO theo tổng số dư, không khớp từng khoản chi"
-    // Vendor payments reduce the aggregate balance only — individual expense
-    // paymentStatus is NOT tied to aggregate payments.
+  const posted = await LedgerService.postEntry(tx, {
+    txnType: TxnType.VENDOR_PAYMENT,
+    entityType: 'VENDOR',
+    entityId: input.supplierId,
+    debit: paymentAmount,
+    credit: 0,
+    receiptId: input.receiptId,
+    note: input.note || 'Thanh toán nhà cung cấp',
+    timestamp: new Date(`${input.date}T00:00:00+07:00`),
+  });
 
-    return {
+  return wouldOverpay
+    ? {
       ...posted,
-      ...(wouldOverpay ? {
-        warning: `Thanh toán ${paymentAmount.toLocaleString('vi-VN')}₫ vượt công nợ hiện tại ${currentBalance.toLocaleString('vi-VN')}₫. Số dư sẽ âm.`,
-        overpayment: paymentAmount - currentBalance,
-      } : {}),
-    };
+      warning: buildVendorOverpaymentWarning(currentBalance, paymentAmount),
+      overpayment: paymentAmount - currentBalance,
+    }
+    : posted;
+}
+
+async function loadVendorPaymentResultTx(tx: Tx, ledgerId: number): Promise<VendorPaymentResult> {
+  const row = await loadLedgerEntryTx(tx, ledgerId);
+  return applyOverpaymentMetadata(row, buildVendorOverpaymentWarning);
+}
+
+export async function recordVendorPayment(input: VendorPaymentInput) {
+  return db.transaction((tx) => recordVendorPaymentTx(tx, input));
+}
+
+export async function recordVendorPaymentIdempotent(args: {
+  input: VendorPaymentInput;
+  idempotencyKey: string | undefined;
+  createdBy?: number | null;
+}) {
+  return runIdempotent<VendorPaymentResult>({
+    endpoint: IDEMPOTENCY_ENDPOINTS.PAYMENTS_VENDOR,
+    idempotencyKey: args.idempotencyKey,
+    payload: {
+      supplierId: args.input.supplierId,
+      receiptId: args.input.receiptId ?? '',
+      amount: Number(args.input.amount),
+      date: args.input.date,
+      note: args.input.note ?? '',
+      confirmOverpay: args.input.confirmOverpay ?? false,
+    },
+    createdBy: args.createdBy ?? null,
+    entityType: 'ledger',
+    create: async (tx) => recordVendorPaymentTx(tx, args.input),
+    load: async (entityId, tx) => loadVendorPaymentResultTx(tx, entityId),
   });
 }
 
@@ -322,69 +482,99 @@ export async function recordVendorPayment(input: VendorPaymentInput) {
  * participate in the overpayment guard; customer receivables are deliberately
  * excluded.
  */
-export async function recordCarrierPayment(input: VendorPaymentInput) {
-  return db.transaction(async (tx) => {
-    const [carrier] = await tx.select({ id: s.customers.id })
-      .from(s.customers)
-      .where(and(
-        eq(s.customers.id, input.supplierId),
-        eq(s.customers.isCarrier, true),
-        eq(s.customers.status, 'ACTIVE'),
-        isNull(s.customers.deletedAt),
-      ))
-      .limit(1);
-    if (!carrier) {
-      throw new ApiError(404, 'Không tìm thấy nhà vận chuyển');
-    }
+async function recordCarrierPaymentTx(tx: Tx, input: VendorPaymentInput): Promise<VendorPaymentResult> {
+  const [carrier] = await tx.select({ id: s.customers.id })
+    .from(s.customers)
+    .where(and(
+      eq(s.customers.id, input.supplierId),
+      eq(s.customers.isCarrier, true),
+      eq(s.customers.status, 'ACTIVE'),
+      isNull(s.customers.deletedAt),
+    ))
+    .limit(1);
+  if (!carrier) {
+    throw new ApiError(404, 'Không tìm thấy nhà vận chuyển');
+  }
 
-    await LedgerService.lockEntity(tx, 'CARRIER', input.supplierId);
+  await LedgerService.lockEntity(tx, 'CARRIER', input.supplierId);
 
-    const [balanceRow] = await tx.select({
-      balance: sql<string>`coalesce(sum(
-        case
-          when ${s.ledger.txnType} = ${TxnType.EXTERNAL_CARRIER_COST}
-            then ${s.ledger.credit} - ${s.ledger.debit}
-          when ${s.ledger.txnType} = ${TxnType.VENDOR_PAYMENT}
-            then ${s.ledger.credit} - ${s.ledger.debit}
-          when ${s.ledger.txnType} = ${TxnType.UNLOCK_REVERSAL}
-            and ${s.ledger.note} like 'Cước thuê ngoài%'
-            then ${s.ledger.credit} - ${s.ledger.debit}
-          else 0
-        end
-      ), 0)`,
-    }).from(s.ledger).where(and(
-      inArray(s.ledger.entityType, ['CUSTOMER', 'CARRIER']),
-      eq(s.ledger.entityId, input.supplierId),
-    ));
+  const [balanceRow] = await tx.select({
+    balance: sql<string>`coalesce(sum(
+      case
+        when ${s.ledger.txnType} = ${TxnType.EXTERNAL_CARRIER_COST}
+          then ${s.ledger.credit} - ${s.ledger.debit}
+        when ${s.ledger.txnType} = ${TxnType.VENDOR_PAYMENT}
+          then ${s.ledger.credit} - ${s.ledger.debit}
+        when ${s.ledger.txnType} = ${TxnType.UNLOCK_REVERSAL}
+          and ${s.ledger.note} like 'Cước thuê ngoài%'
+          then ${s.ledger.credit} - ${s.ledger.debit}
+        else 0
+      end
+    ), 0)`,
+  }).from(s.ledger).where(and(
+    inArray(s.ledger.entityType, ['CUSTOMER', 'CARRIER']),
+    eq(s.ledger.entityId, input.supplierId),
+  ));
 
-    const currentBalance = Number(balanceRow?.balance ?? 0);
-    const paymentAmount = parseFloat(input.amount);
-    const wouldOverpay = paymentAmount > currentBalance;
+  const currentBalance = Number(balanceRow?.balance ?? 0);
+  const paymentAmount = parseFloat(input.amount);
+  const wouldOverpay = paymentAmount > currentBalance;
 
-    if (wouldOverpay && !input.confirmOverpay) {
-      throw new ApiError(
-        422,
-        `Thanh toán ${paymentAmount.toLocaleString('vi-VN')}₫ vượt công nợ thuê ngoài hiện tại ${currentBalance.toLocaleString('vi-VN')}₫. Bạn có chắc chắn muốn tiếp tục?`,
-      );
-    }
+  if (wouldOverpay && !input.confirmOverpay) {
+    throw new ApiError(
+      422,
+      buildCarrierOverpaymentWarning(currentBalance, paymentAmount),
+    );
+  }
 
-    const posted = await LedgerService.postEntry(tx, {
-      txnType: TxnType.VENDOR_PAYMENT,
-      entityType: 'CARRIER',
-      entityId: input.supplierId,
-      debit: paymentAmount,
-      credit: 0,
-      receiptId: input.receiptId,
-      note: input.note || 'Thanh toán cước vận chuyển thuê ngoài',
-      timestamp: new Date(`${input.date}T00:00:00+07:00`),
-    });
+  const posted = await LedgerService.postEntry(tx, {
+    txnType: TxnType.VENDOR_PAYMENT,
+    entityType: 'CARRIER',
+    entityId: input.supplierId,
+    debit: paymentAmount,
+    credit: 0,
+    receiptId: input.receiptId,
+    note: input.note || 'Thanh toán cước vận chuyển thuê ngoài',
+    timestamp: new Date(`${input.date}T00:00:00+07:00`),
+  });
 
-    return {
+  return wouldOverpay
+    ? {
       ...posted,
-      ...(wouldOverpay ? {
-        warning: `Thanh toán vượt công nợ thuê ngoài ${currentBalance.toLocaleString('vi-VN')}₫.`,
-        overpayment: paymentAmount - currentBalance,
-      } : {}),
-    };
+      warning: buildCarrierOverpaymentWarning(currentBalance, paymentAmount),
+      overpayment: paymentAmount - currentBalance,
+    }
+    : posted;
+}
+
+async function loadCarrierPaymentResultTx(tx: Tx, ledgerId: number): Promise<VendorPaymentResult> {
+  const row = await loadLedgerEntryTx(tx, ledgerId);
+  return applyOverpaymentMetadata(row, buildCarrierOverpaymentWarning);
+}
+
+export async function recordCarrierPayment(input: VendorPaymentInput) {
+  return db.transaction((tx) => recordCarrierPaymentTx(tx, input));
+}
+
+export async function recordCarrierPaymentIdempotent(args: {
+  input: VendorPaymentInput;
+  idempotencyKey: string | undefined;
+  createdBy?: number | null;
+}) {
+  return runIdempotent<VendorPaymentResult>({
+    endpoint: IDEMPOTENCY_ENDPOINTS.PAYMENTS_CARRIER,
+    idempotencyKey: args.idempotencyKey,
+    payload: {
+      supplierId: args.input.supplierId,
+      receiptId: args.input.receiptId ?? '',
+      amount: Number(args.input.amount),
+      date: args.input.date,
+      note: args.input.note ?? '',
+      confirmOverpay: args.input.confirmOverpay ?? false,
+    },
+    createdBy: args.createdBy ?? null,
+    entityType: 'ledger',
+    create: async (tx) => recordCarrierPaymentTx(tx, args.input),
+    load: async (entityId, tx) => loadCarrierPaymentResultTx(tx, entityId),
   });
 }

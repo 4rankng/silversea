@@ -1,7 +1,7 @@
 import { api } from '../lib/api';
 import { toQuery } from '../lib/http/query';
 import { DRIVER } from '@tingting/shared';
-import type { VehicleAlert } from '@tingting/shared';
+import type { DriverOrderedPairView, VehicleAlert } from '@tingting/shared';
 
 export const driverClient = {
   getTrips: async () => {
@@ -75,25 +75,7 @@ export const driverClient = {
 
   /** M8.3 — two-orders-per-day view (active + next today, firstOrderLate). */
   getTwoOrders: async () => {
-    return api.get<{
-      date: string;
-      active: {
-        id: number; tripCode: string | null; departureDate: string; status: string;
-        routeName: string | null; truckPlate: string | null; customerName: string | null;
-        containerNumbers: string[];
-      } | null;
-      next: {
-        id: number; tripCode: string | null; departureDate: string; status: string;
-        routeName: string | null; truckPlate: string | null; customerName: string | null;
-        containerNumbers: string[];
-      } | null;
-      firstOrderLate: boolean;
-      allToday: Array<{
-        id: number; tripCode: string | null; departureDate: string; status: string;
-        routeName: string | null; truckPlate: string | null; customerName: string | null;
-        containerNumbers: string[];
-      }>;
-    }>(DRIVER.TWO_ORDERS);
+    return api.get<DriverOrderedPairView>(DRIVER.TWO_ORDERS);
   },
 
   /** M8.4 — list a trip's progress events (timeline, oldest-first). */

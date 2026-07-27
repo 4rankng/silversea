@@ -1,7 +1,7 @@
 import { db } from '../db';
 import * as s from '../db/schema';
 import type { Tx } from './trip-shared';
-import { eq, and, desc, inArray } from 'drizzle-orm';
+import { eq, and, desc, inArray, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 
 type DbOrTx = typeof db | Tx;
@@ -295,8 +295,19 @@ export async function batchUpsertTripContainers(
       notes?: string | null;
     }>;
   }>,
+  expectedVersion?: number,
 ) {
   return db.transaction(async (tx) => {
+    const [trip] = await tx.select({
+      id: s.trips.id,
+      version: s.trips.version,
+      deletedAt: s.trips.deletedAt,
+    }).from(s.trips).where(eq(s.trips.id, tripId)).limit(1).for('update');
+    if (!trip || trip.deletedAt) throw new ApiError(404, 'Không tìm thấy chuyến đi');
+    if (expectedVersion !== undefined && trip.version !== expectedVersion) {
+      throw new ApiError(409, 'Dữ liệu đã bị thay đổi bởi người khác. Vui lòng tải lại trang.');
+    }
+
     const existing = await tx.select({ id: s.tripContainers.id })
       .from(s.tripContainers)
       .where(eq(s.tripContainers.tripId, tripId));
@@ -413,6 +424,11 @@ export async function batchUpsertTripContainers(
           .where(eq(s.tripContainers.id, containerId));
       }
     }
+
+    await tx.update(s.trips).set({
+      version: sql`${s.trips.version} + 1`,
+      updatedAt: new Date(),
+    }).where(eq(s.trips.id, tripId));
 
     return listTripContainers(tripId, tx);
   });

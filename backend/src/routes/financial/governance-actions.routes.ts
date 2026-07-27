@@ -1,0 +1,99 @@
+import { Router } from 'express';
+import type { Request, Response } from 'express';
+import {
+  governanceActionDecisionSchema,
+  governanceActionListQuerySchema,
+  Role,
+} from '@tingting/shared';
+import { asyncHandler } from '../../middleware/asyncHandler';
+import { getUser } from '../../middleware/auth';
+import { requireRoles } from '../../middleware/casbin';
+import {
+  cancelGovernanceAction,
+  getGovernanceAction,
+  listGovernanceActions,
+  rejectGovernanceAction,
+  returnGovernanceActionForEvidence,
+} from '../../services/governance-transition.service';
+import { parseActionId } from './governance-action-input';
+
+const router = Router();
+const FINANCIAL_VIEWERS = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT] as const;
+
+router.get(
+  '/governance-actions',
+  requireRoles(...FINANCIAL_VIEWERS),
+  asyncHandler(async (req: Request, res: Response) => {
+    const actor = getUser(req);
+    const query = governanceActionListQuerySchema.parse(req.query);
+    const actions = await listGovernanceActions({
+      actorId: actor.userId,
+      actorRole: actor.role,
+      query,
+    });
+    res.json(actions);
+  }),
+);
+
+router.get(
+  '/governance-actions/:id',
+  requireRoles(...FINANCIAL_VIEWERS),
+  asyncHandler(async (req: Request, res: Response) => {
+    const actor = getUser(req);
+    res.json(await getGovernanceAction({
+      actionId: parseActionId(req.params.id),
+      actorId: actor.userId,
+      actorRole: actor.role,
+    }));
+  }),
+);
+
+router.post(
+  '/governance-actions/:id/reject',
+  requireRoles(...FINANCIAL_VIEWERS),
+  asyncHandler(async (req: Request, res: Response) => {
+    const actor = getUser(req);
+    const input = governanceActionDecisionSchema.parse(req.body);
+    res.json(await rejectGovernanceAction({
+      actionId: parseActionId(req.params.id),
+      actorId: actor.userId,
+      actorRole: actor.role,
+      expectedVersion: input.expectedVersion,
+      reason: input.reason,
+    }));
+  }),
+);
+
+router.post(
+  '/governance-actions/:id/return-for-evidence',
+  requireRoles(...FINANCIAL_VIEWERS),
+  asyncHandler(async (req: Request, res: Response) => {
+    const actor = getUser(req);
+    const input = governanceActionDecisionSchema.parse(req.body);
+    res.json(await returnGovernanceActionForEvidence({
+      actionId: parseActionId(req.params.id),
+      actorId: actor.userId,
+      actorRole: actor.role,
+      expectedVersion: input.expectedVersion,
+      reason: input.reason,
+    }));
+  }),
+);
+
+router.post(
+  '/governance-actions/:id/cancel',
+  requireRoles(...FINANCIAL_VIEWERS),
+  asyncHandler(async (req: Request, res: Response) => {
+    const actor = getUser(req);
+    const input = governanceActionDecisionSchema.parse(req.body);
+    res.json(await cancelGovernanceAction({
+      actionId: parseActionId(req.params.id),
+      actorId: actor.userId,
+      actorRole: actor.role,
+      expectedVersion: input.expectedVersion,
+      reason: input.reason,
+    }));
+  }),
+);
+
+export default router;

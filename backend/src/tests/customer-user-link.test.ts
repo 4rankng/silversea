@@ -4,11 +4,17 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import express from 'express';
 import jwt from 'jsonwebtoken';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 import { db, client } from '../db';
 import * as s from '../db/schema';
-import { authenticate, createUser, listUsers, updateUser } from '../services/user.service';
+import {
+  authenticate,
+  createUser,
+  listUsers,
+  updateBusinessUnit,
+  updateUser,
+} from '../services/user.service';
 import { authMiddleware } from '../middleware/auth';
 import { config } from '../config';
 
@@ -213,6 +219,128 @@ describe('customer account linkage', () => {
     assert.deepEqual(listed?.customerIds, []);
     assert.deepEqual(listed?.businessUnitIds, []);
     assert.deepEqual(listed?.shipmentIds, []);
+  });
+
+  test('unit deactivation preserves the ACTIVE clerk assignment invariant', async () => {
+    const [primaryUnit, alternativeUnit] = await db.insert(s.businessUnits).values([
+      {
+        code: `CUL-P-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+        name: `Clerk lifecycle primary ${suffix}`,
+        status: 'ACTIVE',
+      },
+      {
+        code: `CUL-A-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+        name: `Clerk lifecycle alternative ${suffix}`,
+        status: 'ACTIVE',
+      },
+    ]).returning();
+    const clerk = await createUser({
+      username: `clerk-unit-lifecycle-${suffix}`,
+      password: 'admin123',
+      role: Role.CLERK,
+      customerIds: [customerId],
+      businessUnitIds: [primaryUnit.id],
+    });
+
+    try {
+      await assert.rejects(
+        updateBusinessUnit(primaryUnit.id, { status: 'INACTIVE' }),
+        /đơn vị hoạt động duy nhất/,
+      );
+      const [stillActive] = await db.select({ status: s.businessUnits.status })
+        .from(s.businessUnits)
+        .where(eq(s.businessUnits.id, primaryUnit.id));
+      assert.equal(stillActive.status, 'ACTIVE');
+
+      await updateUser(clerk.id, {
+        businessUnitIds: [primaryUnit.id, alternativeUnit.id],
+      });
+      const deactivated = await updateBusinessUnit(primaryUnit.id, { status: 'INACTIVE' });
+      assert.equal(deactivated.status, 'INACTIVE');
+      const refreshed = await authenticate(`clerk-unit-lifecycle-${suffix}`, 'admin123');
+      assert.deepEqual(refreshed.businessUnitIds, [alternativeUnit.id]);
+
+      await updateBusinessUnit(primaryUnit.id, { status: 'ACTIVE' });
+      const race = await Promise.allSettled([
+        updateUser(clerk.id, { businessUnitIds: [primaryUnit.id] }),
+        updateBusinessUnit(primaryUnit.id, { status: 'INACTIVE' }),
+      ]);
+      assert.equal(
+        race.filter((result) => result.status === 'fulfilled').length,
+        1,
+        'assignment and deactivation serialize so exactly one conflicting operation commits',
+      );
+      const afterRace = await authenticate(`clerk-unit-lifecycle-${suffix}`, 'admin123');
+      assert.ok(afterRace.businessUnitIds.length > 0, 'ACTIVE clerk retains at least one ACTIVE unit');
+    } finally {
+      await db.delete(s.users).where(eq(s.users.id, clerk.id));
+      await db.delete(s.businessUnits).where(eq(s.businessUnits.id, primaryUnit.id));
+      await db.delete(s.businessUnits).where(eq(s.businessUnits.id, alternativeUnit.id));
+    }
+  });
+
+  test('concurrent deactivation of different units preserves an ACTIVE clerk unit', async () => {
+    const units = await db.insert(s.businessUnits).values([
+      {
+        code: `CUL-R1-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+        name: `Clerk race unit one ${suffix}`,
+        status: 'ACTIVE',
+      },
+      {
+        code: `CUL-R2-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+        name: `Clerk race unit two ${suffix}`,
+        status: 'ACTIVE',
+      },
+    ]).returning();
+    const unitIds = units.map((unit) => unit.id);
+    const clerk = await createUser({
+      username: `clerk-unit-race-${suffix}`,
+      password: 'admin123',
+      role: Role.CLERK,
+      customerIds: [customerId],
+      businessUnitIds: unitIds,
+    });
+
+    try {
+      const outcomes: Array<{
+        winners: number;
+        loserStatusCodes: unknown[];
+        activeUnits: number;
+      }> = [];
+      for (let trial = 0; trial < 20; trial += 1) {
+        await db.update(s.businessUnits)
+          .set({ status: 'ACTIVE' })
+          .where(inArray(s.businessUnits.id, unitIds));
+        const results = await Promise.allSettled(
+          unitIds.map((unitId) => updateBusinessUnit(unitId, { status: 'INACTIVE' })),
+        );
+        const activeUnits = await db.select({
+          id: s.businessUnits.id,
+          status: s.businessUnits.status,
+        })
+          .from(s.businessUnits)
+          .where(inArray(s.businessUnits.id, unitIds));
+        outcomes.push({
+          winners: results.filter((result) => result.status === 'fulfilled').length,
+          loserStatusCodes: results
+            .filter((result) => result.status === 'rejected')
+            .map((result) => result.reason?.statusCode),
+          activeUnits: activeUnits.filter((unit) => unit.status === 'ACTIVE').length,
+        });
+      }
+      assert.ok(
+        outcomes.every((outcome) => (
+          outcome.winners === 1
+          && outcome.loserStatusCodes.length === 1
+          && outcome.loserStatusCodes[0] === 409
+          && outcome.activeUnits >= 1
+        )),
+        `each trial must have one 409 loser and an active unit: ${JSON.stringify(outcomes)}`,
+      );
+    } finally {
+      await db.delete(s.users).where(eq(s.users.id, clerk.id));
+      await db.delete(s.businessUnits).where(inArray(s.businessUnits.id, unitIds));
+    }
   });
 
   test('rejects clearing links from an ACTIVE customer account', async () => {

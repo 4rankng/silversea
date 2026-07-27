@@ -5,6 +5,7 @@ import { eq, and, desc, count, inArray } from 'drizzle-orm';
 import * as s from '../db/schema';
 import { NotificationType, FINANCIAL_ROLES, PUSH_RULES, Role, isFinancialRole } from '@tingting/shared';
 import * as pushService from './push.service';
+import type { Tx } from './trip-shared';
 
 const eventBus = new EventEmitter();
 eventBus.setMaxListeners(50);
@@ -84,8 +85,21 @@ export async function emitNotificationAndWait(payload: NotificationPayload): Pro
   await generateNotification(payload);
 }
 
-async function generateNotification(payload: NotificationPayload): Promise<void> {
-  const targets = await resolveTargets(payload);
+/**
+ * Persist an in-app notification as part of the caller's domain transaction.
+ * Push delivery remains post-commit/best-effort; the durable in-app row is the
+ * workflow guarantee for material writes.
+ */
+export async function persistNotificationInTx(tx: Tx, payload: NotificationPayload): Promise<void> {
+  await generateNotification(payload, tx, false);
+}
+
+async function generateNotification(
+  payload: NotificationPayload,
+  client: typeof db | Tx = db,
+  sendPush = true,
+): Promise<void> {
+  const targets = await resolveTargets(payload, client);
   if (targets.length === 0) return;
 
   const rows = targets.map(t => ({
@@ -97,13 +111,13 @@ async function generateNotification(payload: NotificationPayload): Promise<void>
     relatedEntityId: payload.relatedEntityId ?? null,
     isRead: false,
   }));
-  await db.insert(notifications).values(rows);
+  await client.insert(notifications).values(rows);
 
   // High-value push whitelist: only listed event types wake a device, and
   // only the configured audience. Best-effort — must never block in-app
   // delivery, and push failures are swallowed inside sendToUser.
   const audience = PUSH_RULES[payload.type];
-  if (audience) {
+  if (sendPush && audience) {
     const pushable = targets.filter(t =>
       audience === 'all' ||
       (audience === 'driver' && t.role === Role.DRIVER) ||
@@ -117,19 +131,24 @@ async function generateNotification(payload: NotificationPayload): Promise<void>
 
 // ─── Target resolution ─────────────────────────────────────────────────────
 
-async function resolveTargets(payload: NotificationPayload): Promise<{ userId: number; role: Role }[]> {
+async function resolveTargets(
+  payload: NotificationPayload,
+  client: typeof db | Tx = db,
+): Promise<{ userId: number; role: Role }[]> {
   const byId = new Map<number, Role | undefined>();
 
   if (payload.targetUserId) byId.set(payload.targetUserId, undefined);
 
-  const roles = payload.targetRoles ?? [...FINANCIAL_ROLES];
-  const roleUsers = await db.select({ id: s.users.id, role: s.users.role })
-    .from(s.users)
-    .where(and(inArray(s.users.role, roles as (typeof s.users.role.enumValues)[number][]), eq(s.users.status, 'ACTIVE')));
-  for (const u of roleUsers) byId.set(u.id, u.role as Role);
+  const roles = payload.targetRoles ?? (payload.targetUserId != null ? [] : [...FINANCIAL_ROLES]);
+  if (roles.length > 0) {
+    const roleUsers = await client.select({ id: s.users.id, role: s.users.role })
+      .from(s.users)
+      .where(and(inArray(s.users.role, roles as (typeof s.users.role.enumValues)[number][]), eq(s.users.status, 'ACTIVE')));
+    for (const u of roleUsers) byId.set(u.id, u.role as Role);
+  }
 
   if (payload.targetDriverId) {
-    const [driver] = await db.select({ userId: s.drivers.userId })
+    const [driver] = await client.select({ userId: s.drivers.userId })
       .from(s.drivers)
       .where(eq(s.drivers.id, payload.targetDriverId))
       .limit(1);
@@ -139,7 +158,7 @@ async function resolveTargets(payload: NotificationPayload): Promise<{ userId: n
   // Resolve roles for any explicitly-targeted user ids we don't yet know.
   const unknown = [...byId.entries()].filter(([, r]) => r === undefined).map(([uid]) => uid);
   if (unknown.length > 0) {
-    const found = await db.select({ id: s.users.id, role: s.users.role })
+    const found = await client.select({ id: s.users.id, role: s.users.role })
       .from(s.users).where(inArray(s.users.id, unknown));
     for (const u of found) byId.set(u.id, u.role as Role);
   }

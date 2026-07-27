@@ -42,8 +42,7 @@ import {
   classifyClerkContainerChange,
   classifyClerkShipmentPatch,
   createShipmentChangeRequest,
-  emitChangeRequestDecisionNotification,
-  emitDispatchReviewNotification,
+  persistChangeRequestDecisionNotification,
 } from './shipment-edit-boundary.service';
 
 // ─── Status machine ─────────────────────────────────────────────────────────
@@ -191,50 +190,52 @@ function assertLegalTransition(from: ShipmentStatus, to: ShipmentStatus): void {
 
 // ─── Create ─────────────────────────────────────────────────────────────────
 
-export async function createShipment(input: CreateShipmentInput, actor?: AuthUser) {
-  return await db.transaction(async (tx) => {
-    let responsibleUnitId = input.responsibleUnitId ?? null;
-    if (actor && isClerkScopedUser(actor)) {
-      const scope = await loadClerkShipmentScope(actor.userId, tx);
-      assertClerkCanCreateForCustomer(scope, input.customerId);
-      responsibleUnitId = resolveClerkResponsibleUnitId(scope, input.responsibleUnitId);
-    }
+async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: AuthUser) {
+  let responsibleUnitId = input.responsibleUnitId ?? null;
+  if (actor && isClerkScopedUser(actor)) {
+    const scope = await loadClerkShipmentScope(actor.userId, tx);
+    assertClerkCanCreateForCustomer(scope, input.customerId);
+    responsibleUnitId = resolveClerkResponsibleUnitId(scope, input.responsibleUnitId);
+  }
 
-    // 1. Insert the shipment row (DRAFT default, version 1).
-    const [shipment] = await tx.insert(s.shipments).values({
-      customerId: input.customerId,
-      responsibleUnitId,
-      bookingRef: input.bookingRef ?? null,
-      blNumber: input.blNumber ?? null,
-      expectedDeliveryDate: input.expectedDeliveryDate ?? null,
-      pickupLocation: input.pickupLocation ?? null,
-      deliveryLocation: input.deliveryLocation ?? null,
-      contactName: input.contactName ?? null,
-      contactPhone: input.contactPhone ?? null,
-      createdBy: input.createdBy ?? null,
-      updatedBy: input.createdBy ?? null,
-      status: 'DRAFT',
-      version: 1,
-    }).returning();
+  // 1. Insert the shipment row (DRAFT default, version 1).
+  const [shipment] = await tx.insert(s.shipments).values({
+    customerId: input.customerId,
+    responsibleUnitId,
+    bookingRef: input.bookingRef ?? null,
+    blNumber: input.blNumber ?? null,
+    expectedDeliveryDate: input.expectedDeliveryDate ?? null,
+    pickupLocation: input.pickupLocation ?? null,
+    deliveryLocation: input.deliveryLocation ?? null,
+    contactName: input.contactName ?? null,
+    contactPhone: input.contactPhone ?? null,
+    createdBy: input.createdBy ?? null,
+    updatedBy: input.createdBy ?? null,
+    status: 'DRAFT',
+    version: 1,
+  }).returning();
 
-    // 2. Backfill the unique shipmentCode from the row id. Same tx ⇒ atomic.
-    const shipmentCode = formatShipmentCode(shipment.id, shipment.createdAt);
-    const [finalized] = await tx.update(s.shipments)
-      .set({ shipmentCode })
-      .where(eq(s.shipments.id, shipment.id))
-      .returning();
+  // 2. Backfill the unique shipmentCode from the row id. Same tx ⇒ atomic.
+  const shipmentCode = formatShipmentCode(shipment.id, shipment.createdAt);
+  const [finalized] = await tx.update(s.shipments)
+    .set({ shipmentCode })
+    .where(eq(s.shipments.id, shipment.id))
+    .returning();
 
-    // 3. Append the initial status-history row (fromStatus = null = creation).
-    await tx.insert(s.shipmentStatusHistory).values({
-      shipmentId: shipment.id,
-      fromStatus: null,
-      toStatus: 'DRAFT',
-      reason: 'Tạo lô hàng',
-      changedBy: input.createdBy ?? null,
-    });
-
-    return finalized;
+  // 3. Append the initial status-history row (fromStatus = null = creation).
+  await tx.insert(s.shipmentStatusHistory).values({
+    shipmentId: shipment.id,
+    fromStatus: null,
+    toStatus: 'DRAFT',
+    reason: 'Tạo lô hàng',
+    changedBy: input.createdBy ?? null,
   });
+
+  return finalized;
+}
+
+export async function createShipment(input: CreateShipmentInput, actor?: AuthUser) {
+  return await db.transaction((tx) => createShipmentTx(tx, input, actor));
 }
 
 // ─── Quick create (M10.1) ───────────────────────────────────────────────────
@@ -256,16 +257,17 @@ export async function createShipmentIdempotent(
     payload: input,
     createdBy: input.createdBy ?? null,
     entityType: 'shipment',
-    create: async () => createShipment(input, actor),
-    load: async (id) => getShipment(id),
+    create: async (tx) => createShipmentTx(tx, input, actor),
+    load: async (id, tx) => getShipment(id, tx),
   });
   return { shipment: result, replayed };
 }
 
 // ─── Read ───────────────────────────────────────────────────────────────────
 
-export async function getShipment(id: number) {
-  const [shipment] = await db.select().from(s.shipments)
+export async function getShipment(id: number, tx?: Tx) {
+  const executor = tx ?? db;
+  const [shipment] = await executor.select().from(s.shipments)
     .where(and(eq(s.shipments.id, id), isNull(s.shipments.deletedAt)))
     .limit(1);
   if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
@@ -443,16 +445,11 @@ export async function updateShipment(
       notificationDelivered: true,
     };
   });
-  if (result.changeMode === 'REQUESTED' && actor) {
-    const notificationDelivered = await emitDispatchReviewNotification(result, actor.userId);
+  if (result.changeMode === 'REQUESTED') {
     return {
       ...result,
-      notificationDelivered,
-      message: messageForDispatchNotification(
-        notificationDelivered,
-        'Đã ghi nhận yêu cầu thay đổi kế hoạch và thông báo điều vận.',
-        'Đã ghi nhận yêu cầu thay đổi kế hoạch nhưng chưa ghi được thông báo điều vận.',
-      ),
+      notificationDelivered: true,
+      message: 'Đã ghi nhận yêu cầu thay đổi kế hoạch và thông báo điều vận.',
     };
   }
   return result;
@@ -711,10 +708,6 @@ export async function getShipmentDetail(id: number, actor?: AuthUser): Promise<S
     listPendingShipmentChangeRequests(id),
   ]);
   return { shipment: shipmentWithCustomer, containers, documents, declarations, statusHistory, pendingChangeRequests };
-}
-
-function messageForDispatchNotification(delivered: boolean, successMessage: string, failureMessage: string) {
-  return delivered ? successMessage : failureMessage;
 }
 
 async function reconcileShipmentContainersInTx(
@@ -1017,17 +1010,11 @@ export async function batchUpsertShipmentContainers(
     };
     return legacyCompat ? reconciled.upsertedIds.map((id) => ({ id })) : directResult;
   });
-  if (!legacyCompat && 'changeMode' in result && result.changeMode === 'REQUESTED' && actor) {
-    const shipment = await getShipment(shipmentId);
-    const notificationDelivered = await emitDispatchReviewNotification(shipment, actor.userId);
+  if (!legacyCompat && 'changeMode' in result && result.changeMode === 'REQUESTED') {
     return {
       ...result,
-      notificationDelivered,
-      message: messageForDispatchNotification(
-        notificationDelivered,
-        'Đã ghi nhận thay đổi công-te-nơ và thông báo điều vận.',
-        'Đã ghi nhận thay đổi công-te-nơ nhưng chưa ghi được thông báo điều vận.',
-      ),
+      notificationDelivered: true,
+      message: 'Đã ghi nhận thay đổi công-te-nơ và thông báo điều vận.',
     };
   }
   return result;
@@ -1152,6 +1139,7 @@ export async function dispatchShipmentToTrip(
     departureDate: string;
     customerReference?: string;
     containerCount?: number;
+    creditApprovalRequestId?: number | null;
     fuelMode?: import('@tingting/shared').FuelMode;
   },
   actor: { userId: number; role: import('@tingting/shared').Role },
@@ -1225,6 +1213,7 @@ export async function dispatchShipmentToTrip(
     departureDate: fulfillment.departureDate,
     customerReference: fulfillment.customerReference,
     containerCount: fulfillment.containerCount,
+    creditApprovalRequestId: fulfillment.creditApprovalRequestId ?? null,
     fuelMode: fulfillment.fuelMode,
     createdBy: actor.userId,
   }, { userId: actor.userId, role: actor.role });
@@ -1386,42 +1375,70 @@ export async function getDispatchReadiness(shipmentId: number): Promise<Dispatch
  * can have a new expiry date.
  */
 export async function replaceShipmentDocument(
+  shipmentId: number,
   oldDocId: number,
-  newDocData: { storageKey: string; expiresAt?: string | null; uploadedBy?: number | null },
+  newDocData: {
+    expectedVersion: number;
+    storageKey: string;
+    expiresAt?: string | null;
+    uploadedBy?: number | null;
+  },
   actor?: AuthUser,
 ) {
   return await db.transaction(async (tx) => {
-    // 1. Fetch the old document to inherit type + shipmentId.
-    const [oldDoc] = await tx.select()
-      .from(s.shipmentDocuments)
-      .where(eq(s.shipmentDocuments.id, oldDocId))
-      .limit(1);
-    if (!oldDoc) throw new ApiError(404, 'Không tìm thấy tài liệu cần thay thế');
     const [shipment] = await tx.select()
       .from(s.shipments)
-      .where(and(eq(s.shipments.id, oldDoc.shipmentId), isNull(s.shipments.deletedAt)))
+      .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
+      .for('update')
       .limit(1);
     if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
+    if (shipment.version !== newDocData.expectedVersion) {
+      throw new ApiError(409, 'Lô hàng đã bị người khác cập nhật. Vui lòng tải lại.');
+    }
     if (actor && isClerkScopedUser(actor)) {
       const scope = await loadClerkShipmentScope(actor.userId, tx);
       assertClerkCanAccessShipment(scope, shipment);
     }
 
-    // 2. Insert the new document.
+    const [oldDoc] = await tx.select()
+      .from(s.shipmentDocuments)
+      .where(and(
+        eq(s.shipmentDocuments.id, oldDocId),
+        eq(s.shipmentDocuments.shipmentId, shipmentId),
+      ))
+      .for('update')
+      .limit(1);
+    if (!oldDoc) throw new ApiError(404, 'Không tìm thấy tài liệu cần thay thế');
+    if (oldDoc.replacedBy != null) {
+      throw new ApiError(409, 'Tài liệu đã được thay thế. Vui lòng tải lại.');
+    }
+
     const [newDoc] = await tx.insert(s.shipmentDocuments).values({
-      shipmentId: oldDoc.shipmentId,
+      shipmentId,
       type: oldDoc.type,
       storageKey: newDocData.storageKey,
       expiresAt: newDocData.expiresAt ?? null,
       uploadedBy: newDocData.uploadedBy ?? null,
     }).returning();
 
-    // 3. Mark the old document as replaced.
-    await tx.update(s.shipmentDocuments)
+    const [linked] = await tx.update(s.shipmentDocuments)
       .set({ replacedBy: newDoc.id })
-      .where(eq(s.shipmentDocuments.id, oldDocId));
+      .where(and(
+        eq(s.shipmentDocuments.id, oldDocId),
+        eq(s.shipmentDocuments.shipmentId, shipmentId),
+        isNull(s.shipmentDocuments.replacedBy),
+      ))
+      .returning({ id: s.shipmentDocuments.id });
+    if (!linked) {
+      throw new ApiError(409, 'Tài liệu đã được thay thế. Vui lòng tải lại.');
+    }
 
-    return newDoc;
+    const nextVersion = shipment.version + 1;
+    await tx.update(s.shipments)
+      .set({ version: nextVersion, updatedAt: new Date(), updatedBy: actor?.userId ?? null })
+      .where(eq(s.shipments.id, shipmentId));
+
+    return { ...newDoc, shipmentVersion: nextVersion };
   });
 }
 
@@ -1450,12 +1467,11 @@ export async function reviewShipmentChangeRequest(
       .for('update')
       .limit(1);
     if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
-    if (shipment.version !== request.sourceVersion) {
-      throw new ApiError(409, 'Lô hàng đã đổi phiên bản. Vui lòng tải lại trước khi xử lý yêu cầu này.');
-    }
-
     let reviewedShipment = shipment;
     if (resolution === 'APPLIED') {
+      if (shipment.version !== request.sourceVersion) {
+        throw new ApiError(409, 'Lô hàng đã đổi phiên bản. Vui lòng tải lại trước khi áp dụng yêu cầu này.');
+      }
       if (request.requestKind === 'PLAN_UPDATE') {
         const patch = parsePlanUpdateSnapshot(request.afterSnapshot);
         const [updated] = await tx.update(s.shipments).set({
@@ -1493,6 +1509,13 @@ export async function reviewShipmentChangeRequest(
     await tx.delete(s.shipmentChangeRequests)
       .where(eq(s.shipmentChangeRequests.id, changeRequestId));
 
+    await persistChangeRequestDecisionNotification(tx, {
+      shipmentId: reviewedShipment.id,
+      shipmentCode: reviewedShipment.shipmentCode ?? null,
+      requesterId: request.requestedBy,
+      resolution,
+    });
+
     return {
       shipment: reviewedShipment,
       requesterId: request.requestedBy,
@@ -1501,35 +1524,14 @@ export async function reviewShipmentChangeRequest(
     };
   });
 
-  let notificationDelivered = true;
-  try {
-    await emitChangeRequestDecisionNotification({
-      shipmentId: result.shipment.id,
-      shipmentCode: result.shipment.shipmentCode ?? null,
-      requesterId: result.requesterId,
-      resolution: result.resolution,
-    });
-  } catch (err) {
-    notificationDelivered = false;
-    console.error('Shipment change-request decision notification failed:', err);
-  }
-
   return {
     shipment: result.shipment,
     resolution: result.resolution,
     changeRequestId,
     shipmentVersion: result.shipmentVersion,
-    notificationDelivered,
+    notificationDelivered: true,
     message: result.resolution === 'APPLIED'
-      ? messageForDispatchNotification(
-          notificationDelivered,
-          'Đã áp dụng yêu cầu thay đổi và cập nhật phiên bản lô hàng.',
-          'Đã áp dụng yêu cầu thay đổi nhưng chưa ghi được thông báo cho người yêu cầu.',
-        )
-      : messageForDispatchNotification(
-          notificationDelivered,
-          'Đã từ chối yêu cầu thay đổi.',
-          'Đã từ chối yêu cầu thay đổi nhưng chưa ghi được thông báo cho người yêu cầu.',
-        ),
+      ? 'Đã áp dụng yêu cầu thay đổi và cập nhật phiên bản lô hàng.'
+      : 'Đã từ chối yêu cầu thay đổi.',
   };
 }

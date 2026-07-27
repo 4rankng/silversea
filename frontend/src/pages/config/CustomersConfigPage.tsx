@@ -16,6 +16,22 @@ import type { Customer, TripDetail, DebitNoteTemplate } from '@tingting/shared';
 import { CustomerStatus } from '@tingting/shared';
 import './config-page.css';
 
+function toThresholdPercent(value: string | null | undefined): string {
+  if (!value) return '';
+  const ratio = Number(value);
+  if (!Number.isFinite(ratio)) return '';
+  return String(Math.round(ratio * 10000) / 100);
+}
+
+function fromThresholdPercent(value: string): number | null {
+  if (!value.trim()) return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  const ratio = parsed / 100;
+  if (ratio < 0.01 || ratio > 0.99) return null;
+  return Math.round(ratio * 10000) / 10000;
+}
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return <div className="field"><label>{label} {children}</label></div>;
 }
@@ -29,6 +45,7 @@ function CustomerForm({ saving, item, onsave, oncancel }: {
   const [phone, setPhone] = useState(item?.phone || '');
   const [contactInfo, setContactInfo] = useState(item?.contactInfo || '');
   const [creditLimit, setCreditLimit] = useState(item?.creditLimit || '');
+  const [creditWarningThreshold, setCreditWarningThreshold] = useState(toThresholdPercent(item?.creditWarningThreshold));
   const [status, setStatus] = useState(item?.status || 'ACTIVE');
   const [debitNoteTemplateId, setDebitNoteTemplateId] = useState<number | null>(item?.debitNoteTemplateId ?? null);
   const { data: templates } = useQuery<DebitNoteTemplate[]>({
@@ -61,6 +78,21 @@ function CustomerForm({ saving, item, onsave, oncancel }: {
         <Field label="Hạn mức tín dụng">
           <input className="input" type="number" value={creditLimit} onChange={e => setCreditLimit(e.target.value)} placeholder="0" />
         </Field>
+        <Field label="Cảnh báo công nợ (%)">
+          <input
+            className="input"
+            type="number"
+            min="1"
+            max="99"
+            step="0.01"
+            value={creditWarningThreshold}
+            onChange={e => setCreditWarningThreshold(e.target.value)}
+            placeholder="Mặc định hệ thống"
+          />
+        </Field>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <Field label="Trạng thái">
           <select className="input" value={status} onChange={e => setStatus(e.target.value as CustomerStatus)}>
             <option value="ACTIVE">Hoạt động</option>
@@ -90,6 +122,8 @@ function CustomerForm({ saving, item, onsave, oncancel }: {
         <button type="button" className="btn btn--secondary" onClick={oncancel} disabled={saving}>Hủy</button>
         <button type="button" className="btn btn--primary" onClick={() => {
           if (!name.trim()) return;
+          const threshold = fromThresholdPercent(creditWarningThreshold);
+          if (creditWarningThreshold.trim() && threshold == null) return;
           onsave({
             name: name.trim(),
             taxCode: taxCode.trim() || null,
@@ -97,6 +131,7 @@ function CustomerForm({ saving, item, onsave, oncancel }: {
             phone: phone.trim() || null,
             contactInfo: contactInfo.trim() || null,
             creditLimit: creditLimit ? String(creditLimit) : null,
+            creditWarningThreshold: threshold,
             status,
             debitNoteTemplateId,
           });
@@ -317,6 +352,11 @@ export default function CustomersConfigPage() {
                     <td data-label="Khách hàng">
                       <div className="row-strong"><span className={`risk-dot risk-dot--${risk}`} />{c.name}</div>
                       {c.taxCode && <div className="row-meta">MST {c.taxCode}</div>}
+                      <div className="row-meta">
+                        Cảnh báo: {c.creditWarningThreshold
+                          ? `${toThresholdPercent(c.creditWarningThreshold)}%`
+                          : 'Mặc định hệ thống'}
+                      </div>
                     </td>
                     <td data-label="Liên hệ">
                       {c.contactPerson && <div className="row-strong">{c.contactPerson}</div>}

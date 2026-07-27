@@ -1,9 +1,16 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { Role, generateBillingDocumentSchema, saveBillingDocumentSchema } from '@tingting/shared';
+import {
+  Role,
+  billingDocumentAdjustmentRequestSchema,
+  generateBillingDocumentSchema,
+  saveBillingDocumentSchema,
+} from '@tingting/shared';
+import { getUser } from '../../middleware/auth';
 import { requireRoles } from '../../middleware/casbin';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import * as billingService from '../../services/billingDocument.service';
+import { requestBillingDocumentAdjustment } from '../../services/billing-document-governance.service';
 import { getDebitNoteForRender, exportDebitNoteHtml } from '../../services/debit-note-pdf.service';
 import { attachmentDisposition } from '../../services/statement.service';
 import { invalidateReportCaches } from '../../lib/redis';
@@ -52,6 +59,18 @@ router.put('/finance/billing-documents/:id', requireRoles(...ROLES), asyncHandle
   const doc = await billingService.updateDocument(Number(req.params.id), data);
   await invalidateReportCaches();
   res.json(doc);
+}));
+
+router.post('/finance/billing-documents/:id/adjustments', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
+  const actor = getUser(req);
+  const input = billingDocumentAdjustmentRequestSchema.parse(req.body);
+  const action = await requestBillingDocumentAdjustment({
+    documentId: Number(req.params.id),
+    reason: input.reason,
+    makerId: actor.userId,
+    makerRole: actor.role,
+  });
+  res.status(201).json(action);
 }));
 
 // DELETE /api/finance/billing-documents/:id — soft delete

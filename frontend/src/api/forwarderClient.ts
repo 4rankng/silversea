@@ -52,6 +52,8 @@ export const forwarderClient = {
     sellAmount?: number;
     settlementMethod?: 'COMPANY_DIRECT' | 'FORWARDER_ADVANCE';
     supplierId?: number;
+    expenseDate?: string;
+    payeeName?: string;
     invoiceNumber?: string;
     invoiceDate?: string;
     declarationNumber?: string;
@@ -59,6 +61,7 @@ export const forwarderClient = {
     /** B5: authoritative container FK (id). When set the server mirrors containerNumber. */
     tripContainerId?: number;
     note?: string;
+    noInvoiceEvidenceTypes?: string[];
   }) => {
     return api.post(FORWARDER.EXPENSES, data);
   },
@@ -69,11 +72,14 @@ export const forwarderClient = {
     sellAmount?: number;
     settlementMethod?: 'COMPANY_DIRECT' | 'FORWARDER_ADVANCE';
     supplierId?: number | null;
+    expenseDate?: string | null;
+    payeeName?: string | null;
     invoiceNumber?: string | null;
     invoiceDate?: string | null;
     declarationNumber?: string | null;
     tripContainerId?: number | null;
     note?: string | null;
+    noInvoiceEvidenceTypes?: string[] | null;
   }) => api.patch(`/forwarder/me/expenses/${id}`, data),
 
   setExpenseCompletion: async (tripId: number, data: { tripContainerId: number | null; completed: boolean }) =>

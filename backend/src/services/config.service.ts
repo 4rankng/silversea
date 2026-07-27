@@ -7,6 +7,7 @@ import * as s from '../db/schema';
 import { eq, isNull, desc, and, lte, ne } from 'drizzle-orm';
 import { cacheGet, cacheInvalidate } from '../lib/redis';
 import { ApiError } from '../errors';
+import { normalizeTaxCode } from './legal-partner.service';
 
 // ─── Bootstrap ──────────────────────────────────────────────────────────────────
 
@@ -141,13 +142,6 @@ function normalizeCustomerName(value: string | null | undefined): string {
   return String(value ?? '')
     .trim()
     .replace(/\s+/g, ' ')
-    .toLowerCase();
-}
-
-function normalizeTaxCode(value: string | null | undefined): string {
-  return String(value ?? '')
-    .trim()
-    .replace(/\s+/g, '')
     .toLowerCase();
 }
 

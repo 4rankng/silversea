@@ -13,6 +13,7 @@ import {
   unconfirmSalary,
 } from '../services/attendance.service';
 import { resolveSalaryPeriodDateRange } from '../services/salary-period.service';
+import { getClosedPeriodLock, resolveSalaryPeriodAuthority } from '../services/period-lock.service';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { eq, inArray, and } from 'drizzle-orm';
@@ -69,6 +70,13 @@ router.put('/:driverId/:year/:month/workdays', requireRoles(Role.MANAGER, Role.A
 
   // Validate that all dates belong to the resolved salary period
   const period = await resolveSalaryPeriodDateRange(month, year);
+  const closedLock = await getClosedPeriodLock(db, await resolveSalaryPeriodAuthority(`${year}-${String(month).padStart(2, '0')}`));
+  if (closedLock) {
+    throw new ApiError(
+      409,
+      `Kỳ lương ${closedLock.periodKey} đã khóa. Sau khi chốt chỉ được xử lý bằng điều chỉnh bổ sung, không sửa trực tiếp ngày công cũ.`,
+    );
+  }
   for (const item of items) {
     if (item.date < period.start || item.date > period.end) {
       throw new ApiError(400, `Ngày ${item.date} ngoài kỳ lương (${period.start} – ${period.end})`);
@@ -90,6 +98,10 @@ router.post('/:driverId/:year/:month/confirm', requireRoles(Role.ADMIN, Role.ACC
   if (!driverId || !year || !month || month < 1 || month > 12) {
     throw new ApiError(400, 'Tham số không hợp lệ');
   }
+  const closedLock = await getClosedPeriodLock(db, await resolveSalaryPeriodAuthority(`${year}-${String(month).padStart(2, '0')}`));
+  if (closedLock) {
+    throw new ApiError(409, `Kỳ lương ${closedLock.periodKey} đã khóa, không thể xác nhận lại theo từng lái xe`);
+  }
 
   const result = await confirmSalary(driverId, year, month, getUser(req).userId);
   res.json(result);
@@ -103,6 +115,13 @@ router.post('/:driverId/:year/:month/unconfirm', requireRoles(Role.ADMIN, Role.A
 
   if (!driverId || !year || !month || month < 1 || month > 12) {
     throw new ApiError(400, 'Tham số không hợp lệ');
+  }
+  const closedLock = await getClosedPeriodLock(db, await resolveSalaryPeriodAuthority(`${year}-${String(month).padStart(2, '0')}`));
+  if (closedLock) {
+    throw new ApiError(
+      409,
+      `Kỳ lương ${closedLock.periodKey} đã khóa. Sau khi chốt chỉ được xử lý bằng điều chỉnh bổ sung hoặc mở lại toàn kỳ theo thẩm quyền.`,
+    );
   }
 
   const result = await unconfirmSalary(driverId, year, month);

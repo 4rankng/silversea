@@ -19,6 +19,7 @@ export interface UseTripFormParams {
   options: TripOptions;
   mode?: 'create' | 'edit';
   existingTrip?: TripDetail;
+  onCreditLimitBlocked?: (details: { message: string; customerId: number; proposedAmount: number }) => void;
 }
 
 export interface UseTripFormReturn {
@@ -138,7 +139,7 @@ export interface UseTripFormReturn {
   ocrResult: OcrSignal | null;
   error: string;
   setError: (v: string) => void;
-  handleSubmit: (e?: React.FormEvent) => Promise<number | undefined>;
+  handleSubmit: (e?: React.FormEvent, options?: { creditApprovalRequestId?: number | null }) => Promise<number | undefined>;
 
   tripId?: number;
   tripStatus?: TripStatus;
@@ -160,11 +161,11 @@ function isParamsObject(arg: TripOptions | UseTripFormParams): arg is UseTripFor
 
 export function useTripForm(arg: TripOptions | UseTripFormParams): UseTripFormReturn {
   const params = isParamsObject(arg) ? arg : { options: arg, mode: 'create' as const };
-  const { options, mode = 'create', existingTrip } = params;
+  const { options, mode = 'create', existingTrip, onCreditLimitBlocked } = params;
   const isEditMode = mode === 'edit';
 
   const s = useTripFormState({ isEditMode, existingTrip });
-  const d = useTripFormDispatch({ state: s, options, isEditMode, existingTrip });
+  const d = useTripFormDispatch({ state: s, options, isEditMode, existingTrip, onCreditLimitBlocked });
 
   return {
     customerId: s.customerId, setCustomerId: s.setCustomerId,

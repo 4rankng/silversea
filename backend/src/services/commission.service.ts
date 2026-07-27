@@ -5,12 +5,60 @@ import { LedgerService } from './ledger.service';
 import { ApiError } from '../errors';
 import { TxnType, round2dp } from '@tingting/shared';
 import type { CommissionInput } from '@tingting/shared';
+import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from './idempotency.service';
+import type { Tx } from './trip-shared';
 
 /** Result of recording a commission — exposes the ledger row for audit. */
 export interface CommissionResult {
   ok: true;
   ledgerId: number;
   newBalance: number;
+}
+
+type CommissionStoredResult = CommissionResult & { id: number };
+
+async function recordCommissionTx(tx: Tx, input: CommissionInput): Promise<CommissionStoredResult> {
+  const [supplier] = await tx.select({ id: s.suppliers.id })
+    .from(s.suppliers)
+    .where(and(eq(s.suppliers.id, input.supplierId), isNull(s.suppliers.deletedAt)))
+    .limit(1);
+  if (!supplier) {
+    throw new ApiError(404, 'Không tìm thấy nhà cung cấp — có thể đã bị xóa');
+  }
+
+  const inserted = await LedgerService.postEntry(tx, {
+    txnType: TxnType.COMMISSION,
+    txnId: input.tripId,
+    entityType: 'VENDOR',
+    entityId: input.supplierId,
+    debit: 0,
+    credit: round2dp(Number(input.amount)),
+    note: input.note?.trim() || 'Hoa hồng',
+  });
+  return {
+    ok: true,
+    id: inserted.id,
+    ledgerId: inserted.id,
+    newBalance: Number(inserted.balance),
+  };
+}
+
+async function loadCommissionResultTx(tx: Tx, ledgerId: number): Promise<CommissionStoredResult> {
+  const [row] = await tx.select({
+    id: s.ledger.id,
+    balance: s.ledger.balance,
+  }).from(s.ledger)
+    .where(eq(s.ledger.id, ledgerId))
+    .limit(1);
+  if (!row) {
+    throw new ApiError(404, 'Không tìm thấy bút toán hoa hồng');
+  }
+  return {
+    ok: true,
+    id: row.id,
+    ledgerId: row.id,
+    newBalance: Number(row.balance),
+  };
 }
 
 /**
@@ -28,24 +76,42 @@ export interface CommissionResult {
  * Not trip-scoped — `tripId` is passed through as optional `txnId` context.
  */
 export async function recordCommission(input: CommissionInput): Promise<CommissionResult> {
-  return db.transaction(async (tx) => {
-    const [supplier] = await tx.select({ id: s.suppliers.id })
-      .from(s.suppliers)
-      .where(and(eq(s.suppliers.id, input.supplierId), isNull(s.suppliers.deletedAt)))
-      .limit(1);
-    if (!supplier) {
-      throw new ApiError(404, 'Không tìm thấy nhà cung cấp — có thể đã bị xóa');
-    }
+  const result = await db.transaction((tx) => recordCommissionTx(tx, input));
+  return {
+    ok: result.ok,
+    ledgerId: result.ledgerId,
+    newBalance: result.newBalance,
+  };
+}
 
-    const inserted = await LedgerService.postEntry(tx, {
-      txnType: TxnType.COMMISSION,
-      txnId: input.tripId,
-      entityType: 'VENDOR',
-      entityId: input.supplierId,
-      debit: 0,
-      credit: round2dp(Number(input.amount)),
-      note: input.note?.trim() || 'Hoa hồng',
-    });
-    return { ok: true as const, ledgerId: inserted.id, newBalance: Number(inserted.balance) };
+export async function recordCommissionIdempotent(args: {
+  input: CommissionInput;
+  idempotencyKey: string | undefined;
+  createdBy?: number | null;
+}): Promise<{ result: CommissionResult; replayed: boolean }> {
+  const payload = {
+    supplierId: args.input.supplierId,
+    amount: Number(args.input.amount),
+    tripId: args.input.tripId ?? null,
+    note: args.input.note?.trim() || '',
+  };
+
+  const { result, replayed } = await runIdempotent<CommissionStoredResult>({
+    endpoint: IDEMPOTENCY_ENDPOINTS.COMMISSIONS_CREATE,
+    idempotencyKey: args.idempotencyKey,
+    payload,
+    createdBy: args.createdBy ?? null,
+    entityType: 'ledger',
+    create: async (tx) => recordCommissionTx(tx, args.input),
+    load: async (entityId, tx) => loadCommissionResultTx(tx, entityId),
   });
+
+  return {
+    replayed,
+    result: {
+      ok: result.ok,
+      ledgerId: result.ledgerId,
+      newBalance: result.newBalance,
+    },
+  };
 }

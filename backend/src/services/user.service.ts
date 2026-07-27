@@ -243,7 +243,8 @@ async function validateBusinessUnitIds(
 ) {
   if (businessUnitIds.length === 0) return;
   const rows = await q.select({ id: businessUnits.id }).from(businessUnits)
-    .where(and(inArray(businessUnits.id, businessUnitIds), eq(businessUnits.status, 'ACTIVE')));
+    .where(and(inArray(businessUnits.id, businessUnitIds), eq(businessUnits.status, 'ACTIVE')))
+    .for('share');
   if (rows.length !== businessUnitIds.length) {
     throw new ApiError(400, 'Đơn vị phụ trách liên kết không tồn tại hoặc đã ngưng dùng');
   }
@@ -605,6 +606,10 @@ export async function updateUser(id: number, data: {
         || data.role !== undefined
         || data.status !== undefined;
       if (effectiveStatus !== 'INACTIVE' && (!existingActiveLegacyClerk || scopeOrRoleTouched)) {
+        // Share-lock the active units before committing an ACTIVE clerk state.
+        // Business-unit deactivation takes a row update lock, so concurrent
+        // assignment/activation cannot validate against a unit being retired.
+        await validateBusinessUnitIds(tx, nextBusinessUnitIds);
         assertActiveClerkScope(nextBusinessUnitIds, nextCustomerIds, nextShipmentIds);
       }
     }
@@ -782,16 +787,60 @@ export async function updateBusinessUnit(
   id: number,
   data: { code?: string | null; name?: string; status?: string },
 ) {
-  const updates: Record<string, unknown> = { updatedAt: sql`now()` };
-  if (data.code !== undefined) updates.code = data.code?.trim() || null;
-  if (data.name !== undefined) updates.name = data.name.trim();
-  if (data.status !== undefined) updates.status = data.status;
   try {
-    const [updated] = await db.update(businessUnits).set(updates)
-      .where(eq(businessUnits.id, id))
-      .returning();
-    if (!updated) throw new ApiError(404, 'Không tìm thấy đơn vị phụ trách');
-    return updated;
+    return await db.transaction(async (tx) => {
+      const [existing] = await tx.select()
+        .from(businessUnits)
+        .where(eq(businessUnits.id, id))
+        .for('update')
+        .limit(1);
+      if (!existing) throw new ApiError(404, 'Không tìm thấy đơn vị phụ trách');
+
+      if (data.status === 'INACTIVE' && existing.status !== 'INACTIVE') {
+        const affectedClerks = await tx.select({ userId: users.id })
+          .from(userBusinessUnitLinks)
+          .innerJoin(users, eq(userBusinessUnitLinks.userId, users.id))
+          .where(and(
+            eq(userBusinessUnitLinks.businessUnitId, id),
+            eq(users.role, Role.CLERK),
+            eq(users.status, 'ACTIVE'),
+            isNull(users.deletedAt),
+          ));
+        const affectedUserIds = [...new Set(affectedClerks.map((row) => row.userId))];
+        if (affectedUserIds.length > 0) {
+          // Different unit rows do not contend with each other. Serialize the
+          // invariant by affected clerk so two concurrent deactivations cannot
+          // each count the other's unit as the remaining ACTIVE assignment.
+          for (const userId of affectedUserIds.sort((left, right) => left - right)) {
+            await tx.execute(sql`SELECT pg_advisory_xact_lock(6120, ${userId})`);
+          }
+          const alternativeRows = await tx.select({ userId: userBusinessUnitLinks.userId })
+            .from(userBusinessUnitLinks)
+            .innerJoin(businessUnits, eq(userBusinessUnitLinks.businessUnitId, businessUnits.id))
+            .where(and(
+              inArray(userBusinessUnitLinks.userId, affectedUserIds),
+              ne(userBusinessUnitLinks.businessUnitId, id),
+              eq(businessUnits.status, 'ACTIVE'),
+            ));
+          const usersWithAlternative = new Set(alternativeRows.map((row) => row.userId));
+          if (affectedUserIds.some((userId) => !usersWithAlternative.has(userId))) {
+            throw new ApiError(
+              409,
+              'Không thể ngưng đơn vị đang là đơn vị hoạt động duy nhất của nhân viên chứng từ ACTIVE',
+            );
+          }
+        }
+      }
+
+      const updates: Record<string, unknown> = { updatedAt: sql`now()` };
+      if (data.code !== undefined) updates.code = data.code?.trim() || null;
+      if (data.name !== undefined) updates.name = data.name.trim();
+      if (data.status !== undefined) updates.status = data.status;
+      const [updated] = await tx.update(businessUnits).set(updates)
+        .where(eq(businessUnits.id, id))
+        .returning();
+      return updated;
+    });
   } catch (err) {
     if (isUniqueViolation(err)) {
       throw new ApiError(409, 'Mã hoặc tên đơn vị phụ trách đã tồn tại');

@@ -143,6 +143,17 @@ export function ForwarderExpenseRow({ exp, expenseTypeOptions: forwarderExpenseT
                       {exp.note && (
                         <span style={{ color: 'var(--fg-3)', fontSize: 12, marginLeft: 8 }}>{exp.note}</span>
                       )}
+                      {exp.returnForEvidenceReason && (
+                        <div style={{ marginTop: 6, fontSize: 12, color: '#92400e', background: '#fef3c7', borderRadius: 6, padding: '6px 8px', maxWidth: 420 }}>
+                          Cần bổ sung: {exp.returnForEvidenceReason}
+                        </div>
+                      )}
+                      {(exp.expenseDate || exp.payeeName) && (
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6, fontSize: 12, color: 'var(--fg-3)' }}>
+                          {exp.expenseDate && <span>Ngày chi {exp.expenseDate}</span>}
+                          {exp.payeeName && <span>Người nhận {exp.payeeName}</span>}
+                        </div>
+                      )}
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <div style={{ fontWeight: 600, fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
@@ -155,7 +166,7 @@ export function ForwarderExpenseRow({ exp, expenseTypeOptions: forwarderExpenseT
                     {/* Photo upload button */}
                     <label
                       className="icon-btn"
-                      title="Thêm ảnh hóa đơn"
+                      title="Thêm ảnh chứng từ"
                       style={{ color: 'var(--fg-3)', opacity: 0.7, padding: 4, cursor: 'pointer' }}
                     >
                       {uploadingExpenseId === exp.id
@@ -209,7 +220,7 @@ export function ForwarderExpenseRow({ exp, expenseTypeOptions: forwarderExpenseT
                   {/* Load photos on first render */}
                   {!expensePhotos[exp.id] && (
                     <span style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--fg-3)', paddingLeft: 26, marginTop: 4, display: 'inline-block', cursor: 'pointer' }} onClick={() => loadExpensePhotos(exp.id)}>
-                      Xem ảnh hóa đơn
+                      Xem ảnh chứng từ
                     </span>
                   )}
                 </div>

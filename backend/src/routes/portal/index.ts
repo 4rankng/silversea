@@ -262,6 +262,7 @@ router.post('/debit-notes/:id/confirm', asyncHandler(async (req: Request, res: R
   await transitionDebitNoteStatus({
     documentId: doc.id,
     targetStatus: 'CONFIRMED',
+    expectedStatus: 'PENDING_CONFIRM',
     actorUserId: user.userId,
     confirmedBy: user.fullName ?? user.username ?? user.email ?? `Khách hàng #${doc.entityId}`,
   });
@@ -276,6 +277,7 @@ router.post('/debit-notes/:id/dispute', asyncHandler(async (req: Request, res: R
   await transitionDebitNoteStatus({
     documentId: doc.id,
     targetStatus: 'REJECTED',
+    expectedStatus: 'PENDING_CONFIRM',
     actorUserId: getUser(req).userId,
   });
   res.json(toCustomerDebitNote(await getDocument(doc.id)));

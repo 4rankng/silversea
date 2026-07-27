@@ -18,6 +18,9 @@ CREATE TABLE "payment_receipts" (
 --> statement-breakpoint
 ALTER TABLE "payment_allocations" ADD COLUMN "payment_receipt_id" integer;--> statement-breakpoint
 ALTER TABLE "payment_allocations" ADD COLUMN "allocation_order" integer;--> statement-breakpoint
+ALTER TABLE "payment_allocations" ADD COLUMN "original_due_date_snapshot" date;--> statement-breakpoint
+ALTER TABLE "payment_allocations" ADD COLUMN "processing_due_date_snapshot" date;--> statement-breakpoint
+ALTER TABLE "payment_allocations" ADD COLUMN "issue_timestamp_snapshot" timestamp;--> statement-breakpoint
 ALTER TABLE "payment_receipts" ADD CONSTRAINT "payment_receipts_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "payment_receipts" ADD CONSTRAINT "payment_receipts_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "payment_receipts_receipt_id_uniq" ON "payment_receipts" USING btree ("receipt_id");--> statement-breakpoint

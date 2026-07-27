@@ -21,10 +21,19 @@ import * as s from '../db/schema';
 import { and, eq, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export const MAX_IDEMPOTENCY_KEY_LENGTH = 100;
+
 /** Tag identifying the logical endpoint (e.g. 'shipments.quick-create'). */
 export const IDEMPOTENCY_ENDPOINTS = {
   SHIPMENT_QUICK_CREATE: 'shipments.quick-create',
   PAYMENTS_RECEIVE: 'payments.receive',
+  PAYMENTS_VENDOR: 'payments.vendor',
+  PAYMENTS_CARRIER: 'payments.carrier',
+  DRIVER_PAYOUT: 'drivers.payout',
+  COMMISSIONS_CREATE: 'commissions.create',
+  PENALTIES_CREATE: 'penalties.create',
+  PENALTIES_CANCEL: 'penalties.cancel',
   DRIVER_PROGRESS: 'driver.progress',
   DRIVER_INCIDENTAL_COST: 'driver.incidental-cost',
 } as const;
@@ -43,6 +52,30 @@ function canonicalize(value: unknown): string {
 /** SHA-256 hex of the canonicalised payload. */
 export function hashPayload(value: unknown): string {
   return createHash('sha256').update(canonicalize(value)).digest('hex');
+}
+
+function normalizeIdempotencyKey(value: string | null | undefined): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.length > MAX_IDEMPOTENCY_KEY_LENGTH) {
+    throw new ApiError(
+      400,
+      `Idempotency-Key không được vượt quá ${MAX_IDEMPOTENCY_KEY_LENGTH} ký tự.`,
+    );
+  }
+  return trimmed;
+}
+
+export function resolveIdempotencyKey(args: {
+  headerValue?: string | null;
+  requestId?: unknown;
+}): string | undefined {
+  const headerKey = normalizeIdempotencyKey(args.headerValue);
+  if (headerKey) return headerKey;
+  return normalizeIdempotencyKey(
+    typeof args.requestId === 'string' ? args.requestId : undefined,
+  );
 }
 
 export interface StoredEntity {
@@ -84,11 +117,11 @@ export async function findIdempotencyRecord(
  *   and return `{ result, replayed: true }` without calling `create`.
  * - Key + replay, different payload hash → 409.
  *
- * `create` runs inside the caller's responsibility — it is NOT wrapped in
- * an outer transaction here because typical `create` impls (e.g.
- * `createShipment`) open their own transaction and may also enqueue audit
- * events. The idempotency row is inserted after `create` succeeds so a
- * failure of `create` leaves no orphan key.
+ * `create` and replay `load` always receive a real transaction so the
+ * business write and the idempotency row share the same connection and
+ * commit/rollback boundary. This prevents nested-pool starvation when many
+ * keyed requests arrive concurrently and keeps the stored entity/key mapping
+ * atomic across every caller.
  *
  * Concurrent first calls are serialized with a transaction-scoped PostgreSQL
  * advisory lock derived from `(endpoint, idempotencyKey)`. The second caller
@@ -100,16 +133,19 @@ export async function runIdempotent<T>(args: {
   idempotencyKey: string | undefined;
   payload: unknown;
   createdBy?: number | null;
-  create: () => Promise<T & { id: number }>;
-  load: (entityId: number) => Promise<T>;
+  create: (tx: Tx) => Promise<T & { id: number }>;
+  load: (entityId: number, tx: Tx) => Promise<T>;
   entityType: string;
 }): Promise<IdempotentRunResult<T>> {
   const { endpoint, idempotencyKey, payload, createdBy, create, load, entityType } = args;
 
-  // No key → non-idempotent path. Caller still gets a normal result.
+  // No key → caller still gets a normal result, but on the same transaction
+  // contract as the keyed path.
   if (!idempotencyKey) {
-    const result = await create();
-    return { result, replayed: false };
+    return db.transaction(async (tx) => {
+      const result = await create(tx);
+      return { result, replayed: false };
+    });
   }
 
   const payloadHash = hashPayload(payload);
@@ -144,11 +180,11 @@ export async function runIdempotent<T>(args: {
           `idempotency_key=${idempotencyKey}`,
         );
       }
-      const result = await load(existing.entityId);
+      const result = await load(existing.entityId, tx);
       return { result, replayed: true };
     }
 
-    const created = await create();
+    const created = await create(tx);
     await tx.insert(s.idempotencyKeys).values({
       endpoint,
       idempotencyKey,

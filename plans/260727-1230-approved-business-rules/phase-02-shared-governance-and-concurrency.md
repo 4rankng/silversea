@@ -72,11 +72,23 @@ deny by default.
   The typed, fail-closed catalog is implemented and independently green;
   issued debit notes can no longer be deleted after leaving DRAFT. Propagation,
   provenance, issued-document binding and linked corrections remain.
-- [ ] Q15/Q17/Q23 maker-checker, locked-boundary, and material-write
-  concurrency enforcement. Q23 now has a complete 204-endpoint inventory and
+- [ ] Q15/Q23 maker-checker and universal material-write concurrency
+  enforcement. The reusable Q15 governance foundation now has typed HTTP
+  input validation, 20/20 Q15/Q18 focused proof, and asserted real
+  0138→0139 plus fresh-chain migration evidence; remaining Q15 work is domain
+  adoption across direct money, price, close and exception boundaries. Q23
+  now has a complete 204-endpoint inventory and
   independently green first-winner fixes for debt-offset and trip cancellation,
-  including cancel-versus-stale-edit protection; penalty cancellation and the
-  universal atomic replay/result model remain.
+  including cancel-versus-stale-edit protection; penalty cancellation is also
+  independently green with a single winner and atomic reversal. The universal
+  atomic replay/result model remains.
+- [x] Q17 CLERK unit/customer/shipment scoping, post-dispatch change requests,
+  durable targeted notifications, shipment-bound document replacement, and
+  different-unit deactivation concurrency are independently GO.
+- [x] Q03 payment allocation and shared idempotency foundation are independently
+  GO: one-transaction create/replay for payment, shipment and driver callers,
+  bounded oldest-due allocation, batched ledger posting, immutable replay
+  snapshots, active-customer enforcement, and audit evidence.
 
 ## Success Criteria
 

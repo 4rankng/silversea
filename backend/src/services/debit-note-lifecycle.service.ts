@@ -43,6 +43,8 @@ export interface TransitionInput {
   documentId: number;
   targetStatus: DebitNoteStatus;
   actorUserId: number;
+  /** Reject when the locked row no longer has the status observed by the caller. */
+  expectedStatus?: DebitNoteStatus;
   /** Required when targetStatus = CONFIRMED (who confirmed). */
   confirmedBy?: string;
   reason?: string;
@@ -57,6 +59,9 @@ export async function transitionDebitNoteStatus(input: TransitionInput) {
     if (!doc) throw new ApiError(404, 'Không tìm thấy giấy báo nợ');
 
     const currentStatus = (doc.debitNoteStatus ?? 'DRAFT') as DebitNoteStatus;
+    if (input.expectedStatus !== undefined && currentStatus !== input.expectedStatus) {
+      throw new ApiError(409, 'Trạng thái giấy báo nợ vừa thay đổi. Vui lòng tải lại và thử lại.');
+    }
     if (!isValidTransition(currentStatus, input.targetStatus)) {
       throw new ApiError(
         409,

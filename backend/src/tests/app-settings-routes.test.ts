@@ -5,7 +5,7 @@ import type { AddressInfo } from 'node:net';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { inArray } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
@@ -16,6 +16,11 @@ import { authMiddleware } from '../middleware/auth';
 import { casbinAuthz } from '../middleware/casbin';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import { getAppSettings, saveAppSettings } from '../services/app-settings.service';
+import {
+  EMAIL_SETTING_KEYS,
+  invalidateEmailSettings,
+  saveEmailSettings,
+} from '../services/email-settings.service';
 import { appSettingsRouter } from '../routes/app-settings';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -23,6 +28,7 @@ const createdUserIds: number[] = [];
 let server: http.Server;
 let baseUrl: string;
 let originalSettings: Awaited<ReturnType<typeof getAppSettings>>;
+let originalResendKeyValue: string | undefined;
 let adminToken: string;
 let managerToken: string;
 let accountantToken: string;
@@ -60,6 +66,12 @@ async function request(path: string, init: { method?: string; token?: string; bo
 before(async () => {
   await initEnforcer();
   originalSettings = await getAppSettings();
+  const [emailSetting] = await db.select({ value: s.appSettings.value })
+    .from(s.appSettings)
+    .where(eq(s.appSettings.key, EMAIL_SETTING_KEYS.resendApiKey))
+    .limit(1);
+  originalResendKeyValue = emailSetting?.value;
+  await saveEmailSettings({ clearResendApiKey: true });
 
   const app = express();
   app.use(express.json());
@@ -79,12 +91,23 @@ before(async () => {
 });
 
 after(async () => {
-  await saveAppSettings(originalSettings);
-  await new Promise<void>((resolve) => server.close(() => resolve()));
-  if (createdUserIds.length > 0) {
-    await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
+  try {
+    await saveAppSettings(originalSettings);
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    if (createdUserIds.length > 0) {
+      await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
+    }
+  } finally {
+    await db.delete(s.appSettings).where(eq(s.appSettings.key, EMAIL_SETTING_KEYS.resendApiKey));
+    if (originalResendKeyValue !== undefined) {
+      await db.insert(s.appSettings).values({
+        key: EMAIL_SETTING_KEYS.resendApiKey,
+        value: originalResendKeyValue,
+      });
+    }
+    invalidateEmailSettings();
+    await client.end();
   }
-  await client.end();
 });
 
 describe('app-settings route authorization', () => {

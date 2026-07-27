@@ -10,6 +10,7 @@ import { listTripContainers, listTripPhotoKeys } from './forwarder.service';
 import { getTripInstructions } from './trip-instructions.service';
 import { storageService } from './storage.service';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
+import type { Tx } from './trip-shared';
 
 /**
  * Ledger txn types that count as cash the company has actually paid out / advanced
@@ -151,6 +152,67 @@ export interface DriverTwoOrdersView {
   firstOrderLate: boolean;
   /** Every non-CANCELED trip today (for UI context / debugging). */
   allToday: DriverTripSummary[];
+  /** Persisted ordered pair, including cross-day trips, when available. */
+  pair: {
+    pairId: number;
+    status: 'ACTIVE' | 'BROKEN';
+    breakReason: 'FIRST_TRIP_CANCELED' | 'SECOND_TRIP_CANCELED' | 'LATE_COMPLETION' | null;
+    emptyDistanceKm: string | null;
+    combinedEfficiencyPercent: string | null;
+    requiredGapMinutes: number | null;
+    actualGapMinutes: number | null;
+    lateByMinutes: number | null;
+    first: DriverTripSummary | null;
+    second: DriverTripSummary | null;
+  } | null;
+}
+
+type DriverPairBreakReason = NonNullable<NonNullable<DriverTwoOrdersView['pair']>['breakReason']>;
+
+async function loadDriverTripContainers(tripIds: number[]): Promise<Map<number, string[]>> {
+  const containersByTrip = new Map<number, string[]>();
+  if (tripIds.length === 0) return containersByTrip;
+  const containerRows = await db.select({
+    tripId: s.tripContainers.tripId,
+    containerNumber: s.tripContainers.containerNumber,
+  }).from(s.tripContainers).where(inArray(s.tripContainers.tripId, tripIds));
+  for (const c of containerRows) {
+    if (!c.containerNumber) continue;
+    const list = containersByTrip.get(c.tripId);
+    if (list) list.push(c.containerNumber);
+    else containersByTrip.set(c.tripId, [c.containerNumber]);
+  }
+  return containersByTrip;
+}
+
+function shapeDriverTripSummary(
+  row: {
+    id: number;
+    tripCode: string | null;
+    departureDate: string;
+    status: string | null;
+    fuelLiters: string | null;
+    totalRoadAllowance: string | null;
+    driverSalary: string | null;
+    routeName: string | null;
+    truckPlate: string | null;
+    customerName: string | null;
+  },
+  containersByTrip: Map<number, string[]>,
+): DriverTripSummary {
+  return {
+    id: row.id,
+    tripCode: row.tripCode,
+    departureDate: row.departureDate,
+    status: (row.status ?? 'CREATED') as DriverTripSummary['status'],
+    fuelLiters: row.fuelLiters,
+    totalRoadAllowance: row.totalRoadAllowance,
+    driverSalary: row.driverSalary,
+    routeName: row.routeName,
+    truckPlate: row.truckPlate,
+    customerName: row.customerName,
+    containerNumbers: containersByTrip.get(row.id) ?? [],
+  };
 }
 
 /** Format a Date as YYYY-MM-DD in the server's local timezone. */
@@ -168,6 +230,92 @@ function todayYyyyMmDd(now: Date = new Date()): string {
  */
 export async function getDriverTwoOrdersView(driverId: number): Promise<DriverTwoOrdersView> {
   const today = todayYyyyMmDd();
+  const [activePairMembership] = await db.select({
+    pairId: s.trips.activeTripPairId,
+  }).from(s.trips)
+    .where(and(
+      eq(s.trips.driverId, driverId),
+      isNull(s.trips.deletedAt),
+      sql`${s.trips.activeTripPairId} is not null`,
+    ))
+    .orderBy(desc(s.trips.departureDate), desc(s.trips.id))
+    .limit(1);
+
+  if (activePairMembership?.pairId) {
+    const [pair] = await db.select({
+      id: s.tripPairs.id,
+      status: s.tripPairs.status,
+      breakReason: s.tripPairs.breakReason,
+      emptyDistanceKm: s.tripPairs.emptyDistanceKm,
+      combinedEfficiencyPercent: s.tripPairs.combinedEfficiencyPercent,
+      requiredGapMinutes: s.tripPairs.requiredGapMinutes,
+      actualGapMinutes: s.tripPairs.actualGapMinutes,
+      lateByMinutes: s.tripPairs.lateByMinutes,
+      firstTripId: s.tripPairs.firstTripId,
+      secondTripId: s.tripPairs.secondTripId,
+    }).from(s.tripPairs)
+      .where(eq(s.tripPairs.id, activePairMembership.pairId))
+      .limit(1);
+
+    if (pair) {
+      const pairRows = await db.select({
+        id: s.trips.id,
+        tripCode: s.trips.tripCode,
+        departureDate: s.trips.departureDate,
+        status: s.trips.status,
+        fuelLiters: s.trips.fuelLiters,
+        totalRoadAllowance: s.trips.totalRoadAllowance,
+        driverSalary: s.trips.driverSalary,
+        routeName: s.routes.name,
+        truckPlate: s.trucks.licensePlate,
+        customerName: s.customers.name,
+      }).from(s.trips)
+        .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
+        .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
+        .leftJoin(s.customers, eq(s.trips.customerId, s.customers.id))
+        .where(and(
+          inArray(s.trips.id, [pair.firstTripId, pair.secondTripId]),
+          isNull(s.trips.deletedAt),
+        ))
+        .orderBy(asc(s.trips.id));
+      const containersByTrip = await loadDriverTripContainers(pairRows.map((row) => row.id));
+      const pairTripById = new Map(pairRows.map((row) => [
+        row.id,
+        shapeDriverTripSummary(row, containersByTrip),
+      ]));
+      const first = pairTripById.get(pair.firstTripId) ?? null;
+      const second = pairTripById.get(pair.secondTripId) ?? null;
+      const orderedTrips = [first, second].filter((trip): trip is DriverTripSummary => Boolean(trip));
+      const active = orderedTrips.find((trip) => trip.status === 'IN_TRANSIT') ?? null;
+      const next = first?.status === 'CREATED'
+        ? first
+        : second?.status === 'CREATED'
+          ? second
+          : null;
+      const firstOrderLate = first?.status === 'CREATED' && second != null;
+
+      return {
+        date: today,
+        active,
+        next,
+        firstOrderLate,
+        allToday: orderedTrips,
+        pair: {
+          pairId: pair.id,
+          status: (pair.status === 'BROKEN' ? 'BROKEN' : 'ACTIVE'),
+          breakReason: pair.breakReason as DriverPairBreakReason,
+          emptyDistanceKm: pair.emptyDistanceKm,
+          combinedEfficiencyPercent: pair.combinedEfficiencyPercent,
+          requiredGapMinutes: pair.requiredGapMinutes,
+          actualGapMinutes: pair.actualGapMinutes,
+          lateByMinutes: pair.lateByMinutes,
+          first,
+          second,
+        },
+      };
+    }
+  }
+
   const rows = await db.select({
     id: s.trips.id,
     tripCode: s.trips.tripCode,
@@ -192,37 +340,8 @@ export async function getDriverTwoOrdersView(driverId: number): Promise<DriverTw
     ))
     .orderBy(asc(s.trips.createdAt));
 
-  // Attach container numbers (batched single query, mirroring getDriverTrips).
-  const tripIds = rows.map(r => r.id);
-  const containersByTrip = new Map<number, string[]>();
-  if (tripIds.length > 0) {
-    const containerRows = await db.select({
-      tripId: s.tripContainers.tripId,
-      containerNumber: s.tripContainers.containerNumber,
-    }).from(s.tripContainers).where(inArray(s.tripContainers.tripId, tripIds));
-    for (const c of containerRows) {
-      if (!c.containerNumber) continue;
-      const list = containersByTrip.get(c.tripId);
-      if (list) list.push(c.containerNumber);
-      else containersByTrip.set(c.tripId, [c.containerNumber]);
-    }
-  }
-
-  const allToday: DriverTripSummary[] = rows.map(r => ({
-    id: r.id,
-    tripCode: r.tripCode,
-    departureDate: r.departureDate,
-    // status has a DB default but is typed nullable; coalesce to 'CREATED'
-    // (the column default) so the union stays narrow.
-    status: r.status ?? 'CREATED',
-    fuelLiters: r.fuelLiters,
-    totalRoadAllowance: r.totalRoadAllowance,
-    driverSalary: r.driverSalary,
-    routeName: r.routeName,
-    truckPlate: r.truckPlate,
-    customerName: r.customerName,
-    containerNumbers: containersByTrip.get(r.id) ?? [],
-  }));
+  const containersByTrip = await loadDriverTripContainers(rows.map((row) => row.id));
+  const allToday: DriverTripSummary[] = rows.map((row) => shapeDriverTripSummary(row, containersByTrip));
 
   // active = the IN_TRANSIT trip today (earliest createdAt if 2, data-quality guard).
   const inTransit = allToday.filter(t => t.status === 'IN_TRANSIT');
@@ -238,7 +357,7 @@ export async function getDriverTwoOrdersView(driverId: number): Promise<DriverTw
   const earliest = allToday[0] ?? null;
   const firstOrderLate = allToday.length >= 2 && earliest !== null && earliest.status === 'CREATED';
 
-  return { date: today, active, next, firstOrderLate, allToday };
+  return { date: today, active, next, firstOrderLate, allToday, pair: null };
 }
 
 /**
@@ -499,6 +618,65 @@ async function assertTripOwnedByDriver(tripId: number, driverId: number) {
   return trip;
 }
 
+async function insertDriverProgressEventTx(
+  tx: Tx,
+  tripId: number,
+  driverId: number,
+  input: { eventType: DriverProgressEventType; occurredAt: string; note?: string },
+  recordedBy: number,
+): Promise<DriverProgressEvent> {
+  const [row] = await tx.insert(s.driverProgressEvents).values({
+    tripId,
+    driverId,
+    eventType: input.eventType,
+    occurredAt: new Date(input.occurredAt),
+    note: input.note ?? null,
+    recordedBy,
+  }).returning();
+  return row as DriverProgressEvent;
+}
+
+async function loadDriverProgressEventTx(tx: Tx, id: number): Promise<DriverProgressEvent> {
+  const [row] = await tx.select().from(s.driverProgressEvents)
+    .where(eq(s.driverProgressEvents.id, id)).limit(1);
+  if (!row) throw new ApiError(404, 'Sự kiện tiến độ không tồn tại');
+  return row as DriverProgressEvent;
+}
+
+async function assertTripAcceptsIncidentalCostTx(tx: Tx, tripId: number): Promise<void> {
+  const [trip] = await tx.select({ status: s.trips.status })
+    .from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+  if (trip?.status === 'LOCKED') {
+    throw new ApiError(409, 'Không thể thêm chi phí cho chuyến đã chốt');
+  }
+}
+
+async function insertDriverIncidentalCostTx(
+  tx: Tx,
+  tripId: number,
+  driverId: number,
+  input: { costType: DriverIncidentalCostType; amount: number; occurredAt: string; note?: string },
+  recordedBy: number,
+): Promise<DriverIncidentalCost> {
+  const [row] = await tx.insert(s.driverIncidentalCosts).values({
+    tripId,
+    driverId,
+    costType: input.costType,
+    amount: String(input.amount),
+    occurredAt: input.occurredAt,
+    note: input.note ?? null,
+    recordedBy,
+  }).returning();
+  return row as DriverIncidentalCost;
+}
+
+async function loadDriverIncidentalCostTx(tx: Tx, id: number): Promise<DriverIncidentalCost> {
+  const [row] = await tx.select().from(s.driverIncidentalCosts)
+    .where(eq(s.driverIncidentalCosts.id, id)).limit(1);
+  if (!row) throw new ApiError(404, 'Chi phí không tồn tại');
+  return row as DriverIncidentalCost;
+}
+
 /**
  * Record a driver progress event. Server-side idempotent: a replay with the
  * same `idempotencyKey` + same payload returns the original event (201 first,
@@ -520,23 +698,8 @@ export async function recordDriverProgress(
     payload: { tripId, driverId, ...input },
     createdBy: recordedBy,
     entityType: 'driver_progress_event',
-    create: async () => {
-      const [row] = await db.insert(s.driverProgressEvents).values({
-        tripId,
-        driverId,
-        eventType: input.eventType,
-        occurredAt: new Date(input.occurredAt),
-        note: input.note ?? null,
-        recordedBy,
-      }).returning();
-      return row as DriverProgressEvent;
-    },
-    load: async (id) => {
-      const [row] = await db.select().from(s.driverProgressEvents)
-        .where(eq(s.driverProgressEvents.id, id)).limit(1);
-      if (!row) throw new ApiError(404, 'Sự kiện tiến độ không tồn tại');
-      return row as DriverProgressEvent;
-    },
+    create: async (tx) => insertDriverProgressEventTx(tx, tripId, driverId, input, recordedBy),
+    load: async (id, tx) => loadDriverProgressEventTx(tx, id),
   });
   return { event: result, replayed };
 }
@@ -589,37 +752,17 @@ export async function recordIncidentalCost(
   // Ownership check (reuses the progress-event helper).
   await assertTripOwnedByDriver(tripId, driverId);
 
-  // LOCKED trips reject — costs affect financials (unlike progress events).
-  const [trip] = await db.select({ status: s.trips.status })
-    .from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
-  if (trip?.status === 'LOCKED') {
-    throw new ApiError(409, 'Không thể thêm chi phí cho chuyến đã chốt');
-  }
-
   const { result, replayed } = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_INCIDENTAL_COST,
     idempotencyKey,
     payload: { tripId, driverId, ...input },
     createdBy: recordedBy,
     entityType: 'driver_incidental_cost',
-    create: async () => {
-      const [row] = await db.insert(s.driverIncidentalCosts).values({
-        tripId,
-        driverId,
-        costType: input.costType,
-        amount: String(input.amount),
-        occurredAt: input.occurredAt,
-        note: input.note ?? null,
-        recordedBy,
-      }).returning();
-      return row as DriverIncidentalCost;
+    create: async (tx) => {
+      await assertTripAcceptsIncidentalCostTx(tx, tripId);
+      return insertDriverIncidentalCostTx(tx, tripId, driverId, input, recordedBy);
     },
-    load: async (id) => {
-      const [row] = await db.select().from(s.driverIncidentalCosts)
-        .where(eq(s.driverIncidentalCosts.id, id)).limit(1);
-      if (!row) throw new ApiError(404, 'Chi phí không tồn tại');
-      return row as DriverIncidentalCost;
-    },
+    load: async (id, tx) => loadDriverIncidentalCostTx(tx, id),
   });
   return { cost: result, replayed };
 }

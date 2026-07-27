@@ -18,13 +18,14 @@
  */
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { inArray } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { recordDriverProgress, listDriverProgress } from '../services/driver.service';
 import { ApiError } from '../errors';
 import { DriverProgressEventType } from '@tingting/shared';
+import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../services/idempotency.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const NOW_ISO = new Date().toISOString();
@@ -36,15 +37,17 @@ const createdUserIds: number[] = [];
 const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
 const createdCustomerIds: number[] = [];
+let userCounter = 0;
 
 async function mkUserAndDriver() {
+  userCounter += 1;
   const [u] = await db.insert(s.users).values({
-    username: `m84-drv-${suffix}-${createdUserIds.length}`,
+    username: `m84-drv-${suffix}-${userCounter}`,
     passwordHash: 'x',
     role: 'DRIVER',
   }).returning();
   createdUserIds.push(u.id);
-  const [d] = await db.insert(s.drivers).values({ name: `M84 driver ${suffix}`, userId: u.id }).returning();
+  const [d] = await db.insert(s.drivers).values({ name: `M84 driver ${suffix}-${userCounter}`, userId: u.id }).returning();
   createdDriverIds.push(d.id);
   return { user: u, driver: d };
 }
@@ -101,6 +104,26 @@ async function assert409(fn: () => Promise<unknown>): Promise<ApiError> {
     assert.equal((err as ApiError).statusCode, 409);
     return err as ApiError;
   }
+}
+
+async function fetchDriverProgressCount(tripId: number, driverId: number) {
+  const [{ total }] = await db.select({ total: sql<number>`count(*)::int` })
+    .from(s.driverProgressEvents)
+    .where(and(
+      eq(s.driverProgressEvents.tripId, tripId),
+      eq(s.driverProgressEvents.driverId, driverId),
+    ));
+  return Number(total ?? 0);
+}
+
+async function fetchDriverProgressIdempotencyCount(idempotencyKey: string) {
+  const [{ total }] = await db.select({ total: sql<number>`count(*)::int` })
+    .from(s.idempotencyKeys)
+    .where(and(
+      eq(s.idempotencyKeys.endpoint, IDEMPOTENCY_ENDPOINTS.DRIVER_PROGRESS),
+      eq(s.idempotencyKeys.idempotencyKey, idempotencyKey),
+    ));
+  return Number(total ?? 0);
 }
 
 describe('M8.4 — driver progress events', () => {
@@ -216,10 +239,86 @@ describe('M8.4 — driver progress events', () => {
     createdEventIds.push(event.id);
     assert.equal(replayed, false, 'LOCKED trip accepts a new progress event');
   });
+
+  test('pool-sized unique keyed progress writes all complete without nested-connection starvation', async () => {
+    const cat = await mkCatalogs();
+    const fixtures = await Promise.all(Array.from({ length: 11 }, async (_value, index) => {
+      const actor = await mkUserAndDriver();
+      const trip = await mkTrip(actor.driver.id, cat.customer.id, cat.route.id, cat.cargoType.id);
+      return { ...actor, trip, index };
+    }));
+
+    const results = await Promise.race([
+      Promise.all(fixtures.map(({ user, driver, trip, index }) => recordDriverProgress(
+        trip.id,
+        driver.id,
+        {
+          eventType: DriverProgressEventType.NOTE,
+          occurredAt: NOW_ISO,
+          note: `pool-${index}`,
+        },
+        user.id,
+        `progress-pool-${suffix}-${index}`,
+      ))),
+      new Promise<never>((_resolve, reject) => {
+        setTimeout(() => reject(new Error('timed out waiting for keyed driver-progress concurrency')), 8_000);
+      }),
+    ]);
+
+    assert.equal(results.length, 11);
+    for (const result of results) {
+      assert.equal(result.replayed, false);
+      createdEventIds.push(result.event.id);
+    }
+  });
+
+  test('forced progress-create failure rolls back both event row and idempotency key', async () => {
+    const { user, driver } = await mkUserAndDriver();
+    const cat = await mkCatalogs();
+    const trip = await mkTrip(driver.id, cat.customer.id, cat.route.id, cat.cargoType.id);
+    const idempotencyKey = `progress-rollback-${suffix}`;
+
+    await assert.rejects(
+      () => runIdempotent({
+        endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_PROGRESS,
+        idempotencyKey,
+        payload: {
+          tripId: trip.id,
+          driverId: driver.id,
+          eventType: DriverProgressEventType.NOTE,
+          occurredAt: NOW_ISO,
+          note: 'rollback',
+        },
+        createdBy: user.id,
+        entityType: 'driver_progress_event',
+        create: async (tx) => {
+          await tx.insert(s.driverProgressEvents).values({
+            tripId: trip.id,
+            driverId: driver.id,
+            eventType: DriverProgressEventType.NOTE,
+            occurredAt: new Date(NOW_ISO),
+            note: 'rollback',
+            recordedBy: user.id,
+          });
+          throw new Error('forced rollback');
+        },
+        load: async () => {
+          throw new Error('load should not be called');
+        },
+      }),
+      /forced rollback/,
+    );
+
+    assert.equal(await fetchDriverProgressCount(trip.id, driver.id), 0);
+    assert.equal(await fetchDriverProgressIdempotencyCount(idempotencyKey), 0);
+  });
 });
 
 after(async () => {
   try {
+    if (createdEventIds.length > 0) {
+      await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.entityId, createdEventIds));
+    }
     if (createdEventIds.length > 0) {
       await db.delete(s.driverProgressEvents).where(inArray(s.driverProgressEvents.id, createdEventIds));
     }
@@ -242,11 +341,6 @@ after(async () => {
     }
     if (createdUserIds.length > 0) {
       await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
-    }
-    // Clean idempotency_keys rows for the events we created (by entityId).
-    if (createdEventIds.length > 0) {
-      const { inArray: ia } = await import('drizzle-orm');
-      await db.delete(s.idempotencyKeys).where(ia(s.idempotencyKeys.entityId, createdEventIds));
     }
   } catch (err) {
     console.warn('[m84-driver-progress.test] cleanup partial:', (err as Error).message);

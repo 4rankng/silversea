@@ -11,6 +11,7 @@ export {
   SHIPMENT_STATUS_LABELS, SHIPMENT_DOCUMENT_TYPE_LABELS,
   AdvanceRequestStatus, AdvanceSettlementStatus, ExpenseEntryStatus,
   FORWARDER_EXPENSE_TYPE_DEFAULTS, ADVANCE_REQUEST_STATUS_LABELS, ADVANCE_SETTLEMENT_STATUS_LABELS,
+  NO_INVOICE_EVIDENCE_TYPES, NO_INVOICE_EVIDENCE_TYPE_LABELS, DEFAULT_NO_INVOICE_EVIDENCE_TYPES, NO_INVOICE_POLICY_DEFAULTS,
   NotificationType, NOTIFICATION_TYPE_LABELS, PUSH_RULES,
   CONFIG, FINANCIAL, REPORTS, DRIVER, SYSTEM, AUTH, TRIPS, CATALOGS, FORWARDER, NOTIFICATIONS, SALARY,
   TRACKING,
@@ -23,14 +24,15 @@ export {
   SupplierType, SUPPLIER_TYPES, SUPPLIER_TYPE_LABELS,
 } from './constants';
 
-export type { PushAudience, TireStatus } from './constants';
+export type { PushAudience, TireStatus, NoInvoiceEvidenceType } from './constants';
 
 export type {
   User, UserPublic, Driver, Customer, Truck, Trailer, Route, CargoType,
   PricingTable, RoadAllowance, FuelConfig, FuelPriceHistory, PenaltyReason, RoadConfig, AppSetting, CompanyInfo,
   Trip, TripLeg, TripDetail, TripInstruction, LedgerEntry, Penalty,
+  TripPairSummary, TripPairRecord, TripPairStatus, TripPairBreakReason, DriverOrderedPairView,
   CapTableHistory, TruckCapEntry, Distribution, ManagementFee, AuditLog, Notification, PushSubscriptionPayload,
-  CreateTripRequest, TripLegInput, UpdateTripFiguresRequest,
+  CreateTripRequest, CreateTripPairRequest, TripPairDraftInput, TripLegInput, UpdateTripFiguresRequest,
   BulkUpdateTripFiguresRequest, BulkUpdateTripFiguresResponse,
   CreatePaymentRequest, PaymentAllocationMethod, PaymentReceiptAllocation,
   PaymentReceiptResult, PaymentReceiptResponse, CreatePenaltyRequest, CreateAdjustmentRequest,
@@ -38,6 +40,7 @@ export type {
   SalaryPeriod, SalaryPeriodRange, PnlTruck, PnlMaintenanceItem, PnlTripDetail, PnlReport,
   Supplier, ExpenseCategory, Expense, ExpenseWithRefs, PayableSummary, PayablesCategory, SupplierStatement, RenewalReminder, VendorPaymentRequest,
   TripContainer, TripExpense, TripExpenseWithRefs, ForwarderTripDetail, TripExpenseWithSupplier,
+  NoInvoicePolicySnapshot,
   AdvanceRequest, AdvanceRequestWithRefs, AdvanceSettlement, AdvanceSettlementWithRefs,
   ContainerType, Port, SealType,
   DebtOffset,
@@ -46,6 +49,8 @@ export type {
   Tire, TirePosition,
   BillingDocument, BillingDocumentLine, BillingDocumentType, BillingDocumentEntityType,
   BillingLineSourceType, BillingLineType, BillingDraftLine, BillingDocumentDraft,
+  BillingLineProvenance, BillingLineProvenanceStatus, BillingDocumentAuthorityState, BillingDocumentCorrection,
+  BillingDocumentAdjustmentRequest,
   BillingLineRenderData, DebitNoteColumnVariable, DebitNoteTemplateColumn,
   DebitNoteTemplate, DebitNoteTemplateSnapshot,
   LiveFleetVehicle, LiveFleetResponse, LiveFleetStatus, LiveFleetDetails, LiveFleetLeg,
@@ -68,7 +73,7 @@ export type {
 } from './navigation/pageCatalog';
 
 export {
-  tripLegSchema, createTripSchema, updateTripFiguresSchema, bulkUpdateTripFiguresSchema,
+  tripLegSchema, createTripSchema, createTripPairSchema, updateTripFiguresSchema, bulkUpdateTripFiguresSchema,
   createPaymentSchema, createPenaltySchema, createAdjustmentSchema, tripReopenRequestSchema,
   loginSchema, createUserSchema, updateUserSchema, updateProfileSchema, changePasswordSchema,
   customerSchema, paymentDatePolicySchema, businessCalendarDaySchema,
@@ -81,6 +86,7 @@ export {
   salaryPeriodSchema, salaryPeriodDefaultSchema,
   supplierSchema, expenseCategorySchema, expenseSchema, vendorPaymentSchema,
   tripContainerSchema, tripContainerBatchSchema, tripContainerPatchSchema, tripContainerSealSchema, tripContainerSealBatchSchema, tripExpenseSchema, baseTripExpenseSchema, tripExpensePatchSchema, tripExpenseCompletionSchema, accountantSettlementExpensePatchSchema, forwarderExpenseTypeSchema,
+  noInvoiceEvidenceTypeSchema, noInvoiceEvidenceTypesSchema,
   createAdvanceRequestSchema, createAdvanceSettlementSchema, updateAdvanceSettlementSchema,
   upsertTripInstructionsSchema,
   createShipmentSchema, quickCreateShipmentSchema, updateShipmentSchema, transitionShipmentStatusSchema,
@@ -91,7 +97,7 @@ export {
   commissionSchema,
   driverPayoutSchema,
   tireSchema, installTireSchema, disposeTireSchema, transferTireSchema, tirePositionSchema,
-  generateBillingDocumentSchema, saveBillingDocumentSchema, billingDocumentLineSchema,
+  generateBillingDocumentSchema, saveBillingDocumentSchema, billingDocumentLineSchema, billingDocumentAdjustmentRequestSchema,
   debitNoteTemplateSchema, debitNoteColumnSchema, debitNoteColumnVariableSchema, defaultDebitNoteColumns, defaultPaymentStatementColumns,
   bachKhoaVehicleSchema, bachKhoaResponseSchema, parseBachKhoaResponse,
   agentDirectiveSchema, agentWidgetSchema, widgetFormatSchema, agentActionChipSchema,
@@ -119,7 +125,7 @@ export {
 } from './calculations/tripFormDefaults';
 
 export type {
-  CreateTripInput, UpdateTripFiguresInput, CreatePaymentInput,
+  CreateTripInput, CreateTripPairInput, UpdateTripFiguresInput, CreatePaymentInput,
   CreatePenaltyInput, CreateAdjustmentInput, LoginInput,
   CustomerInput, TruckInput, TrailerInput, TirePositionInput, RouteInput,
   CargoTypeInput, PricingTableInput, RoadAllowanceInput,
@@ -135,7 +141,7 @@ export type {
   UpdateProfileInput,
   CommissionInput,
   TireInput, InstallTireInput,
-  GenerateBillingDocumentInput, SaveBillingDocumentInput, BillingDocumentLineInput,
+  GenerateBillingDocumentInput, SaveBillingDocumentInput, BillingDocumentAdjustmentRequestInput, BillingDocumentLineInput,
   DebitNoteTemplateInput, DebitNoteColumnInput, DebitNoteColumnVariableInput,
   BachKhoaVehicle,
   AgentDirective, AgentWidget, WidgetFormat, AgentActionChip, AgentCitation, Provenance, AgentTutorialStep, AgentResponse,
@@ -227,6 +233,28 @@ export {
   getSourceAuthorityActions,
   isSourceAuthorityActionAllowed,
 } from './governance/source-authority';
+
+// ─── Q15 maker/checker/approver governance contracts ───────────────────────
+export {
+  GOVERNANCE_SUBJECT_TYPES,
+  GOVERNANCE_ACTION_KINDS,
+  GOVERNANCE_ACTION_STATUSES,
+  GOVERNANCE_CAPABILITIES,
+  GOVERNANCE_ALLOWED_ACTIONS,
+  governanceActionVersionSchema,
+  governanceActionDecisionSchema,
+  governanceActionListQuerySchema,
+} from './schemas/governance-action';
+export type {
+  GovernanceSubjectType,
+  GovernanceActionKind,
+  GovernanceActionStatus,
+  GovernanceCapability,
+  GovernanceAllowedAction,
+  GovernanceActionVersionInput,
+  GovernanceActionDecisionInput,
+  GovernanceActionListQuery,
+} from './schemas/governance-action';
 export type {
   SourceAuthorityKind,
   DependentAuthorityKind,

@@ -111,7 +111,8 @@ describe('M3.2 — checkExpiredDocuments', () => {
       .where(eq(s.shipmentDocuments.id, oldDoc.id));
 
     // Replace it with a new version.
-    const newDoc = await replaceShipmentDocument(oldDoc.id, {
+    const newDoc = await replaceShipmentDocument(shipment.id, oldDoc.id, {
+      expectedVersion: shipment.version,
       storageKey: 'uploads/test/do-new.pdf',
       expiresAt: '2099-12-31',
     });
@@ -132,7 +133,8 @@ describe('M3.2 — replaceShipmentDocument', () => {
     });
     createdDocIds.push(oldDoc.id);
 
-    const newDoc = await replaceShipmentDocument(oldDoc.id, {
+    const newDoc = await replaceShipmentDocument(shipment.id, oldDoc.id, {
+      expectedVersion: shipment.version,
       storageKey: 'uploads/test/replace-new.pdf',
     });
     createdDocIds.push(newDoc.id);
@@ -148,8 +150,14 @@ describe('M3.2 — replaceShipmentDocument', () => {
   });
 
   test('throws 404 when old document does not exist', async () => {
+    const customer = await mkCustomer();
+    const shipment = await createShipment({ customerId: customer.id });
+    createdShipmentIds.push(shipment.id);
     await assert.rejects(
-      () => replaceShipmentDocument(99_999_999, { storageKey: 'x' }),
+      () => replaceShipmentDocument(shipment.id, 99_999_999, {
+        expectedVersion: shipment.version,
+        storageKey: 'x',
+      }),
       (err: unknown) => err instanceof Error && 'statusCode' in err && (err as { statusCode: number }).statusCode === 404,
     );
   });

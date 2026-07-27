@@ -22,6 +22,7 @@ import {
   type LlmSettingsUpdate,
 } from '@tingting/shared';
 import { PageHeader, Panel, useConfirm } from '../../components/UI';
+import { formatCurrency } from '../../lib/format';
 import {
   useAppSettings,
   useEmailSettings,
@@ -68,6 +69,18 @@ function FeatureSwitch({ icon, label, description, enabled, onChange, disabled }
       </button>
     </div>
   );
+}
+
+function toThresholdPercent(value: number): string {
+  return Number.isFinite(value) ? String(Math.round(value * 10000) / 100) : '80';
+}
+
+function fromThresholdPercent(value: string): number | null {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  const ratio = parsed / 100;
+  if (ratio < 0.01 || ratio > 0.99) return null;
+  return Math.round(ratio * 10000) / 10000;
 }
 
 type SecretFieldProps = {
@@ -144,7 +157,15 @@ export default function AppSettingsConfigPage() {
   const saveGpsSettings = useSaveGpsSettings();
   const { confirm, dialog: confirmDialog } = useConfirm();
 
-  const [features, setFeatures] = useState<AppSettings>({ botEnabled: false, tutorialEnabled: true, gpsEnabled: false });
+  const [features, setFeatures] = useState<AppSettings>({
+    botEnabled: false,
+    tutorialEnabled: true,
+    gpsEnabled: false,
+    creditWarningThresholdDefault: 0.8,
+    creditTierOneAmountCap: 0,
+  });
+  const [creditWarningPercent, setCreditWarningPercent] = useState('80');
+  const [creditTierOneCap, setCreditTierOneCap] = useState('0');
   const [provider, setProvider] = useState<LlmProvider>('minimax');
   const [minimaxKey, setMinimaxKey] = useState('');
   const [openrouterKey, setOpenrouterKey] = useState('');
@@ -156,7 +177,11 @@ export default function AppSettingsConfigPage() {
   const [gpsMessage, setGpsMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (appSettings.data) setFeatures(appSettings.data);
+    if (appSettings.data) {
+      setFeatures(appSettings.data);
+      setCreditWarningPercent(toThresholdPercent(appSettings.data.creditWarningThresholdDefault));
+      setCreditTierOneCap(String(appSettings.data.creditTierOneAmountCap));
+    }
   }, [appSettings.data]);
 
   useEffect(() => {
@@ -169,6 +194,22 @@ export default function AppSettingsConfigPage() {
 
   const updateFeature = (key: keyof AppSettings) => {
     setFeatures((current) => ({ ...current, [key]: !current[key] }));
+  };
+
+  const saveGeneralSettings = async () => {
+    const threshold = fromThresholdPercent(creditWarningPercent);
+    if (threshold == null) {
+      return;
+    }
+    const parsedCap = Number(creditTierOneCap);
+    if (!Number.isFinite(parsedCap) || parsedCap < 0 || !Number.isInteger(parsedCap)) {
+      return;
+    }
+    await saveAppSettings.mutateAsync({
+      ...features,
+      creditWarningThresholdDefault: threshold,
+      creditTierOneAmountCap: parsedCap,
+    });
   };
 
   const saveAi = async () => {
@@ -265,6 +306,10 @@ export default function AppSettingsConfigPage() {
     || (gpsCredsRequired
       && gpsUsername.trim() !== ''
       && (gpsSettings.data?.passwordSet || gpsPassword.trim() !== ''));
+  const creditThresholdValid = fromThresholdPercent(creditWarningPercent) != null;
+  const creditTierCapValid = Number.isFinite(Number(creditTierOneCap))
+    && Number(creditTierOneCap) >= 0
+    && Number.isInteger(Number(creditTierOneCap));
 
   return (
     <div ref={pageRef} className="cfg-page cfg-page--app-settings">
@@ -297,15 +342,70 @@ export default function AppSettingsConfigPage() {
             onChange={() => updateFeature('tutorialEnabled')}
             disabled={appSettings.isLoading || appSettings.isError || saveAppSettings.isPending}
           />
+          <div className="cfg-section" style={{ display: 'grid', gap: 14 }}>
+            <div className="field">
+              <label htmlFor="credit-warning-threshold-default">Ngưỡng cảnh báo công nợ mặc định (%)</label>
+              <input
+                id="credit-warning-threshold-default"
+                className="input"
+                type="number"
+                min="1"
+                max="99"
+                step="0.01"
+                value={creditWarningPercent}
+                onChange={(event) => setCreditWarningPercent(event.target.value)}
+                disabled={appSettings.isLoading || appSettings.isError || saveAppSettings.isPending}
+              />
+              <p className="cfg-field-hint">
+                Dùng chung khi khách hàng chưa cấu hình riêng. Hiện tại: {creditThresholdValid
+                  ? `${creditWarningPercent}%`
+                  : 'giá trị không hợp lệ'}
+              </p>
+            </div>
+            <div className="field">
+              <label htmlFor="credit-tier-one-amount-cap">Ngưỡng tiền duyệt cấp 1 (VND)</label>
+              <input
+                id="credit-tier-one-amount-cap"
+                className="input"
+                type="number"
+                min="0"
+                step="1"
+                value={creditTierOneCap}
+                onChange={(event) => setCreditTierOneCap(event.target.value)}
+                disabled={appSettings.isLoading || appSettings.isError || saveAppSettings.isPending}
+              />
+              <p className="cfg-field-hint">
+                Cấp 1 chỉ được duyệt phần vượt không quá {creditTierCapValid
+                  ? formatCurrency(Number(creditTierOneCap))
+                  : 'một số nguyên không âm'}.
+              </p>
+            </div>
+          </div>
           <div className="cfg-form-actions">
             <button
               className="btn btn--primary"
-              disabled={!appSettings.data || appSettings.isError || saveAppSettings.isPending}
-              onClick={() => saveAppSettings.mutate(features)}
+              disabled={
+                !appSettings.data
+                || appSettings.isError
+                || saveAppSettings.isPending
+                || !creditThresholdValid
+                || !creditTierCapValid
+              }
+              onClick={() => { void saveGeneralSettings(); }}
             >
               {saveAppSettings.isPending ? <Loader2 size={15} className="spin" /> : <Save size={15} />}
               {saveAppSettings.isPending ? 'Đang lưu…' : 'Lưu cài đặt'}
             </button>
+            {!creditThresholdValid && (
+              <span role="alert" className="cfg-form-error">
+                Ngưỡng cảnh báo phải từ 1% đến 99%.
+              </span>
+            )}
+            {creditThresholdValid && !creditTierCapValid && (
+              <span role="alert" className="cfg-form-error">
+                Ngưỡng tiền duyệt cấp 1 phải là số nguyên VND không âm.
+              </span>
+            )}
             {saveAppSettings.error && (
               <span role="alert" className="cfg-form-error">
                 {saveAppSettings.error instanceof Error ? saveAppSettings.error.message : 'Không thể lưu cài đặt.'}

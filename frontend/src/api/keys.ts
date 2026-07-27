@@ -346,6 +346,12 @@ export const qk = {
     email: ['email-settings'] as const,
   },
 
+  creditOverrides: {
+    all: ['credit-overrides'] as const,
+    list: (filters?: { status?: string; customerId?: number; shipmentId?: number }) =>
+      ['credit-overrides', filters?.status ?? null, filters?.customerId ?? null, filters?.shipmentId ?? null] as const,
+  },
+
   gpsSettings: {
     detail: ['gps-settings'] as const,
   },
