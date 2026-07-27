@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """E2E Test Suite 11: Driver Portal (Mobile)"""
+import datetime
 import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
 from helpers import *
 
 
 def test_driver_portal(ctx: NepoTestContext, results: TestResults):
+    today = datetime.date.today()
+    earnings_path = f'/api/driver/me/earnings?month={today.month}&year={today.year}'
 
     # ════════════════════════════════════════════════════════════════
     #  Section 1: Access & RBAC Tests (TC-1101 to TC-1107)
@@ -30,7 +33,7 @@ def test_driver_portal(ctx: NepoTestContext, results: TestResults):
             detail.append(f'URL: {page.url}')
         if not api_ok:
             detail.append(f'API status: {api_resp.get("status")}')
-        results.fail(('TC-1101', 'DRIVER portal access', '; '.join(detail))
+        results.fail('TC-1101', 'DRIVER portal access', '; '.join(detail))
     ctx.screenshot(page, 'TC-1101_driver_portal')
     page.close()
 
@@ -44,7 +47,7 @@ def test_driver_portal(ctx: NepoTestContext, results: TestResults):
     if '/my-trips' not in page.url:
         results.pass_('TC-1102', f'ADMIN blocked from /my-trips → {page.url}')
     else:
-        results.fail(('TC-1102', 'ADMIN driver portal', f'Stayed on /my-trips')
+        results.fail('TC-1102', 'ADMIN driver portal', f'Stayed on /my-trips')
     ctx.screenshot(page, 'TC-1102_admin_blocked')
     page.close()
 
@@ -58,7 +61,7 @@ def test_driver_portal(ctx: NepoTestContext, results: TestResults):
     if '/finance' not in page.url:
         results.pass_('TC-1103', f'DRIVER blocked from /finance → {page.url}')
     else:
-        results.fail(('TC-1103', 'DRIVER /finance', f'Stayed on /finance')
+        results.fail('TC-1103', 'DRIVER /finance', f'Stayed on /finance')
     page.close()
 
     # TC-1104: DRIVER blocked from /users
@@ -71,7 +74,7 @@ def test_driver_portal(ctx: NepoTestContext, results: TestResults):
     if '/users' not in page.url:
         results.pass_('TC-1104', f'DRIVER blocked from /users → {page.url}')
     else:
-        results.fail(('TC-1104', 'DRIVER /users', f'Stayed on /users')
+        results.fail('TC-1104', 'DRIVER /users', f'Stayed on /users')
     page.close()
 
     # TC-1105: Non-DRIVER calls driver API
@@ -81,7 +84,7 @@ def test_driver_portal(ctx: NepoTestContext, results: TestResults):
     if resp.get('status') in (403, 404):
         results.pass_('TC-1105', f'ADMIN → /api/driver/me/trips → {resp.get("status")}')
     else:
-        results.fail(('TC-1105', 'Non-DRIVER driver API', f'Expected 403/404, got {resp.get("status")}')
+        results.fail('TC-1105', 'Non-DRIVER driver API', f'Expected 403/404, got {resp.get("status")}')
 
     # TC-1106: Expired/invalid token
     api_bad = ApiClient()
@@ -90,7 +93,7 @@ def test_driver_portal(ctx: NepoTestContext, results: TestResults):
     if resp.get('status') == 401:
         results.pass_('TC-1106', 'Invalid token → 401')
     else:
-        results.fail(('TC-1106', 'Invalid token', f'Expected 401, got {resp.get("status")}')
+        results.fail('TC-1106', 'Invalid token', f'Expected 401, got {resp.get("status")}')
 
     # TC-1107: DRIVER blocked from /trips
     page = ctx.new_page()
@@ -102,7 +105,7 @@ def test_driver_portal(ctx: NepoTestContext, results: TestResults):
     if '/trips' not in page.url or '/my-trips' in page.url:
         results.pass_('TC-1107', f'DRIVER blocked from /trips → {page.url}')
     else:
-        results.fail(('TC-1107', 'DRIVER /trips', f'Stayed on /trips')
+        results.fail('TC-1107', 'DRIVER /trips', f'Stayed on /trips')
     page.close()
 
     # ════════════════════════════════════════════════════════════════
@@ -122,7 +125,7 @@ def test_driver_portal(ctx: NepoTestContext, results: TestResults):
     elif '/my-trips' in page.url:
         results.pass_('TC-1110', 'Trip list page loaded')
     else:
-        results.fail(('TC-1110', 'Trip list', f'URL: {page.url}')
+        results.fail('TC-1110', 'Trip list', f'URL: {page.url}')
     ctx.screenshot(page, 'TC-1110_trip_list')
     page.close()
 
@@ -163,7 +166,7 @@ def test_driver_portal(ctx: NepoTestContext, results: TestResults):
             if '/my-trips/' in page.url:
                 results.pass_('TC-1112', f'Navigated to trip detail: {page.url}')
             else:
-                results.fail(('TC-1112', 'Trip detail nav', f'URL: {page.url}')
+                results.fail('TC-1112', 'Trip detail nav', f'URL: {page.url}')
         ctx.screenshot(page, 'TC-1112_trip_detail')
         page.close()
     else:
@@ -178,7 +181,7 @@ def test_driver_portal(ctx: NepoTestContext, results: TestResults):
         else:
             results.pass_('TC-1113', 'Trip list API returns empty array')
     else:
-        results.fail(('TC-1113', 'Trip list API', f'Status: {driver_trips_resp.get("status")}')
+        results.fail('TC-1113', 'Trip list API', f'Status: {driver_trips_resp.get("status")}')
 
     # TC-1114: Trip list shows key info
     if driver_trips:
@@ -211,7 +214,7 @@ def test_driver_portal(ctx: NepoTestContext, results: TestResults):
         if '/my-trips/' in page.url:
             results.pass_('TC-1120', f'Trip detail page loads for trip {first_trip_id}')
         else:
-            results.fail(('TC-1120', 'Trip detail', f'URL: {page.url}')
+            results.fail('TC-1120', 'Trip detail', f'URL: {page.url}')
         ctx.screenshot(page, 'TC-1120_trip_detail')
         page.close()
     else:
@@ -243,7 +246,7 @@ def test_driver_portal(ctx: NepoTestContext, results: TestResults):
             detail_data = resp.get('data', {})
             results.pass_('TC-1122', f'Trip detail API returns data for trip {first_trip_id}')
         else:
-            results.fail(('TC-1122', 'Trip detail API', f'Status: {resp.get("status")}')
+            results.fail('TC-1122', 'Trip detail API', f'Status: {resp.get("status")}')
     else:
         results.skip('TC-1122', 'Trip detail API', 'No trips available')
 
@@ -252,7 +255,7 @@ def test_driver_portal(ctx: NepoTestContext, results: TestResults):
     if resp.get('status') in (403, 404):
         results.pass_('TC-1123', f'Foreign trip 99999 → {resp.get("status")}')
     else:
-        results.fail(('TC-1123', 'Trip not own', f'Expected 403/404, got {resp.get("status")}')
+        results.fail('TC-1123', 'Trip not own', f'Expected 403/404, got {resp.get("status")}')
 
     # TC-1124: Back button
     if first_trip_id:
@@ -313,16 +316,16 @@ def test_driver_portal(ctx: NepoTestContext, results: TestResults):
     if '/my-earnings' in page.url:
         results.pass_('TC-1130', 'Earnings page loads')
     else:
-        results.fail(('TC-1130', 'Earnings page', f'URL: {page.url}')
+        results.fail('TC-1130', 'Earnings page', f'URL: {page.url}')
     ctx.screenshot(page, 'TC-1130_earnings')
     page.close()
 
     # TC-1131: Earnings API returns data
-    resp = api_driver.get('/api/driver/me/earnings')
+    resp = api_driver.get(earnings_path)
     if resp.get('status') == 200:
         results.pass_('TC-1131', 'Earnings API returns 200')
     else:
-        results.fail(('TC-1131', 'Earnings API', f'Status: {resp.get("status")}')
+        results.fail('TC-1131', 'Earnings API', f'Status: {resp.get("status")}')
 
     # TC-1132: Earnings KPIs visible
     page = ctx.new_page()
@@ -332,11 +335,14 @@ def test_driver_portal(ctx: NepoTestContext, results: TestResults):
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1000)
     ctx.screenshot(page, 'TC-1132_earnings_kpis')
-    has_kpi = assert_element_visible(page, '[class*="kpi"], [class*="stat"], [class*="summary"], [class*="card"]', timeout=5000)
+    summary_panels = page.locator(
+        '.earnings-hero-bento, .earnings-equation-card, .earnings-ledger-card'
+    )
+    has_kpi = summary_panels.count() >= 3 and summary_panels.first.is_visible()
     if has_kpi:
         results.pass_('TC-1132', 'Earnings KPI/summary cards visible')
     else:
-        results.pass_('TC-1132', 'Earnings page loaded (KPI layout may vary)')
+        results.fail('TC-1132', 'Earnings KPIs', 'No KPI or summary element found')
     page.close()
 
     # TC-1133: Earnings list shows entries
@@ -347,20 +353,33 @@ def test_driver_portal(ctx: NepoTestContext, results: TestResults):
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1000)
     ctx.screenshot(page, 'TC-1133_earnings_list')
-    results.pass_('TC-1133', 'Earnings breakdown page renders')
+    earnings_text = page.inner_text('body').lower()
+    if any(label in earnings_text for label in ('thu nhập', 'lương', 'phụ cấp', 'chuyến')):
+        results.pass_('TC-1133', 'Earnings breakdown content renders')
+    else:
+        results.fail('TC-1133', 'Earnings breakdown', 'No earnings breakdown label found')
     page.close()
 
     # TC-1134: Earnings formula fields
-    resp = api_driver.get('/api/driver/me/earnings')
+    resp = api_driver.get(earnings_path)
     if resp.get('status') == 200:
         data = resp.get('data', {})
-        has_total = 'totalEarnings' in data or 'total' in data or 'total_earnings' in data
-        if has_total or isinstance(data, dict):
-            results.pass_('TC-1134', f'Earnings API response contains expected fields ({len(data)} keys)')
+        formula_fields = {
+            'baseSalary',
+            'tripIncome',
+            'roadAllowance',
+            'penalties',
+            'paidOrAdvanced',
+            'netIncome',
+            'payableBalance',
+        }
+        missing_fields = formula_fields - set(data)
+        if not missing_fields:
+            results.pass_('TC-1134', f'Earnings API response contains all formula fields ({len(data)} keys)')
         else:
-            results.pass_('TC-1134', 'Earnings API returns data structure')
+            results.fail('TC-1134', 'Earnings fields', f'Missing formula fields: {sorted(missing_fields)}')
     else:
-        results.fail(('TC-1134', 'Earnings fields', f'API status: {resp.get("status")}')
+        results.fail('TC-1134', 'Earnings fields', f'API status: {resp.get("status")}')
 
     # ════════════════════════════════════════════════════════════════
     #  Section 5: Penalties Tests (TC-1140 to TC-1144)
@@ -376,7 +395,7 @@ def test_driver_portal(ctx: NepoTestContext, results: TestResults):
     if '/my-penalties' in page.url:
         results.pass_('TC-1140', 'Penalties page loads')
     else:
-        results.fail(('TC-1140', 'Penalties page', f'URL: {page.url}')
+        results.fail('TC-1140', 'Penalties page', f'URL: {page.url}')
     ctx.screenshot(page, 'TC-1140_penalties')
     page.close()
 
@@ -386,7 +405,7 @@ def test_driver_portal(ctx: NepoTestContext, results: TestResults):
         penalty_items = resp.get('data', {}).get('items', [])
         results.pass_('TC-1141', f'Penalties API returns {len(penalty_items)} items')
     else:
-        results.fail(('TC-1141', 'Penalties API', f'Status: {resp.get("status")}')
+        results.fail('TC-1141', 'Penalties API', f'Status: {resp.get("status")}')
 
     # TC-1142: Penalty list displays
     page = ctx.new_page()
@@ -428,7 +447,7 @@ def test_driver_portal(ctx: NepoTestContext, results: TestResults):
         else:
             results.pass_('TC-1144', 'No penalties to inspect — API returns valid empty list')
     else:
-        results.fail(('TC-1144', 'Penalty info', f'API status: {resp.get("status")}')
+        results.fail('TC-1144', 'Penalty info', f'API status: {resp.get("status")}')
 
     # ════════════════════════════════════════════════════════════════
     #  Section 6: Mobile Layout Tests (TC-1150 to TC-1153)
@@ -445,7 +464,7 @@ def test_driver_portal(ctx: NepoTestContext, results: TestResults):
     if '/my-trips' in page.url:
         results.pass_('TC-1150', 'Mobile trip list renders at 375px')
     else:
-        results.fail(('TC-1150', 'Mobile trip list', f'URL: {page.url}')
+        results.fail('TC-1150', 'Mobile trip list', f'URL: {page.url}')
     page.close()
 
     # TC-1151: Mobile trip detail
@@ -460,7 +479,7 @@ def test_driver_portal(ctx: NepoTestContext, results: TestResults):
         if '/my-trips/' in page.url:
             results.pass_('TC-1151', 'Mobile trip detail renders at 375px')
         else:
-            results.fail(('TC-1151', 'Mobile trip detail', f'URL: {page.url}')
+            results.fail('TC-1151', 'Mobile trip detail', f'URL: {page.url}')
         page.close()
     else:
         results.skip('TC-1151', 'Mobile trip detail', 'No trips available')
@@ -490,7 +509,7 @@ def test_driver_portal(ctx: NepoTestContext, results: TestResults):
     if '/my-earnings' in page.url:
         results.pass_('TC-1153', 'Mobile earnings page renders at 375px')
     else:
-        results.fail(('TC-1153', 'Mobile earnings', f'URL: {page.url}')
+        results.fail('TC-1153', 'Mobile earnings', f'URL: {page.url}')
     page.close()
 
 

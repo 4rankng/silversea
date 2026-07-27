@@ -21,6 +21,10 @@
   margin-top: auto;
 }
 
+.as-return-cargo-field > .tc-checkbox-card {
+  margin-top: auto;
+}
+
 .as-helper {
   color: var(--fg-3);
   font-size: var(--fs-xs);

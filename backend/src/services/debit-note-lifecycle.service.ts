@@ -13,7 +13,7 @@
 
 import { db } from '../db';
 import * as s from '../db/schema';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { ApiError } from '../errors';
 
 type DebitNoteStatus = typeof s.debitNoteStatusEnum.enumValues[number];
@@ -73,10 +73,21 @@ export async function transitionDebitNoteStatus(input: TransitionInput) {
     if (input.confirmedBy) updates.customerConfirmedBy = input.confirmedBy;
   }
 
+  const statusCondition = doc.debitNoteStatus === null
+    ? isNull(s.billingDocuments.debitNoteStatus)
+    : eq(s.billingDocuments.debitNoteStatus, currentStatus);
   const [updated] = await db.update(s.billingDocuments)
     .set(updates)
-    .where(eq(s.billingDocuments.id, input.documentId))
+    .where(and(
+      eq(s.billingDocuments.id, input.documentId),
+      isNull(s.billingDocuments.deletedAt),
+      statusCondition,
+    ))
     .returning();
+
+  if (!updated) {
+    throw new ApiError(409, 'Trạng thái giấy báo nợ vừa thay đổi. Vui lòng tải lại và thử lại.');
+  }
 
   return updated;
 }

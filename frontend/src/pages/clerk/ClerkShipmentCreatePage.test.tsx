@@ -19,16 +19,16 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 // vi.hoisted keeps the mock fns visible inside vi.mock factories (which
 // Vitest hoists above all top-level declarations).
-const { quickCreateMock, getAllCustomersMock } = vi.hoisted(() => ({
+const { quickCreateMock, getBootstrapMock } = vi.hoisted(() => ({
   quickCreateMock: vi.fn(),
-  getAllCustomersMock: vi.fn(),
+  getBootstrapMock: vi.fn(),
 }));
 
 vi.mock('../../api/shipmentClient', () => ({
   quickCreateShipment: quickCreateMock,
 }));
-vi.mock('../../api/configClient', () => ({
-  configClient: { getAllCustomers: getAllCustomersMock },
+vi.mock('../../api/tripClient', () => ({
+  tripClient: { getBootstrap: getBootstrapMock },
 }));
 
 import ClerkShipmentCreatePage from './ClerkShipmentCreatePage';
@@ -73,8 +73,8 @@ async function selectCustomer(label: string) {
 describe('ClerkShipmentCreatePage — M10.1 quick-create', () => {
   beforeEach(() => {
     quickCreateMock.mockReset();
-    getAllCustomersMock.mockReset();
-    getAllCustomersMock.mockResolvedValue(CUSTOMERS);
+    getBootstrapMock.mockReset();
+    getBootstrapMock.mockResolvedValue({ customers: CUSTOMERS });
   });
 
   it('loads customers into the dropdown', async () => {
@@ -162,7 +162,7 @@ describe('ClerkShipmentCreatePage — M10.1 quick-create', () => {
   });
 
   it('shows a Vietnamese error when the customer list fails to load', async () => {
-    getAllCustomersMock.mockRejectedValue(new Error('network down'));
+    getBootstrapMock.mockRejectedValue(new Error('network down'));
     renderAt();
     await waitFor(() => expect(screen.getByText(/Không thể tải danh sách khách hàng/)).toBeTruthy());
     // The form is not rendered when customers can't load, so the quick-create

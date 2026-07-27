@@ -35,7 +35,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         else:
             results.pass_('TC-1301', f'FORWARDER portal loads (API status: {resp.get("status")})')
     else:
-        results.fail(('TC-1301', 'FORWARDER portal access', f'URL: {page.url}')
+        results.fail('TC-1301', 'FORWARDER portal access', f'URL: {page.url}')
     ctx.screenshot(page, 'TC-1301_forwarder_portal')
     page.close()
 
@@ -49,7 +49,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
     if '/my-forwarder-trips' not in page.url:
         results.pass_('TC-1302', 'ADMIN redirected from /my-forwarder-trips')
     else:
-        results.fail(('TC-1302', 'ADMIN forwarder portal UI', f'URL: {page.url}')
+        results.fail('TC-1302', 'ADMIN forwarder portal UI', f'URL: {page.url}')
     page.close()
 
     # TC-1303: DRIVER blocked from forwarder portal
@@ -62,7 +62,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
     if '/my-forwarder-trips' not in page.url:
         results.pass_('TC-1303', 'DRIVER redirected from /my-forwarder-trips')
     else:
-        results.fail(('TC-1303', 'DRIVER forwarder portal', f'URL: {page.url}')
+        results.fail('TC-1303', 'DRIVER forwarder portal', f'URL: {page.url}')
     page.close()
 
     # TC-1304: FORWARDER blocked from admin pages
@@ -75,7 +75,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
     if '/trips' not in page.url or '/my-forwarder-trips' in page.url:
         results.pass_('TC-1304', 'FORWARDER redirected from /trips')
     else:
-        results.fail(('TC-1304', 'FORWARDER admin pages', f'URL: {page.url}')
+        results.fail('TC-1304', 'FORWARDER admin pages', f'URL: {page.url}')
     page.close()
 
     # TC-1305: FORWARDER blocked from admin API
@@ -83,16 +83,16 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
     if resp.get('status') in (403, 401):
         results.pass_('TC-1305', 'FORWARDER GET /api/trips → 403')
     else:
-        results.fail(('TC-1305', 'FORWARDER admin API', f'Expected 403, got {resp.get("status")}')
+        results.fail('TC-1305', 'FORWARDER admin API', f'Expected 403, got {resp.get("status")}')
 
     # TC-1306: Non-FORWARDER calls forwarder API
     api_admin = ApiClient()
     api_admin.login('admin', 'admin123')
     resp = api_admin.get('/api/forwarder/me/trips')
-    if resp.get('status') in (403, 401):
-        results.pass_('TC-1306', 'ADMIN GET /api/forwarder/me/trips → 403')
+    if resp.get('status') in (401, 403, 404):
+        results.pass_('TC-1306', f'ADMIN GET /api/forwarder/me/trips → {resp.get("status")}')
     else:
-        results.fail(('TC-1306', 'Non-FORWARDER forwarder API', f'Expected 403, got {resp.get("status")}')
+        results.fail('TC-1306', 'Non-FORWARDER forwarder API', f'Expected 403, got {resp.get("status")}')
 
     # TC-1307: Expired/invalid token
     api_bad = ApiClient()
@@ -101,19 +101,31 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
     if resp.get('status') in (401, 403):
         results.pass_('TC-1307', 'Invalid token → 401')
     else:
-        results.fail(('TC-1307', 'Invalid token', f'Expected 401, got {resp.get("status")}')
+        results.fail('TC-1307', 'Invalid token', f'Expected 401, got {resp.get("status")}')
 
     # TC-1308: FORWARDER sidebar shows limited menus
     page = ctx.new_page()
     ctx.login_as('forwarder', page)
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1000)
-    admin_links = page.locator('a[href="/trips"], a[href="/finance"], a[href="/penalties"], a[href="/fleet"], a[href="/config"], a[href="/audit-log"]')
-    fwd_links = page.locator('a[href*="forwarder"], a[href*="my-forwarder"]')
-    if admin_links.count() == 0 and fwd_links.count() >= 0:
+    admin_links = page.locator(
+        'a[href="/trips"], a[href="/finance"], a[href="/penalties"], '
+        'a[href="/fleet"], a[href="/config"], a[href="/audit-log"], '
+        'button[aria-label="Tài chính"], button[aria-label="Đội xe"], '
+        'button[aria-label="Cấu hình"]'
+    )
+    fwd_links = page.locator(
+        'button[aria-label="Chuyến đi"], button[aria-label="Tạm ứng"], '
+        'button[aria-label="Phiếu thanh toán"]'
+    )
+    if admin_links.count() == 0 and fwd_links.count() == 3:
         results.pass_('TC-1308', f'FORWARDER sidebar limited (admin links: {admin_links.count()})')
     else:
-        results.pass_('TC-1308', f'FORWARDER sidebar checked (admin links found: {admin_links.count()})')
+        results.fail(
+            'TC-1308',
+            'FORWARDER sidebar limited',
+            f'admin links: {admin_links.count()}, forwarder links: {fwd_links.count()}',
+        )
     ctx.screenshot(page, 'TC-1308_forwarder_sidebar')
     page.close()
 
@@ -141,7 +153,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
     if cards > 0 or len(fwd_trips) > 0:
         results.pass_('TC-1310', f'Trip list displays ({cards} elements, {len(fwd_trips)} API trips)')
     else:
-        results.pass_('TC-1310', 'Trip list page loaded (may be empty)')
+        results.fail('TC-1310', 'Trip list displays', 'No trip cards and no API trips')
     ctx.screenshot(page, 'TC-1310_trip_list')
     page.close()
 
@@ -154,7 +166,10 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         page.wait_for_load_state('networkidle')
         page.wait_for_timeout(1000)
         empty_text = page.locator('text=chưa có, text=không có, text=trống, text=empty, text=No trip').count()
-        results.pass_('TC-1311', f'Empty state message visible ({empty_text} matches)')
+        if empty_text > 0:
+            results.pass_('TC-1311', f'Empty state message visible ({empty_text} matches)')
+        else:
+            results.fail('TC-1311', 'Empty state', 'No empty-state message found')
         page.close()
     else:
         results.skip('TC-1311', 'Empty state', f'Trips exist ({len(fwd_trips)} found)')
@@ -167,7 +182,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         page.goto(f'{BASE_URL}/my-forwarder-trips')
         page.wait_for_load_state('networkidle')
         page.wait_for_timeout(1000)
-        first_card = page.locator('[class*="card"], [class*="trip"], a[href*="my-forwarder-trips/"]').first
+        first_card = page.locator('.ftrip-card').first
         try:
             first_card.click(timeout=3000)
             page.wait_for_load_state('networkidle')
@@ -177,9 +192,9 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
             elif '/my-forwarder-trips/' in page.url:
                 results.pass_('TC-1312', f'Navigated to trip detail')
             else:
-                results.pass_('TC-1312', f'Card clicked, URL: {page.url}')
-        except Exception:
-            results.pass_('TC-1312', 'Card click attempted (selector may differ)')
+                results.fail('TC-1312', 'Click card → detail', f'Card click stayed at {page.url}')
+        except Exception as err:
+            results.fail('TC-1312', 'Click card → detail', f'No usable detail link: {err}')
         ctx.screenshot(page, 'TC-1312_trip_detail_nav')
         page.close()
     else:
@@ -192,7 +207,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
             results.pass_('TC-1313', 'Trip API response has no financial fields')
         else:
             found = [k for k in FINANCIAL_KEYS if k in first_trip]
-            results.fail(('TC-1313', 'No financial fields', f'Found keys: {found}')
+            results.fail('TC-1313', 'No financial fields', f'Found keys: {found}')
     else:
         results.skip('TC-1313', 'No financial fields check', 'No trips returned')
 
@@ -241,7 +256,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         if str(trip_id) in page.url:
             results.pass_('TC-1320', f'Trip detail page loads (trip {trip_id})')
         else:
-            results.fail(('TC-1320', 'Trip detail page', f'URL: {page.url}')
+            results.fail('TC-1320', 'Trip detail page', f'URL: {page.url}')
         ctx.screenshot(page, 'TC-1320_trip_detail')
         page.close()
     else:
@@ -252,7 +267,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
     if resp.get('status') in (404, 403):
         results.pass_('TC-1321', 'Non-existent trip → 404')
     else:
-        results.fail(('TC-1321', 'Non-existent trip', f'Expected 404, got {resp.get("status")}')
+        results.fail('TC-1321', 'Non-existent trip', f'Expected 404, got {resp.get("status")}')
 
     # TC-1322: Back button
     if trip_id:
@@ -309,8 +324,12 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         page.goto(f'{BASE_URL}/my-forwarder-trips/{trip_id}')
         page.wait_for_load_state('networkidle')
         page.wait_for_timeout(1000)
-        notes_section = page.locator('[class*="note"], [class*="Note"], text=Ghi chú, text=Notes, text=note')
-        results.pass_('TC-1324', f'Notes section check ({notes_section.count()} elements found)')
+        notes_count = page.locator('[class*="note"], [class*="Note"]').count()
+        notes_visible = notes_count > 0 or assert_text_visible(page, 'Ghi chú', timeout=5000)
+        if notes_visible:
+            results.pass_('TC-1324', f'Notes section visible ({notes_count} matching elements)')
+        else:
+            results.fail('TC-1324', 'Notes display', 'No notes section found on trip detail')
         page.close()
     else:
         results.skip('TC-1324', 'Notes display', 'No trips available')
@@ -323,8 +342,12 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         page.goto(f'{BASE_URL}/my-forwarder-trips/{trip_id}')
         page.wait_for_load_state('networkidle')
         page.wait_for_timeout(1000)
-        container_el = page.locator('[class*="container"], [class*="Container"], text=Container, text=container, text=cont')
-        results.pass_('TC-1325', f'Container section check ({container_el.count()} elements found)')
+        container_count = page.locator('[class*="container"], [class*="Container"]').count()
+        container_visible = container_count > 0 or assert_text_visible(page, 'Số Container / Seal', timeout=5000)
+        if container_visible:
+            results.pass_('TC-1325', f'Container section visible ({container_count} matching elements)')
+        else:
+            results.fail('TC-1325', 'Container section', 'No container section found on trip detail')
         ctx.screenshot(page, 'TC-1325_container_section')
         page.close()
     else:
@@ -338,8 +361,12 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         page.goto(f'{BASE_URL}/my-forwarder-trips/{trip_id}')
         page.wait_for_load_state('networkidle')
         page.wait_for_timeout(1000)
-        expense_el = page.locator('[class*="expense"], [class*="Expense"], text=Chi phí, text=Expense, text=expense')
-        results.pass_('TC-1326', f'Expense section check ({expense_el.count()} elements found)')
+        expense_count = page.locator('[class*="expense"], [class*="Expense"]').count()
+        expense_visible = expense_count > 0 or assert_text_visible(page, 'Chi phí phát sinh', timeout=5000)
+        if expense_visible:
+            results.pass_('TC-1326', f'Expense section visible ({expense_count} matching elements)')
+        else:
+            results.fail('TC-1326', 'Expense section', 'No expense section found on trip detail')
         ctx.screenshot(page, 'TC-1326_expense_section')
         page.close()
     else:
@@ -362,7 +389,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
             created_container_ids.append(ctn_id)
             results.pass_('TC-1330', f'Add container → id={ctn_id}')
         else:
-            results.fail(('TC-1330', 'Add container', f'Status: {resp.get("status")}, Body: {resp}')
+            results.fail('TC-1330', 'Add container', f'Status: {resp.get("status")}, Body: {resp}')
 
         # TC-1331: Add container no seal
         resp = api_fwd.post(f'/api/forwarder/me/trips/{trip_id}/containers', {
@@ -374,7 +401,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
             created_container_ids.append(ctn_id)
             results.pass_('TC-1331', 'Add container without seal → id=%s' % ctn_id)
         else:
-            results.fail(('TC-1331', 'Add container no seal', f'Status: {resp.get("status")}, Body: {resp}')
+            results.fail('TC-1331', 'Add container no seal', f'Status: {resp.get("status")}, Body: {resp}')
 
         # TC-1332: Add container missing number
         resp = api_fwd.post(f'/api/forwarder/me/trips/{trip_id}/containers', {
@@ -383,20 +410,22 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         if resp.get('status') in (400, 422):
             results.pass_('TC-1332', 'Missing containerNumber → 400')
         else:
-            results.fail(('TC-1332', 'Missing container number', f'Expected 400, got {resp.get("status")}')
+            results.fail('TC-1332', 'Missing container number', f'Expected 400, got {resp.get("status")}')
 
         # TC-1333: Container list updates
         detail_resp = api_fwd.get(f'/api/forwarder/me/trips/{trip_id}')
         if detail_resp.get('status') == 200:
             detail_data = detail_resp.get('data', {})
             containers = detail_data.get('containers', detail_data.get('data', {}).get('containers', []))
-            ctn_numbers = [c.get('containerNumber', '') for c in containers] if containers else []
-            if any('E2E-CTN' in n for n in ctn_numbers):
-                results.pass_('TC-1333', f'New container appears in trip detail ({len(containers)} containers)')
+            ctn_numbers = [c.get('containerNumber') or '' for c in containers] if containers else []
+            returned_ids = {c.get('id') for c in containers}
+            missing_ids = [container_id for container_id in created_container_ids if container_id not in returned_ids]
+            if not missing_ids:
+                results.pass_('TC-1333', f'All created containers appear in trip detail ({len(containers)} containers)')
             else:
-                results.pass_('TC-1333', f'Trip detail loaded ({len(containers)} containers, may be nested)')
+                results.fail('TC-1333', 'Container list update', f'Missing created container IDs: {missing_ids}')
         else:
-            results.fail(('TC-1333', 'Container list update', f'Status: {detail_resp.get("status")}')
+            results.fail('TC-1333', 'Container list update', f'Status: {detail_resp.get("status")}')
 
         # TC-1334: Multiple containers
         if len(created_container_ids) >= 2:
@@ -407,9 +436,9 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
                 if len(containers) >= 2:
                     results.pass_('TC-1334', f'Multiple containers visible ({len(containers)})')
                 else:
-                    results.pass_('TC-1334', f'Containers in detail: {len(containers)}')
+                    results.fail('TC-1334', 'Multiple containers', f'Only {len(containers)} returned')
             else:
-                results.pass_('TC-1334', 'Container count check (detail API)')
+                results.fail('TC-1334', 'Multiple containers', f'Detail API status: {detail_resp.get("status")}')
         else:
             results.skip('TC-1334', 'Multiple containers', 'Could not create 2 containers')
 
@@ -419,17 +448,17 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
             if detail_resp.get('status') == 200:
                 detail_data = detail_resp.get('data', {})
                 containers = detail_data.get('containers', detail_data.get('data', {}).get('containers', []))
-                if containers:
-                    first_ctn = containers[0]
-                    has_number = bool(first_ctn.get('containerNumber'))
-                    has_seal = 'sealNumber' in first_ctn
-                    has_id = bool(first_ctn.get('id'))
+                created_ctn = next((c for c in containers if c.get('id') == created_container_ids[0]), None)
+                if created_ctn:
+                    has_number = bool(created_ctn.get('containerNumber'))
+                    has_seal = 'sealNumber' in created_ctn
+                    has_id = bool(created_ctn.get('id'))
                     if has_number and has_id:
                         results.pass_('TC-1335', f'Container info complete (number: {has_number}, seal key: {has_seal}, id: {has_id})')
                     else:
-                        results.pass_('TC-1335', f'Container data: {list(first_ctn.keys())}')
+                        results.fail('TC-1335', 'Container info complete', f'Container data: {list(created_ctn.keys())}')
                 else:
-                    results.skip('TC-1335', 'Container info complete', 'No containers in response')
+                    results.fail('TC-1335', 'Container info complete', 'Created container not returned')
             else:
                 results.skip('TC-1335', 'Container info complete', f'Detail API status: {detail_resp.get("status")}')
         else:
@@ -449,10 +478,12 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
                 page.wait_for_timeout(500)
                 ctx.screenshot(page, 'TC-1336_container_toggle')
                 results.pass_('TC-1336', 'Container form toggle clicked')
+            elif page.locator('input[name*="container"], input[placeholder*="Container"]').count() > 0:
+                results.pass_('TC-1336', 'Container form visible without a toggle')
             else:
-                results.pass_('TC-1336', 'Container form area visible (no toggle needed)')
-        except Exception:
-            results.pass_('TC-1336', 'Container form toggle attempted')
+                results.fail('TC-1336', 'Container form toggle', 'No toggle or visible container input found')
+        except Exception as err:
+            results.fail('TC-1336', 'Container form toggle', str(err))
         page.close()
 
     # ── Section 5: Expenses (TC-1340 to TC-1347) ──
@@ -466,33 +497,34 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         resp = api_fwd.post('/api/forwarder/me/expenses', {
             'tripId': trip_id,
             'expenseType': 'LIFTING',
-            'amount': 500000,
+            'buyAmount': 500000,
         })
         if resp.get('status') in (200, 201) or (resp.get('data') and resp.get('data', {}).get('id')):
             exp_id = resp.get('data', {}).get('id')
             created_expense_ids.append(exp_id)
             results.pass_('TC-1340', f'Create LIFTING expense → id={exp_id}')
         else:
-            results.fail(('TC-1340', 'Create LIFTING expense', f'Status: {resp.get("status")}, Body: {resp}')
+            results.fail('TC-1340', 'Create LIFTING expense', f'Status: {resp.get("status")}, Body: {resp}')
 
         # TC-1341: Create CUSTOMS expense
         resp = api_fwd.post('/api/forwarder/me/expenses', {
             'tripId': trip_id,
             'expenseType': 'CUSTOMS',
-            'amount': 300000,
+            'buyAmount': 300000,
+            'declarationNumber': 'E2E-CUSTOMS-1341',
         })
         if resp.get('status') in (200, 201) or (resp.get('data') and resp.get('data', {}).get('id')):
             exp_id = resp.get('data', {}).get('id')
             created_expense_ids.append(exp_id)
             results.pass_('TC-1341', f'Create CUSTOMS expense → id={exp_id}')
         else:
-            results.fail(('TC-1341', 'Create CUSTOMS expense', f'Status: {resp.get("status")}, Body: {resp}')
+            results.fail('TC-1341', 'Create CUSTOMS expense', f'Status: {resp.get("status")}, Body: {resp}')
 
         # TC-1342: Create expense with note
         resp = api_fwd.post('/api/forwarder/me/expenses', {
             'tripId': trip_id,
             'expenseType': 'LIFTING',
-            'amount': 200000,
+            'buyAmount': 200000,
             'note': 'E2E test expense with note',
         })
         if resp.get('status') in (200, 201) or (resp.get('data') and resp.get('data', {}).get('id')):
@@ -500,42 +532,43 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
             created_expense_ids.append(exp_id)
             results.pass_('TC-1342', f'Create expense with note → id={exp_id}')
         else:
-            results.fail(('TC-1342', 'Create expense with note', f'Status: {resp.get("status")}, Body: {resp}')
+            results.fail('TC-1342', 'Create expense with note', f'Status: {resp.get("status")}, Body: {resp}')
 
         # TC-1343: Invalid amount (0)
         resp = api_fwd.post('/api/forwarder/me/expenses', {
             'tripId': trip_id,
             'expenseType': 'LIFTING',
-            'amount': 0,
+            'buyAmount': 0,
         })
         if resp.get('status') in (400, 422):
             results.pass_('TC-1343', 'Amount 0 → 400')
         else:
-            results.fail(('TC-1343', 'Invalid amount 0', f'Expected 400, got {resp.get("status")}')
+            results.fail('TC-1343', 'Invalid amount 0', f'Expected 400, got {resp.get("status")}')
 
         # TC-1344: Invalid amount (negative)
         resp = api_fwd.post('/api/forwarder/me/expenses', {
             'tripId': trip_id,
             'expenseType': 'LIFTING',
-            'amount': -100,
+            'buyAmount': -100,
         })
         if resp.get('status') in (400, 422):
             results.pass_('TC-1344', 'Negative amount → 400')
         else:
-            results.fail(('TC-1344', 'Invalid negative amount', f'Expected 400, got {resp.get("status")}')
+            results.fail('TC-1344', 'Invalid negative amount', f'Expected 400, got {resp.get("status")}')
 
         # TC-1345: Multiple different-type expenses
         multi_types = [
             ('LIFTING', 100000),
             ('CUSTOMS', 150000),
-            ('THC', 200000),
+            ('INFRASTRUCTURE', 200000),
         ]
         all_ok = True
         for etype, amt in multi_types:
             resp = api_fwd.post('/api/forwarder/me/expenses', {
                 'tripId': trip_id,
                 'expenseType': etype,
-                'amount': amt,
+                'buyAmount': amt,
+                **({'declarationNumber': 'E2E-CUSTOMS-1345'} if etype == 'CUSTOMS' else {}),
             })
             if resp.get('status') in (200, 201) or (resp.get('data') and resp.get('data', {}).get('id')):
                 exp_id = resp.get('data', {}).get('id')
@@ -543,9 +576,17 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
             else:
                 all_ok = False
         if all_ok:
-            results.pass_('TC-1345', f'Created {len(multi_types)} expenses of different types')
+            detail_resp = api_fwd.get(f'/api/forwarder/me/trips/{trip_id}')
+            detail_data = detail_resp.get('data', {}) if detail_resp.get('status') == 200 else {}
+            expenses = detail_data.get('expenses', detail_data.get('data', {}).get('expenses', []))
+            returned_types = {expense.get('expenseType') for expense in expenses}
+            expected_types = {expense_type for expense_type, _ in multi_types}
+            if expected_types.issubset(returned_types):
+                results.pass_('TC-1345', f'Created and reloaded {len(multi_types)} expense types')
+            else:
+                results.fail('TC-1345', 'Multiple expense types', f'Missing types: {sorted(expected_types - returned_types)}')
         else:
-            results.pass_('TC-1345', 'Multiple expense creation attempted (some may have failed)')
+            results.fail('TC-1345', 'Multiple expense types', 'One or more create requests failed')
 
         # TC-1346: Expense dropdown types
         page = ctx.new_page()
@@ -554,8 +595,15 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         page.goto(f'{BASE_URL}/my-forwarder-trips/{trip_id}')
         page.wait_for_load_state('networkidle')
         page.wait_for_timeout(1000)
+        add_buttons = page.locator('button:has-text("Thêm")')
+        if add_buttons.count() > 0:
+            add_buttons.last.click()
+            page.wait_for_timeout(500)
         dropdown = page.locator('select, [class*="dropdown"], [class*="select"], [role="listbox"]')
-        results.pass_('TC-1346', f'Expense type dropdown check ({dropdown.count()} selectors found)')
+        if dropdown.count() > 0:
+            results.pass_('TC-1346', f'Expense type dropdown visible ({dropdown.count()} selectors found)')
+        else:
+            results.fail('TC-1346', 'Expense type dropdown', 'No selector found')
         ctx.screenshot(page, 'TC-1346_expense_dropdown')
         page.close()
 
@@ -565,12 +613,14 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
             if detail_resp.get('status') == 200:
                 detail_data = detail_resp.get('data', {})
                 expenses = detail_data.get('expenses', detail_data.get('data', {}).get('expenses', []))
-                if expenses and len(expenses) > 0:
-                    results.pass_('TC-1347', f'Expenses visible in trip detail ({len(expenses)} found)')
+                returned_ids = {expense.get('id') for expense in expenses}
+                missing_ids = [expense_id for expense_id in created_expense_ids if expense_id not in returned_ids]
+                if not missing_ids:
+                    results.pass_('TC-1347', f'All created expenses visible in trip detail ({len(expenses)} found)')
                 else:
-                    results.pass_('TC-1347', 'Trip detail loaded (expenses may be in separate section)')
+                    results.fail('TC-1347', 'Expense list updates', f'Missing created expense IDs: {missing_ids}')
             else:
-                results.pass_('TC-1347', f'Expense list check (detail status: {detail_resp.get("status")})')
+                results.fail('TC-1347', 'Expense list updates', f'Detail status: {detail_resp.get("status")}')
         else:
             results.skip('TC-1347', 'Expense list updates', 'No expenses created')
 
@@ -587,14 +637,14 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         if resp.get('status') in (200, 204):
             results.pass_('TC-1350', f'Delete own expense {delete_expense_id} → 200')
         else:
-            results.fail(('TC-1350', 'Delete own expense', f'Expected 200, got {resp.get("status")}')
+            results.fail('TC-1350', 'Delete own expense', f'Expected 200, got {resp.get("status")}')
 
         # TC-1351: Delete non-existent expense
         resp = api_fwd.delete('/api/forwarder/me/expenses/999999')
         if resp.get('status') in (404, 410):
             results.pass_('TC-1351', 'Delete non-existent expense → 404')
         else:
-            results.fail(('TC-1351', 'Delete non-existent', f'Expected 404, got {resp.get("status")}')
+            results.fail('TC-1351', 'Delete non-existent', f'Expected 404, got {resp.get("status")}')
 
         # TC-1352: Delete updates list
         if trip_id:
@@ -606,21 +656,21 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
                 if delete_expense_id not in exp_ids:
                     results.pass_('TC-1352', f'Deleted expense {delete_expense_id} no longer in list')
                 else:
-                    results.pass_('TC-1352', 'Expense list checked after delete')
+                    results.fail('TC-1352', 'Delete updates list', f'Expense {delete_expense_id} still returned')
             else:
-                results.pass_('TC-1352', f'Delete list check (status: {detail_resp.get("status")})')
+                results.fail('TC-1352', 'Delete updates list', f'Detail status: {detail_resp.get("status")}')
         else:
             results.skip('TC-1352', 'Delete updates list', 'No trip ID')
 
         # TC-1353: Cannot delete other's expense
-        results.pass_('TC-1353', 'Cannot delete other expense — skip (single forwarder account)')
+        results.skip('TC-1353', 'Cannot delete other expense', 'Only one seeded forwarder account')
 
         # TC-1354: Delete already deleted
         resp = api_fwd.delete(f'/api/forwarder/me/expenses/{delete_expense_id}')
         if resp.get('status') in (404, 410):
             results.pass_('TC-1354', 'Delete already-deleted expense → 404')
         else:
-            results.fail(('TC-1354', 'Delete already deleted', f'Expected 404, got {resp.get("status")}')
+            results.fail('TC-1354', 'Delete already deleted', f'Expected 404, got {resp.get("status")}')
 
     # ── Section 7: Admin Expense Views (TC-1360 to TC-1364) ──
 
@@ -629,7 +679,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
     if resp.get('status') == 200:
         results.pass_('TC-1360', 'ADMIN views forwarder expenses → 200')
     else:
-        results.fail(('TC-1360', 'ADMIN forwarder expenses', f'Expected 200, got {resp.get("status")}')
+        results.fail('TC-1360', 'ADMIN forwarder expenses', f'Expected 200, got {resp.get("status")}')
 
     # TC-1361: Filter by trip
     if trip_id:
@@ -637,27 +687,27 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         if resp.get('status') == 200:
             results.pass_('TC-1361', f'Filter by tripId={trip_id} → 200')
         else:
-            results.fail(('TC-1361', 'Filter by trip', f'Expected 200, got {resp.get("status")}')
+            results.fail('TC-1361', 'Filter by trip', f'Expected 200, got {resp.get("status")}')
     else:
         resp = api_admin.get('/api/forwarder-expenses?tripId=1')
         if resp.get('status') == 200:
             results.pass_('TC-1361', 'Filter by tripId → 200')
         else:
-            results.fail(('TC-1361', 'Filter by trip', f'Expected 200, got {resp.get("status")}')
+            results.fail('TC-1361', 'Filter by trip', f'Expected 200, got {resp.get("status")}')
 
     # TC-1362: Filter by type
     resp = api_admin.get('/api/forwarder-expenses?expenseType=LIFTING')
     if resp.get('status') == 200:
         results.pass_('TC-1362', 'Filter by expenseType=LIFTING → 200')
     else:
-        results.fail(('TC-1362', 'Filter by type', f'Expected 200, got {resp.get("status")}')
+        results.fail('TC-1362', 'Filter by type', f'Expected 200, got {resp.get("status")}')
 
     # TC-1363: FORWARDER blocked from admin expense API
     resp = api_fwd.get('/api/forwarder-expenses')
     if resp.get('status') in (403, 401):
         results.pass_('TC-1363', 'FORWARDER GET /api/forwarder-expenses → 403')
     else:
-        results.fail(('TC-1363', 'FORWARDER admin expense API', f'Expected 403, got {resp.get("status")}')
+        results.fail('TC-1363', 'FORWARDER admin expense API', f'Expected 403, got {resp.get("status")}')
 
     # TC-1364: MANAGER views forwarder expenses
     api_mgr = ApiClient()
@@ -666,7 +716,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
     if resp.get('status') == 200:
         results.pass_('TC-1364', 'MANAGER views forwarder expenses → 200')
     else:
-        results.fail(('TC-1364', 'MANAGER forwarder expenses', f'Expected 200, got {resp.get("status")}')
+        results.fail('TC-1364', 'MANAGER forwarder expenses', f'Expected 200, got {resp.get("status")}')
 
     # ── Section 8: Mobile (TC-1370 to TC-1373) ──
     mobile_vp = {'width': 375, 'height': 812}
@@ -679,7 +729,11 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1000)
     ctx.screenshot(page, 'TC-1370_mobile_trip_list')
-    results.pass_('TC-1370', f'Mobile trip list renders (viewport 375×812)')
+    no_overflow = page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
+    if '/my-forwarder-trips' in page.url and no_overflow and page.locator('.ftrip-card').count() > 0:
+        results.pass_('TC-1370', 'Mobile trip list renders without horizontal overflow')
+    else:
+        results.fail('TC-1370', 'Mobile trip list', f'URL={page.url}, noOverflow={no_overflow}, cards={page.locator(".ftrip-card").count()}')
     page.close()
 
     # TC-1371: Mobile trip detail
@@ -691,7 +745,11 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         page.wait_for_load_state('networkidle')
         page.wait_for_timeout(1000)
         ctx.screenshot(page, 'TC-1371_mobile_trip_detail')
-        results.pass_('TC-1371', f'Mobile trip detail renders (trip {trip_id})')
+        no_overflow = page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
+        if str(trip_id) in page.url and no_overflow and assert_text_visible(page, 'Chi phí phát sinh', timeout=3000):
+            results.pass_('TC-1371', f'Mobile trip detail renders without overflow (trip {trip_id})')
+        else:
+            results.fail('TC-1371', 'Mobile trip detail', f'URL={page.url}, noOverflow={no_overflow}')
         page.close()
     else:
         results.skip('TC-1371', 'Mobile trip detail', 'No trips available')
@@ -705,7 +763,15 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         page.wait_for_load_state('networkidle')
         page.wait_for_timeout(1000)
         ctx.screenshot(page, 'TC-1372_mobile_container_form')
-        results.pass_('TC-1372', 'Mobile container form renders')
+        has_container_ui = (
+            assert_text_visible(page, 'Số Container / Seal', timeout=3000)
+            or page.locator('input[name*="container"], input[placeholder*="Container"]').count() > 0
+        )
+        no_overflow = page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
+        if has_container_ui and no_overflow:
+            results.pass_('TC-1372', 'Mobile container section renders without overflow')
+        else:
+            results.fail('TC-1372', 'Mobile container form', f'containerUI={has_container_ui}, noOverflow={no_overflow}')
         page.close()
     else:
         results.skip('TC-1372', 'Mobile container form', 'No trips available')
@@ -723,7 +789,11 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
     except Exception:
         pass
     ctx.screenshot(page, 'TC-1373_mobile_sidebar')
-    results.pass_('TC-1373', 'Mobile sidebar check (viewport 375×812)')
+    no_overflow = page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
+    if hamburger.count() > 0 and no_overflow:
+        results.pass_('TC-1373', 'Mobile navigation control is present without overflow')
+    else:
+        results.fail('TC-1373', 'Mobile navigation', f'menuControls={hamburger.count()}, noOverflow={no_overflow}')
     page.close()
 
 

@@ -55,7 +55,7 @@ export async function quickCreateShipment(
   body: QuickCreateShipmentRequest,
   idempotencyKey: string,
 ): Promise<Shipment> {
-  return api.post<Shipment>('/api/shipments/quick', body, {
+  return api.post<Shipment>('/shipments/quick', body, {
     headers: { 'Idempotency-Key': idempotencyKey },
   });
 }
@@ -139,7 +139,7 @@ export interface DispatchShipmentResponse {
 
 /** Fetch the full detail (shipment + containers + documents + …). */
 export async function getShipmentDetail(id: number): Promise<ShipmentDetail> {
-  return api.get<ShipmentDetail>(`/api/shipments/${id}`);
+  return api.get<ShipmentDetail>(`/shipments/${id}`);
 }
 
 /** Update BL number (and optionally other fields) — version-gated (409 on stale). */
@@ -147,7 +147,7 @@ export async function updateShipment(
   id: number,
   body: UpdateShipmentRequest,
 ): Promise<Shipment> {
-  return api.put<Shipment>(`/api/shipments/${id}`, body);
+  return api.put<Shipment>(`/shipments/${id}`, body);
 }
 
 /** Full-reconcile the shipment's container set (slice-1 validation applies). */
@@ -155,7 +155,7 @@ export async function saveShipmentContainers(
   id: number,
   body: ShipmentContainerBatch,
 ): Promise<ShipmentContainerBatchResponse> {
-  return api.put<ShipmentContainerBatchResponse>(`/api/shipments/${id}/containers`, body);
+  return api.put<ShipmentContainerBatchResponse>(`/shipments/${id}/containers`, body);
 }
 
 /** Dispatch the shipment → linked trip. Carries slice-2 preDispatchWarnings. */
@@ -163,5 +163,5 @@ export async function dispatchShipment(
   id: number,
   body: DispatchShipmentRequest,
 ): Promise<DispatchShipmentResponse> {
-  return api.post<DispatchShipmentResponse>(`/api/shipments/${id}/dispatch`, body);
+  return api.post<DispatchShipmentResponse>(`/shipments/${id}/dispatch`, body);
 }

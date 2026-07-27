@@ -76,6 +76,7 @@ p, MANAGER, geotag, read
 p, ACCOUNTANT, geotag, write
 p, ACCOUNTANT, geotag, read
 p, CUSTOMER, customer_portal, read
+p, CUSTOMER, customer_portal, write
 p, CLERK, shipments, read
 p, CLERK, shipments, write
 p, CLERK, customer_portal, read

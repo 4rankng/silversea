@@ -20,6 +20,7 @@ import authRoutes from './routes/auth';
 import configRoutes, { auditLogRouter, catalogBootstrapRouter, salaryPeriodsRouter, salaryPeriodsAdminRouter, tireLifecycleRouter } from './routes/config';
 import tripRoutes from './routes/trips';
 import shipmentRoutes from './routes/shipments';
+import portalRoutes from './routes/portal';
 import { agentRoutes } from './routes/agent';
 import { initAgentSocket } from './agentSocket';
 import financialRoutes from './routes/financial';
@@ -180,6 +181,7 @@ app.use('/api/trips', authMiddleware, casbinAuthz('trips'), tripRoutes);
 // read+write. CUSTOMER/DRIVER/FORWARDER are denied at this mount; the customer
 // portal ships its own row-scoped surface in Wave 2.
 app.use('/api/shipments', authMiddleware, casbinAuthz('shipments'), shipmentRoutes);
+app.use('/api/portal', authMiddleware, casbinAuthz('customer_portal'), requireRoles(Role.CUSTOMER), portalRoutes);
 // Command-and-insight assistant (bot). Acts as the caller; office roles only.
 // 503 while BOT_ENABLE is off. Mounts before the catch-all /api.
 app.use('/api/agent', authMiddleware, casbinAuthz('agent'), agentRoutes);

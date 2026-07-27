@@ -18,7 +18,7 @@ def test_fleet(ctx: NepoTestContext, results: TestResults):
     if '/dispatch' in page.url:
         results.pass_('TC-0701', 'Dispatch page loads')
     else:
-        results.fail(('TC-0701', 'Dispatch page', f'URL: {page.url}')
+        results.fail('TC-0701', 'Dispatch page', f'URL: {page.url}')
     ctx.screenshot(page, 'TC-0701_dispatch')
     page.close()
 
@@ -32,7 +32,7 @@ def test_fleet(ctx: NepoTestContext, results: TestResults):
     if '/fleet' in page.url:
         results.pass_('TC-0702', 'Fleet page loads')
     else:
-        results.fail(('TC-0702', 'Fleet page', f'URL: {page.url}')
+        results.fail('TC-0702', 'Fleet page', f'URL: {page.url}')
     ctx.screenshot(page, 'TC-0702_fleet')
     page.close()
 
@@ -42,7 +42,7 @@ def test_fleet(ctx: NepoTestContext, results: TestResults):
         items = resp.get('data', {}).get('items', [])
         results.pass_('TC-0703', f'Trucks API returns {len(items)} trucks')
     else:
-        results.fail(('TC-0703', 'Trucks API', f'Status: {resp.get("status")}')
+        results.fail('TC-0703', 'Trucks API', f'Status: {resp.get("status")}')
 
     # TC-0704: Drivers API
     resp = api.get('/api/drivers')
@@ -50,14 +50,14 @@ def test_fleet(ctx: NepoTestContext, results: TestResults):
         items = resp.get('data', {}).get('items', [])
         results.pass_('TC-0704', f'Drivers API returns {len(items)} drivers')
     else:
-        results.fail(('TC-0704', 'Drivers API', f'Status: {resp.get("status")}')
+        results.fail('TC-0704', 'Drivers API', f'Status: {resp.get("status")}')
 
     # TC-0705: Trailers API
     resp = api.get('/api/trailers')
     if resp.get('status') == 200:
         results.pass_('TC-0705', 'Trailers API works')
     else:
-        results.fail(('TC-0705', 'Trailers API', f'Status: {resp.get("status")}')
+        results.fail('TC-0705', 'Trailers API', f'Status: {resp.get("status")}')
 
     # TC-0706: Create truck via API
     import time
@@ -66,7 +66,7 @@ def test_fleet(ctx: NepoTestContext, results: TestResults):
     if resp.get('status') in (200, 201) or resp.get('data', {}).get('id'):
         results.pass_('TC-0706', f'Create truck {plate}')
     else:
-        results.fail(('TC-0706', 'Create truck', f'Status: {resp.get("status")}')
+        results.fail('TC-0706', 'Create truck', f'Status: {resp.get("status")}')
 
 if __name__ == '__main__':
     sys.exit(run_suite('07-fleet-dispatch', test_fleet))

@@ -38,6 +38,14 @@ const MAX_IMAGE_DIMENSION = 2048;
 
 const router = Router();
 
+export const forwarderTripContainerSchema = tripContainerSchema.refine(
+  (container) => Boolean(container.containerNumber?.trim()),
+  {
+    path: ['containerNumber'],
+    message: 'Số container không được để trống',
+  },
+);
+
 // Resolve forwarder profile once for all routes — handlers access req.forwarder
 router.use(resolveForwarder);
 
@@ -66,7 +74,7 @@ router.get('/trips/:id', asyncHandler(async (req: Request, res: Response) => {
 router.post('/trips/:tripId/containers', asyncHandler(async (req: Request, res: Response) => {
   const forwarder = req.forwarder!;
   const tripId = parseInt(req.params.tripId as string, 10);
-  const parsed = tripContainerSchema.safeParse({ ...req.body, tripId });
+  const parsed = forwarderTripContainerSchema.safeParse({ ...req.body, tripId });
   if (!parsed.success) throwValidation(parsed.error);
   const container = await createTripContainer({
     ...parsed.data,

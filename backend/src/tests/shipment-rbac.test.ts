@@ -3,8 +3,8 @@
  * `customer_portal` actions). Asserts the CUSTOMER and CLERK roles added in
  * Wave 0 behave per the phase-01 architecture block:
  *
- *   - CUSTOMER: customer_portal read only (portal ships Wave 2; row-scoped at
- *     the service layer via scopedByCustomer). Denied shipments + everything
+ *   - CUSTOMER: customer_portal read + write (read own rows; write only the
+ *     dedicated confirmation/dispute actions). Denied shipments + everything
  *     else — a customer must never touch operator shipment CRUD.
  *   - CLERK (nhân viên chứng từ, M10): shipments read|write + customer_portal
  *     read. Denied trips/financial/users/gps-admin — clerks are document
@@ -34,6 +34,12 @@ const enforcer = () => (enforcerPromise ??= newEnforcer(modelPath, policyPath));
 describe('Wave 0 CUSTOMER role RBAC (portal-only)', () => {
   test('CUSTOMER can read customer_portal', async () => {
     assert.equal(await (await enforcer()).enforce('CUSTOMER', 'customer_portal', 'read'), true);
+  });
+  test('CUSTOMER can write dedicated customer_portal actions', async () => {
+    assert.equal(await (await enforcer()).enforce('CUSTOMER', 'customer_portal', 'write'), true);
+  });
+  test('CUSTOMER cannot delete through customer_portal', async () => {
+    assert.equal(await (await enforcer()).enforce('CUSTOMER', 'customer_portal', 'delete'), false);
   });
   test('CUSTOMER is denied shipments read', async () => {
     assert.equal(await (await enforcer()).enforce('CUSTOMER', 'shipments', 'read'), false);

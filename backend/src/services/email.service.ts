@@ -2,8 +2,8 @@
 //
 // Sends transactional emails to customers (debit-note sent, delivery
 // confirmation, milestone notifications). Uses Resend as the primary
-// provider; when no API key is configured, falls back to console logging
-// (dev mode) so the flow is testable without a real provider.
+// provider. The API key is managed in ADMIN application settings and resolved
+// at send time; development/test falls back to console logging when unset.
 //
 // Every email is logged in customer_email_logs with its status (PENDING →
 // SENT / FAILED) and provider message ID. The Wave-0 scheduler's retry job
@@ -14,6 +14,7 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { config } from '../config';
 import { eq } from 'drizzle-orm';
+import { getEmailSettings } from './email-settings.service';
 
 const RESEND_API_URL = 'https://api.resend.com/emails';
 const MAX_RETRIES = 3;
@@ -54,8 +55,12 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
 
   // 2. Attempt to send.
   try {
-    if (!config.resendApiKey) {
-      // Dev mode: console-log instead of calling the API.
+    const { resendApiKey } = await getEmailSettings();
+    if (!resendApiKey) {
+      if (config.nodeEnv === 'production') {
+        throw new Error('Resend API key chưa được cấu hình');
+      }
+
       console.log(`[email:dev] To: ${input.to} | Subject: ${input.subject}`);
       await db.update(s.customerEmailLogs)
         .set({ status: 'SENT', updatedAt: new Date() })
@@ -66,7 +71,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     const response = await fetch(RESEND_API_URL, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${config.resendApiKey}`,
+        'Authorization': `Bearer ${resendApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -122,7 +127,18 @@ export async function retryEmail(logId: number): Promise<SendEmailResult> {
   // Re-send. We don't have the HTML body stored (only the subject), so
   // this retry path is best-effort — the caller should provide the body
   // via a template lookup. For now, send a generic notification.
-  if (!config.resendApiKey) {
+  let resendApiKey: string;
+  try {
+    ({ resendApiKey } = await getEmailSettings());
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : 'Unknown settings error';
+    const error = `Không thể đọc cấu hình gửi email: ${detail}`;
+    await db.update(s.customerEmailLogs)
+      .set({ status: 'FAILED', errorMessage: error, updatedAt: new Date() })
+      .where(eq(s.customerEmailLogs.id, logId));
+    return { ok: false, logId, error };
+  }
+  if (!resendApiKey && config.nodeEnv !== 'production') {
     console.log(`[email:dev-retry] To: ${log.recipientEmail} | Subject: ${log.subject}`);
     await db.update(s.customerEmailLogs)
       .set({ status: 'SENT', updatedAt: new Date() })
@@ -130,9 +146,22 @@ export async function retryEmail(logId: number): Promise<SendEmailResult> {
     return { ok: true, logId };
   }
 
-  // With a real provider, we'd reconstruct the body from a template.
-  // This is a placeholder for the template lookup that future items will fill.
-  return { ok: false, logId, error: 'Retry requires template body (not yet implemented)' };
+  if (!resendApiKey) {
+    const error = 'Resend API key chưa được cấu hình';
+    await db.update(s.customerEmailLogs)
+      .set({ status: 'FAILED', errorMessage: error, updatedAt: new Date() })
+      .where(eq(s.customerEmailLogs.id, logId));
+    return { ok: false, logId, error };
+  }
+
+  // The original body is not stored on the log, so a provider retry cannot be
+  // reconstructed yet. Keep the row honestly FAILED rather than leaving the
+  // attempt stuck in PENDING after incrementing retryCount.
+  const error = 'Retry requires the original email body';
+  await db.update(s.customerEmailLogs)
+    .set({ status: 'FAILED', errorMessage: error, updatedAt: new Date() })
+    .where(eq(s.customerEmailLogs.id, logId));
+  return { ok: false, logId, error };
 }
 
 /**

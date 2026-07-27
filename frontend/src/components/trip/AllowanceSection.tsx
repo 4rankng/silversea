@@ -1,6 +1,7 @@
 import React from "react";
 import { computeRoadAllowance, computeTripDriverSalary } from "@tingting/shared";
 import { useTripFormContext } from "../../hooks/useTripFormContext";
+import { CheckboxCard } from "./CheckboxCard";
 import { InputWithPrefix } from "./InputWithPrefix";
 import "./AllowanceSection.css";
 
@@ -105,20 +106,16 @@ export function AllowanceSection() {
             style={{ width: "100%" }}
           />
         </div>
-        <div className="field">
-          <div className="as-input-wrapper" style={{ display: "flex", alignItems: "center", height: 40 }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", userSelect: "none" }}>
-              <input
-                type="checkbox"
-                checked={hasReturnCargo}
-                onChange={(e) => setHasReturnCargo(e.target.checked)}
-                style={{ width: 36, height: 36, accentColor: "var(--brand)", cursor: "pointer" }}
-              />
-              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--fg-1)" }}>
-                Chuyến về có hàng{returnCargoBonusApplied != null ? ` (+${(returnCargoBonusApplied / 1000).toFixed(0)}k)` : ''}
-              </span>
-            </label>
-          </div>
+        <div className="field as-return-cargo-field">
+          <CheckboxCard
+            id="cb-return"
+            checked={hasReturnCargo}
+            onChange={setHasReturnCargo}
+            label="Chuyến về có hàng"
+            description={returnCargoBonusApplied != null
+              ? `Cộng ${returnCargoBonusApplied.toLocaleString("vi-VN")} đ vào tiền đi đường`
+              : undefined}
+          />
         </div>
       </div>
 

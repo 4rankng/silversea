@@ -18,7 +18,7 @@ def test_debt(ctx: NepoTestContext, results: TestResults):
     if '/debt' in page.url:
         results.pass_('TC-0401', 'Debt list page loads')
     else:
-        results.fail(('TC-0401', 'Debt list', f'URL: {page.url}')
+        results.fail('TC-0401', 'Debt list', f'URL: {page.url}')
     ctx.screenshot(page, 'TC-0401_debt_list')
     page.close()
 
@@ -27,7 +27,7 @@ def test_debt(ctx: NepoTestContext, results: TestResults):
     if resp.get('status') == 200:
         results.pass_('TC-0402', 'Receivables summary API works')
     else:
-        results.fail(('TC-0402', 'Receivables API', f'Status: {resp.get("status")}')
+        results.fail('TC-0402', 'Receivables API', f'Status: {resp.get("status")}')
 
     # TC-0403: Ledger API
     resp = api.get('/api/ledger')
@@ -36,7 +36,7 @@ def test_debt(ctx: NepoTestContext, results: TestResults):
         items = data.get('items', [])
         results.pass_('TC-0403', f'Ledger API returns {len(items)} entries')
     else:
-        results.fail(('TC-0403', 'Ledger API', f'Status: {resp.get("status")}')
+        results.fail('TC-0403', 'Ledger API', f'Status: {resp.get("status")}')
 
     # TC-0404: Customer statement API (get first customer)
     cust_resp = api.get('/api/customers')
@@ -47,7 +47,7 @@ def test_debt(ctx: NepoTestContext, results: TestResults):
         if stmt_resp.get('status') == 200:
             results.pass_('TC-0404', 'Customer statement API works')
         else:
-            results.fail(('TC-0404', 'Customer statement', f'Status: {stmt_resp.get("status")}')
+            results.fail('TC-0404', 'Customer statement', f'Status: {stmt_resp.get("status")}')
     else:
         results.skip('TC-0404', 'Customer statement', 'No customers in system')
 
@@ -58,7 +58,7 @@ def test_debt(ctx: NepoTestContext, results: TestResults):
     if resp.get('status') == 403:
         results.pass_('TC-0405', 'DRIVER cannot access ledger → 403')
     else:
-        results.fail(('TC-0405', 'DRIVER ledger access', f'Expected 403, got {resp.get("status")}')
+        results.fail('TC-0405', 'DRIVER ledger access', f'Expected 403, got {resp.get("status")}')
 
 if __name__ == '__main__':
     sys.exit(run_suite('04-debt-payments', test_debt))

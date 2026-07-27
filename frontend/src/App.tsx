@@ -9,8 +9,10 @@ import { TourController } from './components/agent/TourController';
 import { ReducedMotionProvider } from './hooks/usePrefersReducedMotion';
 import { Role } from '@tingting/shared';
 import Layout from './components/Layout';
+import CustomerPortalLayout from './pages/portal/CustomerPortalLayout';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { ToastProvider } from './components/shared/Toast';
+import { homeForRole, routes } from './lib/routes';
 
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
@@ -34,6 +36,7 @@ const PortalShipmentDetailPage = lazy(() => import('./pages/portal/PortalShipmen
 const ClerkShipmentCreatePage = lazy(() => import('./pages/clerk/ClerkShipmentCreatePage'));
 const ClerkShipmentDocsPage = lazy(() => import('./pages/clerk/ClerkShipmentDocsPage'));
 const PortalDebitNotesPage = lazy(() => import('./pages/portal/PortalDebitNotesPage'));
+const PortalStatementPage = lazy(() => import('./pages/portal/PortalStatementPage'));
 const AuditLogPage = lazy(() => import('./pages/AuditLogPage'));
 const DriverTripsPage = lazy(() => import('./pages/DriverTripsPage'));
 const DriverTwoOrdersPage = lazy(() => import('./pages/driver/DriverTwoOrdersPage'));
@@ -111,29 +114,41 @@ function AppRoutes() {
 
   const isDriver = user?.role === Role.DRIVER;
   const isForwarder = user?.role === Role.FORWARDER;
+  const isClerk = user?.role === Role.CLERK;
   const isAdmin = user?.role === Role.ADMIN;
-  const driverHome = '/my-trips';
-  const forwarderHome = '/my-forwarder-trips';
-  const adminHome = '/dashboard';
+  const driverHome = routes.myTrips;
+  const forwarderHome = routes.myForwarderTrips;
+  const clerkHome = routes.clerkShipmentNew;
+  const adminHome = routes.dashboard;
   const isPortalUser = isDriver || isForwarder;
   const portalHome = isDriver ? driverHome : forwarderHome;
-  const customerHome = '/portal/shipments';
+  const customerHome = routes.portalShipments;
   const isCustomer = user?.role === Role.CUSTOMER;
-  const adminOnly = (el: ReactElement) => (isPortalUser || isCustomer ? <Navigate to={isCustomer ? customerHome : portalHome} replace /> : el);
-  const driverOnly = (el: ReactElement) => (isDriver ? el : <Navigate to={isForwarder ? forwarderHome : isCustomer ? customerHome : adminHome} replace />);
-  const forwarderOnly = (el: ReactElement) => (isForwarder ? el : <Navigate to={isDriver ? driverHome : isCustomer ? customerHome : adminHome} replace />);
-  const customerOnly = (el: ReactElement) => (isCustomer ? el : <Navigate to={isPortalUser ? portalHome : adminHome} replace />);
-  const managerOrAdminOnly = (el: ReactElement) => (isAdmin || user?.role === Role.MANAGER ? el : <Navigate to={isPortalUser ? portalHome : isCustomer ? customerHome : adminHome} replace />);
+  const defaultHome = homeForRole(user?.role ?? '');
+  const homeRedirect = isDriver
+    ? driverHome
+    : isForwarder
+      ? forwarderHome
+      : isCustomer
+        ? customerHome
+        : isClerk
+          ? clerkHome
+          : adminHome;
+  const adminOnly = (el: ReactElement) => (isPortalUser || isCustomer || isClerk ? <Navigate to={homeRedirect} replace /> : el);
+  const driverOnly = (el: ReactElement) => (isDriver ? el : <Navigate to={homeRedirect} replace />);
+  const forwarderOnly = (el: ReactElement) => (isForwarder ? el : <Navigate to={homeRedirect} replace />);
+  const customerOnly = (el: ReactElement) => (isCustomer ? el : <Navigate to={homeRedirect} replace />);
+  const managerOrAdminOnly = (el: ReactElement) => (isAdmin || user?.role === Role.MANAGER ? el : <Navigate to={homeRedirect} replace />);
   // /users is the single home for everyone; accountants get scoped (driver-only) access.
-  const officeStaffOnly = (el: ReactElement) => (isAdmin || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT ? el : <Navigate to={isPortalUser ? portalHome : adminHome} replace />);
+  const officeStaffOnly = (el: ReactElement) => (isAdmin || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT ? el : <Navigate to={homeRedirect} replace />);
   // M10.1: CLERK (nhân viên chứng từ) mobile surfaces. ADMIN is admitted as
   // superuser; every other role is bounced to its own home. CLERK's home is
   // the create page itself until a clerk landing page ships.
-  const clerkOrAdminOnly = (el: ReactElement) => (isAdmin || user?.role === Role.CLERK ? el : <Navigate to={isPortalUser ? portalHome : isCustomer ? customerHome : adminHome} replace />);
+  const clerkOrAdminOnly = (el: ReactElement) => (isAdmin || isClerk ? el : <Navigate to={homeRedirect} replace />);
   // Strict ADMIN-only — chatbot monitoring exposes raw turns and must never
   // be reachable by MANAGER/ACCOUNTANT. Mirrors managerOrAdminOnly's shape:
   // admit only when the role matches, else bounce to the portal or staff home.
-  const strictAdminOnly = (el: ReactElement) => (user?.role === Role.ADMIN ? el : <Navigate to={isPortalUser ? portalHome : adminHome} replace />);
+  const strictAdminOnly = (el: ReactElement) => (user?.role === Role.ADMIN ? el : <Navigate to={homeRedirect} replace />);
 
   // Wrap each page in its own ErrorBoundary so a crash in one route
   // doesn't block navigation to other routes.
@@ -144,14 +159,15 @@ function AppRoutes() {
       </Suspense>
     </ErrorBoundary>
   );
+  const Shell = isCustomer ? CustomerPortalLayout : Layout;
 
   return (
-    <Layout>
+    <Shell>
       <Routes>
-          <Route path="/" element={<Navigate to={isPortalUser ? portalHome : adminHome} replace />} />
+          <Route path="/" element={<Navigate to={defaultHome} replace />} />
           <Route
             path="/dashboard"
-            element={isPortalUser ? <Navigate to={portalHome} replace /> : page(<DashboardPage />)}
+            element={isPortalUser || isCustomer || isClerk ? <Navigate to={homeRedirect} replace /> : page(<DashboardPage />)}
           />
           <Route path="/dispatch" element={adminOnly(page(<DispatchPage />))} />
           <Route path="/fleet" element={adminOnly(page(<FleetPage />))} />
@@ -226,7 +242,7 @@ function AppRoutes() {
           <Route path="/salary" element={adminOnly(page(<SalaryAttendancePage />))} />
           <Route path="/users" element={officeStaffOnly(page(<UsersPage />))} />
           <Route path="/chatbot-monitoring" element={strictAdminOnly(page(<ChatbotMonitoringPage />))} />
-          <Route path="/audit-logs" element={managerOrAdminOnly(page(<AuditLogPage />))} />
+          <Route path="/audit-logs" element={officeStaffOnly(page(<AuditLogPage />))} />
           <Route path="/audit-log" element={<Navigate to="/audit-logs" replace />} />
           <Route path="/admin/audit-logs" element={<Navigate to="/audit-logs" replace />} />
           <Route path="/admin/audit-log" element={<Navigate to="/audit-logs" replace />} />
@@ -242,23 +258,20 @@ function AppRoutes() {
           <Route path="/my-settlements/new" element={forwarderOnly(page(<ForwarderSettlementCreatePage />))} />
           <Route path="/my-settlements/:id" element={forwarderOnly(page(<SettlementPrintPage />))} />
           <Route path="/settlements/:id" element={officeStaffOnly(page(<SettlementPrintPage />))} />
-          <Route
-            path="*"
-            element={<Navigate to={isPortalUser ? portalHome : isCustomer ? customerHome : adminHome} replace />}
-          />
-
           {/* Wave 2: Customer portal routes. Only CUSTOMER role can access. */}
           <Route path="/portal/shipments" element={customerOnly(page(<PortalShipmentsPage />))} />
           <Route path="/portal/shipments/:id" element={customerOnly(page(<PortalShipmentDetailPage />))} />
           <Route path="/portal/debit-notes" element={customerOnly(page(<PortalDebitNotesPage />))} />
+          <Route path="/portal/statement" element={customerOnly(page(<PortalStatementPage />))} />
           {/* Wave 4 M10.1: CLERK mobile quick-shipment-create. ADMIN is
               admitted as superuser; the clerk home is this create page until
               a clerk landing page ships. */}
           <Route path="/clerk/shipments/new" element={clerkOrAdminOnly(page(<ClerkShipmentCreatePage />))} />
           {/* Wave 4 M10.2: clerk doc-entry page (BL + containers + dispatch-readiness). */}
           <Route path="/clerk/shipments/:id/docs" element={clerkOrAdminOnly(page(<ClerkShipmentDocsPage />))} />
+          <Route path="*" element={<Navigate to={defaultHome} replace />} />
         </Routes>
-      </Layout>
+      </Shell>
   );
 }
 

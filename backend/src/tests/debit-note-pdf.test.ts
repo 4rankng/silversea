@@ -20,6 +20,8 @@ import {
   safeAccentColor,
 } from '../services/debit-note-pdf.service';
 import type { DebitNoteTemplateSnapshot } from '@tingting/shared';
+import { exportDebitNotePdf } from '../services/pdf-export.service';
+import { getDocument } from '../services/billingDocument.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdDocIds: number[] = [];
@@ -86,6 +88,27 @@ describe('Debit-note PDF — getDebitNoteData (legacy)', () => {
       () => getDebitNoteData(99_999_999),
       (err: unknown) => err instanceof Error && 'statusCode' in err && (err as { statusCode: number }).statusCode === 404,
     );
+  });
+});
+
+describe('Debit-note PDF — binary export', () => {
+  test('returns a real PDF containing Vietnamese-font output', async () => {
+    const { doc } = await mkDoc();
+    const [line] = await db.insert(s.billingDocumentLines).values({
+      documentId: doc.id,
+      sourceType: 'ADHOC',
+      sourceId: null,
+      lineType: 'ADHOC',
+      typeLabel: 'Cước vận chuyển',
+      unit: 'lần',
+      description: 'Tuyến Hải Phòng – Hà Nội',
+      baseAmount: '5000000',
+    }).returning();
+    createdLineIds.push(line.id);
+
+    const pdf = await exportDebitNotePdf(await getDocument(doc.id));
+    assert.equal(pdf.subarray(0, 5).toString('ascii'), '%PDF-');
+    assert.ok(pdf.length > 1_000);
   });
 });
 

@@ -65,44 +65,54 @@ export async function markAllAsRead(userId: number) {
 // ─── Event bus ─────────────────────────────────────────────────────────────
 
 export function initNotificationService() {
-  eventBus.on(NOTIFICATION_EVENT, async (payload: NotificationPayload) => {
-    try {
-      const targets = await resolveTargets(payload);
-      if (targets.length === 0) return;
-
-      const rows = targets.map(t => ({
-        userId: t.userId,
-        type: payload.type as (typeof notifications.type.enumValues)[number],
-        title: payload.title,
-        message: payload.message,
-        relatedEntityType: payload.relatedEntityType ?? null,
-        relatedEntityId: payload.relatedEntityId ?? null,
-        isRead: false,
-      }));
-      await db.insert(notifications).values(rows);
-
-      // High-value push whitelist: only listed event types wake a device, and
-      // only the configured audience. Best-effort — must never block in-app
-      // delivery, and push failures are swallowed inside sendToUser.
-      const audience = PUSH_RULES[payload.type];
-      if (audience) {
-        const pushable = targets.filter(t =>
-          audience === 'all' ||
-          (audience === 'driver' && t.role === Role.DRIVER) ||
-          (audience === 'financial' && isFinancialRole(t.role)),
-        );
-        await Promise.allSettled(pushable.map(t =>
-          pushService.sendToUser(t.userId, payload.title, payload.message, urlFor(payload, t.role), payload.type),
-        ));
-      }
-    } catch (err) {
+  eventBus.on(NOTIFICATION_EVENT, (payload: NotificationPayload) => {
+    void generateNotification(payload).catch((err) => {
       console.error('Notification generation failed:', err);
-    }
+    });
   });
 }
 
 export function emitNotification(payload: NotificationPayload) {
   eventBus.emit(NOTIFICATION_EVENT, payload);
+}
+
+/**
+ * Use when the caller must not complete until the in-app notification is
+ * persisted (for example, a scheduled job reporting a completed run).
+ */
+export async function emitNotificationAndWait(payload: NotificationPayload): Promise<void> {
+  await generateNotification(payload);
+}
+
+async function generateNotification(payload: NotificationPayload): Promise<void> {
+  const targets = await resolveTargets(payload);
+  if (targets.length === 0) return;
+
+  const rows = targets.map(t => ({
+    userId: t.userId,
+    type: payload.type as (typeof notifications.type.enumValues)[number],
+    title: payload.title,
+    message: payload.message,
+    relatedEntityType: payload.relatedEntityType ?? null,
+    relatedEntityId: payload.relatedEntityId ?? null,
+    isRead: false,
+  }));
+  await db.insert(notifications).values(rows);
+
+  // High-value push whitelist: only listed event types wake a device, and
+  // only the configured audience. Best-effort — must never block in-app
+  // delivery, and push failures are swallowed inside sendToUser.
+  const audience = PUSH_RULES[payload.type];
+  if (audience) {
+    const pushable = targets.filter(t =>
+      audience === 'all' ||
+      (audience === 'driver' && t.role === Role.DRIVER) ||
+      (audience === 'financial' && isFinancialRole(t.role)),
+    );
+    await Promise.allSettled(pushable.map(t =>
+      pushService.sendToUser(t.userId, payload.title, payload.message, urlFor(payload, t.role), payload.type),
+    ));
+  }
 }
 
 // ─── Target resolution ─────────────────────────────────────────────────────

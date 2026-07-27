@@ -125,6 +125,7 @@ describe('seedShipments — Wave 0 shipment + CUSTOMER seed', () => {
     assert.ok(u, 'CUSTOMER demo user exists');
     assert.equal(u.role, 'CUSTOMER');
     assert.equal(u.email, 'customer@nepo.vn');
+    assert.ok(u.customerId, 'CUSTOMER demo user is linked to an AR customer for portal row scope');
   });
 
   test('creates 3 sample shipments across DRAFT / IN_PROGRESS / DELIVERED', async () => {

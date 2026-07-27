@@ -157,6 +157,7 @@ function Topbar({
 
   const roleItems = React.useMemo(() => getSearchItems(user.role), [user.role]);
   const matchedItems = React.useMemo(() => filterItems(roleItems, searchQuery), [roleItems, searchQuery]);
+  const canUseNotifications = ['ADMIN', 'MANAGER', 'ACCOUNTANT', 'DRIVER', 'FORWARDER'].includes(user.role);
 
   React.useEffect(() => { setActiveIndex(0); }, [searchQuery]);
 
@@ -256,7 +257,7 @@ function Topbar({
             <BookOpen size={18} aria-hidden="true" />
           </button>
         )}
-        {!isDriver && <NotificationBell />}
+        {canUseNotifications && <NotificationBell />}
         <AgentAssistant />
       </div>
     </header>

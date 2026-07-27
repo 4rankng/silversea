@@ -6,9 +6,11 @@ import {
   EyeOff,
   GraduationCap,
   Loader2,
+  Mail,
   MapPin,
   Save,
   ShieldCheck,
+  Trash2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -19,8 +21,13 @@ import {
   type LlmProvider,
   type LlmSettingsUpdate,
 } from '@tingting/shared';
-import { PageHeader, Panel } from '../../components/UI';
-import { useAppSettings, useSaveAppSettings } from '../../hooks/useAppSettings';
+import { PageHeader, Panel, useConfirm } from '../../components/UI';
+import {
+  useAppSettings,
+  useEmailSettings,
+  useSaveAppSettings,
+  useSaveEmailSettings,
+} from '../../hooks/useAppSettings';
 import { useGpsSettings, useSaveGpsSettings } from '../../hooks/useGpsSettings';
 import { useLlmSettings, useSaveLlmSettings } from '../../hooks/useLlmSettings';
 import { usePageAnimations } from '../../hooks/animations';
@@ -129,10 +136,13 @@ export default function AppSettingsConfigPage() {
 
   const appSettings = useAppSettings();
   const saveAppSettings = useSaveAppSettings();
+  const emailSettings = useEmailSettings();
+  const saveEmailSettings = useSaveEmailSettings();
   const llmSettings = useLlmSettings();
   const saveLlmSettings = useSaveLlmSettings();
   const gpsSettings = useGpsSettings();
   const saveGpsSettings = useSaveGpsSettings();
+  const { confirm, dialog: confirmDialog } = useConfirm();
 
   const [features, setFeatures] = useState<AppSettings>({ botEnabled: false, tutorialEnabled: true, gpsEnabled: false });
   const [provider, setProvider] = useState<LlmProvider>('minimax');
@@ -140,7 +150,9 @@ export default function AppSettingsConfigPage() {
   const [openrouterKey, setOpenrouterKey] = useState('');
   const [gpsUsername, setGpsUsername] = useState('');
   const [gpsPassword, setGpsPassword] = useState('');
+  const [resendApiKey, setResendApiKey] = useState('');
   const [aiMessage, setAiMessage] = useState<string | null>(null);
+  const [emailMessage, setEmailMessage] = useState<string | null>(null);
   const [gpsMessage, setGpsMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -171,6 +183,35 @@ export default function AppSettingsConfigPage() {
       setAiMessage('Đã lưu cấu hình AI.');
     } catch {
       setAiMessage(null);
+    }
+  };
+
+  const saveEmail = async () => {
+    const replacement = resendApiKey.trim();
+    if (!replacement) return;
+    setEmailMessage(null);
+    try {
+      await saveEmailSettings.mutateAsync({ resendApiKey: replacement });
+      setResendApiKey('');
+      setEmailMessage('Đã lưu Resend API key.');
+    } catch {
+      setEmailMessage(null);
+    }
+  };
+
+  const clearEmail = async () => {
+    const confirmed = await confirm(
+      'Xóa Resend API key? Email hệ thống sẽ không thể gửi cho đến khi API key mới được cấu hình.',
+      { confirmLabel: 'Xóa API key', variant: 'danger' },
+    );
+    if (!confirmed) return;
+    setEmailMessage(null);
+    try {
+      await saveEmailSettings.mutateAsync({ clearResendApiKey: true });
+      setResendApiKey('');
+      setEmailMessage('Đã xóa Resend API key.');
+    } catch {
+      setEmailMessage(null);
     }
   };
 
@@ -353,6 +394,77 @@ export default function AppSettingsConfigPage() {
         </Panel>
 
         <Panel
+          title="Gửi email qua Resend"
+          subtitle="API key dùng để gửi email hệ thống"
+          action={<Mail size={18} className="cfg-panel-action-icon" />}
+        >
+          <div className="cfg-security-note">
+            <ShieldCheck size={16} aria-hidden="true" />
+            <span>API key được mã hóa khi lưu. Giá trị đầy đủ không bao giờ gửi lại trình duyệt. Thay đổi có hiệu lực ngay.</span>
+          </div>
+          <div className="cfg-credentials-grid cfg-credentials-grid--single">
+            <SecretField
+              id="resend-api-key"
+              label="Resend API key"
+              value={resendApiKey}
+              onChange={setResendApiKey}
+              saved={!!emailSettings.data?.resendKeySet}
+              maskedPreview={emailSettings.data?.resendKeyMasked ?? ''}
+              placeholder="Nhập Resend API key"
+              disabled={emailSettings.isLoading || emailSettings.isError || saveEmailSettings.isPending}
+            />
+          </div>
+          <div className="cfg-form-actions cfg-email-actions">
+            <button
+              className="btn btn--primary"
+              disabled={
+                !emailSettings.data
+                || emailSettings.isError
+                || saveEmailSettings.isPending
+                || resendApiKey.trim() === ''
+              }
+              onClick={saveEmail}
+            >
+              {saveEmailSettings.isPending ? <Loader2 size={15} className="spin" /> : <Save size={15} />}
+              {saveEmailSettings.isPending
+                ? 'Đang lưu…'
+                : emailSettings.data?.resendKeySet
+                  ? 'Thay API key'
+                  : 'Lưu API key'}
+            </button>
+            {emailSettings.data?.resendKeySet && (
+              <button
+                className="btn btn--secondary cfg-danger-action"
+                disabled={saveEmailSettings.isPending}
+                onClick={clearEmail}
+              >
+                <Trash2 size={15} />
+                {saveEmailSettings.isPending ? 'Đang xử lý…' : 'Xóa API key'}
+              </button>
+            )}
+            {emailMessage && (
+              <span className="cfg-form-success" role="status" aria-live="polite">
+                {emailMessage}
+              </span>
+            )}
+            {saveEmailSettings.error && (
+              <span className="cfg-form-error" role="alert">
+                {saveEmailSettings.error instanceof Error
+                  ? saveEmailSettings.error.message
+                  : 'Không thể lưu API key. Kiểm tra key và thử lại.'}
+              </span>
+            )}
+            {emailSettings.error && (
+              <span className="cfg-form-error" role="alert">
+                {emailSettings.error instanceof Error
+                  ? emailSettings.error.message
+                  : 'Không thể tải cấu hình gửi email.'}
+              </span>
+            )}
+          </div>
+        </Panel>
+
+        <Panel
           title="Định vị Bách Khoa"
           subtitle="Tài khoản dùng để đồng bộ vị trí xe và lộ trình GPS"
           action={<MapPin size={18} className="cfg-panel-action-icon" />}
@@ -417,6 +529,7 @@ export default function AppSettingsConfigPage() {
           </div>
         </Panel>
       </div>
+      {confirmDialog}
     </div>
   );
 }

@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Package, ChevronRight } from 'lucide-react';
 import { api } from '../../lib/api';
 import { SHIPMENT_STATUS_LABELS, type ShipmentStatus } from '@tingting/shared';
 import { ClickableCard } from '../../components/shared/ClickableCard';
 import { EmptyState } from '../../design-system';
+import { routes } from '../../lib/routes';
+import './PortalPages.css';
 
 interface ShipmentRow {
   id: number;
@@ -16,7 +17,6 @@ interface ShipmentRow {
 }
 
 export default function PortalShipmentsPage() {
-  const navigate = useNavigate();
   const [items, setItems] = useState<ShipmentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,56 +24,68 @@ export default function PortalShipmentsPage() {
   const [total, setTotal] = useState(0);
 
   useEffect(() => {
+    let active = true;
     setLoading(true);
-    api.get<{ items: ShipmentRow[]; total: number }>(`/api/shipments?page=${page}&limit=10`)
+    setError(null);
+    api.get<{ items: ShipmentRow[]; total: number }>(`/portal/shipments?page=${page}&limit=10`)
       .then((res) => {
+        if (!active) return;
         setItems(res.items);
         setTotal(res.total);
       })
-      .catch(() => setError('Không thể tải danh sách lô hàng'))
-      .finally(() => setLoading(false));
+      .catch(() => {
+        if (active) setError('Không thể tải danh sách lô hàng');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
   }, [page]);
 
   const totalPages = Math.max(1, Math.ceil(total / 10));
 
   return (
-    <div style={{ padding: 16, maxWidth: 900, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>Lô hàng của tôi</h1>
-      <p style={{ color: 'var(--fg-3)', fontSize: 14, marginBottom: 24 }}>Theo dõi trạng thái lô hàng của bạn</p>
+    <div className="portal-page">
+      <header className="portal-page__header">
+        <span className="portal-page__eyebrow">Theo dõi vận chuyển</span>
+        <h1>Lô hàng của tôi</h1>
+        <p>Cập nhật trạng thái, chứng từ và tiến độ của các lô hàng thuộc tài khoản này.</p>
+      </header>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 48, color: 'var(--fg-3)' }}>Đang tải…</div>
+        <div className="portal-panel portal-state" role="status">Đang tải danh sách lô hàng…</div>
       ) : error ? (
-        <div style={{ color: 'var(--danger)', padding: 24 }}>{error}</div>
+        <div className="portal-panel portal-state portal-state--error" role="alert">{error}</div>
       ) : items.length === 0 ? (
-        <EmptyState icon={Package} title="Chưa có lô hàng" description="Lô hàng sẽ xuất hiện ở đây khi được tạo." />
+        <div className="portal-panel"><EmptyState icon={Package} title="Chưa có lô hàng" description="Lô hàng sẽ xuất hiện tại đây sau khi được bộ phận vận hành tạo." /></div>
       ) : (
-        <>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="portal-panel">
+          <div className="portal-list">
             {items.map((s) => (
-              <ClickableCard key={s.id} to={`/portal/shipments/${s.id}`} style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 15 }}>{s.shipmentCode ?? `#${s.id}`}</div>
-                  <div style={{ fontSize: 13, color: 'var(--fg-3)' }}>
+              <ClickableCard key={s.id} to={routes.portalShipmentDetail(s.id)} className="portal-list__row">
+                <div className="portal-list__primary">
+                  <strong>{s.shipmentCode ?? `Lô hàng #${s.id}`}</strong>
+                  <div className="portal-list__meta">
+                    {s.bookingRef && <span>Booking: {s.bookingRef}</span>}
                     {s.blNumber && <span>B/L: {s.blNumber}</span>}
-                    {s.expectedDeliveryDate && <span> · Giao dự kiến: {s.expectedDeliveryDate}</span>}
+                    {s.expectedDeliveryDate && <span>Giao dự kiến: {new Date(s.expectedDeliveryDate).toLocaleDateString('vi-VN')}</span>}
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg-2)' }}>{SHIPMENT_STATUS_LABELS[s.status]}</span>
-                  <ChevronRight size={16} color="var(--fg-3)" />
+                <div className="portal-list__aside">
+                  <span className="portal-status">{SHIPMENT_STATUS_LABELS[s.status]}</span>
+                  <ChevronRight size={18} aria-hidden="true" />
                 </div>
               </ClickableCard>
             ))}
           </div>
           {totalPages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 12, padding: '16px 0' }}>
-              <button className="btn btn--ghost btn--sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>Trang trước</button>
-              <span style={{ fontSize: 13, color: 'var(--fg-3)', lineHeight: '32px' }}>{page} / {totalPages}</span>
-              <button className="btn btn--ghost btn--sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Trang sau</button>
+            <div className="portal-pagination">
+              <button type="button" className="portal-button" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>Trang trước</button>
+              <span>Trang {page} / {totalPages}</span>
+              <button type="button" className="portal-button" disabled={page >= totalPages} onClick={() => setPage((value) => value + 1)}>Trang sau</button>
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );
