@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { FileText, Landmark, LogOut, Menu, Package, User, X } from 'lucide-react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { BRAND } from '../../brand';
 import { routes, titleForPath } from '../../lib/routes';
@@ -15,21 +15,28 @@ const portalNav = [
 export default function CustomerPortalLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const accountButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen && !accountOpen) return;
     const close = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setMenuOpen(false);
-        requestAnimationFrame(() => menuButtonRef.current?.focus());
+        if (accountOpen) {
+          setAccountOpen(false);
+          requestAnimationFrame(() => accountButtonRef.current?.focus());
+        } else {
+          setMenuOpen(false);
+          requestAnimationFrame(() => menuButtonRef.current?.focus());
+        }
       }
     };
     document.addEventListener('keydown', close);
     return () => document.removeEventListener('keydown', close);
-  }, [menuOpen]);
+  }, [accountOpen, menuOpen]);
 
   useEffect(() => {
     document.title = `${titleForPath(location.pathname)} · ${BRAND.name}`;
@@ -38,6 +45,23 @@ export default function CustomerPortalLayout({ children }: { children: React.Rea
   const closeMenu = () => {
     setMenuOpen(false);
     requestAnimationFrame(() => menuButtonRef.current?.focus());
+  };
+
+  const openMenu = () => {
+    setAccountOpen(false);
+    setMenuOpen(true);
+  };
+
+  const toggleAccountMenu = () => {
+    setMenuOpen(false);
+    setAccountOpen((open) => !open);
+  };
+
+  const handleLogout = () => {
+    setMenuOpen(false);
+    setAccountOpen(false);
+    logout();
+    navigate('/login', { replace: true });
   };
 
   const identity = user?.fullName || user?.username || 'Khách hàng';
@@ -53,18 +77,20 @@ export default function CustomerPortalLayout({ children }: { children: React.Rea
           aria-label="Mở menu"
           aria-expanded={menuOpen}
           aria-controls="customer-navigation"
-          onClick={() => setMenuOpen(true)}
+          onClick={openMenu}
         >
           <Menu size={22} />
         </button>
         <img src={BRAND.sidebarLogoPath} alt="" aria-hidden="true" />
         <strong>{BRAND.name}</strong>
         <button
+          ref={accountButtonRef}
           type="button"
           className="customer-shell__icon-button customer-shell__account-button"
           aria-label="Mở menu tài khoản"
           aria-expanded={accountOpen}
-          onClick={() => setAccountOpen((open) => !open)}
+          aria-controls="customer-account-popover"
+          onClick={toggleAccountMenu}
         >
           <User size={20} />
         </button>
@@ -105,7 +131,7 @@ export default function CustomerPortalLayout({ children }: { children: React.Rea
             <strong>{identity}</strong>
             <span>Khách hàng</span>
           </div>
-          <button type="button" aria-label="Đăng xuất" title="Đăng xuất" onClick={logout}>
+          <button type="button" aria-label="Đăng xuất" title="Đăng xuất" onClick={handleLogout}>
             <LogOut size={18} />
           </button>
         </div>
@@ -117,16 +143,16 @@ export default function CustomerPortalLayout({ children }: { children: React.Rea
             <span>Cổng thông tin khách hàng</span>
             <strong>{identity}</strong>
           </div>
-          <button type="button" onClick={logout}><LogOut size={17} /> Đăng xuất</button>
+          <button type="button" onClick={handleLogout}><LogOut size={17} /> Đăng xuất</button>
         </div>
         <main id="customer-main" className="customer-shell__main">{children}</main>
       </div>
 
       {accountOpen && (
-        <div className="customer-shell__account-popover">
+        <div id="customer-account-popover" className="customer-shell__account-popover">
           <strong>{identity}</strong>
           <span>{user?.email || 'Tài khoản khách hàng'}</span>
-          <button type="button" onClick={logout}><LogOut size={17} /> Đăng xuất</button>
+          <button type="button" onClick={handleLogout}><LogOut size={17} /> Đăng xuất</button>
         </div>
       )}
 

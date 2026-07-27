@@ -21,8 +21,11 @@ const customerIds: number[] = [];
 const userIds: number[] = [];
 const documentIds: number[] = [];
 let customerToken: string;
+let unmappedCustomerToken: string;
 let server: http.Server;
 let baseUrl: string;
+let ownCustomerId: number;
+let ownCustomerName: string;
 let ownPendingId: number;
 let ownSentId: number;
 let foreignPendingId: number;
@@ -96,6 +99,8 @@ before(async () => {
   });
 
   const ownCustomer = await createCustomer('Portal own');
+  ownCustomerId = ownCustomer.id;
+  ownCustomerName = ownCustomer.name;
   const foreignCustomer = await createCustomer('Portal foreign');
   const [user] = await db.insert(s.users).values({
     username: `portal-customer-${suffix}`,
@@ -106,6 +111,17 @@ before(async () => {
   userIds.push(user.id);
   customerToken = jwt.sign(
     { userId: user.id, username: user.username, role: user.role, customerId: ownCustomer.id },
+    config.jwtSecret,
+  );
+
+  const [unmappedUser] = await db.insert(s.users).values({
+    username: `portal-customer-unmapped-${suffix}`,
+    passwordHash: await bcrypt.hash('admin123', 10),
+    role: Role.CUSTOMER,
+  }).returning();
+  userIds.push(unmappedUser.id);
+  unmappedCustomerToken = jwt.sign(
+    { userId: unmappedUser.id, username: unmappedUser.username, role: unmappedUser.role },
     config.jwtSecret,
   );
 
@@ -200,6 +216,32 @@ describe('CUSTOMER portal HTTP security contract', () => {
     assert.equal(response.status, 200);
     assert.match(response.contentType, /^application\/pdf/);
     assert.equal((response.body as Buffer).subarray(0, 5).toString('ascii'), '%PDF-');
+  });
+
+  test('mapped customer with no ledger activity receives a real empty statement', async () => {
+    const response = await request('/statement', { token: customerToken });
+    assert.equal(response.status, 200);
+    const body = response.body as {
+      customer: { id: number; name: string };
+      ledgerRows: unknown[];
+      totalOutstanding: number;
+    };
+    assert.equal(body.customer.id, ownCustomerId);
+    assert.equal(body.customer.name, ownCustomerName);
+    assert.equal(body.ledgerRows.length, 0);
+    assert.equal(body.totalOutstanding, 0);
+  });
+
+  test('statement reports an account configuration error when the customer link is missing', async () => {
+    const response = await request('/statement', { token: unmappedCustomerToken });
+    assert.equal(response.status, 409);
+    assert.equal((response.body as { error: string }).error, 'Tài khoản khách hàng chưa được liên kết');
+  });
+
+  test('statement export is blocked when the customer link is missing', async () => {
+    const response = await request('/statement/export?format=pdf', { token: unmappedCustomerToken });
+    assert.equal(response.status, 409);
+    assert.equal((response.body as { error: string }).error, 'Tài khoản khách hàng chưa được liên kết');
   });
 
   test('concurrent confirmation accepts exactly one request', async () => {

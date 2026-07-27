@@ -9,7 +9,7 @@
  */
 import bcrypt from 'bcryptjs';
 import { db } from '../db';
-import { users, drivers } from '../db/schema';
+import { users, drivers, customers } from '../db/schema';
 import { eq, isNull, sql, or, and, ne } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 import { ApiError } from '../errors';
@@ -18,6 +18,7 @@ import { getEnforcer } from '../casbin/enforcer';
 export const USER_FIELDS = {
   id: users.id, username: users.username, email: users.email, phone: users.phone,
   role: users.role, status: users.status, fullName: users.fullName, createdAt: users.createdAt,
+  customerId: users.customerId,
 };
 
 /** User fields + the linked driver profile (LEFT JOIN). Driver-* are null when no profile row. */
@@ -96,9 +97,18 @@ export async function createUser(data: {
   baseSalary?: number;
   socialInsurance?: number;
   assignedTruckId?: number | null;
+  customerId?: number | null;
 }) {
   const passwordHash = await bcrypt.hash(data.password, 10);
   return db.transaction(async (tx) => {
+    if (data.customerId != null) {
+      if (data.role !== Role.CUSTOMER) {
+        throw new ApiError(400, 'Chỉ tài khoản khách hàng mới được liên kết khách hàng');
+      }
+      const [customer] = await tx.select({ id: customers.id }).from(customers)
+        .where(and(eq(customers.id, data.customerId), isNull(customers.deletedAt))).limit(1);
+      if (!customer) throw new ApiError(400, 'Khách hàng liên kết không tồn tại');
+    }
     const [created] = await tx.insert(users).values({
       username: data.username || null,
       email: data.email || null,
@@ -107,6 +117,7 @@ export async function createUser(data: {
       passwordHash,
       role: data.role as (typeof users.role.enumValues)[number],
       status: data.status ?? 'ACTIVE',
+      customerId: data.role === Role.CUSTOMER ? data.customerId ?? null : null,
     }).returning(USER_FIELDS);
 
     if (data.role === Role.DRIVER) {
@@ -167,6 +178,7 @@ export async function updateUser(id: number, data: {
   baseSalary?: number;
   socialInsurance?: number;
   assignedTruckId?: number | null;
+  customerId?: number | null;
   /** If true, throws 403 when target user is not DRIVER — used for accountant scoping. */
   requireDriverTarget?: boolean;
 }) {
@@ -174,13 +186,23 @@ export async function updateUser(id: number, data: {
   const passwordHash = data.password ? await bcrypt.hash(data.password, 10) : undefined;
 
   return db.transaction(async (tx) => {
-    const [existing] = await tx.select({ role: users.role }).from(users)
-      .where(and(eq(users.id, id), isNull(users.deletedAt))).limit(1);
+    const [existing] = await tx.select({ role: users.role, customerId: users.customerId }).from(users)
+      .where(and(eq(users.id, id), isNull(users.deletedAt))).limit(1).for('update');
     if (!existing) throw new ApiError(404, 'Không tìm thấy người dùng');
 
     // Driver-target check inside the transaction to avoid TOCTOU race.
     if (data.requireDriverTarget && existing.role !== Role.DRIVER) {
       throw new ApiError(403, 'Kế toán chỉ có thể chỉnh sửa lái xe');
+    }
+
+    const effectiveRole = data.role ?? existing.role;
+    if (data.customerId != null) {
+      if (effectiveRole !== Role.CUSTOMER) {
+        throw new ApiError(400, 'Chỉ tài khoản khách hàng mới được liên kết khách hàng');
+      }
+      const [customer] = await tx.select({ id: customers.id }).from(customers)
+        .where(and(eq(customers.id, data.customerId), isNull(customers.deletedAt))).limit(1);
+      if (!customer) throw new ApiError(400, 'Khách hàng liên kết không tồn tại');
     }
 
     const updates: Record<string, unknown> = { updatedAt: sql`now()` };
@@ -191,12 +213,16 @@ export async function updateUser(id: number, data: {
     if (data.fullName !== undefined) updates.fullName = data.fullName || null;
     if (data.email !== undefined) updates.email = data.email || null;
     if (data.phone !== undefined) updates.phone = data.phone || null;
+    if (effectiveRole !== Role.CUSTOMER) {
+      updates.customerId = null;
+    } else if (data.customerId !== undefined) {
+      updates.customerId = data.customerId;
+    }
 
     const [updated] = await tx.update(users).set(updates)
       .where(eq(users.id, id)).returning(USER_FIELDS);
 
     // Upsert the linked driver profile when the resulting role is DRIVER.
-    const effectiveRole = data.role ?? existing.role;
     if (effectiveRole === Role.DRIVER) {
       const [existingDriver] = await tx.select({ id: drivers.id })
         .from(drivers).where(and(eq(drivers.userId, id), isNull(drivers.deletedAt))).limit(1);

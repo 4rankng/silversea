@@ -426,6 +426,7 @@ export const createUserSchema = z.object({
   baseSalary: nonNegNumeric.optional(),
   socialInsurance: nonNegNumeric.optional(),
   assignedTruckId: z.number().int().positive().nullable().optional(),
+  customerId: z.number().int().positive().nullable().optional(),
 }).refine(data => data.username || data.email || data.phone, {
   message: 'Phải cung cấp ít nhất một trong: username, email, hoặc số điện thoại',
 });
@@ -443,6 +444,7 @@ export const updateUserSchema = z.object({
   baseSalary: nonNegNumeric.optional(),
   socialInsurance: nonNegNumeric.optional(),
   assignedTruckId: z.number().int().positive().nullable().optional(),
+  customerId: z.number().int().positive().nullable().optional(),
 });
 
 export const updateProfileSchema = z.object({

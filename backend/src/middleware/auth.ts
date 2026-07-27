@@ -4,6 +4,9 @@ import { config } from '../config';
 import { Role } from '@tingting/shared';
 import { isTokenBlacklisted } from '../lib/redis';
 import { ApiError } from '../errors';
+import { db } from '../db';
+import { users } from '../db/schema';
+import { and, eq, isNull } from 'drizzle-orm';
 
 export interface AuthUser {
   userId: number;
@@ -39,6 +42,18 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     if (payload.jti && await isTokenBlacklisted(payload.jti)) {
       return res.status(401).json({ error: 'Token đã bị thu hồi' });
     }
+    const [current] = await db.select({
+      role: users.role,
+      customerId: users.customerId,
+    }).from(users).where(and(
+      eq(users.id, payload.userId),
+      eq(users.status, 'ACTIVE'),
+      isNull(users.deletedAt),
+    )).limit(1);
+    const tokenCustomerId = payload.customerId ?? null;
+    if (!current || current.role !== payload.role || current.customerId !== tokenCustomerId) {
+      return res.status(401).json({ error: 'Quyền tài khoản đã thay đổi, vui lòng đăng nhập lại' });
+    }
     req.user = payload;
     next();
   } catch {
@@ -62,6 +77,18 @@ export async function assetAuthMiddleware(req: Request, res: Response, next: Nex
     const payload = jwt.verify(token, config.jwtSecret) as AuthUser & { jti?: string };
     if (payload.jti && await isTokenBlacklisted(payload.jti)) {
       return res.status(401).json({ error: 'Token đã bị thu hồi' });
+    }
+    const [current] = await db.select({
+      role: users.role,
+      customerId: users.customerId,
+    }).from(users).where(and(
+      eq(users.id, payload.userId),
+      eq(users.status, 'ACTIVE'),
+      isNull(users.deletedAt),
+    )).limit(1);
+    const tokenCustomerId = payload.customerId ?? null;
+    if (!current || current.role !== payload.role || current.customerId !== tokenCustomerId) {
+      return res.status(401).json({ error: 'Quyền tài khoản đã thay đổi, vui lòng đăng nhập lại' });
     }
     req.user = payload;
     next();
