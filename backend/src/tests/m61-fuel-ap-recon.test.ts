@@ -12,6 +12,12 @@ import { inArray, sql } from 'drizzle-orm';
 import { db, client } from '../db';
 import * as s from '../db/schema';
 import { getFuelApReconciliation } from '../services/fuel-ap-recon.service';
+import {
+  approveFuelInvoice,
+  createFuelInvoice,
+  getFuelInvoice,
+  updateFuelInvoice,
+} from '../services/fuel-invoice.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdTripIds: number[] = [];
@@ -21,6 +27,11 @@ const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
 const createdCustomerIds: number[] = [];
 const createdExpenseIds: number[] = [];
+const createdFuelInvoiceIds: number[] = [];
+const createdFuelAllocationIds: number[] = [];
+const createdUserIds: number[] = [];
+
+let managerUserId: number;
 
 async function mkSupplier(isFuel = true) {
   const [sup] = await db.insert(s.suppliers).values({
@@ -37,6 +48,17 @@ async function mkTruck() {
   }).returning();
   createdTruckIds.push(t.id);
   return t;
+}
+
+async function mkUser() {
+  const [user] = await db.insert(s.users).values({
+    username: `m61-manager-${suffix}-${createdUserIds.length}`,
+    passwordHash: 'x',
+    role: 'MANAGER',
+    status: 'ACTIVE',
+  }).returning();
+  createdUserIds.push(user.id);
+  return user;
 }
 
 async function mkCustomer() {
@@ -96,9 +118,57 @@ async function mkFuelExpense(opts: {
   return e;
 }
 
+async function mkFuelInvoice(opts: {
+  supplierId: number;
+  invoiceNumber: string;
+  invoiceDate: string;
+  totalLiters: string;
+  unitPrice: string;
+  totalAmount: string;
+  createdBy?: number | null;
+}) {
+  const [invoice] = await db.insert(s.fuelInvoices).values({
+    supplierId: opts.supplierId,
+    invoiceNumber: opts.invoiceNumber,
+    invoiceDate: opts.invoiceDate,
+    totalLiters: opts.totalLiters,
+    unitPrice: opts.unitPrice,
+    totalAmount: opts.totalAmount,
+    createdBy: opts.createdBy ?? null,
+  }).returning();
+  createdFuelInvoiceIds.push(invoice.id);
+  return invoice;
+}
+
+async function mkFuelAllocation(opts: {
+  fuelInvoiceId: number;
+  tripId: number;
+  truckId?: number | null;
+  tripExpenseId?: number | null;
+  voucherReference: string;
+  voucherDate: string;
+  liters: string;
+  amount: string;
+}) {
+  const [allocation] = await db.insert(s.fuelInvoiceAllocations).values({
+    fuelInvoiceId: opts.fuelInvoiceId,
+    tripId: opts.tripId,
+    truckId: opts.truckId ?? null,
+    tripExpenseId: opts.tripExpenseId ?? null,
+    voucherReference: opts.voucherReference,
+    voucherDate: opts.voucherDate,
+    liters: opts.liters,
+    amount: opts.amount,
+  }).returning();
+  createdFuelAllocationIds.push(allocation.id);
+  return allocation;
+}
+
 after(async () => {
   const namePattern = `M61 %${suffix}%`;
   try {
+    if (createdFuelAllocationIds.length > 0) await db.delete(s.fuelInvoiceAllocations).where(inArray(s.fuelInvoiceAllocations.id, createdFuelAllocationIds));
+    if (createdFuelInvoiceIds.length > 0) await db.delete(s.fuelInvoices).where(inArray(s.fuelInvoices.id, createdFuelInvoiceIds));
     if (createdExpenseIds.length > 0) await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.id, createdExpenseIds));
     if (createdTripIds.length > 0) await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
     if (createdTruckIds.length > 0) await db.delete(s.trucks).where(inArray(s.trucks.id, createdTruckIds));
@@ -106,11 +176,17 @@ after(async () => {
     if (createdRouteIds.length > 0) await db.delete(s.routes).where(sql`${s.routes.name} LIKE ${namePattern}`);
     if (createdCustomerIds.length > 0) await db.delete(s.customers).where(sql`${s.customers.name} LIKE ${namePattern}`);
     if (createdSupplierIds.length > 0) await db.delete(s.suppliers).where(inArray(s.suppliers.id, createdSupplierIds));
+    if (createdUserIds.length > 0) await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
   } catch (err) { console.warn('[m61] cleanup:', (err as Error).message); }
   await client.end();
 });
 
 describe('M6.1 — getFuelApReconciliation', () => {
+  test('setup finance approver', async () => {
+    managerUserId = (await mkUser()).id;
+    assert.ok(managerUserId > 0);
+  });
+
   test('empty range → empty report with zero totals', async () => {
     const report = await getFuelApReconciliation({ from: '2026-01-01', to: '2026-01-31' });
     assert.equal(report.from, '2026-01-01');
@@ -262,6 +338,161 @@ describe('M6.1 — getFuelApReconciliation', () => {
     const row = report.suppliers.find(r => r.supplierId === sup.id);
     assert.ok(row);
     assert.equal(row!.invoicedFuelCost, 1_000_000, 'fallback to createdAt picked up');
+  });
+
+  test('approved multi-truck invoice contributes once through allocation lines', async () => {
+    const sup = await mkSupplier();
+    const truckA = await mkTruck();
+    const truckB = await mkTruck();
+    const tripA = await mkTrip({ supplierId: sup.id, truckId: truckA.id, totalFuelCost: '2000000', departureDate: '2026-06-10' });
+    const tripB = await mkTrip({ supplierId: sup.id, truckId: truckB.id, totalFuelCost: '1000000', departureDate: '2026-06-11' });
+    const invoice = await mkFuelInvoice({
+      supplierId: sup.id,
+      invoiceNumber: `INV-${suffix}-01`,
+      invoiceDate: '2026-06-15',
+      totalLiters: '150',
+      unitPrice: '20000',
+      totalAmount: '3000000',
+    });
+    await mkFuelAllocation({
+      fuelInvoiceId: invoice.id,
+      tripId: tripA.id,
+      truckId: truckA.id,
+      voucherReference: `PX-${suffix}-A`,
+      voucherDate: '2026-06-10',
+      liters: '100',
+      amount: '2000000',
+    });
+    await mkFuelAllocation({
+      fuelInvoiceId: invoice.id,
+      tripId: tripB.id,
+      truckId: truckB.id,
+      voucherReference: `PX-${suffix}-B`,
+      voucherDate: '2026-06-11',
+      liters: '50',
+      amount: '1000000',
+    });
+
+    await approveFuelInvoice(invoice.id, managerUserId, 'MANAGER');
+
+    const report = await getFuelApReconciliation({ from: '2026-06-01', to: '2026-06-30', supplierId: sup.id });
+    const row = report.suppliers.find((supplier) => supplier.supplierId === sup.id);
+    assert.ok(row);
+    assert.equal(row!.expectedFuelCost, 3_000_000);
+    assert.equal(row!.invoicedFuelCost, 3_000_000);
+    assert.equal(row!.perTruck.length, 2);
+    assert.equal(row!.perTruck.find((truck) => truck.truckId === truckA.id)?.invoicedFuelCost, 2_000_000);
+    assert.equal(row!.perTruck.find((truck) => truck.truckId === truckB.id)?.invoicedFuelCost, 1_000_000);
+  });
+
+  test('creates one invoice with actual-liter multi-truck allocations and server-computed amounts', async () => {
+    const sup = await mkSupplier();
+    const truckA = await mkTruck();
+    const truckB = await mkTruck();
+    const tripA = await mkTrip({ supplierId: sup.id, truckId: truckA.id, totalFuelCost: '1200000', departureDate: '2026-06-10' });
+    const tripB = await mkTrip({ supplierId: sup.id, truckId: truckB.id, totalFuelCost: '800000', departureDate: '2026-06-11' });
+
+    const created = await createFuelInvoice({
+      supplierId: sup.id,
+      invoiceNumber: `INV-${suffix}-CREATE`,
+      invoiceDate: '2026-06-15',
+      totalLiters: 100,
+      unitPrice: 20_000,
+      allocations: [
+        {
+          tripId: tripA.id,
+          voucherReference: `PX-${suffix}-CREATE-A`,
+          voucherDate: '2026-06-10',
+          liters: 60,
+        },
+        {
+          tripId: tripB.id,
+          voucherReference: `PX-${suffix}-CREATE-B`,
+          voucherDate: '2026-06-11',
+          liters: 40,
+        },
+      ],
+    }, managerUserId);
+    createdFuelInvoiceIds.push(created.id);
+
+    const detail = await getFuelInvoice(created.id);
+    assert.equal(detail.totalAmount, '2000000.00');
+    assert.equal(detail.allocations.length, 2);
+    assert.equal(detail.allocations.find((row) => row.truckId === truckA.id)?.amount, '1200000.00');
+    assert.equal(detail.allocations.find((row) => row.truckId === truckB.id)?.amount, '800000.00');
+  });
+
+  test('keeps an incomplete invoice pending, supports replacement, and blocks approval until fully allocated', async () => {
+    const sup = await mkSupplier();
+    const truck = await mkTruck();
+    const trip = await mkTrip({ supplierId: sup.id, truckId: truck.id, totalFuelCost: '2000000', departureDate: '2026-06-10' });
+    const invoiceNumber = `INV-${suffix}-DRAFT`;
+
+    const created = await createFuelInvoice({
+      supplierId: sup.id,
+      invoiceNumber,
+      invoiceDate: '2026-06-15',
+      totalLiters: 100,
+      unitPrice: 20_000,
+      allocations: [{
+        tripId: trip.id,
+        voucherReference: `PX-${suffix}-DRAFT`,
+        voucherDate: '2026-06-10',
+        liters: 90,
+      }],
+    }, managerUserId);
+    createdFuelInvoiceIds.push(created.id);
+
+    await assert.rejects(
+      () => approveFuelInvoice(created.id, managerUserId + 1, 'MANAGER'),
+      (err: Error & { statusCode?: number }) =>
+        err.statusCode === 400 && /không khớp hóa đơn/i.test(err.message),
+    );
+
+    await updateFuelInvoice(created.id, {
+      supplierId: sup.id,
+      invoiceNumber,
+      invoiceDate: '2026-06-15',
+      totalLiters: 100,
+      unitPrice: 20_000,
+      allocations: [{
+        tripId: trip.id,
+        voucherReference: `PX-${suffix}-DRAFT`,
+        voucherDate: '2026-06-10',
+        liters: 100,
+      }],
+    });
+    const detail = await getFuelInvoice(created.id);
+    assert.equal(detail.allocations[0]?.amount, '2000000.00');
+  });
+
+  test('fuel invoice approval rejects incomplete allocation reconciliation', async () => {
+    const sup = await mkSupplier();
+    const truck = await mkTruck();
+    const trip = await mkTrip({ supplierId: sup.id, truckId: truck.id, totalFuelCost: '3000000', departureDate: '2026-06-10' });
+    const invoice = await mkFuelInvoice({
+      supplierId: sup.id,
+      invoiceNumber: `INV-${suffix}-02`,
+      invoiceDate: '2026-06-15',
+      totalLiters: '150',
+      unitPrice: '20000',
+      totalAmount: '3000000',
+    });
+    await mkFuelAllocation({
+      fuelInvoiceId: invoice.id,
+      tripId: trip.id,
+      truckId: truck.id,
+      voucherReference: `PX-${suffix}-C`,
+      voucherDate: '2026-06-10',
+      liters: '100',
+      amount: '2000000',
+    });
+
+    await assert.rejects(
+      () => approveFuelInvoice(invoice.id, managerUserId, 'MANAGER'),
+      (err: Error & { statusCode?: number }) =>
+        err.statusCode === 400 && /không khớp hóa đơn/i.test(err.message),
+    );
   });
 
   test('totals are the sum across all suppliers', async () => {

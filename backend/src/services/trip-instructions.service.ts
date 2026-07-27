@@ -4,9 +4,11 @@
 
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
+import { ApiError } from '../errors';
 
 export interface UpsertTripInstructionsInput {
+  expectedVersion?: number;
   contactName?: string | null;
   contactPhone?: string | null;
   notes?: string | null;
@@ -52,24 +54,41 @@ export async function upsertTripInstructions(
   input: UpsertTripInstructionsInput,
   userId: number,
 ): Promise<TripInstructionRow> {
-  const [row] = await db.insert(s.tripInstructions)
-    .values({
-      tripId,
-      contactName: input.contactName ?? null,
-      contactPhone: input.contactPhone ?? null,
-      notes: input.notes ?? null,
-      updatedBy: userId,
-    })
-    .onConflictDoUpdate({
-      target: s.tripInstructions.tripId,
-      set: {
+  return db.transaction(async (tx) => {
+    const [trip] = await tx.select({
+      id: s.trips.id,
+      version: s.trips.version,
+      deletedAt: s.trips.deletedAt,
+    }).from(s.trips).where(eq(s.trips.id, tripId)).limit(1).for('update');
+    if (!trip || trip.deletedAt) throw new ApiError(404, 'Không tìm thấy chuyến đi');
+    if (input.expectedVersion !== undefined && trip.version !== input.expectedVersion) {
+      throw new ApiError(409, 'Dữ liệu đã bị thay đổi bởi người khác. Vui lòng tải lại trang.');
+    }
+
+    const [row] = await tx.insert(s.tripInstructions)
+      .values({
+        tripId,
         contactName: input.contactName ?? null,
         contactPhone: input.contactPhone ?? null,
         notes: input.notes ?? null,
         updatedBy: userId,
-        updatedAt: new Date(),
-      },
-    })
-    .returning(instructionSelect);
-  return row;
+      })
+      .onConflictDoUpdate({
+        target: s.tripInstructions.tripId,
+        set: {
+          contactName: input.contactName ?? null,
+          contactPhone: input.contactPhone ?? null,
+          notes: input.notes ?? null,
+          updatedBy: userId,
+          updatedAt: new Date(),
+        },
+      })
+      .returning(instructionSelect);
+
+    await tx.update(s.trips).set({
+      version: sql`${s.trips.version} + 1`,
+      updatedAt: new Date(),
+    }).where(eq(s.trips.id, tripId));
+    return row;
+  });
 }

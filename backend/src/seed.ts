@@ -1,7 +1,12 @@
 import bcrypt from 'bcryptjs';
 import { db } from './db';
 import * as schema from './db/schema';
-import { Role, FORWARDER_EXPENSE_TYPE_DEFAULTS } from '@tingting/shared';
+import {
+  DEFAULT_NO_INVOICE_EVIDENCE_TYPES,
+  FORWARDER_EXPENSE_TYPE_DEFAULTS,
+  NO_INVOICE_POLICY_DEFAULTS,
+  Role,
+} from '@tingting/shared';
 import { eq, and, desc, isNull, sql } from 'drizzle-orm';
 import { COMPANY_INFO_SETTING_KEYS, COMPANY_INFO_DEFAULTS } from './services/company-info.service';
 import {
@@ -403,12 +408,30 @@ async function seed() {
   // ─── Forwarder expense types (user-configurable) ─────────────────────────
   // Upsert all 8 fee types with defaultMarkup, billingLabel, vatRate so that
   // re-running seed is safe and always brings the table up to date.
+  const defaultNoInvoiceCodes = new Set([
+    'LIFTING',
+    'LOWERING',
+    'WEIGHING',
+    'INFRASTRUCTURE',
+    'INSPECTION',
+    'INSPECTION_SVC',
+    'OTHER',
+  ]);
   let fetUpsertCount = 0;
   for (const [code, meta] of Object.entries(FORWARDER_EXPENSE_TYPE_DEFAULTS)) {
+    const substituteEvidenceAllowed = defaultNoInvoiceCodes.has(code);
     await db.insert(schema.forwarderExpenseTypes)
       .values({
         code,
         name: meta.name,
+        requiresInvoice: false,
+        substituteEvidenceAllowed,
+        noInvoiceEvidenceTypes: substituteEvidenceAllowed ? [...DEFAULT_NO_INVOICE_EVIDENCE_TYPES] : [],
+        noInvoicePerItemLimit: String(NO_INVOICE_POLICY_DEFAULTS.perItemLimit),
+        noInvoicePerDayLimit: String(NO_INVOICE_POLICY_DEFAULTS.perDayLimit),
+        noInvoiceFinanceLeadItemApprovalLimit: String(NO_INVOICE_POLICY_DEFAULTS.financeLeadItemApprovalLimit),
+        noInvoiceDirectorDayApprovalLimit: String(NO_INVOICE_POLICY_DEFAULTS.directorDayApprovalLimit),
+        noInvoicePolicyVersion: 1,
         defaultMarkup: meta.defaultMarkup,
         billingLabel: meta.billingLabel,
         vatRate: '0.080',
@@ -417,6 +440,13 @@ async function seed() {
         target: schema.forwarderExpenseTypes.code,
         set: {
           name: meta.name,
+          requiresInvoice: false,
+          substituteEvidenceAllowed,
+          noInvoiceEvidenceTypes: substituteEvidenceAllowed ? [...DEFAULT_NO_INVOICE_EVIDENCE_TYPES] : [],
+          noInvoicePerItemLimit: String(NO_INVOICE_POLICY_DEFAULTS.perItemLimit),
+          noInvoicePerDayLimit: String(NO_INVOICE_POLICY_DEFAULTS.perDayLimit),
+          noInvoiceFinanceLeadItemApprovalLimit: String(NO_INVOICE_POLICY_DEFAULTS.financeLeadItemApprovalLimit),
+          noInvoiceDirectorDayApprovalLimit: String(NO_INVOICE_POLICY_DEFAULTS.directorDayApprovalLimit),
           defaultMarkup: meta.defaultMarkup,
           billingLabel: meta.billingLabel,
           vatRate: '0.080',

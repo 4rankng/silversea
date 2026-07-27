@@ -32,7 +32,16 @@ vi.mock('../../hooks/animations', () => ({
 
 import DriverTwoOrdersPage from './DriverTwoOrdersPage';
 
-const TRIP = (overrides: Partial<{ id: number; tripCode: string; status: string; routeName: string; customerName: string; truckPlate: string; containerNumbers: string[] }> = {}) => ({
+const TRIP = (overrides: Partial<{
+  id: number;
+  tripCode: string;
+  departureDate: string;
+  status: string;
+  routeName: string;
+  customerName: string;
+  truckPlate: string;
+  containerNumbers: string[];
+}> = {}) => ({
   id: 1, tripCode: 'TRIP-1', departureDate: '2026-07-26', status: 'CREATED',
   routeName: 'Cảng Cát Lái → Kho BD', customerName: 'Công ty ABC',
   truckPlate: '51C-1234', containerNumbers: ['MSKU1234565'],
@@ -70,6 +79,36 @@ describe('DriverTwoOrdersPage — M8.3 two-orders view', () => {
     expect(activeCard.getAttribute('href')).toBe('/my-trips/10');
     expect(nextCard.getAttribute('href')).toBe('/my-trips/20');
     expect(activeCard).not.toBe(nextCard);
+  });
+
+  it('prefers the persisted ordered pair view when a cross-day pair exists', async () => {
+    useDriverTwoOrdersMock.mockReturnValue({
+      data: {
+        date: '2026-07-27',
+        active: null,
+        next: null,
+        firstOrderLate: false,
+        allToday: [],
+        pair: {
+          pairId: 55,
+          status: 'ACTIVE',
+          breakReason: null,
+          emptyDistanceKm: '22.5',
+          combinedEfficiencyPercent: '88.2',
+          requiredGapMinutes: 70,
+          actualGapMinutes: 95,
+          lateByMinutes: null,
+          first: TRIP({ id: 10, tripCode: 'TRIP-A', departureDate: '2026-07-27', status: 'IN_TRANSIT' }),
+          second: TRIP({ id: 20, tripCode: 'TRIP-B', departureDate: '2026-07-28', status: 'CREATED' }),
+        },
+      },
+      isLoading: false, error: null,
+    });
+    renderAt();
+    expect(await screen.findByTestId('ordered-pair-summary')).toBeTruthy();
+    expect(screen.getByTestId('two-orders-card-Chuyến 1').getAttribute('href')).toBe('/my-trips/10');
+    expect(screen.getByTestId('two-orders-card-Chuyến 2').getAttribute('href')).toBe('/my-trips/20');
+    expect(screen.getByText(/22.5 km/)).toBeTruthy();
   });
 
   it('shows the firstOrderLate advisory banner when the flag is true', async () => {

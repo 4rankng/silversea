@@ -5,6 +5,7 @@ import {
   ShipmentStatus, ShipmentDocumentType,
   DriverProgressEventType,
   DriverIncidentalCostType,
+  NO_INVOICE_EVIDENCE_TYPES,
   TIRE_STATUSES,
 } from '../constants';
 
@@ -71,8 +72,12 @@ const fullNameField = z.string().max(255).or(z.literal('')).optional();
 
 const positiveWholeMoney = z.union([z.number(), z.string()]).transform((val, ctx) => {
   const num = Number(val);
-  if (!Number.isInteger(num) || num <= 0) {
+  if (!Number.isSafeInteger(num) || !Number.isInteger(num) || num <= 0) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Phải là số nguyên dương' });
+    return z.NEVER;
+  }
+  if (num > 999_999_999_999_999) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Vượt quá giới hạn số tiền cho phép' });
     return z.NEVER;
   }
   return num;
@@ -106,6 +111,7 @@ export const createTripSchema = z.object({
   // When provided, the trip-create flow links the new trip to the shipment
   // and snapshots the shipment's containers into the trip.
   shipmentId: z.coerce.number().int().positive().optional().nullable(),
+  creditApprovalRequestId: z.coerce.number().int().positive().optional().nullable(),
   fuelMode: z.nativeEnum(FuelMode).optional(),
   fuelSupplierId: z.coerce.number().int().positive().optional().nullable(),
   // Per-trip actual pump price (₫/lít). Optional — when blank the trip falls
@@ -135,6 +141,49 @@ export const createTripSchema = z.object({
     if (!data.externalCarrierId) {
       ctx.addIssue({ code: 'custom', path: ['externalCarrierId'], message: 'Nhà xe ngoài là bắt buộc cho chuyến xe ngoài' });
     }
+  }
+});
+
+const tripPairDraftSchema = z.object({
+  plannedStartAt: z.string().trim().min(1, 'Giờ bắt đầu kế hoạch là bắt buộc'),
+  plannedEndAt: z.string().trim().min(1, 'Giờ kết thúc kế hoạch là bắt buộc'),
+  canonicalOrigin: z.string().trim().min(1, 'Điểm đi là bắt buộc').max(160),
+  canonicalDestination: z.string().trim().min(1, 'Điểm đến là bắt buộc').max(160),
+  cargoWeightKg: positiveNumeric,
+  vehicleCapacityKg: positiveNumeric,
+  expectedVersion: z.number().int().positive().optional(),
+}).superRefine((data, ctx) => {
+  const start = new Date(data.plannedStartAt);
+  const end = new Date(data.plannedEndAt);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Thời gian kế hoạch không hợp lệ',
+      path: ['plannedStartAt'],
+    });
+    return;
+  }
+  if (end <= start) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Giờ kết thúc phải sau giờ bắt đầu',
+      path: ['plannedEndAt'],
+    });
+  }
+});
+
+export const createTripPairSchema = z.object({
+  firstTripId: z.coerce.number().int().positive(),
+  secondTripId: z.coerce.number().int().positive(),
+  firstTrip: tripPairDraftSchema,
+  secondTrip: tripPairDraftSchema,
+}).superRefine((data, ctx) => {
+  if (data.firstTripId === data.secondTripId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Không thể ghép một chuyến với chính nó',
+      path: ['secondTripId'],
+    });
   }
 });
 
@@ -220,7 +269,7 @@ export const createPaymentSchema = z.object({
   payments: z.array(z.object({
     tripId: z.coerce.number().int().positive(),
     amount: positiveWholeMoney,
-  })).min(1).optional(),
+  })).min(1).max(200).optional(),
 }).superRefine((data, ctx) => {
   if (!data.amount && (!data.payments || data.payments.length === 0)) {
     ctx.addIssue({
@@ -333,6 +382,10 @@ export const saveBillingDocumentSchema = z.object({
   // Resolved at save time so the chosen template is snapshotted onto the doc
   // (re-exports stay stable). Null/undefined = use resolution (customer/default).
   debitNoteTemplateId: z.coerce.number().int().positive().nullable().optional(),
+});
+
+export const billingDocumentAdjustmentRequestSchema = z.object({
+  reason: z.string().trim().min(1, 'Lý do là bắt buộc').max(1000),
 });
 
 // ─── Billing document Excel templates ────────────────────────────────────────
@@ -542,6 +595,7 @@ export const customerSchema = z.object({
   phone: z.string().optional(),
   contactInfo: z.string().optional(),
   creditLimit: nonNegNumeric.optional(),
+  creditWarningThreshold: z.number().min(0.01).max(0.99).optional().nullable(),
   paymentTermDays: z.number().int().min(0).max(3650).optional().nullable(),
   paymentDatePolicy: paymentDatePolicySchema.optional().default('NEXT_BUSINESS_DAY'),
   status: z.nativeEnum(CustomerStatus).optional().default(CustomerStatus.ACTIVE),
@@ -815,6 +869,7 @@ export const supplierSchema = z.object({
   // array (uppercase, dedupe, filter to the canonical enum). When 'FUEL'
   // is present, isFuelSupplier is mirrored to true by the CRUD hook.
   types: z.array(z.string()).optional().nullable(),
+  primaryType: z.string().optional().nullable(),
 });
 
 export const expenseCategorySchema = z.object({
@@ -919,6 +974,7 @@ export const tripContainerPatchSchema = z.object({
 // (scalar) is kept for back-compat — when seals[] is absent, backend writes
 // the scalar value as the container's first seal row.
 export const tripContainerBatchSchema = z.object({
+  expectedVersion: z.coerce.number().int().positive().optional(),
   containers: z.array(z.object({
     id: z.coerce.number().int().positive().optional(),
     containerTypeId: z.coerce.number().int().positive().optional().nullable(),
@@ -944,6 +1000,11 @@ export const ANCILLARY_EXPENSE_TYPES = [
 
 export type AncillaryExpenseType = typeof ANCILLARY_EXPENSE_TYPES[number];
 
+export const noInvoiceEvidenceTypeSchema = z.enum(NO_INVOICE_EVIDENCE_TYPES);
+export const noInvoiceEvidenceTypesSchema = z.array(noInvoiceEvidenceTypeSchema)
+  .max(NO_INVOICE_EVIDENCE_TYPES.length)
+  .transform((values) => Array.from(new Set(values)));
+
 export const baseTripExpenseSchema = z.object({
   tripId: z.coerce.number().int().positive(),
   expenseType: z.enum(ANCILLARY_EXPENSE_TYPES),
@@ -952,6 +1013,8 @@ export const baseTripExpenseSchema = z.object({
   settlementMethod: z.enum(['COMPANY_DIRECT', 'FORWARDER_ADVANCE']).default('FORWARDER_ADVANCE'),
   supplierId: z.number().int().positive().optional(),
   forwarderId: z.number().int().positive().optional(),
+  expenseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày chi không hợp lệ').optional(),
+  payeeName: z.string().trim().max(200).optional(),
   invoiceNumber: z.string().max(50).optional(),
   invoiceDate: z.string().optional(),
   declarationNumber: z.string().max(50).optional(),
@@ -961,6 +1024,7 @@ export const baseTripExpenseSchema = z.object({
    *  can never drift from a real container. */
   tripContainerId: z.number().int().positive().nullish(),
   note: z.string().optional(),
+  noInvoiceEvidenceTypes: noInvoiceEvidenceTypesSchema.optional(),
 });
 
 export const tripExpenseSchema = baseTripExpenseSchema.superRefine((data, ctx) => {
@@ -984,6 +1048,30 @@ export const forwarderExpenseTypeSchema = z.object({
   code: z.string().min(1).max(50),
   name: z.string().min(1, 'Tên loại chi phí không được để trống').max(100),
   status: z.enum(['ACTIVE', 'INACTIVE']).default('ACTIVE'),
+  requiresInvoice: z.boolean().optional(),
+  substituteEvidenceAllowed: z.boolean().optional(),
+  noInvoiceEvidenceTypes: noInvoiceEvidenceTypesSchema.optional(),
+  noInvoicePerItemLimit: z.union([z.string(), z.number()]).optional()
+    .transform(v => v == null ? undefined : Number(v))
+    .refine(v => v == null || (Number.isFinite(v) && v >= 0), {
+      message: 'Ngưỡng mỗi khoản phải là số không âm',
+    }),
+  noInvoicePerDayLimit: z.union([z.string(), z.number()]).optional()
+    .transform(v => v == null ? undefined : Number(v))
+    .refine(v => v == null || (Number.isFinite(v) && v >= 0), {
+      message: 'Ngưỡng mỗi ngày phải là số không âm',
+    }),
+  noInvoiceFinanceLeadItemApprovalLimit: z.union([z.string(), z.number()]).optional()
+    .transform(v => v == null ? undefined : Number(v))
+    .refine(v => v == null || (Number.isFinite(v) && v >= 0), {
+      message: 'Ngưỡng duyệt của tài chính phải là số không âm',
+    }),
+  noInvoiceDirectorDayApprovalLimit: z.union([z.string(), z.number()]).optional()
+    .transform(v => v == null ? undefined : Number(v))
+    .refine(v => v == null || (Number.isFinite(v) && v >= 0), {
+      message: 'Ngưỡng ngày của giám đốc phải là số không âm',
+    }),
+  noInvoicePolicyVersion: z.number().int().positive().optional(),
   defaultMarkup: z.boolean().optional(),
   billingLabel: z.string().max(120).nullable().optional(),
   vatRate: z.union([z.string(), z.number()]).optional()
@@ -997,7 +1085,10 @@ export const debtOffsetSchema = z.object({
   customerId: z.number().int().positive(),
   supplierId: z.number().int().positive(),
   offsetDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày không hợp lệ'),
-  note: z.string().optional(),
+  currency: z.literal('VND').optional().default('VND'),
+  note: z.string().trim().min(1, 'Lý do đối trừ không được để trống'),
+  minutesReference: z.string().trim().min(1, 'Biên bản đối trừ là bắt buộc'),
+  minutesDocumentHash: z.string().trim().optional().nullable(),
   // NOTE: no `amount` field — server computes min(arBalance, apBalance)
 });
 
@@ -1032,6 +1123,7 @@ export const updateAdvanceSettlementSchema = z.object({
 // Upsert payload for PUT /api/trips/:id/instructions. All fields optional —
 // omitted fields clear to null so managers can wipe guidance.
 export const upsertTripInstructionsSchema = z.object({
+  expectedVersion: z.coerce.number().int().positive().optional(),
   contactName: z.string().max(100).nullish(),
   // Phone renders as a tel: href on the driver page — constrain to plausible
   // dial characters to keep the href well-formed.
@@ -1158,12 +1250,14 @@ export const dispatchShipmentSchema = z.object({
   departureDate: z.string().min(1, 'Ngày khởi hành là bắt buộc'),
   customerReference: z.string().optional(),
   containerCount: z.coerce.number().int().min(1).max(10).optional(),
+  creditApprovalRequestId: z.coerce.number().int().positive().optional().nullable(),
   fuelMode: z.nativeEnum(FuelMode).optional(),
 });
 
 // ─── Inferred types ──────────────────────────────────────────────────────────
 
 export type CreateTripInput = z.infer<typeof createTripSchema>;
+export type CreateTripPairInput = z.infer<typeof createTripPairSchema>;
 export type UpdateTripFiguresInput = z.infer<typeof updateTripFiguresSchema>;
 export type BulkUpdateTripFiguresInput = z.infer<typeof bulkUpdateTripFiguresSchema>;
 export type CreatePaymentInput = z.infer<typeof createPaymentSchema>;
@@ -1243,12 +1337,15 @@ export const tripExpensePatchSchema = baseTripExpenseSchema
   .partial()
   .extend({
     supplierId: z.number().int().positive().nullable().optional(),
+    expenseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày chi không hợp lệ').nullable().optional(),
+    payeeName: z.string().trim().max(200).nullable().optional(),
     invoiceNumber: z.string().max(50).nullable().optional(),
     invoiceDate: z.string().nullable().optional(),
     declarationNumber: z.string().max(50).nullable().optional(),
     containerNumber: z.string().max(20).nullable().optional(),
     tripContainerId: z.number().int().positive().nullable().optional(),
     note: z.string().nullable().optional(),
+    noInvoiceEvidenceTypes: noInvoiceEvidenceTypesSchema.nullable().optional(),
   });
 
 export const tripExpenseCompletionSchema = z.object({
@@ -1271,6 +1368,7 @@ export type SealTypeInput = z.infer<typeof sealTypeSchema>;
 export type PortInput = z.infer<typeof portSchema>;
 export type GenerateBillingDocumentInput = z.infer<typeof generateBillingDocumentSchema>;
 export type SaveBillingDocumentInput = z.infer<typeof saveBillingDocumentSchema>;
+export type BillingDocumentAdjustmentRequestInput = z.infer<typeof billingDocumentAdjustmentRequestSchema>;
 
 // ─── Bách Khoa GPS (external third-party response) ───────────────────────────
 // The first external-response parse in the codebase. Bách Khoa's GetInfoCar
@@ -1314,3 +1412,5 @@ export function parseBachKhoaResponse(raw: unknown): BachKhoaVehicle[] {
   );
 }
 export type BillingDocumentLineInput = z.infer<typeof billingDocumentLineSchema>;
+
+export * from './governance-action';

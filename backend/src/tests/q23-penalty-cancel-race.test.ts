@@ -1,6 +1,6 @@
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
@@ -50,15 +50,17 @@ async function penaltyLedgerRows(penaltyId: number, driverId: number) {
 
 after(async () => {
   try {
+    if (createdDriverIds.length > 0 && createdPenaltyIds.length > 0) {
+      await db.delete(s.ledger).where(and(
+        eq(s.ledger.entityType, 'DRIVER'),
+        inArray(s.ledger.entityId, createdDriverIds),
+        inArray(s.ledger.txnId, createdPenaltyIds),
+      ));
+    }
     if (createdPenaltyIds.length > 0) {
       await db.delete(s.penalties).where(inArray(s.penalties.id, createdPenaltyIds));
     }
     if (createdDriverIds.length > 0) {
-      await db.delete(s.ledger).where(and(
-        eq(s.ledger.entityType, 'DRIVER'),
-        inArray(s.ledger.entityId, createdDriverIds),
-        sql`${s.ledger.note} LIKE ${`Q23 race ${suffix}%`} OR ${s.ledger.note} LIKE ${`Hủy kỷ luật #%'`}`,
-      ));
       await db.delete(s.drivers).where(inArray(s.drivers.id, createdDriverIds));
     }
   } catch (err) {

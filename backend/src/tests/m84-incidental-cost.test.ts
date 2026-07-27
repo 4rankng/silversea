@@ -158,6 +158,7 @@ describe('M8.4 slice 3 — driver incidental costs', () => {
 
 after(async () => {
   try {
+    if (createdCostIds.length > 0) await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.entityId, createdCostIds));
     if (createdCostIds.length > 0) await db.delete(s.driverIncidentalCosts).where(inArray(s.driverIncidentalCosts.id, createdCostIds));
     if (createdTripIds.length > 0) {
       await db.delete(s.tripContainers).where(inArray(s.tripContainers.tripId, createdTripIds));
@@ -168,7 +169,6 @@ after(async () => {
     if (createdDriverIds.length > 0) await db.delete(s.drivers).where(inArray(s.drivers.id, createdDriverIds));
     if (createdCustomerIds.length > 0) await db.delete(s.customers).where(inArray(s.customers.id, createdCustomerIds));
     if (createdUserIds.length > 0) await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
-    if (createdCostIds.length > 0) await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.entityId, createdCostIds));
   } catch (err) {
     console.warn('[m84-incidental-cost.test] cleanup partial:', (err as Error).message);
   }

@@ -42,6 +42,8 @@ export function useCreateForwarderExpense() {
       sellAmount?: number;
       settlementMethod?: 'COMPANY_DIRECT' | 'FORWARDER_ADVANCE';
       supplierId?: number;
+      expenseDate?: string;
+      payeeName?: string;
       invoiceNumber?: string;
       invoiceDate?: string;
       declarationNumber?: string;
@@ -49,6 +51,7 @@ export function useCreateForwarderExpense() {
       /** B5: authoritative container FK (id). When set the server mirrors containerNumber. */
       tripContainerId?: number;
       note?: string;
+      noInvoiceEvidenceTypes?: string[];
     }) =>
       forwarderClient.createExpense(data),
     onSuccess: (_data, variables) => {
@@ -63,8 +66,9 @@ export function useUpdateForwarderExpense() {
     mutationFn: ({ id, tripId: _tripId, ...data }: {
       id: number; tripId: number; expenseType: string; buyAmount: number; sellAmount?: number;
       settlementMethod?: 'COMPANY_DIRECT' | 'FORWARDER_ADVANCE'; supplierId?: number | null;
+      expenseDate?: string | null; payeeName?: string | null;
       invoiceNumber?: string | null; invoiceDate?: string | null; declarationNumber?: string | null;
-      tripContainerId?: number | null; note?: string | null;
+      tripContainerId?: number | null; note?: string | null; noInvoiceEvidenceTypes?: string[] | null;
     }) => forwarderClient.updateExpense(id, data),
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: qk.forwarder.tripDetail(variables.tripId) });

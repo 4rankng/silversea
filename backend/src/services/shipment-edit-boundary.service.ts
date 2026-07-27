@@ -1,7 +1,7 @@
 import { NotificationType, Role } from '@tingting/shared';
 import { ApiError } from '../errors';
 import * as s from '../db/schema';
-import { emitNotificationAndWait } from './notification.service';
+import { persistNotificationInTx } from './notification.service';
 import type { Tx } from './trip-shared';
 
 type ShipmentRow = typeof s.shipments.$inferSelect;
@@ -209,6 +209,14 @@ export async function createShipmentChangeRequest(
       beforeSnapshot: input.beforeSnapshot,
       afterSnapshot: input.afterSnapshot,
     }).returning({ id: s.shipmentChangeRequests.id });
+    await persistNotificationInTx(tx, {
+      type: NotificationType.SHIPMENT_HANDOFF,
+      title: 'Có yêu cầu thay đổi kế hoạch lô hàng',
+      message: `Lô ${input.shipment.shipmentCode ?? `#${input.shipment.id}`} có thay đổi cần điều vận xem lại`,
+      relatedEntityType: 'shipments',
+      relatedEntityId: input.shipment.id,
+      targetRoles: [Role.ADMIN, Role.MANAGER],
+    });
     return row.id;
   } catch (err) {
     const conflict = mapUniqueViolation(err);
@@ -217,31 +225,13 @@ export async function createShipmentChangeRequest(
   }
 }
 
-export async function emitDispatchReviewNotification(shipment: ShipmentRow, requestedBy: number): Promise<boolean> {
-  void requestedBy;
-  try {
-    await emitNotificationAndWait({
-      type: NotificationType.SHIPMENT_HANDOFF,
-      title: 'Có yêu cầu thay đổi kế hoạch lô hàng',
-      message: `Lô ${shipment.shipmentCode ?? `#${shipment.id}`} có thay đổi cần điều vận xem lại`,
-      relatedEntityType: 'shipments',
-      relatedEntityId: shipment.id,
-      targetRoles: [Role.ADMIN, Role.MANAGER],
-    });
-    return true;
-  } catch (err) {
-    console.error('Dispatch review notification failed:', err);
-    return false;
-  }
-}
-
-export async function emitChangeRequestDecisionNotification(input: {
+export async function persistChangeRequestDecisionNotification(tx: Tx, input: {
   shipmentId: number;
   shipmentCode: string | null;
   requesterId: number;
   resolution: 'APPLIED' | 'REJECTED';
 }): Promise<void> {
-  await emitNotificationAndWait({
+  await persistNotificationInTx(tx, {
     type: NotificationType.SHIPMENT_HANDOFF,
     title: input.resolution === 'APPLIED'
       ? 'Yêu cầu thay đổi lô hàng đã được áp dụng'

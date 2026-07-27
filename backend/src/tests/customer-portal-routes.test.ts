@@ -346,4 +346,15 @@ describe('CUSTOMER portal HTTP security contract', () => {
     assert.ok(!('amountOverride' in body.lines[0]));
     assert.ok(!('excluded' in body.lines[0]));
   });
+
+  test('concurrent dispute accepts exactly one request', async () => {
+    const pendingId = (await createDocument(ownCustomerId, 'PENDING_CONFIRM')).id;
+    const responses = await Promise.all([
+      request(`/debit-notes/${pendingId}/dispute`, { method: 'POST', token: customerToken }),
+      request(`/debit-notes/${pendingId}/dispute`, { method: 'POST', token: customerToken }),
+    ]);
+    assert.deepEqual(responses.map((response) => response.status).sort(), [200, 409]);
+    const successful = responses.find((response) => response.status === 200);
+    assert.equal((successful?.body as { debitNoteStatus?: string }).debitNoteStatus, 'REJECTED');
+  });
 });

@@ -11,9 +11,20 @@ const KEYS = {
   bot: 'app.bot_enabled',
   tutorial: 'onboarding.tutorial_enabled',
   gps: 'app.gps_enabled',
+  creditWarningThresholdDefault: 'credit.warning_threshold_default',
+  creditTierOneAmountCap: 'credit.tier_one_amount_cap',
 } as const;
 let cached: AppSettings | null = null;
 const listeners = new Set<(settings: AppSettings) => void>();
+
+function parseBooleanSetting(value: string | undefined, fallback: boolean): boolean {
+  return value === undefined ? fallback : value === 'true';
+}
+
+function parseNumberSetting(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
 
 /** Subscribe to in-process runtime changes (used to stop active bot chats). */
 export function onAppSettingsChanged(listener: (settings: AppSettings) => void): () => void {
@@ -30,16 +41,24 @@ export async function getAppSettings(): Promise<AppSettings> {
   const rows = await db
     .select()
     .from(s.appSettings)
-    .where(inArray(s.appSettings.key, [KEYS.bot, KEYS.tutorial, KEYS.gps]));
+    .where(inArray(s.appSettings.key, [
+      KEYS.bot,
+      KEYS.tutorial,
+      KEYS.gps,
+      KEYS.creditWarningThresholdDefault,
+      KEYS.creditTierOneAmountCap,
+    ]));
   const values = new Map(rows.map((row) => [row.key, row.value]));
   // Default gpsEnabled to whether credentials are configured, so existing
   // deployments migrate cleanly: those with creds stay ON, those without start OFF.
   const creds = await getGpsSettings();
   const gpsEnabledDefault = !!(creds.username && creds.password);
   cached = {
-    botEnabled: values.has(KEYS.bot) ? values.get(KEYS.bot) === 'true' : config.botEnabled,
-    tutorialEnabled: values.get(KEYS.tutorial) !== 'false',
-    gpsEnabled: values.has(KEYS.gps) ? values.get(KEYS.gps) === 'true' : gpsEnabledDefault,
+    botEnabled: parseBooleanSetting(values.get(KEYS.bot), config.botEnabled),
+    tutorialEnabled: parseBooleanSetting(values.get(KEYS.tutorial), true),
+    gpsEnabled: parseBooleanSetting(values.get(KEYS.gps), gpsEnabledDefault),
+    creditWarningThresholdDefault: parseNumberSetting(values.get(KEYS.creditWarningThresholdDefault), 0.8),
+    creditTierOneAmountCap: Math.trunc(parseNumberSetting(values.get(KEYS.creditTierOneAmountCap), 0)),
   };
   return cached;
 }
@@ -47,17 +66,19 @@ export async function getAppSettings(): Promise<AppSettings> {
 export async function saveAppSettings(next: AppSettings): Promise<AppSettings> {
   const previous = await getAppSettings();
   await db.transaction(async (tx) => {
-    for (const [key, enabled] of [
+    for (const [key, value] of [
       [KEYS.bot, next.botEnabled],
       [KEYS.tutorial, next.tutorialEnabled],
       [KEYS.gps, next.gpsEnabled],
+      [KEYS.creditWarningThresholdDefault, next.creditWarningThresholdDefault],
+      [KEYS.creditTierOneAmountCap, next.creditTierOneAmountCap],
     ] as const) {
       await tx
         .insert(s.appSettings)
-        .values({ key, value: enabled ? 'true' : 'false' })
+        .values({ key, value: String(value) })
         .onConflictDoUpdate({
           target: s.appSettings.key,
-          set: { value: enabled ? 'true' : 'false', updatedAt: new Date() },
+          set: { value: String(value), updatedAt: new Date() },
         });
     }
   });

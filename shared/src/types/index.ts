@@ -2,7 +2,7 @@ import type {
   TripStatus, FuelMode, LoadingType, Role, TxnType,
   TrailerType, TruckStatus, TrailerStatus, DriverStatus, CustomerStatus, PenaltyStatus,
   AdvanceRequestStatus, AdvanceSettlementStatus, ExpenseEntryStatus,
-  TireStatus, TruckCapRole,
+  TireStatus, TruckCapRole, SupplierType, NoInvoiceEvidenceType,
 } from '../constants';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
@@ -61,10 +61,12 @@ export interface Customer {
   id: number;
   name: string;
   taxCode: string | null;
+  partnerId?: number | null;
   contactPerson: string | null;
   phone: string | null;
   contactInfo: string | null;
   creditLimit: string | null;
+  creditWarningThreshold?: string | null;
   paymentTermDays?: number | null;
   paymentDatePolicy?: 'NEXT_BUSINESS_DAY' | 'CALENDAR_DAY';
   status: CustomerStatus;
@@ -281,6 +283,12 @@ export interface Trip {
   containerCount: number | null;
   status: TripStatus;
   departureDate: string;
+  plannedStartAt: string | null;
+  plannedEndAt: string | null;
+  canonicalOrigin: string | null;
+  canonicalDestination: string | null;
+  cargoWeightKg: string | null;
+  vehicleCapacityKg: string | null;
   fuelMode: FuelMode;
   fuelLitersOverride: string | null;
   fuelSupplementLiters: string | null;
@@ -334,6 +342,31 @@ export interface Trip {
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
+}
+
+export type TripPairStatus = 'ACTIVE' | 'BROKEN';
+
+export type TripPairBreakReason =
+  | 'FIRST_TRIP_CANCELED'
+  | 'SECOND_TRIP_CANCELED'
+  | 'LATE_COMPLETION';
+
+export interface TripPairSummary {
+  pairId: number;
+  order: 1 | 2;
+  status: TripPairStatus;
+  partnerTripId: number;
+  partnerTripCode: string | null;
+  partnerStatus: TripStatus;
+  partnerDepartureDate: string;
+  partnerRouteName: string | null;
+  emptyDistanceKm: string | null;
+  combinedEfficiencyPercent: string | null;
+  requiredGapMinutes: number | null;
+  actualGapMinutes: number | null;
+  breakReason: TripPairBreakReason | null;
+  survivingTripId: number | null;
+  lateByMinutes: number | null;
 }
 
 export interface TripLeg {
@@ -498,10 +531,13 @@ export interface Supplier {
   contactPerson: string | null;
   phone: string | null;
   taxCode: string | null;
+  partnerId?: number | null;
   note: string | null;
   status: string;
   linkedCustomerId: number | null;
   isFuelSupplier: boolean;
+  types?: SupplierType[] | null;
+  primaryType?: SupplierType | null;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
@@ -682,15 +718,33 @@ export interface TripExpense {
   sellAmount: string;
   settlementMethod: 'COMPANY_DIRECT' | 'FORWARDER_ADVANCE';
   supplierId: number | null;
+  expenseDate: string | null;
+  payeeName: string | null;
   invoiceNumber: string | null;
   invoiceDate: string | null;
   declarationNumber: string | null;
   containerNumber: string | null;
   tripContainerId: number | null;
-  approvalStatus: 'PENDING' | 'APPROVED' | 'REJECTED';
+  approvalStatus: 'PENDING' | 'APPROVED' | 'REJECTED' | 'RETURN_FOR_EVIDENCE';
   note: string | null;
+  noInvoiceEvidenceTypes: NoInvoiceEvidenceType[];
+  noInvoicePolicySnapshot: NoInvoicePolicySnapshot | null;
+  returnForEvidenceReason: string | null;
+  returnedForEvidenceAt: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface NoInvoicePolicySnapshot {
+  version: number;
+  expenseTypeCode: string;
+  expenseTypeName: string;
+  substituteEvidenceAllowed: boolean;
+  allowedEvidenceTypes: NoInvoiceEvidenceType[];
+  perItemLimit: string;
+  perDayLimit: string;
+  financeLeadItemApprovalLimit: string;
+  directorDayApprovalLimit: string;
 }
 
 export interface TripExpenseCompletionScope {
@@ -819,11 +873,17 @@ export interface ForwarderTripDetail {
     tripContainerId: number | null;
     activeSettlementId: number | null;
     canEdit: boolean;
+    expenseDate: string | null;
+    payeeName: string | null;
     invoiceNumber: string | null;
     invoiceDate: string | null;
     declarationNumber: string | null;
     approvalStatus: string;
     note: string | null;
+    noInvoiceEvidenceTypes: NoInvoiceEvidenceType[];
+    noInvoicePolicySnapshot: NoInvoicePolicySnapshot | null;
+    returnForEvidenceReason: string | null;
+    returnedForEvidenceAt: string | null;
     createdAt: string;
     forwarderName: string | null;
   }>;
@@ -875,6 +935,7 @@ export interface TripDetail extends Trip {
   customer?: Customer;
   cargoType?: CargoType;
   fuelSupplier?: { id: number; name: string } | null;
+  pairing?: TripPairSummary | null;
   instructions?: TripInstruction | null;
   /** The vehicle's full real GPS trail (Bách Khoa), captured at completion.
    *  The complete driven path — drawn on the trip map as the real route.
@@ -893,6 +954,7 @@ export interface CreateTripRequest {
   customerReference?: string;
   containerCount?: number;
   containerTypeId: number;
+  creditApprovalRequestId?: number | null;
   fuelMode?: FuelMode;
   fuelSupplierId?: number | null;
   vatRate?: number;
@@ -902,6 +964,82 @@ export interface CreateTripRequest {
   externalPlateNumber?: string | null;
   externalDriverName?: string | null;
   externalDriverPhone?: string | null;
+}
+
+export interface TripPairDraftInput {
+  plannedStartAt: string;
+  plannedEndAt: string;
+  canonicalOrigin: string;
+  canonicalDestination: string;
+  cargoWeightKg: number;
+  vehicleCapacityKg: number;
+  expectedVersion?: number;
+}
+
+export interface CreateTripPairRequest {
+  firstTripId: number;
+  secondTripId: number;
+  firstTrip: TripPairDraftInput;
+  secondTrip: TripPairDraftInput;
+}
+
+export interface TripPairRecord {
+  id: number;
+  status: TripPairStatus;
+  firstTripId: number;
+  secondTripId: number;
+  emptyDistanceKm: string | null;
+  combinedEfficiencyPercent: string | null;
+  requiredGapMinutes: number | null;
+  actualGapMinutes: number | null;
+  breakReason: TripPairBreakReason | null;
+  survivingTripId: number | null;
+  lateByMinutes: number | null;
+  createdBy: number | null;
+  brokenBy: number | null;
+  brokenAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DriverOrderedPairView {
+  date: string;
+  active: {
+    id: number; tripCode: string | null; departureDate: string; status: string;
+    routeName: string | null; truckPlate: string | null; customerName: string | null;
+    containerNumbers: string[];
+  } | null;
+  next: {
+    id: number; tripCode: string | null; departureDate: string; status: string;
+    routeName: string | null; truckPlate: string | null; customerName: string | null;
+    containerNumbers: string[];
+  } | null;
+  firstOrderLate: boolean;
+  allToday: Array<{
+    id: number; tripCode: string | null; departureDate: string; status: string;
+    routeName: string | null; truckPlate: string | null; customerName: string | null;
+    containerNumbers: string[];
+  }>;
+  pair: {
+    pairId: number;
+    status: TripPairStatus;
+    breakReason: TripPairBreakReason | null;
+    emptyDistanceKm: string | null;
+    combinedEfficiencyPercent: string | null;
+    requiredGapMinutes: number | null;
+    actualGapMinutes: number | null;
+    lateByMinutes: number | null;
+    first: {
+      id: number; tripCode: string | null; departureDate: string; status: string;
+      routeName: string | null; truckPlate: string | null; customerName: string | null;
+      containerNumbers: string[];
+    } | null;
+    second: {
+      id: number; tripCode: string | null; departureDate: string; status: string;
+      routeName: string | null; truckPlate: string | null; customerName: string | null;
+      containerNumbers: string[];
+    } | null;
+  } | null;
 }
 
 export interface TripLegInput {
@@ -1138,8 +1276,12 @@ export interface DebtOffset {
   id: number;
   customerId: number;
   supplierId: number;
+  partnerId: number;
   amount: string;
   offsetDate: string;
+  currency: 'VND';
+  minutesReference: string;
+  minutesDocumentHash: string | null;
   note: string | null;
   approvalStatus: 'PENDING' | 'APPROVED' | 'REJECTED';
   createdBy: number | null;
@@ -1201,6 +1343,32 @@ export interface BillingLineRenderData {
   totalAmount?: number | null;
   serviceFeeDescription?: string | null;
   note?: string | null;
+  sourceVersion?: string | null;
+  sourceChangedAt?: string | null;
+  sourceReason?: string | null;
+}
+
+export type BillingLineProvenanceStatus = 'CURRENT' | 'STALE' | 'REMOVED';
+export type BillingDocumentAuthorityState = 'CURRENT' | 'STALE' | 'ADJUSTMENT_REQUIRED';
+
+export interface BillingLineProvenance {
+  sourceVersion: string | null;
+  currentSourceVersion: string | null;
+  sourceChangedAt: string | null;
+  status: BillingLineProvenanceStatus;
+  reason: string | null;
+}
+
+export interface BillingDocumentCorrection {
+  actionId: number;
+  status: string;
+  reason: string;
+  amount: number;
+  createdAt: string;
+  approvedAt?: string | null;
+  appliedAt?: string | null;
+  ledgerEntryId?: number | null;
+  applicationResult?: Record<string, unknown> | null;
 }
 
 export interface BillingDocumentLine {
@@ -1219,6 +1387,7 @@ export interface BillingDocumentLine {
   amountOverride?: number | null; // edited amount; effective = override ?? baseAmount
   excluded?: boolean;             // hidden from this document
   sortOrder: number;
+  provenance?: BillingLineProvenance | null;
 }
 
 export interface BillingDocument {
@@ -1247,6 +1416,8 @@ export interface BillingDocument {
   // copy actually used at export — see DebitNoteTemplateSnapshot.
   debitNoteTemplateId?: number | null;
   debitNoteTemplateSnapshot?: DebitNoteTemplateSnapshot | null;
+  authorityState?: BillingDocumentAuthorityState;
+  corrections?: BillingDocumentCorrection[];
   lines: BillingDocumentLine[];
 }
 
@@ -1262,6 +1433,10 @@ export interface BillingDocumentDraft {
   rangeTo: string;
   lines: BillingDraftLine[];
   totalInclVat: number;
+}
+
+export interface BillingDocumentAdjustmentRequest {
+  reason: string;
 }
 
 // ─── Billing document Excel templates ────────────────────────────────────────

@@ -52,6 +52,7 @@ export interface UseTripFormDispatchParams {
   options: TripOptions;
   isEditMode: boolean;
   existingTrip: TripDetail | undefined;
+  onCreditLimitBlocked?: (details: { message: string; customerId: number; proposedAmount: number }) => void;
 }
 
 export interface UseTripFormDispatchReturn {
@@ -75,7 +76,7 @@ export interface UseTripFormDispatchReturn {
   totalRequiredFields: number;
   uploading: UploadingState;
   ocrResult: OcrSignal | null;
-  handleSubmit: (e?: React.FormEvent) => Promise<number | undefined>;
+  handleSubmit: (e?: React.FormEvent, options?: { creditApprovalRequestId?: number | null }) => Promise<number | undefined>;
   selectedRouteData: RouteOption | null;
   driverBaseSalary: number;
   roadAllowanceBaseApplied?: number;
@@ -86,7 +87,7 @@ export interface UseTripFormDispatchReturn {
 }
 
 export function useTripFormDispatch(params: UseTripFormDispatchParams): UseTripFormDispatchReturn {
-  const { state: s, options, isEditMode, existingTrip } = params;
+  const { state: s, options, isEditMode, existingTrip, onCreditLimitBlocked } = params;
   const lastPopulatedTripId = useRef<number | undefined>(undefined);
 
   usePersistedContainerType({
@@ -484,7 +485,34 @@ export function useTripFormDispatch(params: UseTripFormDispatchParams): UseTripF
     ],
   );
 
-  const handleSubmit = useTripFormSubmit({ state: s, isEditMode, existingTrip, legs, requiredFieldsFilled, hasOptionalData, photoUrls, flushPendingPhotos, flushPendingContainerPhotos });
+  const estimatedDispatchRevenue = useMemo(() => {
+    const explicitRevenue = moneyInputToNumber(s.revenue);
+    if (explicitRevenue != null && explicitRevenue > 0) return explicitRevenue;
+    if (suggestedPrice != null && suggestedPrice > 0) {
+      return suggestedPrice * resolveContainerCount(s.containerCount);
+    }
+    return 0;
+  }, [s.revenue, suggestedPrice, s.containerCount]);
+
+  const handleSubmit = useTripFormSubmit({
+    state: s,
+    isEditMode,
+    existingTrip,
+    legs,
+    requiredFieldsFilled,
+    hasOptionalData,
+    photoUrls,
+    flushPendingPhotos,
+    flushPendingContainerPhotos,
+    onCreditLimitBlocked: onCreditLimitBlocked
+      ? ({ message, customerId }) =>
+          onCreditLimitBlocked({
+            message,
+            customerId,
+            proposedAmount: estimatedDispatchRevenue,
+          })
+      : undefined,
+  });
 
   return {
     legs, addLeg, removeLeg, updateLeg,

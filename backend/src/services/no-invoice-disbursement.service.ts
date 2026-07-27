@@ -1,125 +1,263 @@
-/**
- * Wave 3 M4.7 (slice 1) — no-invoice disbursement enforcement.
- *
- * Complements the M4.6 invoice-required guard. When a trip_expense's
- * forwarderExpenseType has requiresInvoice=FALSE, this guard enforces
- * the M04-07 rules for the no-invoice branch:
- *
- *   1. substituteEvidenceAllowed must be TRUE on the FET — otherwise the
- *      category doesn't permit no-invoice expenses at all.
- *   2. The expense must carry a non-empty note (the substitute-evidence
- *      description / lý do + mô tả chứng cứ).
- *   3. Tiered approval by amount:
- *        ≤ DIRECTOR_THRESHOLD (5M)  → any FINANCIAL role can approve
- *        > DIRECTOR_THRESHOLD       → only MANAGER or ADMIN
- *
- * Default thresholds per Q13/Q14 (business-logic-qa-proposals.md):
- *   PER_ITEM_THRESHOLD = 1_000_000 (advisory; doesn't block on its own)
- *   DIRECTOR_THRESHOLD = 5_000_000 (ACCOUNTANT cannot approve above this)
- *   DAY_AGGREGATE_THRESHOLD = 10_000_000 (deferred — anti-splitting
- *     aggregation is a follow-up slice).
- *
- * Wired into transitionApproval next to assertInvoiceRequiredForExpense.
- * Only runs on APPROVED transitions; rejections bypass. Expenses on the
- * requiresInvoice=true path are handled by M4.6 and skip this guard.
- */
+import {
+  DEFAULT_NO_INVOICE_EVIDENCE_TYPES,
+  NO_INVOICE_POLICY_DEFAULTS,
+  type NoInvoiceEvidenceType,
+  Role,
+  type NoInvoicePolicySnapshot,
+} from '@tingting/shared';
+import { and, desc, eq, gte, inArray, lte, ne, or, sql } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
-import { and, desc, eq, gte, lte, or, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
-import { Role } from '@tingting/shared';
 
-// Tiered-approval thresholds (VND). Per Q14:
-//   Trưởng phòng Tài chính/Kế toán trưởng duyệt đến 5M/khoản.
-//   Giám đốc duyệt >5M/khoản or >10M/day aggregated.
-export const DIRECTOR_THRESHOLD = 5_000_000;
-// Per-item advisory threshold (Q13). Doesn't block on its own in this
-// slice — surfaced in the report (slice 2). The blocking rule is the
-// DIRECTOR_THRESHOLD above.
-export const PER_ITEM_THRESHOLD = 1_000_000;
+type DbLike = typeof db | Tx;
 
-/**
- * Enforcement entrypoint. Loads the trip_expense, resolves its FET, and
- * applies the M04-07 rules for the no-invoice branch. Throws ApiError
- * with a Vietnamese field-specific message when a rule is violated.
- *
- * Call BEFORE transitioning a trip_expense to APPROVED. Rejections bypass.
- *
- * `actorRole` is the role of the user attempting the approval — needed
- * for the tiered-amount check.
- */
-export async function assertNoInvoiceDisbursementAllowed(
+type ForwarderExpenseTypePolicy = {
+  code: string;
+  name: string;
+  requiresInvoice: boolean | null;
+  substituteEvidenceAllowed: boolean | null;
+  noInvoiceEvidenceTypes: string[] | null;
+  noInvoicePerItemLimit: string;
+  noInvoicePerDayLimit: string;
+  noInvoiceFinanceLeadItemApprovalLimit: string;
+  noInvoiceDirectorDayApprovalLimit: string;
+  noInvoicePolicyVersion: number;
+};
+
+type TripExpenseNoInvoiceState = {
+  id: number;
+  tripId: number;
+  expenseType: string;
+  buyAmount: string;
+  expenseDate: string | null;
+  payeeName: string | null;
+  invoiceNumber: string | null;
+  note: string | null;
+  approvalStatus: string;
+  noInvoiceEvidenceTypes: string[] | null;
+};
+
+export type NoInvoiceApprovalOutcome =
+  | { outcome: 'ALLOW'; policySnapshot: NoInvoicePolicySnapshot | null; aggregateAmount: number }
+  | { outcome: 'RETURN_FOR_EVIDENCE'; policySnapshot: NoInvoicePolicySnapshot | null; returnReason: string; aggregateAmount: number };
+
+export const PER_ITEM_THRESHOLD = NO_INVOICE_POLICY_DEFAULTS.perItemLimit;
+export const DIRECTOR_THRESHOLD = NO_INVOICE_POLICY_DEFAULTS.financeLeadItemApprovalLimit;
+export const DAY_AGGREGATE_THRESHOLD = NO_INVOICE_POLICY_DEFAULTS.directorDayApprovalLimit;
+
+export function toNoInvoicePolicySnapshotValue(
+  snapshot: NoInvoicePolicySnapshot | null,
+): Record<string, unknown> | null {
+  return snapshot as unknown as Record<string, unknown> | null;
+}
+
+function hasInvoice(invoiceNumber: string | null | undefined): boolean {
+  return !!invoiceNumber?.trim();
+}
+
+function normalizeEvidenceTypes(value: string[] | null | undefined): NoInvoiceEvidenceType[] {
+  const allowed = new Set(DEFAULT_NO_INVOICE_EVIDENCE_TYPES);
+  return Array.from(new Set((value ?? []).filter((item): item is NoInvoiceEvidenceType => allowed.has(item as NoInvoiceEvidenceType))));
+}
+
+function buildPolicySnapshot(policy: ForwarderExpenseTypePolicy): NoInvoicePolicySnapshot {
+  return {
+    version: policy.noInvoicePolicyVersion,
+    expenseTypeCode: policy.code,
+    expenseTypeName: policy.name,
+    substituteEvidenceAllowed: policy.substituteEvidenceAllowed ?? true,
+    allowedEvidenceTypes: normalizeEvidenceTypes(policy.noInvoiceEvidenceTypes),
+    perItemLimit: String(policy.noInvoicePerItemLimit),
+    perDayLimit: String(policy.noInvoicePerDayLimit),
+    financeLeadItemApprovalLimit: String(policy.noInvoiceFinanceLeadItemApprovalLimit),
+    directorDayApprovalLimit: String(policy.noInvoiceDirectorDayApprovalLimit),
+  };
+}
+
+async function getForwarderExpenseTypePolicy(
+  txOrDb: DbLike,
+  expenseTypeCode: string,
+): Promise<ForwarderExpenseTypePolicy | null> {
+  const [policy] = await txOrDb.select({
+    code: s.forwarderExpenseTypes.code,
+    name: s.forwarderExpenseTypes.name,
+    requiresInvoice: s.forwarderExpenseTypes.requiresInvoice,
+    substituteEvidenceAllowed: s.forwarderExpenseTypes.substituteEvidenceAllowed,
+    noInvoiceEvidenceTypes: s.forwarderExpenseTypes.noInvoiceEvidenceTypes,
+    noInvoicePerItemLimit: s.forwarderExpenseTypes.noInvoicePerItemLimit,
+    noInvoicePerDayLimit: s.forwarderExpenseTypes.noInvoicePerDayLimit,
+    noInvoiceFinanceLeadItemApprovalLimit: s.forwarderExpenseTypes.noInvoiceFinanceLeadItemApprovalLimit,
+    noInvoiceDirectorDayApprovalLimit: s.forwarderExpenseTypes.noInvoiceDirectorDayApprovalLimit,
+    noInvoicePolicyVersion: s.forwarderExpenseTypes.noInvoicePolicyVersion,
+  })
+    .from(s.forwarderExpenseTypes)
+    .where(eq(s.forwarderExpenseTypes.code, expenseTypeCode))
+    .limit(1);
+  return policy ?? null;
+}
+
+async function getTripExpenseNoInvoiceState(
+  txOrDb: DbLike,
   expenseId: number,
-  actorRole: string,
-  tx?: Tx,
-): Promise<void> {
-  const q = tx ?? db;
-  const [expense] = await q.select({
+): Promise<TripExpenseNoInvoiceState | null> {
+  const [expense] = await txOrDb.select({
     id: s.tripExpenses.id,
+    tripId: s.tripExpenses.tripId,
     expenseType: s.tripExpenses.expenseType,
-    invoiceNumber: s.tripExpenses.invoiceNumber,
     buyAmount: s.tripExpenses.buyAmount,
+    expenseDate: s.tripExpenses.expenseDate,
+    payeeName: s.tripExpenses.payeeName,
+    invoiceNumber: s.tripExpenses.invoiceNumber,
     note: s.tripExpenses.note,
+    approvalStatus: s.tripExpenses.approvalStatus,
+    noInvoiceEvidenceTypes: s.tripExpenses.noInvoiceEvidenceTypes,
   })
     .from(s.tripExpenses)
     .where(eq(s.tripExpenses.id, expenseId))
     .limit(1);
+  return expense ?? null;
+}
 
-  // Missing expense → let the transition's own 404 fire.
-  if (!expense) return;
+async function countExpensePhotos(txOrDb: DbLike, expenseId: number): Promise<number> {
+  const [row] = await txOrDb.select({ count: sql<number>`count(*)::int` })
+    .from(s.tripExpensePhotos)
+    .where(eq(s.tripExpensePhotos.tripExpenseId, expenseId));
+  return row?.count ?? 0;
+}
 
-  // This guard only applies to the NO-INVOICE branch. If the expense HAS
-  // an invoice, M4.6 (assertInvoiceRequiredForExpense) owns the check.
-  // Also, if the FET has requiresInvoice=true, M4.6 blocks when the
-  // invoice is missing — we don't double-enforce here.
-  const hasInvoice = !!(expense.invoiceNumber && expense.invoiceNumber.trim());
-  if (hasInvoice) return;
-
-  // Resolve the FET by code. Fail open when unknown (backward compat for
-  // legacy codes — same policy as M4.6's checkTripExpenseInvoiceByCode).
-  const [fet] = await q.select({
-    requiresInvoice: s.forwarderExpenseTypes.requiresInvoice,
-    substituteEvidenceAllowed: s.forwarderExpenseTypes.substituteEvidenceAllowed,
+async function sumSameDaySamePayeeCategory(
+  txOrDb: DbLike,
+  expense: TripExpenseNoInvoiceState,
+): Promise<number> {
+  if (!expense.expenseDate || !expense.payeeName?.trim()) return Number(expense.buyAmount);
+  const [row] = await txOrDb.select({
+    total: sql<string>`coalesce(sum(${s.tripExpenses.buyAmount}), 0)::text`,
   })
-    .from(s.forwarderExpenseTypes)
-    .where(eq(s.forwarderExpenseTypes.code, expense.expenseType))
-    .limit(1);
+    .from(s.tripExpenses)
+    .where(and(
+      eq(s.tripExpenses.expenseType, expense.expenseType),
+      eq(s.tripExpenses.expenseDate, expense.expenseDate),
+      eq(s.tripExpenses.payeeName, expense.payeeName.trim()),
+      ne(s.tripExpenses.id, expense.id),
+      inArray(s.tripExpenses.approvalStatus, ['PENDING', 'APPROVED']),
+      or(
+        sql`${s.tripExpenses.invoiceNumber} IS NULL`,
+        sql`btrim(${s.tripExpenses.invoiceNumber}) = ''`,
+      ),
+    ));
+  return Number(row?.total ?? '0') + Number(expense.buyAmount);
+}
 
-  if (!fet) return; // unknown code → fail open
-  if (fet.requiresInvoice) return; // M4.6 owns the requiresInvoice=true path
+function missingEvidenceLabels(
+  expense: TripExpenseNoInvoiceState,
+  policy: ForwarderExpenseTypePolicy,
+  photoCount: number,
+): string[] {
+  const missing: string[] = [];
+  if (!expense.expenseDate) missing.push('ngày chi');
+  if (!expense.payeeName?.trim()) missing.push('người nhận');
+  if (!expense.note?.trim()) missing.push('lý do');
 
-  // Rule 1: category must permit no-invoice expenses.
-  const substituteAllowed = fet.substituteEvidenceAllowed ?? true;
-  if (!substituteAllowed) {
-    throw new ApiError(
-      400,
-      `Chi phí #${expenseId}: hạng mục "${expense.expenseType}" không cho phép chi hộ không hóa đơn`,
-    );
+  const evidenceTypes = normalizeEvidenceTypes(expense.noInvoiceEvidenceTypes);
+  if (evidenceTypes.length === 0) {
+    missing.push('bằng chứng');
+    return missing;
   }
 
-  // Rule 2: substitute evidence required (non-empty note).
-  if (!expense.note || !expense.note.trim()) {
-    throw new ApiError(
-      400,
-      `Chi phí #${expenseId}: thiếu căn cứ thay thế — ghi chú lý do và mô tả chứng cứ là bắt buộc cho khoản không hóa đơn`,
-    );
-  }
-
-  // Rule 3: tiered approval by amount.
-  const amount = Number(expense.buyAmount);
-  if (amount > DIRECTOR_THRESHOLD) {
-    // Only MANAGER or ADMIN can approve above the director threshold.
-    if (actorRole !== Role.ADMIN && actorRole !== Role.MANAGER) {
+  const allowedEvidence = new Set(normalizeEvidenceTypes(policy.noInvoiceEvidenceTypes));
+  if (allowedEvidence.size > 0) {
+    const invalid = evidenceTypes.filter((item) => !allowedEvidence.has(item));
+    if (invalid.length > 0) {
       throw new ApiError(
-        403,
-        `Chi phí #${expenseId}: số tiền ${amount.toLocaleString('vi-VN')} ₫ vượt ngưỡng trưởng phòng (${DIRECTOR_THRESHOLD.toLocaleString('vi-VN')} ₫) — cần giám đốc phê duyệt`,
+        400,
+        `Chi phí #${expense.id}: bằng chứng ${invalid.join(', ')} không được phép cho hạng mục "${expense.expenseType}"`,
       );
     }
   }
+
+  if (evidenceTypes.includes('ONSITE_PHOTO') && photoCount === 0) {
+    missing.push('ảnh hiện trường');
+  }
+  return missing;
 }
 
-// ─── M4.7 slice 2: no-invoice disbursement report ────────────────────────────
+function directorRequired(actorRole: string): boolean {
+  return actorRole === Role.ADMIN || actorRole === Role.MANAGER;
+}
+
+export async function buildNoInvoicePolicySnapshotForExpenseInput(
+  txOrDb: DbLike,
+  input: { expenseType: string; invoiceNumber?: string | null },
+): Promise<NoInvoicePolicySnapshot | null> {
+  if (hasInvoice(input.invoiceNumber ?? null)) return null;
+  const policy = await getForwarderExpenseTypePolicy(txOrDb, input.expenseType);
+  if (!policy) {
+    throw new ApiError(400, `Hạng mục "${input.expenseType}" chưa được cấu hình cho chi không hóa đơn`);
+  }
+  if (policy.requiresInvoice) return null;
+  if (!(policy.substituteEvidenceAllowed ?? true)) {
+    throw new ApiError(400, `Hạng mục "${input.expenseType}" không cho phép chi hộ không hóa đơn`);
+  }
+  return buildPolicySnapshot(policy);
+}
+
+export async function reviewNoInvoiceDisbursementApproval(
+  expenseId: number,
+  actorRole: string,
+  tx?: Tx,
+): Promise<NoInvoiceApprovalOutcome> {
+  const q = tx ?? db;
+  const expense = await getTripExpenseNoInvoiceState(q, expenseId);
+  if (!expense) {
+    return { outcome: 'ALLOW', policySnapshot: null, aggregateAmount: 0 };
+  }
+  if (hasInvoice(expense.invoiceNumber)) {
+    return { outcome: 'ALLOW', policySnapshot: null, aggregateAmount: Number(expense.buyAmount) };
+  }
+
+  const policy = await getForwarderExpenseTypePolicy(q, expense.expenseType);
+  if (!policy) {
+    throw new ApiError(400, `Chi phí #${expenseId}: hạng mục "${expense.expenseType}" chưa được cấu hình cho chi không hóa đơn`);
+  }
+  if (policy.requiresInvoice) {
+    return { outcome: 'ALLOW', policySnapshot: null, aggregateAmount: Number(expense.buyAmount) };
+  }
+
+  const substituteAllowed = policy.substituteEvidenceAllowed ?? true;
+  if (!substituteAllowed) {
+    throw new ApiError(400, `Chi phí #${expenseId}: hạng mục "${expense.expenseType}" không cho phép chi hộ không hóa đơn`);
+  }
+
+  const policySnapshot = buildPolicySnapshot(policy);
+  const photoCount = await countExpensePhotos(q, expenseId);
+  const missing = missingEvidenceLabels(expense, policy, photoCount);
+  const aggregateAmount = await sumSameDaySamePayeeCategory(q, expense);
+
+  if (missing.length > 0) {
+    return {
+      outcome: 'RETURN_FOR_EVIDENCE',
+      policySnapshot,
+      returnReason: `Thiếu chứng từ tối thiểu: ${missing.join(', ')}`,
+      aggregateAmount,
+    };
+  }
+
+  const amount = Number(expense.buyAmount);
+  const itemApprovalLimit = Number(policy.noInvoiceFinanceLeadItemApprovalLimit);
+  const directorDayLimit = Number(policy.noInvoiceDirectorDayApprovalLimit);
+  const requiresDirector = amount > itemApprovalLimit || aggregateAmount > directorDayLimit;
+
+  if (requiresDirector && !directorRequired(actorRole)) {
+    throw new ApiError(
+      403,
+      `Chi phí #${expenseId}: khoản ${amount.toLocaleString('vi-VN')} ₫ hoặc tổng ngày ${aggregateAmount.toLocaleString('vi-VN')} ₫ vượt thẩm quyền tài chính, cần giám đốc phê duyệt`,
+    );
+  }
+
+  return { outcome: 'ALLOW', policySnapshot, aggregateAmount };
+}
 
 export interface NoInvoiceDisbursementItem {
   expenseId: number;
@@ -150,30 +288,12 @@ export interface NoInvoiceDisbursementReport {
   };
 }
 
-/**
- * M04-07-01 report: "Báo cáo tách riêng khoản không có hóa đơn và vẫn
- * truy ngược được người duyệt".
- *
- * Lists APPROVED trip_expenses where invoiceNumber IS NULL or empty
- * (the no-invoice set), joined with:
- *   - forwarderExpenseTypes (type name)
- *   - trips (trip code)
- *   - suppliers (supplier name)
- *   - audit_logs (approver attribution — latest TRIP_EXPENSE_APPROVED
- *     entry for the expenseId)
- *
- * Filters: date range on the audit timestamp (approval moment),
-   optional approverId, optional categoryCode.
- */
 export async function getNoInvoiceDisbursementReport(opts: {
   from: string;
   to: string;
   approverId?: number;
   categoryCode?: string;
 } = { from: '1970-01-01', to: '2999-12-31' }): Promise<NoInvoiceDisbursementReport> {
-  // 1. Fetch APPROVED no-invoice expenses in the date range.
-  //    "No-invoice" = invoiceNumber IS NULL or trim(invoiceNumber) = ''.
-  //    Date axis: expense.createdAt (the audit timestamp join happens next).
   const expenseRows = await db.select({
     id: s.tripExpenses.id,
     tripId: s.tripExpenses.tripId,
@@ -181,8 +301,8 @@ export async function getNoInvoiceDisbursementReport(opts: {
     buyAmount: s.tripExpenses.buyAmount,
     note: s.tripExpenses.note,
     supplierId: s.tripExpenses.supplierId,
-    invoiceNumber: s.tripExpenses.invoiceNumber,
     createdAt: s.tripExpenses.createdAt,
+    policySnapshot: s.tripExpenses.noInvoicePolicySnapshot,
   })
     .from(s.tripExpenses)
     .where(and(
@@ -198,107 +318,85 @@ export async function getNoInvoiceDisbursementReport(opts: {
 
   if (expenseRows.length === 0) {
     return {
-      from: opts.from, to: opts.to, items: [],
+      from: opts.from,
+      to: opts.to,
+      items: [],
       totals: { count: 0, sumBuyAmount: 0, overThresholdCount: 0, overThresholdSum: 0 },
     };
   }
 
-  const expenseIds = expenseRows.map(e => e.id);
-
-  // 2. Resolve type names, trip codes, supplier names.
-  const typeCodes = [...new Set(expenseRows.map(e => e.expenseType))];
-  const [typeRows, tripRows, supplierRows] = await Promise.all([
+  const expenseIds = expenseRows.map((row) => row.id);
+  const typeCodes = [...new Set(expenseRows.map((row) => row.expenseType))];
+  const [typeRows, tripRows, supplierRows, auditRows] = await Promise.all([
     db.select({ code: s.forwarderExpenseTypes.code, name: s.forwarderExpenseTypes.name })
       .from(s.forwarderExpenseTypes)
-      .where(inArrayFallback(s.forwarderExpenseTypes.code, typeCodes)),
+      .where(inArray(s.forwarderExpenseTypes.code, typeCodes)),
     db.select({ id: s.trips.id, tripCode: s.trips.tripCode })
       .from(s.trips)
-      .where(inArrayFallback(s.trips.id, expenseRows.map(e => e.tripId))),
-    (async () => {
-      const supplierIds = [...new Set(expenseRows.map(e => e.supplierId).filter((v): v is number => v != null))];
-      if (supplierIds.length === 0) return [];
-      return db.select({ id: s.suppliers.id, name: s.suppliers.name })
-        .from(s.suppliers)
-        .where(inArrayFallback(s.suppliers.id, supplierIds));
-    })(),
+      .where(inArray(s.trips.id, [...new Set(expenseRows.map((row) => row.tripId))])),
+    db.select({ id: s.suppliers.id, name: s.suppliers.name })
+      .from(s.suppliers)
+      .where(inArray(s.suppliers.id, [...new Set(expenseRows.map((row) => row.supplierId).filter((value): value is number => value != null))])),
+    db.select({
+      entityId: s.auditLogs.entityId,
+      userId: s.auditLogs.userId,
+      actorName: s.auditLogs.actorName,
+      timestamp: s.auditLogs.timestamp,
+    })
+      .from(s.auditLogs)
+      .where(and(
+        eq(s.auditLogs.entityType, 'trip-expenses'),
+        inArray(s.auditLogs.entityId, expenseIds),
+        sql`${s.auditLogs.message} LIKE '%đã phê duyệt%'`,
+      ))
+      .orderBy(desc(s.auditLogs.timestamp)),
   ]);
 
-  // 3. Resolve approver attribution from audit_logs.
-  //    entityType = 'trip-expenses', event_type = 'TRIP_EXPENSE_APPROVED'.
-  //    Take the LATEST entry per entityId (re-approvals overwrite).
-  const auditRows = await db.select({
-    entityId: s.auditLogs.entityId,
-    userId: s.auditLogs.userId,
-    actorName: s.auditLogs.actorName,
-    timestamp: s.auditLogs.timestamp,
-  })
-    .from(s.auditLogs)
-    .where(and(
-      eq(s.auditLogs.entityType, 'trip-expenses'),
-      inArrayFallback(s.auditLogs.entityId, expenseIds),
-      // Filter by message pattern since audit_logs has no event_type column;
-      // the message for TRIP_EXPENSE_APPROVED starts with actor + "đã phê duyệt".
-      sql`${s.auditLogs.message} LIKE '%đã phê duyệt%'`,
-    ))
-    .orderBy(desc(s.auditLogs.timestamp));
-
-  // Build maps.
-  const typeMap = new Map(typeRows.map(r => [r.code, r.name]));
-  const tripMap = new Map(tripRows.map(r => [r.id, r.tripCode]));
-  const supplierMap = new Map(supplierRows.map(r => [r.id, r.name]));
-  // Latest audit entry per entityId wins.
+  const typeMap = new Map(typeRows.map((row) => [row.code, row.name]));
+  const tripMap = new Map(tripRows.map((row) => [row.id, row.tripCode]));
+  const supplierMap = new Map(supplierRows.map((row) => [row.id, row.name]));
   const auditMap = new Map<number, { userId: number | null; actorName: string | null; timestamp: Date }>();
-  for (const a of auditRows) {
-    if (a.entityId != null && !auditMap.has(a.entityId)) {
-      auditMap.set(a.entityId, { userId: a.userId, actorName: a.actorName, timestamp: a.timestamp });
+  for (const row of auditRows) {
+    if (row.entityId != null && !auditMap.has(row.entityId)) {
+      auditMap.set(row.entityId, { userId: row.userId, actorName: row.actorName, timestamp: row.timestamp });
     }
   }
 
-  // 4. Assemble items.
-  const items: NoInvoiceDisbursementItem[] = [];
-  for (const e of expenseRows) {
-    const audit = auditMap.get(e.id);
-    const approverId = audit?.userId ?? null;
-    // Apply optional approverId filter.
-    if (opts.approverId != null && approverId !== opts.approverId) continue;
-
-    const buyAmount = Number(e.buyAmount);
-    const overThreshold = buyAmount > DIRECTOR_THRESHOLD;
-    items.push({
-      expenseId: e.id,
-      tripId: e.tripId,
-      tripCode: tripMap.get(e.tripId) ?? null,
-      expenseTypeCode: e.expenseType,
-      expenseTypeName: typeMap.get(e.expenseType) ?? e.expenseType,
-      buyAmount,
-      note: e.note,
-      supplierId: e.supplierId,
-      supplierName: e.supplierId ? (supplierMap.get(e.supplierId) ?? null) : null,
-      approverId,
+  const items = expenseRows.flatMap<NoInvoiceDisbursementItem>((row) => {
+    const audit = auditMap.get(row.id);
+    if (opts.approverId != null && audit?.userId !== opts.approverId) return [];
+    const snapshot = row.policySnapshot as NoInvoicePolicySnapshot | null;
+    const financeLeadLimit = Number(snapshot?.financeLeadItemApprovalLimit ?? DIRECTOR_THRESHOLD);
+    const overThreshold = Number(row.buyAmount) > financeLeadLimit;
+    return [{
+      expenseId: row.id,
+      tripId: row.tripId,
+      tripCode: tripMap.get(row.tripId) ?? null,
+      expenseTypeCode: row.expenseType,
+      expenseTypeName: typeMap.get(row.expenseType) ?? row.expenseType,
+      buyAmount: Number(row.buyAmount),
+      note: row.note,
+      supplierId: row.supplierId,
+      supplierName: row.supplierId != null ? (supplierMap.get(row.supplierId) ?? null) : null,
+      approverId: audit?.userId ?? null,
       approverName: audit?.actorName ?? null,
-      approvedAt: audit ? audit.timestamp.toISOString() : null,
+      approvedAt: audit?.timestamp.toISOString() ?? null,
       overThreshold,
-      createdAt: e.createdAt.toISOString(),
-    });
-  }
+      createdAt: row.createdAt.toISOString(),
+    }];
+  });
 
-  items.sort((a, b) => b.buyAmount - a.buyAmount);
+  items.sort((left, right) => right.buyAmount - left.buyAmount);
 
-  const totals = {
-    count: items.length,
-    sumBuyAmount: items.reduce((sum, i) => sum + i.buyAmount, 0),
-    overThresholdCount: items.filter(i => i.overThreshold).length,
-    overThresholdSum: items.filter(i => i.overThreshold).reduce((sum, i) => sum + i.buyAmount, 0),
+  return {
+    from: opts.from,
+    to: opts.to,
+    items,
+    totals: {
+      count: items.length,
+      sumBuyAmount: items.reduce((sum, item) => sum + item.buyAmount, 0),
+      overThresholdCount: items.filter((item) => item.overThreshold).length,
+      overThresholdSum: items.filter((item) => item.overThreshold).reduce((sum, item) => sum + item.buyAmount, 0),
+    },
   };
-
-  return { from: opts.from, to: opts.to, items, totals };
-}
-
-/** Helper: inArray with a safe fallback for empty arrays (drizzle's inArray
- *  throws on empty arrays; we want a no-op filter instead). */
-function inArrayFallback<T>(column: T, values: unknown[]) {
-  if (values.length === 0) return sql`FALSE`;
-  // Use sql.raw to build a safe IN list — values are already validated
-  // numbers from our own queries, not user input.
-  return sql`${column} IN (${sql.join(values.map(v => sql`${v}`), sql`, `)})`;
 }

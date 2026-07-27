@@ -49,7 +49,6 @@ import {
   attachShipmentDocument,
   upsertShipmentDeclaration,
   dispatchShipmentToTrip,
-  listShipmentContainers,
   replaceShipmentDocument,
   reviewShipmentChangeRequest,
 } from '../services/shipment.service';
@@ -91,6 +90,7 @@ const shipmentDeclarationSchema = z.object({
 });
 
 const replaceShipmentDocumentSchema = z.object({
+  expectedVersion: z.number().int().nonnegative('expectedVersion là bắt buộc để kiểm soát đồng thời'),
   storageKey: z.string().trim().min(1, 'storageKey là bắt buộc').max(255),
   expiresAt: z.string().trim().min(1).optional().nullable(),
 });
@@ -328,7 +328,8 @@ router.post(
     const parsed = replaceShipmentDocumentSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     const shipment = await getShipment(shipmentId);
-    const replaced = await replaceShipmentDocument(documentId, {
+    const replaced = await replaceShipmentDocument(shipmentId, documentId, {
+      expectedVersion: parsed.data.expectedVersion,
       storageKey: parsed.data.storageKey,
       expiresAt: parsed.data.expiresAt ?? null,
       uploadedBy: getUser(req).userId,

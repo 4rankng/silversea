@@ -5752,6 +5752,24 @@
           "primaryKey": false,
           "notNull": false
         },
+        "original_due_date_snapshot": {
+          "name": "original_due_date_snapshot",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "processing_due_date_snapshot": {
+          "name": "processing_due_date_snapshot",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "issue_timestamp_snapshot": {
+          "name": "issue_timestamp_snapshot",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
         "customer_id": {
           "name": "customer_id",
           "type": "integer",

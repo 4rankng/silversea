@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { TripStatus, NotificationType, Role, createTripSchema, updateTripFiguresSchema, bulkUpdateTripFiguresSchema, createAdjustmentSchema, tripReopenRequestSchema, tripContainerBatchSchema, tripExpenseSchema, tripExpensePatchSchema, upsertTripInstructionsSchema } from '@tingting/shared';
+import { TripStatus, NotificationType, Role, createTripSchema, createTripPairSchema, updateTripFiguresSchema, bulkUpdateTripFiguresSchema, createAdjustmentSchema, tripReopenRequestSchema, tripContainerBatchSchema, tripExpenseSchema, tripExpensePatchSchema, upsertTripInstructionsSchema } from '@tingting/shared';
 import * as tripService from '../services/trip.service';
 import * as gpsService from '../services/gps.service';
 import { captureTripGpsTrack, deriveRoutesForStoredTrip } from '../services/gps/capture.service';
@@ -10,22 +10,27 @@ import { requireRoles } from '../middleware/casbin';
 import { getUser } from '../middleware/auth';
 import { config } from '../config';
 import { db } from '../db';
-import * as dbSchema from '../db/schema';
-import { eq } from 'drizzle-orm';
 import { cacheInvalidate, cacheInvalidatePattern } from '../lib/redis';
 import { registerAuditEvent } from '../services/audit-registry';
 import { AuditEvent } from '../services/audit-types';
 import type { Request, Response } from 'express';
 import { asyncHandler } from '../middleware/asyncHandler';
+import { ApiError } from '../errors';
 import { parsePagination } from './utils/pagination';
 import { throwValidation } from '../lib/validation';
 import { emitNotification } from '../services/notification.service';
 import { getFuelVoucherHtml, getFuelVoucherXlsx } from '../services/fuel-voucher.service';
-import { copyTripCommand, createTripCommand, dispatchTripCommand } from '../services/trip-command.service';
+import {
+  copyTripWriteCommand,
+  createTripWriteCommand,
+  dispatchTripWriteCommand,
+  transitionTripWriteCommand,
+} from '../services/trip-command.service';
 import {
   listTripGovernanceActions,
   requestTripReopen,
 } from '../services/adjustment-governance.service';
+import { createTripPair } from '../services/trip-pairs.service';
 
 // Audit event registrations — declared once at module load, matched by middleware
 registerAuditEvent('POST', '/api/trips', AuditEvent.TRIP_CREATED);
@@ -43,6 +48,21 @@ registerAuditEvent('POST', '/api/trips/', '/unlock', AuditEvent.ENTITY_CREATED);
 registerAuditEvent('PATCH', '/api/trips/', '/departure-date', AuditEvent.TRIP_DEPARTURE_DATE_CHANGED);
 
 const router = Router();
+
+function getIdempotencyKey(req: Request): string | undefined {
+  const value = req.header('Idempotency-Key')?.trim();
+  return value || undefined;
+}
+
+function getExpectedVersion(body: unknown): number | undefined {
+  if (!body || typeof body !== 'object') return undefined;
+  const value = (body as Record<string, unknown>).expectedVersion;
+  if (value === undefined) return undefined;
+  if (!Number.isInteger(value) || (value as number) <= 0) {
+    throw new ApiError(400, 'Phiên bản chuyến đi không hợp lệ');
+  }
+  return value as number;
+}
 
 async function invalidateReportCaches(invalidatePnl?: boolean) {
   await Promise.all([
@@ -86,8 +106,12 @@ router.post('/', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req
   if (config.shipmentFirstCreate && data.shipmentId == null) {
     return res.status(400).json({ error: 'shipmentId là bắt buộc khi SHIPMENT_FIRST_CREATE đang bật' });
   }
-  const trip = await createTripCommand(data, getUser(req));
-  res.status(201).json(trip);
+  const idempotencyKey = getIdempotencyKey(req);
+  const outcome = await createTripWriteCommand(data, getUser(req), idempotencyKey);
+  res.locals.auditEntityId = outcome.trip.id;
+  res.status(201).json(idempotencyKey
+    ? { ...outcome.trip, replayed: outcome.replayed }
+    : outcome.trip);
 }));
 
 // Copy every editable planning/financial field atomically. Execution evidence,
@@ -97,9 +121,12 @@ router.post('/:id/copy', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(as
   if (!Number.isInteger(tripId) || tripId <= 0) {
     return res.status(400).json({ error: 'ID chuyến đi không hợp lệ' });
   }
-  const trip = await copyTripCommand(tripId, getUser(req));
-  res.locals.auditEntityId = trip.id;
-  res.status(201).json(trip);
+  const idempotencyKey = getIdempotencyKey(req);
+  const outcome = await copyTripWriteCommand(tripId, getUser(req), idempotencyKey);
+  res.locals.auditEntityId = outcome.trip.id;
+  res.status(201).json(idempotencyKey
+    ? { ...outcome.trip, replayed: outcome.replayed }
+    : outcome.trip);
 }));
 
 // Trip summary (status counts + aggregate metrics for a date range)
@@ -115,6 +142,13 @@ router.get('/summary', asyncHandler(async (req: Request, res: Response) => {
 // Casbin policy from the /api/trips mount in index.ts.
 router.get('/live-fleet', asyncHandler(async (_req: Request, res: Response) => {
   res.json(await gpsService.getLiveFleet());
+}));
+
+router.post('/pairs', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
+  const payload = createTripPairSchema.parse(req.body);
+  const pair = await createTripPair(payload, getUser(req).userId);
+  await invalidateReportCaches();
+  res.status(201).json(pair);
 }));
 
 // Get trip detail with legs
@@ -190,7 +224,15 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
 router.delete('/:id', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) return res.status(400).json({ error: 'ID chuyến đi không hợp lệ' });
-  await tripService.deleteTrip(id);
+  const rawExpectedVersion = req.query.expectedVersion
+    ?? (req.body as Record<string, unknown> | undefined)?.expectedVersion;
+  const expectedVersion = rawExpectedVersion === undefined
+    ? undefined
+    : Number(rawExpectedVersion);
+  if (expectedVersion !== undefined && (!Number.isInteger(expectedVersion) || expectedVersion <= 0)) {
+    return res.status(400).json({ error: 'Phiên bản chuyến đi không hợp lệ' });
+  }
+  await tripService.deleteTrip(id, expectedVersion);
   await invalidateReportCaches();
   res.json({ ok: true });
 }));
@@ -225,8 +267,15 @@ router.put('/:id/actuals', asyncHandler(async (req: Request, res: Response) => {
 
 // Dispatch trip
 router.post('/:id/dispatch', asyncHandler(async (req: Request, res: Response) => {
-  const trip = await dispatchTripCommand(parseInt(req.params.id as string), getUser(req));
-  res.json(trip);
+  const idempotencyKey = getIdempotencyKey(req);
+  const outcome = await dispatchTripWriteCommand(
+    parseInt(req.params.id as string),
+    getUser(req),
+    { idempotencyKey, expectedVersion: getExpectedVersion(req.body) },
+  );
+  res.json(idempotencyKey
+    ? { ...outcome.trip, replayed: outcome.replayed }
+    : outcome.trip);
 }));
 
 // Complete trip (IN_TRANSIT → COMPLETED). Permissive — photos optional (B2):
@@ -235,35 +284,42 @@ router.post('/:id/dispatch', asyncHandler(async (req: Request, res: Response) =>
 // that previously fired inside updateTripFigures whenever any photo existed.
 router.post('/:id/complete', asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
-  const trip = await tripService.transitionTripStatus(
-    id,
-    TripStatus.COMPLETED,
-    getUser(req).userId,
-    getUser(req).role,
-  );
-  await invalidateReportCaches();
-  // Sync attendance: completion closes the trip's wage window.
-  await tripService.syncAttendanceAfterStatusChange(
-    trip.id, TripStatus.COMPLETED, trip.driverId ?? null,
-    trip.departureDate ?? null, null, getUser(req).userId,
-  );
-  emitNotification({
-    type: NotificationType.TRIP_COMPLETED,
-    title: 'Chuyến hoàn thành',
-    message: `Chuyến ${trip.tripCode} đã hoàn thành`,
-    relatedEntityType: 'trips',
-    relatedEntityId: trip.id,
-    targetDriverId: trip.driverId ?? undefined,
+  const idempotencyKey = getIdempotencyKey(req);
+  const outcome = await transitionTripWriteCommand({
+    tripId: id,
+    targetStatus: TripStatus.COMPLETED,
+    actor: getUser(req),
+    idempotencyKey,
+    expectedVersion: getExpectedVersion(req.body),
   });
+  const trip = outcome.trip;
+  if (!outcome.replayed) {
+    await invalidateReportCaches();
+    // Sync attendance: completion closes the trip's wage window.
+    await tripService.syncAttendanceAfterStatusChange(
+      trip.id, TripStatus.COMPLETED, trip.driverId ?? null,
+      trip.departureDate ?? null, null, getUser(req).userId,
+    );
+    emitNotification({
+      type: NotificationType.TRIP_COMPLETED,
+      title: 'Chuyến hoàn thành',
+      message: `Chuyến ${trip.tripCode} đã hoàn thành`,
+      relatedEntityType: 'trips',
+      relatedEntityId: trip.id,
+      targetDriverId: trip.driverId ?? undefined,
+    });
+  }
   // Capture real GPS routes for this trip's legs (fire-and-forget). Phase 1
   // persists the trip-scoped trail (fast, no geocoding); Phase 2 derives the
   // per-leg routes untimed off the real persist promise (Nominatim ~1 req/s).
   // Both run after the response — never block completion. GPS may still be
   // ingesting at completion, so failures are logged — never fatal.
-  void captureTripGpsTrack(trip.id)
-    .then((r) => (r.status === 'ok' ? deriveRoutesForStoredTrip(trip.id) : null))
-    .catch((err) => console.warn('[gps] capture/derive hook error', { tripId: trip.id, err }));
-  res.json(trip);
+  if (!outcome.replayed) {
+    void captureTripGpsTrack(trip.id)
+      .then((r) => (r.status === 'ok' ? deriveRoutesForStoredTrip(trip.id) : null))
+      .catch((err) => console.warn('[gps] capture/derive hook error', { tripId: trip.id, err }));
+  }
+  res.json(idempotencyKey ? { ...trip, replayed: outcome.replayed } : trip);
 }));
 
 // Lock trip
@@ -271,55 +327,71 @@ router.post('/:id/lock', asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
   const confirmZeroRevenue = req.body.confirmZeroRevenue === true;
   const confirmNoPhoto = req.body.confirmNoPhoto === true;
-  const trip = await tripService.transitionTripStatus(
-    id,
-    TripStatus.LOCKED,
-    getUser(req).userId,
-    getUser(req).role,
+  const idempotencyKey = getIdempotencyKey(req);
+  const outcome = await transitionTripWriteCommand({
+    tripId: id,
+    targetStatus: TripStatus.LOCKED,
+    actor: getUser(req),
+    idempotencyKey,
+    expectedVersion: getExpectedVersion(req.body),
     confirmZeroRevenue,
     confirmNoPhoto,
-  );
-  await invalidateReportCaches(true);
-  emitNotification({
-    type: NotificationType.TRIP_LOCKED,
-    title: 'Chuyến đã khóa',
-    message: `Chuyến ${trip.tripCode} đã được khóa`,
-    relatedEntityType: 'trips',
-    relatedEntityId: id,
   });
-  res.json(trip);
+  if (!outcome.replayed) {
+    await invalidateReportCaches(true);
+    emitNotification({
+      type: NotificationType.TRIP_LOCKED,
+      title: 'Chuyến đã khóa',
+      message: `Chuyến ${outcome.trip.tripCode} đã được khóa`,
+      relatedEntityType: 'trips',
+      relatedEntityId: id,
+    });
+  }
+  res.json(idempotencyKey
+    ? { ...outcome.trip, replayed: outcome.replayed }
+    : outcome.trip);
 }));
 
 // Cancel trip
 router.post('/:id/cancel', asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
-  const trip = await tripService.transitionTripStatus(
-    id,
-    TripStatus.CANCELED,
-    getUser(req).userId,
-    getUser(req).role,
-  );
-  await invalidateReportCaches();
-  // Remove TRIP_DAY records for the canceled trip
-  await tripService.syncAttendanceAfterStatusChange(
-    trip.id, TripStatus.CANCELED, trip.driverId ?? null,
-    trip.departureDate ?? null, null, getUser(req).userId,
-  );
-  emitNotification({
-    type: NotificationType.TRIP_CANCELED,
-    title: 'Chuyến đã hủy',
-    message: `Chuyến ${trip.tripCode} đã bị hủy`,
-    relatedEntityType: 'trips',
-    relatedEntityId: id,
-    targetDriverId: trip.driverId ?? undefined,
+  const idempotencyKey = getIdempotencyKey(req);
+  const outcome = await transitionTripWriteCommand({
+    tripId: id,
+    targetStatus: TripStatus.CANCELED,
+    actor: getUser(req),
+    idempotencyKey,
+    expectedVersion: getExpectedVersion(req.body),
   });
-  res.json(trip);
+  if (!outcome.replayed) {
+    await invalidateReportCaches();
+    // Remove TRIP_DAY records for the canceled trip
+    await tripService.syncAttendanceAfterStatusChange(
+      outcome.trip.id, TripStatus.CANCELED, outcome.trip.driverId ?? null,
+      outcome.trip.departureDate ?? null, null, getUser(req).userId,
+    );
+    emitNotification({
+      type: NotificationType.TRIP_CANCELED,
+      title: 'Chuyến đã hủy',
+      message: `Chuyến ${outcome.trip.tripCode} đã bị hủy`,
+      relatedEntityType: 'trips',
+      relatedEntityId: id,
+      targetDriverId: outcome.trip.driverId ?? undefined,
+    });
+  }
+  res.json(idempotencyKey
+    ? { ...outcome.trip, replayed: outcome.replayed }
+    : outcome.trip);
 }));
 
 // Reassign truck/driver (only for CREATED trips)
 router.patch('/:id/reassign', asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
   const data = req.body;
+  if (data.expectedVersion !== undefined
+      && (!Number.isInteger(data.expectedVersion) || data.expectedVersion <= 0)) {
+    return res.status(400).json({ error: 'Phiên bản chuyến đi không hợp lệ' });
+  }
   if (data.carrierType === 'OWN' && (!data.truckId || !data.driverId)) {
     return res.status(400).json({ error: 'truckId và driverId là bắt buộc cho xe nhà' });
   }
@@ -360,11 +432,16 @@ router.patch('/:id/departure-date', asyncHandler(async (req: Request, res: Respo
   if (isNaN(parsed)) {
     return res.status(400).json({ error: 'Giá trị ngày không hợp lệ' });
   }
+  if (req.body.expectedVersion !== undefined
+      && (!Number.isInteger(req.body.expectedVersion) || req.body.expectedVersion <= 0)) {
+    return res.status(400).json({ error: 'Phiên bản chuyến đi không hợp lệ' });
+  }
   const trip = await tripService.updateDepartureDate(
     id,
     departureDate,
     getUser(req).userId,
     getUser(req).role,
+    req.body.expectedVersion,
   );
   await invalidateReportCaches(true);
   res.json(trip);
@@ -431,7 +508,12 @@ router.put('/:id/containers', asyncHandler(async (req: Request, res: Response) =
   const tripId = parseInt(req.params.id as string, 10);
   const parsed = tripContainerBatchSchema.parse(req.body);
   const userId = req.user?.userId ?? null;
-  const items = await batchUpsertTripContainers(tripId, userId, parsed.containers);
+  const items = await batchUpsertTripContainers(
+    tripId,
+    userId,
+    parsed.containers,
+    parsed.expectedVersion,
+  );
   await invalidateReportCaches();
   res.json({ items });
 }));
@@ -455,11 +537,6 @@ router.put('/:id/instructions', asyncHandler(async (req: Request, res: Response)
   }
   const parsed = upsertTripInstructionsSchema.safeParse(req.body);
   if (!parsed.success) throwValidation(parsed.error);
-  // Existence guard — otherwise a missing/hard-deleted trip would surface as an
-  // opaque 500 (Postgres FK violation) from the upsert.
-  const [trip] = await db.select({ id: dbSchema.trips.id })
-    .from(dbSchema.trips).where(eq(dbSchema.trips.id, tripId)).limit(1);
-  if (!trip) return res.status(404).json({ error: 'Không tìm thấy chuyến đi' });
   const row = await tripService.upsertTripInstructions(tripId, parsed.data, getUser(req).userId);
   res.json(row);
 }));
@@ -492,12 +569,15 @@ router.post('/:id/expenses', asyncHandler(async (req: Request, res: Response) =>
       sellAmount: String(parsed.data.sellAmount ?? 0),
       settlementMethod: parsed.data.settlementMethod,
       supplierId: parsed.data.supplierId ?? null,
+      expenseDate: parsed.data.expenseDate ?? null,
+      payeeName: parsed.data.payeeName?.trim() || null,
       invoiceNumber: parsed.data.invoiceNumber ?? null,
       invoiceDate: parsed.data.invoiceDate ?? null,
       declarationNumber: parsed.data.declarationNumber ?? null,
       containerNumber: parsed.data.containerNumber ?? null,
       tripContainerId: parsed.data.tripContainerId ?? null,
       note: parsed.data.note ?? null,
+      noInvoiceEvidenceTypes: parsed.data.noInvoiceEvidenceTypes ?? [],
     }),
   );
   res.status(201).json(item);
@@ -516,12 +596,15 @@ router.put('/:id/expenses/:eid', asyncHandler(async (req: Request, res: Response
       settlementMethod: parsed.data.settlementMethod,
       // Only include nullable fields when explicitly provided (undefined = don't touch)
       ...(parsed.data.supplierId !== undefined ? { supplierId: parsed.data.supplierId ?? null } : {}),
+      ...(parsed.data.expenseDate !== undefined ? { expenseDate: parsed.data.expenseDate ?? null } : {}),
+      ...(parsed.data.payeeName !== undefined ? { payeeName: parsed.data.payeeName?.trim() || null } : {}),
       ...(parsed.data.invoiceNumber !== undefined ? { invoiceNumber: parsed.data.invoiceNumber ?? null } : {}),
       ...(parsed.data.invoiceDate !== undefined ? { invoiceDate: parsed.data.invoiceDate ?? null } : {}),
       ...(parsed.data.declarationNumber !== undefined ? { declarationNumber: parsed.data.declarationNumber ?? null } : {}),
       ...(parsed.data.containerNumber !== undefined ? { containerNumber: parsed.data.containerNumber ?? null } : {}),
       ...(parsed.data.tripContainerId !== undefined ? { tripContainerId: parsed.data.tripContainerId ?? null } : {}),
       ...(parsed.data.note !== undefined ? { note: parsed.data.note ?? null } : {}),
+      ...(parsed.data.noInvoiceEvidenceTypes !== undefined ? { noInvoiceEvidenceTypes: parsed.data.noInvoiceEvidenceTypes ?? [] } : {}),
     }),
   );
   if (!item) return res.status(404).json({ error: 'Không tìm thấy chi phí' });
@@ -558,7 +641,7 @@ router.post(
     const eid = parseInt(req.params.eid as string, 10);
     const result = await processExpenseApproval(tripId, eid, getUser(req).userId, getUser(req).role, 'APPROVED');
     if ('error' in result) return res.status(result.status).json({ error: result.error });
-    res.json({ ok: true });
+    res.json(result);
   }),
 );
 

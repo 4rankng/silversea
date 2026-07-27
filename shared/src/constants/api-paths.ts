@@ -21,6 +21,7 @@ export const TRIPS = {
   PRE_DEPARTURE: (id: number) => `/trips/${id}/pre-departure`,
   ACTUALS: (id: number) => `/trips/${id}/actuals`,
   DISPATCH: (id: number) => `/trips/${id}/dispatch`,
+  PAIRS: '/trips/pairs',
   LOCK: (id: number) => `/trips/${id}/lock`,
   UNLOCK: (id: number) => `/trips/${id}/unlock`,
   CANCEL: (id: number) => `/trips/${id}/cancel`,

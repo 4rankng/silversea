@@ -10,6 +10,8 @@ import { resolveTripDriverSalary, computeTripTotals, type ComputeTripTotalsOutpu
 import { ApiError } from '../errors';
 import { resolveFreightPrice } from './pricing.service';
 import { resolveFuelNorm } from './fuel.service';
+import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
+import { propagateTripFinancialSourceChange } from './source-change.service';
 
 // Postgres unique-violation detector — 23505 is the SQLSTATE for any unique
 // constraint violation. Drizzle wraps the underlying postgres-js error, so the
@@ -56,6 +58,7 @@ export function assertCustomerCommissionWithinRevenue(
 import { resolveTrailer } from './trip-shared';
 import type { Tx } from './trip-shared';
 import { LedgerService } from './ledger.service';
+import { assertCreditLimit, consumeShipmentCreditOverride } from './credit-limit.service';
 
 // ─── B3 / D4: committed-legacy fuel freeze ──────────────────────────────────
 
@@ -288,8 +291,10 @@ export async function createTrip(data: {
   // snapshotted into the new trip (mirrors `dispatchShipmentToTrip`). When
   // absent, the trip is created without a shipment link (legacy behaviour).
   shipmentId?: number | null;
-}) {
-  return await db.transaction(async (tx) => {
+  creditApprovalRequestId?: number | null;
+  createdByRole?: Role;
+}, transaction?: Tx) {
+  const execute = async (tx: Tx) => {
     const containerCount = data.containerCount ?? 1;
 
     // 0. Wave 0: if a shipmentId was provided, validate the shipment up front
@@ -336,6 +341,14 @@ export async function createTrip(data: {
     });
 
     const revenue = freightPrice.price;
+
+    const creditCheck = await assertCreditLimit({
+      customerId: data.customerId,
+      proposedAmount: revenue,
+      approvalRequestId: data.creditApprovalRequestId ?? null,
+      shipmentId: data.shipmentId ?? null,
+      transaction: tx,
+    });
 
     // 2. Fuel-norm resolution — replaced the inline fuel_config lookup with
     //    the Wave 1 resolveFuelNorm service. This resolves per-route/per-
@@ -517,18 +530,21 @@ export async function createTrip(data: {
       }
     }
 
+    await consumeShipmentCreditOverride(creditCheck.overrideRequest, trip.id, tx);
+
     // Audit row is produced by auditLogMiddleware on POST /api/trips as
     // "Quản lý <actor> tạo lệnh vận chuyển <tripCode>". A service-level write
     // here would duplicate that row, so we deliberately skip it.
 
     return trip;
-  });
+  };
+  return transaction ? execute(transaction) : db.transaction(execute);
 }
 
 // ─── copyTrip ────────────────────────────────────────────────────────────────
 
-export async function copyTrip(sourceTripId: number, createdBy: number) {
-  return db.transaction(async (tx) => {
+export async function copyTrip(sourceTripId: number, createdBy: number, transaction?: Tx) {
+  const execute = async (tx: Tx) => {
     const [source] = await tx.select()
       .from(s.trips)
       .where(and(eq(s.trips.id, sourceTripId), isNull(s.trips.deletedAt)))
@@ -582,7 +598,10 @@ export async function copyTrip(sourceTripId: number, createdBy: number) {
     }
 
     return trip;
-  }, { isolationLevel: 'repeatable read' });
+  };
+  return transaction
+    ? execute(transaction)
+    : db.transaction(execute, { isolationLevel: 'repeatable read' });
 }
 
 // ─── updateTripFigures ──────────────────────────────────────────────────────
@@ -638,6 +657,7 @@ export async function updateTripFigures(
   }));
 
   return await db.transaction(async (tx) => {
+    await lockTripFinancialAuthority(tx, [tripId]);
     // 1. Fetch trip and check lock status
     // Use the same controlling-row-first lock order as lifecycle transitions.
     // This prevents a completed-trip edit from holding a customer ledger lock
@@ -1082,6 +1102,8 @@ export async function updateTripFigures(
       );
     }
 
+    await propagateTripFinancialSourceChange(tx, { tripId: updated.id });
+
     // Audit row is produced by auditLogMiddleware on PUT /api/trips/:id/
     // actuals (and /pre-departure) as "Quản lý <actor> cập nhật số liệu
     // thực tế chuyến <tripCode>". Skip the service-level write to avoid
@@ -1098,14 +1120,18 @@ export async function updateDepartureDate(
   newDepartureDate: string,
   userId: number,
   userRole: string,
+  expectedVersion?: number,
 ) {
   if (userRole !== Role.ADMIN && userRole !== Role.MANAGER) {
     throw new ApiError(403, 'Chỉ Quản lý hoặc Quản trị viên mới có quyền thay đổi ngày khởi hành');
   }
 
   return await db.transaction(async (tx) => {
-    const [trip] = await tx.select().from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+    const [trip] = await tx.select().from(s.trips).where(eq(s.trips.id, tripId)).limit(1).for('update');
     if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
+    if (expectedVersion !== undefined && trip.version !== expectedVersion) {
+      throw new ApiError(409, 'Dữ liệu đã bị thay đổi bởi người khác. Vui lòng tải lại trang.');
+    }
     if (trip.status === TripStatus.CANCELED) {
       throw new ApiError(400, 'Không thể thay đổi ngày khởi hành của chuyến đã hủy');
     }
@@ -1126,10 +1152,13 @@ export async function updateDepartureDate(
 
 // ─── reassignTrip ───────────────────────────────────────────────────────────
 
-export async function reassignTrip(tripId: number, data: { carrierType?: 'OWN' | 'EXTERNAL'; truckId?: number | null; driverId?: number | null; externalCarrierId?: number | null; externalPlateNumber?: string | null; externalDriverName?: string | null; externalDriverPhone?: string | null; }) {
+export async function reassignTrip(tripId: number, data: { carrierType?: 'OWN' | 'EXTERNAL'; truckId?: number | null; driverId?: number | null; externalCarrierId?: number | null; externalPlateNumber?: string | null; externalDriverName?: string | null; externalDriverPhone?: string | null; expectedVersion?: number; }) {
   return await db.transaction(async (tx) => {
-    const [trip] = await tx.select().from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+    const [trip] = await tx.select().from(s.trips).where(eq(s.trips.id, tripId)).limit(1).for('update');
     if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
+    if (data.expectedVersion !== undefined && trip.version !== data.expectedVersion) {
+      throw new ApiError(409, 'Dữ liệu đã bị thay đổi bởi người khác. Vui lòng tải lại trang.');
+    }
     if (trip.status !== TripStatus.CREATED) throw new ApiError(409, 'Chỉ có thể đổi lái xe/xe cho chuyến chưa xuất phát');
 
     const carrierType = data.carrierType || 'OWN';
@@ -1175,13 +1204,16 @@ export async function reassignTrip(tripId: number, data: { carrierType?: 'OWN' |
  * Soft-delete a trip. Only trips in CREATED status can be deleted; any other
  * status (IN_TRANSIT, COMPLETED, LOCKED, CANCELED) returns 409. Per flow 01 §2.6.
  */
-export async function deleteTrip(tripId: number): Promise<void> {
+export async function deleteTrip(tripId: number, expectedVersion?: number): Promise<void> {
   return await db.transaction(async (tx) => {
-    const [trip] = await tx.select({ id: s.trips.id, status: s.trips.status, deletedAt: s.trips.deletedAt })
+    const [trip] = await tx.select({ id: s.trips.id, status: s.trips.status, version: s.trips.version, deletedAt: s.trips.deletedAt })
       .from(s.trips)
-      .where(eq(s.trips.id, tripId)).limit(1);
+      .where(eq(s.trips.id, tripId)).limit(1).for('update');
     if (!trip) throw new ApiError(404, "Không tìm thấy chuyến đi");
     if (trip.deletedAt) throw new ApiError(404, "Không tìm thấy chuyến đi");
+    if (expectedVersion !== undefined && trip.version !== expectedVersion) {
+      throw new ApiError(409, 'Dữ liệu đã bị thay đổi bởi người khác. Vui lòng tải lại trang.');
+    }
     if (trip.status !== TripStatus.CREATED) {
       throw new ApiError(409, `Chỉ xóa được chuyến ở trạng thái CREATED (hiện tại: ${trip.status})`);
     }

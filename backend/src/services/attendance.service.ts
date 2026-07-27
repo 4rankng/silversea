@@ -4,6 +4,14 @@ import { eq, and, gte, lte, sql, isNull, ne } from 'drizzle-orm';
 import { resolveSalaryPeriodDateRange } from './salary-period.service';
 import { ApiError } from '../errors';
 
+function parseIsoDate(date: string): Date {
+  const parsed = new Date(`${date}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) {
+    throw new ApiError(400, `Ngày không hợp lệ: ${date}`);
+  }
+  return parsed;
+}
+
 /** How many Sundays are in a given month/year */
 function countSundays(year: number, month: number): number {
   const daysInMonth = new Date(year, month, 0).getDate();
@@ -108,17 +116,30 @@ export async function batchUpsertWorkDays(
           .from(s.driverWorkDays)
           .where(and(eq(s.driverWorkDays.driverId, driverId), eq(s.driverWorkDays.date, item.date)))
           .limit(1);
+        if (item.status === 'PERSONAL_LEAVE' && !(item.note ?? '').trim()) {
+          results.push({ date: item.date, action: 'rejected', reason: 'PERSONAL_LEAVE requires note' });
+          continue;
+        }
+        if (item.status === 'TRIP_DAY') {
+          results.push({
+            date: item.date,
+            action: 'rejected',
+            reason: existing?.tripId
+              ? 'TRIP_DAY derived from trip completion cannot be edited manually'
+              : 'Manual TRIP_DAY is not allowed',
+          });
+          continue;
+        }
         // Reject status changes on trip-linked records (TRIP_DAY from sync)
-        if (existing?.tripId && item.status !== 'TRIP_DAY') {
+        if (existing?.tripId) {
           results.push({ date: item.date, action: 'rejected', reason: 'TRIP_DAY locked (trip-linked)' });
           continue;
         }
-        const preservedTripId = item.status === 'TRIP_DAY' ? (existing?.tripId ?? null) : null;
         const [result] = await tx.insert(s.driverWorkDays)
-          .values({ driverId, date: item.date, status: item.status, note: item.note ?? null, createdBy, tripId: preservedTripId })
+          .values({ driverId, date: item.date, status: item.status, note: item.note ?? null, createdBy, tripId: null })
           .onConflictDoUpdate({
             target: [s.driverWorkDays.driverId, s.driverWorkDays.date],
-            set: { status: item.status, note: item.note ?? null, tripId: preservedTripId, updatedAt: new Date() },
+            set: { status: item.status, note: item.note ?? null, tripId: null, updatedAt: new Date() },
           })
           .returning();
         results.push({ date: item.date, action: 'upserted', result });
@@ -141,16 +162,15 @@ export async function syncTripWorkDays(
 ) {
   const endDate = arrivalDate || departureDate;
 
-  // Parse dates
-  const start = new Date(departureDate);
-  const end = new Date(endDate);
+  const start = parseIsoDate(departureDate);
+  const end = parseIsoDate(endDate);
 
   // Collect all dates in range
   const dates: string[] = [];
   const cur = new Date(start);
-  while (cur <= end) {
+  while (cur.getTime() <= end.getTime()) {
     dates.push(cur.toISOString().split('T')[0]);
-    cur.setDate(cur.getDate() + 1);
+    cur.setUTCDate(cur.getUTCDate() + 1);
   }
 
   // Upsert each date as TRIP_DAY (overrides WEEKLY_OFF if trip is running)

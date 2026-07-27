@@ -165,6 +165,7 @@ export enum ApprovalStatus {
   PENDING = 'PENDING',
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
+  RETURN_FOR_EVIDENCE = 'RETURN_FOR_EVIDENCE',
 }
 
 export enum DebitNoteMode {
@@ -279,6 +280,36 @@ export const FORWARDER_EXPENSE_TYPE_DEFAULTS: Record<string, { name: string; def
   OTHER:          { name: 'Phí chi hộ khác',             defaultMarkup: false, billingLabel: 'Chi phí khác' },
 };
 
+export const NO_INVOICE_EVIDENCE_TYPES = [
+  'RECEIPT',
+  'BANK_TRANSFER',
+  'ONSITE_PHOTO',
+  'SIGNED_CONFIRMATION',
+] as const;
+
+export type NoInvoiceEvidenceType = typeof NO_INVOICE_EVIDENCE_TYPES[number];
+
+export const NO_INVOICE_EVIDENCE_TYPE_LABELS: Record<NoInvoiceEvidenceType, string> = {
+  RECEIPT: 'Phiếu thu / biên nhận / vé lẻ',
+  BANK_TRANSFER: 'Chuyển khoản / ví điện tử',
+  ONSITE_PHOTO: 'Ảnh hiện trường có thời gian / địa điểm',
+  SIGNED_CONFIRMATION: 'Xác nhận ký nhận của người nhận / quản lý',
+};
+
+export const DEFAULT_NO_INVOICE_EVIDENCE_TYPES: readonly NoInvoiceEvidenceType[] = [
+  'RECEIPT',
+  'BANK_TRANSFER',
+  'ONSITE_PHOTO',
+  'SIGNED_CONFIRMATION',
+] as const;
+
+export const NO_INVOICE_POLICY_DEFAULTS = {
+  perItemLimit: 1_000_000,
+  perDayLimit: 5_000_000,
+  financeLeadItemApprovalLimit: 5_000_000,
+  directorDayApprovalLimit: 10_000_000,
+};
+
 export enum AdvanceRequestStatus {
   PENDING = 'PENDING',
   APPROVED = 'APPROVED',
@@ -311,6 +342,7 @@ export const APPROVAL_STATUS_LABELS: Record<ApprovalStatus, string> = {
   [ApprovalStatus.PENDING]: 'Chờ duyệt',
   [ApprovalStatus.APPROVED]: 'Đã duyệt',
   [ApprovalStatus.REJECTED]: 'Từ chối',
+  [ApprovalStatus.RETURN_FOR_EVIDENCE]: 'Bổ sung chứng từ',
 };
 
 /** B2 — Vietnamese labels for `truck_cap_table.role`. */

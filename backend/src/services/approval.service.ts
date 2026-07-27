@@ -6,7 +6,8 @@ import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import { assertFuelReconClear } from './fuel-recon-guard.service';
 import { assertInvoiceRequiredForExpense } from './invoice-required.service';
-import { assertNoInvoiceDisbursementAllowed } from './no-invoice-disbursement.service';
+import { reviewNoInvoiceDisbursementApproval, toNoInvoicePolicySnapshotValue } from './no-invoice-disbursement.service';
+import { propagateExpenseApproval } from './source-change.service';
 
 export type ApprovableTable = 'trip_expenses' | 'debt_offsets';
 export type ApprovalTransition = 'APPROVED' | 'REJECTED';
@@ -35,7 +36,7 @@ export async function transitionApproval(
     actorId: number;
     actorRole: string;
   },
-): Promise<void> {
+): Promise<{ outcome: 'APPROVED' | 'REJECTED' | 'RETURN_FOR_EVIDENCE' }> {
   if (!(FINANCIAL_ROLES as readonly string[]).includes(opts.actorRole)) {
     throw new ApiError(403, 'Bạn không có quyền phê duyệt hoặc từ chối');
   }
@@ -112,7 +113,25 @@ export async function transitionApproval(
     // M4.7: no-invoice disbursement enforcement. For the requiresInvoice=
     // false branch, enforces substituteEvidenceAllowed + evidence note +
     // tiered approval by amount. Rejections bypass.
-    await assertNoInvoiceDisbursementAllowed(opts.id, opts.actorRole, tx);
+    const noInvoiceOutcome = await reviewNoInvoiceDisbursementApproval(opts.id, opts.actorRole, tx);
+    if (noInvoiceOutcome.outcome === 'RETURN_FOR_EVIDENCE') {
+      await tx.update(s.tripExpenses).set({
+        approvalStatus: 'RETURN_FOR_EVIDENCE',
+        noInvoicePolicySnapshot: toNoInvoicePolicySnapshotValue(noInvoiceOutcome.policySnapshot),
+        returnForEvidenceReason: noInvoiceOutcome.returnReason,
+        returnedForEvidenceAt: new Date(),
+        returnedForEvidenceBy: opts.actorId,
+        updatedAt: new Date(),
+      }).where(eq(s.tripExpenses.id, opts.id));
+      return { outcome: 'RETURN_FOR_EVIDENCE' };
+    }
+    await tx.update(s.tripExpenses).set({
+      noInvoicePolicySnapshot: toNoInvoicePolicySnapshotValue(noInvoiceOutcome.policySnapshot),
+      returnForEvidenceReason: null,
+      returnedForEvidenceAt: null,
+      returnedForEvidenceBy: null,
+      updatedAt: new Date(),
+    }).where(eq(s.tripExpenses.id, opts.id));
   }
 
   // trip_expenses has updatedAt; debt_offsets does not
@@ -120,6 +139,10 @@ export async function transitionApproval(
   if (opts.table === 'trip_expenses') patch.updatedAt = new Date();
 
   await tx.update(table).set(patch).where(eq(table.id, opts.id));
+  if (opts.table === 'trip_expenses') {
+    await propagateExpenseApproval(tx, { expenseId: opts.id });
+  }
+  return { outcome: opts.toStatus };
 }
 
 /** Shared result type for guarded business operations inside a transaction. */
@@ -135,7 +158,7 @@ export async function processExpenseApproval(
   actorId: number,
   actorRole: string,
   action: 'APPROVED' | 'REJECTED',
-): Promise<GuardedResult> {
+): Promise<GuardedResult | { ok: true; outcome: 'APPROVED' | 'REJECTED' | 'RETURN_FOR_EVIDENCE' }> {
   return db.transaction(async (tx) => {
     // Verify expense belongs to the specified trip
     const [expense] = await tx.select({ tripId: s.tripExpenses.tripId, forwarderId: s.tripExpenses.forwarderId })
@@ -146,13 +169,13 @@ export async function processExpenseApproval(
       return { error: 'Chi phí giao nhận được duyệt cùng phiếu hoàn ứng', status: 409 };
     }
 
-    await transitionApproval(tx, {
+    const result = await transitionApproval(tx, {
       table: 'trip_expenses',
       id: expenseId,
       toStatus: action,
       actorId,
       actorRole,
     });
-    return { ok: true as const };
+    return { ok: true as const, outcome: result.outcome };
   });
 }

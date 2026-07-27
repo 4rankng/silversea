@@ -3,7 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Truck, Calendar, MapPin, Package, Plus, CheckCircle2, RotateCcw } from 'lucide-react';
 import { formatDate } from '../lib/format';
 import { api } from '../lib/api';
-import { ExpenseEntryStatus, FORWARDER_EXPENSE_TYPE_DEFAULTS } from '@tingting/shared';
+import {
+  DEFAULT_NO_INVOICE_EVIDENCE_TYPES,
+  ExpenseEntryStatus,
+  FORWARDER_EXPENSE_TYPE_DEFAULTS,
+  NO_INVOICE_EVIDENCE_TYPE_LABELS,
+} from '@tingting/shared';
 import { TRIP_STATUS_LABELS, type TripStatus } from '@tingting/shared';
 import { StatusPill, FormGroup, useConfirm } from '../components/UI';
 import TripLegsPanel from '../components/trip/TripLegsPanel';
@@ -62,10 +67,13 @@ export default function ForwarderTripDetailPage() {
     settlementMethod: 'FORWARDER_ADVANCE' as 'FORWARDER_ADVANCE' | 'COMPANY_DIRECT',
     supplierId: '',
     tripContainerId: '',
+    expenseDate: new Date().toISOString().slice(0, 10),
+    payeeName: '',
     invoiceNumber: '',
     invoiceDate: '',
     declarationNumber: '',
     note: '',
+    noInvoiceEvidenceTypes: [] as string[],
   });
   const [expenseErrors, setExpenseErrors] = useState<{ buyAmount?: string; declarationNumber?: string; supplierId?: string }>({});
   const [expenseSubmitError, setExpenseSubmitError] = useState<string | null>(null);
@@ -161,28 +169,38 @@ export default function ForwarderTripDetailPage() {
     const sellAmount = parseFloat(expenseForm.sellAmount) || 0;
     const supplierIdNum = expenseForm.supplierId ? parseInt(expenseForm.supplierId, 10) : undefined;
     const payload = {
-        tripId,
-        expenseType: expenseForm.expenseType,
-        buyAmount,
-        sellAmount: sellAmount >= 0 ? sellAmount : 0,
-        settlementMethod: expenseForm.settlementMethod,
-        supplierId: supplierIdNum,
-        invoiceNumber: expenseForm.invoiceNumber.trim() || undefined,
-        invoiceDate: expenseForm.invoiceDate || undefined,
-        declarationNumber: expenseForm.declarationNumber.trim() || undefined,
-        tripContainerId: expenseForm.tripContainerId ? parseInt(expenseForm.tripContainerId, 10) : undefined,
-        note: expenseForm.note.trim() || undefined,
-      };
+      tripId,
+      expenseType: expenseForm.expenseType,
+      buyAmount,
+      sellAmount: sellAmount >= 0 ? sellAmount : 0,
+      settlementMethod: expenseForm.settlementMethod,
+      supplierId: supplierIdNum,
+      expenseDate: expenseForm.expenseDate || undefined,
+      payeeName: expenseForm.payeeName.trim() || undefined,
+      invoiceNumber: expenseForm.invoiceNumber.trim() || undefined,
+      invoiceDate: expenseForm.invoiceDate || undefined,
+      declarationNumber: expenseForm.declarationNumber.trim() || undefined,
+      tripContainerId: expenseForm.tripContainerId ? parseInt(expenseForm.tripContainerId, 10) : undefined,
+      note: expenseForm.note.trim() || undefined,
+      noInvoiceEvidenceTypes: expenseForm.noInvoiceEvidenceTypes,
+    };
+    if (!expenseForm.invoiceNumber.trim() && !noInvoiceAllowed) {
+      setExpenseSubmitError('Hạng mục này không cho phép chi không hóa đơn. Vui lòng bổ sung hóa đơn hoặc đổi hạng mục.');
+      return;
+    }
     const mutation = editingExpenseId
       ? updateExpenseMut.mutate.bind(updateExpenseMut, {
           ...payload,
           id: editingExpenseId,
           supplierId: supplierIdNum ?? null,
+          expenseDate: expenseForm.expenseDate || null,
+          payeeName: expenseForm.payeeName.trim() || null,
           invoiceNumber: expenseForm.invoiceNumber.trim() || null,
           invoiceDate: expenseForm.invoiceDate || null,
           declarationNumber: expenseForm.declarationNumber.trim() || null,
           tripContainerId: expenseForm.tripContainerId ? parseInt(expenseForm.tripContainerId, 10) : null,
           note: expenseForm.note.trim() || null,
+          noInvoiceEvidenceTypes: expenseForm.noInvoiceEvidenceTypes,
         })
       : createExpenseMut.mutate.bind(createExpenseMut, payload);
     mutation(
@@ -195,10 +213,13 @@ export default function ForwarderTripDetailPage() {
             settlementMethod: 'FORWARDER_ADVANCE',
             supplierId: '',
             tripContainerId: '',
+            expenseDate: new Date().toISOString().slice(0, 10),
+            payeeName: '',
             invoiceNumber: '',
             invoiceDate: '',
             declarationNumber: '',
             note: '',
+            noInvoiceEvidenceTypes: [],
           });
           setExpenseErrors({});
           setEditingExpenseId(null);
@@ -222,6 +243,11 @@ export default function ForwarderTripDetailPage() {
   const totalScopeCount = completionScopes.length;
   const legs = (trip.legs || []) as Array<{ id: number; sequence: number; origin: string; destination: string; km: number; loadingType: string; polylinePath?: string | null }>;
   const selectedExpenseContainer = containers.find(c => String(c.id) === expenseForm.tripContainerId);
+  const selectedExpenseTypeConfig = forwarderExpenseTypeOptions.find(type => type.code === expenseForm.expenseType);
+  const noInvoiceAllowed = !selectedExpenseTypeConfig?.requiresInvoice && selectedExpenseTypeConfig?.substituteEvidenceAllowed !== false;
+  const allowedEvidenceTypes = selectedExpenseTypeConfig?.noInvoiceEvidenceTypes?.length
+    ? selectedExpenseTypeConfig.noInvoiceEvidenceTypes
+    : [...DEFAULT_NO_INVOICE_EVIDENCE_TYPES];
   const openExpenseForm = () => {
     setShowExpenseForm(prev => {
       const willOpen = !prev;
@@ -241,10 +267,13 @@ export default function ForwarderTripDetailPage() {
       settlementMethod: exp.settlementMethod === 'COMPANY_DIRECT' ? 'COMPANY_DIRECT' : 'FORWARDER_ADVANCE',
       supplierId: exp.supplierId ? String(exp.supplierId) : '',
       tripContainerId: exp.tripContainerId ? String(exp.tripContainerId) : '',
+      expenseDate: exp.expenseDate ? String(exp.expenseDate).slice(0, 10) : new Date().toISOString().slice(0, 10),
+      payeeName: exp.payeeName ?? '',
       invoiceNumber: exp.invoiceNumber ?? '',
       invoiceDate: exp.invoiceDate ? String(exp.invoiceDate).slice(0, 10) : '',
       declarationNumber: exp.declarationNumber ?? '',
       note: exp.note ?? '',
+      noInvoiceEvidenceTypes: exp.noInvoiceEvidenceTypes ?? [],
     });
     setExpenseErrors({});
     setExpenseSubmitError(null);
@@ -366,7 +395,10 @@ export default function ForwarderTripDetailPage() {
                   value={expenseForm.expenseType}
                   onChange={e => handleExpenseTypeChange(e.target.value)}
                 >
-                  {Object.entries(FORWARDER_EXPENSE_TYPE_DEFAULTS).map(([code, cfg]) => (
+                  {(forwarderExpenseTypeOptions.length > 0
+                    ? forwarderExpenseTypeOptions.map((type) => [type.code, { name: type.name }] as const)
+                    : Object.entries(FORWARDER_EXPENSE_TYPE_DEFAULTS)
+                  ).map(([code, cfg]) => (
                     <option key={code} value={code}>{cfg.name}</option>
                   ))}
                 </select>
@@ -433,7 +465,12 @@ export default function ForwarderTripDetailPage() {
                     className={`input${expenseErrors.supplierId ? ' input--error' : ''}`}
                     value={expenseForm.supplierId}
                     onChange={e => {
-                      setExpenseForm(f => ({ ...f, supplierId: e.target.value }));
+                      const selectedSupplier = supplierOptions.find(item => String(item.id) === e.target.value);
+                      setExpenseForm(f => ({
+                        ...f,
+                        supplierId: e.target.value,
+                        payeeName: f.payeeName || selectedSupplier?.name || '',
+                      }));
                       if (expenseErrors.supplierId) setExpenseErrors(err => ({ ...err, supplierId: undefined }));
                     }}
                   >
@@ -542,15 +579,73 @@ export default function ForwarderTripDetailPage() {
                 </FormGroup>
               )}
 
-              <FormGroup label="Ghi chú">
+              <FormGroup label={expenseForm.invoiceNumber.trim() ? 'Ghi chú' : 'Lý do chi *'}>
                 <input
                   className="input"
                   value={expenseForm.note}
                   onChange={e => setExpenseForm(f => ({ ...f, note: e.target.value }))}
-                  placeholder="Ghi chú (tuỳ chọn)"
+                  placeholder={expenseForm.invoiceNumber.trim() ? 'Ghi chú (tuỳ chọn)' : 'Mô tả lý do chi và chứng từ bổ sung'}
                 />
               </FormGroup>
             </div>
+
+            {!expenseForm.invoiceNumber.trim() && (
+              <div className="fwd-expense-grid fwd-expense-grid--invoice" style={{ borderTop: '1px solid var(--border-1)', paddingTop: 12 }}>
+                <FormGroup label="Ngày chi">
+                  <input
+                    className="input"
+                    type="date"
+                    value={expenseForm.expenseDate}
+                    onChange={e => setExpenseForm(f => ({ ...f, expenseDate: e.target.value }))}
+                  />
+                </FormGroup>
+
+                <FormGroup label="Người nhận">
+                  <input
+                    className="input"
+                    value={expenseForm.payeeName}
+                    onChange={e => setExpenseForm(f => ({ ...f, payeeName: e.target.value }))}
+                    placeholder="Tên người nhận / đơn vị nhận"
+                  />
+                </FormGroup>
+
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg-2)', marginBottom: 8 }}>Chứng cứ thay thế</div>
+                  {!noInvoiceAllowed ? (
+                    <div style={{ fontSize: 12, color: 'var(--danger)' }}>
+                      Hạng mục này không cho phép chi không hóa đơn.
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+                        {allowedEvidenceTypes.map((value) => (
+                          <label key={value} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--fg-2)' }}>
+                            <input
+                              type="checkbox"
+                              checked={expenseForm.noInvoiceEvidenceTypes.includes(value)}
+                              onChange={(event) => {
+                                setExpenseForm((current) => ({
+                                  ...current,
+                                  noInvoiceEvidenceTypes: event.target.checked
+                                    ? [...current.noInvoiceEvidenceTypes, value]
+                                    : current.noInvoiceEvidenceTypes.filter((item) => item !== value),
+                                }));
+                              }}
+                            />
+                            <span>{NO_INVOICE_EVIDENCE_TYPE_LABELS[value as keyof typeof NO_INVOICE_EVIDENCE_TYPE_LABELS] ?? value}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--fg-3)', marginTop: 8 }}>
+                        Ngưỡng hiện tại: {Number(selectedExpenseTypeConfig?.noInvoicePerItemLimit ?? 1_000_000).toLocaleString('vi-VN')} đ/khoản,
+                        {' '}{Number(selectedExpenseTypeConfig?.noInvoicePerDayLimit ?? 5_000_000).toLocaleString('vi-VN')} đ/người/ngày.
+                        Nếu chọn ảnh hiện trường, hãy lưu xong rồi tải ảnh lên ngay dưới dòng chi phí.
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
 
             {expenseSubmitError && (
               <div

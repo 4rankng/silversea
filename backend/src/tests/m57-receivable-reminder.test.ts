@@ -21,6 +21,7 @@ import {
   REMINDER_SUBJECT_PREFIX,
 } from '../services/receivable-reminder.service';
 import { initNotificationService } from '../services/notification.service';
+import { upsertPartnerFromTaxCode } from '../services/legal-partner.service';
 import {
   EMAIL_SETTING_KEYS,
   invalidateEmailSettings,
@@ -266,12 +267,17 @@ async function mkDebtOffsetCustomerAdjustment(
   amount: number,
 ) {
   const supplier = await mkSupplier();
+  const partnerId = await upsertPartnerFromTaxCode(`M57${String(offsetId).padStart(6, '0')}`);
+  assert.ok(partnerId != null, 'test partner must be created');
   const [offset] = await db.insert(s.debtOffsets).values({
     id: offsetId,
     customerId,
     supplierId: supplier.id,
+    partnerId,
     amount: String(Math.abs(amount)),
     offsetDate: businessDateNow(),
+    currency: 'VND',
+    minutesReference: `BB-M57-${offsetId}`,
     note: `M57 offset ${offsetId}`,
     approvalStatus: 'APPROVED',
     createdBy: 1,

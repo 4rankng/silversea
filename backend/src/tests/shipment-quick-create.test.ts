@@ -30,7 +30,7 @@ import type { AddressInfo } from 'net';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -43,6 +43,7 @@ import shipmentRoutes from '../routes/shipments';
 import { authMiddleware } from '../middleware/auth';
 import { casbinAuthz } from '../middleware/casbin';
 import { globalErrorHandler } from '../middleware/errorHandler';
+import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../services/idempotency.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -141,6 +142,23 @@ async function quickFetch(urlPath: string, options: QuickFetchOptions = {}) {
   });
   const data = await res.json().catch(() => ({}));
   return { status: res.status, data };
+}
+
+async function fetchShipmentCountByBookingRef(bookingRef: string) {
+  const [{ total }] = await db.select({ total: sql<number>`count(*)::int` })
+    .from(s.shipments)
+    .where(eq(s.shipments.bookingRef, bookingRef));
+  return Number(total ?? 0);
+}
+
+async function fetchShipmentIdempotencyCount(idempotencyKey: string) {
+  const [{ total }] = await db.select({ total: sql<number>`count(*)::int` })
+    .from(s.idempotencyKeys)
+    .where(and(
+      eq(s.idempotencyKeys.endpoint, IDEMPOTENCY_ENDPOINTS.SHIPMENT_QUICK_CREATE),
+      eq(s.idempotencyKeys.idempotencyKey, idempotencyKey),
+    ));
+  return Number(total ?? 0);
 }
 
 before(async () => {
@@ -362,6 +380,68 @@ describe('POST /api/shipments/quick — M10.1 slice 1 quick-create', () => {
       method: 'POST', token: clerkToken, body: { bookingRef: 'no-customer' },
     });
     assert.equal(res.status, 400);
+  });
+
+  test('pool-sized unique keyed quick-create requests all complete without nested-connection starvation', async () => {
+    const results = await Promise.race([
+      Promise.all(Array.from({ length: 11 }, (_value, index) => quickFetch('/quick', {
+        method: 'POST',
+        token: clerkToken,
+        idempotencyKey: `qc-pool-${suffix}-${index}`,
+        body: clerkQuickBody({ bookingRef: `BL-${suffix}-pool-${index}` }),
+      }))),
+      new Promise<never>((_resolve, reject) => {
+        setTimeout(() => reject(new Error('timed out waiting for keyed quick-create concurrency')), 8_000);
+      }),
+    ]);
+
+    assert.equal(results.length, 11);
+    for (const result of results) {
+      assert.equal(result.status, 201);
+      createdShipmentIds.push(result.data.id);
+    }
+    await trackCreated();
+  });
+
+  test('forced shipment create failure rolls back both shipment rows and idempotency key', async () => {
+    const bookingRef = `BL-${suffix}-rollback`;
+    const idempotencyKey = `qc-rollback-${suffix}`;
+
+    await assert.rejects(
+      () => runIdempotent({
+        endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_QUICK_CREATE,
+        idempotencyKey,
+        payload: { customerId, responsibleUnitId: clerkBusinessUnitId, bookingRef },
+        createdBy: clerkUserId,
+        entityType: 'shipment',
+        create: async (tx) => {
+          const [shipment] = await tx.insert(s.shipments).values({
+            customerId,
+            responsibleUnitId: clerkBusinessUnitId,
+            bookingRef,
+            createdBy: clerkUserId,
+            updatedBy: clerkUserId,
+            status: 'DRAFT',
+            version: 1,
+          }).returning();
+          await tx.insert(s.shipmentStatusHistory).values({
+            shipmentId: shipment.id,
+            fromStatus: null,
+            toStatus: 'DRAFT',
+            reason: 'forced rollback',
+            changedBy: clerkUserId,
+          });
+          throw new Error('forced rollback');
+        },
+        load: async () => {
+          throw new Error('load should not be called');
+        },
+      }),
+      /forced rollback/,
+    );
+
+    assert.equal(await fetchShipmentCountByBookingRef(bookingRef), 0);
+    assert.equal(await fetchShipmentIdempotencyCount(idempotencyKey), 0);
   });
 });
 

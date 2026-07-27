@@ -7,6 +7,8 @@ import { eq, and, isNull, sql } from 'drizzle-orm';
 import { TripStatus, Role } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
 import { ApiError } from '../errors';
+import type { Tx } from './trip-shared';
+import { applyTripPairLifecycleEffects } from './trip-pairs.service';
 
 export async function transitionTripStatus(
   tripId: number,
@@ -15,13 +17,17 @@ export async function transitionTripStatus(
   userRole: string,
   confirmZeroRevenue?: boolean,
   confirmNoPhoto?: boolean,
+  options?: { expectedVersion?: number; transaction?: Tx },
 ) {
   // Audit rows for status transitions are produced by the auditLogMiddleware
   // on the corresponding endpoint (POST /dispatch, /lock, /cancel) with full
   // Subject + Verb + Natural Key sentences.
-  return await db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     const [trip] = await tx.select().from(s.trips).where(eq(s.trips.id, tripId)).limit(1).for('update');
     if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
+    if (options?.expectedVersion !== undefined && trip.version !== options.expectedVersion) {
+      throw new ApiError(409, 'Dữ liệu đã bị thay đổi bởi người khác. Vui lòng tải lại trang.');
+    }
 
     const currentStatus = trip.status as TripStatus;
     if (currentStatus === targetStatus) {
@@ -140,6 +146,7 @@ export async function transitionTripStatus(
       // Conditional guard status update
       const [lockedTrip] = await tx.update(s.trips).set({
         status: TripStatus.LOCKED,
+        version: sql`${s.trips.version} + 1`,
         updatedAt: new Date(),
       }).where(and(eq(s.trips.id, tripId), eq(s.trips.status, TripStatus.COMPLETED))).returning();
 
@@ -213,6 +220,14 @@ export async function transitionTripStatus(
         }, { strict: false });
       }
 
+      await applyTripPairLifecycleEffects(tx, {
+        tripId: trip.id,
+        activeTripPairId: trip.activeTripPairId ?? null,
+        activeTripPairOrder: trip.activeTripPairOrder ?? null,
+        targetStatus: TripStatus.CANCELED,
+        actorId: userId,
+      });
+
       // Cancel audit row is written by the middleware for POST /cancel
       // ("Quản lý <actor> hủy chuyến <tripCode>") — skip duplicate write.
       return updated;
@@ -220,6 +235,7 @@ export async function transitionTripStatus(
 
     const [updated] = await tx.update(s.trips).set({
       status: targetStatus,
+      version: sql`${s.trips.version} + 1`,
       ...(targetStatus === TripStatus.COMPLETED ? { completedAt: new Date() } : {}),
       updatedAt: new Date(),
     }).where(and(eq(s.trips.id, tripId), eq(s.trips.status, currentStatus))).returning();
@@ -254,6 +270,15 @@ export async function transitionTripStatus(
           approvalStatus: fee.approvalStatus,
         })),
       });
+
+      await applyTripPairLifecycleEffects(tx, {
+        tripId: updated.id,
+        activeTripPairId: trip.activeTripPairId ?? null,
+        activeTripPairOrder: trip.activeTripPairOrder ?? null,
+        targetStatus: TripStatus.COMPLETED,
+        actorId: userId,
+        completedAt: updated.completedAt ?? null,
+      });
     }
 
     // Other transitions (e.g. IN_TRANSIT → COMPLETED triggered from /actuals)
@@ -264,5 +289,6 @@ export async function transitionTripStatus(
     // rather than a user-facing activity record.
 
     return updated;
-  });
+  };
+  return options?.transaction ? execute(options.transaction) : db.transaction(execute);
 }

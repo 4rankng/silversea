@@ -170,7 +170,7 @@ export function AppRoutes() {
             path="/dashboard"
             element={isPortalUser || isCustomer || isClerk ? <Navigate to={homeRedirect} replace /> : page(<DashboardPage />)}
           />
-          <Route path="/dispatch" element={adminOnly(page(<DispatchPage />))} />
+          <Route path="/dispatch" element={managerOrAdminOnly(page(<DispatchPage />))} />
           <Route path="/fleet" element={adminOnly(page(<FleetPage />))} />
 <Route path="/fleet/:id/tires" element={officeStaffOnly(page(<TruckTiresPage />))} />
 <Route path="/fleet/trailers/:id/tires" element={officeStaffOnly(page(<TruckTiresPage vehicle="trailer" />))} />

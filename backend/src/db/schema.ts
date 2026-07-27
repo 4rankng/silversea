@@ -37,6 +37,9 @@ export const trailerStatusEnum = pgEnum('trailer_status', ['ACTIVE', 'MAINTENANC
 // trip_expenses.expense_type is now varchar(50) referencing config codes.
 export const advanceRequestStatusEnum = pgEnum('advance_request_status', ['PENDING', 'APPROVED', 'REJECTED']);
 export const advanceSettlementStatusEnum = pgEnum('advance_settlement_status', ['PENDING', 'CHECKED_BY_ACCOUNTANT', 'APPROVED', 'REJECTED']);
+export const creditOverrideStatusEnum = pgEnum('credit_override_status', ['PENDING', 'APPROVED', 'REJECTED', 'CANCELED']);
+export const creditOverrideScopeEnum = pgEnum('credit_override_scope', ['SHIPMENT', 'EXPIRY']);
+export const creditOverrideTierEnum = pgEnum('credit_override_tier', ['FINANCE_TIER_1', 'DIRECTOR']);
 export const notificationTypeEnum = pgEnum('notification_type', [
   'TRIP_CREATED', 'TRIP_DISPATCHED', 'TRIP_IN_TRANSIT', 'TRIP_COMPLETED',
   'TRIP_LOCKED', 'TRIP_UNLOCKED', 'TRIP_CANCELED', 'PAYMENT_RECEIVED', 'PENALTY_CREATED',
@@ -163,6 +166,25 @@ export const drivers = pgTable('drivers', {
   deletedAt: timestamp('deleted_at'),
 });
 
+export const partners = pgTable('partners', {
+  id: serial('id').primaryKey(),
+  normalizedTaxCode: varchar('normalized_tax_code', { length: 40 }).notNull(),
+  displayTaxCode: varchar('display_tax_code', { length: 40 }).notNull(),
+  currency: varchar('currency', { length: 10 }).notNull().default('VND'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('partners_normalized_tax_code_uniq_idx').on(table.normalizedTaxCode),
+  check(
+    'partners_normalized_tax_code_not_blank_check',
+    sql`length(btrim(${table.normalizedTaxCode})) > 0`,
+  ),
+  check(
+    'partners_currency_check',
+    sql`${table.currency} in ('VND')`,
+  ),
+]);
+
 // Defined before customers to allow customers.linkedSupplierId to reference suppliers.id directly.
 // suppliers.linkedCustomerId intentionally omits .references() to break the mutual circular
 // forward-reference that causes TS7022. The FK constraint is enforced at the DB level via migration.
@@ -172,6 +194,7 @@ export const suppliers = pgTable('suppliers', {
   contactPerson: varchar('contact_person', { length: 255 }),
   phone: varchar('phone', { length: 20 }),
   taxCode: varchar('tax_code', { length: 20 }),
+  partnerId: integer('partner_id').references(() => partners.id),
   note: text('note'),
   status: varchar('status', { length: 20 }).notNull().default('ACTIVE'),
   linkedCustomerId: integer('linked_customer_id'), // FK → customers(id), enforced at DB level
@@ -181,10 +204,17 @@ export const suppliers = pgTable('suppliers', {
   // `types.includes('FUEL')` by supplier-types.service.syncFuelFlag, so
   // existing reads keep working unchanged.
   types: text('types').array(),
+  primaryType: varchar('primary_type', { length: 30 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
-});
+}, (table) => [
+  index('suppliers_partner_idx').on(table.partnerId),
+  check(
+    'suppliers_primary_type_check',
+    sql`${table.primaryType} is null or ${table.primaryType} in ('CARRIER', 'PORT', 'WAREHOUSE', 'SHIPPING_LINE', 'CUSTOMS', 'SERVICE', 'FUEL')`,
+  ),
+]);
 
 // ─── N1 — Tires ──────────────────────────────────────────────────────────────
 // Tracks individual tires by serial, vehicle assignment (truck OR trailer),
@@ -233,6 +263,7 @@ export const customers = pgTable('customers', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
   taxCode: varchar('tax_code', { length: 20 }),
+  partnerId: integer('partner_id').references(() => partners.id),
   contactPerson: varchar('contact_person', { length: 255 }),
   phone: varchar('phone', { length: 20 }),
   contactInfo: text('contact_info'),
@@ -270,6 +301,7 @@ export const customers = pgTable('customers', {
   uniqueIndex('customers_active_tax_code_uniq_idx')
     .on(sql`lower(btrim(${table.taxCode}))`)
     .where(sql`${table.deletedAt} is null and nullif(btrim(${table.taxCode}), '') is not null`),
+  index('customers_partner_idx').on(table.partnerId),
 ]);
 
 /**
@@ -532,6 +564,16 @@ export const trips = pgTable('trips', {
   containerCount: integer('container_count').default(1),
   status: tripStatusEnum('status').default('CREATED'),
   departureDate: date('departure_date').notNull(),
+  plannedStartAt: timestamp('planned_start_at'),
+  plannedEndAt: timestamp('planned_end_at'),
+  canonicalOrigin: varchar('canonical_origin', { length: 160 }),
+  canonicalDestination: varchar('canonical_destination', { length: 160 }),
+  cargoWeightKg: numeric('cargo_weight_kg', { precision: 10, scale: 2 }),
+  vehicleCapacityKg: numeric('vehicle_capacity_kg', { precision: 10, scale: 2 }),
+  // Declared as a plain integer to avoid a schema initializer cycle with
+  // trip_pairs -> trips. The actual FK is added in migration 0141.
+  activeTripPairId: integer('active_trip_pair_id'),
+  activeTripPairOrder: integer('active_trip_pair_order'),
   fuelMode: fuelModeEnum('fuel_mode').default('AUTO'),
   fuelLitersOverride: numeric('fuel_liters_override', { precision: 10, scale: 2 }),
   fuelSupplementLiters: numeric('fuel_supplement_liters', { precision: 10, scale: 2 }).default('0'),
@@ -610,6 +652,10 @@ export const trips = pgTable('trips', {
   index('trips_status_idx').on(table.status),
   index('trips_departure_date_idx').on(table.departureDate),
   index('trips_customer_departure_idx').on(table.customerId, table.departureDate),
+  index('trips_active_trip_pair_idx').on(table.activeTripPairId),
+  uniqueIndex('trips_active_trip_pair_order_uniq')
+    .on(table.activeTripPairId, table.activeTripPairOrder)
+    .where(sql`${table.activeTripPairId} is not null`),
   // Wave 0: look up a shipment's trips.
   index('trips_shipment_id_idx').on(table.shipmentId),
   // Wave 0 (shipment-routes slice): one LIVE trip per shipment. A partial
@@ -622,6 +668,49 @@ export const trips = pgTable('trips', {
   uniqueIndex('trips_shipment_id_live_uniq')
     .on(table.shipmentId)
     .where(sql`${table.shipmentId} is not null and ${table.status} <> 'CANCELED'`),
+  check(
+    'trips_active_trip_pair_order_check',
+    sql`${table.activeTripPairOrder} is null or ${table.activeTripPairOrder} in (1, 2)`,
+  ),
+  check(
+    'trips_active_trip_pair_presence_check',
+    sql`(${table.activeTripPairId} is null and ${table.activeTripPairOrder} is null)
+      or (${table.activeTripPairId} is not null and ${table.activeTripPairOrder} is not null)`,
+  ),
+]);
+
+export const tripPairs = pgTable('trip_pairs', {
+  id: serial('id').primaryKey(),
+  status: varchar('status', { length: 20 }).notNull().default('ACTIVE'),
+  firstTripId: integer('first_trip_id').references(() => trips.id).notNull(),
+  secondTripId: integer('second_trip_id').references(() => trips.id).notNull(),
+  emptyDistanceKm: numeric('empty_distance_km', { precision: 10, scale: 2 }),
+  combinedEfficiencyPercent: numeric('combined_efficiency_percent', { precision: 6, scale: 2 }),
+  requiredGapMinutes: integer('required_gap_minutes'),
+  actualGapMinutes: integer('actual_gap_minutes'),
+  breakReason: varchar('break_reason', { length: 40 }),
+  survivingTripId: integer('surviving_trip_id').references(() => trips.id),
+  lateByMinutes: integer('late_by_minutes'),
+  createdBy: integer('created_by').references(() => users.id),
+  brokenBy: integer('broken_by').references(() => users.id),
+  brokenAt: timestamp('broken_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('trip_pairs_trip_order_uniq_idx').on(table.firstTripId, table.secondTripId),
+  index('trip_pairs_status_idx').on(table.status, table.createdAt),
+  check(
+    'trip_pairs_status_check',
+    sql`${table.status} in ('ACTIVE', 'BROKEN')`,
+  ),
+  check(
+    'trip_pairs_distinct_trip_check',
+    sql`${table.firstTripId} <> ${table.secondTripId}`,
+  ),
+  check(
+    'trip_pairs_break_reason_check',
+    sql`${table.breakReason} is null or ${table.breakReason} in ('FIRST_TRIP_CANCELED', 'SECOND_TRIP_CANCELED', 'LATE_COMPLETION')`,
+  ),
 ]);
 
 export const tripLegs = pgTable('trip_legs', {
@@ -830,14 +919,14 @@ export const periodLocks = pgTable('period_locks', {
   ),
 ]);
 
-// Q18/Q15: append-only authority envelope for the two material trip changes
-// that may cross an approved/locked boundary. This is intentionally bounded
-// to AR adjustments and exceptional trip reopen; domain services still own
-// the actual financial/status effects.
+// Q18/Q15: append-only authority envelope. Domain services still own and
+// atomically apply their effects; this table owns actor separation, evidence,
+// source versions and the decision lifecycle.
 export const governanceActions = pgTable('governance_actions', {
   id: serial('id').primaryKey(),
   subjectType: varchar('subject_type', { length: 30 }).notNull(),
-  subjectId: integer('subject_id').notNull(),
+  subjectId: integer('subject_id'),
+  subjectKey: varchar('subject_key', { length: 120 }),
   actionKind: varchar('action_kind', { length: 40 }).notNull(),
   status: varchar('status', { length: 30 }).notNull().default('PENDING_CHECK'),
   reason: text('reason').notNull(),
@@ -848,36 +937,104 @@ export const governanceActions = pgTable('governance_actions', {
   afterSnapshot: jsonb('after_snapshot').$type<Record<string, unknown>>().notNull(),
   deltaSnapshot: jsonb('delta_snapshot').$type<Record<string, unknown>>(),
   makerId: integer('maker_id').references(() => users.id).notNull(),
+  makerRole: varchar('maker_role', { length: 20 }),
   checkerId: integer('checker_id').references(() => users.id),
+  checkerRole: varchar('checker_role', { length: 20 }),
   checkedAt: timestamp('checked_at', { withTimezone: true }),
   approverId: integer('approver_id').references(() => users.id),
+  approverRole: varchar('approver_role', { length: 20 }),
   approvedAt: timestamp('approved_at', { withTimezone: true }),
+  rejectedBy: integer('rejected_by').references(() => users.id),
+  rejectedRole: varchar('rejected_role', { length: 20 }),
+  rejectedAt: timestamp('rejected_at', { withTimezone: true }),
+  rejectionReason: text('rejection_reason'),
+  returnedBy: integer('returned_by').references(() => users.id),
+  returnedRole: varchar('returned_role', { length: 20 }),
+  returnedAt: timestamp('returned_at', { withTimezone: true }),
+  returnReason: text('return_reason'),
+  canceledBy: integer('canceled_by').references(() => users.id),
+  canceledRole: varchar('canceled_role', { length: 20 }),
+  canceledAt: timestamp('canceled_at', { withTimezone: true }),
+  cancelReason: text('cancel_reason'),
   appliedAt: timestamp('applied_at', { withTimezone: true }),
   ledgerEntryId: integer('ledger_entry_id').references(() => ledger.id),
+  applicationResult: jsonb('application_result').$type<Record<string, unknown>>(),
   version: integer('version').notNull().default(1),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
   index('governance_actions_subject_idx').on(
     table.subjectType,
     table.subjectId,
     table.createdAt,
   ),
+  index('governance_actions_subject_key_idx').on(
+    table.subjectType,
+    table.subjectKey,
+    table.createdAt,
+  ),
   index('governance_actions_status_idx').on(table.status, table.createdAt),
+  uniqueIndex('governance_actions_active_subject_key_uniq')
+    .on(table.subjectType, table.subjectKey, table.actionKind, table.originalVersion)
+    .where(sql`${table.subjectKey} is not null and ${table.status} in ('PENDING_CHECK', 'PENDING_APPROVAL', 'RETURNED_FOR_EVIDENCE')`),
+  uniqueIndex('governance_actions_active_subject_id_uniq')
+    .on(table.subjectType, table.subjectId, table.actionKind, table.originalVersion)
+    .where(sql`${table.subjectId} is not null and ${table.actionKind} not in ('TRIP_AR_ADJUSTMENT', 'TRIP_REOPEN') and ${table.status} in ('PENDING_CHECK', 'PENDING_APPROVAL', 'RETURNED_FOR_EVIDENCE')`),
   check(
     'governance_actions_subject_type_check',
-    sql`${table.subjectType} in ('TRIP')`,
+    sql`${table.subjectType} in ('TRIP', 'PAYMENT_RECEIPT', 'VENDOR_PAYMENT', 'CARRIER_PAYMENT', 'DRIVER_PAYOUT', 'COMMISSION', 'PENALTY', 'DEBT_OFFSET', 'ADVANCE_REQUEST', 'TRIP_EXPENSE', 'COMPANY_EXPENSE', 'BILLING_DOCUMENT', 'SALARY_CONFIRMATION', 'SALARY_PERIOD', 'PROFIT_DISTRIBUTION', 'PRICE_CONFIG', 'ANCILLARY_REVENUE', 'EXCEPTION')`,
   ),
   check(
     'governance_actions_action_kind_check',
-    sql`${table.actionKind} in ('TRIP_AR_ADJUSTMENT', 'TRIP_REOPEN')`,
+    sql`${table.actionKind} in ('TRIP_AR_ADJUSTMENT', 'TRIP_REOPEN', 'TRIP_EXPENSE_APPROVAL', 'DEBT_OFFSET_APPROVAL', 'DEBT_OFFSET_CANCEL', 'ADVANCE_REQUEST_APPROVAL', 'PAYMENT_RECEIPT', 'VENDOR_PAYMENT', 'CARRIER_PAYMENT', 'DRIVER_PAYOUT', 'COMMISSION', 'PENALTY_CREATE', 'PENALTY_CANCEL', 'COMPANY_EXPENSE', 'PROFIT_DISTRIBUTION', 'TRIP_FINANCIAL_CHANGE', 'TRIP_FINANCIAL_CLOSE', 'DEBIT_NOTE_ISSUE', 'DEBIT_NOTE_ADJUSTMENT', 'SALARY_CONFIRMATION', 'SALARY_REOPEN', 'SALARY_PERIOD_CLOSE', 'SALARY_PERIOD_REOPEN', 'PRICE_CONFIG_CHANGE', 'ANCILLARY_REVENUE_CHANGE', 'FINANCIAL_EXCEPTION')`,
   ),
   check(
     'governance_actions_status_check',
-    sql`${table.status} in ('PENDING_CHECK', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED')`,
+    sql`${table.status} in ('PENDING_CHECK', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'RETURNED_FOR_EVIDENCE', 'CANCELED', 'SUPERSEDED')`,
   ),
   check(
     'governance_actions_reason_check',
     sql`length(btrim(${table.reason})) > 0`,
+  ),
+  check(
+    'governance_actions_subject_identity_check',
+    sql`${table.subjectId} is not null or length(btrim(${table.subjectKey})) > 0`,
+  ),
+  check(
+    'governance_actions_original_version_check',
+    sql`${table.originalVersion} >= 0`,
+  ),
+  check(
+    'governance_actions_distinct_checker_check',
+    sql`${table.checkerId} is null or ${table.checkerId} <> ${table.makerId}`,
+  ),
+  check(
+    'governance_actions_distinct_approver_check',
+    sql`${table.approverId} is null or (${table.approverId} <> ${table.makerId} and (${table.checkerId} is null or ${table.approverId} <> ${table.checkerId}))`,
+  ),
+  check(
+    'governance_actions_distinct_rejector_check',
+    sql`${table.rejectedBy} is null or ${table.rejectedBy} <> ${table.makerId}`,
+  ),
+  check(
+    'governance_actions_distinct_returner_check',
+    sql`${table.returnedBy} is null or ${table.returnedBy} <> ${table.makerId}`,
+  ),
+  check(
+    'governance_actions_cancel_actor_check',
+    sql`${table.canceledBy} is null or ${table.canceledBy} = ${table.makerId}`,
+  ),
+  check(
+    'governance_actions_rejection_reason_check',
+    sql`${table.rejectionReason} is null or length(btrim(${table.rejectionReason})) > 0`,
+  ),
+  check(
+    'governance_actions_return_reason_check',
+    sql`${table.returnReason} is null or length(btrim(${table.returnReason})) > 0`,
+  ),
+  check(
+    'governance_actions_cancel_reason_check',
+    sql`${table.cancelReason} is null or length(btrim(${table.cancelReason})) > 0`,
   ),
 ]);
 
@@ -990,8 +1147,15 @@ export const debtOffsets = pgTable('debt_offsets', {
   id: serial('id').primaryKey(),
   customerId: integer('customer_id').references(() => customers.id).notNull(),
   supplierId: integer('supplier_id').references(() => suppliers.id).notNull(),
+  // Q08: legacy offsets may predate canonical partner linkage. Keep nullable
+  // at-rest for upgrade safety; new writes must still provide the canonical
+  // partner through the service-layer validator.
+  partnerId: integer('partner_id').references(() => partners.id),
   amount: numeric('amount', { precision: 15, scale: 0 }).notNull(),
   offsetDate: date('offset_date').notNull(),
+  currency: varchar('currency', { length: 10 }).notNull().default('VND'),
+  minutesReference: varchar('minutes_reference', { length: 120 }),
+  minutesDocumentHash: varchar('minutes_document_hash', { length: 120 }),
   note: text('note'),
   approvalStatus: varchar('approval_status', { length: 20 }).notNull().default('PENDING'),
   createdBy: integer('created_by').references(() => users.id),
@@ -1001,6 +1165,15 @@ export const debtOffsets = pgTable('debt_offsets', {
 }, (table) => [
   index('debt_offsets_customer_idx').on(table.customerId),
   index('debt_offsets_supplier_idx').on(table.supplierId),
+  index('debt_offsets_partner_idx').on(table.partnerId, table.offsetDate),
+  check(
+    'debt_offsets_currency_check',
+    sql`${table.currency} in ('VND')`,
+  ),
+  check(
+    'debt_offsets_minutes_reference_not_blank_check',
+    sql`${table.minutesReference} is null or length(btrim(${table.minutesReference})) > 0`,
+  ),
 ]);
 
 export const managementFees = pgTable('management_fees', {
@@ -1156,6 +1329,12 @@ export const forwarderExpenseTypes = pgTable('forwarder_expense_types', {
   // substitute evidence). When false, no-invoice expenses of this type are
   // blocked at approval.
   substituteEvidenceAllowed: boolean('substitute_evidence_allowed').default(true),
+  noInvoiceEvidenceTypes: jsonb('no_invoice_evidence_types').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+  noInvoicePerItemLimit: numeric('no_invoice_per_item_limit', { precision: 15, scale: 0 }).notNull().default('1000000'),
+  noInvoicePerDayLimit: numeric('no_invoice_per_day_limit', { precision: 15, scale: 0 }).notNull().default('5000000'),
+  noInvoiceFinanceLeadItemApprovalLimit: numeric('no_invoice_finance_lead_item_approval_limit', { precision: 15, scale: 0 }).notNull().default('5000000'),
+  noInvoiceDirectorDayApprovalLimit: numeric('no_invoice_director_day_approval_limit', { precision: 15, scale: 0 }).notNull().default('10000000'),
+  noInvoicePolicyVersion: integer('no_invoice_policy_version').notNull().default(1),
   defaultMarkup: boolean('default_markup').notNull().default(false),
   billingLabel: varchar('billing_label', { length: 120 }),
   vatRate: numeric('vat_rate', { precision: 5, scale: 3 }).notNull().default('0.080'),
@@ -1236,6 +1415,8 @@ export const tripExpenses = pgTable('trip_expenses', {
   sellAmount: numeric('sell_amount', { precision: 15, scale: 0 }).notNull().default('0'),
   settlementMethod: varchar('settlement_method', { length: 20 }).notNull().default('FORWARDER_ADVANCE'),
   supplierId: integer('supplier_id').references(() => suppliers.id),
+  expenseDate: date('expense_date'),
+  payeeName: varchar('payee_name', { length: 200 }),
   invoiceNumber: varchar('invoice_number', { length: 50 }),
   invoiceDate: date('invoice_date'),
   declarationNumber: varchar('declaration_number', { length: 50 }),
@@ -1249,12 +1430,101 @@ export const tripExpenses = pgTable('trip_expenses', {
   tripContainerId: integer('trip_container_id').references(() => tripContainers.id, { onDelete: 'set null' }),
   approvalStatus: varchar('approval_status', { length: 20 }).notNull().default('APPROVED'),
   note: text('note'),
+  noInvoiceEvidenceTypes: jsonb('no_invoice_evidence_types').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+  noInvoicePolicySnapshot: jsonb('no_invoice_policy_snapshot').$type<Record<string, unknown>>(),
+  returnForEvidenceReason: text('return_for_evidence_reason'),
+  returnedForEvidenceAt: timestamp('returned_for_evidence_at'),
+  returnedForEvidenceBy: integer('returned_for_evidence_by').references(() => users.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
   index('trip_expenses_trip_id_idx').on(table.tripId),
   index('trip_expenses_container_idx').on(table.containerNumber),
   index('trip_expenses_trip_container_id_idx').on(table.tripContainerId),
+  index('trip_expenses_no_invoice_aggregate_idx').on(table.expenseType, table.expenseDate, table.payeeName),
+]);
+
+export const fuelInvoices = pgTable('fuel_invoices', {
+  id: serial('id').primaryKey(),
+  supplierId: integer('supplier_id').references(() => suppliers.id).notNull(),
+  invoiceNumber: varchar('invoice_number', { length: 80 }).notNull(),
+  invoiceDate: date('invoice_date').notNull(),
+  currency: varchar('currency', { length: 10 }).notNull().default('VND'),
+  totalLiters: numeric('total_liters', { precision: 15, scale: 2 }).notNull(),
+  unitPrice: numeric('unit_price', { precision: 15, scale: 2 }).notNull(),
+  totalAmount: numeric('total_amount', { precision: 15, scale: 2 }).notNull(),
+  approvalStatus: varchar('approval_status', { length: 20 }).notNull().default('PENDING'),
+  note: text('note'),
+  createdBy: integer('created_by').references(() => users.id),
+  approvedBy: integer('approved_by').references(() => users.id),
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('fuel_invoices_supplier_idx').on(table.supplierId, table.invoiceDate),
+  uniqueIndex('fuel_invoices_supplier_invoice_uniq_idx')
+    .on(
+      table.supplierId,
+      sql`lower(btrim(${table.invoiceNumber}))`,
+      table.invoiceDate,
+    ),
+  check(
+    'fuel_invoices_currency_check',
+    sql`${table.currency} in ('VND')`,
+  ),
+  check(
+    'fuel_invoices_status_check',
+    sql`${table.approvalStatus} in ('PENDING', 'APPROVED', 'REJECTED')`,
+  ),
+  check(
+    'fuel_invoices_total_liters_positive_check',
+    sql`${table.totalLiters} > 0`,
+  ),
+  check(
+    'fuel_invoices_unit_price_positive_check',
+    sql`${table.unitPrice} > 0`,
+  ),
+  check(
+    'fuel_invoices_total_amount_positive_check',
+    sql`${table.totalAmount} > 0`,
+  ),
+]);
+
+export const fuelInvoiceAllocations = pgTable('fuel_invoice_allocations', {
+  id: serial('id').primaryKey(),
+  fuelInvoiceId: integer('fuel_invoice_id')
+    .references(() => fuelInvoices.id, { onDelete: 'cascade' })
+    .notNull(),
+  tripId: integer('trip_id').references(() => trips.id).notNull(),
+  truckId: integer('truck_id').references(() => trucks.id),
+  tripExpenseId: integer('trip_expense_id').references(() => tripExpenses.id),
+  voucherReference: varchar('voucher_reference', { length: 120 }).notNull(),
+  voucherDate: date('voucher_date').notNull(),
+  liters: numeric('liters', { precision: 15, scale: 2 }).notNull(),
+  amount: numeric('amount', { precision: 15, scale: 2 }).notNull(),
+  note: text('note'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('fuel_invoice_allocations_invoice_idx').on(table.fuelInvoiceId),
+  index('fuel_invoice_allocations_truck_idx').on(table.truckId, table.voucherDate),
+  uniqueIndex('fuel_invoice_allocations_trip_expense_uniq_idx')
+    .on(table.tripExpenseId)
+    .where(sql`${table.tripExpenseId} is not null`),
+  uniqueIndex('fuel_invoice_allocations_invoice_voucher_uniq_idx')
+    .on(table.fuelInvoiceId, table.tripId, table.voucherReference),
+  check(
+    'fuel_invoice_allocations_liters_positive_check',
+    sql`${table.liters} > 0`,
+  ),
+  check(
+    'fuel_invoice_allocations_amount_positive_check',
+    sql`${table.amount} > 0`,
+  ),
+  check(
+    'fuel_invoice_allocations_voucher_reference_not_blank_check',
+    sql`length(btrim(${table.voucherReference})) > 0`,
+  ),
 ]);
 
 export const tripExpensePhotos = pgTable('trip_expense_photos', {
@@ -2108,6 +2378,77 @@ export const customerEmailLogs = pgTable('customer_email_logs', {
   index('customer_email_logs_status_idx').on(table.status),
 ]);
 
+// Q01/Q02: durable over-limit approval workflow. Requests are bounded to one
+// shipment or to an explicit expiry window and preserve the exposure snapshot
+// that was actually approved.
+export const creditOverrideRequests = pgTable('credit_override_requests', {
+  id: serial('id').primaryKey(),
+  customerId: integer('customer_id').references(() => customers.id).notNull(),
+  shipmentId: integer('shipment_id').references(() => shipments.id),
+  scopeType: creditOverrideScopeEnum('scope_type').notNull(),
+  status: creditOverrideStatusEnum('status').notNull().default('PENDING'),
+  requiredTier: creditOverrideTierEnum('required_tier').notNull(),
+  reason: text('reason').notNull(),
+  requestedBy: integer('requested_by').references(() => users.id).notNull(),
+  requestedRole: varchar('requested_role', { length: 20 }).notNull(),
+  proposedAmount: numeric('proposed_amount', { precision: 15, scale: 0 }).notNull(),
+  outstandingAmount: numeric('outstanding_amount', { precision: 15, scale: 0 }).notNull(),
+  approvedCommitmentAmount: numeric('approved_commitment_amount', { precision: 15, scale: 0 }).notNull(),
+  totalExposure: numeric('total_exposure', { precision: 15, scale: 0 }).notNull(),
+  creditLimit: numeric('credit_limit', { precision: 15, scale: 0 }).notNull(),
+  warningThreshold: numeric('warning_threshold', { precision: 4, scale: 2 }).notNull(),
+  overLimitAmount: numeric('over_limit_amount', { precision: 15, scale: 0 }).notNull(),
+  overLimitRatio: numeric('over_limit_ratio', { precision: 8, scale: 4 }).notNull(),
+  repeatException: boolean('repeat_exception').notNull().default(false),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  approvedBy: integer('approved_by').references(() => users.id),
+  approvedRole: varchar('approved_role', { length: 20 }),
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
+  rejectedBy: integer('rejected_by').references(() => users.id),
+  rejectedRole: varchar('rejected_role', { length: 20 }),
+  rejectedAt: timestamp('rejected_at', { withTimezone: true }),
+  rejectionReason: text('rejection_reason'),
+  consumedTripId: integer('consumed_trip_id').references(() => trips.id),
+  consumedAt: timestamp('consumed_at', { withTimezone: true }),
+  version: integer('version').notNull().default(1),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('credit_override_requests_customer_idx').on(table.customerId, table.status, table.createdAt),
+  index('credit_override_requests_shipment_idx').on(table.shipmentId, table.status),
+  uniqueIndex('credit_override_requests_active_shipment_uniq')
+    .on(table.shipmentId)
+    .where(sql`${table.shipmentId} is not null and ${table.status} in ('PENDING', 'APPROVED')`),
+  check(
+    'credit_override_requests_reason_check',
+    sql`length(btrim(${table.reason})) > 0`,
+  ),
+  check(
+    'credit_override_requests_amounts_nonneg_check',
+    sql`${table.proposedAmount} >= 0 and ${table.outstandingAmount} >= 0 and ${table.approvedCommitmentAmount} >= 0 and ${table.totalExposure} >= 0 and ${table.creditLimit} > 0 and ${table.overLimitAmount} >= 0 and ${table.overLimitRatio} >= 0`,
+  ),
+  check(
+    'credit_override_requests_scope_check',
+    sql`(${table.scopeType} = 'SHIPMENT' and ${table.shipmentId} is not null and ${table.expiresAt} is null) or (${table.scopeType} = 'EXPIRY' and ${table.shipmentId} is null and ${table.expiresAt} is not null)`,
+  ),
+  check(
+    'credit_override_requests_approval_actor_check',
+    sql`${table.status} <> 'APPROVED' or (${table.approvedBy} is not null and ${table.approvedAt} is not null)`,
+  ),
+  check(
+    'credit_override_requests_rejection_actor_check',
+    sql`${table.status} <> 'REJECTED' or (${table.rejectedBy} is not null and ${table.rejectedAt} is not null and ${table.rejectionReason} is not null)`,
+  ),
+  check(
+    'credit_override_requests_distinct_approver_check',
+    sql`${table.approvedBy} is null or ${table.approvedBy} <> ${table.requestedBy}`,
+  ),
+  check(
+    'credit_override_requests_distinct_rejector_check',
+    sql`${table.rejectedBy} is null or ${table.rejectedBy} <> ${table.requestedBy}`,
+  ),
+]);
+
 // ─── Wave 3: Financial Close tables ─────────────────────────────────────────
 
 export const paymentReceipts = pgTable('payment_receipts', {
@@ -2155,6 +2496,9 @@ export const paymentAllocations = pgTable('payment_allocations', {
   receiptId: varchar('receipt_id', { length: 100 }),
   paymentReceiptId: integer('payment_receipt_id').references(() => paymentReceipts.id),
   allocationOrder: integer('allocation_order'),
+  originalDueDateSnapshot: date('original_due_date_snapshot'),
+  processingDueDateSnapshot: date('processing_due_date_snapshot'),
+  issueTimestampSnapshot: timestamp('issue_timestamp_snapshot'),
   // The customer receiving the allocation.
   customerId: integer('customer_id').references(() => customers.id).notNull(),
   // What this allocation is applied to: a trip or a billing document.

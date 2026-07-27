@@ -40,14 +40,42 @@ export function normalizeSupplierTypes(input: unknown): SupplierType[] {
     .map(t => t as SupplierType);
 }
 
+/** Normalize the reporting-only primary type. Null when blank/invalid. */
+export function normalizeSupplierPrimaryType(
+  input: unknown,
+  types: readonly SupplierType[],
+): SupplierType | null {
+  if (typeof input !== 'string') return null;
+  const upper = input.trim().toUpperCase();
+  if (!upper) return null;
+  if (!(SUPPLIER_TYPES as readonly string[]).includes(upper)) return null;
+  return types.includes(upper as SupplierType) ? (upper as SupplierType) : null;
+}
+
+/**
+ * Normalize the supplier type payload in one place so callers can persist a
+ * stable array + reporting-only primary type + mirrored fuel flag together.
+ */
+export function normalizeSupplierTypeSelection(input: {
+  types?: unknown;
+  primaryType?: unknown;
+}) {
+  const types = normalizeSupplierTypes(input.types);
+  const primaryType = normalizeSupplierPrimaryType(input.primaryType, types);
+  return {
+    types,
+    primaryType,
+    isFuelSupplier: types.includes(SupplierType.FUEL),
+  };
+}
+
 /**
  * Pure helper: returns the boolean that `isFuelSupplier` should hold
  * given the supplier's `types` array. Used by the CRUD afterCreate /
  * afterUpdate hook and by tests.
  */
 export function syncFuelFlag(types: unknown): boolean {
-  const normalized = normalizeSupplierTypes(types);
-  return normalized.includes(SupplierType.FUEL);
+  return normalizeSupplierTypes(types).includes(SupplierType.FUEL);
 }
 
 /**
@@ -92,6 +120,7 @@ export async function classifySuppliersByName(
       await db.update(s.suppliers)
         .set({
           types: a.types,
+          primaryType: a.types.length === 1 ? a.types[0] : null,
           isFuelSupplier: a.types.includes(SupplierType.FUEL),
           updatedAt: new Date(),
         })

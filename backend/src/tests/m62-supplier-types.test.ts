@@ -14,6 +14,8 @@ import { db, client } from '../db';
 import * as s from '../db/schema';
 import {
   normalizeSupplierTypes,
+  normalizeSupplierPrimaryType,
+  normalizeSupplierTypeSelection,
   syncFuelFlag,
   listSuppliersByType,
   classifySuppliersByName,
@@ -89,6 +91,41 @@ describe('M6.2 — normalizeSupplierTypes', () => {
   });
 });
 
+describe('M6.2 — primary supplier type', () => {
+  test('normalizes a valid primary type only when it belongs to the selected types', () => {
+    assert.equal(
+      normalizeSupplierPrimaryType('fuel', [SupplierType.PORT, SupplierType.FUEL]),
+      SupplierType.FUEL,
+    );
+    assert.equal(normalizeSupplierPrimaryType('fuel', [SupplierType.PORT]), null);
+  });
+
+  test('normalizes the combined selection into stable types + reporting-only primary', () => {
+    assert.deepEqual(
+      normalizeSupplierTypeSelection({
+        types: ['fuel', 'PORT', 'fuel'],
+        primaryType: 'fuel',
+      }),
+      {
+        types: [SupplierType.PORT, SupplierType.FUEL],
+        primaryType: SupplierType.FUEL,
+        isFuelSupplier: true,
+      },
+    );
+    assert.deepEqual(
+      normalizeSupplierTypeSelection({
+        types: ['PORT'],
+        primaryType: 'fuel',
+      }),
+      {
+        types: [SupplierType.PORT],
+        primaryType: null,
+        isFuelSupplier: false,
+      },
+    );
+  });
+});
+
 describe('M6.2 — syncFuelFlag', () => {
   test('FUEL present → true', () => {
     assert.equal(syncFuelFlag(['FUEL']), true);
@@ -158,6 +195,7 @@ describe('M6.2 — classifySuppliersByName (DB)', () => {
 
     const [refreshed] = await db.select().from(s.suppliers).where(inArray(s.suppliers.id, [sup.id]));
     assert.deepEqual(refreshed.types, ['CARRIER', 'FUEL']);
+    assert.equal(refreshed.primaryType, null, 'multi-type assignment leaves reporting primary unset');
     assert.equal(refreshed.isFuelSupplier, true, 'FUEL in types → isFuelSupplier mirrored');
   });
 
@@ -181,6 +219,7 @@ describe('M6.2 — classifySuppliersByName (DB)', () => {
 
     const [refreshed] = await db.select().from(s.suppliers).where(inArray(s.suppliers.id, [sup.id]));
     assert.deepEqual(refreshed.types, ['SERVICE']);
+    assert.equal(refreshed.primaryType, 'SERVICE');
     assert.equal(refreshed.isFuelSupplier, false, 'FUEL removed → flag flipped back');
   });
 

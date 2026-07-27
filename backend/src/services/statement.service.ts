@@ -540,13 +540,24 @@ export async function getStatementData(customerId: number, dateFrom?: string, da
   const revenueEntries = enrichedLedgerRows.filter((r) => r.txnType === TxnType.TRIP_REVENUE);
   const tripNotes = new Map<number, string>();
   const revenueAuthorityByTrip = new Map<number, EnrichedLedgerRow>();
+  const statementDueSortKey = (row: Pick<EnrichedLedgerRow, 'processingDueDate' | 'originalDueDate' | 'timestamp'>) =>
+    row.processingDueDate
+    ?? row.originalDueDate
+    ?? new Date(row.timestamp).toISOString().slice(0, 10);
   for (const entry of revenueEntries) {
     if (entry.txnId && !tripNotes.has(entry.txnId)) {
       tripNotes.set(entry.txnId, entry.note || '');
     }
     if (entry.txnId) {
       const current = revenueAuthorityByTrip.get(entry.txnId);
-      if (!current || entry.id > current.id) {
+      if (
+        !current
+        || statementDueSortKey(entry).localeCompare(statementDueSortKey(current)) < 0
+        || (
+          statementDueSortKey(entry) === statementDueSortKey(current)
+          && new Date(entry.timestamp).toISOString().localeCompare(new Date(current.timestamp).toISOString()) < 0
+        )
+      ) {
         revenueAuthorityByTrip.set(entry.txnId, entry);
       }
     }
@@ -598,10 +609,10 @@ export async function getStatementData(customerId: number, dateFrom?: string, da
       && item.originalDueDate !== item.processingDueDate,
   }));
   unpaidTrips.sort((a, b) => {
-    if (a.processingDueDate !== b.processingDueDate) {
-      if (a.processingDueDate == null) return 1;
-      if (b.processingDueDate == null) return -1;
-      return a.processingDueDate.localeCompare(b.processingDueDate);
+    const aDueKey = a.processingDueDate ?? a.originalDueDate ?? a.issueTimestamp.slice(0, 10);
+    const bDueKey = b.processingDueDate ?? b.originalDueDate ?? b.issueTimestamp.slice(0, 10);
+    if (aDueKey !== bDueKey) {
+      return aDueKey.localeCompare(bDueKey);
     }
     if (a.issueTimestamp !== b.issueTimestamp) {
       return a.issueTimestamp.localeCompare(b.issueTimestamp);

@@ -2,6 +2,11 @@ import { NotificationType, Role, TripStatus } from '@tingting/shared';
 import * as tripService from './trip.service';
 import { cacheInvalidate, cacheInvalidatePattern } from '../lib/redis';
 import { emitNotification, type NotificationPayload } from './notification.service';
+import { runIdempotent } from './idempotency.service';
+import * as s from '../db/schema';
+import { eq } from 'drizzle-orm';
+import { ApiError } from '../errors';
+import type { Tx } from './trip-shared';
 
 type TripRecord = Awaited<ReturnType<typeof tripService.createTrip>>;
 type CreateTripInput = Parameters<typeof tripService.createTrip>[0];
@@ -18,6 +23,11 @@ export interface TripCommandDeps {
   syncAttendanceAfterStatusChange: typeof tripService.syncAttendanceAfterStatusChange;
   invalidateReports: (invalidatePnl?: boolean) => Promise<void>;
   emitNotification: (payload: NotificationPayload) => void;
+}
+
+export interface TripWriteCommandResult {
+  trip: TripRecord;
+  replayed: boolean;
 }
 
 async function invalidateReportCaches(invalidatePnl?: boolean) {
@@ -52,6 +62,12 @@ function emitTripCreatedNotification(
   });
 }
 
+async function loadTripRow(tx: Tx, tripId: number): Promise<TripRecord> {
+  const [trip] = await tx.select().from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+  if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
+  return trip;
+}
+
 export async function createTripCommand(
   data: CreateTripInput,
   actor: TripCommandActor,
@@ -60,6 +76,7 @@ export async function createTripCommand(
   const trip = await deps.createTrip({
     ...data,
     createdBy: actor.userId,
+    createdByRole: actor.role,
   });
   await deps.invalidateReports();
   emitTripCreatedNotification(trip, deps.emitNotification);
@@ -106,4 +123,149 @@ export async function dispatchTripCommand(
     targetDriverId: trip.driverId ?? undefined,
   });
   return trip;
+}
+
+export async function createTripWriteCommand(
+  data: CreateTripInput,
+  actor: TripCommandActor,
+  idempotencyKey?: string,
+  deps: TripCommandDeps = defaultDeps,
+): Promise<TripWriteCommandResult> {
+  if (!idempotencyKey) {
+    return { trip: await createTripCommand(data, actor, deps), replayed: false };
+  }
+
+  const outcome = await runIdempotent({
+    endpoint: 'trips.create',
+    idempotencyKey,
+    payload: { actorId: actor.userId, data },
+    createdBy: actor.userId,
+    create: (tx) => deps.createTrip({ ...data, createdBy: actor.userId, createdByRole: actor.role }, tx),
+    load: (tripId, tx) => loadTripRow(tx, tripId),
+    entityType: 'trip',
+  });
+  if (!outcome.replayed) {
+    await deps.invalidateReports();
+    emitTripCreatedNotification(outcome.result, deps.emitNotification);
+  }
+  return { trip: outcome.result, replayed: outcome.replayed };
+}
+
+export async function copyTripWriteCommand(
+  sourceTripId: number,
+  actor: TripCommandActor,
+  idempotencyKey?: string,
+  deps: TripCommandDeps = defaultDeps,
+): Promise<TripWriteCommandResult> {
+  if (!idempotencyKey) {
+    return { trip: await copyTripCommand(sourceTripId, actor, deps), replayed: false };
+  }
+
+  const outcome = await runIdempotent({
+    endpoint: 'trips.copy',
+    idempotencyKey,
+    payload: { actorId: actor.userId, sourceTripId },
+    createdBy: actor.userId,
+    create: (tx) => deps.copyTrip(sourceTripId, actor.userId, tx),
+    load: (tripId, tx) => loadTripRow(tx, tripId),
+    entityType: 'trip',
+  });
+  if (!outcome.replayed) {
+    await deps.invalidateReports();
+    emitTripCreatedNotification(outcome.result, deps.emitNotification);
+  }
+  return { trip: outcome.result, replayed: outcome.replayed };
+}
+
+export async function transitionTripWriteCommand(args: {
+  tripId: number;
+  targetStatus: TripStatus;
+  actor: TripCommandActor;
+  idempotencyKey?: string;
+  expectedVersion?: number;
+  confirmZeroRevenue?: boolean;
+  confirmNoPhoto?: boolean;
+}, deps: TripCommandDeps = defaultDeps): Promise<TripWriteCommandResult> {
+  const {
+    tripId,
+    targetStatus,
+    actor,
+    idempotencyKey,
+    expectedVersion,
+    confirmZeroRevenue,
+    confirmNoPhoto,
+  } = args;
+
+  if (!idempotencyKey) {
+    const trip = await deps.transitionTripStatus(
+      tripId,
+      targetStatus,
+      actor.userId,
+      actor.role,
+      confirmZeroRevenue,
+      confirmNoPhoto,
+      { expectedVersion },
+    );
+    return { trip, replayed: false };
+  }
+
+  const outcome = await runIdempotent({
+    endpoint: `trips.transition.${targetStatus.toLowerCase()}`,
+    idempotencyKey,
+    payload: {
+      actorId: actor.userId,
+      tripId,
+      targetStatus,
+      expectedVersion,
+      confirmZeroRevenue: confirmZeroRevenue === true,
+      confirmNoPhoto: confirmNoPhoto === true,
+    },
+    createdBy: actor.userId,
+    create: (tx) => deps.transitionTripStatus(
+      tripId,
+      targetStatus,
+      actor.userId,
+      actor.role,
+      confirmZeroRevenue,
+      confirmNoPhoto,
+      { expectedVersion, transaction: tx },
+    ),
+    load: (storedTripId, tx) => loadTripRow(tx, storedTripId),
+    entityType: 'trip',
+  });
+  return { trip: outcome.result, replayed: outcome.replayed };
+}
+
+export async function dispatchTripWriteCommand(
+  tripId: number,
+  actor: TripCommandActor,
+  options: { idempotencyKey?: string; expectedVersion?: number } = {},
+  deps: TripCommandDeps = defaultDeps,
+): Promise<TripWriteCommandResult> {
+  const outcome = await transitionTripWriteCommand({
+    tripId,
+    targetStatus: TripStatus.IN_TRANSIT,
+    actor,
+    ...options,
+  }, deps);
+  if (!outcome.replayed) {
+    await deps.invalidateReports();
+    await deps.syncAttendanceAfterStatusChange(
+      outcome.trip.id,
+      TripStatus.IN_TRANSIT,
+      outcome.trip.driverId ?? null,
+      outcome.trip.departureDate ?? null,
+      null,
+      actor.userId,
+    );
+    deps.emitNotification({
+      type: NotificationType.TRIP_DISPATCHED,
+      title: 'Chuyến được điều phối',
+      message: `Chuyến ${outcome.trip.tripCode} đã được điều phối`,
+      relatedEntityType: 'trips',
+      relatedEntityId: outcome.trip.id,
+      targetDriverId: outcome.trip.driverId ?? undefined,
+    });
+  }
+  return outcome;
 }

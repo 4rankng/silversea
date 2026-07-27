@@ -3,7 +3,39 @@
 // never block trip lifecycle changes.
 
 import { TripStatus } from '@tingting/shared';
+import { db } from '../db';
+import * as s from '../db/schema';
+import { eq } from 'drizzle-orm';
 import { syncTripWorkDays, removeTripWorkDays } from './attendance.service';
+
+const BUSINESS_TIME_ZONE = 'Asia/Ho_Chi_Minh';
+
+function toBusinessDateString(value: Date | string | null | undefined): string | null {
+  if (!value) return null;
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: BUSINESS_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === 'year')?.value;
+  const month = parts.find((part) => part.type === 'month')?.value;
+  const day = parts.find((part) => part.type === 'day')?.value;
+  return year && month && day ? `${year}-${month}-${day}` : null;
+}
+
+async function resolveCompletionDate(tripId: number, actualArrivalDate?: string | null): Promise<string | null> {
+  const normalizedInput = toBusinessDateString(actualArrivalDate);
+  if (normalizedInput) return normalizedInput;
+  const [trip] = await db.select({ completedAt: s.trips.completedAt })
+    .from(s.trips)
+    .where(eq(s.trips.id, tripId))
+    .limit(1);
+  return toBusinessDateString(trip?.completedAt);
+}
 
 /**
  * Call this from routes/trips.ts after updateStatus resolves. Not inside the
@@ -21,7 +53,10 @@ export async function syncAttendanceAfterStatusChange(
 
   try {
     if (newStatus === TripStatus.IN_TRANSIT || newStatus === TripStatus.COMPLETED) {
-      await syncTripWorkDays(driverId, tripId, departureDate, actualArrivalDate ?? null, userId ?? null);
+      const completionDate = newStatus === TripStatus.COMPLETED
+        ? await resolveCompletionDate(tripId, actualArrivalDate ?? null)
+        : actualArrivalDate ?? null;
+      await syncTripWorkDays(driverId, tripId, departureDate, completionDate, userId ?? null);
     } else if (newStatus === TripStatus.CANCELED) {
       await removeTripWorkDays(driverId, tripId);
     }

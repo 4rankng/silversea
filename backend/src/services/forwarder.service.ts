@@ -5,6 +5,10 @@ import * as s from '../db/schema';
 import type { GuardedResult } from './approval.service';
 import { eq, and, isNull, desc, notInArray, inArray, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
+import {
+  buildNoInvoicePolicySnapshotForExpenseInput,
+  toNoInvoicePolicySnapshotValue,
+} from './no-invoice-disbursement.service';
 export {
   getForwarderTrips,
   latestTripPhotoKey,
@@ -191,6 +195,8 @@ export async function createTripExpense(
     settlementMethod?: string;
     supplierId?: number | null;
     approvalStatus?: string;
+    expenseDate?: string | null;
+    payeeName?: string | null;
     invoiceNumber?: string | null;
     invoiceDate?: string | null;
     declarationNumber?: string | null;
@@ -199,6 +205,7 @@ export async function createTripExpense(
      *  mirrored from this row so settlement grouping never drifts. */
     tripContainerId?: number | null;
     note: string | null;
+    noInvoiceEvidenceTypes?: string[] | null;
   },
 ) {
   // Spec §4.9: locked trips are immutable — reject expense creation on LOCKED trips.
@@ -243,6 +250,10 @@ export async function createTripExpense(
   // payable counterparty.
   const approvalStatus = data.approvalStatus
     ?? (data.createdBy != null || data.forwarderId != null ? 'PENDING' : 'APPROVED');
+  const noInvoicePolicySnapshot = await buildNoInvoicePolicySnapshotForExpenseInput(txOrDb, {
+    expenseType: data.expenseType,
+    invoiceNumber: data.invoiceNumber ?? null,
+  });
 
   const [inserted] = await txOrDb.insert(s.tripExpenses).values({
     tripId: data.tripId,
@@ -253,6 +264,8 @@ export async function createTripExpense(
     sellAmount: data.sellAmount ?? '0',
     settlementMethod: data.settlementMethod ?? 'FORWARDER_ADVANCE',
     supplierId: data.supplierId ?? null,
+    expenseDate: data.expenseDate ?? null,
+    payeeName: data.payeeName?.trim() || null,
     invoiceNumber: data.invoiceNumber ?? null,
     invoiceDate: data.invoiceDate ?? null,
     declarationNumber: data.declarationNumber ?? null,
@@ -260,6 +273,11 @@ export async function createTripExpense(
     tripContainerId,
     approvalStatus,
     note: data.note,
+    noInvoiceEvidenceTypes: data.noInvoiceEvidenceTypes ?? [],
+    noInvoicePolicySnapshot: toNoInvoicePolicySnapshotValue(noInvoicePolicySnapshot),
+    returnForEvidenceReason: null,
+    returnedForEvidenceAt: null,
+    returnedForEvidenceBy: null,
   }).returning();
   if (data.forwarderId != null) {
     await resetExpenseScope(txOrDb, data.tripId, tripContainerId);
@@ -276,6 +294,8 @@ export async function updateTripExpense(
     sellAmount?: string;
     settlementMethod?: string;
     supplierId?: number | null;
+    expenseDate?: string | null;
+    payeeName?: string | null;
     invoiceNumber?: string | null;
     invoiceDate?: string | null;
     declarationNumber?: string | null;
@@ -283,6 +303,7 @@ export async function updateTripExpense(
     /** B5: authoritative container FK; validated against the expense's trip. */
     tripContainerId?: number | null;
     note?: string | null;
+    noInvoiceEvidenceTypes?: string[] | null;
   },
 ) {
   await txOrDb.execute(sql`SELECT pg_advisory_xact_lock(6102, ${id})`);
@@ -295,6 +316,7 @@ export async function updateTripExpense(
       tripId: s.tripExpenses.tripId,
       tripContainerId: s.tripExpenses.tripContainerId,
       expenseType: s.tripExpenses.expenseType,
+      invoiceNumber: s.tripExpenses.invoiceNumber,
       declarationNumber: s.tripExpenses.declarationNumber,
       approvalStatus: s.tripExpenses.approvalStatus,
     })
@@ -340,9 +362,27 @@ export async function updateTripExpense(
   if (requiredFieldError) throw new ApiError(400, requiredFieldError);
 
   const setPatch: Record<string, unknown> = { ...patch, updatedAt: new Date() };
+  const nextExpenseType = patch.expenseType ?? existing.expenseType;
+  const nextInvoiceNumber = patch.invoiceNumber === undefined
+    ? existing.invoiceNumber
+    : patch.invoiceNumber;
+  const noInvoicePolicySnapshot = await buildNoInvoicePolicySnapshotForExpenseInput(txOrDb, {
+    expenseType: nextExpenseType,
+    invoiceNumber: nextInvoiceNumber ?? null,
+  });
+  setPatch.noInvoicePolicySnapshot = toNoInvoicePolicySnapshotValue(noInvoicePolicySnapshot);
 
   if (patch.sellAmount !== undefined && existing.forwarderId != null) {
     setPatch.approvalStatus = 'PENDING';
+  }
+  if (patch.noInvoiceEvidenceTypes !== undefined) {
+    setPatch.noInvoiceEvidenceTypes = patch.noInvoiceEvidenceTypes ?? [];
+  }
+  if (existing.approvalStatus === 'RETURN_FOR_EVIDENCE') {
+    setPatch.approvalStatus = 'PENDING';
+    setPatch.returnForEvidenceReason = null;
+    setPatch.returnedForEvidenceAt = null;
+    setPatch.returnedForEvidenceBy = null;
   }
 
   // B5: resolve an authoritative container change against this trip. An
@@ -418,6 +458,8 @@ export async function getTripExpenses(txOrDb: DbOrTx, tripId: number) {
     sellAmount: s.tripExpenses.sellAmount,
     settlementMethod: s.tripExpenses.settlementMethod,
     supplierId: s.tripExpenses.supplierId,
+    expenseDate: s.tripExpenses.expenseDate,
+    payeeName: s.tripExpenses.payeeName,
     invoiceNumber: s.tripExpenses.invoiceNumber,
     invoiceDate: s.tripExpenses.invoiceDate,
     declarationNumber: s.tripExpenses.declarationNumber,
@@ -425,6 +467,10 @@ export async function getTripExpenses(txOrDb: DbOrTx, tripId: number) {
     tripContainerId: s.tripExpenses.tripContainerId,
     approvalStatus: s.tripExpenses.approvalStatus,
     note: s.tripExpenses.note,
+    noInvoiceEvidenceTypes: s.tripExpenses.noInvoiceEvidenceTypes,
+    noInvoicePolicySnapshot: s.tripExpenses.noInvoicePolicySnapshot,
+    returnForEvidenceReason: s.tripExpenses.returnForEvidenceReason,
+    returnedForEvidenceAt: s.tripExpenses.returnedForEvidenceAt,
     createdAt: s.tripExpenses.createdAt,
     updatedAt: s.tripExpenses.updatedAt,
     forwarderName: s.users.fullName,

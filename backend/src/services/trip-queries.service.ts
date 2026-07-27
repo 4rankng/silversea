@@ -10,6 +10,7 @@ import { getTripInstructions } from './trip-instructions.service';
 import { resolveRoute } from './gps/route-capture';
 import { fetchRouteMap } from './gps/route-lookup';
 import { resolveLegCoords } from './maps.service';
+import { loadTripPairingSummaries } from './trip-pairs.service';
 
 // ─── Query helpers ─────────────────────────────────────────────────────────
 
@@ -44,7 +45,11 @@ const TRIP_RELATION_JOINS = <T extends WithLeftJoin>(query: T): T => (query as W
   .leftJoin(s.suppliers, eq(s.trips.fuelSupplierId, s.suppliers.id)) as unknown as T;
 
 /** Shape flat joined rows into nested relation objects. */
-function shapeTripRelations(item: Record<string, unknown>, extras?: { legs?: unknown[]; photoUrls?: string[] }) {
+function shapeTripRelations(item: Record<string, unknown>, extras?: {
+  legs?: unknown[];
+  photoUrls?: string[];
+  pairing?: unknown;
+}) {
   return {
     ...item,
     customer: item.customerName ? { id: item.customerId, name: item.customerName } : null,
@@ -205,6 +210,14 @@ export async function getTrips(filters: TripListFilters) {
     truckId: s.trips.truckId, driverId: s.trips.driverId, routeId: s.trips.routeId,
     cargoTypeId: s.trips.cargoTypeId, containerCount: s.trips.containerCount,
     status: s.trips.status, departureDate: s.trips.departureDate,
+    plannedStartAt: s.trips.plannedStartAt,
+    plannedEndAt: s.trips.plannedEndAt,
+    canonicalOrigin: s.trips.canonicalOrigin,
+    canonicalDestination: s.trips.canonicalDestination,
+    cargoWeightKg: s.trips.cargoWeightKg,
+    vehicleCapacityKg: s.trips.vehicleCapacityKg,
+    activeTripPairId: s.trips.activeTripPairId,
+    activeTripPairOrder: s.trips.activeTripPairOrder,
     fuelMode: s.trips.fuelMode, fuelLiters: s.trips.fuelLiters,
     fuelLitersOverride: s.trips.fuelLitersOverride,
     fuelSupplementLiters: s.trips.fuelSupplementLiters,
@@ -288,9 +301,18 @@ export async function getTrips(filters: TripListFilters) {
     }
   }
 
+  const pairingByTrip = await loadTripPairingSummaries(items.map((item) => ({
+    id: item.id,
+    activeTripPairId: item.activeTripPairId,
+    activeTripPairOrder: item.activeTripPairOrder,
+  })));
+
   return {
     items: items.map((item) => ({
-      ...shapeTripRelations(item, { legs: legsByTrip.get(item.id) ?? [] }),
+      ...shapeTripRelations(item, {
+        legs: legsByTrip.get(item.id) ?? [],
+        pairing: pairingByTrip.get(item.id) ?? null,
+      }),
       containers: containersByTrip.get(item.id) ?? [],
     })),
     total: Number(countRow?.count ?? 0),
@@ -390,6 +412,14 @@ export async function getTripById(id: number) {
     truckId: s.trips.truckId, driverId: s.trips.driverId, routeId: s.trips.routeId,
     cargoTypeId: s.trips.cargoTypeId, containerCount: s.trips.containerCount,
     status: s.trips.status, departureDate: s.trips.departureDate,
+    plannedStartAt: s.trips.plannedStartAt,
+    plannedEndAt: s.trips.plannedEndAt,
+    canonicalOrigin: s.trips.canonicalOrigin,
+    canonicalDestination: s.trips.canonicalDestination,
+    cargoWeightKg: s.trips.cargoWeightKg,
+    vehicleCapacityKg: s.trips.vehicleCapacityKg,
+    activeTripPairId: s.trips.activeTripPairId,
+    activeTripPairOrder: s.trips.activeTripPairOrder,
     fuelMode: s.trips.fuelMode, fuelLiters: s.trips.fuelLiters,
     fuelLitersOverride: s.trips.fuelLitersOverride, fuelSupplementLiters: s.trips.fuelSupplementLiters,
     fuelSupplementReason: s.trips.fuelSupplementReason, fuelPriceApplied: s.trips.fuelPriceApplied,
@@ -468,9 +498,22 @@ export async function getTripById(id: number) {
   }));
 
   const photoUrls = photos.map(p => `/api/photos/${encodeURIComponent(p.storageKey)}`);
+  const pairingByTrip = await loadTripPairingSummaries([{
+    id: trip.id,
+    activeTripPairId: trip.activeTripPairId,
+    activeTripPairOrder: trip.activeTripPairOrder,
+  }]);
   const gpsRow = gpsTrackRow[0];
   const gpsTrail = gpsRow
     ? { encodedPolyline: gpsRow.encodedPolyline, distanceKm: Number(gpsRow.distanceKm), pointCount: gpsRow.pointCount, stops: gpsRow.stops ?? [] }
     : null;
-  return { ...shapeTripRelations(trip, { legs: legsWithCoords, photoUrls }), instructions, gpsTrail };
+  return {
+    ...shapeTripRelations(trip, {
+      legs: legsWithCoords,
+      photoUrls,
+      pairing: pairingByTrip.get(trip.id) ?? null,
+    }),
+    instructions,
+    gpsTrail,
+  };
 }

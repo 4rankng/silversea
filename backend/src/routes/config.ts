@@ -17,8 +17,11 @@ import {
   tireSchema, installTireSchema, disposeTireSchema, transferTireSchema, tirePositionSchema,
   fuelNormSchema, weightPricingTierSchema, liftPricingSchema, ancillaryRevenueSchema,
   businessCalendarDaySchema,
+  DEFAULT_NO_INVOICE_EVIDENCE_TYPES,
+  NO_INVOICE_POLICY_DEFAULTS,
 } from '@tingting/shared';
 import type { Request, Response } from 'express';
+import type { output } from 'zod';
 import { createCrudRouter } from './utils/crud-factory';
 import debitNoteTemplatesRouter from './config/debit-note-templates.routes';
 import { ApiError } from '../errors';
@@ -41,13 +44,23 @@ import {
   reopenSalaryPeriod,
   getSalaryPeriodClose,
   listSalaryPeriodCloses,
+  getSalaryPeriodReadiness,
+  listSalaryPeriodExclusions,
+  createSalaryPeriodExclusion,
+  checkSalaryPeriodExclusion,
+  approveSalaryPeriodExclusion,
 } from '../services/salary-period-close.service';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { getUser } from '../middleware/auth';
 import { parsePagination } from './utils/pagination';
 import { queryAuditLogs } from '../services/audit-query.service';
 import { getPenaltyStats } from '../services/reporting.service';
-import { normalizeSupplierTypes, syncFuelFlag } from '../services/supplier-types.service';
+import { normalizeSupplierTypeSelection } from '../services/supplier-types.service';
+import { syncCustomerPartner, syncSupplierPartner } from '../services/legal-partner.service';
+
+type SupplierPayload = output<typeof supplierSchema>;
+type ForwarderExpenseTypePayload = output<typeof forwarderExpenseTypeSchema>;
+type NoInvoiceEvidenceType = typeof DEFAULT_NO_INVOICE_EVIDENCE_TYPES[number];
 
 /**
  * Wave 3 M6.2 — afterCreate/afterUpdate hook for suppliers. Normalizes
@@ -59,19 +72,118 @@ import { normalizeSupplierTypes, syncFuelFlag } from '../services/supplier-types
  */
 async function syncSupplierTypesHook(
   item: { id: number },
-  data: { types?: unknown },
+  data: { types?: unknown; primaryType?: unknown },
 ): Promise<void> {
   // No `types` key in the payload → leave the column untouched (caller
   // is updating some other field).
-  if (data == null || !('types' in data) || data.types === undefined) return;
-  const normalized = normalizeSupplierTypes(data.types);
+  if (data == null || (!('types' in data) && !('primaryType' in data))) return;
+  const normalized = normalizeSupplierTypeSelection(data);
   await db.update(s.suppliers)
     .set({
-      types: normalized,
-      isFuelSupplier: syncFuelFlag(normalized),
+      types: normalized.types,
+      primaryType: normalized.primaryType,
+      isFuelSupplier: normalized.isFuelSupplier,
       updatedAt: new Date(),
     })
     .where(eq(s.suppliers.id, item.id));
+}
+
+async function normalizeSupplierPayload(
+  data: Partial<SupplierPayload>,
+  supplierId?: number,
+): Promise<Partial<SupplierPayload>> {
+  if (!('types' in data) && !('primaryType' in data)) return data;
+  let sourceTypes: SupplierPayload['types'] | undefined = data.types;
+  if (sourceTypes === undefined && supplierId != null) {
+    const [current] = await db.select({ types: s.suppliers.types })
+      .from(s.suppliers)
+      .where(eq(s.suppliers.id, supplierId))
+      .limit(1);
+    sourceTypes = current?.types;
+  }
+  const requestedPrimary = typeof data.primaryType === 'string'
+    ? data.primaryType.trim().toUpperCase()
+    : '';
+  const normalized = normalizeSupplierTypeSelection({
+    types: sourceTypes,
+    primaryType: data.primaryType,
+  });
+  if (requestedPrimary && normalized.primaryType == null) {
+    throw new ApiError(400, 'Nhóm chính phải thuộc danh sách nhóm dịch vụ đã chọn');
+  }
+  return {
+    ...data,
+    ...(sourceTypes !== undefined ? { types: normalized.types } : {}),
+    primaryType: normalized.primaryType,
+    isFuelSupplier: normalized.isFuelSupplier,
+  };
+}
+
+function normalizeForwarderExpenseTypePayload(
+  data: Partial<ForwarderExpenseTypePayload>,
+): Partial<ForwarderExpenseTypePayload> {
+  const requiresInvoice = data.requiresInvoice === true;
+  const substituteEvidenceAllowed = requiresInvoice ? false : data.substituteEvidenceAllowed !== false;
+  const noInvoiceEvidenceTypes: NoInvoiceEvidenceType[] = substituteEvidenceAllowed
+    ? Array.from(new Set<NoInvoiceEvidenceType>(
+      Array.isArray(data.noInvoiceEvidenceTypes)
+        ? data.noInvoiceEvidenceTypes
+        : DEFAULT_NO_INVOICE_EVIDENCE_TYPES,
+    ))
+    : [];
+  return {
+    ...data,
+    requiresInvoice,
+    substituteEvidenceAllowed,
+    noInvoiceEvidenceTypes,
+    noInvoicePerItemLimit: data.noInvoicePerItemLimit ?? NO_INVOICE_POLICY_DEFAULTS.perItemLimit,
+    noInvoicePerDayLimit: data.noInvoicePerDayLimit ?? NO_INVOICE_POLICY_DEFAULTS.perDayLimit,
+    noInvoiceFinanceLeadItemApprovalLimit: data.noInvoiceFinanceLeadItemApprovalLimit ?? NO_INVOICE_POLICY_DEFAULTS.financeLeadItemApprovalLimit,
+    noInvoiceDirectorDayApprovalLimit: data.noInvoiceDirectorDayApprovalLimit ?? NO_INVOICE_POLICY_DEFAULTS.directorDayApprovalLimit,
+  };
+}
+
+async function withForwarderExpenseTypePolicyVersion(
+  id: number | null,
+  data: Partial<ForwarderExpenseTypePayload>,
+): Promise<Partial<ForwarderExpenseTypePayload>> {
+  const normalized = normalizeForwarderExpenseTypePayload(data);
+  if (id == null) {
+    return { ...normalized, noInvoicePolicyVersion: 1 };
+  }
+  const [existing] = await db.select({
+    requiresInvoice: s.forwarderExpenseTypes.requiresInvoice,
+    substituteEvidenceAllowed: s.forwarderExpenseTypes.substituteEvidenceAllowed,
+    noInvoiceEvidenceTypes: s.forwarderExpenseTypes.noInvoiceEvidenceTypes,
+    noInvoicePerItemLimit: s.forwarderExpenseTypes.noInvoicePerItemLimit,
+    noInvoicePerDayLimit: s.forwarderExpenseTypes.noInvoicePerDayLimit,
+    noInvoiceFinanceLeadItemApprovalLimit: s.forwarderExpenseTypes.noInvoiceFinanceLeadItemApprovalLimit,
+    noInvoiceDirectorDayApprovalLimit: s.forwarderExpenseTypes.noInvoiceDirectorDayApprovalLimit,
+    noInvoicePolicyVersion: s.forwarderExpenseTypes.noInvoicePolicyVersion,
+  }).from(s.forwarderExpenseTypes)
+    .where(eq(s.forwarderExpenseTypes.id, id))
+    .limit(1);
+  if (!existing) return normalized;
+  const policyChanged = JSON.stringify({
+    requiresInvoice: existing.requiresInvoice,
+    substituteEvidenceAllowed: existing.substituteEvidenceAllowed,
+    noInvoiceEvidenceTypes: existing.noInvoiceEvidenceTypes ?? [],
+    noInvoicePerItemLimit: String(existing.noInvoicePerItemLimit),
+    noInvoicePerDayLimit: String(existing.noInvoicePerDayLimit),
+    noInvoiceFinanceLeadItemApprovalLimit: String(existing.noInvoiceFinanceLeadItemApprovalLimit),
+    noInvoiceDirectorDayApprovalLimit: String(existing.noInvoiceDirectorDayApprovalLimit),
+  }) !== JSON.stringify({
+    requiresInvoice: normalized.requiresInvoice,
+    substituteEvidenceAllowed: normalized.substituteEvidenceAllowed,
+    noInvoiceEvidenceTypes: normalized.noInvoiceEvidenceTypes,
+    noInvoicePerItemLimit: String(normalized.noInvoicePerItemLimit),
+    noInvoicePerDayLimit: String(normalized.noInvoicePerDayLimit),
+    noInvoiceFinanceLeadItemApprovalLimit: String(normalized.noInvoiceFinanceLeadItemApprovalLimit),
+    noInvoiceDirectorDayApprovalLimit: String(normalized.noInvoiceDirectorDayApprovalLimit),
+  });
+  return policyChanged
+    ? { ...normalized, noInvoicePolicyVersion: existing.noInvoicePolicyVersion + 1 }
+    : normalized;
 }
 
 const router = Router();
@@ -133,8 +245,14 @@ router.use('/customers', createCrudRouter(s.customers, customerSchema, {
     await validateCustomerUniqueness(data, id);
     return data;
   },
-  afterCreate: mirrorCustomerLink,
-  afterUpdate: mirrorCustomerLink,
+  afterCreate: async (item, data) => {
+    await mirrorCustomerLink(item, data);
+    await syncCustomerPartner(item);
+  },
+  afterUpdate: async (item, data) => {
+    await mirrorCustomerLink(item, data);
+    await syncCustomerPartner(item);
+  },
 }));
 router.use(
   '/business-calendar',
@@ -164,7 +282,11 @@ router.use('/cargo-types', createCrudRouter(s.cargoTypes, cargoTypeSchema));
 router.use('/container-types', createCrudRouter(s.containerTypes, containerTypeSchema, { searchableField: 'name' }));
 router.use('/seal-types', createCrudRouter(s.sealTypes, sealTypeSchema, { searchableField: 'name' }));
 router.use('/ports', createCrudRouter(s.ports, portSchema, { searchableField: 'name' }));
-router.use('/forwarder-expense-types', createCrudRouter(s.forwarderExpenseTypes, forwarderExpenseTypeSchema, { searchableField: 'name' }));
+router.use('/forwarder-expense-types', createCrudRouter(s.forwarderExpenseTypes, forwarderExpenseTypeSchema, {
+  searchableField: 'name',
+  beforeCreate: async (data) => withForwarderExpenseTypePolicyVersion(null, data),
+  beforeUpdate: async (id, data) => withForwarderExpenseTypePolicyVersion(id, data),
+}));
 router.use('/pricing-tables', createCrudRouter(s.pricingTables, pricingTableSchema));
 router.use('/road-allowances', createCrudRouter(s.roadAllowances, roadAllowanceSchema));
 
@@ -212,12 +334,16 @@ router.use('/cap-table', createCrudRouter(s.capTableHistory, capTableSchema));
 router.use('/truck-cap', createCrudRouter(s.truckCapTable, truckCapSchema));
 router.use('/suppliers', createCrudRouter(s.suppliers, supplierSchema, {
   searchableField: 'name',
+  beforeCreate: (data) => normalizeSupplierPayload(data),
+  beforeUpdate: async (id, data) => normalizeSupplierPayload(data, id),
   afterCreate: async (item, data) => {
     await mirrorSupplierLink(item, data);
+    await syncSupplierPartner(item);
     await syncSupplierTypesHook(item, data);
   },
   afterUpdate: async (item, data) => {
     await mirrorSupplierLink(item, data);
+    await syncSupplierPartner(item);
     await syncSupplierTypesHook(item, data);
   },
 }));
@@ -483,6 +609,79 @@ salaryPeriodsAdminRouter.get('/closes/:period', asyncHandler(async (req: Request
   const row = await getSalaryPeriodClose(req.params.period as string);
   if (!row) return res.status(404).json({ error: 'Kỳ này chưa chốt' });
   res.json(row);
+}));
+
+salaryPeriodsAdminRouter.get('/:period/readiness', asyncHandler(async (req: Request, res: Response) => {
+  res.json(await getSalaryPeriodReadiness(req.params.period as string));
+}));
+
+salaryPeriodsAdminRouter.get('/:period/exclusions', asyncHandler(async (req: Request, res: Response) => {
+  res.json({ items: await listSalaryPeriodExclusions(req.params.period as string) });
+}));
+
+salaryPeriodsAdminRouter.post('/:period/exclusions', asyncHandler(async (req: Request, res: Response) => {
+  const u = getUser(req);
+  const body = req.body ?? {};
+  if (!body || typeof body !== 'object') {
+    throw new ApiError(400, 'Thiếu dữ liệu loại trừ kỳ lương');
+  }
+  const driverId = Number((body as { driverId?: unknown }).driverId);
+  if (!Number.isInteger(driverId) || driverId < 1) {
+    throw new ApiError(400, 'driverId không hợp lệ');
+  }
+  const reason = typeof (body as { reason?: unknown }).reason === 'string'
+    ? (body as { reason: string }).reason.trim()
+    : '';
+  if (!reason) {
+    throw new ApiError(400, 'Cần nhập lý do loại trừ');
+  }
+  const handlingMode = (body as { handlingMode?: unknown }).handlingMode === 'ADJUSTMENT'
+    ? 'ADJUSTMENT'
+    : 'SUPPLEMENTARY_PERIOD';
+  const targetPeriod = typeof (body as { targetPeriod?: unknown }).targetPeriod === 'string'
+    ? (body as { targetPeriod: string }).targetPeriod
+    : null;
+  const note = typeof (body as { note?: unknown }).note === 'string'
+    ? (body as { note: string }).note
+    : null;
+
+  const created = await createSalaryPeriodExclusion({
+    period: req.params.period as string,
+    driverId,
+    actorId: u.userId,
+    actorRole: u.role,
+    reason,
+    handlingMode,
+    targetPeriod,
+    note,
+  });
+  res.status(201).json(created);
+}));
+
+salaryPeriodsAdminRouter.post('/:period/exclusions/:actionId/check', asyncHandler(async (req: Request, res: Response) => {
+  const actionId = Number(req.params.actionId);
+  if (!Number.isInteger(actionId) || actionId < 1) {
+    throw new ApiError(400, 'actionId không hợp lệ');
+  }
+  const u = getUser(req);
+  res.json(await checkSalaryPeriodExclusion({
+    actionId,
+    actorId: u.userId,
+    actorRole: u.role,
+  }));
+}));
+
+salaryPeriodsAdminRouter.post('/:period/exclusions/:actionId/approve', asyncHandler(async (req: Request, res: Response) => {
+  const actionId = Number(req.params.actionId);
+  if (!Number.isInteger(actionId) || actionId < 1) {
+    throw new ApiError(400, 'actionId không hợp lệ');
+  }
+  const u = getUser(req);
+  res.json(await approveSalaryPeriodExclusion({
+    actionId,
+    actorId: u.userId,
+    actorRole: u.role,
+  }));
 }));
 
 salaryPeriodsAdminRouter.post('/:period/close', asyncHandler(async (req: Request, res: Response) => {

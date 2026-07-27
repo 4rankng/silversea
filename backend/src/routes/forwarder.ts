@@ -104,12 +104,15 @@ router.post('/expenses', asyncHandler(async (req: Request, res: Response) => {
     sellAmount: String(parsed.data.sellAmount ?? 0),
     settlementMethod: parsed.data.settlementMethod,
     supplierId: parsed.data.supplierId ?? null,
+    expenseDate: parsed.data.expenseDate ?? null,
+    payeeName: parsed.data.payeeName?.trim() || null,
     invoiceNumber: parsed.data.invoiceNumber ?? null,
     invoiceDate: parsed.data.invoiceDate ?? null,
     declarationNumber: parsed.data.declarationNumber ?? null,
     containerNumber: parsed.data.containerNumber ?? null,
     tripContainerId: parsed.data.tripContainerId ?? null,
     note: parsed.data.note ?? null,
+    noInvoiceEvidenceTypes: parsed.data.noInvoiceEvidenceTypes ?? [],
   }));
   res.status(201).json(expense);
 }));
@@ -125,12 +128,15 @@ router.patch('/expenses/:id', asyncHandler(async (req: Request, res: Response) =
     sellAmount: parsed.data.sellAmount !== undefined ? String(parsed.data.sellAmount) : undefined,
     settlementMethod: parsed.data.settlementMethod,
     ...(parsed.data.supplierId !== undefined ? { supplierId: parsed.data.supplierId ?? null } : {}),
+    ...(parsed.data.expenseDate !== undefined ? { expenseDate: parsed.data.expenseDate ?? null } : {}),
+    ...(parsed.data.payeeName !== undefined ? { payeeName: parsed.data.payeeName?.trim() || null } : {}),
     ...(parsed.data.invoiceNumber !== undefined ? { invoiceNumber: parsed.data.invoiceNumber ?? null } : {}),
     ...(parsed.data.invoiceDate !== undefined ? { invoiceDate: parsed.data.invoiceDate ?? null } : {}),
     ...(parsed.data.declarationNumber !== undefined ? { declarationNumber: parsed.data.declarationNumber ?? null } : {}),
     ...(parsed.data.containerNumber !== undefined ? { containerNumber: parsed.data.containerNumber ?? null } : {}),
     ...(parsed.data.tripContainerId !== undefined ? { tripContainerId: parsed.data.tripContainerId ?? null } : {}),
     ...(parsed.data.note !== undefined ? { note: parsed.data.note ?? null } : {}),
+    ...(parsed.data.noInvoiceEvidenceTypes !== undefined ? { noInvoiceEvidenceTypes: parsed.data.noInvoiceEvidenceTypes ?? [] } : {}),
   });
   res.json(item);
 }));

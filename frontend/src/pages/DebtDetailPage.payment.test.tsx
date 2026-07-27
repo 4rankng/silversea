@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -12,6 +12,7 @@ const {
   refetchMock,
   emitMock,
   randomUuidMock,
+  useAgentOpenableMock,
 } = vi.hoisted(() => ({
   useCustomerStatementMock: vi.fn(),
   useSupplierStatementMock: vi.fn(),
@@ -21,7 +22,14 @@ const {
   refetchMock: vi.fn(),
   emitMock: vi.fn(),
   randomUuidMock: vi.fn(),
+  useAgentOpenableMock: vi.fn(),
 }));
+
+let agentOpenCallback: ((payload: {
+  kind?: string;
+  values?: { amount?: number };
+  prefill?: { amount?: number };
+}) => void) | null = null;
 
 vi.mock('../hooks/useQueries', () => ({
   useCustomerStatement: useCustomerStatementMock,
@@ -49,7 +57,10 @@ vi.mock('../hooks/useBackShortcut', () => ({
 }));
 
 vi.mock('../hooks/useAgentOpenable', () => ({
-  useAgentOpenable: vi.fn(),
+  useAgentOpenable: (key: string, callback: typeof agentOpenCallback) => {
+    useAgentOpenableMock(key, callback);
+    agentOpenCallback = callback;
+  },
 }));
 
 vi.mock('../hooks/useMediaQuery', () => ({
@@ -151,6 +162,8 @@ describe('DebtDetailPage payment flow', () => {
     refetchMock.mockReset();
     emitMock.mockReset();
     randomUuidMock.mockReset();
+    useAgentOpenableMock.mockReset();
+    agentOpenCallback = null;
 
     let uuidCounter = 0;
     randomUuidMock.mockImplementation(() => {
@@ -247,5 +260,71 @@ describe('DebtDetailPage payment flow', () => {
       amountVnd: 2_000_000,
     });
     expect(refetchMock).toHaveBeenCalled();
+  });
+
+  it('rotates the retry key when agent prefill changes the semantic amount after a failed submit', async () => {
+    apiPostMock
+      .mockRejectedValueOnce(new Error('Mạng chập chờn, vui lòng thử lại.'))
+      .mockResolvedValueOnce({
+        replayed: false,
+        result: {
+          id: 92,
+          receiptId: 'PT-20260727-02',
+          customerId: 7,
+          receivedAmount: 2_500_000,
+          allocations: [
+            {
+              tripId: 11,
+              amount: 1_500_000,
+              processingDueDate: '2026-07-25',
+              issueTimestamp: '2026-07-20T08:00:00.000Z',
+            },
+          ],
+          allocatedTotal: 1_500_000,
+          unappliedAmount: 1_000_000,
+          allocationMethod: 'OLDEST_DUE',
+          createdAt: '2026-07-27T09:05:00.000Z',
+        },
+      });
+
+    renderPage();
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Ghi nhận thanh toán' })[0]);
+    fireEvent.change(screen.getByLabelText(/Số tiền nhận/), { target: { value: '2000000' } });
+    fireEvent.change(screen.getByLabelText(/Mã biên lai/), { target: { value: 'PT-20260727-02' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ghi nhận' }));
+    await waitFor(() => expect(screen.getByText(/Mạng chập chờn/)).toBeTruthy());
+
+    await act(async () => {
+      agentOpenCallback?.({ kind: 'prefill', values: { amount: 2_500_000 } });
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Ghi nhận' }));
+
+    await waitFor(() => expect(apiPostMock).toHaveBeenCalledTimes(2));
+    expect(apiPostMock).toHaveBeenNthCalledWith(
+      1,
+      '/payments/receive',
+      {
+        customerId: 7,
+        receiptId: 'PT-20260727-02',
+        amount: 2_000_000,
+      },
+      {
+        headers: { 'Idempotency-Key': 'retry-key-4' },
+      },
+    );
+    expect(apiPostMock).toHaveBeenNthCalledWith(
+      2,
+      '/payments/receive',
+      {
+        customerId: 7,
+        receiptId: 'PT-20260727-02',
+        amount: 2_500_000,
+      },
+      {
+        headers: { 'Idempotency-Key': 'retry-key-5' },
+      },
+    );
   });
 });

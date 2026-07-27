@@ -199,8 +199,13 @@ export interface ShipmentDocumentRequest {
 }
 
 export interface ShipmentDocumentReplacementRequest {
+  expectedVersion: number;
   storageKey: string;
   expiresAt?: string | null;
+}
+
+export interface ShipmentDocumentReplacementResponse extends ShipmentDocument {
+  shipmentVersion: number;
 }
 
 export interface ShipmentChangeRequestReviewResponse {
@@ -233,6 +238,7 @@ export interface DispatchShipmentRequest {
   departureDate: string;
   customerReference?: string;
   containerCount?: number;
+  creditApprovalRequestId?: number | null;
 }
 
 /** Response from `POST /api/shipments/:id/dispatch` — carries slice-2 warnings. */
@@ -274,8 +280,8 @@ export async function replaceShipmentDocument(
   shipmentId: number,
   documentId: number,
   body: ShipmentDocumentReplacementRequest,
-): Promise<ShipmentDocument> {
-  return api.post<ShipmentDocument>(`/shipments/${shipmentId}/documents/${documentId}/replace`, body);
+): Promise<ShipmentDocumentReplacementResponse> {
+  return api.post<ShipmentDocumentReplacementResponse>(`/shipments/${shipmentId}/documents/${documentId}/replace`, body);
 }
 
 export async function createShipmentDeclaration(

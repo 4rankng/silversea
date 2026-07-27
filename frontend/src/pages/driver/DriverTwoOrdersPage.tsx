@@ -99,10 +99,16 @@ export default function DriverTwoOrdersPage() {
 
   const view = data;
   const allToday: TripSummary[] = view?.allToday ?? [];
+  const pairedTrips = view?.pair ? [view.pair.first, view.pair.second].filter((trip): trip is TripSummary => Boolean(trip)) : [];
+  const hasPersistedPair = pairedTrips.length > 0;
+  const pageTitle = hasPersistedPair ? 'Lệnh ghép 2 chiều' : 'Hai lệnh hôm nay';
+  const pageDescription = hasPersistedPair
+    ? 'Thứ tự chuyến đi đã được điều vận ghép sẵn cho cùng xe và lái xe'
+    : 'Lệnh đang chạy và lệnh tiếp theo trong ngày';
 
-  if (!view || allToday.length === 0) return (
+  if (!view || (!hasPersistedPair && allToday.length === 0)) return (
     <div>
-      <PageHeader title="Hai lệnh hôm nay" description="Lệnh đang chạy và lệnh tiếp theo trong ngày" />
+      <PageHeader title={pageTitle} description={pageDescription} />
       <div className="empty-state">
         <img src={resolveEmptyIllustration('empty-trips')} alt="No trips" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
         <h3 className="empty-state-title">Hôm nay không có lệnh</h3>
@@ -113,7 +119,45 @@ export default function DriverTwoOrdersPage() {
 
   return (
     <div ref={rootRef} className="driver-trips-page">
-      <PageHeader title="Hai lệnh hôm nay" description={`${allToday.length} lệnh trong ngày ${view.date}`} />
+      <PageHeader
+        title={pageTitle}
+        description={hasPersistedPair ? `Cặp điều vận ngày ${view.date}` : `${allToday.length} lệnh trong ngày ${view.date}`}
+      />
+
+      {view.pair && (
+        <div
+          data-testid="ordered-pair-summary"
+          style={{
+            display: 'grid',
+            gap: 10,
+            marginBottom: 16,
+            padding: '14px 16px',
+            borderRadius: 12,
+            background: 'linear-gradient(180deg, rgba(240,247,243,0.96) 0%, rgba(234,243,238,0.96) 100%)',
+            border: '1px solid rgba(22, 101, 52, 0.14)',
+          }}
+        >
+          <div style={{ fontWeight: 700, color: 'var(--ink)' }}>Cặp điều vận đã ghép</div>
+          <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', fontSize: 13 }}>
+            <div>
+              <div style={{ color: 'var(--ink-3)' }}>Xe rỗng</div>
+              <div style={{ fontWeight: 700 }}>{view.pair.emptyDistanceKm ? `${view.pair.emptyDistanceKm} km` : '—'}</div>
+            </div>
+            <div>
+              <div style={{ color: 'var(--ink-3)' }}>Hiệu suất</div>
+              <div style={{ fontWeight: 700 }}>{view.pair.combinedEfficiencyPercent ? `${view.pair.combinedEfficiencyPercent}%` : '—'}</div>
+            </div>
+            <div>
+              <div style={{ color: 'var(--ink-3)' }}>Đệm thời gian</div>
+              <div style={{ fontWeight: 700 }}>
+                {view.pair.actualGapMinutes != null && view.pair.requiredGapMinutes != null
+                  ? `${view.pair.actualGapMinutes}/${view.pair.requiredGapMinutes} phút`
+                  : '—'}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {view.firstOrderLate && (
         <div
@@ -130,24 +174,37 @@ export default function DriverTwoOrdersPage() {
       )}
 
       <div className="driver-trips-list" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {view.active ? (
-          <TripCard trip={view.active} label="Lệnh đang chạy" accent="var(--ok, #16a34a)" />
+        {view.pair ? (
+          <>
+            {view.pair.first ? (
+              <TripCard trip={view.pair.first} label="Chuyến 1" accent="var(--ok, #166534)" />
+            ) : null}
+            {view.pair.second ? (
+              <TripCard trip={view.pair.second} label="Chuyến 2" accent="var(--accent, #2563eb)" />
+            ) : null}
+          </>
         ) : (
-          <div className="dt-card__empty-slot" data-testid="active-empty" style={{ padding: 16, border: '1px dashed var(--border, #e5e7eb)', borderRadius: 8, color: 'var(--ink-3)', fontSize: 14 }}>
-            Chưa có lệnh nào đang chạy.
-          </div>
-        )}
+          <>
+            {view.active ? (
+              <TripCard trip={view.active} label="Lệnh đang chạy" accent="var(--ok, #16a34a)" />
+            ) : (
+              <div className="dt-card__empty-slot" data-testid="active-empty" style={{ padding: 16, border: '1px dashed var(--border, #e5e7eb)', borderRadius: 8, color: 'var(--ink-3)', fontSize: 14 }}>
+                Chưa có lệnh nào đang chạy.
+              </div>
+            )}
 
-        {view.next ? (
-          <TripCard trip={view.next} label="Lệnh tiếp theo" accent="var(--accent, #2563eb)" />
-        ) : (
-          <div className="dt-card__empty-slot" data-testid="next-empty" style={{ padding: 16, border: '1px dashed var(--border, #e5e7eb)', borderRadius: 8, color: 'var(--ink-3)', fontSize: 14 }}>
-            Không có lệnh tiếp theo.
-          </div>
+            {view.next ? (
+              <TripCard trip={view.next} label="Lệnh tiếp theo" accent="var(--accent, #2563eb)" />
+            ) : (
+              <div className="dt-card__empty-slot" data-testid="next-empty" style={{ padding: 16, border: '1px dashed var(--border, #e5e7eb)', borderRadius: 8, color: 'var(--ink-3)', fontSize: 14 }}>
+                Không có lệnh tiếp theo.
+              </div>
+            )}
+          </>
         )}
       </div>
 
-      {allToday.length > 2 && (
+      {!hasPersistedPair && allToday.length > 2 && (
         <p style={{ marginTop: 16, color: 'var(--ink-3)', fontSize: 13 }}>
           Còn {allToday.length - 2} lệnh khác hôm nay — xem đầy đủ ở <Link to="/my-trips">Danh sách lệnh</Link>.
         </p>

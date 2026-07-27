@@ -4,9 +4,11 @@ import { TRIPS, CATALOGS, TRACKING } from '@tingting/shared';
 import type {
   Trip,
   TripDetail,
+  TripPairRecord,
   TripExpense,
   TripInstruction,
   CreateTripRequest,
+  CreateTripPairRequest,
   UpdateTripFiguresRequest,
   BulkUpdateTripFiguresRequest,
   BulkUpdateTripFiguresResponse,
@@ -30,7 +32,22 @@ export interface CatalogData {
   trailers: Array<{ id: number; licensePlate: string; type: string; status: string }>;
   containerTypes: Array<{ id: number; code: string; name: string }>;
   ports: Array<{ id: number; name: string; code: string | null; city: string | null }>;
-  forwarderExpenseTypes: Array<{ id: number; code: string; name: string; defaultMarkup?: boolean; billingLabel?: string | null; vatRate?: string | null }>;
+  forwarderExpenseTypes: Array<{
+    id: number;
+    code: string;
+    name: string;
+    requiresInvoice?: boolean;
+    substituteEvidenceAllowed?: boolean;
+    noInvoiceEvidenceTypes?: string[];
+    noInvoicePerItemLimit?: string | null;
+    noInvoicePerDayLimit?: string | null;
+    noInvoiceFinanceLeadItemApprovalLimit?: string | null;
+    noInvoiceDirectorDayApprovalLimit?: string | null;
+    noInvoicePolicyVersion?: number;
+    defaultMarkup?: boolean;
+    billingLabel?: string | null;
+    vatRate?: string | null;
+  }>;
   suppliers: Array<{ id: number; name: string; status: string }>;
 }
 
@@ -109,6 +126,8 @@ export const tripClient = {
 
   dispatchTrip: (id: number) => api.post<Trip>(TRIPS.DISPATCH(id), {}),
 
+  createPair: (data: CreateTripPairRequest) => api.post<TripPairRecord>(TRIPS.PAIRS, data),
+
   lockTrip: (id: number, confirmZeroRevenue?: boolean, confirmNoPhoto?: boolean) =>
     api.post<Trip>(TRIPS.LOCK(id), { confirmZeroRevenue, confirmNoPhoto }),
 
@@ -138,7 +157,7 @@ export const tripClient = {
     api.delete<{ ok: boolean }>(TRIPS.EXPENSE(tripId, eid)),
 
   approveTripExpense: (tripId: number, eid: number) =>
-    api.post<{ ok: boolean }>(TRIPS.EXPENSE_APPROVE(tripId, eid), {}),
+    api.post<{ ok: true; outcome: 'APPROVED' | 'RETURN_FOR_EVIDENCE' }>(TRIPS.EXPENSE_APPROVE(tripId, eid), {}),
 
   rejectTripExpense: (tripId: number, eid: number) =>
     api.post<{ ok: boolean }>(TRIPS.EXPENSE_REJECT(tripId, eid), {}),
