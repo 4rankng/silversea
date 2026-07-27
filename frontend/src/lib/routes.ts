@@ -96,6 +96,18 @@ export const routes = {
   mySettlementNew: PAGE_CATALOG.mySettlementNew.path,
   mySettlementDetail: (id: number | string) => PAGE_CATALOG.mySettlementDetail.path({ id }),
 
+  /* ── Customer portal (Wave 2) ─────────────────────────────────────── */
+
+  portalShipments: '/portal/shipments',
+  portalShipmentDetail: (id: number | string) => `/portal/shipments/${id}`,
+  portalDebitNotes: '/portal/debit-notes',
+  portalStatement: '/portal/statement',
+
+  /* ── Clerk portal (Wave 4) ────────────────────────────────────────── */
+
+  clerkShipmentNew: '/clerk/shipments/new',
+  clerkShipmentDocs: (id: number | string) => `/clerk/shipments/${id}/docs`,
+
   /* ── Legacy paths that the router redirects from (kept for old links) */
 
   legacy: {
@@ -113,6 +125,8 @@ export const routes = {
 export function homeForRole(role: 'DRIVER' | 'FORWARDER' | string): string {
   if (role === 'DRIVER') return routes.myTrips;
   if (role === 'FORWARDER') return routes.myForwarderTrips;
+  if (role === 'CUSTOMER') return routes.portalShipments;
+  if (role === 'CLERK') return routes.clerkShipmentNew;
   return routes.dashboard;
 }
 
@@ -151,6 +165,12 @@ const titleRules: TitleRule[] = [
   { test: p => p === routes.users, title: PAGE_CATALOG.users.title },
   { test: p => p === routes.auditLogs, title: PAGE_CATALOG.auditLogs.title },
   { test: p => p === routes.chatbotMonitoring, title: PAGE_CATALOG.chatbotMonitoring.title },
+  { test: p => /^\/portal\/shipments\/\d+$/.test(p), title: 'Chi tiết lô hàng' },
+  { test: p => p.startsWith(routes.portalShipments), title: 'Lô hàng của tôi' },
+  { test: p => p.startsWith(routes.portalDebitNotes), title: 'Giấy báo nợ' },
+  { test: p => p.startsWith(routes.portalStatement), title: 'Sao kê công nợ' },
+  { test: p => /^\/clerk\/shipments\/\d+\/docs$/.test(p), title: 'Hồ sơ lô hàng' },
+  { test: p => p.startsWith(routes.clerkShipmentNew), title: 'Tạo lô hàng' },
   { test: p => p.startsWith(routes.myTrips), title: PAGE_CATALOG.myTrips.title },
   { test: p => p.startsWith(routes.myEarnings), title: PAGE_CATALOG.myEarnings.title },
   { test: p => p.startsWith(routes.myForwarderTrips), title: PAGE_CATALOG.myForwarderTrips.title },

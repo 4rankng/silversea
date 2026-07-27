@@ -914,6 +914,21 @@
   margin-top: 18px;
 }
 
+.cfg-credentials-grid--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.cfg-danger-action {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 42%, var(--line));
+}
+
+.cfg-danger-action:hover {
+  color: var(--danger-text);
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 7%, var(--surface));
+}
+
 .cfg-secret-field > label {
   display: flex !important;
   align-items: center;
@@ -968,5 +983,14 @@
   .cfg-provider-grid,
   .cfg-credentials-grid {
     grid-template-columns: 1fr;
+  }
+
+  .cfg-email-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .cfg-email-actions .btn {
+    width: 100%;
   }
 }

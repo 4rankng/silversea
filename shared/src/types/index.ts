@@ -1194,6 +1194,9 @@ export interface BillingDocument {
   rangeTo: string;
   note: string | null;
   totalInclVat: number;           // sum of non-excluded effective line amounts
+  debitNoteStatus?: 'DRAFT' | 'SENT' | 'PENDING_CONFIRM' | 'CONFIRMED' | 'PARTIAL_PAID' | 'PAID' | 'REJECTED' | 'CANCELED' | null;
+  customerConfirmedAt?: string | null;
+  customerConfirmedBy?: string | null;
   ledgerAdjustmentAmount?: number; // net AR adjustment posted by this document
   createdBy: number | null;
   createdAt: string;

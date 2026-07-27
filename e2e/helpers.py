@@ -21,6 +21,7 @@ DEMO_ACCOUNTS = {
     'accountant':{'identifier': 'ketoan',   'password': 'admin123', 'role': 'ACCOUNTANT', 'home': '/dashboard'},
     'driver':    {'identifier': 'laixe',    'password': 'admin123', 'role': 'DRIVER',     'home': '/my-trips'},
     'forwarder': {'identifier': 'giaonhan', 'password': 'admin123', 'role': 'FORWARDER',  'home': '/my-forwarder-trips'},
+    'customer':  {'identifier': 'customer',  'password': 'admin123', 'role': 'CUSTOMER',   'home': '/portal/shipments'},
 }
 
 

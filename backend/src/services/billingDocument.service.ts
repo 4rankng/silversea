@@ -1,6 +1,6 @@
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq, and, gte, lte, isNull, inArray, desc, type SQL } from 'drizzle-orm';
+import { eq, and, gte, lte, isNull, inArray, desc, notInArray, or, type SQL } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { getSupplierStatement } from './statement.service';
 import { LedgerService } from './ledger.service';
@@ -15,6 +15,7 @@ import {
 import { getCompanyInfo } from './company-info.service';
 import type { Tx } from './trip-shared';
 import { loadLogoBytes } from './lib/export-company';
+import { assertNotLocked } from './debit-note-lifecycle.service';
 import type {
   BillingDocument,
   BillingDocumentDraft,
@@ -738,9 +739,9 @@ export async function updateDocument(id: number, input: SaveBillingDocumentInput
   const desiredAdjustment = input.type === 'DEBIT_NOTE' && input.entityType === 'CUSTOMER'
     ? documentLedgerAdjustment(input.lines as BillingDocumentLine[])
     : 0;
-  // Re-snapshot on every edit so the doc never shows stale template styling on
-  // new line data (the doc is always-editable; snapshot = last-saved render
-  // state). Preserve the existing template link unless the builder sent an
+  // Re-snapshot on every permitted edit so the doc never shows stale template
+  // styling on new line data. Confirmed/paid/canceled documents are locked.
+  // Preserve the existing template link unless the builder sent an
   // explicit pick (number or null); only re-resolve the customer/default chain
   // when there is no link to carry forward.
   const [existing] = await db.select({ tplId: s.billingDocuments.debitNoteTemplateId })
@@ -755,7 +756,7 @@ export async function updateDocument(id: number, input: SaveBillingDocumentInput
   }
   const template = await resolveDebitNoteTemplate({ templateIdOverride: resolvedTemplateId, docType: input.type });
   const snapshot = template ? templateToSnapshot(template) : defaultSnapshotForType(input.type);
-  // Always-editable: replace lines on edit — delete + re-insert inside one
+  // Replace lines on an allowed edit — delete + re-insert inside one
   // transaction so a mid-way failure cannot wipe the document's lines.
   await db.transaction(async (tx) => {
     if (input.type === 'DEBIT_NOTE' && input.entityType === 'CUSTOMER') {
@@ -767,13 +768,27 @@ export async function updateDocument(id: number, input: SaveBillingDocumentInput
     if (current.type !== input.type || current.entityType !== input.entityType || current.entityId !== input.entityId) {
       throw new ApiError(400, 'Không thể đổi khách hàng hoặc loại của tài liệu đã lưu');
     }
-    await tx.update(s.billingDocuments).set({
+    assertNotLocked(current.debitNoteStatus);
+    const [updated] = await tx.update(s.billingDocuments).set({
       entityName: input.entityName ?? null, rangeFrom: input.rangeFrom, rangeTo: input.rangeTo,
       note: input.note ?? null, totalInclVat: String(total), updatedAt: new Date(),
       ledgerAdjustmentAmount: String(desiredAdjustment),
       debitNoteTemplateId: template?.id ?? null,
       debitNoteTemplateSnapshot: snapshot,
-    }).where(eq(s.billingDocuments.id, id));
+    }).where(and(
+      eq(s.billingDocuments.id, id),
+      isNull(s.billingDocuments.deletedAt),
+      or(
+        isNull(s.billingDocuments.debitNoteStatus),
+        notInArray(s.billingDocuments.debitNoteStatus, ['CONFIRMED', 'PARTIAL_PAID', 'PAID', 'CANCELED']),
+      ),
+    )).returning({ id: s.billingDocuments.id });
+    if (!updated) {
+      throw new ApiError(
+        409,
+        'Giấy báo nợ vừa được xác nhận hoặc khóa — không thể chỉnh sửa. Vui lòng tải lại.',
+      );
+    }
     await tx.delete(s.billingDocumentLines).where(eq(s.billingDocumentLines.documentId, id));
     await persistLines(tx, id, input.lines);
     await postDebitNoteDelta(tx, {
@@ -834,6 +849,9 @@ async function hydrateDocument(doc: typeof s.billingDocuments.$inferSelect): Pro
     entityId: doc.entityId, entityName: doc.entityName ?? undefined,
     rangeFrom: doc.rangeFrom, rangeTo: doc.rangeTo, note: doc.note,
     totalInclVat: Number(doc.totalInclVat), createdBy: doc.createdBy,
+    debitNoteStatus: doc.debitNoteStatus,
+    customerConfirmedAt: doc.customerConfirmedAt?.toISOString() ?? null,
+    customerConfirmedBy: doc.customerConfirmedBy,
     ledgerAdjustmentAmount: Number(doc.ledgerAdjustmentAmount),
     debitNoteTemplateId: doc.debitNoteTemplateId ?? null,
     debitNoteTemplateSnapshot: (doc.debitNoteTemplateSnapshot as DebitNoteTemplateSnapshot | null) ?? null,
@@ -866,11 +884,30 @@ export async function deleteDocument(id: number): Promise<void> {
       const [doc] = await tx.select().from(s.billingDocuments)
         .where(and(eq(s.billingDocuments.id, id), isNull(s.billingDocuments.deletedAt))).limit(1);
       if (!doc) throw new ApiError(404, 'Không tìm thấy tài liệu');
+      assertNotLocked(doc.debitNoteStatus);
+      const [deleted] = await tx.update(s.billingDocuments)
+        .set({ deletedAt: new Date(), updatedAt: new Date() })
+        .where(and(
+          eq(s.billingDocuments.id, id),
+          isNull(s.billingDocuments.deletedAt),
+          or(
+            isNull(s.billingDocuments.debitNoteStatus),
+            notInArray(s.billingDocuments.debitNoteStatus, ['CONFIRMED', 'PARTIAL_PAID', 'PAID', 'CANCELED']),
+          ),
+        ))
+        .returning({ id: s.billingDocuments.id });
+      if (!deleted) {
+        throw new ApiError(
+          409,
+          'Giấy báo nợ vừa được xác nhận hoặc khóa — không thể xóa. Vui lòng tải lại.',
+        );
+      }
       await postDebitNoteDelta(tx, {
         documentId: id,
         customerId: doc.entityId,
         delta: -Number(doc.ledgerAdjustmentAmount),
       });
+      return;
     }
     await tx.update(s.billingDocuments).set({ deletedAt: new Date(), updatedAt: new Date() })
       .where(eq(s.billingDocuments.id, id));

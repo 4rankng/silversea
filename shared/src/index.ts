@@ -105,6 +105,10 @@ export {
 export { appSettingsSchema } from './schemas/app-settings';
 export type { AppSettings } from './schemas/app-settings';
 
+// ─── Admin outbound-email credential ───────────────────────────────────────
+export { EMAIL_SETTINGS_PATHS, emailSettingsUpdateSchema } from './schemas/email-settings';
+export type { EmailSettingsResponse, EmailSettingsUpdate } from './schemas/email-settings';
+
 export {
   FUEL_PRICE_PER_LITER_FALLBACK,
   FUEL_LOADED_NORM_FALLBACK,

@@ -18,11 +18,11 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { Role } from '@tingting/shared';
 
-const { getDetailMock, updateMock, saveContainersMock, getContainerTypesMock, confirmMock } = vi.hoisted(() => ({
+const { getDetailMock, updateMock, saveContainersMock, getBootstrapMock, confirmMock } = vi.hoisted(() => ({
   getDetailMock: vi.fn(),
   updateMock: vi.fn(),
   saveContainersMock: vi.fn(),
-  getContainerTypesMock: vi.fn(),
+  getBootstrapMock: vi.fn(),
   confirmMock: vi.fn(),
 }));
 
@@ -32,8 +32,8 @@ vi.mock('../../api/shipmentClient', () => ({
   saveShipmentContainers: saveContainersMock,
   dispatchShipment: vi.fn(),
 }));
-vi.mock('../../api/configClient', () => ({
-  configClient: { getContainerTypes: getContainerTypesMock },
+vi.mock('../../api/tripClient', () => ({
+  tripClient: { getBootstrap: getBootstrapMock },
 }));
 vi.mock('../../components/UI', () => ({
   useConfirm: () => ({ confirm: confirmMock, dialog: null }),
@@ -77,9 +77,9 @@ describe('ClerkShipmentDocsPage — M10.2 doc-entry', () => {
     getDetailMock.mockReset();
     updateMock.mockReset();
     saveContainersMock.mockReset();
-    getContainerTypesMock.mockReset();
+    getBootstrapMock.mockReset();
     confirmMock.mockReset();
-    getContainerTypesMock.mockResolvedValue(CONTAINER_TYPES);
+    getBootstrapMock.mockResolvedValue({ containerTypes: CONTAINER_TYPES });
   });
 
   it('loads shipment detail + shows the readiness banner missing BL + containers', async () => {

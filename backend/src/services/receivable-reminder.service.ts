@@ -28,7 +28,7 @@ import * as s from '../db/schema';
 import { and, eq, gte, isNull, sql } from 'drizzle-orm';
 import { NotificationType, FINANCIAL_ROLES } from '@tingting/shared';
 import { sendEmail } from './email.service';
-import { emitNotification } from './notification.service';
+import { emitNotificationAndWait } from './notification.service';
 import { getCustomerArSummary } from './ar-status.service';
 import logger from '../lib/logger';
 
@@ -185,7 +185,7 @@ export async function runReceivableReminders(): Promise<ReminderRunStats> {
       if (!recipientEmail) {
         // No email — still emit the in-app notification so finance can
         // follow up manually. Counted as skipped for email stats.
-        emitOverdueInApp(c.id, c.name, overdue);
+        await emitOverdueInApp(c.id, c.name, overdue);
         stats.skipped += 1;
         continue;
       }
@@ -204,7 +204,7 @@ export async function runReceivableReminders(): Promise<ReminderRunStats> {
         stats.reminded += 1;
         // In-app notification to financial roles so the ops team can
         // follow up — separate from the customer-facing email.
-        emitOverdueInApp(c.id, c.name, overdue);
+        await emitOverdueInApp(c.id, c.name, overdue);
       } else {
         stats.failed += 1;
         logger.warn(
@@ -230,8 +230,12 @@ export async function runReceivableReminders(): Promise<ReminderRunStats> {
  * roles. The customer doesn't see this — it's a heads-up to the ops
  * team so they can follow up.
  */
-function emitOverdueInApp(customerId: number, customerName: string, overdueAmount: number): void {
-  emitNotification({
+async function emitOverdueInApp(
+  customerId: number,
+  customerName: string,
+  overdueAmount: number,
+): Promise<void> {
+  await emitNotificationAndWait({
     type: NotificationType.OVERDUE_PAYMENT,
     title: 'Công nợ quá hạn',
     message: `Khách hàng ${customerName} đang có ${overdueAmount.toLocaleString('vi-VN')} ₫ quá hạn`,

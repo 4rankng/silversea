@@ -24,8 +24,7 @@ import { TextField, SelectField, EmptyState } from '../../design-system';
 import { useConfirm } from '../../components/UI';
 import { useAuth } from '../../hooks/useAuth';
 import { Role } from '@tingting/shared';
-import type { ContainerType } from '@tingting/shared';
-import { configClient } from '../../api/configClient';
+import { tripClient } from '../../api/tripClient';
 import {
   getShipmentDetail,
   updateShipment,
@@ -33,6 +32,12 @@ import {
   type ShipmentDetail,
   type ShipmentContainer,
 } from '../../api/shipmentClient';
+
+interface ClerkContainerTypeOption {
+  id: number;
+  code: string;
+  name: string;
+}
 
 /** One editable container row. `id` undefined = new row. */
 interface ContainerRow {
@@ -71,7 +76,7 @@ export default function ClerkShipmentDocsPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [containerTypes, setContainerTypes] = useState<ContainerType[]>([]);
+  const [containerTypes, setContainerTypes] = useState<ClerkContainerTypeOption[]>([]);
 
   const [blNumber, setBlNumber] = useState('');
   const [version, setVersion] = useState(1);
@@ -85,7 +90,8 @@ export default function ClerkShipmentDocsPage() {
 
   const canDispatch = user?.role === Role.ADMIN || user?.role === Role.MANAGER;
 
-  // Load shipment detail + container types once.
+  // Load shipment detail + bootstrap catalogs once. CLERK can read the shared
+  // bootstrap blob even though direct config endpoints stay locked down.
   useEffect(() => {
     if (!Number.isFinite(shipmentId)) {
       setLoadError('ID lô hàng không hợp lệ');
@@ -96,15 +102,15 @@ export default function ClerkShipmentDocsPage() {
     setLoading(true);
     Promise.all([
       getShipmentDetail(shipmentId),
-      configClient.getContainerTypes(),
+      tripClient.getBootstrap(),
     ])
-      .then(([d, cts]) => {
+      .then(([d, bootstrap]) => {
         if (cancelled) return;
         setDetail(d);
         setBlNumber(d.shipment.blNumber ?? '');
         setVersion(d.shipment.version);
         setRows(d.containers.map(toRow));
-        setContainerTypes(cts);
+        setContainerTypes(bootstrap.containerTypes);
       })
       .catch((err: unknown) => {
         if (cancelled) return;

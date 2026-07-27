@@ -53,6 +53,8 @@ COPY backend/src/casbin/model.conf backend/dist/casbin/model.conf
 COPY backend/src/casbin/policy.csv backend/dist/casbin/policy.csv
 COPY backend/drizzle backend/drizzle
 COPY backend/drizzle.config.ts backend/drizzle.config.ts
+COPY frontend/public/fonts/BeVietnamPro-Regular.ttf backend/dist/assets/BeVietnamPro-Regular.ttf
+COPY frontend/public/fonts/BeVietnamPro-SemiBold.ttf backend/dist/assets/BeVietnamPro-SemiBold.ttf
 
 # Create uploads directory
 RUN mkdir -p /app/backend/uploads

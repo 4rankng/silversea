@@ -5,7 +5,7 @@ import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { inArray } from 'drizzle-orm';
 
-import { db } from '../db';
+import { client, db } from '../db';
 import * as s from '../db/schema';
 import { createShipment, batchUpsertShipmentContainers } from '../services/shipment.service';
 import { confirmDelivery, calculateFreeTime } from '../services/delivery-confirm.service';
@@ -35,6 +35,11 @@ after(async () => {
     }
   } catch (err) {
     console.warn('[m34-delivery-confirm.test] cleanup partial:', (err as Error).message);
+  } finally {
+    // Drain the postgres pool so the Node test process exits cleanly.
+    // The driver keeps idle connections open, which otherwise hangs the
+    // runner between files under `tsx --test`.
+    await client.end({ timeout: 1 });
   }
 });
 

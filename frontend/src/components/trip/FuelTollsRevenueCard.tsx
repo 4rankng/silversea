@@ -152,7 +152,9 @@ export function FuelTollsRevenueCard({ collapsible, defaultCollapsed }: FuelToll
           checked={form.hasReturnCargo}
           onChange={form.setHasReturnCargo}
           label="Chuyến về có hàng"
-          description="Áp dụng định mức chuyến đôi"
+          description={form.returnCargoBonusApplied != null
+            ? `Cộng ${form.returnCargoBonusApplied.toLocaleString('vi-VN')} đ vào tiền đi đường`
+            : 'Áp dụng định mức chuyến đôi'}
           id="cb-return"
         />
       </div>

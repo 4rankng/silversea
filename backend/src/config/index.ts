@@ -140,10 +140,8 @@ const configSchema = z.object({
   agentRateLimitPerMin: z.number().int().nonnegative().default(20),
   // P5 Governance: agent_messages retention in days. 0 = keep forever.
   agentMessageRetentionDays: z.number().int().nonnegative().default(180),
-  // Wave 2 M3.3: Email service. Resend is the primary provider.
-  // When RESEND_API_KEY is empty, the service falls back to console logging
-  // (dev mode) so email flows are testable without a real provider.
-  resendApiKey: z.string().default(''),
+  // Wave 2 M3.3: Email service. The Resend API key is managed by ADMIN in
+  // app_settings; sender identity remains deployment configuration.
   emailFromAddress: z.string().default('noreply@tingting.vn'),
   emailFromName: z.string().default('TingTing Logistics'),
 });
@@ -223,7 +221,6 @@ const withDefaults = {
   agentFailover: raw.agentFailover,
   agentRateLimitPerMin: raw.agentRateLimitPerMin,
   agentMessageRetentionDays: raw.agentMessageRetentionDays,
-  resendApiKey: process.env.RESEND_API_KEY || '',
   emailFromAddress: process.env.EMAIL_FROM_ADDRESS || 'noreply@tingting.vn',
   emailFromName: process.env.EMAIL_FROM_NAME || 'TingTing Logistics',
 };

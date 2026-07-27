@@ -372,12 +372,10 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
         'paymentStatus': 'UNPAID',
         'vehicleComponent': 'TRUCK',
     })
-    if resp.get('status') in (400, 404, 500):
+    if resp.get('status') in (400, 404):
         results.pass_('TC-1225', 'Invalid supplierId returns error', f'Status={resp.get("status")}')
-    elif resp.get('status') in (200, 201):
-        results.pass_('TC-1225', 'Invalid supplierId accepted (FK may not be enforced)')
     else:
-        results.fail('TC-1225', 'Invalid supplier', f'Status={resp.get("status")}')
+        results.fail('TC-1225', 'Invalid supplier', f'Expected 400/404, got {resp.get("status")}')
 
     # ══════════════════════════════════════════════════════════════════
     # Payment Tests (TC-1230 to TC-1232)
@@ -412,12 +410,10 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
             'date': '2026-06-01',
             'receiptId': 'E2E-RCPT-1232',
         })
-        if resp.get('status') in (400, 409):
+        if resp.get('status') in (400, 409, 422):
             results.pass_('TC-1232', 'Overpayment rejected', f'Status={resp.get("status")}')
-        elif resp.get('status') in (200, 201):
-            results.pass_('TC-1232', 'Overpayment accepted (confirmOverpay or no check)')
         else:
-            results.fail('TC-1232', 'Pay more than owed', f'Status={resp.get("status")} body={resp.get("error")}')
+            results.fail('TC-1232', 'Pay more than owed', f'Expected rejection, got {resp.get("status")} body={resp.get("error")}')
     else:
         results.skip('TC-1230', 'Pay vendor', 'No supplier_id')
         results.skip('TC-1231', 'Payment ledger entry', 'No supplier_id')

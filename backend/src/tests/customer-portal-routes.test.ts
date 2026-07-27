@@ -1,0 +1,220 @@
+import { after, before, describe, test } from 'node:test';
+import assert from 'node:assert/strict';
+import http from 'node:http';
+import type { AddressInfo } from 'node:net';
+import express from 'express';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
+import { eq, inArray } from 'drizzle-orm';
+import { Role } from '@tingting/shared';
+import { db, client } from '../db';
+import * as s from '../db/schema';
+import { config } from '../config';
+import { initEnforcer } from '../casbin/enforcer';
+import { authMiddleware } from '../middleware/auth';
+import { casbinAuthz, requireRoles } from '../middleware/casbin';
+import { globalErrorHandler } from '../middleware/errorHandler';
+import portalRoutes from '../routes/portal/index';
+
+const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+const customerIds: number[] = [];
+const userIds: number[] = [];
+const documentIds: number[] = [];
+let customerToken: string;
+let server: http.Server;
+let baseUrl: string;
+let ownPendingId: number;
+let ownSentId: number;
+let foreignPendingId: number;
+
+async function createCustomer(name: string) {
+  const [customer] = await db.insert(s.customers).values({ name: `${name} ${suffix}` }).returning();
+  customerIds.push(customer.id);
+  return customer;
+}
+
+async function createDocument(customerId: number, status: 'SENT' | 'PENDING_CONFIRM') {
+  const month = String(7 + documentIds.length).padStart(2, '0');
+  const [document] = await db.insert(s.billingDocuments).values({
+    type: 'DEBIT_NOTE',
+    entityType: 'CUSTOMER',
+    entityId: customerId,
+    entityName: `Customer ${customerId}`,
+    rangeFrom: `2026-${month}-01`,
+    rangeTo: `2026-${month}-28`,
+    totalInclVat: '1000000',
+    debitNoteStatus: status,
+  }).returning();
+  documentIds.push(document.id);
+  await db.insert(s.billingDocumentLines).values({
+    documentId: document.id,
+    sourceType: 'ADHOC',
+    sourceId: null,
+    lineType: 'ADHOC',
+    typeLabel: 'Cước vận chuyển',
+    unit: 'lần',
+    description: 'Tuyến kiểm thử',
+    baseAmount: '1000000',
+    sortOrder: 0,
+  });
+  return document;
+}
+
+async function request(
+  path: string,
+  init: { method?: string; token?: string } = {},
+) {
+  const response = await fetch(`${baseUrl}/api/portal${path}`, {
+    method: init.method ?? 'GET',
+    headers: init.token ? { Authorization: `Bearer ${init.token}` } : undefined,
+  });
+  const contentType = response.headers.get('content-type') ?? '';
+  const body = contentType.includes('application/pdf')
+    ? Buffer.from(await response.arrayBuffer())
+    : await response.json().catch(() => ({}));
+  return { status: response.status, contentType, body };
+}
+
+before(async () => {
+  await initEnforcer();
+  const app = express();
+  app.use(express.json());
+  app.use(
+    '/api/portal',
+    authMiddleware,
+    casbinAuthz('customer_portal'),
+    requireRoles(Role.CUSTOMER),
+    portalRoutes,
+  );
+  app.use(globalErrorHandler);
+  await new Promise<void>((resolve) => {
+    server = http.createServer(app);
+    server.listen(0, () => {
+      baseUrl = `http://localhost:${(server.address() as AddressInfo).port}`;
+      resolve();
+    });
+  });
+
+  const ownCustomer = await createCustomer('Portal own');
+  const foreignCustomer = await createCustomer('Portal foreign');
+  const [user] = await db.insert(s.users).values({
+    username: `portal-customer-${suffix}`,
+    passwordHash: await bcrypt.hash('admin123', 10),
+    role: Role.CUSTOMER,
+    customerId: ownCustomer.id,
+  }).returning();
+  userIds.push(user.id);
+  customerToken = jwt.sign(
+    { userId: user.id, username: user.username, role: user.role, customerId: ownCustomer.id },
+    config.jwtSecret,
+  );
+
+  ownPendingId = (await createDocument(ownCustomer.id, 'PENDING_CONFIRM')).id;
+  await db.update(s.billingDocumentLines)
+    .set({ amountOverride: '1250000' })
+    .where(eq(s.billingDocumentLines.documentId, ownPendingId));
+  await db.insert(s.billingDocumentLines).values({
+    documentId: ownPendingId,
+    sourceType: 'ADHOC',
+    sourceId: null,
+    lineType: 'ADHOC',
+    typeLabel: 'Khoản nội bộ đã loại',
+    unit: 'lần',
+    description: 'Không được lộ ra cổng khách hàng',
+    baseAmount: '9999999',
+    amountOverride: '8888888',
+    excluded: true,
+    sortOrder: 99,
+  });
+  ownSentId = (await createDocument(ownCustomer.id, 'SENT')).id;
+  foreignPendingId = (await createDocument(foreignCustomer.id, 'PENDING_CONFIRM')).id;
+});
+
+after(async () => {
+  await new Promise<void>((resolve) => server.close(() => resolve()));
+  if (documentIds.length > 0) {
+    await db.delete(s.billingDocumentLines).where(inArray(s.billingDocumentLines.documentId, documentIds));
+    await db.delete(s.billingDocuments).where(inArray(s.billingDocuments.id, documentIds));
+  }
+  if (userIds.length > 0) await db.delete(s.users).where(inArray(s.users.id, userIds));
+  if (customerIds.length > 0) await db.delete(s.customers).where(inArray(s.customers.id, customerIds));
+  await client.end();
+});
+
+describe('CUSTOMER portal HTTP security contract', () => {
+  test('list is paginated summary-only data', async () => {
+    const response = await request('/debit-notes?page=1&limit=1', { token: customerToken });
+    assert.equal(response.status, 200);
+    const body = response.body as { items: Array<Record<string, unknown>>; total: number; page: number; limit: number };
+    assert.equal(body.items.length, 1);
+    assert.equal(body.total, 2);
+    assert.equal(body.page, 1);
+    assert.equal(body.limit, 1);
+    assert.ok(!('lines' in body.items[0]));
+  });
+
+  test('foreign debit-note detail, action, and export all return 404', async () => {
+    const [detail, action, exported] = await Promise.all([
+      request(`/debit-notes/${foreignPendingId}`, { token: customerToken }),
+      request(`/debit-notes/${foreignPendingId}/confirm`, { method: 'POST', token: customerToken }),
+      request(`/debit-notes/${foreignPendingId}/export?format=pdf`, { token: customerToken }),
+    ]);
+    assert.deepEqual([detail.status, action.status, exported.status], [404, 404, 404]);
+  });
+
+  test('own debit-note detail omits internal creator/template/source fields', async () => {
+    const response = await request(`/debit-notes/${ownPendingId}`, { token: customerToken });
+    assert.equal(response.status, 200);
+    const body = response.body as Record<string, unknown> & { lines: Array<Record<string, unknown>> };
+    assert.ok(!('createdBy' in body));
+    assert.ok(!('debitNoteTemplateId' in body));
+    assert.ok(!('debitNoteTemplateSnapshot' in body));
+    assert.equal(body.lines.length, 1);
+    assert.ok(!('sourceId' in body.lines[0]));
+    assert.ok(!('renderData' in body.lines[0]));
+    assert.ok(!('baseAmount' in body.lines[0]));
+    assert.ok(!('amountOverride' in body.lines[0]));
+    assert.ok(!('excluded' in body.lines[0]));
+    assert.equal(body.lines[0].amount, 1250000);
+  });
+
+  test('non-pending note cannot be confirmed', async () => {
+    const response = await request(`/debit-notes/${ownSentId}/confirm`, {
+      method: 'POST',
+      token: customerToken,
+    });
+    assert.equal(response.status, 409);
+  });
+
+  test('PDF export returns real authenticated PDF bytes', async () => {
+    const response = await request(`/debit-notes/${ownPendingId}/export?format=pdf`, {
+      token: customerToken,
+    });
+    assert.equal(response.status, 200);
+    assert.match(response.contentType, /^application\/pdf/);
+    assert.equal((response.body as Buffer).subarray(0, 5).toString('ascii'), '%PDF-');
+  });
+
+  test('statement PDF export is scoped and returns real PDF bytes', async () => {
+    const response = await request('/statement/export?format=pdf', { token: customerToken });
+    assert.equal(response.status, 200);
+    assert.match(response.contentType, /^application\/pdf/);
+    assert.equal((response.body as Buffer).subarray(0, 5).toString('ascii'), '%PDF-');
+  });
+
+  test('concurrent confirmation accepts exactly one request', async () => {
+    const responses = await Promise.all([
+      request(`/debit-notes/${ownPendingId}/confirm`, { method: 'POST', token: customerToken }),
+      request(`/debit-notes/${ownPendingId}/confirm`, { method: 'POST', token: customerToken }),
+    ]);
+    assert.deepEqual(responses.map((response) => response.status).sort(), [200, 409]);
+    const successful = responses.find((response) => response.status === 200);
+    assert.ok(successful);
+    const body = successful.body as Record<string, unknown> & { lines: Array<Record<string, unknown>> };
+    assert.equal(body.lines.length, 1);
+    assert.equal(body.lines[0].amount, 1250000);
+    assert.ok(!('baseAmount' in body.lines[0]));
+    assert.ok(!('amountOverride' in body.lines[0]));
+    assert.ok(!('excluded' in body.lines[0]));
+  });
+});

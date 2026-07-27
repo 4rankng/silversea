@@ -470,9 +470,9 @@ export async function seedShipments(passwordHash: string) {
   // 1. CUSTOMER demo user — username `customer` / admin123.
   //    onConflictDoUpdate on the username target so a re-run after a manual
   //    edit restores the canonical password + role (QA login guarantee).
-  //    Wave 2 will need a `customers.userId` (or equivalent) FK to scope this
-  //    login to a specific `customers.id` for the row-scope helper — today no
-  //    such FK exists, so the user is unscoped.
+  //    The app-level row-scope helper reads `users.customerId` from the JWT,
+  //    so after the sample customers are upserted below we link this login to
+  //    the first stable sample customer for portal QA.
   await db.insert(schema.users).values({
     username: 'customer',
     email: 'customer@nepo.vn',
@@ -514,6 +514,13 @@ export async function seedShipments(passwordHash: string) {
     sampleCustomers.push(created);
   }
   console.log(`  ✅ Sample customers (${sampleCustomers.length} stable rows)`);
+
+  // 2b. Link the CUSTOMER demo login to the first sample customer so the
+  // customer portal can row-scope to real shipments during local QA.
+  const [portalCustomer] = sampleCustomers;
+  await db.update(schema.users)
+    .set({ customerId: portalCustomer.id })
+    .where(eq(schema.users.username, 'customer'));
 
   // 3. Sample shipments — three across DRAFT / IN_PROGRESS / DELIVERED.
   //    Sentinels via bookingRef so re-runs do NOT call createShipment twice.

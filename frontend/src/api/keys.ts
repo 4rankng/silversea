@@ -341,6 +341,11 @@ export const qk = {
     detail: ['llmSettings', 'detail'] as const,
   },
 
+  appSettings: {
+    general: ['app-settings'] as const,
+    email: ['email-settings'] as const,
+  },
+
   gpsSettings: {
     detail: ['gps-settings'] as const,
   },

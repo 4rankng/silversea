@@ -45,6 +45,14 @@ export interface ExpenseListFilters {
 }
 
 export async function createExpense(tx: Tx, data: ExpenseCreateInput, userId?: number) {
+  const [supplier] = await tx.select({ id: s.suppliers.id })
+    .from(s.suppliers)
+    .where(and(eq(s.suppliers.id, data.supplierId), isNull(s.suppliers.deletedAt)))
+    .limit(1);
+  if (!supplier) {
+    throw new ApiError(400, 'Nhà cung cấp không tồn tại');
+  }
+
   const [category] = await tx.select()
     .from(s.expenseCategories)
     .where(eq(s.expenseCategories.id, data.categoryId))
@@ -115,6 +123,16 @@ export async function updateExpense(tx: Tx, id: number, data: ExpenseUpdateInput
 
   if (!existing) {
     throw new ApiError(404, 'Không tìm thấy chi phí');
+  }
+
+  if (data.supplierId !== undefined) {
+    const [supplier] = await tx.select({ id: s.suppliers.id })
+      .from(s.suppliers)
+      .where(and(eq(s.suppliers.id, data.supplierId), isNull(s.suppliers.deletedAt)))
+      .limit(1);
+    if (!supplier) {
+      throw new ApiError(400, 'Nhà cung cấp không tồn tại');
+    }
   }
 
   const originalAmount = Number(existing.amount);

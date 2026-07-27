@@ -54,7 +54,7 @@ function extractEntityId(path: string, body: Record<string, unknown>): number | 
   return body?.id ? parseInt(body.id as string) : null;
 }
 
-function sanitizeBody(body: Record<string, unknown>): Record<string, unknown> {
+export function sanitizeBody(body: Record<string, unknown>): Record<string, unknown> {
   if (!body) return {};
   const rest: Record<string, unknown> = { ...body };
   // Auth credentials — never persisted to audit logs.
@@ -70,6 +70,8 @@ function sanitizeBody(body: Record<string, unknown>): Record<string, unknown> {
   delete rest.minimax_api_key;
   delete rest.minimaxKey;
   delete rest.openrouterKey;
+  delete rest.resendApiKey;
+  delete rest.resend_api_key;
   delete rest.settingsEncryptionKey;
   return rest;
 }

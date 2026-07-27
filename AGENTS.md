@@ -117,3 +117,19 @@ A task is done **only when all** are true:
 | quyet | DRIVER |
 
 Open http://localhost:7174 and log in with `admin / admin123`. ✅
+
+
+# STAGING ACCOUNT
+
+| Username | Role |
+| --- | --- |
+| admin | ADMIN |
+| giamdoc | MANAGER |
+| ketoan | ACCOUNTANT |
+| laixe | DRIVER |
+| giaonhan | FORWARDER |
+| khachhang | CUSTOMER |
+
+https://vantai.tingting.vip/
+
+All password 123456

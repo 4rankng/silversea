@@ -2,30 +2,51 @@
 
 .tc-checkbox-card {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
+  width: 100%;
+  min-height: 48px;
   padding: 11px 12px;
   background: var(--bg-3);
   border: 1px solid var(--border-1);
   border-radius: 8px;
   cursor: pointer;
+  user-select: none;
   transition: background var(--t-fast), border-color var(--t-fast);
+}
+.field > .tc-checkbox-card {
+  display: flex;
+  margin-bottom: 0;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
 }
 .tc-checkbox-card:hover {
   background: var(--surface);
   border-color: var(--border-2);
 }
+.tc-checkbox-card--checked {
+  background: var(--brand-soft);
+  border-color: var(--brand);
+}
+.tc-checkbox-card:focus-within {
+  border-color: var(--brand);
+  outline: 2px solid var(--brand-soft);
+  outline-offset: 2px;
+}
 .tc-checkbox-card input {
-  margin-top: 2px;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  margin: 0;
   accent-color: var(--accent-2);
-  width: 16px;
-  height: 16px;
   cursor: pointer;
 }
 .tc-checkbox-card__text {
   display: flex;
   flex-direction: column;
   gap: 1px;
+  min-width: 0;
 }
 .tc-checkbox-card__lbl {
   font-size: var(--fs-sm);

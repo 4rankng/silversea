@@ -25,6 +25,7 @@ import { TxnType } from '@tingting/shared';
 import { getCustomerArSummary } from '../services/ar-status.service';
 import { getPayablesSummary } from '../services/aging.service';
 import { closeSalaryPeriod } from '../services/salary-period-close.service';
+import { disconnectRedis, invalidateReportCaches } from '../lib/redis';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdCustomerIds: number[] = [];
@@ -123,7 +124,18 @@ after(async () => {
     await db.delete(s.suppliers).where(sql`${s.suppliers.name} LIKE ${supPattern}`);
     await db.delete(s.users).where(sql`${s.users.username} LIKE ${userPattern}`);
   } catch (err) { console.warn('[recon] cleanup:', (err as Error).message); }
-  await client.end();
+  // Tear down every long-lived handle the test opened so the Node test
+  // process can exit cleanly under `tsx --test`. Mirrors the pattern in
+  // chiho-reconciliation.test.ts:
+  //   - invalidateReportCaches(): clear the Redis cache layer so a later
+  //     suite does not see our recon rows via a stale 300s-TTL entry.
+  //   - disconnectRedis(): the ioredis client keeps a socket open and would
+  //     otherwise hang the runner between files. Without this call the
+  //     process never exits even after client.end() drains the DB pool.
+  //   - client.end({ timeout: 1 }): drain the postgres pool.
+  try { await invalidateReportCaches(); } catch { /* non-critical */ }
+  try { await disconnectRedis(); } catch { /* already-closed is fine */ }
+  try { await client.end({ timeout: 1 }); } catch { /* ignore */ }
 });
 
 // ─── Invariant 1: AR sum = ledger sum ────────────────────────────────────────
@@ -179,6 +191,12 @@ describe('Reconciliation — AP sum = ledger sum', () => {
     const rawMap = await rawVendorBalances([sup.id]);
     const rawPayable = rawMap.get(sup.id) ?? 0;
     assert.equal(rawPayable, 2_500_000, 'raw VENDOR balance = 4M payable − 1.5M paid');
+
+    // Invalidate the report cache so getPayablesSummary() recomputes from the
+    // ledger rows we just posted. Without this, a stale 300s-TTL cache entry
+    // (populated by an earlier test or seed) hides the new supplier and the
+    // invariant assertion fails for a reason unrelated to the math.
+    await invalidateReportCaches();
 
     // getPayablesSummary aggregates across ALL vendors — verify our supplier
     // appears with the expected outstanding.

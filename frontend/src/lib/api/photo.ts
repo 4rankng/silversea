@@ -29,12 +29,14 @@ export function getAuthenticatedPhotoUrl(url: string | null | undefined): string
  * Resolve a stored photo reference to an authenticated, browser-renderable
  * URL. Accepts either a bare storage key (e.g. `trips/154/container-…jpg`, as
  * returned by the trip detail / containers endpoints) or an already-formed
- * `/api/photos/…` URL (as returned by a fresh OCR upload). Bare keys are
- * encoded so the slashes survive as a single path segment that the wildcard
- * photo route decodes.
+ * `/api/photos/…` URL (as returned by a fresh OCR upload). Pending browser
+ * `blob:` previews pass through unchanged. Bare keys are encoded so the
+ * slashes survive as a single path segment that the wildcard photo route
+ * decodes.
  */
 export function photoSrc(value: string | null | undefined): string {
   if (!value) return '';
+  if (value.startsWith('blob:')) return value;
   const url = value.startsWith('/api/photos/') ? value : `/api/photos/${encodeURIComponent(value)}`;
   return getAuthenticatedPhotoUrl(url);
 }

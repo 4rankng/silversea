@@ -28,6 +28,7 @@ import {
   ClipboardCheck,
   Activity,
   SlidersHorizontal,
+  Landmark,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../lib/api';
@@ -102,6 +103,12 @@ function getNavItems(role: Role, dispatchCount?: number, penaltiesCount?: number
         { key: 'my-forwarder-trips', label: 'Chuyến đi', path: routes.myForwarderTrips, icon: Package, section: 'operations' },
         { key: 'my-advances', label: 'Tạm ứng', path: routes.myAdvances, icon: Wallet, section: 'operations' },
         { key: 'my-settlements', label: 'Phiếu thanh toán', path: routes.mySettlements, icon: FileText, section: 'operations' },
+      ];
+    case 'CUSTOMER':
+      return [
+        { key: 'portal-shipments', label: 'Lô hàng của tôi', path: routes.portalShipments, icon: Package, section: 'operations' },
+        { key: 'portal-debit-notes', label: 'Giấy báo nợ', path: routes.portalDebitNotes, icon: FileText, section: 'financials' },
+        { key: 'portal-statement', label: 'Sao kê công nợ', path: routes.portalStatement, icon: Landmark, section: 'financials' },
       ];
     default:
       return [];
@@ -236,7 +243,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   // Badge counts
   const { data: badgeData } = useBadgeCounts({
-    enabled: user?.role !== 'DRIVER' && user?.role !== 'FORWARDER',
+    enabled: !!user && ['ADMIN', 'MANAGER', 'ACCOUNTANT'].includes(user.role),
   });
   const dispatchCount = badgeData?.dispatchCount;
   const penaltiesCount = badgeData?.penaltiesCount;

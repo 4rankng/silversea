@@ -18,7 +18,7 @@ def test_customers(ctx: NepoTestContext, results: TestResults):
     if '/customers' in page.url:
         results.pass_('TC-0801', 'Customers page loads')
     else:
-        results.fail(('TC-0801', 'Customers page', f'URL: {page.url}')
+        results.fail('TC-0801', 'Customers page', f'URL: {page.url}')
     ctx.screenshot(page, 'TC-0801_customers')
     page.close()
 
@@ -28,7 +28,7 @@ def test_customers(ctx: NepoTestContext, results: TestResults):
         items = resp.get('data', {}).get('items', [])
         results.pass_('TC-0802', f'Customers API returns {len(items)} customers')
     else:
-        results.fail(('TC-0802', 'Customers API', f'Status: {resp.get("status")}')
+        results.fail('TC-0802', 'Customers API', f'Status: {resp.get("status")}')
 
     # TC-0803: Create customer
     import time
@@ -37,7 +37,7 @@ def test_customers(ctx: NepoTestContext, results: TestResults):
     if resp.get('status') in (200, 201) or resp.get('data', {}).get('id'):
         results.pass_('TC-0803', f'Create customer: {name}')
     else:
-        results.fail(('TC-0803', 'Create customer', f'Status: {resp.get("status")}')
+        results.fail('TC-0803', 'Create customer', f'Status: {resp.get("status")}')
 
     # TC-0804: ACCOUNTANT views customers
     api_acct = ApiClient()
@@ -46,7 +46,7 @@ def test_customers(ctx: NepoTestContext, results: TestResults):
     if resp.get('status') == 200:
         results.pass_('TC-0804', 'ACCOUNTANT views customers')
     else:
-        results.fail(('TC-0804', 'ACCOUNTANT customers', f'Status: {resp.get("status")}')
+        results.fail('TC-0804', 'ACCOUNTANT customers', f'Status: {resp.get("status")}')
 
     # TC-0805: DRIVER cannot access customers
     api_driver = ApiClient()
@@ -55,7 +55,7 @@ def test_customers(ctx: NepoTestContext, results: TestResults):
     if resp.get('status') == 403:
         results.pass_('TC-0805', 'DRIVER cannot access customers → 403')
     else:
-        results.fail(('TC-0805', 'DRIVER customers', f'Expected 403, got {resp.get("status")}')
+        results.fail('TC-0805', 'DRIVER customers', f'Expected 403, got {resp.get("status")}')
 
 if __name__ == '__main__':
     sys.exit(run_suite('08-customers', test_customers))

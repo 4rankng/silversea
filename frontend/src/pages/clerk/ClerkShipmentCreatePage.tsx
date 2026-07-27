@@ -17,9 +17,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check } from 'lucide-react';
 import { TextField, SelectField, EmptyState } from '../../design-system';
-import { configClient } from '../../api/configClient';
+import { tripClient } from '../../api/tripClient';
 import { quickCreateShipment } from '../../api/shipmentClient';
-import type { Customer } from '@tingting/shared';
+
+interface ClerkCustomerOption {
+  id: number;
+  name: string;
+}
 
 /** Minimal UUID v4 generator. Defers to `crypto.randomUUID` when available
  *  (every modern browser); falls back to the RFC 4122 §4.4 random-from-
@@ -61,23 +65,23 @@ const EMPTY_FORM: FormState = {
 
 export default function ClerkShipmentCreatePage() {
   const navigate = useNavigate();
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customers, setCustomers] = useState<ClerkCustomerOption[]>([]);
   const [customersLoading, setCustomersLoading] = useState(true);
   const [customersError, setCustomersError] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Load the customer dropdown once on mount. Reuses the same paginated
-  // helper the trip-create flow uses, so the customer list is identical to
-  // what the rest of the app sees.
+  // Load the shipment/customer bootstrap once on mount. This endpoint is
+  // auth-only (not config-gated), so CLERK can read the same active customer
+  // catalog the trip-create flow uses without broadening config permissions.
   useEffect(() => {
     let cancelled = false;
     setCustomersLoading(true);
-    configClient
-      .getAllCustomers()
-      .then((rows) => {
-        if (!cancelled) setCustomers(rows);
+    tripClient
+      .getBootstrap()
+      .then((bootstrap) => {
+        if (!cancelled) setCustomers(bootstrap.customers);
       })
       .catch(() => {
         if (!cancelled) setCustomersError('Không thể tải danh sách khách hàng');
@@ -92,9 +96,7 @@ export default function ClerkShipmentCreatePage() {
 
   const customerOptions = useMemo(
     () =>
-      customers
-        .filter((c) => c.deletedAt === null)
-        .map((c) => ({ value: String(c.id), label: c.name })),
+      customers.map((c) => ({ value: String(c.id), label: c.name })),
     [customers],
   );
 

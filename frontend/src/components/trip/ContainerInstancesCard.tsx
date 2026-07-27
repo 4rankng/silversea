@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, Plus, Trash2, Camera, ImageOff, X } from "lucide-react";
+import { AlertTriangle, Loader2, Plus, Trash2, Camera, ImageOff, X } from "lucide-react";
 import { api } from "../../lib/api";
 import { photoSrc } from "../../lib/api/photo";
 import { useToast } from "../shared/Toast";
@@ -33,6 +33,7 @@ export function ContainerInstancesCard({ tripId, expectedCount = 1, requiresPhot
   const [scanner, setScanner] = useState<{ rowKey: string; type: "CONTAINER" | "SEAL"; sealIndex?: 0 | 1 } | null>(null);
   const [uploading, setUploading] = useState<Record<string, { cont: boolean; seal: boolean }>>({});
   const [deletingPhotos, setDeletingPhotos] = useState<Record<string, { cont: boolean; seal: boolean }>>({});
+  const [failedPhotos, setFailedPhotos] = useState<Record<string, boolean>>({});
   const [lightbox, setLightbox] = useState<{ rowKey: string; type: "CONTAINER" | "SEAL"; urls: string[]; index: number } | null>(null);
 
   const consumedNonceRef = useRef<number | undefined>(undefined);
@@ -208,47 +209,62 @@ export function ContainerInstancesCard({ tripId, expectedCount = 1, requiresPhot
   const renderPhotoLane = (row: ContainerRow, pType: "CONTAINER" | "SEAL", sealIndex?: 0 | 1) => {
     const field = pType === "CONTAINER" ? "cont" : "seal";
     const title = pType === "CONTAINER" ? "Ảnh container" : `Ảnh seal ${(sealIndex ?? 0) + 1}`;
-    const allUrls = row.photoKeys[field].filter(Boolean);
-    const urls = pType === "SEAL" && sealIndex != null ? allUrls.slice(sealIndex, sealIndex + 1) : allUrls.slice(-1);
-    const busy = (uploading[row._key]?.[field] ?? false) || (deletingPhotos[row._key]?.[field] ?? false);
+    const allUrls = row.photoKeys[field];
+    const sealUrl = pType === "SEAL" && sealIndex != null ? allUrls[sealIndex] : undefined;
+    const urls = pType === "SEAL" ? (sealUrl ? [sealUrl] : []) : allUrls.filter(Boolean).slice(-1);
+    const isUploading = uploading[row._key]?.[field] ?? false;
+    const isDeleting = deletingPhotos[row._key]?.[field] ?? false;
+    const busy = isUploading || isDeleting;
     const isCont = pType === "CONTAINER";
+    const busyMessage = isDeleting ? `Đang xoá ${title.toLowerCase()}…` : isUploading ? `Đang tải ${title.toLowerCase()}…` : null;
     return (
-      <div className="ci-photo-lane">
-        <div className="ci-photo-lane__head">
+      <div className="ci-photo-lane" data-state={urls.length > 0 ? "ready" : "empty"}>
+        <div className="ci-photo-lane__copy">
           <span className="ci-photo-lane__title">{title}</span>
-          <button type="button" className="ci-photo-lane__capture" disabled={busy} onClick={() => setScanner({ rowKey: row._key, type: pType, sealIndex })} aria-label={isCont ? "Chụp ảnh container" : "Chụp ảnh seal"} title={isCont ? "Chụp ảnh container" : "Chụp ảnh seal"}>
-            {busy ? <Loader2 size={13} className="spin" /> : <Camera size={13} />}
-            <span>{urls.length > 0 ? "Đổi ảnh" : isCont ? "Chụp cont" : `Chụp seal ${(sealIndex ?? 0) + 1}`}</span>
-          </button>
+          <span className="ci-photo-lane__hint">
+            {urls.length > 0 ? "Nhấn ảnh để xem lớn" : "Chưa có ảnh bằng chứng"}
+          </span>
         </div>
-        <div className="ci-photo-lane__drop" aria-busy={busy}>
+        <div className="ci-photo-lane__media" aria-busy={busy}>
           {urls.length === 0 ? (
-            <button type="button" className="ci-photo-empty" disabled={busy} onClick={() => setScanner({ rowKey: row._key, type: pType, sealIndex })} aria-label={isCont ? "Chụp ảnh container" : "Chụp ảnh seal"}>
+            <span className="ci-photo-empty" aria-hidden="true">
               <ImageOff size={16} />
-              <span>Chưa có ảnh</span>
-            </button>
+            </span>
           ) : (
             <>
               {urls.map((u, uIdx) => {
                 const isPending = u.startsWith("blob:");
+                const hasLoadError = failedPhotos[u] ?? false;
                 return (
                   <span key={`${u}-${uIdx}`} className="ci-photo-slot">
                     <button
                       type="button"
                       className="ci-photo-slot__view"
-                      disabled={busy}
+                      disabled={busy || hasLoadError}
                       onClick={(event) => {
                         event.stopPropagation();
                         setLightbox({
                           rowKey: row._key,
                           type: pType,
                           urls: urls.map(photoSrc),
-                          index: 0,
+                          index: uIdx,
                         });
                       }}
-                      aria-label={`Mở ảnh ${field} ${uIdx + 1}`}
+                      aria-label={isCont ? "Mở ảnh container" : `Mở ảnh seal ${(sealIndex ?? 0) + 1}`}
                     >
-                      <img src={photoSrc(u)} alt={`Ảnh ${field} ${uIdx + 1}`} />
+                      {hasLoadError ? (
+                        <span className="ci-photo-slot__error" role="status">
+                          <ImageOff size={16} aria-hidden="true" />
+                          <span>Không tải được</span>
+                        </span>
+                      ) : (
+                        <img
+                          src={photoSrc(u)}
+                          alt={`${title}${row.containerNumber ? ` ${row.containerNumber}` : ""}`}
+                          loading="lazy"
+                          onError={() => setFailedPhotos((prev) => ({ ...prev, [u]: true }))}
+                        />
+                      )}
                     </button>
                     <button
                       type="button"
@@ -258,13 +274,13 @@ export function ContainerInstancesCard({ tripId, expectedCount = 1, requiresPhot
                         event.stopPropagation();
                         void removePhotoFromRow(row, pType, u);
                       }}
-                      aria-label={isCont ? "Xoá ảnh container" : "Xoá ảnh seal"}
-                      title={isCont ? "Xoá ảnh container" : "Xoá ảnh seal"}
+                      aria-label={isCont ? "Xoá ảnh container" : `Xoá ảnh seal ${(sealIndex ?? 0) + 1}`}
+                      title={isCont ? "Xoá ảnh container" : `Xoá ảnh seal ${(sealIndex ?? 0) + 1}`}
                     >
                       {deletingPhotos[row._key]?.[field] ? <Loader2 size={11} className="spin" /> : <X size={11} />}
                     </button>
                     {isPending && (
-                      <span className="ci-photo-slot__pending" title="Chưa lưu — sẽ tải lên khi bấm Lưu cập nhật">
+                      <span className="ci-photo-slot__pending" role="status" aria-live="polite" title="Chưa lưu — sẽ tải lên khi bấm Lưu cập nhật">
                         chưa lưu
                       </span>
                     )}
@@ -274,6 +290,30 @@ export function ContainerInstancesCard({ tripId, expectedCount = 1, requiresPhot
             </>
           )}
         </div>
+        <button
+          type="button"
+          className="ci-photo-lane__capture"
+          disabled={busy}
+          onClick={() => setScanner({ rowKey: row._key, type: pType, sealIndex })}
+          aria-label={
+            busyMessage ??
+            (urls.length > 0
+              ? isCont
+                ? "Đổi ảnh container"
+                : `Đổi ảnh seal ${(sealIndex ?? 0) + 1}`
+              : isCont
+                ? "Chụp ảnh container"
+                : `Chụp ảnh seal ${(sealIndex ?? 0) + 1}`)
+          }
+        >
+          {busy ? <Loader2 size={16} className="spin" /> : <Camera size={16} />}
+          <span>{busy ? "Đang xử lý…" : urls.length > 0 ? "Đổi ảnh" : "Chụp ảnh"}</span>
+        </button>
+        {busyMessage && (
+          <span className="ci-visually-hidden" role="status" aria-live="polite">
+            {busyMessage}
+          </span>
+        )}
       </div>
     );
   };
@@ -295,7 +335,8 @@ export function ContainerInstancesCard({ tripId, expectedCount = 1, requiresPhot
     }
     const field = target.type === "CONTAINER" ? "cont" : "seal";
     const sealIndex = target.sealIndex ?? 0;
-    const previousUrls = target.type === "SEAL" ? row.photoKeys.seal.filter(Boolean).slice(sealIndex, sealIndex + 1) : row.photoKeys.cont.filter(Boolean).slice(-1);
+    const previousSealUrl = target.type === "SEAL" ? row.photoKeys.seal[sealIndex] : undefined;
+    const previousUrls = previousSealUrl ? [previousSealUrl] : row.photoKeys.cont.filter(Boolean).slice(-1);
     setScanner(null);
     setUploading((prev) => ({
       ...prev,
@@ -304,6 +345,12 @@ export function ContainerInstancesCard({ tripId, expectedCount = 1, requiresPhot
     try {
       const file = dataUrlToFile(dataUrl);
       const { url, ocrResult: ocr, pending } = await uploadContainerPhoto(file, tripId, target.rowKey, target.type, row.id);
+      setFailedPhotos((prev) => {
+        const next = { ...prev };
+        delete next[url];
+        for (const oldUrl of previousUrls) delete next[oldUrl];
+        return next;
+      });
       for (const oldUrl of previousUrls) {
         if (oldUrl.startsWith("blob:")) revokeContainerPhoto(row._key, target.type, oldUrl);
       }
@@ -311,7 +358,8 @@ export function ContainerInstancesCard({ tripId, expectedCount = 1, requiresPhot
         prev.map((r) => {
           if (r._key !== target.rowKey) return r;
           if (target.type === "SEAL") {
-            const sealPhotos = r.photoKeys.seal.filter(Boolean);
+            const sealPhotos = [...r.photoKeys.seal];
+            while (sealPhotos.length <= sealIndex) sealPhotos.push("");
             sealPhotos[sealIndex] = url;
             return { ...r, photoKeys: { ...r.photoKeys, seal: sealPhotos } };
           }
@@ -369,7 +417,15 @@ export function ContainerInstancesCard({ tripId, expectedCount = 1, requiresPhot
 
   const removePhotoFromRow = async (row: ContainerRow, type: "CONTAINER" | "SEAL", url: string) => {
     const field = type === "CONTAINER" ? "cont" : "seal";
-    const dropFromState = () => setRows((prev) => prev.map((r) => (r._key === row._key ? { ...r, photoKeys: { ...r.photoKeys, [field]: r.photoKeys[field].filter((u) => u !== url) } } : r)));
+    const dropFromState = () => setRows((prev) => prev.map((r) => {
+      if (r._key !== row._key) return r;
+      if (type === "CONTAINER") {
+        return { ...r, photoKeys: { ...r.photoKeys, cont: r.photoKeys.cont.filter((u) => u !== url) } };
+      }
+      const sealPhotos = r.photoKeys.seal.map((u) => (u === url ? "" : u));
+      while (sealPhotos.length > 0 && !sealPhotos.at(-1)) sealPhotos.pop();
+      return { ...r, photoKeys: { ...r.photoKeys, seal: sealPhotos } };
+    }));
 
     if (url.startsWith("blob:")) {
       revokeContainerPhoto(row._key, type, url);
@@ -408,21 +464,26 @@ export function ContainerInstancesCard({ tripId, expectedCount = 1, requiresPhot
     );
   }
 
-  const hasAnyContainerPhoto = rows.some((r) => r.photoKeys.cont.length > 0 || r.photoKeys.seal.length > 0);
+  const hasAnyContainerPhoto = rows.some((r) => r.photoKeys.cont.some(Boolean) || r.photoKeys.seal.some(Boolean));
   const showRequiresWarning = !!requiresPhotos && !hasAnyContainerPhoto;
 
   const renderSealFields = (row: ContainerRow, index: 0 | 1) => {
     const seal = row.seals[index];
     const hasSealValue = !!(seal?.sealNumber.trim() || seal?.notes.trim());
+    const sealNumberId = `seal-${row._key}-${index}`;
+    const sealNotesId = `seal-notes-${row._key}-${index}`;
     return (
-      <div className="ci-seal-section">
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--fg-2)" }}>Số seal {index + 1}</span>
+      <div className="ci-seal-fields">
+        <div className="ci-field-group ci-field-group--seal-number">
+          <label className="ci-label" htmlFor={sealNumberId}>Số seal {index + 1}</label>
+          <input id={sealNumberId} className="input ci-input-sm" placeholder={`Số seal ${index + 1}`} value={seal?.sealNumber ?? ""} onChange={(e) => updateSeal(row._key, index, "sealNumber", e.target.value.toUpperCase())} />
         </div>
-        <div className="ci-seal-row">
-          <input className="input ci-input-sm" style={{ width: 180 }} placeholder={`Số seal ${index + 1}`} value={seal?.sealNumber ?? ""} onChange={(e) => updateSeal(row._key, index, "sealNumber", e.target.value.toUpperCase())} />
-          <input className="input ci-input-sm" style={{ width: 180, flex: 1, minWidth: 120 }} placeholder="Ghi chú seal (tuỳ chọn)" value={seal?.notes ?? ""} onChange={(e) => updateSeal(row._key, index, "notes", e.target.value)} />
-          <button type="button" className="btn btn--ghost btn--icon btn--sm" style={{ minWidth: 40, visibility: hasSealValue ? "visible" : "hidden" }} onClick={() => clearSeal(row._key, index)} aria-label={`Xoá seal ${index + 1}`} title={`Xoá seal ${index + 1}`}>
+        <div className="ci-field-group ci-field-group--seal-notes">
+          <label className="ci-label" htmlFor={sealNotesId}>Ghi chú</label>
+          <input id={sealNotesId} className="input ci-input-sm" placeholder="Ghi chú seal (tuỳ chọn)" value={seal?.notes ?? ""} onChange={(e) => updateSeal(row._key, index, "notes", e.target.value)} />
+        </div>
+        <div className="ci-seal-fields__action">
+          <button type="button" className="btn btn--ghost btn--icon btn--sm ci-clear-seal" style={{ visibility: hasSealValue ? "visible" : "hidden" }} onClick={() => clearSeal(row._key, index)} aria-label={`Xoá seal ${index + 1}`} title={`Xoá seal ${index + 1}`}>
             <X size={13} />
           </button>
         </div>
@@ -431,112 +492,96 @@ export function ContainerInstancesCard({ tripId, expectedCount = 1, requiresPhot
   };
 
   return (
-    <div>
+    <div className="ci-editor">
       {showRequiresWarning && (
-        <div
-          style={{
-            padding: "10px 14px",
-            background: "var(--warning-soft, #fff7e6)",
-            color: "var(--warning-text, #b7791f)",
-            border: "1px solid rgba(217, 119, 6, 0.18)",
-            borderRadius: "var(--radius-md, 10px)",
-            fontSize: 13,
-            marginBottom: 12,
-            fontWeight: 600,
-            lineHeight: 1.4,
-          }}
-        >
-          ⚠️ Loại hàng này yêu cầu đính kèm ảnh vỏ Container và Niêm phong (Seal) để hoàn thành chuyến đi.
+        <div className="ci-warning" role="note">
+          <AlertTriangle size={18} aria-hidden="true" />
+          <span>Loại hàng này yêu cầu ảnh vỏ container và niêm phong (seal) để hoàn thành chuyến.</span>
         </div>
       )}
       {rows.length === 0 ? (
-        <div style={{ padding: 48, textAlign: "center", color: "var(--fg-3)", display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <img src="/assets/illustrations/empty-matching.svg" alt="Empty" style={{ width: 120, height: 120, opacity: 0.8, marginBottom: 16 }} />
-          <p style={{ margin: 0, fontWeight: 500 }}>Chưa có cont nào. Bấm "Thêm cont" để bắt đầu.</p>
+        <div className="ci-empty">
+          <ImageOff size={20} aria-hidden="true" />
+          <div>
+            <strong>Chưa có container</strong>
+            <span>Thêm container để nhập số hiệu, seal và ảnh bằng chứng.</span>
+          </div>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div className="ci-records">
           {rows.map((row, idx) => (
-            <div
+            <section
               key={row._key}
-              style={{
-                border: "1px solid var(--line)",
-                borderRadius: 12,
-                padding: 12,
-                background: "var(--bg-2, #fafafa)",
-              }}
+              className="ci-record"
+              aria-labelledby={`container-heading-${row._key}`}
             >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--fg-2)" }}>Cont #{idx + 1}</div>
-                <button type="button" className="btn btn--ghost btn--icon btn--sm" style={{ width: 32, height: 32, display: "inline-flex", alignItems: "center", justifyContent: "center" }} onClick={() => removeRow(row._key)} aria-label="Xoá dòng" title="Xoá cont">
-                  <Trash2 size={15} style={{ color: "var(--danger)" }} />
-                </button>
-              </div>
-
-              <div className="ci-row ci-row--identity">
-                <label className="ci-label">
-                  Số container <span style={{ color: "var(--fg-3)", fontWeight: 500 }}>(tuỳ chọn)</span>
-                </label>
-                <input id={`containerNumber-${row._key}`} className="input ci-input-sm" style={{ width: "100%" }} placeholder="VD: TCKU1234567" value={row.containerNumber} onChange={(e) => updateRow(row._key, "containerNumber", e.target.value.toUpperCase())} />
-                {(() => {
-                  const st = checkContainerNumber(row.containerNumber);
-                  if (!st.warning) return null;
-                  return (
-                    <div
-                      style={{
-                        marginTop: 4,
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: 4,
-                        alignItems: "center",
-                        padding: "4px 6px",
-                        background: "var(--warn-soft, #fff7e6)",
-                        color: "var(--warn, #b7791f)",
-                        borderRadius: 6,
-                        fontSize: 13,
-                      }}
-                    >
-                      <span>⚠ {st.warning}</span>
-                      {st.suggestion && (
-                        <button type="button" className="btn btn--ghost btn--sm" style={{ padding: "0 10px", fontSize: 12 }} onClick={() => updateRow(row._key, "containerNumber", st.suggestion!)}>
-                          Đổi thành {st.suggestion}
-                        </button>
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
-
-              <div className="ci-evidence-stack">
-                {renderPhotoLane(row, "CONTAINER")}
-
-                {renderSealFields(row, 0)}
-                {renderPhotoLane(row, "SEAL", 0)}
-
-                {renderSealFields(row, 1)}
-                {renderPhotoLane(row, "SEAL", 1)}
-
-                <div className="ci-row ci-row--meta">
-                  <div>
-                    <label className="ci-label">Trọng lượng (kg)</label>
-                    <input type="number" className="input ci-input-sm" style={{ width: "100%" }} placeholder="VD: 24500" value={row.cargoWeightKg} onChange={(e) => updateRow(row._key, "cargoWeightKg", e.target.value)} min={0} max={99999999.99} />
-                  </div>
-                  <div>
-                    <label className="ci-label">Ghi chú</label>
-                    <input className="input ci-input-sm" style={{ width: "100%" }} placeholder="Ghi chú cont (tuỳ chọn)" value={row.notes} onChange={(e) => updateRow(row._key, "notes", e.target.value)} />
-                  </div>
+              <header className="ci-record__header">
+                <div>
+                  <span className="ci-record__eyebrow">Hồ sơ container</span>
+                  <h3 id={`container-heading-${row._key}`}>Container {String(idx + 1).padStart(2, "0")}</h3>
                 </div>
+                <button type="button" className="btn btn--ghost btn--icon btn--sm ci-remove-record" onClick={() => removeRow(row._key)} aria-label={`Xoá container ${idx + 1}`} title={`Xoá container ${idx + 1}`}>
+                  <Trash2 size={16} aria-hidden="true" />
+                </button>
+              </header>
+
+              <div className="ci-record__body">
+                <div className="ci-detail-row ci-detail-row--container">
+                  <div className="ci-identity-fields">
+                    <div className="ci-field-group ci-field-group--container-number">
+                      <label className="ci-label" htmlFor={`containerNumber-${row._key}`}>
+                        Số container <span>(tuỳ chọn)</span>
+                      </label>
+                      <input id={`containerNumber-${row._key}`} className="input ci-input-sm" placeholder="VD: TCKU1234567" value={row.containerNumber} onChange={(e) => updateRow(row._key, "containerNumber", e.target.value.toUpperCase())} />
+                      {(() => {
+                        const st = checkContainerNumber(row.containerNumber);
+                        if (!st.warning) return null;
+                        return (
+                          <div className="ci-field-warning">
+                            <AlertTriangle size={15} aria-hidden="true" />
+                            <span>{st.warning}</span>
+                            {st.suggestion && (
+                              <button type="button" className="ci-field-warning__action" onClick={() => updateRow(row._key, "containerNumber", st.suggestion!)}>
+                                Đổi thành {st.suggestion}
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                    <div className="ci-field-group">
+                      <label className="ci-label" htmlFor={`containerWeight-${row._key}`}>Trọng lượng (kg)</label>
+                      <input id={`containerWeight-${row._key}`} type="number" className="input ci-input-sm" placeholder="VD: 24500" value={row.cargoWeightKg} onChange={(e) => updateRow(row._key, "cargoWeightKg", e.target.value)} min={0} max={99999999.99} />
+                    </div>
+                    <div className="ci-field-group">
+                      <label className="ci-label" htmlFor={`containerNotes-${row._key}`}>Ghi chú container</label>
+                      <input id={`containerNotes-${row._key}`} className="input ci-input-sm" placeholder="Ghi chú (tuỳ chọn)" value={row.notes} onChange={(e) => updateRow(row._key, "notes", e.target.value)} />
+                    </div>
+                  </div>
+                  {renderPhotoLane(row, "CONTAINER")}
+                </div>
+
+                <div className="ci-detail-row ci-detail-row--seal">
+                  {renderSealFields(row, 0)}
+                  {renderPhotoLane(row, "SEAL", 0)}
+                </div>
+
+                <div className="ci-detail-row ci-detail-row--seal">
+                  {renderSealFields(row, 1)}
+                  {renderPhotoLane(row, "SEAL", 1)}
+                </div>
+
               </div>
-            </div>
+            </section>
           ))}
         </div>
       )}
 
-      <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap", alignItems: "center" }}>
+      <div className="ci-editor__footer">
         <button type="button" className="btn btn--secondary btn--sm" onClick={addRow}>
-          <Plus size={14} /> Thêm cont
+          <Plus size={16} aria-hidden="true" /> Thêm container
         </button>
-        <span style={{ fontSize: 13, color: "var(--fg-3)" }}>Container lưu cùng nút "Lưu cập nhật" ở dưới.</span>
+        <span>Dữ liệu container được lưu cùng nút “Lưu cập nhật” ở cuối biểu mẫu.</span>
       </div>
 
       {scanner && <ContainerScanner onCapture={handleCapture} onClose={() => setScanner(null)} />}

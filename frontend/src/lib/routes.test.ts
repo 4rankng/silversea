@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { titleForPath } from './routes';
+import { homeForRole, titleForPath } from './routes';
 import { PAGE_CATALOG, AGENT_ROUTE_KEYS } from '@tingting/shared';
 
 /**
@@ -43,6 +43,12 @@ describe('titleForPath (catalog-sourced, parity with pre-refactor behavior)', ()
     '/users': 'Người dùng',
     '/audit-logs': 'Nhật ký người dùng',
     '/chatbot-monitoring': 'Giám sát Chatbot',
+    '/portal/shipments': 'Lô hàng của tôi',
+    '/portal/shipments/9': 'Chi tiết lô hàng',
+    '/portal/debit-notes': 'Giấy báo nợ',
+    '/portal/statement': 'Sao kê công nợ',
+    '/clerk/shipments/new': 'Tạo lô hàng',
+    '/clerk/shipments/42/docs': 'Hồ sơ lô hàng',
     '/my-trips': 'Hành trình',
     '/my-trips/3': 'Hành trình',
     '/my-earnings': 'Thu nhập',
@@ -60,6 +66,16 @@ describe('titleForPath (catalog-sourced, parity with pre-refactor behavior)', ()
 
   it.each(Object.entries(cases))('%s → %s', (path, expected) => {
     expect(titleForPath(path)).toBe(expected);
+  });
+});
+
+describe('homeForRole', () => {
+  it('routes CUSTOMER users to the customer portal home', () => {
+    expect(homeForRole('CUSTOMER')).toBe('/portal/shipments');
+  });
+
+  it('routes CLERK users to the clerk shipment create page', () => {
+    expect(homeForRole('CLERK')).toBe('/clerk/shipments/new');
   });
 });
 
