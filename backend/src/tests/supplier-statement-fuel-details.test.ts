@@ -24,6 +24,10 @@ function ledgerRow(overrides: Partial<EnrichedLedgerRow>): EnrichedLedgerRow {
     debit: '0',
     balance: '390045086',
     note: 'Chi phí dầu chuyến TRP-202607-0061',
+    originalDueDate: null,
+    processingDueDate: null,
+    paymentTermDaysApplied: null,
+    paymentDatePolicyApplied: null,
     createdAt: new Date('2026-07-24T00:00:00.000Z'),
     ...overrides,
   };

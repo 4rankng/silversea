@@ -16,6 +16,7 @@ import {
   companyInfoSchema,
   tireSchema, installTireSchema, disposeTireSchema, transferTireSchema, tirePositionSchema,
   fuelNormSchema, weightPricingTierSchema, liftPricingSchema, ancillaryRevenueSchema,
+  businessCalendarDaySchema,
 } from '@tingting/shared';
 import type { Request, Response } from 'express';
 import { createCrudRouter } from './utils/crud-factory';
@@ -135,6 +136,16 @@ router.use('/customers', createCrudRouter(s.customers, customerSchema, {
   afterCreate: mirrorCustomerLink,
   afterUpdate: mirrorCustomerLink,
 }));
+router.use(
+  '/business-calendar',
+  requireRoles(Role.ADMIN),
+  createCrudRouter(s.businessCalendarDays, businessCalendarDaySchema, {
+    searchableField: 'name',
+    deleteMode: 'hard',
+    maxLimit: 500,
+    orderByField: 'calendarDate',
+  }),
+);
 router.use('/trucks', createCrudRouter(s.trucks, truckSchema, {
   searchableField: 'licensePlate',
   beforeCreate: async (data, _req) => {
@@ -496,15 +507,20 @@ salaryPeriodsAdminRouter.post('/:period/reopen', asyncHandler(async (req: Reques
   res.status(result.idempotentNoop ? 200 : 201).json(result);
 }));
 
-// ─── Audit logs (mounted separately with ADMIN-only Casbin resource) ────────
+// ─── Audit logs (mounted separately with audit_logs Casbin resource) ─────────
 export const auditLogRouter = Router();
 auditLogRouter.get('/', asyncHandler(async (req: Request, res: Response) => {
   const { page, limit } = parsePagination(req);
+  const viewer = getUser(req);
   res.json(await queryAuditLogs({
     page,
     limit,
     category: req.query.category as string,
     search: req.query.search as string,
+    viewer: {
+      userId: viewer.userId,
+      role: viewer.role,
+    },
   }));
 }));
 

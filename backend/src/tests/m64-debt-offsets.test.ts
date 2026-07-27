@@ -39,9 +39,10 @@ const userIds: number[] = [];
 
 // Stable test actor IDs — created once.
 let adminUserId: number;
+let managerUserId: number;
 let driverUserId: number;
 
-async function mkUser(role: 'ADMIN' | 'DRIVER', tag: string) {
+async function mkUser(role: 'ADMIN' | 'MANAGER' | 'DRIVER', tag: string) {
   const [u] = await db.insert(s.users).values({
     username: `m64-${role}-${suffix}-${tag}-${userIds.length}`,
     passwordHash: 'x',
@@ -115,8 +116,10 @@ async function balance(entityType: 'CUSTOMER' | 'VENDOR', entityId: number): Pro
 describe('M6.4 setup', () => {
   test('creates actor users', async () => {
     adminUserId = (await mkUser('ADMIN', 'admin')).id;
+    managerUserId = (await mkUser('MANAGER', 'manager')).id;
     driverUserId = (await mkUser('DRIVER', 'driver')).id;
     assert.ok(adminUserId > 0);
+    assert.ok(managerUserId > 0);
     assert.ok(driverUserId > 0);
   });
 });
@@ -183,7 +186,7 @@ describe('M6.4 — M06-04-01 approve posts paired entries', () => {
     assert.equal(arBefore, 4_000_000);
     assert.equal(apBefore, 4_000_000);
 
-    await approveDebtOffset(offset.id, adminUserId, 'ADMIN');
+    await approveDebtOffset(offset.id, managerUserId, 'MANAGER');
 
     const arAfter = await balance('CUSTOMER', cust.id);
     const apAfter = await balance('VENDOR', sup.id);
@@ -221,7 +224,7 @@ describe('M6.4 — M06-04-01 approve posts paired entries', () => {
 
     // Approval should refuse — amount > current AR.
     await assert.rejects(
-      () => approveDebtOffset(offset.id, adminUserId, 'ADMIN'),
+      () => approveDebtOffset(offset.id, managerUserId, 'MANAGER'),
       (err: Error & { statusCode?: number }) => err.statusCode === 400 && /Số dư hiện tại không đủ/.test(err.message),
     );
   });
@@ -268,7 +271,7 @@ describe('M6.4 — M06-04-03 cancel-after-approve uses reversal', () => {
     });
     createdOffsetIds.push(offset.id);
 
-    await approveDebtOffset(offset.id, adminUserId, 'ADMIN');
+    await approveDebtOffset(offset.id, managerUserId, 'MANAGER');
     const arMid = await balance('CUSTOMER', cust.id);
     const apMid = await balance('VENDOR', sup.id);
     assert.equal(arMid, 0);
@@ -305,7 +308,7 @@ describe('M6.4 — M06-04-03 cancel-after-approve uses reversal', () => {
     );
   });
 
-  test('cancel on CANCELED offset → 400 (already canceled)', async () => {
+  test('cancel on CANCELED offset → 409 (already canceled)', async () => {
     const { cust, sup } = await mkLinkedPair();
     await postAr(cust.id, 1_000_000);
     await postAp(sup.id, 1_000_000);
@@ -315,12 +318,12 @@ describe('M6.4 — M06-04-03 cancel-after-approve uses reversal', () => {
       offsetDate: '2026-07-15', createdBy: adminUserId,
     });
     createdOffsetIds.push(offset.id);
-    await approveDebtOffset(offset.id, adminUserId, 'ADMIN');
+    await approveDebtOffset(offset.id, managerUserId, 'MANAGER');
     await cancelDebtOffset(offset.id, adminUserId, 'ADMIN');
 
     await assert.rejects(
       () => cancelDebtOffset(offset.id, adminUserId, 'ADMIN'),
-      (err: Error & { statusCode?: number }) => err.statusCode === 400 && /đã hủy/.test(err.message),
+      (err: Error & { statusCode?: number }) => err.statusCode === 409 && /đã hủy/.test(err.message),
     );
   });
 
@@ -329,6 +332,72 @@ describe('M6.4 — M06-04-03 cancel-after-approve uses reversal', () => {
       () => cancelDebtOffset(99_999_999, adminUserId, 'ADMIN'),
       (err: Error & { statusCode?: number }) => err.statusCode === 404,
     );
+  });
+
+  test('concurrent cancels: exactly one reversal wins and the loser does not double-post', async () => {
+    const { cust, sup } = await mkLinkedPair();
+    await postAr(cust.id, 6_000_000);
+    await postAp(sup.id, 6_000_000);
+
+    const offset = await createDebtOffset({
+      customerId: cust.id, supplierId: sup.id,
+      offsetDate: '2026-07-15', createdBy: adminUserId,
+    });
+    createdOffsetIds.push(offset.id);
+    await approveDebtOffset(offset.id, managerUserId, 'MANAGER');
+
+    let releaseEntityLocks!: () => void;
+    let markEntityLocksAcquired!: () => void;
+    const entityLocksAcquired = new Promise<void>((resolve) => {
+      markEntityLocksAcquired = resolve;
+    });
+    const releaseLocks = new Promise<void>((resolve) => {
+      releaseEntityLocks = resolve;
+    });
+    const blocker = db.transaction(async (tx) => {
+      await LedgerService.lockEntities(tx, [
+        { entityType: 'CUSTOMER', entityId: cust.id },
+        { entityType: 'VENDOR', entityId: sup.id },
+      ]);
+      markEntityLocksAcquired();
+      await releaseLocks;
+    });
+    await entityLocksAcquired;
+
+    let raceSettled = false;
+    const race = Promise.allSettled([
+      cancelDebtOffset(offset.id, adminUserId, 'ADMIN'),
+      cancelDebtOffset(offset.id, adminUserId, 'ADMIN'),
+    ]).finally(() => {
+      raceSettled = true;
+    });
+    await new Promise(resolve => setTimeout(resolve, 30));
+    assert.equal(
+      raceSettled,
+      false,
+      'both cancels must be waiting behind the shared entity locks after reading APPROVED',
+    );
+
+    releaseEntityLocks();
+    await blocker;
+    const results = await race;
+    const fulfilled = results.filter(result => result.status === 'fulfilled');
+    const rejected = results.filter(result => result.status === 'rejected') as PromiseRejectedResult[];
+
+    assert.equal(fulfilled.length, 1, `expected exactly 1 cancel winner, got ${fulfilled.length}`);
+    assert.equal(rejected.length, 1, `expected exactly 1 cancel loser, got ${rejected.length}`);
+    assert.equal((rejected[0].reason as Error & { statusCode?: number }).statusCode, 409);
+
+    const arFinal = await balance('CUSTOMER', cust.id);
+    const apFinal = await balance('VENDOR', sup.id);
+    assert.equal(arFinal, 6_000_000, 'AR restored exactly once');
+    assert.equal(apFinal, 6_000_000, 'AP restored exactly once');
+
+    const reversalRows = await db.select({ id: s.ledger.id })
+      .from(s.ledger)
+      .where(sql`${s.ledger.txnType} = 'ADJUSTMENT' AND ${s.ledger.txnId} = ${offset.id} AND ${s.ledger.note} LIKE ${`Hoàn tác đối trừ công nợ #${offset.id}%`}`);
+    createdLedgerIds.push(...reversalRows.map(row => row.id));
+    assert.equal(reversalRows.length, 2, 'exactly one reversing customer/vendor pair posts');
   });
 });
 
@@ -342,7 +411,7 @@ describe('M6.4 — M06-04-04 role guard', () => {
       offsetDate: '2026-07-15', createdBy: adminUserId,
     });
     createdOffsetIds.push(offset.id);
-    await approveDebtOffset(offset.id, adminUserId, 'ADMIN');
+    await approveDebtOffset(offset.id, managerUserId, 'MANAGER');
 
     await assert.rejects(
       () => cancelDebtOffset(offset.id, driverUserId, 'DRIVER'),
@@ -365,6 +434,23 @@ describe('M6.4 — M06-04-04 role guard', () => {
       (err: Error & { statusCode?: number }) => err.statusCode === 403,
     );
   });
+
+  test('creator cannot approve their own debt offset', async () => {
+    const { cust, sup } = await mkLinkedPair();
+    await postAr(cust.id, 1_000_000);
+    await postAp(sup.id, 1_000_000);
+    const offset = await createDebtOffset({
+      customerId: cust.id, supplierId: sup.id,
+      offsetDate: '2026-07-15', createdBy: adminUserId,
+    });
+    createdOffsetIds.push(offset.id);
+
+    await assert.rejects(
+      () => approveDebtOffset(offset.id, adminUserId, 'ADMIN'),
+      (err: Error & { statusCode?: number }) =>
+        err.statusCode === 403 && /Không thể duyệt phiếu đối trừ công nợ do chính mình tạo/.test(err.message),
+    );
+  });
 });
 
 describe('M6.4 — M06-04-05 duplicate / concurrent approve', () => {
@@ -378,12 +464,71 @@ describe('M6.4 — M06-04-05 duplicate / concurrent approve', () => {
     });
     createdOffsetIds.push(offset.id);
 
-    await approveDebtOffset(offset.id, adminUserId, 'ADMIN');
+    await approveDebtOffset(offset.id, managerUserId, 'MANAGER');
 
     // Second approve — already APPROVED, no longer PENDING.
     await assert.rejects(
-      () => approveDebtOffset(offset.id, adminUserId, 'ADMIN'),
-      (err: Error & { statusCode?: number }) => err.statusCode === 400 && /APPROVED/.test(err.message),
+      () => approveDebtOffset(offset.id, managerUserId, 'MANAGER'),
+      (err: Error & { statusCode?: number }) => err.statusCode === 409 && /APPROVED/.test(err.message),
     );
+  });
+
+  test('concurrent approves: exactly one wins, only one pair of ledger entries posts', async () => {
+    // Reproduces the D1 race from the 2026-07-27 regression audit: two parallel
+    // POST /approve calls on the same PENDING offset both returned 200 and
+    // posted 4 ADJUSTMENT entries (2 expected), halving AR/AP. Root cause:
+    // transitionApproval's status SELECT did not take a row lock, so both
+    // txns read PENDING before either committed.
+    const { cust, sup } = await mkLinkedPair();
+    await postAr(cust.id, 4_000_000);
+    await postAp(sup.id, 4_000_000);
+    const offset = await createDebtOffset({
+      customerId: cust.id, supplierId: sup.id,
+      offsetDate: '2026-07-15', createdBy: adminUserId,
+    });
+    createdOffsetIds.push(offset.id);
+
+    // Fire both approvals concurrently. Resolve into a settled-result array
+    // so neither reject propagates to abort the test before assertions run.
+    const results = await Promise.allSettled([
+      approveDebtOffset(offset.id, managerUserId, 'MANAGER'),
+      approveDebtOffset(offset.id, managerUserId, 'MANAGER'),
+    ]);
+    const fulfilled = results.filter(r => r.status === 'fulfilled');
+    const rejected = results.filter(r => r.status === 'rejected') as PromiseRejectedResult[];
+
+    // Invariant 1: exactly one approve wins; the other is rejected.
+    assert.equal(fulfilled.length, 1,
+      `expected exactly 1 approve to succeed, got ${fulfilled.length}. results=${JSON.stringify(results.map(r => r.status))}`);
+    assert.equal(rejected.length, 1,
+      `expected exactly 1 approve to be rejected, got ${rejected.length}`);
+    const rejectErr = rejected[0].reason as Error & { statusCode?: number };
+    assert.equal(rejectErr.statusCode, 409,
+      `expected 409 on losing approve, got ${rejectErr.statusCode} ${rejectErr.message}`);
+
+    // Invariant 2: status is APPROVED (not something weird from a torn write).
+    const rows = await listDebtOffsets({ approvalStatus: 'APPROVED' });
+    const match = rows.find(r => r.id === offset.id);
+    assert.ok(match, 'offset is APPROVED');
+    assert.equal(match!.approvalStatus, 'APPROVED');
+
+    // Invariant 3 (the actual money): exactly ONE debit+credit pair was
+    // posted to each ledger — i.e. AR and AP were each reduced by `amount`
+    // exactly once, not twice.
+    const arAfter = await balance('CUSTOMER', cust.id);
+    const apAfter = await balance('VENDOR', sup.id);
+    assert.equal(arAfter, 0,
+      `AR should be 0 after one approval (4M − 4M); got ${arAfter}. Double-post likely.`);
+    assert.equal(apAfter, 0,
+      `AP should be 0 after one approval (4M − 4M); got ${apAfter}. Double-post likely.`);
+
+    // Cross-check: count ADJUSTMENT rows linked to this offset. Must be 2
+    // (one CUSTOMER credit + one VENDOR debit), not 4.
+    const adjRows = await db.select({ id: s.ledger.id, entityType: s.ledger.entityType })
+      .from(s.ledger)
+      .where(sql`${s.ledger.txnType} = 'ADJUSTMENT' AND ${s.ledger.txnId} = ${offset.id} AND ${s.ledger.note} LIKE ${`Đối trừ công nợ #${offset.id}%`}`);
+    createdLedgerIds.push(...adjRows.map(r => r.id));
+    assert.equal(adjRows.length, 2,
+      `expected exactly 2 ADJUSTMENT rows for offset ${offset.id}, got ${adjRows.length}. Race D1.`);
   });
 });

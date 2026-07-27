@@ -32,7 +32,7 @@ import type { AddressInfo } from 'net';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -57,6 +57,7 @@ const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
 const createdContainerTypeIds: number[] = [];
 const createdUserIds: number[] = [];
+const createdBusinessUnitIds: number[] = [];
 
 // Tokens minted in `before`; roled users are created on demand so the test is
 // hermetic against a fresh CI DB.
@@ -71,6 +72,11 @@ let customerId: number;
 let routeId: number;
 let cargoTypeId: number;
 let containerTypeId: number;
+let adminUserId: number;
+let managerUserId: number;
+let clerkUserId: number;
+let clerkBusinessUnitId: number;
+let secondaryClerkBusinessUnitId: number;
 
 let server: http.Server;
 let baseUrl: string;
@@ -119,6 +125,37 @@ async function mkCatalogs() {
     .values({ code: shortCode, name: `ShipmentRoute ct ${suffix}` }).returning();
   createdContainerTypeIds.push(containerType.id);
   return { route, cargoType, containerType };
+}
+
+async function mkBusinessUnit() {
+  const [unit] = await db.insert(s.businessUnits)
+    .values({
+      code: `SR-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+      name: `ShipmentRoute Unit ${suffix}-${createdBusinessUnitIds.length}`,
+      status: 'ACTIVE',
+    })
+    .returning();
+  createdBusinessUnitIds.push(unit.id);
+  return unit;
+}
+
+async function assignClerkScope(userId: number, scopedCustomerId: number, businessUnitId: number) {
+  await db.insert(s.userCustomerLinks).values({
+    userId,
+    customerId: scopedCustomerId,
+  });
+  await db.insert(s.userBusinessUnitLinks).values({
+    userId,
+    businessUnitId,
+  });
+}
+
+function clerkCreateBody(extra: Record<string, unknown> = {}) {
+  return {
+    customerId,
+    responsibleUnitId: clerkBusinessUnitId,
+    ...extra,
+  };
 }
 
 interface TestFetchOptions {
@@ -176,9 +213,21 @@ before(async () => {
   customerToken = sign(customer);
   driverToken = sign(driver);
   forwarderToken = sign(forwarder);
+  adminUserId = admin.id;
+  managerUserId = manager.id;
+  clerkUserId = clerk.id;
 
   const customerRow = await mkCustomer();
   customerId = customerRow.id;
+  const businessUnit = await mkBusinessUnit();
+  clerkBusinessUnitId = businessUnit.id;
+  const secondaryBusinessUnit = await mkBusinessUnit();
+  secondaryClerkBusinessUnitId = secondaryBusinessUnit.id;
+  await assignClerkScope(clerkUserId, customerId, clerkBusinessUnitId);
+  await db.insert(s.userBusinessUnitLinks).values({
+    userId: clerkUserId,
+    businessUnitId: secondaryClerkBusinessUnitId,
+  });
   const catalogs = await mkCatalogs();
   routeId = catalogs.route.id;
   cargoTypeId = catalogs.cargoType.id;
@@ -226,6 +275,14 @@ after(async () => {
       if (createdRouteIds.length > 0) {
         await tx.delete(s.routes).where(inArray(s.routes.id, createdRouteIds));
       }
+      if (createdUserIds.length > 0) {
+        await tx.delete(s.userShipmentLinks).where(inArray(s.userShipmentLinks.userId, createdUserIds));
+        await tx.delete(s.userBusinessUnitLinks).where(inArray(s.userBusinessUnitLinks.userId, createdUserIds));
+        await tx.delete(s.userCustomerLinks).where(inArray(s.userCustomerLinks.userId, createdUserIds));
+      }
+      if (createdBusinessUnitIds.length > 0) {
+        await tx.delete(s.businessUnits).where(inArray(s.businessUnits.id, createdBusinessUnitIds));
+      }
       if (createdCustomerIds.length > 0) {
         await tx.delete(s.customers).where(inArray(s.customers.id, createdCustomerIds));
       }
@@ -268,6 +325,13 @@ async function mkShipmentViaService(overrides: Record<string, unknown> = {}) {
   const shipment = await createShipment({ customerId, ...overrides });
   createdShipmentIds.push(shipment.id);
   return shipment;
+}
+
+async function mkClerkScopedShipmentViaService(overrides: Record<string, unknown> = {}) {
+  return mkShipmentViaService({
+    responsibleUnitId: clerkBusinessUnitId,
+    ...overrides,
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -388,9 +452,10 @@ describe('POST /', () => {
     const r = await testFetch('/', {
       method: 'POST',
       token: clerkToken,
-      body: { customerId },
+      body: clerkCreateBody(),
     });
     assert.equal(r.status, 201);
+    assert.equal(r.data.responsibleUnitId, clerkBusinessUnitId);
     createdShipmentIds.push(r.data.id);
   });
 
@@ -488,14 +553,73 @@ describe('PUT /:id', () => {
   });
 
   test('CLERK can update (write allowed)', async () => {
-    const shipment = await mkShipmentViaService();
+    const shipment = await mkClerkScopedShipmentViaService();
     const r = await testFetch(`/${shipment.id}`, {
       method: 'PUT',
       token: clerkToken,
-      body: { version: shipment.version, contactName: 'Clerk edit' },
+      body: { expectedVersion: shipment.version, contactName: 'Clerk edit' },
     });
     assert.equal(r.status, 200);
     assert.equal(r.data.contactName, 'Clerk edit');
+    assert.equal(r.data.changeMode, 'DIRECT');
+  });
+
+  test('CLERK cannot read a legacy shipment without responsible unit', async () => {
+    const shipment = await mkShipmentViaService({ responsibleUnitId: null });
+    const r = await testFetch(`/${shipment.id}`, { token: clerkToken });
+    assert.equal(r.status, 404);
+  });
+
+  test('CLERK post-dispatch plan edits create a change request', async () => {
+    const { transitionShipmentStatus } = await import('../services/shipment.service');
+    const shipment = await mkClerkScopedShipmentViaService({
+      pickupLocation: 'Bãi cũ',
+    });
+    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.IN_PROGRESS);
+
+    const r = await testFetch(`/${shipment.id}`, {
+      method: 'PUT',
+      token: clerkToken,
+      body: { expectedVersion: dispatched.version, pickupLocation: 'Bãi mới' },
+    });
+    assert.equal(r.status, 200);
+    assert.equal(r.data.changeMode, 'REQUESTED');
+    assert.equal(r.data.pickupLocation, 'Bãi cũ');
+
+    const requests = await db.select()
+      .from(s.shipmentChangeRequests)
+      .where(inArray(s.shipmentChangeRequests.shipmentId, [shipment.id]));
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0]?.requestKind, 'PLAN_UPDATE');
+  });
+
+  test('CLERK post-dispatch responsible-unit changes are request-only even when mixed with direct fields', async () => {
+    const { transitionShipmentStatus } = await import('../services/shipment.service');
+    const shipment = await mkClerkScopedShipmentViaService({
+      contactName: 'Đầu mối cũ',
+      responsibleUnitId: clerkBusinessUnitId,
+    });
+    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.IN_PROGRESS);
+
+    const r = await testFetch(`/${shipment.id}`, {
+      method: 'PUT',
+      token: clerkToken,
+      body: {
+        expectedVersion: dispatched.version,
+        contactName: 'Đầu mối mới',
+        responsibleUnitId: secondaryClerkBusinessUnitId,
+      },
+    });
+    assert.equal(r.status, 200);
+    assert.equal(r.data.changeMode, 'REQUESTED');
+    assert.equal(r.data.contactName, 'Đầu mối cũ');
+    assert.equal(r.data.responsibleUnitId, clerkBusinessUnitId);
+
+    const [request] = await db.select()
+      .from(s.shipmentChangeRequests)
+      .where(inArray(s.shipmentChangeRequests.shipmentId, [shipment.id]));
+    assert.ok(request, 'change request persisted');
+    assert.match(JSON.stringify(request.afterSnapshot), /responsibleUnitId/);
   });
 });
 
@@ -568,17 +692,14 @@ describe('POST /:id/transition', () => {
     assert.equal(r.status, 400);
   });
 
-  test('CLERK cannot transition? — CLERK has shipments write, so allowed', async () => {
-    // Sanity check: CLERK's write policy row DOES cover transition (the route
-    // requires ADMIN/MANAGER/CLERK). This guards against an accidental
-    // role-strip in the route.
-    const shipment = await mkShipmentViaService();
+  test('CLERK is denied transition (route requires ADMIN/MANAGER)', async () => {
+    const shipment = await mkClerkScopedShipmentViaService();
     const r = await testFetch(`/${shipment.id}/transition`, {
       method: 'POST',
       token: clerkToken,
       body: { status: ShipmentStatus.IN_PROGRESS },
     });
-    assert.equal(r.status, 200);
+    assert.equal(r.status, 403);
   });
 });
 
@@ -593,6 +714,7 @@ describe('PUT /:id/containers', () => {
       method: 'PUT',
       token: adminToken,
       body: {
+        version: shipment.version,
         containers: [
           // Valid ISO 6346 numbers (M10.2: format validation now enforced).
           { containerTypeId, containerNumber: 'MEDU2497795', sealNumber: 'SEAL-1', cargoWeightKg: 12000 },
@@ -612,21 +734,28 @@ describe('PUT /:id/containers', () => {
     const seed = await testFetch(`/${shipment.id}/containers`, {
       method: 'PUT',
       token: adminToken,
-      body: { containers: [
-        { containerTypeId, containerNumber: 'MSKU1234565' },
-        { containerTypeId, containerNumber: 'TCNU7425363' },
-      ] },
+      body: {
+        version: shipment.version,
+        containers: [
+          { containerTypeId, containerNumber: 'MSKU1234565' },
+          { containerTypeId, containerNumber: 'TCNU7425363' },
+        ],
+      },
     });
     const keepId = seed.data.items.find((c: { containerNumber: string }) => c.containerNumber === 'MSKU1234565').id;
+    const refreshed = await testFetch(`/${shipment.id}`, { token: adminToken });
 
     // Reconcile: keep MSKU1234565 (with updated weight), drop TCNU7425363, add OOLU831266.
     const r = await testFetch(`/${shipment.id}/containers`, {
       method: 'PUT',
       token: adminToken,
-      body: { containers: [
-        { id: keepId, containerTypeId, containerNumber: 'MSKU1234565', cargoWeightKg: 9999 },
-        { containerTypeId, containerNumber: 'OOLU8312661' },
-      ] },
+      body: {
+        version: refreshed.data.shipment.version,
+        containers: [
+          { id: keepId, containerTypeId, containerNumber: 'MSKU1234565', cargoWeightKg: 9999 },
+          { containerTypeId, containerNumber: 'OOLU8312661' },
+        ],
+      },
     });
     assert.equal(r.status, 200);
     const numbers = r.data.items.map((c: { containerNumber: string }) => c.containerNumber).sort();
@@ -639,7 +768,7 @@ describe('PUT /:id/containers', () => {
     const r = await testFetch('/99999999/containers', {
       method: 'PUT',
       token: adminToken,
-      body: { containers: [] },
+      body: { version: 1, containers: [] },
     });
     assert.equal(r.status, 404);
   });
@@ -651,6 +780,20 @@ describe('PUT /:id/containers', () => {
     assert.ok(Array.isArray(r.data.items));
     const notFound = await testFetch('/99999999/containers', { token: adminToken });
     assert.equal(notFound.status, 404);
+  });
+
+  test('concurrent container writes allow one winner and reject the stale loser', async () => {
+    const shipment = await mkShipmentViaService();
+    const body = {
+      expectedVersion: shipment.version,
+      containers: [{ containerTypeId, containerNumber: 'MSCU6639871' }],
+    };
+    const [first, second] = await Promise.all([
+      testFetch(`/${shipment.id}/containers`, { method: 'PUT', token: adminToken, body }),
+      testFetch(`/${shipment.id}/containers`, { method: 'PUT', token: managerToken, body }),
+    ]);
+    const statuses = [first.status, second.status].sort();
+    assert.deepEqual(statuses, [200, 409]);
   });
 });
 
@@ -689,6 +832,61 @@ describe('POST /:id/documents', () => {
       body: { type: 'BOGUS', storageKey: 'x' },
     });
     assert.equal(r.status, 400);
+  });
+
+  test('replaces a shipment document and preserves history', async () => {
+    const shipment = await mkClerkScopedShipmentViaService();
+    const created = await testFetch(`/${shipment.id}/documents`, {
+      method: 'POST',
+      token: clerkToken,
+      body: { type: ShipmentDocumentType.DO, storageKey: `uploads/shipment-${shipment.id}/do-v1.pdf` },
+    });
+    assert.equal(created.status, 201);
+
+    const replaced = await testFetch(`/${shipment.id}/documents/${created.data.id}/replace`, {
+      method: 'POST',
+      token: clerkToken,
+      body: { storageKey: `uploads/shipment-${shipment.id}/do-v2.pdf`, expiresAt: '2026-08-01' },
+    });
+    assert.equal(replaced.status, 201);
+    assert.equal(replaced.data.storageKey, `uploads/shipment-${shipment.id}/do-v2.pdf`);
+
+    const rows = await db.select()
+      .from(s.shipmentDocuments)
+      .where(eq(s.shipmentDocuments.shipmentId, shipment.id));
+    const oldRow = rows.find((row) => row.id === created.data.id);
+    assert.equal(oldRow?.replacedBy, replaced.data.id);
+  });
+});
+
+describe('shipment declarations', () => {
+  test('creates and updates a declaration within shipment scope', async () => {
+    const shipment = await mkClerkScopedShipmentViaService();
+    const created = await testFetch(`/${shipment.id}/declarations`, {
+      method: 'POST',
+      token: clerkToken,
+      body: {
+        declarationNumber: 'TK-001',
+        issuedAt: '2026-07-27T09:00:00.000Z',
+        scope: 'SHARED',
+        note: 'Khai chung',
+      },
+    });
+    assert.equal(created.status, 201);
+    assert.equal(created.data.declarationNumber, 'TK-001');
+
+    const updated = await testFetch(`/${shipment.id}/declarations/${created.data.id}`, {
+      method: 'PUT',
+      token: clerkToken,
+      body: {
+        declarationNumber: 'TK-001A',
+        issuedAt: '2026-07-27T10:00:00.000Z',
+        scope: 'SINGLE',
+      },
+    });
+    assert.equal(updated.status, 200);
+    assert.equal(updated.data.declarationNumber, 'TK-001A');
+    assert.equal(updated.data.scope, 'SINGLE');
   });
 });
 
@@ -820,6 +1018,57 @@ describe('POST /:id/dispatch', () => {
     const live = linked.filter((t) => t.shipmentId === shipment.id);
     assert.equal(live.length, 1, 'exactly one live trip linked to the shipment');
     if (live[0]) createdTripIds.push(live[0].id);
+  });
+});
+
+describe('POST /:id/change-requests/:requestId/review', () => {
+  test('MANAGER can apply a pending request and bump the shipment version', async () => {
+    const { transitionShipmentStatus } = await import('../services/shipment.service');
+    const shipment = await mkClerkScopedShipmentViaService({ pickupLocation: 'Kho cũ' });
+    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.IN_PROGRESS);
+    const requestResponse = await testFetch(`/${shipment.id}`, {
+      method: 'PUT',
+      token: clerkToken,
+      body: { expectedVersion: dispatched.version, pickupLocation: 'Kho mới' },
+    });
+    assert.equal(requestResponse.status, 200);
+    const requestId = requestResponse.data.changeRequestId as number;
+
+    const review = await testFetch(`/${shipment.id}/change-requests/${requestId}/review`, {
+      method: 'POST',
+      token: managerToken,
+      body: { resolution: 'APPLIED' },
+    });
+    assert.equal(review.status, 200);
+    assert.equal(review.data.resolution, 'APPLIED');
+    assert.equal(review.data.shipmentVersion, dispatched.version + 1);
+
+    const detail = await testFetch(`/${shipment.id}`, { token: adminToken });
+    assert.equal(detail.data.shipment.pickupLocation, 'Kho mới');
+    assert.equal(detail.data.pendingChangeRequests.length, 0);
+  });
+
+  test('request creation persists notifications for both manager and admin recipients', async () => {
+    const { transitionShipmentStatus } = await import('../services/shipment.service');
+    const shipment = await mkClerkScopedShipmentViaService({ pickupLocation: 'Kho A' });
+    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.IN_PROGRESS);
+    const response = await testFetch(`/${shipment.id}`, {
+      method: 'PUT',
+      token: clerkToken,
+      body: { expectedVersion: dispatched.version, pickupLocation: 'Kho B' },
+    });
+    assert.equal(response.status, 200);
+    assert.equal(response.data.notificationDelivered, true);
+
+    const notifications = await db.select()
+      .from(s.notifications)
+      .where(and(
+        eq(s.notifications.relatedEntityType, 'shipments'),
+        eq(s.notifications.relatedEntityId, shipment.id),
+        inArray(s.notifications.userId, [adminUserId, managerUserId]),
+      ));
+    const recipientIds = notifications.map((row) => row.userId).sort((a, b) => a - b);
+    assert.deepEqual(recipientIds, [adminUserId, managerUserId]);
   });
 });
 

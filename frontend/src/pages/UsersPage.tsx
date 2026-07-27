@@ -1,7 +1,9 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Role } from '@tingting/shared';
-import type { Truck } from '@tingting/shared';
+import type { Customer, Truck } from '@tingting/shared';
+import { listShipments } from '../api/shipmentClient';
+import { userClient } from '../api/userClient';
 import { useAuth } from '../hooks/useAuth';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { useUsers } from '../hooks/useCatalogQueries';
@@ -11,20 +13,39 @@ import { UserTable } from '../features/users/components/UserTable';
 import { AddPanel, EditPanel } from '../features/users/components/UserForm';
 import type { UserRow, FilterKey } from '../features/users/utils';
 import { usePageAnimations } from '../hooks/animations';
+import { useToast } from '../components/shared/Toast';
 import '../features/users/users.css';
+
+async function loadAllShipmentScopeOptions() {
+  const limit = 200;
+  let page = 1;
+  let total = 0;
+  const items: Awaited<ReturnType<typeof listShipments>>['items'] = [];
+  do {
+    const response = await listShipments({ page, limit });
+    total = response.total;
+    items.push(...response.items);
+    page += 1;
+  } while (items.length < total);
+  return { items };
+}
 
 export default function UsersPage() {
   const { user: me } = useAuth();
   const canManage = me?.capabilities
     ? me.capabilities.includes('manage_users')
     : me?.role === Role.ADMIN || me?.role === Role.MANAGER;
+  const canManageClerkScope = me?.role === Role.ADMIN;
+  const canManageBusinessUnits = me?.role === Role.ADMIN;
   const canDelete = me?.role === Role.ADMIN;
   // Accountants get scoped /users access: read-only except DRIVER rows (salary/truck/contact).
   const canEditDriversOnly = !canManage && me?.role === Role.ACCOUNTANT;
+  const { toast } = useToast();
 
   const { data: usersData, isLoading: loading, refetch: refetchUsers } = useUsers();
   const { rootRef } = usePageAnimations({ ready: !loading });
   const users = useMemo(() => (usersData?.items ?? []) as UserRow[], [usersData]);
+  const businessUnits = useMemo(() => usersData?.businessUnits ?? [], [usersData]);
 
   // Load trucks once for the driver "Xe phân công" field + the table "Xe" plate column.
   // Shares cache with useTrucksAndDrivers by using a common query key prefix.
@@ -34,11 +55,33 @@ export default function UsersPage() {
     queryFn: () => configClient.getTrucks(),
     staleTime: 5 * 60 * 1000,
   });
+  const { data: customerList = [] } = useQuery<Customer[]>({
+    // eslint-disable-next-line @tingting/no-bare-query-key -- user-scope catalog has no dedicated qk domain key
+    queryKey: ['customers', 'user-scope'],
+    queryFn: () => configClient.getAllCustomers(),
+    staleTime: 5 * 60 * 1000,
+  });
+  const { data: shipmentScopeData } = useQuery({
+    // eslint-disable-next-line @tingting/no-bare-query-key -- admin-only drawer assignment options are local to the users page
+    queryKey: ['shipments', 'user-scope'],
+    queryFn: loadAllShipmentScopeOptions,
+    staleTime: 60 * 1000,
+    enabled: canManageClerkScope,
+  });
+  const shipmentOptions = shipmentScopeData?.items ?? [];
   const truckMap = useMemo(() => {
     const m = new Map<number, string>();
     truckList.forEach(t => m.set(t.id, t.licensePlate));
     return m;
   }, [truckList]);
+  const customerMap = useMemo(
+    () => new Map(customerList.map(customer => [customer.id, customer.name])),
+    [customerList],
+  );
+  const businessUnitMap = useMemo(
+    () => new Map(businessUnits.map((unit) => [unit.id, unit.name])),
+    [businessUnits],
+  );
 
   const {
     saving, panelError, deleting, confirmDialog,
@@ -49,6 +92,10 @@ export default function UsersPage() {
   const [search, setSearch] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRow | null>(null);
+  const [unitDraft, setUnitDraft] = useState({ code: '', name: '' });
+  const [editingUnitId, setEditingUnitId] = useState<number | null>(null);
+  const [savingUnit, setSavingUnit] = useState(false);
+  const [unitError, setUnitError] = useState<string | null>(null);
 
   // Sorting and pagination state
   const [sortBy, setSortBy] = useState<'name' | 'role' | 'status' | 'date' | null>(null);
@@ -128,6 +175,57 @@ export default function UsersPage() {
   const closeAdd  = () => { setShowAdd(false); clearPanelError(); };
   const closeEdit = () => { setEditingUser(null); clearPanelError(); };
 
+  async function handleSaveBusinessUnit() {
+    if (!canManageBusinessUnits) return;
+    if (!unitDraft.name.trim()) {
+      setUnitError('Tên đơn vị là bắt buộc.');
+      return;
+    }
+    setSavingUnit(true);
+    setUnitError(null);
+    try {
+      if (editingUnitId != null) {
+        await userClient.updateBusinessUnit(editingUnitId, {
+          code: unitDraft.code.trim() || null,
+          name: unitDraft.name.trim(),
+        });
+        toast({ kind: 'success', message: 'Đã cập nhật đơn vị phụ trách' });
+      } else {
+        await userClient.createBusinessUnit({
+          code: unitDraft.code.trim() || null,
+          name: unitDraft.name.trim(),
+        });
+        toast({ kind: 'success', message: 'Đã tạo đơn vị phụ trách' });
+      }
+      setUnitDraft({ code: '', name: '' });
+      setEditingUnitId(null);
+      await refetchUsers();
+    } catch (err) {
+      setUnitError(err instanceof Error ? err.message : 'Không thể lưu đơn vị phụ trách');
+    } finally {
+      setSavingUnit(false);
+    }
+  }
+
+  async function handleDeactivateBusinessUnit(id: number) {
+    if (!canManageBusinessUnits) return;
+    setSavingUnit(true);
+    setUnitError(null);
+    try {
+      await userClient.deactivateBusinessUnit(id);
+      toast({ kind: 'success', message: 'Đã ngưng sử dụng đơn vị phụ trách' });
+      if (editingUnitId === id) {
+        setEditingUnitId(null);
+        setUnitDraft({ code: '', name: '' });
+      }
+      await refetchUsers();
+    } catch (err) {
+      setUnitError(err instanceof Error ? err.message : 'Không thể ngưng sử dụng đơn vị phụ trách');
+    } finally {
+      setSavingUnit(false);
+    }
+  }
+
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
@@ -159,6 +257,8 @@ export default function UsersPage() {
         canDelete={canDelete}
         canEditDriversOnly={canEditDriversOnly}
         truckMap={truckMap}
+        customerMap={customerMap}
+        businessUnitMap={businessUnitMap}
         deleting={deleting}
         currentUserId={me?.userId}
         onFilterChange={handleFilterChange}
@@ -179,6 +279,10 @@ export default function UsersPage() {
         saving={saving}
         error={panelError}
         truckList={truckList}
+        customerList={customerList}
+        businessUnits={businessUnits}
+        shipmentOptions={shipmentOptions}
+        canManageClerkScope={canManageClerkScope}
         onClose={closeAdd}
         onSave={doCreate}
       />
@@ -190,10 +294,129 @@ export default function UsersPage() {
           saving={saving}
           error={panelError}
           truckList={truckList}
+          customerList={customerList}
+          businessUnits={businessUnits}
+          shipmentOptions={shipmentOptions}
+          canManageClerkScope={canManageClerkScope}
           canEditDriversOnly={canEditDriversOnly}
           onClose={closeEdit}
           onSave={doUpdate}
         />
+      )}
+
+      {canManageBusinessUnits && (
+        <section
+          style={{
+            marginTop: 24,
+            padding: 16,
+            borderRadius: 12,
+            border: '1px solid var(--line-2)',
+            background: 'var(--panel, #fff)',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Đơn vị phụ trách</h2>
+              <p style={{ margin: '4px 0 0', color: 'var(--fg-3)', fontSize: 14 }}>
+                Xóa theo Q17 dùng nghĩa ngưng sử dụng: chuyển trạng thái sang INACTIVE, giữ nguyên lịch sử và liên kết cũ.
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', marginBottom: 12 }}>
+            <label style={{ display: 'grid', gap: 6 }}>
+              <span>Mã đơn vị</span>
+              <input
+                className="input"
+                value={unitDraft.code}
+                onChange={(event) => setUnitDraft((current) => ({ ...current, code: event.target.value }))}
+                placeholder="Ví dụ: HCM"
+                disabled={savingUnit}
+              />
+            </label>
+            <label style={{ display: 'grid', gap: 6 }}>
+              <span>Tên đơn vị</span>
+              <input
+                className="input"
+                value={unitDraft.name}
+                onChange={(event) => setUnitDraft((current) => ({ ...current, name: event.target.value }))}
+                placeholder="Ví dụ: Điều hành miền Nam"
+                disabled={savingUnit}
+              />
+            </label>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+            <button type="button" onClick={handleSaveBusinessUnit} disabled={savingUnit} className="btn btn-primary">
+              {editingUnitId != null ? 'Lưu đơn vị' : 'Tạo đơn vị'}
+            </button>
+            {editingUnitId != null && (
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingUnitId(null);
+                  setUnitDraft({ code: '', name: '' });
+                  setUnitError(null);
+                }}
+                disabled={savingUnit}
+                className="btn btn-ghost"
+              >
+                Hủy sửa
+              </button>
+            )}
+          </div>
+
+          {unitError && <div className="users-error-banner">{unitError}</div>}
+
+          <div style={{ display: 'grid', gap: 10 }}>
+            {businessUnits.map((unit) => (
+              <article
+                key={unit.id}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  padding: 12,
+                  borderRadius: 10,
+                  border: '1px solid var(--line-2)',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div>
+                  <strong>{unit.name}</strong>
+                  <div style={{ color: 'var(--fg-3)', fontSize: 13 }}>
+                    {unit.code ? `Mã ${unit.code}` : 'Không có mã'} · {unit.status}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => {
+                      setEditingUnitId(unit.id);
+                      setUnitDraft({ code: unit.code ?? '', name: unit.name });
+                      setUnitError(null);
+                    }}
+                    disabled={savingUnit}
+                  >
+                    Sửa
+                  </button>
+                  {unit.status === 'ACTIVE' && (
+                    <button
+                      type="button"
+                      className="btn btn-danger"
+                      onClick={() => handleDeactivateBusinessUnit(unit.id)}
+                      disabled={savingUnit}
+                    >
+                      Ngưng dùng
+                    </button>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
       )}
 
       {confirmDialog}

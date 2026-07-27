@@ -13,6 +13,8 @@ import billingDocumentsRoutes from './billing-documents.routes';
 // Audit event registrations
 registerAuditEvent('POST', '/api/payments/receive', AuditEvent.PAYMENT_RECEIVED);
 registerAuditEvent('POST', '/api/adjustments', AuditEvent.ADJUSTMENT_CREATED);
+registerAuditEvent('POST', '/api/governance-actions/', '/check', AuditEvent.ENTITY_UPDATED);
+registerAuditEvent('POST', '/api/governance-actions/', '/approve', AuditEvent.ENTITY_UPDATED);
 registerAuditEvent('POST', '/api/penalties', AuditEvent.PENALTY_CREATED);
 registerAuditEvent('POST', '/api/penalties/', '/cancel', AuditEvent.PENALTY_CANCELED);
 registerAuditEvent('POST', '/api/payments/vendor', AuditEvent.PAYMENT_RECEIVED);

@@ -3,6 +3,7 @@ import { CheckCircle2, FileSpreadsheet, FileText, Printer, TriangleAlert } from 
 import type { BillingDocument } from '@tingting/shared';
 import { api } from '../../lib/api';
 import { EmptyState } from '../../design-system';
+import { useCustomerPortalScope, withCustomerScope } from './CustomerPortalScope';
 import './PortalPages.css';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -23,6 +24,12 @@ function statusClass(status: BillingDocument['debitNoteStatus']) {
   return 'portal-status';
 }
 
+function formatDate(value: string | null | undefined) {
+  if (!value) return 'Chưa có dữ liệu lịch sử';
+  const [year, month, day] = value.split('-');
+  return `${day}/${month}/${year}`;
+}
+
 function triggerDownload(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
@@ -33,6 +40,7 @@ function triggerDownload(blob: Blob, filename: string) {
 }
 
 export default function PortalDebitNotesPage() {
+  const { selectedCustomerId, ready: customerScopeReady } = useCustomerPortalScope();
   const [items, setItems] = useState<BillingDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,10 +51,13 @@ export default function PortalDebitNotesPage() {
   const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
+    if (!customerScopeReady) return;
     let active = true;
     setLoading(true);
     setError(null);
-    api.get<{ items: BillingDocument[]; total: number }>(`/portal/debit-notes?page=${page}&limit=20`)
+    api.get<{ items: BillingDocument[]; total: number }>(
+      withCustomerScope(`/portal/debit-notes?page=${page}&limit=20`, selectedCustomerId),
+    )
       .then((response) => {
         if (!active) return;
         setItems(response.items ?? []);
@@ -59,7 +70,11 @@ export default function PortalDebitNotesPage() {
         if (active) setLoading(false);
       });
     return () => { active = false; };
-  }, [page, retryKey]);
+  }, [customerScopeReady, page, retryKey, selectedCustomerId]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [selectedCustomerId]);
 
   const updateStatus = async (doc: BillingDocument, action: 'confirm' | 'dispute') => {
     const question = action === 'confirm'
@@ -70,7 +85,10 @@ export default function PortalDebitNotesPage() {
     setWorkingId(doc.id);
     setNotice(null);
     try {
-      const updated = await api.post<BillingDocument>(`/portal/debit-notes/${doc.id}/${action}`, {});
+      const updated = await api.post<BillingDocument>(
+        withCustomerScope(`/portal/debit-notes/${doc.id}/${action}`, selectedCustomerId),
+        {},
+      );
       setItems((current) => current.map((item) => item.id === doc.id ? updated : item));
       setNotice(action === 'confirm' ? 'Đã xác nhận giấy báo nợ.' : 'Đã gửi phản hồi tranh chấp.');
     } catch (err) {
@@ -84,7 +102,9 @@ export default function PortalDebitNotesPage() {
     setWorkingId(doc.id);
     setNotice(null);
     try {
-      const blob = await api.getBlob(`/portal/debit-notes/${doc.id}/export?format=${format}`);
+      const blob = await api.getBlob(
+        withCustomerScope(`/portal/debit-notes/${doc.id}/export?format=${format}`, selectedCustomerId),
+      );
       triggerDownload(blob, `giay-bao-no-${doc.id}.${format}`);
     } catch (err) {
       setNotice((err as Error).message || 'Không thể xuất giấy báo nợ.');
@@ -126,6 +146,10 @@ export default function PortalDebitNotesPage() {
                     <div className="portal-list__meta">
                       <span>{Number(doc.totalInclVat).toLocaleString('vi-VN')} ₫</span>
                       <span className={statusClass(doc.debitNoteStatus)}>{STATUS_LABELS[doc.debitNoteStatus ?? 'DRAFT']}</span>
+                    </div>
+                    <div className="portal-list__meta">
+                      <span>Hạn hợp đồng: {formatDate(doc.originalDueDate)}</span>
+                      <span>Ngày xử lý: {formatDate(doc.processingDueDate)}</span>
                     </div>
                   </div>
                   <div className="portal-actions">

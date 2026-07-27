@@ -6,6 +6,7 @@
 // surface; later clerk/shipment operations (M10.2 doc entry, M10.3 handoff)
 // grow this file.
 
+import { ShipmentStatus } from '@tingting/shared';
 import { api } from '../lib/api';
 
 /** Row shape returned by `/api/shipments/quick` and `/api/shipments/:id`. */
@@ -14,7 +15,8 @@ export interface Shipment {
   shipmentCode: string | null;
   version: number;
   customerId: number;
-  status: 'DRAFT' | 'IN_PROGRESS' | 'DELIVERED' | 'CLOSED' | 'CANCELED';
+  responsibleUnitId: number | null;
+  status: ShipmentStatus;
   bookingRef: string | null;
   blNumber: string | null;
   expectedDeliveryDate: string | null;
@@ -31,6 +33,7 @@ export interface Shipment {
 /** Body for `POST /api/shipments/quick` — matches `quickCreateShipmentSchema`. */
 export interface QuickCreateShipmentRequest {
   customerId: number;
+  responsibleUnitId?: number | null;
   bookingRef?: string | null;
   blNumber?: string | null;
   expectedDeliveryDate?: string | null;
@@ -83,14 +86,17 @@ export interface ShipmentContainer {
 export interface ShipmentDetail {
   shipment: Shipment & { customerName: string | null };
   containers: ShipmentContainer[];
-  documents: unknown[];
-  declarations: unknown[];
-  statusHistory: unknown[];
+  documents: ShipmentDocument[];
+  declarations: ShipmentDeclaration[];
+  statusHistory: ShipmentStatusHistoryEntry[];
+  pendingChangeRequests: ShipmentChangeRequest[];
 }
 
 /** Body for `PUT /api/shipments/:id` — version is required (optimistic lock). */
 export interface UpdateShipmentRequest {
-  version: number;
+  expectedVersion: number;
+  customerId?: number;
+  responsibleUnitId?: number | null;
   blNumber?: string | null;
   bookingRef?: string | null;
   expectedDeliveryDate?: string | null;
@@ -102,6 +108,7 @@ export interface UpdateShipmentRequest {
 
 /** Body for `PUT /api/shipments/:id/containers` (full reconcile). */
 export interface ShipmentContainerBatch {
+  expectedVersion: number;
   containers: Array<{
     id?: number;
     containerTypeId?: number | null;
@@ -116,6 +123,104 @@ export interface ShipmentContainerBatch {
 export interface ShipmentContainerBatchResponse {
   items: ShipmentContainer[];
   upsertedIds: number[];
+  shipmentVersion: number;
+  changeMode: 'DIRECT' | 'REQUESTED' | 'NOOP';
+  changeRequestId: number | null;
+  message?: string;
+  notificationDelivered?: boolean;
+}
+
+export interface ShipmentUpdateResponse extends Shipment {
+  changeMode: 'DIRECT' | 'REQUESTED' | 'NOOP';
+  changeRequestId: number | null;
+  message?: string;
+  notificationDelivered?: boolean;
+}
+
+export interface ShipmentDocument {
+  id: number;
+  shipmentId: number;
+  type: 'BOOKING' | 'BL' | 'DO' | 'DECLARATION' | 'OTHER' | null;
+  storageKey: string;
+  uploadedBy: number | null;
+  expiresAt: string | null;
+  replacedBy: number | null;
+  createdAt: string;
+}
+
+export interface ShipmentDeclaration {
+  id: number;
+  shipmentId: number;
+  declarationNumber: string | null;
+  issuedAt: string | null;
+  scope: 'SINGLE' | 'SHARED' | null;
+  note: string | null;
+  createdBy: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ShipmentStatusHistoryEntry {
+  id: number;
+  shipmentId: number;
+  fromStatus: ShipmentStatus | null;
+  toStatus: ShipmentStatus;
+  reason: string | null;
+  changedBy: number | null;
+  changedAt: string;
+}
+
+export interface ShipmentChangeRequest {
+  id: number;
+  shipmentId: number;
+  sourceVersion: number;
+  requestKind: 'PLAN_UPDATE' | 'CONTAINER_RECONCILE';
+  requestedBy: number;
+  beforeSnapshot: unknown;
+  afterSnapshot: unknown;
+  createdAt: string;
+  requester: {
+    id: number;
+    fullName: string | null;
+    username: string | null;
+  } | null;
+}
+
+export interface ShipmentDeclarationRequest {
+  declarationNumber?: string | null;
+  issuedAt?: string | null;
+  scope?: 'SINGLE' | 'SHARED';
+  note?: string | null;
+}
+
+export interface ShipmentDocumentRequest {
+  type: 'BOOKING' | 'BL' | 'DO' | 'DECLARATION' | 'OTHER';
+  storageKey: string;
+}
+
+export interface ShipmentDocumentReplacementRequest {
+  storageKey: string;
+  expiresAt?: string | null;
+}
+
+export interface ShipmentChangeRequestReviewResponse {
+  shipment: Shipment;
+  resolution: 'APPLIED' | 'REJECTED';
+  changeRequestId: number;
+  shipmentVersion: number;
+  notificationDelivered: boolean;
+  message: string;
+}
+
+export interface ShipmentListItem extends Shipment {
+  customerName: string | null;
+}
+
+export interface ShipmentListResponse {
+  items: ShipmentListItem[];
+  total: number;
+  page: number;
+  limit: number;
 }
 
 /** Body for `POST /api/shipments/:id/dispatch`. */
@@ -146,8 +251,8 @@ export async function getShipmentDetail(id: number): Promise<ShipmentDetail> {
 export async function updateShipment(
   id: number,
   body: UpdateShipmentRequest,
-): Promise<Shipment> {
-  return api.put<Shipment>(`/shipments/${id}`, body);
+): Promise<ShipmentUpdateResponse> {
+  return api.put<ShipmentUpdateResponse>(`/shipments/${id}`, body);
 }
 
 /** Full-reconcile the shipment's container set (slice-1 validation applies). */
@@ -156,6 +261,62 @@ export async function saveShipmentContainers(
   body: ShipmentContainerBatch,
 ): Promise<ShipmentContainerBatchResponse> {
   return api.put<ShipmentContainerBatchResponse>(`/shipments/${id}/containers`, body);
+}
+
+export async function addShipmentDocument(
+  id: number,
+  body: ShipmentDocumentRequest,
+): Promise<ShipmentDocument> {
+  return api.post<ShipmentDocument>(`/shipments/${id}/documents`, body);
+}
+
+export async function replaceShipmentDocument(
+  shipmentId: number,
+  documentId: number,
+  body: ShipmentDocumentReplacementRequest,
+): Promise<ShipmentDocument> {
+  return api.post<ShipmentDocument>(`/shipments/${shipmentId}/documents/${documentId}/replace`, body);
+}
+
+export async function createShipmentDeclaration(
+  shipmentId: number,
+  body: ShipmentDeclarationRequest,
+): Promise<ShipmentDeclaration> {
+  return api.post<ShipmentDeclaration>(`/shipments/${shipmentId}/declarations`, body);
+}
+
+export async function updateShipmentDeclaration(
+  shipmentId: number,
+  declarationId: number,
+  body: ShipmentDeclarationRequest,
+): Promise<ShipmentDeclaration> {
+  return api.put<ShipmentDeclaration>(`/shipments/${shipmentId}/declarations/${declarationId}`, body);
+}
+
+export async function reviewShipmentChangeRequest(
+  shipmentId: number,
+  requestId: number,
+  resolution: 'APPLIED' | 'REJECTED',
+): Promise<ShipmentChangeRequestReviewResponse> {
+  return api.post<ShipmentChangeRequestReviewResponse>(
+    `/shipments/${shipmentId}/change-requests/${requestId}/review`,
+    { resolution },
+  );
+}
+
+export async function listShipments(params?: {
+  page?: number;
+  limit?: number;
+  customerId?: number;
+  status?: ShipmentStatus;
+}): Promise<ShipmentListResponse> {
+  const query = new URLSearchParams();
+  if (params?.page != null) query.set('page', String(params.page));
+  if (params?.limit != null) query.set('limit', String(params.limit));
+  if (params?.customerId != null) query.set('customerId', String(params.customerId));
+  if (params?.status != null) query.set('status', params.status);
+  const suffix = query.size > 0 ? `?${query.toString()}` : '';
+  return api.get<ShipmentListResponse>(`/shipments${suffix}`);
 }
 
 /** Dispatch the shipment → linked trip. Carries slice-2 preDispatchWarnings. */

@@ -1,6 +1,6 @@
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import type { SaveBillingDocumentInput } from '@tingting/shared';
 import { db, client } from '../db';
 import * as s from '../db/schema';
@@ -9,7 +9,9 @@ import { transitionDebitNoteStatus } from '../services/debit-note-lifecycle.serv
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const customerIds: number[] = [];
+const supplierIds: number[] = [];
 const documentIds: number[] = [];
+const ledgerIds: number[] = [];
 
 const lockedError = (error: unknown) =>
   error instanceof Error
@@ -101,12 +103,18 @@ function editedInput(customerId: number, customerName: string): SaveBillingDocum
 }
 
 after(async () => {
+  if (ledgerIds.length > 0) {
+    await db.delete(s.ledger).where(inArray(s.ledger.id, ledgerIds));
+  }
   if (documentIds.length > 0) {
     await db.delete(s.billingDocumentLines).where(inArray(s.billingDocumentLines.documentId, documentIds));
     await db.delete(s.billingDocuments).where(inArray(s.billingDocuments.id, documentIds));
   }
   if (customerIds.length > 0) {
     await db.delete(s.customers).where(inArray(s.customers.id, customerIds));
+  }
+  if (supplierIds.length > 0) {
+    await db.delete(s.suppliers).where(inArray(s.suppliers.id, supplierIds));
   }
   await client.end();
 });
@@ -130,6 +138,73 @@ describe('confirmed debit-note persistence lock', () => {
       .where(inArray(s.billingDocuments.id, [document.id]));
     assert.equal(afterRow.deletedAt, null);
     assert.equal(afterRow.debitNoteStatus, 'CONFIRMED');
+  });
+
+  test('canonical delete preserves every customer debit note that has left DRAFT and never reverses its ledger', async () => {
+    for (const status of [
+      'SENT',
+      'PENDING_CONFIRM',
+      'CONFIRMED',
+      'PARTIAL_PAID',
+      'PAID',
+      'REJECTED',
+      'CANCELED',
+    ] as const) {
+      const { document } = await createPendingDocument();
+      await db.update(s.billingDocuments)
+        .set({ debitNoteStatus: status, ledgerAdjustmentAmount: '250000' })
+        .where(inArray(s.billingDocuments.id, [document.id]));
+      const [ledgerEntry] = await db.insert(s.ledger).values({
+        entityType: 'CUSTOMER',
+        entityId: document.entityId,
+        txnType: 'ADJUSTMENT',
+        txnId: document.id,
+        receiptId: `GBN:${document.id}`,
+        debit: '250000',
+        credit: '0',
+        balance: '250000',
+        note: `Giấy báo nợ kiểm thử ${status}`,
+      }).returning({ id: s.ledger.id });
+      ledgerIds.push(ledgerEntry.id);
+
+      await assert.rejects(() => deleteDocument(document.id), lockedError);
+
+      const [afterRow] = await db.select().from(s.billingDocuments)
+        .where(inArray(s.billingDocuments.id, [document.id]));
+      assert.equal(afterRow.deletedAt, null);
+      assert.equal(afterRow.debitNoteStatus, status);
+      const ledgerRows = await db.select({ id: s.ledger.id }).from(s.ledger)
+        .where(and(
+          eq(s.ledger.txnType, 'ADJUSTMENT'),
+          eq(s.ledger.receiptId, `GBN:${document.id}`),
+        ));
+      assert.deepEqual(ledgerRows.map((row) => row.id), [ledgerEntry.id]);
+    }
+  });
+
+  test('canonical delete preserves an issued vendor debit note', async () => {
+    const [supplier] = await db.insert(s.suppliers)
+      .values({ name: `Issued vendor ${suffix}-${supplierIds.length}` })
+      .returning();
+    supplierIds.push(supplier.id);
+    const [document] = await db.insert(s.billingDocuments).values({
+      type: 'DEBIT_NOTE',
+      entityType: 'VENDOR',
+      entityId: supplier.id,
+      entityName: supplier.name,
+      rangeFrom: '2026-08-01',
+      rangeTo: '2026-08-31',
+      totalInclVat: '1000000',
+      debitNoteStatus: 'SENT',
+    }).returning();
+    documentIds.push(document.id);
+
+    await assert.rejects(() => deleteDocument(document.id), lockedError);
+
+    const [afterRow] = await db.select().from(s.billingDocuments)
+      .where(inArray(s.billingDocuments.id, [document.id]));
+    assert.equal(afterRow.deletedAt, null);
+    assert.equal(afterRow.debitNoteStatus, 'SENT');
   });
 
   test('confirmation racing an update always leaves a confirmed, subsequently immutable document', async () => {

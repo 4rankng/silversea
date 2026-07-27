@@ -5,7 +5,7 @@
  * + unblock flow, the explanation CRUD + upsert idempotence, and the
  * helper utilities (isFuelExpenseType, monthRangeFromDate).
  */
-import { after, describe, test } from 'node:test';
+import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { inArray, sql } from 'drizzle-orm';
 
@@ -30,6 +30,18 @@ const createdCargoTypeIds: number[] = [];
 const createdCustomerIds: number[] = [];
 const createdExpenseIds: number[] = [];
 const createdExplanationIds: number[] = [];
+const createdUserIds: number[] = [];
+let makerId: number;
+let approverId: number;
+
+before(async () => {
+  const users = await db.insert(s.users).values([
+    { username: `m61-maker-${suffix}`, passwordHash: 'x', role: 'ACCOUNTANT' },
+    { username: `m61-approver-${suffix}`, passwordHash: 'x', role: 'ADMIN' },
+  ]).returning({ id: s.users.id });
+  [makerId, approverId] = users.map(user => user.id);
+  createdUserIds.push(...users.map(user => user.id));
+});
 
 async function mkSupplier() {
   const [sup] = await db.insert(s.suppliers).values({
@@ -79,6 +91,7 @@ async function mkExpense(opts: {
 }) {
   const [e] = await db.insert(s.tripExpenses).values({
     tripId: opts.tripId,
+    createdBy: makerId,
     expenseType: opts.expenseType ?? 'FUEL_DIESEL',
     buyAmount: opts.buyAmount,
     sellAmount: '0',
@@ -99,6 +112,7 @@ after(async () => {
     if (createdCargoTypeIds.length > 0) await db.delete(s.cargoTypes).where(sql`${s.cargoTypes.name} LIKE ${namePattern}`);
     if (createdRouteIds.length > 0) await db.delete(s.routes).where(sql`${s.routes.name} LIKE ${namePattern}`);
     if (createdCustomerIds.length > 0) await db.delete(s.customers).where(sql`${s.customers.name} LIKE ${namePattern}`);
+    if (createdUserIds.length > 0) await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
     if (createdSupplierIds.length > 0) await db.delete(s.suppliers).where(inArray(s.suppliers.id, createdSupplierIds));
   } catch (err) { console.warn('[m61g] cleanup:', (err as Error).message); }
   await client.end();
@@ -219,7 +233,7 @@ describe('M6.1 slice 2 — transitionApproval guard wiring', () => {
     await assert.rejects(
       () => runInTx((tx) => transitionApproval(tx, {
         table: 'trip_expenses', id: e.id, toStatus: 'APPROVED',
-        actorId: 1, actorRole: 'ADMIN',
+        actorId: approverId, actorRole: 'ADMIN',
       })),
       (err: Error & { statusCode?: number }) => err.statusCode === 409,
     );
@@ -236,7 +250,7 @@ describe('M6.1 slice 2 — transitionApproval guard wiring', () => {
     // Should not throw — rejections bypass the guard.
     await runInTx((tx) => transitionApproval(tx, {
       table: 'trip_expenses', id: e.id, toStatus: 'REJECTED',
-      actorId: 1, actorRole: 'ADMIN',
+      actorId: approverId, actorRole: 'ADMIN',
     }));
   });
 
@@ -250,7 +264,7 @@ describe('M6.1 slice 2 — transitionApproval guard wiring', () => {
     });
     await runInTx((tx) => transitionApproval(tx, {
       table: 'trip_expenses', id: e.id, toStatus: 'APPROVED',
-      actorId: 1, actorRole: 'ADMIN',
+      actorId: approverId, actorRole: 'ADMIN',
     }));
   });
 });

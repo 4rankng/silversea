@@ -1,4 +1,26 @@
-import { Role, ROLE_LABELS } from '@tingting/shared';
+import { Role, ROLE_LABELS, ShipmentStatus } from '@tingting/shared';
+
+export interface BusinessUnit {
+  id: number;
+  code: string | null;
+  name: string;
+  status: 'ACTIVE' | 'INACTIVE';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ShipmentScopeOption {
+  id: number;
+  shipmentCode: string | null;
+  customerId: number;
+  customerName: string | null;
+  responsibleUnitId: number | null;
+  status: ShipmentStatus;
+  bookingRef: string | null;
+  blNumber: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface UserRow {
   id: number;
@@ -9,6 +31,10 @@ export interface UserRow {
   role: Role;
   status: string;
   createdAt: string;
+  customerId?: number | null;
+  customerIds?: number[];
+  businessUnitIds?: number[];
+  shipmentIds?: number[];
   // Linked driver profile (null for non-driver users or users without a profile row).
   driverId: number | null;
   assignedTruckId: number | null;
@@ -28,6 +54,10 @@ export interface EditData {
   baseSalary?: string;
   socialInsurance?: string;
   assignedTruckId?: number | null;
+  customerId?: number | null;
+  customerIds?: number[];
+  businessUnitIds?: number[];
+  shipmentIds?: number[];
 }
 
 export interface CreateData {
@@ -41,6 +71,10 @@ export interface CreateData {
   baseSalary?: string;
   socialInsurance?: string;
   assignedTruckId?: number | null;
+  customerId?: number | null;
+  customerIds?: number[];
+  businessUnitIds?: number[];
+  shipmentIds?: number[];
 }
 
 export const ROLE_PILL: Record<Role, { cls: string; label: string }> = {

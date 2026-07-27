@@ -4,7 +4,14 @@ import { ArrowLeft, Printer, Loader2, FileSpreadsheet, X, Pencil, Save, CheckCir
 import { formatCurrency } from '../lib/format';
 import { ADVANCE_SETTLEMENT_STATUS_LABELS, type AdvanceSettlementStatus } from '@tingting/shared';
 import { api } from '../lib/api';
-import { useForwarderSettlementDetail, useAdminSettlementDetail, useUpdateAdvanceSettlement, useUpdateSettlementExpense, useApproveSettlement } from '../hooks/useForwarderQueries';
+import {
+  useForwarderSettlementDetail,
+  useAdminSettlementDetail,
+  useUpdateAdvanceSettlement,
+  useUpdateSettlementExpense,
+  useCheckSettlement,
+  useApproveSettlement,
+} from '../hooks/useForwarderQueries';
 import { useAuth } from '../hooks/useAuth';
 import { PageHeader, StatusPill } from '../components/UI';
 import { usePageAnimations } from '../hooks/animations';
@@ -71,12 +78,34 @@ interface SettlementData {
   totalExpenseAmount: string;
   refundAmount: string;
   status: AdvanceSettlementStatus;
+  checkedBy: number | null;
+  checkerName?: string | null;
+  approvedBy: number | null;
+  approverName?: string | null;
   note: string | null;
   createdAt: string;
   linkedRequests?: LinkedRequest[];
   linkedExpenses?: LinkedExpense[];
   eligibleAdvanceRequests?: LinkedRequest[];
   eligibleExpenses?: LinkedExpense[];
+}
+
+export function settlementReviewPermissions(input: {
+  isPortal: boolean;
+  userId?: number;
+  role?: string;
+  settlement: Pick<SettlementData, 'status' | 'checkedBy' | 'forwarderId'>;
+}) {
+  const isFinancialReviewer = !input.isPortal
+    && (input.role === 'ACCOUNTANT' || input.role === 'ADMIN');
+  return {
+    canEditAndCheck: isFinancialReviewer && input.settlement.status === 'PENDING',
+    canApprove: isFinancialReviewer
+      && input.settlement.status === 'CHECKED_BY_ACCOUNTANT'
+      && input.settlement.checkedBy != null
+      && input.userId !== input.settlement.checkedBy
+      && input.userId !== input.settlement.forwarderId,
+  };
 }
 
 // ─── Build table rows grouped by date → container ───
@@ -156,6 +185,7 @@ export default function SettlementPrintPage() {
   const [selectionReady, setSelectionReady] = useState(false);
   const updateExpense = useUpdateSettlementExpense();
   const updateSettlement = useUpdateAdvanceSettlement();
+  const checkSettlement = useCheckSettlement();
   const approveSettlement = useApproveSettlement();
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -217,7 +247,15 @@ export default function SettlementPrintPage() {
 
   const rows = buildPrintRows(expenses);
   const totalFromRows = rows.reduce((sum, r) => sum + Number(r.amount || 0), 0);
-  const canEditExpenses = !isPortal && (user?.role === 'ACCOUNTANT' || user?.role === 'ADMIN') && (s.status === 'PENDING' || s.status === 'CHECKED_BY_ACCOUNTANT');
+  const {
+    canEditAndCheck: canEditExpenses,
+    canApprove: canApproveChecked,
+  } = settlementReviewPermissions({
+    isPortal,
+    userId: user?.userId,
+    role: user?.role,
+    settlement: s,
+  });
 
   const requestCandidates = [...requests, ...(s.eligibleAdvanceRequests ?? [])]
     .filter((request, index, items) => items.findIndex(item => item.id === request.id) === index);
@@ -233,7 +271,7 @@ export default function SettlementPrintPage() {
     });
   };
 
-  const handleFinalize = async () => {
+  const handleCheck = async () => {
     if (selectedRequestIds.size === 0) return;
     await updateSettlement.mutateAsync({
       settlementId: s.id,
@@ -242,6 +280,10 @@ export default function SettlementPrintPage() {
       refundAmount: Number(refundAmount) || 0,
       note: settlementNote.trim() || null,
     });
+    await checkSettlement.mutateAsync(s.id);
+  };
+
+  const handleApprove = async () => {
     await approveSettlement.mutateAsync(s.id);
   };
 
@@ -457,23 +499,50 @@ export default function SettlementPrintPage() {
           </div>
         )}
 
-        {canEditExpenses && (
+        {(canEditExpenses || s.status === 'CHECKED_BY_ACCOUNTANT') && (
           <div className="settlement-finalize no-print">
-            <div className="settlement-finalize__fields">
-              <label>Tiền hoàn lại
-                <input className="input" type="number" min="0" value={refundAmount} onChange={event => setRefundAmount(event.target.value)} />
-              </label>
-              <label>Ghi chú
-                <textarea className="input" rows={2} value={settlementNote} onChange={event => setSettlementNote(event.target.value)} />
-              </label>
-            </div>
-            {(updateSettlement.error || approveSettlement.error) && (
-              <p className="settlement-finalize__error">{String(updateSettlement.error || approveSettlement.error)}</p>
+            {canEditExpenses ? (
+              <div className="settlement-finalize__fields">
+                <label>Tiền hoàn lại
+                  <input className="input" type="number" min="0" value={refundAmount} onChange={event => setRefundAmount(event.target.value)} />
+                </label>
+                <label>Ghi chú
+                  <textarea className="input" rows={2} value={settlementNote} onChange={event => setSettlementNote(event.target.value)} />
+                </label>
+              </div>
+            ) : (
+              <p className="settlement-editor-hint">
+                Kế toán {s.checkerName || 'đã phân công'} đã kiểm tra phiếu.
+                {canApproveChecked
+                  ? ' Vui lòng đối chiếu lần cuối trước khi phê duyệt.'
+                  : ' Phiếu đang chờ một người khác phê duyệt.'}
+              </p>
             )}
-            <button className="btn btn--primary" disabled={selectedRequestIds.size === 0 || updateSettlement.isPending || approveSettlement.isPending} onClick={handleFinalize}>
-              {updateSettlement.isPending || approveSettlement.isPending ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
-              Sửa và hoàn tất
-            </button>
+            {(updateSettlement.error || checkSettlement.error || approveSettlement.error) && (
+              <p className="settlement-finalize__error">
+                {String(updateSettlement.error || checkSettlement.error || approveSettlement.error)}
+              </p>
+            )}
+            {canEditExpenses && (
+              <button
+                className="btn btn--primary"
+                disabled={selectedRequestIds.size === 0 || updateSettlement.isPending || checkSettlement.isPending}
+                onClick={handleCheck}
+              >
+                {updateSettlement.isPending || checkSettlement.isPending ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
+                Lưu và chuyển phê duyệt
+              </button>
+            )}
+            {canApproveChecked && (
+              <button
+                className="btn btn--primary"
+                disabled={approveSettlement.isPending}
+                onClick={handleApprove}
+              >
+                {approveSettlement.isPending ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
+                Phê duyệt phiếu
+              </button>
+            )}
           </div>
         )}
 

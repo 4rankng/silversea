@@ -30,7 +30,7 @@ import type { AddressInfo } from 'net';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { inArray } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -50,6 +50,7 @@ const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdShipmentIds: number[] = [];
 const createdCustomerIds: number[] = [];
 const createdUserIds: number[] = [];
+const createdBusinessUnitIds: number[] = [];
 
 let adminToken: string;
 let managerToken: string;
@@ -59,6 +60,8 @@ let customerToken: string;
 let driverToken: string;
 let forwarderToken: string;
 let customerId: number;
+let clerkUserId: number;
+let clerkBusinessUnitId: number;
 
 let server: http.Server;
 let baseUrl: string;
@@ -86,6 +89,37 @@ async function mkCustomer() {
     .returning();
   createdCustomerIds.push(c.id);
   return c;
+}
+
+async function mkBusinessUnit() {
+  const [unit] = await db.insert(s.businessUnits)
+    .values({
+      code: `QC-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+      name: `QuickCreate Unit ${suffix}-${createdBusinessUnitIds.length}`,
+      status: 'ACTIVE',
+    })
+    .returning();
+  createdBusinessUnitIds.push(unit.id);
+  return unit;
+}
+
+async function assignClerkScope(userId: number, scopedCustomerId: number, businessUnitId: number) {
+  await db.insert(s.userCustomerLinks).values({
+    userId,
+    customerId: scopedCustomerId,
+  });
+  await db.insert(s.userBusinessUnitLinks).values({
+    userId,
+    businessUnitId,
+  });
+}
+
+function clerkQuickBody(extra: Record<string, unknown> = {}) {
+  return {
+    customerId,
+    responsibleUnitId: clerkBusinessUnitId,
+    ...extra,
+  };
 }
 
 interface QuickFetchOptions {
@@ -141,9 +175,13 @@ before(async () => {
   customerToken = sign(customer);
   driverToken = sign(driver);
   forwarderToken = sign(forwarder);
+  clerkUserId = clerk.id;
 
   const customerRow = await mkCustomer();
   customerId = customerRow.id;
+  const businessUnit = await mkBusinessUnit();
+  clerkBusinessUnitId = businessUnit.id;
+  await assignClerkScope(clerkUserId, customerId, clerkBusinessUnitId);
 });
 
 after(async () => {
@@ -162,6 +200,14 @@ after(async () => {
         await tx.delete(s.shipmentStatusHistory)
           .where(inArray(s.shipmentStatusHistory.shipmentId, createdShipmentIds));
         await tx.delete(s.shipments).where(inArray(s.shipments.id, createdShipmentIds));
+      }
+      if (createdUserIds.length > 0) {
+        await tx.delete(s.userShipmentLinks).where(inArray(s.userShipmentLinks.userId, createdUserIds));
+        await tx.delete(s.userBusinessUnitLinks).where(inArray(s.userBusinessUnitLinks.userId, createdUserIds));
+        await tx.delete(s.userCustomerLinks).where(inArray(s.userCustomerLinks.userId, createdUserIds));
+      }
+      if (createdBusinessUnitIds.length > 0) {
+        await tx.delete(s.businessUnits).where(inArray(s.businessUnits.id, createdBusinessUnitIds));
       }
       if (createdCustomerIds.length > 0) {
         await tx.delete(s.customers).where(inArray(s.customers.id, createdCustomerIds));
@@ -201,7 +247,7 @@ describe('POST /api/shipments/quick — M10.1 slice 1 quick-create', () => {
     const res = await quickFetch('/quick', {
       method: 'POST',
       token: clerkToken,
-      body: { customerId },
+      body: clerkQuickBody(),
     });
     assert.equal(res.status, 201);
     assert.equal(res.data.status, 'DRAFT');
@@ -214,7 +260,7 @@ describe('POST /api/shipments/quick — M10.1 slice 1 quick-create', () => {
 
   test('idempotent replay: same Idempotency-Key returns the SAME shipment (200, no duplicate)', async () => {
     const key = `replay-${suffix}-${Math.random().toString(36).slice(2, 8)}`;
-    const body = { customerId, bookingRef: `BL-${suffix}-1` };
+    const body = clerkQuickBody({ bookingRef: `BL-${suffix}-1` });
 
     const first = await quickFetch('/quick', {
       method: 'POST', token: clerkToken, body, idempotencyKey: key,
@@ -238,9 +284,35 @@ describe('POST /api/shipments/quick — M10.1 slice 1 quick-create', () => {
     await trackCreated();
   });
 
+  test('concurrent first submit: same Idempotency-Key creates exactly one shipment', async () => {
+    const key = `concurrent-${suffix}-${Math.random().toString(36).slice(2, 8)}`;
+    const bookingRef = `BL-${suffix}-concurrent`;
+    const request = () => quickFetch('/quick', {
+      method: 'POST',
+      token: clerkToken,
+      body: clerkQuickBody({ bookingRef }),
+      idempotencyKey: key,
+    });
+
+    const [first, second] = await Promise.all([request(), request()]);
+    assert.deepEqual(
+      [first.status, second.status].sort(),
+      [200, 201],
+      'one caller creates and the concurrent caller replays',
+    );
+    assert.equal(first.data.id, second.data.id, 'both callers receive the same shipment');
+    createdShipmentIds.push(first.data.id);
+
+    const matching = await db.select({ id: s.shipments.id })
+      .from(s.shipments)
+      .where(eq(s.shipments.bookingRef, bookingRef));
+    assert.equal(matching.length, 1, 'the concurrent loser does not create an orphan shipment');
+    await trackCreated();
+  });
+
   test('body-channel _requestId dedupes when no Idempotency-Key header is sent', async () => {
     const requestId = `req-${suffix}-${Math.random().toString(36).slice(2, 8)}`;
-    const body = { customerId, _requestId: requestId, bookingRef: `BL-${suffix}-2` };
+    const body = clerkQuickBody({ _requestId: requestId, bookingRef: `BL-${suffix}-2` });
 
     const first = await quickFetch('/quick', { method: 'POST', token: clerkToken, body });
     assert.equal(first.status, 201);
@@ -255,8 +327,8 @@ describe('POST /api/shipments/quick — M10.1 slice 1 quick-create', () => {
 
   test('conflict: same Idempotency-Key with a DIFFERENT payload → 409', async () => {
     const key = `conflict-${suffix}-${Math.random().toString(36).slice(2, 8)}`;
-    const bodyA = { customerId, bookingRef: `BL-${suffix}-A` };
-    const bodyB = { customerId, bookingRef: `BL-${suffix}-B-DIFFERENT` };
+    const bodyA = clerkQuickBody({ bookingRef: `BL-${suffix}-A` });
+    const bodyB = clerkQuickBody({ bookingRef: `BL-${suffix}-B-DIFFERENT` });
 
     const first = await quickFetch('/quick', {
       method: 'POST', token: clerkToken, body: bodyA, idempotencyKey: key,
@@ -273,10 +345,10 @@ describe('POST /api/shipments/quick — M10.1 slice 1 quick-create', () => {
 
   test('no key: two distinct POSTs create two distinct shipments', async () => {
     const a = await quickFetch('/quick', {
-      method: 'POST', token: clerkToken, body: { customerId, bookingRef: `BL-${suffix}-nokey-1` },
+      method: 'POST', token: clerkToken, body: clerkQuickBody({ bookingRef: `BL-${suffix}-nokey-1` }),
     });
     const b = await quickFetch('/quick', {
-      method: 'POST', token: clerkToken, body: { customerId, bookingRef: `BL-${suffix}-nokey-2` },
+      method: 'POST', token: clerkToken, body: clerkQuickBody({ bookingRef: `BL-${suffix}-nokey-2` }),
     });
     assert.equal(a.status, 201);
     assert.equal(b.status, 201);
@@ -296,7 +368,7 @@ describe('POST /api/shipments/quick — M10.1 slice 1 quick-create', () => {
 describe('POST /api/shipments/quick — RBAC', () => {
   test('CLERK can quick-create (existing Wave-0 shipments.write policy)', async () => {
     const res = await quickFetch('/quick', {
-      method: 'POST', token: clerkToken, body: { customerId },
+      method: 'POST', token: clerkToken, body: clerkQuickBody(),
     });
     assert.equal(res.status, 201);
     createdShipmentIds.push(res.data.id);

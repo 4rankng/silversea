@@ -48,7 +48,7 @@ import { BRAND } from '../brand';
 
 // ─── Navigation config ────────────────────────────────────────────────────
 
-function getNavItems(role: Role, dispatchCount?: number, penaltiesCount?: number): NavItem[] {
+export function getNavItems(role: Role, dispatchCount?: number, penaltiesCount?: number): NavItem[] {
   const normRole = String(role || '').toUpperCase();
   switch (normRole) {
     case 'MANAGER':
@@ -87,7 +87,7 @@ function getNavItems(role: Role, dispatchCount?: number, penaltiesCount?: number
           { key: 'app-settings', label: 'Cài đặt ứng dụng', path: '/config/app-settings', icon: SlidersHorizontal, section: 'system' as const },
           { key: 'chatbot-monitoring', label: 'Giám sát Chatbot', path: routes.chatbotMonitoring, icon: Activity, section: 'system' as const },
         ] : []),
-        ...(role === 'ADMIN' || role === 'MANAGER' ? [
+        ...(role === 'ADMIN' || role === 'MANAGER' || role === 'ACCOUNTANT' ? [
           { key: 'audit-logs', label: 'Nhật ký người dùng', path: routes.auditLogs, icon: ScrollText, section: 'system' as const },
         ] : []),
         { key: 'config', label: 'Cấu hình', path: routes.config, icon: Settings, section: 'system' },

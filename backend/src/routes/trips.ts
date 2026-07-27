@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { TripStatus, NotificationType, Role, createTripSchema, updateTripFiguresSchema, bulkUpdateTripFiguresSchema, createAdjustmentSchema, tripContainerBatchSchema, tripExpenseSchema, tripExpensePatchSchema, upsertTripInstructionsSchema } from '@tingting/shared';
+import { TripStatus, NotificationType, Role, createTripSchema, updateTripFiguresSchema, bulkUpdateTripFiguresSchema, createAdjustmentSchema, tripReopenRequestSchema, tripContainerBatchSchema, tripExpenseSchema, tripExpensePatchSchema, upsertTripInstructionsSchema } from '@tingting/shared';
 import * as tripService from '../services/trip.service';
 import * as gpsService from '../services/gps.service';
 import { captureTripGpsTrack, deriveRoutesForStoredTrip } from '../services/gps/capture.service';
@@ -22,6 +22,10 @@ import { throwValidation } from '../lib/validation';
 import { emitNotification } from '../services/notification.service';
 import { getFuelVoucherHtml, getFuelVoucherXlsx } from '../services/fuel-voucher.service';
 import { copyTripCommand, createTripCommand, dispatchTripCommand } from '../services/trip-command.service';
+import {
+  listTripGovernanceActions,
+  requestTripReopen,
+} from '../services/adjustment-governance.service';
 
 // Audit event registrations — declared once at module load, matched by middleware
 registerAuditEvent('POST', '/api/trips', AuditEvent.TRIP_CREATED);
@@ -35,7 +39,7 @@ registerAuditEvent('POST', '/api/trips/', '/lock', AuditEvent.TRIP_LOCKED);
 registerAuditEvent('POST', '/api/trips/', '/cancel', AuditEvent.TRIP_CANCELED);
 registerAuditEvent('POST', '/api/trips/', '/adjustment', AuditEvent.ADJUSTMENT_CREATED);
 registerAuditEvent('POST', '/api/trips/', '/approve', AuditEvent.ENTITY_UPDATED);
-registerAuditEvent('POST', '/api/trips/', '/unlock', AuditEvent.TRIP_UNLOCKED);
+registerAuditEvent('POST', '/api/trips/', '/unlock', AuditEvent.ENTITY_CREATED);
 registerAuditEvent('PATCH', '/api/trips/', '/departure-date', AuditEvent.TRIP_DEPARTURE_DATE_CHANGED);
 
 const router = Router();
@@ -327,24 +331,19 @@ router.patch('/:id/reassign', asyncHandler(async (req: Request, res: Response) =
   res.json(trip);
 }));
 
-// Unlock trip (LOCKED → COMPLETED, reopens editing; ledger stays posted)
+// Submit an exceptional reopen request. The trip remains LOCKED until a
+// distinct checker and approver complete the governance action.
 router.post('/:id/unlock', asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
-  const trip = await tripService.transitionTripStatus(
-    id,
-    TripStatus.COMPLETED,
-    getUser(req).userId,
-    getUser(req).role,
-  );
-  await invalidateReportCaches(true);
-  emitNotification({
-    type: NotificationType.TRIP_UNLOCKED,
-    title: 'Chuyến đã mở khóa',
-    message: `Chuyến ${trip.tripCode} đã được mở khóa`,
-    relatedEntityType: 'trips',
-    relatedEntityId: id,
+  const data = tripReopenRequestSchema.parse(req.body);
+  const action = await requestTripReopen({
+    tripId: id,
+    reason: data.reason,
+    makerId: getUser(req).userId,
+    makerRole: getUser(req).role,
+    expectedTripVersion: data.expectedVersion,
   });
-  res.json(trip);
+  res.status(202).json(action);
 }));
 
 // Change departure date (any status except CANCELED)
@@ -374,22 +373,27 @@ router.patch('/:id/departure-date', asyncHandler(async (req: Request, res: Respo
 // Get adjustments for a specific trip
 router.get('/:id/adjustments', asyncHandler(async (req: Request, res: Response) => {
   const tripId = parseInt(req.params.id as string);
-  const items = await financialService.getTripAdjustments(tripId);
-  res.json({ items });
+  const [postedItems, actions] = await Promise.all([
+    financialService.getTripAdjustments(tripId),
+    listTripGovernanceActions(tripId),
+  ]);
+  res.json({ items: postedItems, actions });
 }));
 
 // Create adjustment for a specific trip
 router.post('/:id/adjustment', asyncHandler(async (req: Request, res: Response) => {
   const tripId = parseInt(req.params.id as string);
   const data = createAdjustmentSchema.parse({ ...req.body, tripId });
-  await financialService.createAdjustment({
+  const action = await financialService.createAdjustment({
     tripId,
     amount: data.amount,
     note: data.note,
     signedAgreementRef: data.signedAgreementRef,
+    makerId: getUser(req).userId,
+    makerRole: getUser(req).role,
+    expectedTripVersion: data.expectedVersion,
   });
-  await invalidateReportCaches(true);
-  res.status(201).json({ ok: true });
+  res.status(201).json(action);
 }));
 
 // ─── Container instances per trip (accessible to ADMIN/MANAGER/ACCOUNTANT) ────
@@ -469,7 +473,8 @@ router.get('/:id/expenses', asyncHandler(async (req: Request, res: Response) => 
   res.json({ items });
 }));
 
-// POST /api/trips/:id/expenses — accountant/manager creates expense (auto-APPROVED)
+// POST /api/trips/:id/expenses — office maker creates a pending expense;
+// another financial actor must approve it.
 router.post('/:id/expenses', asyncHandler(async (req: Request, res: Response) => {
   const tripId = parseInt(req.params.id as string, 10);
   const parsed = tripExpenseSchema.safeParse({ ...req.body, tripId });
@@ -480,7 +485,8 @@ router.post('/:id/expenses', asyncHandler(async (req: Request, res: Response) =>
       forwarderId: parsed.data.settlementMethod === 'FORWARDER_ADVANCE'
         ? (parsed.data.forwarderId ?? null)
         : null,
-      approvalStatus: 'APPROVED',
+      createdBy: getUser(req).userId,
+      approvalStatus: 'PENDING',
       expenseType: parsed.data.expenseType,
       buyAmount: String(parsed.data.buyAmount),
       sellAmount: String(parsed.data.sellAmount ?? 0),

@@ -36,6 +36,10 @@ function toCustomerDebitNote(doc: Awaited<ReturnType<typeof getDocument>>) {
     rangeTo: doc.rangeTo,
     note: doc.note,
     totalInclVat: doc.totalInclVat,
+    originalDueDate: doc.originalDueDate,
+    processingDueDate: doc.processingDueDate,
+    paymentTermDaysApplied: doc.paymentTermDaysApplied,
+    paymentDatePolicyApplied: doc.paymentDatePolicyApplied,
     debitNoteStatus: doc.debitNoteStatus,
     customerConfirmedAt: doc.customerConfirmedAt,
     customerConfirmedBy: doc.customerConfirmedBy,
@@ -103,12 +107,60 @@ function parsePositiveId(raw: string, label: string): number {
   return id;
 }
 
+function resolveSelectedCustomerId(req: Request): number {
+  const user = getUser(req);
+  const requested = typeof req.query.customerId === 'string'
+    ? parsePositiveId(req.query.customerId, 'Khách hàng')
+    : undefined;
+  if (requested !== undefined) {
+    if (!canAccessCustomer(user, requested)) {
+      throw new ApiError(404, 'Không tìm thấy khách hàng');
+    }
+    return requested;
+  }
+  const scoped = scopedByCustomer(user, { customerId: undefined });
+  return scoped.customerId ?? -1;
+}
+
+router.get('/customer-scope', asyncHandler(async (req: Request, res: Response) => {
+  const user = getUser(req);
+  if (user.role !== 'CUSTOMER') {
+    return res.json({ primaryCustomerId: null, customers: [] });
+  }
+  const customers = await db.select({
+    id: s.customers.id,
+    name: s.customers.name,
+  }).from(s.userCustomerLinks)
+    .innerJoin(s.customers, eq(s.userCustomerLinks.customerId, s.customers.id))
+    .where(and(
+      eq(s.userCustomerLinks.userId, user.userId),
+      isNull(s.customers.deletedAt),
+    ))
+    .orderBy(s.userCustomerLinks.customerId);
+  if (user.customerId != null && !customers.some((customer) => customer.id === user.customerId)) {
+    const [primaryCustomer] = await db.select({
+      id: s.customers.id,
+      name: s.customers.name,
+    }).from(s.customers)
+      .where(and(eq(s.customers.id, user.customerId), isNull(s.customers.deletedAt)))
+      .limit(1);
+    if (primaryCustomer) {
+      customers.unshift(primaryCustomer);
+    }
+  }
+  res.json({
+    primaryCustomerId: user.customerId ?? customers[0]?.id ?? null,
+    customers,
+  });
+}));
+
 async function getOwnDebitNote(req: Request) {
   const doc = await getDocument(parsePositiveId(String(req.params.id), 'ID giấy báo nợ'));
+  const selectedCustomerId = resolveSelectedCustomerId(req);
   if (
     doc.type !== 'DEBIT_NOTE'
     || doc.entityType !== 'CUSTOMER'
-    || !canAccessCustomer(getUser(req), doc.entityId)
+    || doc.entityId !== selectedCustomerId
   ) {
     throw new ApiError(404, 'Không tìm thấy giấy báo nợ');
   }
@@ -127,15 +179,12 @@ router.get('/shipments', asyncHandler(async (req: Request, res: Response) => {
     status = statusVal as ShipmentStatus;
   }
 
-  const scoped = scopedByCustomer(getUser(req), {
-    customerId: undefined,
-    status,
-  } as { customerId?: number; status?: ShipmentStatus });
+  const customerId = resolveSelectedCustomerId(req);
   const result = await listShipmentsPaginated({
     page,
     limit,
-    customerId: scoped.customerId,
-    status: scoped.status,
+    customerId,
+    status,
   });
 
   res.json({
@@ -155,7 +204,7 @@ router.get('/shipments/:id', asyncHandler(async (req: Request, res: Response) =>
   const id = parsePositiveId(String(req.params.id), 'ID lô hàng');
 
   const detail = await getShipmentDetail(id);
-  if (!canAccessCustomer(getUser(req), detail.shipment.customerId)) {
+  if (detail.shipment.customerId !== resolveSelectedCustomerId(req)) {
     return res.status(404).json({ error: 'Không tìm thấy lô hàng' });
   }
 
@@ -164,10 +213,10 @@ router.get('/shipments/:id', asyncHandler(async (req: Request, res: Response) =>
 
 router.get('/debit-notes', asyncHandler(async (req: Request, res: Response) => {
   const { page, limit } = parsePagination(req);
-  const scoped = scopedByCustomer(getUser(req), { customerId: undefined });
+  const customerId = resolveSelectedCustomerId(req);
   const condition = and(
     eq(s.billingDocuments.entityType, 'CUSTOMER'),
-    eq(s.billingDocuments.entityId, scoped.customerId ?? -1),
+    eq(s.billingDocuments.entityId, customerId),
     eq(s.billingDocuments.type, 'DEBIT_NOTE'),
     isNull(s.billingDocuments.deletedAt),
     isNotNull(s.billingDocuments.debitNoteStatus),
@@ -181,6 +230,10 @@ router.get('/debit-notes', asyncHandler(async (req: Request, res: Response) => {
       rangeFrom: s.billingDocuments.rangeFrom,
       rangeTo: s.billingDocuments.rangeTo,
       totalInclVat: s.billingDocuments.totalInclVat,
+      originalDueDate: s.billingDocuments.originalDueDate,
+      processingDueDate: s.billingDocuments.processingDueDate,
+      paymentTermDaysApplied: s.billingDocuments.paymentTermDaysApplied,
+      paymentDatePolicyApplied: s.billingDocuments.paymentDatePolicyApplied,
       debitNoteStatus: s.billingDocuments.debitNoteStatus,
       customerConfirmedAt: s.billingDocuments.customerConfirmedAt,
       customerConfirmedBy: s.billingDocuments.customerConfirmedBy,
@@ -252,9 +305,9 @@ router.get('/debit-notes/:id/export', asyncHandler(async (req: Request, res: Res
 }));
 
 router.get('/statement', asyncHandler(async (req: Request, res: Response) => {
-  const scoped = scopedByCustomer(getUser(req), { customerId: undefined });
+  const customerId = resolveSelectedCustomerId(req);
   const data = await getStatementData(
-    scoped.customerId ?? -1,
+    customerId,
     normalizeDateParam(req.query.dateFrom as string | undefined),
     normalizeDateParam(req.query.dateTo as string | undefined),
   );
@@ -265,9 +318,9 @@ router.get('/statement', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 router.get('/statement/export', asyncHandler(async (req: Request, res: Response) => {
-  const scoped = scopedByCustomer(getUser(req), { customerId: undefined });
+  const customerId = resolveSelectedCustomerId(req);
   const data = await getStatementData(
-    scoped.customerId ?? -1,
+    customerId,
     normalizeDateParam(req.query.dateFrom as string | undefined),
     normalizeDateParam(req.query.dateTo as string | undefined),
   );

@@ -290,6 +290,12 @@ export const PAGE_CATALOG = {
     section: 'config',
     agent: { description: 'Cấu hình tuyến đường.' },
   },
+  configBusinessCalendar: {
+    title: 'Lịch ngày làm việc',
+    path: '/config/business-calendar',
+    section: 'config',
+    agent: { description: 'Cấu hình ngày nghỉ lễ và ngày làm việc bù.' },
+  },
   configCargoTypes: {
     title: 'Loại hàng hóa',
     path: '/config/cargo-types',

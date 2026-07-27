@@ -37,8 +37,9 @@ const TRANSITION_RULES: TransitionRule[] = [
 
   // COMPLETED target (from IN_TRANSIT — normal completion)
   { from: 'IN_TRANSIT', to: 'COMPLETED', allowed: true, roles: [], description: 'Complete a running trip (permissive — photos optional, B2)' },
-  // COMPLETED target (from LOCKED — unlock)
-  { from: 'LOCKED', to: 'COMPLETED', allowed: true, roles: ['ADMIN', 'MANAGER'], description: 'Unlock a locked trip' },
+  // Direct LOCKED → COMPLETED is blocked. A separate governed request applies
+  // the exceptional reopen after maker/checker/approver separation.
+  { from: 'LOCKED', to: 'COMPLETED', allowed: false, roles: [], description: 'Direct unlock is blocked; use governed reopen approval' },
   { from: 'CREATED', to: 'COMPLETED', allowed: false, roles: [], description: 'Cannot complete a trip that was never dispatched' },
   { from: 'COMPLETED', to: 'COMPLETED', allowed: true, roles: [], description: 'Idempotent: same status short-circuit' },
   { from: 'CANCELED', to: 'COMPLETED', allowed: false, roles: [], description: 'Cannot complete a canceled trip' },
@@ -129,13 +130,10 @@ describe('Trip Status Machine — Role Permission Rules', () => {
     }
   });
 
-  test('UNLOCK (LOCKED→COMPLETED) requires ADMIN or MANAGER', () => {
+  test('direct UNLOCK (LOCKED→COMPLETED) is blocked', () => {
     const unlockRule = TRANSITION_RULES.find(r => r.from === 'LOCKED' && r.to === 'COMPLETED');
     assert.ok(unlockRule, 'Missing LOCKED→COMPLETED rule');
-    assert.ok(
-      unlockRule.roles.includes('ADMIN') && unlockRule.roles.includes('MANAGER'),
-      'Unlock should require ADMIN/MANAGER'
-    );
+    assert.strictEqual(unlockRule.allowed, false);
   });
 
   test('CANCEL requires ADMIN or MANAGER (except LOCKED which is blocked)', () => {
@@ -186,9 +184,9 @@ describe('Trip Status Machine — Lifecycle Happy Path', () => {
     }
   });
 
-  test('unlock lifecycle: LOCKED → COMPLETED (edit) → LOCKED', () => {
+  test('unlock lifecycle requires the separate governance workflow', () => {
     const unlock = TRANSITION_RULES.find(r => r.from === 'LOCKED' && r.to === 'COMPLETED');
-    assert.ok(unlock && unlock.allowed, 'LOCKED→COMPLETED (unlock) must be allowed');
+    assert.ok(unlock && !unlock.allowed, 'direct LOCKED→COMPLETED must be blocked');
 
     const relock = TRANSITION_RULES.find(r => r.from === 'COMPLETED' && r.to === 'LOCKED');
     assert.ok(relock && relock.allowed, 'COMPLETED→LOCKED (re-lock) must be allowed');

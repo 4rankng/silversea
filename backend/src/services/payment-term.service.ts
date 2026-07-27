@@ -17,6 +17,9 @@
 import { db } from '../db';
 import * as s from '../db/schema';
 import { and, eq, sql, isNull, desc } from 'drizzle-orm';
+import {
+  calendarDaysOverdue,
+} from './business-calendar.service';
 
 export interface PaymentTermEvalRow {
   customerId: number;
@@ -53,6 +56,8 @@ export async function getPaymentTermEvalReport(): Promise<PaymentTermEvalRow[]> 
     rangeTo: s.billingDocuments.rangeTo,
     totalInclVat: s.billingDocuments.totalInclVat,
     createdAt: s.billingDocuments.createdAt,
+    processingDueDate: s.billingDocuments.processingDueDate,
+    paymentTermDaysApplied: s.billingDocuments.paymentTermDaysApplied,
   }).from(s.billingDocuments)
     .where(and(
       eq(s.billingDocuments.type, 'DEBIT_NOTE'),
@@ -88,15 +93,16 @@ export async function getPaymentTermEvalReport(): Promise<PaymentTermEvalRow[]> 
   }
 
   const today = new Date();
-  const todayMs = today.getTime();
-
   const rows: PaymentTermEvalRow[] = [];
 
   for (const c of customers) {
-    const termDays = c.paymentTermDays ?? 30;
     const custDocs = docsByCustomer.get(c.id) ?? [];
 
     if (custDocs.length === 0) continue; // Skip customers with no invoices.
+    const latestDoc = [...custDocs].sort(
+      (left, right) => right.createdAt.getTime() - left.createdAt.getTime(),
+    )[0];
+    const termDays = latestDoc?.paymentTermDaysApplied ?? c.paymentTermDays ?? 30;
 
     // Paid portions: compute days-to-pay per allocation.
     let totalDaysToPay = 0;
@@ -127,10 +133,8 @@ export async function getPaymentTermEvalReport(): Promise<PaymentTermEvalRow[]> 
       const outstanding = docTotal - docPaid;
       totalOutstanding += Math.max(0, outstanding);
 
-      if (outstanding > 0) {
-        const docRangeToMs = new Date(doc.rangeTo).getTime();
-        const dueMs = docRangeToMs + termDays * 24 * 60 * 60 * 1000;
-        const overdueDays = Math.max(0, Math.floor((todayMs - dueMs) / (1000 * 60 * 60 * 24)));
+      if (outstanding > 0 && doc.processingDueDate) {
+        const overdueDays = calendarDaysOverdue(doc.processingDueDate, today);
         totalOverdueDays += overdueDays;
         overdueCount++;
       }

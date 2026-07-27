@@ -5,8 +5,49 @@ import { Role } from '@tingting/shared';
 import { isTokenBlacklisted } from '../lib/redis';
 import { ApiError } from '../errors';
 import { db } from '../db';
-import { users } from '../db/schema';
-import { and, eq, isNull } from 'drizzle-orm';
+import { customers, users, userCustomerLinks } from '../db/schema';
+import { and, eq, isNull, or } from 'drizzle-orm';
+
+function normalizeCustomerIds(values: Array<number | null | undefined>): number[] {
+  return [...new Set(values.filter((value): value is number => value != null && Number.isInteger(value) && value > 0))].sort((a, b) => a - b);
+}
+
+async function loadCurrentCustomerIds(userId: number, primaryCustomerId: number | null): Promise<number[]> {
+  const rows = await db.select({ customerId: customers.id })
+    .from(customers)
+    .leftJoin(userCustomerLinks, and(
+      eq(userCustomerLinks.customerId, customers.id),
+      eq(userCustomerLinks.userId, userId),
+    ))
+    .where(and(
+      isNull(customers.deletedAt),
+      or(
+        eq(userCustomerLinks.userId, userId),
+        eq(customers.id, primaryCustomerId ?? -1),
+      ),
+    ))
+    .orderBy(customers.id);
+  return rows.map((row) => row.customerId);
+}
+
+function tokenCustomerIds(payload: AuthUser): number[] {
+  if (payload.customerIds?.length) return normalizeCustomerIds(payload.customerIds);
+  if (payload.customerId != null) return [payload.customerId];
+  return [];
+}
+
+function sameCustomerScope(currentIds: number[], tokenIds: number[], payload: AuthUser): boolean {
+  if (currentIds.length === 0) {
+    return tokenIds.length === 0 && (payload.customerId == null) && (!payload.customerIds || payload.customerIds.length === 0);
+  }
+  if (currentIds.length === 1) {
+    if (payload.customerIds && payload.customerIds.length > 0) {
+      return tokenIds.length === 1 && tokenIds[0] === currentIds[0];
+    }
+    return tokenIds.length === 1 && tokenIds[0] === currentIds[0];
+  }
+  return payload.customerIds != null && tokenIds.length === currentIds.length && tokenIds.every((id, idx) => id === currentIds[idx]);
+}
 
 export interface AuthUser {
   userId: number;
@@ -16,14 +57,16 @@ export interface AuthUser {
   fullName: string | null;
   role: Role;
   /**
-   * Wave 0: optional 1:1 link from a CUSTOMER-role user to the AR customer
-   * whose data they may see in the customer portal (Wave 2). Populated from
-   * the `users.customer_id` column at login and carried in the JWT. Non-
-   * CUSTOMER roles leave this undefined. The `scopedByCustomer` helper
-   * reads it to row-scope list queries; for an unmapped CUSTOMER (undefined)
-   * it applies a deny-all sentinel.
+   * Wave 0: legacy primary customer pointer for a CUSTOMER-role user.
+   * Kept for compatibility with older single-link tokens and API payloads.
    */
   customerId?: number | null;
+  /**
+   * Wave 0: full customer link set for a CUSTOMER-role user. Used by the
+   * portal list routes and token revalidation when a user is linked to
+   * multiple customers.
+   */
+  customerIds?: number[];
 }
 
 declare global {
@@ -50,8 +93,11 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
       eq(users.status, 'ACTIVE'),
       isNull(users.deletedAt),
     )).limit(1);
-    const tokenCustomerId = payload.customerId ?? null;
-    if (!current || current.role !== payload.role || current.customerId !== tokenCustomerId) {
+    const currentCustomerIds = current?.role === Role.CUSTOMER
+      ? await loadCurrentCustomerIds(payload.userId, current.customerId)
+      : [];
+    const tokenIds = tokenCustomerIds(payload);
+    if (!current || current.role !== payload.role || !sameCustomerScope(currentCustomerIds, tokenIds, payload)) {
       return res.status(401).json({ error: 'Quyền tài khoản đã thay đổi, vui lòng đăng nhập lại' });
     }
     req.user = payload;
@@ -86,8 +132,11 @@ export async function assetAuthMiddleware(req: Request, res: Response, next: Nex
       eq(users.status, 'ACTIVE'),
       isNull(users.deletedAt),
     )).limit(1);
-    const tokenCustomerId = payload.customerId ?? null;
-    if (!current || current.role !== payload.role || current.customerId !== tokenCustomerId) {
+    const currentCustomerIds = current?.role === Role.CUSTOMER
+      ? await loadCurrentCustomerIds(payload.userId, current.customerId)
+      : [];
+    const tokenIds = tokenCustomerIds(payload);
+    if (!current || current.role !== payload.role || !sameCustomerScope(currentCustomerIds, tokenIds, payload)) {
       return res.status(401).json({ error: 'Quyền tài khoản đã thay đổi, vui lòng đăng nhập lại' });
     }
     req.user = payload;

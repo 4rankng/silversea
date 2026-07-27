@@ -16,6 +16,8 @@ export interface User {
   passwordHash: string;
   role: Role;
   status: string;
+  customerId?: number | null;
+  customerIds?: number[];
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
@@ -30,6 +32,8 @@ export type UserPublic = Omit<User, 'passwordHash' | 'deletedAt'>;
  * string|null because the numeric(15,0) columns serialize as strings (see Driver).
  */
 export interface UserWithDriver extends UserPublic {
+  customerId?: number | null;
+  customerIds?: number[];
   driverId: number | null;
   driverName: string | null;
   driverPhone: string | null;
@@ -61,6 +65,8 @@ export interface Customer {
   phone: string | null;
   contactInfo: string | null;
   creditLimit: string | null;
+  paymentTermDays?: number | null;
+  paymentDatePolicy?: 'NEXT_BUSINESS_DAY' | 'CALENDAR_DAY';
   status: CustomerStatus;
   isCarrier: boolean;
   debitNoteMode: 'MONTHLY' | 'PER_BATCH';
@@ -969,7 +975,34 @@ export interface BulkUpdateTripFiguresResponse {
 export interface CreatePaymentRequest {
   customerId: number;
   receiptId: string;
-  payments: { tripId: number; amount: number }[];
+  amount?: number;
+  payments?: { tripId: number; amount: number }[];
+}
+
+export type PaymentAllocationMethod = 'OLDEST_DUE' | 'EXPLICIT';
+
+export interface PaymentReceiptAllocation {
+  tripId: number;
+  amount: number;
+  processingDueDate: string | null;
+  issueTimestamp: string;
+}
+
+export interface PaymentReceiptResult {
+  id: number;
+  receiptId: string;
+  customerId: number;
+  receivedAmount: number;
+  allocations: PaymentReceiptAllocation[];
+  allocatedTotal: number;
+  unappliedAmount: number;
+  allocationMethod: PaymentAllocationMethod;
+  createdAt: string;
+}
+
+export interface PaymentReceiptResponse {
+  result: PaymentReceiptResult;
+  replayed: boolean;
 }
 
 export interface CreatePenaltyRequest {
@@ -1085,6 +1118,10 @@ export interface UnpaidTrip {
   date: string;
   outstanding: number;
   note: string;
+  issueTimestamp?: string;
+  originalDueDate?: string | null;
+  processingDueDate?: string | null;
+  dueDateAdjusted?: boolean;
 }
 
 export interface CustomerStatement {
@@ -1198,6 +1235,11 @@ export interface BillingDocument {
   customerConfirmedAt?: string | null;
   customerConfirmedBy?: string | null;
   ledgerAdjustmentAmount?: number; // net AR adjustment posted by this document
+  /** Frozen customer contract/calendar authority captured when the document was created. */
+  originalDueDate?: string | null;
+  processingDueDate?: string | null;
+  paymentTermDaysApplied?: number | null;
+  paymentDatePolicyApplied?: 'NEXT_BUSINESS_DAY' | 'CALENDAR_DAY' | null;
   createdBy: number | null;
   createdAt: string;
   updatedAt: string;

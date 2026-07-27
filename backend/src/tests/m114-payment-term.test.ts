@@ -35,9 +35,16 @@ async function mkCustomer(name: string, paymentTermDays: number = 30) {
 }
 
 async function mkDebitNote(customerId: number, rangeTo: string, totalInclVat: number) {
+  const originalDueDate = new Date(
+    new Date(`${rangeTo}T00:00:00.000Z`).getTime() + 30 * 24 * 60 * 60 * 1000,
+  ).toISOString().slice(0, 10);
   const [d] = await db.insert(s.billingDocuments).values({
     type: 'DEBIT_NOTE', entityType: 'CUSTOMER', entityId: customerId,
     rangeFrom: '2026-01-01', rangeTo, totalInclVat: String(totalInclVat),
+    originalDueDate,
+    processingDueDate: originalDueDate,
+    paymentTermDaysApplied: 30,
+    paymentDatePolicyApplied: 'NEXT_BUSINESS_DAY',
   }).returning();
   createdDocIds.push(d.id);
   return d;

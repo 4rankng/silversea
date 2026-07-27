@@ -98,6 +98,7 @@ router.post('/expenses', asyncHandler(async (req: Request, res: Response) => {
   const expense = await db.transaction((tx) => createTripExpense(tx, {
     tripId: parsed.data.tripId,
     forwarderId: forwarder.id,  // forwarder-created → PENDING
+    createdBy: forwarder.id,
     expenseType: parsed.data.expenseType,
     buyAmount: String(parsed.data.buyAmount),
     sellAmount: String(parsed.data.sellAmount ?? 0),

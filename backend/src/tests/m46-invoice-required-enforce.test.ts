@@ -6,7 +6,7 @@
  * requiresInvoice=true AND invoiceNumber/invoiceDate are missing.
  * Rejections, non-invoice-required types, and unknown codes bypass.
  */
-import { after, describe, test } from 'node:test';
+import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { inArray, sql } from 'drizzle-orm';
 
@@ -25,6 +25,18 @@ const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
 const createdFetIds: number[] = [];
 const createdExpenseIds: number[] = [];
+const createdUserIds: number[] = [];
+let makerId: number;
+let approverId: number;
+
+before(async () => {
+  const users = await db.insert(s.users).values([
+    { username: `m46-maker-${suffix}`, passwordHash: 'x', role: 'ACCOUNTANT' },
+    { username: `m46-approver-${suffix}`, passwordHash: 'x', role: 'ADMIN' },
+  ]).returning({ id: s.users.id });
+  [makerId, approverId] = users.map(user => user.id);
+  createdUserIds.push(...users.map(user => user.id));
+});
 
 async function mkFet(requiresInvoice: boolean, tag: string) {
   const code = `M46-${tag}-${suffix}-${createdFetIds.length}`;
@@ -63,6 +75,7 @@ async function mkExpense(opts: {
 }) {
   const [e] = await db.insert(s.tripExpenses).values({
     tripId: opts.tripId,
+    createdBy: makerId,
     expenseType: opts.expenseTypeCode,
     buyAmount: '100000',
     sellAmount: '0',
@@ -85,7 +98,7 @@ async function runApproveTx(expenseId: number, actorRole: 'ADMIN' | 'ACCOUNTANT'
     await db.transaction(async (tx) => {
       await transitionApproval(tx, {
         table: 'trip_expenses', id: expenseId, toStatus: 'APPROVED',
-        actorId: 1, actorRole,
+        actorId: approverId, actorRole,
       });
       throw new RollbackSentinel();
     });
@@ -105,6 +118,7 @@ after(async () => {
     if (createdRouteIds.length > 0) await db.delete(s.routes).where(sql`${s.routes.name} LIKE ${namePattern}`);
     if (createdCustomerIds.length > 0) await db.delete(s.customers).where(sql`${s.customers.name} LIKE ${namePattern}`);
     if (createdFetIds.length > 0) await db.delete(s.forwarderExpenseTypes).where(inArray(s.forwarderExpenseTypes.id, createdFetIds));
+    if (createdUserIds.length > 0) await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
   } catch (err) { console.warn('[m46] cleanup:', (err as Error).message); }
   await client.end();
 });
@@ -219,7 +233,7 @@ describe('M4.6 — transitionApproval wiring', () => {
       await db.transaction(async (tx) => {
         await transitionApproval(tx, {
           table: 'trip_expenses', id: e.id, toStatus: 'REJECTED',
-          actorId: 1, actorRole: 'ADMIN',
+          actorId: approverId, actorRole: 'ADMIN',
         });
         throw new RollbackSentinel();
       });

@@ -16,11 +16,15 @@ export const auditTools = [
       page: z.coerce.number().int().positive().optional(),
       limit: z.coerce.number().int().positive().max(200).optional(),
     }),
-    run: (args) => queryAuditLogs({
+    run: (args, ctx) => queryAuditLogs({
       page: args.page ?? 1,
       limit: args.limit ?? 50,
       category: args.category,
       search: args.search,
+      viewer: {
+        userId: ctx.userId,
+        role: ctx.role,
+      },
     }),
     label: () => 'Nhật ký',
   }),

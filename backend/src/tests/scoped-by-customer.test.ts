@@ -23,8 +23,10 @@ import * as s from '../db/schema';
 import { Role } from '@tingting/shared';
 import {
   scopedByCustomer,
+  scopedByCustomerIds,
   isCustomerScoped,
   canAccessCustomer,
+  customerScopeIds,
   DENY_ALL_CUSTOMER_ID,
 } from '../lib/scoped-by-customer';
 import { createShipment, listShipments } from '../services/shipment.service';
@@ -139,6 +141,42 @@ describe('canAccessCustomer — single-row gate', () => {
   });
   test('CUSTOMER without link cannot access anything', () => {
     assert.equal(canAccessCustomer({ role: Role.CUSTOMER, customerId: null }, 7), false);
+  });
+  test('CUSTOMER can access any linked customer id', () => {
+    assert.equal(canAccessCustomer({ role: Role.CUSTOMER, customerId: 7, customerIds: [7, 9] }, 9), true);
+  });
+});
+
+describe('customerScopeIds — full link set', () => {
+  test('returns sorted unique ids for CUSTOMER roles', () => {
+    assert.deepEqual(customerScopeIds({ role: Role.CUSTOMER, customerId: 9, customerIds: [3, 9, 3, 7] }), [3, 7, 9]);
+  });
+  test('returns empty array for non-CUSTOMER roles', () => {
+    assert.deepEqual(customerScopeIds({ role: Role.ADMIN, customerId: 1, customerIds: [1, 2] }), []);
+  });
+});
+
+describe('scopedByCustomerIds — list scoping', () => {
+  test('CUSTOMER with links receives the full set', () => {
+    const result: { customerIds?: number[] } = scopedByCustomerIds(
+      { role: Role.CUSTOMER, customerId: 9, customerIds: [3, 9, 7] },
+      {},
+    );
+    assert.deepEqual(result.customerIds, [3, 7, 9]);
+  });
+  test('CUSTOMER without links receives the deny-all sentinel set', () => {
+    const result: { customerIds?: number[] } = scopedByCustomerIds(
+      { role: Role.CUSTOMER, customerId: null, customerIds: [] },
+      {},
+    );
+    assert.deepEqual(result.customerIds, [DENY_ALL_CUSTOMER_ID]);
+  });
+  test('non-CUSTOMER passthrough preserves caller filters', () => {
+    const result = scopedByCustomerIds(
+      { role: Role.ADMIN, customerId: undefined, customerIds: [] },
+      { customerIds: [42] },
+    );
+    assert.deepEqual(result.customerIds, [42]);
   });
 });
 

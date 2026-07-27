@@ -26,6 +26,7 @@
 
 import { Router } from 'express';
 import { Role } from '@tingting/shared';
+import { z } from 'zod';
 import {
   createShipmentSchema,
   updateShipmentSchema,
@@ -46,8 +47,11 @@ import {
   softDeleteShipment,
   batchUpsertShipmentContainers,
   attachShipmentDocument,
+  upsertShipmentDeclaration,
   dispatchShipmentToTrip,
   listShipmentContainers,
+  replaceShipmentDocument,
+  reviewShipmentChangeRequest,
 } from '../services/shipment.service';
 import { requireRoles } from '../middleware/casbin';
 import { getUser } from '../middleware/auth';
@@ -71,9 +75,29 @@ registerAuditEvent('POST', '/api/shipments/', '/quick', AuditEvent.SHIPMENT_CREA
 registerAuditEvent('POST', '/api/shipments/', '/dispatch', AuditEvent.SHIPMENT_DISPATCHED);
 registerAuditEvent('POST', '/api/shipments/', '/transition', AuditEvent.SHIPMENT_STATUS_CHANGED);
 registerAuditEvent('POST', '/api/shipments/', '/documents', AuditEvent.SHIPMENT_DOCUMENT_UPLOADED);
+registerAuditEvent('POST', '/api/shipments/', '/documents/', AuditEvent.SHIPMENT_DOCUMENT_UPLOADED);
+registerAuditEvent('POST', '/api/shipments/', '/declarations', AuditEvent.SHIPMENT_UPDATED);
+registerAuditEvent('PUT', '/api/shipments/', '/declarations/', AuditEvent.SHIPMENT_UPDATED);
+registerAuditEvent('POST', '/api/shipments/', '/change-requests/', AuditEvent.SHIPMENT_UPDATED);
 registerAuditEvent('PUT', '/api/shipments/', '/containers', AuditEvent.SHIPMENT_CONTAINERS_UPDATED);
 registerAuditEvent('PUT', '/api/shipments/', '', AuditEvent.SHIPMENT_UPDATED);
 registerAuditEvent('DELETE', '/api/shipments/', '', AuditEvent.SHIPMENT_DELETED);
+
+const shipmentDeclarationSchema = z.object({
+  declarationNumber: z.string().trim().max(50).optional().nullable(),
+  issuedAt: z.string().trim().min(1).optional().nullable(),
+  scope: z.enum(['SINGLE', 'SHARED']).optional(),
+  note: z.string().trim().optional().nullable(),
+});
+
+const replaceShipmentDocumentSchema = z.object({
+  storageKey: z.string().trim().min(1, 'storageKey là bắt buộc').max(255),
+  expiresAt: z.string().trim().min(1).optional().nullable(),
+});
+
+const reviewShipmentChangeRequestSchema = z.object({
+  resolution: z.enum(['APPLIED', 'REJECTED']),
+});
 
 const router = Router();
 
@@ -110,6 +134,7 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     limit,
     customerId: customerIdVal ? parseInt(customerIdVal, 10) : undefined,
     status,
+    actor: getUser(req),
   });
   res.json(result);
 }));
@@ -124,7 +149,7 @@ router.post(
     const shipment = await createShipment({
       ...parsed.data,
       createdBy: getUser(req).userId,
-    });
+    }, getUser(req));
     res.locals.auditEntityId = shipment.id;
     res.locals.auditEntityKey = shipment.shipmentCode ?? `#${shipment.id}`;
     res.status(201).json(shipment);
@@ -157,6 +182,7 @@ router.post(
     const { shipment, replayed } = await createShipmentIdempotent(
       {
         customerId: parsed.data.customerId,
+        responsibleUnitId: parsed.data.responsibleUnitId,
         bookingRef: parsed.data.bookingRef,
         blNumber: parsed.data.blNumber,
         expectedDeliveryDate: parsed.data.expectedDeliveryDate,
@@ -167,6 +193,7 @@ router.post(
         createdBy: getUser(req).userId,
       },
       idempotencyKey,
+      getUser(req),
     );
     res.locals.auditEntityId = shipment.id;
     res.locals.auditEntityKey = shipment.shipmentCode ?? `#${shipment.id}`;
@@ -178,7 +205,7 @@ router.post(
 router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   const id = parseId(req, res);
   if (id === null) return;
-  res.json(await getShipmentDetail(id));
+  res.json(await getShipmentDetail(id, getUser(req)));
 }));
 
 // ─── PUT /:id — update with optimistic-lock version ────────────────────────
@@ -191,9 +218,18 @@ router.put(
     const parsed = updateShipmentSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     const shipment = await updateShipment(id, {
-      ...parsed.data,
+      expectedVersion: parsed.data.expectedVersion,
+      customerId: parsed.data.customerId,
+      responsibleUnitId: parsed.data.responsibleUnitId,
+      bookingRef: parsed.data.bookingRef,
+      blNumber: parsed.data.blNumber,
+      expectedDeliveryDate: parsed.data.expectedDeliveryDate,
+      pickupLocation: parsed.data.pickupLocation,
+      deliveryLocation: parsed.data.deliveryLocation,
+      contactName: parsed.data.contactName,
+      contactPhone: parsed.data.contactPhone,
       updatedBy: getUser(req).userId,
-    });
+    }, getUser(req));
     res.locals.auditEntityId = shipment.id;
     res.locals.auditEntityKey = shipment.shipmentCode ?? `#${shipment.id}`;
     res.json(shipment);
@@ -203,7 +239,7 @@ router.put(
 // ─── POST /:id/transition — status transition ──────────────────────────────
 router.post(
   '/:id/transition',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.CLERK),
+  requireRoles(Role.ADMIN, Role.MANAGER),
   asyncHandler(async (req: Request, res: Response) => {
     const id = parseId(req, res);
     if (id === null) return;
@@ -271,10 +307,85 @@ router.post(
       type: parsed.data.type,
       storageKey: parsed.data.storageKey,
       uploadedBy: getUser(req).userId,
-    });
+    }, getUser(req));
     res.locals.auditEntityId = id;
     res.locals.auditEntityKey = shipment.shipmentCode ?? `#${id}`;
     res.status(201).json(doc);
+  }),
+);
+
+router.post(
+  '/:id/documents/:documentId/replace',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CLERK),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const documentId = parseInt(req.params.documentId as string, 10);
+    if (!Number.isInteger(documentId) || documentId <= 0) {
+      res.status(400).json({ error: 'ID tài liệu không hợp lệ' });
+      return;
+    }
+    const parsed = replaceShipmentDocumentSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const shipment = await getShipment(shipmentId);
+    const replaced = await replaceShipmentDocument(documentId, {
+      storageKey: parsed.data.storageKey,
+      expiresAt: parsed.data.expiresAt ?? null,
+      uploadedBy: getUser(req).userId,
+    }, getUser(req));
+    res.locals.auditEntityId = shipment.id;
+    res.locals.auditEntityKey = shipment.shipmentCode ?? `#${shipment.id}`;
+    res.status(201).json(replaced);
+  }),
+);
+
+router.post(
+  '/:id/declarations',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CLERK),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const parsed = shipmentDeclarationSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const shipment = await getShipment(shipmentId);
+    const declaration = await upsertShipmentDeclaration(shipmentId, {
+      declarationNumber: parsed.data.declarationNumber ?? null,
+      issuedAt: parsed.data.issuedAt ?? null,
+      scope: parsed.data.scope,
+      note: parsed.data.note ?? null,
+      updatedBy: getUser(req).userId,
+    }, getUser(req));
+    res.locals.auditEntityId = shipment.id;
+    res.locals.auditEntityKey = shipment.shipmentCode ?? `#${shipment.id}`;
+    res.status(201).json(declaration);
+  }),
+);
+
+router.put(
+  '/:id/declarations/:declarationId',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CLERK),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const declarationId = parseInt(req.params.declarationId as string, 10);
+    if (!Number.isInteger(declarationId) || declarationId <= 0) {
+      res.status(400).json({ error: 'ID tờ khai không hợp lệ' });
+      return;
+    }
+    const parsed = shipmentDeclarationSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const shipment = await getShipment(shipmentId);
+    const declaration = await upsertShipmentDeclaration(shipmentId, {
+      id: declarationId,
+      declarationNumber: parsed.data.declarationNumber ?? null,
+      issuedAt: parsed.data.issuedAt ?? null,
+      scope: parsed.data.scope,
+      note: parsed.data.note ?? null,
+      updatedBy: getUser(req).userId,
+    }, getUser(req));
+    res.locals.auditEntityId = shipment.id;
+    res.locals.auditEntityKey = shipment.shipmentCode ?? `#${shipment.id}`;
+    res.json(declaration);
   }),
 );
 
@@ -284,8 +395,8 @@ router.get('/:id/containers', asyncHandler(async (req: Request, res: Response) =
   if (id === null) return;
   // 404 if the shipment itself is missing, rather than returning an empty
   // list that would mask the missing parent.
-  await getShipment(id);
-  res.json({ items: await listShipmentContainers(id) });
+  const detail = await getShipmentDetail(id, getUser(req));
+  res.json({ items: detail.containers });
 }));
 
 // ─── PUT /:id/containers — full reconcile of shipment containers ───────────
@@ -297,17 +408,43 @@ router.put(
     if (id === null) return;
     const parsed = shipmentContainerBatchSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
-    const upsertedIds = await batchUpsertShipmentContainers(
+    const result = await batchUpsertShipmentContainers(
       id,
       getUser(req).userId,
+      parsed.data.expectedVersion,
       parsed.data.containers,
+      getUser(req),
     );
-    const items = await listShipmentContainers(id);
     res.locals.auditEntityId = id;
     // Report both the reconciled ids (what the caller asked for) and the full
     // refreshed list (what the UI needs to re-render). Mirrors the trips
     // containers PUT response contract.
-    res.json({ items, upsertedIds });
+    res.json(result);
+  }),
+);
+
+router.post(
+  '/:id/change-requests/:requestId/review',
+  requireRoles(Role.ADMIN, Role.MANAGER),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const requestId = parseInt(req.params.requestId as string, 10);
+    if (!Number.isInteger(requestId) || requestId <= 0) {
+      res.status(400).json({ error: 'ID yêu cầu thay đổi không hợp lệ' });
+      return;
+    }
+    const parsed = reviewShipmentChangeRequestSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const result = await reviewShipmentChangeRequest(
+      shipmentId,
+      requestId,
+      parsed.data.resolution,
+      getUser(req),
+    );
+    res.locals.auditEntityId = result.shipment.id;
+    res.locals.auditEntityKey = result.shipment.shipmentCode ?? `#${result.shipment.id}`;
+    res.json(result);
   }),
 );
 

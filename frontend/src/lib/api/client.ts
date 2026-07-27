@@ -5,6 +5,28 @@ import { getToken, setToken as storeToken, clearToken as storeClearToken, invali
 const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
 type RequestInitWithSkip = RequestInit & { expectedUpdatedAt?: string };
+type MutationOptions = {
+  expectedUpdatedAt?: string;
+  headers?: Record<string, string>;
+};
+
+const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+/**
+ * Every client mutation carries a transaction identifier. Domain clients that
+ * need retry/replay semantics may supply their own stable Idempotency-Key; the
+ * transport only generates one when the caller did not provide it.
+ */
+function ensureMutationTransactionKey(
+  method: string | undefined,
+  headers: Record<string, string>,
+): void {
+  if (!method || !MUTATION_METHODS.has(method.toUpperCase())) return;
+  const hasKey = Object.keys(headers).some(
+    (name) => name.toLowerCase() === 'idempotency-key',
+  );
+  if (!hasKey) headers['Idempotency-Key'] = crypto.randomUUID();
+}
 
 /**
  * Thin wrapper around `fetch` for the project's REST API. Knows nothing
@@ -49,6 +71,7 @@ class ApiClient {
     if (options?.expectedUpdatedAt) {
       headers['If-Unmodified-Since'] = options.expectedUpdatedAt;
     }
+    ensureMutationTransactionKey(options?.method, headers);
 
     const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
     this.handleSessionExpiry(res, token);
@@ -77,7 +100,7 @@ class ApiClient {
   post<T>(
     path: string,
     body: unknown,
-    opts?: { expectedUpdatedAt?: string; headers?: Record<string, string> },
+    opts?: MutationOptions,
   ) {
     return this.request<T>(path, {
       method: 'POST',
@@ -85,18 +108,22 @@ class ApiClient {
       ...opts,
     });
   }
-  put<T>(path: string, body: unknown, opts?: { expectedUpdatedAt?: string }) {
+  put<T>(path: string, body: unknown, opts?: MutationOptions) {
     return this.request<T>(path, {
       method: 'PUT',
       body: JSON.stringify(body),
       ...opts,
     });
   }
-  patch<T>(path: string, body: unknown) {
-    return this.request<T>(path, { method: 'PATCH', body: JSON.stringify(body) });
+  patch<T>(path: string, body: unknown, opts?: MutationOptions) {
+    return this.request<T>(path, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+      ...opts,
+    });
   }
-  delete<T>(path: string) {
-    return this.request<T>(path, { method: 'DELETE' });
+  delete<T>(path: string, opts?: MutationOptions) {
+    return this.request<T>(path, { method: 'DELETE', ...opts });
   }
 
   /** Fetch a text response (e.g. HTML) with auth headers via GET. */
@@ -136,6 +163,7 @@ class ApiClient {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
+    ensureMutationTransactionKey('POST', headers);
     const res = await fetch(`${API_BASE}${url}`, {
       method: 'POST',
       headers,
@@ -156,6 +184,7 @@ class ApiClient {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
+    ensureMutationTransactionKey('POST', headers);
     const res = await fetch(`${API_BASE}${url}`, {
       method: 'POST',
       headers,

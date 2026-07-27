@@ -32,7 +32,8 @@ export type {
   CapTableHistory, TruckCapEntry, Distribution, ManagementFee, AuditLog, Notification, PushSubscriptionPayload,
   CreateTripRequest, TripLegInput, UpdateTripFiguresRequest,
   BulkUpdateTripFiguresRequest, BulkUpdateTripFiguresResponse,
-  CreatePaymentRequest, CreatePenaltyRequest, CreateAdjustmentRequest,
+  CreatePaymentRequest, PaymentAllocationMethod, PaymentReceiptAllocation,
+  PaymentReceiptResult, PaymentReceiptResponse, CreatePenaltyRequest, CreateAdjustmentRequest,
   LoginResponse, PaginatedResponse, DashboardStats, DashboardDecisionItem, DashboardDecisionKind, DashboardDecisionSeverity, CustomerStatement, AgingBucket, UnpaidTrip, PeriodSummary,
   SalaryPeriod, SalaryPeriodRange, PnlTruck, PnlMaintenanceItem, PnlTripDetail, PnlReport,
   Supplier, ExpenseCategory, Expense, ExpenseWithRefs, PayableSummary, PayablesCategory, SupplierStatement, RenewalReminder, VendorPaymentRequest,
@@ -68,9 +69,10 @@ export type {
 
 export {
   tripLegSchema, createTripSchema, updateTripFiguresSchema, bulkUpdateTripFiguresSchema,
-  createPaymentSchema, createPenaltySchema, createAdjustmentSchema,
+  createPaymentSchema, createPenaltySchema, createAdjustmentSchema, tripReopenRequestSchema,
   loginSchema, createUserSchema, updateUserSchema, updateProfileSchema, changePasswordSchema,
-  customerSchema, truckSchema, trailerSchema, routeSchema,
+  customerSchema, paymentDatePolicySchema, businessCalendarDaySchema,
+  truckSchema, trailerSchema, routeSchema,
   cargoTypeSchema, pricingTableSchema, roadAllowanceSchema,
   fuelConfigSchema, fuelPriceHistorySchema,
   fuelNormSchema, weightPricingTierSchema, liftPricingSchema, ancillaryRevenueSchema,
@@ -210,3 +212,28 @@ export type { ProductEventName, ProductEventPayloads, PayloadOf, OnboardingEvent
 // DB-backed admin switch for the onboarding tutorial. See ./schemas/onboarding-settings.ts.
 export { ONBOARDING_SETTINGS_PATHS } from './schemas/onboarding-settings';
 export type { OnboardingSettingsResponse, OnboardingSettingsUpdate } from './schemas/onboarding-settings';
+
+// ─── Q22 source/dependent authority policy ─────────────────────────────────
+export {
+  SOURCE_AUTHORITY_KINDS,
+  DEPENDENT_AUTHORITY_KINDS,
+  AUTHORITY_FIELD_FAMILIES,
+  AUTHORITY_MILESTONES,
+  SOURCE_AUTHORITY_ACTIONS,
+  SOURCE_AUTHORITY_PAIR_IDS,
+  SOURCE_AUTHORITY_CATALOG,
+  SOURCE_AUTHORITY_POLICIES,
+  findSourceAuthorityPolicy,
+  getSourceAuthorityActions,
+  isSourceAuthorityActionAllowed,
+} from './governance/source-authority';
+export type {
+  SourceAuthorityKind,
+  DependentAuthorityKind,
+  AuthorityFieldFamily,
+  AuthorityMilestone,
+  SourceAuthorityAction,
+  SourceAuthorityPairId,
+  AuthorityPhase,
+  SourceAuthorityPolicy,
+} from './governance/source-authority';

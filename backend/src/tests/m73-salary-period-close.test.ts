@@ -8,7 +8,7 @@
  */
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
@@ -25,14 +25,15 @@ const createdDriverIds: number[] = [];
 const createdUserIds: number[] = [];
 const createdLedgerIds: number[] = [];
 const createdCloseIds: number[] = [];
-// Use a unique period per test file run to avoid collisions with seed/other
-// tests. Format YYYY-MM, derived from suffix. We shift to a valid past month.
-// suffix starts with a timestamp like "1785038262926-..." — take last 6 digits
-// of the timestamp, mod into a valid 2020-2024 month.
-const _suffixTs = parseInt(suffix.split('-')[0].slice(-6), 10);
-const _periodYear = 2020 + (_suffixTs % 5); // 2020-2024
+// Use a high-cardinality future period per run so persistent developer data and
+// parallel test processes cannot collide with this file's close row.
+const _suffixTs = Number(suffix.split('-')[0]);
+const _periodYear = 3000 + (_suffixTs % 6000); // 3000-8999
 const _periodMonth = (_suffixTs % 12) + 1;   // 1-12
 const PERIOD = `${_periodYear}-${String(_periodMonth).padStart(2, '0')}`;
+const MISSING_PERIOD = _periodMonth === 12
+  ? `${_periodYear + 1}-01`
+  : `${_periodYear}-${String(_periodMonth + 1).padStart(2, '0')}`;
 
 let adminUserId: number;
 let accountantUserId: number;
@@ -85,6 +86,10 @@ after(async () => {
   const userPattern = `m73-%-${suffix}-%`;
   try {
     if (createdCloseIds.length > 0) await db.delete(s.salaryPeriodCloses).where(inArray(s.salaryPeriodCloses.id, createdCloseIds));
+    await db.delete(s.periodLocks).where(and(
+      eq(s.periodLocks.domain, 'SALARY'),
+      eq(s.periodLocks.periodKey, PERIOD),
+    ));
     // Also sweep any close rows for our test period that weren't tracked.
     await db.delete(s.salaryPeriodCloses).where(sql`${s.salaryPeriodCloses.period} = ${PERIOD} AND ${s.salaryPeriodCloses.note} LIKE 'Chốt kỳ lương T%'`);
     // Sweep summary + reversal ledger entries by note prefix.
@@ -205,7 +210,7 @@ describe('M7.3 — reopenSalaryPeriod', () => {
 
   test('404 when period was never closed', async () => {
     await assert.rejects(
-      () => reopenSalaryPeriod({ period: '2024-01', actorId: adminUserId, actorRole: 'ADMIN' }),
+      () => reopenSalaryPeriod({ period: MISSING_PERIOD, actorId: adminUserId, actorRole: 'ADMIN' }),
       (err: Error & { statusCode?: number }) => err.statusCode === 404,
     );
   });

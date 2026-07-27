@@ -280,6 +280,39 @@ describe('Audit-log every shipment write', () => {
     assert.match(audit!.message, /cập nhật thông tin lô hàng/);
   });
 
+  test('stale PUT /:id → MUTATION_CONFLICT with failed-attempt metadata', async () => {
+    const shipment = await mkShipmentViaService();
+    const accepted = await testFetch(`/${shipment.id}`, {
+      method: 'PUT',
+      token: adminToken,
+      body: { version: shipment.version, bookingRef: `BK-FIRST-${suffix}` },
+    });
+    assert.equal(accepted.status, 200);
+
+    const stale = await testFetch(`/${shipment.id}`, {
+      method: 'PUT',
+      token: managerToken,
+      body: { version: shipment.version, bookingRef: `BK-STALE-${suffix}` },
+    });
+    assert.equal(stale.status, 409);
+
+    const audit = await waitForAudit(
+      (row) => (row.payload as { event?: string }).event === 'MUTATION_CONFLICT'
+        && row.entityId === shipment.id,
+    );
+    assert.ok(audit, 'stale write conflict audit row written');
+    assert.equal(audit!.userId, managerUserId);
+    assert.match(audit!.message, /xung đột/);
+    const payload = audit!.payload as {
+      failed?: boolean;
+      statusCode?: number;
+      path?: string;
+    };
+    assert.equal(payload.failed, true);
+    assert.equal(payload.statusCode, 409);
+    assert.match(payload.path ?? '', /\/api\/shipments\//);
+  });
+
   test('POST /:id/transition → SHIPMENT_STATUS_CHANGED', async () => {
     const shipment = await mkShipmentViaService();
     const r = await testFetch(`/${shipment.id}/transition`, {

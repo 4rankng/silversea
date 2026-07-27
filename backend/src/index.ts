@@ -15,7 +15,12 @@ import { initAuditService } from './services/audit.service';
 import { initNotificationService } from './services/notification.service';
 import { initPushService } from './services/push.service';
 import { registerJob, startScheduler, stopScheduler } from './scheduler';
-import { runReceivableReminders, REMINDER_CRON } from './services/receivable-reminder.service';
+import {
+  REMINDER_CRON,
+  REMINDER_RETRY_CRON,
+  runReceivableReminderRetries,
+  runReceivableReminders,
+} from './services/receivable-reminder.service';
 import authRoutes from './routes/auth';
 import configRoutes, { auditLogRouter, catalogBootstrapRouter, salaryPeriodsRouter, salaryPeriodsAdminRouter, tireLifecycleRouter } from './routes/config';
 import tripRoutes from './routes/trips';
@@ -77,6 +82,15 @@ if (schedulerEnabled) {
     handler: async () => {
       const stats = await runReceivableReminders();
       console.log(`[scheduler] receivable-reminder: ${stats.reminded} reminded, ${stats.skipped} skipped, ${stats.deduped} deduped, ${stats.failed} failed`);
+    },
+  });
+
+  registerJob({
+    name: 'receivable-reminder-retry',
+    cron: REMINDER_RETRY_CRON,
+    handler: async () => {
+      const stats = await runReceivableReminderRetries();
+      console.log(`[scheduler] receivable-reminder-retry: ${stats.retried} retried, ${stats.suppressed} suppressed, ${stats.escalated} escalated, ${stats.failed} failed`);
     },
   });
 

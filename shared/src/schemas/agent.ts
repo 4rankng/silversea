@@ -61,6 +61,7 @@ export const AGENT_ROUTE_KEYS = [
   'config',
   'configCustomers',
   'configRoutes',
+  'configBusinessCalendar',
   'configTrucks',
   'configTrailers',
   'configFuel',

@@ -9,8 +9,17 @@
  */
 import bcrypt from 'bcryptjs';
 import { db } from '../db';
-import { users, drivers, customers } from '../db/schema';
-import { eq, isNull, sql, or, and, ne } from 'drizzle-orm';
+import {
+  users,
+  drivers,
+  customers,
+  shipments,
+  businessUnits,
+  userCustomerLinks,
+  userBusinessUnitLinks,
+  userShipmentLinks,
+} from '../db/schema';
+import { eq, isNull, sql, or, and, ne, inArray } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { getEnforcer } from '../casbin/enforcer';
@@ -44,6 +53,298 @@ function selectUserWithDriver(q: typeof db | Parameters<Parameters<typeof db.tra
     .where(extraWhere);
 }
 
+type CustomerLinkInput = {
+  customerId?: number | null;
+  customerIds?: number[] | null;
+  businessUnitIds?: number[] | null;
+  shipmentIds?: number[] | null;
+  assignmentAdminOnly?: boolean;
+};
+
+function normalizeCustomerIds(input: CustomerLinkInput): number[] {
+  const rawIds = input.customerIds != null
+    ? input.customerIds
+    : input.customerId != null
+      ? [input.customerId]
+      : [];
+  return [...new Set(rawIds.filter((id): id is number => id != null && Number.isInteger(id) && id > 0))].sort((a, b) => a - b);
+}
+
+function hasExplicitCustomerScopeInput(data: CustomerLinkInput): boolean {
+  return data.customerIds !== undefined || data.customerId !== undefined;
+}
+
+function hasActiveClerkScope(
+  businessUnitIds: number[],
+  customerIds: number[],
+  shipmentIds: number[],
+): boolean {
+  return businessUnitIds.length > 0 && (customerIds.length > 0 || shipmentIds.length > 0);
+}
+
+function assertActiveClerkScope(
+  businessUnitIds: number[],
+  customerIds: number[],
+  shipmentIds: number[],
+): void {
+  if (!hasActiveClerkScope(businessUnitIds, customerIds, shipmentIds)) {
+    throw new ApiError(
+      400,
+      'Nhân viên chứng từ ACTIVE phải có ít nhất một đơn vị phụ trách và ít nhất một khách hàng hoặc lô hàng được giao',
+    );
+  }
+}
+
+function isUniqueViolation(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const candidate = err as { code?: string; cause?: { code?: string } };
+  return candidate.code === '23505' || candidate.cause?.code === '23505';
+}
+
+async function loadCustomerIds(
+  q: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0],
+  userId: number,
+  primaryCustomerId: number | null,
+): Promise<number[]> {
+  const rows = await q.select({ customerId: customers.id })
+    .from(customers)
+    .leftJoin(userCustomerLinks, and(
+      eq(userCustomerLinks.customerId, customers.id),
+      eq(userCustomerLinks.userId, userId),
+    ))
+    .where(and(
+      isNull(customers.deletedAt),
+      or(
+        eq(userCustomerLinks.userId, userId),
+        eq(customers.id, primaryCustomerId ?? -1),
+      ),
+    ))
+    .orderBy(customers.id);
+  return rows.map((row) => row.customerId);
+}
+
+async function loadUsersCustomerIdsMap(
+  q: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0],
+  userIds: number[],
+): Promise<Map<number, number[]>> {
+  if (userIds.length === 0) return new Map();
+  const rows = await q.select({
+    userId: userCustomerLinks.userId,
+    customerId: userCustomerLinks.customerId,
+  }).from(userCustomerLinks)
+    .innerJoin(customers, eq(userCustomerLinks.customerId, customers.id))
+    .where(and(
+      inArray(userCustomerLinks.userId, userIds),
+      isNull(customers.deletedAt),
+    ))
+    .orderBy(userCustomerLinks.userId, userCustomerLinks.customerId);
+  const map = new Map<number, number[]>();
+  for (const row of rows) {
+    const current = map.get(row.userId) ?? [];
+    current.push(row.customerId);
+    map.set(row.userId, current);
+  }
+  return map;
+}
+
+async function loadBusinessUnitIds(
+  q: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0],
+  userId: number,
+): Promise<number[]> {
+  const rows = await q.select({ businessUnitId: userBusinessUnitLinks.businessUnitId })
+    .from(userBusinessUnitLinks)
+    .innerJoin(businessUnits, eq(userBusinessUnitLinks.businessUnitId, businessUnits.id))
+    .where(and(
+      eq(userBusinessUnitLinks.userId, userId),
+      eq(businessUnits.status, 'ACTIVE'),
+    ))
+    .orderBy(userBusinessUnitLinks.businessUnitId);
+  return rows.map((row) => row.businessUnitId);
+}
+
+async function loadUsersBusinessUnitIdsMap(
+  q: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0],
+  userIds: number[],
+): Promise<Map<number, number[]>> {
+  if (userIds.length === 0) return new Map();
+  const rows = await q.select({
+    userId: userBusinessUnitLinks.userId,
+    businessUnitId: userBusinessUnitLinks.businessUnitId,
+  }).from(userBusinessUnitLinks)
+    .innerJoin(businessUnits, eq(userBusinessUnitLinks.businessUnitId, businessUnits.id))
+    .where(and(
+      inArray(userBusinessUnitLinks.userId, userIds),
+      eq(businessUnits.status, 'ACTIVE'),
+    ))
+    .orderBy(userBusinessUnitLinks.userId, userBusinessUnitLinks.businessUnitId);
+  const map = new Map<number, number[]>();
+  for (const row of rows) {
+    const current = map.get(row.userId) ?? [];
+    current.push(row.businessUnitId);
+    map.set(row.userId, current);
+  }
+  return map;
+}
+
+async function loadShipmentIds(
+  q: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0],
+  userId: number,
+): Promise<number[]> {
+  const rows = await q.select({ shipmentId: userShipmentLinks.shipmentId })
+    .from(userShipmentLinks)
+    .innerJoin(shipments, eq(userShipmentLinks.shipmentId, shipments.id))
+    .where(and(
+      eq(userShipmentLinks.userId, userId),
+      isNull(shipments.deletedAt),
+    ))
+    .orderBy(userShipmentLinks.shipmentId);
+  return rows.map((row) => row.shipmentId);
+}
+
+async function loadUsersShipmentIdsMap(
+  q: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0],
+  userIds: number[],
+): Promise<Map<number, number[]>> {
+  if (userIds.length === 0) return new Map();
+  const rows = await q.select({
+    userId: userShipmentLinks.userId,
+    shipmentId: userShipmentLinks.shipmentId,
+  }).from(userShipmentLinks)
+    .innerJoin(shipments, eq(userShipmentLinks.shipmentId, shipments.id))
+    .where(and(
+      inArray(userShipmentLinks.userId, userIds),
+      isNull(shipments.deletedAt),
+    ))
+    .orderBy(userShipmentLinks.userId, userShipmentLinks.shipmentId);
+  const map = new Map<number, number[]>();
+  for (const row of rows) {
+    const current = map.get(row.userId) ?? [];
+    current.push(row.shipmentId);
+    map.set(row.userId, current);
+  }
+  return map;
+}
+
+async function validateCustomerIds(
+  q: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0],
+  customerIds: number[],
+) {
+  if (customerIds.length === 0) return;
+  const rows = await q.select({ id: customers.id }).from(customers)
+    .where(and(inArray(customers.id, customerIds), isNull(customers.deletedAt)));
+  if (rows.length !== customerIds.length) {
+    throw new ApiError(400, 'Khách hàng liên kết không tồn tại');
+  }
+}
+
+async function validateBusinessUnitIds(
+  q: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0],
+  businessUnitIds: number[],
+) {
+  if (businessUnitIds.length === 0) return;
+  const rows = await q.select({ id: businessUnits.id }).from(businessUnits)
+    .where(and(inArray(businessUnits.id, businessUnitIds), eq(businessUnits.status, 'ACTIVE')));
+  if (rows.length !== businessUnitIds.length) {
+    throw new ApiError(400, 'Đơn vị phụ trách liên kết không tồn tại hoặc đã ngưng dùng');
+  }
+}
+
+async function validateShipmentIds(
+  q: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0],
+  shipmentIds: number[],
+  businessUnitIds: number[],
+) {
+  if (shipmentIds.length === 0) return;
+  const rows = await q.select({
+    id: shipments.id,
+    responsibleUnitId: shipments.responsibleUnitId,
+  }).from(shipments)
+    .where(and(inArray(shipments.id, shipmentIds), isNull(shipments.deletedAt)));
+  if (rows.length !== shipmentIds.length) {
+    throw new ApiError(400, 'Lô hàng liên kết không tồn tại');
+  }
+  const invalid = rows.find((row) =>
+    row.responsibleUnitId == null || !businessUnitIds.includes(row.responsibleUnitId),
+  );
+  if (invalid) {
+    throw new ApiError(400, 'Lô hàng liên kết phải thuộc một đơn vị phụ trách đã gán cho nhân viên chứng từ');
+  }
+}
+
+async function syncCustomerLinks(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  userId: number,
+  customerIds: number[],
+) {
+  await tx.delete(userCustomerLinks).where(eq(userCustomerLinks.userId, userId));
+  if (customerIds.length === 0) return;
+  await tx.insert(userCustomerLinks).values(customerIds.map((customerId) => ({
+    userId,
+    customerId,
+  })));
+}
+
+async function syncBusinessUnitLinks(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  userId: number,
+  businessUnitIds: number[],
+) {
+  await tx.delete(userBusinessUnitLinks).where(eq(userBusinessUnitLinks.userId, userId));
+  if (businessUnitIds.length === 0) return;
+  await tx.insert(userBusinessUnitLinks).values(businessUnitIds.map((businessUnitId) => ({
+    userId,
+    businessUnitId,
+  })));
+}
+
+async function syncShipmentLinks(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  userId: number,
+  shipmentIds: number[],
+) {
+  await tx.delete(userShipmentLinks).where(eq(userShipmentLinks.userId, userId));
+  if (shipmentIds.length === 0) return;
+  await tx.insert(userShipmentLinks).values(shipmentIds.map((shipmentId) => ({
+    userId,
+    shipmentId,
+  })));
+}
+
+function addScopeIds<T extends { customerId: number | null }>(
+  row: T,
+  customerIds: number[],
+  businessUnitIds: number[],
+  shipmentIds: number[],
+) {
+  return {
+    ...row,
+    customerIds,
+    businessUnitIds,
+    shipmentIds,
+    customerId: row.customerId != null && customerIds.includes(row.customerId)
+      ? row.customerId
+      : customerIds[0] ?? null,
+  };
+}
+
+async function attachCustomerIdsToUsers<T extends { id: number; customerId: number | null }>(
+  q: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0],
+  rows: T[],
+) {
+  const userIds = rows.map((row) => row.id);
+  const [customerMap, businessUnitMap, shipmentMap] = await Promise.all([
+    loadUsersCustomerIdsMap(q, userIds),
+    loadUsersBusinessUnitIdsMap(q, userIds),
+    loadUsersShipmentIdsMap(q, userIds),
+  ]);
+  return rows.map((row) => addScopeIds(
+    row,
+    customerMap.get(row.id) ?? [],
+    businessUnitMap.get(row.id) ?? [],
+    shipmentMap.get(row.id) ?? [],
+  ));
+}
+
 /** Verify a user's current password. Throws on failure. */
 export async function verifyPassword(userId: number, password: string): Promise<void> {
   const [user] = await db.select({ passwordHash: users.passwordHash })
@@ -73,7 +374,10 @@ export async function authenticate(identifier: string, password: string) {
 
   const { passwordHash, deletedAt, ...userPublic } = user;
   void passwordHash; void deletedAt;
-  return userPublic;
+  const customerIds = await loadCustomerIds(db, user.id, user.customerId);
+  const businessUnitIds = await loadBusinessUnitIds(db, user.id);
+  const shipmentIds = await loadShipmentIds(db, user.id);
+  return addScopeIds(userPublic, customerIds, businessUnitIds, shipmentIds);
 }
 
 /** List all active users, each joined with its optional driver profile. Non-ADMIN requesters cannot see ADMIN accounts. */
@@ -82,7 +386,17 @@ export async function listUsers(requesterRole?: string) {
     ? and(isNull(users.deletedAt), ne(users.role, Role.ADMIN))
     : isNull(users.deletedAt);
   const items = await selectUserWithDriver(db, where);
-  return { items, total: items.length };
+  const includeAssignmentMetadata = requesterRole === Role.ADMIN || requesterRole === Role.MANAGER;
+  const withLinks = includeAssignmentMetadata
+    ? await attachCustomerIdsToUsers(db, items)
+    : items.map((row) => ({
+      ...row,
+      customerIds: [],
+      businessUnitIds: [],
+      shipmentIds: [],
+    }));
+  const units = await listBusinessUnits();
+  return { items: withLinks, total: withLinks.length, businessUnits: units };
 }
 
 /** Create a new user with hashed password. DRIVER-role users also get a linked drivers row. */
@@ -98,16 +412,39 @@ export async function createUser(data: {
   socialInsurance?: number;
   assignedTruckId?: number | null;
   customerId?: number | null;
+  customerIds?: number[] | null;
+  businessUnitIds?: number[] | null;
+  shipmentIds?: number[] | null;
+  assignmentAdminOnly?: boolean;
 }) {
   const passwordHash = await bcrypt.hash(data.password, 10);
   return db.transaction(async (tx) => {
-    if (data.customerId != null) {
-      if (data.role !== Role.CUSTOMER) {
-        throw new ApiError(400, 'Chỉ tài khoản khách hàng mới được liên kết khách hàng');
+    const customerIds = normalizeCustomerIds(data);
+    const businessUnitIds = [...new Set((data.businessUnitIds ?? []).filter((id): id is number => Number.isInteger(id) && id > 0))].sort((a, b) => a - b);
+    const shipmentIds = [...new Set((data.shipmentIds ?? []).filter((id): id is number => Number.isInteger(id) && id > 0))].sort((a, b) => a - b);
+    if (data.role !== Role.CUSTOMER && customerIds.length > 0) {
+      if (data.role !== Role.CLERK) {
+        throw new ApiError(400, 'Chỉ tài khoản khách hàng hoặc nhân viên chứng từ mới được liên kết khách hàng');
       }
-      const [customer] = await tx.select({ id: customers.id }).from(customers)
-        .where(and(eq(customers.id, data.customerId), isNull(customers.deletedAt))).limit(1);
-      if (!customer) throw new ApiError(400, 'Khách hàng liên kết không tồn tại');
+    }
+    if (data.role === Role.CUSTOMER) {
+      const effectiveStatus = data.status ?? 'ACTIVE';
+      if (effectiveStatus !== 'INACTIVE' && customerIds.length === 0) {
+        throw new ApiError(400, 'Tài khoản khách hàng ACTIVE phải có ít nhất một khách hàng liên kết');
+      }
+      await validateCustomerIds(tx, customerIds);
+    } else if (data.role === Role.CLERK) {
+      if (data.assignmentAdminOnly && (customerIds.length > 0 || businessUnitIds.length > 0 || shipmentIds.length > 0)) {
+        throw new ApiError(403, 'Chỉ quản trị viên mới có thể quản lý phạm vi nhân viên chứng từ');
+      }
+      await validateCustomerIds(tx, customerIds);
+      await validateBusinessUnitIds(tx, businessUnitIds);
+      await validateShipmentIds(tx, shipmentIds, businessUnitIds);
+      if ((data.status ?? 'ACTIVE') !== 'INACTIVE') {
+        assertActiveClerkScope(businessUnitIds, customerIds, shipmentIds);
+      }
+    } else if (businessUnitIds.length > 0 || shipmentIds.length > 0) {
+      throw new ApiError(400, 'Chỉ nhân viên chứng từ mới được liên kết đơn vị phụ trách hoặc lô hàng');
     }
     const [created] = await tx.insert(users).values({
       username: data.username || null,
@@ -117,8 +454,12 @@ export async function createUser(data: {
       passwordHash,
       role: data.role as (typeof users.role.enumValues)[number],
       status: data.status ?? 'ACTIVE',
-      customerId: data.role === Role.CUSTOMER ? data.customerId ?? null : null,
+      customerId: data.role === Role.CUSTOMER || data.role === Role.CLERK ? customerIds[0] ?? null : null,
     }).returning(USER_FIELDS);
+
+    await syncCustomerLinks(tx, created.id, data.role === Role.CUSTOMER || data.role === Role.CLERK ? customerIds : []);
+    await syncBusinessUnitLinks(tx, created.id, data.role === Role.CLERK ? businessUnitIds : []);
+    await syncShipmentLinks(tx, created.id, data.role === Role.CLERK ? shipmentIds : []);
 
     if (data.role === Role.DRIVER) {
       await tx.insert(drivers).values(buildDriverValues(created.id, {
@@ -129,7 +470,10 @@ export async function createUser(data: {
     }
     // Return the full row including driver profile for a complete API response.
     const [withDriver] = await selectUserWithDriver(tx, eq(users.id, created.id)).limit(1);
-    return withDriver;
+    const customerIdsAfterSave = await loadCustomerIds(tx, created.id, created.customerId);
+    const businessUnitIdsAfterSave = await loadBusinessUnitIds(tx, created.id);
+    const shipmentIdsAfterSave = await loadShipmentIds(tx, created.id);
+    return addScopeIds(withDriver, customerIdsAfterSave, businessUnitIdsAfterSave, shipmentIdsAfterSave);
   });
 }
 
@@ -179,14 +523,18 @@ export async function updateUser(id: number, data: {
   socialInsurance?: number;
   assignedTruckId?: number | null;
   customerId?: number | null;
+  customerIds?: number[] | null;
+  businessUnitIds?: number[] | null;
+  shipmentIds?: number[] | null;
   /** If true, throws 403 when target user is not DRIVER — used for accountant scoping. */
   requireDriverTarget?: boolean;
+  assignmentAdminOnly?: boolean;
 }) {
   // Hash password outside transaction — CPU-intensive work should not hold a DB connection.
   const passwordHash = data.password ? await bcrypt.hash(data.password, 10) : undefined;
 
   return db.transaction(async (tx) => {
-    const [existing] = await tx.select({ role: users.role, customerId: users.customerId }).from(users)
+    const [existing] = await tx.select({ role: users.role, customerId: users.customerId, status: users.status }).from(users)
       .where(and(eq(users.id, id), isNull(users.deletedAt))).limit(1).for('update');
     if (!existing) throw new ApiError(404, 'Không tìm thấy người dùng');
 
@@ -196,13 +544,69 @@ export async function updateUser(id: number, data: {
     }
 
     const effectiveRole = data.role ?? existing.role;
-    if (data.customerId != null) {
-      if (effectiveRole !== Role.CUSTOMER) {
-        throw new ApiError(400, 'Chỉ tài khoản khách hàng mới được liên kết khách hàng');
+    const effectiveStatus = data.status ?? existing.status;
+    const explicitCustomerLinkUpdate = hasExplicitCustomerScopeInput(data);
+    const existingCustomerIds = await loadCustomerIds(tx, id, existing.customerId);
+    const explicitBusinessUnitUpdate = data.businessUnitIds !== undefined;
+    const explicitShipmentUpdate = data.shipmentIds !== undefined;
+    const existingBusinessUnitIds = await loadBusinessUnitIds(tx, id);
+    const existingShipmentIds = await loadShipmentIds(tx, id);
+    let nextCustomerIds = existingCustomerIds;
+    let nextBusinessUnitIds = existingBusinessUnitIds;
+    let nextShipmentIds = existingShipmentIds;
+
+    if (effectiveRole !== Role.CUSTOMER && effectiveRole !== Role.CLERK) {
+      if (explicitCustomerLinkUpdate && normalizeCustomerIds(data).length > 0) {
+        throw new ApiError(400, 'Chỉ tài khoản khách hàng hoặc nhân viên chứng từ mới được liên kết khách hàng');
       }
-      const [customer] = await tx.select({ id: customers.id }).from(customers)
-        .where(and(eq(customers.id, data.customerId), isNull(customers.deletedAt))).limit(1);
-      if (!customer) throw new ApiError(400, 'Khách hàng liên kết không tồn tại');
+      if (explicitBusinessUnitUpdate && (data.businessUnitIds ?? []).length > 0) {
+        throw new ApiError(400, 'Chỉ nhân viên chứng từ mới được liên kết đơn vị phụ trách');
+      }
+      if (explicitShipmentUpdate && (data.shipmentIds ?? []).length > 0) {
+        throw new ApiError(400, 'Chỉ nhân viên chứng từ mới được liên kết lô hàng');
+      }
+      nextCustomerIds = [];
+      nextBusinessUnitIds = [];
+      nextShipmentIds = [];
+    } else if (effectiveRole === Role.CUSTOMER) {
+      nextBusinessUnitIds = [];
+      nextShipmentIds = [];
+      if (explicitCustomerLinkUpdate) {
+        nextCustomerIds = normalizeCustomerIds(data);
+        if (effectiveStatus !== 'INACTIVE' && nextCustomerIds.length === 0) {
+          throw new ApiError(400, 'Tài khoản khách hàng ACTIVE phải có ít nhất một khách hàng liên kết');
+        }
+        await validateCustomerIds(tx, nextCustomerIds);
+      } else if (effectiveStatus !== 'INACTIVE' && nextCustomerIds.length === 0) {
+        throw new ApiError(400, 'Tài khoản khách hàng ACTIVE phải có ít nhất một khách hàng liên kết');
+      }
+    } else {
+      if (data.assignmentAdminOnly && (explicitCustomerLinkUpdate || explicitBusinessUnitUpdate || explicitShipmentUpdate)) {
+        throw new ApiError(403, 'Chỉ quản trị viên mới có thể quản lý phạm vi nhân viên chứng từ');
+      }
+      if (explicitCustomerLinkUpdate) {
+        nextCustomerIds = normalizeCustomerIds(data);
+        await validateCustomerIds(tx, nextCustomerIds);
+      }
+      if (explicitBusinessUnitUpdate) {
+        nextBusinessUnitIds = [...new Set((data.businessUnitIds ?? []).filter((value): value is number => Number.isInteger(value) && value > 0))].sort((a, b) => a - b);
+        await validateBusinessUnitIds(tx, nextBusinessUnitIds);
+      }
+      if (explicitShipmentUpdate) {
+        nextShipmentIds = [...new Set((data.shipmentIds ?? []).filter((value): value is number => Number.isInteger(value) && value > 0))].sort((a, b) => a - b);
+      }
+      await validateShipmentIds(tx, nextShipmentIds, nextBusinessUnitIds);
+      const existingActiveLegacyClerk = existing.role === Role.CLERK
+        && existing.status !== 'INACTIVE'
+        && !hasActiveClerkScope(existingBusinessUnitIds, existingCustomerIds, existingShipmentIds);
+      const scopeOrRoleTouched = explicitCustomerLinkUpdate
+        || explicitBusinessUnitUpdate
+        || explicitShipmentUpdate
+        || data.role !== undefined
+        || data.status !== undefined;
+      if (effectiveStatus !== 'INACTIVE' && (!existingActiveLegacyClerk || scopeOrRoleTouched)) {
+        assertActiveClerkScope(nextBusinessUnitIds, nextCustomerIds, nextShipmentIds);
+      }
     }
 
     const updates: Record<string, unknown> = { updatedAt: sql`now()` };
@@ -213,14 +617,13 @@ export async function updateUser(id: number, data: {
     if (data.fullName !== undefined) updates.fullName = data.fullName || null;
     if (data.email !== undefined) updates.email = data.email || null;
     if (data.phone !== undefined) updates.phone = data.phone || null;
-    if (effectiveRole !== Role.CUSTOMER) {
-      updates.customerId = null;
-    } else if (data.customerId !== undefined) {
-      updates.customerId = data.customerId;
-    }
+    updates.customerId = effectiveRole === Role.CUSTOMER || effectiveRole === Role.CLERK ? nextCustomerIds[0] ?? null : null;
 
     const [updated] = await tx.update(users).set(updates)
       .where(eq(users.id, id)).returning(USER_FIELDS);
+    await syncCustomerLinks(tx, id, nextCustomerIds);
+    await syncBusinessUnitLinks(tx, id, effectiveRole === Role.CLERK ? nextBusinessUnitIds : []);
+    await syncShipmentLinks(tx, id, effectiveRole === Role.CLERK ? nextShipmentIds : []);
 
     // Upsert the linked driver profile when the resulting role is DRIVER.
     if (effectiveRole === Role.DRIVER) {
@@ -250,7 +653,10 @@ export async function updateUser(id: number, data: {
 
     // Return the full row including driver profile for a complete API response.
     const [withDriver] = await selectUserWithDriver(tx, eq(users.id, id)).limit(1);
-    return withDriver;
+    const customerIdsAfterSave = await loadCustomerIds(tx, id, withDriver.customerId);
+    const businessUnitIdsAfterSave = await loadBusinessUnitIds(tx, id);
+    const shipmentIdsAfterSave = await loadShipmentIds(tx, id);
+    return addScopeIds(withDriver, customerIdsAfterSave, businessUnitIdsAfterSave, shipmentIdsAfterSave);
   });
 }
 
@@ -261,6 +667,8 @@ export async function deleteUser(id: number, currentUserId: number) {
     await tx.update(users).set({ deletedAt: sql`now()`, status: 'INACTIVE' }).where(eq(users.id, id));
     await tx.update(drivers).set({ deletedAt: sql`now()`, status: 'INACTIVE' })
       .where(and(eq(drivers.userId, id), isNull(drivers.deletedAt)));
+    await tx.delete(userBusinessUnitLinks).where(eq(userBusinessUnitLinks.userId, id));
+    await tx.delete(userShipmentLinks).where(eq(userShipmentLinks.userId, id));
   });
 }
 
@@ -268,13 +676,17 @@ export async function deleteUser(id: number, currentUserId: number) {
 export async function getUserProfile(userId: number) {
   const [user] = await db.select(USER_FIELDS).from(users).where(eq(users.id, userId)).limit(1);
   if (!user) throw new ApiError(404, 'Không tìm thấy người dùng');
+  const customerIds = await loadCustomerIds(db, userId, user.customerId);
+  const businessUnitIds = await loadBusinessUnitIds(db, userId);
+  const shipmentIds = await loadShipmentIds(db, userId);
+  const userWithLinks = addScopeIds(user, customerIds, businessUnitIds, shipmentIds);
 
   if (user.role === 'DRIVER') {
     const [driver] = await db.select().from(drivers)
       .where(and(eq(drivers.userId, user.id), isNull(drivers.deletedAt))).limit(1);
-    return { ...user, driver: driver || null };
+    return { ...userWithLinks, driver: driver || null };
   }
-  return user;
+  return userWithLinks;
 }
 
 /** Update current user's profile (username, fullName, email, phone). Syncs name/phone to linked driver. */
@@ -336,4 +748,54 @@ export async function getCapabilities(role: string): Promise<string[]> {
     capabilities.push('manage_users');
   }
   return capabilities;
+}
+
+export async function listBusinessUnits() {
+  return db.select({
+    id: businessUnits.id,
+    code: businessUnits.code,
+    name: businessUnits.name,
+    status: businessUnits.status,
+    createdAt: businessUnits.createdAt,
+    updatedAt: businessUnits.updatedAt,
+  }).from(businessUnits)
+    .orderBy(businessUnits.name);
+}
+
+export async function createBusinessUnit(data: { code?: string | null; name: string; status?: string }) {
+  try {
+    const [created] = await db.insert(businessUnits).values({
+      code: data.code?.trim() || null,
+      name: data.name.trim(),
+      status: data.status ?? 'ACTIVE',
+    }).returning();
+    return created;
+  } catch (err) {
+    if (isUniqueViolation(err)) {
+      throw new ApiError(409, 'Mã hoặc tên đơn vị phụ trách đã tồn tại');
+    }
+    throw err;
+  }
+}
+
+export async function updateBusinessUnit(
+  id: number,
+  data: { code?: string | null; name?: string; status?: string },
+) {
+  const updates: Record<string, unknown> = { updatedAt: sql`now()` };
+  if (data.code !== undefined) updates.code = data.code?.trim() || null;
+  if (data.name !== undefined) updates.name = data.name.trim();
+  if (data.status !== undefined) updates.status = data.status;
+  try {
+    const [updated] = await db.update(businessUnits).set(updates)
+      .where(eq(businessUnits.id, id))
+      .returning();
+    if (!updated) throw new ApiError(404, 'Không tìm thấy đơn vị phụ trách');
+    return updated;
+  } catch (err) {
+    if (isUniqueViolation(err)) {
+      throw new ApiError(409, 'Mã hoặc tên đơn vị phụ trách đã tồn tại');
+    }
+    throw err;
+  }
 }

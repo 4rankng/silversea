@@ -5,19 +5,22 @@ import { api } from '../../lib/api';
 import { SHIPMENT_STATUS_LABELS, SHIPMENT_DOCUMENT_TYPE_LABELS } from '@tingting/shared';
 import { EmptyState } from '../../design-system';
 import { routes } from '../../lib/routes';
+import { useCustomerPortalScope, withCustomerScope } from './CustomerPortalScope';
 import './PortalPages.css';
 
 export default function PortalShipmentDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { selectedCustomerId, ready: customerScopeReady } = useCustomerPortalScope();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!customerScopeReady) return;
     let active = true;
     setLoading(true);
     setError(null);
-    api.get<any>(`/portal/shipments/${id}`)
+    api.get<any>(withCustomerScope(`/portal/shipments/${id}`, selectedCustomerId))
       .then((response) => {
         if (active) setData(response);
       })
@@ -28,12 +31,12 @@ export default function PortalShipmentDetailPage() {
         if (active) setLoading(false);
       });
     return () => { active = false; };
-  }, [id]);
+  }, [customerScopeReady, id, selectedCustomerId]);
 
   if (loading) return <div className="portal-page"><div className="portal-panel portal-state" role="status">Đang tải chi tiết lô hàng…</div></div>;
   if (error || !data) return (
     <div className="portal-page">
-      <Link to={routes.portalShipments} className="portal-back"><ArrowLeft size={16} /> Quay lại danh sách</Link>
+      <Link to={withCustomerScope(routes.portalShipments, selectedCustomerId)} className="portal-back"><ArrowLeft size={16} /> Quay lại danh sách</Link>
       <div className="portal-panel"><EmptyState title={error ?? 'Không có dữ liệu'} /></div>
     </div>
   );
@@ -43,7 +46,7 @@ export default function PortalShipmentDetailPage() {
 
   return (
     <div className="portal-page">
-      <Link to={routes.portalShipments} className="portal-back"><ArrowLeft size={16} /> Danh sách lô hàng</Link>
+      <Link to={withCustomerScope(routes.portalShipments, selectedCustomerId)} className="portal-back"><ArrowLeft size={16} /> Danh sách lô hàng</Link>
       <header className="portal-page__header">
         <span className="portal-page__eyebrow">Chi tiết lô hàng</span>
         <h1>{shipment.shipmentCode ?? `Lô hàng #${shipment.id}`}</h1>

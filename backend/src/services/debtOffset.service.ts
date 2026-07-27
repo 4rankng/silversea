@@ -197,13 +197,14 @@ export async function cancelDebtOffset(
       .select()
       .from(s.debtOffsets)
       .where(eq(s.debtOffsets.id, id))
-      .limit(1);
+      .limit(1)
+      .for('update');
 
     if (!offset) {
       throw new ApiError(404, 'Không tìm thấy bản ghi đối trừ');
     }
     if (offset.approvalStatus === 'CANCELED') {
-      throw new ApiError(400, 'Bản ghi đã hủy, không thể hoàn tác lại');
+      throw new ApiError(409, 'Bản ghi đã hủy, không thể hoàn tác lại');
     }
     if (offset.approvalStatus !== 'APPROVED') {
       // PENDING → use the rejection path (it writes no ledger entries).
@@ -215,11 +216,18 @@ export async function cancelDebtOffset(
 
     const amount = Number(offset.amount);
 
-    // Lock both entities (sorted internally by lockEntities to prevent deadlock).
-    await LedgerService.lockEntities(tx, [
-      { entityType: 'CUSTOMER', entityId: offset.customerId },
-      { entityType: 'VENDOR',   entityId: offset.supplierId },
-    ]);
+    const [claimed] = await tx
+      .update(s.debtOffsets)
+      .set({ approvalStatus: 'CANCELED' })
+      .where(and(
+        eq(s.debtOffsets.id, id),
+        eq(s.debtOffsets.approvalStatus, 'APPROVED'),
+      ))
+      .returning();
+
+    if (!claimed) {
+      throw new ApiError(409, 'Bản ghi đã bị hủy bởi người khác. Vui lòng tải lại.');
+    }
 
     // Reversing entries — mirror of approveDebtOffset.
     // DEBIT on customer: restores AR (CUSTOMER balance += debit − credit).
@@ -244,15 +252,7 @@ export async function cancelDebtOffset(
       note: `Hoàn tác đối trừ công nợ #${id}`,
     });
 
-    // Flip status to CANCELED. approvedBy / approvedAt left intact so the
-    // audit trail still shows who approved originally.
-    const [updated] = await tx
-      .update(s.debtOffsets)
-      .set({ approvalStatus: 'CANCELED' })
-      .where(eq(s.debtOffsets.id, id))
-      .returning();
-
-    return updated;
+    return claimed;
   });
 }
 

@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatCurrency, formatDate } from '../lib/format';
 import { TxnType } from '@tingting/shared';
-import type { LedgerEntry } from '@tingting/shared';
+import type { LedgerEntry, PaymentReceiptResponse, PaymentReceiptResult } from '@tingting/shared';
 import { AlertTriangle, Download, Phone, Building2, ArrowLeft, Plus, X, Loader2, Save, Truck } from 'lucide-react';
 import { useCustomerStatement, useSupplierStatement } from '../hooks/useQueries';
 import { api } from '../lib/api';
@@ -33,6 +33,25 @@ const AGING_RANGES = [
   { label: '61–90 NGÀY', dotColor: '#D97706',        index: 2 },
   { label: 'TRÊN 90 NGÀY', dotColor: 'var(--danger)', index: 3 },
 ] as const;
+
+function nextPaymentRequestKey(): string {
+  return globalThis.crypto?.randomUUID?.()
+    ?? `payment-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function paymentResultMessage(result: PaymentReceiptResult, replayed: boolean): string {
+  const allocated = formatCurrency(result.allocatedTotal);
+  const unapplied = formatCurrency(result.unappliedAmount);
+  const targetCount = result.allocations.length;
+  if (result.unappliedAmount > 0) {
+    return replayed
+      ? `Phiếu thu ${result.receiptId} đã được ghi nhận trước đó: phân bổ ${allocated} vào ${targetCount} khoản nợ, còn ${unapplied} chưa phân bổ.`
+      : `Đã ghi nhận phiếu thu ${result.receiptId}: phân bổ ${allocated} vào ${targetCount} khoản nợ, còn ${unapplied} chưa phân bổ.`;
+  }
+  return replayed
+    ? `Phiếu thu ${result.receiptId} đã được ghi nhận trước đó và phân bổ ${allocated} vào ${targetCount} khoản nợ.`
+    : `Đã ghi nhận phiếu thu ${result.receiptId} và phân bổ ${allocated} vào ${targetCount} khoản nợ.`;
+}
 
 export function DualEntityLookupError({ onRetry }: { onRetry: () => void }) {
   return (
@@ -113,6 +132,7 @@ export default function DebtDetailPage() {
   const [payReceipt, setPayReceipt] = useState('');
   const [paySubmitting, setPaySubmitting] = useState(false);
   const [payError, setPayError] = useState('');
+  const [payRequestKey, setPayRequestKey] = useState(() => nextPaymentRequestKey());
   const queryClient = useQueryClient();
   const { toast: showToast } = useToast();
 
@@ -263,14 +283,11 @@ export default function DebtDetailPage() {
     { key: 'debit-note', label: 'Giấy báo nợ', meta: 'Nhắc nợ theo mẫu' },
   ];
 
-  // FIFO-distribute the entered amount across the oldest unpaid trips,
-  // then POST. The backend also re-applies FIFO inside the transaction
-  // for safety; this just gives the user a clear preview of how their
-  // payment will land.
   const openPaymentModal = () => {
     setPayAmount('');
     setPayReceipt('');
     setPayError('');
+    setPayRequestKey(nextPaymentRequestKey());
     setShowPay(true);
   };
 
@@ -285,33 +302,21 @@ export default function DebtDetailPage() {
       setPayError('Mã biên lai là bắt buộc.');
       return;
     }
-    if (unpaidTrips.length === 0) {
-      setPayError('Khách hàng không có công nợ để thanh toán.');
-      return;
-    }
-    // Cap at total outstanding so we don't overpay.
-    const capped = Math.min(amount, totalOutstanding);
-    let remaining = capped;
-    const payments: Array<{ tripId: number; amount: number }> = [];
-    for (const t of unpaidTrips) {
-      if (remaining <= 0) break;
-      const apply = Math.min(t.outstanding, remaining);
-      payments.push({ tripId: t.tripId, amount: apply });
-      remaining -= apply;
-    }
     setPaySubmitting(true);
     try {
-      await api.post('/payments/receive', {
+      const response = await api.post<PaymentReceiptResponse>('/payments/receive', {
         customerId: Number(id),
         receiptId: payReceipt.trim(),
-        payments,
+        amount,
+      }, {
+        headers: { 'Idempotency-Key': payRequestKey },
       });
-      // Onboarding product event: a real receivable payment was recorded. The
-      // ACCOUNTANT checklist's "record first receipt" item waits on this.
-      onboardingEvents.emit('receivable.payment_recorded', {
-        customerId: Number(id),
-        amountVnd: capped,
-      });
+      if (!response.replayed) {
+        onboardingEvents.emit('receivable.payment_recorded', {
+          customerId: Number(id),
+          amountVnd: response.result.receivedAmount,
+        });
+      }
       // Broad prefix — invalidates every customer-statement query regardless
       // of period range, so the AR detail page's month/range-scoped statement
       // refetches alongside any other cached variant.
@@ -323,6 +328,10 @@ export default function DebtDetailPage() {
       await queryClient.invalidateQueries({ queryKey: qk.financial.customerAgingAll });
       await queryClient.invalidateQueries({ queryKey: qk.dashboard.receivablesSummary });
       await refetch();
+      showToast({
+        kind: response.replayed ? 'info' : 'success',
+        message: paymentResultMessage(response.result, response.replayed),
+      });
       setShowPay(false);
     } catch (e: unknown) {
       setPayError((e as Error)?.message || 'Lỗi khi ghi nhận thanh toán.');
@@ -726,12 +735,15 @@ export default function DebtDetailPage() {
               className="input"
               type="number"
               value={payAmount}
-              onChange={e => setPayAmount(e.target.value)}
+              onChange={e => {
+                setPayAmount(e.target.value);
+                setPayRequestKey(nextPaymentRequestKey());
+              }}
               placeholder="VD: 5000000"
               autoFocus
             />
             <p style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--fg-3)', marginTop: 4 }}>
-              Sẽ phân bổ FIFO vào {unpaidTrips.length} chuyến chưa thu, bắt đầu từ chuyến cũ nhất.
+              Hệ thống sẽ tự phân bổ theo khoản đến hạn cũ nhất; phần vượt số dư hiện tại sẽ giữ ở trạng thái chưa phân bổ.
             </p>
           </div>
           <div className="field">
@@ -742,11 +754,14 @@ export default function DebtDetailPage() {
               id="pay-receipt"
               className="input"
               value={payReceipt}
-              onChange={e => setPayReceipt(e.target.value)}
+              onChange={e => {
+                setPayReceipt(e.target.value);
+                setPayRequestKey(nextPaymentRequestKey());
+              }}
               placeholder="VD: PT-20260601-01"
             />
             <p style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--fg-3)', marginTop: 4 }}>
-              Bắt buộc để đối chiếu với sao kê ngân hàng / sổ quỹ.
+              Bắt buộc để đối chiếu với sao kê ngân hàng / sổ quỹ. Giữ nguyên mã và nội dung nếu bạn chỉ đang gửi lại cùng một phiếu thu.
             </p>
           </div>
         </div>

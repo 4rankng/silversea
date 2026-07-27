@@ -1,22 +1,29 @@
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { FuelMode, TripStatus, Role, TxnType } from '@tingting/shared';
 import { db, client } from '../db';
 import * as s from '../db/schema';
 import { transitionTripStatus } from '../services/trip-status-machine.service';
 import { updateTripFigures } from '../services/trip-mutations.service';
+import { requestTripReopen } from '../services/adjustment-governance.service';
+import { LedgerService } from '../services/ledger.service';
 
 const createdTripIds: number[] = [];
 const createdCustomerIds: number[] = [];
 const createdSupplierIds: number[] = [];
 const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
+const createdUserIds: number[] = [];
 
 after(async () => {
   if (createdTripIds.length > 0) {
+    await db.delete(s.governanceActions).where(inArray(s.governanceActions.subjectId, createdTripIds));
     await db.delete(s.ledger).where(inArray(s.ledger.txnId, createdTripIds));
     await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
+  }
+  if (createdUserIds.length > 0) {
+    await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
   }
   if (createdSupplierIds.length > 0) {
     await db.delete(s.suppliers).where(inArray(s.suppliers.id, createdSupplierIds));
@@ -107,17 +114,41 @@ describe('trip completion ledger posting', () => {
     assert.equal(rows.filter(r => r.txnType === TxnType.UNLOCK_REVERSAL).length, 0);
   });
 
-  test('unlocking a locked trip keeps completed-trip ledger entries intact', async () => {
+  test('a posted locked trip cannot be reopened and its ledger stays intact', async () => {
     const { trip } = await createInTransitTrip();
+    const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const actors = await db.insert(s.users).values([
+      { username: `unlock-maker-${suffix}`, passwordHash: 'x', role: Role.MANAGER },
+      { username: `unlock-checker-${suffix}`, passwordHash: 'x', role: Role.MANAGER },
+      { username: `unlock-approver-${suffix}`, passwordHash: 'x', role: Role.ADMIN },
+    ]).returning({ id: s.users.id });
+    createdUserIds.push(...actors.map((actor) => actor.id));
 
     await transitionTripStatus(trip.id, TripStatus.COMPLETED, 1, Role.MANAGER);
     await transitionTripStatus(trip.id, TripStatus.LOCKED, 1, Role.MANAGER, false, true);
-    await transitionTripStatus(trip.id, TripStatus.COMPLETED, 1, Role.MANAGER);
+    await assert.rejects(
+      transitionTripStatus(trip.id, TripStatus.COMPLETED, actors[0]!.id, Role.MANAGER),
+      /chỉ được mở lại bằng yêu cầu/,
+    );
+    const [locked] = await db.select({ version: s.trips.version })
+      .from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+    await assert.rejects(
+      requestTripReopen({
+        tripId: trip.id,
+        reason: 'Sửa chứng từ trước phát hành',
+        makerId: actors[0]!.id,
+        makerRole: Role.MANAGER,
+        expectedTripVersion: locked.version,
+      }),
+      /đã hạch toán/,
+    );
 
     const rows = await ledgerRowsForTrip(trip.id);
     assert.equal(rows.filter(r => r.txnType === TxnType.TRIP_REVENUE).length, 1);
     assert.equal(rows.filter(r => r.txnType === TxnType.FUEL_EXPENSE).length, 1);
     assert.equal(rows.filter(r => r.txnType === TxnType.UNLOCK_REVERSAL).length, 0);
+    const [unchanged] = await db.select().from(s.trips).where(eq(s.trips.id, trip.id));
+    assert.equal(unchanged.status, TripStatus.LOCKED);
   });
 
   test('canceling a completed trip reverses its completed-trip ledger entries', async () => {
@@ -151,6 +182,165 @@ describe('trip completion ledger posting', () => {
       .orderBy(s.ledger.id);
     assert.equal(latestCustomerRows.at(-1)?.balance, '0');
     assert.equal(latestSupplierRows.at(-1)?.balance, '0');
+  });
+
+  test('concurrent cancels on a completed trip produce one winner and one 409 without duplicate reversals', async () => {
+    const { trip, customer, supplier } = await createInTransitTrip({
+      revenue: 700_000,
+      totalFuelCost: 200_000,
+    });
+    await transitionTripStatus(trip.id, TripStatus.COMPLETED, 1, Role.MANAGER);
+
+    let releaseTripRow!: () => void;
+    let markTripRowLocked!: () => void;
+    const tripRowLocked = new Promise<void>((resolve) => {
+      markTripRowLocked = resolve;
+    });
+    const releaseRow = new Promise<void>((resolve) => {
+      releaseTripRow = resolve;
+    });
+    const blocker = db.transaction(async (tx) => {
+      await tx.select({ id: s.trips.id }).from(s.trips)
+        .where(eq(s.trips.id, trip.id))
+        .for('update');
+      markTripRowLocked();
+      await releaseRow;
+    });
+    await tripRowLocked;
+
+    let raceSettled = false;
+    const race = Promise.allSettled([
+      transitionTripStatus(trip.id, TripStatus.CANCELED, 1, Role.MANAGER),
+      transitionTripStatus(trip.id, TripStatus.CANCELED, 1, Role.MANAGER),
+    ]).finally(() => {
+      raceSettled = true;
+    });
+    await new Promise(resolve => setTimeout(resolve, 30));
+    assert.equal(
+      raceSettled,
+      false,
+      'both cancels must be waiting on the controlling trip row after reading COMPLETED',
+    );
+
+    releaseTripRow();
+    await blocker;
+    const results = await race;
+    const fulfilled = results.filter(result => result.status === 'fulfilled');
+    const rejected = results.filter(result => result.status === 'rejected') as PromiseRejectedResult[];
+
+    assert.equal(fulfilled.length, 1, `expected exactly 1 cancel winner, got ${fulfilled.length}`);
+    assert.equal(rejected.length, 1, `expected exactly 1 cancel loser, got ${rejected.length}`);
+    assert.equal((rejected[0].reason as Error & { statusCode?: number }).statusCode, 409);
+
+    const rows = await ledgerRowsForTrip(trip.id);
+    assert.equal(rows.filter(r => r.txnType === TxnType.TRIP_REVENUE).length, 1);
+    assert.equal(rows.filter(r => r.txnType === TxnType.FUEL_EXPENSE).length, 1);
+    assert.equal(rows.filter(r => r.txnType === TxnType.UNLOCK_REVERSAL).length, 2);
+
+    const customerRows = await db.select({ balance: s.ledger.balance }).from(s.ledger)
+      .where(and(eq(s.ledger.entityType, 'CUSTOMER'), eq(s.ledger.entityId, customer.id)))
+      .orderBy(s.ledger.id);
+    const supplierRows = await db.select({ balance: s.ledger.balance }).from(s.ledger)
+      .where(and(eq(s.ledger.entityType, 'VENDOR'), eq(s.ledger.entityId, supplier.id)))
+      .orderBy(s.ledger.id);
+    assert.equal(customerRows.at(-1)?.balance, '0');
+    assert.equal(supplierRows.at(-1)?.balance, '0');
+  });
+
+  test('cancel wins against an already-started stale completed-trip edit without financial resurrection', async () => {
+    const { trip, customer, supplier } = await createInTransitTrip({
+      revenue: 700_000,
+      totalFuelCost: 200_000,
+    });
+    const completed = await transitionTripStatus(
+      trip.id,
+      TripStatus.COMPLETED,
+      1,
+      Role.MANAGER,
+    );
+
+    let releaseCustomerLock!: () => void;
+    let markCustomerLocked!: () => void;
+    const customerLocked = new Promise<void>((resolve) => {
+      markCustomerLocked = resolve;
+    });
+    const releaseLock = new Promise<void>((resolve) => {
+      releaseCustomerLock = resolve;
+    });
+    const blocker = db.transaction(async (tx) => {
+      await LedgerService.lockEntity(tx, 'CUSTOMER', customer.id);
+      markCustomerLocked();
+      await releaseLock;
+    });
+    await customerLocked;
+
+    const cancel = transitionTripStatus(
+      trip.id,
+      TripStatus.CANCELED,
+      1,
+      Role.MANAGER,
+    );
+
+    // Wait until cancellation owns the controlling trip row and is blocked on
+    // the customer ledger lock above. NOWAIT avoids timing-only ordering.
+    let cancelOwnsTripRow = false;
+    for (let attempt = 0; attempt < 50 && !cancelOwnsTripRow; attempt += 1) {
+      try {
+        await db.execute(sql`SELECT id FROM trips WHERE id = ${trip.id} FOR UPDATE NOWAIT`);
+      } catch (err) {
+        const candidate = err as { code?: string; cause?: { code?: string } };
+        cancelOwnsTripRow = candidate.code === '55P03' || candidate.cause?.code === '55P03';
+        if (!cancelOwnsTripRow) throw err;
+      }
+      if (!cancelOwnsTripRow) {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+    }
+    assert.equal(cancelOwnsTripRow, true, 'cancel must own the trip row before the stale edit starts');
+
+    const staleEdit = updateTripFigures(trip.id, {
+      legs: [],
+      fuelMode: FuelMode.AUTO,
+      fuelSupplementLiters: 0,
+      tollsDiscount: 0,
+      tollsAddition: 0,
+      tollsStations: 0,
+      hasReturnCargo: false,
+      revenue: 9_000_000,
+      expectedVersion: completed.version,
+      userId: 1,
+      userRole: Role.MANAGER,
+    });
+
+    releaseCustomerLock();
+    await blocker;
+
+    const [cancelResult, editResult] = await Promise.allSettled([cancel, staleEdit]);
+    assert.equal(cancelResult.status, 'fulfilled');
+    assert.equal(editResult.status, 'rejected');
+
+    const [persisted] = await db.select().from(s.trips)
+      .where(eq(s.trips.id, trip.id))
+      .limit(1);
+    assert.equal(persisted.status, TripStatus.CANCELED);
+    assert.equal(persisted.version, completed.version + 1);
+    assert.equal(persisted.revenue, '0');
+    assert.equal(persisted.totalFuelCost, '0');
+    assert.equal(persisted.totalCost, '0');
+
+    const rows = await ledgerRowsForTrip(trip.id);
+    assert.equal(rows.filter(r => r.txnType === TxnType.TRIP_REVENUE).length, 1);
+    assert.equal(rows.filter(r => r.txnType === TxnType.FUEL_EXPENSE).length, 1);
+    assert.equal(rows.filter(r => r.txnType === TxnType.UNLOCK_REVERSAL).length, 2);
+
+    const customerRows = await db.select({ balance: s.ledger.balance }).from(s.ledger)
+      .where(and(eq(s.ledger.entityType, 'CUSTOMER'), eq(s.ledger.entityId, customer.id)))
+      .orderBy(s.ledger.id);
+    const supplierRows = await db.select({ balance: s.ledger.balance }).from(s.ledger)
+      .where(and(eq(s.ledger.entityType, 'VENDOR'), eq(s.ledger.entityId, supplier.id)))
+      .orderBy(s.ledger.id);
+    assert.equal(customerRows.at(-1)?.balance, '0');
+    assert.equal(supplierRows.at(-1)?.balance, '0');
   });
 
   test('editing completed trip figures reverses and reposts ledger entries', async () => {

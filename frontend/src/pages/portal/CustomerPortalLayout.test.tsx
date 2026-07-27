@@ -1,21 +1,43 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { Role } from '@tingting/shared';
 
-const { useAuthMock } = vi.hoisted(() => ({
+const { useAuthMock, apiGet } = vi.hoisted(() => ({
   useAuthMock: vi.fn(),
+  apiGet: vi.fn(),
 }));
 
 vi.mock('../../hooks/useAuth', () => ({
   useAuth: useAuthMock,
 }));
 
+vi.mock('../../lib/api', () => ({
+  api: { get: apiGet },
+}));
+
 import CustomerPortalLayout from './CustomerPortalLayout';
+import { useCustomerPortalScope } from './CustomerPortalScope';
+
+function ScopeProbe() {
+  const { selectedCustomerId } = useCustomerPortalScope();
+  const location = useLocation();
+  return (
+    <>
+      <div>Selected customer: {selectedCustomerId ?? 'none'}</div>
+      <div>Portal query: {location.search || 'none'}</div>
+    </>
+  );
+}
 
 describe('CustomerPortalLayout', () => {
   beforeEach(() => {
     useAuthMock.mockReset();
+    apiGet.mockReset();
+    apiGet.mockResolvedValue({
+      primaryCustomerId: 7,
+      customers: [{ id: 7, name: 'SilverSea Miền Nam' }],
+    });
     useAuthMock.mockReturnValue({
       user: {
         userId: 7,
@@ -98,5 +120,55 @@ describe('CustomerPortalLayout', () => {
     expect(screen.queryByText('portal-user@example.com')).toBeNull();
     expect(trigger.getAttribute('aria-expanded')).toBe('false');
     await waitFor(() => expect(document.activeElement).toBe(trigger));
+  });
+
+  it('shows linked legal entities and changes the active portal scope', async () => {
+    apiGet.mockResolvedValue({
+      primaryCustomerId: 7,
+      customers: [
+        { id: 7, name: 'SilverSea Miền Nam' },
+        { id: 9, name: 'SilverSea Miền Bắc' },
+      ],
+    });
+
+    render(
+      <MemoryRouter>
+        <CustomerPortalLayout>
+          <ScopeProbe />
+        </CustomerPortalLayout>
+      </MemoryRouter>,
+    );
+
+    const selector = await screen.findByRole('combobox', { name: 'Pháp nhân đang xem' });
+    expect((selector as HTMLSelectElement).value).toBe('7');
+    expect(screen.getByText('Selected customer: 7')).toBeTruthy();
+
+    fireEvent.change(selector, { target: { value: '9' } });
+
+    expect(screen.getByText('Selected customer: 9')).toBeTruthy();
+    expect(screen.getByText('Portal query: ?customerId=9')).toBeTruthy();
+    expect(screen.getByText('Dữ liệu được tách riêng theo từng pháp nhân.')).toBeTruthy();
+  });
+
+  it('restores an allowed legal entity from a shared deep link', async () => {
+    apiGet.mockResolvedValue({
+      primaryCustomerId: 7,
+      customers: [
+        { id: 7, name: 'SilverSea Miền Nam' },
+        { id: 9, name: 'SilverSea Miền Bắc' },
+      ],
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/portal/shipments?customerId=9']}>
+        <CustomerPortalLayout>
+          <ScopeProbe />
+        </CustomerPortalLayout>
+      </MemoryRouter>,
+    );
+
+    const selector = await screen.findByRole('combobox', { name: 'Pháp nhân đang xem' });
+    expect((selector as HTMLSelectElement).value).toBe('9');
+    expect(screen.getByText('Selected customer: 9')).toBeTruthy();
   });
 });

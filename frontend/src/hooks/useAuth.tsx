@@ -14,6 +14,14 @@ export interface AuthUser {
   phone: string | null;
   role: Role;
   fullName?: string;
+  /** Legacy primary customer pointer retained for single-entity compatibility. */
+  customerId?: number | null;
+  /** Full legal-entity scope for CUSTOMER accounts. */
+  customerIds?: number[];
+  /** Clerk scope: assigned responsible units. */
+  businessUnitIds?: number[];
+  /** Clerk scope: explicit shipment assignments. */
+  shipmentIds?: number[];
   capabilities?: string[];
   /** Assistant (bot) enabled for this deployment (BOT_ENABLE). Launcher hides when false. */
   botEnabled?: boolean;

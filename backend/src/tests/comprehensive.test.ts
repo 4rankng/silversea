@@ -222,7 +222,7 @@ test('E2E — Auth flow (Login, Me, User List, Create, Delete)', async () => {
 test('E2E — Duplicate username yields 409 (not 500) with field message', async () => {
   const dupUsername = `dup_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const baseBody = {
-    username: dupUsername, password: 'password123', role: Role.CUSTOMER,
+    username: dupUsername, password: 'password123', role: Role.ACCOUNTANT,
     fullName: 'Dup Test', email: `${dupUsername}@nepo.vn`,
   };
   const first = await testFetch('/api/auth/users', {
@@ -496,11 +496,33 @@ test('E2E — Financial operations (P&L, profit sharing, ledger, statements, rec
   );
 
   // 4. Ledger adjustments endpoint
+  const [adjustmentTrip] = await db.select({ version: s.trips.version })
+    .from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+  const missingAdjustmentVersionRes = await testFetch('/api/adjustments', {
+    method: 'POST',
+    token: adminToken,
+    body: JSON.stringify({
+      tripId,
+      amount: -100000,
+      note: 'Thiếu phiên bản nguồn',
+      signedAgreementRef: 'AGR-2026-MISSING-VERSION',
+    }),
+  });
+  assert.strictEqual(missingAdjustmentVersionRes.status, 400);
+
+  const missingReopenVersionRes = await testFetch(`/api/trips/${tripId}/unlock`, {
+    method: 'POST',
+    token: adminToken,
+    body: JSON.stringify({ reason: 'Thiếu phiên bản nguồn' }),
+  });
+  assert.strictEqual(missingReopenVersionRes.status, 400);
+
   const adjustRes = await testFetch('/api/adjustments', {
     method: 'POST',
     token: adminToken,
     body: JSON.stringify({
       tripId: tripId,
+      expectedVersion: adjustmentTrip.version,
       amount: -100000, // Negative for adjustment credit note
       note: 'Điều chỉnh chiết khấu cuối tháng',
       signedAgreementRef: 'AGR-2026-001'

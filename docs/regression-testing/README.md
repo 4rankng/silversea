@@ -7,11 +7,11 @@
 > **Nguồn chân lý.** Mọi ca kiểm thử trong thư mục này được dẫn xuất từ:
 >
 > - `docs/prd/Module1.docx` … `docs/prd/Module12.docx` — 12 phân hệ nghiệp vụ (8–7 nhóm chức năng mỗi phân hệ)
-> - `docs/prd/business-logic-qa-proposals.md` — 23 câu hỏi logic nghiệp vụ (Q01–Q23) đang chờ SilverSea ký
+> - `docs/prd/business-logic-qa-proposals.md` — 23 quy tắc logic nghiệp vụ (Q01–Q23), SilverSea đã chấp thuận toàn bộ đề xuất TingTing ngày 27/07/2026
 >
-> **Lưu ý về trạng thái PRD.** Các tài liệu PRD ghi rõ "đề xuất của TingTing", **chưa thành yêu cầu chính
-> thức cho đến khi SilverSea xác nhận**. Ca kiểm thử nào phụ thuộc vào một Q chưa chốt sẽ ghi rõ trong cột
-> *Phụ thuộc*. Khi một Q chuyển sang `accepted`/`modified`, cập nhật ca kiểm thử tương ứng.
+> **Trạng thái PRD.** SilverSea đã chấp thuận Q01–Q23 theo toàn bộ đề xuất
+> TingTing ngày 27/07/2026. Các ca phụ thuộc Q không còn bị chặn về thẩm quyền,
+> nhưng chỉ được đánh dấu Pass khi hành vi đã được triển khai và có bằng chứng.
 
 ---
 

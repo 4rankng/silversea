@@ -10,89 +10,26 @@ import { eq, and, inArray, sql, desc, isNull } from 'drizzle-orm';
 import { TxnType } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
 import { ApiError } from '../errors';
+import { requestTripArAdjustment } from './adjustment-governance.service';
+import {
+  recordPaymentReceipt,
+  recordPaymentReceiptIdempotent,
+  type PaymentReceiptInput,
+} from './payment-allocation.service';
 
 // ─── Payment recording ─────────────────────────────────────────────────────────
 
-export interface PaymentInput {
-  customerId: number;
-  receiptId: string;
-  payments: Array<{ tripId: number; amount: number }>;
-}
+export type PaymentInput = PaymentReceiptInput;
 
 /**
  * Record a customer payment against one or more trips.
  * Resolves trip codes for human-readable ledger notes.
  */
 export async function recordPayment(input: PaymentInput) {
-  return db.transaction(async (tx) => {
-    const tripIds = Array.from(new Set(input.payments.map(p => p.tripId)));
-    const tripRows = tripIds.length > 0
-      ? await tx.select({ id: s.trips.id, tripCode: s.trips.tripCode }).from(s.trips)
-          .where(sql`${s.trips.id} IN (${sql.join(tripIds.map(id => sql`${id}`), sql`, `)})`)
-      : [];
-    const codeById = new Map(tripRows.map(t => [t.id, t.tripCode || '']));
-
-    // Advisory lock — serialize concurrent payments for the same customer
-    await LedgerService.lockEntity(tx, 'CUSTOMER', input.customerId);
-
-    // Per-trip overpayment guard (Flow 04 §5.3 TC-CN-024)
-    for (const payment of input.payments) {
-      const tripLabel = codeById.get(payment.tripId) || '';
-      // Sum existing TRIP_REVENUE debits − PAYMENT_RECEIVED credits for this trip
-      const [{ revenue } = { revenue: '0' }] = await tx.select({
-        revenue: sql<string>`coalesce(sum(case when ${s.ledger.txnType} = 'TRIP_REVENUE' then ${s.ledger.debit} else 0 end), 0)`,
-      }).from(s.ledger)
-        .where(and(
-          eq(s.ledger.entityType, 'CUSTOMER'),
-          eq(s.ledger.entityId, input.customerId),
-          eq(s.ledger.txnId, payment.tripId),
-        ));
-      const [{ paid } = { paid: '0' }] = await tx.select({
-        paid: sql<string>`coalesce(sum(case when ${s.ledger.txnType} = 'PAYMENT_RECEIVED' then ${s.ledger.credit} else 0 end), 0)`,
-      }).from(s.ledger)
-        .where(and(
-          eq(s.ledger.entityType, 'CUSTOMER'),
-          eq(s.ledger.entityId, input.customerId),
-          eq(s.ledger.txnId, payment.tripId),
-        ));
-      const remaining = Number(revenue) - Number(paid);
-      // M3.6 §2: overpayment handling — don't drive AR negative silently.
-      // Instead of rejecting (old 422 behavior), clamp the applied amount to
-      // the remaining balance and post the overpayment as a separate CREDIT
-      // on the customer's AR with a clear note. The customer's balance never
-      // goes negative; the excess stays as a credit for future invoices.
-      const appliedAmount = Math.min(payment.amount, Math.max(0, remaining));
-      const overpayment = Math.max(0, payment.amount - Math.max(0, remaining));
-
-      await LedgerService.postEntry(tx, {
-        txnType: TxnType.PAYMENT_RECEIVED,
-        txnId: payment.tripId,
-        receiptId: input.receiptId,
-        entityType: 'CUSTOMER',
-        entityId: input.customerId,
-        debit: 0,
-        credit: appliedAmount,
-        note: tripLabel ? `Thanh toán chuyến ${tripLabel}` : 'Thanh toán chuyến',
-      });
-
-      // Post the overpayment as a customer-level credit (not tied to a specific
-      // trip) so it's available for future invoices.
-      if (overpayment > 0) {
-        await LedgerService.postEntry(tx, {
-          txnType: TxnType.PAYMENT_RECEIVED,
-          txnId: 0, // customer-level credit, not trip-specific
-          receiptId: input.receiptId,
-          entityType: 'CUSTOMER',
-          entityId: input.customerId,
-          debit: 0,
-          credit: overpayment,
-          note: `Thanh toán thừa — giữ làm công nợ có (overpayment)`,
-        });
-        console.log(`[payment] overpayment ${overpayment.toLocaleString('vi-VN')} ₫ posted as customer credit (customerId=${input.customerId}, tripId=${payment.tripId})`);
-      }
-    }
-  });
+  return recordPaymentReceipt(input);
 }
+
+export { recordPaymentReceiptIdempotent };
 
 // ─── Driver payout (B1 — feedback202606 GAP 4) ───────────────────────────────
 
@@ -155,27 +92,24 @@ export interface AdjustmentInput {
   amount: number;
   note: string;
   signedAgreementRef: string;
+  makerId: number;
+  makerRole: string;
+  expectedTripVersion: number;
 }
 
 /**
- * Create a financial adjustment (điều chỉnh) for a trip.
- * Positive amount = debit (increase customer balance), negative = credit.
+ * Submit a financial adjustment (điều chỉnh) for independent checking and
+ * approval. No ledger effect is posted until the governance action is approved.
  */
 export async function createAdjustment(input: AdjustmentInput) {
-  const [trip] = await db.select().from(s.trips).where(eq(s.trips.id, input.tripId)).limit(1);
-  if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
-
-  const isDebit = input.amount > 0;
-  await db.transaction(async (tx) => {
-    await LedgerService.postEntry(tx, {
-      txnType: TxnType.ADJUSTMENT,
-      txnId: input.tripId,
-      entityType: 'CUSTOMER',
-      entityId: trip.customerId,
-      debit: isDebit ? input.amount : 0,
-      credit: isDebit ? 0 : Math.abs(input.amount),
-      note: `${input.note} (HĐ: ${input.signedAgreementRef})`,
-    });
+  return requestTripArAdjustment({
+    tripId: input.tripId,
+    amount: input.amount,
+    reason: input.note,
+    signedAgreementRef: input.signedAgreementRef,
+    makerId: input.makerId,
+    makerRole: input.makerRole,
+    expectedTripVersion: input.expectedTripVersion,
   });
 }
 
@@ -268,17 +202,26 @@ export async function getPenalties(driverId?: number) {
  * Cancel (void) a penalty — reverses the driver ledger entry.
  */
 export async function cancelPenalty(penaltyId: number, reason?: string) {
-  const [penalty] = await db.select().from(s.penalties)
-    .where(eq(s.penalties.id, penaltyId)).limit(1);
-  if (!penalty) throw new ApiError(404, 'Không tìm thấy kỷ luật');
-  if (penalty.status === 'CANCELED') throw new ApiError(400, 'Kỷ luật đã được hủy trước đó');
-
   return db.transaction(async (tx) => {
+    const [penalty] = await tx.select().from(s.penalties)
+      .where(eq(s.penalties.id, penaltyId))
+      .limit(1)
+      .for('update');
+    if (!penalty) throw new ApiError(404, 'Không tìm thấy kỷ luật');
+    if (penalty.status === 'CANCELED') throw new ApiError(409, 'Kỷ luật đã được hủy trước đó');
+
+    // Lock order: controlling penalty row first, then shared driver ledger lock.
+    // That matches the Q23 first-winner pattern and avoids duplicate reversals.
     await LedgerService.lockEntity(tx, 'DRIVER', penalty.driverId);
 
-    await tx.update(s.penalties)
+    const [claimed] = await tx.update(s.penalties)
       .set({ status: 'CANCELED', updatedAt: new Date() })
-      .where(eq(s.penalties.id, penaltyId));
+      .where(and(
+        eq(s.penalties.id, penaltyId),
+        eq(s.penalties.status, 'ACTIVE'),
+      ))
+      .returning();
+    if (!claimed) throw new ApiError(409, 'Kỷ luật đã bị hủy bởi người khác. Vui lòng tải lại.');
 
     await LedgerService.postEntry(tx, {
       txnType: TxnType.ADJUSTMENT,
@@ -290,9 +233,7 @@ export async function cancelPenalty(penaltyId: number, reason?: string) {
       note: reason || `Hủy kỷ luật #${penalty.id}`,
     });
 
-    const [updated] = await tx.select().from(s.penalties)
-      .where(eq(s.penalties.id, penaltyId)).limit(1);
-    return updated;
+    return claimed;
   });
 }
 

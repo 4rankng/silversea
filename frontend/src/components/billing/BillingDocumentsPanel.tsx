@@ -24,6 +24,12 @@ interface Props {
   onBuilderClose?: () => void;
 }
 
+function formatDueDate(value: string | null | undefined) {
+  if (!value) return 'Chưa có dữ liệu lịch sử';
+  const [year, month, day] = value.split('-');
+  return `${day}/${month}/${year}`;
+}
+
 export default function BillingDocumentsPanel({
   type,
   entityType,
@@ -146,6 +152,11 @@ export default function BillingDocumentsPanel({
                   <strong className="mono">
                     {formatCurrency(doc.totalInclVat).replace(' ₫', '')}đ
                   </strong>
+                  {doc.type === 'DEBIT_NOTE' && (
+                    <span>
+                      Hạn HĐ {formatDueDate(doc.originalDueDate)} · Xử lý {formatDueDate(doc.processingDueDate)}
+                    </span>
+                  )}
                 </div>
                 <div className="billing-panel__actions">
                   <button className="btn-icon" title="Sửa" aria-label="Sửa" onClick={() => openEdit(doc)} style={iconBtn}>

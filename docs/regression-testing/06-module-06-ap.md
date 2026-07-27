@@ -232,7 +232,7 @@ Thanh toán trước hóa đơn hoặc trả thừa phải được ghi thành *
 - **Các bước:**
   1. DevTools "Slow 3G". Ghi nhận thanh toán chứng từ UNC-901 → bấm Lưu 2 lần liên tiếp → kiểm tra chỉ có 1 dòng chi.
   2. Thử ghi nhận lại **cùng chứng từ UNC-901** cho hóa đơn khác → hệ thống chặn trùng chứng từ chi.
-  3. Hóa đơn đến hạn đúng ngày nghỉ (Chủ nhật 03/08) → kiểm tra hiển thị ngày gốc 03/08 + ngày điều chỉnh 04/08 (Thứ 2).
+  3. Hóa đơn đến hạn đúng ngày nghỉ (Chủ nhật 02/08/2026) → kiểm tra hiển thị ngày gốc 02/08 + ngày điều chỉnh 03/08/2026 (Thứ 2).
   4. 1 khoản chi UNC-902 = 8.000.000đ trả cho 2 hóa đơn HD-A (3tr) + HD-B (5tr) → phân bổ đúng từng hóa đơn.
 - **Kết quả mong đợi (Pass):**
   - Không tạo chứng từ chi trùng khi gửi 2 lần hoặc dùng lại số chứng từ.

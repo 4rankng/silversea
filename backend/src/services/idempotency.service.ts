@@ -18,12 +18,13 @@
 import { createHash } from 'node:crypto';
 import { db } from '../db';
 import * as s from '../db/schema';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 
 /** Tag identifying the logical endpoint (e.g. 'shipments.quick-create'). */
 export const IDEMPOTENCY_ENDPOINTS = {
   SHIPMENT_QUICK_CREATE: 'shipments.quick-create',
+  PAYMENTS_RECEIVE: 'payments.receive',
   DRIVER_PROGRESS: 'driver.progress',
   DRIVER_INCIDENTAL_COST: 'driver.incidental-cost',
 } as const;
@@ -89,11 +90,10 @@ export async function findIdempotencyRecord(
  * events. The idempotency row is inserted after `create` succeeds so a
  * failure of `create` leaves no orphan key.
  *
- * Race window: two concurrent first-calls with the same key can both pass
- * the `findIdempotencyRecord` lookup and both call `create`. The
- * `uniqueIndex(endpoint, idempotencyKey)` then rejects the second insert;
- * we catch that and behave as a replay (load + return the stored entity).
- * The loser of the race therefore creates zero duplicate shipments.
+ * Concurrent first calls are serialized with a transaction-scoped PostgreSQL
+ * advisory lock derived from `(endpoint, idempotencyKey)`. The second caller
+ * waits, then sees the committed key and replays the original entity without
+ * entering `create`. The unique index remains a database-level safety net.
  */
 export async function runIdempotent<T>(args: {
   endpoint: string;
@@ -113,34 +113,43 @@ export async function runIdempotent<T>(args: {
   }
 
   const payloadHash = hashPayload(payload);
-  const existing = await findIdempotencyRecord(endpoint, idempotencyKey);
-  if (existing) {
-    if (existing.payloadHash !== payloadHash) {
-      throw new ApiError(
-        409,
-        'Khóa giao dịch trùng nhưng nội dung khác — vui lòng dùng mã giao dịch mới.',
-        `idempotency_key=${idempotencyKey}`,
-      );
-    }
-    if (!existing.entityId) {
-      // Defensive: a stored key with no entityId means a previous write
-      // finished but did not record its entity. Treat as conflict so the
-      // client retries with a fresh key rather than silently no-oping.
-      throw new ApiError(
-        409,
-        'Khóa giao dịch đã được dùng nhưng chưa ghi nhận kết quả — vui lòng dùng mã giao dịch mới.',
-        `idempotency_key=${idempotencyKey}`,
-      );
-    }
-    const result = await load(existing.entityId);
-    return { result, replayed: true };
-  }
+  const lockKey = `${endpoint}\u001f${idempotencyKey}`;
 
-  // First-call path. Run create, then persist the key. The unique index
-  // closes the concurrent-replay race (see docstring).
-  const created = await create();
-  try {
-    await db.insert(s.idempotencyKeys).values({
+  return db.transaction(async (tx) => {
+    // hashtextextended returns one stable int8 key. Transaction scope releases
+    // the lock automatically on commit/rollback, including thrown create errors.
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`,
+    );
+
+    const [existing] = await tx.select().from(s.idempotencyKeys)
+      .where(and(
+        eq(s.idempotencyKeys.endpoint, endpoint),
+        eq(s.idempotencyKeys.idempotencyKey, idempotencyKey),
+      ))
+      .limit(1);
+
+    if (existing) {
+      if (existing.payloadHash !== payloadHash) {
+        throw new ApiError(
+          409,
+          'Khóa giao dịch trùng nhưng nội dung khác — vui lòng dùng mã giao dịch mới.',
+          `idempotency_key=${idempotencyKey}`,
+        );
+      }
+      if (!existing.entityId) {
+        throw new ApiError(
+          409,
+          'Khóa giao dịch đã được dùng nhưng chưa ghi nhận kết quả — vui lòng dùng mã giao dịch mới.',
+          `idempotency_key=${idempotencyKey}`,
+        );
+      }
+      const result = await load(existing.entityId);
+      return { result, replayed: true };
+    }
+
+    const created = await create();
+    await tx.insert(s.idempotencyKeys).values({
       endpoint,
       idempotencyKey,
       entityType,
@@ -148,29 +157,6 @@ export async function runIdempotent<T>(args: {
       payloadHash,
       createdBy: createdBy ?? null,
     });
-  } catch (err) {
-    // Unique violation → a concurrent caller won the race. Behave as a
-    // replay: load whatever the winner stored and return it.
-    const concurrent = await findIdempotencyRecord(endpoint, idempotencyKey);
-    if (concurrent) {
-      if (concurrent.payloadHash !== payloadHash) {
-        throw new ApiError(
-          409,
-          'Khóa giao dịch trùng nhưng nội dung khác — vui lòng dùng mã giao dịch mới.',
-          `idempotency_key=${idempotencyKey}`,
-        );
-      }
-      if (!concurrent.entityId) {
-        throw new ApiError(
-          409,
-          'Khóa giao dịch đã được dùng nhưng chưa ghi nhận kết quả — vui lòng dùng mã giao dịch mới.',
-          `idempotency_key=${idempotencyKey}`,
-        );
-      }
-      const result = await load(concurrent.entityId);
-      return { result, replayed: true };
-    }
-    throw err;
-  }
-  return { result: created, replayed: false };
+    return { result: created, replayed: false };
+  });
 }

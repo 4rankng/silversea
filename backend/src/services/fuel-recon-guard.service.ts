@@ -16,6 +16,7 @@ import { and, asc, eq, gte, lte } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import { getFuelApReconciliation } from './fuel-ap-recon.service';
+import { assertFuelPeriodCanAbsorbLateApproval } from './period-lock.service';
 
 /** True when an expense's expenseType indicates fuel (case-insensitive 'fuel'). */
 export function isFuelExpenseType(expenseType: string): boolean {
@@ -173,6 +174,7 @@ export async function assertFuelReconClear(
   // Period = calendar month of invoiceDate (fallback createdAt).
   const period = monthRangeFromDate(expense.invoiceDate ?? String(expense.createdAt));
   if (!period) return; // undetermined period → fail open (don't block)
+  await assertFuelPeriodCanAbsorbLateApproval(q, period.from, new Date().toISOString().slice(0, 10));
 
   const report = await getFuelApReconciliation({
     from: period.from,

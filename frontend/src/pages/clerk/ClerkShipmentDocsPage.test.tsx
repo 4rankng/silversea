@@ -1,65 +1,125 @@
-/**
- * Wave 4 M10.2 slice 3 — ClerkShipmentDocsPage tests.
- *
- * Verifies the page wires slices 1 + 2 correctly:
- *   - loads shipment detail (BL + containers);
- *   - BL save calls PUT /api/shipments/:id with the current version;
- *   - container add + save calls PUT /api/shipments/:id/containers (full
- *     reconcile) and re-syncs row ids from the response;
- *   - server validation errors (slice 1: ISO 6346 + duplicate) surface inline;
- *   - dispatch button is hidden for CLERK and shown for MANAGER;
- *   - the readiness banner shows missing BL / containers client-side.
- *
- * Mocks the shipment client + configClient + useConfirm + useAuth at the
- * module boundary.
- */
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { Role } from '@tingting/shared';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Role, ShipmentStatus } from '@tingting/shared';
+import type {
+  ShipmentChangeRequest,
+  ShipmentContainer,
+  ShipmentDeclaration,
+  ShipmentDetail,
+  ShipmentDocument,
+} from '../../api/shipmentClient';
 
-const { getDetailMock, updateMock, saveContainersMock, getBootstrapMock, confirmMock } = vi.hoisted(() => ({
-  getDetailMock: vi.fn(),
-  updateMock: vi.fn(),
-  saveContainersMock: vi.fn(),
+const {
+  addDocumentMock,
+  createDeclarationMock,
+  currentUserState,
+  dispatchMock,
+  getBootstrapMock,
+  getDetailMock,
+  replaceDocumentMock,
+  reviewChangeRequestMock,
+  saveContainersMock,
+  updateDeclarationMock,
+  updateShipmentMock,
+} = vi.hoisted(() => ({
+  addDocumentMock: vi.fn(),
+  createDeclarationMock: vi.fn(),
+  currentUserState: { role: 'CLERK', businessUnitIds: [11, 12] as number[] },
+  dispatchMock: vi.fn(),
   getBootstrapMock: vi.fn(),
-  confirmMock: vi.fn(),
+  getDetailMock: vi.fn(),
+  replaceDocumentMock: vi.fn(),
+  reviewChangeRequestMock: vi.fn(),
+  saveContainersMock: vi.fn(),
+  updateDeclarationMock: vi.fn(),
+  updateShipmentMock: vi.fn(),
 }));
 
 vi.mock('../../api/shipmentClient', () => ({
+  addShipmentDocument: addDocumentMock,
+  createShipmentDeclaration: createDeclarationMock,
+  dispatchShipment: dispatchMock,
   getShipmentDetail: getDetailMock,
-  updateShipment: updateMock,
+  replaceShipmentDocument: replaceDocumentMock,
+  reviewShipmentChangeRequest: reviewChangeRequestMock,
   saveShipmentContainers: saveContainersMock,
-  dispatchShipment: vi.fn(),
+  updateShipment: updateShipmentMock,
+  updateShipmentDeclaration: updateDeclarationMock,
 }));
+
 vi.mock('../../api/tripClient', () => ({
   tripClient: { getBootstrap: getBootstrapMock },
 }));
+
 vi.mock('../../components/UI', () => ({
-  useConfirm: () => ({ confirm: confirmMock, dialog: null }),
+  useConfirm: () => ({ confirm: vi.fn(), dialog: null }),
 }));
+
 vi.mock('../../hooks/useAuth', () => ({
-  useAuth: () => ({ user: { id: 1, role: Role.CLERK } }),
+  useAuth: () => ({
+    user: {
+      id: 1,
+      role: currentUserState.role,
+      businessUnitIds: currentUserState.businessUnitIds,
+    },
+  }),
 }));
 
 import ClerkShipmentDocsPage from './ClerkShipmentDocsPage';
 
-const DETAIL = {
-  shipment: {
-    id: 42, shipmentCode: 'SHP-2607-00042', version: 3, customerId: 7,
-    customerName: 'Công ty ABC', status: 'DRAFT',
-    blNumber: null, bookingRef: null, expectedDeliveryDate: null,
-    pickupLocation: null, deliveryLocation: null, contactName: null,
-    contactPhone: null, createdBy: null, updatedBy: null,
-    createdAt: '2026-07-26T00:00:00Z', updatedAt: '2026-07-26T00:00:00Z',
-  },
-  containers: [],
-  documents: [], declarations: [], statusHistory: [],
-};
-
 const CONTAINER_TYPES = [
   { id: 1, code: '20DC', name: "20'DC", notes: null, createdAt: '', updatedAt: '', deletedAt: null },
 ];
+
+function makeDetail(overrides: Omit<Partial<ShipmentDetail>, 'shipment'> & {
+  shipment?: Partial<ShipmentDetail['shipment']>;
+} = {}): ShipmentDetail {
+  const detail = baseDetail();
+  return {
+    ...detail,
+    ...overrides,
+    shipment: {
+      ...detail.shipment,
+      ...(overrides.shipment ?? {}),
+    },
+    containers: overrides.containers ?? detail.containers,
+    documents: overrides.documents ?? detail.documents,
+    declarations: overrides.declarations ?? detail.declarations,
+    statusHistory: overrides.statusHistory ?? detail.statusHistory,
+    pendingChangeRequests: overrides.pendingChangeRequests ?? detail.pendingChangeRequests,
+  };
+}
+
+function baseDetail(): ShipmentDetail {
+  return {
+    shipment: {
+      id: 42,
+      shipmentCode: 'SHP-2607-00042',
+      version: 3,
+      customerId: 7,
+      customerName: 'Công ty ABC',
+      responsibleUnitId: 11,
+      status: ShipmentStatus.DRAFT,
+      blNumber: null,
+      bookingRef: null,
+      expectedDeliveryDate: null,
+      pickupLocation: null,
+      deliveryLocation: null,
+      contactName: null,
+      contactPhone: null,
+      createdBy: null,
+      updatedBy: null,
+      createdAt: '2026-07-27T00:00:00Z',
+      updatedAt: '2026-07-27T00:00:00Z',
+    },
+    containers: [] as ShipmentContainer[],
+    documents: [] as ShipmentDocument[],
+    declarations: [] as ShipmentDeclaration[],
+    statusHistory: [],
+    pendingChangeRequests: [] as ShipmentChangeRequest[],
+  };
+}
 
 function renderAt(path = '/clerk/shipments/42/docs') {
   return render(
@@ -72,99 +132,338 @@ function renderAt(path = '/clerk/shipments/42/docs') {
   );
 }
 
-describe('ClerkShipmentDocsPage — M10.2 doc-entry', () => {
+describe('ClerkShipmentDocsPage', () => {
   beforeEach(() => {
-    getDetailMock.mockReset();
-    updateMock.mockReset();
-    saveContainersMock.mockReset();
+    currentUserState.role = 'CLERK';
+    currentUserState.businessUnitIds = [11, 12];
+    addDocumentMock.mockReset();
+    createDeclarationMock.mockReset();
+    dispatchMock.mockReset();
     getBootstrapMock.mockReset();
-    confirmMock.mockReset();
+    getDetailMock.mockReset();
+    replaceDocumentMock.mockReset();
+    reviewChangeRequestMock.mockReset();
+    saveContainersMock.mockReset();
+    updateDeclarationMock.mockReset();
+    updateShipmentMock.mockReset();
     getBootstrapMock.mockResolvedValue({ containerTypes: CONTAINER_TYPES });
+    getDetailMock.mockResolvedValue(makeDetail());
   });
 
-  it('loads shipment detail + shows the readiness banner missing BL + containers', async () => {
-    getDetailMock.mockResolvedValue(DETAIL);
+  it('shows the readiness warning when BL and containers are missing', async () => {
     renderAt();
-    // The readiness banner lists both missing fields in one line.
-    await waitFor(() => expect(screen.getByText(/Còn thiếu.*Số vận đơn.*Công-te-nơ/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/Còn thiếu: Số vận đơn/)).toBeTruthy());
+    expect(screen.getByText(/Công-te-nơ \(ít nhất một\)/)).toBeTruthy();
   });
 
-  it('BL save calls updateShipment with the loaded version', async () => {
-    getDetailMock.mockResolvedValue(DETAIL);
-    updateMock.mockResolvedValue({ ...DETAIL.shipment, blNumber: 'BL-1', version: 4 });
-    renderAt();
-    await waitFor(() => expect(screen.getByLabelText('Số vận đơn (B/L)')).toBeTruthy());
-    fireEvent.change(screen.getByLabelText('Số vận đơn (B/L)'), { target: { value: 'BL-1' } });
-    fireEvent.click(screen.getByRole('button', { name: /Lưu vận đơn/ }));
-    await waitFor(() => expect(updateMock).toHaveBeenCalledWith(42, { version: 3, blNumber: 'BL-1' }));
-    expect(screen.getByText(/Đã lưu số vận đơn/)).toBeTruthy();
-  });
-
-  it('container add + save calls saveShipmentContainers (full reconcile) and re-syncs ids', async () => {
-    getDetailMock.mockResolvedValue(DETAIL);
-    // After save, the server returns one row with id=100 + the container type.
+  it('sends expectedVersion for container saves and reuses the refreshed version on the next shipment save', async () => {
+    getDetailMock
+      .mockResolvedValueOnce(makeDetail())
+      .mockResolvedValueOnce(makeDetail({
+        shipment: { version: 4, blNumber: null },
+        containers: [{
+          id: 100,
+          shipmentId: 42,
+          containerTypeId: 1,
+          containerNumber: 'MSKU1234565',
+          sealNumber: null,
+          cargoWeightKg: null,
+          notes: null,
+        }],
+      }))
+      .mockResolvedValue(makeDetail({
+        shipment: { version: 4, blNumber: 'BL-UPDATED' },
+        containers: [{
+          id: 100,
+          shipmentId: 42,
+          containerTypeId: 1,
+          containerNumber: 'MSKU1234565',
+          sealNumber: null,
+          cargoWeightKg: null,
+          notes: null,
+        }],
+      }));
     saveContainersMock.mockResolvedValue({
       items: [{
-        id: 100, shipmentId: 42, containerTypeId: 1, containerNumber: 'MSKU1234565',
-        sealNumber: null, cargoWeightKg: null, notes: null,
+        id: 100,
+        shipmentId: 42,
+        containerTypeId: 1,
+        containerNumber: 'MSKU1234565',
+        sealNumber: null,
+        cargoWeightKg: null,
+        notes: null,
       }],
       upsertedIds: [100],
+      shipmentVersion: 4,
+      changeMode: 'DIRECT',
+      changeRequestId: null,
+      notificationDelivered: true,
+      message: 'Đã lưu 1 công-te-nơ.',
     });
+    updateShipmentMock.mockResolvedValue({
+      ...makeDetail().shipment,
+      version: 5,
+      blNumber: 'BL-UPDATED',
+      changeMode: 'DIRECT',
+      changeRequestId: null,
+      notificationDelivered: true,
+      message: 'Đã lưu thông tin lô hàng.',
+    });
+
     renderAt();
-    await waitFor(() => expect(screen.getByText(/Còn thiếu/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('button', { name: /Thêm công-te-nơ/ })).toBeTruthy());
 
     fireEvent.click(screen.getByRole('button', { name: /Thêm công-te-nơ/ }));
-    // SelectField is a custom dropdown (trigger button + option list). The
-    // trigger shows the placeholder "— Chọn —" before a selection.
-    fireEvent.click(screen.getByRole('button', { name: /Chọn/ }));
-    const option = await screen.findByRole('option', { name: "20'DC" });
-    fireEvent.click(option);
-    // Container number is a TextField (native input, label-associated).
+    const containerSection = screen.getByText(/Công-te-nơ \(/).closest('section');
+    const containerSelects = containerSection?.querySelectorAll('select');
+    const containerTypeSelect = containerSelects?.[0] as HTMLSelectElement | undefined;
+    expect(containerTypeSelect).toBeTruthy();
+    fireEvent.change(containerTypeSelect!, { target: { value: '1' } });
     fireEvent.change(screen.getByLabelText('Số công-te-nơ (ISO 6346)'), { target: { value: 'MSKU1234565' } });
     fireEvent.click(screen.getByRole('button', { name: /Lưu công-te-nơ/ }));
 
-    await waitFor(() => expect(saveContainersMock).toHaveBeenCalledTimes(1));
-    const arg = saveContainersMock.mock.calls[0][1];
-    expect(arg.containers).toHaveLength(1);
-    expect(arg.containers[0]).toMatchObject({ containerTypeId: 1, containerNumber: 'MSKU1234565' });
-    // The success message reflects the reconciled count.
-    expect(screen.getByText(/Đã lưu 1 công-te-nơ/)).toBeTruthy();
+    await waitFor(() => expect(saveContainersMock).toHaveBeenCalledWith(42, expect.objectContaining({
+      expectedVersion: 3,
+      containers: [expect.objectContaining({ containerTypeId: 1, containerNumber: 'MSKU1234565' })],
+    })));
+
+    fireEvent.change(screen.getByLabelText('Số vận đơn (B/L)'), { target: { value: 'BL-UPDATED' } });
+    fireEvent.click(screen.getByRole('button', { name: /Lưu hồ sơ lô hàng/ }));
+
+    await waitFor(() => expect(updateShipmentMock).toHaveBeenCalledWith(42, expect.objectContaining({
+      expectedVersion: 4,
+      blNumber: 'BL-UPDATED',
+    })));
   });
 
-  it('surfaces server validation errors inline (slice 1: ISO 6346 + duplicate)', async () => {
-    getDetailMock.mockResolvedValue(DETAIL);
-    saveContainersMock.mockRejectedValue(new Error('Số container "BAD" không hợp lệ: Sai định dạng.'));
-    renderAt();
-    await waitFor(() => expect(screen.getByText(/Còn thiếu/)).toBeTruthy());
-    // Add a row (no need to fill it — the server rejects whatever is sent).
-    fireEvent.click(screen.getByRole('button', { name: /Thêm công-te-nơ/ }));
-    fireEvent.click(screen.getByRole('button', { name: /Lưu công-te-nơ/ }));
-    await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
-    expect(screen.getByText(/không hợp lệ/)).toBeTruthy();
-  });
-
-  it('shows the dispatch button for CLERK? — no: dispatch is hidden for CLERK (Q17)', async () => {
-    getDetailMock.mockResolvedValue(DETAIL);
-    renderAt();
-    await waitFor(() => expect(screen.getByText(/Còn thiếu/)).toBeTruthy());
-    // CLERK must not see the Dispatch button — dispatch is MANAGER/ADMIN only.
-    expect(screen.queryByRole('button', { name: /^Điều vận$/ })).toBeNull();
-  });
-
-  it('shows "Sẵn sàng điều vận" once BL + container are present (client-side readiness)', async () => {
-    getDetailMock.mockResolvedValue({
-      ...DETAIL,
-      shipment: { ...DETAIL.shipment, blNumber: 'BL-READY' },
-      containers: [{
-        id: 1, shipmentId: 42, containerTypeId: 1, containerNumber: 'MSKU1234565',
-        sealNumber: null, cargoWeightKg: null, notes: null,
-      }],
+  it('surfaces the server request message for post-dispatch plan edits', async () => {
+    getDetailMock.mockResolvedValue(makeDetail({
+      shipment: { status: ShipmentStatus.IN_PROGRESS, version: 8, pickupLocation: 'Kho A' },
+    }));
+    updateShipmentMock.mockResolvedValue({
+      ...makeDetail().shipment,
+      version: 8,
+      status: ShipmentStatus.IN_PROGRESS,
+      pickupLocation: 'Kho A',
+      changeMode: 'REQUESTED',
+      changeRequestId: 501,
+      notificationDelivered: true,
+      message: 'Đã ghi nhận yêu cầu thay đổi kế hoạch và thông báo điều vận.',
     });
+
     renderAt();
-    await waitFor(() => expect(screen.getByText(/Sẵn sàng điều vận/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/Sau khi điều vận/)).toBeTruthy());
+
+    fireEvent.change(screen.getByLabelText('Điểm nhận'), { target: { value: 'Kho B' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu hoặc gửi yêu cầu$/ }));
+
+    await waitFor(() => expect(updateShipmentMock).toHaveBeenCalledWith(42, expect.objectContaining({
+      expectedVersion: 8,
+      pickupLocation: 'Kho B',
+    })));
+    expect(screen.getByText(/Đã ghi nhận yêu cầu thay đổi kế hoạch và thông báo điều vận/)).toBeTruthy();
   });
 
-  it('shows a 404 message when the shipment cannot be loaded', async () => {
+  it('creates a declaration and then updates an existing declaration', async () => {
+    getDetailMock
+      .mockResolvedValueOnce(makeDetail())
+      .mockResolvedValueOnce(makeDetail({
+        declarations: [{
+          id: 77,
+          shipmentId: 42,
+          declarationNumber: 'TK-001',
+          issuedAt: '2026-07-27T09:00:00.000Z',
+          scope: 'SHARED',
+          note: 'Khai chung',
+          createdBy: 1,
+          createdAt: '2026-07-27T09:00:00.000Z',
+          updatedAt: '2026-07-27T09:00:00.000Z',
+        }],
+      }))
+      .mockResolvedValue(makeDetail({
+        declarations: [{
+          id: 77,
+          shipmentId: 42,
+          declarationNumber: 'TK-001A',
+          issuedAt: '2026-07-27T10:00:00.000Z',
+          scope: 'SINGLE',
+          note: null,
+          createdBy: 1,
+          createdAt: '2026-07-27T09:00:00.000Z',
+          updatedAt: '2026-07-27T10:00:00.000Z',
+        }],
+      }));
+    createDeclarationMock.mockResolvedValue({
+      id: 77,
+      shipmentId: 42,
+      declarationNumber: 'TK-001',
+      issuedAt: '2026-07-27T09:00:00.000Z',
+      scope: 'SHARED',
+      note: 'Khai chung',
+      createdBy: 1,
+      createdAt: '2026-07-27T09:00:00.000Z',
+      updatedAt: '2026-07-27T09:00:00.000Z',
+    });
+    updateDeclarationMock.mockResolvedValue({
+      id: 77,
+      shipmentId: 42,
+      declarationNumber: 'TK-001A',
+      issuedAt: '2026-07-27T10:00:00.000Z',
+      scope: 'SINGLE',
+      note: null,
+      createdBy: 1,
+      createdAt: '2026-07-27T09:00:00.000Z',
+      updatedAt: '2026-07-27T10:00:00.000Z',
+    });
+
+    renderAt();
+    await waitFor(() => expect(screen.getByLabelText('Số tờ khai')).toBeTruthy());
+
+    fireEvent.change(screen.getByLabelText('Số tờ khai'), { target: { value: 'TK-001' } });
+    fireEvent.change(screen.getByLabelText('Ngày giờ phát hành'), { target: { value: '2026-07-27T09:00' } });
+    const declarationSection = screen.getByText('Tờ khai').closest('section');
+    const declarationSelect = declarationSection?.querySelector('select') as HTMLSelectElement | null;
+    expect(declarationSelect).toBeTruthy();
+    fireEvent.change(declarationSelect!, { target: { value: 'SHARED' } });
+    fireEvent.click(screen.getByRole('button', { name: /Thêm tờ khai/ }));
+
+    await waitFor(() => expect(createDeclarationMock).toHaveBeenCalledWith(42, {
+      declarationNumber: 'TK-001',
+      issuedAt: '2026-07-27T09:00',
+      scope: 'SHARED',
+      note: null,
+    }));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Sửa' }));
+    fireEvent.change(screen.getByLabelText('Số tờ khai'), { target: { value: 'TK-001A' } });
+    fireEvent.change(declarationSection?.querySelector('select') as HTMLSelectElement, { target: { value: 'SINGLE' } });
+    fireEvent.click(screen.getByRole('button', { name: /Cập nhật tờ khai/ }));
+
+    await waitFor(() => expect(updateDeclarationMock).toHaveBeenCalledWith(42, 77, {
+      declarationNumber: 'TK-001A',
+      issuedAt: '2026-07-27T09:00',
+      scope: 'SINGLE',
+      note: 'Khai chung',
+    }));
+  });
+
+  it('adds and replaces shipment documents', async () => {
+    getDetailMock
+      .mockResolvedValueOnce(makeDetail())
+      .mockResolvedValueOnce(makeDetail({
+        documents: [{
+          id: 91,
+          shipmentId: 42,
+          type: 'BL',
+          storageKey: 'uploads/shipment-42/bl-v1.pdf',
+          uploadedBy: 1,
+          expiresAt: null,
+          replacedBy: null,
+          createdAt: '2026-07-27T09:00:00.000Z',
+        }],
+      }))
+      .mockResolvedValue(makeDetail({
+        documents: [{
+          id: 92,
+          shipmentId: 42,
+          type: 'BL',
+          storageKey: 'uploads/shipment-42/bl-v2.pdf',
+          uploadedBy: 1,
+          expiresAt: '2026-08-01',
+          replacedBy: null,
+          createdAt: '2026-07-27T10:00:00.000Z',
+        }],
+      }));
+    addDocumentMock.mockResolvedValue({
+      id: 91,
+      shipmentId: 42,
+      type: 'BL',
+      storageKey: 'uploads/shipment-42/bl-v1.pdf',
+      uploadedBy: 1,
+      expiresAt: null,
+      replacedBy: null,
+      createdAt: '2026-07-27T09:00:00.000Z',
+    });
+    replaceDocumentMock.mockResolvedValue({
+      id: 92,
+      shipmentId: 42,
+      type: 'BL',
+      storageKey: 'uploads/shipment-42/bl-v2.pdf',
+      uploadedBy: 1,
+      expiresAt: '2026-08-01',
+      replacedBy: null,
+      createdAt: '2026-07-27T10:00:00.000Z',
+    });
+
+    renderAt();
+    const documentSection = await screen.findByText('Tài liệu chứng từ');
+    const documentTypeSelect = documentSection.closest('section')?.querySelector('select') as HTMLSelectElement | null;
+    expect(documentTypeSelect).toBeTruthy();
+
+    fireEvent.change(documentTypeSelect!, { target: { value: 'BL' } });
+    fireEvent.change(screen.getByLabelText('Storage key tài liệu'), { target: { value: 'uploads/shipment-42/bl-v1.pdf' } });
+    fireEvent.click(screen.getByRole('button', { name: /Thêm tài liệu/ }));
+
+    await waitFor(() => expect(addDocumentMock).toHaveBeenCalledWith(42, {
+      type: 'BL',
+      storageKey: 'uploads/shipment-42/bl-v1.pdf',
+    }));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Thay thế' }));
+    fireEvent.change(screen.getByLabelText(/Storage key tài liệu mới thay cho #91/), {
+      target: { value: 'uploads/shipment-42/bl-v2.pdf' },
+    });
+    fireEvent.change(screen.getByLabelText('Ngày hết hạn (nếu có)'), {
+      target: { value: '2026-08-01' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Thay thế tài liệu/ }));
+
+    await waitFor(() => expect(replaceDocumentMock).toHaveBeenCalledWith(42, 91, {
+      storageKey: 'uploads/shipment-42/bl-v2.pdf',
+      expiresAt: '2026-08-01',
+    }));
+  });
+
+  it('lets a manager review a pending change request', async () => {
+    currentUserState.role = 'MANAGER';
+    getDetailMock
+      .mockResolvedValueOnce(makeDetail({
+        shipment: { status: ShipmentStatus.IN_PROGRESS, version: 8 },
+        pendingChangeRequests: [{
+          id: 501,
+          shipmentId: 42,
+          sourceVersion: 8,
+          requestKind: 'PLAN_UPDATE',
+          requestedBy: 7,
+          beforeSnapshot: {},
+          afterSnapshot: { pickupLocation: 'Kho B' },
+          createdAt: '2026-07-27T10:00:00.000Z',
+          requester: { id: 7, fullName: 'Nhân viên chứng từ', username: 'clerk.q17' },
+        }],
+      }))
+      .mockResolvedValue(makeDetail({
+        shipment: { status: ShipmentStatus.IN_PROGRESS, version: 9, pickupLocation: 'Kho B' },
+        pendingChangeRequests: [],
+      }));
+    reviewChangeRequestMock.mockResolvedValue({
+      shipment: { ...makeDetail().shipment, version: 9, pickupLocation: 'Kho B', status: ShipmentStatus.IN_PROGRESS },
+      resolution: 'APPLIED',
+      changeRequestId: 501,
+      shipmentVersion: 9,
+      notificationDelivered: true,
+      message: 'Đã áp dụng yêu cầu thay đổi và thông báo kết quả cho người gửi.',
+    });
+
+    renderAt('/clerk/shipments/42/docs');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Áp dụng' })).toBeTruthy());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Áp dụng' }));
+
+    await waitFor(() => expect(reviewChangeRequestMock).toHaveBeenCalledWith(42, 501, 'APPLIED'));
+    expect(screen.getByText(/Đã áp dụng yêu cầu thay đổi/)).toBeTruthy();
+  });
+
+  it('shows the load error when the shipment is missing', async () => {
     getDetailMock.mockRejectedValue(new Error('Không tìm thấy lô hàng'));
     renderAt();
     await waitFor(() => expect(screen.getByText(/Không tìm thấy lô hàng/)).toBeTruthy());

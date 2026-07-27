@@ -156,6 +156,10 @@ export function auditLogMiddleware(req: Request, res: Response, next: NextFuncti
       ? localEntityId
       : extractEntityId(fullPath, req.body as Record<string, unknown>);
     const entityKey = res.locals.auditEntityKey || extractEntityKey(entityType, capturedBody, req.body as Record<string, unknown>);
+    const idempotencyKeyPresent = Boolean(
+      req.header('Idempotency-Key')
+      || (req.body as Record<string, unknown> | undefined)?._requestId,
+    );
 
     if (res.statusCode < 400 && req.user) {
       emitAudit({
@@ -171,6 +175,9 @@ export function auditLogMiddleware(req: Request, res: Response, next: NextFuncti
         metadata: {
           method: req.method,
           path: fullPath,
+          statusCode: res.statusCode,
+          outcome: capturedBody?.replayed === true ? 'REPLAYED' : 'SUCCEEDED',
+          idempotencyKeyPresent,
           body: sanitizeBody(req.body as Record<string, unknown>),
         },
       });
@@ -220,6 +227,29 @@ export function auditLogMiddleware(req: Request, res: Response, next: NextFuncti
           path: fullPath,
           statusCode: res.statusCode,
           failed: true,
+        },
+      });
+    } else if (res.statusCode >= 400 && req.user) {
+      emitAudit({
+        event: res.statusCode === 409
+          ? AuditEvent.MUTATION_CONFLICT
+          : AuditEvent.MUTATION_REJECTED,
+        entityType: entityType || 'unknown',
+        entityId: entityId ?? undefined,
+        entityKey,
+        userId: req.user.userId,
+        actorRole: req.user.role,
+        actorEmail: req.user.email ?? undefined,
+        actorName: req.user.fullName ?? req.user.username ?? undefined,
+        ipAddress: req.ip,
+        metadata: {
+          method: req.method,
+          path: fullPath,
+          statusCode: res.statusCode,
+          failed: true,
+          idempotencyKeyPresent,
+          error: typeof capturedBody?.error === 'string' ? capturedBody.error : undefined,
+          body: sanitizeBody(req.body as Record<string, unknown>),
         },
       });
     }

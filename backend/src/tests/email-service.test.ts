@@ -163,6 +163,49 @@ describe('M3.3 — sendEmail (dev mode)', () => {
       config.nodeEnv = originalNodeEnv;
     }
   });
+
+  test('marks the log FAILED when the provider call times out', async () => {
+    const customer = await mkCustomer();
+    const originalFetch = globalThis.fetch;
+    const originalTimeout = process.env.EMAIL_PROVIDER_TIMEOUT_MS;
+    process.env.EMAIL_PROVIDER_TIMEOUT_MS = '5';
+    globalThis.fetch = (((_url: string | URL | Request, init?: RequestInit) => new Promise((_resolve, reject) => {
+      const signal = init?.signal;
+      const rejectAbort = () => reject(new DOMException('Aborted', 'AbortError'));
+      if (!signal) return;
+      if (signal.aborted) {
+        rejectAbort();
+        return;
+      }
+      signal.addEventListener('abort', rejectAbort, { once: true });
+    })) as unknown) as typeof fetch;
+
+    try {
+      await saveEmailSettings({ resendApiKey: 're_timeout_test' });
+      const result = await sendEmail({
+        customerId: customer.id,
+        to: 'timeout@example.com',
+        subject: 'Timeout test',
+        html: '<p>Timeout</p>',
+      });
+      createdLogIds.push(result.logId);
+
+      assert.equal(result.ok, false);
+      assert.match(result.error ?? '', /timeout/i);
+      const [log] = await db.select().from(s.customerEmailLogs)
+        .where(eq(s.customerEmailLogs.id, result.logId));
+      assert.equal(log.status, 'FAILED');
+      assert.match(log.errorMessage ?? '', /timeout/i);
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (originalTimeout === undefined) {
+        delete process.env.EMAIL_PROVIDER_TIMEOUT_MS;
+      } else {
+        process.env.EMAIL_PROVIDER_TIMEOUT_MS = originalTimeout;
+      }
+      await saveEmailSettings({ clearResendApiKey: true });
+    }
+  });
 });
 
 describe('M3.3 — retryEmail', () => {
@@ -252,7 +295,9 @@ describe('M3.3 — retryEmail', () => {
     invalidateEmailSettings();
 
     try {
-      const result = await retryEmail(log.id);
+      const result = await retryEmail(log.id, {
+        html: '<p>Nội dung thư gốc để kiểm tra lỗi cấu hình</p>',
+      });
       assert.equal(result.ok, false);
       assert.match(result.error ?? '', /Không thể đọc cấu hình gửi email/);
 
@@ -262,6 +307,54 @@ describe('M3.3 — retryEmail', () => {
       assert.equal(updated.retryCount, 1);
       assert.match(updated.errorMessage ?? '', /Không thể đọc cấu hình gửi email/);
     } finally {
+      await saveEmailSettings({ clearResendApiKey: true });
+    }
+  });
+
+  test('allows only one concurrent retry caller to reach the provider', async () => {
+    const customer = await mkCustomer();
+    const [log] = await db.insert(s.customerEmailLogs).values({
+      customerId: customer.id,
+      subject: 'Concurrent retry',
+      recipientEmail: 'concurrent-retry@example.com',
+      status: 'FAILED',
+      retryCount: 0,
+      errorMessage: 'Initial failure',
+    }).returning();
+    createdLogIds.push(log.id);
+
+    const originalFetch = globalThis.fetch;
+    let fetchCount = 0;
+    globalThis.fetch = (async () => {
+      fetchCount += 1;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      return new Response(JSON.stringify({ id: `resend-race-${fetchCount}` }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }) as typeof fetch;
+
+    await saveEmailSettings({ resendApiKey: 're_retry_race' });
+    try {
+      const [first, second] = await Promise.all([
+        retryEmail(log.id, { html: '<p>Concurrent body</p>' }),
+        retryEmail(log.id, { html: '<p>Concurrent body</p>' }),
+      ]);
+
+      assert.equal(fetchCount, 1, 'only one provider request should be issued');
+      assert.equal(first.ok || second.ok, true, 'one caller should complete the retry');
+      assert.equal(first.ok && second.ok, false, 'the second caller must not deliver again');
+      assert.match(
+        [first.error, second.error].filter((value): value is string => Boolean(value)).join(' '),
+        /Retry claim expired/,
+      );
+
+      const [updated] = await db.select().from(s.customerEmailLogs)
+        .where(eq(s.customerEmailLogs.id, log.id));
+      assert.equal(updated.status, 'SENT');
+      assert.equal(updated.retryCount, 1);
+    } finally {
+      globalThis.fetch = originalFetch;
       await saveEmailSettings({ clearResendApiKey: true });
     }
   });

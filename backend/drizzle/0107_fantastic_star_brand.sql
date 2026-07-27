@@ -1,3 +1,4 @@
+CREATE EXTENSION IF NOT EXISTS vector;--> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "knowledge_chunks" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"source_type" text NOT NULL,

@@ -243,6 +243,11 @@ export const customers = pgTable('customers', {
   // Wave 3: payment-term days for this customer (e.g. 30 = net 30). Used by
   // M5.1 to compute overdue-days. NULL = use the global default.
   paymentTermDays: integer('payment_term_days'),
+  // Q19: contract-level override. The default rolls a due/processing date that
+  // lands on a weekend or configured holiday to the next business day.
+  paymentDatePolicy: varchar('payment_date_policy', { length: 30 })
+    .notNull()
+    .default('NEXT_BUSINESS_DAY'),
   status: customerStatusEnum('status').default('ACTIVE'),
   isCarrier: boolean('is_carrier').notNull().default(false),
   debitNoteMode: varchar('debit_note_mode', { length: 20 }).notNull().default('MONTHLY'),
@@ -252,6 +257,10 @@ export const customers = pgTable('customers', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
 }, (table) => [
+  check(
+    'customers_payment_date_policy_check',
+    sql`${table.paymentDatePolicy} in ('NEXT_BUSINESS_DAY', 'CALENDAR_DAY')`,
+  ),
   uniqueIndex('customers_active_name_tax_code_uniq_idx')
     .on(
       sql`lower(btrim(${table.name}))`,
@@ -261,6 +270,61 @@ export const customers = pgTable('customers', {
   uniqueIndex('customers_active_tax_code_uniq_idx')
     .on(sql`lower(btrim(${table.taxCode}))`)
     .where(sql`${table.deletedAt} is null and nullif(btrim(${table.taxCode}), '') is not null`),
+]);
+
+/**
+ * Q19 business-calendar exceptions.
+ *
+ * Weekdays are business days and weekends are non-business days by default.
+ * Rows override that default, allowing both holidays (`isWorkingDay=false`)
+ * and make-up working weekends (`isWorkingDay=true`).
+ */
+export const businessCalendarDays = pgTable('business_calendar_days', {
+  id: serial('id').primaryKey(),
+  calendarDate: date('calendar_date').notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  isWorkingDay: boolean('is_working_day').notNull().default(false),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('business_calendar_days_date_uniq_idx').on(table.calendarDate),
+]);
+
+export const userCustomerLinks = pgTable('user_customer_links', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  customerId: integer('customer_id').references(() => customers.id, { onDelete: 'cascade' }).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('user_customer_links_user_customer_uniq_idx').on(table.userId, table.customerId),
+  index('user_customer_links_user_idx').on(table.userId),
+  index('user_customer_links_customer_idx').on(table.customerId),
+]);
+
+export const businessUnits = pgTable('business_units', {
+  id: serial('id').primaryKey(),
+  code: varchar('code', { length: 50 }).unique(),
+  name: varchar('name', { length: 255 }).notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('ACTIVE'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('business_units_name_uniq_idx').on(table.name),
+  index('business_units_status_idx').on(table.status),
+]);
+
+export const userBusinessUnitLinks = pgTable('user_business_unit_links', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  businessUnitId: integer('business_unit_id')
+    .references(() => businessUnits.id, { onDelete: 'cascade' }).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('user_business_unit_links_user_unit_uniq_idx').on(table.userId, table.businessUnitId),
+  index('user_business_unit_links_user_idx').on(table.userId),
+  index('user_business_unit_links_business_unit_idx').on(table.businessUnitId),
 ]);
 
 export const routes = pgTable('routes', {
@@ -587,6 +651,13 @@ export const ledger = pgTable('ledger', {
   debit: numeric('debit', { precision: 15, scale: 0 }).default('0'),
   balance: numeric('balance', { precision: 15, scale: 0 }).notNull(),
   note: text('note'),
+  // Q19 immutable payment-date authority. These values are frozen when an AR
+  // obligation is posted so later customer/calendar edits cannot rewrite
+  // historical overdue dates. Non-AR and unbackfillable legacy rows stay NULL.
+  originalDueDate: date('original_due_date'),
+  processingDueDate: date('processing_due_date'),
+  paymentTermDaysApplied: integer('payment_term_days_applied'),
+  paymentDatePolicyApplied: varchar('payment_date_policy_applied', { length: 30 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => [
   // Hottest query path: every getBalance/postEntry does WHERE entity_type = ? AND entity_id = ? ORDER BY id DESC LIMIT 1
@@ -596,6 +667,14 @@ export const ledger = pgTable('ledger', {
   uniqueIndex('ledger_forwarder_settlement_once_idx')
     .on(table.txnType, table.txnId, table.entityType, table.entityId)
     .where(sql`${table.txnType} = 'FORWARDER_SETTLEMENT'`),
+  check(
+    'ledger_payment_date_policy_applied_check',
+    sql`${table.paymentDatePolicyApplied} is null or ${table.paymentDatePolicyApplied} in ('NEXT_BUSINESS_DAY', 'CALENDAR_DAY')`,
+  ),
+  check(
+    'ledger_payment_term_days_applied_check',
+    sql`${table.paymentTermDaysApplied} is null or ${table.paymentTermDaysApplied} >= 0`,
+  ),
 ]);
 
 // ─── Billing Documents (debit notes + payment statements) ─────────────────────
@@ -674,6 +753,11 @@ export const billingDocuments = pgTable('billing_documents', {
   // that were already posted when the trip completed. Kept separately so an
   // edit can post only the difference and repeated saves stay idempotent.
   ledgerAdjustmentAmount: numeric('ledger_adjustment_amount', { precision: 15, scale: 0 }).notNull().default('0'),
+  // Frozen contractual due-date snapshot for customer debit notes.
+  originalDueDate: date('original_due_date'),
+  processingDueDate: date('processing_due_date'),
+  paymentTermDaysApplied: integer('payment_term_days_applied'),
+  paymentDatePolicyApplied: varchar('payment_date_policy_applied', { length: 30 }),
   createdBy: integer('created_by').references(() => users.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -683,6 +767,136 @@ export const billingDocuments = pgTable('billing_documents', {
   uniqueIndex('billing_documents_active_period_unique')
     .on(table.type, table.entityType, table.entityId, table.rangeFrom, table.rangeTo)
     .where(sql`${table.deletedAt} IS NULL AND ${table.type} = 'DEBIT_NOTE'`),
+  check(
+    'billing_documents_payment_date_policy_applied_check',
+    sql`${table.paymentDatePolicyApplied} is null or ${table.paymentDatePolicyApplied} in ('NEXT_BUSINESS_DAY', 'CALENDAR_DAY')`,
+  ),
+  check(
+    'billing_documents_payment_term_days_applied_check',
+    sql`${table.paymentTermDaysApplied} is null or ${table.paymentTermDaysApplied} >= 0`,
+  ),
+]);
+
+// Q21: reusable period-lock authority for salary, fuel, and debit-note cycles.
+// Scope is GLOBAL for company-wide domains and CUSTOMER for debit-note locks.
+export const periodLocks = pgTable('period_locks', {
+  id: serial('id').primaryKey(),
+  domain: varchar('domain', { length: 30 }).notNull(),
+  scopeType: varchar('scope_type', { length: 20 }).notNull().default('GLOBAL'),
+  scopeId: integer('scope_id').notNull().default(0),
+  cycle: varchar('cycle', { length: 20 }).notNull(),
+  periodKey: varchar('period_key', { length: 40 }).notNull(),
+  periodStart: date('period_start').notNull(),
+  periodEnd: date('period_end').notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('CLOSED'),
+  closedBy: integer('closed_by').references(() => users.id),
+  closedAt: timestamp('closed_at', { withTimezone: true }).defaultNow().notNull(),
+  reopenedBy: integer('reopened_by').references(() => users.id),
+  reopenedAt: timestamp('reopened_at', { withTimezone: true }),
+  note: text('note'),
+  reopenNote: text('reopen_note'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('period_locks_domain_scope_period_uniq')
+    .on(table.domain, table.scopeType, table.scopeId, table.periodKey),
+  index('period_locks_lookup_idx').on(
+    table.domain,
+    table.scopeType,
+    table.scopeId,
+    table.status,
+    table.periodStart,
+    table.periodEnd,
+  ),
+  check(
+    'period_locks_domain_check',
+    sql`${table.domain} in ('SALARY', 'FUEL', 'DEBIT_NOTE')`,
+  ),
+  check(
+    'period_locks_scope_type_check',
+    sql`${table.scopeType} in ('GLOBAL', 'CUSTOMER')`,
+  ),
+  check(
+    'period_locks_cycle_check',
+    sql`${table.cycle} in ('MONTHLY', 'WEEKLY')`,
+  ),
+  check(
+    'period_locks_status_check',
+    sql`${table.status} in ('CLOSED', 'REOPENED')`,
+  ),
+  check(
+    'period_locks_scope_global_id_check',
+    sql`(${table.scopeType} <> 'GLOBAL') or (${table.scopeId} = 0)`,
+  ),
+]);
+
+// Q18/Q15: append-only authority envelope for the two material trip changes
+// that may cross an approved/locked boundary. This is intentionally bounded
+// to AR adjustments and exceptional trip reopen; domain services still own
+// the actual financial/status effects.
+export const governanceActions = pgTable('governance_actions', {
+  id: serial('id').primaryKey(),
+  subjectType: varchar('subject_type', { length: 30 }).notNull(),
+  subjectId: integer('subject_id').notNull(),
+  actionKind: varchar('action_kind', { length: 40 }).notNull(),
+  status: varchar('status', { length: 30 }).notNull().default('PENDING_CHECK'),
+  reason: text('reason').notNull(),
+  originalVersion: integer('original_version').notNull(),
+  originalPeriodLockId: integer('original_period_lock_id')
+    .references(() => periodLocks.id),
+  beforeSnapshot: jsonb('before_snapshot').$type<Record<string, unknown>>().notNull(),
+  afterSnapshot: jsonb('after_snapshot').$type<Record<string, unknown>>().notNull(),
+  deltaSnapshot: jsonb('delta_snapshot').$type<Record<string, unknown>>(),
+  makerId: integer('maker_id').references(() => users.id).notNull(),
+  checkerId: integer('checker_id').references(() => users.id),
+  checkedAt: timestamp('checked_at', { withTimezone: true }),
+  approverId: integer('approver_id').references(() => users.id),
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
+  appliedAt: timestamp('applied_at', { withTimezone: true }),
+  ledgerEntryId: integer('ledger_entry_id').references(() => ledger.id),
+  version: integer('version').notNull().default(1),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('governance_actions_subject_idx').on(
+    table.subjectType,
+    table.subjectId,
+    table.createdAt,
+  ),
+  index('governance_actions_status_idx').on(table.status, table.createdAt),
+  check(
+    'governance_actions_subject_type_check',
+    sql`${table.subjectType} in ('TRIP')`,
+  ),
+  check(
+    'governance_actions_action_kind_check',
+    sql`${table.actionKind} in ('TRIP_AR_ADJUSTMENT', 'TRIP_REOPEN')`,
+  ),
+  check(
+    'governance_actions_status_check',
+    sql`${table.status} in ('PENDING_CHECK', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED')`,
+  ),
+  check(
+    'governance_actions_reason_check',
+    sql`length(btrim(${table.reason})) > 0`,
+  ),
+]);
+
+// Q21: late debit-note adjustments keep an internal link to the original
+// locked periods they are correcting. A single adjustment document may point
+// back to multiple locked periods when approved source lines come in late.
+export const billingDocumentSourcePeriodLocks = pgTable('billing_document_source_period_locks', {
+  id: serial('id').primaryKey(),
+  documentId: integer('document_id')
+    .references(() => billingDocuments.id, { onDelete: 'cascade' })
+    .notNull(),
+  periodLockId: integer('period_lock_id')
+    .references(() => periodLocks.id, { onDelete: 'cascade' })
+    .notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('billing_document_source_period_locks_doc_period_uniq')
+    .on(table.documentId, table.periodLockId),
+  index('billing_document_source_period_locks_period_idx').on(table.periodLockId),
 ]);
 
 export const billingDocumentLines = pgTable('billing_document_lines', {
@@ -1014,6 +1228,9 @@ export const tripExpenses = pgTable('trip_expenses', {
   id: serial('id').primaryKey(),
   tripId: integer('trip_id').references(() => trips.id).notNull(),
   forwarderId: integer('forwarder_id').references(() => users.id),  // nullable — accountants also create
+  // Q15: authoritative maker. Legacy forwarder-created rows are safely
+  // backfilled from forwarder_id; unknown office-side legacy makers stay NULL.
+  createdBy: integer('created_by').references(() => users.id),
   expenseType: varchar('expense_type', { length: 50 }).notNull(),   // FK to forwarder_expense_types.code
   buyAmount: numeric('buy_amount', { precision: 15, scale: 0 }).notNull(),
   sellAmount: numeric('sell_amount', { precision: 15, scale: 0 }).notNull().default('0'),
@@ -1121,6 +1338,51 @@ export const settlementExpenses = pgTable('settlement_expenses', {
 }, (table) => [
   uniqueIndex('settlement_expense_unique_idx').on(table.settlementId, table.tripExpenseId),
   index('settlement_expense_trip_expense_idx').on(table.tripExpenseId),
+]);
+
+// Q18: immutable audit history for every accountant correction applied to a
+// settlement expense. The current effective snapshot remains on
+// settlement_expenses for approval/reporting, while these child rows preserve
+// every before/after transition and its eventual approval authority.
+export const settlementExpenseAdjustments = pgTable('settlement_expense_adjustments', {
+  id: serial('id').primaryKey(),
+  settlementId: integer('settlement_id')
+    .references(() => advanceSettlements.id)
+    .notNull(),
+  settlementExpenseId: integer('settlement_expense_id')
+    .references(() => settlementExpenses.id)
+    .notNull(),
+  tripExpenseId: integer('trip_expense_id')
+    .references(() => tripExpenses.id)
+    .notNull(),
+  sequence: integer('sequence').notNull(),
+  sourceVersion: integer('source_version').notNull(),
+  beforeSnapshot: jsonb('before_snapshot').$type<Record<string, unknown>>().notNull(),
+  afterSnapshot: jsonb('after_snapshot').$type<Record<string, unknown>>().notNull(),
+  reason: text('reason').notNull(),
+  adjustedBy: integer('adjusted_by').references(() => users.id).notNull(),
+  adjustedAt: timestamp('adjusted_at', { withTimezone: true }).defaultNow().notNull(),
+  approvedBy: integer('approved_by').references(() => users.id),
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
+}, (table) => [
+  uniqueIndex('settlement_expense_adjustments_link_sequence_uniq')
+    .on(table.settlementExpenseId, table.sequence),
+  index('settlement_expense_adjustments_settlement_idx')
+    .on(table.settlementId, table.adjustedAt),
+  index('settlement_expense_adjustments_expense_idx')
+    .on(table.tripExpenseId, table.adjustedAt),
+  check(
+    'settlement_expense_adjustments_sequence_check',
+    sql`${table.sequence} > 0`,
+  ),
+  check(
+    'settlement_expense_adjustments_source_version_check',
+    sql`${table.sourceVersion} > 0`,
+  ),
+  check(
+    'settlement_expense_adjustments_reason_check',
+    sql`length(btrim(${table.reason})) > 0`,
+  ),
 ]);
 
 // ─── Attendance ──────────────────────────────────────────────────────────────
@@ -1648,6 +1910,10 @@ export const shipmentDocumentTypeEnum = pgEnum('shipment_document_type', [
 export const shipmentDeclarationScopeEnum = pgEnum('shipment_declaration_scope', [
   'SINGLE', 'SHARED',
 ]);
+export const shipmentChangeRequestKindEnum = pgEnum('shipment_change_request_kind', [
+  'PLAN_UPDATE',
+  'CONTAINER_RECONCILE',
+]);
 
 export const shipments = pgTable('shipments', {
   id: serial('id').primaryKey(),
@@ -1659,6 +1925,8 @@ export const shipments = pgTable('shipments', {
   // Optimistic locking, mirroring trips.
   version: integer('version').default(1).notNull(),
   customerId: integer('customer_id').references(() => customers.id).notNull(),
+  responsibleUnitId: integer('responsible_unit_id')
+    .references(() => businessUnits.id, { onDelete: 'set null' }),
   status: shipmentStatusEnum('status').default('DRAFT'),
   bookingRef: varchar('booking_ref', { length: 100 }),
   blNumber: varchar('bl_number', { length: 100 }),
@@ -1674,6 +1942,7 @@ export const shipments = pgTable('shipments', {
   deletedAt: timestamp('deleted_at'),
 }, (table) => [
   index('shipments_customer_status_idx').on(table.customerId, table.status),
+  index('shipments_responsible_unit_idx').on(table.responsibleUnitId, table.status),
   index('shipments_status_idx').on(table.status),
 ]);
 
@@ -1759,6 +2028,34 @@ export const shipmentContainers = pgTable('shipment_containers', {
   index('shipment_containers_shipment_id_idx').on(table.shipmentId),
 ]);
 
+export const userShipmentLinks = pgTable('user_shipment_links', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  shipmentId: integer('shipment_id').references(() => shipments.id, { onDelete: 'cascade' }).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('user_shipment_links_user_shipment_uniq_idx').on(table.userId, table.shipmentId),
+  index('user_shipment_links_user_idx').on(table.userId),
+  index('user_shipment_links_shipment_idx').on(table.shipmentId),
+]);
+
+export const shipmentChangeRequests = pgTable('shipment_change_requests', {
+  id: serial('id').primaryKey(),
+  shipmentId: integer('shipment_id')
+    .references(() => shipments.id, { onDelete: 'cascade' }).notNull(),
+  sourceVersion: integer('source_version').notNull(),
+  requestKind: shipmentChangeRequestKindEnum('request_kind').notNull(),
+  requestedBy: integer('requested_by').references(() => users.id).notNull(),
+  beforeSnapshot: jsonb('before_snapshot').notNull(),
+  afterSnapshot: jsonb('after_snapshot').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('shipment_change_requests_shipment_version_uniq_idx')
+    .on(table.shipmentId, table.sourceVersion),
+  index('shipment_change_requests_shipment_created_idx').on(table.shipmentId, table.createdAt),
+]);
+
 // ─── Wave 2: CUS Core tables ────────────────────────────────────────────────
 //
 // Schema-only slice for Wave 2. The service/route/UI items are subsequent
@@ -1813,6 +2110,42 @@ export const customerEmailLogs = pgTable('customer_email_logs', {
 
 // ─── Wave 3: Financial Close tables ─────────────────────────────────────────
 
+export const paymentReceipts = pgTable('payment_receipts', {
+  id: serial('id').primaryKey(),
+  receiptId: varchar('receipt_id', { length: 100 }).notNull(),
+  customerId: integer('customer_id').references(() => customers.id).notNull(),
+  receivedAmount: numeric('received_amount', { precision: 15, scale: 0 }).notNull(),
+  allocatedTotal: numeric('allocated_total', { precision: 15, scale: 0 }).notNull(),
+  unappliedAmount: numeric('unapplied_amount', { precision: 15, scale: 0 }).notNull(),
+  allocationMethod: varchar('allocation_method', { length: 20 }).notNull(),
+  requestHash: varchar('request_hash', { length: 64 }).notNull(),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('payment_receipts_receipt_id_uniq').on(table.receiptId),
+  index('payment_receipts_customer_created_idx').on(table.customerId, table.createdAt),
+  check(
+    'payment_receipts_received_amount_nonneg_check',
+    sql`${table.receivedAmount} >= 0`,
+  ),
+  check(
+    'payment_receipts_allocated_total_nonneg_check',
+    sql`${table.allocatedTotal} >= 0`,
+  ),
+  check(
+    'payment_receipts_unapplied_amount_nonneg_check',
+    sql`${table.unappliedAmount} >= 0`,
+  ),
+  check(
+    'payment_receipts_amount_consistency_check',
+    sql`${table.receivedAmount} = ${table.allocatedTotal} + ${table.unappliedAmount}`,
+  ),
+  check(
+    'payment_receipts_allocation_method_check',
+    sql`${table.allocationMethod} in ('OLDEST_DUE', 'EXPLICIT')`,
+  ),
+]);
+
 // M5.6: payment allocations. A single receipt (payment) can be split across
 // multiple trips/shipments. Each allocation links a payment to one document
 // (trip or billing_document) with the amount applied.
@@ -1820,6 +2153,8 @@ export const paymentAllocations = pgTable('payment_allocations', {
   id: serial('id').primaryKey(),
   // The receipt/payment that this allocation belongs to.
   receiptId: varchar('receipt_id', { length: 100 }),
+  paymentReceiptId: integer('payment_receipt_id').references(() => paymentReceipts.id),
+  allocationOrder: integer('allocation_order'),
   // The customer receiving the allocation.
   customerId: integer('customer_id').references(() => customers.id).notNull(),
   // What this allocation is applied to: a trip or a billing document.
@@ -1834,6 +2169,20 @@ export const paymentAllocations = pgTable('payment_allocations', {
   index('payment_allocations_customer_idx').on(table.customerId),
   index('payment_allocations_target_idx').on(table.targetType, table.targetId),
   index('payment_allocations_receipt_idx').on(table.receiptId),
+  uniqueIndex('payment_allocations_receipt_order_uniq')
+    .on(table.paymentReceiptId, table.allocationOrder)
+    .where(sql`${table.paymentReceiptId} is not null`),
+  uniqueIndex('payment_allocations_receipt_target_uniq')
+    .on(table.paymentReceiptId, table.targetType, table.targetId)
+    .where(sql`${table.paymentReceiptId} is not null`),
+  check(
+    'payment_allocations_amount_positive_check',
+    sql`${table.amount} > 0`,
+  ),
+  check(
+    'payment_allocations_order_positive_check',
+    sql`${table.allocationOrder} is null or ${table.allocationOrder} > 0`,
+  ),
 ]);
 
 // M7.3: salary period closes. An accountant closes a salary period; after

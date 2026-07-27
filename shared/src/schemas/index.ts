@@ -69,6 +69,15 @@ const nonNegNumeric = z.union([z.number(), z.string()]).transform((val, ctx) => 
 
 const fullNameField = z.string().max(255).or(z.literal('')).optional();
 
+const positiveWholeMoney = z.union([z.number(), z.string()]).transform((val, ctx) => {
+  const num = Number(val);
+  if (!Number.isInteger(num) || num <= 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Phải là số nguyên dương' });
+    return z.NEVER;
+  }
+  return num;
+});
+
 // ─── Trip ────────────────────────────────────────────────────────────────────
 
 export const tripLegSchema = z.object({
@@ -206,11 +215,53 @@ export const bulkUpdateTripFiguresSchema = z.object({
 
 export const createPaymentSchema = z.object({
   customerId: z.coerce.number().int().positive(),
-  receiptId: z.string().min(1),
+  receiptId: z.string().trim().min(1).max(100),
+  amount: positiveWholeMoney.optional(),
   payments: z.array(z.object({
     tripId: z.coerce.number().int().positive(),
-    amount: positiveNumeric,
-  })).min(1),
+    amount: positiveWholeMoney,
+  })).min(1).optional(),
+}).superRefine((data, ctx) => {
+  if (!data.amount && (!data.payments || data.payments.length === 0)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Cần cung cấp `amount` hoặc `payments`.',
+      path: ['amount'],
+    });
+  }
+
+  if (data.payments && data.payments.length > 0) {
+    const seen = new Set<number>();
+    for (const [index, payment] of data.payments.entries()) {
+      if (seen.has(payment.tripId)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Mỗi chuyến chỉ được xuất hiện một lần trong `payments`.',
+          path: ['payments', index, 'tripId'],
+        });
+      }
+      seen.add(payment.tripId);
+    }
+  }
+
+  if (!data.payments && !data.amount) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Thiếu số tiền thanh toán.',
+      path: ['amount'],
+    });
+  }
+
+  if (data.payments && data.amount !== undefined) {
+    const instructedTotal = data.payments.reduce((sum, payment) => sum + payment.amount, 0);
+    if (instructedTotal > data.amount) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Tổng `payments.amount` không được lớn hơn `amount`.',
+        path: ['payments'],
+      });
+    }
+  }
 });
 
 // ─── Penalty ─────────────────────────────────────────────────────────────────
@@ -228,10 +279,16 @@ export const createPenaltySchema = z.object({
 
 export const createAdjustmentSchema = z.object({
   tripId: z.coerce.number().int().positive(),
+  expectedVersion: z.coerce.number().int().positive(),
   amount: z.union([z.number(), z.string()]).transform(Number)
     .refine((v) => Number.isFinite(v), { message: 'Số tiền không hợp lệ' }),
   note: z.string().min(1),
   signedAgreementRef: z.string().min(1),
+});
+
+export const tripReopenRequestSchema = z.object({
+  reason: z.string().trim().min(1),
+  expectedVersion: z.coerce.number().int().positive(),
 });
 
 // ─── Billing Documents (debit notes + payment statements) ────────────────────
@@ -427,6 +484,9 @@ export const createUserSchema = z.object({
   socialInsurance: nonNegNumeric.optional(),
   assignedTruckId: z.number().int().positive().nullable().optional(),
   customerId: z.number().int().positive().nullable().optional(),
+  customerIds: z.array(z.number().int().positive()).max(100, 'Tối đa 100 khách hàng liên kết').optional(),
+  businessUnitIds: z.array(z.number().int().positive()).max(100, 'Tối đa 100 đơn vị phụ trách').optional(),
+  shipmentIds: z.array(z.number().int().positive()).max(100, 'Tối đa 100 lô hàng liên kết').optional(),
 }).refine(data => data.username || data.email || data.phone, {
   message: 'Phải cung cấp ít nhất một trong: username, email, hoặc số điện thoại',
 });
@@ -445,6 +505,9 @@ export const updateUserSchema = z.object({
   socialInsurance: nonNegNumeric.optional(),
   assignedTruckId: z.number().int().positive().nullable().optional(),
   customerId: z.number().int().positive().nullable().optional(),
+  customerIds: z.array(z.number().int().positive()).max(100, 'Tối đa 100 khách hàng liên kết').optional(),
+  businessUnitIds: z.array(z.number().int().positive()).max(100, 'Tối đa 100 đơn vị phụ trách').optional(),
+  shipmentIds: z.array(z.number().int().positive()).max(100, 'Tối đa 100 lô hàng liên kết').optional(),
 });
 
 export const updateProfileSchema = z.object({
@@ -461,7 +524,16 @@ export const changePasswordSchema = z.object({
   newPassword: z.string().min(6, 'Mật khẩu mới phải có ít nhất 6 ký tự').max(128, 'Mật khẩu quá dài'),
 });
 
-// ─── CRUD ────────────────────────────────────────────────────────────────────
+  // ─── CRUD ────────────────────────────────────────────────────────────────────
+
+export const paymentDatePolicySchema = z.enum(['NEXT_BUSINESS_DAY', 'CALENDAR_DAY']);
+
+export const isoDateOnlySchema = z.string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày phải có định dạng YYYY-MM-DD')
+  .refine((value) => {
+    const parsed = new Date(`${value}T00:00:00.000Z`);
+    return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+  }, 'Ngày không tồn tại');
 
 export const customerSchema = z.object({
   name: z.string().min(1),
@@ -470,11 +542,19 @@ export const customerSchema = z.object({
   phone: z.string().optional(),
   contactInfo: z.string().optional(),
   creditLimit: nonNegNumeric.optional(),
+  paymentTermDays: z.number().int().min(0).max(3650).optional().nullable(),
+  paymentDatePolicy: paymentDatePolicySchema.optional().default('NEXT_BUSINESS_DAY'),
   status: z.nativeEnum(CustomerStatus).optional().default(CustomerStatus.ACTIVE),
   isCarrier: z.boolean().optional().default(false),
   debitNoteMode: z.enum(['MONTHLY', 'PER_BATCH']).optional().default('MONTHLY'),
   debitNoteTemplateId: z.number().int().positive().optional().nullable(),
   linkedSupplierId: z.number().int().positive().optional().nullable(),
+});
+
+export const businessCalendarDaySchema = z.object({
+  calendarDate: isoDateOnlySchema,
+  name: z.string().trim().min(1, 'Tên ngày nghỉ/làm bù không được để trống').max(255),
+  isWorkingDay: z.boolean().optional().default(false),
 });
 
 export const truckSchema = z.object({
@@ -971,6 +1051,7 @@ export const upsertTripInstructionsSchema = z.object({
 // optional booking metadata that may be filled in before dispatch.
 export const createShipmentSchema = z.object({
   customerId: z.coerce.number().int().positive('Khách hàng là bắt buộc'),
+  responsibleUnitId: z.coerce.number().int().positive().optional().nullable(),
   bookingRef: z.string().max(100).optional().nullable(),
   blNumber: z.string().max(100).optional().nullable(),
   expectedDeliveryDate: z.string().optional().nullable(),
@@ -991,12 +1072,15 @@ export const quickCreateShipmentSchema = createShipmentSchema.extend({
   _requestId: z.string().min(1).max(100).optional(),
 });
 
-// Update shipment. `version` is REQUIRED for the optimistic-lock check
-// performed by `updateShipment` (409 on stale). All other fields are optional
-// and use the `!== undefined` convention so callers can patch a subset.
+// Update shipment. `expectedVersion` is the canonical optimistic-lock field;
+// legacy callers may still send `version` and are normalized onto
+// `expectedVersion` here. All other fields are optional and use the
+// `!== undefined` convention so callers can patch a subset.
 export const updateShipmentSchema = z.object({
-  version: z.number().int().nonnegative('version là bắt buộc để kiểm soát đồng thời'),
+  expectedVersion: z.number().int().nonnegative('expectedVersion là bắt buộc để kiểm soát đồng thời').optional(),
+  version: z.number().int().nonnegative('version là bắt buộc để kiểm soát đồng thời').optional(),
   customerId: z.coerce.number().int().positive().optional(),
+  responsibleUnitId: z.coerce.number().int().positive().optional().nullable(),
   bookingRef: z.string().max(100).nullish(),
   blNumber: z.string().max(100).nullish(),
   expectedDeliveryDate: z.string().nullish(),
@@ -1004,7 +1088,18 @@ export const updateShipmentSchema = z.object({
   deliveryLocation: z.string().max(255).nullish(),
   contactName: z.string().max(100).nullish(),
   contactPhone: z.string().max(20).nullish(),
-});
+}).superRefine((data, ctx) => {
+  if (data.expectedVersion == null && data.version == null) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'expectedVersion là bắt buộc để kiểm soát đồng thời',
+      path: ['expectedVersion'],
+    });
+  }
+}).transform(({ expectedVersion, version, ...rest }) => ({
+  ...rest,
+  expectedVersion: expectedVersion ?? version ?? 0,
+}));
 
 // Status transition. The service is the source of truth for legal edges; the
 // schema only validates the shape and the enum value.
@@ -1025,6 +1120,8 @@ export const attachShipmentDocumentSchema = z.object({
 // `tripContainerBatchSchema`: incoming `containers[]` becomes the desired full
 // list (insert new, update by id, delete the rest).
 export const shipmentContainerBatchSchema = z.object({
+  expectedVersion: z.number().int().nonnegative('expectedVersion là bắt buộc để kiểm soát đồng thời').optional(),
+  version: z.number().int().nonnegative('version là bắt buộc để kiểm soát đồng thời').optional(),
   containers: z.array(z.object({
     id: z.coerce.number().int().positive().optional(),
     containerTypeId: z.coerce.number().int().positive().optional().nullable(),
@@ -1034,7 +1131,18 @@ export const shipmentContainerBatchSchema = z.object({
     cargoWeightKg: nonNegNumeric.optional().nullable(),
     notes: z.string().optional().nullable().transform(v => (v === '' ? null : v)),
   })),
-});
+}).superRefine((data, ctx) => {
+  if (data.expectedVersion == null && data.version == null) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'expectedVersion là bắt buộc để kiểm soát đồng thời',
+      path: ['expectedVersion'],
+    });
+  }
+}).transform(({ expectedVersion, version, containers }) => ({
+  expectedVersion: expectedVersion ?? version ?? 0,
+  containers,
+}));
 
 // Dispatch a shipment → create a linked trip. Fulfillment-time fields
 // (route/cargo/container-type/truck/driver) are NOT on the shipment per the
