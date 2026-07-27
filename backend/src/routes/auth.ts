@@ -114,6 +114,7 @@ router.post('/users', authMiddleware, casbinAuthz('users'), asyncHandler(async (
     baseSalary: data.baseSalary,
     socialInsurance: data.socialInsurance,
     assignedTruckId: data.assignedTruckId,
+    customerId: data.customerId,
   });
   res.status(201).json(created);
 }));
@@ -151,6 +152,7 @@ router.patch('/users/:id', authMiddleware, casbinAuthz('users'), asyncHandler(as
     baseSalary: data.baseSalary,
     socialInsurance: data.socialInsurance,
     assignedTruckId: data.assignedTruckId,
+    customerId: data.customerId,
   });
   res.json(updated);
 }));

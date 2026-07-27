@@ -154,7 +154,7 @@ app.use('/api/admin/chatbot', authMiddleware, casbinAuthz('chatbot-metrics'), ad
 // ADMIN wildcard (`p, ADMIN, *, *`) matches; requireRoles(Role.ADMIN) is the
 // belt-and-suspenders gate. MUST mount before the catch-all /api.
 app.use('/api/admin/llm-settings', authMiddleware, casbinAuthz('llm-settings'), requireRoles(Role.ADMIN), llmSettingsRoutes);
-app.use('/api/admin/app-settings', authMiddleware, requireRoles(Role.ADMIN), appSettingsRouter);
+app.use('/api/admin/app-settings', authMiddleware, casbinAuthz('config'), appSettingsRouter);
 // Admin onboarding master switch (turn the onboarding tutorial on/off app-wide).
 // ADMIN-only: same gate pattern as llm-settings — the `onboarding-settings`
 // Casbin resource has no policy row, so only the ADMIN wildcard matches.

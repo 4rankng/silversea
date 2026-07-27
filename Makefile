@@ -133,11 +133,11 @@ demo-deploy: ## Pull + restart + migrate on the demo server (no rebuild)
 
 demo-health: ## Hit the demo backend health endpoint
 	@echo "  Backend: https://$(DEMO_SERVER)/api/health"
-	@curl -fsS --max-time 30 https://$(DEMO_SERVER)/api/health \
-		| sed 's/^/    /' \
-		|| (echo "    ⚠️  health check failed — check logs:" \
+	@response="$$(curl -fsS --max-time 30 https://$(DEMO_SERVER)/api/health)" \
+		|| { echo "    ⚠️  health check failed — check logs:" \
 			&& echo "    ssh root@$(DEMO_SERVER) 'cd $(DEMO_PATH) && $(DEMO_COMPOSE) logs --tail=80 backend'" \
-			&& exit 1)
+			&& exit 1; }; \
+		printf '%s\n' "$$response" | sed 's/^/    /'
 
 # ─── Help ──────────────────────────────────────────────────────────────────────
 help: ## Show this help

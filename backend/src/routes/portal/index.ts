@@ -258,7 +258,9 @@ router.get('/statement', asyncHandler(async (req: Request, res: Response) => {
     normalizeDateParam(req.query.dateFrom as string | undefined),
     normalizeDateParam(req.query.dateTo as string | undefined),
   );
-  if (!data) throw new ApiError(404, 'Không tìm thấy công nợ khách hàng');
+  if (!data) {
+    throw new ApiError(409, 'Tài khoản khách hàng chưa được liên kết');
+  }
   res.json(data);
 }));
 
@@ -269,7 +271,9 @@ router.get('/statement/export', asyncHandler(async (req: Request, res: Response)
     normalizeDateParam(req.query.dateFrom as string | undefined),
     normalizeDateParam(req.query.dateTo as string | undefined),
   );
-  if (!data) throw new ApiError(404, 'Không tìm thấy công nợ khách hàng');
+  if (!data) {
+    throw new ApiError(409, 'Tài khoản khách hàng chưa được liên kết');
+  }
 
   const format = String(req.query.format ?? 'xlsx').toLowerCase();
   const dateStr = new Date().toLocaleDateString('vi-VN');
