@@ -196,6 +196,17 @@ const resolveDynamicRoute = (template, discoveredPaths, fixtureOverrides) => {
     .sort()[0] ?? null;
 };
 
+export async function waitForRouteReady(page, timeout = 10_000) {
+  await page.waitForFunction(
+    () => (document.querySelector("#root")?.childElementCount ?? 0) > 0,
+    { timeout },
+  );
+  await page.waitForSelector('[data-page-loader="true"]', {
+    hidden: true,
+    timeout,
+  });
+}
+
 async function login(page, { baseUrl, username, password }) {
   await page.goto(`${baseUrl}/login`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("input", { timeout: 10_000 });
@@ -245,14 +256,20 @@ async function auditRoute({
   page.on("requestfailed", onRequestFailed);
 
   let navigationError = null;
+  let readinessError = null;
   try {
     await page.goto(`${baseUrl}${routePath}`, {
       waitUntil: "domcontentloaded",
       timeout: 20_000,
     });
+    await waitForRouteReady(page);
     await delay(900);
   } catch (error) {
-    navigationError = error.message;
+    if (page.url().startsWith(`${baseUrl}${routePath}`)) {
+      readinessError = error.message;
+    } else {
+      navigationError = error.message;
+    }
   }
 
   const state = await page.evaluate(() => {
@@ -284,6 +301,7 @@ async function auditRoute({
 
   const failures = [];
   if (navigationError) failures.push(`navigation: ${navigationError}`);
+  if (readinessError) failures.push(`readiness: ${readinessError}`);
   if (state.pathname !== routePath) {
     failures.push(`unexpected redirect: ${state.pathname}`);
   }

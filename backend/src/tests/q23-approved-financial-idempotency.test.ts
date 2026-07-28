@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import express from 'express';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, or } from 'drizzle-orm';
 import { Role, TxnType, type SaveBillingDocumentInput } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
@@ -613,7 +613,14 @@ describe('Q23 approved financial route idempotency', () => {
 
     const approveEntries = await db.select({ id: s.ledger.id })
       .from(s.ledger)
-      .where(and(eq(s.ledger.txnType, TxnType.ADJUSTMENT), eq(s.ledger.txnId, offsetId)));
+      .where(and(
+        eq(s.ledger.txnType, TxnType.ADJUSTMENT),
+        eq(s.ledger.txnId, offsetId),
+        or(
+          and(eq(s.ledger.entityType, 'CUSTOMER'), eq(s.ledger.entityId, customer.id)),
+          and(eq(s.ledger.entityType, 'VENDOR'), eq(s.ledger.entityId, supplier.id)),
+        ),
+      ));
     assert.equal(approveEntries.length, 2);
 
     const cancelRequested = await requestJson(`/finance/debt-offsets/${offsetId}/cancel`, {
@@ -645,7 +652,14 @@ describe('Q23 approved financial route idempotency', () => {
 
     const allAdjustmentEntries = await db.select({ id: s.ledger.id })
       .from(s.ledger)
-      .where(and(eq(s.ledger.txnType, TxnType.ADJUSTMENT), eq(s.ledger.txnId, offsetId)));
+      .where(and(
+        eq(s.ledger.txnType, TxnType.ADJUSTMENT),
+        eq(s.ledger.txnId, offsetId),
+        or(
+          and(eq(s.ledger.entityType, 'CUSTOMER'), eq(s.ledger.entityId, customer.id)),
+          and(eq(s.ledger.entityType, 'VENDOR'), eq(s.ledger.entityId, supplier.id)),
+        ),
+      ));
     assert.equal(allAdjustmentEntries.length, 4);
   });
 

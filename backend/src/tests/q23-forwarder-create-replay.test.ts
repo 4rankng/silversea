@@ -21,6 +21,7 @@ let adminUserId = 0;
 let forwarderUserId = 0;
 let tripId = 0;
 let tripExpenseId = 0;
+let shipmentId = 0;
 let customerId = 0;
 let routeId = 0;
 let cargoTypeId = 0;
@@ -90,8 +91,21 @@ before(async () => {
   }).returning({ id: s.cargoTypes.id });
   cargoTypeId = cargoType.id;
 
+  const [shipment] = await db.insert(s.shipments).values({
+    shipmentCode: `Q23-SHIP-${suffix}`,
+    customerId,
+    cargoTypeId,
+    status: 'IN_PROGRESS',
+  }).returning({ id: s.shipments.id });
+  shipmentId = shipment.id;
+  await db.insert(s.userShipmentLinks).values({
+    userId: forwarderUserId,
+    shipmentId,
+  });
+
   const [trip] = await db.insert(s.trips).values({
     tripCode: `Q23-FWD-${suffix}`,
+    shipmentId,
     customerId,
     routeId,
     cargoTypeId,
@@ -259,6 +273,8 @@ after(async () => {
     await db.delete(s.tripExpenseCompletionScopes).where(eq(s.tripExpenseCompletionScopes.tripId, tripId));
     await db.delete(s.tripExpenses).where(eq(s.tripExpenses.id, tripExpenseId));
     await db.delete(s.trips).where(eq(s.trips.id, tripId));
+    await db.delete(s.userShipmentLinks).where(eq(s.userShipmentLinks.shipmentId, shipmentId));
+    await db.delete(s.shipments).where(eq(s.shipments.id, shipmentId));
     await db.delete(s.cargoTypes).where(eq(s.cargoTypes.id, cargoTypeId));
     await db.delete(s.routes).where(eq(s.routes.id, routeId));
     await db.delete(s.customers).where(eq(s.customers.id, customerId));

@@ -131,7 +131,7 @@ async function seed() {
 
   // Wave 3 M6.2 — classify the seed suppliers into the type taxonomy.
   // Idempotent: classifySuppliersByName skips rows that already match.
-  const { classifySuppliersByName, SupplierType } = await import('./services/supplier-types.service');
+  const { classifySuppliersByName, SupplierType } = await import('./services/supplier-types.service.js');
   const classifiedCount = await classifySuppliersByName([
     { namePattern: 'Petrolimex', types: [SupplierType.FUEL] },
     { namePattern: 'PV Oil', types: [SupplierType.FUEL] },

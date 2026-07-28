@@ -118,7 +118,7 @@ export async function getDebitNoteForRender(
 ): Promise<DebitNoteRenderInput> {
   // Reuse the canonical hydration path so screen ↔ export always see the
   // same line data (including canonicalFreightDescription normalization).
-  const { getDocument } = await import('./billingDocument.service');
+  const { getDocument } = await import('./billingDocument.service.js');
   const doc = await getDocument(documentId);
   // resolveDebitNoteTemplateForDoc always falls back to a system default
   // (never null in practice), but its declared return type is nullable.

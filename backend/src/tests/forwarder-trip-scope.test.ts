@@ -1,15 +1,21 @@
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { inArray } from 'drizzle-orm';
+import { readFile } from 'node:fs/promises';
+import { eq, inArray } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import {
   assertForwarderTripScope,
+  assertForwarderMutableTripScope,
   getForwarderTripDetail,
   getForwarderTrips,
 } from '../services/forwarder-trip-query.service';
 import { createUser, updateUser } from '../services/user.service';
+import {
+  createTripExpense,
+  updateForwarderTripExpenseInTx,
+} from '../services/forwarder.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const ids = {
@@ -98,6 +104,17 @@ after(async () => {
 });
 
 describe('forwarder shipment scope', () => {
+  test('legacy migration fails closed for multiple forwarders and only backfills active shipments', async () => {
+    const migration = await readFile(
+      new URL('../../drizzle/0161_forwarder_shipment_scope.sql', import.meta.url),
+      'utf8',
+    );
+    assert.doesNotMatch(migration, /CROSS\s+JOIN/i);
+    assert.match(migration, /active_forwarder_count\s*>\s*1/i);
+    assert.match(migration, /RAISE\s+EXCEPTION/i);
+    assert.match(migration, /"status"\s+IN\s+\('DRAFT',\s*'IN_PROGRESS'\)/i);
+  });
+
   test('ACTIVE forwarder accounts require admin-managed shipment assignments', async () => {
     await assert.rejects(
       () => createUser({
@@ -136,6 +153,74 @@ describe('forwarder shipment scope', () => {
     );
   });
 
+  test('scope revocation and terminal shipment state deny mutations immediately', async () => {
+    await db.delete(s.userShipmentLinks).where(inArray(s.userShipmentLinks.userId, [forwarderA]));
+    await assert.rejects(
+      () => assertForwarderMutableTripScope(tripA, forwarderA),
+      (error: unknown) => (
+        error instanceof Error
+        && 'statusCode' in error
+        && error.statusCode === 404
+      ),
+    );
+    await db.insert(s.userShipmentLinks).values({ userId: forwarderA, shipmentId: shipmentA });
+
+    await db.update(s.shipments).set({ status: 'CLOSED' }).where(inArray(s.shipments.id, [shipmentA]));
+    await assert.rejects(
+      () => assertForwarderMutableTripScope(tripA, forwarderA),
+      (error: unknown) => (
+        error instanceof Error
+        && 'statusCode' in error
+        && error.statusCode === 409
+      ),
+    );
+    await assert.rejects(
+      () => createUser({
+        username: `forwarder-terminal-${suffix}`,
+        password: 'test-only-password',
+        role: Role.FORWARDER,
+        status: 'ACTIVE',
+        shipmentIds: [shipmentA],
+      }),
+      /nháp hoặc đang thực hiện/,
+    );
+    await db.update(s.shipments).set({ status: 'DRAFT' }).where(inArray(s.shipments.id, [shipmentA]));
+  });
+
+  test('mutable-scope validation serializes a concurrent terminal shipment transition', async () => {
+    let releaseGuard!: () => void;
+    const holdGuard = new Promise<void>((resolve) => {
+      releaseGuard = resolve;
+    });
+    let guardReady!: () => void;
+    const guardStarted = new Promise<void>((resolve) => {
+      guardReady = resolve;
+    });
+
+    const guardedMutation = db.transaction(async (tx) => {
+      await assertForwarderMutableTripScope(tripA, forwarderA, tx);
+      guardReady();
+      await holdGuard;
+    });
+    await guardStarted;
+
+    let transitionCompleted = false;
+    const terminalTransition = db.transaction(async (tx) => {
+      await tx.update(s.shipments)
+        .set({ status: 'CLOSED' })
+        .where(eq(s.shipments.id, shipmentA));
+      transitionCompleted = true;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.equal(transitionCompleted, false);
+
+    releaseGuard();
+    await guardedMutation;
+    await terminalTransition;
+    assert.equal(transitionCompleted, true);
+    await db.update(s.shipments).set({ status: 'DRAFT' }).where(eq(s.shipments.id, shipmentA));
+  });
+
   test('shared assignment allows trip visibility but only the owner can edit each expense', async () => {
     await db.insert(s.userShipmentLinks).values({
       userId: forwarderB,
@@ -171,5 +256,30 @@ describe('forwarder shipment scope', () => {
     assert.equal(aRows.find((expense) => expense.forwarderId === forwarderB)?.canEdit, false);
     assert.equal(bRows.find((expense) => expense.forwarderId === forwarderA)?.canEdit, false);
     assert.equal(bRows.find((expense) => expense.forwarderId === forwarderB)?.canEdit, true);
+  });
+
+  test('forwarder PATCH validates the merged no-invoice record', async () => {
+    const expense = await db.transaction((tx) => createTripExpense(tx, {
+      tripId: tripA,
+      forwarderId: forwarderA,
+      createdBy: forwarderA,
+      expenseType: 'OTHER',
+      buyAmount: '3000',
+      sellAmount: '0',
+      expenseDate: '2026-07-28',
+      payeeName: 'Cảng Hải Phòng',
+      note: 'Chi phí hiện trường',
+      noInvoiceEvidenceTypes: ['RECEIPT'],
+    }));
+    await assert.rejects(
+      () => db.transaction((tx) => updateForwarderTripExpenseInTx(
+        tx,
+        expense.id,
+        forwarderA,
+        { note: null },
+        expense.updatedAt,
+      )),
+      /Lý do chi là bắt buộc/,
+    );
   });
 });

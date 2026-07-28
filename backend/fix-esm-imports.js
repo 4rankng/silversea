@@ -15,7 +15,7 @@ import { resolve, dirname, join } from 'node:path';
 import { globSync } from 'node:fs';
 
 const distDir = resolve(process.argv[2] || './dist');
-const importRegex = /(from\s+['"])(\.\.?\/[^'"]+)(['"])/g;
+const staticImportRegex = /(from\s+['"])(\.\.?\/[^'"]+)(['"])/g;
 
 function resolveImport(importPath, fromFile) {
   const dir = dirname(fromFile);
@@ -48,14 +48,16 @@ function walkDir(dir) {
     let content = readFileSync(filePath, 'utf-8');
     let modified = false;
 
-    content = content.replace(importRegex, (match, prefix, importPath, suffix) => {
+    const rewriteImport = (match, prefix, importPath, suffix) => {
       const resolved = resolveImport(importPath, filePath);
       if (resolved !== importPath) {
         totalFixed++;
         modified = true;
       }
       return prefix + resolved + suffix;
-    });
+    };
+
+    content = content.replace(staticImportRegex, rewriteImport);
 
     if (modified) {
       writeFileSync(filePath, content, 'utf-8');
