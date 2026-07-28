@@ -1,15 +1,20 @@
 import { Router } from 'express';
+import type { Request } from 'express';
 import { z } from 'zod';
 import { Role } from '@tingting/shared';
 
 import { getUser } from '../../middleware/auth';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { requireRoles } from '../../middleware/casbin';
+import { ApiError } from '../../errors';
+import { getRequestIdempotencyKey } from '../utils/idempotency';
+import { runIdempotent } from '../../services/idempotency.service';
 import {
   approveFuelInvoice,
   createFuelInvoice,
   getFuelInvoice,
   listFuelInvoices,
+  requestFuelInvoiceCorrection,
   updateFuelInvoice,
 } from '../../services/fuel-invoice.service';
 
@@ -35,9 +40,32 @@ const fuelInvoiceSchema = z.object({
   allocations: z.array(allocationSchema).max(200).default([]),
 });
 
+const fuelInvoiceMutationSchema = fuelInvoiceSchema.extend({
+  expectedVersion: z.coerce.number().int().positive('Phiên bản hóa đơn nhiên liệu không hợp lệ'),
+});
+
+const fuelInvoiceDecisionSchema = z.object({
+  expectedVersion: z.coerce.number().int().positive('Phiên bản hóa đơn nhiên liệu không hợp lệ'),
+  reason: z.string().trim().min(1, 'Lý do đề nghị duyệt là bắt buộc').max(1000),
+});
+
+const fuelInvoiceCorrectionSchema = z.discriminatedUnion('correctionType', [
+  z.object({
+    correctionType: z.literal('ADJUSTMENT'),
+    expectedVersion: z.coerce.number().int().positive('Phiên bản hóa đơn nhiên liệu không hợp lệ'),
+    reason: z.string().trim().min(1, 'Lý do điều chỉnh là bắt buộc').max(1000),
+    correctedInvoice: fuelInvoiceSchema,
+  }),
+  z.object({
+    correctionType: z.literal('REVERSAL'),
+    expectedVersion: z.coerce.number().int().positive('Phiên bản hóa đơn nhiên liệu không hợp lệ'),
+    reason: z.string().trim().min(1, 'Lý do hoàn tác là bắt buộc').max(1000),
+  }),
+]);
+
 const listSchema = z.object({
   supplierId: z.coerce.number().int().positive().optional(),
-  status: z.enum(['PENDING', 'APPROVED', 'REJECTED']).optional(),
+  status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'REVERSED']).optional(),
 });
 
 function parseId(raw: string | string[]): number {
@@ -50,6 +78,19 @@ function parseId(raw: string | string[]): number {
     }]);
   }
   return id;
+}
+
+const FUEL_INVOICE_CREATE_ENDPOINT = 'fuel-invoices.create';
+const FUEL_INVOICE_UPDATE_ENDPOINT = 'fuel-invoices.update';
+const FUEL_INVOICE_APPROVE_ENDPOINT = 'fuel-invoices.approve';
+const FUEL_INVOICE_CORRECTION_ENDPOINT = 'fuel-invoices.correction.create';
+
+function requireIdempotencyKey(req: Request): string {
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  if (!idempotencyKey) {
+    throw new ApiError(400, 'Idempotency-Key là bắt buộc cho thao tác hóa đơn nhiên liệu.');
+  }
+  return idempotencyKey;
 }
 
 const router = Router();
@@ -74,13 +115,21 @@ router.post(
   '/finance/fuel-invoices',
   requireRoles(Role.ADMIN, Role.ACCOUNTANT),
   asyncHandler(async (req, res) => {
-    const created = await createFuelInvoice(
-      fuelInvoiceSchema.parse(req.body),
-      getUser(req).userId,
-    );
+    const actor = getUser(req);
+    const payload = fuelInvoiceSchema.parse(req.body);
+    const { result, replayed, statusCode } = await runIdempotent({
+      endpoint: FUEL_INVOICE_CREATE_ENDPOINT,
+      idempotencyKey: requireIdempotencyKey(req),
+      payload: { actorId: actor.userId, ...payload },
+      createdBy: actor.userId,
+      entityType: 'fuel_invoice',
+      responseStatusCode: 201,
+      create: (tx) => createFuelInvoice(payload, actor.userId, tx),
+    });
+    const created = replayed ? { ...result, replayed } : result;
     res.locals.auditEntityId = created.id;
     res.locals.auditEntityKey = `fuel-invoice-${created.id}`;
-    res.status(201).json(created);
+    res.status(statusCode).json(created);
   }),
 );
 
@@ -88,13 +137,62 @@ router.put(
   '/finance/fuel-invoices/:id',
   requireRoles(Role.ADMIN, Role.ACCOUNTANT),
   asyncHandler(async (req, res) => {
-    const updated = await updateFuelInvoice(
-      parseId(req.params.id),
-      fuelInvoiceSchema.parse(req.body),
-    );
+    const actor = getUser(req);
+    const invoiceId = parseId(req.params.id);
+    const payload = fuelInvoiceMutationSchema.parse(req.body);
+    const { expectedVersion, ...body } = payload;
+    const { result, replayed } = await runIdempotent({
+      endpoint: FUEL_INVOICE_UPDATE_ENDPOINT,
+      idempotencyKey: requireIdempotencyKey(req),
+      payload: { actorId: actor.userId, expectedVersion, id: invoiceId, ...body },
+      createdBy: actor.userId,
+      entityType: 'fuel_invoice',
+      create: (tx) => updateFuelInvoice(invoiceId, body, expectedVersion, tx),
+      getEntityId: () => invoiceId,
+    });
+    const updated = replayed ? { ...result, replayed } : result;
     res.locals.auditEntityId = updated.id;
     res.locals.auditEntityKey = `fuel-invoice-${updated.id}`;
     res.json(updated);
+  }),
+);
+
+router.post(
+  '/finance/fuel-invoices/:id/corrections',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT),
+  asyncHandler(async (req, res) => {
+    const actor = getUser(req);
+    const invoiceId = parseId(req.params.id);
+    const payload = fuelInvoiceCorrectionSchema.parse(req.body);
+    const { result, replayed, statusCode } = await runIdempotent({
+      endpoint: FUEL_INVOICE_CORRECTION_ENDPOINT,
+      idempotencyKey: requireIdempotencyKey(req),
+      payload: {
+        actorId: actor.userId,
+        actorRole: actor.role,
+        invoiceId,
+        ...payload,
+      },
+      createdBy: actor.userId,
+      entityType: 'governance_action',
+      responseStatusCode: 201,
+      create: (tx) => requestFuelInvoiceCorrection({
+        invoiceId,
+        expectedVersion: payload.expectedVersion,
+        reason: payload.reason,
+        correctionType: payload.correctionType,
+        correctedInvoice: payload.correctionType === 'ADJUSTMENT'
+          ? payload.correctedInvoice
+          : undefined,
+        makerId: actor.userId,
+        makerRole: actor.role,
+        transaction: tx,
+      }),
+    });
+    const action = replayed ? { ...result, replayed } : result;
+    res.locals.auditEntityId = action.id;
+    res.locals.auditEntityKey = `fuel-invoice-correction-${action.id}`;
+    res.status(statusCode).json(action);
   }),
 );
 
@@ -103,14 +201,34 @@ router.post(
   requireRoles(Role.ADMIN, Role.MANAGER),
   asyncHandler(async (req, res) => {
     const actor = getUser(req);
-    const approved = await approveFuelInvoice(
-      parseId(req.params.id),
-      actor.userId,
-      actor.role,
-    );
+    const invoiceId = parseId(req.params.id);
+    const payload = fuelInvoiceDecisionSchema.parse(req.body);
+    const { result, replayed } = await runIdempotent({
+      endpoint: FUEL_INVOICE_APPROVE_ENDPOINT,
+      idempotencyKey: requireIdempotencyKey(req),
+      payload: {
+        actorId: actor.userId,
+        actorRole: actor.role,
+        expectedVersion: payload.expectedVersion,
+        reason: payload.reason,
+        id: invoiceId,
+      },
+      createdBy: actor.userId,
+      entityType: 'fuel_invoice',
+      create: (tx) => approveFuelInvoice(
+        invoiceId,
+        actor.userId,
+        actor.role,
+        payload.expectedVersion,
+        payload.reason,
+        tx,
+      ),
+      getEntityId: () => invoiceId,
+    });
+    const approved = replayed ? { ...result, replayed } : result;
     res.locals.auditEntityId = approved.id;
     res.locals.auditEntityKey = `fuel-invoice-${approved.id}`;
-    res.json(approved);
+    res.status(replayed ? 200 : 201).json(approved);
   }),
 );
 

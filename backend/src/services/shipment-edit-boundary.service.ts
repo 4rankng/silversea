@@ -9,6 +9,7 @@ type ShipmentContainerRow = typeof s.shipmentContainers.$inferSelect;
 
 export type ShipmentPlanPatch = {
   customerId?: number;
+  cargoTypeId?: number | null;
   responsibleUnitId?: number | null;
   bookingRef?: string | null;
   blNumber?: string | null;
@@ -39,6 +40,7 @@ const POST_DISPATCH_DIRECT_FIELDS = new Set<keyof ShipmentPlanPatch>([
 
 const POST_DISPATCH_REQUEST_FIELDS = new Set<keyof ShipmentPlanPatch>([
   'customerId',
+  'cargoTypeId',
   'responsibleUnitId',
   'expectedDeliveryDate',
   'pickupLocation',
@@ -59,6 +61,7 @@ function normalizeNumberString(value: string | number | null | undefined): strin
 function currentShipmentSnapshot(row: ShipmentRow) {
   return {
     customerId: row.customerId,
+    cargoTypeId: row.cargoTypeId ?? null,
     bookingRef: row.bookingRef ?? null,
     blNumber: row.blNumber ?? null,
     expectedDeliveryDate: row.expectedDeliveryDate ?? null,
@@ -129,7 +132,7 @@ export function classifyClerkShipmentPatch(
   const entries = Object.entries(patch) as Array<[keyof ShipmentPlanPatch, ShipmentPlanPatch[keyof ShipmentPlanPatch]]>;
   for (const [field, value] of entries) {
     if (value === undefined) continue;
-    const normalizedValue = field === 'customerId' || field === 'responsibleUnitId'
+    const normalizedValue = field === 'customerId' || field === 'cargoTypeId' || field === 'responsibleUnitId'
       ? value
       : normalizeNullableText(value as string | null);
     const currentValue = beforeSnapshot[field];

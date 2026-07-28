@@ -8,6 +8,9 @@ import { eq, isNull, desc, and, lte, ne } from 'drizzle-orm';
 import { cacheGet, cacheInvalidate } from '../lib/redis';
 import { ApiError } from '../errors';
 import { normalizeTaxCode } from './legal-partner.service';
+import { buildNoInvoicePolicySnapshot } from './no-invoice-disbursement.service';
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 // ─── Bootstrap ──────────────────────────────────────────────────────────────────
 
@@ -31,6 +34,28 @@ export async function getBootstrapData() {
       db.select().from(s.forwarderExpenseTypes).where(isNull(s.forwarderExpenseTypes.deletedAt)),
     ]);
 
+    const activeForwarderExpenseTypes = forwarderExpenseTypesList
+      .filter(t => t.status === 'ACTIVE')
+      .map((t) => ({
+        ...t,
+        noInvoicePolicySnapshot: t.requiresInvoice
+          ? null
+          : buildNoInvoicePolicySnapshot({
+            code: t.code,
+            name: t.name,
+            requiresInvoice: t.requiresInvoice,
+            substituteEvidenceAllowed: t.substituteEvidenceAllowed,
+            noInvoiceEvidenceTypes: t.noInvoiceEvidenceTypes,
+            noInvoicePerItemLimit: String(t.noInvoicePerItemLimit),
+            noInvoicePerDayLimit: String(t.noInvoicePerDayLimit),
+            noInvoiceFinanceLeadItemApprovalLimit: String(t.noInvoiceFinanceLeadItemApprovalLimit),
+            noInvoiceDirectorDayApprovalLimit: String(t.noInvoiceDirectorDayApprovalLimit),
+            noInvoiceFinanceLeadApprovalTitle: t.noInvoiceFinanceLeadApprovalTitle,
+            noInvoiceDirectorApprovalTitle: t.noInvoiceDirectorApprovalTitle,
+            noInvoicePolicyVersion: t.noInvoicePolicyVersion,
+          }),
+      }));
+
     return {
       customers: customersList.filter(c => c.status === 'ACTIVE'),
       trucks: trucksList.filter(t => t.status === 'ACTIVE'),
@@ -42,7 +67,7 @@ export async function getBootstrapData() {
       trailers: trailersList.filter(t => t.status === 'ACTIVE'),
       containerTypes: containerTypesList,
       ports: portsList,
-      forwarderExpenseTypes: forwarderExpenseTypesList.filter(t => t.status === 'ACTIVE'),
+      forwarderExpenseTypes: activeForwarderExpenseTypes,
     };
   });
 }
@@ -76,6 +101,67 @@ export async function getFuelConfig(): Promise<typeof s.fuelConfig.$inferSelect 
   return row;
 }
 
+export async function getFuelConfigUpdatedAt(
+  q: typeof db | Tx = db,
+): Promise<string | null> {
+  const [row] = await q.select({ updatedAt: s.fuelConfig.updatedAt })
+    .from(s.fuelConfig)
+    .where(isNull(s.fuelConfig.deletedAt))
+    .limit(1);
+  return row?.updatedAt?.toISOString() ?? null;
+}
+
+export async function upsertFuelConfigInTx(
+  tx: Tx,
+  data: {
+    loadedNorm: number;
+    emptyNorm: number;
+    supplement?: number;
+    unitPrice: number;
+    warningThreshold: number;
+    criticalThreshold: number;
+  },
+  userId?: number,
+): Promise<{ result: typeof s.fuelConfig.$inferSelect; status: number }> {
+  const now = new Date();
+  const values = {
+    loadedNorm: String(data.loadedNorm),
+    emptyNorm: String(data.emptyNorm),
+    supplement: String(data.supplement ?? 0),
+    unitPrice: String(data.unitPrice),
+    warningThreshold: String(data.warningThreshold),
+    criticalThreshold: String(data.criticalThreshold),
+    updatedAt: now,
+  };
+  const [existing] = await tx.select().from(s.fuelConfig).where(isNull(s.fuelConfig.deletedAt)).limit(1);
+  let result;
+  let status: number;
+  if (existing) {
+    const [updated] = await tx.update(s.fuelConfig).set(values).where(eq(s.fuelConfig.id, existing.id)).returning();
+    result = updated;
+    status = 200;
+    if (String(data.unitPrice) !== String(existing.unitPrice)) {
+      await tx.insert(s.fuelPriceHistory).values({
+        unitPrice: String(data.unitPrice),
+        effectiveDate: now,
+        changedBy: userId ?? null,
+        note: null,
+      });
+    }
+  } else {
+    const [created] = await tx.insert(s.fuelConfig).values(values).returning();
+    result = created;
+    status = 201;
+    await tx.insert(s.fuelPriceHistory).values({
+      unitPrice: String(data.unitPrice),
+      effectiveDate: now,
+      changedBy: userId ?? null,
+      note: 'Cấu hình ban đầu',
+    });
+  }
+  return { result, status };
+}
+
 export async function upsertFuelConfig(data: {
   loadedNorm: number;
   emptyNorm: number;
@@ -84,41 +170,7 @@ export async function upsertFuelConfig(data: {
   warningThreshold: number;
   criticalThreshold: number;
 }, userId?: number): Promise<{ result: typeof s.fuelConfig.$inferSelect; status: number }> {
-  const values = {
-    loadedNorm: String(data.loadedNorm),
-    emptyNorm: String(data.emptyNorm),
-    supplement: String(data.supplement ?? 0),
-    unitPrice: String(data.unitPrice),
-    warningThreshold: String(data.warningThreshold),
-    criticalThreshold: String(data.criticalThreshold),
-    updatedAt: new Date(),
-  };
-  const [existing] = await db.select().from(s.fuelConfig).where(isNull(s.fuelConfig.deletedAt)).limit(1);
-  let result;
-  let status: number;
-  if (existing) {
-    const [updated] = await db.update(s.fuelConfig).set(values).where(eq(s.fuelConfig.id, existing.id)).returning();
-    result = updated;
-    status = 200;
-    if (String(data.unitPrice) !== String(existing.unitPrice)) {
-      await db.insert(s.fuelPriceHistory).values({
-        unitPrice: String(data.unitPrice),
-        effectiveDate: new Date(),
-        changedBy: userId ?? null,
-        note: null,
-      });
-    }
-  } else {
-    const [created] = await db.insert(s.fuelConfig).values(values).returning();
-    result = created;
-    status = 201;
-    await db.insert(s.fuelPriceHistory).values({
-      unitPrice: String(data.unitPrice),
-      effectiveDate: new Date(),
-      changedBy: userId ?? null,
-      note: 'Cấu hình ban đầu',
-    });
-  }
+  const { result, status } = await db.transaction((tx) => upsertFuelConfigInTx(tx, data, userId));
   await cacheInvalidate('config:fuel');
   await cacheInvalidate('config:fuel-price-history');
   return { result, status };

@@ -1,26 +1,108 @@
 import { Router } from 'express';
+import type { Request } from 'express';
 import { Role } from '@tingting/shared';
 import {
   appSettingsSchema,
   emailSettingsUpdateSchema,
   type EmailSettingsResponse,
+  type AppSettings,
 } from '@tingting/shared';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { requireRoles } from '../middleware/casbin';
-import { getAppSettings, saveAppSettings } from '../services/app-settings.service';
+import { db } from '../db';
+import {
+  applySavedAppSettings,
+  getAppSettingsFrom,
+  getAppSettings,
+  getGovernedFinancialPolicyState,
+  getAppSettingsUpdatedAt,
+  GOVERNED_APP_SETTINGS_RESOURCE,
+  saveDirectAppSettingsInTx,
+} from '../services/app-settings.service';
 import { maskKey } from '../services/crypto';
 import {
   getEmailSettings,
-  saveEmailSettings,
+  getEmailSettingsUpdatedAt,
+  saveEmailSettingsInTx,
 } from '../services/email-settings.service';
+import {
+  governedConfigVersionFromUpdatedAt,
+  requestGovernedConfigAction,
+} from '../services/price-config-governance.service';
+import { ApiError } from '../errors';
+import { resolveIdempotencyKey, runIdempotent } from '../services/idempotency.service';
 
 export const appSettingsRouter = Router();
+const APP_SETTINGS_COMMANDS = {
+  GENERAL_UPDATE: 'admin.app-settings.update',
+  EMAIL_UPDATE: 'admin.app-settings.email.update',
+} as const;
 
-function emailSettingsResponse(resendApiKey: string): EmailSettingsResponse {
+function hasDirectAppSettingsChange(previous: AppSettings, next: AppSettings): boolean {
+  return previous.botEnabled !== next.botEnabled
+    || previous.tutorialEnabled !== next.tutorialEnabled
+    || previous.gpsEnabled !== next.gpsEnabled;
+}
+
+function hasFinancialPolicyAppSettingsChange(previous: AppSettings, next: AppSettings): boolean {
+  return previous.creditWarningThresholdDefault !== next.creditWarningThresholdDefault
+    || previous.creditTierOneAmountCap !== next.creditTierOneAmountCap
+    || previous.salaryPayrollBusinessUnitId !== next.salaryPayrollBusinessUnitId;
+}
+
+function directAppSettingsOnly(previous: AppSettings, next: AppSettings) {
+  return {
+    ...previous,
+    botEnabled: next.botEnabled,
+    tutorialEnabled: next.tutorialEnabled,
+    gpsEnabled: next.gpsEnabled,
+  };
+}
+
+function financialPolicyOnly(settings: AppSettings) {
+  return {
+    creditWarningThresholdDefault: settings.creditWarningThresholdDefault,
+    creditTierOneAmountCap: settings.creditTierOneAmountCap,
+    salaryPayrollBusinessUnitId: settings.salaryPayrollBusinessUnitId,
+  };
+}
+
+function emailSettingsResponse(
+  resendApiKey: string,
+  updatedAt: string | null,
+): EmailSettingsResponse & { updatedAt: string | null } {
   return {
     resendKeySet: !!resendApiKey,
     resendKeyMasked: maskKey(resendApiKey),
+    updatedAt,
   };
+}
+
+function requireIdempotencyKey(message: string, req: Request): string {
+  const key = resolveIdempotencyKey({
+    headerValue: req.header('Idempotency-Key'),
+    requestId: req.body?._requestId,
+  });
+  if (!key) throw new ApiError(400, message);
+  return key;
+}
+
+function parseExpectedUpdatedAt(req: Request): Date | null {
+  const raw = req.header('If-Unmodified-Since')?.trim();
+  if (!raw) return null;
+  const expected = new Date(raw);
+  if (Number.isNaN(expected.getTime())) {
+    throw new ApiError(400, 'Phiên bản dữ liệu không hợp lệ.');
+  }
+  return expected;
+}
+
+function assertOptionalVersion(current: string | null, expected: Date | null, message: string): void {
+  if (!current) return;
+  if (!expected) throw new ApiError(428, message);
+  if (new Date(current).getTime() !== expected.getTime()) {
+    throw new ApiError(409, 'Dữ liệu đã được người khác cập nhật. Vui lòng tải lại trước khi lưu.');
+  }
 }
 
 appSettingsRouter.get(
@@ -28,7 +110,7 @@ appSettingsRouter.get(
   requireRoles(Role.ADMIN),
   asyncHandler(async (_req, res) => {
     const settings = await getEmailSettings();
-    res.json(emailSettingsResponse(settings.resendApiKey));
+    res.json(emailSettingsResponse(settings.resendApiKey, await getEmailSettingsUpdatedAt()));
   }),
 );
 
@@ -37,18 +119,99 @@ appSettingsRouter.put(
   requireRoles(Role.ADMIN),
   asyncHandler(async (req, res) => {
     const update = emailSettingsUpdateSchema.parse(req.body);
-    const settings = await saveEmailSettings(update);
-    res.json(emailSettingsResponse(settings.resendApiKey));
+    const idempotencyKey = requireIdempotencyKey(
+      'Idempotency-Key là bắt buộc khi cập nhật cấu hình email.',
+      req,
+    );
+    const expectedUpdatedAt = parseExpectedUpdatedAt(req);
+    const { result, replayed } = await runIdempotent({
+      endpoint: APP_SETTINGS_COMMANDS.EMAIL_UPDATE,
+      idempotencyKey,
+      payload: { body: update, expectedUpdatedAt: expectedUpdatedAt?.toISOString() ?? null },
+      createdBy: req.user?.userId ?? null,
+      entityType: 'app-settings',
+      create: async (tx) => {
+        const currentUpdatedAt = await getEmailSettingsUpdatedAt(tx);
+        assertOptionalVersion(
+          currentUpdatedAt,
+          expectedUpdatedAt,
+          'Thiếu phiên bản cấu hình email. Vui lòng tải lại trước khi cập nhật.',
+        );
+        const settings = await saveEmailSettingsInTx(tx, update);
+        return emailSettingsResponse(settings.resendApiKey, await getEmailSettingsUpdatedAt(tx));
+      },
+    });
+    res.json({ ...result, replayed });
   }),
 );
 
 appSettingsRouter.get(
   '/',
   requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT),
-  asyncHandler(async (_req, res) => res.json(await getAppSettings())),
+  asyncHandler(async (_req, res) => res.json({
+    ...(await getAppSettings()),
+    updatedAt: await getAppSettingsUpdatedAt(),
+  })),
 );
 appSettingsRouter.put(
   '/',
   requireRoles(Role.ADMIN),
-  asyncHandler(async (req, res) => res.json(await saveAppSettings(appSettingsSchema.parse(req.body)))),
+  asyncHandler(async (req, res) => {
+    const next = appSettingsSchema.parse(req.body);
+    const idempotencyKey = requireIdempotencyKey(
+      'Idempotency-Key là bắt buộc khi cập nhật cài đặt ứng dụng.',
+      req,
+    );
+    const expectedUpdatedAt = parseExpectedUpdatedAt(req);
+    const previous = await getAppSettings();
+    const directChange = hasDirectAppSettingsChange(previous, next);
+    const materialChange = hasFinancialPolicyAppSettingsChange(previous, next);
+    const { result, replayed } = await runIdempotent({
+      endpoint: APP_SETTINGS_COMMANDS.GENERAL_UPDATE,
+      idempotencyKey,
+      payload: { body: next, expectedUpdatedAt: expectedUpdatedAt?.toISOString() ?? null },
+      createdBy: req.user?.userId ?? null,
+      entityType: 'app-settings',
+      responseStatusCode: materialChange ? 201 : 200,
+      create: async (tx) => {
+        const currentUpdatedAt = await getAppSettingsUpdatedAt(tx);
+        assertOptionalVersion(
+          currentUpdatedAt,
+          expectedUpdatedAt,
+          'Thiếu phiên bản cài đặt ứng dụng. Vui lòng tải lại trước khi cập nhật.',
+        );
+        const current = await getAppSettingsFrom(tx);
+        let directSaved = null as Awaited<ReturnType<typeof saveDirectAppSettingsInTx>> | null;
+        if (directChange) {
+          directSaved = await saveDirectAppSettingsInTx(tx, current, next);
+        }
+        if (materialChange) {
+          const governedState = await getGovernedFinancialPolicyState(tx);
+          return requestGovernedConfigAction({
+            resource: GOVERNED_APP_SETTINGS_RESOURCE,
+            operation: governedState.updatedAt ? 'UPDATE' : 'CREATE',
+            subjectId: null,
+            subjectKey: GOVERNED_APP_SETTINGS_RESOURCE,
+            originalVersion: governedState.updatedAt
+              ? governedConfigVersionFromUpdatedAt(governedState.updatedAt)
+              : 0,
+            beforeRow: governedState,
+            afterData: financialPolicyOnly(next),
+            makerId: req.user?.userId ?? 0,
+            makerRole: req.user?.role ?? Role.ADMIN,
+            transaction: tx,
+          });
+        }
+        if (directSaved) {
+          return { ...directSaved.settings, updatedAt: directSaved.updatedAt };
+        }
+        return { ...current, updatedAt: currentUpdatedAt };
+      },
+    });
+    if (!replayed && directChange) {
+      await applySavedAppSettings(previous, directAppSettingsOnly(previous, next));
+    }
+    const status = materialChange ? (replayed ? 200 : 201) : 200;
+    res.status(status).json({ ...result, replayed });
+  }),
 );

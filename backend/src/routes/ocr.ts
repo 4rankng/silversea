@@ -9,15 +9,57 @@ import * as s from '../db/schema';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { getUser } from '../middleware/auth';
 import { sniffImageType } from '../lib/format';
-import { saveTripPhoto } from './upload';
+import {
+  insertTripPhotoRecord,
+  prepareTripPhoto,
+  type PreparedTripPhoto,
+} from './upload';
 import { extractContainerAndSeal, extractPumpReading } from '../services/ocr.service';
 import { ApiError } from '../errors';
 import { getRequestIdempotencyKey } from './utils/idempotency';
-import { runIdempotent } from '../services/idempotency.service';
+import {
+  IDEMPOTENCY_ENDPOINTS,
+  findIdempotencyRecord,
+  runIdempotent,
+  waitForIdempotencyRecord,
+} from '../services/idempotency.service';
+import {
+  runWithAuditRequestContext,
+} from '../services/audit.service';
+import { storageService } from '../services/storage.service';
+import {
+  armStorageCleanupGuard,
+  cancelStorageCleanupGuard,
+  releaseStorageCleanupGuard,
+  type StorageCleanupGuardLease,
+} from '../services/durable-effect.service';
 
 // auth + Casbin ('ocr') applied at mount point in index.ts. Both routes below
 // inherit casbinAuthz('ocr') from that single mount — no per-route policy.
 const router = Router();
+const OCR_PUMP_ENDPOINT = 'ocr.pump';
+let extractPumpReadingHandler = extractPumpReading;
+
+function withMaterialWriteAuditContext<T>(
+  req: Request,
+  res: Response,
+  endpoint: string,
+  fn: () => Promise<T>,
+): Promise<T> {
+  return runWithAuditRequestContext({
+    req,
+    res,
+    fullPath: (req.originalUrl || req.url || '').split('?')[0],
+    isLoginPath: false,
+    declaredMaterialWriteEndpoint: endpoint,
+  }, fn);
+}
+
+export function setExtractPumpReadingHandlerForTest(
+  handler: typeof extractPumpReading | null,
+) {
+  extractPumpReadingHandler = handler ?? extractPumpReading;
+}
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -32,21 +74,70 @@ interface OcrUser {
 
 /** Inputs to persistOcrPhoto. `tripId` is required — persist always links a trip. */
 interface PersistOcrInput {
-  file: { buffer: Buffer };
   type: 'CONTAINER' | 'SEAL';
   tripId: number;
   /** Optional container row to link the photo to (must belong to `tripId`). */
   containerId: number | null;
   user: OcrUser;
-  storageKeySeed?: string;
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0];
+  preparedPhoto: PreparedTripPhoto;
+  cleanupGuard: StorageCleanupGuardLease;
 }
 
 /** The persisted photo plus the processed buffer callers may recognize on. */
 export interface PersistedOcrPhoto {
+  id: number;
   photoUrl: string;
   storageKey: string;
   buffer: Buffer;
   mimeType: string;
+}
+
+function hashStorageKey(storageKey: string): string {
+  return createHash('sha256').update(storageKey).digest('hex').slice(0, 32);
+}
+
+async function acquireOcrCleanupGuard(args: {
+  endpoint: string;
+  idempotencyKey: string;
+  dedupeKey: string;
+  storageKey: string;
+  entityId?: number;
+}): Promise<StorageCleanupGuardLease | null> {
+  const existingIdempotency = await findIdempotencyRecord(args.endpoint, args.idempotencyKey);
+  if (existingIdempotency) return null;
+  try {
+    return await armStorageCleanupGuard({
+      dedupeKey: args.dedupeKey,
+      storageKey: args.storageKey,
+      entityType: 'trip_photos',
+      entityId: args.entityId,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('storage cleanup guard already leased')) {
+      const committed = await waitForIdempotencyRecord(args.endpoint, args.idempotencyKey);
+      if (committed) return null;
+      throw new ApiError(409, 'Ảnh OCR đang được xử lý bởi yêu cầu khác. Vui lòng thử lại.');
+    }
+    throw error;
+  }
+}
+
+async function releaseOcrCleanupGuard(
+  lease: StorageCleanupGuardLease | null,
+  error: unknown,
+  context: string,
+): Promise<void> {
+  if (!lease) return;
+  try {
+    await releaseStorageCleanupGuard(lease, error);
+  } catch (releaseError) {
+    console.warn(
+      `[${context}] failed to release durable cleanup guard ${lease.dedupeKey}:`,
+      releaseError instanceof Error ? releaseError.message : releaseError,
+    );
+  }
 }
 
 /**
@@ -82,24 +173,30 @@ function parseIdParam(raw: unknown, label: string): number | null {
  * `photo-authz.test.ts` idiom (no HTTP/supertest harness needed).
  */
 export async function persistOcrPhoto({
-  file,
   type,
   tripId,
   containerId,
   user,
-  storageKeySeed,
+  tx,
+  preparedPhoto,
+  cleanupGuard,
 }: PersistOcrInput): Promise<PersistedOcrPhoto> {
+  // This helper only accepts a pre-uploaded photo protected by a real durable
+  // cleanup lease and persists the row plus guard cancellation atomically.
   if (type !== 'CONTAINER' && type !== 'SEAL') {
     throw new ApiError(400, 'Loại ảnh không hợp lệ (CONTAINER hoặc SEAL)');
+  }
+  if (cleanupGuard.storageKey !== preparedPhoto.storageKey) {
+    throw new ApiError(409, 'Cleanup guard không khớp với ảnh OCR.');
   }
 
   // DRIVER may only attach photos to trips they own (mirrors photosRouter).
   if (user.role === Role.DRIVER) {
-    const [driver] = await db.select({ id: s.drivers.id }).from(s.drivers)
+    const [driver] = await tx.select({ id: s.drivers.id }).from(s.drivers)
       .where(eq(s.drivers.userId, user.userId)).limit(1);
     if (!driver) throw new ApiError(403, 'Không có quyền truy cập');
 
-    const [trip] = await db.select().from(s.trips)
+    const [trip] = await tx.select().from(s.trips)
       .where(and(eq(s.trips.id, tripId), eq(s.trips.driverId, driver.id)))
       .limit(1);
     if (!trip) throw new ApiError(403, 'Không có quyền quét ảnh của chuyến này');
@@ -107,7 +204,7 @@ export async function persistOcrPhoto({
 
   // Optional container_id → link to a specific container row (must belong to trip).
   if (containerId !== null) {
-    const [container] = await db.select({ tripId: s.tripContainers.tripId })
+    const [container] = await tx.select({ tripId: s.tripContainers.tripId })
       .from(s.tripContainers)
       .where(eq(s.tripContainers.id, containerId))
       .limit(1);
@@ -116,16 +213,23 @@ export async function persistOcrPhoto({
     }
   }
 
-  const saved = await saveTripPhoto(file, tripId, type, user.userId, {
-    forOcr: true,
+  const id = await insertTripPhotoRecord(tx, {
+    tripId,
+    type,
+    storageKey: preparedPhoto.storageKey,
+    userId: user.userId,
     containerId,
-    storageKeySeed,
   });
+  const cancelled = await cancelStorageCleanupGuard(tx, cleanupGuard);
+  if (!cancelled) {
+    throw new ApiError(409, 'Ảnh OCR đang được xử lý bởi yêu cầu khác. Vui lòng thử lại.');
+  }
   return {
-    photoUrl: saved.url,
-    storageKey: saved.storageKey,
-    buffer: saved.buffer,
-    mimeType: saved.mimeType,
+    id,
+    photoUrl: preparedPhoto.url,
+    storageKey: preparedPhoto.storageKey,
+    buffer: preparedPhoto.buffer,
+    mimeType: preparedPhoto.mimeType,
   };
 }
 
@@ -165,46 +269,96 @@ router.post('/', upload.single('file'), asyncHandler(async (req: Request, res: R
   }
 
   const fileHash = createHash('sha256').update(file.buffer).digest('hex');
-  const { result: response } = await runIdempotent({
-    endpoint: 'ocr.capture',
-    idempotencyKey,
-    payload: { type, tripId, containerId, fileHash },
-    createdBy: user.userId,
-    entityType: tripId === null ? 'OCR_PREVIEW' : 'TRIP_PHOTO',
-    create: async () => {
-      let photoUrl: string | undefined;
-      let storageKey: string | undefined;
-      let ocrBuffer = file.buffer;
-      let ocrMime = sniffImageType(file.buffer) ?? 'image/jpeg';
+  const preparedPhoto = tripId === null
+    ? null
+    : await prepareTripPhoto(file, tripId, type, {
+      forOcr: true,
+      containerId,
+      storageKeySeed: `ocr-capture:${user.userId}:${idempotencyKey}`,
+    });
+  const cleanupGuard = preparedPhoto
+    ? await acquireOcrCleanupGuard({
+      endpoint: IDEMPOTENCY_ENDPOINTS.OCR_CAPTURE,
+      idempotencyKey,
+      dedupeKey: `ocr-capture-orphan:${user.userId}:${hashStorageKey(preparedPhoto.storageKey)}:${idempotencyKey}`,
+      storageKey: preparedPhoto.storageKey,
+      entityId: tripId ?? undefined,
+    })
+    : null;
+  if (preparedPhoto && cleanupGuard) {
+    try {
+      await storageService.upload(preparedPhoto.buffer, preparedPhoto.storageKey);
+    } catch (error) {
+      await releaseOcrCleanupGuard(cleanupGuard, error, 'ocr.capture');
+      throw error;
+    }
+  }
+  const { result: response } = await withMaterialWriteAuditContext(
+    req,
+    res,
+    IDEMPOTENCY_ENDPOINTS.OCR_CAPTURE,
+    () => runIdempotent({
+      endpoint: IDEMPOTENCY_ENDPOINTS.OCR_CAPTURE,
+      idempotencyKey,
+      payload: { type, tripId, containerId, fileHash },
+      createdBy: user.userId,
+      entityType: tripId === null ? 'OCR_PREVIEW' : 'TRIP_PHOTO',
+      create: async (tx) => {
+        let photoUrl: string | undefined;
+        let storageKey: string | undefined;
+        let ocrBuffer = file.buffer;
+        let ocrMime = sniffImageType(file.buffer) ?? 'image/jpeg';
+        let photoId: number | undefined;
 
-      if (tripId !== null) {
-        const saved = await persistOcrPhoto({
-          file,
-          type,
-          tripId,
-          containerId,
-          user,
-          storageKeySeed: `ocr-capture:${user.userId}:${idempotencyKey}`,
-        });
-        photoUrl = saved.photoUrl;
-        storageKey = saved.storageKey;
-        ocrBuffer = saved.buffer;
-        ocrMime = saved.mimeType;
-      }
+        if (tripId !== null) {
+          const saved = await persistOcrPhoto({
+            type,
+            tripId,
+            containerId,
+            user,
+            preparedPhoto: preparedPhoto!,
+            tx,
+            cleanupGuard: cleanupGuard!,
+          });
+          if (!cleanupGuard) {
+            throw new ApiError(409, 'Ảnh OCR đang được xử lý bởi yêu cầu khác. Vui lòng thử lại.');
+          }
+          photoId = saved.id;
+          photoUrl = saved.photoUrl;
+          storageKey = saved.storageKey;
+          ocrBuffer = saved.buffer;
+          ocrMime = saved.mimeType;
+        }
 
-      const result = await extractContainerAndSeal(ocrBuffer, type, ocrMime);
-      return {
-        ok: result.success,
-        containerNumbers: result.containerNumbers,
-        sealNumber: result.sealNumber,
-        checkDigitWarnings: result.checkDigitWarnings,
-        photoUrl,
-        storageKey,
-        model: result.model,
-        error: result.error,
-      };
-    },
-  });
+        const result = await extractContainerAndSeal(ocrBuffer, type, ocrMime);
+        return {
+          id: photoId,
+          ok: result.success,
+          containerNumbers: result.containerNumbers,
+          sealNumber: result.sealNumber,
+          checkDigitWarnings: result.checkDigitWarnings,
+          photoUrl,
+          storageKey,
+          model: result.model,
+          error: result.error,
+        };
+      },
+      getEntityId: (value) => value.id,
+      serializeResult: (value) => ({
+        ok: value.ok,
+        containerNumbers: value.containerNumbers,
+        sealNumber: value.sealNumber,
+        checkDigitWarnings: value.checkDigitWarnings,
+        photoUrl: value.photoUrl,
+        storageKey: value.storageKey,
+        model: value.model,
+        error: value.error,
+      }),
+      onTransactionRollback: async (error) => {
+        await releaseOcrCleanupGuard(cleanupGuard, error, 'ocr.capture');
+      },
+    }),
+  );
   res.status(200).json(response);
 }));
 
@@ -222,19 +376,34 @@ router.post('/pump', upload.single('file'), asyncHandler(async (req: Request, re
   const file = req.file;
   if (!file) throw new ApiError(400, 'Không có file tải lên');
 
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  if (!idempotencyKey) {
+    throw new ApiError(400, 'Idempotency-Key là bắt buộc khi xử lý ảnh OCR.');
+  }
   const mimeType = sniffImageType(file.buffer) ?? 'image/jpeg';
-  const result = await extractPumpReading(file.buffer, mimeType);
-
-  res.status(200).json({
-    ok: result.success,
-    litres: result.litres,
-    unitPrice: result.unitPrice,
-    total: result.total,
-    mismatch: result.mismatch,
-    computedTotal: result.computedTotal,
-    model: result.model,
-    error: result.error,
+  const fileHash = createHash('sha256').update(file.buffer).digest('hex');
+  const outcome = await runIdempotent({
+    endpoint: OCR_PUMP_ENDPOINT,
+    idempotencyKey,
+    payload: { fileHash },
+    createdBy: getUser(req).userId,
+    responseStatusCode: 200,
+    create: async () => {
+      const result = await extractPumpReadingHandler(file.buffer, mimeType);
+      return {
+        ok: result.success,
+        litres: result.litres,
+        unitPrice: result.unitPrice,
+        total: result.total,
+        mismatch: result.mismatch,
+        computedTotal: result.computedTotal,
+        model: result.model,
+        error: result.error,
+      };
+    },
   });
+
+  res.status(outcome.statusCode).json(outcome.result);
 }));
 
 /**
@@ -272,24 +441,58 @@ router.post('/persist-only', upload.single('file'), asyncHandler(async (req: Req
     throw new ApiError(400, 'Idempotency-Key là bắt buộc khi lưu ảnh OCR.');
   }
   const fileHash = createHash('sha256').update(file.buffer).digest('hex');
-  const { result: saved, replayed } = await runIdempotent({
-    endpoint: 'ocr.persist-only',
-    idempotencyKey,
-    payload: { type, tripId, containerId, fileHash },
-    createdBy: user.userId,
-    entityType: 'TRIP_PHOTO',
-    create: async () => {
-      const persisted = await persistOcrPhoto({
-        file,
-        type,
-        tripId,
-        containerId,
-        user,
-        storageKeySeed: `ocr-persist-only:${user.userId}:${idempotencyKey}`,
-      });
-      return { photoUrl: persisted.photoUrl, storageKey: persisted.storageKey };
-    },
+  const preparedPhoto = await prepareTripPhoto(file, tripId, type, {
+    forOcr: true,
+    containerId,
+    storageKeySeed: `ocr-persist-only:${user.userId}:${idempotencyKey}`,
   });
+  const cleanupGuard = await acquireOcrCleanupGuard({
+    endpoint: IDEMPOTENCY_ENDPOINTS.OCR_PERSIST_ONLY,
+    idempotencyKey,
+    dedupeKey: `ocr-persist-only-orphan:${user.userId}:${hashStorageKey(preparedPhoto.storageKey)}:${idempotencyKey}`,
+    storageKey: preparedPhoto.storageKey,
+    entityId: tripId,
+  });
+  if (cleanupGuard) {
+    try {
+      await storageService.upload(preparedPhoto.buffer, preparedPhoto.storageKey);
+    } catch (error) {
+      await releaseOcrCleanupGuard(cleanupGuard, error, 'ocr.persist-only');
+      throw error;
+    }
+  }
+  const { result: saved, replayed } = await withMaterialWriteAuditContext(
+    req,
+    res,
+    IDEMPOTENCY_ENDPOINTS.OCR_PERSIST_ONLY,
+    () => runIdempotent({
+      endpoint: IDEMPOTENCY_ENDPOINTS.OCR_PERSIST_ONLY,
+      idempotencyKey,
+      payload: { type, tripId, containerId, fileHash },
+      createdBy: user.userId,
+      entityType: 'TRIP_PHOTO',
+      create: async (tx) => {
+        if (!cleanupGuard) {
+          throw new ApiError(409, 'Ảnh OCR đang được xử lý bởi yêu cầu khác. Vui lòng thử lại.');
+        }
+        const persisted = await persistOcrPhoto({
+          type,
+          tripId,
+          containerId,
+          user,
+          preparedPhoto,
+          tx,
+          cleanupGuard,
+        });
+        return { id: persisted.id, photoUrl: persisted.photoUrl, storageKey: persisted.storageKey };
+      },
+      getEntityId: (value) => value.id,
+      serializeResult: (value) => ({ photoUrl: value.photoUrl, storageKey: value.storageKey }),
+      onTransactionRollback: async (error) => {
+        await releaseOcrCleanupGuard(cleanupGuard, error, 'ocr.persist-only');
+      },
+    }),
+  );
 
   if (replayed) {
     console.log(

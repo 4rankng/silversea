@@ -26,6 +26,7 @@ const STATUS_STRIP: Record<AdvanceSettlementStatus, string> = {
   CHECKED_BY_ACCOUNTANT: '#2563EB',
   APPROVED: '#059669',
   REJECTED: '#DC2626',
+  REVERSED: '#64748B',
 };
 
 interface LinkedRequest {

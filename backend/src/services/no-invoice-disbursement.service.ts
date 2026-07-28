@@ -27,6 +27,8 @@ type ForwarderExpenseTypePolicy = {
   noInvoicePerDayLimit: string;
   noInvoiceFinanceLeadItemApprovalLimit: string;
   noInvoiceDirectorDayApprovalLimit: string;
+  noInvoiceFinanceLeadApprovalTitle: string | null;
+  noInvoiceDirectorApprovalTitle: string | null;
   noInvoicePolicyVersion: number;
 };
 
@@ -86,7 +88,14 @@ function normalizeEvidenceTypes(value: string[] | null | undefined): NoInvoiceEv
   return Array.from(new Set((value ?? []).filter((item): item is NoInvoiceEvidenceType => allowed.has(item as NoInvoiceEvidenceType))));
 }
 
-function buildPolicySnapshot(policy: ForwarderExpenseTypePolicy): NoInvoicePolicySnapshot {
+function normalizeApprovalTitle(
+  value: string | null | undefined,
+  fallback: NoInvoiceApprovalTitle,
+): NoInvoiceApprovalTitle {
+  return value === 'FINANCE_LEAD' || value === 'DIRECTOR' ? value : fallback;
+}
+
+export function buildNoInvoicePolicySnapshot(policy: ForwarderExpenseTypePolicy): NoInvoicePolicySnapshot {
   return {
     version: policy.noInvoicePolicyVersion,
     expenseTypeCode: policy.code,
@@ -98,8 +107,8 @@ function buildPolicySnapshot(policy: ForwarderExpenseTypePolicy): NoInvoicePolic
     perDayLimit: String(policy.noInvoicePerDayLimit),
     financeLeadItemApprovalLimit: String(policy.noInvoiceFinanceLeadItemApprovalLimit),
     directorDayApprovalLimit: String(policy.noInvoiceDirectorDayApprovalLimit),
-    financeLeadApprovalTitle: 'FINANCE_LEAD',
-    directorApprovalTitle: 'DIRECTOR',
+    financeLeadApprovalTitle: normalizeApprovalTitle(policy.noInvoiceFinanceLeadApprovalTitle, 'FINANCE_LEAD'),
+    directorApprovalTitle: normalizeApprovalTitle(policy.noInvoiceDirectorApprovalTitle, 'DIRECTOR'),
     requiredScope: NO_INVOICE_REQUIRED_SCOPE,
     exceptionReasonRequiredWhenThresholdExceeded: true,
   };
@@ -119,6 +128,8 @@ async function getForwarderExpenseTypePolicy(
     noInvoicePerDayLimit: s.forwarderExpenseTypes.noInvoicePerDayLimit,
     noInvoiceFinanceLeadItemApprovalLimit: s.forwarderExpenseTypes.noInvoiceFinanceLeadItemApprovalLimit,
     noInvoiceDirectorDayApprovalLimit: s.forwarderExpenseTypes.noInvoiceDirectorDayApprovalLimit,
+    noInvoiceFinanceLeadApprovalTitle: s.forwarderExpenseTypes.noInvoiceFinanceLeadApprovalTitle,
+    noInvoiceDirectorApprovalTitle: s.forwarderExpenseTypes.noInvoiceDirectorApprovalTitle,
     noInvoicePolicyVersion: s.forwarderExpenseTypes.noInvoicePolicyVersion,
   })
     .from(s.forwarderExpenseTypes)
@@ -238,12 +249,14 @@ function resolveRequiredApprovalTitle(args: {
   perDayLimit: number;
   itemApprovalLimit: number;
   directorDayLimit: number;
+  financeLeadApprovalTitle: NoInvoiceApprovalTitle;
+  directorApprovalTitle: NoInvoiceApprovalTitle;
 }): NoInvoiceApprovalTitle | null {
   if (args.amount > args.itemApprovalLimit || args.aggregateAmount > args.directorDayLimit) {
-    return 'DIRECTOR';
+    return args.directorApprovalTitle;
   }
   if (args.amount > args.perItemLimit || args.aggregateAmount > args.perDayLimit) {
-    return 'FINANCE_LEAD';
+    return args.financeLeadApprovalTitle;
   }
   return null;
 }
@@ -267,7 +280,7 @@ export async function buildNoInvoicePolicySnapshotForExpenseInput(
   if (!(policy.substituteEvidenceAllowed ?? true)) {
     throw new ApiError(400, `Hạng mục "${input.expenseType}" không cho phép chi hộ không hóa đơn`);
   }
-  return buildPolicySnapshot(policy);
+  return buildNoInvoicePolicySnapshot(policy);
 }
 
 export async function reviewNoInvoiceDisbursementApproval(
@@ -313,7 +326,7 @@ export async function reviewNoInvoiceDisbursementApproval(
     throw new ApiError(400, `Chi phí #${expenseId}: hạng mục "${expense.expenseType}" không cho phép chi hộ không hóa đơn`);
   }
 
-  const policySnapshot = buildPolicySnapshot(policy);
+  const policySnapshot = buildNoInvoicePolicySnapshot(policy);
   const photoCount = await countExpensePhotos(q, expenseId);
   const missing = missingEvidenceLabels(expense, policy, photoCount);
   const aggregateAmount = await sumSameDaySamePayeeCategory(q, expense);
@@ -334,6 +347,8 @@ export async function reviewNoInvoiceDisbursementApproval(
   const perDayLimit = Number(policy.noInvoicePerDayLimit);
   const itemApprovalLimit = Number(policy.noInvoiceFinanceLeadItemApprovalLimit);
   const directorDayLimit = Number(policy.noInvoiceDirectorDayApprovalLimit);
+  const financeLeadApprovalTitle = normalizeApprovalTitle(policy.noInvoiceFinanceLeadApprovalTitle, 'FINANCE_LEAD');
+  const directorApprovalTitle = normalizeApprovalTitle(policy.noInvoiceDirectorApprovalTitle, 'DIRECTOR');
   const exceedsPerItemLimit = amount > perItemLimit;
   const exceedsPerDayLimit = aggregateAmount > perDayLimit;
   const requiredApprovalTitle = resolveRequiredApprovalTitle({
@@ -343,6 +358,8 @@ export async function reviewNoInvoiceDisbursementApproval(
     perDayLimit,
     itemApprovalLimit,
     directorDayLimit,
+    financeLeadApprovalTitle,
+    directorApprovalTitle,
   });
   const requiresExceptionReason = requiredApprovalTitle != null;
   const requiresDirector = requiredApprovalTitle === 'DIRECTOR';
@@ -386,6 +403,7 @@ export async function reviewNoInvoiceDisbursementApproval(
 export interface NoInvoiceDisbursementItem {
   expenseId: number;
   tripId: number;
+  shipmentId: number | null;
   tripCode: string | null;
   expenseTypeCode: string;
   expenseTypeName: string;
@@ -455,7 +473,7 @@ export async function getNoInvoiceDisbursementReport(opts: {
     db.select({ code: s.forwarderExpenseTypes.code, name: s.forwarderExpenseTypes.name })
       .from(s.forwarderExpenseTypes)
       .where(inArray(s.forwarderExpenseTypes.code, typeCodes)),
-    db.select({ id: s.trips.id, tripCode: s.trips.tripCode })
+    db.select({ id: s.trips.id, tripCode: s.trips.tripCode, shipmentId: s.trips.shipmentId })
       .from(s.trips)
       .where(inArray(s.trips.id, [...new Set(expenseRows.map((row) => row.tripId))])),
     db.select({ id: s.suppliers.id, name: s.suppliers.name })
@@ -477,7 +495,7 @@ export async function getNoInvoiceDisbursementReport(opts: {
   ]);
 
   const typeMap = new Map(typeRows.map((row) => [row.code, row.name]));
-  const tripMap = new Map(tripRows.map((row) => [row.id, row.tripCode]));
+  const tripMap = new Map(tripRows.map((row) => [row.id, row]));
   const supplierMap = new Map(supplierRows.map((row) => [row.id, row.name]));
   const auditMap = new Map<number, { userId: number | null; actorName: string | null; timestamp: Date }>();
   for (const row of auditRows) {
@@ -495,7 +513,8 @@ export async function getNoInvoiceDisbursementReport(opts: {
     return [{
       expenseId: row.id,
       tripId: row.tripId,
-      tripCode: tripMap.get(row.tripId) ?? null,
+      shipmentId: tripMap.get(row.tripId)?.shipmentId ?? null,
+      tripCode: tripMap.get(row.tripId)?.tripCode ?? null,
       expenseTypeCode: row.expenseType,
       expenseTypeName: typeMap.get(row.expenseType) ?? row.expenseType,
       buyAmount: Number(row.buyAmount),

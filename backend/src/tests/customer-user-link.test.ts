@@ -15,8 +15,12 @@ import {
   updateBusinessUnit,
   updateUser,
 } from '../services/user.service';
-import { authMiddleware } from '../middleware/auth';
+import { assetAuthMiddleware, authMiddleware } from '../middleware/auth';
+import authRoutes from '../routes/auth';
 import { config } from '../config';
+import { globalErrorHandler } from '../middleware/errorHandler';
+import { initEnforcer } from '../casbin/enforcer';
+import { disconnectRedis } from '../lib/redis';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 let customerId: number;
@@ -30,6 +34,7 @@ let server: http.Server;
 let baseUrl: string;
 
 before(async () => {
+  await initEnforcer();
   const [customer] = await db.insert(s.customers)
     .values({ name: `Customer account link ${suffix}` })
     .returning({ id: s.customers.id });
@@ -48,7 +53,11 @@ before(async () => {
   businessUnitId = businessUnit.id;
 
   const app = express();
+  app.use(express.json());
+  app.use('/api/auth', authRoutes);
   app.get('/protected', authMiddleware, (_req, res) => res.json({ ok: true }));
+  app.get('/protected-asset', assetAuthMiddleware, (_req, res) => res.json({ ok: true }));
+  app.use(globalErrorHandler);
   await new Promise<void>((resolve) => {
     server = http.createServer(app);
     server.listen(0, () => {
@@ -59,7 +68,10 @@ before(async () => {
 });
 
 after(async () => {
-  await new Promise<void>((resolve) => server.close(() => resolve()));
+  await new Promise<void>((resolve) => {
+    server.close(() => resolve());
+    server.closeAllConnections();
+  });
   if (customerUserId) await db.delete(s.users).where(eq(s.users.id, customerUserId));
   if (managerUserId) await db.delete(s.users).where(eq(s.users.id, managerUserId));
   if (clerkUserId) await db.delete(s.users).where(eq(s.users.id, clerkUserId));
@@ -67,6 +79,7 @@ after(async () => {
   if (businessUnitId) await db.delete(s.businessUnits).where(eq(s.businessUnits.id, businessUnitId));
   if (customerId) await db.delete(s.customers).where(eq(s.customers.id, customerId));
   if (secondaryCustomerId) await db.delete(s.customers).where(eq(s.customers.id, secondaryCustomerId));
+  await disconnectRedis();
   await client.end();
 });
 
@@ -162,6 +175,50 @@ describe('customer account linkage', () => {
     assert.deepEqual(updated.customerIds, [secondaryCustomerId]);
   });
 
+  test('allows ADMIN to create and update DRIVER payroll-unit links', async () => {
+    const [secondaryUnit] = await db.insert(s.businessUnits).values({
+      code: `DRV-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+      name: `Driver payroll unit ${suffix}`,
+      status: 'ACTIVE',
+    }).returning({ id: s.businessUnits.id });
+
+    const driver = await createUser({
+      username: `driver-scoped-${suffix}`,
+      password: 'admin123',
+      role: Role.DRIVER,
+      businessUnitIds: [businessUnitId],
+      assignmentAdminOnly: false,
+    });
+
+    try {
+      assert.deepEqual(driver.businessUnitIds, [businessUnitId]);
+
+      const updated = await updateUser(driver.id, {
+        businessUnitIds: [secondaryUnit.id],
+        assignmentAdminOnly: false,
+      });
+      assert.deepEqual(updated.businessUnitIds, [secondaryUnit.id]);
+    } finally {
+      await db.delete(s.userBusinessUnitLinks).where(eq(s.userBusinessUnitLinks.userId, driver.id));
+      await db.delete(s.drivers).where(eq(s.drivers.userId, driver.id));
+      await db.delete(s.users).where(eq(s.users.id, driver.id));
+      await db.delete(s.businessUnits).where(eq(s.businessUnits.id, secondaryUnit.id));
+    }
+  });
+
+  test('rejects non-admin DRIVER payroll-unit assignment mutations', async () => {
+    await assert.rejects(
+      createUser({
+        username: `driver-non-admin-${suffix}`,
+        password: 'admin123',
+        role: Role.DRIVER,
+        businessUnitIds: [businessUnitId],
+        assignmentAdminOnly: true,
+      }),
+      /Chỉ quản trị viên mới có thể quản lý đơn vị tính lương của lái xe/,
+    );
+  });
+
   test('rejects non-admin ACCOUNTANT customer-scope assignment', async () => {
     await assert.rejects(
       createUser({
@@ -233,6 +290,106 @@ describe('customer account linkage', () => {
       updateUser(clerk.id, { businessUnitIds: [], customerIds: [] }),
       /Nhân viên chứng từ ACTIVE phải có ít nhất một đơn vị phụ trách/,
     );
+  });
+
+  test('accepts current customer scope for CLERK and ACCOUNTANT tokens', async () => {
+    const clerkToken = jwt.sign({
+      userId: clerkUserId,
+      username: `scoped-clerk-${suffix}`,
+      role: Role.CLERK,
+      customerId,
+      customerIds: [customerId],
+    }, config.jwtSecret);
+    const accountantToken = jwt.sign({
+      userId: accountantUserId,
+      username: `accountant-scoped-${suffix}`,
+      role: Role.ACCOUNTANT,
+      customerId: secondaryCustomerId,
+      customerIds: [secondaryCustomerId],
+    }, config.jwtSecret);
+
+    for (const [path, token, useQueryToken] of [
+      ['/protected', clerkToken, false],
+      ['/protected-asset', clerkToken, true],
+      ['/protected', accountantToken, false],
+    ] as const) {
+      const url = useQueryToken
+        ? `${baseUrl}${path}?token=${encodeURIComponent(token)}`
+        : `${baseUrl}${path}`;
+      const response = await fetch(url, {
+        headers: useQueryToken ? undefined : { Authorization: `Bearer ${token}` },
+      });
+      assert.equal(response.status, 200, `${path} should accept the current scoped-role token`);
+    }
+  });
+
+  test('tokens issued by the login route pass the first authenticated request for scoped roles', async () => {
+    for (const identifier of [
+      `scoped-clerk-${suffix}`,
+      `accountant-scoped-${suffix}`,
+    ]) {
+      const login = await fetch(`${baseUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier, password: 'admin123' }),
+      });
+      assert.equal(login.status, 200, `${identifier} login should succeed`);
+      const loginBody = await login.json() as { token: string };
+
+      const me = await fetch(`${baseUrl}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${loginBody.token}` },
+      });
+      assert.equal(me.status, 200, `${identifier} first authenticated request should succeed`);
+    }
+  });
+
+  test('rejects stale CLERK scope through API and asset query-token authentication', async () => {
+    const token = jwt.sign({
+      userId: clerkUserId,
+      username: `scoped-clerk-${suffix}`,
+      role: Role.CLERK,
+      customerId,
+      customerIds: [customerId],
+    }, config.jwtSecret);
+
+    await updateUser(clerkUserId, {
+      customerIds: [secondaryCustomerId],
+      businessUnitIds: [businessUnitId],
+      assignmentAdminOnly: false,
+    });
+    for (const url of [
+      `${baseUrl}/protected`,
+      `${baseUrl}/protected-asset?token=${encodeURIComponent(token)}`,
+    ]) {
+      const response = await fetch(url, {
+        headers: url.includes('?token=') ? undefined : { Authorization: `Bearer ${token}` },
+      });
+      assert.equal(response.status, 401);
+    }
+    await updateUser(clerkUserId, {
+      customerIds: [customerId],
+      businessUnitIds: [businessUnitId],
+      assignmentAdminOnly: false,
+    });
+  });
+
+  test('rejects a scoped ACCOUNTANT token immediately after its customer scope changes', async () => {
+    const token = jwt.sign({
+      userId: accountantUserId,
+      username: `accountant-scoped-${suffix}`,
+      role: Role.ACCOUNTANT,
+      customerId: secondaryCustomerId,
+      customerIds: [secondaryCustomerId],
+    }, config.jwtSecret);
+
+    await updateUser(accountantUserId, {
+      customerIds: [customerId],
+      assignmentAdminOnly: false,
+    });
+    const response = await fetch(`${baseUrl}/protected`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    assert.equal(response.status, 401);
   });
 
   test('hides assignment metadata from accountant-scoped user listing', async () => {

@@ -4,11 +4,12 @@ import { Role } from '@tingting/shared';
 import type { CreditOverrideRequestRecord, CreditOverrideStatus } from '../api/creditOverrideClient';
 import {
   useApproveCreditOverrideRequest,
+  useCheckCreditOverrideRequest,
   useCreditOverrideQueue,
   useRejectCreditOverrideRequest,
 } from '../hooks/useCreditOverrideQueries';
 import { useAuth } from '../hooks/useAuth';
-import { canDecideCreditOverride } from '../lib/credit-override-permissions';
+import { canCheckCreditOverride, canDecideCreditOverride } from '../lib/credit-override-permissions';
 import { formatCurrency, formatDateTimeVN } from '../lib/format';
 import './CreditOverrideQueuePage.css';
 
@@ -27,6 +28,16 @@ const TIER_LABELS = {
 const SCOPE_LABELS = {
   SHIPMENT: 'Theo lô hàng',
   EXPIRY: 'Đến ngày hết hạn',
+} as const;
+
+const WORKFLOW_LABELS = {
+  PENDING_CHECK: 'Chờ kiểm tra',
+  PENDING_APPROVAL: 'Chờ phê duyệt',
+  APPROVED: 'Đã phê duyệt',
+  REJECTED: 'Đã từ chối',
+  RETURNED_FOR_EVIDENCE: 'Cần bổ sung',
+  CANCELED: 'Đã hủy',
+  SUPERSEDED: 'Đã thay thế',
 } as const;
 
 type QueueFilterStatus = CreditOverrideStatus | 'ALL';
@@ -57,7 +68,18 @@ function decisionMessage(
 ): string | null {
   if (!user || request.status !== 'PENDING') return null;
   if (request.requestedBy === user.userId) {
-    return 'Bạn là người tạo đề nghị này nên không thể tự duyệt hoặc tự từ chối.';
+    return 'Bạn là người tạo đề nghị này nên không thể tự kiểm tra, phê duyệt hoặc từ chối.';
+  }
+  if (request.workflowStatus === 'PENDING_CHECK') {
+    return canCheckCreditOverride(user.role)
+      ? null
+      : 'Đề nghị đang chờ bộ phận có thẩm quyền kiểm tra.';
+  }
+  if (request.workflowStatus !== 'PENDING_APPROVAL') {
+    return 'Đề nghị chưa ở bước phê duyệt.';
+  }
+  if (request.checkedBy === user.userId) {
+    return 'Bạn đã kiểm tra đề nghị này nên người khác phải phê duyệt hoặc từ chối.';
   }
   if (!canDecideCreditOverride(user.role, request.requiredTier)) {
     return `Đang chờ ${TIER_LABELS[request.requiredTier]} xử lý theo đúng phân cấp phê duyệt.`;
@@ -69,8 +91,13 @@ function canActOnRequest(
   request: CreditOverrideRequestRecord,
   user: { userId: number; role: Role } | null,
 ): boolean {
-  if (!user || request.status !== 'PENDING') return false;
-  if (request.requestedBy === user.userId) return false;
+  if (!user || request.status !== 'PENDING' || request.requestedBy === user.userId) return false;
+  if (request.workflowStatus === 'PENDING_CHECK') {
+    return canCheckCreditOverride(user.role);
+  }
+  if (request.workflowStatus !== 'PENDING_APPROVAL' || request.checkedBy === user.userId) {
+    return false;
+  }
   return canDecideCreditOverride(user.role, request.requiredTier);
 }
 
@@ -123,6 +150,7 @@ export default function CreditOverrideQueuePage() {
   );
 
   const queue = useCreditOverrideQueue(filters, true);
+  const checkMutation = useCheckCreditOverrideRequest([filters]);
   const approveMutation = useApproveCreditOverrideRequest([filters]);
   const rejectMutation = useRejectCreditOverrideRequest([filters]);
 
@@ -130,6 +158,21 @@ export default function CreditOverrideQueuePage() {
   const actionableCount = requests.filter((request) => canActOnRequest(request, user ?? null)).length;
   const pendingCount = requests.filter((request) => request.status === 'PENDING').length;
   const totalProposed = requests.reduce((sum, request) => sum + Number(request.proposedAmount || 0), 0);
+
+  async function handleCheck(request: CreditOverrideRequestRecord) {
+    setActionErrors((current) => ({ ...current, [request.id]: null }));
+    try {
+      await checkMutation.mutateAsync({
+        id: request.id,
+        expectedVersion: request.version,
+      });
+    } catch (error) {
+      setActionErrors((current) => ({
+        ...current,
+        [request.id]: error instanceof Error ? error.message : 'Không thể xác nhận kiểm tra đề nghị.',
+      }));
+    }
+  }
 
   async function handleApprove(request: CreditOverrideRequestRecord) {
     setActionErrors((current) => ({ ...current, [request.id]: null }));
@@ -266,6 +309,7 @@ export default function CreditOverrideQueuePage() {
           {requests.map((request) => {
             const readOnlyReason = decisionMessage(request, user ?? null);
             const actionable = canActOnRequest(request, user ?? null);
+            const isChecking = checkMutation.isPending && checkMutation.variables?.id === request.id;
             const isApproving = approveMutation.isPending && approveMutation.variables?.id === request.id;
             const isRejecting = rejectMutation.isPending && rejectMutation.variables?.id === request.id;
             return (
@@ -276,6 +320,9 @@ export default function CreditOverrideQueuePage() {
                       <span>Đề nghị #{request.id}</span>
                       <span className={`credit-override-queue__status ${statusTone(request.status)}`}>
                         {STATUS_LABELS[request.status]}
+                      </span>
+                      <span className="credit-override-queue__badge">
+                        {WORKFLOW_LABELS[request.workflowStatus]}
                       </span>
                     </div>
                     <h2>Khách hàng #{request.customerId}</h2>
@@ -308,6 +355,14 @@ export default function CreditOverrideQueuePage() {
                   <div>
                     <span className="credit-override-queue__fact-label">Tạo lúc</span>
                     <strong>{formatDateTimeVN(request.createdAt)}</strong>
+                  </div>
+                  <div>
+                    <span className="credit-override-queue__fact-label">Người kiểm tra</span>
+                    <strong>
+                      {request.checkedBy != null
+                        ? `#${request.checkedBy} · ${formatDateTimeVN(request.checkedAt)}`
+                        : 'Chưa kiểm tra'}
+                    </strong>
                   </div>
                 </div>
 
@@ -363,39 +418,53 @@ export default function CreditOverrideQueuePage() {
 
                     {actionable ? (
                       <div className="credit-override-queue__decision-box">
-                        <div className="credit-override-queue__decision-buttons">
+                        {request.workflowStatus === 'PENDING_CHECK' ? (
                           <button
                             type="button"
                             className="credit-override-queue__button is-primary"
-                            onClick={() => handleApprove(request)}
-                            disabled={isApproving || isRejecting}
+                            onClick={() => handleCheck(request)}
+                            disabled={isChecking}
                           >
-                            {isApproving ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
-                            Duyệt đề nghị
+                            {isChecking ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
+                            Xác nhận kiểm tra
                           </button>
-                        </div>
+                        ) : (
+                          <>
+                            <div className="credit-override-queue__decision-buttons">
+                              <button
+                                type="button"
+                                className="credit-override-queue__button is-primary"
+                                onClick={() => handleApprove(request)}
+                                disabled={isApproving || isRejecting}
+                              >
+                                {isApproving ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
+                                Duyệt đề nghị
+                              </button>
+                            </div>
 
-                        <label className="credit-override-queue__reject-field">
-                          <span>Lý do từ chối</span>
-                          <textarea
-                            value={rejectReasons[request.id] ?? ''}
-                            onChange={(event) => setRejectReasons((current) => ({
-                              ...current,
-                              [request.id]: event.target.value,
-                            }))}
-                            rows={3}
-                            placeholder="Bắt buộc khi từ chối đề nghị."
-                          />
-                        </label>
-                        <button
-                          type="button"
-                          className="credit-override-queue__button is-secondary"
-                          onClick={() => handleReject(request)}
-                          disabled={isApproving || isRejecting}
-                        >
-                          {isRejecting ? <Loader2 size={16} className="spin" /> : <XCircle size={16} />}
-                          Từ chối
-                        </button>
+                            <label className="credit-override-queue__reject-field">
+                              <span>Lý do từ chối</span>
+                              <textarea
+                                value={rejectReasons[request.id] ?? ''}
+                                onChange={(event) => setRejectReasons((current) => ({
+                                  ...current,
+                                  [request.id]: event.target.value,
+                                }))}
+                                rows={3}
+                                placeholder="Bắt buộc khi từ chối đề nghị."
+                              />
+                            </label>
+                            <button
+                              type="button"
+                              className="credit-override-queue__button is-secondary"
+                              onClick={() => handleReject(request)}
+                              disabled={isApproving || isRejecting}
+                            >
+                              {isRejecting ? <Loader2 size={16} className="spin" /> : <XCircle size={16} />}
+                              Từ chối
+                            </button>
+                          </>
+                        )}
                       </div>
                     ) : null}
 

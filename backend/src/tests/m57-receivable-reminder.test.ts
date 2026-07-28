@@ -28,6 +28,12 @@ import {
   saveEmailSettings,
 } from '../services/email-settings.service';
 import { addCalendarDays } from '../services/business-calendar.service';
+import { Role } from '@tingting/shared';
+import { createAdjustment } from '../services/financial.service';
+import {
+  approveGovernanceAction,
+  checkGovernanceAction,
+} from '../services/adjustment-governance.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdTripIds: number[] = [];
@@ -42,6 +48,7 @@ const createdBillingDocumentIds: number[] = [];
 const createdBillingLineIds: number[] = [];
 const createdDebtOffsetIds: number[] = [];
 const createdSupplierIds: number[] = [];
+const createdGovernanceActionIds: number[] = [];
 const createdCalendarDates = new Set<string>();
 let originalResendKeyValue: string | undefined;
 
@@ -70,7 +77,7 @@ function findWeekday(startDate: string, weekday: number): string {
 }
 
 async function mkUser(
-  role: 'ADMIN' | 'ACCOUNTANT' | 'CLERK' | 'CUSTOMER',
+  role: 'ADMIN' | 'MANAGER' | 'ACCOUNTANT' | 'CLERK' | 'CUSTOMER',
   opts: { customerId?: number | null; status?: 'ACTIVE' | 'INACTIVE' } = {},
 ) {
   const [u] = await db.insert(s.users).values({
@@ -255,20 +262,42 @@ async function mkTripArAdjustment(
   amount: number,
   dueDate: string,
 ) {
-  const [entry] = await db.insert(s.ledger).values({
-    entityType: 'CUSTOMER' as const,
-    entityId: customerId,
-    txnType: 'ADJUSTMENT' as const,
-    txnId: tripId,
-    debit: amount > 0 ? String(amount) : '0',
-    credit: amount < 0 ? String(Math.abs(amount)) : '0',
-    balance: String(amount),
+  const maker = await mkUser('ACCOUNTANT');
+  const checker = await mkUser('MANAGER');
+  const approver = await mkUser('ADMIN');
+  const [trip] = await db.select({ version: s.trips.version })
+    .from(s.trips)
+    .where(and(eq(s.trips.id, tripId), eq(s.trips.customerId, customerId)))
+    .limit(1);
+  assert.ok(trip);
+  const action = await createAdjustment({
+    tripId,
+    amount,
     note: `M57 trip AR adjustment ${tripId}`,
-    originalDueDate: dueDate,
-    processingDueDate: dueDate,
-    paymentTermDaysApplied: 30,
-    paymentDatePolicyApplied: 'NEXT_BUSINESS_DAY',
-  }).returning();
+    signedAgreementRef: `M57-${suffix}-${tripId}`,
+    makerId: maker.id,
+    makerRole: Role.ACCOUNTANT,
+    expectedTripVersion: trip.version,
+  });
+  createdGovernanceActionIds.push(action.id);
+  const checked = await checkGovernanceAction({
+    actionId: action.id,
+    checkerId: checker.id,
+    checkerRole: Role.MANAGER,
+    expectedVersion: action.version,
+  });
+  const approved = await approveGovernanceAction({
+    actionId: action.id,
+    approverId: approver.id,
+    approverRole: Role.ADMIN,
+    expectedVersion: checked.version,
+  });
+  assert.ok(approved.ledgerEntryId != null);
+  const [entry] = await db.select().from(s.ledger)
+    .where(eq(s.ledger.id, approved.ledgerEntryId))
+    .limit(1);
+  assert.ok(entry);
+  assert.equal(entry.processingDueDate, dueDate);
   createdLedgerIds.push(entry.id);
   return entry;
 }
@@ -394,6 +423,10 @@ after(async () => {
     if (createdSupplierIds.length > 0) {
       await db.delete(s.suppliers).where(inArray(s.suppliers.id, createdSupplierIds));
     }
+    if (createdGovernanceActionIds.length > 0) {
+      await db.delete(s.governanceActions)
+        .where(inArray(s.governanceActions.id, createdGovernanceActionIds));
+    }
     if (createdLedgerIds.length > 0) await db.delete(s.ledger).where(inArray(s.ledger.id, createdLedgerIds));
     if (createdCustomerIds.length > 0) {
       await db.delete(s.ledger).where(and(
@@ -408,6 +441,9 @@ after(async () => {
     await db.delete(s.cargoTypes).where(sql`${s.cargoTypes.name} LIKE ${custPattern}`);
     await db.delete(s.routes).where(sql`${s.routes.name} LIKE ${custPattern}`);
     await db.delete(s.customers).where(sql`${s.customers.name} LIKE ${custPattern}`);
+    if (createdUserIds.length > 0) {
+      await db.delete(s.notifications).where(inArray(s.notifications.userId, createdUserIds));
+    }
     await db.delete(s.users).where(sql`${s.users.username} LIKE ${userPattern}`);
     await db.delete(s.appSettings).where(eq(s.appSettings.key, EMAIL_SETTING_KEYS.resendApiKey));
     if (originalResendKeyValue !== undefined) {

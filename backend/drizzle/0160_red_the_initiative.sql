@@ -1,0 +1,6 @@
+-- Metadata-only snapshot synchronization.
+--
+-- Migrations 0153 through 0158 were intentionally authored as forward SQL and
+-- already apply every schema change represented by meta/0160_snapshot.json.
+-- This no-op migration advances Drizzle's snapshot baseline without replaying
+-- duplicate CREATE TABLE, ALTER TYPE, column, constraint, or index statements.

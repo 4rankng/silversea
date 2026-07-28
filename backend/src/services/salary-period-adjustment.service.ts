@@ -21,6 +21,7 @@ type SalaryAdjustmentStatus = 'PENDING_CHECK' | 'PENDING_APPROVAL' | 'APPROVED';
 export interface SalaryPeriodAdjustmentItem {
   actionId: number;
   adjustmentId: number | null;
+  version: number;
   sourcePeriod: string;
   targetPeriod: string;
   driverId: number;
@@ -42,6 +43,7 @@ export interface SalaryPeriodAdjustmentItem {
 export interface SalaryPeriodAdjustmentResult {
   actionId: number;
   adjustmentId: number | null;
+  version: number;
   sourcePeriod: string;
   targetPeriod: string;
   driverId: number;
@@ -212,6 +214,7 @@ function buildResult(
   return {
     actionId: action.id,
     adjustmentId: Number.isInteger(adjustmentId) && adjustmentId > 0 ? adjustmentId : null,
+    version: action.version,
     sourcePeriod: parsed.sourcePeriod,
     targetPeriod: parsed.targetPeriod,
     driverId: parsed.driverId,
@@ -233,6 +236,7 @@ export async function requestSalaryPeriodAdjustment(input: {
   actorId: number;
   actorRole: string;
   expectedVersion: number;
+  transaction?: Tx;
 }): Promise<SalaryPeriodAdjustmentResult> {
   if (!(FINANCIAL_ROLES as readonly string[]).includes(input.actorRole)) {
     throw new ApiError(403, 'Bạn không có quyền tạo điều chỉnh hậu chốt');
@@ -251,7 +255,7 @@ export async function requestSalaryPeriodAdjustment(input: {
   const amount = requireAmount(input.amount);
   requireExpectedVersion(input.expectedVersion);
 
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     await lockPeriods(tx, [input.sourcePeriod, input.targetPeriod]);
     const sourceClose = await getSourceCloseForWrite(tx, input.sourcePeriod);
     if (sourceClose.version !== input.expectedVersion) {
@@ -299,19 +303,28 @@ export async function requestSalaryPeriodAdjustment(input: {
     }).returning();
 
     return buildResult(action);
-  });
+  };
+  if (input.transaction) {
+    return execute(input.transaction);
+  }
+  return db.transaction(execute);
 }
 
 export async function checkSalaryPeriodAdjustment(input: {
+  period: string;
   actionId: number;
   actorId: number;
   actorRole: string;
+  expectedVersion: number;
+  transaction?: Tx;
 }): Promise<SalaryPeriodAdjustmentResult> {
   if (!(FINANCIAL_ROLES as readonly string[]).includes(input.actorRole)) {
     throw new ApiError(403, 'Bạn không có quyền kiểm tra điều chỉnh hậu chốt');
   }
+  parsePeriod(input.period);
+  requireExpectedVersion(input.expectedVersion);
 
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     const [existing] = await tx.select()
       .from(s.governanceActions)
       .where(eq(s.governanceActions.id, input.actionId))
@@ -324,6 +337,19 @@ export async function checkSalaryPeriodAdjustment(input: {
       existing.actionKind !== ADJUSTMENT_ACTION_KIND
     ) {
       throw new ApiError(404, `Không tìm thấy điều chỉnh hậu chốt #${input.actionId}`);
+    }
+    const parsed = parseAdjustmentSubject(
+      existing.subjectKey,
+      existing.afterSnapshot as Record<string, unknown> | null,
+    );
+    if (parsed.sourcePeriod !== input.period) {
+      throw new ApiError(
+        404,
+        `Không tìm thấy điều chỉnh hậu chốt #${input.actionId} của kỳ ${input.period}`,
+      );
+    }
+    if (existing.version !== input.expectedVersion) {
+      throw new ApiError(409, 'Điều chỉnh hậu chốt đã được cập nhật. Vui lòng tải lại.');
     }
     if (existing.makerId === input.actorId) {
       throw new ApiError(409, 'Người tạo điều chỉnh không được tự kiểm tra yêu cầu của mình');
@@ -341,25 +367,42 @@ export async function checkSalaryPeriodAdjustment(input: {
         checkerId: input.actorId,
         checkerRole: input.actorRole,
         checkedAt: new Date(),
+        version: sql`${s.governanceActions.version} + 1`,
         updatedAt: new Date(),
       })
-      .where(eq(s.governanceActions.id, existing.id))
+      .where(and(
+        eq(s.governanceActions.id, existing.id),
+        eq(s.governanceActions.status, 'PENDING_CHECK'),
+        eq(s.governanceActions.version, input.expectedVersion),
+      ))
       .returning();
+    if (!updated) {
+      throw new ApiError(409, 'Điều chỉnh hậu chốt đã được người khác xử lý. Vui lòng tải lại.');
+    }
 
     return buildResult(updated);
-  });
+  };
+  if (input.transaction) {
+    return execute(input.transaction);
+  }
+  return db.transaction(execute);
 }
 
 export async function approveSalaryPeriodAdjustment(input: {
+  period: string;
   actionId: number;
   actorId: number;
   actorRole: string;
+  expectedVersion: number;
+  transaction?: Tx;
 }): Promise<SalaryPeriodAdjustmentResult> {
   if (input.actorRole !== 'ADMIN' && input.actorRole !== 'MANAGER') {
     throw new ApiError(403, 'Bạn không có quyền phê duyệt điều chỉnh hậu chốt');
   }
+  parsePeriod(input.period);
+  requireExpectedVersion(input.expectedVersion);
 
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     const [existing] = await tx.select()
       .from(s.governanceActions)
       .where(eq(s.governanceActions.id, input.actionId))
@@ -373,6 +416,19 @@ export async function approveSalaryPeriodAdjustment(input: {
     ) {
       throw new ApiError(404, `Không tìm thấy điều chỉnh hậu chốt #${input.actionId}`);
     }
+    const parsed = parseAdjustmentSubject(
+      existing.subjectKey,
+      existing.afterSnapshot as Record<string, unknown> | null,
+    );
+    if (parsed.sourcePeriod !== input.period) {
+      throw new ApiError(
+        404,
+        `Không tìm thấy điều chỉnh hậu chốt #${input.actionId} của kỳ ${input.period}`,
+      );
+    }
+    if (existing.version !== input.expectedVersion) {
+      throw new ApiError(409, 'Điều chỉnh hậu chốt đã được cập nhật. Vui lòng tải lại.');
+    }
     if (existing.makerId === input.actorId || existing.checkerId === input.actorId) {
       throw new ApiError(409, 'Người tạo hoặc người kiểm tra không được tự phê duyệt điều chỉnh hậu chốt');
     }
@@ -382,11 +438,6 @@ export async function approveSalaryPeriodAdjustment(input: {
         `Điều chỉnh hậu chốt #${input.actionId} đang ở trạng thái ${existing.status}, không thể phê duyệt tiếp`,
       );
     }
-
-    const parsed = parseAdjustmentSubject(
-      existing.subjectKey,
-      existing.afterSnapshot as Record<string, unknown> | null,
-    );
 
     await lockPeriods(tx, [parsed.sourcePeriod, parsed.targetPeriod]);
     await getSourceCloseForWrite(tx, parsed.sourcePeriod);
@@ -418,13 +469,25 @@ export async function approveSalaryPeriodAdjustment(input: {
           driverId: parsed.driverId,
           amount: parsed.amount,
         },
+        version: sql`${s.governanceActions.version} + 1`,
         updatedAt: approvedAt,
       })
-      .where(eq(s.governanceActions.id, existing.id))
+      .where(and(
+        eq(s.governanceActions.id, existing.id),
+        eq(s.governanceActions.status, 'PENDING_APPROVAL'),
+        eq(s.governanceActions.version, input.expectedVersion),
+      ))
       .returning();
+    if (!updated) {
+      throw new ApiError(409, 'Điều chỉnh hậu chốt đã được người khác xử lý. Vui lòng tải lại.');
+    }
 
     return buildResult(updated);
-  });
+  };
+  if (input.transaction) {
+    return execute(input.transaction);
+  }
+  return db.transaction(execute);
 }
 
 export async function listSalaryPeriodAdjustments(input: {
@@ -435,6 +498,7 @@ export async function listSalaryPeriodAdjustments(input: {
 
   const rows = await db.select({
     id: s.governanceActions.id,
+    version: s.governanceActions.version,
     subjectKey: s.governanceActions.subjectKey,
     reason: s.governanceActions.reason,
     status: s.governanceActions.status,
@@ -494,6 +558,7 @@ export async function listSalaryPeriodAdjustments(input: {
   return parsedRows.map((row) => ({
     actionId: row.id,
     adjustmentId: row.adjustmentId,
+    version: row.version,
     sourcePeriod: row.parsed.sourcePeriod,
     targetPeriod: row.parsed.targetPeriod,
     driverId: row.parsed.driverId,

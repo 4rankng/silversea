@@ -28,6 +28,7 @@ const penaltyIds: number[] = [];
 let actors: Array<{ id: number; role: Role }> = [];
 let server: http.Server;
 let baseUrl = '';
+let commandSequence = 0;
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 async function api(
@@ -37,11 +38,12 @@ async function api(
   actorIndex: number,
   idempotencyKey?: string,
 ) {
+  const commandKey = idempotencyKey ?? `q15-direct-money-${suffix}-${++commandSequence}`;
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'X-Test-Actor': String(actorIndex),
+    'Idempotency-Key': commandKey,
   };
-  if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
   const response = await fetch(`${baseUrl}${path}`, {
     method,
     headers,
@@ -369,7 +371,7 @@ describe('Q15 direct-money governance slice', () => {
       amount: 300000,
       date: '2026-07-27',
     }, 0);
-    assert.equal(vendorRequest.status, 200);
+    assert.equal(vendorRequest.status, 201);
     assert.equal(vendorRequest.body.status, 'PENDING_CHECK');
     await trackGovernanceAction(vendorRequest.body);
 
@@ -379,7 +381,7 @@ describe('Q15 direct-money governance slice', () => {
       amount: 250000,
       date: '2026-07-27',
     }, 0);
-    assert.equal(carrierRequest.status, 200);
+    assert.equal(carrierRequest.status, 201);
     assert.equal(carrierRequest.body.status, 'PENDING_CHECK');
     await trackGovernanceAction(carrierRequest.body);
 

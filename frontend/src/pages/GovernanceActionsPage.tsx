@@ -14,6 +14,7 @@ import type {
   GovernanceAllowedAction,
 } from '@tingting/shared';
 import type { GovernanceActionRecord } from '../api/financialClient';
+import { salaryClient } from '../api/salaryClient';
 import {
   useApproveGovernanceAction,
   useCheckGovernanceAction,
@@ -48,9 +49,14 @@ const ACTION_KIND_LABELS: Record<string, string> = {
   TRIP_AR_ADJUSTMENT: 'Điều chỉnh công nợ chuyến',
   TRIP_REOPEN: 'Mở lại chuyến',
   TRIP_EXPENSE_APPROVAL: 'Duyệt chi phí chuyến',
+  FUEL_INVOICE_APPROVAL: 'Duyệt hóa đơn nhiên liệu',
+  FUEL_INVOICE_CORRECTION: 'Điều chỉnh hóa đơn nhiên liệu',
   DEBT_OFFSET_APPROVAL: 'Duyệt bù trừ công nợ',
   DEBT_OFFSET_CANCEL: 'Hủy bù trừ công nợ',
   ADVANCE_REQUEST_APPROVAL: 'Duyệt tạm ứng',
+  ADVANCE_REQUEST_REJECTION: 'Từ chối tạm ứng',
+  ADVANCE_SETTLEMENT_CORRECTION: 'Điều chỉnh quyết toán tạm ứng',
+  ADVANCE_SETTLEMENT_REVERSAL: 'Hoàn tác quyết toán tạm ứng',
   PAYMENT_RECEIPT: 'Thu tiền khách hàng',
   VENDOR_PAYMENT: 'Thanh toán nhà cung cấp',
   CARRIER_PAYMENT: 'Thanh toán đơn vị vận chuyển',
@@ -74,6 +80,25 @@ const ACTION_KIND_LABELS: Record<string, string> = {
   FINANCIAL_EXCEPTION: 'Ngoại lệ tài chính',
 };
 
+export function governanceActionLabel(action: GovernanceActionRecord): string {
+  if (action.actionKind === 'SALARY_PERIOD_CLOSE') {
+    const operation = action.afterSnapshot?.operation;
+    if (operation === 'ISSUE_PAYSLIPS') return 'Phát hành phiếu lương';
+    if (operation === 'POST_OFFICIAL') return 'Hạch toán lương chính thức';
+  }
+  return ACTION_KIND_LABELS[action.actionKind] ?? action.actionKind;
+}
+
+function salaryFinalizationOperation(
+  action: GovernanceActionRecord,
+): 'ISSUE_PAYSLIPS' | 'POST_OFFICIAL' | null {
+  if (action.actionKind !== 'SALARY_PERIOD_CLOSE') return null;
+  const operation = action.afterSnapshot?.operation;
+  return operation === 'ISSUE_PAYSLIPS' || operation === 'POST_OFFICIAL'
+    ? operation
+    : null;
+}
+
 function isPending(status: GovernanceActionStatus): boolean {
   return status === 'PENDING_CHECK' || status === 'PENDING_APPROVAL';
 }
@@ -87,6 +112,23 @@ function statusTone(status: GovernanceActionStatus): string {
 
 function mutationBusy(mutation: GovernanceMutation, actionId: number): boolean {
   return mutation.isPending && mutation.variables?.id === actionId;
+}
+
+export function tripExpenseDecisionSummary(action: GovernanceActionRecord): {
+  decision: string;
+  reviewNote: string;
+  attachmentRefs: string[];
+} | null {
+  if (action.actionKind !== 'TRIP_EXPENSE_APPROVAL') return null;
+  const decision = action.afterSnapshot?.decision === 'REJECTED'
+    ? 'Đề nghị từ chối'
+    : 'Đề nghị phê duyệt';
+  const evidence = action.deltaSnapshot?.evidence as Record<string, unknown> | undefined;
+  const reviewNote = typeof evidence?.reviewNote === 'string' ? evidence.reviewNote : '';
+  const attachmentRefs = Array.isArray(evidence?.attachmentRefs)
+    ? evidence.attachmentRefs.filter((value): value is string => typeof value === 'string')
+    : [];
+  return { decision, reviewNote, attachmentRefs };
 }
 
 function ActionButton({
@@ -118,6 +160,10 @@ export default function GovernanceActionsPage() {
   const [filter, setFilter] = React.useState<InboxFilter>('PENDING');
   const [rejectReasons, setRejectReasons] = React.useState<Record<number, string>>({});
   const [actionErrors, setActionErrors] = React.useState<Record<number, string | null>>({});
+  const [salaryDecisionBusy, setSalaryDecisionBusy] = React.useState<{
+    actionId: number;
+    decision: 'CHECK' | 'APPROVE';
+  } | null>(null);
   const queue = useGovernanceActions({ limit: 100 });
   const checkMutation = useCheckGovernanceAction();
   const approveMutation = useApproveGovernanceAction();
@@ -131,10 +177,26 @@ export default function GovernanceActionsPage() {
   async function runVersionedMutation(
     action: GovernanceActionRecord,
     mutation: GovernanceMutation,
+    decision: 'CHECK' | 'APPROVE',
     fallbackMessage: string,
   ) {
     setActionErrors((current) => ({ ...current, [action.id]: null }));
     try {
+      const operation = salaryFinalizationOperation(action);
+      if (operation && action.subjectKey) {
+        setSalaryDecisionBusy({ actionId: action.id, decision });
+        if (operation === 'ISSUE_PAYSLIPS') {
+          await (decision === 'CHECK'
+            ? salaryClient.checkIssuePayslips(action.subjectKey, action.id, action.version)
+            : salaryClient.approveIssuePayslips(action.subjectKey, action.id, action.version));
+        } else {
+          await (decision === 'CHECK'
+            ? salaryClient.checkPostOfficial(action.subjectKey, action.id, action.version)
+            : salaryClient.approvePostOfficial(action.subjectKey, action.id, action.version));
+        }
+        await queue.refetch();
+        return;
+      }
       await mutation.mutateAsync({
         id: action.id,
         expectedVersion: action.version,
@@ -144,6 +206,8 @@ export default function GovernanceActionsPage() {
         ...current,
         [action.id]: error instanceof Error ? error.message : fallbackMessage,
       }));
+    } finally {
+      setSalaryDecisionBusy((current) => current?.actionId === action.id ? null : current);
     }
   }
 
@@ -249,11 +313,14 @@ export default function GovernanceActionsPage() {
       {!queue.isLoading && !queue.isError && actions.length > 0 ? (
         <div className="governance-actions__cards" data-testid="governance-action-card-list">
           {actions.map((action) => {
+            const tripExpenseDecision = tripExpenseDecisionSummary(action);
             const canCheck = action.allowedActions.includes('CHECK');
             const canApprove = action.allowedActions.includes('APPROVE');
             const canReject = action.allowedActions.includes('REJECT');
-            const checking = mutationBusy(checkMutation, action.id);
-            const approving = mutationBusy(approveMutation, action.id);
+            const checking = mutationBusy(checkMutation, action.id)
+              || (salaryDecisionBusy?.actionId === action.id && salaryDecisionBusy.decision === 'CHECK');
+            const approving = mutationBusy(approveMutation, action.id)
+              || (salaryDecisionBusy?.actionId === action.id && salaryDecisionBusy.decision === 'APPROVE');
             const rejecting = mutationBusy(rejectMutation, action.id);
             const busy = checking || approving || rejecting;
             return (
@@ -261,7 +328,7 @@ export default function GovernanceActionsPage() {
                 <div className="governance-actions__card-header">
                   <div>
                     <div className="governance-actions__kicker">Yêu cầu #{action.id}</div>
-                    <h2>{ACTION_KIND_LABELS[action.actionKind] ?? action.actionKind}</h2>
+                    <h2>{governanceActionLabel(action)}</h2>
                   </div>
                   <span className={`governance-actions__status ${statusTone(action.status)}`}>
                     {STATUS_LABELS[action.status]}
@@ -296,6 +363,21 @@ export default function GovernanceActionsPage() {
                   <p>{action.reason}</p>
                 </div>
 
+                {tripExpenseDecision ? (
+                  <div className="governance-actions__reason">
+                    <span>Quyết định và căn cứ</span>
+                    <p>
+                      <strong>{tripExpenseDecision.decision}</strong>
+                      {' · '}
+                      {tripExpenseDecision.reviewNote || 'Chưa có nội dung căn cứ'}
+                    </p>
+                    {tripExpenseDecision.attachmentRefs.length > 0 ? (
+                      <p>Tham chiếu: {tripExpenseDecision.attachmentRefs.join(', ')}</p>
+                    ) : null}
+                    <p>Chi phí vẫn chờ xử lý; chưa phát sinh hiệu lực tài chính trước phê duyệt cuối.</p>
+                  </div>
+                ) : null}
+
                 <div className="governance-actions__permissions">
                   <ShieldCheck size={16} />
                   <span>Quyền xử lý từ máy chủ:</span>
@@ -313,13 +395,13 @@ export default function GovernanceActionsPage() {
                         action="CHECK"
                         allowed={canCheck}
                         busy={checking}
-                        onClick={() => runVersionedMutation(action, checkMutation, 'Không thể kiểm tra yêu cầu.')}
+                        onClick={() => runVersionedMutation(action, checkMutation, 'CHECK', 'Không thể kiểm tra yêu cầu.')}
                       />
                       <ActionButton
                         action="APPROVE"
                         allowed={canApprove}
                         busy={approving}
-                        onClick={() => runVersionedMutation(action, approveMutation, 'Không thể phê duyệt yêu cầu.')}
+                        onClick={() => runVersionedMutation(action, approveMutation, 'APPROVE', 'Không thể phê duyệt yêu cầu.')}
                       />
                     </div>
                     <label>

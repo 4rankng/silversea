@@ -1,11 +1,16 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { Role, debtOffsetSchema } from '@tingting/shared';
+import { Role, debtOffsetSchema, governanceActionDecisionSchema } from '@tingting/shared';
 import { requireRoles } from '../../middleware/casbin';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { getUser } from '../../middleware/auth';
-import { getDualEntities, createDebtOffset, approveDebtOffset, cancelDebtOffset, listDebtOffsets } from '../../services/debtOffset.service';
-import { invalidateReportCaches } from '../../lib/redis';
+import {
+  getDualEntities,
+  createDebtOffset,
+  listDebtOffsets,
+  requestDebtOffsetApprovalGovernance,
+  requestDebtOffsetCancelGovernance,
+} from '../../services/debtOffset.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 
@@ -55,20 +60,25 @@ router.post('/finance/debt-offsets/:id/approve',
   asyncHandler(async (req: Request, res: Response) => {
     const id = parseInt(req.params.id as string, 10);
     const user = getUser(req);
+    const data = governanceActionDecisionSchema.parse(req.body);
     const idempotencyKey = getRequestIdempotencyKey(req);
     const { result, replayed } = await runIdempotent({
       endpoint: IDEMPOTENCY_ENDPOINTS.DEBT_OFFSET_APPROVE,
       idempotencyKey,
-      payload: { actorId: user.userId, actorRole: user.role, id },
+      payload: { actorId: user.userId, actorRole: user.role, id, ...data },
       createdBy: user.userId,
-      entityType: 'debt_offset',
-      create: (tx) => approveDebtOffset(id, user.userId, user.role, tx),
+      entityType: 'governance_action',
+      create: (tx) => requestDebtOffsetApprovalGovernance({
+        debtOffsetId: id,
+        expectedVersion: data.expectedVersion,
+        reason: data.reason,
+        makerId: user.userId,
+        makerRole: user.role,
+        transaction: tx,
+      }),
     });
     res.locals.auditEntityId = result.id;
-    if (!replayed) {
-      await invalidateReportCaches();
-    }
-    res.json(idempotencyKey ? { ...result, replayed } : result);
+    res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
   }),
 );
 
@@ -79,20 +89,25 @@ router.post('/finance/debt-offsets/:id/cancel',
   asyncHandler(async (req: Request, res: Response) => {
     const id = parseInt(req.params.id as string, 10);
     const user = getUser(req);
+    const data = governanceActionDecisionSchema.parse(req.body);
     const idempotencyKey = getRequestIdempotencyKey(req);
     const { result, replayed } = await runIdempotent({
       endpoint: IDEMPOTENCY_ENDPOINTS.DEBT_OFFSET_CANCEL,
       idempotencyKey,
-      payload: { actorId: user.userId, actorRole: user.role, id },
+      payload: { actorId: user.userId, actorRole: user.role, id, ...data },
       createdBy: user.userId,
-      entityType: 'debt_offset',
-      create: (tx) => cancelDebtOffset(id, user.userId, user.role, tx),
+      entityType: 'governance_action',
+      create: (tx) => requestDebtOffsetCancelGovernance({
+        debtOffsetId: id,
+        expectedVersion: data.expectedVersion,
+        reason: data.reason,
+        makerId: user.userId,
+        makerRole: user.role,
+        transaction: tx,
+      }),
     });
     res.locals.auditEntityId = result.id;
-    if (!replayed) {
-      await invalidateReportCaches();
-    }
-    res.json(idempotencyKey ? { ...result, replayed } : result);
+    res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
   }),
 );
 

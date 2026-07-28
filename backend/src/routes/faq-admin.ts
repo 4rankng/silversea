@@ -41,8 +41,15 @@ import {
 } from '@tingting/shared';
 import { embedText, vecLiteral } from '../services/llm/embeddings';
 import { normalizeText } from '../services/agent/text';
+import { resolveIdempotencyKey, runIdempotent } from '../services/idempotency.service';
 
 const router = Router();
+const FAQ_COMMANDS = {
+  CREATE: 'admin.faq-entries.create',
+  UPDATE: 'admin.faq-entries.update',
+  DELETE: 'admin.faq-entries.delete',
+} as const;
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 // Columns selected for API responses. The `embedding` vector column is
 // deliberately excluded — it's 1536 floats and never useful to the client.
@@ -97,6 +104,7 @@ function stripTerms(terms: string[] | undefined): string[] {
  *  error so the caller can surface `embeddingStatus: 'failed'` without failing
  *  the save. The row's embedding stays NULL on failure. */
 async function embedAndStore(
+  q: typeof db | Tx,
   id: number,
   question: string,
   variants: string[],
@@ -106,7 +114,7 @@ async function embedAndStore(
     const vec = await embedText(input);
     const lit = vecLiteral(vec);
     if (!lit) return false;
-    await db.execute(
+    await q.execute(
       sql`UPDATE faq_entries SET embedding = ${lit}::vector, updated_at = NOW() WHERE id = ${id}`,
     );
     return true;
@@ -122,8 +130,46 @@ async function embedAndStore(
 /** Re-fetch a row's response columns (no embedding). Used after the embedding
  *  side-effect UPDATE so the returned `updatedAt` reflects the embedding write. */
 async function fetchEntryForResponse(id: number): Promise<FaqEntryRow | null> {
-  const [row] = await db.select(ENTRY_COLUMNS).from(s.faqEntries).where(eq(s.faqEntries.id, id)).limit(1);
+  return fetchEntryForResponseInQuery(db, id);
+}
+
+async function fetchEntryForResponseInQuery(
+  q: typeof db | Tx,
+  id: number,
+): Promise<FaqEntryRow | null> {
+  const [row] = await q.select(ENTRY_COLUMNS).from(s.faqEntries).where(eq(s.faqEntries.id, id)).limit(1);
   return (row as FaqEntryRow | undefined) ?? null;
+}
+
+function requireIdempotencyKey(req: Request, message: string): string {
+  const key = resolveIdempotencyKey({
+    headerValue: req.header('Idempotency-Key'),
+    requestId: req.body?._requestId,
+  });
+  if (!key) throw new ApiError(400, message);
+  return key;
+}
+
+function requireExpectedUpdatedAt(req: Request, message: string): Date {
+  const raw = req.header('If-Unmodified-Since')?.trim();
+  if (!raw) throw new ApiError(428, message);
+  const expected = new Date(raw);
+  if (Number.isNaN(expected.getTime())) {
+    throw new ApiError(400, 'Phiên bản dữ liệu không hợp lệ.');
+  }
+  return expected;
+}
+
+async function lockEntryVersion(tx: Tx, id: number, expected: Date): Promise<void> {
+  const [row] = await tx.select({ updatedAt: s.faqEntries.updatedAt })
+    .from(s.faqEntries)
+    .where(eq(s.faqEntries.id, id))
+    .limit(1)
+    .for('update');
+  if (!row) throw new ApiError(404, 'Không tìm thấy câu hỏi FAQ');
+  if (row.updatedAt.getTime() !== expected.getTime()) {
+    throw new ApiError(409, 'Dữ liệu đã được người khác cập nhật. Vui lòng tải lại trước khi lưu.');
+  }
 }
 
 /** GET / — list all entries. Ordered by sortOrder then id for stable display.
@@ -165,29 +211,34 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
 /** POST / — create a new FAQ entry, then (re)embed it in the same request. */
 router.post('/', asyncHandler(async (req: Request, res: Response) => {
   const data = faqEntryCreateSchema.parse(req.body);
-
-  const [created] = await db.insert(s.faqEntries).values({
-    question: data.question,
-    answer: data.answer,
-    questionVariants: data.questionVariants,
-    // Tone-strip required/forbidden terms — see file header.
-    requiredTerms: stripTerms(data.requiredTerms),
-    forbiddenTerms: stripTerms(data.forbiddenTerms),
-    isActive: data.isActive,
-    sortOrder: data.sortOrder,
-  }).returning(ENTRY_COLUMNS);
-  if (!created) throw new ApiError(500, 'Không thể tạo câu hỏi FAQ');
-
-  const ok = await embedAndStore(created.id, created.question, created.questionVariants);
-  // Re-fetch so updatedAt reflects the embedding write. Note: `entry` carries
-  // Date timestamps at the DB layer; res.json serializes them to ISO strings
-  // via Date.prototype.toJSON, so the client receives string timestamps.
-  const entry = (await fetchEntryForResponse(created.id)) ?? (created as unknown as FaqEntryRow);
-  const body: { entry: unknown; embeddingStatus: FaqEmbeddingStatus } = {
-    entry,
-    embeddingStatus: ok ? 'embedded' : 'failed',
-  };
-  res.status(201).json(body);
+  const idempotencyKey = requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi tạo câu hỏi FAQ.');
+  const { result, replayed } = await runIdempotent({
+    endpoint: FAQ_COMMANDS.CREATE,
+    idempotencyKey,
+    payload: data,
+    createdBy: req.user?.userId ?? null,
+    entityType: 'faq-entries',
+    responseStatusCode: 201,
+    create: async (tx) => {
+      const [created] = await tx.insert(s.faqEntries).values({
+        question: data.question,
+        answer: data.answer,
+        questionVariants: data.questionVariants,
+        requiredTerms: stripTerms(data.requiredTerms),
+        forbiddenTerms: stripTerms(data.forbiddenTerms),
+        isActive: data.isActive,
+        sortOrder: data.sortOrder,
+      }).returning(ENTRY_COLUMNS);
+      if (!created) throw new ApiError(500, 'Không thể tạo câu hỏi FAQ');
+      const ok = await embedAndStore(tx, created.id, created.question, created.questionVariants);
+      const entry = (await fetchEntryForResponseInQuery(tx, created.id)) ?? (created as unknown as FaqEntryRow);
+      return {
+        entry,
+        embeddingStatus: ok ? 'embedded' : 'failed' as FaqEmbeddingStatus,
+      };
+    },
+  });
+  res.status(201).json({ ...result, replayed });
 }));
 
 /** PUT /:id — partial update. Tone-strips terms if present, then re-embeds
@@ -197,22 +248,36 @@ router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(String(req.params.id), 10);
   if (!Number.isFinite(id)) throw new ApiError(400, 'ID không hợp lệ');
   const data = faqEntryUpdateSchema.parse(req.body);
-
-  const patch: Record<string, unknown> = { ...data, updatedAt: new Date() };
-  if (data.requiredTerms) patch.requiredTerms = stripTerms(data.requiredTerms);
-  if (data.forbiddenTerms) patch.forbiddenTerms = stripTerms(data.forbiddenTerms);
-
-  const [updated] = await db.update(s.faqEntries).set(patch).where(eq(s.faqEntries.id, id)).returning(ENTRY_COLUMNS);
-  if (!updated) throw new ApiError(404, 'Không tìm thấy câu hỏi FAQ');
-
-  // Always re-embed on update — cheap (one call) and guarantees freshness.
-  const ok = await embedAndStore(updated.id, updated.question, updated.questionVariants);
-  const entry = (await fetchEntryForResponse(updated.id)) ?? (updated as unknown as FaqEntryRow);
-  const body: { entry: unknown; embeddingStatus: FaqEmbeddingStatus } = {
-    entry,
-    embeddingStatus: ok ? 'embedded' : 'failed',
-  };
-  res.json(body);
+  const idempotencyKey = requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi cập nhật câu hỏi FAQ.');
+  const expectedUpdatedAt = requireExpectedUpdatedAt(
+    req,
+    'Thiếu phiên bản câu hỏi FAQ. Vui lòng tải lại trước khi cập nhật.',
+  );
+  const { result, replayed } = await runIdempotent({
+    endpoint: FAQ_COMMANDS.UPDATE,
+    idempotencyKey,
+    payload: { id, body: data, expectedUpdatedAt: expectedUpdatedAt.toISOString() },
+    createdBy: req.user?.userId ?? null,
+    entityType: 'faq-entries',
+    create: async (tx) => {
+      await lockEntryVersion(tx, id, expectedUpdatedAt);
+      const patch: Record<string, unknown> = { ...data, updatedAt: new Date() };
+      if (data.requiredTerms) patch.requiredTerms = stripTerms(data.requiredTerms);
+      if (data.forbiddenTerms) patch.forbiddenTerms = stripTerms(data.forbiddenTerms);
+      const [updated] = await tx.update(s.faqEntries)
+        .set(patch)
+        .where(eq(s.faqEntries.id, id))
+        .returning(ENTRY_COLUMNS);
+      if (!updated) throw new ApiError(404, 'Không tìm thấy câu hỏi FAQ');
+      const ok = await embedAndStore(tx, updated.id, updated.question, updated.questionVariants);
+      const entry = (await fetchEntryForResponseInQuery(tx, updated.id)) ?? (updated as unknown as FaqEntryRow);
+      return {
+        entry,
+        embeddingStatus: ok ? 'embedded' : 'failed' as FaqEmbeddingStatus,
+      };
+    },
+  });
+  res.json({ ...result, replayed });
 }));
 
 /** DELETE /:id — hard delete. The HNSW partial index drops the row automatically.
@@ -220,9 +285,27 @@ router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
 router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(String(req.params.id), 10);
   if (!Number.isFinite(id)) throw new ApiError(400, 'ID không hợp lệ');
-  const [deleted] = await db.delete(s.faqEntries).where(eq(s.faqEntries.id, id)).returning({ id: s.faqEntries.id });
-  if (!deleted) throw new ApiError(404, 'Không tìm thấy câu hỏi FAQ');
-  res.json({ ok: true });
+  const idempotencyKey = requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi xóa câu hỏi FAQ.');
+  const expectedUpdatedAt = requireExpectedUpdatedAt(
+    req,
+    'Thiếu phiên bản câu hỏi FAQ. Vui lòng tải lại trước khi xóa.',
+  );
+  const { replayed } = await runIdempotent({
+    endpoint: FAQ_COMMANDS.DELETE,
+    idempotencyKey,
+    payload: { id, expectedUpdatedAt: expectedUpdatedAt.toISOString() },
+    createdBy: req.user?.userId ?? null,
+    entityType: 'faq-entries',
+    create: async (tx) => {
+      await lockEntryVersion(tx, id, expectedUpdatedAt);
+      const [deleted] = await tx.delete(s.faqEntries)
+        .where(eq(s.faqEntries.id, id))
+        .returning({ id: s.faqEntries.id });
+      if (!deleted) throw new ApiError(404, 'Không tìm thấy câu hỏi FAQ');
+      return { ok: true };
+    },
+  });
+  res.json({ ok: true, replayed });
 }));
 
 export default router;

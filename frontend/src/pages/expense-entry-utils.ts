@@ -29,6 +29,25 @@ export const initialForm: FormState = {
 // D1b: matches the backend multer limit (raised from 5 MB → 15 MB).
 export const EXPENSE_PHOTO_MAX_BYTES = 15 * 1024 * 1024;
 
+export function expenseSubmissionMessage(
+  isEdit: boolean,
+  response: Record<string, unknown>,
+): string {
+  if (!isEdit) {
+    return 'Đã gửi yêu cầu ghi nhận chi phí vào hàng chờ kiểm tra. Chưa phát sinh công nợ phải trả.';
+  }
+  const deltaSnapshot = response.deltaSnapshot as Record<string, unknown> | undefined;
+  if (
+    response.actionKind === 'COMPANY_EXPENSE'
+    && deltaSnapshot?.applicationMode === 'FINALIZED_REPLACEMENT'
+  ) {
+    return 'Đã gửi điều chỉnh chi phí đã quyết toán vào hàng chờ. Phiếu gốc chưa thay đổi; sau phê duyệt hệ thống sẽ lưu một bản thay thế và giữ nguyên lịch sử.';
+  }
+  return response.actionKind === 'COMPANY_EXPENSE'
+    ? 'Đã gửi thay đổi chi phí vào hàng chờ kiểm tra. Chưa cập nhật công nợ.'
+    : 'Đã cập nhật thông tin không ảnh hưởng công nợ.';
+}
+
 // D1b: iOS Safari saves photos as HEIC, which the server's libvips cannot
 // decode. Safari decodes HEIC natively, so convert to JPEG on the client via
 // <img>→canvas before upload. Browsers that can't decode HEIC (e.g. Chrome on

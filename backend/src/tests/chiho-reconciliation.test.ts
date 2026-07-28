@@ -12,7 +12,13 @@ import {
   getStatementData,
 } from '../services/statement.service';
 import { updateTripExpense, createTripExpense } from '../services/forwarder.service';
-import { updateTripFigures } from '../services/trip-mutations.service';
+import {
+  approveGovernanceAction,
+  checkGovernanceAction,
+  requestCompletedTripCancellation,
+  requestTripFinancialClose,
+  requestTripFinancialChange,
+} from '../services/adjustment-governance.service';
 import { LedgerService } from '../services/ledger.service';
 import { ApiError } from '../errors';
 import { disconnectRedis, invalidateReportCaches } from '../lib/redis';
@@ -39,41 +45,138 @@ const createdForwarderIds: number[] = [];
 const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
 const createdExpenseIds: number[] = [];
+const createdGovernanceUserIds: number[] = [];
 
 after(async () => {
+  let cleanupError: unknown;
   const allTxnIds = [...createdTripIds, ...createdExpenseIds];
-  if (allTxnIds.length > 0) {
-    await db.delete(s.ledger).where(inArray(s.ledger.txnId, allTxnIds));
+  const allUserIds = [...createdForwarderIds, ...createdGovernanceUserIds];
+
+  try {
+    if (allTxnIds.length > 0) {
+      await db.delete(s.ledger).where(inArray(s.ledger.txnId, allTxnIds));
+    }
+    if (createdTripIds.length > 0) {
+      await db.delete(s.tripGpsCaptureJobs).where(inArray(s.tripGpsCaptureJobs.tripId, createdTripIds));
+      await db.delete(s.tripGpsTracks).where(inArray(s.tripGpsTracks.tripId, createdTripIds));
+      await db.delete(s.routePolylines).where(inArray(s.routePolylines.sourceTripId, createdTripIds));
+      await db.delete(s.tripPhotos).where(inArray(s.tripPhotos.tripId, createdTripIds));
+      await db.delete(s.tripLegs).where(inArray(s.tripLegs.tripId, createdTripIds));
+    }
+    if (createdExpenseIds.length > 0) {
+      await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.id, createdExpenseIds));
+    }
+    if (createdGovernanceUserIds.length > 0) {
+      await db.delete(s.governanceActions).where(inArray(s.governanceActions.makerId, createdGovernanceUserIds));
+      await db.delete(s.governanceActions).where(inArray(s.governanceActions.checkerId, createdGovernanceUserIds));
+      await db.delete(s.governanceActions).where(inArray(s.governanceActions.approverId, createdGovernanceUserIds));
+    }
+    if (createdTripIds.length > 0) {
+      await db.delete(s.governanceActions).where(inArray(s.governanceActions.subjectId, createdTripIds));
+      await db.delete(s.auditLogs).where(inArray(s.auditLogs.entityId, createdTripIds));
+      await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
+    }
+    if (allUserIds.length > 0) {
+      await db.delete(s.notifications).where(inArray(s.notifications.userId, allUserIds));
+      await db.delete(s.auditLogs).where(inArray(s.auditLogs.userId, allUserIds));
+      await db.delete(s.users).where(inArray(s.users.id, allUserIds));
+    }
+    if (createdSupplierIds.length > 0) {
+      await db.delete(s.suppliers).where(inArray(s.suppliers.id, createdSupplierIds));
+    }
+    if (createdCustomerIds.length > 0) {
+      await db.delete(s.customers).where(inArray(s.customers.id, createdCustomerIds));
+    }
+    if (createdRouteIds.length > 0) {
+      await db.delete(s.routes).where(inArray(s.routes.id, createdRouteIds));
+    }
+    if (createdCargoTypeIds.length > 0) {
+      await db.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, createdCargoTypeIds));
+    }
+    await invalidateReportCaches();
+  } catch (err) {
+    cleanupError = err;
+    console.error('[chiho-reconciliation] teardown failure', err);
+  } finally {
+    await disconnectRedis().catch((err) => {
+      cleanupError ??= err;
+      console.error('[chiho-reconciliation] disconnectRedis failure', err);
+    });
+    await client.end().catch((err) => {
+      cleanupError ??= err;
+      console.error('[chiho-reconciliation] client.end failure', err);
+    });
   }
-  if (createdExpenseIds.length > 0) {
-    await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.id, createdExpenseIds));
+
+  if (cleanupError) {
+    throw cleanupError;
   }
-  if (createdTripIds.length > 0) {
-    // updateTripFigures replaces the trip's legs. They do not cascade when the
-    // parent trip is deleted, so remove them explicitly to keep teardown from
-    // aborting before the shared database connection can be closed.
-    await db.delete(s.tripLegs).where(inArray(s.tripLegs.tripId, createdTripIds));
-    await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
-  }
-  if (createdForwarderIds.length > 0) {
-    await db.delete(s.users).where(inArray(s.users.id, createdForwarderIds));
-  }
-  if (createdSupplierIds.length > 0) {
-    await db.delete(s.suppliers).where(inArray(s.suppliers.id, createdSupplierIds));
-  }
-  if (createdCustomerIds.length > 0) {
-    await db.delete(s.customers).where(inArray(s.customers.id, createdCustomerIds));
-  }
-  if (createdRouteIds.length > 0) {
-    await db.delete(s.routes).where(inArray(s.routes.id, createdRouteIds));
-  }
-  if (createdCargoTypeIds.length > 0) {
-    await db.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, createdCargoTypeIds));
-  }
-  await invalidateReportCaches();
-  await disconnectRedis();
-  await client.end();
 });
+
+async function governanceActors(label: string) {
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const actors = await db.insert(s.users).values([
+    { username: `${label}-maker-${suffix}`, passwordHash: 'x', role: Role.MANAGER },
+    { username: `${label}-checker-${suffix}`, passwordHash: 'x', role: Role.ACCOUNTANT },
+    { username: `${label}-approver-${suffix}`, passwordHash: 'x', role: Role.ADMIN },
+  ]).returning({ id: s.users.id });
+  createdGovernanceUserIds.push(...actors.map((actor) => actor.id));
+  return actors;
+}
+
+async function approveCompletedCancellation(tripId: number, expectedVersion: number) {
+  const actors = await governanceActors('chiho-cancel');
+  const action = await requestCompletedTripCancellation({
+    tripId,
+    reason: 'Hủy chuyến đã hoàn thành và hoàn nhập công nợ',
+    makerId: actors[0]!.id,
+    makerRole: Role.MANAGER,
+    expectedTripVersion: expectedVersion,
+  });
+  const checked = await checkGovernanceAction({
+    actionId: action.id,
+    checkerId: actors[1]!.id,
+    checkerRole: Role.ACCOUNTANT,
+    expectedVersion: action.version,
+  });
+  return approveGovernanceAction({
+    actionId: action.id,
+    approverId: actors[2]!.id,
+    approverRole: Role.ADMIN,
+    expectedVersion: checked.version,
+  });
+}
+
+async function closeTripThroughGovernance(tripId: number, expectedVersion: number) {
+  const actors = await governanceActors('chiho-close');
+  const action = await requestTripFinancialClose({
+    tripId,
+    reason: 'Hoàn thành chuyến theo quy trình quản trị kiểm thử',
+    makerId: actors[0]!.id,
+    makerRole: Role.MANAGER,
+    expectedTripVersion: expectedVersion,
+  });
+  const checked = await checkGovernanceAction({
+    actionId: action.id,
+    checkerId: actors[1]!.id,
+    checkerRole: Role.ACCOUNTANT,
+    expectedVersion: action.version,
+  });
+  await approveGovernanceAction({
+    actionId: action.id,
+    approverId: actors[2]!.id,
+    approverRole: Role.ADMIN,
+    expectedVersion: checked.version,
+  });
+  const [completed] = await db.select({ version: s.trips.version })
+    .from(s.trips)
+    .where(eq(s.trips.id, tripId))
+    .limit(1);
+  return {
+    managerId: actors[0]!.id,
+    version: completed?.version ?? expectedVersion,
+  };
+}
 
 interface FeeSpec {
   buyAmount: number;
@@ -159,13 +262,21 @@ async function createLockedTripWithFees(spec: TripSpec) {
   // IN_TRANSIT → COMPLETED posts the ledger (postTripLock). The debt notice now
   // bills COMPLETED + LOCKED (revenue posts at completion; LOCKED is just a
   // figures-freeze), so the trip surfaces on the note at COMPLETED already.
-  await transitionTripStatus(trip.id, TripStatus.COMPLETED, 1, Role.MANAGER);
+  const closeOutcome = await closeTripThroughGovernance(trip.id, trip.version);
   await db.update(s.trips)
     .set({ completedAt: new Date(`${spec.departureDate}T12:00:00+07:00`) })
     .where(eq(s.trips.id, trip.id));
   if (spec.lock !== false) {
     // Optional "chốt" freeze — still billable; exercised by the legacy LOCKED cases.
-    await transitionTripStatus(trip.id, TripStatus.LOCKED, 1, Role.MANAGER, true, true);
+    await transitionTripStatus(
+      trip.id,
+      TripStatus.LOCKED,
+      closeOutcome.managerId,
+      Role.MANAGER,
+      spec.revenue === 0,
+      true,
+      { expectedVersion: closeOutcome.version },
+    );
   }
 
   return { trip, customer, supplierId, forwarderId, expenseRows, customerName: customer.name };
@@ -557,12 +668,20 @@ async function createBillableTrip(ctx: BillableSeedCtx, spec: BillableTripSpec) 
     }).returning();
     createdExpenseIds.push(row.id);
   }
-  await transitionTripStatus(trip.id, TripStatus.COMPLETED, 1, Role.MANAGER);
+  const closeOutcome = await closeTripThroughGovernance(trip.id, trip.version);
   await db.update(s.trips)
     .set({ completedAt: new Date(`${spec.departureDate}T12:00:00+07:00`) })
     .where(eq(s.trips.id, trip.id));
   if (spec.lock !== false) {
-    await transitionTripStatus(trip.id, TripStatus.LOCKED, 1, Role.MANAGER, true, true);
+    await transitionTripStatus(
+      trip.id,
+      TripStatus.LOCKED,
+      closeOutcome.managerId,
+      Role.MANAGER,
+      spec.revenue === 0,
+      true,
+      { expectedVersion: closeOutcome.version },
+    );
   }
   return { trip };
 }
@@ -592,7 +711,9 @@ describe('US-005b billable status: COMPLETED trips appear on the debt notice', (
     });
     // COMPLETED → CANCELED reverses the ledger and zeroes revenue; the status
     // predicate (IN COMPLETED/LOCKED) then excludes it from the notice.
-    await transitionTripStatus(trip.id, TripStatus.CANCELED, 1, Role.MANAGER);
+    const [completed] = await db.select({ version: s.trips.version })
+      .from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+    await approveCompletedCancellation(trip.id, completed.version);
     const draft = await generateDraft({
       type: 'DEBIT_NOTE', entityType: 'CUSTOMER', entityId: customer.id,
       rangeFrom: '2026-06-01', rangeTo: '2026-06-30',
@@ -653,13 +774,35 @@ describe('US-005b edited-COMPLETED reconciliation: ledger stays in sync after a 
 
     // Edit revenue via the figure-update path — the unlock+relock swap at
     // trip-mutations.service.ts:672-712 re-posts the ledger at the new values.
-    await updateTripFigures(trip.id, {
+    const [current] = await db.select({ version: s.trips.version })
+      .from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+    const actors = await governanceActors('chiho-change');
+    const action = await requestTripFinancialChange({
+      tripId: trip.id,
+      reason: 'Điều chỉnh doanh thu theo biên bản đối soát',
+      figures: {
       legs: [{ sequence: 1, origin: 'A', destination: 'B', km: 100, loadingType: LoadingType.HANG }],
       fuelMode: FuelMode.FLAT_RATE,
       fuelLitersOverride: 0,
       revenue: 7_500_000,
       routeId: trip.routeId,
-      userId: 1,
+      userId: actors[0]!.id,
+      },
+      makerId: actors[0]!.id,
+      makerRole: Role.MANAGER,
+      expectedTripVersion: current.version,
+    });
+    const checked = await checkGovernanceAction({
+      actionId: action.id,
+      checkerId: actors[1]!.id,
+      checkerRole: Role.ACCOUNTANT,
+      expectedVersion: action.version,
+    });
+    await approveGovernanceAction({
+      actionId: action.id,
+      approverId: actors[2]!.id,
+      approverRole: Role.ADMIN,
+      expectedVersion: checked.version,
     });
 
     // Post-edit: read the trip's ACTUAL stored revenue (resolveRevenue may transform

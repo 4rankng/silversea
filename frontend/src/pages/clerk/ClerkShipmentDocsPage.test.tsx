@@ -14,6 +14,7 @@ import type { CreditOverrideRequestRecord } from '../../api/creditOverrideClient
 const {
   addDocumentMock,
   approveCreditRequestMutateAsyncMock,
+  checkCreditRequestMutateAsyncMock,
   confirmMock,
   createCreditRequestMutateAsyncMock,
   creditQueueState,
@@ -31,6 +32,7 @@ const {
 } = vi.hoisted(() => ({
   addDocumentMock: vi.fn(),
   approveCreditRequestMutateAsyncMock: vi.fn(),
+  checkCreditRequestMutateAsyncMock: vi.fn(),
   confirmMock: vi.fn(),
   createCreditRequestMutateAsyncMock: vi.fn(),
   creditQueueState: {
@@ -93,6 +95,10 @@ vi.mock('../../hooks/useCreditOverrideQueries', () => ({
   }),
   useApproveCreditOverrideRequest: () => ({
     mutateAsync: approveCreditRequestMutateAsyncMock,
+    isPending: false,
+  }),
+  useCheckCreditOverrideRequest: () => ({
+    mutateAsync: checkCreditRequestMutateAsyncMock,
     isPending: false,
   }),
   useRejectCreditOverrideRequest: () => ({
@@ -168,12 +174,18 @@ function renderAt(path = '/clerk/shipments/42/docs') {
   );
 }
 
+function setViewportWidth(width: number) {
+  window.innerWidth = width;
+  window.dispatchEvent(new Event('resize'));
+}
+
 describe('ClerkShipmentDocsPage', () => {
   beforeEach(() => {
     currentUserState.role = 'CLERK';
     currentUserState.businessUnitIds = [11, 12];
     addDocumentMock.mockReset();
     approveCreditRequestMutateAsyncMock.mockReset();
+    checkCreditRequestMutateAsyncMock.mockReset();
     confirmMock.mockReset();
     createCreditRequestMutateAsyncMock.mockReset();
     createDeclarationMock.mockReset();
@@ -475,6 +487,156 @@ describe('ClerkShipmentDocsPage', () => {
     }));
   });
 
+  it.each([
+    { viewport: 'mobile', width: 390 },
+    { viewport: 'desktop', width: 1280 },
+  ])('saves seal edits and delivery-order documents on the %s viewport', async ({ width }) => {
+    setViewportWidth(width);
+    getDetailMock
+      .mockResolvedValueOnce(makeDetail())
+      .mockResolvedValueOnce(makeDetail({
+        shipment: { version: 4 },
+        containers: [{
+          id: 100,
+          shipmentId: 42,
+          containerTypeId: 1,
+          containerNumber: 'MSKU1234565',
+          sealNumber: 'SEAL-Q17',
+          cargoWeightKg: null,
+          notes: null,
+        }],
+      }))
+      .mockResolvedValueOnce(makeDetail({
+        shipment: { version: 4 },
+        containers: [{
+          id: 100,
+          shipmentId: 42,
+          containerTypeId: 1,
+          containerNumber: 'MSKU1234565',
+          sealNumber: 'SEAL-Q17',
+          cargoWeightKg: null,
+          notes: null,
+        }],
+        documents: [{
+          id: 91,
+          shipmentId: 42,
+          type: 'DO',
+          storageKey: 'uploads/shipment-42/do-v1.pdf',
+          uploadedBy: 1,
+          expiresAt: null,
+          replacedBy: null,
+          createdAt: '2026-07-28T09:00:00.000Z',
+        }],
+      }))
+      .mockResolvedValue(makeDetail({
+        shipment: { version: 4 },
+        containers: [{
+          id: 100,
+          shipmentId: 42,
+          containerTypeId: 1,
+          containerNumber: 'MSKU1234565',
+          sealNumber: 'SEAL-Q17',
+          cargoWeightKg: null,
+          notes: null,
+        }],
+        documents: [{
+          id: 92,
+          shipmentId: 42,
+          type: 'DO',
+          storageKey: 'uploads/shipment-42/do-v2.pdf',
+          uploadedBy: 1,
+          expiresAt: '2026-08-02',
+          replacedBy: null,
+          createdAt: '2026-07-28T10:00:00.000Z',
+        }],
+      }));
+    saveContainersMock.mockResolvedValue({
+      items: [{
+        id: 100,
+        shipmentId: 42,
+        containerTypeId: 1,
+        containerNumber: 'MSKU1234565',
+        sealNumber: 'SEAL-Q17',
+        cargoWeightKg: null,
+        notes: null,
+      }],
+      upsertedIds: [100],
+      shipmentVersion: 4,
+      changeMode: 'DIRECT',
+      changeRequestId: null,
+      notificationDelivered: true,
+      message: 'Đã lưu 1 công-te-nơ.',
+    });
+    addDocumentMock.mockResolvedValue({
+      id: 91,
+      shipmentId: 42,
+      type: 'DO',
+      storageKey: 'uploads/shipment-42/do-v1.pdf',
+      uploadedBy: 1,
+      expiresAt: null,
+      replacedBy: null,
+      createdAt: '2026-07-28T09:00:00.000Z',
+    });
+    replaceDocumentMock.mockResolvedValue({
+      id: 92,
+      shipmentId: 42,
+      type: 'DO',
+      storageKey: 'uploads/shipment-42/do-v2.pdf',
+      uploadedBy: 1,
+      expiresAt: '2026-08-02',
+      replacedBy: null,
+      createdAt: '2026-07-28T10:00:00.000Z',
+    });
+
+    renderAt();
+    await waitFor(() => expect(screen.getByRole('button', { name: /Thêm công-te-nơ/ })).toBeTruthy());
+
+    fireEvent.click(screen.getByRole('button', { name: /Thêm công-te-nơ/ }));
+    const containerSection = screen.getByText(/Công-te-nơ \(/).closest('section');
+    const containerSelect = containerSection?.querySelector('select') as HTMLSelectElement | null;
+    expect(containerSelect).toBeTruthy();
+    fireEvent.change(containerSelect!, { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText('Số công-te-nơ (ISO 6346)'), { target: { value: 'MSKU1234565' } });
+    fireEvent.change(screen.getByLabelText('Số niêm phong'), { target: { value: 'SEAL-Q17' } });
+    fireEvent.click(screen.getByRole('button', { name: /Lưu công-te-nơ/ }));
+
+    await waitFor(() => expect(saveContainersMock).toHaveBeenCalledWith(42, expect.objectContaining({
+      expectedVersion: 3,
+      containers: [expect.objectContaining({
+        containerTypeId: 1,
+        containerNumber: 'MSKU1234565',
+        sealNumber: 'SEAL-Q17',
+      })],
+    })));
+
+    const documentSection = await screen.findByText('Tài liệu chứng từ');
+    const documentTypeSelect = documentSection.closest('section')?.querySelector('select') as HTMLSelectElement | null;
+    expect(documentTypeSelect).toBeTruthy();
+    fireEvent.change(documentTypeSelect!, { target: { value: 'DO' } });
+    fireEvent.change(screen.getByLabelText('Storage key tài liệu'), { target: { value: 'uploads/shipment-42/do-v1.pdf' } });
+    fireEvent.click(screen.getByRole('button', { name: /Thêm tài liệu/ }));
+
+    await waitFor(() => expect(addDocumentMock).toHaveBeenCalledWith(42, {
+      type: 'DO',
+      storageKey: 'uploads/shipment-42/do-v1.pdf',
+    }));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Thay thế' }));
+    fireEvent.change(screen.getByLabelText(/Storage key tài liệu mới thay cho #91/), {
+      target: { value: 'uploads/shipment-42/do-v2.pdf' },
+    });
+    fireEvent.change(screen.getByLabelText('Ngày hết hạn (nếu có)'), {
+      target: { value: '2026-08-02' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Thay thế tài liệu/ }));
+
+    await waitFor(() => expect(replaceDocumentMock).toHaveBeenCalledWith(42, 91, {
+      expectedVersion: 4,
+      storageKey: 'uploads/shipment-42/do-v2.pdf',
+      expiresAt: '2026-08-02',
+    }));
+  });
+
   it('lets a manager review a pending change request', async () => {
     currentUserState.role = 'MANAGER';
     getDetailMock
@@ -558,6 +720,11 @@ describe('ClerkShipmentDocsPage', () => {
       consumedTripId: null,
       consumedAt: null,
       version: 4,
+      requestVersion: 1,
+      workflowStatus: 'PENDING_APPROVAL',
+      governanceActionId: 9001,
+      checkedBy: 55,
+      checkedAt: '2026-07-27T09:30:00.000Z',
       createdAt: '2026-07-27T09:00:00.000Z',
       updatedAt: '2026-07-27T09:00:00.000Z',
     }];
@@ -568,6 +735,7 @@ describe('ClerkShipmentDocsPage', () => {
       approvedRole: 'ADMIN',
       approvedAt: '2026-07-27T10:00:00.000Z',
       version: 5,
+      workflowStatus: 'APPROVED',
       updatedAt: '2026-07-27T10:00:00.000Z',
     });
     dispatchMock.mockResolvedValue({

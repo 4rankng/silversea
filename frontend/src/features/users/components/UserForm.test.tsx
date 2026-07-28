@@ -288,6 +288,35 @@ describe('customer account scope', () => {
     });
   });
 
+  it('submits selected payroll business units for a DRIVER account', async () => {
+    const onSave = vi.fn().mockResolvedValue(true);
+
+    render(
+      <AddPanel
+        isOpen
+        saving={false}
+        error={null}
+        truckList={[]}
+        customerList={customers}
+        businessUnits={businessUnits}
+        shipmentOptions={shipmentOptions}
+        onClose={vi.fn()}
+        onSave={onSave}
+      />,
+    );
+
+    expect(screen.getByText('Đơn vị tính lương')).toBeTruthy();
+    fireEvent.click(screen.getAllByRole('checkbox', { name: /Điều hành miền Nam/ })[0]!);
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm lái xe' }));
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+        role: Role.DRIVER,
+        businessUnitIds: [11],
+      }));
+    });
+  });
+
   it('loads and updates an existing CLERK assignment set', async () => {
     const onSave = vi.fn().mockResolvedValue(true);
     const user: UserRow = {

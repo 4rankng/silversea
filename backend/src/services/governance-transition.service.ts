@@ -1,4 +1,4 @@
-import { and, desc, eq, sql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, isNull, sql, type SQL } from 'drizzle-orm';
 import {
   type GovernanceActionListQuery,
   type GovernanceAllowedAction,
@@ -27,18 +27,73 @@ import {
   applyPaymentReceiptGovernanceAction,
   applyPaymentRefundGovernanceAction,
 } from './payment-allocation.service';
+import { applyProfitDistributionGovernanceAction } from './profit-distribution.service';
+import {
+  enqueueDurableEffects,
+  type DurableEffectInput,
+} from './durable-effect.service';
 
 export type GovernanceActionRow = typeof s.governanceActions.$inferSelect;
 
 export interface GovernanceApplyResult {
   ledgerEntryId?: number | null;
   applicationResult?: Record<string, unknown> | null;
+  durableEffects?: DurableEffectInput[];
+}
+
+const activeApprovalApplications = new WeakMap<object, Set<number>>();
+let afterGovernanceApplyHookForTest: null | ((action: GovernanceActionRow) => void | Promise<void>) = null;
+
+export function assertActiveApprovalApplication(
+  tx: Tx,
+  actionId: number | undefined,
+): void {
+  if (
+    !Number.isInteger(actionId)
+    || !activeApprovalApplications.get(tx as object)?.has(actionId!)
+  ) {
+    throw new ApiError(
+      409,
+      'Thao tác tài chính chỉ được áp dụng bởi tiến trình phê duyệt quản trị',
+    );
+  }
 }
 
 export type GovernanceApplyAdapter = (
   tx: Tx,
   action: GovernanceActionRow,
 ) => Promise<GovernanceApplyResult | void>;
+
+export function setGovernanceApprovalAfterApplyHookForTest(
+  hook: null | ((action: GovernanceActionRow) => void | Promise<void>),
+): void {
+  afterGovernanceApplyHookForTest = hook;
+}
+
+async function applyWithinActiveApproval(
+  tx: Tx,
+  action: GovernanceActionRow,
+  apply: GovernanceApplyAdapter,
+): Promise<GovernanceApplyResult | void> {
+  const txKey = tx as object;
+  let actionIds = activeApprovalApplications.get(txKey);
+  if (!actionIds) {
+    actionIds = new Set<number>();
+    activeApprovalApplications.set(txKey, actionIds);
+  }
+  if (actionIds.has(action.id)) {
+    throw new ApiError(409, 'Yêu cầu quản trị đang được áp dụng');
+  }
+  actionIds.add(action.id);
+  try {
+    return await apply(tx, action);
+  } finally {
+    actionIds.delete(action.id);
+    if (actionIds.size === 0) {
+      activeApprovalApplications.delete(txKey);
+    }
+  }
+}
 
 export type GovernanceActionView = GovernanceActionRow & {
   allowedActions: GovernanceAllowedAction[];
@@ -53,6 +108,7 @@ const DIRECT_MONEY_ACTION_KINDS = new Set([
   'COMMISSION',
   'PENALTY_CREATE',
   'PENALTY_CANCEL',
+  'PROFIT_DISTRIBUTION',
 ]);
 
 function assertExpectedActionVersion(actual: number, expected: number): void {
@@ -184,6 +240,7 @@ export async function approveGovernanceActionWithAdapter(input: {
   approverRole: string;
   expectedVersion: number;
   apply: GovernanceApplyAdapter;
+  authorizeBeforeApply?: (action: GovernanceActionRow) => boolean;
   transaction?: Tx;
 }) {
   const execute = async (tx: Tx) => {
@@ -198,15 +255,74 @@ export async function approveGovernanceActionWithAdapter(input: {
     });
 
     const now = new Date();
+    if (input.authorizeBeforeApply?.(action)) {
+      const [authorized] = await tx.update(s.governanceActions).set({
+        status: 'APPROVED',
+        approverId: input.approverId,
+        approverRole: input.approverRole,
+        approvedAt: now,
+        appliedAt: null,
+        ledgerEntryId: null,
+        applicationResult: null,
+        updatedAt: now,
+        version: sql`${s.governanceActions.version} + 1`,
+      }).where(and(
+        eq(s.governanceActions.id, action.id),
+        eq(s.governanceActions.status, 'PENDING_APPROVAL'),
+        eq(s.governanceActions.version, input.expectedVersion),
+      )).returning();
+      if (!authorized) {
+        throw new ApiError(409, 'Yêu cầu đã được người khác xử lý. Vui lòng tải lại.');
+      }
+      const effect = await applyWithinActiveApproval(
+        tx,
+        authorized,
+        input.apply,
+      );
+      if (effect?.durableEffects?.length) {
+        await enqueueDurableEffects(tx, effect.durableEffects);
+      }
+      if (afterGovernanceApplyHookForTest) {
+        await afterGovernanceApplyHookForTest(authorized);
+      }
+      const appliedAt = new Date();
+      const [applied] = await tx.update(s.governanceActions).set({
+        appliedAt,
+        ledgerEntryId: effect?.ledgerEntryId ?? null,
+        applicationResult: effect?.applicationResult ?? null,
+        updatedAt: appliedAt,
+        version: sql`${s.governanceActions.version} + 1`,
+      }).where(and(
+        eq(s.governanceActions.id, authorized.id),
+        eq(s.governanceActions.status, 'APPROVED'),
+        eq(s.governanceActions.version, authorized.version),
+        eq(s.governanceActions.approverId, input.approverId),
+        isNull(s.governanceActions.appliedAt),
+      )).returning();
+      if (!applied) {
+        throw new ApiError(409, 'Yêu cầu đã được áp dụng hoặc thay đổi bởi tiến trình khác');
+      }
+      return applied;
+    }
     // Adapters execute inside the same approval transaction before the
     // governance row is persisted as APPROVED. Give them the authoritative
     // decision actor so immutable domain rows can record the actual approver.
-    const effect = await input.apply(tx, {
-      ...action,
-      approverId: input.approverId,
-      approverRole: input.approverRole,
-      approvedAt: now,
-    });
+    const effect = await applyWithinActiveApproval(
+      tx,
+      {
+        ...action,
+        approverId: input.approverId,
+        approverRole: input.approverRole,
+        approvedAt: now,
+      },
+      input.apply,
+    );
+    if (effect?.durableEffects?.length) {
+      await enqueueDurableEffects(tx, effect.durableEffects);
+    }
+    if (afterGovernanceApplyHookForTest) {
+      await afterGovernanceApplyHookForTest(action);
+    }
     const [approved] = await tx.update(s.governanceActions).set({
       status: 'APPROVED',
       approverId: input.approverId,
@@ -258,6 +374,8 @@ async function applyDirectMoneyGovernanceAction(
       return applyPenaltyCreateGovernanceAction(tx, action);
     case 'PENALTY_CANCEL':
       return applyPenaltyCancelGovernanceAction(tx, action);
+    case 'PROFIT_DISTRIBUTION':
+      return applyProfitDistributionGovernanceAction(tx, action);
     default:
       throw new ApiError(409, 'Loại yêu cầu không thuộc nhóm tiền trực tiếp');
   }

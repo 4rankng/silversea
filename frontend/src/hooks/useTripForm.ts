@@ -19,6 +19,7 @@ export interface UseTripFormParams {
   options: TripOptions;
   mode?: 'create' | 'edit';
   existingTrip?: TripDetail;
+  governanceReason?: string;
   onCreditLimitBlocked?: (details: { message: string; customerId: number; proposedAmount: number }) => void;
 }
 
@@ -161,11 +162,18 @@ function isParamsObject(arg: TripOptions | UseTripFormParams): arg is UseTripFor
 
 export function useTripForm(arg: TripOptions | UseTripFormParams): UseTripFormReturn {
   const params = isParamsObject(arg) ? arg : { options: arg, mode: 'create' as const };
-  const { options, mode = 'create', existingTrip, onCreditLimitBlocked } = params;
+  const { options, mode = 'create', existingTrip, governanceReason, onCreditLimitBlocked } = params;
   const isEditMode = mode === 'edit';
 
   const s = useTripFormState({ isEditMode, existingTrip });
-  const d = useTripFormDispatch({ state: s, options, isEditMode, existingTrip, onCreditLimitBlocked });
+  const d = useTripFormDispatch({
+    state: s,
+    options,
+    isEditMode,
+    existingTrip,
+    governanceReason,
+    onCreditLimitBlocked,
+  });
 
   return {
     customerId: s.customerId, setCustomerId: s.setCustomerId,

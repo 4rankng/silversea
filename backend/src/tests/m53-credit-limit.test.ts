@@ -1,6 +1,6 @@
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
 
 import { Role, TripStatus } from '@tingting/shared';
 import { db, client } from '../db';
@@ -8,8 +8,10 @@ import * as s from '../db/schema';
 import { getAppSettings, saveAppSettings } from '../services/app-settings.service';
 import {
   approveCreditOverrideRequest,
+  checkCreditOverrideRequest,
   checkCreditLimit,
   createCreditOverrideRequest,
+  type CreditOverrideView,
 } from '../services/credit-limit.service';
 import { createTrip } from '../services/trip.service';
 
@@ -25,7 +27,13 @@ const createdTripIds: number[] = [];
 const createdShipmentIds: number[] = [];
 const createdLedgerIds: number[] = [];
 const createdCreditOverrideIds: number[] = [];
+const createdGovernanceActionIds: number[] = [];
 let originalSettings: Awaited<ReturnType<typeof getAppSettings>>;
+
+function trackGovernanceAction(request: CreditOverrideView) {
+  assert.notEqual(request.governanceActionId, null);
+  createdGovernanceActionIds.push(request.governanceActionId as number);
+}
 
 async function mkUser(role: Role) {
   const [user] = await db.insert(s.users).values({
@@ -133,6 +141,9 @@ before(async () => {
 after(async () => {
   try {
     await saveAppSettings(originalSettings);
+    if (createdGovernanceActionIds.length > 0) {
+      await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, createdGovernanceActionIds));
+    }
     if (createdCreditOverrideIds.length > 0) {
       await db.delete(s.creditOverrideRequests).where(inArray(s.creditOverrideRequests.id, createdCreditOverrideIds));
     }
@@ -181,6 +192,7 @@ describe('M5.3/Q01 exposure authority', () => {
     const cargoType = await mkCargoType();
     const shipment = await mkShipment(customer.id);
     const requester = await mkUser(Role.MANAGER);
+    const checker = await mkUser(Role.ACCOUNTANT);
     const approver = await mkUser(Role.ADMIN);
 
     await mkLedger(customer.id, 3_000_000);
@@ -193,10 +205,15 @@ describe('M5.3/Q01 exposure authority', () => {
       reason: 'Giữ chỗ tín dụng cho lô đang chờ điều vận',
     }, { userId: requester.id, role: requester.role });
     createdCreditOverrideIds.push(pending.id);
+    trackGovernanceAction(pending);
+    const checked = await checkCreditOverrideRequest(pending.id, {
+      userId: checker.id,
+      role: checker.role,
+    }, { expectedVersion: pending.version });
     const approved = await approveCreditOverrideRequest(pending.id, {
       userId: approver.id,
       role: approver.role,
-    }, { expectedVersion: pending.version });
+    }, { expectedVersion: checked.version });
 
     const result = await checkCreditLimit(customer.id, { proposedAmount: 1_000_000 });
     assert.equal(result.outstanding, 3_000_000);
@@ -231,6 +248,7 @@ describe('M5.3/Q02 overrides + canonical createTrip enforcement', () => {
     });
     const customer = await mkCustomer('10000000');
     const requester = await mkUser(Role.MANAGER);
+    const checker = await mkUser(Role.ACCOUNTANT);
     const admin = await mkUser(Role.ADMIN);
     await mkLedger(customer.id, 10_200_000);
 
@@ -241,10 +259,16 @@ describe('M5.3/Q02 overrides + canonical createTrip enforcement', () => {
       reason: 'Ngoại lệ đầu tiên',
     }, { userId: requester.id, role: requester.role });
     createdCreditOverrideIds.push(first.id);
+    trackGovernanceAction(first);
+    const checked = await checkCreditOverrideRequest(
+      first.id,
+      { userId: checker.id, role: checker.role },
+      { expectedVersion: first.version },
+    );
     await approveCreditOverrideRequest(
       first.id,
       { userId: admin.id, role: admin.role },
-      { expectedVersion: first.version },
+      { expectedVersion: checked.version },
     );
 
     const second = await createCreditOverrideRequest({
@@ -254,6 +278,7 @@ describe('M5.3/Q02 overrides + canonical createTrip enforcement', () => {
       reason: 'Ngoại lệ lặp lại',
     }, { userId: requester.id, role: requester.role });
     createdCreditOverrideIds.push(second.id);
+    trackGovernanceAction(second);
     assert.equal(second.requiredTier, 'DIRECTOR');
     assert.equal(second.repeatException, true);
   });
@@ -265,6 +290,7 @@ describe('M5.3/Q02 overrides + canonical createTrip enforcement', () => {
       creditTierOneAmountCap: 2_000_000,
     });
     const requester = await mkUser(Role.MANAGER);
+    const checker = await mkUser(Role.ACCOUNTANT);
     const approver = await mkUser(Role.ADMIN);
     const customer = await mkCustomer('4000000');
     const route = await mkRoute();
@@ -291,10 +317,15 @@ describe('M5.3/Q02 overrides + canonical createTrip enforcement', () => {
       reason: 'Cho phép phục vụ đơn hàng gấp trong 48 giờ',
     }, { userId: requester.id, role: requester.role });
     createdCreditOverrideIds.push(pending.id);
+    trackGovernanceAction(pending);
+    const checked = await checkCreditOverrideRequest(pending.id, {
+      userId: checker.id,
+      role: checker.role,
+    }, { expectedVersion: pending.version });
     await approveCreditOverrideRequest(pending.id, {
       userId: approver.id,
       role: approver.role,
-    }, { expectedVersion: pending.version });
+    }, { expectedVersion: checked.version });
 
     const trip = await createTrip({
       customerId: customer.id,
@@ -324,6 +355,7 @@ describe('M5.3/Q02 overrides + canonical createTrip enforcement', () => {
       creditTierOneAmountCap: 2_000_000,
     });
     const requester = await mkUser(Role.MANAGER);
+    const checker = await mkUser(Role.ACCOUNTANT);
     const approver = await mkUser(Role.ADMIN);
     const customer = await mkCustomer('4000000');
     const route = await mkRoute();
@@ -339,10 +371,15 @@ describe('M5.3/Q02 overrides + canonical createTrip enforcement', () => {
       reason: 'Chỉ áp dụng cho lô hàng này',
     }, { userId: requester.id, role: requester.role });
     createdCreditOverrideIds.push(pending.id);
+    trackGovernanceAction(pending);
+    const checked = await checkCreditOverrideRequest(pending.id, {
+      userId: checker.id,
+      role: checker.role,
+    }, { expectedVersion: pending.version });
     await approveCreditOverrideRequest(pending.id, {
       userId: approver.id,
       role: approver.role,
-    }, { expectedVersion: pending.version });
+    }, { expectedVersion: checked.version });
 
     const trip = await createTrip({
       customerId: customer.id,

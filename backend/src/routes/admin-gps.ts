@@ -8,15 +8,60 @@
  */
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { and, inArray, gte, lte } from 'drizzle-orm';
+import { and, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 import { db } from '../db';
 import * as schema from '../db/schema';
 import { asyncHandler } from '../middleware/asyncHandler';
+import { ApiError } from '../errors';
 import { captureTripGpsTrack, deriveRoutesForStoredTrip, type CaptureResult } from '../services/gps/capture.service';
+import { getRequestIdempotencyKey } from './utils/idempotency';
+import { hashPayload } from '../services/idempotency.service';
 
-const router = Router();
+const GPS_COMMAND_ENDPOINTS = {
+  BACKFILL: 'gps.backfill',
+  RECAPTURE: 'gps.recapture',
+} as const;
 
-async function captureAndDeriveTripGps(tripId: number): Promise<CaptureResult> {
+const GPS_COMMAND_LEASE_MS = 2 * 60 * 1000;
+const GPS_PUBLIC_FAILURE_MESSAGE = 'Tác vụ GPS thất bại. Vui lòng thử lại hoặc kiểm tra nhật ký máy chủ.';
+
+type GpsCommandSnapshot<T> = {
+  commandStatus: 'PENDING' | 'SUCCEEDED' | 'FAILED';
+  attempt: number;
+  acceptedAt: string;
+  leaseExpiresAt?: string;
+  finishedAt?: string;
+  result?: T;
+  error?: string;
+};
+
+function buildPendingSnapshot<T>(acceptedAt: Date, attempt: number): GpsCommandSnapshot<T> {
+  return {
+    commandStatus: 'PENDING',
+    attempt,
+    acceptedAt: acceptedAt.toISOString(),
+    leaseExpiresAt: new Date(acceptedAt.getTime() + GPS_COMMAND_LEASE_MS).toISOString(),
+  };
+}
+
+function isPendingLeaseActive<T>(snapshot: GpsCommandSnapshot<T> | null, now: Date): boolean {
+  if (!snapshot || snapshot.commandStatus !== 'PENDING' || !snapshot.leaseExpiresAt) {
+    return false;
+  }
+  const leaseExpiry = new Date(snapshot.leaseExpiresAt);
+  return !Number.isNaN(leaseExpiry.getTime()) && leaseExpiry.getTime() > now.getTime();
+}
+
+export interface AdminGpsDeps {
+  captureAndDeriveTripGps: (tripId: number) => Promise<CaptureResult>;
+  selectBackfillTripIds: (input: {
+    dateFrom?: string;
+    dateTo?: string;
+    tripIds?: number[];
+  }) => Promise<{ tripIds: number[]; truncated: boolean }>;
+}
+
+export async function captureAndDeriveTripGps(tripId: number): Promise<CaptureResult> {
   const capture = await captureTripGpsTrack(tripId); // never throws
   if (capture.status !== 'ok') return capture;
 
@@ -41,6 +86,166 @@ async function captureAndDeriveTripGps(tripId: number): Promise<CaptureResult> {
   }
 }
 
+async function selectBackfillTripIds(input: {
+  dateFrom?: string;
+  dateTo?: string;
+  tripIds?: number[];
+}): Promise<{ tripIds: number[]; truncated: boolean }> {
+  const ids = Array.isArray(input.tripIds)
+    ? input.tripIds.filter((n): n is number => Number.isInteger(n) && n > 0).slice(0, 200)
+    : [];
+
+  const conds = [inArray(schema.trips.status, ['COMPLETED', 'LOCKED'])];
+  if (ids.length) {
+    conds.push(inArray(schema.trips.id, ids));
+  } else if (input.dateFrom && input.dateTo) {
+    conds.push(gte(schema.trips.departureDate, input.dateFrom));
+    conds.push(lte(schema.trips.departureDate, input.dateTo));
+  }
+
+  const BACKFILL_CAP = 500;
+  const selected = await db.select({ id: schema.trips.id })
+    .from(schema.trips)
+    .where(and(...conds))
+    .orderBy(schema.trips.id)
+    .limit(BACKFILL_CAP + 1);
+  const truncated = selected.length > BACKFILL_CAP;
+  return {
+    tripIds: (truncated ? selected.slice(0, BACKFILL_CAP) : selected).map((row) => row.id),
+    truncated,
+  };
+}
+
+const defaultDeps: AdminGpsDeps = {
+  captureAndDeriveTripGps,
+  selectBackfillTripIds,
+};
+
+function requireGpsCommandKey(req: Request): string {
+  const key = getRequestIdempotencyKey(req);
+  if (!key) {
+    throw new ApiError(400, 'Idempotency-Key là bắt buộc cho tác vụ GPS này.');
+  }
+  return key;
+}
+
+async function runDurableGpsCommand<T>(args: {
+  endpoint: string;
+  idempotencyKey: string;
+  payload: unknown;
+  createdBy?: number | null;
+  execute: () => Promise<T>;
+}): Promise<{ statusCode: number; body: T | GpsCommandSnapshot<T> }> {
+  const { endpoint, idempotencyKey, payload, createdBy, execute } = args;
+  const payloadHash = hashPayload(payload);
+  const lockKey = `${endpoint}\u001f${idempotencyKey}`;
+  const now = new Date();
+
+  const setup = await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`);
+    const [existing] = await tx.select()
+      .from(schema.idempotencyKeys)
+      .where(and(
+        eq(schema.idempotencyKeys.endpoint, endpoint),
+        eq(schema.idempotencyKeys.idempotencyKey, idempotencyKey),
+      ))
+      .limit(1);
+
+    if (existing) {
+      if (existing.payloadHash !== payloadHash) {
+        throw new ApiError(
+          409,
+          'Khóa giao dịch trùng nhưng nội dung khác — vui lòng dùng mã giao dịch mới.',
+          `idempotency_key=${idempotencyKey}`,
+        );
+      }
+      const snapshot = (existing.responseSnapshot ?? null) as GpsCommandSnapshot<T> | null;
+      if (isPendingLeaseActive(snapshot, now)) {
+        return { mode: 'pending' as const, snapshot };
+      }
+      if (snapshot?.commandStatus === 'SUCCEEDED' && snapshot.result !== undefined) {
+        return { mode: 'replay' as const, result: snapshot.result };
+      }
+      const attempt = snapshot?.attempt ? snapshot.attempt + 1 : 1;
+      const pendingSnapshot = buildPendingSnapshot<T>(now, attempt);
+      await tx.update(schema.idempotencyKeys)
+        .set({
+          responseStatusCode: 202,
+          responseSnapshot: pendingSnapshot,
+        })
+        .where(eq(schema.idempotencyKeys.id, existing.id));
+      return { mode: 'execute' as const, attempt };
+    }
+
+    const pendingSnapshot = buildPendingSnapshot<T>(now, 1);
+    await tx.insert(schema.idempotencyKeys).values({
+      endpoint,
+      idempotencyKey,
+      entityType: 'GPS_COMMAND',
+      entityId: null,
+      payloadHash,
+      responseStatusCode: 202,
+      responseSnapshot: pendingSnapshot,
+      createdBy: createdBy ?? null,
+    });
+    return { mode: 'execute' as const, attempt: 1 };
+  });
+
+  if (setup.mode === 'pending') {
+    return { statusCode: 202, body: setup.snapshot! };
+  }
+  if (setup.mode === 'replay') {
+    return { statusCode: 200, body: setup.result };
+  }
+
+  try {
+    const result = await execute();
+    const successSnapshot: GpsCommandSnapshot<T> = {
+      commandStatus: 'SUCCEEDED',
+      attempt: setup.attempt,
+      acceptedAt: now.toISOString(),
+      finishedAt: new Date().toISOString(),
+      result,
+    };
+    await db.update(schema.idempotencyKeys)
+      .set({
+        responseStatusCode: 200,
+        responseSnapshot: successSnapshot,
+      })
+      .where(and(
+        eq(schema.idempotencyKeys.endpoint, endpoint),
+        eq(schema.idempotencyKeys.idempotencyKey, idempotencyKey),
+      ));
+    return { statusCode: 200, body: result };
+  } catch (error) {
+    console.error('[gps] durable command failed', {
+      endpoint,
+      idempotencyKey,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    const failureSnapshot: GpsCommandSnapshot<T> = {
+      commandStatus: 'FAILED',
+      attempt: setup.attempt,
+      acceptedAt: now.toISOString(),
+      finishedAt: new Date().toISOString(),
+      error: GPS_PUBLIC_FAILURE_MESSAGE,
+    };
+    await db.update(schema.idempotencyKeys)
+      .set({
+        responseStatusCode: 500,
+        responseSnapshot: failureSnapshot,
+      })
+      .where(and(
+        eq(schema.idempotencyKeys.endpoint, endpoint),
+        eq(schema.idempotencyKeys.idempotencyKey, idempotencyKey),
+      ));
+    return { statusCode: 500, body: failureSnapshot };
+  }
+}
+
+export function createAdminGpsRouter(deps: AdminGpsDeps = defaultDeps) {
+  const router = Router();
+
 /**
  * POST /api/admin/gps/backfill
  * Derive real GPS routes for historical COMPLETED/LOCKED trips. Iterates
@@ -51,58 +256,49 @@ async function captureAndDeriveTripGps(tripId: number): Promise<CaptureResult> {
  *   - tripIds given  → only those trips (any status except CANCELED is attempted)
  *   - else           → all COMPLETED/LOCKED trips with departureDate in [dateFrom, dateTo]
  */
-router.post('/backfill', asyncHandler(async (req: Request, res: Response) => {
-  const { dateFrom, dateTo, tripIds } = (req.body ?? {}) as {
-    dateFrom?: string;
-    dateTo?: string;
-    tripIds?: number[];
-  };
+  router.post('/backfill', asyncHandler(async (req: Request, res: Response) => {
+    const idempotencyKey = requireGpsCommandKey(req);
+    const { dateFrom, dateTo, tripIds } = (req.body ?? {}) as {
+      dateFrom?: string;
+      dateTo?: string;
+      tripIds?: number[];
+    };
 
-  // Validate tripIds (office-only endpoint, but reject malformed input early).
-  const ids = Array.isArray(tripIds)
-    ? tripIds.filter((n): n is number => Number.isInteger(n) && n > 0).slice(0, 200)
-    : [];
-
-  const conds = [inArray(schema.trips.status, ['COMPLETED', 'LOCKED'])];
-  if (ids.length) {
-    conds.push(inArray(schema.trips.id, ids));
-  } else if (dateFrom && dateTo) {
-    // departureDate is a PgDateString (YYYY-MM-DD) — string compare is chronological for ISO dates.
-    conds.push(gte(schema.trips.departureDate, dateFrom));
-    conds.push(lte(schema.trips.departureDate, dateTo));
-  }
-
-  // Cap the sequential provider run so a huge date range can't hold a worker open
-  // for tens of minutes. Fetch one extra row to detect truncation without a second query.
-  const BACKFILL_CAP = 500;
-  const selected = await db.select({ id: schema.trips.id })
-    .from(schema.trips)
-    .where(and(...conds))
-    .orderBy(schema.trips.id)
-    .limit(BACKFILL_CAP + 1);
-  const truncated = selected.length > BACKFILL_CAP;
-  const page = truncated ? selected.slice(0, BACKFILL_CAP) : selected;
-
-  let ok = 0, partial = 0, failed = 0, empty = 0;
-  const failures: Array<{ tripId: number; errorKind?: string }> = [];
-  for (const t of page) {
-    const r: CaptureResult = await captureAndDeriveTripGps(t.id);
-    if (r.status === 'ok') ok++;
-    else if (r.status === 'partial') partial++;
-    else if (r.status === 'empty') empty++;
-    else { failed++; failures.push({ tripId: t.id, errorKind: r.errorKind }); }
-  }
-
-  res.json({
-    total: page.length,
-    ok,
-    partial,
-    empty,
-    failed,
-    failures,
-    truncated,
-  });
-}));
+    const outcome = await runDurableGpsCommand({
+      endpoint: GPS_COMMAND_ENDPOINTS.BACKFILL,
+      idempotencyKey,
+      payload: { dateFrom: dateFrom ?? null, dateTo: dateTo ?? null, tripIds: tripIds ?? [] },
+      createdBy: req.user?.userId ?? null,
+      execute: async () => {
+        const selected = await deps.selectBackfillTripIds({ dateFrom, dateTo, tripIds });
+        let ok = 0;
+        let partial = 0;
+        let failed = 0;
+        let empty = 0;
+        const failures: Array<{ tripId: number; errorKind?: string }> = [];
+        for (const tripId of selected.tripIds) {
+          const result = await deps.captureAndDeriveTripGps(tripId);
+          if (result.status === 'ok') ok += 1;
+          else if (result.status === 'partial') partial += 1;
+          else if (result.status === 'empty') empty += 1;
+          else {
+            failed += 1;
+            failures.push({ tripId, errorKind: result.errorKind });
+          }
+        }
+        return {
+          total: selected.tripIds.length,
+          ok,
+          partial,
+          empty,
+          failed,
+          failures,
+          truncated: selected.truncated,
+        };
+      },
+    });
+    res.status(outcome.statusCode).json(outcome.body);
+  }));
 
 /**
  * POST /api/admin/gps/recapture/:tripId
@@ -110,14 +306,23 @@ router.post('/backfill', asyncHandler(async (req: Request, res: Response) => {
  * and refreshes route_polylines for its pairs. Escape hatch for a trip whose
  * initial capture failed or whose displayed route looks wrong.
  */
-router.post('/recapture/:tripId', asyncHandler(async (req: Request, res: Response) => {
-  const tripId = parseInt(req.params.tripId as string, 10);
-  if (!Number.isFinite(tripId)) {
-    res.status(400).json({ error: 'tripId không hợp lệ' });
-    return;
-  }
-  const result = await captureAndDeriveTripGps(tripId);
-  res.json(result);
-}));
+  router.post('/recapture/:tripId', asyncHandler(async (req: Request, res: Response) => {
+    const tripId = parseInt(req.params.tripId as string, 10);
+    if (!Number.isFinite(tripId)) {
+      res.status(400).json({ error: 'tripId không hợp lệ' });
+      return;
+    }
+    const idempotencyKey = requireGpsCommandKey(req);
+    const outcome = await runDurableGpsCommand({
+      endpoint: GPS_COMMAND_ENDPOINTS.RECAPTURE,
+      idempotencyKey,
+      payload: { tripId },
+      createdBy: req.user?.userId ?? null,
+      execute: () => deps.captureAndDeriveTripGps(tripId),
+    });
+    res.status(outcome.statusCode).json(outcome.body);
+  }));
 
-export default router;
+  return router;
+}
+export default createAdminGpsRouter();

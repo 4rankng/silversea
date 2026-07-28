@@ -125,8 +125,11 @@ describe('Q23 shipment immutable write replay', () => {
   });
 
   test('replays the immutable update snapshot after later writes and checks payload before stale version', async () => {
+    const createKey = `q23-shipment-update-seed-${suffix}`;
+    idempotencyKeys.push(createKey);
     const created = await request('/', {
       method: 'POST',
+      key: createKey,
       body: {
         customerId,
         bookingRef: `UPDATE-${suffix}`,
@@ -150,8 +153,11 @@ describe('Q23 shipment immutable write replay', () => {
     assert.equal(first.status, 200);
     assert.equal(first.body.version, 2);
 
+    const laterKey = `q23-shipment-update-later-${suffix}`;
+    idempotencyKeys.push(laterKey);
     const later = await request(`/${shipmentId}`, {
       method: 'PUT',
+      key: laterKey,
       body: {
         expectedVersion: 2,
         contactName: 'Bản ghi mới hơn',

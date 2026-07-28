@@ -7,6 +7,7 @@ import { useCompanyInfo, useSaveCompanyInfo } from '../../hooks/useCatalogQuerie
 import { configClient } from '../../api/configClient';
 import { photoSrc } from '../../lib/api/photo';
 import { usePageAnimations } from '../../hooks/animations';
+import { isGovernancePendingResponse } from '../../lib/governance';
 import './config-page.css';
 
 type CompanyInfoForm = {
@@ -82,6 +83,7 @@ export default function CompanyInfoConfigPage() {
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const canSave = useMemo(
@@ -122,8 +124,9 @@ export default function CompanyInfoConfigPage() {
   const handleSave = async () => {
     setSaving(true);
     setError(null);
+    setMessage(null);
     try {
-      await saveCompanyInfo.mutateAsync({
+      const result = await saveCompanyInfo.mutateAsync({
         name: form.name.trim(),
         address: form.address.trim(),
         taxCode: form.taxCode.trim(),
@@ -135,6 +138,10 @@ export default function CompanyInfoConfigPage() {
         email: form.email.trim(),
         logoStorageKey: form.logoStorageKey,
       });
+      if (isGovernancePendingResponse(result)) {
+        setMessage('Đã gửi yêu cầu cập nhật thông tin công ty để kiểm tra và phê duyệt. Hồ sơ hiện chưa thay đổi.');
+        return;
+      }
       navigate('/config');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Lỗi lưu thông tin công ty');
@@ -322,6 +329,7 @@ export default function CompanyInfoConfigPage() {
                 {saving ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
                 Lưu thông tin
               </button>
+              {message && <span style={{ color: 'var(--success)', fontSize: 13 }}>{message}</span>}
               {error && <span style={{ color: 'var(--danger)', fontSize: 13 }}>{error}</span>}
             </div>
           </>

@@ -2,16 +2,17 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { createHash } from 'node:crypto';
 import { expenseSchema } from '@tingting/shared';
+import { z } from 'zod';
 import { db } from '../db';
 import { registerAuditEvent } from '../services/audit-registry';
 import { AuditEvent } from '../services/audit-types';
 import {
   listExpenses,
-  createExpense,
   updateExpense,
-  deleteExpense,
   getRenewalReminders,
   getExpense,
+  isGovernedCompanyExpenseMutation,
+  requestCompanyExpenseGovernance,
 } from '../services/expense.service';
 import type { ExpenseUpdateInput } from '../services/expense.service';
 import { asyncHandler } from '../middleware/asyncHandler';
@@ -24,8 +25,24 @@ import { sniffImageType } from '../lib/format';
 import { getUser } from '../middleware/auth';
 import { invalidateReportCaches } from '../lib/redis';
 import { ApiError } from '../errors';
-import { runIdempotent } from '../services/idempotency.service';
+import {
+  IDEMPOTENCY_ENDPOINTS,
+  findIdempotencyRecord,
+  runIdempotent,
+  waitForIdempotencyRecord,
+} from '../services/idempotency.service';
+import {
+  runWithAuditRequestContext,
+} from '../services/audit.service';
 import { getRequestIdempotencyKey } from './utils/idempotency';
+import {
+  armStorageCleanupGuard,
+  cancelStorageCleanupGuard,
+  enqueueStorageDelete,
+  releaseStorageCleanupGuard,
+  STORAGE_DELETE_MODE,
+  type StorageCleanupGuardLease,
+} from '../services/durable-effect.service';
 
 registerAuditEvent('POST', '/api/expenses', AuditEvent.ENTITY_CREATED);
 registerAuditEvent('PUT', '/api/expenses/', AuditEvent.ENTITY_UPDATED);
@@ -42,6 +59,21 @@ const MAX_IMAGE_DIMENSION = 2048;
 // 5 MB ceiling rejected many phone receipt photos even after resizing.
 const EXPENSE_PHOTO_MAX_BYTES = 15 * 1024 * 1024;
 const expensePhotoUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: EXPENSE_PHOTO_MAX_BYTES } });
+
+function withMaterialWriteAuditContext<T>(
+  req: Request,
+  res: Response,
+  endpoint: string,
+  fn: () => Promise<T>,
+): Promise<T> {
+  return runWithAuditRequestContext({
+    req,
+    res,
+    fullPath: (req.originalUrl || req.url || '').split('?')[0],
+    isLoginPath: false,
+    declaredMaterialWriteEndpoint: endpoint,
+  }, fn);
+}
 
 function requireIdempotencyKey(req: Request): string {
   const key = getRequestIdempotencyKey(req);
@@ -62,6 +94,75 @@ function requireExpectedUpdatedAt(req: Request): Date {
     throw new ApiError(400, 'Phiên bản dữ liệu không hợp lệ.');
   }
   return expected;
+}
+
+function hashStorageKey(storageKey: string): string {
+  return createHash('sha256').update(storageKey).digest('hex').slice(0, 32);
+}
+
+async function acquireExpenseCleanupGuard(args: {
+  endpoint: string;
+  idempotencyKey: string;
+  dedupeKey: string;
+  storageKey: string;
+  entityId: number;
+}): Promise<StorageCleanupGuardLease | null> {
+  const existingIdempotency = await findIdempotencyRecord(args.endpoint, args.idempotencyKey);
+  if (existingIdempotency) return null;
+  try {
+    return await armStorageCleanupGuard({
+      dedupeKey: args.dedupeKey,
+      storageKey: args.storageKey,
+      entityType: 'expense_photos',
+      entityId: args.entityId,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('storage cleanup guard already leased')) {
+      const committed = await waitForIdempotencyRecord(args.endpoint, args.idempotencyKey);
+      if (committed) return null;
+      throw new ApiError(409, 'Ảnh chứng từ đang được xử lý bởi yêu cầu khác. Vui lòng thử lại.');
+    }
+    throw error;
+  }
+}
+
+async function releaseExpenseCleanupGuard(
+  lease: StorageCleanupGuardLease | null,
+  error: unknown,
+  context: string,
+): Promise<void> {
+  if (!lease) return;
+  try {
+    await releaseStorageCleanupGuard(lease, error);
+  } catch (releaseError) {
+    console.warn(
+      `[${context}] failed to release durable cleanup guard ${lease.dedupeKey}:`,
+      releaseError instanceof Error ? releaseError.message : releaseError,
+    );
+  }
+}
+
+const governanceReasonSchema = z.object({
+  reason: z.string().trim().min(1, 'Lý do là bắt buộc').max(1000),
+});
+
+async function invalidateExpenseCreateReports(replayed: boolean) {
+  if (!replayed) {
+    await invalidateReportCaches();
+  }
+}
+
+async function invalidateExpenseUpdateReports(replayed: boolean) {
+  if (!replayed) {
+    await invalidateReportCaches();
+  }
+}
+
+async function invalidateExpenseDeleteReports(replayed: boolean) {
+  if (!replayed) {
+    await invalidateReportCaches();
+  }
 }
 
 router.get('/reports/renewals', asyncHandler(async (_req: Request, res: Response) => {
@@ -96,25 +197,37 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 router.post('/', asyncHandler(async (req: Request, res: Response) => {
-  const validatedData = expenseSchema.parse(req.body);
-  const userId = getUser(req).userId;
   const idempotencyKey = requireIdempotencyKey(req);
+  const validatedData = expenseSchema.parse(req.body);
+  const actor = getUser(req);
+  const reason = governanceReasonSchema.parse(req.body).reason;
   const input = { ...validatedData, amount: String(validatedData.amount) };
-  const { result } = await runIdempotent({
-    endpoint: 'expenses.create',
+  const commandKey = createHash('sha256').update(idempotencyKey).digest('hex').slice(0, 32);
+  const { result, replayed } = await runIdempotent({
+    endpoint: 'expenses.governed-create',
     idempotencyKey,
-    payload: input,
-    createdBy: userId,
-    entityType: 'EXPENSE',
-    create: (tx) => createExpense(tx, input, userId),
+    payload: { reason, input },
+    createdBy: actor.userId,
+    entityType: 'governance_action',
+    create: (tx) => requestCompanyExpenseGovernance({
+      reason,
+      makerId: actor.userId,
+      makerRole: actor.role,
+      mutation: 'CREATE',
+      createInput: input,
+      commandKey,
+      transaction: tx,
+    }),
   });
-  await invalidateReportCaches();
-  res.status(201).json(result);
+  await invalidateExpenseCreateReports(replayed);
+  res.locals.auditEntityId = result.id;
+  res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
 router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
   const validatedData = expenseSchema.partial().parse(req.body);
   const userId = getUser(req).userId;
+  const userRole = getUser(req).role;
   const id = Number(req.params.id);
   const idempotencyKey = requireIdempotencyKey(req);
   const expectedUpdatedAt = requireExpectedUpdatedAt(req);
@@ -123,7 +236,39 @@ router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
     ...rest,
     ...(amount !== undefined ? { amount: String(amount) } : {}),
   };
-  const { result } = await runIdempotent({
+  const existing = await getExpense(db, id);
+  if (!existing) {
+    return res.status(404).json({ error: 'Không tìm thấy khoản chi phí' });
+  }
+  if (isGovernedCompanyExpenseMutation(existing, serviceData)) {
+    const reason = governanceReasonSchema.parse(req.body).reason;
+    const { result, replayed } = await runIdempotent({
+      endpoint: 'expenses.governed-update',
+      idempotencyKey,
+      payload: {
+        expenseId: id,
+        reason,
+        expectedUpdatedAt: expectedUpdatedAt.toISOString(),
+        body: serviceData,
+      },
+      createdBy: userId,
+      entityType: 'governance_action',
+      create: (tx) => requestCompanyExpenseGovernance({
+        expenseId: id,
+        expectedUpdatedAt,
+        reason,
+        makerId: userId,
+        makerRole: userRole,
+        mutation: 'UPDATE',
+        patch: serviceData,
+        transaction: tx,
+      }),
+    });
+    await invalidateExpenseUpdateReports(replayed);
+    res.locals.auditEntityId = result.id;
+    return res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
+  }
+  const { result, replayed } = await runIdempotent({
     endpoint: 'expenses.update',
     idempotencyKey,
     payload: { id, body: serviceData, expectedUpdatedAt: expectedUpdatedAt.toISOString() },
@@ -131,31 +276,80 @@ router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
     entityType: 'EXPENSE',
     create: (tx) => updateExpense(tx, id, serviceData, expectedUpdatedAt, userId),
   });
-  await invalidateReportCaches();
+  await invalidateExpenseUpdateReports(replayed);
   res.json(result);
 }));
 
 router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
   const userId = getUser(req).userId;
+  const userRole = getUser(req).role;
   const id = Number(req.params.id);
   const idempotencyKey = requireIdempotencyKey(req);
   const expectedUpdatedAt = requireExpectedUpdatedAt(req);
-  const { result } = await runIdempotent({
-    endpoint: 'expenses.delete',
-    idempotencyKey,
-    payload: { id, expectedUpdatedAt: expectedUpdatedAt.toISOString() },
-    createdBy: userId,
-    entityType: 'EXPENSE',
-    create: async (tx) => {
-      await deleteExpense(tx, id, expectedUpdatedAt, userId);
-      return { ok: true as const, id };
-    },
-    getEntityId: (value) => value.id,
-    serializeResult: () => ({ ok: true }),
-    deserializeResult: () => ({ ok: true as const, id }),
-  });
-  await invalidateReportCaches();
-  res.json({ ok: result.ok });
+  const governanceReason = governanceReasonSchema.safeParse(req.body ?? {});
+  const existing = await getExpense(db, id);
+  if (!existing) {
+    if (governanceReason.success) {
+      const { result, replayed } = await runIdempotent<Record<string, unknown>>({
+        endpoint: 'expenses.governed-delete',
+        idempotencyKey,
+        payload: {
+          expenseId: id,
+          reason: governanceReason.data.reason,
+          expectedUpdatedAt: expectedUpdatedAt.toISOString(),
+        },
+        createdBy: userId,
+        entityType: 'governance_action',
+        create: async () => {
+          throw new ApiError(404, 'Không tìm thấy khoản chi phí');
+        },
+      });
+      return res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
+    }
+    const { result } = await runIdempotent({
+      endpoint: 'expenses.delete',
+      idempotencyKey,
+      payload: { id, expectedUpdatedAt: expectedUpdatedAt.toISOString() },
+      createdBy: userId,
+      entityType: 'EXPENSE',
+      create: async () => {
+        throw new ApiError(404, 'Không tìm thấy khoản chi phí');
+      },
+      getEntityId: (value) => value.id,
+      serializeResult: () => ({ ok: true }),
+      deserializeResult: () => ({ ok: true as const, id }),
+    });
+    return res.json({ ok: result.ok });
+  }
+  if (existing) {
+    const reason = governanceReason.success
+      ? governanceReason.data.reason
+      : governanceReasonSchema.parse(req.body ?? {}).reason;
+    const { result, replayed } = await runIdempotent({
+      endpoint: 'expenses.governed-delete',
+      idempotencyKey,
+      payload: {
+        expenseId: id,
+        reason,
+        expectedUpdatedAt: expectedUpdatedAt.toISOString(),
+      },
+      createdBy: userId,
+      entityType: 'governance_action',
+      create: (tx) => requestCompanyExpenseGovernance({
+        expenseId: id,
+        expectedUpdatedAt,
+        reason,
+        makerId: userId,
+        makerRole: userRole,
+        mutation: 'DELETE',
+        transaction: tx,
+      }),
+    });
+    await invalidateExpenseDeleteReports(replayed);
+    res.locals.auditEntityId = result.id;
+    return res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
+  }
+  throw new ApiError(404, 'Không tìm thấy khoản chi phí');
 }));
 
 // ── Expense receipt photos (B1) ─────────────────────────────────────────────
@@ -213,29 +407,62 @@ router.post('/:id/photos', expensePhotoUpload.single('file'), asyncHandler(async
   const fileHash = createHash('sha256').update(processedBuffer).digest('hex');
   const keyHash = createHash('sha256').update(idempotencyKey).digest('hex').slice(0, 32);
   const storageKey = `expense-photos/${id}/${keyHash}${ext}`;
-  const { result: photo } = await runIdempotent({
-    endpoint: 'expenses.photo.create',
+  const cleanupGuard = await acquireExpenseCleanupGuard({
+    endpoint: IDEMPOTENCY_ENDPOINTS.EXPENSE_PHOTO_CREATE,
     idempotencyKey,
-    payload: { expenseId: id, fileHash, mime },
-    createdBy: actorId,
-    entityType: 'EXPENSE_PHOTO',
-    create: async (tx) => {
-      // The external object key is deterministic from the transaction key.
-      // If the process stops after upload but before DB commit, an exact retry
-      // overwrites the same object and then commits one photo row.
-      const expense = await getExpense(tx, id);
-      if (!expense) throw new ApiError(404, 'Không tìm thấy khoản chi phí');
-      await storageService.upload(processedBuffer, storageKey);
-      const [created] = await tx.insert(s.expensePhotos).values({
-        expenseId: id,
-        storageKey,
-        uploadedBy: actorId,
-      }).returning({ id: s.expensePhotos.id, storageKey: s.expensePhotos.storageKey });
-      return created;
-    },
+    dedupeKey: `expense-photo-orphan:${actorId}:${hashStorageKey(storageKey)}:${idempotencyKey}`,
+    storageKey,
+    entityId: id,
   });
+  if (cleanupGuard) {
+    try {
+      await storageService.upload(processedBuffer, storageKey);
+    } catch (error) {
+      await releaseExpenseCleanupGuard(cleanupGuard, error, 'expenses.photo.create');
+      throw error;
+    }
+  }
+  const outcome = await withMaterialWriteAuditContext(
+    req,
+    res,
+    IDEMPOTENCY_ENDPOINTS.EXPENSE_PHOTO_CREATE,
+    () => runIdempotent({
+      endpoint: IDEMPOTENCY_ENDPOINTS.EXPENSE_PHOTO_CREATE,
+      idempotencyKey,
+      payload: { expenseId: id, fileHash, mime },
+      createdBy: actorId,
+      entityType: 'EXPENSE_PHOTO',
+      responseStatusCode: 201,
+      create: async (tx) => {
+        if (!cleanupGuard) {
+          throw new ApiError(409, 'Ảnh chứng từ đang được xử lý bởi yêu cầu khác. Vui lòng thử lại.');
+        }
+        // The external object key is deterministic from the transaction key.
+        // If the process stops after upload but before DB commit, an exact retry
+        // overwrites the same object and then commits one photo row.
+        const expense = await getExpense(tx, id);
+        if (!expense) throw new ApiError(404, 'Không tìm thấy khoản chi phí');
+        const cancelled = await cancelStorageCleanupGuard(tx, cleanupGuard);
+        if (!cancelled) {
+          throw new ApiError(409, 'Ảnh chứng từ đang được xử lý bởi yêu cầu khác. Vui lòng thử lại.');
+        }
+        const [created] = await tx.insert(s.expensePhotos).values({
+          expenseId: id,
+          storageKey,
+          uploadedBy: actorId,
+        }).returning({ id: s.expensePhotos.id, storageKey: s.expensePhotos.storageKey });
+        return created;
+      },
+      onTransactionRollback: async (error) => {
+        await releaseExpenseCleanupGuard(cleanupGuard, error, 'expenses.photo.create');
+      },
+    }),
+  );
 
-  res.status(201).json({ ...photo, url: `/api/photos/${encodeURIComponent(photo.storageKey)}` });
+  res.status(outcome.statusCode).json({
+    ...outcome.result,
+    url: `/api/photos/${encodeURIComponent(outcome.result.storageKey)}`,
+  });
 }));
 
 router.delete('/:id/photos/:photoId', asyncHandler(async (req: Request, res: Response) => {
@@ -244,8 +471,8 @@ router.delete('/:id/photos/:photoId', asyncHandler(async (req: Request, res: Res
   if (!Number.isFinite(id) || id <= 0 || !Number.isFinite(photoId) || photoId <= 0) return res.status(400).json({ error: 'ID không hợp lệ' });
   const idempotencyKey = requireIdempotencyKey(req);
   const actorId = getUser(req).userId;
-  const { result, replayed } = await runIdempotent({
-    endpoint: 'expenses.photo.delete',
+  const { result } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.EXPENSE_PHOTO_DELETE,
     idempotencyKey,
     payload: { expenseId: id, photoId },
     createdBy: actorId,
@@ -262,15 +489,21 @@ router.delete('/:id/photos/:photoId', asyncHandler(async (req: Request, res: Res
         .limit(1)
         .for('update');
       if (!row) throw new ApiError(404, 'Không tìm thấy ảnh');
+      await enqueueStorageDelete(tx, {
+        dedupeKey: `expense-photo-final:${row.id}:${hashStorageKey(row.storageKey)}`,
+        payload: {
+          storageKey: row.storageKey,
+          mode: STORAGE_DELETE_MODE.FINAL_DELETE,
+          entityType: 'expense_photos',
+          entityId: row.id,
+        },
+      });
       await tx.delete(s.expensePhotos)
         .where(and(eq(s.expensePhotos.id, photoId), eq(s.expensePhotos.expenseId, id)));
       return { ok: true as const, id: row.id, storageKey: row.storageKey };
     },
     getEntityId: (value) => value.id,
   });
-  if (!replayed) {
-    try { await storageService.delete(result.storageKey); } catch { /* best-effort */ }
-  }
   res.json({ ok: true });
 }));
 

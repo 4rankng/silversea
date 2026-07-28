@@ -37,6 +37,7 @@ export default function TripEditPage() {
   const { data: trip, isLoading: loading, refetch: refetchTrip } = useTripDetail(id);
   const { data: catalogData } = useCatalogs();
   const { rootRef } = usePageAnimations({ ready: !loading });
+  const [governanceReason, setGovernanceReason] = useState('');
 
   const editOptions: TripOptions = useMemo(() => ({
     customers: catalogData?.customers.map((c) => ({ id: c.id, label: c.name })) ?? [],
@@ -63,7 +64,12 @@ export default function TripEditPage() {
     loading: !catalogData,
   }), [catalogData]);
 
-  const form = useTripForm({ options: editOptions, mode: 'edit', existingTrip: trip });
+  const form = useTripForm({
+    options: editOptions,
+    mode: 'edit',
+    existingTrip: trip,
+    governanceReason,
+  });
   const searchableRoutes = useMemo(
     () => editOptions.routes.map((route) => ({
       value: String(route.id),
@@ -173,6 +179,24 @@ export default function TripEditPage() {
         <form id="trip-edit-form" onSubmit={onSubmit}>
           <div className="tc-content">
             <div className="tc-bento">
+              {trip.status === TripStatus.COMPLETED && (
+                <CardSection number={0} span={2} title="Lý do đề nghị thay đổi" subtitle="Yêu cầu sẽ được gửi để kiểm tra và phê duyệt">
+                  <div className="tc-field">
+                    <label className="tc-field-label" htmlFor="governanceReason">
+                      Lý do <span style={{ color: 'var(--danger)', marginLeft: 3 }}>*</span>
+                    </label>
+                    <textarea
+                      id="governanceReason"
+                      className="input"
+                      rows={3}
+                      value={governanceReason}
+                      onChange={(event) => setGovernanceReason(event.target.value)}
+                      placeholder="Nêu căn cứ và nội dung cần thay đổi"
+                      required
+                    />
+                  </div>
+                </CardSection>
+              )}
               <CardSection number={1} title="Tuyến đường & ngày" subtitle="Thời gian và tuyến vận chuyển">
                 <div className="tc-field-row tc-field-row--2">
                   <div className="tc-field">

@@ -35,25 +35,79 @@ import {
   invalidateLlmSettings,
 } from '../services/llm/settings';
 import { invalidateActiveProvider } from '../services/llm/provider-registry';
+import { ApiError } from '../errors';
+import { resolveIdempotencyKey, runIdempotent } from '../services/idempotency.service';
 
 const router = Router();
+const LLM_SETTINGS_COMMAND = 'admin.llm-settings.update';
 
 const KEY_PROVIDER = 'llm.provider';
 const KEY_MINIMAX = 'llm.minimax_api_key';
 const KEY_OPENROUTER = 'llm.openrouter_api_key';
 
-/** GET /api/admin/llm-settings — never returns plaintext keys. */
-router.get('/', asyncHandler(async (_req: Request, res: Response) => {
-  const settings = await getLlmSettings();
-  const body: LlmSettingsResponse = {
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+async function getLlmSettingsUpdatedAt(
+  q: typeof db | Tx = db,
+): Promise<string | null> {
+  const rows = await q.select({ updatedAt: s.appSettings.updatedAt })
+    .from(s.appSettings)
+    .where(sql`${s.appSettings.key} in (${KEY_PROVIDER}, ${KEY_MINIMAX}, ${KEY_OPENROUTER})`);
+  const latest = rows.reduce<Date | null>(
+    (current, row) => !current || row.updatedAt > current ? row.updatedAt : current,
+    null,
+  );
+  return latest?.toISOString() ?? null;
+}
+
+function requireIdempotencyKey(req: Request): string {
+  const key = resolveIdempotencyKey({
+    headerValue: req.header('Idempotency-Key'),
+    requestId: req.body?._requestId,
+  });
+  if (!key) {
+    throw new ApiError(400, 'Idempotency-Key là bắt buộc khi cập nhật cấu hình LLM.');
+  }
+  return key;
+}
+
+function parseExpectedUpdatedAt(req: Request): Date | null {
+  const raw = req.header('If-Unmodified-Since')?.trim();
+  if (!raw) return null;
+  const expected = new Date(raw);
+  if (Number.isNaN(expected.getTime())) {
+    throw new ApiError(400, 'Phiên bản dữ liệu không hợp lệ.');
+  }
+  return expected;
+}
+
+function assertOptionalVersion(current: string | null, expected: Date | null, message: string): void {
+  if (!current) return;
+  if (!expected) throw new ApiError(428, message);
+  if (new Date(current).getTime() !== expected.getTime()) {
+    throw new ApiError(409, 'Dữ liệu đã được người khác cập nhật. Vui lòng tải lại trước khi lưu.');
+  }
+}
+
+function toResponseBody(
+  settings: { provider: LlmProvider; minimaxKey: string; openrouterKey: string },
+  updatedAt: string | null,
+): LlmSettingsResponse & { updatedAt: string | null } {
+  return {
     provider: settings.provider,
     minimaxKeySet: !!settings.minimaxKey,
     openrouterKeySet: !!settings.openrouterKey,
     minimaxKeyMasked: maskKey(settings.minimaxKey),
     openrouterKeyMasked: maskKey(settings.openrouterKey),
     models: LLM_PROVIDER_MODELS,
+    updatedAt,
   };
-  res.json(body);
+}
+
+/** GET /api/admin/llm-settings — never returns plaintext keys. */
+router.get('/', asyncHandler(async (_req: Request, res: Response) => {
+  const settings = await getLlmSettings();
+  res.json(toResponseBody(settings, await getLlmSettingsUpdatedAt()));
 }));
 
 /** Upsert one llm.* setting row atomically. */
@@ -78,14 +132,9 @@ function upsertRow(key: string, value: string) {
 router.put('/', asyncHandler(async (req: Request, res: Response) => {
   const data = llmSettingsUpdateSchema.parse(req.body);
   const settings = await getLlmSettings();
+  const idempotencyKey = requireIdempotencyKey(req);
+  const expectedUpdatedAt = parseExpectedUpdatedAt(req);
 
-  // Resolve the final key values, in precedence order:
-  //   1. explicit clear flag → '' (wipe)
-  //   2. a non-empty new value in the request → use it (covers first-time entry
-  //      AND replacement)
-  //   3. otherwise → keep the stored key (may be '')
-  // An empty/whitespace/absent key field is "leave untouched", so the admin can
-  // switch provider or re-save without re-entering the key.
   const finalMinimaxKey = data.clearMinimaxKey
     ? ''
     : data.minimaxApiKey && data.minimaxApiKey.trim() !== ''
@@ -110,27 +159,45 @@ router.put('/', asyncHandler(async (req: Request, res: Response) => {
     });
   }
 
-  // Persist. Keys are encrypted; provider is a plaintext enum.
-  await Promise.all([
-    upsertRow(KEY_PROVIDER, provider),
-    upsertRow(KEY_MINIMAX, encryptSecret(finalMinimaxKey)),
-    upsertRow(KEY_OPENROUTER, encryptSecret(finalOpenrouterKey)),
-  ]);
-
-  // Hot-swap: drop the in-memory caches so the next agent turn reads fresh.
-  invalidateLlmSettings();
-  invalidateActiveProvider();
-
-  const fresh = await getLlmSettings();
-  const body: LlmSettingsResponse = {
-    provider: fresh.provider,
-    minimaxKeySet: !!fresh.minimaxKey,
-    openrouterKeySet: !!fresh.openrouterKey,
-    minimaxKeyMasked: maskKey(fresh.minimaxKey),
-    openrouterKeyMasked: maskKey(fresh.openrouterKey),
-    models: LLM_PROVIDER_MODELS,
+  const next = {
+    provider,
+    minimaxKey: finalMinimaxKey,
+    openrouterKey: finalOpenrouterKey,
   };
-  res.json(body);
+  const { result, replayed } = await runIdempotent({
+    endpoint: LLM_SETTINGS_COMMAND,
+    idempotencyKey,
+    payload: { body: data, expectedUpdatedAt: expectedUpdatedAt?.toISOString() ?? null },
+    createdBy: req.user?.userId ?? null,
+    entityType: 'app-settings',
+    create: async (tx) => {
+      const currentUpdatedAt = await getLlmSettingsUpdatedAt(tx);
+      assertOptionalVersion(
+        currentUpdatedAt,
+        expectedUpdatedAt,
+        'Thiếu phiên bản cấu hình LLM. Vui lòng tải lại trước khi cập nhật.',
+      );
+      const now = new Date();
+      await tx.insert(s.appSettings)
+        .values([
+          { key: KEY_PROVIDER, value: provider },
+          { key: KEY_MINIMAX, value: encryptSecret(finalMinimaxKey) },
+          { key: KEY_OPENROUTER, value: encryptSecret(finalOpenrouterKey) },
+        ])
+        .onConflictDoUpdate({
+          target: s.appSettings.key,
+          set: { value: sql`excluded.setting_value`, updatedAt: now },
+        });
+      return toResponseBody(next, now.toISOString());
+    },
+  });
+
+  if (!replayed) {
+    invalidateLlmSettings();
+    invalidateActiveProvider();
+  }
+
+  res.json({ ...result, replayed });
 }));
 
 export default router;

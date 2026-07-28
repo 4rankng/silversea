@@ -32,7 +32,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 
-import { db } from '../db';
+import { client, db } from '../db';
 import * as s from '../db/schema';
 import { Role } from '@tingting/shared';
 import { config } from '../config';
@@ -43,7 +43,9 @@ import shipmentRoutes from '../routes/shipments';
 import { authMiddleware } from '../middleware/auth';
 import { casbinAuthz } from '../middleware/casbin';
 import { globalErrorHandler } from '../middleware/errorHandler';
+import { auditLogMiddleware } from '../middleware/audit';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../services/idempotency.service';
+import { disconnectRedis } from '../lib/redis';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -167,6 +169,7 @@ before(async () => {
 
   const app = express();
   app.use(express.json());
+  app.use(auditLogMiddleware);
   app.use('/api/shipments', authMiddleware, casbinAuthz('shipments'), shipmentRoutes);
   app.use(globalErrorHandler);
 
@@ -200,6 +203,15 @@ before(async () => {
   const businessUnit = await mkBusinessUnit();
   clerkBusinessUnitId = businessUnit.id;
   await assignClerkScope(clerkUserId, customerId, clerkBusinessUnitId);
+  clerkToken = jwt.sign(
+    {
+      userId: clerk.id,
+      username: clerk.username,
+      role: Role.CLERK,
+      customerIds: [customerId],
+    },
+    config.jwtSecret,
+  );
 });
 
 after(async () => {
@@ -245,12 +257,12 @@ after(async () => {
     console.warn('[shipment-quick-create.test] user cleanup partial:', (err as Error).message);
   }
 
-  // Force-exit — same rationale as shipment-routes.test.ts: the audit +
-  // notification services leave the shared ioredis + postgres.js clients in
-  // a state where graceful shutdown blocks on this Node / postgres-js combo.
   server.closeAllConnections();
-  server.close();
-  process.exit(0);
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => error ? reject(error) : resolve());
+  });
+  await disconnectRedis();
+  await client.end();
 });
 
 // Track created rows for cleanup. The `after` hook deletes idempotency keys
@@ -265,6 +277,7 @@ describe('POST /api/shipments/quick — M10.1 slice 1 quick-create', () => {
     const res = await quickFetch('/quick', {
       method: 'POST',
       token: clerkToken,
+      idempotencyKey: `qc-happy-${suffix}`,
       body: clerkQuickBody(),
     });
     assert.equal(res.status, 201);
@@ -361,18 +374,14 @@ describe('POST /api/shipments/quick — M10.1 slice 1 quick-create', () => {
     await trackCreated();
   });
 
-  test('no key: two distinct POSTs create two distinct shipments', async () => {
-    const a = await quickFetch('/quick', {
-      method: 'POST', token: clerkToken, body: clerkQuickBody({ bookingRef: `BL-${suffix}-nokey-1` }),
+  test('no key: rejects the durable quick-create command', async () => {
+    const response = await quickFetch('/quick', {
+      method: 'POST',
+      token: clerkToken,
+      body: clerkQuickBody({ bookingRef: `BL-${suffix}-nokey` }),
     });
-    const b = await quickFetch('/quick', {
-      method: 'POST', token: clerkToken, body: clerkQuickBody({ bookingRef: `BL-${suffix}-nokey-2` }),
-    });
-    assert.equal(a.status, 201);
-    assert.equal(b.status, 201);
-    assert.notEqual(a.data.id, b.data.id, 'distinct requests create distinct shipments');
-    createdShipmentIds.push(a.data.id, b.data.id);
-    await trackCreated();
+    assert.equal(response.status, 400);
+    assert.match(String(response.data.error ?? ''), /Idempotency-Key/);
   });
 
   test('validation: missing customerId → 400', async () => {
@@ -448,7 +457,10 @@ describe('POST /api/shipments/quick — M10.1 slice 1 quick-create', () => {
 describe('POST /api/shipments/quick — RBAC', () => {
   test('CLERK can quick-create (existing Wave-0 shipments.write policy)', async () => {
     const res = await quickFetch('/quick', {
-      method: 'POST', token: clerkToken, body: clerkQuickBody(),
+      method: 'POST',
+      token: clerkToken,
+      idempotencyKey: `qc-rbac-clerk-${suffix}`,
+      body: clerkQuickBody(),
     });
     assert.equal(res.status, 201);
     createdShipmentIds.push(res.data.id);
@@ -457,7 +469,10 @@ describe('POST /api/shipments/quick — RBAC', () => {
 
   test('MANAGER can quick-create', async () => {
     const res = await quickFetch('/quick', {
-      method: 'POST', token: managerToken, body: { customerId },
+      method: 'POST',
+      token: managerToken,
+      idempotencyKey: `qc-rbac-manager-${suffix}`,
+      body: { customerId },
     });
     assert.equal(res.status, 201);
     createdShipmentIds.push(res.data.id);
@@ -466,7 +481,10 @@ describe('POST /api/shipments/quick — RBAC', () => {
 
   test('ADMIN can quick-create', async () => {
     const res = await quickFetch('/quick', {
-      method: 'POST', token: adminToken, body: { customerId },
+      method: 'POST',
+      token: adminToken,
+      idempotencyKey: `qc-rbac-admin-${suffix}`,
+      body: { customerId },
     });
     assert.equal(res.status, 201);
     createdShipmentIds.push(res.data.id);
@@ -475,28 +493,40 @@ describe('POST /api/shipments/quick — RBAC', () => {
 
   test('ACCOUNTANT is denied (shipments read only — no write)', async () => {
     const res = await quickFetch('/quick', {
-      method: 'POST', token: accountantToken, body: { customerId },
+      method: 'POST',
+      token: accountantToken,
+      idempotencyKey: `qc-rbac-accountant-${suffix}`,
+      body: { customerId },
     });
     assert.equal(res.status, 403);
   });
 
   test('CUSTOMER is denied at the mount', async () => {
     const res = await quickFetch('/quick', {
-      method: 'POST', token: customerToken, body: { customerId },
+      method: 'POST',
+      token: customerToken,
+      idempotencyKey: `qc-rbac-customer-${suffix}`,
+      body: { customerId },
     });
     assert.equal(res.status, 403);
   });
 
   test('DRIVER is denied at the mount', async () => {
     const res = await quickFetch('/quick', {
-      method: 'POST', token: driverToken, body: { customerId },
+      method: 'POST',
+      token: driverToken,
+      idempotencyKey: `qc-rbac-driver-${suffix}`,
+      body: { customerId },
     });
     assert.equal(res.status, 403);
   });
 
   test('FORWARDER is denied at the mount', async () => {
     const res = await quickFetch('/quick', {
-      method: 'POST', token: forwarderToken, body: { customerId },
+      method: 'POST',
+      token: forwarderToken,
+      idempotencyKey: `qc-rbac-forwarder-${suffix}`,
+      body: { customerId },
     });
     assert.equal(res.status, 403);
   });

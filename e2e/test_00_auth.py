@@ -63,12 +63,32 @@ def test_auth(ctx: NepoTestContext, results: TestResults):
         page.wait_for_timeout(300)
     logout_btn = page.locator('button:has-text("Đăng xuất"), button:has-text("logout")').first
     if logout_btn.is_visible():
-        logout_btn.click()
-        page.wait_for_load_state('networkidle')
-        if '/login' in page.url or page.locator('input[type="password"]').count() > 0:
+        try:
+            with page.expect_response(
+                lambda response: '/api/auth/logout' in response.url
+                and response.request.method == 'POST',
+                timeout=10000,
+            ) as logout_response:
+                logout_btn.click()
+            response_status = logout_response.value.status
+            page.wait_for_url('**/login', timeout=10000)
+        except Exception as error:
+            response_status = None
+            logout_error = str(error)
+        if (
+            response_status == 200
+            and '/login' in page.url
+            and page.locator('input[type="password"]').count() > 0
+        ):
             results.pass_('TC-0006', 'Logout → login page')
         else:
-            results.fail('TC-0006', 'Logout', f'Expected login page, got {page.url}')
+            detail = (
+                f'Expected successful server logout and login page; '
+                f'status={response_status}, url={page.url}'
+            )
+            if 'logout_error' in locals():
+                detail += f', error={logout_error}'
+            results.fail('TC-0006', 'Logout', detail)
     else:
         results.skip('TC-0006', 'Logout', 'Could not find logout button')
     page.close()

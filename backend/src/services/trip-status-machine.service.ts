@@ -9,6 +9,8 @@ import { LedgerService } from './ledger.service';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import { applyTripPairLifecycleEffects } from './trip-pairs.service';
+import { requirePersistedTripGovernanceAuthorization } from './trip-governance-authorization.service';
+import { assertActiveApprovalApplication } from './governance-transition.service';
 
 export async function transitionTripStatus(
   tripId: number,
@@ -17,12 +19,17 @@ export async function transitionTripStatus(
   userRole: string,
   confirmZeroRevenue?: boolean,
   confirmNoPhoto?: boolean,
-  options?: { expectedVersion?: number; transaction?: Tx },
-) {
+  options?: {
+    expectedVersion?: number;
+    transaction?: Tx;
+    governanceActionId?: number;
+  },
+  ) {
   // Audit rows for status transitions are produced by the auditLogMiddleware
   // on the corresponding endpoint (POST /dispatch, /lock, /cancel) with full
   // Subject + Verb + Natural Key sentences.
   const execute = async (tx: Tx) => {
+    let governanceAuthorized = false;
     const [trip] = await tx.select().from(s.trips).where(eq(s.trips.id, tripId)).limit(1).for('update');
     if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
     if (options?.expectedVersion !== undefined && trip.version !== options.expectedVersion) {
@@ -35,6 +42,22 @@ export async function transitionTripStatus(
         throw new ApiError(409, 'Chuyến đi đã bị hủy');
       }
       return trip; // Idempotent short-circuit
+    }
+    if (
+      (targetStatus === TripStatus.COMPLETED && currentStatus !== TripStatus.LOCKED)
+      || (targetStatus === TripStatus.CANCELED && options?.governanceActionId != null)
+    ) {
+      assertActiveApprovalApplication(tx, options?.governanceActionId);
+      await requirePersistedTripGovernanceAuthorization({
+        tx,
+        actionId: options?.governanceActionId,
+        tripId,
+        tripVersion: options?.expectedVersion ?? 0,
+        actorId: userId,
+        actorRole: userRole,
+        operation: targetStatus === TripStatus.COMPLETED ? 'CLOSE' : 'CANCEL_COMPLETED',
+      });
+      governanceAuthorized = true;
     }
 
     // Verify role permissions and transition matrix
@@ -94,6 +117,9 @@ export async function transitionTripStatus(
       }
       if (currentStatus !== TripStatus.IN_TRANSIT) {
         throw new ApiError(409, 'Chỉ có thể hoàn thành chuyến đi đang chạy');
+      }
+      if (!governanceAuthorized) {
+        throw new ApiError(409, 'Thiếu yêu cầu quản trị đã được phê duyệt');
       }
       // B2: completion is permissive — a trip may be marked "Hoàn thành"
       // without photos, and photo evidence (CONTAINER/SEAL) can be added or
@@ -171,6 +197,11 @@ export async function transitionTripStatus(
       if (currentStatus === TripStatus.LOCKED) {
         throw new ApiError(409, 'Không thể hủy chuyến đi đã chốt');
       }
+      if (currentStatus === TripStatus.COMPLETED) {
+        if (!governanceAuthorized) {
+          throw new ApiError(409, 'Thiếu yêu cầu quản trị đã được phê duyệt');
+        }
+      }
 
       const ancillaryFees = currentStatus === TripStatus.COMPLETED
         ? await tx.select().from(s.tripExpenses).where(eq(s.tripExpenses.tripId, trip.id))
@@ -181,12 +212,38 @@ export async function transitionTripStatus(
       const [updated] = await tx.update(s.trips).set({
         status: TripStatus.CANCELED,
         version: sql`${s.trips.version} + 1`,
+        fuelLitersOverride: '0',
+        fuelSupplementLiters: '0',
+        tollsDiscount: '0',
+        tollsAddition: '0',
+        tollsStations: 0,
+        hasReturnCargo: false,
+        fuelPriceApplied: '0',
+        fuelActualUnitPrice: '0',
+        roadAllowanceBaseApplied: '0',
+        fuelLoadedNormApplied: '0',
+        fuelEmptyNormApplied: '0',
+        fuelFixedAllowanceApplied: '0',
+        fuelSupplementNormApplied: '0',
+        tollPerStationApplied: '0',
+        returnCargoBonusApplied: '0',
         fuelLiters: '0',
         totalFuelCost: '0',
         totalRoadAllowance: '0',
+        tollCost: '0',
+        roadAllowanceOverride: '0',
         totalCost: '0',
         revenue: '0',
+        revenueEmptyReturn: '0',
+        revenueCombine: '0',
+        twoPointDeliveryBonus: '0',
+        vehicleShiftAllowance: '0',
         grossProfit: '0',
+        revenueOriginal: '0',
+        customerCommission: '0',
+        tripWageDays: 0,
+        vatRate: '0',
+        externalFreightCost: '0',
         driverSalary: '0',
         updatedAt: new Date(),
       }).where(and(eq(s.trips.id, tripId), eq(s.trips.status, currentStatus))).returning();

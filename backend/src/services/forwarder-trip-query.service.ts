@@ -2,22 +2,28 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { eq, and, isNull, desc, sql, count, gte, lte, or } from 'drizzle-orm';
 import { getTripInstructions } from './trip-instructions.service';
+import type { Tx } from './trip-shared';
+import { ApiError } from '../errors';
 
 /**
  * Derived payment/approval status for a forwarder trip row, used for row
  * coloring on the forwarder trips list (N4).
  */
-const hasApprovedSettlement = sql<boolean>`EXISTS (
+const hasApprovedSettlement = (forwarderId: number) => sql<boolean>`EXISTS (
   SELECT 1
   FROM settlement_expenses se
   INNER JOIN advance_settlements a ON a.id = se.settlement_id
-  WHERE se.trip_expense_id IN (SELECT id FROM trip_expenses WHERE trip_id = ${s.trips.id})
+  WHERE se.trip_expense_id IN (
+    SELECT id FROM trip_expenses
+    WHERE trip_id = ${s.trips.id} AND forwarder_id = ${forwarderId}
+  )
     AND a.status = 'APPROVED'
 )`;
 
-const hasPendingExpenseOrSettlement = sql<boolean>`EXISTS (
+const hasPendingExpenseOrSettlement = (forwarderId: number) => sql<boolean>`EXISTS (
   SELECT 1 FROM trip_expenses te
   WHERE te.trip_id = ${s.trips.id}
+    AND te.forwarder_id = ${forwarderId}
     AND (
       te.approval_status = 'PENDING'
       OR EXISTS (
@@ -27,14 +33,44 @@ const hasPendingExpenseOrSettlement = sql<boolean>`EXISTS (
         WHERE se2.trip_expense_id = te.id
           AND a2.status IN ('PENDING', 'CHECKED_BY_ACCOUNTANT')
       )
-    )
+  )
 )`;
 
+function withinForwarderScope(forwarderId: number) {
+  return sql<boolean>`
+    EXISTS (
+      SELECT 1
+      FROM user_shipment_links scoped_assignment
+      WHERE scoped_assignment.user_id = ${forwarderId}
+        AND scoped_assignment.shipment_id = ${s.trips.shipmentId}
+    )
+  `;
+}
+
+type QueryClient = typeof db | Tx;
+
+export async function assertForwarderTripScope(
+  tripId: number,
+  forwarderId: number,
+  client: QueryClient = db,
+): Promise<void> {
+  const [trip] = await client.select({ id: s.trips.id })
+    .from(s.trips)
+    .where(and(
+      eq(s.trips.id, tripId),
+      isNull(s.trips.deletedAt),
+      withinForwarderScope(forwarderId),
+    ))
+    .limit(1);
+  if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
+}
+
 export async function getForwarderTrips(
+  forwarderId: number,
   status?: string,
   filters?: { search?: string; dateFrom?: string; dateTo?: string },
 ) {
-  const conditions = [isNull(s.trips.deletedAt)];
+  const conditions = [isNull(s.trips.deletedAt), withinForwarderScope(forwarderId)];
   if (status) {
     conditions.push(eq(s.trips.status, status as 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | 'LOCKED' | 'CANCELED'));
   }
@@ -82,8 +118,8 @@ export async function getForwarderTrips(
       WHERE tc.trip_id = ${s.trips.id}
     )`,
     statusColor: sql<'paid' | 'pending' | 'none'>`CASE
-      WHEN ${hasApprovedSettlement} THEN 'paid'
-      WHEN ${hasPendingExpenseOrSettlement} THEN 'pending'
+      WHEN ${hasApprovedSettlement(forwarderId)} THEN 'paid'
+      WHEN ${hasPendingExpenseOrSettlement(forwarderId)} THEN 'pending'
       ELSE 'none'
     END`,
   }).from(s.trips)
@@ -118,12 +154,12 @@ export async function listTripPhotoKeys(
   return rows.map(r => r.storageKey);
 }
 
-export async function getForwarderTripCounts() {
+export async function getForwarderTripCounts(forwarderId: number) {
   const rows = await db.select({
     status: s.trips.status,
     count: count(),
   }).from(s.trips)
-    .where(isNull(s.trips.deletedAt))
+    .where(and(isNull(s.trips.deletedAt), withinForwarderScope(forwarderId)))
     .groupBy(s.trips.status);
 
   const counts: Record<string, number> = {};
@@ -133,10 +169,11 @@ export async function getForwarderTripCounts() {
   return counts;
 }
 
-export async function getForwarderTripDetail(tripId: number, _forwarderId: number) {
+export async function getForwarderTripDetail(tripId: number, forwarderId: number) {
   const [trip] = await db.select({
     id: s.trips.id,
     tripCode: s.trips.tripCode,
+    shipmentId: s.trips.shipmentId,
     departureDate: s.trips.departureDate,
     status: s.trips.status,
     routeName: s.routes.name,
@@ -145,13 +182,26 @@ export async function getForwarderTripDetail(tripId: number, _forwarderId: numbe
     customerReference: s.trips.customerReference,
     containerCount: s.trips.containerCount,
     cargoTypeName: s.cargoTypes.name,
+    shipmentSourceVersion: sql<number | null>`coalesce(
+      ${s.trips.sourceShipmentVersion},
+      (
+        SELECT max(tc.source_shipment_version)
+        FROM trip_containers tc
+        WHERE tc.trip_id = ${s.trips.id}
+          AND tc.source_shipment_id = ${s.trips.shipmentId}
+      )
+    )`,
     notes: s.trips.notes,
   }).from(s.trips)
     .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
     .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
     .leftJoin(s.customers, eq(s.trips.customerId, s.customers.id))
     .leftJoin(s.cargoTypes, eq(s.trips.cargoTypeId, s.cargoTypes.id))
-    .where(and(eq(s.trips.id, tripId), isNull(s.trips.deletedAt)))
+    .where(and(
+      eq(s.trips.id, tripId),
+      isNull(s.trips.deletedAt),
+      withinForwarderScope(forwarderId),
+    ))
     .limit(1);
 
   if (!trip) return null;
@@ -163,6 +213,9 @@ export async function getForwarderTripDetail(tripId: number, _forwarderId: numbe
   const containers = await db.select({
     id: s.tripContainers.id,
     tripId: s.tripContainers.tripId,
+    sourceShipmentId: s.tripContainers.sourceShipmentId,
+    sourceShipmentContainerId: s.tripContainers.sourceShipmentContainerId,
+    sourceShipmentVersion: s.tripContainers.sourceShipmentVersion,
     containerTypeId: s.tripContainers.containerTypeId,
     containerTypeName: s.containerTypes.name,
     containerNumber: s.tripContainers.containerNumber,
@@ -208,12 +261,13 @@ export async function getForwarderTripDetail(tripId: number, _forwarderId: numbe
     returnForEvidenceReason: s.tripExpenses.returnForEvidenceReason,
     returnedForEvidenceAt: s.tripExpenses.returnedForEvidenceAt,
     createdAt: s.tripExpenses.createdAt,
+    updatedAt: s.tripExpenses.updatedAt,
     forwarderName: s.users.fullName,
-    canEdit: sql<boolean>`${s.tripExpenses.forwarderId} = ${_forwarderId}`,
+    canEdit: sql<boolean>`${s.tripExpenses.forwarderId} = ${forwarderId}`,
   }).from(s.tripExpenses)
     .leftJoin(s.users, eq(s.tripExpenses.forwarderId, s.users.id))
     .leftJoin(s.suppliers, eq(s.tripExpenses.supplierId, s.suppliers.id))
-    .where(and(eq(s.tripExpenses.tripId, tripId)))
+    .where(eq(s.tripExpenses.tripId, tripId))
     .orderBy(desc(s.tripExpenses.createdAt));
 
   const instructions = await getTripInstructions(tripId);

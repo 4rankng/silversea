@@ -1,6 +1,7 @@
 import { Router } from 'express';
 // auth + Casbin applied at mount point in index.ts
 import type { Request, Response } from 'express';
+import { createHash } from 'node:crypto';
 import { getUser } from '../middleware/auth';
 import {
   getDriverByUserId,
@@ -17,13 +18,121 @@ import {
   getDriverPayslipPeriods,
   getCompletionEvidenceStatus,
 } from '../services/driver.service';
-import { createTripContainer, listTripContainers, updateTripContainer, batchUpsertContainerSeals } from '../services/forwarder.service';
-import { deleteTripPhotosByType, type TripPhotoType } from './upload';
+import {
+  batchUpsertContainerSeals,
+  createTripContainerInClient,
+  listTripContainers,
+  updateTripContainerInClient,
+} from '../services/forwarder-container.service';
+import type { TripPhotoType } from './upload';
 import { tripContainerSchema, tripContainerPatchSchema, tripContainerSealBatchSchema, driverProgressSchema, driverIncidentalCostSchema } from '@tingting/shared';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { ApiError } from '../errors';
+import { db } from '../db';
+import * as s from '../db/schema';
+import { and, eq, inArray } from 'drizzle-orm';
+import { getRequestIdempotencyKey } from './utils/idempotency';
+import { runIdempotent } from '../services/idempotency.service';
+import type { Tx } from '../services/trip-shared';
+import {
+  enqueueStorageDelete,
+  STORAGE_DELETE_MODE,
+} from '../services/durable-effect.service';
 
 const router = Router();
+
+const DRIVER_IDEMPOTENCY_ENDPOINTS = {
+  CONTAINER_CREATE: 'driver.containers.create',
+  CONTAINER_UPDATE: 'driver.containers.update',
+  CONTAINER_SEALS_REPLACE: 'driver.containers.seals.replace',
+  PHOTO_DELETE: 'driver.trip-photos.delete',
+} as const;
+
+function requireDriverIdempotencyKey(req: Request): string {
+  const key = getRequestIdempotencyKey(req);
+  if (!key) {
+    throw new ApiError(400, 'Idempotency-Key là bắt buộc cho thao tác hiện trường này.');
+  }
+  return key;
+}
+
+function readExpectedUpdatedAt(req: Request): Date | undefined {
+  const raw = req.header('If-Unmodified-Since')?.trim();
+  if (!raw) return undefined;
+  const expected = new Date(raw);
+  if (Number.isNaN(expected.getTime())) {
+    throw new ApiError(400, 'Phiên bản dữ liệu không hợp lệ.');
+  }
+  return expected;
+}
+
+function requireExpectedUpdatedAt(req: Request, message: string): Date {
+  const expected = readExpectedUpdatedAt(req);
+  if (!expected) throw new ApiError(428, message);
+  return expected;
+}
+
+type DriverTripPhotoDeleteCommand = {
+  ok: true;
+  removed: number;
+  storageKeys: string[];
+};
+
+function hashStorageKey(storageKey: string): string {
+  return createHash('sha256').update(storageKey).digest('hex').slice(0, 32);
+}
+
+async function deleteDriverTripPhotosCommand(
+  client: Tx,
+  tripId: number,
+  type: TripPhotoType,
+  containerId: number | undefined,
+  expectedUpdatedAt: Date | undefined,
+): Promise<DriverTripPhotoDeleteCommand> {
+  const conditions = [eq(s.tripPhotos.tripId, tripId), eq(s.tripPhotos.type, type)];
+  if (containerId !== undefined) {
+    conditions.push(eq(s.tripPhotos.tripContainerId, containerId));
+  }
+  const rows = await client.select({
+    id: s.tripPhotos.id,
+    storageKey: s.tripPhotos.storageKey,
+    uploadedAt: s.tripPhotos.uploadedAt,
+  })
+    .from(s.tripPhotos)
+    .where(and(...conditions))
+    .orderBy(s.tripPhotos.uploadedAt)
+    .for('update');
+
+  if (rows.length === 0) {
+    return { ok: true, removed: 0, storageKeys: [] };
+  }
+
+  const latest = rows[rows.length - 1];
+  if (expectedUpdatedAt && latest.uploadedAt.getTime() !== expectedUpdatedAt.getTime()) {
+    throw new ApiError(409, 'Ảnh bằng chứng đã thay đổi. Vui lòng tải lại chuyến trước khi xóa.');
+  }
+
+  for (const row of rows) {
+    await enqueueStorageDelete(client, {
+      dedupeKey: `driver-trip-photo-final:${row.id}:${hashStorageKey(row.storageKey)}`,
+      payload: {
+        storageKey: row.storageKey,
+        mode: STORAGE_DELETE_MODE.FINAL_DELETE,
+        entityType: 'trip_photos',
+        entityId: row.id,
+      },
+    });
+  }
+
+  await client.delete(s.tripPhotos)
+    .where(inArray(s.tripPhotos.id, rows.map((row) => row.id)));
+
+  return {
+    ok: true,
+    removed: rows.length,
+    storageKeys: rows.map((row) => row.storageKey),
+  };
+}
 
 // List assigned trips (Driver allowlisted DTO)
 router.get('/trips', asyncHandler(async (req: Request, res: Response) => {
@@ -185,18 +294,25 @@ router.post('/trips/:tripId/containers', asyncHandler(async (req: Request, res: 
   if (!parsed.success) {
     return res.status(400).json({ error: 'Dữ liệu không hợp lệ', details: parsed.error.flatten() });
   }
-  const created = await createTripContainer({
-    tripId,
-    containerTypeId: parsed.data.containerTypeId ?? null,
-    containerNumber: parsed.data.containerNumber,
-    sealNumber: parsed.data.sealNumber ?? null,
-    cargoWeightKg: parsed.data.cargoWeightKg ?? null,
-    notes: parsed.data.notes ?? null,
+  const idempotencyKey = requireDriverIdempotencyKey(req);
+  const outcome = await runIdempotent({
+    endpoint: DRIVER_IDEMPOTENCY_ENDPOINTS.CONTAINER_CREATE,
+    idempotencyKey,
+    payload: { driverId: driver.id, ...parsed.data },
     createdBy: getUser(req).userId,
-    // Phase 2: optional initial seals list (e.g. customs + carrier).
-    seals: parsed.data.seals,
+    responseStatusCode: 201,
+    create: (tx) => createTripContainerInClient(tx, {
+      tripId,
+      containerTypeId: parsed.data.containerTypeId ?? null,
+      containerNumber: parsed.data.containerNumber,
+      sealNumber: parsed.data.sealNumber ?? null,
+      cargoWeightKg: parsed.data.cargoWeightKg ?? null,
+      notes: parsed.data.notes ?? null,
+      createdBy: getUser(req).userId,
+      seals: parsed.data.seals,
+    }),
   });
-  res.status(201).json(created);
+  res.status(outcome.statusCode).json(outcome.result);
 }));
 
 // PATCH one of the driver's own containers (Sửa / change number / change seal /
@@ -219,18 +335,33 @@ router.patch('/trips/:tripId/containers/:containerId', asyncHandler(async (req: 
   if (!parsed.success) {
     return res.status(400).json({ error: 'Dữ liệu không hợp lệ', details: parsed.error.flatten() });
   }
-
-  const updated = await updateTripContainer(containerId, {
-    containerTypeId: parsed.data.containerTypeId,
-    containerNumber: parsed.data.containerNumber,
-    sealNumber: parsed.data.sealNumber,
-    cargoWeightKg: parsed.data.cargoWeightKg,
-    notes: parsed.data.notes,
-    // Phase 2: driver's one-at-a-time seal add flow.
-    addSeals: parsed.data.addSeals,
-    userId: getUser(req).userId,
+  const idempotencyKey = requireDriverIdempotencyKey(req);
+  const expectedUpdatedAt = requireExpectedUpdatedAt(
+    req,
+    'Cần tải lại phiên bản số cont mới nhất trước khi cập nhật.',
+  );
+  const outcome = await runIdempotent({
+    endpoint: DRIVER_IDEMPOTENCY_ENDPOINTS.CONTAINER_UPDATE,
+    idempotencyKey,
+    payload: {
+      tripId,
+      containerId,
+      expectedUpdatedAt: expectedUpdatedAt.toISOString(),
+      ...parsed.data,
+    },
+    createdBy: getUser(req).userId,
+    responseStatusCode: 200,
+    create: (tx) => updateTripContainerInClient(tx, containerId, {
+      containerTypeId: parsed.data.containerTypeId,
+      containerNumber: parsed.data.containerNumber,
+      sealNumber: parsed.data.sealNumber,
+      cargoWeightKg: parsed.data.cargoWeightKg,
+      notes: parsed.data.notes,
+      addSeals: parsed.data.addSeals,
+      userId: getUser(req).userId,
+    }, { expectedUpdatedAt }),
   });
-  res.json(updated);
+  res.json(outcome.result);
 }));
 
 // Phase 2: full reconcile of one container's seals. Driver UI sends the
@@ -250,8 +381,31 @@ router.put('/trips/:tripId/containers/:containerId/seals', asyncHandler(async (r
   if (!parsed.success) {
     return res.status(400).json({ error: 'Dữ liệu không hợp lệ', details: parsed.error.flatten() });
   }
-  const seals = await batchUpsertContainerSeals(containerId, parsed.data.seals, getUser(req).userId);
-  res.json({ seals });
+  const idempotencyKey = requireDriverIdempotencyKey(req);
+  const expectedUpdatedAt = requireExpectedUpdatedAt(
+    req,
+    'Cần tải lại phiên bản số cont mới nhất trước khi thay niêm phong.',
+  );
+  const outcome = await runIdempotent({
+    endpoint: DRIVER_IDEMPOTENCY_ENDPOINTS.CONTAINER_SEALS_REPLACE,
+    idempotencyKey,
+    payload: {
+      tripId,
+      containerId,
+      expectedUpdatedAt: expectedUpdatedAt.toISOString(),
+      seals: parsed.data.seals,
+    },
+    createdBy: getUser(req).userId,
+    responseStatusCode: 200,
+    create: (tx) => batchUpsertContainerSeals(
+      containerId,
+      parsed.data.seals,
+      getUser(req).userId,
+      { expectedUpdatedAt },
+      tx,
+    ),
+  });
+  res.json(outcome.result);
 }));
 
 // Remove all photos of one type (CONTAINER | SEAL) for the driver's own trip —
@@ -290,9 +444,31 @@ router.delete('/trips/:tripId/photos/:type', asyncHandler(async (req: Request, r
       return res.status(404).json({ error: 'Không tìm thấy số cont' });
     }
   }
-
-  const removed = await deleteTripPhotosByType(tripId, photoType as TripPhotoType, containerId);
-  res.json({ ok: true, removed });
+  const idempotencyKey = requireDriverIdempotencyKey(req);
+  const expectedUpdatedAt = requireExpectedUpdatedAt(
+    req,
+    'Cần tải lại phiên bản ảnh mới nhất trước khi xóa.',
+  );
+  const outcome = await runIdempotent({
+    endpoint: DRIVER_IDEMPOTENCY_ENDPOINTS.PHOTO_DELETE,
+    idempotencyKey,
+    payload: {
+      tripId,
+      photoType,
+      containerId: containerId ?? null,
+      expectedUpdatedAt: expectedUpdatedAt.toISOString(),
+    },
+    createdBy: getUser(req).userId,
+    responseStatusCode: 200,
+    create: (tx) => deleteDriverTripPhotosCommand(
+      tx,
+      tripId,
+      photoType as TripPhotoType,
+      containerId,
+      expectedUpdatedAt,
+    ),
+  });
+  res.json({ ok: true, removed: outcome.result.removed });
 }));
 
 export default router;

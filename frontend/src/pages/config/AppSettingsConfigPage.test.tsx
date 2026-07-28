@@ -193,4 +193,24 @@ describe('AppSettingsConfigPage — Resend credential', () => {
       });
     });
   });
+
+  it('shows a pending-review message instead of implying the app settings were applied', async () => {
+    mocks.saveAppSettings.mockResolvedValue({
+      id: 901,
+      status: 'PENDING_CHECK',
+      actionKind: 'PRICE_CONFIG_CHANGE',
+      version: 1,
+    });
+
+    renderPage();
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Lưu cài đặt' })[0]);
+
+    await waitFor(() => {
+      expect(mocks.saveAppSettings).toHaveBeenCalled();
+    });
+    expect(screen.getByRole('status').textContent).toContain(
+      'Đã gửi yêu cầu cập nhật cài đặt ứng dụng để kiểm tra và phê duyệt. Cấu hình hiện chưa thay đổi.',
+    );
+  });
 });

@@ -383,7 +383,7 @@ describe('POST /api/payments/receive', () => {
     assert.equal(conflictRow!.idempotencyKeyPresent, true);
   });
 
-  test('same receipt body without an idempotency header is rejected as a duplicate active request', async () => {
+  test('same receipt body without an idempotency header is rejected by the mandatory-header contract', async () => {
     const customer = await mkCustomer();
     const route = await mkRoute();
     const cargo = await mkCargo();
@@ -403,9 +403,11 @@ describe('POST /api/payments/receive', () => {
     const first = await paymentFetch(body);
     const replay = await paymentFetch(body);
 
-    assert.equal(first.status, 201);
-    assert.equal(replay.status, 409);
-    assert.equal(await fetchGovernanceActionCount(receiptId), 1);
+    assert.equal(first.status, 400);
+    assert.equal(replay.status, 400);
+    assert.match(String(first.data.error ?? ''), /Idempotency-Key.*bắt buộc/);
+    assert.match(String(replay.data.error ?? ''), /Idempotency-Key.*bắt buộc/);
+    assert.equal(await fetchGovernanceActionCount(receiptId), 0);
     assert.equal(await fetchReceiptCount(receiptId), 0);
     assert.equal(await fetchAllocationCount(receiptId), 0);
     assert.equal(await fetchPaymentLedgerCount(receiptId), 0);

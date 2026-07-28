@@ -287,6 +287,31 @@ export function useIssueSalaryPeriod(period: string, driverId: number | null) {
   });
 }
 
+export function useCheckIssueSalaryPeriod(period: string, driverId: number | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ actionId, expectedVersion }: { actionId: number; expectedVersion: number }) =>
+      salaryClient.checkIssuePayslips(period, actionId, expectedVersion),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: salaryPeriodOverviewKey(period, driverId) });
+      queryClient.invalidateQueries({ queryKey: salaryPeriodGovernanceKey(period) });
+    },
+  });
+}
+
+export function useApproveIssueSalaryPeriod(period: string, driverId: number | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ actionId, expectedVersion }: { actionId: number; expectedVersion: number }) =>
+      salaryClient.approveIssuePayslips(period, actionId, expectedVersion),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: salaryPeriodOverviewKey(period, driverId) });
+      queryClient.invalidateQueries({ queryKey: salaryPeriodGovernanceKey(period) });
+      queryClient.invalidateQueries({ queryKey: qk.driver.payslips });
+    },
+  });
+}
+
 export function usePostSalaryPeriod(period: string, driverId: number | null) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -294,6 +319,30 @@ export function usePostSalaryPeriod(period: string, driverId: number | null) {
       salaryClient.postOfficial(period, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: salaryPeriodOverviewKey(period, driverId) });
+    },
+  });
+}
+
+export function useCheckPostSalaryPeriod(period: string, driverId: number | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ actionId, expectedVersion }: { actionId: number; expectedVersion: number }) =>
+      salaryClient.checkPostOfficial(period, actionId, expectedVersion),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: salaryPeriodOverviewKey(period, driverId) });
+      queryClient.invalidateQueries({ queryKey: salaryPeriodGovernanceKey(period) });
+    },
+  });
+}
+
+export function useApprovePostSalaryPeriod(period: string, driverId: number | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ actionId, expectedVersion }: { actionId: number; expectedVersion: number }) =>
+      salaryClient.approvePostOfficial(period, actionId, expectedVersion),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: salaryPeriodOverviewKey(period, driverId) });
+      queryClient.invalidateQueries({ queryKey: salaryPeriodGovernanceKey(period) });
     },
   });
 }
@@ -318,7 +367,8 @@ export function useRequestPostCloseAdjustment(period: string, driverId: number |
 export function useCheckPostCloseAdjustment(period: string, driverId: number | null) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (actionId: number) => salaryClient.checkPostCloseAdjustment(period, actionId),
+    mutationFn: (input: { actionId: number; expectedVersion: number }) =>
+      salaryClient.checkPostCloseAdjustment(period, input.actionId, input.expectedVersion),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: salaryPeriodOverviewKey(period, driverId) });
     },
@@ -328,7 +378,8 @@ export function useCheckPostCloseAdjustment(period: string, driverId: number | n
 export function useApprovePostCloseAdjustment(period: string, driverId: number | null, year: number, month: number) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (actionId: number) => salaryClient.approvePostCloseAdjustment(period, actionId),
+    mutationFn: (input: { actionId: number; expectedVersion: number }) =>
+      salaryClient.approvePostCloseAdjustment(period, input.actionId, input.expectedVersion),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: salaryPeriodOverviewKey(period, driverId) });
       queryClient.invalidateQueries({ queryKey: qk.salary.list(year, month) });

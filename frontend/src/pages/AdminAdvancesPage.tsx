@@ -34,6 +34,16 @@ interface AdvanceRequest {
   approverName: string | null;
 }
 
+export function buildAdvanceDecision(
+  request: Pick<AdvanceRequest, 'id' | 'version'>,
+  reason: string,
+): { id: number; expectedVersion: number; reason: string } | null {
+  const normalizedReason = reason.trim();
+  return normalizedReason
+    ? { id: request.id, expectedVersion: request.version, reason: normalizedReason }
+    : null;
+}
+
 type StatusFilter = '' | AdvanceRequestStatus;
 
 const TABS: { key: StatusFilter; label: string }[] = [
@@ -88,6 +98,7 @@ function AdvanceGridRow({
   rejectMutation: ReturnType<typeof useRejectAdvanceRequest>;
   focusId?: string;
 }) {
+  const [decisionReason, setDecisionReason] = useState('');
   const isApproving = approveMutation.isPending && approveMutation.variables?.id === req.id;
   const isRejecting = rejectMutation.isPending && rejectMutation.variables?.id === req.id;
   const isPending = req.status === AdvanceRequestStatus.PENDING;
@@ -128,20 +139,27 @@ function AdvanceGridRow({
       <div className="adv-actions">
         {isPending ? (
           <>
+            <input
+              className="form-input"
+              aria-label={`Lý do xử lý yêu cầu ${req.id}`}
+              value={decisionReason}
+              onChange={(event) => setDecisionReason(event.target.value)}
+              placeholder="Lý do xử lý"
+            />
             <button
               className="btn btn--ghost btn--icon btn--sm"
-              onClick={() => approveMutation.mutate({ id: req.id, expectedVersion: req.version })}
-              disabled={isApproving || isRejecting}
-              title="Duyệt yêu cầu"
+              onClick={() => approveMutation.mutate(buildAdvanceDecision(req, decisionReason)!)}
+              disabled={isApproving || isRejecting || !buildAdvanceDecision(req, decisionReason)}
+              title="Gửi yêu cầu duyệt vào hàng chờ"
               style={{ color: 'var(--success)' }}
             >
               {isApproving ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
             </button>
             <button
               className="btn btn--ghost btn--icon btn--sm"
-              onClick={() => rejectMutation.mutate({ id: req.id, expectedVersion: req.version })}
-              disabled={isApproving || isRejecting}
-              title="Từ chối yêu cầu"
+              onClick={() => rejectMutation.mutate(buildAdvanceDecision(req, decisionReason)!)}
+              disabled={isApproving || isRejecting || !buildAdvanceDecision(req, decisionReason)}
+              title="Gửi yêu cầu từ chối vào hàng chờ"
               style={{ color: 'var(--danger)' }}
             >
               {isRejecting ? <Loader2 size={16} className="spin" /> : <XCircle size={16} />}
@@ -170,6 +188,7 @@ function AdvanceMobileCard({
   rejectMutation: ReturnType<typeof useRejectAdvanceRequest>;
   focusId?: string;
 }) {
+  const [decisionReason, setDecisionReason] = useState('');
   const isApproving = approveMutation.isPending && approveMutation.variables?.id === req.id;
   const isRejecting = rejectMutation.isPending && rejectMutation.variables?.id === req.id;
   const isPending = req.status === AdvanceRequestStatus.PENDING;
@@ -213,21 +232,28 @@ function AdvanceMobileCard({
       {/* Actions */}
       {isPending ? (
         <div className="adv-mcard__actions">
+          <input
+            className="form-input"
+            aria-label={`Lý do xử lý yêu cầu ${req.id}`}
+            value={decisionReason}
+            onChange={(event) => setDecisionReason(event.target.value)}
+            placeholder="Lý do xử lý"
+          />
           <button
             className="btn btn--primary"
-            onClick={() => approveMutation.mutate({ id: req.id, expectedVersion: req.version })}
-            disabled={isApproving || isRejecting}
+            onClick={() => approveMutation.mutate(buildAdvanceDecision(req, decisionReason)!)}
+            disabled={isApproving || isRejecting || !buildAdvanceDecision(req, decisionReason)}
           >
             {isApproving ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
-            Duyệt
+            Gửi duyệt
           </button>
           <button
             className="btn btn--danger"
-            onClick={() => rejectMutation.mutate({ id: req.id, expectedVersion: req.version })}
-            disabled={isApproving || isRejecting}
+            onClick={() => rejectMutation.mutate(buildAdvanceDecision(req, decisionReason)!)}
+            disabled={isApproving || isRejecting || !buildAdvanceDecision(req, decisionReason)}
           >
             {isRejecting ? <Loader2 size={16} className="spin" /> : <XCircle size={16} />}
-            Từ chối
+            Gửi từ chối
           </button>
         </div>
       ) : req.approverName ? (

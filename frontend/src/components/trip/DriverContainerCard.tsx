@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Camera, Loader2, Save, Package, AlertCircle, Pencil, X, Check, ImageOff } from 'lucide-react';
-import { api, getAuthenticatedPhotoUrl } from '../../lib/api';
+import { api, fileCommandFingerprint, getAuthenticatedPhotoUrl } from '../../lib/api';
 import { useToast } from '../shared/Toast';
 import { ContainerScanner, dataUrlToFile } from '../shared/ContainerScanner';
 import {
@@ -175,7 +175,13 @@ export function DriverContainerCard({ tripId, containers, contPhotoKey, sealPhot
       // extract container numbers, SEAL photos only extract seal numbers.
       formData.append('type', _type);
       formData.append('trip_id', String(tripId));
-      const result = await api.upload('/ocr', formData) as OcrResponse;
+      const retryFingerprint = [
+        'driver-container-card',
+        fileCommandFingerprint(file),
+        _type,
+        tripId,
+      ].join(':');
+      const result = await api.upload('/ocr', formData, { retryFingerprint }) as OcrResponse;
 
       if (_type === 'CONTAINER') {
         const cn = result.containerNumbers?.[0];

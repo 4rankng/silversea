@@ -6,11 +6,11 @@
 
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq, and, isNull, sql, gte, desc } from 'drizzle-orm';
+import { eq, and, isNull, sql, gte, desc, inArray } from 'drizzle-orm';
 import { TripStatus, parseThreshold, type DashboardDecisionItem } from '@tingting/shared';
 import { getReceivablesSummary, getTopOverdueCustomer, CURRENT_AGING_RANGE } from './aging.service';
 import { cacheGet } from '../lib/redis';
-import { salaryPeriodDateRange, localDateStr, resolveCapTableSnapshot } from './reporting-shared';
+import { salaryPeriodDateRange, localDateStr, resolveCapTableSnapshot, tripCompletionBusinessDateSql } from './reporting-shared';
 import { getPnlReport } from './pnl.service';
 import { getRenewalReminders } from './expense.service';
 
@@ -20,6 +20,13 @@ export async function getDashboardStats() {
     const year = now.getFullYear();
     const month = now.getMonth() + 1;
     const { start: monthStart, end: monthEnd } = await salaryPeriodDateRange(month, year);
+    const completionBusinessDate = tripCompletionBusinessDateSql();
+    const officialTripPeriod = and(
+      isNull(s.trips.deletedAt),
+      sql`${s.trips.completedAt} is not null`,
+      gte(completionBusinessDate, monthStart),
+      sql`${completionBusinessDate} < ${monthEnd}`,
+    );
 
     const [
       [stats],
@@ -39,14 +46,10 @@ export async function getDashboardStats() {
       fuelCheckRows,
     ] = await Promise.all([
       db.select({
-        tripCount: sql<number>`count(*) filter (where ${s.trips.status} != 'CANCELED')`,
+        tripCount: sql<number>`count(*) filter (where ${s.trips.status} in ('COMPLETED', 'LOCKED'))`,
         completedTrips: sql<number>`count(*) filter (where ${s.trips.status} = 'COMPLETED')`,
         lockedTrips: sql<number>`count(*) filter (where ${s.trips.status} = 'LOCKED')`,
-      }).from(s.trips).where(and(
-        isNull(s.trips.deletedAt),
-        gte(s.trips.departureDate, monthStart),
-        sql`${s.trips.departureDate} < ${monthEnd}`,
-      )),
+      }).from(s.trips).where(officialTripPeriod),
       db.select({ count: sql<number>`count(*)` }).from(s.drivers).where(isNull(s.drivers.deletedAt)),
       db.select({
         status: s.trucks.status,
@@ -68,10 +71,8 @@ export async function getDashboardStats() {
         eq(s.trips.status, TripStatus.CREATED),
       )),
       db.select({ count: sql<number>`count(*)` }).from(s.trips).where(and(
-        isNull(s.trips.deletedAt),
-        gte(s.trips.departureDate, monthStart),
-        sql`${s.trips.departureDate} < ${monthEnd}`,
-        sql`${s.trips.status} IN ('CREATED', 'IN_TRANSIT', 'COMPLETED')`,
+        officialTripPeriod,
+        inArray(s.trips.status, [TripStatus.COMPLETED, TripStatus.LOCKED]),
         sql`(
           coalesce(${s.trips.revenue}, 0) <= 0
           OR coalesce(${s.trips.fuelLiters}, 0) <= 0
@@ -82,9 +83,7 @@ export async function getDashboardStats() {
       db.select({
         id: s.trips.id,
       }).from(s.trips).where(and(
-        isNull(s.trips.deletedAt),
-        gte(s.trips.departureDate, monthStart),
-        sql`${s.trips.departureDate} < ${monthEnd}`,
+        officialTripPeriod,
         eq(s.trips.status, TripStatus.COMPLETED),
       )),
       db.select({
@@ -101,10 +100,8 @@ export async function getDashboardStats() {
         .from(s.trips)
         .leftJoin(s.tripLegs, eq(s.tripLegs.tripId, s.trips.id))
         .where(and(
-          isNull(s.trips.deletedAt),
-          gte(s.trips.departureDate, monthStart),
-          sql`${s.trips.departureDate} < ${monthEnd}`,
-          sql`${s.trips.status} != 'CANCELED'`,
+          officialTripPeriod,
+          inArray(s.trips.status, [TripStatus.COMPLETED, TripStatus.LOCKED]),
         ))
         .groupBy(s.trips.id),
     ]);

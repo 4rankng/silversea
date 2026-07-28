@@ -346,6 +346,7 @@ export enum AdvanceSettlementStatus {
   CHECKED_BY_ACCOUNTANT = 'CHECKED_BY_ACCOUNTANT',
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
+  REVERSED = 'REVERSED',
 }
 
 export enum ExpenseEntryStatus {
@@ -387,6 +388,7 @@ export const ADVANCE_SETTLEMENT_STATUS_LABELS: Record<AdvanceSettlementStatus, s
   [AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT]: 'KT đã kiểm tra',
   [AdvanceSettlementStatus.APPROVED]: 'Đã duyệt',
   [AdvanceSettlementStatus.REJECTED]: 'Từ chối',
+  [AdvanceSettlementStatus.REVERSED]: 'Đã hoàn tác',
 };
 
 export const TRAILER_STATUS_LABELS: Record<TrailerStatus, string> = {

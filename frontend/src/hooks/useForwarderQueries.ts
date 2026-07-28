@@ -63,13 +63,13 @@ export function useCreateForwarderExpense() {
 export function useUpdateForwarderExpense() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, tripId: _tripId, ...data }: {
-      id: number; tripId: number; expenseType: string; buyAmount: number; sellAmount?: number;
+    mutationFn: ({ id, tripId: _tripId, expectedUpdatedAt, ...data }: {
+      id: number; tripId: number; expectedUpdatedAt: string; expenseType: string; buyAmount: number; sellAmount?: number;
       settlementMethod?: 'COMPANY_DIRECT' | 'FORWARDER_ADVANCE'; supplierId?: number | null;
       expenseDate?: string | null; payeeName?: string | null;
       invoiceNumber?: string | null; invoiceDate?: string | null; declarationNumber?: string | null;
       tripContainerId?: number | null; note?: string | null; noInvoiceEvidenceTypes?: string[] | null;
-    }) => forwarderClient.updateExpense(id, data),
+    }) => forwarderClient.updateExpense(id, expectedUpdatedAt, data),
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: qk.forwarder.tripDetail(variables.tripId) });
       qc.invalidateQueries({ queryKey: qk.forwarder.unlinkedExpenses });
@@ -92,8 +92,8 @@ export function useSetForwarderExpenseCompletion() {
 export function useDeleteForwarderExpense() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, tripId: _tripId }: { id: number; tripId: number }) =>
-      forwarderClient.deleteExpense(id),
+    mutationFn: ({ id, tripId: _tripId, expectedUpdatedAt }: { id: number; tripId: number; expectedUpdatedAt: string }) =>
+      forwarderClient.deleteExpense(id, expectedUpdatedAt),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.forwarder.tripDetailAll });
     },
@@ -190,8 +190,8 @@ export function useAdminAdvanceBalances() {
 export function useApproveAdvanceRequest() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, expectedVersion }: { id: number; expectedVersion: number }) =>
-      forwarderClient.approveAdvanceRequest(id, expectedVersion),
+    mutationFn: ({ id, expectedVersion, reason }: { id: number; expectedVersion: number; reason: string }) =>
+      forwarderClient.approveAdvanceRequest(id, expectedVersion, reason),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.adminForwarder.advanceRequestsAll });
     },
@@ -201,8 +201,8 @@ export function useApproveAdvanceRequest() {
 export function useRejectAdvanceRequest() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, expectedVersion }: { id: number; expectedVersion: number }) =>
-      forwarderClient.rejectAdvanceRequest(id, expectedVersion),
+    mutationFn: ({ id, expectedVersion, reason }: { id: number; expectedVersion: number; reason: string }) =>
+      forwarderClient.rejectAdvanceRequest(id, expectedVersion, reason),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.adminForwarder.advanceRequestsAll });
     },
@@ -289,6 +289,19 @@ export function useRejectSettlement() {
       forwarderClient.rejectAdvanceSettlement(id, expectedVersion),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.adminForwarder.settlementsAll });
+    },
+  });
+}
+
+export function useReverseAdvanceSettlement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, expectedVersion, reason }: { id: number; expectedVersion: number; reason: string }) =>
+      forwarderClient.reverseAdvanceSettlement(id, { expectedVersion, reason }),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: qk.adminForwarder.settlementDetail(variables.id) });
+      qc.invalidateQueries({ queryKey: qk.adminForwarder.settlementsAll });
+      qc.invalidateQueries({ queryKey: ['governance-actions'] });
     },
   });
 }

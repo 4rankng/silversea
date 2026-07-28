@@ -9,9 +9,17 @@ import { Role } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { disconnectRedis } from '../lib/redis';
+import { auditLogMiddleware } from '../middleware/audit';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import ocrRoutes from '../routes/ocr';
-import { uploadRouter } from '../routes/upload';
+import { setTripPhotoAfterUploadHookForTest, uploadRouter } from '../routes/upload';
+import {
+  DURABLE_EFFECT_KIND,
+  DURABLE_EFFECT_STATUS,
+  processDueDurableEffectJobs,
+  STORAGE_DELETE_MODE,
+} from '../services/durable-effect.service';
+import { IDEMPOTENCY_ENDPOINTS } from '../services/idempotency.service';
 import { storageService } from '../services/storage.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -25,21 +33,36 @@ let cargoTypeId = 0;
 let imageBuffer: Buffer;
 let server: http.Server;
 let baseUrl = '';
+const originalStorageDelete = storageService.delete.bind(storageService);
 
-function buildPhotoForm(buffer = imageBuffer, type = 'CONTAINER'): FormData {
+function buildPhotoForm(
+  buffer = imageBuffer,
+  type = 'CONTAINER',
+  filename = 'photo.jpg',
+  mimeType = 'image/jpeg',
+): FormData {
   const form = new FormData();
-  form.set('file', new Blob([new Uint8Array(buffer)], { type: 'image/jpeg' }), 'photo.jpg');
+  form.set('file', new Blob([new Uint8Array(buffer)], { type: mimeType }), filename);
   form.set('trip_id', String(tripId));
   form.set('type', type);
   return form;
 }
 
-async function uploadPhoto(key?: string, buffer = imageBuffer) {
+async function uploadPhoto(
+  key?: string,
+  buffer = imageBuffer,
+  options: { filename?: string; mimeType?: string } = {},
+) {
   if (key) idempotencyKeys.push(key);
   const response = await fetch(`${baseUrl}/api/upload`, {
     method: 'POST',
     headers: key ? { 'Idempotency-Key': key } : {},
-    body: buildPhotoForm(buffer),
+    body: buildPhotoForm(
+      buffer,
+      'CONTAINER',
+      options.filename ?? 'photo.jpg',
+      options.mimeType ?? 'image/jpeg',
+    ),
   });
   return {
     status: response.status,
@@ -92,6 +115,11 @@ async function deletePhoto(storageKey: string, key: string) {
   };
 }
 
+async function listStorageDeleteJobs() {
+  return db.select().from(s.durableEffectJobs)
+    .where(eq(s.durableEffectJobs.kind, DURABLE_EFFECT_KIND.STORAGE_DELETE));
+}
+
 before(async () => {
   const [actor] = await db.insert(s.users).values({
     username: `q23-upload-${suffix}`,
@@ -138,6 +166,7 @@ before(async () => {
     };
     next();
   });
+  app.use(auditLogMiddleware);
   app.use('/api/upload', uploadRouter);
   app.use('/api/ocr', ocrRoutes);
   app.use(globalErrorHandler);
@@ -156,7 +185,22 @@ after(async () => {
     await db.delete(s.idempotencyKeys)
       .where(inArray(s.idempotencyKeys.idempotencyKey, [...new Set(idempotencyKeys)]));
   }
+  await db.delete(s.auditLogs).where(eq(s.auditLogs.userId, actorId));
   await db.delete(s.tripPhotos).where(eq(s.tripPhotos.tripId, tripId));
+  const scopedDurableJobs = (await db.select({
+    id: s.durableEffectJobs.id,
+    dedupeKey: s.durableEffectJobs.dedupeKey,
+    payload: s.durableEffectJobs.payload,
+  }).from(s.durableEffectJobs)).filter((row) => {
+    const storageKey = typeof (row.payload as Record<string, unknown>).storageKey === 'string'
+      ? String((row.payload as Record<string, unknown>).storageKey)
+      : null;
+    return row.dedupeKey.includes(suffix) || (storageKey !== null && storageKeys.includes(storageKey));
+  });
+  if (scopedDurableJobs.length > 0) {
+    await db.delete(s.durableEffectJobs)
+      .where(inArray(s.durableEffectJobs.id, scopedDurableJobs.map((row) => row.id)));
+  }
   for (const key of storageKeys) {
     await storageService.delete(key).catch(() => undefined);
   }
@@ -165,6 +209,8 @@ after(async () => {
   await db.delete(s.routes).where(eq(s.routes.id, routeId));
   await db.delete(s.customers).where(eq(s.customers.id, customerId));
   await db.delete(s.users).where(eq(s.users.id, actorId));
+  storageService.delete = originalStorageDelete;
+  setTripPhotoAfterUploadHookForTest(null);
   await disconnectRedis();
   await client.end();
 });
@@ -191,6 +237,18 @@ describe('Q23 operational evidence replay', () => {
       .from(s.tripPhotos)
       .where(eq(s.tripPhotos.storageKey, storageKey));
     assert.equal(rows.length, 1);
+    const [idempotencyRow] = await db.select().from(s.idempotencyKeys)
+      .where(eq(s.idempotencyKeys.idempotencyKey, key));
+    assert.equal(idempotencyRow.responseStatusCode, 201);
+    const auditRows = await db.select().from(s.auditLogs)
+      .where(eq(s.auditLogs.userId, actorId));
+    const durableAudit = auditRows.find((row) => {
+      const payload = row.payload as Record<string, unknown>;
+      return payload.materialWriteEndpoint === IDEMPOTENCY_ENDPOINTS.UPLOAD_TRIP_PHOTO
+        && payload.statusCode === 201
+        && payload.outcome === 'SUCCEEDED';
+    });
+    assert.ok(durableAudit);
 
     const changedBuffer = await sharp({
       create: { width: 8, height: 8, channels: 3, background: { r: 200, g: 10, b: 10 } },
@@ -207,6 +265,18 @@ describe('Q23 operational evidence replay', () => {
     assert.deepEqual(replay, first);
     const storageKey = String(first.body.storageKey);
     storageKeys.push(storageKey);
+    const [idempotencyRow] = await db.select().from(s.idempotencyKeys)
+      .where(eq(s.idempotencyKeys.idempotencyKey, key));
+    assert.equal(idempotencyRow.responseStatusCode, 201);
+    const auditRows = await db.select().from(s.auditLogs)
+      .where(eq(s.auditLogs.userId, actorId));
+    const durableAudit = auditRows.find((row) => {
+      const payload = row.payload as Record<string, unknown>;
+      return payload.materialWriteEndpoint === IDEMPOTENCY_ENDPOINTS.UPLOAD_COMPANY_LOGO
+        && payload.statusCode === 201
+        && payload.outcome === 'SUCCEEDED';
+    });
+    assert.ok(durableAudit);
 
     const changedBuffer = await sharp({
       create: { width: 8, height: 8, channels: 3, background: { r: 11, g: 190, b: 45 } },
@@ -230,7 +300,98 @@ describe('Q23 operational evidence replay', () => {
     assert.equal(rows.length, 1);
   });
 
-  it('replays photo deletion without a second storage or row mutation', async () => {
+  it('keeps separate orphan guards when the same request key leaks a .png and then a .jpg before cleanup runs', async () => {
+    const key = `q23-upload-leak-png-jpg-${suffix}`;
+    const pngBuffer = await sharp({
+      create: { width: 8, height: 8, channels: 3, background: { r: 14, g: 140, b: 220 } },
+    }).png().toBuffer();
+
+    setTripPhotoAfterUploadHookForTest(() => {
+      throw new Error('simulated trip-photo crash after upload');
+    });
+    try {
+      const first = await uploadPhoto(key, pngBuffer, { filename: 'photo.png', mimeType: 'image/png' });
+      const second = await uploadPhoto(key, imageBuffer, { filename: 'photo.jpg', mimeType: 'image/jpeg' });
+      assert.equal(first.status, 500, JSON.stringify(first.body));
+      assert.equal(second.status, 500, JSON.stringify(second.body));
+    } finally {
+      setTripPhotoAfterUploadHookForTest(null);
+    }
+
+    const leakedJobs = (await listStorageDeleteJobs()).filter((row) => row.dedupeKey.includes(key));
+    assert.equal(leakedJobs.length, 2);
+
+    const leakedStorageKeys = leakedJobs.map((row) => String((row.payload as Record<string, unknown>).storageKey));
+    storageKeys.push(...leakedStorageKeys);
+    assert.equal(new Set(leakedStorageKeys).size, 2);
+    assert.ok(leakedStorageKeys.some((value) => value.endsWith('.png')));
+    assert.ok(leakedStorageKeys.some((value) => value.endsWith('.jpg')));
+    for (const row of leakedJobs) {
+      assert.equal(row.status, DURABLE_EFFECT_STATUS.RETRY);
+      assert.equal((row.payload as Record<string, unknown>).mode, STORAGE_DELETE_MODE.ORPHAN_GUARD);
+    }
+    for (const storageKey of leakedStorageKeys) {
+      assert.equal(await storageService.exists(storageKey), true);
+    }
+
+    const processed = await processDueDurableEffectJobs(10, {
+      now: () => new Date(Date.now() + 60_000),
+    });
+    for (const row of leakedJobs) {
+      const processedRow = processed.find((job) => job.id === row.id);
+      assert.equal(processedRow?.status, DURABLE_EFFECT_STATUS.SUCCEEDED);
+    }
+    for (const storageKey of leakedStorageKeys) {
+      assert.equal(await storageService.exists(storageKey), false);
+    }
+  });
+
+  it('retries the same trip-photo request after worker cleanup and converges on one committed row', async () => {
+    const key = `q23-upload-recover-after-worker-${suffix}`;
+    setTripPhotoAfterUploadHookForTest(() => {
+      throw new Error('simulated trip-photo crash after upload');
+    });
+    try {
+      const failed = await uploadPhoto(key);
+      assert.equal(failed.status, 500, JSON.stringify(failed.body));
+    } finally {
+      setTripPhotoAfterUploadHookForTest(null);
+    }
+
+    const [failedJob] = (await listStorageDeleteJobs()).filter((row) => row.dedupeKey.includes(key));
+    assert.ok(failedJob);
+    const failedStorageKey = String((failedJob.payload as Record<string, unknown>).storageKey);
+    storageKeys.push(failedStorageKey);
+    assert.equal(failedJob.status, DURABLE_EFFECT_STATUS.RETRY);
+    assert.equal(await storageService.exists(failedStorageKey), true);
+
+    const firstWorkerPass = await processDueDurableEffectJobs(10, {
+      now: () => new Date(Date.now() + 60_000),
+    });
+    const cleanedJob = firstWorkerPass.find((job) => job.id === failedJob.id);
+    assert.equal(cleanedJob?.status, DURABLE_EFFECT_STATUS.SUCCEEDED);
+    assert.equal(await storageService.exists(failedStorageKey), false);
+
+    const retry = await uploadPhoto(key);
+    const replay = await uploadPhoto(key);
+    assert.equal(retry.status, 201, JSON.stringify(retry.body));
+    assert.deepEqual(replay, retry);
+    assert.equal(String(retry.body.storageKey), failedStorageKey);
+
+    const rows = await db.select({ id: s.tripPhotos.id })
+      .from(s.tripPhotos)
+      .where(eq(s.tripPhotos.storageKey, failedStorageKey));
+    assert.equal(rows.length, 1);
+    const [idempotencyRow] = await db.select().from(s.idempotencyKeys)
+      .where(eq(s.idempotencyKeys.idempotencyKey, key));
+    assert.equal(idempotencyRow.responseStatusCode, 201);
+
+    const [reusedGuard] = await db.select().from(s.durableEffectJobs)
+      .where(eq(s.durableEffectJobs.id, failedJob.id));
+    assert.equal(reusedGuard?.status, DURABLE_EFFECT_STATUS.CANCELLED);
+  });
+
+  it('replays photo deletion and leaves final storage removal to the durable worker', async () => {
     const create = await uploadPhoto(`q23-upload-delete-seed-${suffix}`);
     assert.equal(create.status, 201, JSON.stringify(create.body));
     const storageKey = String(create.body.storageKey);
@@ -247,5 +408,20 @@ describe('Q23 operational evidence replay', () => {
       .from(s.tripPhotos)
       .where(eq(s.tripPhotos.storageKey, storageKey));
     assert.equal(rows.length, 0);
+
+    const [deleteJob] = (await listStorageDeleteJobs()).filter((row) => {
+      const payload = row.payload as Record<string, unknown>;
+      return payload.storageKey === storageKey && payload.mode === STORAGE_DELETE_MODE.FINAL_DELETE;
+    });
+    assert.ok(deleteJob);
+    assert.equal(deleteJob.status, DURABLE_EFFECT_STATUS.PENDING);
+    assert.equal(await storageService.exists(storageKey), true);
+
+    const processed = await processDueDurableEffectJobs(10, {
+      now: () => new Date(Date.now() + 60_000),
+    });
+    const processedDelete = processed.find((job) => job.id === deleteJob.id);
+    assert.equal(processedDelete?.status, DURABLE_EFFECT_STATUS.SUCCEEDED);
+    assert.equal(await storageService.exists(storageKey), false);
   });
 });

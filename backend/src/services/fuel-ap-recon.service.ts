@@ -18,7 +18,10 @@
  */
 import { db } from '../db';
 import * as s from '../db/schema';
-import { and, eq, gte, isNull, lte, or, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNull, lte, or, sql } from 'drizzle-orm';
+import { TripStatus } from '@tingting/shared';
+import { tripCompletionBusinessDateSql } from './reporting-shared';
+import { listFuelInvoices } from './fuel-invoice.service';
 
 export type ReconStatus = 'OK' | 'VARIANCE';
 
@@ -71,9 +74,20 @@ export interface FuelApReconInput {
  */
 export async function getFuelApReconciliation(input: FuelApReconInput): Promise<FuelApReconReport> {
   const thresholdPct = input.thresholdPct ?? 0.05;
+  const completionBusinessDate = tripCompletionBusinessDateSql();
+  const approvedSettlementAdjustedBuyAmount = sql<string | null>`(
+    SELECT se.adjusted_buy_amount::text
+    FROM ${s.settlementExpenses} se
+    INNER JOIN ${s.advanceSettlements} aset ON aset.id = se.settlement_id
+    WHERE se.trip_expense_id = ${s.tripExpenses.id}
+      AND aset.status = 'APPROVED'
+    ORDER BY coalesce(aset.approved_at, aset.updated_at) DESC, se.id DESC
+    LIMIT 1
+  )`;
 
   // ── Pass 1: expected fuel cost per (supplier, truck) ─────────────────
   // Trips that locked their fuel cost onto a supplier's VENDOR ledger.
+  // In-progress trips stay out of the official monthly fuel cohort.
   const expectedRows = await db.select({
     supplierId: s.trips.fuelSupplierId,
     truckId: s.trips.truckId,
@@ -85,8 +99,10 @@ export async function getFuelApReconciliation(input: FuelApReconInput): Promise<
     .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
     .where(and(
       sql`${s.trips.fuelSupplierId} IS NOT NULL`,
-      gte(s.trips.departureDate, input.from),
-      lte(s.trips.departureDate, input.to),
+      sql`${s.trips.completedAt} is not null`,
+      inArray(s.trips.status, [TripStatus.COMPLETED, TripStatus.LOCKED]),
+      gte(completionBusinessDate, input.from),
+      lte(completionBusinessDate, input.to),
       isNull(s.trips.deletedAt),
       input.supplierId ? eq(s.trips.fuelSupplierId, input.supplierId) : sql`TRUE`,
     ))
@@ -118,24 +134,30 @@ export async function getFuelApReconciliation(input: FuelApReconInput): Promise<
   // This is the accepted Q06 model: one invoice header, many truck lines,
   // each line backed by actual voucher/log litres and priced at the invoice
   // unit price. Only APPROVED headers contribute to invoiced totals.
-  const approvedInvoiceRows = await db.select({
-    supplierId: s.fuelInvoices.supplierId,
-    truckId: sql<number | null>`coalesce(${s.fuelInvoiceAllocations.truckId}, ${s.trips.truckId})`,
-    invoicedFuelCost: sql<string>`coalesce(sum(${s.fuelInvoiceAllocations.amount}), 0)`,
-  })
-    .from(s.fuelInvoiceAllocations)
-    .innerJoin(s.fuelInvoices, eq(s.fuelInvoiceAllocations.fuelInvoiceId, s.fuelInvoices.id))
-    .innerJoin(s.trips, eq(s.fuelInvoiceAllocations.tripId, s.trips.id))
-    .where(and(
-      eq(s.fuelInvoices.approvalStatus, 'APPROVED'),
-      gte(s.fuelInvoices.invoiceDate, input.from),
-      lte(s.fuelInvoices.invoiceDate, input.to),
-      input.supplierId ? eq(s.fuelInvoices.supplierId, input.supplierId) : sql`TRUE`,
-    ))
-    .groupBy(
-      s.fuelInvoices.supplierId,
-      sql`coalesce(${s.fuelInvoiceAllocations.truckId}, ${s.trips.truckId})`,
+  const effectiveApprovedInvoices = (await listFuelInvoices({ status: 'APPROVED' }))
+    .filter((invoice) =>
+      invoice.invoiceDate >= input.from
+      && invoice.invoiceDate <= input.to
+      && (input.supplierId == null || invoice.supplierId === input.supplierId),
     );
+  const approvedInvoiceBySupplierTruck = new Map<string, {
+    supplierId: number;
+    truckId: number | null;
+    invoicedFuelCost: number;
+  }>();
+  for (const invoice of effectiveApprovedInvoices) {
+    for (const allocation of invoice.allocations) {
+      const truckId = allocation.truckId ?? null;
+      const key = `${invoice.supplierId}:${truckId ?? 'none'}`;
+      const current = approvedInvoiceBySupplierTruck.get(key);
+      approvedInvoiceBySupplierTruck.set(key, {
+        supplierId: invoice.supplierId,
+        truckId,
+        invoicedFuelCost: (current?.invoicedFuelCost ?? 0) + Number(allocation.amount),
+      });
+    }
+  }
+  const approvedInvoiceRows = [...approvedInvoiceBySupplierTruck.values()];
 
   // ── Pass 2b: legacy one-trip fuel expenses not yet linked to an invoice ──
   // Keep the existing single-trip rows in the report until they are backfilled
@@ -144,7 +166,7 @@ export async function getFuelApReconciliation(input: FuelApReconInput): Promise<
   const legacyExpenseRows = await db.select({
     supplierId: s.tripExpenses.supplierId,
     truckId: s.trips.truckId,
-    invoicedFuelCost: sql<string>`coalesce(sum(${s.tripExpenses.buyAmount}), 0)`,
+    invoicedFuelCost: sql<string>`coalesce(sum(coalesce(${approvedSettlementAdjustedBuyAmount}::numeric, ${s.tripExpenses.buyAmount})), 0)`,
   })
     .from(s.tripExpenses)
     .innerJoin(s.trips, eq(s.tripExpenses.tripId, s.trips.id))
@@ -153,6 +175,7 @@ export async function getFuelApReconciliation(input: FuelApReconInput): Promise<
       sql`${s.tripExpenses.supplierId} IS NOT NULL`,
       sql`${s.fuelInvoiceAllocations.id} IS NULL`,
       sql`lower(${s.tripExpenses.expenseType}) LIKE '%fuel%'`,
+      eq(s.tripExpenses.approvalStatus, 'APPROVED'),
       or(
         and(
           sql`${s.tripExpenses.invoiceDate} IS NOT NULL`,

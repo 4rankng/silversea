@@ -4,6 +4,7 @@ import type { Request, Response } from 'express';
 import { z } from 'zod';
 import {
   Role,
+  TripStatus,
   NotificationType,
   createPaymentSchema,
   createAdjustmentSchema,
@@ -49,6 +50,11 @@ import { AuditEvent } from '../../services/audit-types';
 import { IDEMPOTENCY_ENDPOINTS, resolveIdempotencyKey, runIdempotent } from '../../services/idempotency.service';
 import { ApiError } from '../../errors';
 import { parseActionId } from './governance-action-input';
+import { processTripGpsCaptureJobForAction } from '../../services/trip-gps-capture-job.service';
+import {
+  PROFIT_DISTRIBUTION_TRANSACTION_OPTIONS,
+  runProfitDistributionWithSerializationRetry,
+} from '../../services/profit-distribution.service';
 
 const PAYABLES_CATEGORIES = new Set<string>(['fuel', 'ancillary', 'commission', 'carrier']);
 
@@ -217,7 +223,7 @@ router.post(
     const actionId = parseActionId(req.params.id);
     const idempotencyKey = getRequestIdempotencyKey(req);
     const actionKind = await loadGovernanceActionKind(actionId);
-    const { result, replayed } = await runIdempotent({
+    const executeApproval = () => runIdempotent({
       endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_APPROVE,
       idempotencyKey,
       payload: {
@@ -228,6 +234,9 @@ router.post(
       },
       createdBy: actor.userId,
       entityType: 'governance_action',
+      transactionOptions: actionKind === 'PROFIT_DISTRIBUTION'
+        ? PROFIT_DISTRIBUTION_TRANSACTION_OPTIONS
+        : undefined,
       create: (tx) => (
         isDirectMoneyGovernanceActionKind(actionKind)
           ? approveDirectMoneyGovernanceAction({
@@ -246,6 +255,9 @@ router.post(
           })
       ),
     });
+    const { result, replayed } = actionKind === 'PROFIT_DISTRIBUTION'
+      ? await runProfitDistributionWithSerializationRetry(executeApproval)
+      : await executeApproval();
 
     if (!replayed) {
       if (result.actionKind === 'PENALTY_CREATE' || result.actionKind === 'PENALTY_CANCEL') {
@@ -263,6 +275,35 @@ router.post(
         relatedEntityType: 'trips',
         relatedEntityId: result.subjectId ?? undefined,
       });
+    }
+
+    if (result.actionKind === 'TRIP_FINANCIAL_CLOSE' && result.subjectId != null) {
+      await processTripGpsCaptureJobForAction(result.id);
+    }
+
+    if (result.actionKind === 'TRIP_FINANCIAL_CLOSE') {
+      res.locals.auditEvent = AuditEvent.TRIP_COMPLETED;
+    } else if (
+      result.actionKind === 'TRIP_FINANCIAL_CHANGE'
+      && result.applicationResult?.status === TripStatus.CANCELED
+    ) {
+      res.locals.auditEvent = AuditEvent.TRIP_CANCELED;
+    } else if (result.actionKind === 'TRIP_FINANCIAL_CHANGE') {
+      res.locals.auditEvent = AuditEvent.TRIP_UPDATED_ACTUALS;
+    } else if (!replayed && result.actionKind === 'PROFIT_DISTRIBUTION') {
+      res.locals.auditEvent = AuditEvent.PROFIT_DISTRIBUTED;
+      const quarter = result.applicationResult?.quarter;
+      const year = result.applicationResult?.year;
+      if (typeof quarter === 'number' && typeof year === 'number') {
+        res.locals.auditEntityKey = `Quý ${quarter}/${year}`;
+      }
+    }
+    if (
+      result.actionKind === 'TRIP_FINANCIAL_CLOSE'
+      || result.actionKind === 'TRIP_FINANCIAL_CHANGE'
+    ) {
+      res.locals.auditEntityId = result.subjectId;
+      res.locals.auditEntityKey = result.subjectKey;
     }
 
     if (!replayed && result.actionKind === 'PAYMENT_RECEIPT') {

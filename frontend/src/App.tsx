@@ -1,5 +1,5 @@
 import React, { lazy, Suspense, type ReactElement } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { SearchProvider } from './context/SearchContext';
 import { MonthProvider } from './hooks/useMonth';
@@ -106,13 +106,17 @@ function PageLoader() {
 
 export function AppRoutes() {
   const { isAuthenticated, user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) return <PageLoader />;
 
   if (!isAuthenticated) return (
-    <Suspense fallback={<PageLoader />}>
-      <LoginPage />
-    </Suspense>
+    <>
+      {location.pathname !== '/login' && <Navigate to="/login" replace />}
+      <Suspense fallback={<PageLoader />}>
+        <LoginPage />
+      </Suspense>
+    </>
   );
 
   const isDriver = user?.role === Role.DRIVER;

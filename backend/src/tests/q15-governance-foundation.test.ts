@@ -5,6 +5,7 @@ import { after, before, describe, it } from 'node:test';
 import express from 'express';
 import { eq, inArray } from 'drizzle-orm';
 import {
+  GOVERNANCE_ACTION_KINDS,
   governanceActionDecisionSchema,
   governanceActionListQuerySchema,
   governanceActionVersionSchema,
@@ -17,6 +18,7 @@ import { globalErrorHandler } from '../middleware/errorHandler';
 import governanceActionsRoutes from '../routes/financial/governance-actions.routes';
 import paymentsRoutes from '../routes/financial/payments.routes';
 import {
+  getGovernancePolicy,
   getGovernanceAllowedActions,
 } from '../services/governance-policy';
 import {
@@ -202,6 +204,17 @@ describe('Q15 shared governance foundation', () => {
     assert.equal(governanceActionListQuerySchema.safeParse({
       subjectKey: ' '.repeat(3),
     }).success, false);
+  });
+
+  it('keeps the shared action-kind enum and common policy catalog in sync', () => {
+    assert.equal(
+      governanceActionListQuerySchema.parse({ actionKind: 'SALARY_PERIOD_ADJUSTMENT' }).actionKind,
+      'SALARY_PERIOD_ADJUSTMENT',
+    );
+    for (const actionKind of GOVERNANCE_ACTION_KINDS) {
+      const policy = getGovernancePolicy(actionKind);
+      assert.equal(policy.actionKind, actionKind);
+    }
   });
 
   it('enforces pairwise actors, capabilities, role snapshots and allowed actions', async () => {

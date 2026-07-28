@@ -12,6 +12,8 @@ import {
   type PaymentDatePolicy,
 } from './business-calendar.service';
 import { propagateExpenseApprovals } from './source-change.service';
+import { assertCanMakeGovernanceAction } from './governance-policy';
+import type { GovernanceApplyResult, GovernanceActionRow } from './governance-transition.service';
 type DbLike = typeof db | Tx;
 
 function assertExpectedVersion(actual: number, expected: number, label: string): void {
@@ -202,7 +204,7 @@ export async function listAdvanceRequests(filters?: {
     const claimedRequestIds = db.select({ id: s.advanceSettlementRequests.advanceRequestId })
       .from(s.advanceSettlementRequests)
       .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.advanceSettlementRequests.settlementId))
-      .where(notInArray(s.advanceSettlements.status, ['REJECTED']));
+      .where(notInArray(s.advanceSettlements.status, ['REJECTED', 'REVERSED']));
     conditions.push(notInArray(s.advanceRequests.id, claimedRequestIds));
   }
   const where = conditions.length > 0 ? and(...conditions) : undefined;
@@ -239,6 +241,110 @@ export async function getAdvanceRequest(id: number) {
   if (!row) return null;
   const [enriched] = await enrichWithNames([row]);
   return enriched;
+}
+
+export async function requestAdvanceRequestApprovalGovernance(input: {
+  advanceRequestId: number;
+  expectedVersion: number;
+  reason: string;
+  makerId: number;
+  makerRole: string;
+  transaction?: Tx;
+}): Promise<GovernanceActionRow> {
+  assertCanMakeGovernanceAction('ADVANCE_REQUEST_APPROVAL', input.makerRole);
+  const reason = input.reason.trim();
+  if (!reason) {
+    throw new AdvanceError(400, 'Lý do là bắt buộc');
+  }
+
+  const execute = async (tx: Tx) => {
+    const [request] = await tx.select()
+      .from(s.advanceRequests)
+      .where(eq(s.advanceRequests.id, input.advanceRequestId))
+      .limit(1)
+      .for('update');
+    if (!request) throw new AdvanceError(404, 'Advance request not found');
+    assertExpectedVersion(request.version, input.expectedVersion, 'Yêu cầu tạm ứng');
+    if (request.status !== 'PENDING') {
+      throw new AdvanceError(409, `Cannot submit approval for request with status ${request.status}`);
+    }
+
+    const [action] = await tx.insert(s.governanceActions).values({
+      subjectType: 'ADVANCE_REQUEST',
+      subjectId: request.id,
+      subjectKey: `advance-request:${request.id}:approve`,
+      actionKind: 'ADVANCE_REQUEST_APPROVAL',
+      reason,
+      originalVersion: request.version,
+      beforeSnapshot: {
+        requesterId: request.requesterId,
+        amount: request.amount,
+        reason: request.reason,
+        status: request.status,
+        version: request.version,
+      },
+      afterSnapshot: {
+        status: 'APPROVED',
+      },
+      deltaSnapshot: {
+        amount: request.amount,
+      },
+      makerId: input.makerId,
+      makerRole: input.makerRole,
+    }).returning();
+    return action;
+  };
+
+  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+}
+
+export async function requestAdvanceRequestRejectionGovernance(input: {
+  advanceRequestId: number;
+  expectedVersion: number;
+  reason: string;
+  makerId: number;
+  makerRole: string;
+  transaction?: Tx;
+}): Promise<GovernanceActionRow> {
+  assertCanMakeGovernanceAction('ADVANCE_REQUEST_REJECTION', input.makerRole);
+  const reason = input.reason.trim();
+  if (!reason) throw new AdvanceError(400, 'Lý do từ chối là bắt buộc');
+
+  const execute = async (tx: Tx) => {
+    const [request] = await tx.select()
+      .from(s.advanceRequests)
+      .where(eq(s.advanceRequests.id, input.advanceRequestId))
+      .limit(1)
+      .for('update');
+    if (!request) throw new AdvanceError(404, 'Advance request not found');
+    assertExpectedVersion(request.version, input.expectedVersion, 'Yêu cầu tạm ứng');
+    if (request.status !== 'PENDING') {
+      throw new AdvanceError(409, `Cannot submit rejection for request with status ${request.status}`);
+    }
+
+    const [action] = await tx.insert(s.governanceActions).values({
+      subjectType: 'ADVANCE_REQUEST',
+      subjectId: request.id,
+      subjectKey: `advance-request:${request.id}:reject`,
+      actionKind: 'ADVANCE_REQUEST_REJECTION',
+      reason,
+      originalVersion: request.version,
+      beforeSnapshot: {
+        requesterId: request.requesterId,
+        amount: request.amount,
+        reason: request.reason,
+        status: request.status,
+        version: request.version,
+      },
+      afterSnapshot: { status: 'REJECTED' },
+      deltaSnapshot: { amount: request.amount },
+      makerId: input.makerId,
+      makerRole: input.makerRole,
+    }).returning();
+    return action;
+  };
+
+  return input.transaction ? execute(input.transaction) : db.transaction(execute);
 }
 
 export async function approveAdvanceRequest(
@@ -351,6 +457,30 @@ export async function rejectAdvanceRequest(
   return db.transaction(execute);
 }
 
+export async function applyAdvanceRequestGovernanceAction(
+  tx: Tx,
+  action: GovernanceActionRow,
+): Promise<GovernanceApplyResult> {
+  if (!['ADVANCE_REQUEST_APPROVAL', 'ADVANCE_REQUEST_REJECTION'].includes(action.actionKind)
+    || action.subjectType !== 'ADVANCE_REQUEST'
+    || action.subjectId == null) {
+    throw new AdvanceError(409, 'Loại yêu cầu không thuộc quyết định tạm ứng');
+  }
+
+  const decided = action.actionKind === 'ADVANCE_REQUEST_REJECTION'
+    ? await rejectAdvanceRequest(action.subjectId, action.approverId!, action.originalVersion, tx)
+    : await approveAdvanceRequest(action.subjectId, action.approverId!, action.originalVersion, tx);
+
+  return {
+    applicationResult: {
+      subjectType: 'ADVANCE_REQUEST',
+      subjectId: decided.id,
+      status: decided.status,
+      resultingVersion: decided.version,
+    },
+  };
+}
+
 export async function createAdvanceSettlement(
   forwarderId: number,
   data: { totalExpenseAmount?: number; refundAmount?: number; note?: string; advanceRequestIds: number[]; tripExpenseIds?: number[] },
@@ -438,7 +568,7 @@ export async function createAdvanceSettlement(
 export async function listAdvanceSettlements(filters?: { forwarderId?: number; status?: string }) {
   const conditions = [];
   if (filters?.forwarderId) conditions.push(eq(s.advanceSettlements.forwarderId, filters.forwarderId));
-  if (filters?.status) conditions.push(eq(s.advanceSettlements.status, filters.status as ('PENDING' | 'CHECKED_BY_ACCOUNTANT' | 'APPROVED' | 'REJECTED')));
+  if (filters?.status) conditions.push(eq(s.advanceSettlements.status, filters.status as ('PENDING' | 'CHECKED_BY_ACCOUNTANT' | 'APPROVED' | 'REJECTED' | 'REVERSED')));
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
   const rows = await db.select()
@@ -545,11 +675,11 @@ export async function getAdvanceSettlement(id: number, executor: DbLike = db) {
     executor.select({ id: s.advanceSettlementRequests.advanceRequestId })
       .from(s.advanceSettlementRequests)
       .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.advanceSettlementRequests.settlementId))
-      .where(and(ne(s.advanceSettlements.id, id), notInArray(s.advanceSettlements.status, ['REJECTED']))),
+      .where(and(ne(s.advanceSettlements.id, id), notInArray(s.advanceSettlements.status, ['REJECTED', 'REVERSED']))),
     executor.select({ id: s.settlementExpenses.tripExpenseId })
       .from(s.settlementExpenses)
       .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.settlementExpenses.settlementId))
-      .where(and(ne(s.advanceSettlements.id, id), notInArray(s.advanceSettlements.status, ['REJECTED']))),
+      .where(and(ne(s.advanceSettlements.id, id), notInArray(s.advanceSettlements.status, ['REJECTED', 'REVERSED']))),
     executor.select().from(s.advanceRequests).where(and(
       eq(s.advanceRequests.requesterId, row.forwarderId),
       eq(s.advanceRequests.status, 'APPROVED'),
@@ -1069,7 +1199,7 @@ export async function adjustSettlementExpense(
     note?: string | null;
     adjustmentReason: string;
   },
-  options: { transaction?: Tx; emitNotification?: boolean } = {},
+  options: { transaction?: Tx; emitNotification?: boolean; actorRole?: string } = {},
 ) {
   const reason = patch.adjustmentReason.trim();
   if (!reason) {
@@ -1081,8 +1211,9 @@ export async function adjustSettlementExpense(
     if (!settlement) throw new AdvanceError(404, 'Không tìm thấy phiếu hoàn ứng');
     const version = patch.expectedVersion ?? settlement.version;
     assertExpectedVersion(settlement.version, version, 'Phiếu hoàn ứng');
-    if (settlement.status !== 'PENDING' && settlement.status !== 'CHECKED_BY_ACCOUNTANT') {
-      throw new AdvanceError(409, 'Chỉ được sửa phiếu đang chờ kế toán');
+    const isApprovedCorrection = settlement.status === 'APPROVED';
+    if (!isApprovedCorrection && settlement.status !== 'PENDING' && settlement.status !== 'CHECKED_BY_ACCOUNTANT') {
+      throw new AdvanceError(409, 'Chỉ được sửa phiếu đang chờ kế toán hoặc tạo điều chỉnh cho phiếu đã duyệt');
     }
     await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
     const [linked] = await tx.select({
@@ -1110,7 +1241,7 @@ export async function adjustSettlementExpense(
 
     const [trip] = await tx.select({ status: s.trips.status }).from(s.trips)
       .where(eq(s.trips.id, linked.tripId)).limit(1);
-    if (trip?.status === 'LOCKED' || trip?.status === 'CANCELED') {
+    if (!isApprovedCorrection && (trip?.status === 'LOCKED' || trip?.status === 'CANCELED')) {
       throw new AdvanceError(409, 'Không thể sửa chi phí của chuyến đã khóa hoặc đã hủy');
     }
 
@@ -1166,6 +1297,65 @@ export async function adjustSettlementExpense(
         }
         values.containerNumber = container.number;
       }
+    }
+    if (isApprovedCorrection) {
+      if (!options.actorRole) {
+        throw new AdvanceError(403, 'Thiếu vai trò người tạo điều chỉnh');
+      }
+      assertCanMakeGovernanceAction('ADVANCE_SETTLEMENT_CORRECTION', options.actorRole);
+      const oldBuyAmount = Number(currentSnapshot.buyAmount ?? 0);
+      const newBuyAmount = Number(values.buyAmount ?? oldBuyAmount);
+      const correctedRefundAmount = round2dp(
+        Number(settlement.refundAmount) - (newBuyAmount - oldBuyAmount),
+      );
+      if (correctedRefundAmount < 0) {
+        throw new AdvanceError(
+          400,
+          'Điều chỉnh làm số hoàn lại âm; cần hoàn tác phiếu và lập phiếu mới',
+        );
+      }
+      const [action] = await tx.insert(s.governanceActions).values({
+        subjectType: 'ADVANCE_SETTLEMENT',
+        subjectId: settlement.id,
+        subjectKey: `advance-settlement:${settlement.id}:expense:${expenseId}`,
+        actionKind: 'ADVANCE_SETTLEMENT_CORRECTION',
+        reason,
+        originalVersion: settlement.version,
+        beforeSnapshot: {
+          settlementStatus: settlement.status,
+          settlementVersion: settlement.version,
+          settlementExpenseId: linked.linkId,
+          tripExpenseId: linked.expenseId,
+          totalExpenseAmount: settlement.totalExpenseAmount,
+          expense: currentSnapshot,
+        },
+        afterSnapshot: {
+          expense: values,
+          refundAmount: String(correctedRefundAmount),
+        },
+        deltaSnapshot: {
+          oldBuyAmount: String(oldBuyAmount),
+          newBuyAmount: String(newBuyAmount),
+          oldRefundAmount: settlement.refundAmount,
+          newRefundAmount: String(correctedRefundAmount),
+          oldSellAmount: String(currentSnapshot.sellAmount ?? 0),
+          newSellAmount: String(values.sellAmount ?? 0),
+        },
+        makerId: actorId,
+        makerRole: options.actorRole,
+      }).returning();
+      return {
+        item: {
+          id: linked.expenseId,
+          tripId: linked.tripId,
+          ...currentSnapshot,
+        },
+        governanceAction: action,
+        totalExpenseAmount: settlement.totalExpenseAmount,
+        settlementCode: settlement.code,
+        forwarderId: settlement.forwarderId,
+        adjustmentReason: reason,
+      };
     }
     const now = new Date();
     const [latestAdjustment] = await tx.select({
@@ -1236,7 +1426,298 @@ export async function adjustSettlementExpense(
       targetRoles: [],
     });
   }
-  return { item: result.item, totalExpenseAmount: result.totalExpenseAmount };
+  return {
+    item: result.item,
+    totalExpenseAmount: result.totalExpenseAmount,
+    governanceAction: 'governanceAction' in result ? result.governanceAction : null,
+  };
+}
+
+export async function requestAdvanceSettlementReversal(input: {
+  settlementId: number;
+  expectedVersion: number;
+  reason: string;
+  makerId: number;
+  makerRole: string;
+  transaction?: Tx;
+}): Promise<GovernanceActionRow> {
+  assertCanMakeGovernanceAction('ADVANCE_SETTLEMENT_REVERSAL', input.makerRole);
+  const reason = input.reason.trim();
+  if (!reason) throw new AdvanceError(400, 'Lý do hoàn tác là bắt buộc');
+
+  const execute = async (tx: Tx) => {
+    const [settlement] = await tx.select().from(s.advanceSettlements)
+      .where(eq(s.advanceSettlements.id, input.settlementId))
+      .limit(1)
+      .for('update');
+    if (!settlement) throw new AdvanceError(404, 'Không tìm thấy phiếu hoàn ứng');
+    assertExpectedVersion(settlement.version, input.expectedVersion, 'Phiếu hoàn ứng');
+    if (settlement.status !== 'APPROVED') {
+      throw new AdvanceError(409, 'Chỉ phiếu đã duyệt mới được hoàn tác');
+    }
+    const [action] = await tx.insert(s.governanceActions).values({
+      subjectType: 'ADVANCE_SETTLEMENT',
+      subjectId: settlement.id,
+      subjectKey: `advance-settlement:${settlement.id}:reverse`,
+      actionKind: 'ADVANCE_SETTLEMENT_REVERSAL',
+      reason,
+      originalVersion: settlement.version,
+      beforeSnapshot: {
+        status: settlement.status,
+        version: settlement.version,
+        totalExpenseAmount: settlement.totalExpenseAmount,
+        refundAmount: settlement.refundAmount,
+      },
+      afterSnapshot: { status: 'REVERSED' },
+      deltaSnapshot: {
+        reversalAmount: String(
+          round2dp(Number(settlement.totalExpenseAmount) + Number(settlement.refundAmount)),
+        ),
+      },
+      makerId: input.makerId,
+      makerRole: input.makerRole,
+    }).returning();
+    return action;
+  };
+
+  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+}
+
+async function applyApprovedSettlementCorrection(
+  tx: Tx,
+  action: GovernanceActionRow,
+): Promise<GovernanceApplyResult> {
+  const before = action.beforeSnapshot as Record<string, unknown>;
+  const after = action.afterSnapshot as Record<string, unknown>;
+  const expense = after.expense as Record<string, unknown> | undefined;
+  const settlementExpenseId = Number(before.settlementExpenseId);
+  const tripExpenseId = Number(before.tripExpenseId);
+  if (!expense || !Number.isInteger(settlementExpenseId) || !Number.isInteger(tripExpenseId)) {
+    throw new AdvanceError(409, 'Dữ liệu điều chỉnh phiếu hoàn ứng không hợp lệ');
+  }
+
+  const [settlement] = await tx.select().from(s.advanceSettlements)
+    .where(eq(s.advanceSettlements.id, action.subjectId!))
+    .limit(1)
+    .for('update');
+  if (!settlement) throw new AdvanceError(404, 'Không tìm thấy phiếu hoàn ứng');
+  assertExpectedVersion(settlement.version, action.originalVersion, 'Phiếu hoàn ứng');
+  if (settlement.status !== 'APPROVED') {
+    throw new AdvanceError(409, 'Phiếu hoàn ứng không còn ở trạng thái đã duyệt');
+  }
+
+  const [linked] = await tx.select({
+    id: s.settlementExpenses.id,
+    adjustedBuyAmount: s.settlementExpenses.adjustedBuyAmount,
+    adjustedSnapshot: s.settlementExpenses.adjustedSnapshot,
+    tripId: s.tripExpenses.tripId,
+    sellAmount: s.tripExpenses.sellAmount,
+    expenseDate: s.tripExpenses.expenseDate,
+    customerId: s.trips.customerId,
+    tripCode: s.trips.tripCode,
+    tripStatus: s.trips.status,
+  }).from(s.settlementExpenses)
+    .innerJoin(s.tripExpenses, eq(s.tripExpenses.id, s.settlementExpenses.tripExpenseId))
+    .innerJoin(s.trips, eq(s.trips.id, s.tripExpenses.tripId))
+    .where(and(
+      eq(s.settlementExpenses.id, settlementExpenseId),
+      eq(s.settlementExpenses.settlementId, settlement.id),
+      eq(s.settlementExpenses.tripExpenseId, tripExpenseId),
+    ))
+    .limit(1);
+  if (!linked) throw new AdvanceError(404, 'Khoản chi không thuộc phiếu hoàn ứng này');
+
+  const oldBuyAmount = Number(linked.adjustedBuyAmount);
+  const newBuyAmount = Number(expense.buyAmount ?? oldBuyAmount);
+  const oldSnapshot = linked.adjustedSnapshot as Record<string, unknown>;
+  const oldSellAmount = Number(oldSnapshot.sellAmount ?? linked.sellAmount);
+  const newSellAmount = Number(expense.sellAmount ?? oldSellAmount);
+  const newRefundAmount = Number(after.refundAmount);
+  if (![newBuyAmount, newSellAmount, newRefundAmount].every(Number.isFinite) || newRefundAmount < 0) {
+    throw new AdvanceError(400, 'Số tiền điều chỉnh không hợp lệ');
+  }
+  const buyDelta = round2dp(newBuyAmount - oldBuyAmount);
+  const now = action.approvedAt ?? new Date();
+  const [latestAdjustment] = await tx.select({
+    sequence: s.settlementExpenseAdjustments.sequence,
+  }).from(s.settlementExpenseAdjustments)
+    .where(eq(s.settlementExpenseAdjustments.settlementExpenseId, linked.id))
+    .orderBy(desc(s.settlementExpenseAdjustments.sequence))
+    .limit(1);
+  const nextSequence = (latestAdjustment?.sequence ?? 0) + 1;
+  await tx.insert(s.settlementExpenseAdjustments).values({
+    settlementId: settlement.id,
+    settlementExpenseId: linked.id,
+    tripExpenseId,
+    sequence: nextSequence,
+    sourceVersion: nextSequence,
+    beforeSnapshot: oldSnapshot,
+    afterSnapshot: expense,
+    reason: action.reason,
+    adjustedBy: action.makerId,
+    adjustedAt: action.createdAt,
+    approvedBy: action.approverId,
+    approvedAt: now,
+  });
+  await tx.update(s.settlementExpenses).set({
+    adjustmentReason: action.reason,
+    adjustedBuyAmount: String(newBuyAmount),
+    adjustedSnapshot: expense,
+    adjustedBy: action.makerId,
+    adjustedAt: action.createdAt,
+  }).where(eq(s.settlementExpenses.id, linked.id));
+
+  const newTotalExpenseAmount = round2dp(Number(settlement.totalExpenseAmount) + buyDelta);
+  const [updated] = await tx.update(s.advanceSettlements).set({
+    totalExpenseAmount: String(newTotalExpenseAmount),
+    refundAmount: String(newRefundAmount),
+    updatedAt: now,
+    version: sql`${s.advanceSettlements.version} + 1`,
+  }).where(and(
+    eq(s.advanceSettlements.id, settlement.id),
+    eq(s.advanceSettlements.status, 'APPROVED'),
+    eq(s.advanceSettlements.version, action.originalVersion),
+  )).returning({ id: s.advanceSettlements.id, version: s.advanceSettlements.version });
+  if (!updated) throw new AdvanceError(409, 'Phiếu hoàn ứng đã được tác vụ khác cập nhật');
+
+  const originalBalancedTotal = round2dp(
+    Number(settlement.totalExpenseAmount) + Number(settlement.refundAmount),
+  );
+  const correctedBalancedTotal = round2dp(newTotalExpenseAmount + newRefundAmount);
+  if (correctedBalancedTotal !== originalBalancedTotal) {
+    throw new AdvanceError(409, 'Điều chỉnh làm phiếu hoàn ứng mất cân đối');
+  }
+
+  if (
+    newSellAmount !== oldSellAmount
+    && (linked.tripStatus === 'COMPLETED' || linked.tripStatus === 'LOCKED')
+  ) {
+    const existingRows = await tx.select({
+      id: s.ledger.id,
+      debit: s.ledger.debit,
+      credit: s.ledger.credit,
+      originalDueDate: s.ledger.originalDueDate,
+      processingDueDate: s.ledger.processingDueDate,
+      paymentTermDaysApplied: s.ledger.paymentTermDaysApplied,
+      paymentDatePolicyApplied: s.ledger.paymentDatePolicyApplied,
+    }).from(s.ledger)
+      .where(and(
+        eq(s.ledger.entityType, 'CUSTOMER'),
+        eq(s.ledger.entityId, linked.customerId),
+        eq(s.ledger.txnId, tripExpenseId),
+        inArray(s.ledger.txnType, [TxnType.SERVICE_FEE, TxnType.ADJUSTMENT]),
+      ));
+    const posted = existingRows.reduce(
+      (sum, row) => sum + Number(row.debit) - Number(row.credit),
+      0,
+    );
+    const sellDelta = round2dp(newSellAmount - posted);
+    if (sellDelta !== 0) {
+      const existingAuthority = [...existingRows]
+        .sort((left, right) => right.id - left.id)
+        .find((row) => row.originalDueDate && row.processingDueDate);
+      const resolvedAuthority = existingAuthority
+        ? null
+        : await resolveCustomerPaymentDueDate(
+            tx,
+            linked.customerId,
+            String(linked.expenseDate).slice(0, 10),
+          );
+      await LedgerService.postEntry(tx, {
+        txnType: existingRows.length === 0 ? TxnType.SERVICE_FEE : TxnType.ADJUSTMENT,
+        txnId: tripExpenseId,
+        entityType: 'CUSTOMER',
+        entityId: linked.customerId,
+        debit: sellDelta > 0 ? sellDelta : 0,
+        credit: sellDelta < 0 ? Math.abs(sellDelta) : 0,
+        note: `Điều chỉnh phí chi hộ chuyến ${linked.tripCode ?? ''}`.trim(),
+        originalDueDate: existingAuthority?.originalDueDate ?? resolvedAuthority!.originalDate,
+        processingDueDate: existingAuthority?.processingDueDate ?? resolvedAuthority!.processingDate,
+        paymentTermDaysApplied:
+          existingAuthority?.paymentTermDaysApplied ?? resolvedAuthority!.paymentTermDays,
+        paymentDatePolicyApplied:
+          (existingAuthority?.paymentDatePolicyApplied as PaymentDatePolicy | null | undefined)
+          ?? resolvedAuthority!.policy,
+      });
+    }
+  }
+
+  return {
+    applicationResult: {
+      settlementId: settlement.id,
+      tripExpenseId,
+      totalExpenseAmount: String(newTotalExpenseAmount),
+      refundAmount: String(newRefundAmount),
+      resultingVersion: updated.version,
+    },
+  };
+}
+
+async function applyApprovedSettlementReversal(
+  tx: Tx,
+  action: GovernanceActionRow,
+): Promise<GovernanceApplyResult> {
+  const [settlement] = await tx.select().from(s.advanceSettlements)
+    .where(eq(s.advanceSettlements.id, action.subjectId!))
+    .limit(1)
+    .for('update');
+  if (!settlement) throw new AdvanceError(404, 'Không tìm thấy phiếu hoàn ứng');
+  assertExpectedVersion(settlement.version, action.originalVersion, 'Phiếu hoàn ứng');
+  if (settlement.status !== 'APPROVED') {
+    throw new AdvanceError(409, 'Phiếu hoàn ứng không còn ở trạng thái đã duyệt');
+  }
+  const now = action.approvedAt ?? new Date();
+  const reversalAmount = round2dp(
+    Number(settlement.totalExpenseAmount) + Number(settlement.refundAmount),
+  );
+  const reversalEntry = await LedgerService.postEntry(tx, {
+    txnType: TxnType.ADJUSTMENT,
+    txnId: settlement.id,
+    entityType: 'FORWARDER',
+    entityId: settlement.forwarderId,
+    debit: 0,
+    credit: reversalAmount,
+    note: `Hoàn tác phiếu hoàn ứng ${settlement.code}: ${action.reason}`,
+  });
+  const [updated] = await tx.update(s.advanceSettlements).set({
+    status: 'REVERSED',
+    updatedAt: now,
+    version: sql`${s.advanceSettlements.version} + 1`,
+  }).where(and(
+    eq(s.advanceSettlements.id, settlement.id),
+    eq(s.advanceSettlements.status, 'APPROVED'),
+    eq(s.advanceSettlements.version, action.originalVersion),
+  )).returning({ version: s.advanceSettlements.version });
+  if (!updated) throw new AdvanceError(409, 'Phiếu hoàn ứng đã được tác vụ khác cập nhật');
+  return {
+    ledgerEntryId: reversalEntry.id,
+    applicationResult: {
+      settlementId: settlement.id,
+      status: 'REVERSED',
+      reversalAmount: String(reversalAmount),
+      resultingVersion: updated.version,
+    },
+  };
+}
+
+export async function applyAdvanceSettlementGovernanceAction(
+  tx: Tx,
+  action: GovernanceActionRow,
+): Promise<GovernanceApplyResult> {
+  if (
+    action.subjectType !== 'ADVANCE_SETTLEMENT'
+    || action.subjectId == null
+    || action.approverId == null
+  ) {
+    throw new AdvanceError(409, 'Yêu cầu không thuộc điều chỉnh phiếu hoàn ứng');
+  }
+  if (action.actionKind === 'ADVANCE_SETTLEMENT_CORRECTION') {
+    return applyApprovedSettlementCorrection(tx, action);
+  }
+  if (action.actionKind === 'ADVANCE_SETTLEMENT_REVERSAL') {
+    return applyApprovedSettlementReversal(tx, action);
+  }
+  throw new AdvanceError(409, 'Loại điều chỉnh phiếu hoàn ứng không hợp lệ');
 }
 
 export async function rejectAdvanceSettlement(

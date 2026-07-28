@@ -185,10 +185,6 @@ async function postJson(
   });
 }
 
-function assertReplayFieldAbsent(data: Record<string, unknown>) {
-  assert.equal(Object.hasOwn(data, 'replayed'), false);
-}
-
 function trackGovernanceActionId(data: Record<string, unknown>) {
   const actionId = Number(data.id);
   if (Number.isInteger(actionId) && actionId > 0 && !createdGovernanceActionIds.includes(actionId)) {
@@ -332,7 +328,10 @@ async function checkGovernanceAction(actionId: number, expectedVersion: number, 
   return postJson(
     `/api/governance-actions/${actionId}/check`,
     { expectedVersion },
-    { actor },
+    {
+      actor,
+      idempotencyKey: `q23-governance-check-${actionId}-${expectedVersion}-${actor}`,
+    },
   );
 }
 
@@ -340,7 +339,10 @@ async function approveGovernanceAction(actionId: number, expectedVersion: number
   return postJson(
     `/api/governance-actions/${actionId}/approve`,
     { expectedVersion },
-    { actor },
+    {
+      actor,
+      idempotencyKey: `q23-governance-approve-${actionId}-${expectedVersion}-${actor}`,
+    },
   );
 }
 
@@ -496,9 +498,7 @@ describe('Q23 direct-money idempotency', () => {
       confirmOverpay: false,
     });
 
-    assert.equal(unkeyed.status, 200);
-    assertReplayFieldAbsent(unkeyed.data);
-    trackGovernanceActionId(unkeyed.data);
+    assert.equal(unkeyed.status, 400);
     assert.equal(
       await fetchLedgerCount({ entityType: 'VENDOR', entityId: supplier.id, txnType: TxnType.VENDOR_PAYMENT, receiptId: unkeyedReceiptId }),
       0,
@@ -563,7 +563,7 @@ describe('Q23 direct-money idempotency', () => {
       [
         ['PAYMENT_RECEIVED', 'SUCCEEDED', 201, true],
         ['PAYMENT_RECEIVED', 'REPLAYED', 200, true],
-        ['MUTATION_CONFLICT', null, 409, true],
+        ['MUTATION_CONFLICT', 'CONFLICT', 409, true],
       ],
     );
   });
@@ -655,9 +655,7 @@ describe('Q23 direct-money idempotency', () => {
       date: '2026-07-27',
     });
 
-    assert.equal(unkeyed.status, 200);
-    assertReplayFieldAbsent(unkeyed.data);
-    trackGovernanceActionId(unkeyed.data);
+    assert.equal(unkeyed.status, 400);
     assert.equal(
       await fetchLedgerCount({ entityType: 'CARRIER', entityId: carrier.id, txnType: TxnType.VENDOR_PAYMENT, receiptId: unkeyedReceiptId }),
       0,
@@ -736,9 +734,7 @@ describe('Q23 direct-money idempotency', () => {
       note: `Q23 payout unkeyed ${suffix}`,
     });
 
-    assert.equal(unkeyed.status, 201);
-    assertReplayFieldAbsent(unkeyed.data);
-    trackGovernanceActionId(unkeyed.data);
+    assert.equal(unkeyed.status, 400);
     assert.equal(
       await fetchLedgerCount({ entityType: 'DRIVER', entityId: driver.id, txnType: TxnType.DRIVER_PAYOUT, receiptId: unkeyedReceiptId }),
       0,
@@ -787,9 +783,7 @@ describe('Q23 direct-money idempotency', () => {
       note: `Q23 commission unkeyed ${suffix}`,
     });
 
-    assert.equal(unkeyed.status, 201);
-    assertReplayFieldAbsent(unkeyed.data);
-    trackGovernanceActionId(unkeyed.data);
+    assert.equal(unkeyed.status, 400);
     assert.equal(
       await fetchLedgerCount({ entityType: 'VENDOR', entityId: supplier.id, txnType: TxnType.COMMISSION }),
       0,
@@ -838,9 +832,7 @@ describe('Q23 direct-money idempotency', () => {
       customReason: `Q23 penalty unkeyed ${suffix}`,
     });
 
-    assert.equal(unkeyed.status, 201);
-    assertReplayFieldAbsent(unkeyed.data);
-    trackGovernanceActionId(unkeyed.data);
+    assert.equal(unkeyed.status, 400);
     assert.equal(await fetchPenaltyCount(`Q23 penalty unkeyed ${suffix}`), 0);
 
     const key = `q23-penalty-create-${suffix}`;
@@ -931,9 +923,7 @@ describe('Q23 direct-money idempotency', () => {
       { reason: `Q23 cancel unkeyed reason ${suffix}` },
       { actor: 'checker' },
     );
-    assert.equal(unkeyed.status, 200);
-    assertReplayFieldAbsent(unkeyed.data);
-    trackGovernanceActionId(unkeyed.data);
+    assert.equal(unkeyed.status, 400);
     assert.equal(await fetchPenaltyStatus(unkeyedPenalty.id), 'ACTIVE');
 
     const penalty = await createPenalty({

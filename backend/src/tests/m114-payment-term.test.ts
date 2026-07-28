@@ -41,6 +41,8 @@ async function mkDebitNote(customerId: number, rangeTo: string, totalInclVat: nu
   const [d] = await db.insert(s.billingDocuments).values({
     type: 'DEBIT_NOTE', entityType: 'CUSTOMER', entityId: customerId,
     rangeFrom: '2026-01-01', rangeTo, totalInclVat: String(totalInclVat),
+    debitNoteStatus: 'SENT',
+    issuedAt: new Date(`${rangeTo}T00:00:00.000Z`),
     originalDueDate,
     processingDueDate: originalDueDate,
     paymentTermDaysApplied: 30,
@@ -52,8 +54,12 @@ async function mkDebitNote(customerId: number, rangeTo: string, totalInclVat: nu
 
 async function mkAllocation(customerId: number, docId: number, amount: number, createdAt: Date) {
   const [a] = await db.insert(s.paymentAllocations).values({
-    customerId, targetType: 'BILLING_DOCUMENT', targetId: docId,
-    amount: String(amount), createdAt,
+    customerId,
+    billingDocumentId: docId,
+    targetType: 'BILLING_DOCUMENT',
+    targetId: docId,
+    amount: String(amount),
+    createdAt,
   }).returning();
   createdAllocIds.push(a.id);
   return a;

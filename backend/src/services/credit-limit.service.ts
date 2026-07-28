@@ -4,8 +4,15 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
-import { getCustomerArSummary } from './ar-status.service';
 import { getAppSettings } from './app-settings.service';
+import { assertCanMakeGovernanceAction } from './governance-policy';
+import {
+  approveGovernanceActionWithAdapter,
+  checkGovernanceAction,
+  rejectGovernanceAction,
+  type GovernanceActionRow,
+  type GovernanceApplyResult,
+} from './governance-transition.service';
 
 const DEFAULT_WARNING_THRESHOLD = 0.8;
 const TIER_ONE_MAX_RATIO = 0.1;
@@ -15,6 +22,15 @@ const DIRECTOR_APPROVER_ROLES = new Set<Role>([Role.ADMIN, Role.MANAGER]);
 
 type DbLike = Tx | typeof db;
 type CreditOverrideRow = typeof s.creditOverrideRequests.$inferSelect;
+type CreditOverrideDecisionRow = typeof s.governanceActions.$inferSelect;
+export type CreditOverrideView = Omit<CreditOverrideRow, 'version'> & {
+  version: number;
+  requestVersion: number;
+  workflowStatus: CreditOverrideDecisionRow['status'];
+  governanceActionId: number | null;
+  checkedBy: number | null;
+  checkedAt: Date | null;
+};
 
 export interface CreditCheckResult {
   customerId: number;
@@ -45,7 +61,7 @@ export interface CreditOverrideRequestInput {
 }
 
 export interface CreditOverrideApprovalResult {
-  request: CreditOverrideRow;
+  request: CreditOverrideView;
   approvedBy: number;
 }
 
@@ -95,6 +111,75 @@ function assertCanApproveTier(role: Role, tier: CreditOverrideRow['requiredTier'
   throw new ApiError(403, 'Vai trò hiện tại không được duyệt đề nghị này');
 }
 
+async function findCreditOverrideDecision(
+  executor: DbLike,
+  requestId: number,
+): Promise<CreditOverrideDecisionRow | undefined> {
+  const [action] = await executor.select().from(s.governanceActions)
+    .where(and(
+      eq(s.governanceActions.subjectType, 'CREDIT_OVERRIDE'),
+      eq(s.governanceActions.subjectId, requestId),
+      eq(s.governanceActions.actionKind, 'CREDIT_OVERRIDE_APPROVAL'),
+    ))
+    .orderBy(desc(s.governanceActions.id))
+    .limit(1);
+  return action;
+}
+
+async function findCreditOverrideDecisions(
+  executor: DbLike,
+  requestIds: readonly number[],
+): Promise<Map<number, CreditOverrideDecisionRow>> {
+  if (requestIds.length === 0) return new Map();
+  const actions = await executor.select().from(s.governanceActions)
+    .where(and(
+      eq(s.governanceActions.subjectType, 'CREDIT_OVERRIDE'),
+      inArray(s.governanceActions.subjectId, [...requestIds]),
+      eq(s.governanceActions.actionKind, 'CREDIT_OVERRIDE_APPROVAL'),
+    ))
+    .orderBy(desc(s.governanceActions.id));
+  const latestByRequestId = new Map<number, CreditOverrideDecisionRow>();
+  for (const action of actions) {
+    if (action.subjectId != null && !latestByRequestId.has(action.subjectId)) {
+      latestByRequestId.set(action.subjectId, action);
+    }
+  }
+  return latestByRequestId;
+}
+
+async function loadCreditOverrideDecision(
+  executor: DbLike,
+  requestId: number,
+): Promise<CreditOverrideDecisionRow> {
+  const action = await findCreditOverrideDecision(executor, requestId);
+  if (!action) {
+    throw new ApiError(409, 'Đề nghị vượt hạn mức chưa có quy trình kiểm tra ba bước');
+  }
+  return action;
+}
+
+function toCreditOverrideView(
+  request: CreditOverrideRow,
+  action?: CreditOverrideDecisionRow,
+): CreditOverrideView {
+  const legacyWorkflowStatus = request.status === 'APPROVED'
+    ? 'APPROVED'
+    : request.status === 'REJECTED'
+      ? 'REJECTED'
+      : request.status === 'CANCELED'
+        ? 'CANCELED'
+        : 'PENDING_CHECK';
+  return {
+    ...request,
+    version: action?.version ?? request.version,
+    requestVersion: request.version,
+    workflowStatus: action?.status ?? legacyWorkflowStatus,
+    governanceActionId: action?.id ?? null,
+    checkedBy: action?.checkerId ?? null,
+    checkedAt: action?.checkedAt ?? null,
+  };
+}
+
 async function getApprovedUncollectedAmount(
   customerId: number,
   executor: DbLike,
@@ -121,6 +206,23 @@ async function getApprovedUncollectedAmount(
         : undefined,
     ));
   return toMoney(activeTrips?.total) + toMoney(reservedShipmentApprovals?.total);
+}
+
+async function getCustomerOutstandingAmount(
+  customerId: number,
+  executor: DbLike,
+): Promise<number> {
+  const [result] = await executor.select({
+    outstanding: sql<string>`greatest(
+      coalesce(sum(${s.ledger.debit}), 0) - coalesce(sum(${s.ledger.credit}), 0),
+      0
+    )`,
+  }).from(s.ledger)
+    .where(and(
+      eq(s.ledger.entityType, 'CUSTOMER'),
+      eq(s.ledger.entityId, customerId),
+    ));
+  return toMoney(result?.outstanding);
 }
 
 async function loadCustomerCreditProfile(customerId: number, executor: DbLike) {
@@ -184,9 +286,9 @@ export async function checkCreditLimit(
 ): Promise<CreditCheckResult> {
   const executor = options.transaction ?? db;
   const proposedAmount = Math.max(0, Math.trunc(options.proposedAmount ?? 0));
-  const [{ creditLimit, warningThreshold }, { outstanding }, approvedUncollected] = await Promise.all([
+  const [{ creditLimit, warningThreshold }, outstanding, approvedUncollected] = await Promise.all([
     loadCustomerCreditProfile(customerId, executor),
-    getCustomerArSummary(customerId),
+    getCustomerOutstandingAmount(customerId, executor),
     getApprovedUncollectedAmount(customerId, executor, {
       excludeCreditOverrideRequestId: options.excludeCreditOverrideRequestId,
     }),
@@ -230,8 +332,10 @@ function deriveRequiredTier(
 export async function createCreditOverrideRequest(
   input: CreditOverrideRequestInput,
   actor: CreditOverrideActor,
-): Promise<CreditOverrideRow> {
+  transaction?: Tx,
+): Promise<CreditOverrideView> {
   assertCanRequestOverride(actor.role);
+  assertCanMakeGovernanceAction('CREDIT_OVERRIDE_APPROVAL', actor.role);
   const reason = normalizeReason(input.reason);
   if (!reason) {
     throw new ApiError(400, 'Lý do vượt hạn mức là bắt buộc');
@@ -248,7 +352,7 @@ export async function createCreditOverrideRequest(
     throw new ApiError(400, 'Ngày hết hạn phải ở tương lai');
   }
 
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     if (input.shipmentId != null) {
       await loadShipmentForOverride(input.shipmentId, input.customerId, tx);
     }
@@ -288,73 +392,164 @@ export async function createCreditOverrideRequest(
       repeatException,
       expiresAt,
     }).returning();
-    return request;
-  });
+    const [action] = await tx.insert(s.governanceActions).values({
+      subjectType: 'CREDIT_OVERRIDE',
+      subjectId: request.id,
+      subjectKey: `credit-override:${request.id}`,
+      actionKind: 'CREDIT_OVERRIDE_APPROVAL',
+      reason,
+      originalVersion: request.version,
+      beforeSnapshot: {
+        status: 'PENDING',
+        customerId: request.customerId,
+        creditLimit: request.creditLimit,
+        totalExposure: request.totalExposure,
+        overLimitAmount: request.overLimitAmount,
+        requiredTier: request.requiredTier,
+      },
+      afterSnapshot: {
+        status: 'APPROVED',
+        proposedAmount: request.proposedAmount,
+        scopeType: request.scopeType,
+        shipmentId: request.shipmentId,
+        expiresAt: request.expiresAt?.toISOString() ?? null,
+      },
+      deltaSnapshot: {
+        proposedAmount: request.proposedAmount,
+        overLimitAmount: request.overLimitAmount,
+        overLimitRatio: request.overLimitRatio,
+      },
+      makerId: actor.userId,
+      makerRole: actor.role,
+    }).returning();
+    return toCreditOverrideView(request, action);
+  };
+  if (transaction) {
+    return execute(transaction);
+  }
+  return db.transaction(execute);
 }
 
 export async function approveCreditOverrideRequest(
   requestId: number,
   actor: CreditOverrideActor,
   input: CreditOverrideDecisionInput,
+  transaction?: Tx,
 ): Promise<CreditOverrideApprovalResult> {
-  return db.transaction(async (tx) => {
-    const [request] = await tx.select()
-      .from(s.creditOverrideRequests)
+  const execute = async (tx: Tx) => {
+    const action = await loadCreditOverrideDecision(tx, requestId);
+    const approvedAction = await approveGovernanceActionWithAdapter({
+      actionId: action.id,
+      approverId: actor.userId,
+      approverRole: actor.role,
+      expectedVersion: input.expectedVersion,
+      apply: applyCreditOverrideGovernanceAction,
+      transaction: tx,
+    });
+    const [approved] = await tx.select().from(s.creditOverrideRequests)
       .where(eq(s.creditOverrideRequests.id, requestId))
-      .limit(1)
-      .for('update');
-    if (!request) {
-      throw new ApiError(404, 'Không tìm thấy đề nghị vượt hạn mức');
-    }
-    if (request.status !== 'PENDING') {
-      throw new ApiError(409, 'Đề nghị vượt hạn mức không còn ở trạng thái chờ duyệt');
-    }
-    if (request.version !== input.expectedVersion) {
-      throw new ApiError(409, 'Đề nghị đã được cập nhật. Vui lòng tải lại trước khi duyệt');
-    }
-    if (request.requestedBy === actor.userId) {
-      throw new ApiError(403, 'Người tạo đề nghị không được tự duyệt');
-    }
-    if (request.expiresAt && request.expiresAt.getTime() <= Date.now()) {
-      throw new ApiError(409, 'Đề nghị vượt hạn mức đã hết hạn');
-    }
-    assertCanApproveTier(actor.role, request.requiredTier);
-    const [approved] = await tx.update(s.creditOverrideRequests)
-      .set({
-        status: 'APPROVED',
-        approvedBy: actor.userId,
-        approvedRole: actor.role,
-        approvedAt: new Date(),
-        version: sql`${s.creditOverrideRequests.version} + 1`,
-        updatedAt: new Date(),
-      })
-      .where(and(
-        eq(s.creditOverrideRequests.id, requestId),
-        eq(s.creditOverrideRequests.status, 'PENDING'),
-        eq(s.creditOverrideRequests.version, input.expectedVersion),
-      ))
-      .returning();
-    if (!approved) {
-      throw new ApiError(409, 'Đề nghị đã được xử lý bởi người khác');
-    }
+      .limit(1);
+    if (!approved) throw new ApiError(404, 'Không tìm thấy đề nghị vượt hạn mức');
     return {
-      request: approved,
+      request: toCreditOverrideView(approved, approvedAction),
       approvedBy: actor.userId,
     };
-  });
+  };
+  if (transaction) {
+    return execute(transaction);
+  }
+  return db.transaction(execute);
+}
+
+export async function checkCreditOverrideRequest(
+  requestId: number,
+  actor: CreditOverrideActor,
+  input: CreditOverrideDecisionInput,
+  transaction?: Tx,
+): Promise<CreditOverrideView> {
+  const execute = async (tx: Tx) => {
+    const action = await loadCreditOverrideDecision(tx, requestId);
+    const checked = await checkGovernanceAction({
+      actionId: action.id,
+      checkerId: actor.userId,
+      checkerRole: actor.role,
+      expectedVersion: input.expectedVersion,
+      transaction: tx,
+    });
+    const [request] = await tx.select().from(s.creditOverrideRequests)
+      .where(eq(s.creditOverrideRequests.id, requestId))
+      .limit(1);
+    if (!request) throw new ApiError(404, 'Không tìm thấy đề nghị vượt hạn mức');
+    return toCreditOverrideView(request, checked);
+  };
+  return transaction ? execute(transaction) : db.transaction(execute);
+}
+
+export async function applyCreditOverrideGovernanceAction(
+  tx: Tx,
+  action: GovernanceActionRow,
+): Promise<GovernanceApplyResult> {
+  if (
+    action.subjectType !== 'CREDIT_OVERRIDE'
+    || action.actionKind !== 'CREDIT_OVERRIDE_APPROVAL'
+    || action.subjectId == null
+    || action.approverId == null
+    || !action.approverRole
+  ) {
+    throw new ApiError(409, 'Yêu cầu không thuộc phê duyệt vượt hạn mức tín dụng');
+  }
+  const [request] = await tx.select().from(s.creditOverrideRequests)
+    .where(eq(s.creditOverrideRequests.id, action.subjectId))
+    .limit(1)
+    .for('update');
+  if (!request) throw new ApiError(404, 'Không tìm thấy đề nghị vượt hạn mức');
+  if (request.status !== 'PENDING') {
+    throw new ApiError(409, 'Đề nghị vượt hạn mức không còn ở trạng thái chờ duyệt');
+  }
+  if (request.version !== action.originalVersion) {
+    throw new ApiError(409, 'Đề nghị đã được cập nhật. Vui lòng tải lại trước khi duyệt');
+  }
+  if (request.expiresAt && request.expiresAt.getTime() <= Date.now()) {
+    throw new ApiError(409, 'Đề nghị vượt hạn mức đã hết hạn');
+  }
+  assertCanApproveTier(action.approverRole as Role, request.requiredTier);
+  const now = action.approvedAt ?? new Date();
+  const [approved] = await tx.update(s.creditOverrideRequests)
+    .set({
+      status: 'APPROVED',
+      approvedBy: action.approverId,
+      approvedRole: action.approverRole,
+      approvedAt: now,
+      version: sql`${s.creditOverrideRequests.version} + 1`,
+      updatedAt: now,
+    })
+    .where(and(
+      eq(s.creditOverrideRequests.id, request.id),
+      eq(s.creditOverrideRequests.status, 'PENDING'),
+      eq(s.creditOverrideRequests.version, action.originalVersion),
+    ))
+    .returning({ id: s.creditOverrideRequests.id });
+  if (!approved) throw new ApiError(409, 'Đề nghị đã được xử lý bởi người khác');
+  return {
+    applicationResult: {
+      creditOverrideRequestId: request.id,
+      approvedBy: action.approverId,
+    },
+  };
 }
 
 export async function rejectCreditOverrideRequest(
   requestId: number,
   actor: CreditOverrideActor,
   input: CreditOverrideRejectionInput,
+  transaction?: Tx,
 ): Promise<CreditOverrideRow> {
   const reason = normalizeReason(input.reason);
   if (!reason) {
     throw new ApiError(400, 'Lý do từ chối là bắt buộc');
   }
 
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     const [request] = await tx.select()
       .from(s.creditOverrideRequests)
       .where(eq(s.creditOverrideRequests.id, requestId))
@@ -366,13 +561,19 @@ export async function rejectCreditOverrideRequest(
     if (request.status !== 'PENDING') {
       throw new ApiError(409, 'Đề nghị vượt hạn mức không còn ở trạng thái chờ duyệt');
     }
-    if (request.version !== input.expectedVersion) {
-      throw new ApiError(409, 'Đề nghị đã được cập nhật. Vui lòng tải lại trước khi từ chối');
-    }
-    if (request.requestedBy === actor.userId) {
-      throw new ApiError(403, 'Người tạo đề nghị không được tự từ chối');
-    }
     assertCanApproveTier(actor.role, request.requiredTier);
+    const action = await loadCreditOverrideDecision(tx, requestId);
+    if (action.status !== 'PENDING_APPROVAL') {
+      throw new ApiError(409, 'Đề nghị phải được một người khác kiểm tra trước khi từ chối');
+    }
+    const rejectedAction = await rejectGovernanceAction({
+      actionId: action.id,
+      actorId: actor.userId,
+      actorRole: actor.role,
+      expectedVersion: input.expectedVersion,
+      reason,
+      transaction: tx,
+    });
 
     const [rejected] = await tx.update(s.creditOverrideRequests)
       .set({
@@ -387,21 +588,25 @@ export async function rejectCreditOverrideRequest(
       .where(and(
         eq(s.creditOverrideRequests.id, requestId),
         eq(s.creditOverrideRequests.status, 'PENDING'),
-        eq(s.creditOverrideRequests.version, input.expectedVersion),
+        eq(s.creditOverrideRequests.version, action.originalVersion),
       ))
       .returning();
     if (!rejected) {
       throw new ApiError(409, 'Đề nghị đã được xử lý bởi người khác');
     }
-    return rejected;
-  });
+    return toCreditOverrideView(rejected, rejectedAction);
+  };
+  if (transaction) {
+    return execute(transaction);
+  }
+  return db.transaction(execute);
 }
 
 export async function listCreditOverrideRequests(filters: {
   customerId?: number;
   status?: CreditOverrideRow['status'];
   limit?: number;
-} = {}): Promise<CreditOverrideRow[]> {
+} = {}): Promise<CreditOverrideView[]> {
   const conditions = [
     filters.customerId != null
       ? eq(s.creditOverrideRequests.customerId, filters.customerId)
@@ -411,14 +616,16 @@ export async function listCreditOverrideRequests(filters: {
       : undefined,
   ].filter((condition): condition is NonNullable<typeof condition> => condition != null);
 
-  return db.select()
+  const requests = await db.select()
     .from(s.creditOverrideRequests)
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(s.creditOverrideRequests.createdAt))
     .limit(Math.min(Math.max(filters.limit ?? 100, 1), 200));
+  const decisions = await findCreditOverrideDecisions(db, requests.map((request) => request.id));
+  return requests.map((request) => toCreditOverrideView(request, decisions.get(request.id)));
 }
 
-export async function getCreditOverrideRequest(requestId: number): Promise<CreditOverrideRow> {
+export async function getCreditOverrideRequest(requestId: number): Promise<CreditOverrideView> {
   const [request] = await db.select()
     .from(s.creditOverrideRequests)
     .where(eq(s.creditOverrideRequests.id, requestId))
@@ -426,7 +633,7 @@ export async function getCreditOverrideRequest(requestId: number): Promise<Credi
   if (!request) {
     throw new ApiError(404, 'Không tìm thấy đề nghị vượt hạn mức');
   }
-  return request;
+  return toCreditOverrideView(request, await findCreditOverrideDecision(db, request.id));
 }
 
 async function loadApprovedOverrideForUse(

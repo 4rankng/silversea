@@ -1,90 +1,84 @@
 import { createHash } from 'node:crypto';
-import { z } from 'zod';
-import { and, eq, isNull } from 'drizzle-orm';
+import type { Request } from 'express';
+import { and, eq, getTableName, isNull } from 'drizzle-orm';
+import type { AnyPgTable, PgColumn, PgTable } from 'drizzle-orm/pg-core';
+import { Role } from '@tingting/shared';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
-import { cacheInvalidate } from '../lib/redis';
 import { assertCanMakeGovernanceAction } from './governance-policy';
 import type { GovernanceApplyResult, GovernanceActionRow } from './governance-transition.service';
+import {
+  DURABLE_EFFECT_KIND,
+  type DurableEffectInput,
+} from './durable-effect.service';
 import type { Tx } from './trip-shared';
 
-type PricingTableCreateInput = {
-  customerId: number;
-  routeId: number;
-  price: number | string;
-  effectiveDate?: string;
-};
-
-type PricingTableUpdateInput = Partial<PricingTableCreateInput>;
-type PricingTableMutationPayload = {
-  customerId: number;
-  routeId: number;
-  price: string;
-  effectiveDate: string;
-};
-type PricingTableMutationPatch = Partial<PricingTableMutationPayload>;
 type MutationKind = 'CREATE' | 'UPDATE' | 'DELETE';
+type CrudRow = Record<string, unknown> & { id?: number; updatedAt?: Date | null; deletedAt?: Date | null };
+type CrudData = Record<string, unknown>;
 
 type SnapshotEnvelope = {
-  resource: 'pricing-tables';
+  resource: string;
   fingerprint: string | null;
   row: Record<string, unknown> | null;
 };
 
 type DeltaEnvelope = {
-  resource: 'pricing-tables';
+  resource: string;
   operation: MutationKind;
 };
 
 type AfterEnvelope = {
-  resource: 'pricing-tables';
+  resource: string;
   data: Record<string, unknown> | null;
 };
 
-const pricingTableMutationPayloadSchema = z.object({
-  customerId: z.number().int().positive(),
-  routeId: z.number().int().positive(),
-  price: z.string().min(1),
-  effectiveDate: z.string().min(1),
-});
+type GovernedResourceBase = {
+  resource: string;
+  actionKind: 'PRICE_CONFIG_CHANGE';
+  subjectType: 'PRICE_CONFIG';
+  reasonLabel: string;
+};
 
-const pricingTableMutationPatchSchema = pricingTableMutationPayloadSchema.partial();
+type GovernedCrudDefinition = GovernedResourceBase & {
+  kind: 'crud';
+  table: AnyPgTable;
+  deleteMode: 'soft' | 'hard';
+  beforeCreate?: (data: CrudData, req: Request, tx: Tx) => Promise<CrudData> | CrudData;
+  afterCreate?: (item: CrudRow, data: CrudData, req: Request, tx: Tx) => Promise<void> | void;
+  beforeUpdate?: (id: number, data: CrudData, req: Request, tx: Tx) => Promise<CrudData> | CrudData;
+  afterUpdate?: (item: CrudRow, data: CrudData, req: Request, tx: Tx) => Promise<void> | void;
+  beforeDelete?: (id: number, req: Request, tx: Tx) => Promise<void> | void;
+  afterDelete?: (id: number, req: Request, tx: Tx) => Promise<void> | void;
+};
 
-function requireReason(reason: string): string {
-  const normalized = reason.trim();
-  if (!normalized) {
-    throw new ApiError(400, 'Lý do thay đổi bảng giá là bắt buộc');
-  }
-  return normalized;
-}
+type GovernedCustomDefinition = GovernedResourceBase & {
+  kind: 'custom';
+  apply: (
+    tx: Tx,
+    action: GovernanceActionRow,
+    before: SnapshotEnvelope,
+    after: AfterEnvelope,
+    delta: DeltaEnvelope,
+  ) => Promise<GovernanceApplyResult>;
+};
 
-function requireExpectedVersion(expectedVersion: number): void {
-  if (!Number.isInteger(expectedVersion) || expectedVersion <= 0) {
-    throw new ApiError(400, 'expectedVersion không hợp lệ');
-  }
-}
+type GovernedDefinition = GovernedCrudDefinition | GovernedCustomDefinition;
 
-function defaultEffectiveDate(): string {
-  return new Date().toISOString().slice(0, 10);
-}
+const governedDefinitions = new Map<string, GovernedDefinition>();
 
-function normalizePricingTableCreate(data: PricingTableCreateInput): PricingTableMutationPayload {
+function cacheInvalidateEffect(actionId: number, key: string): DurableEffectInput {
   return {
-    customerId: data.customerId,
-    routeId: data.routeId,
-    price: `${data.price}`,
-    effectiveDate: data.effectiveDate ?? defaultEffectiveDate(),
+    kind: DURABLE_EFFECT_KIND.CACHE_INVALIDATE,
+    payloadVersion: 1,
+    dedupeKey: `cache-invalidate:${key}:governance-action:${actionId}`,
+    payload: { key },
   };
 }
 
-function normalizePricingTableUpdate(data: PricingTableUpdateInput): PricingTableMutationPatch {
-  const normalized: PricingTableMutationPatch = {};
-  if (data.customerId !== undefined) normalized.customerId = data.customerId;
-  if (data.routeId !== undefined) normalized.routeId = data.routeId;
-  if (data.price !== undefined) normalized.price = `${data.price}`;
-  if (data.effectiveDate !== undefined) normalized.effectiveDate = data.effectiveDate;
-  return normalized;
+function column<T extends PgTable>(table: T, key: string): PgColumn {
+  return (table as unknown as Record<string, PgColumn>)[key];
 }
 
 function toPlainRecord(value: unknown): Record<string, unknown> | null {
@@ -97,71 +91,108 @@ function fingerprint(value: unknown): string | null {
   return createHash('sha1').update(JSON.stringify(value)).digest('hex');
 }
 
-function pricingTableVersion(row: typeof s.pricingTables.$inferSelect): number {
-  return Math.max(1, Math.floor(row.updatedAt.getTime() / 1000));
+function configVersionFromUpdatedAt(updatedAt: Date): number {
+  return Math.max(1, Math.floor(updatedAt.getTime() / 1000));
 }
 
-function snapshotEnvelope(row: typeof s.pricingTables.$inferSelect | null): SnapshotEnvelope {
+export function governedConfigVersionFromUpdatedAt(updatedAt: Date): number {
+  return configVersionFromUpdatedAt(updatedAt);
+}
+
+function snapshotEnvelope(resource: string, row: CrudRow | null): SnapshotEnvelope {
   const plain = toPlainRecord(row);
   return {
-    resource: 'pricing-tables',
+    resource,
     fingerprint: fingerprint(plain),
     row: plain,
   };
 }
 
-function createSubjectKey(data: PricingTableMutationPayload): string {
-  return `pricing-tables:${createHash('sha1').update(JSON.stringify(data)).digest('hex')}`;
+export function buildGovernedConfigSnapshot(resource: string, row: CrudRow | null): SnapshotEnvelope {
+  return snapshotEnvelope(resource, row);
 }
 
-function parseCreatePayload(data: Record<string, unknown>): PricingTableMutationPayload {
-  const parsed = pricingTableMutationPayloadSchema.safeParse(data);
-  if (!parsed.success) {
-    throw new ApiError(409, 'Yêu cầu tạo bảng giá thiếu dữ liệu hợp lệ');
+function createSubjectKey(resource: string, data: CrudData): string {
+  return `${resource}:${createHash('sha1').update(JSON.stringify(data)).digest('hex')}`;
+}
+
+function requireReasonLabel(label: string): string {
+  const normalized = label.trim();
+  if (!normalized) {
+    throw new Error('Governed config resource is missing reasonLabel');
   }
-  return parsed.data;
+  return normalized;
 }
 
-function parseUpdatePayload(data: Record<string, unknown>): PricingTableMutationPatch {
-  const parsed = pricingTableMutationPatchSchema.safeParse(data);
-  if (!parsed.success || Object.keys(parsed.data).length === 0) {
-    throw new ApiError(409, 'Yêu cầu cập nhật bảng giá thiếu dữ liệu áp dụng');
+function buildDefaultReason(definition: GovernedResourceBase, operation: MutationKind): string {
+  const label = requireReasonLabel(definition.reasonLabel);
+  if (operation === 'CREATE') return `Đề nghị tạo ${label}`;
+  if (operation === 'UPDATE') return `Đề nghị cập nhật ${label}`;
+  return `Đề nghị ngừng áp dụng ${label}`;
+}
+
+function resolveReason(
+  definition: GovernedResourceBase,
+  operation: MutationKind,
+  reason: string | undefined,
+): string {
+  const normalized = reason?.trim() ?? '';
+  return normalized || buildDefaultReason(definition, operation);
+}
+
+function getDefinition(resource: string): GovernedDefinition {
+  const definition = governedDefinitions.get(resource);
+  if (!definition) {
+    throw new Error(`Governed config resource "${resource}" is not registered`);
   }
-  return parsed.data;
+  return definition;
 }
 
-function uniqueConstraintError(err: unknown): ApiError | null {
-  const error = err as { code?: string; detail?: string; cause?: { code?: string; detail?: string } };
-  const code = error.code ?? error.cause?.code;
-  if (code !== '23505') return null;
-  return new ApiError(409, 'Bảng giá đã tồn tại cho khách hàng, tuyến và ngày hiệu lực này');
+function getCrudDefinition(resource: string): GovernedCrudDefinition {
+  const definition = governedDefinitions.get(resource);
+  if (!definition) {
+    throw new Error(`Governed config resource "${resource}" is not registered`);
+  }
+  if (definition.kind !== 'crud') {
+    throw new Error(`Governed config resource "${resource}" is not a CRUD resource`);
+  }
+  return definition;
 }
 
-async function lockPricingTable(
+function assertGovernedUpdatedAt(row: CrudRow, resource: string): Date {
+  if (!(row.updatedAt instanceof Date)) {
+    throw new Error(`Governed config resource "${resource}" returned an invalid updatedAt`);
+  }
+  return row.updatedAt;
+}
+
+async function lockResourceRow(
   tx: Tx,
-  pricingTableId: number,
-): Promise<typeof s.pricingTables.$inferSelect> {
+  definition: GovernedCrudDefinition,
+  id: number,
+): Promise<CrudRow> {
+  const conditions = [eq(column(definition.table, 'id'), id)];
+  if ('deletedAt' in definition.table && definition.deleteMode === 'soft') {
+    conditions.push(isNull(column(definition.table, 'deletedAt')));
+  }
   const [row] = await tx.select()
-    .from(s.pricingTables)
-    .where(and(
-      eq(s.pricingTables.id, pricingTableId),
-      isNull(s.pricingTables.deletedAt),
-    ))
+    .from(definition.table)
+    .where(and(...conditions))
     .limit(1)
     .for('update');
   if (!row) {
-    throw new ApiError(404, 'Không tìm thấy bảng giá');
+    throw new ApiError(404, 'Không tìm thấy cấu hình');
   }
-  return row;
+  return row as CrudRow;
 }
 
 function parseSnapshot(action: GovernanceActionRow): SnapshotEnvelope {
   const snapshot = action.beforeSnapshot as Partial<SnapshotEnvelope> | null;
-  if (snapshot?.resource !== 'pricing-tables') {
-    throw new ApiError(409, 'Yêu cầu quản trị không thuộc bảng giá');
+  if (!snapshot || typeof snapshot.resource !== 'string') {
+    throw new ApiError(409, 'Yêu cầu quản trị thiếu cấu hình nguồn');
   }
   return {
-    resource: 'pricing-tables',
+    resource: snapshot.resource,
     fingerprint: typeof snapshot.fingerprint === 'string' ? snapshot.fingerprint : null,
     row: snapshot.row && typeof snapshot.row === 'object'
       ? snapshot.row as Record<string, unknown>
@@ -171,11 +202,11 @@ function parseSnapshot(action: GovernanceActionRow): SnapshotEnvelope {
 
 function parseAfter(action: GovernanceActionRow): AfterEnvelope {
   const after = action.afterSnapshot as Partial<AfterEnvelope> | null;
-  if (after?.resource !== 'pricing-tables') {
-    throw new ApiError(409, 'Yêu cầu quản trị không thuộc bảng giá');
+  if (!after || typeof after.resource !== 'string') {
+    throw new ApiError(409, 'Yêu cầu quản trị thiếu cấu hình áp dụng');
   }
   return {
-    resource: 'pricing-tables',
+    resource: after.resource,
     data: after.data && typeof after.data === 'object'
       ? after.data as Record<string, unknown>
       : null,
@@ -184,16 +215,34 @@ function parseAfter(action: GovernanceActionRow): AfterEnvelope {
 
 function parseDelta(action: GovernanceActionRow): DeltaEnvelope {
   const delta = action.deltaSnapshot as Partial<DeltaEnvelope> | null;
-  if (delta?.resource !== 'pricing-tables') {
-    throw new ApiError(409, 'Yêu cầu quản trị không thuộc bảng giá');
+  if (!delta || typeof delta.resource !== 'string') {
+    throw new ApiError(409, 'Yêu cầu quản trị thiếu thao tác cấu hình');
   }
   if (delta.operation !== 'CREATE' && delta.operation !== 'UPDATE' && delta.operation !== 'DELETE') {
     throw new ApiError(409, 'Yêu cầu quản trị thiếu thao tác hợp lệ');
   }
   return {
-    resource: 'pricing-tables',
+    resource: delta.resource,
     operation: delta.operation,
   };
+}
+
+function syntheticApprovalRequest(action: GovernanceActionRow): Request {
+  return {
+    body: {},
+    headers: {},
+    params: {},
+    query: {},
+    user: action.approverId == null || action.approverRole == null
+      ? undefined
+      : {
+          userId: action.approverId,
+          username: `governance-approver-${action.approverId}`,
+          email: null,
+          fullName: null,
+          role: action.approverRole as Role,
+        },
+  } as Request;
 }
 
 async function insertGovernanceAction(
@@ -204,76 +253,221 @@ async function insertGovernanceAction(
   return action;
 }
 
-export async function requestPricingTableCreate(input: {
-  data: PricingTableCreateInput;
-  reason: string;
+export function registerGovernedCrudResource(
+  definition: Omit<GovernedCrudDefinition, 'kind'>,
+): void {
+  governedDefinitions.set(definition.resource, {
+    ...definition,
+    kind: 'crud',
+  });
+}
+
+export function registerGovernedCustomResource(
+  definition: Omit<GovernedCustomDefinition, 'kind' | 'actionKind' | 'subjectType'>,
+): void {
+  governedDefinitions.set(definition.resource, {
+    ...definition,
+    kind: 'custom',
+    actionKind: 'PRICE_CONFIG_CHANGE',
+    subjectType: 'PRICE_CONFIG',
+  });
+}
+
+export async function requestGovernedConfigAction(input: {
+  resource: string;
+  operation: MutationKind;
+  subjectId: number | null;
+  subjectKey: string | null;
+  originalVersion: number;
+  beforeRow: CrudRow | null;
+  afterData: CrudData | null;
+  reason?: string;
   makerId: number;
   makerRole: string;
+  transaction?: Tx;
 }) {
-  assertCanMakeGovernanceAction('PRICE_CONFIG_CHANGE', input.makerRole);
-  const reason = requireReason(input.reason);
-  const proposed = normalizePricingTableCreate(input.data);
-  return db.transaction(async (tx) => insertGovernanceAction(tx, {
-    subjectType: 'PRICE_CONFIG',
-    subjectId: null,
-    subjectKey: createSubjectKey(proposed),
-    actionKind: 'PRICE_CONFIG_CHANGE',
+  const definition = getDefinition(input.resource);
+  assertCanMakeGovernanceAction(definition.actionKind, input.makerRole);
+  const reason = resolveReason(definition, input.operation, input.reason);
+  const execute = async (tx: Tx) => insertGovernanceAction(tx, {
+    subjectType: definition.subjectType,
+    subjectId: input.subjectId,
+    subjectKey: input.subjectKey,
+    actionKind: definition.actionKind,
     reason,
-    originalVersion: 0,
-    beforeSnapshot: snapshotEnvelope(null),
+    originalVersion: input.originalVersion,
+    beforeSnapshot: snapshotEnvelope(definition.resource, input.beforeRow),
     afterSnapshot: {
-      resource: 'pricing-tables',
-      data: proposed,
+      resource: definition.resource,
+      data: input.afterData,
     },
     deltaSnapshot: {
-      resource: 'pricing-tables',
-      operation: 'CREATE',
+      resource: definition.resource,
+      operation: input.operation,
     },
     makerId: input.makerId,
     makerRole: input.makerRole,
-  }));
+  });
+  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+}
+
+export async function requestGovernedCrudCreate(input: {
+  resource: string;
+  data: CrudData;
+  reason?: string;
+  makerId: number;
+  makerRole: string;
+  transaction?: Tx;
+}) {
+  return requestGovernedConfigAction({
+    resource: input.resource,
+    operation: 'CREATE',
+    subjectId: null,
+    subjectKey: createSubjectKey(input.resource, input.data),
+    originalVersion: 0,
+    beforeRow: null,
+    afterData: input.data,
+    reason: input.reason,
+    makerId: input.makerId,
+    makerRole: input.makerRole,
+    transaction: input.transaction,
+  });
+}
+
+export async function requestGovernedCrudUpdate(input: {
+  resource: string;
+  id: number;
+  data: CrudData;
+  reason?: string;
+  makerId: number;
+  makerRole: string;
+  expectedUpdatedAt: Date;
+  transaction?: Tx;
+}) {
+  const definition = getCrudDefinition(input.resource);
+  assertCanMakeGovernanceAction(definition.actionKind, input.makerRole);
+  const reason = resolveReason(definition, 'UPDATE', input.reason);
+  const execute = async (tx: Tx) => {
+    const row = await lockResourceRow(tx, definition, input.id);
+    const updatedAt = assertGovernedUpdatedAt(row, definition.resource);
+    if (updatedAt.getTime() !== input.expectedUpdatedAt.getTime()) {
+      throw new ApiError(409, 'Dữ liệu đã được người khác cập nhật. Vui lòng tải lại trước khi lưu.');
+    }
+    return requestGovernedConfigAction({
+      resource: definition.resource,
+      operation: 'UPDATE',
+      subjectId: Number(row.id),
+      subjectKey: null,
+      originalVersion: configVersionFromUpdatedAt(updatedAt),
+      beforeRow: row,
+      afterData: input.data,
+      reason,
+      makerId: input.makerId,
+      makerRole: input.makerRole,
+      transaction: tx,
+    });
+  };
+  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+}
+
+export async function requestGovernedCrudDelete(input: {
+  resource: string;
+  id: number;
+  reason?: string;
+  makerId: number;
+  makerRole: string;
+  expectedUpdatedAt: Date;
+  transaction?: Tx;
+}) {
+  const definition = getCrudDefinition(input.resource);
+  assertCanMakeGovernanceAction(definition.actionKind, input.makerRole);
+  const reason = resolveReason(definition, 'DELETE', input.reason);
+  const execute = async (tx: Tx) => {
+    const row = await lockResourceRow(tx, definition, input.id);
+    const updatedAt = assertGovernedUpdatedAt(row, definition.resource);
+    if (updatedAt.getTime() !== input.expectedUpdatedAt.getTime()) {
+      throw new ApiError(409, 'Dữ liệu đã được người khác cập nhật. Vui lòng tải lại trước khi lưu.');
+    }
+    return requestGovernedConfigAction({
+      resource: definition.resource,
+      operation: 'DELETE',
+      subjectId: Number(row.id),
+      subjectKey: null,
+      originalVersion: configVersionFromUpdatedAt(updatedAt),
+      beforeRow: row,
+      afterData: null,
+      reason,
+      makerId: input.makerId,
+      makerRole: input.makerRole,
+      transaction: tx,
+    });
+  };
+  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+}
+
+async function lockPricingTableByVersion(
+  tx: Tx,
+  pricingTableId: number,
+  expectedVersion: number,
+): Promise<{ id: number; updatedAt: Date }> {
+  const [row] = await tx.select({
+    id: s.pricingTables.id,
+    updatedAt: s.pricingTables.updatedAt,
+  })
+    .from(s.pricingTables)
+    .where(and(
+      eq(s.pricingTables.id, pricingTableId),
+      isNull(s.pricingTables.deletedAt),
+    ))
+    .limit(1)
+    .for('update');
+  if (!row) throw new ApiError(404, 'Không tìm thấy bảng giá');
+  if (configVersionFromUpdatedAt(row.updatedAt) !== expectedVersion) {
+    throw new ApiError(409, 'Bảng giá đã được thay đổi. Vui lòng tải lại.');
+  }
+  return row;
+}
+
+export async function requestPricingTableCreate(input: {
+  data: CrudData;
+  reason: string;
+  makerId: number;
+  makerRole: string;
+  transaction?: Tx;
+}) {
+  return requestGovernedCrudCreate({
+    resource: 'pricing_tables',
+    data: input.data,
+    reason: input.reason,
+    makerId: input.makerId,
+    makerRole: input.makerRole,
+    transaction: input.transaction,
+  });
 }
 
 export async function requestPricingTableUpdate(input: {
   pricingTableId: number;
-  data: PricingTableUpdateInput;
+  data: CrudData;
   reason: string;
   makerId: number;
   makerRole: string;
   expectedVersion: number;
+  transaction?: Tx;
 }) {
-  assertCanMakeGovernanceAction('PRICE_CONFIG_CHANGE', input.makerRole);
-  const reason = requireReason(input.reason);
-  requireExpectedVersion(input.expectedVersion);
-  const proposed = normalizePricingTableUpdate(input.data);
-  if (Object.keys(proposed).length === 0) {
-    throw new ApiError(400, 'Không có thay đổi để trình duyệt');
-  }
-  return db.transaction(async (tx) => {
-    const row = await lockPricingTable(tx, input.pricingTableId);
-    if (pricingTableVersion(row) !== input.expectedVersion) {
-      throw new ApiError(409, 'Bảng giá đã được thay đổi. Vui lòng tải lại.');
-    }
-    return insertGovernanceAction(tx, {
-      subjectType: 'PRICE_CONFIG',
-      subjectId: row.id,
-      subjectKey: null,
-      actionKind: 'PRICE_CONFIG_CHANGE',
-      reason,
-      originalVersion: input.expectedVersion,
-      beforeSnapshot: snapshotEnvelope(row),
-      afterSnapshot: {
-        resource: 'pricing-tables',
-        data: proposed,
-      },
-      deltaSnapshot: {
-        resource: 'pricing-tables',
-        operation: 'UPDATE',
-      },
+  const execute = async (tx: Tx) => {
+    const row = await lockPricingTableByVersion(tx, input.pricingTableId, input.expectedVersion);
+    return requestGovernedCrudUpdate({
+      resource: 'pricing_tables',
+      id: row.id,
+      data: input.data,
+      reason: input.reason,
       makerId: input.makerId,
       makerRole: input.makerRole,
+      expectedUpdatedAt: row.updatedAt,
+      transaction: tx,
     });
-  });
+  };
+  return input.transaction ? execute(input.transaction) : db.transaction(execute);
 }
 
 export async function requestPricingTableDelete(input: {
@@ -282,35 +476,205 @@ export async function requestPricingTableDelete(input: {
   makerId: number;
   makerRole: string;
   expectedVersion: number;
+  transaction?: Tx;
 }) {
-  assertCanMakeGovernanceAction('PRICE_CONFIG_CHANGE', input.makerRole);
-  const reason = requireReason(input.reason);
-  requireExpectedVersion(input.expectedVersion);
-  return db.transaction(async (tx) => {
-    const row = await lockPricingTable(tx, input.pricingTableId);
-    if (pricingTableVersion(row) !== input.expectedVersion) {
-      throw new ApiError(409, 'Bảng giá đã được thay đổi. Vui lòng tải lại.');
-    }
-    return insertGovernanceAction(tx, {
-      subjectType: 'PRICE_CONFIG',
-      subjectId: row.id,
-      subjectKey: null,
-      actionKind: 'PRICE_CONFIG_CHANGE',
-      reason,
-      originalVersion: input.expectedVersion,
-      beforeSnapshot: snapshotEnvelope(row),
-      afterSnapshot: {
-        resource: 'pricing-tables',
-        data: null,
-      },
-      deltaSnapshot: {
-        resource: 'pricing-tables',
-        operation: 'DELETE',
-      },
+  const execute = async (tx: Tx) => {
+    const row = await lockPricingTableByVersion(tx, input.pricingTableId, input.expectedVersion);
+    return requestGovernedCrudDelete({
+      resource: 'pricing_tables',
+      id: row.id,
+      reason: input.reason,
       makerId: input.makerId,
       makerRole: input.makerRole,
+      expectedUpdatedAt: row.updatedAt,
+      transaction: tx,
     });
-  });
+  };
+  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+}
+
+async function applyGovernedCreate(
+  tx: Tx,
+  definition: GovernedCrudDefinition,
+  action: GovernanceActionRow,
+  after: AfterEnvelope,
+): Promise<GovernanceApplyResult> {
+  if (definition.kind !== 'crud') {
+    throw new ApiError(409, 'Tài nguyên cấu hình không hỗ trợ CRUD áp dụng mặc định');
+  }
+  if (!after.data) {
+    throw new ApiError(409, 'Yêu cầu tạo cấu hình thiếu dữ liệu áp dụng');
+  }
+  const req = syntheticApprovalRequest(action);
+  const payload = definition.beforeCreate
+    ? await definition.beforeCreate(after.data, req, tx)
+    : after.data;
+  let created: CrudRow;
+  try {
+    [created] = await tx.insert(definition.table)
+      .values(payload)
+      .returning();
+  } catch (error) {
+    const normalized = error as { code?: string; cause?: { code?: string; detail?: string }; detail?: string };
+    const code = normalized.code ?? normalized.cause?.code;
+    if (code === '23505') {
+      throw new ApiError(409, 'Cấu hình đã tồn tại');
+    }
+    throw error;
+  }
+  if (!created || typeof created.id !== 'number') {
+    throw new ApiError(409, 'Không thể tạo cấu hình');
+  }
+  if (definition.afterCreate) {
+    await definition.afterCreate(created, payload, req, tx);
+    const [refreshed] = await tx.select()
+      .from(definition.table)
+      .where(eq(column(definition.table, 'id'), created.id))
+      .limit(1);
+    if (!refreshed) throw new ApiError(404, 'Không tìm thấy cấu hình vừa tạo');
+    created = refreshed as CrudRow;
+  }
+  await tx.update(s.governanceActions)
+    .set({
+      subjectId: created.id,
+      updatedAt: new Date(),
+    })
+    .where(eq(s.governanceActions.id, action.id));
+  return {
+    applicationResult: {
+      resource: definition.resource,
+      operation: 'CREATE',
+      subjectId: created.id,
+      resultingVersion: configVersionFromUpdatedAt(assertGovernedUpdatedAt(created, definition.resource)),
+    },
+    durableEffects: [cacheInvalidateEffect(action.id, 'catalogs:bootstrap')],
+  };
+}
+
+async function applyGovernedUpdate(
+  tx: Tx,
+  definition: GovernedCrudDefinition,
+  action: GovernanceActionRow,
+  before: SnapshotEnvelope,
+  after: AfterEnvelope,
+): Promise<GovernanceApplyResult> {
+  if (definition.kind !== 'crud') {
+    throw new ApiError(409, 'Tài nguyên cấu hình không hỗ trợ CRUD áp dụng mặc định');
+  }
+  if (action.subjectId == null) {
+    throw new ApiError(409, 'Yêu cầu quản trị thiếu cấu hình gốc');
+  }
+  if (!after.data || Object.keys(after.data).length === 0) {
+    throw new ApiError(409, 'Yêu cầu cập nhật cấu hình thiếu dữ liệu áp dụng');
+  }
+  const row = await lockResourceRow(tx, definition, action.subjectId);
+  const currentSnapshot = snapshotEnvelope(definition.resource, row);
+  const currentUpdatedAt = assertGovernedUpdatedAt(row, definition.resource);
+  if (
+    currentSnapshot.fingerprint !== before.fingerprint
+    || configVersionFromUpdatedAt(currentUpdatedAt) !== action.originalVersion
+  ) {
+    throw new ApiError(409, 'Cấu hình gốc đã thay đổi; vui lòng lập yêu cầu mới');
+  }
+
+  const req = syntheticApprovalRequest(action);
+  const patch = definition.beforeUpdate
+    ? await definition.beforeUpdate(action.subjectId, after.data, req, tx)
+    : after.data;
+  if (Object.keys(patch).length === 0) {
+    throw new ApiError(409, 'Yêu cầu cập nhật cấu hình thiếu dữ liệu áp dụng');
+  }
+  const nextUpdatedAt = new Date(Math.max(Date.now(), currentUpdatedAt.getTime() + 1));
+  let updated: CrudRow;
+  try {
+    [updated] = await tx.update(definition.table)
+      .set({
+        ...patch,
+        updatedAt: nextUpdatedAt,
+      })
+      .where(eq(column(definition.table, 'id'), action.subjectId))
+      .returning();
+  } catch (error) {
+    const normalized = error as { code?: string; cause?: { code?: string; detail?: string }; detail?: string };
+    const code = normalized.code ?? normalized.cause?.code;
+    if (code === '23505') {
+      throw new ApiError(409, 'Cấu hình đã tồn tại');
+    }
+    throw error;
+  }
+  if (!updated) throw new ApiError(404, 'Không tìm thấy cấu hình');
+  if (definition.afterUpdate) {
+    await definition.afterUpdate(updated, patch, req, tx);
+    const [refreshed] = await tx.select()
+      .from(definition.table)
+      .where(eq(column(definition.table, 'id'), action.subjectId))
+      .limit(1);
+    if (!refreshed) throw new ApiError(404, 'Không tìm thấy cấu hình');
+    updated = refreshed as CrudRow;
+  }
+  return {
+    applicationResult: {
+      resource: definition.resource,
+      operation: 'UPDATE',
+      subjectId: action.subjectId,
+      resultingVersion: configVersionFromUpdatedAt(assertGovernedUpdatedAt(updated, definition.resource)),
+    },
+    durableEffects: [cacheInvalidateEffect(action.id, 'catalogs:bootstrap')],
+  };
+}
+
+async function applyGovernedDelete(
+  tx: Tx,
+  definition: GovernedCrudDefinition,
+  action: GovernanceActionRow,
+  before: SnapshotEnvelope,
+): Promise<GovernanceApplyResult> {
+  if (definition.kind !== 'crud') {
+    throw new ApiError(409, 'Tài nguyên cấu hình không hỗ trợ CRUD áp dụng mặc định');
+  }
+  if (action.subjectId == null) {
+    throw new ApiError(409, 'Yêu cầu quản trị thiếu cấu hình gốc');
+  }
+  const row = await lockResourceRow(tx, definition, action.subjectId);
+  const currentSnapshot = snapshotEnvelope(definition.resource, row);
+  const currentUpdatedAt = assertGovernedUpdatedAt(row, definition.resource);
+  if (
+    currentSnapshot.fingerprint !== before.fingerprint
+    || configVersionFromUpdatedAt(currentUpdatedAt) !== action.originalVersion
+  ) {
+    throw new ApiError(409, 'Cấu hình gốc đã thay đổi; vui lòng lập yêu cầu mới');
+  }
+
+  const req = syntheticApprovalRequest(action);
+  if (definition.beforeDelete) {
+    await definition.beforeDelete(action.subjectId, req, tx);
+  }
+
+  const [deleted] = definition.deleteMode === 'hard'
+    ? await tx.delete(definition.table)
+      .where(eq(column(definition.table, 'id'), action.subjectId))
+      .returning()
+    : await tx.update(definition.table)
+      .set({
+        deletedAt: new Date(),
+        updatedAt: new Date(Math.max(Date.now(), currentUpdatedAt.getTime() + 1)),
+      })
+      .where(eq(column(definition.table, 'id'), action.subjectId))
+      .returning();
+
+  if (!deleted) throw new ApiError(404, 'Không tìm thấy cấu hình');
+  if (definition.afterDelete) {
+    await definition.afterDelete(action.subjectId, req, tx);
+  }
+  return {
+    applicationResult: {
+      resource: definition.resource,
+      operation: 'DELETE',
+      subjectId: action.subjectId,
+      resultingVersion: configVersionFromUpdatedAt(assertGovernedUpdatedAt(deleted as CrudRow, definition.resource)),
+    },
+    durableEffects: [cacheInvalidateEffect(action.id, 'catalogs:bootstrap')],
+  };
 }
 
 export async function applyPriceConfigGovernanceAction(
@@ -324,91 +688,33 @@ export async function applyPriceConfigGovernanceAction(
   const delta = parseDelta(action);
   const before = parseSnapshot(action);
   const after = parseAfter(action);
+  if (before.resource !== delta.resource || after.resource !== delta.resource) {
+    throw new ApiError(409, 'Yêu cầu quản trị cấu hình bị lệch tài nguyên');
+  }
+
+  const definition = getDefinition(delta.resource);
+  if (definition.actionKind !== action.actionKind || definition.subjectType !== action.subjectType) {
+    throw new ApiError(409, 'Tài nguyên cấu hình không khớp chính sách quản trị');
+  }
+
+  if (definition.kind === 'custom') {
+    return definition.apply(tx, action, before, after, delta);
+  }
 
   if (delta.operation === 'CREATE') {
-    if (!after.data) {
-      throw new ApiError(409, 'Yêu cầu tạo bảng giá thiếu dữ liệu áp dụng');
-    }
-    const payload = parseCreatePayload(after.data);
-    let created: typeof s.pricingTables.$inferSelect;
-    try {
-      [created] = await tx.insert(s.pricingTables).values(payload).returning();
-    } catch (err) {
-      const normalized = uniqueConstraintError(err);
-      if (normalized) throw normalized;
-      throw err;
-    }
-    await tx.update(s.governanceActions)
-      .set({
-        subjectId: created.id,
-        updatedAt: new Date(),
-      })
-      .where(eq(s.governanceActions.id, action.id));
-    await cacheInvalidate('catalogs:bootstrap');
-    return {
-      applicationResult: {
-        resource: 'pricing-tables',
-        operation: 'CREATE',
-        subjectId: created.id,
-        resultingVersion: pricingTableVersion(created),
-      },
-    };
+    return applyGovernedCreate(tx, definition, action, after);
   }
-
-  if (action.subjectId == null) {
-    throw new ApiError(409, 'Yêu cầu quản trị thiếu bảng giá gốc');
-  }
-
-  const row = await lockPricingTable(tx, action.subjectId);
-  const currentSnapshot = snapshotEnvelope(row);
-  if (currentSnapshot.fingerprint !== before.fingerprint || pricingTableVersion(row) !== action.originalVersion) {
-    throw new ApiError(409, 'Bảng giá gốc đã thay đổi; yêu cầu này không thể áp dụng');
-  }
-
   if (delta.operation === 'UPDATE') {
-    if (!after.data || Object.keys(after.data).length === 0) {
-      throw new ApiError(409, 'Yêu cầu cập nhật bảng giá thiếu dữ liệu áp dụng');
-    }
-    const patch = parseUpdatePayload(after.data);
-    let updated: typeof s.pricingTables.$inferSelect;
-    try {
-      [updated] = await tx.update(s.pricingTables)
-        .set({
-          ...patch,
-          updatedAt: new Date(),
-        })
-        .where(eq(s.pricingTables.id, row.id))
-        .returning();
-    } catch (err) {
-      const normalized = uniqueConstraintError(err);
-      if (normalized) throw normalized;
-      throw err;
-    }
-    await cacheInvalidate('catalogs:bootstrap');
-    return {
-      applicationResult: {
-        resource: 'pricing-tables',
-        operation: 'UPDATE',
-        subjectId: updated.id,
-        resultingVersion: pricingTableVersion(updated),
-      },
-    };
+    return applyGovernedUpdate(tx, definition, action, before, after);
   }
+  return applyGovernedDelete(tx, definition, action, before);
+}
 
-  const [deleted] = await tx.update(s.pricingTables)
-    .set({
-      deletedAt: new Date(),
-      updatedAt: new Date(),
-    })
-    .where(eq(s.pricingTables.id, row.id))
-    .returning();
-  await cacheInvalidate('catalogs:bootstrap');
-  return {
-    applicationResult: {
-      resource: 'pricing-tables',
-      operation: 'DELETE',
-      subjectId: deleted!.id,
-      resultingVersion: pricingTableVersion(deleted!),
-    },
-  };
+export function getGovernedCrudResource(resource: string): GovernedCrudDefinition | null {
+  const definition = governedDefinitions.get(resource);
+  return definition?.kind === 'crud' ? definition : null;
+}
+
+export function getGovernedCrudResourceName(table: AnyPgTable): string {
+  return getTableName(table);
 }

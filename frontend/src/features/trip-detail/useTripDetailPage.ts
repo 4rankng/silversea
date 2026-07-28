@@ -13,6 +13,7 @@ import { useCatalogs } from '../../hooks/useCatalogs';
 import { TripStatus, Role } from '@tingting/shared';
 import { useConfirm } from '../../components/UI';
 import { onboardingEvents } from '../../lib/onboardingEvents';
+import { useToast } from '../../components/shared/Toast';
 import type { TripDetailPageData, TripDerivedData, TripPermissions, TripUIState } from './types';
 
 export function resolveExpectedFuelLiters(trip: {
@@ -44,6 +45,7 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { confirm, dialog: confirmDialog } = useConfirm();
+  const { toast } = useToast();
 
   /* ── Data fetching ──────────────────────────────────────────────────── */
   const {
@@ -212,7 +214,21 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
     setActionLoading(true);
     setActionError('');
     try {
-      await method();
+      const result = await method();
+      if (
+        result
+        && typeof result === 'object'
+        && 'actionKind' in result
+        && (
+          result.actionKind === 'TRIP_FINANCIAL_CLOSE'
+          || result.actionKind === 'TRIP_FINANCIAL_CHANGE'
+        )
+      ) {
+        toast({
+          kind: 'success',
+          message: 'Yêu cầu đã được gửi đến hàng chờ kiểm tra và phê duyệt.',
+        });
+      }
       await refetchTrip();
     } catch (err) {
       if (err instanceof ApiError) {

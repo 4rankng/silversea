@@ -3,6 +3,14 @@ import { api } from '../lib/api';
 export type CreditOverrideScopeType = 'SHIPMENT' | 'EXPIRY';
 export type CreditOverrideStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELED';
 export type CreditOverrideTier = 'FINANCE_TIER_1' | 'DIRECTOR';
+export type CreditOverrideWorkflowStatus =
+  | 'PENDING_CHECK'
+  | 'PENDING_APPROVAL'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'RETURNED_FOR_EVIDENCE'
+  | 'CANCELED'
+  | 'SUPERSEDED';
 
 export interface CreditOverrideRequestRecord {
   id: number;
@@ -34,6 +42,11 @@ export interface CreditOverrideRequestRecord {
   consumedTripId: number | null;
   consumedAt: string | null;
   version: number;
+  requestVersion: number;
+  workflowStatus: CreditOverrideWorkflowStatus;
+  governanceActionId: number | null;
+  checkedBy: number | null;
+  checkedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -76,6 +89,9 @@ export const creditOverrideClient = {
 
   createRequest: (body: CreateCreditOverrideRequestInput) =>
     api.post<CreditOverrideRequestRecord>('/finance/credit-overrides', body),
+
+  checkRequest: (id: number, expectedVersion: number) =>
+    api.post<CreditOverrideRequestRecord>(`/finance/credit-overrides/${id}/check`, { expectedVersion }),
 
   approveRequest: (id: number, expectedVersion: number) =>
     api.post<CreditOverrideRequestRecord>(`/finance/credit-overrides/${id}/approve`, { expectedVersion }),

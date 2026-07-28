@@ -19,9 +19,20 @@ import * as s from '../db/schema';
 import { eq, and, isNull, desc, sql, gte, inArray } from 'drizzle-orm';
 import { TripStatus } from '@tingting/shared';
 import { ApiError } from '../errors';
-import { localDateStr, quarterDateRange, resolveTruckCapSnapshot } from './reporting-shared';
+import { localDateStr, quarterDateRange, resolveTruckCapSnapshot, tripCompletionBusinessDateSql } from './reporting-shared';
+import { assertCanMakeGovernanceAction } from './governance-policy';
+import type { GovernanceActionRow } from './governance-transition.service';
+import { hashPayload } from './idempotency.service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type DistributionQueryExecutor = Pick<Tx, 'select'>;
+type ProfitDistributionTransactionOptions = NonNullable<Parameters<typeof db.transaction>[1]>;
+
+export const PROFIT_DISTRIBUTION_TRANSACTION_OPTIONS: ProfitDistributionTransactionOptions = {
+  isolationLevel: 'serializable',
+};
+
+const MAX_PROFIT_SERIALIZATION_RETRIES = 3;
 
 /** A single computed distribution row (one truck × one partner). */
 export interface DistributionRow {
@@ -59,64 +70,224 @@ export interface DistributionPlan {
   undistributedProfit: number;
 }
 
-/**
- * Distribute net profit for a quarter to cap-table partners (per-vehicle).
- */
-export async function distributeProfit(quarter: number, year: number, transaction?: Tx) {
-  // Read-only computation + exactness reconcile guard (throws BEFORE any write
-  // if the math is off).
-  const plan = await computeDistribution(quarter, year);
+interface ComputedDistributionSnapshot {
+  plan: DistributionPlan;
+  sourceFingerprint: string;
+}
 
-  // Atomic write: the idempotency check + the multi-row insert run in ONE
-  // transaction so a partial-insert failure (connection drop, constraint
-  // violation) rolls back ALL rows — leaving the quarter cleanly retryable
-  // instead of stuck half-distributed with the idempotency guard blocking
-  // every retry. (Architect CRITICAL #1.)
-  const execute = async (tx: Tx) => {
-    // Serialize concurrent distributeProfit for the same quarter/year. Two
-    // admins (or a double-click) could both pass the SELECT-then-INSERT
-    // idempotency check under READ COMMITTED and double-distribute. A
-    // transaction-scoped advisory lock keyed by (year, quarter) makes the
-    // second caller BLOCK until the first commits — then its SELECT sees the
-    // persisted rows and returns 409. Auto-releases on commit/rollback.
-    // (A UNIQUE(quarter,year) index would be WRONG here: the table stores one
-    // row per truck×partner, so many rows legitimately share quarter+year.)
-    // (code-review CRITICAL #1 — corrected fix)
-    const lockKey = year * 4 + quarter;
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(${lockKey}::bigint)`);
+function requireDistributionReason(reason: string, quarter: number, year: number): string {
+  const normalized = reason.trim();
+  return normalized || `Phân chia lợi nhuận Q${quarter}/${year}`;
+}
 
-    const [existing] = await tx.select({ id: s.distributions.id })
-      .from(s.distributions)
-      .where(and(eq(s.distributions.quarter, quarter), eq(s.distributions.year, year)))
-      .limit(1);
-    if (existing) {
-      throw new ApiError(409, `Phân chia lợi nhuận Q${quarter}/${year} đã tồn tại`);
-    }
+function distributionSubjectKey(quarter: number, year: number): string {
+  return `${year}-Q${quarter}`;
+}
 
-    if (plan.distributions.length > 0) {
-      await tx.insert(s.distributions).values(plan.distributions.map(d => ({
-        quarter: d.quarter,
-        year: d.year,
-        truckId: d.truckId,
-        partnerName: d.partnerName,
-        amount: d.amount,
-      })));
-    }
+async function lockDistributionQuarter(tx: Tx, quarter: number, year: number): Promise<void> {
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${`profit-distribution\u001f${year}\u001f${quarter}`}, 0))`,
+  );
+}
+
+function hasSqlState(error: unknown, sqlState: string): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  const candidate = error as {
+    code?: unknown;
+    cause?: unknown;
   };
-  if (transaction) {
-    await execute(transaction);
-  } else {
-    await db.transaction(execute);
+  if (candidate.code === sqlState) return true;
+  return hasSqlState(candidate.cause, sqlState);
+}
+
+function isSerializationFailure(error: unknown): boolean {
+  return hasSqlState(error, '40001');
+}
+
+export async function runProfitDistributionWithSerializationRetry<T>(
+  operation: () => Promise<T>,
+): Promise<T> {
+  for (let attempt = 0; attempt < MAX_PROFIT_SERIALIZATION_RETRIES; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (!isSerializationFailure(error)) {
+        throw error;
+      }
+    }
+  }
+  throw new ApiError(
+    409,
+    'Dữ liệu lợi nhuận đang được cập nhật đồng thời; vui lòng thử lại.',
+  );
+}
+
+async function assertDistributionDoesNotExist(
+  tx: Tx,
+  quarter: number,
+  year: number,
+): Promise<void> {
+  const [existing] = await tx.select({ id: s.distributions.id })
+    .from(s.distributions)
+    .where(and(eq(s.distributions.quarter, quarter), eq(s.distributions.year, year)))
+    .limit(1);
+  if (existing) {
+    throw new ApiError(409, `Phân chia lợi nhuận Q${quarter}/${year} đã tồn tại`);
+  }
+}
+
+export async function requestProfitDistributionGovernance(input: {
+  quarter: number;
+  year: number;
+  reason: string;
+  makerId: number;
+  makerRole: string;
+  transaction?: Tx;
+}): Promise<GovernanceActionRow> {
+  assertCanMakeGovernanceAction('PROFIT_DISTRIBUTION', input.makerRole);
+  const reason = requireDistributionReason(input.reason, input.quarter, input.year);
+
+  const execute = async (tx: Tx) => {
+    await lockDistributionQuarter(tx, input.quarter, input.year);
+    await assertDistributionDoesNotExist(tx, input.quarter, input.year);
+    const snapshot = await computeDistributionSnapshot(tx, input.quarter, input.year);
+    const plan = snapshot.plan;
+
+    const [pending] = await tx.select({ id: s.governanceActions.id })
+      .from(s.governanceActions)
+      .where(and(
+        eq(s.governanceActions.subjectType, 'PROFIT_DISTRIBUTION'),
+        eq(s.governanceActions.subjectKey, distributionSubjectKey(input.quarter, input.year)),
+        eq(s.governanceActions.actionKind, 'PROFIT_DISTRIBUTION'),
+        inArray(s.governanceActions.status, [
+          'PENDING_CHECK',
+          'PENDING_APPROVAL',
+          'RETURNED_FOR_EVIDENCE',
+        ]),
+      ))
+      .limit(1);
+    if (pending) {
+      throw new ApiError(409, 'Kỳ lợi nhuận này đã có yêu cầu đang chờ xử lý');
+    }
+
+    const [action] = await tx.insert(s.governanceActions).values({
+      subjectType: 'PROFIT_DISTRIBUTION',
+      subjectId: null,
+      subjectKey: distributionSubjectKey(input.quarter, input.year),
+      actionKind: 'PROFIT_DISTRIBUTION',
+      reason,
+      // Version zero is the explicit authority state for an undistributed
+      // quarter. Any persisted row invalidates the request during approval.
+      originalVersion: 0,
+      beforeSnapshot: {
+        quarter: input.quarter,
+        year: input.year,
+        distributed: false,
+      },
+      afterSnapshot: {
+        quarter: input.quarter,
+        year: input.year,
+        planHash: hashPayload(plan),
+        sourceFingerprint: snapshot.sourceFingerprint,
+      },
+      deltaSnapshot: {
+        netProfit: plan.netProfit,
+        tripCount: plan.tripCount,
+        distributionCount: plan.distributions.length,
+      },
+      makerId: input.makerId,
+      makerRole: input.makerRole,
+    }).returning();
+    return action;
+  };
+
+  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+}
+
+/**
+ * Approval-only adapter. The public request path can create a pending action,
+ * but only the common governance transition service can supply both a locked
+ * transaction and the authoritative approved action context needed here.
+ */
+export async function applyProfitDistributionGovernanceAction(
+  tx: Tx,
+  action: GovernanceActionRow,
+) {
+  if (
+    action.actionKind !== 'PROFIT_DISTRIBUTION'
+    || action.subjectType !== 'PROFIT_DISTRIBUTION'
+  ) {
+    throw new ApiError(409, 'Loại yêu cầu không thuộc phân chia lợi nhuận');
+  }
+  if (action.originalVersion !== 0) {
+    throw new ApiError(409, 'Phiên bản kỳ phân chia lợi nhuận không hợp lệ');
+  }
+
+  const after = action.afterSnapshot as Record<string, unknown> | null;
+  const quarter = Number(after?.quarter);
+  const year = Number(after?.year);
+  const requestedPlanHash = typeof after?.planHash === 'string' ? after.planHash : '';
+  const requestedSourceFingerprint = typeof after?.sourceFingerprint === 'string'
+    ? after.sourceFingerprint
+    : null;
+  if (
+    !Number.isInteger(quarter)
+    || quarter < 1
+    || quarter > 4
+    || !Number.isInteger(year)
+    || year <= 0
+    || !requestedPlanHash
+  ) {
+    throw new ApiError(409, 'Yêu cầu phân chia lợi nhuận không có dữ liệu hợp lệ');
+  }
+
+  await lockDistributionQuarter(tx, quarter, year);
+  await assertDistributionDoesNotExist(tx, quarter, year);
+  const snapshot = await computeDistributionSnapshot(tx, quarter, year);
+  const plan = snapshot.plan;
+  if (
+    hashPayload(plan) !== requestedPlanHash
+    || (requestedSourceFingerprint != null && snapshot.sourceFingerprint !== requestedSourceFingerprint)
+  ) {
+    throw new ApiError(
+      409,
+      'Dữ liệu lợi nhuận hoặc tỷ lệ sở hữu đã thay đổi; vui lòng lập yêu cầu mới',
+    );
+  }
+
+  if (plan.distributions.length > 0) {
+    const rows = await tx.insert(s.distributions).values(plan.distributions.map(item => ({
+      quarter: item.quarter,
+      year: item.year,
+      truckId: item.truckId,
+      partnerName: item.partnerName,
+      amount: item.amount,
+    }))).returning({ id: s.distributions.id });
+    return {
+      applicationResult: {
+        quarter,
+        year,
+        netProfit: plan.netProfit,
+        distributionIds: rows.map(row => row.id),
+        distributions: plan.distributions,
+        perTruck: plan.perTruck,
+        entity: plan.entity,
+        undistributedProfit: plan.undistributedProfit,
+      },
+    };
   }
 
   return {
-    quarter,
-    year,
-    netProfit: plan.netProfit,
-    distributions: plan.distributions,
-    perTruck: plan.perTruck,
-    entity: plan.entity,
-    undistributedProfit: plan.undistributedProfit,
+    applicationResult: {
+      quarter,
+      year,
+      netProfit: plan.netProfit,
+      distributionIds: [],
+      distributions: [],
+      perTruck: plan.perTruck,
+      entity: plan.entity,
+      undistributedProfit: plan.undistributedProfit,
+    },
   };
 }
 
@@ -125,7 +296,7 @@ export async function distributeProfit(quarter: number, year: number, transactio
  * Same logic as distributeProfit but returns the calculation without inserting.
  */
 export async function previewDistribution(quarter: number, year: number) {
-  const plan = await computeDistribution(quarter, year);
+  const plan = await computeDistribution(db, quarter, year);
   return {
     quarter,
     year,
@@ -186,18 +357,27 @@ export function distributeTruckProfit(
  * D5 — reads `trips.grossProfit` for LOCKED trips only; never recomputes a
  * locked trip's totals. Per-vehicle grouping changes only attribution.
  */
-async function computeDistribution(quarter: number, year: number): Promise<DistributionPlan> {
+async function computeDistributionSnapshot(
+  executor: DistributionQueryExecutor,
+  quarter: number,
+  year: number,
+): Promise<ComputedDistributionSnapshot> {
   const { start: qStart, end: qEnd } = await quarterDateRange(quarter, year);
+  const completionBusinessDate = tripCompletionBusinessDateSql();
 
-  const trips = await db.select({
+  const trips = await executor.select({
+    id: s.trips.id,
+    version: s.trips.version,
     truckId: s.trips.truckId,
     grossProfit: s.trips.grossProfit,
+    completedAt: s.trips.completedAt,
   }).from(s.trips).where(
     and(
       eq(s.trips.status, TripStatus.LOCKED),
       isNull(s.trips.deletedAt),
-      gte(s.trips.departureDate, qStart),
-      sql`${s.trips.departureDate} < ${qEnd}`,
+      sql`${s.trips.completedAt} is not null`,
+      gte(completionBusinessDate, qStart),
+      sql`${completionBusinessDate} < ${qEnd}`,
     ),
   );
 
@@ -218,16 +398,32 @@ async function computeDistribution(quarter: number, year: number): Promise<Distr
   // thrown when there were zero entity-wide partners; here the honest answer
   // is an empty plan with zero undistributed profit.
   if (truckIds.length === 0) {
-    return { netProfit: 0, tripCount, distributions: [], entity: [], perTruck: [], undistributedProfit: 0 };
+    return {
+      plan: { netProfit: 0, tripCount, distributions: [], entity: [], perTruck: [], undistributedProfit: 0 },
+      sourceFingerprint: hashPayload({ quarter, year, trips: [], trucks: [], ownership: [] }),
+    };
   }
 
   // Load all per-vehicle cap rows for the profit-bearing trucks, scoped once.
   const capRows = truckIds.length > 0
-    ? await db.select().from(s.truckCapTable).where(inArray(s.truckCapTable.truckId, truckIds))
+    ? await executor.select({
+      id: s.truckCapTable.id,
+      truckId: s.truckCapTable.truckId,
+      partnerName: s.truckCapTable.partnerName,
+      percentage: s.truckCapTable.percentage,
+      role: s.truckCapTable.role,
+      effectiveDate: s.truckCapTable.effectiveDate,
+      createdAt: s.truckCapTable.createdAt,
+      updatedAt: s.truckCapTable.updatedAt,
+    }).from(s.truckCapTable).where(inArray(s.truckCapTable.truckId, truckIds))
     : [];
 
   // Plates for display — never expose the raw truckId in the UI.
-  const trucks = await db.select({ id: s.trucks.id, licensePlate: s.trucks.licensePlate })
+  const trucks = await executor.select({
+    id: s.trucks.id,
+    licensePlate: s.trucks.licensePlate,
+    updatedAt: s.trucks.updatedAt,
+  })
     .from(s.trucks).where(inArray(s.trucks.id, truckIds));
   const plateById = new Map(trucks.map(t => [t.id, t.licensePlate]));
 
@@ -236,6 +432,10 @@ async function computeDistribution(quarter: number, year: number): Promise<Distr
 
   const distributions: DistributionRow[] = [];
   const perTruck: PerTruckDistribution[] = [];
+  const ownershipSnapshot: Array<{
+    truckId: number;
+    owners: Array<{ partnerName: string; percentage: number; role: 'INVESTOR' | 'DRIVER' }>;
+  }> = [];
   let undistributedProfit = 0;
 
   for (const truckId of truckIds) {
@@ -243,6 +443,14 @@ async function computeDistribution(quarter: number, year: number): Promise<Distr
     const plate = plateById.get(truckId) ?? '(không rõ biển số)';
     const rowsForTruck = capRows.filter(r => r.truckId === truckId);
     const owners = resolveTruckCapSnapshot(rowsForTruck, cutoff);
+    ownershipSnapshot.push({
+      truckId,
+      owners: owners.map(owner => ({
+        partnerName: owner.partnerName,
+        percentage: owner.percentage,
+        role: owner.role,
+      })),
+    });
 
     if (owners.length === 0) {
       // Q1 default — ownerless truck: hold its profit aside, do not distribute.
@@ -299,5 +507,47 @@ async function computeDistribution(quarter: number, year: number): Promise<Distr
     .map(([partnerName, amount]) => ({ partnerName, amount }))
     .sort((a, b) => b.amount - a.amount);
 
-  return { netProfit, tripCount, distributions, entity, perTruck, undistributedProfit };
+  const plan = { netProfit, tripCount, distributions, entity, perTruck, undistributedProfit };
+  const sourceFingerprint = hashPayload({
+    quarter,
+    year,
+    trips: trips
+      .map(trip => ({
+        id: trip.id,
+        version: trip.version,
+        truckId: trip.truckId,
+        grossProfit: trip.grossProfit,
+        completedAt: trip.completedAt?.toISOString() ?? null,
+      }))
+      .sort((left, right) => left.id - right.id),
+    trucks: trucks
+      .map(truck => ({
+        id: truck.id,
+        licensePlate: truck.licensePlate,
+        updatedAt: truck.updatedAt.toISOString(),
+      }))
+      .sort((left, right) => left.id - right.id),
+    ownership: ownershipSnapshot
+      .map(item => ({
+        truckId: item.truckId,
+        owners: item.owners
+          .slice()
+          .sort((left, right) => (
+            left.partnerName.localeCompare(right.partnerName)
+            || left.role.localeCompare(right.role)
+            || left.percentage - right.percentage
+          )),
+      }))
+      .sort((left, right) => left.truckId - right.truckId),
+  });
+
+  return { plan, sourceFingerprint };
+}
+
+async function computeDistribution(
+  executor: DistributionQueryExecutor,
+  quarter: number,
+  year: number,
+): Promise<DistributionPlan> {
+  return (await computeDistributionSnapshot(executor, quarter, year)).plan;
 }

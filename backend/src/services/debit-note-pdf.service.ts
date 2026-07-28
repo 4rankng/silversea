@@ -24,6 +24,7 @@ import * as s from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import {
+  resolveBillingDocumentIdentity,
   resolveDebitNoteTemplateForDoc,
   renderColumnValue,
 } from './billingDocument.service';
@@ -123,15 +124,8 @@ export async function getDebitNoteForRender(
   // (never null in practice), but its declared return type is nullable.
   // Coalesce to a hard non-null so callers don't have to branch.
   const snapshot = (await resolveDebitNoteTemplateForDoc(doc, opts))!;
-
-  let customerTaxCode: string | null = null;
-  if (doc.entityType === 'CUSTOMER') {
-    const [cust] = await db.select({ taxCode: s.customers.taxCode })
-      .from(s.customers)
-      .where(eq(s.customers.id, doc.entityId))
-      .limit(1);
-    customerTaxCode = cust?.taxCode ?? null;
-  }
+  const identity = await resolveBillingDocumentIdentity(doc, snapshot);
+  const customerTaxCode = identity?.counterparty.taxCode || null;
 
   return { doc, snapshot, customerTaxCode };
 }
@@ -251,17 +245,27 @@ export function exportDebitNoteHtml(
             </td>
           </tr>`;
 
+  const officialIdentity = (snapshot as DebitNoteTemplateSnapshot & {
+    officialIdentity?: {
+      issuer?: { name?: string | null; address?: string | null; taxCode?: string | null; representative?: string | null };
+      counterparty?: { name?: string | null; address?: string | null; taxCode?: string | null; representative?: string | null };
+      signatures?: { leftLabel?: string | null; leftName?: string | null; rightLabel?: string | null; rightName?: string | null };
+    } | null;
+  }).officialIdentity ?? null;
   const title = escapeHtml(snapshot.titleText || 'GIẤY BÁO NỢ');
-  const issuerName = escapeHtml(snapshot.issuerName ?? '');
-  const issuerAddress = escapeHtml(snapshot.issuerAddress ?? '');
-  const issuerTaxCode = escapeHtml(snapshot.issuerTaxCode ?? '');
-  const issuerRepresentative = escapeHtml(snapshot.issuerRepresentative ?? '');
-  const partyAName = escapeHtml(data.entityName);
+  const issuerName = escapeHtml(officialIdentity?.issuer?.name ?? snapshot.issuerName ?? '');
+  const issuerAddress = escapeHtml(officialIdentity?.issuer?.address ?? snapshot.issuerAddress ?? '');
+  const issuerTaxCode = escapeHtml(officialIdentity?.issuer?.taxCode ?? snapshot.issuerTaxCode ?? '');
+  const issuerRepresentative = escapeHtml(officialIdentity?.issuer?.representative ?? snapshot.issuerRepresentative ?? '');
+  const partyAName = escapeHtml(officialIdentity?.counterparty?.name ?? data.entityName);
+  const partyAAddress = escapeHtml(officialIdentity?.counterparty?.address ?? '');
+  const partyATaxCode = escapeHtml(officialIdentity?.counterparty?.taxCode ?? '');
+  const partyARepresentative = escapeHtml(officialIdentity?.counterparty?.representative ?? '');
   const termsLines = (snapshot.termsText ?? '').split('\n').filter(l => l.trim()).map(l => `      <p>${escapeHtml(l)}</p>`).join('\n');
-  const signatureLeft = escapeHtml(snapshot.signatureLeftLabel ?? 'Khách hàng');
-  const signatureLeftName = escapeHtml(snapshot.signatureLeftName ?? '');
-  const signatureRight = escapeHtml(snapshot.signatureRightLabel ?? 'Kế toán trưởng');
-  const signatureRightName = escapeHtml(snapshot.signatureRightName ?? '');
+  const signatureLeft = escapeHtml(officialIdentity?.signatures?.leftLabel ?? snapshot.signatureLeftLabel ?? 'Khách hàng');
+  const signatureLeftName = escapeHtml(officialIdentity?.signatures?.leftName ?? snapshot.signatureLeftName ?? '');
+  const signatureRight = escapeHtml(officialIdentity?.signatures?.rightLabel ?? snapshot.signatureRightLabel ?? 'Kế toán trưởng');
+  const signatureRightName = escapeHtml(officialIdentity?.signatures?.rightName ?? snapshot.signatureRightName ?? '');
   const dueDateLine = data.originalDueDate
     ? `· Hạn hợp đồng: ${escapeHtml(data.originalDueDate)}
     · Ngày xử lý: ${escapeHtml(data.processingDueDate ?? data.originalDueDate)}`
@@ -306,6 +310,9 @@ export function exportDebitNoteHtml(
     <div>
       <strong>BÊN A (BÊN THUÊ DỊCH VỤ)</strong>
       <p>${partyAName}</p>
+      ${partyAAddress ? `<p>Địa chỉ: ${partyAAddress}</p>` : ''}
+      ${partyATaxCode ? `<p>Mã số thuế: ${partyATaxCode}</p>` : ''}
+      ${partyARepresentative ? `<p>Đại diện: ${partyARepresentative}</p>` : ''}
     </div>
     <div>
       <strong>BÊN B (BÊN CUNG CẤP DỊCH VỤ)</strong>

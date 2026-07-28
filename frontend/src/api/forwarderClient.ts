@@ -66,7 +66,7 @@ export const forwarderClient = {
     return api.post(FORWARDER.EXPENSES, data);
   },
 
-  updateExpense: async (id: number, data: {
+  updateExpense: async (id: number, expectedUpdatedAt: string, data: {
     expenseType: string;
     buyAmount: number;
     sellAmount?: number;
@@ -80,13 +80,13 @@ export const forwarderClient = {
     tripContainerId?: number | null;
     note?: string | null;
     noInvoiceEvidenceTypes?: string[] | null;
-  }) => api.patch(`/forwarder/me/expenses/${id}`, data),
+  }) => api.patch(`/forwarder/me/expenses/${id}`, data, { expectedUpdatedAt }),
 
   setExpenseCompletion: async (tripId: number, data: { tripContainerId: number | null; completed: boolean }) =>
     api.put(`/forwarder/me/trips/${tripId}/expense-completion`, data),
 
-  deleteExpense: async (id: number) => {
-    return api.delete(FORWARDER.EXPENSE(id));
+  deleteExpense: async (id: number, expectedUpdatedAt: string) => {
+    return api.delete(FORWARDER.EXPENSE(id), { expectedUpdatedAt });
   },
 
   getAdvanceRequests: async (status?: string) => {
@@ -130,11 +130,11 @@ export const forwarderClient = {
   listAllAdvanceRequests: async (filters?: { status?: string }) => {
     return api.get<{ items: AdvanceRequestWithRefs[] }>(`${FINANCIAL.ADVANCE_REQUESTS}${toQuery(filters)}`);
   },
-  approveAdvanceRequest: async (id: number, expectedVersion: number) => {
-    return api.post(FINANCIAL.ADVANCE_REQUEST_APPROVE(id), { expectedVersion });
+  approveAdvanceRequest: async (id: number, expectedVersion: number, reason: string) => {
+    return api.post(FINANCIAL.ADVANCE_REQUEST_APPROVE(id), { expectedVersion, reason });
   },
-  rejectAdvanceRequest: async (id: number, expectedVersion: number) => {
-    return api.post(FINANCIAL.ADVANCE_REQUEST_REJECT(id), { expectedVersion });
+  rejectAdvanceRequest: async (id: number, expectedVersion: number, reason: string) => {
+    return api.post(FINANCIAL.ADVANCE_REQUEST_REJECT(id), { expectedVersion, reason });
   },
 
   listAllAdvanceSettlements: async (filters?: { status?: string }) => {
@@ -178,5 +178,8 @@ export const forwarderClient = {
   }) => api.patch(`${FINANCIAL.ADVANCE_SETTLEMENTS}/${settlementId}/expenses/${expenseId}`, data),
   rejectAdvanceSettlement: async (id: number, expectedVersion: number) => {
     return api.post(FINANCIAL.ADVANCE_SETTLEMENT_REJECT(id), { expectedVersion });
+  },
+  reverseAdvanceSettlement: async (id: number, data: { expectedVersion: number; reason: string }) => {
+    return api.post(`${FINANCIAL.ADVANCE_SETTLEMENTS}/${id}/reversal`, data);
   },
 };

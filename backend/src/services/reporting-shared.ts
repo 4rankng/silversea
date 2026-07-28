@@ -4,6 +4,8 @@
  * Date-range helpers and utility functions shared across reporting sub-modules.
  */
 
+import { sql } from 'drizzle-orm';
+import * as s from '../db/schema';
 import { resolveSalaryPeriodDateRange, resolveQuarterDateRange } from './salary-period.service';
 
 /** Local date string (YYYY-MM-DD) using system timezone — avoids toISOString() UTC drift. */
@@ -58,6 +60,14 @@ export async function quarterDateRange(quarter: number, year: number) {
   const { start: qStart, end: qEndRaw } = await resolveQuarterDateRange(quarter, year);
   const qEnd = addDay(qEndRaw);
   return { start: qStart, end: qEnd };
+}
+
+/**
+ * Official trip financial reporting anchors to the Vietnam business date of
+ * trip completion, not the trip's operational departure date.
+ */
+export function tripCompletionBusinessDateSql() {
+  return sql<string>`(${s.trips.completedAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh')::date`;
 }
 
 // ─── Cap-table helpers (shared between dashboard-stats and profit-distribution) ──

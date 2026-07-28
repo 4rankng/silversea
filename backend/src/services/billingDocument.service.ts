@@ -1,6 +1,6 @@
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq, and, gte, lte, isNull, inArray, desc, or, sql, type SQL } from 'drizzle-orm';
+import { eq, and, gte, lte, isNull, inArray, desc, or, sql, like, type SQL } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { getSupplierStatement } from './statement.service';
 import { LedgerService } from './ledger.service';
@@ -12,7 +12,7 @@ import {
   defaultDebitNoteColumns,
   defaultPaymentStatementColumns,
 } from '@tingting/shared';
-import { getCompanyInfo } from './company-info.service';
+import { companyInfoFromSettings, getCompanyInfo } from './company-info.service';
 import type { Tx } from './trip-shared';
 type DbLike = typeof db | Tx;
 import { loadLogoBytes } from './lib/export-company';
@@ -40,6 +40,7 @@ import type {
   DebitNoteTemplate,
   DebitNoteTemplateColumn,
   DebitNoteTemplateSnapshot,
+  BillingDocumentOfficialIdentitySnapshot,
 } from '@tingting/shared';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -53,6 +54,70 @@ export function splitContainers(raw: string | null): string[] | null {
 export function joinContainers(list: string[] | null | undefined): string | null {
   if (!list || list.length === 0) return null;
   return list.filter(Boolean).join(', ');
+}
+
+type BillingPartyInfo = {
+  name: string;
+  address: string;
+  taxCode: string;
+  representative: string;
+  representativeTitle: string;
+  phone: string;
+};
+
+type OfficialBillingIdentitySnapshot = BillingDocumentOfficialIdentitySnapshot;
+
+type FrozenDebitNoteTemplateSnapshot = DebitNoteTemplateSnapshot & {
+  officialIdentity?: OfficialBillingIdentitySnapshot | null;
+};
+
+function trimIdentityValue(value: string | null | undefined): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function stripHonorifics(value: string): string {
+  return value.replace(/^Ông\s+|^Bà\s+/i, '').trim();
+}
+
+function cloneTemplateSnapshot(snapshot: DebitNoteTemplateSnapshot): FrozenDebitNoteTemplateSnapshot {
+  const typed = snapshot as FrozenDebitNoteTemplateSnapshot;
+  return {
+    ...typed,
+    columns: cloneColumns(snapshot.columns),
+    officialIdentity: typed.officialIdentity
+      ? {
+          issuer: { ...typed.officialIdentity.issuer },
+          counterparty: { ...typed.officialIdentity.counterparty },
+          signatures: { ...typed.officialIdentity.signatures },
+          captureMetadata: { ...typed.officialIdentity.captureMetadata },
+        }
+      : null,
+  };
+}
+
+function extractOfficialIdentitySnapshot(
+  snapshot: DebitNoteTemplateSnapshot | null | undefined,
+): OfficialBillingIdentitySnapshot | null {
+  const raw = (snapshot as FrozenDebitNoteTemplateSnapshot | null | undefined)?.officialIdentity;
+  if (!raw) return null;
+  return {
+    issuer: { ...raw.issuer },
+    counterparty: { ...raw.counterparty },
+    signatures: { ...raw.signatures },
+    captureMetadata: { ...raw.captureMetadata },
+  };
+}
+
+async function loadCompanyInfoFromExecutor(executor: DbLike = db, lockRows = false) {
+  const query = executor.select({
+    key: s.appSettings.key,
+    value: s.appSettings.value,
+    updatedAt: s.appSettings.updatedAt,
+  })
+    .from(s.appSettings)
+    .where(like(s.appSettings.key, 'company.%'));
+  const rows = await (lockRows ? query.for('share') : query);
+  return companyInfoFromSettings(rows);
 }
 
 function tripSourceIds(lines: readonly BillingDocumentLine[]): number[] {
@@ -131,6 +196,22 @@ function renderSourceVersion(line: Pick<BillingDocumentLine, 'renderData'>): str
 function renderSourceChangedAt(line: Pick<BillingDocumentLine, 'renderData'>): string | null {
   const raw = line.renderData?.sourceChangedAt;
   return typeof raw === 'string' && raw.trim() ? raw.trim() : null;
+}
+
+function lineColumnSourceVersion(line: { sourceVersion?: string | null }): string | null {
+  return typeof line.sourceVersion === 'string' && line.sourceVersion.trim()
+    ? line.sourceVersion.trim()
+    : null;
+}
+
+function lineColumnSourceChangedAt(
+  line: { sourceChangedAt?: Date | string | null },
+): string | null {
+  if (!line.sourceChangedAt) return null;
+  const value = line.sourceChangedAt instanceof Date
+    ? line.sourceChangedAt
+    : new Date(line.sourceChangedAt);
+  return Number.isNaN(value.getTime()) ? null : value.toISOString();
 }
 
 async function loadLineProvenance(
@@ -404,22 +485,37 @@ export function templateToSnapshot(t: DebitNoteTemplate): DebitNoteTemplateSnaps
 }
 
 /**
- * Resolve the snapshot to render a doc with, applying the export precedence:
- * explicit `?templateId=` override → the doc's frozen snapshot (history
- * stability) → customer's assigned template (DEBIT_NOTE only) → document-type
- * default → built-in standard snapshot.
+ * Resolve the snapshot to render a doc with. Issued documents always use their
+ * frozen snapshot so an export can never rewrite official history. Drafts keep
+ * the preview precedence: explicit `?templateId=` override → frozen snapshot →
+ * customer assignment → document-type default → built-in standard snapshot.
  */
 export async function resolveDebitNoteTemplateForDoc(
-  doc: { type: string; entityType: string; entityId: number; debitNoteTemplateSnapshot?: DebitNoteTemplateSnapshot | null },
+  doc: {
+    type: string;
+    entityType: string;
+    entityId: number;
+    debitNoteStatus?: string | null;
+    debitNoteTemplateSnapshot?: DebitNoteTemplateSnapshot | null;
+  },
   opts: { templateIdOverride?: number | null } = {},
 ): Promise<DebitNoteTemplateSnapshot | null> {
   const docType = doc.type === 'PAYMENT_STATEMENT' ? 'PAYMENT_STATEMENT' : 'DEBIT_NOTE';
+  const isIssued = doc.debitNoteStatus != null && doc.debitNoteStatus !== 'DRAFT';
+  if (isIssued && doc.debitNoteTemplateSnapshot) {
+    return {
+      ...cloneTemplateSnapshot(doc.debitNoteTemplateSnapshot),
+      titleText: doc.type === 'PAYMENT_STATEMENT' && doc.debitNoteTemplateSnapshot.titleText === 'GIẤY BÁO NỢ'
+        ? 'BẢNG KÊ CƯỚC VẬN CHUYỂN'
+        : doc.debitNoteTemplateSnapshot.titleText,
+    };
+  }
   if (opts.templateIdOverride && opts.templateIdOverride > 0) {
     const t = await getDebitNoteTemplate(opts.templateIdOverride);
     if (t && t.documentType === docType) return templateToSnapshot(t);
   }
   if (doc.debitNoteTemplateSnapshot) return {
-    ...doc.debitNoteTemplateSnapshot,
+    ...cloneTemplateSnapshot(doc.debitNoteTemplateSnapshot),
     titleText: doc.type === 'PAYMENT_STATEMENT' && doc.debitNoteTemplateSnapshot.titleText === 'GIẤY BÁO NỢ'
       ? 'BẢNG KÊ CƯỚC VẬN CHUYỂN'
       : doc.debitNoteTemplateSnapshot.titleText,
@@ -964,6 +1060,9 @@ export async function saveDocument(
           note: input.note ?? null,
           totalInclVat: String(total),
           ledgerAdjustmentAmount: String(desiredAdjustment),
+          authorityState: 'CURRENT',
+          authorityWarningReason: null,
+          authorityWarningAt: null,
           updatedAt: new Date(),
           debitNoteTemplateId: template?.id ?? null,
           debitNoteTemplateSnapshot: snapshot,
@@ -996,6 +1095,9 @@ export async function saveDocument(
         entityName: input.entityName ?? null, rangeFrom: input.rangeFrom, rangeTo: input.rangeTo,
         note: input.note ?? null, totalInclVat: String(total), createdBy: userId,
         ledgerAdjustmentAmount: String(desiredAdjustment),
+        authorityState: 'CURRENT',
+        authorityWarningReason: null,
+        authorityWarningAt: null,
         debitNoteTemplateId: template?.id ?? null,
         debitNoteTemplateSnapshot: snapshot,
         originalDueDate: dueDateSnapshot.originalDate,
@@ -1016,6 +1118,9 @@ export async function saveDocument(
         note: input.note ?? null,
         totalInclVat: String(total),
         ledgerAdjustmentAmount: String(desiredAdjustment),
+        authorityState: 'CURRENT',
+        authorityWarningReason: null,
+        authorityWarningAt: null,
         updatedAt: new Date(),
         debitNoteTemplateId: template?.id ?? null,
         debitNoteTemplateSnapshot: snapshot,
@@ -1039,6 +1144,9 @@ export async function saveDocument(
       entityName: input.entityName ?? null, rangeFrom: input.rangeFrom, rangeTo: input.rangeTo,
       note: input.note ?? null, totalInclVat: String(total), createdBy: userId,
       ledgerAdjustmentAmount: String(desiredAdjustment),
+      authorityState: 'CURRENT',
+      authorityWarningReason: null,
+      authorityWarningAt: null,
       debitNoteTemplateId: template?.id ?? null,
       debitNoteTemplateSnapshot: snapshot,
       originalDueDate: null,
@@ -1117,6 +1225,9 @@ export async function updateDocument(
       entityName: input.entityName ?? null, rangeFrom: input.rangeFrom, rangeTo: input.rangeTo,
       note: input.note ?? null, totalInclVat: String(total), updatedAt: new Date(),
       ledgerAdjustmentAmount: String(desiredAdjustment),
+      authorityState: 'CURRENT',
+      authorityWarningReason: null,
+      authorityWarningAt: null,
       debitNoteTemplateId: template?.id ?? null,
       debitNoteTemplateSnapshot: snapshot,
     }).where(and(
@@ -1151,6 +1262,8 @@ async function persistLines(tx: Tx, documentId: number, lines: BillingDocumentLi
     lines.map((l) => ({
       documentId,
       sourceType: l.sourceType, sourceId: l.sourceId ?? null, lineType: l.lineType,
+      sourceVersion: renderSourceVersion(l),
+      sourceChangedAt: renderSourceChangedAt(l) ? new Date(renderSourceChangedAt(l) as string) : null,
       typeLabel: l.typeLabel, unit: l.unit,
       description: l.description, routeName: l.routeName ?? null,
       containerNumbers: joinContainers(l.containerNumbers),
@@ -1193,13 +1306,29 @@ async function hydrateDocument(
     .where(eq(s.billingDocumentLines.documentId, doc.id))
     .orderBy(s.billingDocumentLines.sortOrder);
   const hydratedLines = await Promise.all(lines.map(async (l) => {
+    const explicitSourceVersion = lineColumnSourceVersion(l);
+    const explicitSourceChangedAt = lineColumnSourceChangedAt(l);
+    const renderData = ((l.renderData as BillingLineRenderData | null) ?? null)
+      ? {
+          ...((l.renderData as BillingLineRenderData | null) ?? {}),
+          ...(explicitSourceVersion ? { sourceVersion: explicitSourceVersion } : {}),
+          ...(explicitSourceChangedAt ? { sourceChangedAt: explicitSourceChangedAt } : {}),
+        }
+      : (
+          explicitSourceVersion || explicitSourceChangedAt
+            ? {
+                ...(explicitSourceVersion ? { sourceVersion: explicitSourceVersion } : {}),
+                ...(explicitSourceChangedAt ? { sourceChangedAt: explicitSourceChangedAt } : {}),
+              } as BillingLineRenderData
+            : null
+        );
     const line: BillingDocumentLine = {
       id: l.id, documentId: l.documentId, sourceType: l.sourceType as BillingDocumentLine['sourceType'],
       sourceId: l.sourceId ?? null, lineType: l.lineType as BillingDocumentLine['lineType'],
       typeLabel: l.typeLabel, unit: l.unit,
       description: l.description, routeName: l.routeName,
       containerNumbers: splitContainers(l.containerNumbers),
-      renderData: (l.renderData as BillingLineRenderData | null) ?? null,
+      renderData,
       baseAmount: Number(l.baseAmount), amountOverride: l.amountOverride != null ? Number(l.amountOverride) : null,
       excluded: l.excluded, sortOrder: l.sortOrder,
     };
@@ -1209,9 +1338,12 @@ async function hydrateDocument(
       provenance: await loadLineProvenance(normalized, executor),
     };
   }));
-  const authorityState = hydratedLines.some((line) => line.provenance?.status && line.provenance.status !== 'CURRENT')
+  const detectedAuthorityState = hydratedLines.some((line) => line.provenance?.status && line.provenance.status !== 'CURRENT')
     ? ((doc.debitNoteStatus ?? 'DRAFT') === 'DRAFT' ? 'STALE' : 'ADJUSTMENT_REQUIRED')
     : 'CURRENT';
+  const authorityState = doc.authorityState === 'CURRENT'
+    ? detectedAuthorityState
+    : (doc.authorityState as BillingDocument['authorityState']);
   const corrections = await listDocumentCorrections(doc.id, executor);
   return {
     id: doc.id, type: doc.type as BillingDocumentType, entityType: doc.entityType as BillingDocumentEntityType,
@@ -1228,6 +1360,9 @@ async function hydrateDocument(
     paymentDatePolicyApplied: doc.paymentDatePolicyApplied as PaymentDatePolicy | null,
     debitNoteTemplateId: doc.debitNoteTemplateId ?? null,
     debitNoteTemplateSnapshot: (doc.debitNoteTemplateSnapshot as DebitNoteTemplateSnapshot | null) ?? null,
+    officialIdentitySnapshot: (
+      doc.officialIdentitySnapshot as BillingDocumentOfficialIdentitySnapshot | null
+    ) ?? null,
     authorityState,
     corrections,
     createdAt: doc.createdAt.toISOString(), updatedAt: doc.updatedAt.toISOString(),
@@ -1389,24 +1524,20 @@ function renderTemplateText(template: string, variables: Record<string, string |
   });
 }
 
-type BillingPartyInfo = {
-  name: string;
-  address: string;
-  taxCode: string;
-  representative: string;
-  representativeTitle: string;
-  phone: string;
-};
-
-async function loadCounterpartyInfo(doc: BillingDocument): Promise<BillingPartyInfo> {
+async function loadCounterpartyInfo(
+  doc: BillingDocument,
+  executor: DbLike = db,
+  lockRows = false,
+): Promise<BillingPartyInfo> {
   if (doc.entityType === 'CUSTOMER') {
-    const [customer] = await db.select({
+    const query = executor.select({
       name: s.customers.name,
       taxCode: s.customers.taxCode,
       contactPerson: s.customers.contactPerson,
       contactInfo: s.customers.contactInfo,
       phone: s.customers.phone,
     }).from(s.customers).where(eq(s.customers.id, doc.entityId)).limit(1);
+    const [customer] = await (lockRows ? query.for('share') : query);
     return {
       name: customer?.name ?? doc.entityName ?? '',
       address: customer?.contactInfo ?? '',
@@ -1417,13 +1548,14 @@ async function loadCounterpartyInfo(doc: BillingDocument): Promise<BillingPartyI
     };
   }
 
-  const [supplier] = await db.select({
+  const query = executor.select({
     name: s.suppliers.name,
     taxCode: s.suppliers.taxCode,
     contactPerson: s.suppliers.contactPerson,
     phone: s.suppliers.phone,
     note: s.suppliers.note,
   }).from(s.suppliers).where(eq(s.suppliers.id, doc.entityId)).limit(1);
+  const [supplier] = await (lockRows ? query.for('share') : query);
   return {
     name: supplier?.name ?? doc.entityName ?? '',
     address: supplier?.note ?? '',
@@ -1432,6 +1564,99 @@ async function loadCounterpartyInfo(doc: BillingDocument): Promise<BillingPartyI
     representativeTitle: 'Giám Đốc',
     phone: supplier?.phone ?? '',
   };
+}
+
+function applyOfficialIdentityToSnapshot(
+  snapshot: DebitNoteTemplateSnapshot,
+  officialIdentity: OfficialBillingIdentitySnapshot,
+): FrozenDebitNoteTemplateSnapshot {
+  return {
+    ...cloneTemplateSnapshot(snapshot),
+    officialIdentity: {
+      issuer: { ...officialIdentity.issuer },
+      counterparty: { ...officialIdentity.counterparty },
+      signatures: { ...officialIdentity.signatures },
+      captureMetadata: { ...officialIdentity.captureMetadata },
+    },
+  };
+}
+
+async function buildLiveRenderIdentity(
+  doc: BillingDocument,
+  snapshot: DebitNoteTemplateSnapshot,
+  executor: DbLike = db,
+  lockSourceRows = false,
+): Promise<OfficialBillingIdentitySnapshot> {
+  const [company, counterparty] = await Promise.all([
+    loadCompanyInfoFromExecutor(executor, lockSourceRows),
+    loadCounterpartyInfo(doc, executor, lockSourceRows),
+  ]);
+  const fallbackCompanyRepresentative = trimIdentityValue(company.representative);
+  const snapshotRightName = trimIdentityValue(snapshot.signatureRightName);
+  return {
+    issuer: {
+      name: trimIdentityValue(snapshot.issuerName) || trimIdentityValue(company.name),
+      address: trimIdentityValue(snapshot.issuerAddress) || trimIdentityValue(company.address),
+      taxCode: trimIdentityValue(snapshot.issuerTaxCode) || trimIdentityValue(company.taxCode),
+      representative: trimIdentityValue(snapshot.issuerRepresentative) || fallbackCompanyRepresentative,
+      representativeTitle: trimIdentityValue(company.representativeTitle),
+      phone: trimIdentityValue(company.phone),
+      bankAccount: trimIdentityValue(company.bankAccount),
+      bankName: trimIdentityValue(company.bankName),
+      email: trimIdentityValue(company.email),
+      logoStorageKey: company.logoStorageKey ?? null,
+    },
+    counterparty: {
+      entityType: doc.entityType,
+      name: trimIdentityValue(counterparty.name) || trimIdentityValue(doc.entityName),
+      address: trimIdentityValue(counterparty.address),
+      taxCode: trimIdentityValue(counterparty.taxCode),
+      representative: trimIdentityValue(counterparty.representative),
+      representativeTitle: trimIdentityValue(counterparty.representativeTitle),
+      phone: trimIdentityValue(counterparty.phone),
+      contactInfo: trimIdentityValue(counterparty.address),
+    },
+    signatures: {
+      leftLabel: trimIdentityValue(snapshot.signatureLeftLabel) || 'Khách hàng',
+      leftName: trimIdentityValue(snapshot.signatureLeftName),
+      rightLabel: trimIdentityValue(snapshot.signatureRightLabel) || 'Người lập',
+      rightName: snapshotRightName || stripHonorifics(fallbackCompanyRepresentative),
+    },
+    captureMetadata: {
+      mode: 'ISSUED_AT_TRANSITION',
+      capturedAt: new Date().toISOString(),
+    },
+  };
+}
+
+export async function captureIssuedOfficialIdentitySnapshot(
+  doc: BillingDocument,
+  executor: DbLike = db,
+): Promise<FrozenDebitNoteTemplateSnapshot> {
+  const baseSnapshot = cloneTemplateSnapshot(
+    doc.debitNoteTemplateSnapshot ?? defaultSnapshotForType(doc.type),
+  );
+  const officialIdentity = await buildLiveRenderIdentity(doc, baseSnapshot, executor, true);
+  return applyOfficialIdentityToSnapshot(baseSnapshot, officialIdentity);
+}
+
+export async function resolveBillingDocumentIdentity(
+  doc: BillingDocument,
+  snapshot: DebitNoteTemplateSnapshot | null | undefined,
+  executor: DbLike = db,
+): Promise<OfficialBillingIdentitySnapshot | null> {
+  if (doc.officialIdentitySnapshot) {
+    return {
+      issuer: { ...doc.officialIdentitySnapshot.issuer },
+      counterparty: { ...doc.officialIdentitySnapshot.counterparty },
+      signatures: { ...doc.officialIdentitySnapshot.signatures },
+      captureMetadata: { ...doc.officialIdentitySnapshot.captureMetadata },
+    };
+  }
+  const effectiveSnapshot = snapshot ?? doc.debitNoteTemplateSnapshot ?? defaultSnapshotForType(doc.type);
+  const captured = extractOfficialIdentitySnapshot(effectiveSnapshot);
+  if (captured) return captured;
+  return buildLiveRenderIdentity(doc, effectiveSnapshot, executor);
 }
 
 function customerCode(name: string, fallback: number): string {
@@ -1945,13 +2170,15 @@ async function renderDebitNoteXlsx(
     ? ((ExcelJSMod as Record<string, unknown>).default as typeof ExcelJSMod)
     : ExcelJSMod;
   const wb = new ExcelJS.Workbook();
-  const company = await getCompanyInfo();
-  wb.creator = company.name;
+  const officialIdentity = await resolveBillingDocumentIdentity(doc, snap);
+  const issuer = officialIdentity?.issuer ?? null;
+  const partner = officialIdentity?.counterparty ?? null;
+  const signatures = officialIdentity?.signatures ?? null;
+  wb.creator = issuer?.name || '';
   wb.created = new Date();
   wb.modified = new Date();
 
   const ws = wb.addWorksheet('GBN');
-  const partner = await loadCounterpartyInfo(doc);
   const lines = await enrichLinesForDebitNoteRender(doc.lines);
   const dataLines = lines.filter((line) => !line.excluded);
   const lineGroups = groupDebitNoteLines(dataLines);
@@ -2038,23 +2265,23 @@ async function renderDebitNoteXlsx(
   ws.mergeCells('E4:H4');
   ws.mergeCells('E5:H5');
   const logoCell = ws.getCell('B1');
-  const logoBytes = await loadLogoBytes(company.logoStorageKey);
+  const logoBytes = await loadLogoBytes(issuer?.logoStorageKey ?? null);
   if (logoBytes) {
     const imageId = wb.addImage({ base64: logoBytes.toString('base64'), extension: 'png' });
     ws.addImage(imageId, { tl: { col: 1.01, row: 0 }, ext: { width: 383, height: 126 } });
   } else {
-    logoCell.value = company.name;
+    logoCell.value = issuer?.name || '';
     logoCell.font = { name: 'Arial', size: 24, bold: true, color: { argb: accent } };
     logoCell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
   }
 
-  const [companyAddress1, companyAddress2] = splitCompanyAddress(company.address);
-  ws.getCell('D1').value = company.name;
+  const [companyAddress1, companyAddress2] = splitCompanyAddress(issuer?.address);
+  ws.getCell('D1').value = issuer?.name || '';
   ws.getCell('D1').font = { ...boldFont, size: 12 };
-  ws.getCell('D2').value = companyAddress1 || company.address;
+  ws.getCell('D2').value = companyAddress1 || issuer?.address || '';
   ws.getCell('E3').value = companyAddress2;
-  ws.getCell('E4').value = company.phone ? `ĐT: ${company.phone}` : '';
-  ws.getCell('E5').value = company.email ? `E-mail: ${company.email}` : '';
+  ws.getCell('E4').value = issuer?.phone ? `ĐT: ${issuer.phone}` : '';
+  ws.getCell('E5').value = issuer?.email ? `E-mail: ${issuer.email}` : '';
   for (const addressCell of ['D1', 'D2', 'E3', 'E4', 'E5']) {
     ws.getCell(addressCell).font = addressCell === 'D1'
       ? { ...boldFont, size: 12 }
@@ -2069,7 +2296,7 @@ async function renderDebitNoteXlsx(
   ws.getCell(7, 2).font = { name: 'Tahoma', size: 14, bold: true, color: { argb: 'FF7A7F87' } };
   ws.getCell(7, 2).alignment = { horizontal: 'left', vertical: 'middle' };
 
-  const noticeNo = doc.note?.trim() || `${customerCode(partner.name, doc.entityId)}${doc.rangeTo.replaceAll('-', '').slice(2)}`;
+  const noticeNo = doc.note?.trim() || `${customerCode(partner?.name || '', doc.entityId)}${doc.rangeTo.replaceAll('-', '').slice(2)}`;
   ws.mergeCells('C9:D9');
   ws.mergeCells('C10:D10');
   ws.mergeCells('C11:D11');
@@ -2083,7 +2310,7 @@ async function renderDebitNoteXlsx(
   const leftMeta = [
     ['Số :', noticeNo],
     ['Ngày tháng:', parseDateOnly(doc.rangeTo)],
-    ['Mã khách:', customerCode(partner.name, doc.entityId)],
+    ['Mã khách:', customerCode(partner?.name || '', doc.entityId)],
     ['Hạn hợp đồng:', doc.originalDueDate ? parseDateOnly(doc.originalDueDate) : 'Chưa có dữ liệu lịch sử'],
     ['Ngày xử lý:', doc.processingDueDate ? parseDateOnly(doc.processingDueDate) : 'Chưa có dữ liệu lịch sử'],
   ];
@@ -2097,15 +2324,15 @@ async function renderDebitNoteXlsx(
     if (value instanceof Date) ws.getCell(row, 3).numFmt = 'd/m/yy';
   });
 
-  const [partnerAddress1, partnerAddress2] = splitAddress(partner.address);
+  const [partnerAddress1, partnerAddress2] = splitAddress(partner?.address);
   ws.getCell('E9').value = 'Gửi tới:';
   ws.getCell('E9').font = labelFont;
-  ws.getCell('F9').value = [partner.representative || 'Phòng kế toán', partner.phone ? `(${partner.phone})` : ''].filter(Boolean).join(' ');
-  ws.getCell(10, 5).value = partner.name;
+  ws.getCell('F9').value = [partner?.representative || 'Phòng kế toán', partner?.phone ? `(${partner.phone})` : ''].filter(Boolean).join(' ');
+  ws.getCell(10, 5).value = partner?.name || '';
   ws.getCell(10, 5).font = boldFont;
   ws.getCell(11, 5).value = partnerAddress1;
   ws.getCell(12, 5).value = partnerAddress2;
-  ws.getCell(13, 5).value = partner.taxCode ? `MST : ${partner.taxCode}` : 'MST :';
+  ws.getCell(13, 5).value = partner?.taxCode ? `MST : ${partner.taxCode}` : 'MST :';
 
   const tableHeaderRow = 15;
   const fixedHeaders = ['Ngày tháng', 'Số \nchứng từ', 'Diễn giải', 'ĐVT', 'Số lượng', 'Đơn giá', 'Thành tiền'];
@@ -2198,9 +2425,9 @@ async function renderDebitNoteXlsx(
   ws.getCell(bankTop, 7).alignment = { horizontal: 'center', vertical: 'middle' };
 
   const bankRows = [
-    ['Tên tài khoản:', company.name],
-    ['Số tài khoản:', company.bankAccount],
-    ['Ngân hàng:', company.bankName],
+    ['Tên tài khoản:', issuer?.name || ''],
+    ['Số tài khoản:', issuer?.bankAccount || ''],
+    ['Ngân hàng:', issuer?.bankName || ''],
   ];
   bankRows.forEach(([label, value], index) => {
     const r = bankTop + index + 1;
@@ -2214,7 +2441,7 @@ async function renderDebitNoteXlsx(
   const signatureNameRow = bankTop + 4;
   if (signatureNameRow <= sheetRows) {
     ws.mergeCells(signatureNameRow, 7, signatureNameRow, 8);
-    ws.getCell(signatureNameRow, 7).value = snap.signatureRightName || company.representative.replace(/^Ông\s+|^Bà\s+/i, '');
+    ws.getCell(signatureNameRow, 7).value = signatures?.rightName || '';
     ws.getCell(signatureNameRow, 7).font = boldFont;
     ws.getCell(signatureNameRow, 7).alignment = { horizontal: 'center', vertical: 'middle' };
   }
@@ -2260,10 +2487,11 @@ export async function renderTemplatedXlsx(
     .filter(({ col }) => col.total);
   const lines = await enrichLinesForDebitNoteRender(doc.lines);
   const dataLines = aggregateDebitNoteExportLines(lines);
-  const partner = await loadCounterpartyInfo(doc);
-  const company = await getCompanyInfo();
-  wb.creator = company.name;
-  const bangKeLogoBytes = await loadLogoBytes(company.logoStorageKey);
+  const officialIdentity = await resolveBillingDocumentIdentity(doc, snap);
+  const issuer = officialIdentity?.issuer ?? null;
+  const partner = officialIdentity?.counterparty ?? null;
+  wb.creator = issuer?.name || '';
+  const bangKeLogoBytes = await loadLogoBytes(issuer?.logoStorageKey ?? null);
   if (bangKeLogoBytes) {
     const imageId = wb.addImage({ base64: bangKeLogoBytes.toString('base64'), extension: 'png' });
     ws.addImage(imageId, { tl: { col: 0, row: 0 }, ext: { width: 150, height: 40 } });
@@ -2271,8 +2499,8 @@ export async function renderTemplatedXlsx(
   const amountSubtotal = dataLines.reduce((sum, line) => sum + effectiveAmount(line), 0);
   const vatAmount = Math.round(amountSubtotal * 0.08);
   const grandTotal = amountSubtotal + vatAmount;
-  const customerName = partner.name || doc.entityName || '';
-  const issuerName = company.name;
+  const customerName = partner?.name || doc.entityName || '';
+  const issuerName = issuer?.name || '';
   const templateVariables: Record<string, string | number> = {
     rangeFrom: formatVietnameseDate(doc.rangeFrom),
     rangeTo: formatVietnameseDate(doc.rangeTo),
@@ -2280,15 +2508,15 @@ export async function renderTemplatedXlsx(
     invoiceNo: doc.note?.trim() || '........',
     invoiceDate: formatVietnameseDate(doc.rangeTo),
     customerName,
-    customerAddress: partner.address,
-    customerTaxCode: partner.taxCode,
-    customerRepresentative: partner.representative,
-    customerPosition: partner.representativeTitle,
+    customerAddress: partner?.address || '',
+    customerTaxCode: partner?.taxCode || '',
+    customerRepresentative: partner?.representative || '',
+    customerPosition: partner?.representativeTitle || '',
     issuerName,
-    issuerAddress: company.address,
-    issuerTaxCode: company.taxCode,
-    issuerRepresentative: company.representative,
-    issuerPosition: company.representativeTitle,
+    issuerAddress: issuer?.address || '',
+    issuerTaxCode: issuer?.taxCode || '',
+    issuerRepresentative: issuer?.representative || '',
+    issuerPosition: issuer?.representativeTitle || '',
     subtotal: amountSubtotal.toLocaleString('en-US'),
     vatAmount: vatAmount.toLocaleString('en-US'),
     grandTotal: grandTotal.toLocaleString('en-US'),
@@ -2335,7 +2563,7 @@ export async function renderTemplatedXlsx(
   ws.getCell(3, 1).alignment = { horizontal: 'center', vertical: 'middle' };
 
   const termsLines = renderTemplateText(
-    snap.termsText ?? `- Số TK ${company.bankAccount}\n- Tại ngân hàng ${company.bankName}`,
+    snap.termsText ?? `- Số TK ${issuer?.bankAccount || ''}\n- Tại ngân hàng ${issuer?.bankName || ''}`,
     templateVariables,
   ).split('\n');
   const introRows: Array<{ row: number; value: string; bold?: boolean }> = [
@@ -2478,12 +2706,12 @@ export async function renderTemplatedXlsx(
     if (leftEnd > 1) ws.mergeCells(r, 1, r, leftEnd);
     if (rightStart < rightEnd) ws.mergeCells(r, rightStart, r, rightEnd);
   }
-  ws.getCell(signatureLabelRow, 1).value = snap.signatureLeftLabel?.trim() || '';
-  ws.getCell(signatureLabelRow, rightStart).value = snap.signatureRightLabel?.trim() || '';
+  ws.getCell(signatureLabelRow, 1).value = officialIdentity?.signatures.leftLabel || snap.signatureLeftLabel?.trim() || '';
+  ws.getCell(signatureLabelRow, rightStart).value = officialIdentity?.signatures.rightLabel || snap.signatureRightLabel?.trim() || '';
   ws.getCell(signatureHintRow, 1).value = '(Ký, họ tên)';
   ws.getCell(signatureHintRow, rightStart).value = '(Ký, họ tên, đóng dấu)';
-  ws.getCell(signatureNameRow, 1).value = snap.signatureLeftName?.trim() || '';
-  ws.getCell(signatureNameRow, rightStart).value = snap.signatureRightName?.trim() || '';
+  ws.getCell(signatureNameRow, 1).value = officialIdentity?.signatures.leftName || snap.signatureLeftName?.trim() || '';
+  ws.getCell(signatureNameRow, rightStart).value = officialIdentity?.signatures.rightName || snap.signatureRightName?.trim() || '';
   for (const cell of [ws.getCell(signatureLabelRow, 1), ws.getCell(signatureLabelRow, rightStart)]) {
     cell.font = boldFont;
     cell.alignment = { horizontal: 'center', vertical: 'middle' };

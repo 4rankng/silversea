@@ -8,6 +8,7 @@ import { PageHeader, Panel } from '../../components/UI';
 import type { FuelPriceHistory } from '@tingting/shared';
 import './config-page.css';
 import { resolveEmptyIllustration } from '../../lib/emptyIllustrations';
+import { isGovernancePendingResponse } from '../../lib/governance';
 import { onboardingEvents } from '../../lib/onboardingEvents';
 
 export default function FuelConfigPage() {
@@ -21,6 +22,7 @@ export default function FuelConfigPage() {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const [history, setHistory] = useState<FuelPriceHistory[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
 
@@ -46,8 +48,9 @@ export default function FuelConfigPage() {
   const handleSave = async () => {
     setSaving(true);
     setError(null);
+    setMessage(null);
     try {
-      await saveFuel.mutateAsync({
+      const result = await saveFuel.mutateAsync({
         loadedNorm: Number(form.loadedNorm),
         emptyNorm: Number(form.emptyNorm),
         supplement: Number(form.supplement) || 0,
@@ -55,6 +58,10 @@ export default function FuelConfigPage() {
         warningThreshold: form.warningThreshold ? Number(form.warningThreshold) : 37,
         criticalThreshold: form.criticalThreshold ? Number(form.criticalThreshold) : 40,
       });
+      if (isGovernancePendingResponse(result)) {
+        setMessage('Đã gửi yêu cầu cập nhật định mức nhiên liệu để kiểm tra và phê duyệt. Cấu hình hiện chưa thay đổi.');
+        return;
+      }
       // Onboarding product event: fuel config was saved. The fuel-config tour
       // and any future checklist item keyed on this wait on it.
       onboardingEvents.emit('config.fuel_saved');
@@ -112,6 +119,7 @@ export default function FuelConfigPage() {
             {saving ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
             Lưu cấu hình
           </button>
+          {message && <span style={{ color: 'var(--success)', fontSize: 13 }}>{message}</span>}
           {error && <span style={{ color: 'var(--danger)', fontSize: 13 }}>{error}</span>}
         </div>
       </Panel>

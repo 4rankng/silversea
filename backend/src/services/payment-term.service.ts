@@ -20,6 +20,7 @@ import { and, eq, sql, isNull, desc } from 'drizzle-orm';
 import {
   calendarDaysOverdue,
 } from './business-calendar.service';
+import { getCustomerReceivableSnapshots } from './customer-receivable-authority.service';
 
 export interface PaymentTermEvalRow {
   customerId: number;
@@ -49,13 +50,13 @@ export async function getPaymentTermEvalReport(): Promise<PaymentTermEvalRow[]> 
 
   if (customers.length === 0) return [];
 
-  // Fetch all non-deleted DEBIT_NOTE billing documents for CUSTOMER entities.
+  // Fetch all issued DEBIT_NOTE billing documents for CUSTOMER entities.
   const docs = await db.select({
     id: s.billingDocuments.id,
     entityId: s.billingDocuments.entityId,
     rangeTo: s.billingDocuments.rangeTo,
-    totalInclVat: s.billingDocuments.totalInclVat,
     createdAt: s.billingDocuments.createdAt,
+    issuedAt: s.billingDocuments.issuedAt,
     processingDueDate: s.billingDocuments.processingDueDate,
     paymentTermDaysApplied: s.billingDocuments.paymentTermDaysApplied,
   }).from(s.billingDocuments)
@@ -63,7 +64,10 @@ export async function getPaymentTermEvalReport(): Promise<PaymentTermEvalRow[]> 
       eq(s.billingDocuments.type, 'DEBIT_NOTE'),
       eq(s.billingDocuments.entityType, 'CUSTOMER'),
       isNull(s.billingDocuments.deletedAt),
+      sql`coalesce(${s.billingDocuments.debitNoteStatus}, 'DRAFT') not in ('DRAFT', 'CANCELED')`,
     ));
+
+  const snapshotMap = await getCustomerReceivableSnapshots(customers.map((customer) => customer.id));
 
   // Fetch all payment allocations for these customers.
   const allocations = await db.select({
@@ -126,11 +130,11 @@ export async function getPaymentTermEvalReport(): Promise<PaymentTermEvalRow[]> 
     let totalOutstanding = 0;
     let totalOverdueDays = 0;
     let overdueCount = 0;
+    const authoritativeDocs = (snapshotMap.get(c.id)?.obligations ?? [])
+      .filter((obligation) => obligation.authorityType === 'BILLING_DOCUMENT');
+    const outstandingByDocId = new Map(authoritativeDocs.map((obligation) => [obligation.authorityId, obligation.outstanding]));
     for (const doc of custDocs) {
-      const docTotal = Number(doc.totalInclVat ?? 0);
-      const docAllocs = allocsByDoc.get(doc.id) ?? [];
-      const docPaid = docAllocs.reduce((sum, a) => sum + Number(a.amount), 0);
-      const outstanding = docTotal - docPaid;
+      const outstanding = outstandingByDocId.get(doc.id) ?? 0;
       totalOutstanding += Math.max(0, outstanding);
 
       if (outstanding > 0 && doc.processingDueDate) {

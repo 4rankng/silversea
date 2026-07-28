@@ -10,7 +10,7 @@ import * as s from '../db/schema';
 import { eq, and, isNull, sql, gte, inArray, ne } from 'drizzle-orm';
 import { TripStatus } from '@tingting/shared';
 import { cacheGet } from '../lib/redis';
-import { salaryPeriodDateRange } from './reporting-shared';
+import { salaryPeriodDateRange, tripCompletionBusinessDateSql } from './reporting-shared';
 
 function recordedTripRevenue(trip: {
   revenue: string | null;
@@ -29,9 +29,17 @@ function recordedTripRevenue(trip: {
 export async function getPnlReport(month: number, year: number) {
   return cacheGet(`reports:pnl:${month}:${year}`, 120, async () => {
     const { start: tripStart, end: tripEnd } = await salaryPeriodDateRange(month, year);
+    const completionBusinessDate = tripCompletionBusinessDateSql();
     const dateFilter = month
-      ? and(gte(s.trips.departureDate, tripStart), sql`${s.trips.departureDate} < ${tripEnd}`)
-      : gte(s.trips.departureDate, tripStart);
+      ? and(
+        sql`${s.trips.completedAt} is not null`,
+        gte(completionBusinessDate, tripStart),
+        sql`${completionBusinessDate} < ${tripEnd}`,
+      )
+      : and(
+        sql`${s.trips.completedAt} is not null`,
+        gte(completionBusinessDate, tripStart),
+      );
 
     // P&L includes only trips whose revenue has posted to the ledger. Draft,
     // in-transit, and canceled trips are not yet reportable.
@@ -322,6 +330,7 @@ export async function getPnlReport(month: number, year: number) {
 export async function getFuelVarianceReport(month: number, year: number) {
   return cacheGet(`reports:fuel-variance:${month}:${year}`, 120, async () => {
     const { start: tripStart, end: tripEnd } = await salaryPeriodDateRange(month, year);
+    const completionBusinessDate = tripCompletionBusinessDateSql();
 
     // Query locked trips with fuel data for the period
     const trips = await db.select({
@@ -340,8 +349,9 @@ export async function getFuelVarianceReport(month: number, year: number) {
       and(
         eq(s.trips.status, TripStatus.LOCKED),
         isNull(s.trips.deletedAt),
-        gte(s.trips.departureDate, tripStart),
-        sql`${s.trips.departureDate} < ${tripEnd}`,
+        sql`${s.trips.completedAt} is not null`,
+        gte(completionBusinessDate, tripStart),
+        sql`${completionBusinessDate} < ${tripEnd}`,
       ),
     );
 

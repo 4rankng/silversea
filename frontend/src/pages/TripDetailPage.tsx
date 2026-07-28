@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2, Shuffle, FilePen, X } from 'lucide-react';
 import { api } from '../lib/api';
@@ -26,6 +27,8 @@ export default function TripDetailPage() {
   const navigate = useNavigate();
   const page = useTripDetailPage(id);
   const { rootRef } = usePageAnimations({ ready: !page.loading });
+  const [governanceIntent, setGovernanceIntent] = useState<'complete' | 'cancel' | null>(null);
+  const [governanceReason, setGovernanceReason] = useState('');
   // Only poll live GPS when this trip is actually in transit — a completed /
   // cancelled trip never has a live vehicle, so avoid polling the cache forever.
   const { data: liveFleet } = useLiveFleet({ enabled: page.trip?.status === TripStatus.IN_TRANSIT });
@@ -83,17 +86,67 @@ export default function TripDetailPage() {
         onBack={handleBack}
         onEdit={() => navigate(`/trips/${trip.id}/edit`)}
         onDispatch={() => page.handleAction('dispatch', () => api.post(`/trips/${trip.id}/dispatch`, {}))}
-        onComplete={() => page.handleAction('complete', () => api.post(`/trips/${trip.id}/complete`, {}))}
+        onComplete={() => {
+          setGovernanceReason('');
+          setGovernanceIntent('complete');
+        }}
         onLock={page.handleLockClick}
-        onCancel={async () => {
-          if (await page.confirm('Bạn có chắc muốn hủy chuyến này?', { variant: 'danger', confirmLabel: 'Hủy chuyến' })) {
-            page.handleAction('cancel', () => api.post(`/trips/${trip.id}/cancel`, {}));
-          }
+        onCancel={() => {
+          setGovernanceReason('');
+          setGovernanceIntent('cancel');
         }}
         onReassign={page.openReassign}
         onAdjust={page.openAdjust}
         onUnlock={page.handleUnlock}
       />
+
+      <Modal
+        isOpen={governanceIntent !== null}
+        title={governanceIntent === 'complete' ? 'Đề nghị hoàn thành chuyến' : 'Đề nghị hủy chuyến'}
+        onClose={() => setGovernanceIntent(null)}
+        maxWidth={480}
+        footer={
+          <>
+            <button type="button" className="btn btn--secondary" onClick={() => setGovernanceIntent(null)}>
+              Hủy
+            </button>
+            <button
+              type="button"
+              className={`btn ${governanceIntent === 'cancel' ? 'btn--danger' : 'btn--primary'}`}
+              disabled={!governanceReason.trim() || ui.actionLoading}
+              onClick={() => {
+                const intent = governanceIntent;
+                if (!intent || !governanceReason.trim()) return;
+                setGovernanceIntent(null);
+                void page.handleAction(intent, () => api.post(
+                  `/trips/${trip.id}/${intent}`,
+                  {
+                    expectedVersion: trip.version,
+                    reason: governanceReason.trim(),
+                  },
+                ));
+              }}
+            >
+              {governanceIntent === 'complete' ? 'Gửi đề nghị hoàn thành' : 'Gửi đề nghị hủy'}
+            </button>
+          </>
+        }
+      >
+        <label style={{ display: 'grid', gap: 6 }}>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>
+            Lý do <span style={{ color: 'var(--danger)' }}>*</span>
+          </span>
+          <textarea
+            aria-label="Lý do đề nghị"
+            className="input"
+            rows={4}
+            value={governanceReason}
+            onChange={(event) => setGovernanceReason(event.target.value)}
+            placeholder="Nêu căn cứ và nội dung đề nghị"
+            autoFocus
+          />
+        </label>
+      </Modal>
 
       {displayError && (
         <div className="tdp-error-banner">

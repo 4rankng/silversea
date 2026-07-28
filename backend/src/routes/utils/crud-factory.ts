@@ -21,6 +21,13 @@ import {
   resolveIdempotencyKey,
   runIdempotent,
 } from '../../services/idempotency.service';
+import {
+  getGovernedCrudResourceName,
+  registerGovernedCrudResource,
+  requestGovernedCrudCreate,
+  requestGovernedCrudDelete,
+  requestGovernedCrudUpdate,
+} from '../../services/price-config-governance.service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -56,6 +63,12 @@ export interface CrudRouterOptions<
   afterUpdate?: (item: TRow, data: Partial<TData>, req: Request, tx: Tx) => Promise<void> | void;
   beforeDelete?: (id: number, req: Request, tx: Tx) => Promise<void> | void;
   afterDelete?: (id: number, req: Request, tx: Tx) => Promise<void> | void;
+  governance?: {
+    reasonLabel: string;
+    shouldGovernCreate?: (data: TData, req: Request) => boolean;
+    shouldGovernUpdate?: (id: number, data: Partial<TData>, req: Request) => boolean;
+    shouldGovernDelete?: (id: number, req: Request) => boolean;
+  };
 }
 
 function apiErrorFromUniqueConstraint(err: unknown): ApiError | null {
@@ -68,6 +81,13 @@ function apiErrorFromUniqueConstraint(err: unknown): ApiError | null {
   const fieldMatch = detail.match(/Key \(([^)]+)\)/);
   const field = fieldMatch ? fieldMatch[1] : 'trường';
   return new ApiError(409, `${field} đã tồn tại`);
+}
+
+function isPendingGovernanceResult(value: unknown): value is { status: string; actionKind: string } {
+  return typeof value === 'object'
+    && value !== null
+    && 'status' in value
+    && 'actionKind' in value;
 }
 
 export function createCrudRouter<
@@ -91,6 +111,7 @@ export function createCrudRouter<
     afterUpdate,
     beforeDelete,
     afterDelete,
+    governance,
   } = options;
   const sub = Router();
   const hasSoftDelete = 'deletedAt' in table;
@@ -105,6 +126,24 @@ export function createCrudRouter<
   // type at the query boundary. This is a type-only assertion — the runtime
   // table object is unchanged.
   const tbl = table as AnyPgTable;
+  const governanceResource = governance ? getGovernedCrudResourceName(tbl) : null;
+
+  if (governance && governanceResource) {
+    registerGovernedCrudResource({
+      resource: governanceResource,
+      actionKind: 'PRICE_CONFIG_CHANGE',
+      subjectType: 'PRICE_CONFIG',
+      reasonLabel: governance.reasonLabel,
+      table: tbl,
+      deleteMode,
+      beforeCreate: beforeCreate as CrudRouterOptions['beforeCreate'],
+      afterCreate: afterCreate as CrudRouterOptions['afterCreate'],
+      beforeUpdate: beforeUpdate as CrudRouterOptions['beforeUpdate'],
+      afterUpdate: afterUpdate as CrudRouterOptions['afterUpdate'],
+      beforeDelete,
+      afterDelete,
+    });
+  }
 
   function requireIdempotencyKey(req: Request): string {
     const key = resolveIdempotencyKey({
@@ -200,6 +239,16 @@ export function createCrudRouter<
         if (beforeCreate) {
           data = (await beforeCreate(data, req, tx)) as typeof data;
         }
+        if (governance && governanceResource && (governance.shouldGovernCreate?.(data, req) ?? true)) {
+          return requestGovernedCrudCreate({
+            resource: governanceResource,
+            data: data as Record<string, unknown>,
+            reason: typeof req.body?.reason === 'string' ? req.body.reason : undefined,
+            makerId: actor.userId,
+            makerRole: actor.role,
+            transaction: tx,
+          });
+        }
         let item;
         try {
           [item] = await tx.insert(tbl).values(data as Record<string, unknown>).returning();
@@ -238,7 +287,7 @@ export function createCrudRouter<
     const idempotencyKey = requireIdempotencyKey(req);
     const expectedUpdatedAt = requireExpectedUpdatedAt(req);
     const actor = getUser(req);
-    const { result } = await runIdempotent({
+    const { result, replayed } = await runIdempotent({
       endpoint: buildCrudIdempotencyEndpoint(resource, 'update'),
       idempotencyKey,
       payload: { id, body: req.body, expectedUpdatedAt: expectedUpdatedAt.toISOString() },
@@ -249,6 +298,18 @@ export function createCrudRouter<
         let data = (updateSchema ?? createSchema).partial().parse(req.body) as Partial<output<TCreate>>;
         if (beforeUpdate) {
           data = (await beforeUpdate(id, data, req, tx)) as typeof data;
+        }
+        if (governance && governanceResource && (governance.shouldGovernUpdate?.(id, data, req) ?? true)) {
+          return requestGovernedCrudUpdate({
+            resource: governanceResource,
+            id,
+            data: data as Record<string, unknown>,
+            reason: typeof req.body?.reason === 'string' ? req.body.reason : undefined,
+            makerId: actor.userId,
+            makerRole: actor.role,
+            expectedUpdatedAt: currentUpdatedAt,
+            transaction: tx,
+          });
         }
         const nextUpdatedAt = new Date(Math.max(Date.now(), currentUpdatedAt.getTime() + 1));
         let item;
@@ -276,6 +337,9 @@ export function createCrudRouter<
       },
     });
     await cacheInvalidate('catalogs:bootstrap');
+    if (isPendingGovernanceResult(result) && result.status === 'PENDING_CHECK') {
+      return res.status(replayed ? 200 : 201).json(result);
+    }
     res.json(result);
   }));
 
@@ -298,6 +362,17 @@ export function createCrudRouter<
       entityType: resource,
       create: async (tx) => {
         const currentUpdatedAt = await lockCurrentVersion(tx, id, expectedUpdatedAt);
+        if (governance && governanceResource && (governance.shouldGovernDelete?.(id, req) ?? true)) {
+          return requestGovernedCrudDelete({
+            resource: governanceResource,
+            id,
+            reason: typeof req.body?.reason === 'string' ? req.body.reason : undefined,
+            makerId: actor.userId,
+            makerRole: actor.role,
+            expectedUpdatedAt: currentUpdatedAt,
+            transaction: tx,
+          });
+        }
         if (beforeDelete) {
           await beforeDelete(id, req, tx);
         }
@@ -323,7 +398,11 @@ export function createCrudRouter<
       deserializeResult: () => ({ ok: true as const, id }),
     });
     await cacheInvalidate('catalogs:bootstrap');
-    res.json({ ok: result.ok });
+    if ('ok' in result) {
+      res.json({ ok: result.ok });
+      return;
+    }
+    res.status(201).json(result);
   }));
 
   return sub;

@@ -50,12 +50,12 @@ export function useDeleteTire() {
 export function useInstallTire() {
   const invalidate = useInvalidateTires();
   return useMutation({
-    mutationFn: (args: { id: number; truckId?: number | null; trailerId?: number | null; position?: string | null }) =>
+    mutationFn: (args: { id: number; updatedAt: string; truckId?: number | null; trailerId?: number | null; position?: string | null }) =>
       tireClient.install(args.id, {
         truckId: args.truckId ?? null,
         trailerId: args.trailerId ?? null,
         position: args.position ?? null,
-      }),
+      }, args.updatedAt),
     onSuccess: invalidate,
   });
 }
@@ -64,12 +64,12 @@ export function useInstallTire() {
 export function useTransferTire() {
   const invalidate = useInvalidateTires();
   return useMutation({
-    mutationFn: (args: { id: number; truckId?: number | null; trailerId?: number | null; position?: string | null }) =>
+    mutationFn: (args: { id: number; updatedAt: string; truckId?: number | null; trailerId?: number | null; position?: string | null }) =>
       tireClient.transfer(args.id, {
         truckId: args.truckId ?? null,
         trailerId: args.trailerId ?? null,
         position: args.position ?? null,
-      }),
+      }, args.updatedAt),
     onSuccess: invalidate,
   });
 }
@@ -78,7 +78,8 @@ export function useTransferTire() {
 export function useRemoveTire() {
   const invalidate = useInvalidateTires();
   return useMutation({
-    mutationFn: (id: number) => tireClient.remove(id),
+    mutationFn: ({ id, updatedAt }: { id: number; updatedAt: string }) =>
+      tireClient.remove(id, updatedAt),
     onSuccess: invalidate,
   });
 }
@@ -87,8 +88,8 @@ export function useRemoveTire() {
 export function useDisposeTire() {
   const invalidate = useInvalidateTires();
   return useMutation({
-    mutationFn: ({ id, reason }: { id: number; reason: string }) =>
-      tireClient.dispose(id, reason),
+    mutationFn: ({ id, reason, updatedAt }: { id: number; reason: string; updatedAt: string }) =>
+      tireClient.dispose(id, reason, updatedAt),
     onSuccess: invalidate,
   });
 }

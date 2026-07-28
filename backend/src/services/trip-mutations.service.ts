@@ -3,7 +3,7 @@
 
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq, and, isNull, sql, ne } from 'drizzle-orm';
+import { eq, and, isNull, sql } from 'drizzle-orm';
 import { TripStatus, FuelMode, Role, TxnType } from '@tingting/shared';
 import type { TripLegInput } from '@tingting/shared';
 import { resolveTripDriverSalary, computeTripTotals, type ComputeTripTotalsOutput } from '@tingting/shared';
@@ -57,6 +57,8 @@ export function assertCustomerCommissionWithinRevenue(
 }
 import { resolveTrailer } from './trip-shared';
 import type { Tx } from './trip-shared';
+import { requirePersistedTripGovernanceAuthorization } from './trip-governance-authorization.service';
+import { assertActiveApprovalApplication } from './governance-transition.service';
 import { LedgerService } from './ledger.service';
 import { assertCreditLimit, consumeShipmentCreditOverride } from './credit-limit.service';
 
@@ -296,6 +298,8 @@ export async function createTrip(data: {
 }, transaction?: Tx) {
   const execute = async (tx: Tx) => {
     const containerCount = data.containerCount ?? 1;
+    let authoritativeCargoTypeId = data.cargoTypeId;
+    let sourceShipmentVersion: number | null = null;
 
     // 0. Wave 0: if a shipmentId was provided, validate the shipment up front
     //    so a bad link fails the create cleanly (404 / 409) rather than
@@ -305,7 +309,13 @@ export async function createTrip(data: {
     //    remains the dispatch endpoint's responsibility. This keeps the two
     //    flows orthogonal: trip-create LINKS, dispatch ADVANCES.
     if (data.shipmentId != null) {
-      const [shipment] = await tx.select({ id: s.shipments.id, status: s.shipments.status, customerId: s.shipments.customerId })
+      const [shipment] = await tx.select({
+        id: s.shipments.id,
+        status: s.shipments.status,
+        customerId: s.shipments.customerId,
+        cargoTypeId: s.shipments.cargoTypeId,
+        version: s.shipments.version,
+      })
         .from(s.shipments)
         .where(and(eq(s.shipments.id, data.shipmentId), isNull(s.shipments.deletedAt)))
         .for('update')
@@ -325,6 +335,28 @@ export async function createTrip(data: {
           'Lô hàng không thuộc khách hàng của chuyến đi.',
         );
       }
+      if (shipment.cargoTypeId != null && shipment.cargoTypeId !== data.cargoTypeId) {
+        throw new ApiError(
+          409,
+          'Loại hàng của chuyến không khớp với lô hàng nguồn.',
+        );
+      }
+      authoritativeCargoTypeId = shipment.cargoTypeId ?? data.cargoTypeId;
+      if (shipment.cargoTypeId == null) {
+        const [seededShipment] = await tx.update(s.shipments).set({
+          cargoTypeId: authoritativeCargoTypeId,
+          version: shipment.version + 1,
+          updatedBy: data.createdBy ?? null,
+          updatedAt: new Date(),
+        })
+          .where(eq(s.shipments.id, data.shipmentId))
+          .returning({
+            version: s.shipments.version,
+          });
+        sourceShipmentVersion = seededShipment?.version ?? shipment.version + 1;
+      } else {
+        sourceShipmentVersion = shipment.version;
+      }
     }
 
     // 1. Pricing resolution — replaced the inline pricing_tables lookup with
@@ -335,7 +367,7 @@ export async function createTrip(data: {
     const freightPrice = await resolveFreightPrice({
       customerId: data.customerId,
       routeId: data.routeId,
-      cargoTypeId: data.cargoTypeId,
+      cargoTypeId: authoritativeCargoTypeId,
       date: data.departureDate,
       containerCount,
     });
@@ -426,12 +458,13 @@ export async function createTrip(data: {
       trailerType,
       truckId: data.truckId ?? null,
       driverId: data.driverId ?? null,
-      cargoTypeId: data.cargoTypeId,
+      cargoTypeId: authoritativeCargoTypeId,
       containerCount,
       departureDate: data.departureDate,
       customerReference: data.customerReference ?? null,
       status: TripStatus.CREATED,
       shipmentId: null,
+      sourceShipmentVersion,
       fuelSupplierId: data.fuelSupplierId ?? null,
       // Persist the chosen fuel mode (defaults to AUTO at the DB layer).
       fuelMode: data.fuelMode ?? FuelMode.AUTO,
@@ -606,9 +639,7 @@ export async function copyTrip(sourceTripId: number, createdBy: number, transact
 
 // ─── updateTripFigures ──────────────────────────────────────────────────────
 
-export async function updateTripFigures(
-  tripId: number,
-  data: {
+export type TripFigureUpdateInput = {
     legs: TripLegInput[];
     customerId?: number;
     departureDate?: string;
@@ -648,8 +679,13 @@ export async function updateTripFigures(
     truckId?: number | null;
     driverId?: number | null;
     trailerType?: string | null;
-  },
+};
+
+export async function updateTripFigures(
+  tripId: number,
+  data: TripFigureUpdateInput,
   transaction?: Tx,
+  governanceActionId?: number,
 ) {
   // Normalize leg distances to integers to satisfy strict database integer constraints and avoid PG 22P02 syntax errors
   const normalizedLegs = data.legs.map(leg => ({
@@ -658,6 +694,21 @@ export async function updateTripFigures(
   }));
 
   const execute = async (tx: Tx) => {
+    let governanceAuthorized = false;
+    if (governanceActionId != null) {
+      assertActiveApprovalApplication(tx, governanceActionId);
+      await requirePersistedTripGovernanceAuthorization({
+        tx,
+        actionId: governanceActionId,
+        tripId,
+        tripVersion: data.expectedVersion ?? 0,
+        actorId: data.userId ?? 0,
+        actorRole: data.userRole ?? '',
+        operation: 'EDIT_COMPLETED',
+        mutationPayload: data,
+      });
+      governanceAuthorized = true;
+    }
     await lockTripFinancialAuthority(tx, [tripId]);
     // 1. Fetch trip and check lock status
     // Use the same controlling-row-first lock order as lifecycle transitions.
@@ -673,6 +724,14 @@ export async function updateTripFigures(
     if (trip.status === TripStatus.LOCKED || trip.status === TripStatus.CANCELED) {
       throw new ApiError(400, 'Chuyến đi đã chốt hoặc đã hủy, không thể sửa');
     }
+    if (trip.status === TripStatus.COMPLETED) {
+      if (!governanceAuthorized) {
+        throw new ApiError(
+          409,
+          'Số liệu tài chính của chuyến đã hoàn thành chỉ được thay đổi sau khi kiểm tra và phê duyệt',
+        );
+      }
+    }
 
 
     // 2. Optimistic concurrency check
@@ -681,6 +740,12 @@ export async function updateTripFigures(
     }
 
     const customerChanged = data.customerId !== undefined && data.customerId !== trip.customerId;
+    if (customerChanged && trip.shipmentId != null) {
+      throw new ApiError(
+        409,
+        'Chuyến đã gắn lô hàng; hãy đổi khách hàng từ lô hàng nguồn theo quy trình điều vận.',
+      );
+    }
     if (customerChanged && data.userRole !== Role.ADMIN && data.userRole !== Role.MANAGER) {
       throw new ApiError(403, 'Chỉ Quản lý hoặc Quản trị viên mới có quyền đổi khách hàng của lệnh vận chuyển');
     }
@@ -913,7 +978,7 @@ export async function updateTripFigures(
       .where(
         and(
           eq(s.tripExpenses.tripId, tripId),
-          ne(s.tripExpenses.approvalStatus, 'REJECTED'),
+          eq(s.tripExpenses.approvalStatus, 'APPROVED'),
         )
       );
     const ledgerFees = tripStatus === TripStatus.COMPLETED

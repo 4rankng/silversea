@@ -27,6 +27,11 @@ describe('Q22 source-authority catalog', () => {
 
     for (const id of SOURCE_AUTHORITY_PAIR_IDS) {
       assert.strictEqual(SOURCE_AUTHORITY_CATALOG[id].id, id);
+      assert.strictEqual(
+        SOURCE_AUTHORITY_CATALOG[id].warnStakeholdersOnChange,
+        true,
+        `${id} must explicitly warn stakeholders when its source changes`,
+      );
     }
   });
 

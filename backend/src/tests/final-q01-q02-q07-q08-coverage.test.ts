@@ -32,6 +32,7 @@ const tripIds: number[] = [];
 const expenseIds: number[] = [];
 const ledgerIds: number[] = [];
 const creditOverrideIds: number[] = [];
+const governanceActionIds: number[] = [];
 const idempotencyKeys: string[] = [];
 
 let scopedCustomerId = 0;
@@ -103,6 +104,40 @@ async function request<T = unknown>(path: string, init: RequestInit = {}): Promi
   });
   const body = await response.json().catch(() => ({})) as T;
   return { status: response.status, body };
+}
+
+type PendingGovernanceAction = {
+  id: number;
+  version: number;
+  status: string;
+};
+
+async function approvePendingAction(action: PendingGovernanceAction) {
+  governanceActionIds.push(action.id);
+  assert.equal(action.status, 'PENDING_CHECK');
+  const checked = await request<PendingGovernanceAction>(
+    `/api/governance-actions/${action.id}/check`,
+    {
+      method: 'POST',
+      token: accountantToken,
+      idempotencyKey: addIdempotencyKey(`final-governance-check-${suffix}-${action.id}-${action.version}`),
+      body: { expectedVersion: action.version },
+    },
+  );
+  assert.equal(checked.status, 200, JSON.stringify(checked.body));
+  assert.equal(checked.body.status, 'PENDING_APPROVAL');
+
+  const approved = await request<PendingGovernanceAction>(
+    `/api/governance-actions/${action.id}/approve`,
+    {
+      method: 'POST',
+      token: managerToken,
+      idempotencyKey: addIdempotencyKey(`final-governance-approve-${suffix}-${action.id}-${checked.body.version}`),
+      body: { expectedVersion: checked.body.version },
+    },
+  );
+  assert.equal(approved.status, 200, JSON.stringify(approved.body));
+  assert.equal(approved.body.status, 'APPROVED');
 }
 
 async function mkUser(role: Role, options: { customerId?: number } = {}) {
@@ -233,6 +268,17 @@ after(async () => {
       server.close((error) => error ? reject(error) : resolve());
     });
 
+    if (governanceActionIds.length > 0) {
+      await db.delete(s.governanceActions)
+        .where(inArray(s.governanceActions.id, governanceActionIds));
+    }
+    if (userIds.length > 0) {
+      await db.delete(s.governanceActions)
+        .where(inArray(s.governanceActions.makerId, userIds));
+    }
+    if (idempotencyKeys.length > 0) {
+      await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.idempotencyKey, [...new Set(idempotencyKeys)]));
+    }
     if (expenseIds.length > 0) {
       await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.id, expenseIds));
     }
@@ -260,9 +306,6 @@ after(async () => {
     if (partnerIds.length > 0) {
       await db.delete(s.partners).where(inArray(s.partners.id, [...new Set(partnerIds)]));
     }
-    if (idempotencyKeys.length > 0) {
-      await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.idempotencyKey, [...new Set(idempotencyKeys)]));
-    }
     if (userIds.length > 0) {
       await db.delete(s.users).where(inArray(s.users.id, userIds));
     }
@@ -274,42 +317,55 @@ after(async () => {
 
 describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
   test('Q01 persists global default and customer override into live credit override snapshots', async () => {
-    const readSettings = await request<Awaited<ReturnType<typeof getAppSettings>>>('/api/admin/app-settings/', {
+    const readSettings = await request<Awaited<ReturnType<typeof getAppSettings>> & { updatedAt: string }>(
+      '/api/admin/app-settings/',
+      {
       token: adminToken,
-    });
+      },
+    );
     assert.equal(readSettings.status, 200);
 
-    const writeSettings = await request<Awaited<ReturnType<typeof getAppSettings>>>('/api/admin/app-settings/', {
+    const writeSettings = await request<PendingGovernanceAction>('/api/admin/app-settings/', {
       method: 'PUT',
       token: adminToken,
+      idempotencyKey: addIdempotencyKey(`final-q01-settings-${suffix}`),
+      expectedUpdatedAt: String(readSettings.body.updatedAt),
       body: {
         ...originalSettings,
         creditWarningThresholdDefault: 0.67,
         creditTierOneAmountCap: 5_000_000,
       },
     });
-    assert.equal(writeSettings.status, 200);
-    assert.equal(writeSettings.body.creditWarningThresholdDefault, 0.67);
+    assert.equal(writeSettings.status, 201, JSON.stringify(writeSettings.body));
+    await approvePendingAction(writeSettings.body);
+    assert.equal((await getAppSettings()).creditWarningThresholdDefault, 0.67);
 
-    const createdCustomer = await request<{ id: number; updatedAt: string }>('/api/customers', {
+    const customerName = `Final Q01 customer ${suffix}`;
+    const createdCustomerAction = await request<PendingGovernanceAction>('/api/customers', {
       method: 'POST',
       token: adminToken,
       idempotencyKey: addIdempotencyKey(`final-q01-customer-${suffix}`),
       body: {
-        name: `Final Q01 customer ${suffix}`,
+        name: customerName,
         creditLimit: 1_000_000,
       },
     });
-    assert.equal(createdCustomer.status, 201, JSON.stringify(createdCustomer.body));
-    customerIds.push(createdCustomer.body.id);
+    assert.equal(createdCustomerAction.status, 201, JSON.stringify(createdCustomerAction.body));
+    await approvePendingAction(createdCustomerAction.body);
+    const [createdCustomer] = await db.select().from(s.customers)
+      .where(eq(s.customers.name, customerName))
+      .limit(1);
+    assert.ok(createdCustomer);
+    customerIds.push(createdCustomer.id);
 
-    await mkLedgerRow(createdCustomer.body.id, 1_100_000);
+    await mkLedgerRow(createdCustomer.id, 1_100_000);
 
     const defaultScopedOverride = await request<{ id: number; warningThreshold: string }>('/api/finance/credit-overrides', {
       method: 'POST',
       token: managerToken,
+      idempotencyKey: addIdempotencyKey(`final-q01-default-override-${suffix}`),
       body: {
-        customerId: createdCustomer.body.id,
+        customerId: createdCustomer.id,
         proposedAmount: 100_000,
         expiresAt: '2026-07-30T12:00:00.000Z',
         reason: 'Chứng minh ngưỡng cảnh báo mặc định',
@@ -319,23 +375,28 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
     creditOverrideIds.push(defaultScopedOverride.body.id);
     assert.equal(toNumber(defaultScopedOverride.body.warningThreshold), 0.67);
 
-    const updatedCustomer = await request<{ id: number; updatedAt: string; creditWarningThreshold: string | null }>('/api/customers/' + createdCustomer.body.id, {
+    const updatedCustomerAction = await request<PendingGovernanceAction>('/api/customers/' + createdCustomer.id, {
       method: 'PUT',
       token: adminToken,
       idempotencyKey: addIdempotencyKey(`final-q01-customer-update-${suffix}`),
-      expectedUpdatedAt: createdCustomer.body.updatedAt,
+      expectedUpdatedAt: createdCustomer.updatedAt.toISOString(),
       body: {
         creditWarningThreshold: 0.92,
       },
     });
-    assert.equal(updatedCustomer.status, 200, JSON.stringify(updatedCustomer.body));
-    assert.equal(toNumber(updatedCustomer.body.creditWarningThreshold), 0.92);
+    assert.equal(updatedCustomerAction.status, 201, JSON.stringify(updatedCustomerAction.body));
+    await approvePendingAction(updatedCustomerAction.body);
+    const [updatedCustomer] = await db.select().from(s.customers)
+      .where(eq(s.customers.id, createdCustomer.id))
+      .limit(1);
+    assert.equal(toNumber(updatedCustomer.creditWarningThreshold), 0.92);
 
     const customerScopedOverride = await request<{ id: number; warningThreshold: string }>('/api/finance/credit-overrides', {
       method: 'POST',
       token: accountantToken,
+      idempotencyKey: addIdempotencyKey(`final-q01-customer-override-${suffix}`),
       body: {
-        customerId: createdCustomer.body.id,
+        customerId: createdCustomer.id,
         proposedAmount: 120_000,
         expiresAt: '2026-07-31T12:00:00.000Z',
         reason: 'Chứng minh ngưỡng cảnh báo riêng khách hàng',
@@ -356,6 +417,7 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
     const pending = await request<{ id: number; version: number }>('/api/finance/credit-overrides', {
       method: 'POST',
       token: managerToken,
+      idempotencyKey: addIdempotencyKey(`final-q02-pending-${suffix}`),
       body: {
         customerId: creditCustomer.id,
         proposedAmount: 80_000,
@@ -396,32 +458,38 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
   });
 
   test('Q07 supplier primary type edits do not reclassify existing trip expenses', async () => {
-    const createdSupplier = await request<{ id: number; updatedAt: string; primaryType: string | null; isFuelSupplier: boolean }>('/api/suppliers', {
+    const supplierName = `Final Q07 supplier ${suffix}`;
+    const createdSupplierAction = await request<PendingGovernanceAction>('/api/suppliers', {
       method: 'POST',
       token: adminToken,
       idempotencyKey: addIdempotencyKey(`final-q07-supplier-${suffix}`),
       body: {
-        name: `Final Q07 supplier ${suffix}`,
+        name: supplierName,
         types: ['FUEL'],
         primaryType: 'FUEL',
         isFuelSupplier: true,
       },
     });
-    assert.equal(createdSupplier.status, 201, JSON.stringify(createdSupplier.body));
-    supplierIds.push(createdSupplier.body.id);
-    assert.equal(createdSupplier.body.primaryType, 'FUEL');
-    assert.equal(createdSupplier.body.isFuelSupplier, true);
+    assert.equal(createdSupplierAction.status, 201, JSON.stringify(createdSupplierAction.body));
+    await approvePendingAction(createdSupplierAction.body);
+    const [createdSupplier] = await db.select().from(s.suppliers)
+      .where(eq(s.suppliers.name, supplierName))
+      .limit(1);
+    assert.ok(createdSupplier);
+    supplierIds.push(createdSupplier.id);
+    assert.equal(createdSupplier.primaryType, 'FUEL');
+    assert.equal(createdSupplier.isFuelSupplier, true);
 
     const tripCustomer = await mkCustomerRow({
       name: `Final Q07 trip customer ${suffix}`,
     });
-    const trip = await mkTripRow(tripCustomer.id, createdSupplier.body.id);
+    const trip = await mkTripRow(tripCustomer.id, createdSupplier.id);
     const [expense] = await db.insert(s.tripExpenses).values({
       tripId: trip.id,
       expenseType: 'FUEL_DIESEL',
       buyAmount: '250000',
       sellAmount: '0',
-      supplierId: createdSupplier.body.id,
+      supplierId: createdSupplier.id,
       expenseDate: '2026-07-25',
       invoiceNumber: `Q07-${suffix}`.slice(0, 50),
       invoiceDate: '2026-07-25',
@@ -429,19 +497,24 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
     }).returning();
     expenseIds.push(expense.id);
 
-    const updatedSupplier = await request<{ primaryType: string | null; isFuelSupplier: boolean }>('/api/suppliers/' + createdSupplier.body.id, {
+    const updatedSupplierAction = await request<PendingGovernanceAction>('/api/suppliers/' + createdSupplier.id, {
       method: 'PUT',
       token: adminToken,
       idempotencyKey: addIdempotencyKey(`final-q07-supplier-update-${suffix}`),
-      expectedUpdatedAt: createdSupplier.body.updatedAt,
+      expectedUpdatedAt: createdSupplier.updatedAt.toISOString(),
       body: {
         types: ['SERVICE'],
         primaryType: 'SERVICE',
       },
     });
-    assert.equal(updatedSupplier.status, 200, JSON.stringify(updatedSupplier.body));
-    assert.equal(updatedSupplier.body.primaryType, 'SERVICE');
-    assert.equal(updatedSupplier.body.isFuelSupplier, false);
+    assert.equal(updatedSupplierAction.status, 201, JSON.stringify(updatedSupplierAction.body));
+    await approvePendingAction(updatedSupplierAction.body);
+    const [updatedSupplier] = await db.select().from(s.suppliers)
+      .where(eq(s.suppliers.id, createdSupplier.id))
+      .limit(1);
+    assert.ok(updatedSupplier);
+    assert.equal(updatedSupplier.primaryType, 'SERVICE');
+    assert.equal(updatedSupplier.isFuelSupplier, false);
 
     const [storedExpense] = await db.select({
       expenseType: s.tripExpenses.expenseType,
@@ -450,45 +523,57 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
       .where(eq(s.tripExpenses.id, expense.id))
       .limit(1);
     assert.equal(storedExpense?.expenseType, 'FUEL_DIESEL');
-    assert.equal(storedExpense?.supplierId, createdSupplier.body.id);
+    assert.equal(storedExpense?.supplierId, createdSupplier.id);
   });
 
   test('Q08 customer and supplier CRUD converge on one canonical partner for the same normalized tax code', async () => {
-    const createdCustomer = await request<{ id: number; updatedAt: string }>('/api/customers', {
+    const q08CustomerName = `Final Q08 customer ${suffix}`;
+    const createdCustomerAction = await request<PendingGovernanceAction>('/api/customers', {
       method: 'POST',
       token: adminToken,
       idempotencyKey: addIdempotencyKey(`final-q08-customer-${suffix}`),
       body: {
-        name: `Final Q08 customer ${suffix}`,
+        name: q08CustomerName,
         taxCode: ' MST 123 ',
       },
     });
-    assert.equal(createdCustomer.status, 201, JSON.stringify(createdCustomer.body));
-    customerIds.push(createdCustomer.body.id);
+    assert.equal(createdCustomerAction.status, 201, JSON.stringify(createdCustomerAction.body));
+    await approvePendingAction(createdCustomerAction.body);
+    const [createdCustomer] = await db.select().from(s.customers)
+      .where(eq(s.customers.name, q08CustomerName))
+      .limit(1);
+    assert.ok(createdCustomer);
+    customerIds.push(createdCustomer.id);
 
-    const createdSupplier = await request<{ id: number }>('/api/suppliers', {
+    const q08SupplierName = `Final Q08 supplier ${suffix}`;
+    const createdSupplierAction = await request<PendingGovernanceAction>('/api/suppliers', {
       method: 'POST',
       token: adminToken,
       idempotencyKey: addIdempotencyKey(`final-q08-supplier-${suffix}`),
       body: {
-        name: `Final Q08 supplier ${suffix}`,
+        name: q08SupplierName,
         taxCode: 'm s t123',
         types: ['SERVICE'],
         primaryType: 'SERVICE',
       },
     });
-    assert.equal(createdSupplier.status, 201, JSON.stringify(createdSupplier.body));
-    supplierIds.push(createdSupplier.body.id);
+    assert.equal(createdSupplierAction.status, 201, JSON.stringify(createdSupplierAction.body));
+    await approvePendingAction(createdSupplierAction.body);
+    const [createdSupplier] = await db.select().from(s.suppliers)
+      .where(eq(s.suppliers.name, q08SupplierName))
+      .limit(1);
+    assert.ok(createdSupplier);
+    supplierIds.push(createdSupplier.id);
 
     const [storedCustomer] = await db.select({
       partnerId: s.customers.partnerId,
     }).from(s.customers)
-      .where(eq(s.customers.id, createdCustomer.body.id))
+      .where(eq(s.customers.id, createdCustomer.id))
       .limit(1);
     const [storedSupplier] = await db.select({
       partnerId: s.suppliers.partnerId,
     }).from(s.suppliers)
-      .where(eq(s.suppliers.id, createdSupplier.body.id))
+      .where(eq(s.suppliers.id, createdSupplier.id))
       .limit(1);
     assert.ok(storedCustomer?.partnerId != null);
     assert.equal(storedSupplier?.partnerId, storedCustomer?.partnerId);
@@ -503,17 +588,23 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
       .where(eq(s.partners.normalizedTaxCode, 'mst123'));
     assert.equal(normalizedPartners.length, 1);
 
-    const updatedCustomer = await request<{ partnerId: number | null }>('/api/customers/' + createdCustomer.body.id, {
+    const updatedCustomerAction = await request<PendingGovernanceAction>('/api/customers/' + createdCustomer.id, {
       method: 'PUT',
       token: adminToken,
       idempotencyKey: addIdempotencyKey(`final-q08-customer-update-${suffix}`),
-      expectedUpdatedAt: createdCustomer.body.updatedAt,
+      expectedUpdatedAt: createdCustomer.updatedAt.toISOString(),
       body: {
         taxCode: ' M S T 123 ',
       },
     });
-    assert.equal(updatedCustomer.status, 200, JSON.stringify(updatedCustomer.body));
-    assert.equal(updatedCustomer.body.partnerId, storedCustomer?.partnerId ?? null);
+    assert.equal(updatedCustomerAction.status, 201, JSON.stringify(updatedCustomerAction.body));
+    await approvePendingAction(updatedCustomerAction.body);
+    const [updatedCustomer] = await db.select({ partnerId: s.customers.partnerId })
+      .from(s.customers)
+      .where(eq(s.customers.id, createdCustomer.id))
+      .limit(1);
+    assert.ok(updatedCustomer);
+    assert.equal(updatedCustomer.partnerId, storedCustomer?.partnerId ?? null);
 
     const normalizedPartnersAfterUpdate = await db.select({
       id: s.partners.id,

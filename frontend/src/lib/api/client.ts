@@ -2,30 +2,54 @@ import { ApiError } from './errors';
 import { notifySessionExpired } from './session';
 import { getToken, setToken as storeToken, clearToken as storeClearToken, invalidateTokenCache } from '../../design-system/hooks/useToken';
 
-const API_BASE = import.meta.env.VITE_API_BASE || '/api';
-
-type RequestInitWithSkip = RequestInit & { expectedUpdatedAt?: string };
 type MutationOptions = {
   expectedUpdatedAt?: string;
   headers?: Record<string, string>;
+  idempotencyKey?: string;
+  retryFingerprint?: string;
 };
+const API_BASE = import.meta.env.VITE_API_BASE || '/api';
+
+type RequestInitWithSkip = RequestInit & MutationOptions;
+type UploadOptions = MutationOptions;
 
 const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+const RETRYABLE_COMMAND_KEY_TTL_MS = 5 * 60 * 1000;
+
+type GeneratedCommandKey = {
+  fingerprint: string;
+  key: string;
+};
+
+export function fileCommandFingerprint(file: File): string {
+  return [
+    file.name,
+    file.size,
+    file.type,
+    file.lastModified,
+  ].join(':');
+}
 
 /**
  * Every client mutation carries a transaction identifier. Domain clients that
  * need retry/replay semantics may supply their own stable Idempotency-Key; the
  * transport only generates one when the caller did not provide it.
  */
+function hasIdempotencyKey(headers: Record<string, string>): boolean {
+  return Object.keys(headers).some(
+    (name) => name.toLowerCase() === 'idempotency-key',
+  );
+}
+
 function ensureMutationTransactionKey(
   method: string | undefined,
   headers: Record<string, string>,
+  generatedKey?: string,
 ): void {
   if (!method || !MUTATION_METHODS.has(method.toUpperCase())) return;
-  const hasKey = Object.keys(headers).some(
-    (name) => name.toLowerCase() === 'idempotency-key',
-  );
-  if (!hasKey) headers['Idempotency-Key'] = crypto.randomUUID();
+  if (!hasIdempotencyKey(headers)) {
+    headers['Idempotency-Key'] = generatedKey ?? crypto.randomUUID();
+  }
 }
 
 /**
@@ -39,6 +63,11 @@ function ensureMutationTransactionKey(
  */
 class ApiClient {
   private readonly updatedAtByPath = new Map<string, string>();
+  private readonly retryableCommandKeys = new Map<string, {
+    activeRequests: number;
+    key: string;
+    expiresAt: number;
+  }>();
 
   constructor() {
     // Eagerly hydrate the token cache from localStorage on first use so
@@ -48,11 +77,13 @@ class ApiClient {
 
   setToken(token: string) {
     this.updatedAtByPath.clear();
+    this.retryableCommandKeys.clear();
     storeToken(token);
   }
 
   clearToken() {
     this.updatedAtByPath.clear();
+    this.retryableCommandKeys.clear();
     storeClearToken();
   }
 
@@ -72,6 +103,9 @@ class ApiClient {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...((options?.headers as Record<string, string> | undefined) || {}),
     };
+    if (options?.idempotencyKey && !hasIdempotencyKey(headers)) {
+      headers['Idempotency-Key'] = options.idempotencyKey;
+    }
     if (options?.expectedUpdatedAt) {
       headers['If-Unmodified-Since'] = options.expectedUpdatedAt;
     } else if (
@@ -81,9 +115,25 @@ class ApiClient {
       const remembered = this.updatedAtByPath.get(this.normalizePath(path));
       if (remembered) headers['If-Unmodified-Since'] = remembered;
     }
-    ensureMutationTransactionKey(options?.method, headers);
+    const generatedCommandKey = this.prepareMutationTransactionKey(path, options, headers);
+    ensureMutationTransactionKey(options?.method, headers, generatedCommandKey?.key);
 
-    const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+    } catch (error) {
+      if (generatedCommandKey) {
+        this.retainMutationTransactionKeyForRetry(generatedCommandKey);
+      }
+      throw error;
+    }
+    if (generatedCommandKey) {
+      if (res.status < 500) {
+        this.releaseMutationTransactionKey(generatedCommandKey);
+      } else {
+        this.retainMutationTransactionKeyForRetry(generatedCommandKey);
+      }
+    }
     this.handleSessionExpiry(res, token);
     if (!res.ok) throw await ApiError.fromResponse(res);
     const result = (await res.json()) as T;
@@ -94,6 +144,55 @@ class ApiClient {
   private normalizePath(path: string): string {
     const normalized = path.split('?')[0].replace(/\/+$/, '');
     return normalized || '/';
+  }
+
+  private prepareMutationTransactionKey(
+    path: string,
+    options: RequestInitWithSkip | undefined,
+    headers: Record<string, string>,
+  ): GeneratedCommandKey | null {
+    const method = options?.method?.toUpperCase();
+    if (!method || !MUTATION_METHODS.has(method) || hasIdempotencyKey(headers)) {
+      return null;
+    }
+
+    const explicitFingerprint = options?.retryFingerprint?.trim();
+    if (!explicitFingerprint && options?.body !== undefined && typeof options.body !== 'string') {
+      return null;
+    }
+
+    const fingerprint = explicitFingerprint
+      ? `${method}:${this.normalizePath(path)}:${explicitFingerprint}`
+      : `${method}:${this.normalizePath(path)}:${options?.body ?? ''}`;
+    const now = Date.now();
+    const existing = this.retryableCommandKeys.get(fingerprint);
+    if (existing && existing.expiresAt > now) {
+      existing.activeRequests += 1;
+      return { fingerprint, key: existing.key };
+    }
+
+    const key = crypto.randomUUID();
+    this.retryableCommandKeys.set(fingerprint, {
+      activeRequests: 1,
+      key,
+      expiresAt: now + RETRYABLE_COMMAND_KEY_TTL_MS,
+    });
+    return { fingerprint, key };
+  }
+
+  private releaseMutationTransactionKey(command: GeneratedCommandKey): void {
+    const current = this.retryableCommandKeys.get(command.fingerprint);
+    if (current?.key !== command.key) return;
+    current.activeRequests = Math.max(0, current.activeRequests - 1);
+    if (current.activeRequests === 0) {
+      this.retryableCommandKeys.delete(command.fingerprint);
+    }
+  }
+
+  private retainMutationTransactionKeyForRetry(command: GeneratedCommandKey): void {
+    const current = this.retryableCommandKeys.get(command.fingerprint);
+    if (current?.key !== command.key) return;
+    current.activeRequests = Math.max(0, current.activeRequests - 1);
   }
 
   private rememberUpdatedAt(path: string, method: string | undefined, result: unknown): void {
@@ -243,10 +342,10 @@ class ApiClient {
   }
 
   /** Upload files with auth headers (multipart/form-data). */
-  async upload(url: string, formData: FormData): Promise<unknown> {
+  async upload(url: string, formData: FormData, opts?: UploadOptions): Promise<unknown> {
     return this.request<unknown>(
       url,
-      { method: 'POST', body: formData },
+      { method: 'POST', body: formData, ...opts },
       true, // skip Content-Type — browser sets the multipart boundary
     );
   }

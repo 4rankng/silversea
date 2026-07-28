@@ -1,5 +1,6 @@
 import { api } from '../lib/api';
 import { toQuery } from '../lib/http/query';
+import type { PendingGovernanceResponse } from '../lib/governance';
 import type {
   GovernanceActionKind,
   GovernanceActionStatus,
@@ -94,6 +95,7 @@ export interface SalaryPeriodLifecycle {
 export interface SalaryPeriodAdjustmentItem {
   actionId: number;
   adjustmentId: number | null;
+  version: number;
   sourcePeriod: string;
   targetPeriod: string;
   driverId: number;
@@ -290,10 +292,34 @@ export const salaryClient = {
     api.post<SalaryPeriodGovernanceAction>(`/salary/periods/${period}/reopen-actions/${actionId}/approve`, { expectedVersion }),
 
   issuePayslips: (period: string, payload: { expectedVersion: number; note?: string | null }) =>
-    api.post(`/salary/periods/${period}/issue`, payload),
+    api.post<SalaryPeriodGovernanceAction>(`/salary/periods/${period}/issue`, payload),
 
   postOfficial: (period: string, payload: { expectedVersion: number; note?: string | null }) =>
-    api.post(`/salary/periods/${period}/post`, payload),
+    api.post<SalaryPeriodGovernanceAction>(`/salary/periods/${period}/post`, payload),
+
+  checkIssuePayslips: (period: string, actionId: number, expectedVersion: number) =>
+    api.post<SalaryPeriodGovernanceAction>(
+      `/salary/periods/${period}/issue-actions/${actionId}/check`,
+      { expectedVersion },
+    ),
+
+  approveIssuePayslips: (period: string, actionId: number, expectedVersion: number) =>
+    api.post<SalaryPeriodGovernanceAction>(
+      `/salary/periods/${period}/issue-actions/${actionId}/approve`,
+      { expectedVersion },
+    ),
+
+  checkPostOfficial: (period: string, actionId: number, expectedVersion: number) =>
+    api.post<SalaryPeriodGovernanceAction>(
+      `/salary/periods/${period}/post-actions/${actionId}/check`,
+      { expectedVersion },
+    ),
+
+  approvePostOfficial: (period: string, actionId: number, expectedVersion: number) =>
+    api.post<SalaryPeriodGovernanceAction>(
+      `/salary/periods/${period}/post-actions/${actionId}/approve`,
+      { expectedVersion },
+    ),
 
   requestPostCloseAdjustment: (period: string, payload: {
     driverId: number;
@@ -303,11 +329,11 @@ export const salaryClient = {
     expectedVersion: number;
   }) => api.post(`/salary/periods/${period}/adjustments`, payload),
 
-  checkPostCloseAdjustment: (period: string, actionId: number) =>
-    api.post(`/salary/periods/${period}/adjustments/${actionId}/check`, {}),
+  checkPostCloseAdjustment: (period: string, actionId: number, expectedVersion: number) =>
+    api.post(`/salary/periods/${period}/adjustments/${actionId}/check`, { expectedVersion }),
 
-  approvePostCloseAdjustment: (period: string, actionId: number) =>
-    api.post(`/salary/periods/${period}/adjustments/${actionId}/approve`, {}),
+  approvePostCloseAdjustment: (period: string, actionId: number, expectedVersion: number) =>
+    api.post(`/salary/periods/${period}/adjustments/${actionId}/approve`, { expectedVersion }),
 };
 
 // ─── Salary Period Config ─────────────────────────────────────────
@@ -328,7 +354,10 @@ export interface SalaryPeriodRange {
 export const salaryPeriodConfigClient = {
   getDefault: () => api.get<SalaryPeriodDefault | null>(CONFIG.SALARY_PERIOD_DEFAULT),
   updateDefault: (defaultStartDay: number, defaultEndDay: number) =>
-    api.put<SalaryPeriodDefault>(CONFIG.SALARY_PERIOD_DEFAULT, { defaultStartDay, defaultEndDay }),
+    api.put<SalaryPeriodDefault | PendingGovernanceResponse>(
+      CONFIG.SALARY_PERIOD_DEFAULT,
+      { defaultStartDay, defaultEndDay },
+    ),
   resolve: (year: number, month: number) =>
     api.get<SalaryPeriodRange>(`${CONFIG.SALARY_PERIOD_RESOLVE}${toQuery({ year, month })}`),
   delete: (id: number) => api.delete<{ ok: boolean }>(`${CONFIG.SALARY_PERIODS}/${id}`),

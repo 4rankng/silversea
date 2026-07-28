@@ -279,6 +279,7 @@ test('M7.3 payroll close enforces readiness, approved exclusions, completion-per
       actionId: requested.actionId,
       actorId: manager.id,
       actorRole: 'MANAGER',
+      expectedVersion: requested.version,
     });
     assert.equal(checked.status, 'PENDING_APPROVAL');
 
@@ -286,6 +287,7 @@ test('M7.3 payroll close enforces readiness, approved exclusions, completion-per
       actionId: requested.actionId,
       actorId: admin.id,
       actorRole: 'ADMIN',
+      expectedVersion: checked.version,
     });
     assert.equal(approved.status, 'APPROVED');
     approvedExclusions.push(approved);

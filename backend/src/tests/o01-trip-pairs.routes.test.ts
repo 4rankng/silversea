@@ -37,6 +37,8 @@ const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
 const createdTruckIds: number[] = [];
 const createdDriverIds: number[] = [];
+const createdIdempotencyKeys: string[] = [];
+let requestCounter = 0;
 
 type TripAuthoritySeed = {
   plannedStartAt: string;
@@ -118,9 +120,14 @@ async function mkTrip(
   return trip;
 }
 
-async function testFetch(path: string, options: { method?: string; token?: string; body?: unknown } = {}) {
+async function testFetch(path: string, options: { method?: string; token?: string; body?: unknown; idempotencyKey?: string } = {}) {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (options.token) headers.Authorization = `Bearer ${options.token}`;
+  if (options.method === 'POST') {
+    const key = options.idempotencyKey ?? `o01-${suffix}-${requestCounter++}`;
+    headers['Idempotency-Key'] = key;
+    createdIdempotencyKeys.push(key);
+  }
   const response = await fetch(`${baseUrl}/api/trips${path}`, {
     method: options.method ?? 'GET',
     headers,
@@ -172,6 +179,10 @@ before(async () => {
 });
 
 after(async () => {
+  if (createdIdempotencyKeys.length > 0) {
+    await db.delete(s.idempotencyKeys)
+      .where(inArray(s.idempotencyKeys.idempotencyKey, createdIdempotencyKeys));
+  }
   if (createdTripIds.length > 0) {
     await db.update(s.trips).set({
       activeTripPairId: null,

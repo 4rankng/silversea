@@ -4,16 +4,26 @@ import { config } from '../config';
 
 export class LocalStorageService {
   private uploadDir: string;
+  private uploadDirResolved: string;
 
   constructor() {
     this.uploadDir = config.uploadDir || path.join(process.cwd(), 'uploads');
+    this.uploadDirResolved = path.resolve(this.uploadDir);
     if (!fs.existsSync(this.uploadDir)) {
       fs.mkdirSync(this.uploadDir, { recursive: true });
     }
   }
 
+  private resolveKeyPath(key: string): string {
+    const resolved = path.resolve(this.uploadDirResolved, key);
+    if (key.includes('..') || !resolved.startsWith(this.uploadDirResolved + path.sep)) {
+      throw new Error(`Invalid storage key: ${key}`);
+    }
+    return resolved;
+  }
+
   async upload(fileBuffer: Buffer, key: string): Promise<string> {
-    const filePath = path.join(this.uploadDir, key);
+    const filePath = this.resolveKeyPath(key);
     const dir = path.dirname(filePath);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
@@ -28,14 +38,14 @@ export class LocalStorageService {
   }
 
   async delete(key: string): Promise<void> {
-    const filePath = path.join(this.uploadDir, key);
+    const filePath = this.resolveKeyPath(key);
     if (fs.existsSync(filePath)) {
       await fs.promises.unlink(filePath);
     }
   }
 
   async exists(key: string): Promise<boolean> {
-    return fs.existsSync(path.join(this.uploadDir, key));
+    return fs.existsSync(this.resolveKeyPath(key));
   }
 
   /**
@@ -45,9 +55,12 @@ export class LocalStorageService {
    * can degrade gracefully rather than fail the whole export.
    */
   async read(key: string): Promise<Buffer | null> {
-    if (key.includes('..')) return null;
-    const filePath = path.resolve(this.uploadDir, key);
-    if (!filePath.startsWith(path.resolve(this.uploadDir) + path.sep)) return null;
+    let filePath: string;
+    try {
+      filePath = this.resolveKeyPath(key);
+    } catch {
+      return null;
+    }
     if (!fs.existsSync(filePath)) return null;
     try {
       return await fs.promises.readFile(filePath);

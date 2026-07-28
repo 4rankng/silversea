@@ -61,6 +61,7 @@ import type { Request, Response } from 'express';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { parsePagination } from './utils/pagination';
 import { throwValidation } from '../lib/validation';
+import { ApiError } from '../errors';
 import { ShipmentStatus } from '@tingting/shared';
 import {
   IDEMPOTENCY_ENDPOINTS,
@@ -195,6 +196,7 @@ router.post(
       async (tx) => {
         const shipment = await createShipment({
           ...parsed.data,
+          cargoTypeId: parsed.data.cargoTypeId,
           createdBy: user.userId,
         }, user, tx);
         return {
@@ -232,9 +234,13 @@ router.post(
     // Header wins; fall back to body channel for the offline-queue lib.
     const idempotencyKey =
       (req.header('Idempotency-Key') as string | undefined) ?? parsed.data._requestId;
+    if (!idempotencyKey) {
+      throw new ApiError(400, 'Idempotency-Key là bắt buộc khi tạo lệnh giao nhận nhanh.');
+    }
     const { shipment, replayed } = await createShipmentIdempotent(
       {
         customerId: parsed.data.customerId,
+        cargoTypeId: parsed.data.cargoTypeId,
         responsibleUnitId: parsed.data.responsibleUnitId,
         bookingRef: parsed.data.bookingRef,
         blNumber: parsed.data.blNumber,
@@ -279,6 +285,7 @@ router.put(
         const shipment = await updateShipment(id, {
           expectedVersion: parsed.data.expectedVersion,
           customerId: parsed.data.customerId,
+          cargoTypeId: parsed.data.cargoTypeId,
           responsibleUnitId: parsed.data.responsibleUnitId,
           bookingRef: parsed.data.bookingRef,
           blNumber: parsed.data.blNumber,

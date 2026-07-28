@@ -41,9 +41,19 @@ async function mkUser(username: string, role: Role) {
   return user;
 }
 
-function sign(user: { id: number; username: string | null; role: Role | string }) {
+function sign(user: {
+  id: number;
+  username: string | null;
+  role: Role | string;
+  customerIds?: number[];
+}) {
   return jwt.sign(
-    { userId: user.id, username: user.username ?? `user-${user.id}`, role: user.role as Role },
+    {
+      userId: user.id,
+      username: user.username ?? `user-${user.id}`,
+      role: user.role as Role,
+      ...(user.customerIds ? { customerIds: user.customerIds } : {}),
+    },
     config.jwtSecret,
   );
 }
@@ -296,6 +306,12 @@ describe('audit-log route accountant scope', () => {
     await db.insert(s.userCustomerLinks).values({
       userId: accountantId,
       customerId: customers[0]!.id,
+    });
+    accountantToken = sign({
+      id: accountantId,
+      username: `audit-accountant-${suffix}`,
+      role: Role.ACCOUNTANT,
+      customerIds: [customers[0]!.id],
     });
 
     await insertAuditLog({

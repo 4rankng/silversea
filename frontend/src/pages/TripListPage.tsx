@@ -53,6 +53,7 @@ export default function TripListPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set());
   const [quickErrors, setQuickErrors] = useState<Record<number, string>>({});
   const [quickMessage, setQuickMessage] = useState('');
+  const [quickGovernanceReason, setQuickGovernanceReason] = useState('');
   const [savingQuickEdit, setSavingQuickEdit] = useState(false);
   const [copyingPlanId, setCopyingPlanId] = useState<number | null>(null);
   const [copyPlanMessage, setCopyPlanMessage] = useState('');
@@ -205,10 +206,17 @@ export default function TripListPage() {
     () => table.rows.filter((trip) => selectedIds.has(trip.id) && isEditableInQuickMode(trip) && draftChanged(trip, quickDrafts[trip.id])),
     [quickDrafts, selectedIds, table.rows],
   );
+  const hasCompletedQuickEdits = selectedDirtyTrips.some(
+    (trip) => trip.status === TripStatus.COMPLETED,
+  );
 
   const saveQuickEdit = useCallback(async () => {
     if (selectedDirtyTrips.length === 0 || savingQuickEdit) {
       setQuickMessage('Chưa có dòng đã chọn nào thay đổi.');
+      return;
+    }
+    if (hasCompletedQuickEdits && !quickGovernanceReason.trim()) {
+      setQuickMessage('Vui lòng nhập lý do cho các chuyến đã hoàn thành.');
       return;
     }
     setSavingQuickEdit(true);
@@ -219,6 +227,9 @@ export default function TripListPage() {
         updates: selectedDirtyTrips.map((trip) => ({
           tripId: trip.id,
           mode: trip.status === TripStatus.CREATED ? 'pre-departure' : 'actuals',
+          governanceReason: trip.status === TripStatus.COMPLETED
+            ? quickGovernanceReason.trim()
+            : undefined,
           figures: figuresPayloadFromDraft(trip, quickDrafts[trip.id] ?? quickDraftFromTrip(trip)),
         })),
       });
@@ -228,8 +239,8 @@ export default function TripListPage() {
       }
       setQuickErrors(errors);
       setQuickMessage(response.failed > 0
-        ? `Đã lưu ${response.updated} dòng, ${response.failed} dòng cần kiểm tra lại.`
-        : `Đã lưu ${response.updated} dòng.`);
+        ? `Đã lưu ${response.updated} dòng, gửi duyệt ${response.pending}, ${response.failed} dòng cần kiểm tra lại.`
+        : `Đã lưu ${response.updated} dòng, gửi duyệt ${response.pending}.`);
       if (response.updated > 0) {
         await table.query.refetch();
         setSelectedIds((prev) => {
@@ -245,7 +256,7 @@ export default function TripListPage() {
     } finally {
       setSavingQuickEdit(false);
     }
-  }, [quickDrafts, savingQuickEdit, selectedDirtyTrips, table.query]);
+  }, [hasCompletedQuickEdits, quickDrafts, quickGovernanceReason, savingQuickEdit, selectedDirtyTrips, table.query]);
 
   const handleCopyPlan = useCallback(async (tripId: number) => {
     if (copyingPlanId) return;
@@ -446,6 +457,19 @@ export default function TripListPage() {
               Hủy
             </button>
           </div>
+          {hasCompletedQuickEdits && (
+            <label style={{ display: 'grid', gap: 4, minWidth: 280 }}>
+              <span style={{ fontSize: 12, fontWeight: 600 }}>Lý do thay đổi chuyến đã hoàn thành</span>
+              <textarea
+                aria-label="Lý do thay đổi chuyến đã hoàn thành"
+                className="input"
+                rows={2}
+                value={quickGovernanceReason}
+                onChange={(event) => setQuickGovernanceReason(event.target.value)}
+                placeholder="Nêu căn cứ đối soát"
+              />
+            </label>
+          )}
           <div className={`quick-edit-message${Object.keys(quickErrors).length > 0 ? ' has-error' : ''}`}>
             {quickMessage || 'Chỉ các chuyến chưa chốt/chưa hủy được sửa nhanh.'}
           </div>

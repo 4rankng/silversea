@@ -27,7 +27,11 @@ import {
   useApproveReopenSalaryPeriod,
   useReopenSalaryPeriod,
   useIssueSalaryPeriod,
+  useCheckIssueSalaryPeriod,
+  useApproveIssueSalaryPeriod,
   usePostSalaryPeriod,
+  useCheckPostSalaryPeriod,
+  useApprovePostSalaryPeriod,
   useRequestPostCloseAdjustment,
   useCheckPostCloseAdjustment,
   useApprovePostCloseAdjustment,
@@ -56,6 +60,19 @@ import {
 } from './salary-attendance-components';
 import './SalaryAttendancePage.css';
 import { useSalaryPeriod } from '../hooks/useCatalogQueries';
+
+type SalaryPeriodFinalizationOperation = 'ISSUE_PAYSLIPS' | 'POST_OFFICIAL';
+
+function salaryPeriodFinalizationOperation(
+  item: SalaryPeriodGovernanceAction,
+): SalaryPeriodFinalizationOperation | null {
+  const after = item.afterSnapshot;
+  if (!after || typeof after !== 'object' || Array.isArray(after)) return null;
+  const operation = (after as { operation?: unknown }).operation;
+  return operation === 'ISSUE_PAYSLIPS' || operation === 'POST_OFFICIAL'
+    ? operation
+    : null;
+}
 
 export default function SalaryAttendancePage() {
   const { month, year, goPrev, goNext } = useMonth();
@@ -94,7 +111,11 @@ export default function SalaryAttendancePage() {
   const checkReopenPeriodMutation = useCheckReopenSalaryPeriod(periodKey, year, month);
   const approveReopenPeriodMutation = useApproveReopenSalaryPeriod(periodKey, year, month);
   const issuePeriodMutation = useIssueSalaryPeriod(periodKey, selectedDriverId);
+  const checkIssuePeriodMutation = useCheckIssueSalaryPeriod(periodKey, selectedDriverId);
+  const approveIssuePeriodMutation = useApproveIssueSalaryPeriod(periodKey, selectedDriverId);
   const postPeriodMutation = usePostSalaryPeriod(periodKey, selectedDriverId);
+  const checkPostPeriodMutation = useCheckPostSalaryPeriod(periodKey, selectedDriverId);
+  const approvePostPeriodMutation = useApprovePostSalaryPeriod(periodKey, selectedDriverId);
   const requestAdjustmentMutation = useRequestPostCloseAdjustment(periodKey, selectedDriverId, year, month);
   const checkAdjustmentMutation = useCheckPostCloseAdjustment(periodKey, selectedDriverId);
   const approveAdjustmentMutation = useApprovePostCloseAdjustment(periodKey, selectedDriverId, year, month);
@@ -130,7 +151,19 @@ export default function SalaryAttendancePage() {
     [activeSalaryConfirmationActions],
   );
   const closeGovernanceActions = useMemo(
-    () => activePeriodGovernanceActions.filter((item) => item.actionKind === 'SALARY_PERIOD_CLOSE'),
+    () => activePeriodGovernanceActions.filter((item) =>
+      item.actionKind === 'SALARY_PERIOD_CLOSE'
+      && salaryPeriodFinalizationOperation(item) == null),
+    [activePeriodGovernanceActions],
+  );
+  const issueGovernanceActions = useMemo(
+    () => activePeriodGovernanceActions.filter((item) =>
+      salaryPeriodFinalizationOperation(item) === 'ISSUE_PAYSLIPS'),
+    [activePeriodGovernanceActions],
+  );
+  const postGovernanceActions = useMemo(
+    () => activePeriodGovernanceActions.filter((item) =>
+      salaryPeriodFinalizationOperation(item) === 'POST_OFFICIAL'),
     [activePeriodGovernanceActions],
   );
   const reopenGovernanceActions = useMemo(
@@ -188,18 +221,27 @@ export default function SalaryAttendancePage() {
   }, [user]);
 
   const handleCheckGovernanceAction = useCallback((item: SalaryPeriodGovernanceAction) => {
-    const mutation = item.actionKind === 'SALARY_PERIOD_CLOSE'
-      ? checkClosePeriodMutation
-      : checkReopenPeriodMutation;
+    const operation = salaryPeriodFinalizationOperation(item);
+    const mutation = operation === 'ISSUE_PAYSLIPS'
+      ? checkIssuePeriodMutation
+      : operation === 'POST_OFFICIAL'
+        ? checkPostPeriodMutation
+        : item.actionKind === 'SALARY_PERIOD_CLOSE'
+          ? checkClosePeriodMutation
+          : checkReopenPeriodMutation;
     mutation.mutate(
       { actionId: item.id, expectedVersion: item.version },
       {
         onSuccess: () => {
           toast({
             kind: 'success',
-            message: item.actionKind === 'SALARY_PERIOD_CLOSE'
-              ? 'Đã chuyển yêu cầu chốt kỳ sang bước phê duyệt.'
-              : 'Đã chuyển yêu cầu mở lại sang bước phê duyệt.',
+            message: operation === 'ISSUE_PAYSLIPS'
+              ? 'Đã chuyển yêu cầu phát hành phiếu lương sang bước phê duyệt.'
+              : operation === 'POST_OFFICIAL'
+                ? 'Đã chuyển yêu cầu hạch toán chính thức sang bước phê duyệt.'
+                : item.actionKind === 'SALARY_PERIOD_CLOSE'
+                  ? 'Đã chuyển yêu cầu chốt kỳ sang bước phê duyệt.'
+                  : 'Đã chuyển yêu cầu mở lại sang bước phê duyệt.',
           });
         },
         onError: (err: unknown) => {
@@ -210,21 +252,36 @@ export default function SalaryAttendancePage() {
         },
       },
     );
-  }, [checkClosePeriodMutation, checkReopenPeriodMutation, toast]);
+  }, [
+    checkClosePeriodMutation,
+    checkIssuePeriodMutation,
+    checkPostPeriodMutation,
+    checkReopenPeriodMutation,
+    toast,
+  ]);
 
   const handleApproveGovernanceAction = useCallback((item: SalaryPeriodGovernanceAction) => {
-    const mutation = item.actionKind === 'SALARY_PERIOD_CLOSE'
-      ? approveClosePeriodMutation
-      : approveReopenPeriodMutation;
+    const operation = salaryPeriodFinalizationOperation(item);
+    const mutation = operation === 'ISSUE_PAYSLIPS'
+      ? approveIssuePeriodMutation
+      : operation === 'POST_OFFICIAL'
+        ? approvePostPeriodMutation
+        : item.actionKind === 'SALARY_PERIOD_CLOSE'
+          ? approveClosePeriodMutation
+          : approveReopenPeriodMutation;
     mutation.mutate(
       { actionId: item.id, expectedVersion: item.version },
       {
         onSuccess: () => {
           toast({
             kind: 'success',
-            message: item.actionKind === 'SALARY_PERIOD_CLOSE'
-              ? 'Đã phê duyệt chốt kỳ lương.'
-              : 'Đã phê duyệt mở lại kỳ lương.',
+            message: operation === 'ISSUE_PAYSLIPS'
+              ? 'Đã phê duyệt phát hành phiếu lương.'
+              : operation === 'POST_OFFICIAL'
+                ? 'Đã phê duyệt hạch toán chính thức kỳ lương.'
+                : item.actionKind === 'SALARY_PERIOD_CLOSE'
+                  ? 'Đã phê duyệt chốt kỳ lương.'
+                  : 'Đã phê duyệt mở lại kỳ lương.',
           });
         },
         onError: (err: unknown) => {
@@ -235,7 +292,13 @@ export default function SalaryAttendancePage() {
         },
       },
     );
-  }, [approveClosePeriodMutation, approveReopenPeriodMutation, toast]);
+  }, [
+    approveClosePeriodMutation,
+    approveIssuePeriodMutation,
+    approvePostPeriodMutation,
+    approveReopenPeriodMutation,
+    toast,
+  ]);
 
   const handleCheckSalaryConfirmationAction = useCallback((item: SalaryConfirmationGovernanceAction) => {
     const mutation = item.actionKind === 'SALARY_CONFIRMATION'
@@ -697,7 +760,9 @@ export default function SalaryAttendancePage() {
                           Đang có yêu cầu chốt kỳ chờ xử lý bên dưới. Không thể tạo thêm yêu cầu mới cho cùng kỳ.
                         </div>
                       )}
-                      {lifecycle?.status === 'CLOSED' && !lifecycle.payslipIssuedAt && (
+                      {lifecycle?.status === 'CLOSED'
+                        && !lifecycle.payslipIssuedAt
+                        && issueGovernanceActions.length === 0 && (
                         <button
                           className="btn btn--primary btn--sm"
                           disabled={issuePeriodMutation.isPending || lifecycle.version == null}
@@ -706,6 +771,12 @@ export default function SalaryAttendancePage() {
                             issuePeriodMutation.mutate(
                               { expectedVersion: lifecycle.version },
                               {
+                                onSuccess: () => {
+                                  toast({
+                                    kind: 'success',
+                                    message: 'Đã gửi yêu cầu phát hành phiếu lương. Kỳ lương chưa thay đổi cho đến khi người kiểm tra và người phê duyệt khác hoàn tất.',
+                                  });
+                                },
                                 onError: (err: unknown) => {
                                   toast({
                                     kind: 'error',
@@ -716,10 +787,20 @@ export default function SalaryAttendancePage() {
                             );
                           }}
                         >
-                          {issuePeriodMutation.isPending ? 'Đang phát hành…' : 'Phát hành phiếu lương'}
+                          {issuePeriodMutation.isPending ? 'Đang gửi yêu cầu…' : 'Gửi yêu cầu phát hành phiếu lương'}
                         </button>
                       )}
-                      {lifecycle?.status === 'CLOSED' && lifecycle.payslipIssuedAt && !lifecycle.officialPostedAt && (
+                      {lifecycle?.status === 'CLOSED'
+                        && !lifecycle.payslipIssuedAt
+                        && issueGovernanceActions.length > 0 && (
+                        <div style={{ fontSize: 12, color: 'var(--fg-3)' }}>
+                          Yêu cầu phát hành phiếu lương đang chờ kiểm tra hoặc phê duyệt. Chưa có phiếu lương nào được phát hành.
+                        </div>
+                      )}
+                      {lifecycle?.status === 'CLOSED'
+                        && lifecycle.payslipIssuedAt
+                        && !lifecycle.officialPostedAt
+                        && postGovernanceActions.length === 0 && (
                         <button
                           className="btn btn--secondary btn--sm"
                           disabled={postPeriodMutation.isPending || lifecycle.version == null}
@@ -728,6 +809,12 @@ export default function SalaryAttendancePage() {
                             postPeriodMutation.mutate(
                               { expectedVersion: lifecycle.version },
                               {
+                                onSuccess: () => {
+                                  toast({
+                                    kind: 'success',
+                                    message: 'Đã gửi yêu cầu hạch toán chính thức. Kỳ lương chưa được đánh dấu chính thức cho đến khi hoàn tất kiểm tra và phê duyệt.',
+                                  });
+                                },
                                 onError: (err: unknown) => {
                                   toast({
                                     kind: 'error',
@@ -738,8 +825,16 @@ export default function SalaryAttendancePage() {
                             );
                           }}
                         >
-                          {postPeriodMutation.isPending ? 'Đang hạch toán…' : 'Đánh dấu hạch toán chính thức'}
+                          {postPeriodMutation.isPending ? 'Đang gửi yêu cầu…' : 'Gửi yêu cầu hạch toán chính thức'}
                         </button>
+                      )}
+                      {lifecycle?.status === 'CLOSED'
+                        && lifecycle.payslipIssuedAt
+                        && !lifecycle.officialPostedAt
+                        && postGovernanceActions.length > 0 && (
+                        <div style={{ fontSize: 12, color: 'var(--fg-3)' }}>
+                          Yêu cầu hạch toán chính thức đang chờ kiểm tra hoặc phê duyệt. Kỳ lương chưa được đánh dấu chính thức.
+                        </div>
                       )}
                       {lifecycle?.status === 'CLOSED' && lifecycle.canReopen && canReopenCompanyPeriod && reopenGovernanceActions.length === 0 && (
                         <>
@@ -831,11 +926,15 @@ export default function SalaryAttendancePage() {
                       items={activePeriodGovernanceActions}
                       checkingActionId={
                         checkClosePeriodMutation.variables?.actionId
+                        ?? checkIssuePeriodMutation.variables?.actionId
+                        ?? checkPostPeriodMutation.variables?.actionId
                         ?? checkReopenPeriodMutation.variables?.actionId
                         ?? null
                       }
                       approvingActionId={
                         approveClosePeriodMutation.variables?.actionId
+                        ?? approveIssuePeriodMutation.variables?.actionId
+                        ?? approvePostPeriodMutation.variables?.actionId
                         ?? approveReopenPeriodMutation.variables?.actionId
                         ?? null
                       }
@@ -1016,10 +1115,13 @@ export default function SalaryAttendancePage() {
                   items={periodAdjustments}
                   canCheck={canCheckAdjustment}
                   canApprove={canApproveAdjustment}
-                  checkingActionId={checkAdjustmentMutation.isPending ? checkAdjustmentMutation.variables ?? null : null}
-                  approvingActionId={approveAdjustmentMutation.isPending ? approveAdjustmentMutation.variables ?? null : null}
-                  onCheck={(actionId) => {
-                    checkAdjustmentMutation.mutate(actionId, {
+                  checkingActionId={checkAdjustmentMutation.isPending ? checkAdjustmentMutation.variables?.actionId ?? null : null}
+                  approvingActionId={approveAdjustmentMutation.isPending ? approveAdjustmentMutation.variables?.actionId ?? null : null}
+                  onCheck={(item) => {
+                    checkAdjustmentMutation.mutate({
+                      actionId: item.actionId,
+                      expectedVersion: item.version,
+                    }, {
                       onError: (err: unknown) => {
                         toast({
                           kind: 'error',
@@ -1028,8 +1130,11 @@ export default function SalaryAttendancePage() {
                       },
                     });
                   }}
-                  onApprove={(actionId) => {
-                    approveAdjustmentMutation.mutate(actionId, {
+                  onApprove={(item) => {
+                    approveAdjustmentMutation.mutate({
+                      actionId: item.actionId,
+                      expectedVersion: item.version,
+                    }, {
                       onError: (err: unknown) => {
                         toast({
                           kind: 'error',

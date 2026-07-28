@@ -1,5 +1,5 @@
-import { and, desc, eq, sql } from 'drizzle-orm';
-import { TxnType } from '@tingting/shared';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { NotificationType, Role, TripStatus, TxnType } from '@tingting/shared';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
@@ -17,10 +17,28 @@ import { lockTripFinancialAuthority } from './trip-financial-authority-lock.serv
 import { assertCanMakeGovernanceAction } from './governance-policy';
 import {
   approveGovernanceActionWithAdapter,
+  assertActiveApprovalApplication,
   type GovernanceActionRow,
 } from './governance-transition.service';
 import { applyBillingDocumentGovernanceAction } from './billing-document-governance.service';
 import { applyPriceConfigGovernanceAction } from './price-config-governance.service';
+import { applyDebtOffsetGovernanceAction } from './debtOffset.service';
+import {
+  applyAdvanceRequestGovernanceAction,
+  applyAdvanceSettlementGovernanceAction,
+} from './advance.service';
+import { applyCompanyExpenseGovernanceAction } from './expense.service';
+import { applyFuelInvoiceGovernanceAction } from './fuel-invoice.service';
+import { applyCreditOverrideGovernanceAction } from './credit-limit.service';
+import { applyTripExpenseGovernanceAction } from './approval.service';
+import { transitionTripStatus } from './trip-status-machine.service';
+import {
+  updateTripFigures,
+  type TripFigureUpdateInput,
+} from './trip-mutations.service';
+import { removeTripWorkDays, syncTripWorkDays } from './attendance.service';
+import { persistNotificationInTx } from './notification.service';
+import { enqueueTripGpsCaptureJob } from './trip-gps-capture-job.service';
 
 export { checkGovernanceAction } from './governance-transition.service';
 
@@ -205,6 +223,233 @@ export async function requestTripReopen(input: {
   return input.transaction ? execute(input.transaction) : db.transaction(execute);
 }
 
+async function assertNoPendingTripGovernanceAction(
+  tx: Tx,
+  tripId: number,
+  actionKind: 'TRIP_FINANCIAL_CHANGE' | 'TRIP_FINANCIAL_CLOSE',
+  originalVersion: number,
+): Promise<void> {
+  const [pending] = await tx.select({ id: s.governanceActions.id })
+    .from(s.governanceActions)
+    .where(and(
+      eq(s.governanceActions.subjectType, 'TRIP'),
+      eq(s.governanceActions.subjectId, tripId),
+      eq(s.governanceActions.actionKind, actionKind),
+      eq(s.governanceActions.originalVersion, originalVersion),
+      inArray(s.governanceActions.status, [
+        'PENDING_CHECK',
+        'PENDING_APPROVAL',
+        'RETURNED_FOR_EVIDENCE',
+      ]),
+    ))
+    .limit(1);
+  if (pending) {
+    throw new ApiError(409, 'Chuyến đi đã có yêu cầu tài chính đang chờ xử lý');
+  }
+}
+
+export async function requestTripFinancialClose(input: {
+  tripId: number;
+  reason: string;
+  makerId: number;
+  makerRole: string;
+  expectedTripVersion: number;
+  transaction?: Tx;
+}) {
+  assertCanMakeGovernanceAction('TRIP_FINANCIAL_CLOSE', input.makerRole);
+  if (input.makerRole !== Role.ADMIN && input.makerRole !== Role.MANAGER) {
+    throw new ApiError(403, 'Chỉ Quản lý hoặc Quản trị viên mới có quyền đề nghị hoàn thành chuyến đi');
+  }
+  assertExpectedTripVersion(input.expectedTripVersion);
+  const reason = requireReason(input.reason);
+
+  const execute = async (tx: Tx) => {
+    const [trip] = await tx.select().from(s.trips)
+      .where(eq(s.trips.id, input.tripId)).limit(1).for('update');
+    if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
+    if (trip.version !== input.expectedTripVersion) {
+      throw new ApiError(409, 'Chuyến đi đã được thay đổi. Vui lòng tải lại.');
+    }
+    if (trip.status !== TripStatus.IN_TRANSIT) {
+      throw new ApiError(409, 'Chỉ có thể đề nghị hoàn thành chuyến đi đang chạy');
+    }
+    await assertNoPendingTripGovernanceAction(
+      tx,
+      trip.id,
+      'TRIP_FINANCIAL_CLOSE',
+      trip.version,
+    );
+
+    const [action] = await tx.insert(s.governanceActions).values({
+      subjectType: 'TRIP',
+      subjectId: trip.id,
+      subjectKey: trip.tripCode,
+      actionKind: 'TRIP_FINANCIAL_CLOSE',
+      reason,
+      originalVersion: trip.version,
+      beforeSnapshot: {
+        status: trip.status,
+        revenue: trip.revenue,
+        totalCost: trip.totalCost,
+        grossProfit: trip.grossProfit,
+      },
+      afterSnapshot: { status: TripStatus.COMPLETED },
+      deltaSnapshot: null,
+      makerId: input.makerId,
+      makerRole: input.makerRole,
+    }).returning();
+    return action;
+  };
+  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+}
+
+export async function requestTripFinancialChange(input: {
+  tripId: number;
+  reason: string;
+  figures: TripFigureUpdateInput;
+  makerId: number;
+  makerRole: string;
+  expectedTripVersion: number;
+  transaction?: Tx;
+}) {
+  assertCanMakeGovernanceAction('TRIP_FINANCIAL_CHANGE', input.makerRole);
+  assertExpectedTripVersion(input.expectedTripVersion);
+  const reason = requireReason(input.reason);
+
+  const execute = async (tx: Tx) => {
+    await lockTripFinancialAuthority(tx, [input.tripId]);
+    const [trip] = await tx.select().from(s.trips)
+      .where(eq(s.trips.id, input.tripId)).limit(1).for('update');
+    if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
+    if (trip.version !== input.expectedTripVersion) {
+      throw new ApiError(409, 'Chuyến đi đã được thay đổi. Vui lòng tải lại.');
+    }
+    if (trip.status !== TripStatus.COMPLETED) {
+      throw new ApiError(409, 'Chỉ tạo yêu cầu tài chính cho chuyến đã hoàn thành');
+    }
+    await assertNoPendingTripGovernanceAction(
+      tx,
+      trip.id,
+      'TRIP_FINANCIAL_CHANGE',
+      trip.version,
+    );
+
+    const [action] = await tx.insert(s.governanceActions).values({
+      subjectType: 'TRIP',
+      subjectId: trip.id,
+      subjectKey: trip.tripCode,
+      actionKind: 'TRIP_FINANCIAL_CHANGE',
+      reason,
+      originalVersion: trip.version,
+      beforeSnapshot: {
+        customerId: trip.customerId,
+        revenue: trip.revenue,
+        totalFuelCost: trip.totalFuelCost,
+        totalRoadAllowance: trip.totalRoadAllowance,
+        totalCost: trip.totalCost,
+        driverSalary: trip.driverSalary,
+        customerCommission: trip.customerCommission,
+        grossProfit: trip.grossProfit,
+      },
+      afterSnapshot: { figures: input.figures },
+      deltaSnapshot: null,
+      makerId: input.makerId,
+      makerRole: input.makerRole,
+    }).returning();
+    return action;
+  };
+  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+}
+
+export async function requestCompletedTripCancellation(input: {
+  tripId: number;
+  reason: string;
+  makerId: number;
+  makerRole: string;
+  expectedTripVersion: number;
+  transaction?: Tx;
+}) {
+  assertCanMakeGovernanceAction('TRIP_FINANCIAL_CHANGE', input.makerRole);
+  if (input.makerRole !== Role.ADMIN && input.makerRole !== Role.MANAGER) {
+    throw new ApiError(403, 'Chỉ Quản lý hoặc Quản trị viên mới có quyền đề nghị hủy chuyến đi');
+  }
+  assertExpectedTripVersion(input.expectedTripVersion);
+  const reason = requireReason(input.reason);
+
+  const execute = async (tx: Tx) => {
+    await lockTripFinancialAuthority(tx, [input.tripId]);
+    const [trip] = await tx.select().from(s.trips)
+      .where(eq(s.trips.id, input.tripId)).limit(1).for('update');
+    if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
+    if (trip.version !== input.expectedTripVersion) {
+      throw new ApiError(409, 'Chuyến đi đã được thay đổi. Vui lòng tải lại.');
+    }
+    if (trip.status !== TripStatus.COMPLETED) {
+      throw new ApiError(409, 'Chỉ tạo yêu cầu hủy tài chính cho chuyến đã hoàn thành');
+    }
+    await assertNoPendingTripGovernanceAction(
+      tx,
+      trip.id,
+      'TRIP_FINANCIAL_CHANGE',
+      trip.version,
+    );
+
+    const [action] = await tx.insert(s.governanceActions).values({
+      subjectType: 'TRIP',
+      subjectId: trip.id,
+      subjectKey: trip.tripCode,
+      actionKind: 'TRIP_FINANCIAL_CHANGE',
+      reason,
+      originalVersion: trip.version,
+      beforeSnapshot: {
+        status: trip.status,
+        fuelLitersOverride: trip.fuelLitersOverride,
+        fuelSupplementLiters: trip.fuelSupplementLiters,
+        tollsDiscount: trip.tollsDiscount,
+        tollsAddition: trip.tollsAddition,
+        tollsStations: trip.tollsStations,
+        hasReturnCargo: trip.hasReturnCargo,
+        fuelPriceApplied: trip.fuelPriceApplied,
+        fuelActualUnitPrice: trip.fuelActualUnitPrice,
+        roadAllowanceBaseApplied: trip.roadAllowanceBaseApplied,
+        fuelLoadedNormApplied: trip.fuelLoadedNormApplied,
+        fuelEmptyNormApplied: trip.fuelEmptyNormApplied,
+        fuelFixedAllowanceApplied: trip.fuelFixedAllowanceApplied,
+        fuelSupplementNormApplied: trip.fuelSupplementNormApplied,
+        tollPerStationApplied: trip.tollPerStationApplied,
+        returnCargoBonusApplied: trip.returnCargoBonusApplied,
+        fuelLiters: trip.fuelLiters,
+        revenue: trip.revenue,
+        totalFuelCost: trip.totalFuelCost,
+        totalRoadAllowance: trip.totalRoadAllowance,
+        tollCost: trip.tollCost,
+        roadAllowanceOverride: trip.roadAllowanceOverride,
+        totalCost: trip.totalCost,
+        driverSalary: trip.driverSalary,
+        revenueEmptyReturn: trip.revenueEmptyReturn,
+        revenueCombine: trip.revenueCombine,
+        twoPointDeliveryBonus: trip.twoPointDeliveryBonus,
+        vehicleShiftAllowance: trip.vehicleShiftAllowance,
+        grossProfit: trip.grossProfit,
+        revenueOriginal: trip.revenueOriginal,
+        customerCommission: trip.customerCommission,
+        tripWageDays: trip.tripWageDays,
+        vatRate: trip.vatRate,
+        externalFreightCost: trip.externalFreightCost,
+      },
+      afterSnapshot: {
+        operation: 'CANCEL_COMPLETED',
+        status: TripStatus.CANCELED,
+      },
+      deltaSnapshot: null,
+      makerId: input.makerId,
+      makerRole: input.makerRole,
+    }).returning();
+    return action;
+  };
+  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+}
+
 export async function approveGovernanceAction(input: {
   actionId: number;
   approverId: number;
@@ -215,7 +460,17 @@ export async function approveGovernanceAction(input: {
   const approved = await approveGovernanceActionWithAdapter({
     ...input,
     apply: applyGovernanceAction,
+    authorizeBeforeApply: (action) => (
+      action.subjectType === 'TRIP'
+      && (
+        action.actionKind === 'TRIP_FINANCIAL_CLOSE'
+        || action.actionKind === 'TRIP_FINANCIAL_CHANGE'
+      )
+    ),
   });
+  if (approved.subjectType === 'PRICE_CONFIG' && approved.subjectId == null && approved.subjectKey) {
+    return approved;
+  }
   if (approved.subjectId == null) {
     throw new ApiError(409, 'Yêu cầu điều chỉnh không có đối tượng hợp lệ');
   }
@@ -232,6 +487,27 @@ async function applyGovernanceAction(
   if (action.subjectType === 'PRICE_CONFIG') {
     return applyPriceConfigGovernanceAction(tx, action);
   }
+  if (action.subjectType === 'DEBT_OFFSET') {
+    return applyDebtOffsetGovernanceAction(tx, action);
+  }
+  if (action.subjectType === 'ADVANCE_REQUEST') {
+    return applyAdvanceRequestGovernanceAction(tx, action);
+  }
+  if (action.subjectType === 'ADVANCE_SETTLEMENT') {
+    return applyAdvanceSettlementGovernanceAction(tx, action);
+  }
+  if (action.subjectType === 'COMPANY_EXPENSE') {
+    return applyCompanyExpenseGovernanceAction(tx, action);
+  }
+  if (action.subjectType === 'FUEL_INVOICE') {
+    return applyFuelInvoiceGovernanceAction(tx, action);
+  }
+  if (action.subjectType === 'CREDIT_OVERRIDE') {
+    return applyCreditOverrideGovernanceAction(tx, action);
+  }
+  if (action.subjectType === 'TRIP_EXPENSE') {
+    return applyTripExpenseGovernanceAction(tx, action);
+  }
   return applyTripGovernanceAction(tx, action);
 }
 
@@ -239,15 +515,21 @@ async function applyTripGovernanceAction(
   tx: Tx,
   action: GovernanceActionRow,
 ) {
+  assertActiveApprovalApplication(tx, action.id);
   if (action.subjectType !== 'TRIP' || action.subjectId == null) {
     throw new ApiError(409, 'Yêu cầu điều chỉnh không có chuyến đi hợp lệ');
   }
-  if (action.actionKind !== 'TRIP_AR_ADJUSTMENT' && action.actionKind !== 'TRIP_REOPEN') {
+  if (
+    action.actionKind !== 'TRIP_AR_ADJUSTMENT'
+    && action.actionKind !== 'TRIP_REOPEN'
+    && action.actionKind !== 'TRIP_FINANCIAL_CHANGE'
+    && action.actionKind !== 'TRIP_FINANCIAL_CLOSE'
+  ) {
     throw new ApiError(409, 'Loại yêu cầu không thuộc quản trị chuyến đi');
   }
   const kind = action.actionKind;
 
-  if (kind === 'TRIP_REOPEN') {
+  if (kind === 'TRIP_REOPEN' || kind === 'TRIP_FINANCIAL_CHANGE') {
     await lockTripFinancialAuthority(tx, [action.subjectId]);
   }
   const [trip] = await tx.select().from(s.trips)
@@ -258,6 +540,117 @@ async function applyTripGovernanceAction(
   }
 
   let ledgerEntryId: number | null = null;
+  if (kind === 'TRIP_FINANCIAL_CLOSE') {
+    const completed = await transitionTripStatus(
+      trip.id,
+      TripStatus.COMPLETED,
+      action.approverId!,
+      action.approverRole!,
+      false,
+      false,
+      {
+        expectedVersion: action.originalVersion,
+        transaction: tx,
+        governanceActionId: action.id,
+      },
+    );
+    if (completed.driverId && completed.departureDate) {
+      await syncTripWorkDays(
+        completed.driverId,
+        completed.id,
+        String(completed.departureDate),
+        null,
+        action.approverId,
+        tx,
+      );
+    }
+    await persistNotificationInTx(tx, {
+      type: NotificationType.TRIP_COMPLETED,
+      title: 'Chuyến hoàn thành',
+      message: `Chuyến ${completed.tripCode} đã hoàn thành`,
+      relatedEntityType: 'trips',
+      relatedEntityId: completed.id,
+      targetDriverId: completed.driverId ?? undefined,
+    });
+    await enqueueTripGpsCaptureJob(tx, {
+      governanceActionId: action.id,
+      tripId: completed.id,
+    });
+    return {
+      ledgerEntryId: null,
+      applicationResult: {
+        subjectType: 'TRIP',
+        subjectId: trip.id,
+        resultingVersion: completed.version,
+        status: completed.status,
+        completedAt: completed.completedAt,
+      },
+    };
+  }
+
+  if (kind === 'TRIP_FINANCIAL_CHANGE') {
+    const after = action.afterSnapshot as Record<string, unknown> | null;
+    if (after?.operation === 'CANCEL_COMPLETED') {
+      const canceled = await transitionTripStatus(
+        trip.id,
+        TripStatus.CANCELED,
+        action.approverId!,
+        action.approverRole!,
+        false,
+        false,
+        {
+          expectedVersion: action.originalVersion,
+          transaction: tx,
+          governanceActionId: action.id,
+        },
+      );
+      if (canceled.driverId) {
+        await removeTripWorkDays(canceled.driverId, canceled.id, tx);
+      }
+      await persistNotificationInTx(tx, {
+        type: NotificationType.TRIP_CANCELED,
+        title: 'Chuyến đã hủy',
+        message: `Chuyến ${canceled.tripCode} đã bị hủy`,
+        relatedEntityType: 'trips',
+        relatedEntityId: canceled.id,
+        targetDriverId: canceled.driverId ?? undefined,
+      });
+      return {
+        ledgerEntryId: null,
+        applicationResult: {
+          subjectType: 'TRIP',
+          subjectId: trip.id,
+          resultingVersion: canceled.version,
+          status: canceled.status,
+        },
+      };
+    }
+    const figures = after?.figures as TripFigureUpdateInput | undefined;
+    if (!figures || !Array.isArray(figures.legs) || !figures.fuelMode) {
+      throw new ApiError(409, 'Yêu cầu thay đổi tài chính thiếu dữ liệu áp dụng hợp lệ');
+    }
+    const updated = await updateTripFigures(
+      trip.id,
+      {
+        ...figures,
+        expectedVersion: action.originalVersion,
+        userId: action.approverId ?? undefined,
+        userRole: action.approverRole as Role,
+      },
+      tx,
+      action.id,
+    );
+    return {
+      ledgerEntryId: null,
+      applicationResult: {
+        subjectType: 'TRIP',
+        subjectId: trip.id,
+        resultingVersion: updated.version,
+        status: updated.status,
+      },
+    };
+  }
+
   if (kind === 'TRIP_AR_ADJUSTMENT') {
     const delta = action.deltaSnapshot as Record<string, unknown> | null;
     const amount = Number(delta?.customerBalanceDelta);

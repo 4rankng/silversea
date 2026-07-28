@@ -10,7 +10,7 @@
  *   - idempotent replay (same key + same body) → returns the SAME event
  *     (replayed=true); no duplicate row.
  *   - same key + different body → ApiError 409.
- *   - no key → distinct events created for distinct calls.
+ *   - no key → rejected (Q23 durable command boundary).
  *   - ownership: a driver recording progress on another driver's trip → 403.
  *   - missing trip → 404.
  *   - list returns events oldest-first (timeline order).
@@ -105,6 +105,14 @@ async function assert409(fn: () => Promise<unknown>): Promise<ApiError> {
     return err as ApiError;
   }
 }
+async function assert400(fn: () => Promise<unknown>): Promise<ApiError> {
+  try { await fn(); throw new Error('expected ApiError(400) but call succeeded'); }
+  catch (err) {
+    assert.ok(err instanceof ApiError, `expected ApiError, got ${(err as Error).name}`);
+    assert.equal((err as ApiError).statusCode, 400);
+    return err as ApiError;
+  }
+}
 
 async function fetchDriverProgressCount(tripId: number, driverId: number) {
   const [{ total }] = await db.select({ total: sql<number>`count(*)::int` })
@@ -135,7 +143,7 @@ describe('M8.4 — driver progress events', () => {
     const { event, replayed } = await recordDriverProgress(
       trip.id, driver.id,
       { eventType: DriverProgressEventType.DEPARTED, occurredAt: NOW_ISO, note: 'xuất phát đúng giờ' },
-      user.id, undefined,
+      user.id, `create-${suffix}-${trip.id}`,
     );
     createdEventIds.push(event.id);
     assert.equal(replayed, false);
@@ -181,19 +189,14 @@ describe('M8.4 — driver progress events', () => {
       { eventType: DriverProgressEventType.INCIDENT, occurredAt: NOW_ISO, note: 'different' }, user.id, key));
   });
 
-  test('no key → distinct events created for distinct calls', async () => {
+  test('no key → rejected by the durable command boundary', async () => {
     const { user, driver } = await mkUserAndDriver();
     const cat = await mkCatalogs();
     const trip = await mkTrip(driver.id, cat.customer.id, cat.route.id, cat.cargoType.id);
 
-    const a = await recordDriverProgress(trip.id, driver.id,
-      { eventType: DriverProgressEventType.DEPARTED, occurredAt: NOW_ISO }, user.id, undefined);
-    const b = await recordDriverProgress(trip.id, driver.id,
-      { eventType: DriverProgressEventType.ARRIVED, occurredAt: NOW_ISO }, user.id, undefined);
-    createdEventIds.push(a.event.id, b.event.id);
-    assert.notEqual(a.event.id, b.event.id, 'distinct calls create distinct events');
-    const items = await listDriverProgress(trip.id, driver.id);
-    assert.equal(items.length, 2);
+    await assert400(() => recordDriverProgress(trip.id, driver.id,
+      { eventType: DriverProgressEventType.DEPARTED, occurredAt: NOW_ISO }, user.id, undefined));
+    assert.equal(await fetchDriverProgressCount(trip.id, driver.id), 0);
   });
 
   test('ownership: recording progress on another driver\'s trip → 403', async () => {
@@ -218,9 +221,9 @@ describe('M8.4 — driver progress events', () => {
     const trip = await mkTrip(driver.id, cat.customer.id, cat.route.id, cat.cargoType.id);
 
     const earlier = await recordDriverProgress(trip.id, driver.id,
-      { eventType: DriverProgressEventType.DEPARTED, occurredAt: '2026-07-26T08:00:00Z' }, user.id, undefined);
+      { eventType: DriverProgressEventType.DEPARTED, occurredAt: '2026-07-26T08:00:00Z' }, user.id, `timeline-a-${suffix}-${trip.id}`);
     const later = await recordDriverProgress(trip.id, driver.id,
-      { eventType: DriverProgressEventType.ARRIVED, occurredAt: '2026-07-26T18:00:00Z' }, user.id, undefined);
+      { eventType: DriverProgressEventType.ARRIVED, occurredAt: '2026-07-26T18:00:00Z' }, user.id, `timeline-b-${suffix}-${trip.id}`);
     createdEventIds.push(earlier.event.id, later.event.id);
 
     const items = await listDriverProgress(trip.id, driver.id);
@@ -235,7 +238,7 @@ describe('M8.4 — driver progress events', () => {
     const trip = await mkTrip(driver.id, cat.customer.id, cat.route.id, cat.cargoType.id, { status: 'LOCKED' });
 
     const { event, replayed } = await recordDriverProgress(trip.id, driver.id,
-      { eventType: DriverProgressEventType.NOTE, occurredAt: NOW_ISO, note: 'ghi chú sau chốt' }, user.id, undefined);
+      { eventType: DriverProgressEventType.NOTE, occurredAt: NOW_ISO, note: 'ghi chú sau chốt' }, user.id, `locked-${suffix}-${trip.id}`);
     createdEventIds.push(event.id);
     assert.equal(replayed, false, 'LOCKED trip accepts a new progress event');
   });

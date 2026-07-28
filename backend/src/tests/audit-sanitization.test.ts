@@ -18,4 +18,38 @@ describe('audit request-body sanitization', () => {
     });
     assert.doesNotMatch(JSON.stringify(sanitized), /re_plaintext/);
   });
+
+  test('recursively removes password and credential variants while preserving safe flags', () => {
+    const sanitized = sanitizeBody({
+      currentPassword: 'old-secret',
+      newPassword: 'new-secret',
+      confirmPassword: 'new-secret',
+      nested: {
+        password_hash: 'hash',
+        Credential: 'token-credential',
+        profile: {
+          accessToken: 'jwt',
+          clearResendApiKey: true,
+          keepMe: 'safe',
+        },
+      },
+      items: [
+        { apiKey: 'api-secret', name: 'first' },
+        { SettingsEncryptionKey: 'enc-secret', keep: 'second' },
+      ],
+    });
+
+    assert.deepEqual(sanitized, {
+      nested: {
+        profile: {
+          clearResendApiKey: true,
+          keepMe: 'safe',
+        },
+      },
+      items: [
+        { name: 'first' },
+        { keep: 'second' },
+      ],
+    });
+  });
 });

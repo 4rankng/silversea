@@ -160,6 +160,8 @@ export async function assertFuelReconClear(
     id: s.tripExpenses.id,
     supplierId: s.tripExpenses.supplierId,
     expenseType: s.tripExpenses.expenseType,
+    buyAmount: s.tripExpenses.buyAmount,
+    approvalStatus: s.tripExpenses.approvalStatus,
     invoiceDate: s.tripExpenses.invoiceDate,
     createdAt: s.tripExpenses.createdAt,
   })
@@ -182,18 +184,27 @@ export async function assertFuelReconClear(
     supplierId: expense.supplierId,
   });
   const row = report.suppliers.find(r => r.supplierId === expense.supplierId);
-  if (!row || row.status === 'OK') return;
+  const candidateAmount = expense.approvalStatus === 'APPROVED'
+    ? 0
+    : Number(expense.buyAmount ?? 0);
+  const expected = row?.expectedFuelCost ?? 0;
+  const invoiced = (row?.invoicedFuelCost ?? 0) + candidateAmount;
+  const variance = invoiced - expected;
+  const variancePct = expected > 0 ? variance / expected : null;
+  const isClear = expected === 0 && invoiced === 0
+    || (expected > 0 && Math.abs(variancePct ?? 0) <= report.thresholdPct);
+  if (isClear) return;
 
   // VARIANCE — require an explanation.
   const explained = await hasFuelReconExplanation(expense.supplierId, period.from, period.to);
   if (explained) return;
 
-  const varianceAbs = Math.abs(row.variance);
-  const pct = row.variancePct !== null ? `${(row.variancePct * 100).toFixed(1)}%` : 'N/A';
+  const varianceAbs = Math.abs(variance);
+  const pct = variancePct !== null ? `${(variancePct * 100).toFixed(1)}%` : 'N/A';
   throw new ApiError(
     409,
     `Chênh lệch nhiên liệu ${varianceAbs.toLocaleString('vi-VN')} ₫ (${pct}) cho nhà cung cấp ` +
-    `${row.supplierName} trong kỳ ${period.from} → ${period.to}. ` +
+    `${row?.supplierName ?? `#${expense.supplierId}`} trong kỳ ${period.from} → ${period.to}. ` +
     `Cần ghi giải trình trước khi phê duyệt.`,
   );
 }

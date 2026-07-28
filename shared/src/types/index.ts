@@ -841,6 +841,8 @@ export interface AdvanceSettlementWithRefs extends AdvanceSettlement {
 export interface ForwarderTripDetail {
   id: number;
   tripCode: string | null;
+  shipmentId: number | null;
+  shipmentSourceVersion: number | null;
   departureDate: string;
   status: TripStatus;
   routeName: string | null;
@@ -856,6 +858,9 @@ export interface ForwarderTripDetail {
   containers: Array<{
     id: number;
     tripId: number;
+    sourceShipmentId: number | null;
+    sourceShipmentContainerId: number | null;
+    sourceShipmentVersion: number | null;
     containerTypeId: number | null;
     containerTypeName: string | null;
     containerNumber: string | null;
@@ -892,6 +897,7 @@ export interface ForwarderTripDetail {
     returnForEvidenceReason: string | null;
     returnedForEvidenceAt: string | null;
     createdAt: string;
+    updatedAt: string;
     forwarderName: string | null;
   }>;
 }
@@ -1101,6 +1107,7 @@ export interface BulkUpdateTripFiguresRequest {
     tripId: number;
     mode?: BulkTripFiguresMode;
     figures: UpdateTripFiguresRequest;
+    governanceReason?: string;
   }>;
 }
 
@@ -1108,12 +1115,15 @@ export interface BulkUpdateTripFiguresResult {
   tripId: number;
   ok: boolean;
   trip?: Trip;
+  governanceAction?: Record<string, unknown>;
+  pendingApproval?: boolean;
   error?: string;
 }
 
 export interface BulkUpdateTripFiguresResponse {
   results: BulkUpdateTripFiguresResult[];
   updated: number;
+  pending: number;
   failed: number;
 }
 
@@ -1399,6 +1409,41 @@ export interface BillingDocumentLine {
   provenance?: BillingLineProvenance | null;
 }
 
+export interface BillingDocumentOfficialIdentitySnapshot {
+  issuer: {
+    name: string;
+    address: string;
+    taxCode: string;
+    representative: string;
+    representativeTitle: string;
+    phone: string;
+    bankAccount: string;
+    bankName: string;
+    email: string;
+    logoStorageKey: string | null;
+  };
+  counterparty: {
+    entityType: BillingDocumentEntityType;
+    name: string;
+    address: string;
+    taxCode: string;
+    representative: string;
+    representativeTitle: string;
+    phone: string;
+    contactInfo: string;
+  };
+  signatures: {
+    leftLabel: string;
+    leftName: string;
+    rightLabel: string;
+    rightName: string;
+  };
+  captureMetadata: {
+    mode: 'ISSUED_AT_TRANSITION' | 'LEGACY_CURRENT_MASTER_BACKFILL';
+    capturedAt: string;
+  };
+}
+
 export interface BillingDocument {
   id: number;
   type: BillingDocumentType;
@@ -1418,6 +1463,7 @@ export interface BillingDocument {
   processingDueDate?: string | null;
   paymentTermDaysApplied?: number | null;
   paymentDatePolicyApplied?: 'NEXT_BUSINESS_DAY' | 'CALENDAR_DAY' | null;
+  officialIdentitySnapshot?: BillingDocumentOfficialIdentitySnapshot | null;
   createdBy: number | null;
   createdAt: string;
   updatedAt: string;

@@ -162,11 +162,9 @@ router.delete('/finance/billing-documents/:id', requireRoles(...ROLES), asyncHan
 // Default (no `format`) and `format=xlsx` return the Excel buffer.
 // `format=pdf` returns browser-printable HTML (mirror of the on-screen
 // template preview) for the browser's print-to-PDF. For DEBIT_NOTE,
-// renders from the resolved template snapshot (override → frozen
-// snapshot → customer → default); falls back to the legacy renderer
-// when no template applies (and always for PAYMENT_STATEMENT).
-// ?templateId= lets a user re-export once with a different template
-// without re-saving the doc.
+// renders from the resolved template snapshot. Issued documents always use
+// their frozen snapshot; ?templateId= is a draft-preview option only.
+// Falls back to the legacy renderer when no template applies.
 router.get('/finance/billing-documents/:id/export', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
   const format = String(req.query.format ?? 'xlsx').toLowerCase();
   const id = Number(req.params.id);

@@ -24,9 +24,12 @@ import { Role } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { getEnforcer } from '../casbin/enforcer';
 
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 export const USER_FIELDS = {
   id: users.id, username: users.username, email: users.email, phone: users.phone,
   role: users.role, status: users.status, fullName: users.fullName, createdAt: users.createdAt,
+  updatedAt: users.updatedAt,
   customerId: users.customerId,
 };
 
@@ -93,6 +96,13 @@ function assertActiveClerkScope(
       'Nhân viên chứng từ ACTIVE phải có ít nhất một đơn vị phụ trách và ít nhất một khách hàng hoặc lô hàng được giao',
     );
   }
+}
+
+function driverBusinessUnitIds(
+  role: string,
+  businessUnitIds: number[],
+): number[] {
+  return role === Role.CLERK || role === Role.DRIVER ? businessUnitIds : [];
 }
 
 function isUniqueViolation(err: unknown): boolean {
@@ -253,7 +263,7 @@ async function validateBusinessUnitIds(
 async function validateShipmentIds(
   q: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0],
   shipmentIds: number[],
-  businessUnitIds: number[],
+  businessUnitIds?: number[],
 ) {
   if (shipmentIds.length === 0) return;
   const rows = await q.select({
@@ -264,10 +274,12 @@ async function validateShipmentIds(
   if (rows.length !== shipmentIds.length) {
     throw new ApiError(400, 'Lô hàng liên kết không tồn tại');
   }
-  const invalid = rows.find((row) =>
-    row.responsibleUnitId == null || !businessUnitIds.includes(row.responsibleUnitId),
-  );
-  if (invalid) {
+  const invalid = businessUnitIds === undefined
+    ? undefined
+    : rows.find((row) =>
+      row.responsibleUnitId == null || !businessUnitIds.includes(row.responsibleUnitId),
+    );
+  if (businessUnitIds !== undefined && invalid) {
     throw new ApiError(400, 'Lô hàng liên kết phải thuộc một đơn vị phụ trách đã gán cho nhân viên chứng từ');
   }
 }
@@ -401,7 +413,7 @@ export async function listUsers(requesterRole?: string) {
 }
 
 /** Create a new user with hashed password. DRIVER-role users also get a linked drivers row. */
-export async function createUser(data: {
+export async function createUserWithTx(tx: Tx, data: {
   username?: string;
   email?: string;
   phone?: string;
@@ -419,77 +431,118 @@ export async function createUser(data: {
   assignmentAdminOnly?: boolean;
 }) {
   const passwordHash = await bcrypt.hash(data.password, 10);
-  return db.transaction(async (tx) => {
-    const customerIds = normalizeCustomerIds(data);
-    const businessUnitIds = [...new Set((data.businessUnitIds ?? []).filter((id): id is number => Number.isInteger(id) && id > 0))].sort((a, b) => a - b);
-    const shipmentIds = [...new Set((data.shipmentIds ?? []).filter((id): id is number => Number.isInteger(id) && id > 0))].sort((a, b) => a - b);
-    if (data.role !== Role.CUSTOMER && customerIds.length > 0) {
-      if (data.role !== Role.CLERK && data.role !== Role.ACCOUNTANT) {
-        throw new ApiError(400, 'Chỉ tài khoản khách hàng, nhân viên chứng từ hoặc kế toán mới được liên kết khách hàng');
-      }
+  const customerIds = normalizeCustomerIds(data);
+  const businessUnitIds = [...new Set((data.businessUnitIds ?? []).filter((id): id is number => Number.isInteger(id) && id > 0))].sort((a, b) => a - b);
+  const shipmentIds = [...new Set((data.shipmentIds ?? []).filter((id): id is number => Number.isInteger(id) && id > 0))].sort((a, b) => a - b);
+  if (data.role !== Role.CUSTOMER && customerIds.length > 0) {
+    if (data.role !== Role.CLERK && data.role !== Role.ACCOUNTANT) {
+      throw new ApiError(400, 'Chỉ tài khoản khách hàng, nhân viên chứng từ hoặc kế toán mới được liên kết khách hàng');
     }
-    if (data.role === Role.CUSTOMER) {
-      const effectiveStatus = data.status ?? 'ACTIVE';
-      if (effectiveStatus !== 'INACTIVE' && customerIds.length === 0) {
-        throw new ApiError(400, 'Tài khoản khách hàng ACTIVE phải có ít nhất một khách hàng liên kết');
-      }
-      await validateCustomerIds(tx, customerIds);
-    } else if (data.role === Role.CLERK) {
-      if (data.assignmentAdminOnly && (customerIds.length > 0 || businessUnitIds.length > 0 || shipmentIds.length > 0)) {
-        throw new ApiError(403, 'Chỉ quản trị viên mới có thể quản lý phạm vi nhân viên chứng từ');
-      }
-      await validateCustomerIds(tx, customerIds);
-      await validateBusinessUnitIds(tx, businessUnitIds);
-      await validateShipmentIds(tx, shipmentIds, businessUnitIds);
-      if ((data.status ?? 'ACTIVE') !== 'INACTIVE') {
-        assertActiveClerkScope(businessUnitIds, customerIds, shipmentIds);
-      }
-    } else if (data.role === Role.ACCOUNTANT) {
-      if (data.assignmentAdminOnly && customerIds.length > 0) {
-        throw new ApiError(403, 'Chỉ quản trị viên mới có thể quản lý phạm vi khách hàng của kế toán');
-      }
-      await validateCustomerIds(tx, customerIds);
-      if (businessUnitIds.length > 0 || shipmentIds.length > 0) {
-        throw new ApiError(400, 'Kế toán chỉ được liên kết phạm vi khách hàng');
-      }
-    } else if (businessUnitIds.length > 0 || shipmentIds.length > 0) {
-      throw new ApiError(400, 'Chỉ nhân viên chứng từ mới được liên kết đơn vị phụ trách hoặc lô hàng');
+  }
+  if (data.role === Role.CUSTOMER) {
+    const effectiveStatus = data.status ?? 'ACTIVE';
+    if (effectiveStatus !== 'INACTIVE' && customerIds.length === 0) {
+      throw new ApiError(400, 'Tài khoản khách hàng ACTIVE phải có ít nhất một khách hàng liên kết');
     }
-    const [created] = await tx.insert(users).values({
-      username: data.username || null,
-      email: data.email || null,
-      phone: data.phone || null,
-      fullName: data.fullName || null,
-      passwordHash,
-      role: data.role as (typeof users.role.enumValues)[number],
-      status: data.status ?? 'ACTIVE',
-      customerId: data.role === Role.CUSTOMER || data.role === Role.CLERK ? customerIds[0] ?? null : null,
-    }).returning(USER_FIELDS);
+    await validateCustomerIds(tx, customerIds);
+  } else if (data.role === Role.CLERK) {
+    if (data.assignmentAdminOnly && (customerIds.length > 0 || businessUnitIds.length > 0 || shipmentIds.length > 0)) {
+      throw new ApiError(403, 'Chỉ quản trị viên mới có thể quản lý phạm vi nhân viên chứng từ');
+    }
+    await validateCustomerIds(tx, customerIds);
+    await validateBusinessUnitIds(tx, businessUnitIds);
+    await validateShipmentIds(tx, shipmentIds, businessUnitIds);
+    if ((data.status ?? 'ACTIVE') !== 'INACTIVE') {
+      assertActiveClerkScope(businessUnitIds, customerIds, shipmentIds);
+    }
+  } else if (data.role === Role.ACCOUNTANT) {
+    if (data.assignmentAdminOnly && customerIds.length > 0) {
+      throw new ApiError(403, 'Chỉ quản trị viên mới có thể quản lý phạm vi khách hàng của kế toán');
+    }
+    await validateCustomerIds(tx, customerIds);
+    if (businessUnitIds.length > 0 || shipmentIds.length > 0) {
+      throw new ApiError(400, 'Kế toán chỉ được liên kết phạm vi khách hàng');
+    }
+  } else if (data.role === Role.DRIVER) {
+    if (data.assignmentAdminOnly && businessUnitIds.length > 0) {
+      throw new ApiError(403, 'Chỉ quản trị viên mới có thể quản lý đơn vị tính lương của lái xe');
+    }
+    await validateBusinessUnitIds(tx, businessUnitIds);
+    if (shipmentIds.length > 0) {
+      throw new ApiError(400, 'Lái xe không được liên kết lô hàng');
+    }
+  } else if (data.role === Role.FORWARDER) {
+    if (data.assignmentAdminOnly && shipmentIds.length > 0) {
+      throw new ApiError(403, 'Chỉ quản trị viên mới có thể quản lý lô hàng của nhân viên giao nhận');
+    }
+    if (customerIds.length > 0 || businessUnitIds.length > 0) {
+      throw new ApiError(400, 'Nhân viên giao nhận chỉ được liên kết trực tiếp với lô hàng');
+    }
+    await validateShipmentIds(tx, shipmentIds);
+    if ((data.status ?? 'ACTIVE') !== 'INACTIVE' && shipmentIds.length === 0) {
+      throw new ApiError(400, 'Tài khoản giao nhận ACTIVE phải có ít nhất một lô hàng được giao');
+    }
+  } else if (businessUnitIds.length > 0 || shipmentIds.length > 0) {
+    throw new ApiError(400, 'Vai trò này không được liên kết đơn vị phụ trách hoặc lô hàng');
+  }
+  const [created] = await tx.insert(users).values({
+    username: data.username || null,
+    email: data.email || null,
+    phone: data.phone || null,
+    fullName: data.fullName || null,
+    passwordHash,
+    role: data.role as (typeof users.role.enumValues)[number],
+    status: data.status ?? 'ACTIVE',
+    customerId: data.role === Role.CUSTOMER || data.role === Role.CLERK ? customerIds[0] ?? null : null,
+  }).returning(USER_FIELDS);
 
-    await syncCustomerLinks(
-      tx,
-      created.id,
-      data.role === Role.CUSTOMER || data.role === Role.CLERK || data.role === Role.ACCOUNTANT
-        ? customerIds
-        : [],
-    );
-    await syncBusinessUnitLinks(tx, created.id, data.role === Role.CLERK ? businessUnitIds : []);
-    await syncShipmentLinks(tx, created.id, data.role === Role.CLERK ? shipmentIds : []);
+  await syncCustomerLinks(
+    tx,
+    created.id,
+    data.role === Role.CUSTOMER || data.role === Role.CLERK || data.role === Role.ACCOUNTANT
+      ? customerIds
+      : [],
+  );
+  await syncBusinessUnitLinks(tx, created.id, driverBusinessUnitIds(data.role, businessUnitIds));
+  await syncShipmentLinks(
+    tx,
+    created.id,
+    data.role === Role.CLERK || data.role === Role.FORWARDER ? shipmentIds : [],
+  );
 
-    if (data.role === Role.DRIVER) {
-      await tx.insert(drivers).values(buildDriverValues(created.id, {
-        fullName: data.fullName, username: data.username, phone: data.phone,
-        baseSalary: data.baseSalary, socialInsurance: data.socialInsurance,
-        assignedTruckId: data.assignedTruckId, status: data.status,
-      }));
-    }
-    // Return the full row including driver profile for a complete API response.
-    const [withDriver] = await selectUserWithDriver(tx, eq(users.id, created.id)).limit(1);
-    const customerIdsAfterSave = await loadCustomerIds(tx, created.id, created.customerId);
-    const businessUnitIdsAfterSave = await loadBusinessUnitIds(tx, created.id);
-    const shipmentIdsAfterSave = await loadShipmentIds(tx, created.id);
-    return addScopeIds(withDriver, customerIdsAfterSave, businessUnitIdsAfterSave, shipmentIdsAfterSave);
-  });
+  if (data.role === Role.DRIVER) {
+    await tx.insert(drivers).values(buildDriverValues(created.id, {
+      fullName: data.fullName, username: data.username, phone: data.phone,
+      baseSalary: data.baseSalary, socialInsurance: data.socialInsurance,
+      assignedTruckId: data.assignedTruckId, status: data.status,
+    }));
+  }
+  const [withDriver] = await selectUserWithDriver(tx, eq(users.id, created.id)).limit(1);
+  const customerIdsAfterSave = await loadCustomerIds(tx, created.id, created.customerId);
+  const businessUnitIdsAfterSave = await loadBusinessUnitIds(tx, created.id);
+  const shipmentIdsAfterSave = await loadShipmentIds(tx, created.id);
+  return addScopeIds(withDriver, customerIdsAfterSave, businessUnitIdsAfterSave, shipmentIdsAfterSave);
+}
+
+/** Create a new user with hashed password. DRIVER-role users also get a linked drivers row. */
+export async function createUser(data: {
+  username?: string;
+  email?: string;
+  phone?: string;
+  fullName?: string;
+  password: string;
+  role: string;
+  status?: string;
+  baseSalary?: number;
+  socialInsurance?: number;
+  assignedTruckId?: number | null;
+  customerId?: number | null;
+  customerIds?: number[] | null;
+  businessUnitIds?: number[] | null;
+  shipmentIds?: number[] | null;
+  assignmentAdminOnly?: boolean;
+}) {
+  return db.transaction((tx) => createUserWithTx(tx, data));
 }
 
 /** Build a driver-profile SET record from partial data. Returns empty object when no fields changed. */
@@ -526,7 +579,7 @@ function buildDriverValues(userId: number, opts: {
 }
 
 /** Update user fields. When the resulting role is DRIVER, upsert the linked drivers row. */
-export async function updateUser(id: number, data: {
+export async function updateUserWithTx(id: number, data: {
   role?: string;
   status?: string;
   password?: string;
@@ -544,36 +597,37 @@ export async function updateUser(id: number, data: {
   /** If true, throws 403 when target user is not DRIVER — used for accountant scoping. */
   requireDriverTarget?: boolean;
   assignmentAdminOnly?: boolean;
-}) {
+}, tx: Tx) {
   // Hash password outside transaction — CPU-intensive work should not hold a DB connection.
   const passwordHash = data.password ? await bcrypt.hash(data.password, 10) : undefined;
 
-  return db.transaction(async (tx) => {
-    const [existing] = await tx.select({ role: users.role, customerId: users.customerId, status: users.status }).from(users)
-      .where(and(eq(users.id, id), isNull(users.deletedAt))).limit(1).for('update');
-    if (!existing) throw new ApiError(404, 'Không tìm thấy người dùng');
+  const [existing] = await tx.select({ role: users.role, customerId: users.customerId, status: users.status }).from(users)
+    .where(and(eq(users.id, id), isNull(users.deletedAt))).limit(1).for('update');
+  if (!existing) throw new ApiError(404, 'Không tìm thấy người dùng');
 
-    // Driver-target check inside the transaction to avoid TOCTOU race.
-    if (data.requireDriverTarget && existing.role !== Role.DRIVER) {
-      throw new ApiError(403, 'Kế toán chỉ có thể chỉnh sửa lái xe');
-    }
+  // Driver-target check inside the transaction to avoid TOCTOU race.
+  if (data.requireDriverTarget && existing.role !== Role.DRIVER) {
+    throw new ApiError(403, 'Kế toán chỉ có thể chỉnh sửa lái xe');
+  }
 
-    const effectiveRole = data.role ?? existing.role;
-    const effectiveStatus = data.status ?? existing.status;
-    const explicitCustomerLinkUpdate = hasExplicitCustomerScopeInput(data);
-    const existingCustomerIds = await loadCustomerIds(tx, id, existing.customerId);
-    const explicitBusinessUnitUpdate = data.businessUnitIds !== undefined;
-    const explicitShipmentUpdate = data.shipmentIds !== undefined;
-    const existingBusinessUnitIds = await loadBusinessUnitIds(tx, id);
-    const existingShipmentIds = await loadShipmentIds(tx, id);
-    let nextCustomerIds = existingCustomerIds;
-    let nextBusinessUnitIds = existingBusinessUnitIds;
-    let nextShipmentIds = existingShipmentIds;
+  const effectiveRole = data.role ?? existing.role;
+  const effectiveStatus = data.status ?? existing.status;
+  const explicitCustomerLinkUpdate = hasExplicitCustomerScopeInput(data);
+  const existingCustomerIds = await loadCustomerIds(tx, id, existing.customerId);
+  const explicitBusinessUnitUpdate = data.businessUnitIds !== undefined;
+  const explicitShipmentUpdate = data.shipmentIds !== undefined;
+  const existingBusinessUnitIds = await loadBusinessUnitIds(tx, id);
+  const existingShipmentIds = await loadShipmentIds(tx, id);
+  let nextCustomerIds = existingCustomerIds;
+  let nextBusinessUnitIds = existingBusinessUnitIds;
+  let nextShipmentIds = existingShipmentIds;
 
     if (
       effectiveRole !== Role.CUSTOMER
       && effectiveRole !== Role.CLERK
       && effectiveRole !== Role.ACCOUNTANT
+      && effectiveRole !== Role.DRIVER
+      && effectiveRole !== Role.FORWARDER
     ) {
       if (explicitCustomerLinkUpdate && normalizeCustomerIds(data).length > 0) {
         throw new ApiError(400, 'Chỉ tài khoản khách hàng, nhân viên chứng từ hoặc kế toán mới được liên kết khách hàng');
@@ -615,6 +669,41 @@ export async function updateUser(id: number, data: {
         nextCustomerIds = normalizeCustomerIds(data);
         await validateCustomerIds(tx, nextCustomerIds);
       }
+    } else if (effectiveRole === Role.DRIVER) {
+      nextCustomerIds = [];
+      nextShipmentIds = [];
+      if (explicitCustomerLinkUpdate && normalizeCustomerIds(data).length > 0) {
+        throw new ApiError(400, 'Lái xe không được liên kết khách hàng');
+      }
+      if (explicitBusinessUnitUpdate) {
+        if (data.assignmentAdminOnly) {
+          throw new ApiError(403, 'Chỉ quản trị viên mới có thể quản lý đơn vị tính lương của lái xe');
+        }
+        nextBusinessUnitIds = [...new Set((data.businessUnitIds ?? []).filter((value): value is number => Number.isInteger(value) && value > 0))].sort((a, b) => a - b);
+        await validateBusinessUnitIds(tx, nextBusinessUnitIds);
+      }
+      if (explicitShipmentUpdate && (data.shipmentIds ?? []).length > 0) {
+        throw new ApiError(400, 'Lái xe không được liên kết lô hàng');
+      }
+    } else if (effectiveRole === Role.FORWARDER) {
+      nextCustomerIds = [];
+      nextBusinessUnitIds = [];
+      if (explicitCustomerLinkUpdate && normalizeCustomerIds(data).length > 0) {
+        throw new ApiError(400, 'Nhân viên giao nhận không được liên kết khách hàng');
+      }
+      if (explicitBusinessUnitUpdate && (data.businessUnitIds ?? []).length > 0) {
+        throw new ApiError(400, 'Nhân viên giao nhận không được liên kết đơn vị phụ trách');
+      }
+      if (data.assignmentAdminOnly && explicitShipmentUpdate) {
+        throw new ApiError(403, 'Chỉ quản trị viên mới có thể quản lý lô hàng của nhân viên giao nhận');
+      }
+      if (explicitShipmentUpdate) {
+        nextShipmentIds = [...new Set((data.shipmentIds ?? []).filter((value): value is number => Number.isInteger(value) && value > 0))].sort((a, b) => a - b);
+        await validateShipmentIds(tx, nextShipmentIds);
+      }
+      if (effectiveStatus !== 'INACTIVE' && nextShipmentIds.length === 0) {
+        throw new ApiError(400, 'Tài khoản giao nhận ACTIVE phải có ít nhất một lô hàng được giao');
+      }
     } else {
       if (data.assignmentAdminOnly && (explicitCustomerLinkUpdate || explicitBusinessUnitUpdate || explicitShipmentUpdate)) {
         throw new ApiError(403, 'Chỉ quản trị viên mới có thể quản lý phạm vi nhân viên chứng từ');
@@ -648,67 +737,94 @@ export async function updateUser(id: number, data: {
       }
     }
 
-    const updates: Record<string, unknown> = { updatedAt: sql`now()` };
-    if (data.role !== undefined) updates.role = data.role as (typeof users.role.enumValues)[number];
-    if (data.status !== undefined) updates.status = data.status;
-    if (passwordHash) updates.passwordHash = passwordHash;
-    if (data.username !== undefined) updates.username = data.username;
-    if (data.fullName !== undefined) updates.fullName = data.fullName || null;
-    if (data.email !== undefined) updates.email = data.email || null;
-    if (data.phone !== undefined) updates.phone = data.phone || null;
-    updates.customerId = effectiveRole === Role.CUSTOMER || effectiveRole === Role.CLERK ? nextCustomerIds[0] ?? null : null;
+  const updates: Record<string, unknown> = { updatedAt: sql`now()` };
+  if (data.role !== undefined) updates.role = data.role as (typeof users.role.enumValues)[number];
+  if (data.status !== undefined) updates.status = data.status;
+  if (passwordHash) updates.passwordHash = passwordHash;
+  if (data.username !== undefined) updates.username = data.username;
+  if (data.fullName !== undefined) updates.fullName = data.fullName || null;
+  if (data.email !== undefined) updates.email = data.email || null;
+  if (data.phone !== undefined) updates.phone = data.phone || null;
+  updates.customerId = effectiveRole === Role.CUSTOMER || effectiveRole === Role.CLERK ? nextCustomerIds[0] ?? null : null;
 
-    const [updated] = await tx.update(users).set(updates)
-      .where(eq(users.id, id)).returning(USER_FIELDS);
-    await syncCustomerLinks(tx, id, nextCustomerIds);
-    await syncBusinessUnitLinks(tx, id, effectiveRole === Role.CLERK ? nextBusinessUnitIds : []);
-    await syncShipmentLinks(tx, id, effectiveRole === Role.CLERK ? nextShipmentIds : []);
+  const [updated] = await tx.update(users).set(updates)
+    .where(eq(users.id, id)).returning(USER_FIELDS);
+  await syncCustomerLinks(tx, id, nextCustomerIds);
+  await syncBusinessUnitLinks(tx, id, driverBusinessUnitIds(effectiveRole, nextBusinessUnitIds));
+  await syncShipmentLinks(
+    tx,
+    id,
+    effectiveRole === Role.CLERK || effectiveRole === Role.FORWARDER ? nextShipmentIds : [],
+  );
 
-    // Upsert the linked driver profile when the resulting role is DRIVER.
-    if (effectiveRole === Role.DRIVER) {
-      const [existingDriver] = await tx.select({ id: drivers.id })
-        .from(drivers).where(and(eq(drivers.userId, id), isNull(drivers.deletedAt))).limit(1);
+  if (effectiveRole === Role.DRIVER) {
+    const [existingDriver] = await tx.select({ id: drivers.id })
+      .from(drivers).where(and(eq(drivers.userId, id), isNull(drivers.deletedAt))).limit(1);
 
-      if (existingDriver) {
-        const driverSet = buildDriverUpdateSet(data);
-        if (Object.keys(driverSet).length > 0) {
-          await tx.update(drivers).set(driverSet).where(eq(drivers.id, existingDriver.id));
-        }
-      } else {
-        // Create-if-missing: legacy user without a profile, or role just changed to DRIVER.
-        await tx.insert(drivers).values(buildDriverValues(id, {
-          fullName: updated.fullName, username: updated.username, phone: updated.phone,
-          baseSalary: data.baseSalary, socialInsurance: data.socialInsurance,
-          assignedTruckId: data.assignedTruckId, status: updated.status,
-        }));
+    if (existingDriver) {
+      const driverSet = buildDriverUpdateSet(data);
+      if (Object.keys(driverSet).length > 0) {
+        await tx.update(drivers).set(driverSet).where(eq(drivers.id, existingDriver.id));
       }
-    } else if (data.role !== undefined && data.role !== existing.role) {
-      // Role changed AWAY from DRIVER: soft-delete the orphaned driver row so it
-      // no longer appears in dropdowns/catalogs. Salary history is preserved via
-      // trip records and attendance tables which reference driverId directly.
-      await tx.update(drivers).set({ deletedAt: sql`now()`, status: 'INACTIVE' })
-        .where(and(eq(drivers.userId, id), isNull(drivers.deletedAt)));
+    } else {
+      await tx.insert(drivers).values(buildDriverValues(id, {
+        fullName: updated.fullName, username: updated.username, phone: updated.phone,
+        baseSalary: data.baseSalary, socialInsurance: data.socialInsurance,
+        assignedTruckId: data.assignedTruckId, status: updated.status,
+      }));
     }
+  } else if (data.role !== undefined && data.role !== existing.role) {
+    await tx.update(drivers).set({ deletedAt: sql`now()`, status: 'INACTIVE' })
+      .where(and(eq(drivers.userId, id), isNull(drivers.deletedAt)));
+  }
 
-    // Return the full row including driver profile for a complete API response.
-    const [withDriver] = await selectUserWithDriver(tx, eq(users.id, id)).limit(1);
-    const customerIdsAfterSave = await loadCustomerIds(tx, id, withDriver.customerId);
-    const businessUnitIdsAfterSave = await loadBusinessUnitIds(tx, id);
-    const shipmentIdsAfterSave = await loadShipmentIds(tx, id);
-    return addScopeIds(withDriver, customerIdsAfterSave, businessUnitIdsAfterSave, shipmentIdsAfterSave);
-  });
+  const [withDriver] = await selectUserWithDriver(tx, eq(users.id, id)).limit(1);
+  const customerIdsAfterSave = await loadCustomerIds(tx, id, withDriver.customerId);
+  const businessUnitIdsAfterSave = await loadBusinessUnitIds(tx, id);
+  const shipmentIdsAfterSave = await loadShipmentIds(tx, id);
+  return addScopeIds(withDriver, customerIdsAfterSave, businessUnitIdsAfterSave, shipmentIdsAfterSave);
+}
+
+/** Update user fields. When the resulting role is DRIVER, upsert the linked drivers row. */
+export async function updateUser(id: number, data: {
+  role?: string;
+  status?: string;
+  password?: string;
+  username?: string;
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  baseSalary?: number;
+  socialInsurance?: number;
+  assignedTruckId?: number | null;
+  customerId?: number | null;
+  customerIds?: number[] | null;
+  businessUnitIds?: number[] | null;
+  shipmentIds?: number[] | null;
+  requireDriverTarget?: boolean;
+  assignmentAdminOnly?: boolean;
+}) {
+  return db.transaction((tx) => updateUserWithTx(id, data, tx));
+}
+
+/** Soft-delete a user and its linked driver profile (if any). */
+export async function deleteUserWithTx(id: number, currentUserId: number, tx: Tx) {
+  if (id === currentUserId) throw new ApiError(400, 'Không thể xóa tài khoản đang đăng nhập');
+  const [deleted] = await tx.update(users)
+    .set({ deletedAt: sql`now()`, status: 'INACTIVE', updatedAt: sql`now()` })
+    .where(and(eq(users.id, id), isNull(users.deletedAt)))
+    .returning({ id: users.id, updatedAt: users.updatedAt, status: users.status, deletedAt: users.deletedAt });
+  if (!deleted) throw new ApiError(404, 'Không tìm thấy người dùng');
+  await tx.update(drivers).set({ deletedAt: sql`now()`, status: 'INACTIVE' })
+    .where(and(eq(drivers.userId, id), isNull(drivers.deletedAt)));
+  await tx.delete(userBusinessUnitLinks).where(eq(userBusinessUnitLinks.userId, id));
+  await tx.delete(userShipmentLinks).where(eq(userShipmentLinks.userId, id));
+  return deleted;
 }
 
 /** Soft-delete a user and its linked driver profile (if any). */
 export async function deleteUser(id: number, currentUserId: number) {
-  if (id === currentUserId) throw new ApiError(400, 'Không thể xóa tài khoản đang đăng nhập');
-  await db.transaction(async (tx) => {
-    await tx.update(users).set({ deletedAt: sql`now()`, status: 'INACTIVE' }).where(eq(users.id, id));
-    await tx.update(drivers).set({ deletedAt: sql`now()`, status: 'INACTIVE' })
-      .where(and(eq(drivers.userId, id), isNull(drivers.deletedAt)));
-    await tx.delete(userBusinessUnitLinks).where(eq(userBusinessUnitLinks.userId, id));
-    await tx.delete(userShipmentLinks).where(eq(userShipmentLinks.userId, id));
-  });
+  await db.transaction((tx) => deleteUserWithTx(id, currentUserId, tx));
 }
 
 /** Get current user profile (including driver profile if DRIVER role). */
@@ -733,6 +849,14 @@ export async function updateProfile(
   userId: number,
   data: { username?: string; fullName?: string; email?: string; phone?: string },
 ) {
+  return db.transaction((tx) => updateProfileWithTx(userId, data, tx));
+}
+
+export async function updateProfileWithTx(
+  userId: number,
+  data: { username?: string; fullName?: string; email?: string; phone?: string },
+  tx: Tx,
+) {
   const updates: Record<string, unknown> = { updatedAt: sql`now()` };
 
   if (data.username !== undefined) updates.username = data.username;
@@ -741,29 +865,39 @@ export async function updateProfile(
   if (data.email !== undefined) updates.email = data.email || null;
   if (data.phone !== undefined) updates.phone = data.phone || null;
 
-  return db.transaction(async (tx) => {
-    const [updated] = await tx.update(users).set(updates)
-      .where(eq(users.id, userId))
-      .returning(USER_FIELDS);
+  const [updated] = await tx.update(users).set(updates)
+    .where(eq(users.id, userId))
+    .returning(USER_FIELDS);
 
-    if (!updated) throw new ApiError(404, 'Không tìm thấy người dùng');
+  if (!updated) throw new ApiError(404, 'Không tìm thấy người dùng');
 
-    // Sync fullName/phone to linked driver profile so names stay consistent.
-    const driverSet = buildDriverUpdateSet({ fullName: data.fullName, phone: data.phone });
-    if (Object.keys(driverSet).length > 0) {
-      await tx.update(drivers).set(driverSet)
-        .where(and(eq(drivers.userId, userId), isNull(drivers.deletedAt)));
-    }
+  const driverSet = buildDriverUpdateSet({ fullName: data.fullName, phone: data.phone });
+  if (Object.keys(driverSet).length > 0) {
+    await tx.update(drivers).set(driverSet)
+      .where(and(eq(drivers.userId, userId), isNull(drivers.deletedAt)));
+  }
 
-    return updated;
-  });
+  return updated;
 }
 
 /** Change password for current user. */
 export async function changePassword(userId: number, currentPassword: string, newPassword: string) {
-  await verifyPassword(userId, currentPassword);
   const passwordHash = await bcrypt.hash(newPassword, 10);
-  await db.update(users).set({ passwordHash, updatedAt: sql`now()` })
+  return db.transaction((tx) => changePasswordWithTx(userId, currentPassword, passwordHash, tx));
+}
+
+export async function changePasswordWithTx(
+  userId: number,
+  currentPassword: string,
+  nextPasswordHash: string,
+  tx: Tx,
+) {
+  const [user] = await tx.select({ passwordHash: users.passwordHash })
+    .from(users).where(eq(users.id, userId)).limit(1).for('update');
+  if (!user) throw new ApiError(404, 'Không tìm thấy người dùng');
+  const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!valid) throw new ApiError(401, 'Mật khẩu hiện tại không đúng');
+  await tx.update(users).set({ passwordHash: nextPasswordHash, updatedAt: sql`now()` })
     .where(eq(users.id, userId));
 }
 
@@ -801,9 +935,12 @@ export async function listBusinessUnits() {
     .orderBy(businessUnits.name);
 }
 
-export async function createBusinessUnit(data: { code?: string | null; name: string; status?: string }) {
+export async function createBusinessUnitWithTx(
+  data: { code?: string | null; name: string; status?: string },
+  tx: Tx,
+) {
   try {
-    const [created] = await db.insert(businessUnits).values({
+    const [created] = await tx.insert(businessUnits).values({
       code: data.code?.trim() || null,
       name: data.name.trim(),
       status: data.status ?? 'ACTIVE',
@@ -817,68 +954,75 @@ export async function createBusinessUnit(data: { code?: string | null; name: str
   }
 }
 
-export async function updateBusinessUnit(
+export async function createBusinessUnit(data: { code?: string | null; name: string; status?: string }) {
+  return db.transaction((tx) => createBusinessUnitWithTx(data, tx));
+}
+
+export async function updateBusinessUnitWithTx(
   id: number,
   data: { code?: string | null; name?: string; status?: string },
+  tx: Tx,
 ) {
   try {
-    return await db.transaction(async (tx) => {
-      const [existing] = await tx.select()
-        .from(businessUnits)
-        .where(eq(businessUnits.id, id))
-        .for('update')
-        .limit(1);
-      if (!existing) throw new ApiError(404, 'Không tìm thấy đơn vị phụ trách');
+    const [existing] = await tx.select()
+      .from(businessUnits)
+      .where(eq(businessUnits.id, id))
+      .for('update')
+      .limit(1);
+    if (!existing) throw new ApiError(404, 'Không tìm thấy đơn vị phụ trách');
 
-      if (data.status === 'INACTIVE' && existing.status !== 'INACTIVE') {
-        const affectedClerks = await tx.select({ userId: users.id })
+    if (data.status === 'INACTIVE' && existing.status !== 'INACTIVE') {
+      const affectedClerks = await tx.select({ userId: users.id })
+        .from(userBusinessUnitLinks)
+        .innerJoin(users, eq(userBusinessUnitLinks.userId, users.id))
+        .where(and(
+          eq(userBusinessUnitLinks.businessUnitId, id),
+          eq(users.role, Role.CLERK),
+          eq(users.status, 'ACTIVE'),
+          isNull(users.deletedAt),
+        ));
+      const affectedUserIds = [...new Set(affectedClerks.map((row) => row.userId))];
+      if (affectedUserIds.length > 0) {
+        for (const userId of affectedUserIds.sort((left, right) => left - right)) {
+          await tx.execute(sql`SELECT pg_advisory_xact_lock(6120, ${userId})`);
+        }
+        const alternativeRows = await tx.select({ userId: userBusinessUnitLinks.userId })
           .from(userBusinessUnitLinks)
-          .innerJoin(users, eq(userBusinessUnitLinks.userId, users.id))
+          .innerJoin(businessUnits, eq(userBusinessUnitLinks.businessUnitId, businessUnits.id))
           .where(and(
-            eq(userBusinessUnitLinks.businessUnitId, id),
-            eq(users.role, Role.CLERK),
-            eq(users.status, 'ACTIVE'),
-            isNull(users.deletedAt),
+            inArray(userBusinessUnitLinks.userId, affectedUserIds),
+            ne(userBusinessUnitLinks.businessUnitId, id),
+            eq(businessUnits.status, 'ACTIVE'),
           ));
-        const affectedUserIds = [...new Set(affectedClerks.map((row) => row.userId))];
-        if (affectedUserIds.length > 0) {
-          // Different unit rows do not contend with each other. Serialize the
-          // invariant by affected clerk so two concurrent deactivations cannot
-          // each count the other's unit as the remaining ACTIVE assignment.
-          for (const userId of affectedUserIds.sort((left, right) => left - right)) {
-            await tx.execute(sql`SELECT pg_advisory_xact_lock(6120, ${userId})`);
-          }
-          const alternativeRows = await tx.select({ userId: userBusinessUnitLinks.userId })
-            .from(userBusinessUnitLinks)
-            .innerJoin(businessUnits, eq(userBusinessUnitLinks.businessUnitId, businessUnits.id))
-            .where(and(
-              inArray(userBusinessUnitLinks.userId, affectedUserIds),
-              ne(userBusinessUnitLinks.businessUnitId, id),
-              eq(businessUnits.status, 'ACTIVE'),
-            ));
-          const usersWithAlternative = new Set(alternativeRows.map((row) => row.userId));
-          if (affectedUserIds.some((userId) => !usersWithAlternative.has(userId))) {
-            throw new ApiError(
-              409,
-              'Không thể ngưng đơn vị đang là đơn vị hoạt động duy nhất của nhân viên chứng từ ACTIVE',
-            );
-          }
+        const usersWithAlternative = new Set(alternativeRows.map((row) => row.userId));
+        if (affectedUserIds.some((userId) => !usersWithAlternative.has(userId))) {
+          throw new ApiError(
+            409,
+            'Không thể ngưng đơn vị đang là đơn vị hoạt động duy nhất của nhân viên chứng từ ACTIVE',
+          );
         }
       }
+    }
 
-      const updates: Record<string, unknown> = { updatedAt: sql`now()` };
-      if (data.code !== undefined) updates.code = data.code?.trim() || null;
-      if (data.name !== undefined) updates.name = data.name.trim();
-      if (data.status !== undefined) updates.status = data.status;
-      const [updated] = await tx.update(businessUnits).set(updates)
-        .where(eq(businessUnits.id, id))
-        .returning();
-      return updated;
-    });
+    const updates: Record<string, unknown> = { updatedAt: sql`now()` };
+    if (data.code !== undefined) updates.code = data.code?.trim() || null;
+    if (data.name !== undefined) updates.name = data.name.trim();
+    if (data.status !== undefined) updates.status = data.status;
+    const [updated] = await tx.update(businessUnits).set(updates)
+      .where(eq(businessUnits.id, id))
+      .returning();
+    return updated;
   } catch (err) {
     if (isUniqueViolation(err)) {
       throw new ApiError(409, 'Mã hoặc tên đơn vị phụ trách đã tồn tại');
     }
     throw err;
   }
+}
+
+export async function updateBusinessUnit(
+  id: number,
+  data: { code?: string | null; name?: string; status?: string },
+) {
+  return db.transaction((tx) => updateBusinessUnitWithTx(id, data, tx));
 }

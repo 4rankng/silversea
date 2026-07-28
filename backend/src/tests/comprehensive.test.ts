@@ -38,6 +38,8 @@ let server: http.Server;
 let baseUrl: string;
 
 let adminToken: string;
+let managerToken: string;
+let accountantToken: string;
 let driverToken: string;
 
 let customerId: number;
@@ -75,6 +77,18 @@ before(async () => {
   if (!drvUser) {
     [drvUser] = await db.insert(s.users).values({
       username: 'laixe', passwordHash: await bcrypt.hash('laixe123', 10), role: Role.DRIVER,
+    }).returning();
+  }
+  let [mgrUser] = await db.select().from(s.users).where(eq(s.users.username, 'giamdoc')).limit(1);
+  if (!mgrUser) {
+    [mgrUser] = await db.insert(s.users).values({
+      username: 'giamdoc', passwordHash: await bcrypt.hash('manager123', 10), role: Role.MANAGER,
+    }).returning();
+  }
+  let [acctUser] = await db.select().from(s.users).where(eq(s.users.username, 'ketoan')).limit(1);
+  if (!acctUser) {
+    [acctUser] = await db.insert(s.users).values({
+      username: 'ketoan', passwordHash: await bcrypt.hash('accountant123', 10), role: Role.ACCOUNTANT,
     }).returning();
   }
 
@@ -134,6 +148,8 @@ before(async () => {
   driverId = freeDriver?.id ?? drvr.id;
 
   adminToken = jwt.sign({ userId: adm.id, username: adm.username, role: Role.ADMIN }, config.jwtSecret);
+  managerToken = jwt.sign({ userId: mgrUser.id, username: mgrUser.username, role: Role.MANAGER }, config.jwtSecret);
+  accountantToken = jwt.sign({ userId: acctUser.id, username: acctUser.username, role: Role.ACCOUNTANT }, config.jwtSecret);
   driverToken = jwt.sign({ userId: drvUser.id, username: drvUser.username, role: Role.DRIVER }, config.jwtSecret);
 });
 
@@ -189,6 +205,7 @@ test('E2E — Auth flow (Login, Me, User List, Create, Delete)', async () => {
   const createRes = await testFetch('/api/auth/users', {
     method: 'POST',
     token: adminToken,
+    headers: { 'Idempotency-Key': `comprehensive-user-create-${newUserUsername}` },
     body: JSON.stringify({
       username: newUserUsername,
       email: `${newUserUsername}@nepo.vn`,
@@ -209,7 +226,11 @@ test('E2E — Auth flow (Login, Me, User List, Create, Delete)', async () => {
   // Test 1.5: User deletion
   const deleteRes = await testFetch(`/api/auth/users/${createdUserId}`, {
     method: 'DELETE',
-    token: adminToken
+    token: adminToken,
+    headers: {
+      'Idempotency-Key': `comprehensive-user-delete-${createdUserId}`,
+      'If-Unmodified-Since': String(createRes.data.updatedAt),
+    },
   });
   assert.strictEqual(deleteRes.status, 200);
 });
@@ -226,21 +247,33 @@ test('E2E — Duplicate username yields 409 (not 500) with field message', async
     fullName: 'Dup Test', email: `${dupUsername}@nepo.vn`,
   };
   const first = await testFetch('/api/auth/users', {
-    method: 'POST', token: adminToken, body: JSON.stringify(baseBody),
+    method: 'POST',
+    token: adminToken,
+    headers: { 'Idempotency-Key': `comprehensive-dup-user-first-${dupUsername}` },
+    body: JSON.stringify(baseBody),
   });
   assert.strictEqual(first.status, 201);
   const createdId = first.data.id;
 
   // Same username, different email/phone so the only conflict is the username.
   const second = await testFetch('/api/auth/users', {
-    method: 'POST', token: adminToken,
+    method: 'POST',
+    token: adminToken,
+    headers: { 'Idempotency-Key': `comprehensive-dup-user-second-${dupUsername}` },
     body: JSON.stringify({ ...baseBody, email: `alt-${dupUsername}@nepo.vn` }),
   });
   assert.strictEqual(second.status, 409);
   assert.match(String(second.data.error), /username|đã tồn tại/i);
 
   // Clean up so the row doesn't leak into other tests / the users list.
-  await testFetch(`/api/auth/users/${createdId}`, { method: 'DELETE', token: adminToken });
+  await testFetch(`/api/auth/users/${createdId}`, {
+    method: 'DELETE',
+    token: adminToken,
+    headers: {
+      'Idempotency-Key': `comprehensive-dup-user-delete-${createdId}`,
+      'If-Unmodified-Since': String(first.data.updatedAt),
+    },
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -262,34 +295,24 @@ test('E2E — Catalog endpoints CRUD reads & listings', async () => {
 
 test('E2E — Customer duplicate guard blocks create and update conflicts', async () => {
   const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const keys = {
-    first: `customer-duplicate-first-${suffix}`,
-    conflict: `customer-duplicate-conflict-${suffix}`,
-    second: `customer-duplicate-second-${suffix}`,
-    update: `customer-duplicate-update-${suffix}`,
-    deleteFirst: `customer-duplicate-delete-first-${suffix}`,
-    deleteSecond: `customer-duplicate-delete-second-${suffix}`,
-  };
   const duplicateName = `KH trùng ${suffix}`;
   const duplicateTaxCode = `DUP${Date.now().toString().slice(-8)}`;
   const secondTaxCode = `${duplicateTaxCode}9`.slice(0, 20);
-
-  const firstCreate = await testFetch('/api/customers', {
-    method: 'POST',
-    token: adminToken,
-    headers: { 'Idempotency-Key': keys.first },
-    body: JSON.stringify({
-      name: duplicateName,
-      taxCode: duplicateTaxCode,
-      status: 'ACTIVE',
-    }),
-  });
-  assert.strictEqual(firstCreate.status, 201);
+  const [seedA] = await db.insert(s.customers).values({
+    name: duplicateName,
+    taxCode: duplicateTaxCode,
+    status: 'ACTIVE',
+  }).returning();
+  const [seedB] = await db.insert(s.customers).values({
+    name: `${duplicateName} khác`,
+    taxCode: secondTaxCode,
+    status: 'ACTIVE',
+  }).returning();
 
   const secondCreate = await testFetch('/api/customers', {
     method: 'POST',
     token: adminToken,
-    headers: { 'Idempotency-Key': keys.conflict },
+    headers: { 'Idempotency-Key': `customer-duplicate-conflict-${suffix}` },
     body: JSON.stringify({
       name: duplicateName,
       taxCode: duplicateTaxCode,
@@ -299,24 +322,12 @@ test('E2E — Customer duplicate guard blocks create and update conflicts', asyn
   assert.strictEqual(secondCreate.status, 409);
   assert.match(String(secondCreate.data.error || ''), /đã tồn tại/i);
 
-  const secondUnique = await testFetch('/api/customers', {
-    method: 'POST',
-    token: adminToken,
-    headers: { 'Idempotency-Key': keys.second },
-    body: JSON.stringify({
-      name: `${duplicateName} khác`,
-      taxCode: secondTaxCode,
-      status: 'ACTIVE',
-    }),
-  });
-  assert.strictEqual(secondUnique.status, 201);
-
-  const conflictingUpdate = await testFetch(`/api/customers/${secondUnique.data.id}`, {
+  const conflictingUpdate = await testFetch(`/api/customers/${seedB.id}`, {
     method: 'PUT',
     token: adminToken,
     headers: {
-      'Idempotency-Key': keys.update,
-      'If-Unmodified-Since': String(secondUnique.data.updatedAt),
+      'Idempotency-Key': `customer-duplicate-update-${suffix}`,
+      'If-Unmodified-Since': seedB.updatedAt.toISOString(),
     },
     body: JSON.stringify({
       taxCode: duplicateTaxCode,
@@ -324,25 +335,7 @@ test('E2E — Customer duplicate guard blocks create and update conflicts', asyn
   });
   assert.strictEqual(conflictingUpdate.status, 409);
   assert.match(String(conflictingUpdate.data.error || ''), /mã số thuế.*đã tồn tại/i);
-
-  await testFetch(`/api/customers/${firstCreate.data.id}`, {
-    method: 'DELETE',
-    token: adminToken,
-    headers: {
-      'Idempotency-Key': keys.deleteFirst,
-      'If-Unmodified-Since': String(firstCreate.data.updatedAt),
-    },
-  });
-  await testFetch(`/api/customers/${secondUnique.data.id}`, {
-    method: 'DELETE',
-    token: adminToken,
-    headers: {
-      'Idempotency-Key': keys.deleteSecond,
-      'If-Unmodified-Since': String(secondUnique.data.updatedAt),
-    },
-  });
-  await db.delete(s.idempotencyKeys)
-    .where(inArray(s.idempotencyKeys.idempotencyKey, Object.values(keys)));
+  await db.delete(s.customers).where(inArray(s.customers.id, [seedA.id, seedB.id]));
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -352,7 +345,8 @@ test('E2E — Trip dispatch lifecycle (Create, Reassign, Pre-departure, Dispatch
   // 1. Create a trip (CREATED status)
   const createRes = await testFetch('/api/trips', {
     method: 'POST',
-    token: adminToken,
+    token: managerToken,
+    headers: { 'Idempotency-Key': `comprehensive-trip-create-${Date.now()}` },
     body: JSON.stringify({
       customerId,
       routeId,
@@ -384,7 +378,8 @@ test('E2E — Trip dispatch lifecycle (Create, Reassign, Pre-departure, Dispatch
     || currentDrivers.find(d => d.id === driverId)!;
   const reassignRes = await testFetch(`/api/trips/${tripId}/reassign`, {
     method: 'PATCH',
-    token: adminToken,
+    token: managerToken,
+    headers: { 'Idempotency-Key': `comprehensive-trip-reassign-${tripId}` },
     body: JSON.stringify({
       truckId: altTruck.id,
       driverId: altDriver.id
@@ -396,7 +391,8 @@ test('E2E — Trip dispatch lifecycle (Create, Reassign, Pre-departure, Dispatch
   // 3. Update Pre-departure figures (AUTO mode, standard estimates)
   const preDepartureRes = await testFetch(`/api/trips/${tripId}/pre-departure`, {
     method: 'PUT',
-    token: adminToken,
+    token: managerToken,
+    headers: { 'Idempotency-Key': `comprehensive-trip-predeparture-${tripId}` },
     body: JSON.stringify({
       version: reassignRes.data.version,
       fuelMode: FuelMode.AUTO,
@@ -414,7 +410,11 @@ test('E2E — Trip dispatch lifecycle (Create, Reassign, Pre-departure, Dispatch
   // 4. Dispatch the trip (CREATED -> IN_TRANSIT)
   const dispatchRes = await testFetch(`/api/trips/${tripId}/dispatch`, {
     method: 'POST',
-    token: adminToken
+    token: managerToken,
+    headers: { 'Idempotency-Key': `comprehensive-trip-dispatch-${tripId}` },
+    body: JSON.stringify({
+      expectedVersion: preDepartureRes.data.version,
+    }),
   });
   if (dispatchRes.status !== 200) console.log('DISPATCH FAIL:', dispatchRes);
   assert.strictEqual(dispatchRes.status, 200);
@@ -432,7 +432,8 @@ test('E2E — Trip dispatch lifecycle (Create, Reassign, Pre-departure, Dispatch
   // 6. Submit actual operational figures (IN_TRANSIT -> COMPLETED)
   const actualsRes = await testFetch(`/api/trips/${tripId}/actuals`, {
     method: 'PUT',
-    token: adminToken,
+    token: managerToken,
+    headers: { 'Idempotency-Key': `comprehensive-trip-actuals-${tripId}` },
     body: JSON.stringify({
       version: dispatchedVersion,
       fuelMode: FuelMode.AUTO,
@@ -455,16 +456,46 @@ test('E2E — Trip dispatch lifecycle (Create, Reassign, Pre-departure, Dispatch
   // 6b. Explicit completion (B2): IN_TRANSIT -> COMPLETED via dedicated endpoint.
   const completeRes = await testFetch(`/api/trips/${tripId}/complete`, {
     method: 'POST',
-    token: adminToken,
+    token: managerToken,
+    headers: { 'Idempotency-Key': `comprehensive-trip-complete-${tripId}` },
+    body: JSON.stringify({
+      expectedVersion: actualsRes.data.version,
+      governanceReason: 'Hoàn thành chuyến kiểm thử E2E theo quy trình quản trị',
+    }),
   });
-  assert.strictEqual(completeRes.status, 200);
-  assert.strictEqual(completeRes.data.status, TripStatus.COMPLETED);
+  assert.strictEqual(completeRes.status, 202);
+  assert.strictEqual(completeRes.data.actionKind, 'TRIP_FINANCIAL_CLOSE');
+
+  const checkCloseRes = await testFetch(`/api/governance-actions/${completeRes.data.id}/check`, {
+    method: 'POST',
+    token: accountantToken,
+    headers: { 'Idempotency-Key': `comprehensive-trip-complete-check-${completeRes.data.id}` },
+    body: JSON.stringify({ expectedVersion: completeRes.data.version }),
+  });
+  assert.strictEqual(checkCloseRes.status, 200);
+
+  const approveCloseRes = await testFetch(`/api/governance-actions/${completeRes.data.id}/approve`, {
+    method: 'POST',
+    token: adminToken,
+    headers: { 'Idempotency-Key': `comprehensive-trip-complete-approve-${completeRes.data.id}` },
+    body: JSON.stringify({ expectedVersion: checkCloseRes.data.version }),
+  });
+  assert.strictEqual(approveCloseRes.status, 200);
+
+  const [completedTrip] = await db.select({ status: s.trips.status, version: s.trips.version })
+    .from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+  assert.strictEqual(completedTrip.status, TripStatus.COMPLETED);
 
   // 7. Lock the trip (immutable ledger generation)
   const lockRes = await testFetch(`/api/trips/${tripId}/lock`, {
     method: 'POST',
-    token: adminToken,
-    body: JSON.stringify({ confirmZeroRevenue: false, confirmNoPhoto: true })
+    token: managerToken,
+    headers: { 'Idempotency-Key': `comprehensive-trip-lock-${tripId}` },
+    body: JSON.stringify({
+      expectedVersion: completedTrip.version,
+      confirmZeroRevenue: false,
+      confirmNoPhoto: true,
+    })
   });
   assert.strictEqual(lockRes.status, 200);
   assert.strictEqual(lockRes.data.status, TripStatus.LOCKED);
@@ -472,7 +503,9 @@ test('E2E — Trip dispatch lifecycle (Create, Reassign, Pre-departure, Dispatch
   // 8. Cancel guard assertion (should fail to cancel locked trip)
   const cancelRes = await testFetch(`/api/trips/${tripId}/cancel`, {
     method: 'POST',
-    token: adminToken
+    token: managerToken,
+    headers: { 'Idempotency-Key': `comprehensive-trip-cancel-${tripId}` },
+    body: JSON.stringify({ expectedVersion: lockRes.data.version }),
   });
   assert.strictEqual(cancelRes.status, 409); // Conflict (Matrix block)
 });
@@ -502,22 +535,23 @@ test('E2E — Financial operations (P&L, profit sharing, ledger, statements, rec
   // Clean up any prior distributions for Q2/2026 (idempotency guard returns 409)
   await db.delete(s.distributions)
     .where(and(eq(s.distributions.quarter, 2), eq(s.distributions.year, 2026)));
+  await db.delete(s.governanceActions)
+    .where(and(
+      eq(s.governanceActions.subjectType, 'PROFIT_DISTRIBUTION'),
+      eq(s.governanceActions.subjectKey, '2026-Q2'),
+      eq(s.governanceActions.actionKind, 'PROFIT_DISTRIBUTION'),
+    ));
 
   const distributeRes = await testFetch('/api/reports/distribute-profit', {
     method: 'POST',
-    token: adminToken,
+    token: managerToken,
+    headers: { 'Idempotency-Key': `comprehensive-distribute-profit-${Date.now()}` },
     body: JSON.stringify({ quarter: 2, year: 2026 })
   });
   assert.strictEqual(distributeRes.status, 201);
-  assert.ok(Array.isArray(distributeRes.data.distributions));
-  assert.ok(Array.isArray(distributeRes.data.perTruck));
-  assert.ok(distributeRes.data.undistributedProfit !== undefined);
-  const distributed = distributeRes.data.distributions
-    .reduce((sum: number, row: { amount: string | number }) => sum + Number(row.amount), 0);
-  assert.strictEqual(
-    distributed + Number(distributeRes.data.undistributedProfit),
-    Number(distributeRes.data.netProfit),
-  );
+  assert.strictEqual(distributeRes.data.actionKind, 'PROFIT_DISTRIBUTION');
+  assert.strictEqual(distributeRes.data.status, 'PENDING_CHECK');
+  assert.ok(distributeRes.data.subjectKey);
 
   // 4. Ledger adjustments endpoint
   const [adjustmentTrip] = await db.select({ version: s.trips.version })
@@ -537,6 +571,7 @@ test('E2E — Financial operations (P&L, profit sharing, ledger, statements, rec
   const missingReopenVersionRes = await testFetch(`/api/trips/${tripId}/unlock`, {
     method: 'POST',
     token: adminToken,
+    headers: { 'Idempotency-Key': `comprehensive-unlock-missing-version-${tripId}` },
     body: JSON.stringify({ reason: 'Thiếu phiên bản nguồn' }),
   });
   assert.strictEqual(missingReopenVersionRes.status, 400);
@@ -563,6 +598,7 @@ test('E2E — Financial operations (P&L, profit sharing, ledger, statements, rec
   const paymentRes = await testFetch('/api/payments/receive', {
     method: 'POST',
     token: adminToken,
+    headers: { 'Idempotency-Key': `comprehensive-payment-receive-${Date.now()}` },
     body: JSON.stringify({
       customerId: customerId,
       receiptId: `REC-${Date.now()}`,

@@ -4,7 +4,18 @@ import type { Tx } from './trip-shared';
 import { eq, and, desc, inArray, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 
-type DbOrTx = typeof db | Tx;
+export type DbOrTx = typeof db | Tx;
+
+function assertExpectedUpdatedAt(
+  current: Date,
+  expectedUpdatedAt?: Date,
+  message = 'Dữ liệu đã bị thay đổi bởi người khác. Vui lòng tải lại trang.',
+) {
+  if (!expectedUpdatedAt) return;
+  if (current.getTime() !== expectedUpdatedAt.getTime()) {
+    throw new ApiError(409, message);
+  }
+}
 
 export async function derivePrimarySealNumber(
   client: DbOrTx,
@@ -16,6 +27,52 @@ export async function derivePrimarySealNumber(
     .orderBy(s.tripContainerSeals.id)
     .limit(1);
   return row?.sealNumber ?? null;
+}
+
+export async function createTripContainerInClient(client: DbOrTx, data: {
+  tripId: number;
+  containerTypeId?: number | null;
+  containerNumber?: string | null;
+  sealNumber: string | null;
+  cargoWeightKg?: string | number | null;
+  notes: string | null;
+  createdBy: number | null;
+  seals?: Array<{
+    sealNumber: string;
+    sealType?: string | null;
+    notes?: string | null;
+  }>;
+}) {
+  const initialSeals = data.seals ?? [];
+
+  const [inserted] = await client.insert(s.tripContainers).values({
+    tripId: data.tripId,
+    containerTypeId: data.containerTypeId ?? null,
+    containerNumber: data.containerNumber?.trim() || null,
+    sealNumber: null,
+    cargoWeightKg: data.cargoWeightKg != null ? String(data.cargoWeightKg) : null,
+    notes: data.notes,
+    createdBy: data.createdBy,
+  }).returning();
+
+  if (initialSeals.length > 0) {
+    await client.insert(s.tripContainerSeals).values(
+      initialSeals.map((seal) => ({
+        tripContainerId: inserted.id,
+        sealNumber: seal.sealNumber,
+        sealType: seal.sealType ?? null,
+        notes: seal.notes ?? null,
+        createdBy: data.createdBy,
+      })),
+    );
+  }
+  const primarySeal = await derivePrimarySealNumber(client, inserted.id);
+  if (primarySeal !== null) {
+    await client.update(s.tripContainers)
+      .set({ sealNumber: primarySeal, updatedAt: new Date() })
+      .where(eq(s.tripContainers.id, inserted.id));
+  }
+  return { ...inserted, sealNumber: primarySeal };
 }
 
 export async function createTripContainer(data: {
@@ -32,39 +89,11 @@ export async function createTripContainer(data: {
     notes?: string | null;
   }>;
 }) {
-  const initialSeals = data.seals ?? [];
-
-  const [inserted] = await db.insert(s.tripContainers).values({
-    tripId: data.tripId,
-    containerTypeId: data.containerTypeId ?? null,
-    containerNumber: data.containerNumber?.trim() || null,
-    sealNumber: null,
-    cargoWeightKg: data.cargoWeightKg != null ? String(data.cargoWeightKg) : null,
-    notes: data.notes,
-    createdBy: data.createdBy,
-  }).returning();
-
-  if (initialSeals.length > 0) {
-    await db.insert(s.tripContainerSeals).values(
-      initialSeals.map(seal => ({
-        tripContainerId: inserted.id,
-        sealNumber: seal.sealNumber,
-        sealType: seal.sealType ?? null,
-        notes: seal.notes ?? null,
-        createdBy: data.createdBy,
-      })),
-    );
-  }
-  const primarySeal = await derivePrimarySealNumber(db, inserted.id);
-  if (primarySeal !== null) {
-    await db.update(s.tripContainers)
-      .set({ sealNumber: primarySeal, updatedAt: new Date() })
-      .where(eq(s.tripContainers.id, inserted.id));
-  }
-  return { ...inserted, sealNumber: primarySeal };
+  return createTripContainerInClient(db, data);
 }
 
-export async function updateTripContainer(
+export async function updateTripContainerInClient(
+  client: DbOrTx,
   containerId: number,
   patch: {
     containerTypeId?: number | null;
@@ -79,12 +108,23 @@ export async function updateTripContainer(
     }>;
     userId?: number | null;
   },
+  options: {
+    expectedUpdatedAt?: Date;
+  } = {},
 ) {
-  const [row] = await db.select({ id: s.tripContainers.id, tripId: s.tripContainers.tripId })
-    .from(s.tripContainers).where(eq(s.tripContainers.id, containerId)).limit(1);
+  const [row] = await client.select({
+    id: s.tripContainers.id,
+    tripId: s.tripContainers.tripId,
+    updatedAt: s.tripContainers.updatedAt,
+  })
+    .from(s.tripContainers)
+    .where(eq(s.tripContainers.id, containerId))
+    .limit(1)
+    .for('update');
   if (!row) throw new ApiError(404, 'Không tìm thấy số cont');
+  assertExpectedUpdatedAt(row.updatedAt, options.expectedUpdatedAt);
 
-  const [trip] = await db.select({ status: s.trips.status })
+  const [trip] = await client.select({ status: s.trips.status })
     .from(s.trips).where(eq(s.trips.id, row.tripId)).limit(1);
   if (trip?.status === 'LOCKED') {
     throw new ApiError(409, 'Không thể sửa số cont của chuyến đã chốt');
@@ -103,16 +143,17 @@ export async function updateTripContainer(
   const hasSealsToAdd = (patch.addSeals?.length ?? 0) > 0;
 
   if (!hasScalarChanges && !hasSealsToAdd) {
-    return listTripContainers(row.tripId).then(rows => rows.find(r => r.id === containerId));
+    return listTripContainers(row.tripId, client as Tx)
+      .then((rows) => rows.find((item) => item.id === containerId));
   }
 
   if (hasScalarChanges) {
-    await db.update(s.tripContainers).set(set).where(eq(s.tripContainers.id, containerId));
+    await client.update(s.tripContainers).set(set).where(eq(s.tripContainers.id, containerId));
   }
 
   if (hasSealsToAdd) {
-    await db.insert(s.tripContainerSeals).values(
-      (patch.addSeals ?? []).map(seal => ({
+    await client.insert(s.tripContainerSeals).values(
+      (patch.addSeals ?? []).map((seal) => ({
         tripContainerId: containerId,
         sealNumber: seal.sealNumber,
         sealType: seal.sealType ?? null,
@@ -120,14 +161,36 @@ export async function updateTripContainer(
         createdBy: patch.userId ?? null,
       })),
     );
-    const primarySeal = await derivePrimarySealNumber(db, containerId);
-    await db.update(s.tripContainers)
+    const primarySeal = await derivePrimarySealNumber(client, containerId);
+    await client.update(s.tripContainers)
       .set({ sealNumber: primarySeal, updatedAt: new Date() })
       .where(eq(s.tripContainers.id, containerId));
   }
 
-  const rows = await listTripContainers(row.tripId);
-  return rows.find(r => r.id === containerId);
+  const rows = await listTripContainers(row.tripId, client as Tx);
+  return rows.find((item) => item.id === containerId);
+}
+
+export async function updateTripContainer(
+  containerId: number,
+  patch: {
+    containerTypeId?: number | null;
+    containerNumber?: string | null;
+    sealNumber?: string | null;
+    cargoWeightKg?: string | number | null;
+    notes?: string | null;
+    addSeals?: Array<{
+      sealNumber: string;
+      sealType?: string | null;
+      notes?: string | null;
+    }>;
+    userId?: number | null;
+  },
+  options: {
+    expectedUpdatedAt?: Date;
+  } = {},
+) {
+  return db.transaction((tx) => updateTripContainerInClient(tx, containerId, patch, options));
 }
 
 export async function listTripContainers(tripId: number, tx?: Tx) {
@@ -210,9 +273,14 @@ export async function batchUpsertContainerSeals(
     notes?: string | null;
   }>,
   userId: number | null,
+  options: {
+    expectedUpdatedAt?: Date;
+  } = {},
+  transaction?: Tx,
 ) {
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     const [row] = await tx.select({
+      containerUpdatedAt: s.tripContainers.updatedAt,
       tripId: s.tripContainers.tripId,
       tripStatus: s.trips.status,
     })
@@ -221,6 +289,7 @@ export async function batchUpsertContainerSeals(
       .where(eq(s.tripContainers.id, containerId))
       .limit(1);
     if (!row) throw new ApiError(404, 'Không tìm thấy số cont');
+    assertExpectedUpdatedAt(row.containerUpdatedAt, options.expectedUpdatedAt);
     if (row.tripStatus === 'LOCKED') {
       throw new ApiError(409, 'Không thể sửa seal của cont trong chuyến đã chốt');
     }
@@ -263,7 +332,14 @@ export async function batchUpsertContainerSeals(
       .set({ sealNumber: primarySeal, updatedAt: new Date() })
       .where(eq(s.tripContainers.id, containerId));
 
-    return tx.select({
+    const [container] = await tx.select({
+      updatedAt: s.tripContainers.updatedAt,
+    })
+      .from(s.tripContainers)
+      .where(eq(s.tripContainers.id, containerId))
+      .limit(1);
+
+    const sealRows = await tx.select({
       id: s.tripContainerSeals.id,
       tripContainerId: s.tripContainerSeals.tripContainerId,
       sealNumber: s.tripContainerSeals.sealNumber,
@@ -275,7 +351,13 @@ export async function batchUpsertContainerSeals(
     }).from(s.tripContainerSeals)
       .where(eq(s.tripContainerSeals.tripContainerId, containerId))
       .orderBy(s.tripContainerSeals.id);
-  });
+    return {
+      id: containerId,
+      updatedAt: container?.updatedAt ?? new Date(),
+      seals: sealRows,
+    };
+  };
+  return transaction ? execute(transaction) : db.transaction(execute);
 }
 
 export async function batchUpsertTripContainers(

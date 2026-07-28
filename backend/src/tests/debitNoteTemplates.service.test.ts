@@ -15,6 +15,39 @@ import type {
   DebitNoteTemplateSnapshot,
 } from '@tingting/shared';
 
+type SnapshotWithOfficialIdentity = DebitNoteTemplateSnapshot & {
+  officialIdentity: {
+    issuer: {
+      name: string;
+      address: string;
+      taxCode: string;
+      representative: string;
+      representativeTitle: string;
+      phone: string;
+      bankAccount: string;
+      bankName: string;
+      email: string;
+      logoStorageKey: string | null;
+    };
+    counterparty: {
+      entityType: 'CUSTOMER' | 'VENDOR';
+      name: string;
+      address: string;
+      taxCode: string;
+      representative: string;
+      representativeTitle: string;
+      phone: string;
+      contactInfo: string;
+    };
+    signatures: {
+      leftLabel: string;
+      leftName: string;
+      rightLabel: string;
+      rightName: string;
+    };
+  };
+};
+
 const line = (over: Partial<BillingDocumentLine>): BillingDocumentLine => ({
   sourceType: 'TRIP', sourceId: 1, lineType: 'FREIGHT', typeLabel: 'Doanh thu', unit: 'lần',
   description: 'Cước vận chuyển — HCM - Bình Dương', routeName: 'HCM - Bình Dương',
@@ -227,6 +260,104 @@ test('renderTemplatedXlsx PAYMENT_STATEMENT renders horizontal freight and servi
   assert.equal(ws.getCell(20, 2).value, 550_000);
   assert.equal(ws.getCell(20, 3).value, 5_550_000);
   assert.equal(ws.getCell(20, 4).value, 'Nâng hạ');
+});
+
+test('renderTemplatedXlsx DEBIT_NOTE prefers persisted official identity over live company and customer data', async () => {
+  const frozenSnapshot: SnapshotWithOfficialIdentity = {
+    ...defaultSnapshot,
+    officialIdentity: {
+      issuer: {
+        name: 'Công ty phát hành cũ',
+        address: '12 Đường Cũ, Hải Phòng',
+        taxCode: '0300123456',
+        representative: 'Nguyễn Người Cũ',
+        representativeTitle: 'Giám đốc',
+        phone: '0909123456',
+        bankAccount: '001122334455',
+        bankName: 'VCB Hải Phòng',
+        email: 'old@example.com',
+        logoStorageKey: null,
+      },
+      counterparty: {
+        entityType: 'CUSTOMER',
+        name: 'Khách hàng lịch sử',
+        address: 'Kho Cũ, Quận 7, TP.HCM',
+        taxCode: '0311999888',
+        representative: 'Trần Kế Toán',
+        representativeTitle: 'Kế toán',
+        phone: '0909888777',
+        contactInfo: 'Kho Cũ, Quận 7, TP.HCM',
+      },
+      signatures: {
+        leftLabel: 'Khách hàng',
+        leftName: 'Đại diện khách cũ',
+        rightLabel: 'Người lập',
+        rightName: 'Người ký cũ',
+      },
+    },
+  };
+  const buf = await renderTemplatedXlsx(debitDoc, frozenSnapshot);
+  const wb = await loadWorkbook(buf);
+  const ws = wb.worksheets[0];
+  assert.equal(ws.getCell('D1').value, 'Công ty phát hành cũ');
+  assert.equal(ws.getCell('D2').value, '12 Đường Cũ');
+  assert.equal(ws.getCell('E3').value, 'quận Ngô Quyền, Hải Phòng');
+  assert.equal(ws.getCell('E10').value, 'Khách hàng lịch sử');
+  assert.equal(ws.getCell('F9').value, 'Trần Kế Toán (0909888777)');
+  assert.equal(ws.getCell('E13').value, 'MST : 0311999888');
+  assert.equal(ws.getCell(66, 4).value, 'Công ty phát hành cũ');
+  assert.equal(ws.getCell(67, 4).value, '001122334455');
+  assert.equal(ws.getCell(68, 4).value, 'VCB Hải Phòng');
+  assert.equal(ws.getCell(69, 7).value, 'Người ký cũ');
+});
+
+test('renderTemplatedXlsx PAYMENT_STATEMENT prefers persisted official identity over live party data', async () => {
+  const frozenSnapshot: SnapshotWithOfficialIdentity = {
+    ...paymentSnapshot,
+    officialIdentity: {
+      issuer: {
+        name: 'Bên B lịch sử',
+        address: '99 Đường Số 1, TP.HCM',
+        taxCode: '0311222333',
+        representative: 'Phạm Đại Diện',
+        representativeTitle: 'Giám đốc',
+        phone: '0909555666',
+        bankAccount: '99887766',
+        bankName: 'ACB Sài Gòn',
+        email: 'issuer@example.com',
+        logoStorageKey: null,
+      },
+      counterparty: {
+        entityType: 'VENDOR',
+        name: 'Nhà cung cấp lịch sử',
+        address: 'Bãi cont cũ, Hải Phòng',
+        taxCode: '0200444555',
+        representative: 'Lê Nhà Cung Cấp',
+        representativeTitle: 'Giám đốc',
+        phone: '0909444333',
+        contactInfo: 'Bãi cont cũ, Hải Phòng',
+      },
+      signatures: {
+        leftLabel: 'Bên A',
+        leftName: 'Đại diện A cũ',
+        rightLabel: 'Bên B',
+        rightName: 'Đại diện B cũ',
+      },
+    },
+  };
+  const buf = await renderTemplatedXlsx(paymentDoc, frozenSnapshot);
+  const wb = await loadWorkbook(buf);
+  const ws = wb.worksheets[0];
+  assert.equal(ws.getCell(4, 1).value, 'BÊN A (BÊN THUÊ DỊCH VỤ): Nhà cung cấp lịch sử');
+  assert.equal(ws.getCell(5, 1).value, 'Địa chỉ: Bãi cont cũ, Hải Phòng');
+  assert.equal(ws.getCell(6, 1).value, 'Mã số thuế: 0200444555');
+  assert.equal(ws.getCell(9, 1).value, 'BÊN B (BÊN CUNG CẤP DỊCH VỤ): Bên B lịch sử');
+  assert.equal(ws.getCell(10, 1).value, 'Địa chỉ: 99 Đường Số 1, TP.HCM');
+  assert.equal(ws.getCell(11, 1).value, 'Mã số thuế: 0311222333');
+  assert.equal(ws.getCell(14, 1).value, '- Số TK 99887766');
+  assert.equal(ws.getCell(15, 1).value, '- Tại ngân hàng ACB Sài Gòn');
+  assert.equal(ws.getCell(30, 1).value, 'Đại diện A cũ');
+  assert.equal(ws.getCell(30, 3).value, 'Đại diện B cũ');
 });
 
 test('renderTemplatedXlsx with letterhead + terms → valid xlsx', async () => {

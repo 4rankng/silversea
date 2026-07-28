@@ -246,8 +246,8 @@ export function PostCloseAdjustmentList({
   canApprove: (item: SalaryPeriodAdjustmentItem) => boolean;
   checkingActionId: number | null;
   approvingActionId: number | null;
-  onCheck: (actionId: number) => void;
-  onApprove: (actionId: number) => void;
+  onCheck: (item: SalaryPeriodAdjustmentItem) => void;
+  onApprove: (item: SalaryPeriodAdjustmentItem) => void;
 }) {
   if (items.length === 0) {
     return (
@@ -286,7 +286,7 @@ export function PostCloseAdjustmentList({
                   <button
                     className="btn btn--secondary btn--sm"
                     disabled={checkingActionId === item.actionId}
-                    onClick={() => onCheck(item.actionId)}
+                    onClick={() => onCheck(item)}
                   >
                     {checkingActionId === item.actionId ? 'Đang kiểm tra…' : 'Kiểm tra'}
                   </button>
@@ -295,7 +295,7 @@ export function PostCloseAdjustmentList({
                   <button
                     className="btn btn--primary btn--sm"
                     disabled={approvingActionId === item.actionId}
-                    onClick={() => onApprove(item.actionId)}
+                    onClick={() => onApprove(item)}
                   >
                     {approvingActionId === item.actionId ? 'Đang phê duyệt…' : 'Phê duyệt'}
                   </button>
@@ -330,8 +330,14 @@ function periodGovernanceStatusLabel(status: SalaryPeriodGovernanceAction['statu
   }
 }
 
-function periodGovernanceActionLabel(actionKind: SalaryPeriodGovernanceAction['actionKind']) {
-  return actionKind === 'SALARY_PERIOD_CLOSE' ? 'Yêu cầu chốt kỳ' : 'Yêu cầu mở lại kỳ';
+function periodGovernanceActionLabel(item: SalaryPeriodGovernanceAction) {
+  const after = item.afterSnapshot;
+  const operation = after && typeof after === 'object' && !Array.isArray(after)
+    ? (after as { operation?: unknown }).operation
+    : null;
+  if (operation === 'ISSUE_PAYSLIPS') return 'Yêu cầu phát hành phiếu lương';
+  if (operation === 'POST_OFFICIAL') return 'Yêu cầu hạch toán chính thức';
+  return item.actionKind === 'SALARY_PERIOD_CLOSE' ? 'Yêu cầu chốt kỳ' : 'Yêu cầu mở lại kỳ';
 }
 
 function salaryConfirmationGovernanceStatusLabel(status: SalaryConfirmationGovernanceAction['status']) {
@@ -388,7 +394,7 @@ export function SalaryPeriodGovernanceList({
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
                 {item.actionKind === 'SALARY_PERIOD_CLOSE' ? <Lock size={14} /> : <ArrowRightLeft size={14} />}
-                <span>{periodGovernanceActionLabel(item.actionKind)}</span>
+                <span>{periodGovernanceActionLabel(item)}</span>
               </div>
               <span className={`salary-summary-dark__status ${item.status === 'APPROVED' ? 'is-confirmed' : ''}`} style={{ color: 'var(--fg-1)', background: 'var(--surface-2)' }}>
                 {periodGovernanceStatusLabel(item.status)}

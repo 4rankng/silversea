@@ -1,19 +1,275 @@
-import { EventEmitter } from 'events';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { renderAuditMessage } from './audit-templates';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { auditLogs } from '../db/schema';
 import { eq, inArray } from 'drizzle-orm';
+import { resolveAuditEvent } from './audit-registry';
+import { AuditEvent } from './audit-types';
 import type { AuditPayload } from './audit-types';
-
-// Inlined event bus — sole consumer is this module.
-const eventBus = new EventEmitter();
-eventBus.setMaxListeners(50);
-const AUDIT_LOG_EVENT = 'audit:log';
+import type { AuditEventType } from './audit-types';
+import type { Request, Response } from 'express';
 
 export interface AuditEntry extends AuditPayload {
   userId?: number;
   ipAddress?: string;
+}
+
+type AuditEnrichmentHandler = (rowId: number, payload: AuditEntry) => Promise<void>;
+type AuditTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type AuditPersistHandler = (payload: AuditEntry, tx?: AuditTx) => Promise<number>;
+
+interface AuditRequestContext {
+  req: Request;
+  res: Response;
+  fullPath: string;
+  isLoginPath: boolean;
+  declaredMaterialWriteEndpoint?: string;
+}
+
+const auditRequestContextStorage = new AsyncLocalStorage<AuditRequestContext>();
+
+export function runWithAuditRequestContext<T>(
+  context: AuditRequestContext,
+  fn: () => T,
+): T {
+  return auditRequestContextStorage.run(context, fn);
+}
+
+export function getAuditRequestContext(): AuditRequestContext | undefined {
+  return auditRequestContextStorage.getStore();
+}
+
+export function extractAuditEntityType(path: string): string | null {
+  const parts = path.replace('/api/', '').split('/');
+
+  if (parts.length >= 2 && parts[0] === 'forwarder' && parts[1] === 'me') {
+    if (parts.length > 2) {
+      if (parts[2] === 'trips' && parts[4] === 'containers') return 'container-instances';
+      if (parts[2] === 'expenses' && parts[4] === 'photos') return 'expense-photos';
+      if (parts[2] === 'expenses') return 'trip-expenses';
+      return parts[2];
+    }
+    return 'forwarder';
+  }
+
+  if (parts.length >= 2 && parts[0] === 'driver' && parts[1] === 'me') {
+    if (parts.length > 2) {
+      if (parts[2] === 'trips' && parts[4] === 'containers') return 'container-instances';
+      if (parts[2] === 'trips' && parts[4] === 'photos') return 'photos';
+      return parts[2];
+    }
+    return 'driver';
+  }
+
+  if (parts.length >= 3 && parts[0] === 'trips' && parts[2] === 'expenses') {
+    return 'trip-expenses';
+  }
+
+  if (parts.length >= 1) return parts[0];
+  return null;
+}
+
+export function extractAuditEntityId(
+  path: string,
+  body: Record<string, unknown>,
+): number | null {
+  const parts = path.replace('/api/', '').split('/');
+  const last = parts[parts.length - 1];
+  const num = parseInt(last, 10);
+  if (!Number.isNaN(num)) return num;
+
+  if (
+    ['approve', 'reject', 'lock', 'unlock', 'cancel', 'dispatch', 'pre-departure', 'actuals', 'departure-date'].includes(last)
+  ) {
+    const secondLast = parts[parts.length - 2];
+    const idNum = parseInt(secondLast, 10);
+    if (!Number.isNaN(idNum)) return idNum;
+  }
+
+  return body?.id ? parseInt(body.id as string, 10) : null;
+}
+
+export function sanitizeAuditBody(body: Record<string, unknown>): Record<string, unknown> {
+  if (!body) return {};
+  const SENSITIVE_AUDIT_KEYS = new Set([
+    'password',
+    'passwordhash',
+    'passworddigest',
+    'currentpassword',
+    'newpassword',
+    'confirmpassword',
+    'credential',
+    'credentials',
+    'secret',
+    'token',
+    'accesstoken',
+    'refreshtoken',
+    'jwttoken',
+    'authorization',
+    'apikey',
+    'minimaxapikey',
+    'openrouterapikey',
+    'minimaxkey',
+    'openrouterkey',
+    'resendapikey',
+    'settingsencryptionkey',
+  ]);
+
+  const normalizeKey = (key: string) => key.replace(/[^a-z0-9]/gi, '').toLowerCase();
+  const isSensitiveAuditKey = (key: string) => {
+    const normalized = normalizeKey(key);
+    if (normalized === 'idempotencykey' || normalized.startsWith('clear')) return false;
+    if (SENSITIVE_AUDIT_KEYS.has(normalized)) return true;
+    return normalized.endsWith('password')
+      || normalized.endsWith('passwordhash')
+      || normalized.endsWith('credential')
+      || normalized.endsWith('credentials')
+      || normalized.endsWith('secret')
+      || normalized.endsWith('token')
+      || normalized.endsWith('apikey')
+      || normalized.endsWith('encryptionkey');
+  };
+
+  const sanitizeValue = (value: unknown): unknown => {
+    if (Array.isArray(value)) {
+      return value.map((item) => sanitizeValue(item));
+    }
+    if (!value || typeof value !== 'object') {
+      return value;
+    }
+    const sanitized: Record<string, unknown> = {};
+    for (const [key, nestedValue] of Object.entries(value as Record<string, unknown>)) {
+      if (key === '_requestId' || key === 'idempotencyKey' || isSensitiveAuditKey(key)) continue;
+      sanitized[key] = sanitizeValue(nestedValue);
+    }
+    return sanitized;
+  };
+
+  return sanitizeValue(body) as Record<string, unknown>;
+}
+
+export function buildAuditMetadata(args: {
+  req: Request;
+  fullPath: string;
+  statusCode: number;
+  outcome: 'SUCCEEDED' | 'REPLAYED' | 'FORBIDDEN' | 'CONFLICT' | 'REJECTED' | 'FAILED_LOGIN';
+  body?: Record<string, unknown> | null;
+  materialWriteEndpoint?: string | null;
+  idempotencyKeyPresent?: boolean;
+}) {
+  return {
+    method: args.req.method,
+    path: args.fullPath,
+    statusCode: args.statusCode,
+    outcome: args.outcome,
+    idempotencyKeyPresent: args.idempotencyKeyPresent ?? false,
+    materialWriteEndpoint: args.materialWriteEndpoint ?? undefined,
+    body: sanitizeAuditBody((args.req.body as Record<string, unknown>) ?? {}),
+    error: typeof args.body?.error === 'string' ? args.body.error : undefined,
+  };
+}
+
+export function extractAuditEntityKey(
+  entityType: string | null,
+  responseBody: Record<string, unknown> | null,
+  requestBody: Record<string, unknown> | null,
+): string | undefined {
+  const pick = (obj: Record<string, unknown> | null, ...keys: string[]): string | undefined => {
+    if (!obj) return undefined;
+    for (const k of keys) {
+      const v = obj[k];
+      if (typeof v === 'string' && v.trim()) return v.trim();
+      if (typeof v === 'number') return String(v);
+    }
+    return undefined;
+  };
+
+  switch (entityType) {
+    case 'trips':
+      return pick(responseBody, 'tripCode') || pick(requestBody, 'tripCode');
+    case 'trucks':
+      return pick(responseBody, 'licensePlate') || pick(requestBody, 'licensePlate');
+    case 'customers':
+    case 'routes':
+    case 'cargo-types':
+    case 'drivers':
+    case 'penalty-reasons':
+    case 'suppliers':
+    case 'expense-categories':
+      return pick(responseBody, 'name') || pick(requestBody, 'name');
+    case 'cap-table':
+      return pick(responseBody, 'partnerName') || pick(requestBody, 'partnerName');
+    case 'reports': {
+      const quarter = pick(responseBody, 'quarter') || pick(requestBody, 'quarter');
+      const year = pick(responseBody, 'year') || pick(requestBody, 'year');
+      if (quarter && year) return `Quý ${quarter}/${year}`;
+      return undefined;
+    }
+    case 'payments':
+    case 'adjustments':
+    case 'penalties': {
+      const tripRef = pick(responseBody, 'tripCode') || pick(requestBody, 'tripCode');
+      if (tripRef) return `cho chuyến ${tripRef}`;
+      return undefined;
+    }
+    default:
+      return pick(responseBody, 'name', 'code') || pick(requestBody, 'name', 'code');
+  }
+}
+
+export async function persistMaterialWriteSuccessAuditInTransaction(args: {
+  tx: AuditTx;
+  statusCode: number;
+  responseBody: Record<string, unknown> | null;
+  entityId?: number | null;
+  entityKey?: string;
+}): Promise<void> {
+  const context = getAuditRequestContext();
+  if (!context) {
+    return;
+  }
+  if (!context.declaredMaterialWriteEndpoint || !context.req.user) {
+    throw new Error(`Material write audit context is incomplete for ${context.req.method} ${context.fullPath}`);
+  }
+
+  const requestBody = (context.req.body as Record<string, unknown> | undefined) ?? {};
+  const entityType = extractAuditEntityType(context.fullPath) || 'unknown';
+  const event = typeof context.res.locals.auditEvent === 'string'
+    ? context.res.locals.auditEvent as AuditEventType
+    : resolveAuditEvent(context.req.method, context.fullPath);
+  const entityId = args.entityId ?? extractAuditEntityId(context.fullPath, requestBody) ?? undefined;
+  const entityKey = args.entityKey
+    ?? context.res.locals.auditEntityKey
+    ?? extractAuditEntityKey(entityType, args.responseBody, requestBody);
+
+  const payload = {
+    event,
+    entityType,
+    entityId,
+    entityKey,
+    userId: context.req.user.userId,
+    actorRole: context.req.user.role,
+    actorEmail: context.req.user.email ?? undefined,
+    actorName: context.req.user.fullName ?? context.req.user.username ?? undefined,
+    ipAddress: context.req.ip,
+    metadata: buildAuditMetadata({
+      req: context.req,
+      fullPath: context.fullPath,
+      statusCode: args.statusCode,
+      outcome: 'SUCCEEDED',
+      body: args.responseBody,
+      materialWriteEndpoint: context.declaredMaterialWriteEndpoint,
+      idempotencyKeyPresent: true,
+    }),
+  } as const;
+
+  const rowId = auditPersistHandler === defaultAuditPersistHandler
+    ? await insertAuditRow(args.tx, payload)
+    : await auditPersistHandler(payload, args.tx);
+
+  context.res.locals.durableMaterialWriteSuccessAudited = true;
+  context.res.locals.durableMaterialWriteAuditLogId = rowId;
 }
 
 /**
@@ -208,29 +464,192 @@ async function enrichEntityKey(payload: AuditEntry): Promise<string | undefined>
   return undefined;
 }
 
-export function initAuditService() {
-  eventBus.on(AUDIT_LOG_EVENT, async (payload: AuditEntry) => {
-    try {
-      // Out-of-band metadata resolution for all entities
-      if (!payload.entityKey) {
-        try { payload.entityKey = await enrichEntityKey(payload); } catch (e) { console.warn('[audit] enrichEntityKey failed:', e); }
-      }
-      const message = renderAuditMessage(payload);
-      await db.insert(auditLogs).values({
-        userId: payload.userId ?? null,
-        actorName: payload.actorName ?? null,
-        message,
-        entityType: payload.entityType,
-        entityId: payload.entityId ?? null,
-        payload: { event: payload.event, ...payload.metadata },
-        ipAddress: payload.ipAddress ?? null,
-      });
-    } catch (err) {
-      console.error('Audit log write failed:', err);
-    }
+async function defaultAuditEnrichment(rowId: number, payload: AuditEntry): Promise<void> {
+  const enrichedPayload: AuditEntry = { ...payload };
+  if (enrichedPayload.entityKey) {
+    return;
+  }
+  try {
+    enrichedPayload.entityKey = await enrichEntityKey(enrichedPayload);
+  } catch (error) {
+    console.warn('[audit] enrichEntityKey failed:', error);
+  }
+  if (!enrichedPayload.entityKey) {
+    return;
+  }
+  const message = renderAuditMessage(enrichedPayload);
+  await db.update(auditLogs)
+    .set({ message })
+    .where(eq(auditLogs.id, rowId));
+}
+
+function canEnrichAuditEntry(payload: AuditEntry): boolean {
+  if (payload.entityKey) {
+    return false;
+  }
+
+  switch (payload.entityType) {
+    case 'expenses':
+    case 'trip-expenses':
+    case 'forwarder-expenses':
+    case 'penalties':
+    case 'payments':
+    case 'adjustments':
+    case 'customers':
+    case 'routes':
+    case 'cargo-types':
+    case 'drivers':
+    case 'trucks':
+    case 'suppliers':
+    case 'expense-categories':
+    case 'trips':
+      return true;
+    default:
+      return false;
+  }
+}
+
+function scheduleAuditEnrichment(rowId: number, payload: AuditEntry) {
+  if (!canEnrichAuditEntry(payload)) {
+    return;
+  }
+  void auditEnrichmentHandler(rowId, { ...payload }).catch((error) => {
+    console.error('Audit log enrichment failed:', error);
   });
 }
 
+async function insertAuditRow(executor: AuditTx | typeof db, payload: AuditEntry): Promise<number> {
+  const [created] = await executor.insert(auditLogs).values({
+    userId: payload.userId ?? null,
+    actorName: payload.actorName ?? null,
+    message: renderAuditMessage(payload),
+    entityType: payload.entityType,
+    entityId: payload.entityId ?? null,
+    payload: { event: payload.event, ...payload.metadata },
+    ipAddress: payload.ipAddress ?? null,
+  }).returning({ id: auditLogs.id });
+  return created.id;
+}
+
+let auditEnrichmentHandler: AuditEnrichmentHandler = defaultAuditEnrichment;
+const defaultAuditPersistHandler: AuditPersistHandler = async (payload: AuditEntry, tx?: AuditTx) => {
+  const executor = tx ?? db;
+  const rowId = await insertAuditRow(executor, payload);
+  scheduleAuditEnrichment(rowId, payload);
+  return rowId;
+};
+let auditPersistHandler: AuditPersistHandler = async (payload: AuditEntry, tx?: AuditTx) => {
+  return defaultAuditPersistHandler(payload, tx);
+};
+
+export function setAuditEnrichmentHandlerForTest(
+  handler: AuditEnrichmentHandler | null,
+) {
+  auditEnrichmentHandler = handler ?? defaultAuditEnrichment;
+}
+
+export function setAuditPersistHandlerForTest(
+  handler: AuditPersistHandler | null,
+) {
+  auditPersistHandler = handler ?? defaultAuditPersistHandler;
+}
+
+export async function persistAudit(payload: AuditEntry): Promise<number> {
+  return auditPersistHandler(payload);
+}
+
+export async function persistAuditInTransaction(
+  tx: AuditTx,
+  payload: AuditEntry,
+): Promise<number> {
+  return auditPersistHandler(payload, tx);
+}
+
+export async function finalizeDurableMaterialWriteAudit(args: {
+  rowId: number;
+  payload: AuditEntry;
+}): Promise<void> {
+  await db.update(auditLogs)
+    .set({
+      userId: args.payload.userId ?? null,
+      actorName: args.payload.actorName ?? null,
+      message: renderAuditMessage(args.payload),
+      entityType: args.payload.entityType,
+      entityId: args.payload.entityId ?? null,
+      payload: { event: args.payload.event, ...args.payload.metadata },
+      ipAddress: args.payload.ipAddress ?? null,
+    })
+    .where(eq(auditLogs.id, args.rowId));
+  scheduleAuditEnrichment(args.rowId, args.payload);
+}
+
+function formatUnknownError(error: unknown): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message.trim();
+  }
+  if (typeof error === 'string' && error.trim()) {
+    return error.trim();
+  }
+  return 'Lỗi không xác định';
+}
+
+export async function persistStorageCleanupFailureAudit(args: {
+  entityType: string;
+  storageKey: string;
+  method: string;
+  fullPath: string;
+  requestBody?: Record<string, unknown> | null;
+  userId?: number | null;
+  actorRole?: string;
+  actorEmail?: string | null;
+  actorName?: string | null;
+  ipAddress?: string;
+  materialWriteEndpoint?: string | null;
+  idempotencyKeyPresent?: boolean;
+  entityId?: number | null;
+  entityKey?: string;
+  cleanupStage: 'rollback' | 'delete';
+  originalError: unknown;
+  cleanupError: unknown;
+}): Promise<number> {
+  return persistAudit({
+    event: AuditEvent.STORAGE_CLEANUP_PENDING,
+    entityType: args.entityType,
+    entityId: args.entityId ?? undefined,
+    entityKey: args.entityKey ?? args.storageKey,
+    userId: args.userId ?? undefined,
+    actorRole: args.actorRole ?? undefined,
+    actorEmail: args.actorEmail ?? undefined,
+    actorName: args.actorName ?? undefined,
+    ipAddress: args.ipAddress ?? undefined,
+    metadata: {
+      method: args.method,
+      path: args.fullPath,
+      statusCode: 500,
+      outcome: 'REJECTED',
+      idempotencyKeyPresent: args.idempotencyKeyPresent ?? true,
+      materialWriteEndpoint: args.materialWriteEndpoint ?? undefined,
+      body: sanitizeAuditBody(args.requestBody ?? {}),
+      error: formatUnknownError(args.cleanupError),
+      cleanupPending: true,
+      cleanupStage: args.cleanupStage,
+      storageKey: args.storageKey,
+      originalError: formatUnknownError(args.originalError),
+      cleanupError: formatUnknownError(args.cleanupError),
+    },
+  });
+}
+
+export function initAuditService() {
+  return;
+}
+
 export function emitAudit(payload: AuditEntry) {
-  eventBus.emit(AUDIT_LOG_EVENT, payload);
+  void persistAudit(payload).catch((error) => {
+    console.error('Audit log write failed:', error);
+  });
+}
+
+export function shouldScheduleAuditEnrichmentForTest(payload: AuditEntry): boolean {
+  return canEnrichAuditEntry(payload);
 }

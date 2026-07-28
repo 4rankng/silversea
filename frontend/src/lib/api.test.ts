@@ -103,13 +103,102 @@ describe('API mutation transaction keys', () => {
     expect(secondHeaders['Idempotency-Key']).not.toBe(firstHeaders['Idempotency-Key']);
   });
 
+  it('rotates the key after a definitive response for a later identical command', async () => {
+    await api.post('/trips', { customerId: 1 });
+    await api.post('/trips', { customerId: 1 });
+
+    const calls = vi.mocked(fetch).mock.calls;
+    const firstHeaders = calls[0]?.[1]?.headers as Record<string, string>;
+    const secondHeaders = calls[1]?.[1]?.headers as Record<string, string>;
+    expect(secondHeaders['Idempotency-Key']).not.toBe(firstHeaders['Idempotency-Key']);
+  });
+
   it('preserves a caller-supplied stable key for explicit replay', async () => {
     await api.post('/shipments/quick', { customerId: 1 }, {
-      headers: { 'Idempotency-Key': 'stable-offline-replay-key' },
+      idempotencyKey: 'stable-offline-replay-key',
     });
 
     const headers = vi.mocked(fetch).mock.calls[0]?.[1]?.headers as Record<string, string>;
     expect(headers['Idempotency-Key']).toBe('stable-offline-replay-key');
+  });
+
+  it('reuses one key for concurrent double-submit of the same logical command', async () => {
+    const resolvers: Array<(response: Response) => void> = [];
+    vi.mocked(fetch).mockImplementation(() => new Promise<Response>((resolve) => {
+      resolvers.push(resolve);
+    }));
+
+    const first = api.post('/fleet/tires/1/install', { truckId: 3, position: 'FL' });
+    const second = api.post('/fleet/tires/1/install', { truckId: 3, position: 'FL' });
+
+    const calls = vi.mocked(fetch).mock.calls;
+    const firstHeaders = calls[0]?.[1]?.headers as Record<string, string>;
+    const secondHeaders = calls[1]?.[1]?.headers as Record<string, string>;
+    expect(secondHeaders['Idempotency-Key']).toBe(firstHeaders['Idempotency-Key']);
+
+    for (const resolve of resolvers) {
+      resolve(new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }));
+    }
+    await Promise.all([first, second]);
+  });
+
+  it('reuses the command key after a network failure with an unknown outcome', async () => {
+    vi.mocked(fetch)
+      .mockRejectedValueOnce(new TypeError('network disconnected'))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }));
+
+    await expect(api.post('/finance/fuel-invoices', { invoiceNumber: 'INV-1' }))
+      .rejects.toThrow('network disconnected');
+    await api.post('/finance/fuel-invoices', { invoiceNumber: 'INV-1' });
+
+    const calls = vi.mocked(fetch).mock.calls;
+    const firstHeaders = calls[0]?.[1]?.headers as Record<string, string>;
+    const retryHeaders = calls[1]?.[1]?.headers as Record<string, string>;
+    expect(retryHeaders['Idempotency-Key']).toBe(firstHeaders['Idempotency-Key']);
+  });
+
+  it('reuses one stable key for multipart retries when the caller supplies a retry fingerprint', async () => {
+    const firstForm = new FormData();
+    firstForm.append('file', new Blob(['abc'], { type: 'text/plain' }), 'a.txt');
+    const secondForm = new FormData();
+    secondForm.append('file', new Blob(['abc'], { type: 'text/plain' }), 'a.txt');
+
+    vi.mocked(fetch)
+      .mockRejectedValueOnce(new TypeError('network disconnected'))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }));
+
+    await expect(api.upload('/upload', firstForm, {
+      retryFingerprint: 'multipart:a.txt:3:text/plain:1',
+    })).rejects.toThrow('network disconnected');
+    await api.upload('/upload', secondForm, {
+      retryFingerprint: 'multipart:a.txt:3:text/plain:1',
+    });
+
+    const calls = vi.mocked(fetch).mock.calls;
+    const firstHeaders = calls[0]?.[1]?.headers as Record<string, string>;
+    const retryHeaders = calls[1]?.[1]?.headers as Record<string, string>;
+    expect(retryHeaders['Idempotency-Key']).toBe(firstHeaders['Idempotency-Key']);
+  });
+
+  it('uses a caller-supplied multipart key unchanged', async () => {
+    const form = new FormData();
+    form.append('file', new Blob(['abc'], { type: 'text/plain' }), 'a.txt');
+
+    await api.upload('/upload/company-logo', form, {
+      idempotencyKey: 'company-logo-explicit-key',
+    });
+
+    const headers = vi.mocked(fetch).mock.calls[0]?.[1]?.headers as Record<string, string>;
+    expect(headers['Idempotency-Key']).toBe('company-logo-explicit-key');
   });
 
   it('does not attach a transaction key to reads', async () => {

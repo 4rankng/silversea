@@ -24,7 +24,11 @@ const salaryQueriesMock = vi.hoisted(() => ({
   useApproveReopenSalaryPeriod: vi.fn(),
   useReopenSalaryPeriod: vi.fn(),
   useIssueSalaryPeriod: vi.fn(),
+  useCheckIssueSalaryPeriod: vi.fn(),
+  useApproveIssueSalaryPeriod: vi.fn(),
   usePostSalaryPeriod: vi.fn(),
+  useCheckPostSalaryPeriod: vi.fn(),
+  useApprovePostSalaryPeriod: vi.fn(),
   useRequestPostCloseAdjustment: vi.fn(),
   useCheckPostCloseAdjustment: vi.fn(),
   useApprovePostCloseAdjustment: vi.fn(),
@@ -139,7 +143,11 @@ describe('SalaryAttendancePage Q11 post-close surface', () => {
     salaryQueriesMock.useApproveReopenSalaryPeriod.mockReturnValue(mutationStub());
     salaryQueriesMock.useReopenSalaryPeriod.mockReturnValue(mutationStub());
     salaryQueriesMock.useIssueSalaryPeriod.mockReturnValue(mutationStub());
+    salaryQueriesMock.useCheckIssueSalaryPeriod.mockReturnValue(mutationStub());
+    salaryQueriesMock.useApproveIssueSalaryPeriod.mockReturnValue(mutationStub());
     salaryQueriesMock.usePostSalaryPeriod.mockReturnValue(mutationStub());
+    salaryQueriesMock.useCheckPostSalaryPeriod.mockReturnValue(mutationStub());
+    salaryQueriesMock.useApprovePostSalaryPeriod.mockReturnValue(mutationStub());
     salaryQueriesMock.useRequestPostCloseAdjustment.mockReturnValue(mutationStub());
     salaryQueriesMock.useCheckPostCloseAdjustment.mockReturnValue(mutationStub());
     salaryQueriesMock.useApprovePostCloseAdjustment.mockReturnValue(mutationStub());

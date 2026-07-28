@@ -43,6 +43,9 @@ import { initAuditService } from '../services/audit.service';
 import { cacheInvalidate } from '../lib/redis';
 
 import shipmentRoutes from '../routes/shipments';
+import configRoutes from '../routes/config';
+import financialRoutes from '../routes/financial';
+import salaryRoutes from '../routes/salary';
 import { authMiddleware } from '../middleware/auth';
 import { casbinAuthz } from '../middleware/casbin';
 import { globalErrorHandler } from '../middleware/errorHandler';
@@ -71,6 +74,7 @@ let forwarderToken: string;
 let customerId: number;
 let routeId: number;
 let cargoTypeId: number;
+let secondaryCargoTypeId: number;
 let containerTypeId: number;
 let adminUserId: number;
 let managerUserId: number;
@@ -92,12 +96,24 @@ async function mkUser(username: string, role: Role) {
   return u;
 }
 
-function sign(u: { id: number; username: string | null; role: Role | string }) {
+function sign(u: {
+  id: number;
+  username: string | null;
+  role: Role | string;
+  customerId?: number | null;
+  customerIds?: number[];
+}) {
   // The DB inferSelect types `role` as a string-union (not the Role enum), but
   // the JWT payload is just the string value at runtime; cast for the type
   // bridge. Token shape must match `AuthUser` in middleware/auth.ts.
   return jwt.sign(
-    { userId: u.id, username: u.username ?? u.id.toString(), role: u.role as Role },
+    {
+      userId: u.id,
+      username: u.username ?? u.id.toString(),
+      role: u.role as Role,
+      customerId: u.customerId ?? null,
+      customerIds: u.customerIds,
+    },
     config.jwtSecret,
   );
 }
@@ -163,16 +179,39 @@ interface TestFetchOptions {
   method?: string;
   body?: unknown;
   token?: string;
+  idempotencyKey?: string;
 }
 
 async function testFetch(urlPath: string, options: TestFetchOptions = {}) {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (options.token) headers.Authorization = `Bearer ${options.token}`;
+  const method = options.method ?? 'GET';
+  if (method !== 'GET' && method !== 'HEAD') {
+    headers['Idempotency-Key'] = options.idempotencyKey
+      ?? `shipment-routes-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  }
   // The test app mounts the shipments router at `/api/shipments`; prefix every
   // call so test bodies read like the real client paths (e.g. `/`, `/:id`).
   const fullUrl = `${baseUrl}/api/shipments${urlPath}`;
   const res = await fetch(fullUrl, {
-    method: options.method ?? 'GET',
+    method,
+    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+    headers,
+  });
+  const data = await res.json().catch(() => ({}));
+  return { status: res.status, data };
+}
+
+async function apiFetch(urlPath: string, options: TestFetchOptions = {}) {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (options.token) headers.Authorization = `Bearer ${options.token}`;
+  const method = options.method ?? 'GET';
+  if (method !== 'GET' && method !== 'HEAD') {
+    headers['Idempotency-Key'] = options.idempotencyKey
+      ?? `shipment-routes-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  }
+  const res = await fetch(`${baseUrl}${urlPath}`, {
+    method,
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
     headers,
   });
@@ -187,6 +226,9 @@ before(async () => {
   const app = express();
   app.use(express.json());
   app.use('/api/shipments', authMiddleware, casbinAuthz('shipments'), shipmentRoutes);
+  app.use('/api', authMiddleware, casbinAuthz('config'), configRoutes);
+  app.use('/api', authMiddleware, casbinAuthz('financial'), financialRoutes);
+  app.use('/api/salary', authMiddleware, casbinAuthz('salary'), salaryRoutes);
   app.use(globalErrorHandler);
 
   await new Promise<void>((resolve) => {
@@ -230,10 +272,20 @@ before(async () => {
     userId: clerkUserId,
     businessUnitId: secondaryClerkBusinessUnitId,
   });
+  clerkToken = sign({
+    ...clerk,
+    customerId,
+    customerIds: [customerId],
+  });
   const catalogs = await mkCatalogs();
   routeId = catalogs.route.id;
   cargoTypeId = catalogs.cargoType.id;
   containerTypeId = catalogs.containerType.id;
+  const [secondaryCargoType] = await db.insert(s.cargoTypes)
+    .values({ name: `ShipmentRoute cargo alt ${suffix}` })
+    .returning();
+  createdCargoTypeIds.push(secondaryCargoType.id);
+  secondaryCargoTypeId = secondaryCargoType.id;
 
   // Fuel config is required by createTrip; ensure at least one row exists so
   // dispatch tests don't 500 on the missing-pricing path (price defaults to 0
@@ -568,6 +620,18 @@ describe('POST /', () => {
     createdShipmentIds.push(r.data.id);
   });
 
+  test('persists shipment cargo authority on create', async () => {
+    const r = await testFetch('/', {
+      method: 'POST',
+      token: adminToken,
+      body: { customerId, cargoTypeId },
+    });
+    assert.equal(r.status, 201);
+    assert.equal(r.data.customerId, customerId);
+    assert.equal(r.data.cargoTypeId, cargoTypeId);
+    createdShipmentIds.push(r.data.id);
+  });
+
   test('CLERK can create (write allowed)', async () => {
     const r = await testFetch('/', {
       method: 'POST',
@@ -684,6 +748,21 @@ describe('PUT /:id', () => {
     assert.equal(r.data.changeMode, 'DIRECT');
   });
 
+  test('updates draft cargo authority directly', async () => {
+    const shipment = await mkShipmentViaService({ cargoTypeId });
+    const r = await testFetch(`/${shipment.id}`, {
+      method: 'PUT',
+      token: adminToken,
+      body: {
+        expectedVersion: shipment.version,
+        cargoTypeId: secondaryCargoTypeId,
+      },
+    });
+    assert.equal(r.status, 200);
+    assert.equal(r.data.changeMode, 'DIRECT');
+    assert.equal(r.data.cargoTypeId, secondaryCargoTypeId);
+  });
+
   test('CLERK cannot read a legacy shipment without responsible unit', async () => {
     const shipment = await mkShipmentViaService({ responsibleUnitId: null });
     const r = await testFetch(`/${shipment.id}`, { token: clerkToken });
@@ -740,6 +819,30 @@ describe('PUT /:id', () => {
       .where(inArray(s.shipmentChangeRequests.shipmentId, [shipment.id]));
     assert.ok(request, 'change request persisted');
     assert.match(JSON.stringify(request.afterSnapshot), /responsibleUnitId/);
+  });
+
+  test('CLERK explicit dossier field matrix covers pickup, delivery and BL before dispatch', async () => {
+    const shipment = await mkClerkScopedShipmentViaService({
+      pickupLocation: 'Bãi cũ',
+      deliveryLocation: 'Kho cũ',
+      blNumber: null,
+    });
+
+    const r = await testFetch(`/${shipment.id}`, {
+      method: 'PUT',
+      token: clerkToken,
+      body: {
+        expectedVersion: shipment.version,
+        pickupLocation: 'Bãi mới',
+        deliveryLocation: 'Kho mới',
+        blNumber: 'BL-Q17-MATRIX',
+      },
+    });
+    assert.equal(r.status, 200);
+    assert.equal(r.data.changeMode, 'DIRECT');
+    assert.equal(r.data.pickupLocation, 'Bãi mới');
+    assert.equal(r.data.deliveryLocation, 'Kho mới');
+    assert.equal(r.data.blNumber, 'BL-Q17-MATRIX');
   });
 });
 
@@ -915,6 +1018,66 @@ describe('PUT /:id/containers', () => {
     const statuses = [first.status, second.status].sort();
     assert.deepEqual(statuses, [200, 409]);
   });
+
+  test('CLERK direct seal edits stay in-scope before dispatch, then become request-only after dispatch', async () => {
+    const { transitionShipmentStatus } = await import('../services/shipment.service');
+    const shipment = await mkClerkScopedShipmentViaService();
+
+    const draftSave = await testFetch(`/${shipment.id}/containers`, {
+      method: 'PUT',
+      token: clerkToken,
+      body: {
+        expectedVersion: shipment.version,
+        containers: [{
+          containerTypeId,
+          containerNumber: 'MSKU1234565',
+          sealNumber: 'SEAL-Q17-DRAFT',
+        }],
+      },
+    });
+    assert.equal(draftSave.status, 200);
+    assert.equal(draftSave.data.changeMode, 'DIRECT');
+    assert.equal(draftSave.data.items[0]?.sealNumber, 'SEAL-Q17-DRAFT');
+
+    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.IN_PROGRESS);
+    const draftContainer = draftSave.data.items[0];
+    const requestedSave = await testFetch(`/${shipment.id}/containers`, {
+      method: 'PUT',
+      token: clerkToken,
+      body: {
+        expectedVersion: dispatched.version,
+        containers: [{
+          id: draftContainer.id,
+          containerTypeId,
+          containerNumber: 'MSKU1234565',
+          sealNumber: 'SEAL-Q17-REQUEST',
+        }],
+      },
+    });
+    assert.equal(requestedSave.status, 200);
+    assert.equal(requestedSave.data.changeMode, 'REQUESTED');
+    assert.equal(requestedSave.data.notificationDelivered, true);
+
+    const detail = await testFetch(`/${shipment.id}`, { token: adminToken });
+    assert.equal(detail.status, 200);
+    assert.equal(detail.data.containers[0]?.sealNumber, 'SEAL-Q17-DRAFT');
+
+    const [request] = await db.select()
+      .from(s.shipmentChangeRequests)
+      .where(eq(s.shipmentChangeRequests.shipmentId, shipment.id));
+    assert.ok(request, 'container/seal edit persisted as a change request');
+    assert.match(JSON.stringify(request.afterSnapshot), /SEAL-Q17-REQUEST/);
+
+    const notifications = await db.select()
+      .from(s.notifications)
+      .where(and(
+        eq(s.notifications.relatedEntityType, 'shipments'),
+        eq(s.notifications.relatedEntityId, shipment.id),
+        inArray(s.notifications.userId, [adminUserId, managerUserId]),
+      ));
+    const recipientIds = notifications.map((row) => row.userId).sort((a, b) => a - b);
+    assert.deepEqual(recipientIds, [adminUserId, managerUserId]);
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1071,6 +1234,57 @@ describe('shipment declarations', () => {
   });
 });
 
+describe('Q17 explicit dossier subtype matrix', () => {
+  test('CLERK can create and replace a delivery order document and update a declaration inside scope', async () => {
+    const shipment = await mkClerkScopedShipmentViaService();
+    const created = await testFetch(`/${shipment.id}/documents`, {
+      method: 'POST',
+      token: clerkToken,
+      body: { type: ShipmentDocumentType.DO, storageKey: `uploads/shipment-${shipment.id}/do-q17-v1.pdf` },
+    });
+    assert.equal(created.status, 201);
+    assert.equal(created.data.type, ShipmentDocumentType.DO);
+
+    const replaced = await testFetch(`/${shipment.id}/documents/${created.data.id}/replace`, {
+      method: 'POST',
+      token: clerkToken,
+      body: {
+        expectedVersion: shipment.version,
+        storageKey: `uploads/shipment-${shipment.id}/do-q17-v2.pdf`,
+      },
+    });
+    assert.equal(replaced.status, 201);
+    assert.equal(replaced.data.type, ShipmentDocumentType.DO);
+    assert.equal(replaced.data.storageKey, `uploads/shipment-${shipment.id}/do-q17-v2.pdf`);
+
+    const declaration = await testFetch(`/${shipment.id}/declarations`, {
+      method: 'POST',
+      token: clerkToken,
+      body: {
+        declarationNumber: 'TK-Q17',
+        issuedAt: '2026-07-28T09:15:00.000Z',
+        scope: 'SHARED',
+        note: 'Khai mở',
+      },
+    });
+    assert.equal(declaration.status, 201);
+
+    const declarationUpdate = await testFetch(`/${shipment.id}/declarations/${declaration.data.id}`, {
+      method: 'PUT',
+      token: clerkToken,
+      body: {
+        declarationNumber: 'TK-Q17-UPDATED',
+        issuedAt: '2026-07-28T10:30:00.000Z',
+        scope: 'SINGLE',
+        note: 'Khai cập nhật',
+      },
+    });
+    assert.equal(declarationUpdate.status, 200);
+    assert.equal(declarationUpdate.data.declarationNumber, 'TK-Q17-UPDATED');
+    assert.equal(declarationUpdate.data.scope, 'SINGLE');
+  });
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Dispatch (shipment → linked trip)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1157,6 +1371,23 @@ describe('POST /:id/dispatch', () => {
     assert.match(r.data.error, /IN_PROGRESS/);
   });
 
+  test('rejects a dispatch cargo that mismatches the shipment authority', async () => {
+    const shipment = await mkShipmentViaService({ cargoTypeId });
+
+    const r = await testFetch(`/${shipment.id}/dispatch`, {
+      method: 'POST',
+      token: managerToken,
+      body: {
+        routeId,
+        cargoTypeId: secondaryCargoTypeId,
+        containerTypeId,
+        departureDate: '2026-08-05',
+      },
+    });
+    assert.equal(r.status, 409);
+    assert.match(r.data.error, /Loại hàng.*lô hàng nguồn/);
+  });
+
   test('rejects dispatch on a CANCELED shipment with 409', async () => {
     const { transitionShipmentStatus } = await import('../services/shipment.service');
     const shipment = await mkShipmentViaService();
@@ -1199,6 +1430,71 @@ describe('POST /:id/dispatch', () => {
     const live = linked.filter((t) => t.shipmentId === shipment.id);
     assert.equal(live.length, 1, 'exactly one live trip linked to the shipment');
     if (live[0]) createdTripIds.push(live[0].id);
+  });
+
+  test('concurrent draft cargo update vs dispatch leaves one coherent authority winner', async () => {
+    const shipment = await mkShipmentViaService({ cargoTypeId });
+    const updateBody = {
+      expectedVersion: shipment.version,
+      cargoTypeId: secondaryCargoTypeId,
+    };
+    const dispatchBody = {
+      routeId,
+      cargoTypeId,
+      containerTypeId,
+      departureDate: '2026-08-08',
+    };
+
+    const [updateResult, dispatchResult] = await Promise.all([
+      testFetch(`/${shipment.id}`, {
+        method: 'PUT',
+        token: adminToken,
+        body: updateBody,
+      }),
+      testFetch(`/${shipment.id}/dispatch`, {
+        method: 'POST',
+        token: managerToken,
+        body: dispatchBody,
+      }),
+    ]);
+
+    assert.ok([200, 409].includes(updateResult.status), `update status=${updateResult.status}`);
+    assert.ok([201, 409].includes(dispatchResult.status), `dispatch status=${dispatchResult.status}`);
+
+    const [finalShipment] = await db.select()
+      .from(s.shipments)
+      .where(eq(s.shipments.id, shipment.id))
+      .limit(1);
+    const liveTrips = await db.select()
+      .from(s.trips)
+      .where(and(
+        eq(s.trips.shipmentId, shipment.id),
+        inArray(s.trips.status, ['CREATED', 'IN_TRANSIT', 'COMPLETED', 'LOCKED']),
+      ));
+    const pendingRequests = await db.select({ id: s.shipmentChangeRequests.id })
+      .from(s.shipmentChangeRequests)
+      .where(eq(s.shipmentChangeRequests.shipmentId, shipment.id));
+
+    if (updateResult.status === 200) {
+      assert.equal(updateResult.data.changeMode, 'DIRECT');
+      assert.equal(dispatchResult.status, 409);
+      assert.equal(finalShipment?.cargoTypeId, secondaryCargoTypeId);
+      assert.equal(finalShipment?.status, ShipmentStatus.DRAFT);
+      assert.equal(liveTrips.length, 0);
+      assert.equal(pendingRequests.length, 0);
+      return;
+    }
+
+    assert.equal(updateResult.status, 409);
+    assert.equal(dispatchResult.status, 201);
+    assert.equal(finalShipment?.cargoTypeId, cargoTypeId);
+    assert.equal(finalShipment?.status, ShipmentStatus.IN_PROGRESS);
+    assert.equal(liveTrips.length, 1);
+    assert.equal(liveTrips[0]?.cargoTypeId, cargoTypeId);
+    assert.equal(pendingRequests.length, 0);
+    if (liveTrips[0] && !createdTripIds.includes(liveTrips[0].id)) {
+      createdTripIds.push(liveTrips[0].id);
+    }
   });
 });
 
@@ -1416,5 +1712,51 @@ describe('DELETE /:id', () => {
       token: managerToken,
     });
     assert.equal(r.status, 404);
+  });
+});
+
+describe('Q17 CLERK forbidden financial/configuration route matrix', () => {
+  test('authenticated CLERK requests are denied for representative price, cost, debt and salary mutations', async () => {
+    const cases = [
+      {
+        label: 'price config create',
+        method: 'POST',
+        path: '/api/pricing-tables',
+        body: {},
+      },
+      {
+        label: 'company cost fuel invoice create',
+        method: 'POST',
+        path: '/api/finance/fuel-invoices',
+        body: {},
+      },
+      {
+        label: 'carrier cost payment create',
+        method: 'POST',
+        path: '/api/payments/carrier',
+        body: {},
+      },
+      {
+        label: 'debt offset create',
+        method: 'POST',
+        path: '/api/finance/debt-offsets',
+        body: {},
+      },
+      {
+        label: 'salary period close',
+        method: 'POST',
+        path: '/api/salary/periods/2026-07/close',
+        body: {},
+      },
+    ] as const;
+
+    for (const c of cases) {
+      const response = await apiFetch(c.path, {
+        method: c.method,
+        token: clerkToken,
+        body: c.body,
+      });
+      assert.equal(response.status, 403, `${c.label} should deny CLERK over public HTTP`);
+    }
   });
 });
