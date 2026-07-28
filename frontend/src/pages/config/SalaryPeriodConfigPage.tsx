@@ -5,6 +5,7 @@ import { CalendarDays, Settings2, Info } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../../components/UI';
 import { useSalaryPeriodDefault, useUpdateSalaryPeriodDefault } from '../../hooks/useSalaryQueries';
+import { isGovernancePendingResponse } from '../../lib/governance';
 import './SalaryPeriodConfigPage.css';
 
 /** Describe the default rule in human language */
@@ -26,6 +27,7 @@ export default function SalaryPeriodConfigPage() {
   const [startDay, setStartDay] = useState(26);
   const [endDay, setEndDay] = useState(25);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (defaultConfig) {
@@ -45,11 +47,17 @@ export default function SalaryPeriodConfigPage() {
 
   async function saveDefault() {
     setSaveSuccess(false);
+    setSaveMessage(null);
     try {
       const s = mode === 'calendar' ? 1 : startDay;
       const e = mode === 'calendar' ? 31 : endDay;
-      await updateDefault.mutateAsync({ startDay: s, endDay: e });
+      const result = await updateDefault.mutateAsync({ startDay: s, endDay: e });
+      if (isGovernancePendingResponse(result)) {
+        setSaveMessage('Đã gửi yêu cầu cập nhật mặc định kỳ lương để kiểm tra và phê duyệt. Cấu hình hiện chưa thay đổi.');
+        return;
+      }
       setSaveSuccess(true);
+      setSaveMessage(null);
       setTimeout(() => setSaveSuccess(false), 2500);
     } catch {
       // Error surfaced via updateDefault.error state
@@ -205,6 +213,9 @@ export default function SalaryPeriodConfigPage() {
             </button>
             {saveSuccess && (
               <span className="sp-save-success">✓ Đã lưu thành công</span>
+            )}
+            {!saveSuccess && saveMessage && (
+              <span className="sp-save-success">{saveMessage}</span>
             )}
           </div>
 

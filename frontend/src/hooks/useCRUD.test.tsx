@@ -1,0 +1,122 @@
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const {
+  apiPostMock,
+  apiPutMock,
+  apiDeleteMock,
+  invalidateAllCatalogsMock,
+  toastMock,
+} = vi.hoisted(() => ({
+  apiPostMock: vi.fn(),
+  apiPutMock: vi.fn(),
+  apiDeleteMock: vi.fn(),
+  invalidateAllCatalogsMock: vi.fn(),
+  toastMock: vi.fn(),
+}));
+
+vi.mock('../lib/api', () => ({
+  api: {
+    post: apiPostMock,
+    put: apiPutMock,
+    delete: apiDeleteMock,
+  },
+}));
+
+vi.mock('../api/keys', () => ({
+  invalidateAllCatalogs: invalidateAllCatalogsMock,
+}));
+
+vi.mock('../components/shared/Toast', () => ({
+  useToast: () => ({ toast: toastMock }),
+}));
+
+import { useCRUD } from './useCRUD';
+
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+
+  return function Wrapper({ children }: { children: React.ReactNode }) {
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  };
+}
+
+describe('useCRUD pending governance UX', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    invalidateAllCatalogsMock.mockResolvedValue(undefined);
+  });
+
+  it('shows a truthful pending-review toast for governed updates', async () => {
+    const onRefresh = vi.fn().mockResolvedValue(undefined);
+    apiPutMock.mockResolvedValue({
+      id: 71,
+      status: 'PENDING_CHECK',
+      actionKind: 'PRICE_CONFIG_CHANGE',
+      version: 1,
+    });
+
+    const { result } = renderHook(
+      () => useCRUD('/pricing-tables', onRefresh),
+      { wrapper: createWrapper() },
+    );
+
+    act(() => {
+      result.current.setEditingId(71);
+    });
+
+    await act(async () => {
+      await result.current.doUpdate(71, { price: 2_100_000 });
+    });
+
+    expect(apiPutMock).toHaveBeenCalledWith('/pricing-tables/71', { price: 2_100_000 });
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+    expect(invalidateAllCatalogsMock).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(result.current.editingId).toBeNull();
+    });
+    expect(toastMock).toHaveBeenCalledWith({
+      kind: 'success',
+      message: 'Đã gửi yêu cầu cập nhật cấu hình để kiểm tra và phê duyệt. Cấu hình chưa thay đổi.',
+    });
+  });
+
+  it('keeps the normal success toast for direct creates', async () => {
+    const onRefresh = vi.fn().mockResolvedValue(undefined);
+    apiPostMock.mockResolvedValue({
+      id: 88,
+      name: 'Demo route',
+      updatedAt: '2026-07-28T12:00:00.000Z',
+    });
+
+    const { result } = renderHook(
+      () => useCRUD('/routes', onRefresh),
+      { wrapper: createWrapper() },
+    );
+
+    act(() => {
+      result.current.setShowAddForm(true);
+    });
+
+    await act(async () => {
+      await result.current.doCreate({ name: 'Demo route' });
+    });
+
+    expect(apiPostMock).toHaveBeenCalledWith('/routes', { name: 'Demo route' });
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+    expect(invalidateAllCatalogsMock).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(result.current.showAddForm).toBe(false);
+    });
+    expect(toastMock).toHaveBeenCalledWith({
+      kind: 'success',
+      message: 'Đã thêm cấu hình.',
+    });
+  });
+});

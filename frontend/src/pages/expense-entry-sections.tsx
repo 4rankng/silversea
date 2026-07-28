@@ -102,8 +102,8 @@ export function ExpensePhotoAside({ photos, uploading, isEdit, submitting, handl
                       ) : (
                         <div className="expense-upload-zone" style={{ cursor: 'default', opacity: 0.7 }}>
                           <Upload size={28} style={{ color: 'var(--ink-3)', marginBottom: 6 }} />
-                          <span style={{ fontSize: 14, color: 'var(--ink-3)', fontWeight: 500 }}>Lưu phiếu chi để đính kèm ảnh hóa đơn</span>
-                          <span style={{ fontSize: 12, color: 'var(--ink-4)', fontWeight: 400 }}>Ảnh được thêm sau khi tạo phiếu</span>
+                          <span style={{ fontSize: 14, color: 'var(--ink-3)', fontWeight: 500 }}>Gửi duyệt trước khi đính kèm ảnh hóa đơn</span>
+                          <span style={{ fontSize: 12, color: 'var(--ink-4)', fontWeight: 400 }}>Ảnh được thêm sau khi khoản chi được phê duyệt</span>
                         </div>
                       )}
                     </div>
@@ -127,7 +127,7 @@ export function ExpensePhotoAside({ photos, uploading, isEdit, submitting, handl
                       ) : isEdit ? (
                         <><Check size={18} /> Cập nhật</>
                       ) : (
-                        <><Plus size={18} /> Tạo phiếu chi</>
+                        <><Plus size={18} /> Gửi duyệt chi phí</>
                       )}
                     </button>
                   </div>

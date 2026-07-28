@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Save, Loader2 } from 'lucide-react';
 import { useRoadConfig, useSaveRoadConfig } from '../../hooks/useCatalogQueries';
 import { PageHeader, Panel } from '../../components/UI';
+import { isGovernancePendingResponse } from '../../lib/governance';
 import './config-page.css';
 
 export default function TripExpenseConfigPage() {
@@ -20,6 +21,7 @@ export default function TripExpenseConfigPage() {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (roadConfig) {
@@ -36,14 +38,19 @@ export default function TripExpenseConfigPage() {
   const handleSave = async () => {
     setSaving(true);
     setError(null);
+    setMessage(null);
     try {
-      await saveRoad.mutateAsync({
+      const result = await saveRoad.mutateAsync({
         tollPerStation: Number(form.tollPerStation),
         returnCargoBonus: Number(form.returnCargoBonus),
         defaultDriverSalary: Number(form.defaultDriverSalary),
         twoPointDeliveryBonus: Number(form.twoPointDeliveryBonus),
         vehicleShiftDefault: Number(form.vehicleShiftDefault),
       });
+      if (isGovernancePendingResponse(result)) {
+        setMessage('Đã gửi yêu cầu cập nhật chi phí chuyến đi để kiểm tra và phê duyệt. Cấu hình hiện chưa thay đổi.');
+        return;
+      }
       navigate('/config');
     } catch (e: unknown) { setError((e as Error)?.message || 'Lỗi lưu'); } finally { setSaving(false); }
   };
@@ -99,6 +106,7 @@ export default function TripExpenseConfigPage() {
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
             Lưu cấu hình
           </button>
+          {message && <span style={{ color: 'var(--success)', fontSize: 13 }}>{message}</span>}
           {error && <span style={{ color: 'var(--danger)', fontSize: 13 }}>{error}</span>}
         </div>
       </Panel>

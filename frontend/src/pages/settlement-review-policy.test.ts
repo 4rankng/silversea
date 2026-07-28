@@ -13,7 +13,7 @@ describe('advance-settlement maker/checker/approver UI policy', () => {
         checkedBy: null,
         forwarderId: 10,
       },
-    })).toEqual({ canEditAndCheck: true, canApprove: false });
+    })).toEqual({ canEditAndCheck: true, canApprove: false, canRequestApprovedGovernance: false });
   });
 
   it('lets a distinct financial reviewer approve a checked settlement', () => {
@@ -26,7 +26,7 @@ describe('advance-settlement maker/checker/approver UI policy', () => {
         checkedBy: 20,
         forwarderId: 10,
       },
-    })).toEqual({ canEditAndCheck: false, canApprove: true });
+    })).toEqual({ canEditAndCheck: false, canApprove: true, canRequestApprovedGovernance: false });
   });
 
   it.each([

@@ -15,6 +15,8 @@ import { authMiddleware } from '../middleware/auth';
 import { casbinAuthz } from '../middleware/casbin';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import financialRoutes from '../routes/financial';
+import { getFuelApReconciliation } from '../services/fuel-ap-recon.service';
+import { disconnectRedis } from '../lib/redis';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdUserIds: number[] = [];
@@ -27,11 +29,15 @@ const createdCustomerIds: number[] = [];
 const createdExpenseIds: number[] = [];
 const createdExpensePhotoIds: number[] = [];
 const createdFuelInvoiceIds: number[] = [];
+const createdGovernanceActionIds: number[] = [];
+const idempotencyKeys: string[] = [];
+let failpointCounter = 0;
 
 let server: http.Server;
 let baseUrl: string;
 let managerToken: string;
 let accountantToken: string;
+let adminToken: string;
 let driverToken: string;
 let customerToken: string;
 
@@ -98,6 +104,7 @@ async function mkTrip(supplierId: number, truckId: number) {
     cargoTypeId: cargo.id,
     status: 'COMPLETED',
     departureDate: '2026-07-20',
+    completedAt: new Date('2026-07-20T05:00:00.000Z'),
     carrierType: 'OWN',
     truckId,
     fuelSupplierId: supplierId,
@@ -117,18 +124,32 @@ async function mkExpense(opts: {
   declarationNumber?: string | null;
   approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
 }) {
-  const [expense] = await db.insert(s.tripExpenses).values({
-    tripId: opts.tripId,
-    expenseType: opts.expenseType,
-    buyAmount: opts.buyAmount ?? '2200000',
-    sellAmount: '0',
-    supplierId: opts.supplierId,
-    expenseDate: opts.expenseDate ?? '2026-07-20',
-    invoiceNumber: opts.invoiceNumber ?? null,
-    declarationNumber: opts.declarationNumber ?? null,
-    invoiceDate: '2026-07-20',
-    approvalStatus: opts.approvalStatus ?? 'APPROVED',
-  }).returning();
+  const [expense] = await db.execute<{ id: number }>(sql`
+    insert into trip_expenses (
+      trip_id,
+      expense_type,
+      buy_amount,
+      sell_amount,
+      supplier_id,
+      expense_date,
+      invoice_number,
+      invoice_date,
+      declaration_number,
+      approval_status
+    ) values (
+      ${opts.tripId},
+      ${opts.expenseType},
+      ${opts.buyAmount ?? '2200000'},
+      ${'0'},
+      ${opts.supplierId},
+      ${opts.expenseDate ?? '2026-07-20'},
+      ${opts.invoiceNumber ?? null},
+      ${'2026-07-20'},
+      ${opts.declarationNumber ?? null},
+      ${opts.approvalStatus ?? 'APPROVED'}
+    )
+    returning id
+  `);
   createdExpenseIds.push(expense.id);
   return expense;
 }
@@ -149,30 +170,108 @@ function sign(user: { id: number; username: string | null; role: Role | string }
   );
 }
 
-async function request(path: string, init: { method?: string; token: string; body?: unknown }) {
+async function request(path: string, init: { method?: string; token: string; body?: unknown; idempotencyKey?: string | null }) {
   const headers: Record<string, string> = { Authorization: `Bearer ${init.token}` };
   if (init.body !== undefined) headers['Content-Type'] = 'application/json';
+  const method = init.method ?? 'GET';
+  const idempotencyKey = method !== 'GET'
+    ? (init.idempotencyKey === null ? null : (init.idempotencyKey ?? `q06-${method}-${idempotencyKeys.length + 1}`))
+    : null;
+  if (idempotencyKey) {
+    headers['Idempotency-Key'] = idempotencyKey;
+    if (!idempotencyKeys.includes(idempotencyKey)) {
+      idempotencyKeys.push(idempotencyKey);
+    }
+  }
   const response = await fetch(`${baseUrl}${path}`, {
-    method: init.method ?? 'GET',
+    method,
     headers,
     body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
   });
   const body = await response.json().catch(() => ({}));
-  if (body?.id && typeof body.id === 'number' && !createdFuelInvoiceIds.includes(body.id)) {
-    createdFuelInvoiceIds.push(body.id);
+  if (body?.id && typeof body.id === 'number') {
+    if (
+      path.startsWith('/api/finance/fuel-invoices')
+      && !path.includes('/corrections')
+      && !createdFuelInvoiceIds.includes(body.id)
+    ) {
+      createdFuelInvoiceIds.push(body.id);
+    }
+    if (
+      (path.includes('/corrections') || path.includes('/governance-actions/') || body?.actionKind)
+      && !createdGovernanceActionIds.includes(body.id)
+    ) {
+      createdGovernanceActionIds.push(body.id);
+    }
   }
   return { status: response.status, body };
+}
+
+async function approveFuelInvoiceThroughGovernance(invoiceId: number, expectedVersion: number) {
+  const requested = await request(`/api/finance/fuel-invoices/${invoiceId}/approve`, {
+    method: 'POST',
+    token: managerToken,
+    body: { expectedVersion, reason: 'Đề nghị duyệt hóa đơn nhiên liệu đã đối soát' },
+  });
+  assert.equal(requested.status, 201, JSON.stringify(requested.body));
+  assert.equal(requested.body.status, 'PENDING_CHECK');
+
+  const checked = await request(`/api/governance-actions/${requested.body.id}/check`, {
+    method: 'POST',
+    token: accountantToken,
+    body: { expectedVersion: requested.body.version },
+  });
+  assert.equal(checked.status, 200, JSON.stringify(checked.body));
+
+  const approved = await request(`/api/governance-actions/${requested.body.id}/approve`, {
+    method: 'POST',
+    token: adminToken,
+    body: { expectedVersion: checked.body.version },
+  });
+  assert.equal(approved.status, 200, JSON.stringify(approved.body));
+  return { requested, checked, approved };
+}
+
+async function withIdempotencyInsertFailure(endpoint: string, idempotencyKey: string, run: () => Promise<void>) {
+  failpointCounter += 1;
+  const identSuffix = suffix.replace(/[^a-z0-9]+/gi, '_');
+  const functionName = `q06_fail_idempotency_insert_${identSuffix}_${failpointCounter}`;
+  const triggerName = `q06_fail_idempotency_insert_trg_${identSuffix}_${failpointCounter}`;
+  await db.execute(sql.raw(`
+    create function "${functionName}"() returns trigger
+    language plpgsql
+    as $$
+    begin
+      raise exception 'q06 simulated idempotency insert failure';
+    end;
+    $$;
+  `));
+  await db.execute(sql.raw(`
+    create trigger "${triggerName}"
+    before insert on idempotency_keys
+    for each row
+    when (new.endpoint = '${endpoint}' and new.idempotency_key = '${idempotencyKey}')
+    execute function "${functionName}"();
+  `));
+  try {
+    await run();
+  } finally {
+    await db.execute(sql.raw(`drop trigger if exists "${triggerName}" on idempotency_keys;`));
+    await db.execute(sql.raw(`drop function if exists "${functionName}"();`));
+  }
 }
 
 before(async () => {
   await initEnforcer();
   const manager = await mkUser(Role.MANAGER);
   const accountant = await mkUser(Role.ACCOUNTANT);
+  const admin = await mkUser(Role.ADMIN);
   const driver = await mkUser(Role.DRIVER);
   const customer = await mkUser(Role.CUSTOMER);
 
   managerToken = sign(manager);
   accountantToken = sign(accountant);
+  adminToken = sign(admin);
   driverToken = sign(driver);
   customerToken = sign(customer);
 
@@ -193,8 +292,14 @@ before(async () => {
 after(async () => {
   try {
     await new Promise<void>((resolve) => server.close(() => resolve()));
+    if (idempotencyKeys.length > 0) {
+      await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.idempotencyKey, idempotencyKeys));
+    }
     if (createdExpensePhotoIds.length > 0) {
       await db.delete(s.tripExpensePhotos).where(inArray(s.tripExpensePhotos.id, createdExpensePhotoIds));
+    }
+    if (createdGovernanceActionIds.length > 0) {
+      await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, createdGovernanceActionIds));
     }
     if (createdFuelInvoiceIds.length > 0) {
       await db.delete(s.fuelInvoices).where(inArray(s.fuelInvoices.id, createdFuelInvoiceIds));
@@ -224,6 +329,7 @@ after(async () => {
       await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
     }
   } finally {
+    await disconnectRedis();
     await client.end();
   }
 });
@@ -289,6 +395,7 @@ describe('Q06 fuel invoice routes', () => {
       method: 'PUT',
       token: managerToken,
       body: {
+        expectedVersion: created.body.version,
         supplierId: supplier.id,
         invoiceNumber: `HD-Q06-A-${suffix}`,
         invoiceDate: '2026-07-20',
@@ -340,7 +447,7 @@ describe('Q06 fuel invoice routes', () => {
     const missingEvidence = await request(`/api/finance/fuel-invoices/${created.body.id}/approve`, {
       method: 'POST',
       token: managerToken,
-      body: {},
+      body: { expectedVersion: created.body.version, reason: 'Đề nghị duyệt để kiểm tra chứng từ' },
     });
     assert.equal(missingEvidence.status, 400);
     assert.match(String(missingEvidence.body.error), /chưa liên kết chi phí nhiên liệu thực tế đã duyệt/i);
@@ -349,6 +456,7 @@ describe('Q06 fuel invoice routes', () => {
       method: 'PUT',
       token: accountantToken,
       body: {
+        expectedVersion: created.body.version,
         supplierId: supplier.id,
         invoiceNumber: `HD-Q06-B-${suffix}`,
         invoiceDate: '2026-07-21',
@@ -421,6 +529,7 @@ describe('Q06 fuel invoice routes', () => {
       method: 'PUT',
       token: accountantToken,
       body: {
+        expectedVersion: created.body.version,
         supplierId: supplier.id,
         invoiceNumber: `HD-Q06-C-${suffix}`,
         invoiceDate: '2026-07-22',
@@ -443,6 +552,7 @@ describe('Q06 fuel invoice routes', () => {
       method: 'PUT',
       token: accountantToken,
       body: {
+        expectedVersion: created.body.version,
         supplierId: supplier.id,
         invoiceNumber: `HD-Q06-C-${suffix}`,
         invoiceDate: '2026-07-22',
@@ -465,6 +575,7 @@ describe('Q06 fuel invoice routes', () => {
       method: 'PUT',
       token: accountantToken,
       body: {
+        expectedVersion: created.body.version,
         supplierId: supplier.id,
         invoiceNumber: `HD-Q06-C-${suffix}`,
         invoiceDate: '2026-07-22',
@@ -487,6 +598,7 @@ describe('Q06 fuel invoice routes', () => {
       method: 'PUT',
       token: accountantToken,
       body: {
+        expectedVersion: created.body.version,
         supplierId: supplier.id,
         invoiceNumber: `HD-Q06-C-${suffix}`,
         invoiceDate: '2026-07-22',
@@ -509,6 +621,7 @@ describe('Q06 fuel invoice routes', () => {
       method: 'PUT',
       token: accountantToken,
       body: {
+        expectedVersion: created.body.version,
         supplierId: supplier.id,
         invoiceNumber: `HD-Q06-C-${suffix}`,
         invoiceDate: '2026-07-22',
@@ -568,9 +681,440 @@ describe('Q06 fuel invoice routes', () => {
     const approved = await request(`/api/finance/fuel-invoices/${created.body.id}/approve`, {
       method: 'POST',
       token: managerToken,
-      body: {},
+      body: { expectedVersion: created.body.version, reason: 'Đề nghị duyệt để kiểm tra chứng từ' },
     });
     assert.equal(approved.status, 400);
     assert.match(String(approved.body.error), /chưa có số hóa đơn\/tờ khai và cũng chưa có ảnh phiếu bơm hoặc chứng từ/i);
+  });
+
+  test('Q23 fuel invoice boundary requires a key, rejects stale writes, replays exact commands, and lets the first approval win', async () => {
+    const supplier = await mkSupplier();
+    const truck = await mkTruck();
+    const trip = await mkTrip(supplier.id, truck.id);
+    const approvedFuelExpense = await mkExpense({
+      tripId: trip.id,
+      supplierId: supplier.id,
+      expenseType: 'FUEL_DIESEL',
+      expenseDate: '2026-07-24',
+      invoiceNumber: `PXD-Q23-${suffix}-AUTH`,
+      approvalStatus: 'APPROVED',
+    });
+
+    const missingKey = await request('/api/finance/fuel-invoices', {
+      method: 'POST',
+      token: accountantToken,
+      idempotencyKey: null,
+      body: {
+        supplierId: supplier.id,
+        invoiceNumber: `HD-Q23-MISS-${suffix}`,
+        invoiceDate: '2026-07-24',
+        totalLiters: 100,
+        unitPrice: 22000,
+        allocations: [{
+          tripId: trip.id,
+          truckId: truck.id,
+          tripExpenseId: approvedFuelExpense.id,
+          voucherReference: `PXD-Q23-${suffix}-AUTH`,
+          voucherDate: '2026-07-24',
+          liters: 100,
+        }],
+      },
+    });
+    assert.equal(missingKey.status, 400);
+    assert.match(String(missingKey.body.error), /Idempotency-Key/i);
+
+    const createKey = `q23-fuel-create-${trip.id}`;
+    const createBody = {
+      supplierId: supplier.id,
+      invoiceNumber: `HD-Q23-${suffix}`,
+      invoiceDate: '2026-07-24',
+      totalLiters: 100,
+      unitPrice: 22000,
+      allocations: [{
+        tripId: trip.id,
+        truckId: truck.id,
+        tripExpenseId: approvedFuelExpense.id,
+        voucherReference: `PXD-Q23-${suffix}-AUTH`,
+        voucherDate: '2026-07-24',
+        liters: 100,
+      }],
+    };
+    const created = await request('/api/finance/fuel-invoices', {
+      method: 'POST',
+      token: accountantToken,
+      idempotencyKey: createKey,
+      body: createBody,
+    });
+    assert.equal(created.status, 201);
+
+    const replayedCreate = await request('/api/finance/fuel-invoices', {
+      method: 'POST',
+      token: accountantToken,
+      idempotencyKey: createKey,
+      body: createBody,
+    });
+    assert.equal(replayedCreate.status, 201);
+    assert.equal(replayedCreate.body.replayed, true);
+    assert.equal(replayedCreate.body.id, created.body.id);
+
+    const createDrift = await request('/api/finance/fuel-invoices', {
+      method: 'POST',
+      token: accountantToken,
+      idempotencyKey: createKey,
+      body: { ...createBody, note: 'Đổi payload cùng khóa' },
+    });
+    assert.equal(createDrift.status, 409);
+    assert.match(String(createDrift.body.error), /Khóa giao dịch trùng/i);
+
+    const updateKey = `q23-fuel-update-${created.body.id}`;
+    const updated = await request(`/api/finance/fuel-invoices/${created.body.id}`, {
+      method: 'PUT',
+      token: accountantToken,
+      idempotencyKey: updateKey,
+      body: {
+        expectedVersion: created.body.version,
+        ...createBody,
+        note: 'Cập nhật trước khi duyệt',
+      },
+    });
+    assert.equal(updated.status, 200);
+    assert.equal(updated.body.note, 'Cập nhật trước khi duyệt');
+
+    const replayedUpdate = await request(`/api/finance/fuel-invoices/${created.body.id}`, {
+      method: 'PUT',
+      token: accountantToken,
+      idempotencyKey: updateKey,
+      body: {
+        expectedVersion: created.body.version,
+        ...createBody,
+        note: 'Cập nhật trước khi duyệt',
+      },
+    });
+    assert.equal(replayedUpdate.status, 200);
+    assert.equal(replayedUpdate.body.replayed, true);
+    assert.equal(replayedUpdate.body.id, created.body.id);
+
+    const updateDrift = await request(`/api/finance/fuel-invoices/${created.body.id}`, {
+      method: 'PUT',
+      token: accountantToken,
+      idempotencyKey: updateKey,
+      body: {
+        expectedVersion: created.body.version,
+        ...createBody,
+        note: 'Đã đổi ghi chú',
+      },
+    });
+    assert.equal(updateDrift.status, 409);
+    assert.match(String(updateDrift.body.error), /Khóa giao dịch trùng/i);
+
+    const staleUpdate = await request(`/api/finance/fuel-invoices/${created.body.id}`, {
+      method: 'PUT',
+      token: accountantToken,
+      body: {
+        expectedVersion: created.body.version,
+        ...createBody,
+        note: 'Phiên bản cũ',
+      },
+    });
+    assert.equal(staleUpdate.status, 409);
+    assert.match(String(staleUpdate.body.error), /Vui lòng tải lại/i);
+
+    const approveVersion = updated.body.version;
+    const [approvalRequestA, approvalRequestB] = await Promise.all([
+      request(`/api/finance/fuel-invoices/${created.body.id}/approve`, {
+        method: 'POST',
+        token: managerToken,
+        idempotencyKey: `q23-fuel-approve-a-${created.body.id}`,
+        body: { expectedVersion: approveVersion, reason: 'Đề nghị duyệt hóa đơn A' },
+      }),
+      request(`/api/finance/fuel-invoices/${created.body.id}/approve`, {
+        method: 'POST',
+        token: managerToken,
+        idempotencyKey: `q23-fuel-approve-b-${created.body.id}`,
+        body: { expectedVersion: approveVersion, reason: 'Đề nghị duyệt hóa đơn B' },
+      }),
+    ]);
+    const statuses = [approvalRequestA.status, approvalRequestB.status].sort((a, b) => a - b);
+    assert.deepEqual(statuses, [201, 409]);
+    const approvalRequest = approvalRequestA.status === 201 ? approvalRequestA : approvalRequestB;
+
+    const pending = await request(`/api/finance/fuel-invoices/${created.body.id}`, {
+      token: managerToken,
+    });
+    assert.equal(pending.status, 200);
+    assert.equal(pending.body.approvalStatus, 'PENDING');
+
+    const checked = await request(`/api/governance-actions/${approvalRequest.body.id}/check`, {
+      method: 'POST',
+      token: accountantToken,
+      body: { expectedVersion: approvalRequest.body.version },
+    });
+    assert.equal(checked.status, 200);
+    const approved = await request(`/api/governance-actions/${approvalRequest.body.id}/approve`, {
+      method: 'POST',
+      token: adminToken,
+      body: { expectedVersion: checked.body.version },
+    });
+    assert.equal(approved.status, 200);
+
+    const stored = await request(`/api/finance/fuel-invoices/${created.body.id}`, { token: managerToken });
+    assert.equal(stored.body.approvalStatus, 'APPROVED');
+  });
+
+  test('Q18 approved invoice stays immutable while governed adjustment and reversal require three distinct actors', async () => {
+    const supplier = await mkSupplier();
+    const truck = await mkTruck();
+    const trip = await mkTrip(supplier.id, truck.id);
+    const expense = await mkExpense({
+      tripId: trip.id,
+      supplierId: supplier.id,
+      expenseType: 'FUEL_DIESEL',
+      expenseDate: '2026-07-25',
+      invoiceNumber: `PXD-Q18-${suffix}`,
+      approvalStatus: 'APPROVED',
+    });
+    const invoiceBody = {
+      supplierId: supplier.id,
+      invoiceNumber: `HD-Q18-${suffix}`,
+      invoiceDate: '2026-07-25',
+      totalLiters: 100,
+      unitPrice: 22000,
+      note: 'Hóa đơn gốc đã duyệt',
+      allocations: [{
+        tripId: trip.id,
+        truckId: truck.id,
+        tripExpenseId: expense.id,
+        voucherReference: `PXD-Q18-${suffix}`,
+        voucherDate: '2026-07-25',
+        liters: 100,
+      }],
+    };
+    const created = await request('/api/finance/fuel-invoices', {
+      method: 'POST',
+      token: accountantToken,
+      body: invoiceBody,
+    });
+    assert.equal(created.status, 201);
+    await approveFuelInvoiceThroughGovernance(created.body.id, created.body.version);
+    const approvedInvoice = await request(`/api/finance/fuel-invoices/${created.body.id}`, {
+      token: managerToken,
+    });
+    assert.equal(approvedInvoice.status, 200);
+
+    const directUpdate = await request(`/api/finance/fuel-invoices/${created.body.id}`, {
+      method: 'PUT',
+      token: accountantToken,
+      body: {
+        expectedVersion: approvedInvoice.body.version,
+        ...invoiceBody,
+        totalLiters: 110,
+      },
+    });
+    assert.equal(directUpdate.status, 409);
+    assert.match(String(directUpdate.body.error), /chỉ được sửa.*đang chờ duyệt/i);
+
+    const correctionKey = `q18-fuel-adjust-${created.body.id}`;
+    const correctionBody = {
+      correctionType: 'ADJUSTMENT',
+      expectedVersion: approvedInvoice.body.version,
+      reason: 'Điều chỉnh tổng lít theo biên bản đối soát',
+      correctedInvoice: {
+        ...invoiceBody,
+        totalLiters: 110,
+        note: 'Điều chỉnh theo biên bản đối soát',
+      },
+    };
+    const correction = await request(`/api/finance/fuel-invoices/${created.body.id}/corrections`, {
+      method: 'POST',
+      token: accountantToken,
+      idempotencyKey: correctionKey,
+      body: correctionBody,
+    });
+    assert.equal(correction.status, 201);
+    assert.equal(correction.body.status, 'PENDING_CHECK');
+    assert.equal(correction.body.beforeSnapshot.invoice.totalLiters, 100);
+    assert.equal(correction.body.afterSnapshot.invoice.totalLiters, 110);
+
+    const correctionReplay = await request(`/api/finance/fuel-invoices/${created.body.id}/corrections`, {
+      method: 'POST',
+      token: accountantToken,
+      idempotencyKey: correctionKey,
+      body: correctionBody,
+    });
+    assert.equal(correctionReplay.status, 201);
+    assert.equal(correctionReplay.body.replayed, true);
+    assert.equal(correctionReplay.body.id, correction.body.id);
+
+    const makerCannotCheck = await request(`/api/governance-actions/${correction.body.id}/check`, {
+      method: 'POST',
+      token: accountantToken,
+      body: { expectedVersion: correction.body.version },
+    });
+    assert.equal(makerCannotCheck.status, 403);
+
+    const checked = await request(`/api/governance-actions/${correction.body.id}/check`, {
+      method: 'POST',
+      token: managerToken,
+      body: { expectedVersion: correction.body.version },
+    });
+    assert.equal(checked.status, 200);
+    assert.equal(checked.body.status, 'PENDING_APPROVAL');
+
+    const checkerCannotApprove = await request(`/api/governance-actions/${correction.body.id}/approve`, {
+      method: 'POST',
+      token: managerToken,
+      body: { expectedVersion: checked.body.version },
+    });
+    assert.equal(checkerCannotApprove.status, 403);
+
+    const approveKey = `q18-fuel-adjust-approve-${correction.body.id}`;
+    const approvalKeys = [approveKey, `${approveKey}-race`];
+    const approvalResults = await Promise.all(approvalKeys.map((idempotencyKey) =>
+      request(`/api/governance-actions/${correction.body.id}/approve`, {
+        method: 'POST',
+        token: adminToken,
+        idempotencyKey,
+        body: { expectedVersion: checked.body.version },
+      }),
+    ));
+    assert.deepEqual(
+      approvalResults.map((result) => result.status).sort((left, right) => left - right),
+      [200, 409],
+    );
+    const winningApprovalIndex = approvalResults.findIndex((result) => result.status === 200);
+    assert.notEqual(winningApprovalIndex, -1);
+    const approvalReplay = await request(`/api/governance-actions/${correction.body.id}/approve`, {
+      method: 'POST',
+      token: adminToken,
+      idempotencyKey: approvalKeys[winningApprovalIndex]!,
+      body: { expectedVersion: checked.body.version },
+    });
+    assert.equal(approvalReplay.status, 200);
+    assert.equal(approvalReplay.body.replayed, true);
+
+    const effective = await request(`/api/finance/fuel-invoices/${created.body.id}`, {
+      token: managerToken,
+    });
+    assert.equal(effective.status, 200);
+    assert.equal(effective.body.totalLiters, 110);
+    assert.equal(effective.body.note, 'Điều chỉnh theo biên bản đối soát');
+    assert.equal(effective.body.effectiveCorrection.correctionType, 'ADJUSTMENT');
+    const adjustedReconciliation = await getFuelApReconciliation({
+      from: '2026-07-25',
+      to: '2026-07-25',
+      supplierId: supplier.id,
+    });
+    assert.equal(adjustedReconciliation.totals.invoicedFuelCost, 2_200_000);
+
+    const [immutableOriginal] = await db.select().from(s.fuelInvoices)
+      .where(eq(s.fuelInvoices.id, created.body.id));
+    assert.equal(Number(immutableOriginal.totalLiters), 100);
+    assert.equal(immutableOriginal.note, 'Hóa đơn gốc đã duyệt');
+    assert.equal(immutableOriginal.approvalStatus, 'APPROVED');
+
+    const staleCorrection = await request(`/api/finance/fuel-invoices/${created.body.id}/corrections`, {
+      method: 'POST',
+      token: accountantToken,
+      body: {
+        correctionType: 'REVERSAL',
+        expectedVersion: approvedInvoice.body.version,
+        reason: 'Phiên bản nguồn cũ',
+      },
+    });
+    assert.equal(staleCorrection.status, 409);
+    assert.match(String(staleCorrection.body.error), /tải lại/i);
+
+    const reversal = await request(`/api/finance/fuel-invoices/${created.body.id}/corrections`, {
+      method: 'POST',
+      token: accountantToken,
+      body: {
+        correctionType: 'REVERSAL',
+        expectedVersion: effective.body.version,
+        reason: 'Hoàn tác hóa đơn do nhà cung cấp hủy chứng từ',
+      },
+    });
+    assert.equal(reversal.status, 201);
+    const reversalChecked = await request(`/api/governance-actions/${reversal.body.id}/check`, {
+      method: 'POST',
+      token: managerToken,
+      body: { expectedVersion: reversal.body.version },
+    });
+    assert.equal(reversalChecked.status, 200);
+    const reversalApproved = await request(`/api/governance-actions/${reversal.body.id}/approve`, {
+      method: 'POST',
+      token: adminToken,
+      body: { expectedVersion: reversalChecked.body.version },
+    });
+    assert.equal(reversalApproved.status, 200);
+
+    const reversed = await request(`/api/finance/fuel-invoices/${created.body.id}`, {
+      token: managerToken,
+    });
+    assert.equal(reversed.status, 200);
+    assert.equal(reversed.body.approvalStatus, 'REVERSED');
+    assert.equal(reversed.body.effectiveCorrection.correctionType, 'REVERSAL');
+    const reversedReconciliation = await getFuelApReconciliation({
+      from: '2026-07-25',
+      to: '2026-07-25',
+      supplierId: supplier.id,
+    });
+    assert.equal(reversedReconciliation.totals.invoicedFuelCost, 0);
+
+    const [stillImmutable] = await db.select().from(s.fuelInvoices)
+      .where(eq(s.fuelInvoices.id, created.body.id));
+    assert.equal(Number(stillImmutable.totalLiters), 100);
+    assert.equal(stillImmutable.approvalStatus, 'APPROVED');
+  });
+
+  test('fuel invoice create rolls back when idempotency persistence fails after the business callback', async () => {
+    const supplier = await mkSupplier();
+    const truck = await mkTruck();
+    const trip = await mkTrip(supplier.id, truck.id);
+    const expense = await mkExpense({
+      tripId: trip.id,
+      supplierId: supplier.id,
+      expenseType: 'FUEL_DIESEL',
+      expenseDate: '2026-07-20',
+      invoiceNumber: 'PXD-Q23-ROLLBACK',
+      approvalStatus: 'APPROVED',
+    });
+    await mkExpensePhoto(expense.id);
+
+    const invoiceNumber = `HD-Q23-ROLLBACK-${suffix}`.slice(0, 50);
+    const createKey = `q23-fuel-fail-${supplier.id}`;
+
+    await withIdempotencyInsertFailure('fuel-invoices.create', createKey, async () => {
+      const response = await request('/api/finance/fuel-invoices', {
+        method: 'POST',
+        token: accountantToken,
+        idempotencyKey: createKey,
+        body: {
+          supplierId: supplier.id,
+          invoiceNumber,
+          invoiceDate: '2026-07-20',
+          totalLiters: 100,
+          unitPrice: 22000,
+          allocations: [{
+            tripId: trip.id,
+            truckId: truck.id,
+            tripExpenseId: expense.id,
+            voucherReference: 'PXD-Q23-ROLLBACK',
+            voucherDate: '2026-07-20',
+            liters: 100,
+          }],
+        },
+      });
+      assert.equal(response.status, 500);
+    });
+
+    const storedInvoices = await db.select()
+      .from(s.fuelInvoices)
+      .where(eq(s.fuelInvoices.invoiceNumber, invoiceNumber));
+    assert.equal(storedInvoices.length, 0);
+
+    const storedKeys = await db.select()
+      .from(s.idempotencyKeys)
+      .where(eq(s.idempotencyKeys.idempotencyKey, createKey));
+    assert.equal(storedKeys.length, 0);
   });
 });

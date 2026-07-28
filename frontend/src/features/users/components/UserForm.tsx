@@ -45,11 +45,9 @@ function IconInput({ icon, value, onChange, placeholder, type = 'text', autoComp
 
 // ── Driver Fields (shared by Add/Edit panels, shown when role === DRIVER) ───
 
-function DriverFields({ baseSalary, setBaseSalary, socialInsurance, setSocialInsurance, assignedTruckId, setAssignedTruckId, truckList }: {
+function DriverFields({ baseSalary, socialInsurance, assignedTruckId, setAssignedTruckId, truckList }: {
   baseSalary: string;
-  setBaseSalary: (v: string) => void;
   socialInsurance: string;
-  setSocialInsurance: (v: string) => void;
   assignedTruckId: number | null;
   setAssignedTruckId: (v: number | null) => void;
   truckList: Truck[];
@@ -60,26 +58,15 @@ function DriverFields({ baseSalary, setBaseSalary, socialInsurance, setSocialIns
       <div className="users-form-section__title"><TruckIcon size={12} /> Thông tin lái xe</div>
       <div className="users-form-cards users-form-cards--driver">
         <div className="users-form-card">
-          <FormGroup label="Lương cơ bản (đ)">
-            <input
-              className="input"
-              type="number"
-              min={0}
-              value={baseSalary}
-              onChange={e => setBaseSalary(e.target.value)}
-              placeholder="0"
-            />
-          </FormGroup>
-          <FormGroup label="BHXH / BHYT (đ)">
-            <input
-              className="input"
-              type="number"
-              min={0}
-              value={socialInsurance}
-              onChange={e => setSocialInsurance(e.target.value)}
-              placeholder="0"
-            />
-          </FormGroup>
+          <div className="users-customer-scope__help">
+            Lương cơ bản và BHXH của lái xe được quản lý ở Cấu hình lái xe để đi qua quy trình kiểm tra và phê duyệt. Trang Người dùng chỉ đổi tài khoản và xe phân công.
+          </div>
+          {(baseSalary || socialInsurance) && (
+            <div className="users-customer-scope__summary">
+              {baseSalary ? `Lương hiện tại: ${baseSalary}` : 'Chưa có lương cấu hình'}
+              {socialInsurance ? ` · BHXH/BHYT: ${socialInsurance}` : ''}
+            </div>
+          )}
         </div>
         <div className="users-form-card">
           <FormGroup label="Xe phân công">
@@ -353,9 +340,11 @@ export function EditPanel({
   const pwError = password.length > 0 && !pwValid;
   const customerScopeRequired = role === Role.CUSTOMER && status !== 'INACTIVE';
   const clerkScopeRequired = role === Role.CLERK && status !== 'INACTIVE';
+  const forwarderScopeRequired = role === Role.FORWARDER && status !== 'INACTIVE';
   const clerkScopeInvalid = clerkScopeRequired && (
     businessUnitIds.length === 0 || (customerIds.length === 0 && shipmentIds.length === 0)
   );
+  const forwarderScopeInvalid = forwarderScopeRequired && shipmentIds.length === 0;
   const businessUnitOptions: SelectionOption[] = businessUnits.map((unit) => ({
     id: unit.id,
     title: unit.name,
@@ -376,11 +365,13 @@ export function EditPanel({
   const handleSubmit = async () => {
     if (customerScopeRequired && customerIds.length === 0) return;
     if (clerkScopeInvalid) return;
+    if (forwarderScopeInvalid) return;
     const payload: EditData = { fullName, username, email, phone, role, status, password };
     if (role === Role.DRIVER) {
       payload.baseSalary = baseSalary;
       payload.socialInsurance = socialInsurance;
       payload.assignedTruckId = assignedTruckId;
+      if (canManageClerkScope) payload.businessUnitIds = businessUnitIds;
     }
     if (role === Role.CUSTOMER) {
       payload.customerIds = customerIds;
@@ -390,6 +381,9 @@ export function EditPanel({
       payload.customerIds = customerIds;
       payload.customerId = customerIds[0] ?? null;
       payload.businessUnitIds = businessUnitIds;
+      payload.shipmentIds = shipmentIds;
+    }
+    if (role === Role.FORWARDER && canManageClerkScope) {
       payload.shipmentIds = shipmentIds;
     }
     if (role === Role.ACCOUNTANT && canManageClerkScope) {
@@ -500,12 +494,30 @@ export function EditPanel({
 
       {/* Driver profile fields (only for DRIVER role) */}
       {role === Role.DRIVER && (
-        <DriverFields
-          baseSalary={baseSalary} setBaseSalary={setBaseSalary}
-          socialInsurance={socialInsurance} setSocialInsurance={setSocialInsurance}
-          assignedTruckId={assignedTruckId} setAssignedTruckId={setAssignedTruckId}
-          truckList={truckList}
-        />
+        <>
+          <DriverFields
+            baseSalary={baseSalary}
+            socialInsurance={socialInsurance}
+            assignedTruckId={assignedTruckId} setAssignedTruckId={setAssignedTruckId}
+            truckList={truckList}
+          />
+          {!canEditDriversOnly && canManageClerkScope && (
+            <SelectionScopeFields
+              title="Đơn vị tính lương"
+              icon={<Building2 size={12} />}
+              helpText="Gán các đơn vị mà lái xe thuộc về để chốt lương theo đơn vị được cấu hình ở Cài đặt ứng dụng. Có thể để trống nếu lái xe vẫn thuộc phạm vi lương toàn công ty."
+              searchPlaceholder="Tìm đơn vị theo tên hoặc mã"
+              ariaLabel="Đơn vị tính lương của lái xe"
+              options={businessUnitOptions}
+              selectedIds={businessUnitIds}
+              setSelectedIds={setBusinessUnitIds}
+              required={false}
+              requiredMessage="Cần chọn ít nhất một đơn vị tính lương."
+              emptyText="Không tìm thấy đơn vị phù hợp."
+              summaryLabel="Đã chọn"
+            />
+          )}
+        </>
       )}
 
       {role === Role.CUSTOMER && !canEditDriversOnly && (
@@ -530,6 +542,26 @@ export function EditPanel({
       )}
       {role === Role.ACCOUNTANT && !canEditDriversOnly && !canManageClerkScope && (
         <div className="users-error-banner">Chỉ quản trị viên mới có thể chỉnh phạm vi khách hàng của kế toán.</div>
+      )}
+
+      {role === Role.FORWARDER && !canEditDriversOnly && canManageClerkScope && (
+        <SelectionScopeFields
+          title="Lô hàng được giao"
+          icon={<Package size={12} />}
+          helpText="Nhân viên giao nhận chỉ xem và cập nhật các chuyến thuộc những lô hàng được giao tại đây."
+          searchPlaceholder="Tìm theo mã lô hoặc khách hàng"
+          ariaLabel="Lô hàng được giao cho nhân viên giao nhận"
+          options={shipmentSelectionOptions}
+          selectedIds={shipmentIds}
+          setSelectedIds={setShipmentIds}
+          required={forwarderScopeRequired}
+          requiredMessage="Cần chọn ít nhất một lô hàng cho nhân viên giao nhận."
+          emptyText="Không tìm thấy lô hàng phù hợp."
+          summaryLabel="Đã chọn"
+        />
+      )}
+      {role === Role.FORWARDER && !canEditDriversOnly && !canManageClerkScope && (
+        <div className="users-error-banner">Chỉ quản trị viên mới có thể chỉnh lô hàng của nhân viên giao nhận.</div>
       )}
 
       {role === Role.CLERK && !canEditDriversOnly && canManageClerkScope && (
@@ -670,6 +702,7 @@ export function AddPanel({
   const clerkScopeInvalid = role === Role.CLERK && (
     businessUnitIds.length === 0 || (customerIds.length === 0 && shipmentIds.length === 0)
   );
+  const forwarderScopeInvalid = role === Role.FORWARDER && shipmentIds.length === 0;
   const businessUnitOptions: SelectionOption[] = businessUnits.map((unit) => ({
     id: unit.id,
     title: unit.name,
@@ -689,11 +722,13 @@ export function AddPanel({
   const handleSubmit = async () => {
     if (role === Role.CUSTOMER && customerIds.length === 0) return;
     if (clerkScopeInvalid) return;
+    if (forwarderScopeInvalid) return;
     const payload: CreateData = { fullName, username, email, phone, role, password };
     if (role === Role.DRIVER) {
       payload.baseSalary = baseSalary;
       payload.socialInsurance = socialInsurance;
       payload.assignedTruckId = assignedTruckId;
+      if (canManageClerkScope) payload.businessUnitIds = businessUnitIds;
     }
     if (role === Role.CUSTOMER) {
       payload.customerIds = customerIds;
@@ -703,6 +738,9 @@ export function AddPanel({
       payload.customerIds = customerIds;
       payload.customerId = customerIds[0] ?? null;
       payload.businessUnitIds = businessUnitIds;
+      payload.shipmentIds = shipmentIds;
+    }
+    if (role === Role.FORWARDER && canManageClerkScope) {
       payload.shipmentIds = shipmentIds;
     }
     if (role === Role.ACCOUNTANT && canManageClerkScope) {
@@ -828,12 +866,30 @@ export function AddPanel({
 
       {/* Driver profile fields (only for DRIVER role) */}
       {role === Role.DRIVER && (
-        <DriverFields
-          baseSalary={baseSalary} setBaseSalary={setBaseSalary}
-          socialInsurance={socialInsurance} setSocialInsurance={setSocialInsurance}
-          assignedTruckId={assignedTruckId} setAssignedTruckId={setAssignedTruckId}
-          truckList={truckList}
-        />
+        <>
+          <DriverFields
+            baseSalary={baseSalary}
+            socialInsurance={socialInsurance}
+            assignedTruckId={assignedTruckId} setAssignedTruckId={setAssignedTruckId}
+            truckList={truckList}
+          />
+          {canManageClerkScope && (
+            <SelectionScopeFields
+              title="Đơn vị tính lương"
+              icon={<Building2 size={12} />}
+              helpText="Gán đơn vị cho lái xe để chốt lương theo phạm vi đơn vị ở Cài đặt ứng dụng. Có thể bỏ trống nếu lái xe vẫn thuộc phạm vi lương toàn công ty."
+              searchPlaceholder="Tìm đơn vị theo tên hoặc mã"
+              ariaLabel="Đơn vị tính lương của lái xe"
+              options={businessUnitOptions}
+              selectedIds={businessUnitIds}
+              setSelectedIds={setBusinessUnitIds}
+              required={false}
+              requiredMessage="Cần chọn ít nhất một đơn vị tính lương."
+              emptyText="Không tìm thấy đơn vị phù hợp."
+              summaryLabel="Đã chọn"
+            />
+          )}
+        </>
       )}
 
       {role === Role.CUSTOMER && (
@@ -857,6 +913,26 @@ export function AddPanel({
       )}
       {role === Role.ACCOUNTANT && !canManageClerkScope && (
         <div className="users-error-banner">Chỉ quản trị viên mới có thể gán phạm vi khách hàng cho kế toán.</div>
+      )}
+
+      {role === Role.FORWARDER && canManageClerkScope && (
+        <SelectionScopeFields
+          title="Lô hàng được giao"
+          icon={<Package size={12} />}
+          helpText="Chọn ít nhất một lô hàng. Nhân viên giao nhận chỉ được mở và cập nhật các chuyến thuộc phạm vi này."
+          searchPlaceholder="Tìm theo mã lô hoặc khách hàng"
+          ariaLabel="Lô hàng được giao cho nhân viên giao nhận"
+          options={shipmentSelectionOptions}
+          selectedIds={shipmentIds}
+          setSelectedIds={setShipmentIds}
+          required
+          requiredMessage="Cần chọn ít nhất một lô hàng cho nhân viên giao nhận."
+          emptyText="Không tìm thấy lô hàng phù hợp."
+          summaryLabel="Đã chọn"
+        />
+      )}
+      {role === Role.FORWARDER && !canManageClerkScope && (
+        <div className="users-error-banner">Chỉ quản trị viên mới có thể gán lô hàng cho nhân viên giao nhận.</div>
       )}
 
       {role === Role.CLERK && canManageClerkScope && (

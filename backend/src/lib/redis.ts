@@ -134,11 +134,7 @@ export async function isTokenBlacklisted(jti: string): Promise<boolean> {
 
 export async function blacklistToken(jti: string, ttlSeconds: number): Promise<void> {
   const client = getRedis();
-  try {
-    await client.set(`blacklist:${jti}`, '1', 'EX', ttlSeconds);
-  } catch {
-    // Non-critical
-  }
+  await client.set(`blacklist:${jti}`, '1', 'EX', ttlSeconds);
 }
 
 // Graceful shutdown is handled centrally in index.ts to ensure

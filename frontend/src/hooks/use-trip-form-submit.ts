@@ -31,9 +31,10 @@ interface Params {
   photoUrls: string[];
   flushPendingPhotos: (tripId: number) => Promise<string[]>;
   flushPendingContainerPhotos: (tripId: number, rowKeyToContainerId: Map<string, number>) => Promise<Map<string, string>>;
+  governanceReason?: string;
   onCreditLimitBlocked?: (details: { message: string; customerId: number; proposedAmount: number }) => void;
 }
-export function useTripFormSubmit({ state: s, isEditMode, existingTrip, legs, requiredFieldsFilled, hasOptionalData, photoUrls, flushPendingPhotos, flushPendingContainerPhotos, onCreditLimitBlocked }: Params): (e?: React.FormEvent, options?: SubmitOptions) => Promise<number | undefined> {
+export function useTripFormSubmit({ state: s, isEditMode, existingTrip, legs, requiredFieldsFilled, hasOptionalData, photoUrls, flushPendingPhotos, flushPendingContainerPhotos, governanceReason, onCreditLimitBlocked }: Params): (e?: React.FormEvent, options?: SubmitOptions) => Promise<number | undefined> {
 const queryClient = useQueryClient();
 const { toast: showToast } = useToast();
 const handleSubmit = useCallback(
@@ -113,6 +114,13 @@ const handleSubmit = useCallback(
     // partner identity is required, and that is enforced by the backend schema.
 
     if (isEditMode) {
+      if (existingTrip?.status === TripStatus.COMPLETED && !governanceReason?.trim()) {
+        const msg = 'Vui lòng nhập lý do đề nghị thay đổi chuyến đã hoàn thành.';
+        s.setError(msg);
+        showToast({ kind: 'error', message: msg });
+        focusAndScroll('governanceReason');
+        return;
+      }
       if (legs.length === 0) {
         const msg = 'At least one journey leg is required.';
         s.setError(msg);
@@ -347,6 +355,9 @@ const handleSubmit = useCallback(
           truckId: s.carrierType === 'OWN' ? (s.truckId ? Number(s.truckId) : null) : null,
           driverId: s.carrierType === 'OWN' ? (s.driverId ? Number(s.driverId) : null) : null,
           trailerType: s.carrierType === 'OWN' ? (s.trailerType || null) : null,
+          governanceReason: existingTrip.status === TripStatus.COMPLETED
+            ? governanceReason!.trim()
+            : undefined,
         };
 
         const endpoint = existingTrip.status === TripStatus.CREATED ? `/trips/${existingTrip.id}/pre-departure` : `/trips/${existingTrip.id}/actuals`;
@@ -366,14 +377,24 @@ const handleSubmit = useCallback(
           if (!fresh) throw err;
           updatedTrip = await putFigures(fresh.version);
         }
+        const pendingGovernance = updatedTrip.actionKind === 'TRIP_FINANCIAL_CHANGE';
         queryClient.invalidateQueries({ queryKey: qk.trips.all });
-        queryClient.setQueryData(qk.trips.detail(existingTrip.id), updatedTrip);
+        if (!pendingGovernance) {
+          queryClient.setQueryData(qk.trips.detail(existingTrip.id), updatedTrip);
+        }
         queryClient.invalidateQueries({ queryKey: qk.trips.detail(existingTrip.id) });
         queryClient.invalidateQueries({ queryKey: qk.trips.adjustments(existingTrip.id) });
 
-        // The figures request has committed. Later best-effort work must not
-        // erase this narrower completed outcome.
-        onboardingEvents.emit('trip.figures_saved', { tripId: existingTrip.id });
+        if (pendingGovernance) {
+          showToast({
+            kind: 'success',
+            message: 'Yêu cầu điều chỉnh đã được gửi đến hàng chờ kiểm tra và phê duyệt.',
+          });
+        } else {
+          // The figures request has committed. Later best-effort work must not
+          // erase this narrower completed outcome.
+          onboardingEvents.emit('trip.figures_saved', { tripId: existingTrip.id });
+        }
 
         await saveContainers(existingTrip.id);
         // Manager-authored contact + guidance (N2 / B1.3) — persisted via the

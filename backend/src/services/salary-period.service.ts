@@ -4,6 +4,8 @@ import { eq, and, isNull, desc } from 'drizzle-orm';
 import type { SalaryPeriodRange } from '@tingting/shared';
 import { formatDateShort } from '../lib/format';
 
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 /**
  * Resolve the salary period date range for a given month/year.
  *
@@ -109,7 +111,11 @@ export async function resolveQuarterDateRange(
 
 /** Get the global default salary period config row */
 export async function getSalaryPeriodDefault() {
-  const [row] = await db
+  return getSalaryPeriodDefaultFrom(db);
+}
+
+export async function getSalaryPeriodDefaultFrom(q: typeof db | Tx) {
+  const [row] = await q
     .select()
     .from(s.salaryPeriods)
     .where(
@@ -127,7 +133,17 @@ export async function updateSalaryPeriodDefault(
   defaultStartDay: number,
   defaultEndDay: number,
 ) {
-  const existing = await getSalaryPeriodDefault();
+  return db.transaction((tx) =>
+    updateSalaryPeriodDefaultInTx(tx, defaultStartDay, defaultEndDay),
+  );
+}
+
+export async function updateSalaryPeriodDefaultInTx(
+  tx: Tx,
+  defaultStartDay: number,
+  defaultEndDay: number,
+) {
+  const existing = await getSalaryPeriodDefaultFrom(tx);
   const values = {
     isDefault: true,
     defaultStartDay,
@@ -140,7 +156,7 @@ export async function updateSalaryPeriodDefault(
   };
 
   if (existing) {
-    const [updated] = await db
+    const [updated] = await tx
       .update(s.salaryPeriods)
       .set(values)
       .where(eq(s.salaryPeriods.id, existing.id))
@@ -148,7 +164,7 @@ export async function updateSalaryPeriodDefault(
     return updated;
   }
 
-  const [created] = await db
+  const [created] = await tx
     .insert(s.salaryPeriods)
     .values(values)
     .returning();
@@ -157,7 +173,11 @@ export async function updateSalaryPeriodDefault(
 
 /** List all per-month salary period overrides (non-default, non-deleted) */
 export async function getSalaryPeriodOverrides() {
-  return db
+  return getSalaryPeriodOverridesFrom(db);
+}
+
+export async function getSalaryPeriodOverridesFrom(q: typeof db | Tx) {
+  return q
     .select()
     .from(s.salaryPeriods)
     .where(
@@ -177,8 +197,21 @@ export async function upsertSalaryPeriodOverride(
   endDate: string,
   label?: string,
 ) {
+  return db.transaction((tx) =>
+    upsertSalaryPeriodOverrideInTx(tx, month, year, startDate, endDate, label),
+  );
+}
+
+export async function upsertSalaryPeriodOverrideInTx(
+  tx: Tx,
+  month: number,
+  year: number,
+  startDate: string,
+  endDate: string,
+  label?: string,
+) {
   // Check for existing override for this month/year
-  const [existing] = await db
+  const [existing] = await tx
     .select()
     .from(s.salaryPeriods)
     .where(
@@ -204,7 +237,7 @@ export async function upsertSalaryPeriodOverride(
   };
 
   if (existing) {
-    const [updated] = await db
+    const [updated] = await tx
       .update(s.salaryPeriods)
       .set(values)
       .where(eq(s.salaryPeriods.id, existing.id))
@@ -212,7 +245,7 @@ export async function upsertSalaryPeriodOverride(
     return updated;
   }
 
-  const [created] = await db
+  const [created] = await tx
     .insert(s.salaryPeriods)
     .values(values)
     .returning();
@@ -228,7 +261,21 @@ export async function updateSalaryPeriodOverrideById(
   endDate: string,
   label?: string,
 ) {
-  const [existing] = await db
+  return db.transaction((tx) =>
+    updateSalaryPeriodOverrideByIdInTx(tx, id, month, year, startDate, endDate, label),
+  );
+}
+
+export async function updateSalaryPeriodOverrideByIdInTx(
+  tx: Tx,
+  id: number,
+  month: number,
+  year: number,
+  startDate: string,
+  endDate: string,
+  label?: string,
+) {
+  const [existing] = await tx
     .select()
     .from(s.salaryPeriods)
     .where(
@@ -242,7 +289,7 @@ export async function updateSalaryPeriodOverrideById(
 
   if (!existing) return null;
 
-  const [updated] = await db
+  const [updated] = await tx
     .update(s.salaryPeriods)
     .set({
       month,
@@ -259,7 +306,11 @@ export async function updateSalaryPeriodOverrideById(
 
 /** Soft-delete a salary period override */
 export async function deleteSalaryPeriodOverride(id: number) {
-  const [deleted] = await db
+  return db.transaction((tx) => deleteSalaryPeriodOverrideInTx(tx, id));
+}
+
+export async function deleteSalaryPeriodOverrideInTx(tx: Tx, id: number) {
+  const [deleted] = await tx
     .update(s.salaryPeriods)
     .set({ deletedAt: new Date(), updatedAt: new Date() })
     .where(

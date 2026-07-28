@@ -34,6 +34,7 @@ import { useGpsSettings, useSaveGpsSettings } from '../../hooks/useGpsSettings';
 import { useLlmSettings, useSaveLlmSettings } from '../../hooks/useLlmSettings';
 import { usePageAnimations } from '../../hooks/animations';
 import { userClient } from '../../api/userClient';
+import { isGovernancePendingResponse } from '../../lib/governance';
 import './config-page.css';
 
 type FeatureSwitchProps = {
@@ -179,6 +180,7 @@ export default function AppSettingsConfigPage() {
   const [gpsUsername, setGpsUsername] = useState('');
   const [gpsPassword, setGpsPassword] = useState('');
   const [resendApiKey, setResendApiKey] = useState('');
+  const [generalMessage, setGeneralMessage] = useState<string | null>(null);
   const [aiMessage, setAiMessage] = useState<string | null>(null);
   const [emailMessage, setEmailMessage] = useState<string | null>(null);
   const [gpsMessage, setGpsMessage] = useState<string | null>(null);
@@ -212,11 +214,17 @@ export default function AppSettingsConfigPage() {
     if (!Number.isFinite(parsedCap) || parsedCap < 0 || !Number.isInteger(parsedCap)) {
       return;
     }
-    await saveAppSettings.mutateAsync({
+    setGeneralMessage(null);
+    const result = await saveAppSettings.mutateAsync({
       ...features,
       creditWarningThresholdDefault: threshold,
       creditTierOneAmountCap: parsedCap,
     });
+    if (isGovernancePendingResponse(result)) {
+      setGeneralMessage('Đã gửi yêu cầu cập nhật cài đặt ứng dụng để kiểm tra và phê duyệt. Cấu hình hiện chưa thay đổi.');
+      return;
+    }
+    setGeneralMessage('Đã lưu cài đặt ứng dụng.');
   };
 
   const saveAi = async () => {
@@ -448,6 +456,11 @@ export default function AppSettingsConfigPage() {
             {saveAppSettings.error && (
               <span role="alert" className="cfg-form-error">
                 {saveAppSettings.error instanceof Error ? saveAppSettings.error.message : 'Không thể lưu cài đặt.'}
+              </span>
+            )}
+            {generalMessage && !saveAppSettings.error && (
+              <span role="status" className="cfg-field-hint">
+                {generalMessage}
               </span>
             )}
             {appSettings.error && (

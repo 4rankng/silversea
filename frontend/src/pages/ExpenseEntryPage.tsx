@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Loader2, X, Plus, Check } from 'lucide-react';
-import { api } from '../lib/api';
+import { api, fileCommandFingerprint } from '../lib/api';
 import { configClient } from '../api/configClient';
 import { PageHeader, useConfirm } from '../components/UI';
 import { useCatalogs } from '../hooks/useCatalogs';
@@ -16,7 +16,13 @@ import type { ExpenseWithRefs, Supplier, ExpenseCategory } from '@tingting/share
 import { qk } from '../api/keys';
 import { resolveExpenseCatalogs } from '../features/expenses/expenseCatalogs';
 import type { ExpenseCatalogs } from '../features/expenses/expenseCatalogs';
-import { EXPENSE_PHOTO_MAX_BYTES, convertHeicToJpeg, initialForm, type FormState } from './expense-entry-utils';
+import {
+  EXPENSE_PHOTO_MAX_BYTES,
+  convertHeicToJpeg,
+  expenseSubmissionMessage,
+  initialForm,
+  type FormState,
+} from './expense-entry-utils';
 import { ExpenseBasicFields, ExpenseLoading, ExpensePhotoAside } from './expense-entry-sections';
 import './ExpenseEntryPage.css';
 
@@ -32,6 +38,7 @@ export default function ExpenseEntryPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [pageError, setPageError] = useState('');
+  const [governanceReason, setGovernanceReason] = useState('');
   const [photos, setPhotos] = useState<{ id: number; url: string }[]>([]);
   const [uploading, setUploading] = useState(false);
   // True once an edit-mode expense has been hydrated into the form (see effect
@@ -75,7 +82,7 @@ export default function ExpenseEntryPage() {
   const { rootRef } = usePageAnimations({ ready: !loadingExpense });
 
   const { confirm, dialog } = useConfirm();
-  const guard = useDirtyGuard([form], hydrated);
+  const guard = useDirtyGuard([form, governanceReason], hydrated);
   const handleBack = () => navigate('/expenses');
   useBackShortcut(handleBack, {
     isDirty: guard.isDirty,
@@ -159,10 +166,15 @@ export default function ExpenseEntryPage() {
 
     const formData = new FormData();
     formData.append('file', file);
+    const retryFingerprint = [
+      'expense-entry-photo',
+      fileCommandFingerprint(file),
+      id,
+    ].join(':');
 
     setUploading(true);
     try {
-      const result = await api.upload(`/expenses/${id}/photos`, formData) as { id: number; url: string };
+      const result = await api.upload(`/expenses/${id}/photos`, formData, { retryFingerprint }) as { id: number; url: string };
       setPhotos(prev => [...prev, result]);
     } catch {
       toast({ kind: 'error', message: 'Lỗi khi tải ảnh. Vui lòng thử lại.' });
@@ -338,15 +350,32 @@ export default function ExpenseEntryPage() {
       setTimeout(() => document.getElementById('validTo')?.focus(), 0);
       return;
     }
+    if (!governanceReason.trim()) {
+      setErrors(prev => ({ ...prev, governanceReason: 'Vui lòng nhập lý do để gửi kiểm tra và phê duyệt' }));
+      setTimeout(() => document.getElementById('governanceReason')?.focus(), 0);
+      return;
+    }
 
     setSubmitting(true);
     try {
       if (isEdit) {
-        await api.put(`${FINANCIAL.EXPENSE(Number(id))}`, result.data);
-        toast({ kind: 'success', message: 'Đã cập nhật chi phí.' });
+        const response = await api.put<Record<string, unknown>>(
+          `${FINANCIAL.EXPENSE(Number(id))}`,
+          { ...result.data, reason: governanceReason.trim() },
+        );
+        toast({
+          kind: 'success',
+          message: expenseSubmissionMessage(true, response),
+        });
       } else {
-        await api.post(FINANCIAL.EXPENSES, result.data);
-        toast({ kind: 'success', message: 'Đã ghi nhận chi phí.' });
+        const response = await api.post<Record<string, unknown>>(FINANCIAL.EXPENSES, {
+          ...result.data,
+          reason: governanceReason.trim(),
+        });
+        toast({
+          kind: 'success',
+          message: expenseSubmissionMessage(false, response),
+        });
       }
       // Invalidate every cached expenses page so the list refetches with the new row.
       // ExpenseListPage uses queryKey ['expenses', params], so we match the prefix.
@@ -634,6 +663,40 @@ export default function ExpenseEntryPage() {
                   onChange={e => set('note', e.target.value)}
                   placeholder="Ghi chú thêm…"
                 />
+              </div>
+
+              <div className="expense-group" style={{ gridColumn: '1 / -1' }}>
+                <label htmlFor="governanceReason" className="expense-label">
+                  Lý do gửi duyệt <span style={{ color: 'var(--danger)' }}>*</span>
+                </label>
+                <textarea
+                  name="governanceReason"
+                  id="governanceReason"
+                  className="expense-input"
+                  value={governanceReason}
+                  onChange={event => {
+                    setGovernanceReason(event.target.value);
+                    if (errors.governanceReason) {
+                      setErrors(previous => {
+                        const next = { ...previous };
+                        delete next.governanceReason;
+                        return next;
+                      });
+                    }
+                  }}
+                  placeholder="Nêu mục đích và căn cứ của khoản chi…"
+                  rows={3}
+                />
+                {errors.governanceReason && (
+                  <p style={{ fontSize: 12, color: 'var(--danger)', marginTop: 4 }}>
+                    {errors.governanceReason}
+                  </p>
+                )}
+                <p style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 6 }}>
+                  {existingExpense?.paymentStatus === 'PAID'
+                    ? 'Đây là phiếu đã quyết toán. Thay đổi tài chính sẽ tạo bản thay thế sau phê duyệt; phiếu gốc và chứng từ lịch sử được giữ nguyên.'
+                    : 'Khoản chi và công nợ chỉ được ghi nhận sau khi một người kiểm tra và một người khác phê duyệt.'}
+                </p>
               </div>
                 </div>
               </div>

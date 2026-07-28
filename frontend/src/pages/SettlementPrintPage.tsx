@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Printer, Loader2, FileSpreadsheet, X, Pencil, Save, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Printer, Loader2, FileSpreadsheet, X, Pencil, Save, CheckCircle2, RotateCcw } from 'lucide-react';
 import { formatCurrency } from '../lib/format';
 import { ADVANCE_SETTLEMENT_STATUS_LABELS, type AdvanceSettlementStatus } from '@tingting/shared';
 import { api } from '../lib/api';
@@ -11,6 +11,7 @@ import {
   useUpdateSettlementExpense,
   useCheckSettlement,
   useApproveSettlement,
+  useReverseAdvanceSettlement,
 } from '../hooks/useForwarderQueries';
 import { useAuth } from '../hooks/useAuth';
 import { PageHeader, StatusPill } from '../components/UI';
@@ -106,6 +107,8 @@ export function settlementReviewPermissions(input: {
       && input.settlement.checkedBy != null
       && input.userId !== input.settlement.checkedBy
       && input.userId !== input.settlement.forwarderId,
+    canRequestApprovedGovernance: isFinancialReviewer
+      && input.settlement.status === 'APPROVED',
   };
 }
 
@@ -184,10 +187,13 @@ export default function SettlementPrintPage() {
   const [refundAmount, setRefundAmount] = useState('0');
   const [settlementNote, setSettlementNote] = useState('');
   const [selectionReady, setSelectionReady] = useState(false);
+  const [reversalReason, setReversalReason] = useState('');
+  const [governanceNotice, setGovernanceNotice] = useState<string | null>(null);
   const updateExpense = useUpdateSettlementExpense();
   const updateSettlement = useUpdateAdvanceSettlement();
   const checkSettlement = useCheckSettlement();
   const approveSettlement = useApproveSettlement();
+  const reverseSettlement = useReverseAdvanceSettlement();
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const handleBack = () => navigate(-1);
@@ -251,6 +257,7 @@ export default function SettlementPrintPage() {
   const {
     canEditAndCheck: canEditExpenses,
     canApprove: canApproveChecked,
+    canRequestApprovedGovernance,
   } = settlementReviewPermissions({
     isPortal,
     userId: user?.userId,
@@ -310,6 +317,17 @@ export default function SettlementPrintPage() {
       adjustmentReason: adjustmentReason.trim(),
     });
     setEditingExpense(null);
+    if (s.status === 'APPROVED') {
+      setGovernanceNotice('Đã gửi điều chỉnh vào hàng chờ kiểm tra. Phiếu và sổ công nợ chưa thay đổi.');
+    }
+  };
+
+  const requestReversal = async () => {
+    const reason = reversalReason.trim();
+    if (!reason) return;
+    await reverseSettlement.mutateAsync({ id: s.id, expectedVersion: s.version, reason });
+    setReversalReason('');
+    setGovernanceNotice('Đã gửi yêu cầu hoàn tác vào hàng chờ kiểm tra. Phiếu vẫn giữ trạng thái đã duyệt.');
   };
 
   return (
@@ -456,6 +474,41 @@ export default function SettlementPrintPage() {
               <span></span>
             </div>
           </div>
+          {canRequestApprovedGovernance && (
+            <div className="settlement-expense-actions no-print">
+              <p className="settlement-editor-hint">
+                Điều chỉnh và hoàn tác chỉ có hiệu lực sau khi đủ người lập, người kiểm tra và người phê duyệt.
+              </p>
+              {expenses.map(expense => (
+                <button
+                  key={expense.id}
+                  className="btn btn--secondary btn--sm"
+                  onClick={() => startEditingExpense(expense)}
+                >
+                  <Pencil size={14} /> Lập điều chỉnh {expense.tripCode || `#${expense.id}`}
+                </button>
+              ))}
+              <label>
+                Lý do hoàn tác
+                <input
+                  className="input"
+                  value={reversalReason}
+                  onChange={event => setReversalReason(event.target.value)}
+                  placeholder="Nhập lý do hoàn tác phiếu đã duyệt"
+                />
+              </label>
+              <button
+                className="btn btn--danger btn--sm"
+                disabled={!reversalReason.trim() || reverseSettlement.isPending}
+                onClick={requestReversal}
+              >
+                {reverseSettlement.isPending ? <Loader2 size={14} className="spin" /> : <RotateCcw size={14} />}
+                Gửi yêu cầu hoàn tác
+              </button>
+              {governanceNotice && <p role="status">{governanceNotice}</p>}
+              {reverseSettlement.error && <p className="settlement-finalize__error">{String(reverseSettlement.error)}</p>}
+            </div>
+          )}
           {canEditExpenses && (
             <div className="settlement-expense-actions no-print">
               {expenseCandidates.map(expense => (

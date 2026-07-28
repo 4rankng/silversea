@@ -128,6 +128,9 @@ const templates: Record<string, (c: TemplateContext) => string> = {
   [AuditEvent.TRIP_CANCELED]: (c) => `${subj(c)} đã hủy bỏ lệnh vận chuyển${c.entityKey ? ` ${c.entityKey}` : ''}`,
   [AuditEvent.TRIP_UNLOCKED]: (c) => `${subj(c)} đã mở khóa lệnh vận chuyển${c.entityKey ? ` ${c.entityKey}` : ''} (cho phép chỉnh sửa lại số liệu)`,
   [AuditEvent.TRIP_DEPARTURE_DATE_CHANGED]: (c) => `${subj(c)} đã thay đổi ngày khởi hành của lệnh vận chuyển${c.entityKey ? ` ${c.entityKey}` : ''}`,
+  [AuditEvent.TRIP_FINANCIAL_CLOSE_REQUESTED]: (c) => `${subj(c)} đã đề nghị hoàn thành lệnh vận chuyển${c.entityKey ? ` ${c.entityKey}` : ''}`,
+  [AuditEvent.TRIP_FINANCIAL_CHANGE_REQUESTED]: (c) => `${subj(c)} đã đề nghị thay đổi số liệu tài chính của lệnh vận chuyển${c.entityKey ? ` ${c.entityKey}` : ''}`,
+  [AuditEvent.TRIP_FINANCIAL_CANCEL_REQUESTED]: (c) => `${subj(c)} đã đề nghị hủy lệnh vận chuyển đã hoàn thành${c.entityKey ? ` ${c.entityKey}` : ''}`,
 
   // ─── Shipment (lô hàng) lifecycle — Wave 0 ──────────────────────────────
   // Mirrors the TRIP_* shape: each line names the actor, the verb, the
@@ -145,6 +148,7 @@ const templates: Record<string, (c: TemplateContext) => string> = {
   [AuditEvent.PENALTY_CREATED]: (c) => `${subj(c)} đã ghi nhận quyết định kỷ luật${c.entityKey ? `: ${c.entityKey}` : ''}`,
   [AuditEvent.PENALTY_CANCELED]: (c) => `${subj(c)} đã hủy bỏ quyết định kỷ luật${c.entityKey ? `: ${c.entityKey}` : ''}`,
   [AuditEvent.DRIVER_SALARY_RECORDED]: (c) => `${subj(c)} đã ghi nhận bảng tính lương cho lái xe${c.entityKey ? `: ${c.entityKey}` : ''}`,
+  [AuditEvent.PROFIT_DISTRIBUTION_REQUESTED]: (c) => `${subj(c)} đã gửi yêu cầu phân chia lợi nhuận của ${c.entityKey || 'hệ thống'} để kiểm tra và phê duyệt`,
 
   [AuditEvent.TRIP_EXPENSE_APPROVED]: (c) => `${subj(c)} đã phê duyệt ${c.entityLabel}${c.entityKey ? `: ${c.entityKey}` : ''}`,
   [AuditEvent.TRIP_EXPENSE_REJECTED]: (c) => `${subj(c)} đã từ chối ${c.entityLabel}${c.entityKey ? `: ${c.entityKey}` : ''}`,
@@ -159,6 +163,7 @@ const templates: Record<string, (c: TemplateContext) => string> = {
   [AuditEvent.ACCESS_DENIED]: (c) => `Từ chối truy cập của ${subj(c)} vào tài nguyên ${c.entityLabel}${c.entityKey ? ` (${c.entityKey})` : ''}`,
   [AuditEvent.MUTATION_REJECTED]: (c) => `Từ chối thao tác của ${subj(c)} trên ${c.entityLabel}${c.entityKey ? ` (${c.entityKey})` : ''}`,
   [AuditEvent.MUTATION_CONFLICT]: (c) => `Phát hiện xung đột khi ${subj(c)} thao tác trên ${c.entityLabel}${c.entityKey ? ` (${c.entityKey})` : ''}`,
+  [AuditEvent.STORAGE_CLEANUP_PENDING]: (c) => `${subj(c)} có tệp cần đối soát dọn dẹp lưu trữ cho ${c.entityLabel}${c.entityKey ? `: ${c.entityKey}` : ''}`,
 
   [AuditEvent.PROFIT_DISTRIBUTED]: (c) => `${subj(c)} đã thực hiện phân phối lợi nhuận cho các cổ đông của ${c.entityKey || 'hệ thống'}`,
 };

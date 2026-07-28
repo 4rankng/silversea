@@ -39,6 +39,7 @@ import {
   type BusinessCalendarOverride,
   type PaymentDatePolicy,
 } from './business-calendar.service';
+import { getCustomerReceivableSnapshots } from './customer-receivable-authority.service';
 
 /** Subject prefix used for dedupe — every reminder email starts with this. */
 export const REMINDER_SUBJECT_PREFIX = '[Nhắc nhở công nợ]';
@@ -596,64 +597,27 @@ async function loadOutstandingObligations(customerIds: readonly number[]): Promi
   const obligationsByCustomer = new Map<number, OutstandingObligation[]>();
   if (customerIds.length === 0) return obligationsByCustomer;
 
-  const rows = await db.select({
-    id: s.ledger.id,
-    customerId: s.ledger.entityId,
-    txnId: s.ledger.txnId,
-    txnType: s.ledger.txnType,
-    debit: s.ledger.debit,
-    credit: s.ledger.credit,
-    receiptId: s.ledger.receiptId,
-    note: s.ledger.note,
-    processingDueDate: s.ledger.processingDueDate,
-  })
-    .from(s.ledger)
-    .where(and(
-      eq(s.ledger.entityType, 'CUSTOMER'),
-      inArray(s.ledger.entityId, [...customerIds]),
-      sql`${s.ledger.txnId} IS NOT NULL`,
-    ));
-
-  const adjustmentRows = rows.filter((row) => row.txnId != null && row.txnType === 'ADJUSTMENT');
-  const adjustmentDomains = await loadCustomerAdjustmentDomains(adjustmentRows);
-  const grouped = new Map<string, OutstandingObligation & { dueDateLedgerId: number }>();
-  for (const row of rows) {
-    if (!row.txnId) continue;
-    const entityType = row.txnType === 'ADJUSTMENT'
-      ? adjustmentDomains.get(row.id) ?? null
-      : reminderObligationEntityTypeForTxnType(row.txnType);
-    if (!entityType) continue;
-    const groupKey = obligationKeyFor(entityType, row.customerId, row.txnId);
-    const current = grouped.get(groupKey) ?? {
-      customerId: row.customerId,
-      txnId: row.txnId,
-      obligationKey: '',
-      outstanding: 0,
-      processingDueDate: null,
-      entityType,
-      dueDateLedgerId: 0,
-    };
-    current.outstanding += Number(row.debit ?? 0) - Number(row.credit ?? 0);
-    if (row.processingDueDate && row.id > current.dueDateLedgerId) {
-      current.processingDueDate = row.processingDueDate;
-      current.dueDateLedgerId = row.id;
+  const snapshots = await getCustomerReceivableSnapshots([...customerIds]);
+  for (const [customerId, snapshot] of snapshots.entries()) {
+    const obligations = snapshot.obligations
+      .filter((obligation) => obligation.outstanding > 0 && obligation.processingDueDate != null)
+      .map((obligation) => ({
+        customerId,
+        txnId: obligation.authorityId,
+        obligationKey: obligationKeyFor(
+          obligation.authorityType === 'OTHER' ? 'SERVICE_FEE' : obligation.authorityType,
+          customerId,
+          obligation.authorityId,
+        ),
+        outstanding: obligation.outstanding,
+        processingDueDate: obligation.processingDueDate,
+        entityType: obligation.authorityType === 'OTHER'
+          ? 'SERVICE_FEE'
+          : obligation.authorityType,
+      }));
+    if (obligations.length > 0) {
+      obligationsByCustomer.set(customerId, obligations);
     }
-    grouped.set(groupKey, current);
-  }
-
-  for (const obligation of grouped.values()) {
-    if (obligation.outstanding <= 0 || obligation.processingDueDate == null) continue;
-    obligation.obligationKey = obligationKeyFor(obligation.entityType, obligation.customerId, obligation.txnId);
-    const customerObligations = obligationsByCustomer.get(obligation.customerId) ?? [];
-    customerObligations.push({
-      customerId: obligation.customerId,
-      txnId: obligation.txnId,
-      obligationKey: obligation.obligationKey,
-      outstanding: obligation.outstanding,
-      processingDueDate: obligation.processingDueDate,
-      entityType: obligation.entityType,
-    });
-    obligationsByCustomer.set(obligation.customerId, customerObligations);
   }
 
   return obligationsByCustomer;

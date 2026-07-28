@@ -1,10 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { NavigateFunction } from 'react-router-dom';
 import { Receipt, Wallet, CheckCircle2, FileCheck2, ChevronLeft, ChevronRight, Check, Loader2 } from 'lucide-react';
-import { forwarderClient } from '../../../api/forwarderClient';
 import type { ApprovalItemType, ApprovalQueueItem, ApprovalQueueResponse } from '../hooks/useApprovalQueue';
-import { qk } from '../../../api/keys';
 import { resolveEmptyIllustration } from '../../../lib/emptyIllustrations';
 import { StatusStrip } from '../../../components/shared/StatusStrip';
 
@@ -173,9 +170,8 @@ function Row({
   navigate: NavigateFunction;
   showTypeLabel: boolean;
 }) {
-  const queryClient = useQueryClient();
-  const [approving, setApproving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [approving] = useState(false);
+  const [error] = useState<string | null>(null);
 
   const handleRowClick = () => {
     if (!approving) navigate(item.href);
@@ -189,37 +185,13 @@ function Row({
     }
   };
 
-  // Only advance requests retain quick approval. Settlements must be opened so
-  // the accountant reviews container completion and any corrections first.
-  const handleQuickApprove = async (e: React.MouseEvent | React.KeyboardEvent) => {
-    e.stopPropagation();   // don't trigger row navigation
+  // Financial decisions require a typed reason and must be opened in their
+  // review screen instead of being approved from the summary card.
+  const handleQuickApprove = (e: React.MouseEvent | React.KeyboardEvent) => {
+    e.stopPropagation();
     e.preventDefault();
     if (approving) return;
-
-    const [, numericIdStr] = item.id.split(':');
-    const numericId = Number(numericIdStr);
-    if (!Number.isFinite(numericId) || numericId <= 0) {
-      setError('ID không hợp lệ');
-      return;
-    }
-
-    setApproving(true);
-    setError(null);
-    try {
-      if (item.type !== 'advances') throw new Error('Cần mở chi tiết để duyệt');
-      const response = await forwarderClient.listAllAdvanceRequests();
-      const request = response.items.find(candidate => candidate.id === numericId);
-      if (!request) throw new Error('Yêu cầu tạm ứng không còn tồn tại');
-      await forwarderClient.approveAdvanceRequest(numericId, request.version);
-      // Refresh the queue so the approved item disappears / moves.
-      await queryClient.invalidateQueries({ queryKey: qk.dashboard.approvalQueue(undefined, undefined) });
-      // Also refresh the underlying data sources that the approve just changed.
-      queryClient.invalidateQueries({ queryKey: qk.forwarder.forwarderAdvanceRequestsAll });
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Lỗi khi duyệt');
-    } finally {
-      setApproving(false);
-    }
+    navigate(item.href);
   };
 
   return (

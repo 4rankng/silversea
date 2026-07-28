@@ -31,6 +31,9 @@ export interface GovernanceActionRecord {
   status: GovernanceActionStatus;
   reason: string;
   originalVersion: number;
+  beforeSnapshot?: Record<string, unknown>;
+  afterSnapshot?: Record<string, unknown>;
+  deltaSnapshot?: Record<string, unknown> | null;
   makerId: number;
   makerRole: string | null;
   checkerId: number | null;
@@ -82,6 +85,7 @@ export interface FuelInvoiceAllocation {
 
 export interface FuelInvoice {
   id: number;
+  version: number;
   supplierId: number;
   invoiceNumber: string;
   invoiceDate: string;
@@ -230,11 +234,14 @@ export const financialClient = {
   createFuelInvoice: (data: FuelInvoiceInput) =>
     api.post<FuelInvoice>(FINANCIAL.FUEL_INVOICES, data),
 
-  updateFuelInvoice: (id: number, data: FuelInvoiceInput) =>
-    api.put<FuelInvoice>(FINANCIAL.FUEL_INVOICE(id), data),
+  updateFuelInvoice: (id: number, data: FuelInvoiceInput, expectedVersion: number) =>
+    api.put<FuelInvoice>(FINANCIAL.FUEL_INVOICE(id), {
+      ...data,
+      expectedVersion,
+    }),
 
-  approveFuelInvoice: (id: number) =>
-    api.post<FuelInvoice>(FINANCIAL.FUEL_INVOICE_APPROVE(id), {}),
+  approveFuelInvoice: (id: number, expectedVersion: number, reason: string) =>
+    api.post<GovernanceActionRecord>(FINANCIAL.FUEL_INVOICE_APPROVE(id), { expectedVersion, reason }),
 
   postCommission: (data: { supplierId: number; amount: number; tripId?: number; note?: string }) =>
     api.post<{ ok: true }>(FINANCIAL.COMMISSIONS, data),

@@ -15,6 +15,7 @@ export {
   listTripPhotoKeys,
   getForwarderTripCounts,
   getForwarderTripDetail,
+  assertForwarderTripScope,
 } from './forwarder-trip-query.service';
 export {
   derivePrimarySealNumber,
@@ -88,8 +89,9 @@ export async function setTripExpenseCompletion(
   tripContainerId: number | null,
   completed: boolean,
   actorId: number,
+  transaction?: Tx,
 ) {
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     const scopeKey = tripContainerId ?? -tripId;
     await tx.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);
     const [trip] = await tx.select({ status: s.trips.status }).from(s.trips)
@@ -144,7 +146,8 @@ export async function setTripExpenseCompletion(
       ...values,
     }).returning();
     return inserted;
-  });
+  };
+  return transaction ? execute(transaction) : db.transaction(execute);
 }
 
 export async function getTripExpenseCompletionScopes(tripId: number) {
@@ -448,6 +451,49 @@ export async function updateForwarderTripExpense(
   });
 }
 
+function assertExpenseExpectedUpdatedAt(
+  actual: Date,
+  expectedUpdatedAt: Date,
+  message: string,
+) {
+  if (actual.getTime() !== expectedUpdatedAt.getTime()) {
+    throw new ApiError(409, message);
+  }
+}
+
+export async function updateForwarderTripExpenseInTx(
+  tx: Tx,
+  expenseId: number,
+  forwarderId: number,
+  patch: Parameters<typeof updateTripExpense>[2],
+  expectedUpdatedAt: Date,
+) {
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
+  const [expense] = await tx.select({
+    id: s.tripExpenses.id,
+    tripId: s.tripExpenses.tripId,
+    ownerId: s.tripExpenses.forwarderId,
+    tripContainerId: s.tripExpenses.tripContainerId,
+    updatedAt: s.tripExpenses.updatedAt,
+  }).from(s.tripExpenses).where(eq(s.tripExpenses.id, expenseId)).limit(1);
+  if (!expense) throw new ApiError(404, 'Không tìm thấy chi phí');
+  if (expense.ownerId !== forwarderId) throw new ApiError(403, 'Không có quyền sửa chi phí này');
+  assertExpenseExpectedUpdatedAt(
+    expense.updatedAt,
+    expectedUpdatedAt,
+    'Chi phí đã thay đổi. Vui lòng tải lại trước khi cập nhật.',
+  );
+  const [activeLink] = await tx.select({ id: s.settlementExpenses.id })
+    .from(s.settlementExpenses)
+    .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.settlementExpenses.settlementId))
+    .where(and(
+      eq(s.settlementExpenses.tripExpenseId, expenseId),
+      notInArray(s.advanceSettlements.status, ['REJECTED']),
+    )).limit(1);
+  if (activeLink) throw new ApiError(409, 'Chi phí đã gửi kế toán, không thể sửa');
+  return updateTripExpense(tx, expenseId, patch);
+}
+
 export async function getTripExpenses(txOrDb: DbOrTx, tripId: number) {
   return txOrDb.select({
     id: s.tripExpenses.id,
@@ -511,6 +557,51 @@ export async function deleteTripExpense(expenseId: number, forwarderId: number) 
     await resetExpenseScope(tx, existing.tripId, existing.tripContainerId);
     return 'DELETED';
   });
+}
+
+export async function deleteTripExpenseInTx(
+  tx: Tx,
+  expenseId: number,
+  forwarderId: number,
+  expectedUpdatedAt: Date,
+) {
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
+  const [existing] = await tx.select({
+    id: s.tripExpenses.id,
+    tripId: s.tripExpenses.tripId,
+    tripContainerId: s.tripExpenses.tripContainerId,
+    forwarderId: s.tripExpenses.forwarderId,
+    approvalStatus: s.tripExpenses.approvalStatus,
+    updatedAt: s.tripExpenses.updatedAt,
+  }).from(s.tripExpenses)
+    .where(eq(s.tripExpenses.id, expenseId))
+    .limit(1);
+  if (!existing) return null;
+  if (existing.forwarderId == null || existing.forwarderId !== forwarderId) return 'FORBIDDEN';
+  assertExpenseExpectedUpdatedAt(
+    existing.updatedAt,
+    expectedUpdatedAt,
+    'Chi phí đã thay đổi. Vui lòng tải lại trước khi xóa.',
+  );
+  if (existing.approvalStatus === 'APPROVED') {
+    throw new ApiError(409, 'Chi phí đã duyệt không được xóa trực tiếp; hãy lập yêu cầu điều chỉnh');
+  }
+  const scopeKey = existing.tripContainerId ?? -existing.tripId;
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);
+  const [trip] = await tx.select({ status: s.trips.status }).from(s.trips)
+    .where(eq(s.trips.id, existing.tripId)).limit(1);
+  if (trip?.status === 'LOCKED') throw new ApiError(409, 'Không thể xóa chi phí của chuyến đã chốt');
+  const [activeLink] = await tx.select({ id: s.settlementExpenses.id })
+    .from(s.settlementExpenses)
+    .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.settlementExpenses.settlementId))
+    .where(and(
+      eq(s.settlementExpenses.tripExpenseId, expenseId),
+      notInArray(s.advanceSettlements.status, ['REJECTED']),
+    )).limit(1);
+  if (activeLink) throw new ApiError(409, 'Chi phí đã gửi kế toán, không thể xóa');
+  await tx.delete(s.tripExpenses).where(eq(s.tripExpenses.id, expenseId));
+  await resetExpenseScope(tx, existing.tripId, existing.tripContainerId);
+  return 'DELETED';
 }
 
 /**

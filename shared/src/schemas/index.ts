@@ -5,6 +5,7 @@ import {
   ShipmentStatus, ShipmentDocumentType,
   DriverProgressEventType,
   DriverIncidentalCostType,
+  NO_INVOICE_APPROVAL_TITLES,
   NO_INVOICE_EVIDENCE_TYPES,
   TIRE_STATUSES,
 } from '../constants';
@@ -253,6 +254,7 @@ export const bulkUpdateTripFiguresSchema = z.object({
   updates: z.array(z.object({
     tripId: z.coerce.number().int().positive(),
     mode: z.enum(['pre-departure', 'actuals']).default('actuals'),
+    governanceReason: z.string().trim().min(1).max(1000).optional(),
     // Validate each row's figures independently in the route so one malformed
     // spreadsheet row can return a row error without rejecting the whole batch.
     figures: z.unknown(),
@@ -1055,6 +1057,23 @@ export const tripExpenseSchema = baseTripExpenseSchema.superRefine((data, ctx) =
       message: 'Số tờ khai là bắt buộc cho phí hải quan',
     });
   }
+  if (!data.invoiceNumber?.trim()) {
+    const requiredNoInvoiceFields = [
+      ['expenseDate', data.expenseDate, 'Ngày chi là bắt buộc khi không có hóa đơn'],
+      ['payeeName', data.payeeName?.trim(), 'Người nhận là bắt buộc khi không có hóa đơn'],
+      ['note', data.note?.trim(), 'Lý do chi là bắt buộc khi không có hóa đơn'],
+    ] as const;
+    for (const [path, value, message] of requiredNoInvoiceFields) {
+      if (!value) ctx.addIssue({ code: 'custom', path: [path], message });
+    }
+    if (!data.noInvoiceEvidenceTypes?.length) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['noInvoiceEvidenceTypes'],
+        message: 'Cần chọn ít nhất một loại chứng cứ thay thế khi không có hóa đơn',
+      });
+    }
+  }
 });
 
 export const forwarderExpenseTypeSchema = z.object({
@@ -1084,6 +1103,8 @@ export const forwarderExpenseTypeSchema = z.object({
     .refine(v => v == null || (Number.isFinite(v) && v >= 0), {
       message: 'Ngưỡng ngày của giám đốc phải là số không âm',
     }),
+  noInvoiceFinanceLeadApprovalTitle: z.enum(NO_INVOICE_APPROVAL_TITLES).optional(),
+  noInvoiceDirectorApprovalTitle: z.enum(NO_INVOICE_APPROVAL_TITLES).optional(),
   noInvoicePolicyVersion: z.number().int().positive().optional(),
   defaultMarkup: z.boolean().optional(),
   billingLabel: z.string().max(120).nullable().optional(),
@@ -1161,6 +1182,7 @@ export const upsertTripInstructionsSchema = z.object({
 // optional booking metadata that may be filled in before dispatch.
 export const createShipmentSchema = z.object({
   customerId: z.coerce.number().int().positive('Khách hàng là bắt buộc'),
+  cargoTypeId: z.coerce.number().int().positive('Loại hàng không hợp lệ').optional(),
   responsibleUnitId: z.coerce.number().int().positive().optional().nullable(),
   bookingRef: z.string().max(100).optional().nullable(),
   blNumber: z.string().max(100).optional().nullable(),
@@ -1190,6 +1212,7 @@ export const updateShipmentSchema = z.object({
   expectedVersion: z.number().int().nonnegative('expectedVersion là bắt buộc để kiểm soát đồng thời').optional(),
   version: z.number().int().nonnegative('version là bắt buộc để kiểm soát đồng thời').optional(),
   customerId: z.coerce.number().int().positive().optional(),
+  cargoTypeId: z.coerce.number().int().positive('Loại hàng không hợp lệ').optional(),
   responsibleUnitId: z.coerce.number().int().positive().optional().nullable(),
   bookingRef: z.string().max(100).nullish(),
   blNumber: z.string().max(100).nullish(),

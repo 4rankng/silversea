@@ -1,6 +1,6 @@
 import {
   pgTable, serial, varchar, text, integer, boolean, timestamp,
-  jsonb, numeric, date, pgEnum, uniqueIndex, index, check, doublePrecision,
+  jsonb, numeric, date, pgEnum, uniqueIndex, index, check, doublePrecision, smallint,
   customType,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
@@ -36,7 +36,7 @@ export const trailerStatusEnum = pgEnum('trailer_status', ['ACTIVE', 'MAINTENANC
 // NOTE: forwarder_expense_type pgEnum removed — replaced by forwarder_expense_types config table.
 // trip_expenses.expense_type is now varchar(50) referencing config codes.
 export const advanceRequestStatusEnum = pgEnum('advance_request_status', ['PENDING', 'APPROVED', 'REJECTED']);
-export const advanceSettlementStatusEnum = pgEnum('advance_settlement_status', ['PENDING', 'CHECKED_BY_ACCOUNTANT', 'APPROVED', 'REJECTED']);
+export const advanceSettlementStatusEnum = pgEnum('advance_settlement_status', ['PENDING', 'CHECKED_BY_ACCOUNTANT', 'APPROVED', 'REJECTED', 'REVERSED']);
 export const creditOverrideStatusEnum = pgEnum('credit_override_status', ['PENDING', 'APPROVED', 'REJECTED', 'CANCELED']);
 export const creditOverrideScopeEnum = pgEnum('credit_override_scope', ['SHIPMENT', 'EXPIRY']);
 export const creditOverrideTierEnum = pgEnum('credit_override_tier', ['FINANCE_TIER_1', 'DIRECTOR']);
@@ -642,6 +642,7 @@ export const trips = pgTable('trips', {
   // FK is intentionally ON DELETE NO ACTION (the default): a shipment with live
   // trips must never be hard-deleted. Use shipments.deletedAt for tombstoning.
   shipmentId: integer('shipment_id').references(() => shipments.id),
+  sourceShipmentVersion: integer('source_shipment_version'),
   completedAt: timestamp('completed_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -676,6 +677,10 @@ export const trips = pgTable('trips', {
     'trips_active_trip_pair_presence_check',
     sql`(${table.activeTripPairId} is null and ${table.activeTripPairOrder} is null)
       or (${table.activeTripPairId} is not null and ${table.activeTripPairOrder} is not null)`,
+  ),
+  check(
+    'trips_source_shipment_version_check',
+    sql`${table.sourceShipmentVersion} is null or ${table.sourceShipmentVersion} > 0`,
   ),
 ]);
 
@@ -829,6 +834,10 @@ export const billingDocuments = pgTable('billing_documents', {
   // after the template (or its logo) is edited/deleted. Untyped jsonb; the
   // service casts to DebitNoteTemplateSnapshot.
   debitNoteTemplateSnapshot: jsonb('debit_note_template_snapshot'),
+  // Immutable legal/bank/signature identity used by issued-document renders.
+  // Separate from the template so legacy documents without a template can be
+  // backfilled without inventing a partial template object.
+  officialIdentitySnapshot: jsonb('official_identity_snapshot'),
   totalInclVat: numeric('total_incl_vat', { precision: 15, scale: 0 }).notNull().default('0'),
   // Wave 2 M3.6: debit-note lifecycle status. Defaults to DRAFT (existing
   // documents are treated as DRAFT until explicitly transitioned). Nullable
@@ -847,6 +856,10 @@ export const billingDocuments = pgTable('billing_documents', {
   processingDueDate: date('processing_due_date'),
   paymentTermDaysApplied: integer('payment_term_days_applied'),
   paymentDatePolicyApplied: varchar('payment_date_policy_applied', { length: 30 }),
+  issuedAt: timestamp('issued_at', { withTimezone: true }),
+  authorityState: varchar('authority_state', { length: 30 }).notNull().default('CURRENT'),
+  authorityWarningReason: text('authority_warning_reason'),
+  authorityWarningAt: timestamp('authority_warning_at', { withTimezone: true }),
   createdBy: integer('created_by').references(() => users.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -863,6 +876,10 @@ export const billingDocuments = pgTable('billing_documents', {
   check(
     'billing_documents_payment_term_days_applied_check',
     sql`${table.paymentTermDaysApplied} is null or ${table.paymentTermDaysApplied} >= 0`,
+  ),
+  check(
+    'billing_documents_authority_state_check',
+    sql`${table.authorityState} in ('CURRENT', 'STALE', 'ADJUSTMENT_REQUIRED')`,
   ),
 ]);
 
@@ -982,11 +999,11 @@ export const governanceActions = pgTable('governance_actions', {
     .where(sql`${table.subjectId} is not null and ${table.actionKind} not in ('TRIP_AR_ADJUSTMENT', 'TRIP_REOPEN') and ${table.status} in ('PENDING_CHECK', 'PENDING_APPROVAL', 'RETURNED_FOR_EVIDENCE')`),
   check(
     'governance_actions_subject_type_check',
-    sql`${table.subjectType} in ('TRIP', 'PAYMENT_RECEIPT', 'PAYMENT_REFUND', 'VENDOR_PAYMENT', 'CARRIER_PAYMENT', 'DRIVER_PAYOUT', 'COMMISSION', 'PENALTY', 'DEBT_OFFSET', 'ADVANCE_REQUEST', 'TRIP_EXPENSE', 'COMPANY_EXPENSE', 'BILLING_DOCUMENT', 'SALARY_CONFIRMATION', 'SALARY_PERIOD', 'PROFIT_DISTRIBUTION', 'PRICE_CONFIG', 'ANCILLARY_REVENUE', 'EXCEPTION')`,
+    sql`${table.subjectType} in ('TRIP', 'PAYMENT_RECEIPT', 'PAYMENT_REFUND', 'VENDOR_PAYMENT', 'CARRIER_PAYMENT', 'DRIVER_PAYOUT', 'COMMISSION', 'PENALTY', 'DEBT_OFFSET', 'ADVANCE_REQUEST', 'ADVANCE_SETTLEMENT', 'TRIP_EXPENSE', 'FUEL_INVOICE', 'CREDIT_OVERRIDE', 'COMPANY_EXPENSE', 'BILLING_DOCUMENT', 'SALARY_CONFIRMATION', 'SALARY_PERIOD', 'PROFIT_DISTRIBUTION', 'PRICE_CONFIG', 'ANCILLARY_REVENUE', 'EXCEPTION')`,
   ),
   check(
     'governance_actions_action_kind_check',
-    sql`${table.actionKind} in ('TRIP_AR_ADJUSTMENT', 'TRIP_REOPEN', 'TRIP_EXPENSE_APPROVAL', 'DEBT_OFFSET_APPROVAL', 'DEBT_OFFSET_CANCEL', 'ADVANCE_REQUEST_APPROVAL', 'PAYMENT_RECEIPT', 'PAYMENT_REFUND', 'VENDOR_PAYMENT', 'CARRIER_PAYMENT', 'DRIVER_PAYOUT', 'COMMISSION', 'PENALTY_CREATE', 'PENALTY_CANCEL', 'COMPANY_EXPENSE', 'PROFIT_DISTRIBUTION', 'TRIP_FINANCIAL_CHANGE', 'TRIP_FINANCIAL_CLOSE', 'DEBIT_NOTE_ISSUE', 'DEBIT_NOTE_ADJUSTMENT', 'SALARY_CONFIRMATION', 'SALARY_REOPEN', 'SALARY_PERIOD_CLOSE', 'SALARY_PERIOD_REOPEN', 'SALARY_PERIOD_ADJUSTMENT', 'PRICE_CONFIG_CHANGE', 'ANCILLARY_REVENUE_CHANGE', 'FINANCIAL_EXCEPTION')`,
+    sql`${table.actionKind} in ('TRIP_AR_ADJUSTMENT', 'TRIP_REOPEN', 'TRIP_EXPENSE_APPROVAL', 'FUEL_INVOICE_CORRECTION', 'FUEL_INVOICE_APPROVAL', 'CREDIT_OVERRIDE_APPROVAL', 'DEBT_OFFSET_APPROVAL', 'DEBT_OFFSET_CANCEL', 'ADVANCE_REQUEST_APPROVAL', 'ADVANCE_REQUEST_REJECTION', 'ADVANCE_SETTLEMENT_CORRECTION', 'ADVANCE_SETTLEMENT_REVERSAL', 'PAYMENT_RECEIPT', 'PAYMENT_REFUND', 'VENDOR_PAYMENT', 'CARRIER_PAYMENT', 'DRIVER_PAYOUT', 'COMMISSION', 'PENALTY_CREATE', 'PENALTY_CANCEL', 'COMPANY_EXPENSE', 'PROFIT_DISTRIBUTION', 'TRIP_FINANCIAL_CHANGE', 'TRIP_FINANCIAL_CLOSE', 'DEBIT_NOTE_ISSUE', 'DEBIT_NOTE_ADJUSTMENT', 'SALARY_CONFIRMATION', 'SALARY_REOPEN', 'SALARY_PERIOD_CLOSE', 'SALARY_PERIOD_REOPEN', 'SALARY_PERIOD_ADJUSTMENT', 'PRICE_CONFIG_CHANGE', 'ANCILLARY_REVENUE_CHANGE', 'FINANCIAL_EXCEPTION')`,
   ),
   check(
     'governance_actions_status_check',
@@ -1061,6 +1078,8 @@ export const billingDocumentLines = pgTable('billing_document_lines', {
   documentId: integer('document_id').references(() => billingDocuments.id).notNull(),
   sourceType: varchar('source_type', { length: 20 }).notNull(),  // TRIP | EXPENSE | ADHOC
   sourceId: integer('source_id'),                                // tripId | tripExpenseId | null(ADHOC)
+  sourceVersion: varchar('source_version', { length: 120 }),
+  sourceChangedAt: timestamp('source_changed_at', { withTimezone: true }),
   lineType: varchar('line_type', { length: 20 }).notNull(),      // FREIGHT | SERVICE_FEE | ADHOC
   typeLabel: varchar('type_label', { length: 100 }).notNull().default('Khác'),
   unit: varchar('unit', { length: 50 }).notNull().default('lần'),
@@ -1334,6 +1353,8 @@ export const forwarderExpenseTypes = pgTable('forwarder_expense_types', {
   noInvoicePerDayLimit: numeric('no_invoice_per_day_limit', { precision: 15, scale: 0 }).notNull().default('5000000'),
   noInvoiceFinanceLeadItemApprovalLimit: numeric('no_invoice_finance_lead_item_approval_limit', { precision: 15, scale: 0 }).notNull().default('5000000'),
   noInvoiceDirectorDayApprovalLimit: numeric('no_invoice_director_day_approval_limit', { precision: 15, scale: 0 }).notNull().default('10000000'),
+  noInvoiceFinanceLeadApprovalTitle: varchar('no_invoice_finance_lead_approval_title', { length: 50 }).notNull().default('FINANCE_LEAD'),
+  noInvoiceDirectorApprovalTitle: varchar('no_invoice_director_approval_title', { length: 50 }).notNull().default('DIRECTOR'),
   noInvoicePolicyVersion: integer('no_invoice_policy_version').notNull().default(1),
   defaultMarkup: boolean('default_markup').notNull().default(false),
   billingLabel: varchar('billing_label', { length: 120 }),
@@ -1348,6 +1369,12 @@ export const forwarderExpenseTypes = pgTable('forwarder_expense_types', {
 export const tripContainers = pgTable('trip_containers', {
   id: serial('id').primaryKey(),
   tripId: integer('trip_id').references(() => trips.id).notNull(),
+  // Plain integers here to avoid a forward-reference cycle with the shipment
+  // tables declared later in this file. The DB-level FKs are added by the
+  // matching Drizzle migration.
+  sourceShipmentId: integer('source_shipment_id'),
+  sourceShipmentContainerId: integer('source_shipment_container_id'),
+  sourceShipmentVersion: integer('source_shipment_version'),
   containerTypeId: integer('container_type_id').references(() => containerTypes.id),
   containerNumber: varchar('container_number', { length: 50 }),
   // Kept for back-compat during the Phase 2 multi-seal migration. New writes
@@ -1365,6 +1392,12 @@ export const tripContainers = pgTable('trip_containers', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
   index('trip_containers_trip_id_idx').on(table.tripId),
+  index('trip_containers_shipment_source_idx')
+    .on(table.sourceShipmentId, table.sourceShipmentContainerId),
+  check(
+    'trip_containers_source_shipment_version_check',
+    sql`${table.sourceShipmentVersion} is null or ${table.sourceShipmentVersion} > 0`,
+  ),
 ]);
 
 // ─── Multi-seal per container (Phase 2) ───────────────────────────────────
@@ -1406,6 +1439,7 @@ export const tripInstructions = pgTable('trip_instructions', {
 export const tripExpenses = pgTable('trip_expenses', {
   id: serial('id').primaryKey(),
   tripId: integer('trip_id').references(() => trips.id).notNull(),
+  version: integer('version').notNull().default(1),
   forwarderId: integer('forwarder_id').references(() => users.id),  // nullable — accountants also create
   // Q15: authoritative maker. Legacy forwarder-created rows are safely
   // backfilled from forwarder_id; unknown office-side legacy makers stay NULL.
@@ -1790,6 +1824,79 @@ export const tripGpsTracks = pgTable('trip_gps_tracks', {
   uniqueIndex('trip_gps_tracks_trip_uniq_idx').on(table.tripId),
   index('trip_gps_tracks_route_idx').on(table.routeId),
   index('trip_gps_tracks_truck_ended_idx').on(table.truckId, table.endedAt),
+]);
+
+/**
+ * Durable outbox for GPS capture/route derivation after an approved trip close.
+ * The approval transaction inserts one row before it can return success.
+ * Workers lease rows and retain diagnostic retry state instead of relying on a
+ * client to replay a successful approval request.
+ */
+export const tripGpsCaptureJobs = pgTable('trip_gps_capture_jobs', {
+  id: serial('id').primaryKey(),
+  governanceActionId: integer('governance_action_id')
+    .references(() => governanceActions.id, { onDelete: 'cascade' })
+    .notNull(),
+  tripId: integer('trip_id').references(() => trips.id, { onDelete: 'cascade' }).notNull(),
+  status: varchar('status', { length: 16 }).notNull().default('PENDING'),
+  attemptCount: integer('attempt_count').notNull().default(0),
+  nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }).defaultNow().notNull(),
+  leaseToken: varchar('lease_token', { length: 100 }),
+  leaseExpiresAt: timestamp('lease_expires_at', { withTimezone: true }),
+  lastError: text('last_error'),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('trip_gps_capture_jobs_action_uniq_idx').on(table.governanceActionId),
+  index('trip_gps_capture_jobs_retry_idx').on(table.status, table.nextAttemptAt),
+  check(
+    'trip_gps_capture_jobs_status_check',
+    sql`${table.status} in ('PENDING', 'RUNNING', 'RETRY', 'SUCCEEDED')`,
+  ),
+  check(
+    'trip_gps_capture_jobs_attempt_count_check',
+    sql`${table.attemptCount} >= 0`,
+  ),
+]);
+
+/**
+ * Typed durable effects for cross-boundary side effects that must survive
+ * process restarts. Domain transactions insert rows here and workers execute
+ * them with leased at-least-once delivery instead of best-effort callbacks.
+ */
+export const durableEffectJobs = pgTable('durable_effect_jobs', {
+  id: serial('id').primaryKey(),
+  kind: varchar('kind', { length: 40 }).notNull(),
+  payloadVersion: smallint('payload_version').notNull().default(1),
+  dedupeKey: varchar('dedupe_key', { length: 255 }).notNull(),
+  payload: jsonb('payload').$type<Record<string, unknown>>().notNull(),
+  status: varchar('status', { length: 16 }).notNull().default('PENDING'),
+  attemptCount: integer('attempt_count').notNull().default(0),
+  maxAttempts: integer('max_attempts').notNull().default(20),
+  nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }).defaultNow().notNull(),
+  leaseToken: varchar('lease_token', { length: 100 }),
+  leaseExpiresAt: timestamp('lease_expires_at', { withTimezone: true }),
+  lastError: text('last_error'),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('durable_effect_jobs_kind_dedupe_uniq_idx').on(table.kind, table.dedupeKey),
+  index('durable_effect_jobs_due_idx').on(table.status, table.nextAttemptAt, table.id),
+  index('durable_effect_jobs_lease_idx').on(table.status, table.leaseExpiresAt),
+  check(
+    'durable_effect_jobs_status_check',
+    sql`${table.status} in ('PENDING', 'RUNNING', 'RETRY', 'SUCCEEDED', 'CANCELLED', 'DEAD')`,
+  ),
+  check(
+    'durable_effect_jobs_attempt_count_check',
+    sql`${table.attemptCount} >= 0`,
+  ),
+  check(
+    'durable_effect_jobs_max_attempts_check',
+    sql`${table.maxAttempts} > 0`,
+  ),
 ]);
 
 /**
@@ -2197,6 +2304,7 @@ export const shipments = pgTable('shipments', {
   // Optimistic locking, mirroring trips.
   version: integer('version').default(1).notNull(),
   customerId: integer('customer_id').references(() => customers.id).notNull(),
+  cargoTypeId: integer('cargo_type_id').references(() => cargoTypes.id),
   responsibleUnitId: integer('responsible_unit_id')
     .references(() => businessUnits.id, { onDelete: 'set null' }),
   status: shipmentStatusEnum('status').default('DRAFT'),
@@ -2513,6 +2621,8 @@ export const paymentAllocations = pgTable('payment_allocations', {
   issueTimestampSnapshot: timestamp('issue_timestamp_snapshot'),
   // The customer receiving the allocation.
   customerId: integer('customer_id').references(() => customers.id).notNull(),
+  billingDocumentId: integer('billing_document_id').references(() => billingDocuments.id),
+  sourceTripId: integer('source_trip_id').references(() => trips.id),
   // What this allocation is applied to: a trip or a billing document.
   targetType: varchar('target_type', { length: 20 }).notNull(), // TRIP | BILLING_DOCUMENT
   targetId: integer('target_id').notNull(),
@@ -2524,12 +2634,19 @@ export const paymentAllocations = pgTable('payment_allocations', {
 }, (table) => [
   index('payment_allocations_customer_idx').on(table.customerId),
   index('payment_allocations_target_idx').on(table.targetType, table.targetId),
+  index('payment_allocations_document_idx').on(table.billingDocumentId, table.createdAt),
+  index('payment_allocations_source_trip_idx').on(table.sourceTripId, table.createdAt),
   index('payment_allocations_receipt_idx').on(table.receiptId),
   uniqueIndex('payment_allocations_receipt_order_uniq')
     .on(table.paymentReceiptId, table.allocationOrder)
     .where(sql`${table.paymentReceiptId} is not null`),
   uniqueIndex('payment_allocations_receipt_target_uniq')
-    .on(table.paymentReceiptId, table.targetType, table.targetId)
+    .on(
+      table.paymentReceiptId,
+      table.targetType,
+      table.targetId,
+      sql`coalesce(${table.sourceTripId}, 0)`,
+    )
     .where(sql`${table.paymentReceiptId} is not null`),
   check(
     'payment_allocations_amount_positive_check',
@@ -2538,6 +2655,10 @@ export const paymentAllocations = pgTable('payment_allocations', {
   check(
     'payment_allocations_order_positive_check',
     sql`${table.allocationOrder} is null or ${table.allocationOrder} > 0`,
+  ),
+  check(
+    'payment_allocations_billing_document_consistency_check',
+    sql`(${table.targetType} <> 'BILLING_DOCUMENT') or (${table.billingDocumentId} is not null and ${table.billingDocumentId} = ${table.targetId})`,
   ),
 ]);
 
@@ -2764,6 +2885,9 @@ export const idempotencyKeys = pgTable('idempotency_keys', {
   entityId: integer('entity_id'),
   // SHA-256 hex of the canonicalised request body, for conflict detection.
   payloadHash: varchar('payload_hash', { length: 64 }).notNull(),
+  // The original HTTP success code so future exact-replay consumers can return
+  // the persisted command result without re-deriving transport semantics.
+  responseStatusCode: integer('response_status_code').default(200).notNull(),
   // Immutable response snapshot returned to later same-key replays, even when
   // the underlying entity later changes. Stored in the exact JSON shape sent
   // back to callers (without the transport-level replayed marker).

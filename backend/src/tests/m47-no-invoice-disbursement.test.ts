@@ -26,6 +26,7 @@ import {
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdTripIds: number[] = [];
+const createdShipmentIds: number[] = [];
 const createdCustomerIds: number[] = [];
 const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
@@ -51,6 +52,8 @@ async function mkFet(opts: {
   noInvoiceEvidenceTypes?: string[];
   noInvoicePerItemLimit?: string;
   noInvoicePerDayLimit?: string;
+  noInvoiceFinanceLeadApprovalTitle?: 'FINANCE_LEAD' | 'DIRECTOR';
+  noInvoiceDirectorApprovalTitle?: 'FINANCE_LEAD' | 'DIRECTOR';
   tag: string;
 }) {
   const code = `M47-${createdFetIds.length}-${opts.tag}-${suffix}`.slice(0, 50);
@@ -62,21 +65,35 @@ async function mkFet(opts: {
     noInvoiceEvidenceTypes: opts.noInvoiceEvidenceTypes ?? ['RECEIPT', 'BANK_TRANSFER', 'SIGNED_CONFIRMATION'],
     noInvoicePerItemLimit: opts.noInvoicePerItemLimit,
     noInvoicePerDayLimit: opts.noInvoicePerDayLimit,
+    noInvoiceFinanceLeadApprovalTitle: opts.noInvoiceFinanceLeadApprovalTitle,
+    noInvoiceDirectorApprovalTitle: opts.noInvoiceDirectorApprovalTitle,
   }).returning();
   createdFetIds.push(fet.id);
   return fet;
 }
 
-async function mkTrip() {
+async function mkTrip(opts: { withShipment?: boolean } = {}) {
   const [cust] = await db.insert(s.customers).values({ name: `M47 cust ${suffix}-${createdCustomerIds.length}` }).returning();
   createdCustomerIds.push(cust.id);
   const [route] = await db.insert(s.routes).values({ name: `M47 route ${suffix}-${createdRouteIds.length}` }).returning();
   createdRouteIds.push(route.id);
   const [cargo] = await db.insert(s.cargoTypes).values({ name: `M47 cargo ${suffix}-${createdCargoTypeIds.length}` }).returning();
   createdCargoTypeIds.push(cargo.id);
+  let shipmentId: number | null = null;
+  if (opts.withShipment) {
+    const [shipment] = await db.insert(s.shipments).values({
+      customerId: cust.id,
+      shipmentCode: `M47-SHP-${suffix}-${createdShipmentIds.length}`.slice(0, 50),
+      createdBy: makerId,
+      updatedBy: makerId,
+    }).returning({ id: s.shipments.id });
+    shipmentId = shipment.id;
+    createdShipmentIds.push(shipment.id);
+  }
   const [trip] = await db.insert(s.trips).values({
     tripCode: `M47-${suffix}-${createdTripIds.length}`.slice(0, 50),
     customerId: cust.id, routeId: route.id, cargoTypeId: cargo.id,
+    shipmentId,
     status: 'COMPLETED', departureDate: '2026-07-15', carrierType: 'OWN',
   }).returning();
   createdTripIds.push(trip.id);
@@ -151,6 +168,7 @@ after(async () => {
     if (createdExpenseIds.length > 0) await db.delete(s.tripExpensePhotos).where(inArray(s.tripExpensePhotos.tripExpenseId, createdExpenseIds));
     if (createdExpenseIds.length > 0) await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.id, createdExpenseIds));
     if (createdTripIds.length > 0) await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
+    if (createdShipmentIds.length > 0) await db.delete(s.shipments).where(inArray(s.shipments.id, createdShipmentIds));
     if (createdCargoTypeIds.length > 0) await db.delete(s.cargoTypes).where(sql`${s.cargoTypes.name} LIKE ${namePattern}`);
     if (createdRouteIds.length > 0) await db.delete(s.routes).where(sql`${s.routes.name} LIKE ${namePattern}`);
     if (createdCustomerIds.length > 0) await db.delete(s.customers).where(sql`${s.customers.name} LIKE ${namePattern}`);
@@ -296,6 +314,26 @@ describe('M4.7 — reviewNoInvoiceDisbursementApproval', () => {
     assert.equal(outcome.exceedsPerDayLimit, true);
     assert.equal(outcome.requiredApprovalTitle, 'FINANCE_LEAD');
     assert.equal(outcome.requiresExceptionReason, true);
+  });
+
+  test('configured approval titles are routed from category policy instead of hard-coded defaults', async () => {
+    const fet = await mkFet({
+      substituteEvidenceAllowed: true,
+      noInvoicePerItemLimit: '400000',
+      noInvoiceFinanceLeadApprovalTitle: 'DIRECTOR',
+      tag: 'configured-title-routing',
+    });
+    const trip = await mkTrip();
+    const e = await mkExpense({
+      tripId: trip.id,
+      expenseTypeCode: fet.code,
+      buyAmount: '500000',
+      note: 'Chi phát sinh vượt ngưỡng hạng mục nên phải trình đúng chức danh đã cấu hình',
+    });
+    const outcome = await reviewNoInvoiceDisbursementApproval(e.id, 'MANAGER');
+    assert.equal(outcome.outcome, 'ALLOW');
+    assert.equal(outcome.policySnapshot?.financeLeadApprovalTitle, 'DIRECTOR');
+    assert.equal(outcome.requiredApprovalTitle, 'DIRECTOR');
   });
 
   test('amount > DIRECTOR_THRESHOLD + ACCOUNTANT → blocked (needs director)', async () => {
@@ -515,6 +553,25 @@ describe('M4.7 slice 2 — getNoInvoiceDisbursementReport', () => {
     assert.equal(item!.buyAmount, 300_000);
     assert.equal(item!.note, 'biên nhận bốc xếp');
     assert.equal(item!.overThreshold, false);
+  });
+
+  test('report preserves shipment linkage for shipment-rooted no-invoice expenses', async () => {
+    const fet = await mkFet({ substituteEvidenceAllowed: true, tag: 'rpt-shipment-link' });
+    const trip = await mkTrip({ withShipment: true });
+    const e = await mkExpense({
+      tripId: trip.id,
+      expenseTypeCode: fet.code,
+      buyAmount: '300000',
+      note: 'Biên nhận chi cho lô hàng gắn chuyến',
+      approvalStatus: 'APPROVED',
+    });
+    const today = new Date().toISOString().slice(0, 10);
+    const report = await getNoInvoiceDisbursementReport({ from: today, to: today });
+    const item = report.items.find(i => i.expenseId === e.id);
+    assert.ok(item);
+    assert.equal(item!.tripId, trip.id);
+    assert.equal(item!.shipmentId, trip.shipmentId);
+    assert.ok(item!.shipmentId, 'shipment linkage is exposed on the returned boundary');
   });
 
   test('excludes expenses WITH an invoice number', async () => {

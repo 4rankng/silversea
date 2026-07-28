@@ -12,6 +12,10 @@ TEST_USER = {
     'status': 'ACTIVE',
 }
 
+def version_headers(user: dict) -> dict:
+    """Send the exact version returned by the API for optimistic locking."""
+    return {'If-Unmodified-Since': user['updatedAt']}
+
 def test_system_admin(ctx: NepoTestContext, results: TestResults):
     api = ApiClient()
     api.login('admin', 'admin123')
@@ -117,8 +121,13 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
     # TC-1008: Edit user change role
     if created_user and created_user.get('id'):
         uid = created_user['id']
-        resp = api.patch(f'/api/auth/users/{uid}', {'role': 'MANAGER'})
+        resp = api.patch(
+            f'/api/auth/users/{uid}',
+            {'role': 'MANAGER'},
+            version_headers(created_user),
+        )
         if resp.get('status') == 200:
+            created_user = resp['data']
             results.pass_('TC-1008', 'Edit user change role → MANAGER')
         else:
             results.fail('TC-1008', 'Edit user role', f'Status: {resp.get("status")}')
@@ -128,8 +137,13 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
     # TC-1009: Edit user change status
     if created_user and created_user.get('id'):
         uid = created_user['id']
-        resp = api.patch(f'/api/auth/users/{uid}', {'status': 'INACTIVE'})
+        resp = api.patch(
+            f'/api/auth/users/{uid}',
+            {'status': 'INACTIVE'},
+            version_headers(created_user),
+        )
         if resp.get('status') == 200:
+            created_user = resp['data']
             results.pass_('TC-1009', 'Edit user change status → INACTIVE')
         else:
             results.fail('TC-1009', 'Edit user status', f'Status: {resp.get("status")}')
@@ -139,7 +153,7 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
     # TC-1010: Delete user via API (the one from TC-1005)
     if created_user and created_user.get('id'):
         uid = created_user['id']
-        resp = api.delete(f'/api/auth/users/{uid}')
+        resp = api.delete(f'/api/auth/users/{uid}', version_headers(created_user))
         if resp.get('status') == 200:
             results.pass_('TC-1010', f'Delete user via API (id={uid})')
         else:
@@ -152,7 +166,10 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
     if me_resp.get('status') == 200:
         my_id = me_resp['data'].get('userId') or me_resp['data'].get('id')
         if my_id:
-            resp = api.delete(f'/api/auth/users/{my_id}')
+            resp = api.delete(
+                f'/api/auth/users/{my_id}',
+                version_headers(me_resp['data']),
+            )
             if resp.get('status') in (400, 403):
                 results.pass_('TC-1011', 'Cannot delete self → blocked')
             else:
@@ -244,14 +261,15 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
     }
     resp1 = api.post('/api/auth/users', dup_user)
     if resp1.get('status') in (200, 201):
-        dup_id = resp1.get('data', {}).get('id')
+        dup_user_created = resp1.get('data', {})
+        dup_id = dup_user_created.get('id')
         resp2 = api.post('/api/auth/users', dup_user)
         if resp2.get('status') == 409:
             results.pass_('TC-1017', 'Duplicate username → 409')
         else:
             results.fail('TC-1017', 'Duplicate username', f'Expected 409, got {resp2.get("status")}')
         if dup_id:
-            api.delete(f'/api/auth/users/{dup_id}')
+            api.delete(f'/api/auth/users/{dup_id}', version_headers(dup_user_created))
     else:
         results.skip('TC-1017', 'Duplicate user error', f'First create failed: {resp1.get("status")}')
 

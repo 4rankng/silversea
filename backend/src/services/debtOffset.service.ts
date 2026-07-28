@@ -7,6 +7,8 @@ import { TxnType, FINANCIAL_ROLES } from '@tingting/shared';
 import { transitionApproval } from './approval.service';
 import { PARTNER_DEFAULT_CURRENCY } from './legal-partner.service';
 import type { Tx } from './trip-shared';
+import { assertCanMakeGovernanceAction } from './governance-policy';
+import type { GovernanceApplyResult, GovernanceActionRow } from './governance-transition.service';
 
 type DualEntityCandidate = {
   customerId: number;
@@ -16,6 +18,29 @@ type DualEntityCandidate = {
   eligible: boolean;
   eligibilityReason: string | null;
 };
+
+function debtOffsetStatusVersion(status: string): number {
+  switch (status) {
+    case 'PENDING':
+      return 1;
+    case 'APPROVED':
+      return 2;
+    case 'CANCELED':
+      return 3;
+    default:
+      throw new ApiError(409, `Trạng thái đối trừ công nợ không hợp lệ: ${status}`);
+  }
+}
+
+function assertDebtOffsetStatusVersion(status: string, expectedVersion: number): void {
+  if (!Number.isInteger(expectedVersion) || expectedVersion <= 0) {
+    throw new ApiError(400, 'expectedVersion không hợp lệ');
+  }
+  const actualVersion = debtOffsetStatusVersion(status);
+  if (actualVersion !== expectedVersion) {
+    throw new ApiError(409, 'Bản ghi đối trừ đã thay đổi. Vui lòng tải lại.');
+  }
+}
 
 async function loadCounterparties(
   tx: Tx,
@@ -417,4 +442,186 @@ export async function listDebtOffsets(filters?: {
     .from(s.debtOffsets)
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(desc(s.debtOffsets.createdAt));
+}
+
+export async function requestDebtOffsetApprovalGovernance(input: {
+  debtOffsetId: number;
+  expectedVersion: number;
+  reason: string;
+  makerId: number;
+  makerRole: string;
+  transaction?: Tx;
+}): Promise<GovernanceActionRow> {
+  assertCanMakeGovernanceAction('DEBT_OFFSET_APPROVAL', input.makerRole);
+  const reason = input.reason.trim();
+  if (!reason) {
+    throw new ApiError(400, 'Lý do là bắt buộc');
+  }
+
+  const execute = async (tx: Tx) => {
+    const [offset] = await tx.select()
+      .from(s.debtOffsets)
+      .where(eq(s.debtOffsets.id, input.debtOffsetId))
+      .limit(1)
+      .for('update');
+    if (!offset) {
+      throw new ApiError(404, 'Không tìm thấy bản ghi đối trừ');
+    }
+    assertDebtOffsetStatusVersion(offset.approvalStatus, input.expectedVersion);
+    if (offset.approvalStatus !== 'PENDING') {
+      throw new ApiError(409, 'Chỉ có thể trình duyệt đối trừ đang chờ xử lý');
+    }
+
+    const [action] = await tx.insert(s.governanceActions).values({
+      subjectType: 'DEBT_OFFSET',
+      subjectId: offset.id,
+      subjectKey: `debt-offset:${offset.id}:approve`,
+      actionKind: 'DEBT_OFFSET_APPROVAL',
+      reason,
+      originalVersion: input.expectedVersion,
+      beforeSnapshot: {
+        approvalStatus: offset.approvalStatus,
+        customerId: offset.customerId,
+        supplierId: offset.supplierId,
+        partnerId: offset.partnerId,
+        amount: offset.amount,
+        currency: offset.currency,
+        offsetDate: offset.offsetDate,
+        note: offset.note,
+        minutesReference: offset.minutesReference,
+        minutesDocumentHash: offset.minutesDocumentHash,
+      },
+      afterSnapshot: {
+        approvalStatus: 'APPROVED',
+      },
+      deltaSnapshot: {
+        amount: offset.amount,
+        minutesReference: offset.minutesReference,
+      },
+      makerId: input.makerId,
+      makerRole: input.makerRole,
+    }).returning();
+    return action;
+  };
+
+  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+}
+
+export async function requestDebtOffsetCancelGovernance(input: {
+  debtOffsetId: number;
+  expectedVersion: number;
+  reason: string;
+  makerId: number;
+  makerRole: string;
+  transaction?: Tx;
+}): Promise<GovernanceActionRow> {
+  assertCanMakeGovernanceAction('DEBT_OFFSET_CANCEL', input.makerRole);
+  const reason = input.reason.trim();
+  if (!reason) {
+    throw new ApiError(400, 'Lý do là bắt buộc');
+  }
+
+  const execute = async (tx: Tx) => {
+    const [offset] = await tx.select()
+      .from(s.debtOffsets)
+      .where(eq(s.debtOffsets.id, input.debtOffsetId))
+      .limit(1)
+      .for('update');
+    if (!offset) {
+      throw new ApiError(404, 'Không tìm thấy bản ghi đối trừ');
+    }
+    assertDebtOffsetStatusVersion(offset.approvalStatus, input.expectedVersion);
+    if (offset.approvalStatus !== 'APPROVED') {
+      throw new ApiError(409, 'Chỉ có thể trình hủy đối trừ đã được duyệt');
+    }
+
+    const [action] = await tx.insert(s.governanceActions).values({
+      subjectType: 'DEBT_OFFSET',
+      subjectId: offset.id,
+      subjectKey: `debt-offset:${offset.id}:cancel`,
+      actionKind: 'DEBT_OFFSET_CANCEL',
+      reason,
+      originalVersion: input.expectedVersion,
+      beforeSnapshot: {
+        approvalStatus: offset.approvalStatus,
+        customerId: offset.customerId,
+        supplierId: offset.supplierId,
+        partnerId: offset.partnerId,
+        amount: offset.amount,
+        currency: offset.currency,
+        offsetDate: offset.offsetDate,
+        note: offset.note,
+        minutesReference: offset.minutesReference,
+        minutesDocumentHash: offset.minutesDocumentHash,
+        approvedBy: offset.approvedBy,
+        approvedAt: offset.approvedAt?.toISOString() ?? null,
+      },
+      afterSnapshot: {
+        approvalStatus: 'CANCELED',
+      },
+      deltaSnapshot: {
+        amount: offset.amount,
+      },
+      makerId: input.makerId,
+      makerRole: input.makerRole,
+    }).returning();
+    return action;
+  };
+
+  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+}
+
+export async function applyDebtOffsetGovernanceAction(
+  tx: Tx,
+  action: GovernanceActionRow,
+): Promise<GovernanceApplyResult> {
+  if (action.subjectType !== 'DEBT_OFFSET' || action.subjectId == null) {
+    throw new ApiError(409, 'Yêu cầu quản trị không có đối tượng đối trừ hợp lệ');
+  }
+
+  const [offset] = await tx.select()
+    .from(s.debtOffsets)
+    .where(eq(s.debtOffsets.id, action.subjectId))
+    .limit(1)
+    .for('update');
+  if (!offset) {
+    throw new ApiError(404, 'Không tìm thấy bản ghi đối trừ');
+  }
+  assertDebtOffsetStatusVersion(offset.approvalStatus, action.originalVersion);
+
+  if (action.actionKind === 'DEBT_OFFSET_APPROVAL') {
+    const approved = await approveDebtOffset(
+      offset.id,
+      action.approverId!,
+      action.approverRole!,
+      tx,
+    );
+    return {
+      applicationResult: {
+        subjectType: 'DEBT_OFFSET',
+        subjectId: approved.id,
+        approvalStatus: 'APPROVED',
+        resultingVersion: debtOffsetStatusVersion('APPROVED'),
+      },
+    };
+  }
+
+  if (action.actionKind === 'DEBT_OFFSET_CANCEL') {
+    const canceled = await cancelDebtOffset(
+      offset.id,
+      action.approverId!,
+      action.approverRole!,
+      tx,
+    );
+    return {
+      applicationResult: {
+        subjectType: 'DEBT_OFFSET',
+        subjectId: canceled.id,
+        approvalStatus: 'CANCELED',
+        resultingVersion: debtOffsetStatusVersion('CANCELED'),
+      },
+    };
+  }
+
+  throw new ApiError(409, 'Loại yêu cầu không thuộc đối trừ công nợ');
 }

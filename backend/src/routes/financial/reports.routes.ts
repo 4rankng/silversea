@@ -4,7 +4,7 @@ import { Role } from '@tingting/shared';
 import { requireRoles } from '../../middleware/casbin';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { getUser } from '../../middleware/auth';
-import { getDashboardStats, getPnlReport, distributeProfit, getReceivablesSummary, previewDistribution, getDistributionHistory } from '../../services/reporting.service';
+import { getDashboardStats, getPnlReport, getReceivablesSummary, previewDistribution, getDistributionHistory, requestProfitDistributionGovernance } from '../../services/reporting.service';
 import { getFuelVarianceReport } from '../../services/pnl.service';
 import { getPaymentTermEvalReport } from '../../services/payment-term.service';
 import { getDashboardWidgets } from '../../services/dashboard-widgets.service';
@@ -15,6 +15,10 @@ import { exportReceivablesAgingXlsx, attachmentDisposition } from '../../service
 import { formatLocalDate } from '../../lib/format';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
+import {
+  PROFIT_DISTRIBUTION_TRANSACTION_OPTIONS,
+  runProfitDistributionWithSerializationRetry,
+} from '../../services/profit-distribution.service';
 
 const router = Router();
 
@@ -89,21 +93,32 @@ router.post('/reports/distribute-profit/preview', requireRoles(Role.ADMIN, Role.
 
 // Execute distribution — ADMIN/MANAGER only. ACCOUNTANT can preview but not execute per spec.
 router.post('/reports/distribute-profit', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
-  const { quarter, year } = req.body;
+  const { quarter, year, reason } = req.body;
   if (!quarter || !year) return res.status(400).json({ error: 'Cần nhập quý và năm' });
   if (quarter < 1 || quarter > 4) return res.status(400).json({ error: 'Quý phải từ 1 đến 4' });
   const user = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);
-  const { result, replayed } = await runIdempotent({
-    endpoint: IDEMPOTENCY_ENDPOINTS.PROFIT_DISTRIBUTE,
-    idempotencyKey,
-    payload: { actorId: user.userId, quarter, year },
-    createdBy: user.userId,
-    entityType: 'profit_distribution',
-    create: (tx) => distributeProfit(quarter, year, tx),
-    getEntityId: () => null,
-  });
-  res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
+  const { result, statusCode } = await runProfitDistributionWithSerializationRetry(() => (
+    runIdempotent({
+      endpoint: IDEMPOTENCY_ENDPOINTS.PROFIT_DISTRIBUTE,
+      idempotencyKey,
+      payload: { actorId: user.userId, quarter, year, reason: reason ?? null },
+      createdBy: user.userId,
+      entityType: 'profit_distribution',
+      responseStatusCode: 201,
+      transactionOptions: PROFIT_DISTRIBUTION_TRANSACTION_OPTIONS,
+      create: (tx) => requestProfitDistributionGovernance({
+        quarter,
+        year,
+        reason: typeof reason === 'string' ? reason : '',
+        makerId: user.userId,
+        makerRole: user.role,
+        transaction: tx,
+      }),
+    })
+  ));
+  res.locals.auditEntityId = result.id;
+  res.status(statusCode).json(result);
 }));
 
 // M11.4 — payment-term evaluation report. Per-customer days-to-pay +

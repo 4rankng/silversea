@@ -7,5 +7,6 @@ export const systemClient = {
   getAuditLogs: (params?: Record<string, string>) =>
     api.get<PaginatedResponse<AuditLog>>(`${SYSTEM.AUDIT_LOGS}${toQuery(params)}`),
 
-  uploadFile: (formData: FormData) => api.upload(SYSTEM.UPLOAD, formData),
+  uploadFile: (formData: FormData, options?: { idempotencyKey?: string; retryFingerprint?: string }) =>
+    api.upload(SYSTEM.UPLOAD, formData, options),
 };

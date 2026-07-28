@@ -82,7 +82,7 @@ describe('M8.4 slice 3 — driver incidental costs', () => {
     const cat = await mkCatalogs();
     const trip = await mkTrip(driver.id, cat.customer.id, cat.route.id, cat.cargoType.id);
     const { cost, replayed } = await recordIncidentalCost(trip.id, driver.id,
-      { costType: DriverIncidentalCostType.PER_DIEM, amount: 200000, occurredAt: TODAY, note: 'phụ cấp ngày' }, user.id, undefined);
+      { costType: DriverIncidentalCostType.PER_DIEM, amount: 200000, occurredAt: TODAY, note: 'phụ cấp ngày' }, user.id, `create-${suffix}-${trip.id}`);
     createdCostIds.push(cost.id);
     assert.equal(replayed, false);
     assert.equal(cost.costType, 'PER_DIEM');
@@ -137,7 +137,7 @@ describe('M8.4 slice 3 — driver incidental costs', () => {
     const cat = await mkCatalogs();
     const trip = await mkTrip(driver.id, cat.customer.id, cat.route.id, cat.cargoType.id, { status: 'LOCKED' });
     await assertStatus(() => recordIncidentalCost(trip.id, driver.id,
-      { costType: DriverIncidentalCostType.FUEL, amount: 300000, occurredAt: TODAY }, user.id, undefined), 409);
+      { costType: DriverIncidentalCostType.FUEL, amount: 300000, occurredAt: TODAY }, user.id, `locked-${suffix}-${trip.id}`), 409);
   });
 
   test('list returns costs newest-first', async () => {
@@ -145,9 +145,9 @@ describe('M8.4 slice 3 — driver incidental costs', () => {
     const cat = await mkCatalogs();
     const trip = await mkTrip(driver.id, cat.customer.id, cat.route.id, cat.cargoType.id);
     const a = await recordIncidentalCost(trip.id, driver.id,
-      { costType: DriverIncidentalCostType.PER_DIEM, amount: 200000, occurredAt: TODAY }, user.id, undefined);
+      { costType: DriverIncidentalCostType.PER_DIEM, amount: 200000, occurredAt: TODAY }, user.id, `timeline-a-${suffix}-${trip.id}`);
     const b = await recordIncidentalCost(trip.id, driver.id,
-      { costType: DriverIncidentalCostType.FUEL, amount: 300000, occurredAt: TODAY }, user.id, undefined);
+      { costType: DriverIncidentalCostType.FUEL, amount: 300000, occurredAt: TODAY }, user.id, `timeline-b-${suffix}-${trip.id}`);
     createdCostIds.push(a.cost.id, b.cost.id);
     const items = await listIncidentalCosts(trip.id, driver.id);
     assert.equal(items.length, 2);

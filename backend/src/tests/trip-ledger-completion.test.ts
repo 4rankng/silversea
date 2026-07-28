@@ -1,13 +1,22 @@
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { FuelMode, TripStatus, Role, TxnType } from '@tingting/shared';
 import { db, client } from '../db';
 import * as s from '../db/schema';
 import { transitionTripStatus } from '../services/trip-status-machine.service';
-import { updateTripFigures } from '../services/trip-mutations.service';
-import { requestTripReopen } from '../services/adjustment-governance.service';
-import { LedgerService } from '../services/ledger.service';
+import {
+  updateTripFigures,
+  type TripFigureUpdateInput,
+} from '../services/trip-mutations.service';
+import {
+  approveGovernanceAction,
+  checkGovernanceAction,
+  requestCompletedTripCancellation,
+  requestTripFinancialClose,
+  requestTripFinancialChange,
+  requestTripReopen,
+} from '../services/adjustment-governance.service';
 
 const createdTripIds: number[] = [];
 const createdCustomerIds: number[] = [];
@@ -23,6 +32,7 @@ after(async () => {
     await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
   }
   if (createdUserIds.length > 0) {
+    await db.delete(s.notifications).where(inArray(s.notifications.userId, createdUserIds));
     await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
   }
   if (createdSupplierIds.length > 0) {
@@ -76,6 +86,105 @@ async function ledgerRowsForTrip(tripId: number) {
     .orderBy(s.ledger.id);
 }
 
+async function completeTripGoverned(tripId: number, expectedVersion: number) {
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const actors = await db.insert(s.users).values([
+    { username: `trip-close-maker-${suffix}`, passwordHash: 'x', role: Role.MANAGER },
+    { username: `trip-close-checker-${suffix}`, passwordHash: 'x', role: Role.ACCOUNTANT },
+    { username: `trip-close-approver-${suffix}`, passwordHash: 'x', role: Role.ADMIN },
+  ]).returning({ id: s.users.id });
+  createdUserIds.push(...actors.map((actor) => actor.id));
+
+  const action = await requestTripFinancialClose({
+    tripId,
+    reason: 'Hoàn thành chuyến và ghi nhận công nợ',
+    makerId: actors[0]!.id,
+    makerRole: Role.MANAGER,
+    expectedTripVersion: expectedVersion,
+  });
+  const checked = await checkGovernanceAction({
+    actionId: action.id,
+    checkerId: actors[1]!.id,
+    checkerRole: Role.ACCOUNTANT,
+    expectedVersion: action.version,
+  });
+  await approveGovernanceAction({
+    actionId: action.id,
+    approverId: actors[2]!.id,
+    approverRole: Role.ADMIN,
+    expectedVersion: checked.version,
+  });
+
+  const [completed] = await db.select().from(s.trips)
+    .where(eq(s.trips.id, tripId))
+    .limit(1);
+  return completed;
+}
+
+async function governedFinancialChange(
+  tripId: number,
+  expectedVersion: number,
+  figures: TripFigureUpdateInput,
+) {
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const actors = await db.insert(s.users).values([
+    { username: `trip-change-maker-${suffix}`, passwordHash: 'x', role: Role.MANAGER },
+    { username: `trip-change-checker-${suffix}`, passwordHash: 'x', role: Role.ACCOUNTANT },
+    { username: `trip-change-approver-${suffix}`, passwordHash: 'x', role: Role.ADMIN },
+  ]).returning({ id: s.users.id });
+  createdUserIds.push(...actors.map((actor) => actor.id));
+
+  const action = await requestTripFinancialChange({
+    tripId,
+    reason: 'Điều chỉnh số liệu chuyến đã hoàn thành',
+    figures,
+    makerId: actors[0]!.id,
+    makerRole: Role.MANAGER,
+    expectedTripVersion: expectedVersion,
+  });
+  const checked = await checkGovernanceAction({
+    actionId: action.id,
+    checkerId: actors[1]!.id,
+    checkerRole: Role.ACCOUNTANT,
+    expectedVersion: action.version,
+  });
+  return approveGovernanceAction({
+    actionId: action.id,
+    approverId: actors[2]!.id,
+    approverRole: Role.ADMIN,
+    expectedVersion: checked.version,
+  });
+}
+
+async function checkedCompletedTripCancellation(
+  tripId: number,
+  expectedVersion: number,
+) {
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const actors = await db.insert(s.users).values([
+    { username: `trip-cancel-maker-${suffix}`, passwordHash: 'x', role: Role.MANAGER },
+    { username: `trip-cancel-checker-${suffix}`, passwordHash: 'x', role: Role.ACCOUNTANT },
+    { username: `trip-cancel-approver-a-${suffix}`, passwordHash: 'x', role: Role.ADMIN },
+    { username: `trip-cancel-approver-b-${suffix}`, passwordHash: 'x', role: Role.ADMIN },
+  ]).returning({ id: s.users.id });
+  createdUserIds.push(...actors.map((actor) => actor.id));
+
+  const action = await requestCompletedTripCancellation({
+    tripId,
+    reason: 'Hủy chuyến đã hoàn thành và hoàn nhập công nợ',
+    makerId: actors[0]!.id,
+    makerRole: Role.MANAGER,
+    expectedTripVersion: expectedVersion,
+  });
+  const checked = await checkGovernanceAction({
+    actionId: action.id,
+    checkerId: actors[1]!.id,
+    checkerRole: Role.ACCOUNTANT,
+    expectedVersion: action.version,
+  });
+  return { checked, approvers: [actors[2]!, actors[3]!] };
+}
+
 describe('trip completion ledger posting', () => {
   test('posts customer and supplier ledger entries when a trip is completed', async () => {
     const { trip, customer, supplier } = await createInTransitTrip({
@@ -83,7 +192,7 @@ describe('trip completion ledger posting', () => {
       totalFuelCost: 456_000,
     });
 
-    await transitionTripStatus(trip.id, TripStatus.COMPLETED, 1, Role.MANAGER);
+    await completeTripGoverned(trip.id, trip.version);
 
     const rows = await ledgerRowsForTrip(trip.id);
     assert.equal(rows.filter(r => r.txnType === TxnType.TRIP_REVENUE).length, 1);
@@ -105,7 +214,7 @@ describe('trip completion ledger posting', () => {
   test('locking a completed trip does not duplicate ledger entries', async () => {
     const { trip } = await createInTransitTrip();
 
-    await transitionTripStatus(trip.id, TripStatus.COMPLETED, 1, Role.MANAGER);
+    await completeTripGoverned(trip.id, trip.version);
     await transitionTripStatus(trip.id, TripStatus.LOCKED, 1, Role.MANAGER, false, true);
 
     const rows = await ledgerRowsForTrip(trip.id);
@@ -124,11 +233,11 @@ describe('trip completion ledger posting', () => {
     ]).returning({ id: s.users.id });
     createdUserIds.push(...actors.map((actor) => actor.id));
 
-    await transitionTripStatus(trip.id, TripStatus.COMPLETED, 1, Role.MANAGER);
+    await completeTripGoverned(trip.id, trip.version);
     await transitionTripStatus(trip.id, TripStatus.LOCKED, 1, Role.MANAGER, false, true);
     await assert.rejects(
       transitionTripStatus(trip.id, TripStatus.COMPLETED, actors[0]!.id, Role.MANAGER),
-      /chỉ được mở lại bằng yêu cầu/,
+      /kiểm tra và phê duyệt/,
     );
     const [locked] = await db.select({ version: s.trips.version })
       .from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
@@ -157,8 +266,21 @@ describe('trip completion ledger posting', () => {
       totalFuelCost: 200_000,
     });
 
-    await transitionTripStatus(trip.id, TripStatus.COMPLETED, 1, Role.MANAGER);
-    await transitionTripStatus(trip.id, TripStatus.CANCELED, 1, Role.MANAGER);
+    const completed = await completeTripGoverned(trip.id, trip.version);
+    await assert.rejects(
+      transitionTripStatus(trip.id, TripStatus.CANCELED, 1, Role.MANAGER),
+      /Thiếu yêu cầu quản trị đã được phê duyệt/,
+    );
+    const { checked, approvers } = await checkedCompletedTripCancellation(
+      trip.id,
+      completed.version,
+    );
+    await approveGovernanceAction({
+      actionId: checked.id,
+      approverId: approvers[0]!.id,
+      approverRole: Role.ADMIN,
+      expectedVersion: checked.version,
+    });
 
     const rows = await ledgerRowsForTrip(trip.id);
     assert.equal(rows.filter(r => r.txnType === TxnType.TRIP_REVENUE).length, 1);
@@ -189,42 +311,25 @@ describe('trip completion ledger posting', () => {
       revenue: 700_000,
       totalFuelCost: 200_000,
     });
-    await transitionTripStatus(trip.id, TripStatus.COMPLETED, 1, Role.MANAGER);
-
-    let releaseTripRow!: () => void;
-    let markTripRowLocked!: () => void;
-    const tripRowLocked = new Promise<void>((resolve) => {
-      markTripRowLocked = resolve;
-    });
-    const releaseRow = new Promise<void>((resolve) => {
-      releaseTripRow = resolve;
-    });
-    const blocker = db.transaction(async (tx) => {
-      await tx.select({ id: s.trips.id }).from(s.trips)
-        .where(eq(s.trips.id, trip.id))
-        .for('update');
-      markTripRowLocked();
-      await releaseRow;
-    });
-    await tripRowLocked;
-
-    let raceSettled = false;
-    const race = Promise.allSettled([
-      transitionTripStatus(trip.id, TripStatus.CANCELED, 1, Role.MANAGER),
-      transitionTripStatus(trip.id, TripStatus.CANCELED, 1, Role.MANAGER),
-    ]).finally(() => {
-      raceSettled = true;
-    });
-    await new Promise(resolve => setTimeout(resolve, 30));
-    assert.equal(
-      raceSettled,
-      false,
-      'both cancels must be waiting on the controlling trip row after reading COMPLETED',
+    const completed = await completeTripGoverned(trip.id, trip.version);
+    const { checked, approvers } = await checkedCompletedTripCancellation(
+      trip.id,
+      completed.version,
     );
-
-    releaseTripRow();
-    await blocker;
-    const results = await race;
+    const results = await Promise.allSettled([
+      approveGovernanceAction({
+        actionId: checked.id,
+        approverId: approvers[0]!.id,
+        approverRole: Role.ADMIN,
+        expectedVersion: checked.version,
+      }),
+      approveGovernanceAction({
+        actionId: checked.id,
+        approverId: approvers[1]!.id,
+        approverRole: Role.ADMIN,
+        expectedVersion: checked.version,
+      }),
+    ]);
     const fulfilled = results.filter(result => result.status === 'fulfilled');
     const rejected = results.filter(result => result.status === 'rejected') as PromiseRejectedResult[];
 
@@ -247,57 +352,23 @@ describe('trip completion ledger posting', () => {
     assert.equal(supplierRows.at(-1)?.balance, '0');
   });
 
-  test('cancel wins against an already-started stale completed-trip edit without financial resurrection', async () => {
+  test('approved cancel wins against a stale direct completed-trip edit without financial resurrection', async () => {
     const { trip, customer, supplier } = await createInTransitTrip({
       revenue: 700_000,
       totalFuelCost: 200_000,
     });
-    const completed = await transitionTripStatus(
+    const completed = await completeTripGoverned(trip.id, trip.version);
+
+    const { checked, approvers } = await checkedCompletedTripCancellation(
       trip.id,
-      TripStatus.COMPLETED,
-      1,
-      Role.MANAGER,
+      completed.version,
     );
-
-    let releaseCustomerLock!: () => void;
-    let markCustomerLocked!: () => void;
-    const customerLocked = new Promise<void>((resolve) => {
-      markCustomerLocked = resolve;
+    const cancel = approveGovernanceAction({
+      actionId: checked.id,
+      approverId: approvers[0]!.id,
+      approverRole: Role.ADMIN,
+      expectedVersion: checked.version,
     });
-    const releaseLock = new Promise<void>((resolve) => {
-      releaseCustomerLock = resolve;
-    });
-    const blocker = db.transaction(async (tx) => {
-      await LedgerService.lockEntity(tx, 'CUSTOMER', customer.id);
-      markCustomerLocked();
-      await releaseLock;
-    });
-    await customerLocked;
-
-    const cancel = transitionTripStatus(
-      trip.id,
-      TripStatus.CANCELED,
-      1,
-      Role.MANAGER,
-    );
-
-    // Wait until cancellation owns the controlling trip row and is blocked on
-    // the customer ledger lock above. NOWAIT avoids timing-only ordering.
-    let cancelOwnsTripRow = false;
-    for (let attempt = 0; attempt < 50 && !cancelOwnsTripRow; attempt += 1) {
-      try {
-        await db.execute(sql`SELECT id FROM trips WHERE id = ${trip.id} FOR UPDATE NOWAIT`);
-      } catch (err) {
-        const candidate = err as { code?: string; cause?: { code?: string } };
-        cancelOwnsTripRow = candidate.code === '55P03' || candidate.cause?.code === '55P03';
-        if (!cancelOwnsTripRow) throw err;
-      }
-      if (!cancelOwnsTripRow) {
-        await new Promise((resolve) => setTimeout(resolve, 5));
-      }
-    }
-    assert.equal(cancelOwnsTripRow, true, 'cancel must own the trip row before the stale edit starts');
-
     const staleEdit = updateTripFigures(trip.id, {
       legs: [],
       fuelMode: FuelMode.AUTO,
@@ -311,9 +382,6 @@ describe('trip completion ledger posting', () => {
       userId: 1,
       userRole: Role.MANAGER,
     });
-
-    releaseCustomerLock();
-    await blocker;
 
     const [cancelResult, editResult] = await Promise.allSettled([cancel, staleEdit]);
     assert.equal(cancelResult.status, 'fulfilled');
@@ -349,8 +417,8 @@ describe('trip completion ledger posting', () => {
       totalFuelCost: 100_000,
     });
 
-    const completed = await transitionTripStatus(trip.id, TripStatus.COMPLETED, 1, Role.MANAGER);
-    await updateTripFigures(trip.id, {
+    const completed = await completeTripGoverned(trip.id, trip.version);
+    await governedFinancialChange(trip.id, completed.version, {
       legs: [],
       fuelMode: FuelMode.AUTO,
       fuelSupplementLiters: 0,
@@ -359,7 +427,6 @@ describe('trip completion ledger posting', () => {
       tollsStations: 0,
       hasReturnCargo: false,
       revenue: 1_500_000,
-      expectedVersion: completed.version,
       userId: 1,
     });
 
@@ -384,8 +451,8 @@ describe('trip completion ledger posting', () => {
     const [newCustomer] = await db.insert(s.customers).values({ name: `Replacement customer ${suffix}` }).returning();
     createdCustomerIds.push(newCustomer.id);
 
-    const completed = await transitionTripStatus(trip.id, TripStatus.COMPLETED, 1, Role.MANAGER);
-    const updated = await updateTripFigures(trip.id, {
+    const completed = await completeTripGoverned(trip.id, trip.version);
+    await governedFinancialChange(trip.id, completed.version, {
       legs: [],
       fuelMode: FuelMode.AUTO,
       fuelSupplementLiters: 0,
@@ -394,11 +461,12 @@ describe('trip completion ledger posting', () => {
       tollsStations: 0,
       hasReturnCargo: false,
       customerId: newCustomer.id,
-      expectedVersion: completed.version,
       userId: 1,
       userRole: Role.MANAGER,
     });
 
+    const [updated] = await db.select().from(s.trips)
+      .where(eq(s.trips.id, trip.id)).limit(1);
     assert.equal(updated.customerId, newCustomer.id);
     const oldRows = await db.select({ balance: s.ledger.balance }).from(s.ledger)
       .where(and(eq(s.ledger.entityType, 'CUSTOMER'), eq(s.ledger.entityId, oldCustomer.id)))
@@ -416,7 +484,7 @@ describe('trip completion ledger posting', () => {
     const [newCustomer] = await db.insert(s.customers).values({ name: `Paid replacement customer ${suffix}` }).returning();
     createdCustomerIds.push(newCustomer.id);
 
-    const completed = await transitionTripStatus(trip.id, TripStatus.COMPLETED, 1, Role.MANAGER);
+    const completed = await completeTripGoverned(trip.id, trip.version);
     await db.insert(s.ledger).values({
       txnType: TxnType.PAYMENT_RECEIVED,
       txnId: trip.id,
@@ -429,8 +497,17 @@ describe('trip completion ledger posting', () => {
       note: 'Test payment',
     });
 
-    await assert.rejects(
-      updateTripFigures(trip.id, {
+    const actorSuffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const actors = await db.insert(s.users).values([
+      { username: `paid-change-maker-${actorSuffix}`, passwordHash: 'x', role: Role.MANAGER },
+      { username: `paid-change-checker-${actorSuffix}`, passwordHash: 'x', role: Role.ACCOUNTANT },
+      { username: `paid-change-approver-${actorSuffix}`, passwordHash: 'x', role: Role.ADMIN },
+    ]).returning({ id: s.users.id });
+    createdUserIds.push(...actors.map((actor) => actor.id));
+    const action = await requestTripFinancialChange({
+      tripId: trip.id,
+      reason: 'Đổi khách hàng sau hoàn thành',
+      figures: {
         legs: [],
         fuelMode: FuelMode.AUTO,
         fuelSupplementLiters: 0,
@@ -439,9 +516,25 @@ describe('trip completion ledger posting', () => {
         tollsStations: 0,
         hasReturnCargo: false,
         customerId: newCustomer.id,
-        expectedVersion: completed.version,
         userId: 1,
         userRole: Role.MANAGER,
+      },
+      makerId: actors[0]!.id,
+      makerRole: Role.MANAGER,
+      expectedTripVersion: completed.version,
+    });
+    const checked = await checkGovernanceAction({
+      actionId: action.id,
+      checkerId: actors[1]!.id,
+      checkerRole: Role.ACCOUNTANT,
+      expectedVersion: action.version,
+    });
+    await assert.rejects(
+      approveGovernanceAction({
+        actionId: action.id,
+        approverId: actors[2]!.id,
+        approverRole: Role.ADMIN,
+        expectedVersion: checked.version,
       }),
       /đã phát sinh thanh toán/,
     );

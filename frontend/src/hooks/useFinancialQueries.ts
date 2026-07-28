@@ -159,8 +159,8 @@ export function useCreateFuelInvoice() {
 export function useUpdateFuelInvoice() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: FuelInvoiceInput }) =>
-      financialClient.updateFuelInvoice(id, data),
+    mutationFn: ({ id, data, expectedVersion }: { id: number; data: FuelInvoiceInput; expectedVersion: number }) =>
+      financialClient.updateFuelInvoice(id, data, expectedVersion),
     onSuccess: (updated) => {
       invalidateFuelInvoiceQueries(qc, updated.id);
     },
@@ -170,9 +170,11 @@ export function useUpdateFuelInvoice() {
 export function useApproveFuelInvoice() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => financialClient.approveFuelInvoice(id),
-    onSuccess: (approved) => {
-      invalidateFuelInvoiceQueries(qc, approved.id);
+    mutationFn: ({ id, expectedVersion, reason }: { id: number; expectedVersion: number; reason: string }) =>
+      financialClient.approveFuelInvoice(id, expectedVersion, reason),
+    onSuccess: (action) => {
+      if (action.subjectId != null) invalidateFuelInvoiceQueries(qc, action.subjectId);
+      qc.invalidateQueries({ queryKey: ['governance-actions'] });
     },
   });
 }

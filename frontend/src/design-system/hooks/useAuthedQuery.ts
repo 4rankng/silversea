@@ -2,12 +2,17 @@ import { useQuery, type UseQueryOptions, type QueryFunctionContext } from '@tans
 import { ApiError } from '../../lib/api';
 import { useAuth } from '../../hooks/useAuth';
 
+export function shouldLogoutForQueryError(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 401;
+}
+
 /**
  * Drop-in replacement for `useQuery` that centralises the response to
- * 401 / 403 errors. When the backend reports that the current session is no
+ * 401 errors. When the backend reports that the current session is no
  * longer valid, the auth context's `logout()` is invoked, which clears the
  * token and flips `isAuthenticated` to false — the App's role-guard then
- * redirects to the login page.
+ * redirects to the login page. A 403 is a valid authenticated permission
+ * denial and must not destroy the user's session.
  *
  * Usage: identical to `useQuery`:
  *
@@ -30,7 +35,7 @@ export function useAuthedQuery<TQueryFnData = unknown, TError = Error, TData = T
           try {
             return await (opts.queryFn as (c: QueryFunctionContext) => TQueryFnData | Promise<TQueryFnData>)(ctx);
           } catch (err) {
-            if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+            if (shouldLogoutForQueryError(err)) {
               logout();
             }
             throw err;

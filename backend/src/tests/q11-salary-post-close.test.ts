@@ -210,11 +210,13 @@ test('Q15 salary period close and reopen require three distinct actors before th
       actionId: requested.actionId,
       actorId: manager.id,
       actorRole: 'MANAGER',
+      expectedVersion: requested.version,
     });
     const approved = await approveSalaryPeriodExclusion({
       actionId: checked.actionId,
       actorId: admin.id,
       actorRole: 'ADMIN',
+      expectedVersion: checked.version,
     });
     assert.equal(approved.status, 'APPROVED');
   }
@@ -458,12 +460,14 @@ test('Q11 post-close issue/adjustment flow and Q20 readiness regression stay gre
       actionId: requested.actionId,
       actorId: manager.id,
       actorRole: 'MANAGER',
+      expectedVersion: requested.version,
     });
 
     await approveSalaryPeriodExclusion({
       actionId: requested.actionId,
       actorId: admin.id,
       actorRole: 'ADMIN',
+      expectedVersion: requested.version + 1,
     });
   }
 
@@ -513,16 +517,20 @@ test('Q11 post-close issue/adjustment flow and Q20 readiness regression stay gre
   assert.equal(requested.status, 'PENDING_CHECK');
 
   const checked = await checkSalaryPeriodAdjustment({
+    period: SOURCE_PERIOD,
     actionId: requested.actionId,
     actorId: manager.id,
     actorRole: 'MANAGER',
+    expectedVersion: requested.version,
   });
   assert.equal(checked.status, 'PENDING_APPROVAL');
 
   const approved = await approveSalaryPeriodAdjustment({
+    period: SOURCE_PERIOD,
     actionId: requested.actionId,
     actorId: admin.id,
     actorRole: 'ADMIN',
+    expectedVersion: checked.version,
   });
   assert.equal(approved.status, 'APPROVED');
   assert.ok(approved.adjustmentId);

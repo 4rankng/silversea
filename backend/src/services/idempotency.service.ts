@@ -20,8 +20,10 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { and, eq, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
+import { persistMaterialWriteSuccessAuditInTransaction } from './audit.service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type TransactionOptions = NonNullable<Parameters<typeof db.transaction>[1]>;
 export const MAX_IDEMPOTENCY_KEY_LENGTH = 100;
 type JsonPrimitive = string | number | boolean | null;
 type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
@@ -51,6 +53,11 @@ export function buildCrudIdempotencyEndpoint(
 
 /** Tag identifying the logical endpoint (e.g. 'shipments.quick-create'). */
 export const IDEMPOTENCY_ENDPOINTS = {
+  UPLOAD_TRIP_PHOTO: 'upload.trip-photo',
+  UPLOAD_TRIP_PHOTO_DELETE: 'upload.trip-photo.delete',
+  UPLOAD_COMPANY_LOGO: 'upload.company-logo',
+  OCR_CAPTURE: 'ocr.capture',
+  OCR_PERSIST_ONLY: 'ocr.persist-only',
   SHIPMENT_QUICK_CREATE: 'shipments.quick-create',
   SHIPMENT_CREATE: 'shipments.create',
   SHIPMENT_UPDATE: 'shipments.update',
@@ -86,6 +93,7 @@ export const IDEMPOTENCY_ENDPOINTS = {
   ADVANCE_SETTLEMENT_CHECK: 'advance-settlements.check',
   ADVANCE_SETTLEMENT_APPROVE: 'advance-settlements.approve',
   ADVANCE_SETTLEMENT_REJECT: 'advance-settlements.reject',
+  ADVANCE_SETTLEMENT_REVERSE: 'advance-settlements.reverse',
   ADVANCE_SETTLEMENT_UPDATE: 'advance-settlements.update',
   ADVANCE_SETTLEMENT_EXPENSE_ADJUST: 'advance-settlements.expenses.adjust',
   TRIP_EXPENSE_APPROVE: 'trip-expenses.approve',
@@ -98,12 +106,15 @@ export const IDEMPOTENCY_ENDPOINTS = {
   PORTAL_DEBIT_NOTE_DISPUTE: 'portal.debit-notes.dispute',
   SALARY_PERIOD_CLOSE: 'salary-periods.close',
   SALARY_PERIOD_REOPEN: 'salary-periods.reopen',
+  SALARY_PERIOD_ADJUSTMENT: 'salary-periods.adjustments.request',
   SALARY_CONFIRM: 'salary.confirm',
   SALARY_UNCONFIRM: 'salary.unconfirm',
   SALARY_WORKDAYS: 'salary.workdays',
   PROFIT_DISTRIBUTE: 'profit-distribute.execute',
   TRIP_PAIR_CREATE: 'trips.pairs.create',
   TRIP_BULK_FIGURES: 'trips.bulk-figures',
+  TRIP_FINANCIAL_CLOSE: 'trips.financial-close',
+  TRIP_COMPLETED_CANCEL: 'trips.completed-cancel',
   TRIP_DELETE: 'trips.delete',
   TRIP_PRE_DEPARTURE: 'trips.pre-departure',
   TRIP_ACTUALS: 'trips.actuals',
@@ -116,6 +127,8 @@ export const IDEMPOTENCY_ENDPOINTS = {
   TRIP_EXPENSE_CREATE: 'trip-expenses.create',
   TRIP_EXPENSE_UPDATE: 'trip-expenses.update',
   TRIP_EXPENSE_DELETE: 'trip-expenses.delete',
+  EXPENSE_PHOTO_CREATE: 'expenses.photo.create',
+  EXPENSE_PHOTO_DELETE: 'expenses.photo.delete',
 } as const;
 
 /** Stable, sorted-key JSON used as the hash input so key order doesn't matter. */
@@ -168,6 +181,8 @@ export interface IdempotentRunResult<T> {
   result: T;
   /** True when this call served a replay (no new row was created). */
   replayed: boolean;
+  /** Persisted HTTP status for exact command-result replay consumers. */
+  statusCode: number;
 }
 
 function snapshotJsonValue(value: unknown): JsonValue {
@@ -198,6 +213,25 @@ export async function findIdempotencyRecord(
   return row ?? null;
 }
 
+export async function waitForIdempotencyRecord(
+  endpoint: string,
+  idempotencyKey: string,
+  options: {
+    timeoutMs?: number;
+    pollIntervalMs?: number;
+  } = {},
+) {
+  const timeoutMs = options.timeoutMs ?? 2_000;
+  const pollIntervalMs = options.pollIntervalMs ?? 25;
+  const deadline = Date.now() + timeoutMs;
+  while (true) {
+    const existing = await findIdempotencyRecord(endpoint, idempotencyKey);
+    if (existing) return existing;
+    if (Date.now() >= deadline) return null;
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+  }
+}
+
 /**
  * Run `create` exactly once per `(endpoint, idempotencyKey)` pair.
  *
@@ -224,95 +258,125 @@ export async function runIdempotent<T>(args: {
   idempotencyKey: string | undefined;
   payload: unknown;
   createdBy?: number | null;
+  transactionOptions?: TransactionOptions;
+  responseStatusCode?: number;
   create: (tx: Tx) => Promise<T>;
   load?: (entityId: number, tx: Tx) => Promise<T>;
   entityType?: string | null;
   getEntityId?: (result: T) => number | null | undefined;
   serializeResult?: (result: T) => unknown;
   deserializeResult?: (snapshot: unknown) => T;
+  onTransactionRollback?: (error: unknown, created: T | undefined) => Promise<void>;
 }): Promise<IdempotentRunResult<T>> {
   const {
     endpoint,
     idempotencyKey,
     payload,
     createdBy,
+    transactionOptions,
+    responseStatusCode,
     create,
     load,
     entityType,
     getEntityId,
     serializeResult,
     deserializeResult,
+    onTransactionRollback,
   } = args;
 
-  // No key → caller still gets a normal result, but on the same transaction
-  // contract as the keyed path.
   if (!idempotencyKey) {
-    return db.transaction(async (tx) => {
-      const result = await create(tx);
-      return { result, replayed: false };
-    });
+    throw new ApiError(400, 'Idempotency-Key là bắt buộc cho thao tác ghi dữ liệu này.');
   }
 
   const payloadHash = hashPayload(payload);
   const lockKey = `${endpoint}\u001f${idempotencyKey}`;
+  const persistedStatusCode = responseStatusCode ?? 200;
 
-  return db.transaction(async (tx) => {
-    // hashtextextended returns one stable int8 key. Transaction scope releases
-    // the lock automatically on commit/rollback, including thrown create errors.
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`,
-    );
+  let createdResult: T | undefined;
+  try {
+    return await db.transaction(async (tx) => {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`,
+      );
 
-    const [existing] = await tx.select().from(s.idempotencyKeys)
-      .where(and(
-        eq(s.idempotencyKeys.endpoint, endpoint),
-        eq(s.idempotencyKeys.idempotencyKey, idempotencyKey),
-      ))
-      .limit(1);
+      const [existing] = await tx.select().from(s.idempotencyKeys)
+        .where(and(
+          eq(s.idempotencyKeys.endpoint, endpoint),
+          eq(s.idempotencyKeys.idempotencyKey, idempotencyKey),
+        ))
+        .limit(1);
 
-    if (existing) {
-      if (existing.payloadHash !== payloadHash) {
-        throw new ApiError(
-          409,
-          'Khóa giao dịch trùng nhưng nội dung khác — vui lòng dùng mã giao dịch mới.',
-          `idempotency_key=${idempotencyKey}`,
-        );
+      if (existing) {
+        const requestedActor = createdBy ?? null;
+        const persistedActor = existing.createdBy ?? null;
+        if (requestedActor !== persistedActor) {
+          throw new ApiError(
+            409,
+            'Khóa giao dịch này thuộc về người thực hiện khác — vui lòng dùng mã giao dịch mới.',
+            `idempotency_key=${idempotencyKey}`,
+          );
+        }
+        if (existing.payloadHash !== payloadHash) {
+          throw new ApiError(
+            409,
+            'Khóa giao dịch trùng nhưng nội dung khác — vui lòng dùng mã giao dịch mới.',
+            `idempotency_key=${idempotencyKey}`,
+          );
+        }
+        if (existing.responseSnapshot !== null && existing.responseSnapshot !== undefined) {
+          return {
+            result: deserializeResult
+              ? deserializeResult(existing.responseSnapshot)
+              : (existing.responseSnapshot as T),
+            replayed: true,
+            statusCode: existing.responseStatusCode,
+          };
+        }
+        if (existing.entityId == null || !load) {
+          throw new ApiError(
+            409,
+            'Khóa giao dịch đã được dùng nhưng chưa ghi nhận kết quả — vui lòng dùng mã giao dịch mới.',
+            `idempotency_key=${idempotencyKey}`,
+          );
+        }
+        const result = await load(existing.entityId, tx);
+        return { result, replayed: true, statusCode: existing.responseStatusCode };
       }
-      if (existing.responseSnapshot !== null && existing.responseSnapshot !== undefined) {
-        return {
-          result: deserializeResult
-            ? deserializeResult(existing.responseSnapshot)
-            : (existing.responseSnapshot as T),
-          replayed: true,
-        };
-      }
-      if (existing.entityId == null || !load) {
-        throw new ApiError(
-          409,
-          'Khóa giao dịch đã được dùng nhưng chưa ghi nhận kết quả — vui lòng dùng mã giao dịch mới.',
-          `idempotency_key=${idempotencyKey}`,
-        );
-      }
-      const result = await load(existing.entityId, tx);
-      return { result, replayed: true };
+
+      createdResult = await create(tx);
+      const entityId = getEntityId
+        ? (getEntityId(createdResult) ?? null)
+        : defaultEntityId(createdResult);
+      const responseSnapshot = snapshotJsonValue(
+        serializeResult ? serializeResult(createdResult) : createdResult,
+      );
+      const responseBody = (
+        responseSnapshot
+        && typeof responseSnapshot === 'object'
+        && !Array.isArray(responseSnapshot)
+      ) ? responseSnapshot as Record<string, unknown> : null;
+      await tx.insert(s.idempotencyKeys).values({
+        endpoint,
+        idempotencyKey,
+        entityType: entityType ?? null,
+        entityId,
+        payloadHash,
+        responseStatusCode: persistedStatusCode,
+        responseSnapshot,
+        createdBy: createdBy ?? null,
+      });
+      await persistMaterialWriteSuccessAuditInTransaction({
+        tx,
+        statusCode: persistedStatusCode,
+        responseBody,
+        entityId,
+      });
+      return { result: createdResult, replayed: false, statusCode: persistedStatusCode };
+    }, transactionOptions);
+  } catch (error) {
+    if (onTransactionRollback) {
+      await onTransactionRollback(error, createdResult);
     }
-
-    const created = await create(tx);
-    const entityId = getEntityId
-      ? (getEntityId(created) ?? null)
-      : defaultEntityId(created);
-    const responseSnapshot = snapshotJsonValue(
-      serializeResult ? serializeResult(created) : created,
-    );
-    await tx.insert(s.idempotencyKeys).values({
-      endpoint,
-      idempotencyKey,
-      entityType: entityType ?? null,
-      entityId,
-      payloadHash,
-      responseSnapshot,
-      createdBy: createdBy ?? null,
-    });
-    return { result: created, replayed: false };
-  });
+    throw error;
+  }
 }

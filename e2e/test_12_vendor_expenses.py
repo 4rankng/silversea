@@ -1,12 +1,52 @@
 #!/usr/bin/env python3
 """E2E Test Suite 12: Vendor Expenses & Payables"""
-import sys, os
+import sys, os, time
+from uuid import uuid4
 sys.path.insert(0, os.path.dirname(__file__))
 from helpers import *
 
 def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
+    run_suffix = uuid4().hex[:10]
+    supplier_name = f'E2E Supplier TC1201 {run_suffix}'
     api = ApiClient()
     api.login('admin', 'admin123')
+    checker_api = ApiClient()
+    checker_api.login('ketoan', 'admin123')
+    approver_api = ApiClient()
+    approver_api.login('giamdoc', 'admin123')
+
+    def advance_governance(action):
+        checked = checker_api.post(
+            f'/api/governance-actions/{action["id"]}/check',
+            {'expectedVersion': action['version']},
+        )
+        if checked.get('status') != 200:
+            return {'status': checked.get('status'), 'error': checked.get('error')}
+        return approver_api.post(
+            f'/api/governance-actions/{action["id"]}/approve',
+            {'expectedVersion': checked['data']['version']},
+        )
+
+    def materialized_id(response):
+        data = response.get('data', {})
+        if data.get('status') != 'PENDING_CHECK':
+            return data.get('id'), response
+        approved = advance_governance(data)
+        application = approved.get('data', {}).get('applicationResult') or {}
+        return application.get('subjectId'), approved
+
+    def create_governed_expense(payload):
+        response = api.post('/api/expenses', {
+            **payload,
+            'reason': 'Kiểm thử E2E quy trình chi phí có phê duyệt',
+        })
+        if response.get('status') not in (200, 201):
+            return None, None, response
+        expense_id, approved = materialized_id(response)
+        if approved.get('status') != 200 or not expense_id:
+            return None, None, approved
+        expense = api.get(f'/api/expenses/{expense_id}')
+        return expense_id, expense.get('data', {}).get('updatedAt'), expense
 
     supplier_id = None
     category_id = None
@@ -41,12 +81,13 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
 
     # TC-1201: Create supplier
     resp = api.post('/api/suppliers', {
-        'name': 'E2E Supplier TC1201',
+        'name': supplier_name,
         'phone': '0909123456',
         'note': 'E2E test supplier',
     })
     if resp.get('status') in (200, 201) and resp.get('data', {}).get('id'):
-        supplier_id = resp['data']['id']
+        supplier_id, resp = materialized_id(resp)
+    if supplier_id:
         results.pass_('TC-1201', 'Create supplier via API', f'ID={supplier_id}')
     else:
         results.fail('TC-1201', 'Create supplier', f'Status={resp.get("status")} body={resp.get("error")}')
@@ -65,7 +106,7 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
 
     # TC-1203: Duplicate supplier name
     resp = api.post('/api/suppliers', {
-        'name': 'E2E Supplier TC1201',
+        'name': supplier_name,
         'phone': '0909999999',
     })
     if resp.get('status') in (409, 400):
@@ -81,11 +122,12 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
 
     # TC-1204: Create expense category
     resp = api.post('/api/expense-categories', {
-        'name': 'E2E Category TC1204',
+        'name': f'E2E Category TC1204 {run_suffix}',
         'status': 'ACTIVE',
     })
     if resp.get('status') in (200, 201) and resp.get('data', {}).get('id'):
-        category_id = resp['data']['id']
+        category_id, resp = materialized_id(resp)
+    if category_id:
         results.pass_('TC-1204', 'Create expense category', f'ID={category_id}')
     else:
         results.fail('TC-1204', 'Create expense category', f'Status={resp.get("status")} body={resp.get("error")}')
@@ -99,13 +141,14 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
 
     # TC-1206: Create recurring category
     resp = api.post('/api/expense-categories', {
-        'name': 'E2E Recurring Category TC1206',
+        'name': f'E2E Recurring Category TC1206 {run_suffix}',
         'isRenewable': True,
         'reminderLeadDays': 15,
         'status': 'ACTIVE',
     })
     if resp.get('status') in (200, 201) and resp.get('data', {}).get('id'):
-        recurring_category_id = resp['data']['id']
+        recurring_category_id, resp = materialized_id(resp)
+    if recurring_category_id:
         results.pass_('TC-1206', 'Create recurring expense category', f'ID={recurring_category_id}')
     else:
         results.fail('TC-1206', 'Create recurring category', f'Status={resp.get("status")} body={resp.get("error")}')
@@ -126,7 +169,7 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
         results.skip('TC-1218', 'Delete PAID expense', 'Prerequisite failed')
     else:
         # TC-1210: Create UNPAID expense
-        resp = api.post('/api/expenses', {
+        expense_unpaid_id, expense_unpaid_updated_at, resp = create_governed_expense({
             'supplierId': supplier_id,
             'categoryId': category_id,
             'amount': 500000,
@@ -134,15 +177,13 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
             'paymentStatus': 'UNPAID',
             'vehicleComponent': 'TRUCK',
         })
-        if resp.get('status') in (200, 201) and resp.get('data', {}).get('id'):
-            expense_unpaid_id = resp['data']['id']
-            expense_unpaid_updated_at = resp['data'].get('updatedAt')
+        if expense_unpaid_id:
             results.pass_('TC-1210', 'Create UNPAID expense', f'ID={expense_unpaid_id}')
         else:
             results.fail('TC-1210', 'Create UNPAID expense', f'Status={resp.get("status")} body={resp.get("error")}')
 
         # TC-1211: Create PAID expense
-        resp = api.post('/api/expenses', {
+        expense_paid_id, _, resp = create_governed_expense({
             'supplierId': supplier_id,
             'categoryId': category_id,
             'amount': 300000,
@@ -150,15 +191,14 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
             'paymentStatus': 'PAID',
             'vehicleComponent': 'TRUCK',
         })
-        if resp.get('status') in (200, 201) and resp.get('data', {}).get('id'):
-            expense_paid_id = resp['data']['id']
+        if expense_paid_id:
             results.pass_('TC-1211', 'Create PAID expense', f'ID={expense_paid_id}')
         else:
             results.fail('TC-1211', 'Create PAID expense', f'Status={resp.get("status")} body={resp.get("error")}')
 
         # TC-1212: Create expense with truck
         if truck_id:
-            resp = api.post('/api/expenses', {
+            expense_with_truck_id, _, resp = create_governed_expense({
                 'supplierId': supplier_id,
                 'categoryId': category_id,
                 'amount': 200000,
@@ -167,8 +207,7 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
                 'vehicleComponent': 'TRUCK',
                 'truckId': truck_id,
             })
-            if resp.get('status') in (200, 201) and resp.get('data', {}).get('id'):
-                expense_with_truck_id = resp['data']['id']
+            if expense_with_truck_id:
                 results.pass_('TC-1212', 'Create expense with truck', f'ID={expense_with_truck_id}')
             else:
                 results.fail('TC-1212', 'Create expense with truck', f'Status={resp.get("status")} body={resp.get("error")}')
@@ -177,7 +216,7 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
 
         # TC-1213: Create expense with trailer
         if trailer_id:
-            resp = api.post('/api/expenses', {
+            expense_with_trailer_id, _, resp = create_governed_expense({
                 'supplierId': supplier_id,
                 'categoryId': category_id,
                 'amount': 150000,
@@ -186,8 +225,7 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
                 'vehicleComponent': 'TRAILER',
                 'truckId': trailer_id,
             })
-            if resp.get('status') in (200, 201) and resp.get('data', {}).get('id'):
-                expense_with_trailer_id = resp['data']['id']
+            if expense_with_trailer_id:
                 results.pass_('TC-1213', 'Create expense with trailer', f'ID={expense_with_trailer_id}')
             else:
                 results.fail('TC-1213', 'Create expense with trailer', f'Status={resp.get("status")} body={resp.get("error")}')
@@ -195,7 +233,7 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
             results.skip('TC-1213', 'Create expense with trailer', 'No trailer in system')
 
         # TC-1214: Create expense without truck/trailer
-        resp = api.post('/api/expenses', {
+        expense_no_vehicle_id, _, resp = create_governed_expense({
             'supplierId': supplier_id,
             'categoryId': category_id,
             'amount': 100000,
@@ -203,8 +241,7 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
             'paymentStatus': 'UNPAID',
             'vehicleComponent': 'TRUCK',
         })
-        if resp.get('status') in (200, 201) and resp.get('data', {}).get('id'):
-            expense_no_vehicle_id = resp['data']['id']
+        if expense_no_vehicle_id:
             results.pass_('TC-1214', 'Create expense without truckId', f'ID={expense_no_vehicle_id}')
         else:
             results.fail('TC-1214', 'Create expense without truck', f'Status={resp.get("status")} body={resp.get("error")}')
@@ -222,7 +259,10 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
             resp = api.put(f'/api/expenses/{expense_unpaid_id}', {
                 'amount': 750000,
                 'note': 'Updated by E2E TC-1216',
+                'reason': 'Kiểm thử E2E cập nhật chi phí',
             }, {'If-Unmodified-Since': expense_unpaid_updated_at})
+            if resp.get('status') in (200, 201):
+                _, resp = materialized_id(resp)
             if resp.get('status') == 200:
                 results.pass_('TC-1216', 'Edit UNPAID expense')
             else:
@@ -231,7 +271,7 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
             results.skip('TC-1216', 'Edit UNPAID expense', 'No unpaid expense ID')
 
         # Create a fresh UNPAID expense specifically for deletion tests
-        resp = api.post('/api/expenses', {
+        expense_to_delete_id, expense_to_delete_updated_at, _ = create_governed_expense({
             'supplierId': supplier_id,
             'categoryId': category_id,
             'amount': 250000,
@@ -239,12 +279,8 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
             'paymentStatus': 'UNPAID',
             'vehicleComponent': 'TRUCK',
         })
-        if resp.get('status') in (200, 201) and resp.get('data', {}).get('id'):
-            expense_to_delete_id = resp['data']['id']
-            expense_to_delete_updated_at = resp['data'].get('updatedAt')
-
         # Create a fresh PAID expense for TC-1218
-        resp = api.post('/api/expenses', {
+        expense_paid_for_delete_id, expense_paid_for_delete_updated_at, _ = create_governed_expense({
             'supplierId': supplier_id,
             'categoryId': category_id,
             'amount': 400000,
@@ -252,16 +288,15 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
             'paymentStatus': 'PAID',
             'vehicleComponent': 'TRUCK',
         })
-        if resp.get('status') in (200, 201) and resp.get('data', {}).get('id'):
-            expense_paid_for_delete_id = resp['data']['id']
-            expense_paid_for_delete_updated_at = resp['data'].get('updatedAt')
-
         # TC-1217: Delete UNPAID expense
         if expense_to_delete_id:
             resp = api.delete(
                 f'/api/expenses/{expense_to_delete_id}',
                 {'If-Unmodified-Since': expense_to_delete_updated_at},
+                {'reason': 'Kiểm thử E2E xóa chi phí chưa thanh toán'},
             )
+            if resp.get('status') in (200, 201):
+                _, resp = materialized_id(resp)
             if resp.get('status') == 200:
                 results.pass_('TC-1217', 'Delete UNPAID expense')
             else:
@@ -274,7 +309,10 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
             resp = api.delete(
                 f'/api/expenses/{expense_paid_for_delete_id}',
                 {'If-Unmodified-Since': expense_paid_for_delete_updated_at},
+                {'reason': 'Kiểm thử E2E xóa chi phí đã thanh toán'},
             )
+            if resp.get('status') in (200, 201):
+                _, resp = materialized_id(resp)
             if resp.get('status') in (200, 201):
                 results.pass_('TC-1218', 'Delete PAID expense accepted (soft-delete with ledger adjustment)')
             elif resp.get('status') in (400, 403, 409):
@@ -323,6 +361,8 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
             'vehicleComponent': 'TRUCK',
         })
         if resp.get('status') in (200, 201):
+            _, resp = materialized_id(resp)
+        if resp.get('status') == 200:
             results.pass_('TC-1222', 'Expense without truckId accepted (nullable truck)')
         elif resp.get('status') == 400:
             results.pass_('TC-1222', 'Expense without truckId rejected → 400')
@@ -399,19 +439,27 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
             'supplierId': supplier_id,
             'amount': 100000,
             'date': '2026-06-01',
-            'receiptId': 'E2E-RCPT-1230',
+            'receiptId': f'E2E-RCPT-1230-{run_suffix}',
         })
         if resp.get('status') in (200, 201):
+            _, resp = materialized_id(resp)
+        if resp.get('status') == 200:
             results.pass_('TC-1230', 'Pay vendor via API')
         else:
             results.fail('TC-1230', 'Pay vendor', f'Status={resp.get("status")} body={resp.get("error")}')
 
         # TC-1231: Payment creates ledger entry — check supplier statement
-        resp = api.get(f'/api/ledger/suppliers/{supplier_id}/statement')
+        resp = api.get(
+            f'/api/ledger/suppliers/{supplier_id}/statement'
+            '?dateFrom=2026-01-01&dateTo=2026-12-31'
+        )
         if resp.get('status') == 200:
             data = resp.get('data', {})
-            entries = data.get('entries', [])
-            results.pass_('TC-1231', f'Supplier statement returns {len(entries)} entries')
+            entries = data.get('ledgerRows', [])
+            if entries:
+                results.pass_('TC-1231', f'Supplier statement returns {len(entries)} entries')
+            else:
+                results.fail('TC-1231', 'Supplier statement after payment', 'No June ledger entries found')
         else:
             results.fail('TC-1231', 'Supplier statement after payment', f'Status={resp.get("status")}')
 
@@ -420,8 +468,19 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
             'supplierId': supplier_id,
             'amount': 999999999,
             'date': '2026-06-01',
-            'receiptId': 'E2E-RCPT-1232',
+            'receiptId': f'E2E-RCPT-1232-{run_suffix}',
         })
+        if resp.get('status') in (200, 201):
+            action = resp.get('data', {})
+            checked = checker_api.post(
+                f'/api/governance-actions/{action["id"]}/check',
+                {'expectedVersion': action['version']},
+            )
+            if checked.get('status') == 200:
+                resp = approver_api.post(
+                    f'/api/governance-actions/{action["id"]}/approve',
+                    {'expectedVersion': checked['data']['version']},
+                )
         if resp.get('status') in (400, 409, 422):
             results.pass_('TC-1232', 'Overpayment rejected', f'Status={resp.get("status")}')
         else:
@@ -518,7 +577,10 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
 
     # TC-1251: Supplier statement
     if supplier_id:
-        resp = api.get(f'/api/ledger/suppliers/{supplier_id}/statement')
+        resp = api.get(
+            f'/api/ledger/suppliers/{supplier_id}/statement'
+            '?dateFrom=2026-06-01&dateTo=2026-06-30'
+        )
         if resp.get('status') == 200:
             results.pass_('TC-1251', 'Supplier statement API returns 200')
         else:
@@ -551,18 +613,38 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
 
     # TC-1255: Delete expense creates ledger adjustment (UNPAID delete from TC-1217)
     if supplier_id:
-        resp = api.get(f'/api/ledger/suppliers/{supplier_id}/statement')
-        if resp.get('status') == 200:
-            data = resp.get('data', {})
-            entries = data.get('entries', [])
+        deadline = time.time() + 5
+        resp = {}
+        entries = []
+        has_adjustment = False
+        while time.time() < deadline and not has_adjustment:
+            resp = api.get(
+                f'/api/ledger/suppliers/{supplier_id}/statement'
+                '?dateFrom=2026-01-01&dateTo=2026-12-31'
+            )
+            if resp.get('status') != 200:
+                break
+            entries = resp.get('data', {}).get('ledgerRows', [])
             has_adjustment = any(
-                'Hủy chi phí' in str(e.get('note', '')) or 'ADJUSTMENT' in str(e.get('txnType', ''))
+                str(e.get('txnId')) == str(expense_to_delete_id)
+                and e.get('txnType') == 'ADJUSTMENT'
+                and 'Hủy chi phí' in str(e.get('note', ''))
                 for e in entries
             )
+            if not has_adjustment:
+                time.sleep(0.25)
+        if resp.get('status') == 200:
             if has_adjustment:
                 results.pass_('TC-1255', 'Ledger shows adjustment after expense delete')
             else:
-                results.pass_('TC-1255', 'Supplier statement accessible (adjustment may use different wording)')
+                results.fail(
+                    'TC-1255',
+                    'Ledger adjustment after expense delete',
+                    (
+                        f'Expected txnId={expense_to_delete_id}; rows='
+                        f'{[(e.get("txnId"), e.get("txnType"), e.get("note")) for e in entries]}'
+                    ),
+                )
         else:
             results.fail('TC-1255', 'Ledger adjustment check', f'Status={resp.get("status")}')
     else:

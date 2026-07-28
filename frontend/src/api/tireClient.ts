@@ -38,24 +38,34 @@ export const tireClient = {
 
   delete: (id: number) => api.delete<{ ok: boolean }>(TIRES.DETAIL(id)),
 
-  install: (id: number, target: { truckId?: number | null; trailerId?: number | null; position?: string | null }) =>
+  install: (
+    id: number,
+    target: { truckId?: number | null; trailerId?: number | null; position?: string | null },
+    expectedUpdatedAt: string,
+  ) =>
     api.post<Tire>(TIRES.INSTALL(id), {
       truckId: target.truckId ?? null,
       trailerId: target.trailerId ?? null,
       position: target.position ?? null,
-    }),
+    }, { expectedUpdatedAt }),
 
   /** Move a mounted tire to another vehicle (atomic; preserves install date). */
-  transfer: (id: number, target: { truckId?: number | null; trailerId?: number | null; position?: string | null }) =>
+  transfer: (
+    id: number,
+    target: { truckId?: number | null; trailerId?: number | null; position?: string | null },
+    expectedUpdatedAt: string,
+  ) =>
     api.post<Tire>(TIRES.TRANSFER(id), {
       truckId: target.truckId ?? null,
       trailerId: target.trailerId ?? null,
       position: target.position ?? null,
-    }),
+    }, { expectedUpdatedAt }),
 
   /** Remove a tire from its vehicle back to the spare pool (IN_STOCK). */
-  remove: (id: number) => api.post<Tire>(TIRES.REMOVE(id), {}),
+  remove: (id: number, expectedUpdatedAt: string) =>
+    api.post<Tire>(TIRES.REMOVE(id), {}, { expectedUpdatedAt }),
 
   /** Dispose of (thanh lý) a tire with a reason. */
-  dispose: (id: number, reason: string) => api.post<Tire>(TIRES.DISPOSE(id), { reason }),
+  dispose: (id: number, reason: string, expectedUpdatedAt: string) =>
+    api.post<Tire>(TIRES.DISPOSE(id), { reason }, { expectedUpdatedAt }),
 };

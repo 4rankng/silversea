@@ -172,6 +172,7 @@ export async function syncTripWorkDays(
   departureDate: string,
   arrivalDate: string | null,
   createdBy?: number | null,
+  executor: DbLike = db,
 ) {
   const endDate = arrivalDate || departureDate;
 
@@ -189,7 +190,7 @@ export async function syncTripWorkDays(
   // Upsert each date as TRIP_DAY (overrides WEEKLY_OFF if trip is running)
   // Single INSERT with onConflictDoUpdate handles both new and existing rows
   for (const date of dates) {
-    await db.insert(s.driverWorkDays)
+    await executor.insert(s.driverWorkDays)
       .values({ driverId, date, status: 'TRIP_DAY', tripId, note: null, createdBy: createdBy ?? null })
       .onConflictDoUpdate({
         target: [s.driverWorkDays.driverId, s.driverWorkDays.date],
@@ -201,8 +202,12 @@ export async function syncTripWorkDays(
 /**
  * Remove TRIP_DAY records for a canceled trip.
  */
-export async function removeTripWorkDays(driverId: number, tripId: number) {
-  await db.delete(s.driverWorkDays)
+export async function removeTripWorkDays(
+  driverId: number,
+  tripId: number,
+  executor: DbLike = db,
+) {
+  await executor.delete(s.driverWorkDays)
     .where(and(
       eq(s.driverWorkDays.driverId, driverId),
       eq(s.driverWorkDays.tripId, tripId),

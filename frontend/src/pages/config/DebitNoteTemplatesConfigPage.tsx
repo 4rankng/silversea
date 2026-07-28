@@ -9,6 +9,7 @@ import { configClient } from '../../api/configClient';
 import { qk } from '../../api/keys';
 import { usePageAnimations } from '../../hooks/animations';
 import { useBackShortcut } from '../../hooks/useBackShortcut';
+import { isGovernancePendingResponse } from '../../lib/governance';
 import type { DebitNoteTemplate } from '@tingting/shared';
 import './config-page.css';
 
@@ -37,8 +38,13 @@ export default function DebitNoteTemplatesConfigPage() {
     const ok = await confirm(`Xoá mẫu "${template.name}"? Các giấy báo nợ đã lưu vẫn giữ ảnh chụp mẫu cũ.`, { variant: 'danger' });
     if (!ok) return;
     try {
-      await configClient.deleteDebitNoteTemplate(template.id);
-      toast({ kind: 'success', message: `Đã xoá mẫu "${template.name}".` });
+      const result = await configClient.deleteDebitNoteTemplate(template.id);
+      toast({
+        kind: 'success',
+        message: isGovernancePendingResponse(result)
+          ? `Đã gửi yêu cầu xoá mẫu "${template.name}" để kiểm tra và phê duyệt. Mẫu hiện chưa bị xoá.`
+          : `Đã xoá mẫu "${template.name}".`,
+      });
       await refetch();
     } catch (err) {
       toast({ kind: 'error', message: (err as Error).message || 'Không xoá được mẫu.' });

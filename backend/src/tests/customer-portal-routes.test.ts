@@ -328,6 +328,7 @@ describe('CUSTOMER portal HTTP security contract', () => {
     const response = await request(`/debit-notes/${ownSentId}/confirm`, {
       method: 'POST',
       token: customerToken,
+      idempotencyKey: `portal-confirm-non-pending-${suffix}-${ownSentId}`,
     });
     assert.equal(response.status, 409);
   });
@@ -348,18 +349,21 @@ describe('CUSTOMER portal HTTP security contract', () => {
     assert.equal((response.body as Buffer).subarray(0, 5).toString('ascii'), '%PDF-');
   });
 
-  test('mapped customer with no ledger activity receives a real empty statement', async () => {
+  test('statement exposes outstanding debit-note obligations even when the customer ledger is empty', async () => {
     const response = await request('/statement', { token: customerToken });
     assert.equal(response.status, 200);
     const body = response.body as {
       customer: { id: number; name: string };
       ledgerRows: unknown[];
       totalOutstanding: number;
+      unpaidTrips: Array<{ outstanding: number }>;
     };
     assert.equal(body.customer.id, ownCustomerId);
     assert.equal(body.customer.name, ownCustomerName);
     assert.equal(body.ledgerRows.length, 0);
-    assert.equal(body.totalOutstanding, 0);
+    assert.equal(body.totalOutstanding, 2_000_000);
+    assert.equal(body.unpaidTrips.length, 2);
+    assert.deepEqual(body.unpaidTrips.map((item) => item.outstanding), [1_000_000, 1_000_000]);
   });
 
   test('statement reports an account configuration error when the customer link is missing', async () => {
@@ -374,31 +378,33 @@ describe('CUSTOMER portal HTTP security contract', () => {
     assert.equal((response.body as { error: string }).error, 'Tài khoản khách hàng chưa được liên kết');
   });
 
-  test('concurrent confirmation accepts exactly one request', async () => {
+  test('confirm rejects missing idempotency headers before mutating the note', async () => {
     const responses = await Promise.all([
       request(`/debit-notes/${ownPendingId}/confirm`, { method: 'POST', token: customerToken }),
       request(`/debit-notes/${ownPendingId}/confirm`, { method: 'POST', token: customerToken }),
     ]);
-    assert.deepEqual(responses.map((response) => response.status).sort(), [200, 409]);
-    const successful = responses.find((response) => response.status === 200);
-    assert.ok(successful);
-    const body = successful.body as Record<string, unknown> & { lines: Array<Record<string, unknown>> };
-    assert.equal(body.lines.length, 1);
-    assert.equal(body.lines[0].amount, 1250000);
-    assert.ok(!('baseAmount' in body.lines[0]));
-    assert.ok(!('amountOverride' in body.lines[0]));
-    assert.ok(!('excluded' in body.lines[0]));
+    assert.deepEqual(responses.map((response) => response.status), [400, 400]);
+    for (const response of responses) {
+      assert.match(String((response.body as { error?: string }).error ?? ''), /Idempotency-Key.*bắt buộc/i);
+    }
+    const detail = await request(`/debit-notes/${ownPendingId}`, { token: customerToken });
+    assert.equal(detail.status, 200);
+    assert.equal((detail.body as { debitNoteStatus: string }).debitNoteStatus, 'PENDING_CONFIRM');
   });
 
-  test('concurrent dispute accepts exactly one request', async () => {
+  test('dispute rejects missing idempotency headers before mutating the note', async () => {
     const pendingId = (await createDocument(ownCustomerId, 'PENDING_CONFIRM')).id;
     const responses = await Promise.all([
       request(`/debit-notes/${pendingId}/dispute`, { method: 'POST', token: customerToken }),
       request(`/debit-notes/${pendingId}/dispute`, { method: 'POST', token: customerToken }),
     ]);
-    assert.deepEqual(responses.map((response) => response.status).sort(), [200, 409]);
-    const successful = responses.find((response) => response.status === 200);
-    assert.equal((successful?.body as { debitNoteStatus?: string }).debitNoteStatus, 'REJECTED');
+    assert.deepEqual(responses.map((response) => response.status), [400, 400]);
+    for (const response of responses) {
+      assert.match(String((response.body as { error?: string }).error ?? ''), /Idempotency-Key.*bắt buộc/i);
+    }
+    const detail = await request(`/debit-notes/${pendingId}`, { token: customerToken });
+    assert.equal(detail.status, 200);
+    assert.equal((detail.body as { debitNoteStatus: string }).debitNoteStatus, 'PENDING_CONFIRM');
   });
 
   test('idempotent confirm replays the original portal snapshot after status changes', async () => {

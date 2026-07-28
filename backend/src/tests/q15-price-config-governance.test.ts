@@ -4,7 +4,7 @@ import type { AddressInfo } from 'node:net';
 import { after, before, describe, it } from 'node:test';
 import express from 'express';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
-import { Role } from '@tingting/shared';
+import { Role, TrailerType } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { disconnectRedis } from '../lib/redis';
@@ -12,31 +12,93 @@ import configRoutes from '../routes/config';
 import paymentsRoutes from '../routes/financial/payments.routes';
 import governanceActionsRoutes from '../routes/financial/governance-actions.routes';
 import { globalErrorHandler } from '../middleware/errorHandler';
+import {
+  DURABLE_EFFECT_KIND,
+  DURABLE_EFFECT_STATUS,
+} from '../services/durable-effect.service';
+
+type RowWithUpdatedAt = { id: number; updatedAt: Date; deletedAt?: Date | null };
+
+type ResourceCase<TRow extends RowWithUpdatedAt> = {
+  name: string;
+  endpoint: string;
+  createPayload: () => Record<string, unknown>;
+  mutatePayload: (row: TRow) => Record<string, unknown>;
+  fetchById: (id: number) => Promise<TRow | undefined>;
+  expectCreated: (row: TRow) => Promise<void> | void;
+  expectUpdated: (row: TRow) => Promise<void> | void;
+  expectDeleted: (id: number) => Promise<void>;
+};
 
 const actorIds: number[] = [];
-const customerIds: number[] = [];
-const routeIds: number[] = [];
-const pricingTableIds: number[] = [];
 const governanceActionIds: number[] = [];
+const customerIds: number[] = [];
+const businessCalendarIds: number[] = [];
+const expenseCategoryIds: number[] = [];
+const supplierIds: number[] = [];
+const routeIds: number[] = [];
+const cargoTypeIds: number[] = [];
+const portIds: number[] = [];
+const containerTypeIds: number[] = [];
+const truckIds: number[] = [];
+const driverIds: number[] = [];
+const penaltyReasonIds: number[] = [];
+const forwarderExpenseTypeIds: number[] = [];
+const pricingTableIds: number[] = [];
+const roadAllowanceIds: number[] = [];
+const fuelNormIds: number[] = [];
+const weightPricingTierIds: number[] = [];
+const liftPricingIds: number[] = [];
+const ancillaryRevenueIds: number[] = [];
+const managementFeeIds: number[] = [];
+const capTableIds: number[] = [];
+const truckCapIds: number[] = [];
 let actors: Array<{ id: number; role: string }> = [];
 let customerId = 0;
+let secondaryCustomerId = 0;
 let routeId = 0;
+let cargoTypeId = 0;
+let portId = 0;
+let containerTypeId = 0;
+let truckId = 0;
 let server: http.Server;
 let baseUrl = '';
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+const uniqueContainerCode = `Q15-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
+const uniqueTruckPlate = `Q15-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
+let requestCounter = 0;
 
-function pricingTableVersion(row: { updatedAt: Date }): number {
+function rowVersion(row: { updatedAt: Date }): number {
   return Math.max(1, Math.floor(row.updatedAt.getTime() / 1000));
 }
 
-async function api(method: string, path: string, body: Record<string, unknown> | undefined, actorIndex: number) {
+async function api(
+  method: string,
+  path: string,
+  options: {
+    body?: Record<string, unknown>;
+    actorIndex?: number;
+    idempotencyKey?: string;
+    expectedUpdatedAt?: Date | string;
+  } = {},
+) {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'X-Test-Actor': String(options.actorIndex ?? 0),
+  };
+  if (method !== 'GET') {
+    headers['Idempotency-Key'] = options.idempotencyKey
+      ?? `q15-config-${suffix}-${requestCounter++}`;
+  }
+  if (options.expectedUpdatedAt) {
+    headers['If-Unmodified-Since'] = options.expectedUpdatedAt instanceof Date
+      ? options.expectedUpdatedAt.toISOString()
+      : options.expectedUpdatedAt;
+  }
   const response = await fetch(`${baseUrl}${path}`, {
     method,
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Test-Actor': String(actorIndex),
-    },
-    body: body ? JSON.stringify(body) : undefined,
+    headers,
+    body: options.body ? JSON.stringify(options.body) : undefined,
   });
   return {
     status: response.status,
@@ -44,25 +106,111 @@ async function api(method: string, path: string, body: Record<string, unknown> |
   };
 }
 
+async function checkAction(actionId: number, expectedVersion: number, actorIndex = 1) {
+  return api('POST', `/api/governance-actions/${actionId}/check`, {
+    actorIndex,
+    body: { expectedVersion },
+  });
+}
+
+async function approveAction(actionId: number, expectedVersion: number, actorIndex = 2) {
+  return api('POST', `/api/governance-actions/${actionId}/approve`, {
+    actorIndex,
+    body: { expectedVersion },
+  });
+}
+
+async function rejectAction(actionId: number, expectedVersion: number, reason: string, actorIndex = 1) {
+  return api('POST', `/api/governance-actions/${actionId}/reject`, {
+    actorIndex,
+    body: { expectedVersion, reason },
+  });
+}
+
+async function returnForEvidence(actionId: number, expectedVersion: number, reason: string, actorIndex = 1) {
+  return api('POST', `/api/governance-actions/${actionId}/return-for-evidence`, {
+    actorIndex,
+    body: { expectedVersion, reason },
+  });
+}
+
+function expectPendingAction(response: Awaited<ReturnType<typeof api>>, label: string) {
+  const actionId = Number(response.body.id);
+  if (Number.isFinite(actionId) && !governanceActionIds.includes(actionId)) {
+    governanceActionIds.push(actionId);
+  }
+  assert.equal(
+    response.status,
+    201,
+    `${label}: expected 201 but got ${response.status} with body ${JSON.stringify(response.body)}`,
+  );
+  assert.equal(response.body.status, 'PENDING_CHECK', `${label}: unexpected status ${JSON.stringify(response.body)}`);
+  assert.equal(response.body.subjectType, 'PRICE_CONFIG', `${label}: unexpected subject type ${JSON.stringify(response.body)}`);
+  assert.equal(response.body.actionKind, 'PRICE_CONFIG_CHANGE', `${label}: unexpected action kind ${JSON.stringify(response.body)}`);
+}
+
+async function approvePendingAction(response: Awaited<ReturnType<typeof api>>) {
+  const checked = await checkAction(Number(response.body.id), Number(response.body.version));
+  assert.equal(checked.status, 200);
+  assert.equal(checked.body.status, 'PENDING_APPROVAL');
+  const approved = await approveAction(Number(response.body.id), Number(checked.body.version));
+  assert.equal(approved.status, 200);
+  assert.equal(approved.body.status, 'APPROVED');
+  return approved;
+}
+
 before(async () => {
   actors = await db.insert(s.users).values([
-    { username: `q15-price-maker-${suffix}`, passwordHash: 'x', role: Role.ACCOUNTANT, status: 'ACTIVE' },
-    { username: `q15-price-checker-${suffix}`, passwordHash: 'x', role: Role.MANAGER, status: 'ACTIVE' },
-    { username: `q15-price-approver-${suffix}`, passwordHash: 'x', role: Role.ADMIN, status: 'ACTIVE' },
+    { username: `q15-price-maker-${suffix}`, passwordHash: 'x', role: Role.ADMIN, status: 'ACTIVE' },
+    { username: `q15-price-checker-${suffix}`, passwordHash: 'x', role: Role.ACCOUNTANT, status: 'ACTIVE' },
+    { username: `q15-price-approver-${suffix}`, passwordHash: 'x', role: Role.MANAGER, status: 'ACTIVE' },
+    { username: `q15-price-viewer-${suffix}`, passwordHash: 'x', role: Role.DRIVER, status: 'ACTIVE' },
   ]).returning({ id: s.users.id, role: s.users.role });
   actorIds.push(...actors.map((actor) => actor.id));
 
   const [customer] = await db.insert(s.customers).values({
     name: `Q15 Pricing Customer ${suffix}`,
+    contactPerson: 'Initial Contact',
   }).returning();
   customerIds.push(customer.id);
   customerId = customer.id;
+  const [secondaryCustomer] = await db.insert(s.customers).values({
+    name: `Q15 Pricing Customer 2 ${suffix}`,
+    contactPerson: 'Secondary Contact',
+  }).returning();
+  customerIds.push(secondaryCustomer.id);
+  secondaryCustomerId = secondaryCustomer.id;
 
   const [route] = await db.insert(s.routes).values({
     name: `Q15 Pricing Route ${suffix}`,
   }).returning();
   routeIds.push(route.id);
   routeId = route.id;
+
+  const [cargoType] = await db.insert(s.cargoTypes).values({
+    name: `Q15 Cargo ${suffix}`,
+  }).returning();
+  cargoTypeIds.push(cargoType.id);
+  cargoTypeId = cargoType.id;
+
+  const [port] = await db.insert(s.ports).values({
+    name: `Q15 Port ${suffix}`,
+  }).returning();
+  portIds.push(port.id);
+  portId = port.id;
+
+  const [containerType] = await db.insert(s.containerTypes).values({
+    code: uniqueContainerCode,
+    name: `Q15 Container ${suffix}`,
+  }).returning();
+  containerTypeIds.push(containerType.id);
+  containerTypeId = containerType.id;
+
+  const [truck] = await db.insert(s.trucks).values({
+    licensePlate: uniqueTruckPlate,
+  }).returning();
+  truckIds.push(truck.id);
+  truckId = truck.id;
 
   const app = express();
   app.use(express.json());
@@ -88,179 +236,796 @@ before(async () => {
 });
 
 after(async () => {
-  server.closeAllConnections();
-  await new Promise<void>((resolve, reject) => {
-    server.close((error) => error ? reject(error) : resolve());
-  });
-  if (governanceActionIds.length > 0) {
-    await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, governanceActionIds));
+  try {
+    if (server) {
+      server.closeAllConnections();
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => error ? reject(error) : resolve());
+      });
+    }
+  } finally {
+    try {
+      if (actorIds.length > 0) {
+        await db.delete(s.governanceActions).where(inArray(s.governanceActions.makerId, actorIds));
+      }
+      if (actorIds.length > 0) {
+        await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.createdBy, actorIds));
+      }
+      const scopedDurableJobs = (await db.select({
+        id: s.durableEffectJobs.id,
+        dedupeKey: s.durableEffectJobs.dedupeKey,
+      }).from(s.durableEffectJobs)).filter((row) => governanceActionIds.some(
+        (actionId) => row.dedupeKey.endsWith(`governance-action:${actionId}`),
+      ));
+      if (scopedDurableJobs.length > 0) {
+        await db.delete(s.durableEffectJobs)
+          .where(inArray(s.durableEffectJobs.id, scopedDurableJobs.map((row) => row.id)));
+      }
+      if (ancillaryRevenueIds.length > 0) {
+        await db.delete(s.ancillaryRevenue).where(inArray(s.ancillaryRevenue.id, ancillaryRevenueIds));
+      }
+      if (forwarderExpenseTypeIds.length > 0) {
+        await db.delete(s.forwarderExpenseTypes).where(inArray(s.forwarderExpenseTypes.id, forwarderExpenseTypeIds));
+      }
+      if (penaltyReasonIds.length > 0) {
+        await db.delete(s.penaltyReasons).where(inArray(s.penaltyReasons.id, penaltyReasonIds));
+      }
+      if (pricingTableIds.length > 0) {
+        await db.delete(s.pricingTables).where(inArray(s.pricingTables.id, pricingTableIds));
+      }
+      if (roadAllowanceIds.length > 0) {
+        await db.delete(s.roadAllowances).where(inArray(s.roadAllowances.id, roadAllowanceIds));
+      }
+      if (fuelNormIds.length > 0) {
+        await db.delete(s.fuelNorms).where(inArray(s.fuelNorms.id, fuelNormIds));
+      }
+      if (weightPricingTierIds.length > 0) {
+        await db.delete(s.weightPricingTiers).where(inArray(s.weightPricingTiers.id, weightPricingTierIds));
+      }
+      if (liftPricingIds.length > 0) {
+        await db.delete(s.liftPricing).where(inArray(s.liftPricing.id, liftPricingIds));
+      }
+      if (managementFeeIds.length > 0) {
+        await db.delete(s.managementFees).where(inArray(s.managementFees.id, managementFeeIds));
+      }
+      if (capTableIds.length > 0) {
+        await db.delete(s.capTableHistory).where(inArray(s.capTableHistory.id, capTableIds));
+      }
+      if (truckCapIds.length > 0) {
+        await db.delete(s.truckCapTable).where(inArray(s.truckCapTable.id, truckCapIds));
+      }
+      if (expenseCategoryIds.length > 0) {
+        await db.delete(s.expenseCategories).where(inArray(s.expenseCategories.id, expenseCategoryIds));
+      }
+      if (driverIds.length > 0) {
+        await db.delete(s.drivers).where(inArray(s.drivers.id, driverIds));
+      }
+      if (truckIds.length > 0) {
+        await db.delete(s.trucks).where(inArray(s.trucks.id, truckIds));
+      }
+      if (supplierIds.length > 0) {
+        await db.update(s.customers)
+          .set({ linkedSupplierId: null, updatedAt: new Date() })
+          .where(inArray(s.customers.linkedSupplierId, supplierIds));
+        await db.delete(s.suppliers).where(inArray(s.suppliers.id, supplierIds));
+      }
+      if (routeIds.length > 0) {
+        await db.delete(s.routes).where(inArray(s.routes.id, routeIds));
+      }
+      if (businessCalendarIds.length > 0) {
+        await db.delete(s.businessCalendarDays).where(inArray(s.businessCalendarDays.id, businessCalendarIds));
+      }
+      if (cargoTypeIds.length > 0) {
+        await db.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, cargoTypeIds));
+      }
+      if (portIds.length > 0) {
+        await db.delete(s.ports).where(inArray(s.ports.id, portIds));
+      }
+      if (containerTypeIds.length > 0) {
+        await db.delete(s.containerTypes).where(inArray(s.containerTypes.id, containerTypeIds));
+      }
+      if (customerIds.length > 0) {
+        await db.delete(s.customers).where(inArray(s.customers.id, customerIds));
+      }
+      if (actorIds.length > 0) {
+        await db.delete(s.users).where(inArray(s.users.id, actorIds));
+      }
+    } finally {
+      await disconnectRedis();
+      await client.end();
+    }
   }
-  if (pricingTableIds.length > 0) {
-    await db.delete(s.pricingTables).where(inArray(s.pricingTables.id, pricingTableIds));
-  }
-  if (routeIds.length > 0) {
-    await db.delete(s.routes).where(inArray(s.routes.id, routeIds));
-  }
-  if (customerIds.length > 0) {
-    await db.delete(s.customers).where(inArray(s.customers.id, customerIds));
-  }
-  if (actorIds.length > 0) {
-    await db.delete(s.users).where(inArray(s.users.id, actorIds));
-  }
-  await disconnectRedis();
-  await client.end();
 });
 
-describe('Q15 pricing table governance slice', () => {
-  it('requires request/check/approve for pricing table create, update, and delete', async () => {
-    const createResponse = await api('POST', '/api/pricing-tables', {
-      customerId,
-      routeId,
-      price: 1500000,
-      reason: 'Đề nghị tạo bảng giá thử nghiệm',
-    }, 0);
-    assert.equal(createResponse.status, 201);
-    assert.equal(createResponse.body.status, 'PENDING_CHECK');
-    assert.equal(createResponse.body.subjectType, 'PRICE_CONFIG');
-    assert.equal(createResponse.body.actionKind, 'PRICE_CONFIG_CHANGE');
-    governanceActionIds.push(Number(createResponse.body.id));
+describe('Q15 governed material config resources', { concurrency: false }, () => {
+  const materialCases: Array<ResourceCase<any>> = [
+    {
+      name: 'pricing tables',
+      endpoint: '/api/pricing-tables',
+      createPayload: () => ({ customerId, routeId, price: 1500000 }),
+      mutatePayload: () => ({ price: 1750000 }),
+      fetchById: async (id) => {
+        const [row] = await db.select().from(s.pricingTables).where(eq(s.pricingTables.id, id)).limit(1);
+        return row;
+      },
+      expectCreated: (row) => {
+        pricingTableIds.push(row.id);
+        assert.equal(Number(row.price), 1500000);
+      },
+      expectUpdated: (row) => {
+        assert.equal(Number(row.price), 1750000);
+      },
+      expectDeleted: async (id) => {
+        const [row] = await db.select().from(s.pricingTables).where(eq(s.pricingTables.id, id)).limit(1);
+        assert.ok(row?.deletedAt instanceof Date);
+      },
+    },
+    {
+      name: 'road allowances',
+      endpoint: '/api/road-allowances',
+      createPayload: () => ({ routeId, trailerType: TrailerType.FT20, baseAmount: 220000 }),
+      mutatePayload: () => ({ baseAmount: 260000 }),
+      fetchById: async (id) => {
+        const [row] = await db.select().from(s.roadAllowances).where(eq(s.roadAllowances.id, id)).limit(1);
+        return row;
+      },
+      expectCreated: (row) => {
+        roadAllowanceIds.push(row.id);
+        assert.equal(Number(row.baseAmount), 220000);
+      },
+      expectUpdated: (row) => {
+        assert.equal(Number(row.baseAmount), 260000);
+      },
+      expectDeleted: async (id) => {
+        const [row] = await db.select().from(s.roadAllowances).where(eq(s.roadAllowances.id, id)).limit(1);
+        assert.ok(row?.deletedAt instanceof Date);
+      },
+    },
+    {
+      name: 'fuel norms',
+      endpoint: '/api/fuel-norms',
+      createPayload: () => ({
+        routeId,
+        truckId: null,
+        loadedLitersPer100Km: 30,
+        emptyLitersPer100Km: 25,
+        supplementLiters: 0,
+        flatRateLiters: null,
+        effectiveDate: '2099-01-01',
+        note: `Q15 fuel ${suffix}`,
+      }),
+      mutatePayload: () => ({ loadedLitersPer100Km: 31 }),
+      fetchById: async (id) => {
+        const [row] = await db.select().from(s.fuelNorms).where(eq(s.fuelNorms.id, id)).limit(1);
+        return row;
+      },
+      expectCreated: (row) => {
+        fuelNormIds.push(row.id);
+        assert.equal(Number(row.loadedLitersPer100Km), 30);
+      },
+      expectUpdated: (row) => {
+        assert.equal(Number(row.loadedLitersPer100Km), 31);
+      },
+      expectDeleted: async (id) => {
+        const [row] = await db.select().from(s.fuelNorms).where(eq(s.fuelNorms.id, id)).limit(1);
+        assert.ok(row?.deletedAt instanceof Date);
+      },
+    },
+    {
+      name: 'weight pricing tiers',
+      endpoint: '/api/weight-pricing-tiers',
+      createPayload: () => ({
+        routeId,
+        cargoTypeId,
+        minKg: 0,
+        maxKg: 1000,
+        pricePerKg: 2200,
+        effectiveDate: '2099-02-01',
+        note: `Q15 tier ${suffix}`,
+      }),
+      mutatePayload: () => ({ pricePerKg: 2400 }),
+      fetchById: async (id) => {
+        const [row] = await db.select().from(s.weightPricingTiers).where(eq(s.weightPricingTiers.id, id)).limit(1);
+        return row;
+      },
+      expectCreated: (row) => {
+        weightPricingTierIds.push(row.id);
+        assert.equal(Number(row.pricePerKg), 2200);
+      },
+      expectUpdated: (row) => {
+        assert.equal(Number(row.pricePerKg), 2400);
+      },
+      expectDeleted: async (id) => {
+        const [row] = await db.select().from(s.weightPricingTiers).where(eq(s.weightPricingTiers.id, id)).limit(1);
+        assert.ok(row?.deletedAt instanceof Date);
+      },
+    },
+    {
+      name: 'lift pricing',
+      endpoint: '/api/lift-pricing',
+      createPayload: () => ({
+        portId,
+        containerTypeId,
+        direction: 'LIFT_UP',
+        unitPrice: 550000,
+        effectiveDate: '2099-03-01',
+        note: `Q15 lift ${suffix}`,
+      }),
+      mutatePayload: () => ({ unitPrice: 580000 }),
+      fetchById: async (id) => {
+        const [row] = await db.select().from(s.liftPricing).where(eq(s.liftPricing.id, id)).limit(1);
+        return row;
+      },
+      expectCreated: (row) => {
+        liftPricingIds.push(row.id);
+        assert.equal(Number(row.unitPrice), 550000);
+      },
+      expectUpdated: (row) => {
+        assert.equal(Number(row.unitPrice), 580000);
+      },
+      expectDeleted: async (id) => {
+        const [row] = await db.select().from(s.liftPricing).where(eq(s.liftPricing.id, id)).limit(1);
+        assert.ok(row?.deletedAt instanceof Date);
+      },
+    },
+    {
+      name: 'ancillary revenue',
+      endpoint: '/api/ancillary-revenue',
+      createPayload: () => ({
+        customerId,
+        shipmentId: null,
+        tripId: null,
+        type: 'OTHER',
+        amount: 120000,
+        tax: 0,
+        date: '2099-04-01',
+        note: `Q15 ancillary ${suffix}`,
+      }),
+      mutatePayload: () => ({ amount: 150000, note: `Q15 ancillary update ${suffix}` }),
+      fetchById: async (id) => {
+        const [row] = await db.select().from(s.ancillaryRevenue).where(eq(s.ancillaryRevenue.id, id)).limit(1);
+        return row;
+      },
+      expectCreated: (row) => {
+        ancillaryRevenueIds.push(row.id);
+        assert.equal(Number(row.amount), 120000);
+      },
+      expectUpdated: (row) => {
+        assert.equal(Number(row.amount), 150000);
+      },
+      expectDeleted: async (id) => {
+        const [row] = await db.select().from(s.ancillaryRevenue).where(eq(s.ancillaryRevenue.id, id)).limit(1);
+        assert.ok(row?.deletedAt instanceof Date);
+      },
+    },
+    {
+      name: 'management fees',
+      endpoint: '/api/management-fees',
+      createPayload: () => ({ month: 12, year: 2099, amount: 3000000 }),
+      mutatePayload: () => ({ amount: 3500000 }),
+      fetchById: async (id) => {
+        const [row] = await db.select().from(s.managementFees).where(eq(s.managementFees.id, id)).limit(1);
+        return row;
+      },
+      expectCreated: (row) => {
+        managementFeeIds.push(row.id);
+        assert.equal(Number(row.amount), 3000000);
+      },
+      expectUpdated: (row) => {
+        assert.equal(Number(row.amount), 3500000);
+      },
+      expectDeleted: async (id) => {
+        const [row] = await db.select().from(s.managementFees).where(eq(s.managementFees.id, id)).limit(1);
+        assert.equal(row, undefined);
+      },
+    },
+    {
+      name: 'cap table',
+      endpoint: '/api/cap-table',
+      createPayload: () => ({
+        partnerName: `Q15 Partner ${suffix}`,
+        percentage: 60,
+        contributionAmount: 60000000,
+        effectiveDate: '2099-05-01',
+      }),
+      mutatePayload: () => ({ percentage: 55 }),
+      fetchById: async (id) => {
+        const [row] = await db.select().from(s.capTableHistory).where(eq(s.capTableHistory.id, id)).limit(1);
+        return row;
+      },
+      expectCreated: (row) => {
+        capTableIds.push(row.id);
+        assert.equal(Number(row.percentage), 60);
+      },
+      expectUpdated: (row) => {
+        assert.equal(Number(row.percentage), 55);
+      },
+      expectDeleted: async (id) => {
+        const [row] = await db.select().from(s.capTableHistory).where(eq(s.capTableHistory.id, id)).limit(1);
+        assert.equal(row, undefined);
+      },
+    },
+    {
+      name: 'truck cap',
+      endpoint: '/api/truck-cap',
+      createPayload: () => ({
+        truckId,
+        partnerName: `Q15 Truck Partner ${suffix}`,
+        percentage: 40,
+        role: 'INVESTOR',
+        effectiveDate: '2099-06-01',
+      }),
+      mutatePayload: () => ({ percentage: 45 }),
+      fetchById: async (id) => {
+        const [row] = await db.select().from(s.truckCapTable).where(eq(s.truckCapTable.id, id)).limit(1);
+        return row;
+      },
+      expectCreated: (row) => {
+        truckCapIds.push(row.id);
+        assert.equal(Number(row.percentage), 40);
+      },
+      expectUpdated: (row) => {
+        assert.equal(Number(row.percentage), 45);
+      },
+      expectDeleted: async (id) => {
+        const [row] = await db.select().from(s.truckCapTable).where(eq(s.truckCapTable.id, id)).limit(1);
+        assert.equal(row, undefined);
+      },
+    },
+    {
+      name: 'business calendar',
+      endpoint: '/api/business-calendar',
+      createPayload: () => ({
+        calendarDate: '2099-12-01',
+        name: `Q15 Calendar ${suffix}`,
+        isWorkingDay: false,
+      }),
+      mutatePayload: () => ({
+        isWorkingDay: true,
+        name: `Q15 Calendar Updated ${suffix}`,
+      }),
+      fetchById: async (id) => {
+        const [row] = await db.select().from(s.businessCalendarDays).where(eq(s.businessCalendarDays.id, id)).limit(1);
+        return row;
+      },
+      expectCreated: (row) => {
+        businessCalendarIds.push(row.id);
+        assert.equal(row.calendarDate, '2099-12-01');
+        assert.equal(row.isWorkingDay, false);
+      },
+      expectUpdated: (row) => {
+        assert.equal(row.isWorkingDay, true);
+      },
+      expectDeleted: async (id) => {
+        const [row] = await db.select().from(s.businessCalendarDays).where(eq(s.businessCalendarDays.id, id)).limit(1);
+        assert.equal(row, undefined);
+      },
+    },
+    {
+      name: 'governed routes',
+      endpoint: '/api/routes',
+      createPayload: () => ({
+        name: `Q15 Governed Route ${suffix}`,
+        distanceKm: 125,
+        isMountain: true,
+        fixedFuelAllowance: 120000,
+        tollsStations: 3,
+        driverSalary: 450000,
+        defaultLegs: [
+          {
+            origin: 'A',
+            destination: 'B',
+            km: 125,
+            loadingType: 'HANG',
+          },
+        ],
+      }),
+      mutatePayload: () => ({
+        distanceKm: 130,
+        defaultLegs: [
+          {
+            origin: 'A',
+            destination: 'B',
+            km: 130,
+            loadingType: 'VO',
+          },
+        ],
+      }),
+      fetchById: async (id) => {
+        const [row] = await db.select().from(s.routes).where(eq(s.routes.id, id)).limit(1);
+        return row;
+      },
+      expectCreated: (row) => {
+        routeIds.push(row.id);
+        assert.equal(Number(row.distanceKm), 125);
+        assert.equal(row.isMountain, true);
+        assert.equal(Number(row.driverSalary), 450000);
+      },
+      expectUpdated: (row) => {
+        assert.equal(Number(row.distanceKm), 130);
+        assert.deepEqual(row.defaultLegs, [
+          {
+            origin: 'A',
+            destination: 'B',
+            km: 130,
+            loadingType: 'VO',
+          },
+        ]);
+      },
+      expectDeleted: async (id) => {
+        const [row] = await db.select().from(s.routes).where(eq(s.routes.id, id)).limit(1);
+        assert.ok(row?.deletedAt instanceof Date);
+      },
+    },
+    {
+      name: 'penalty reasons',
+      endpoint: '/api/penalty-reasons',
+      createPayload: () => ({
+        reasonText: `Q15 Penalty ${suffix}`,
+        defaultAmount: 180000,
+        severity: 'mid',
+      }),
+      mutatePayload: () => ({
+        defaultAmount: 210000,
+      }),
+      fetchById: async (id) => {
+        const [row] = await db.select().from(s.penaltyReasons).where(eq(s.penaltyReasons.id, id)).limit(1);
+        return row;
+      },
+      expectCreated: (row) => {
+        penaltyReasonIds.push(row.id);
+        assert.equal(Number(row.defaultAmount), 180000);
+      },
+      expectUpdated: (row) => {
+        assert.equal(Number(row.defaultAmount), 210000);
+      },
+      expectDeleted: async (id) => {
+        const [row] = await db.select().from(s.penaltyReasons).where(eq(s.penaltyReasons.id, id)).limit(1);
+        assert.ok(row?.deletedAt instanceof Date);
+      },
+    },
+    {
+      name: 'expense categories',
+      endpoint: '/api/expense-categories',
+      createPayload: () => ({
+        name: `Q15 Expense ${suffix}`,
+        isRenewable: true,
+        reminderLeadDays: 15,
+      }),
+      mutatePayload: () => ({
+        reminderLeadDays: 30,
+      }),
+      fetchById: async (id) => {
+        const [row] = await db.select().from(s.expenseCategories).where(eq(s.expenseCategories.id, id)).limit(1);
+        return row;
+      },
+      expectCreated: (row) => {
+        expenseCategoryIds.push(row.id);
+        assert.equal(row.isRenewable, true);
+        assert.equal(row.reminderLeadDays, 15);
+      },
+      expectUpdated: (row) => {
+        assert.equal(row.reminderLeadDays, 30);
+      },
+      expectDeleted: async (id) => {
+        const [row] = await db.select().from(s.expenseCategories).where(eq(s.expenseCategories.id, id)).limit(1);
+        assert.ok(row?.deletedAt instanceof Date);
+      },
+    },
+    {
+      name: 'suppliers',
+      endpoint: '/api/suppliers',
+      createPayload: () => ({
+        name: `Q15 Supplier ${suffix}`,
+        linkedCustomerId: customerId,
+      }),
+      mutatePayload: () => ({
+        types: ['service', 'fuel'],
+        primaryType: 'fuel',
+      }),
+      fetchById: async (id) => {
+        const [row] = await db.select().from(s.suppliers).where(eq(s.suppliers.id, id)).limit(1);
+        return row;
+      },
+      expectCreated: async (row) => {
+        if (!supplierIds.includes(row.id)) supplierIds.push(row.id);
+        assert.equal(row.linkedCustomerId, customerId);
+        const [linkedCustomer] = await db.select().from(s.customers).where(eq(s.customers.id, customerId)).limit(1);
+        assert.equal(linkedCustomer?.linkedSupplierId, row.id);
+      },
+      expectUpdated: async (row) => {
+        assert.equal(row.linkedCustomerId, customerId);
+        assert.deepEqual(row.types, ['SERVICE', 'FUEL']);
+        assert.equal(row.primaryType, 'FUEL');
+        assert.equal(row.isFuelSupplier, true);
+        const [firstCustomer] = await db.select().from(s.customers).where(eq(s.customers.id, customerId)).limit(1);
+        assert.equal(firstCustomer?.linkedSupplierId, row.id);
+      },
+      expectDeleted: async (id) => {
+        const [row] = await db.select().from(s.suppliers).where(eq(s.suppliers.id, id)).limit(1);
+        assert.ok(row?.deletedAt instanceof Date);
+        const [firstCustomer] = await db.select().from(s.customers).where(eq(s.customers.id, customerId)).limit(1);
+        const [secondCustomer] = await db.select().from(s.customers).where(eq(s.customers.id, secondaryCustomerId)).limit(1);
+        assert.equal(firstCustomer?.linkedSupplierId, null);
+        assert.equal(secondCustomer?.linkedSupplierId, null);
+      },
+    },
+    {
+      name: 'forwarder expense types',
+      endpoint: '/api/forwarder-expense-types',
+      createPayload: () => ({
+        code: `Q15-FWD-${suffix}`.slice(0, 20),
+        name: `Q15 Forwarder ${suffix}`,
+        requiresInvoice: false,
+        substituteEvidenceAllowed: true,
+        noInvoicePerItemLimit: 150000,
+        noInvoicePerDayLimit: 300000,
+      }),
+      mutatePayload: () => ({
+        noInvoicePerDayLimit: 450000,
+      }),
+      fetchById: async (id) => {
+        const [row] = await db.select().from(s.forwarderExpenseTypes).where(eq(s.forwarderExpenseTypes.id, id)).limit(1);
+        return row;
+      },
+      expectCreated: (row) => {
+        forwarderExpenseTypeIds.push(row.id);
+        assert.equal(Number(row.noInvoicePerItemLimit), 150000);
+        assert.equal(Number(row.noInvoicePerDayLimit), 300000);
+        assert.equal(row.noInvoicePolicyVersion, 1);
+      },
+      expectUpdated: (row) => {
+        assert.equal(Number(row.noInvoicePerDayLimit), 450000);
+        assert.equal(row.noInvoicePolicyVersion, 2);
+      },
+      expectDeleted: async (id) => {
+        const [row] = await db.select().from(s.forwarderExpenseTypes).where(eq(s.forwarderExpenseTypes.id, id)).limit(1);
+        assert.ok(row?.deletedAt instanceof Date);
+      },
+    },
+  ];
 
-    const [beforeApproveCreate] = await db.select()
-      .from(s.pricingTables)
-      .where(and(
-        eq(s.pricingTables.customerId, customerId),
-        eq(s.pricingTables.routeId, routeId),
-        isNull(s.pricingTables.deletedAt),
-      ))
-      .limit(1);
-    assert.equal(beforeApproveCreate, undefined, 'maker request must not create the pricing table directly');
+  it('submits all financially material generated config resources for maker/checker/approver review before any DB effect', async () => {
+    for (const resource of materialCases) {
+      const create = await api('POST', resource.endpoint, { body: resource.createPayload() });
+      expectPendingAction(create, `${resource.name} create`);
 
-    const selfCheck = await api('POST', `/api/governance-actions/${createResponse.body.id}/check`, {
-      expectedVersion: Number(createResponse.body.version),
-    }, 0);
-    assert.equal(selfCheck.status, 403);
+      const createdBefore = await resource.fetchById(Number(create.body.subjectId ?? 0));
+      assert.equal(createdBefore, undefined, `${resource.name}: maker request must not create directly`);
 
-    const checkedCreate = await api('POST', `/api/governance-actions/${createResponse.body.id}/check`, {
-      expectedVersion: Number(createResponse.body.version),
-    }, 1);
-    assert.equal(checkedCreate.status, 200);
-    assert.equal(checkedCreate.body.status, 'PENDING_APPROVAL');
+      const checkedCreate = await checkAction(Number(create.body.id), Number(create.body.version));
+      assert.equal(checkedCreate.status, 200, `${resource.name}: checker must move create to approval`);
+      const approvedCreate = await approveAction(Number(create.body.id), Number(checkedCreate.body.version));
+      assert.equal(approvedCreate.status, 200, `${resource.name}: approver must apply create exactly once`);
+      const createdId = Number(approvedCreate.body.subjectId);
+      const createdRow = await resource.fetchById(createdId);
+      assert.ok(createdRow, `${resource.name}: create approval must persist row`);
+      await resource.expectCreated(createdRow);
 
-    const approvedCreate = await api('POST', `/api/governance-actions/${createResponse.body.id}/approve`, {
-      expectedVersion: Number(checkedCreate.body.version),
-    }, 2);
-    assert.equal(approvedCreate.status, 200);
-    assert.equal(approvedCreate.body.status, 'APPROVED');
-    const createdPricingTableId = Number(approvedCreate.body.subjectId);
-    pricingTableIds.push(createdPricingTableId);
+      const update = await api('PUT', `${resource.endpoint}/${createdId}`, {
+        body: resource.mutatePayload(createdRow),
+        expectedUpdatedAt: createdRow.updatedAt,
+      });
+      expectPendingAction(update, `${resource.name} update`);
 
-    const [createdPricingTable] = await db.select()
-      .from(s.pricingTables)
-      .where(eq(s.pricingTables.id, createdPricingTableId))
-      .limit(1);
-    assert.equal(Number(createdPricingTable?.price), 1500000);
+      const beforeUpdate = await resource.fetchById(createdId);
+      await resource.expectCreated(beforeUpdate!);
 
-    const updateResponse = await api('PUT', `/api/pricing-tables/${createdPricingTableId}`, {
-      price: 1750000,
-      reason: 'Đề nghị tăng giá theo biểu mới',
-      expectedVersion: pricingTableVersion(createdPricingTable!),
-    }, 0);
-    assert.equal(updateResponse.status, 201);
-    governanceActionIds.push(Number(updateResponse.body.id));
+      const checkedUpdate = await checkAction(Number(update.body.id), Number(update.body.version));
+      assert.equal(checkedUpdate.status, 200, `${resource.name}: checker must move update to approval`);
+      const approvedUpdate = await approveAction(Number(update.body.id), Number(checkedUpdate.body.version));
+      assert.equal(approvedUpdate.status, 200, `${resource.name}: approver must apply update exactly once`);
+      const updatedRow = await resource.fetchById(createdId);
+      assert.ok(updatedRow, `${resource.name}: update approval must keep row visible`);
+      await resource.expectUpdated(updatedRow);
 
-    const [beforeApproveUpdate] = await db.select()
-      .from(s.pricingTables)
-      .where(eq(s.pricingTables.id, createdPricingTableId))
-      .limit(1);
-    assert.equal(Number(beforeApproveUpdate?.price), 1500000, 'maker request must not update the pricing table directly');
+      const deleteResponse = await api('DELETE', `${resource.endpoint}/${createdId}`, {
+        body: {},
+        expectedUpdatedAt: updatedRow.updatedAt,
+      });
+      expectPendingAction(deleteResponse, `${resource.name} delete`);
 
-    const checkedUpdate = await api('POST', `/api/governance-actions/${updateResponse.body.id}/check`, {
-      expectedVersion: Number(updateResponse.body.version),
-    }, 1);
-    assert.equal(checkedUpdate.status, 200);
-    const approvedUpdate = await api('POST', `/api/governance-actions/${updateResponse.body.id}/approve`, {
-      expectedVersion: Number(checkedUpdate.body.version),
-    }, 2);
-    assert.equal(approvedUpdate.status, 200);
+      const beforeDelete = await resource.fetchById(createdId);
+      if (beforeDelete) {
+        await resource.expectUpdated(beforeDelete);
+      }
 
-    const [updatedPricingTable] = await db.select()
-      .from(s.pricingTables)
-      .where(eq(s.pricingTables.id, createdPricingTableId))
-      .limit(1);
-    assert.equal(Number(updatedPricingTable?.price), 1750000);
-
-    const deleteResponse = await api('DELETE', `/api/pricing-tables/${createdPricingTableId}`, {
-      reason: 'Ngừng áp dụng bảng giá thử nghiệm',
-      expectedVersion: pricingTableVersion(updatedPricingTable!),
-    }, 0);
-    assert.equal(deleteResponse.status, 201);
-    governanceActionIds.push(Number(deleteResponse.body.id));
-
-    const [beforeApproveDelete] = await db.select()
-      .from(s.pricingTables)
-      .where(eq(s.pricingTables.id, createdPricingTableId))
-      .limit(1);
-    assert.equal(beforeApproveDelete?.deletedAt, null, 'maker request must not delete the pricing table directly');
-
-    const checkedDelete = await api('POST', `/api/governance-actions/${deleteResponse.body.id}/check`, {
-      expectedVersion: Number(deleteResponse.body.version),
-    }, 1);
-    assert.equal(checkedDelete.status, 200);
-    const approvedDelete = await api('POST', `/api/governance-actions/${deleteResponse.body.id}/approve`, {
-      expectedVersion: Number(checkedDelete.body.version),
-    }, 2);
-    assert.equal(approvedDelete.status, 200);
-
-    const [deletedPricingTable] = await db.select()
-      .from(s.pricingTables)
-      .where(eq(s.pricingTables.id, createdPricingTableId))
-      .limit(1);
-    assert.ok(deletedPricingTable?.deletedAt instanceof Date);
+      const checkedDelete = await checkAction(Number(deleteResponse.body.id), Number(deleteResponse.body.version));
+      assert.equal(checkedDelete.status, 200, `${resource.name}: checker must move delete to approval`);
+      const approvedDelete = await approveAction(Number(deleteResponse.body.id), Number(checkedDelete.body.version));
+      assert.equal(approvedDelete.status, 200, `${resource.name}: approver must apply delete exactly once`);
+      await resource.expectDeleted(createdId);
+    }
   });
 
-  it('rejects approval when the source pricing table changed after request', async () => {
-    const [pricingTable] = await db.insert(s.pricingTables).values({
-      customerId,
-      routeId,
-      price: '2100000',
-      effectiveDate: '2099-01-01',
+  it('replays identical pending requests, rejects viewers, blocks checker self-approval, and prevents stale approval on the shared config path', async () => {
+    const key = `q15-price-replay-${suffix}`;
+    const [replayRoute] = await db.insert(s.routes).values({
+      name: `Q15 Pricing Replay Route ${suffix}`,
     }).returning();
-    pricingTableIds.push(pricingTable.id);
+    routeIds.push(replayRoute.id);
 
-    const updateResponse = await api('PUT', `/api/pricing-tables/${pricingTable.id}`, {
-      price: 2200000,
-      reason: 'Đề nghị chỉnh giá tương lai',
-      expectedVersion: pricingTableVersion(pricingTable),
-    }, 0);
-    assert.equal(updateResponse.status, 201);
-    governanceActionIds.push(Number(updateResponse.body.id));
+    const first = await api('POST', '/api/pricing-tables', {
+      body: { customerId, routeId: replayRoute.id, price: 2100000 },
+      idempotencyKey: key,
+    });
+    expectPendingAction(first, 'pricing replay create');
 
-    const checkedUpdate = await api('POST', `/api/governance-actions/${updateResponse.body.id}/check`, {
-      expectedVersion: Number(updateResponse.body.version),
-    }, 1);
+    const replay = await api('POST', '/api/pricing-tables', {
+      body: { customerId, routeId: replayRoute.id, price: 2100000 },
+      idempotencyKey: key,
+    });
+    assert.equal(replay.status, 201);
+    assert.equal(replay.body.id, first.body.id);
+    assert.equal(replay.body.status, 'PENDING_CHECK');
+
+    const changedPayload = await api('POST', '/api/pricing-tables', {
+      body: { customerId, routeId: replayRoute.id, price: 2200000 },
+      idempotencyKey: key,
+    });
+    assert.equal(changedPayload.status, 409);
+
+    const viewerDenied = await api('POST', '/api/road-allowances', {
+      actorIndex: 3,
+      body: { routeId, trailerType: TrailerType.FT20, baseAmount: 123000 },
+    });
+    assert.equal(viewerDenied.status, 403, `viewer denial body ${JSON.stringify(viewerDenied.body)}`);
+
+    const checked = await checkAction(Number(first.body.id), Number(first.body.version));
+    assert.equal(checked.status, 200);
+
+    const checkerApprove = await approveAction(Number(first.body.id), Number(checked.body.version), 1);
+    assert.equal(checkerApprove.status, 403);
+
+    const approved = await approveAction(Number(first.body.id), Number(checked.body.version));
+    assert.equal(approved.status, 200, `pricing replay approval body ${JSON.stringify(approved.body)}`);
+    const pricingTableId = Number(approved.body.subjectId);
+    pricingTableIds.push(pricingTableId);
+
+    const [pricingTable] = await db.select().from(s.pricingTables).where(eq(s.pricingTables.id, pricingTableId)).limit(1);
+    assert.ok(pricingTable);
+
+    const pendingUpdate = await api('PUT', `/api/pricing-tables/${pricingTableId}`, {
+      body: { price: 2300000 },
+      expectedUpdatedAt: pricingTable.updatedAt,
+    });
+    expectPendingAction(pendingUpdate, 'pricing stale update');
+
+    const checkedUpdate = await checkAction(Number(pendingUpdate.body.id), Number(pendingUpdate.body.version));
     assert.equal(checkedUpdate.status, 200);
 
     await db.update(s.pricingTables).set({
-      price: '2300000',
+      price: '2400000',
       updatedAt: new Date(Date.now() + 5000),
-    }).where(eq(s.pricingTables.id, pricingTable.id));
+    }).where(eq(s.pricingTables.id, pricingTableId));
 
-    const staleApprove = await api('POST', `/api/governance-actions/${updateResponse.body.id}/approve`, {
-      expectedVersion: Number(checkedUpdate.body.version),
-    }, 2);
-    assert.equal(staleApprove.status, 409);
-    assert.match(String(staleApprove.body.error ?? staleApprove.body.message ?? ''), /đã thay đổi/i);
+    const staleApproval = await approveAction(Number(pendingUpdate.body.id), Number(checkedUpdate.body.version));
+    assert.equal(staleApproval.status, 409);
+    assert.match(String(staleApproval.body.error ?? staleApproval.body.message ?? ''), /đã thay đổi/i);
+  });
 
-    const [afterConflict] = await db.select()
-      .from(s.pricingTables)
-      .where(eq(s.pricingTables.id, pricingTable.id))
+  it('keeps governed rows unchanged when returned for evidence or rejected', async () => {
+    const create = await api('POST', '/api/fuel-norms', {
+      body: {
+        routeId,
+        truckId: null,
+        loadedLitersPer100Km: 28,
+        emptyLitersPer100Km: 22,
+        supplementLiters: 0,
+        flatRateLiters: null,
+        effectiveDate: '2099-07-01',
+      },
+    });
+    expectPendingAction(create, 'fuel norm create for return');
+
+    const checked = await checkAction(Number(create.body.id), Number(create.body.version));
+    assert.equal(checked.status, 200);
+
+    const returned = await returnForEvidence(Number(create.body.id), Number(checked.body.version), 'Thiếu căn cứ điều chỉnh', 2);
+    assert.equal(returned.status, 200, `return for evidence body ${JSON.stringify(returned.body)}`);
+    assert.equal(returned.body.status, 'RETURNED_FOR_EVIDENCE');
+
+    const [afterReturn] = await db.select().from(s.fuelNorms)
+      .where(and(
+        eq(s.fuelNorms.routeId, routeId),
+        isNull(s.fuelNorms.deletedAt),
+      ))
+      .orderBy(s.fuelNorms.id);
+    assert.equal(afterReturn, undefined);
+
+    const rejected = await api('POST', '/api/fuel-norms', {
+      body: {
+        routeId,
+        truckId: null,
+        loadedLitersPer100Km: 29,
+        emptyLitersPer100Km: 23,
+        supplementLiters: 0,
+        flatRateLiters: null,
+        effectiveDate: '2099-08-01',
+      },
+    });
+    expectPendingAction(rejected, 'fuel norm create for rejection');
+
+    const rejectedChecked = await checkAction(Number(rejected.body.id), Number(rejected.body.version));
+    assert.equal(rejectedChecked.status, 200);
+
+    const rejection = await rejectAction(Number(rejected.body.id), Number(rejectedChecked.body.version), 'Không đủ căn cứ phê duyệt', 2);
+    assert.equal(rejection.status, 200, `rejection body ${JSON.stringify(rejection.body)}`);
+    assert.equal(rejection.body.status, 'REJECTED');
+
+    const [afterReject] = await db.select().from(s.fuelNorms)
+      .where(and(
+        eq(s.fuelNorms.routeId, routeId),
+        isNull(s.fuelNorms.deletedAt),
+      ))
+      .orderBy(s.fuelNorms.id);
+    assert.equal(afterReject, undefined);
+  });
+
+  it('keeps ordinary customer edits direct while debt-authority fields require governance', async () => {
+    const [currentCustomer] = await db.select().from(s.customers).where(eq(s.customers.id, customerId)).limit(1);
+    assert.ok(currentCustomer);
+
+    const directUpdate = await api('PUT', `/api/customers/${customerId}`, {
+      body: { contactPerson: 'Direct Customer Edit' },
+      expectedUpdatedAt: currentCustomer.updatedAt,
+    });
+    assert.equal(directUpdate.status, 200, `direct customer update body ${JSON.stringify(directUpdate.body)}`);
+    assert.equal(directUpdate.body.contactPerson, 'Direct Customer Edit');
+    assert.equal(directUpdate.body.status, 'ACTIVE');
+
+    const [afterDirect] = await db.select().from(s.customers).where(eq(s.customers.id, customerId)).limit(1);
+    assert.equal(afterDirect?.contactPerson, 'Direct Customer Edit');
+    assert.equal(afterDirect?.creditLimit, null);
+
+    const governedUpdate = await api('PUT', `/api/customers/${customerId}`, {
+      body: {
+        creditLimit: 5000000,
+        paymentTermDays: 21,
+      },
+      expectedUpdatedAt: afterDirect!.updatedAt,
+    });
+    expectPendingAction(governedUpdate, 'customer governed update');
+
+    const [beforeApproval] = await db.select().from(s.customers).where(eq(s.customers.id, customerId)).limit(1);
+    assert.equal(beforeApproval?.creditLimit, null);
+    assert.equal(beforeApproval?.paymentTermDays, null);
+
+    const approved = await approvePendingAction(governedUpdate);
+    assert.equal(approved.status, 200);
+
+    const [afterApproval] = await db.select().from(s.customers).where(eq(s.customers.id, customerId)).limit(1);
+    assert.equal(Number(afterApproval?.creditLimit), 5000000);
+    assert.equal(afterApproval?.paymentTermDays, 21);
+    assert.equal(afterApproval?.contactPerson, 'Direct Customer Edit');
+  });
+
+  it('enqueues durable cache invalidation when a governed route approval applies', async () => {
+    const governedCreate = await api('POST', '/api/routes', {
+      body: {
+        name: `Q15 Durable Route ${suffix}`,
+        distanceKm: 88,
+        isMountain: false,
+        fixedFuelAllowance: 45000,
+        tollsStations: 1,
+        driverSalary: 320000,
+      },
+    });
+    expectPendingAction(governedCreate, 'route durable effect');
+
+    const actionId = Number(governedCreate.body.id);
+    const approved = await approvePendingAction(governedCreate);
+    assert.equal(approved.status, 200);
+
+    const [job] = await db.select().from(s.durableEffectJobs)
+      .where(eq(
+        s.durableEffectJobs.dedupeKey,
+        `cache-invalidate:catalogs:bootstrap:governance-action:${actionId}`,
+      ))
       .limit(1);
-    assert.equal(Number(afterConflict?.price), 2300000);
-
-    const [action] = await db.select()
-      .from(s.governanceActions)
-      .where(eq(s.governanceActions.id, Number(updateResponse.body.id)))
-      .limit(1);
-    assert.equal(action?.status, 'PENDING_APPROVAL');
+    assert.ok(job);
+    assert.equal(job.kind, DURABLE_EFFECT_KIND.CACHE_INVALIDATE);
+    assert.equal(job.status, DURABLE_EFFECT_STATUS.PENDING);
+    assert.deepEqual(job.payload, { key: 'catalogs:bootstrap' });
   });
 });

@@ -5,6 +5,8 @@ import { TxnType } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
+import { assertCanMakeGovernanceAction } from './governance-policy';
+import type { GovernanceApplyResult, GovernanceActionRow } from './governance-transition.service';
 
 export interface ExpenseCreateInput {
   expenseDate: string;
@@ -44,7 +46,7 @@ export interface ExpenseListFilters {
   pageSize?: number;
 }
 
-export async function createExpense(tx: Tx, data: ExpenseCreateInput, userId?: number) {
+async function validateExpenseInput(tx: Tx, data: ExpenseCreateInput) {
   const [supplier] = await tx.select({ id: s.suppliers.id })
     .from(s.suppliers)
     .where(and(eq(s.suppliers.id, data.supplierId), isNull(s.suppliers.deletedAt)))
@@ -78,6 +80,19 @@ export async function createExpense(tx: Tx, data: ExpenseCreateInput, userId?: n
       }
     }
   }
+  return category;
+}
+
+export async function createExpense(
+  tx: Tx,
+  data: ExpenseCreateInput,
+  userId?: number,
+  governanceApproved = false,
+) {
+  if (!governanceApproved) {
+    throw new ApiError(403, 'Chi phí công ty chỉ được ghi nhận sau khi hoàn tất phê duyệt');
+  }
+  const category = await validateExpenseInput(tx, data);
 
   // The expenses table only has truck_id (no trailer_id column yet) —
   // we discriminate truck vs rơ-moóc via the vehicleComponent enum. The
@@ -115,6 +130,139 @@ export async function createExpense(tx: Tx, data: ExpenseCreateInput, userId?: n
   return expense;
 }
 
+export function isGovernedCompanyExpenseMutation(
+  existing: typeof s.expenses.$inferSelect,
+  data: ExpenseUpdateInput,
+): boolean {
+  return (
+    (data.amount !== undefined && Number(data.amount) !== Number(existing.amount))
+    || (data.supplierId !== undefined && data.supplierId !== existing.supplierId)
+    || (data.categoryId !== undefined && data.categoryId !== existing.categoryId)
+    || (data.expenseDate !== undefined && data.expenseDate !== existing.expenseDate)
+    || (data.truckId !== undefined && data.truckId !== existing.truckId)
+    || (
+      data.vehicleComponent !== undefined
+      && data.vehicleComponent !== existing.vehicleComponent
+    )
+    || (
+      data.paymentStatus !== undefined
+      && data.paymentStatus !== existing.paymentStatus
+    )
+  );
+}
+
+async function loadExpenseForGovernance(tx: Tx, expenseId: number) {
+  const [expense] = await tx.select()
+    .from(s.expenses)
+    .where(and(eq(s.expenses.id, expenseId), isNull(s.expenses.deletedAt)))
+    .limit(1)
+    .for('update');
+  if (!expense) {
+    throw new ApiError(404, 'Không tìm thấy chi phí');
+  }
+  return expense;
+}
+
+function normalizeExpenseSnapshot(expense: typeof s.expenses.$inferSelect) {
+  return {
+    expenseDate: expense.expenseDate,
+    supplierId: expense.supplierId,
+    categoryId: expense.categoryId,
+    truckId: expense.truckId,
+    vehicleComponent: expense.vehicleComponent,
+    amount: expense.amount,
+    paymentStatus: expense.paymentStatus,
+    validFrom: expense.validFrom?.toISOString() ?? null,
+    validTo: expense.validTo?.toISOString() ?? null,
+    receiptId: expense.receiptId,
+    note: expense.note,
+    updatedAt: expense.updatedAt.toISOString(),
+  };
+}
+
+export async function requestCompanyExpenseGovernance(input: {
+  expenseId?: number;
+  expectedUpdatedAt?: Date;
+  reason: string;
+  makerId: number;
+  makerRole: string;
+  mutation: 'CREATE' | 'UPDATE' | 'DELETE';
+  createInput?: ExpenseCreateInput;
+  patch?: ExpenseUpdateInput;
+  commandKey?: string;
+  transaction?: Tx;
+}): Promise<GovernanceActionRow> {
+  assertCanMakeGovernanceAction('COMPANY_EXPENSE', input.makerRole);
+  const reason = input.reason.trim();
+  if (!reason) {
+    throw new ApiError(400, 'Lý do là bắt buộc');
+  }
+
+  const execute = async (tx: Tx) => {
+    if (input.mutation === 'CREATE') {
+      if (!input.createInput || !input.commandKey) {
+        throw new ApiError(400, 'Yêu cầu tạo chi phí thiếu dữ liệu nguồn');
+      }
+      await validateExpenseInput(tx, input.createInput);
+      const [action] = await tx.insert(s.governanceActions).values({
+        subjectType: 'COMPANY_EXPENSE',
+        subjectId: null,
+        subjectKey: `company-expense:create:${input.commandKey}`,
+        actionKind: 'COMPANY_EXPENSE',
+        reason,
+        originalVersion: 0,
+        beforeSnapshot: { exists: false },
+        afterSnapshot: { ...input.createInput },
+        deltaSnapshot: { mutation: 'CREATE' },
+        makerId: input.makerId,
+        makerRole: input.makerRole,
+      }).returning();
+      return action;
+    }
+    if (input.expenseId == null || input.expectedUpdatedAt == null) {
+      throw new ApiError(400, 'Yêu cầu thay đổi chi phí thiếu phiên bản nguồn');
+    }
+    const existing = await loadExpenseForGovernance(tx, input.expenseId);
+    assertExpectedUpdatedAt(existing.updatedAt, input.expectedUpdatedAt);
+    const beforeSnapshot = normalizeExpenseSnapshot(existing);
+    const afterSnapshot = input.mutation === 'DELETE'
+      ? { deletedAt: true }
+      : {
+        ...beforeSnapshot,
+        ...input.patch,
+        ...(input.patch?.validFrom !== undefined
+          ? { validFrom: input.patch.validFrom ? new Date(input.patch.validFrom).toISOString() : null }
+          : {}),
+        ...(input.patch?.validTo !== undefined
+          ? { validTo: input.patch.validTo ? new Date(input.patch.validTo).toISOString() : null }
+          : {}),
+      };
+
+    const [action] = await tx.insert(s.governanceActions).values({
+      subjectType: 'COMPANY_EXPENSE',
+      subjectId: existing.id,
+      subjectKey: `company-expense:${existing.id}:${input.mutation.toLowerCase()}`,
+      actionKind: 'COMPANY_EXPENSE',
+      reason,
+      originalVersion: 1,
+      beforeSnapshot,
+      afterSnapshot,
+      deltaSnapshot: {
+        mutation: input.mutation,
+        expectedUpdatedAt: input.expectedUpdatedAt.toISOString(),
+        applicationMode: input.mutation === 'UPDATE' && existing.paymentStatus !== 'UNPAID'
+          ? 'FINALIZED_REPLACEMENT'
+          : 'IN_PLACE_ADJUSTMENT',
+      },
+      makerId: input.makerId,
+      makerRole: input.makerRole,
+    }).returning();
+    return action;
+  };
+
+  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+}
+
 function assertExpectedUpdatedAt(actual: Date, expected: Date): void {
   if (actual.getTime() !== expected.getTime()) {
     throw new ApiError(
@@ -130,6 +278,7 @@ export async function updateExpense(
   data: ExpenseUpdateInput,
   expectedUpdatedAt: Date,
   _userId?: number,
+  governanceApproved = false,
 ) {
   const [existing] = await tx.select()
     .from(s.expenses)
@@ -141,6 +290,12 @@ export async function updateExpense(
     throw new ApiError(404, 'Không tìm thấy chi phí');
   }
   assertExpectedUpdatedAt(existing.updatedAt, expectedUpdatedAt);
+  if (isGovernedCompanyExpenseMutation(existing, data) && !governanceApproved) {
+    throw new ApiError(
+      403,
+      'Thay đổi tài chính của chi phí công ty chỉ được áp dụng sau phê duyệt',
+    );
+  }
 
   if (data.supplierId !== undefined) {
     const [supplier] = await tx.select({ id: s.suppliers.id })
@@ -239,7 +394,11 @@ export async function deleteExpense(
   id: number,
   expectedUpdatedAt: Date,
   _userId?: number,
+  governanceApproved = false,
 ) {
+  if (!governanceApproved) {
+    throw new ApiError(403, 'Chi phí công ty chỉ được xóa sau khi hoàn tất phê duyệt');
+  }
   const [existing] = await tx.select()
     .from(s.expenses)
     .where(and(eq(s.expenses.id, id), isNull(s.expenses.deletedAt)))
@@ -269,6 +428,152 @@ export async function deleteExpense(
       updatedAt: new Date(Math.max(Date.now(), existing.updatedAt.getTime() + 1)),
     })
     .where(eq(s.expenses.id, id));
+}
+
+export async function applyCompanyExpenseGovernanceAction(
+  tx: Tx,
+  action: GovernanceActionRow,
+): Promise<GovernanceApplyResult> {
+  if (action.actionKind !== 'COMPANY_EXPENSE'
+    || action.subjectType !== 'COMPANY_EXPENSE') {
+    throw new ApiError(409, 'Loại yêu cầu không thuộc điều chỉnh chi phí công ty');
+  }
+
+  const beforeSnapshot = (action.beforeSnapshot ?? {}) as Record<string, unknown>;
+  const deltaSnapshot = (action.deltaSnapshot ?? {}) as Record<string, unknown>;
+  const mutation = deltaSnapshot.mutation;
+  if (mutation === 'CREATE') {
+    if (action.subjectId != null || action.approverId == null) {
+      throw new ApiError(409, 'Yêu cầu tạo chi phí không hợp lệ');
+    }
+    const snapshot = (action.afterSnapshot ?? {}) as Record<string, unknown>;
+    const created = await createExpense(tx, {
+      expenseDate: String(snapshot.expenseDate),
+      supplierId: Number(snapshot.supplierId),
+      categoryId: Number(snapshot.categoryId),
+      truckId: snapshot.truckId == null ? null : Number(snapshot.truckId),
+      vehicleComponent: snapshot.vehicleComponent == null
+        ? null
+        : snapshot.vehicleComponent as ExpenseCreateInput['vehicleComponent'],
+      amount: String(snapshot.amount),
+      paymentStatus: String(snapshot.paymentStatus),
+      validFrom: snapshot.validFrom == null ? null : String(snapshot.validFrom),
+      validTo: snapshot.validTo == null ? null : String(snapshot.validTo),
+      receiptId: snapshot.receiptId == null ? null : String(snapshot.receiptId),
+      note: snapshot.note == null ? null : String(snapshot.note),
+    }, action.makerId, true);
+    await tx.update(s.governanceActions)
+      .set({ subjectId: created.id })
+      .where(eq(s.governanceActions.id, action.id));
+    return {
+      applicationResult: {
+        subjectType: 'COMPANY_EXPENSE',
+        subjectId: created.id,
+        mutation: 'CREATE',
+        paymentStatus: created.paymentStatus,
+      },
+    };
+  }
+  if (action.subjectId == null) {
+    throw new ApiError(409, 'Yêu cầu thay đổi chi phí thiếu đối tượng nguồn');
+  }
+  const expectedUpdatedAtRaw = typeof deltaSnapshot.expectedUpdatedAt === 'string'
+    ? deltaSnapshot.expectedUpdatedAt
+    : typeof beforeSnapshot.updatedAt === 'string'
+      ? beforeSnapshot.updatedAt
+      : null;
+  if (!expectedUpdatedAtRaw) {
+    throw new ApiError(409, 'Yêu cầu điều chỉnh chi phí thiếu phiên bản nguồn');
+  }
+  const expectedUpdatedAt = new Date(expectedUpdatedAtRaw);
+  if (Number.isNaN(expectedUpdatedAt.getTime())) {
+    throw new ApiError(409, 'Phiên bản nguồn của yêu cầu điều chỉnh không hợp lệ');
+  }
+
+  if (mutation === 'DELETE') {
+    await deleteExpense(tx, action.subjectId, expectedUpdatedAt, action.approverId ?? undefined, true);
+    return {
+      applicationResult: {
+        subjectType: 'COMPANY_EXPENSE',
+        subjectId: action.subjectId,
+        mutation: 'DELETE',
+      },
+    };
+  }
+
+  const afterSnapshot = (action.afterSnapshot ?? {}) as Record<string, unknown>;
+  const patch: ExpenseUpdateInput = {};
+  if (afterSnapshot.expenseDate !== undefined) patch.expenseDate = String(afterSnapshot.expenseDate);
+  if (afterSnapshot.supplierId !== undefined) patch.supplierId = Number(afterSnapshot.supplierId);
+  if (afterSnapshot.categoryId !== undefined) patch.categoryId = Number(afterSnapshot.categoryId);
+  if (afterSnapshot.truckId !== undefined) patch.truckId = afterSnapshot.truckId == null ? null : Number(afterSnapshot.truckId);
+  if (afterSnapshot.vehicleComponent !== undefined) {
+    patch.vehicleComponent = afterSnapshot.vehicleComponent as ExpenseUpdateInput['vehicleComponent'];
+  }
+  if (afterSnapshot.amount !== undefined) patch.amount = String(afterSnapshot.amount);
+  if (afterSnapshot.paymentStatus !== undefined) patch.paymentStatus = String(afterSnapshot.paymentStatus);
+  if (afterSnapshot.validFrom !== undefined) patch.validFrom = afterSnapshot.validFrom == null ? null : String(afterSnapshot.validFrom);
+  if (afterSnapshot.validTo !== undefined) patch.validTo = afterSnapshot.validTo == null ? null : String(afterSnapshot.validTo);
+  if (afterSnapshot.receiptId !== undefined) patch.receiptId = afterSnapshot.receiptId == null ? null : String(afterSnapshot.receiptId);
+  if (afterSnapshot.note !== undefined) patch.note = afterSnapshot.note == null ? null : String(afterSnapshot.note);
+
+  if (deltaSnapshot.applicationMode === 'FINALIZED_REPLACEMENT') {
+    const original = await loadExpenseForGovernance(tx, action.subjectId);
+    assertExpectedUpdatedAt(original.updatedAt, expectedUpdatedAt);
+    if (original.paymentStatus === 'UNPAID') {
+      throw new ApiError(409, 'Chi phí nguồn không còn ở trạng thái đã quyết toán');
+    }
+    const replacement = await createExpense(tx, {
+      expenseDate: String(afterSnapshot.expenseDate),
+      supplierId: Number(afterSnapshot.supplierId),
+      categoryId: Number(afterSnapshot.categoryId),
+      truckId: afterSnapshot.truckId == null ? null : Number(afterSnapshot.truckId),
+      vehicleComponent: afterSnapshot.vehicleComponent == null
+        ? null
+        : afterSnapshot.vehicleComponent as ExpenseCreateInput['vehicleComponent'],
+      amount: String(afterSnapshot.amount),
+      paymentStatus: String(afterSnapshot.paymentStatus),
+      validFrom: afterSnapshot.validFrom == null ? null : String(afterSnapshot.validFrom),
+      validTo: afterSnapshot.validTo == null ? null : String(afterSnapshot.validTo),
+      receiptId: afterSnapshot.receiptId == null ? null : String(afterSnapshot.receiptId),
+      note: afterSnapshot.note == null ? null : String(afterSnapshot.note),
+    }, action.makerId, true);
+    await deleteExpense(
+      tx,
+      original.id,
+      expectedUpdatedAt,
+      action.approverId ?? undefined,
+      true,
+    );
+    return {
+      applicationResult: {
+        subjectType: 'COMPANY_EXPENSE',
+        subjectId: original.id,
+        mutation: 'UPDATE',
+        applicationMode: 'FINALIZED_REPLACEMENT',
+        replacementSubjectId: replacement.id,
+        originalPreserved: true,
+        sourceEvidenceRetained: true,
+      },
+    };
+  }
+
+  const updated = await updateExpense(
+    tx,
+    action.subjectId,
+    patch,
+    expectedUpdatedAt,
+    action.approverId ?? undefined,
+    true,
+  );
+  return {
+    applicationResult: {
+      subjectType: 'COMPANY_EXPENSE',
+      subjectId: updated.id,
+      mutation: 'UPDATE',
+      updatedAt: updated.updatedAt.toISOString(),
+    },
+  };
 }
 
 export async function listExpenses(dbOrTx: typeof db | Tx, filters: ExpenseListFilters) {

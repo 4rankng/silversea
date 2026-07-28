@@ -83,6 +83,7 @@ interface SourceAuthorityPolicyBase {
   readonly preMilestoneActions: readonly SourceAuthorityAction[];
   readonly postMilestoneActions: readonly SourceAuthorityAction[];
   readonly immutableAfterMilestone: boolean;
+  readonly warnStakeholdersOnChange: boolean;
 }
 
 export interface ApprovedExpenseSourceAuthorityPolicy
@@ -119,6 +120,7 @@ export const SOURCE_AUTHORITY_CATALOG = {
     preMilestoneActions: ['RECOMPUTE'],
     postMilestoneActions: ['VERSION'],
     immutableAfterMilestone: true,
+    warnStakeholdersOnChange: true,
   },
   TRIP_TO_DRAFT_DEBIT_NOTE: {
     id: 'TRIP_TO_DRAFT_DEBIT_NOTE',
@@ -134,6 +136,7 @@ export const SOURCE_AUTHORITY_CATALOG = {
     preMilestoneActions: ['RECOMPUTE'],
     postMilestoneActions: ['ADJUST'],
     immutableAfterMilestone: true,
+    warnStakeholdersOnChange: true,
   },
   TRIP_TO_ACCOUNTS_RECEIVABLE: {
     id: 'TRIP_TO_ACCOUNTS_RECEIVABLE',
@@ -144,6 +147,7 @@ export const SOURCE_AUTHORITY_CATALOG = {
     preMilestoneActions: ['RECOMPUTE'],
     postMilestoneActions: ['ADJUST'],
     immutableAfterMilestone: true,
+    warnStakeholdersOnChange: true,
   },
   EXPENSE_TO_COST_REPORTING: {
     id: 'EXPENSE_TO_COST_REPORTING',
@@ -155,6 +159,7 @@ export const SOURCE_AUTHORITY_CATALOG = {
     postMilestoneActions: ['ADJUST'],
     immutableAfterMilestone: true,
     expenseAuthority: 'APPROVED_ONLY',
+    warnStakeholdersOnChange: true,
   },
   EXPENSE_TO_DRAFT_DEBIT_NOTE: {
     id: 'EXPENSE_TO_DRAFT_DEBIT_NOTE',
@@ -166,6 +171,7 @@ export const SOURCE_AUTHORITY_CATALOG = {
     postMilestoneActions: ['ADJUST'],
     immutableAfterMilestone: true,
     expenseAuthority: 'APPROVED_ONLY',
+    warnStakeholdersOnChange: true,
   },
   ISSUED_DEBIT_NOTE_TO_ACCOUNTS_RECEIVABLE: {
     id: 'ISSUED_DEBIT_NOTE_TO_ACCOUNTS_RECEIVABLE',
@@ -176,6 +182,7 @@ export const SOURCE_AUTHORITY_CATALOG = {
     preMilestoneActions: [],
     postMilestoneActions: ['ADJUST', 'REVERSE'],
     immutableAfterMilestone: true,
+    warnStakeholdersOnChange: true,
   },
   RECEIPT_ALLOCATION_TO_PAID_OUTSTANDING: {
     id: 'RECEIPT_ALLOCATION_TO_PAID_OUTSTANDING',
@@ -186,6 +193,7 @@ export const SOURCE_AUTHORITY_CATALOG = {
     preMilestoneActions: [],
     postMilestoneActions: ['ADJUST', 'REVERSE'],
     immutableAfterMilestone: true,
+    warnStakeholdersOnChange: true,
   },
 } as const satisfies Record<SourceAuthorityPairId, SourceAuthorityPolicy>;
 

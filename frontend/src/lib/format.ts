@@ -56,6 +56,19 @@ export function formatDate(d: string | null): string {
   return new Date(d).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
 }
 
+/** Calendar date in the platform's Vietnam business timezone for date inputs. */
+export function businessDateISO(value: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(value);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((item) => item.type === type)?.value ?? '';
+  return `${part('year')}-${part('month')}-${part('day')}`;
+}
+
 /**
  * Format a timestamp as Vietnam wall-clock (Asia/Ho_Chi_Minh) on ANY host.
  * The locale argument alone ('vi-VN') only shapes numbers/dates — it does NOT

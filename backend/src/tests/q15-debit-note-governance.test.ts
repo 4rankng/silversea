@@ -121,7 +121,13 @@ async function createDraftDocumentWithAdhoc(tripRevenue = 1_000_000) {
       },
     ],
   };
-  const created = await api('POST', '/api/finance/billing-documents', input as unknown as Record<string, unknown>, 0);
+  const created = await api(
+    'POST',
+    '/api/finance/billing-documents',
+    input as unknown as Record<string, unknown>,
+    0,
+    `q15-debit-create-${trip.id}`,
+  );
   assert.equal(created.status, 201);
   const documentId = Number(created.body.id);
   documentIds.push(documentId);
@@ -232,7 +238,7 @@ describe('Q15 debit-note issue governance', () => {
 
     const selfCheck = await api('POST', `/api/governance-actions/${issue.body.id}/check`, {
       expectedVersion: Number(issue.body.version),
-    }, 0);
+    }, 0, `q15-debit-self-check-${documentId}`);
     assert.equal(selfCheck.status, 403);
 
     const checked = await api('POST', `/api/governance-actions/${issue.body.id}/check`, {
@@ -243,7 +249,7 @@ describe('Q15 debit-note issue governance', () => {
 
     const selfApprove = await api('POST', `/api/governance-actions/${issue.body.id}/approve`, {
       expectedVersion: Number(checked.body.version),
-    }, 1);
+    }, 1, `q15-debit-self-approve-${documentId}`);
     assert.equal(selfApprove.status, 403);
 
     const beforeApproveLedger = await db.select({ id: s.ledger.id })

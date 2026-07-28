@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """E2E Test Suite 13: Forwarder Portal — RBAC, trips, containers, expenses"""
-import sys, os
+import sys, os, uuid
 sys.path.insert(0, os.path.dirname(__file__))
 from helpers import *
 
@@ -19,6 +19,16 @@ def _check_no_financial_keys(data, prefix=''):
 def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
     api_fwd = ApiClient()
     api_fwd.login('giaonhan', 'admin123')
+    secondary_forwarder = None
+    api_secondary = None
+
+    def no_invoice_fields(label):
+        return {
+            'expenseDate': '2026-07-28',
+            'payeeName': f'E2E payee {label}',
+            'note': f'E2E reason {label}',
+            'noInvoiceEvidenceTypes': ['ONSITE_PHOTO'],
+        }
 
     # ── Section 1: Access & RBAC (TC-1301 to TC-1308) ──
 
@@ -139,6 +149,59 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         elif isinstance(data, dict):
             fwd_trips = data.get('items', data.get('data', []))
     trip_id = fwd_trips[0]['id'] if fwd_trips else None
+    trip_detail_fixture = api_fwd.get(f'/api/forwarder/me/trips/{trip_id}') if trip_id else {}
+    trip_detail_data = trip_detail_fixture.get('data', {}) if trip_detail_fixture.get('status') == 200 else {}
+    shipment_id = trip_detail_data.get('shipmentId')
+    secondary_shipment_id = None
+    for candidate in fwd_trips[1:]:
+        candidate_detail = api_fwd.get(f'/api/forwarder/me/trips/{candidate.get("id")}')
+        candidate_shipment_id = (
+            candidate_detail.get('data', {}).get('shipmentId')
+            if candidate_detail.get('status') == 200
+            else None
+        )
+        if candidate_shipment_id and candidate_shipment_id != shipment_id:
+            secondary_shipment_id = candidate_shipment_id
+            break
+    if shipment_id:
+        secondary_username = f'e2e_forwarder_{uuid.uuid4().hex[:10]}'
+        created_secondary = api_admin.post('/api/auth/users', {
+            'username': secondary_username,
+            'fullName': 'E2E Forwarder Scope',
+            'password': 'admin123',
+            'role': 'FORWARDER',
+            'status': 'ACTIVE',
+            'shipmentIds': [secondary_shipment_id or shipment_id],
+        })
+        if created_secondary.get('status') in (200, 201):
+            secondary_forwarder = created_secondary.get('data', {})
+            api_secondary = ApiClient()
+            login_secondary = api_secondary.login(secondary_username, 'admin123')
+            if not login_secondary.get('token'):
+                results.fail('TC-1353-FIXTURE', 'Login second forwarder fixture', str(login_secondary))
+                api_secondary = None
+            elif secondary_shipment_id:
+                out_of_scope = api_secondary.get(f'/api/forwarder/me/trips/{trip_id}')
+                if out_of_scope.get('status') == 404:
+                    results.pass_('TC-1309', 'Out-of-scope trip detail is hidden from another forwarder')
+                else:
+                    results.fail(
+                        'TC-1309',
+                        'Out-of-scope trip detail',
+                        f'Expected 404, got {out_of_scope.get("status")}',
+                    )
+            else:
+                results.fail(
+                    'TC-1309',
+                    'Out-of-scope trip fixture',
+                    'No second shipment was available for an independent forwarder assignment',
+                )
+        else:
+            results.fail(
+                'TC-1353-FIXTURE',
+                'Create second forwarder fixture',
+                f'Status: {created_secondary.get("status")}, body: {created_secondary}',
+            )
     notes_fixture = f'E2E hướng dẫn giao nhận cho chuyến {trip_id}' if trip_id else None
     if trip_id:
         fixture_resp = api_admin.put(f'/api/trips/{trip_id}/instructions', {
@@ -165,11 +228,17 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         # Keep the assertion below authoritative and preserve its diagnostic
         # details when the API/render genuinely produces no cards.
         pass
-    cards = page.locator('[class*="card"], [class*="trip"], table tbody tr, [class*="item"]').count()
-    if cards > 0 or len(fwd_trips) > 0:
-        results.pass_('TC-1310', f'Trip list displays ({cards} elements, {len(fwd_trips)} API trips)')
+    cards = page.locator('.ftrip-card:visible').count()
+    if len(fwd_trips) > 0 and cards > 0:
+        results.pass_('TC-1310', f'Trip list displays ({cards} visible cards, {len(fwd_trips)} API trips)')
+    elif len(fwd_trips) == 0 and page.get_by_text('Chưa có chuyến đi').count() > 0:
+        results.pass_('TC-1310', 'Trip list displays the authoritative empty state')
     else:
-        results.fail('TC-1310', 'Trip list displays', 'No trip cards and no API trips')
+        results.fail(
+            'TC-1310',
+            'Trip list displays',
+            f'Expected visible cards for {len(fwd_trips)} API trips, found {cards}',
+        )
     ctx.screenshot(page, 'TC-1310_trip_list')
     page.close()
 
@@ -322,12 +391,20 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         page.goto(f'{BASE_URL}/my-forwarder-trips/{trip_id}')
         page.wait_for_load_state('networkidle')
         page.wait_for_timeout(1000)
-        content = page.content()
-        has_legs = any(kw in content for kw in ['leg', 'Leg', 'chặng', 'tuyến đường', 'route'])
-        if has_legs:
-            results.pass_('TC-1323', 'Leg/route information visible')
+        detail_resp = api_fwd.get(f'/api/forwarder/me/trips/{trip_id}')
+        expected_legs = detail_resp.get('data', {}).get('legs', []) if detail_resp.get('status') == 200 else []
+        visible_stops = page.locator('.trip-legs__stop:visible').count()
+        empty_visible = page.locator('.trip-legs__empty:visible').count()
+        if expected_legs and visible_stops == len(expected_legs) + 1:
+            results.pass_('TC-1323', f'All {len(expected_legs)} legs render as {visible_stops} stops')
+        elif not expected_legs and empty_visible == 1:
+            results.pass_('TC-1323', 'Leg panel renders the authoritative empty state')
         else:
-            results.pass_('TC-1323', 'Trip detail page rendered (leg info may be embedded)')
+            results.fail(
+                'TC-1323',
+                'Legs display',
+                f'API legs={len(expected_legs)}, visible stops={visible_stops}, empty panels={empty_visible}',
+            )
         page.close()
     else:
         results.skip('TC-1323', 'Legs display', 'No trips available')
@@ -517,6 +594,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
             'tripId': trip_id,
             'expenseType': 'LIFTING',
             'buyAmount': 500000,
+            **no_invoice_fields('TC-1340'),
         })
         if resp.get('status') in (200, 201) or (resp.get('data') and resp.get('data', {}).get('id')):
             exp_id = resp.get('data', {}).get('id')
@@ -531,6 +609,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
             'expenseType': 'CUSTOMS',
             'buyAmount': 300000,
             'declarationNumber': 'E2E-CUSTOMS-1341',
+            **no_invoice_fields('TC-1341'),
         })
         if resp.get('status') in (200, 201) or (resp.get('data') and resp.get('data', {}).get('id')):
             exp_id = resp.get('data', {}).get('id')
@@ -544,7 +623,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
             'tripId': trip_id,
             'expenseType': 'LIFTING',
             'buyAmount': 200000,
-            'note': 'E2E test expense with note',
+            **no_invoice_fields('TC-1342'),
         })
         if resp.get('status') in (200, 201) or (resp.get('data') and resp.get('data', {}).get('id')):
             exp_id = resp.get('data', {}).get('id')
@@ -587,6 +666,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
                 'tripId': trip_id,
                 'expenseType': etype,
                 'buyAmount': amt,
+                **no_invoice_fields(f'TC-1345-{etype}'),
                 **({'declarationNumber': 'E2E-CUSTOMS-1345'} if etype == 'CUSTOMS' else {}),
             })
             if resp.get('status') in (200, 201) or (resp.get('data') and resp.get('data', {}).get('id')):
@@ -650,16 +730,52 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
             results.skip(tc, 'Delete expense test', 'No expenses created')
     else:
         delete_expense_id = created_expense_ids[-1]
+        detail_resp = api_fwd.get(f'/api/forwarder/me/trips/{trip_id}')
+        detail_data = detail_resp.get('data', {}) if detail_resp.get('status') == 200 else {}
+        current_expenses = detail_data.get(
+            'expenses',
+            detail_data.get('data', {}).get('expenses', []),
+        )
+        delete_expense = next(
+            (expense for expense in current_expenses if expense.get('id') == delete_expense_id),
+            None,
+        )
+        delete_version = delete_expense.get('updatedAt') if delete_expense else None
+        delete_headers = {'If-Unmodified-Since': delete_version} if delete_version else {}
+
+        # TC-1353: A separately authenticated forwarder sharing the shipment
+        # may see the trip, but cannot delete another forwarder's expense.
+        if api_secondary and delete_version:
+            resp = api_secondary.delete(
+                f'/api/forwarder/me/expenses/{delete_expense_id}',
+                delete_headers,
+            )
+            if resp.get('status') in (403, 404):
+                results.pass_('TC-1353', f'Other forwarder delete denied → {resp.get("status")}')
+            else:
+                results.fail(
+                    'TC-1353',
+                    'Cannot delete other expense',
+                    f'Expected 403/404, got {resp.get("status")}',
+                )
+        else:
+            results.fail('TC-1353', 'Cannot delete other expense', 'Second forwarder fixture unavailable')
 
         # TC-1350: Delete own expense
-        resp = api_fwd.delete(f'/api/forwarder/me/expenses/{delete_expense_id}')
+        resp = api_fwd.delete(
+            f'/api/forwarder/me/expenses/{delete_expense_id}',
+            delete_headers,
+        )
         if resp.get('status') in (200, 204):
             results.pass_('TC-1350', f'Delete own expense {delete_expense_id} → 200')
         else:
             results.fail('TC-1350', 'Delete own expense', f'Expected 200, got {resp.get("status")}')
 
         # TC-1351: Delete non-existent expense
-        resp = api_fwd.delete('/api/forwarder/me/expenses/999999')
+        resp = api_fwd.delete(
+            '/api/forwarder/me/expenses/999999',
+            {'If-Unmodified-Since': '2026-01-01T00:00:00.000Z'},
+        )
         if resp.get('status') in (404, 410):
             results.pass_('TC-1351', 'Delete non-existent expense → 404')
         else:
@@ -681,15 +797,27 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         else:
             results.skip('TC-1352', 'Delete updates list', 'No trip ID')
 
-        # TC-1353: Cannot delete other's expense
-        results.skip('TC-1353', 'Cannot delete other expense', 'Only one seeded forwarder account')
-
         # TC-1354: Delete already deleted
-        resp = api_fwd.delete(f'/api/forwarder/me/expenses/{delete_expense_id}')
+        resp = api_fwd.delete(
+            f'/api/forwarder/me/expenses/{delete_expense_id}',
+            delete_headers,
+        )
         if resp.get('status') in (404, 410):
             results.pass_('TC-1354', 'Delete already-deleted expense → 404')
         else:
             results.fail('TC-1354', 'Delete already deleted', f'Expected 404, got {resp.get("status")}')
+
+    if secondary_forwarder and secondary_forwarder.get('id'):
+        cleanup = api_admin.delete(
+            f'/api/auth/users/{secondary_forwarder["id"]}',
+            {'If-Unmodified-Since': secondary_forwarder.get('updatedAt', '')},
+        )
+        if cleanup.get('status') != 200:
+            results.fail(
+                'TC-1353-CLEANUP',
+                'Delete second forwarder fixture',
+                f'Status: {cleanup.get("status")}',
+            )
 
     # ── Section 7: Admin Expense Views (TC-1360 to TC-1364) ──
 

@@ -23,7 +23,9 @@ import { eq, inArray } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { createShipment, batchUpsertShipmentContainers } from '../services/shipment.service';
-import { createTrip } from '../services/trip-mutations.service';
+import { getForwarderTripDetail } from '../services/forwarder-trip-query.service';
+import { createTrip, updateTripFigures } from '../services/trip-mutations.service';
+import { FuelMode, LoadingType, Role } from '@tingting/shared';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -33,6 +35,7 @@ const createdCustomerIds: number[] = [];
 const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
 const createdContainerTypeIds: number[] = [];
+const createdUserIds: number[] = [];
 
 async function mkCustomer() {
   const [c] = await db.insert(s.customers)
@@ -56,6 +59,13 @@ async function mkCatalogs() {
   return { route, cargoType, containerType };
 }
 
+async function mkAlternateCargoType() {
+  const [cargoType] = await db.insert(s.cargoTypes)
+    .values({ name: `TripShipment cargo alt ${suffix}-${createdCargoTypeIds.length}` }).returning();
+  createdCargoTypeIds.push(cargoType.id);
+  return cargoType;
+}
+
 after(async () => {
   // Best-effort cleanup; tolerate FK failures from cross-test rows.
   try {
@@ -66,6 +76,9 @@ after(async () => {
         await tx.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
       }
       if (createdShipmentIds.length > 0) {
+        if (createdUserIds.length > 0) {
+          await tx.delete(s.userShipmentLinks).where(inArray(s.userShipmentLinks.userId, createdUserIds));
+        }
         await tx.delete(s.shipmentStatusHistory)
           .where(inArray(s.shipmentStatusHistory.shipmentId, createdShipmentIds));
         await tx.delete(s.shipmentContainers)
@@ -88,6 +101,9 @@ after(async () => {
       if (createdCustomerIds.length > 0) {
         await tx.delete(s.customers).where(inArray(s.customers.id, createdCustomerIds));
       }
+      if (createdUserIds.length > 0) {
+        await tx.delete(s.users).where(inArray(s.users.id, createdUserIds));
+      }
     });
   } catch (err) {
     console.warn('[trip-shipment.test] cleanup partial:', (err as Error).message);
@@ -107,6 +123,17 @@ function baseCreateTripInput(customerId: number, routeId: number, cargoTypeId: n
     containerTypeId,
     departureDate: '2026-08-01',
     containerCount: 1,
+  };
+}
+
+function baseUpdate(tripVersion: number, overrides: Record<string, unknown> = {}) {
+  return {
+    legs: [{ sequence: 1, origin: 'A', destination: 'B', km: 100, loadingType: LoadingType.HANG }],
+    fuelMode: FuelMode.AUTO,
+    expectedVersion: tripVersion,
+    userId: 1,
+    userRole: Role.ADMIN,
+    ...overrides,
   };
 }
 
@@ -133,7 +160,7 @@ describe('createTrip with shipmentId', () => {
   test('links the trip to the DRAFT shipment and snapshots containers', async () => {
     const customer = await mkCustomer();
     const cat = await mkCatalogs();
-    const shipment = await createShipment({ customerId: customer.id });
+    const shipment = await createShipment({ customerId: customer.id, cargoTypeId: cat.cargoType.id });
     createdShipmentIds.push(shipment.id);
 
     // Seed two shipment containers (valid ISO 6346 numbers — M10.2 enforces format).
@@ -141,6 +168,10 @@ describe('createTrip with shipmentId', () => {
       { containerTypeId: cat.containerType.id, containerNumber: 'MSKU1234565', sealNumber: 'SEAL-A', cargoWeightKg: 12000 },
       { containerTypeId: cat.containerType.id, containerNumber: 'TCNU7425363', cargoWeightKg: 8000 },
     ]);
+    const [currentShipment] = await db.select()
+      .from(s.shipments)
+      .where(eq(s.shipments.id, shipment.id))
+      .limit(1);
 
     const trip = await createTrip({
       ...baseCreateTripInput(customer.id, cat.route.id, cat.cargoType.id, cat.containerType.id),
@@ -149,6 +180,12 @@ describe('createTrip with shipmentId', () => {
     createdTripIds.push(trip.id);
 
     assert.equal(trip.shipmentId, shipment.id, 'trip is linked to the shipment');
+    assert.equal(trip.cargoTypeId, cat.cargoType.id, 'trip cargo is sourced from the shipment authority');
+    assert.equal(
+      trip.sourceShipmentVersion,
+      currentShipment?.version ?? shipment.version,
+      'trip records the shipment source version',
+    );
 
     // The snapshot should have copied the 2 shipment containers into the trip.
     // (Plus the 1 default empty row createTrip inserts — containerCount=1 — so
@@ -159,6 +196,47 @@ describe('createTrip with shipmentId', () => {
     assert.equal(snapshotRows.length, 2, 'snapshot copied both shipment containers');
     const numbers = snapshotRows.map((r) => r.containerNumber).sort();
     assert.deepEqual(numbers, ['MSKU1234565', 'TCNU7425363'].sort());
+    const snapshotVersion = snapshotRows[0]?.sourceShipmentVersion ?? null;
+    assert.ok(snapshotVersion, 'snapshot rows carry a shipment source version');
+    assert.ok(snapshotRows.every((row) => row.sourceShipmentVersion === snapshotVersion));
+
+    const [forwarder] = await db.insert(s.users).values({
+      username: `trip-shipment-forwarder-${suffix}`,
+      passwordHash: 'test-only',
+      role: Role.FORWARDER,
+      status: 'ACTIVE',
+    }).returning({ id: s.users.id });
+    createdUserIds.push(forwarder.id);
+    await db.insert(s.userShipmentLinks).values({
+      userId: forwarder.id,
+      shipmentId: shipment.id,
+    });
+
+    const detail = await getForwarderTripDetail(trip.id, forwarder.id);
+    assert.ok(detail, 'forwarder trip detail exists');
+    assert.equal(detail!.shipmentId, shipment.id);
+    assert.equal(detail!.shipmentSourceVersion, snapshotVersion);
+    const detailedSnapshot = detail!.containers.filter((row) => row.sourceShipmentId === shipment.id);
+    assert.equal(detailedSnapshot.length, 2, 'downstream trip detail keeps shipment provenance');
+    assert.ok(detailedSnapshot.every((row) => row.sourceShipmentVersion === snapshotVersion));
+  });
+
+  test('seeds the shipment cargo from the first linked trip when the shipment has no cargo yet', async () => {
+    const customer = await mkCustomer();
+    const cat = await mkCatalogs();
+    const shipment = await createShipment({ customerId: customer.id });
+    createdShipmentIds.push(shipment.id);
+
+    const trip = await createTrip({
+      ...baseCreateTripInput(customer.id, cat.route.id, cat.cargoType.id, cat.containerType.id),
+      shipmentId: shipment.id,
+    });
+    createdTripIds.push(trip.id);
+
+    const reloadedShipment = await db.select().from(s.shipments).where(eq(s.shipments.id, shipment.id)).limit(1);
+    assert.equal(reloadedShipment[0]?.cargoTypeId, cat.cargoType.id, 'shipment authority is seeded on first link');
+    assert.equal(trip.cargoTypeId, cat.cargoType.id);
+    assert.equal(trip.sourceShipmentVersion, reloadedShipment[0]?.version ?? null);
   });
 
   test('shipmentId with no shipment containers still creates the trip (no snapshot rows added)', async () => {
@@ -209,6 +287,22 @@ describe('createTrip with shipmentId', () => {
     );
   });
 
+  test('rejects cargo mismatch against the shipment authority', async () => {
+    const customer = await mkCustomer();
+    const cat = await mkCatalogs();
+    const alternateCargo = await mkAlternateCargoType();
+    const shipment = await createShipment({ customerId: customer.id, cargoTypeId: cat.cargoType.id });
+    createdShipmentIds.push(shipment.id);
+
+    await assert.rejects(
+      () => createTrip({
+        ...baseCreateTripInput(customer.id, cat.route.id, alternateCargo.id, cat.containerType.id),
+        shipmentId: shipment.id,
+      }),
+      (err: unknown) => err instanceof Error && 'statusCode' in err && err.statusCode === 409,
+    );
+  });
+
   test('throws 400 when the shipment belongs to a different customer', async () => {
     const customerA = await mkCustomer();
     const customerB = await mkCustomer();
@@ -224,6 +318,31 @@ describe('createTrip with shipmentId', () => {
         shipmentId: shipment.id,
       }),
       (err: unknown) => err instanceof Error && 'statusCode' in err && err.statusCode === 400,
+    );
+  });
+
+  test('rejects direct customer reassignment on a shipment-linked trip', async () => {
+    const customerA = await mkCustomer();
+    const customerB = await mkCustomer();
+    const cat = await mkCatalogs();
+    const shipment = await createShipment({ customerId: customerA.id });
+    createdShipmentIds.push(shipment.id);
+
+    const trip = await createTrip({
+      ...baseCreateTripInput(customerA.id, cat.route.id, cat.cargoType.id, cat.containerType.id),
+      shipmentId: shipment.id,
+    });
+    createdTripIds.push(trip.id);
+
+    await assert.rejects(
+      () => updateTripFigures(
+        trip.id,
+        baseUpdate(trip.version, { customerId: customerB.id }),
+      ),
+      (err: unknown) => err instanceof Error
+        && 'statusCode' in err
+        && err.statusCode === 409
+        && /đổi khách hàng từ lô hàng nguồn/i.test(err.message),
     );
   });
 

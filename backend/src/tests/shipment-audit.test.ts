@@ -30,7 +30,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { eq, inArray, desc } from 'drizzle-orm';
 
-import { db } from '../db';
+import { client, db } from '../db';
 import * as s from '../db/schema';
 import { Role, ShipmentStatus, ShipmentDocumentType } from '@tingting/shared';
 import { config } from '../config';
@@ -42,6 +42,7 @@ import { authMiddleware } from '../middleware/auth';
 import { casbinAuthz } from '../middleware/casbin';
 import { auditLogMiddleware } from '../middleware/audit';
 import { globalErrorHandler } from '../middleware/errorHandler';
+import { disconnectRedis } from '../lib/redis';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -112,9 +113,14 @@ interface TestFetchOptions {
   token?: string;
 }
 
+let requestSequence = 0;
+
 async function testFetch(urlPath: string, options: TestFetchOptions = {}) {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (options.token) headers.Authorization = `Bearer ${options.token}`;
+  if (options.method && options.method !== 'GET') {
+    headers['Idempotency-Key'] = `shipment-audit-${suffix}-${requestSequence++}`;
+  }
   const fullUrl = `${baseUrl}/api/shipments${urlPath}`;
   const res = await fetch(fullUrl, {
     method: options.method ?? 'GET',
@@ -189,6 +195,11 @@ after(async () => {
     if (createdAuditLogIds.length > 0) {
       await db.delete(s.auditLogs).where(inArray(s.auditLogs.id, createdAuditLogIds));
     }
+    if (createdUserIds.length > 0) {
+      await db.delete(s.auditLogs).where(inArray(s.auditLogs.userId, createdUserIds));
+      await db.delete(s.notifications).where(inArray(s.notifications.userId, createdUserIds));
+      await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.createdBy, createdUserIds));
+    }
     if (createdTripIds.length > 0) {
       await db.delete(s.tripContainers).where(inArray(s.tripContainers.tripId, createdTripIds));
       await db.delete(s.tripLegs).where(inArray(s.tripLegs.tripId, createdTripIds));
@@ -221,14 +232,11 @@ after(async () => {
   }
 
   server.closeAllConnections();
-  server.close();
-  // Force-exit. node:test has already recorded every assertion by this point.
-  // The shipment-audit test exercises the dispatch path (snapshotContainersIntoTrip
-  // + cache invalidation) which leaves the shared ioredis + postgres.js clients
-  // in a state where graceful shutdown blocks on this Node 25 combination —
-  // same finding as shipment-routes.test.ts. The 865/865 full-suite run
-  // confirmed this pattern is safe under --test-concurrency=1.
-  process.exit(0);
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => error ? reject(error) : resolve());
+  });
+  await disconnectRedis();
+  await client.end();
 });
 
 // Helper: create a shipment via the service (bypassing HTTP) for setup of
@@ -304,11 +312,11 @@ describe('Audit-log every shipment write', () => {
     assert.equal(audit!.userId, managerUserId);
     assert.match(audit!.message, /xung đột/);
     const payload = audit!.payload as {
-      failed?: boolean;
+      outcome?: string;
       statusCode?: number;
       path?: string;
     };
-    assert.equal(payload.failed, true);
+    assert.equal(payload.outcome, 'CONFLICT');
     assert.equal(payload.statusCode, 409);
     assert.match(payload.path ?? '', /\/api\/shipments\//);
   });

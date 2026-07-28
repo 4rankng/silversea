@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { api } from '../lib/api';
+import { api, fileCommandFingerprint } from '../lib/api';
 
 type PhotoType = 'CONTAINER' | 'SEAL' | 'OTHER';
 
@@ -59,6 +59,18 @@ export function isAnyUploading(uploading: UploadingState): boolean {
   return Object.values(uploading).some(Boolean);
 }
 
+function buildPhotoRetryFingerprint(
+  scope: string,
+  file: File,
+  parts: Array<string | number | null | undefined>,
+): string {
+  return [
+    scope,
+    fileCommandFingerprint(file),
+    ...parts.map((part) => String(part ?? '')),
+  ].join(':');
+}
+
 export function useTripFormPhotos(onError: (msg: string) => void, onOcrResult?: OcrResultHandler) {
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState<UploadingState>({ CONTAINER: false, SEAL: false, OTHER: false });
@@ -80,7 +92,12 @@ export function useTripFormPhotos(onError: (msg: string) => void, onOcrResult?: 
           formData.append('type', type);
           if (tripId) formData.append('trip_id', String(tripId));
 
-          const result = await api.upload('/ocr', formData) as OcrResponse;
+          const retryFingerprint = buildPhotoRetryFingerprint(
+            'trip-form-ocr',
+            file,
+            [type, tripId ?? 'create-preview'],
+          );
+          const result = await api.upload('/ocr', formData, { retryFingerprint }) as OcrResponse;
           onOcrResult?.(result.containerNumbers ?? [], result.sealNumber ?? null, type);
 
           if (result.photoUrl) {
@@ -102,7 +119,12 @@ export function useTripFormPhotos(onError: (msg: string) => void, onOcrResult?: 
           formData.append('file', file);
           if (tripId) formData.append('trip_id', String(tripId));
           formData.append('type', type);
-          const result = await api.upload('/upload', formData) as { url: string };
+          const retryFingerprint = buildPhotoRetryFingerprint(
+            'trip-form-upload',
+            file,
+            [type, tripId ?? 'create-preview'],
+          );
+          const result = await api.upload('/upload', formData, { retryFingerprint }) as { url: string };
           setPhotoUrls(prev => [...prev, result.url]);
         }
       }
@@ -142,7 +164,12 @@ export function useTripFormPhotos(onError: (msg: string) => void, onOcrResult?: 
       formData.append('file', p.file);
       formData.append('trip_id', String(tripId));
       formData.append('type', p.type);
-      const result = await api.upload('/upload', formData) as { url: string };
+      const retryFingerprint = buildPhotoRetryFingerprint(
+        'trip-form-flush-upload',
+        p.file,
+        [p.type, tripId, p.objectUrl],
+      );
+      const result = await api.upload('/upload', formData, { retryFingerprint }) as { url: string };
       objToReal.set(p.objectUrl, result.url);
       URL.revokeObjectURL(p.objectUrl);
     }
@@ -185,7 +212,12 @@ export function useTripFormPhotos(onError: (msg: string) => void, onOcrResult?: 
     // Capture NEEDS the recognition result to fill the row, so it stays on the
     // full `/ocr` endpoint. Flush (`flushPendingContainerPhotos`) uses
     // `/ocr/persist-only` instead — it already has the number and only persists.
-    const result = await api.upload('/ocr', formData) as OcrResponse;
+    const retryFingerprint = buildPhotoRetryFingerprint(
+      'trip-form-row-ocr',
+      file,
+      [type, tripId ?? 'unsaved-trip', rowKey, containerId ?? 'pending'],
+    );
+    const result = await api.upload('/ocr', formData, { retryFingerprint }) as OcrResponse;
     if (result.photoUrl) {
       return { url: result.photoUrl, ocrResult: result, pending: false };
     }
@@ -224,7 +256,12 @@ export function useTripFormPhotos(onError: (msg: string) => void, onOcrResult?: 
       formData.append('type', p.type);
       formData.append('trip_id', String(tripId));
       formData.append('container_id', String(containerId));
-      const result = await api.upload('/ocr/persist-only', formData) as OcrResponse;
+      const retryFingerprint = buildPhotoRetryFingerprint(
+        'trip-form-row-persist',
+        p.file,
+        [p.type, tripId, p.rowKey, containerId, p.objectUrl],
+      );
+      const result = await api.upload('/ocr/persist-only', formData, { retryFingerprint }) as OcrResponse;
       if (result.photoUrl) {
         swaps.set(p.objectUrl, result.photoUrl);
       }

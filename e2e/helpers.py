@@ -147,8 +147,8 @@ class ApiClient:
     def patch(self, path, body, headers=None):
         return self._request('PATCH', path, body, headers)
 
-    def delete(self, path, headers=None):
-        return self._request('DELETE', path, extra_headers=headers)
+    def delete(self, path, headers=None, body=None):
+        return self._request('DELETE', path, body, headers)
 
 
 class NepoTestContext:

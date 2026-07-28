@@ -37,6 +37,7 @@ const TABS: { key: StatusFilter; label: string }[] = [
   { key: '', label: 'Tất cả' },
   { key: AdvanceSettlementStatus.PENDING, label: 'Chờ xử lý' },
   { key: AdvanceSettlementStatus.APPROVED, label: 'Đã duyệt' },
+  { key: AdvanceSettlementStatus.REVERSED, label: 'Đã hoàn tác' },
   { key: AdvanceSettlementStatus.REJECTED, label: 'Từ chối' },
 ];
 
@@ -408,6 +409,7 @@ export default function AdminAdvanceSettlementsPage() {
     [AdvanceSettlementStatus.PENDING]: stats.counts.PENDING + stats.counts.CHECKED_BY_ACCOUNTANT,
     [AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT]: stats.counts.CHECKED_BY_ACCOUNTANT,
     [AdvanceSettlementStatus.APPROVED]: stats.counts.APPROVED,
+    [AdvanceSettlementStatus.REVERSED]: stats.counts.REVERSED,
     [AdvanceSettlementStatus.REJECTED]: stats.counts.REJECTED,
   }), [stats]);
 

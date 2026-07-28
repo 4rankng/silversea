@@ -1,9 +1,10 @@
 import { db } from '../db';
 import * as s from '../db/schema';
 import { cacheGet } from '../lib/redis';
-import { eq, and, or, sql, inArray, like } from 'drizzle-orm';
+import { eq, and, or, sql, inArray, like, isNull } from 'drizzle-orm';
 import { computeFifoAging, TxnType } from '@tingting/shared';
 import type { PayableSummary, PayablesCategory, Supplier } from '@tingting/shared';
+import { getCustomerReceivableSnapshots } from './customer-receivable-authority.service';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -272,10 +273,18 @@ async function findCustomerIdsForAgingSearch(search: string): Promise<Set<number
 export const CURRENT_AGING_RANGE = '0-30';
 
 export async function getReceivablesSummary(opts: { asOfDate?: string } = {}) {
-  const results = await getEntityResultsCached(
-    { entityType: 'CUSTOMER', invertSigns: false },
-    { ...opts, excludeCarrierPayables: true },
-  );
+  const customerRows = await db.select({ id: s.customers.id })
+    .from(s.customers)
+    .where(isNull(s.customers.deletedAt));
+  const snapshotMap = await getCustomerReceivableSnapshots(customerRows.map((row) => row.id));
+  const results = [...snapshotMap.values()]
+    .filter((snapshot) => snapshot.totalOutstanding > 0)
+    .map((snapshot) => ({
+      entityId: snapshot.customerId,
+      aging: snapshot.aging,
+      totalOutstanding: snapshot.totalOutstanding,
+      maxOverdueDays: snapshot.maxOverdueDays,
+    }));
 
   const buckets = [
     { range: CURRENT_AGING_RANGE, label: 'Trong hạn', count: 0, amount: 0 },
@@ -306,10 +315,17 @@ export async function getReceivablesSummary(opts: { asOfDate?: string } = {}) {
 }
 
 export async function getTopOverdueCustomer(): Promise<{ name: string; balance: number; days: number } | null> {
-  const results = await getEntityResultsCached(
-    { entityType: 'CUSTOMER', invertSigns: false },
-    { excludeCarrierPayables: true },
-  );
+  const customerRows = await db.select({ id: s.customers.id })
+    .from(s.customers)
+    .where(isNull(s.customers.deletedAt));
+  const snapshotMap = await getCustomerReceivableSnapshots(customerRows.map((row) => row.id));
+  const results = [...snapshotMap.values()]
+    .filter((snapshot) => snapshot.totalOutstanding > 0)
+    .map((snapshot) => ({
+      entityId: snapshot.customerId,
+      totalOutstanding: snapshot.totalOutstanding,
+      maxOverdueDays: snapshot.maxOverdueDays,
+    }));
   const top = results.sort((a, b) => b.totalOutstanding - a.totalOutstanding)[0];
   if (!top) return null;
 
@@ -334,13 +350,18 @@ export async function getCustomerAgingList(opts: { search?: string; asOfDate?: s
   const searchedCustomerIds = trimmedSearch ? await findCustomerIdsForAgingSearch(trimmedSearch) : undefined;
   // Full per-entityType result (cached); narrow by search in JS. The cache key
   // intentionally omits entityIds so a search reuses the browse result.
-  const allResults = await getEntityResultsCached(
-    { entityType: 'CUSTOMER', invertSigns: false },
-    { asOfDate: opts.asOfDate, excludeCarrierPayables: true },
-  );
-  const results = searchedCustomerIds
-    ? allResults.filter(r => searchedCustomerIds.has(r.entityId))
-    : allResults;
+  const customersScope = searchedCustomerIds
+    ? [...searchedCustomerIds]
+    : (await db.select({ id: s.customers.id }).from(s.customers).where(isNull(s.customers.deletedAt))).map((row) => row.id);
+  const snapshotMap = await getCustomerReceivableSnapshots(customersScope);
+  const results = [...snapshotMap.values()]
+    .filter((snapshot) => snapshot.totalOutstanding > 0)
+    .map((snapshot) => ({
+      entityId: snapshot.customerId,
+      aging: snapshot.aging,
+      totalOutstanding: snapshot.totalOutstanding,
+      maxOverdueDays: snapshot.maxOverdueDays,
+    }));
 
   const customerIds = results.map(r => r.entityId);
   const customers = customerIds.length > 0

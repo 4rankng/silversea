@@ -638,6 +638,8 @@ export function FuelInvoicesPanel() {
   const [form, setForm] = useState<FuelInvoiceFormState>(emptyForm);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [approvalReason, setApprovalReason] = useState('');
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
 
   const suppliersQuery = useAllSuppliers();
   const tripsQuery = useFuelInvoiceTripOptions();
@@ -702,6 +704,8 @@ export function FuelInvoicesPanel() {
 
   const openDetail = (invoiceId: number) => {
     setActionError(null);
+    setActionNotice(null);
+    setApprovalReason('');
     setDetailInvoiceId(invoiceId);
   };
 
@@ -760,10 +764,31 @@ export function FuelInvoicesPanel() {
         })),
     };
 
+    const editingInvoice = editorState?.mode === 'edit' && editorState.invoiceId != null
+      ? detailQuery.data?.id === editorState.invoiceId
+        ? detailQuery.data
+        : null
+      : null;
+    if (editorState?.mode === 'edit' && !editingInvoice) {
+      setSubmitError('Không tải được phiên bản hiện tại của hóa đơn. Vui lòng mở lại chi tiết trước khi lưu.');
+      return;
+    }
+
     try {
-      const response = editorState?.mode === 'edit' && editorState.invoiceId != null
-        ? await updateMutation.mutateAsync({ id: editorState.invoiceId, data: payload })
-        : await createMutation.mutateAsync(payload);
+      let response;
+      if (editorState?.mode === 'edit' && editorState.invoiceId != null) {
+        if (!editingInvoice) {
+          setSubmitError('Không tải được phiên bản hiện tại của hóa đơn. Vui lòng mở lại chi tiết trước khi lưu.');
+          return;
+        }
+        response = await updateMutation.mutateAsync({
+          id: editorState.invoiceId,
+          data: payload,
+          expectedVersion: editingInvoice.version,
+        });
+      } else {
+        response = await createMutation.mutateAsync(payload);
+      }
       setEditorState(null);
       setDetailInvoiceId(response.id);
     } catch (error) {
@@ -773,10 +798,20 @@ export function FuelInvoicesPanel() {
 
   const submitApprove = async () => {
     if (!detailQuery.data) return;
+    const reason = approvalReason.trim();
+    if (!reason) {
+      setActionError('Cần nhập lý do đề nghị duyệt.');
+      return;
+    }
     setActionError(null);
     try {
-      await approveMutation.mutateAsync(detailQuery.data.id);
-      await detailQuery.refetch();
+      await approveMutation.mutateAsync({
+        id: detailQuery.data.id,
+        expectedVersion: detailQuery.data.version,
+        reason,
+      });
+      setApprovalReason('');
+      setActionNotice('Đã gửi yêu cầu vào hàng chờ kiểm tra. Hóa đơn chưa phát sinh công nợ phải trả.');
     } catch (error) {
       setActionError((error as Error).message || 'Không thể duyệt hóa đơn nhiên liệu.');
     }
@@ -960,14 +995,23 @@ export function FuelInvoicesPanel() {
               </button>
             )}
             {detailQuery.data?.approvalStatus === 'PENDING' && canApprove && (
-              <button
-                type="button"
-                className="btn btn--primary btn--sm"
-                onClick={submitApprove}
-                disabled={approveMutation.isPending || !detailQuery.data || !computeCompletion(detailQuery.data.totalLiters, detailQuery.data.unitPrice, detailQuery.data.allocations ?? []).isComplete}
-              >
-                {approveMutation.isPending ? 'Đang duyệt…' : 'Duyệt hóa đơn'}
-              </button>
+              <>
+                <input
+                  className="form-input"
+                  aria-label="Lý do đề nghị duyệt"
+                  value={approvalReason}
+                  onChange={(event) => setApprovalReason(event.target.value)}
+                  placeholder="Lý do đề nghị duyệt"
+                />
+                <button
+                  type="button"
+                  className="btn btn--primary btn--sm"
+                  onClick={submitApprove}
+                  disabled={approveMutation.isPending || !approvalReason.trim() || !detailQuery.data || !computeCompletion(detailQuery.data.totalLiters, detailQuery.data.unitPrice, detailQuery.data.allocations ?? []).isComplete}
+                >
+                  {approveMutation.isPending ? 'Đang gửi…' : 'Gửi yêu cầu duyệt'}
+                </button>
+              </>
             )}
             <button type="button" className="btn btn--ghost btn--sm" onClick={closeDetail}>
               Đóng
@@ -976,6 +1020,7 @@ export function FuelInvoicesPanel() {
         }
       >
         {actionError && <div className="fuel-invoice-warning fuel-invoice-warning--error" role="alert">{actionError}</div>}
+        {actionNotice && <div className="fuel-invoice-warning" role="status">{actionNotice}</div>}
         {detailQuery.isLoading || !detailQuery.data ? (
           <div className="fuel-invoice-empty">Đang tải chi tiết hóa đơn…</div>
         ) : (

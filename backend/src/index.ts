@@ -21,6 +21,11 @@ import {
   runReceivableReminderRetries,
   runReceivableReminders,
 } from './services/receivable-reminder.service';
+import {
+  logDurableEffectRunSummary,
+  processDueDurableEffectJobs,
+} from './services/durable-effect.service';
+import { processPendingTripGpsCaptureJobs } from './services/trip-gps-capture-job.service';
 import authRoutes from './routes/auth';
 import configRoutes, { auditLogRouter, catalogBootstrapRouter, salaryPeriodsRouter, salaryPeriodsAdminRouter, tireLifecycleRouter } from './routes/config';
 import tripRoutes from './routes/trips';
@@ -91,6 +96,26 @@ if (schedulerEnabled) {
     handler: async () => {
       const stats = await runReceivableReminderRetries();
       console.log(`[scheduler] receivable-reminder-retry: ${stats.retried} retried, ${stats.suppressed} suppressed, ${stats.escalated} escalated, ${stats.failed} failed`);
+    },
+  });
+
+  registerJob({
+    name: 'trip-gps-capture-retry',
+    cron: '* * * * *',
+    handler: async () => {
+      const jobs = await processPendingTripGpsCaptureJobs();
+      if (jobs.length > 0) {
+        console.log(`[scheduler] trip-gps-capture-retry: ${jobs.length} job(s) processed`);
+      }
+    },
+  });
+
+  registerJob({
+    name: 'durable-effect-dispatch',
+    cron: '* * * * *',
+    handler: async () => {
+      const jobs = await processDueDurableEffectJobs();
+      logDurableEffectRunSummary(jobs);
     },
   });
 

@@ -6,12 +6,14 @@ import type { CreditOverrideRequestRecord } from '../api/creditOverrideClient';
 
 const {
   approveMutateAsyncMock,
+  checkMutateAsyncMock,
   currentUserState,
   creditQueueState,
   queueRefetchMock,
   rejectMutateAsyncMock,
 } = vi.hoisted(() => ({
   approveMutateAsyncMock: vi.fn(),
+  checkMutateAsyncMock: vi.fn(),
   currentUserState: {
     role: 'ADMIN' as Role,
     userId: 99,
@@ -43,6 +45,11 @@ vi.mock('../hooks/useCreditOverrideQueries', () => ({
   }),
   useApproveCreditOverrideRequest: () => ({
     mutateAsync: approveMutateAsyncMock,
+    isPending: false,
+    variables: null,
+  }),
+  useCheckCreditOverrideRequest: () => ({
+    mutateAsync: checkMutateAsyncMock,
     isPending: false,
     variables: null,
   }),
@@ -86,6 +93,11 @@ function makeRequest(overrides: Partial<CreditOverrideRequestRecord> = {}): Cred
     consumedTripId: null,
     consumedAt: null,
     version: 4,
+    requestVersion: 1,
+    workflowStatus: 'PENDING_APPROVAL',
+    governanceActionId: 9001,
+    checkedBy: 50,
+    checkedAt: '2026-07-27T09:05:00.000Z',
     createdAt: '2026-07-27T09:00:00.000Z',
     updatedAt: '2026-07-27T09:00:00.000Z',
     ...overrides,
@@ -105,6 +117,7 @@ function renderPage() {
 describe('CreditOverrideQueuePage', () => {
   beforeEach(() => {
     approveMutateAsyncMock.mockReset();
+    checkMutateAsyncMock.mockReset();
     rejectMutateAsyncMock.mockReset();
     queueRefetchMock.mockReset();
     currentUserState.role = Role.ADMIN;
@@ -148,6 +161,35 @@ describe('CreditOverrideQueuePage', () => {
     }));
   });
 
+  it('lets a distinct finance actor complete the checker step before approval', async () => {
+    creditQueueState.data = [
+      makeRequest({
+        workflowStatus: 'PENDING_CHECK',
+        checkedBy: null,
+        checkedAt: null,
+        version: 1,
+      }),
+    ];
+    currentUserState.role = Role.ACCOUNTANT;
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Xác nhận kiểm tra' }));
+
+    await waitFor(() => expect(checkMutateAsyncMock).toHaveBeenCalledWith({
+      id: 701,
+      expectedVersion: 1,
+    }));
+    expect(screen.queryByRole('button', { name: 'Duyệt đề nghị' })).toBeNull();
+  });
+
+  it('prevents the checker from also approving the same request', async () => {
+    creditQueueState.data = [makeRequest({ checkedBy: 99 })];
+    renderPage();
+
+    expect(await screen.findByText(/người khác phải phê duyệt hoặc từ chối/i)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Duyệt đề nghị' })).toBeNull();
+  });
+
   it('shows wrong-tier requests as read-only for ACCOUNTANT and MANAGER', async () => {
     creditQueueState.data = [
       makeRequest({ id: 701, requiredTier: 'FINANCE_TIER_1' }),
@@ -183,7 +225,7 @@ describe('CreditOverrideQueuePage', () => {
     creditQueueState.data = [makeRequest({ requestedBy: 99 })];
     renderPage();
 
-    expect(await screen.findByText(/không thể tự duyệt hoặc tự từ chối/i)).toBeTruthy();
+    expect(await screen.findByText(/không thể tự kiểm tra, phê duyệt hoặc từ chối/i)).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Duyệt đề nghị' })).toBeNull();
   });
 

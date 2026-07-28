@@ -52,6 +52,7 @@ export interface UseTripFormDispatchParams {
   options: TripOptions;
   isEditMode: boolean;
   existingTrip: TripDetail | undefined;
+  governanceReason?: string;
   onCreditLimitBlocked?: (details: { message: string; customerId: number; proposedAmount: number }) => void;
 }
 
@@ -87,7 +88,7 @@ export interface UseTripFormDispatchReturn {
 }
 
 export function useTripFormDispatch(params: UseTripFormDispatchParams): UseTripFormDispatchReturn {
-  const { state: s, options, isEditMode, existingTrip, onCreditLimitBlocked } = params;
+  const { state: s, options, isEditMode, existingTrip, governanceReason, onCreditLimitBlocked } = params;
   const lastPopulatedTripId = useRef<number | undefined>(undefined);
 
   usePersistedContainerType({
@@ -504,6 +505,7 @@ export function useTripFormDispatch(params: UseTripFormDispatchParams): UseTripF
     photoUrls,
     flushPendingPhotos,
     flushPendingContainerPhotos,
+    governanceReason,
     onCreditLimitBlocked: onCreditLimitBlocked
       ? ({ message, customerId }) =>
           onCreditLimitBlocked({

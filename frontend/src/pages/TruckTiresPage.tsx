@@ -273,7 +273,7 @@ export default function TruckTiresPage({ vehicle = "truck" }: { vehicle?: Vehicl
           oncancel={() => setUnmountTarget(null)}
           onremove={async (id) => {
             try {
-              await removeMut.mutateAsync(id);
+              await removeMut.mutateAsync({ id, updatedAt: unmountTarget.updatedAt });
               toast({ kind: "success", message: "Đã tháo lốp về kho" });
               setUnmountTarget(null);
             } catch (err) {
@@ -282,7 +282,7 @@ export default function TruckTiresPage({ vehicle = "truck" }: { vehicle?: Vehicl
           }}
           ondispose={async (id, reason) => {
             try {
-              await disposeMut.mutateAsync({ id, reason });
+              await disposeMut.mutateAsync({ id, reason, updatedAt: unmountTarget.updatedAt });
               toast({ kind: "success", message: "Đã thanh lý lốp" });
               setUnmountTarget(null);
             } catch (err) {
@@ -306,7 +306,11 @@ export default function TruckTiresPage({ vehicle = "truck" }: { vehicle?: Vehicl
           oncancel={() => setInstallTarget(null)}
           oninstall={async (payload) => {
             try {
-              await installMut.mutateAsync({ id: installTarget.id, ...payload });
+              await installMut.mutateAsync({
+                id: installTarget.id,
+                updatedAt: installTarget.updatedAt,
+                ...payload,
+              });
               toast({ kind: "success", message: "Lắp lốp thành công" });
               setInstallTarget(null);
             } catch (err) {
@@ -329,7 +333,11 @@ export default function TruckTiresPage({ vehicle = "truck" }: { vehicle?: Vehicl
           oncancel={() => setTransferTarget(null)}
           ontransfer={async (payload) => {
             try {
-              await transferMut.mutateAsync({ id: transferTarget.id, ...payload });
+              await transferMut.mutateAsync({
+                id: transferTarget.id,
+                updatedAt: transferTarget.updatedAt,
+                ...payload,
+              });
               toast({ kind: "success", message: "Điều chuyển lốp thành công" });
               setTransferTarget(null);
             } catch (err) {

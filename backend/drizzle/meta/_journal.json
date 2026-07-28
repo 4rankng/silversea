@@ -1009,6 +1009,97 @@
       "when": 1785180253548,
       "tag": "0148_elite_tattoo",
       "breakpoints": true
+    },
+    {
+      "idx": 149,
+      "version": "7",
+      "when": 1785202200000,
+      "tag": "0149_q12_q13_policy_titles",
+      "breakpoints": true
+    },
+    {
+      "idx": 150,
+      "version": "7",
+      "when": 1785225600000,
+      "tag": "0150_q23_durable_command_boundary",
+      "breakpoints": true
+    },
+    {
+      "idx": 151,
+      "version": "7",
+      "when": 1785225601000,
+      "tag": "0151_q22_source_provenance",
+      "breakpoints": true
+    },
+    {
+      "idx": 152,
+      "version": "7",
+      "when": 1785225602000,
+      "tag": "0152_q22_shipment_cargo_authority",
+      "breakpoints": true
+    },
+    {
+      "idx": 153,
+      "version": "7",
+      "when": 1785225603000,
+      "tag": "0153_q18_fuel_credit_governance",
+      "breakpoints": true
+    },
+    {
+      "idx": 154,
+      "version": "7",
+      "when": 1785225604000,
+      "tag": "0154_q15_q18_settlement_fuel_governance",
+      "breakpoints": true
+    },
+    {
+      "idx": 155,
+      "version": "7",
+      "when": 1785225605000,
+      "tag": "0155_q15_trip_gps_capture_jobs",
+      "breakpoints": true
+    },
+    {
+      "idx": 156,
+      "version": "7",
+      "when": 1785225606000,
+      "tag": "0156_q15_legacy_official_identity_backfill",
+      "breakpoints": true
+    },
+    {
+      "idx": 157,
+      "version": "7",
+      "when": 1785225607000,
+      "tag": "0157_durable_effect_jobs",
+      "breakpoints": true
+    },
+    {
+      "idx": 158,
+      "version": "7",
+      "when": 1785225608000,
+      "tag": "0158_payment_allocation_due_date_snapshots",
+      "breakpoints": true
+    },
+    {
+      "idx": 159,
+      "version": "7",
+      "when": 1785231240521,
+      "tag": "0159_metadata_snapshot_sync",
+      "breakpoints": true
+    },
+    {
+      "idx": 160,
+      "version": "7",
+      "when": 1785231259784,
+      "tag": "0160_red_the_initiative",
+      "breakpoints": true
+    },
+    {
+      "idx": 161,
+      "version": "7",
+      "when": 1785240600000,
+      "tag": "0161_forwarder_shipment_scope",
+      "breakpoints": true
     }
   ]
 }

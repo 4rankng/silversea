@@ -1,6 +1,6 @@
 import { db } from '../db';
 import * as s from '../db/schema';
-import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { TxnType } from '@tingting/shared';
 import type { PaymentAllocationMethod, PaymentReceiptResult } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
@@ -192,12 +192,24 @@ async function assertActiveCustomerTx(tx: Tx, customerId: number): Promise<void>
 }
 
 type TripAuthoritySnapshot = {
-  tripId: number;
+  sourceTripId: number;
+  targetType: 'TRIP' | 'BILLING_DOCUMENT';
+  targetId: number;
+  billingDocumentId: number | null;
   originalDueDate: string | null;
   processingDueDate: string | null;
   effectiveDueDate: string;
   issueTimestamp: string;
   ledgerId: number;
+};
+
+type BillingDocumentAuthoritySnapshot = {
+  documentId: number;
+  sourceTripId: number;
+  originalDueDate: string | null;
+  processingDueDate: string | null;
+  effectiveDueDate: string;
+  issueTimestamp: string;
 };
 
 type CustomerPaymentLedgerRowInput = {
@@ -224,10 +236,10 @@ async function getTripReceivableState(
   const resolvedTripIds = tripRows.map((trip) => trip.tripId);
   const tripCodeById = new Map(tripRows.map((trip) => [trip.tripId, trip.tripCode || '']));
   const authorityByTripId = new Map<number, TripAuthoritySnapshot>();
-  const outstandingByTripId = new Map<number, number>();
+  const outstandingByTargetKey = new Map<string, number>();
 
   if (resolvedTripIds.length === 0) {
-    return { resolvedTripIds, tripCodeById, authorityByTripId, outstandingByTripId };
+    return { resolvedTripIds, tripCodeById, authorityByTripId, outstandingByTargetKey };
   }
 
   const authorityRows = await tx.select({
@@ -248,7 +260,10 @@ async function getTripReceivableState(
     if (row.tripId == null) continue;
     const issueTimestamp = new Date(row.issueTimestamp).toISOString();
     const candidate: TripAuthoritySnapshot = {
-      tripId: row.tripId,
+      sourceTripId: row.tripId,
+      targetType: 'TRIP',
+      targetId: row.tripId,
+      billingDocumentId: null,
       originalDueDate: row.originalDueDate,
       processingDueDate: row.processingDueDate,
       effectiveDueDate: effectiveDueDate(row.processingDueDate, row.originalDueDate, issueTimestamp),
@@ -256,12 +271,28 @@ async function getTripReceivableState(
       ledgerId: row.ledgerId,
     };
     const current = authorityByTripId.get(row.tripId);
-    if (!current || compareDueOrder(candidate, current) < 0) {
+    if (
+      !current
+      || compareDueOrder(
+        {
+          effectiveDueDate: candidate.effectiveDueDate,
+          issueTimestamp: candidate.issueTimestamp,
+          tripId: candidate.sourceTripId,
+          ledgerId: candidate.ledgerId,
+        },
+        {
+          effectiveDueDate: current.effectiveDueDate,
+          issueTimestamp: current.issueTimestamp,
+          tripId: current.sourceTripId,
+          ledgerId: current.ledgerId,
+        },
+      ) < 0
+    ) {
       authorityByTripId.set(row.tripId, candidate);
     }
   }
 
-  const outstandingRows = await tx.select({
+  const directOutstandingRows = await tx.select({
     tripId: s.ledger.txnId,
     outstanding: sql<string>`coalesce(sum(${s.ledger.debit}), 0) - coalesce(sum(${s.ledger.credit}), 0)`,
   }).from(s.ledger)
@@ -273,12 +304,166 @@ async function getTripReceivableState(
     ))
     .groupBy(s.ledger.txnId);
 
-  for (const row of outstandingRows) {
+  const directOutstandingByTripId = new Map<number, number>();
+  for (const row of directOutstandingRows) {
     if (row.tripId == null) continue;
-    outstandingByTripId.set(row.tripId, Math.max(0, Number(row.outstanding ?? 0)));
+    directOutstandingByTripId.set(row.tripId, Math.max(0, Number(row.outstanding ?? 0)));
   }
 
-  return { resolvedTripIds, tripCodeById, authorityByTripId, outstandingByTripId };
+  const documentRows = await tx.select({
+    documentId: s.billingDocuments.id,
+    sourceTripId: s.billingDocumentLines.sourceId,
+    originalDueDate: s.billingDocuments.originalDueDate,
+    processingDueDate: s.billingDocuments.processingDueDate,
+    issuedAt: s.billingDocuments.issuedAt,
+    createdAt: s.billingDocuments.createdAt,
+  })
+    .from(s.billingDocumentLines)
+    .innerJoin(s.billingDocuments, eq(s.billingDocuments.id, s.billingDocumentLines.documentId))
+    .where(and(
+      eq(s.billingDocumentLines.sourceType, 'TRIP'),
+      inArray(s.billingDocumentLines.sourceId, resolvedTripIds),
+      eq(s.billingDocuments.entityType, 'CUSTOMER'),
+      eq(s.billingDocuments.type, 'DEBIT_NOTE'),
+      isNull(s.billingDocuments.deletedAt),
+      sql`coalesce(${s.billingDocuments.debitNoteStatus}, 'DRAFT') not in ('DRAFT', 'CANCELED')`,
+    ));
+
+  const documentIds = [...new Set(documentRows.map((row) => row.documentId))];
+  const documentAdjustmentRows = documentIds.length > 0
+    ? await tx.select({
+      documentId: s.governanceActions.subjectId,
+      deltaSnapshot: s.governanceActions.deltaSnapshot,
+    })
+      .from(s.governanceActions)
+      .where(and(
+        eq(s.governanceActions.subjectType, 'BILLING_DOCUMENT'),
+        eq(s.governanceActions.actionKind, 'DEBIT_NOTE_ADJUSTMENT'),
+        inArray(s.governanceActions.subjectId, documentIds),
+        inArray(s.governanceActions.status, ['APPROVED', 'APPLIED']),
+      ))
+    : [];
+  const documentPayments = documentIds.length > 0
+    ? await tx.select({
+      targetType: s.paymentAllocations.targetType,
+      targetId: s.paymentAllocations.targetId,
+      billingDocumentId: s.paymentAllocations.billingDocumentId,
+      amount: s.paymentAllocations.amount,
+    })
+      .from(s.paymentAllocations)
+      .where(and(
+        eq(s.paymentAllocations.customerId, customerId),
+        or(
+          and(
+            sql`${s.paymentAllocations.billingDocumentId} is not null`,
+            inArray(s.paymentAllocations.billingDocumentId, documentIds),
+          ),
+          and(
+            sql`${s.paymentAllocations.billingDocumentId} is null`,
+            eq(s.paymentAllocations.targetType, 'BILLING_DOCUMENT'),
+            inArray(s.paymentAllocations.targetId, documentIds),
+          ),
+        )!,
+      ))
+    : [];
+
+  const documentOutstandingById = new Map<number, number>();
+  for (const row of documentRows) {
+    if (!documentOutstandingById.has(row.documentId)) {
+      documentOutstandingById.set(row.documentId, 0);
+    }
+  }
+  for (const row of documentRows) {
+    const current = documentOutstandingById.get(row.documentId) ?? 0;
+    documentOutstandingById.set(row.documentId, current);
+  }
+  const documentTotals = await tx.select({
+    id: s.billingDocuments.id,
+    totalInclVat: s.billingDocuments.totalInclVat,
+  })
+    .from(s.billingDocuments)
+    .where(inArray(s.billingDocuments.id, documentIds));
+  for (const document of documentTotals) {
+    documentOutstandingById.set(document.id, Number(document.totalInclVat ?? 0));
+  }
+  for (const row of documentAdjustmentRows) {
+    if (row.documentId == null) continue;
+    const delta = Number((row.deltaSnapshot as Record<string, unknown> | null)?.adjustmentAmount ?? 0);
+    documentOutstandingById.set(
+      row.documentId,
+      (documentOutstandingById.get(row.documentId) ?? 0) + delta,
+    );
+  }
+  for (const row of documentPayments) {
+    const documentId = row.billingDocumentId ?? (row.targetType === 'BILLING_DOCUMENT' ? row.targetId : null);
+    if (documentId == null) continue;
+    documentOutstandingById.set(
+      documentId,
+      Math.max(0, (documentOutstandingById.get(documentId) ?? 0) - Number(row.amount ?? 0)),
+    );
+  }
+
+  const documentAuthorityByTripId = new Map<number, BillingDocumentAuthoritySnapshot>();
+  for (const row of documentRows) {
+    if (row.sourceTripId == null) continue;
+    const issueTimestamp = new Date(row.issuedAt ?? row.createdAt).toISOString();
+    const candidate: BillingDocumentAuthoritySnapshot = {
+      documentId: row.documentId,
+      sourceTripId: row.sourceTripId,
+      originalDueDate: row.originalDueDate,
+      processingDueDate: row.processingDueDate,
+      effectiveDueDate: effectiveDueDate(row.processingDueDate, row.originalDueDate, issueTimestamp),
+      issueTimestamp,
+    };
+    const current = documentAuthorityByTripId.get(row.sourceTripId);
+    if (!current || compareDueOrder(
+      {
+        effectiveDueDate: candidate.effectiveDueDate,
+        issueTimestamp: candidate.issueTimestamp,
+        tripId: candidate.sourceTripId,
+        ledgerId: candidate.documentId,
+      },
+      {
+        effectiveDueDate: current.effectiveDueDate,
+        issueTimestamp: current.issueTimestamp,
+        tripId: current.sourceTripId,
+        ledgerId: current.documentId,
+      },
+    ) < 0) {
+      documentAuthorityByTripId.set(row.sourceTripId, candidate);
+    }
+  }
+
+  for (const tripId of resolvedTripIds) {
+    const documentAuthority = documentAuthorityByTripId.get(tripId);
+    if (documentAuthority) {
+      authorityByTripId.set(tripId, {
+        sourceTripId: tripId,
+        targetType: 'BILLING_DOCUMENT',
+        targetId: documentAuthority.documentId,
+        billingDocumentId: documentAuthority.documentId,
+        originalDueDate: documentAuthority.originalDueDate,
+        processingDueDate: documentAuthority.processingDueDate,
+        effectiveDueDate: documentAuthority.effectiveDueDate,
+        issueTimestamp: documentAuthority.issueTimestamp,
+        ledgerId: documentAuthority.documentId,
+      });
+      outstandingByTargetKey.set(
+        `BILLING_DOCUMENT:${documentAuthority.documentId}`,
+        Math.max(0, documentOutstandingById.get(documentAuthority.documentId) ?? 0),
+      );
+      continue;
+    }
+
+    const directAuthority = authorityByTripId.get(tripId);
+    if (!directAuthority) continue;
+    outstandingByTargetKey.set(
+      `TRIP:${tripId}`,
+      directOutstandingByTripId.get(tripId) ?? 0,
+    );
+  }
+
+  return { resolvedTripIds, tripCodeById, authorityByTripId, outstandingByTargetKey };
 }
 
 async function getLegacyReceiptConflict(tx: Tx, receiptId: string): Promise<boolean> {
@@ -320,7 +505,8 @@ async function loadPaymentReceiptResultTx(tx: Tx, paymentReceiptId: number): Pro
   }
 
   const allocations = await tx.select({
-    tripId: s.paymentAllocations.targetId,
+    tripId: s.paymentAllocations.sourceTripId,
+    targetId: s.paymentAllocations.targetId,
     amount: s.paymentAllocations.amount,
     processingDueDate: s.paymentAllocations.processingDueDateSnapshot,
     issueTimestamp: s.paymentAllocations.issueTimestampSnapshot,
@@ -335,7 +521,7 @@ async function loadPaymentReceiptResultTx(tx: Tx, paymentReceiptId: number): Pro
     customerId: receipt.customerId,
     receivedAmount: Number(receipt.receivedAmount),
     allocations: allocations.map((allocation) => ({
-      tripId: allocation.tripId,
+      tripId: allocation.tripId ?? allocation.targetId,
       amount: Number(allocation.amount),
       processingDueDate: allocation.processingDueDate,
       issueTimestamp: new Date(allocation.issueTimestamp ?? receipt.createdAt).toISOString(),
@@ -412,10 +598,13 @@ async function createOrReplayPaymentReceiptTx(
     input.customerId,
     input.payments?.map((payment) => payment.tripId),
   );
-  const { authorityByTripId, outstandingByTripId, tripCodeById } = receivableState;
+  const { authorityByTripId, outstandingByTargetKey, tripCodeById } = receivableState;
 
   let allocations: Array<{
-    tripId: number;
+    sourceTripId: number;
+    targetType: 'TRIP' | 'BILLING_DOCUMENT';
+    targetId: number;
+    billingDocumentId: number | null;
     amount: number;
     originalDueDate: string | null;
     processingDueDate: string | null;
@@ -435,21 +624,32 @@ async function createOrReplayPaymentReceiptTx(
     }
 
     allocations = [];
+    const requestedByTarget = new Map<string, number>();
     for (const payment of input.payments) {
-      const outstanding = outstandingByTripId.get(payment.tripId) ?? 0;
-      if (outstanding < payment.amount) {
+      const authority = authorityByTripId.get(payment.tripId);
+      if (!authority) continue;
+      const key = `${authority.targetType}:${authority.targetId}`;
+      requestedByTarget.set(key, (requestedByTarget.get(key) ?? 0) + payment.amount);
+    }
+    for (const [key, amount] of requestedByTarget.entries()) {
+      if ((outstandingByTargetKey.get(key) ?? 0) < amount) {
         throw new ApiError(
           422,
-          'Chỉ dẫn thanh toán vượt quá số dư còn lại của chuyến.',
-          `trip_id=${payment.tripId}`,
+          'Chỉ dẫn thanh toán vượt quá số dư còn lại của khoản phải thu.',
+          `target=${key}`,
         );
       }
+    }
+    for (const payment of input.payments) {
       const authority = authorityByTripId.get(payment.tripId);
       if (!authority) {
         throw new ApiError(422, 'Không tìm thấy mốc công nợ của chuyến được chỉ định.');
       }
       allocations.push({
-        tripId: payment.tripId,
+        sourceTripId: payment.tripId,
+        targetType: authority.targetType,
+        targetId: authority.targetId,
+        billingDocumentId: authority.billingDocumentId,
         amount: payment.amount,
         originalDueDate: authority.originalDueDate,
         processingDueDate: authority.processingDueDate,
@@ -457,9 +657,27 @@ async function createOrReplayPaymentReceiptTx(
       });
     }
   } else {
-    const candidates = [...authorityByTripId.values()]
-      .filter((candidate) => (outstandingByTripId.get(candidate.tripId) ?? 0) > 0)
-      .sort(compareDueOrder);
+    const candidates = [...new Map(
+      [...authorityByTripId.values()].map((candidate) => [
+        `${candidate.targetType}:${candidate.targetId}`,
+        candidate,
+      ]),
+    ).values()]
+      .filter((candidate) => (outstandingByTargetKey.get(`${candidate.targetType}:${candidate.targetId}`) ?? 0) > 0)
+      .sort((left, right) => compareDueOrder(
+        {
+          effectiveDueDate: left.effectiveDueDate,
+          issueTimestamp: left.issueTimestamp,
+          tripId: left.sourceTripId,
+          ledgerId: left.ledgerId,
+        },
+        {
+          effectiveDueDate: right.effectiveDueDate,
+          issueTimestamp: right.issueTimestamp,
+          tripId: right.sourceTripId,
+          ledgerId: right.ledgerId,
+        },
+      ));
     let remaining = input.receivedAmount;
     allocations = [];
     for (const candidate of candidates) {
@@ -470,10 +688,13 @@ async function createOrReplayPaymentReceiptTx(
           `Thanh toán tự động chỉ hỗ trợ tối đa ${MAX_DEFAULT_AUTO_ALLOCATIONS} chuyến mỗi lần. Vui lòng chọn payments cụ thể.`,
         );
       }
-      const outstanding = outstandingByTripId.get(candidate.tripId) ?? 0;
+      const outstanding = outstandingByTargetKey.get(`${candidate.targetType}:${candidate.targetId}`) ?? 0;
       const amount = Math.min(outstanding, remaining);
       allocations.push({
-        tripId: candidate.tripId,
+        sourceTripId: candidate.sourceTripId,
+        targetType: candidate.targetType,
+        targetId: candidate.targetId,
+        billingDocumentId: candidate.billingDocumentId,
         amount,
         originalDueDate: candidate.originalDueDate,
         processingDueDate: candidate.processingDueDate,
@@ -504,8 +725,10 @@ async function createOrReplayPaymentReceiptTx(
       paymentReceiptId: receipt.id,
       allocationOrder: index + 1,
       customerId: input.customerId,
-      targetType: 'TRIP',
-      targetId: allocation.tripId,
+      billingDocumentId: allocation.billingDocumentId,
+      sourceTripId: allocation.sourceTripId,
+      targetType: allocation.targetType,
+      targetId: allocation.targetId,
       amount: String(allocation.amount),
       originalDueDateSnapshot: allocation.originalDueDate,
       processingDueDateSnapshot: allocation.processingDueDate,
@@ -515,9 +738,9 @@ async function createOrReplayPaymentReceiptTx(
     })));
 
     for (const allocation of allocations) {
-      const tripLabel = tripCodeById.get(allocation.tripId) || '';
+      const tripLabel = tripCodeById.get(allocation.sourceTripId) || '';
       ledgerCredits.push({
-        txnId: allocation.tripId,
+        txnId: allocation.sourceTripId,
         receiptId: input.receiptId,
         credit: allocation.amount,
         note: tripLabel ? `Thanh toán chuyến ${tripLabel}` : 'Thanh toán chuyến',

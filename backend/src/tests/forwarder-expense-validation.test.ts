@@ -36,6 +36,34 @@ describe('forwarder expense validation', () => {
     assert.equal(parsed.error.issues[0]?.path.join('.'), 'forwarderId');
   });
 
+  test('requires complete substitute evidence when no invoice is provided', () => {
+    const incomplete = tripExpenseSchema.safeParse({
+      tripId: 1,
+      expenseType: 'LIFTING',
+      buyAmount: 500_000,
+      forwarderId: 42,
+    });
+    assert.equal(incomplete.success, false);
+    if (!incomplete.success) {
+      assert.deepEqual(
+        new Set(incomplete.error.issues.map((issue) => issue.path.join('.'))),
+        new Set(['expenseDate', 'payeeName', 'note', 'noInvoiceEvidenceTypes']),
+      );
+    }
+
+    const complete = tripExpenseSchema.safeParse({
+      tripId: 1,
+      expenseType: 'LIFTING',
+      buyAmount: 500_000,
+      forwarderId: 42,
+      expenseDate: '2026-07-28',
+      payeeName: 'Cảng Hải Phòng',
+      note: 'Phí nâng container',
+      noInvoiceEvidenceTypes: ['ONSITE_PHOTO'],
+    });
+    assert.equal(complete.success, true);
+  });
+
   test('accepts null for nullable fields when clearing them during an expense update', () => {
     const parsed = tripExpensePatchSchema.safeParse({
       expenseType: 'LIFTING',

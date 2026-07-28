@@ -64,6 +64,17 @@ interface DistributionResult {
   undistributedProfit?: number;
 }
 
+interface ProfitDistributionRequest {
+  id: number;
+  actionKind: 'PROFIT_DISTRIBUTION';
+  status: 'PENDING_CHECK';
+  version: number;
+  afterSnapshot: {
+    quarter: number;
+    year: number;
+  };
+}
+
 export default function ProfitPage() {
   const { confirm, dialog: confirmDialog } = useConfirm();
   const { toast: showToast } = useToast();
@@ -74,14 +85,14 @@ export default function ProfitPage() {
   const [selectedQuarter, setSelectedQuarter] = useState<number>(Math.ceil((now.getMonth() + 1) / 3));
   const [distQuarterYear, setDistQuarterYear] = useState<number>(now.getFullYear());
   const [distributing, setDistributing] = useState(false);
-  const [distResult, setDistResult] = useState<DistributionResult | null>(null);
+  const [distributionRequest, setDistributionRequest] = useState<ProfitDistributionRequest | null>(null);
   const [preview, setPreview] = useState<DistributionResult | null>(null);
   const [previewing, setPreviewing] = useState(false);
 
   const { data: report, isLoading: loading, error: reportError } = usePnlReport(selectedMonth, selectedYear);
 
   const { data: capTable = [], error: capError } = useCapTable();
-  const { data: history = [], refetch: refetchHistory } = useDistributionHistory();
+  const { data: history = [] } = useDistributionHistory();
 
   const error = reportError || capError ? 'Không thể tải báo cáo phân chia lợi nhuận.' : null;
   const { rootRef } = usePageAnimations({ ready: !loading });
@@ -140,23 +151,22 @@ export default function ProfitPage() {
   }, [selectedQuarter, distQuarterYear, showToast]);
 
   const handleDistributeProfit = async () => {
-    if (!await confirm(`Xác nhận phân chia lợi nhuận cho Quý ${selectedQuarter}/${distQuarterYear}? Hành động này không thể hoàn tác.`)) {
+    if (!await confirm(`Gửi yêu cầu phân chia lợi nhuận Quý ${selectedQuarter}/${distQuarterYear} để kiểm tra và phê duyệt?`)) {
       return;
     }
 
     setDistributing(true);
-    setDistResult(null);
+    setDistributionRequest(null);
     try {
-      const res = await api.post<DistributionResult>('/reports/distribute-profit', {
+      const res = await api.post<ProfitDistributionRequest>('/reports/distribute-profit', {
         quarter: selectedQuarter,
         year: distQuarterYear
       });
-      setDistResult(res);
+      setDistributionRequest(res);
       setPreview(null);
-      showToast({ kind: 'success', message: 'Đã thực hiện phân chia lợi nhuận thành công!' });
-      refetchHistory();
+      showToast({ kind: 'success', message: 'Đã gửi yêu cầu phân chia lợi nhuận để kiểm tra và phê duyệt.' });
     } catch (err) {
-      showToast({ kind: 'error', message: err instanceof Error ? err.message : 'Lỗi khi phân chia lợi nhuận.' });
+      showToast({ kind: 'error', message: err instanceof Error ? err.message : 'Lỗi khi gửi yêu cầu phân chia lợi nhuận.' });
     } finally {
       setDistributing(false);
     }
@@ -389,12 +399,12 @@ export default function ProfitPage() {
                     disabled={distributing}
                   >
                     <CheckSquare size={14} />
-                    {distributing ? 'Đang xử lý...' : 'Chốt & phân bổ'}
+                    {distributing ? 'Đang gửi...' : 'Gửi duyệt phân bổ'}
                   </button>
                 </div>
               </div>
 
-              {preview && !distResult && (
+              {preview && !distributionRequest && (
                 <div style={{ marginTop: 16, padding: 16, background: 'var(--bg-2)', borderRadius: 8, border: '1px solid var(--border)' }}>
                   <h4 style={{ margin: '0 0 10px', fontSize: 13.5, fontWeight: 700, color: 'var(--fg-1)' }}>📋 Dự kiến phân phối Quý {preview.quarter} / {preview.year}</h4>
                   <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--fg-2)' }}>
@@ -473,27 +483,14 @@ export default function ProfitPage() {
                 </div>
               )}
 
-              {distResult && (
+              {distributionRequest && (
                 <div style={{ marginTop: 16, padding: 16, background: 'var(--brand-soft)', borderRadius: 8, border: '1px dashed var(--brand)' }}>
-                  <h4 style={{ margin: '0 0 10px', fontSize: 13.5, fontWeight: 700, color: 'var(--brand)' }}>✅ Đã phân chia lợi nhuận Quý {distResult.quarter} / {distResult.year}</h4>
-                  <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--fg-2)' }}>Tổng lợi nhuận ròng phân phối: <strong>{formatVND(distResult.netProfit)}</strong></p>
-                  <table style={{ width: '100%', fontSize: 12.5 }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid var(--border-2)', color: 'var(--fg-3)' }}>
-                        <th style={{ textAlign: 'left', paddingBottom: 6 }}>Đối tác</th>
-                        <th style={{ textAlign: 'right', paddingBottom: 6 }}>Số tiền nhận</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {distResult.distributions.map((d, idx) => (
-                        <tr key={idx} style={{ borderBottom: '1px solid var(--border-3)' }}>
-                          <td style={{ padding: '6px 0', fontWeight: 600 }}>{d.partnerName}<RoleTag role={d.role} /></td>
-                          <td style={{ padding: '6px 0', textAlign: 'right', color: 'var(--brand)', fontWeight: 700 }}>{formatVND(Number(d.amount))}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <p style={{ margin: '8px 0 0', fontSize: 12, lineHeight: 1.35, color: 'var(--fg-3)' }}>Bản ghi không thể thay đổi. Xem chi tiết trong Lịch sử phân phối bên dưới.</p>
+                  <h4 style={{ margin: '0 0 10px', fontSize: 13.5, fontWeight: 700, color: 'var(--brand)' }}>
+                    Đã gửi yêu cầu phân chia Quý {distributionRequest.afterSnapshot.quarter} / {distributionRequest.afterSnapshot.year}
+                  </h4>
+                  <p style={{ margin: 0, fontSize: 13, color: 'var(--fg-2)' }}>
+                    Yêu cầu #{distributionRequest.id} đang chờ kiểm tra. Chưa có khoản lợi nhuận nào được phân phối; một người kiểm tra và một người phê duyệt độc lập phải hoàn tất trước khi hệ thống ghi nhận.
+                  </p>
                 </div>
               )}
             </Card>

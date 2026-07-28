@@ -9,6 +9,7 @@ import { tripClient } from '../../api/tripClient';
 import { formatCurrency } from '../../lib/format';
 import {
   useApproveCreditOverrideRequest,
+  useCheckCreditOverrideRequest,
   useCreateCreditOverrideRequest,
   useCreditOverrideQueue,
   useRejectCreditOverrideRequest,
@@ -30,7 +31,7 @@ import {
   type ShipmentDocument,
 } from '../../api/shipmentClient';
 import type { CreditOverrideRequestRecord } from '../../api/creditOverrideClient';
-import { canDecideCreditOverride } from '../../lib/credit-override-permissions';
+import { canCheckCreditOverride, canDecideCreditOverride } from '../../lib/credit-override-permissions';
 
 interface ClerkContainerTypeOption {
   id: number;
@@ -200,6 +201,7 @@ export default function ClerkShipmentDocsPage() {
   );
   const creditQueue = useCreditOverrideQueue(creditQueueFilters, detail?.shipment.customerId != null);
   const createCreditRequest = useCreateCreditOverrideRequest([creditQueueFilters]);
+  const checkCreditRequest = useCheckCreditOverrideRequest([creditQueueFilters]);
   const approveCreditRequest = useApproveCreditOverrideRequest([creditQueueFilters]);
   const rejectCreditRequest = useRejectCreditOverrideRequest([creditQueueFilters]);
   const assignedResponsibleUnitIds = useMemo(() => {
@@ -540,6 +542,27 @@ export default function ClerkShipmentDocsPage() {
       }
     } catch (err) {
       setCreditError(err instanceof Error ? err.message : 'Không thể duyệt đề nghị vượt hạn mức.');
+    } finally {
+      setDispatching(false);
+    }
+  }
+
+  async function handleCheckCreditRequest(request: CreditOverrideRequestRecord) {
+    setDispatching(true);
+    setCreditError(null);
+    try {
+      const checked = await checkCreditRequest.mutateAsync({
+        id: request.id,
+        expectedVersion: request.version,
+      });
+      setSelectedCreditRequest(checked);
+      setDispatchForm((current) => ({ ...current, creditApprovalRequestId: String(checked.id) }));
+      setDispatchMsg({
+        kind: 'ok',
+        text: `Đã kiểm tra đề nghị #${checked.id}. Người khác phải thực hiện bước phê duyệt.`,
+      });
+    } catch (err) {
+      setCreditError(err instanceof Error ? err.message : 'Không thể xác nhận kiểm tra đề nghị vượt hạn mức.');
     } finally {
       setDispatching(false);
     }
@@ -978,8 +1001,23 @@ export default function ClerkShipmentDocsPage() {
                     </div>
                   </div>
                   {request.requestedBy === user?.userId ? (
-                    <span style={mutedTextStyle}>Bạn là người tạo nên không thể tự quyết định đề nghị này.</span>
-                  ) : canDecideCreditOverride(user?.role, request.requiredTier) ? (
+                    <span style={mutedTextStyle}>Bạn là người tạo nên không thể tự kiểm tra hoặc quyết định đề nghị này.</span>
+                  ) : request.workflowStatus === 'PENDING_CHECK' && canCheckCreditOverride(user?.role) ? (
+                    <button
+                      type="button"
+                      onClick={() => { void handleCheckCreditRequest(request); }}
+                      disabled={dispatching}
+                      style={secondaryBtnStyle}
+                    >
+                      {checkCreditRequest.isPending ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
+                      Xác nhận kiểm tra
+                    </button>
+                  ) : request.checkedBy === user?.userId ? (
+                    <span style={mutedTextStyle}>
+                      Bạn đã kiểm tra đề nghị này; người khác phải phê duyệt hoặc từ chối.
+                    </span>
+                  ) : request.workflowStatus === 'PENDING_APPROVAL'
+                    && canDecideCreditOverride(user?.role, request.requiredTier) ? (
                     <div style={{ display: 'grid', gap: 8 }}>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         <button
@@ -1026,7 +1064,9 @@ export default function ClerkShipmentDocsPage() {
                     </div>
                   ) : (
                     <span style={mutedTextStyle}>
-                      Đề nghị này đang chờ đúng cấp {creditTierLabel(request.requiredTier)} xử lý.
+                      {request.workflowStatus === 'PENDING_CHECK'
+                        ? 'Đề nghị này đang chờ kiểm tra.'
+                        : `Đề nghị này đang chờ đúng cấp ${creditTierLabel(request.requiredTier)} xử lý.`}
                     </span>
                   )}
                 </div>

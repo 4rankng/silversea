@@ -1,12 +1,31 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { NotificationType, Role, accountantSettlementExpensePatchSchema, advanceMutationVersionSchema, updateAdvanceSettlementSchema } from '@tingting/shared';
+import {
+  NotificationType,
+  Role,
+  accountantSettlementExpensePatchSchema,
+  advanceMutationVersionSchema,
+  governanceActionDecisionSchema,
+  updateAdvanceSettlementSchema,
+} from '@tingting/shared';
 import { requireRoles } from '../../middleware/casbin';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { getUser } from '../../middleware/auth';
 import { getAdvanceSettlement } from '../../services/advance.service';
 import { exportSettlementXlsx, exportSettlementHtml } from '../../services/settlement-export.service';
-import { listAdvanceRequests, approveAdvanceRequest, rejectAdvanceRequest, listAdvanceSettlements, checkAdvanceSettlement, approveAdvanceSettlement, rejectAdvanceSettlement, getOutstandingAdvanceBalances, adjustSettlementExpense, updateAdvanceSettlement } from '../../services/advance.service';
+import {
+  listAdvanceRequests,
+  listAdvanceSettlements,
+  checkAdvanceSettlement,
+  approveAdvanceSettlement,
+  rejectAdvanceSettlement,
+  getOutstandingAdvanceBalances,
+  adjustSettlementExpense,
+  updateAdvanceSettlement,
+  requestAdvanceRequestApprovalGovernance,
+  requestAdvanceRequestRejectionGovernance,
+  requestAdvanceSettlementReversal,
+} from '../../services/advance.service';
 import { throwValidation } from '../../lib/validation';
 import { formatLocalDate } from '../../lib/format';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
@@ -25,7 +44,7 @@ router.get('/advance-requests', asyncHandler(async (req: Request, res: Response)
 
 router.post('/advance-requests/:id/approve', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
-  const parsed = advanceMutationVersionSchema.safeParse(req.body);
+  const parsed = governanceActionDecisionSchema.safeParse(req.body);
   if (!parsed.success) throwValidation(parsed.error);
   const actor = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);
@@ -34,16 +53,23 @@ router.post('/advance-requests/:id/approve', requireRoles(Role.ADMIN, Role.MANAG
     idempotencyKey,
     payload: { actorId: actor.userId, id, ...parsed.data },
     createdBy: actor.userId,
-    entityType: 'advance_request',
-    create: (tx) => approveAdvanceRequest(id, actor.userId, parsed.data.expectedVersion, tx),
+    entityType: 'governance_action',
+    create: (tx) => requestAdvanceRequestApprovalGovernance({
+      advanceRequestId: id,
+      expectedVersion: parsed.data.expectedVersion,
+      reason: parsed.data.reason,
+      makerId: actor.userId,
+      makerRole: actor.role,
+      transaction: tx,
+    }),
     getEntityId: () => id,
   });
-  res.json(idempotencyKey ? { ...result, replayed } : result);
+  res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
 router.post('/advance-requests/:id/reject', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
-  const parsed = advanceMutationVersionSchema.safeParse(req.body);
+  const parsed = governanceActionDecisionSchema.safeParse(req.body);
   if (!parsed.success) throwValidation(parsed.error);
   const actor = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);
@@ -52,11 +78,18 @@ router.post('/advance-requests/:id/reject', requireRoles(Role.ADMIN, Role.MANAGE
     idempotencyKey,
     payload: { actorId: actor.userId, id, ...parsed.data },
     createdBy: actor.userId,
-    entityType: 'advance_request',
-    create: (tx) => rejectAdvanceRequest(id, actor.userId, parsed.data.expectedVersion, tx),
+    entityType: 'governance_action',
+    create: (tx) => requestAdvanceRequestRejectionGovernance({
+      advanceRequestId: id,
+      expectedVersion: parsed.data.expectedVersion,
+      reason: parsed.data.reason,
+      makerId: actor.userId,
+      makerRole: actor.role,
+      transaction: tx,
+    }),
     getEntityId: () => id,
   });
-  res.json(idempotencyKey ? { ...result, replayed } : result);
+  res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
 // ─── Advance Balances (admin) — F1 outstanding per forwarder ──────────────────
@@ -145,6 +178,31 @@ router.post('/advance-settlements/:id/reject', requireRoles(Role.ADMIN, Role.ACC
   res.json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
+router.post('/advance-settlements/:id/reversal', requireRoles(Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+  const id = parseInt(req.params.id as string);
+  const parsed = governanceActionDecisionSchema.safeParse(req.body);
+  if (!parsed.success) throwValidation(parsed.error);
+  const actor = getUser(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.ADVANCE_SETTLEMENT_REVERSE,
+    idempotencyKey,
+    payload: { actorId: actor.userId, actorRole: actor.role, id, ...parsed.data },
+    createdBy: actor.userId,
+    entityType: 'governance_action',
+    create: (tx) => requestAdvanceSettlementReversal({
+      settlementId: id,
+      expectedVersion: parsed.data.expectedVersion,
+      reason: parsed.data.reason,
+      makerId: actor.userId,
+      makerRole: actor.role,
+      transaction: tx,
+    }),
+    getEntityId: () => id,
+  });
+  res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
+}));
+
 router.put('/advance-settlements/:id', requireRoles(Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string, 10);
   const parsed = updateAdvanceSettlementSchema.safeParse(req.body);
@@ -216,6 +274,7 @@ router.patch(
         {
           transaction: tx,
           emitNotification: false,
+          actorRole: actor.role,
         },
       ),
       getEntityId: () => settlementId,

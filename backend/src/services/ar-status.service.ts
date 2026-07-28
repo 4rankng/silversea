@@ -12,6 +12,7 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { and, eq, sql } from 'drizzle-orm';
 import { calendarDaysOverdue } from './business-calendar.service';
+import { getCustomerReceivableSnapshot } from './customer-receivable-authority.service';
 
 export interface ArDocumentStatus {
   documentType: 'TRIP' | 'BILLING_DOCUMENT';
@@ -51,6 +52,59 @@ export async function getTripArStatus(
   // Kept for API compatibility. The authoritative term is the immutable value
   // captured on the obligation, never a caller-supplied/current default.
   void paymentTermDays;
+  const [trip] = await db.select({ customerId: s.trips.customerId })
+    .from(s.trips)
+    .where(eq(s.trips.id, tripId))
+    .limit(1);
+  if (!trip) {
+    return {
+      documentType: 'TRIP',
+      documentId: tripId,
+      totalDebit: 0,
+      totalCredit: 0,
+      paid: 0,
+      outstanding: 0,
+      isFullyPaid: true,
+      overdueDays: 0,
+      originalDueDate: null,
+      processingDueDate: null,
+      paymentHistory: [],
+    };
+  }
+
+  const snapshot = await getCustomerReceivableSnapshot(trip.customerId);
+  const authoritative = snapshot.obligations.find((candidate) =>
+    candidate.representativeTripId === tripId
+    || candidate.sourceTripIds.includes(tripId),
+  );
+  if (authoritative) {
+    const outstanding = authoritative.outstanding;
+    const isFullyPaid = outstanding === 0;
+    return {
+      documentType: authoritative.authorityType === 'BILLING_DOCUMENT' ? 'BILLING_DOCUMENT' : 'TRIP',
+      documentId: authoritative.authorityType === 'BILLING_DOCUMENT'
+        ? authoritative.authorityId
+        : tripId,
+      totalDebit: authoritative.totalDebit,
+      totalCredit: authoritative.totalCredit,
+      paid: authoritative.paid,
+      outstanding,
+      isFullyPaid,
+      overdueDays: authoritative.processingDueDate && !isFullyPaid
+        ? calendarDaysOverdue(authoritative.processingDueDate)
+        : 0,
+      originalDueDate: authoritative.originalDueDate,
+      processingDueDate: authoritative.processingDueDate,
+      paymentHistory: authoritative.paymentHistory.map((item) => ({
+        ledgerId: item.id,
+        txnType: 'PAYMENT_RECEIVED',
+        amount: item.amount,
+        timestamp: item.timestamp,
+        note: item.note,
+      })),
+    };
+  }
+
   const entries = await db.select()
     .from(s.ledger)
     .where(and(
@@ -116,6 +170,7 @@ export async function getCustomerArSummary(
   customerId: number,
   paymentTermDays: number = 30,
 ) {
+  void paymentTermDays;
   const entries = await db.select()
     .from(s.ledger)
     .where(and(
@@ -130,10 +185,11 @@ export async function getCustomerArSummary(
     totalCredit += Number(e.credit ?? 0);
   }
 
+  const snapshot = await getCustomerReceivableSnapshot(customerId);
   return {
     customerId,
     totalAr: totalDebit,
     totalPaid: totalCredit,
-    outstanding: Math.max(0, totalDebit - totalCredit),
+    outstanding: snapshot.totalOutstanding,
   };
 }

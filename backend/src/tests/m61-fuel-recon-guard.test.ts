@@ -74,6 +74,7 @@ async function mkTrip(opts: { supplierId: number; totalFuelCost: string; departu
     tripCode: `M61G-${suffix}-${createdTripIds.length}`.slice(0, 50),
     customerId: cust.id, routeId: route.id, cargoTypeId: cargo.id,
     status: 'COMPLETED', departureDate: opts.departureDate, carrierType: 'OWN',
+    completedAt: new Date(`${opts.departureDate}T12:00:00.000Z`),
     fuelSupplierId: opts.supplierId,
     totalFuelCost: opts.totalFuelCost,
   }).returning();
@@ -98,7 +99,11 @@ async function mkExpense(opts: {
     sellAmount: '0',
     supplierId: opts.supplierId,
     invoiceDate: opts.invoiceDate ?? null,
-    invoiceNumber: opts.invoiceNumber ?? null,
+    invoiceNumber: opts.invoiceNumber ?? (
+      (opts.expenseType ?? 'FUEL_DIESEL').toLowerCase().includes('fuel')
+        ? `FUEL-${suffix}-${createdExpenseIds.length}`.slice(0, 50)
+        : null
+    ),
     approvalStatus: opts.approvalStatus ?? 'PENDING',
   }).returning();
   createdExpenseIds.push(e.id);

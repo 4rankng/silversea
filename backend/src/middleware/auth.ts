@@ -49,6 +49,10 @@ function sameCustomerScope(currentIds: number[], tokenIds: number[], payload: Au
   return payload.customerIds != null && tokenIds.length === currentIds.length && tokenIds.every((id, idx) => id === currentIds[idx]);
 }
 
+function roleUsesCustomerScope(role: string): boolean {
+  return role === Role.CUSTOMER || role === Role.CLERK || role === Role.ACCOUNTANT;
+}
+
 export interface AuthUser {
   userId: number;
   username: string | null;
@@ -57,14 +61,14 @@ export interface AuthUser {
   fullName: string | null;
   role: Role;
   /**
-   * Wave 0: legacy primary customer pointer for a CUSTOMER-role user.
+   * Wave 0: legacy primary customer pointer for a customer-scoped user.
    * Kept for compatibility with older single-link tokens and API payloads.
    */
   customerId?: number | null;
   /**
-   * Wave 0: full customer link set for a CUSTOMER-role user. Used by the
-   * portal list routes and token revalidation when a user is linked to
-   * multiple customers.
+   * Wave 0: full customer link set for CUSTOMER, CLERK and scoped ACCOUNTANT
+   * users. Used by scoped routes and token revalidation when assignments
+   * change.
    */
   customerIds?: number[];
 }
@@ -93,7 +97,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
       eq(users.status, 'ACTIVE'),
       isNull(users.deletedAt),
     )).limit(1);
-    const currentCustomerIds = current?.role === Role.CUSTOMER
+    const currentCustomerIds = current && roleUsesCustomerScope(current.role)
       ? await loadCurrentCustomerIds(payload.userId, current.customerId)
       : [];
     const tokenIds = tokenCustomerIds(payload);
@@ -132,7 +136,7 @@ export async function assetAuthMiddleware(req: Request, res: Response, next: Nex
       eq(users.status, 'ACTIVE'),
       isNull(users.deletedAt),
     )).limit(1);
-    const currentCustomerIds = current?.role === Role.CUSTOMER
+    const currentCustomerIds = current && roleUsesCustomerScope(current.role)
       ? await loadCurrentCustomerIds(payload.userId, current.customerId)
       : [];
     const tokenIds = tokenCustomerIds(payload);

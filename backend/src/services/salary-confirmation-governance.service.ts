@@ -268,13 +268,14 @@ export async function requestSalaryConfirmation(input: {
   actorId: number;
   actorRole: string;
   reason?: string | null;
+  transaction?: Tx;
 }) {
   assertCanMakeGovernanceAction(SALARY_CONFIRM_ACTION_KIND, input.actorRole);
   const subjectKey = toSubjectKey(input.driverId, input.year, input.month);
   const periodKey = toPeriodKey(input.year, input.month);
   const reason = input.reason?.trim() || `Đề nghị xác nhận bảng công và lương kỳ ${periodKey}`;
 
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     await assertPeriodStillEditable(tx, input.year, input.month);
     await assertNoActiveAction(tx, subjectKey, SALARY_CONFIRM_ACTION_KIND);
 
@@ -306,7 +307,11 @@ export async function requestSalaryConfirmation(input: {
     }).returning();
 
     return toGovernanceActionView(action);
-  });
+  };
+  if (input.transaction) {
+    return execute(input.transaction);
+  }
+  return db.transaction(execute);
 }
 
 export async function checkSalaryConfirmation(input: {
@@ -317,12 +322,14 @@ export async function checkSalaryConfirmation(input: {
   actorId: number;
   actorRole: string;
   expectedVersion: number;
+  transaction?: Tx;
 }) {
   const action = await checkGovernanceAction({
     actionId: input.actionId,
     checkerId: input.actorId,
     checkerRole: input.actorRole,
     expectedVersion: input.expectedVersion,
+    transaction: input.transaction,
   });
   assertSalaryConfirmationAction(
     action,
@@ -342,12 +349,14 @@ export async function approveSalaryConfirmation(input: {
   actorId: number;
   actorRole: string;
   expectedVersion: number;
+  transaction?: Tx;
 }) {
   const action = await approveGovernanceActionWithAdapter({
     actionId: input.actionId,
     approverId: input.actorId,
     approverRole: input.actorRole,
     expectedVersion: input.expectedVersion,
+    transaction: input.transaction,
     apply: async (tx, governanceAction): Promise<GovernanceApplyResult> => {
       assertSalaryConfirmationAction(
         governanceAction,
@@ -392,12 +401,13 @@ export async function requestSalaryReopen(input: {
   actorId: number;
   actorRole: string;
   reason: string;
+  transaction?: Tx;
 }) {
   assertCanMakeGovernanceAction(SALARY_REOPEN_ACTION_KIND, input.actorRole);
   const subjectKey = toSubjectKey(input.driverId, input.year, input.month);
   const reason = requireReopenReason(input.reason);
 
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     await assertPeriodStillEditable(tx, input.year, input.month);
     await assertNoActiveAction(tx, subjectKey, SALARY_REOPEN_ACTION_KIND);
 
@@ -430,7 +440,11 @@ export async function requestSalaryReopen(input: {
     }).returning();
 
     return toGovernanceActionView(action);
-  });
+  };
+  if (input.transaction) {
+    return execute(input.transaction);
+  }
+  return db.transaction(execute);
 }
 
 export async function checkSalaryReopen(input: {
@@ -441,12 +455,14 @@ export async function checkSalaryReopen(input: {
   actorId: number;
   actorRole: string;
   expectedVersion: number;
+  transaction?: Tx;
 }) {
   const action = await checkGovernanceAction({
     actionId: input.actionId,
     checkerId: input.actorId,
     checkerRole: input.actorRole,
     expectedVersion: input.expectedVersion,
+    transaction: input.transaction,
   });
   assertSalaryConfirmationAction(
     action,
@@ -466,12 +482,14 @@ export async function approveSalaryReopen(input: {
   actorId: number;
   actorRole: string;
   expectedVersion: number;
+  transaction?: Tx;
 }) {
   const action = await approveGovernanceActionWithAdapter({
     actionId: input.actionId,
     approverId: input.actorId,
     approverRole: input.actorRole,
     expectedVersion: input.expectedVersion,
+    transaction: input.transaction,
     apply: async (tx, governanceAction): Promise<GovernanceApplyResult> => {
       assertSalaryConfirmationAction(
         governanceAction,

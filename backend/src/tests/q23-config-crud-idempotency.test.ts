@@ -3,13 +3,15 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { after, before, describe, it } from 'node:test';
 import express from 'express';
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, like, or } from 'drizzle-orm';
 import { Role, routeSchema } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { disconnectRedis } from '../lib/redis';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import configRoutes from '../routes/config';
+import governanceActionsRoutes from '../routes/financial/governance-actions.routes';
+import paymentsRoutes from '../routes/financial/payments.routes';
 import { createCrudRouter } from '../routes/utils/crud-factory';
 import { buildCrudIdempotencyEndpoint } from '../services/idempotency.service';
 
@@ -20,6 +22,10 @@ const managementFeeIds: number[] = [];
 const customerIds: number[] = [];
 const partnerIds: number[] = [];
 let actorId = 0;
+let checkerId = 0;
+let approverId = 0;
+let actors: Array<{ id: number; role: Role }> = [];
+const governanceActionIds: number[] = [];
 let server: http.Server;
 let baseUrl = '';
 
@@ -29,6 +35,7 @@ async function api(
   body?: Record<string, unknown>,
   idempotencyKey?: string,
   expectedUpdatedAt?: string,
+  actorIndex = 0,
 ) {
   if (idempotencyKey) idempotencyKeys.push(idempotencyKey);
   const response = await fetch(`${baseUrl}${path}`, {
@@ -37,6 +44,7 @@ async function api(
       'Content-Type': 'application/json',
       ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
       ...(expectedUpdatedAt ? { 'If-Unmodified-Since': expectedUpdatedAt } : {}),
+      'X-Test-Actor': String(actorIndex),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
@@ -46,24 +54,76 @@ async function api(
   };
 }
 
+async function approvePendingAction(action: Record<string, unknown>) {
+  const actionId = Number(action.id);
+  governanceActionIds.push(actionId);
+  assert.equal(action.status, 'PENDING_CHECK', JSON.stringify(action));
+  const checked = await api(
+    'POST',
+    `/api/governance-actions/${actionId}/check`,
+    { expectedVersion: Number(action.version) },
+    `q23-config-check-${suffix}-${actionId}`,
+    undefined,
+    1,
+  );
+  assert.equal(checked.status, 200, JSON.stringify(checked.body));
+  assert.equal(checked.body.status, 'PENDING_APPROVAL');
+  const approved = await api(
+    'POST',
+    `/api/governance-actions/${actionId}/approve`,
+    { expectedVersion: Number(checked.body.version) },
+    `q23-config-approve-${suffix}-${actionId}`,
+    undefined,
+    2,
+  );
+  assert.equal(approved.status, 200, JSON.stringify(approved.body));
+  assert.equal(approved.body.status, 'APPROVED');
+}
+
 before(async () => {
-  const [actor] = await db.insert(s.users).values({
-    username: `q23-config-${suffix}`,
-    passwordHash: 'x',
-    role: Role.ADMIN,
-    status: 'ACTIVE',
-  }).returning({ id: s.users.id });
-  actorId = actor.id;
+  const staleUsers = await db.select({ id: s.users.id }).from(s.users)
+    .where(like(s.users.username, 'q23-config-%'));
+  if (staleUsers.length > 0) {
+    const staleIds = staleUsers.map((user) => user.id);
+    await db.delete(s.notifications).where(inArray(s.notifications.userId, staleIds));
+    await db.delete(s.governanceActions).where(inArray(s.governanceActions.makerId, staleIds));
+    await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.createdBy, staleIds));
+    await db.delete(s.users).where(inArray(s.users.id, staleIds));
+  }
+  actors = await db.insert(s.users).values([
+    {
+      username: `q23-config-maker-${suffix}`,
+      passwordHash: 'x',
+      role: Role.ADMIN,
+      status: 'ACTIVE',
+    },
+    {
+      username: `q23-config-checker-${suffix}`,
+      passwordHash: 'x',
+      role: Role.ACCOUNTANT,
+      status: 'ACTIVE',
+    },
+    {
+      username: `q23-config-approver-${suffix}`,
+      passwordHash: 'x',
+      role: Role.MANAGER,
+      status: 'ACTIVE',
+    },
+  ]).returning({ id: s.users.id, role: s.users.role }) as Array<{ id: number; role: Role }>;
+  actorId = actors[0]!.id;
+  checkerId = actors[1]!.id;
+  approverId = actors[2]!.id;
 
   const app = express();
   app.use(express.json());
   app.use((req, _res, next) => {
+    const actor = actors[Number(req.header('X-Test-Actor') ?? 0)] ?? actors[0]!;
     req.user = {
-      userId: actorId,
+      userId: actor.id,
       username: `q23-config-${suffix}`,
       email: null,
       fullName: null,
-      role: Role.ADMIN,
+      role: actor.role,
     };
     next();
   });
@@ -75,7 +135,10 @@ before(async () => {
       throw new Error('Q23 hook rollback proof');
     },
   }));
+  app.use('/api/direct-routes', createCrudRouter(s.routes, routeSchema));
   app.use('/api', configRoutes);
+  app.use('/api', governanceActionsRoutes);
+  app.use('/api', paymentsRoutes);
   app.use(globalErrorHandler);
 
   server = http.createServer(app);
@@ -109,8 +172,15 @@ after(async () => {
   }
   await db.delete(s.cargoTypes)
     .where(eq(s.cargoTypes.name, `Q23 hook side effect ${suffix}`));
-  if (actorId > 0) {
-    await db.delete(s.users).where(eq(s.users.id, actorId));
+  const actorIds = [actorId, checkerId, approverId].filter((id) => id > 0);
+  if (actorIds.length > 0) {
+    await db.delete(s.notifications).where(inArray(s.notifications.userId, actorIds));
+    await db.delete(s.governanceActions).where(or(
+      inArray(s.governanceActions.makerId, actorIds),
+      inArray(s.governanceActions.checkerId, actorIds),
+      inArray(s.governanceActions.approverId, actorIds),
+    ));
+    await db.delete(s.users).where(inArray(s.users.id, actorIds));
   }
   await disconnectRedis();
   await client.end();
@@ -134,12 +204,14 @@ describe('Q23 generated configuration CRUD replay', () => {
     assert.equal(first.status, 201);
     assert.equal(replay.status, 201);
     assert.deepEqual(replay.body, first.body);
-    managementFeeIds.push(Number(first.body.id));
-
-    const rows = await db.select()
-      .from(s.managementFees)
-      .where(eq(s.managementFees.id, Number(first.body.id)));
+    assert.equal(first.body.status, 'PENDING_CHECK');
+    await approvePendingAction(first.body);
+    const rows = await db.select().from(s.managementFees).where(and(
+      eq(s.managementFees.month, payload.month),
+      eq(s.managementFees.year, payload.year),
+    ));
     assert.equal(rows.length, 1);
+    managementFeeIds.push(rows[0]!.id);
 
     const conflict = await api('POST', '/api/management-fees', {
       ...payload,
@@ -152,8 +224,8 @@ describe('Q23 generated configuration CRUD replay', () => {
     const key = `q23-route-race-${suffix}`;
     const payload = { name: `Q23 concurrent route ${suffix}` };
     const [left, right] = await Promise.all([
-      api('POST', '/api/routes', payload, key),
-      api('POST', '/api/routes', payload, key),
+      api('POST', '/api/direct-routes', payload, key),
+      api('POST', '/api/direct-routes', payload, key),
     ]);
 
     assert.equal(left.status, 201);
@@ -178,18 +250,20 @@ describe('Q23 generated configuration CRUD replay', () => {
     const replay = await api('POST', '/api/customers', payload, key);
     assert.equal(first.status, 201);
     assert.deepEqual(replay, first);
-    customerIds.push(Number(first.body.id));
+    await approvePendingAction(first.body);
 
     const [customer] = await db.select()
       .from(s.customers)
-      .where(eq(s.customers.id, Number(first.body.id)));
+      .where(eq(s.customers.name, payload.name));
+    assert.ok(customer);
+    customerIds.push(customer.id);
     assert.ok(customer.partnerId != null);
     partnerIds.push(customer.partnerId);
   });
 
   it('uses independent stable update/delete endpoints and replays their original results', async () => {
     const createKey = `q23-route-lifecycle-create-${suffix}`;
-    const created = await api('POST', '/api/routes', {
+    const created = await api('POST', '/api/direct-routes', {
       name: `Q23 lifecycle route ${suffix}`,
     }, createKey);
     assert.equal(created.status, 201);
@@ -201,14 +275,14 @@ describe('Q23 generated configuration CRUD replay', () => {
     const createdVersion = String(created.body.updatedAt);
     const updated = await api(
       'PUT',
-      `/api/routes/${routeId}`,
+      `/api/direct-routes/${routeId}`,
       updateBody,
       updateKey,
       createdVersion,
     );
     const updateReplay = await api(
       'PUT',
-      `/api/routes/${routeId}`,
+      `/api/direct-routes/${routeId}`,
       updateBody,
       updateKey,
       createdVersion,
@@ -220,14 +294,14 @@ describe('Q23 generated configuration CRUD replay', () => {
     const updatedVersion = String(updated.body.updatedAt);
     const deleted = await api(
       'DELETE',
-      `/api/routes/${routeId}`,
+      `/api/direct-routes/${routeId}`,
       undefined,
       deleteKey,
       updatedVersion,
     );
     const deleteReplay = await api(
       'DELETE',
-      `/api/routes/${routeId}`,
+      `/api/direct-routes/${routeId}`,
       undefined,
       deleteKey,
       updatedVersion,
@@ -247,7 +321,7 @@ describe('Q23 generated configuration CRUD replay', () => {
   });
 
   it('requires a row version and rejects stale or concurrent generated updates', async () => {
-    const created = await api('POST', '/api/routes', {
+    const created = await api('POST', '/api/direct-routes', {
       name: `Q23 version route ${suffix}`,
     }, `q23-route-version-create-${suffix}`);
     assert.equal(created.status, 201);
@@ -257,7 +331,7 @@ describe('Q23 generated configuration CRUD replay', () => {
 
     const missingVersion = await api(
       'PUT',
-      `/api/routes/${routeId}`,
+      `/api/direct-routes/${routeId}`,
       { name: `Q23 missing version update ${suffix}` },
       `q23-route-version-missing-${suffix}`,
     );
@@ -266,14 +340,14 @@ describe('Q23 generated configuration CRUD replay', () => {
     const [left, right] = await Promise.all([
       api(
         'PUT',
-        `/api/routes/${routeId}`,
+        `/api/direct-routes/${routeId}`,
         { name: `Q23 version winner left ${suffix}` },
         `q23-route-version-left-${suffix}`,
         originalVersion,
       ),
       api(
         'PUT',
-        `/api/routes/${routeId}`,
+        `/api/direct-routes/${routeId}`,
         { name: `Q23 version winner right ${suffix}` },
         `q23-route-version-right-${suffix}`,
         originalVersion,
@@ -288,7 +362,7 @@ describe('Q23 generated configuration CRUD replay', () => {
     const winner = left.status === 200 ? left : right;
     const staleDelete = await api(
       'DELETE',
-      `/api/routes/${routeId}`,
+      `/api/direct-routes/${routeId}`,
       undefined,
       `q23-route-version-stale-delete-${suffix}`,
       originalVersion,
@@ -334,7 +408,11 @@ describe('Q23 generated configuration CRUD replay', () => {
       debitNoteMode: 'MONTHLY',
     }, `q21-customer-create-${suffix}`);
     assert.equal(created.status, 201, JSON.stringify(created.body));
-    const customerId = Number(created.body.id);
+    await approvePendingAction(created.body);
+    const [createdCustomer] = await db.select().from(s.customers)
+      .where(eq(s.customers.name, `Q21 current ${suffix}`));
+    assert.ok(createdCustomer);
+    const customerId = createdCustomer.id;
     customerIds.push(customerId);
 
     const rejectedTransition = await api(
@@ -342,7 +420,7 @@ describe('Q23 generated configuration CRUD replay', () => {
       `/api/customers/${customerId}`,
       { debitNoteMode: 'PER_BATCH' },
       `q21-customer-rejected-transition-${suffix}`,
-      String(created.body.updatedAt),
+      createdCustomer.updatedAt.toISOString(),
     );
     assert.equal(rejectedTransition.status, 400);
 
@@ -351,10 +429,13 @@ describe('Q23 generated configuration CRUD replay', () => {
       `/api/customers/${customerId}`,
       { debitNoteMode: 'WEEKLY' },
       `q21-customer-weekly-${suffix}`,
-      String(created.body.updatedAt),
+      createdCustomer.updatedAt.toISOString(),
     );
-    assert.equal(weekly.status, 200, JSON.stringify(weekly.body));
-    assert.equal(weekly.body.debitNoteMode, 'WEEKLY');
+    assert.equal(weekly.status, 201, JSON.stringify(weekly.body));
+    await approvePendingAction(weekly.body);
+    const [weeklyCustomer] = await db.select().from(s.customers)
+      .where(eq(s.customers.id, customerId));
+    assert.equal(weeklyCustomer.debitNoteMode, 'WEEKLY');
 
     const [legacy] = await db.insert(s.customers).values({
       name: `Q21 legacy ${suffix}`,
@@ -368,7 +449,10 @@ describe('Q23 generated configuration CRUD replay', () => {
       `q21-customer-preserve-legacy-${suffix}`,
       legacy.updatedAt.toISOString(),
     );
-    assert.equal(preserved.status, 200, JSON.stringify(preserved.body));
-    assert.equal(preserved.body.debitNoteMode, 'PER_BATCH');
+    assert.equal(preserved.status, 201, JSON.stringify(preserved.body));
+    await approvePendingAction(preserved.body);
+    const [preservedCustomer] = await db.select().from(s.customers)
+      .where(eq(s.customers.id, legacy.id));
+    assert.equal(preservedCustomer.debitNoteMode, 'PER_BATCH');
   });
 });

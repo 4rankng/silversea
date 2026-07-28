@@ -88,7 +88,9 @@ async function postLedger(opts: {
     entityType: opts.entityType,
     entityId: opts.entityId,
     txnType: opts.txnType,
-    txnId: 0,
+    // Use a positive, stable source authority. Customer receivables intentionally
+    // ignore txnId=0 except for unapplied credits.
+    txnId: opts.entityId,
     debit: String(debit),
     credit: String(credit),
     balance: String(balance),

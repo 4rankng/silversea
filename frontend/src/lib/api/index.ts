@@ -8,6 +8,6 @@
  *   - errors.ts  — ApiError class + Vietnamese Zod field translation
  *   - photo.ts   — query-string photo auth helper
  */
-export { api } from './client';
+export { api, fileCommandFingerprint } from './client';
 export { ApiError, formatErrorMessage } from './errors';
 export { getAuthenticatedPhotoUrl } from './photo';

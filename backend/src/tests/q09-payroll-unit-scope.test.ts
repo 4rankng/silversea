@@ -169,6 +169,42 @@ test('Q09 configured payroll unit scopes readiness and close totals to linked dr
     status: 'ACTIVE',
   }).returning();
   userIds.push(accountant.id);
+
+  await db.delete(s.userBusinessUnitLinks).where(and(
+    eq(s.userBusinessUnitLinks.userId, scoped.user.id),
+    eq(s.userBusinessUnitLinks.businessUnitId, unit.id),
+  ));
+  const emptyReadiness = await getSalaryPeriodReadiness(period);
+  assert.equal(emptyReadiness.scope, 'BUSINESS_UNIT');
+  assert.equal(emptyReadiness.businessUnitId, unit.id);
+  assert.equal(emptyReadiness.canClose, false);
+  assert.deepEqual(emptyReadiness.drivers, []);
+  assert.match(String(emptyReadiness.blockingReason ?? ''), /chưa có lái xe đang hoạt động/i);
+  await assert.rejects(
+    () => closeSalaryPeriod({
+      period,
+      actorId: accountant.id,
+      actorRole: 'ACCOUNTANT',
+      expectedVersion: 0,
+    }),
+    (error: Error & { statusCode?: number }) => (
+      error.statusCode === 409 && /chưa có lái xe đang hoạt động/i.test(error.message)
+    ),
+  );
+  await assert.rejects(
+    () => saveAppSettings({
+      ...originalSettings!,
+      salaryPayrollBusinessUnitId: unit.id,
+    }),
+    (error: Error & { statusCode?: number }) => (
+      error.statusCode === 400 && /ít nhất một lái xe đang hoạt động/i.test(error.message)
+    ),
+  );
+  await db.insert(s.userBusinessUnitLinks).values({
+    userId: scoped.user.id,
+    businessUnitId: unit.id,
+  });
+
   const closed = await closeSalaryPeriod({
     period,
     actorId: accountant.id,

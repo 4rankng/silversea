@@ -187,6 +187,7 @@ describe('Q23 immutable trip replay', () => {
       expenseDate: '2026-07-27',
       payeeName: 'Đơn vị nâng hạ',
       note: 'Q23 concurrent retry',
+      noInvoiceEvidenceTypes: ['RECEIPT'],
     };
 
     const requests = await Promise.all([

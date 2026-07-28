@@ -16,6 +16,10 @@ import * as s from '../db/schema';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
+import {
+  captureIssuedOfficialIdentitySnapshot,
+  getDocument,
+} from './billingDocument.service';
 
 type DebitNoteStatus = typeof s.debitNoteStatusEnum.enumValues[number];
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -120,6 +124,20 @@ export async function transitionDebitNoteStatus(input: TransitionInput) {
     if (input.targetStatus === 'CONFIRMED') {
       updates.customerConfirmedAt = new Date();
       if (input.confirmedBy) updates.customerConfirmedBy = input.confirmedBy;
+    }
+    if (currentStatus === 'DRAFT' && input.targetStatus === 'SENT') {
+      const hydratedDocument = await getDocument(doc.id, tx);
+      const issuedSnapshot = await captureIssuedOfficialIdentitySnapshot(hydratedDocument, tx);
+      updates.debitNoteTemplateSnapshot = issuedSnapshot;
+      updates.officialIdentitySnapshot = (
+        issuedSnapshot as typeof issuedSnapshot & {
+          officialIdentity?: unknown;
+        }
+      ).officialIdentity ?? null;
+      updates.issuedAt = doc.issuedAt ?? new Date();
+      updates.authorityState = 'CURRENT';
+      updates.authorityWarningReason = null;
+      updates.authorityWarningAt = null;
     }
 
     const statusCondition = doc.debitNoteStatus === null

@@ -4,9 +4,15 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { TripStatus, Role, TxnType } from '@tingting/shared';
 import { db, client } from '../db';
 import * as s from '../db/schema';
-import { transitionTripStatus } from '../services/trip-status-machine.service';
 import { LedgerService } from '../services/ledger.service';
 import { createTripExpense } from '../services/forwarder.service';
+import {
+  approveGovernanceAction,
+  checkGovernanceAction,
+  requestCompletedTripCancellation,
+  requestTripFinancialClose,
+} from '../services/adjustment-governance.service';
+import { disconnectRedis } from '../lib/redis';
 
 /**
  * US-002 / US-003 — chi hộ (service-fee) sell-side AR posting.
@@ -26,8 +32,15 @@ const createdForwarderIds: number[] = [];
 const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
 const createdExpenseIds: number[] = [];
+const createdGovernanceUserIds: number[] = [];
 
 after(async () => {
+  let cleanupStep = 'governance actions';
+  try {
+  if (createdTripIds.length > 0) {
+    await db.delete(s.governanceActions).where(inArray(s.governanceActions.subjectId, createdTripIds));
+  }
+  cleanupStep = 'ledger';
   // Ledger rows reference both trip ids (TRIP_REVENUE) and expense ids
   // (SERVICE_FEE / VENDOR_EXPENSE / FORWARDER_ADVANCE) via txnId.
   const allTxnIds = [...createdTripIds, ...createdExpenseIds];
@@ -35,28 +48,106 @@ after(async () => {
     await db.delete(s.ledger).where(inArray(s.ledger.txnId, allTxnIds));
   }
   if (createdExpenseIds.length > 0) {
+    cleanupStep = 'trip expenses';
     await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.id, createdExpenseIds));
   }
   if (createdTripIds.length > 0) {
+    cleanupStep = 'trips';
     await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
   }
-  if (createdForwarderIds.length > 0) {
-    await db.delete(s.users).where(inArray(s.users.id, createdForwarderIds));
+  const allUserIds = [...createdForwarderIds, ...createdGovernanceUserIds];
+  if (allUserIds.length > 0) {
+    cleanupStep = 'notifications';
+    await db.delete(s.notifications).where(inArray(s.notifications.userId, allUserIds));
+    cleanupStep = 'users';
+    await db.delete(s.users).where(inArray(s.users.id, allUserIds));
   }
   if (createdSupplierIds.length > 0) {
+    cleanupStep = 'suppliers';
     await db.delete(s.suppliers).where(inArray(s.suppliers.id, createdSupplierIds));
   }
   if (createdCustomerIds.length > 0) {
+    cleanupStep = 'customers';
     await db.delete(s.customers).where(inArray(s.customers.id, createdCustomerIds));
   }
   if (createdRouteIds.length > 0) {
+    cleanupStep = 'routes';
     await db.delete(s.routes).where(inArray(s.routes.id, createdRouteIds));
   }
   if (createdCargoTypeIds.length > 0) {
+    cleanupStep = 'cargo types';
     await db.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, createdCargoTypeIds));
   }
+  } catch (error) {
+    console.error(`[chiho cleanup] failed at ${cleanupStep}`, error);
+    throw error;
+  }
+  await disconnectRedis();
   await client.end();
 });
+
+async function approveCompletedCancellation(tripId: number, expectedVersion: number) {
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const actors = await db.insert(s.users).values([
+    { username: `chiho-ledger-maker-${suffix}`, passwordHash: 'x', role: Role.MANAGER },
+    { username: `chiho-ledger-checker-${suffix}`, passwordHash: 'x', role: Role.ACCOUNTANT },
+    { username: `chiho-ledger-approver-${suffix}`, passwordHash: 'x', role: Role.ADMIN },
+  ]).returning({ id: s.users.id });
+  createdGovernanceUserIds.push(...actors.map((actor) => actor.id));
+  const action = await requestCompletedTripCancellation({
+    tripId,
+    reason: 'Hủy chuyến đã hoàn thành và hoàn nhập phí chi hộ',
+    makerId: actors[0]!.id,
+    makerRole: Role.MANAGER,
+    expectedTripVersion: expectedVersion,
+  });
+  const checked = await checkGovernanceAction({
+    actionId: action.id,
+    checkerId: actors[1]!.id,
+    checkerRole: Role.ACCOUNTANT,
+    expectedVersion: action.version,
+  });
+  return approveGovernanceAction({
+    actionId: action.id,
+    approverId: actors[2]!.id,
+    approverRole: Role.ADMIN,
+    expectedVersion: checked.version,
+  });
+}
+
+async function completeTripGoverned(tripId: number, expectedVersion: number) {
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const actors = await db.insert(s.users).values([
+    { username: `chiho-close-maker-${suffix}`, passwordHash: 'x', role: Role.MANAGER },
+    { username: `chiho-close-checker-${suffix}`, passwordHash: 'x', role: Role.ACCOUNTANT },
+    { username: `chiho-close-approver-${suffix}`, passwordHash: 'x', role: Role.ADMIN },
+  ]).returning({ id: s.users.id });
+  createdGovernanceUserIds.push(...actors.map((actor) => actor.id));
+  const action = await requestTripFinancialClose({
+    tripId,
+    reason: 'Hoàn thành chuyến và ghi nhận phí chi hộ',
+    makerId: actors[0]!.id,
+    makerRole: Role.MANAGER,
+    expectedTripVersion: expectedVersion,
+  });
+  const checked = await checkGovernanceAction({
+    actionId: action.id,
+    checkerId: actors[1]!.id,
+    checkerRole: Role.ACCOUNTANT,
+    expectedVersion: action.version,
+  });
+  await approveGovernanceAction({
+    actionId: action.id,
+    approverId: actors[2]!.id,
+    approverRole: Role.ADMIN,
+    expectedVersion: checked.version,
+  });
+  const [completed] = await db.select().from(s.trips)
+    .where(eq(s.trips.id, tripId))
+    .limit(1);
+  assert.ok(completed);
+  return completed;
+}
 
 interface FeeSpec {
   buyAmount: number;
@@ -190,7 +281,7 @@ describe('chi hộ (service-fee) sell-side AR ledger posting', () => {
       ],
     );
 
-    await transitionTripStatus(trip.id, TripStatus.COMPLETED, 1, Role.MANAGER);
+    await completeTripGoverned(trip.id, trip.version);
 
     const customerRows = await ledgerRowsForTripCustomer(trip.id, customer.id);
 
@@ -226,7 +317,7 @@ describe('chi hộ (service-fee) sell-side AR ledger posting', () => {
       ],
     );
 
-    await transitionTripStatus(trip.id, TripStatus.COMPLETED, 1, Role.MANAGER);
+    await completeTripGoverned(trip.id, trip.version);
 
     const customerRows = await ledgerRowsForTripCustomer(trip.id, customer.id);
     const sellFeeRows = customerRows.filter(r => r.txnType === TxnType.SERVICE_FEE);
@@ -246,7 +337,7 @@ describe('chi hộ (service-fee) sell-side AR ledger posting', () => {
       ],
     );
 
-    await transitionTripStatus(trip.id, TripStatus.COMPLETED, 1, Role.MANAGER);
+    await completeTripGoverned(trip.id, trip.version);
 
     const allRowsForTrip = await db.select().from(s.ledger)
       .where(eq(s.ledger.txnId, trip.id))
@@ -271,10 +362,10 @@ describe('chi hộ (service-fee) sell-side AR ledger posting', () => {
     );
 
     // COMPLETED posts TRIP_REVENUE + 2 SERVICE_FEE debits to the customer.
-    await transitionTripStatus(trip.id, TripStatus.COMPLETED, 1, Role.MANAGER);
+    const completed = await completeTripGoverned(trip.id, trip.version);
     // COMPLETED → CANCELED is the transition that invokes postTripUnlock,
     // which posts UNLOCK_REVERSAL rows for revenue + every sell fee.
-    await transitionTripStatus(trip.id, TripStatus.CANCELED, 1, Role.MANAGER);
+    await approveCompletedCancellation(trip.id, completed.version);
 
     const customerRows = await ledgerRowsForTripCustomer(trip.id, customer.id);
 
@@ -324,7 +415,7 @@ describe('chi hộ (service-fee) sell-side AR ledger posting', () => {
       approvalStatus: 'APPROVED',
     });
 
-    await transitionTripStatus(trip.id, TripStatus.COMPLETED, 1, Role.MANAGER);
+    await completeTripGoverned(trip.id, trip.version);
 
     const feeLedgerRows = await db.select().from(s.ledger)
       .where(eq(s.ledger.txnId, fee.id));

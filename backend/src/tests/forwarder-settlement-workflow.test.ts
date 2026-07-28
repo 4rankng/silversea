@@ -12,10 +12,14 @@ import {
   createAdvanceSettlement,
   createAdvanceRequest,
   getAdvanceSettlement,
+  getOutstandingAdvanceBalance,
   listAdvanceRequests,
+  requestAdvanceSettlementReversal,
   rejectAdvanceSettlement,
   updateAdvanceSettlement,
 } from '../services/advance.service';
+import { approveGovernanceAction } from '../services/adjustment-governance.service';
+import { checkGovernanceAction } from '../services/governance-transition.service';
 import { validateSettlementInputs } from '../services/settlement-validation';
 import {
   deleteTripExpenseGuarded,
@@ -34,6 +38,7 @@ describe('forwarder settlement streamlined workflow', () => {
     expenses: [] as number[],
     requests: [] as number[],
     settlements: [] as number[],
+    actions: [] as number[],
   };
 
   let forwarderId: number;
@@ -63,6 +68,7 @@ describe('forwarder settlement streamlined workflow', () => {
     buyAmount?: number;
     sellAmount?: number;
     createdBy?: number | null;
+    expenseDate?: string;
   } = {}) {
     const [expense] = await db.insert(s.tripExpenses).values({
       tripId,
@@ -71,7 +77,7 @@ describe('forwarder settlement streamlined workflow', () => {
       expenseType: 'LIFTING',
       buyAmount: String(options.buyAmount ?? 100_000),
       sellAmount: String(options.sellAmount ?? 120_000),
-      expenseDate: '2026-07-11',
+      expenseDate: options.expenseDate ?? '2026-07-11',
       settlementMethod: 'FORWARDER_ADVANCE',
       approvalStatus: options.approvalStatus ?? 'PENDING',
       tripContainerId: options.tripContainerId ?? null,
@@ -165,9 +171,13 @@ describe('forwarder settlement streamlined workflow', () => {
   });
 
   after(async () => {
+    if (ids.actions.length) {
+      await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, ids.actions));
+    }
     if (ids.settlements.length) {
       await db.delete(s.ledger).where(and(
-        eq(s.ledger.txnType, TxnType.FORWARDER_SETTLEMENT),
+        eq(s.ledger.entityType, 'FORWARDER'),
+        inArray(s.ledger.txnType, [TxnType.FORWARDER_SETTLEMENT, TxnType.ADJUSTMENT]),
         inArray(s.ledger.txnId, ids.settlements),
       ));
       await db.delete(s.settlementExpenseAdjustments)
@@ -485,6 +495,177 @@ describe('forwarder settlement streamlined workflow', () => {
     );
   });
 
+  test('approved settlement correction and reversal require three actors and have no effect before approval', async () => {
+    const expense = await insertExpense({
+      approvalStatus: 'APPROVED',
+      buyAmount: 300_000,
+      sellAmount: 300_000,
+    });
+    await markCompleted(null);
+    const governedRequestId = await insertApprovedRequest(300_000);
+    const settlement = await createAdvanceSettlement(forwarderId, {
+      advanceRequestIds: [governedRequestId],
+      tripExpenseIds: [expense.id],
+    });
+    ids.settlements.push(settlement.id);
+    await checkAdvanceSettlement(settlement.id, accountantId);
+    const approved = await approveAdvanceSettlement(settlement.id, approverId);
+
+    const correction = await adjustSettlementExpense(
+      settlement.id,
+      expense.id,
+      secondApproverId,
+      {
+        expectedVersion: approved.version,
+        buyAmount: 280_000,
+        sellAmount: 310_000,
+        adjustmentReason: 'Điều chỉnh sau duyệt có kiểm soát',
+      },
+      { actorRole: 'ADMIN' },
+    );
+    const correctionAction = correction.governanceAction;
+    assert.ok(correctionAction);
+    ids.actions.push(correctionAction.id);
+    const [beforeApprovalLink] = await db.select().from(s.settlementExpenses)
+      .where(and(
+        eq(s.settlementExpenses.settlementId, settlement.id),
+        eq(s.settlementExpenses.tripExpenseId, expense.id),
+      ));
+    const [beforeApprovalSettlement] = await db.select().from(s.advanceSettlements)
+      .where(eq(s.advanceSettlements.id, settlement.id));
+    assert.equal(beforeApprovalLink.adjustedBuyAmount, '300000');
+    assert.equal(beforeApprovalSettlement.totalExpenseAmount, '300000');
+    assert.equal(beforeApprovalSettlement.refundAmount, '0');
+
+    const checkedCorrection = await checkGovernanceAction({
+      actionId: correctionAction.id,
+      checkerId: accountantId,
+      checkerRole: 'ACCOUNTANT',
+      expectedVersion: correctionAction.version,
+    });
+    await assert.rejects(
+      () => approveGovernanceAction({
+        actionId: correctionAction.id,
+        approverId: accountantId,
+        approverRole: 'ACCOUNTANT',
+        expectedVersion: checkedCorrection.version,
+      }),
+      /người phê duyệt phải khác|người kiểm tra/i,
+    );
+    await approveGovernanceAction({
+      actionId: correctionAction.id,
+      approverId,
+      approverRole: 'MANAGER',
+      expectedVersion: checkedCorrection.version,
+    });
+    const [correctedSettlement] = await db.select().from(s.advanceSettlements)
+      .where(eq(s.advanceSettlements.id, settlement.id));
+    const [correctedLink] = await db.select().from(s.settlementExpenses)
+      .where(and(
+        eq(s.settlementExpenses.settlementId, settlement.id),
+        eq(s.settlementExpenses.tripExpenseId, expense.id),
+      ));
+    assert.equal(correctedSettlement.totalExpenseAmount, '280000');
+    assert.equal(correctedSettlement.refundAmount, '20000');
+    assert.equal(correctedLink.adjustedBuyAmount, '280000');
+
+    const reversalAction = await requestAdvanceSettlementReversal({
+      settlementId: settlement.id,
+      expectedVersion: correctedSettlement.version,
+      reason: 'Hoàn tác phiếu đã duyệt sai chứng từ',
+      makerId: secondApproverId,
+      makerRole: 'ADMIN',
+    });
+    ids.actions.push(reversalAction.id);
+    const outstandingBeforeReversal = await getOutstandingAdvanceBalance(forwarderId);
+    const checkedReversal = await checkGovernanceAction({
+      actionId: reversalAction.id,
+      checkerId: accountantId,
+      checkerRole: 'ACCOUNTANT',
+      expectedVersion: reversalAction.version,
+    });
+    assert.equal(await getOutstandingAdvanceBalance(forwarderId), outstandingBeforeReversal);
+    await approveGovernanceAction({
+      actionId: reversalAction.id,
+      approverId,
+      approverRole: 'MANAGER',
+      expectedVersion: checkedReversal.version,
+    });
+    const [reversedSettlement] = await db.select().from(s.advanceSettlements)
+      .where(eq(s.advanceSettlements.id, settlement.id));
+    assert.equal(reversedSettlement.status, 'REVERSED');
+    assert.equal(
+      await getOutstandingAdvanceBalance(forwarderId),
+      outstandingBeforeReversal + 300_000,
+    );
+    const reversalLedger = await db.select().from(s.ledger).where(and(
+      eq(s.ledger.txnType, TxnType.ADJUSTMENT),
+      eq(s.ledger.txnId, settlement.id),
+      eq(s.ledger.entityType, 'FORWARDER'),
+    ));
+    assert.equal(reversalLedger.at(-1)?.credit, '300000');
+  });
+
+  test('settlement correction creating first service fee freezes due dates from the expense event date', async () => {
+    const expense = await insertExpense({
+      approvalStatus: 'APPROVED',
+      buyAmount: 300_000,
+      sellAmount: 0,
+      expenseDate: '2026-07-20',
+    });
+    await markCompleted(null);
+    await db.update(s.trips).set({ status: 'COMPLETED' }).where(eq(s.trips.id, tripId));
+    const governedRequestId = await insertApprovedRequest(300_000);
+    const settlement = await createAdvanceSettlement(forwarderId, {
+      advanceRequestIds: [governedRequestId],
+      tripExpenseIds: [expense.id],
+    });
+    ids.settlements.push(settlement.id);
+
+    try {
+      await checkAdvanceSettlement(settlement.id, accountantId);
+      const approved = await approveAdvanceSettlement(settlement.id, approverId);
+      const correction = await adjustSettlementExpense(
+        settlement.id,
+        expense.id,
+        secondApproverId,
+        {
+          expectedVersion: approved.version,
+          buyAmount: 300_000,
+          sellAmount: 125_000,
+          adjustmentReason: 'Bổ sung phí chi hộ theo ngày chứng từ',
+        },
+        { actorRole: 'ADMIN' },
+      );
+      const action = correction.governanceAction;
+      assert.ok(action);
+      ids.actions.push(action.id);
+      const checked = await checkGovernanceAction({
+        actionId: action.id,
+        checkerId: accountantId,
+        checkerRole: 'ACCOUNTANT',
+        expectedVersion: action.version,
+      });
+      await approveGovernanceAction({
+        actionId: action.id,
+        approverId,
+        approverRole: 'MANAGER',
+        expectedVersion: checked.version,
+      });
+
+      const [fee] = await db.select().from(s.ledger).where(and(
+        eq(s.ledger.txnType, TxnType.SERVICE_FEE),
+        eq(s.ledger.txnId, expense.id),
+      )).limit(1);
+      assert.ok(fee);
+      assert.equal(fee.originalDueDate, '2026-08-19');
+      assert.equal(fee.processingDueDate, '2026-08-19');
+      assert.equal(fee.paymentTermDaysApplied, 30);
+    } finally {
+      await db.update(s.trips).set({ status: 'IN_TRANSIT' }).where(eq(s.trips.id, tripId));
+    }
+  });
+
   test('office delete respects settlement links', async () => {
     const activeExpense = await insertExpense({ buyAmount: 110_000, sellAmount: 110_000 });
     await markCompleted(null);
@@ -626,10 +807,17 @@ describe('forwarder settlement streamlined workflow', () => {
 
     await checkAdvanceSettlement(settlement.id, approverId);
     await approveAdvanceSettlement(settlement.id, secondApproverId);
-    await assert.rejects(
-      () => adjustSettlementExpense(settlement.id, expense.id, accountantId, { buyAmount: 1, adjustmentReason: 'Quá muộn' }),
-      /Chỉ được sửa phiếu đang chờ kế toán/,
+    const governedCorrection = await adjustSettlementExpense(
+      settlement.id,
+      expense.id,
+      accountantId,
+      { buyAmount: 250_000, adjustmentReason: 'Điều chỉnh sau duyệt' },
+      { actorRole: 'ACCOUNTANT' },
     );
+    const governanceAction = governedCorrection.governanceAction;
+    assert.ok(governanceAction);
+    assert.equal(governanceAction.status, 'PENDING_CHECK');
+    ids.actions.push(governanceAction.id);
   });
 
   test('fails closed when settlement approval encounters an expense with unknown maker', async () => {

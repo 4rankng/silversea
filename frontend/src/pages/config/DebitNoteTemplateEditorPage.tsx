@@ -8,6 +8,7 @@ import { useToast } from '../../components/shared/Toast';
 import { configClient } from '../../api/configClient';
 import { qk } from '../../api/keys';
 import { useBackShortcut } from '../../hooks/useBackShortcut';
+import { isGovernancePendingResponse } from '../../lib/governance';
 import { type DebitNoteTemplate, type DebitNoteTemplateColumn, type DebitNoteTemplateInput } from '@tingting/shared';
 import { blankTemplate, buildAccountTerms, cloneStarterColumns, EDITOR_SECTIONS, getAccountTerms, sectionFromTarget, templateDefaultsForType, toForm, type EditorSection, type SelectedTarget } from './debit-note-template-editor-utils';
 import { Field, TemplatePreview } from './debit-note-template-preview';
@@ -113,6 +114,10 @@ export default function DebitNoteTemplateEditorPage() {
     return null;
   };
 
+  const governancePendingSaveMessage = isNew
+    ? 'Đã gửi yêu cầu tạo mẫu giấy báo nợ để kiểm tra và phê duyệt. Mẫu chưa được áp dụng.'
+    : 'Đã gửi yêu cầu cập nhật mẫu giấy báo nợ để kiểm tra và phê duyệt. Mẫu hiện chưa thay đổi.';
+
   const save = async () => {
     const error = validate();
     if (error) {
@@ -127,6 +132,11 @@ export default function DebitNoteTemplateEditorPage() {
         ? await configClient.saveDebitNoteTemplate(payload)
         : await configClient.updateDebitNoteTemplate(id as number, payload);
       await queryClient.invalidateQueries({ queryKey: qk.catalogs.debitNoteTemplates });
+      if (isGovernancePendingResponse(saved)) {
+        toast({ kind: 'success', message: governancePendingSaveMessage });
+        backToList();
+        return;
+      }
       await queryClient.invalidateQueries({ queryKey: qk.catalogs.debitNoteTemplate(saved.id) });
       toast({ kind: 'success', message: 'Đã lưu mẫu giấy báo nợ.' });
       backToList();
@@ -143,8 +153,13 @@ export default function DebitNoteTemplateEditorPage() {
     if (!ok) return;
     setSaving(true);
     try {
-      await configClient.deleteDebitNoteTemplate(id);
+      const result = await configClient.deleteDebitNoteTemplate(id);
       await queryClient.invalidateQueries({ queryKey: qk.catalogs.debitNoteTemplates });
+      if (isGovernancePendingResponse(result)) {
+        toast({ kind: 'success', message: 'Đã gửi yêu cầu xoá mẫu giấy báo nợ để kiểm tra và phê duyệt. Mẫu hiện chưa bị xoá.' });
+        backToList();
+        return;
+      }
       toast({ kind: 'success', message: 'Đã xoá mẫu.' });
       backToList();
     } catch (err) {

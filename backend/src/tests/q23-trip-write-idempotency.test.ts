@@ -129,7 +129,6 @@ describe('Q23 trip write contracts', () => {
 
     const app = express();
     app.use(express.json());
-    app.use(auditLogMiddleware);
     app.use('/api/trips', (req, _res, next) => {
       req.user = {
         userId: user.id,
@@ -139,7 +138,9 @@ describe('Q23 trip write contracts', () => {
         role: Role.MANAGER,
       };
       next();
-    }, tripRoutes);
+    });
+    app.use(auditLogMiddleware);
+    app.use('/api/trips', tripRoutes);
     app.use(globalErrorHandler);
 
     const server = http.createServer(app);
@@ -355,7 +356,7 @@ describe('Q23 trip write contracts', () => {
     assert.equal(retried.trip.status, TripStatus.CANCELED);
   });
 
-  test('keeps cancellation first-winner and never resurrects financial values', async () => {
+  test('rejects direct completed-trip cancellation before any financial mutation', async () => {
     const { trip, user } = await fixtureTrip(TripStatus.COMPLETED);
     const actor = { userId: user.id, role: Role.MANAGER };
     const keyA = `q23-cancel-a-${trip.id}`;
@@ -376,17 +377,17 @@ describe('Q23 trip write contracts', () => {
         idempotencyKey: keyB,
       }),
     ]);
-    assert.equal(settled.filter((item) => item.status === 'fulfilled').length, 1);
-    assert.equal(settled.filter((item) => item.status === 'rejected').length, 1);
+    assert.equal(settled.filter((item) => item.status === 'fulfilled').length, 0);
+    assert.equal(settled.filter((item) => item.status === 'rejected').length, 2);
 
     const [stored] = await db.select().from(s.trips).where(eq(s.trips.id, trip.id));
-    assert.equal(stored.status, TripStatus.CANCELED);
-    assert.equal(stored.revenue, '0');
-    assert.equal(stored.totalFuelCost, '0');
-    assert.equal(stored.totalRoadAllowance, '0');
-    assert.equal(stored.totalCost, '0');
-    assert.equal(stored.grossProfit, '0');
-    assert.equal(stored.driverSalary, '0');
+    assert.equal(stored.status, TripStatus.COMPLETED);
+    assert.equal(stored.revenue, trip.revenue);
+    assert.equal(stored.totalFuelCost, trip.totalFuelCost);
+    assert.equal(stored.totalRoadAllowance, trip.totalRoadAllowance);
+    assert.equal(stored.totalCost, trip.totalCost);
+    assert.equal(stored.grossProfit, trip.grossProfit);
+    assert.equal(stored.driverSalary, trip.driverSalary);
   });
 
   test('rejects stale reassignment, departure, and delete before mutation', async () => {

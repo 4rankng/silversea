@@ -11,18 +11,24 @@ import { auditLogMiddleware } from '../middleware/audit';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import advancesRoutes from '../routes/financial/advances.routes';
 import billingDocumentsRoutes from '../routes/financial/billing-documents.routes';
+import debtOffsetsRoutes from '../routes/financial/debt-offsets.routes';
+import governanceActionsRoutes from '../routes/financial/governance-actions.routes';
+import paymentsRoutes from '../routes/financial/payments.routes';
 import { initAuditService } from '../services/audit.service';
 import { initNotificationService } from '../services/notification.service';
 import { disconnectRedis } from '../lib/redis';
+import { upsertPartnerFromTaxCode } from '../services/legal-partner.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 const userIds: number[] = [];
 const customerIds: number[] = [];
+const supplierIds: number[] = [];
 const advanceRequestIds: number[] = [];
 const advanceSettlementIds: number[] = [];
 const billingDocumentIds: number[] = [];
 const billingLineDocIds: number[] = [];
+const debtOffsetIds: number[] = [];
 const auditLogIds: number[] = [];
 const idempotencyKeys: string[] = [];
 const ledgerIds: number[] = [];
@@ -30,6 +36,8 @@ const ledgerIds: number[] = [];
 let server: http.Server;
 let baseUrl = '';
 let actor: typeof s.users.$inferSelect;
+let managerActor: typeof s.users.$inferSelect;
+let accountantActor: typeof s.users.$inferSelect;
 
 async function createUser(role: Role, usernamePrefix: string) {
   const [user] = await db.insert(s.users).values({
@@ -48,6 +56,42 @@ async function createCustomer() {
   }).returning();
   customerIds.push(customer.id);
   return customer;
+}
+
+async function createLinkedCounterparties() {
+  const taxCode = `Q23${String(Date.now()).slice(-8)}${customerIds.length}`;
+  const partnerId = await upsertPartnerFromTaxCode(taxCode);
+  const [customer] = await db.insert(s.customers).values({
+    name: `Q23 offset customer ${suffix}-${customerIds.length}`,
+    taxCode,
+    partnerId,
+  }).returning();
+  customerIds.push(customer.id);
+  const [supplier] = await db.insert(s.suppliers).values({
+    name: `Q23 offset supplier ${suffix}-${supplierIds.length}`,
+    taxCode,
+    partnerId,
+    linkedCustomerId: customer.id,
+  }).returning();
+  supplierIds.push(supplier.id);
+  await db.update(s.customers)
+    .set({ linkedSupplierId: supplier.id })
+    .where(eq(s.customers.id, customer.id));
+  return { customer, supplier };
+}
+
+async function postLedgerSeed(entityType: 'CUSTOMER' | 'VENDOR', entityId: number, txnType: TxnType, debit: number, credit: number, note: string) {
+  const [row] = await db.insert(s.ledger).values({
+    entityType,
+    entityId,
+    txnType,
+    txnId: 0,
+    debit: String(debit),
+    credit: String(credit),
+    balance: String(Math.max(debit, credit)),
+    note,
+  }).returning({ id: s.ledger.id });
+  ledgerIds.push(row.id);
 }
 
 async function createApprovedAdvanceRequest(requesterId: number, amount: number) {
@@ -123,6 +167,7 @@ async function requestJson(
     method?: 'POST' | 'PUT' | 'DELETE';
     body?: unknown;
     idempotencyKey?: string;
+    userId?: number;
   } = {},
 ) {
   const method = options.method ?? 'POST';
@@ -140,6 +185,9 @@ async function requestJson(
     if (!idempotencyKeys.includes(options.idempotencyKey)) {
       idempotencyKeys.push(options.idempotencyKey);
     }
+  }
+  if (options.userId) {
+    headers['x-user-id'] = String(options.userId);
   }
 
   return new Promise<{ status: number; data: Record<string, unknown> }>((resolve, reject) => {
@@ -200,22 +248,30 @@ before(async () => {
   initAuditService();
 
   actor = await createUser(Role.ADMIN, 'q23-finance-actor');
+  managerActor = await createUser(Role.MANAGER, 'q23-finance-manager');
+  accountantActor = await createUser(Role.ACCOUNTANT, 'q23-finance-accountant');
 
   const app = express();
   app.use(express.json());
   app.use(auditLogMiddleware);
   app.use('/api', (req, _res, next) => {
+    const requestedUserId = Number(req.header('x-user-id'));
+    const currentUser = [actor, managerActor, accountantActor]
+      .find((row) => row.id === requestedUserId) ?? actor;
     req.user = {
-      userId: actor.id,
-      username: actor.username,
-      email: actor.email,
-      fullName: actor.fullName,
-      role: actor.role as Role,
+      userId: currentUser.id,
+      username: currentUser.username,
+      email: currentUser.email,
+      fullName: currentUser.fullName,
+      role: currentUser.role as Role,
     };
     next();
   });
   app.use('/api', advancesRoutes);
   app.use('/api', billingDocumentsRoutes);
+  app.use('/api', debtOffsetsRoutes);
+  app.use('/api', paymentsRoutes);
+  app.use('/api', governanceActionsRoutes);
   app.use(globalErrorHandler);
 
   await new Promise<void>((resolve) => {
@@ -267,8 +323,30 @@ after(async () => {
     ));
     await db.delete(s.billingDocuments).where(inArray(s.billingDocuments.id, billingDocumentIds));
   }
+  if (supplierIds.length > 0) {
+    await db.update(s.customers)
+      .set({ linkedSupplierId: null })
+      .where(inArray(s.customers.id, customerIds));
+    await db.update(s.suppliers)
+      .set({ linkedCustomerId: null })
+      .where(inArray(s.suppliers.id, supplierIds));
+  }
+  if (debtOffsetIds.length > 0) {
+    await db.delete(s.ledger).where(and(
+      eq(s.ledger.txnType, TxnType.ADJUSTMENT),
+      inArray(s.ledger.txnId, debtOffsetIds),
+    ));
+    await db.delete(s.debtOffsets).where(inArray(s.debtOffsets.id, debtOffsetIds));
+  }
   if (customerIds.length > 0) {
     await db.delete(s.customers).where(inArray(s.customers.id, customerIds));
+  }
+  if (supplierIds.length > 0) {
+    await db.delete(s.suppliers).where(inArray(s.suppliers.id, supplierIds));
+  }
+  if (userIds.length > 0) {
+    await db.delete(s.governanceActions)
+      .where(inArray(s.governanceActions.makerId, userIds));
   }
   if (userIds.length > 0) {
     await db.delete(s.users).where(inArray(s.users.id, userIds));
@@ -347,14 +425,46 @@ describe('Q23 approved financial route idempotency', () => {
   test('advance request approval is first-winner under concurrent distinct keys', async () => {
     const requester = await createUser(Role.FORWARDER, 'q23-approve-forwarder');
     const request = await createPendingAdvanceRequest(requester.id, 275000);
+    const requested = await requestJson(`/advance-requests/${request.id}/approve`, {
+      body: { expectedVersion: request.version, reason: 'Trình duyệt tạm ứng' },
+      idempotencyKey: `q23-advance-request-${request.id}`,
+      userId: managerActor.id,
+    });
+    assert.equal(requested.status, 201, JSON.stringify(requested.data));
+    assert.equal(requested.data.actionKind, 'ADVANCE_REQUEST_APPROVAL');
+
+    const requestReplay = await requestJson(`/advance-requests/${request.id}/approve`, {
+      body: { expectedVersion: request.version, reason: 'Trình duyệt tạm ứng' },
+      idempotencyKey: `q23-advance-request-${request.id}`,
+      userId: managerActor.id,
+    });
+    assert.equal(requestReplay.status, 200);
+    assert.equal(requestReplay.data.replayed, true);
+
+    const requestConflict = await requestJson(`/advance-requests/${request.id}/approve`, {
+      body: { expectedVersion: request.version, reason: 'Đổi lý do' },
+      idempotencyKey: `q23-advance-request-${request.id}`,
+      userId: managerActor.id,
+    });
+    assert.equal(requestConflict.status, 409);
+
+    const checked = await requestJson(`/governance-actions/${requested.data.id}/check`, {
+      body: { expectedVersion: requested.data.version },
+      idempotencyKey: `q23-advance-check-${request.id}`,
+      userId: accountantActor.id,
+    });
+    assert.equal(checked.status, 200, JSON.stringify(checked.data));
+
     const [first, second] = await Promise.all([
-      requestJson(`/advance-requests/${request.id}/approve`, {
-        body: { expectedVersion: request.version },
+      requestJson(`/governance-actions/${requested.data.id}/approve`, {
+        body: { expectedVersion: checked.data.version },
         idempotencyKey: `q23-advance-approve-a-${request.id}`,
+        userId: actor.id,
       }),
-      requestJson(`/advance-requests/${request.id}/approve`, {
-        body: { expectedVersion: request.version },
+      requestJson(`/governance-actions/${requested.data.id}/approve`, {
+        body: { expectedVersion: checked.data.version },
         idempotencyKey: `q23-advance-approve-b-${request.id}`,
+        userId: actor.id,
       }),
     ]);
 
@@ -373,6 +483,170 @@ describe('Q23 approved financial route idempotency', () => {
       ));
     ledgerIds.push(...ledgerRows.map((row) => row.id));
     assert.equal(ledgerRows.length, 1);
+  });
+
+  test('advance request rejection is governed by three actors and has no ledger effect', async () => {
+    const requester = await createUser(Role.FORWARDER, 'q15-reject-forwarder');
+    const request = await createPendingAdvanceRequest(requester.id, 315000);
+    const requested = await requestJson(`/advance-requests/${request.id}/reject`, {
+      body: { expectedVersion: request.version, reason: 'Chứng từ tạm ứng không hợp lệ' },
+      idempotencyKey: `q15-advance-reject-${request.id}`,
+      userId: managerActor.id,
+    });
+    assert.equal(requested.status, 201, JSON.stringify(requested.data));
+    assert.equal(requested.data.actionKind, 'ADVANCE_REQUEST_REJECTION');
+
+    const [beforeCheck] = await db.select().from(s.advanceRequests)
+      .where(eq(s.advanceRequests.id, request.id))
+      .limit(1);
+    assert.equal(beforeCheck.status, 'PENDING');
+    assert.equal(beforeCheck.approvedBy, null);
+    const ledgerBefore = await db.select().from(s.ledger).where(and(
+      eq(s.ledger.txnType, TxnType.FORWARDER_ADVANCE),
+      eq(s.ledger.txnId, request.id),
+    ));
+    assert.equal(ledgerBefore.length, 0);
+
+    const checked = await requestJson(`/governance-actions/${requested.data.id}/check`, {
+      body: { expectedVersion: requested.data.version },
+      idempotencyKey: `q15-advance-reject-check-${request.id}`,
+      userId: accountantActor.id,
+    });
+    assert.equal(checked.status, 200, JSON.stringify(checked.data));
+    const [afterCheck] = await db.select().from(s.advanceRequests)
+      .where(eq(s.advanceRequests.id, request.id))
+      .limit(1);
+    assert.equal(afterCheck.status, 'PENDING');
+
+    const actionId = Number(requested.data.id);
+    assert.equal(Number.isInteger(actionId), true);
+    const approvedDecision = await requestJson(`/governance-actions/${actionId}/approve`, {
+      body: { expectedVersion: checked.data.version },
+      idempotencyKey: `q15-advance-reject-approve-${request.id}`,
+      userId: actor.id,
+    });
+    assert.equal(approvedDecision.status, 200, JSON.stringify(approvedDecision.data));
+    const [rejected, action] = await Promise.all([
+      db.select().from(s.advanceRequests)
+        .where(eq(s.advanceRequests.id, request.id))
+        .limit(1)
+        .then((rows) => rows[0]),
+      db.select().from(s.governanceActions)
+        .where(eq(s.governanceActions.id, actionId))
+        .limit(1)
+        .then((rows) => rows[0]),
+    ]);
+    assert.ok(rejected);
+    assert.ok(action);
+    assert.equal(rejected.status, 'REJECTED');
+    assert.equal(new Set([action.makerId, action.checkerId, action.approverId]).size, 3);
+    const ledgerAfter = await db.select().from(s.ledger).where(and(
+      eq(s.ledger.txnType, TxnType.FORWARDER_ADVANCE),
+      eq(s.ledger.txnId, request.id),
+    ));
+    assert.equal(ledgerAfter.length, 0);
+  });
+
+  test('debt offset approval and cancel use governed replay and single-winner application', async () => {
+    const { customer, supplier } = await createLinkedCounterparties();
+    await postLedgerSeed('CUSTOMER', customer.id, TxnType.TRIP_REVENUE, 800000, 0, 'Q23 debt offset AR');
+    await postLedgerSeed('VENDOR', supplier.id, TxnType.VENDOR_EXPENSE, 0, 800000, 'Q23 debt offset AP');
+
+    const created = await requestJson('/finance/debt-offsets', {
+      body: {
+        customerId: customer.id,
+        supplierId: supplier.id,
+        offsetDate: '2026-07-28',
+        currency: 'VND',
+        note: 'Q23 debt offset',
+        minutesReference: `BB-Q23-${suffix}`,
+      },
+      idempotencyKey: `q23-offset-create-${customer.id}`,
+      userId: accountantActor.id,
+    });
+    assert.equal(created.status, 201, JSON.stringify(created.data));
+    const offsetId = Number(created.data.id);
+    debtOffsetIds.push(offsetId);
+
+    const requested = await requestJson(`/finance/debt-offsets/${offsetId}/approve`, {
+      body: { expectedVersion: 1, reason: 'Trình duyệt đối trừ' },
+      idempotencyKey: `q23-offset-approve-request-${offsetId}`,
+      userId: managerActor.id,
+    });
+    assert.equal(requested.status, 201, JSON.stringify(requested.data));
+    assert.equal(requested.data.actionKind, 'DEBT_OFFSET_APPROVAL');
+
+    const requestReplay = await requestJson(`/finance/debt-offsets/${offsetId}/approve`, {
+      body: { expectedVersion: 1, reason: 'Trình duyệt đối trừ' },
+      idempotencyKey: `q23-offset-approve-request-${offsetId}`,
+      userId: managerActor.id,
+    });
+    assert.equal(requestReplay.status, 200);
+    assert.equal(requestReplay.data.replayed, true);
+
+    const checked = await requestJson(`/governance-actions/${requested.data.id}/check`, {
+      body: { expectedVersion: requested.data.version },
+      idempotencyKey: `q23-offset-check-${offsetId}`,
+      userId: accountantActor.id,
+    });
+    assert.equal(checked.status, 200, JSON.stringify(checked.data));
+
+    const [approvedLeft, approvedRight] = await Promise.all([
+      requestJson(`/governance-actions/${requested.data.id}/approve`, {
+        body: { expectedVersion: checked.data.version },
+        idempotencyKey: `q23-offset-approve-left-${offsetId}`,
+        userId: actor.id,
+      }),
+      requestJson(`/governance-actions/${requested.data.id}/approve`, {
+        body: { expectedVersion: checked.data.version },
+        idempotencyKey: `q23-offset-approve-right-${offsetId}`,
+        userId: actor.id,
+      }),
+    ]);
+    assert.deepEqual([approvedLeft.status, approvedRight.status].sort((a, b) => a - b), [200, 409]);
+
+    const [approvedOffset] = await db.select({ status: s.debtOffsets.approvalStatus })
+      .from(s.debtOffsets)
+      .where(eq(s.debtOffsets.id, offsetId))
+      .limit(1);
+    assert.equal(approvedOffset?.status, 'APPROVED');
+
+    const approveEntries = await db.select({ id: s.ledger.id })
+      .from(s.ledger)
+      .where(and(eq(s.ledger.txnType, TxnType.ADJUSTMENT), eq(s.ledger.txnId, offsetId)));
+    assert.equal(approveEntries.length, 2);
+
+    const cancelRequested = await requestJson(`/finance/debt-offsets/${offsetId}/cancel`, {
+      body: { expectedVersion: 2, reason: 'Hoàn tác đối trừ Q23' },
+      idempotencyKey: `q23-offset-cancel-request-${offsetId}`,
+      userId: managerActor.id,
+    });
+    assert.equal(cancelRequested.status, 201, JSON.stringify(cancelRequested.data));
+
+    const cancelChecked = await requestJson(`/governance-actions/${cancelRequested.data.id}/check`, {
+      body: { expectedVersion: cancelRequested.data.version },
+      idempotencyKey: `q23-offset-cancel-check-${offsetId}`,
+      userId: accountantActor.id,
+    });
+    assert.equal(cancelChecked.status, 200, JSON.stringify(cancelChecked.data));
+
+    const canceled = await requestJson(`/governance-actions/${cancelRequested.data.id}/approve`, {
+      body: { expectedVersion: cancelChecked.data.version },
+      idempotencyKey: `q23-offset-cancel-approve-${offsetId}`,
+      userId: actor.id,
+    });
+    assert.equal(canceled.status, 200, JSON.stringify(canceled.data));
+
+    const [canceledOffset] = await db.select({ status: s.debtOffsets.approvalStatus })
+      .from(s.debtOffsets)
+      .where(eq(s.debtOffsets.id, offsetId))
+      .limit(1);
+    assert.equal(canceledOffset?.status, 'CANCELED');
+
+    const allAdjustmentEntries = await db.select({ id: s.ledger.id })
+      .from(s.ledger)
+      .where(and(eq(s.ledger.txnType, TxnType.ADJUSTMENT), eq(s.ledger.txnId, offsetId)));
+    assert.equal(allAdjustmentEntries.length, 4);
   });
 
   test('billing document create replays the original snapshot after later edits', async () => {

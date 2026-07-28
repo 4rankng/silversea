@@ -48,7 +48,7 @@ export type {
   ApprovalItemType,
   VehicleAlertField, VehicleAlertStatus, VehicleAlert,
   Tire, TirePosition,
-  BillingDocument, BillingDocumentLine, BillingDocumentType, BillingDocumentEntityType,
+  BillingDocument, BillingDocumentOfficialIdentitySnapshot, BillingDocumentLine, BillingDocumentType, BillingDocumentEntityType,
   BillingLineSourceType, BillingLineType, BillingDraftLine, BillingDocumentDraft,
   BillingLineProvenance, BillingLineProvenanceStatus, BillingDocumentAuthorityState, BillingDocumentCorrection,
   BillingDocumentAdjustmentRequest,

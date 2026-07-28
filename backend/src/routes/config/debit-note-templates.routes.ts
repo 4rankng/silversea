@@ -22,8 +22,40 @@ import { cacheInvalidate } from '../../lib/redis';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { getUser } from '../../middleware/auth';
 import { parsePagination } from '../utils/pagination';
+import { ApiError } from '../../errors';
+import { resolveIdempotencyKey, runIdempotent } from '../../services/idempotency.service';
+import {
+  registerGovernedCrudResource,
+  requestGovernedCrudCreate,
+  requestGovernedCrudDelete,
+  requestGovernedCrudUpdate,
+} from '../../services/price-config-governance.service';
 
 const router = Router();
+const COMMANDS = {
+  CREATE: 'config.debit-note-templates.create',
+  UPDATE: 'config.debit-note-templates.update',
+  DELETE: 'config.debit-note-templates.delete',
+} as const;
+
+function requireIdempotencyKey(req: Request, message: string): string {
+  const key = resolveIdempotencyKey({
+    headerValue: req.header('Idempotency-Key'),
+    requestId: req.body?._requestId,
+  });
+  if (!key) throw new ApiError(400, message);
+  return key;
+}
+
+function requireExpectedUpdatedAt(req: Request, message: string): Date {
+  const raw = req.header('If-Unmodified-Since')?.trim();
+  if (!raw) throw new ApiError(428, message);
+  const expected = new Date(raw);
+  if (Number.isNaN(expected.getTime())) {
+    throw new ApiError(400, 'Phiên bản dữ liệu không hợp lệ.');
+  }
+  return expected;
+}
 
 /** Clear every other active default of the same document type. */
 async function clearOtherDefaults(tx: Parameters<Parameters<typeof db.transaction>[0]>[0], documentType: string): Promise<void> {
@@ -35,6 +67,36 @@ async function clearOtherDefaults(tx: Parameters<Parameters<typeof db.transactio
       isNull(s.debitNoteTemplates.deletedAt),
     ));
 }
+
+registerGovernedCrudResource({
+  resource: 'debit-note-templates',
+  actionKind: 'PRICE_CONFIG_CHANGE',
+  subjectType: 'PRICE_CONFIG',
+  table: s.debitNoteTemplates,
+  deleteMode: 'soft',
+  reasonLabel: 'mẫu giấy báo nợ và thông tin phát hành chứng từ',
+  beforeCreate: async (data, _req, tx) => {
+    if (data.isDefault) {
+      await clearOtherDefaults(tx, String(data.documentType));
+    }
+    return data;
+  },
+  afterCreate: async () => {
+    await cacheInvalidate('catalogs:bootstrap');
+  },
+  beforeUpdate: async (_id, data, _req, tx) => {
+    if (data.isDefault) {
+      await clearOtherDefaults(tx, String(data.documentType));
+    }
+    return data;
+  },
+  afterUpdate: async () => {
+    await cacheInvalidate('catalogs:bootstrap');
+  },
+  afterDelete: async () => {
+    await cacheInvalidate('catalogs:bootstrap');
+  },
+});
 
 // GET / — list (search by name; default first, then by name)
 router.get('/', asyncHandler(async (req: Request, res: Response) => {
@@ -72,12 +134,23 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
 router.post('/', asyncHandler(async (req: Request, res: Response) => {
   const data = debitNoteTemplateSchema.parse(req.body);
   const createdBy = getUser(req).userId;
-  const rows = await db.transaction(async (tx) => {
-    if (data.isDefault) await clearOtherDefaults(tx, data.documentType);
-    return tx.insert(s.debitNoteTemplates).values({ ...data, createdBy }).returning();
+  const idempotencyKey = requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi tạo mẫu giấy báo nợ.');
+  const { result, replayed } = await runIdempotent({
+    endpoint: COMMANDS.CREATE,
+    idempotencyKey,
+    payload: data,
+    createdBy,
+    entityType: 'debit-note-templates',
+    responseStatusCode: 201,
+    create: (tx) => requestGovernedCrudCreate({
+      resource: 'debit-note-templates',
+      data: { ...data, createdBy },
+      makerId: createdBy,
+      makerRole: getUser(req).role,
+      transaction: tx,
+    }),
   });
-  await cacheInvalidate('catalogs:bootstrap');
-  res.status(201).json(rows[0]);
+  res.status(201).json({ ...result, replayed });
 }));
 
 // PUT /:id — update (full form; transactional single-default enforcement)
@@ -85,29 +158,55 @@ router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string, 10);
   if (!id || id < 1) return res.status(400).json({ error: 'ID không hợp lệ' });
   const data = debitNoteTemplateSchema.parse(req.body);
-  const rows = await db.transaction(async (tx) => {
-    if (data.isDefault) await clearOtherDefaults(tx, data.documentType);
-    return tx.update(s.debitNoteTemplates)
-      .set({ ...data, updatedAt: new Date() })
-      .where(and(eq(s.debitNoteTemplates.id, id), isNull(s.debitNoteTemplates.deletedAt)))
-      .returning();
+  const idempotencyKey = requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi cập nhật mẫu giấy báo nợ.');
+  const expectedUpdatedAt = requireExpectedUpdatedAt(
+    req,
+    'Thiếu phiên bản mẫu giấy báo nợ. Vui lòng tải lại trước khi cập nhật.',
+  );
+  const { result, replayed } = await runIdempotent({
+    endpoint: COMMANDS.UPDATE,
+    idempotencyKey,
+    payload: { id, body: data, expectedUpdatedAt: expectedUpdatedAt.toISOString() },
+    createdBy: req.user?.userId ?? null,
+    entityType: 'debit-note-templates',
+    create: (tx) => requestGovernedCrudUpdate({
+      resource: 'debit-note-templates',
+      id,
+      data,
+      makerId: getUser(req).userId,
+      makerRole: getUser(req).role,
+      expectedUpdatedAt,
+      transaction: tx,
+    }),
   });
-  if (!rows[0]) return res.status(404).json({ error: 'Không tìm thấy' });
-  await cacheInvalidate('catalogs:bootstrap');
-  res.json(rows[0]);
+  res.json({ ...result, replayed });
 }));
 
 // DELETE /:id — soft delete. Deleting the active default may leave zero defaults;
 // the resolver then falls back to the legacy renderer until a new default is set.
 router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string, 10);
-  const rows = await db.update(s.debitNoteTemplates)
-    .set({ deletedAt: new Date(), updatedAt: new Date() })
-    .where(and(eq(s.debitNoteTemplates.id, id), isNull(s.debitNoteTemplates.deletedAt)))
-    .returning();
-  if (!rows[0]) return res.status(404).json({ error: 'Không tìm thấy' });
-  await cacheInvalidate('catalogs:bootstrap');
-  res.json({ ok: true });
+  const idempotencyKey = requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi xóa mẫu giấy báo nợ.');
+  const expectedUpdatedAt = requireExpectedUpdatedAt(
+    req,
+    'Thiếu phiên bản mẫu giấy báo nợ. Vui lòng tải lại trước khi xóa.',
+  );
+  const { result, replayed } = await runIdempotent({
+    endpoint: COMMANDS.DELETE,
+    idempotencyKey,
+    payload: { id, expectedUpdatedAt: expectedUpdatedAt.toISOString() },
+    createdBy: req.user?.userId ?? null,
+    entityType: 'debit-note-templates',
+    create: (tx) => requestGovernedCrudDelete({
+      resource: 'debit-note-templates',
+      id,
+      makerId: getUser(req).userId,
+      makerRole: getUser(req).role,
+      expectedUpdatedAt,
+      transaction: tx,
+    }),
+  });
+  res.json({ ...result, replayed });
 }));
 
 export default router;

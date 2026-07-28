@@ -86,9 +86,7 @@ for suite in "${SUITES[@]}"; do
         continue
     fi
     echo ""
-    python3 "$MATCH"
-    EXIT_CODE=$?
-    if [ $EXIT_CODE -ne 0 ]; then
+    if ! python3 "$MATCH"; then
         FAILED_SUITES+=("$suite")
     fi
 done
@@ -125,3 +123,7 @@ if failed > 0:
 echo "============================================================"
 echo ""
 echo "📁 Screenshots & results: $NEPO_SCREENSHOTS"
+
+if [ ${#FAILED_SUITES[@]} -ne 0 ]; then
+    exit 1
+fi

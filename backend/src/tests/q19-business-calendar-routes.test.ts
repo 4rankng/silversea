@@ -5,7 +5,7 @@ import type { AddressInfo } from 'node:net';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { inArray } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 import { Role } from '@tingting/shared';
 import { db, client } from '../db';
@@ -16,10 +16,16 @@ import { authMiddleware } from '../middleware/auth';
 import { casbinAuthz } from '../middleware/casbin';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import configRoutes from '../routes/config';
+import { disconnectRedis } from '../lib/redis';
+import {
+  approveGovernanceAction,
+  checkGovernanceAction,
+} from '../services/adjustment-governance.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdUserIds: number[] = [];
 const createdCalendarIds: number[] = [];
+const createdGovernanceActionIds: number[] = [];
 const createdIdempotencyKeys = [
   `q19-invalid-date-${suffix}`,
   `q19-create-${suffix}`,
@@ -30,6 +36,8 @@ let server: http.Server;
 let baseUrl: string;
 let adminToken: string;
 let managerToken: string;
+let accountantId: number;
+let managerId: number;
 
 async function mkUser(username: string, role: Role) {
   const [user] = await db.insert(s.users).values({
@@ -72,6 +80,24 @@ async function request(
   return { status: response.status, body };
 }
 
+async function approvePendingAction(action: { id: number; version: number; status: string }) {
+  createdGovernanceActionIds.push(action.id);
+  assert.equal(action.status, 'PENDING_CHECK');
+  const checked = await checkGovernanceAction({
+    actionId: action.id,
+    checkerId: accountantId,
+    checkerRole: Role.ACCOUNTANT,
+    expectedVersion: action.version,
+  });
+  const approved = await approveGovernanceAction({
+    actionId: action.id,
+    approverId: managerId,
+    approverRole: Role.MANAGER,
+    expectedVersion: checked.version,
+  });
+  assert.equal(approved.status, 'APPROVED');
+}
+
 before(async () => {
   await initEnforcer();
   const app = express();
@@ -86,7 +112,10 @@ before(async () => {
     });
   });
   adminToken = sign(await mkUser(`q19-admin-${suffix}`, Role.ADMIN));
-  managerToken = sign(await mkUser(`q19-manager-${suffix}`, Role.MANAGER));
+  const manager = await mkUser(`q19-manager-${suffix}`, Role.MANAGER);
+  managerId = manager.id;
+  managerToken = sign(manager);
+  accountantId = (await mkUser(`q19-accountant-${suffix}`, Role.ACCOUNTANT)).id;
 });
 
 after(async () => {
@@ -94,6 +123,10 @@ after(async () => {
     server.close((error) => error ? reject(error) : resolve());
     server.closeAllConnections();
   });
+  if (createdGovernanceActionIds.length > 0) {
+    await db.delete(s.governanceActions)
+      .where(inArray(s.governanceActions.id, createdGovernanceActionIds));
+  }
   if (createdCalendarIds.length > 0) {
     await db.delete(s.businessCalendarDays)
       .where(inArray(s.businessCalendarDays.id, createdCalendarIds));
@@ -101,10 +134,11 @@ after(async () => {
   await db.delete(s.idempotencyKeys)
     .where(inArray(s.idempotencyKeys.idempotencyKey, createdIdempotencyKeys));
   if (createdUserIds.length > 0) {
+    await db.delete(s.notifications).where(inArray(s.notifications.userId, createdUserIds));
     await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
   }
+  await disconnectRedis();
   await client.end();
-  process.exit(0);
 });
 
 describe('Q19 business-calendar route authority and completeness', () => {
@@ -148,18 +182,27 @@ describe('Q19 business-calendar route authority and completeness', () => {
       idempotencyKey: `q19-create-${suffix}`,
       body: { calendarDate: '2096-12-31', name: `Q19 API ${suffix}`, isWorkingDay: false },
     });
-    assert.equal(created.status, 201);
-    createdCalendarIds.push(created.body.id);
+    assert.equal(created.status, 201, JSON.stringify(created.body));
+    await approvePendingAction(created.body);
+    const [createdRow] = await db.select().from(s.businessCalendarDays)
+      .where(eq(s.businessCalendarDays.calendarDate, '2096-12-31'))
+      .limit(1);
+    assert.ok(createdRow);
+    createdCalendarIds.push(createdRow.id);
 
-    const updated = await request(`/${created.body.id}`, {
+    const updated = await request(`/${createdRow.id}`, {
       method: 'PUT',
       token: adminToken,
       idempotencyKey: `q19-update-${suffix}`,
-      ifUnmodifiedSince: created.body.updatedAt,
+      ifUnmodifiedSince: createdRow.updatedAt.toISOString(),
       body: { name: `Q19 API updated ${suffix}`, isWorkingDay: true },
     });
-    assert.equal(updated.status, 200);
-    assert.equal(updated.body.isWorkingDay, true);
+    assert.equal(updated.status, 201, JSON.stringify(updated.body));
+    await approvePendingAction(updated.body);
+    const [updatedRow] = await db.select().from(s.businessCalendarDays)
+      .where(eq(s.businessCalendarDays.id, createdRow.id))
+      .limit(1);
+    assert.equal(updatedRow?.isWorkingDay, true);
 
     const listed = await request('/?limit=500', { token: adminToken });
     assert.equal(listed.status, 200);
@@ -172,13 +215,14 @@ describe('Q19 business-calendar route authority and completeness', () => {
         .sort(),
     );
 
-    const deleted = await request(`/${created.body.id}`, {
+    const deleted = await request(`/${createdRow.id}`, {
       method: 'DELETE',
       token: adminToken,
       idempotencyKey: `q19-delete-${suffix}`,
-      ifUnmodifiedSince: updated.body.updatedAt,
+      ifUnmodifiedSince: updatedRow!.updatedAt.toISOString(),
     });
-    assert.equal(deleted.status, 200);
-    createdCalendarIds.splice(createdCalendarIds.indexOf(created.body.id), 1);
+    assert.equal(deleted.status, 201, JSON.stringify(deleted.body));
+    await approvePendingAction(deleted.body);
+    createdCalendarIds.splice(createdCalendarIds.indexOf(createdRow.id), 1);
   });
 });

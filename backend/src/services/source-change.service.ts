@@ -1,6 +1,7 @@
 import { and, eq, gte, isNull, lte, or, sql } from 'drizzle-orm';
 import {
   BILLABLE_TRIP_STATUSES,
+  NotificationType,
   round2dp,
   TxnType,
   type BillingLineRenderData,
@@ -28,6 +29,7 @@ import {
   resolveCustomerPaymentDueDate,
   type PaymentDatePolicy,
 } from './business-calendar.service';
+import { persistNotificationInTx } from './notification.service';
 
 type DraftDocumentRow = typeof s.billingDocuments.$inferSelect;
 
@@ -232,7 +234,15 @@ async function loadMutableLinesTx(tx: Tx, documentId: number): Promise<MutableLi
     .from(s.billingDocumentLines)
     .where(eq(s.billingDocumentLines.documentId, documentId))
     .orderBy(s.billingDocumentLines.sortOrder, s.billingDocumentLines.id);
-  return rows.map((row) => ({
+  return rows.map((row) => {
+    const explicitSourceVersion = typeof row.sourceVersion === 'string' && row.sourceVersion.trim()
+      ? row.sourceVersion.trim()
+      : null;
+    const explicitSourceChangedAt = row.sourceChangedAt
+      ? row.sourceChangedAt.toISOString()
+      : null;
+    const renderData = (row.renderData as BillingLineRenderData | null) ?? null;
+    return {
     id: row.id,
     sourceType: row.sourceType as MutableLine['sourceType'],
     sourceId: row.sourceId ?? null,
@@ -242,12 +252,26 @@ async function loadMutableLinesTx(tx: Tx, documentId: number): Promise<MutableLi
     description: row.description,
     routeName: row.routeName,
     containerNumbers: row.containerNumbers ? row.containerNumbers.split(',').map((part) => part.trim()).filter(Boolean) : null,
-    renderData: (row.renderData as BillingLineRenderData | null) ?? null,
+    renderData: renderData
+      ? {
+          ...renderData,
+          ...(explicitSourceVersion ? { sourceVersion: explicitSourceVersion } : {}),
+          ...(explicitSourceChangedAt ? { sourceChangedAt: explicitSourceChangedAt } : {}),
+        }
+      : (
+          explicitSourceVersion || explicitSourceChangedAt
+            ? {
+                ...(explicitSourceVersion ? { sourceVersion: explicitSourceVersion } : {}),
+                ...(explicitSourceChangedAt ? { sourceChangedAt: explicitSourceChangedAt } : {}),
+              } as BillingLineRenderData
+            : null
+        ),
     baseAmount: Number(row.baseAmount),
-    amountOverride: row.amountOverride != null ? Number(row.amountOverride) : null,
-    excluded: row.excluded,
-    sortOrder: row.sortOrder,
-  }));
+      amountOverride: row.amountOverride != null ? Number(row.amountOverride) : null,
+      excluded: row.excluded,
+      sortOrder: row.sortOrder,
+    };
+  });
 }
 
 async function persistMutableLinesTx(tx: Tx, documentId: number, lines: MutableLine[]): Promise<void> {
@@ -257,6 +281,12 @@ async function persistMutableLinesTx(tx: Tx, documentId: number, lines: MutableL
     documentId,
     sourceType: line.sourceType,
     sourceId: line.sourceId,
+    sourceVersion: typeof line.renderData?.sourceVersion === 'string'
+      ? line.renderData.sourceVersion
+      : null,
+    sourceChangedAt: typeof line.renderData?.sourceChangedAt === 'string'
+      ? new Date(line.renderData.sourceChangedAt)
+      : null,
     lineType: line.lineType,
     typeLabel: line.typeLabel,
     unit: line.unit,
@@ -285,6 +315,9 @@ async function saveDraftDocumentLinesTx(
     .set({
       totalInclVat: String(total),
       ledgerAdjustmentAmount: String(desiredAdjustment),
+      authorityState: 'CURRENT',
+      authorityWarningReason: null,
+      authorityWarningAt: null,
       updatedAt: new Date(),
     })
     .where(eq(s.billingDocuments.id, document.id));
@@ -298,6 +331,42 @@ async function saveDraftDocumentLinesTx(
       processingDueDate: document.processingDueDate,
       paymentTermDaysApplied: document.paymentTermDaysApplied,
       paymentDatePolicyApplied: document.paymentDatePolicyApplied as PaymentDatePolicy | null,
+    });
+  }
+}
+
+async function markIssuedDocumentSourceDriftTx(
+  tx: Tx,
+  documentId: number,
+  message: string,
+): Promise<void> {
+  const [document] = await tx.select({
+    id: s.billingDocuments.id,
+    entityId: s.billingDocuments.entityId,
+    authorityState: s.billingDocuments.authorityState,
+  })
+    .from(s.billingDocuments)
+    .where(and(eq(s.billingDocuments.id, documentId), isNull(s.billingDocuments.deletedAt)))
+    .limit(1)
+    .for('update');
+  if (!document) return;
+
+  await tx.update(s.billingDocuments)
+    .set({
+      authorityState: 'ADJUSTMENT_REQUIRED',
+      authorityWarningReason: message,
+      authorityWarningAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(s.billingDocuments.id, document.id));
+
+  if (document.authorityState !== 'ADJUSTMENT_REQUIRED') {
+    await persistNotificationInTx(tx, {
+      type: NotificationType.SYSTEM_ANNOUNCEMENT,
+      title: 'Giấy báo nợ cần điều chỉnh theo nguồn',
+      message,
+      relatedEntityType: 'billing_documents',
+      relatedEntityId: document.id,
     });
   }
 }
@@ -406,6 +475,23 @@ async function syncSourceAcrossDraftDocumentsTx(
   }
 }
 
+async function collectIssuedDocumentIdsForSourceTx(
+  tx: Tx,
+  sourceType: 'TRIP' | 'EXPENSE',
+  sourceId: number,
+): Promise<number[]> {
+  const rows = await tx.select({ documentId: s.billingDocumentLines.documentId })
+    .from(s.billingDocumentLines)
+    .innerJoin(s.billingDocuments, eq(s.billingDocuments.id, s.billingDocumentLines.documentId))
+    .where(and(
+      eq(s.billingDocumentLines.sourceType, sourceType),
+      eq(s.billingDocumentLines.sourceId, sourceId),
+      isNull(s.billingDocuments.deletedAt),
+      sql`coalesce(${s.billingDocuments.debitNoteStatus}, 'DRAFT') <> 'DRAFT'`,
+    ));
+  return [...new Set(rows.map((row) => row.documentId))];
+}
+
 async function appendLateApprovedServiceFeeTx(tx: Tx, expenseId: number): Promise<void> {
   const [expense] = await tx.select({
     expenseId: s.tripExpenses.id,
@@ -484,6 +570,14 @@ export async function propagateTripFinancialSourceChange(tx: Tx, input: {
 }): Promise<void> {
   const desired = await buildTripDraftLineTx(tx, input.tripId);
   await syncSourceAcrossDraftDocumentsTx(tx, 'TRIP', input.tripId, desired);
+  const issuedDocumentIds = await collectIssuedDocumentIdsForSourceTx(tx, 'TRIP', input.tripId);
+  for (const documentId of issuedDocumentIds) {
+    await markIssuedDocumentSourceDriftTx(
+      tx,
+      documentId,
+      `Nguồn chuyến #${input.tripId} đã thay đổi sau khi phát hành giấy báo nợ. Vui lòng lập điều chỉnh hoặc hoàn tác theo quy trình.`,
+    );
+  }
 }
 
 export async function propagateExpenseApproval(tx: Tx, input: {
@@ -492,6 +586,14 @@ export async function propagateExpenseApproval(tx: Tx, input: {
   await appendLateApprovedServiceFeeTx(tx, input.expenseId);
   const desired = await buildExpenseDraftLineTx(tx, input.expenseId);
   await syncSourceAcrossDraftDocumentsTx(tx, 'EXPENSE', input.expenseId, desired);
+  const issuedDocumentIds = await collectIssuedDocumentIdsForSourceTx(tx, 'EXPENSE', input.expenseId);
+  for (const documentId of issuedDocumentIds) {
+    await markIssuedDocumentSourceDriftTx(
+      tx,
+      documentId,
+      `Chi phí #${input.expenseId} đã thay đổi sau khi phát hành giấy báo nợ. Vui lòng lập điều chỉnh hoặc hoàn tác theo quy trình.`,
+    );
+  }
 }
 
 export async function propagateExpenseApprovals(tx: Tx, expenseIds: readonly number[]): Promise<void> {

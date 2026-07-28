@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GovernanceActionRecord } from '../api/financialClient';
+import { api } from '../lib/api';
 
 const {
   approveMutateAsyncMock,
@@ -119,6 +120,68 @@ describe('GovernanceActionsPage', () => {
     expect(screen.getByText('Quyền xử lý từ máy chủ:').parentElement?.textContent).toContain('Kiểm tra');
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Kiểm tra' }).disabled).toBe(false);
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Phê duyệt' }).disabled).toBe(true);
+  });
+
+  it('labels salary issue and official posting operations distinctly from period close', async () => {
+    governanceQueueState.data = [
+      makeAction({
+        id: 511,
+        afterSnapshot: { operation: 'ISSUE_PAYSLIPS', period: '2026-07' },
+      }),
+      makeAction({
+        id: 512,
+        afterSnapshot: { operation: 'POST_OFFICIAL', period: '2026-07' },
+      }),
+    ];
+
+    renderPage();
+
+    expect(await screen.findByText('Phát hành phiếu lương')).toBeTruthy();
+    expect(screen.getByText('Hạch toán lương chính thức')).toBeTruthy();
+    expect(screen.queryByText('Chốt kỳ lương')).toBeNull();
+  });
+
+  it('checks a salary issue request through its period-bound decision route', async () => {
+    const post = vi.spyOn(api, 'post').mockResolvedValue({});
+    governanceQueueState.data = [makeAction({
+      id: 511,
+      subjectKey: '2026-07',
+      version: 6,
+      afterSnapshot: { operation: 'ISSUE_PAYSLIPS', period: '2026-07' },
+      allowedActions: ['CHECK'],
+    })];
+
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Kiểm tra' }));
+
+    await waitFor(() => {
+      expect(post).toHaveBeenCalledWith(
+        '/salary/periods/2026-07/issue-actions/511/check',
+        { expectedVersion: 6 },
+      );
+    });
+    expect(checkMutateAsyncMock).not.toHaveBeenCalled();
+    expect(queueRefetchMock).toHaveBeenCalled();
+  });
+
+  it('shows the pending trip-expense decision and typed evidence without claiming it is applied', async () => {
+    governanceQueueState.data = [makeAction({
+      actionKind: 'TRIP_EXPENSE_APPROVAL',
+      subjectType: 'TRIP_EXPENSE',
+      afterSnapshot: { decision: 'APPROVED', tripId: 77 },
+      deltaSnapshot: {
+        evidence: {
+          reviewNote: 'Đã đối chiếu biên nhận hiện trường.',
+          attachmentRefs: ['PHOTO-123'],
+        },
+      },
+    })];
+    renderPage();
+
+    expect(await screen.findByText('Đề nghị phê duyệt', { exact: false })).toBeTruthy();
+    expect(screen.getByText(/Đã đối chiếu biên nhận hiện trường/)).toBeTruthy();
+    expect(screen.getByText(/PHOTO-123/)).toBeTruthy();
+    expect(screen.getByText(/Chi phí vẫn chờ xử lý/)).toBeTruthy();
   });
 
   it('lists pending actions by default and reveals completed history under Tất cả', async () => {

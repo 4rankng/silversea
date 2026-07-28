@@ -49,6 +49,12 @@ export function globalErrorHandler(err: Error, req: Request, res: Response, _nex
     res.status(409).json({ error: `${field} đã tồn tại` });
     return;
   }
+  if (pgCode === '40P01' || pgCode === '40001' || pgCode === '55P03') {
+    res.status(409).json({
+      error: 'Dữ liệu đã được xử lý đồng thời. Vui lòng tải lại và thử lại.',
+    });
+    return;
+  }
 
   // Generic server error
   const isDev = config.nodeEnv === 'development';

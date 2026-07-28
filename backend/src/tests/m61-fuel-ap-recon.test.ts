@@ -7,7 +7,8 @@
  */
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { inArray, sql } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
+import { Role } from '@tingting/shared';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
@@ -18,6 +19,10 @@ import {
   getFuelInvoice,
   updateFuelInvoice,
 } from '../services/fuel-invoice.service';
+import {
+  approveGovernanceAction,
+  checkGovernanceAction,
+} from '../services/adjustment-governance.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdTripIds: number[] = [];
@@ -27,11 +32,16 @@ const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
 const createdCustomerIds: number[] = [];
 const createdExpenseIds: number[] = [];
+const createdSettlementExpenseIds: number[] = [];
+const createdSettlementIds: number[] = [];
 const createdFuelInvoiceIds: number[] = [];
 const createdFuelAllocationIds: number[] = [];
 const createdUserIds: number[] = [];
+const createdGovernanceActionIds: number[] = [];
 
 let managerUserId: number;
+let accountantUserId: number;
+let adminUserId: number;
 
 async function mkSupplier(isFuel = true) {
   const [sup] = await db.insert(s.suppliers).values({
@@ -50,15 +60,38 @@ async function mkTruck() {
   return t;
 }
 
-async function mkUser() {
+async function mkUser(role: typeof Role[keyof typeof Role]) {
   const [user] = await db.insert(s.users).values({
-    username: `m61-manager-${suffix}-${createdUserIds.length}`,
+    username: `m61-${role.toLowerCase()}-${suffix}-${createdUserIds.length}`,
     passwordHash: 'x',
-    role: 'MANAGER',
+    role,
     status: 'ACTIVE',
   }).returning();
   createdUserIds.push(user.id);
   return user;
+}
+
+async function governFuelInvoiceApproval(invoiceId: number, version: number) {
+  const action = await approveFuelInvoice(
+    invoiceId,
+    managerUserId,
+    Role.MANAGER,
+    version,
+    'Đề nghị duyệt hóa đơn nhiên liệu đã đối soát',
+  );
+  createdGovernanceActionIds.push(action.id);
+  const checked = await checkGovernanceAction({
+    actionId: action.id,
+    checkerId: accountantUserId,
+    checkerRole: Role.ACCOUNTANT,
+    expectedVersion: action.version,
+  });
+  return approveGovernanceAction({
+    actionId: action.id,
+    approverId: adminUserId,
+    approverRole: Role.ADMIN,
+    expectedVersion: checked.version,
+  });
 }
 
 async function mkCustomer() {
@@ -84,12 +117,14 @@ async function mkTrip(opts: {
   truckId?: number;
   totalFuelCost: string;
   departureDate: string;
+  completedAt?: Date;
 }) {
   const cust = await mkCustomer(); const route = await mkRoute(); const cargo = await mkCargo();
   const [t] = await db.insert(s.trips).values({
     tripCode: `M61-${suffix}-${createdTripIds.length}`.slice(0, 50),
     customerId: cust.id, routeId: route.id, cargoTypeId: cargo.id,
     status: 'COMPLETED', departureDate: opts.departureDate, carrierType: 'OWN',
+    completedAt: opts.completedAt ?? new Date(`${opts.departureDate}T05:00:00.000Z`),
     fuelSupplierId: opts.supplierId,
     truckId: opts.truckId ?? null,
     totalFuelCost: opts.totalFuelCost,
@@ -107,6 +142,7 @@ async function mkFuelExpense(opts: {
   declarationNumber?: string | null;
   invoiceDate?: string;
   expenseType?: string;
+  approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
 }) {
   const [e] = await db.insert(s.tripExpenses).values({
     tripId: opts.tripId,
@@ -118,10 +154,74 @@ async function mkFuelExpense(opts: {
     invoiceNumber: opts.invoiceNumber ?? null,
     declarationNumber: opts.declarationNumber ?? null,
     invoiceDate: opts.invoiceDate ?? null,
-    approvalStatus: 'APPROVED',
+    approvalStatus: opts.approvalStatus ?? 'APPROVED',
   }).returning();
   createdExpenseIds.push(e.id);
   return e;
+}
+
+async function mkApprovedSettlementCorrection(opts: {
+  expenseId: number;
+  forwarderId: number;
+  adjustedBuyAmount: string;
+}) {
+  const [expense] = await db.select({
+    tripId: s.tripExpenses.tripId,
+    expenseType: s.tripExpenses.expenseType,
+    buyAmount: s.tripExpenses.buyAmount,
+    sellAmount: s.tripExpenses.sellAmount,
+    containerNumber: s.tripExpenses.containerNumber,
+    invoiceNumber: s.tripExpenses.invoiceNumber,
+    invoiceDate: s.tripExpenses.invoiceDate,
+    declarationNumber: s.tripExpenses.declarationNumber,
+    note: s.tripExpenses.note,
+  }).from(s.tripExpenses).where(eq(s.tripExpenses.id, opts.expenseId)).limit(1);
+  assert.ok(expense, 'expense exists for settlement correction fixture');
+
+  const now = new Date();
+  const [settlement] = await db.insert(s.advanceSettlements).values({
+    code: `M61-STL-${suffix}-${createdSettlementIds.length}`.slice(0, 20),
+    forwarderId: opts.forwarderId,
+    totalExpenseAmount: opts.adjustedBuyAmount,
+    refundAmount: '0',
+    status: 'APPROVED',
+    approvedBy: opts.forwarderId,
+    approvedAt: now,
+    updatedAt: now,
+  }).returning({ id: s.advanceSettlements.id });
+  createdSettlementIds.push(settlement.id);
+
+  const [link] = await db.insert(s.settlementExpenses).values({
+    settlementId: settlement.id,
+    tripExpenseId: opts.expenseId,
+    originalBuyAmount: expense!.buyAmount,
+    adjustedBuyAmount: opts.adjustedBuyAmount,
+    submittedSellAmount: expense!.sellAmount,
+    originalSnapshot: {
+      expenseType: expense!.expenseType,
+      buyAmount: expense!.buyAmount,
+      sellAmount: expense!.sellAmount,
+      containerNumber: expense!.containerNumber,
+      invoiceNumber: expense!.invoiceNumber,
+      invoiceDate: expense!.invoiceDate,
+      declarationNumber: expense!.declarationNumber,
+      note: expense!.note,
+    },
+    adjustedSnapshot: {
+      expenseType: expense!.expenseType,
+      buyAmount: opts.adjustedBuyAmount,
+      sellAmount: expense!.sellAmount,
+      containerNumber: expense!.containerNumber,
+      invoiceNumber: expense!.invoiceNumber,
+      invoiceDate: expense!.invoiceDate,
+      declarationNumber: expense!.declarationNumber,
+      note: expense!.note,
+    },
+    adjustmentReason: 'Q22 approved fuel correction',
+    adjustedBy: opts.forwarderId,
+    adjustedAt: now,
+  }).returning({ id: s.settlementExpenses.id });
+  createdSettlementExpenseIds.push(link.id);
 }
 
 async function mkFuelInvoice(opts: {
@@ -173,8 +273,11 @@ async function mkFuelAllocation(opts: {
 after(async () => {
   const namePattern = `M61 %${suffix}%`;
   try {
+    if (createdGovernanceActionIds.length > 0) await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, createdGovernanceActionIds));
     if (createdFuelAllocationIds.length > 0) await db.delete(s.fuelInvoiceAllocations).where(inArray(s.fuelInvoiceAllocations.id, createdFuelAllocationIds));
     if (createdFuelInvoiceIds.length > 0) await db.delete(s.fuelInvoices).where(inArray(s.fuelInvoices.id, createdFuelInvoiceIds));
+    if (createdSettlementExpenseIds.length > 0) await db.delete(s.settlementExpenses).where(inArray(s.settlementExpenses.id, createdSettlementExpenseIds));
+    if (createdSettlementIds.length > 0) await db.delete(s.advanceSettlements).where(inArray(s.advanceSettlements.id, createdSettlementIds));
     if (createdExpenseIds.length > 0) await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.id, createdExpenseIds));
     if (createdTripIds.length > 0) await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
     if (createdTruckIds.length > 0) await db.delete(s.trucks).where(inArray(s.trucks.id, createdTruckIds));
@@ -189,7 +292,9 @@ after(async () => {
 
 describe('M6.1 — getFuelApReconciliation', () => {
   test('setup finance approver', async () => {
-    managerUserId = (await mkUser()).id;
+    managerUserId = (await mkUser(Role.MANAGER)).id;
+    accountantUserId = (await mkUser(Role.ACCOUNTANT)).id;
+    adminUserId = (await mkUser(Role.ADMIN)).id;
     assert.ok(managerUserId > 0);
   });
 
@@ -228,6 +333,32 @@ describe('M6.1 — getFuelApReconciliation', () => {
     assert.equal(row!.expectedFuelCost, 1_000_000);
     assert.equal(row!.invoicedFuelCost, 1_030_000);
     assert.equal(row!.status, 'OK');
+  });
+
+  test('pending and rejected fuel expenses stay out of cost reporting until approved', async () => {
+    const sup = await mkSupplier();
+    const t = await mkTrip({ supplierId: sup.id, totalFuelCost: '1000000', departureDate: '2026-06-12' });
+    await mkFuelExpense({
+      tripId: t.id,
+      supplierId: sup.id,
+      buyAmount: '400000',
+      invoiceDate: '2026-06-20',
+      approvalStatus: 'PENDING',
+    });
+    await mkFuelExpense({
+      tripId: t.id,
+      supplierId: sup.id,
+      buyAmount: '500000',
+      invoiceDate: '2026-06-20',
+      approvalStatus: 'REJECTED',
+    });
+
+    const report = await getFuelApReconciliation({ from: '2026-06-01', to: '2026-06-30', supplierId: sup.id });
+    const row = report.suppliers.find((supplier) => supplier.supplierId === sup.id);
+    assert.ok(row);
+    assert.equal(row!.expectedFuelCost, 1_000_000);
+    assert.equal(row!.invoicedFuelCost, 0, 'non-approved expenses must not enter the report');
+    assert.equal(row!.status, 'VARIANCE');
   });
 
   test('variance exceeds threshold → status=VARIANCE', async () => {
@@ -333,6 +464,36 @@ describe('M6.1 — getFuelApReconciliation', () => {
     assert.equal(row!.invoicedFuelCost, 0, 'may invoice excluded from june recon');
   });
 
+  test('approved settlement correction becomes the authoritative invoiced cost without overwriting the expense row', async () => {
+    const sup = await mkSupplier();
+    const t = await mkTrip({ supplierId: sup.id, totalFuelCost: '275000', departureDate: '2026-06-18' });
+    const expense = await mkFuelExpense({
+      tripId: t.id,
+      supplierId: sup.id,
+      buyAmount: '300000',
+      invoiceDate: '2026-06-20',
+      approvalStatus: 'APPROVED',
+    });
+    await mkApprovedSettlementCorrection({
+      expenseId: expense.id,
+      forwarderId: managerUserId,
+      adjustedBuyAmount: '275000',
+    });
+
+    const [persistedExpense] = await db.select({ buyAmount: s.tripExpenses.buyAmount })
+      .from(s.tripExpenses)
+      .where(eq(s.tripExpenses.id, expense.id))
+      .limit(1);
+    assert.equal(persistedExpense?.buyAmount, '300000', 'raw approved expense remains unchanged');
+
+    const report = await getFuelApReconciliation({ from: '2026-06-01', to: '2026-06-30', supplierId: sup.id });
+    const row = report.suppliers.find((supplier) => supplier.supplierId === sup.id);
+    assert.ok(row);
+    assert.equal(row!.expectedFuelCost, 275_000);
+    assert.equal(row!.invoicedFuelCost, 275_000, 'report must use the approved corrected amount');
+    assert.equal(row!.status, 'OK');
+  });
+
   test('expense without invoiceDate falls back to createdAt', async () => {
     const sup = await mkSupplier();
     const t = await mkTrip({ supplierId: sup.id, totalFuelCost: '1000000', departureDate: '2026-06-10' });
@@ -397,7 +558,7 @@ describe('M6.1 — getFuelApReconciliation', () => {
       amount: '1000000',
     });
 
-    await approveFuelInvoice(invoice.id, managerUserId, 'MANAGER');
+    await governFuelInvoiceApproval(invoice.id, invoice.updatedAt.getTime());
 
     const report = await getFuelApReconciliation({ from: '2026-06-01', to: '2026-06-30', supplierId: sup.id });
     const row = report.suppliers.find((supplier) => supplier.supplierId === sup.id);
@@ -476,7 +637,7 @@ describe('M6.1 — getFuelApReconciliation', () => {
     createdFuelInvoiceIds.push(created.id);
 
     await assert.rejects(
-      () => approveFuelInvoice(created.id, managerUserId + 1, 'MANAGER'),
+      () => approveFuelInvoice(created.id, managerUserId + 1, 'MANAGER', created.version),
       (err: Error & { statusCode?: number }) =>
         err.statusCode === 400 && /chưa liên kết chi phí nhiên liệu thực tế đã duyệt/i.test(err.message),
     );
@@ -494,7 +655,7 @@ describe('M6.1 — getFuelApReconciliation', () => {
         voucherDate: '2026-06-10',
         liters: 100,
       }],
-    });
+    }, created.version);
     const detail = await getFuelInvoice(created.id);
     assert.equal(detail.allocations[0]?.amount, '2000000.00');
   });
@@ -531,7 +692,7 @@ describe('M6.1 — getFuelApReconciliation', () => {
     });
 
     await assert.rejects(
-      () => approveFuelInvoice(invoice.id, managerUserId, 'MANAGER'),
+      () => approveFuelInvoice(invoice.id, managerUserId, 'MANAGER', invoice.updatedAt.getTime()),
       (err: Error & { statusCode?: number }) =>
         err.statusCode === 400 && /không khớp hóa đơn/i.test(err.message),
     );

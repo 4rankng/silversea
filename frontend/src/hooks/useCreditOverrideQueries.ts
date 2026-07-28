@@ -54,6 +54,20 @@ export function useApproveCreditOverrideRequest(filtersToRefresh: CreditOverride
   });
 }
 
+export function useCheckCreditOverrideRequest(filtersToRefresh: CreditOverrideListFilters[] = []) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, expectedVersion }: { id: number; expectedVersion: number }) =>
+      creditOverrideClient.checkRequest(id, expectedVersion),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: qk.creditOverrides.all });
+      for (const filters of filtersToRefresh) {
+        queryClient.invalidateQueries({ queryKey: qk.creditOverrides.list(filters) });
+      }
+    },
+  });
+}
+
 export function useRejectCreditOverrideRequest(filtersToRefresh: CreditOverrideListFilters[] = []) {
   const queryClient = useQueryClient();
   return useMutation({

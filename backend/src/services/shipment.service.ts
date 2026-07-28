@@ -22,15 +22,15 @@
 
 import { db } from '../db';
 import * as s from '../db/schema';
-import { and, count, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
-import { createTripCommand } from './trip-command.service';
 import { createTrip } from './trip.service';
 import { cacheInvalidate, cacheInvalidatePattern } from '../lib/redis';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import { NotificationType, validateContainerNumber } from '@tingting/shared';
 import { emitNotification } from './notification.service';
+import { resolveFreightPrice } from './pricing.service';
 import type { AuthUser } from '../middleware/auth';
 import {
   assertClerkCanAccessShipment,
@@ -78,6 +78,7 @@ export type ShipmentStatus =
 
 export interface CreateShipmentInput {
   customerId: number;
+  cargoTypeId?: number;
   responsibleUnitId?: number | null;
   bookingRef?: string | null;
   blNumber?: string | null;
@@ -93,6 +94,7 @@ export interface UpdateShipmentInput {
   expectedVersion?: number; // Required for optimistic-lock check
   version?: number;
   customerId?: number;
+  cargoTypeId?: number;
   responsibleUnitId?: number | null;
   bookingRef?: string | null;
   blNumber?: string | null;
@@ -119,6 +121,26 @@ export type ShipmentUpdateResult = typeof s.shipments.$inferSelect & {
   message?: string;
   notificationDelivered?: boolean;
 };
+
+type ShipmentAuthorityTripRow = Pick<
+  typeof s.trips.$inferSelect,
+  'id'
+  | 'version'
+  | 'shipmentId'
+  | 'customerId'
+  | 'routeId'
+  | 'cargoTypeId'
+  | 'departureDate'
+  | 'containerCount'
+  | 'vatRate'
+  | 'status'
+  | 'pricingSource'
+  | 'pricingFormula'
+  | 'pricingSnapshot'
+  | 'revenue'
+  | 'revenueOriginal'
+  | 'revenueEmptyReturn'
+>;
 
 export interface ShipmentContainerMutationResult {
   items: Awaited<ReturnType<typeof listShipmentContainers>>;
@@ -179,6 +201,86 @@ export function formatShipmentCode(id: number, createdAt: Date = new Date()): st
   return `SHP-${yy}${mm}-${String(id).padStart(5, '0')}`;
 }
 
+function buildFullPricingFormula(freightFormula: string, freightPrice: number, vatRate: number): string {
+  const vatPct = Math.round(vatRate * 1000) / 10;
+  return `${freightFormula} = ${freightPrice.toLocaleString('vi-VN')}đ; VAT ${vatPct}%`;
+}
+
+async function listLiveShipmentAuthorityTrips(tx: Tx, shipmentId: number): Promise<ShipmentAuthorityTripRow[]> {
+  return tx.select({
+    id: s.trips.id,
+    version: s.trips.version,
+    shipmentId: s.trips.shipmentId,
+    customerId: s.trips.customerId,
+    routeId: s.trips.routeId,
+    cargoTypeId: s.trips.cargoTypeId,
+    departureDate: s.trips.departureDate,
+    containerCount: s.trips.containerCount,
+    vatRate: s.trips.vatRate,
+    status: s.trips.status,
+    pricingSource: s.trips.pricingSource,
+    pricingFormula: s.trips.pricingFormula,
+    pricingSnapshot: s.trips.pricingSnapshot,
+    revenue: s.trips.revenue,
+    revenueOriginal: s.trips.revenueOriginal,
+    revenueEmptyReturn: s.trips.revenueEmptyReturn,
+  })
+    .from(s.trips)
+    .where(and(
+      eq(s.trips.shipmentId, shipmentId),
+      sql`${s.trips.status} <> 'CANCELED'`,
+      isNull(s.trips.deletedAt),
+    ))
+    .for('update');
+}
+
+async function syncShipmentAuthorityToTrips(
+  tx: Tx,
+  shipment: typeof s.shipments.$inferSelect,
+): Promise<void> {
+  const linkedTrips = await listLiveShipmentAuthorityTrips(tx, shipment.id);
+  if (linkedTrips.length === 0) return;
+
+  for (const trip of linkedTrips) {
+    const authoritativeCargoTypeId = shipment.cargoTypeId ?? trip.cargoTypeId;
+    if (authoritativeCargoTypeId == null) {
+      await tx.update(s.trips).set({
+        customerId: shipment.customerId,
+        sourceShipmentVersion: shipment.version,
+        version: trip.version + 1,
+        updatedAt: new Date(),
+      }).where(eq(s.trips.id, trip.id));
+      continue;
+    }
+
+    const freightPrice = await resolveFreightPrice({
+      customerId: shipment.customerId,
+      routeId: trip.routeId,
+      cargoTypeId: authoritativeCargoTypeId,
+      date: trip.departureDate,
+      containerCount: trip.containerCount ?? 1,
+    });
+    const revenue = freightPrice.price;
+    const vatRate = Number(trip.vatRate ?? 0);
+
+    await tx.update(s.trips).set({
+      customerId: shipment.customerId,
+      cargoTypeId: authoritativeCargoTypeId,
+      sourceShipmentVersion: shipment.version,
+      revenue: String(revenue),
+      revenueOriginal: String(revenue),
+      revenueEmptyReturn: String(revenue),
+      pricingSource: freightPrice.source,
+      pricingFormula: freightPrice.source === 'MANUAL'
+        ? freightPrice.formula
+        : buildFullPricingFormula(freightPrice.formula, revenue, vatRate),
+      pricingSnapshot: freightPrice.snapshot,
+      version: trip.version + 1,
+      updatedAt: new Date(),
+    }).where(eq(s.trips.id, trip.id));
+  }
+}
+
 function assertLegalTransition(from: ShipmentStatus, to: ShipmentStatus): void {
   if (from === to) return; // Idempotent — transitionShipmentStatus handles same-status no-op before calling.
   const allowed = LEGAL_TRANSITIONS[from] ?? [];
@@ -203,6 +305,7 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
   // 1. Insert the shipment row (DRAFT default, version 1).
   const [shipment] = await tx.insert(s.shipments).values({
     customerId: input.customerId,
+    cargoTypeId: input.cargoTypeId ?? null,
     responsibleUnitId,
     bookingRef: input.bookingRef ?? null,
     blNumber: input.blNumber ?? null,
@@ -381,19 +484,46 @@ export async function updateShipment(
       );
     }
 
-    if (actor && isClerkScopedUser(actor)) {
-      const classification = classifyClerkShipmentPatch(existing, {
-        customerId: input.customerId,
-        responsibleUnitId: input.responsibleUnitId,
-        bookingRef: input.bookingRef,
-        blNumber: input.blNumber,
-        expectedDeliveryDate: input.expectedDeliveryDate,
-        pickupLocation: input.pickupLocation,
-        deliveryLocation: input.deliveryLocation,
-        contactName: input.contactName,
-        contactPhone: input.contactPhone,
+    const planClassification = classifyClerkShipmentPatch(existing, {
+      customerId: input.customerId,
+      cargoTypeId: input.cargoTypeId,
+      responsibleUnitId: input.responsibleUnitId,
+      bookingRef: input.bookingRef,
+      blNumber: input.blNumber,
+      expectedDeliveryDate: input.expectedDeliveryDate,
+      pickupLocation: input.pickupLocation,
+      deliveryLocation: input.deliveryLocation,
+      contactName: input.contactName,
+      contactPhone: input.contactPhone,
+    });
+    const shipmentAuthorityChanged = planClassification.changedFields.some(
+      (field) => field === 'customerId' || field === 'cargoTypeId',
+    );
+
+    if (shipmentAuthorityChanged && existing.status !== 'DRAFT') {
+      const requesterId = actor?.userId ?? input.updatedBy ?? existing.updatedBy ?? existing.createdBy;
+      if (requesterId == null) {
+        throw new ApiError(400, 'Thiếu người gửi yêu cầu thay đổi lô hàng.');
+      }
+      const changeRequestId = await createShipmentChangeRequest(tx, {
+        shipment: existing,
+        sourceVersion: existing.version,
+        requestKind: 'PLAN_UPDATE',
+        requestedBy: requesterId,
+        beforeSnapshot: planClassification.beforeSnapshot,
+        afterSnapshot: planClassification.afterSnapshot,
       });
-      if (classification.mode === 'NOOP') {
+      return {
+        ...existing,
+        changeMode: 'REQUESTED' as const,
+        changeRequestId,
+        notificationDelivered: false,
+        message: 'Đã ghi nhận yêu cầu thay đổi kế hoạch.',
+      };
+    }
+
+    if (actor && isClerkScopedUser(actor)) {
+      if (planClassification.mode === 'NOOP') {
         return {
           ...existing,
           changeMode: 'NOOP' as const,
@@ -402,14 +532,14 @@ export async function updateShipment(
         };
       }
 
-      if (classification.mode === 'REQUESTED') {
+      if (planClassification.mode === 'REQUESTED') {
         const changeRequestId = await createShipmentChangeRequest(tx, {
           shipment: existing,
           sourceVersion: existing.version,
           requestKind: 'PLAN_UPDATE',
           requestedBy: actor.userId,
-          beforeSnapshot: classification.beforeSnapshot,
-          afterSnapshot: classification.afterSnapshot,
+          beforeSnapshot: planClassification.beforeSnapshot,
+          afterSnapshot: planClassification.afterSnapshot,
         });
         return {
           ...existing,
@@ -425,6 +555,7 @@ export async function updateShipment(
     const [updated] = await tx.update(s.shipments).set({
       version: nextVersion,
       ...(input.customerId != null ? { customerId: input.customerId } : {}),
+      ...(input.cargoTypeId !== undefined ? { cargoTypeId: input.cargoTypeId } : {}),
       ...(input.responsibleUnitId !== undefined ? { responsibleUnitId: input.responsibleUnitId } : {}),
       ...(input.bookingRef !== undefined ? { bookingRef: input.bookingRef } : {}),
       ...(input.blNumber !== undefined ? { blNumber: input.blNumber } : {}),
@@ -442,6 +573,10 @@ export async function updateShipment(
       updatedBy: input.updatedBy ?? null,
       updatedAt: new Date(),
     }).where(eq(s.shipments.id, id)).returning();
+
+    if (shipmentAuthorityChanged && updated.status === 'DRAFT') {
+      await syncShipmentAuthorityToTrips(tx, updated);
+    }
 
     return {
       ...updated,
@@ -592,11 +727,25 @@ export async function snapshotContainersIntoTrip(
     .where(
       and(
         eq(s.tripContainers.tripId, tripId),
-        eq(s.tripContainers.notes, SNAPSHOT_MARKER(shipmentId)),
+        or(
+          eq(s.tripContainers.notes, SNAPSHOT_MARKER(shipmentId)),
+          eq(s.tripContainers.sourceShipmentId, shipmentId),
+        ),
       ),
     )
     .limit(1);
   if (existing) return { copied: 0, skipped: true };
+
+  const [shipment] = await client.select({
+    id: s.shipments.id,
+    version: s.shipments.version,
+  })
+    .from(s.shipments)
+    .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
+    .limit(1);
+  if (!shipment) {
+    throw new ApiError(404, 'Không tìm thấy lô hàng');
+  }
 
   // 2. Pull the shipment's containers (only non-deleted shipment).
   const containers = await client.select().from(s.shipmentContainers)
@@ -610,6 +759,9 @@ export async function snapshotContainersIntoTrip(
   //    actually built out — this slice only carries the primary seal forward.
   const rows = containers.map((c) => ({
     tripId,
+    sourceShipmentId: shipment.id,
+    sourceShipmentContainerId: c.id,
+    sourceShipmentVersion: shipment.version,
     containerTypeId: c.containerTypeId,
     containerNumber: c.containerNumber,
     sealNumber: c.sealNumber,
@@ -632,7 +784,10 @@ export async function snapshotContainersIntoTrip(
 export interface ShipmentDetail {
   // Raw shipment row + the joined customer name (nullable: leftJoin, so a
   // hard-deleted customer yields customerName = null).
-  shipment: Awaited<ReturnType<typeof getShipment>> & { customerName: string | null };
+  shipment: Awaited<ReturnType<typeof getShipment>> & {
+    customerName: string | null;
+    cargoTypeName: string | null;
+  };
   containers: Awaited<ReturnType<typeof listShipmentContainers>>;
   documents: Awaited<ReturnType<typeof listShipmentDocuments>>;
   declarations: Awaited<ReturnType<typeof listShipmentDeclarations>>;
@@ -705,11 +860,19 @@ export async function getShipmentDetail(id: number, actor?: AuthUser): Promise<S
   // Join the customer name so the detail page can show a readable label
   // instead of "Khách hàng #{id}". leftJoin keeps the row even if the
   // customer was hard-deleted (customerName = null in that case).
-  const [joined] = await db.select({ customerName: s.customers.name })
+  const [joined] = await db.select({
+    customerName: s.customers.name,
+    cargoTypeName: s.cargoTypes.name,
+  })
     .from(s.shipments)
     .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
+    .leftJoin(s.cargoTypes, eq(s.shipments.cargoTypeId, s.cargoTypes.id))
     .where(eq(s.shipments.id, id));
-  const shipmentWithCustomer = { ...shipment, customerName: joined?.customerName ?? null };
+  const shipmentWithCustomer = {
+    ...shipment,
+    customerName: joined?.customerName ?? null,
+    cargoTypeName: joined?.cargoTypeName ?? null,
+  };
   const [containers, documents, declarations, statusHistory, pendingChangeRequests] = await Promise.all([
     listShipmentContainers(id),
     listShipmentDocuments(id),
@@ -783,6 +946,7 @@ function parsePlanUpdateSnapshot(snapshot: unknown): UpdateShipmentInput {
   const candidate = snapshot as Record<string, unknown>;
   return {
     customerId: typeof candidate.customerId === 'number' ? candidate.customerId : undefined,
+    cargoTypeId: typeof candidate.cargoTypeId === 'number' ? candidate.cargoTypeId : undefined,
     responsibleUnitId: typeof candidate.responsibleUnitId === 'number'
       ? candidate.responsibleUnitId
       : candidate.responsibleUnitId === null
@@ -1279,147 +1443,7 @@ export async function dispatchShipmentToTrip(
   if (transaction) {
     return dispatchShipmentToTripInTx(transaction, shipmentId, fulfillment, actor);
   }
-  // 1. Read the shipment (404 if missing). No `FOR UPDATE` — the partial
-  //    unique index `trips_shipment_id_live_uniq` is the concurrency guard.
-  const [shipment] = await db.select()
-    .from(s.shipments)
-    .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
-    .limit(1);
-  if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
-
-  // M3.2: check for expired DO (Delivery Order) documents before dispatch.
-  // An expired DO blocks dispatch — the operator must upload a renewed DO.
-  const expiredDocs = await checkExpiredDocuments(shipmentId);
-  if (expiredDocs.length > 0) {
-    throw new ApiError(
-      409,
-      `Lệnh giao hàng (D/O) đã hết hạn. Vui lòng tải lên D/O mới.`,
-    );
-  }
-
-  // M10.2 slice 2: advisory dispatch readiness. Compute the missing
-  // recommended fields once so both return paths (fresh dispatch + the
-  // idempotent short-circuit below) surface the same warnings. Advisory,
-  // not enforcing — the mandatory field set is pending customer sign-off
-  // (Q17 / M10.2 §1). The UI shows a confirm dialog; a follow-up slice
-  // flips enforcing on once confirmed.
-  const preDispatchWarnings = (await getDispatchReadiness(shipmentId)).missing;
-
-  // 2. Idempotent short-circuit FIRST: a live (non-CANCELED) trip is already
-  //    linked → return it with `created: false`, regardless of the shipment's
-  //    current status. This makes a retry after a successful dispatch safe
-  //    (the shipment is now IN_PROGRESS, which would otherwise trip the
-  //    DRAFT-only precondition below).
-  const [existingLiveTrip] = await db.select()
-    .from(s.trips)
-    .where(and(
-      eq(s.trips.shipmentId, shipmentId),
-      sql`${s.trips.status} <> 'CANCELED'`,
-    ))
-    .limit(1);
-  if (existingLiveTrip) {
-    return { trip: existingLiveTrip, created: false as const, preDispatchWarnings };
-  }
-
-  // 3. No existing live trip — this is a fresh dispatch. Require DRAFT: a
-  //    CANCELED shipment cannot be dispatched, and a shipment already advanced
-  //    past DRAFT without a linked trip is in an inconsistent state we refuse
-  //    to paper over. (Re-dispatch after a cancel-and-re-open is a future
-  //    Wave 2 audit-reason flow; for now the only way forward is a new
-  //    shipment.)
-  if (shipment.status !== 'DRAFT') {
-    throw new ApiError(
-      409,
-      `Không thể điều vận lô hàng ở trạng thái "${shipment.status}".`,
-    );
-  }
-
-  // 3. Create the trip via the canonical command (handles pricing lookup,
-  //    notification, cache invalidation). Customer comes from the shipment.
-  //    `createTripCommand` manages its own transaction; the trip's
-  //    `shipmentId` is NULL on insert, so this never trips the unique index.
-  const trip = await createTripCommand({
-    customerId: shipment.customerId,
-    routeId: fulfillment.routeId,
-    cargoTypeId: fulfillment.cargoTypeId,
-    containerTypeId: fulfillment.containerTypeId,
-    truckId: fulfillment.truckId ?? null,
-    driverId: fulfillment.driverId ?? null,
-    departureDate: fulfillment.departureDate,
-    customerReference: fulfillment.customerReference,
-    containerCount: fulfillment.containerCount,
-    creditApprovalRequestId: fulfillment.creditApprovalRequestId ?? null,
-    fuelMode: fulfillment.fuelMode,
-    createdBy: actor.userId,
-  }, { userId: actor.userId, role: actor.role });
-
-  // 4. Link + snapshot + transition in one tx. The UPDATE on trips.shipmentId
-  //    is the concurrency pinch point: if a concurrent dispatch already linked
-  //    a different trip, this UPDATE fails the partial unique index (23505).
-  //    We catch that, clean up the orphan trip we just created, and return the
-  //    winner's trip.
-  try {
-    await db.transaction(async (tx) => {
-      await tx.update(s.trips)
-        .set({ shipmentId })
-        .where(eq(s.trips.id, trip.id));
-
-      await snapshotContainersIntoTrip(shipmentId, trip.id, actor.userId, tx);
-
-      // Move shipment DRAFT → IN_PROGRESS. Guarded by `status = 'DRAFT'` so a
-      // concurrent status change can't double-advance; if zero rows match,
-      // the shipment was changed out from under us and we surface a 409.
-      const [updated] = await tx.update(s.shipments)
-        .set({ status: 'IN_PROGRESS', version: sql`${s.shipments.version} + 1`, updatedAt: new Date() })
-        .where(and(eq(s.shipments.id, shipmentId), eq(s.shipments.status, 'DRAFT')))
-        .returning({ id: s.shipments.id });
-      if (!updated) {
-        throw new ApiError(
-          409,
-          'Trạng thái lô hàng đã bị thay đổi bởi người khác. Vui lòng tải lại.',
-        );
-      }
-
-      await tx.insert(s.shipmentStatusHistory).values({
-        shipmentId,
-        fromStatus: 'DRAFT',
-        toStatus: 'IN_PROGRESS',
-        reason: `Điều vận sang chuyến ${trip.tripCode}`,
-        changedBy: actor.userId,
-      });
-    });
-  } catch (err) {
-    if (isUniqueViolation(err)) {
-      // Concurrent dispatch won. Clean up the orphan trip we just created so
-      // it doesn't pollute reporting / tripCode sequencing, then return the
-      // winner's trip with `created: false`.
-      await db.delete(s.trips).where(eq(s.trips.id, trip.id)).catch(() => {});
-      const [winner] = await db.select()
-        .from(s.trips)
-        .where(and(
-          eq(s.trips.shipmentId, shipmentId),
-          sql`${s.trips.status} <> 'CANCELED'`,
-        ))
-        .limit(1);
-      if (winner) {
-        return { trip: winner, created: false as const, preDispatchWarnings };
-      }
-    }
-    throw err;
-  }
-
-  // 5. Reload to pick up the link for the response (snapshot fields etc.).
-  const [finalTrip] = await db.select().from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
-
-  // Shipment status change affects AR/AP aging reports (a trip now exists).
-  await Promise.all([
-    cacheInvalidate('reports:dashboard'),
-    cacheInvalidatePattern('reports:entity-results:*'),
-  ]).catch((err: unknown) => console.warn(
-    '[cache] dispatch invalidate failed', { shipmentId, err },
-  ));
-
-  return { trip: finalTrip ?? trip, created: true as const, preDispatchWarnings };
+  return db.transaction((tx) => dispatchShipmentToTripInTx(tx, shipmentId, fulfillment, actor));
 }
 
 // Postgres unique-violation detector — 23505 is the SQLSTATE for any unique
@@ -1618,6 +1642,7 @@ export async function reviewShipmentChangeRequest(
         const patch = parsePlanUpdateSnapshot(request.afterSnapshot);
         const [updated] = await tx.update(s.shipments).set({
           ...(patch.customerId !== undefined ? { customerId: patch.customerId } : {}),
+          ...(patch.cargoTypeId !== undefined ? { cargoTypeId: patch.cargoTypeId } : {}),
           ...(patch.responsibleUnitId !== undefined ? { responsibleUnitId: patch.responsibleUnitId } : {}),
           ...(patch.bookingRef !== undefined ? { bookingRef: patch.bookingRef } : {}),
           ...(patch.blNumber !== undefined ? { blNumber: patch.blNumber } : {}),
@@ -1633,6 +1658,9 @@ export async function reviewShipmentChangeRequest(
           .where(eq(s.shipments.id, shipmentId))
           .returning();
         reviewedShipment = updated;
+        if (reviewedShipment.status === 'DRAFT') {
+          await syncShipmentAuthorityToTrips(tx, reviewedShipment);
+        }
       } else {
         const containers = parseContainerChangeSnapshot(request.afterSnapshot);
         assertContainerSetValid(containers);

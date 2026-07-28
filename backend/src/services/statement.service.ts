@@ -9,6 +9,7 @@ import { escapeHtml } from '../lib/format';
 import { getCompanyInfo } from './company-info.service';
 import { stampCompanyHeaderXlsx, companyHeaderHtml, loadLogoDataUrl } from './lib/export-company';
 import { CustomerAgingListItem } from './aging.service';
+import { getCustomerReceivableSnapshot } from './customer-receivable-authority.service';
 
 type LedgerRow = typeof s.ledger.$inferSelect;
 // Ledger rows enriched with related trip context for customer and supplier displays.
@@ -344,6 +345,7 @@ const SHARED_CSS = `body { font-family: -apple-system, BlinkMacSystemFont, 'Sego
 export async function getStatementData(customerId: number, dateFrom?: string, dateTo?: string): Promise<CustomerStatementData | null> {
   const [customer] = await db.select().from(s.customers).where(eq(s.customers.id, customerId)).limit(1);
   if (!customer) return null;
+  const receivableSnapshot = await getCustomerReceivableSnapshot(customerId);
 
   let ledgerRows = withReceivableProjectionBalances(
     (await LedgerService.getEntriesByEntity('CUSTOMER', customerId))
@@ -525,17 +527,8 @@ export async function getStatementData(customerId: number, dateFrom?: string, da
     };
   });
 
-  const now = new Date();
-  const { aging, openInvoices } = computeFifoAging(
-    enrichedLedgerRows.map((r) => ({
-      timestamp: r.timestamp.toISOString(),
-      debit: r.debit ?? '0',
-      credit: r.credit ?? '0',
-    })),
-    now,
-  );
-
-  const totalOutstanding = aging.current + aging.d30 + aging.d60 + aging.over90;
+  const aging = receivableSnapshot.aging;
+  const totalOutstanding = receivableSnapshot.totalOutstanding;
 
   const revenueEntries = enrichedLedgerRows.filter((r) => r.txnType === TxnType.TRIP_REVENUE);
   const tripNotes = new Map<number, string>();
@@ -563,51 +556,32 @@ export async function getStatementData(customerId: number, dateFrom?: string, da
     }
   }
 
-  const tsToTripId = new Map<string, number>();
-  for (const entry of revenueEntries) {
-    if (entry.txnId && entry.timestamp) {
-      tsToTripId.set(new Date(entry.timestamp).toISOString(), entry.txnId);
-    }
-  }
-
-  const tripOutstanding = new Map<number, {
-    tripId: number;
-    date: string;
-    issueTimestamp: string;
-    outstanding: number;
-    note: string;
-    originalDueDate: string | null;
-    processingDueDate: string | null;
-  }>();
-  for (const inv of openInvoices) {
-    if (inv.open <= 0) continue;
-    const tsRaw: unknown = inv.ts;
-    if (tsRaw == null) continue;
-    const tsKey = tsRaw instanceof Date ? tsRaw.toISOString() : String(tsRaw);
-    const tripId = tsToTripId.get(tsKey) ?? 0;
-    if (!tripId) continue;
-    const existing = tripOutstanding.get(tripId);
-    if (existing) {
-      existing.outstanding += inv.open;
-    } else {
-      tripOutstanding.set(tripId, {
+  const unpaidTrips = receivableSnapshot.obligations
+    .filter((obligation) =>
+      obligation.outstanding > 0
+      && (obligation.authorityType === 'TRIP' || obligation.authorityType === 'BILLING_DOCUMENT'),
+    )
+    .map((obligation) => {
+      const tripId = obligation.representativeTripId
+        ?? obligation.sourceTripIds[0]
+        ?? obligation.authorityId;
+      const directRevenue = revenueAuthorityByTrip.get(tripId);
+      const note = obligation.authorityType === 'BILLING_DOCUMENT'
+        ? obligation.label ?? `Giấy báo nợ #${obligation.authorityId}`
+        : tripNotes.get(tripId) || directRevenue?.note || '';
+      return {
         tripId,
-        date: tsKey.slice(0, 10),
-        issueTimestamp: tsKey,
-        outstanding: inv.open,
-        note: tripNotes.get(tripId) || '',
-        originalDueDate: revenueAuthorityByTrip.get(tripId)?.originalDueDate ?? null,
-        processingDueDate: revenueAuthorityByTrip.get(tripId)?.processingDueDate ?? null,
-      });
-    }
-  }
-
-  const unpaidTrips = Array.from(tripOutstanding.values()).map((item) => ({
-    ...item,
-    dueDateAdjusted: item.originalDueDate != null
-      && item.processingDueDate != null
-      && item.originalDueDate !== item.processingDueDate,
-  }));
+        date: obligation.issueTimestamp.slice(0, 10),
+        issueTimestamp: obligation.issueTimestamp,
+        outstanding: obligation.outstanding,
+        note,
+        originalDueDate: obligation.originalDueDate,
+        processingDueDate: obligation.processingDueDate,
+        dueDateAdjusted: obligation.originalDueDate != null
+          && obligation.processingDueDate != null
+          && obligation.originalDueDate !== obligation.processingDueDate,
+      };
+    });
   unpaidTrips.sort((a, b) => {
     const aDueKey = a.processingDueDate ?? a.originalDueDate ?? a.issueTimestamp.slice(0, 10);
     const bDueKey = b.processingDueDate ?? b.originalDueDate ?? b.issueTimestamp.slice(0, 10);
