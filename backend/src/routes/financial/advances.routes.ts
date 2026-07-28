@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { Role, accountantSettlementExpensePatchSchema, updateAdvanceSettlementSchema } from '@tingting/shared';
+import { NotificationType, Role, accountantSettlementExpensePatchSchema, advanceMutationVersionSchema, updateAdvanceSettlementSchema } from '@tingting/shared';
 import { requireRoles } from '../../middleware/casbin';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { getUser } from '../../middleware/auth';
@@ -9,6 +9,9 @@ import { exportSettlementXlsx, exportSettlementHtml } from '../../services/settl
 import { listAdvanceRequests, approveAdvanceRequest, rejectAdvanceRequest, listAdvanceSettlements, checkAdvanceSettlement, approveAdvanceSettlement, rejectAdvanceSettlement, getOutstandingAdvanceBalances, adjustSettlementExpense, updateAdvanceSettlement } from '../../services/advance.service';
 import { throwValidation } from '../../lib/validation';
 import { formatLocalDate } from '../../lib/format';
+import { getRequestIdempotencyKey } from '../utils/idempotency';
+import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
+import { emitNotification } from '../../services/notification.service';
 
 const router = Router();
 
@@ -22,14 +25,38 @@ router.get('/advance-requests', asyncHandler(async (req: Request, res: Response)
 
 router.post('/advance-requests/:id/approve', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
-  const result = await approveAdvanceRequest(id, getUser(req).userId);
-  res.json(result);
+  const parsed = advanceMutationVersionSchema.safeParse(req.body);
+  if (!parsed.success) throwValidation(parsed.error);
+  const actor = getUser(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.ADVANCE_REQUEST_APPROVE,
+    idempotencyKey,
+    payload: { actorId: actor.userId, id, ...parsed.data },
+    createdBy: actor.userId,
+    entityType: 'advance_request',
+    create: (tx) => approveAdvanceRequest(id, actor.userId, parsed.data.expectedVersion, tx),
+    getEntityId: () => id,
+  });
+  res.json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
 router.post('/advance-requests/:id/reject', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
-  const result = await rejectAdvanceRequest(id, getUser(req).userId);
-  res.json(result);
+  const parsed = advanceMutationVersionSchema.safeParse(req.body);
+  if (!parsed.success) throwValidation(parsed.error);
+  const actor = getUser(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.ADVANCE_REQUEST_REJECT,
+    idempotencyKey,
+    payload: { actorId: actor.userId, id, ...parsed.data },
+    createdBy: actor.userId,
+    entityType: 'advance_request',
+    create: (tx) => rejectAdvanceRequest(id, actor.userId, parsed.data.expectedVersion, tx),
+    getEntityId: () => id,
+  });
+  res.json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
 // ─── Advance Balances (admin) — F1 outstanding per forwarder ──────────────────
@@ -52,30 +79,103 @@ router.get('/advance-settlements', asyncHandler(async (req: Request, res: Respon
 
 router.post('/advance-settlements/:id/check', requireRoles(Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
-  const result = await checkAdvanceSettlement(id, getUser(req).userId);
-  res.json(result);
+  const parsed = advanceMutationVersionSchema.safeParse(req.body);
+  if (!parsed.success) throwValidation(parsed.error);
+  const actor = getUser(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.ADVANCE_SETTLEMENT_CHECK,
+    idempotencyKey,
+    payload: { actorId: actor.userId, id, ...parsed.data },
+    createdBy: actor.userId,
+    entityType: 'advance_settlement',
+    create: (tx) => checkAdvanceSettlement(id, actor.userId, parsed.data.expectedVersion, tx),
+    getEntityId: () => id,
+  });
+  res.json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
 router.post('/advance-settlements/:id/approve', requireRoles(Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
-  const result = await approveAdvanceSettlement(id, getUser(req).userId);
-  res.json(result);
+  const parsed = advanceMutationVersionSchema.safeParse(req.body);
+  if (!parsed.success) throwValidation(parsed.error);
+  const actor = getUser(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.ADVANCE_SETTLEMENT_APPROVE,
+    idempotencyKey,
+    payload: { actorId: actor.userId, id, ...parsed.data },
+    createdBy: actor.userId,
+    entityType: 'advance_settlement',
+    create: (tx) => approveAdvanceSettlement(id, actor.userId, parsed.data.expectedVersion, {
+      transaction: tx,
+      emitNotification: false,
+    }),
+    getEntityId: () => id,
+  });
+  if (!replayed) {
+    emitNotification({
+      type: NotificationType.ADVANCE_SETTLEMENT_APPROVED,
+      title: 'Phiếu hoàn ứng đã duyệt',
+      message: `Phiếu ${result.code} được duyệt ${Number(result.totalExpenseAmount).toLocaleString('vi-VN')} ₫.`,
+      relatedEntityType: 'advance_settlements',
+      relatedEntityId: result.id,
+      targetUserId: result.forwarderId,
+      targetRoles: [],
+    });
+  }
+  res.json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
 router.post('/advance-settlements/:id/reject', requireRoles(Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
-  const result = await rejectAdvanceSettlement(id, getUser(req).userId);
-  res.json(result);
+  const parsed = advanceMutationVersionSchema.safeParse(req.body);
+  if (!parsed.success) throwValidation(parsed.error);
+  const actor = getUser(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.ADVANCE_SETTLEMENT_REJECT,
+    idempotencyKey,
+    payload: { actorId: actor.userId, id, ...parsed.data },
+    createdBy: actor.userId,
+    entityType: 'advance_settlement',
+    create: (tx) => rejectAdvanceSettlement(id, actor.userId, parsed.data.expectedVersion, tx),
+    getEntityId: () => id,
+  });
+  res.json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
 router.put('/advance-settlements/:id', requireRoles(Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string, 10);
   const parsed = updateAdvanceSettlementSchema.safeParse(req.body);
   if (!parsed.success) throwValidation(parsed.error);
-  const result = await updateAdvanceSettlement(id, parsed.data);
-  if (!result) return res.status(404).json({ error: 'Không tìm thấy phiếu hoàn ứng' });
+  const actor = getUser(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.ADVANCE_SETTLEMENT_UPDATE,
+    idempotencyKey,
+    payload: { actorId: actor.userId, id, ...parsed.data },
+    createdBy: actor.userId,
+    entityType: 'advance_settlement',
+    create: (tx) => updateAdvanceSettlement(id, parsed.data, {
+      transaction: tx,
+      emitNotification: false,
+    }),
+    getEntityId: () => id,
+  });
   res.locals.auditEntityKey = `phiếu hoàn ứng ${result.code}`;
-  res.json(result);
+  if (!replayed) {
+    emitNotification({
+      type: NotificationType.SYSTEM_ANNOUNCEMENT,
+      title: 'Kế toán đã cập nhật phiếu hoàn ứng',
+      message: `Phiếu ${result.code} đã được cập nhật danh sách tạm ứng, chi phí hoặc số tiền hoàn lại.`,
+      relatedEntityType: 'advance_settlements',
+      relatedEntityId: result.id,
+      targetUserId: result.forwarderId,
+      targetRoles: [],
+    });
+  }
+  res.json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
 router.patch(
@@ -86,11 +186,9 @@ router.patch(
     const expenseId = parseInt(req.params.expenseId as string, 10);
     const parsed = accountantSettlementExpensePatchSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
-    const result = await adjustSettlementExpense(
-      settlementId,
-      expenseId,
-      getUser(req).userId,
-      {
+    const actor = getUser(req);
+    const patch = {
+        expectedVersion: parsed.data.expectedVersion,
         expenseType: parsed.data.expenseType,
         buyAmount: parsed.data.buyAmount,
         sellAmount: parsed.data.sellAmount,
@@ -102,10 +200,42 @@ router.patch(
         ...(parsed.data.tripContainerId !== undefined ? { tripContainerId: parsed.data.tripContainerId ?? null } : {}),
         ...(parsed.data.note !== undefined ? { note: parsed.data.note ?? null } : {}),
         adjustmentReason: parsed.data.adjustmentReason,
-      },
-    );
+      };
+    const idempotencyKey = getRequestIdempotencyKey(req);
+    const { result, replayed } = await runIdempotent({
+      endpoint: IDEMPOTENCY_ENDPOINTS.ADVANCE_SETTLEMENT_EXPENSE_ADJUST,
+      idempotencyKey,
+      payload: { actorId: actor.userId, expenseId, settlementId, ...patch },
+      createdBy: actor.userId,
+      entityType: 'advance_settlement',
+      create: (tx) => adjustSettlementExpense(
+        settlementId,
+        expenseId,
+        actor.userId,
+        patch,
+        {
+          transaction: tx,
+          emitNotification: false,
+        },
+      ),
+      getEntityId: () => settlementId,
+    });
     res.locals.auditEntityKey = `phiếu hoàn ứng ${settlementId}, điều chỉnh chi phí: ${parsed.data.adjustmentReason}`;
-    res.json(result);
+    if (!replayed) {
+      const settlement = await getAdvanceSettlement(settlementId);
+      if (settlement) {
+        emitNotification({
+          type: NotificationType.SYSTEM_ANNOUNCEMENT,
+          title: 'Kế toán đã điều chỉnh phiếu hoàn ứng',
+          message: `Phiếu ${settlement.code}: ${parsed.data.adjustmentReason}.`,
+          relatedEntityType: 'advance_settlements',
+          relatedEntityId: settlementId,
+          targetUserId: settlement.forwarderId,
+          targetRoles: [],
+        });
+      }
+    }
+    res.json(idempotencyKey ? { ...result, replayed } : result);
   }),
 );
 

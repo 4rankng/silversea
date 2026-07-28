@@ -115,15 +115,32 @@ export async function createExpense(tx: Tx, data: ExpenseCreateInput, userId?: n
   return expense;
 }
 
-export async function updateExpense(tx: Tx, id: number, data: ExpenseUpdateInput, _userId?: number) {
+function assertExpectedUpdatedAt(actual: Date, expected: Date): void {
+  if (actual.getTime() !== expected.getTime()) {
+    throw new ApiError(
+      409,
+      'Khoản chi đã được người khác cập nhật. Vui lòng tải lại trước khi lưu.',
+    );
+  }
+}
+
+export async function updateExpense(
+  tx: Tx,
+  id: number,
+  data: ExpenseUpdateInput,
+  expectedUpdatedAt: Date,
+  _userId?: number,
+) {
   const [existing] = await tx.select()
     .from(s.expenses)
     .where(and(eq(s.expenses.id, id), isNull(s.expenses.deletedAt)))
-    .limit(1);
+    .limit(1)
+    .for('update');
 
   if (!existing) {
     throw new ApiError(404, 'Không tìm thấy chi phí');
   }
+  assertExpectedUpdatedAt(existing.updatedAt, expectedUpdatedAt);
 
   if (data.supplierId !== undefined) {
     const [supplier] = await tx.select({ id: s.suppliers.id })
@@ -187,7 +204,9 @@ export async function updateExpense(tx: Tx, id: number, data: ExpenseUpdateInput
     });
   }
 
-  const updateValues: Record<string, unknown> = { updatedAt: new Date() };
+  const updateValues: Record<string, unknown> = {
+    updatedAt: new Date(Math.max(Date.now(), existing.updatedAt.getTime() + 1)),
+  };
   if (data.expenseDate !== undefined) updateValues.expenseDate = data.expenseDate;
   if (data.supplierId !== undefined) updateValues.supplierId = data.supplierId;
   if (data.categoryId !== undefined) updateValues.categoryId = data.categoryId;
@@ -215,15 +234,22 @@ export async function updateExpense(tx: Tx, id: number, data: ExpenseUpdateInput
   return updated;
 }
 
-export async function deleteExpense(tx: Tx, id: number, _userId?: number) {
+export async function deleteExpense(
+  tx: Tx,
+  id: number,
+  expectedUpdatedAt: Date,
+  _userId?: number,
+) {
   const [existing] = await tx.select()
     .from(s.expenses)
     .where(and(eq(s.expenses.id, id), isNull(s.expenses.deletedAt)))
-    .limit(1);
+    .limit(1)
+    .for('update');
 
   if (!existing) {
     throw new ApiError(404, 'Không tìm thấy chi phí');
   }
+  assertExpectedUpdatedAt(existing.updatedAt, expectedUpdatedAt);
 
   if (existing.paymentStatus === 'UNPAID') {
     await LedgerService.postEntry(tx, {
@@ -238,7 +264,10 @@ export async function deleteExpense(tx: Tx, id: number, _userId?: number) {
   }
 
   await tx.update(s.expenses)
-    .set({ deletedAt: new Date(), updatedAt: new Date() })
+    .set({
+      deletedAt: new Date(),
+      updatedAt: new Date(Math.max(Date.now(), existing.updatedAt.getTime() + 1)),
+    })
     .where(eq(s.expenses.id, id));
 }
 

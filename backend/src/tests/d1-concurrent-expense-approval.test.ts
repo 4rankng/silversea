@@ -55,16 +55,16 @@ async function mkTrip() {
 }
 
 async function mkPendingExpense(tripId: number, createdBy: number) {
-  // Use an unknown FET code so the no-invoice-disbursement guard fails open
-  // (returns early on unknown code) and the fuel-recon guard skips us (not
-  // a fuel-typed expense). We're testing the race in transitionApproval,
-  // not the guards themselves.
+  // This race test is unrelated to no-invoice governance. Supplying an invoice
+  // keeps the expense on the ordinary approval path while still using a
+  // non-fuel category.
   const [e] = await db.insert(s.tripExpenses).values({
     tripId,
     createdBy,
     expenseType: `D1-UNKNOWN-${suffix}`,
     buyAmount: '100000',
     sellAmount: '0',
+    invoiceNumber: `D1-${suffix}`.slice(0, 50),
     supplierId: null,
     approvalStatus: 'PENDING',
   }).returning();

@@ -190,7 +190,8 @@ export function useAdminAdvanceBalances() {
 export function useApproveAdvanceRequest() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => forwarderClient.approveAdvanceRequest(id),
+    mutationFn: ({ id, expectedVersion }: { id: number; expectedVersion: number }) =>
+      forwarderClient.approveAdvanceRequest(id, expectedVersion),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.adminForwarder.advanceRequestsAll });
     },
@@ -200,7 +201,8 @@ export function useApproveAdvanceRequest() {
 export function useRejectAdvanceRequest() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => forwarderClient.rejectAdvanceRequest(id),
+    mutationFn: ({ id, expectedVersion }: { id: number; expectedVersion: number }) =>
+      forwarderClient.rejectAdvanceRequest(id, expectedVersion),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.adminForwarder.advanceRequestsAll });
     },
@@ -227,7 +229,8 @@ export function useAdminSettlementOpsCompletion(settlementIds: number[]) {
 export function useCheckSettlement() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => forwarderClient.checkAdvanceSettlement(id),
+    mutationFn: ({ id, expectedVersion }: { id: number; expectedVersion: number }) =>
+      forwarderClient.checkAdvanceSettlement(id, expectedVersion),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.adminForwarder.settlementsAll });
     },
@@ -237,7 +240,8 @@ export function useCheckSettlement() {
 export function useApproveSettlement() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => forwarderClient.approveAdvanceSettlement(id),
+    mutationFn: ({ id, expectedVersion }: { id: number; expectedVersion: number }) =>
+      forwarderClient.approveAdvanceSettlement(id, expectedVersion),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.adminForwarder.settlementsAll });
     },
@@ -249,6 +253,7 @@ export function useUpdateAdvanceSettlement() {
   return useMutation({
     mutationFn: ({ settlementId, ...data }: {
       settlementId: number;
+      expectedVersion: number;
       advanceRequestIds: number[];
       tripExpenseIds: number[];
       refundAmount: number;
@@ -266,6 +271,7 @@ export function useUpdateSettlementExpense() {
   return useMutation({
     mutationFn: ({ settlementId, expenseId, ...data }: {
       settlementId: number; expenseId: number; buyAmount: number; sellAmount?: number;
+      expectedVersion: number;
       invoiceNumber?: string | null; invoiceDate?: string | null; declarationNumber?: string | null;
       note?: string | null; adjustmentReason: string;
     }) => forwarderClient.updateSettlementExpense(settlementId, expenseId, data),
@@ -279,7 +285,8 @@ export function useUpdateSettlementExpense() {
 export function useRejectSettlement() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => forwarderClient.rejectAdvanceSettlement(id),
+    mutationFn: ({ id, expectedVersion }: { id: number; expectedVersion: number }) =>
+      forwarderClient.rejectAdvanceSettlement(id, expectedVersion),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.adminForwarder.settlementsAll });
     },

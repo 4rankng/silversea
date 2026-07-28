@@ -5,7 +5,7 @@ export
 .PHONY: push deploy
 
 IMAGE_NAME  := $(DOCKERHUB_USERNAME)/transting-frontend
-GIT_SHA     := $(shell cd .. && git rev-parse --short HEAD)
+SOURCE_TAG  := $(shell cd .. && node scripts/release-source-tag.mjs)
 BUILDER     := bb
 PROD_SERVER := nepo.tingting.vip
 
@@ -20,14 +20,14 @@ push:
 	cd .. && docker buildx build \
 		--platform linux/amd64 \
 		--tag $(IMAGE_NAME):latest \
-		--tag $(IMAGE_NAME):$(GIT_SHA) \
+		--tag $(IMAGE_NAME):$(SOURCE_TAG) \
 		--cache-from type=registry,ref=$(IMAGE_NAME):latest \
 		--build-arg BUILDKIT_INLINE_CACHE=1 \
 		--provenance=false \
 		--push \
 		-f frontend/Dockerfile \
 		.
-	@echo "Push complete: $(IMAGE_NAME):latest ($(GIT_SHA))"
+	@echo "Push complete: $(IMAGE_NAME):latest ($(SOURCE_TAG))"
 
 ## deploy: Pull & restart frontend on droplet
 deploy:

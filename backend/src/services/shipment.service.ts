@@ -26,9 +26,11 @@ import { and, count, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import { createTripCommand } from './trip-command.service';
+import { createTrip } from './trip.service';
 import { cacheInvalidate, cacheInvalidatePattern } from '../lib/redis';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
-import { validateContainerNumber } from '@tingting/shared';
+import { NotificationType, validateContainerNumber } from '@tingting/shared';
+import { emitNotification } from './notification.service';
 import type { AuthUser } from '../middleware/auth';
 import {
   assertClerkCanAccessShipment,
@@ -234,8 +236,10 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
   return finalized;
 }
 
-export async function createShipment(input: CreateShipmentInput, actor?: AuthUser) {
-  return await db.transaction((tx) => createShipmentTx(tx, input, actor));
+export async function createShipment(input: CreateShipmentInput, actor?: AuthUser, transaction?: Tx) {
+  return transaction
+    ? createShipmentTx(transaction, input, actor)
+    : db.transaction((tx) => createShipmentTx(tx, input, actor));
 }
 
 // ─── Quick create (M10.1) ───────────────────────────────────────────────────
@@ -348,8 +352,9 @@ export async function updateShipment(
   id: number,
   input: UpdateShipmentInput,
   actor?: AuthUser,
+  transaction?: Tx,
 ): Promise<ShipmentUpdateResult> {
-  const result = await db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     const [existing] = await tx.select().from(s.shipments)
       .where(and(eq(s.shipments.id, id), isNull(s.shipments.deletedAt)))
       .for('update') // pessimistic row lock so the version bump is race-free
@@ -444,7 +449,8 @@ export async function updateShipment(
       changeRequestId: null,
       notificationDelivered: true,
     };
-  });
+  };
+  const result = transaction ? await execute(transaction) : await db.transaction(execute);
   if (result.changeMode === 'REQUESTED') {
     return {
       ...result,
@@ -461,8 +467,9 @@ export async function transitionShipmentStatus(
   shipmentId: number,
   targetStatus: ShipmentStatus,
   options: { reason?: string | null; changedBy?: number | null } = {},
+  transaction?: Tx,
 ) {
-  return await db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     const [shipment] = await tx.select().from(s.shipments)
       .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
       .for('update')
@@ -502,7 +509,8 @@ export async function transitionShipmentStatus(
     });
 
     return updated;
-  });
+  };
+  return transaction ? execute(transaction) : db.transaction(execute);
 }
 
 // ─── Soft delete ────────────────────────────────────────────────────────────
@@ -515,8 +523,9 @@ export async function transitionShipmentStatus(
 export async function softDeleteShipment(
   shipmentId: number,
   options: { deletedBy?: number | null; version: number },
+  transaction?: Tx,
 ) {
-  return await db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     const [existing] = await tx.select().from(s.shipments)
       .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
       .for('update')
@@ -545,7 +554,8 @@ export async function softDeleteShipment(
     }).where(eq(s.shipments.id, shipmentId)).returning();
 
     return updated;
-  });
+  };
+  return transaction ? execute(transaction) : db.transaction(execute);
 }
 
 // ─── Container snapshot into trip ───────────────────────────────────────────
@@ -904,6 +914,7 @@ export async function batchUpsertShipmentContainers(
     notes?: string | null;
   }>,
   actor?: AuthUser,
+  transaction?: Tx,
 ): Promise<ShipmentContainerMutationResult>;
 export async function batchUpsertShipmentContainers(
   shipmentId: number,
@@ -925,11 +936,12 @@ export async function batchUpsertShipmentContainers(
     notes?: string | null;
   }>,
   actor?: AuthUser,
+  transaction?: Tx,
 ): Promise<ShipmentContainerMutationResult | Array<{ id: number }>> {
   const legacyCompat = Array.isArray(expectedVersionOrContainers);
   const expectedVersion = legacyCompat ? null : expectedVersionOrContainers;
   const containers = legacyCompat ? expectedVersionOrContainers : (maybeContainers ?? []);
-  const result = await db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     // Existence + ownership guard: a missing (or soft-deleted) shipment must
     // surface as a 404, not an FK violation.
     const [existing] = await tx.select()
@@ -1009,7 +1021,8 @@ export async function batchUpsertShipmentContainers(
       notificationDelivered: true,
     };
     return legacyCompat ? reconciled.upsertedIds.map((id) => ({ id })) : directResult;
-  });
+  };
+  const result = transaction ? await execute(transaction) : await db.transaction(execute);
   if (!legacyCompat && 'changeMode' in result && result.changeMode === 'REQUESTED') {
     return {
       ...result,
@@ -1030,8 +1043,9 @@ export async function attachShipmentDocument(
   shipmentId: number,
   input: { type: typeof s.shipmentDocuments.type.enumValues[number]; storageKey: string; uploadedBy?: number | null },
   actor?: AuthUser,
+  transaction?: Tx,
 ) {
-  return await db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     const [existing] = await tx.select()
       .from(s.shipments)
       .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
@@ -1049,15 +1063,17 @@ export async function attachShipmentDocument(
       uploadedBy: input.uploadedBy ?? null,
     }).returning();
     return doc;
-  });
+  };
+  return transaction ? execute(transaction) : db.transaction(execute);
 }
 
 export async function upsertShipmentDeclaration(
   shipmentId: number,
   input: ShipmentDeclarationMutationInput,
   actor?: AuthUser,
+  transaction?: Tx,
 ) {
-  return await db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     const issuedAt = input.issuedAt ? new Date(input.issuedAt) : null;
     const [existingShipment] = await tx.select()
       .from(s.shipments)
@@ -1096,7 +1112,8 @@ export async function upsertShipmentDeclaration(
       createdBy: input.updatedBy ?? null,
     }).returning();
     return created;
-  });
+  };
+  return transaction ? execute(transaction) : db.transaction(execute);
 }
 
 // ─── Dispatch: shipment → linked trip ───────────────────────────────────────
@@ -1128,6 +1145,120 @@ export async function upsertShipmentDeclaration(
 //     at all. This mirrors the legal-edge state machine in
 //     `transitionShipmentStatus`.
 
+type ShipmentDispatchResult = {
+  trip: typeof s.trips.$inferSelect;
+  created: boolean;
+  preDispatchWarnings: string[];
+};
+
+async function dispatchShipmentToTripInTx(
+  tx: Tx,
+  shipmentId: number,
+  fulfillment: {
+    routeId: number;
+    cargoTypeId: number;
+    containerTypeId: number;
+    truckId?: number | null;
+    driverId?: number | null;
+    departureDate: string;
+    customerReference?: string;
+    containerCount?: number;
+    creditApprovalRequestId?: number | null;
+    fuelMode?: import('@tingting/shared').FuelMode;
+  },
+  actor: { userId: number; role: import('@tingting/shared').Role },
+): Promise<ShipmentDispatchResult> {
+  const [shipment] = await tx.select()
+    .from(s.shipments)
+    .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
+    .for('update')
+    .limit(1);
+  if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
+
+  const expiredDocs = await checkExpiredDocuments(shipmentId, tx);
+  if (expiredDocs.length > 0) {
+    throw new ApiError(409, 'Lệnh giao hàng (D/O) đã hết hạn. Vui lòng tải lên D/O mới.');
+  }
+  const preDispatchWarnings = (await getDispatchReadiness(shipmentId, tx)).missing;
+
+  const [existingLiveTrip] = await tx.select()
+    .from(s.trips)
+    .where(and(
+      eq(s.trips.shipmentId, shipmentId),
+      sql`${s.trips.status} <> 'CANCELED'`,
+    ))
+    .limit(1);
+  if (existingLiveTrip) {
+    return { trip: existingLiveTrip, created: false, preDispatchWarnings };
+  }
+  if (shipment.status !== 'DRAFT') {
+    throw new ApiError(409, `Không thể điều vận lô hàng ở trạng thái "${shipment.status}".`);
+  }
+
+  const trip = await createTrip({
+    customerId: shipment.customerId,
+    routeId: fulfillment.routeId,
+    cargoTypeId: fulfillment.cargoTypeId,
+    containerTypeId: fulfillment.containerTypeId,
+    truckId: fulfillment.truckId ?? null,
+    driverId: fulfillment.driverId ?? null,
+    departureDate: fulfillment.departureDate,
+    customerReference: fulfillment.customerReference,
+    containerCount: fulfillment.containerCount,
+    creditApprovalRequestId: fulfillment.creditApprovalRequestId ?? null,
+    fuelMode: fulfillment.fuelMode,
+    createdBy: actor.userId,
+    createdByRole: actor.role,
+    shipmentId,
+  }, tx);
+
+  const [updated] = await tx.update(s.shipments)
+    .set({
+      status: 'IN_PROGRESS',
+      version: sql`${s.shipments.version} + 1`,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(s.shipments.id, shipmentId), eq(s.shipments.status, 'DRAFT')))
+    .returning({ id: s.shipments.id });
+  if (!updated) {
+    throw new ApiError(
+      409,
+      'Trạng thái lô hàng đã bị thay đổi bởi người khác. Vui lòng tải lại.',
+    );
+  }
+
+  await tx.insert(s.shipmentStatusHistory).values({
+    shipmentId,
+    fromStatus: 'DRAFT',
+    toStatus: 'IN_PROGRESS',
+    reason: `Điều vận sang chuyến ${trip.tripCode}`,
+    changedBy: actor.userId,
+  });
+
+  return { trip, created: true, preDispatchWarnings };
+}
+
+export async function completeShipmentDispatchSideEffects(
+  result: ShipmentDispatchResult,
+  shipmentId: number,
+): Promise<void> {
+  if (!result.created) return;
+  emitNotification({
+    type: NotificationType.TRIP_CREATED,
+    title: 'Chuyến mới được tạo',
+    message: `Chuyến ${result.trip.tripCode} đã được tạo`,
+    relatedEntityType: 'trips',
+    relatedEntityId: result.trip.id,
+    targetDriverId: result.trip.driverId ?? undefined,
+  });
+  await Promise.all([
+    cacheInvalidate('reports:dashboard'),
+    cacheInvalidatePattern('reports:entity-results:*'),
+  ]).catch((err: unknown) => console.warn(
+    '[cache] dispatch invalidate failed', { shipmentId, err },
+  ));
+}
+
 export async function dispatchShipmentToTrip(
   shipmentId: number,
   fulfillment: {
@@ -1143,7 +1274,11 @@ export async function dispatchShipmentToTrip(
     fuelMode?: import('@tingting/shared').FuelMode;
   },
   actor: { userId: number; role: import('@tingting/shared').Role },
+  transaction?: Tx,
 ) {
+  if (transaction) {
+    return dispatchShipmentToTripInTx(transaction, shipmentId, fulfillment, actor);
+  }
   // 1. Read the shipment (404 if missing). No `FOR UPDATE` — the partial
   //    unique index `trips_shipment_id_live_uniq` is the concurrency guard.
   const [shipment] = await db.select()
@@ -1266,7 +1401,9 @@ export async function dispatchShipmentToTrip(
           sql`${s.trips.status} <> 'CANCELED'`,
         ))
         .limit(1);
-      if (winner) return { trip: winner, created: false as const };
+      if (winner) {
+        return { trip: winner, created: false as const, preDispatchWarnings };
+      }
     }
     throw err;
   }
@@ -1302,9 +1439,10 @@ function isUniqueViolation(err: unknown): boolean {
  * Check if a shipment has any expired documents (DO type with expiresAt in the
  * past). Returns the list of expired document rows. Empty = no expired docs.
  */
-export async function checkExpiredDocuments(shipmentId: number) {
+export async function checkExpiredDocuments(shipmentId: number, transaction?: Tx) {
+  const client = transaction ?? db;
   const today = new Date().toISOString().slice(0, 10);
-  const docs = await db.select()
+  const docs = await client.select()
     .from(s.shipmentDocuments)
     .where(and(
       eq(s.shipmentDocuments.shipmentId, shipmentId),
@@ -1343,8 +1481,9 @@ export interface DispatchReadiness {
  * the shipment. Throws 404 on a missing/soft-deleted shipment so callers can
  * surface the canonical not-found error before dispatch attempts.
  */
-export async function getDispatchReadiness(shipmentId: number): Promise<DispatchReadiness> {
-  const [shipment] = await db.select({
+export async function getDispatchReadiness(shipmentId: number, transaction?: Tx): Promise<DispatchReadiness> {
+  const client = transaction ?? db;
+  const [shipment] = await client.select({
     blNumber: s.shipments.blNumber,
   })
     .from(s.shipments)
@@ -1357,7 +1496,7 @@ export async function getDispatchReadiness(shipmentId: number): Promise<Dispatch
     missing.push('Số vận đơn (B/L)');
   }
 
-  const [containerCountRow] = await db.select({ count: count() })
+  const [containerCountRow] = await client.select({ count: count() })
     .from(s.shipmentContainers)
     .where(eq(s.shipmentContainers.shipmentId, shipmentId));
   const containerCount = containerCountRow?.count ?? 0;
@@ -1384,8 +1523,9 @@ export async function replaceShipmentDocument(
     uploadedBy?: number | null;
   },
   actor?: AuthUser,
+  transaction?: Tx,
 ) {
-  return await db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     const [shipment] = await tx.select()
       .from(s.shipments)
       .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
@@ -1439,7 +1579,8 @@ export async function replaceShipmentDocument(
       .where(eq(s.shipments.id, shipmentId));
 
     return { ...newDoc, shipmentVersion: nextVersion };
-  });
+  };
+  return transaction ? execute(transaction) : db.transaction(execute);
 }
 
 export async function reviewShipmentChangeRequest(
@@ -1447,8 +1588,9 @@ export async function reviewShipmentChangeRequest(
   changeRequestId: number,
   resolution: 'APPLIED' | 'REJECTED',
   actor: AuthUser,
+  transaction?: Tx,
 ): Promise<ShipmentChangeRequestReviewResult> {
-  const result = await db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     const [request] = await tx.select()
       .from(s.shipmentChangeRequests)
       .where(and(
@@ -1522,7 +1664,8 @@ export async function reviewShipmentChangeRequest(
       shipmentVersion: reviewedShipment.version,
       resolution,
     };
-  });
+  };
+  const result = transaction ? await execute(transaction) : await db.transaction(execute);
 
   return {
     shipment: result.shipment,

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -15,6 +16,7 @@ const mocks = vi.hoisted(() => ({
       gpsEnabled: false,
       creditWarningThresholdDefault: 0.8,
       creditTierOneAmountCap: 1000000,
+      salaryPayrollBusinessUnitId: null,
     },
     isLoading: false,
     isError: false,
@@ -91,13 +93,24 @@ vi.mock('../../hooks/useGpsSettings', () => ({
   useSaveGpsSettings: () => mutationResult(),
 }));
 
+vi.mock('../../api/userClient', () => ({
+  userClient: {
+    getBusinessUnits: vi.fn().mockResolvedValue({ items: [] }),
+  },
+}));
+
 import AppSettingsConfigPage from './AppSettingsConfigPage';
 
 function renderPage() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   return render(
-    <MemoryRouter>
-      <AppSettingsConfigPage />
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <AppSettingsConfigPage />
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
@@ -109,6 +122,7 @@ describe('AppSettingsConfigPage — Resend credential', () => {
       gpsEnabled: false,
       creditWarningThresholdDefault: 0.75,
       creditTierOneAmountCap: 1500000,
+      salaryPayrollBusinessUnitId: null,
     });
     mocks.saveEmail.mockReset().mockResolvedValue({
       resendKeySet: true,
@@ -175,6 +189,7 @@ describe('AppSettingsConfigPage — Resend credential', () => {
         gpsEnabled: false,
         creditWarningThresholdDefault: 0.75,
         creditTierOneAmountCap: 1500000,
+        salaryPayrollBusinessUnitId: null,
       });
     });
   });

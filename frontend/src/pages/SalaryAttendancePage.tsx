@@ -2,17 +2,58 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Loader2, Search, Info, CheckCircle2, Lock, Unlock, Wallet } from 'lucide-react';
 import { formatCurrency, removeDiacritics } from '../lib/format';
 import { Money } from '../components/shared/Money';
-import { Panel, ConfirmDialog } from '../components/UI';
+import { Panel } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
-import { useSalaryList, useDriverSalary, useDriverWorkDays, useUpdateWorkDays, useConfirmSalary, useUnconfirmSalary } from '../hooks/useSalaryQueries';
+import {
+  useSalaryList,
+  useDriverSalary,
+  useDriverWorkDays,
+  useUpdateWorkDays,
+  useConfirmSalary,
+  useUnconfirmSalary,
+  useSalaryConfirmationGovernanceActions,
+  useCheckConfirmSalary,
+  useApproveConfirmSalary,
+  useCheckUnconfirmSalary,
+  useApproveUnconfirmSalary,
+  useSalaryPeriodGovernanceActions,
+  useSalaryPeriodOverview,
+  useCheckCloseSalaryPeriod,
+  useApproveCloseSalaryPeriod,
+  useCloseSalaryPeriod,
+  useCheckReopenSalaryPeriod,
+  useApproveReopenSalaryPeriod,
+  useReopenSalaryPeriod,
+  useIssueSalaryPeriod,
+  usePostSalaryPeriod,
+  useRequestPostCloseAdjustment,
+  useCheckPostCloseAdjustment,
+  useApprovePostCloseAdjustment,
+} from '../hooks/useSalaryQueries';
 import { useAuth } from '../hooks/useAuth';
-import type { WorkDayRecord } from '../api/salaryClient';
+import type {
+  WorkDayRecord,
+  SalaryPeriodAdjustmentItem,
+  SalaryConfirmationGovernanceAction,
+  SalaryPeriodGovernanceAction,
+} from '../api/salaryClient';
 import { useMonth } from '../hooks/useMonth';
 import { useToast } from '../components/shared/Toast';
 import { EmptyIllustration } from '../components/shared';
-import { CalCell, DOW_LABELS, DriverPayoutModal, MobileDayList, SalarySummaryCard, STATUS_CONFIG } from './salary-attendance-components';
+import {
+  CalCell,
+  DOW_LABELS,
+  DriverPayoutModal,
+  MobileDayList,
+  PostCloseAdjustmentList,
+  PostCloseAdjustmentModal,
+  SalaryConfirmationGovernanceList,
+  SalaryPeriodGovernanceList,
+  SalarySummaryCard,
+  STATUS_CONFIG,
+} from './salary-attendance-components';
 import './SalaryAttendancePage.css';
 import { useSalaryPeriod } from '../hooks/useCatalogQueries';
 
@@ -31,18 +72,76 @@ export default function SalaryAttendancePage() {
   const updateMutation = useUpdateWorkDays(selectedDriverId ?? 0, year, month);
   const confirmMutation = useConfirmSalary(selectedDriverId ?? 0, year, month);
   const unconfirmMutation = useUnconfirmSalary(selectedDriverId ?? 0, year, month);
-  const [unlockOpen, setUnlockOpen] = useState(false);
   const { toast } = useToast();
 
   /* ── Driver payout modal (B1) — MANAGER/ACCOUNTANT only ── */
   const { user } = useAuth();
   const canPostPayout =
     user?.role === 'ADMIN' || user?.role === 'MANAGER' || user?.role === 'ACCOUNTANT';
+  const canReopenCompanyPeriod = user?.role === 'ADMIN' || user?.role === 'MANAGER';
+  const periodKey = useMemo(() => `${year}-${String(month).padStart(2, '0')}`, [month, year]);
+  const { data: salaryConfirmationActions = [] } = useSalaryConfirmationGovernanceActions(selectedDriverId, year, month);
+  const { data: periodOverview, isLoading: periodOverviewLoading } = useSalaryPeriodOverview(periodKey, selectedDriverId);
+  const { data: periodGovernanceActions = [] } = useSalaryPeriodGovernanceActions(periodKey);
+  const checkConfirmMutation = useCheckConfirmSalary(selectedDriverId ?? 0, year, month);
+  const approveConfirmMutation = useApproveConfirmSalary(selectedDriverId ?? 0, year, month);
+  const checkUnconfirmMutation = useCheckUnconfirmSalary(selectedDriverId ?? 0, year, month);
+  const approveUnconfirmMutation = useApproveUnconfirmSalary(selectedDriverId ?? 0, year, month);
+  const closePeriodMutation = useCloseSalaryPeriod(periodKey, year, month);
+  const checkClosePeriodMutation = useCheckCloseSalaryPeriod(periodKey, year, month);
+  const approveClosePeriodMutation = useApproveCloseSalaryPeriod(periodKey, year, month);
+  const reopenPeriodMutation = useReopenSalaryPeriod(periodKey, selectedDriverId, year, month);
+  const checkReopenPeriodMutation = useCheckReopenSalaryPeriod(periodKey, year, month);
+  const approveReopenPeriodMutation = useApproveReopenSalaryPeriod(periodKey, year, month);
+  const issuePeriodMutation = useIssueSalaryPeriod(periodKey, selectedDriverId);
+  const postPeriodMutation = usePostSalaryPeriod(periodKey, selectedDriverId);
+  const requestAdjustmentMutation = useRequestPostCloseAdjustment(periodKey, selectedDriverId, year, month);
+  const checkAdjustmentMutation = useCheckPostCloseAdjustment(periodKey, selectedDriverId);
+  const approveAdjustmentMutation = useApprovePostCloseAdjustment(periodKey, selectedDriverId, year, month);
+  const [adjustmentModalOpen, setAdjustmentModalOpen] = useState(false);
   const [payoutOpen, setPayoutOpen] = useState(false);
+  const [reopenReason, setReopenReason] = useState('');
+  const [reopenReasonError, setReopenReasonError] = useState<string | null>(null);
 
   const isConfirmed = salary?.confirmationStatus === 'CONFIRMED';
+  const lifecycle = periodOverview?.lifecycle;
+  const periodAdjustments = periodOverview?.adjustments ?? [];
+  const activePeriodGovernanceActions = useMemo(
+    () => periodGovernanceActions.filter((item) =>
+      ['PENDING_CHECK', 'PENDING_APPROVAL', 'RETURNED_FOR_EVIDENCE'].includes(item.status)),
+    [periodGovernanceActions],
+  );
+  const activeSalaryConfirmationActions = useMemo(
+    () => salaryConfirmationActions.filter((item) =>
+      ['PENDING_CHECK', 'PENDING_APPROVAL', 'RETURNED_FOR_EVIDENCE'].includes(item.status)),
+    [salaryConfirmationActions],
+  );
+  const pendingSalaryConfirmationActions = useMemo(
+    () => salaryConfirmationActions.filter((item) =>
+      ['PENDING_CHECK', 'PENDING_APPROVAL'].includes(item.status)),
+    [salaryConfirmationActions],
+  );
+  const confirmGovernanceActions = useMemo(
+    () => activeSalaryConfirmationActions.filter((item) => item.actionKind === 'SALARY_CONFIRMATION'),
+    [activeSalaryConfirmationActions],
+  );
+  const reopenSalaryGovernanceActions = useMemo(
+    () => activeSalaryConfirmationActions.filter((item) => item.actionKind === 'SALARY_REOPEN'),
+    [activeSalaryConfirmationActions],
+  );
+  const closeGovernanceActions = useMemo(
+    () => activePeriodGovernanceActions.filter((item) => item.actionKind === 'SALARY_PERIOD_CLOSE'),
+    [activePeriodGovernanceActions],
+  );
+  const reopenGovernanceActions = useMemo(
+    () => activePeriodGovernanceActions.filter((item) => item.actionKind === 'SALARY_PERIOD_REOPEN'),
+    [activePeriodGovernanceActions],
+  );
 
   const drivers = useMemo(() => salaryList?.items ?? [], [salaryList?.items]);
+  const workdayEditLocked = isConfirmed
+    || lifecycle?.status === 'CLOSED'
+    || pendingSalaryConfirmationActions.some((item) => item.actionKind === 'SALARY_CONFIRMATION');
 
   // Cross-driver aggregates for hero metrics
   const aggregates = useMemo(() => {
@@ -62,12 +161,131 @@ export default function SalaryAttendancePage() {
     }
   }, [listLoading, drivers, selectedDriverId]);
 
+  useEffect(() => {
+    setReopenReason('');
+    setReopenReasonError(null);
+  }, [periodKey]);
+
   // Search filter
   const filteredDrivers = useMemo(() => {
     if (!searchTerm.trim()) return drivers;
     const term = removeDiacritics(searchTerm.trim()).toLowerCase();
     return drivers.filter(d => removeDiacritics(d.name).toLowerCase().includes(term));
   }, [drivers, searchTerm]);
+
+  const canCheckAdjustment = useCallback((item: SalaryPeriodAdjustmentItem) => {
+    if (!user) return false;
+    if (item.status !== 'PENDING_CHECK') return false;
+    if (!canPostPayout) return false;
+    return item.makerId !== user.userId;
+  }, [canPostPayout, user]);
+
+  const canApproveAdjustment = useCallback((item: SalaryPeriodAdjustmentItem) => {
+    if (!user) return false;
+    if (item.status !== 'PENDING_APPROVAL') return false;
+    if (user.role !== 'ADMIN' && user.role !== 'MANAGER') return false;
+    return item.makerId !== user.userId && item.checkerId !== user.userId;
+  }, [user]);
+
+  const handleCheckGovernanceAction = useCallback((item: SalaryPeriodGovernanceAction) => {
+    const mutation = item.actionKind === 'SALARY_PERIOD_CLOSE'
+      ? checkClosePeriodMutation
+      : checkReopenPeriodMutation;
+    mutation.mutate(
+      { actionId: item.id, expectedVersion: item.version },
+      {
+        onSuccess: () => {
+          toast({
+            kind: 'success',
+            message: item.actionKind === 'SALARY_PERIOD_CLOSE'
+              ? 'Đã chuyển yêu cầu chốt kỳ sang bước phê duyệt.'
+              : 'Đã chuyển yêu cầu mở lại sang bước phê duyệt.',
+          });
+        },
+        onError: (err: unknown) => {
+          toast({
+            kind: 'error',
+            message: (err as Error)?.message || 'Không thể kiểm tra yêu cầu kỳ lương.',
+          });
+        },
+      },
+    );
+  }, [checkClosePeriodMutation, checkReopenPeriodMutation, toast]);
+
+  const handleApproveGovernanceAction = useCallback((item: SalaryPeriodGovernanceAction) => {
+    const mutation = item.actionKind === 'SALARY_PERIOD_CLOSE'
+      ? approveClosePeriodMutation
+      : approveReopenPeriodMutation;
+    mutation.mutate(
+      { actionId: item.id, expectedVersion: item.version },
+      {
+        onSuccess: () => {
+          toast({
+            kind: 'success',
+            message: item.actionKind === 'SALARY_PERIOD_CLOSE'
+              ? 'Đã phê duyệt chốt kỳ lương.'
+              : 'Đã phê duyệt mở lại kỳ lương.',
+          });
+        },
+        onError: (err: unknown) => {
+          toast({
+            kind: 'error',
+            message: (err as Error)?.message || 'Không thể phê duyệt yêu cầu kỳ lương.',
+          });
+        },
+      },
+    );
+  }, [approveClosePeriodMutation, approveReopenPeriodMutation, toast]);
+
+  const handleCheckSalaryConfirmationAction = useCallback((item: SalaryConfirmationGovernanceAction) => {
+    const mutation = item.actionKind === 'SALARY_CONFIRMATION'
+      ? checkConfirmMutation
+      : checkUnconfirmMutation;
+    mutation.mutate(
+      { actionId: item.id, expectedVersion: item.version },
+      {
+        onSuccess: () => {
+          toast({
+            kind: 'success',
+            message: item.actionKind === 'SALARY_CONFIRMATION'
+              ? 'Đã chuyển yêu cầu xác nhận sang bước phê duyệt.'
+              : 'Đã chuyển yêu cầu mở lại sang bước phê duyệt.',
+          });
+        },
+        onError: (err: unknown) => {
+          toast({
+            kind: 'error',
+            message: (err as Error)?.message || 'Không thể kiểm tra yêu cầu bảng công và lương.',
+          });
+        },
+      },
+    );
+  }, [checkConfirmMutation, checkUnconfirmMutation, toast]);
+
+  const handleApproveSalaryConfirmationAction = useCallback((item: SalaryConfirmationGovernanceAction) => {
+    const mutation = item.actionKind === 'SALARY_CONFIRMATION'
+      ? approveConfirmMutation
+      : approveUnconfirmMutation;
+    mutation.mutate(
+      { actionId: item.id, expectedVersion: item.version },
+      {
+        onSuccess: () => {
+          toast({
+            kind: 'success',
+            message: item.actionKind === 'SALARY_CONFIRMATION'
+              ? 'Đã phê duyệt xác nhận bảng công và lương.'
+              : 'Đã phê duyệt mở lại bảng công và lương.',
+          });
+        },
+        onError: (err: unknown) => {
+          toast({
+            kind: 'error',
+            message: (err as Error)?.message || 'Không thể phê duyệt yêu cầu bảng công và lương.',
+          });
+        },
+      },
+    );
+  }, [approveConfirmMutation, approveUnconfirmMutation, toast]);
 
   // Build work day map from API data + pending local changes
   const workDayMap = useMemo(() => {
@@ -100,7 +318,7 @@ export default function SalaryAttendancePage() {
   };
 
   const handleCellClick = useCallback(async (dateStr: string, current: WorkDayRecord | undefined) => {
-    if (!selectedDriverId || isConfirmed) return;
+    if (!selectedDriverId || workdayEditLocked) return;
     const newStatus = cycleStatus(dateStr, current);
     if (newStatus === 'TRIP_DAY') return;
 
@@ -110,7 +328,7 @@ export default function SalaryAttendancePage() {
     } catch {
       // Error is surfaced via mutation.error state; suppress unhandled rejection
     }
-  }, [selectedDriverId, updateMutation, isConfirmed]);
+  }, [selectedDriverId, updateMutation, workdayEditLocked]);
 
   // Parse a YYYY-MM-DD string using local timezone (avoids UTC midnight parsing issue)
   const parseLocalDate = useCallback((s: string): Date => {
@@ -335,7 +553,7 @@ export default function SalaryAttendancePage() {
                             dayLabel={dayLabel}
                             workDay={workDayMap.get(dateStr)}
                             isUpdating={isUpdating}
-                            isLocked={isConfirmed}
+                            isLocked={workdayEditLocked}
                             onCycle={handleCellClick}
                           />
                         );
@@ -354,10 +572,14 @@ export default function SalaryAttendancePage() {
                       ))}
                     </div>
                     <div className="calendar-legend-instruction">
-                      {isConfirmed ? (
+                      {workdayEditLocked ? (
                         <>
                           <Lock size={13} style={{ flexShrink: 0, opacity: 0.5 }} />
-                          <span>Kỳ lương đã xác nhận — lịch chấm công đã khóa</span>
+                          <span>
+                            {pendingSalaryConfirmationActions.some((item) => item.actionKind === 'SALARY_CONFIRMATION')
+                              ? 'Đã gửi snapshot xác nhận — lịch chấm công tạm khóa chờ xử lý'
+                              : 'Kỳ lương đã xác nhận — lịch chấm công đã khóa'}
+                          </span>
                         </>
                       ) : (
                         <>
@@ -385,7 +607,7 @@ export default function SalaryAttendancePage() {
                 dates={dates}
                 workDayMap={workDayMap}
                 isUpdating={isUpdating}
-                isConfirmed={isConfirmed}
+                isConfirmed={workdayEditLocked}
                 onCycle={handleCellClick}
                 parseLocalDate={parseLocalDate}
               />
@@ -396,6 +618,235 @@ export default function SalaryAttendancePage() {
         {/* ── Right Column: Sidebar (Driver info + Summary Card) ── */}
         {selectedDriverId && (
           <aside className="salary-page-layout__sidebar">
+            <Panel>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                  <div>
+                    <div style={{ fontSize: 12, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      Kỳ lương toàn kỳ
+                    </div>
+                    <div style={{ fontSize: 18, fontWeight: 700, marginTop: 4 }}>{periodKey}</div>
+                  </div>
+                  <span className={`salary-summary-dark__status ${lifecycle?.status === 'CLOSED' ? 'is-confirmed' : ''}`} style={{ color: 'var(--fg-1)', background: 'var(--surface-2)' }}>
+                    {lifecycle?.status === 'CLOSED' ? 'Đã chốt' : lifecycle?.status === 'REOPENED' ? 'Mở lại' : 'Đang mở'}
+                  </span>
+                </div>
+
+                {periodOverviewLoading ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--fg-3)' }}>
+                    <Loader2 size={16} className="spin" />
+                    <span>Đang tải trạng thái hậu chốt…</span>
+                  </div>
+                ) : (
+                  <>
+                    {lifecycle?.payslipIssuedAt && (
+                      <div className="payslip-callout">
+                        <CheckCircle2 size={16} className="payslip-callout-icon" />
+                        <div className="payslip-callout-text">
+                          <strong>Đã phát hành phiếu lương</strong>
+                          <div>{new Date(lifecycle.payslipIssuedAt).toLocaleString('vi-VN')}</div>
+                        </div>
+                      </div>
+                    )}
+                    {lifecycle?.officialPostedAt && (
+                      <div className="payslip-callout">
+                        <Lock size={16} className="payslip-callout-icon" />
+                        <div className="payslip-callout-text">
+                          <strong>Đã hạch toán chính thức</strong>
+                          <div>{new Date(lifecycle.officialPostedAt).toLocaleString('vi-VN')}</div>
+                        </div>
+                      </div>
+                    )}
+                    {lifecycle?.reopenBlockers.length ? (
+                      <div style={{ fontSize: 12, color: 'var(--fg-3)' }}>
+                        {lifecycle.reopenBlockers.join(' · ')}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 12, color: 'var(--fg-3)' }}>
+                        Có thể mở lại vì chưa phát hành, chưa thanh toán và chưa hạch toán chính thức.
+                      </div>
+                    )}
+
+                    <div style={{ display: 'grid', gap: 8 }}>
+                      {lifecycle?.status === 'OPEN' && closeGovernanceActions.length === 0 && (
+                        <button
+                          className="btn btn--primary btn--sm"
+                          disabled={closePeriodMutation.isPending}
+                          onClick={() => {
+                            closePeriodMutation.mutate(undefined, {
+                              onSuccess: () => {
+                                toast({
+                                  kind: 'success',
+                                  message: 'Đã tạo yêu cầu chốt kỳ lương. Cần người kiểm tra và người phê duyệt khác tiếp tục xử lý.',
+                                });
+                              },
+                              onError: (err: unknown) => {
+                                toast({
+                                  kind: 'error',
+                                  message: (err as Error)?.message || 'Không thể chốt toàn kỳ lương.',
+                                });
+                              },
+                            });
+                          }}
+                        >
+                          {closePeriodMutation.isPending ? 'Đang gửi yêu cầu…' : 'Gửi yêu cầu chốt kỳ'}
+                        </button>
+                      )}
+                      {lifecycle?.status === 'OPEN' && closeGovernanceActions.length > 0 && (
+                        <div style={{ fontSize: 12, color: 'var(--fg-3)' }}>
+                          Đang có yêu cầu chốt kỳ chờ xử lý bên dưới. Không thể tạo thêm yêu cầu mới cho cùng kỳ.
+                        </div>
+                      )}
+                      {lifecycle?.status === 'CLOSED' && !lifecycle.payslipIssuedAt && (
+                        <button
+                          className="btn btn--primary btn--sm"
+                          disabled={issuePeriodMutation.isPending || lifecycle.version == null}
+                          onClick={() => {
+                            if (lifecycle.version == null) return;
+                            issuePeriodMutation.mutate(
+                              { expectedVersion: lifecycle.version },
+                              {
+                                onError: (err: unknown) => {
+                                  toast({
+                                    kind: 'error',
+                                    message: (err as Error)?.message || 'Không thể phát hành phiếu lương.',
+                                  });
+                                },
+                              },
+                            );
+                          }}
+                        >
+                          {issuePeriodMutation.isPending ? 'Đang phát hành…' : 'Phát hành phiếu lương'}
+                        </button>
+                      )}
+                      {lifecycle?.status === 'CLOSED' && lifecycle.payslipIssuedAt && !lifecycle.officialPostedAt && (
+                        <button
+                          className="btn btn--secondary btn--sm"
+                          disabled={postPeriodMutation.isPending || lifecycle.version == null}
+                          onClick={() => {
+                            if (lifecycle.version == null) return;
+                            postPeriodMutation.mutate(
+                              { expectedVersion: lifecycle.version },
+                              {
+                                onError: (err: unknown) => {
+                                  toast({
+                                    kind: 'error',
+                                    message: (err as Error)?.message || 'Không thể đánh dấu hạch toán chính thức.',
+                                  });
+                                },
+                              },
+                            );
+                          }}
+                        >
+                          {postPeriodMutation.isPending ? 'Đang hạch toán…' : 'Đánh dấu hạch toán chính thức'}
+                        </button>
+                      )}
+                      {lifecycle?.status === 'CLOSED' && lifecycle.canReopen && canReopenCompanyPeriod && reopenGovernanceActions.length === 0 && (
+                        <>
+                          <div style={{ display: 'grid', gap: 6 }}>
+                            <label htmlFor="salary-period-reopen-reason" style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg-2)' }}>
+                              Lý do mở lại kỳ
+                            </label>
+                            <textarea
+                              id="salary-period-reopen-reason"
+                              rows={3}
+                              value={reopenReason}
+                              onChange={(event) => {
+                                setReopenReason(event.target.value);
+                                if (reopenReasonError && event.target.value.trim()) {
+                                  setReopenReasonError(null);
+                                }
+                              }}
+                              placeholder="Nêu rõ vì sao cần mở lại kỳ đã chốt"
+                              style={{
+                                width: '100%',
+                                minHeight: 88,
+                                resize: 'vertical',
+                                borderRadius: 12,
+                                border: `1px solid ${reopenReasonError ? 'var(--danger)' : 'var(--border)'}`,
+                                background: 'var(--surface-1)',
+                                color: 'var(--fg-1)',
+                                padding: '10px 12px',
+                              }}
+                            />
+                            {reopenReasonError && (
+                              <div role="alert" style={{ fontSize: 12, color: 'var(--danger)' }}>
+                                {reopenReasonError}
+                              </div>
+                            )}
+                          </div>
+                          <button
+                            className="btn btn--secondary btn--sm"
+                            disabled={reopenPeriodMutation.isPending || lifecycle.version == null}
+                            onClick={() => {
+                              if (lifecycle.version == null) return;
+                              const normalizedReopenReason = reopenReason.trim();
+                              if (!normalizedReopenReason) {
+                                setReopenReasonError('Cần nhập lý do mở lại kỳ lương trước khi gửi yêu cầu.');
+                                return;
+                              }
+                              reopenPeriodMutation.mutate(
+                                {
+                                  expectedVersion: lifecycle.version,
+                                  reason: normalizedReopenReason,
+                                },
+                                {
+                                  onSuccess: () => {
+                                    setReopenReason('');
+                                    setReopenReasonError(null);
+                                    toast({
+                                      kind: 'success',
+                                      message: 'Đã tạo yêu cầu mở lại kỳ lương. Cần người kiểm tra và người phê duyệt khác tiếp tục xử lý.',
+                                    });
+                                  },
+                                  onError: (err: unknown) => {
+                                    toast({
+                                      kind: 'error',
+                                      message: (err as Error)?.message || 'Không thể mở lại kỳ lương.',
+                                    });
+                                  },
+                                },
+                              );
+                            }}
+                          >
+                            {reopenPeriodMutation.isPending ? 'Đang gửi yêu cầu…' : 'Gửi yêu cầu mở lại kỳ'}
+                          </button>
+                        </>
+                      )}
+                      {lifecycle?.status === 'CLOSED' && reopenGovernanceActions.length > 0 && (
+                        <div style={{ fontSize: 12, color: 'var(--fg-3)' }}>
+                          Đang có yêu cầu mở lại kỳ chờ xử lý bên dưới. Không thể tạo thêm yêu cầu mới cho cùng kỳ.
+                        </div>
+                      )}
+                      {lifecycle?.status === 'CLOSED' && selectedDriverId && (
+                        <button
+                          className="btn btn--ghost btn--sm"
+                          onClick={() => setAdjustmentModalOpen(true)}
+                        >
+                          Tạo khoản điều chỉnh
+                        </button>
+                      )}
+                    </div>
+                    <SalaryPeriodGovernanceList
+                      items={activePeriodGovernanceActions}
+                      checkingActionId={
+                        checkClosePeriodMutation.variables?.actionId
+                        ?? checkReopenPeriodMutation.variables?.actionId
+                        ?? null
+                      }
+                      approvingActionId={
+                        approveClosePeriodMutation.variables?.actionId
+                        ?? approveReopenPeriodMutation.variables?.actionId
+                        ?? null
+                      }
+                      onCheck={handleCheckGovernanceAction}
+                      onApprove={handleApproveGovernanceAction}
+                    />
+                  </>
+                )}
+              </div>
+            </Panel>
+
             {/* 3. Salary Summary Card (on the Right) */}
             <div className="salary-summary-area">
               {salaryLoading ? (
@@ -404,11 +855,11 @@ export default function SalaryAttendancePage() {
                 </div>
               ) : salary ? (
                 <>
-                  <SalarySummaryCard salary={salary} />
-                    {/* Confirm button & status badge */}
-                    <div style={{ marginTop: 12 }}>
-                      {isConfirmed ? (
-                        <>
+	                  <SalarySummaryCard salary={salary} />
+	                    {/* Confirm button & status badge */}
+	                    <div style={{ marginTop: 12 }}>
+	                      {isConfirmed ? (
+	                        <>
                           <div className="salary-confirm-status">
                             <CheckCircle2 size={16} />
                             <span>Đã xác nhận</span>
@@ -417,49 +868,118 @@ export default function SalaryAttendancePage() {
                                 {new Date(salary.confirmedAt).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
                               </span>
                             )}
-                          </div>
-                          {canPostPayout && (
-                            <button
-                              className="btn btn--secondary btn--sm"
-                              style={{ width: '100%', marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-                              disabled={unconfirmMutation.isPending}
-                              onClick={() => setUnlockOpen(true)}
-                            >
-                              {unconfirmMutation.isPending ? (
-                                <Loader2 size={14} className="spin" />
-                              ) : (
-                                <Unlock size={14} />
-                              )}
-                              Mở khóa để chỉnh sửa
-                            </button>
-                          )}
-                        </>
-                      ) : (
-                        <button
-                          className="btn btn--primary btn--sm"
-                          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-                          disabled={confirmMutation.isPending}
-                          onClick={() => {
-                            confirmMutation.mutate(undefined, {
-                              onError: (err: unknown) => {
-                                toast({
-                                  kind: 'error',
-                                  message: (err as Error)?.message || 'Không thể xác nhận kỳ lương. Vui lòng thử lại.',
-                                });
-                              },
-                            });
-                          }}
-                        >
-                          {confirmMutation.isPending ? (
-                            <Loader2 size={14} className="spin" />
-                          ) : (
-                            <CheckCircle2 size={14} />
-                          )}
-                          Xác nhận kỳ lương
-                        </button>
-                      )}
-                    </div>
-                </>
+	                          </div>
+	                          {canPostPayout && (
+	                            <>
+	                              <label className="input-group" style={{ marginTop: 10 }}>
+	                                <span>Lý do mở lại bảng công và lương</span>
+	                                <textarea
+	                                  className="input"
+	                                  rows={3}
+	                                  value={reopenReason}
+	                                  onChange={(event) => {
+	                                    setReopenReason(event.target.value);
+	                                    if (reopenReasonError) {
+	                                      setReopenReasonError(null);
+	                                    }
+	                                  }}
+	                                  placeholder="Ví dụ: cần cập nhật ngày công sau đối soát cuối kỳ"
+	                                />
+	                              </label>
+	                              {reopenReasonError && (
+	                                <div style={{ marginTop: 6, fontSize: 12, color: 'var(--danger)' }}>
+	                                  {reopenReasonError}
+	                                </div>
+	                              )}
+	                              {reopenSalaryGovernanceActions.length > 0 ? (
+	                                <div style={{ marginTop: 8, fontSize: 12, color: 'var(--fg-3)' }}>
+	                                  Đang có yêu cầu mở lại bảng công và lương chờ xử lý bên dưới.
+	                                </div>
+	                              ) : (
+	                                <button
+	                                  className="btn btn--secondary btn--sm"
+	                                  style={{ width: '100%', marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+	                                  disabled={unconfirmMutation.isPending}
+	                                  onClick={() => {
+	                                    const normalizedReason = reopenReason.trim();
+	                                    if (!normalizedReason) {
+	                                      setReopenReasonError('Cần nhập lý do mở lại bảng công và lương trước khi gửi yêu cầu.');
+	                                      return;
+	                                    }
+	                                    unconfirmMutation.mutate(normalizedReason, {
+	                                      onSuccess: () => {
+	                                        setReopenReasonError(null);
+	                                        toast({ kind: 'success', message: 'Đã gửi yêu cầu mở lại bảng công và lương.' });
+	                                      },
+	                                      onError: (err: unknown) => {
+	                                        toast({ kind: 'error', message: (err as Error)?.message || 'Không thể gửi yêu cầu mở lại bảng công và lương.' });
+	                                      },
+	                                    });
+	                                  }}
+	                                >
+	                                  {unconfirmMutation.isPending ? (
+	                                    <Loader2 size={14} className="spin" />
+	                                  ) : (
+	                                    <Unlock size={14} />
+	                                  )}
+	                                  Gửi yêu cầu mở lại
+	                                </button>
+	                              )}
+	                            </>
+	                          )}
+	                        </>
+	                      ) : (
+	                        <>
+	                          {confirmGovernanceActions.length > 0 ? (
+	                            <div style={{ fontSize: 12, color: 'var(--fg-3)' }}>
+	                              Đang có yêu cầu xác nhận bảng công và lương chờ xử lý bên dưới.
+	                            </div>
+	                          ) : (
+	                            <button
+	                              className="btn btn--primary btn--sm"
+	                              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+	                              disabled={confirmMutation.isPending}
+	                              onClick={() => {
+	                                confirmMutation.mutate(undefined, {
+	                                  onSuccess: () => {
+	                                    toast({ kind: 'success', message: 'Đã gửi yêu cầu xác nhận bảng công và lương.' });
+	                                  },
+	                                  onError: (err: unknown) => {
+	                                    toast({
+	                                      kind: 'error',
+	                                      message: (err as Error)?.message || 'Không thể gửi yêu cầu xác nhận bảng công và lương.',
+	                                    });
+	                                  },
+	                                });
+	                              }}
+	                            >
+	                              {confirmMutation.isPending ? (
+	                                <Loader2 size={14} className="spin" />
+	                              ) : (
+	                                <CheckCircle2 size={14} />
+	                              )}
+	                              Gửi yêu cầu xác nhận
+	                            </button>
+	                          )}
+	                        </>
+	                      )}
+	                    </div>
+	                    <SalaryConfirmationGovernanceList
+	                      items={activeSalaryConfirmationActions}
+	                      checkingActionId={
+	                        checkConfirmMutation.variables?.actionId
+	                        ?? checkUnconfirmMutation.variables?.actionId
+	                        ?? null
+	                      }
+	                      approvingActionId={
+	                        approveConfirmMutation.variables?.actionId
+	                        ?? approveUnconfirmMutation.variables?.actionId
+	                        ?? null
+	                      }
+	                      onCheck={handleCheckSalaryConfirmationAction}
+	                      onApprove={handleApproveSalaryConfirmationAction}
+	                    />
+	                </>
               ) : (
                 <div className="salary-summary-dark" style={{ textAlign: 'center', padding: 24, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
                   Không thể tải dữ liệu lương
@@ -468,15 +988,59 @@ export default function SalaryAttendancePage() {
             </div>
 
             {/* Confirmed lock notice */}
-            {isConfirmed && (
-              <div style={{
-                marginTop: 12, display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px',
-                borderRadius: 8, background: 'var(--surface-2)', fontSize: 12, color: 'var(--ink-3)',
-              }}>
-                <Lock size={14} style={{ flexShrink: 0 }} />
-                <span>Kỳ lương đã khóa — không thể chỉnh sửa ngày công</span>
+	            {workdayEditLocked && (
+	              <div style={{
+	                marginTop: 12, display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px',
+	                borderRadius: 8, background: 'var(--surface-2)', fontSize: 12, color: 'var(--ink-3)',
+	              }}>
+	                <Lock size={14} style={{ flexShrink: 0 }} />
+	                <span>
+	                  {pendingSalaryConfirmationActions.some((item) => item.actionKind === 'SALARY_CONFIRMATION')
+	                    ? 'Đã gửi snapshot xác nhận — không thể chỉnh sửa ngày công cho đến khi yêu cầu được xử lý'
+	                    : 'Kỳ lương đã khóa — không thể chỉnh sửa ngày công'}
+	                </span>
+	              </div>
+	            )}
+
+            <Panel style={{ marginTop: 12 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                  <div>
+                    <div style={{ fontSize: 16, fontWeight: 700 }}>Điều chỉnh liên kỳ</div>
+                    <div style={{ fontSize: 12, color: 'var(--fg-3)' }}>
+                      Lịch sử được liên kết giữa kỳ nguồn và kỳ đích cho lái xe đang chọn.
+                    </div>
+                  </div>
+                </div>
+                <PostCloseAdjustmentList
+                  items={periodAdjustments}
+                  canCheck={canCheckAdjustment}
+                  canApprove={canApproveAdjustment}
+                  checkingActionId={checkAdjustmentMutation.isPending ? checkAdjustmentMutation.variables ?? null : null}
+                  approvingActionId={approveAdjustmentMutation.isPending ? approveAdjustmentMutation.variables ?? null : null}
+                  onCheck={(actionId) => {
+                    checkAdjustmentMutation.mutate(actionId, {
+                      onError: (err: unknown) => {
+                        toast({
+                          kind: 'error',
+                          message: (err as Error)?.message || 'Không thể kiểm tra điều chỉnh hậu chốt.',
+                        });
+                      },
+                    });
+                  }}
+                  onApprove={(actionId) => {
+                    approveAdjustmentMutation.mutate(actionId, {
+                      onError: (err: unknown) => {
+                        toast({
+                          kind: 'error',
+                          message: (err as Error)?.message || 'Không thể phê duyệt điều chỉnh hậu chốt.',
+                        });
+                      },
+                    });
+                  }}
+                />
               </div>
-            )}
+            </Panel>
 
             {/* Mobile back button — sticky bottom */}
             <div className="mobile-back-bar">
@@ -499,24 +1063,35 @@ export default function SalaryAttendancePage() {
           drivers={drivers.map(d => ({ id: d.id, name: d.name }))}
         />
       )}
-      <ConfirmDialog
-        isOpen={unlockOpen}
-        variant="warning"
-        message="Mở khóa kỳ lương để chỉnh sửa ngày công? Sau khi chỉnh xong bạn cần xác nhận lại."
-        confirmLabel={unconfirmMutation.isPending ? 'Đang mở…' : 'Mở khóa'}
-        cancelLabel="Hủy"
-        onConfirm={() => {
-          unconfirmMutation.mutate(undefined, {
-            onSuccess: () => {
-              toast({ kind: 'success', message: 'Đã mở khóa kỳ lương. Bạn có thể chỉnh sửa ngày công.' });
-              setUnlockOpen(false);
+	      <PostCloseAdjustmentModal
+        isOpen={adjustmentModalOpen}
+        onClose={() => setAdjustmentModalOpen(false)}
+        sourcePeriod={periodKey}
+        submitting={requestAdjustmentMutation.isPending}
+        onSubmit={async ({ targetPeriod, amount, reason }) => {
+          if (!selectedDriverId || lifecycle?.version == null) return;
+          requestAdjustmentMutation.mutate(
+            {
+              driverId: selectedDriverId,
+              targetPeriod,
+              amount,
+              reason,
+              expectedVersion: lifecycle.version,
             },
-            onError: (err: unknown) => {
-              toast({ kind: 'error', message: (err as Error)?.message || 'Không thể mở khóa kỳ lương.' });
+            {
+              onSuccess: () => {
+                toast({ kind: 'success', message: 'Đã tạo yêu cầu điều chỉnh hậu chốt.' });
+                setAdjustmentModalOpen(false);
+              },
+              onError: (err: unknown) => {
+                toast({
+                  kind: 'error',
+                  message: (err as Error)?.message || 'Không thể tạo điều chỉnh hậu chốt.',
+                });
+              },
             },
-          });
+          );
         }}
-        onCancel={() => setUnlockOpen(false)}
       />
     </div>
   );

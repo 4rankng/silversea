@@ -20,6 +20,7 @@ import {
   type GovernanceActionRow,
 } from './governance-transition.service';
 import { applyBillingDocumentGovernanceAction } from './billing-document-governance.service';
+import { applyPriceConfigGovernanceAction } from './price-config-governance.service';
 
 export { checkGovernanceAction } from './governance-transition.service';
 
@@ -108,6 +109,7 @@ export async function requestTripArAdjustment(input: {
   makerId: number;
   makerRole: string;
   expectedTripVersion: number;
+  transaction?: Tx;
 }) {
   assertCanMakeGovernanceAction('TRIP_AR_ADJUSTMENT', input.makerRole);
   assertExpectedTripVersion(input.expectedTripVersion);
@@ -118,7 +120,7 @@ export async function requestTripArAdjustment(input: {
     throw new ApiError(400, 'Số tiền điều chỉnh phải khác 0');
   }
 
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     const [trip] = await tx.select().from(s.trips)
       .where(eq(s.trips.id, input.tripId)).limit(1).for('update');
     if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
@@ -158,7 +160,8 @@ export async function requestTripArAdjustment(input: {
       makerRole: input.makerRole,
     }).returning();
     return action;
-  });
+  };
+  return input.transaction ? execute(input.transaction) : db.transaction(execute);
 }
 
 export async function requestTripReopen(input: {
@@ -167,11 +170,12 @@ export async function requestTripReopen(input: {
   makerId: number;
   makerRole: string;
   expectedTripVersion: number;
+  transaction?: Tx;
 }) {
   assertCanMakeGovernanceAction('TRIP_REOPEN', input.makerRole);
   assertExpectedTripVersion(input.expectedTripVersion);
   const reason = requireReason(input.reason);
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     await lockTripFinancialAuthority(tx, [input.tripId]);
     const [trip] = await tx.select().from(s.trips)
       .where(eq(s.trips.id, input.tripId)).limit(1).for('update');
@@ -197,7 +201,8 @@ export async function requestTripReopen(input: {
       makerRole: input.makerRole,
     }).returning();
     return action;
-  });
+  };
+  return input.transaction ? execute(input.transaction) : db.transaction(execute);
 }
 
 export async function approveGovernanceAction(input: {
@@ -205,6 +210,7 @@ export async function approveGovernanceAction(input: {
   approverId: number;
   approverRole: string;
   expectedVersion: number;
+  transaction?: Tx;
 }) {
   const approved = await approveGovernanceActionWithAdapter({
     ...input,
@@ -222,6 +228,9 @@ async function applyGovernanceAction(
 ) {
   if (action.subjectType === 'BILLING_DOCUMENT') {
     return applyBillingDocumentGovernanceAction(tx, action);
+  }
+  if (action.subjectType === 'PRICE_CONFIG') {
+    return applyPriceConfigGovernanceAction(tx, action);
   }
   return applyTripGovernanceAction(tx, action);
 }

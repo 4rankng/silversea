@@ -108,17 +108,17 @@ demo: ## Deploy silversea to demo (vantai.tingting.vip) — keeps existing DB
 	@cd backend && $(MAKE) push
 	@cd frontend && $(MAKE) push
 	@echo ""
-	@echo "2/3  Pulling + restarting services on $(DEMO_SERVER) (DB volume untouched)..."
+	@echo "2/3  Pulling, migrating, then restarting services on $(DEMO_SERVER) (DB volume untouched)..."
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) pull backend frontend"
+	@echo "Running pending migrations with the pulled backend image before cutover..."
+	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) run --rm --no-deps backend npx drizzle-kit migrate"
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) up -d --force-recreate --no-deps backend frontend"
-	@echo "Running pending migrations on top of existing DB..."
-	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) exec -T backend npx drizzle-kit migrate"
 	@ssh root@$(DEMO_SERVER) "docker image prune -f"
 	@echo ""
 	@echo "3/3  Health check..."
 	@$(MAKE) --no-print-directory demo-health
 	@echo ""
-	@echo "✅ Demo deployed: https://$(DEMO_SERVER)  (login: admin / admin123)"
+	@echo "✅ Demo deployed: https://$(DEMO_SERVER)  (use approved staging credentials)"
 
 demo-push: ## Build + push demo images only (no server-side changes)
 	@cd backend && $(MAKE) push
@@ -126,18 +126,28 @@ demo-push: ## Build + push demo images only (no server-side changes)
 
 demo-deploy: ## Pull + restart + migrate on the demo server (no rebuild)
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) pull backend frontend"
+	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) run --rm --no-deps backend npx drizzle-kit migrate"
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) up -d --force-recreate --no-deps backend frontend"
-	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) exec -T backend npx drizzle-kit migrate"
 	@ssh root@$(DEMO_SERVER) "docker image prune -f"
 	@$(MAKE) --no-print-directory demo-health
 
 demo-health: ## Hit the demo backend health endpoint
 	@echo "  Backend: https://$(DEMO_SERVER)/api/health"
-	@response="$$(curl -fsS --max-time 30 https://$(DEMO_SERVER)/api/health)" \
-		|| { echo "    ⚠️  health check failed — check logs:" \
-			&& echo "    ssh root@$(DEMO_SERVER) 'cd $(DEMO_PATH) && $(DEMO_COMPOSE) logs --tail=80 backend'" \
-			&& exit 1; }; \
-		printf '%s\n' "$$response" | sed 's/^/    /'
+	@attempt=1; \
+	while [ "$$attempt" -le 12 ]; do \
+		if response="$$(curl -fsS --max-time 10 https://$(DEMO_SERVER)/api/health 2>/dev/null)"; then \
+			printf '%s\n' "$$response" | sed 's/^/    /'; \
+			exit 0; \
+		fi; \
+		if [ "$$attempt" -eq 12 ]; then \
+			echo "    ⚠️  health check failed after 12 attempts — check logs:"; \
+			echo "    ssh root@$(DEMO_SERVER) 'cd $(DEMO_PATH) && $(DEMO_COMPOSE) logs --tail=80 backend'"; \
+			exit 1; \
+		fi; \
+		echo "    Waiting for backend readiness ($$attempt/12)..."; \
+		sleep 5; \
+		attempt=$$((attempt + 1)); \
+	done
 
 # ─── Help ──────────────────────────────────────────────────────────────────────
 help: ## Show this help

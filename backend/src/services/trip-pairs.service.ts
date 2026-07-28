@@ -14,6 +14,7 @@ import {
   breakTripPairOnCancellation,
   breakTripPairOnLateCompletion,
   buildTripPairSnapshot,
+  canonicalizePairingLocation,
   type TripPairSnapshot,
 } from './trip-pairing.service';
 import type { Tx } from './trip-shared';
@@ -40,6 +41,8 @@ interface TripRowForPairing {
   totalCost: string | null;
   routeDistanceKm?: number | null;
 }
+
+type PairDraftInput = CreateTripPairInput['firstTrip'];
 
 function toIso(value: Date | string | null | undefined): string | null {
   if (!value) return null;
@@ -99,6 +102,57 @@ function assertExpectedVersion(
   if (expectedVersion !== undefined && trip.version !== expectedVersion) {
     throw new ApiError(409, 'Dữ liệu chuyến đi đã bị thay đổi. Vui lòng tải lại trang.');
   }
+}
+
+function assertMatchingNumberField(
+  tripLabel: string,
+  fieldLabel: string,
+  supplied: number,
+  authoritative: string | number | null | undefined,
+) {
+  const authoritativeNumber = toNumber(authoritative);
+  if (authoritativeNumber == null) return;
+  if (Math.abs(supplied - authoritativeNumber) > 0.001) {
+    throw new ApiError(422, `${tripLabel}: ${fieldLabel} không khớp dữ liệu chuyến hiện tại. Vui lòng tải lại trang.`);
+  }
+}
+
+function assertMatchingDateField(
+  tripLabel: string,
+  fieldLabel: string,
+  supplied: string,
+  authoritative: Date | null,
+) {
+  if (!authoritative) return;
+  const suppliedMs = toDbDate(supplied).getTime();
+  if (suppliedMs !== authoritative.getTime()) {
+    throw new ApiError(422, `${tripLabel}: ${fieldLabel} không khớp dữ liệu chuyến hiện tại. Vui lòng tải lại trang.`);
+  }
+}
+
+function assertMatchingLocationField(
+  tripLabel: string,
+  fieldLabel: string,
+  supplied: string,
+  authoritative: string | null,
+) {
+  if (!authoritative) return;
+  if (canonicalizePairingLocation(supplied) !== canonicalizePairingLocation(authoritative)) {
+    throw new ApiError(422, `${tripLabel}: ${fieldLabel} không khớp dữ liệu chuyến hiện tại. Vui lòng tải lại trang.`);
+  }
+}
+
+function assertTripDraftMatchesAuthority(
+  tripLabel: string,
+  supplied: PairDraftInput,
+  authoritative: TripRowForPairing,
+) {
+  assertMatchingDateField(tripLabel, 'Giờ bắt đầu kế hoạch', supplied.plannedStartAt, authoritative.plannedStartAt);
+  assertMatchingDateField(tripLabel, 'Giờ kết thúc kế hoạch', supplied.plannedEndAt, authoritative.plannedEndAt);
+  assertMatchingLocationField(tripLabel, 'Điểm đi', supplied.canonicalOrigin, authoritative.canonicalOrigin);
+  assertMatchingLocationField(tripLabel, 'Điểm đến', supplied.canonicalDestination, authoritative.canonicalDestination);
+  assertMatchingNumberField(tripLabel, 'Trọng lượng hàng', Number(supplied.cargoWeightKg), authoritative.cargoWeightKg);
+  assertMatchingNumberField(tripLabel, 'Tải trọng xe', Number(supplied.vehicleCapacityKg), authoritative.vehicleCapacityKg);
 }
 
 function assertPairableTrips(first: TripRowForPairing, second: TripRowForPairing) {
@@ -211,16 +265,38 @@ async function loadTripsForPairing(tx: Tx, tripIds: [number, number]) {
     throw new ApiError(404, 'Không tìm thấy đủ hai chuyến để ghép');
   }
 
-  const byId = new Map(rows.map((row) => [row.id, row]));
+  const containerWeights = await tx.select({
+    tripId: s.tripContainers.tripId,
+    cargoWeightKg: sql<string | null>`
+      case
+        when count(${s.tripContainers.cargoWeightKg}) > 0
+          then sum(${s.tripContainers.cargoWeightKg})::text
+        else null
+      end
+    `,
+  }).from(s.tripContainers)
+    .where(inArray(s.tripContainers.tripId, tripIds))
+    .groupBy(s.tripContainers.tripId);
+
+  const containerWeightByTripId = new Map(
+    containerWeights.map((row) => [row.tripId, row.cargoWeightKg]),
+  );
+  const byId = new Map(rows.map((row) => [row.id, {
+    ...row,
+    cargoWeightKg: row.cargoWeightKg ?? containerWeightByTripId.get(row.id) ?? null,
+  }]));
   return {
     first: byId.get(tripIds[0]) as TripRowForPairing,
     second: byId.get(tripIds[1]) as TripRowForPairing,
   };
 }
 
-async function loadRouteDistances(routeIds: number[]) {
+async function loadRouteDistances(
+  executor: Tx | typeof db,
+  routeIds: number[],
+) {
   if (routeIds.length === 0) return new Map<number, number | null>();
-  const rows = await db.select({
+  const rows = await executor.select({
     id: s.routes.id,
     distanceKm: s.routes.distanceKm,
   }).from(s.routes).where(inArray(s.routes.id, routeIds));
@@ -230,52 +306,62 @@ async function loadRouteDistances(routeIds: number[]) {
 export async function createTripPair(
   input: CreateTripPairInput,
   actorId: number,
+  transaction?: Tx,
 ): Promise<TripPairRecord> {
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     const locked = await loadTripsForPairing(tx, [input.firstTripId, input.secondTripId]);
-    const routeDistances = await loadRouteDistances([locked.first.routeId, locked.second.routeId]);
+    const routeDistances = await loadRouteDistances(tx, [locked.first.routeId, locked.second.routeId]);
     locked.first.routeDistanceKm = routeDistances.get(locked.first.routeId) ?? null;
     locked.second.routeDistanceKm = routeDistances.get(locked.second.routeId) ?? null;
     assertExpectedVersion(locked.first, input.firstTrip.expectedVersion);
     assertExpectedVersion(locked.second, input.secondTrip.expectedVersion);
     assertPairableTrips(locked.first, locked.second);
+    assertTripDraftMatchesAuthority('Chuyến 1', input.firstTrip, locked.first);
+    assertTripDraftMatchesAuthority('Chuyến 2', input.secondTrip, locked.second);
 
-    const firstCapacity = Number(input.firstTrip.vehicleCapacityKg);
-    const secondCapacity = Number(input.secondTrip.vehicleCapacityKg);
+    const firstCapacity = toNumber(locked.first.vehicleCapacityKg);
+    const secondCapacity = toNumber(locked.second.vehicleCapacityKg);
+    if (firstCapacity == null || secondCapacity == null) {
+      throw new ApiError(422, firstBlockingMessage('MISSING_CAPACITY'));
+    }
     if (Math.abs(firstCapacity - secondCapacity) > 0.001) {
       throw new ApiError(422, 'Tải trọng xe phải thống nhất giữa hai chuyến ghép');
     }
 
-    const reposition = await getDistance(
-      input.firstTrip.canonicalDestination.trim(),
-      input.secondTrip.canonicalOrigin.trim(),
-    );
+    let repositionDistanceKm: number | null = null;
+    if (locked.first.canonicalDestination && locked.second.canonicalOrigin) {
+      const reposition = await getDistance(
+        locked.first.canonicalDestination.trim(),
+        locked.second.canonicalOrigin.trim(),
+      );
+      repositionDistanceKm = reposition.selected?.km ?? null;
+    }
     const evaluation = buildTripPairSnapshot(
       {
         tripId: locked.first.id,
         tripCode: locked.first.tripCode,
-        plannedStartAt: input.firstTrip.plannedStartAt,
-        plannedEndAt: input.firstTrip.plannedEndAt,
-        canonicalOrigin: input.firstTrip.canonicalOrigin,
-        canonicalDestination: input.firstTrip.canonicalDestination,
-        cargoWeightKg: Number(input.firstTrip.cargoWeightKg),
+        plannedStartAt: toIso(locked.first.plannedStartAt),
+        plannedEndAt: toIso(locked.first.plannedEndAt),
+        canonicalOrigin: locked.first.canonicalOrigin,
+        canonicalDestination: locked.first.canonicalDestination,
+        cargoWeightKg: toNumber(locked.first.cargoWeightKg),
         loadedDistanceKm: locked.first.routeDistanceKm,
       },
       {
         tripId: locked.second.id,
         tripCode: locked.second.tripCode,
-        plannedStartAt: input.secondTrip.plannedStartAt,
-        plannedEndAt: input.secondTrip.plannedEndAt,
-        canonicalOrigin: input.secondTrip.canonicalOrigin,
-        canonicalDestination: input.secondTrip.canonicalDestination,
-        cargoWeightKg: Number(input.secondTrip.cargoWeightKg),
+        plannedStartAt: toIso(locked.second.plannedStartAt),
+        plannedEndAt: toIso(locked.second.plannedEndAt),
+        canonicalOrigin: locked.second.canonicalOrigin,
+        canonicalDestination: locked.second.canonicalDestination,
+        cargoWeightKg: toNumber(locked.second.cargoWeightKg),
         loadedDistanceKm: locked.second.routeDistanceKm,
       },
       {
         vehicleCapacityKg: firstCapacity,
       },
       {
-        distanceKm: reposition.selected?.km ?? null,
+        distanceKm: repositionDistanceKm,
       },
     );
 
@@ -303,24 +389,24 @@ export async function createTripPair(
     }).returning();
 
     const firstUpdate = {
-      plannedStartAt: toDbDate(input.firstTrip.plannedStartAt),
-      plannedEndAt: toDbDate(input.firstTrip.plannedEndAt),
-      canonicalOrigin: input.firstTrip.canonicalOrigin.trim(),
-      canonicalDestination: input.firstTrip.canonicalDestination.trim(),
-      cargoWeightKg: toText(input.firstTrip.cargoWeightKg),
-      vehicleCapacityKg: toText(input.firstTrip.vehicleCapacityKg),
+      plannedStartAt: locked.first.plannedStartAt,
+      plannedEndAt: locked.first.plannedEndAt,
+      canonicalOrigin: locked.first.canonicalOrigin?.trim() ?? null,
+      canonicalDestination: locked.first.canonicalDestination?.trim() ?? null,
+      cargoWeightKg: toText(locked.first.cargoWeightKg),
+      vehicleCapacityKg: toText(locked.first.vehicleCapacityKg),
       activeTripPairId: pair.id,
       activeTripPairOrder: 1,
       version: sql`${s.trips.version} + 1`,
       updatedAt: new Date(),
     } as const;
     const secondUpdate = {
-      plannedStartAt: toDbDate(input.secondTrip.plannedStartAt),
-      plannedEndAt: toDbDate(input.secondTrip.plannedEndAt),
-      canonicalOrigin: input.secondTrip.canonicalOrigin.trim(),
-      canonicalDestination: input.secondTrip.canonicalDestination.trim(),
-      cargoWeightKg: toText(input.secondTrip.cargoWeightKg),
-      vehicleCapacityKg: toText(input.secondTrip.vehicleCapacityKg),
+      plannedStartAt: locked.second.plannedStartAt,
+      plannedEndAt: locked.second.plannedEndAt,
+      canonicalOrigin: locked.second.canonicalOrigin?.trim() ?? null,
+      canonicalDestination: locked.second.canonicalDestination?.trim() ?? null,
+      cargoWeightKg: toText(locked.second.cargoWeightKg),
+      vehicleCapacityKg: toText(locked.second.vehicleCapacityKg),
       activeTripPairId: pair.id,
       activeTripPairOrder: 2,
       version: sql`${s.trips.version} + 1`,
@@ -331,7 +417,8 @@ export async function createTripPair(
     await tx.update(s.trips).set(secondUpdate).where(eq(s.trips.id, input.secondTripId));
 
     return serializePairRecord(pair);
-  });
+  };
+  return transaction ? execute(transaction) : db.transaction(execute);
 }
 
 async function clearActivePairOnTrips(tx: Tx, tripIds: number[]) {

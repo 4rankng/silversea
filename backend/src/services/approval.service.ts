@@ -158,8 +158,9 @@ export async function processExpenseApproval(
   actorId: number,
   actorRole: string,
   action: 'APPROVED' | 'REJECTED',
+  transaction?: Tx,
 ): Promise<GuardedResult | { ok: true; outcome: 'APPROVED' | 'REJECTED' | 'RETURN_FOR_EVIDENCE' }> {
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     // Verify expense belongs to the specified trip
     const [expense] = await tx.select({ tripId: s.tripExpenses.tripId, forwarderId: s.tripExpenses.forwarderId })
       .from(s.tripExpenses).where(eq(s.tripExpenses.id, expenseId)).limit(1);
@@ -177,5 +178,9 @@ export async function processExpenseApproval(
       actorRole,
     });
     return { ok: true as const, outcome: result.outcome };
-  });
+  };
+  if (transaction) {
+    return execute(transaction);
+  }
+  return db.transaction(execute);
 }

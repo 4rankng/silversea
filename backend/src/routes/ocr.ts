@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { createHash } from 'node:crypto';
 import multer from 'multer';
 import type { Request, Response } from 'express';
 import { eq, and } from 'drizzle-orm';
@@ -11,6 +12,8 @@ import { sniffImageType } from '../lib/format';
 import { saveTripPhoto } from './upload';
 import { extractContainerAndSeal, extractPumpReading } from '../services/ocr.service';
 import { ApiError } from '../errors';
+import { getRequestIdempotencyKey } from './utils/idempotency';
+import { runIdempotent } from '../services/idempotency.service';
 
 // auth + Casbin ('ocr') applied at mount point in index.ts. Both routes below
 // inherit casbinAuthz('ocr') from that single mount — no per-route policy.
@@ -35,6 +38,7 @@ interface PersistOcrInput {
   /** Optional container row to link the photo to (must belong to `tripId`). */
   containerId: number | null;
   user: OcrUser;
+  storageKeySeed?: string;
 }
 
 /** The persisted photo plus the processed buffer callers may recognize on. */
@@ -83,6 +87,7 @@ export async function persistOcrPhoto({
   tripId,
   containerId,
   user,
+  storageKeySeed,
 }: PersistOcrInput): Promise<PersistedOcrPhoto> {
   if (type !== 'CONTAINER' && type !== 'SEAL') {
     throw new ApiError(400, 'Loại ảnh không hợp lệ (CONTAINER hoặc SEAL)');
@@ -114,6 +119,7 @@ export async function persistOcrPhoto({
   const saved = await saveTripPhoto(file, tripId, type, user.userId, {
     forOcr: true,
     containerId,
+    storageKeySeed,
   });
   return {
     photoUrl: saved.url,
@@ -148,40 +154,58 @@ router.post('/', upload.single('file'), asyncHandler(async (req: Request, res: R
   const user = getUser(req);
   const tripId = parseIdParam(req.body.trip_id, 'trip_id');
   const containerId = parseIdParam(req.body.container_id, 'container_id');
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  if (!idempotencyKey) {
+    throw new ApiError(400, 'Idempotency-Key là bắt buộc khi xử lý ảnh OCR.');
+  }
 
   // container_id only makes sense with a trip to link it to.
   if (containerId !== null && tripId === null) {
     throw new ApiError(400, 'container_id yêu cầu trip_id');
   }
 
-  let photoUrl: string | undefined;
-  let storageKey: string | undefined;
-  let ocrBuffer = file.buffer;
-  let ocrMime = sniffImageType(file.buffer) ?? 'image/jpeg';
+  const fileHash = createHash('sha256').update(file.buffer).digest('hex');
+  const { result: response } = await runIdempotent({
+    endpoint: 'ocr.capture',
+    idempotencyKey,
+    payload: { type, tripId, containerId, fileHash },
+    createdBy: user.userId,
+    entityType: tripId === null ? 'OCR_PREVIEW' : 'TRIP_PHOTO',
+    create: async () => {
+      let photoUrl: string | undefined;
+      let storageKey: string | undefined;
+      let ocrBuffer = file.buffer;
+      let ocrMime = sniffImageType(file.buffer) ?? 'image/jpeg';
 
-  if (tripId !== null) {
-    // Persist (OCR pipeline) + enforce ownership/container-link, then reuse the
-    // processed buffer for recognition. persistOcrPhoto throws ApiError on
-    // authz/validation failure → asyncHandler → globalErrorHandler.
-    const saved = await persistOcrPhoto({ file, type, tripId, containerId, user });
-    photoUrl = saved.photoUrl;
-    storageKey = saved.storageKey;
-    ocrBuffer = saved.buffer;
-    ocrMime = saved.mimeType;
-  }
+      if (tripId !== null) {
+        const saved = await persistOcrPhoto({
+          file,
+          type,
+          tripId,
+          containerId,
+          user,
+          storageKeySeed: `ocr-capture:${user.userId}:${idempotencyKey}`,
+        });
+        photoUrl = saved.photoUrl;
+        storageKey = saved.storageKey;
+        ocrBuffer = saved.buffer;
+        ocrMime = saved.mimeType;
+      }
 
-  const result = await extractContainerAndSeal(ocrBuffer, type, ocrMime);
-
-  res.status(200).json({
-    ok: result.success,
-    containerNumbers: result.containerNumbers,
-    sealNumber: result.sealNumber,
-    checkDigitWarnings: result.checkDigitWarnings,
-    photoUrl,
-    storageKey,
-    model: result.model,
-    error: result.error,
+      const result = await extractContainerAndSeal(ocrBuffer, type, ocrMime);
+      return {
+        ok: result.success,
+        containerNumbers: result.containerNumbers,
+        sealNumber: result.sealNumber,
+        checkDigitWarnings: result.checkDigitWarnings,
+        photoUrl,
+        storageKey,
+        model: result.model,
+        error: result.error,
+      };
+    },
   });
+  res.status(200).json(response);
 }));
 
 /**
@@ -243,16 +267,41 @@ router.post('/persist-only', upload.single('file'), asyncHandler(async (req: Req
   const tripId = parseIdParam(req.body.trip_id, 'trip_id');
   if (tripId === null) throw new ApiError(400, 'trip_id là bắt buộc');
   const containerId = parseIdParam(req.body.container_id, 'container_id');
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  if (!idempotencyKey) {
+    throw new ApiError(400, 'Idempotency-Key là bắt buộc khi lưu ảnh OCR.');
+  }
+  const fileHash = createHash('sha256').update(file.buffer).digest('hex');
+  const { result: saved, replayed } = await runIdempotent({
+    endpoint: 'ocr.persist-only',
+    idempotencyKey,
+    payload: { type, tripId, containerId, fileHash },
+    createdBy: user.userId,
+    entityType: 'TRIP_PHOTO',
+    create: async () => {
+      const persisted = await persistOcrPhoto({
+        file,
+        type,
+        tripId,
+        containerId,
+        user,
+        storageKeySeed: `ocr-persist-only:${user.userId}:${idempotencyKey}`,
+      });
+      return { photoUrl: persisted.photoUrl, storageKey: persisted.storageKey };
+    },
+  });
 
-  const saved = await persistOcrPhoto({ file, type, tripId, containerId, user });
-
-  // Distinct, greppable log line: `grep persist-only-flush` must yield ONLY
-  // intentional flushes — it is the prod-verification signal that the redundant
-  // recognition call is gone (capture keeps using POST /, which logs nothing
-  // here).
-  console.log(
-    `[ocr] persist-only-flush, recognition skipped (tripId=${tripId}, containerId=${containerId ?? '-'})`,
-  );
+  if (replayed) {
+    console.log(
+      `[ocr] persist-only-replay, no work repeated (tripId=${tripId}, containerId=${containerId ?? '-'})`,
+    );
+  } else {
+    // Distinct, greppable log line: `grep persist-only-flush` must yield ONLY
+    // intentional first executions. Exact replays use the separate marker above.
+    console.log(
+      `[ocr] persist-only-flush, recognition skipped (tripId=${tripId}, containerId=${containerId ?? '-'})`,
+    );
+  }
 
   res.status(200).json({
     ok: true,

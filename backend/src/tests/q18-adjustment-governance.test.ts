@@ -762,6 +762,8 @@ describe('Q18 bounded adjustment governance', () => {
       expenseType: 'Q18_TEST',
       buyAmount: '50000',
       sellAmount: '60000',
+      expenseDate: '2026-07-15',
+      invoiceNumber: 'Q18-TEST-INVOICE',
       settlementMethod: 'COMPANY_DIRECT',
       note: 'Biên nhận thử nghiệm Q18',
     }));

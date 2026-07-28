@@ -72,6 +72,7 @@ interface LinkedRequest {
 
 interface SettlementData {
   id: number;
+  version: number;
   code: string;
   forwarderId: number;
   forwarderName?: string;
@@ -273,18 +274,22 @@ export default function SettlementPrintPage() {
 
   const handleCheck = async () => {
     if (selectedRequestIds.size === 0) return;
-    await updateSettlement.mutateAsync({
+    const refreshed = await updateSettlement.mutateAsync({
       settlementId: s.id,
+      expectedVersion: s.version,
       advanceRequestIds: [...selectedRequestIds],
       tripExpenseIds: [...selectedExpenseIds],
       refundAmount: Number(refundAmount) || 0,
       note: settlementNote.trim() || null,
     });
-    await checkSettlement.mutateAsync(s.id);
+    await checkSettlement.mutateAsync({
+      id: s.id,
+      expectedVersion: (refreshed as SettlementData | undefined)?.version ?? s.version + 1,
+    });
   };
 
   const handleApprove = async () => {
-    await approveSettlement.mutateAsync(s.id);
+    await approveSettlement.mutateAsync({ id: s.id, expectedVersion: s.version });
   };
 
   const startEditingExpense = (expense: LinkedExpense) => {
@@ -298,6 +303,7 @@ export default function SettlementPrintPage() {
     await updateExpense.mutateAsync({
       settlementId: s.id,
       expenseId: editingExpense.id,
+      expectedVersion: s.version,
       buyAmount: Number(editedAmount),
       invoiceNumber: editingExpense.invoiceNumber,
       note: editingExpense.note,

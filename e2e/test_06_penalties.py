@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """E2E Test Suite 06: Penalties & Discipline"""
-import sys, os
+import sys, os, time
 sys.path.insert(0, os.path.dirname(__file__))
 from helpers import *
 
@@ -42,11 +42,12 @@ def test_penalties(ctx: NepoTestContext, results: TestResults):
     trips_resp = api.get('/api/trips')
     trip_items = trips_resp.get('data', {}).get('items', [])
     if driver_items:
+        unique_amount = 100000 + (time.time_ns() % 900000)
         penalty_payload = {
             'driverId': driver_items[0]['id'],
-            'amount': 100000,
+            'amount': unique_amount,
             'date': '2026-06-01',
-            'customReason': 'E2E test penalty',
+            'customReason': f'E2E test penalty {time.time_ns()}',
         }
         resp = api.post('/api/penalties', penalty_payload)
         if resp.get('status') in (200, 201) or (resp.get('data') and resp.get('data', {}).get('id')):

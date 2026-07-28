@@ -10,6 +10,115 @@ function amountsMatch(left: number, right: number): boolean {
   return round2dp(left) === round2dp(right);
 }
 
+function isFuelExpenseType(value: string): boolean {
+  return value.trim().toLowerCase().includes('fuel');
+}
+
+type FuelExpenseAuthority = {
+  id: number;
+  tripId: number;
+  supplierId: number | null;
+  expenseType: string;
+  approvalStatus: string;
+  expenseDate: string | null;
+  invoiceNumber: string | null;
+  declarationNumber: string | null;
+  buyAmount: string;
+};
+
+function normalizeReference(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function buildAuthoritativeReferences(expense: FuelExpenseAuthority): string[] {
+  const refs = [
+    normalizeReference(expense.invoiceNumber),
+    normalizeReference(expense.declarationNumber),
+  ].filter((value): value is string => value != null);
+  return [...new Set(refs)];
+}
+
+function photoCountByExpenseId(photos: Array<{ tripExpenseId: number }>): Map<number, number> {
+  const counts = new Map<number, number>();
+  for (const photo of photos) {
+    counts.set(photo.tripExpenseId, (counts.get(photo.tripExpenseId) ?? 0) + 1);
+  }
+  return counts;
+}
+
+function assertLinkedFuelExpenseAuthority(params: {
+  allocationLabel: string;
+  tripId: number;
+  tripExpenseId: number;
+  invoiceSupplierId: number;
+  voucherReference: string;
+  voucherDate: string;
+  computedAmount: number;
+  expense: FuelExpenseAuthority | undefined;
+  photoCount: number;
+}) {
+  const {
+    allocationLabel,
+    tripId,
+    tripExpenseId,
+    invoiceSupplierId,
+    voucherReference,
+    voucherDate,
+    computedAmount,
+    expense,
+    photoCount,
+  } = params;
+
+  if (!expense) {
+    throw new ApiError(400, `Không tìm thấy chi phí nhiên liệu #${tripExpenseId} cho ${allocationLabel}`);
+  }
+  if (expense.tripId !== tripId) {
+    throw new ApiError(400, `Chi phí nhiên liệu #${tripExpenseId} không thuộc chuyến #${tripId}`);
+  }
+  if (!isFuelExpenseType(expense.expenseType)) {
+    throw new ApiError(400, `Chi phí #${tripExpenseId} không phải chi phí nhiên liệu thực tế`);
+  }
+  if (expense.supplierId !== invoiceSupplierId) {
+    throw new ApiError(400, `Chi phí nhiên liệu #${tripExpenseId} không khớp nhà cung cấp trên hóa đơn`);
+  }
+  if (expense.approvalStatus !== 'APPROVED') {
+    throw new ApiError(400, `Chi phí nhiên liệu #${tripExpenseId} chưa ở trạng thái APPROVED`);
+  }
+  if (!expense.expenseDate) {
+    throw new ApiError(400, `Chi phí nhiên liệu #${tripExpenseId} chưa có ngày chi thực tế để đối chiếu`);
+  }
+  if (expense.expenseDate !== voucherDate) {
+    throw new ApiError(400, `${allocationLabel} phải trùng ngày chi ${expense.expenseDate} của chi phí nhiên liệu #${tripExpenseId}`);
+  }
+  const approvedAmount = Number(expense.buyAmount);
+  if (!amountsMatch(computedAmount, approvedAmount)) {
+    throw new ApiError(
+      400,
+      `${allocationLabel} không khớp chi phí nhiên liệu đã duyệt #${tripExpenseId}: ${computedAmount} != ${approvedAmount}`,
+    );
+  }
+
+  const authoritativeReferences = buildAuthoritativeReferences(expense);
+  const normalizedVoucherReference = normalizeReference(voucherReference);
+  if (authoritativeReferences.length > 0) {
+    if (!normalizedVoucherReference || !authoritativeReferences.includes(normalizedVoucherReference)) {
+      throw new ApiError(
+        400,
+        `${allocationLabel} phải khớp chứng từ đã duyệt của chi phí nhiên liệu #${tripExpenseId}: ${authoritativeReferences.join(' / ')}`,
+      );
+    }
+    return;
+  }
+
+  if (photoCount <= 0) {
+    throw new ApiError(
+      400,
+      `Chi phí nhiên liệu #${tripExpenseId} chưa có số hóa đơn/tờ khai và cũng chưa có ảnh phiếu bơm hoặc chứng từ`,
+    );
+  }
+}
+
 export interface FuelInvoiceAllocationInput {
   tripId: number;
   truckId?: number | null;
@@ -77,6 +186,9 @@ async function buildAllocationRows(
   input: FuelInvoiceInput,
 ) {
   const tripIds = [...new Set(input.allocations.map((allocation) => allocation.tripId))];
+  const expenseIds = [...new Set(input.allocations
+    .map((allocation) => allocation.tripExpenseId ?? null)
+    .filter((expenseId): expenseId is number => expenseId != null))];
   const trips = tripIds.length > 0
     ? await tx.select({
       id: s.trips.id,
@@ -84,7 +196,27 @@ async function buildAllocationRows(
       deletedAt: s.trips.deletedAt,
     }).from(s.trips).where(inArray(s.trips.id, tripIds))
     : [];
+  const expenses = expenseIds.length > 0
+    ? await tx.select({
+      id: s.tripExpenses.id,
+      tripId: s.tripExpenses.tripId,
+      supplierId: s.tripExpenses.supplierId,
+      expenseType: s.tripExpenses.expenseType,
+      approvalStatus: s.tripExpenses.approvalStatus,
+      expenseDate: s.tripExpenses.expenseDate,
+      invoiceNumber: s.tripExpenses.invoiceNumber,
+      declarationNumber: s.tripExpenses.declarationNumber,
+      buyAmount: s.tripExpenses.buyAmount,
+    }).from(s.tripExpenses).where(inArray(s.tripExpenses.id, expenseIds))
+    : [];
+  const expensePhotos = expenseIds.length > 0
+    ? await tx.select({
+      tripExpenseId: s.tripExpensePhotos.tripExpenseId,
+    }).from(s.tripExpensePhotos).where(inArray(s.tripExpensePhotos.tripExpenseId, expenseIds))
+    : [];
   const tripById = new Map(trips.map((trip) => [trip.id, trip]));
+  const expenseById = new Map(expenses.map((expense) => [expense.id, expense]));
+  const photoCountById = photoCountByExpenseId(expensePhotos);
 
   let allocatedLiters = 0;
   const rows = input.allocations.map((allocation) => {
@@ -97,6 +229,19 @@ async function buildAllocationRows(
     }
     if (!Number.isFinite(allocation.liters) || allocation.liters <= 0) {
       throw new ApiError(400, 'Số lít trên mỗi dòng phân bổ phải lớn hơn 0');
+    }
+    if (allocation.tripExpenseId != null) {
+      assertLinkedFuelExpenseAuthority({
+        allocationLabel: `Dòng phân bổ chuyến #${allocation.tripId}`,
+        tripId: allocation.tripId,
+        tripExpenseId: allocation.tripExpenseId,
+        invoiceSupplierId: input.supplierId,
+        voucherReference: allocation.voucherReference,
+        voucherDate: allocation.voucherDate,
+        computedAmount: round2dp(allocation.liters * input.unitPrice),
+        expense: expenseById.get(allocation.tripExpenseId),
+        photoCount: photoCountById.get(allocation.tripExpenseId) ?? 0,
+      });
     }
     const truckId = allocation.truckId ?? trip.truckId;
     if (truckId == null) {
@@ -242,6 +387,30 @@ export async function approveFuelInvoice(
       .where(eq(s.fuelInvoiceAllocations.fuelInvoiceId, invoiceId))
       .orderBy(s.fuelInvoiceAllocations.id);
 
+    const expenseIds = [...new Set(allocations
+      .map((allocation) => allocation.tripExpenseId ?? null)
+      .filter((expenseId): expenseId is number => expenseId != null))];
+    const expenses = expenseIds.length > 0
+      ? await tx.select({
+        id: s.tripExpenses.id,
+        tripId: s.tripExpenses.tripId,
+        supplierId: s.tripExpenses.supplierId,
+        expenseType: s.tripExpenses.expenseType,
+        approvalStatus: s.tripExpenses.approvalStatus,
+        expenseDate: s.tripExpenses.expenseDate,
+        invoiceNumber: s.tripExpenses.invoiceNumber,
+        declarationNumber: s.tripExpenses.declarationNumber,
+        buyAmount: s.tripExpenses.buyAmount,
+      }).from(s.tripExpenses).where(inArray(s.tripExpenses.id, expenseIds))
+      : [];
+    const expensePhotos = expenseIds.length > 0
+      ? await tx.select({
+        tripExpenseId: s.tripExpensePhotos.tripExpenseId,
+      }).from(s.tripExpensePhotos).where(inArray(s.tripExpensePhotos.tripExpenseId, expenseIds))
+      : [];
+    const expenseById = new Map(expenses.map((expense) => [expense.id, expense]));
+    const photoCountById = photoCountByExpenseId(expensePhotos);
+
     if (allocations.length === 0) {
       throw new ApiError(400, 'Hóa đơn nhiên liệu chưa có dòng phân bổ theo xe');
     }
@@ -265,6 +434,24 @@ export async function approveFuelInvoice(
           `Dòng phân bổ ${allocation.id} không khớp đơn giá hóa đơn: ${amount} != ${computedAmount}`,
         );
       }
+      if (allocation.tripExpenseId == null) {
+        throw new ApiError(
+          400,
+          `Dòng phân bổ ${allocation.id} chưa liên kết chi phí nhiên liệu thực tế đã duyệt`,
+        );
+      }
+      const expense = expenseById.get(allocation.tripExpenseId);
+      assertLinkedFuelExpenseAuthority({
+        allocationLabel: `Dòng phân bổ ${allocation.id}`,
+        tripId: allocation.tripId,
+        tripExpenseId: allocation.tripExpenseId,
+        invoiceSupplierId: invoice.supplierId,
+        voucherReference: allocation.voucherReference,
+        voucherDate: allocation.voucherDate,
+        computedAmount,
+        expense,
+        photoCount: photoCountById.get(allocation.tripExpenseId) ?? 0,
+      });
       allocatedLiters += liters;
       allocatedAmount += amount;
     }

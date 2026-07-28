@@ -16,6 +16,8 @@ import {
   returnGovernanceActionForEvidence,
 } from '../../services/governance-transition.service';
 import { parseActionId } from './governance-action-input';
+import { getRequestIdempotencyKey } from '../utils/idempotency';
+import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 
 const router = Router();
 const FINANCIAL_VIEWERS = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT] as const;
@@ -54,13 +56,25 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const actor = getUser(req);
     const input = governanceActionDecisionSchema.parse(req.body);
-    res.json(await rejectGovernanceAction({
-      actionId: parseActionId(req.params.id),
-      actorId: actor.userId,
-      actorRole: actor.role,
-      expectedVersion: input.expectedVersion,
-      reason: input.reason,
-    }));
+    const actionId = parseActionId(req.params.id);
+    const idempotencyKey = getRequestIdempotencyKey(req);
+    const { result, replayed } = await runIdempotent({
+      endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_REJECT,
+      idempotencyKey,
+      payload: { actionId, actorId: actor.userId, actorRole: actor.role, ...input },
+      createdBy: actor.userId,
+      entityType: 'governance_action',
+      create: (tx) => rejectGovernanceAction({
+        actionId,
+        actorId: actor.userId,
+        actorRole: actor.role,
+        expectedVersion: input.expectedVersion,
+        reason: input.reason,
+        transaction: tx,
+      }),
+    });
+    res.locals.auditEntityId = result.id;
+    res.json(idempotencyKey ? { ...result, replayed } : result);
   }),
 );
 
@@ -70,13 +84,25 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const actor = getUser(req);
     const input = governanceActionDecisionSchema.parse(req.body);
-    res.json(await returnGovernanceActionForEvidence({
-      actionId: parseActionId(req.params.id),
-      actorId: actor.userId,
-      actorRole: actor.role,
-      expectedVersion: input.expectedVersion,
-      reason: input.reason,
-    }));
+    const actionId = parseActionId(req.params.id);
+    const idempotencyKey = getRequestIdempotencyKey(req);
+    const { result, replayed } = await runIdempotent({
+      endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_RETURN,
+      idempotencyKey,
+      payload: { actionId, actorId: actor.userId, actorRole: actor.role, ...input },
+      createdBy: actor.userId,
+      entityType: 'governance_action',
+      create: (tx) => returnGovernanceActionForEvidence({
+        actionId,
+        actorId: actor.userId,
+        actorRole: actor.role,
+        expectedVersion: input.expectedVersion,
+        reason: input.reason,
+        transaction: tx,
+      }),
+    });
+    res.locals.auditEntityId = result.id;
+    res.json(idempotencyKey ? { ...result, replayed } : result);
   }),
 );
 
@@ -86,13 +112,25 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const actor = getUser(req);
     const input = governanceActionDecisionSchema.parse(req.body);
-    res.json(await cancelGovernanceAction({
-      actionId: parseActionId(req.params.id),
-      actorId: actor.userId,
-      actorRole: actor.role,
-      expectedVersion: input.expectedVersion,
-      reason: input.reason,
-    }));
+    const actionId = parseActionId(req.params.id);
+    const idempotencyKey = getRequestIdempotencyKey(req);
+    const { result, replayed } = await runIdempotent({
+      endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_CANCEL,
+      idempotencyKey,
+      payload: { actionId, actorId: actor.userId, actorRole: actor.role, ...input },
+      createdBy: actor.userId,
+      entityType: 'governance_action',
+      create: (tx) => cancelGovernanceAction({
+        actionId,
+        actorId: actor.userId,
+        actorRole: actor.role,
+        expectedVersion: input.expectedVersion,
+        reason: input.reason,
+        transaction: tx,
+      }),
+    });
+    res.locals.auditEntityId = result.id;
+    res.json(idempotencyKey ? { ...result, replayed } : result);
   }),
 );
 

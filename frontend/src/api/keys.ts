@@ -251,6 +251,11 @@ export const qk = {
     payablesSummary: (category: string | undefined) => ['payables-summary', category ?? 'all'] as const,
     /** Broad prefix — matches all payablesSummary queries regardless of category. */
     payablesSummaryAll: ['payables-summary'] as const,
+    fuelInvoices: (filters: { supplierId?: number; status?: string } = {}) =>
+      ['fuel-invoices', filters.supplierId ?? 'all', filters.status ?? 'all'] as const,
+    fuelInvoicesAll: ['fuel-invoices'] as const,
+    fuelInvoice: (id: number | null | undefined) => ['fuel-invoice', id ?? 'none'] as const,
+    fuelInvoiceTripOptions: ['fuel-invoice-trip-options'] as const,
     /** See `customerStatement` — AP mirror, keyed by supplier id + range. */
     supplierStatement: (
       supplierId: number | undefined,

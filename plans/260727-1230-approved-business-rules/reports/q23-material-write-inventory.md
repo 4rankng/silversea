@@ -538,6 +538,48 @@ migrations. Before generating the next migration, the controller must confirm
 the final journal and coordinate ownership of `schema.ts` and
 `meta/_journal.json`.
 
+## Implementation update — 2026-07-27
+
+The original table above is the pre-implementation inventory. Current Q23
+coverage in this lane is now broader:
+
+- `runIdempotent()` persists `response_snapshot`, replays the original response
+  immutably, and executes the business write plus key persistence inside the
+  same transaction callback.
+- Covered material routes now include:
+  `POST /api/finance/debt-offsets`,
+  `POST /api/finance/debt-offsets/:id/approve|cancel`,
+  `POST /api/governance-actions/:id/check|approve|reject|return-for-evidence|cancel`,
+  `POST /api/trips/:id/expenses/:eid/approve|reject`,
+  `POST /api/reports/distribute-profit`,
+  `POST /api/advance-requests/:id/approve|reject`,
+  `POST /api/advance-settlements/:id/check|approve|reject`,
+  `PUT /api/advance-settlements/:id`,
+  `PATCH /api/advance-settlements/:id/expenses/:expenseId`,
+  `POST /api/salary-periods/:period/close|reopen`,
+  `POST /api/salary/:driverId/:year/:month/confirm|unconfirm`,
+  `PUT /api/salary/:driverId/:year/:month/workdays`,
+  `POST /api/finance/billing-documents`,
+  `PUT /api/finance/billing-documents/:id`,
+  `DELETE /api/finance/billing-documents/:id`,
+  and `POST /api/portal/debit-notes/:id/confirm|dispute`.
+- Focused proof now exists for immutable replay on payment-allocation service,
+  approved financial routes, and customer portal debit-note confirm replay:
+  `qa/2026-07-27_q23-immutable-replay_m56-snapshot-test.log`,
+  `qa/2026-07-27_q23-immutable-replay_q23-approved-financial-test.log`,
+  `qa/2026-07-27_q23-immutable-replay_customer-portal-test.log`.
+
+Residual gaps after this lane:
+
+- stale-write authority is still missing on mutable settlement and billing
+  document edits; same-key replay is fixed, but different-key last-writer-wins
+  remains;
+- direct payment receipt/vendor/carrier/payout, commission, penalty, shipment,
+  trip lifecycle, direct expense, upload/OCR, and generated CRUD writes still
+  need Q23 key enforcement or stronger versioned authority;
+- conflict evidence is still best-effort async audit, not transactionally
+  durable with the business write.
+
 ## Required proof matrix
 
 For every material endpoint/class:
@@ -560,6 +602,26 @@ For every material endpoint/class:
 Q23 remains **PARTIAL**. Client transaction identifiers and broad attempt audit
 are present, but universal atomic replay, stale versions, first-valid transition
 semantics, and durable conflict evidence are not.
+
+## Implementation update — 2026-07-28
+
+The following residual classes from the 2026-07-27 inventory are now covered
+and have focused replay/concurrency evidence:
+
+- shipment commands (`reports/q23-shipments-replay.md`);
+- trip commands (`reports/q23-trips-replay.md`);
+- advance requests and settlements (`reports/q23-advances-replay.md`);
+- generated configuration CRUD stale-write/replay
+  (`reports/q23-config-crud-replay.md`);
+- company expenses and receipt photos
+  (`reports/q23-company-expense-replay.md`);
+- upload, OCR, and geotag operational evidence
+  (`reports/q23-operational-evidence-replay.md`).
+
+This update supersedes those named items in the residual-gap list above.
+Q23 still remains **PARTIAL** until every other material endpoint class in the
+inventory has the required proof matrix; the named reports are class-specific
+proof, not a universal completion claim.
 
 Status: DONE
 Summary: The audit expands all 204 authenticated mutation endpoints, identifies 194 material writes and their exact current controls/gaps, prioritizes financial races, defines one reusable enforcement order, and coordinates Q03/Q17/Q22 plus the post-0138 migration sequence.

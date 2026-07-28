@@ -28,6 +28,7 @@ import {
   useRejectCreditOverrideRequest,
 } from '../hooks/useCreditOverrideQueries';
 import { formatCurrency } from '../lib/format';
+import { canDecideCreditOverride } from '../lib/credit-override-permissions';
 import './TripForm.css';
 import './TripCreatePage.css';
 
@@ -86,7 +87,6 @@ export default function TripCreatePage() {
     confirmDiscard: () => confirm('Thoát mà không lưu? Các thay đổi chưa lưu sẽ bị mất.', { variant: 'warning', confirmLabel: 'Thoát' }),
   });
 
-  const canApprove = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT;
   const queueFilters = React.useMemo(
     () => ({
       status: 'PENDING',
@@ -399,7 +399,7 @@ export default function TripCreatePage() {
                         <span style={{ color: 'var(--fg-2)', fontSize: 13 }}>
                           Bạn là người tạo đề nghị này nên không thể tự duyệt hoặc từ chối.
                         </span>
-                      ) : canApprove ? (
+                      ) : canDecideCreditOverride(user?.role, request.requiredTier) ? (
                         <>
                           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                             <button
@@ -444,7 +444,11 @@ export default function TripCreatePage() {
                             </div>
                           )}
                         </>
-                      ) : null}
+                      ) : (
+                        <span style={{ color: 'var(--fg-2)', fontSize: 13 }}>
+                          Đề nghị này đang chờ đúng cấp {creditTierLabel(request.requiredTier)} xử lý.
+                        </span>
+                      )}
                     </div>
                   ))}
               </div>
@@ -498,7 +502,9 @@ export default function TripCreatePage() {
                 {creditAction === 'apply' ? <Loader2 size={16} className="spin" /> : null}
                 Tạo chuyến với mã đã duyệt
               </button>
-              {canApprove && creditRequest?.requestedBy !== user?.userId && (
+              {creditRequest
+                && canDecideCreditOverride(user?.role, creditRequest.requiredTier)
+                && creditRequest.requestedBy !== user?.userId && (
                 <button
                   type="button"
                 className="btn btn--secondary"

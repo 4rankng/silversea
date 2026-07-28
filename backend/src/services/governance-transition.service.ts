@@ -15,6 +15,18 @@ import {
   getGovernanceAllowedActions,
   type GovernanceActor,
 } from './governance-policy';
+import { applyCommissionGovernanceAction } from './commission.service';
+import {
+  applyCarrierPaymentGovernanceAction,
+  applyDriverPayoutGovernanceAction,
+  applyPenaltyCancelGovernanceAction,
+  applyPenaltyCreateGovernanceAction,
+  applyVendorPaymentGovernanceAction,
+} from './financial.service';
+import {
+  applyPaymentReceiptGovernanceAction,
+  applyPaymentRefundGovernanceAction,
+} from './payment-allocation.service';
 
 export type GovernanceActionRow = typeof s.governanceActions.$inferSelect;
 
@@ -31,6 +43,17 @@ export type GovernanceApplyAdapter = (
 export type GovernanceActionView = GovernanceActionRow & {
   allowedActions: GovernanceAllowedAction[];
 };
+
+const DIRECT_MONEY_ACTION_KINDS = new Set([
+  'PAYMENT_RECEIPT',
+  'PAYMENT_REFUND',
+  'VENDOR_PAYMENT',
+  'CARRIER_PAYMENT',
+  'DRIVER_PAYOUT',
+  'COMMISSION',
+  'PENALTY_CREATE',
+  'PENALTY_CANCEL',
+]);
 
 function assertExpectedActionVersion(actual: number, expected: number): void {
   if (!Number.isInteger(expected) || expected <= 0) {
@@ -94,8 +117,9 @@ export async function checkGovernanceAction(input: {
   checkerId: number;
   checkerRole: string;
   expectedVersion: number;
+  transaction?: Tx;
 }) {
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     const action = await lockGovernanceAction(tx, input.actionId);
     assertExpectedActionVersion(action.version, input.expectedVersion);
     if (action.status !== 'PENDING_CHECK') {
@@ -147,7 +171,11 @@ export async function checkGovernanceAction(input: {
       throw new ApiError(409, 'Yêu cầu đã được người khác xử lý. Vui lòng tải lại.');
     }
     return updated;
-  });
+  };
+  if (input.transaction) {
+    return execute(input.transaction);
+  }
+  return db.transaction(execute);
 }
 
 export async function approveGovernanceActionWithAdapter(input: {
@@ -156,8 +184,9 @@ export async function approveGovernanceActionWithAdapter(input: {
   approverRole: string;
   expectedVersion: number;
   apply: GovernanceApplyAdapter;
+  transaction?: Tx;
 }) {
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     const action = await lockGovernanceAction(tx, input.actionId);
     assertExpectedActionVersion(action.version, input.expectedVersion);
     if (action.status !== 'PENDING_APPROVAL' || action.checkerId == null) {
@@ -168,8 +197,16 @@ export async function approveGovernanceActionWithAdapter(input: {
       actorRole: input.approverRole,
     });
 
-    const effect = await input.apply(tx, action);
     const now = new Date();
+    // Adapters execute inside the same approval transaction before the
+    // governance row is persisted as APPROVED. Give them the authoritative
+    // decision actor so immutable domain rows can record the actual approver.
+    const effect = await input.apply(tx, {
+      ...action,
+      approverId: input.approverId,
+      approverRole: input.approverRole,
+      approvedAt: now,
+    });
     const [approved] = await tx.update(s.governanceActions).set({
       status: 'APPROVED',
       approverId: input.approverId,
@@ -189,6 +226,53 @@ export async function approveGovernanceActionWithAdapter(input: {
       throw new ApiError(409, 'Yêu cầu đã được người khác xử lý. Vui lòng tải lại.');
     }
     return approved;
+  };
+  if (input.transaction) {
+    return execute(input.transaction);
+  }
+  return db.transaction(execute);
+}
+
+export function isDirectMoneyGovernanceActionKind(actionKind: string): boolean {
+  return DIRECT_MONEY_ACTION_KINDS.has(actionKind);
+}
+
+async function applyDirectMoneyGovernanceAction(
+  tx: Tx,
+  action: GovernanceActionRow,
+) {
+  switch (action.actionKind) {
+    case 'PAYMENT_RECEIPT':
+      return applyPaymentReceiptGovernanceAction(tx, action);
+    case 'PAYMENT_REFUND':
+      return applyPaymentRefundGovernanceAction(tx, action);
+    case 'VENDOR_PAYMENT':
+      return applyVendorPaymentGovernanceAction(tx, action);
+    case 'CARRIER_PAYMENT':
+      return applyCarrierPaymentGovernanceAction(tx, action);
+    case 'DRIVER_PAYOUT':
+      return applyDriverPayoutGovernanceAction(tx, action);
+    case 'COMMISSION':
+      return applyCommissionGovernanceAction(tx, action);
+    case 'PENALTY_CREATE':
+      return applyPenaltyCreateGovernanceAction(tx, action);
+    case 'PENALTY_CANCEL':
+      return applyPenaltyCancelGovernanceAction(tx, action);
+    default:
+      throw new ApiError(409, 'Loại yêu cầu không thuộc nhóm tiền trực tiếp');
+  }
+}
+
+export async function approveDirectMoneyGovernanceAction(input: {
+  actionId: number;
+  approverId: number;
+  approverRole: string;
+  expectedVersion: number;
+  transaction?: Tx;
+}) {
+  return approveGovernanceActionWithAdapter({
+    ...input,
+    apply: applyDirectMoneyGovernanceAction,
   });
 }
 
@@ -199,8 +283,9 @@ async function recordNegativeDecision(input: {
   expectedVersion: number;
   reason: string;
   kind: 'REJECT' | 'RETURN_FOR_EVIDENCE';
+  transaction?: Tx;
 }) {
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     const action = await lockGovernanceAction(tx, input.actionId);
     assertExpectedActionVersion(action.version, input.expectedVersion);
     const actor = { actorId: input.actorId, actorRole: input.actorRole };
@@ -236,7 +321,11 @@ async function recordNegativeDecision(input: {
       throw new ApiError(409, 'Yêu cầu đã được người khác xử lý. Vui lòng tải lại.');
     }
     return updated;
-  });
+  };
+  if (input.transaction) {
+    return execute(input.transaction);
+  }
+  return db.transaction(execute);
 }
 
 export async function rejectGovernanceAction(input: {
@@ -245,6 +334,7 @@ export async function rejectGovernanceAction(input: {
   actorRole: string;
   expectedVersion: number;
   reason: string;
+  transaction?: Tx;
 }) {
   return recordNegativeDecision({ ...input, kind: 'REJECT' });
 }
@@ -255,6 +345,7 @@ export async function returnGovernanceActionForEvidence(input: {
   actorRole: string;
   expectedVersion: number;
   reason: string;
+  transaction?: Tx;
 }) {
   return recordNegativeDecision({ ...input, kind: 'RETURN_FOR_EVIDENCE' });
 }
@@ -265,8 +356,9 @@ export async function cancelGovernanceAction(input: {
   actorRole: string;
   expectedVersion: number;
   reason: string;
+  transaction?: Tx;
 }) {
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     const action = await lockGovernanceAction(tx, input.actionId);
     assertExpectedActionVersion(action.version, input.expectedVersion);
     if (!canViewGovernanceAction(input.actorRole)) {
@@ -297,7 +389,11 @@ export async function cancelGovernanceAction(input: {
       throw new ApiError(409, 'Yêu cầu đã được người khác xử lý. Vui lòng tải lại.');
     }
     return canceled;
-  });
+  };
+  if (input.transaction) {
+    return execute(input.transaction);
+  }
+  return db.transaction(execute);
 }
 
 export async function getGovernanceAction(input: {
@@ -334,6 +430,9 @@ export async function listGovernanceActions(input: {
   }
   if (input.query.subjectId) {
     filters.push(eq(s.governanceActions.subjectId, input.query.subjectId));
+  }
+  if (input.query.subjectKey) {
+    filters.push(eq(s.governanceActions.subjectKey, input.query.subjectKey));
   }
   const rows = await db.select().from(s.governanceActions)
     .where(filters.length > 0 ? and(...filters) : undefined)

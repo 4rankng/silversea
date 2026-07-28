@@ -2,11 +2,11 @@ import { Router } from 'express';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { COMPANY_INFO_SETTING_KEYS, companyInfoFromSettings } from '../services/company-info.service';
-import { eq, like, sql } from 'drizzle-orm';
+import { and, eq, like, ne, sql } from 'drizzle-orm';
 // auth + Casbin applied at mount point in index.ts
 import {
-  customerSchema, truckSchema, trailerSchema, routeSchema,
-  cargoTypeSchema, pricingTableSchema, roadAllowanceSchema,
+  customerSchema, customerUpdateSchema, truckSchema, trailerSchema, routeSchema,
+  cargoTypeSchema, roadAllowanceSchema,
   fuelConfigSchema, penaltyReasonSchema, driverSchema,
   managementFeeSchema, capTableSchema, truckCapSchema,
   salaryPeriodSchema, salaryPeriodDefaultSchema,
@@ -17,15 +17,17 @@ import {
   tireSchema, installTireSchema, disposeTireSchema, transferTireSchema, tirePositionSchema,
   fuelNormSchema, weightPricingTierSchema, liftPricingSchema, ancillaryRevenueSchema,
   businessCalendarDaySchema,
+  governanceActionVersionSchema,
   DEFAULT_NO_INVOICE_EVIDENCE_TYPES,
   NO_INVOICE_POLICY_DEFAULTS,
 } from '@tingting/shared';
 import type { Request, Response } from 'express';
 import type { output } from 'zod';
 import { createCrudRouter } from './utils/crud-factory';
+import pricingTablesGovernedRouter from './config/pricing-tables-governed.routes';
 import debitNoteTemplatesRouter from './config/debit-note-templates.routes';
 import { ApiError } from '../errors';
-import { getBootstrapData, getPricing, getFuelConfig, upsertFuelConfig, getFuelPriceHistory, getEffectiveFuelPrice, mirrorCustomerLink, mirrorSupplierLink, syncTrailerFields, validateCustomerUniqueness } from '../services/config.service';
+import { getBootstrapData, getPricing, getFuelConfig, upsertFuelConfig, getFuelPriceHistory, getEffectiveFuelPrice, syncTrailerFields, validateCustomerUniqueness } from '../services/config.service';
 import { cacheInvalidatePattern } from '../lib/redis';
 import { Role } from '@tingting/shared';
 import { requireRoles } from '../middleware/casbin';
@@ -40,8 +42,10 @@ import {
   resolveSalaryPeriodDateRange,
 } from '../services/salary-period.service';
 import {
-  closeSalaryPeriod,
-  reopenSalaryPeriod,
+  approveSalaryPeriodClose,
+  approveSalaryPeriodReopen,
+  checkSalaryPeriodClose,
+  checkSalaryPeriodReopen,
   getSalaryPeriodClose,
   listSalaryPeriodCloses,
   getSalaryPeriodReadiness,
@@ -49,6 +53,9 @@ import {
   createSalaryPeriodExclusion,
   checkSalaryPeriodExclusion,
   approveSalaryPeriodExclusion,
+  completeSalaryPeriodExclusionFollowup,
+  requestSalaryPeriodClose,
+  requestSalaryPeriodReopen,
 } from '../services/salary-period-close.service';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { getUser } from '../middleware/auth';
@@ -56,11 +63,93 @@ import { parsePagination } from './utils/pagination';
 import { queryAuditLogs } from '../services/audit-query.service';
 import { getPenaltyStats } from '../services/reporting.service';
 import { normalizeSupplierTypeSelection } from '../services/supplier-types.service';
-import { syncCustomerPartner, syncSupplierPartner } from '../services/legal-partner.service';
+import { normalizeTaxCode } from '../services/legal-partner.service';
 
 type SupplierPayload = output<typeof supplierSchema>;
 type ForwarderExpenseTypePayload = output<typeof forwarderExpenseTypeSchema>;
 type NoInvoiceEvidenceType = typeof DEFAULT_NO_INVOICE_EVIDENCE_TYPES[number];
+type CrudTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+function displayTaxCode(value: string | null | undefined): string {
+  return String(value ?? '').trim().replace(/\s+/g, '');
+}
+
+async function upsertPartnerInTransaction(
+  tx: CrudTx,
+  taxCode: string | null | undefined,
+): Promise<number | null> {
+  const normalizedTaxCode = normalizeTaxCode(taxCode);
+  if (!normalizedTaxCode) return null;
+  const [partner] = await tx.insert(s.partners)
+    .values({
+      normalizedTaxCode,
+      displayTaxCode: displayTaxCode(taxCode),
+      currency: 'VND',
+    })
+    .onConflictDoUpdate({
+      target: s.partners.normalizedTaxCode,
+      set: {
+        displayTaxCode: displayTaxCode(taxCode),
+        updatedAt: new Date(),
+      },
+    })
+    .returning({ id: s.partners.id });
+  return partner.id;
+}
+
+async function syncCustomerRelationsHook(
+  tx: CrudTx,
+  customer: { id: number; taxCode: string | null },
+  data: { linkedSupplierId?: number | null },
+): Promise<void> {
+  if ('linkedSupplierId' in data) {
+    const staleCondition = data.linkedSupplierId == null
+      ? eq(s.suppliers.linkedCustomerId, customer.id)
+      : and(
+        eq(s.suppliers.linkedCustomerId, customer.id),
+        ne(s.suppliers.id, data.linkedSupplierId),
+      );
+    await tx.update(s.suppliers)
+      .set({ linkedCustomerId: null, updatedAt: new Date() })
+      .where(staleCondition);
+    if (data.linkedSupplierId != null) {
+      await tx.update(s.suppliers)
+        .set({ linkedCustomerId: customer.id, updatedAt: new Date() })
+        .where(eq(s.suppliers.id, data.linkedSupplierId));
+    }
+  }
+  const partnerId = await upsertPartnerInTransaction(tx, customer.taxCode);
+  await tx.update(s.customers)
+    .set({ partnerId, updatedAt: new Date() })
+    .where(eq(s.customers.id, customer.id));
+}
+
+async function syncSupplierRelationsHook(
+  tx: CrudTx,
+  supplier: { id: number; taxCode: string | null },
+  data: { linkedCustomerId?: number | null },
+): Promise<void> {
+  if ('linkedCustomerId' in data) {
+    const staleCondition = data.linkedCustomerId == null
+      ? eq(s.customers.linkedSupplierId, supplier.id)
+      : and(
+        eq(s.customers.linkedSupplierId, supplier.id),
+        ne(s.customers.id, data.linkedCustomerId),
+      );
+    await tx.update(s.customers)
+      .set({ linkedSupplierId: null, updatedAt: new Date() })
+      .where(staleCondition);
+    if (data.linkedCustomerId != null) {
+      await tx.update(s.customers)
+        .set({ linkedSupplierId: supplier.id, updatedAt: new Date() })
+        .where(eq(s.customers.id, data.linkedCustomerId));
+    }
+  }
+  const partnerId = await upsertPartnerInTransaction(tx, supplier.taxCode);
+  await tx.update(s.suppliers)
+    .set({ partnerId, updatedAt: new Date() })
+    .where(eq(s.suppliers.id, supplier.id));
+}
 
 /**
  * Wave 3 M6.2 — afterCreate/afterUpdate hook for suppliers. Normalizes
@@ -71,6 +160,7 @@ type NoInvoiceEvidenceType = typeof DEFAULT_NO_INVOICE_EVIDENCE_TYPES[number];
  * mirror hook.
  */
 async function syncSupplierTypesHook(
+  tx: CrudTx,
   item: { id: number },
   data: { types?: unknown; primaryType?: unknown },
 ): Promise<void> {
@@ -78,7 +168,7 @@ async function syncSupplierTypesHook(
   // is updating some other field).
   if (data == null || (!('types' in data) && !('primaryType' in data))) return;
   const normalized = normalizeSupplierTypeSelection(data);
-  await db.update(s.suppliers)
+  await tx.update(s.suppliers)
     .set({
       types: normalized.types,
       primaryType: normalized.primaryType,
@@ -237,21 +327,29 @@ router.get('/pricing', asyncHandler(async (req: Request, res: Response) => {
 
 router.use('/customers', createCrudRouter(s.customers, customerSchema, {
   searchableField: 'name',
+  updateSchema: customerUpdateSchema,
   beforeCreate: async (data) => {
     await validateCustomerUniqueness(data);
     return data;
   },
-  beforeUpdate: async (id, data) => {
+  beforeUpdate: async (id, data, _req, tx) => {
+    if ((data as Record<string, unknown>).debitNoteMode === 'PER_BATCH') {
+      const [current] = await tx.select({ debitNoteMode: s.customers.debitNoteMode })
+        .from(s.customers)
+        .where(eq(s.customers.id, id))
+        .limit(1);
+      if (current?.debitNoteMode !== 'PER_BATCH') {
+        throw new ApiError(400, 'PER_BATCH chỉ được giữ nguyên cho dữ liệu lịch sử');
+      }
+    }
     await validateCustomerUniqueness(data, id);
     return data;
   },
-  afterCreate: async (item, data) => {
-    await mirrorCustomerLink(item, data);
-    await syncCustomerPartner(item);
+  afterCreate: async (item, data, _req, tx) => {
+    await syncCustomerRelationsHook(tx, item, data);
   },
-  afterUpdate: async (item, data) => {
-    await mirrorCustomerLink(item, data);
-    await syncCustomerPartner(item);
+  afterUpdate: async (item, data, _req, tx) => {
+    await syncCustomerRelationsHook(tx, item, data);
   },
 }));
 router.use(
@@ -287,7 +385,7 @@ router.use('/forwarder-expense-types', createCrudRouter(s.forwarderExpenseTypes,
   beforeCreate: async (data) => withForwarderExpenseTypePolicyVersion(null, data),
   beforeUpdate: async (id, data) => withForwarderExpenseTypePolicyVersion(id, data),
 }));
-router.use('/pricing-tables', createCrudRouter(s.pricingTables, pricingTableSchema));
+router.use('/pricing-tables', pricingTablesGovernedRouter);
 router.use('/road-allowances', createCrudRouter(s.roadAllowances, roadAllowanceSchema));
 
 // Wave 1: pricing & fuel catalog CRUD routes. All behind the existing
@@ -336,15 +434,13 @@ router.use('/suppliers', createCrudRouter(s.suppliers, supplierSchema, {
   searchableField: 'name',
   beforeCreate: (data) => normalizeSupplierPayload(data),
   beforeUpdate: async (id, data) => normalizeSupplierPayload(data, id),
-  afterCreate: async (item, data) => {
-    await mirrorSupplierLink(item, data);
-    await syncSupplierPartner(item);
-    await syncSupplierTypesHook(item, data);
+  afterCreate: async (item, data, _req, tx) => {
+    await syncSupplierRelationsHook(tx, item, data);
+    await syncSupplierTypesHook(tx, item, data);
   },
-  afterUpdate: async (item, data) => {
-    await mirrorSupplierLink(item, data);
-    await syncSupplierPartner(item);
-    await syncSupplierTypesHook(item, data);
+  afterUpdate: async (item, data, _req, tx) => {
+    await syncSupplierRelationsHook(tx, item, data);
+    await syncSupplierTypesHook(tx, item, data);
   },
 }));
 router.use('/expense-categories', createCrudRouter(s.expenseCategories, expenseCategorySchema, { searchableField: 'name' }));
@@ -684,26 +780,110 @@ salaryPeriodsAdminRouter.post('/:period/exclusions/:actionId/approve', asyncHand
   }));
 }));
 
+salaryPeriodsAdminRouter.post('/:period/exclusions/:actionId/complete-followup', asyncHandler(async (req: Request, res: Response) => {
+  const actionId = Number(req.params.actionId);
+  if (!Number.isInteger(actionId) || actionId < 1) {
+    throw new ApiError(400, 'actionId không hợp lệ');
+  }
+  const u = getUser(req);
+  res.json(await completeSalaryPeriodExclusionFollowup({
+    actionId,
+    actorId: u.userId,
+    actorRole: u.role,
+  }));
+}));
+
 salaryPeriodsAdminRouter.post('/:period/close', asyncHandler(async (req: Request, res: Response) => {
   const u = getUser(req);
-  const result = await closeSalaryPeriod({
+  const note = typeof req.body?.note === 'string' ? req.body.note : null;
+  const result = await requestSalaryPeriodClose({
     period: req.params.period as string,
     actorId: u.userId,
     actorRole: u.role,
-    note: typeof req.body?.note === 'string' ? req.body.note : null,
+    reason: note,
+    note,
   });
-  res.status(result.idempotentNoop ? 200 : 201).json(result);
+  res.status(201).json(result);
+}));
+
+salaryPeriodsAdminRouter.post('/:period/close-actions/:actionId/check', asyncHandler(async (req: Request, res: Response) => {
+  const actionId = Number(req.params.actionId);
+  if (!Number.isInteger(actionId) || actionId < 1) {
+    throw new ApiError(400, 'actionId không hợp lệ');
+  }
+  const input = governanceActionVersionSchema.parse(req.body);
+  const u = getUser(req);
+  res.json(await checkSalaryPeriodClose({
+    period: req.params.period as string,
+    actionId,
+    actorId: u.userId,
+    actorRole: u.role,
+    expectedVersion: input.expectedVersion,
+  }));
+}));
+
+salaryPeriodsAdminRouter.post('/:period/close-actions/:actionId/approve', asyncHandler(async (req: Request, res: Response) => {
+  const actionId = Number(req.params.actionId);
+  if (!Number.isInteger(actionId) || actionId < 1) {
+    throw new ApiError(400, 'actionId không hợp lệ');
+  }
+  const input = governanceActionVersionSchema.parse(req.body);
+  const u = getUser(req);
+  res.json(await approveSalaryPeriodClose({
+    period: req.params.period as string,
+    actionId,
+    actorId: u.userId,
+    actorRole: u.role,
+    expectedVersion: input.expectedVersion,
+  }));
 }));
 
 salaryPeriodsAdminRouter.post('/:period/reopen', asyncHandler(async (req: Request, res: Response) => {
   const u = getUser(req);
-  const result = await reopenSalaryPeriod({
+  const expectedVersion = Number((req.body as { expectedVersion?: unknown } | undefined)?.expectedVersion);
+  const reason = typeof req.body?.reason === 'string' ? req.body.reason : null;
+  const note = typeof req.body?.note === 'string' ? req.body.note : null;
+  const result = await requestSalaryPeriodReopen({
     period: req.params.period as string,
     actorId: u.userId,
     actorRole: u.role,
-    note: typeof req.body?.note === 'string' ? req.body.note : null,
+    expectedVersion: Number.isInteger(expectedVersion) ? expectedVersion : 0,
+    reason,
+    note,
   });
-  res.status(result.idempotentNoop ? 200 : 201).json(result);
+  res.status(201).json(result);
+}));
+
+salaryPeriodsAdminRouter.post('/:period/reopen-actions/:actionId/check', asyncHandler(async (req: Request, res: Response) => {
+  const actionId = Number(req.params.actionId);
+  if (!Number.isInteger(actionId) || actionId < 1) {
+    throw new ApiError(400, 'actionId không hợp lệ');
+  }
+  const input = governanceActionVersionSchema.parse(req.body);
+  const u = getUser(req);
+  res.json(await checkSalaryPeriodReopen({
+    period: req.params.period as string,
+    actionId,
+    actorId: u.userId,
+    actorRole: u.role,
+    expectedVersion: input.expectedVersion,
+  }));
+}));
+
+salaryPeriodsAdminRouter.post('/:period/reopen-actions/:actionId/approve', asyncHandler(async (req: Request, res: Response) => {
+  const actionId = Number(req.params.actionId);
+  if (!Number.isInteger(actionId) || actionId < 1) {
+    throw new ApiError(400, 'actionId không hợp lệ');
+  }
+  const input = governanceActionVersionSchema.parse(req.body);
+  const u = getUser(req);
+  res.json(await approveSalaryPeriodReopen({
+    period: req.params.period as string,
+    actionId,
+    actorId: u.userId,
+    actorRole: u.role,
+    expectedVersion: input.expectedVersion,
+  }));
 }));
 
 // ─── Audit logs (mounted separately with audit_logs Casbin resource) ─────────

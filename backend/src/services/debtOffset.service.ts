@@ -161,8 +161,9 @@ export async function createDebtOffset(input: {
   minutesReference: string;
   minutesDocumentHash?: string | null;
   createdBy: number;
+  transaction?: Tx;
 }) {
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     const note = input.note.trim();
     const minutesReference = input.minutesReference.trim();
     if (!note) {
@@ -210,7 +211,11 @@ export async function createDebtOffset(input: {
       })
       .returning();
     return row;
-  });
+  };
+  if (input.transaction) {
+    return execute(input.transaction);
+  }
+  return db.transaction(execute);
 }
 
 /**
@@ -225,8 +230,9 @@ export async function approveDebtOffset(
   id: number,
   actorId: number,
   actorRole: string,
+  transaction?: Tx,
 ) {
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     // Transition status (guards role + PENDING check)
     await transitionApproval(tx, {
       table: 'debt_offsets',
@@ -289,7 +295,11 @@ export async function approveDebtOffset(
       .where(eq(s.debtOffsets.id, id));
 
     return offset;
-  });
+  };
+  if (transaction) {
+    return execute(transaction);
+  }
+  return db.transaction(execute);
 }
 
 /**
@@ -314,13 +324,14 @@ export async function cancelDebtOffset(
   id: number,
   actorId: number,
   actorRole: string,
+  transaction?: Tx,
 ) {
   // Role guard: same as approve (ADMIN/MANAGER only).
   if (!(FINANCIAL_ROLES as readonly string[]).includes(actorRole)) {
     throw new ApiError(403, 'Bạn không có quyền hủy đối trừ công nợ');
   }
 
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     const [offset] = await tx
       .select()
       .from(s.debtOffsets)
@@ -381,7 +392,11 @@ export async function cancelDebtOffset(
     });
 
     return claimed;
-  });
+  };
+  if (transaction) {
+    return execute(transaction);
+  }
+  return db.transaction(execute);
 }
 
 /**

@@ -1,4 +1,4 @@
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { TxnType } from '@tingting/shared';
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -8,10 +8,18 @@ import type { Tx } from './trip-shared';
 import {
   buildExpenseSourceVersionToken,
   buildTripSourceVersionToken,
+  postDebitNoteDelta,
 } from './billingDocument.service';
+import { transitionDebitNoteStatus } from './debit-note-lifecycle.service';
 import { assertCanMakeGovernanceAction } from './governance-policy';
 import type { GovernanceActionRow, GovernanceApplyResult } from './governance-transition.service';
 import type { PaymentDatePolicy } from './business-calendar.service';
+import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
+import {
+  assertDebitNotePeriodWritable,
+  getClosedPeriodLock,
+  resolveDebitNotePeriodAuthority,
+} from './period-lock.service';
 
 type SourceDiff = {
   lineId: number;
@@ -24,6 +32,55 @@ type SourceDiff = {
   adjustmentAmount: number;
   reason: string;
 };
+
+type BillingDocumentLineRow = typeof s.billingDocumentLines.$inferSelect;
+
+type BillingDocumentSourceSnapshot = {
+  lineId: number;
+  sourceType: 'TRIP' | 'EXPENSE';
+  sourceId: number;
+  sourceVersion: string | null;
+  sourceChangedAt: string | null;
+  baseAmount: number;
+};
+
+function billingDocumentVersion(updatedAt: Date): number {
+  return Math.max(1, Math.floor(updatedAt.getTime() / 1000));
+}
+
+function renderDataRecord(line: BillingDocumentLineRow): Record<string, unknown> | null {
+  return (line.renderData as Record<string, unknown> | null) ?? null;
+}
+
+function renderSourceVersion(line: BillingDocumentLineRow): string | null {
+  const raw = renderDataRecord(line)?.sourceVersion;
+  return typeof raw === 'string' && raw.trim() ? raw.trim() : null;
+}
+
+function renderSourceChangedAt(line: BillingDocumentLineRow): string | null {
+  const raw = renderDataRecord(line)?.sourceChangedAt;
+  return typeof raw === 'string' && raw.trim() ? raw.trim() : null;
+}
+
+function tripSourceIds(lines: readonly BillingDocumentLineRow[]): number[] {
+  return [...new Set(lines
+    .filter((line) => line.sourceType === 'TRIP' && line.sourceId != null)
+    .map((line) => line.sourceId as number))]
+    .sort((left, right) => left - right);
+}
+
+function expenseSourceIds(lines: readonly BillingDocumentLineRow[]): number[] {
+  return [...new Set(lines
+    .filter((line) => line.sourceType === 'EXPENSE' && line.sourceId != null)
+    .map((line) => line.sourceId as number))]
+    .sort((left, right) => left - right);
+}
+
+async function loadDocumentLines(tx: Tx, documentId: number): Promise<BillingDocumentLineRow[]> {
+  return tx.select()
+    .from(s.billingDocumentLines)
+    .where(eq(s.billingDocumentLines.documentId, documentId));
+}
 
 async function loadCurrentTripSource(tx: Tx, tripId: number): Promise<{
   version: string | null;
@@ -67,18 +124,14 @@ async function loadCurrentExpenseSource(tx: Tx, expenseId: number): Promise<{
 }
 
 async function buildSourceDiffs(tx: Tx, documentId: number): Promise<SourceDiff[]> {
-  const lines = await tx.select()
-    .from(s.billingDocumentLines)
-    .where(eq(s.billingDocumentLines.documentId, documentId));
+  const lines = await loadDocumentLines(tx, documentId);
   const diffs: SourceDiff[] = [];
 
   for (const line of lines) {
     if ((line.sourceType !== 'TRIP' && line.sourceType !== 'EXPENSE') || line.sourceId == null) {
       continue;
     }
-    const previousVersion = typeof (line.renderData as Record<string, unknown> | null)?.sourceVersion === 'string'
-      ? String((line.renderData as Record<string, unknown>).sourceVersion)
-      : null;
+    const previousVersion = renderSourceVersion(line);
     const current = line.sourceType === 'TRIP'
       ? await loadCurrentTripSource(tx, line.sourceId)
       : await loadCurrentExpenseSource(tx, line.sourceId);
@@ -119,6 +172,67 @@ async function buildSourceDiffs(tx: Tx, documentId: number): Promise<SourceDiff[
   return diffs;
 }
 
+async function lockExpenseSources(tx: Tx, lines: readonly BillingDocumentLineRow[]): Promise<void> {
+  const expenseIds = expenseSourceIds(lines);
+  if (expenseIds.length === 0) return;
+  await tx.select({ id: s.tripExpenses.id })
+    .from(s.tripExpenses)
+    .where(inArray(s.tripExpenses.id, expenseIds))
+    .for('update');
+}
+
+async function assertNoIssueSourceDrift(tx: Tx, documentId: number): Promise<void> {
+  const diffs = await buildSourceDiffs(tx, documentId);
+  if (diffs.length > 0) {
+    throw new ApiError(
+      409,
+      'Nguồn của giấy báo nợ đã thay đổi sau khi lập yêu cầu phát hành. Vui lòng cập nhật nháp và gửi lại.',
+    );
+  }
+}
+
+async function captureIssueSourceSnapshots(
+  tx: Tx,
+  lines: readonly BillingDocumentLineRow[],
+): Promise<BillingDocumentSourceSnapshot[]> {
+  return lines.flatMap((line) => {
+    if ((line.sourceType !== 'TRIP' && line.sourceType !== 'EXPENSE') || line.sourceId == null) {
+      return [];
+    }
+    return [{
+      lineId: line.id,
+      sourceType: line.sourceType,
+      sourceId: line.sourceId,
+      sourceVersion: renderSourceVersion(line),
+      sourceChangedAt: renderSourceChangedAt(line),
+      baseAmount: Number(line.baseAmount ?? 0),
+    }];
+  });
+}
+
+async function assertNoActiveIssueAction(
+  tx: Tx,
+  documentId: number,
+  originalVersion: number,
+): Promise<void> {
+  const [existing] = await tx.select({ id: s.governanceActions.id })
+    .from(s.governanceActions)
+    .where(and(
+      eq(s.governanceActions.subjectType, 'BILLING_DOCUMENT'),
+      eq(s.governanceActions.subjectId, documentId),
+      eq(s.governanceActions.actionKind, 'DEBIT_NOTE_ISSUE'),
+      eq(s.governanceActions.originalVersion, originalVersion),
+      inArray(s.governanceActions.status, ['PENDING_CHECK', 'PENDING_APPROVAL', 'RETURNED_FOR_EVIDENCE']),
+    ))
+    .limit(1);
+  if (existing) {
+    throw new ApiError(
+      409,
+      'Giấy báo nợ này đã có yêu cầu phát hành đang chờ xử lý ở cùng phiên bản.',
+    );
+  }
+}
+
 export async function requestBillingDocumentAdjustment(input: {
   documentId: number;
   reason: string;
@@ -156,7 +270,7 @@ export async function requestBillingDocumentAdjustment(input: {
       subjectId: document.id,
       actionKind: 'DEBIT_NOTE_ADJUSTMENT',
       reason: normalizedReason,
-      originalVersion: Math.floor(document.updatedAt.getTime() / 1000),
+      originalVersion: billingDocumentVersion(document.updatedAt),
       beforeSnapshot: {
         originalDocumentId: document.id,
         debitNoteStatus: document.debitNoteStatus ?? 'DRAFT',
@@ -178,13 +292,171 @@ export async function requestBillingDocumentAdjustment(input: {
   });
 }
 
+export async function requestBillingDocumentIssue(input: {
+  documentId: number;
+  expectedVersion: number;
+  reason: string;
+  makerId: number;
+  makerRole: string;
+}) {
+  assertCanMakeGovernanceAction('DEBIT_NOTE_ISSUE', input.makerRole);
+  const normalizedReason = input.reason.trim();
+  if (!normalizedReason) {
+    throw new ApiError(400, 'Lý do phát hành là bắt buộc');
+  }
+  if (!Number.isInteger(input.expectedVersion) || input.expectedVersion <= 0) {
+    throw new ApiError(400, 'expectedVersion không hợp lệ');
+  }
+
+  return db.transaction(async (tx) => {
+    const [document] = await tx.select()
+      .from(s.billingDocuments)
+      .where(and(eq(s.billingDocuments.id, input.documentId), isNull(s.billingDocuments.deletedAt)))
+      .limit(1)
+      .for('update');
+    if (!document) throw new ApiError(404, 'Không tìm thấy giấy báo nợ');
+    if (document.type !== 'DEBIT_NOTE' || document.entityType !== 'CUSTOMER') {
+      throw new ApiError(409, 'Chỉ giấy báo nợ khách hàng mới hỗ trợ phát hành qua quản trị');
+    }
+    if ((document.debitNoteStatus ?? 'DRAFT') !== 'DRAFT') {
+      throw new ApiError(409, 'Giấy báo nợ đã rời trạng thái nháp, không thể gửi yêu cầu phát hành mới');
+    }
+
+    const currentVersion = billingDocumentVersion(document.updatedAt);
+    if (currentVersion !== input.expectedVersion) {
+      throw new ApiError(409, 'Giấy báo nợ đã thay đổi. Vui lòng tải lại trước khi gửi yêu cầu phát hành.');
+    }
+
+    await LedgerService.lockEntity(tx, 'CUSTOMER', document.entityId);
+    const authority = await resolveDebitNotePeriodAuthority(
+      tx,
+      document.entityId,
+      document.rangeFrom,
+      document.rangeTo,
+    );
+    await assertDebitNotePeriodWritable(tx, authority);
+
+    const lines = await loadDocumentLines(tx, document.id);
+    await lockTripFinancialAuthority(tx, tripSourceIds(lines));
+    await lockExpenseSources(tx, lines);
+    await assertNoIssueSourceDrift(tx, document.id);
+    await assertNoActiveIssueAction(tx, document.id, currentVersion);
+
+    const originalPeriodLock = await getClosedPeriodLock(tx, authority);
+    const lineSnapshots = await captureIssueSourceSnapshots(tx, lines);
+    const [action] = await tx.insert(s.governanceActions).values({
+      subjectType: 'BILLING_DOCUMENT',
+      subjectId: document.id,
+      actionKind: 'DEBIT_NOTE_ISSUE',
+      reason: normalizedReason,
+      originalVersion: currentVersion,
+      originalPeriodLockId: originalPeriodLock?.id ?? null,
+      beforeSnapshot: {
+        documentId: document.id,
+        status: document.debitNoteStatus ?? 'DRAFT',
+        totalInclVat: Number(document.totalInclVat ?? 0),
+        ledgerAdjustmentAmount: Number(document.ledgerAdjustmentAmount ?? 0),
+        rangeFrom: document.rangeFrom,
+        rangeTo: document.rangeTo,
+      },
+      afterSnapshot: {
+        targetStatus: 'SENT',
+        totalInclVat: Number(document.totalInclVat ?? 0),
+        ledgerAdjustmentAmount: Number(document.ledgerAdjustmentAmount ?? 0),
+        originalDueDate: document.originalDueDate,
+        processingDueDate: document.processingDueDate,
+        paymentTermDaysApplied: document.paymentTermDaysApplied,
+        paymentDatePolicyApplied: document.paymentDatePolicyApplied,
+      },
+      deltaSnapshot: {
+        lineCount: lines.length,
+        sourceSnapshots: lineSnapshots,
+      },
+      makerId: input.makerId,
+      makerRole: input.makerRole,
+    }).returning();
+    return action;
+  });
+}
+
 export async function applyBillingDocumentGovernanceAction(
   tx: Tx,
   action: GovernanceActionRow,
 ): Promise<GovernanceApplyResult> {
-  if (action.subjectType !== 'BILLING_DOCUMENT' || action.subjectId == null || action.actionKind !== 'DEBIT_NOTE_ADJUSTMENT') {
+  if (action.subjectType !== 'BILLING_DOCUMENT' || action.subjectId == null) {
     throw new ApiError(409, 'Yêu cầu điều chỉnh không thuộc giấy báo nợ');
   }
+
+  if (action.actionKind === 'DEBIT_NOTE_ISSUE') {
+    const [document] = await tx.select()
+      .from(s.billingDocuments)
+      .where(and(eq(s.billingDocuments.id, action.subjectId), isNull(s.billingDocuments.deletedAt)))
+      .limit(1)
+      .for('update');
+    if (!document) throw new ApiError(404, 'Không tìm thấy giấy báo nợ');
+    if (document.type !== 'DEBIT_NOTE' || document.entityType !== 'CUSTOMER') {
+      throw new ApiError(409, 'Chỉ giấy báo nợ khách hàng mới hỗ trợ phát hành qua quản trị');
+    }
+    if ((document.debitNoteStatus ?? 'DRAFT') !== 'DRAFT') {
+      throw new ApiError(409, 'Giấy báo nợ đã rời trạng thái nháp; yêu cầu phát hành không còn hợp lệ');
+    }
+    if (billingDocumentVersion(document.updatedAt) !== action.originalVersion) {
+      throw new ApiError(409, 'Giấy báo nợ đã thay đổi sau khi tạo yêu cầu phát hành. Vui lòng tải lại và gửi lại.');
+    }
+
+    await LedgerService.lockEntity(tx, 'CUSTOMER', document.entityId);
+    const authority = await resolveDebitNotePeriodAuthority(
+      tx,
+      document.entityId,
+      document.rangeFrom,
+      document.rangeTo,
+    );
+    await assertDebitNotePeriodWritable(tx, authority);
+
+    const lines = await loadDocumentLines(tx, document.id);
+    await lockTripFinancialAuthority(tx, tripSourceIds(lines));
+    await lockExpenseSources(tx, lines);
+    await assertNoIssueSourceDrift(tx, document.id);
+
+    await transitionDebitNoteStatus({
+      documentId: document.id,
+      targetStatus: 'SENT',
+      expectedStatus: 'DRAFT',
+      actorUserId: action.approverId ?? action.makerId,
+      transaction: tx,
+    });
+    await postDebitNoteDelta(tx, {
+      documentId: document.id,
+      customerId: document.entityId,
+      delta: Number(document.ledgerAdjustmentAmount ?? 0),
+      originalDueDate: document.originalDueDate,
+      processingDueDate: document.processingDueDate,
+      paymentTermDaysApplied: document.paymentTermDaysApplied,
+      paymentDatePolicyApplied: document.paymentDatePolicyApplied as PaymentDatePolicy | null,
+    });
+
+    const [issued] = await tx.select({
+      debitNoteStatus: s.billingDocuments.debitNoteStatus,
+      updatedAt: s.billingDocuments.updatedAt,
+    })
+      .from(s.billingDocuments)
+      .where(eq(s.billingDocuments.id, document.id))
+      .limit(1);
+
+    return {
+      applicationResult: {
+        documentId: document.id,
+        documentStatus: issued?.debitNoteStatus ?? 'SENT',
+        resultingVersion: issued ? billingDocumentVersion(issued.updatedAt) : action.originalVersion + 1,
+        ledgerAdjustmentAmount: Number(document.ledgerAdjustmentAmount ?? 0),
+      },
+    };
+  }
+
+  if (action.actionKind !== 'DEBIT_NOTE_ADJUSTMENT') {
+    throw new ApiError(409, 'Loại yêu cầu không thuộc quản trị giấy báo nợ');
+  }
+
   const [document] = await tx.select()
     .from(s.billingDocuments)
     .where(and(eq(s.billingDocuments.id, action.subjectId), isNull(s.billingDocuments.deletedAt)))

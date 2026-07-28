@@ -191,12 +191,17 @@ describe('Q15 shared governance foundation', () => {
     }).success, false);
     assert.deepEqual(governanceActionListQuerySchema.parse({
       status: 'PENDING_CHECK',
+      subjectKey: '  7:2026-07  ',
       limit: '25',
     }), {
       status: 'PENDING_CHECK',
+      subjectKey: '7:2026-07',
       limit: 25,
       offset: 0,
     });
+    assert.equal(governanceActionListQuerySchema.safeParse({
+      subjectKey: ' '.repeat(3),
+    }).success, false);
   });
 
   it('enforces pairwise actors, capabilities, role snapshots and allowed actions', async () => {
@@ -434,6 +439,47 @@ describe('Q15 shared governance foundation', () => {
       actorRole: Role.DRIVER,
       query: { limit: 10, offset: 0 },
     }), 403, /không có quyền xem/);
+  });
+
+  it('filters by subject key before applying the list limit', async () => {
+    const targetSubjectKey = `q15-target:${Date.now()}`;
+    const [target] = await db.insert(s.governanceActions).values({
+      subjectType: 'SALARY_CONFIRMATION',
+      subjectKey: targetSubjectKey,
+      actionKind: 'SALARY_CONFIRMATION',
+      reason: 'Target salary history',
+      originalVersion: 1,
+      beforeSnapshot: {},
+      afterSnapshot: {},
+      makerId: actors[0]!.id,
+      makerRole: Role.ACCOUNTANT,
+    }).returning();
+    actionIds.push(target.id);
+
+    const noise = await db.insert(s.governanceActions).values(
+      Array.from({ length: 101 }, (_, index) => ({
+        subjectType: 'SALARY_CONFIRMATION' as const,
+        subjectKey: `q15-noise:${target.id}:${index}`,
+        actionKind: 'SALARY_CONFIRMATION' as const,
+        reason: 'Newer unrelated salary history',
+        originalVersion: 1,
+        beforeSnapshot: {},
+        afterSnapshot: {},
+        makerId: actors[0]!.id,
+        makerRole: Role.ACCOUNTANT,
+      })),
+    ).returning({ id: s.governanceActions.id });
+    actionIds.push(...noise.map(action => action.id));
+
+    const response = await fetch(
+      `${baseUrl}/api/governance-actions?subjectType=SALARY_CONFIRMATION`
+      + `&actionKind=SALARY_CONFIRMATION&subjectKey=${encodeURIComponent(targetSubjectKey)}&limit=100`,
+      { headers: { 'X-Test-Actor': '0' } },
+    );
+    assert.equal(response.status, 200);
+    const listed = await response.json() as Array<{ id: number; subjectKey: string | null }>;
+    assert.deepEqual(listed.map(action => action.id), [target.id]);
+    assert.equal(listed[0]!.subjectKey, targetSubjectKey);
   });
 
   it('keeps database actor separation as a final invariant', async () => {

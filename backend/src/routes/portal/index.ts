@@ -24,6 +24,8 @@ import { getShipmentDetail, listShipmentsPaginated } from '../../services/shipme
 import { exportCustomerStatementPdf, exportDebitNotePdf } from '../../services/pdf-export.service';
 import { parsePagination } from '../utils/pagination';
 import { ApiError } from '../../errors';
+import { getRequestIdempotencyKey } from '../utils/idempotency';
+import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 
 const router = Router();
 
@@ -255,32 +257,59 @@ router.get('/debit-notes/:id', asyncHandler(async (req: Request, res: Response) 
 
 router.post('/debit-notes/:id/confirm', asyncHandler(async (req: Request, res: Response) => {
   const doc = await getOwnDebitNote(req);
-  if (doc.debitNoteStatus !== 'PENDING_CONFIRM') {
-    throw new ApiError(409, 'Chỉ giấy báo nợ đang chờ xác nhận mới có thể xác nhận.');
-  }
   const user = getUser(req);
-  await transitionDebitNoteStatus({
-    documentId: doc.id,
-    targetStatus: 'CONFIRMED',
-    expectedStatus: 'PENDING_CONFIRM',
-    actorUserId: user.userId,
-    confirmedBy: user.fullName ?? user.username ?? user.email ?? `Khách hàng #${doc.entityId}`,
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.PORTAL_DEBIT_NOTE_CONFIRM,
+    idempotencyKey,
+    payload: {
+      actorId: user.userId,
+      documentId: doc.id,
+      targetStatus: 'CONFIRMED',
+    },
+    createdBy: user.userId,
+    entityType: 'billing_document',
+    create: async (tx) => {
+      await transitionDebitNoteStatus({
+        documentId: doc.id,
+        targetStatus: 'CONFIRMED',
+        expectedStatus: 'PENDING_CONFIRM',
+        actorUserId: user.userId,
+        confirmedBy: user.fullName ?? user.username ?? user.email ?? `Khách hàng #${doc.entityId}`,
+        transaction: tx,
+      });
+      return toCustomerDebitNote(await getDocument(doc.id, tx));
+    },
   });
-  res.json(toCustomerDebitNote(await getDocument(doc.id)));
+  res.json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
 router.post('/debit-notes/:id/dispute', asyncHandler(async (req: Request, res: Response) => {
   const doc = await getOwnDebitNote(req);
-  if (doc.debitNoteStatus !== 'PENDING_CONFIRM') {
-    throw new ApiError(409, 'Chỉ giấy báo nợ đang chờ xác nhận mới có thể phản hồi.');
-  }
-  await transitionDebitNoteStatus({
-    documentId: doc.id,
-    targetStatus: 'REJECTED',
-    expectedStatus: 'PENDING_CONFIRM',
-    actorUserId: getUser(req).userId,
+  const user = getUser(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.PORTAL_DEBIT_NOTE_DISPUTE,
+    idempotencyKey,
+    payload: {
+      actorId: user.userId,
+      documentId: doc.id,
+      targetStatus: 'REJECTED',
+    },
+    createdBy: user.userId,
+    entityType: 'billing_document',
+    create: async (tx) => {
+      await transitionDebitNoteStatus({
+        documentId: doc.id,
+        targetStatus: 'REJECTED',
+        expectedStatus: 'PENDING_CONFIRM',
+        actorUserId: user.userId,
+        transaction: tx,
+      });
+      return toCustomerDebitNote(await getDocument(doc.id, tx));
+    },
   });
-  res.json(toCustomerDebitNote(await getDocument(doc.id)));
+  res.json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
 router.get('/debit-notes/:id/export', asyncHandler(async (req: Request, res: Response) => {

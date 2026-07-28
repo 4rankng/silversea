@@ -35,10 +35,18 @@
 - [x] Reworked `m47-no-invoice-disbursement` tests toward Q12-Q14 rules, including fail-closed handling for unknown categories.
 - [x] Verified the shared test DB contains the required no-invoice columns.
 - [x] Re-ran focused runtime tests on the updated schema.
+- [x] Closed the server-side invoice-policy bypass: a category configured with
+  `requiresInvoice=true` now rejects a missing invoice both when the expense is
+  created/updated and again at approval.
+- [x] Normalized payee names by case and repeated whitespace before same-day,
+  same-category aggregation, so superficial spelling variants cannot bypass
+  the Q13 anti-splitting total.
+- [x] Added explicit configured per-item/per-day threshold decisions to the
+  approval result and covered custom category thresholds in regression tests.
 
 ### Tests Status
 - Type check: `backend pass, frontend unrelated baseline fail`
-- Unit tests: `M47 pass`
+- Unit tests: `M47 pass (28/28 after red-to-green fix loop)`
 - Integration tests: `not run`
 
 ### Issues Encountered
@@ -59,3 +67,7 @@
 - `qa/2026-07-27_q12-q14_frontend-typecheck-rerun.log`
 - `qa/2026-07-27_q12-q14_m47-test-rerun.log`
 - `qa/2026-07-27_q12-q14_m47-test-rerun2.log`
+- `qa/2026-07-27_q12-q14-trust-boundary_backend-test.log`
+- `qa/2026-07-27_q12-q14-trust-boundary_backend-test.rerun.log`
+- `qa/2026-07-27_q12-q14-trust-boundary_typecheck-backend.log` (red because
+  concurrent Q11 files were mid-edit; rerun is part of the integrated gate)

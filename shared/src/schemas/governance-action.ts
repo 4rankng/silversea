@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const GOVERNANCE_SUBJECT_TYPES = [
   'TRIP',
   'PAYMENT_RECEIPT',
+  'PAYMENT_REFUND',
   'VENDOR_PAYMENT',
   'CARRIER_PAYMENT',
   'DRIVER_PAYOUT',
@@ -29,6 +30,7 @@ export const GOVERNANCE_ACTION_KINDS = [
   'DEBT_OFFSET_CANCEL',
   'ADVANCE_REQUEST_APPROVAL',
   'PAYMENT_RECEIPT',
+  'PAYMENT_REFUND',
   'VENDOR_PAYMENT',
   'CARRIER_PAYMENT',
   'DRIVER_PAYOUT',
@@ -96,6 +98,7 @@ export const governanceActionListQuerySchema = z.object({
   actionKind: z.enum(GOVERNANCE_ACTION_KINDS).optional(),
   subjectType: z.enum(GOVERNANCE_SUBJECT_TYPES).optional(),
   subjectId: z.coerce.number().int().positive().optional(),
+  subjectKey: z.string().trim().min(1).max(120).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
 });

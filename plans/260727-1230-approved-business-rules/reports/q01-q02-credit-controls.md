@@ -80,3 +80,14 @@ red because concurrent O01 schema work added trip columns before migration
 0141 existed in the local test database. After 0141 was applied, the complete
 M5.3 and HTTP suite passed 8/8 in
 `qa/2026-07-27_q01-q02-credit-decisions_backend-test.rerun3.log`.
+
+### Tier-aware UI follow-up
+
+- Trip creation and clerk shipment queues now use the same decision matrix as
+  the backend: ADMIN may decide either tier, ACCOUNTANT only
+  `FINANCE_TIER_1`, and MANAGER only `DIRECTOR`.
+- Wrong-tier and portal roles see a read-only waiting message instead of
+  approve/reject controls, preventing predictable 403 actions while retaining
+  backend enforcement as the security boundary.
+- Focused proof:
+  `qa/2026-07-27_q01-q02-tier-ui_frontend-test.log`.

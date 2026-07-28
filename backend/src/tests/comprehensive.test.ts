@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { db, client } from '../db';
 import * as s from '../db/schema';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and, inArray, isNull } from 'drizzle-orm';
 import { Role, TripStatus, FuelMode, LoadingType } from '@tingting/shared';
 import { config } from '../config';
 import { initEnforcer } from '../casbin/enforcer';
@@ -262,6 +262,14 @@ test('E2E — Catalog endpoints CRUD reads & listings', async () => {
 
 test('E2E — Customer duplicate guard blocks create and update conflicts', async () => {
   const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const keys = {
+    first: `customer-duplicate-first-${suffix}`,
+    conflict: `customer-duplicate-conflict-${suffix}`,
+    second: `customer-duplicate-second-${suffix}`,
+    update: `customer-duplicate-update-${suffix}`,
+    deleteFirst: `customer-duplicate-delete-first-${suffix}`,
+    deleteSecond: `customer-duplicate-delete-second-${suffix}`,
+  };
   const duplicateName = `KH trùng ${suffix}`;
   const duplicateTaxCode = `DUP${Date.now().toString().slice(-8)}`;
   const secondTaxCode = `${duplicateTaxCode}9`.slice(0, 20);
@@ -269,6 +277,7 @@ test('E2E — Customer duplicate guard blocks create and update conflicts', asyn
   const firstCreate = await testFetch('/api/customers', {
     method: 'POST',
     token: adminToken,
+    headers: { 'Idempotency-Key': keys.first },
     body: JSON.stringify({
       name: duplicateName,
       taxCode: duplicateTaxCode,
@@ -280,6 +289,7 @@ test('E2E — Customer duplicate guard blocks create and update conflicts', asyn
   const secondCreate = await testFetch('/api/customers', {
     method: 'POST',
     token: adminToken,
+    headers: { 'Idempotency-Key': keys.conflict },
     body: JSON.stringify({
       name: duplicateName,
       taxCode: duplicateTaxCode,
@@ -292,6 +302,7 @@ test('E2E — Customer duplicate guard blocks create and update conflicts', asyn
   const secondUnique = await testFetch('/api/customers', {
     method: 'POST',
     token: adminToken,
+    headers: { 'Idempotency-Key': keys.second },
     body: JSON.stringify({
       name: `${duplicateName} khác`,
       taxCode: secondTaxCode,
@@ -303,6 +314,10 @@ test('E2E — Customer duplicate guard blocks create and update conflicts', asyn
   const conflictingUpdate = await testFetch(`/api/customers/${secondUnique.data.id}`, {
     method: 'PUT',
     token: adminToken,
+    headers: {
+      'Idempotency-Key': keys.update,
+      'If-Unmodified-Since': String(secondUnique.data.updatedAt),
+    },
     body: JSON.stringify({
       taxCode: duplicateTaxCode,
     }),
@@ -313,11 +328,21 @@ test('E2E — Customer duplicate guard blocks create and update conflicts', asyn
   await testFetch(`/api/customers/${firstCreate.data.id}`, {
     method: 'DELETE',
     token: adminToken,
+    headers: {
+      'Idempotency-Key': keys.deleteFirst,
+      'If-Unmodified-Since': String(firstCreate.data.updatedAt),
+    },
   });
   await testFetch(`/api/customers/${secondUnique.data.id}`, {
     method: 'DELETE',
     token: adminToken,
+    headers: {
+      'Idempotency-Key': keys.deleteSecond,
+      'If-Unmodified-Since': String(secondUnique.data.updatedAt),
+    },
   });
+  await db.delete(s.idempotencyKeys)
+    .where(inArray(s.idempotencyKeys.idempotencyKey, Object.values(keys)));
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -982,11 +982,11 @@ export const governanceActions = pgTable('governance_actions', {
     .where(sql`${table.subjectId} is not null and ${table.actionKind} not in ('TRIP_AR_ADJUSTMENT', 'TRIP_REOPEN') and ${table.status} in ('PENDING_CHECK', 'PENDING_APPROVAL', 'RETURNED_FOR_EVIDENCE')`),
   check(
     'governance_actions_subject_type_check',
-    sql`${table.subjectType} in ('TRIP', 'PAYMENT_RECEIPT', 'VENDOR_PAYMENT', 'CARRIER_PAYMENT', 'DRIVER_PAYOUT', 'COMMISSION', 'PENALTY', 'DEBT_OFFSET', 'ADVANCE_REQUEST', 'TRIP_EXPENSE', 'COMPANY_EXPENSE', 'BILLING_DOCUMENT', 'SALARY_CONFIRMATION', 'SALARY_PERIOD', 'PROFIT_DISTRIBUTION', 'PRICE_CONFIG', 'ANCILLARY_REVENUE', 'EXCEPTION')`,
+    sql`${table.subjectType} in ('TRIP', 'PAYMENT_RECEIPT', 'PAYMENT_REFUND', 'VENDOR_PAYMENT', 'CARRIER_PAYMENT', 'DRIVER_PAYOUT', 'COMMISSION', 'PENALTY', 'DEBT_OFFSET', 'ADVANCE_REQUEST', 'TRIP_EXPENSE', 'COMPANY_EXPENSE', 'BILLING_DOCUMENT', 'SALARY_CONFIRMATION', 'SALARY_PERIOD', 'PROFIT_DISTRIBUTION', 'PRICE_CONFIG', 'ANCILLARY_REVENUE', 'EXCEPTION')`,
   ),
   check(
     'governance_actions_action_kind_check',
-    sql`${table.actionKind} in ('TRIP_AR_ADJUSTMENT', 'TRIP_REOPEN', 'TRIP_EXPENSE_APPROVAL', 'DEBT_OFFSET_APPROVAL', 'DEBT_OFFSET_CANCEL', 'ADVANCE_REQUEST_APPROVAL', 'PAYMENT_RECEIPT', 'VENDOR_PAYMENT', 'CARRIER_PAYMENT', 'DRIVER_PAYOUT', 'COMMISSION', 'PENALTY_CREATE', 'PENALTY_CANCEL', 'COMPANY_EXPENSE', 'PROFIT_DISTRIBUTION', 'TRIP_FINANCIAL_CHANGE', 'TRIP_FINANCIAL_CLOSE', 'DEBIT_NOTE_ISSUE', 'DEBIT_NOTE_ADJUSTMENT', 'SALARY_CONFIRMATION', 'SALARY_REOPEN', 'SALARY_PERIOD_CLOSE', 'SALARY_PERIOD_REOPEN', 'PRICE_CONFIG_CHANGE', 'ANCILLARY_REVENUE_CHANGE', 'FINANCIAL_EXCEPTION')`,
+    sql`${table.actionKind} in ('TRIP_AR_ADJUSTMENT', 'TRIP_REOPEN', 'TRIP_EXPENSE_APPROVAL', 'DEBT_OFFSET_APPROVAL', 'DEBT_OFFSET_CANCEL', 'ADVANCE_REQUEST_APPROVAL', 'PAYMENT_RECEIPT', 'PAYMENT_REFUND', 'VENDOR_PAYMENT', 'CARRIER_PAYMENT', 'DRIVER_PAYOUT', 'COMMISSION', 'PENALTY_CREATE', 'PENALTY_CANCEL', 'COMPANY_EXPENSE', 'PROFIT_DISTRIBUTION', 'TRIP_FINANCIAL_CHANGE', 'TRIP_FINANCIAL_CLOSE', 'DEBIT_NOTE_ISSUE', 'DEBIT_NOTE_ADJUSTMENT', 'SALARY_CONFIRMATION', 'SALARY_REOPEN', 'SALARY_PERIOD_CLOSE', 'SALARY_PERIOD_REOPEN', 'SALARY_PERIOD_ADJUSTMENT', 'PRICE_CONFIG_CHANGE', 'ANCILLARY_REVENUE_CHANGE', 'FINANCIAL_EXCEPTION')`,
   ),
   check(
     'governance_actions_status_check',
@@ -1557,6 +1557,7 @@ export const tripExpenseCompletionScopes = pgTable('trip_expense_completion_scop
 
 export const advanceRequests = pgTable('advance_requests', {
   id: serial('id').primaryKey(),
+  version: integer('version').default(1).notNull(),
   requesterId: integer('requester_id').references(() => users.id).notNull(),
   amount: numeric('amount', { precision: 15, scale: 0 }).notNull(),
   reason: text('reason').notNull(),
@@ -1569,6 +1570,7 @@ export const advanceRequests = pgTable('advance_requests', {
 
 export const advanceSettlements = pgTable('advance_settlements', {
   id: serial('id').primaryKey(),
+  version: integer('version').default(1).notNull(),
   code: varchar('code', { length: 20 }).notNull(),
   forwarderId: integer('forwarder_id').references(() => users.id).notNull(),
   totalExpenseAmount: numeric('total_expense_amount', { precision: 15, scale: 0 }).notNull(),
@@ -2458,9 +2460,11 @@ export const paymentReceipts = pgTable('payment_receipts', {
   receivedAmount: numeric('received_amount', { precision: 15, scale: 0 }).notNull(),
   allocatedTotal: numeric('allocated_total', { precision: 15, scale: 0 }).notNull(),
   unappliedAmount: numeric('unapplied_amount', { precision: 15, scale: 0 }).notNull(),
+  refundedAmount: numeric('refunded_amount', { precision: 15, scale: 0 }).notNull().default('0'),
   allocationMethod: varchar('allocation_method', { length: 20 }).notNull(),
   requestHash: varchar('request_hash', { length: 64 }).notNull(),
   createdBy: integer('created_by').references(() => users.id),
+  version: integer('version').notNull().default(1),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => [
   uniqueIndex('payment_receipts_receipt_id_uniq').on(table.receiptId),
@@ -2478,8 +2482,16 @@ export const paymentReceipts = pgTable('payment_receipts', {
     sql`${table.unappliedAmount} >= 0`,
   ),
   check(
+    'payment_receipts_refunded_amount_nonneg_check',
+    sql`${table.refundedAmount} >= 0`,
+  ),
+  check(
     'payment_receipts_amount_consistency_check',
-    sql`${table.receivedAmount} = ${table.allocatedTotal} + ${table.unappliedAmount}`,
+    sql`${table.receivedAmount} = ${table.allocatedTotal} + ${table.unappliedAmount} + ${table.refundedAmount}`,
+  ),
+  check(
+    'payment_receipts_version_check',
+    sql`${table.version} >= 1`,
   ),
   check(
     'payment_receipts_allocation_method_check',
@@ -2529,6 +2541,37 @@ export const paymentAllocations = pgTable('payment_allocations', {
   ),
 ]);
 
+export const paymentRefunds = pgTable('payment_refunds', {
+  id: serial('id').primaryKey(),
+  paymentReceiptId: integer('payment_receipt_id')
+    .references(() => paymentReceipts.id)
+    .notNull(),
+  governanceActionId: integer('governance_action_id')
+    .references(() => governanceActions.id)
+    .notNull(),
+  amount: numeric('amount', { precision: 15, scale: 0 }).notNull(),
+  reason: text('reason').notNull(),
+  createdBy: integer('created_by').references(() => users.id).notNull(),
+  approvedBy: integer('approved_by').references(() => users.id).notNull(),
+  ledgerEntryId: integer('ledger_entry_id').references(() => ledger.id).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('payment_refunds_governance_action_uniq').on(table.governanceActionId),
+  index('payment_refunds_receipt_created_idx').on(table.paymentReceiptId, table.createdAt),
+  check(
+    'payment_refunds_amount_positive_check',
+    sql`${table.amount} > 0`,
+  ),
+  check(
+    'payment_refunds_reason_check',
+    sql`length(btrim(${table.reason})) > 0`,
+  ),
+  check(
+    'payment_refunds_distinct_actors_check',
+    sql`${table.createdBy} <> ${table.approvedBy}`,
+  ),
+]);
+
 // M7.3: salary period closes. An accountant closes a salary period; after
 // close, no further changes to driver salary for that period. Each period has
 // at most one close row (enforced by a unique index).
@@ -2542,10 +2585,65 @@ export const salaryPeriodCloses = pgTable('salary_period_closes', {
   closedBy: integer('closed_by').references(() => users.id),
   closedAt: timestamp('closed_at', { withTimezone: true }).defaultNow().notNull(),
   note: text('note'),
+  payslipIssuedBy: integer('payslip_issued_by').references(() => users.id),
+  payslipIssuedAt: timestamp('payslip_issued_at', { withTimezone: true }),
+  payslipIssuedNote: text('payslip_issued_note'),
+  officialPostedBy: integer('official_posted_by').references(() => users.id),
+  officialPostedAt: timestamp('official_posted_at', { withTimezone: true }),
+  officialPostingNote: text('official_posting_note'),
+  // Immutable payroll provenance captured in the same transaction as the close.
+  // Historical close responses must never be reconstructed from today's global
+  // payroll-unit setting or today's unit membership.
+  payrollScope: varchar('payroll_scope', { length: 20 }),
+  payrollBusinessUnitId: integer('payroll_business_unit_id'),
+  payrollBusinessUnitName: text('payroll_business_unit_name'),
+  includedDriverIds: jsonb('included_driver_ids').$type<number[]>(),
+  excludedDriverIds: jsonb('excluded_driver_ids').$type<number[]>(),
+  payrollProvenanceCapturedAt: timestamp('payroll_provenance_captured_at', { withTimezone: true }),
+  version: integer('version').notNull().default(1),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
   uniqueIndex('salary_period_closes_period_uniq').on(table.period),
+  check(
+    'salary_period_closes_version_check',
+    sql`${table.version} >= 1`,
+  ),
+  check(
+    'salary_period_closes_payroll_scope_check',
+    sql`${table.payrollScope} is null or ${table.payrollScope} in ('COMPANY', 'BUSINESS_UNIT')`,
+  ),
+]);
+
+export const salaryPeriodAdjustments = pgTable('salary_period_adjustments', {
+  id: serial('id').primaryKey(),
+  governanceActionId: integer('governance_action_id')
+    .references(() => governanceActions.id, { onDelete: 'cascade' })
+    .notNull(),
+  sourcePeriod: varchar('source_period', { length: 7 }).notNull(),
+  targetPeriod: varchar('target_period', { length: 7 }).notNull(),
+  driverId: integer('driver_id').references(() => drivers.id).notNull(),
+  amount: numeric('amount', { precision: 15, scale: 0 }).notNull(),
+  reason: text('reason').notNull(),
+  approvedBy: integer('approved_by').references(() => users.id).notNull(),
+  approvedAt: timestamp('approved_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('salary_period_adjustments_action_uniq').on(table.governanceActionId),
+  index('salary_period_adjustments_target_driver_idx').on(table.targetPeriod, table.driverId, table.createdAt),
+  index('salary_period_adjustments_source_driver_idx').on(table.sourcePeriod, table.driverId, table.createdAt),
+  check(
+    'salary_period_adjustments_amount_check',
+    sql`${table.amount} <> 0`,
+  ),
+  check(
+    'salary_period_adjustments_reason_check',
+    sql`length(btrim(${table.reason})) > 0`,
+  ),
+  check(
+    'salary_period_adjustments_source_target_check',
+    sql`${table.sourcePeriod} <> ${table.targetPeriod}`,
+  ),
 ]);
 
 // M6.1 slice 2: fuel-reconciliation explanations. When the fuel-AP recon
@@ -2666,6 +2764,10 @@ export const idempotencyKeys = pgTable('idempotency_keys', {
   entityId: integer('entity_id'),
   // SHA-256 hex of the canonicalised request body, for conflict detection.
   payloadHash: varchar('payload_hash', { length: 64 }).notNull(),
+  // Immutable response snapshot returned to later same-key replays, even when
+  // the underlying entity later changes. Stored in the exact JSON shape sent
+  // back to callers (without the transport-level replayed marker).
+  responseSnapshot: jsonb('response_snapshot').$type<Record<string, unknown> | unknown[] | string | number | boolean | null>(),
   createdBy: integer('created_by').references(() => users.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => [

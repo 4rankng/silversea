@@ -9,6 +9,11 @@ import { AssetIcon } from '../../components/AssetIcon';
 import { configClient } from '../../api/configClient';
 import { tripClient } from '../../api/tripClient';
 import { formatCurrency } from '../../lib/format';
+import {
+  buildCustomerDebitNoteModeOptions,
+  describeCustomerDebitNoteMode,
+  type EditableCustomerDebitNoteMode,
+} from '../../lib/customerDebitNoteMode';
 import { downloadCSV } from '../../lib/csv';
 import { useCRUD } from '../../hooks/useCRUD';
 import { qk } from '../../api/keys';
@@ -47,12 +52,16 @@ function CustomerForm({ saving, item, onsave, oncancel }: {
   const [creditLimit, setCreditLimit] = useState(item?.creditLimit || '');
   const [creditWarningThreshold, setCreditWarningThreshold] = useState(toThresholdPercent(item?.creditWarningThreshold));
   const [status, setStatus] = useState(item?.status || 'ACTIVE');
+  const [debitNoteMode, setDebitNoteMode] = useState<Customer['debitNoteMode']>(item?.debitNoteMode ?? 'MONTHLY');
   const [debitNoteTemplateId, setDebitNoteTemplateId] = useState<number | null>(item?.debitNoteTemplateId ?? null);
   const { data: templates } = useQuery<DebitNoteTemplate[]>({
     queryKey: qk.catalogs.debitNoteTemplates,
     queryFn: () => configClient.getDebitNoteTemplates(),
     staleTime: 60_000,
   });
+
+  const debitNoteModeOptions = buildCustomerDebitNoteModeOptions(debitNoteMode);
+  const debitNoteModeDescription = describeCustomerDebitNoteMode(debitNoteMode);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -99,6 +108,24 @@ function CustomerForm({ saving, item, onsave, oncancel }: {
             <option value="LOCKED">Tạm khoá</option>
           </select>
         </Field>
+        <Field label="Chu kỳ giấy báo nợ">
+          <select
+            className="input"
+            value={debitNoteMode}
+            onChange={e => setDebitNoteMode(e.target.value as EditableCustomerDebitNoteMode)}
+          >
+            {debitNoteModeOptions.map((option) => (
+              <option key={option.value} value={option.value} disabled={option.disabled}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          {debitNoteModeDescription ? (
+            <div style={{ marginTop: 6, fontSize: 12, lineHeight: 1.4, color: 'var(--ink-3)' }}>
+              {debitNoteModeDescription}
+            </div>
+          ) : null}
+        </Field>
       </div>
 
       <Field label="Thông tin liên hệ khác / Địa chỉ">
@@ -133,6 +160,7 @@ function CustomerForm({ saving, item, onsave, oncancel }: {
             creditLimit: creditLimit ? String(creditLimit) : null,
             creditWarningThreshold: threshold,
             status,
+            debitNoteMode,
             debitNoteTemplateId,
           });
         }} disabled={saving}>

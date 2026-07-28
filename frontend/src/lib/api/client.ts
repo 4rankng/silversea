@@ -38,6 +38,8 @@ function ensureMutationTransactionKey(
  * state flows through a single source of truth.
  */
 class ApiClient {
+  private readonly updatedAtByPath = new Map<string, string>();
+
   constructor() {
     // Eagerly hydrate the token cache from localStorage on first use so
     // subsequent `getToken()` calls are O(1) and don't re-read storage.
@@ -45,10 +47,12 @@ class ApiClient {
   }
 
   setToken(token: string) {
+    this.updatedAtByPath.clear();
     storeToken(token);
   }
 
   clearToken() {
+    this.updatedAtByPath.clear();
     storeClearToken();
   }
 
@@ -70,13 +74,53 @@ class ApiClient {
     };
     if (options?.expectedUpdatedAt) {
       headers['If-Unmodified-Since'] = options.expectedUpdatedAt;
+    } else if (
+      options?.method
+      && ['PUT', 'PATCH', 'DELETE'].includes(options.method.toUpperCase())
+    ) {
+      const remembered = this.updatedAtByPath.get(this.normalizePath(path));
+      if (remembered) headers['If-Unmodified-Since'] = remembered;
     }
     ensureMutationTransactionKey(options?.method, headers);
 
     const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
     this.handleSessionExpiry(res, token);
     if (!res.ok) throw await ApiError.fromResponse(res);
-    return (await res.json()) as T;
+    const result = (await res.json()) as T;
+    this.rememberUpdatedAt(path, options?.method, result);
+    return result;
+  }
+
+  private normalizePath(path: string): string {
+    const normalized = path.split('?')[0].replace(/\/+$/, '');
+    return normalized || '/';
+  }
+
+  private rememberUpdatedAt(path: string, method: string | undefined, result: unknown): void {
+    const normalizedPath = this.normalizePath(path);
+    const normalizedMethod = method?.toUpperCase() ?? 'GET';
+    if (normalizedMethod === 'DELETE') {
+      this.updatedAtByPath.delete(normalizedPath);
+      return;
+    }
+
+    const rememberRow = (row: unknown, fallbackPath: string) => {
+      if (!row || typeof row !== 'object') return;
+      const record = row as Record<string, unknown>;
+      if (typeof record.updatedAt !== 'string') return;
+      const rowPath = typeof record.id === 'number'
+        ? `${fallbackPath}/${record.id}`
+        : fallbackPath;
+      this.updatedAtByPath.set(this.normalizePath(rowPath), record.updatedAt);
+    };
+
+    if (result && typeof result === 'object' && Array.isArray((result as { items?: unknown }).items)) {
+      for (const row of (result as { items: unknown[] }).items) {
+        rememberRow(row, normalizedPath);
+      }
+      return;
+    }
+    rememberRow(result, normalizedPath.replace(/\/\d+$/, ''));
   }
 
   /**

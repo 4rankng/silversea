@@ -85,6 +85,8 @@ const ExpenseEntryPage = lazy(() => import('./pages/ExpenseEntryPage'));
 const PayableListPage = lazy(() => import('./pages/PayableListPage'));
 const PayableDetailPage = lazy(() => import('./pages/PayableDetailPage'));
 const SalaryAttendancePage = lazy(() => import('./pages/SalaryAttendancePage'));
+const CreditOverrideQueuePage = lazy(() => import('./pages/CreditOverrideQueuePage'));
+const GovernanceActionsPage = lazy(() => import('./pages/GovernanceActionsPage'));
 
 const ExpenseCategoriesConfigPage = lazy(() => import('./pages/config/ExpenseCategoriesConfigPage'));
 const ForwarderExpenseTypesConfigPage = lazy(() => import('./pages/config/ForwarderExpenseTypesConfigPage'));
@@ -242,6 +244,8 @@ export function AppRoutes() {
           <Route path="/payables" element={adminOnly(page(<PayableListPage />))} />
           <Route path="/payables/:id" element={adminOnly(page(<PayableDetailPage />))} />
           <Route path="/salary" element={adminOnly(page(<SalaryAttendancePage />))} />
+          <Route path="/credit-overrides" element={officeStaffOnly(page(<CreditOverrideQueuePage />))} />
+          <Route path="/governance-actions" element={officeStaffOnly(page(<GovernanceActionsPage />))} />
           <Route path="/users" element={officeStaffOnly(page(<UsersPage />))} />
           <Route path="/chatbot-monitoring" element={strictAdminOnly(page(<ChatbotMonitoringPage />))} />
           <Route path="/audit-logs" element={officeStaffOnly(page(<AuditLogPage />))} />

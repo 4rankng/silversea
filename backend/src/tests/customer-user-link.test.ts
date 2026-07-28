@@ -25,6 +25,7 @@ let businessUnitId: number;
 let customerUserId: number;
 let managerUserId: number;
 let clerkUserId: number;
+let accountantUserId: number;
 let server: http.Server;
 let baseUrl: string;
 
@@ -62,6 +63,7 @@ after(async () => {
   if (customerUserId) await db.delete(s.users).where(eq(s.users.id, customerUserId));
   if (managerUserId) await db.delete(s.users).where(eq(s.users.id, managerUserId));
   if (clerkUserId) await db.delete(s.users).where(eq(s.users.id, clerkUserId));
+  if (accountantUserId) await db.delete(s.users).where(eq(s.users.id, accountantUserId));
   if (businessUnitId) await db.delete(s.businessUnits).where(eq(s.businessUnits.id, businessUnitId));
   if (customerId) await db.delete(s.customers).where(eq(s.customers.id, customerId));
   if (secondaryCustomerId) await db.delete(s.customers).where(eq(s.customers.id, secondaryCustomerId));
@@ -138,6 +140,38 @@ describe('customer account linkage', () => {
         assignmentAdminOnly: true,
       }),
       /Chỉ quản trị viên mới có thể quản lý phạm vi nhân viên chứng từ/,
+    );
+  });
+
+  test('allows admin-managed optional customer scope for ACCOUNTANT', async () => {
+    const accountant = await createUser({
+      username: `accountant-scoped-${suffix}`,
+      password: 'admin123',
+      role: Role.ACCOUNTANT,
+      customerIds: [customerId],
+      assignmentAdminOnly: false,
+    });
+    accountantUserId = accountant.id;
+    assert.equal(accountant.customerId, customerId);
+    assert.deepEqual(accountant.customerIds, [customerId]);
+
+    const updated = await updateUser(accountant.id, {
+      customerIds: [secondaryCustomerId],
+      assignmentAdminOnly: false,
+    });
+    assert.deepEqual(updated.customerIds, [secondaryCustomerId]);
+  });
+
+  test('rejects non-admin ACCOUNTANT customer-scope assignment', async () => {
+    await assert.rejects(
+      createUser({
+        username: `accountant-non-admin-${suffix}`,
+        password: 'admin123',
+        role: Role.ACCOUNTANT,
+        customerIds: [customerId],
+        assignmentAdminOnly: true,
+      }),
+      /Chỉ quản trị viên mới có thể quản lý phạm vi khách hàng của kế toán/,
     );
   });
 

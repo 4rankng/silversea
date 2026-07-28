@@ -3,6 +3,8 @@ FROM node:22-alpine AS build
 
 ARG NODE_OPTIONS=--max-old-space-size=2048
 ENV NODE_OPTIONS=${NODE_OPTIONS}
+# Root-level Puppeteer is for local visual QA; Vite does not require Chromium.
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 
 RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 
@@ -13,8 +15,10 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY shared/package.json shared/package.json
 COPY frontend/package.json frontend/package.json
 
-# Install all workspace dependencies (cached unless lock file changes)
-RUN pnpm install --frozen-lockfile
+# Resolve frontend + transitive workspace dependencies. The shared root store
+# exists only in this disposable builder; Chromium download is disabled and no
+# Node workspace is copied into the nginx runtime image.
+RUN pnpm install --frozen-lockfile --filter @tingting/frontend...
 
 # Copy source after install — code changes don't bust the install cache
 COPY tsconfig.base.json tsconfig.base.json

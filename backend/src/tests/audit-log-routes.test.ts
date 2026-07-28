@@ -23,11 +23,13 @@ const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const marker = `o02-audit-${suffix}`;
 const createdUserIds: number[] = [];
 const createdAuditLogIds: number[] = [];
+const createdCustomerIds: number[] = [];
 let server: http.Server;
 let baseUrl: string;
 let adminToken: string;
 let managerToken: string;
 let accountantToken: string;
+let accountantId: number;
 
 async function mkUser(username: string, role: Role) {
   const [user] = await db.insert(s.users).values({
@@ -98,6 +100,7 @@ before(async () => {
   const admin = await mkUser(`audit-admin-${suffix}`, Role.ADMIN);
   const manager = await mkUser(`audit-manager-${suffix}`, Role.MANAGER);
   const accountant = await mkUser(`audit-accountant-${suffix}`, Role.ACCOUNTANT);
+  accountantId = accountant.id;
   adminToken = sign(admin);
   managerToken = sign(manager);
   accountantToken = sign(accountant);
@@ -198,6 +201,9 @@ after(async () => {
   if (createdAuditLogIds.length > 0) {
     await db.delete(s.auditLogs).where(inArray(s.auditLogs.id, createdAuditLogIds));
   }
+  if (createdCustomerIds.length > 0) {
+    await db.delete(s.customers).where(inArray(s.customers.id, createdCustomerIds));
+  }
   if (createdUserIds.length > 0) {
     await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
   }
@@ -278,5 +284,55 @@ describe('audit-log route accountant scope', () => {
         return true;
       },
     );
+  });
+
+  test('ACCOUNTANT with explicit customer assignments sees only matching customer-bound finance rows', async () => {
+    const assignmentMarker = `o02-assigned-${suffix}`;
+    const customers = await db.insert(s.customers).values([
+      { name: `O02 assigned ${suffix}` },
+      { name: `O02 outside ${suffix}` },
+    ]).returning();
+    createdCustomerIds.push(...customers.map((customer) => customer.id));
+    await db.insert(s.userCustomerLinks).values({
+      userId: accountantId,
+      customerId: customers[0]!.id,
+    });
+
+    await insertAuditLog({
+      userId: createdUserIds[0]!,
+      actorName: 'Assigned payment',
+      message: `Thanh toán trong phạm vi ${assignmentMarker}`,
+      entityType: 'payments',
+      entityId: 501,
+      payload: {
+        event: 'PAYMENT_RECEIVED',
+        method: 'POST',
+        path: '/api/payments/receive',
+        statusCode: 201,
+        body: { customerId: customers[0]!.id, amount: 100000 },
+      },
+    });
+    await insertAuditLog({
+      userId: createdUserIds[0]!,
+      actorName: 'Outside payment',
+      message: `Thanh toán ngoài phạm vi ${assignmentMarker}`,
+      entityType: 'payments',
+      entityId: 502,
+      payload: {
+        event: 'PAYMENT_RECEIVED',
+        method: 'POST',
+        path: '/api/payments/receive',
+        statusCode: 201,
+        body: { customerId: customers[1]!.id, amount: 200000 },
+      },
+    });
+
+    const response = await request(
+      `?search=${encodeURIComponent(assignmentMarker)}`,
+      { method: 'GET', token: accountantToken },
+    );
+    assert.equal(response.status, 200);
+    assert.equal(response.body.items.length, 1);
+    assert.match(response.body.items[0].message, /trong phạm vi/);
   });
 });

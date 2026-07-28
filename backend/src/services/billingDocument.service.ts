@@ -1,6 +1,6 @@
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq, and, gte, lte, isNull, inArray, desc, or, type SQL } from 'drizzle-orm';
+import { eq, and, gte, lte, isNull, inArray, desc, or, sql, type SQL } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { getSupplierStatement } from './statement.service';
 import { LedgerService } from './ledger.service';
@@ -14,6 +14,7 @@ import {
 } from '@tingting/shared';
 import { getCompanyInfo } from './company-info.service';
 import type { Tx } from './trip-shared';
+type DbLike = typeof db | Tx;
 import { loadLogoBytes } from './lib/export-company';
 import {
   resolveCustomerPaymentDueDate,
@@ -134,6 +135,7 @@ function renderSourceChangedAt(line: Pick<BillingDocumentLine, 'renderData'>): s
 
 async function loadLineProvenance(
   line: BillingDocumentLine,
+  executor: DbLike = db,
 ): Promise<BillingDocumentLine['provenance']> {
   if (line.sourceType === 'ADHOC' || line.sourceId == null) return null;
 
@@ -141,7 +143,7 @@ async function loadLineProvenance(
   const storedChangedAt = renderSourceChangedAt(line);
 
   if (line.sourceType === 'TRIP') {
-    const [trip] = await db.select({
+    const [trip] = await executor.select({
       id: s.trips.id,
       version: s.trips.version,
       updatedAt: s.trips.updatedAt,
@@ -170,7 +172,7 @@ async function loadLineProvenance(
     };
   }
 
-  const [expense] = await db.select({
+  const [expense] = await executor.select({
     id: s.tripExpenses.id,
     approvalStatus: s.tripExpenses.approvalStatus,
     sellAmount: s.tripExpenses.sellAmount,
@@ -215,8 +217,9 @@ async function loadLineProvenance(
 
 async function listDocumentCorrections(
   documentId: number,
+  executor: DbLike = db,
 ): Promise<NonNullable<BillingDocument['corrections']>> {
-  const actions = await db.select({
+  const actions = await executor.select({
     id: s.governanceActions.id,
     status: s.governanceActions.status,
     reason: s.governanceActions.reason,
@@ -434,7 +437,7 @@ export async function resolveDebitNoteTemplateForDoc(
 // ─── Generate (preview draft, pre-save) ───────────────────────────────────────
 
 /**
- * Build AR debit-note lines for a customer + departure-date range.
+ * Build AR debit-note lines for a customer + authoritative business-date range.
  * Each LOCKED trip → a FREIGHT line (route + container separate) + its approved
  * ancillary sell fees (phí nộp hộ) → SERVICE_FEE lines.
  */
@@ -444,23 +447,36 @@ async function buildCustomerDebitLines(customerId: number, from: string, to: str
   if (!customer) throw new ApiError(404, 'Không tìm thấy khách hàng');
   const entityName = customer.name;
 
+  const completionInRange = and(
+    sql`${s.trips.completedAt} IS NOT NULL`,
+    gte(sql`DATE(${s.trips.completedAt})`, from),
+    lte(sql`DATE(${s.trips.completedAt})`, to),
+  )!;
+  const expenseInRange = sql`EXISTS (
+    SELECT 1
+    FROM ${s.tripExpenses} period_expense
+    WHERE period_expense.trip_id = ${s.trips.id}
+      AND period_expense.approval_status = 'APPROVED'
+      AND period_expense.sell_amount > 0
+      AND period_expense.expense_date BETWEEN ${from} AND ${to}
+  )`;
   const conditions: SQL<unknown>[] = [
     eq(s.trips.customerId, customerId),
     inArray(s.trips.status, [...BILLABLE_TRIP_STATUSES]),
     isNull(s.trips.deletedAt),
-    gte(s.trips.departureDate, from),
-    lte(s.trips.departureDate, to),
+    or(completionInRange, expenseInRange)!,
   ];
 
   const trips = await db.select({
     id: s.trips.id, tripCode: s.trips.tripCode, departureDate: s.trips.departureDate,
+    completionDate: sql<string | null>`to_char(${s.trips.completedAt}, 'YYYY-MM-DD')`,
     revenue: s.trips.revenue, routeName: s.routes.name, notes: s.trips.notes,
     truckPlate: s.trucks.licensePlate, externalPlateNumber: s.trips.externalPlateNumber,
     version: s.trips.version, updatedAt: s.trips.updatedAt,
   }).from(s.trips)
     .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
     .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
-    .where(and(...conditions)).orderBy(s.trips.departureDate);
+    .where(and(...conditions)).orderBy(s.trips.completedAt, s.trips.id);
 
   const tripIds = trips.map((t) => t.id);
   const containersByTrip = await loadContainersByTrip(tripIds);
@@ -481,23 +497,27 @@ async function buildCustomerDebitLines(customerId: number, from: string, to: str
     });
     renderData.sourceVersion = buildTripSourceVersionToken(trip.version);
     renderData.sourceChangedAt = trip.updatedAt.toISOString();
-    lines.push({
-      sourceType: 'TRIP', sourceId: trip.id, lineType: 'FREIGHT',
-      // Trip code is NOT inlined here — it has its own "Số chứng từ" column
-      // (renderData.tripCode). Inlining it caused "Cước vận chuyển TRP--" when the
-      // route name was missing, which customers mistook for the description.
-      description: `Cước vận chuyển${trip.routeName ? ` — ${trip.routeName}` : ''}`,
-      typeLabel: 'Doanh thu',
-      unit,
-      routeName: trip.routeName ?? null,
-      containerNumbers: containers,
-      renderData,
-      baseAmount: Number(trip.revenue ?? 0),
-      amountOverride: null, excluded: false, sortOrder: sortOrder++,
-    });
+    if (trip.completionDate && trip.completionDate >= from && trip.completionDate <= to) {
+      lines.push({
+        sourceType: 'TRIP', sourceId: trip.id, lineType: 'FREIGHT',
+        // Trip code is NOT inlined here — it has its own "Số chứng từ" column
+        // (renderData.tripCode). Inlining it caused "Cước vận chuyển TRP--" when the
+        // route name was missing, which customers mistook for the description.
+        description: `Cước vận chuyển${trip.routeName ? ` — ${trip.routeName}` : ''}`,
+        typeLabel: 'Doanh thu',
+        unit,
+        routeName: trip.routeName ?? null,
+        containerNumbers: containers,
+        renderData,
+        baseAmount: Number(trip.revenue ?? 0),
+        amountOverride: null, excluded: false, sortOrder: sortOrder++,
+      });
+    }
 
     // Approved ancillary fees charged to customer (sell side) → phí nộp hộ
-    const fees = feesByTrip.get(trip.id) ?? [];
+    const fees = (feesByTrip.get(trip.id) ?? []).filter(
+      (fee) => fee.expenseDate != null && fee.expenseDate >= from && fee.expenseDate <= to,
+    );
     for (const fee of fees) {
       const amt = Number(fee.sellAmount ?? 0);
       if (amt <= 0) continue;
@@ -535,6 +555,7 @@ async function buildCustomerPaymentStatementLines(customerId: number, from: stri
 
   const trips = await db.select({
     id: s.trips.id, tripCode: s.trips.tripCode, departureDate: s.trips.departureDate,
+    completionDate: sql<string | null>`to_char(${s.trips.completedAt}, 'YYYY-MM-DD')`,
     revenue: s.trips.revenue, routeName: s.routes.name, notes: s.trips.notes,
     truckPlate: s.trucks.licensePlate, externalPlateNumber: s.trips.externalPlateNumber,
   }).from(s.trips)
@@ -544,10 +565,23 @@ async function buildCustomerPaymentStatementLines(customerId: number, from: stri
       eq(s.trips.customerId, customerId),
       inArray(s.trips.status, [...BILLABLE_TRIP_STATUSES]),
       isNull(s.trips.deletedAt),
-      gte(s.trips.departureDate, from),
-      lte(s.trips.departureDate, to),
+      or(
+        and(
+          sql`${s.trips.completedAt} IS NOT NULL`,
+          gte(sql`DATE(${s.trips.completedAt})`, from),
+          lte(sql`DATE(${s.trips.completedAt})`, to),
+        ),
+        sql`EXISTS (
+          SELECT 1
+          FROM ${s.tripExpenses} period_expense
+          WHERE period_expense.trip_id = ${s.trips.id}
+            AND period_expense.approval_status = 'APPROVED'
+            AND period_expense.sell_amount > 0
+            AND period_expense.expense_date BETWEEN ${from} AND ${to}
+        )`,
+      )!,
     ))
-    .orderBy(s.trips.departureDate);
+    .orderBy(s.trips.completedAt, s.trips.id);
 
   const tripIds = trips.map((t) => t.id);
   const containersByTrip = await loadContainersByTrip(tripIds);
@@ -560,12 +594,15 @@ async function buildCustomerPaymentStatementLines(customerId: number, from: stri
     const containerInfo = containersByTrip.get(trip.id) ?? [];
     const containers = containerNumbers(containerInfo);
     const approvedFees = (feesByTrip.get(trip.id) ?? [])
+      .filter((fee) => fee.expenseDate != null && fee.expenseDate >= from && fee.expenseDate <= to)
       .map((fee) => ({
         label: fee.billingLabel ?? fee.name ?? fee.expenseType,
         amount: Number(fee.sellAmount ?? 0),
       }))
       .filter((fee) => fee.amount > 0);
-    const freightAmount = Number(trip.revenue ?? 0);
+    const freightAmount = trip.completionDate && trip.completionDate >= from && trip.completionDate <= to
+      ? Number(trip.revenue ?? 0)
+      : 0;
     const serviceFeeAmount = approvedFees.reduce((sum, fee) => sum + fee.amount, 0);
     const totalAmount = freightAmount + serviceFeeAmount;
     const serviceFeeDescription = approvedFees.map((fee) => fee.label).join(', ') || null;
@@ -615,9 +652,10 @@ async function buildCarrierPaymentLines(carrierId: number, from: string, to: str
       eq(s.trips.externalCarrierId, carrierId),
       inArray(s.trips.status, [...BILLABLE_TRIP_STATUSES]),
       isNull(s.trips.deletedAt),
-      gte(s.trips.departureDate, from),
-      lte(s.trips.departureDate, to),
-    )).orderBy(s.trips.departureDate);
+      sql`${s.trips.completedAt} IS NOT NULL`,
+      gte(sql`DATE(${s.trips.completedAt})`, from),
+      lte(sql`DATE(${s.trips.completedAt})`, to),
+    )).orderBy(s.trips.completedAt);
 
   const containersByTrip = await loadContainersByTrip(trips.map((t) => t.id));
 
@@ -675,6 +713,7 @@ type ApprovedFeeRenderInfo = {
   invoiceNumber: string | null;
   declarationNumber: string | null;
   approvalStatus: string | null;
+  expenseDate: string | null;
   updatedAt: Date | null;
 };
 
@@ -799,7 +838,8 @@ async function loadApprovedFeesByTrip(tripIds: number[]): Promise<Map<number, Ap
     tripId: s.tripExpenses.tripId, id: s.tripExpenses.id,
     sellAmount: s.tripExpenses.sellAmount, expenseType: s.tripExpenses.expenseType,
     invoiceNumber: s.tripExpenses.invoiceNumber, declarationNumber: s.tripExpenses.declarationNumber,
-    approvalStatus: s.tripExpenses.approvalStatus, updatedAt: s.tripExpenses.updatedAt,
+    approvalStatus: s.tripExpenses.approvalStatus, expenseDate: s.tripExpenses.expenseDate,
+    updatedAt: s.tripExpenses.updatedAt,
     billingLabel: s.forwarderExpenseTypes.billingLabel, name: s.forwarderExpenseTypes.name,
   }).from(s.tripExpenses)
     .leftJoin(s.forwarderExpenseTypes, eq(s.tripExpenses.expenseType, s.forwarderExpenseTypes.code))
@@ -869,7 +909,11 @@ export async function postDebitNoteDelta(
   });
 }
 
-export async function saveDocument(input: SaveBillingDocumentInput, userId: number | null): Promise<BillingDocument> {
+export async function saveDocument(
+  input: SaveBillingDocumentInput,
+  userId: number | null,
+  transaction?: Tx,
+): Promise<BillingDocument> {
   const total = docTotal(input.lines as BillingDocumentLine[]);
   const desiredAdjustment = input.type === 'DEBIT_NOTE' && input.entityType === 'CUSTOMER'
     ? documentLedgerAdjustment(input.lines as BillingDocumentLine[])
@@ -886,7 +930,7 @@ export async function saveDocument(input: SaveBillingDocumentInput, userId: numb
   const snapshot = template ? templateToSnapshot(template) : defaultSnapshotForType(input.type);
   // One active document per customer/vendor + exact period. Saving the same
   // period replaces it in-place and posts only the accounting delta.
-  const docId = await db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     if (input.type === 'DEBIT_NOTE' && input.entityType === 'CUSTOMER') {
       await LedgerService.lockEntity(tx, 'CUSTOMER', input.entityId);
       const authority = await resolveDebitNotePeriodAuthority(tx, input.entityId, input.rangeFrom, input.rangeTo);
@@ -940,15 +984,6 @@ export async function saveDocument(input: SaveBillingDocumentInput, userId: numb
         await tx.delete(s.billingDocumentLines).where(eq(s.billingDocumentLines.documentId, existing.id));
         await persistLines(tx, existing.id, input.lines);
         await replaceBillingDocumentSourcePeriodLocks(tx, existing.id, sourceLockIds);
-        await postDebitNoteDelta(tx, {
-          documentId: existing.id,
-          customerId: input.entityId,
-          delta: desiredAdjustment - Number(existing.ledgerAdjustmentAmount),
-          originalDueDate: existing.originalDueDate,
-          processingDueDate: existing.processingDueDate,
-          paymentTermDaysApplied: existing.paymentTermDaysApplied,
-          paymentDatePolicyApplied: existing.paymentDatePolicyApplied as PaymentDatePolicy | null,
-        });
         return existing.id;
       }
 
@@ -971,15 +1006,6 @@ export async function saveDocument(input: SaveBillingDocumentInput, userId: numb
       if (!doc) throw new ApiError(500, 'Không lưu được tài liệu');
       await persistLines(tx, doc.id, input.lines);
       await replaceBillingDocumentSourcePeriodLocks(tx, doc.id, sourceLockIds);
-      await postDebitNoteDelta(tx, {
-        documentId: doc.id,
-        customerId: input.entityId,
-        delta: desiredAdjustment,
-        originalDueDate: dueDateSnapshot.originalDate,
-        processingDueDate: dueDateSnapshot.processingDate,
-        paymentTermDaysApplied: dueDateSnapshot.paymentTermDays,
-        paymentDatePolicyApplied: dueDateSnapshot.policy,
-      });
       return doc.id;
     }
     let existing: typeof s.billingDocuments.$inferSelect | undefined;
@@ -1023,11 +1049,18 @@ export async function saveDocument(input: SaveBillingDocumentInput, userId: numb
     if (!doc) throw new ApiError(500, 'Không lưu được tài liệu');
     await persistLines(tx, doc.id, input.lines);
     return doc.id;
-  });
-  return getDocument(docId);
+  };
+  const docId = transaction
+    ? await execute(transaction)
+    : await db.transaction(execute);
+  return getDocument(docId, transaction ?? db);
 }
 
-export async function updateDocument(id: number, input: SaveBillingDocumentInput): Promise<BillingDocument> {
+export async function updateDocument(
+  id: number,
+  input: SaveBillingDocumentInput,
+  transaction?: Tx,
+): Promise<BillingDocument> {
   const total = docTotal(input.lines as BillingDocumentLine[]);
   const desiredAdjustment = input.type === 'DEBIT_NOTE' && input.entityType === 'CUSTOMER'
     ? documentLedgerAdjustment(input.lines as BillingDocumentLine[])
@@ -1051,7 +1084,7 @@ export async function updateDocument(id: number, input: SaveBillingDocumentInput
   const snapshot = template ? templateToSnapshot(template) : defaultSnapshotForType(input.type);
   // Replace lines on an allowed edit — delete + re-insert inside one
   // transaction so a mid-way failure cannot wipe the document's lines.
-  await db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     if (input.type === 'DEBIT_NOTE' && input.entityType === 'CUSTOMER') {
       await LedgerService.lockEntity(tx, 'CUSTOMER', input.entityId);
       const authority = await resolveDebitNotePeriodAuthority(tx, input.entityId, input.rangeFrom, input.rangeTo);
@@ -1103,17 +1136,13 @@ export async function updateDocument(id: number, input: SaveBillingDocumentInput
     await tx.delete(s.billingDocumentLines).where(eq(s.billingDocumentLines.documentId, id));
     await persistLines(tx, id, input.lines);
     await replaceBillingDocumentSourcePeriodLocks(tx, id, sourceLockIds);
-    await postDebitNoteDelta(tx, {
-      documentId: id,
-      customerId: input.entityId,
-      delta: desiredAdjustment - Number(current.ledgerAdjustmentAmount),
-      originalDueDate: current.originalDueDate,
-      processingDueDate: current.processingDueDate,
-      paymentTermDaysApplied: current.paymentTermDaysApplied,
-      paymentDatePolicyApplied: current.paymentDatePolicyApplied as PaymentDatePolicy | null,
-    });
-  });
-  return getDocument(id);
+  };
+  if (transaction) {
+    await execute(transaction);
+  } else {
+    await db.transaction(execute);
+  }
+  return getDocument(id, transaction ?? db);
 }
 
 async function persistLines(tx: Tx, documentId: number, lines: BillingDocumentLine[]): Promise<void> {
@@ -1149,15 +1178,18 @@ export async function listDocuments(entityType: BillingDocumentEntityType, entit
   return Promise.all(docs.map((d) => hydrateDocument(d)));
 }
 
-export async function getDocument(id: number): Promise<BillingDocument> {
-  const [doc] = await db.select().from(s.billingDocuments)
+export async function getDocument(id: number, executor: typeof db | Tx = db): Promise<BillingDocument> {
+  const [doc] = await executor.select().from(s.billingDocuments)
     .where(and(eq(s.billingDocuments.id, id), isNull(s.billingDocuments.deletedAt))).limit(1);
   if (!doc) throw new ApiError(404, 'Không tìm thấy tài liệu');
-  return hydrateDocument(doc);
+  return hydrateDocument(doc, executor);
 }
 
-async function hydrateDocument(doc: typeof s.billingDocuments.$inferSelect): Promise<BillingDocument> {
-  const lines = await db.select().from(s.billingDocumentLines)
+async function hydrateDocument(
+  doc: typeof s.billingDocuments.$inferSelect,
+  executor: DbLike = db,
+): Promise<BillingDocument> {
+  const lines = await executor.select().from(s.billingDocumentLines)
     .where(eq(s.billingDocumentLines.documentId, doc.id))
     .orderBy(s.billingDocumentLines.sortOrder);
   const hydratedLines = await Promise.all(lines.map(async (l) => {
@@ -1174,13 +1206,13 @@ async function hydrateDocument(doc: typeof s.billingDocuments.$inferSelect): Pro
     const normalized = { ...line, description: canonicalFreightDescription(line) };
     return {
       ...normalized,
-      provenance: await loadLineProvenance(normalized),
+      provenance: await loadLineProvenance(normalized, executor),
     };
   }));
   const authorityState = hydratedLines.some((line) => line.provenance?.status && line.provenance.status !== 'CURRENT')
     ? ((doc.debitNoteStatus ?? 'DRAFT') === 'DRAFT' ? 'STALE' : 'ADJUSTMENT_REQUIRED')
     : 'CURRENT';
-  const corrections = await listDocumentCorrections(doc.id);
+  const corrections = await listDocumentCorrections(doc.id, executor);
   return {
     id: doc.id, type: doc.type as BillingDocumentType, entityType: doc.entityType as BillingDocumentEntityType,
     entityId: doc.entityId, entityName: doc.entityName ?? undefined,
@@ -1203,8 +1235,8 @@ async function hydrateDocument(doc: typeof s.billingDocuments.$inferSelect): Pro
   };
 }
 
-export async function deleteDocument(id: number): Promise<void> {
-  await db.transaction(async (tx) => {
+export async function deleteDocument(id: number, transaction?: Tx): Promise<void> {
+  const execute = async (tx: Tx) => {
     const [initial] = await tx.select().from(s.billingDocuments)
       .where(and(eq(s.billingDocuments.id, id), isNull(s.billingDocuments.deletedAt))).limit(1);
     if (!initial) throw new ApiError(404, 'Không tìm thấy tài liệu');
@@ -1242,18 +1274,16 @@ export async function deleteDocument(id: number): Promise<void> {
           'Giấy báo nợ vừa được phát hành hoặc đổi trạng thái — không thể xóa. Vui lòng tải lại.',
         );
       }
-      if (doc.entityType === 'CUSTOMER') {
-        await postDebitNoteDelta(tx, {
-          documentId: id,
-          customerId: doc.entityId,
-          delta: -Number(doc.ledgerAdjustmentAmount),
-        });
-      }
       return;
     }
     await tx.update(s.billingDocuments).set({ deletedAt: new Date(), updatedAt: new Date() })
       .where(eq(s.billingDocuments.id, id));
-  });
+  };
+  if (transaction) {
+    await execute(transaction);
+    return;
+  }
+  await db.transaction(execute);
 }
 
 // ─── Excel export ─────────────────────────────────────────────────────────────

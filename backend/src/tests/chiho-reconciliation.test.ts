@@ -147,6 +147,7 @@ async function createLockedTripWithFees(spec: TripSpec) {
       expenseType: fee.expenseType ?? 'CHI_HO',
       buyAmount: String(fee.buyAmount),
       sellAmount: String(fee.sellAmount),
+      expenseDate: spec.departureDate,
       settlementMethod: fee.settlementMethod,
       supplierId: fee.settlementMethod === 'COMPANY_DIRECT' ? (fee.supplierId ?? supplierId!) : null,
       approvalStatus: fee.approvalStatus ?? 'APPROVED',
@@ -159,6 +160,9 @@ async function createLockedTripWithFees(spec: TripSpec) {
   // bills COMPLETED + LOCKED (revenue posts at completion; LOCKED is just a
   // figures-freeze), so the trip surfaces on the note at COMPLETED already.
   await transitionTripStatus(trip.id, TripStatus.COMPLETED, 1, Role.MANAGER);
+  await db.update(s.trips)
+    .set({ completedAt: new Date(`${spec.departureDate}T12:00:00+07:00`) })
+    .where(eq(s.trips.id, trip.id));
   if (spec.lock !== false) {
     // Optional "chốt" freeze — still billable; exercised by the legacy LOCKED cases.
     await transitionTripStatus(trip.id, TripStatus.LOCKED, 1, Role.MANAGER, true, true);
@@ -546,6 +550,7 @@ async function createBillableTrip(ctx: BillableSeedCtx, spec: BillableTripSpec) 
       expenseType: fee.expenseType ?? 'CHI_HO',
       buyAmount: String(fee.buyAmount),
       sellAmount: String(fee.sellAmount),
+      expenseDate: spec.departureDate,
       settlementMethod: fee.settlementMethod,
       supplierId: fee.settlementMethod === 'COMPANY_DIRECT' ? (fee.supplierId ?? ctx.supplierId ?? null) : null,
       approvalStatus: fee.approvalStatus ?? 'APPROVED',
@@ -553,6 +558,9 @@ async function createBillableTrip(ctx: BillableSeedCtx, spec: BillableTripSpec) 
     createdExpenseIds.push(row.id);
   }
   await transitionTripStatus(trip.id, TripStatus.COMPLETED, 1, Role.MANAGER);
+  await db.update(s.trips)
+    .set({ completedAt: new Date(`${spec.departureDate}T12:00:00+07:00`) })
+    .where(eq(s.trips.id, trip.id));
   if (spec.lock !== false) {
     await transitionTripStatus(trip.id, TripStatus.LOCKED, 1, Role.MANAGER, true, true);
   }

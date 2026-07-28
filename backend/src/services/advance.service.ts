@@ -12,6 +12,16 @@ import {
   type PaymentDatePolicy,
 } from './business-calendar.service';
 import { propagateExpenseApprovals } from './source-change.service';
+type DbLike = typeof db | Tx;
+
+function assertExpectedVersion(actual: number, expected: number, label: string): void {
+  if (actual !== expected) {
+    throw new AdvanceError(
+      409,
+      `${label} đã thay đổi (phiên bản hiện tại ${actual}); vui lòng tải lại trước khi tiếp tục`,
+    );
+  }
+}
 
 type ExpenseSnapshotSource = Pick<typeof s.tripExpenses.$inferSelect,
   'expenseType' | 'buyAmount' | 'sellAmount' | 'containerNumber' |
@@ -68,7 +78,10 @@ type EnrichedWithNames<T> = T & {
   checkerName: string | null;
 };
 
-async function enrichWithNames<T extends EnrichableRow>(rows: T[]): Promise<EnrichedWithNames<T>[]> {
+async function enrichWithNames<T extends EnrichableRow>(
+  rows: T[],
+  executor: DbLike = db,
+): Promise<EnrichedWithNames<T>[]> {
   if (rows.length === 0) return rows as EnrichedWithNames<T>[];
   const userIds = new Set<number>();
   rows.forEach(r => {
@@ -78,7 +91,7 @@ async function enrichWithNames<T extends EnrichableRow>(rows: T[]): Promise<Enri
     if (r.checkedBy) userIds.add(r.checkedBy);
   });
   if (userIds.size === 0) return rows as EnrichedWithNames<T>[];
-  const users = await db.select({ id: s.users.id, fullName: s.users.fullName })
+  const users = await executor.select({ id: s.users.id, fullName: s.users.fullName })
     .from(s.users).where(inArray(s.users.id, [...userIds]));
   const nameMap = new Map<number | null | undefined, string | null>(users.map(u => [u.id, u.fullName]));
   return rows.map(r => ({
@@ -90,20 +103,23 @@ async function enrichWithNames<T extends EnrichableRow>(rows: T[]): Promise<Enri
   }));
 }
 
-async function enrichSettlementWithRequests(settlement: typeof s.advanceSettlements.$inferSelect & Record<string, unknown>) {
-  const links = await db.select()
+async function enrichSettlementWithRequests(
+  settlement: typeof s.advanceSettlements.$inferSelect & Record<string, unknown>,
+  executor: DbLike = db,
+) {
+  const links = await executor.select()
     .from(s.advanceSettlementRequests)
     .where(eq(s.advanceSettlementRequests.settlementId, settlement.id));
   const requestIds = links.map(l => l.advanceRequestId);
   let linkedRequests: typeof s.advanceRequests.$inferSelect[] = [];
   if (requestIds.length > 0) {
-    linkedRequests = await db.select()
+    linkedRequests = await executor.select()
       .from(s.advanceRequests)
       .where(inArray(s.advanceRequests.id, requestIds));
   }
 
   // Also fetch linked trip expenses with breakdown by type + print form fields
-  const expenseLinks = await db.select()
+  const expenseLinks = await executor.select()
     .from(s.settlementExpenses)
     .where(eq(s.settlementExpenses.settlementId, settlement.id));
   const expenseIds = expenseLinks.map(l => l.tripExpenseId);
@@ -122,7 +138,7 @@ async function enrichSettlementWithRequests(settlement: typeof s.advanceSettleme
     customerName: string | null;
   }[] = [];
   if (expenseIds.length > 0) {
-    linkedExpenses = await db.select({
+    linkedExpenses = await executor.select({
       id: s.tripExpenses.id,
       tripId: s.tripExpenses.tripId,
       expenseType: s.tripExpenses.expenseType,
@@ -161,14 +177,16 @@ async function enrichSettlementWithRequests(settlement: typeof s.advanceSettleme
 export async function createAdvanceRequest(
   requesterId: number,
   data: { amount: number; reason: string },
+  transaction?: Tx,
 ) {
-  const [inserted] = await db.insert(s.advanceRequests).values({
+  const executor = transaction ?? db;
+  const [inserted] = await executor.insert(s.advanceRequests).values({
     requesterId,
     amount: String(data.amount),
     reason: data.reason,
     status: 'PENDING',
   }).returning();
-  const [enriched] = await enrichWithNames([inserted]);
+  const [enriched] = await enrichWithNames([inserted], executor);
   return enriched;
 }
 
@@ -223,13 +241,20 @@ export async function getAdvanceRequest(id: number) {
   return enriched;
 }
 
-export async function approveAdvanceRequest(id: number, approvedBy: number) {
-  return db.transaction(async (tx) => {
+export async function approveAdvanceRequest(
+  id: number,
+  approvedBy: number,
+  expectedVersion?: number,
+  transaction?: Tx,
+) {
+  const execute = async (tx: Tx) => {
     const [request] = await tx.select()
       .from(s.advanceRequests)
       .where(eq(s.advanceRequests.id, id))
       .for('update');
     if (!request) throw new AdvanceError(404, 'Advance request not found');
+    const version = expectedVersion ?? request.version;
+    assertExpectedVersion(request.version, version, 'Yêu cầu tạm ứng');
     if (request.status !== 'PENDING') {
       throw new AdvanceError(409, `Cannot approve request with status ${request.status}`);
     }
@@ -244,8 +269,18 @@ export async function approveAdvanceRequest(id: number, approvedBy: number) {
 
     const now = new Date();
     const [updated] = await tx.update(s.advanceRequests)
-      .set({ status: 'APPROVED', approvedBy, approvedAt: now, updatedAt: now })
-      .where(and(eq(s.advanceRequests.id, id), eq(s.advanceRequests.status, 'PENDING')))
+      .set({
+        status: 'APPROVED',
+        approvedBy,
+        approvedAt: now,
+        updatedAt: now,
+        version: sql`${s.advanceRequests.version} + 1`,
+      })
+      .where(and(
+        eq(s.advanceRequests.id, id),
+        eq(s.advanceRequests.status, 'PENDING'),
+        eq(s.advanceRequests.version, version),
+      ))
       .returning();
     if (!updated) throw new AdvanceError(409, 'Request was modified by another operation');
 
@@ -261,41 +296,71 @@ export async function approveAdvanceRequest(id: number, approvedBy: number) {
 
     const [enriched] = await enrichWithNames([updated]);
     return enriched;
-  });
+  };
+
+  if (transaction) {
+    return execute(transaction);
+  }
+
+  return db.transaction(execute);
 }
 
-export async function rejectAdvanceRequest(id: number, rejectedBy: number) {
-  return db.transaction(async (tx) => {
+export async function rejectAdvanceRequest(
+  id: number,
+  rejectedBy: number,
+  expectedVersion?: number,
+  transaction?: Tx,
+) {
+  const execute = async (tx: Tx) => {
     const [request] = await tx.select()
       .from(s.advanceRequests)
       .where(eq(s.advanceRequests.id, id))
       .for('update');
     if (!request) throw new AdvanceError(404, 'Advance request not found');
+    const version = expectedVersion ?? request.version;
+    assertExpectedVersion(request.version, version, 'Yêu cầu tạm ứng');
     if (request.status !== 'PENDING') {
       throw new AdvanceError(409, `Cannot reject request with status ${request.status}`);
     }
 
     const now = new Date();
     const [updated] = await tx.update(s.advanceRequests)
-      .set({ status: 'REJECTED', approvedBy: rejectedBy, approvedAt: now, updatedAt: now })
-      .where(and(eq(s.advanceRequests.id, id), eq(s.advanceRequests.status, 'PENDING')))
+      .set({
+        status: 'REJECTED',
+        approvedBy: rejectedBy,
+        approvedAt: now,
+        updatedAt: now,
+        version: sql`${s.advanceRequests.version} + 1`,
+      })
+      .where(and(
+        eq(s.advanceRequests.id, id),
+        eq(s.advanceRequests.status, 'PENDING'),
+        eq(s.advanceRequests.version, version),
+      ))
       .returning();
     if (!updated) throw new AdvanceError(409, 'Request was modified by another operation');
 
     const [enriched] = await enrichWithNames([updated]);
     return enriched;
-  });
+  };
+
+  if (transaction) {
+    return execute(transaction);
+  }
+
+  return db.transaction(execute);
 }
 
 export async function createAdvanceSettlement(
   forwarderId: number,
   data: { totalExpenseAmount?: number; refundAmount?: number; note?: string; advanceRequestIds: number[]; tripExpenseIds?: number[] },
+  transaction?: Tx,
 ) {
   if (!data.advanceRequestIds || data.advanceRequestIds.length === 0) {
     throw new AdvanceError(400, 'At least one advance request ID is required');
   }
 
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     // Serialize claims before validation. After a concurrent creator commits,
     // READ COMMITTED makes the subsequent validation see its new links.
     for (const requestId of [...data.advanceRequestIds].sort((a, b) => a - b)) {
@@ -364,8 +429,10 @@ export async function createAdvanceSettlement(
       );
     }
 
-    return enrichSettlementWithRequests(settlement);
-  });
+    return enrichSettlementWithRequests(settlement, tx);
+  };
+
+  return transaction ? execute(transaction) : db.transaction(execute);
 }
 
 export async function listAdvanceSettlements(filters?: { forwarderId?: number; status?: string }) {
@@ -467,27 +534,27 @@ export async function listAdvanceSettlements(filters?: { forwarderId?: number; s
   return enriched;
 }
 
-export async function getAdvanceSettlement(id: number) {
-  const [row] = await db.select()
+export async function getAdvanceSettlement(id: number, executor: DbLike = db) {
+  const [row] = await executor.select()
     .from(s.advanceSettlements)
     .where(eq(s.advanceSettlements.id, id));
   if (!row) return null;
-  const [enriched] = await enrichWithNames([row]);
-  const detail = await enrichSettlementWithRequests(enriched);
+  const [enriched] = await enrichWithNames([row], executor);
+  const detail = await enrichSettlementWithRequests(enriched, executor);
   const [blockedRequests, blockedExpenses, requestCandidates, expenseCandidates] = await Promise.all([
-    db.select({ id: s.advanceSettlementRequests.advanceRequestId })
+    executor.select({ id: s.advanceSettlementRequests.advanceRequestId })
       .from(s.advanceSettlementRequests)
       .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.advanceSettlementRequests.settlementId))
       .where(and(ne(s.advanceSettlements.id, id), notInArray(s.advanceSettlements.status, ['REJECTED']))),
-    db.select({ id: s.settlementExpenses.tripExpenseId })
+    executor.select({ id: s.settlementExpenses.tripExpenseId })
       .from(s.settlementExpenses)
       .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.settlementExpenses.settlementId))
       .where(and(ne(s.advanceSettlements.id, id), notInArray(s.advanceSettlements.status, ['REJECTED']))),
-    db.select().from(s.advanceRequests).where(and(
+    executor.select().from(s.advanceRequests).where(and(
       eq(s.advanceRequests.requesterId, row.forwarderId),
       eq(s.advanceRequests.status, 'APPROVED'),
     )).orderBy(desc(s.advanceRequests.createdAt)),
-    db.select({
+    executor.select({
       id: s.tripExpenses.id,
       tripId: s.tripExpenses.tripId,
       forwarderId: s.tripExpenses.forwarderId,
@@ -548,12 +615,15 @@ function assertSettlementBalanced(input: {
 
 export async function updateAdvanceSettlement(
   settlementId: number,
-  data: { advanceRequestIds: number[]; tripExpenseIds: number[]; refundAmount: number; note?: string | null },
+  data: { expectedVersion?: number; advanceRequestIds: number[]; tripExpenseIds: number[]; refundAmount: number; note?: string | null },
+  options: { transaction?: Tx; emitNotification?: boolean } = {},
 ) {
-  await db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     const [settlement] = await tx.select().from(s.advanceSettlements)
       .where(eq(s.advanceSettlements.id, settlementId)).for('update');
     if (!settlement) throw new AdvanceError(404, 'Không tìm thấy phiếu hoàn ứng');
+    const version = data.expectedVersion ?? settlement.version;
+    assertExpectedVersion(settlement.version, version, 'Phiếu hoàn ứng');
     if (settlement.status !== 'PENDING' && settlement.status !== 'CHECKED_BY_ACCOUNTANT') {
       throw new AdvanceError(409, 'Chỉ được sửa phiếu đang chờ kế toán');
     }
@@ -645,29 +715,48 @@ export async function updateAdvanceSettlement(
       refundAmount: String(data.refundAmount),
       note: data.note ?? null,
       updatedAt: new Date(),
-    }).where(eq(s.advanceSettlements.id, settlementId));
-  });
-  const detail = await getAdvanceSettlement(settlementId);
+      version: sql`${s.advanceSettlements.version} + 1`,
+    }).where(and(
+      eq(s.advanceSettlements.id, settlementId),
+      eq(s.advanceSettlements.version, version),
+    ));
+  };
+
+  if (options.transaction) {
+    await execute(options.transaction);
+  } else {
+    await db.transaction(execute);
+  }
+  const detail = await getAdvanceSettlement(settlementId, options.transaction ?? db);
   if (!detail) throw new AdvanceError(404, 'Không tìm thấy phiếu hoàn ứng sau khi cập nhật');
-  emitNotification({
-    type: NotificationType.SYSTEM_ANNOUNCEMENT,
-    title: 'Kế toán đã cập nhật phiếu hoàn ứng',
-    message: `Phiếu ${detail.code} đã được cập nhật danh sách tạm ứng, chi phí hoặc số tiền hoàn lại.`,
-    relatedEntityType: 'advance_settlements',
-    relatedEntityId: settlementId,
-    targetUserId: detail.forwarderId,
-    targetRoles: [],
-  });
+  if (options.emitNotification !== false) {
+    emitNotification({
+      type: NotificationType.SYSTEM_ANNOUNCEMENT,
+      title: 'Kế toán đã cập nhật phiếu hoàn ứng',
+      message: `Phiếu ${detail.code} đã được cập nhật danh sách tạm ứng, chi phí hoặc số tiền hoàn lại.`,
+      relatedEntityType: 'advance_settlements',
+      relatedEntityId: settlementId,
+      targetUserId: detail.forwarderId,
+      targetRoles: [],
+    });
+  }
   return detail;
 }
 
-export async function checkAdvanceSettlement(id: number, checkedBy: number) {
+export async function checkAdvanceSettlement(
+  id: number,
+  checkedBy: number,
+  expectedVersion?: number,
+  transaction?: Tx,
+) {
   // Deprecated compatibility transition for stale clients. New clients call
   // approve directly; an old "check" action must not unexpectedly post ledger.
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     const [settlement] = await tx.select().from(s.advanceSettlements)
       .where(eq(s.advanceSettlements.id, id)).for('update');
     if (!settlement) throw new AdvanceError(404, 'Advance settlement not found');
+    const version = expectedVersion ?? settlement.version;
+    assertExpectedVersion(settlement.version, version, 'Phiếu hoàn ứng');
     if (settlement.status !== 'PENDING') {
       throw new AdvanceError(409, `Cannot check settlement with status ${settlement.status}`);
     }
@@ -689,21 +778,42 @@ export async function checkAdvanceSettlement(id: number, checkedBy: number) {
     }
     const now = new Date();
     const [updated] = await tx.update(s.advanceSettlements).set({
-      status: 'CHECKED_BY_ACCOUNTANT', checkedBy, checkedAt: now, updatedAt: now,
-    }).where(and(eq(s.advanceSettlements.id, id), eq(s.advanceSettlements.status, 'PENDING'))).returning();
+      status: 'CHECKED_BY_ACCOUNTANT',
+      checkedBy,
+      checkedAt: now,
+      updatedAt: now,
+      version: sql`${s.advanceSettlements.version} + 1`,
+    }).where(and(
+      eq(s.advanceSettlements.id, id),
+      eq(s.advanceSettlements.status, 'PENDING'),
+      eq(s.advanceSettlements.version, version),
+    )).returning();
     if (!updated) throw new AdvanceError(409, 'Request was modified by another operation');
-    const [enriched] = await enrichWithNames([updated]);
-    return enrichSettlementWithRequests(enriched);
-  });
+    const [enriched] = await enrichWithNames([updated], tx);
+    return enrichSettlementWithRequests(enriched, tx);
+  };
+
+  if (transaction) {
+    return execute(transaction);
+  }
+
+  return db.transaction(execute);
 }
 
-export async function approveAdvanceSettlement(id: number, approvedBy: number) {
-  const approved = await db.transaction(async (tx) => {
+export async function approveAdvanceSettlement(
+  id: number,
+  approvedBy: number,
+  expectedVersion?: number,
+  options: { transaction?: Tx; emitNotification?: boolean } = {},
+) {
+  const execute = async (tx: Tx) => {
     const [settlement] = await tx.select()
       .from(s.advanceSettlements)
       .where(eq(s.advanceSettlements.id, id))
       .for('update');
     if (!settlement) throw new AdvanceError(404, 'Advance settlement not found');
+    const version = expectedVersion ?? settlement.version;
+    assertExpectedVersion(settlement.version, version, 'Phiếu hoàn ứng');
     if (settlement.status !== 'CHECKED_BY_ACCOUNTANT') {
       if (settlement.status === 'PENDING') {
         throw new AdvanceError(409, 'Phiếu hoàn ứng phải được kế toán kiểm tra trước khi duyệt');
@@ -819,10 +929,12 @@ export async function approveAdvanceSettlement(id: number, approvedBy: number) {
         approvedBy,
         approvedAt: now,
         updatedAt: now,
+        version: sql`${s.advanceSettlements.version} + 1`,
       })
       .where(and(
         eq(s.advanceSettlements.id, id),
         eq(s.advanceSettlements.status, 'CHECKED_BY_ACCOUNTANT'),
+        eq(s.advanceSettlements.version, version),
       ))
       .returning();
     if (!updated) throw new AdvanceError(409, 'Request was modified by another operation');
@@ -916,20 +1028,27 @@ export async function approveAdvanceSettlement(id: number, approvedBy: number) {
       updated,
       adjustmentCount: links.filter(link => Boolean(link.adjustmentReason)).length,
     };
-  });
+  };
 
-  emitNotification({
-    type: NotificationType.ADVANCE_SETTLEMENT_APPROVED,
-    title: 'Phiếu hoàn ứng đã duyệt',
-    message: `Phiếu ${approved.updated.code} được duyệt ${Number(approved.updated.totalExpenseAmount).toLocaleString('vi-VN')} ₫${approved.adjustmentCount > 0 ? `, có ${approved.adjustmentCount} khoản kế toán điều chỉnh` : ''}.`,
-    relatedEntityType: 'advance_settlements',
-    relatedEntityId: approved.updated.id,
-    targetUserId: approved.updated.forwarderId,
-    targetRoles: [],
-  });
+  const approved = options.transaction
+    ? await execute(options.transaction)
+    : await db.transaction(execute);
 
-  const [enriched] = await enrichWithNames([approved.updated]);
-  return enrichSettlementWithRequests(enriched);
+  if (options.emitNotification !== false) {
+    emitNotification({
+      type: NotificationType.ADVANCE_SETTLEMENT_APPROVED,
+      title: 'Phiếu hoàn ứng đã duyệt',
+      message: `Phiếu ${approved.updated.code} được duyệt ${Number(approved.updated.totalExpenseAmount).toLocaleString('vi-VN')} ₫${approved.adjustmentCount > 0 ? `, có ${approved.adjustmentCount} khoản kế toán điều chỉnh` : ''}.`,
+      relatedEntityType: 'advance_settlements',
+      relatedEntityId: approved.updated.id,
+      targetUserId: approved.updated.forwarderId,
+      targetRoles: [],
+    });
+  }
+
+  const executor = options.transaction ?? db;
+  const [enriched] = await enrichWithNames([approved.updated], executor);
+  return enrichSettlementWithRequests(enriched, executor);
 }
 
 export async function adjustSettlementExpense(
@@ -937,6 +1056,7 @@ export async function adjustSettlementExpense(
   expenseId: number,
   actorId: number,
   patch: {
+    expectedVersion?: number;
     expenseType?: string;
     buyAmount?: number;
     sellAmount?: number;
@@ -949,15 +1069,18 @@ export async function adjustSettlementExpense(
     note?: string | null;
     adjustmentReason: string;
   },
+  options: { transaction?: Tx; emitNotification?: boolean } = {},
 ) {
   const reason = patch.adjustmentReason.trim();
   if (!reason) {
     throw new AdvanceError(400, 'Lý do điều chỉnh là bắt buộc');
   }
-  const result = await db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     const [settlement] = await tx.select().from(s.advanceSettlements)
       .where(eq(s.advanceSettlements.id, settlementId)).for('update');
     if (!settlement) throw new AdvanceError(404, 'Không tìm thấy phiếu hoàn ứng');
+    const version = patch.expectedVersion ?? settlement.version;
+    assertExpectedVersion(settlement.version, version, 'Phiếu hoàn ứng');
     if (settlement.status !== 'PENDING' && settlement.status !== 'CHECKED_BY_ACCOUNTANT') {
       throw new AdvanceError(409, 'Chỉ được sửa phiếu đang chờ kế toán');
     }
@@ -1012,8 +1135,13 @@ export async function adjustSettlementExpense(
     });
     if (requiredFieldError) throw new AdvanceError(400, requiredFieldError);
 
-    const { adjustmentReason: _adjustmentReason, ...expensePatch } = patch;
+    const {
+      adjustmentReason: _adjustmentReason,
+      expectedVersion: _expectedVersion,
+      ...expensePatch
+    } = patch;
     void _adjustmentReason;
+    void _expectedVersion;
     const values: Record<string, unknown> = {
       ...currentSnapshot,
       ...expensePatch,
@@ -1076,7 +1204,11 @@ export async function adjustSettlementExpense(
       checkedAt: null,
       totalExpenseAmount: String(totalExpenseAmount),
       updatedAt: now,
-    }).where(eq(s.advanceSettlements.id, settlementId));
+      version: sql`${s.advanceSettlements.version} + 1`,
+    }).where(and(
+      eq(s.advanceSettlements.id, settlementId),
+      eq(s.advanceSettlements.version, version),
+    ));
     return {
       item: {
         id: linked.expenseId,
@@ -1089,43 +1221,68 @@ export async function adjustSettlementExpense(
       forwarderId: settlement.forwarderId,
       adjustmentReason: reason,
     };
-  });
-  emitNotification({
-    type: NotificationType.SYSTEM_ANNOUNCEMENT,
-    title: 'Kế toán đã điều chỉnh phiếu hoàn ứng',
-    message: `Phiếu ${result.settlementCode}: ${result.adjustmentReason}.`,
-    relatedEntityType: 'advance_settlements',
-    relatedEntityId: settlementId,
-    targetUserId: result.forwarderId,
-    targetRoles: [],
-  });
+  };
+  const result = options.transaction
+    ? await execute(options.transaction)
+    : await db.transaction(execute);
+  if (options.emitNotification !== false) {
+    emitNotification({
+      type: NotificationType.SYSTEM_ANNOUNCEMENT,
+      title: 'Kế toán đã điều chỉnh phiếu hoàn ứng',
+      message: `Phiếu ${result.settlementCode}: ${result.adjustmentReason}.`,
+      relatedEntityType: 'advance_settlements',
+      relatedEntityId: settlementId,
+      targetUserId: result.forwarderId,
+      targetRoles: [],
+    });
+  }
   return { item: result.item, totalExpenseAmount: result.totalExpenseAmount };
 }
 
-export async function rejectAdvanceSettlement(id: number, rejectedBy: number) {
-  return db.transaction(async (tx) => {
+export async function rejectAdvanceSettlement(
+  id: number,
+  rejectedBy: number,
+  expectedVersion?: number,
+  transaction?: Tx,
+) {
+  const execute = async (tx: Tx) => {
     const [settlement] = await tx.select()
       .from(s.advanceSettlements)
       .where(eq(s.advanceSettlements.id, id))
       .for('update');
     if (!settlement) throw new AdvanceError(404, 'Advance settlement not found');
+    const version = expectedVersion ?? settlement.version;
+    assertExpectedVersion(settlement.version, version, 'Phiếu hoàn ứng');
     if (settlement.status !== 'PENDING' && settlement.status !== 'CHECKED_BY_ACCOUNTANT') {
       throw new AdvanceError(409, `Cannot reject settlement with status ${settlement.status}`);
     }
 
     const now = new Date();
     const [updated] = await tx.update(s.advanceSettlements)
-      .set({ status: 'REJECTED', approvedBy: rejectedBy, approvedAt: now, updatedAt: now })
+      .set({
+        status: 'REJECTED',
+        approvedBy: rejectedBy,
+        approvedAt: now,
+        updatedAt: now,
+        version: sql`${s.advanceSettlements.version} + 1`,
+      })
       .where(and(
         eq(s.advanceSettlements.id, id),
         inArray(s.advanceSettlements.status, ['PENDING', 'CHECKED_BY_ACCOUNTANT']),
+        eq(s.advanceSettlements.version, version),
       ))
       .returning();
     if (!updated) throw new AdvanceError(409, 'Request was modified by another operation');
 
-    const [enriched] = await enrichWithNames([updated]);
-    return enrichSettlementWithRequests(enriched);
-  });
+    const [enriched] = await enrichWithNames([updated], tx);
+    return enrichSettlementWithRequests(enriched, tx);
+  };
+
+  if (transaction) {
+    return execute(transaction);
+  }
+
+  return db.transaction(execute);
 }
 
 // ── Outstanding advance balance (F1) ─────────────────────────────────────────

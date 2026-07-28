@@ -97,11 +97,13 @@ function getPlate(u: UserRow, truckMap?: Map<number, string>) {
 }
 
 function getCustomerScopeLabel(u: UserRow, customerMap?: Map<number, string>) {
-  if (u.role !== Role.CUSTOMER) return undefined;
+  if (u.role !== Role.CUSTOMER && u.role !== Role.ACCOUNTANT) return undefined;
   const ids = u.customerIds?.length ? u.customerIds : u.customerId ? [u.customerId] : [];
-  if (ids.length === 0) return 'Chưa liên kết khách hàng';
+  if (ids.length === 0) {
+    return u.role === Role.ACCOUNTANT ? 'Phạm vi tài chính toàn công ty' : 'Chưa liên kết khách hàng';
+  }
   const names = ids.map(id => customerMap?.get(id) ?? `Khách hàng #${id}`);
-  return names.join(', ');
+  return u.role === Role.ACCOUNTANT ? `Phạm vi kế toán: ${names.join(', ')}` : names.join(', ');
 }
 
 function getClerkScopeLabel(

@@ -109,12 +109,17 @@ class ApiClient:
         except urllib.error.HTTPError as e:
             return {'error': json.loads(e.read()), 'status': e.code}
 
-    def _request(self, method: str, path: str, body=None):
+    def _request(self, method: str, path: str, body=None, extra_headers=None):
         import urllib.request
+        import uuid
         url = f'{self.base_url}{path}'
         headers = {'Content-Type': 'application/json'}
         if self.token:
             headers['Authorization'] = f'Bearer {self.token}'
+        if method in ('POST', 'PUT', 'PATCH', 'DELETE'):
+            headers['Idempotency-Key'] = f'e2e-{uuid.uuid4()}'
+        if extra_headers:
+            headers.update(extra_headers)
         data = json.dumps(body).encode() if body else None
         req = urllib.request.Request(url, data=data, headers=headers, method=method)
         try:
@@ -133,17 +138,17 @@ class ApiClient:
     def get(self, path):
         return self._request('GET', path)
 
-    def post(self, path, body):
-        return self._request('POST', path, body)
+    def post(self, path, body, headers=None):
+        return self._request('POST', path, body, headers)
 
-    def put(self, path, body):
-        return self._request('PUT', path, body)
+    def put(self, path, body, headers=None):
+        return self._request('PUT', path, body, headers)
 
-    def patch(self, path, body):
-        return self._request('PATCH', path, body)
+    def patch(self, path, body, headers=None):
+        return self._request('PATCH', path, body, headers)
 
-    def delete(self, path):
-        return self._request('DELETE', path)
+    def delete(self, path, headers=None):
+        return self._request('DELETE', path, extra_headers=headers)
 
 
 class NepoTestContext:

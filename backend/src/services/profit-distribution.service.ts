@@ -21,6 +21,8 @@ import { TripStatus } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { localDateStr, quarterDateRange, resolveTruckCapSnapshot } from './reporting-shared';
 
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 /** A single computed distribution row (one truck × one partner). */
 export interface DistributionRow {
   quarter: number;
@@ -60,7 +62,7 @@ export interface DistributionPlan {
 /**
  * Distribute net profit for a quarter to cap-table partners (per-vehicle).
  */
-export async function distributeProfit(quarter: number, year: number) {
+export async function distributeProfit(quarter: number, year: number, transaction?: Tx) {
   // Read-only computation + exactness reconcile guard (throws BEFORE any write
   // if the math is off).
   const plan = await computeDistribution(quarter, year);
@@ -70,7 +72,7 @@ export async function distributeProfit(quarter: number, year: number) {
   // violation) rolls back ALL rows — leaving the quarter cleanly retryable
   // instead of stuck half-distributed with the idempotency guard blocking
   // every retry. (Architect CRITICAL #1.)
-  await db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     // Serialize concurrent distributeProfit for the same quarter/year. Two
     // admins (or a double-click) could both pass the SELECT-then-INSERT
     // idempotency check under READ COMMITTED and double-distribute. A
@@ -100,7 +102,12 @@ export async function distributeProfit(quarter: number, year: number) {
         amount: d.amount,
       })));
     }
-  });
+  };
+  if (transaction) {
+    await execute(transaction);
+  } else {
+    await db.transaction(execute);
+  }
 
   return {
     quarter,

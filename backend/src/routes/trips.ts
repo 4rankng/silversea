@@ -31,6 +31,8 @@ import {
   requestTripReopen,
 } from '../services/adjustment-governance.service';
 import { createTripPair } from '../services/trip-pairs.service';
+import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../services/idempotency.service';
+import { getRequestIdempotencyKey } from './utils/idempotency';
 
 // Audit event registrations — declared once at module load, matched by middleware
 registerAuditEvent('POST', '/api/trips', AuditEvent.TRIP_CREATED);
@@ -48,11 +50,6 @@ registerAuditEvent('POST', '/api/trips/', '/unlock', AuditEvent.ENTITY_CREATED);
 registerAuditEvent('PATCH', '/api/trips/', '/departure-date', AuditEvent.TRIP_DEPARTURE_DATE_CHANGED);
 
 const router = Router();
-
-function getIdempotencyKey(req: Request): string | undefined {
-  const value = req.header('Idempotency-Key')?.trim();
-  return value || undefined;
-}
 
 function getExpectedVersion(body: unknown): number | undefined {
   if (!body || typeof body !== 'object') return undefined;
@@ -106,7 +103,7 @@ router.post('/', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req
   if (config.shipmentFirstCreate && data.shipmentId == null) {
     return res.status(400).json({ error: 'shipmentId là bắt buộc khi SHIPMENT_FIRST_CREATE đang bật' });
   }
-  const idempotencyKey = getIdempotencyKey(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
   const outcome = await createTripWriteCommand(data, getUser(req), idempotencyKey);
   res.locals.auditEntityId = outcome.trip.id;
   res.status(201).json(idempotencyKey
@@ -121,7 +118,7 @@ router.post('/:id/copy', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(as
   if (!Number.isInteger(tripId) || tripId <= 0) {
     return res.status(400).json({ error: 'ID chuyến đi không hợp lệ' });
   }
-  const idempotencyKey = getIdempotencyKey(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
   const outcome = await copyTripWriteCommand(tripId, getUser(req), idempotencyKey);
   res.locals.auditEntityId = outcome.trip.id;
   res.status(201).json(idempotencyKey
@@ -146,9 +143,19 @@ router.get('/live-fleet', asyncHandler(async (_req: Request, res: Response) => {
 
 router.post('/pairs', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
   const payload = createTripPairSchema.parse(req.body);
-  const pair = await createTripPair(payload, getUser(req).userId);
-  await invalidateReportCaches();
-  res.status(201).json(pair);
+  const user = getUser(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result: pair, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_PAIR_CREATE,
+    idempotencyKey,
+    payload: { actorId: user.userId, payload },
+    createdBy: user.userId,
+    entityType: 'trip_pair',
+    create: (tx) => createTripPair(payload, user.userId, tx),
+    getEntityId: (result) => result.id,
+  });
+  if (!replayed) await invalidateReportCaches();
+  res.status(201).json(idempotencyKey ? { ...pair, replayed } : pair);
 }));
 
 // Get trip detail with legs
@@ -175,43 +182,48 @@ router.get('/stats', asyncHandler(async (req: Request, res: Response) => {
 router.post('/bulk-figures', asyncHandler(async (req: Request, res: Response) => {
   const payload = bulkUpdateTripFiguresSchema.parse(req.body);
   const user = getUser(req);
-  const results = [];
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_BULK_FIGURES,
+    idempotencyKey,
+    payload: { actorId: user.userId, actorRole: user.role, payload },
+    createdBy: user.userId,
+    entityType: 'trip_bulk_figures',
+    create: async (tx) => {
+      const results = [];
+      for (const update of payload.updates) {
+        const parsedFigures = updateTripFiguresSchema.safeParse(update.figures);
+        if (!parsedFigures.success) {
+          results.push({
+            tripId: update.tripId,
+            ok: false,
+            error: parsedFigures.error.issues[0]?.message ?? 'Dữ liệu dòng không hợp lệ',
+          });
+          continue;
+        }
 
-  for (const update of payload.updates) {
-    const parsedFigures = updateTripFiguresSchema.safeParse(update.figures);
-    if (!parsedFigures.success) {
-      results.push({
-        tripId: update.tripId,
-        ok: false,
-        error: parsedFigures.error.issues[0]?.message ?? 'Dữ liệu dòng không hợp lệ',
-      });
-      continue;
-    }
-
-    try {
-      const trip = await tripService.updateTripFigures(update.tripId, {
-        ...parsedFigures.data,
-        expectedVersion: parsedFigures.data.version,
-        userId: user.userId,
-        userRole: user.role,
-      });
-      results.push({ tripId: update.tripId, ok: true, trip });
-    } catch (err) {
-      results.push({
-        tripId: update.tripId,
-        ok: false,
-        error: err instanceof Error ? err.message : 'Không thể cập nhật chuyến',
-      });
-    }
-  }
-
-  const updated = results.filter((r) => r.ok).length;
-  await invalidateReportCaches();
-  res.json({
-    results,
-    updated,
-    failed: results.length - updated,
+        try {
+          const trip = await tripService.updateTripFigures(update.tripId, {
+            ...parsedFigures.data,
+            expectedVersion: parsedFigures.data.version,
+            userId: user.userId,
+            userRole: user.role,
+          }, tx);
+          results.push({ tripId: update.tripId, ok: true, trip });
+        } catch (err) {
+          results.push({
+            tripId: update.tripId,
+            ok: false,
+            error: err instanceof Error ? err.message : 'Không thể cập nhật chuyến',
+          });
+        }
+      }
+      const updated = results.filter((row) => row.ok).length;
+      return { results, updated, failed: results.length - updated };
+    },
   });
+  if (!replayed) await invalidateReportCaches();
+  res.json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
 router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
@@ -232,42 +244,75 @@ router.delete('/:id', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async
   if (expectedVersion !== undefined && (!Number.isInteger(expectedVersion) || expectedVersion <= 0)) {
     return res.status(400).json({ error: 'Phiên bản chuyến đi không hợp lệ' });
   }
-  await tripService.deleteTrip(id, expectedVersion);
-  await invalidateReportCaches();
-  res.json({ ok: true });
+  const user = getUser(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_DELETE,
+    idempotencyKey,
+    payload: { actorId: user.userId, tripId: id, expectedVersion },
+    createdBy: user.userId,
+    entityType: 'trip',
+    create: async (tx) => {
+      await tripService.deleteTrip(id, expectedVersion, tx);
+      return { ok: true };
+    },
+    getEntityId: () => id,
+  });
+  if (!replayed) await invalidateReportCaches();
+  res.json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
 // Update pre-departure figures
 router.put('/:id/pre-departure', asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
   const data = updateTripFiguresSchema.parse(req.body);
-  const trip = await tripService.updateTripFigures(id, {
-    ...data,
-    expectedVersion: data.version,
-    userId: getUser(req).userId,
-    userRole: getUser(req).role,
+  const user = getUser(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result: trip, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_PRE_DEPARTURE,
+    idempotencyKey,
+    payload: { actorId: user.userId, actorRole: user.role, tripId: id, data },
+    createdBy: user.userId,
+    entityType: 'trip',
+    create: (tx) => tripService.updateTripFigures(id, {
+      ...data,
+      expectedVersion: data.version,
+      userId: user.userId,
+      userRole: user.role,
+    }, tx),
+    getEntityId: (result) => result.id,
   });
-  await invalidateReportCaches();
-  res.json(trip);
+  if (!replayed) await invalidateReportCaches();
+  res.json(idempotencyKey ? { ...trip, replayed } : trip);
 }));
 
 // Update actuals
 router.put('/:id/actuals', asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
   const data = updateTripFiguresSchema.parse(req.body);
-  const updated = await tripService.updateTripFigures(id, {
-    ...data,
-    expectedVersion: data.version,
-    userId: getUser(req).userId,
-    userRole: getUser(req).role,
+  const user = getUser(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result: updated, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_ACTUALS,
+    idempotencyKey,
+    payload: { actorId: user.userId, actorRole: user.role, tripId: id, data },
+    createdBy: user.userId,
+    entityType: 'trip',
+    create: (tx) => tripService.updateTripFigures(id, {
+      ...data,
+      expectedVersion: data.version,
+      userId: user.userId,
+      userRole: user.role,
+    }, tx),
+    getEntityId: (result) => result.id,
   });
-  await invalidateReportCaches();
-  res.json(updated);
+  if (!replayed) await invalidateReportCaches();
+  res.json(idempotencyKey ? { ...updated, replayed } : updated);
 }));
 
 // Dispatch trip
 router.post('/:id/dispatch', asyncHandler(async (req: Request, res: Response) => {
-  const idempotencyKey = getIdempotencyKey(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
   const outcome = await dispatchTripWriteCommand(
     parseInt(req.params.id as string),
     getUser(req),
@@ -284,7 +329,7 @@ router.post('/:id/dispatch', asyncHandler(async (req: Request, res: Response) =>
 // that previously fired inside updateTripFigures whenever any photo existed.
 router.post('/:id/complete', asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
-  const idempotencyKey = getIdempotencyKey(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
   const outcome = await transitionTripWriteCommand({
     tripId: id,
     targetStatus: TripStatus.COMPLETED,
@@ -327,7 +372,7 @@ router.post('/:id/lock', asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
   const confirmZeroRevenue = req.body.confirmZeroRevenue === true;
   const confirmNoPhoto = req.body.confirmNoPhoto === true;
-  const idempotencyKey = getIdempotencyKey(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
   const outcome = await transitionTripWriteCommand({
     tripId: id,
     targetStatus: TripStatus.LOCKED,
@@ -355,7 +400,7 @@ router.post('/:id/lock', asyncHandler(async (req: Request, res: Response) => {
 // Cancel trip
 router.post('/:id/cancel', asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
-  const idempotencyKey = getIdempotencyKey(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
   const outcome = await transitionTripWriteCommand({
     tripId: id,
     targetStatus: TripStatus.CANCELED,
@@ -398,9 +443,19 @@ router.patch('/:id/reassign', asyncHandler(async (req: Request, res: Response) =
   if (data.carrierType === 'EXTERNAL' && (!data.externalCarrierId && !data.externalPlateNumber)) {
     return res.status(400).json({ error: 'Vui lòng chọn đối tác xe ngoài hoặc nhập biển số' });
   }
-  const trip = await tripService.reassignTrip(id, data);
-  await invalidateReportCaches();
-  res.json(trip);
+  const user = getUser(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result: trip, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_REASSIGN,
+    idempotencyKey,
+    payload: { actorId: user.userId, tripId: id, data },
+    createdBy: user.userId,
+    entityType: 'trip',
+    create: (tx) => tripService.reassignTrip(id, data, tx),
+    getEntityId: (result) => result.id,
+  });
+  if (!replayed) await invalidateReportCaches();
+  res.json(idempotencyKey ? { ...trip, replayed } : trip);
 }));
 
 // Submit an exceptional reopen request. The trip remains LOCKED until a
@@ -408,14 +463,25 @@ router.patch('/:id/reassign', asyncHandler(async (req: Request, res: Response) =
 router.post('/:id/unlock', asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
   const data = tripReopenRequestSchema.parse(req.body);
-  const action = await requestTripReopen({
-    tripId: id,
-    reason: data.reason,
-    makerId: getUser(req).userId,
-    makerRole: getUser(req).role,
-    expectedTripVersion: data.expectedVersion,
+  const user = getUser(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result: action, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_UNLOCK,
+    idempotencyKey,
+    payload: { actorId: user.userId, actorRole: user.role, tripId: id, data },
+    createdBy: user.userId,
+    entityType: 'governance_action',
+    create: (tx) => requestTripReopen({
+      tripId: id,
+      reason: data.reason,
+      makerId: user.userId,
+      makerRole: user.role,
+      expectedTripVersion: data.expectedVersion,
+      transaction: tx,
+    }),
+    getEntityId: (result) => result.id,
   });
-  res.status(202).json(action);
+  res.status(202).json(idempotencyKey ? { ...action, replayed } : action);
 }));
 
 // Change departure date (any status except CANCELED)
@@ -436,15 +502,32 @@ router.patch('/:id/departure-date', asyncHandler(async (req: Request, res: Respo
       && (!Number.isInteger(req.body.expectedVersion) || req.body.expectedVersion <= 0)) {
     return res.status(400).json({ error: 'Phiên bản chuyến đi không hợp lệ' });
   }
-  const trip = await tripService.updateDepartureDate(
-    id,
-    departureDate,
-    getUser(req).userId,
-    getUser(req).role,
-    req.body.expectedVersion,
-  );
-  await invalidateReportCaches(true);
-  res.json(trip);
+  const user = getUser(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result: trip, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_DEPARTURE_DATE,
+    idempotencyKey,
+    payload: {
+      actorId: user.userId,
+      actorRole: user.role,
+      tripId: id,
+      departureDate,
+      expectedVersion: req.body.expectedVersion,
+    },
+    createdBy: user.userId,
+    entityType: 'trip',
+    create: (tx) => tripService.updateDepartureDate(
+      id,
+      departureDate,
+      user.userId,
+      user.role,
+      req.body.expectedVersion,
+      tx,
+    ),
+    getEntityId: (result) => result.id,
+  });
+  if (!replayed) await invalidateReportCaches(true);
+  res.json(idempotencyKey ? { ...trip, replayed } : trip);
 }));
 
 // Get adjustments for a specific trip
@@ -461,16 +544,27 @@ router.get('/:id/adjustments', asyncHandler(async (req: Request, res: Response) 
 router.post('/:id/adjustment', asyncHandler(async (req: Request, res: Response) => {
   const tripId = parseInt(req.params.id as string);
   const data = createAdjustmentSchema.parse({ ...req.body, tripId });
-  const action = await financialService.createAdjustment({
-    tripId,
-    amount: data.amount,
-    note: data.note,
-    signedAgreementRef: data.signedAgreementRef,
-    makerId: getUser(req).userId,
-    makerRole: getUser(req).role,
-    expectedTripVersion: data.expectedVersion,
+  const user = getUser(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result: action, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_ADJUSTMENT,
+    idempotencyKey,
+    payload: { actorId: user.userId, actorRole: user.role, tripId, data },
+    createdBy: user.userId,
+    entityType: 'governance_action',
+    create: (tx) => financialService.createAdjustment({
+      tripId,
+      amount: data.amount,
+      note: data.note,
+      signedAgreementRef: data.signedAgreementRef,
+      makerId: user.userId,
+      makerRole: user.role,
+      expectedTripVersion: data.expectedVersion,
+      transaction: tx,
+    }),
+    getEntityId: (result) => result.id,
   });
-  res.status(201).json(action);
+  res.status(201).json(idempotencyKey ? { ...action, replayed } : action);
 }));
 
 // ─── Container instances per trip (accessible to ADMIN/MANAGER/ACCOUNTANT) ────
@@ -508,14 +602,26 @@ router.put('/:id/containers', asyncHandler(async (req: Request, res: Response) =
   const tripId = parseInt(req.params.id as string, 10);
   const parsed = tripContainerBatchSchema.parse(req.body);
   const userId = req.user?.userId ?? null;
-  const items = await batchUpsertTripContainers(
-    tripId,
-    userId,
-    parsed.containers,
-    parsed.expectedVersion,
-  );
-  await invalidateReportCaches();
-  res.json({ items });
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_CONTAINERS,
+    idempotencyKey,
+    payload: { actorId: userId, tripId, data: parsed },
+    createdBy: userId,
+    entityType: 'trip_containers',
+    create: async (tx) => ({
+      items: await batchUpsertTripContainers(
+        tripId,
+        userId,
+        parsed.containers,
+        parsed.expectedVersion,
+        tx,
+      ),
+    }),
+    getEntityId: () => tripId,
+  });
+  if (!replayed) await invalidateReportCaches();
+  res.json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
 // ─── Trip instructions (N2 / B1.3) ──────────────────────────────────────────
@@ -537,8 +643,23 @@ router.put('/:id/instructions', asyncHandler(async (req: Request, res: Response)
   }
   const parsed = upsertTripInstructionsSchema.safeParse(req.body);
   if (!parsed.success) throwValidation(parsed.error);
-  const row = await tripService.upsertTripInstructions(tripId, parsed.data, getUser(req).userId);
-  res.json(row);
+  const user = getUser(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result: row, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_INSTRUCTIONS,
+    idempotencyKey,
+    payload: { actorId: user.userId, tripId, data: parsed.data },
+    createdBy: user.userId,
+    entityType: 'trip_instructions',
+    create: (tx) => tripService.upsertTripInstructions(
+      tripId,
+      parsed.data,
+      user.userId,
+      tx,
+    ),
+    getEntityId: (result) => result.id,
+  });
+  res.json(idempotencyKey ? { ...row, replayed } : row);
 }));
 
 // ─── Trip Expenses (ancillary fees) ──────────────────────────────────────────
@@ -556,13 +677,20 @@ router.post('/:id/expenses', asyncHandler(async (req: Request, res: Response) =>
   const tripId = parseInt(req.params.id as string, 10);
   const parsed = tripExpenseSchema.safeParse({ ...req.body, tripId });
   if (!parsed.success) throwValidation(parsed.error);
-  const item = await db.transaction(async (tx) =>
-    createTripExpense(tx, {
+  const user = getUser(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result: item, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_EXPENSE_CREATE,
+    idempotencyKey,
+    payload: { actorId: user.userId, tripId, data: parsed.data },
+    createdBy: user.userId,
+    entityType: 'trip_expense',
+    create: (tx) => createTripExpense(tx, {
       tripId,
       forwarderId: parsed.data.settlementMethod === 'FORWARDER_ADVANCE'
         ? (parsed.data.forwarderId ?? null)
         : null,
-      createdBy: getUser(req).userId,
+      createdBy: user.userId,
       approvalStatus: 'PENDING',
       expenseType: parsed.data.expenseType,
       buyAmount: String(parsed.data.buyAmount),
@@ -579,8 +707,9 @@ router.post('/:id/expenses', asyncHandler(async (req: Request, res: Response) =>
       note: parsed.data.note ?? null,
       noInvoiceEvidenceTypes: parsed.data.noInvoiceEvidenceTypes ?? [],
     }),
-  );
-  res.status(201).json(item);
+    getEntityId: (result) => result.id,
+  });
+  res.status(201).json(idempotencyKey ? { ...item, replayed } : item);
 }));
 
 // PUT /api/trips/:id/expenses/:eid — update expense
@@ -588,27 +717,39 @@ router.put('/:id/expenses/:eid', asyncHandler(async (req: Request, res: Response
   const eid = parseInt(req.params.eid as string, 10);
   const parsed = tripExpensePatchSchema.safeParse(req.body);
   if (!parsed.success) throwValidation(parsed.error);
-  const item = await db.transaction(async (tx) =>
-    updateTripExpense(tx, eid, {
-      expenseType: parsed.data.expenseType,
-      buyAmount: parsed.data.buyAmount !== undefined ? String(parsed.data.buyAmount) : undefined,
-      sellAmount: parsed.data.sellAmount !== undefined ? String(parsed.data.sellAmount) : undefined,
-      settlementMethod: parsed.data.settlementMethod,
-      // Only include nullable fields when explicitly provided (undefined = don't touch)
-      ...(parsed.data.supplierId !== undefined ? { supplierId: parsed.data.supplierId ?? null } : {}),
-      ...(parsed.data.expenseDate !== undefined ? { expenseDate: parsed.data.expenseDate ?? null } : {}),
-      ...(parsed.data.payeeName !== undefined ? { payeeName: parsed.data.payeeName?.trim() || null } : {}),
-      ...(parsed.data.invoiceNumber !== undefined ? { invoiceNumber: parsed.data.invoiceNumber ?? null } : {}),
-      ...(parsed.data.invoiceDate !== undefined ? { invoiceDate: parsed.data.invoiceDate ?? null } : {}),
-      ...(parsed.data.declarationNumber !== undefined ? { declarationNumber: parsed.data.declarationNumber ?? null } : {}),
-      ...(parsed.data.containerNumber !== undefined ? { containerNumber: parsed.data.containerNumber ?? null } : {}),
-      ...(parsed.data.tripContainerId !== undefined ? { tripContainerId: parsed.data.tripContainerId ?? null } : {}),
-      ...(parsed.data.note !== undefined ? { note: parsed.data.note ?? null } : {}),
-      ...(parsed.data.noInvoiceEvidenceTypes !== undefined ? { noInvoiceEvidenceTypes: parsed.data.noInvoiceEvidenceTypes ?? [] } : {}),
-    }),
-  );
-  if (!item) return res.status(404).json({ error: 'Không tìm thấy chi phí' });
-  res.json(item);
+  const tripId = parseInt(req.params.id as string, 10);
+  const user = getUser(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result: item, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_EXPENSE_UPDATE,
+    idempotencyKey,
+    payload: { actorId: user.userId, tripId, expenseId: eid, data: parsed.data },
+    createdBy: user.userId,
+    entityType: 'trip_expense',
+    create: async (tx) => {
+      const updated = await updateTripExpense(tx, eid, {
+        expenseType: parsed.data.expenseType,
+        buyAmount: parsed.data.buyAmount !== undefined ? String(parsed.data.buyAmount) : undefined,
+        sellAmount: parsed.data.sellAmount !== undefined ? String(parsed.data.sellAmount) : undefined,
+        settlementMethod: parsed.data.settlementMethod,
+        // Only include nullable fields when explicitly provided (undefined = don't touch)
+        ...(parsed.data.supplierId !== undefined ? { supplierId: parsed.data.supplierId ?? null } : {}),
+        ...(parsed.data.expenseDate !== undefined ? { expenseDate: parsed.data.expenseDate ?? null } : {}),
+        ...(parsed.data.payeeName !== undefined ? { payeeName: parsed.data.payeeName?.trim() || null } : {}),
+        ...(parsed.data.invoiceNumber !== undefined ? { invoiceNumber: parsed.data.invoiceNumber ?? null } : {}),
+        ...(parsed.data.invoiceDate !== undefined ? { invoiceDate: parsed.data.invoiceDate ?? null } : {}),
+        ...(parsed.data.declarationNumber !== undefined ? { declarationNumber: parsed.data.declarationNumber ?? null } : {}),
+        ...(parsed.data.containerNumber !== undefined ? { containerNumber: parsed.data.containerNumber ?? null } : {}),
+        ...(parsed.data.tripContainerId !== undefined ? { tripContainerId: parsed.data.tripContainerId ?? null } : {}),
+        ...(parsed.data.note !== undefined ? { note: parsed.data.note ?? null } : {}),
+        ...(parsed.data.noInvoiceEvidenceTypes !== undefined ? { noInvoiceEvidenceTypes: parsed.data.noInvoiceEvidenceTypes ?? [] } : {}),
+      });
+      if (!updated) throw new ApiError(404, 'Không tìm thấy chi phí');
+      return updated;
+    },
+    getEntityId: (result) => result.id,
+  });
+  res.json(idempotencyKey ? { ...item, replayed } : item);
 }));
 
 // DELETE /api/trips/:id/expenses/:eid — hard delete (only if trip not locked)
@@ -616,20 +757,33 @@ router.delete('/:id/expenses/:eid', asyncHandler(async (req: Request, res: Respo
   const tripId = parseInt(req.params.id as string, 10);
   const eid = parseInt(req.params.eid as string, 10);
 
-  // Fetch expense info for audit log before delete
-  const expense = await getTripExpenseAuditInfo(eid);
-
-  const result = await deleteTripExpenseGuarded(tripId, eid);
-  if ('error' in result) return res.status(result.status).json({ error: result.error });
-
-  if (expense) {
-    const buyAmt = Number(expense.buyAmount).toLocaleString('vi-VN') + ' ₫';
-    const tripPart = expense.tripCode ? ` cho chuyến ${expense.tripCode}` : '';
-    const supplierPart = expense.supplierName ? ` (Nhà cung cấp: ${expense.supplierName})` : '';
-    res.locals.auditEntityKey = `phí ${expense.typeName || 'hộ'} với số tiền chi ${buyAmt}${tripPart}${supplierPart}`;
+  const user = getUser(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result: outcome, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_EXPENSE_DELETE,
+    idempotencyKey,
+    payload: { actorId: user.userId, tripId, expenseId: eid },
+    createdBy: user.userId,
+    entityType: 'trip_expense',
+    create: async (tx) => {
+      const expense = await getTripExpenseAuditInfo(eid, tx);
+      const result = await deleteTripExpenseGuarded(tripId, eid, tx);
+      return { result, expense };
+    },
+    getEntityId: () => eid,
+  });
+  if ('error' in outcome.result) {
+    return res.status(outcome.result.status).json({ error: outcome.result.error });
   }
 
-  res.json({ ok: true });
+  if (outcome.expense) {
+    const buyAmt = Number(outcome.expense.buyAmount).toLocaleString('vi-VN') + ' ₫';
+    const tripPart = outcome.expense.tripCode ? ` cho chuyến ${outcome.expense.tripCode}` : '';
+    const supplierPart = outcome.expense.supplierName ? ` (Nhà cung cấp: ${outcome.expense.supplierName})` : '';
+    res.locals.auditEntityKey = `phí ${outcome.expense.typeName || 'hộ'} với số tiền chi ${buyAmt}${tripPart}${supplierPart}`;
+  }
+
+  res.json(idempotencyKey ? { ok: true, replayed } : { ok: true });
 }));
 
 // POST /api/trips/:id/expenses/:eid/approve — ADMIN/MANAGER/ACCOUNTANT
@@ -639,9 +793,19 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const tripId = parseInt(req.params.id as string, 10);
     const eid = parseInt(req.params.eid as string, 10);
-    const result = await processExpenseApproval(tripId, eid, getUser(req).userId, getUser(req).role, 'APPROVED');
+    const user = getUser(req);
+    const idempotencyKey = getRequestIdempotencyKey(req);
+    const { result, replayed } = await runIdempotent({
+      endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_EXPENSE_APPROVE,
+      idempotencyKey,
+      payload: { actorId: user.userId, actorRole: user.role, tripId, expenseId: eid, action: 'APPROVED' },
+      createdBy: user.userId,
+      entityType: 'trip_expense',
+      create: (tx) => processExpenseApproval(tripId, eid, user.userId, user.role, 'APPROVED', tx),
+      getEntityId: () => eid,
+    });
     if ('error' in result) return res.status(result.status).json({ error: result.error });
-    res.json(result);
+    res.json(idempotencyKey ? { ...result, replayed } : result);
   }),
 );
 
@@ -652,9 +816,19 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const tripId = parseInt(req.params.id as string, 10);
     const eid = parseInt(req.params.eid as string, 10);
-    const result = await processExpenseApproval(tripId, eid, getUser(req).userId, getUser(req).role, 'REJECTED');
+    const user = getUser(req);
+    const idempotencyKey = getRequestIdempotencyKey(req);
+    const { result, replayed } = await runIdempotent({
+      endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_EXPENSE_REJECT,
+      idempotencyKey,
+      payload: { actorId: user.userId, actorRole: user.role, tripId, expenseId: eid, action: 'REJECTED' },
+      createdBy: user.userId,
+      entityType: 'trip_expense',
+      create: (tx) => processExpenseApproval(tripId, eid, user.userId, user.role, 'REJECTED', tx),
+      getEntityId: () => eid,
+    });
     if ('error' in result) return res.status(result.status).json({ error: result.error });
-    res.json({ ok: true });
+    res.json(idempotencyKey ? { ...result, replayed } : { ok: true });
   }),
 );
 

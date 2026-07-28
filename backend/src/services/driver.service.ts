@@ -817,6 +817,7 @@ export async function getDriverPayslipPeriods(driverId: number): Promise<DriverP
     closedBy: s.salaryPeriodCloses.closedBy,
     note: s.salaryPeriodCloses.note,
   }).from(s.salaryPeriodCloses)
+    .where(sql`${s.salaryPeriodCloses.payslipIssuedAt} is not null`)
     .orderBy(desc(s.salaryPeriodCloses.period));
 
   if (closes.length === 0) return [];

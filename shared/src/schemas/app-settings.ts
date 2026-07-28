@@ -21,6 +21,10 @@ export const appSettingsSchema = z.object({
   // Q02: max VND over-limit amount that tier-1 finance approval can cover.
   // 0 keeps the system fail-closed until the business configures a cap.
   creditTierOneAmountCap: vndCapSchema.default(0),
+  // Q09: null closes salary for the whole company. A positive business-unit
+  // id limits readiness and the close total to active drivers linked to that
+  // configured payroll unit.
+  salaryPayrollBusinessUnitId: z.number().int().positive().nullable().default(null),
 });
 
 export type AppSettings = z.infer<typeof appSettingsSchema>;

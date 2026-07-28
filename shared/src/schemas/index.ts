@@ -388,6 +388,11 @@ export const billingDocumentAdjustmentRequestSchema = z.object({
   reason: z.string().trim().min(1, 'Lý do là bắt buộc').max(1000),
 });
 
+export const billingDocumentIssueRequestSchema = z.object({
+  reason: z.string().trim().min(1, 'Lý do là bắt buộc').max(1000),
+  expectedVersion: z.coerce.number().int().positive(),
+});
+
 // ─── Billing document Excel templates ────────────────────────────────────────
 // Excel-style templates built around user-defined columns. Each column binds to
 // a whitelisted variable so accountants can reproduce customer statement files
@@ -600,9 +605,17 @@ export const customerSchema = z.object({
   paymentDatePolicy: paymentDatePolicySchema.optional().default('NEXT_BUSINESS_DAY'),
   status: z.nativeEnum(CustomerStatus).optional().default(CustomerStatus.ACTIVE),
   isCarrier: z.boolean().optional().default(false),
-  debitNoteMode: z.enum(['MONTHLY', 'PER_BATCH']).optional().default('MONTHLY'),
+  // New writes may use monthly by default or weekly by explicit contract.
+  // PER_BATCH remains a persisted/read compatibility value only.
+  debitNoteMode: z.enum(['MONTHLY', 'WEEKLY']).optional().default('MONTHLY'),
   debitNoteTemplateId: z.number().int().positive().optional().nullable(),
   linkedSupplierId: z.number().int().positive().optional().nullable(),
+});
+
+export const customerUpdateSchema = customerSchema.extend({
+  // Allows a legacy row to be saved without silently converting its existing
+  // value. The backend update hook rejects every transition into PER_BATCH.
+  debitNoteMode: z.enum(['MONTHLY', 'WEEKLY', 'PER_BATCH']).optional(),
 });
 
 export const businessCalendarDaySchema = z.object({
@@ -1097,6 +1110,10 @@ export const createAdvanceRequestSchema = z.object({
   reason: z.string().min(1, 'Lý do tạm ứng không được để trống'),
 });
 
+export const advanceMutationVersionSchema = z.object({
+  expectedVersion: z.coerce.number().int().positive(),
+});
+
 const positiveIds = z.array(z.coerce.number().int().positive());
 const uniquePositiveIds = positiveIds
   .refine(ids => new Set(ids).size === ids.length, 'Danh sách không được chứa mục trùng lặp');
@@ -1113,6 +1130,7 @@ export const createAdvanceSettlementSchema = z.object({
 });
 
 export const updateAdvanceSettlementSchema = z.object({
+  expectedVersion: z.coerce.number().int().positive(),
   refundAmount: nonNegNumeric,
   note: z.string().trim().max(2000).optional().nullable(),
   tripExpenseIds: uniquePositiveIds,
@@ -1356,6 +1374,7 @@ export const tripExpenseCompletionSchema = z.object({
 export const accountantSettlementExpensePatchSchema = tripExpensePatchSchema
   .omit({ settlementMethod: true, forwarderId: true })
   .extend({
+    expectedVersion: z.coerce.number().int().positive(),
     adjustmentReason: z.string().trim().min(1, 'Cần nhập lý do điều chỉnh').max(500),
   });
 export type DebtOffsetInput = z.infer<typeof debtOffsetSchema>;
@@ -1369,6 +1388,7 @@ export type PortInput = z.infer<typeof portSchema>;
 export type GenerateBillingDocumentInput = z.infer<typeof generateBillingDocumentSchema>;
 export type SaveBillingDocumentInput = z.infer<typeof saveBillingDocumentSchema>;
 export type BillingDocumentAdjustmentRequestInput = z.infer<typeof billingDocumentAdjustmentRequestSchema>;
+export type BillingDocumentIssueRequestInput = z.infer<typeof billingDocumentIssueRequestSchema>;
 
 // ─── Bách Khoa GPS (external third-party response) ───────────────────────────
 // The first external-response parse in the codebase. Bách Khoa's GetInfoCar

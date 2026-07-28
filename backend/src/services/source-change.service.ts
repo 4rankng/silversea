@@ -1,12 +1,12 @@
-import { and, eq, gte, inArray, isNull, lte } from 'drizzle-orm';
+import { and, eq, gte, isNull, lte, or, sql } from 'drizzle-orm';
 import {
   BILLABLE_TRIP_STATUSES,
   round2dp,
   TxnType,
   type BillingLineRenderData,
 } from '@tingting/shared';
-import { db } from '../db';
 import * as s from '../db/schema';
+import { ApiError } from '../errors';
 import { LedgerService } from './ledger.service';
 import type { Tx } from './trip-shared';
 import {
@@ -58,7 +58,7 @@ function lineKey(line: Pick<MutableLine, 'sourceType' | 'sourceId' | 'lineType'>
 
 async function buildTripDraftLineTx(tx: Tx, tripId: number): Promise<{
   customerId: number;
-  departureDate: string;
+  businessDate: string;
   line: MutableLine;
 } | null> {
   const [trip] = await tx.select({
@@ -66,6 +66,7 @@ async function buildTripDraftLineTx(tx: Tx, tripId: number): Promise<{
     customerId: s.trips.customerId,
     tripCode: s.trips.tripCode,
     departureDate: s.trips.departureDate,
+    completionDate: sql<string | null>`to_char(${s.trips.completedAt}, 'YYYY-MM-DD')`,
     revenue: s.trips.revenue,
     routeName: s.routes.name,
     notes: s.trips.notes,
@@ -88,7 +89,7 @@ async function buildTripDraftLineTx(tx: Tx, tripId: number): Promise<{
   ) {
     return null;
   }
-  if (!trip.departureDate) {
+  if (!trip.departureDate || !trip.completionDate) {
     return null;
   }
 
@@ -106,7 +107,7 @@ async function buildTripDraftLineTx(tx: Tx, tripId: number): Promise<{
 
   return {
     customerId: trip.customerId,
-    departureDate: trip.departureDate,
+    businessDate: trip.completionDate,
     line: {
       sourceType: 'TRIP',
       sourceId: trip.id,
@@ -127,7 +128,7 @@ async function buildTripDraftLineTx(tx: Tx, tripId: number): Promise<{
 
 async function buildExpenseDraftLineTx(tx: Tx, expenseId: number): Promise<{
   customerId: number;
-  departureDate: string;
+  businessDate: string;
   line: MutableLine;
 } | null> {
   const [expense] = await tx.select({
@@ -135,6 +136,7 @@ async function buildExpenseDraftLineTx(tx: Tx, expenseId: number): Promise<{
     tripId: s.tripExpenses.tripId,
     approvalStatus: s.tripExpenses.approvalStatus,
     sellAmount: s.tripExpenses.sellAmount,
+    expenseDate: s.tripExpenses.expenseDate,
     expenseType: s.tripExpenses.expenseType,
     invoiceNumber: s.tripExpenses.invoiceNumber,
     declarationNumber: s.tripExpenses.declarationNumber,
@@ -166,7 +168,7 @@ async function buildExpenseDraftLineTx(tx: Tx, expenseId: number): Promise<{
   ) {
     return null;
   }
-  if (!expense.departureDate) {
+  if (!expense.departureDate || !expense.expenseDate) {
     return null;
   }
 
@@ -192,7 +194,7 @@ async function buildExpenseDraftLineTx(tx: Tx, expenseId: number): Promise<{
 
   return {
     customerId: expense.customerId,
-    departureDate: expense.departureDate,
+    businessDate: expense.expenseDate,
     line: {
       sourceType: 'EXPENSE',
       sourceId: expense.id,
@@ -214,13 +216,13 @@ async function buildExpenseDraftLineTx(tx: Tx, expenseId: number): Promise<{
 function matchesCustomerDraftDocument(
   document: DraftDocumentRow,
   customerId: number,
-  departureDate: string,
+  businessDate: string,
 ): boolean {
   return document.type === 'DEBIT_NOTE'
     && document.entityType === 'CUSTOMER'
     && document.entityId === customerId
-    && document.rangeFrom <= departureDate
-    && document.rangeTo >= departureDate
+    && document.rangeFrom <= businessDate
+    && document.rangeTo >= businessDate
     && (document.debitNoteStatus ?? 'DRAFT') === 'DRAFT'
     && document.deletedAt == null;
 }
@@ -305,7 +307,7 @@ async function syncSingleSourceDraftDocumentTx(
   documentId: number,
   sourceType: 'TRIP' | 'EXPENSE',
   sourceId: number,
-  desired: { customerId: number; departureDate: string; line: MutableLine } | null,
+  desired: { customerId: number; businessDate: string; line: MutableLine } | null,
 ): Promise<void> {
   const [document] = await tx.select()
     .from(s.billingDocuments)
@@ -320,7 +322,7 @@ async function syncSingleSourceDraftDocumentTx(
   const existingLine = existingLines.find((line) => line.sourceType === sourceType && line.sourceId === sourceId) ?? null;
 
   let nextLines = untouchedLines;
-  if (desired && matchesCustomerDraftDocument(document, desired.customerId, desired.departureDate)) {
+  if (desired && matchesCustomerDraftDocument(document, desired.customerId, desired.businessDate)) {
     const preserved = existingLine
       ? {
           ...desired.line,
@@ -348,7 +350,7 @@ async function collectDraftDocumentIdsForSourceTx(
   sourceType: 'TRIP' | 'EXPENSE',
   sourceId: number,
   customerId: number | null,
-  departureDate: string | null,
+  businessDate: string | null,
 ): Promise<number[]> {
   const fromLineRows = await tx.select({ documentId: s.billingDocumentLines.documentId })
     .from(s.billingDocumentLines)
@@ -356,18 +358,26 @@ async function collectDraftDocumentIdsForSourceTx(
     .where(and(
       eq(s.billingDocumentLines.sourceType, sourceType),
       eq(s.billingDocumentLines.sourceId, sourceId),
+      or(
+        isNull(s.billingDocuments.debitNoteStatus),
+        eq(s.billingDocuments.debitNoteStatus, 'DRAFT'),
+      ),
       isNull(s.billingDocuments.deletedAt),
     ));
 
-  const fromPeriodRows = customerId != null && departureDate != null
+  const fromPeriodRows = customerId != null && businessDate != null
     ? await tx.select({ id: s.billingDocuments.id })
       .from(s.billingDocuments)
       .where(and(
         eq(s.billingDocuments.type, 'DEBIT_NOTE'),
         eq(s.billingDocuments.entityType, 'CUSTOMER'),
         eq(s.billingDocuments.entityId, customerId),
-        gte(s.billingDocuments.rangeTo, departureDate),
-        lte(s.billingDocuments.rangeFrom, departureDate),
+        gte(s.billingDocuments.rangeTo, businessDate),
+        lte(s.billingDocuments.rangeFrom, businessDate),
+        or(
+          isNull(s.billingDocuments.debitNoteStatus),
+          eq(s.billingDocuments.debitNoteStatus, 'DRAFT'),
+        ),
         isNull(s.billingDocuments.deletedAt),
       ))
     : [];
@@ -382,14 +392,14 @@ async function syncSourceAcrossDraftDocumentsTx(
   tx: Tx,
   sourceType: 'TRIP' | 'EXPENSE',
   sourceId: number,
-  desired: { customerId: number; departureDate: string; line: MutableLine } | null,
+  desired: { customerId: number; businessDate: string; line: MutableLine } | null,
 ): Promise<void> {
   const documentIds = await collectDraftDocumentIdsForSourceTx(
     tx,
     sourceType,
     sourceId,
     desired?.customerId ?? null,
-    desired?.departureDate ?? null,
+    desired?.businessDate ?? null,
   );
   for (const documentId of documentIds) {
     await syncSingleSourceDraftDocumentTx(tx, documentId, sourceType, sourceId, desired);
@@ -403,7 +413,7 @@ async function appendLateApprovedServiceFeeTx(tx: Tx, expenseId: number): Promis
     tripId: s.tripExpenses.tripId,
     tripCode: s.trips.tripCode,
     tripStatus: s.trips.status,
-    departureDate: s.trips.departureDate,
+    expenseDate: s.tripExpenses.expenseDate,
     sellAmount: s.tripExpenses.sellAmount,
   })
     .from(s.tripExpenses)
@@ -416,6 +426,9 @@ async function appendLateApprovedServiceFeeTx(tx: Tx, expenseId: number): Promis
     || Number(expense.sellAmount ?? 0) <= 0
   ) {
     return;
+  }
+  if (!expense.expenseDate) {
+    throw new ApiError(400, `Chi phí #${expense.expenseId}: ngày chi thực tế là bắt buộc trước khi phê duyệt`);
   }
 
   const existingRows = await tx.select({
@@ -438,7 +451,7 @@ async function appendLateApprovedServiceFeeTx(tx: Tx, expenseId: number): Promis
     .find((row) => row.originalDueDate && row.processingDueDate);
   const resolvedAuthority = existingAuthority
     ? null
-    : await resolveCustomerPaymentDueDate(tx, expense.customerId, String(expense.departureDate).slice(0, 10));
+    : await resolveCustomerPaymentDueDate(tx, expense.customerId, expense.expenseDate);
   const dueDateFields = existingAuthority
     ? {
         originalDueDate: existingAuthority.originalDueDate,

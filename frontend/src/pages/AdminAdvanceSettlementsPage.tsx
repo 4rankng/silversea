@@ -98,7 +98,7 @@ export function SettlementGridRow({
   focusId?: string;
   canApproveReject: boolean;
 }) {
-  const isRejecting = rejectMutation.isPending && rejectMutation.variables === s.id;
+  const isRejecting = rejectMutation.isPending && rejectMutation.variables?.id === s.id;
   const canAct = s.status === AdvanceSettlementStatus.PENDING || s.status === AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT;
   const plans = groupSettlementExpensesByTrip(s.linkedExpenses ?? []);
   const rows = plans.length > 0 ? plans : [null];
@@ -186,7 +186,7 @@ export function SettlementGridRow({
                 {canApproveReject && (
                   <button
                     className="as-reject-action"
-                    onClick={() => rejectMutation.mutate(s.id)}
+                    onClick={() => rejectMutation.mutate({ id: s.id, expectedVersion: s.version })}
                     disabled={isRejecting}
                     title="Từ chối hoàn ứng"
                     aria-label={`Từ chối hoàn ứng ${s.code}`}
@@ -227,7 +227,7 @@ export function SettlementMobileCard({
   focusId?: string;
   canApproveReject: boolean;
 }) {
-  const isRejecting = rejectMutation.isPending && rejectMutation.variables === s.id;
+  const isRejecting = rejectMutation.isPending && rejectMutation.variables?.id === s.id;
   const canAct = s.status === AdvanceSettlementStatus.PENDING || s.status === AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT;
   const scope = summarizeSettlementExpenses(s.linkedExpenses);
   const plans = groupSettlementExpensesByTrip(s.linkedExpenses ?? []);
@@ -326,7 +326,7 @@ export function SettlementMobileCard({
           {canApproveReject && (
             <button
               className="btn as-mcard__reject"
-              onClick={() => rejectMutation.mutate(s.id)}
+              onClick={() => rejectMutation.mutate({ id: s.id, expectedVersion: s.version })}
               disabled={isRejecting}
               aria-label={`Từ chối hoàn ứng ${s.code}`}
             >

@@ -53,7 +53,7 @@ async function mkCatalogs() {
 
 async function insertPeriodClose(period: string, status: string = 'CLOSED') {
   await db.insert(s.salaryPeriodCloses).values({
-    period, status, closedBy: null,
+    period, status, closedBy: null, payslipIssuedAt: new Date(),
   }).onConflictDoNothing({ target: s.salaryPeriodCloses.period });
   insertedPeriods.push(period);
 }

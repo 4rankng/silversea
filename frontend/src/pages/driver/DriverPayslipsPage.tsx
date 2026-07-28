@@ -121,7 +121,7 @@ export default function DriverPayslipsPage() {
 
   if (error) return (
     <div>
-      <PageHeader title="Bảng lương" description="Các kỳ lương đã chốt" />
+      <PageHeader title="Bảng lương" description="Các kỳ đã phát hành phiếu lương" />
       <div className="empty-state">
         <AlertTriangle size={36} style={{ color: 'var(--danger)', opacity: 0.7 }} />
         <h3 className="empty-state-title">{error}</h3>
@@ -134,7 +134,7 @@ export default function DriverPayslipsPage() {
 
   if (items.length === 0) return (
     <div>
-      <PageHeader title="Bảng lương" description="Các kỳ lương đã chốt" />
+      <PageHeader title="Bảng lương" description="Các kỳ đã phát hành phiếu lương" />
       <div className="empty-state">
         <img src={resolveEmptyIllustration('empty-trips')} alt="No payslips" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
         <h3 className="empty-state-title">Chưa có kỳ lương nào</h3>
@@ -145,7 +145,7 @@ export default function DriverPayslipsPage() {
 
   return (
     <div ref={rootRef} className="driver-trips-page">
-      <PageHeader title="Bảng lương" description={`${items.length} kỳ lương`} />
+      <PageHeader title="Bảng lương" description={`${items.length} kỳ đã phát hành`} />
       <div className="driver-trips-list" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {items.map((p, idx) => (
           <PayslipCard key={p.period} p={p} idx={idx} />

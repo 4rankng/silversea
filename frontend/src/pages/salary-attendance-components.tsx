@@ -1,10 +1,16 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Truck, Coffee, XCircle, Moon, DollarSign, Info, Edit } from 'lucide-react';
+import { Truck, Coffee, XCircle, Moon, DollarSign, Info, Edit, ArrowRightLeft, CheckCircle2, Clock3, Lock } from 'lucide-react';
 import { Money } from '../components/shared/Money';
 import { Modal } from '../components/UI';
 import { usePostDriverPayout } from '../hooks/useFinancialQueries';
-import type { WorkDayRecord, AttendanceSalary } from '../api/salaryClient';
+import type {
+  WorkDayRecord,
+  AttendanceSalary,
+  SalaryPeriodAdjustmentItem,
+  SalaryConfirmationGovernanceAction,
+  SalaryPeriodGovernanceAction,
+} from '../api/salaryClient';
 import { useToast } from '../components/shared/Toast';
 import './SalaryAttendancePage.css';
 
@@ -100,6 +106,20 @@ export function SalarySummaryCard({ salary }: { salary: AttendanceSalary }) {
             <Money value={Math.abs(salary.adjustment)} sign={salary.adjustment > 0 ? '+' : salary.adjustment < 0 ? '-' : ''} />
           </span>
         </div>
+
+        {(salary.postCloseAdjustment ?? 0) !== 0 && (
+          <div className="salary-summary-dark__row">
+            <span className="salary-summary-dark__row-lbl">
+              <ArrowRightLeft size={12} /> Điều chỉnh liên kỳ
+            </span>
+            <span className={`salary-summary-dark__row-val ${(salary.postCloseAdjustment ?? 0) > 0 ? 'salary-summary-dark__row-val--pos' : 'salary-summary-dark__row-val--neg'}`}>
+              <Money
+                value={Math.abs(salary.postCloseAdjustment ?? 0)}
+                sign={(salary.postCloseAdjustment ?? 0) > 0 ? '+' : '-'}
+              />
+            </span>
+          </div>
+        )}
 
         <div className="salary-summary-dark__row">
           <span className="salary-summary-dark__row-lbl">
@@ -209,6 +229,355 @@ export function MobileDayList({ dates, workDayMap, isUpdating: _isUpdating, isCo
         ))}
       </div>
     </div>
+  );
+}
+
+export function PostCloseAdjustmentList({
+  items,
+  canCheck,
+  canApprove,
+  checkingActionId,
+  approvingActionId,
+  onCheck,
+  onApprove,
+}: {
+  items: SalaryPeriodAdjustmentItem[];
+  canCheck: (item: SalaryPeriodAdjustmentItem) => boolean;
+  canApprove: (item: SalaryPeriodAdjustmentItem) => boolean;
+  checkingActionId: number | null;
+  approvingActionId: number | null;
+  onCheck: (actionId: number) => void;
+  onApprove: (actionId: number) => void;
+}) {
+  if (items.length === 0) {
+    return (
+      <div className="salary-empty-inline" style={{ padding: '18px 14px' }}>
+        <Clock3 size={16} />
+        <span>Chưa có điều chỉnh liên kỳ cho lái xe này.</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="payslip-container">
+      {items.map((item) => {
+        const incoming = item.relationship === 'TARGET';
+        return (
+          <div key={item.actionId} className="payslip-row">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
+                <ArrowRightLeft size={14} />
+                <span>{incoming ? `Từ kỳ ${item.sourcePeriod}` : `Sang kỳ ${item.targetPeriod}`}</span>
+              </div>
+              <span className={`payslip-value ${incoming ? 'is-positive' : 'is-negative'}`}>
+                <Money value={Math.abs(item.amount)} sign={incoming ? '+' : '-'} />
+              </span>
+            </div>
+            <div style={{ marginTop: 6, fontSize: 13, color: 'var(--fg-2)' }}>{item.reason}</div>
+            <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 12, color: 'var(--fg-3)' }}>
+              <span>{item.status === 'APPROVED' ? 'Đã phê duyệt' : item.status === 'PENDING_APPROVAL' ? 'Chờ phê duyệt' : 'Chờ kiểm tra'}</span>
+              <span>Tạo bởi {item.makerName || `#${item.makerId}`}</span>
+              {item.checkerName && <span>Kiểm tra: {item.checkerName}</span>}
+              {item.approverName && <span>Phê duyệt: {item.approverName}</span>}
+            </div>
+            {(canCheck(item) || canApprove(item)) && (
+              <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+                {canCheck(item) && (
+                  <button
+                    className="btn btn--secondary btn--sm"
+                    disabled={checkingActionId === item.actionId}
+                    onClick={() => onCheck(item.actionId)}
+                  >
+                    {checkingActionId === item.actionId ? 'Đang kiểm tra…' : 'Kiểm tra'}
+                  </button>
+                )}
+                {canApprove(item) && (
+                  <button
+                    className="btn btn--primary btn--sm"
+                    disabled={approvingActionId === item.actionId}
+                    onClick={() => onApprove(item.actionId)}
+                  >
+                    {approvingActionId === item.actionId ? 'Đang phê duyệt…' : 'Phê duyệt'}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function periodGovernanceStatusLabel(status: SalaryPeriodGovernanceAction['status']) {
+  switch (status) {
+    case 'PENDING_CHECK':
+      return 'Chờ kiểm tra';
+    case 'PENDING_APPROVAL':
+      return 'Chờ phê duyệt';
+    case 'APPROVED':
+      return 'Đã áp dụng';
+    case 'REJECTED':
+      return 'Đã từ chối';
+    case 'RETURNED_FOR_EVIDENCE':
+      return 'Bổ sung hồ sơ';
+    case 'CANCELED':
+      return 'Đã hủy';
+    case 'SUPERSEDED':
+      return 'Đã thay thế';
+    default:
+      return status;
+  }
+}
+
+function periodGovernanceActionLabel(actionKind: SalaryPeriodGovernanceAction['actionKind']) {
+  return actionKind === 'SALARY_PERIOD_CLOSE' ? 'Yêu cầu chốt kỳ' : 'Yêu cầu mở lại kỳ';
+}
+
+function salaryConfirmationGovernanceStatusLabel(status: SalaryConfirmationGovernanceAction['status']) {
+  switch (status) {
+    case 'PENDING_CHECK':
+      return 'Chờ kiểm tra';
+    case 'PENDING_APPROVAL':
+      return 'Chờ phê duyệt';
+    case 'APPROVED':
+      return 'Đã áp dụng';
+    case 'REJECTED':
+      return 'Đã từ chối';
+    case 'RETURNED_FOR_EVIDENCE':
+      return 'Bổ sung hồ sơ';
+    case 'CANCELED':
+      return 'Đã hủy';
+    case 'SUPERSEDED':
+      return 'Đã thay thế';
+    default:
+      return status;
+  }
+}
+
+function salaryConfirmationGovernanceActionLabel(actionKind: SalaryConfirmationGovernanceAction['actionKind']) {
+  return actionKind === 'SALARY_CONFIRMATION'
+    ? 'Yêu cầu xác nhận bảng công và lương'
+    : 'Yêu cầu mở lại bảng công và lương';
+}
+
+export function SalaryPeriodGovernanceList({
+  items,
+  checkingActionId,
+  approvingActionId,
+  onCheck,
+  onApprove,
+}: {
+  items: SalaryPeriodGovernanceAction[];
+  checkingActionId: number | null;
+  approvingActionId: number | null;
+  onCheck: (item: SalaryPeriodGovernanceAction) => void;
+  onApprove: (item: SalaryPeriodGovernanceAction) => void;
+}) {
+  if (items.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="payslip-container">
+      {items.map((item) => {
+        const canCheck = item.allowedActions.includes('CHECK');
+        const canApprove = item.allowedActions.includes('APPROVE');
+        return (
+          <div key={item.id} className="payslip-row">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
+                {item.actionKind === 'SALARY_PERIOD_CLOSE' ? <Lock size={14} /> : <ArrowRightLeft size={14} />}
+                <span>{periodGovernanceActionLabel(item.actionKind)}</span>
+              </div>
+              <span className={`salary-summary-dark__status ${item.status === 'APPROVED' ? 'is-confirmed' : ''}`} style={{ color: 'var(--fg-1)', background: 'var(--surface-2)' }}>
+                {periodGovernanceStatusLabel(item.status)}
+              </span>
+            </div>
+            <div style={{ marginTop: 6, fontSize: 13, color: 'var(--fg-2)' }}>{item.reason}</div>
+            <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 12, color: 'var(--fg-3)' }}>
+              <span>Tạo bởi #{item.makerId}</span>
+              {item.checkerId != null && <span>Kiểm tra: #{item.checkerId}</span>}
+              {item.approverId != null && <span>Phê duyệt: #{item.approverId}</span>}
+            </div>
+            {(canCheck || canApprove) && (
+              <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {canCheck && (
+                  <button
+                    className="btn btn--secondary btn--sm"
+                    disabled={checkingActionId === item.id}
+                    onClick={() => onCheck(item)}
+                  >
+                    {checkingActionId === item.id ? 'Đang kiểm tra…' : 'Kiểm tra'}
+                  </button>
+                )}
+                {canApprove && (
+                  <button
+                    className="btn btn--primary btn--sm"
+                    disabled={approvingActionId === item.id}
+                    onClick={() => onApprove(item)}
+                  >
+                    {approvingActionId === item.id ? 'Đang phê duyệt…' : 'Phê duyệt'}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export function SalaryConfirmationGovernanceList({
+  items,
+  checkingActionId,
+  approvingActionId,
+  onCheck,
+  onApprove,
+}: {
+  items: SalaryConfirmationGovernanceAction[];
+  checkingActionId: number | null;
+  approvingActionId: number | null;
+  onCheck: (item: SalaryConfirmationGovernanceAction) => void;
+  onApprove: (item: SalaryConfirmationGovernanceAction) => void;
+}) {
+  if (items.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="payslip-container">
+      {items.map((item) => {
+        const allowedActions = item.allowedActions ?? [];
+        const canCheck = allowedActions.includes('CHECK');
+        const canApprove = allowedActions.includes('APPROVE');
+        return (
+          <div key={item.id} className="payslip-row">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
+                {item.actionKind === 'SALARY_CONFIRMATION' ? <CheckCircle2 size={14} /> : <ArrowRightLeft size={14} />}
+                <span>{salaryConfirmationGovernanceActionLabel(item.actionKind)}</span>
+              </div>
+              <span className={`salary-summary-dark__status ${item.status === 'APPROVED' ? 'is-confirmed' : ''}`} style={{ color: 'var(--fg-1)', background: 'var(--surface-2)' }}>
+                {salaryConfirmationGovernanceStatusLabel(item.status)}
+              </span>
+            </div>
+            <div style={{ marginTop: 6, fontSize: 13, color: 'var(--fg-2)' }}>{item.reason}</div>
+            <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 12, color: 'var(--fg-3)' }}>
+              <span>Tạo bởi #{item.makerId}</span>
+              {item.checkerId != null && <span>Kiểm tra: #{item.checkerId}</span>}
+              {item.approverId != null && <span>Phê duyệt: #{item.approverId}</span>}
+            </div>
+            {(canCheck || canApprove) && (
+              <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {canCheck && (
+                  <button
+                    className="btn btn--secondary btn--sm"
+                    disabled={checkingActionId === item.id}
+                    onClick={() => onCheck(item)}
+                  >
+                    {checkingActionId === item.id ? 'Đang kiểm tra…' : 'Kiểm tra'}
+                  </button>
+                )}
+                {canApprove && (
+                  <button
+                    className="btn btn--primary btn--sm"
+                    disabled={approvingActionId === item.id}
+                    onClick={() => onApprove(item)}
+                  >
+                    {approvingActionId === item.id ? 'Đang phê duyệt…' : 'Phê duyệt'}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export function PostCloseAdjustmentModal({
+  isOpen,
+  onClose,
+  sourcePeriod,
+  onSubmit,
+  submitting,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  sourcePeriod: string;
+  onSubmit: (payload: { targetPeriod: string; amount: number; reason: string }) => Promise<void> | void;
+  submitting: boolean;
+}) {
+  const [targetPeriod, setTargetPeriod] = useState('');
+  const [amount, setAmount] = useState('');
+  const [reason, setReason] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setTargetPeriod('');
+      setAmount('');
+      setReason('');
+      setError(null);
+    }
+  }, [isOpen]);
+
+  const handleSubmit = async () => {
+    const normalizedTarget = targetPeriod.trim();
+    const normalizedReason = reason.trim();
+    const parsedAmount = Number(amount.replace(/[^0-9-]/g, ''));
+
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(normalizedTarget)) {
+      setError('Kỳ đích phải ở dạng YYYY-MM');
+      return;
+    }
+    if (!Number.isFinite(parsedAmount) || parsedAmount === 0) {
+      setError('Số tiền điều chỉnh phải khác 0');
+      return;
+    }
+    if (!normalizedReason) {
+      setError('Lý do điều chỉnh là bắt buộc');
+      return;
+    }
+
+    setError(null);
+    await onSubmit({
+      targetPeriod: normalizedTarget,
+      amount: parsedAmount,
+      reason: normalizedReason,
+    });
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Tạo khoản điều chỉnh liên kỳ">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ fontSize: 13, color: 'var(--fg-2)' }}>
+          Kỳ nguồn: <strong>{sourcePeriod}</strong>. Kỳ cũ giữ nguyên snapshot, khoản điều chỉnh sẽ đi vào kỳ đích đang mở.
+        </div>
+        <label className="input-group">
+          <span>Kỳ đích (YYYY-MM)</span>
+          <input className="input" value={targetPeriod} onChange={(event) => setTargetPeriod(event.target.value)} placeholder="2026-08" />
+        </label>
+        <label className="input-group">
+          <span>Số tiền điều chỉnh (VND)</span>
+          <input className="input" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="250000" />
+        </label>
+        <label className="input-group">
+          <span>Lý do điều chỉnh</span>
+          <textarea className="input" value={reason} onChange={(event) => setReason(event.target.value)} rows={3} placeholder="Ví dụ: bổ sung công chuyến hoàn tất sau khi đã phát hành phiếu lương" />
+        </label>
+        {error && <div style={{ fontSize: 12, color: 'var(--danger)' }}>{error}</div>}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <button className="btn btn--secondary" onClick={onClose} disabled={submitting}>Hủy</button>
+          <button className="btn btn--primary" onClick={() => { void handleSubmit(); }} disabled={submitting}>
+            {submitting ? 'Đang gửi…' : 'Gửi yêu cầu'}
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 

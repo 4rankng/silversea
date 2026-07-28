@@ -7,7 +7,7 @@
  */
 import { Router } from 'express';
 import { db } from '../../db';
-import { asc, eq, isNull, sql, and } from 'drizzle-orm';
+import { asc, eq, getTableName, isNull, sql, and } from 'drizzle-orm';
 import type { AnyPgTable, PgColumn, PgTable } from 'drizzle-orm/pg-core';
 import type { AnyZodObject, output } from 'zod';
 import type { Request, Response } from 'express';
@@ -15,6 +15,14 @@ import { cacheInvalidate } from '../../lib/redis';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { parsePagination } from './pagination';
 import { ApiError } from '../../errors';
+import { getUser } from '../../middleware/auth';
+import {
+  buildCrudIdempotencyEndpoint,
+  resolveIdempotencyKey,
+  runIdempotent,
+} from '../../services/idempotency.service';
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /**
  * Helper: narrow a Drizzle table's property to a column reference.
@@ -39,12 +47,15 @@ export interface CrudRouterOptions<
   maxLimit?: number;
   /** Deterministic ascending order for configuration lists that have chronology. */
   orderByField?: string;
-  beforeCreate?: (data: TData, req: Request) => Promise<Partial<TData>> | Partial<TData>;
-  afterCreate?: (item: TRow, data: Partial<TData>, req: Request) => Promise<void> | void;
-  beforeUpdate?: (id: number, data: Partial<TData>, req: Request) => Promise<Partial<TData>> | Partial<TData>;
-  afterUpdate?: (item: TRow, data: Partial<TData>, req: Request) => Promise<void> | void;
-  beforeDelete?: (id: number, req: Request) => Promise<void> | void;
-  afterDelete?: (id: number, req: Request) => Promise<void> | void;
+  /** Optional schema for update compatibility when persisted legacy values are
+   * readable but prohibited on new creates. */
+  updateSchema?: AnyZodObject;
+  beforeCreate?: (data: TData, req: Request, tx: Tx) => Promise<Partial<TData>> | Partial<TData>;
+  afterCreate?: (item: TRow, data: Partial<TData>, req: Request, tx: Tx) => Promise<void> | void;
+  beforeUpdate?: (id: number, data: Partial<TData>, req: Request, tx: Tx) => Promise<Partial<TData>> | Partial<TData>;
+  afterUpdate?: (item: TRow, data: Partial<TData>, req: Request, tx: Tx) => Promise<void> | void;
+  beforeDelete?: (id: number, req: Request, tx: Tx) => Promise<void> | void;
+  afterDelete?: (id: number, req: Request, tx: Tx) => Promise<void> | void;
 }
 
 function apiErrorFromUniqueConstraint(err: unknown): ApiError | null {
@@ -73,6 +84,7 @@ export function createCrudRouter<
     deleteMode = 'soft',
     maxLimit,
     orderByField,
+    updateSchema,
     beforeCreate,
     afterCreate,
     beforeUpdate,
@@ -82,12 +94,69 @@ export function createCrudRouter<
   } = options;
   const sub = Router();
   const hasSoftDelete = 'deletedAt' in table;
+  const hasUpdatedAt = 'updatedAt' in table;
+  const resource = getTableName(table);
+  if (!hasUpdatedAt) {
+    throw new Error(`Generated configuration resource "${resource}" must expose updatedAt`);
+  }
   // Within a generic function, Drizzle's query-builder conditional types
   // (e.g. TableLikeHasEmptySelection) cannot resolve against the type
   // parameter, so the concrete table is widened to Drizzle's broad table
   // type at the query boundary. This is a type-only assertion — the runtime
   // table object is unchanged.
   const tbl = table as AnyPgTable;
+
+  function requireIdempotencyKey(req: Request): string {
+    const key = resolveIdempotencyKey({
+      headerValue: req.header('Idempotency-Key'),
+      requestId: req.body?._requestId,
+    });
+    if (!key) {
+      throw new ApiError(
+        400,
+        'Idempotency-Key là bắt buộc cho thay đổi cấu hình.',
+      );
+    }
+    return key;
+  }
+
+  function requireExpectedUpdatedAt(req: Request): Date {
+    const raw = req.header('If-Unmodified-Since')?.trim();
+    if (!raw) {
+      throw new ApiError(
+        428,
+        'Thiếu phiên bản dữ liệu. Vui lòng tải lại danh mục trước khi cập nhật.',
+      );
+    }
+    const expected = new Date(raw);
+    if (Number.isNaN(expected.getTime())) {
+      throw new ApiError(400, 'Phiên bản dữ liệu không hợp lệ.');
+    }
+    return expected;
+  }
+
+  async function lockCurrentVersion(tx: Tx, id: number, expected: Date) {
+    const conditions = [eq(column(table, 'id'), id)];
+    if (hasSoftDelete) conditions.push(isNull(column(table, 'deletedAt')));
+    const [current] = await tx.select()
+      .from(tbl)
+      .where(and(...conditions))
+      .limit(1)
+      .for('update');
+    if (!current) throw new ApiError(404, 'Không tìm thấy');
+
+    const actual = (current as Record<string, unknown>).updatedAt;
+    if (!(actual instanceof Date)) {
+      throw new Error(`Generated configuration resource "${resource}" returned an invalid updatedAt`);
+    }
+    if (actual.getTime() !== expected.getTime()) {
+      throw new ApiError(
+        409,
+        'Dữ liệu đã được người khác cập nhật. Vui lòng tải lại trước khi lưu.',
+      );
+    }
+    return actual;
+  }
 
   sub.get('/', asyncHandler(async (req: Request, res: Response) => {
     const { page, limit, offset } = parsePagination(req, maxLimit ? { maxLimit } : undefined);
@@ -118,25 +187,41 @@ export function createCrudRouter<
   }));
 
   sub.post('/', asyncHandler(async (req: Request, res: Response) => {
-    let data = createSchema.parse(req.body);
-    if (beforeCreate) {
-      data = (await beforeCreate(data, req)) as typeof data;
-    }
-    let item;
-    try {
-      [item] = await db.insert(tbl).values(data as Record<string, unknown>).returning();
-    } catch (err: unknown) {
-      const uniqueError = apiErrorFromUniqueConstraint(err);
-      if (uniqueError) {
-        throw uniqueError;
-      }
-      throw err;
-    }
-    if (afterCreate) {
-      await afterCreate(item, data, req);
-    }
+    const idempotencyKey = requireIdempotencyKey(req);
+    const actor = getUser(req);
+    const { result } = await runIdempotent({
+      endpoint: buildCrudIdempotencyEndpoint(resource, 'create'),
+      idempotencyKey,
+      payload: req.body,
+      createdBy: actor.userId,
+      entityType: resource,
+      create: async (tx) => {
+        let data = createSchema.parse(req.body);
+        if (beforeCreate) {
+          data = (await beforeCreate(data, req, tx)) as typeof data;
+        }
+        let item;
+        try {
+          [item] = await tx.insert(tbl).values(data as Record<string, unknown>).returning();
+        } catch (err: unknown) {
+          const uniqueError = apiErrorFromUniqueConstraint(err);
+          if (uniqueError) throw uniqueError;
+          throw err;
+        }
+        if (afterCreate) {
+          await afterCreate(item, data, req, tx);
+          const [refreshed] = await tx.select()
+            .from(tbl)
+            .where(eq(column(table, 'id'), (item as { id: number }).id))
+            .limit(1);
+          if (!refreshed) throw new ApiError(404, 'Không tìm thấy');
+          item = refreshed;
+        }
+        return item;
+      },
+    });
     await cacheInvalidate('catalogs:bootstrap');
-    res.status(201).json(item);
+    res.status(201).json(result);
   }));
 
   sub.get('/:id', asyncHandler(async (req: Request, res: Response) => {
@@ -150,44 +235,95 @@ export function createCrudRouter<
 
   sub.put('/:id', asyncHandler(async (req: Request, res: Response) => {
     const id = parseInt(req.params.id as string);
-    let data = createSchema.partial().parse(req.body) as Partial<output<TCreate>>;
-    if (beforeUpdate) {
-      data = (await beforeUpdate(id, data, req)) as typeof data;
-    }
-    let item;
-    try {
-      [item] = await db.update(tbl).set({ ...data, updatedAt: new Date() } as Record<string, unknown>).where(eq(column(table, 'id'), id)).returning();
-    } catch (err: unknown) {
-      const uniqueError = apiErrorFromUniqueConstraint(err);
-      if (uniqueError) {
-        throw uniqueError;
-      }
-      throw err;
-    }
-    if (!item) return res.status(404).json({ error: 'Không tìm thấy' });
-    if (afterUpdate) {
-      await afterUpdate(item, data, req);
-    }
+    const idempotencyKey = requireIdempotencyKey(req);
+    const expectedUpdatedAt = requireExpectedUpdatedAt(req);
+    const actor = getUser(req);
+    const { result } = await runIdempotent({
+      endpoint: buildCrudIdempotencyEndpoint(resource, 'update'),
+      idempotencyKey,
+      payload: { id, body: req.body, expectedUpdatedAt: expectedUpdatedAt.toISOString() },
+      createdBy: actor.userId,
+      entityType: resource,
+      create: async (tx) => {
+        const currentUpdatedAt = await lockCurrentVersion(tx, id, expectedUpdatedAt);
+        let data = (updateSchema ?? createSchema).partial().parse(req.body) as Partial<output<TCreate>>;
+        if (beforeUpdate) {
+          data = (await beforeUpdate(id, data, req, tx)) as typeof data;
+        }
+        const nextUpdatedAt = new Date(Math.max(Date.now(), currentUpdatedAt.getTime() + 1));
+        let item;
+        try {
+          [item] = await tx.update(tbl)
+            .set({ ...data, updatedAt: nextUpdatedAt } as Record<string, unknown>)
+            .where(eq(column(table, 'id'), id))
+            .returning();
+        } catch (err: unknown) {
+          const uniqueError = apiErrorFromUniqueConstraint(err);
+          if (uniqueError) throw uniqueError;
+          throw err;
+        }
+        if (!item) throw new ApiError(404, 'Không tìm thấy');
+        if (afterUpdate) {
+          await afterUpdate(item, data, req, tx);
+          const [refreshed] = await tx.select()
+            .from(tbl)
+            .where(eq(column(table, 'id'), id))
+            .limit(1);
+          if (!refreshed) throw new ApiError(404, 'Không tìm thấy');
+          item = refreshed;
+        }
+        return item;
+      },
+    });
     await cacheInvalidate('catalogs:bootstrap');
-    res.json(item);
+    res.json(result);
   }));
 
   sub.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
     if (disableDelete) return res.status(405).json({ error: 'Không hỗ trợ xóa' });
     const id = parseInt(req.params.id as string);
     if (deleteMode === 'soft' && !hasSoftDelete) return res.status(405).json({ error: 'Không hỗ trợ xóa' });
-    if (beforeDelete) {
-      await beforeDelete(id, req);
-    }
-    const [item] = deleteMode === 'hard'
-      ? await db.delete(tbl).where(eq(column(table, 'id'), id)).returning()
-      : await db.update(tbl).set({ deletedAt: new Date(), updatedAt: new Date() } as Record<string, unknown>).where(eq(column(table, 'id'), id)).returning();
-    if (!item) return res.status(404).json({ error: 'Không tìm thấy' });
-    if (afterDelete) {
-      await afterDelete(id, req);
-    }
+    const idempotencyKey = requireIdempotencyKey(req);
+    const expectedUpdatedAt = requireExpectedUpdatedAt(req);
+    const actor = getUser(req);
+    const { result } = await runIdempotent({
+      endpoint: buildCrudIdempotencyEndpoint(resource, 'delete'),
+      idempotencyKey,
+      payload: {
+        id,
+        body: req.body ?? null,
+        expectedUpdatedAt: expectedUpdatedAt.toISOString(),
+      },
+      createdBy: actor.userId,
+      entityType: resource,
+      create: async (tx) => {
+        const currentUpdatedAt = await lockCurrentVersion(tx, id, expectedUpdatedAt);
+        if (beforeDelete) {
+          await beforeDelete(id, req, tx);
+        }
+        const [item] = deleteMode === 'hard'
+          ? await tx.delete(tbl)
+            .where(eq(column(table, 'id'), id))
+            .returning()
+          : await tx.update(tbl)
+            .set({
+              deletedAt: new Date(),
+              updatedAt: new Date(Math.max(Date.now(), currentUpdatedAt.getTime() + 1)),
+            } as Record<string, unknown>)
+            .where(eq(column(table, 'id'), id))
+            .returning();
+        if (!item) throw new ApiError(404, 'Không tìm thấy');
+        if (afterDelete) {
+          await afterDelete(id, req, tx);
+        }
+        return { ok: true as const, id };
+      },
+      getEntityId: (value) => value.id,
+      serializeResult: () => ({ ok: true }),
+      deserializeResult: () => ({ ok: true as const, id }),
+    });
     await cacheInvalidate('catalogs:bootstrap');
-    res.json({ ok: true });
+    res.json({ ok: result.ok });
   }));
 
   return sub;
