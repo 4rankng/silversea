@@ -18,8 +18,12 @@ import { useUpdateForwarderExpense, useSetForwarderExpenseCompletion } from '../
 import { useCatalogs } from '../hooks/useCatalogs';
 import { useQuery } from '@tanstack/react-query';
 import { forwarderClient } from '../api/forwarderClient';
+import { geotagClient } from '../api/geotagClient';
+import { useToast } from '../components/shared/Toast';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
+import { useGeolocation } from '../hooks/useGeolocation';
+import { getLocationPermissionIssue, type GeolocationError } from '../lib/gps/geolocation';
 import { ForwarderContainersSection, ForwarderExpenseRow, ForwarderTripError, ForwarderTripLoading, type ForwarderContainer } from './forwarder-trip-detail-sections';
 import './ForwarderTripDetailPage.css';
 
@@ -47,6 +51,34 @@ const newExpenseForm = () => ({
 });
 type ExpenseFormState = ReturnType<typeof newExpenseForm>;
 
+function isGeolocationError(error: unknown): error is GeolocationError {
+  return typeof error === 'object'
+    && error !== null
+    && 'code' in error
+    && typeof (error as { code: unknown }).code === 'number';
+}
+
+function expensePhotoUploadErrorMessage(error: unknown): string {
+  if (isGeolocationError(error)) {
+    const issue = getLocationPermissionIssue(error);
+    switch (issue.type) {
+      case 'denied':
+        return 'Không thể tải ảnh chứng từ vì ứng dụng chưa được cấp quyền vị trí. Hãy cho phép truy cập vị trí rồi thử lại.';
+      case 'timeout':
+        return 'Không thể tải ảnh chứng từ vì GPS phản hồi chậm. Vui lòng thử lại khi thiết bị bắt được vị trí tốt hơn.';
+      case 'unavailable':
+        return 'Không thể tải ảnh chứng từ vì thiết bị chưa bắt được GPS. Vui lòng thử lại khi có tín hiệu tốt hơn.';
+      case 'inaccurate':
+        return 'Không thể tải ảnh chứng từ vì tín hiệu GPS chưa đủ chính xác. Vui lòng thử lại.';
+      default:
+        return 'Không thể tải ảnh chứng từ vì thiết bị không hỗ trợ GPS.';
+    }
+  }
+  return error instanceof Error && error.message
+    ? error.message
+    : 'Không thể tải ảnh chứng từ. Vui lòng thử lại.';
+}
+
 export default function ForwarderTripDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -60,6 +92,7 @@ export default function ForwarderTripDetailPage() {
   const updateExpenseMut = useUpdateForwarderExpense();
   const completionMut = useSetForwarderExpenseCompletion();
   const deleteExpenseMut = useDeleteForwarderExpense();
+  const geolocation = useGeolocation();
 
   const { data: catalogs } = useCatalogs();
   const forwarderExpenseTypeOptions = catalogs?.forwarderExpenseTypes ?? [];
@@ -94,6 +127,7 @@ export default function ForwarderTripDetailPage() {
   const [uploadingExpenseId, setUploadingExpenseId] = useState<number | null>(null);
 
   const { confirm, dialog } = useConfirm();
+  const { toast } = useToast();
   const handleBack = () => navigate('/my-forwarder-trips');
   const isDirty = () =>
     (showContainerForm && Boolean(containerForm.containerNumber || containerForm.sealNumber || containerForm.notes)) ||
@@ -113,16 +147,42 @@ export default function ForwarderTripDetailPage() {
 
   async function handleUploadPhoto(expenseId: number, file: File) {
     setUploadingExpenseId(expenseId);
-    const form = new FormData();
-    form.append('file', file);
-    const retryFingerprint = [
-      'forwarder-expense-photo',
-      fileCommandFingerprint(file),
-      expenseId,
-    ].join(':');
     try {
-      await api.upload(`/forwarder/me/expenses/${expenseId}/photos`, form, { retryFingerprint });
+      const location = await geolocation.awaitAccurateSample();
+      const form = new FormData();
+      form.append('file', file);
+      const retryFingerprint = [
+        'forwarder-expense-photo',
+        fileCommandFingerprint(file),
+        expenseId,
+      ].join(':');
+      const photo = await api.upload(
+        `/forwarder/me/expenses/${expenseId}/photos`,
+        form,
+        { retryFingerprint },
+      ) as { id: number };
+      try {
+        await geotagClient.submit({
+          entityType: 'trip_expense_photo',
+          entityId: photo.id,
+          lat: location.lat,
+          lng: location.lng,
+          accuracy: location.accuracy,
+          gpsAt: location.timestamp,
+          source: 'phone',
+        });
+      } catch {
+        toast({
+          kind: 'warning',
+          message: 'Ảnh đã được tải lên nhưng chưa lưu được vị trí GPS. Ảnh vẫn hiển thị trong chứng từ.',
+        });
+      }
       await loadExpensePhotos(expenseId);
+    } catch (error) {
+      toast({
+        kind: 'error',
+        message: expensePhotoUploadErrorMessage(error),
+      });
     } finally {
       setUploadingExpenseId(null);
     }

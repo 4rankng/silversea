@@ -171,16 +171,34 @@ router.post(
 
 router.post('/adjustments', asyncHandler(async (req: Request, res: Response) => {
   const data = createAdjustmentSchema.parse(req.body);
-  const action = await financialService.createAdjustment({
-    tripId: data.tripId,
-    amount: data.amount,
-    note: data.note,
-    signedAgreementRef: data.signedAgreementRef,
-    makerId: getUser(req).userId,
-    makerRole: getUser(req).role,
-    expectedTripVersion: data.expectedVersion,
+  const actor = getUser(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result, replayed, statusCode } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.FINANCIAL_ADJUSTMENT_CREATE,
+    idempotencyKey,
+    payload: {
+      actorId: actor.userId,
+      actorRole: actor.role,
+      ...data,
+    },
+    createdBy: actor.userId,
+    entityType: 'governance_action',
+    responseStatusCode: 201,
+    create: (tx) => financialService.createAdjustment({
+      tripId: data.tripId,
+      amount: data.amount,
+      note: data.note,
+      signedAgreementRef: data.signedAgreementRef,
+      makerId: actor.userId,
+      makerRole: actor.role,
+      expectedTripVersion: data.expectedVersion,
+      transaction: tx,
+    }),
+    getEntityId: (action) => action.id,
   });
-  res.status(201).json(action);
+  res.locals.auditEntityId = result.id;
+  res.locals.auditEntityKey = result.subjectKey;
+  res.status(statusCode).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
 router.post(

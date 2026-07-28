@@ -1,0 +1,243 @@
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const {
+  awaitAccurateSampleMock,
+  apiGetMock,
+  uploadMock,
+  listSuppliersMock,
+  geotagSubmitMock,
+  toastMock,
+  renderHistory,
+} = vi.hoisted(() => ({
+  awaitAccurateSampleMock: vi.fn(),
+  apiGetMock: vi.fn(),
+  uploadMock: vi.fn(),
+  listSuppliersMock: vi.fn(),
+  geotagSubmitMock: vi.fn(),
+  toastMock: vi.fn(),
+  renderHistory: [] as Array<number | null>,
+}));
+
+vi.mock('../lib/api', () => ({
+  api: {
+    get: apiGetMock,
+    upload: uploadMock,
+  },
+  fileCommandFingerprint: () => 'fingerprint',
+}));
+
+vi.mock('../api/forwarderClient', () => ({
+  forwarderClient: {
+    listSuppliers: listSuppliersMock,
+  },
+}));
+
+vi.mock('../api/geotagClient', () => ({
+  geotagClient: {
+    submit: geotagSubmitMock,
+  },
+}));
+
+vi.mock('../hooks/useQueries', () => ({
+  useForwarderTripDetail: () => ({
+    data: {
+      id: 15,
+      routeName: 'Hải Phòng - ICD',
+      status: 'IN_TRANSIT',
+      tripCode: 'TRIP-015',
+      customerName: 'SilverSea',
+      truckPlate: '51C-12345',
+      departureDate: '2026-07-28',
+      cargoTypeName: null,
+      customerReference: null,
+      notes: null,
+      instructions: null,
+      containers: [],
+      legs: [],
+      completionScopes: [],
+      expenses: [
+        {
+          id: 44,
+          expenseType: 'LIFTING',
+          buyAmount: 250000,
+          settlementMethod: 'FORWARDER_ADVANCE',
+          canEdit: true,
+          activeSettlementId: null,
+        },
+      ],
+    },
+    isLoading: false,
+    error: null,
+  }),
+  useCreateForwarderContainer: () => ({ mutate: vi.fn(), isPending: false }),
+  useCreateForwarderExpense: () => ({ mutate: vi.fn(), isPending: false }),
+  useDeleteForwarderExpense: () => ({ mutate: vi.fn(), isPending: false }),
+}));
+
+vi.mock('../hooks/useForwarderQueries', () => ({
+  useUpdateForwarderExpense: () => ({ mutate: vi.fn(), isPending: false }),
+  useSetForwarderExpenseCompletion: () => ({ mutate: vi.fn(), isPending: false }),
+}));
+
+vi.mock('../hooks/useCatalogs', () => ({
+  useCatalogs: () => ({ data: { forwarderExpenseTypes: [] } }),
+}));
+
+vi.mock('../hooks/animations', () => ({
+  usePageAnimations: () => ({ rootRef: { current: null } }),
+}));
+
+vi.mock('../hooks/useBackShortcut', () => ({
+  useBackShortcut: vi.fn(),
+}));
+
+vi.mock('../hooks/useGeolocation', () => ({
+  useGeolocation: () => ({
+    awaitAccurateSample: awaitAccurateSampleMock,
+    fatalError: null,
+    retry: vi.fn(),
+    sample: null,
+    isSubmitReady: false,
+    isWatching: false,
+  }),
+}));
+
+vi.mock('../components/shared/Toast', () => ({
+  useToast: () => ({ toast: toastMock }),
+}));
+
+vi.mock('../components/UI', () => ({
+  StatusPill: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  FormGroup: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  useConfirm: () => ({ confirm: vi.fn(), dialog: null }),
+}));
+
+vi.mock('../components/trip/TripLegsPanel', () => ({
+  default: () => null,
+}));
+
+vi.mock('./forwarder-trip-detail-sections', () => ({
+  ForwarderTripLoading: () => <div>loading</div>,
+  ForwarderTripError: () => <div>error</div>,
+  ForwarderContainersSection: () => null,
+  ForwarderExpenseRow: ({
+    exp,
+    uploadingExpenseId,
+    onUpload,
+  }: {
+    exp: { id: number };
+    uploadingExpenseId: number | null;
+    onUpload: (expenseId: number, file: File) => void;
+  }) => {
+    renderHistory.push(uploadingExpenseId);
+    return (
+      <div>
+        <button type="button" onClick={() => onUpload(exp.id, new File(['photo'], 'proof.jpg', { type: 'image/jpeg' }))}>
+          Tải ảnh chứng từ
+        </button>
+        <span>{uploadingExpenseId === exp.id ? 'Đang tải ảnh' : 'Sẵn sàng'}</span>
+      </div>
+    );
+  },
+}));
+
+import ForwarderTripDetailPage from './ForwarderTripDetailPage';
+
+function renderPage() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/my-forwarder-trips/15']}>
+        <Routes>
+          <Route path="/my-forwarder-trips/:id" element={<ForwarderTripDetailPage />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
+describe('ForwarderTripDetailPage photo upload geolocation recovery', () => {
+  beforeEach(() => {
+    awaitAccurateSampleMock.mockReset();
+    apiGetMock.mockReset();
+    uploadMock.mockReset();
+    listSuppliersMock.mockReset();
+    geotagSubmitMock.mockReset();
+    toastMock.mockReset();
+    renderHistory.splice(0, renderHistory.length);
+    listSuppliersMock.mockResolvedValue({ items: [] });
+    apiGetMock.mockResolvedValue({ items: [] });
+  });
+
+  it.each([
+    {
+      name: 'permission denied',
+      error: Object.assign(new Error('Ứng dụng chưa được cấp quyền truy cập vị trí'), { code: 1, name: 'GeolocationError' }),
+      expectedMessage: 'cho phép truy cập vị trí',
+    },
+    {
+      name: 'timeout',
+      error: Object.assign(new Error('GPS phản hồi chậm'), { code: 3, name: 'GeolocationError' }),
+      expectedMessage: 'GPS phản hồi chậm',
+    },
+  ])('clears the busy state and shows recoverable Vietnamese copy on $name', async ({ error, expectedMessage }) => {
+    awaitAccurateSampleMock.mockRejectedValue(error);
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tải ảnh chứng từ' }));
+
+    await waitFor(() =>
+      expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({
+        kind: 'error',
+        message: expect.stringContaining(expectedMessage),
+      })),
+    );
+    expect(uploadMock).not.toHaveBeenCalled();
+    expect(geotagSubmitMock).not.toHaveBeenCalled();
+    expect(renderHistory).toContain(44);
+    expect(renderHistory.at(-1)).toBeNull();
+    expect(screen.getByText('Sẵn sàng')).toBeTruthy();
+  });
+
+  it('keeps a stored photo visible and reports only the GPS metadata failure', async () => {
+    awaitAccurateSampleMock.mockResolvedValue({
+      lat: 10.77,
+      lng: 106.7,
+      accuracy: 8,
+      timestamp: '2026-07-28T15:30:00.000Z',
+    });
+    uploadMock.mockResolvedValue({ id: 501 });
+    geotagSubmitMock.mockRejectedValue(new Error('GPS metadata unavailable'));
+    apiGetMock.mockResolvedValue({
+      items: [{ id: 501, storageKey: 'forwarder-expenses/501.jpg' }],
+    });
+
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Tải ảnh chứng từ' }));
+
+    await waitFor(() =>
+      expect(toastMock).toHaveBeenCalledWith({
+        kind: 'warning',
+        message: expect.stringContaining('Ảnh đã được tải lên'),
+      }),
+    );
+    expect(apiGetMock).toHaveBeenCalledWith('/forwarder/me/expenses/44/photos');
+    expect(uploadMock).toHaveBeenCalledTimes(1);
+    expect(geotagSubmitMock).toHaveBeenCalledWith(expect.objectContaining({
+      entityType: 'trip_expense_photo',
+      entityId: 501,
+    }));
+    expect(renderHistory.at(-1)).toBeNull();
+    expect(screen.getByText('Sẵn sàng')).toBeTruthy();
+  });
+});

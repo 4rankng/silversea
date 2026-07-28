@@ -526,6 +526,32 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
     assert.equal(storedExpense?.supplierId, createdSupplier.id);
   });
 
+  test('Q07 supplier API rejects unknown categories and a primary outside selected types', async () => {
+    const unknownType = await request('/api/suppliers', {
+      method: 'POST',
+      token: adminToken,
+      idempotencyKey: addIdempotencyKey(`final-q07-invalid-type-${suffix}`),
+      body: {
+        name: `Final Q07 invalid type ${suffix}`,
+        types: ['FUEL', 'GAS'],
+        primaryType: 'FUEL',
+      },
+    });
+    assert.equal(unknownType.status, 400, JSON.stringify(unknownType.body));
+
+    const invalidPrimary = await request('/api/suppliers', {
+      method: 'POST',
+      token: adminToken,
+      idempotencyKey: addIdempotencyKey(`final-q07-invalid-primary-${suffix}`),
+      body: {
+        name: `Final Q07 invalid primary ${suffix}`,
+        types: ['FUEL'],
+        primaryType: 'SERVICE',
+      },
+    });
+    assert.equal(invalidPrimary.status, 400, JSON.stringify(invalidPrimary.body));
+  });
+
   test('Q08 customer and supplier CRUD converge on one canonical partner for the same normalized tax code', async () => {
     const q08CustomerName = `Final Q08 customer ${suffix}`;
     const createdCustomerAction = await request<PendingGovernanceAction>('/api/customers', {

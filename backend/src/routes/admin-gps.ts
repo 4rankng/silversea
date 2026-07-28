@@ -16,6 +16,11 @@ import { ApiError } from '../errors';
 import { captureTripGpsTrack, deriveRoutesForStoredTrip, type CaptureResult } from '../services/gps/capture.service';
 import { getRequestIdempotencyKey } from './utils/idempotency';
 import { hashPayload } from '../services/idempotency.service';
+import {
+  persistMaterialWriteAttemptAuditInTransaction,
+  persistMaterialWriteConflictAuditInTransaction,
+  persistMaterialWriteSuccessAuditInTransaction,
+} from '../services/audit.service';
 
 const GPS_COMMAND_ENDPOINTS = {
   BACKFILL: 'gps.backfill',
@@ -26,7 +31,7 @@ const GPS_COMMAND_LEASE_MS = 2 * 60 * 1000;
 const GPS_PUBLIC_FAILURE_MESSAGE = 'Tác vụ GPS thất bại. Vui lòng thử lại hoặc kiểm tra nhật ký máy chủ.';
 
 type GpsCommandSnapshot<T> = {
-  commandStatus: 'PENDING' | 'SUCCEEDED' | 'FAILED';
+  commandStatus: 'PENDING' | 'EFFECT_APPLIED' | 'SUCCEEDED' | 'FAILED';
   attempt: number;
   acceptedAt: string;
   leaseExpiresAt?: string;
@@ -42,14 +47,6 @@ function buildPendingSnapshot<T>(acceptedAt: Date, attempt: number): GpsCommandS
     acceptedAt: acceptedAt.toISOString(),
     leaseExpiresAt: new Date(acceptedAt.getTime() + GPS_COMMAND_LEASE_MS).toISOString(),
   };
-}
-
-function isPendingLeaseActive<T>(snapshot: GpsCommandSnapshot<T> | null, now: Date): boolean {
-  if (!snapshot || snapshot.commandStatus !== 'PENDING' || !snapshot.leaseExpiresAt) {
-    return false;
-  }
-  const leaseExpiry = new Date(snapshot.leaseExpiresAt);
-  return !Number.isNaN(leaseExpiry.getTime()) && leaseExpiry.getTime() > now.getTime();
 }
 
 export interface AdminGpsDeps {
@@ -152,29 +149,52 @@ async function runDurableGpsCommand<T>(args: {
       .limit(1);
 
     if (existing) {
+      const requestedActor = createdBy ?? null;
+      const persistedActor = existing.createdBy ?? null;
+      if (requestedActor !== persistedActor) {
+        const error = new ApiError(
+          409,
+          'Khóa giao dịch này thuộc về người thực hiện khác — vui lòng dùng mã giao dịch mới.',
+          `idempotency_key=${idempotencyKey}`,
+        );
+        await persistMaterialWriteConflictAuditInTransaction({
+          tx,
+          responseBody: { error: error.message },
+          entityKey: endpoint,
+        });
+        return { mode: 'conflict' as const, error };
+      }
       if (existing.payloadHash !== payloadHash) {
-        throw new ApiError(
+        const error = new ApiError(
           409,
           'Khóa giao dịch trùng nhưng nội dung khác — vui lòng dùng mã giao dịch mới.',
           `idempotency_key=${idempotencyKey}`,
         );
+        await persistMaterialWriteConflictAuditInTransaction({
+          tx,
+          responseBody: { error: error.message },
+          entityKey: endpoint,
+        });
+        return { mode: 'conflict' as const, error };
       }
       const snapshot = (existing.responseSnapshot ?? null) as GpsCommandSnapshot<T> | null;
-      if (isPendingLeaseActive(snapshot, now)) {
+      if (snapshot?.commandStatus === 'PENDING') {
         return { mode: 'pending' as const, snapshot };
       }
       if (snapshot?.commandStatus === 'SUCCEEDED' && snapshot.result !== undefined) {
         return { mode: 'replay' as const, result: snapshot.result };
       }
-      const attempt = snapshot?.attempt ? snapshot.attempt + 1 : 1;
-      const pendingSnapshot = buildPendingSnapshot<T>(now, attempt);
-      await tx.update(schema.idempotencyKeys)
-        .set({
-          responseStatusCode: 202,
-          responseSnapshot: pendingSnapshot,
-        })
-        .where(eq(schema.idempotencyKeys.id, existing.id));
-      return { mode: 'execute' as const, attempt };
+      if (snapshot?.commandStatus === 'EFFECT_APPLIED' && snapshot.result !== undefined) {
+        return { mode: 'finalize' as const, snapshot };
+      }
+      if (snapshot?.commandStatus === 'FAILED') {
+        return {
+          mode: 'failed-replay' as const,
+          snapshot,
+          statusCode: existing.responseStatusCode ?? 500,
+        };
+      }
+      return { mode: 'pending' as const, snapshot };
     }
 
     const pendingSnapshot = buildPendingSnapshot<T>(now, 1);
@@ -188,34 +208,100 @@ async function runDurableGpsCommand<T>(args: {
       responseSnapshot: pendingSnapshot,
       createdBy: createdBy ?? null,
     });
+    await persistMaterialWriteAttemptAuditInTransaction({
+      tx,
+      statusCode: 202,
+      responseBody: pendingSnapshot,
+      entityKey: endpoint,
+    });
     return { mode: 'execute' as const, attempt: 1 };
   });
 
   if (setup.mode === 'pending') {
-    return { statusCode: 202, body: setup.snapshot! };
+    return {
+      statusCode: 202,
+      body: setup.snapshot ?? buildPendingSnapshot<T>(now, 1),
+    };
   }
   if (setup.mode === 'replay') {
     return { statusCode: 200, body: setup.result };
   }
+  if (setup.mode === 'failed-replay') {
+    return { statusCode: setup.statusCode, body: setup.snapshot };
+  }
+  if (setup.mode === 'conflict') {
+    throw setup.error;
+  }
+
+  const finalizeEffect = async (snapshot: GpsCommandSnapshot<T>) => {
+    await db.transaction(async (tx) => {
+      await tx.update(schema.idempotencyKeys)
+        .set({
+          responseStatusCode: 200,
+          responseSnapshot: {
+            ...snapshot,
+            commandStatus: 'SUCCEEDED',
+          },
+        })
+        .where(and(
+          eq(schema.idempotencyKeys.endpoint, endpoint),
+          eq(schema.idempotencyKeys.idempotencyKey, idempotencyKey),
+        ));
+      await persistMaterialWriteSuccessAuditInTransaction({
+        tx,
+        statusCode: 200,
+        responseBody: snapshot.result && typeof snapshot.result === 'object'
+          ? snapshot.result as Record<string, unknown>
+          : null,
+        entityKey: endpoint,
+      });
+    });
+  };
+
+  if (setup.mode === 'finalize') {
+    try {
+      await finalizeEffect(setup.snapshot);
+      return { statusCode: 200, body: setup.snapshot.result! };
+    } catch (error) {
+      console.error('[gps] command finalization retry failed', {
+        endpoint,
+        idempotencyKey,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return { statusCode: 500, body: setup.snapshot };
+    }
+  }
 
   try {
     const result = await execute();
-    const successSnapshot: GpsCommandSnapshot<T> = {
-      commandStatus: 'SUCCEEDED',
+    const effectAppliedSnapshot: GpsCommandSnapshot<T> = {
+      commandStatus: 'EFFECT_APPLIED',
       attempt: setup.attempt,
       acceptedAt: now.toISOString(),
       finishedAt: new Date().toISOString(),
       result,
     };
-    await db.update(schema.idempotencyKeys)
-      .set({
-        responseStatusCode: 200,
-        responseSnapshot: successSnapshot,
-      })
-      .where(and(
-        eq(schema.idempotencyKeys.endpoint, endpoint),
-        eq(schema.idempotencyKeys.idempotencyKey, idempotencyKey),
-      ));
+    await db.transaction(async (tx) => {
+      await tx.update(schema.idempotencyKeys)
+        .set({
+          responseStatusCode: 202,
+          responseSnapshot: effectAppliedSnapshot,
+        })
+        .where(and(
+          eq(schema.idempotencyKeys.endpoint, endpoint),
+          eq(schema.idempotencyKeys.idempotencyKey, idempotencyKey),
+        ));
+    });
+    try {
+      await finalizeEffect(effectAppliedSnapshot);
+    } catch (error) {
+      console.error('[gps] command effect applied but final audit failed', {
+        endpoint,
+        idempotencyKey,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return { statusCode: 500, body: effectAppliedSnapshot };
+    }
     return { statusCode: 200, body: result };
   } catch (error) {
     console.error('[gps] durable command failed', {

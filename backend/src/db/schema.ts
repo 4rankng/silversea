@@ -24,6 +24,7 @@ export const tripStatusEnum = pgEnum('trip_status', ['CREATED', 'IN_TRANSIT', 'C
 export const fuelModeEnum = pgEnum('fuel_mode', ['AUTO', 'FLAT_RATE']);
 export const loadingTypeEnum = pgEnum('loading_type', ['HANG', 'VO']);
 export const roleEnum = pgEnum('role', ['ADMIN', 'MANAGER', 'ACCOUNTANT', 'DRIVER', 'FORWARDER', 'CUSTOMER', 'CLERK']);
+export const customerAccountTypeEnum = pgEnum('customer_account_type', ['SINGLE_ENTITY', 'CORPORATE_GROUP', 'AGENCY']);
 export const txnTypeEnum = pgEnum('txn_type', ['TRIP_REVENUE', 'PAYMENT_RECEIVED', 'PENALTY', 'MANAGEMENT_FEE', 'ADJUSTMENT', 'DRIVER_SALARY', 'VENDOR_EXPENSE', 'VENDOR_PAYMENT', 'FORWARDER_ADVANCE', 'FORWARDER_SETTLEMENT', 'EXTERNAL_CARRIER_COST', 'FUEL_EXPENSE', 'UNLOCK_REVERSAL', 'COMMISSION', 'DRIVER_PAYOUT', 'SERVICE_FEE']);
 export const trailerTypeEnum = pgEnum('trailer_type', ['20FT', '40FT']);
 export const truckStatusEnum = pgEnum('truck_status', ['ACTIVE', 'MAINTENANCE', 'INACTIVE']);
@@ -116,6 +117,7 @@ export const users = pgTable('users', {
   // cycle. The actual FK constraint is added in migration 0115 via raw
   // ALTER TABLE — see `drizzle/0115_premium_juggernaut.sql`.
   customerId: integer('customer_id'),
+  customerAccountType: customerAccountTypeEnum('customer_account_type').notNull().default('SINGLE_ENTITY'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
@@ -2763,6 +2765,32 @@ export const salaryPeriodAdjustments = pgTable('salary_period_adjustments', {
   ),
   check(
     'salary_period_adjustments_source_target_check',
+    sql`${table.sourcePeriod} <> ${table.targetPeriod}`,
+  ),
+]);
+
+export const fuelPeriodAdjustments = pgTable('fuel_period_adjustments', {
+  id: serial('id').primaryKey(),
+  governanceActionId: integer('governance_action_id')
+    .references(() => governanceActions.id, { onDelete: 'cascade' })
+    .notNull(),
+  fuelInvoiceId: integer('fuel_invoice_id')
+    .references(() => fuelInvoices.id, { onDelete: 'cascade' })
+    .notNull(),
+  sourcePeriodLockId: integer('source_period_lock_id')
+    .references(() => periodLocks.id, { onDelete: 'restrict' })
+    .notNull(),
+  sourcePeriod: varchar('source_period', { length: 7 }).notNull(),
+  targetPeriod: varchar('target_period', { length: 7 }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('fuel_period_adjustments_action_source_uniq')
+    .on(table.governanceActionId, table.sourcePeriodLockId),
+  index('fuel_period_adjustments_invoice_idx').on(table.fuelInvoiceId, table.createdAt),
+  index('fuel_period_adjustments_source_idx').on(table.sourcePeriod, table.createdAt),
+  index('fuel_period_adjustments_target_idx').on(table.targetPeriod, table.createdAt),
+  check(
+    'fuel_period_adjustments_source_target_check',
     sql`${table.sourcePeriod} <> ${table.targetPeriod}`,
   ),
 ]);

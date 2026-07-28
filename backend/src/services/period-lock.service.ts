@@ -25,6 +25,12 @@ export interface PeriodLockRef extends PeriodWindow, PeriodLockScope {
   domain: PeriodLockDomain;
 }
 
+export interface FuelLateApprovalLink {
+  sourcePeriodLockId: number;
+  sourcePeriod: string;
+  targetPeriod: string;
+}
+
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const WEEKLY_MODE = 'WEEKLY';
 const GLOBAL_SCOPE: PeriodLockScope = { scopeType: 'GLOBAL', scopeId: 0 };
@@ -282,6 +288,12 @@ export async function reopenPeriodLock(
   if (existing.status === 'REOPENED') {
     return existing;
   }
+  if (existing.domain === 'FUEL') {
+    throw new ApiError(
+      409,
+      `Kỳ nhiên liệu ${existing.periodKey} chỉ được xử lý bằng điều chỉnh ở kỳ đang mở; không hỗ trợ mở lại trực tiếp`,
+    );
+  }
   if (existing.domain === 'DEBIT_NOTE') {
     await assertDebitNotePeriodCanReopen(tx, existing);
   }
@@ -432,18 +444,54 @@ export async function assertFuelPeriodCanAbsorbLateApproval(
   expenseDate: string,
   asOfDate: string = normalizeToday(),
 ): Promise<void> {
-  const source = resolveFuelPeriodAuthority(expenseDate);
-  const closedSource = await getClosedPeriodLock(tx, source);
-  if (!closedSource) return;
+  await resolveFuelLateApprovalLinks(tx, [expenseDate], asOfDate);
+}
 
-  const target = resolveFuelPeriodAuthority(asOfDate);
-  const closedTarget = await getClosedPeriodLock(tx, target);
-  if (closedTarget) {
-    throw new ApiError(
-      409,
-      `Kỳ nhiên liệu ${source.periodKey} đã khóa và hiện không còn kỳ tháng đang mở để nhận điều chỉnh muộn`,
-    );
+export async function resolveFuelLateApprovalLinks(
+  tx: Tx | typeof db,
+  sourceDates: readonly string[],
+  targetDate: string,
+): Promise<FuelLateApprovalLink[]> {
+  const uniqueSourceDates = [...new Set(sourceDates)];
+  if (uniqueSourceDates.length === 0) {
+    return [];
   }
+
+  const target = resolveFuelPeriodAuthority(targetDate);
+  const closedTarget = await getClosedPeriodLock(tx, target);
+  const links: FuelLateApprovalLink[] = [];
+  const seenLockIds = new Set<number>();
+
+  for (const sourceDate of uniqueSourceDates) {
+    const source = resolveFuelPeriodAuthority(sourceDate);
+    const closedSource = await getClosedPeriodLock(tx, source);
+    if (!closedSource) {
+      continue;
+    }
+    if (source.periodKey === target.periodKey) {
+      throw new ApiError(
+        409,
+        `Kỳ nhiên liệu ${source.periodKey} đã khóa. Dữ liệu đến muộn phải vào kỳ tháng đang mở dưới dạng điều chỉnh, không sửa trực tiếp kỳ cũ.`,
+      );
+    }
+    if (closedTarget) {
+      throw new ApiError(
+        409,
+        `Kỳ nhiên liệu ${source.periodKey} đã khóa và hiện không còn kỳ tháng đang mở để nhận điều chỉnh muộn`,
+      );
+    }
+    if (seenLockIds.has(closedSource.id)) {
+      continue;
+    }
+    seenLockIds.add(closedSource.id);
+    links.push({
+      sourcePeriodLockId: closedSource.id,
+      sourcePeriod: source.periodKey,
+      targetPeriod: target.periodKey,
+    });
+  }
+
+  return links;
 }
 
 export async function listPeriodLocks(opts: {

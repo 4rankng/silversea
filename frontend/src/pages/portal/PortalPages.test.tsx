@@ -293,7 +293,9 @@ describe('customer portal pages', () => {
     apiGetBlob.mockRejectedValue(new Error('network'));
 
     render(<MemoryRouter><PortalStatementPage /></MemoryRouter>);
-    fireEvent.click(await screen.findByRole('button', { name: 'PDF' }));
+    const pdfButton = await screen.findByRole('button', { name: 'PDF' });
+    await waitFor(() => expect((pdfButton as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(pdfButton);
 
     await waitFor(() => expect(apiGetBlob).toHaveBeenCalledWith('/portal/statement/export?format=pdf'));
     expect(await screen.findByText('Không thể xuất sao kê. Vui lòng thử lại.')).toBeTruthy();

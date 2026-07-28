@@ -22,7 +22,7 @@ export {
   TRUCK_CAP_ROLE_LABELS,
   FINANCIAL_ROLES, isFinancialRole,
   TIRES,
-  SupplierType, SUPPLIER_TYPES, SUPPLIER_TYPE_LABELS,
+  CustomerAccountType, SupplierType, SUPPLIER_TYPES, SUPPLIER_TYPE_LABELS,
 } from './constants';
 
 export type { PushAudience, TireStatus, NoInvoiceEvidenceType, NoInvoiceApprovalTitle } from './constants';

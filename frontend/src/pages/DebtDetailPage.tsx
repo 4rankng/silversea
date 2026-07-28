@@ -34,6 +34,15 @@ const AGING_RANGES = [
   { label: 'TRÊN 90 NGÀY', dotColor: 'var(--danger)', index: 3 },
 ] as const;
 
+function coerceFiniteNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
 function nextPaymentRequestKey(): string {
   return globalThis.crypto?.randomUUID?.()
     ?? `payment-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -455,6 +464,70 @@ export default function DebtDetailPage() {
           <small>{activeAgingRange ? money(activeAgingAmount) : 'Không có số dư'}</small>
         </article>
       </section>
+
+      {/* ── Q01: Credit-limit warning card ──────────────────────────────── */}
+      {/* Surfaces the customer's creditLimit + early-warning threshold so the
+          accountant can see if the customer is at 80% (vàng) or 100% (đỏ) of
+          their limit. Hidden when no creditLimit is configured. */}
+      {(() => {
+        const limitStr = customer.creditLimit;
+        const thresholdStr = customer.creditWarningThreshold;
+        if (!limitStr) return null;
+        const limit = Number(limitStr);
+        if (!limit || !isFinite(limit) || limit <= 0) return null;
+        const totalExposure = coerceFiniteNumber(profileStatement?.totalExposure);
+        const approvedUncollected = coerceFiniteNumber(profileStatement?.approvedUncollected);
+        if (totalExposure == null || approvedUncollected == null) return null;
+        // Threshold is stored as a fraction (0.80 = 80%); default to 0.80.
+        const threshold = thresholdStr ? Number(thresholdStr) : 0.80;
+        const warnAt = isFinite(threshold) && threshold > 0 ? threshold : 0.80;
+        const providedUtilization = coerceFiniteNumber(profileStatement?.utilization);
+        const usedPct = providedUtilization ?? (totalExposure / limit);
+        const pctLabel = Math.round(usedPct * 100);
+        const exceedsLimit = usedPct >= 1;
+        const nearLimit = !exceedsLimit && usedPct >= warnAt;
+        const providedAvailableCapacity = coerceFiniteNumber(profileStatement?.availableCapacity);
+        const remaining = providedAvailableCapacity ?? Math.max(0, limit - totalExposure);
+        const badgeClass = exceedsLimit
+          ? 'dd-credit--exceeded'
+          : nearLimit
+            ? 'dd-credit--warning'
+            : 'dd-credit--ok';
+        const badgeLabel = exceedsLimit
+          ? 'Vượt hạn mức (100%)'
+          : nearLimit
+            ? `Gần đạt hạn mức (${Math.round(warnAt * 100)}%)`
+            : 'Trong hạn mức';
+        return (
+          <section className={`dd-credit-strip ${badgeClass}`} aria-label="Hạn mức công nợ">
+            <div className="dd-credit__info">
+              <span className="dd-credit__label">Hạn mức công nợ</span>
+              <strong className="dd-credit__limit">{money(limit)}</strong>
+            </div>
+            <div className="dd-credit__info">
+              <span className="dd-credit__label">Tổng dư nợ kiểm hạn</span>
+              <strong>{money(totalExposure)}</strong>
+            </div>
+            <div className="dd-credit__info">
+              <span className="dd-credit__label">Đã duyệt chưa thu</span>
+              <strong>{money(approvedUncollected)}</strong>
+            </div>
+            <div className="dd-credit__info">
+              <span className="dd-credit__label">Tỷ lệ sử dụng</span>
+              <strong>{pctLabel}%</strong>
+              <small className="dd-credit__pct">{pctLabel}% hạn mức</small>
+            </div>
+            <div className="dd-credit__info">
+              <span className="dd-credit__label">Hạn mức còn lại</span>
+              <strong>{money(remaining)}</strong>
+            </div>
+            <span className={`dd-credit__badge dd-credit__badge--${exceedsLimit ? 'exceeded' : nearLimit ? 'warning' : 'ok'}`}>
+              <AlertTriangle size={14} aria-hidden="true" />
+              {badgeLabel}
+            </span>
+          </section>
+        );
+      })()}
 
       {/* ── Aging Summary ───────────────────────────────────────────────── */}
       <section className="dd-summary dd-summary--aging">

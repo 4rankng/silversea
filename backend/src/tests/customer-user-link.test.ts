@@ -5,7 +5,7 @@ import type { AddressInfo } from 'node:net';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import { eq, inArray } from 'drizzle-orm';
-import { Role } from '@tingting/shared';
+import { CustomerAccountType, Role } from '@tingting/shared';
 import { db, client } from '../db';
 import * as s from '../db/schema';
 import {
@@ -94,6 +94,48 @@ describe('customer account linkage', () => {
     customerUserId = user.id;
     assert.equal(user.customerId, customerId);
     assert.deepEqual(user.customerIds, [customerId]);
+    assert.equal(user.customerAccountType, CustomerAccountType.SINGLE_ENTITY);
+  });
+
+  test('rejects multiple links for a default customer account', async () => {
+    await assert.rejects(
+      createUser({
+        username: `customer-multi-default-${suffix}`,
+        password: 'admin123',
+        role: Role.CUSTOMER,
+        customerIds: [customerId, secondaryCustomerId],
+      }),
+      /chỉ được liên kết một pháp nhân/,
+    );
+  });
+
+  test('allows explicit corporate or agency multi-entity accounts only under admin authority', async () => {
+    await assert.rejects(
+      createUser({
+        username: `customer-multi-manager-${suffix}`,
+        password: 'admin123',
+        role: Role.CUSTOMER,
+        customerAccountType: CustomerAccountType.CORPORATE_GROUP,
+        customerIds: [customerId, secondaryCustomerId],
+        assignmentAdminOnly: true,
+      }),
+      /Chỉ quản trị viên mới có thể cấp phạm vi khách hàng nhiều pháp nhân/,
+    );
+
+    const groupUser = await createUser({
+      username: `customer-multi-admin-${suffix}`,
+      password: 'admin123',
+      role: Role.CUSTOMER,
+      customerAccountType: CustomerAccountType.CORPORATE_GROUP,
+      customerIds: [customerId, secondaryCustomerId],
+      assignmentAdminOnly: false,
+    });
+    try {
+      assert.equal(groupUser.customerAccountType, CustomerAccountType.CORPORATE_GROUP);
+      assert.deepEqual(groupUser.customerIds, [customerId, secondaryCustomerId].sort((a, b) => a - b));
+    } finally {
+      await db.delete(s.users).where(eq(s.users.id, groupUser.id));
+    }
   });
 
   test('rejects a customer link on a non-CUSTOMER role', async () => {
@@ -232,6 +274,37 @@ describe('customer account linkage', () => {
     );
   });
 
+  test('rejects an explicit SINGLE_ENTITY update with multiple customer links', async () => {
+    const user = await createUser({
+      username: `customer-single-update-${suffix}`,
+      password: 'admin123',
+      role: Role.CUSTOMER,
+      customerIds: [customerId],
+    });
+
+    try {
+      await assert.rejects(
+        updateUser(user.id, {
+          customerAccountType: CustomerAccountType.SINGLE_ENTITY,
+          customerIds: [customerId, secondaryCustomerId],
+          assignmentAdminOnly: false,
+        }),
+        /Tài khoản khách hàng thông thường chỉ được liên kết một pháp nhân/,
+      );
+
+      const [persisted] = await db.select({
+        customerAccountType: s.users.customerAccountType,
+      }).from(s.users).where(eq(s.users.id, user.id)).limit(1);
+      assert.equal(persisted?.customerAccountType, CustomerAccountType.SINGLE_ENTITY);
+      const persistedLinks = await db.select({
+        customerId: s.userCustomerLinks.customerId,
+      }).from(s.userCustomerLinks).where(eq(s.userCustomerLinks.userId, user.id));
+      assert.deepEqual(persistedLinks.map((link) => link.customerId), [customerId]);
+    } finally {
+      await db.delete(s.users).where(eq(s.users.id, user.id));
+    }
+  });
+
   test('rejects a token immediately after its customer scope changes', async () => {
     const token = jwt.sign({
       userId: customerUserId,
@@ -250,7 +323,11 @@ describe('customer account linkage', () => {
   });
 
   test('revokes a token when a linked customer is soft-deleted', async () => {
-    await updateUser(customerUserId, { customerIds: [customerId, secondaryCustomerId] });
+    await updateUser(customerUserId, {
+      customerAccountType: CustomerAccountType.CORPORATE_GROUP,
+      customerIds: [customerId, secondaryCustomerId],
+      assignmentAdminOnly: false,
+    });
     const token = jwt.sign({
       userId: customerUserId,
       username: `customer-linked-${suffix}`,
@@ -273,7 +350,11 @@ describe('customer account linkage', () => {
     await db.update(s.customers)
       .set({ deletedAt: null })
       .where(eq(s.customers.id, secondaryCustomerId));
-    await updateUser(customerUserId, { customerIds: [customerId] });
+    await updateUser(customerUserId, {
+      customerAccountType: CustomerAccountType.SINGLE_ENTITY,
+      customerIds: [customerId],
+      assignmentAdminOnly: false,
+    });
   });
 
   test('rejects clearing scope from an ACTIVE clerk account', async () => {

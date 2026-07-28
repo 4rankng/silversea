@@ -6,7 +6,7 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { eq, inArray } from 'drizzle-orm';
-import { Role } from '@tingting/shared';
+import { CustomerAccountType, Role } from '@tingting/shared';
 import { db, client } from '../db';
 import * as s from '../db/schema';
 import { config } from '../config';
@@ -175,6 +175,7 @@ before(async () => {
     username: `portal-customer-multi-${suffix}`,
     password: 'admin123',
     role: Role.CUSTOMER,
+    customerAccountType: CustomerAccountType.CORPORATE_GROUP,
     customerIds: [ownCustomer.id, multiCustomer.id],
   });
   userIds.push(multiUser.id);

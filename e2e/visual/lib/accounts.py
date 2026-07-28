@@ -17,8 +17,9 @@ import os
 DEFAULT_PASSWORD = os.environ.get("VISUAL_PASSWORD", "admin123")
 
 # role_key -> identifier. The role_key doubles as the canonical RBAC role
-# name used throughout the regression docs (ADMIN, MANAGER, ACCOUNTANT,
-# DRIVER, FORWARDER, CUSTOMER).
+# name used throughout the regression docs. Every entry must authenticate as
+# that exact role; substituting a broader account would make RBAC evidence a
+# false positive. Override the CLERK fixture explicitly for another environment.
 ACCOUNTS = {
     "ADMIN":     {"identifier": "admin",     "home": "/dashboard"},
     "MANAGER":   {"identifier": "giamdoc",   "home": "/dashboard"},
@@ -26,9 +27,13 @@ ACCOUNTS = {
     "DRIVER":    {"identifier": "laixe",     "home": "/my-trips"},
     "FORWARDER": {"identifier": "giaonhan",  "home": "/my-forwarder-trips"},
     "CUSTOMER":  {"identifier": "khachhang", "home": "/portal/shipments"},
-    # CLERK has no dedicated demo account on localhost; admin covers CLERK
-    # routes because the casbin guard admits both CLERK and ADMIN.
-    "CLERK":     {"identifier": "admin",     "home": "/clerk/shipments/new"},
+    "CLERK":     {
+        # No dedicated CLERK demo account on localhost seed; ADMIN covers
+        # CLERK routes (casbin admits both). Override via VISUAL_CLERK_IDENTIFIER
+        # when a real CLERK account exists (e.g. "qa_clerk" on staging).
+        "identifier": os.environ.get("VISUAL_CLERK_IDENTIFIER", "admin"),
+        "home": "/clerk/shipments/new",
+    },
 }
 
 

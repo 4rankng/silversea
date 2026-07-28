@@ -20,6 +20,11 @@ import {
   confirmSalary,
   getWorkDays,
 } from '../services/attendance.service';
+import {
+  approveSalaryPeriodAdjustment,
+  checkSalaryPeriodAdjustment,
+  requestSalaryPeriodAdjustment,
+} from '../services/salary-period-adjustment.service';
 import { syncAttendanceAfterStatusChange } from '../services/trip-attendance-sync.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -446,4 +451,102 @@ test('M7.3 payroll close enforces readiness, approved exclusions, completion-per
   assert.equal(governanceRow?.status, 'APPROVED');
   assert.equal(governanceRow?.checkerId, manager.id);
   assert.equal(governanceRow?.approverId, admin.id);
+});
+
+test('Q10 adjustment-mode exclusions stay completable after the approved adjustment exists', async () => {
+  const admin = await mkUser('ADMIN', 'adj-admin');
+  const accountant = await mkUser('ACCOUNTANT', 'adj-acct');
+  const manager = await mkUser('MANAGER', 'adj-mgr');
+  const driver = await mkDriver('adj-driver');
+  const sourcePeriod = `${periodYear + 2}-03`;
+  const sourceDay = `${sourcePeriod}-15`;
+  const targetPeriod = `${periodYear + 2}-04`;
+
+  const trip = await mkTrip(
+    driver.id,
+    sourceDay,
+    new Date(`${sourceDay}T05:00:00.000Z`),
+    'adj',
+    { salary: 2_200_000 },
+  );
+
+  await postDriverSalary(trip.id, driver.id, 2_200_000, 'm73 adjustment');
+  await syncAttendanceAfterStatusChange(
+    trip.id,
+    TripStatus.COMPLETED,
+    driver.id,
+    sourceDay,
+    null,
+    admin.id,
+  );
+
+  const requestedExclusion = await createSalaryPeriodExclusion({
+    period: sourcePeriod,
+    driverId: driver.id,
+    actorId: accountant.id,
+    actorRole: 'ACCOUNTANT',
+    reason: 'Chuyển xử lý vào khoản điều chỉnh kỳ sau',
+    handlingMode: 'ADJUSTMENT',
+    note: 'm73 adjustment follow-up',
+  });
+  createdGovernanceActionIds.push(requestedExclusion.actionId);
+
+  const checkedExclusion = await checkSalaryPeriodExclusion({
+    actionId: requestedExclusion.actionId,
+    actorId: manager.id,
+    actorRole: 'MANAGER',
+    expectedVersion: requestedExclusion.version,
+  });
+  const approvedExclusion = await approveSalaryPeriodExclusion({
+    actionId: requestedExclusion.actionId,
+    actorId: admin.id,
+    actorRole: 'ADMIN',
+    expectedVersion: checkedExclusion.version,
+  });
+  assert.equal(approvedExclusion.followupStatus, 'PENDING');
+
+  await db.insert(s.salaryPeriodCloses).values({
+    period: sourcePeriod,
+    status: 'CLOSED',
+    version: 1,
+    closedBy: accountant.id,
+    note: `m73 adjustment close ${suffix}`,
+  });
+  createdClosePeriods.add(sourcePeriod);
+
+  const requestedAdjustment = await requestSalaryPeriodAdjustment({
+    sourcePeriod,
+    targetPeriod,
+    driverId: driver.id,
+    amount: 500_000,
+    reason: 'Bổ sung điều chỉnh cho lái xe bị loại trừ khỏi kỳ chính',
+    actorId: accountant.id,
+    actorRole: 'ACCOUNTANT',
+    expectedVersion: 1,
+  });
+  createdGovernanceActionIds.push(requestedAdjustment.actionId);
+
+  const checkedAdjustment = await checkSalaryPeriodAdjustment({
+    period: sourcePeriod,
+    actionId: requestedAdjustment.actionId,
+    actorId: manager.id,
+    actorRole: 'MANAGER',
+    expectedVersion: requestedAdjustment.version,
+  });
+  const approvedAdjustment = await approveSalaryPeriodAdjustment({
+    period: sourcePeriod,
+    actionId: requestedAdjustment.actionId,
+    actorId: admin.id,
+    actorRole: 'ADMIN',
+    expectedVersion: checkedAdjustment.version,
+  });
+  assert.equal(approvedAdjustment.status, 'APPROVED');
+
+  const completed = await completeSalaryPeriodExclusionFollowup({
+    actionId: approvedExclusion.actionId,
+    actorId: admin.id,
+    actorRole: 'ADMIN',
+  });
+  assert.equal(completed.followupStatus, 'COMPLETED');
+  assert.ok(completed.followupCompletedAt);
 });

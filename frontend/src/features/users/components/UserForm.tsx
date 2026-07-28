@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { Drawer, Btn, FormGroup } from '../../../components/UI';
 import { ROLE_LABELS } from '../utils';
-import { Role } from '@tingting/shared';
+import { CustomerAccountType, Role } from '@tingting/shared';
 import type { Customer, Truck } from '@tingting/shared';
 import type { BusinessUnit, ShipmentScopeOption, UserRow, CreateData, EditData } from '../utils';
 
@@ -309,6 +309,9 @@ export function EditPanel({
   const [customerIds, setCustomerIds] = useState<number[]>(
     user.customerIds?.length ? user.customerIds : user.customerId ? [user.customerId] : [],
   );
+  const [customerAccountType, setCustomerAccountType] = useState<CustomerAccountType>(
+    user.customerAccountType ?? CustomerAccountType.SINGLE_ENTITY,
+  );
   const [businessUnitIds, setBusinessUnitIds] = useState<number[]>(user.businessUnitIds ?? []);
   const [shipmentIds, setShipmentIds] = useState<number[]>(user.shipmentIds ?? []);
 
@@ -326,6 +329,7 @@ export function EditPanel({
       setSocialInsurance(user.socialInsurance ?? '');
       setAssignedTruckId(user.assignedTruckId ?? null);
       setCustomerIds(user.customerIds?.length ? user.customerIds : user.customerId ? [user.customerId] : []);
+      setCustomerAccountType(user.customerAccountType ?? CustomerAccountType.SINGLE_ENTITY);
       setBusinessUnitIds(user.businessUnitIds ?? []);
       setShipmentIds(user.shipmentIds ?? []);
     }
@@ -345,6 +349,10 @@ export function EditPanel({
     businessUnitIds.length === 0 || (customerIds.length === 0 && shipmentIds.length === 0)
   );
   const forwarderScopeInvalid = forwarderScopeRequired && shipmentIds.length === 0;
+  const customerScopeInvalid = customerScopeRequired && (
+    customerIds.length === 0
+    || (customerAccountType === CustomerAccountType.SINGLE_ENTITY && customerIds.length > 1)
+  );
   const businessUnitOptions: SelectionOption[] = businessUnits.map((unit) => ({
     id: unit.id,
     title: unit.name,
@@ -363,7 +371,7 @@ export function EditPanel({
   const roleSelectDisabled = canEditDriversOnly || (!canManageClerkScope && user.role === Role.CLERK);
 
   const handleSubmit = async () => {
-    if (customerScopeRequired && customerIds.length === 0) return;
+    if (customerScopeInvalid) return;
     if (clerkScopeInvalid) return;
     if (forwarderScopeInvalid) return;
     const payload: EditData = { fullName, username, email, phone, role, status, password };
@@ -376,6 +384,7 @@ export function EditPanel({
     if (role === Role.CUSTOMER) {
       payload.customerIds = customerIds;
       payload.customerId = customerIds[0] ?? null;
+      if (canManageClerkScope) payload.customerAccountType = customerAccountType;
     }
     if (role === Role.CLERK) {
       payload.customerIds = customerIds;
@@ -411,7 +420,7 @@ export function EditPanel({
           <Btn
             variant="primary"
             icon={saving ? <Loader2 size={13} className="spin" /> : <Save size={13} />}
-            disabled={saving || (customerScopeRequired && customerIds.length === 0) || clerkScopeInvalid}
+            disabled={saving || customerScopeInvalid || clerkScopeInvalid}
             onClick={handleSubmit}
           >
             Lưu thay đổi
@@ -521,12 +530,30 @@ export function EditPanel({
       )}
 
       {role === Role.CUSTOMER && !canEditDriversOnly && (
-        <CustomerScopeFields
-          customerIds={customerIds}
-          setCustomerIds={setCustomerIds}
-          customerList={customerList}
-          required={customerScopeRequired}
-        />
+        <>
+          {canManageClerkScope && (
+            <FormGroup label="Loại phạm vi cổng khách hàng">
+              <select
+                className="input"
+                value={customerAccountType}
+                onChange={event => setCustomerAccountType(event.target.value as CustomerAccountType)}
+              >
+                <option value={CustomerAccountType.SINGLE_ENTITY}>Một pháp nhân</option>
+                <option value={CustomerAccountType.CORPORATE_GROUP}>Nhóm công ty</option>
+                <option value={CustomerAccountType.AGENCY}>Đại lý</option>
+              </select>
+            </FormGroup>
+          )}
+          <CustomerScopeFields
+            customerIds={customerIds}
+            setCustomerIds={setCustomerIds}
+            customerList={customerList}
+            required={customerScopeRequired}
+          />
+          {customerAccountType === CustomerAccountType.SINGLE_ENTITY && customerIds.length > 1 && (
+            <div className="users-error-banner">Tài khoản một pháp nhân chỉ được chọn một khách hàng.</div>
+          )}
+        </>
       )}
 
       {role === Role.ACCOUNTANT && !canEditDriversOnly && canManageClerkScope && (
@@ -677,6 +704,9 @@ export function AddPanel({
   const [socialInsurance, setSocialInsurance] = useState('');
   const [assignedTruckId, setAssignedTruckId] = useState<number | null>(null);
   const [customerIds, setCustomerIds] = useState<number[]>([]);
+  const [customerAccountType, setCustomerAccountType] = useState<CustomerAccountType>(
+    CustomerAccountType.SINGLE_ENTITY,
+  );
   const [businessUnitIds, setBusinessUnitIds] = useState<number[]>([]);
   const [shipmentIds, setShipmentIds] = useState<number[]>([]);
 
@@ -687,6 +717,7 @@ export function AddPanel({
       setPassword(''); setShowPw(false);
       setBaseSalary(''); setSocialInsurance(''); setAssignedTruckId(null);
       setCustomerIds([]);
+      setCustomerAccountType(CustomerAccountType.SINGLE_ENTITY);
       setBusinessUnitIds([]);
       setShipmentIds([]);
     }
@@ -703,6 +734,10 @@ export function AddPanel({
     businessUnitIds.length === 0 || (customerIds.length === 0 && shipmentIds.length === 0)
   );
   const forwarderScopeInvalid = role === Role.FORWARDER && shipmentIds.length === 0;
+  const customerScopeInvalid = role === Role.CUSTOMER && (
+    customerIds.length === 0
+    || (customerAccountType === CustomerAccountType.SINGLE_ENTITY && customerIds.length > 1)
+  );
   const businessUnitOptions: SelectionOption[] = businessUnits.map((unit) => ({
     id: unit.id,
     title: unit.name,
@@ -720,7 +755,7 @@ export function AddPanel({
   );
 
   const handleSubmit = async () => {
-    if (role === Role.CUSTOMER && customerIds.length === 0) return;
+    if (customerScopeInvalid) return;
     if (clerkScopeInvalid) return;
     if (forwarderScopeInvalid) return;
     const payload: CreateData = { fullName, username, email, phone, role, password };
@@ -733,6 +768,7 @@ export function AddPanel({
     if (role === Role.CUSTOMER) {
       payload.customerIds = customerIds;
       payload.customerId = customerIds[0] ?? null;
+      payload.customerAccountType = customerAccountType;
     }
     if (role === Role.CLERK) {
       payload.customerIds = customerIds;
@@ -766,7 +802,7 @@ export function AddPanel({
           <Btn
             variant="primary"
             icon={saving ? <Loader2 size={13} className="spin" /> : <Plus size={13} />}
-            disabled={saving || (role === Role.CUSTOMER && customerIds.length === 0) || clerkScopeInvalid}
+            disabled={saving || customerScopeInvalid || clerkScopeInvalid}
             onClick={handleSubmit}
           >
             {role === Role.DRIVER ? 'Thêm lái xe' : 'Tạo tài khoản'}
@@ -893,11 +929,29 @@ export function AddPanel({
       )}
 
       {role === Role.CUSTOMER && (
-        <CustomerScopeFields
-          customerIds={customerIds}
-          setCustomerIds={setCustomerIds}
-          customerList={customerList}
-        />
+        <>
+          {canManageClerkScope && (
+            <FormGroup label="Loại phạm vi cổng khách hàng">
+              <select
+                className="input"
+                value={customerAccountType}
+                onChange={event => setCustomerAccountType(event.target.value as CustomerAccountType)}
+              >
+                <option value={CustomerAccountType.SINGLE_ENTITY}>Một pháp nhân</option>
+                <option value={CustomerAccountType.CORPORATE_GROUP}>Nhóm công ty</option>
+                <option value={CustomerAccountType.AGENCY}>Đại lý</option>
+              </select>
+            </FormGroup>
+          )}
+          <CustomerScopeFields
+            customerIds={customerIds}
+            setCustomerIds={setCustomerIds}
+            customerList={customerList}
+          />
+          {customerAccountType === CustomerAccountType.SINGLE_ENTITY && customerIds.length > 1 && (
+            <div className="users-error-banner">Tài khoản một pháp nhân chỉ được chọn một khách hàng.</div>
+          )}
+        </>
       )}
 
       {role === Role.ACCOUNTANT && canManageClerkScope && (

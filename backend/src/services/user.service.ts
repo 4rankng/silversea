@@ -20,7 +20,7 @@ import {
   userShipmentLinks,
 } from '../db/schema';
 import { eq, isNull, sql, or, and, ne, inArray } from 'drizzle-orm';
-import { Role } from '@tingting/shared';
+import { CustomerAccountType, Role } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { getEnforcer } from '../casbin/enforcer';
 
@@ -31,6 +31,7 @@ export const USER_FIELDS = {
   role: users.role, status: users.status, fullName: users.fullName, createdAt: users.createdAt,
   updatedAt: users.updatedAt,
   customerId: users.customerId,
+  customerAccountType: users.customerAccountType,
 };
 
 /** User fields + the linked driver profile (LEFT JOIN). Driver-* are null when no profile row. */
@@ -59,6 +60,7 @@ function selectUserWithDriver(q: typeof db | Parameters<Parameters<typeof db.tra
 type CustomerLinkInput = {
   customerId?: number | null;
   customerIds?: number[] | null;
+  customerAccountType?: CustomerAccountType;
   businessUnitIds?: number[] | null;
   shipmentIds?: number[] | null;
   assignmentAdminOnly?: boolean;
@@ -75,6 +77,33 @@ function normalizeCustomerIds(input: CustomerLinkInput): number[] {
 
 function hasExplicitCustomerScopeInput(data: CustomerLinkInput): boolean {
   return data.customerIds !== undefined || data.customerId !== undefined;
+}
+
+function normalizeCustomerAccountTypeForScope(
+  role: string,
+  customerAccountType: (typeof users.customerAccountType.enumValues)[number] | CustomerAccountType,
+  customerIds: number[],
+  allowLegacyMultiEntityCompatibility: boolean,
+): CustomerAccountType {
+  const normalizedCustomerAccountType = customerAccountType === CustomerAccountType.AGENCY
+    ? CustomerAccountType.AGENCY
+    : customerAccountType === CustomerAccountType.CORPORATE_GROUP
+      ? CustomerAccountType.CORPORATE_GROUP
+      : CustomerAccountType.SINGLE_ENTITY;
+  if (role !== Role.CUSTOMER) {
+    return CustomerAccountType.SINGLE_ENTITY;
+  }
+  if (
+    allowLegacyMultiEntityCompatibility
+    && normalizedCustomerAccountType === CustomerAccountType.SINGLE_ENTITY
+    && customerIds.length > 1
+  ) {
+    // Q16 permits multi-entity access only for an explicit exception account.
+    // Migration 0164 repairs historical rows, but keep non-scope edits safe for
+    // any untouched pre-migration mismatch still present at runtime.
+    return CustomerAccountType.CORPORATE_GROUP;
+  }
+  return normalizedCustomerAccountType;
 }
 
 function hasActiveClerkScope(
@@ -434,6 +463,7 @@ export async function createUserWithTx(tx: Tx, data: {
   assignedTruckId?: number | null;
   customerId?: number | null;
   customerIds?: number[] | null;
+  customerAccountType?: CustomerAccountType;
   businessUnitIds?: number[] | null;
   shipmentIds?: number[] | null;
   assignmentAdminOnly?: boolean;
@@ -448,6 +478,13 @@ export async function createUserWithTx(tx: Tx, data: {
     }
   }
   if (data.role === Role.CUSTOMER) {
+    const accountType = data.customerAccountType ?? CustomerAccountType.SINGLE_ENTITY;
+    if (data.assignmentAdminOnly && accountType !== CustomerAccountType.SINGLE_ENTITY) {
+      throw new ApiError(403, 'Chỉ quản trị viên mới có thể cấp phạm vi khách hàng nhiều pháp nhân');
+    }
+    if (accountType === CustomerAccountType.SINGLE_ENTITY && customerIds.length > 1) {
+      throw new ApiError(400, 'Tài khoản khách hàng thông thường chỉ được liên kết một pháp nhân');
+    }
     const effectiveStatus = data.status ?? 'ACTIVE';
     if (effectiveStatus !== 'INACTIVE' && customerIds.length === 0) {
       throw new ApiError(400, 'Tài khoản khách hàng ACTIVE phải có ít nhất một khách hàng liên kết');
@@ -502,6 +539,9 @@ export async function createUserWithTx(tx: Tx, data: {
     role: data.role as (typeof users.role.enumValues)[number],
     status: data.status ?? 'ACTIVE',
     customerId: data.role === Role.CUSTOMER || data.role === Role.CLERK ? customerIds[0] ?? null : null,
+    customerAccountType: data.role === Role.CUSTOMER
+      ? data.customerAccountType ?? CustomerAccountType.SINGLE_ENTITY
+      : CustomerAccountType.SINGLE_ENTITY,
   }).returning(USER_FIELDS);
 
   await syncCustomerLinks(
@@ -546,6 +586,7 @@ export async function createUser(data: {
   assignedTruckId?: number | null;
   customerId?: number | null;
   customerIds?: number[] | null;
+  customerAccountType?: CustomerAccountType;
   businessUnitIds?: number[] | null;
   shipmentIds?: number[] | null;
   assignmentAdminOnly?: boolean;
@@ -600,6 +641,7 @@ export async function updateUserWithTx(id: number, data: {
   assignedTruckId?: number | null;
   customerId?: number | null;
   customerIds?: number[] | null;
+  customerAccountType?: CustomerAccountType;
   businessUnitIds?: number[] | null;
   shipmentIds?: number[] | null;
   /** If true, throws 403 when target user is not DRIVER — used for accountant scoping. */
@@ -609,7 +651,12 @@ export async function updateUserWithTx(id: number, data: {
   // Hash password outside transaction — CPU-intensive work should not hold a DB connection.
   const passwordHash = data.password ? await bcrypt.hash(data.password, 10) : undefined;
 
-  const [existing] = await tx.select({ role: users.role, customerId: users.customerId, status: users.status }).from(users)
+  const [existing] = await tx.select({
+    role: users.role,
+    customerId: users.customerId,
+    customerAccountType: users.customerAccountType,
+    status: users.status,
+  }).from(users)
     .where(and(eq(users.id, id), isNull(users.deletedAt))).limit(1).for('update');
   if (!existing) throw new ApiError(404, 'Không tìm thấy người dùng');
 
@@ -620,6 +667,12 @@ export async function updateUserWithTx(id: number, data: {
 
   const effectiveRole = data.role ?? existing.role;
   const effectiveStatus = data.status ?? existing.status;
+  const requestedCustomerAccountType = effectiveRole === Role.CUSTOMER
+    ? data.customerAccountType ?? existing.customerAccountType
+    : CustomerAccountType.SINGLE_ENTITY;
+  if (data.assignmentAdminOnly && data.customerAccountType !== undefined) {
+    throw new ApiError(403, 'Chỉ quản trị viên mới có thể thay đổi loại tài khoản khách hàng');
+  }
   const explicitCustomerLinkUpdate = hasExplicitCustomerScopeInput(data);
   const existingCustomerIds = await loadCustomerIds(tx, id, existing.customerId);
   const explicitBusinessUnitUpdate = data.businessUnitIds !== undefined;
@@ -629,55 +682,70 @@ export async function updateUserWithTx(id: number, data: {
   let nextCustomerIds = existingCustomerIds;
   let nextBusinessUnitIds = existingBusinessUnitIds;
   let nextShipmentIds = existingShipmentIds;
+  let effectiveCustomerAccountType = CustomerAccountType.SINGLE_ENTITY;
 
-    if (
-      effectiveRole !== Role.CUSTOMER
-      && effectiveRole !== Role.CLERK
-      && effectiveRole !== Role.ACCOUNTANT
-      && effectiveRole !== Role.DRIVER
-      && effectiveRole !== Role.FORWARDER
-    ) {
-      if (explicitCustomerLinkUpdate && normalizeCustomerIds(data).length > 0) {
-        throw new ApiError(400, 'Chỉ tài khoản khách hàng, nhân viên chứng từ hoặc kế toán mới được liên kết khách hàng');
-      }
-      if (explicitBusinessUnitUpdate && (data.businessUnitIds ?? []).length > 0) {
-        throw new ApiError(400, 'Chỉ nhân viên chứng từ mới được liên kết đơn vị phụ trách');
-      }
-      if (explicitShipmentUpdate && (data.shipmentIds ?? []).length > 0) {
-        throw new ApiError(400, 'Chỉ nhân viên chứng từ mới được liên kết lô hàng');
-      }
-      nextCustomerIds = [];
-      nextBusinessUnitIds = [];
-      nextShipmentIds = [];
-    } else if (effectiveRole === Role.CUSTOMER) {
-      nextBusinessUnitIds = [];
-      nextShipmentIds = [];
-      if (explicitCustomerLinkUpdate) {
-        nextCustomerIds = normalizeCustomerIds(data);
-        if (effectiveStatus !== 'INACTIVE' && nextCustomerIds.length === 0) {
-          throw new ApiError(400, 'Tài khoản khách hàng ACTIVE phải có ít nhất một khách hàng liên kết');
-        }
-        await validateCustomerIds(tx, nextCustomerIds);
-      } else if (effectiveStatus !== 'INACTIVE' && nextCustomerIds.length === 0) {
+  if (
+    effectiveRole !== Role.CUSTOMER
+    && effectiveRole !== Role.CLERK
+    && effectiveRole !== Role.ACCOUNTANT
+    && effectiveRole !== Role.DRIVER
+    && effectiveRole !== Role.FORWARDER
+  ) {
+    if (explicitCustomerLinkUpdate && normalizeCustomerIds(data).length > 0) {
+      throw new ApiError(400, 'Chỉ tài khoản khách hàng, nhân viên chứng từ hoặc kế toán mới được liên kết khách hàng');
+    }
+    if (explicitBusinessUnitUpdate && (data.businessUnitIds ?? []).length > 0) {
+      throw new ApiError(400, 'Chỉ nhân viên chứng từ mới được liên kết đơn vị phụ trách');
+    }
+    if (explicitShipmentUpdate && (data.shipmentIds ?? []).length > 0) {
+      throw new ApiError(400, 'Chỉ nhân viên chứng từ mới được liên kết lô hàng');
+    }
+    nextCustomerIds = [];
+    nextBusinessUnitIds = [];
+    nextShipmentIds = [];
+  } else if (effectiveRole === Role.CUSTOMER) {
+    nextBusinessUnitIds = [];
+    nextShipmentIds = [];
+    if (explicitCustomerLinkUpdate) {
+      nextCustomerIds = normalizeCustomerIds(data);
+      if (effectiveStatus !== 'INACTIVE' && nextCustomerIds.length === 0) {
         throw new ApiError(400, 'Tài khoản khách hàng ACTIVE phải có ít nhất một khách hàng liên kết');
       }
-    } else if (effectiveRole === Role.ACCOUNTANT) {
-      nextBusinessUnitIds = [];
-      nextShipmentIds = [];
-      if (explicitBusinessUnitUpdate && (data.businessUnitIds ?? []).length > 0) {
-        throw new ApiError(400, 'Kế toán chỉ được liên kết phạm vi khách hàng');
-      }
-      if (explicitShipmentUpdate && (data.shipmentIds ?? []).length > 0) {
-        throw new ApiError(400, 'Kế toán chỉ được liên kết phạm vi khách hàng');
-      }
-      if (data.assignmentAdminOnly && explicitCustomerLinkUpdate) {
-        throw new ApiError(403, 'Chỉ quản trị viên mới có thể quản lý phạm vi khách hàng của kế toán');
-      }
-      if (explicitCustomerLinkUpdate) {
-        nextCustomerIds = normalizeCustomerIds(data);
-        await validateCustomerIds(tx, nextCustomerIds);
-      }
-    } else if (effectiveRole === Role.DRIVER) {
+      await validateCustomerIds(tx, nextCustomerIds);
+    } else if (effectiveStatus !== 'INACTIVE' && nextCustomerIds.length === 0) {
+      throw new ApiError(400, 'Tài khoản khách hàng ACTIVE phải có ít nhất một khách hàng liên kết');
+    }
+    effectiveCustomerAccountType = normalizeCustomerAccountTypeForScope(
+      effectiveRole,
+      requestedCustomerAccountType,
+      nextCustomerIds,
+      data.customerAccountType === undefined
+        && !explicitCustomerLinkUpdate
+        && data.role === undefined,
+    );
+    if (
+      effectiveCustomerAccountType === CustomerAccountType.SINGLE_ENTITY
+      && nextCustomerIds.length > 1
+    ) {
+      throw new ApiError(400, 'Tài khoản khách hàng thông thường chỉ được liên kết một pháp nhân');
+    }
+  } else if (effectiveRole === Role.ACCOUNTANT) {
+    nextBusinessUnitIds = [];
+    nextShipmentIds = [];
+    if (explicitBusinessUnitUpdate && (data.businessUnitIds ?? []).length > 0) {
+      throw new ApiError(400, 'Kế toán chỉ được liên kết phạm vi khách hàng');
+    }
+    if (explicitShipmentUpdate && (data.shipmentIds ?? []).length > 0) {
+      throw new ApiError(400, 'Kế toán chỉ được liên kết phạm vi khách hàng');
+    }
+    if (data.assignmentAdminOnly && explicitCustomerLinkUpdate) {
+      throw new ApiError(403, 'Chỉ quản trị viên mới có thể quản lý phạm vi khách hàng của kế toán');
+    }
+    if (explicitCustomerLinkUpdate) {
+      nextCustomerIds = normalizeCustomerIds(data);
+      await validateCustomerIds(tx, nextCustomerIds);
+    }
+  } else if (effectiveRole === Role.DRIVER) {
       nextCustomerIds = [];
       nextShipmentIds = [];
       if (explicitCustomerLinkUpdate && normalizeCustomerIds(data).length > 0) {
@@ -712,38 +780,38 @@ export async function updateUserWithTx(id: number, data: {
       if (effectiveStatus !== 'INACTIVE' && nextShipmentIds.length === 0) {
         throw new ApiError(400, 'Tài khoản giao nhận ACTIVE phải có ít nhất một lô hàng được giao');
       }
-    } else {
-      if (data.assignmentAdminOnly && (explicitCustomerLinkUpdate || explicitBusinessUnitUpdate || explicitShipmentUpdate)) {
-        throw new ApiError(403, 'Chỉ quản trị viên mới có thể quản lý phạm vi nhân viên chứng từ');
-      }
-      if (explicitCustomerLinkUpdate) {
-        nextCustomerIds = normalizeCustomerIds(data);
-        await validateCustomerIds(tx, nextCustomerIds);
-      }
-      if (explicitBusinessUnitUpdate) {
-        nextBusinessUnitIds = [...new Set((data.businessUnitIds ?? []).filter((value): value is number => Number.isInteger(value) && value > 0))].sort((a, b) => a - b);
-        await validateBusinessUnitIds(tx, nextBusinessUnitIds);
-      }
-      if (explicitShipmentUpdate) {
-        nextShipmentIds = [...new Set((data.shipmentIds ?? []).filter((value): value is number => Number.isInteger(value) && value > 0))].sort((a, b) => a - b);
-      }
-      await validateShipmentIds(tx, nextShipmentIds, nextBusinessUnitIds);
-      const existingActiveLegacyClerk = existing.role === Role.CLERK
-        && existing.status !== 'INACTIVE'
-        && !hasActiveClerkScope(existingBusinessUnitIds, existingCustomerIds, existingShipmentIds);
-      const scopeOrRoleTouched = explicitCustomerLinkUpdate
-        || explicitBusinessUnitUpdate
-        || explicitShipmentUpdate
-        || data.role !== undefined
-        || data.status !== undefined;
-      if (effectiveStatus !== 'INACTIVE' && (!existingActiveLegacyClerk || scopeOrRoleTouched)) {
-        // Share-lock the active units before committing an ACTIVE clerk state.
-        // Business-unit deactivation takes a row update lock, so concurrent
-        // assignment/activation cannot validate against a unit being retired.
-        await validateBusinessUnitIds(tx, nextBusinessUnitIds);
-        assertActiveClerkScope(nextBusinessUnitIds, nextCustomerIds, nextShipmentIds);
-      }
+  } else {
+    if (data.assignmentAdminOnly && (explicitCustomerLinkUpdate || explicitBusinessUnitUpdate || explicitShipmentUpdate)) {
+      throw new ApiError(403, 'Chỉ quản trị viên mới có thể quản lý phạm vi nhân viên chứng từ');
     }
+    if (explicitCustomerLinkUpdate) {
+      nextCustomerIds = normalizeCustomerIds(data);
+      await validateCustomerIds(tx, nextCustomerIds);
+    }
+    if (explicitBusinessUnitUpdate) {
+      nextBusinessUnitIds = [...new Set((data.businessUnitIds ?? []).filter((value): value is number => Number.isInteger(value) && value > 0))].sort((a, b) => a - b);
+      await validateBusinessUnitIds(tx, nextBusinessUnitIds);
+    }
+    if (explicitShipmentUpdate) {
+      nextShipmentIds = [...new Set((data.shipmentIds ?? []).filter((value): value is number => Number.isInteger(value) && value > 0))].sort((a, b) => a - b);
+    }
+    await validateShipmentIds(tx, nextShipmentIds, nextBusinessUnitIds);
+    const existingActiveLegacyClerk = existing.role === Role.CLERK
+      && existing.status !== 'INACTIVE'
+      && !hasActiveClerkScope(existingBusinessUnitIds, existingCustomerIds, existingShipmentIds);
+    const scopeOrRoleTouched = explicitCustomerLinkUpdate
+      || explicitBusinessUnitUpdate
+      || explicitShipmentUpdate
+      || data.role !== undefined
+      || data.status !== undefined;
+    if (effectiveStatus !== 'INACTIVE' && (!existingActiveLegacyClerk || scopeOrRoleTouched)) {
+      // Share-lock the active units before committing an ACTIVE clerk state.
+      // Business-unit deactivation takes a row update lock, so concurrent
+      // assignment/activation cannot validate against a unit being retired.
+      await validateBusinessUnitIds(tx, nextBusinessUnitIds);
+      assertActiveClerkScope(nextBusinessUnitIds, nextCustomerIds, nextShipmentIds);
+    }
+  }
 
   const updates: Record<string, unknown> = { updatedAt: sql`now()` };
   if (data.role !== undefined) updates.role = data.role as (typeof users.role.enumValues)[number];
@@ -754,6 +822,7 @@ export async function updateUserWithTx(id: number, data: {
   if (data.email !== undefined) updates.email = data.email || null;
   if (data.phone !== undefined) updates.phone = data.phone || null;
   updates.customerId = effectiveRole === Role.CUSTOMER || effectiveRole === Role.CLERK ? nextCustomerIds[0] ?? null : null;
+  updates.customerAccountType = effectiveCustomerAccountType;
 
   const [updated] = await tx.update(users).set(updates)
     .where(eq(users.id, id)).returning(USER_FIELDS);
@@ -807,6 +876,7 @@ export async function updateUser(id: number, data: {
   assignedTruckId?: number | null;
   customerId?: number | null;
   customerIds?: number[] | null;
+  customerAccountType?: CustomerAccountType;
   businessUnitIds?: number[] | null;
   shipmentIds?: number[] | null;
   requireDriverTarget?: boolean;

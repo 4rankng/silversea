@@ -281,7 +281,7 @@ describe('Q15 salary-period governed routes', () => {
         actorRole: accountant.role,
         reason: `Loại trừ tạm để cô lập ca kiểm thử Q15 route cho ${pendingDriver.driverName}`,
         handlingMode: 'SUPPLEMENTARY_PERIOD',
-        targetPeriod: GOVERNED_PERIOD,
+        targetPeriod: `${periodYear}-11`,
         note: 'q15 route isolation supplementary',
       });
       createdGovernanceActionIds.push(requestedExclusion.actionId);

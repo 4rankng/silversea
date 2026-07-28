@@ -124,6 +124,7 @@ export const IDEMPOTENCY_ENDPOINTS = {
   TRIP_CONTAINERS: 'trips.containers',
   TRIP_INSTRUCTIONS: 'trips.instructions',
   TRIP_ADJUSTMENT: 'trips.adjustment',
+  FINANCIAL_ADJUSTMENT_CREATE: 'financial-adjustments.create',
   TRIP_EXPENSE_CREATE: 'trip-expenses.create',
   TRIP_EXPENSE_UPDATE: 'trip-expenses.update',
   TRIP_EXPENSE_DELETE: 'trip-expenses.delete',

@@ -18,6 +18,9 @@ import { globalErrorHandler } from '../middleware/errorHandler';
 import governanceActionsRoutes from '../routes/financial/governance-actions.routes';
 import paymentsRoutes from '../routes/financial/payments.routes';
 import {
+  assertCanApproveGovernanceAction,
+  assertCanCheckGovernanceAction,
+  assertCanMakeGovernanceAction,
   getGovernancePolicy,
   getGovernanceAllowedActions,
 } from '../services/governance-policy';
@@ -215,6 +218,52 @@ describe('Q15 shared governance foundation', () => {
       const policy = getGovernancePolicy(actionKind);
       assert.equal(policy.actionKind, actionKind);
     }
+  });
+
+  it('enforces the accepted Q11 salary-period role mapping', async () => {
+    assert.doesNotThrow(() => assertCanMakeGovernanceAction(
+      'SALARY_PERIOD_CLOSE',
+      Role.ACCOUNTANT,
+    ));
+    assert.throws(
+      () => assertCanMakeGovernanceAction('SALARY_PERIOD_CLOSE', Role.MANAGER),
+      (error: unknown) => error instanceof ApiError && error.statusCode === 403,
+    );
+
+    const closeAction = {
+      actionKind: 'SALARY_PERIOD_CLOSE',
+      status: 'PENDING_CHECK',
+      makerId: actors[0]!.id,
+      checkerId: actors[1]!.id,
+    };
+    assert.doesNotThrow(() => assertCanCheckGovernanceAction(closeAction, {
+      actorId: actors[1]!.id,
+      actorRole: Role.MANAGER,
+    }));
+    assert.doesNotThrow(() => assertCanApproveGovernanceAction(closeAction, {
+      actorId: actors[2]!.id,
+      actorRole: Role.ADMIN,
+    }));
+    assert.throws(
+      () => assertCanApproveGovernanceAction(closeAction, {
+        actorId: actors[3]!.id,
+        actorRole: Role.ACCOUNTANT,
+      }),
+      (error: unknown) => error instanceof ApiError && error.statusCode === 403,
+    );
+
+    assert.doesNotThrow(() => assertCanMakeGovernanceAction(
+      'SALARY_PERIOD_REOPEN',
+      Role.MANAGER,
+    ));
+    assert.doesNotThrow(() => assertCanMakeGovernanceAction(
+      'SALARY_PERIOD_REOPEN',
+      Role.ADMIN,
+    ));
+    assert.throws(
+      () => assertCanMakeGovernanceAction('SALARY_PERIOD_REOPEN', Role.ACCOUNTANT),
+      (error: unknown) => error instanceof ApiError && error.statusCode === 403,
+    );
   });
 
   it('enforces pairwise actors, capabilities, role snapshots and allowed actions', async () => {

@@ -10,6 +10,7 @@ import { getCompanyInfo } from './company-info.service';
 import { stampCompanyHeaderXlsx, companyHeaderHtml, loadLogoDataUrl } from './lib/export-company';
 import { CustomerAgingListItem } from './aging.service';
 import { getCustomerReceivableSnapshot } from './customer-receivable-authority.service';
+import { checkCreditLimit } from './credit-limit.service';
 
 type LedgerRow = typeof s.ledger.$inferSelect;
 // Ledger rows enriched with related trip context for customer and supplier displays.
@@ -60,9 +61,20 @@ export interface SupplierExpenseStatementRow {
 }
 
 export interface CustomerStatementData {
-  customer: { id: number; name: string; contactInfo: string | null; debitNoteMode?: string | null; isCarrier?: boolean };
+  customer: {
+    id: number; name: string; contactInfo: string | null;
+    debitNoteMode?: string | null; isCarrier?: boolean;
+    /** Q01: credit limit + early-warning threshold (0–1, e.g. 0.80 = 80%). */
+    creditLimit?: string | null;
+    creditWarningThreshold?: string | null;
+  };
   ledgerRows: EnrichedLedgerRow[];
   totalOutstanding: number;
+  /** Q01: authoritative current exposure, including approved-but-uncollected commitments. */
+  approvedUncollected: number;
+  totalExposure: number;
+  utilization: number | null;
+  availableCapacity: number | null;
   unpaidTrips: Array<{
     tripId: number;
     date: string;
@@ -345,7 +357,10 @@ const SHARED_CSS = `body { font-family: -apple-system, BlinkMacSystemFont, 'Sego
 export async function getStatementData(customerId: number, dateFrom?: string, dateTo?: string): Promise<CustomerStatementData | null> {
   const [customer] = await db.select().from(s.customers).where(eq(s.customers.id, customerId)).limit(1);
   if (!customer) return null;
-  const receivableSnapshot = await getCustomerReceivableSnapshot(customerId);
+  const [receivableSnapshot, creditExposure] = await Promise.all([
+    getCustomerReceivableSnapshot(customerId),
+    checkCreditLimit(customerId),
+  ]);
 
   let ledgerRows = withReceivableProjectionBalances(
     (await LedgerService.getEntriesByEntity('CUSTOMER', customerId))
@@ -595,9 +610,22 @@ export async function getStatementData(customerId: number, dateFrom?: string, da
   });
 
   return {
-    customer: { id: customer.id, name: customer.name, contactInfo: customer.contactInfo, debitNoteMode: customer.debitNoteMode ?? 'MONTHLY', isCarrier: customer.isCarrier },
+    customer: {
+      id: customer.id, name: customer.name, contactInfo: customer.contactInfo,
+      debitNoteMode: customer.debitNoteMode ?? 'MONTHLY', isCarrier: customer.isCarrier,
+      // Q01 — surface credit-limit + threshold so the frontend can render
+      // the 80%/100% warning badges on the customer detail page.
+      creditLimit: customer.creditLimit ?? null,
+      creditWarningThreshold: customer.creditWarningThreshold ?? null,
+    },
     ledgerRows: enrichedLedgerRows,
     totalOutstanding,
+    approvedUncollected: creditExposure.approvedUncollected,
+    totalExposure: creditExposure.totalExposure,
+    utilization: creditExposure.utilization,
+    availableCapacity: creditExposure.creditLimit == null
+      ? null
+      : Math.max(0, creditExposure.creditLimit - creditExposure.totalExposure),
     unpaidTrips,
     agingBuckets: [
       { range: '0-30 ngày', amount: aging.current },

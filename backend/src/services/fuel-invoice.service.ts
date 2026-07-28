@@ -1,21 +1,56 @@
-import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, lt, or } from 'drizzle-orm';
 
 import { round2dp } from '@tingting/shared';
 
 import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
+import { todayIsoVn } from './agent/tools/period';
 import type { Tx } from './trip-shared';
 import { assertCanMakeGovernanceAction } from './governance-policy';
+import {
+  resolveFuelLateApprovalLinks,
+  resolveFuelPeriodAuthority,
+} from './period-lock.service';
 import type {
   GovernanceActionRow,
   GovernanceApplyResult,
 } from './governance-transition.service';
 
 type FuelInvoiceRow = typeof s.fuelInvoices.$inferSelect;
+type FuelInvoiceCorrectionRow = typeof s.governanceActions.$inferSelect;
+type FuelPeriodAdjustmentRow = typeof s.fuelPeriodAdjustments.$inferSelect;
 
 function amountsMatch(left: number, right: number): boolean {
   return round2dp(left) === round2dp(right);
+}
+
+function currentApprovalDate(): string {
+  return todayIsoVn();
+}
+
+async function resolveFinalFuelLateApprovalLinks(
+  tx: Tx,
+  sourceDates: readonly string[],
+  targetDate: string,
+) {
+  const periodKeys = [...new Set([
+    ...sourceDates.map((date) => resolveFuelPeriodAuthority(date).periodKey),
+    resolveFuelPeriodAuthority(targetDate).periodKey,
+  ])];
+  if (periodKeys.length > 0) {
+    await tx.select({ id: s.periodLocks.id })
+      .from(s.periodLocks)
+      .where(and(
+        eq(s.periodLocks.domain, 'FUEL'),
+        eq(s.periodLocks.scopeType, 'GLOBAL'),
+        eq(s.periodLocks.scopeId, 0),
+        inArray(s.periodLocks.periodKey, periodKeys),
+      ))
+      .orderBy(asc(s.periodLocks.periodKey))
+      .for('update');
+  }
+  return resolveFuelLateApprovalLinks(tx, sourceDates, targetDate);
 }
 
 function isFuelExpenseType(value: string): boolean {
@@ -80,6 +115,56 @@ type FuelInvoiceEffectiveSnapshot = {
   allocations: Array<FuelInvoiceAllocationInput & { amount: string }>;
 };
 
+type FuelLateApprovalDelta = {
+  sourceVersion: number;
+  payableAmount: string;
+  lateApprovalLinks: Array<{
+    sourcePeriodLockId: number;
+    sourcePeriod: string;
+    targetPeriod: string;
+  }>;
+};
+
+function parseFuelLateApprovalDelta(
+  value: Record<string, unknown> | null | undefined,
+): FuelLateApprovalDelta {
+  const sourceVersion = Number(value?.sourceVersion);
+  const payableAmount = typeof value?.payableAmount === 'string'
+    ? value.payableAmount
+    : String(value?.payableAmount ?? '');
+  const rawLinks = Array.isArray(value?.lateApprovalLinks) ? value.lateApprovalLinks : [];
+  const lateApprovalLinks = rawLinks.map((raw) => {
+    if (!raw || typeof raw !== 'object') {
+      throw new ApiError(409, 'Yêu cầu duyệt hóa đơn nhiên liệu thiếu liên kết kỳ khóa hợp lệ');
+    }
+    const sourcePeriodLockId = Number(raw.sourcePeriodLockId);
+    const sourcePeriod = typeof raw.sourcePeriod === 'string' ? raw.sourcePeriod : '';
+    const targetPeriod = typeof raw.targetPeriod === 'string' ? raw.targetPeriod : '';
+    if (
+      !Number.isInteger(sourcePeriodLockId)
+      || sourcePeriodLockId <= 0
+      || !sourcePeriod
+      || !targetPeriod
+      || sourcePeriod === targetPeriod
+    ) {
+      throw new ApiError(409, 'Yêu cầu duyệt hóa đơn nhiên liệu thiếu liên kết kỳ khóa hợp lệ');
+    }
+    return {
+      sourcePeriodLockId,
+      sourcePeriod,
+      targetPeriod,
+    };
+  });
+  if (!Number.isInteger(sourceVersion) || sourceVersion < 1 || !payableAmount) {
+    throw new ApiError(409, 'Yêu cầu duyệt thiếu dữ liệu kỳ khóa nguồn hợp lệ');
+  }
+  return {
+    sourceVersion,
+    payableAmount,
+    lateApprovalLinks,
+  };
+}
+
 function toFuelInvoiceSnapshot(
   invoice: FuelInvoiceRow,
   allocations: Array<FuelInvoiceAllocationInput & { amount: string }>,
@@ -134,8 +219,11 @@ async function toEffectiveFuelInvoiceView(
   executor: Tx | typeof db,
   invoice: FuelInvoiceRow,
   allocationRows: Array<typeof s.fuelInvoiceAllocations.$inferSelect>,
+  suppliedCorrection?: FuelInvoiceCorrectionRow | null,
 ) {
-  const correction = await findLatestApprovedFuelInvoiceCorrection(executor, invoice.id);
+  const correction = suppliedCorrection === undefined
+    ? await findLatestApprovedFuelInvoiceCorrection(executor, invoice.id)
+    : suppliedCorrection;
   const base = {
     ...toFuelInvoiceView(invoice),
     allocations: allocationRowsToInput(allocationRows),
@@ -487,25 +575,117 @@ export async function getFuelInvoice(invoiceId: number) {
   return toEffectiveFuelInvoiceView(db, invoice, allocations);
 }
 
+function encodeFuelInvoiceCursor(invoice: FuelInvoiceRow): string {
+  return `${invoice.invoiceDate}:${invoice.id}`;
+}
+
+function decodeFuelInvoiceCursor(cursor: string): { invoiceDate: string; id: number } {
+  const match = /^(\d{4}-\d{2}-\d{2}):(\d+)$/.exec(cursor);
+  const id = Number(match?.[2]);
+  if (!match || !Number.isSafeInteger(id) || id <= 0) {
+    throw new ApiError(400, 'Con trỏ danh sách hóa đơn nhiên liệu không hợp lệ');
+  }
+  return { invoiceDate: match[1], id };
+}
+
+async function loadEffectiveFuelInvoiceRows(rows: FuelInvoiceRow[]) {
+  const invoiceIds = rows.map((invoice) => invoice.id);
+  if (invoiceIds.length === 0) {
+    return [];
+  }
+  const [allocationRows, correctionRows] = await Promise.all([
+    db.select().from(s.fuelInvoiceAllocations)
+      .where(inArray(s.fuelInvoiceAllocations.fuelInvoiceId, invoiceIds))
+      .orderBy(s.fuelInvoiceAllocations.fuelInvoiceId, s.fuelInvoiceAllocations.id),
+    db.select().from(s.governanceActions)
+      .where(and(
+        eq(s.governanceActions.subjectType, 'FUEL_INVOICE'),
+        inArray(s.governanceActions.subjectId, invoiceIds),
+        eq(s.governanceActions.actionKind, 'FUEL_INVOICE_CORRECTION'),
+        eq(s.governanceActions.status, 'APPROVED'),
+      ))
+      .orderBy(s.governanceActions.subjectId, desc(s.governanceActions.id)),
+  ]);
+  const allocationsByInvoice = new Map<number, typeof allocationRows>();
+  for (const allocation of allocationRows) {
+    const current = allocationsByInvoice.get(allocation.fuelInvoiceId) ?? [];
+    current.push(allocation);
+    allocationsByInvoice.set(allocation.fuelInvoiceId, current);
+  }
+  const correctionByInvoice = new Map<number, FuelInvoiceCorrectionRow>();
+  for (const correction of correctionRows) {
+    if (correction.subjectId != null && !correctionByInvoice.has(correction.subjectId)) {
+      correctionByInvoice.set(correction.subjectId, correction);
+    }
+  }
+  return Promise.all(rows.map((invoice) =>
+    toEffectiveFuelInvoiceView(
+      db,
+      invoice,
+      allocationsByInvoice.get(invoice.id) ?? [],
+      correctionByInvoice.get(invoice.id) ?? null,
+    )));
+}
+
 export async function listFuelInvoices(filters: {
   supplierId?: number;
   status?: string;
+  limit?: number;
+  cursor?: string;
 } = {}) {
-  const conditions = [
-    filters.supplierId != null ? eq(s.fuelInvoices.supplierId, filters.supplierId) : undefined,
-  ].filter((condition): condition is NonNullable<typeof condition> => condition != null);
-  const rows = await db.select().from(s.fuelInvoices)
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(desc(s.fuelInvoices.invoiceDate), desc(s.fuelInvoices.id));
-  const effectiveRows = await Promise.all(rows.map(async (invoice) => {
-    const allocations = await db.select().from(s.fuelInvoiceAllocations)
-      .where(eq(s.fuelInvoiceAllocations.fuelInvoiceId, invoice.id))
-      .orderBy(s.fuelInvoiceAllocations.id);
-    return toEffectiveFuelInvoiceView(db, invoice, allocations);
-  }));
-  return filters.status == null
-    ? effectiveRows
-    : effectiveRows.filter((invoice) => invoice.approvalStatus === filters.status);
+  const limit = Math.min(Math.max(filters.limit ?? 50, 1), 100);
+  const rawPageSize = filters.status == null ? limit : Math.max(limit, 50);
+  let scanCursor = filters.cursor ? decodeFuelInvoiceCursor(filters.cursor) : null;
+  const items: Array<Awaited<ReturnType<typeof toEffectiveFuelInvoiceView>>> = [];
+
+  while (items.length < limit) {
+    const conditions = [
+      filters.supplierId != null ? eq(s.fuelInvoices.supplierId, filters.supplierId) : undefined,
+      scanCursor != null
+        ? or(
+          lt(s.fuelInvoices.invoiceDate, scanCursor.invoiceDate),
+          and(
+            eq(s.fuelInvoices.invoiceDate, scanCursor.invoiceDate),
+            lt(s.fuelInvoices.id, scanCursor.id),
+          ),
+        )
+        : undefined,
+    ].filter((condition): condition is NonNullable<typeof condition> => condition != null);
+    const fetchedRows = await db.select().from(s.fuelInvoices)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(s.fuelInvoices.invoiceDate), desc(s.fuelInvoices.id))
+      .limit(rawPageSize + 1);
+    const rows = fetchedRows.slice(0, rawPageSize);
+    if (rows.length === 0) {
+      return { items, nextCursor: null };
+    }
+
+    const effectiveRows = await loadEffectiveFuelInvoiceRows(rows);
+    for (let index = 0; index < rows.length; index += 1) {
+      const row = rows[index]!;
+      const effectiveRow = effectiveRows[index]!;
+      if (filters.status == null || effectiveRow.approvalStatus === filters.status) {
+        items.push(effectiveRow);
+      }
+      if (items.length === limit) {
+        const hasUnscannedRows = index < rows.length - 1 || fetchedRows.length > rawPageSize;
+        return {
+          items,
+          nextCursor: hasUnscannedRows ? encodeFuelInvoiceCursor(row) : null,
+        };
+      }
+    }
+
+    if (fetchedRows.length <= rawPageSize) {
+      return { items, nextCursor: null };
+    }
+    scanCursor = {
+      invoiceDate: rows[rows.length - 1]!.invoiceDate,
+      id: rows[rows.length - 1]!.id,
+    };
+  }
+
+  return { items, nextCursor: null };
 }
 
 export async function approveFuelInvoice(
@@ -583,6 +763,11 @@ export async function approveFuelInvoice(
       : [];
     const expenseById = new Map(expenses.map((expense) => [expense.id, expense]));
     const photoCountById = photoCountByExpenseId(expensePhotos);
+    const lateApprovalLinks = await resolveFuelLateApprovalLinks(
+      tx,
+      allocations.map((allocation) => allocation.voucherDate),
+      currentApprovalDate(),
+    );
 
     if (allocations.length === 0) {
       throw new ApiError(400, 'Hóa đơn nhiên liệu chưa có dòng phân bổ theo xe');
@@ -649,6 +834,7 @@ export async function approveFuelInvoice(
       actionKind: 'FUEL_INVOICE_APPROVAL',
       reason: normalizedReason,
       originalVersion: 1,
+      originalPeriodLockId: lateApprovalLinks[0]?.sourcePeriodLockId ?? null,
       beforeSnapshot: {
         approvalStatus: invoice.approvalStatus,
         sourceVersion: expectedVersion,
@@ -657,8 +843,15 @@ export async function approveFuelInvoice(
         supplierId: invoice.supplierId,
         allocationCount: allocations.length,
       },
-      afterSnapshot: { approvalStatus: 'APPROVED' },
-      deltaSnapshot: { payableAmount: invoice.totalAmount, sourceVersion: expectedVersion },
+      afterSnapshot: {
+        approvalStatus: 'APPROVED',
+        targetPeriod: lateApprovalLinks[0]?.targetPeriod ?? invoice.invoiceDate.slice(0, 7),
+      },
+      deltaSnapshot: {
+        payableAmount: invoice.totalAmount,
+        sourceVersion: expectedVersion,
+        lateApprovalLinks,
+      },
       makerId: actorId,
       makerRole: actorRole,
     }).returning();
@@ -811,14 +1004,23 @@ export async function applyFuelInvoiceGovernanceAction(
     if (invoice.approvalStatus !== 'PENDING') {
       throw new ApiError(409, `Không thể duyệt hóa đơn đang ở ${invoice.approvalStatus}`);
     }
-    const delta = action.deltaSnapshot as Record<string, unknown> | null;
-    const sourceVersion = Number(delta?.sourceVersion);
-    if (!Number.isInteger(sourceVersion) || sourceVersion < 1) {
-      throw new ApiError(409, 'Yêu cầu duyệt thiếu phiên bản hóa đơn nguồn hợp lệ');
-    }
-    if (fuelInvoiceVersion(invoice.updatedAt) !== sourceVersion) {
+    const delta = parseFuelLateApprovalDelta(action.deltaSnapshot as Record<string, unknown> | null);
+    if (fuelInvoiceVersion(invoice.updatedAt) !== delta.sourceVersion) {
       throw new ApiError(409, 'Hóa đơn nhiên liệu đã thay đổi; yêu cầu duyệt không thể áp dụng');
     }
+    const allocations = await tx.select({
+      voucherDate: s.fuelInvoiceAllocations.voucherDate,
+    }).from(s.fuelInvoiceAllocations)
+      .where(eq(s.fuelInvoiceAllocations.fuelInvoiceId, invoice.id))
+      .orderBy(s.fuelInvoiceAllocations.id);
+    if (allocations.length === 0) {
+      throw new ApiError(409, 'Hóa đơn nhiên liệu không còn dòng phân bổ để xác định kỳ nguồn');
+    }
+    const finalLateApprovalLinks = await resolveFinalFuelLateApprovalLinks(
+      tx,
+      allocations.map((allocation) => allocation.voucherDate),
+      currentApprovalDate(),
+    );
     const nextUpdatedAt = new Date(Math.max(Date.now(), invoice.updatedAt.getTime() + 1));
     const [approved] = await tx.update(s.fuelInvoices)
       .set({
@@ -835,11 +1037,27 @@ export async function applyFuelInvoiceGovernanceAction(
     if (!approved) {
       throw new ApiError(409, 'Hóa đơn đã được người khác xử lý. Vui lòng tải lại.');
     }
+    let lateAdjustments: FuelPeriodAdjustmentRow[] = [];
+    if (finalLateApprovalLinks.length > 0) {
+      if (action.approvedAt == null || action.approverId == null) {
+        throw new ApiError(409, 'Yêu cầu duyệt nhiên liệu thiếu thông tin phê duyệt để ghi nhận kỳ điều chỉnh');
+      }
+      lateAdjustments = await tx.insert(s.fuelPeriodAdjustments).values(
+        finalLateApprovalLinks.map((link) => ({
+          governanceActionId: action.id,
+          fuelInvoiceId: invoice.id,
+          sourcePeriodLockId: link.sourcePeriodLockId,
+          sourcePeriod: link.sourcePeriod,
+          targetPeriod: link.targetPeriod,
+        })),
+      ).returning();
+    }
     return {
       applicationResult: {
         fuelInvoiceId: invoice.id,
         approvalStatus: 'APPROVED',
-        payableAmount: invoice.totalAmount,
+        payableAmount: delta.payableAmount,
+        lateFuelAdjustmentIds: lateAdjustments.map((row) => row.id),
       },
     };
   }

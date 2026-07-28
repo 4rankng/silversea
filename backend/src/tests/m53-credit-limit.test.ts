@@ -13,6 +13,7 @@ import {
   createCreditOverrideRequest,
   type CreditOverrideView,
 } from '../services/credit-limit.service';
+import { getStatementData } from '../services/statement.service';
 import { createTrip } from '../services/trip.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -101,18 +102,44 @@ async function mkShipment(customerId: number) {
   return shipment;
 }
 
-async function mkLedger(customerId: number, debit: number, credit: number = 0) {
+async function mkLedger(customerId: number, debit: number, credit: number = 0, tripId: number = 0) {
   const [entry] = await db.insert(s.ledger).values({
     entityType: 'CUSTOMER',
     entityId: customerId,
     txnType: 'TRIP_REVENUE',
-    txnId: 0,
+    txnId: tripId,
     debit: String(debit),
     credit: String(credit),
     balance: String(debit - credit),
   }).returning();
   createdLedgerIds.push(entry.id);
   return entry;
+}
+
+async function mkTierBoundaryRequest(input: {
+  creditLimit: number;
+  tierOneAmountCap: number;
+  excessAmount: number;
+}) {
+  await saveAppSettings({
+    ...originalSettings,
+    creditWarningThresholdDefault: 0.8,
+    creditTierOneAmountCap: input.tierOneAmountCap,
+  });
+  const customer = await mkCustomer(String(input.creditLimit));
+  const shipment = await mkShipment(customer.id);
+  const requester = await mkUser(Role.MANAGER);
+  await mkLedger(customer.id, input.creditLimit);
+
+  const request = await createCreditOverrideRequest({
+    customerId: customer.id,
+    proposedAmount: input.excessAmount,
+    shipmentId: shipment.id,
+    reason: 'Kiểm tra ranh giới phân cấp phê duyệt',
+  }, { userId: requester.id, role: requester.role });
+  createdCreditOverrideIds.push(request.id);
+  trackGovernanceAction(request);
+  return request;
 }
 
 async function mkLiveTrip(customerId: number, routeId: number, cargoTypeId: number, revenue: string, status: TripStatus) {
@@ -195,8 +222,8 @@ describe('M5.3/Q01 exposure authority', () => {
     const checker = await mkUser(Role.ACCOUNTANT);
     const approver = await mkUser(Role.ADMIN);
 
-    await mkLedger(customer.id, 3_000_000);
-    await mkLiveTrip(customer.id, route.id, cargoType.id, '4000000', TripStatus.CREATED);
+    const liveTrip = await mkLiveTrip(customer.id, route.id, cargoType.id, '4000000', TripStatus.CREATED);
+    await mkLedger(customer.id, 3_000_000, 0, liveTrip.id);
 
     const pending = await createCreditOverrideRequest({
       customerId: customer.id,
@@ -221,6 +248,14 @@ describe('M5.3/Q01 exposure authority', () => {
     assert.equal(result.totalExposure, 10_000_000);
     assert.equal(result.exceedsLimit, true);
     assert.equal(approved.request.status, 'APPROVED');
+
+    const statement = await getStatementData(customer.id);
+    assert.ok(statement);
+    assert.equal(statement.totalOutstanding, 3_000_000);
+    assert.equal(statement.approvedUncollected, 6_000_000);
+    assert.equal(statement.totalExposure, 9_000_000);
+    assert.equal(statement.utilization, 9_000_000 / 8_000_000);
+    assert.equal(statement.availableCapacity, 0);
   });
 
   test('uses per-customer warning threshold ahead of the global default', async () => {
@@ -240,6 +275,45 @@ describe('M5.3/Q01 exposure authority', () => {
 });
 
 describe('M5.3/Q02 overrides + canonical createTrip enforcement', () => {
+  test('requires director when the excess ratio is 5% but the amount is cap plus one VND', async () => {
+    const request = await mkTierBoundaryRequest({
+      creditLimit: 20_000_000,
+      tierOneAmountCap: 999_999,
+      excessAmount: 1_000_000,
+    });
+
+    assert.equal(Number(request.overLimitAmount), 1_000_000);
+    assert.equal(Number(request.overLimitRatio), 0.05);
+    assert.equal(request.requiredTier, 'DIRECTOR');
+  });
+
+  test('keeps finance tier 1 at exactly the 10% ratio and configured amount cap', async () => {
+    const request = await mkTierBoundaryRequest({
+      creditLimit: 10_000_000,
+      tierOneAmountCap: 1_000_000,
+      excessAmount: 1_000_000,
+    });
+
+    assert.equal(Number(request.overLimitAmount), 1_000_000);
+    assert.equal(Number(request.overLimitRatio), 0.1);
+    assert.equal(request.requiredTier, 'FINANCE_TIER_1');
+  });
+
+  test('requires director at the minimal one-VND step above the 10% ratio while within the amount cap', async () => {
+    const request = await mkTierBoundaryRequest({
+      creditLimit: 10_000_000,
+      tierOneAmountCap: 2_000_000,
+      excessAmount: 1_000_001,
+    });
+
+    assert.equal(Number(request.overLimitAmount), 1_000_001);
+    assert.equal(
+      Number(request.overLimitAmount) / Number(request.creditLimit),
+      0.1000001,
+    );
+    assert.equal(request.requiredTier, 'DIRECTOR');
+  });
+
   test('repeat exceptions escalate to director tier', async () => {
     await saveAppSettings({
       ...originalSettings,

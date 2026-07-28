@@ -1,0 +1,138 @@
+import { after, test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import bcrypt from 'bcryptjs';
+import { eq, inArray } from 'drizzle-orm';
+import { CustomerAccountType, Role } from '@tingting/shared';
+import { db, client } from '../db';
+import * as s from '../db/schema';
+import { updateUser } from '../services/user.service';
+import { disconnectRedis } from '../lib/redis';
+
+const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+const migrationUrl = new URL('../../drizzle/0164_q16_customer_account_type_backfill.sql', import.meta.url);
+const userIds: number[] = [];
+const customerIds: number[] = [];
+const passwordHash = await bcrypt.hash('admin123', 10);
+
+async function createCustomer(name: string) {
+  const [customer] = await db.insert(s.customers)
+    .values({ name: `${name} ${suffix}` })
+    .returning({ id: s.customers.id });
+  customerIds.push(customer.id);
+  return customer.id;
+}
+
+async function createLegacyCustomerUser(options: {
+  username: string;
+  customerIds: number[];
+  customerAccountType?: CustomerAccountType;
+}) {
+  const [user] = await db.insert(s.users).values({
+    username: options.username,
+    passwordHash,
+    role: Role.CUSTOMER,
+    customerId: options.customerIds[0] ?? null,
+    customerAccountType: options.customerAccountType ?? CustomerAccountType.SINGLE_ENTITY,
+  }).returning({ id: s.users.id });
+  userIds.push(user.id);
+  if (options.customerIds.length > 0) {
+    await db.insert(s.userCustomerLinks).values(
+      options.customerIds.map((customerId) => ({
+        userId: user.id,
+        customerId,
+      })),
+    );
+  }
+  return user.id;
+}
+
+async function loadPersistedCustomerAccountType(userId: number) {
+  const [row] = await db.select({
+    customerAccountType: s.users.customerAccountType,
+    customerId: s.users.customerId,
+  }).from(s.users).where(eq(s.users.id, userId)).limit(1);
+  assert.ok(row, `expected persisted user ${userId}`);
+  return row;
+}
+
+after(async () => {
+  if (userIds.length > 0) {
+    await db.delete(s.users).where(inArray(s.users.id, userIds));
+  }
+  if (customerIds.length > 0) {
+    await db.delete(s.customers).where(inArray(s.customers.id, customerIds));
+  }
+  await disconnectRedis();
+  await client.end();
+});
+
+test('0164 backfills only historical multi-link customer accounts and is idempotent', async () => {
+  const primaryCustomerId = await createCustomer('Q16 migration single');
+  const groupCustomerAId = await createCustomer('Q16 migration multi A');
+  const groupCustomerBId = await createCustomer('Q16 migration multi B');
+
+  const singleEntityUserId = await createLegacyCustomerUser({
+    username: `q16-migration-single-${suffix}`,
+    customerIds: [primaryCustomerId],
+  });
+  const multiEntityUserId = await createLegacyCustomerUser({
+    username: `q16-migration-multi-${suffix}`,
+    customerIds: [groupCustomerAId, groupCustomerBId],
+  });
+
+  const migrationSql = await readFile(migrationUrl, 'utf8');
+  await client.unsafe(migrationSql);
+  await client.unsafe(migrationSql);
+
+  const singleEntityUser = await loadPersistedCustomerAccountType(singleEntityUserId);
+  const multiEntityUser = await loadPersistedCustomerAccountType(multiEntityUserId);
+
+  assert.equal(singleEntityUser.customerAccountType, CustomerAccountType.SINGLE_ENTITY);
+  assert.equal(singleEntityUser.customerId, primaryCustomerId);
+  assert.equal(multiEntityUser.customerAccountType, CustomerAccountType.CORPORATE_GROUP);
+  assert.equal(multiEntityUser.customerId, groupCustomerAId);
+});
+
+test('updateUser keeps a historical multi-link customer account editable and repairs its persisted type', async () => {
+  const customerAId = await createCustomer('Q16 service multi A');
+  const customerBId = await createCustomer('Q16 service multi B');
+  const legacyUserId = await createLegacyCustomerUser({
+    username: `q16-service-multi-${suffix}`,
+    customerIds: [customerAId, customerBId],
+  });
+
+  const updated = await updateUser(legacyUserId, {
+    fullName: 'Khach hang tap doan cu',
+    assignmentAdminOnly: true,
+  });
+
+  assert.equal(updated.customerAccountType, CustomerAccountType.CORPORATE_GROUP);
+  assert.deepEqual(updated.customerIds, [customerAId, customerBId].sort((a, b) => a - b));
+  assert.equal(updated.customerId, customerAId);
+
+  const persisted = await loadPersistedCustomerAccountType(legacyUserId);
+  assert.equal(persisted.customerAccountType, CustomerAccountType.CORPORATE_GROUP);
+  assert.equal(persisted.customerId, customerAId);
+});
+
+test('updateUser keeps a historical one-link customer account as SINGLE_ENTITY', async () => {
+  const customerId = await createCustomer('Q16 service single');
+  const legacyUserId = await createLegacyCustomerUser({
+    username: `q16-service-single-${suffix}`,
+    customerIds: [customerId],
+  });
+
+  const updated = await updateUser(legacyUserId, {
+    fullName: 'Khach hang mot phap nhan',
+    assignmentAdminOnly: true,
+  });
+
+  assert.equal(updated.customerAccountType, CustomerAccountType.SINGLE_ENTITY);
+  assert.deepEqual(updated.customerIds, [customerId]);
+  assert.equal(updated.customerId, customerId);
+
+  const persisted = await loadPersistedCustomerAccountType(legacyUserId);
+  assert.equal(persisted.customerAccountType, CustomerAccountType.SINGLE_ENTITY);
+  assert.equal(persisted.customerId, customerId);
+});

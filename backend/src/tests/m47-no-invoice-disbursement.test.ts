@@ -11,7 +11,7 @@
  */
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
@@ -32,6 +32,7 @@ const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
 const createdFetIds: number[] = [];
 const createdExpenseIds: number[] = [];
+const createdPhotoIds: number[] = [];
 const createdAuditIds: number[] = [];
 const createdUserIds: number[] = [];
 let makerId: number;
@@ -131,10 +132,21 @@ async function mkExpense(opts: {
 }
 
 async function addExpensePhoto(expenseId: number) {
-  await db.insert(s.tripExpensePhotos).values({
+  const [photo] = await db.insert(s.tripExpensePhotos).values({
     tripExpenseId: expenseId,
     storageKey: `m47/${suffix}/${expenseId}.jpg`,
     uploadedBy: makerId,
+  }).returning();
+  createdPhotoIds.push(photo.id);
+  await db.insert(s.photoGeotags).values({
+    entityType: 'trip_expense_photo',
+    entityId: photo.id,
+    lat: 10.8231,
+    lng: 106.6297,
+    accuracy: 15,
+    gpsAt: new Date(),
+    source: 'phone',
+    recordedBy: makerId,
   });
 }
 
@@ -165,6 +177,12 @@ after(async () => {
   const namePattern = `M47 %${suffix}%`;
   try {
     if (createdAuditIds.length > 0) await db.delete(s.auditLogs).where(inArray(s.auditLogs.id, createdAuditIds));
+    if (createdPhotoIds.length > 0) {
+      await db.delete(s.photoGeotags).where(and(
+        eq(s.photoGeotags.entityType, 'trip_expense_photo'),
+        inArray(s.photoGeotags.entityId, createdPhotoIds),
+      ));
+    }
     if (createdExpenseIds.length > 0) await db.delete(s.tripExpensePhotos).where(inArray(s.tripExpensePhotos.tripExpenseId, createdExpenseIds));
     if (createdExpenseIds.length > 0) await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.id, createdExpenseIds));
     if (createdTripIds.length > 0) await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
@@ -248,7 +266,7 @@ describe('M4.7 — reviewNoInvoiceDisbursementApproval', () => {
     assert.match(outcome.returnReason, /bằng chứng/);
   });
 
-  test('onsite photo evidence requires uploaded photo', async () => {
+  test('onsite photo evidence requires an uploaded photo with capture time and valid GPS', async () => {
     const fet = await mkFet({
       substituteEvidenceAllowed: true,
       noInvoiceEvidenceTypes: ['ONSITE_PHOTO'],
@@ -264,9 +282,37 @@ describe('M4.7 — reviewNoInvoiceDisbursementApproval', () => {
     const beforePhoto = await reviewNoInvoiceDisbursementApproval(e.id, 'ADMIN');
     assert.equal(beforePhoto.outcome, 'RETURN_FOR_EVIDENCE');
     assert.match(beforePhoto.returnReason, /ảnh hiện trường/);
-    await addExpensePhoto(e.id);
-    const afterPhoto = await reviewNoInvoiceDisbursementApproval(e.id, 'ADMIN');
-    assert.equal(afterPhoto.outcome, 'ALLOW');
+    const [photo] = await db.insert(s.tripExpensePhotos).values({
+      tripExpenseId: e.id,
+      storageKey: `m47/${suffix}/${e.id}-no-gps.jpg`,
+      uploadedBy: makerId,
+    }).returning();
+    createdPhotoIds.push(photo.id);
+    const withoutGps = await reviewNoInvoiceDisbursementApproval(e.id, 'ADMIN');
+    assert.equal(withoutGps.outcome, 'RETURN_FOR_EVIDENCE');
+    assert.match(withoutGps.returnReason, /thời gian và vị trí GPS/);
+
+    const [geotag] = await db.insert(s.photoGeotags).values({
+      entityType: 'trip_expense_photo',
+      entityId: photo.id,
+      lat: 999,
+      lng: 999,
+      accuracy: 15,
+      gpsAt: null,
+      source: 'phone',
+      recordedBy: makerId,
+    }).returning();
+    const invalidGps = await reviewNoInvoiceDisbursementApproval(e.id, 'ADMIN');
+    assert.equal(invalidGps.outcome, 'RETURN_FOR_EVIDENCE');
+    assert.match(invalidGps.returnReason, /thời gian và vị trí GPS/);
+
+    await db.update(s.photoGeotags).set({
+      lat: 10.8231,
+      lng: 106.6297,
+      gpsAt: new Date(),
+    }).where(eq(s.photoGeotags.id, geotag.id));
+    const geotaggedPhoto = await reviewNoInvoiceDisbursementApproval(e.id, 'ADMIN');
+    assert.equal(geotaggedPhoto.outcome, 'ALLOW');
   });
 
   test('allowed + minimum evidence + amount ≤ threshold → allow', async () => {

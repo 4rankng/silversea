@@ -45,6 +45,7 @@ SECTIONS = [
     "s10_clerk_app",
     "s11_finance_pnl",
     "s12_fuel",
+    "s98_export_workflow",
     "s99_business_rules_workflow",
 ]
 

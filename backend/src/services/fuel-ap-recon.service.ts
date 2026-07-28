@@ -134,7 +134,18 @@ export async function getFuelApReconciliation(input: FuelApReconInput): Promise<
   // This is the accepted Q06 model: one invoice header, many truck lines,
   // each line backed by actual voucher/log litres and priced at the invoice
   // unit price. Only APPROVED headers contribute to invoiced totals.
-  const effectiveApprovedInvoices = (await listFuelInvoices({ status: 'APPROVED' }))
+  const effectiveApprovedInvoices = [];
+  let fuelInvoiceCursor: string | undefined;
+  do {
+    const page = await listFuelInvoices({
+      status: 'APPROVED',
+      limit: 100,
+      cursor: fuelInvoiceCursor,
+    });
+    effectiveApprovedInvoices.push(...page.items);
+    fuelInvoiceCursor = page.nextCursor ?? undefined;
+  } while (fuelInvoiceCursor);
+  const effectiveApprovedInvoicesInRange = effectiveApprovedInvoices
     .filter((invoice) =>
       invoice.invoiceDate >= input.from
       && invoice.invoiceDate <= input.to
@@ -145,7 +156,7 @@ export async function getFuelApReconciliation(input: FuelApReconInput): Promise<
     truckId: number | null;
     invoicedFuelCost: number;
   }>();
-  for (const invoice of effectiveApprovedInvoices) {
+  for (const invoice of effectiveApprovedInvoicesInRange) {
     for (const allocation of invoice.allocations) {
       const truckId = allocation.truckId ?? null;
       const key = `${invoice.supplierId}:${truckId ?? 'none'}`;

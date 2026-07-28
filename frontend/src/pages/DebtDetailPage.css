@@ -1881,3 +1881,81 @@
   .dd-filters::-webkit-scrollbar { display: none; }
   .dd-aging-grid { grid-template-columns: 1fr; gap: 10px; }
 } /* end 640px */
+
+/* ── Q01: Credit-limit warning card ─────────────────────────────────── */
+/* Surfaces creditLimit + threshold on /customers/:id so the accountant
+   sees 80% (warning) / 100% (exceeded) badges per the accepted Q01 rule. */
+.dd-credit-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+  padding: 12px 16px;
+  margin: 12px 0 4px;
+  border-radius: 10px;
+  border: 1px solid var(--border-2, #e5e7eb);
+  background: var(--bg-1, #f9fafb);
+}
+.dd-credit-strip.dd-credit--ok {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+.dd-credit-strip.dd-credit--warning {
+  background: #fffbeb;
+  border-color: #fcd34d;
+}
+.dd-credit-strip.dd-credit--exceeded {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+.dd-credit__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.dd-credit__label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fg-3, #6b7280);
+}
+.dd-credit__info strong {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--fg-1, #111827);
+  line-height: 1.2;
+}
+.dd-credit__pct {
+  font-size: 11px;
+  color: var(--fg-3, #6b7280);
+}
+.dd-credit__badge {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.dd-credit__badge--ok {
+  background: #dcfce7;
+  color: #166534;
+}
+.dd-credit__badge--warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+.dd-credit__badge--exceeded {
+  background: #fee2e2;
+  color: #991b1b;
+}
+@media (max-width: 640px) {
+  .dd-credit-strip { gap: 12px; }
+  .dd-credit__badge { margin-left: 0; width: 100%; justify-content: center; }
+}

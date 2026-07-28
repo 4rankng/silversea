@@ -37,6 +37,8 @@ const SOURCE_PERIOD = `${periodYear}-11`;
 const TARGET_PERIOD = `${periodYear}-12`;
 const UNISSUED_PERIOD = `${periodYear + 1}-01`;
 const GOVERNED_PERIOD = `${periodYear}-10`;
+const GOVERNED_EXCLUSION_TARGET_PERIOD = `${periodYear}-09`;
+const SOURCE_EXCLUSION_TARGET_PERIOD = `${periodYear + 1}-02`;
 const GOVERNED_DAY = `${GOVERNED_PERIOD}-08`;
 const SOURCE_DAY = `${SOURCE_PERIOD}-12`;
 const SOURCE_DAY_2 = `${SOURCE_PERIOD}-14`;
@@ -202,7 +204,7 @@ test('Q15 salary period close and reopen require three distinct actors before th
       actorRole: 'ACCOUNTANT',
       reason: `Loại trừ tạm để cô lập ca kiểm thử Q15 cho ${pendingDriver.driverName}`,
       handlingMode: 'SUPPLEMENTARY_PERIOD',
-      targetPeriod: GOVERNED_PERIOD,
+      targetPeriod: GOVERNED_EXCLUSION_TARGET_PERIOD,
       note: 'q15 isolation supplementary',
     });
     createdActionIds.push(requested.actionId);
@@ -451,7 +453,7 @@ test('Q11 post-close issue/adjustment flow and Q20 readiness regression stay gre
       actorRole: 'ACCOUNTANT',
       reason: `Loại trừ tạm để cô lập ca kiểm thử Q11 cho ${pendingDriver.driverName}`,
       handlingMode: 'SUPPLEMENTARY_PERIOD',
-      targetPeriod: SOURCE_PERIOD,
+      targetPeriod: SOURCE_EXCLUSION_TARGET_PERIOD,
       note: 'q11 isolation supplementary',
     });
     createdActionIds.push(requested.actionId);

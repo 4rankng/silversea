@@ -13,6 +13,11 @@ import {
   requestPricingTableDelete,
   requestPricingTableUpdate,
 } from '../../services/price-config-governance.service';
+import {
+  buildCrudIdempotencyEndpoint,
+  resolveIdempotencyKey,
+  runIdempotent,
+} from '../../services/idempotency.service';
 
 const router = Router();
 
@@ -41,6 +46,13 @@ function requireExpectedVersion(req: Request): number {
     throw new ApiError(400, 'expectedVersion không hợp lệ');
   }
   return expectedVersion;
+}
+
+function requestIdempotencyKey(req: Request): string | undefined {
+  return resolveIdempotencyKey({
+    headerValue: req.header('Idempotency-Key'),
+    requestId: (req.body as Record<string, unknown> | undefined)?._requestId,
+  });
 }
 
 router.get('/', asyncHandler(async (req: Request, res: Response) => {
@@ -75,38 +87,82 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
 router.post('/', asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   const data = pricingTableSchema.parse(req.body);
-  const action = await requestPricingTableCreate({
-    data,
-    reason: requireReason(req),
-    makerId: actor.userId,
-    makerRole: actor.role,
+  const reason = requireReason(req);
+  const { result, replayed, statusCode } = await runIdempotent({
+    endpoint: buildCrudIdempotencyEndpoint('pricing_tables', 'create'),
+    idempotencyKey: requestIdempotencyKey(req),
+    payload: { actorId: actor.userId, data, reason },
+    createdBy: actor.userId,
+    entityType: 'governance_action',
+    responseStatusCode: 201,
+    create: (tx) => requestPricingTableCreate({
+      data,
+      reason,
+      makerId: actor.userId,
+      makerRole: actor.role,
+      transaction: tx,
+    }),
+    getEntityId: (action) => action.id,
   });
-  res.status(201).json(action);
+  res.locals.auditEntityId = result.id;
+  res.locals.auditEntityKey = result.subjectKey;
+  res.status(statusCode).json({ ...result, replayed });
 }));
 
 router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
-  const action = await requestPricingTableUpdate({
-    pricingTableId: parsePricingTableId(req),
-    data: pricingTableSchema.partial().parse(req.body),
-    reason: requireReason(req),
-    makerId: actor.userId,
-    makerRole: actor.role,
-    expectedVersion: requireExpectedVersion(req),
+  const pricingTableId = parsePricingTableId(req);
+  const data = pricingTableSchema.partial().parse(req.body);
+  const reason = requireReason(req);
+  const expectedVersion = requireExpectedVersion(req);
+  const { result, replayed, statusCode } = await runIdempotent({
+    endpoint: buildCrudIdempotencyEndpoint('pricing_tables', 'update'),
+    idempotencyKey: requestIdempotencyKey(req),
+    payload: { actorId: actor.userId, pricingTableId, data, reason, expectedVersion },
+    createdBy: actor.userId,
+    entityType: 'governance_action',
+    responseStatusCode: 201,
+    create: (tx) => requestPricingTableUpdate({
+      pricingTableId,
+      data,
+      reason,
+      makerId: actor.userId,
+      makerRole: actor.role,
+      expectedVersion,
+      transaction: tx,
+    }),
+    getEntityId: (action) => action.id,
   });
-  res.status(201).json(action);
+  res.locals.auditEntityId = result.id;
+  res.locals.auditEntityKey = result.subjectKey;
+  res.status(statusCode).json({ ...result, replayed });
 }));
 
 router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
-  const action = await requestPricingTableDelete({
-    pricingTableId: parsePricingTableId(req),
-    reason: requireReason(req),
-    makerId: actor.userId,
-    makerRole: actor.role,
-    expectedVersion: requireExpectedVersion(req),
+  const pricingTableId = parsePricingTableId(req);
+  const reason = requireReason(req);
+  const expectedVersion = requireExpectedVersion(req);
+  const { result, replayed, statusCode } = await runIdempotent({
+    endpoint: buildCrudIdempotencyEndpoint('pricing_tables', 'delete'),
+    idempotencyKey: requestIdempotencyKey(req),
+    payload: { actorId: actor.userId, pricingTableId, reason, expectedVersion },
+    createdBy: actor.userId,
+    entityType: 'governance_action',
+    responseStatusCode: 201,
+    create: (tx) => requestPricingTableDelete({
+      pricingTableId,
+      reason,
+      makerId: actor.userId,
+      makerRole: actor.role,
+      expectedVersion,
+      transaction: tx,
+    }),
+    getEntityId: (action) => action.id,
   });
-  res.status(201).json(action);
+  res.locals.auditEntityId = result.id;
+  res.locals.auditEntityKey = result.subjectKey;
+  res.status(statusCode).json({ ...result, replayed });
 }));
 
 export default router;

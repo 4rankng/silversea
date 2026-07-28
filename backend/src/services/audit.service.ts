@@ -153,7 +153,7 @@ export function buildAuditMetadata(args: {
   req: Request;
   fullPath: string;
   statusCode: number;
-  outcome: 'SUCCEEDED' | 'REPLAYED' | 'FORBIDDEN' | 'CONFLICT' | 'REJECTED' | 'FAILED_LOGIN';
+  outcome: 'ACCEPTED' | 'SUCCEEDED' | 'REPLAYED' | 'FORBIDDEN' | 'CONFLICT' | 'REJECTED' | 'FAILED_LOGIN';
   body?: Record<string, unknown> | null;
   materialWriteEndpoint?: string | null;
   idempotencyKeyPresent?: boolean;
@@ -270,6 +270,107 @@ export async function persistMaterialWriteSuccessAuditInTransaction(args: {
 
   context.res.locals.durableMaterialWriteSuccessAudited = true;
   context.res.locals.durableMaterialWriteAuditLogId = rowId;
+}
+
+/**
+ * Persist the durable intent before a command performs work that cannot share
+ * the database transaction (for example, a GPS provider call). If finalization
+ * later fails, this row remains as the recoverable proof that the attempt was
+ * accepted and identifies its material-write endpoint.
+ */
+export async function persistMaterialWriteAttemptAuditInTransaction(args: {
+  tx: AuditTx;
+  statusCode: number;
+  responseBody: Record<string, unknown> | null;
+  entityId?: number | null;
+  entityKey?: string;
+}): Promise<void> {
+  const context = getAuditRequestContext();
+  if (!context) {
+    return;
+  }
+  if (!context.declaredMaterialWriteEndpoint || !context.req.user) {
+    throw new Error(`Material write audit context is incomplete for ${context.req.method} ${context.fullPath}`);
+  }
+
+  const requestBody = (context.req.body as Record<string, unknown> | undefined) ?? {};
+  const entityType = extractAuditEntityType(context.fullPath) || 'unknown';
+  const event = typeof context.res.locals.auditEvent === 'string'
+    ? context.res.locals.auditEvent as AuditEventType
+    : resolveAuditEvent(context.req.method, context.fullPath);
+  const entityId = args.entityId ?? extractAuditEntityId(context.fullPath, requestBody) ?? undefined;
+  const entityKey = args.entityKey
+    ?? context.res.locals.auditEntityKey
+    ?? extractAuditEntityKey(entityType, args.responseBody, requestBody);
+
+  await persistAuditInTransaction(args.tx, {
+    event,
+    entityType,
+    entityId,
+    entityKey,
+    userId: context.req.user.userId,
+    actorRole: context.req.user.role,
+    actorEmail: context.req.user.email ?? undefined,
+    actorName: context.req.user.fullName ?? context.req.user.username ?? undefined,
+    ipAddress: context.req.ip,
+    metadata: buildAuditMetadata({
+      req: context.req,
+      fullPath: context.fullPath,
+      statusCode: args.statusCode,
+      outcome: 'ACCEPTED',
+      body: args.responseBody,
+      materialWriteEndpoint: context.declaredMaterialWriteEndpoint,
+      idempotencyKeyPresent: true,
+    }),
+  });
+}
+
+/**
+ * Persist an idempotency conflict before returning 409. This is separate from
+ * the response middleware because the command setup transaction owns the row
+ * lock that proves which actor/payload already claimed the key.
+ */
+export async function persistMaterialWriteConflictAuditInTransaction(args: {
+  tx: AuditTx;
+  responseBody: Record<string, unknown> | null;
+  entityId?: number | null;
+  entityKey?: string;
+}): Promise<void> {
+  const context = getAuditRequestContext();
+  if (!context) {
+    return;
+  }
+  if (!context.declaredMaterialWriteEndpoint || !context.req.user) {
+    throw new Error(`Material write audit context is incomplete for ${context.req.method} ${context.fullPath}`);
+  }
+
+  const requestBody = (context.req.body as Record<string, unknown> | undefined) ?? {};
+  const entityType = extractAuditEntityType(context.fullPath) || 'unknown';
+  const entityId = args.entityId ?? extractAuditEntityId(context.fullPath, requestBody) ?? undefined;
+  const entityKey = args.entityKey
+    ?? context.res.locals.auditEntityKey
+    ?? extractAuditEntityKey(entityType, args.responseBody, requestBody);
+
+  await persistAuditInTransaction(args.tx, {
+    event: AuditEvent.MUTATION_CONFLICT,
+    entityType,
+    entityId,
+    entityKey,
+    userId: context.req.user.userId,
+    actorRole: context.req.user.role,
+    actorEmail: context.req.user.email ?? undefined,
+    actorName: context.req.user.fullName ?? context.req.user.username ?? undefined,
+    ipAddress: context.req.ip,
+    metadata: buildAuditMetadata({
+      req: context.req,
+      fullPath: context.fullPath,
+      statusCode: 409,
+      outcome: 'CONFLICT',
+      body: args.responseBody,
+      materialWriteEndpoint: context.declaredMaterialWriteEndpoint,
+      idempotencyKeyPresent: true,
+    }),
+  });
 }
 
 /**
