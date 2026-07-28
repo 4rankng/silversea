@@ -501,6 +501,86 @@ describe('M5.7 — runReceivableReminders', () => {
   const todayBusinessDate = businessDateNow();
   const runAtBusinessMorning = atVnTime(todayBusinessDate, 9);
 
+  test('does not send at 07:59 and sends at the inclusive 08:00 boundary', async () => {
+    const c = await mkCustomer();
+    const customerUser = await mkUser('CUSTOMER', { customerId: c.id });
+    const r = await mkRoute(); const cg = await mkCargo();
+    const t = await mkOverdueTrip(c.id, r.id, cg.id);
+    await mkRevenue(c.id, t.id, 1_100_000, todayBusinessDate);
+
+    await runReceivableReminders(atVnTime(todayBusinessDate, 7, 59));
+    assert.equal((await fetchTodayEmailLogForCustomer(c.id)).length, 0);
+    assert.equal(
+      (await fetchTodayReminderNotifications(c.id, 'Nhắc thanh toán công nợ', customerUser.id)).length,
+      0,
+    );
+
+    await runReceivableReminders(atVnTime(todayBusinessDate, 8, 0));
+    assert.equal((await fetchTodayEmailLogForCustomer(c.id)).length, 1);
+    assert.equal(
+      (await fetchTodayReminderNotifications(c.id, 'Nhắc thanh toán công nợ', customerUser.id)).length,
+      1,
+    );
+  });
+
+  test('sends at the inclusive 17:30 boundary', async () => {
+    const c = await mkCustomer();
+    const r = await mkRoute(); const cg = await mkCargo();
+    const t = await mkOverdueTrip(c.id, r.id, cg.id);
+    await mkRevenue(c.id, t.id, 1_200_000, todayBusinessDate);
+
+    await runReceivableReminders(atVnTime(todayBusinessDate, 17, 30));
+
+    assert.equal((await fetchTodayEmailLogForCustomer(c.id)).length, 1);
+  });
+
+  test('does not send at 17:31 after the delivery window closes', async () => {
+    const c = await mkCustomer();
+    const r = await mkRoute(); const cg = await mkCargo();
+    const t = await mkOverdueTrip(c.id, r.id, cg.id);
+    await mkRevenue(c.id, t.id, 1_300_000, todayBusinessDate);
+
+    await runReceivableReminders(atVnTime(todayBusinessDate, 17, 31));
+
+    assert.equal((await fetchTodayEmailLogForCustomer(c.id)).length, 0);
+  });
+
+  test('does not send on an ordinary weekend without a calendar override', async () => {
+    const saturday = findWeekday(todayBusinessDate, 6);
+    const c = await mkCustomer();
+    const r = await mkRoute(); const cg = await mkCargo();
+    const t = await mkOverdueTrip(c.id, r.id, cg.id, saturday);
+    await mkRevenue(c.id, t.id, 1_400_000, saturday);
+
+    await runReceivableReminders(atVnTime(saturday, 9));
+
+    assert.equal((await fetchTodayEmailLogForCustomer(c.id)).length, 0);
+  });
+
+  test('concurrent runs create exactly one customer email and one customer notification', async () => {
+    const c = await mkCustomer();
+    const customerUser = await mkUser('CUSTOMER', { customerId: c.id });
+    const r = await mkRoute(); const cg = await mkCargo();
+    const t = await mkOverdueTrip(c.id, r.id, cg.id);
+    await mkRevenue(c.id, t.id, 1_500_000, todayBusinessDate);
+
+    await Promise.all([
+      runReceivableReminders(runAtBusinessMorning),
+      runReceivableReminders(runAtBusinessMorning),
+    ]);
+
+    assert.equal(
+      (await fetchTodayEmailLogForCustomer(c.id)).length,
+      1,
+      'advisory claim permits exactly one customer email log',
+    );
+    assert.equal(
+      (await fetchTodayReminderNotifications(c.id, 'Nhắc thanh toán công nợ', customerUser.id)).length,
+      1,
+      'the winning run emits exactly one customer notification',
+    );
+  });
+
   test('skips LOCKED (suspended) customer', async () => {
     const c = await mkCustomer({ status: 'LOCKED' });
     const r = await mkRoute(); const cg = await mkCargo();

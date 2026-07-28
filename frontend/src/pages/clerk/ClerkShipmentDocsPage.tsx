@@ -199,7 +199,10 @@ export default function ClerkShipmentDocsPage() {
     }),
     [detail?.shipment.customerId],
   );
-  const creditQueue = useCreditOverrideQueue(creditQueueFilters, detail?.shipment.customerId != null);
+  const creditQueue = useCreditOverrideQueue(
+    creditQueueFilters,
+    canDispatch && detail?.shipment.customerId != null,
+  );
   const createCreditRequest = useCreateCreditOverrideRequest([creditQueueFilters]);
   const checkCreditRequest = useCheckCreditOverrideRequest([creditQueueFilters]);
   const approveCreditRequest = useApproveCreditOverrideRequest([creditQueueFilters]);

@@ -1,5 +1,5 @@
 import type {
-  TripStatus, FuelMode, LoadingType, Role, TxnType,
+  CustomerAccountType, TripStatus, FuelMode, LoadingType, Role, TxnType,
   TrailerType, TruckStatus, TrailerStatus, DriverStatus, CustomerStatus, PenaltyStatus,
   AdvanceRequestStatus, AdvanceSettlementStatus, ExpenseEntryStatus,
   TireStatus, TruckCapRole, SupplierType, NoInvoiceEvidenceType, NoInvoiceApprovalTitle,
@@ -18,6 +18,7 @@ export interface User {
   status: string;
   customerId?: number | null;
   customerIds?: number[];
+  customerAccountType?: CustomerAccountType;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
@@ -34,6 +35,7 @@ export type UserPublic = Omit<User, 'passwordHash' | 'deletedAt'>;
 export interface UserWithDriver extends UserPublic {
   customerId?: number | null;
   customerIds?: number[];
+  customerAccountType?: CustomerAccountType;
   driverId: number | null;
   driverName: string | null;
   driverPhone: string | null;
@@ -1282,10 +1284,15 @@ export interface UnpaidTrip {
 }
 
 export interface CustomerStatement {
-  customer: Pick<Customer, 'id' | 'name' | 'contactInfo' | 'isCarrier'> & { debitNoteMode?: string | null };
+  customer: Pick<Customer, 'id' | 'name' | 'contactInfo' | 'isCarrier' | 'creditLimit' | 'creditWarningThreshold'> & { debitNoteMode?: string | null };
   ledgerRows: LedgerEntry[];
   agingBuckets: AgingBucket[];
   totalOutstanding: number;
+  /** Current governed exposure, including approved-but-uncollected commitments. */
+  approvedUncollected: number;
+  totalExposure: number;
+  utilization: number | null;
+  availableCapacity: number | null;
   unpaidTrips: UnpaidTrip[];
   /** Only present when the request was scoped to a date range. */
   periodSummary?: PeriodSummary;

@@ -1,4 +1,4 @@
-import { Role, ROLE_LABELS, ShipmentStatus } from '@tingting/shared';
+import { CustomerAccountType, Role, ROLE_LABELS, ShipmentStatus } from '@tingting/shared';
 
 export interface BusinessUnit {
   id: number;
@@ -33,6 +33,7 @@ export interface UserRow {
   createdAt: string;
   customerId?: number | null;
   customerIds?: number[];
+  customerAccountType?: CustomerAccountType;
   businessUnitIds?: number[];
   shipmentIds?: number[];
   // Linked driver profile (null for non-driver users or users without a profile row).
@@ -56,6 +57,7 @@ export interface EditData {
   assignedTruckId?: number | null;
   customerId?: number | null;
   customerIds?: number[];
+  customerAccountType?: CustomerAccountType;
   businessUnitIds?: number[];
   shipmentIds?: number[];
 }
@@ -73,6 +75,7 @@ export interface CreateData {
   assignedTruckId?: number | null;
   customerId?: number | null;
   customerIds?: number[];
+  customerAccountType?: CustomerAccountType;
   businessUnitIds?: number[];
   shipmentIds?: number[];
 }

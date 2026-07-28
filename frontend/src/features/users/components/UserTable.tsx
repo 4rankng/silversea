@@ -498,7 +498,7 @@ function DesktopTable({
                           {u.fullName || u.username || <span style={{ color: 'var(--ink-3)', fontStyle: 'italic' }}>—</span>}
                           {isMe && <span className="user-name__you">(bạn)</span>}
                         </div>
-                        {u.username && <div className="user-handle">@{u.username}</div>}
+                        {u.username && <div className="user-handle">{u.username}</div>}
                       </div>
                     </div>
                   </td>
@@ -618,7 +618,7 @@ function MobileCardList({ filtered, canManage, canDelete, canEditDriversOnly, tr
                     {isMe && <span className="user-name__you">(bạn)</span>}
                   </div>
                   <div className="users-mobile-card__identity-meta">
-                    {u.username && <span className="users-mobile-card__handle">@{u.username}</span>}
+                    {u.username && <span className="users-mobile-card__handle">{u.username}</span>}
                     <span className={`users-mobile-card__role ${pill.cls}`}><span className="dot" />{pill.label}</span>
                   </div>
                 </div>

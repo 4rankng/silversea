@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -326,5 +326,41 @@ describe('DebtDetailPage payment flow', () => {
         headers: { 'Idempotency-Key': 'retry-key-5' },
       },
     );
+  });
+
+  it('renders the credit strip from authoritative exposure fields instead of the statement balance', () => {
+    const creditAwareStatement = {
+      ...statement,
+      customer: {
+        ...statement.customer,
+        creditLimit: '100000000',
+        creditWarningThreshold: '0.8',
+      },
+      totalOutstanding: 70_000_000,
+      approvedUncollected: 20_000_000,
+      totalExposure: 90_000_000,
+      utilization: 0.9,
+      availableCapacity: 10_000_000,
+    };
+
+    useCustomerStatementMock.mockImplementation((_id: string | undefined, range?: unknown) => (
+      range
+        ? { data: creditAwareStatement, isFetching: false, refetch: refetchMock }
+        : { data: creditAwareStatement, isLoading: false, error: null }
+    ));
+
+    renderPage();
+
+    const creditStrip = screen.getByLabelText('Hạn mức công nợ');
+    expect(within(creditStrip).getByText('Tổng dư nợ kiểm hạn')).toBeTruthy();
+    expect(within(creditStrip).getByText('Đã duyệt chưa thu')).toBeTruthy();
+    expect(within(creditStrip).getByText('Tỷ lệ sử dụng')).toBeTruthy();
+    expect(within(creditStrip).getByText('Hạn mức còn lại')).toBeTruthy();
+    expect(within(creditStrip).getByText('100.000.000đ')).toBeTruthy();
+    expect(within(creditStrip).getByText('90.000.000đ')).toBeTruthy();
+    expect(within(creditStrip).getByText('20.000.000đ')).toBeTruthy();
+    expect(within(creditStrip).getByText('90%')).toBeTruthy();
+    expect(within(creditStrip).getByText('10.000.000đ')).toBeTruthy();
+    expect(within(creditStrip).queryByText('Dư nợ hiện tại')).toBeNull();
   });
 });

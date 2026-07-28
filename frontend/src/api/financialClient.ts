@@ -223,10 +223,23 @@ export const financialClient = {
       overdueSuppliers: number;
     }>(`${REPORTS.PAYABLES_SUMMARY}${toQuery({ category })}`),
 
-  getFuelInvoices: (filters?: { supplierId?: number; status?: FuelInvoiceStatus }) =>
-    api.get<FuelInvoice[]>(
-      `${FINANCIAL.FUEL_INVOICES}${toQuery(filters)}`,
-    ),
+  getFuelInvoices: async (filters?: { supplierId?: number; status?: FuelInvoiceStatus }) => {
+    const items: FuelInvoice[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await api.get<{ items: FuelInvoice[]; nextCursor: string | null }>(
+        `${FINANCIAL.FUEL_INVOICES}${toQuery({
+          ...filters,
+          paginated: true,
+          limit: 100,
+          cursor,
+        })}`,
+      );
+      items.push(...page.items);
+      cursor = page.nextCursor ?? undefined;
+    } while (cursor);
+    return items;
+  },
 
   getFuelInvoice: (id: number) =>
     api.get<FuelInvoice>(FINANCIAL.FUEL_INVOICE(id)),

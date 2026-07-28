@@ -109,24 +109,19 @@ def _find_customer_with_ar() -> Optional[int]:
 
 # ─── Q01: Credit-limit 80% / 100% warnings ────────────────────────────────
 
-@tc("TC-M05-WF-01-CREDIT-LIMIT", roles=["ACCOUNTANT"], url="/debt",
-    title="WF Q01 — Credit-limit threshold (FINDING: UI not surfacing creditLimit)")
+@tc("TC-M05-WF-01-CREDIT-LIMIT", roles=["ACCOUNTANT"], url="/customers/:id",
+    title="WF Q01 — Credit-limit warning UI (80%/100% badges) renders on customer detail")
 def tc_m05_wf_01_credit_limit(ctx: VisualTestContext):
     """Q01 business rule (accepted by SilverSea 27/07):
     Warning at 80% of credit limit, hard-limit at 100%.
 
     Setup: pick a customer, set creditLimit=100M + threshold=0.80 via DB
-    (localhost only — on staging we use the existing seed).
+    (localhost only — on staging the customer's existing creditLimit is
+    used as-is). The Q01 UI card was implemented in session 5: it lives
+    on /customers/:id and shows limit + balance + remaining + a badge
+    (Trong hạn mức / Gần đạt hạn mức / Vượt hạn mức).
 
-    Assert: the AR list (/debt) and/or customer detail surfaces the
-    credit-limit info somewhere visible to the accountant.
-
-    FINDING from session-3: even after setting credit_limit=100M and
-    credit_warning_threshold=0.80 directly in DB and confirming the
-    API returns them on the customer object, NEITHER /debt (AR list)
-    NOR /customers/:id surfaces the credit-limit info. This is a real
-    handover gap — the Q01 business rule is not yet visible in the UI.
-    The test captures the absence as evidence.
+    Assert: the customer detail page shows the credit-limit info.
     """
     tok = _api_login("ADMIN")
     d = _api(tok, "GET", "/api/customers?pageSize=1")
@@ -134,40 +129,50 @@ def tc_m05_wf_01_credit_limit(ctx: VisualTestContext):
     if not items:
         raise AssertionError("BLOCKED: no customer found for credit-limit test")
     cid = items[0]["id"]
-    name = items[0]["name"]
 
-    set_ok = _set_credit_limit_db(cid, "100000000", 0.80)
+    # Set credit limit + threshold (localhost only — staging skips).
+    # The DB write goes to the local docker container, so only trust it
+    # when we're actually testing localhost.
+    is_localhost = "localhost" in API_URL or "127.0.0.1" in API_URL
+    set_ok = _set_credit_limit_db(cid, "100000000", 0.80) if is_localhost else False
 
     try:
         ctx.login("ACCOUNTANT")
-        # Visit BOTH the AR list and the customer detail.
-        ctx.goto("/debt")
-        debt_body = ctx.page.inner_text("body")
-        ctx.capture(suffix="01-debt-list")
-
         ctx.goto(f"/customers/{cid}")
-        cust_body = ctx.page.inner_text("body")
-        ctx.capture(suffix="02-customer-detail")
+        body = ctx.page.inner_text("body")
 
-        # Check both surfaces for any credit-limit UI.
-        combined = debt_body + " | " + cust_body
-        has_credit_ui = any(t in combined for t in [
-            "Hạn mức", "credit limit", "Credit limit",
-            "Cảnh báo", "Vượt hạn mức", "Gần đạt", "warning",
+        # The Q01 card surfaces these labels when creditLimit is set.
+        has_credit_label = any(t in body for t in [
+            "Hạn mức", "credit", "Credit",  # label variants
         ])
+        has_badge = any(t in body for t in [
+            "Trong hạn mức", "Gần đạt hạn mức", "Vượt hạn mức",  # badge labels
+        ])
+        has_amount = "100" in body  # 100M
 
-        if set_ok and not has_credit_ui:
-            # Documented finding: this is a real gap, not a test failure.
-            # We PASS the TC (it did its job: it captured the gap visually)
-            # but record the finding in the result.
-            ctx.detail = (
-                "FINDING: creditLimit set in DB but not surfaced in UI "
-                "(/debt or /customers/:id). Q01 warning UI is not wired yet."
-            )
-        elif has_credit_ui:
-            ctx.detail = "credit-limit UI present"
+        if set_ok:
+            # On localhost the creditLimit is set — the UI MUST show it
+            # (the Q01 card was implemented in session 5).
+            if not (has_credit_label or has_badge):
+                raise AssertionError(
+                    f"creditLimit set in DB (100M) but customer detail "
+                    f"does not show credit-limit UI (label={has_credit_label}, "
+                    f"badge={has_badge})"
+                )
+            ctx.detail = "Q01 credit-limit UI present with badge"
         else:
-            ctx.detail = "could not set creditLimit (staging?) — UI state unknown"
+            # Staging: no DB access. Also, staging may not yet have the Q01
+            # card deployed (it was implemented in session 5 against the
+            # local codebase; staging requires a redeploy). Treat absence
+            # as a documented finding, not a hard failure.
+            if has_credit_label or has_badge:
+                ctx.detail = "Q01 credit-limit UI present on staging (deployed)"
+            else:
+                ctx.detail = (
+                    "FINDING: Q01 card not yet deployed to staging — "
+                    "code change requires redeploy"
+                )
+        ctx.capture(suffix="01-credit-ui")
     finally:
         _reset_credit_limit_db(cid)
 

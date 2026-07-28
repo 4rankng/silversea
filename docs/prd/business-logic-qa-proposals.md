@@ -139,6 +139,7 @@
 
 - **Status:** `accepted` — SilverSea, 2026-07-27
 - **ROADMAP impact:** adds post-close governance to M7.3 (Wave 3). Maps onto the existing lock semantics — reopen only pre-issue, adjustment-note only post-payment.
+- **Ánh xạ vai trò triển khai:** `ACCOUNTANT` là nhân sự Kế toán lập yêu cầu chốt kỳ; `MANAGER` là Trưởng phòng Tài chính/Kế toán hoặc người quản lý được ủy quyền; `ADMIN` là Giám đốc hoặc quyền quản trị khẩn cấp có ghi vết. Chỉ `MANAGER`/`ADMIN` được kiểm tra và chốt kỳ. Việc mở lại chỉ dành cho `MANAGER`/`ADMIN`, đồng thời người lập, người kiểm tra và người duyệt phải là ba tài khoản khác nhau.
 
 ---
 

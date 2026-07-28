@@ -10,9 +10,11 @@ import {
 } from '../api/financialClient';
 import { qk } from '../api/keys';
 import { tripClient } from '../api/tripClient';
-import type { LedgerEntry, CustomerStatement, PayablesCategory, SupplierStatement, TripDetail } from '@tingting/shared';
+import type { LedgerEntry, CustomerStatement as SharedCustomerStatement, PayablesCategory, SupplierStatement, TripDetail } from '@tingting/shared';
 
 export type { CustomerAging };
+
+export type CustomerStatement = SharedCustomerStatement;
 
 export interface FuelInvoiceTripOption {
   id: number;
@@ -79,7 +81,7 @@ export function useCustomerStatement(
   return useQuery<CustomerStatement>({
     queryKey: qk.financial.customerStatement(id, range),
     enabled: !!id,
-    queryFn: () => financialClient.getCustomerStatement(Number(id), range),
+    queryFn: () => financialClient.getCustomerStatement(Number(id), range) as Promise<CustomerStatement>,
     placeholderData: keepPreviousData,
   });
 }

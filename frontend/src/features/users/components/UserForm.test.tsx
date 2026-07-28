@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { Role, ShipmentStatus } from '@tingting/shared';
+import { CustomerAccountType, Role, ShipmentStatus } from '@tingting/shared';
 import type { Customer } from '@tingting/shared';
 import { AddPanel, EditPanel } from './UserForm';
 import type { BusinessUnit, ShipmentScopeOption, UserRow } from '../utils';
@@ -133,6 +133,11 @@ describe('customer account scope', () => {
 
     fireEvent.click(screen.getAllByRole('checkbox', { name: /SilverSea Miền Nam/ })[0]!);
     fireEvent.click(screen.getByRole('checkbox', { name: /SilverSea Miền Bắc/ }));
+    expect((submitButton as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(
+      screen.getByText('Loại phạm vi cổng khách hàng').closest('label')!.querySelector('select')!,
+      { target: { value: CustomerAccountType.CORPORATE_GROUP } },
+    );
     expect((submitButton as HTMLButtonElement).disabled).toBe(false);
 
     fireEvent.click(submitButton);
@@ -140,6 +145,7 @@ describe('customer account scope', () => {
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
         role: Role.CUSTOMER,
+        customerAccountType: CustomerAccountType.CORPORATE_GROUP,
         customerId: 7,
         customerIds: [7, 9],
       }));
@@ -159,6 +165,7 @@ describe('customer account scope', () => {
       createdAt: '2026-07-27T00:00:00.000Z',
       customerId: 7,
       customerIds: [7, 9],
+      customerAccountType: CustomerAccountType.CORPORATE_GROUP,
       driverId: null,
       assignedTruckId: null,
       baseSalary: null,

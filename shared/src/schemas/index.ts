@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import {
-  FuelMode, LoadingType, Role,
+  CustomerAccountType, FuelMode, LoadingType, Role, SupplierType,
   TrailerType, TruckStatus, TrailerStatus, DriverStatus, CustomerStatus,
   ShipmentStatus, ShipmentDocumentType,
   DriverProgressEventType,
@@ -545,6 +545,7 @@ export const createUserSchema = z.object({
   assignedTruckId: z.number().int().positive().nullable().optional(),
   customerId: z.number().int().positive().nullable().optional(),
   customerIds: z.array(z.number().int().positive()).max(100, 'Tối đa 100 khách hàng liên kết').optional(),
+  customerAccountType: z.nativeEnum(CustomerAccountType).optional().default(CustomerAccountType.SINGLE_ENTITY),
   businessUnitIds: z.array(z.number().int().positive()).max(100, 'Tối đa 100 đơn vị phụ trách').optional(),
   shipmentIds: z.array(z.number().int().positive()).max(100, 'Tối đa 100 lô hàng liên kết').optional(),
 }).refine(data => data.username || data.email || data.phone, {
@@ -566,6 +567,7 @@ export const updateUserSchema = z.object({
   assignedTruckId: z.number().int().positive().nullable().optional(),
   customerId: z.number().int().positive().nullable().optional(),
   customerIds: z.array(z.number().int().positive()).max(100, 'Tối đa 100 khách hàng liên kết').optional(),
+  customerAccountType: z.nativeEnum(CustomerAccountType).optional(),
   businessUnitIds: z.array(z.number().int().positive()).max(100, 'Tối đa 100 đơn vị phụ trách').optional(),
   shipmentIds: z.array(z.number().int().positive()).max(100, 'Tối đa 100 lô hàng liên kết').optional(),
 });
@@ -871,6 +873,11 @@ export const salaryPeriodDefaultSchema = z.object({
 
 // ─── Supplier & Expense ────────────────────────────────────────────────────────
 
+const supplierTypeSchema = z.preprocess(
+  (value) => typeof value === 'string' ? value.trim().toUpperCase() : value,
+  z.nativeEnum(SupplierType),
+);
+
 export const supplierSchema = z.object({
   name: z.string().min(1),
   contactPerson: z.string().optional(),
@@ -880,11 +887,10 @@ export const supplierSchema = z.object({
   status: z.enum(['ACTIVE', 'INACTIVE']).optional().default('ACTIVE'),
   linkedCustomerId: z.number().int().positive().optional().nullable(),
   isFuelSupplier: z.boolean().optional().default(false),
-  // Wave 3 M6.2: multi-value type taxonomy. The service normalizes the
-  // array (uppercase, dedupe, filter to the canonical enum). When 'FUEL'
-  // is present, isFuelSupplier is mirrored to true by the CRUD hook.
-  types: z.array(z.string()).optional().nullable(),
-  primaryType: z.string().optional().nullable(),
+  // Accept case-insensitive canonical values, but reject unknown categories at
+  // the public boundary so a typo cannot silently remove a requested type.
+  types: z.array(supplierTypeSchema).optional().nullable(),
+  primaryType: supplierTypeSchema.optional().nullable(),
 });
 
 export const expenseCategorySchema = z.object({

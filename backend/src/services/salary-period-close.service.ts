@@ -207,6 +207,40 @@ function parseExclusion(afterSnapshot: Record<string, unknown> | null | undefine
   return { handlingMode, targetPeriod, note };
 }
 
+function normalizeExclusionHandling(input: {
+  period: string;
+  handlingMode: SalaryExclusionHandlingMode;
+  targetPeriod?: string | null;
+  note?: string | null;
+}): {
+  handlingMode: SalaryExclusionHandlingMode;
+  targetPeriod: string | null;
+  note: string | null;
+} {
+  const note = input.note?.trim() || null;
+  if (input.handlingMode === 'ADJUSTMENT') {
+    return {
+      handlingMode: 'ADJUSTMENT',
+      targetPeriod: null,
+      note,
+    };
+  }
+
+  const targetPeriod = input.targetPeriod?.trim() || null;
+  if (!targetPeriod) {
+    throw new ApiError(400, 'Kỳ bổ sung là bắt buộc khi chọn xử lý bằng kỳ lương bổ sung');
+  }
+  parsePeriod(targetPeriod);
+  if (targetPeriod === input.period) {
+    throw new ApiError(400, 'Kỳ bổ sung phải khác kỳ lương gốc');
+  }
+  return {
+    handlingMode: 'SUPPLEMENTARY_PERIOD',
+    targetPeriod,
+    note,
+  };
+}
+
 async function loadApprovedExclusionMap(
   tx: Tx | typeof db,
   period: string,
@@ -1331,16 +1365,15 @@ export async function createSalaryPeriodExclusion(input: {
   handlingMode: SalaryExclusionHandlingMode;
   targetPeriod?: string | null;
   note?: string | null;
+  transaction?: Tx;
 }): Promise<SalaryPeriodExclusionResult> {
   if (!(FINANCIAL_ROLES as readonly string[]).includes(input.actorRole)) {
     throw new ApiError(403, 'Bạn không có quyền đề nghị loại trừ kỳ lương');
   }
   parsePeriod(input.period);
-  if (input.handlingMode === 'SUPPLEMENTARY_PERIOD' && input.targetPeriod) {
-    parsePeriod(input.targetPeriod);
-  }
+  const handling = normalizeExclusionHandling(input);
 
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx): Promise<SalaryPeriodExclusionResult> => {
     const readiness = await buildSalaryPeriodReadinessSummary(tx, input.period);
     const driver = readiness.drivers.find((item) => item.driverId === input.driverId);
     if (!driver) {
@@ -1365,9 +1398,9 @@ export async function createSalaryPeriodExclusion(input: {
         issues: driver.issues,
       },
       afterSnapshot: {
-        handlingMode: input.handlingMode,
-        targetPeriod: input.targetPeriod ?? null,
-        note: input.note?.trim() || null,
+        handlingMode: handling.handlingMode,
+        targetPeriod: handling.targetPeriod,
+        note: handling.note,
       },
       makerId: input.actorId,
       makerRole: input.actorRole,
@@ -1379,17 +1412,21 @@ export async function createSalaryPeriodExclusion(input: {
       period: input.period,
       driverId: input.driverId,
       status: 'PENDING_CHECK',
-      handlingMode: input.handlingMode,
-      targetPeriod: input.targetPeriod ?? null,
+      handlingMode: handling.handlingMode,
+      targetPeriod: handling.targetPeriod,
       reason: created.reason,
-      note: input.note?.trim() || null,
+      note: handling.note,
       makerId: created.makerId,
       checkerId: null,
       approverId: null,
       followupStatus: null,
       followupCompletedAt: null,
     };
-  });
+  };
+  if (input.transaction) {
+    return execute(input.transaction);
+  }
+  return db.transaction(execute);
 }
 
 export async function checkSalaryPeriodExclusion(input: {
@@ -1398,6 +1435,7 @@ export async function checkSalaryPeriodExclusion(input: {
   actorRole: string;
   expectedVersion?: number | null;
   note?: string | null;
+  transaction?: Tx;
 }): Promise<SalaryPeriodExclusionResult> {
   if (!(FINANCIAL_ROLES as readonly string[]).includes(input.actorRole)) {
     throw new ApiError(403, 'Bạn không có quyền kiểm tra loại trừ kỳ lương');
@@ -1406,7 +1444,7 @@ export async function checkSalaryPeriodExclusion(input: {
     throw new ApiError(400, 'expectedVersion không hợp lệ');
   }
 
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx): Promise<SalaryPeriodExclusionResult> => {
     const [existing] = await tx.select().from(s.governanceActions)
       .where(eq(s.governanceActions.id, input.actionId))
       .limit(1);
@@ -1466,7 +1504,11 @@ export async function checkSalaryPeriodExclusion(input: {
       followupStatus: null,
       followupCompletedAt: null,
     };
-  });
+  };
+  if (input.transaction) {
+    return execute(input.transaction);
+  }
+  return db.transaction(execute);
 }
 
 export async function approveSalaryPeriodExclusion(input: {
@@ -1474,6 +1516,7 @@ export async function approveSalaryPeriodExclusion(input: {
   actorId: number;
   actorRole: string;
   expectedVersion?: number | null;
+  transaction?: Tx;
 }): Promise<SalaryPeriodExclusionResult> {
   if (input.actorRole !== 'ADMIN' && input.actorRole !== 'MANAGER') {
     throw new ApiError(403, 'Bạn không có quyền phê duyệt loại trừ kỳ lương');
@@ -1482,7 +1525,7 @@ export async function approveSalaryPeriodExclusion(input: {
     throw new ApiError(400, 'expectedVersion không hợp lệ');
   }
 
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx): Promise<SalaryPeriodExclusionResult> => {
     const [existing] = await tx.select().from(s.governanceActions)
       .where(eq(s.governanceActions.id, input.actionId))
       .limit(1);
@@ -1547,7 +1590,11 @@ export async function approveSalaryPeriodExclusion(input: {
       followupStatus: 'PENDING',
       followupCompletedAt: null,
     };
-  });
+  };
+  if (input.transaction) {
+    return execute(input.transaction);
+  }
+  return db.transaction(execute);
 }
 
 /**
@@ -1563,12 +1610,13 @@ export async function completeSalaryPeriodExclusionFollowup(input: {
   actionId: number;
   actorId: number;
   actorRole: string;
+  transaction?: Tx;
 }): Promise<SalaryPeriodExclusionResult> {
   if (input.actorRole !== 'ADMIN' && input.actorRole !== 'MANAGER') {
     throw new ApiError(403, 'Bạn không có quyền hoàn tất xử lý lương bổ sung');
   }
 
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx): Promise<SalaryPeriodExclusionResult> => {
     const [existing] = await tx.select().from(s.governanceActions)
       .where(eq(s.governanceActions.id, input.actionId))
       .limit(1)
@@ -1674,5 +1722,9 @@ export async function completeSalaryPeriodExclusionFollowup(input: {
       followupStatus: 'COMPLETED',
       followupCompletedAt: completedAt,
     };
-  });
+  };
+  if (input.transaction) {
+    return execute(input.transaction);
+  }
+  return db.transaction(execute);
 }

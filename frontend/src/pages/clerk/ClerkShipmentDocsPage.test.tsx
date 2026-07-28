@@ -17,6 +17,7 @@ const {
   checkCreditRequestMutateAsyncMock,
   confirmMock,
   createCreditRequestMutateAsyncMock,
+  creditQueueHookMock,
   creditQueueState,
   createDeclarationMock,
   currentUserState,
@@ -35,6 +36,7 @@ const {
   checkCreditRequestMutateAsyncMock: vi.fn(),
   confirmMock: vi.fn(),
   createCreditRequestMutateAsyncMock: vi.fn(),
+  creditQueueHookMock: vi.fn(),
   creditQueueState: {
     data: [] as CreditOverrideRequestRecord[],
     error: null as Error | null,
@@ -84,11 +86,7 @@ vi.mock('../../hooks/useAuth', () => ({
 }));
 
 vi.mock('../../hooks/useCreditOverrideQueries', () => ({
-  useCreditOverrideQueue: () => ({
-    data: creditQueueState.data,
-    error: creditQueueState.error,
-    isError: creditQueueState.isError,
-  }),
+  useCreditOverrideQueue: creditQueueHookMock,
   useCreateCreditOverrideRequest: () => ({
     mutateAsync: createCreditRequestMutateAsyncMock,
     isPending: false,
@@ -189,6 +187,12 @@ describe('ClerkShipmentDocsPage', () => {
     confirmMock.mockReset();
     createCreditRequestMutateAsyncMock.mockReset();
     createDeclarationMock.mockReset();
+    creditQueueHookMock.mockReset();
+    creditQueueHookMock.mockImplementation(() => ({
+      data: creditQueueState.data,
+      error: creditQueueState.error,
+      isError: creditQueueState.isError,
+    }));
     creditQueueState.data = [];
     creditQueueState.error = null;
     creditQueueState.isError = false;
@@ -210,6 +214,24 @@ describe('ClerkShipmentDocsPage', () => {
       drivers: [{ id: 44, name: 'Nguyen Van A' }],
     });
     getDetailMock.mockResolvedValue(makeDetail());
+  });
+
+  it('does not load the finance credit queue for a clerk', async () => {
+    renderAt();
+    await waitFor(() => expect(getDetailMock).toHaveBeenCalledWith(42));
+    await waitFor(() => expect(creditQueueHookMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ customerId: 7 }),
+      false,
+    ));
+  });
+
+  it.each([Role.ADMIN, Role.MANAGER])('loads the finance credit queue for %s', async (role) => {
+    currentUserState.role = role;
+    renderAt();
+    await waitFor(() => expect(creditQueueHookMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ customerId: 7 }),
+      true,
+    ));
   });
 
   it('shows the readiness warning when BL and containers are missing', async () => {

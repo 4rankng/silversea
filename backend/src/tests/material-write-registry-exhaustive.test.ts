@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import fs from 'node:fs';
 import path from 'node:path';
+import ts from 'typescript';
 
 import { getTableName } from 'drizzle-orm';
 
@@ -17,8 +18,38 @@ import {
 
 const routesRoot = path.resolve(process.cwd(), 'src/routes');
 const configRoutePath = path.join(routesRoot, 'config.ts');
+const applicationEntryPath = path.resolve(process.cwd(), 'src/index.ts');
 
 const schemaTables = schema as Record<string, unknown>;
+
+const REVIEWED_NON_MATERIAL_MUTATIONS = new Map<string, string>([
+  ['auth.ts|POST|/login', 'Authentication session creation; no business entity mutation.'],
+  ['auth.ts|POST|/logout', 'Authentication session revocation; independently token-bound and replay-safe.'],
+  ['financial/reports.routes.ts|POST|/reports/distribute-profit/preview', 'Read-only calculation preview.'],
+  ['financial/billing-documents.routes.ts|POST|/finance/billing-documents/generate', 'Read-only draft generation preview.'],
+  ['forwarder.ts|POST|/advance-settlements/preview', 'Read-only settlement calculation preview.'],
+  ['notifications.ts|POST|/:id/read', 'Per-user notification read marker.'],
+  ['notifications.ts|POST|/read-all', 'Per-user notification read markers.'],
+  ['notifications.ts|POST|/subscribe', 'Replaceable per-user browser push subscription.'],
+  ['notifications.ts|POST|/unsubscribe', 'Idempotent deletion of a browser push subscription.'],
+  ['onboarding.ts|PUT|/progress/:tourId', 'Replaceable per-user tutorial progress; no operational business entity mutation.'],
+  ['onboarding.ts|PUT|/tasks/:taskId', 'Replaceable per-user tutorial checklist state; no operational business entity mutation.'],
+  ['onboarding.ts|POST|/events', 'Append-only product analytics telemetry; no operational business entity mutation.'],
+]);
+
+const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
+  serviceFile: string;
+  marker: string;
+}>([
+  ['driver.ts|POST|/trips/:tripId/progress', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/driver.service.ts'),
+    marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_PROGRESS',
+  }],
+  ['driver.ts|POST|/trips/:tripId/incidental-costs', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/driver.service.ts'),
+    marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_INCIDENTAL_COST',
+  }],
+]);
 
 function walkTsFiles(root: string): string[] {
   const files: string[] = [];
@@ -35,6 +66,288 @@ function walkTsFiles(root: string): string[] {
   return files;
 }
 
+function normalizeRouteSample(mountPrefix: string, localPath: string): string {
+  const joined = `${mountPrefix.replace(/\/$/, '')}/${localPath.replace(/^\//, '')}`
+    .replace(/\/+/g, '/')
+    .replace(/\/$/, '');
+  return joined.replace(/:[A-Za-z0-9_]+/g, '123');
+}
+
+type RouterImport = {
+  filePath: string;
+  exportName: string;
+};
+
+type ParsedModule = {
+  source: string;
+  sourceFile: ts.SourceFile;
+  imports: Map<string, RouterImport>;
+};
+
+const parsedModuleCache = new Map<string, ParsedModule>();
+
+function resolveLocalModule(importerPath: string, specifier: string): string | null {
+  if (!specifier.startsWith('.')) return null;
+  const base = path.resolve(path.dirname(importerPath), specifier);
+  for (const candidate of [`${base}.ts`, path.join(base, 'index.ts')]) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return null;
+}
+
+function parseModule(filePath: string): ParsedModule {
+  const cached = parsedModuleCache.get(filePath);
+  if (cached) return cached;
+  const source = fs.readFileSync(filePath, 'utf8');
+  const sourceFile = ts.createSourceFile(
+    filePath,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  const imports = new Map<string, RouterImport>();
+  for (const statement of sourceFile.statements) {
+    if (!ts.isImportDeclaration(statement)
+      || !ts.isStringLiteral(statement.moduleSpecifier)
+      || !statement.importClause) {
+      continue;
+    }
+    const importedFile = resolveLocalModule(filePath, statement.moduleSpecifier.text);
+    if (!importedFile || !importedFile.startsWith(routesRoot)) continue;
+    if (statement.importClause.name) {
+      imports.set(statement.importClause.name.text, {
+        filePath: importedFile,
+        exportName: 'default',
+      });
+    }
+    const bindings = statement.importClause.namedBindings;
+    if (bindings && ts.isNamedImports(bindings)) {
+      for (const element of bindings.elements) {
+        imports.set(element.name.text, {
+          filePath: importedFile,
+          exportName: element.propertyName?.text ?? element.name.text,
+        });
+      }
+    }
+  }
+  const parsed = { source, sourceFile, imports };
+  parsedModuleCache.set(filePath, parsed);
+  return parsed;
+}
+
+function returnedRouterIdentifiers(node: ts.Node): string[] {
+  const identifiers = new Set<string>();
+  const visit = (child: ts.Node) => {
+    if (ts.isReturnStatement(child) && child.expression && ts.isIdentifier(child.expression)) {
+      identifiers.add(child.expression.text);
+      return;
+    }
+    ts.forEachChild(child, visit);
+  };
+  visit(node);
+  return [...identifiers];
+}
+
+function resolveExportedRouterIdentifiers(filePath: string, exportName: string): string[] {
+  const { sourceFile } = parseModule(filePath);
+  const localNames = new Set<string>();
+  for (const statement of sourceFile.statements) {
+    if (exportName === 'default' && ts.isExportAssignment(statement)) {
+      if (ts.isIdentifier(statement.expression)) {
+        localNames.add(statement.expression.text);
+      } else if (ts.isCallExpression(statement.expression)
+        && ts.isIdentifier(statement.expression.expression)) {
+        const factoryName = statement.expression.expression.text;
+        const factory = sourceFile.statements.find(
+          (candidate): candidate is ts.FunctionDeclaration =>
+            ts.isFunctionDeclaration(candidate) && candidate.name?.text === factoryName,
+        );
+        if (factory) {
+          for (const identifier of returnedRouterIdentifiers(factory)) localNames.add(identifier);
+        }
+      }
+    }
+    if (ts.isVariableStatement(statement)
+      && statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)) {
+      for (const declaration of statement.declarationList.declarations) {
+        if (ts.isIdentifier(declaration.name) && declaration.name.text === exportName) {
+          localNames.add(declaration.name.text);
+        }
+      }
+    }
+    if (ts.isExportDeclaration(statement)
+      && statement.exportClause
+      && ts.isNamedExports(statement.exportClause)) {
+      for (const element of statement.exportClause.elements) {
+        if (element.name.text === exportName) {
+          localNames.add(element.propertyName?.text ?? element.name.text);
+        }
+      }
+    }
+  }
+  assert.ok(
+    localNames.size > 0,
+    `cannot resolve mounted router export ${exportName} from ${path.relative(routesRoot, filePath)}`,
+  );
+  return [...localNames];
+}
+
+function staticTemplateExpressionValues(
+  expression: ts.Expression,
+  sourceFile: ts.SourceFile,
+): string[] {
+  if (!ts.isPropertyAccessExpression(expression) || !ts.isIdentifier(expression.expression)) {
+    return [];
+  }
+  let owner: ts.Node | undefined = expression;
+  while (owner && !ts.isFunctionDeclaration(owner)) owner = owner.parent;
+  if (!owner?.name) return [];
+  const values = new Set<string>();
+  const visit = (node: ts.Node) => {
+    if (ts.isCallExpression(node)
+      && ts.isIdentifier(node.expression)
+      && node.expression.text === owner.name?.text
+      && node.arguments[0]
+      && ts.isObjectLiteralExpression(node.arguments[0])) {
+      for (const property of node.arguments[0].properties) {
+        if (ts.isPropertyAssignment(property)
+          && property.name.getText(sourceFile) === expression.name.text
+          && ts.isStringLiteral(property.initializer)) {
+          values.add(property.initializer.text);
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return [...values];
+}
+
+function literalPathArguments(call: ts.CallExpression, sourceFile: ts.SourceFile): string[] {
+  const first = call.arguments[0];
+  if (first && (ts.isStringLiteral(first) || ts.isNoSubstitutionTemplateLiteral(first))) {
+    return [first.text];
+  }
+  if (first && ts.isTemplateExpression(first)) {
+    let values = [first.head.text];
+    for (const span of first.templateSpans) {
+      const replacements = staticTemplateExpressionValues(span.expression, sourceFile);
+      assert.ok(
+        replacements.length > 0,
+        `mounted mutation template expression must resolve from static router registration: ${call.getText()}`,
+      );
+      values = values.flatMap((prefix) =>
+        replacements.map((replacement) => `${prefix}${replacement}${span.literal.text}`));
+    }
+    return values;
+  }
+  assert.ok(
+    false,
+    `mounted mutation path must be a static literal: ${call.getText()}`,
+  );
+  return [];
+}
+
+function extractMountedMutationRoutes(): Array<{
+  sourceKey: string;
+  method: string;
+  routePath: string;
+  sourceBody: string;
+}> {
+  const routes: Array<{
+    sourceKey: string;
+    method: string;
+    routePath: string;
+    sourceBody: string;
+  }> = [];
+  const visited = new Set<string>();
+
+  const scanRouter = (
+    filePath: string,
+    routerIdentifier: string,
+    mountPrefix: string,
+  ) => {
+    const visitKey = `${filePath}|${routerIdentifier}|${mountPrefix}`;
+    if (visited.has(visitKey)) return;
+    visited.add(visitKey);
+    const { sourceFile, imports } = parseModule(filePath);
+    const relativePath = path.relative(routesRoot, filePath);
+
+    const visit = (node: ts.Node) => {
+      if (ts.isCallExpression(node)
+        && ts.isPropertyAccessExpression(node.expression)
+        && ts.isIdentifier(node.expression.expression)
+        && node.expression.expression.text === routerIdentifier) {
+        const operation = node.expression.name.text.toLowerCase();
+        if (['post', 'put', 'patch', 'delete'].includes(operation)) {
+          for (const localPath of literalPathArguments(node, sourceFile)) {
+            routes.push({
+              sourceKey: `${relativePath}|${operation.toUpperCase()}|${localPath}`,
+              method: operation.toUpperCase(),
+              routePath: normalizeRouteSample(mountPrefix, localPath),
+              sourceBody: node.getText(sourceFile),
+            });
+          }
+        } else if (operation === 'use') {
+          const first = node.arguments[0];
+          const localMount = first
+            && (ts.isStringLiteral(first) || ts.isNoSubstitutionTemplateLiteral(first))
+            ? first.text
+            : '';
+          const nestedPrefix = normalizeRouteSample(mountPrefix, localMount);
+          for (const argument of node.arguments) {
+            if (!ts.isIdentifier(argument)) continue;
+            const imported = imports.get(argument.text);
+            if (imported) {
+              for (const nestedIdentifier of resolveExportedRouterIdentifiers(
+                imported.filePath,
+                imported.exportName,
+              )) {
+                scanRouter(imported.filePath, nestedIdentifier, nestedPrefix);
+              }
+            } else if (argument.text !== routerIdentifier) {
+              scanRouter(filePath, argument.text, nestedPrefix);
+            }
+          }
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(sourceFile);
+  };
+
+  const entry = parseModule(applicationEntryPath);
+  const visitEntry = (node: ts.Node) => {
+    if (ts.isCallExpression(node)
+      && ts.isPropertyAccessExpression(node.expression)
+      && ts.isIdentifier(node.expression.expression)
+      && node.expression.expression.text === 'app'
+      && node.expression.name.text === 'use') {
+      const first = node.arguments[0];
+      const mountPrefix = first
+        && (ts.isStringLiteral(first) || ts.isNoSubstitutionTemplateLiteral(first))
+        ? first.text
+        : '';
+      for (const argument of node.arguments) {
+        if (!ts.isIdentifier(argument)) continue;
+        const imported = entry.imports.get(argument.text);
+        if (!imported) continue;
+        for (const routerIdentifier of resolveExportedRouterIdentifiers(
+          imported.filePath,
+          imported.exportName,
+        )) {
+          scanRouter(imported.filePath, routerIdentifier, mountPrefix);
+        }
+      }
+    }
+    ts.forEachChild(node, visitEntry);
+  };
+  visitEntry(entry.sourceFile);
+
+  return routes;
+}
+
 function extractConstObject(source: string, constantName: string): Record<string, string> {
   const blockMatch = source.match(new RegExp(`const ${constantName} = \\{([\\s\\S]*?)\\} as const;`));
   if (!blockMatch) return {};
@@ -43,17 +356,24 @@ function extractConstObject(source: string, constantName: string): Record<string
   );
 }
 
-function extractConstString(source: string, constantName: string): string[] {
-  const match = source.match(new RegExp(`const ${constantName} = '([^']+)'`));
-  return match ? [match[1]] : [];
+function extractConstStrings(source: string): Record<string, string> {
+  return Object.fromEntries(
+    [...source.matchAll(/const\s+([A-Z0-9_]+)\s*=\s*'([^']+)'/g)].map((match) => [match[1], match[2]]),
+  );
 }
 
 function extractExpectedEndpointsFromRouteFile(filePath: string): string[] {
   const source = fs.readFileSync(filePath, 'utf8');
   const endpoints = new Set<string>();
+  const constStrings = extractConstStrings(source);
 
   for (const match of source.matchAll(/endpoint:\s*'([^']+)'/g)) {
     endpoints.add(match[1]);
+  }
+
+  for (const match of source.matchAll(/endpoint:\s*([A-Z0-9_]+)\b/g)) {
+    const value = constStrings[match[1]];
+    if (value) endpoints.add(value);
   }
 
   for (const match of source.matchAll(/IDEMPOTENCY_ENDPOINTS\.([A-Z0-9_]+)/g)) {
@@ -76,10 +396,10 @@ function extractExpectedEndpointsFromRouteFile(filePath: string): string[] {
   }
 
   for (const constantName of ['GPS_SETTINGS_COMMAND', 'LLM_SETTINGS_COMMAND']) {
-    const values = extractConstString(source, constantName);
+    const value = constStrings[constantName];
     for (const match of source.matchAll(new RegExp(`endpoint:\\s*${constantName}\\b`, 'g'))) {
-      if (match[0]) {
-        for (const value of values) endpoints.add(value);
+      if (match[0] && value) {
+        endpoints.add(value);
       }
     }
   }
@@ -113,6 +433,53 @@ function extractGeneratedCrudEndpoints(): string[] {
 }
 
 describe('material-write registry coverage', () => {
+  test('discovers named and nested routers from the production mount topology', () => {
+    const routes = extractMountedMutationRoutes();
+    const discovered = new Map(routes.map((route) => [route.sourceKey, route.routePath]));
+    const expected = new Map([
+      ['onboarding.ts|PUT|/progress/:tourId', '/api/onboarding/progress/123'],
+      ['onboarding-settings.ts|PUT|/', '/api/admin/onboarding-settings'],
+      ['app-settings.ts|PUT|/', '/api/admin/app-settings'],
+      ['upload.ts|POST|/company-logo', '/api/upload/company-logo'],
+      ['financial/payments.routes.ts|POST|/payments/receive', '/api/payments/receive'],
+      ['config.ts|POST|/:period/exclusions', '/api/salary-periods/123/exclusions'],
+    ]);
+    for (const [sourceKey, routePath] of expected) {
+      assert.equal(discovered.get(sourceKey), routePath, `missing mounted route ${sourceKey}`);
+    }
+  });
+
+  test('independently inventories every mounted mutation route', () => {
+    const uncovered: string[] = [];
+    for (const route of extractMountedMutationRoutes()) {
+      if (REVIEWED_NON_MATERIAL_MUTATIONS.has(route.sourceKey)) continue;
+      if (!matchDeclaredMaterialWrite(route.method, route.routePath)) {
+        uncovered.push(`${route.sourceKey} => ${route.method} ${route.routePath}`);
+      }
+    }
+    assert.deepEqual(uncovered.sort(), []);
+  });
+
+  test('every inventoried material mutation reaches a reviewed durable command boundary', () => {
+    for (const route of extractMountedMutationRoutes()) {
+      if (REVIEWED_NON_MATERIAL_MUTATIONS.has(route.sourceKey)) continue;
+      const delegated = REVIEWED_SERVICE_DURABLE_BOUNDARIES.get(route.sourceKey);
+      if (delegated) {
+        const source = fs.readFileSync(delegated.serviceFile, 'utf8');
+        assert.ok(
+          source.includes(delegated.marker),
+          `${route.sourceKey}: missing service durability marker ${delegated.marker}`,
+        );
+        continue;
+      }
+      assert.match(
+        route.sourceBody,
+        /\b(runIdempotent|runShipmentWrite|createShipmentIdempotent|runDurableGpsCommand|[A-Za-z]+WriteCommand)\b/,
+        `${route.sourceKey}: no reviewed durable command boundary`,
+      );
+    }
+  });
+
   test('declares every current HTTP runIdempotent command endpoint', () => {
     const declared = new Set(listDeclaredMaterialWriteEndpoints());
     const expected = new Set<string>(extractGeneratedCrudEndpoints());
@@ -156,12 +523,27 @@ describe('material-write registry coverage', () => {
       ['POST', '/api/salary-periods', 'config.salary-periods.override.create'],
       ['PUT', '/api/salary-periods/2026-07', 'config.salary-periods.override.update'],
       ['DELETE', '/api/salary-periods/2026-07', 'config.salary-periods.override.delete'],
+      ['POST', '/api/salary-periods/2026-07/exclusions', 'config.salary-periods.exclusion.create'],
+      ['POST', '/api/salary-periods/2026-07/exclusions/9/check', 'config.salary-periods.exclusion.check'],
+      ['POST', '/api/salary-periods/2026-07/exclusions/9/approve', 'config.salary-periods.exclusion.approve'],
+      ['POST', '/api/salary-periods/2026-07/exclusions/9/complete-followup', 'config.salary-periods.exclusion.followup.complete'],
+      ['POST', '/api/salary-periods/2026-07/close', 'config.salary-periods.close.request'],
+      ['POST', '/api/salary-periods/2026-07/close-actions/9/check', 'config.salary-periods.close.check'],
+      ['POST', '/api/salary-periods/2026-07/close-actions/9/approve', 'config.salary-periods.close.approve'],
+      ['POST', '/api/salary-periods/2026-07/reopen', 'config.salary-periods.reopen.request'],
+      ['POST', '/api/salary-periods/2026-07/reopen-actions/9/check', 'config.salary-periods.reopen.check'],
+      ['POST', '/api/salary-periods/2026-07/reopen-actions/9/approve', 'config.salary-periods.reopen.approve'],
+      ['POST', '/api/salary/periods/2026-07/issue-actions/9/check', IDEMPOTENCY_ENDPOINTS.GOVERNANCE_CHECK],
+      ['POST', '/api/salary/periods/2026-07/issue-actions/9/approve', IDEMPOTENCY_ENDPOINTS.GOVERNANCE_APPROVE],
+      ['POST', '/api/salary/periods/2026-07/post-actions/9/check', IDEMPOTENCY_ENDPOINTS.GOVERNANCE_CHECK],
+      ['POST', '/api/salary/periods/2026-07/post-actions/9/approve', IDEMPOTENCY_ENDPOINTS.GOVERNANCE_APPROVE],
       ['POST', '/api/business-calendar', 'config.business_calendar_days.create'],
       ['PUT', '/api/business-calendar/3', 'config.business_calendar_days.update'],
       ['DELETE', '/api/business-calendar/3', 'config.business_calendar_days.delete'],
       ['POST', '/api/ancillary-revenue', 'config.ancillary_revenue.create'],
       ['PUT', '/api/ancillary-revenue/3', 'config.ancillary_revenue.update'],
       ['DELETE', '/api/ancillary-revenue/3', 'config.ancillary_revenue.delete'],
+      ['POST', '/api/finance/fuel-invoices/123/corrections', 'fuel-invoices.correction.create'],
     ] as const;
 
     for (const [method, routePath, endpoint] of cases) {

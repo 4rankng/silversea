@@ -83,6 +83,30 @@ function normalizePayeeName(value: string): string {
   return value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('vi-VN');
 }
 
+function buildNoInvoiceAggregateLockKey(
+  expense: TripExpenseNoInvoiceState,
+): string | null {
+  if (hasInvoice(expense.invoiceNumber)) return null;
+  if (!expense.expenseDate || !expense.payeeName?.trim()) return null;
+  return [
+    'no-invoice-aggregate',
+    expense.expenseType,
+    expense.expenseDate,
+    normalizePayeeName(expense.payeeName),
+  ].join('\u001f');
+}
+
+async function lockNoInvoiceAggregateScope(
+  tx: Tx,
+  expense: TripExpenseNoInvoiceState,
+): Promise<void> {
+  const lockKey = buildNoInvoiceAggregateLockKey(expense);
+  if (!lockKey) return;
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`,
+  );
+}
+
 function normalizeEvidenceTypes(value: string[] | null | undefined): NoInvoiceEvidenceType[] {
   const allowed = new Set(DEFAULT_NO_INVOICE_EVIDENCE_TYPES);
   return Array.from(new Set((value ?? []).filter((item): item is NoInvoiceEvidenceType => allowed.has(item as NoInvoiceEvidenceType))));
@@ -162,11 +186,29 @@ async function getTripExpenseNoInvoiceState(
   return expense ?? null;
 }
 
-async function countExpensePhotos(txOrDb: DbLike, expenseId: number): Promise<number> {
-  const [row] = await txOrDb.select({ count: sql<number>`count(*)::int` })
+async function getExpensePhotoEvidence(txOrDb: DbLike, expenseId: number): Promise<{
+  photoCount: number;
+  geotaggedPhotoCount: number;
+}> {
+  const [row] = await txOrDb.select({
+    photoCount: sql<number>`count(${s.tripExpensePhotos.id})::int`,
+    geotaggedPhotoCount: sql<number>`count(*) filter (
+      where ${s.photoGeotags.id} is not null
+        and ${s.photoGeotags.gpsAt} is not null
+        and ${s.photoGeotags.lat} between -90 and 90
+        and ${s.photoGeotags.lng} between -180 and 180
+    )::int`,
+  })
     .from(s.tripExpensePhotos)
+    .leftJoin(s.photoGeotags, and(
+      eq(s.photoGeotags.entityType, 'trip_expense_photo'),
+      eq(s.photoGeotags.entityId, s.tripExpensePhotos.id),
+    ))
     .where(eq(s.tripExpensePhotos.tripExpenseId, expenseId));
-  return row?.count ?? 0;
+  return {
+    photoCount: row?.photoCount ?? 0,
+    geotaggedPhotoCount: row?.geotaggedPhotoCount ?? 0,
+  };
 }
 
 async function sumSameDaySamePayeeCategory(
@@ -196,7 +238,7 @@ async function sumSameDaySamePayeeCategory(
 function missingEvidenceLabels(
   expense: TripExpenseNoInvoiceState,
   policy: ForwarderExpenseTypePolicy,
-  photoCount: number,
+  photoEvidence: { photoCount: number; geotaggedPhotoCount: number },
 ): string[] {
   const missing: string[] = [];
   if (!expense.expenseDate) missing.push('ngày chi');
@@ -220,8 +262,12 @@ function missingEvidenceLabels(
     }
   }
 
-  if (evidenceTypes.includes('ONSITE_PHOTO') && photoCount === 0) {
-    missing.push('ảnh hiện trường');
+  if (evidenceTypes.includes('ONSITE_PHOTO')) {
+    if (photoEvidence.photoCount === 0) {
+      missing.push('ảnh hiện trường');
+    } else if (photoEvidence.geotaggedPhotoCount === 0) {
+      missing.push('thời gian và vị trí GPS của ảnh hiện trường');
+    }
   }
   return missing;
 }
@@ -312,6 +358,9 @@ export async function reviewNoInvoiceDisbursementApproval(
       requiresExceptionReason: false,
     };
   }
+  if (tx) {
+    await lockNoInvoiceAggregateScope(tx, expense);
+  }
 
   const policy = await getForwarderExpenseTypePolicy(q, expense.expenseType);
   if (!policy) {
@@ -327,8 +376,8 @@ export async function reviewNoInvoiceDisbursementApproval(
   }
 
   const policySnapshot = buildNoInvoicePolicySnapshot(policy);
-  const photoCount = await countExpensePhotos(q, expenseId);
-  const missing = missingEvidenceLabels(expense, policy, photoCount);
+  const photoEvidence = await getExpensePhotoEvidence(q, expenseId);
+  const missing = missingEvidenceLabels(expense, policy, photoEvidence);
   const aggregateAmount = await sumSameDaySamePayeeCategory(q, expense);
 
   if (missing.length > 0) {

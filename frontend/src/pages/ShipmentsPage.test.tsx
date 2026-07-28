@@ -1,8 +1,11 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { ShipmentStatus } from '@tingting/shared';
 
+const shipmentsPageCss = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
 // vi.hoisted runs before vi.mock's factory is invoked, so the mock fn is
 // accessible inside the factory. (Vitest hoists vi.mock above all top-level
 // declarations — referencing a plain const from the factory throws
@@ -78,6 +81,14 @@ describe('ShipmentsPage — minimal Wave 0 list surface', () => {
     expect(tb.getByText('Bản nháp')).toBeTruthy();
     expect(tb.getByText('Đang xử lý')).toBeTruthy();
     await waitFor(() => expect(apiGet).toHaveBeenCalled());
+  });
+
+  it('removes the redundant breadcrumb from the phone layout', () => {
+    expect(shipmentsPageCss).toContain(`@media (max-width: 640px) {
+  .shipments-page__crumbs {
+    display: none;
+  }
+}`);
   });
 
   it('renders the empty state when the API returns no shipments', async () => {

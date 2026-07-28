@@ -43,6 +43,8 @@ const PENALTY_EVENTS = [
 const FINANCE_ENTITY_TYPES = [
   'finance',
   'payments',
+  'payment_receipt',
+  'payment-receipt',
   'adjustments',
   'expenses',
   'trip-expenses',
@@ -53,7 +55,10 @@ const FINANCE_ENTITY_TYPES = [
   'advances',
   'settlements',
   'advance-settlements',
+  'billing_document',
   'billing-documents',
+  'debt_offset',
+  'credit_override',
   'customer-email-logs',
 ];
 
@@ -114,11 +119,13 @@ function accountantAssignmentCondition(userId: number): SQL {
     ${s.auditLogs.payload}#>>'{body,trip_id}'
   )`;
   const path = sql`coalesce(${s.auditLogs.payload}->>'path', '')`;
-  const hasExplicitAssignments = sql`exists (
-    select 1
-    from ${s.userCustomerLinks} assigned_scope
-    where assigned_scope.user_id = ${userId}
+  const isPaymentReceiptPath = sql`(
+    ${path} like '/api/payments/receive%'
+    or ${path} like '/api/payments/receipts/%'
   )`;
+  const isBillingDocumentPath = sql`${path} like '/api/finance/billing-documents%'`;
+  const isDebtOffsetPath = sql`${path} like '/api/finance/debt-offsets%'`;
+  const isCreditOverridePath = sql`${path} like '/api/finance/credit-overrides%'`;
   const matchesDirectCustomer = sql`exists (
     select 1
     from ${s.userCustomerLinks} assigned_customer
@@ -152,6 +159,18 @@ function accountantAssignmentCondition(userId: number): SQL {
       and scoped_expense.id = ${s.auditLogs.entityId}
       and ${s.auditLogs.entityType} in ('trip-expenses', 'forwarder-expenses')
   )`;
+  const matchesPaymentReceipt = sql`exists (
+    select 1
+    from ${s.paymentReceipts} scoped_receipt
+    inner join ${s.userCustomerLinks} assigned_receipt_customer
+      on assigned_receipt_customer.customer_id = scoped_receipt.customer_id
+    where assigned_receipt_customer.user_id = ${userId}
+      and scoped_receipt.id = ${s.auditLogs.entityId}
+      and (
+        ${s.auditLogs.entityType} in ('payments', 'payment_receipt', 'payment-receipt')
+        or ${isPaymentReceiptPath}
+      )
+  )`;
   const matchesBillingDocument = sql`exists (
     select 1
     from ${s.billingDocuments} scoped_document
@@ -160,7 +179,10 @@ function accountantAssignmentCondition(userId: number): SQL {
     where assigned_document_customer.user_id = ${userId}
       and scoped_document.id = ${s.auditLogs.entityId}
       and scoped_document.entity_type = 'CUSTOMER'
-      and ${path} like '/api/finance/billing-documents%'
+      and (
+        ${s.auditLogs.entityType} in ('billing_document', 'billing-documents', 'finance')
+        or ${isBillingDocumentPath}
+      )
   )`;
   const matchesDebtOffset = sql`exists (
     select 1
@@ -169,7 +191,10 @@ function accountantAssignmentCondition(userId: number): SQL {
       on assigned_offset_customer.customer_id = scoped_offset.customer_id
     where assigned_offset_customer.user_id = ${userId}
       and scoped_offset.id = ${s.auditLogs.entityId}
-      and ${path} like '/api/finance/debt-offsets%'
+      and (
+        ${s.auditLogs.entityType} in ('debt_offset', 'debt-offsets')
+        or ${isDebtOffsetPath}
+      )
   )`;
   const matchesCreditOverride = sql`exists (
     select 1
@@ -178,28 +203,43 @@ function accountantAssignmentCondition(userId: number): SQL {
       on assigned_override_customer.customer_id = scoped_override.customer_id
     where assigned_override_customer.user_id = ${userId}
       and scoped_override.id = ${s.auditLogs.entityId}
-      and ${path} like '/api/finance/credit-overrides%'
+      and (
+        ${s.auditLogs.entityType} in ('credit_override', 'credit-overrides')
+        or ${isCreditOverridePath}
+      )
   )`;
-  const isRecognizablyCustomerScoped = sql`(
+  const isCustomerBoundFinanceRow = sql`(
     ${directCustomerId} is not null
     or ${directTripId} is not null
-    or ${s.auditLogs.entityType} in ('trips', 'trip', 'trip-expenses', 'forwarder-expenses')
-    or ${path} like '/api/payments/receive%'
-    or ${path} like '/api/finance/billing-documents%'
-    or ${path} like '/api/finance/debt-offsets%'
-    or ${path} like '/api/finance/credit-overrides%'
+    or ${s.auditLogs.entityType} in (
+      'trips',
+      'trip',
+      'trip-expenses',
+      'forwarder-expenses',
+      'payments',
+      'payment_receipt',
+      'payment-receipt',
+      'billing_document',
+      'billing-documents',
+      'debt_offset',
+      'debt-offsets',
+      'credit_override',
+      'credit-overrides',
+      'customer-email-logs'
+    )
+    or ${isPaymentReceiptPath}
+    or ${isBillingDocumentPath}
+    or ${isDebtOffsetPath}
+    or ${isCreditOverridePath}
   )`;
 
-  // Legacy accountants with no explicit links retain the existing company-wide
-  // finance/payroll scope. Once an administrator assigns customers, every
-  // recognizably customer-bound row must resolve to one of those links.
   return sql`(
-    not ${hasExplicitAssignments}
-    or not ${isRecognizablyCustomerScoped}
+    not ${isCustomerBoundFinanceRow}
     or ${matchesDirectCustomer}
     or ${matchesDirectTrip}
     or ${matchesTripEntity}
     or ${matchesTripExpenseEntity}
+    or ${matchesPaymentReceipt}
     or ${matchesBillingDocument}
     or ${matchesDebtOffset}
     or ${matchesCreditOverride}

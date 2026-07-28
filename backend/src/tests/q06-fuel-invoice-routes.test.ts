@@ -12,11 +12,13 @@ import * as s from '../db/schema';
 import { config } from '../config';
 import { initEnforcer } from '../casbin/enforcer';
 import { authMiddleware } from '../middleware/auth';
+import { auditLogMiddleware } from '../middleware/audit';
 import { casbinAuthz } from '../middleware/casbin';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import financialRoutes from '../routes/financial';
 import { getFuelApReconciliation } from '../services/fuel-ap-recon.service';
 import { disconnectRedis } from '../lib/redis';
+import { closePeriodLock, getClosedPeriodLock, resolveFuelPeriodAuthority } from '../services/period-lock.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdUserIds: number[] = [];
@@ -30,6 +32,7 @@ const createdExpenseIds: number[] = [];
 const createdExpensePhotoIds: number[] = [];
 const createdFuelInvoiceIds: number[] = [];
 const createdGovernanceActionIds: number[] = [];
+const createdPeriodLockIds: number[] = [];
 const idempotencyKeys: string[] = [];
 let failpointCounter = 0;
 
@@ -207,6 +210,17 @@ async function request(path: string, init: { method?: string; token: string; bod
   return { status: response.status, body };
 }
 
+async function withMockedNow<T>(isoDateTime: string, run: () => Promise<T>): Promise<T> {
+  const realNow = Date.now;
+  const fixedNow = new Date(isoDateTime).getTime();
+  Date.now = () => fixedNow;
+  try {
+    return await run();
+  } finally {
+    Date.now = realNow;
+  }
+}
+
 async function approveFuelInvoiceThroughGovernance(invoiceId: number, expectedVersion: number) {
   const requested = await request(`/api/finance/fuel-invoices/${invoiceId}/approve`, {
     method: 'POST',
@@ -230,6 +244,13 @@ async function approveFuelInvoiceThroughGovernance(invoiceId: number, expectedVe
   });
   assert.equal(approved.status, 200, JSON.stringify(approved.body));
   return { requested, checked, approved };
+}
+
+async function trackFuelLock(date: string, actorId: number) {
+  const lock = await db.transaction((tx) =>
+    closePeriodLock(tx, resolveFuelPeriodAuthority(date), actorId, 'Q06 fuel period test'));
+  createdPeriodLockIds.push(lock.id);
+  return lock;
 }
 
 async function withIdempotencyInsertFailure(endpoint: string, idempotencyKey: string, run: () => Promise<void>) {
@@ -277,7 +298,7 @@ before(async () => {
 
   const app = express();
   app.use(express.json());
-  app.use('/api', authMiddleware, casbinAuthz('financial'), financialRoutes);
+  app.use('/api', authMiddleware, auditLogMiddleware, casbinAuthz('financial'), financialRoutes);
   app.use(globalErrorHandler);
 
   await new Promise<void>((resolve) => {
@@ -300,6 +321,9 @@ after(async () => {
     }
     if (createdGovernanceActionIds.length > 0) {
       await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, createdGovernanceActionIds));
+    }
+    if (createdPeriodLockIds.length > 0) {
+      await db.delete(s.periodLocks).where(inArray(s.periodLocks.id, createdPeriodLockIds));
     }
     if (createdFuelInvoiceIds.length > 0) {
       await db.delete(s.fuelInvoices).where(inArray(s.fuelInvoices.id, createdFuelInvoiceIds));
@@ -410,6 +434,169 @@ describe('Q06 fuel invoice routes', () => {
       const denied = await request('/api/finance/fuel-invoices', { token });
       assert.equal(denied.status, 403);
     }
+  });
+
+  test('lists more than 50 invoices through a stable cursor without duplicates', async () => {
+    const supplier = await mkSupplier();
+    const inserted = await db.insert(s.fuelInvoices).values(
+      Array.from({ length: 51 }, (_, index) => ({
+        supplierId: supplier.id,
+        invoiceNumber: `HD-Q06-PAGE-${suffix}-${index}`,
+        invoiceDate: '2026-07-21',
+        totalLiters: '1',
+        unitPrice: '22000',
+        totalAmount: '22000',
+        approvalStatus: 'PENDING',
+      })),
+    ).returning({ id: s.fuelInvoices.id });
+    createdFuelInvoiceIds.push(...inserted.map((row) => row.id));
+
+    const seenIds: number[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await request(
+        `/api/finance/fuel-invoices?supplierId=${supplier.id}&paginated=true&limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
+        { token: managerToken },
+      );
+      assert.equal(page.status, 200, JSON.stringify(page.body));
+      assert.ok(Array.isArray(page.body.items));
+      assert.ok(page.body.items.length <= 20);
+      seenIds.push(...page.body.items.map((row: { id: number }) => row.id));
+      cursor = page.body.nextCursor ?? undefined;
+    } while (cursor);
+
+    assert.equal(seenIds.length, 51);
+    assert.equal(new Set(seenIds).size, 51);
+    assert.deepEqual(
+      new Set(seenIds),
+      new Set(inserted.map((row) => row.id)),
+    );
+
+    const legacyList = await request(
+      `/api/finance/fuel-invoices?supplierId=${supplier.id}`,
+      { token: managerToken },
+    );
+    assert.equal(legacyList.status, 200, JSON.stringify(legacyList.body));
+    assert.ok(Array.isArray(legacyList.body));
+    assert.equal(legacyList.body.length, 51);
+    assert.deepEqual(
+      new Set(legacyList.body.map((row: { id: number }) => row.id)),
+      new Set(inserted.map((row) => row.id)),
+    );
+  });
+
+  test('status pagination scans past newer nonmatching raw invoices', async () => {
+    const supplier = await mkSupplier();
+    const inserted = await db.insert(s.fuelInvoices).values([
+      {
+        supplierId: supplier.id,
+        invoiceNumber: `HD-Q06-STATUS-${suffix}-approved-1`,
+        invoiceDate: '2026-07-21',
+        totalLiters: '1',
+        unitPrice: '22000',
+        totalAmount: '22000',
+        approvalStatus: 'APPROVED',
+      },
+      {
+        supplierId: supplier.id,
+        invoiceNumber: `HD-Q06-STATUS-${suffix}-approved-2`,
+        invoiceDate: '2026-07-21',
+        totalLiters: '1',
+        unitPrice: '22000',
+        totalAmount: '22000',
+        approvalStatus: 'APPROVED',
+      },
+      {
+        supplierId: supplier.id,
+        invoiceNumber: `HD-Q06-STATUS-${suffix}-rejected`,
+        invoiceDate: '2026-07-21',
+        totalLiters: '1',
+        unitPrice: '22000',
+        totalAmount: '22000',
+        approvalStatus: 'REJECTED',
+      },
+      {
+        supplierId: supplier.id,
+        invoiceNumber: `HD-Q06-STATUS-${suffix}-pending`,
+        invoiceDate: '2026-07-21',
+        totalLiters: '1',
+        unitPrice: '22000',
+        totalAmount: '22000',
+        approvalStatus: 'PENDING',
+      },
+    ]).returning({ id: s.fuelInvoices.id });
+    createdFuelInvoiceIds.push(...inserted.map((row) => row.id));
+
+    const page = await request(
+      `/api/finance/fuel-invoices?supplierId=${supplier.id}&status=APPROVED&paginated=true&limit=2`,
+      { token: managerToken },
+    );
+    assert.equal(page.status, 200, JSON.stringify(page.body));
+    assert.deepEqual(
+      page.body.items.map((row: { id: number }) => row.id),
+      [inserted[1]!.id, inserted[0]!.id],
+    );
+    assert.equal(page.body.nextCursor, null);
+  });
+
+  test('REVERSED pagination uses synthesized effective status across raw pages', async () => {
+    const supplier = await mkSupplier();
+    const inserted = await db.insert(s.fuelInvoices).values(
+      Array.from({ length: 6 }, (_, index) => ({
+        supplierId: supplier.id,
+        invoiceNumber: `HD-Q06-REVERSED-PAGE-${suffix}-${index}`,
+        invoiceDate: '2026-07-21',
+        totalLiters: '1',
+        unitPrice: '22000',
+        totalAmount: '22000',
+        approvalStatus: 'APPROVED',
+      })),
+    ).returning({ id: s.fuelInvoices.id });
+    createdFuelInvoiceIds.push(...inserted.map((row) => row.id));
+    const reversedInvoices = [inserted[4]!, inserted[2]!, inserted[0]!];
+    const reversalActions = await db.insert(s.governanceActions).values(
+      reversedInvoices.map((invoice) => ({
+        subjectType: 'FUEL_INVOICE',
+        subjectId: invoice.id,
+        subjectKey: `fuel-invoice:${invoice.id}`,
+        actionKind: 'FUEL_INVOICE_CORRECTION',
+        status: 'APPROVED',
+        reason: 'Q06 effective reversed pagination',
+        originalVersion: 1,
+        beforeSnapshot: {},
+        afterSnapshot: {
+          correctionType: 'REVERSAL',
+          invoice: null,
+          allocations: [],
+        },
+        deltaSnapshot: { correctionType: 'REVERSAL' },
+        makerId: createdUserIds[0]!,
+        makerRole: 'MANAGER',
+      })),
+    ).returning({ id: s.governanceActions.id });
+    createdGovernanceActionIds.push(...reversalActions.map((row) => row.id));
+
+    const firstPage = await request(
+      `/api/finance/fuel-invoices?supplierId=${supplier.id}&status=REVERSED&paginated=true&limit=2`,
+      { token: managerToken },
+    );
+    assert.equal(firstPage.status, 200, JSON.stringify(firstPage.body));
+    assert.deepEqual(
+      firstPage.body.items.map((row: { id: number }) => row.id),
+      [inserted[4]!.id, inserted[2]!.id],
+    );
+    assert.ok(firstPage.body.nextCursor);
+
+    const secondPage = await request(
+      `/api/finance/fuel-invoices?supplierId=${supplier.id}&status=REVERSED&paginated=true&limit=2&cursor=${encodeURIComponent(firstPage.body.nextCursor)}`,
+      { token: managerToken },
+    );
+    assert.equal(secondPage.status, 200, JSON.stringify(secondPage.body));
+    assert.deepEqual(
+      secondPage.body.items.map((row: { id: number }) => row.id),
+      [inserted[0]!.id],
+    );
+    assert.equal(secondPage.body.nextCursor, null);
   });
 
   test('approval requires a linked approved fuel expense on the same trip and supplier', async () => {
@@ -1064,6 +1251,84 @@ describe('Q06 fuel invoice routes', () => {
       .where(eq(s.fuelInvoices.id, created.body.id));
     assert.equal(Number(stillImmutable.totalLiters), 100);
     assert.equal(stillImmutable.approvalStatus, 'APPROVED');
+  });
+
+  test('Q21 governed late fuel approval writes a source-to-target period link and preserves the closed source month', async () => {
+    const supplier = await mkSupplier();
+    const truck = await mkTruck();
+    const trip = await mkTrip(supplier.id, truck.id);
+    const expense = await mkExpense({
+      tripId: trip.id,
+      supplierId: supplier.id,
+      expenseType: 'FUEL_DIESEL',
+      expenseDate: '2026-05-12',
+      invoiceNumber: `PXD-Q21-${suffix}`,
+      approvalStatus: 'APPROVED',
+    });
+
+    const lockedMay = await trackFuelLock('2026-05-12', createdUserIds[2]!);
+    const created = await request('/api/finance/fuel-invoices', {
+      method: 'POST',
+      token: accountantToken,
+      body: {
+        supplierId: supplier.id,
+        invoiceNumber: `HD-Q21-${suffix}`,
+        invoiceDate: '2026-05-20',
+        totalLiters: 100,
+        unitPrice: 22000,
+        note: 'Điều chỉnh nhiên liệu tháng trước vào tháng đang mở',
+        allocations: [{
+          tripId: trip.id,
+          truckId: truck.id,
+          tripExpenseId: expense.id,
+          voucherReference: `PXD-Q21-${suffix}`,
+          voucherDate: '2026-05-12',
+          liters: 100,
+        }],
+      },
+    });
+    assert.equal(created.status, 201, JSON.stringify(created.body));
+
+    const { requested } = await withMockedNow(
+      '2026-07-28T12:00:00.000Z',
+      () => approveFuelInvoiceThroughGovernance(created.body.id, created.body.version),
+    );
+    const links = await db.select()
+      .from(s.fuelPeriodAdjustments)
+      .where(eq(s.fuelPeriodAdjustments.governanceActionId, requested.body.id));
+    assert.equal(links.length, 1);
+    assert.equal(links[0]?.fuelInvoiceId, created.body.id);
+    assert.equal(links[0]?.sourcePeriodLockId, lockedMay.id);
+    assert.equal(links[0]?.sourcePeriod, '2026-05');
+    assert.equal(links[0]?.targetPeriod, '2026-07');
+    assert.equal(requested.body.afterSnapshot.targetPeriod, '2026-07');
+
+    const [action] = await db.select({
+      reason: s.governanceActions.reason,
+      makerId: s.governanceActions.makerId,
+      approverId: s.governanceActions.approverId,
+      approvedAt: s.governanceActions.approvedAt,
+      applicationResult: s.governanceActions.applicationResult,
+    }).from(s.governanceActions).where(eq(s.governanceActions.id, requested.body.id)).limit(1);
+    assert.equal(action?.reason, 'Đề nghị duyệt hóa đơn nhiên liệu đã đối soát');
+    assert.ok(action?.makerId != null);
+    assert.ok(action?.approverId != null);
+    assert.ok(action?.approvedAt != null);
+    assert.equal(
+      (action?.applicationResult as { fuelInvoiceId?: number } | null)?.fuelInvoiceId,
+      created.body.id,
+    );
+    const [storedInvoice] = await db.select({
+      invoiceDate: s.fuelInvoices.invoiceDate,
+      totalLiters: s.fuelInvoices.totalLiters,
+      totalAmount: s.fuelInvoices.totalAmount,
+    }).from(s.fuelInvoices).where(eq(s.fuelInvoices.id, created.body.id)).limit(1);
+    assert.equal(storedInvoice?.invoiceDate, '2026-05-20');
+    assert.equal(Number(storedInvoice?.totalLiters), 100);
+    assert.equal(Number(storedInvoice?.totalAmount), 2_200_000);
+
+    const mayLock = await db.transaction((tx) => getClosedPeriodLock(tx, resolveFuelPeriodAuthority('2026-05-12')));
+    assert.equal(mayLock?.status, 'CLOSED');
   });
 
   test('fuel invoice create rolls back when idempotency persistence fails after the business callback', async () => {

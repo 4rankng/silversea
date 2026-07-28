@@ -191,6 +191,21 @@ class VisualTestContext:
 
         token = result["token"]
         user = result.get("user", {})
+        actual_role = user.get("role")
+        # Role check: skip when the requested role uses a shared/fallback
+        # account (e.g. CLERK on localhost falls back to admin, which
+        # authenticates as ADMIN). Only enforce when the account is supposed
+        # to be that exact role.
+        if actual_role != role:
+            # Allow the CLERK→ADMIN fallback (casbin admits both for
+            # /clerk/* routes — admin is a superuser).
+            clerk_fallback = (role == "CLERK" and actual_role == "ADMIN"
+                              and identifier == "admin")
+            if not clerk_fallback:
+                raise RuntimeError(
+                    f"role mismatch for {identifier}: expected {role}, "
+                    f"authenticated as {actual_role or 'UNKNOWN'}"
+                )
         # Land on /login so we have a same-origin page and localStorage access.
         # Retry the initial goto — staging's SPA can occasionally abort the
         # first navigation when its auth-redirect races with the load.

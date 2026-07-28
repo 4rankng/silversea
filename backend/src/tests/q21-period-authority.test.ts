@@ -1,10 +1,15 @@
-import { after, describe, test } from 'node:test';
+import { after, describe, test, type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { saveDocument, getDocument, deleteDocument } from '../services/billingDocument.service';
+import {
+  approveGovernanceAction,
+  checkGovernanceAction,
+} from '../services/adjustment-governance.service';
+import { approveFuelInvoice, createFuelInvoice } from '../services/fuel-invoice.service';
 import {
   assertFuelPeriodCanAbsorbLateApproval,
   closePeriodLock,
@@ -25,6 +30,10 @@ const createdDocumentIds: number[] = [];
 const createdPeriodLockIds: number[] = [];
 const createdUserIds: number[] = [];
 const createdSalaryConfirmationIds: number[] = [];
+const createdSupplierIds: number[] = [];
+const createdTruckIds: number[] = [];
+const createdFuelInvoiceIds: number[] = [];
+const createdGovernanceActionIds: number[] = [];
 
 function adHocLine(amount: number, description: string) {
   return {
@@ -87,6 +96,23 @@ async function mkExpense(tripId: number, invoiceDate: string) {
   return expense;
 }
 
+async function mkSupplier() {
+  const [supplier] = await db.insert(s.suppliers).values({
+    name: `Q21 fuel supplier ${suffix}-${createdSupplierIds.length}`,
+    isFuelSupplier: true,
+  }).returning();
+  createdSupplierIds.push(supplier.id);
+  return supplier;
+}
+
+async function mkTruck() {
+  const [truck] = await db.insert(s.trucks).values({
+    licensePlate: `Q21-${suffix.slice(-8)}-${createdTruckIds.length}`,
+  }).returning();
+  createdTruckIds.push(truck.id);
+  return truck;
+}
+
 async function mkUser(role: 'ADMIN' | 'ACCOUNTANT' | 'MANAGER', tag: string) {
   const [user] = await db.insert(s.users).values({
     username: `q21-${role}-${tag}-${suffix}-${createdUserIds.length}`,
@@ -117,6 +143,72 @@ async function confirmAllDriversForPeriod(year: number, month: number, actorId: 
     confirmedAt: new Date(),
   }))).onConflictDoNothing().returning({ id: s.salaryConfirmations.id });
   createdSalaryConfirmationIds.push(...inserted.map((row) => row.id));
+}
+
+async function withMockedNow<T>(
+  context: TestContext,
+  isoDateTime: string,
+  run: () => Promise<T>,
+): Promise<T> {
+  context.mock.timers.enable({
+    apis: ['Date'],
+    now: new Date(isoDateTime),
+  });
+  try {
+    return await run();
+  } finally {
+    context.mock.timers.reset();
+  }
+}
+
+async function mkFuelInvoiceForApproval(params: {
+  sourceDate: string;
+  tag: string;
+  creatorId: number;
+}) {
+  const supplier = await mkSupplier();
+  const truck = await mkTruck();
+  const trip = await mkTrip((await mkCustomer()).id, params.sourceDate);
+  await db.update(s.trips)
+    .set({
+      truckId: truck.id,
+      fuelSupplierId: supplier.id,
+      totalFuelCost: '2200000',
+      updatedAt: new Date(),
+    })
+    .where(eq(s.trips.id, trip.id));
+  const expense = await mkExpense(trip.id, params.sourceDate);
+  const voucherReference = `PXD-Q21-${params.tag}-${suffix}`;
+  await db.update(s.tripExpenses)
+    .set({
+      supplierId: supplier.id,
+      expenseDate: params.sourceDate,
+      invoiceNumber: voucherReference,
+      buyAmount: '2200000',
+      sellAmount: '0',
+      expenseType: 'FUEL_DIESEL',
+      createdBy: params.creatorId,
+    })
+    .where(eq(s.tripExpenses.id, expense.id));
+
+  const invoice = await createFuelInvoice({
+    supplierId: supplier.id,
+    invoiceNumber: `HD-Q21-${params.tag}-${suffix}`,
+    invoiceDate: params.sourceDate,
+    totalLiters: 100,
+    unitPrice: 22000,
+    note: 'Kiểm tra thẩm quyền kỳ tại lúc áp dụng phê duyệt',
+    allocations: [{
+      tripId: trip.id,
+      truckId: truck.id,
+      tripExpenseId: expense.id,
+      voucherReference,
+      voucherDate: params.sourceDate,
+      liters: 100,
+    }],
+  }, params.creatorId);
+  createdFuelInvoiceIds.push(invoice.id);
+  return invoice;
 }
 
 describe('Q21 period authority', () => {
@@ -289,6 +381,17 @@ describe('Q21 period authority', () => {
     );
   });
 
+  test('fuel period does not support direct reopen once the month is locked', async () => {
+    const admin = await mkUser('ADMIN', 'fuel-reopen');
+    const authority = resolveFuelPeriodAuthority('2026-05-12');
+    await trackLock(authority);
+
+    await assert.rejects(
+      () => db.transaction((tx) => reopenPeriodLock(tx, authority, admin.id, 'Mở lại kỳ nhiên liệu')),
+      (err: Error & { statusCode?: number }) => err.statusCode === 409 && /không hỗ trợ mở lại trực tiếp/i.test(err.message),
+    );
+  });
+
   test('fuel late approval is blocked when both source and current months are closed', async () => {
     const may = await trackLock(resolveFuelPeriodAuthority('2026-05-12'));
     const june = await trackLock(resolveFuelPeriodAuthority('2026-06-15'));
@@ -302,6 +405,227 @@ describe('Q21 period authority', () => {
       }),
       (err: Error & { statusCode?: number }) => err.statusCode === 409 && /nhiên liệu/i.test(err.message),
     );
+  });
+
+  test('fuel invoice approval follows the Vietnam month boundary while preserving the locked source month', async (context) => {
+    const accountant = await mkUser('ACCOUNTANT', 'fuel-maker');
+    const manager = await mkUser('MANAGER', 'fuel-approver');
+    const supplier = await mkSupplier();
+    const truck = await mkTruck();
+    const lockedMay = await trackLock(resolveFuelPeriodAuthority('2026-05-12'));
+
+    const createLateInvoice = async (tag: string) => {
+      const trip = await mkTrip((await mkCustomer()).id, '2026-05-12');
+      await db.update(s.trips)
+        .set({ truckId: truck.id, fuelSupplierId: supplier.id, totalFuelCost: '2200000', updatedAt: new Date() })
+        .where(eq(s.trips.id, trip.id));
+      const expense = await mkExpense(trip.id, '2026-05-12');
+      const voucherReference = `PXD-Q21-${tag}-${suffix}`;
+      await db.update(s.tripExpenses)
+        .set({
+          supplierId: supplier.id,
+          expenseDate: '2026-05-12',
+          invoiceNumber: voucherReference,
+          buyAmount: '2200000',
+          sellAmount: '0',
+          expenseType: 'FUEL_DIESEL',
+          createdBy: accountant.id,
+        })
+        .where(eq(s.tripExpenses.id, expense.id));
+
+      const invoice = await createFuelInvoice({
+        supplierId: supplier.id,
+        invoiceNumber: `HD-Q21-${tag}-${suffix}`,
+        invoiceDate: '2026-05-20',
+        totalLiters: 100,
+        unitPrice: 22000,
+        note: 'Không được ghi đè tháng đã khóa',
+        allocations: [{
+          tripId: trip.id,
+          truckId: truck.id,
+          tripExpenseId: expense.id,
+          voucherReference,
+          voucherDate: '2026-05-12',
+          liters: 100,
+        }],
+      }, accountant.id);
+      createdFuelInvoiceIds.push(invoice.id);
+      return invoice;
+    };
+
+    const beforeBoundaryInvoice = await createLateInvoice('before-boundary');
+    const beforeBoundaryAction = await withMockedNow(
+      context,
+      '2027-06-30T16:30:00.000Z',
+      () => approveFuelInvoice(
+        beforeBoundaryInvoice.id,
+        manager.id,
+        'MANAGER',
+        beforeBoundaryInvoice.version,
+        'Duyệt trước ranh giới tháng Việt Nam',
+      ),
+    );
+    createdGovernanceActionIds.push(beforeBoundaryAction.id);
+    assert.equal(
+      (beforeBoundaryAction.afterSnapshot as { targetPeriod?: string }).targetPeriod,
+      '2027-06',
+    );
+
+    await trackLock(resolveFuelPeriodAuthority('2027-06-15'));
+
+    const afterBoundaryInvoice = await createLateInvoice('after-boundary');
+    const action = await withMockedNow(
+      context,
+      '2027-06-30T17:30:00.000Z',
+      () => approveFuelInvoice(
+        afterBoundaryInvoice.id,
+        manager.id,
+        'MANAGER',
+        afterBoundaryInvoice.version,
+        'Duyệt hóa đơn tháng 5 vào kỳ mở tháng 7',
+      ),
+    );
+    createdGovernanceActionIds.push(action.id);
+
+    const delta = action.deltaSnapshot as {
+      lateApprovalLinks?: Array<{ sourcePeriodLockId: number; sourcePeriod: string; targetPeriod: string }>;
+    };
+    const links = delta.lateApprovalLinks ?? [];
+    assert.equal(action.originalPeriodLockId, lockedMay.id);
+    assert.equal(action.reason, 'Duyệt hóa đơn tháng 5 vào kỳ mở tháng 7');
+    assert.equal(action.makerId, manager.id);
+    assert.equal(links.length, 1);
+    assert.equal(links[0]?.sourcePeriodLockId, lockedMay.id);
+    assert.equal(links[0]?.sourcePeriod, '2026-05');
+    assert.equal(links[0]?.targetPeriod, '2027-07');
+    assert.equal(
+      (action.afterSnapshot as { targetPeriod?: string }).targetPeriod,
+      '2027-07',
+    );
+
+    const storedInvoices = await db.select({
+      invoiceDate: s.fuelInvoices.invoiceDate,
+      totalLiters: s.fuelInvoices.totalLiters,
+      totalAmount: s.fuelInvoices.totalAmount,
+      approvalStatus: s.fuelInvoices.approvalStatus,
+    }).from(s.fuelInvoices)
+      .where(inArray(s.fuelInvoices.id, [beforeBoundaryInvoice.id, afterBoundaryInvoice.id]))
+      .orderBy(s.fuelInvoices.id);
+    assert.equal(storedInvoices.length, 2);
+    for (const invoice of storedInvoices) {
+      assert.equal(invoice.invoiceDate, '2026-05-20');
+      assert.equal(Number(invoice.totalLiters), 100);
+      assert.equal(Number(invoice.totalAmount), 2_200_000);
+      assert.equal(invoice.approvalStatus, 'PENDING');
+    }
+  });
+
+  test('delayed fuel approval revalidates a source period closed after the maker request', async (context) => {
+    const accountant = await mkUser('ACCOUNTANT', 'delayed-maker');
+    const manager = await mkUser('MANAGER', 'delayed-requester');
+    const admin = await mkUser('ADMIN', 'delayed-approver');
+    const invoice = await mkFuelInvoiceForApproval({
+      sourceDate: '2031-09-12',
+      tag: 'delayed-source-close',
+      creatorId: accountant.id,
+    });
+
+    const requested = await withMockedNow(
+      context,
+      '2031-10-15T04:00:00.000Z',
+      () => approveFuelInvoice(
+        invoice.id,
+        manager.id,
+        'MANAGER',
+        invoice.version,
+        'Duyệt trễ sau khi khóa kỳ nguồn',
+      ),
+    );
+    createdGovernanceActionIds.push(requested.id);
+    assert.deepEqual(
+      (requested.deltaSnapshot as { lateApprovalLinks?: unknown[] }).lateApprovalLinks,
+      [],
+      'the source period was still open when the maker requested approval',
+    );
+
+    const checked = await checkGovernanceAction({
+      actionId: requested.id,
+      checkerId: accountant.id,
+      checkerRole: 'ACCOUNTANT',
+      expectedVersion: requested.version,
+    });
+    const sourceLock = await trackLock(resolveFuelPeriodAuthority('2031-09-12'));
+
+    await withMockedNow(
+      context,
+      '2031-10-15T04:05:00.000Z',
+      () => approveGovernanceAction({
+        actionId: checked.id,
+        approverId: admin.id,
+        approverRole: 'ADMIN',
+        expectedVersion: checked.version,
+      }),
+    );
+
+    const [adjustment] = await db.select().from(s.fuelPeriodAdjustments)
+      .where(eq(s.fuelPeriodAdjustments.governanceActionId, requested.id));
+    assert.equal(adjustment?.sourcePeriodLockId, sourceLock.id);
+    assert.equal(adjustment?.sourcePeriod, '2031-09');
+    assert.equal(adjustment?.targetPeriod, '2031-10');
+  });
+
+  test('delayed fuel approval re-resolves a stale maker target to the current open Vietnam month', async (context) => {
+    const accountant = await mkUser('ACCOUNTANT', 'stale-target-maker');
+    const manager = await mkUser('MANAGER', 'stale-target-requester');
+    const admin = await mkUser('ADMIN', 'stale-target-approver');
+    const sourceLock = await trackLock(resolveFuelPeriodAuthority('2032-05-12'));
+    const invoice = await mkFuelInvoiceForApproval({
+      sourceDate: '2032-05-12',
+      tag: 'stale-target',
+      creatorId: accountant.id,
+    });
+
+    const requested = await withMockedNow(
+      context,
+      '2032-07-15T04:00:00.000Z',
+      () => approveFuelInvoice(
+        invoice.id,
+        manager.id,
+        'MANAGER',
+        invoice.version,
+        'Duyệt trễ sang kỳ đang mở mới',
+      ),
+    );
+    createdGovernanceActionIds.push(requested.id);
+    assert.equal(
+      (requested.afterSnapshot as { targetPeriod?: string }).targetPeriod,
+      '2032-07',
+    );
+
+    const checked = await checkGovernanceAction({
+      actionId: requested.id,
+      checkerId: accountant.id,
+      checkerRole: 'ACCOUNTANT',
+      expectedVersion: requested.version,
+    });
+    await trackLock(resolveFuelPeriodAuthority('2032-07-15'));
+
+    await withMockedNow(
+      context,
+      '2032-08-15T04:00:00.000Z',
+      () => approveGovernanceAction({
+        actionId: checked.id,
+        approverId: admin.id,
+        approverRole: 'ADMIN',
+        expectedVersion: checked.version,
+      }),
+    );
+
+    const [adjustment] = await db.select().from(s.fuelPeriodAdjustments)
+      .where(eq(s.fuelPeriodAdjustments.governanceActionId, requested.id));
+    assert.equal(adjustment?.sourcePeriodLockId, sourceLock.id);
+    assert.equal(adjustment?.sourcePeriod, '2032-05');
+    assert.equal(adjustment?.targetPeriod, '2032-08');
   });
 
   test('salary close mirrors into the shared period-lock authority', async () => {
@@ -351,11 +675,20 @@ after(async () => {
       await db.delete(s.billingDocuments)
         .where(inArray(s.billingDocuments.id, createdDocumentIds));
     }
+    if (createdGovernanceActionIds.length > 0) {
+      await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, createdGovernanceActionIds));
+    }
+    if (createdFuelInvoiceIds.length > 0) {
+      await db.delete(s.fuelInvoices).where(inArray(s.fuelInvoices.id, createdFuelInvoiceIds));
+    }
     if (createdExpenseIds.length > 0) {
       await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.id, createdExpenseIds));
     }
     if (createdTripIds.length > 0) {
       await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
+    }
+    if (createdTruckIds.length > 0) {
+      await db.delete(s.trucks).where(inArray(s.trucks.id, createdTruckIds));
     }
     if (createdCargoTypeIds.length > 0) {
       await db.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, createdCargoTypeIds));
@@ -374,6 +707,9 @@ after(async () => {
     }
     if (createdCustomerIds.length > 0) {
       await db.delete(s.customers).where(inArray(s.customers.id, createdCustomerIds));
+    }
+    if (createdSupplierIds.length > 0) {
+      await db.delete(s.suppliers).where(inArray(s.suppliers.id, createdSupplierIds));
     }
     if (createdUserIds.length > 0) {
       await db.delete(s.users).where(inArray(s.users.id, createdUserIds));

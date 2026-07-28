@@ -13,6 +13,9 @@ export interface GovernancePolicy {
   makerCapability: GovernanceCapability;
   checkerCapability: GovernanceCapability;
   approverCapability: GovernanceCapability;
+  makerRoles?: readonly Role[];
+  checkerRoles?: readonly Role[];
+  approverRoles?: readonly Role[];
   directorApproverCapability?: GovernanceCapability;
   amountThreshold?: number;
   requiresReason: boolean;
@@ -354,6 +357,9 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
     makerCapability: 'GOVERNANCE_CREATE',
     checkerCapability: 'FINANCE_CHECK',
     approverCapability: 'PERIOD_CLOSE_APPROVE',
+    makerRoles: [Role.ACCOUNTANT],
+    checkerRoles: [Role.MANAGER, Role.ADMIN],
+    approverRoles: [Role.MANAGER, Role.ADMIN],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],
@@ -365,6 +371,9 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
     makerCapability: 'PERIOD_CLOSE_APPROVE',
     checkerCapability: 'PERIOD_CLOSE_APPROVE',
     approverCapability: 'PERIOD_CLOSE_APPROVE',
+    makerRoles: [Role.MANAGER, Role.ADMIN],
+    checkerRoles: [Role.MANAGER, Role.ADMIN],
+    approverRoles: [Role.MANAGER, Role.ADMIN],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],
@@ -502,7 +511,15 @@ function assertCapability(
     : stage === 'checker'
       ? policy.checkerCapability
       : policy.approverCapability;
-  if (!capabilitiesForRole(role).has(required)) {
+  const allowedRoles = stage === 'maker'
+    ? policy.makerRoles
+    : stage === 'checker'
+      ? policy.checkerRoles
+      : policy.approverRoles;
+  if (
+    !capabilitiesForRole(role).has(required)
+    || (allowedRoles && !allowedRoles.includes(role as Role))
+  ) {
     throw new ApiError(403, 'Bạn không có quyền thực hiện bước phê duyệt này');
   }
 }

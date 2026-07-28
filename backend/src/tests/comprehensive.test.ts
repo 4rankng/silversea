@@ -342,6 +342,14 @@ test('E2E — Customer duplicate guard blocks create and update conflicts', asyn
 // FLOW 3: Complete Trip Operations & Reassignments
 // ─────────────────────────────────────────────────────────────────────────────
 test('E2E — Trip dispatch lifecycle (Create, Reassign, Pre-departure, Dispatch, Actuals, Lock, Cancel Guard)', async () => {
+  // Do not retain an arbitrary catalog row selected during the global before
+  // hook: other suites legitimately create and remove their own customers.
+  // This flow owns a fresh customer at the moment it starts.
+  const [flowCustomer] = await db.insert(s.customers).values({
+    name: `Khách hàng E2E tổng hợp ${Date.now()}`,
+  }).returning({ id: s.customers.id });
+  customerId = flowCustomer.id;
+
   // 1. Create a trip (CREATED status)
   const createRes = await testFetch('/api/trips', {
     method: 'POST',
@@ -579,6 +587,7 @@ test('E2E — Financial operations (P&L, profit sharing, ledger, statements, rec
   const adjustRes = await testFetch('/api/adjustments', {
     method: 'POST',
     token: adminToken,
+    headers: { 'Idempotency-Key': `comprehensive-adjustment-${tripId}` },
     body: JSON.stringify({
       tripId: tripId,
       expectedVersion: adjustmentTrip.version,

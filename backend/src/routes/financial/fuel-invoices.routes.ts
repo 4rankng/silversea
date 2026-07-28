@@ -66,6 +66,9 @@ const fuelInvoiceCorrectionSchema = z.discriminatedUnion('correctionType', [
 const listSchema = z.object({
   supplierId: z.coerce.number().int().positive().optional(),
   status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'REVERSED']).optional(),
+  paginated: z.literal('true').optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  cursor: z.string().trim().min(1).optional(),
 });
 
 function parseId(raw: string | string[]): number {
@@ -99,7 +102,24 @@ router.get(
   '/finance/fuel-invoices',
   requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT),
   asyncHandler(async (req, res) => {
-    res.json(await listFuelInvoices(listSchema.parse(req.query)));
+    const { paginated, limit, cursor, ...filters } = listSchema.parse(req.query);
+    if (paginated === 'true') {
+      res.json(await listFuelInvoices({ ...filters, limit, cursor }));
+      return;
+    }
+
+    const items: Awaited<ReturnType<typeof listFuelInvoices>>['items'] = [];
+    let nextCursor: string | undefined;
+    do {
+      const page = await listFuelInvoices({
+        ...filters,
+        limit: 100,
+        cursor: nextCursor,
+      });
+      items.push(...page.items);
+      nextCursor = page.nextCursor ?? undefined;
+    } while (nextCursor);
+    res.json(items);
   }),
 );
 

@@ -3,7 +3,7 @@ title: SilverSea approved TingTing business rules Q01-Q23
 description: >-
   Dependency-safe implementation and proof plan for Q01-Q23 plus O01/O02 after
   SilverSea accepted every TingTing proposal on 2026-07-27.
-status: in-progress
+status: completed
 priority: P1
 branch: main
 tags:
@@ -64,13 +64,13 @@ the remaining gaps.
 | Phase | Name | Status |
 |-------|------|--------|
 | 1 | [Authority and coverage baseline](./phase-01-authority-and-coverage-baseline.md) | Completed |
-| 2 | [Shared governance and concurrency](./phase-02-shared-governance-and-concurrency.md) | In Progress |
-| 3 | [AR credit and reminders](./phase-03-ar-credit-and-reminders.md) | Pending |
-| 4 | [AP fuel suppliers and offsets](./phase-04-ap-fuel-suppliers-and-offsets.md) | Pending |
-| 5 | [Payroll attendance and close](./phase-05-payroll-attendance-and-close.md) | Pending |
-| 6 | [No-invoice disbursements](./phase-06-no-invoice-disbursements.md) | Pending |
-| 7 | [Two-way dispatch and audit access](./phase-07-two-way-dispatch-and-audit-access.md) | Pending |
-| 8 | [Integrated QA and staging release](./phase-08-integrated-qa-and-staging-release.md) | Pending |
+| 2 | [Shared governance and concurrency](./phase-02-shared-governance-and-concurrency.md) | Completed |
+| 3 | [AR credit and reminders](./phase-03-ar-credit-and-reminders.md) | Completed |
+| 4 | [AP fuel suppliers and offsets](./phase-04-ap-fuel-suppliers-and-offsets.md) | Completed |
+| 5 | [Payroll attendance and close](./phase-05-payroll-attendance-and-close.md) | Completed |
+| 6 | [No-invoice disbursements](./phase-06-no-invoice-disbursements.md) | Completed |
+| 7 | [Two-way dispatch and audit access](./phase-07-two-way-dispatch-and-audit-access.md) | Completed |
+| 8 | [Integrated QA and staging release](./phase-08-integrated-qa-and-staging-release.md) | Completed |
 
 ## Dependencies
 
@@ -91,3 +91,19 @@ The plan is complete only when the Q01-Q23/O01/O02 matrix contains no
 `AUTHORITY_PENDING`, `NOT_RUN`, or unproved acceptance rows; all affected
 quality gates are green; an independent code review is GO; and the deployed
 staging build is verified across all affected roles and responsive widths.
+
+## Completion evidence
+
+Completed on 2026-07-29 against clean commit `8c0f09f`.
+
+- Independent source review: PASS, no P0/P1 findings
+  (`qa/2026-07-28_release-candidate-final-rereview.md`).
+- Automated gates: lint, backend/frontend typecheck, 1,843 backend tests,
+  416 frontend tests, build, and 249/0/3-skip E2E all green.
+- Staging visual matrix: 17 sections, 180 applicable checks passed, 0 failed;
+  the only pause is the explicitly optional debt-detail PDF export.
+- Real logout verification: ADMIN, MANAGER, ACCOUNTANT, DRIVER, FORWARDER,
+  CUSTOMER, and CLERK passed at 1440×900 and 390×844, including token clearing
+  and protected-route re-entry prevention.
+- Staging deployment: clean image tag `8c0f09f`; frontend and API healthy,
+  containers running with zero restarts, and no critical log patterns.

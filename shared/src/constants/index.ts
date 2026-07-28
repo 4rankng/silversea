@@ -501,6 +501,13 @@ export enum SupplierType {
   FUEL = 'FUEL',
 }
 
+/** Customer-portal scope policy. Multi-entity access is an explicit exception. */
+export enum CustomerAccountType {
+  SINGLE_ENTITY = 'SINGLE_ENTITY',
+  CORPORATE_GROUP = 'CORPORATE_GROUP',
+  AGENCY = 'AGENCY',
+}
+
 export const SUPPLIER_TYPES: readonly SupplierType[] = Object.freeze([
   SupplierType.CARRIER,
   SupplierType.PORT,
