@@ -9,8 +9,10 @@ import {
   approveSalaryPeriodExclusion,
   checkSalaryPeriodExclusion,
   closeSalaryPeriod,
+  completeSalaryPeriodExclusionFollowup,
   createSalaryPeriodExclusion,
   getSalaryPeriodReadiness,
+  listSalaryPeriodExclusions,
   reopenSalaryPeriod,
 } from '../services/salary-period-close.service';
 import {
@@ -24,6 +26,10 @@ const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const periodYear = 3600 + (Number(suffix.split('-')[0]) % 1000);
 const periodMonth = (Number(suffix.split('-')[0]) % 12) + 1;
 const PERIOD = `${periodYear}-${String(periodMonth).padStart(2, '0')}`;
+const supplementaryDate = new Date(Date.UTC(periodYear, periodMonth, 1));
+const SUPPLEMENTARY_YEAR = supplementaryDate.getUTCFullYear();
+const SUPPLEMENTARY_MONTH = supplementaryDate.getUTCMonth() + 1;
+const SUPPLEMENTARY_PERIOD = `${SUPPLEMENTARY_YEAR}-${String(SUPPLEMENTARY_MONTH).padStart(2, '0')}`;
 const PERIOD_START = `${PERIOD}-01`;
 const PREV_PERIOD_END = new Date(Date.UTC(periodYear, periodMonth - 1, 0)).toISOString().slice(0, 10);
 const MID_PERIOD_DAY = `${PERIOD}-15`;
@@ -263,7 +269,7 @@ test('M7.3 payroll close enforces readiness, approved exclusions, completion-per
       actorRole: 'ACCOUNTANT',
       reason: `Thiếu xác nhận hoặc còn lỗi tiền cho ${pendingDriver.driverName}`,
       handlingMode: 'SUPPLEMENTARY_PERIOD',
-      targetPeriod: PERIOD,
+      targetPeriod: SUPPLEMENTARY_PERIOD,
       note: 'm73 supplementary',
     });
     createdGovernanceActionIds.push(requested.actionId);
@@ -296,10 +302,99 @@ test('M7.3 payroll close enforces readiness, approved exclusions, completion-per
   assert.equal(closed.status, 'CLOSED');
   assert.equal(closed.scope, 'COMPANY');
   assert.equal(closed.periodTotalSalary, 7_200_000, 'salary close sums by trip completion period, not departure date');
-  assert.ok(closed.excludedDriverIds.includes(excludedDriver.id));
+  assert.equal(closed.excludedDriverIds?.includes(excludedDriver.id), true);
+
+  const excludedAction = approvedExclusions.find((item) => item.driverId === excludedDriver.id)!;
+  assert.equal(excludedAction.followupStatus, 'PENDING');
+  await assert.rejects(
+    () => completeSalaryPeriodExclusionFollowup({
+      actionId: excludedAction.actionId,
+      actorId: admin.id,
+      actorRole: 'ADMIN',
+    }),
+    (err: Error & { statusCode?: number }) => err.statusCode === 409 && /chưa sẵn sàng/i.test(err.message),
+  );
+  await confirmSalary(
+    excludedDriver.id,
+    SUPPLEMENTARY_YEAR,
+    SUPPLEMENTARY_MONTH,
+    accountant.id,
+  );
+  const completedFollowup = await completeSalaryPeriodExclusionFollowup({
+    actionId: excludedAction.actionId,
+    actorId: admin.id,
+    actorRole: 'ADMIN',
+  });
+  assert.equal(completedFollowup.followupStatus, 'COMPLETED');
+  assert.ok(completedFollowup.followupCompletedAt);
+  const replayedFollowup = await completeSalaryPeriodExclusionFollowup({
+    actionId: excludedAction.actionId,
+    actorId: manager.id,
+    actorRole: 'MANAGER',
+  });
+  assert.equal(replayedFollowup.followupCompletedAt, completedFollowup.followupCompletedAt);
+  const [raceAction] = await db.insert(s.governanceActions).values({
+    subjectType: 'SALARY_PERIOD',
+    subjectKey: `${PERIOD}:${excludedDriver.id}`,
+    actionKind: 'FINANCIAL_EXCEPTION',
+    status: 'APPROVED',
+    reason: `m73 first-completion race ${suffix}`,
+    originalVersion: 1,
+    beforeSnapshot: {},
+    afterSnapshot: {
+      handlingMode: 'SUPPLEMENTARY_PERIOD',
+      targetPeriod: SUPPLEMENTARY_PERIOD,
+      note: 'Race first completion',
+    },
+    applicationResult: {
+      followupStatus: 'PENDING',
+      handlingMode: 'SUPPLEMENTARY_PERIOD',
+      targetPeriod: SUPPLEMENTARY_PERIOD,
+    },
+    makerId: accountant.id,
+    makerRole: 'ACCOUNTANT',
+    checkerId: manager.id,
+    checkerRole: 'MANAGER',
+    approverId: admin.id,
+    approverRole: 'ADMIN',
+    checkedAt: new Date(),
+    approvedAt: new Date(),
+    version: 3,
+  }).returning();
+  createdGovernanceActionIds.push(raceAction.id);
+  const firstCompletionRace = await Promise.all([
+    completeSalaryPeriodExclusionFollowup({
+      actionId: raceAction.id,
+      actorId: admin.id,
+      actorRole: 'ADMIN',
+    }),
+    completeSalaryPeriodExclusionFollowup({
+      actionId: raceAction.id,
+      actorId: manager.id,
+      actorRole: 'MANAGER',
+    }),
+  ]);
+  assert.ok(firstCompletionRace[0].followupCompletedAt);
+  assert.equal(firstCompletionRace[1].followupCompletedAt, firstCompletionRace[0].followupCompletedAt);
+  const [completedAction] = await db.select({
+    applicationResult: s.governanceActions.applicationResult,
+    version: s.governanceActions.version,
+  }).from(s.governanceActions)
+    .where(eq(s.governanceActions.id, raceAction.id))
+    .limit(1);
+  assert.equal(completedAction?.version, raceAction.version + 1);
+  assert.equal(
+    [admin.id, manager.id].includes(
+      Number((completedAction?.applicationResult as Record<string, unknown>)?.followupCompletedBy),
+    ),
+    true,
+  );
+  const persistedExclusion = (await listSalaryPeriodExclusions(PERIOD))
+    .find((item) => item.driverId === excludedDriver.id);
+  assert.equal(persistedExclusion?.followupStatus, 'COMPLETED');
 
   await assert.rejects(
-    () => reopenSalaryPeriod({ period: PERIOD, actorId: manager.id, actorRole: 'MANAGER', note: `m73 manager reopen ${suffix}` }),
+    () => reopenSalaryPeriod({ period: PERIOD, actorId: accountant.id, actorRole: 'ACCOUNTANT', note: `m73 accountant reopen ${suffix}` }),
     (err: Error & { statusCode?: number }) => err.statusCode === 403,
   );
 

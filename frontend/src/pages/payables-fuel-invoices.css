@@ -1,0 +1,432 @@
+.fuel-invoices-panel {
+  margin-bottom: 16px;
+}
+
+.fuel-invoices-panel__summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.fuel-invoice-metric {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--line, #eaecef);
+  border-radius: 16px;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.fuel-invoice-metric--warn {
+  border-color: rgba(245, 166, 35, 0.35);
+  background: linear-gradient(180deg, #fff8ee 0%, #fffdf8 100%);
+}
+
+.fuel-invoice-metric--danger {
+  border-color: rgba(227, 36, 52, 0.3);
+  background: linear-gradient(180deg, #fff4f4 0%, #fffdfd 100%);
+}
+
+.fuel-invoice-metric--success {
+  border-color: rgba(0, 177, 79, 0.25);
+  background: linear-gradient(180deg, #effcf4 0%, #fbfffd 100%);
+}
+
+.fuel-invoice-metric__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 10, 10, 0.05);
+  color: var(--fg-1);
+  flex-shrink: 0;
+}
+
+.fuel-invoice-metric__label {
+  font-size: 12px;
+  color: var(--ink-3, #8b919b);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: var(--font-mono);
+  margin-bottom: 4px;
+}
+
+.fuel-invoice-metric__value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--fg-1);
+}
+
+.fuel-invoices-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(220px, 1fr) minmax(200px, 0.8fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.fuel-invoices-toolbar__search {
+  width: 100%;
+}
+
+.fuel-invoices-toolbar__select {
+  min-height: 42px;
+}
+
+.fuel-invoices-table th,
+.fuel-invoices-table td {
+  vertical-align: top;
+}
+
+.fuel-invoices-table__actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.fuel-invoice-cell-title {
+  font-weight: 700;
+  color: var(--fg-1);
+}
+
+.fuel-invoice-cell-subtitle {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--ink-3, #8b919b);
+}
+
+.fuel-invoice-cell-subtitle--danger {
+  color: var(--danger, #e32434);
+}
+
+.fuel-invoice-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.fuel-invoice-status--pending {
+  background: rgba(245, 166, 35, 0.14);
+  color: #b25d00;
+}
+
+.fuel-invoice-status--approved {
+  background: rgba(0, 177, 79, 0.14);
+  color: #0b7d3b;
+}
+
+.fuel-invoice-status--rejected {
+  background: rgba(227, 36, 52, 0.12);
+  color: #b01f2e;
+}
+
+.fuel-invoice-empty {
+  padding: 20px 16px;
+  text-align: center;
+  color: var(--ink-3, #8b919b);
+}
+
+.fuel-invoice-warning {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(245, 166, 35, 0.3);
+  background: #fff8ee;
+  color: #8a4b00;
+  line-height: 1.5;
+}
+
+.fuel-invoice-warning--error {
+  border-color: rgba(227, 36, 52, 0.28);
+  background: #fff4f4;
+  color: #a11f2e;
+}
+
+.fuel-invoice-detail__hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.fuel-invoice-detail__hero h3 {
+  margin: 6px 0 4px;
+  font-size: 24px;
+}
+
+.fuel-invoice-detail__hero p,
+.fuel-invoice-detail__eyebrow {
+  margin: 0;
+}
+
+.fuel-invoice-detail__eyebrow {
+  font-size: 12px;
+  color: var(--ink-3, #8b919b);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: var(--font-mono);
+}
+
+.fuel-invoice-detail__metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.fuel-invoice-note {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--bg-1, #f7f8fa);
+}
+
+.fuel-invoice-allocation-list {
+  display: grid;
+  gap: 12px;
+}
+
+.fuel-invoice-allocation-card {
+  border: 1px solid var(--line, #eaecef);
+  border-radius: 16px;
+  padding: 16px;
+  background: #fff;
+}
+
+.fuel-invoice-allocation-card__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.fuel-invoice-allocation-card__head span {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink-3, #8b919b);
+  font-size: 13px;
+}
+
+.fuel-invoice-allocation-card__amount {
+  font-weight: 700;
+  color: var(--fg-1);
+}
+
+.fuel-invoice-allocation-card__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+  font-size: 14px;
+  color: var(--fg-2);
+}
+
+.fuel-invoice-allocation-card p {
+  margin: 12px 0 0;
+  color: var(--ink-3, #8b919b);
+}
+
+.fuel-invoice-editor__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 16px;
+}
+
+.fuel-invoice-editor__note-field {
+  grid-column: 1 / -1;
+}
+
+.fuel-invoice-editor__textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+.fuel-invoice-editor__summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.fuel-invoice-editor__banner {
+  margin-bottom: 18px;
+  padding: 13px 14px;
+  border-radius: 14px;
+  background: #f5f8fb;
+  color: var(--fg-2);
+  line-height: 1.5;
+}
+
+.fuel-invoice-editor__helper {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--bg-1, #f7f8fa);
+  color: var(--fg-2);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.fuel-invoice-editor__helper--error {
+  background: #fff4f4;
+  color: #a11f2e;
+}
+
+.fuel-invoice-editor__allocations-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.fuel-invoice-editor__allocations-head h4,
+.fuel-invoice-editor__allocations-head p {
+  margin: 0;
+}
+
+.fuel-invoice-editor__allocations-head p {
+  margin-top: 4px;
+  color: var(--ink-3, #8b919b);
+}
+
+.fuel-invoice-editor__row {
+  border: 1px solid var(--line, #eaecef);
+  border-radius: 16px;
+  padding: 16px;
+  background: #fff;
+}
+
+.fuel-invoice-editor__row + .fuel-invoice-editor__row {
+  margin-top: 12px;
+}
+
+.fuel-invoice-editor__row-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.fuel-invoice-editor__row-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 16px;
+}
+
+.fuel-invoice-editor__row-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--bg-1, #f7f8fa);
+  color: var(--fg-2);
+  font-size: 13px;
+}
+
+.fuel-invoice-editor__row-note {
+  grid-column: 1 / -1;
+}
+
+.fuel-invoice-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.fuel-invoice-card-list {
+  display: grid;
+  gap: 12px;
+}
+
+.fuel-invoice-mobile-card {
+  width: 100%;
+  border: 1px solid var(--line, #eaecef);
+  border-radius: 16px;
+  padding: 16px;
+  background: #fff;
+  text-align: left;
+}
+
+.fuel-invoice-mobile-card__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.fuel-invoice-mobile-card__head span {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink-3, #8b919b);
+  font-size: 13px;
+}
+
+.fuel-invoice-mobile-card__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  font-size: 13px;
+}
+
+.fuel-invoice-mobile-card__warning {
+  margin-top: 12px;
+  color: var(--danger, #e32434);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+@media (max-width: 1023px) {
+  .fuel-invoices-panel__summary,
+  .fuel-invoice-detail__metrics,
+  .fuel-invoice-editor__summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fuel-invoices-toolbar {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .fuel-invoices-panel__summary,
+  .fuel-invoice-detail__metrics,
+  .fuel-invoice-editor__summary,
+  .fuel-invoice-editor__grid,
+  .fuel-invoice-editor__row-grid,
+  .fuel-invoice-allocation-card__grid,
+  .fuel-invoice-mobile-card__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fuel-invoice-detail__hero,
+  .fuel-invoice-editor__allocations-head,
+  .fuel-invoice-allocation-card__head,
+  .fuel-invoice-mobile-card__head,
+  .fuel-invoice-editor__row-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .fuel-invoice-modal__footer {
+    width: 100%;
+  }
+
+  .fuel-invoice-modal__footer .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

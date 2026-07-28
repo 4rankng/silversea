@@ -71,6 +71,7 @@ describe('forwarder settlement streamlined workflow', () => {
       expenseType: 'LIFTING',
       buyAmount: String(options.buyAmount ?? 100_000),
       sellAmount: String(options.sellAmount ?? 120_000),
+      expenseDate: '2026-07-11',
       settlementMethod: 'FORWARDER_ADVANCE',
       approvalStatus: options.approvalStatus ?? 'PENDING',
       tripContainerId: options.tripContainerId ?? null,

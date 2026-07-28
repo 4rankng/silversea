@@ -23,11 +23,48 @@ import { ApiError } from '../errors';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export const MAX_IDEMPOTENCY_KEY_LENGTH = 100;
+type JsonPrimitive = string | number | boolean | null;
+type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
+export type CrudIdempotencyOperation = 'create' | 'update' | 'delete';
+
+/**
+ * Stable namespace for generated configuration CRUD commands.
+ *
+ * Resource names come from the Drizzle table name, not the request URL, so
+ * mounting or aliasing a router cannot accidentally change its replay
+ * keyspace.
+ */
+export function buildCrudIdempotencyEndpoint(
+  resource: string,
+  operation: CrudIdempotencyOperation,
+): string {
+  const normalizedResource = resource.trim();
+  if (!normalizedResource) {
+    throw new Error('CRUD idempotency resource must not be empty');
+  }
+  const endpoint = `config.${normalizedResource}.${operation}`;
+  if (endpoint.length > 100) {
+    throw new Error(`CRUD idempotency endpoint exceeds 100 characters: ${endpoint}`);
+  }
+  return endpoint;
+}
 
 /** Tag identifying the logical endpoint (e.g. 'shipments.quick-create'). */
 export const IDEMPOTENCY_ENDPOINTS = {
   SHIPMENT_QUICK_CREATE: 'shipments.quick-create',
+  SHIPMENT_CREATE: 'shipments.create',
+  SHIPMENT_UPDATE: 'shipments.update',
+  SHIPMENT_TRANSITION: 'shipments.transition',
+  SHIPMENT_DISPATCH: 'shipments.dispatch',
+  SHIPMENT_DOCUMENT_ATTACH: 'shipments.documents.attach',
+  SHIPMENT_DOCUMENT_REPLACE: 'shipments.documents.replace',
+  SHIPMENT_DECLARATION_CREATE: 'shipments.declarations.create',
+  SHIPMENT_DECLARATION_UPDATE: 'shipments.declarations.update',
+  SHIPMENT_CONTAINERS_RECONCILE: 'shipments.containers.reconcile',
+  SHIPMENT_CHANGE_REQUEST_REVIEW: 'shipments.change-requests.review',
+  SHIPMENT_DELETE: 'shipments.delete',
   PAYMENTS_RECEIVE: 'payments.receive',
+  PAYMENT_REFUNDS_CREATE: 'payment-refunds.create',
   PAYMENTS_VENDOR: 'payments.vendor',
   PAYMENTS_CARRIER: 'payments.carrier',
   DRIVER_PAYOUT: 'drivers.payout',
@@ -36,6 +73,49 @@ export const IDEMPOTENCY_ENDPOINTS = {
   PENALTIES_CANCEL: 'penalties.cancel',
   DRIVER_PROGRESS: 'driver.progress',
   DRIVER_INCIDENTAL_COST: 'driver.incidental-cost',
+  DEBT_OFFSET_CREATE: 'debt-offsets.create',
+  DEBT_OFFSET_APPROVE: 'debt-offsets.approve',
+  DEBT_OFFSET_CANCEL: 'debt-offsets.cancel',
+  GOVERNANCE_CHECK: 'governance.check',
+  GOVERNANCE_APPROVE: 'governance.approve',
+  GOVERNANCE_REJECT: 'governance.reject',
+  GOVERNANCE_RETURN: 'governance.return-for-evidence',
+  GOVERNANCE_CANCEL: 'governance.cancel',
+  ADVANCE_REQUEST_APPROVE: 'advance-requests.approve',
+  ADVANCE_REQUEST_REJECT: 'advance-requests.reject',
+  ADVANCE_SETTLEMENT_CHECK: 'advance-settlements.check',
+  ADVANCE_SETTLEMENT_APPROVE: 'advance-settlements.approve',
+  ADVANCE_SETTLEMENT_REJECT: 'advance-settlements.reject',
+  ADVANCE_SETTLEMENT_UPDATE: 'advance-settlements.update',
+  ADVANCE_SETTLEMENT_EXPENSE_ADJUST: 'advance-settlements.expenses.adjust',
+  TRIP_EXPENSE_APPROVE: 'trip-expenses.approve',
+  TRIP_EXPENSE_REJECT: 'trip-expenses.reject',
+  BILLING_DOCUMENT_CREATE: 'billing-documents.create',
+  BILLING_DOCUMENT_UPDATE: 'billing-documents.update',
+  BILLING_DOCUMENT_DELETE: 'billing-documents.delete',
+  BILLING_DOCUMENT_ADJUSTMENT_REQUEST: 'billing-documents.adjustments.request',
+  PORTAL_DEBIT_NOTE_CONFIRM: 'portal.debit-notes.confirm',
+  PORTAL_DEBIT_NOTE_DISPUTE: 'portal.debit-notes.dispute',
+  SALARY_PERIOD_CLOSE: 'salary-periods.close',
+  SALARY_PERIOD_REOPEN: 'salary-periods.reopen',
+  SALARY_CONFIRM: 'salary.confirm',
+  SALARY_UNCONFIRM: 'salary.unconfirm',
+  SALARY_WORKDAYS: 'salary.workdays',
+  PROFIT_DISTRIBUTE: 'profit-distribute.execute',
+  TRIP_PAIR_CREATE: 'trips.pairs.create',
+  TRIP_BULK_FIGURES: 'trips.bulk-figures',
+  TRIP_DELETE: 'trips.delete',
+  TRIP_PRE_DEPARTURE: 'trips.pre-departure',
+  TRIP_ACTUALS: 'trips.actuals',
+  TRIP_REASSIGN: 'trips.reassign',
+  TRIP_UNLOCK: 'trips.unlock',
+  TRIP_DEPARTURE_DATE: 'trips.departure-date',
+  TRIP_CONTAINERS: 'trips.containers',
+  TRIP_INSTRUCTIONS: 'trips.instructions',
+  TRIP_ADJUSTMENT: 'trips.adjustment',
+  TRIP_EXPENSE_CREATE: 'trip-expenses.create',
+  TRIP_EXPENSE_UPDATE: 'trip-expenses.update',
+  TRIP_EXPENSE_DELETE: 'trip-expenses.delete',
 } as const;
 
 /** Stable, sorted-key JSON used as the hash input so key order doesn't matter. */
@@ -90,6 +170,17 @@ export interface IdempotentRunResult<T> {
   replayed: boolean;
 }
 
+function snapshotJsonValue(value: unknown): JsonValue {
+  return JSON.parse(JSON.stringify(value)) as JsonValue;
+}
+
+function defaultEntityId(value: unknown): number | null {
+  if (!value || typeof value !== 'object') return null;
+  if (!('id' in value)) return null;
+  const candidate = (value as { id?: unknown }).id;
+  return typeof candidate === 'number' && Number.isInteger(candidate) ? candidate : null;
+}
+
 /**
  * Look up an existing idempotency-key record. Returns null when none exists.
  * Visible for tests; routes should prefer `runIdempotent`.
@@ -133,11 +224,25 @@ export async function runIdempotent<T>(args: {
   idempotencyKey: string | undefined;
   payload: unknown;
   createdBy?: number | null;
-  create: (tx: Tx) => Promise<T & { id: number }>;
-  load: (entityId: number, tx: Tx) => Promise<T>;
-  entityType: string;
+  create: (tx: Tx) => Promise<T>;
+  load?: (entityId: number, tx: Tx) => Promise<T>;
+  entityType?: string | null;
+  getEntityId?: (result: T) => number | null | undefined;
+  serializeResult?: (result: T) => unknown;
+  deserializeResult?: (snapshot: unknown) => T;
 }): Promise<IdempotentRunResult<T>> {
-  const { endpoint, idempotencyKey, payload, createdBy, create, load, entityType } = args;
+  const {
+    endpoint,
+    idempotencyKey,
+    payload,
+    createdBy,
+    create,
+    load,
+    entityType,
+    getEntityId,
+    serializeResult,
+    deserializeResult,
+  } = args;
 
   // No key → caller still gets a normal result, but on the same transaction
   // contract as the keyed path.
@@ -173,7 +278,15 @@ export async function runIdempotent<T>(args: {
           `idempotency_key=${idempotencyKey}`,
         );
       }
-      if (!existing.entityId) {
+      if (existing.responseSnapshot !== null && existing.responseSnapshot !== undefined) {
+        return {
+          result: deserializeResult
+            ? deserializeResult(existing.responseSnapshot)
+            : (existing.responseSnapshot as T),
+          replayed: true,
+        };
+      }
+      if (existing.entityId == null || !load) {
         throw new ApiError(
           409,
           'Khóa giao dịch đã được dùng nhưng chưa ghi nhận kết quả — vui lòng dùng mã giao dịch mới.',
@@ -185,12 +298,19 @@ export async function runIdempotent<T>(args: {
     }
 
     const created = await create(tx);
+    const entityId = getEntityId
+      ? (getEntityId(created) ?? null)
+      : defaultEntityId(created);
+    const responseSnapshot = snapshotJsonValue(
+      serializeResult ? serializeResult(created) : created,
+    );
     await tx.insert(s.idempotencyKeys).values({
       endpoint,
       idempotencyKey,
-      entityType,
-      entityId: created.id,
+      entityType: entityType ?? null,
+      entityId,
       payloadHash,
+      responseSnapshot,
       createdBy: createdBy ?? null,
     });
     return { result: created, replayed: false };

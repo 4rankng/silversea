@@ -24,6 +24,7 @@ import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
 
 interface AdvanceRequest {
   id: number;
+  version: number;
   requesterName: string | null;
   requesterId: number;
   amount: number | string;
@@ -87,8 +88,8 @@ function AdvanceGridRow({
   rejectMutation: ReturnType<typeof useRejectAdvanceRequest>;
   focusId?: string;
 }) {
-  const isApproving = approveMutation.isPending && approveMutation.variables === req.id;
-  const isRejecting = rejectMutation.isPending && rejectMutation.variables === req.id;
+  const isApproving = approveMutation.isPending && approveMutation.variables?.id === req.id;
+  const isRejecting = rejectMutation.isPending && rejectMutation.variables?.id === req.id;
   const isPending = req.status === AdvanceRequestStatus.PENDING;
 
   return (
@@ -129,7 +130,7 @@ function AdvanceGridRow({
           <>
             <button
               className="btn btn--ghost btn--icon btn--sm"
-              onClick={() => approveMutation.mutate(req.id)}
+              onClick={() => approveMutation.mutate({ id: req.id, expectedVersion: req.version })}
               disabled={isApproving || isRejecting}
               title="Duyệt yêu cầu"
               style={{ color: 'var(--success)' }}
@@ -138,7 +139,7 @@ function AdvanceGridRow({
             </button>
             <button
               className="btn btn--ghost btn--icon btn--sm"
-              onClick={() => rejectMutation.mutate(req.id)}
+              onClick={() => rejectMutation.mutate({ id: req.id, expectedVersion: req.version })}
               disabled={isApproving || isRejecting}
               title="Từ chối yêu cầu"
               style={{ color: 'var(--danger)' }}
@@ -169,8 +170,8 @@ function AdvanceMobileCard({
   rejectMutation: ReturnType<typeof useRejectAdvanceRequest>;
   focusId?: string;
 }) {
-  const isApproving = approveMutation.isPending && approveMutation.variables === req.id;
-  const isRejecting = rejectMutation.isPending && rejectMutation.variables === req.id;
+  const isApproving = approveMutation.isPending && approveMutation.variables?.id === req.id;
+  const isRejecting = rejectMutation.isPending && rejectMutation.variables?.id === req.id;
   const isPending = req.status === AdvanceRequestStatus.PENDING;
 
   return (
@@ -214,7 +215,7 @@ function AdvanceMobileCard({
         <div className="adv-mcard__actions">
           <button
             className="btn btn--primary"
-            onClick={() => approveMutation.mutate(req.id)}
+            onClick={() => approveMutation.mutate({ id: req.id, expectedVersion: req.version })}
             disabled={isApproving || isRejecting}
           >
             {isApproving ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
@@ -222,7 +223,7 @@ function AdvanceMobileCard({
           </button>
           <button
             className="btn btn--danger"
-            onClick={() => rejectMutation.mutate(req.id)}
+            onClick={() => rejectMutation.mutate({ id: req.id, expectedVersion: req.version })}
             disabled={isApproving || isRejecting}
           >
             {isRejecting ? <Loader2 size={16} className="spin" /> : <XCircle size={16} />}

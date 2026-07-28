@@ -34,6 +34,7 @@ const createdLedgerIds: number[] = [];
 const createdUserIds: number[] = [];
 const createdDriverIds: number[] = [];
 const createdCloseIds: number[] = [];
+const createdSalaryConfirmationIds: number[] = [];
 
 async function mkCustomer() {
   const [c] = await db.insert(s.customers).values({ name: `Recon cust ${suffix}-${createdCustomerIds.length}` }).returning();
@@ -54,6 +55,20 @@ async function mkAdmin() {
   }).returning();
   createdUserIds.push(u.id);
   return u;
+}
+
+async function confirmAllDriversForPeriod(year: number, month: number, actorId: number) {
+  const drivers = await db.select({ id: s.drivers.id }).from(s.drivers);
+  if (drivers.length === 0) return;
+  const inserted = await db.insert(s.salaryConfirmations).values(drivers.map((driver) => ({
+    driverId: driver.id,
+    year,
+    month,
+    status: 'CONFIRMED' as const,
+    confirmedBy: actorId,
+    confirmedAt: new Date(),
+  }))).onConflictDoNothing().returning({ id: s.salaryConfirmations.id });
+  createdSalaryConfirmationIds.push(...inserted.map((row) => row.id));
 }
 
 async function postLedger(opts: {
@@ -119,6 +134,10 @@ after(async () => {
     // Sweep ALL recon-test ledger rows by note.
     await db.delete(s.ledger).where(sql`${s.ledger.note} LIKE ${'recon test ' + suffix + '%'} OR ${s.ledger.note} LIKE ${'Chốt kỳ lương%recon%'}`);
     if (createdLedgerIds.length > 0) await db.delete(s.ledger).where(inArray(s.ledger.id, createdLedgerIds));
+    if (createdSalaryConfirmationIds.length > 0) {
+      await db.delete(s.salaryConfirmations)
+        .where(inArray(s.salaryConfirmations.id, createdSalaryConfirmationIds));
+    }
     if (createdDriverIds.length > 0) await db.delete(s.drivers).where(inArray(s.drivers.id, createdDriverIds));
     await db.delete(s.customers).where(sql`${s.customers.name} LIKE ${custPattern}`);
     await db.delete(s.suppliers).where(sql`${s.suppliers.name} LIKE ${supPattern}`);
@@ -226,7 +245,7 @@ describe('Reconciliation — salary close posts once', () => {
 
     // Use a unique period derived from suffix so we don't collide with other tests.
     const ts = parseInt(suffix.split('-')[0].slice(-6), 10);
-    const period = `${2020 + (ts % 5)}-${String((ts % 12) + 1).padStart(2, '0')}`;
+    const period = `2098-${String((ts % 12) + 1).padStart(2, '0')}`;
     const [yStr, mStr] = period.split('-');
     const salaryDate = `${period}-15`;
     await postLedger({ entityType: 'DRIVER', entityId: d.id, txnType: TxnType.DRIVER_SALARY, credit: 2_000_000 });
@@ -234,6 +253,7 @@ describe('Reconciliation — salary close posts once', () => {
     // Override the timestamp to fall in the period.
     await db.update(s.ledger).set({ timestamp: new Date(salaryDate) })
       .where(inArray(s.ledger.id, createdLedgerIds.slice(-1)));
+    await confirmAllDriversForPeriod(Number(yStr), Number(mStr), admin.id);
 
     // Close once.
     const r1 = await closeSalaryPeriod({ period, actorId: admin.id, actorRole: 'ADMIN', note: `recon close ${suffix}` });

@@ -55,7 +55,10 @@ const REMINDER_WINDOW_END_MINUTE = 30;
 const REMINDER_CALENDAR_LOOKBACK_DAYS = 32;
 const REMINDER_RETRY_BATCH_LIMIT = 200;
 const REMINDER_RETRY_STALE_GRACE_MS = 5_000;
-const REMINDER_TERMINAL_ESCALATION_ROLES = [Role.ADMIN, Role.ACCOUNTANT] as const;
+// The product language calls this team "CUS". This repository models that
+// operational customer-service/documentation team as CLERK, so terminal
+// delivery failures must reach CLERK as well as the finance fallback owners.
+const REMINDER_TERMINAL_ESCALATION_ROLES = [Role.CLERK, Role.ADMIN, Role.ACCOUNTANT] as const;
 const REMINDER_PORTAL_FALLBACK_PENDING_MARKER = '[REMINDER_PORTAL_FALLBACK_PENDING]';
 const REMINDER_OCCURRENCE_MARKER_PREFIX = '\u2063';
 const REMINDER_OCCURRENCE_MARKER_SEPARATOR = '\u200D';
@@ -156,7 +159,9 @@ export async function isCustomerDisputed(customerId: number): Promise<boolean> {
 
 /**
  * Has this customer already been sent or queued a reminder for a business date?
- * Dedupe key: subject LIKE 'prefix%' AND created_at::date = businessDate.
+ * Dedupe key: subject LIKE 'prefix%' AND the Vietnam-local created date equals
+ * the supplied business date. A raw timestamptz::date comparison is wrong
+ * during the UTC/Vietnam midnight offset and can send the same reminder twice.
  */
 export async function alreadyRemindedToday(
   customerId: number,
@@ -169,7 +174,7 @@ export async function alreadyRemindedToday(
     .where(and(
       eq(s.customerEmailLogs.customerId, customerId),
       sql`${s.customerEmailLogs.subject} LIKE ${REMINDER_SUBJECT_PREFIX + '%'}`,
-      sql`${s.customerEmailLogs.createdAt}::date = ${businessDate}`,
+      sql`(${s.customerEmailLogs.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = ${businessDate}::date`,
     ));
   return Number(row?.n ?? 0) > 0;
 }
@@ -1056,7 +1061,7 @@ async function emitTerminalFailureAlert(
 ): Promise<void> {
   const targetUserIds = await loadUserIdsForRoles(REMINDER_TERMINAL_ESCALATION_ROLES);
   if (targetUserIds.length === 0) return;
-  const message = `Khách hàng ${customerName} có email log #${logId} thất bại sau 3 lần gửi lại. ADMIN và kế toán cần xử lý thủ công. Lỗi cuối: ${errorMessage}`;
+  const message = `Khách hàng ${customerName} có email log #${logId} thất bại sau 3 lần gửi lại. CUS/chứng từ và kế toán cần xử lý thủ công. Lỗi cuối: ${errorMessage}`;
   await insertNotificationsOnce({
     lockKey: `receivable-reminder:terminal:${logId}`,
     title: 'Email nhắc công nợ thất bại',
@@ -1146,7 +1151,7 @@ async function claimReminderEmailLog(
       .where(and(
         eq(s.customerEmailLogs.customerId, customerId),
         sql`${s.customerEmailLogs.subject} LIKE ${REMINDER_SUBJECT_PREFIX + '%'}`,
-        sql`${s.customerEmailLogs.createdAt}::date = ${businessDate}`,
+        sql`(${s.customerEmailLogs.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = ${businessDate}::date`,
       ))
       .limit(1);
     if (existing) return null;
@@ -1360,7 +1365,9 @@ async function insertNotificationsOnce(input: {
       inArray(s.notifications.userId, [...input.targetUserIds]),
     ];
     if (!input.dedupeAcrossDates) {
-      conditions.push(sql`${s.notifications.createdAt}::date = ${input.businessDate}`);
+      conditions.push(
+        sql`(${s.notifications.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = ${input.businessDate}::date`,
+      );
     }
     if (input.existingMessageToken) {
       conditions.push(sql`${s.notifications.message} LIKE ${'%' + input.existingMessageToken + '%'}`);

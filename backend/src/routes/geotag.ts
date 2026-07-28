@@ -7,6 +7,8 @@ import { getUser } from '../middleware/auth';
 import { throwValidation } from '../lib/validation';
 import { ApiError } from '../errors';
 import { submitGeotag, getGeotag } from '../services/geotag.service';
+import { getRequestIdempotencyKey } from './utils/idempotency';
+import { runIdempotent } from '../services/idempotency.service';
 
 const router = Router();
 
@@ -24,7 +26,18 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
   const parsed = geotagSchema.safeParse(req.body);
   if (!parsed.success) throwValidation(parsed.error);
   const user = getUser(req);
-  const stored = await submitGeotag(parsed.data, user);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  if (!idempotencyKey) {
+    throw new ApiError(400, 'Idempotency-Key là bắt buộc khi ghi nhận GPS.');
+  }
+  const { result: stored } = await runIdempotent({
+    endpoint: 'geotag.submit',
+    idempotencyKey,
+    payload: parsed.data,
+    createdBy: user.userId,
+    entityType: 'PHOTO_GEOTAG',
+    create: (tx) => submitGeotag(parsed.data, user, tx),
+  });
   res.status(201).json(stored);
 }));
 

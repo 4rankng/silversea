@@ -12,6 +12,7 @@ export {
   AdvanceRequestStatus, AdvanceSettlementStatus, ExpenseEntryStatus,
   FORWARDER_EXPENSE_TYPE_DEFAULTS, ADVANCE_REQUEST_STATUS_LABELS, ADVANCE_SETTLEMENT_STATUS_LABELS,
   NO_INVOICE_EVIDENCE_TYPES, NO_INVOICE_EVIDENCE_TYPE_LABELS, DEFAULT_NO_INVOICE_EVIDENCE_TYPES, NO_INVOICE_POLICY_DEFAULTS,
+  NO_INVOICE_REQUIRED_SCOPE, NO_INVOICE_APPROVAL_TITLES, NO_INVOICE_APPROVAL_TITLE_LABELS, NO_INVOICE_DEFAULT_CATEGORY_ALIASES,
   NotificationType, NOTIFICATION_TYPE_LABELS, PUSH_RULES,
   CONFIG, FINANCIAL, REPORTS, DRIVER, SYSTEM, AUTH, TRIPS, CATALOGS, FORWARDER, NOTIFICATIONS, SALARY,
   TRACKING,
@@ -24,7 +25,7 @@ export {
   SupplierType, SUPPLIER_TYPES, SUPPLIER_TYPE_LABELS,
 } from './constants';
 
-export type { PushAudience, TireStatus, NoInvoiceEvidenceType } from './constants';
+export type { PushAudience, TireStatus, NoInvoiceEvidenceType, NoInvoiceApprovalTitle } from './constants';
 
 export type {
   User, UserPublic, Driver, Customer, Truck, Trailer, Route, CargoType,
@@ -76,7 +77,7 @@ export {
   tripLegSchema, createTripSchema, createTripPairSchema, updateTripFiguresSchema, bulkUpdateTripFiguresSchema,
   createPaymentSchema, createPenaltySchema, createAdjustmentSchema, tripReopenRequestSchema,
   loginSchema, createUserSchema, updateUserSchema, updateProfileSchema, changePasswordSchema,
-  customerSchema, paymentDatePolicySchema, businessCalendarDaySchema,
+  customerSchema, customerUpdateSchema, paymentDatePolicySchema, businessCalendarDaySchema,
   truckSchema, trailerSchema, routeSchema,
   cargoTypeSchema, pricingTableSchema, roadAllowanceSchema,
   fuelConfigSchema, fuelPriceHistorySchema,
@@ -87,7 +88,7 @@ export {
   supplierSchema, expenseCategorySchema, expenseSchema, vendorPaymentSchema,
   tripContainerSchema, tripContainerBatchSchema, tripContainerPatchSchema, tripContainerSealSchema, tripContainerSealBatchSchema, tripExpenseSchema, baseTripExpenseSchema, tripExpensePatchSchema, tripExpenseCompletionSchema, accountantSettlementExpensePatchSchema, forwarderExpenseTypeSchema,
   noInvoiceEvidenceTypeSchema, noInvoiceEvidenceTypesSchema,
-  createAdvanceRequestSchema, createAdvanceSettlementSchema, updateAdvanceSettlementSchema,
+  createAdvanceRequestSchema, createAdvanceSettlementSchema, advanceMutationVersionSchema, updateAdvanceSettlementSchema,
   upsertTripInstructionsSchema,
   createShipmentSchema, quickCreateShipmentSchema, updateShipmentSchema, transitionShipmentStatusSchema,
   attachShipmentDocumentSchema, shipmentContainerBatchSchema, dispatchShipmentSchema,
@@ -97,7 +98,7 @@ export {
   commissionSchema,
   driverPayoutSchema,
   tireSchema, installTireSchema, disposeTireSchema, transferTireSchema, tirePositionSchema,
-  generateBillingDocumentSchema, saveBillingDocumentSchema, billingDocumentLineSchema, billingDocumentAdjustmentRequestSchema,
+  generateBillingDocumentSchema, saveBillingDocumentSchema, billingDocumentLineSchema, billingDocumentAdjustmentRequestSchema, billingDocumentIssueRequestSchema,
   debitNoteTemplateSchema, debitNoteColumnSchema, debitNoteColumnVariableSchema, defaultDebitNoteColumns, defaultPaymentStatementColumns,
   bachKhoaVehicleSchema, bachKhoaResponseSchema, parseBachKhoaResponse,
   agentDirectiveSchema, agentWidgetSchema, widgetFormatSchema, agentActionChipSchema,

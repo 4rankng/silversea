@@ -517,8 +517,8 @@ export async function deleteTripExpense(expenseId: number, forwarderId: number) 
  * Fetch expense audit info (type name, amounts, trip code, supplier) for logging.
  * Returns null if expense not found.
  */
-export async function getTripExpenseAuditInfo(expenseId: number) {
-  const [expense] = await db.select({
+export async function getTripExpenseAuditInfo(expenseId: number, executor: DbOrTx = db) {
+  const [expense] = await executor.select({
     buyAmount: s.tripExpenses.buyAmount,
     typeName: s.forwarderExpenseTypes.name,
     tripCode: s.trips.tripCode,
@@ -538,8 +538,12 @@ export async function getTripExpenseAuditInfo(expenseId: number) {
  * - Expense must not be linked to any settlement
  * Must be called from the trips route (not the forwarder portal).
  */
-export async function deleteTripExpenseGuarded(tripId: number, expenseId: number): Promise<GuardedResult> {
-  return db.transaction(async (tx) => {
+export async function deleteTripExpenseGuarded(
+  tripId: number,
+  expenseId: number,
+  transaction?: Tx,
+): Promise<GuardedResult> {
+  const execute = async (tx: Tx) => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
     const [expense] = await tx.select({
       tripId: s.tripExpenses.tripId,
@@ -571,7 +575,8 @@ export async function deleteTripExpenseGuarded(tripId: number, expenseId: number
     await tx.delete(s.tripExpenses).where(eq(s.tripExpenses.id, expenseId));
     await resetExpenseScope(tx, expense.tripId, expense.tripContainerId);
     return { ok: true as const };
-  });
+  };
+  return transaction ? execute(transaction) : db.transaction(execute);
 }
 
 /**

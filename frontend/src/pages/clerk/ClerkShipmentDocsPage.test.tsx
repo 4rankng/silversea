@@ -515,7 +515,7 @@ describe('ClerkShipmentDocsPage', () => {
   });
 
   it('approves a pending credit override with expectedVersion and dispatches the shipment to the trip', async () => {
-    currentUserState.role = 'MANAGER';
+    currentUserState.role = 'ADMIN';
     getDetailMock.mockResolvedValue(makeDetail({
       shipment: { expectedDeliveryDate: '2026-07-29' },
       containers: [{
@@ -565,7 +565,7 @@ describe('ClerkShipmentDocsPage', () => {
       ...creditQueueState.data[0],
       status: 'APPROVED',
       approvedBy: 1,
-      approvedRole: 'MANAGER',
+      approvedRole: 'ADMIN',
       approvedAt: '2026-07-27T10:00:00.000Z',
       version: 5,
       updatedAt: '2026-07-27T10:00:00.000Z',

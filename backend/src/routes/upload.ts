@@ -17,6 +17,8 @@ import { asyncHandler } from '../middleware/asyncHandler';
 import { getUser } from '../middleware/auth';
 import { sniffImageType } from '../lib/format';
 import { ApiError } from '../errors';
+import { getRequestIdempotencyKey } from './utils/idempotency';
+import { runIdempotent } from '../services/idempotency.service';
 
 // Maximum dimension for server-side downscale
 const MAX_IMAGE_DIMENSION = 2048;
@@ -37,6 +39,8 @@ export interface SaveTripPhotoOptions {
    *  must belong to `tripId`. Null/undefined leaves the photo at trip level
    *  (legacy behaviour), which is also the fallback for older callers. */
   containerId?: number | null;
+  /** Stable command identity used to converge retries on one object/row. */
+  storageKeySeed?: string;
 }
 
 export interface SavedTripPhoto {
@@ -106,8 +110,25 @@ export async function saveTripPhoto(
     }
   }
 
-  const uuid = crypto.randomUUID();
+  const uuid = opts.storageKeySeed
+    ? crypto.createHash('sha256').update(opts.storageKeySeed).digest('hex').slice(0, 32)
+    : crypto.randomUUID();
   const key = `trips/${tripId}/${type.toLowerCase()}-${uuid}${ext}`;
+
+  if (opts.storageKeySeed) {
+    const [existing] = await db.select({ id: s.tripPhotos.id })
+      .from(s.tripPhotos)
+      .where(eq(s.tripPhotos.storageKey, key))
+      .limit(1);
+    if (existing) {
+      return {
+        storageKey: key,
+        url: `/api/photos/${encodeURIComponent(key)}`,
+        buffer: processedBuffer,
+        mimeType: opts.forOcr ? 'image/jpeg' : mime,
+      };
+    }
+  }
 
   await storageService.upload(processedBuffer, key);
   await db.insert(s.tripPhotos).values({
@@ -200,22 +221,32 @@ export async function deleteTripPhotoByStorageKey(
     return c;
   };
 
-  let [row] = await db.select({ id: s.tripPhotos.id, storageKey: s.tripPhotos.storageKey })
-    .from(s.tripPhotos)
-    .where(and(...buildConditions(true)))
-    .limit(1);
-  // A container scope was requested but matched nothing: the photo may be a
-  // legacy/unscoped row (tripContainerId IS NULL — `NULL = <id>` is never true
-  // in SQL). Retry without the container filter so those photos are deletable
-  // instead of a silent 0-removal the UI would report as success. The match is
-  // still bound to (tripId, type, storageKey), and storageKey already encodes
-  // `trips/${tripId}/…` (route-validated), so no cross-trip leak.
-  if (!row && containerId !== undefined) {
-    [row] = await db.select({ id: s.tripPhotos.id, storageKey: s.tripPhotos.storageKey })
+  const row = await db.transaction(async (tx) => {
+    let [locked] = await tx.select({
+      id: s.tripPhotos.id,
+      storageKey: s.tripPhotos.storageKey,
+    })
       .from(s.tripPhotos)
-      .where(and(...buildConditions(false)))
-      .limit(1);
-  }
+      .where(and(...buildConditions(true)))
+      .limit(1)
+      .for('update');
+    // A container scope was requested but matched nothing: the photo may be a
+    // legacy unscoped row. Retry without the container filter while retaining
+    // the trip/type/storage-key boundary.
+    if (!locked && containerId !== undefined) {
+      [locked] = await tx.select({
+        id: s.tripPhotos.id,
+        storageKey: s.tripPhotos.storageKey,
+      })
+        .from(s.tripPhotos)
+        .where(and(...buildConditions(false)))
+        .limit(1)
+        .for('update');
+    }
+    if (!locked) return null;
+    await tx.delete(s.tripPhotos).where(eq(s.tripPhotos.id, locked.id));
+    return locked;
+  });
   if (!row) return 0;
 
   await storageService.delete(row.storageKey).catch(err => {
@@ -224,11 +255,20 @@ export async function deleteTripPhotoByStorageKey(
       err instanceof Error ? err.message : err,
     );
   });
-  await db.delete(s.tripPhotos).where(eq(s.tripPhotos.id, row.id));
   return 1;
 }
 
 const uploadRouter = Router();
+
+function requireUploadIdempotencyKey(req: Request): string {
+  const key = getRequestIdempotencyKey(req);
+  if (!key) throw new ApiError(400, 'Idempotency-Key là bắt buộc khi thay đổi tệp.');
+  return key;
+}
+
+function hashUpload(buffer: Buffer): string {
+  return crypto.createHash('sha256').update(buffer).digest('hex');
+}
 
 /**
  * Save the company logo. Stored under a dedicated `company-assets/` prefix
@@ -238,6 +278,7 @@ const uploadRouter = Router();
  */
 export async function saveCompanyLogo(
   file: { buffer: Buffer },
+  storageKeySeed?: string,
 ): Promise<{ storageKey: string; url: string }> {
   const mime = sniffImageType(file.buffer);
   if (!mime) {
@@ -248,7 +289,9 @@ export async function saveCompanyLogo(
     .resize(640, 320, { fit: 'inside', withoutEnlargement: true })
     .png()
     .toBuffer();
-  const uuid = crypto.randomUUID();
+  const uuid = storageKeySeed
+    ? crypto.createHash('sha256').update(storageKeySeed).digest('hex').slice(0, 32)
+    : crypto.randomUUID();
   const key = `company-assets/logo-${uuid}.png`;
   await storageService.upload(processedBuffer, key);
   return { storageKey: key, url: `/api/photos/${encodeURIComponent(key)}` };
@@ -264,7 +307,16 @@ uploadRouter.post('/company-logo', upload.single('file'), asyncHandler(async (re
   }
   const file = req.file;
   if (!file) return res.status(400).json({ error: 'Không có file tải lên' });
-  const saved = await saveCompanyLogo(file);
+  const user = getUser(req);
+  const idempotencyKey = requireUploadIdempotencyKey(req);
+  const { result: saved } = await runIdempotent({
+    endpoint: 'upload.company-logo',
+    idempotencyKey,
+    payload: { fileHash: hashUpload(file.buffer) },
+    createdBy: user.userId,
+    entityType: 'COMPANY_LOGO',
+    create: () => saveCompanyLogo(file, `company-logo:${user.userId}:${idempotencyKey}`),
+  });
   res.status(201).json({ ok: true, storageKey: saved.storageKey, url: saved.url });
 }));
 
@@ -279,7 +331,21 @@ uploadRouter.post('/', upload.single('file'), asyncHandler(async (req: Request, 
     return res.status(400).json({ error: 'Loại ảnh không hợp lệ' });
   }
 
-  const saved = await saveTripPhoto(file, tripId, type, getUser(req).userId);
+  const user = getUser(req);
+  const idempotencyKey = requireUploadIdempotencyKey(req);
+  const { result: saved } = await runIdempotent({
+    endpoint: 'upload.trip-photo',
+    idempotencyKey,
+    payload: { tripId, type, fileHash: hashUpload(file.buffer) },
+    createdBy: user.userId,
+    entityType: 'TRIP_PHOTO',
+    create: async () => {
+      const stored = await saveTripPhoto(file, tripId, type, user.userId, {
+        storageKeySeed: `trip-photo:${user.userId}:${idempotencyKey}`,
+      });
+      return { storageKey: stored.storageKey, url: stored.url };
+    },
+  });
 
   res.status(201).json({
     ok: true,
@@ -311,26 +377,45 @@ uploadRouter.post('/trips/:tripId/photos/:type/delete', asyncHandler(async (req:
     containerId = parseInt(String(containerIdRaw), 10);
     if (isNaN(containerId)) return res.status(400).json({ error: 'container_id không hợp lệ' });
   }
+  const user = getUser(req);
+  const idempotencyKey = requireUploadIdempotencyKey(req);
+  const { result } = await runIdempotent({
+    endpoint: 'upload.trip-photo.delete',
+    idempotencyKey,
+    payload: { tripId, photoType, storageKey, containerId: containerId ?? null },
+    createdBy: user.userId,
+    entityType: 'TRIP_PHOTO',
+    create: async () => {
+      const [trip] = await db.select({ id: s.trips.id, status: s.trips.status })
+        .from(s.trips)
+        .where(eq(s.trips.id, tripId))
+        .limit(1);
+      if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
+      if (trip.status === 'LOCKED') {
+        throw new ApiError(409, 'Không thể xóa ảnh của chuyến đã chốt');
+      }
 
-  const [trip] = await db.select({ id: s.trips.id, status: s.trips.status })
-    .from(s.trips)
-    .where(eq(s.trips.id, tripId))
-    .limit(1);
-  if (!trip) return res.status(404).json({ error: 'Không tìm thấy chuyến đi' });
-  if (trip.status === 'LOCKED') {
-    throw new ApiError(409, 'Không thể xóa ảnh của chuyến đã chốt');
-  }
+      if (containerId !== undefined) {
+        const [container] = await db.select({ id: s.tripContainers.id })
+          .from(s.tripContainers)
+          .where(and(eq(s.tripContainers.id, containerId), eq(s.tripContainers.tripId, tripId)))
+          .limit(1);
+        if (!container) throw new ApiError(404, 'Không tìm thấy số cont');
+      }
 
-  if (containerId !== undefined) {
-    const [container] = await db.select({ id: s.tripContainers.id })
-      .from(s.tripContainers)
-      .where(and(eq(s.tripContainers.id, containerId), eq(s.tripContainers.tripId, tripId)))
-      .limit(1);
-    if (!container) return res.status(404).json({ error: 'Không tìm thấy số cont' });
-  }
-
-  const removed = await deleteTripPhotoByStorageKey(tripId, photoType as TripPhotoType, storageKey, containerId);
-  res.json({ ok: true, removed });
+      const removed = await deleteTripPhotoByStorageKey(
+        tripId,
+        photoType as TripPhotoType,
+        storageKey,
+        containerId,
+      );
+      if (removed === 0) {
+        throw new ApiError(409, 'Ảnh đã được xóa hoặc không còn tồn tại.');
+      }
+      return { ok: true as const, removed };
+    },
+  });
+  res.json(result);
 }));
 
 // Authenticated Photos serving Router

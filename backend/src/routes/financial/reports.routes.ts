@@ -13,6 +13,8 @@ import { getApprovalQueue } from '../../services/approval-queue.service';
 import { parsePagination } from '../utils/pagination';
 import { exportReceivablesAgingXlsx, attachmentDisposition } from '../../services/statement.service';
 import { formatLocalDate } from '../../lib/format';
+import { getRequestIdempotencyKey } from '../utils/idempotency';
+import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 
 const router = Router();
 
@@ -90,7 +92,18 @@ router.post('/reports/distribute-profit', requireRoles(Role.ADMIN, Role.MANAGER)
   const { quarter, year } = req.body;
   if (!quarter || !year) return res.status(400).json({ error: 'Cần nhập quý và năm' });
   if (quarter < 1 || quarter > 4) return res.status(400).json({ error: 'Quý phải từ 1 đến 4' });
-  res.status(201).json(await distributeProfit(quarter, year));
+  const user = getUser(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.PROFIT_DISTRIBUTE,
+    idempotencyKey,
+    payload: { actorId: user.userId, quarter, year },
+    createdBy: user.userId,
+    entityType: 'profit_distribution',
+    create: (tx) => distributeProfit(quarter, year, tx),
+    getEntityId: () => null,
+  });
+  res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
 // M11.4 — payment-term evaluation report. Per-customer days-to-pay +

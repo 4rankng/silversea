@@ -392,6 +392,10 @@ export function EditPanel({
       payload.businessUnitIds = businessUnitIds;
       payload.shipmentIds = shipmentIds;
     }
+    if (role === Role.ACCOUNTANT && canManageClerkScope) {
+      payload.customerIds = customerIds;
+      payload.customerId = customerIds[0] ?? null;
+    }
     const ok = await onSave(user.id, payload);
     if (ok) onClose();
   };
@@ -511,6 +515,21 @@ export function EditPanel({
           customerList={customerList}
           required={customerScopeRequired}
         />
+      )}
+
+      {role === Role.ACCOUNTANT && !canEditDriversOnly && canManageClerkScope && (
+        <CustomerScopeFields
+          customerIds={customerIds}
+          setCustomerIds={setCustomerIds}
+          customerList={customerList}
+          required={false}
+          title="Phạm vi khách hàng của kế toán"
+          helpText="Nếu để trống, kế toán có phạm vi tài chính toàn công ty. Khi chọn khách hàng, nhật ký công nợ và thanh toán theo khách hàng chỉ hiển thị trong phạm vi này."
+          emptyInactiveText="Để trống để giữ phạm vi tài chính toàn công ty."
+        />
+      )}
+      {role === Role.ACCOUNTANT && !canEditDriversOnly && !canManageClerkScope && (
+        <div className="users-error-banner">Chỉ quản trị viên mới có thể chỉnh phạm vi khách hàng của kế toán.</div>
       )}
 
       {role === Role.CLERK && !canEditDriversOnly && canManageClerkScope && (
@@ -686,6 +705,10 @@ export function AddPanel({
       payload.businessUnitIds = businessUnitIds;
       payload.shipmentIds = shipmentIds;
     }
+    if (role === Role.ACCOUNTANT && canManageClerkScope) {
+      payload.customerIds = customerIds;
+      payload.customerId = customerIds[0] ?? null;
+    }
     const ok = await onSave(payload);
     if (ok) onClose();
   };
@@ -819,6 +842,21 @@ export function AddPanel({
           setCustomerIds={setCustomerIds}
           customerList={customerList}
         />
+      )}
+
+      {role === Role.ACCOUNTANT && canManageClerkScope && (
+        <CustomerScopeFields
+          customerIds={customerIds}
+          setCustomerIds={setCustomerIds}
+          customerList={customerList}
+          required={false}
+          title="Phạm vi khách hàng của kế toán"
+          helpText="Nếu để trống, kế toán có phạm vi tài chính toàn công ty. Khi chọn khách hàng, nhật ký công nợ và thanh toán theo khách hàng chỉ hiển thị trong phạm vi này."
+          emptyInactiveText="Để trống để giữ phạm vi tài chính toàn công ty."
+        />
+      )}
+      {role === Role.ACCOUNTANT && !canManageClerkScope && (
+        <div className="users-error-banner">Chỉ quản trị viên mới có thể gán phạm vi khách hàng cho kế toán.</div>
       )}
 
       {role === Role.CLERK && canManageClerkScope && (

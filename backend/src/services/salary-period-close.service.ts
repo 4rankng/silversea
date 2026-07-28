@@ -22,7 +22,7 @@
 import { db } from '../db';
 import * as s from '../db/schema';
 import { and, desc, eq, gte, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
-import { TxnType, FINANCIAL_ROLES } from '@tingting/shared';
+import { TxnType, FINANCIAL_ROLES, TripStatus } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
 import { resolveSalaryPeriodDateRange } from './salary-period.service';
 import { ApiError } from '../errors';
@@ -32,12 +32,23 @@ import {
   reopenPeriodLock,
   resolveSalaryPeriodAuthority,
 } from './period-lock.service';
+import { assertCanMakeGovernanceAction } from './governance-policy';
+import {
+  approveGovernanceActionWithAdapter,
+  checkGovernanceAction,
+  type GovernanceActionRow,
+  type GovernanceApplyResult,
+} from './governance-transition.service';
+import { getAppSettings } from './app-settings.service';
 
 const PERIOD_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 const CLOSE_ENTITY_TYPE = 'SALARY_PERIOD_CLOSE';
 const BUSINESS_TIME_ZONE = 'Asia/Ho_Chi_Minh';
 const SALARY_EXCLUSION_SUBJECT_TYPE = 'SALARY_PERIOD';
 const SALARY_EXCLUSION_ACTION_KIND = 'FINANCIAL_EXCEPTION';
+const SALARY_PERIOD_SUBJECT_TYPE = 'SALARY_PERIOD';
+const SALARY_PERIOD_CLOSE_ACTION_KIND = 'SALARY_PERIOD_CLOSE';
+const SALARY_PERIOD_REOPEN_ACTION_KIND = 'SALARY_PERIOD_REOPEN';
 // entityId=0 is a sentinel for "company aggregate" — no real driver has
 // id=0 (serial starts at 1). The summary entry is for audit/
 // reconciliation, not for recomputing driver payable balances.
@@ -65,6 +76,8 @@ export interface SalaryPeriodApprovedExclusion {
   note: string | null;
   approvedBy: number | null;
   approvedAt: string | null;
+  followupStatus: 'PENDING' | 'COMPLETED';
+  followupCompletedAt: string | null;
 }
 
 export interface SalaryPeriodDriverReadiness {
@@ -77,7 +90,9 @@ export interface SalaryPeriodDriverReadiness {
 
 export interface SalaryPeriodReadinessSummary {
   period: string;
-  scope: 'COMPANY';
+  scope: 'COMPANY' | 'BUSINESS_UNIT';
+  businessUnitId: number | null;
+  businessUnitName: string | null;
   canClose: boolean;
   blockingDriverIds: number[];
   drivers: SalaryPeriodDriverReadiness[];
@@ -87,15 +102,46 @@ export interface SalaryPeriodCloseResult {
   closeId: number;
   period: string;
   status: string;
+  version: number;
   periodTotalSalary: number;
   ledgerEntryId: number | null;
   closedBy: number | null;
   closedAt: string;
   note: string | null;
+  payslipIssuedBy: number | null;
+  payslipIssuedAt: string | null;
+  payslipIssuedNote: string | null;
+  officialPostedBy: number | null;
+  officialPostedAt: string | null;
+  officialPostingNote: string | null;
   /** True when this call found an existing close and did no new work. */
   idempotentNoop: boolean;
-  scope: 'COMPANY';
-  excludedDriverIds: number[];
+  scope: 'COMPANY' | 'BUSINESS_UNIT' | null;
+  businessUnitId: number | null;
+  businessUnitName: string | null;
+  includedDriverIds: number[] | null;
+  excludedDriverIds: number[] | null;
+  payrollProvenanceCapturedAt: string | null;
+}
+
+export interface SalaryPeriodLifecycleState {
+  period: string;
+  status: 'OPEN' | 'CLOSED' | 'REOPENED';
+  closeId: number | null;
+  version: number | null;
+  ledgerEntryId: number | null;
+  closedBy: number | null;
+  closedAt: string | null;
+  note: string | null;
+  payslipIssuedBy: number | null;
+  payslipIssuedAt: string | null;
+  payslipIssuedNote: string | null;
+  officialPostedBy: number | null;
+  officialPostedAt: string | null;
+  officialPostingNote: string | null;
+  hasDriverPayout: boolean;
+  canReopen: boolean;
+  reopenBlockers: string[];
 }
 
 export interface SalaryPeriodExclusionResult {
@@ -110,6 +156,8 @@ export interface SalaryPeriodExclusionResult {
   makerId: number;
   checkerId: number | null;
   approverId: number | null;
+  followupStatus: 'PENDING' | 'COMPLETED' | null;
+  followupCompletedAt: string | null;
 }
 
 function toBusinessDateString(value: Date | string | null | undefined): string | null {
@@ -168,6 +216,7 @@ async function loadApprovedExclusionMap(
     approverId: s.governanceActions.approverId,
     approvedAt: s.governanceActions.approvedAt,
     afterSnapshot: s.governanceActions.afterSnapshot,
+    applicationResult: s.governanceActions.applicationResult,
     updatedAt: s.governanceActions.updatedAt,
   }).from(s.governanceActions)
     .where(and(
@@ -186,6 +235,10 @@ async function loadApprovedExclusionMap(
     if (!Number.isInteger(driverId) || driverId < 1 || map.has(driverId)) continue;
     const afterSnapshot = row.afterSnapshot as Record<string, unknown> | null;
     const parsed = parseExclusion(afterSnapshot);
+    const applicationResult = row.applicationResult as Record<string, unknown> | null;
+    const followupStatus = applicationResult?.followupStatus === 'COMPLETED'
+      ? 'COMPLETED'
+      : 'PENDING';
     map.set(driverId, {
       actionId: row.id,
       driverId,
@@ -195,6 +248,10 @@ async function loadApprovedExclusionMap(
       note: parsed.note,
       approvedBy: row.approverId,
       approvedAt: row.approvedAt?.toISOString() ?? null,
+      followupStatus,
+      followupCompletedAt: typeof applicationResult?.followupCompletedAt === 'string'
+        ? applicationResult.followupCompletedAt
+        : null,
     });
   }
   return map;
@@ -206,24 +263,53 @@ async function buildSalaryPeriodReadinessSummary(
 ): Promise<SalaryPeriodReadinessSummary> {
   const { year, month } = parsePeriod(period);
   const range = await resolveSalaryPeriodDateRange(month, year);
+  const { salaryPayrollBusinessUnitId } = await getAppSettings();
 
-  const drivers = await tx.select({
+  const drivers = await tx.selectDistinct({
     driverId: s.drivers.id,
     driverName: s.drivers.name,
   }).from(s.drivers)
     .leftJoin(s.users, eq(s.users.id, s.drivers.userId))
+    .leftJoin(
+      s.userBusinessUnitLinks,
+      eq(s.userBusinessUnitLinks.userId, s.drivers.userId),
+    )
     .where(and(
       isNull(s.drivers.deletedAt),
       eq(s.drivers.status, 'ACTIVE'),
       or(isNull(s.users.id), eq(s.users.status, 'ACTIVE')),
+      salaryPayrollBusinessUnitId == null
+        ? undefined
+        : eq(s.userBusinessUnitLinks.businessUnitId, salaryPayrollBusinessUnitId),
     ))
     .orderBy(s.drivers.name);
+
+  const [payrollUnit] = salaryPayrollBusinessUnitId == null
+    ? []
+    : await tx.select({
+      id: s.businessUnits.id,
+      name: s.businessUnits.name,
+    }).from(s.businessUnits)
+      .where(and(
+        eq(s.businessUnits.id, salaryPayrollBusinessUnitId),
+        eq(s.businessUnits.status, 'ACTIVE'),
+      ))
+      .limit(1);
+  if (salaryPayrollBusinessUnitId != null && !payrollUnit) {
+    throw new ApiError(
+      409,
+      'Đơn vị tính lương đã cấu hình không còn hoạt động. Vui lòng chọn lại trong Cài đặt ứng dụng.',
+    );
+  }
+  const scope = salaryPayrollBusinessUnitId == null ? 'COMPANY' : 'BUSINESS_UNIT';
 
   const driverIds = drivers.map((driver) => driver.driverId);
   if (driverIds.length === 0) {
     return {
       period,
-      scope: 'COMPANY',
+      scope,
+      businessUnitId: payrollUnit?.id ?? null,
+      businessUnitName: payrollUnit?.name ?? null,
       canClose: true,
       blockingDriverIds: [],
       drivers: [],
@@ -262,7 +348,8 @@ async function buildSalaryPeriodReadinessSummary(
       .where(and(
         inArray(s.trips.driverId, driverIds),
         isNull(s.trips.deletedAt),
-        ne(s.trips.status, 'CANCELED'),
+        inArray(s.trips.status, [TripStatus.COMPLETED, TripStatus.LOCKED]),
+        sql`${s.trips.completedAt} is not null`,
       )),
     loadApprovedExclusionMap(tx, period),
   ]);
@@ -281,7 +368,8 @@ async function buildSalaryPeriodReadinessSummary(
   for (const trip of completedTrips) {
     const driverId = trip.driverId ?? null;
     if (!driverId) continue;
-    const completedDate = toBusinessDateString(trip.completedAt) ?? trip.departureDate;
+    const completedDate = toBusinessDateString(trip.completedAt);
+    if (!completedDate) continue;
     if (completedDate < range.start || completedDate > range.end) continue;
     const existing = completedTripsByDriver.get(driverId) ?? [];
     existing.push({
@@ -349,7 +437,9 @@ async function buildSalaryPeriodReadinessSummary(
 
   return {
     period,
-    scope: 'COMPANY',
+    scope,
+    businessUnitId: payrollUnit?.id ?? null,
+    businessUnitName: payrollUnit?.name ?? null,
     canClose: blockingDriverIds.length === 0,
     blockingDriverIds,
     drivers: readinessDrivers,
@@ -357,20 +447,7 @@ async function buildSalaryPeriodReadinessSummary(
 }
 
 async function assertSalaryPeriodCanReopen(tx: Tx, period: string): Promise<void> {
-  const { year, month } = parsePeriod(period);
-  const range = await resolveSalaryPeriodDateRange(month, year);
-
-  const [payout] = await tx.select({ id: s.ledger.id })
-    .from(s.ledger)
-    .where(and(
-      eq(s.ledger.entityType, 'DRIVER'),
-      eq(s.ledger.txnType, TxnType.DRIVER_PAYOUT),
-      gte(sql`coalesce(date(${s.ledger.timestamp}), date(${s.ledger.createdAt}))`, range.start),
-      lte(sql`coalesce(date(${s.ledger.timestamp}), date(${s.ledger.createdAt}))`, range.end),
-    ))
-    .limit(1);
-
-  if (payout) {
+  if (await hasSalaryPeriodDriverPayout(tx, period)) {
     throw new ApiError(
       409,
       `Kỳ lương ${period} đã có thanh toán, phải xử lý bằng điều chỉnh bổ sung thay vì mở lại trực tiếp.`,
@@ -406,7 +483,13 @@ function parsePeriod(period: string): { year: number; month: number } {
  * and credit=driverSalary. Sum the credit column for entries whose
  * timestamp falls in [start, end].
  */
-async function sumDriverSalaryInPeriod(tx: Tx, start: string, end: string): Promise<number> {
+async function sumDriverSalaryInPeriod(
+  tx: Tx,
+  start: string,
+  end: string,
+  driverIds: number[],
+): Promise<number> {
+  if (driverIds.length === 0) return 0;
   const rows = await tx.select({
     credit: s.ledger.credit,
     departureDate: s.trips.departureDate,
@@ -418,6 +501,7 @@ async function sumDriverSalaryInPeriod(tx: Tx, start: string, end: string): Prom
       eq(s.ledger.entityType, 'DRIVER'),
       eq(s.ledger.txnType, TxnType.DRIVER_SALARY),
       sql`${s.ledger.entityId} <> ${COMPANY_DRIVER_ENTITY_ID}`,
+      inArray(s.ledger.entityId, driverIds),
       isNull(s.trips.deletedAt),
       ne(s.trips.status, 'CANCELED'),
     ));
@@ -429,6 +513,118 @@ async function sumDriverSalaryInPeriod(tx: Tx, start: string, end: string): Prom
   }, 0);
 }
 
+function mapReopenBlockers(input: {
+  period: string;
+  payslipIssuedAt: Date | null;
+  officialPostedAt: Date | null;
+  hasDriverPayout: boolean;
+}): string[] {
+  const blockers: string[] = [];
+  if (input.payslipIssuedAt) {
+    blockers.push(`Kỳ lương ${input.period} đã phát hành phiếu lương`);
+  }
+  if (input.hasDriverPayout) {
+    blockers.push(`Kỳ lương ${input.period} đã có thanh toán cho lái xe`);
+  }
+  if (input.officialPostedAt) {
+    blockers.push(`Kỳ lương ${input.period} đã được đánh dấu hạch toán chính thức`);
+  }
+  return blockers;
+}
+
+function requireGovernanceReason(
+  reason: string | null | undefined,
+  fallback: string,
+): string {
+  const normalized = reason?.trim();
+  return normalized && normalized.length > 0 ? normalized : fallback;
+}
+
+function toGovernanceActionView(action: GovernanceActionRow) {
+  return {
+    id: action.id,
+    subjectType: action.subjectType,
+    subjectId: action.subjectId,
+    subjectKey: action.subjectKey,
+    actionKind: action.actionKind,
+    status: action.status,
+    version: action.version,
+    reason: action.reason,
+    makerId: action.makerId,
+    makerRole: action.makerRole,
+    checkerId: action.checkerId,
+    checkerRole: action.checkerRole,
+    approverId: action.approverId,
+    approverRole: action.approverRole,
+    createdAt: action.createdAt.toISOString(),
+    checkedAt: action.checkedAt?.toISOString() ?? null,
+    approvedAt: action.approvedAt?.toISOString() ?? null,
+    beforeSnapshot: action.beforeSnapshot,
+    afterSnapshot: action.afterSnapshot,
+    deltaSnapshot: action.deltaSnapshot,
+  };
+}
+
+function assertSalaryPeriodGovernanceAction(
+  action: GovernanceActionRow,
+  period: string,
+  actionKind: typeof SALARY_PERIOD_CLOSE_ACTION_KIND | typeof SALARY_PERIOD_REOPEN_ACTION_KIND,
+): void {
+  if (
+    action.subjectType !== SALARY_PERIOD_SUBJECT_TYPE
+    || action.subjectKey !== period
+    || action.actionKind !== actionKind
+  ) {
+    throw new ApiError(404, 'Không tìm thấy yêu cầu quản trị kỳ lương phù hợp');
+  }
+}
+
+function buildCloseResult(
+  closeRow: typeof s.salaryPeriodCloses.$inferSelect,
+  periodTotalSalary: number,
+  idempotentNoop: boolean,
+): SalaryPeriodCloseResult {
+  return {
+    closeId: closeRow.id,
+    period: closeRow.period,
+    status: closeRow.status,
+    version: closeRow.version,
+    periodTotalSalary,
+    ledgerEntryId: closeRow.ledgerEntryId,
+    closedBy: closeRow.closedBy,
+    closedAt: closeRow.closedAt.toISOString(),
+    note: closeRow.note,
+    payslipIssuedBy: closeRow.payslipIssuedBy,
+    payslipIssuedAt: closeRow.payslipIssuedAt?.toISOString() ?? null,
+    payslipIssuedNote: closeRow.payslipIssuedNote,
+    officialPostedBy: closeRow.officialPostedBy,
+    officialPostedAt: closeRow.officialPostedAt?.toISOString() ?? null,
+    officialPostingNote: closeRow.officialPostingNote,
+    idempotentNoop,
+    scope: closeRow.payrollScope as 'COMPANY' | 'BUSINESS_UNIT' | null,
+    businessUnitId: closeRow.payrollBusinessUnitId,
+    businessUnitName: closeRow.payrollBusinessUnitName,
+    includedDriverIds: closeRow.includedDriverIds,
+    excludedDriverIds: closeRow.excludedDriverIds,
+    payrollProvenanceCapturedAt: closeRow.payrollProvenanceCapturedAt?.toISOString() ?? null,
+  };
+}
+
+async function hasSalaryPeriodDriverPayout(tx: Tx | typeof db, period: string): Promise<boolean> {
+  const { year, month } = parsePeriod(period);
+  const range = await resolveSalaryPeriodDateRange(month, year);
+  const [payout] = await tx.select({ id: s.ledger.id })
+    .from(s.ledger)
+    .where(and(
+      eq(s.ledger.entityType, 'DRIVER'),
+      eq(s.ledger.txnType, TxnType.DRIVER_PAYOUT),
+      gte(sql`coalesce(date(${s.ledger.timestamp}), date(${s.ledger.createdAt}))`, range.start),
+      lte(sql`coalesce(date(${s.ledger.timestamp}), date(${s.ledger.createdAt}))`, range.end),
+    ))
+    .limit(1);
+  return Boolean(payout);
+}
+
 /**
  * Close a salary period. Idempotent: re-closing the same period returns
  * the existing row and posts zero new ledger entries.
@@ -438,14 +634,19 @@ export async function closeSalaryPeriod(input: {
   actorId: number;
   actorRole: string;
   note?: string | null;
+  expectedVersion?: number | null;
+  transaction?: Tx;
 }): Promise<SalaryPeriodCloseResult> {
   if (!(FINANCIAL_ROLES as readonly string[]).includes(input.actorRole)) {
     throw new ApiError(403, 'Bạn không có quyền chốt kỳ lương');
   }
+  if (input.expectedVersion != null && (!Number.isInteger(input.expectedVersion) || input.expectedVersion < 0)) {
+    throw new ApiError(400, 'expectedVersion không hợp lệ');
+  }
   const { year, month } = parsePeriod(input.period);
   const authority = await resolveSalaryPeriodAuthority(input.period);
 
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     // Per-period advisory lock — concurrent closes serialize here.
     await LedgerService.lockEntity(tx, CLOSE_ENTITY_TYPE, periodLockKey(input.period));
 
@@ -454,26 +655,20 @@ export async function closeSalaryPeriod(input: {
       .from(s.salaryPeriodCloses)
       .where(eq(s.salaryPeriodCloses.period, input.period))
       .limit(1);
+    if (input.expectedVersion != null) {
+      if (!existing) {
+        if (input.expectedVersion !== 0) {
+          throw new ApiError(409, 'Kỳ lương đã thay đổi. Vui lòng tải lại trước khi chốt.');
+        }
+      } else if (existing.version !== input.expectedVersion) {
+        throw new ApiError(409, 'Kỳ lương đã thay đổi. Vui lòng tải lại trước khi chốt.');
+      }
+    }
     if (existing && existing.status === 'CLOSED') {
       await closePeriodLock(tx, authority, input.actorId, existing.note);
       // Pull the summary amount from the original ledger entry.
       const summaryAmt = await readSummaryAmount(tx, existing.ledgerEntryId);
-      const readiness = await buildSalaryPeriodReadinessSummary(tx, input.period);
-      return {
-        closeId: existing.id,
-        period: existing.period,
-        status: existing.status,
-        periodTotalSalary: summaryAmt,
-        ledgerEntryId: existing.ledgerEntryId,
-        closedBy: existing.closedBy,
-        closedAt: existing.closedAt.toISOString(),
-        note: existing.note,
-        idempotentNoop: true,
-        scope: readiness.scope,
-        excludedDriverIds: readiness.drivers
-          .filter((driver) => driver.exclusion != null)
-          .map((driver) => driver.driverId),
-      };
+      return buildCloseResult(existing, summaryAmt, true);
     }
 
     // Resolve the date range for this period (override → default → calendar).
@@ -488,7 +683,12 @@ export async function closeSalaryPeriod(input: {
         `Kỳ lương ${input.period} còn lái xe chờ xử lý: ${blockingNames.join(', ')}. Muốn chốt phần còn lại phải có loại trừ đã duyệt sang kỳ bổ sung hoặc điều chỉnh.`,
       );
     }
-    const periodTotalSalary = await sumDriverSalaryInPeriod(tx, range.start, range.end);
+    const periodTotalSalary = await sumDriverSalaryInPeriod(
+      tx,
+      range.start,
+      range.end,
+      readiness.drivers.map((driver) => driver.driverId),
+    );
 
     // Post ONE consolidated summary entry. ADJUSTMENT txnType (NOT
     // DRIVER_SALARY) so per-driver payable aggregates don't double-count.
@@ -513,6 +713,15 @@ export async function closeSalaryPeriod(input: {
           closedBy: input.actorId,
           closedAt: new Date(),
           note,
+          payrollScope: readiness.scope,
+          payrollBusinessUnitId: readiness.businessUnitId,
+          payrollBusinessUnitName: readiness.businessUnitName,
+          includedDriverIds: readiness.drivers.map((driver) => driver.driverId),
+          excludedDriverIds: readiness.drivers
+            .filter((driver) => driver.exclusion != null)
+            .map((driver) => driver.driverId),
+          payrollProvenanceCapturedAt: new Date(),
+          version: sql`${s.salaryPeriodCloses.version} + 1`,
           updatedAt: new Date(),
         })
         .where(eq(s.salaryPeriodCloses.id, existing.id))
@@ -525,27 +734,25 @@ export async function closeSalaryPeriod(input: {
         ledgerEntryId: entry.id,
         closedBy: input.actorId,
         note,
+        payrollScope: readiness.scope,
+        payrollBusinessUnitId: readiness.businessUnitId,
+        payrollBusinessUnitName: readiness.businessUnitName,
+        includedDriverIds: readiness.drivers.map((driver) => driver.driverId),
+        excludedDriverIds: readiness.drivers
+          .filter((driver) => driver.exclusion != null)
+          .map((driver) => driver.driverId),
+        payrollProvenanceCapturedAt: new Date(),
       }).returning();
       closeRow = inserted!;
     }
     await closePeriodLock(tx, authority, input.actorId, note);
 
-    return {
-      closeId: closeRow.id,
-      period: closeRow.period,
-      status: closeRow.status,
-      periodTotalSalary,
-      ledgerEntryId: closeRow.ledgerEntryId,
-      closedBy: closeRow.closedBy,
-      closedAt: closeRow.closedAt.toISOString(),
-      note: closeRow.note,
-      idempotentNoop: false,
-      scope: readiness.scope,
-      excludedDriverIds: readiness.drivers
-        .filter((driver) => driver.exclusion != null)
-        .map((driver) => driver.driverId),
-    };
-  });
+    return buildCloseResult(closeRow, periodTotalSalary, false);
+  };
+  if (input.transaction) {
+    return execute(input.transaction);
+  }
+  return db.transaction(execute);
 }
 
 /**
@@ -558,17 +765,20 @@ export async function reopenSalaryPeriod(input: {
   actorId: number;
   actorRole: string;
   note?: string | null;
+  expectedVersion?: number | null;
+  transaction?: Tx;
 }): Promise<SalaryPeriodCloseResult> {
-  // Q11: only director/delegate proxy (ADMIN) may reopen.
-  if (input.actorRole !== 'ADMIN') {
+  if (input.actorRole !== 'ADMIN' && input.actorRole !== 'MANAGER') {
     throw new ApiError(403, 'Bạn không có quyền mở lại kỳ lương');
+  }
+  if (input.expectedVersion != null && (!Number.isInteger(input.expectedVersion) || input.expectedVersion < 1)) {
+    throw new ApiError(400, 'expectedVersion không hợp lệ');
   }
   parsePeriod(input.period); // validate format
   const authority = await resolveSalaryPeriodAuthority(input.period);
 
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     await LedgerService.lockEntity(tx, CLOSE_ENTITY_TYPE, periodLockKey(input.period));
-    await assertSalaryPeriodCanReopen(tx, input.period);
 
     const [existing] = await tx.select()
       .from(s.salaryPeriodCloses)
@@ -577,25 +787,24 @@ export async function reopenSalaryPeriod(input: {
     if (!existing) {
       throw new ApiError(404, `Kỳ lương ${input.period} chưa được chốt, không thể mở lại`);
     }
+    if (input.expectedVersion != null && existing.version !== input.expectedVersion) {
+      throw new ApiError(409, 'Kỳ lương đã thay đổi. Vui lòng tải lại trước khi mở lại.');
+    }
     if (existing.status === 'REOPENED') {
       const summaryAmt = await readSummaryAmount(tx, existing.ledgerEntryId);
-      const readiness = await buildSalaryPeriodReadinessSummary(tx, input.period);
-      return {
-        closeId: existing.id,
-        period: existing.period,
-        status: existing.status,
-        periodTotalSalary: summaryAmt,
-        ledgerEntryId: existing.ledgerEntryId,
-        closedBy: existing.closedBy,
-        closedAt: existing.closedAt.toISOString(),
-        note: existing.note,
-        idempotentNoop: true,
-        scope: readiness.scope,
-        excludedDriverIds: readiness.drivers
-          .filter((driver) => driver.exclusion != null)
-          .map((driver) => driver.driverId),
-      };
+      return buildCloseResult(existing, summaryAmt, true);
     }
+
+    const reopenBlockers = mapReopenBlockers({
+      period: input.period,
+      payslipIssuedAt: existing.payslipIssuedAt,
+      officialPostedAt: existing.officialPostedAt,
+      hasDriverPayout: await hasSalaryPeriodDriverPayout(tx, input.period),
+    });
+    if (reopenBlockers.length > 0) {
+      throw new ApiError(409, `${reopenBlockers[0]}, phải xử lý bằng điều chỉnh bổ sung.`);
+    }
+    await assertSalaryPeriodCanReopen(tx, input.period);
 
     // Post reversing entry mirroring the original summary.
     const originalAmount = await readSummaryAmount(tx, existing.ledgerEntryId);
@@ -614,29 +823,18 @@ export async function reopenSalaryPeriod(input: {
         status: 'REOPENED',
         ledgerEntryId: entry.id, // now points at the latest entry (reversal)
         note: reopenNote,
+        version: sql`${s.salaryPeriodCloses.version} + 1`,
         updatedAt: new Date(),
       })
       .where(eq(s.salaryPeriodCloses.id, existing.id))
       .returning();
     await reopenPeriodLock(tx, authority, input.actorId, reopenNote);
-    const readiness = await buildSalaryPeriodReadinessSummary(tx, input.period);
-
-    return {
-      closeId: updated!.id,
-      period: updated!.period,
-      status: updated!.status,
-      periodTotalSalary: originalAmount,
-      ledgerEntryId: updated!.ledgerEntryId,
-      closedBy: updated!.closedBy,
-      closedAt: updated!.closedAt.toISOString(),
-      note: updated!.note,
-      idempotentNoop: false,
-      scope: readiness.scope,
-      excludedDriverIds: readiness.drivers
-        .filter((driver) => driver.exclusion != null)
-        .map((driver) => driver.driverId),
-    };
-  });
+    return buildCloseResult(updated!, originalAmount, false);
+  };
+  if (input.transaction) {
+    return execute(input.transaction);
+  }
+  return db.transaction(execute);
 }
 
 /** Read the credit amount of a summary ledger entry (0 if missing). */
@@ -658,11 +856,420 @@ export async function getSalaryPeriodClose(period: string) {
   return row ?? null;
 }
 
+export async function getSalaryPeriodLifecycle(period: string): Promise<SalaryPeriodLifecycleState> {
+  parsePeriod(period);
+  const closeRow = await getSalaryPeriodClose(period);
+  const hasDriverPayout = await hasSalaryPeriodDriverPayout(db, period);
+
+  if (!closeRow) {
+    return {
+      period,
+      status: 'OPEN',
+      closeId: null,
+      version: null,
+      ledgerEntryId: null,
+      closedBy: null,
+      closedAt: null,
+      note: null,
+      payslipIssuedBy: null,
+      payslipIssuedAt: null,
+      payslipIssuedNote: null,
+      officialPostedBy: null,
+      officialPostedAt: null,
+      officialPostingNote: null,
+      hasDriverPayout,
+      canReopen: false,
+      reopenBlockers: ['Kỳ lương chưa được chốt'],
+    };
+  }
+
+  const reopenBlockers = closeRow.status === 'REOPENED'
+    ? ['Kỳ lương đang ở trạng thái mở lại']
+    : mapReopenBlockers({
+        period,
+        payslipIssuedAt: closeRow.payslipIssuedAt,
+        officialPostedAt: closeRow.officialPostedAt,
+        hasDriverPayout,
+      });
+
+  return {
+    period,
+    status: closeRow.status as 'CLOSED' | 'REOPENED',
+    closeId: closeRow.id,
+    version: closeRow.version,
+    ledgerEntryId: closeRow.ledgerEntryId,
+    closedBy: closeRow.closedBy,
+    closedAt: closeRow.closedAt.toISOString(),
+    note: closeRow.note,
+    payslipIssuedBy: closeRow.payslipIssuedBy,
+    payslipIssuedAt: closeRow.payslipIssuedAt?.toISOString() ?? null,
+    payslipIssuedNote: closeRow.payslipIssuedNote,
+    officialPostedBy: closeRow.officialPostedBy,
+    officialPostedAt: closeRow.officialPostedAt?.toISOString() ?? null,
+    officialPostingNote: closeRow.officialPostingNote,
+    hasDriverPayout,
+    canReopen: closeRow.status === 'CLOSED' && reopenBlockers.length === 0,
+    reopenBlockers,
+  };
+}
+
 /** List all close rows, newest first. */
 export async function listSalaryPeriodCloses() {
   return db.select()
     .from(s.salaryPeriodCloses)
     .orderBy(desc(s.salaryPeriodCloses.period));
+}
+
+export async function issueSalaryPeriodPayslips(input: {
+  period: string;
+  actorId: number;
+  actorRole: string;
+  note?: string | null;
+  expectedVersion?: number | null;
+}): Promise<SalaryPeriodCloseResult> {
+  if (!(FINANCIAL_ROLES as readonly string[]).includes(input.actorRole)) {
+    throw new ApiError(403, 'Bạn không có quyền phát hành phiếu lương');
+  }
+  if (input.expectedVersion != null && (!Number.isInteger(input.expectedVersion) || input.expectedVersion < 1)) {
+    throw new ApiError(400, 'expectedVersion không hợp lệ');
+  }
+  parsePeriod(input.period);
+
+  return db.transaction(async (tx) => {
+    await LedgerService.lockEntity(tx, CLOSE_ENTITY_TYPE, periodLockKey(input.period));
+    const [closeRow] = await tx.select()
+      .from(s.salaryPeriodCloses)
+      .where(eq(s.salaryPeriodCloses.period, input.period))
+      .limit(1);
+    if (!closeRow || closeRow.status !== 'CLOSED') {
+      throw new ApiError(409, `Kỳ lương ${input.period} chưa ở trạng thái đã chốt để phát hành phiếu lương`);
+    }
+    if (input.expectedVersion != null && closeRow.version !== input.expectedVersion) {
+      throw new ApiError(409, 'Kỳ lương đã thay đổi. Vui lòng tải lại trước khi phát hành phiếu lương.');
+    }
+    if (closeRow.payslipIssuedAt) {
+      const summaryAmt = await readSummaryAmount(tx, closeRow.ledgerEntryId);
+      return buildCloseResult(closeRow, summaryAmt, true);
+    }
+
+    const [updated] = await tx.update(s.salaryPeriodCloses)
+      .set({
+        payslipIssuedBy: input.actorId,
+        payslipIssuedAt: new Date(),
+        payslipIssuedNote: input.note?.trim() || null,
+        version: sql`${s.salaryPeriodCloses.version} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(s.salaryPeriodCloses.id, closeRow.id))
+      .returning();
+
+    const summaryAmt = await readSummaryAmount(tx, updated!.ledgerEntryId);
+    return buildCloseResult(updated!, summaryAmt, false);
+  });
+}
+
+export async function markSalaryPeriodOfficialPosting(input: {
+  period: string;
+  actorId: number;
+  actorRole: string;
+  note?: string | null;
+  expectedVersion?: number | null;
+}): Promise<SalaryPeriodCloseResult> {
+  if (!(FINANCIAL_ROLES as readonly string[]).includes(input.actorRole)) {
+    throw new ApiError(403, 'Bạn không có quyền đánh dấu hạch toán chính thức');
+  }
+  if (input.expectedVersion != null && (!Number.isInteger(input.expectedVersion) || input.expectedVersion < 1)) {
+    throw new ApiError(400, 'expectedVersion không hợp lệ');
+  }
+  parsePeriod(input.period);
+
+  return db.transaction(async (tx) => {
+    await LedgerService.lockEntity(tx, CLOSE_ENTITY_TYPE, periodLockKey(input.period));
+    const [closeRow] = await tx.select()
+      .from(s.salaryPeriodCloses)
+      .where(eq(s.salaryPeriodCloses.period, input.period))
+      .limit(1);
+    if (!closeRow || closeRow.status !== 'CLOSED') {
+      throw new ApiError(409, `Kỳ lương ${input.period} chưa ở trạng thái đã chốt để hạch toán chính thức`);
+    }
+    if (!closeRow.payslipIssuedAt) {
+      throw new ApiError(409, `Kỳ lương ${input.period} chưa phát hành phiếu lương, chưa thể đánh dấu hạch toán chính thức`);
+    }
+    if (input.expectedVersion != null && closeRow.version !== input.expectedVersion) {
+      throw new ApiError(409, 'Kỳ lương đã thay đổi. Vui lòng tải lại trước khi hạch toán chính thức.');
+    }
+    if (closeRow.officialPostedAt) {
+      const summaryAmt = await readSummaryAmount(tx, closeRow.ledgerEntryId);
+      return buildCloseResult(closeRow, summaryAmt, true);
+    }
+
+    const [updated] = await tx.update(s.salaryPeriodCloses)
+      .set({
+        officialPostedBy: input.actorId,
+        officialPostedAt: new Date(),
+        officialPostingNote: input.note?.trim() || null,
+        version: sql`${s.salaryPeriodCloses.version} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(s.salaryPeriodCloses.id, closeRow.id))
+      .returning();
+
+    const summaryAmt = await readSummaryAmount(tx, updated!.ledgerEntryId);
+    return buildCloseResult(updated!, summaryAmt, false);
+  });
+}
+
+export async function requestSalaryPeriodClose(input: {
+  period: string;
+  actorId: number;
+  actorRole: string;
+  reason?: string | null;
+  note?: string | null;
+}) {
+  assertCanMakeGovernanceAction(SALARY_PERIOD_CLOSE_ACTION_KIND, input.actorRole);
+  parsePeriod(input.period);
+  const reason = requireGovernanceReason(
+    input.reason,
+    `Đề nghị chốt kỳ lương ${input.period}`,
+  );
+  const note = input.note?.trim() || null;
+
+  return db.transaction(async (tx) => {
+    await LedgerService.lockEntity(tx, CLOSE_ENTITY_TYPE, periodLockKey(input.period));
+    const [existingClose] = await tx.select()
+      .from(s.salaryPeriodCloses)
+      .where(eq(s.salaryPeriodCloses.period, input.period))
+      .limit(1)
+      .for('update');
+    if (existingClose?.status === 'CLOSED') {
+      throw new ApiError(409, `Kỳ lương ${input.period} đã được chốt.`);
+    }
+
+    const readiness = await buildSalaryPeriodReadinessSummary(tx, input.period);
+    if (!readiness.canClose) {
+      const blockingNames = readiness.drivers
+        .filter((driver) => readiness.blockingDriverIds.includes(driver.driverId))
+        .map((driver) => driver.driverName);
+      throw new ApiError(
+        409,
+        `Kỳ lương ${input.period} còn lái xe chờ xử lý: ${blockingNames.join(', ')}. Muốn chốt phần còn lại phải có loại trừ đã duyệt sang kỳ bổ sung hoặc điều chỉnh.`,
+      );
+    }
+
+    const [action] = await tx.insert(s.governanceActions).values({
+      subjectType: SALARY_PERIOD_SUBJECT_TYPE,
+      subjectKey: input.period,
+      actionKind: SALARY_PERIOD_CLOSE_ACTION_KIND,
+      status: 'PENDING_CHECK',
+      reason,
+      originalVersion: existingClose?.version ?? 0,
+      beforeSnapshot: {
+        lifecycle: existingClose
+          ? {
+              status: existingClose.status,
+              version: existingClose.version,
+              closeId: existingClose.id,
+            }
+          : {
+              status: 'OPEN',
+              version: 0,
+              closeId: null,
+            },
+        readiness,
+      },
+      afterSnapshot: {
+        period: input.period,
+        requestedNote: note,
+      },
+      deltaSnapshot: null,
+      makerId: input.actorId,
+      makerRole: input.actorRole,
+    }).returning();
+    return toGovernanceActionView(action);
+  });
+}
+
+export async function checkSalaryPeriodClose(input: {
+  period: string;
+  actionId: number;
+  actorId: number;
+  actorRole: string;
+  expectedVersion: number;
+}) {
+  const action = await checkGovernanceAction({
+    actionId: input.actionId,
+    checkerId: input.actorId,
+    checkerRole: input.actorRole,
+    expectedVersion: input.expectedVersion,
+  });
+  assertSalaryPeriodGovernanceAction(action, input.period, SALARY_PERIOD_CLOSE_ACTION_KIND);
+  return toGovernanceActionView(action);
+}
+
+export async function approveSalaryPeriodClose(input: {
+  period: string;
+  actionId: number;
+  actorId: number;
+  actorRole: string;
+  expectedVersion: number;
+}) {
+  const action = await approveGovernanceActionWithAdapter({
+    actionId: input.actionId,
+    approverId: input.actorId,
+    approverRole: input.actorRole,
+    expectedVersion: input.expectedVersion,
+    apply: async (tx, governanceAction): Promise<GovernanceApplyResult> => {
+      assertSalaryPeriodGovernanceAction(governanceAction, input.period, SALARY_PERIOD_CLOSE_ACTION_KIND);
+      const afterSnapshot = governanceAction.afterSnapshot as Record<string, unknown> | null;
+      const result = await closeSalaryPeriod({
+        period: input.period,
+        actorId: input.actorId,
+        actorRole: input.actorRole,
+        note: typeof afterSnapshot?.requestedNote === 'string' ? afterSnapshot.requestedNote : null,
+        expectedVersion: governanceAction.originalVersion,
+        transaction: tx,
+      });
+      return {
+        ledgerEntryId: result.ledgerEntryId,
+        applicationResult: {
+          closeId: result.closeId,
+          status: result.status,
+          version: result.version,
+          periodTotalSalary: result.periodTotalSalary,
+        },
+      };
+    },
+  });
+  assertSalaryPeriodGovernanceAction(action, input.period, SALARY_PERIOD_CLOSE_ACTION_KIND);
+  return toGovernanceActionView(action);
+}
+
+export async function requestSalaryPeriodReopen(input: {
+  period: string;
+  actorId: number;
+  actorRole: string;
+  expectedVersion: number;
+  reason?: string | null;
+  note?: string | null;
+}) {
+  assertCanMakeGovernanceAction(SALARY_PERIOD_REOPEN_ACTION_KIND, input.actorRole);
+  parsePeriod(input.period);
+  if (!Number.isInteger(input.expectedVersion) || input.expectedVersion < 1) {
+    throw new ApiError(400, 'expectedVersion không hợp lệ');
+  }
+  const reason = input.reason?.trim() || input.note?.trim() || '';
+  if (!reason) {
+    throw new ApiError(400, 'Cần nhập lý do mở lại kỳ lương');
+  }
+  const note = input.note?.trim() || reason;
+
+  return db.transaction(async (tx) => {
+    await LedgerService.lockEntity(tx, CLOSE_ENTITY_TYPE, periodLockKey(input.period));
+    const [existingClose] = await tx.select()
+      .from(s.salaryPeriodCloses)
+      .where(eq(s.salaryPeriodCloses.period, input.period))
+      .limit(1)
+      .for('update');
+    if (!existingClose) {
+      throw new ApiError(404, `Kỳ lương ${input.period} chưa được chốt, không thể mở lại`);
+    }
+    if (existingClose.status !== 'CLOSED') {
+      throw new ApiError(409, `Kỳ lương ${input.period} đang ở trạng thái ${existingClose.status}, không thể đề nghị mở lại`);
+    }
+    if (existingClose.version !== input.expectedVersion) {
+      throw new ApiError(409, 'Kỳ lương đã thay đổi. Vui lòng tải lại trước khi mở lại.');
+    }
+
+    const reopenBlockers = mapReopenBlockers({
+      period: input.period,
+      payslipIssuedAt: existingClose.payslipIssuedAt,
+      officialPostedAt: existingClose.officialPostedAt,
+      hasDriverPayout: await hasSalaryPeriodDriverPayout(tx, input.period),
+    });
+    if (reopenBlockers.length > 0) {
+      throw new ApiError(409, `${reopenBlockers[0]}, phải xử lý bằng điều chỉnh bổ sung.`);
+    }
+
+    const [action] = await tx.insert(s.governanceActions).values({
+      subjectType: SALARY_PERIOD_SUBJECT_TYPE,
+      subjectKey: input.period,
+      actionKind: SALARY_PERIOD_REOPEN_ACTION_KIND,
+      status: 'PENDING_CHECK',
+      reason,
+      originalVersion: existingClose.version,
+      beforeSnapshot: {
+        lifecycle: {
+          status: existingClose.status,
+          version: existingClose.version,
+          closeId: existingClose.id,
+          closedAt: existingClose.closedAt.toISOString(),
+          note: existingClose.note,
+        },
+      },
+      afterSnapshot: {
+        period: input.period,
+        requestedNote: note,
+      },
+      deltaSnapshot: null,
+      makerId: input.actorId,
+      makerRole: input.actorRole,
+    }).returning();
+    return toGovernanceActionView(action);
+  });
+}
+
+export async function checkSalaryPeriodReopen(input: {
+  period: string;
+  actionId: number;
+  actorId: number;
+  actorRole: string;
+  expectedVersion: number;
+}) {
+  const action = await checkGovernanceAction({
+    actionId: input.actionId,
+    checkerId: input.actorId,
+    checkerRole: input.actorRole,
+    expectedVersion: input.expectedVersion,
+  });
+  assertSalaryPeriodGovernanceAction(action, input.period, SALARY_PERIOD_REOPEN_ACTION_KIND);
+  return toGovernanceActionView(action);
+}
+
+export async function approveSalaryPeriodReopen(input: {
+  period: string;
+  actionId: number;
+  actorId: number;
+  actorRole: string;
+  expectedVersion: number;
+}) {
+  const action = await approveGovernanceActionWithAdapter({
+    actionId: input.actionId,
+    approverId: input.actorId,
+    approverRole: input.actorRole,
+    expectedVersion: input.expectedVersion,
+    apply: async (tx, governanceAction): Promise<GovernanceApplyResult> => {
+      assertSalaryPeriodGovernanceAction(governanceAction, input.period, SALARY_PERIOD_REOPEN_ACTION_KIND);
+      const afterSnapshot = governanceAction.afterSnapshot as Record<string, unknown> | null;
+      const result = await reopenSalaryPeriod({
+        period: input.period,
+        actorId: input.actorId,
+        actorRole: input.actorRole,
+        note: typeof afterSnapshot?.requestedNote === 'string' ? afterSnapshot.requestedNote : null,
+        expectedVersion: governanceAction.originalVersion,
+        transaction: tx,
+      });
+      return {
+        ledgerEntryId: result.ledgerEntryId,
+        applicationResult: {
+          closeId: result.closeId,
+          status: result.status,
+          version: result.version,
+        },
+      };
+    },
+  });
+  assertSalaryPeriodGovernanceAction(action, input.period, SALARY_PERIOD_REOPEN_ACTION_KIND);
+  return toGovernanceActionView(action);
 }
 
 export async function getSalaryPeriodReadiness(period: string): Promise<SalaryPeriodReadinessSummary> {
@@ -739,6 +1346,8 @@ export async function createSalaryPeriodExclusion(input: {
       makerId: created.makerId,
       checkerId: null,
       approverId: null,
+      followupStatus: null,
+      followupCompletedAt: null,
     };
   });
 }
@@ -796,6 +1405,8 @@ export async function checkSalaryPeriodExclusion(input: {
       makerId: updated!.makerId,
       checkerId: updated!.checkerId,
       approverId: updated!.approverId,
+      followupStatus: null,
+      followupCompletedAt: null,
     };
   });
 }
@@ -831,6 +1442,11 @@ export async function approveSalaryPeriodExclusion(input: {
         approverId: input.actorId,
         approverRole: input.actorRole,
         approvedAt: new Date(),
+        applicationResult: {
+          followupStatus: 'PENDING',
+          handlingMode: parseExclusion(existing.afterSnapshot as Record<string, unknown> | null).handlingMode,
+          targetPeriod: parseExclusion(existing.afterSnapshot as Record<string, unknown> | null).targetPeriod,
+        },
         updatedAt: new Date(),
       })
       .where(eq(s.governanceActions.id, existing.id))
@@ -852,6 +1468,133 @@ export async function approveSalaryPeriodExclusion(input: {
       makerId: updated!.makerId,
       checkerId: updated!.checkerId,
       approverId: updated!.approverId,
+      followupStatus: 'PENDING',
+      followupCompletedAt: null,
+    };
+  });
+}
+
+/**
+ * Complete the explicit follow-up created by an approved exclusion.
+ *
+ * Supplementary handling is complete only when that driver is READY in the
+ * declared target period. Adjustment handling is complete only after an
+ * approved salary adjustment exists for the same source period and driver.
+ * This keeps an excluded driver visible as pending instead of silently
+ * disappearing after the main period closes.
+ */
+export async function completeSalaryPeriodExclusionFollowup(input: {
+  actionId: number;
+  actorId: number;
+  actorRole: string;
+}): Promise<SalaryPeriodExclusionResult> {
+  if (input.actorRole !== 'ADMIN' && input.actorRole !== 'MANAGER') {
+    throw new ApiError(403, 'Bạn không có quyền hoàn tất xử lý lương bổ sung');
+  }
+
+  return db.transaction(async (tx) => {
+    const [existing] = await tx.select().from(s.governanceActions)
+      .where(eq(s.governanceActions.id, input.actionId))
+      .limit(1)
+      .for('update');
+    if (
+      !existing
+      || existing.subjectType !== SALARY_EXCLUSION_SUBJECT_TYPE
+      || existing.actionKind !== SALARY_EXCLUSION_ACTION_KIND
+    ) {
+      throw new ApiError(404, `Không tìm thấy đề nghị loại trừ #${input.actionId}`);
+    }
+    if (existing.status !== 'APPROVED') {
+      throw new ApiError(409, 'Chỉ có thể hoàn tất xử lý cho loại trừ đã được phê duyệt');
+    }
+
+    const [sourcePeriod, driverIdRaw] = (existing.subjectKey ?? '').split(':');
+    const driverId = Number(driverIdRaw);
+    const parsed = parseExclusion(existing.afterSnapshot as Record<string, unknown> | null);
+    const existingResult = existing.applicationResult as Record<string, unknown> | null;
+    if (!sourcePeriod || !Number.isInteger(driverId) || driverId < 1) {
+      throw new ApiError(409, 'Đề nghị loại trừ không có định danh kỳ và lái xe hợp lệ');
+    }
+    // First completion is authoritative. A replay returns the persisted result
+    // without rewriting its actor or timestamp.
+    if (existingResult?.followupStatus === 'COMPLETED') {
+      return {
+        actionId: existing.id,
+        period: sourcePeriod,
+        driverId,
+        status: 'APPROVED',
+        handlingMode: parsed.handlingMode,
+        targetPeriod: parsed.targetPeriod,
+        reason: existing.reason,
+        note: parsed.note,
+        makerId: existing.makerId,
+        checkerId: existing.checkerId,
+        approverId: existing.approverId,
+        followupStatus: 'COMPLETED',
+        followupCompletedAt: typeof existingResult.followupCompletedAt === 'string'
+          ? existingResult.followupCompletedAt
+          : null,
+      };
+    }
+
+    if (parsed.handlingMode === 'SUPPLEMENTARY_PERIOD') {
+      if (!parsed.targetPeriod || parsed.targetPeriod === sourcePeriod) {
+        throw new ApiError(409, 'Kỳ bổ sung phải là một kỳ khác kỳ lương gốc');
+      }
+      const targetReadiness = await buildSalaryPeriodReadinessSummary(tx, parsed.targetPeriod);
+      const targetDriver = targetReadiness.drivers.find((driver) => driver.driverId === driverId);
+      if (!targetDriver || targetDriver.status !== 'READY' || targetDriver.exclusion != null) {
+        throw new ApiError(409, 'Lái xe chưa sẵn sàng trong kỳ lương bổ sung đã khai báo');
+      }
+    } else {
+      const [adjustment] = await tx.select({ id: s.salaryPeriodAdjustments.id })
+        .from(s.salaryPeriodAdjustments)
+        .where(and(
+          eq(s.salaryPeriodAdjustments.sourcePeriod, sourcePeriod),
+          eq(s.salaryPeriodAdjustments.driverId, driverId),
+        ))
+        .limit(1);
+      if (!adjustment) {
+        throw new ApiError(409, 'Chưa có khoản điều chỉnh đã duyệt cho lái xe và kỳ lương gốc');
+      }
+    }
+
+    const completedAt = new Date().toISOString();
+    const [updated] = await tx.update(s.governanceActions)
+      .set({
+        applicationResult: {
+          followupStatus: 'COMPLETED',
+          followupCompletedAt: completedAt,
+          followupCompletedBy: input.actorId,
+          handlingMode: parsed.handlingMode,
+          targetPeriod: parsed.targetPeriod,
+        },
+        version: sql`${s.governanceActions.version} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(s.governanceActions.id, existing.id),
+        eq(s.governanceActions.version, existing.version),
+      ))
+      .returning();
+    if (!updated) {
+      throw new ApiError(409, 'Xử lý bổ sung đã được cập nhật bởi người khác');
+    }
+
+    return {
+      actionId: updated.id,
+      period: sourcePeriod,
+      driverId,
+      status: 'APPROVED',
+      handlingMode: parsed.handlingMode,
+      targetPeriod: parsed.targetPeriod,
+      reason: updated.reason,
+      note: parsed.note,
+      makerId: updated.makerId,
+      checkerId: updated.checkerId,
+      approverId: updated.approverId,
+      followupStatus: 'COMPLETED',
+      followupCompletedAt: completedAt,
     };
   });
 }

@@ -85,7 +85,7 @@ WITH fee_obligations AS (
 	JOIN trip_expenses e ON e.id = l.txn_id
 	JOIN trips t ON t.id = e.trip_id
 	JOIN customers c ON c.id = l.entity_id
-	WHERE l.entity_type = 'CUSTOMER' AND l.txn_type = 'SERVICE_FEE'
+	WHERE l.entity_type = 'CUSTOMER' AND l.txn_type::text = 'SERVICE_FEE'
 ), fee_due_dates AS (
 	SELECT
 		t.*,

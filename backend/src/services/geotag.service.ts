@@ -3,6 +3,7 @@ import * as s from '../db/schema';
 import { and, eq } from 'drizzle-orm';
 import { Role, type GeotagInput, type GeotagEntityType, type PhotoGeotag } from '@tingting/shared';
 import { ApiError } from '../errors';
+import type { Tx } from './trip-shared';
 
 /**
  * Event-driven mobile GPS geotagging — service layer.
@@ -57,6 +58,7 @@ export async function authorizeGeotag(
   entityType: GeotagEntityType,
   entityId: number,
   user: AuthUserLike,
+  dbOrTx: typeof db | Tx = db,
 ): Promise<void> {
   // Office/finance roles may geotag any photo (they backfill + correct).
   if (FINANCE_ROLES.has(user.role)) return;
@@ -64,7 +66,7 @@ export async function authorizeGeotag(
   if (entityType === 'trip_photo') {
     // trip_photos → trips → drivers (drivers.userId === caller for DRIVER).
     if (user.role !== Role.DRIVER) throw new ApiError(404, 'Không tìm thấy chứng từ');
-    const [row] = await db.select({ driverUserId: s.drivers.userId })
+    const [row] = await dbOrTx.select({ driverUserId: s.drivers.userId })
       .from(s.tripPhotos)
       .innerJoin(s.trips, eq(s.tripPhotos.tripId, s.trips.id))
       .innerJoin(s.drivers, eq(s.trips.driverId, s.drivers.id))
@@ -77,7 +79,7 @@ export async function authorizeGeotag(
   if (entityType === 'trip_expense_photo') {
     // trip_expense_photos → trip_expenses (forwarderId === caller for FORWARDER).
     if (user.role !== Role.FORWARDER) throw new ApiError(404, 'Không tìm thấy chứng từ');
-    const [row] = await db.select({ forwarderId: s.tripExpenses.forwarderId })
+    const [row] = await dbOrTx.select({ forwarderId: s.tripExpenses.forwarderId })
       .from(s.tripExpensePhotos)
       .innerJoin(s.tripExpenses, eq(s.tripExpensePhotos.tripExpenseId, s.tripExpenses.id))
       .where(eq(s.tripExpensePhotos.id, entityId))
@@ -113,9 +115,10 @@ function toResponse(row: typeof s.photoGeotags.$inferSelect): PhotoGeotag {
 export async function submitGeotag(
   input: GeotagInput,
   user: AuthUserLike,
+  dbOrTx: typeof db | Tx = db,
 ): Promise<PhotoGeotag> {
   validateGpsFreshness(input.gpsAt);
-  await authorizeGeotag(input.entityType, input.entityId, user);
+  await authorizeGeotag(input.entityType, input.entityId, user, dbOrTx);
 
   const gpsAt = input.gpsAt ? new Date(input.gpsAt) : null;
   const values = {
@@ -135,7 +138,7 @@ export async function submitGeotag(
 
   // Idempotent upsert: one geotag per entity. On conflict, refresh the fix +
   // auditor (a resubmit with a newer/better fix is the legitimate update path).
-  const [row] = await db.insert(s.photoGeotags).values(values)
+  const [row] = await dbOrTx.insert(s.photoGeotags).values(values)
     .onConflictDoUpdate({
       target: [s.photoGeotags.entityType, s.photoGeotags.entityId],
       set: {

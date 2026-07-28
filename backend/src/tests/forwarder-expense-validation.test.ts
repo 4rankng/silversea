@@ -56,6 +56,7 @@ describe('forwarder expense validation', () => {
 
   test('accountant settlement adjustments share the nullable expense patch contract', () => {
     const parsed = accountantSettlementExpensePatchSchema.safeParse({
+      expectedVersion: 1,
       buyAmount: 1_782_000,
       supplierId: null,
       invoiceNumber: null,

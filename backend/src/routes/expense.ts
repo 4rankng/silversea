@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { createHash } from 'node:crypto';
 import { expenseSchema } from '@tingting/shared';
 import { db } from '../db';
 import { registerAuditEvent } from '../services/audit-registry';
@@ -22,6 +23,9 @@ import { storageService } from '../services/storage.service';
 import { sniffImageType } from '../lib/format';
 import { getUser } from '../middleware/auth';
 import { invalidateReportCaches } from '../lib/redis';
+import { ApiError } from '../errors';
+import { runIdempotent } from '../services/idempotency.service';
+import { getRequestIdempotencyKey } from './utils/idempotency';
 
 registerAuditEvent('POST', '/api/expenses', AuditEvent.ENTITY_CREATED);
 registerAuditEvent('PUT', '/api/expenses/', AuditEvent.ENTITY_UPDATED);
@@ -38,6 +42,27 @@ const MAX_IMAGE_DIMENSION = 2048;
 // 5 MB ceiling rejected many phone receipt photos even after resizing.
 const EXPENSE_PHOTO_MAX_BYTES = 15 * 1024 * 1024;
 const expensePhotoUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: EXPENSE_PHOTO_MAX_BYTES } });
+
+function requireIdempotencyKey(req: Request): string {
+  const key = getRequestIdempotencyKey(req);
+  if (!key) throw new ApiError(400, 'Idempotency-Key là bắt buộc cho thay đổi chi phí.');
+  return key;
+}
+
+function requireExpectedUpdatedAt(req: Request): Date {
+  const raw = req.header('If-Unmodified-Since')?.trim();
+  if (!raw) {
+    throw new ApiError(
+      428,
+      'Thiếu phiên bản dữ liệu. Vui lòng tải lại khoản chi trước khi cập nhật.',
+    );
+  }
+  const expected = new Date(raw);
+  if (Number.isNaN(expected.getTime())) {
+    throw new ApiError(400, 'Phiên bản dữ liệu không hợp lệ.');
+  }
+  return expected;
+}
 
 router.get('/reports/renewals', asyncHandler(async (_req: Request, res: Response) => {
   const reminders = await getRenewalReminders(db);
@@ -72,9 +97,16 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
 
 router.post('/', asyncHandler(async (req: Request, res: Response) => {
   const validatedData = expenseSchema.parse(req.body);
-  const userId = req.user?.userId;
-  const result = await db.transaction(async (tx) => {
-    return createExpense(tx, { ...validatedData, amount: String(validatedData.amount) }, userId);
+  const userId = getUser(req).userId;
+  const idempotencyKey = requireIdempotencyKey(req);
+  const input = { ...validatedData, amount: String(validatedData.amount) };
+  const { result } = await runIdempotent({
+    endpoint: 'expenses.create',
+    idempotencyKey,
+    payload: input,
+    createdBy: userId,
+    entityType: 'EXPENSE',
+    create: (tx) => createExpense(tx, input, userId),
   });
   await invalidateReportCaches();
   res.status(201).json(result);
@@ -82,26 +114,48 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
 
 router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
   const validatedData = expenseSchema.partial().parse(req.body);
-  const userId = req.user?.userId;
+  const userId = getUser(req).userId;
+  const id = Number(req.params.id);
+  const idempotencyKey = requireIdempotencyKey(req);
+  const expectedUpdatedAt = requireExpectedUpdatedAt(req);
   const { amount, ...rest } = validatedData;
   const serviceData: Partial<ExpenseUpdateInput> = {
     ...rest,
     ...(amount !== undefined ? { amount: String(amount) } : {}),
   };
-  const result = await db.transaction(async (tx) => {
-    return updateExpense(tx, Number(req.params.id), serviceData, userId);
+  const { result } = await runIdempotent({
+    endpoint: 'expenses.update',
+    idempotencyKey,
+    payload: { id, body: serviceData, expectedUpdatedAt: expectedUpdatedAt.toISOString() },
+    createdBy: userId,
+    entityType: 'EXPENSE',
+    create: (tx) => updateExpense(tx, id, serviceData, expectedUpdatedAt, userId),
   });
   await invalidateReportCaches();
   res.json(result);
 }));
 
 router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
-  const userId = req.user?.userId;
-  await db.transaction(async (tx) => {
-    await deleteExpense(tx, Number(req.params.id), userId);
+  const userId = getUser(req).userId;
+  const id = Number(req.params.id);
+  const idempotencyKey = requireIdempotencyKey(req);
+  const expectedUpdatedAt = requireExpectedUpdatedAt(req);
+  const { result } = await runIdempotent({
+    endpoint: 'expenses.delete',
+    idempotencyKey,
+    payload: { id, expectedUpdatedAt: expectedUpdatedAt.toISOString() },
+    createdBy: userId,
+    entityType: 'EXPENSE',
+    create: async (tx) => {
+      await deleteExpense(tx, id, expectedUpdatedAt, userId);
+      return { ok: true as const, id };
+    },
+    getEntityId: (value) => value.id,
+    serializeResult: () => ({ ok: true }),
+    deserializeResult: () => ({ ok: true as const, id }),
   });
   await invalidateReportCaches();
-  res.json({ ok: true });
+  res.json({ ok: result.ok });
 }));
 
 // ── Expense receipt photos (B1) ─────────────────────────────────────────────
@@ -127,15 +181,8 @@ router.post('/:id/photos', expensePhotoUpload.single('file'), asyncHandler(async
   if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ error: 'ID không hợp lệ' });
   const file = req.file;
   if (!file) return res.status(400).json({ error: 'Không có file tải lên' });
-
-  // The expense must exist (and not be soft-deleted) before a photo can attach.
-  // Authz: this router inherits casbinAuthz('financial'), so only
-  // ACCOUNTANT/MANAGER/ADMIN reach it. Company expenses are a shared finance
-  // resource — any finance-role user may manage (incl. attach/delete receipts
-  // for) any expense, exactly as PUT/DELETE /api/expenses/:id already allow.
-  // No per-user ownership gate, by design (consistent with existing CRUD).
-  const expense = await getExpense(db, id);
-  if (!expense) return res.status(404).json({ error: 'Không tìm thấy khoản chi phí' });
+  const idempotencyKey = requireIdempotencyKey(req);
+  const actorId = getUser(req).userId;
 
   const mime = sniffImageType(file.buffer);
   if (!mime) return res.status(400).json({ error: 'Định dạng file không được hỗ trợ' });
@@ -163,13 +210,30 @@ router.post('/:id/photos', expensePhotoUpload.single('file'), asyncHandler(async
     return res.status(400).json({ error: 'Không xử lý được ảnh. Nếu là ảnh HEIC (iPhone), vui lòng đổi sang JPG/PNG rồi tải lại.' });
   }
 
-  const storageKey = `expense-photos/${id}/${Date.now()}${ext}`;
-  await storageService.upload(processedBuffer, storageKey);
-  const [photo] = await db.insert(s.expensePhotos).values({
-    expenseId: id,
-    storageKey,
-    uploadedBy: getUser(req).userId,
-  }).returning({ id: s.expensePhotos.id, storageKey: s.expensePhotos.storageKey });
+  const fileHash = createHash('sha256').update(processedBuffer).digest('hex');
+  const keyHash = createHash('sha256').update(idempotencyKey).digest('hex').slice(0, 32);
+  const storageKey = `expense-photos/${id}/${keyHash}${ext}`;
+  const { result: photo } = await runIdempotent({
+    endpoint: 'expenses.photo.create',
+    idempotencyKey,
+    payload: { expenseId: id, fileHash, mime },
+    createdBy: actorId,
+    entityType: 'EXPENSE_PHOTO',
+    create: async (tx) => {
+      // The external object key is deterministic from the transaction key.
+      // If the process stops after upload but before DB commit, an exact retry
+      // overwrites the same object and then commits one photo row.
+      const expense = await getExpense(tx, id);
+      if (!expense) throw new ApiError(404, 'Không tìm thấy khoản chi phí');
+      await storageService.upload(processedBuffer, storageKey);
+      const [created] = await tx.insert(s.expensePhotos).values({
+        expenseId: id,
+        storageKey,
+        uploadedBy: actorId,
+      }).returning({ id: s.expensePhotos.id, storageKey: s.expensePhotos.storageKey });
+      return created;
+    },
+  });
 
   res.status(201).json({ ...photo, url: `/api/photos/${encodeURIComponent(photo.storageKey)}` });
 }));
@@ -178,14 +242,35 @@ router.delete('/:id/photos/:photoId', asyncHandler(async (req: Request, res: Res
   const id = Number(req.params.id);
   const photoId = Number(req.params.photoId);
   if (!Number.isFinite(id) || id <= 0 || !Number.isFinite(photoId) || photoId <= 0) return res.status(400).json({ error: 'ID không hợp lệ' });
-  // Scope by both ids so the path's :id is honoured: a finance user may only
-  // delete a photo that belongs to the expense named in the URL, never an
-  // arbitrary row by photoId alone (defense-in-depth within the finance scope).
-  const [row] = await db.select({ storageKey: s.expensePhotos.storageKey })
-    .from(s.expensePhotos).where(and(eq(s.expensePhotos.id, photoId), eq(s.expensePhotos.expenseId, id))).limit(1);
-  if (!row) return res.status(404).json({ error: 'Không tìm thấy ảnh' });
-  await db.delete(s.expensePhotos).where(and(eq(s.expensePhotos.id, photoId), eq(s.expensePhotos.expenseId, id)));
-  try { await storageService.delete(row.storageKey); } catch { /* best-effort */ }
+  const idempotencyKey = requireIdempotencyKey(req);
+  const actorId = getUser(req).userId;
+  const { result, replayed } = await runIdempotent({
+    endpoint: 'expenses.photo.delete',
+    idempotencyKey,
+    payload: { expenseId: id, photoId },
+    createdBy: actorId,
+    entityType: 'EXPENSE_PHOTO',
+    create: async (tx) => {
+      // Scope by both ids so the path's :id is honoured, and lock the row so
+      // two different keys still have one valid deletion winner.
+      const [row] = await tx.select({
+        id: s.expensePhotos.id,
+        storageKey: s.expensePhotos.storageKey,
+      })
+        .from(s.expensePhotos)
+        .where(and(eq(s.expensePhotos.id, photoId), eq(s.expensePhotos.expenseId, id)))
+        .limit(1)
+        .for('update');
+      if (!row) throw new ApiError(404, 'Không tìm thấy ảnh');
+      await tx.delete(s.expensePhotos)
+        .where(and(eq(s.expensePhotos.id, photoId), eq(s.expensePhotos.expenseId, id)));
+      return { ok: true as const, id: row.id, storageKey: row.storageKey };
+    },
+    getEntityId: (value) => value.id,
+  });
+  if (!replayed) {
+    try { await storageService.delete(result.storageKey); } catch { /* best-effort */ }
+  }
   res.json({ ok: true });
 }));
 

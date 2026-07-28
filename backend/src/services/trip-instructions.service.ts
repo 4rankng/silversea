@@ -6,6 +6,7 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { eq, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
+import type { Tx } from './trip-shared';
 
 export interface UpsertTripInstructionsInput {
   expectedVersion?: number;
@@ -53,8 +54,9 @@ export async function upsertTripInstructions(
   tripId: number,
   input: UpsertTripInstructionsInput,
   userId: number,
+  transaction?: Tx,
 ): Promise<TripInstructionRow> {
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     const [trip] = await tx.select({
       id: s.trips.id,
       version: s.trips.version,
@@ -90,5 +92,6 @@ export async function upsertTripInstructions(
       updatedAt: new Date(),
     }).where(eq(s.trips.id, tripId));
     return row;
-  });
+  };
+  return transaction ? execute(transaction) : db.transaction(execute);
 }

@@ -15,6 +15,7 @@ import {
   useCounterAnimation,
 } from '../hooks/animations';
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
+import { FuelInvoicesPanel } from './payables-fuel-invoices';
 import './PayableListPage.css';
 import '../components/shared/HeroKpiRow.css';
 import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
@@ -362,6 +363,8 @@ export default function PayableListPage() {
           </div>
         }
       />
+
+      <FuelInvoicesPanel />
 
       {/* ── Zone 1: Hero KPI Row ────────────────────────────────────────── */}
       <div className="hero-kpi-row">

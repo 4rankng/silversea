@@ -1,4 +1,5 @@
 import { useEffect, useId, useState, type ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Bot,
   Cpu,
@@ -32,6 +33,7 @@ import {
 import { useGpsSettings, useSaveGpsSettings } from '../../hooks/useGpsSettings';
 import { useLlmSettings, useSaveLlmSettings } from '../../hooks/useLlmSettings';
 import { usePageAnimations } from '../../hooks/animations';
+import { userClient } from '../../api/userClient';
 import './config-page.css';
 
 type FeatureSwitchProps = {
@@ -163,9 +165,14 @@ export default function AppSettingsConfigPage() {
     gpsEnabled: false,
     creditWarningThresholdDefault: 0.8,
     creditTierOneAmountCap: 0,
+    salaryPayrollBusinessUnitId: null,
   });
   const [creditWarningPercent, setCreditWarningPercent] = useState('80');
   const [creditTierOneCap, setCreditTierOneCap] = useState('0');
+  const businessUnits = useQuery({
+    queryKey: ['business-units', 'app-settings'],
+    queryFn: () => userClient.getBusinessUnits(),
+  });
   const [provider, setProvider] = useState<LlmProvider>('minimax');
   const [minimaxKey, setMinimaxKey] = useState('');
   const [openrouterKey, setOpenrouterKey] = useState('');
@@ -360,6 +367,38 @@ export default function AppSettingsConfigPage() {
                 Dùng chung khi khách hàng chưa cấu hình riêng. Hiện tại: {creditThresholdValid
                   ? `${creditWarningPercent}%`
                   : 'giá trị không hợp lệ'}
+              </p>
+            </div>
+            <div className="field">
+              <label htmlFor="salary-payroll-business-unit">Phạm vi chốt kỳ lương</label>
+              <select
+                id="salary-payroll-business-unit"
+                className="input"
+                value={features.salaryPayrollBusinessUnitId ?? ''}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setFeatures((current) => ({
+                    ...current,
+                    salaryPayrollBusinessUnitId: value ? Number(value) : null,
+                  }));
+                }}
+                disabled={
+                  appSettings.isLoading
+                  || appSettings.isError
+                  || businessUnits.isLoading
+                  || businessUnits.isError
+                  || saveAppSettings.isPending
+                }
+              >
+                <option value="">Toàn công ty</option>
+                {(businessUnits.data?.items ?? [])
+                  .filter((unit) => unit.status === 'ACTIVE')
+                  .map((unit) => (
+                    <option key={unit.id} value={unit.id}>{unit.name}</option>
+                  ))}
+              </select>
+              <p className="cfg-field-hint">
+                Khi chọn đơn vị, kiểm tra sẵn sàng và tổng lương chỉ gồm lái xe đang được gán vào đơn vị đó.
               </p>
             </div>
             <div className="field">

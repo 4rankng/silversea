@@ -340,4 +340,43 @@ describe('customer account scope', () => {
       }));
     });
   });
+
+  it('allows an admin to optionally scope an ACCOUNTANT to selected customers', async () => {
+    const onSave = vi.fn().mockResolvedValue(true);
+
+    render(
+      <AddPanel
+        isOpen
+        saving={false}
+        error={null}
+        truckList={[]}
+        customerList={customers}
+        businessUnits={businessUnits}
+        shipmentOptions={shipmentOptions}
+        onClose={vi.fn()}
+        onSave={onSave}
+      />,
+    );
+
+    fireEvent.change(screen.getByText('Vai trò').closest('label')!.querySelector('select')!, {
+      target: { value: Role.ACCOUNTANT },
+    });
+
+    expect(screen.getByText('Phạm vi khách hàng của kế toán')).toBeTruthy();
+    expect(screen.getByText(/Nếu để trống, kế toán có phạm vi tài chính toàn công ty/)).toBeTruthy();
+
+    const submitButton = screen.getByRole('button', { name: 'Tạo tài khoản' });
+    expect((submitButton as HTMLButtonElement).disabled).toBe(false);
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /SilverSea Miền Bắc/ }));
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+        role: Role.ACCOUNTANT,
+        customerId: 9,
+        customerIds: [9],
+      }));
+    });
+  });
 });

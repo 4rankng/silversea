@@ -11,6 +11,11 @@ import { PageHeader, KPI, FilterPill, StatusPill, Modal } from '../components/UI
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { EmptyState } from '../design-system';
 import { formatCurrency, formatNumber } from '../lib/format';
+import {
+  buildCustomerDebitNoteModeOptions,
+  describeCustomerDebitNoteMode,
+  type EditableCustomerDebitNoteMode,
+} from '../lib/customerDebitNoteMode';
 import type { Customer, LedgerEntry, Supplier } from '@tingting/shared';
 import { CustomerStatus } from '@tingting/shared';
 import { useCustomers, useCustomerLedgerEntries, useSuppliers } from '../hooks/useQueries';
@@ -80,7 +85,7 @@ function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, suppliers }
   );
   const [status, setStatus] = useState<string>(item?.status || CustomerStatus.ACTIVE);
   const [isCarrier, setIsCarrier] = useState(item?.isCarrier ?? false);
-  const [debitNoteMode, setDebitNoteMode] = useState<string>(item?.debitNoteMode ?? 'MONTHLY');
+  const [debitNoteMode, setDebitNoteMode] = useState<Customer['debitNoteMode']>(item?.debitNoteMode ?? 'MONTHLY');
   const [linkedSupplierId, setLinkedSupplierId] = useState<number | null>(item?.linkedSupplierId ?? null);
 
   useEffect(() => {
@@ -116,6 +121,8 @@ function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, suppliers }
       linkedSupplierId: linkedSupplierId ?? null,
     });
   };
+  const debitNoteModeOptions = buildCustomerDebitNoteModeOptions(debitNoteMode);
+  const debitNoteModeDescription = describeCustomerDebitNoteMode(debitNoteMode);
 
   return (
     <Modal
@@ -197,10 +204,23 @@ function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, suppliers }
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div className="field">
             <label htmlFor="cust-debit-mode" style={labelStyle}>Giấy báo nợ</label>
-            <select id="cust-debit-mode" className="input" value={debitNoteMode} onChange={e => setDebitNoteMode(e.target.value)}>
-              <option value="MONTHLY">Theo tháng</option>
-              <option value="PER_BATCH">Theo lô</option>
+            <select
+              id="cust-debit-mode"
+              className="input"
+              value={debitNoteMode}
+              onChange={e => setDebitNoteMode(e.target.value as EditableCustomerDebitNoteMode)}
+            >
+              {debitNoteModeOptions.map((option) => (
+                <option key={option.value} value={option.value} disabled={option.disabled}>
+                  {option.label}
+                </option>
+              ))}
             </select>
+            {debitNoteModeDescription && (
+              <div style={{ marginTop: 6, fontSize: 12, lineHeight: 1.4, color: 'var(--ink-3)' }}>
+                {debitNoteModeDescription}
+              </div>
+            )}
           </div>
           <div className="field" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', paddingBottom: 4 }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>

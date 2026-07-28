@@ -1,5 +1,7 @@
+import { eq } from 'drizzle-orm';
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { z } from 'zod';
 import {
   Role,
   NotificationType,
@@ -11,23 +13,41 @@ import {
   governanceActionVersionSchema,
 } from '@tingting/shared';
 import type { PayablesCategory } from '@tingting/shared';
+import { db } from '../../db';
+import * as s from '../../db/schema';
 import { requireRoles } from '../../middleware/casbin';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { emitNotification } from '../../services/notification.service';
 import * as financialService from '../../services/financial.service';
-import { getCarrierPayableStatement, getSupplierStatement, exportSupplierStatementXlsx, exportSupplierStatementHtml, attachmentDisposition, normalizeDateParam } from '../../services/statement.service';
+import {
+  getCarrierPayableStatement,
+  getSupplierStatement,
+  exportSupplierStatementXlsx,
+  exportSupplierStatementHtml,
+  attachmentDisposition,
+  normalizeDateParam,
+} from '../../services/statement.service';
 import { formatLocalDate } from '../../lib/format';
-import { invalidateReportCaches } from '../../lib/redis';
+import { cacheInvalidatePattern, invalidateReportCaches } from '../../lib/redis';
 import { getPayablesSummary } from '../../services/payables.service';
-import { recordCommissionIdempotent } from '../../services/commission.service';
+import { requestCommissionGovernance } from '../../services/commission.service';
+import {
+  requestPaymentReceiptGovernance,
+  requestPaymentRefundGovernance,
+} from '../../services/payment-allocation.service';
 import {
   approveGovernanceAction,
-  checkGovernanceAction,
 } from '../../services/adjustment-governance.service';
+import {
+  approveDirectMoneyGovernanceAction,
+  checkGovernanceAction,
+  isDirectMoneyGovernanceActionKind,
+} from '../../services/governance-transition.service';
 import { getUser } from '../../middleware/auth';
 import { registerAuditEvent } from '../../services/audit-registry';
 import { AuditEvent } from '../../services/audit-types';
-import { resolveIdempotencyKey } from '../../services/idempotency.service';
+import { IDEMPOTENCY_ENDPOINTS, resolveIdempotencyKey, runIdempotent } from '../../services/idempotency.service';
+import { ApiError } from '../../errors';
 import { parseActionId } from './governance-action-input';
 
 const PAYABLES_CATEGORIES = new Set<string>(['fuel', 'ancillary', 'commission', 'carrier']);
@@ -37,39 +57,109 @@ const router = Router();
 registerAuditEvent('POST', '/api/commissions', AuditEvent.ENTITY_CREATED);
 registerAuditEvent('POST', '/api/drivers/', '/payouts', AuditEvent.DRIVER_SALARY_RECORDED);
 
-// ─── Record payment ──────────────────────────────────────────────────────────
+async function loadGovernanceActionKind(actionId: number): Promise<string> {
+  const [action] = await db.select({
+    actionKind: s.governanceActions.actionKind,
+  }).from(s.governanceActions)
+    .where(eq(s.governanceActions.id, actionId))
+    .limit(1);
+  if (!action) {
+    throw new ApiError(404, 'Không tìm thấy yêu cầu điều chỉnh');
+  }
+  return action.actionKind;
+}
 
-router.post('/payments/receive', asyncHandler(async (req: Request, res: Response) => {
+function getRequestIdempotencyKey(req: Request): string | undefined {
   const requestBody = req.body as Record<string, unknown> | undefined;
-  const idempotencyKey = resolveIdempotencyKey({
+  return resolveIdempotencyKey({
     headerValue: req.header('Idempotency-Key'),
     requestId: requestBody?._requestId,
   });
+}
+
+// ─── Record payment ──────────────────────────────────────────────────────────
+
+router.post('/payments/receive', asyncHandler(async (req: Request, res: Response) => {
+  const actor = getUser(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
   const data = createPaymentSchema.parse(req.body);
-  const { result, replayed } = await financialService.recordPaymentReceiptIdempotent({
-    input: {
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.PAYMENTS_RECEIVE,
+    idempotencyKey,
+    payload: {
       customerId: data.customerId,
       receiptId: data.receiptId,
       amount: data.amount,
-      payments: data.payments?.map((p) => ({ tripId: p.tripId, amount: p.amount })),
+      payments: data.payments?.map((payment) => ({
+        tripId: payment.tripId,
+        amount: payment.amount,
+      })),
+      makerId: actor.userId,
+      makerRole: actor.role,
     },
-    idempotencyKey,
-    createdBy: getUser(req).userId,
+    createdBy: actor.userId,
+    entityType: 'governance_action',
+    create: (tx) => requestPaymentReceiptGovernance({
+      payment: {
+        customerId: data.customerId,
+        receiptId: data.receiptId,
+        amount: data.amount,
+        payments: data.payments?.map((payment) => ({
+          tripId: payment.tripId,
+          amount: payment.amount,
+        })),
+      },
+      makerId: actor.userId,
+      makerRole: actor.role,
+      transaction: tx,
+    }),
   });
   res.locals.auditEntityId = result.id;
-  res.locals.auditEntityKey = result.receiptId;
-  if (!replayed) {
-    await invalidateReportCaches();
-    emitNotification({
-      type: NotificationType.PAYMENT_RECEIVED,
-      title: 'Thanh toán nhận được',
-      message: `Phiếu thu ${result.receiptId} đã được ghi nhận`,
-      relatedEntityType: 'payments',
-      relatedEntityId: result.id,
-    });
-  }
+  res.locals.auditEntityKey = result.subjectKey ?? data.receiptId;
   res.status(replayed ? 200 : 201).json({ result, replayed });
 }));
+
+const paymentRefundRequestSchema = z.object({
+  amount: z.coerce.number().int().positive(),
+  reason: z.string().trim().min(1, 'Lý do hoàn tiền là bắt buộc').max(1000),
+});
+
+router.post(
+  '/payments/receipts/:id/refunds',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT),
+  asyncHandler(async (req: Request, res: Response) => {
+    const paymentReceiptId = Number(req.params.id);
+    if (!Number.isInteger(paymentReceiptId) || paymentReceiptId < 1) {
+      throw new ApiError(400, 'paymentReceiptId không hợp lệ');
+    }
+    const data = paymentRefundRequestSchema.parse(req.body);
+    const actor = getUser(req);
+    const idempotencyKey = getRequestIdempotencyKey(req);
+    const { result, replayed } = await runIdempotent({
+      endpoint: IDEMPOTENCY_ENDPOINTS.PAYMENT_REFUNDS_CREATE,
+      idempotencyKey,
+      payload: {
+        paymentReceiptId,
+        amount: data.amount,
+        reason: data.reason,
+        makerId: actor.userId,
+        makerRole: actor.role,
+      },
+      createdBy: actor.userId,
+      entityType: 'governance_action',
+      create: (tx) => requestPaymentRefundGovernance({
+        paymentReceiptId,
+        amount: data.amount,
+        reason: data.reason,
+        makerId: actor.userId,
+        makerRole: actor.role,
+        transaction: tx,
+      }),
+    });
+    res.locals.auditEntityId = result.id;
+    res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
+  }),
+);
 
 // ─── Adjustment ──────────────────────────────────────────────────────────────
 
@@ -92,13 +182,29 @@ router.post(
   requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT),
   asyncHandler(async (req: Request, res: Response) => {
     const input = governanceActionVersionSchema.parse(req.body);
-    const action = await checkGovernanceAction({
-      actionId: parseActionId(req.params.id),
-      checkerId: getUser(req).userId,
-      checkerRole: getUser(req).role,
-      expectedVersion: input.expectedVersion,
+    const actor = getUser(req);
+    const actionId = parseActionId(req.params.id);
+    const idempotencyKey = getRequestIdempotencyKey(req);
+    const { result, replayed } = await runIdempotent({
+      endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_CHECK,
+      idempotencyKey,
+      payload: {
+        actionId,
+        actorId: actor.userId,
+        actorRole: actor.role,
+        expectedVersion: input.expectedVersion,
+      },
+      createdBy: actor.userId,
+      entityType: 'governance_action',
+      create: (tx) => checkGovernanceAction({
+        actionId,
+        checkerId: actor.userId,
+        checkerRole: actor.role,
+        expectedVersion: input.expectedVersion,
+        transaction: tx,
+      }),
     });
-    res.json(action);
+    res.json(idempotencyKey ? { ...result, replayed } : result);
   }),
 );
 
@@ -107,64 +213,170 @@ router.post(
   requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT),
   asyncHandler(async (req: Request, res: Response) => {
     const input = governanceActionVersionSchema.parse(req.body);
-    const action = await approveGovernanceAction({
-      actionId: parseActionId(req.params.id),
-      approverId: getUser(req).userId,
-      approverRole: getUser(req).role,
-      expectedVersion: input.expectedVersion,
+    const actor = getUser(req);
+    const actionId = parseActionId(req.params.id);
+    const idempotencyKey = getRequestIdempotencyKey(req);
+    const actionKind = await loadGovernanceActionKind(actionId);
+    const { result, replayed } = await runIdempotent({
+      endpoint: IDEMPOTENCY_ENDPOINTS.GOVERNANCE_APPROVE,
+      idempotencyKey,
+      payload: {
+        actionId,
+        actorId: actor.userId,
+        actorRole: actor.role,
+        expectedVersion: input.expectedVersion,
+      },
+      createdBy: actor.userId,
+      entityType: 'governance_action',
+      create: (tx) => (
+        isDirectMoneyGovernanceActionKind(actionKind)
+          ? approveDirectMoneyGovernanceAction({
+            actionId,
+            approverId: actor.userId,
+            approverRole: actor.role,
+            expectedVersion: input.expectedVersion,
+            transaction: tx,
+          })
+          : approveGovernanceAction({
+            actionId,
+            approverId: actor.userId,
+            approverRole: actor.role,
+            expectedVersion: input.expectedVersion,
+            transaction: tx,
+          })
+      ),
     });
-    await invalidateReportCaches();
-    if (action.actionKind === 'TRIP_REOPEN') {
+
+    if (!replayed) {
+      if (result.actionKind === 'PENALTY_CREATE' || result.actionKind === 'PENALTY_CANCEL') {
+        await cacheInvalidatePattern('reports:pnl:*');
+      } else {
+        await invalidateReportCaches();
+      }
+    }
+
+    if (!replayed && result.actionKind === 'TRIP_REOPEN') {
       emitNotification({
         type: NotificationType.TRIP_UNLOCKED,
         title: 'Chuyến đã mở khóa',
-        message: `Yêu cầu mở khóa chuyến #${action.subjectId} đã được phê duyệt`,
+        message: `Yêu cầu mở khóa chuyến #${result.subjectId} đã được phê duyệt`,
         relatedEntityType: 'trips',
-        relatedEntityId: action.subjectId ?? undefined,
+        relatedEntityId: result.subjectId ?? undefined,
       });
     }
-    res.json(action);
+
+    if (!replayed && result.actionKind === 'PAYMENT_RECEIPT') {
+      const receiptId = typeof result.applicationResult?.receiptId === 'string'
+        ? result.applicationResult.receiptId
+        : null;
+      const paymentReceiptId = typeof result.applicationResult?.paymentReceiptId === 'number'
+        ? result.applicationResult.paymentReceiptId
+        : result.subjectId;
+      if (receiptId && paymentReceiptId != null) {
+        emitNotification({
+          type: NotificationType.PAYMENT_RECEIVED,
+          title: 'Thanh toán nhận được',
+          message: `Phiếu thu ${receiptId} đã được phê duyệt và ghi nhận`,
+          relatedEntityType: 'payments',
+          relatedEntityId: paymentReceiptId,
+        });
+      }
+    }
+
+    if (!replayed && result.actionKind === 'PENALTY_CREATE') {
+      const penaltyId = typeof result.applicationResult?.penaltyId === 'number'
+        ? result.applicationResult.penaltyId
+        : result.subjectId;
+      const driverId = typeof result.applicationResult?.driverId === 'number'
+        ? result.applicationResult.driverId
+        : undefined;
+      if (penaltyId != null) {
+        emitNotification({
+          type: NotificationType.PENALTY_CREATED,
+          title: 'Phạt mới',
+          message: `Kỷ luật #${penaltyId} đã được phê duyệt`,
+          relatedEntityType: 'penalties',
+          relatedEntityId: penaltyId,
+          targetDriverId: driverId,
+        });
+      }
+    }
+
+    if (!replayed && result.actionKind === 'PENALTY_CANCEL') {
+      const penaltyId = typeof result.applicationResult?.penaltyId === 'number'
+        ? result.applicationResult.penaltyId
+        : result.subjectId;
+      const driverId = typeof result.applicationResult?.driverId === 'number'
+        ? result.applicationResult.driverId
+        : undefined;
+      if (penaltyId != null) {
+        emitNotification({
+          type: NotificationType.PENALTY_CANCELED,
+          title: 'Hủy phạt',
+          message: `Kỷ luật #${penaltyId} đã được hủy theo phê duyệt`,
+          relatedEntityType: 'penalties',
+          relatedEntityId: penaltyId,
+          targetDriverId: driverId,
+        });
+      }
+    }
+
+    res.json(idempotencyKey ? { ...result, replayed } : result);
   }),
 );
 
 router.post('/payments/vendor', asyncHandler(async (req: Request, res: Response) => {
-  const requestBody = req.body as Record<string, unknown> | undefined;
-  const idempotencyKey = resolveIdempotencyKey({
-    headerValue: req.header('Idempotency-Key'),
-    requestId: requestBody?._requestId,
-  });
+  const actor = getUser(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
   const data = vendorPaymentSchema.parse(req.body);
-  const { result, replayed } = await financialService.recordVendorPaymentIdempotent({
-    input: { ...data, amount: String(data.amount) },
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.PAYMENTS_VENDOR,
     idempotencyKey,
-    createdBy: getUser(req).userId,
+    payload: {
+      ...data,
+      amount: Number(data.amount),
+      makerId: actor.userId,
+      makerRole: actor.role,
+    },
+    createdBy: actor.userId,
+    entityType: 'governance_action',
+    create: (tx) => financialService.requestVendorPaymentGovernance({
+      payment: { ...data, amount: String(data.amount) },
+      makerId: actor.userId,
+      makerRole: actor.role,
+      transaction: tx,
+    }),
   });
   res.locals.auditEntityId = result.id;
-  res.locals.auditEntityKey = result.receiptId ?? `#${result.id}`;
-  if (!replayed) {
-    await invalidateReportCaches();
-  }
+  res.locals.auditEntityKey = result.subjectKey ?? data.receiptId;
   const statusCode = replayed ? 200 : (idempotencyKey ? 201 : 200);
   res.status(statusCode).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
 router.post('/payments/carrier', asyncHandler(async (req: Request, res: Response) => {
-  const requestBody = req.body as Record<string, unknown> | undefined;
-  const idempotencyKey = resolveIdempotencyKey({
-    headerValue: req.header('Idempotency-Key'),
-    requestId: requestBody?._requestId,
-  });
+  const actor = getUser(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
   const data = vendorPaymentSchema.parse(req.body);
-  const { result, replayed } = await financialService.recordCarrierPaymentIdempotent({
-    input: { ...data, amount: String(data.amount) },
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.PAYMENTS_CARRIER,
     idempotencyKey,
-    createdBy: getUser(req).userId,
+    payload: {
+      ...data,
+      amount: Number(data.amount),
+      makerId: actor.userId,
+      makerRole: actor.role,
+    },
+    createdBy: actor.userId,
+    entityType: 'governance_action',
+    create: (tx) => financialService.requestCarrierPaymentGovernance({
+      payment: { ...data, amount: String(data.amount) },
+      makerId: actor.userId,
+      makerRole: actor.role,
+      transaction: tx,
+    }),
   });
   res.locals.auditEntityId = result.id;
-  res.locals.auditEntityKey = result.receiptId ?? `#${result.id}`;
-  if (!replayed) {
-    await invalidateReportCaches();
-  }
+  res.locals.auditEntityKey = result.subjectKey ?? data.receiptId;
   const statusCode = replayed ? 200 : (idempotencyKey ? 201 : 200);
   res.status(statusCode).json(idempotencyKey ? { ...result, replayed } : result);
 }));
@@ -217,22 +429,31 @@ router.get('/reports/payables-summary', asyncHandler(async (req: Request, res: R
 // txnType). ADMIN/MANAGER/ACCOUNTANT only.
 
 router.post('/commissions', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
-  const requestBody = req.body as Record<string, unknown> | undefined;
-  const idempotencyKey = resolveIdempotencyKey({
-    headerValue: req.header('Idempotency-Key'),
-    requestId: requestBody?._requestId,
-  });
+  const actor = getUser(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
   const data = commissionSchema.parse(req.body);
-  const { result, replayed } = await recordCommissionIdempotent({
-    input: data,
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.COMMISSIONS_CREATE,
     idempotencyKey,
-    createdBy: getUser(req).userId,
+    payload: {
+      supplierId: data.supplierId,
+      amount: Number(data.amount),
+      tripId: data.tripId ?? null,
+      note: data.note?.trim() || '',
+      makerId: actor.userId,
+      makerRole: actor.role,
+    },
+    createdBy: actor.userId,
+    entityType: 'governance_action',
+    create: (tx) => requestCommissionGovernance({
+      commission: data,
+      makerId: actor.userId,
+      makerRole: actor.role,
+      transaction: tx,
+    }),
   });
-  res.locals.auditEntityId = result.ledgerId;
-  res.locals.auditEntityKey = `#${result.ledgerId}`;
-  if (!replayed) {
-    await invalidateReportCaches();
-  }
+  res.locals.auditEntityId = result.id;
+  res.locals.auditEntityKey = result.subjectKey ?? `#${result.id}`;
   res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
@@ -246,29 +467,40 @@ router.post('/drivers/:driverId/payouts', requireRoles(Role.ADMIN, Role.MANAGER,
   if (!Number.isFinite(driverId) || driverId <= 0) {
     return res.status(400).json({ error: 'driverId không hợp lệ' });
   }
-  const requestBody = req.body as Record<string, unknown> | undefined;
-  const idempotencyKey = resolveIdempotencyKey({
-    headerValue: req.header('Idempotency-Key'),
-    requestId: requestBody?._requestId,
-  });
+  const actor = getUser(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
   const data = driverPayoutSchema.parse(req.body);
-  const { result, replayed } = await financialService.recordDriverPayoutIdempotent({
-    input: {
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_PAYOUT,
+    idempotencyKey,
+    payload: {
       driverId,
       amount: data.amount,
       method: data.method,
       payoutDate: data.payoutDate,
-      note: data.note,
-      receiptId: data.receiptId,
+      note: data.note?.trim() || '',
+      receiptId: data.receiptId ?? '',
+      makerId: actor.userId,
+      makerRole: actor.role,
     },
-    idempotencyKey,
-    createdBy: getUser(req).userId,
+    createdBy: actor.userId,
+    entityType: 'governance_action',
+    create: (tx) => financialService.requestDriverPayoutGovernance({
+      payout: {
+        driverId,
+        amount: data.amount,
+        method: data.method,
+        payoutDate: data.payoutDate,
+        note: data.note,
+        receiptId: data.receiptId,
+      },
+      makerId: actor.userId,
+      makerRole: actor.role,
+      transaction: tx,
+    }),
   });
   res.locals.auditEntityId = result.id;
-  res.locals.auditEntityKey = result.receiptId ?? `#${result.id}`;
-  if (!replayed) {
-    await invalidateReportCaches();
-  }
+  res.locals.auditEntityKey = result.subjectKey ?? `#${result.id}`;
   res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 

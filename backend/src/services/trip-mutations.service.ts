@@ -649,6 +649,7 @@ export async function updateTripFigures(
     driverId?: number | null;
     trailerType?: string | null;
   },
+  transaction?: Tx,
 ) {
   // Normalize leg distances to integers to satisfy strict database integer constraints and avoid PG 22P02 syntax errors
   const normalizedLegs = data.legs.map(leg => ({
@@ -656,7 +657,7 @@ export async function updateTripFigures(
     km: Math.round(leg.km),
   }));
 
-  return await db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     await lockTripFinancialAuthority(tx, [tripId]);
     // 1. Fetch trip and check lock status
     // Use the same controlling-row-first lock order as lifecycle transitions.
@@ -1110,7 +1111,8 @@ export async function updateTripFigures(
     // duplicating that row.
 
     return updated;
-  });
+  };
+  return transaction ? execute(transaction) : db.transaction(execute);
 }
 
 // ─── updateDepartureDate ────────────────────────────────────────────────────
@@ -1121,12 +1123,13 @@ export async function updateDepartureDate(
   userId: number,
   userRole: string,
   expectedVersion?: number,
+  transaction?: Tx,
 ) {
   if (userRole !== Role.ADMIN && userRole !== Role.MANAGER) {
     throw new ApiError(403, 'Chỉ Quản lý hoặc Quản trị viên mới có quyền thay đổi ngày khởi hành');
   }
 
-  return await db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     const [trip] = await tx.select().from(s.trips).where(eq(s.trips.id, tripId)).limit(1).for('update');
     if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
     if (expectedVersion !== undefined && trip.version !== expectedVersion) {
@@ -1147,13 +1150,18 @@ export async function updateDepartureDate(
     }).where(eq(s.trips.id, tripId)).returning();
 
     return updated;
-  });
+  };
+  return transaction ? execute(transaction) : db.transaction(execute);
 }
 
 // ─── reassignTrip ───────────────────────────────────────────────────────────
 
-export async function reassignTrip(tripId: number, data: { carrierType?: 'OWN' | 'EXTERNAL'; truckId?: number | null; driverId?: number | null; externalCarrierId?: number | null; externalPlateNumber?: string | null; externalDriverName?: string | null; externalDriverPhone?: string | null; expectedVersion?: number; }) {
-  return await db.transaction(async (tx) => {
+export async function reassignTrip(
+  tripId: number,
+  data: { carrierType?: 'OWN' | 'EXTERNAL'; truckId?: number | null; driverId?: number | null; externalCarrierId?: number | null; externalPlateNumber?: string | null; externalDriverName?: string | null; externalDriverPhone?: string | null; expectedVersion?: number; },
+  transaction?: Tx,
+) {
+  const execute = async (tx: Tx) => {
     const [trip] = await tx.select().from(s.trips).where(eq(s.trips.id, tripId)).limit(1).for('update');
     if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
     if (data.expectedVersion !== undefined && trip.version !== data.expectedVersion) {
@@ -1196,7 +1204,8 @@ export async function reassignTrip(tripId: number, data: { carrierType?: 'OWN' |
     }).where(eq(s.trips.id, tripId)).returning();
 
     return updated;
-  });
+  };
+  return transaction ? execute(transaction) : db.transaction(execute);
 }
 
 
@@ -1204,8 +1213,12 @@ export async function reassignTrip(tripId: number, data: { carrierType?: 'OWN' |
  * Soft-delete a trip. Only trips in CREATED status can be deleted; any other
  * status (IN_TRANSIT, COMPLETED, LOCKED, CANCELED) returns 409. Per flow 01 §2.6.
  */
-export async function deleteTrip(tripId: number, expectedVersion?: number): Promise<void> {
-  return await db.transaction(async (tx) => {
+export async function deleteTrip(
+  tripId: number,
+  expectedVersion?: number,
+  transaction?: Tx,
+): Promise<void> {
+  const execute = async (tx: Tx) => {
     const [trip] = await tx.select({ id: s.trips.id, status: s.trips.status, version: s.trips.version, deletedAt: s.trips.deletedAt })
       .from(s.trips)
       .where(eq(s.trips.id, tripId)).limit(1).for('update');
@@ -1219,5 +1232,6 @@ export async function deleteTrip(tripId: number, expectedVersion?: number): Prom
     }
     await tx.update(s.trips).set({ deletedAt: new Date(), updatedAt: new Date() })
       .where(eq(s.trips.id, tripId));
-  });
+  };
+  return transaction ? execute(transaction) : db.transaction(execute);
 }

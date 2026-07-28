@@ -31,6 +31,8 @@ import { createAdvanceRequestSchema, createAdvanceSettlementSchema } from '@ting
 import { storageService } from '../services/storage.service';
 import sharp from 'sharp';
 import { sniffImageType } from '../lib/format';
+import { getRequestIdempotencyKey } from './utils/idempotency';
+import { runIdempotent } from '../services/idempotency.service';
 
 const expensePhotoUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 // Unify with upload.ts / expense.ts (2048). Was 1600 — inconsistent downscale ceiling.
@@ -201,8 +203,16 @@ router.post('/advance-requests', asyncHandler(async (req: Request, res: Response
   const forwarder = req.forwarder!;
   const parsed = createAdvanceRequestSchema.safeParse(req.body);
   if (!parsed.success) throwValidation(parsed.error);
-  const result = await createAdvanceRequest(forwarder.id, parsed.data);
-  res.status(201).json(result);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result, replayed } = await runIdempotent({
+    endpoint: 'forwarder.advance-requests.create',
+    idempotencyKey,
+    payload: { forwarderId: forwarder.id, ...parsed.data },
+    createdBy: forwarder.id,
+    entityType: 'advance_request',
+    create: (tx) => createAdvanceRequest(forwarder.id, parsed.data, tx),
+  });
+  res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
 // ── Advance Balance (F1) ──
@@ -277,9 +287,18 @@ router.post('/advance-settlements', asyncHandler(async (req: Request, res: Respo
   const forwarder = req.forwarder!;
   const parsed = createAdvanceSettlementSchema.safeParse(req.body);
   if (!parsed.success) throwValidation(parsed.error);
-    const { note, ...rest } = parsed.data;
-    const result = await createAdvanceSettlement(forwarder.id, { ...rest, note: note ?? undefined });
-  res.status(201).json(result);
+  const { note, ...rest } = parsed.data;
+  const input = { ...rest, note: note ?? undefined };
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result, replayed } = await runIdempotent({
+    endpoint: 'forwarder.advance-settlements.create',
+    idempotencyKey,
+    payload: { forwarderId: forwarder.id, ...input },
+    createdBy: forwarder.id,
+    entityType: 'advance_settlement',
+    create: (tx) => createAdvanceSettlement(forwarder.id, input, tx),
+  });
+  res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
 // ── Expense Photos ──

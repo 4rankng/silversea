@@ -1,0 +1,290 @@
+.credit-override-queue {
+  display: grid;
+  gap: 18px;
+  padding: 20px;
+}
+
+.credit-override-queue__hero,
+.credit-override-queue__summary-card,
+.credit-override-queue__filters,
+.credit-override-queue__card,
+.credit-override-queue__state {
+  border: 1px solid var(--border-2);
+  border-radius: 20px;
+  background: var(--surface-1);
+}
+
+.credit-override-queue__hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 24px;
+}
+
+.credit-override-queue__eyebrow {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brand);
+}
+
+.credit-override-queue__hero h1 {
+  margin: 0;
+  font-size: clamp(24px, 3vw, 32px);
+  line-height: 1.15;
+}
+
+.credit-override-queue__subtitle {
+  margin: 10px 0 0;
+  max-width: 720px;
+  color: var(--fg-2);
+}
+
+.credit-override-queue__refresh,
+.credit-override-queue__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 14px;
+  border: 1px solid var(--border-2);
+  background: var(--surface-2);
+  color: var(--fg-1);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.credit-override-queue__button.is-primary {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: white;
+}
+
+.credit-override-queue__button.is-secondary {
+  background: var(--surface-1);
+}
+
+.credit-override-queue__refresh:disabled,
+.credit-override-queue__button:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.credit-override-queue__summary {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.credit-override-queue__summary-card {
+  display: grid;
+  gap: 6px;
+  padding: 18px;
+}
+
+.credit-override-queue__summary-card span {
+  color: var(--fg-2);
+  font-size: 13px;
+}
+
+.credit-override-queue__summary-card strong {
+  font-size: 24px;
+  line-height: 1.1;
+}
+
+.credit-override-queue__filters {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  padding: 18px;
+}
+
+.credit-override-queue__field {
+  display: grid;
+  gap: 8px;
+}
+
+.credit-override-queue__field span,
+.credit-override-queue__fact-label {
+  color: var(--fg-2);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.credit-override-queue__field input,
+.credit-override-queue__field select,
+.credit-override-queue__reject-field textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--border-2);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: var(--surface-2);
+  color: var(--fg-1);
+  font: inherit;
+}
+
+.credit-override-queue__cards {
+  display: grid;
+  gap: 16px;
+}
+
+.credit-override-queue__card {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+}
+
+.credit-override-queue__card-header,
+.credit-override-queue__card-kicker,
+.credit-override-queue__badges,
+.credit-override-queue__meta,
+.credit-override-queue__decision-buttons,
+.credit-override-queue__read-only,
+.credit-override-queue__decision-summary,
+.credit-override-queue__action-error,
+.credit-override-queue__state {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.credit-override-queue__card-header {
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.credit-override-queue__card-kicker {
+  color: var(--fg-2);
+  font-size: 13px;
+}
+
+.credit-override-queue__card h2 {
+  margin: 6px 0 0;
+  font-size: 22px;
+}
+
+.credit-override-queue__status,
+.credit-override-queue__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--fg-2);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.credit-override-queue__status.is-approved,
+.credit-override-queue__decision-summary.is-approved {
+  background: rgba(33, 133, 93, 0.12);
+  color: #0f6d4b;
+}
+
+.credit-override-queue__status.is-rejected,
+.credit-override-queue__decision-summary.is-rejected {
+  background: rgba(185, 28, 28, 0.12);
+  color: #b91c1c;
+}
+
+.credit-override-queue__status.is-canceled,
+.credit-override-queue__decision-summary.is-canceled {
+  background: rgba(107, 114, 128, 0.14);
+  color: #4b5563;
+}
+
+.credit-override-queue__status.is-pending,
+.credit-override-queue__badge.is-warning,
+.credit-override-queue__read-only,
+.credit-override-queue__action-error,
+.credit-override-queue__state.is-error {
+  background: rgba(180, 83, 9, 0.12);
+  color: #b45309;
+}
+
+.credit-override-queue__facts,
+.credit-override-queue__money-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.credit-override-queue__facts strong,
+.credit-override-queue__money-grid strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.credit-override-queue__reason {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--surface-2);
+}
+
+.credit-override-queue__reason p {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.credit-override-queue__meta {
+  color: var(--fg-2);
+  font-size: 13px;
+}
+
+.credit-override-queue__actions {
+  display: grid;
+  gap: 12px;
+}
+
+.credit-override-queue__decision-box {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px dashed var(--border-2);
+  background: var(--surface-2);
+}
+
+.credit-override-queue__reject-field {
+  display: grid;
+  gap: 8px;
+}
+
+.credit-override-queue__state {
+  padding: 18px;
+}
+
+.credit-override-queue__state.is-empty {
+  color: var(--fg-2);
+}
+
+@media (max-width: 720px) {
+  .credit-override-queue {
+    padding: 14px;
+  }
+
+  .credit-override-queue__hero,
+  .credit-override-queue__card {
+    padding: 16px;
+  }
+
+  .credit-override-queue__hero {
+    grid-template-columns: 1fr;
+  }
+
+  .credit-override-queue__refresh,
+  .credit-override-queue__button {
+    width: 100%;
+  }
+}

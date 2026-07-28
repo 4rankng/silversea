@@ -424,8 +424,8 @@ export async function createUser(data: {
     const businessUnitIds = [...new Set((data.businessUnitIds ?? []).filter((id): id is number => Number.isInteger(id) && id > 0))].sort((a, b) => a - b);
     const shipmentIds = [...new Set((data.shipmentIds ?? []).filter((id): id is number => Number.isInteger(id) && id > 0))].sort((a, b) => a - b);
     if (data.role !== Role.CUSTOMER && customerIds.length > 0) {
-      if (data.role !== Role.CLERK) {
-        throw new ApiError(400, 'Chỉ tài khoản khách hàng hoặc nhân viên chứng từ mới được liên kết khách hàng');
+      if (data.role !== Role.CLERK && data.role !== Role.ACCOUNTANT) {
+        throw new ApiError(400, 'Chỉ tài khoản khách hàng, nhân viên chứng từ hoặc kế toán mới được liên kết khách hàng');
       }
     }
     if (data.role === Role.CUSTOMER) {
@@ -444,6 +444,14 @@ export async function createUser(data: {
       if ((data.status ?? 'ACTIVE') !== 'INACTIVE') {
         assertActiveClerkScope(businessUnitIds, customerIds, shipmentIds);
       }
+    } else if (data.role === Role.ACCOUNTANT) {
+      if (data.assignmentAdminOnly && customerIds.length > 0) {
+        throw new ApiError(403, 'Chỉ quản trị viên mới có thể quản lý phạm vi khách hàng của kế toán');
+      }
+      await validateCustomerIds(tx, customerIds);
+      if (businessUnitIds.length > 0 || shipmentIds.length > 0) {
+        throw new ApiError(400, 'Kế toán chỉ được liên kết phạm vi khách hàng');
+      }
     } else if (businessUnitIds.length > 0 || shipmentIds.length > 0) {
       throw new ApiError(400, 'Chỉ nhân viên chứng từ mới được liên kết đơn vị phụ trách hoặc lô hàng');
     }
@@ -458,7 +466,13 @@ export async function createUser(data: {
       customerId: data.role === Role.CUSTOMER || data.role === Role.CLERK ? customerIds[0] ?? null : null,
     }).returning(USER_FIELDS);
 
-    await syncCustomerLinks(tx, created.id, data.role === Role.CUSTOMER || data.role === Role.CLERK ? customerIds : []);
+    await syncCustomerLinks(
+      tx,
+      created.id,
+      data.role === Role.CUSTOMER || data.role === Role.CLERK || data.role === Role.ACCOUNTANT
+        ? customerIds
+        : [],
+    );
     await syncBusinessUnitLinks(tx, created.id, data.role === Role.CLERK ? businessUnitIds : []);
     await syncShipmentLinks(tx, created.id, data.role === Role.CLERK ? shipmentIds : []);
 
@@ -556,9 +570,13 @@ export async function updateUser(id: number, data: {
     let nextBusinessUnitIds = existingBusinessUnitIds;
     let nextShipmentIds = existingShipmentIds;
 
-    if (effectiveRole !== Role.CUSTOMER && effectiveRole !== Role.CLERK) {
+    if (
+      effectiveRole !== Role.CUSTOMER
+      && effectiveRole !== Role.CLERK
+      && effectiveRole !== Role.ACCOUNTANT
+    ) {
       if (explicitCustomerLinkUpdate && normalizeCustomerIds(data).length > 0) {
-        throw new ApiError(400, 'Chỉ tài khoản khách hàng hoặc nhân viên chứng từ mới được liên kết khách hàng');
+        throw new ApiError(400, 'Chỉ tài khoản khách hàng, nhân viên chứng từ hoặc kế toán mới được liên kết khách hàng');
       }
       if (explicitBusinessUnitUpdate && (data.businessUnitIds ?? []).length > 0) {
         throw new ApiError(400, 'Chỉ nhân viên chứng từ mới được liên kết đơn vị phụ trách');
@@ -580,6 +598,22 @@ export async function updateUser(id: number, data: {
         await validateCustomerIds(tx, nextCustomerIds);
       } else if (effectiveStatus !== 'INACTIVE' && nextCustomerIds.length === 0) {
         throw new ApiError(400, 'Tài khoản khách hàng ACTIVE phải có ít nhất một khách hàng liên kết');
+      }
+    } else if (effectiveRole === Role.ACCOUNTANT) {
+      nextBusinessUnitIds = [];
+      nextShipmentIds = [];
+      if (explicitBusinessUnitUpdate && (data.businessUnitIds ?? []).length > 0) {
+        throw new ApiError(400, 'Kế toán chỉ được liên kết phạm vi khách hàng');
+      }
+      if (explicitShipmentUpdate && (data.shipmentIds ?? []).length > 0) {
+        throw new ApiError(400, 'Kế toán chỉ được liên kết phạm vi khách hàng');
+      }
+      if (data.assignmentAdminOnly && explicitCustomerLinkUpdate) {
+        throw new ApiError(403, 'Chỉ quản trị viên mới có thể quản lý phạm vi khách hàng của kế toán');
+      }
+      if (explicitCustomerLinkUpdate) {
+        nextCustomerIds = normalizeCustomerIds(data);
+        await validateCustomerIds(tx, nextCustomerIds);
       }
     } else {
       if (data.assignmentAdminOnly && (explicitCustomerLinkUpdate || explicitBusinessUnitUpdate || explicitShipmentUpdate)) {

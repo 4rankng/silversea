@@ -1,9 +1,68 @@
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { financialClient, type CustomerAging, type CustomerAgingResponse } from '../api/financialClient';
+import {
+  financialClient,
+  type CustomerAging,
+  type CustomerAgingResponse,
+  type FuelInvoice,
+  type FuelInvoiceInput,
+  type FuelInvoiceStatus,
+  type GovernanceActionFilters,
+} from '../api/financialClient';
 import { qk } from '../api/keys';
-import type { LedgerEntry, CustomerStatement, PayablesCategory, SupplierStatement } from '@tingting/shared';
+import { tripClient } from '../api/tripClient';
+import type { LedgerEntry, CustomerStatement, PayablesCategory, SupplierStatement, TripDetail } from '@tingting/shared';
 
 export type { CustomerAging };
+
+export interface FuelInvoiceTripOption {
+  id: number;
+  tripCode: string | null;
+  truckId: number | null;
+  truckPlate: string | null;
+  departureDate: string | null;
+  routeName: string | null;
+}
+
+const governanceActionKeys = {
+  all: ['governance-actions'] as const,
+  list: (filters?: GovernanceActionFilters) =>
+    ['governance-actions', filters?.status ?? 'ALL', filters?.limit ?? 50, filters?.offset ?? 0] as const,
+};
+
+export function useGovernanceActions(filters?: GovernanceActionFilters) {
+  return useQuery({
+    queryKey: governanceActionKeys.list(filters),
+    queryFn: () => financialClient.getGovernanceActions(filters),
+  });
+}
+
+function useGovernanceActionMutation(
+  mutationFn: (input: { id: number; expectedVersion: number; reason?: string }) => Promise<unknown>,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn,
+    onSuccess: () => qc.invalidateQueries({ queryKey: governanceActionKeys.all }),
+  });
+}
+
+export function useCheckGovernanceAction() {
+  return useGovernanceActionMutation(({ id, expectedVersion }) =>
+    financialClient.checkGovernanceAction(id, expectedVersion));
+}
+
+export function useApproveGovernanceAction() {
+  return useGovernanceActionMutation(({ id, expectedVersion }) =>
+    financialClient.approveGovernanceAction(id, expectedVersion));
+}
+
+export function useRejectGovernanceAction() {
+  return useGovernanceActionMutation(({ id, expectedVersion, reason }) =>
+    financialClient.rejectGovernanceAction(id, {
+      expectedVersion,
+      reason: reason ?? '',
+    }));
+}
 
 export function useCustomerAging(search?: string) {
   return useQuery<CustomerAgingResponse>({
@@ -40,10 +99,82 @@ export function usePayablesSummary(category?: PayablesCategory) {
   });
 }
 
+export function useFuelInvoices(filters?: { supplierId?: number; status?: FuelInvoiceStatus }) {
+  return useQuery<FuelInvoice[]>({
+    queryKey: qk.financial.fuelInvoices(filters),
+    queryFn: () => financialClient.getFuelInvoices(filters),
+  });
+}
+
+export function useFuelInvoice(invoiceId: number | null) {
+  return useQuery<FuelInvoice>({
+    queryKey: qk.financial.fuelInvoice(invoiceId),
+    queryFn: () => financialClient.getFuelInvoice(invoiceId!),
+    enabled: invoiceId != null,
+  });
+}
+
+export function useFuelInvoiceTripOptions() {
+  return useQuery<FuelInvoiceTripOption[]>({
+    queryKey: qk.financial.fuelInvoiceTripOptions,
+    queryFn: async () => {
+      const response = await tripClient.listTrips({ limit: 100 });
+      return response.items.map((trip: TripDetail) => ({
+        id: trip.id,
+        tripCode: trip.tripCode ?? null,
+        truckId: trip.truckId ?? null,
+        truckPlate: trip.truck?.licensePlate ?? trip.externalPlateNumber ?? null,
+        departureDate: trip.departureDate ?? null,
+        routeName: trip.route?.name ?? null,
+      }));
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
 /** Invalidate every cached payables-summary query, regardless of category. */
 export function useInvalidatePayablesSummary() {
   const qc = useQueryClient();
   return () => qc.invalidateQueries({ queryKey: qk.financial.payablesSummaryAll });
+}
+
+function invalidateFuelInvoiceQueries(qc: ReturnType<typeof useQueryClient>, invoiceId?: number | null) {
+  qc.invalidateQueries({ queryKey: qk.financial.fuelInvoicesAll });
+  if (invoiceId != null) {
+    qc.invalidateQueries({ queryKey: qk.financial.fuelInvoice(invoiceId) });
+  }
+  qc.invalidateQueries({ queryKey: qk.financial.payablesSummaryAll });
+}
+
+export function useCreateFuelInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: FuelInvoiceInput) => financialClient.createFuelInvoice(data),
+    onSuccess: (created) => {
+      invalidateFuelInvoiceQueries(qc, created.id);
+    },
+  });
+}
+
+export function useUpdateFuelInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: FuelInvoiceInput }) =>
+      financialClient.updateFuelInvoice(id, data),
+    onSuccess: (updated) => {
+      invalidateFuelInvoiceQueries(qc, updated.id);
+    },
+  });
+}
+
+export function useApproveFuelInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => financialClient.approveFuelInvoice(id),
+    onSuccess: (approved) => {
+      invalidateFuelInvoiceQueries(qc, approved.id);
+    },
+  });
 }
 
 /** Records a manual commission payable owed to a supplier. */

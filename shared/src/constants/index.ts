@@ -170,6 +170,7 @@ export enum ApprovalStatus {
 
 export enum DebitNoteMode {
   MONTHLY = 'MONTHLY',
+  WEEKLY = 'WEEKLY',
   PER_BATCH = 'PER_BATCH',
 }
 
@@ -302,6 +303,30 @@ export const DEFAULT_NO_INVOICE_EVIDENCE_TYPES: readonly NoInvoiceEvidenceType[]
   'ONSITE_PHOTO',
   'SIGNED_CONFIRMATION',
 ] as const;
+
+export const NO_INVOICE_REQUIRED_SCOPE = 'TRIP_OR_SHIPMENT' as const;
+
+export const NO_INVOICE_APPROVAL_TITLES = [
+  'FINANCE_LEAD',
+  'DIRECTOR',
+] as const;
+
+export type NoInvoiceApprovalTitle = typeof NO_INVOICE_APPROVAL_TITLES[number];
+
+export const NO_INVOICE_APPROVAL_TITLE_LABELS: Record<NoInvoiceApprovalTitle, string> = {
+  FINANCE_LEAD: 'Trưởng phòng Tài chính/Kế toán',
+  DIRECTOR: 'Giám đốc',
+};
+
+export const NO_INVOICE_DEFAULT_CATEGORY_ALIASES: Record<string, readonly string[]> = {
+  LIFTING: ['Bốc xếp tại hiện trường', 'Lao động thời vụ tại hiện trường'],
+  LOWERING: ['Hạ container tại hiện trường', 'Lao động thời vụ tại hiện trường'],
+  WEIGHING: ['Vé cân hàng', 'Phiếu cân hàng'],
+  INFRASTRUCTURE: ['Vé bãi/đò/đường', 'Phí nhỏ có phiếu lẻ'],
+  INSPECTION: ['Xử lý khẩn cấp tại cảng/kho', 'Phí kiểm hóa tại cảng/kho'],
+  INSPECTION_SVC: ['Dịch vụ xử lý khẩn cấp tại cảng/kho', 'Phục vụ kiểm hóa tại cảng/kho'],
+  OTHER: ['Vật tư nhỏ phục vụ chuyến', 'Chi phí hiện trường nhỏ lẻ'],
+};
 
 export const NO_INVOICE_POLICY_DEFAULTS = {
   perItemLimit: 1_000_000,

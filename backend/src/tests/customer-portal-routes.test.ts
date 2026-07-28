@@ -17,6 +17,7 @@ import { globalErrorHandler } from '../middleware/errorHandler';
 import { createShipment } from '../services/shipment.service';
 import { createUser } from '../services/user.service';
 import portalRoutes from '../routes/portal/index';
+import { disconnectRedis } from '../lib/redis';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const customerIds: number[] = [];
@@ -71,17 +72,54 @@ async function createDocument(customerId: number, status: 'SENT' | 'PENDING_CONF
 
 async function request(
   path: string,
-  init: { method?: string; token?: string } = {},
+  init: { method?: string; token?: string; idempotencyKey?: string; body?: unknown } = {},
 ) {
-  const response = await fetch(`${baseUrl}/api/portal${path}`, {
-    method: init.method ?? 'GET',
-    headers: init.token ? { Authorization: `Bearer ${init.token}` } : undefined,
+  const url = new URL(`/api/portal${path}`, baseUrl);
+  const headers: Record<string, string> = {};
+  if (init.token) headers.Authorization = `Bearer ${init.token}`;
+  if (init.idempotencyKey) headers['Idempotency-Key'] = init.idempotencyKey;
+  const payload = init.body === undefined ? '' : JSON.stringify(init.body);
+  if (init.body !== undefined) {
+    headers['Content-Type'] = 'application/json';
+    headers['Content-Length'] = Buffer.byteLength(payload).toString();
+  }
+  return new Promise<{ status: number; contentType: string; body: unknown }>((resolve, reject) => {
+    const req = http.request({
+      host: url.hostname,
+      port: Number(url.port),
+      path: `${url.pathname}${url.search}`,
+      method: init.method ?? 'GET',
+      agent: false,
+      headers: {
+        ...headers,
+        Connection: 'close',
+      },
+    }, (response) => {
+      const contentType = response.headers['content-type'] ?? '';
+      const chunks: Buffer[] = [];
+      response.on('data', (chunk) => {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      });
+      response.on('end', () => {
+        const raw = Buffer.concat(chunks);
+        const body = String(contentType).includes('application/pdf')
+          ? raw
+          : raw.length > 0
+            ? JSON.parse(raw.toString('utf8'))
+            : {};
+        resolve({
+          status: response.statusCode ?? 0,
+          contentType: String(contentType),
+          body,
+        });
+      });
+    });
+    req.on('error', reject);
+    if (init.body !== undefined) {
+      req.write(payload);
+    }
+    req.end();
   });
-  const contentType = response.headers.get('content-type') ?? '';
-  const body = contentType.includes('application/pdf')
-    ? Buffer.from(await response.arrayBuffer())
-    : await response.json().catch(() => ({}));
-  return { status: response.status, contentType, body };
 }
 
 before(async () => {
@@ -175,6 +213,7 @@ before(async () => {
 });
 
 after(async () => {
+  server.closeAllConnections();
   await new Promise<void>((resolve) => server.close(() => resolve()));
   if (documentIds.length > 0) {
     await db.delete(s.billingDocumentLines).where(inArray(s.billingDocumentLines.documentId, documentIds));
@@ -184,8 +223,12 @@ after(async () => {
     await db.delete(s.customerEmailLogs).where(eq(s.customerEmailLogs.shipmentId, multiShipmentId));
     await db.delete(s.shipments).where(eq(s.shipments.id, multiShipmentId));
   }
+  if (userIds.length > 0) {
+    await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.createdBy, userIds));
+  }
   if (userIds.length > 0) await db.delete(s.users).where(inArray(s.users.id, userIds));
   if (customerIds.length > 0) await db.delete(s.customers).where(inArray(s.customers.id, customerIds));
+  await disconnectRedis();
   await client.end();
 });
 
@@ -356,5 +399,30 @@ describe('CUSTOMER portal HTTP security contract', () => {
     assert.deepEqual(responses.map((response) => response.status).sort(), [200, 409]);
     const successful = responses.find((response) => response.status === 200);
     assert.equal((successful?.body as { debitNoteStatus?: string }).debitNoteStatus, 'REJECTED');
+  });
+
+  test('idempotent confirm replays the original portal snapshot after status changes', async () => {
+    const pendingId = (await createDocument(ownCustomerId, 'PENDING_CONFIRM')).id;
+    const key = `portal-confirm-${suffix}-${pendingId}`;
+
+    const first = await request(`/debit-notes/${pendingId}/confirm`, {
+      method: 'POST',
+      token: customerToken,
+      idempotencyKey: key,
+    });
+    const replay = await request(`/debit-notes/${pendingId}/confirm`, {
+      method: 'POST',
+      token: customerToken,
+      idempotencyKey: key,
+    });
+
+    assert.equal(first.status, 200);
+    assert.equal(replay.status, 200);
+    assert.equal((first.body as { replayed?: boolean }).replayed, false);
+    assert.equal((replay.body as { replayed?: boolean }).replayed, true);
+    assert.deepEqual(
+      { ...(replay.body as Record<string, unknown>), replayed: false },
+      first.body as Record<string, unknown>,
+    );
   });
 });

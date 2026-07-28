@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, test } from 'node:test';
-import { and, eq, inArray } from 'drizzle-orm';
-import { Role } from '@tingting/shared';
+import { and, eq, inArray, or } from 'drizzle-orm';
+import { Role, type SaveBillingDocumentInput } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import {
@@ -15,7 +15,10 @@ import {
 } from '../services/adjustment-governance.service';
 import { requestBillingDocumentAdjustment } from '../services/billing-document-governance.service';
 import { transitionDebitNoteStatus } from '../services/debit-note-lifecycle.service';
-import { propagateTripFinancialSourceChange } from '../services/source-change.service';
+import {
+  propagateExpenseApproval,
+  propagateTripFinancialSourceChange,
+} from '../services/source-change.service';
 import { lockTripFinancialAuthority } from '../services/trip-financial-authority-lock.service';
 
 const actorIds: number[] = [];
@@ -26,6 +29,8 @@ const tripIds: number[] = [];
 const documentIds: number[] = [];
 const governanceActionIds: number[] = [];
 const receiptIds: string[] = [];
+const expenseIds: number[] = [];
+const expenseTypeIds: number[] = [];
 
 let actors: Array<{ id: number; role: string }> = [];
 
@@ -40,21 +45,33 @@ before(async () => {
 });
 
 after(async () => {
-  if (receiptIds.length > 0) {
-    await db.delete(s.ledger).where(inArray(s.ledger.receiptId, receiptIds));
-  }
+  try {
   if (governanceActionIds.length > 0) {
     await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, governanceActionIds));
+  }
+  if (receiptIds.length > 0 || expenseIds.length > 0) {
+    await db.delete(s.ledger).where(or(
+      receiptIds.length > 0 ? inArray(s.ledger.receiptId, receiptIds) : undefined,
+      expenseIds.length > 0
+        ? and(eq(s.ledger.txnType, 'SERVICE_FEE'), inArray(s.ledger.txnId, expenseIds))
+        : undefined,
+    ));
   }
   if (documentIds.length > 0) {
     await db.delete(s.billingDocumentLines).where(inArray(s.billingDocumentLines.documentId, documentIds));
     await db.delete(s.billingDocuments).where(inArray(s.billingDocuments.id, documentIds));
+  }
+  if (expenseIds.length > 0) {
+    await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.id, expenseIds));
   }
   if (tripIds.length > 0) {
     await db.delete(s.trips).where(inArray(s.trips.id, tripIds));
   }
   if (cargoTypeIds.length > 0) {
     await db.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, cargoTypeIds));
+  }
+  if (expenseTypeIds.length > 0) {
+    await db.delete(s.forwarderExpenseTypes).where(inArray(s.forwarderExpenseTypes.id, expenseTypeIds));
   }
   if (routeIds.length > 0) {
     await db.delete(s.routes).where(inArray(s.routes.id, routeIds));
@@ -65,10 +82,16 @@ after(async () => {
   if (actorIds.length > 0) {
     await db.delete(s.users).where(inArray(s.users.id, actorIds));
   }
-  await client.end();
+  } finally {
+    await client.end();
+  }
 });
 
-async function createTripFixture(status: 'COMPLETED' | 'LOCKED', revenue: number) {
+async function createTripFixture(
+  status: 'COMPLETED' | 'LOCKED',
+  revenue: number,
+  dates: { departureDate?: string; completedAt?: Date } = {},
+) {
   const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const [customer] = await db.insert(s.customers)
     .values({ name: `Q22 customer ${suffix}` })
@@ -88,7 +111,8 @@ async function createTripFixture(status: 'COMPLETED' | 'LOCKED', revenue: number
     customerId: customer.id,
     routeId: route.id,
     cargoTypeId: cargoType.id,
-    departureDate: '2026-07-15',
+    departureDate: dates.departureDate ?? '2026-07-15',
+    completedAt: dates.completedAt ?? new Date('2026-07-20T10:00:00Z'),
     status,
     revenue: String(revenue),
     carrierType: 'OWN',
@@ -97,15 +121,27 @@ async function createTripFixture(status: 'COMPLETED' | 'LOCKED', revenue: number
   return { customer, trip };
 }
 
-async function createDraftDebitNote(customerId: number, userId: number) {
+async function createDraftDebitNote(
+  customerId: number,
+  userId: number,
+  rangeFrom = '2026-07-01',
+  rangeTo = '2026-07-31',
+) {
   const draft = await generateDraft({
     type: 'DEBIT_NOTE',
     entityType: 'CUSTOMER',
     entityId: customerId,
-    rangeFrom: '2026-07-01',
-    rangeTo: '2026-07-31',
+    rangeFrom,
+    rangeTo,
   });
-  const document = await saveDocument(draft, userId);
+  const input: SaveBillingDocumentInput = {
+    ...draft,
+    lines: draft.lines.map((line) => ({
+      ...line,
+      renderData: line.renderData ? { ...line.renderData } as Record<string, unknown> : null,
+    })),
+  };
+  const document = await saveDocument(input, userId);
   documentIds.push(document.id!);
   receiptIds.push(`GBN:${document.id}`);
   return document;
@@ -118,6 +154,96 @@ function requireTripLine(document: Awaited<ReturnType<typeof getDocument>>) {
 }
 
 describe('Q22 source authority propagation', () => {
+  test('uses completion date for freight and expense date for service-fee periods', async () => {
+    const { customer, trip } = await createTripFixture('COMPLETED', 1_000_000, {
+      departureDate: '2026-07-31',
+      completedAt: new Date('2026-08-02T09:00:00Z'),
+    });
+    const [expenseType] = await db.insert(s.forwarderExpenseTypes).values({
+      code: `Q22-EVT-${trip.id}`,
+      name: `Q22 event fee ${trip.id}`,
+      requiresInvoice: false,
+      substituteEvidenceAllowed: true,
+    }).returning();
+    expenseTypeIds.push(expenseType.id);
+    const [expense] = await db.insert(s.tripExpenses).values({
+      tripId: trip.id,
+      expenseType: expenseType.code,
+      buyAmount: '100000',
+      sellAmount: '200000',
+      expenseDate: '2026-07-31',
+      payeeName: 'Q22 payee',
+      note: 'Q22 cross-period event',
+      noInvoiceEvidenceTypes: ['RECEIPT'],
+      approvalStatus: 'APPROVED',
+      createdBy: actors[0]!.id,
+    }).returning();
+    expenseIds.push(expense.id);
+
+    const julyDocument = await createDraftDebitNote(
+      customer.id,
+      actors[0]!.id,
+      '2026-07-01',
+      '2026-07-31',
+    );
+    const augustDocument = await createDraftDebitNote(
+      customer.id,
+      actors[0]!.id,
+      '2026-08-01',
+      '2026-08-31',
+    );
+
+    const julyBefore = await getDocument(julyDocument.id!);
+    const augustBefore = await getDocument(augustDocument.id!);
+    assert.equal(
+      julyBefore.lines.some((line) => line.sourceType === 'TRIP' && line.sourceId === trip.id),
+      false,
+      'departure date must not place freight in July',
+    );
+    assert.equal(
+      julyBefore.lines.some((line) => line.sourceType === 'EXPENSE' && line.sourceId === expense.id),
+      true,
+      'actual expense date places service fee in July',
+    );
+    assert.equal(
+      augustBefore.lines.some((line) => line.sourceType === 'TRIP' && line.sourceId === trip.id),
+      true,
+      'completion date places freight in August',
+    );
+    assert.equal(
+      augustBefore.lines.some((line) => line.sourceType === 'EXPENSE' && line.sourceId === expense.id),
+      false,
+      'expense must not inherit the trip completion period',
+    );
+
+    await db.transaction(async (tx) => {
+      await tx.update(s.trips).set({
+        revenue: '1250000',
+        version: trip.version + 1,
+        updatedAt: new Date(Date.now() + 1_000),
+      }).where(eq(s.trips.id, trip.id));
+      await propagateTripFinancialSourceChange(tx, { tripId: trip.id });
+      await tx.update(s.tripExpenses).set({
+        sellAmount: '275000',
+        updatedAt: new Date(Date.now() + 2_000),
+      }).where(eq(s.tripExpenses.id, expense.id));
+      await propagateExpenseApproval(tx, { expenseId: expense.id });
+    });
+
+    const julyAfter = await getDocument(julyDocument.id!);
+    const augustAfter = await getDocument(augustDocument.id!);
+    assert.equal(
+      julyAfter.lines.find((line) => line.sourceType === 'EXPENSE' && line.sourceId === expense.id)?.baseAmount,
+      275_000,
+    );
+    assert.equal(
+      augustAfter.lines.find((line) => line.sourceType === 'TRIP' && line.sourceId === trip.id)?.baseAmount,
+      1_250_000,
+    );
+    assert.equal(julyAfter.lines.some((line) => line.sourceType === 'TRIP'), false);
+    assert.equal(augustAfter.lines.some((line) => line.sourceType === 'EXPENSE'), false);
+  });
+
   test('recomputes draft debit-note lines from the latest trip source', async () => {
     const { customer, trip } = await createTripFixture('COMPLETED', 1_000_000);
     const document = await createDraftDebitNote(customer.id, actors[0]!.id);
@@ -141,7 +267,7 @@ describe('Q22 source authority propagation', () => {
     assert.equal(after.debitNoteStatus, 'DRAFT');
     assert.equal(afterLine.baseAmount, 1_250_000);
     assert.equal(after.totalInclVat, 1_250_000);
-    assert.equal(after.ledgerAdjustmentAmount, 1_250_000);
+    assert.equal(after.ledgerAdjustmentAmount, 0);
     assert.equal(after.authorityState, 'CURRENT');
     assert.equal(afterLine.provenance?.status, 'CURRENT');
     assert.notEqual(afterLine.renderData?.sourceVersion, beforeLine.renderData?.sourceVersion);

@@ -86,6 +86,7 @@ async function mkExpense(opts: {
   supplierId: number;
   buyAmount: string;
   invoiceDate?: string;
+  invoiceNumber?: string;
   expenseType?: string;
   approvalStatus?: string;
 }) {
@@ -97,6 +98,7 @@ async function mkExpense(opts: {
     sellAmount: '0',
     supplierId: opts.supplierId,
     invoiceDate: opts.invoiceDate ?? null,
+    invoiceNumber: opts.invoiceNumber ?? null,
     approvalStatus: opts.approvalStatus ?? 'PENDING',
   }).returning();
   createdExpenseIds.push(e.id);
@@ -260,6 +262,7 @@ describe('M6.1 slice 2 — transitionApproval guard wiring', () => {
     const e = await mkExpense({
       tripId: t.id, supplierId: sup.id,
       expenseType: 'TOLL', buyAmount: '100000', invoiceDate: '2026-06-15',
+      invoiceNumber: `TOLL-${suffix}`.slice(0, 50),
       approvalStatus: 'PENDING',
     });
     await runInTx((tx) => transitionApproval(tx, {

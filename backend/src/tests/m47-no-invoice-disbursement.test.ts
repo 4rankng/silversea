@@ -17,6 +17,7 @@ import { db, client } from '../db';
 import * as s from '../db/schema';
 import { transitionApproval } from '../services/approval.service';
 import {
+  buildNoInvoicePolicySnapshotForExpenseInput,
   reviewNoInvoiceDisbursementApproval,
   getNoInvoiceDisbursementReport,
   DIRECTOR_THRESHOLD,
@@ -48,15 +49,19 @@ async function mkFet(opts: {
   requiresInvoice?: boolean;
   substituteEvidenceAllowed?: boolean;
   noInvoiceEvidenceTypes?: string[];
+  noInvoicePerItemLimit?: string;
+  noInvoicePerDayLimit?: string;
   tag: string;
 }) {
-  const code = `M47-${opts.tag}-${suffix}-${createdFetIds.length}`;
+  const code = `M47-${createdFetIds.length}-${opts.tag}-${suffix}`.slice(0, 50);
   const [fet] = await db.insert(s.forwarderExpenseTypes).values({
     code,
     name: `M47 type ${opts.tag} ${suffix}`,
     requiresInvoice: opts.requiresInvoice ?? false,
     substituteEvidenceAllowed: opts.substituteEvidenceAllowed ?? true,
     noInvoiceEvidenceTypes: opts.noInvoiceEvidenceTypes ?? ['RECEIPT', 'BANK_TRANSFER', 'SIGNED_CONFIRMATION'],
+    noInvoicePerItemLimit: opts.noInvoicePerItemLimit,
+    noInvoicePerDayLimit: opts.noInvoicePerDayLimit,
   }).returning();
   createdFetIds.push(fet.id);
   return fet;
@@ -156,6 +161,46 @@ after(async () => {
 });
 
 describe('M4.7 — reviewNoInvoiceDisbursementApproval', () => {
+  test('requiresInvoice=true + missing invoice is rejected at create trust boundary', async () => {
+    const fet = await mkFet({ requiresInvoice: true, tag: 'req-inv-create' });
+    await assert.rejects(
+      () => buildNoInvoicePolicySnapshotForExpenseInput(db, {
+        expenseType: fet.code,
+        invoiceNumber: null,
+      }),
+      (err: Error & { statusCode?: number }) => err.statusCode === 400 && /bắt buộc phải có hóa đơn/.test(err.message),
+    );
+  });
+
+  test('policy snapshot exposes accepted default aliases, explicit scope, and exception governance metadata', async () => {
+    const fet = await mkFet({ tag: 'snapshot-aliases' });
+    const snapshot = await buildNoInvoicePolicySnapshotForExpenseInput(db, {
+      expenseType: fet.code,
+      invoiceNumber: null,
+    });
+    assert.ok(snapshot);
+    assert.deepEqual(snapshot.allowedEvidenceTypes, ['RECEIPT', 'BANK_TRANSFER', 'SIGNED_CONFIRMATION']);
+    assert.deepEqual(snapshot.defaultCategoryAliases, [fet.name], 'custom categories fall back to the configured name');
+    assert.equal(snapshot.requiredScope, 'TRIP_OR_SHIPMENT');
+    assert.equal(snapshot.financeLeadApprovalTitle, 'FINANCE_LEAD');
+    assert.equal(snapshot.directorApprovalTitle, 'DIRECTOR');
+    assert.equal(snapshot.exceptionReasonRequiredWhenThresholdExceeded, true);
+  });
+
+  test('requiresInvoice=true + missing invoice is rejected again at approval trust boundary', async () => {
+    const fet = await mkFet({ requiresInvoice: true, tag: 'req-inv-approve' });
+    const trip = await mkTrip();
+    const e = await mkExpense({
+      tripId: trip.id,
+      expenseTypeCode: fet.code,
+      note: 'attempted API bypass',
+    });
+    await assert.rejects(
+      () => reviewNoInvoiceDisbursementApproval(e.id, 'ADMIN'),
+      (err: Error & { statusCode?: number }) => err.statusCode === 400 && /bắt buộc phải có hóa đơn/.test(err.message),
+    );
+  });
+
   test('substituteEvidenceAllowed=false + no invoice → blocked', async () => {
     const fet = await mkFet({ substituteEvidenceAllowed: false, tag: 'no-sub' });
     const trip = await mkTrip();
@@ -213,6 +258,44 @@ describe('M4.7 — reviewNoInvoiceDisbursementApproval', () => {
     const outcome = await reviewNoInvoiceDisbursementApproval(e.id, 'ACCOUNTANT');
     assert.equal(outcome.outcome, 'ALLOW');
     assert.equal(outcome.aggregateAmount, 500000);
+    assert.equal(outcome.exceedsPerItemLimit, false);
+    assert.equal(outcome.exceedsPerDayLimit, false);
+    assert.equal(outcome.requiredApprovalTitle, null);
+    assert.equal(outcome.requiresExceptionReason, false);
+  });
+
+  test('configured Q13 per-item and per-day caps are reflected in approval decision and finance-lead title requirement', async () => {
+    const fet = await mkFet({
+      substituteEvidenceAllowed: true,
+      noInvoicePerItemLimit: '400000',
+      noInvoicePerDayLimit: '700000',
+      tag: 'configured-caps',
+    });
+    const trip = await mkTrip();
+    await mkExpense({
+      tripId: trip.id,
+      expenseTypeCode: fet.code,
+      buyAmount: '300000',
+      expenseDate: '2026-07-19',
+      payeeName: 'Nguyen Van C',
+      note: 'dot 1',
+      approvalStatus: 'APPROVED',
+    });
+    const e = await mkExpense({
+      tripId: trip.id,
+      expenseTypeCode: fet.code,
+      buyAmount: '500000',
+      expenseDate: '2026-07-19',
+      payeeName: '  NGUYEN   VAN C ',
+      note: 'Chi cùng ngày vượt ngưỡng chuẩn nhưng vẫn trong thẩm quyền tài chính',
+    });
+    const outcome = await reviewNoInvoiceDisbursementApproval(e.id, 'ACCOUNTANT');
+    assert.equal(outcome.outcome, 'ALLOW');
+    assert.equal(outcome.aggregateAmount, 800000);
+    assert.equal(outcome.exceedsPerItemLimit, true);
+    assert.equal(outcome.exceedsPerDayLimit, true);
+    assert.equal(outcome.requiredApprovalTitle, 'FINANCE_LEAD');
+    assert.equal(outcome.requiresExceptionReason, true);
   });
 
   test('amount > DIRECTOR_THRESHOLD + ACCOUNTANT → blocked (needs director)', async () => {
@@ -226,6 +309,22 @@ describe('M4.7 — reviewNoInvoiceDisbursementApproval', () => {
       () => reviewNoInvoiceDisbursementApproval(e.id, 'ACCOUNTANT'),
       (err: Error & { statusCode?: number }) => err.statusCode === 403 && /cần giám đốc/.test(err.message),
     );
+  });
+
+  test('over-threshold expense without an explicit exception reason is returned for evidence', async () => {
+    const fet = await mkFet({ substituteEvidenceAllowed: true, tag: 'missing-exception-reason' });
+    const trip = await mkTrip();
+    const e = await mkExpense({
+      tripId: trip.id,
+      expenseTypeCode: fet.code,
+      buyAmount: '1500000',
+      note: 'gấp',
+    });
+    const outcome = await reviewNoInvoiceDisbursementApproval(e.id, 'ACCOUNTANT');
+    assert.equal(outcome.outcome, 'RETURN_FOR_EVIDENCE');
+    assert.equal(outcome.requiredApprovalTitle, 'FINANCE_LEAD');
+    assert.equal(outcome.requiresExceptionReason, true);
+    assert.match(outcome.returnReason, /lý do ngoại lệ/i);
   });
 
   test('same payee/date/category aggregate > 10,000,000 VND + ACCOUNTANT → blocked', async () => {
@@ -246,7 +345,7 @@ describe('M4.7 — reviewNoInvoiceDisbursementApproval', () => {
       buyAmount: String(DAY_AGGREGATE_THRESHOLD - 6_000_000 + 1),
       expenseDate: '2026-07-18',
       payeeName: 'Tran Thi B',
-      note: 'dot 2',
+      note: 'Chi bổ sung cùng ngày do bốc xếp phát sinh ngoài kế hoạch đã duyệt',
     });
     await assert.rejects(
       () => reviewNoInvoiceDisbursementApproval(e.id, 'ACCOUNTANT'),
@@ -259,10 +358,13 @@ describe('M4.7 — reviewNoInvoiceDisbursementApproval', () => {
     const trip = await mkTrip();
     const e = await mkExpense({
       tripId: trip.id, expenseTypeCode: fet.code,
-      buyAmount: String(DIRECTOR_THRESHOLD + 1_000_000), note: 'big',
+      buyAmount: String(DIRECTOR_THRESHOLD + 1_000_000),
+      note: 'Chi bốc xếp ca đêm phát sinh ngoài định mức do tàu đổi lịch cập bến',
     });
     const outcome = await reviewNoInvoiceDisbursementApproval(e.id, 'MANAGER');
     assert.equal(outcome.outcome, 'ALLOW');
+    assert.equal(outcome.requiredApprovalTitle, 'DIRECTOR');
+    assert.equal(outcome.requiresExceptionReason, true);
   });
 
   test('has-invoice expense → bypass (M4.6 owns it)', async () => {
@@ -347,7 +449,8 @@ describe('M4.7 — transitionApproval wiring', () => {
     const trip = await mkTrip();
     const e = await mkExpense({
       tripId: trip.id, expenseTypeCode: fet.code,
-      buyAmount: String(DIRECTOR_THRESHOLD + 500_000), note: 'big',
+      buyAmount: String(DIRECTOR_THRESHOLD + 500_000),
+      note: 'Chi phát sinh ngoài định mức nhưng chưa đủ thẩm quyền tài chính',
     });
     await assert.rejects(
       () => runApproveTx(e.id, 'ACCOUNTANT'),
@@ -360,7 +463,8 @@ describe('M4.7 — transitionApproval wiring', () => {
     const trip = await mkTrip();
     const e = await mkExpense({
       tripId: trip.id, expenseTypeCode: fet.code,
-      buyAmount: String(DIRECTOR_THRESHOLD + 500_000), note: 'big',
+      buyAmount: String(DIRECTOR_THRESHOLD + 500_000),
+      note: 'Xử lý khẩn cấp tại cảng sau giờ làm, cần duy trì tiến độ giao hàng',
     });
     const result = await runApproveTx(e.id, 'MANAGER');
     assert.equal(result.outcome, 'APPROVED');

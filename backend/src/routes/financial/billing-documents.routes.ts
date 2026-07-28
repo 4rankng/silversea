@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import {
   Role,
   billingDocumentAdjustmentRequestSchema,
+  billingDocumentIssueRequestSchema,
   generateBillingDocumentSchema,
   saveBillingDocumentSchema,
 } from '@tingting/shared';
@@ -10,10 +11,15 @@ import { getUser } from '../../middleware/auth';
 import { requireRoles } from '../../middleware/casbin';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import * as billingService from '../../services/billingDocument.service';
-import { requestBillingDocumentAdjustment } from '../../services/billing-document-governance.service';
+import {
+  requestBillingDocumentAdjustment,
+  requestBillingDocumentIssue,
+} from '../../services/billing-document-governance.service';
 import { getDebitNoteForRender, exportDebitNoteHtml } from '../../services/debit-note-pdf.service';
 import { attachmentDisposition } from '../../services/statement.service';
 import { invalidateReportCaches } from '../../lib/redis';
+import { getRequestIdempotencyKey } from '../utils/idempotency';
+import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 
 // Debit-note (AR) + payment-statement (AP) builder routes.
 // Mounted under the financial router → already gated by casbinAuthz('financial').
@@ -21,6 +27,7 @@ import { invalidateReportCaches } from '../../lib/redis';
 // (DRIVER / FORWARDER never get financial write in policy.csv).
 const router = Router();
 const ROLES = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT] as const;
+const BILLING_DOCUMENT_ISSUE_REQUEST_ENDPOINT = 'billing-documents.issue.request';
 
 // POST /api/finance/billing-documents/generate — preview draft lines (pre-save)
 router.post('/finance/billing-documents/generate', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
@@ -31,9 +38,20 @@ router.post('/finance/billing-documents/generate', requireRoles(...ROLES), async
 // POST /api/finance/billing-documents — save a snapshot document
 router.post('/finance/billing-documents', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
   const data = saveBillingDocumentSchema.parse(req.body);
-  const doc = await billingService.saveDocument(data, req.user?.userId ?? null);
-  await invalidateReportCaches();
-  res.status(201).json(doc);
+  const actor = getUser(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.BILLING_DOCUMENT_CREATE,
+    idempotencyKey,
+    payload: { actorId: actor.userId, ...data },
+    createdBy: actor.userId,
+    entityType: 'billing_document',
+    create: (tx) => billingService.saveDocument(data, actor.userId, tx),
+  });
+  if (!replayed) {
+    await invalidateReportCaches();
+  }
+  res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
 // GET /api/finance/billing-documents?entityType&entityId&type — list saved documents
@@ -56,28 +74,88 @@ router.get('/finance/billing-documents/:id', requireRoles(...ROLES), asyncHandle
 // PUT /api/finance/billing-documents/:id — edit in place (always-editable)
 router.put('/finance/billing-documents/:id', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
   const data = saveBillingDocumentSchema.parse(req.body);
-  const doc = await billingService.updateDocument(Number(req.params.id), data);
-  await invalidateReportCaches();
-  res.json(doc);
+  const actor = getUser(req);
+  const documentId = Number(req.params.id);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.BILLING_DOCUMENT_UPDATE,
+    idempotencyKey,
+    payload: { actorId: actor.userId, documentId, ...data },
+    createdBy: actor.userId,
+    entityType: 'billing_document',
+    create: (tx) => billingService.updateDocument(documentId, data, tx),
+    getEntityId: () => documentId,
+  });
+  if (!replayed) {
+    await invalidateReportCaches();
+  }
+  res.json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
 router.post('/finance/billing-documents/:id/adjustments', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   const input = billingDocumentAdjustmentRequestSchema.parse(req.body);
-  const action = await requestBillingDocumentAdjustment({
-    documentId: Number(req.params.id),
-    reason: input.reason,
-    makerId: actor.userId,
-    makerRole: actor.role,
+  const documentId = Number(req.params.id);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.BILLING_DOCUMENT_ADJUSTMENT_REQUEST,
+    idempotencyKey,
+    payload: { actorId: actor.userId, actorRole: actor.role, documentId, ...input },
+    createdBy: actor.userId,
+    entityType: 'governance_action',
+    create: () => requestBillingDocumentAdjustment({
+      documentId,
+      reason: input.reason,
+      makerId: actor.userId,
+      makerRole: actor.role,
+    }),
   });
-  res.status(201).json(action);
+  res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
+}));
+
+router.post('/finance/billing-documents/:id/issue', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
+  const actor = getUser(req);
+  const input = billingDocumentIssueRequestSchema.parse(req.body);
+  const documentId = Number(req.params.id);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result, replayed } = await runIdempotent({
+    endpoint: BILLING_DOCUMENT_ISSUE_REQUEST_ENDPOINT,
+    idempotencyKey,
+    payload: { actorId: actor.userId, actorRole: actor.role, documentId, ...input },
+    createdBy: actor.userId,
+    entityType: 'governance_action',
+    create: () => requestBillingDocumentIssue({
+      documentId,
+      expectedVersion: input.expectedVersion,
+      reason: input.reason,
+      makerId: actor.userId,
+      makerRole: actor.role,
+    }),
+  });
+  res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
 // DELETE /api/finance/billing-documents/:id — soft delete
 router.delete('/finance/billing-documents/:id', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
-  await billingService.deleteDocument(Number(req.params.id));
-  await invalidateReportCaches();
-  res.json({ ok: true });
+  const actor = getUser(req);
+  const documentId = Number(req.params.id);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.BILLING_DOCUMENT_DELETE,
+    idempotencyKey,
+    payload: { actorId: actor.userId, documentId },
+    createdBy: actor.userId,
+    entityType: 'billing_document',
+    create: async (tx) => {
+      await billingService.deleteDocument(documentId, tx);
+      return { ok: true };
+    },
+    getEntityId: () => documentId,
+  });
+  if (!replayed) {
+    await invalidateReportCaches();
+  }
+  res.json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
 // GET /api/finance/billing-documents/:id/export?format=xlsx|pdf&templateId=

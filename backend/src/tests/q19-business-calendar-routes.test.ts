@@ -20,6 +20,12 @@ import configRoutes from '../routes/config';
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdUserIds: number[] = [];
 const createdCalendarIds: number[] = [];
+const createdIdempotencyKeys = [
+  `q19-invalid-date-${suffix}`,
+  `q19-create-${suffix}`,
+  `q19-update-${suffix}`,
+  `q19-delete-${suffix}`,
+];
 let server: http.Server;
 let baseUrl: string;
 let adminToken: string;
@@ -44,11 +50,19 @@ function sign(user: { id: number; username: string | null; role: Role | string }
 
 async function request(
   path: string,
-  init: { method?: string; token?: string; body?: unknown } = {},
+  init: {
+    method?: string;
+    token?: string;
+    body?: unknown;
+    idempotencyKey?: string;
+    ifUnmodifiedSince?: string;
+  } = {},
 ) {
   const headers: Record<string, string> = {};
   if (init.body !== undefined) headers['Content-Type'] = 'application/json';
   if (init.token) headers.Authorization = `Bearer ${init.token}`;
+  if (init.idempotencyKey) headers['Idempotency-Key'] = init.idempotencyKey;
+  if (init.ifUnmodifiedSince) headers['If-Unmodified-Since'] = init.ifUnmodifiedSince;
   const response = await fetch(`${baseUrl}/api/business-calendar${path}`, {
     method: init.method ?? 'GET',
     headers,
@@ -84,6 +98,8 @@ after(async () => {
     await db.delete(s.businessCalendarDays)
       .where(inArray(s.businessCalendarDays.id, createdCalendarIds));
   }
+  await db.delete(s.idempotencyKeys)
+    .where(inArray(s.idempotencyKeys.idempotencyKey, createdIdempotencyKeys));
   if (createdUserIds.length > 0) {
     await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
   }
@@ -110,6 +126,7 @@ describe('Q19 business-calendar route authority and completeness', () => {
     const response = await request('/', {
       method: 'POST',
       token: adminToken,
+      idempotencyKey: `q19-invalid-date-${suffix}`,
       body: { calendarDate: '2097-02-30', name: 'Ngày không tồn tại' },
     });
     assert.equal(response.status, 400);
@@ -128,6 +145,7 @@ describe('Q19 business-calendar route authority and completeness', () => {
     const created = await request('/', {
       method: 'POST',
       token: adminToken,
+      idempotencyKey: `q19-create-${suffix}`,
       body: { calendarDate: '2096-12-31', name: `Q19 API ${suffix}`, isWorkingDay: false },
     });
     assert.equal(created.status, 201);
@@ -136,6 +154,8 @@ describe('Q19 business-calendar route authority and completeness', () => {
     const updated = await request(`/${created.body.id}`, {
       method: 'PUT',
       token: adminToken,
+      idempotencyKey: `q19-update-${suffix}`,
+      ifUnmodifiedSince: created.body.updatedAt,
       body: { name: `Q19 API updated ${suffix}`, isWorkingDay: true },
     });
     assert.equal(updated.status, 200);
@@ -155,6 +175,8 @@ describe('Q19 business-calendar route authority and completeness', () => {
     const deleted = await request(`/${created.body.id}`, {
       method: 'DELETE',
       token: adminToken,
+      idempotencyKey: `q19-delete-${suffix}`,
+      ifUnmodifiedSince: updated.body.updatedAt,
     });
     assert.equal(deleted.status, 200);
     createdCalendarIds.splice(createdCalendarIds.indexOf(created.body.id), 1);

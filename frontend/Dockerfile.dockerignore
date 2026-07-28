@@ -1,0 +1,34 @@
+# Frontend image allowlist. Keep the root context so pnpm workspace links work,
+# but send only files referenced by frontend/Dockerfile.
+*
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!tsconfig.base.json
+
+!shared/
+shared/*
+!shared/package.json
+!shared/tsconfig.json
+!shared/fix-esm-imports.js
+!shared/src/
+!shared/src/**
+shared/src/**/*.test.ts
+shared/src/**/*.spec.ts
+
+!frontend/
+frontend/*
+!frontend/package.json
+!frontend/index.html
+!frontend/vite.config.ts
+!frontend/tsconfig.json
+!frontend/nginx.conf
+!frontend/public/
+!frontend/public/**
+!frontend/src/
+!frontend/src/**
+frontend/src/**/__tests__/
+frontend/src/**/*.test.ts
+frontend/src/**/*.test.tsx
+frontend/src/**/*.spec.ts
+frontend/src/**/*.spec.tsx

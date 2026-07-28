@@ -139,6 +139,17 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         elif isinstance(data, dict):
             fwd_trips = data.get('items', data.get('data', []))
     trip_id = fwd_trips[0]['id'] if fwd_trips else None
+    notes_fixture = f'E2E hướng dẫn giao nhận cho chuyến {trip_id}' if trip_id else None
+    if trip_id:
+        fixture_resp = api_admin.put(f'/api/trips/{trip_id}/instructions', {
+            'notes': notes_fixture,
+        })
+        if fixture_resp.get('status') not in (200, 201):
+            results.fail(
+                'TC-1324-FIXTURE',
+                'Create deterministic trip-note fixture',
+                f'Status: {fixture_resp.get("status")}, Body: {fixture_resp}',
+            )
 
     # ── Section 2: Trip List (TC-1310 to TC-1315) ──
 
@@ -148,7 +159,12 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
     page.wait_for_load_state('networkidle')
     page.goto(f'{BASE_URL}/my-forwarder-trips')
     page.wait_for_load_state('networkidle')
-    page.wait_for_timeout(1000)
+    try:
+        page.wait_for_selector('.ftrip-card', state='visible', timeout=10000)
+    except Exception:
+        # Keep the assertion below authoritative and preserve its diagnostic
+        # details when the API/render genuinely produces no cards.
+        pass
     cards = page.locator('[class*="card"], [class*="trip"], table tbody tr, [class*="item"]').count()
     if cards > 0 or len(fwd_trips) > 0:
         results.pass_('TC-1310', f'Trip list displays ({cards} elements, {len(fwd_trips)} API trips)')
@@ -316,16 +332,19 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
     else:
         results.skip('TC-1323', 'Legs display', 'No trips available')
 
-    # TC-1324: Notes display
-    if trip_id:
+    # TC-1324: Notes display using the deterministic instruction fixture above.
+    if trip_id and notes_fixture:
         page = ctx.new_page()
         ctx.login_as('forwarder', page)
         page.wait_for_load_state('networkidle')
         page.goto(f'{BASE_URL}/my-forwarder-trips/{trip_id}')
         page.wait_for_load_state('networkidle')
-        page.wait_for_timeout(1000)
+        try:
+            page.get_by_text(notes_fixture, exact=True).wait_for(state='visible', timeout=10000)
+        except Exception:
+            pass
         notes_count = page.locator('[class*="note"], [class*="Note"]').count()
-        notes_visible = notes_count > 0 or assert_text_visible(page, 'Ghi chú', timeout=5000)
+        notes_visible = page.get_by_text(notes_fixture, exact=True).count() > 0
         if notes_visible:
             results.pass_('TC-1324', f'Notes section visible ({notes_count} matching elements)')
         else:

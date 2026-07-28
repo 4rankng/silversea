@@ -3,6 +3,8 @@ import { toQuery } from '../lib/http/query';
 import { fetchAllPaginated } from '../lib/http/paginate';
 import { FINANCIAL, REPORTS } from '@tingting/shared';
 import type {
+  GovernanceActionStatus,
+  GovernanceAllowedAction,
   LedgerEntry,
   CustomerStatement,
   PayableSummary,
@@ -19,6 +21,103 @@ import type {
   SaveBillingDocumentInput,
   GenerateBillingDocumentInput,
 } from '@tingting/shared';
+
+export interface GovernanceActionRecord {
+  id: number;
+  subjectType: string;
+  subjectId: number | null;
+  subjectKey: string | null;
+  actionKind: string;
+  status: GovernanceActionStatus;
+  reason: string;
+  originalVersion: number;
+  makerId: number;
+  makerRole: string | null;
+  checkerId: number | null;
+  checkerRole: string | null;
+  checkedAt: string | null;
+  approverId: number | null;
+  approverRole: string | null;
+  approvedAt: string | null;
+  rejectedBy: number | null;
+  rejectedRole: string | null;
+  rejectedAt: string | null;
+  rejectionReason: string | null;
+  returnedBy: number | null;
+  returnedRole: string | null;
+  returnedAt: string | null;
+  returnReason: string | null;
+  canceledBy: number | null;
+  canceledRole: string | null;
+  canceledAt: string | null;
+  cancelReason: string | null;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+  allowedActions: GovernanceAllowedAction[];
+}
+
+export interface GovernanceActionFilters {
+  status?: GovernanceActionStatus;
+  limit?: number;
+  offset?: number;
+}
+
+export type FuelInvoiceStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface FuelInvoiceAllocation {
+  id?: number;
+  fuelInvoiceId?: number;
+  tripId: number;
+  truckId: number | null;
+  tripExpenseId: number | null;
+  voucherReference: string;
+  voucherDate: string;
+  liters: string;
+  amount: string;
+  note: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface FuelInvoice {
+  id: number;
+  supplierId: number;
+  invoiceNumber: string;
+  invoiceDate: string;
+  currency: 'VND';
+  totalLiters: string;
+  unitPrice: string;
+  totalAmount: string;
+  approvalStatus: FuelInvoiceStatus;
+  note: string | null;
+  createdBy: number | null;
+  approvedBy: number | null;
+  approvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  allocations?: FuelInvoiceAllocation[];
+}
+
+export interface FuelInvoiceAllocationInput {
+  tripId: number;
+  truckId?: number | null;
+  tripExpenseId?: number | null;
+  voucherReference: string;
+  voucherDate: string;
+  liters: number;
+  note?: string | null;
+}
+
+export interface FuelInvoiceInput {
+  supplierId: number;
+  invoiceNumber: string;
+  invoiceDate: string;
+  totalLiters: number;
+  unitPrice: number;
+  note?: string | null;
+  allocations: FuelInvoiceAllocationInput[];
+}
 
 export interface CustomerAging {
   customerId: number;
@@ -41,6 +140,33 @@ export interface CustomerAgingResponse {
 }
 
 export const financialClient = {
+  getGovernanceActions: (filters?: GovernanceActionFilters) =>
+    api.get<GovernanceActionRecord[]>(
+      `/governance-actions${toQuery({
+        status: filters?.status,
+        limit: filters?.limit,
+        offset: filters?.offset,
+      })}`,
+    ),
+
+  checkGovernanceAction: (id: number, expectedVersion: number) =>
+    api.post<GovernanceActionRecord>(
+      `/governance-actions/${id}/check`,
+      { expectedVersion },
+    ),
+
+  approveGovernanceAction: (id: number, expectedVersion: number) =>
+    api.post<GovernanceActionRecord>(
+      `/governance-actions/${id}/approve`,
+      { expectedVersion },
+    ),
+
+  rejectGovernanceAction: (id: number, input: { expectedVersion: number; reason: string }) =>
+    api.post<GovernanceActionRecord>(
+      `/governance-actions/${id}/reject`,
+      input,
+    ),
+
   getLedgerEntries: (params?: { entityType?: string; limit?: number }) =>
     api.get<PaginatedResponse<LedgerEntry>>(
       `${FINANCIAL.LEDGER}${toQuery(params)}`,
@@ -92,6 +218,23 @@ export const financialClient = {
       totalSuppliers: number;
       overdueSuppliers: number;
     }>(`${REPORTS.PAYABLES_SUMMARY}${toQuery({ category })}`),
+
+  getFuelInvoices: (filters?: { supplierId?: number; status?: FuelInvoiceStatus }) =>
+    api.get<FuelInvoice[]>(
+      `${FINANCIAL.FUEL_INVOICES}${toQuery(filters)}`,
+    ),
+
+  getFuelInvoice: (id: number) =>
+    api.get<FuelInvoice>(FINANCIAL.FUEL_INVOICE(id)),
+
+  createFuelInvoice: (data: FuelInvoiceInput) =>
+    api.post<FuelInvoice>(FINANCIAL.FUEL_INVOICES, data),
+
+  updateFuelInvoice: (id: number, data: FuelInvoiceInput) =>
+    api.put<FuelInvoice>(FINANCIAL.FUEL_INVOICE(id), data),
+
+  approveFuelInvoice: (id: number) =>
+    api.post<FuelInvoice>(FINANCIAL.FUEL_INVOICE_APPROVE(id), {}),
 
   postCommission: (data: { supplierId: number; amount: number; tripId?: number; note?: string }) =>
     api.post<{ ok: true }>(FINANCIAL.COMMISSIONS, data),

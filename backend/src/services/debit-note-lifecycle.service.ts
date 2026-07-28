@@ -18,6 +18,7 @@ import { ApiError } from '../errors';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
 
 type DebitNoteStatus = typeof s.debitNoteStatusEnum.enumValues[number];
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 // ─── Legal transitions ──────────────────────────────────────────────────────
 
@@ -48,10 +49,11 @@ export interface TransitionInput {
   /** Required when targetStatus = CONFIRMED (who confirmed). */
   confirmedBy?: string;
   reason?: string;
+  transaction?: Tx;
 }
 
 export async function transitionDebitNoteStatus(input: TransitionInput) {
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     const [doc] = await tx.select().from(s.billingDocuments)
       .where(eq(s.billingDocuments.id, input.documentId))
       .limit(1)
@@ -137,7 +139,13 @@ export async function transitionDebitNoteStatus(input: TransitionInput) {
     }
 
     return updated;
-  });
+  };
+
+  if (input.transaction) {
+    return execute(input.transaction);
+  }
+
+  return db.transaction(execute);
 }
 
 // ─── Lock check ─────────────────────────────────────────────────────────────

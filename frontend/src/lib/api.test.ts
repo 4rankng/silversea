@@ -118,6 +118,40 @@ describe('API mutation transaction keys', () => {
     const headers = vi.mocked(fetch).mock.calls[0]?.[1]?.headers as Record<string, string>;
     expect(headers['Idempotency-Key']).toBeUndefined();
   });
+
+  it('propagates catalog row versions from reads to update and delete preconditions', async () => {
+    const originalUpdatedAt = '2026-07-27T10:00:00.000Z';
+    const nextUpdatedAt = '2026-07-27T10:01:00.000Z';
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        items: [{ id: 7, name: 'Cũ', updatedAt: originalUpdatedAt }],
+        total: 1,
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        id: 7,
+        name: 'Mới',
+        updatedAt: nextUpdatedAt,
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }));
+
+    await api.get('/routes?page=1');
+    await api.put('/routes/7', { name: 'Mới' });
+    await api.delete('/routes/7');
+
+    const updateHeaders = vi.mocked(fetch).mock.calls[1]?.[1]?.headers as Record<string, string>;
+    const deleteHeaders = vi.mocked(fetch).mock.calls[2]?.[1]?.headers as Record<string, string>;
+    expect(updateHeaders['If-Unmodified-Since']).toBe(originalUpdatedAt);
+    expect(deleteHeaders['If-Unmodified-Since']).toBe(nextUpdatedAt);
+  });
 });
 
 describe('Vitest infrastructure', () => {

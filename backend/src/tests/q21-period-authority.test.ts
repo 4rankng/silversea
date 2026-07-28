@@ -24,6 +24,7 @@ const createdExpenseIds: number[] = [];
 const createdDocumentIds: number[] = [];
 const createdPeriodLockIds: number[] = [];
 const createdUserIds: number[] = [];
+const createdSalaryConfirmationIds: number[] = [];
 
 function adHocLine(amount: number, description: string) {
   return {
@@ -102,6 +103,20 @@ async function trackLock(ref: Awaited<ReturnType<typeof resolveDebitNotePeriodAu
   const lock = await db.transaction((tx) => closePeriodLock(tx, ref, actor.id, 'q21 test'));
   createdPeriodLockIds.push(lock.id);
   return lock;
+}
+
+async function confirmAllDriversForPeriod(year: number, month: number, actorId: number) {
+  const drivers = await db.select({ id: s.drivers.id }).from(s.drivers);
+  if (drivers.length === 0) return;
+  const inserted = await db.insert(s.salaryConfirmations).values(drivers.map((driver) => ({
+    driverId: driver.id,
+    year,
+    month,
+    status: 'CONFIRMED' as const,
+    confirmedBy: actorId,
+    confirmedAt: new Date(),
+  }))).onConflictDoNothing().returning({ id: s.salaryConfirmations.id });
+  createdSalaryConfirmationIds.push(...inserted.map((row) => row.id));
 }
 
 describe('Q21 period authority', () => {
@@ -291,6 +306,7 @@ describe('Q21 period authority', () => {
 
   test('salary close mirrors into the shared period-lock authority', async () => {
     const admin = await mkUser('ADMIN', 'salary');
+    await confirmAllDriversForPeriod(2099, 11, admin.id);
     const result = await closeSalaryPeriod({
       period: '2099-11',
       actorId: admin.id,
@@ -352,6 +368,10 @@ after(async () => {
     }
     await db.delete(s.salaryPeriodCloses)
       .where(sql`${s.salaryPeriodCloses.note} like ${`Q21 salary ${suffix}%`} or ${s.salaryPeriodCloses.note} like ${`Q21 salary reopen ${suffix}%`}`);
+    if (createdSalaryConfirmationIds.length > 0) {
+      await db.delete(s.salaryConfirmations)
+        .where(inArray(s.salaryConfirmations.id, createdSalaryConfirmationIds));
+    }
     if (createdCustomerIds.length > 0) {
       await db.delete(s.customers).where(inArray(s.customers.id, createdCustomerIds));
     }

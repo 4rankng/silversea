@@ -102,6 +102,9 @@ async function mkFuelExpense(opts: {
   tripId: number;
   supplierId: number;
   buyAmount: string;
+  expenseDate?: string | null;
+  invoiceNumber?: string | null;
+  declarationNumber?: string | null;
   invoiceDate?: string;
   expenseType?: string;
 }) {
@@ -111,6 +114,9 @@ async function mkFuelExpense(opts: {
     buyAmount: opts.buyAmount,
     sellAmount: '0',
     supplierId: opts.supplierId,
+    expenseDate: opts.expenseDate ?? null,
+    invoiceNumber: opts.invoiceNumber ?? null,
+    declarationNumber: opts.declarationNumber ?? null,
     invoiceDate: opts.invoiceDate ?? null,
     approvalStatus: 'APPROVED',
   }).returning();
@@ -346,6 +352,22 @@ describe('M6.1 — getFuelApReconciliation', () => {
     const truckB = await mkTruck();
     const tripA = await mkTrip({ supplierId: sup.id, truckId: truckA.id, totalFuelCost: '2000000', departureDate: '2026-06-10' });
     const tripB = await mkTrip({ supplierId: sup.id, truckId: truckB.id, totalFuelCost: '1000000', departureDate: '2026-06-11' });
+    const tripAExpense = await mkFuelExpense({
+      tripId: tripA.id,
+      supplierId: sup.id,
+      buyAmount: '2000000',
+      expenseDate: '2026-06-10',
+      invoiceNumber: `PX-${suffix}-A`,
+      invoiceDate: '2026-06-10',
+    });
+    const tripBExpense = await mkFuelExpense({
+      tripId: tripB.id,
+      supplierId: sup.id,
+      buyAmount: '1000000',
+      expenseDate: '2026-06-11',
+      invoiceNumber: `PX-${suffix}-B`,
+      invoiceDate: '2026-06-11',
+    });
     const invoice = await mkFuelInvoice({
       supplierId: sup.id,
       invoiceNumber: `INV-${suffix}-01`,
@@ -358,6 +380,7 @@ describe('M6.1 — getFuelApReconciliation', () => {
       fuelInvoiceId: invoice.id,
       tripId: tripA.id,
       truckId: truckA.id,
+      tripExpenseId: tripAExpense.id,
       voucherReference: `PX-${suffix}-A`,
       voucherDate: '2026-06-10',
       liters: '100',
@@ -367,6 +390,7 @@ describe('M6.1 — getFuelApReconciliation', () => {
       fuelInvoiceId: invoice.id,
       tripId: tripB.id,
       truckId: truckB.id,
+      tripExpenseId: tripBExpense.id,
       voucherReference: `PX-${suffix}-B`,
       voucherDate: '2026-06-11',
       liters: '50',
@@ -426,6 +450,14 @@ describe('M6.1 — getFuelApReconciliation', () => {
     const sup = await mkSupplier();
     const truck = await mkTruck();
     const trip = await mkTrip({ supplierId: sup.id, truckId: truck.id, totalFuelCost: '2000000', departureDate: '2026-06-10' });
+    const linkedExpense = await mkFuelExpense({
+      tripId: trip.id,
+      supplierId: sup.id,
+      buyAmount: '2000000',
+      expenseDate: '2026-06-10',
+      invoiceNumber: `PX-${suffix}-DRAFT`,
+      invoiceDate: '2026-06-10',
+    });
     const invoiceNumber = `INV-${suffix}-DRAFT`;
 
     const created = await createFuelInvoice({
@@ -446,7 +478,7 @@ describe('M6.1 — getFuelApReconciliation', () => {
     await assert.rejects(
       () => approveFuelInvoice(created.id, managerUserId + 1, 'MANAGER'),
       (err: Error & { statusCode?: number }) =>
-        err.statusCode === 400 && /không khớp hóa đơn/i.test(err.message),
+        err.statusCode === 400 && /chưa liên kết chi phí nhiên liệu thực tế đã duyệt/i.test(err.message),
     );
 
     await updateFuelInvoice(created.id, {
@@ -457,6 +489,7 @@ describe('M6.1 — getFuelApReconciliation', () => {
       unitPrice: 20_000,
       allocations: [{
         tripId: trip.id,
+        tripExpenseId: linkedExpense.id,
         voucherReference: `PX-${suffix}-DRAFT`,
         voucherDate: '2026-06-10',
         liters: 100,
@@ -470,6 +503,14 @@ describe('M6.1 — getFuelApReconciliation', () => {
     const sup = await mkSupplier();
     const truck = await mkTruck();
     const trip = await mkTrip({ supplierId: sup.id, truckId: truck.id, totalFuelCost: '3000000', departureDate: '2026-06-10' });
+    const linkedExpense = await mkFuelExpense({
+      tripId: trip.id,
+      supplierId: sup.id,
+      buyAmount: '2000000',
+      expenseDate: '2026-06-10',
+      invoiceNumber: `PX-${suffix}-C`,
+      invoiceDate: '2026-06-10',
+    });
     const invoice = await mkFuelInvoice({
       supplierId: sup.id,
       invoiceNumber: `INV-${suffix}-02`,
@@ -482,6 +523,7 @@ describe('M6.1 — getFuelApReconciliation', () => {
       fuelInvoiceId: invoice.id,
       tripId: trip.id,
       truckId: truck.id,
+      tripExpenseId: linkedExpense.id,
       voucherReference: `PX-${suffix}-C`,
       voucherDate: '2026-06-10',
       liters: '100',

@@ -2,7 +2,7 @@ import type {
   TripStatus, FuelMode, LoadingType, Role, TxnType,
   TrailerType, TruckStatus, TrailerStatus, DriverStatus, CustomerStatus, PenaltyStatus,
   AdvanceRequestStatus, AdvanceSettlementStatus, ExpenseEntryStatus,
-  TireStatus, TruckCapRole, SupplierType, NoInvoiceEvidenceType,
+  TireStatus, TruckCapRole, SupplierType, NoInvoiceEvidenceType, NoInvoiceApprovalTitle,
 } from '../constants';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
@@ -71,7 +71,7 @@ export interface Customer {
   paymentDatePolicy?: 'NEXT_BUSINESS_DAY' | 'CALENDAR_DAY';
   status: CustomerStatus;
   isCarrier: boolean;
-  debitNoteMode: 'MONTHLY' | 'PER_BATCH';
+  debitNoteMode: 'MONTHLY' | 'WEEKLY' | 'PER_BATCH';
   debitNoteTemplateId?: number | null;
   linkedSupplierId: number | null;
   createdAt: string;
@@ -739,12 +739,17 @@ export interface NoInvoicePolicySnapshot {
   version: number;
   expenseTypeCode: string;
   expenseTypeName: string;
+  defaultCategoryAliases: string[];
   substituteEvidenceAllowed: boolean;
   allowedEvidenceTypes: NoInvoiceEvidenceType[];
   perItemLimit: string;
   perDayLimit: string;
   financeLeadItemApprovalLimit: string;
   directorDayApprovalLimit: string;
+  financeLeadApprovalTitle: NoInvoiceApprovalTitle;
+  directorApprovalTitle: NoInvoiceApprovalTitle;
+  requiredScope: 'TRIP_OR_SHIPMENT';
+  exceptionReasonRequiredWhenThresholdExceeded: boolean;
 }
 
 export interface TripExpenseCompletionScope {
@@ -763,6 +768,7 @@ export interface TripExpenseWithRefs extends TripExpense {
 
 export interface AdvanceRequest {
   id: number;
+  version: number;
   requesterId: number;
   amount: string;
   reason: string;
@@ -779,6 +785,7 @@ export interface AdvanceRequestWithRefs extends AdvanceRequest {
 
 export interface AdvanceSettlement {
   id: number;
+  version: number;
   code: string;
   forwarderId: number;
   totalExpenseAmount: string;
@@ -1134,6 +1141,8 @@ export interface PaymentReceiptResult {
   allocations: PaymentReceiptAllocation[];
   allocatedTotal: number;
   unappliedAmount: number;
+  refundedAmount: number;
+  version: number;
   allocationMethod: PaymentAllocationMethod;
   createdAt: string;
 }

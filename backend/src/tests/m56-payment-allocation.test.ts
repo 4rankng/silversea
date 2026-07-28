@@ -18,6 +18,7 @@ const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
 const createdLedgerIds: number[] = [];
 const createdPaymentReceiptIds: number[] = [];
+const createdStandaloneIdempotencyKeys: string[] = [];
 const receiptCounter = { n: 0 };
 let customerCounter = 0;
 let routeCounter = 0;
@@ -230,6 +231,9 @@ after(async () => {
   const tripCodePattern = `M56-${suffix}%`;
   const namePattern = `M56 %${suffix}%`;
   try {
+    if (createdStandaloneIdempotencyKeys.length > 0) {
+      await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.idempotencyKey, createdStandaloneIdempotencyKeys));
+    }
     if (createdPaymentReceiptIds.length > 0) {
       await db.delete(s.idempotencyKeys).where(and(
         eq(s.idempotencyKeys.entityType, 'payment_receipt'),
@@ -606,6 +610,45 @@ describe('M5.6 / Q03 payment receipts', () => {
       (error: Error & { statusCode?: number }) =>
         error.statusCode === 409 && error.message.includes('Khóa giao dịch trùng'),
     );
+  });
+
+  test('runIdempotent replays the stored response snapshot instead of mutable current state', async () => {
+    const idempotencyKey = `m56-snapshot-${suffix}`;
+    createdStandaloneIdempotencyKeys.push(idempotencyKey);
+
+    const first = await runIdempotent({
+      endpoint: IDEMPOTENCY_ENDPOINTS.PAYMENTS_RECEIVE,
+      idempotencyKey,
+      payload: { receiptId: `M56-SNAPSHOT-${suffix}` },
+      create: async () => ({
+        nested: { amount: 1250000, note: 'original snapshot' },
+        status: 'CONFIRMED',
+      }),
+      load: async () => {
+        throw new Error('replay should use response snapshot, not load');
+      },
+    });
+
+    first.result.nested.amount = 0;
+    first.result.nested.note = 'mutated caller copy';
+
+    const replay = await runIdempotent({
+      endpoint: IDEMPOTENCY_ENDPOINTS.PAYMENTS_RECEIVE,
+      idempotencyKey,
+      payload: { receiptId: `M56-SNAPSHOT-${suffix}` },
+      create: async () => {
+        throw new Error('create should not run on replay');
+      },
+      load: async () => {
+        throw new Error('replay should use response snapshot, not load');
+      },
+    });
+
+    assert.equal(replay.replayed, true);
+    assert.deepEqual(replay.result, {
+      nested: { amount: 1250000, note: 'original snapshot' },
+      status: 'CONFIRMED',
+    });
   });
 
   test('inactive and deleted customers fail before any receipt or ledger write', async () => {

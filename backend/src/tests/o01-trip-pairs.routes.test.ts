@@ -9,16 +9,16 @@ import { eq, inArray } from 'drizzle-orm';
 
 import { Role, TripStatus } from '@tingting/shared';
 
-import { db } from '../db';
+import { client, db } from '../db';
 import * as s from '../db/schema';
 import { config } from '../config';
 import { initEnforcer } from '../casbin/enforcer';
-import { initAuditService } from '../services/audit.service';
 import { authMiddleware } from '../middleware/auth';
 import { casbinAuthz } from '../middleware/casbin';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import tripRoutes from '../routes/trips';
 import { applyTripPairLifecycleEffects, createTripPair } from '../services/trip-pairs.service';
+import { disconnectRedis } from '../lib/redis';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -38,6 +38,15 @@ const createdCargoTypeIds: number[] = [];
 const createdTruckIds: number[] = [];
 const createdDriverIds: number[] = [];
 
+type TripAuthoritySeed = {
+  plannedStartAt: string;
+  plannedEndAt: string;
+  canonicalOrigin: string;
+  canonicalDestination: string;
+  cargoWeightKg: number;
+  vehicleCapacityKg: number;
+};
+
 function sign(user: { id: number; username: string | null; role: Role | string }) {
   return jwt.sign(
     { userId: user.id, username: user.username ?? `user-${user.id}`, role: user.role as Role },
@@ -55,7 +64,36 @@ async function mkUser(username: string, role: Role) {
   return user;
 }
 
-async function mkTrip(status: TripStatus, departureDate: string) {
+function pairDraft(seed: TripAuthoritySeed, expectedVersion: number) {
+  return {
+    plannedStartAt: seed.plannedStartAt,
+    plannedEndAt: seed.plannedEndAt,
+    canonicalOrigin: seed.canonicalOrigin,
+    canonicalDestination: seed.canonicalDestination,
+    cargoWeightKg: seed.cargoWeightKg,
+    vehicleCapacityKg: seed.vehicleCapacityKg,
+    expectedVersion,
+  };
+}
+
+async function readTripAuthority(tripId: number) {
+  const [trip] = await db.select({
+    plannedStartAt: s.trips.plannedStartAt,
+    plannedEndAt: s.trips.plannedEndAt,
+    canonicalOrigin: s.trips.canonicalOrigin,
+    canonicalDestination: s.trips.canonicalDestination,
+    cargoWeightKg: s.trips.cargoWeightKg,
+    vehicleCapacityKg: s.trips.vehicleCapacityKg,
+    activeTripPairId: s.trips.activeTripPairId,
+  }).from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+  return trip;
+}
+
+async function mkTrip(
+  status: TripStatus,
+  departureDate: string,
+  authority?: Partial<TripAuthoritySeed>,
+) {
   const [trip] = await db.insert(s.trips).values({
     tripCode: `PAIR-${suffix}-${createdTripIds.length + 1}`,
     customerId: createdCustomerIds[0],
@@ -69,6 +107,12 @@ async function mkTrip(status: TripStatus, departureDate: string) {
     revenue: '1500000',
     totalCost: '900000',
     driverSalary: '350000',
+    plannedStartAt: authority?.plannedStartAt ? new Date(authority.plannedStartAt) : null,
+    plannedEndAt: authority?.plannedEndAt ? new Date(authority.plannedEndAt) : null,
+    canonicalOrigin: authority?.canonicalOrigin ?? null,
+    canonicalDestination: authority?.canonicalDestination ?? null,
+    cargoWeightKg: authority?.cargoWeightKg != null ? String(authority.cargoWeightKg) : null,
+    vehicleCapacityKg: authority?.vehicleCapacityKg != null ? String(authority.vehicleCapacityKg) : null,
   }).returning();
   createdTripIds.push(trip.id);
   return trip;
@@ -89,7 +133,6 @@ async function testFetch(path: string, options: { method?: string; token?: strin
 }
 
 before(async () => {
-  await initAuditService();
   await initEnforcer();
 
   const app = express();
@@ -159,35 +202,41 @@ after(async () => {
   if (createdUserIds.length > 0) {
     await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
   }
-  await new Promise<void>((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())));
+  const closePromise = new Promise<void>((resolve, reject) => {
+    server.close((err) => (err ? reject(err) : resolve()));
+  });
+  server.closeAllConnections();
+  await closePromise;
+  await disconnectRedis();
+  await client.end();
 });
 
 describe('O01 two-way dispatch pairing routes', () => {
   test('ADMIN can create a valid pair and duplicate pairing is rejected', async () => {
-    const first = await mkTrip(TripStatus.CREATED, '2026-07-27');
-    const second = await mkTrip(TripStatus.CREATED, '2026-07-28');
+    const firstSeed: TripAuthoritySeed = {
+      plannedStartAt: '2026-07-27T08:00:00',
+      plannedEndAt: '2026-07-27T12:00:00',
+      canonicalOrigin: 'Cat Lai',
+      canonicalDestination: 'Binh Duong',
+      cargoWeightKg: 12000,
+      vehicleCapacityKg: 18000,
+    };
+    const secondSeed: TripAuthoritySeed = {
+      plannedStartAt: '2026-07-28T09:30:00',
+      plannedEndAt: '2026-07-28T13:30:00',
+      canonicalOrigin: 'Binh Duong',
+      canonicalDestination: 'Cat Lai',
+      cargoWeightKg: 11000,
+      vehicleCapacityKg: 18000,
+    };
+    const first = await mkTrip(TripStatus.CREATED, '2026-07-27', firstSeed);
+    const second = await mkTrip(TripStatus.CREATED, '2026-07-28', secondSeed);
 
     const payload = {
       firstTripId: first.id,
       secondTripId: second.id,
-      firstTrip: {
-        plannedStartAt: '2026-07-27T08:00:00',
-        plannedEndAt: '2026-07-27T12:00:00',
-        canonicalOrigin: 'Cat Lai',
-        canonicalDestination: 'Binh Duong',
-        cargoWeightKg: 12000,
-        vehicleCapacityKg: 18000,
-        expectedVersion: first.version,
-      },
-      secondTrip: {
-        plannedStartAt: '2026-07-28T09:30:00',
-        plannedEndAt: '2026-07-28T13:30:00',
-        canonicalOrigin: 'Binh Duong',
-        canonicalDestination: 'Cat Lai',
-        cargoWeightKg: 11000,
-        vehicleCapacityKg: 18000,
-        expectedVersion: second.version,
-      },
+      firstTrip: pairDraft(firstSeed, first.version),
+      secondTrip: pairDraft(secondSeed, second.version),
     };
 
     const created = await testFetch('/pairs', { method: 'POST', token: adminToken, body: payload });
@@ -201,30 +250,30 @@ describe('O01 two-way dispatch pairing routes', () => {
   });
 
   test('FORWARDER is denied and overlap is blocked clearly', async () => {
-    const first = await mkTrip(TripStatus.CREATED, '2026-07-27');
-    const second = await mkTrip(TripStatus.CREATED, '2026-07-27');
+    const firstSeed: TripAuthoritySeed = {
+      plannedStartAt: '2026-07-27T08:00:00',
+      plannedEndAt: '2026-07-27T12:00:00',
+      canonicalOrigin: 'Cat Lai',
+      canonicalDestination: 'Binh Duong',
+      cargoWeightKg: 12000,
+      vehicleCapacityKg: 18000,
+    };
+    const secondSeed: TripAuthoritySeed = {
+      plannedStartAt: '2026-07-27T11:00:00',
+      plannedEndAt: '2026-07-27T16:00:00',
+      canonicalOrigin: 'Binh Duong',
+      canonicalDestination: 'Cat Lai',
+      cargoWeightKg: 11000,
+      vehicleCapacityKg: 18000,
+    };
+    const first = await mkTrip(TripStatus.CREATED, '2026-07-27', firstSeed);
+    const second = await mkTrip(TripStatus.CREATED, '2026-07-27', secondSeed);
 
     const payload = {
       firstTripId: first.id,
       secondTripId: second.id,
-      firstTrip: {
-        plannedStartAt: '2026-07-27T08:00:00',
-        plannedEndAt: '2026-07-27T12:00:00',
-        canonicalOrigin: 'Cat Lai',
-        canonicalDestination: 'Binh Duong',
-        cargoWeightKg: 12000,
-        vehicleCapacityKg: 18000,
-        expectedVersion: first.version,
-      },
-      secondTrip: {
-        plannedStartAt: '2026-07-27T11:00:00',
-        plannedEndAt: '2026-07-27T16:00:00',
-        canonicalOrigin: 'Binh Duong',
-        canonicalDestination: 'Cat Lai',
-        cargoWeightKg: 11000,
-        vehicleCapacityKg: 18000,
-        expectedVersion: second.version,
-      },
+      firstTrip: pairDraft(firstSeed, first.version),
+      secondTrip: pairDraft(secondSeed, second.version),
     };
 
     const denied = await testFetch('/pairs', { method: 'POST', token: forwarderToken, body: payload });
@@ -235,30 +284,125 @@ describe('O01 two-way dispatch pairing routes', () => {
     assert.match(String(blocked.data.error ?? ''), /chồng thời gian/i);
   });
 
+  test('route rejects forged schedule, location, cargo, and capacity fields and accepts the authoritative payload', async () => {
+    const firstSeed: TripAuthoritySeed = {
+      plannedStartAt: '2026-07-27T08:00:00',
+      plannedEndAt: '2026-07-27T12:00:00',
+      canonicalOrigin: 'Cat Lai',
+      canonicalDestination: 'Binh Duong',
+      cargoWeightKg: 12000,
+      vehicleCapacityKg: 18000,
+    };
+    const secondSeed: TripAuthoritySeed = {
+      plannedStartAt: '2026-07-27T14:00:00',
+      plannedEndAt: '2026-07-27T18:00:00',
+      canonicalOrigin: 'Binh Duong',
+      canonicalDestination: 'Cat Lai',
+      cargoWeightKg: 11000,
+      vehicleCapacityKg: 18000,
+    };
+    const first = await mkTrip(TripStatus.CREATED, '2026-07-27', firstSeed);
+    const second = await mkTrip(TripStatus.CREATED, '2026-07-27', secondSeed);
+
+    const validPayload = {
+      firstTripId: first.id,
+      secondTripId: second.id,
+      firstTrip: pairDraft(firstSeed, first.version),
+      secondTrip: pairDraft(secondSeed, second.version),
+    };
+
+    const forgedPayloads = [
+      {
+        body: {
+          ...validPayload,
+          firstTrip: {
+            ...validPayload.firstTrip,
+            plannedStartAt: '2026-07-27T08:15:00',
+          },
+        },
+        expectedMessage: /Giờ bắt đầu kế hoạch không khớp/i,
+      },
+      {
+        body: {
+          ...validPayload,
+          firstTrip: {
+            ...validPayload.firstTrip,
+            canonicalDestination: 'Sai địa điểm',
+          },
+        },
+        expectedMessage: /Điểm đến không khớp/i,
+      },
+      {
+        body: {
+          ...validPayload,
+          firstTrip: {
+            ...validPayload.firstTrip,
+            cargoWeightKg: 9000,
+          },
+        },
+        expectedMessage: /Trọng lượng hàng không khớp/i,
+      },
+      {
+        body: {
+          ...validPayload,
+          firstTrip: {
+            ...validPayload.firstTrip,
+            vehicleCapacityKg: 25000,
+          },
+        },
+        expectedMessage: /Tải trọng xe không khớp/i,
+      },
+    ];
+
+    for (const scenario of forgedPayloads) {
+      const response = await testFetch('/pairs', { method: 'POST', token: managerToken, body: scenario.body });
+      assert.equal(response.status, 422);
+      assert.match(String(response.data.error ?? ''), scenario.expectedMessage);
+
+      const firstAuthority = await readTripAuthority(first.id);
+      const secondAuthority = await readTripAuthority(second.id);
+      assert.equal(firstAuthority?.canonicalDestination, firstSeed.canonicalDestination);
+      assert.equal(firstAuthority?.cargoWeightKg, '12000.00');
+      assert.equal(firstAuthority?.vehicleCapacityKg, '18000.00');
+      assert.equal(firstAuthority?.activeTripPairId, null);
+      assert.equal(secondAuthority?.activeTripPairId, null);
+    }
+
+    const created = await testFetch('/pairs', { method: 'POST', token: managerToken, body: validPayload });
+    assert.equal(created.status, 201);
+    createdPairIds.push(created.data.id);
+
+    const firstAuthority = await readTripAuthority(first.id);
+    assert.equal(firstAuthority?.plannedStartAt?.getTime(), new Date(firstSeed.plannedStartAt).getTime());
+    assert.equal(firstAuthority?.canonicalDestination, firstSeed.canonicalDestination);
+    assert.equal(firstAuthority?.cargoWeightKg, '12000.00');
+    assert.equal(firstAuthority?.vehicleCapacityKg, '18000.00');
+  });
+
   test('cancellation and late completion break the persisted pair without deleting the surviving trip', async () => {
-    const cancelFirst = await mkTrip(TripStatus.CREATED, '2026-07-27');
-    const cancelSecond = await mkTrip(TripStatus.CREATED, '2026-07-28');
+    const cancelFirstSeed: TripAuthoritySeed = {
+      plannedStartAt: '2026-07-27T08:00:00',
+      plannedEndAt: '2026-07-27T12:00:00',
+      canonicalOrigin: 'Cat Lai',
+      canonicalDestination: 'Binh Duong',
+      cargoWeightKg: 12000,
+      vehicleCapacityKg: 18000,
+    };
+    const cancelSecondSeed: TripAuthoritySeed = {
+      plannedStartAt: '2026-07-28T09:00:00',
+      plannedEndAt: '2026-07-28T13:00:00',
+      canonicalOrigin: 'Binh Duong',
+      canonicalDestination: 'Cat Lai',
+      cargoWeightKg: 11000,
+      vehicleCapacityKg: 18000,
+    };
+    const cancelFirst = await mkTrip(TripStatus.CREATED, '2026-07-27', cancelFirstSeed);
+    const cancelSecond = await mkTrip(TripStatus.CREATED, '2026-07-28', cancelSecondSeed);
     const createdPair = await createTripPair({
       firstTripId: cancelFirst.id,
       secondTripId: cancelSecond.id,
-      firstTrip: {
-        plannedStartAt: '2026-07-27T08:00:00',
-        plannedEndAt: '2026-07-27T12:00:00',
-        canonicalOrigin: 'Cat Lai',
-        canonicalDestination: 'Binh Duong',
-        cargoWeightKg: 12000,
-        vehicleCapacityKg: 18000,
-        expectedVersion: cancelFirst.version,
-      },
-      secondTrip: {
-        plannedStartAt: '2026-07-28T09:00:00',
-        plannedEndAt: '2026-07-28T13:00:00',
-        canonicalOrigin: 'Binh Duong',
-        canonicalDestination: 'Cat Lai',
-        cargoWeightKg: 11000,
-        vehicleCapacityKg: 18000,
-        expectedVersion: cancelSecond.version,
-      },
+      firstTrip: pairDraft(cancelFirstSeed, cancelFirst.version),
+      secondTrip: pairDraft(cancelSecondSeed, cancelSecond.version),
     }, actorUserId);
     createdPairIds.push(createdPair.id);
 
@@ -270,29 +414,29 @@ describe('O01 two-way dispatch pairing routes', () => {
     const [survivor] = await db.select({ activeTripPairId: s.trips.activeTripPairId }).from(s.trips).where(eq(s.trips.id, cancelSecond.id)).limit(1);
     assert.equal(survivor?.activeTripPairId, null);
 
-    const lateFirst = await mkTrip(TripStatus.IN_TRANSIT, '2026-07-27');
-    const lateSecond = await mkTrip(TripStatus.CREATED, '2026-07-27');
+    const lateFirstSeed: TripAuthoritySeed = {
+      plannedStartAt: '2026-07-27T08:00:00',
+      plannedEndAt: '2026-07-27T12:00:00',
+      canonicalOrigin: 'Cat Lai',
+      canonicalDestination: 'Binh Duong',
+      cargoWeightKg: 12000,
+      vehicleCapacityKg: 18000,
+    };
+    const lateSecondSeed: TripAuthoritySeed = {
+      plannedStartAt: '2026-07-27T13:00:00',
+      plannedEndAt: '2026-07-27T16:00:00',
+      canonicalOrigin: 'Binh Duong',
+      canonicalDestination: 'Cat Lai',
+      cargoWeightKg: 11000,
+      vehicleCapacityKg: 18000,
+    };
+    const lateFirst = await mkTrip(TripStatus.IN_TRANSIT, '2026-07-27', lateFirstSeed);
+    const lateSecond = await mkTrip(TripStatus.CREATED, '2026-07-27', lateSecondSeed);
     const latePair = await createTripPair({
       firstTripId: lateFirst.id,
       secondTripId: lateSecond.id,
-      firstTrip: {
-        plannedStartAt: '2026-07-27T08:00:00',
-        plannedEndAt: '2026-07-27T12:00:00',
-        canonicalOrigin: 'Cat Lai',
-        canonicalDestination: 'Binh Duong',
-        cargoWeightKg: 12000,
-        vehicleCapacityKg: 18000,
-        expectedVersion: lateFirst.version,
-      },
-      secondTrip: {
-        plannedStartAt: '2026-07-27T13:00:00',
-        plannedEndAt: '2026-07-27T16:00:00',
-        canonicalOrigin: 'Binh Duong',
-        canonicalDestination: 'Cat Lai',
-        cargoWeightKg: 11000,
-        vehicleCapacityKg: 18000,
-        expectedVersion: lateSecond.version,
-      },
+      firstTrip: pairDraft(lateFirstSeed, lateFirst.version),
+      secondTrip: pairDraft(lateSecondSeed, lateSecond.version),
     }, actorUserId);
     createdPairIds.push(latePair.id);
 
@@ -317,5 +461,65 @@ describe('O01 two-way dispatch pairing routes', () => {
     assert.equal(latePairRow?.breakReason, 'LATE_COMPLETION');
     const [lateSecondRow] = await db.select({ activeTripPairId: s.trips.activeTripPairId }).from(s.trips).where(eq(s.trips.id, lateSecond.id)).limit(1);
     assert.equal(lateSecondRow?.activeTripPairId, null);
+  });
+
+  test('service rejects forged capacity and cargo while accepting the authoritative draft', async () => {
+    const firstSeed: TripAuthoritySeed = {
+      plannedStartAt: '2026-07-29T08:00:00',
+      plannedEndAt: '2026-07-29T12:00:00',
+      canonicalOrigin: 'Cat Lai',
+      canonicalDestination: 'Binh Duong',
+      cargoWeightKg: 12500,
+      vehicleCapacityKg: 19000,
+    };
+    const secondSeed: TripAuthoritySeed = {
+      plannedStartAt: '2026-07-29T13:30:00',
+      plannedEndAt: '2026-07-29T17:30:00',
+      canonicalOrigin: 'Binh Duong',
+      canonicalDestination: 'Cat Lai',
+      cargoWeightKg: 11500,
+      vehicleCapacityKg: 19000,
+    };
+    const first = await mkTrip(TripStatus.CREATED, '2026-07-29', firstSeed);
+    const second = await mkTrip(TripStatus.CREATED, '2026-07-29', secondSeed);
+
+    const validPayload = {
+      firstTripId: first.id,
+      secondTripId: second.id,
+      firstTrip: pairDraft(firstSeed, first.version),
+      secondTrip: pairDraft(secondSeed, second.version),
+    };
+
+    await assert.rejects(
+      () => createTripPair({
+        ...validPayload,
+        firstTrip: {
+          ...validPayload.firstTrip,
+          cargoWeightKg: 5000,
+        },
+      }, actorUserId),
+      (error: unknown) => error instanceof Error
+        && 'statusCode' in error
+        && (error as { statusCode?: number }).statusCode === 422
+        && /Trọng lượng hàng không khớp/i.test(error.message),
+    );
+
+    await assert.rejects(
+      () => createTripPair({
+        ...validPayload,
+        secondTrip: {
+          ...validPayload.secondTrip,
+          vehicleCapacityKg: 26000,
+        },
+      }, actorUserId),
+      (error: unknown) => error instanceof Error
+        && 'statusCode' in error
+        && (error as { statusCode?: number }).statusCode === 422
+        && /Tải trọng xe không khớp/i.test(error.message),
+    );
+
+    const createdPair = await createTripPair(validPayload, actorUserId);
+    createdPairIds.push(createdPair.id);
+    assert.equal(createdPair.status, 'ACTIVE');
   });
 });

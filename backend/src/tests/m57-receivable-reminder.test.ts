@@ -85,7 +85,19 @@ async function mkUser(
 }
 
 async function mkCalendarDay(calendarDate: string, isWorkingDay: boolean, name = 'M57 holiday') {
-  await db.insert(s.businessCalendarDays).values({ calendarDate, isWorkingDay, name });
+  const [existing] = await db.select({ name: s.businessCalendarDays.name })
+    .from(s.businessCalendarDays)
+    .where(eq(s.businessCalendarDays.calendarDate, calendarDate))
+    .limit(1);
+  if (existing && !String(existing.name ?? '').startsWith('M57')) {
+    throw new Error(`Refusing to replace non-test business calendar day ${calendarDate}`);
+  }
+  await db.insert(s.businessCalendarDays)
+    .values({ calendarDate, isWorkingDay, name })
+    .onConflictDoUpdate({
+      target: s.businessCalendarDays.calendarDate,
+      set: { isWorkingDay, name },
+    });
   createdCalendarDates.add(calendarDate);
 }
 
@@ -316,7 +328,7 @@ async function fetchTodayEmailLogForCustomer(customerId: number) {
     .where(and(
       eq(s.customerEmailLogs.customerId, customerId),
       sql`${s.customerEmailLogs.subject} LIKE ${REMINDER_SUBJECT_PREFIX + '%'}`,
-      sql`${s.customerEmailLogs.createdAt}::date = current_date`,
+      sql`(${s.customerEmailLogs.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = ${businessDateNow()}::date`,
     ));
 }
 
@@ -710,7 +722,7 @@ describe('M5.7 — retry delivery', () => {
   const todayBusinessDate = businessDateNow();
   const runAtBusinessMorning = atVnTime(todayBusinessDate, 9);
 
-  test('retries at 15m / 2h / 24h and alerts ADMIN plus ACCOUNTANT after terminal failure', async () => {
+  test('retries at 15m / 2h / 24h and alerts CUS/CLERK plus finance after terminal failure', async () => {
     const admin = await mkUser('ADMIN');
     const accountant = await mkUser('ACCOUNTANT');
     const clerk = await mkUser('CLERK');
@@ -766,7 +778,7 @@ describe('M5.7 — retry delivery', () => {
       const clerkAlerts = await fetchTodayReminderNotifications(c.id, 'Email nhắc công nợ thất bại', clerk.id);
       assert.equal(adminAlerts.length, 1);
       assert.equal(accountantAlerts.length, 1);
-      assert.equal(clerkAlerts.length, 0);
+      assert.equal(clerkAlerts.length, 1);
     } finally {
       config.nodeEnv = originalNodeEnv;
     }

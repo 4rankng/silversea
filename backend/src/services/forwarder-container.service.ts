@@ -296,8 +296,9 @@ export async function batchUpsertTripContainers(
     }>;
   }>,
   expectedVersion?: number,
+  transaction?: Tx,
 ) {
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     const [trip] = await tx.select({
       id: s.trips.id,
       version: s.trips.version,
@@ -431,5 +432,6 @@ export async function batchUpsertTripContainers(
     }).where(eq(s.trips.id, tripId));
 
     return listTripContainers(tripId, tx);
-  });
+  };
+  return transaction ? execute(transaction) : db.transaction(execute);
 }

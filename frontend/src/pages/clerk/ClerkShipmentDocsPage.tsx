@@ -30,6 +30,7 @@ import {
   type ShipmentDocument,
 } from '../../api/shipmentClient';
 import type { CreditOverrideRequestRecord } from '../../api/creditOverrideClient';
+import { canDecideCreditOverride } from '../../lib/credit-override-permissions';
 
 interface ClerkContainerTypeOption {
   id: number;
@@ -978,7 +979,7 @@ export default function ClerkShipmentDocsPage() {
                   </div>
                   {request.requestedBy === user?.userId ? (
                     <span style={mutedTextStyle}>Bạn là người tạo nên không thể tự quyết định đề nghị này.</span>
-                  ) : (
+                  ) : canDecideCreditOverride(user?.role, request.requiredTier) ? (
                     <div style={{ display: 'grid', gap: 8 }}>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         <button
@@ -1023,6 +1024,10 @@ export default function ClerkShipmentDocsPage() {
                         </div>
                       )}
                     </div>
+                  ) : (
+                    <span style={mutedTextStyle}>
+                      Đề nghị này đang chờ đúng cấp {creditTierLabel(request.requiredTier)} xử lý.
+                    </span>
                   )}
                 </div>
               ))}

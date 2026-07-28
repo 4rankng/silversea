@@ -18,6 +18,9 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
     expense_no_vehicle_id = None
     expense_to_delete_id = None
     expense_paid_for_delete_id = None
+    expense_unpaid_updated_at = None
+    expense_to_delete_updated_at = None
+    expense_paid_for_delete_updated_at = None
     truck_id = None
     trailer_id = None
 
@@ -133,6 +136,7 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
         })
         if resp.get('status') in (200, 201) and resp.get('data', {}).get('id'):
             expense_unpaid_id = resp['data']['id']
+            expense_unpaid_updated_at = resp['data'].get('updatedAt')
             results.pass_('TC-1210', 'Create UNPAID expense', f'ID={expense_unpaid_id}')
         else:
             results.fail('TC-1210', 'Create UNPAID expense', f'Status={resp.get("status")} body={resp.get("error")}')
@@ -218,7 +222,7 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
             resp = api.put(f'/api/expenses/{expense_unpaid_id}', {
                 'amount': 750000,
                 'note': 'Updated by E2E TC-1216',
-            })
+            }, {'If-Unmodified-Since': expense_unpaid_updated_at})
             if resp.get('status') == 200:
                 results.pass_('TC-1216', 'Edit UNPAID expense')
             else:
@@ -237,6 +241,7 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
         })
         if resp.get('status') in (200, 201) and resp.get('data', {}).get('id'):
             expense_to_delete_id = resp['data']['id']
+            expense_to_delete_updated_at = resp['data'].get('updatedAt')
 
         # Create a fresh PAID expense for TC-1218
         resp = api.post('/api/expenses', {
@@ -249,10 +254,14 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
         })
         if resp.get('status') in (200, 201) and resp.get('data', {}).get('id'):
             expense_paid_for_delete_id = resp['data']['id']
+            expense_paid_for_delete_updated_at = resp['data'].get('updatedAt')
 
         # TC-1217: Delete UNPAID expense
         if expense_to_delete_id:
-            resp = api.delete(f'/api/expenses/{expense_to_delete_id}')
+            resp = api.delete(
+                f'/api/expenses/{expense_to_delete_id}',
+                {'If-Unmodified-Since': expense_to_delete_updated_at},
+            )
             if resp.get('status') == 200:
                 results.pass_('TC-1217', 'Delete UNPAID expense')
             else:
@@ -262,7 +271,10 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
 
         # TC-1218: Delete PAID expense — expect error or soft-delete
         if expense_paid_for_delete_id:
-            resp = api.delete(f'/api/expenses/{expense_paid_for_delete_id}')
+            resp = api.delete(
+                f'/api/expenses/{expense_paid_for_delete_id}',
+                {'If-Unmodified-Since': expense_paid_for_delete_updated_at},
+            )
             if resp.get('status') in (200, 201):
                 results.pass_('TC-1218', 'Delete PAID expense accepted (soft-delete with ledger adjustment)')
             elif resp.get('status') in (400, 403, 409):

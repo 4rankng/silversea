@@ -11,6 +11,7 @@ import { TxnType } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
 import { ApiError } from '../errors';
 import { requestTripArAdjustment } from './adjustment-governance.service';
+import { assertCanMakeGovernanceAction } from './governance-policy';
 import {
   recordPaymentReceipt,
   recordPaymentReceiptIdempotent,
@@ -35,6 +36,7 @@ export { recordPaymentReceiptIdempotent };
 
 type LedgerEntryRow = typeof s.ledger.$inferSelect;
 type PenaltyRow = typeof s.penalties.$inferSelect;
+type GovernanceActionRow = typeof s.governanceActions.$inferSelect;
 type VendorPaymentResult = LedgerEntryRow & {
   warning?: string;
   overpayment?: number;
@@ -71,6 +73,63 @@ function applyOverpaymentMetadata(
     warning: warningBuilder(previousBalance, paymentAmount),
     overpayment: Math.abs(newBalance),
   };
+}
+
+function latestEntityLedgerVersionTx(
+  tx: Tx,
+  entityType: 'CUSTOMER' | 'VENDOR' | 'DRIVER' | 'CARRIER',
+  entityId: number,
+) {
+  const entityTypes = entityType === 'CARRIER' ? ['CUSTOMER', 'CARRIER'] as const : [entityType];
+  return tx.select({ id: s.ledger.id })
+    .from(s.ledger)
+    .where(and(
+      inArray(s.ledger.entityType, entityTypes),
+      eq(s.ledger.entityId, entityId),
+    ))
+    .orderBy(desc(s.ledger.id))
+    .limit(1);
+}
+
+async function getEntityLedgerVersionTx(
+  tx: Tx,
+  entityType: 'CUSTOMER' | 'VENDOR' | 'DRIVER' | 'CARRIER',
+  entityId: number,
+): Promise<number> {
+  const [row] = await latestEntityLedgerVersionTx(tx, entityType, entityId);
+  return row?.id ?? 0;
+}
+
+function buildVendorPaymentReason(input: VendorPaymentInput, label: string): string {
+  return input.note?.trim() || `Đề nghị ghi nhận ${label} ${input.receiptId ?? ''}`.trim();
+}
+
+function buildVendorPaymentSubjectKey(
+  prefix: 'vendor' | 'carrier',
+  supplierId: number,
+  input: VendorPaymentInput,
+): string {
+  return `${prefix}:${supplierId}:${input.receiptId ?? ''}:${input.date}:${input.amount}:${input.confirmOverpay ? '1' : '0'}`;
+}
+
+function buildDriverPayoutReason(input: DriverPayoutInput): string {
+  return input.note?.trim() || `Đề nghị ghi nhận thanh toán lái xe ${input.receiptId ?? input.payoutDate}`;
+}
+
+function buildDriverPayoutSubjectKey(driverId: number, input: DriverPayoutInput): string {
+  return `driver:${driverId}:${input.receiptId ?? ''}:${input.payoutDate}:${input.amount}:${input.method}`;
+}
+
+function buildPenaltyCreateReason(input: PenaltyInput): string {
+  return input.customReason?.trim() || `Đề nghị ghi nhận kỷ luật cho lái xe #${input.driverId}`;
+}
+
+function buildPenaltyCreateSubjectKey(input: PenaltyInput): string {
+  return `penalty:${input.driverId}:${input.tripId ?? 0}:${input.reasonId ?? 0}:${input.date}:${input.amount}`;
+}
+
+function penaltyVersionFromTimestamp(updatedAt: Date): number {
+  return Math.max(1, Math.floor(updatedAt.getTime() / 1000));
 }
 
 // ─── Driver payout (B1 — feedback202606 GAP 4) ───────────────────────────────
@@ -152,6 +211,108 @@ export async function recordDriverPayoutIdempotent(args: {
   });
 }
 
+export async function requestDriverPayoutGovernance(input: {
+  payout: DriverPayoutInput;
+  makerId: number;
+  makerRole: string;
+  transaction?: Tx;
+}): Promise<GovernanceActionRow> {
+  assertCanMakeGovernanceAction('DRIVER_PAYOUT', input.makerRole);
+
+  const execute = async (tx: Tx) => {
+    const [driver] = await tx.select({ id: s.drivers.id, name: s.drivers.name })
+      .from(s.drivers)
+      .where(eq(s.drivers.id, input.payout.driverId))
+      .limit(1);
+    if (!driver) {
+      throw new ApiError(404, 'Không tìm thấy lái xe');
+    }
+
+    await LedgerService.lockEntity(tx, 'DRIVER', input.payout.driverId);
+    const currentBalance = await LedgerService.getBalanceTx(tx, 'DRIVER', input.payout.driverId);
+    if (input.payout.amount > currentBalance + 1) {
+      throw new ApiError(
+        422,
+        `Số thanh toán vượt quá số công nợ còn lại của lái xe ${driver.name} (còn ${currentBalance.toLocaleString('vi-VN')} ₫, nhập ${input.payout.amount.toLocaleString('vi-VN')} ₫)`,
+      );
+    }
+    const currentVersion = await getEntityLedgerVersionTx(tx, 'DRIVER', input.payout.driverId);
+
+    const [action] = await tx.insert(s.governanceActions).values({
+      subjectType: 'DRIVER_PAYOUT',
+      subjectId: null,
+      subjectKey: buildDriverPayoutSubjectKey(input.payout.driverId, input.payout),
+      actionKind: 'DRIVER_PAYOUT',
+      reason: buildDriverPayoutReason(input.payout),
+      originalVersion: currentVersion,
+      beforeSnapshot: {
+        driverId: input.payout.driverId,
+        currentBalance,
+        currentVersion,
+      },
+      afterSnapshot: {
+        driverId: input.payout.driverId,
+        amount: input.payout.amount,
+        method: input.payout.method,
+        payoutDate: input.payout.payoutDate,
+        note: input.payout.note?.trim() || '',
+        receiptId: input.payout.receiptId ?? '',
+      },
+      deltaSnapshot: {
+        driverBalanceDelta: -input.payout.amount,
+      },
+      makerId: input.makerId,
+      makerRole: input.makerRole,
+    }).returning();
+    return action;
+  };
+
+  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+}
+
+export async function applyDriverPayoutGovernanceAction(tx: Tx, action: GovernanceActionRow) {
+  if (action.actionKind !== 'DRIVER_PAYOUT' || action.subjectType !== 'DRIVER_PAYOUT') {
+    throw new ApiError(409, 'Loại yêu cầu không thuộc thanh toán lái xe');
+  }
+
+  const afterSnapshot = action.afterSnapshot as Record<string, unknown> | null;
+  const driverId = Number(afterSnapshot?.driverId);
+  if (!Number.isInteger(driverId) || driverId <= 0) {
+    throw new ApiError(409, 'Yêu cầu thanh toán lái xe không có dữ liệu hợp lệ');
+  }
+
+  await LedgerService.lockEntity(tx, 'DRIVER', driverId);
+  const currentVersion = await getEntityLedgerVersionTx(tx, 'DRIVER', driverId);
+  if (currentVersion !== action.originalVersion) {
+    throw new ApiError(409, 'Công nợ lái xe đã thay đổi; yêu cầu này không thể áp dụng');
+  }
+
+  const posted = await recordDriverPayoutTx(tx, {
+    driverId,
+    amount: Number(afterSnapshot?.amount),
+    method: afterSnapshot?.method === 'BANK' ? 'BANK' : 'CASH',
+    payoutDate: String(afterSnapshot?.payoutDate ?? ''),
+    note: typeof afterSnapshot?.note === 'string' ? afterSnapshot.note : undefined,
+    receiptId: typeof afterSnapshot?.receiptId === 'string' && afterSnapshot.receiptId
+      ? afterSnapshot.receiptId
+      : undefined,
+  });
+
+  await tx.update(s.governanceActions).set({
+    subjectId: posted.id,
+    updatedAt: new Date(),
+  }).where(eq(s.governanceActions.id, action.id));
+
+  return {
+    ledgerEntryId: posted.id,
+    applicationResult: {
+      ledgerId: posted.id,
+      driverId,
+      receiptId: posted.receiptId,
+    },
+  };
+}
+
 // ─── Adjustments ────────────────────────────────────────────────────────────────
 
 export interface AdjustmentInput {
@@ -162,6 +323,7 @@ export interface AdjustmentInput {
   makerId: number;
   makerRole: string;
   expectedTripVersion: number;
+  transaction?: Tx;
 }
 
 /**
@@ -177,6 +339,7 @@ export async function createAdjustment(input: AdjustmentInput) {
     makerId: input.makerId,
     makerRole: input.makerRole,
     expectedTripVersion: input.expectedTripVersion,
+    transaction: input.transaction,
   });
 }
 
@@ -283,6 +446,98 @@ export async function createPenaltyIdempotent(args: {
   });
 }
 
+export async function requestPenaltyCreateGovernance(input: {
+  penalty: PenaltyInput;
+  makerId: number;
+  makerRole: string;
+  transaction?: Tx;
+}): Promise<GovernanceActionRow> {
+  assertCanMakeGovernanceAction('PENALTY_CREATE', input.makerRole);
+
+  const execute = async (tx: Tx) => {
+    const [driver] = await tx.select({ id: s.drivers.id })
+      .from(s.drivers)
+      .where(eq(s.drivers.id, input.penalty.driverId))
+      .limit(1);
+    if (!driver) {
+      throw new ApiError(404, 'Không tìm thấy lái xe');
+    }
+
+    await LedgerService.lockEntity(tx, 'DRIVER', input.penalty.driverId);
+    const currentBalance = await LedgerService.getBalanceTx(tx, 'DRIVER', input.penalty.driverId);
+    const currentVersion = await getEntityLedgerVersionTx(tx, 'DRIVER', input.penalty.driverId);
+
+    const [action] = await tx.insert(s.governanceActions).values({
+      subjectType: 'PENALTY',
+      subjectId: null,
+      subjectKey: buildPenaltyCreateSubjectKey(input.penalty),
+      actionKind: 'PENALTY_CREATE',
+      reason: buildPenaltyCreateReason(input.penalty),
+      originalVersion: currentVersion,
+      beforeSnapshot: {
+        driverId: input.penalty.driverId,
+        currentBalance,
+        currentVersion,
+      },
+      afterSnapshot: {
+        driverId: input.penalty.driverId,
+        tripId: input.penalty.tripId ?? null,
+        reasonId: input.penalty.reasonId ?? null,
+        customReason: input.penalty.customReason ?? '',
+        amount: input.penalty.amount,
+        date: input.penalty.date,
+      },
+      deltaSnapshot: {
+        driverBalanceDelta: -input.penalty.amount,
+      },
+      makerId: input.makerId,
+      makerRole: input.makerRole,
+    }).returning();
+    return action;
+  };
+
+  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+}
+
+export async function applyPenaltyCreateGovernanceAction(tx: Tx, action: GovernanceActionRow) {
+  if (action.actionKind !== 'PENALTY_CREATE' || action.subjectType !== 'PENALTY') {
+    throw new ApiError(409, 'Loại yêu cầu không thuộc tạo kỷ luật');
+  }
+
+  const afterSnapshot = action.afterSnapshot as Record<string, unknown> | null;
+  const driverId = Number(afterSnapshot?.driverId);
+  if (!Number.isInteger(driverId) || driverId <= 0) {
+    throw new ApiError(409, 'Yêu cầu kỷ luật không có dữ liệu hợp lệ');
+  }
+
+  await LedgerService.lockEntity(tx, 'DRIVER', driverId);
+  const currentVersion = await getEntityLedgerVersionTx(tx, 'DRIVER', driverId);
+  if (currentVersion !== action.originalVersion) {
+    throw new ApiError(409, 'Sổ cái lái xe đã thay đổi; yêu cầu này không thể áp dụng');
+  }
+
+  const penalty = await createPenaltyTx(tx, {
+    driverId,
+    tripId: afterSnapshot?.tripId == null ? undefined : Number(afterSnapshot.tripId),
+    reasonId: afterSnapshot?.reasonId == null ? undefined : Number(afterSnapshot.reasonId),
+    customReason: typeof afterSnapshot?.customReason === 'string' ? afterSnapshot.customReason : undefined,
+    amount: Number(afterSnapshot?.amount),
+    date: String(afterSnapshot?.date ?? ''),
+  });
+
+  await tx.update(s.governanceActions).set({
+    subjectId: penalty.id,
+    updatedAt: new Date(),
+  }).where(eq(s.governanceActions.id, action.id));
+
+  return {
+    applicationResult: {
+      penaltyId: penalty.id,
+      driverId: penalty.driverId,
+    },
+  };
+}
+
 /**
  * List penalties with optional driver filter.
  */
@@ -366,6 +621,92 @@ export async function cancelPenaltyIdempotent(args: {
     create: async (tx) => cancelPenaltyTx(tx, args.penaltyId, args.reason),
     load: async (entityId, tx) => loadPenaltyTx(tx, entityId),
   });
+}
+
+export async function requestPenaltyCancelGovernance(input: {
+  penaltyId: number;
+  reason?: string;
+  makerId: number;
+  makerRole: string;
+  transaction?: Tx;
+}): Promise<GovernanceActionRow> {
+  assertCanMakeGovernanceAction('PENALTY_CANCEL', input.makerRole);
+
+  const execute = async (tx: Tx) => {
+    const [penalty] = await tx.select().from(s.penalties)
+      .where(eq(s.penalties.id, input.penaltyId))
+      .limit(1)
+      .for('update');
+    if (!penalty) throw new ApiError(404, 'Không tìm thấy kỷ luật');
+    if (penalty.status === 'CANCELED') throw new ApiError(409, 'Kỷ luật đã được hủy trước đó');
+
+    await LedgerService.lockEntity(tx, 'DRIVER', penalty.driverId);
+    const driverVersion = await getEntityLedgerVersionTx(tx, 'DRIVER', penalty.driverId);
+
+    const [action] = await tx.insert(s.governanceActions).values({
+      subjectType: 'PENALTY',
+      subjectId: penalty.id,
+      subjectKey: `penalty:${penalty.id}:cancel`,
+      actionKind: 'PENALTY_CANCEL',
+      reason: input.reason?.trim() || `Đề nghị hủy kỷ luật #${penalty.id}`,
+      originalVersion: penaltyVersionFromTimestamp(penalty.updatedAt),
+      beforeSnapshot: {
+        driverId: penalty.driverId,
+        driverLedgerVersion: driverVersion,
+        penaltyStatus: penalty.status,
+        penaltyAmount: Number(penalty.amount),
+      },
+      afterSnapshot: {
+        penaltyId: penalty.id,
+        reason: input.reason?.trim() || '',
+      },
+      deltaSnapshot: {
+        driverBalanceDelta: Number(penalty.amount),
+      },
+      makerId: input.makerId,
+      makerRole: input.makerRole,
+    }).returning();
+    return action;
+  };
+
+  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+}
+
+export async function applyPenaltyCancelGovernanceAction(tx: Tx, action: GovernanceActionRow) {
+  if (action.actionKind !== 'PENALTY_CANCEL' || action.subjectType !== 'PENALTY' || action.subjectId == null) {
+    throw new ApiError(409, 'Loại yêu cầu không thuộc hủy kỷ luật');
+  }
+
+  const [penalty] = await tx.select().from(s.penalties)
+    .where(eq(s.penalties.id, action.subjectId))
+    .limit(1)
+    .for('update');
+  if (!penalty) throw new ApiError(404, 'Không tìm thấy kỷ luật');
+  if (penalty.status === 'CANCELED') throw new ApiError(409, 'Kỷ luật đã được hủy trước đó');
+  if (penaltyVersionFromTimestamp(penalty.updatedAt) !== action.originalVersion) {
+    throw new ApiError(409, 'Quyết định kỷ luật đã thay đổi; yêu cầu này không thể áp dụng');
+  }
+
+  await LedgerService.lockEntity(tx, 'DRIVER', penalty.driverId);
+  const driverVersion = await getEntityLedgerVersionTx(tx, 'DRIVER', penalty.driverId);
+  const beforeSnapshot = action.beforeSnapshot as Record<string, unknown> | null;
+  if (driverVersion !== Number(beforeSnapshot?.driverLedgerVersion ?? -1)) {
+    throw new ApiError(409, 'Sổ cái lái xe đã thay đổi; yêu cầu này không thể áp dụng');
+  }
+
+  const afterSnapshot = action.afterSnapshot as Record<string, unknown> | null;
+  const canceled = await cancelPenaltyTx(
+    tx,
+    penalty.id,
+    typeof afterSnapshot?.reason === 'string' && afterSnapshot.reason ? afterSnapshot.reason : undefined,
+  );
+
+  return {
+    applicationResult: {
+      penaltyId: canceled.id,
+      driverId: canceled.driverId,
+    },
+  };
 }
 
 // ─── Ledger balances ────────────────────────────────────────────────────────────
@@ -474,6 +815,107 @@ export async function recordVendorPaymentIdempotent(args: {
   });
 }
 
+export async function requestVendorPaymentGovernance(input: {
+  payment: VendorPaymentInput;
+  makerId: number;
+  makerRole: string;
+  transaction?: Tx;
+}): Promise<GovernanceActionRow> {
+  assertCanMakeGovernanceAction('VENDOR_PAYMENT', input.makerRole);
+
+  const execute = async (tx: Tx) => {
+    const [supplier] = await tx.select({ id: s.suppliers.id })
+      .from(s.suppliers)
+      .where(and(eq(s.suppliers.id, input.payment.supplierId), isNull(s.suppliers.deletedAt)))
+      .limit(1);
+    if (!supplier) {
+      throw new ApiError(404, 'Không tìm thấy nhà cung cấp');
+    }
+
+    await LedgerService.lockEntity(tx, 'VENDOR', input.payment.supplierId);
+    const currentBalance = await LedgerService.getBalanceTx(tx, 'VENDOR', input.payment.supplierId);
+    const paymentAmount = Number(input.payment.amount);
+    if (paymentAmount > currentBalance && !input.payment.confirmOverpay) {
+      throw new ApiError(422, buildVendorOverpaymentWarning(currentBalance, paymentAmount));
+    }
+    const currentVersion = await getEntityLedgerVersionTx(tx, 'VENDOR', input.payment.supplierId);
+
+    const [action] = await tx.insert(s.governanceActions).values({
+      subjectType: 'VENDOR_PAYMENT',
+      subjectId: null,
+      subjectKey: buildVendorPaymentSubjectKey('vendor', input.payment.supplierId, input.payment),
+      actionKind: 'VENDOR_PAYMENT',
+      reason: buildVendorPaymentReason(input.payment, 'thanh toán NCC'),
+      originalVersion: currentVersion,
+      beforeSnapshot: {
+        supplierId: input.payment.supplierId,
+        currentBalance,
+        currentVersion,
+      },
+      afterSnapshot: {
+        supplierId: input.payment.supplierId,
+        receiptId: input.payment.receiptId ?? '',
+        amount: paymentAmount,
+        date: input.payment.date,
+        note: input.payment.note ?? '',
+        confirmOverpay: input.payment.confirmOverpay ?? false,
+      },
+      deltaSnapshot: {
+        vendorBalanceDelta: -paymentAmount,
+      },
+      makerId: input.makerId,
+      makerRole: input.makerRole,
+    }).returning();
+    return action;
+  };
+
+  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+}
+
+export async function applyVendorPaymentGovernanceAction(tx: Tx, action: GovernanceActionRow) {
+  if (action.actionKind !== 'VENDOR_PAYMENT' || action.subjectType !== 'VENDOR_PAYMENT') {
+    throw new ApiError(409, 'Loại yêu cầu không thuộc thanh toán nhà cung cấp');
+  }
+
+  const afterSnapshot = action.afterSnapshot as Record<string, unknown> | null;
+  const supplierId = Number(afterSnapshot?.supplierId);
+  if (!Number.isInteger(supplierId) || supplierId <= 0) {
+    throw new ApiError(409, 'Yêu cầu thanh toán NCC không có dữ liệu hợp lệ');
+  }
+
+  await LedgerService.lockEntity(tx, 'VENDOR', supplierId);
+  const currentVersion = await getEntityLedgerVersionTx(tx, 'VENDOR', supplierId);
+  if (currentVersion !== action.originalVersion) {
+    throw new ApiError(409, 'Công nợ nhà cung cấp đã thay đổi; yêu cầu này không thể áp dụng');
+  }
+
+  const posted = await recordVendorPaymentTx(tx, {
+    supplierId,
+    receiptId: typeof afterSnapshot?.receiptId === 'string' && afterSnapshot.receiptId
+      ? afterSnapshot.receiptId
+      : undefined,
+    amount: String(afterSnapshot?.amount ?? ''),
+    date: String(afterSnapshot?.date ?? ''),
+    note: typeof afterSnapshot?.note === 'string' ? afterSnapshot.note : undefined,
+    confirmOverpay: Boolean(afterSnapshot?.confirmOverpay),
+  });
+
+  await tx.update(s.governanceActions).set({
+    subjectId: posted.id,
+    updatedAt: new Date(),
+  }).where(eq(s.governanceActions.id, action.id));
+
+  return {
+    ledgerEntryId: posted.id,
+    applicationResult: {
+      ledgerId: posted.id,
+      supplierId,
+      receiptId: posted.receiptId,
+      overpayment: posted.overpayment ?? null,
+    },
+  };
+}
+
 /**
  * Record an outbound payment to an external carrier.
  *
@@ -577,4 +1019,131 @@ export async function recordCarrierPaymentIdempotent(args: {
     create: async (tx) => recordCarrierPaymentTx(tx, args.input),
     load: async (entityId, tx) => loadCarrierPaymentResultTx(tx, entityId),
   });
+}
+
+async function getCarrierCurrentBalanceTx(tx: Tx, carrierId: number): Promise<number> {
+  const [balanceRow] = await tx.select({
+    balance: sql<string>`coalesce(sum(
+      case
+        when ${s.ledger.txnType} = ${TxnType.EXTERNAL_CARRIER_COST}
+          then ${s.ledger.credit} - ${s.ledger.debit}
+        when ${s.ledger.txnType} = ${TxnType.VENDOR_PAYMENT}
+          then ${s.ledger.credit} - ${s.ledger.debit}
+        when ${s.ledger.txnType} = ${TxnType.UNLOCK_REVERSAL}
+          and ${s.ledger.note} like 'Cước thuê ngoài%'
+          then ${s.ledger.credit} - ${s.ledger.debit}
+        else 0
+      end
+    ), 0)`,
+  }).from(s.ledger).where(and(
+    inArray(s.ledger.entityType, ['CUSTOMER', 'CARRIER']),
+    eq(s.ledger.entityId, carrierId),
+  ));
+  return Number(balanceRow?.balance ?? 0);
+}
+
+export async function requestCarrierPaymentGovernance(input: {
+  payment: VendorPaymentInput;
+  makerId: number;
+  makerRole: string;
+  transaction?: Tx;
+}): Promise<GovernanceActionRow> {
+  assertCanMakeGovernanceAction('CARRIER_PAYMENT', input.makerRole);
+
+  const execute = async (tx: Tx) => {
+    const [carrier] = await tx.select({ id: s.customers.id })
+      .from(s.customers)
+      .where(and(
+        eq(s.customers.id, input.payment.supplierId),
+        eq(s.customers.isCarrier, true),
+        eq(s.customers.status, 'ACTIVE'),
+        isNull(s.customers.deletedAt),
+      ))
+      .limit(1);
+    if (!carrier) {
+      throw new ApiError(404, 'Không tìm thấy nhà vận chuyển');
+    }
+
+    await LedgerService.lockEntity(tx, 'CARRIER', input.payment.supplierId);
+    const currentBalance = await getCarrierCurrentBalanceTx(tx, input.payment.supplierId);
+    const paymentAmount = Number(input.payment.amount);
+    if (paymentAmount > currentBalance && !input.payment.confirmOverpay) {
+      throw new ApiError(422, buildCarrierOverpaymentWarning(currentBalance, paymentAmount));
+    }
+    const currentVersion = await getEntityLedgerVersionTx(tx, 'CARRIER', input.payment.supplierId);
+
+    const [action] = await tx.insert(s.governanceActions).values({
+      subjectType: 'CARRIER_PAYMENT',
+      subjectId: null,
+      subjectKey: buildVendorPaymentSubjectKey('carrier', input.payment.supplierId, input.payment),
+      actionKind: 'CARRIER_PAYMENT',
+      reason: buildVendorPaymentReason(input.payment, 'thanh toán nhà vận chuyển'),
+      originalVersion: currentVersion,
+      beforeSnapshot: {
+        carrierId: input.payment.supplierId,
+        currentBalance,
+        currentVersion,
+      },
+      afterSnapshot: {
+        supplierId: input.payment.supplierId,
+        receiptId: input.payment.receiptId ?? '',
+        amount: paymentAmount,
+        date: input.payment.date,
+        note: input.payment.note ?? '',
+        confirmOverpay: input.payment.confirmOverpay ?? false,
+      },
+      deltaSnapshot: {
+        carrierBalanceDelta: -paymentAmount,
+      },
+      makerId: input.makerId,
+      makerRole: input.makerRole,
+    }).returning();
+    return action;
+  };
+
+  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+}
+
+export async function applyCarrierPaymentGovernanceAction(tx: Tx, action: GovernanceActionRow) {
+  if (action.actionKind !== 'CARRIER_PAYMENT' || action.subjectType !== 'CARRIER_PAYMENT') {
+    throw new ApiError(409, 'Loại yêu cầu không thuộc thanh toán nhà vận chuyển');
+  }
+
+  const afterSnapshot = action.afterSnapshot as Record<string, unknown> | null;
+  const supplierId = Number(afterSnapshot?.supplierId);
+  if (!Number.isInteger(supplierId) || supplierId <= 0) {
+    throw new ApiError(409, 'Yêu cầu thanh toán nhà vận chuyển không có dữ liệu hợp lệ');
+  }
+
+  await LedgerService.lockEntity(tx, 'CARRIER', supplierId);
+  const currentVersion = await getEntityLedgerVersionTx(tx, 'CARRIER', supplierId);
+  if (currentVersion !== action.originalVersion) {
+    throw new ApiError(409, 'Công nợ nhà vận chuyển đã thay đổi; yêu cầu này không thể áp dụng');
+  }
+
+  const posted = await recordCarrierPaymentTx(tx, {
+    supplierId,
+    receiptId: typeof afterSnapshot?.receiptId === 'string' && afterSnapshot.receiptId
+      ? afterSnapshot.receiptId
+      : undefined,
+    amount: String(afterSnapshot?.amount ?? ''),
+    date: String(afterSnapshot?.date ?? ''),
+    note: typeof afterSnapshot?.note === 'string' ? afterSnapshot.note : undefined,
+    confirmOverpay: Boolean(afterSnapshot?.confirmOverpay),
+  });
+
+  await tx.update(s.governanceActions).set({
+    subjectId: posted.id,
+    updatedAt: new Date(),
+  }).where(eq(s.governanceActions.id, action.id));
+
+  return {
+    ledgerEntryId: posted.id,
+    applicationResult: {
+      ledgerId: posted.id,
+      carrierId: supplierId,
+      receiptId: posted.receiptId,
+      overpayment: posted.overpayment ?? null,
+    },
+  };
 }

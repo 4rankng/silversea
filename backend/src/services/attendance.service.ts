@@ -4,6 +4,9 @@ import { eq, and, gte, lte, sql, isNull, ne } from 'drizzle-orm';
 import { resolveSalaryPeriodDateRange } from './salary-period.service';
 import { ApiError } from '../errors';
 
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type DbLike = Tx | typeof db;
+
 function parseIsoDate(date: string): Date {
   const parsed = new Date(`${date}T00:00:00.000Z`);
   if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) {
@@ -31,8 +34,13 @@ export function computeStandardWorkDays(year: number, month: number): number {
 /**
  * Get work days for a driver in a given date range.
  */
-export async function getWorkDays(driverId: number, startDate: string, endDate: string) {
-  return db.select().from(s.driverWorkDays)
+export async function getWorkDays(
+  driverId: number,
+  startDate: string,
+  endDate: string,
+  executor: DbLike = db,
+) {
+  return executor.select().from(s.driverWorkDays)
     .where(and(
       eq(s.driverWorkDays.driverId, driverId),
       gte(s.driverWorkDays.date, startDate),
@@ -92,8 +100,9 @@ export async function batchUpsertWorkDays(
   driverId: number,
   items: Array<{ date: string; status: 'TRIP_DAY' | 'STANDBY' | 'PERSONAL_LEAVE' | 'WEEKLY_OFF' | null; note?: string | null }>,
   createdBy: number,
+  transaction?: Tx,
 ) {
-  return db.transaction(async (tx) => {
+  const execute = async (tx: Tx) => {
     const results = [];
     for (const item of items) {
       if (item.status === null) {
@@ -146,7 +155,11 @@ export async function batchUpsertWorkDays(
       }
     }
     return results;
-  });
+  };
+  if (transaction) {
+    return execute(transaction);
+  }
+  return db.transaction(execute);
 }
 
 /**
@@ -204,12 +217,13 @@ export async function computeAttendanceSummary(
   driverId: number,
   year: number,
   month: number,
+  executor: DbLike = db,
 ) {
   // Resolve the salary period date range
   const period = await resolveSalaryPeriodDateRange(month, year);
   const { start, end } = period;
 
-  const workDays = await getWorkDays(driverId, start, end);
+  const workDays = await getWorkDays(driverId, start, end, executor);
   const workDayMap = new Map(workDays.map(w => [w.date, w.status]));
 
   const startParts = start.split('-').map(Number);
@@ -268,6 +282,44 @@ export async function computeAttendanceSummary(
 
 type ConfirmationMap = Map<number, { status: string | null; confirmedBy: number | null; confirmedAt: Date | null }>;
 
+export interface SalaryConfirmationRecord {
+  id: number;
+  driverId: number;
+  year: number;
+  month: number;
+  status: 'DRAFT' | 'CONFIRMED';
+  confirmedBy: number | null;
+  confirmedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export async function getSalaryConfirmationRecord(
+  driverId: number,
+  year: number,
+  month: number,
+  executor: DbLike = db,
+): Promise<SalaryConfirmationRecord | null> {
+  const [confirmation] = await executor.select({
+    id: s.salaryConfirmations.id,
+    driverId: s.salaryConfirmations.driverId,
+    year: s.salaryConfirmations.year,
+    month: s.salaryConfirmations.month,
+    status: s.salaryConfirmations.status,
+    confirmedBy: s.salaryConfirmations.confirmedBy,
+    confirmedAt: s.salaryConfirmations.confirmedAt,
+    createdAt: s.salaryConfirmations.createdAt,
+    updatedAt: s.salaryConfirmations.updatedAt,
+  }).from(s.salaryConfirmations)
+    .where(and(
+      eq(s.salaryConfirmations.driverId, driverId),
+      eq(s.salaryConfirmations.year, year),
+      eq(s.salaryConfirmations.month, month),
+    ))
+    .limit(1);
+  return confirmation ?? null;
+}
+
 /**
  * Compute the full salary breakdown for a driver in a month.
  * @param confirmationMap Optional pre-fetched confirmation map (avoids N+1 in batch calls).
@@ -277,12 +329,13 @@ export async function computeSalary(
   year: number,
   month: number,
   confirmationMap?: ConfirmationMap,
+  executor: DbLike = db,
 ) {
-  const attendance = await computeAttendanceSummary(driverId, year, month);
+  const attendance = await computeAttendanceSummary(driverId, year, month, executor);
   const { periodStart: start, periodEnd: end, standardWorkDays, tripDays, standbyDays, paidDays } = attendance;
 
   // Get driver base salary
-  const [driver] = await db.select({
+  const [driver] = await executor.select({
     baseSalary: s.drivers.baseSalary,
     socialInsurance: s.drivers.socialInsurance,
   }).from(s.drivers)
@@ -312,7 +365,7 @@ export async function computeSalary(
   const adjustment = (paidDays - standardWorkDays) * dailyRate;
 
   // Penalties in period
-  const [penaltyRow] = await db.select({
+  const [penaltyRow] = await executor.select({
     total: sql<string>`coalesce(sum(${s.penalties.amount}::numeric), 0)`,
   }).from(s.penalties)
     .where(and(
@@ -333,7 +386,7 @@ export async function computeSalary(
   if (confirmationMap) {
     confirmationRow = confirmationMap.get(driverId);
   } else {
-    [confirmationRow] = await db.select({
+    [confirmationRow] = await executor.select({
       status: s.salaryConfirmations.status,
       confirmedBy: s.salaryConfirmations.confirmedBy,
       confirmedAt: s.salaryConfirmations.confirmedAt,
@@ -415,37 +468,43 @@ export async function confirmSalary(
   year: number,
   month: number,
   userId: number,
+  transaction?: Tx,
 ) {
-  // Validate driver exists
-  const [driver] = await db.select({ id: s.drivers.id })
-    .from(s.drivers)
-    .where(and(eq(s.drivers.id, driverId), isNull(s.drivers.deletedAt)))
-    .limit(1);
-  if (!driver) throw new ApiError(404, 'Không tìm thấy lái xe');
+  const execute = async (executor: DbLike) => {
+    const [driver] = await executor.select({ id: s.drivers.id })
+      .from(s.drivers)
+      .where(and(eq(s.drivers.id, driverId), isNull(s.drivers.deletedAt)))
+      .limit(1);
+    if (!driver) throw new ApiError(404, 'Không tìm thấy lái xe');
 
-  const now = new Date();
-  const [confirmation] = await db.insert(s.salaryConfirmations)
-    .values({
-      driverId,
-      year,
-      month,
-      status: 'CONFIRMED',
-      confirmedBy: userId,
-      confirmedAt: now,
-    })
-    .onConflictDoUpdate({
-      target: [s.salaryConfirmations.driverId, s.salaryConfirmations.year, s.salaryConfirmations.month],
-      set: {
+    const now = new Date();
+    const [confirmation] = await executor.insert(s.salaryConfirmations)
+      .values({
+        driverId,
+        year,
+        month,
         status: 'CONFIRMED',
         confirmedBy: userId,
         confirmedAt: now,
-        updatedAt: now,
-      },
-    })
-    .returning();
+      })
+      .onConflictDoUpdate({
+        target: [s.salaryConfirmations.driverId, s.salaryConfirmations.year, s.salaryConfirmations.month],
+        set: {
+          status: 'CONFIRMED',
+          confirmedBy: userId,
+          confirmedAt: now,
+          updatedAt: now,
+        },
+      })
+      .returning();
 
-  const salary = await computeSalary(driverId, year, month);
-  return { confirmation, salary };
+    const salary = await computeSalary(driverId, year, month, undefined, executor);
+    return { confirmation, salary };
+  };
+  if (transaction) {
+    return execute(transaction);
+  }
+  return db.transaction((tx) => execute(tx));
 }
 
 /**
@@ -457,21 +516,40 @@ export async function unconfirmSalary(
   driverId: number,
   year: number,
   month: number,
+  transaction?: Tx,
 ) {
-  // Validate driver exists
-  const [driver] = await db.select({ id: s.drivers.id })
-    .from(s.drivers)
-    .where(and(eq(s.drivers.id, driverId), isNull(s.drivers.deletedAt)))
-    .limit(1);
-  if (!driver) throw new ApiError(404, 'Không tìm thấy lái xe');
+  const execute = async (executor: DbLike) => {
+    const [driver] = await executor.select({ id: s.drivers.id })
+      .from(s.drivers)
+      .where(and(eq(s.drivers.id, driverId), isNull(s.drivers.deletedAt)))
+      .limit(1);
+    if (!driver) throw new ApiError(404, 'Không tìm thấy lái xe');
 
-  await db.delete(s.salaryConfirmations)
-    .where(and(
-      eq(s.salaryConfirmations.driverId, driverId),
-      eq(s.salaryConfirmations.year, year),
-      eq(s.salaryConfirmations.month, month),
-    ));
+    const [confirmation] = await executor.select({ id: s.salaryConfirmations.id })
+      .from(s.salaryConfirmations)
+      .where(and(
+        eq(s.salaryConfirmations.driverId, driverId),
+        eq(s.salaryConfirmations.year, year),
+        eq(s.salaryConfirmations.month, month),
+      ))
+      .limit(1);
 
-  const salary = await computeSalary(driverId, year, month);
-  return { ok: true as const, salary };
+    if (confirmation) {
+      await executor.update(s.salaryConfirmations)
+        .set({
+          status: 'DRAFT',
+          confirmedBy: null,
+          confirmedAt: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(s.salaryConfirmations.id, confirmation.id));
+    }
+
+    const salary = await computeSalary(driverId, year, month, undefined, executor);
+    return { ok: true as const, salary };
+  };
+  if (transaction) {
+    return execute(transaction);
+  }
+  return db.transaction((tx) => execute(tx));
 }

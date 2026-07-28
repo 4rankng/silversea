@@ -99,6 +99,113 @@ function financeDomainCondition(): SQL {
   return buildOrCondition(predicates);
 }
 
+function accountantAssignmentCondition(userId: number): SQL {
+  const directCustomerId = sql`coalesce(
+    ${s.auditLogs.payload}#>>'{body,customerId}',
+    ${s.auditLogs.payload}#>>'{body,customer_id}',
+    case
+      when ${s.auditLogs.payload}#>>'{body,entityType}' = 'CUSTOMER'
+      then ${s.auditLogs.payload}#>>'{body,entityId}'
+      else null
+    end
+  )`;
+  const directTripId = sql`coalesce(
+    ${s.auditLogs.payload}#>>'{body,tripId}',
+    ${s.auditLogs.payload}#>>'{body,trip_id}'
+  )`;
+  const path = sql`coalesce(${s.auditLogs.payload}->>'path', '')`;
+  const hasExplicitAssignments = sql`exists (
+    select 1
+    from ${s.userCustomerLinks} assigned_scope
+    where assigned_scope.user_id = ${userId}
+  )`;
+  const matchesDirectCustomer = sql`exists (
+    select 1
+    from ${s.userCustomerLinks} assigned_customer
+    where assigned_customer.user_id = ${userId}
+      and assigned_customer.customer_id::text = ${directCustomerId}
+  )`;
+  const matchesDirectTrip = sql`exists (
+    select 1
+    from ${s.trips} scoped_trip
+    inner join ${s.userCustomerLinks} assigned_trip_customer
+      on assigned_trip_customer.customer_id = scoped_trip.customer_id
+    where assigned_trip_customer.user_id = ${userId}
+      and scoped_trip.id::text = ${directTripId}
+  )`;
+  const matchesTripEntity = sql`exists (
+    select 1
+    from ${s.trips} scoped_entity_trip
+    inner join ${s.userCustomerLinks} assigned_entity_customer
+      on assigned_entity_customer.customer_id = scoped_entity_trip.customer_id
+    where assigned_entity_customer.user_id = ${userId}
+      and scoped_entity_trip.id = ${s.auditLogs.entityId}
+      and ${s.auditLogs.entityType} in ('trips', 'trip')
+  )`;
+  const matchesTripExpenseEntity = sql`exists (
+    select 1
+    from ${s.tripExpenses} scoped_expense
+    inner join ${s.trips} scoped_expense_trip on scoped_expense_trip.id = scoped_expense.trip_id
+    inner join ${s.userCustomerLinks} assigned_expense_customer
+      on assigned_expense_customer.customer_id = scoped_expense_trip.customer_id
+    where assigned_expense_customer.user_id = ${userId}
+      and scoped_expense.id = ${s.auditLogs.entityId}
+      and ${s.auditLogs.entityType} in ('trip-expenses', 'forwarder-expenses')
+  )`;
+  const matchesBillingDocument = sql`exists (
+    select 1
+    from ${s.billingDocuments} scoped_document
+    inner join ${s.userCustomerLinks} assigned_document_customer
+      on assigned_document_customer.customer_id = scoped_document.entity_id
+    where assigned_document_customer.user_id = ${userId}
+      and scoped_document.id = ${s.auditLogs.entityId}
+      and scoped_document.entity_type = 'CUSTOMER'
+      and ${path} like '/api/finance/billing-documents%'
+  )`;
+  const matchesDebtOffset = sql`exists (
+    select 1
+    from ${s.debtOffsets} scoped_offset
+    inner join ${s.userCustomerLinks} assigned_offset_customer
+      on assigned_offset_customer.customer_id = scoped_offset.customer_id
+    where assigned_offset_customer.user_id = ${userId}
+      and scoped_offset.id = ${s.auditLogs.entityId}
+      and ${path} like '/api/finance/debt-offsets%'
+  )`;
+  const matchesCreditOverride = sql`exists (
+    select 1
+    from ${s.creditOverrideRequests} scoped_override
+    inner join ${s.userCustomerLinks} assigned_override_customer
+      on assigned_override_customer.customer_id = scoped_override.customer_id
+    where assigned_override_customer.user_id = ${userId}
+      and scoped_override.id = ${s.auditLogs.entityId}
+      and ${path} like '/api/finance/credit-overrides%'
+  )`;
+  const isRecognizablyCustomerScoped = sql`(
+    ${directCustomerId} is not null
+    or ${directTripId} is not null
+    or ${s.auditLogs.entityType} in ('trips', 'trip', 'trip-expenses', 'forwarder-expenses')
+    or ${path} like '/api/payments/receive%'
+    or ${path} like '/api/finance/billing-documents%'
+    or ${path} like '/api/finance/debt-offsets%'
+    or ${path} like '/api/finance/credit-overrides%'
+  )`;
+
+  // Legacy accountants with no explicit links retain the existing company-wide
+  // finance/payroll scope. Once an administrator assigns customers, every
+  // recognizably customer-bound row must resolve to one of those links.
+  return sql`(
+    not ${hasExplicitAssignments}
+    or not ${isRecognizablyCustomerScoped}
+    or ${matchesDirectCustomer}
+    or ${matchesDirectTrip}
+    or ${matchesTripEntity}
+    or ${matchesTripExpenseEntity}
+    or ${matchesBillingDocument}
+    or ${matchesDebtOffset}
+    or ${matchesCreditOverride}
+  )`;
+}
+
 function matchesKnownCategory(category: string): SQL {
   if (category === 'trip') {
     return sql`(${s.auditLogs.payload}->>'event' LIKE 'TRIP_%' OR ${s.auditLogs.payload}->>'event' = 'STATUS_CHANGED')`;
@@ -179,10 +286,8 @@ export async function queryAuditLogs(params: AuditQueryParams) {
   }
 
   if (viewer.role === Role.ACCOUNTANT) {
-    // O02 accepted scope: this repo has no finer accountant row-assignment
-    // authority today, so the deterministic scope is the finance/payroll audit
-    // surface only. Everything else stays denied until a stronger mapping exists.
     conditions.push(financeDomainCondition());
+    conditions.push(accountantAssignmentCondition(viewer.userId));
   }
 
   if (search && search.trim()) {

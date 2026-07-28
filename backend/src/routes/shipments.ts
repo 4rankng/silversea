@@ -49,6 +49,7 @@ import {
   attachShipmentDocument,
   upsertShipmentDeclaration,
   dispatchShipmentToTrip,
+  completeShipmentDispatchSideEffects,
   replaceShipmentDocument,
   reviewShipmentChangeRequest,
 } from '../services/shipment.service';
@@ -61,6 +62,12 @@ import { asyncHandler } from '../middleware/asyncHandler';
 import { parsePagination } from './utils/pagination';
 import { throwValidation } from '../lib/validation';
 import { ShipmentStatus } from '@tingting/shared';
+import {
+  IDEMPOTENCY_ENDPOINTS,
+  runIdempotent,
+} from '../services/idempotency.service';
+import { getRequestIdempotencyKey } from './utils/idempotency';
+import type { Tx } from '../services/trip-shared';
 
 // Audit event registrations — matched by the audit middleware on every write.
 // Suffix-mode registrations (prefix + suffix) cover all /:id sub-paths. The
@@ -100,6 +107,40 @@ const reviewShipmentChangeRequestSchema = z.object({
 });
 
 const router = Router();
+
+interface ShipmentWriteEnvelope<T> {
+  body: T;
+  status: number;
+  auditEntityId: number;
+  auditEntityKey?: string;
+}
+
+async function runShipmentWrite<T>(
+  req: Request,
+  endpoint: string,
+  payload: Record<string, unknown>,
+  create: (tx: Tx) => Promise<ShipmentWriteEnvelope<T>>,
+) {
+  const user = getUser(req);
+  return runIdempotent({
+    endpoint,
+    idempotencyKey: getRequestIdempotencyKey(req),
+    payload: { actorId: user.userId, ...payload },
+    createdBy: user.userId,
+    create,
+    entityType: 'shipment-write',
+    getEntityId: (result) => result.auditEntityId,
+  });
+}
+
+function sendShipmentWrite<T>(
+  res: Response,
+  envelope: ShipmentWriteEnvelope<T>,
+) {
+  res.locals.auditEntityId = envelope.auditEntityId;
+  if (envelope.auditEntityKey) res.locals.auditEntityKey = envelope.auditEntityKey;
+  return res.status(envelope.status).json(envelope.body);
+}
 
 // Parse a non-negative integer id from the route. Returns -1 (and a 400 from
 // the caller) on garbage input — never NaN. Centralised so every /:id handler
@@ -146,13 +187,25 @@ router.post(
   asyncHandler(async (req: Request, res: Response) => {
     const parsed = createShipmentSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
-    const shipment = await createShipment({
-      ...parsed.data,
-      createdBy: getUser(req).userId,
-    }, getUser(req));
-    res.locals.auditEntityId = shipment.id;
-    res.locals.auditEntityKey = shipment.shipmentCode ?? `#${shipment.id}`;
-    res.status(201).json(shipment);
+    const user = getUser(req);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.SHIPMENT_CREATE,
+      { data: parsed.data },
+      async (tx) => {
+        const shipment = await createShipment({
+          ...parsed.data,
+          createdBy: user.userId,
+        }, user, tx);
+        return {
+          body: shipment,
+          status: 201,
+          auditEntityId: shipment.id,
+          auditEntityKey: shipment.shipmentCode ?? `#${shipment.id}`,
+        };
+      },
+    );
+    sendShipmentWrite(res, result);
   }),
 );
 
@@ -217,22 +270,34 @@ router.put(
     if (id === null) return;
     const parsed = updateShipmentSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
-    const shipment = await updateShipment(id, {
-      expectedVersion: parsed.data.expectedVersion,
-      customerId: parsed.data.customerId,
-      responsibleUnitId: parsed.data.responsibleUnitId,
-      bookingRef: parsed.data.bookingRef,
-      blNumber: parsed.data.blNumber,
-      expectedDeliveryDate: parsed.data.expectedDeliveryDate,
-      pickupLocation: parsed.data.pickupLocation,
-      deliveryLocation: parsed.data.deliveryLocation,
-      contactName: parsed.data.contactName,
-      contactPhone: parsed.data.contactPhone,
-      updatedBy: getUser(req).userId,
-    }, getUser(req));
-    res.locals.auditEntityId = shipment.id;
-    res.locals.auditEntityKey = shipment.shipmentCode ?? `#${shipment.id}`;
-    res.json(shipment);
+    const user = getUser(req);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.SHIPMENT_UPDATE,
+      { shipmentId: id, data: parsed.data },
+      async (tx) => {
+        const shipment = await updateShipment(id, {
+          expectedVersion: parsed.data.expectedVersion,
+          customerId: parsed.data.customerId,
+          responsibleUnitId: parsed.data.responsibleUnitId,
+          bookingRef: parsed.data.bookingRef,
+          blNumber: parsed.data.blNumber,
+          expectedDeliveryDate: parsed.data.expectedDeliveryDate,
+          pickupLocation: parsed.data.pickupLocation,
+          deliveryLocation: parsed.data.deliveryLocation,
+          contactName: parsed.data.contactName,
+          contactPhone: parsed.data.contactPhone,
+          updatedBy: user.userId,
+        }, user, tx);
+        return {
+          body: shipment,
+          status: 200,
+          auditEntityId: shipment.id,
+          auditEntityKey: shipment.shipmentCode ?? `#${shipment.id}`,
+        };
+      },
+    );
+    sendShipmentWrite(res, result);
   }),
 );
 
@@ -245,13 +310,25 @@ router.post(
     if (id === null) return;
     const parsed = transitionShipmentStatusSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
-    const shipment = await transitionShipmentStatus(id, parsed.data.status, {
-      reason: parsed.data.reason ?? null,
-      changedBy: getUser(req).userId,
-    });
-    res.locals.auditEntityId = shipment.id;
-    res.locals.auditEntityKey = shipment.shipmentCode ?? `#${shipment.id}`;
-    res.json(shipment);
+    const user = getUser(req);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.SHIPMENT_TRANSITION,
+      { shipmentId: id, data: parsed.data },
+      async (tx) => {
+        const shipment = await transitionShipmentStatus(id, parsed.data.status, {
+          reason: parsed.data.reason ?? null,
+          changedBy: user.userId,
+        }, tx);
+        return {
+          body: shipment,
+          status: 200,
+          auditEntityId: shipment.id,
+          auditEntityKey: shipment.shipmentCode ?? `#${shipment.id}`,
+        };
+      },
+    );
+    sendShipmentWrite(res, result);
   }),
 );
 
@@ -269,20 +346,30 @@ router.post(
     const parsed = dispatchShipmentSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     const user = getUser(req);
-    // Fetch the shipment up front for the audit entityKey. The audit row's
-    // entityId is the SHIPMENT id (not the trip id), so its entityKey must
-    // be the shipmentCode — otherwise the dispatch event is unsearchable by
-    // shipment code. The new trip's code goes into the response body and the
-    // audit metadata.path; it is not lost.
-    const shipment = await getShipment(id);
-    const result = await dispatchShipmentToTrip(
-      id,
-      parsed.data,
-      { userId: user.userId, role: user.role },
+    const outcome = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.SHIPMENT_DISPATCH,
+      { shipmentId: id, data: parsed.data },
+      async (tx) => {
+        const shipment = await getShipment(id, tx);
+        const dispatch = await dispatchShipmentToTrip(
+          id,
+          parsed.data,
+          { userId: user.userId, role: user.role },
+          tx,
+        );
+        return {
+          body: dispatch,
+          status: dispatch.created ? 201 : 200,
+          auditEntityId: id,
+          auditEntityKey: shipment.shipmentCode ?? `#${id}`,
+        };
+      },
     );
-    res.locals.auditEntityId = id;
-    res.locals.auditEntityKey = shipment.shipmentCode ?? `#${id}`;
-    res.status(result.created ? 201 : 200).json(result);
+    if (!outcome.replayed) {
+      await completeShipmentDispatchSideEffects(outcome.result.body, id);
+    }
+    sendShipmentWrite(res, outcome.result);
   }),
 );
 
@@ -299,18 +386,27 @@ router.post(
     if (id === null) return;
     const parsed = attachShipmentDocumentSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
-    // Fetch the shipment first so a missing shipment 404s here AND we can
-    // populate the audit log with a human-readable code (the doc row itself
-    // does not carry the shipmentCode).
-    const shipment = await getShipment(id);
-    const doc = await attachShipmentDocument(id, {
-      type: parsed.data.type,
-      storageKey: parsed.data.storageKey,
-      uploadedBy: getUser(req).userId,
-    }, getUser(req));
-    res.locals.auditEntityId = id;
-    res.locals.auditEntityKey = shipment.shipmentCode ?? `#${id}`;
-    res.status(201).json(doc);
+    const user = getUser(req);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.SHIPMENT_DOCUMENT_ATTACH,
+      { shipmentId: id, data: parsed.data },
+      async (tx) => {
+        const shipment = await getShipment(id, tx);
+        const doc = await attachShipmentDocument(id, {
+          type: parsed.data.type,
+          storageKey: parsed.data.storageKey,
+          uploadedBy: user.userId,
+        }, user, tx);
+        return {
+          body: doc,
+          status: 201,
+          auditEntityId: id,
+          auditEntityKey: shipment.shipmentCode ?? `#${id}`,
+        };
+      },
+    );
+    sendShipmentWrite(res, result);
   }),
 );
 
@@ -327,16 +423,28 @@ router.post(
     }
     const parsed = replaceShipmentDocumentSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
-    const shipment = await getShipment(shipmentId);
-    const replaced = await replaceShipmentDocument(shipmentId, documentId, {
-      expectedVersion: parsed.data.expectedVersion,
-      storageKey: parsed.data.storageKey,
-      expiresAt: parsed.data.expiresAt ?? null,
-      uploadedBy: getUser(req).userId,
-    }, getUser(req));
-    res.locals.auditEntityId = shipment.id;
-    res.locals.auditEntityKey = shipment.shipmentCode ?? `#${shipment.id}`;
-    res.status(201).json(replaced);
+    const user = getUser(req);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.SHIPMENT_DOCUMENT_REPLACE,
+      { shipmentId, documentId, data: parsed.data },
+      async (tx) => {
+        const shipment = await getShipment(shipmentId, tx);
+        const replaced = await replaceShipmentDocument(shipmentId, documentId, {
+          expectedVersion: parsed.data.expectedVersion,
+          storageKey: parsed.data.storageKey,
+          expiresAt: parsed.data.expiresAt ?? null,
+          uploadedBy: user.userId,
+        }, user, tx);
+        return {
+          body: replaced,
+          status: 201,
+          auditEntityId: shipment.id,
+          auditEntityKey: shipment.shipmentCode ?? `#${shipment.id}`,
+        };
+      },
+    );
+    sendShipmentWrite(res, result);
   }),
 );
 
@@ -348,17 +456,29 @@ router.post(
     if (shipmentId === null) return;
     const parsed = shipmentDeclarationSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
-    const shipment = await getShipment(shipmentId);
-    const declaration = await upsertShipmentDeclaration(shipmentId, {
-      declarationNumber: parsed.data.declarationNumber ?? null,
-      issuedAt: parsed.data.issuedAt ?? null,
-      scope: parsed.data.scope,
-      note: parsed.data.note ?? null,
-      updatedBy: getUser(req).userId,
-    }, getUser(req));
-    res.locals.auditEntityId = shipment.id;
-    res.locals.auditEntityKey = shipment.shipmentCode ?? `#${shipment.id}`;
-    res.status(201).json(declaration);
+    const user = getUser(req);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.SHIPMENT_DECLARATION_CREATE,
+      { shipmentId, data: parsed.data },
+      async (tx) => {
+        const shipment = await getShipment(shipmentId, tx);
+        const declaration = await upsertShipmentDeclaration(shipmentId, {
+          declarationNumber: parsed.data.declarationNumber ?? null,
+          issuedAt: parsed.data.issuedAt ?? null,
+          scope: parsed.data.scope,
+          note: parsed.data.note ?? null,
+          updatedBy: user.userId,
+        }, user, tx);
+        return {
+          body: declaration,
+          status: 201,
+          auditEntityId: shipment.id,
+          auditEntityKey: shipment.shipmentCode ?? `#${shipment.id}`,
+        };
+      },
+    );
+    sendShipmentWrite(res, result);
   }),
 );
 
@@ -375,18 +495,30 @@ router.put(
     }
     const parsed = shipmentDeclarationSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
-    const shipment = await getShipment(shipmentId);
-    const declaration = await upsertShipmentDeclaration(shipmentId, {
-      id: declarationId,
-      declarationNumber: parsed.data.declarationNumber ?? null,
-      issuedAt: parsed.data.issuedAt ?? null,
-      scope: parsed.data.scope,
-      note: parsed.data.note ?? null,
-      updatedBy: getUser(req).userId,
-    }, getUser(req));
-    res.locals.auditEntityId = shipment.id;
-    res.locals.auditEntityKey = shipment.shipmentCode ?? `#${shipment.id}`;
-    res.json(declaration);
+    const user = getUser(req);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.SHIPMENT_DECLARATION_UPDATE,
+      { shipmentId, declarationId, data: parsed.data },
+      async (tx) => {
+        const shipment = await getShipment(shipmentId, tx);
+        const declaration = await upsertShipmentDeclaration(shipmentId, {
+          id: declarationId,
+          declarationNumber: parsed.data.declarationNumber ?? null,
+          issuedAt: parsed.data.issuedAt ?? null,
+          scope: parsed.data.scope,
+          note: parsed.data.note ?? null,
+          updatedBy: user.userId,
+        }, user, tx);
+        return {
+          body: declaration,
+          status: 200,
+          auditEntityId: shipment.id,
+          auditEntityKey: shipment.shipmentCode ?? `#${shipment.id}`,
+        };
+      },
+    );
+    sendShipmentWrite(res, result);
   }),
 );
 
@@ -409,18 +541,31 @@ router.put(
     if (id === null) return;
     const parsed = shipmentContainerBatchSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
-    const result = await batchUpsertShipmentContainers(
-      id,
-      getUser(req).userId,
-      parsed.data.expectedVersion,
-      parsed.data.containers,
-      getUser(req),
+    const user = getUser(req);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.SHIPMENT_CONTAINERS_RECONCILE,
+      { shipmentId: id, data: parsed.data },
+      async (tx) => {
+        const reconciled = await batchUpsertShipmentContainers(
+          id,
+          user.userId,
+          parsed.data.expectedVersion,
+          parsed.data.containers,
+          user,
+          tx,
+        );
+        return {
+          body: reconciled,
+          status: 200,
+          auditEntityId: id,
+        };
+      },
     );
-    res.locals.auditEntityId = id;
     // Report both the reconciled ids (what the caller asked for) and the full
     // refreshed list (what the UI needs to re-render). Mirrors the trips
     // containers PUT response contract.
-    res.json(result);
+    sendShipmentWrite(res, result);
   }),
 );
 
@@ -437,15 +582,28 @@ router.post(
     }
     const parsed = reviewShipmentChangeRequestSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
-    const result = await reviewShipmentChangeRequest(
-      shipmentId,
-      requestId,
-      parsed.data.resolution,
-      getUser(req),
+    const user = getUser(req);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.SHIPMENT_CHANGE_REQUEST_REVIEW,
+      { shipmentId, requestId, data: parsed.data },
+      async (tx) => {
+        const reviewed = await reviewShipmentChangeRequest(
+          shipmentId,
+          requestId,
+          parsed.data.resolution,
+          user,
+          tx,
+        );
+        return {
+          body: reviewed,
+          status: 200,
+          auditEntityId: reviewed.shipment.id,
+          auditEntityKey: reviewed.shipment.shipmentCode ?? `#${reviewed.shipment.id}`,
+        };
+      },
     );
-    res.locals.auditEntityId = result.shipment.id;
-    res.locals.auditEntityKey = result.shipment.shipmentCode ?? `#${result.shipment.id}`;
-    res.json(result);
+    sendShipmentWrite(res, result);
   }),
 );
 
@@ -464,13 +622,25 @@ router.delete(
     if (!Number.isInteger(version) || version < 0) {
       return res.status(400).json({ error: 'version là bắt buộc để xóa lô hàng' });
     }
-    const shipment = await softDeleteShipment(id, {
-      version,
-      deletedBy: getUser(req).userId,
-    });
-    res.locals.auditEntityId = shipment.id;
-    res.locals.auditEntityKey = shipment.shipmentCode ?? `#${shipment.id}`;
-    res.json({ ok: true });
+    const user = getUser(req);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.SHIPMENT_DELETE,
+      { shipmentId: id, version },
+      async (tx) => {
+        const shipment = await softDeleteShipment(id, {
+          version,
+          deletedBy: user.userId,
+        }, tx);
+        return {
+          body: { ok: true },
+          status: 200,
+          auditEntityId: shipment.id,
+          auditEntityKey: shipment.shipmentCode ?? `#${shipment.id}`,
+        };
+      },
+    );
+    sendShipmentWrite(res, result);
   }),
 );
 

@@ -207,7 +207,10 @@ function Row({
     setError(null);
     try {
       if (item.type !== 'advances') throw new Error('Cần mở chi tiết để duyệt');
-      await forwarderClient.approveAdvanceRequest(numericId);
+      const response = await forwarderClient.listAllAdvanceRequests();
+      const request = response.items.find(candidate => candidate.id === numericId);
+      if (!request) throw new Error('Yêu cầu tạm ứng không còn tồn tại');
+      await forwarderClient.approveAdvanceRequest(numericId, request.version);
       // Refresh the queue so the approved item disappears / moves.
       await queryClient.invalidateQueries({ queryKey: qk.dashboard.approvalQueue(undefined, undefined) });
       // Also refresh the underlying data sources that the approve just changed.

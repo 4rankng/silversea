@@ -7,6 +7,7 @@ import { LedgerService } from './ledger.service';
 import { ApiError } from '../errors';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent, hashPayload } from './idempotency.service';
 import type { Tx } from './trip-shared';
+import { assertCanMakeGovernanceAction } from './governance-policy';
 
 const MAX_PAYMENT_INSTRUCTIONS = 200;
 const MAX_DEFAULT_AUTO_ALLOCATIONS = 200;
@@ -44,6 +45,16 @@ export interface PaymentReceiptMutationResult {
   replayed: boolean;
 }
 
+export interface PaymentRefundRequest {
+  paymentReceiptId: number;
+  amount: number;
+  reason: string;
+  makerId: number;
+  makerRole: string;
+}
+
+type GovernanceActionRow = typeof s.governanceActions.$inferSelect;
+
 function toPublicPaymentReceiptResult(result: PersistedPaymentReceiptResult): PaymentReceiptResult {
   return {
     id: result.id,
@@ -53,9 +64,19 @@ function toPublicPaymentReceiptResult(result: PersistedPaymentReceiptResult): Pa
     allocations: result.allocations,
     allocatedTotal: result.allocatedTotal,
     unappliedAmount: result.unappliedAmount,
+    refundedAmount: result.refundedAmount,
+    version: result.version,
     allocationMethod: result.allocationMethod,
     createdAt: result.createdAt,
   };
+}
+
+function buildPaymentReceiptReason(receiptId: string): string {
+  return `Đề nghị ghi nhận phiếu thu ${receiptId}`;
+}
+
+function buildPaymentReceiptSubjectKey(input: NormalizedPaymentReceiptInput): string {
+  return `customer:${input.customerId}:receipt:${input.receiptId}`;
 }
 
 function assertPositiveWholeAmount(value: number, field: string): void {
@@ -285,6 +306,8 @@ async function loadPaymentReceiptResultTx(tx: Tx, paymentReceiptId: number): Pro
     receivedAmount: s.paymentReceipts.receivedAmount,
     allocatedTotal: s.paymentReceipts.allocatedTotal,
     unappliedAmount: s.paymentReceipts.unappliedAmount,
+    refundedAmount: s.paymentReceipts.refundedAmount,
+    version: s.paymentReceipts.version,
     allocationMethod: s.paymentReceipts.allocationMethod,
     createdAt: s.paymentReceipts.createdAt,
   })
@@ -319,9 +342,23 @@ async function loadPaymentReceiptResultTx(tx: Tx, paymentReceiptId: number): Pro
     })),
     allocatedTotal: Number(receipt.allocatedTotal),
     unappliedAmount: Number(receipt.unappliedAmount),
+    refundedAmount: Number(receipt.refundedAmount),
+    version: receipt.version,
     allocationMethod: receipt.allocationMethod as PaymentAllocationMethod,
     createdAt: new Date(receipt.createdAt).toISOString(),
   };
+}
+
+async function getLatestCustomerLedgerVersionTx(tx: Tx, customerId: number): Promise<number> {
+  const [row] = await tx.select({ id: s.ledger.id })
+    .from(s.ledger)
+    .where(and(
+      eq(s.ledger.entityType, 'CUSTOMER'),
+      eq(s.ledger.entityId, customerId),
+    ))
+    .orderBy(sql`${s.ledger.id} desc`)
+    .limit(1);
+  return row?.id ?? 0;
 }
 
 export async function loadPaymentReceiptResult(paymentReceiptId: number, tx?: Tx): Promise<PaymentReceiptResult> {
@@ -516,6 +553,285 @@ async function createOrReplayPaymentReceiptTx(
   }
 
   return { ...(await loadPaymentReceiptResultTx(tx, receipt.id)), created: true };
+}
+
+export async function requestPaymentReceiptGovernance(input: {
+  payment: PaymentReceiptInput;
+  makerId: number;
+  makerRole: string;
+  transaction?: Tx;
+}): Promise<GovernanceActionRow> {
+  assertCanMakeGovernanceAction('PAYMENT_RECEIPT', input.makerRole);
+  const normalized = normalizePaymentReceiptInput({
+    ...input.payment,
+    allocatedBy: input.makerId,
+  });
+
+  const execute = async (tx: Tx) => {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${`payment-receipt\u001f${normalized.receiptId}`}, 0))`,
+    );
+    if (await getLegacyReceiptConflict(tx, normalized.receiptId)) {
+      throw new ApiError(
+        409,
+        'Mã biên lai đã tồn tại trong dữ liệu cũ và không thể phát lại an toàn. Vui lòng dùng mã biên lai mới.',
+        `receipt_id=${normalized.receiptId}`,
+      );
+    }
+
+    const [existingReceipt] = await tx.select({ id: s.paymentReceipts.id })
+      .from(s.paymentReceipts)
+      .where(eq(s.paymentReceipts.receiptId, normalized.receiptId))
+      .limit(1);
+    if (existingReceipt) {
+      throw new ApiError(409, 'Mã biên lai đã tồn tại.');
+    }
+
+    await LedgerService.lockEntity(tx, 'CUSTOMER', normalized.customerId);
+    await assertActiveCustomerTx(tx, normalized.customerId);
+    const currentBalance = await LedgerService.getBalanceTx(tx, 'CUSTOMER', normalized.customerId);
+    const currentVersion = await getLatestCustomerLedgerVersionTx(tx, normalized.customerId);
+
+    const [action] = await tx.insert(s.governanceActions).values({
+      subjectType: 'PAYMENT_RECEIPT',
+      subjectId: null,
+      subjectKey: buildPaymentReceiptSubjectKey(normalized),
+      actionKind: 'PAYMENT_RECEIPT',
+      reason: buildPaymentReceiptReason(normalized.receiptId),
+      originalVersion: currentVersion,
+      beforeSnapshot: {
+        customerId: normalized.customerId,
+        currentBalance,
+        currentVersion,
+      },
+      afterSnapshot: {
+        customerId: normalized.customerId,
+        receiptId: normalized.receiptId,
+        amount: normalized.receivedAmount,
+        payments: normalized.payments,
+        allocationMethod: normalized.allocationMethod,
+        allocatedBy: normalized.allocatedBy,
+        requestHash: normalized.requestHash,
+      },
+      deltaSnapshot: {
+        customerBalanceDelta: -normalized.receivedAmount,
+      },
+      makerId: input.makerId,
+      makerRole: input.makerRole,
+    }).returning();
+    return action;
+  };
+
+  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+}
+
+export async function applyPaymentReceiptGovernanceAction(
+  tx: Tx,
+  action: GovernanceActionRow,
+) {
+  if (action.actionKind !== 'PAYMENT_RECEIPT' || action.subjectType !== 'PAYMENT_RECEIPT') {
+    throw new ApiError(409, 'Loại yêu cầu không thuộc ghi nhận phiếu thu');
+  }
+
+  const afterSnapshot = action.afterSnapshot as Record<string, unknown> | null;
+  const customerId = Number(afterSnapshot?.customerId);
+  const receiptId = typeof afterSnapshot?.receiptId === 'string' ? afterSnapshot.receiptId : '';
+  const amount = Number(afterSnapshot?.amount);
+  const payments = Array.isArray(afterSnapshot?.payments)
+    ? afterSnapshot.payments.map((payment) => ({
+      tripId: Number((payment as Record<string, unknown>).tripId),
+      amount: Number((payment as Record<string, unknown>).amount),
+    }))
+    : undefined;
+  const allocatedBy = afterSnapshot?.allocatedBy == null ? null : Number(afterSnapshot.allocatedBy);
+
+  if (!Number.isInteger(customerId) || customerId <= 0 || !receiptId || !Number.isFinite(amount)) {
+    throw new ApiError(409, 'Yêu cầu phiếu thu không có dữ liệu áp dụng hợp lệ');
+  }
+
+  await LedgerService.lockEntity(tx, 'CUSTOMER', customerId);
+  const currentVersion = await getLatestCustomerLedgerVersionTx(tx, customerId);
+  if (currentVersion !== action.originalVersion) {
+    throw new ApiError(409, 'Công nợ khách hàng đã thay đổi; yêu cầu này không thể áp dụng');
+  }
+
+  const persisted = await createOrReplayPaymentReceiptTx(tx, normalizePaymentReceiptInput({
+    customerId,
+    receiptId,
+    amount,
+    payments,
+    allocatedBy,
+  }));
+
+  const [firstLedgerRow] = await tx.select({ id: s.ledger.id })
+    .from(s.ledger)
+    .where(and(
+      eq(s.ledger.entityType, 'CUSTOMER'),
+      eq(s.ledger.entityId, customerId),
+      eq(s.ledger.txnType, TxnType.PAYMENT_RECEIVED),
+      eq(s.ledger.receiptId, receiptId),
+    ))
+    .orderBy(asc(s.ledger.id))
+    .limit(1);
+
+  await tx.update(s.governanceActions).set({
+    subjectId: persisted.id,
+    updatedAt: new Date(),
+  }).where(eq(s.governanceActions.id, action.id));
+
+  return {
+    ledgerEntryId: firstLedgerRow?.id ?? null,
+    applicationResult: {
+      paymentReceiptId: persisted.id,
+      receiptId: persisted.receiptId,
+      customerId: persisted.customerId,
+      allocatedTotal: persisted.allocatedTotal,
+      unappliedAmount: persisted.unappliedAmount,
+    },
+  };
+}
+
+export async function requestPaymentRefundGovernance(
+  input: PaymentRefundRequest & { transaction?: Tx },
+): Promise<GovernanceActionRow> {
+  assertCanMakeGovernanceAction('PAYMENT_REFUND', input.makerRole);
+  const paymentReceiptId = Number(input.paymentReceiptId);
+  const amount = Number(input.amount);
+  const reason = input.reason.trim();
+  if (!Number.isInteger(paymentReceiptId) || paymentReceiptId < 1) {
+    throw new ApiError(400, 'paymentReceiptId không hợp lệ');
+  }
+  assertPositiveWholeAmount(amount, 'amount');
+  if (!reason) {
+    throw new ApiError(400, 'Lý do hoàn tiền là bắt buộc');
+  }
+
+  const execute = async (tx: Tx) => {
+    const [receipt] = await tx.select().from(s.paymentReceipts)
+      .where(eq(s.paymentReceipts.id, paymentReceiptId))
+      .limit(1)
+      .for('update');
+    if (!receipt) throw new ApiError(404, 'Phiếu thu không tồn tại');
+    if (amount > Number(receipt.unappliedAmount)) {
+      throw new ApiError(409, 'Số tiền hoàn vượt quá khoản chưa phân bổ của phiếu thu');
+    }
+
+    const [action] = await tx.insert(s.governanceActions).values({
+      subjectType: 'PAYMENT_REFUND',
+      subjectId: receipt.id,
+      subjectKey: `payment-receipt:${receipt.id}:refund:v${receipt.version}`,
+      actionKind: 'PAYMENT_REFUND',
+      status: 'PENDING_CHECK',
+      reason,
+      originalVersion: receipt.version,
+      beforeSnapshot: {
+        paymentReceiptId: receipt.id,
+        receiptId: receipt.receiptId,
+        customerId: receipt.customerId,
+        receivedAmount: Number(receipt.receivedAmount),
+        allocatedTotal: Number(receipt.allocatedTotal),
+        unappliedAmount: Number(receipt.unappliedAmount),
+        refundedAmount: Number(receipt.refundedAmount),
+        version: receipt.version,
+      },
+      afterSnapshot: {
+        paymentReceiptId: receipt.id,
+        receiptId: receipt.receiptId,
+        customerId: receipt.customerId,
+        amount,
+        reason,
+      },
+      deltaSnapshot: {
+        unappliedAmountDelta: -amount,
+        refundedAmountDelta: amount,
+        customerBalanceDelta: amount,
+      },
+      makerId: input.makerId,
+      makerRole: input.makerRole,
+    }).returning();
+    return action;
+  };
+
+  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+}
+
+export async function applyPaymentRefundGovernanceAction(
+  tx: Tx,
+  action: GovernanceActionRow,
+) {
+  if (action.actionKind !== 'PAYMENT_REFUND' || action.subjectType !== 'PAYMENT_REFUND') {
+    throw new ApiError(409, 'Loại yêu cầu không thuộc hoàn tiền phiếu thu');
+  }
+  const afterSnapshot = action.afterSnapshot as Record<string, unknown> | null;
+  const paymentReceiptId = Number(afterSnapshot?.paymentReceiptId);
+  const amount = Number(afterSnapshot?.amount);
+  const reason = typeof afterSnapshot?.reason === 'string' ? afterSnapshot.reason.trim() : '';
+  if (!Number.isInteger(paymentReceiptId) || paymentReceiptId < 1 || !reason) {
+    throw new ApiError(409, 'Yêu cầu hoàn tiền không có dữ liệu áp dụng hợp lệ');
+  }
+  assertPositiveWholeAmount(amount, 'amount');
+  if (action.approverId == null) {
+    throw new ApiError(409, 'Yêu cầu hoàn tiền chưa có người phê duyệt');
+  }
+
+  const [receipt] = await tx.select().from(s.paymentReceipts)
+    .where(eq(s.paymentReceipts.id, paymentReceiptId))
+    .limit(1)
+    .for('update');
+  if (!receipt) throw new ApiError(404, 'Phiếu thu không tồn tại');
+  if (receipt.version !== action.originalVersion) {
+    throw new ApiError(409, 'Phiếu thu đã thay đổi; yêu cầu hoàn tiền không thể áp dụng');
+  }
+  if (amount > Number(receipt.unappliedAmount)) {
+    throw new ApiError(409, 'Số tiền hoàn vượt quá khoản chưa phân bổ hiện tại');
+  }
+
+  const ledgerEntry = await LedgerService.postEntry(tx, {
+    txnType: TxnType.ADJUSTMENT,
+    txnId: receipt.id,
+    receiptId: `REFUND-${receipt.receiptId}-${action.id}`.slice(0, 100),
+    entityType: 'CUSTOMER',
+    entityId: receipt.customerId,
+    debit: amount,
+    credit: 0,
+    note: `Hoàn tiền chưa phân bổ phiếu thu ${receipt.receiptId}: ${reason}`,
+  });
+
+  const [refund] = await tx.insert(s.paymentRefunds).values({
+    paymentReceiptId: receipt.id,
+    governanceActionId: action.id,
+    amount: String(amount),
+    reason,
+    createdBy: action.makerId,
+    approvedBy: action.approverId,
+    ledgerEntryId: ledgerEntry.id,
+  }).returning();
+
+  const [updatedReceipt] = await tx.update(s.paymentReceipts).set({
+    unappliedAmount: sql`${s.paymentReceipts.unappliedAmount} - ${amount}`,
+    refundedAmount: sql`${s.paymentReceipts.refundedAmount} + ${amount}`,
+    version: sql`${s.paymentReceipts.version} + 1`,
+  }).where(and(
+    eq(s.paymentReceipts.id, receipt.id),
+    eq(s.paymentReceipts.version, action.originalVersion),
+  )).returning();
+  if (!updatedReceipt) {
+    throw new ApiError(409, 'Phiếu thu đã thay đổi; yêu cầu hoàn tiền không thể áp dụng');
+  }
+
+  return {
+    ledgerEntryId: ledgerEntry.id,
+    applicationResult: {
+      paymentRefundId: refund.id,
+      paymentReceiptId: receipt.id,
+      receiptId: receipt.receiptId,
+      customerId: receipt.customerId,
+      amount,
+      unappliedAmount: Number(updatedReceipt.unappliedAmount),
+      refundedAmount: Number(updatedReceipt.refundedAmount),
+      version: updatedReceipt.version,
+    },
+  };
 }
 
 export async function recordPaymentReceipt(
