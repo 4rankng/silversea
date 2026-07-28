@@ -597,6 +597,7 @@ async function buildPreviewSettlementData(input: {
       advanceRequestIds,
       tripExpenseIds,
       checkAlreadyLinked: false,
+      requireCurrentAssignment: true,
     });
 
   // Enrich expenses with trip/customer join for print display

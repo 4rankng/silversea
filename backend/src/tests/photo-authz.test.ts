@@ -2,7 +2,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert';
 import { db, client } from '../db';
 import * as s from '../db/schema';
-import { eq, like, inArray } from 'drizzle-orm';
+import { and, eq, like, inArray } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 import { authorizeExpensePhoto } from '../services/photo-authz.service';
 import {
@@ -35,6 +35,10 @@ const KEY = {
 };
 
 let tripId: number;
+let shipmentId: number;
+let customerId: number;
+let routeId: number;
+let cargoTypeId: number;
 let fwdActive: number; // FORWARDER, ACTIVE — owns E1
 let fwdInactive: number; // FORWARDER, DISABLED — owns E3
 let accountantId: number;
@@ -98,26 +102,38 @@ async function ensureCompanyExpense(): Promise<number> {
 }
 
 before(async () => {
-  let [trip] = await db.select({ id: s.trips.id }).from(s.trips).limit(1);
-  if (!trip) {
-    const suffix = Date.now().toString();
-    const [customer] = await db.insert(s.customers).values({ name: `${NS} customer ${suffix}` }).returning();
-    const [route] = await db.insert(s.routes).values({ name: `${NS} route ${suffix}` }).returning();
-    const [cargo] = await db.insert(s.cargoTypes).values({ name: `${NS} cargo ${suffix}` }).returning();
-    [trip] = await db.insert(s.trips).values({
-      tripCode: `${NS}-${suffix}`,
-      customerId: customer.id,
-      routeId: route.id,
-      cargoTypeId: cargo.id,
-      departureDate: '2026-06-17',
-    }).returning({ id: s.trips.id });
-  }
+  const suffix = Date.now().toString();
+  const [customer] = await db.insert(s.customers).values({ name: `${NS} customer ${suffix}` }).returning();
+  const [route] = await db.insert(s.routes).values({ name: `${NS} route ${suffix}` }).returning();
+  const [cargo] = await db.insert(s.cargoTypes).values({ name: `${NS} cargo ${suffix}` }).returning();
+  customerId = customer.id;
+  routeId = route.id;
+  cargoTypeId = cargo.id;
+  const [shipment] = await db.insert(s.shipments).values({
+    shipmentCode: `${NS}-shipment-${suffix}`,
+    customerId,
+    cargoTypeId,
+    status: 'IN_PROGRESS',
+  }).returning({ id: s.shipments.id });
+  shipmentId = shipment.id;
+  const [trip] = await db.insert(s.trips).values({
+    tripCode: `${NS}-${suffix}`,
+    shipmentId,
+    customerId,
+    routeId,
+    cargoTypeId,
+    departureDate: '2026-06-17',
+  }).returning({ id: s.trips.id });
   tripId = trip.id;
 
   fwdActive = await ensureUser('photoauthz_fwd1', Role.FORWARDER, 'ACTIVE');
   fwdInactive = await ensureUser('photoauthz_fwd2', Role.FORWARDER, 'DISABLED');
   accountantId = await ensureUser('photoauthz_acct', Role.ACCOUNTANT, 'ACTIVE');
   driverId = await ensureUser('photoauthz_drv', Role.DRIVER, 'ACTIVE');
+  await db.insert(s.userShipmentLinks).values([
+    { userId: fwdActive, shipmentId },
+    { userId: fwdInactive, shipmentId },
+  ]).onConflictDoNothing();
 
   expenseE1 = await ensureTripExpense(fwdActive);
   expenseE2 = await ensureTripExpense(null);
@@ -148,7 +164,13 @@ after(async () => {
     if (seededCompanyExpense) {
       await db.delete(s.expenses).where(eq(s.expenses.note, NS));
     }
+    await db.delete(s.userShipmentLinks).where(inArray(s.userShipmentLinks.userId, [fwdActive, fwdInactive]));
+    await db.delete(s.trips).where(eq(s.trips.id, tripId));
+    await db.delete(s.shipments).where(eq(s.shipments.id, shipmentId));
     await db.delete(s.users).where(like(s.users.username, `${NS}_%`));
+    await db.delete(s.cargoTypes).where(eq(s.cargoTypes.id, cargoTypeId));
+    await db.delete(s.routes).where(eq(s.routes.id, routeId));
+    await db.delete(s.customers).where(eq(s.customers.id, customerId));
   } catch (err) {
     console.warn('[photo-authz.test] cleanup failed:', err);
   }
@@ -180,6 +202,20 @@ test('DRIVER is denied every receipt key (drivers never read expense receipts)',
 test('FORWARDER (ACTIVE, owns) reads own trip-expense receipt', async () => {
   const d = await authorizeExpensePhoto(KEY.tripOwnedF1, { userId: fwdActive, role: Role.FORWARDER });
   assert.strictEqual(d.allow, true);
+});
+
+test('FORWARDER loses receipt access immediately when shipment assignment is revoked', async () => {
+  await db.delete(s.userShipmentLinks).where(and(
+    eq(s.userShipmentLinks.userId, fwdActive),
+    eq(s.userShipmentLinks.shipmentId, shipmentId),
+  ));
+  const denied = await authorizeExpensePhoto(KEY.tripOwnedF1, {
+    userId: fwdActive,
+    role: Role.FORWARDER,
+  });
+  assert.strictEqual(denied.allow, false);
+  assert.strictEqual(denied.reason, 'forbidden');
+  await db.insert(s.userShipmentLinks).values({ userId: fwdActive, shipmentId });
 });
 
 test('FORWARDER (ACTIVE) is denied a company-only receipt (B1 confidentiality preserved)', async () => {

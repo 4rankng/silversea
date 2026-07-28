@@ -26,6 +26,33 @@ export interface ValidatedSettlementInputs {
   tripExpenses: typeof s.tripExpenses.$inferSelect[];
 }
 
+export async function assertCurrentForwarderExpenseAssignments(opts: {
+  dbOrTx: DbOrTx;
+  forwarderId: number;
+  tripExpenseIds: number[];
+  lock?: 'share' | 'update';
+}): Promise<void> {
+  const { dbOrTx, forwarderId, tripExpenseIds, lock = 'share' } = opts;
+  if (tripExpenseIds.length === 0) return;
+  const uniqueExpenseIds = [...new Set(tripExpenseIds)];
+  const currentAssignments = await dbOrTx.select({
+    tripExpenseId: s.tripExpenses.id,
+  })
+    .from(s.tripExpenses)
+    .innerJoin(s.trips, eq(s.trips.id, s.tripExpenses.tripId))
+    .innerJoin(s.userShipmentLinks, and(
+      eq(s.userShipmentLinks.shipmentId, s.trips.shipmentId),
+      eq(s.userShipmentLinks.userId, forwarderId),
+    ))
+    .where(inArray(s.tripExpenses.id, uniqueExpenseIds))
+    .for(lock, { of: s.userShipmentLinks });
+  const assignedExpenseIds = new Set(currentAssignments.map((row) => row.tripExpenseId));
+  const unassignedExpenseId = uniqueExpenseIds.find((id) => !assignedExpenseIds.has(id));
+  if (unassignedExpenseId !== undefined) {
+    throw new AdvanceError(400, `Chi phí #${unassignedExpenseId} không còn thuộc lô hàng được giao`);
+  }
+}
+
 /**
  * Validate advance requests and trip expenses for a settlement.
  * Works with both `db` (preview) and `tx` (create inside transaction).
@@ -40,8 +67,17 @@ export async function validateSettlementInputs(opts: {
   tripExpenseIds?: number[];
   checkAlreadyLinked?: boolean;
   excludeSettlementId?: number;
+  requireCurrentAssignment?: boolean;
 }): Promise<{ advanceRequests: typeof s.advanceRequests.$inferSelect[]; tripExpenses: typeof s.tripExpenses.$inferSelect[] }> {
-  const { dbOrTx, forwarderId, advanceRequestIds, tripExpenseIds, checkAlreadyLinked, excludeSettlementId } = opts;
+  const {
+    dbOrTx,
+    forwarderId,
+    advanceRequestIds,
+    tripExpenseIds,
+    checkAlreadyLinked,
+    excludeSettlementId,
+    requireCurrentAssignment = false,
+  } = opts;
 
   // Serialize eligibility checks for the same business resources. Active-link
   // uniqueness spans a link table and settlement status, so PostgreSQL cannot
@@ -99,6 +135,15 @@ export async function validateSettlementInputs(opts: {
 
     if (expenseRows.length !== tripExpenseIds.length) {
       throw new AdvanceError(400, 'Một hoặc nhiều chi phí không tồn tại');
+    }
+
+    if (requireCurrentAssignment) {
+      await assertCurrentForwarderExpenseAssignments({
+        dbOrTx,
+        forwarderId,
+        tripExpenseIds,
+        lock: checkAlreadyLinked ? 'update' : 'share',
+      });
     }
 
     for (const exp of expenseRows) {

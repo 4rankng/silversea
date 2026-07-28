@@ -28,7 +28,7 @@ async function resetAndSeed() {
   console.log('🔄 Running fresh seed...');
 
   // Run the new modular seed
-  await import('./seed');
+  await import('./seed.js');
 }
 
 resetAndSeed().catch(err => {

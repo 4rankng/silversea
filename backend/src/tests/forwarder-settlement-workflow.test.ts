@@ -33,6 +33,7 @@ describe('forwarder settlement streamlined workflow', () => {
     customers: [] as number[],
     routes: [] as number[],
     cargoTypes: [] as number[],
+    shipments: [] as number[],
     trips: [] as number[],
     containers: [] as number[],
     expenses: [] as number[],
@@ -139,8 +140,18 @@ describe('forwarder settlement streamlined workflow', () => {
     ids.routes.push(route.id);
     ids.cargoTypes.push(cargoType.id);
 
+    const [shipment] = await db.insert(s.shipments).values({
+      shipmentCode: `ST-SHIP-${suffix}`.slice(0, 50),
+      customerId: customer.id,
+      cargoTypeId: cargoType.id,
+      status: 'IN_PROGRESS',
+    }).returning();
+    ids.shipments.push(shipment.id);
+    await db.insert(s.userShipmentLinks).values({ userId: forwarderId, shipmentId: shipment.id });
+
     const [trip] = await db.insert(s.trips).values({
       tripCode: `ST-${suffix}`.slice(0, 50),
+      shipmentId: shipment.id,
       customerId: customer.id,
       routeId: route.id,
       cargoTypeId: cargoType.id,
@@ -193,6 +204,8 @@ describe('forwarder settlement streamlined workflow', () => {
     if (ids.trips.length) await db.delete(s.tripExpenseCompletionScopes).where(inArray(s.tripExpenseCompletionScopes.tripId, ids.trips));
     if (ids.containers.length) await db.delete(s.tripContainers).where(inArray(s.tripContainers.id, ids.containers));
     if (ids.trips.length) await db.delete(s.trips).where(inArray(s.trips.id, ids.trips));
+    if (ids.users.length) await db.delete(s.userShipmentLinks).where(inArray(s.userShipmentLinks.userId, ids.users));
+    if (ids.shipments.length) await db.delete(s.shipments).where(inArray(s.shipments.id, ids.shipments));
     if (ids.requests.length) await db.delete(s.advanceRequests).where(inArray(s.advanceRequests.id, ids.requests));
     if (ids.customers.length) await db.delete(s.customers).where(inArray(s.customers.id, ids.customers));
     if (ids.routes.length) await db.delete(s.routes).where(inArray(s.routes.id, ids.routes));
@@ -218,6 +231,97 @@ describe('forwarder settlement streamlined workflow', () => {
     );
     await markCompleted(containerId);
     await validateSettlementInputs({ dbOrTx: db, forwarderId, advanceRequestIds: [requestId], tripExpenseIds: [container.id] });
+  });
+
+  test('revoking a shipment assignment removes completed expenses from settlement eligibility', async () => {
+    const expense = await insertExpense({ approvalStatus: 'APPROVED' });
+    await markCompleted(null);
+    const [settlement] = await db.insert(s.advanceSettlements).values({
+      code: `SCOPE-${Date.now()}`.slice(0, 20),
+      forwarderId,
+      totalExpenseAmount: expense.buyAmount,
+      status: 'PENDING',
+    }).returning();
+    ids.settlements.push(settlement.id);
+
+    const beforeRevocation = await getAdvanceSettlement(settlement.id);
+    assert.ok(beforeRevocation?.eligibleExpenses.some((item) => item.id === expense.id));
+
+    await db.delete(s.userShipmentLinks).where(and(
+      eq(s.userShipmentLinks.userId, forwarderId),
+      eq(s.userShipmentLinks.shipmentId, ids.shipments[0]),
+    ));
+
+    const afterRevocation = await getAdvanceSettlement(settlement.id);
+    assert.ok(!afterRevocation?.eligibleExpenses.some((item) => item.id === expense.id));
+    await assert.rejects(
+      validateSettlementInputs({
+        dbOrTx: db,
+        forwarderId,
+        advanceRequestIds: [requestId],
+        tripExpenseIds: [expense.id],
+        requireCurrentAssignment: true,
+      }),
+      /không còn thuộc lô hàng được giao/,
+    );
+    await validateSettlementInputs({
+      dbOrTx: db,
+      forwarderId,
+      advanceRequestIds: [requestId],
+      tripExpenseIds: [expense.id],
+    });
+
+    await db.insert(s.userShipmentLinks).values({
+      userId: forwarderId,
+      shipmentId: ids.shipments[0],
+    });
+  });
+
+  test('settlement creation and assignment revocation serialize to one deterministic winner', async () => {
+    const expense = await insertExpense({ approvalStatus: 'APPROVED' });
+    await markCompleted(null);
+    const matchingRequestId = await insertApprovedRequest(Number(expense.buyAmount));
+    let releaseCreate!: () => void;
+    const holdCreate = new Promise<void>((resolve) => {
+      releaseCreate = resolve;
+    });
+    let createReady!: () => void;
+    const createStarted = new Promise<void>((resolve) => {
+      createReady = resolve;
+    });
+
+    const create = db.transaction(async (tx) => {
+      const settlement = await createAdvanceSettlement(forwarderId, {
+        advanceRequestIds: [matchingRequestId],
+        tripExpenseIds: [expense.id],
+        refundAmount: 0,
+      }, tx);
+      ids.settlements.push(settlement.id);
+      createReady();
+      await holdCreate;
+      return settlement;
+    });
+    await createStarted;
+
+    let revocationCompleted = false;
+    const revoke = db.transaction(async (tx) => {
+      await tx.delete(s.userShipmentLinks).where(and(
+        eq(s.userShipmentLinks.userId, forwarderId),
+        eq(s.userShipmentLinks.shipmentId, ids.shipments[0]),
+      ));
+      revocationCompleted = true;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.equal(revocationCompleted, false);
+
+    releaseCreate();
+    await create;
+    await revoke;
+    assert.equal(revocationCompleted, true);
+    await db.insert(s.userShipmentLinks).values({
+      userId: forwarderId,
+      shipmentId: ids.shipments[0],
+    });
   });
 
   test('a rejected settlement link does not prevent the same expense from being resubmitted', async () => {
@@ -952,12 +1056,23 @@ describe('forwarder settlement streamlined workflow', () => {
       buyAmount: '1782000',
       supplierId: null,
       invoiceNumber: null,
-      note: null,
+      expenseDate: '2026-07-11',
+      payeeName: 'Cảng thử nghiệm',
+      note: 'Biên nhận thay thế hóa đơn',
+      noInvoiceEvidenceTypes: ['RECEIPT'],
     });
     assert.equal(updated?.buyAmount, '1782000');
     assert.equal(updated?.supplierId, null);
     assert.equal(updated?.invoiceNumber, null);
-    assert.equal(updated?.note, null);
+    assert.equal(updated?.note, 'Biên nhận thay thế hóa đơn');
+
+    await assert.rejects(
+      () => updateForwarderTripExpense(expense.id, forwarderId, {
+        note: null,
+        noInvoiceEvidenceTypes: [],
+      }),
+      /Lý do chi là bắt buộc/,
+    );
 
     await db.update(s.tripExpenses).set({
       expenseType: 'CUSTOMS',

@@ -530,7 +530,7 @@ export async function createTrip(data: {
       // shipment.service.ts imports trip-command.service.ts (which imports
       // trip.service.ts → trip-mutations.service.ts → back here). Deferring
       // the import to call-time breaks the cycle.
-      const { snapshotContainersIntoTrip } = await import('./shipment.service');
+      const { snapshotContainersIntoTrip } = await import('./shipment.service.js');
       await snapshotContainersIntoTrip(data.shipmentId, trip.id, data.createdBy ?? null, tx);
 
       // 4b. Link the trip to the shipment via UPDATE so a concurrent

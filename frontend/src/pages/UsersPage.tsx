@@ -27,7 +27,11 @@ async function loadAllShipmentScopeOptions() {
     items.push(...response.items);
     page += 1;
   } while (items.length < total);
-  return { items };
+  return {
+    items: items.filter(
+      (shipment) => shipment.status === 'DRAFT' || shipment.status === 'IN_PROGRESS',
+    ),
+  };
 }
 
 export default function UsersPage() {

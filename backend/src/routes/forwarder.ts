@@ -7,6 +7,7 @@ import {
   getForwarderTripCounts,
   getForwarderTripDetail,
   assertForwarderTripScope,
+  assertForwarderMutableTripScope,
   createTripExpense,
   deleteTripExpenseInTx,
   listUnlinkedTripExpenses,
@@ -176,6 +177,7 @@ async function deleteForwarderExpensePhotoCommand(
 ): Promise<ForwarderExpensePhotoDeleteCommand | null> {
   const [photo] = await client.select({
       id: s.tripExpensePhotos.id,
+      tripExpenseId: s.tripExpensePhotos.tripExpenseId,
       storageKey: s.tripExpensePhotos.storageKey,
       uploadedAt: s.tripExpensePhotos.uploadedAt,
       ownerForwarderId: s.tripExpenses.forwarderId,
@@ -186,6 +188,12 @@ async function deleteForwarderExpensePhotoCommand(
       .limit(1)
       .for('update');
   if (!photo || photo.ownerForwarderId !== forwarderId) return null;
+  const [expense] = await client.select({ tripId: s.tripExpenses.tripId })
+    .from(s.tripExpenses)
+    .where(eq(s.tripExpenses.id, photo.tripExpenseId))
+    .limit(1);
+  if (!expense) return null;
+  await assertForwarderMutableTripScope(expense.tripId, forwarderId, client);
   if (expectedUpdatedAt && photo.uploadedAt.getTime() !== expectedUpdatedAt.getTime()) {
     throw new ApiError(409, 'Ảnh hóa đơn đã thay đổi. Vui lòng tải lại chi phí trước khi xóa.');
   }
@@ -252,7 +260,7 @@ router.post('/trips/:tripId/containers', asyncHandler(async (req: Request, res: 
     createdBy: forwarder.id,
     responseStatusCode: 201,
     create: async (tx) => {
-      await assertForwarderTripScope(tripId, forwarder.id, tx);
+      await assertForwarderMutableTripScope(tripId, forwarder.id, tx);
       return createTripContainerInClient(tx, {
         ...parsed.data,
         tripId,
@@ -283,7 +291,7 @@ router.post('/expenses', asyncHandler(async (req: Request, res: Response) => {
     createdBy: forwarder.id,
     responseStatusCode: 201,
     create: async (tx) => {
-      await assertForwarderTripScope(parsed.data.tripId, forwarder.id, tx);
+      await assertForwarderMutableTripScope(parsed.data.tripId, forwarder.id, tx);
       return createTripExpense(tx, {
         tripId: parsed.data.tripId,
         forwarderId: forwarder.id,
@@ -369,7 +377,7 @@ router.put('/trips/:tripId/expense-completion', asyncHandler(async (req: Request
     createdBy: forwarder.id,
     responseStatusCode: 200,
     create: async (tx) => {
-      await assertForwarderTripScope(tripId, forwarder.id, tx);
+      await assertForwarderMutableTripScope(tripId, forwarder.id, tx);
       return setTripExpenseCompletion(
         tripId,
         parsed.data.tripContainerId,
@@ -549,9 +557,16 @@ router.get('/expenses/:id/photos', asyncHandler(async (req: Request, res: Respon
   const expenseId = parseInt(req.params.id as string, 10);
   // N1: gate on expense ownership before listing — unowned → 404 (not 403),
   // so a forwarder cannot enumerate another forwarder's photo metadata.
-  if (!(await getForwarderOwnedExpenseId(expenseId, forwarder.id))) {
+  const ownedExpenseId = await getForwarderOwnedExpenseId(expenseId, forwarder.id);
+  if (!ownedExpenseId) {
     return res.status(404).json({ error: 'Không tìm thấy chi phí' });
   }
+  const [ownedExpense] = await db.select({ tripId: s.tripExpenses.tripId })
+    .from(s.tripExpenses)
+    .where(eq(s.tripExpenses.id, expenseId))
+    .limit(1);
+  if (!ownedExpense) return res.status(404).json({ error: 'Không tìm thấy chi phí' });
+  await assertForwarderTripScope(ownedExpense.tripId, forwarder.id);
   const photos = await getExpensePhotos(expenseId);
   res.json({ items: photos });
 }));
@@ -565,7 +580,8 @@ router.post('/expenses/:id/photos', expensePhotoUpload.single('file'), asyncHand
 
   // N1: ownership precheck BEFORE any processing — unowned → 404 (not 403),
   // so a forwarder cannot attach photos to another forwarder's trip_expense.
-  if (!(await getForwarderOwnedExpenseId(expenseId, forwarder.id))) {
+  const ownedExpenseId = await getForwarderOwnedExpenseId(expenseId, forwarder.id);
+  if (!ownedExpenseId) {
     return res.status(404).json({ error: 'Không tìm thấy chi phí' });
   }
 
@@ -632,6 +648,12 @@ router.post('/expenses/:id/photos', expensePhotoUpload.single('file'), asyncHand
           if (!expense) {
             throw new ApiError(404, 'Không tìm thấy chi phí');
           }
+          const [ownedExpense] = await tx.select({ tripId: s.tripExpenses.tripId })
+            .from(s.tripExpenses)
+            .where(eq(s.tripExpenses.id, expenseId))
+            .limit(1);
+          if (!ownedExpense) throw new ApiError(404, 'Không tìm thấy chi phí');
+          await assertForwarderMutableTripScope(ownedExpense.tripId, forwarder.id, tx);
           const cancelled = await cancelStorageCleanupGuard(tx, cleanupGuard);
           if (!cancelled) {
             throw new ApiError(409, 'Ảnh chứng từ đang được xử lý bởi yêu cầu khác. Vui lòng thử lại.');

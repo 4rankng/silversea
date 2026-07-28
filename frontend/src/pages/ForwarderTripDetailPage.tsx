@@ -30,6 +30,22 @@ function tripStatusVariant(status: TripStatus): 'neutral' | 'info' | 'warn' | 's
   return 'neutral';
 }
 
+const newExpenseForm = () => ({
+  expenseType: 'LIFTING' as string,
+  buyAmount: '',
+  sellAmount: '',
+  settlementMethod: 'FORWARDER_ADVANCE' as 'FORWARDER_ADVANCE' | 'COMPANY_DIRECT',
+  supplierId: '',
+  tripContainerId: '',
+  expenseDate: businessDateISO(),
+  payeeName: '',
+  invoiceNumber: '',
+  invoiceDate: '',
+  declarationNumber: '',
+  note: '',
+  noInvoiceEvidenceTypes: [] as string[],
+});
+type ExpenseFormState = ReturnType<typeof newExpenseForm>;
 
 export default function ForwarderTripDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -60,21 +76,8 @@ export default function ForwarderTripDetailPage() {
 
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [editingExpenseId, setEditingExpenseId] = useState<number | null>(null);
-  const [expenseForm, setExpenseForm] = useState({
-    expenseType: 'LIFTING' as string,
-    buyAmount: '',
-    sellAmount: '',
-    settlementMethod: 'FORWARDER_ADVANCE' as 'FORWARDER_ADVANCE' | 'COMPANY_DIRECT',
-    supplierId: '',
-    tripContainerId: '',
-    expenseDate: businessDateISO(),
-    payeeName: '',
-    invoiceNumber: '',
-    invoiceDate: '',
-    declarationNumber: '',
-    note: '',
-    noInvoiceEvidenceTypes: [] as string[],
-  });
+  const [expenseForm, setExpenseForm] = useState(newExpenseForm);
+  const [expenseFormBaseline, setExpenseFormBaseline] = useState(newExpenseForm);
   const [expenseErrors, setExpenseErrors] = useState<{
     buyAmount?: string;
     declarationNumber?: string;
@@ -94,15 +97,7 @@ export default function ForwarderTripDetailPage() {
   const handleBack = () => navigate('/my-forwarder-trips');
   const isDirty = () =>
     (showContainerForm && Boolean(containerForm.containerNumber || containerForm.sealNumber || containerForm.notes)) ||
-    (showExpenseForm && Boolean(
-      expenseForm.buyAmount
-      || expenseForm.supplierId
-      || expenseForm.payeeName
-      || expenseForm.invoiceNumber
-      || expenseForm.declarationNumber
-      || expenseForm.note
-      || expenseForm.noInvoiceEvidenceTypes.length,
-    ));
+    (showExpenseForm && JSON.stringify(expenseForm) !== JSON.stringify(expenseFormBaseline));
   useBackShortcut(handleBack, {
     isDirty,
     confirmDiscard: () => confirm('Thoát mà không lưu? Các thay đổi chưa lưu sẽ bị mất.', { variant: 'warning', confirmLabel: 'Thoát' }),
@@ -236,21 +231,9 @@ export default function ForwarderTripDetailPage() {
     mutation(
       {
         onSuccess: () => {
-          setExpenseForm({
-            expenseType: 'LIFTING',
-            buyAmount: '',
-            sellAmount: '',
-            settlementMethod: 'FORWARDER_ADVANCE',
-            supplierId: '',
-            tripContainerId: '',
-            expenseDate: businessDateISO(),
-            payeeName: '',
-            invoiceNumber: '',
-            invoiceDate: '',
-            declarationNumber: '',
-            note: '',
-            noInvoiceEvidenceTypes: [],
-          });
+          const resetForm = newExpenseForm();
+          setExpenseForm(resetForm);
+          setExpenseFormBaseline(resetForm);
           setExpenseErrors({});
           setEditingExpenseId(null);
           setShowExpenseForm(false);
@@ -284,7 +267,9 @@ export default function ForwarderTripDetailPage() {
     setShowExpenseForm(prev => {
       const willOpen = !prev;
       if (willOpen && !expenseForm.tripContainerId && containers.length === 1) {
-        setExpenseForm(f => ({ ...f, tripContainerId: String(containers[0].id) }));
+        const selectedContainerId = String(containers[0].id);
+        setExpenseForm(f => ({ ...f, tripContainerId: selectedContainerId }));
+        setExpenseFormBaseline(f => ({ ...f, tripContainerId: selectedContainerId }));
       }
       return willOpen;
     });
@@ -292,7 +277,7 @@ export default function ForwarderTripDetailPage() {
   const openExpenseEditor = (exp: typeof expenses[number]) => {
     if (exp.activeSettlementId || !exp.canEdit) return;
     setEditingExpenseId(exp.id);
-    setExpenseForm({
+    const editForm: ExpenseFormState = {
       expenseType: exp.expenseType,
       buyAmount: String(exp.buyAmount),
       sellAmount: String(exp.sellAmount ?? ''),
@@ -306,7 +291,9 @@ export default function ForwarderTripDetailPage() {
       declarationNumber: exp.declarationNumber ?? '',
       note: exp.note ?? '',
       noInvoiceEvidenceTypes: exp.noInvoiceEvidenceTypes ?? [],
-    });
+    };
+    setExpenseForm(editForm);
+    setExpenseFormBaseline(editForm);
     setExpenseErrors({});
     setExpenseSubmitError(null);
     setShowExpenseForm(true);

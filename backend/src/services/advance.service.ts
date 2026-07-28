@@ -4,7 +4,11 @@ import { eq, and, desc, inArray, isNull, notInArray, ne, sql, count } from 'driz
 import { NotificationType, TxnType, round2dp } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
 import { emitNotification } from './notification.service';
-import { AdvanceError, validateSettlementInputs } from './settlement-validation';
+import {
+  AdvanceError,
+  assertCurrentForwarderExpenseAssignments,
+  validateSettlementInputs,
+} from './settlement-validation';
 import type { Tx } from './trip-shared';
 import { getTripExpenseRequiredFieldError } from './forwarder.service';
 import {
@@ -501,6 +505,14 @@ export async function createAdvanceSettlement(
       await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
     }
     if (requestedExpenseIds.length > 0) {
+      // Match forwarder expense mutation lock order:
+      // expense resource → assignment row → completion scope.
+      await assertCurrentForwarderExpenseAssignments({
+        dbOrTx: tx,
+        forwarderId,
+        tripExpenseIds: requestedExpenseIds,
+        lock: 'update',
+      });
       const scopes = await tx.select({
         tripId: s.tripExpenses.tripId,
         tripContainerId: s.tripExpenses.tripContainerId,
@@ -518,6 +530,9 @@ export async function createAdvanceSettlement(
         advanceRequestIds: data.advanceRequestIds,
         tripExpenseIds: data.tripExpenseIds,
         checkAlreadyLinked: true,
+        // The assignment was validated and locked before the completion scope
+        // to avoid a lock-order inversion with forwarder expense mutations.
+        requireCurrentAssignment: false,
       });
 
     // Auto-calculate total from selected expenses
@@ -713,6 +728,10 @@ export async function getAdvanceSettlement(id: number, executor: DbLike = db) {
       ), 'IN_PROGRESS')`,
     }).from(s.tripExpenses)
       .leftJoin(s.trips, eq(s.trips.id, s.tripExpenses.tripId))
+      .innerJoin(s.userShipmentLinks, and(
+        eq(s.userShipmentLinks.shipmentId, s.trips.shipmentId),
+        eq(s.userShipmentLinks.userId, row.forwarderId),
+      ))
       .where(and(
         eq(s.tripExpenses.forwarderId, row.forwarderId),
         inArray(s.tripExpenses.approvalStatus, ['PENDING', 'APPROVED']),

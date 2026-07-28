@@ -65,6 +65,47 @@ export async function assertForwarderTripScope(
   if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
 }
 
+/**
+ * Locks the current assignment row and rejects writes after scope revocation or
+ * after either the trip or shipment reaches a terminal state.
+ */
+export async function assertForwarderMutableTripScope(
+  tripId: number,
+  forwarderId: number,
+  client: QueryClient = db,
+): Promise<void> {
+  const [trip] = await client.select({
+    id: s.trips.id,
+    shipmentId: s.trips.shipmentId,
+    tripStatus: s.trips.status,
+    shipmentStatus: s.shipments.status,
+  })
+    .from(s.trips)
+    .innerJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
+    .where(and(eq(s.trips.id, tripId), isNull(s.trips.deletedAt)))
+    .limit(1)
+    .for('share');
+  if (!trip?.shipmentId) throw new ApiError(404, 'Không tìm thấy chuyến đi');
+
+  const [assignment] = await client.select({ shipmentId: s.userShipmentLinks.shipmentId })
+    .from(s.userShipmentLinks)
+    .where(and(
+      eq(s.userShipmentLinks.userId, forwarderId),
+      eq(s.userShipmentLinks.shipmentId, trip.shipmentId),
+    ))
+    .limit(1)
+    .for('update');
+  if (!assignment) throw new ApiError(404, 'Không tìm thấy chuyến đi');
+
+  if (
+    trip.tripStatus === 'LOCKED'
+    || trip.tripStatus === 'CANCELED'
+    || (trip.shipmentStatus !== 'DRAFT' && trip.shipmentStatus !== 'IN_PROGRESS')
+  ) {
+    throw new ApiError(409, 'Không thể cập nhật chuyến hoặc lô hàng đã kết thúc');
+  }
+}
+
 export async function getForwarderTrips(
   forwarderId: number,
   status?: string,

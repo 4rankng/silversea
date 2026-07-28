@@ -239,6 +239,7 @@ def run_suite(suite_name: str, test_fn, headless: bool = True):
         except Exception as e:
             print(f'\n💥 Suite crashed: {e}')
             traceback.print_exc()
+            results.fail('SUITE-CRASH', 'Suite terminated before completion', str(e))
 
     passed = results.print_summary()
     results.write_json()

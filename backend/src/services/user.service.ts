@@ -269,10 +269,18 @@ async function validateShipmentIds(
   const rows = await q.select({
     id: shipments.id,
     responsibleUnitId: shipments.responsibleUnitId,
+    status: shipments.status,
   }).from(shipments)
-    .where(and(inArray(shipments.id, shipmentIds), isNull(shipments.deletedAt)));
+    .where(and(inArray(shipments.id, shipmentIds), isNull(shipments.deletedAt)))
+    .for('share');
   if (rows.length !== shipmentIds.length) {
     throw new ApiError(400, 'Lô hàng liên kết không tồn tại');
+  }
+  const terminalShipment = rows.find(
+    (row) => row.status !== 'DRAFT' && row.status !== 'IN_PROGRESS',
+  );
+  if (terminalShipment) {
+    throw new ApiError(400, 'Chỉ được gán lô hàng đang nháp hoặc đang thực hiện');
   }
   const invalid = businessUnitIds === undefined
     ? undefined

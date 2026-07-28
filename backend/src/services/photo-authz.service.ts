@@ -1,6 +1,6 @@
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 
 /**
@@ -43,7 +43,18 @@ export async function authorizeExpensePhoto(
 ): Promise<PhotoAuthDecision> {
   // 1. Parallel exact-storage_key lookups against both receipt tables.
   const [tripRows, expenseRows] = await Promise.all([
-    db.select({ forwarderId: s.tripExpenses.forwarderId, ownerStatus: s.users.status })
+    db.select({
+      forwarderId: s.tripExpenses.forwarderId,
+      ownerStatus: s.users.status,
+      hasCurrentAssignment: sql<boolean>`EXISTS (
+        SELECT 1
+        FROM trips scoped_trip
+        INNER JOIN user_shipment_links scoped_assignment
+          ON scoped_assignment.shipment_id = scoped_trip.shipment_id
+        WHERE scoped_trip.id = ${s.tripExpenses.tripId}
+          AND scoped_assignment.user_id = ${user.userId}
+      )`,
+    })
       .from(s.tripExpensePhotos)
       .innerJoin(s.tripExpenses, eq(s.tripExpensePhotos.tripExpenseId, s.tripExpenses.id))
       // LEFT JOIN (not INNER, no status filter) so `tripMatch` stays a pure
@@ -74,7 +85,8 @@ export async function authorizeExpensePhoto(
     || FINANCE_ROLES.has(user.role)
     || (user.role === Role.FORWARDER
       && tripRows[0].forwarderId === user.userId
-      && tripRows[0].ownerStatus === 'ACTIVE');
+      && tripRows[0].ownerStatus === 'ACTIVE'
+      && tripRows[0].hasCurrentAssignment);
   const okExpense = !expenseMatch || FINANCE_ROLES.has(user.role);
   const allow = okTrip && okExpense;
 

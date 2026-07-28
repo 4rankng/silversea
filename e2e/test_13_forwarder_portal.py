@@ -371,14 +371,25 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
                 if '/my-forwarder-trips' in page.url and f'/{trip_id}' not in page.url.rstrip('/'):
                     results.pass_('TC-1322', 'Back button returns to trip list')
                 else:
-                    results.pass_('TC-1322', f'Back navigated, URL: {page.url}')
+                    results.fail(
+                        'TC-1322',
+                        'Back button returns to trip list',
+                        f'Expected /my-forwarder-trips, got {page.url}',
+                    )
             else:
                 page.go_back()
                 page.wait_for_load_state('networkidle')
                 page.wait_for_timeout(1000)
-                results.pass_('TC-1322', 'Browser back returns to trip list')
-        except Exception:
-            results.pass_('TC-1322', 'Back navigation attempted')
+                if page.url.rstrip('/').endswith('/my-forwarder-trips'):
+                    results.pass_('TC-1322', 'Browser back returns to trip list')
+                else:
+                    results.fail(
+                        'TC-1322',
+                        'Browser back returns to trip list',
+                        f'Expected /my-forwarder-trips, got {page.url}',
+                    )
+        except Exception as exc:
+            results.fail('TC-1322', 'Back navigation', str(exc))
         page.close()
     else:
         results.skip('TC-1322', 'Back button', 'No trips available')
@@ -745,7 +756,45 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
 
         # TC-1353: A separately authenticated forwarder sharing the shipment
         # may see the trip, but cannot delete another forwarder's expense.
-        if api_secondary and delete_version:
+        if api_secondary and delete_version and secondary_forwarder:
+            secondary_owned_expense = None
+            secondary_owned_version = None
+            share_scope = api_admin.patch(
+                f'/api/auth/users/{secondary_forwarder["id"]}',
+                {'shipmentIds': [shipment_id]},
+                {'If-Unmodified-Since': secondary_forwarder.get('updatedAt', '')},
+            )
+            if share_scope.get('status') == 200:
+                secondary_forwarder = share_scope.get('data', secondary_forwarder)
+                secondary_create = api_secondary.post('/api/forwarder/me/expenses', {
+                    'tripId': trip_id,
+                    'expenseType': 'OTHER',
+                    'buyAmount': 123000,
+                    'sellAmount': 0,
+                    'settlementMethod': 'FORWARDER_ADVANCE',
+                    **no_invoice_fields('revocation'),
+                })
+                if secondary_create.get('status') in (200, 201):
+                    secondary_owned_expense = secondary_create.get('data', {}).get('id')
+                    secondary_detail = api_secondary.get(f'/api/forwarder/me/trips/{trip_id}')
+                    secondary_rows = secondary_detail.get('data', {}).get('expenses', [])
+                    secondary_row = next(
+                        (row for row in secondary_rows if row.get('id') == secondary_owned_expense),
+                        None,
+                    )
+                    secondary_owned_version = secondary_row.get('updatedAt') if secondary_row else None
+                else:
+                    results.fail(
+                        'TC-1353-R-FIXTURE',
+                        'Create second forwarder owned expense',
+                        f'Status: {secondary_create.get("status")}',
+                    )
+            else:
+                results.fail(
+                    'TC-1353-FIXTURE',
+                    'Share shipment with second forwarder',
+                    f'Status: {share_scope.get("status")}',
+                )
             resp = api_secondary.delete(
                 f'/api/forwarder/me/expenses/{delete_expense_id}',
                 delete_headers,
@@ -758,6 +807,62 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
                     'Cannot delete other expense',
                     f'Expected 403/404, got {resp.get("status")}',
                 )
+            if secondary_shipment_id:
+                revoke_scope = api_admin.patch(
+                    f'/api/auth/users/{secondary_forwarder["id"]}',
+                    {'shipmentIds': [secondary_shipment_id]},
+                    {'If-Unmodified-Since': secondary_forwarder.get('updatedAt', '')},
+                )
+                if revoke_scope.get('status') == 200:
+                    secondary_forwarder = revoke_scope.get('data', secondary_forwarder)
+                    revoked_detail = api_secondary.get(f'/api/forwarder/me/trips/{trip_id}')
+                    revoked_delete = (
+                        api_secondary.delete(
+                            f'/api/forwarder/me/expenses/{secondary_owned_expense}',
+                            {'If-Unmodified-Since': secondary_owned_version},
+                        )
+                        if secondary_owned_expense and secondary_owned_version
+                        else {'status': None}
+                    )
+                    if revoked_detail.get('status') == 404 and revoked_delete.get('status') == 404:
+                        results.pass_('TC-1353-R', 'Assignment revocation immediately denies known trip and expense IDs')
+                    else:
+                        results.fail(
+                            'TC-1353-R',
+                            'Assignment revocation',
+                            f'detail={revoked_detail.get("status")}, delete={revoked_delete.get("status")}',
+                        )
+                    if secondary_owned_expense and secondary_owned_version:
+                        restore_scope = api_admin.patch(
+                            f'/api/auth/users/{secondary_forwarder["id"]}',
+                            {'shipmentIds': [shipment_id]},
+                            {'If-Unmodified-Since': secondary_forwarder.get('updatedAt', '')},
+                        )
+                        if restore_scope.get('status') == 200:
+                            secondary_forwarder = restore_scope.get('data', secondary_forwarder)
+                            cleanup_owned = api_secondary.delete(
+                                f'/api/forwarder/me/expenses/{secondary_owned_expense}',
+                                {'If-Unmodified-Since': secondary_owned_version},
+                            )
+                            if cleanup_owned.get('status') not in (200, 204):
+                                results.fail(
+                                    'TC-1353-R-CLEANUP',
+                                    'Delete second forwarder expense fixture',
+                                    f'Status: {cleanup_owned.get("status")}',
+                                )
+                            final_revoke = api_admin.patch(
+                                f'/api/auth/users/{secondary_forwarder["id"]}',
+                                {'shipmentIds': [secondary_shipment_id]},
+                                {'If-Unmodified-Since': secondary_forwarder.get('updatedAt', '')},
+                            )
+                            if final_revoke.get('status') == 200:
+                                secondary_forwarder = final_revoke.get('data', secondary_forwarder)
+                else:
+                    results.fail(
+                        'TC-1353-R',
+                        'Revoke shared shipment',
+                        f'Status: {revoke_scope.get("status")}',
+                    )
         else:
             results.fail('TC-1353', 'Cannot delete other expense', 'Second forwarder fixture unavailable')
 
