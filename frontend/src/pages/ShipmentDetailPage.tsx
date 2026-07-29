@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, Package, FileText, FileCheck2, Container, History,
+  ArrowLeft, Package, FileText, FileCheck2, Container, History, ClipboardPenLine,
 } from 'lucide-react';
 import { api, ApiError } from '../lib/api';
 import { PageHeader } from '../components/UI';
@@ -12,8 +12,10 @@ import {
   SHIPMENT_DOCUMENT_TYPE_LABELS,
   type ShipmentStatus,
   type ShipmentDocumentType,
+  Role,
 } from '@tingting/shared';
 import { usePageAnimations } from '../hooks/animations';
+import { useAuth } from '../hooks/useAuth';
 import './ShipmentDetailPage.css';
 
 // ─── Types (local; see ShipmentsPage for the rationale) ──────────────────────
@@ -32,6 +34,18 @@ interface Shipment {
   deliveryLocation: string | null;
   contactName: string | null;
   contactPhone: string | null;
+  tradeDirection: 'IMPORT' | 'EXPORT' | null;
+  cargoMode: 'FCL' | 'LCL' | null;
+  factoryName: string | null;
+  shippingLineName: string | null;
+  customsCutoffAt: string | null;
+  closingAt: string | null;
+  plannedReturnAt: string | null;
+  cargoWeightKg: string | null;
+  cargoVolumeCbm: string | null;
+  packageCount: number | null;
+  packageType: string | null;
+  operationalNotes: string | null;
   version: number;
   createdAt: string;
   updatedAt: string;
@@ -106,7 +120,9 @@ function formatDateTime(iso: string | null): string {
 export default function ShipmentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const shipmentId = Number(id);
+  const canOperate = user?.role === Role.ADMIN || user?.role === Role.MANAGER;
 
   const [data, setData] = useState<ShipmentDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -186,6 +202,15 @@ export default function ShipmentDetailPage() {
         title={shipment.shipmentCode ?? `Lô hàng #${shipment.id}`}
         description={`Trạng thái: ${SHIPMENT_STATUS_LABELS[shipment.status]}`}
         onBack={() => navigate('/shipments')}
+        action={canOperate ? (
+          <Link
+            to={`/clerk/shipments/${shipment.id}/docs`}
+            className="btn btn--primary shipment-detail__operate"
+          >
+            <ClipboardPenLine size={18} aria-hidden="true" />
+            Cập nhật &amp; điều xe
+          </Link>
+        ) : undefined}
       />
 
       <div className="shipment-detail__grid">
@@ -205,6 +230,21 @@ export default function ShipmentDetailPage() {
             <div><dt>Nơi giao</dt><dd>{shipment.deliveryLocation ?? '—'}</dd></div>
             <div><dt>Liên hệ</dt><dd>{shipment.contactName ?? '—'}{shipment.contactPhone ? ` · ${shipment.contactPhone}` : ''}</dd></div>
             <div><dt>Ngày tạo</dt><dd>{formatDateTime(shipment.createdAt)}</dd></div>
+            <div><dt>Chiều hàng</dt><dd>{shipment.tradeDirection === 'IMPORT' ? 'Nhập khẩu' : shipment.tradeDirection === 'EXPORT' ? 'Xuất khẩu' : '—'}</dd></div>
+            <div><dt>Loại lô</dt><dd>{shipment.cargoMode === 'FCL' ? 'Container (FCL)' : shipment.cargoMode === 'LCL' ? 'Hàng lẻ (LCL)' : '—'}</dd></div>
+            <div><dt>Nhà máy / công trường</dt><dd>{shipment.factoryName ?? '—'}</dd></div>
+            <div><dt>Hãng tàu</dt><dd>{shipment.shippingLineName ?? '—'}</dd></div>
+            <div><dt>Cut-off hải quan</dt><dd>{formatDateTime(shipment.customsCutoffAt)}</dd></div>
+            <div><dt>Closing time</dt><dd>{formatDateTime(shipment.closingAt)}</dd></div>
+            <div><dt>Thời gian trả</dt><dd>{formatDateTime(shipment.plannedReturnAt)}</dd></div>
+            <div><dt>Trọng lượng</dt><dd>{shipment.cargoWeightKg ? `${shipment.cargoWeightKg} kg` : '—'}</dd></div>
+            {shipment.cargoMode === 'LCL' && (
+              <>
+                <div><dt>Thể tích</dt><dd>{shipment.cargoVolumeCbm ? `${shipment.cargoVolumeCbm} CBM` : '—'}</dd></div>
+                <div><dt>Kiện hàng</dt><dd>{shipment.packageCount != null ? `${shipment.packageCount}${shipment.packageType ? ` ${shipment.packageType}` : ' kiện'}` : '—'}</dd></div>
+              </>
+            )}
+            <div className="shipment-detail__field--wide"><dt>Ghi chú vận hành</dt><dd>{shipment.operationalNotes ?? '—'}</dd></div>
           </dl>
         </section>
 

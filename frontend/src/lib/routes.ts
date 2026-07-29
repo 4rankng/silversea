@@ -49,6 +49,7 @@ export const routes = {
   suppliers: PAGE_CATALOG.suppliers.path,
   // Wave 0: shipment (lô hàng) — minimal read-only list + detail.
   shipments: PAGE_CATALOG.shipments.path,
+  shipmentNew: '/shipments/new',
   shipmentDetail: (id: number | string) => PAGE_CATALOG.shipmentDetail.path({ id }),
   expenses: PAGE_CATALOG.expenses.path,
   expenseNew: PAGE_CATALOG.expenseNew.path,

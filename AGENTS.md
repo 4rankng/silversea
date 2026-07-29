@@ -29,6 +29,17 @@ then use `pnpm context -- --profile <profile-id>`. The manifest at
 `.codex/context-manifest.json` is versioned and must not contain secrets,
 machine-specific paths, customer data, or transient command output.
 
+## UI component libraries (mandatory)
+
+For UI design or implementation work, consult the configured UI MCP component
+libraries—Shadcn, Untitled UI, and Tailkit—early in the task, and use suitable
+components or patterns from them where they improve the result. Treat these
+libraries as design and implementation inputs, then adapt what you use to the
+canonical Silversea design system, existing code conventions, accessibility
+requirements, and responsive desktop/mobile behavior. Do not copy a component
+verbatim when it would introduce an incompatible dependency or conflict with an
+existing project primitive.
+
 ## Closed-loop SDLC (mandatory)
 
 Every task runs this loop. **"Done" means the loop exited green — not that code was written.**

@@ -1,0 +1,15 @@
+{
+  "decision": "PENDING",
+  "disprovenClaims": [],
+  "unverifiedClaims": [
+    "all affected QA gates are green",
+    "all role and responsive acceptance criteria are verified"
+  ],
+  "missingProof": [
+    "implementation",
+    "automated QA",
+    "browser evidence",
+    "independent review"
+  ],
+  "reachableRegressions": []
+}

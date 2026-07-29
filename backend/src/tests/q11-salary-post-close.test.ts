@@ -1,4 +1,4 @@
-import { after, test } from 'node:test';
+import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { and, eq, inArray } from 'drizzle-orm';
 import { TripStatus, TxnType } from '@tingting/shared';
@@ -49,8 +49,16 @@ const createdDriverIds: number[] = [];
 const createdTripIds: number[] = [];
 const createdLedgerIds: number[] = [];
 const createdActionIds: number[] = [];
-const closePeriods = new Set<string>();
+const closePeriods = new Set<string>([GOVERNED_PERIOD, SOURCE_PERIOD, UNISSUED_PERIOD]);
 const adjustmentIds: number[] = [];
+
+before(async () => {
+  await db.delete(s.salaryPeriodCloses).where(inArray(s.salaryPeriodCloses.period, [...closePeriods]));
+  await db.delete(s.periodLocks).where(and(
+    eq(s.periodLocks.domain, 'SALARY'),
+    inArray(s.periodLocks.periodKey, [...closePeriods]),
+  ));
+});
 
 async function mkUser(role: 'ADMIN' | 'ACCOUNTANT' | 'MANAGER' | 'DRIVER', tag: string) {
   const [user] = await db.insert(s.users).values({

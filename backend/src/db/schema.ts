@@ -2291,6 +2291,12 @@ export const shipmentDocumentTypeEnum = pgEnum('shipment_document_type', [
 export const shipmentDeclarationScopeEnum = pgEnum('shipment_declaration_scope', [
   'SINGLE', 'SHARED',
 ]);
+export const shipmentTradeDirectionEnum = pgEnum('shipment_trade_direction', [
+  'IMPORT', 'EXPORT',
+]);
+export const shipmentCargoModeEnum = pgEnum('shipment_cargo_mode', [
+  'FCL', 'LCL',
+]);
 export const shipmentChangeRequestKindEnum = pgEnum('shipment_change_request_kind', [
   'PLAN_UPDATE',
   'CONTAINER_RECONCILE',
@@ -2312,7 +2318,19 @@ export const shipments = pgTable('shipments', {
   status: shipmentStatusEnum('status').default('DRAFT'),
   bookingRef: varchar('booking_ref', { length: 100 }),
   blNumber: varchar('bl_number', { length: 100 }),
+  tradeDirection: shipmentTradeDirectionEnum('trade_direction'),
+  cargoMode: shipmentCargoModeEnum('cargo_mode'),
+  factoryName: varchar('factory_name', { length: 255 }),
+  shippingLineName: varchar('shipping_line_name', { length: 255 }),
   expectedDeliveryDate: date('expected_delivery_date'),
+  customsCutoffAt: timestamp('customs_cutoff_at', { withTimezone: true }),
+  closingAt: timestamp('closing_at', { withTimezone: true }),
+  plannedReturnAt: timestamp('planned_return_at', { withTimezone: true }),
+  cargoWeightKg: numeric('cargo_weight_kg', { precision: 10, scale: 2 }),
+  cargoVolumeCbm: numeric('cargo_volume_cbm', { precision: 10, scale: 3 }),
+  packageCount: integer('package_count'),
+  packageType: varchar('package_type', { length: 100 }),
+  operationalNotes: text('operational_notes'),
   pickupLocation: varchar('pickup_location', { length: 255 }),
   deliveryLocation: varchar('delivery_location', { length: 255 }),
   contactName: varchar('contact_name', { length: 100 }),

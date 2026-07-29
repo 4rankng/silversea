@@ -1,0 +1,29 @@
+{
+  "skill": "ck:cook",
+  "mode": "auto",
+  "task": "Implement a shipment operations workflow derived from the customer's current Excel process.",
+  "acceptanceCriteria": [
+    "Legacy shipment create/update payloads remain compatible.",
+    "Accepted operational fields persist through schema, API, and UI.",
+    "ADMIN and MANAGER can create, edit, review, and dispatch from the shipment workflow.",
+    "ACCOUNTANT stays read-only and CLERK remains row-scoped.",
+    "Desktop and mobile workflow is usable without horizontal overflow.",
+    "All affected QA gates are green with artifacts under qa/."
+  ],
+  "touchpoints": [
+    "shipment database schema and migration",
+    "shared validation schemas",
+    "shipment service and routes",
+    "shipment list/detail/create/dossier UI",
+    "frontend route guards and transport types"
+  ],
+  "publicContracts": [
+    "optimistic version conflicts return 409",
+    "shipment remains authority before trip dispatch",
+    "shipment-to-trip dispatch remains DRAFT-only and idempotent",
+    "ACCOUNTANT has read-only shipment access",
+    "CLERK access remains scoped"
+  ],
+  "blastRadius": "backend/shared/frontend/e2e because the slice adds nullable schema fields and changes route reachability",
+  "scoutSummary": "Existing operational editor already contains manager dispatch/review controls but its route excludes MANAGER; CLERK create redirects to an excluded office route; list search is page-local."
+}

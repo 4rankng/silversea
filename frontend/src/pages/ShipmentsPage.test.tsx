@@ -10,7 +10,10 @@ const shipmentsPageCss = readFileSync(resolve(process.cwd(), 'src/pages/Shipment
 // accessible inside the factory. (Vitest hoists vi.mock above all top-level
 // declarations — referencing a plain const from the factory throws
 // ReferenceError.)
-const { apiGet } = vi.hoisted(() => ({ apiGet: vi.fn() }));
+const { apiGet, authState } = vi.hoisted(() => ({
+  apiGet: vi.fn(),
+  authState: { role: 'ACCOUNTANT' },
+}));
 
 vi.mock('../lib/api', () => ({
   api: { get: apiGet },
@@ -27,6 +30,10 @@ vi.mock('../lib/api', () => ({
 // available in jsdom. We only need the rootRef passthrough.
 vi.mock('../hooks/animations', () => ({
   usePageAnimations: () => ({ rootRef: { current: null } }),
+}));
+
+vi.mock('../hooks/useAuth', () => ({
+  useAuth: () => ({ user: { role: authState.role } }),
 }));
 
 import ShipmentsPage from './ShipmentsPage';
@@ -74,6 +81,7 @@ function mobileSurface() {
 describe('ShipmentsPage — shipment manifest workspace', () => {
   beforeEach(() => {
     apiGet.mockReset();
+    authState.role = 'ACCOUNTANT';
   });
 
   it('renders the page header and toolbar', async () => {
@@ -89,6 +97,18 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
     expect(tb.getByRole('button', { name: /Tất cả/ }).getAttribute('aria-pressed')).toBe('true');
     expect(tb.getByRole('button', { name: 'Bản nháp' }).getAttribute('aria-pressed')).toBe('false');
     await waitFor(() => expect(apiGet).toHaveBeenCalled());
+  });
+
+  it('shows create only to shipment operators', async () => {
+    apiGet.mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 });
+    authState.role = 'ADMIN';
+    const { unmount } = renderAt('/shipments');
+    expect(screen.getByRole('link', { name: /Tạo lô hàng/i }).getAttribute('href')).toBe('/shipments/new');
+    unmount();
+
+    authState.role = 'ACCOUNTANT';
+    renderAt('/shipments');
+    expect(screen.queryByRole('link', { name: /Tạo lô hàng/i })).toBeNull();
   });
 
   it('removes the redundant breadcrumb from the phone layout', () => {
@@ -148,7 +168,10 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
     // avoid colliding with the mobile card pills.
     expect(desktop.getAllByText('Bản nháp').length).toBeGreaterThanOrEqual(1);
     expect(desktop.getAllByText('Đang xử lý').length).toBeGreaterThanOrEqual(1);
-    expect(desktop.getByText('1/8/2026')).toBeTruthy();
+    expect(desktop.getByText((_, element) => Boolean(
+      element?.classList.contains('shipments-page__td--date')
+      && element.textContent?.includes('1/8/2026'),
+    ))).toBeTruthy();
   });
 
   it('keeps pagination available on the mobile list', async () => {
@@ -246,26 +269,21 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
     expect(desktopSurface().queryByText('SHP-STALE')).toBeNull();
   });
 
-  it('client-side-filters rows by the q= search term across code/BL/booking', async () => {
+  it('passes q to the server and renders the returned matches', async () => {
     apiGet.mockResolvedValue({
       items: [
-        { id: 1, shipmentCode: 'SHP-AAA', customerId: 1, customerName: 'KH Alpha', status: ShipmentStatus.DRAFT,
-          bookingRef: 'BK-1', blNumber: 'BL-1', expectedDeliveryDate: null,
-          pickupLocation: null, deliveryLocation: null, contactName: null,
-          contactPhone: null, version: 1, createdAt: '', updatedAt: '' },
         { id: 2, shipmentCode: 'SHP-BBB', customerId: 1, customerName: 'KH Beta', status: ShipmentStatus.DRAFT,
           bookingRef: 'BK-2', blNumber: 'BL-XYZ', expectedDeliveryDate: null,
           pickupLocation: null, deliveryLocation: null, contactName: null,
           contactPhone: null, version: 1, createdAt: '', updatedAt: '' },
       ],
-      total: 2, page: 1, limit: 20,
+      total: 1, page: 1, limit: 20,
     });
     renderAt('/shipments?q=XYZ');
     await waitFor(() => expect(apiGet).toHaveBeenCalled());
-    // Only the row whose BL matches "XYZ" should render — on both surfaces.
+    expect(apiGet.mock.calls[0][0]).toMatch(/q=XYZ/);
     const desktop = desktopSurface();
     await waitFor(() => expect(desktop.getByText('SHP-BBB')).toBeTruthy());
-    expect(desktop.queryByText('SHP-AAA')).toBeNull();
   });
 
   it('resets the page when a status filter is clicked', async () => {

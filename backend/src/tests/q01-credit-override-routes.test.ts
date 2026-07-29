@@ -18,6 +18,7 @@ import financialRoutes from '../routes/financial';
 import { getAppSettings, saveAppSettings } from '../services/app-settings.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+const futureExpiry = new Date(Date.now() + 365 * 24 * 60 * 60 * 1_000).toISOString();
 const createdUserIds: number[] = [];
 const createdCustomerIds: number[] = [];
 const createdLedgerIds: number[] = [];
@@ -204,7 +205,7 @@ describe('Q01/Q02 credit override routes', () => {
       body: {
         customerId: customer.id,
         proposedAmount: 100_000,
-        expiresAt: '2026-07-29T12:00:00.000Z',
+        expiresAt: futureExpiry,
         reason: 'Thiếu khóa giao dịch',
       },
     });
@@ -219,7 +220,7 @@ describe('Q01/Q02 credit override routes', () => {
       body: {
         customerId: customer.id,
         proposedAmount: 100_000,
-        expiresAt: '2026-07-29T12:00:00.000Z',
+        expiresAt: futureExpiry,
         reason: 'Xin chạy tiếp cho đơn hàng đang gấp',
       },
     });
@@ -235,7 +236,7 @@ describe('Q01/Q02 credit override routes', () => {
       body: {
         customerId: customer.id,
         proposedAmount: 100_000,
-        expiresAt: '2026-07-29T12:00:00.000Z',
+        expiresAt: futureExpiry,
         reason: 'Xin chạy tiếp cho đơn hàng đang gấp',
       },
     });
@@ -250,7 +251,7 @@ describe('Q01/Q02 credit override routes', () => {
       body: {
         customerId: customer.id,
         proposedAmount: 100_000,
-        expiresAt: '2026-07-29T12:00:00.000Z',
+        expiresAt: futureExpiry,
         reason: 'Đã đổi lý do',
       },
     });
@@ -324,7 +325,7 @@ describe('Q01/Q02 credit override routes', () => {
       body: {
         customerId: customer.id,
         proposedAmount: 200_000,
-        expiresAt: '2026-07-29T12:00:00.000Z',
+        expiresAt: futureExpiry,
         reason: 'Đề nghị ngoại lệ cạnh tranh',
       },
     });
@@ -375,7 +376,7 @@ describe('Q01/Q02 credit override routes', () => {
       body: {
         customerId: customer.id,
         proposedAmount: 100_000,
-        expiresAt: '2026-07-29T12:00:00.000Z',
+        expiresAt: futureExpiry,
         reason: 'Ngoại lệ lớn cần giám đốc xem xét',
       },
     });
@@ -467,7 +468,7 @@ describe('Q01/Q02 credit override routes', () => {
         body: {
           customerId: customer.id,
           proposedAmount: 150_000,
-          expiresAt: '2026-07-29T12:00:00.000Z',
+          expiresAt: futureExpiry,
           reason,
         },
       });

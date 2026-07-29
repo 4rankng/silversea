@@ -1,0 +1,9 @@
+{
+  "decision": "PENDING",
+  "score": 0,
+  "criticalCount": 0,
+  "acceptanceCoverage": "pending",
+  "regressionProof": "pending",
+  "contractStatus": "pending",
+  "blockingReasons": []
+}

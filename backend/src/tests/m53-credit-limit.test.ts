@@ -17,6 +17,7 @@ import { getStatementData } from '../services/statement.service';
 import { createTrip } from '../services/trip.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+const futureExpiry = new Date(Date.now() + 365 * 24 * 60 * 60 * 1_000).toISOString();
 
 const createdUserIds: number[] = [];
 const createdCustomerIds: number[] = [];
@@ -329,7 +330,7 @@ describe('M5.3/Q02 overrides + canonical createTrip enforcement', () => {
     const first = await createCreditOverrideRequest({
       customerId: customer.id,
       proposedAmount: 300_000,
-      expiresAt: '2026-07-29T12:00:00.000Z',
+      expiresAt: futureExpiry,
       reason: 'Ngoại lệ đầu tiên',
     }, { userId: requester.id, role: requester.role });
     createdCreditOverrideIds.push(first.id);
@@ -348,7 +349,7 @@ describe('M5.3/Q02 overrides + canonical createTrip enforcement', () => {
     const second = await createCreditOverrideRequest({
       customerId: customer.id,
       proposedAmount: 200_000,
-      expiresAt: '2026-07-30T12:00:00.000Z',
+      expiresAt: futureExpiry,
       reason: 'Ngoại lệ lặp lại',
     }, { userId: requester.id, role: requester.role });
     createdCreditOverrideIds.push(second.id);
@@ -387,7 +388,7 @@ describe('M5.3/Q02 overrides + canonical createTrip enforcement', () => {
     const pending = await createCreditOverrideRequest({
       customerId: customer.id,
       proposedAmount: 5_000_000,
-      expiresAt: '2026-07-29T12:00:00.000Z',
+      expiresAt: futureExpiry,
       reason: 'Cho phép phục vụ đơn hàng gấp trong 48 giờ',
     }, { userId: requester.id, role: requester.role });
     createdCreditOverrideIds.push(pending.id);

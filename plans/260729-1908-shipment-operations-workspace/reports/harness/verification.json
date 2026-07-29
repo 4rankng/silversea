@@ -1,0 +1,7 @@
+{
+  "commands": [],
+  "beforeAfter": {
+    "before": "Read-only office shipment pages, page-local search, manager-inaccessible dispatch editor, clerk post-create redirect denial.",
+    "after": "Pending implementation and verification."
+  }
+}

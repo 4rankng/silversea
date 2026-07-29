@@ -19,6 +19,7 @@ import { ArrowLeft, Check } from 'lucide-react';
 import { TextField, SelectField, EmptyState } from '../../design-system';
 import { tripClient } from '../../api/tripClient';
 import { quickCreateShipment } from '../../api/shipmentClient';
+import { localDateTimeToIso } from '../../lib/shipment-operations';
 
 interface ClerkCustomerOption {
   id: number;
@@ -50,6 +51,18 @@ interface FormState {
   deliveryLocation: string;
   contactName: string;
   contactPhone: string;
+  tradeDirection: '' | 'IMPORT' | 'EXPORT';
+  cargoMode: 'FCL' | 'LCL';
+  factoryName: string;
+  shippingLineName: string;
+  customsCutoffAt: string;
+  closingAt: string;
+  plannedReturnAt: string;
+  cargoWeightKg: string;
+  cargoVolumeCbm: string;
+  packageCount: string;
+  packageType: string;
+  operationalNotes: string;
 }
 
 const EMPTY_FORM: FormState = {
@@ -61,6 +74,18 @@ const EMPTY_FORM: FormState = {
   deliveryLocation: '',
   contactName: '',
   contactPhone: '',
+  tradeDirection: '',
+  cargoMode: 'FCL',
+  factoryName: '',
+  shippingLineName: '',
+  customsCutoffAt: '',
+  closingAt: '',
+  plannedReturnAt: '',
+  cargoWeightKg: '',
+  cargoVolumeCbm: '',
+  packageCount: '',
+  packageType: '',
+  operationalNotes: '',
 };
 
 export default function ClerkShipmentCreatePage() {
@@ -107,6 +132,29 @@ export default function ClerkShipmentCreatePage() {
     if (submitError) setSubmitError(null);
   }
 
+  function handleCargoModeChange(nextMode: FormState['cargoMode']) {
+    setForm((current) => {
+      if (current.cargoMode === nextMode) return current;
+      if (current.cargoMode === 'LCL' && nextMode === 'FCL') {
+        const hasLclData = Boolean(
+          current.cargoVolumeCbm || current.packageCount || current.packageType,
+        );
+        if (hasLclData && !window.confirm('Chuyển sang Container (FCL) sẽ xóa thể tích, số kiện và loại kiện LCL đã nhập. Tiếp tục?')) {
+          return current;
+        }
+        return {
+          ...current,
+          cargoMode: nextMode,
+          cargoVolumeCbm: '',
+          packageCount: '',
+          packageType: '',
+        };
+      }
+      return { ...current, cargoMode: nextMode };
+    });
+    if (submitError) setSubmitError(null);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.customerId) {
@@ -130,13 +178,27 @@ export default function ClerkShipmentCreatePage() {
           deliveryLocation: form.deliveryLocation || null,
           contactName: form.contactName || null,
           contactPhone: form.contactPhone || null,
+          tradeDirection: form.tradeDirection || null,
+          cargoMode: form.cargoMode,
+          factoryName: form.factoryName || null,
+          shippingLineName: form.shippingLineName || null,
+          customsCutoffAt: localDateTimeToIso(form.customsCutoffAt),
+          closingAt: localDateTimeToIso(form.closingAt),
+          plannedReturnAt: localDateTimeToIso(form.plannedReturnAt),
+          cargoWeightKg: form.cargoWeightKg || null,
+          ...(form.cargoMode === 'LCL' ? {
+            cargoVolumeCbm: form.cargoVolumeCbm || null,
+            packageCount: form.packageCount ? Number(form.packageCount) : null,
+            packageType: form.packageType || null,
+          } : {}),
+          operationalNotes: form.operationalNotes || null,
         },
         idempotencyKey,
       );
       // 201 (created) and 200 (idempotent replay) are both success. Navigate
       // to the shipment detail; the clerk's next step (M10.2 doc entry)
       // happens there.
-      navigate(`/shipments/${shipment.id}`);
+      navigate(`/clerk/shipments/${shipment.id}/docs`);
     } catch (err) {
       // Surface any server/network-provided Vietnamese message; fall back to
       // a generic hint when there is no usable message. The api wrapper
@@ -153,7 +215,7 @@ export default function ClerkShipmentCreatePage() {
   }
 
   return (
-    <div style={{ padding: 16, maxWidth: 640, margin: '0 auto' }}>
+    <div style={{ padding: 16, maxWidth: 960, margin: '0 auto', minWidth: 0 }}>
       <button
         type="button"
         onClick={() => navigate(-1)}
@@ -166,7 +228,8 @@ export default function ClerkShipmentCreatePage() {
           border: 'none',
           color: 'var(--fg-2)',
           fontSize: 14,
-          padding: '8px 0',
+          minHeight: 44,
+          padding: '8px 4px',
           cursor: 'pointer',
         }}
       >
@@ -226,6 +289,111 @@ export default function ClerkShipmentCreatePage() {
             maxLength={100}
           />
 
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+            <SelectField
+              label="Chiều hàng"
+              value={form.tradeDirection}
+              onChange={(e) => update('tradeDirection', e.target.value as FormState['tradeDirection'])}
+              disabled={submitting}
+            >
+              <option value="">— Chọn chiều hàng —</option>
+              <option value="IMPORT">Nhập khẩu</option>
+              <option value="EXPORT">Xuất khẩu</option>
+            </SelectField>
+            <SelectField
+              label="Loại lô hàng"
+              value={form.cargoMode}
+              onChange={(e) => handleCargoModeChange(e.target.value as FormState['cargoMode'])}
+              disabled={submitting}
+            >
+              <option value="FCL">Container (FCL)</option>
+              <option value="LCL">Hàng lẻ (LCL)</option>
+            </SelectField>
+          </div>
+
+          <TextField
+            label="Nhà máy / công trường"
+            value={form.factoryName}
+            onChange={(e) => update('factoryName', e.target.value)}
+            placeholder="Ví dụ: Nhà máy VSIP II"
+            disabled={submitting}
+            maxLength={255}
+          />
+
+          <TextField
+            label="Hãng tàu"
+            value={form.shippingLineName}
+            onChange={(e) => update('shippingLineName', e.target.value)}
+            placeholder="Ví dụ: Maersk"
+            disabled={submitting}
+            maxLength={150}
+          />
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+            <TextField
+              label="Cut-off hải quan"
+              type="datetime-local"
+              value={form.customsCutoffAt}
+              onChange={(e) => update('customsCutoffAt', e.target.value)}
+              disabled={submitting}
+            />
+            <TextField
+              label="Closing time"
+              type="datetime-local"
+              value={form.closingAt}
+              onChange={(e) => update('closingAt', e.target.value)}
+              disabled={submitting}
+            />
+            <TextField
+              label="Thời gian trả"
+              type="datetime-local"
+              value={form.plannedReturnAt}
+              onChange={(e) => update('plannedReturnAt', e.target.value)}
+              disabled={submitting}
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16 }}>
+            <TextField
+              label="Trọng lượng (kg)"
+              type="number"
+              value={form.cargoWeightKg}
+              onChange={(e) => update('cargoWeightKg', e.target.value)}
+              disabled={submitting}
+              min="0"
+              step="0.01"
+            />
+            {form.cargoMode === 'LCL' && (
+              <>
+                <TextField
+                  label="Thể tích (CBM)"
+                  type="number"
+                  value={form.cargoVolumeCbm}
+                  onChange={(e) => update('cargoVolumeCbm', e.target.value)}
+                  disabled={submitting}
+                  min="0"
+                  step="0.001"
+                />
+                <TextField
+                  label="Số kiện"
+                  type="number"
+                  value={form.packageCount}
+                  onChange={(e) => update('packageCount', e.target.value)}
+                  disabled={submitting}
+                  min="0"
+                  step="1"
+                />
+                <TextField
+                  label="Loại kiện"
+                  value={form.packageType}
+                  onChange={(e) => update('packageType', e.target.value)}
+                  disabled={submitting}
+                  maxLength={100}
+                />
+              </>
+            )}
+          </div>
+
           <TextField
             label="Ngày giao hàng dự kiến"
             type="date"
@@ -269,6 +437,28 @@ export default function ClerkShipmentCreatePage() {
             disabled={submitting}
             maxLength={20}
           />
+
+          <label style={{ display: 'grid', gap: 8, color: 'var(--fg-2)', fontSize: 14, fontWeight: 600 }}>
+            Ghi chú vận hành
+            <textarea
+              value={form.operationalNotes}
+              onChange={(e) => update('operationalNotes', e.target.value)}
+              disabled={submitting}
+              maxLength={2000}
+              rows={4}
+              style={{
+                width: '100%',
+                minHeight: 96,
+                resize: 'vertical',
+                border: '1px solid var(--border-2)',
+                borderRadius: 8,
+                padding: 12,
+                color: 'var(--fg-1)',
+                background: 'var(--surface-1)',
+                font: 'inherit',
+              }}
+            />
+          </label>
 
           {submitError && (
             <div

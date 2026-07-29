@@ -162,6 +162,11 @@ export function AppRoutes() {
   // superuser; every other role is bounced to its own home. CLERK's home is
   // the create page itself until a clerk landing page ships.
   const clerkOrAdminOnly = (el: ReactElement) => (isAdmin || isClerk ? el : <Navigate to={homeRedirect} replace />);
+  const shipmentOperatorOnly = (el: ReactElement) => (
+    isAdmin || isClerk || user?.role === Role.MANAGER
+      ? el
+      : <Navigate to={homeRedirect} replace />
+  );
   // Strict ADMIN-only — chatbot monitoring exposes raw turns and must never
   // be reachable by MANAGER/ACCOUNTANT. Mirrors managerOrAdminOnly's shape:
   // admit only when the role matches, else bounce to the portal or staff home.
@@ -214,6 +219,7 @@ export function AppRoutes() {
               the shipments Casbin resource (ADMIN wildcard, MANAGER/ACCOUNTANT
               read). CLERK gets its own portal surface in a later wave. */}
           <Route path="/shipments" element={officeStaffOnly(page(<ShipmentsPage />))} />
+          <Route path="/shipments/new" element={shipmentOperatorOnly(page(<ClerkShipmentCreatePage />))} />
           <Route path="/shipments/:id" element={officeStaffOnly(page(<ShipmentDetailPage />))} />
           <Route path="/routes" element={<Navigate to="/config/routes" replace />} />
           <Route path="/trucks" element={<Navigate to="/fleet" replace />} />
@@ -291,7 +297,7 @@ export function AppRoutes() {
               a clerk landing page ships. */}
           <Route path="/clerk/shipments/new" element={clerkOrAdminOnly(page(<ClerkShipmentCreatePage />))} />
           {/* Wave 4 M10.2: clerk doc-entry page (BL + containers + dispatch-readiness). */}
-          <Route path="/clerk/shipments/:id/docs" element={clerkOrAdminOnly(page(<ClerkShipmentDocsPage />))} />
+          <Route path="/clerk/shipments/:id/docs" element={shipmentOperatorOnly(page(<ClerkShipmentDocsPage />))} />
           <Route path="*" element={<Navigate to={defaultHome} replace />} />
         </Routes>
       </Shell>

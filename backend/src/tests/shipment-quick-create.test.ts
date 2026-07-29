@@ -289,6 +289,43 @@ describe('POST /api/shipments/quick — M10.1 slice 1 quick-create', () => {
     await trackCreated();
   });
 
+  test('persists optional shipment operations fields when quick-creating', async () => {
+    const res = await quickFetch('/quick', {
+      method: 'POST',
+      token: clerkToken,
+      idempotencyKey: `qc-ops-${suffix}`,
+      body: clerkQuickBody({
+        tradeDirection: 'EXPORT',
+        cargoMode: 'FCL',
+        factoryName: `Factory ${suffix}`,
+        shippingLineName: `Line ${suffix}`,
+        customsCutoffAt: '2026-07-29T10:00:00.000Z',
+        closingAt: '2026-07-29T12:00:00.000Z',
+        plannedReturnAt: '2026-07-31T01:30:00.000Z',
+        cargoWeightKg: 98.76,
+        cargoVolumeCbm: 12.345,
+        packageCount: 7,
+        packageType: 'Bundle',
+        operationalNotes: 'Quick-create coverage',
+      }),
+    });
+    assert.equal(res.status, 201);
+    assert.equal(res.data.tradeDirection, 'EXPORT');
+    assert.equal(res.data.cargoMode, 'FCL');
+    assert.equal(res.data.factoryName, `Factory ${suffix}`);
+    assert.equal(res.data.shippingLineName, `Line ${suffix}`);
+    assert.equal(new Date(res.data.customsCutoffAt).toISOString(), '2026-07-29T10:00:00.000Z');
+    assert.equal(new Date(res.data.closingAt).toISOString(), '2026-07-29T12:00:00.000Z');
+    assert.equal(new Date(res.data.plannedReturnAt).toISOString(), '2026-07-31T01:30:00.000Z');
+    assert.equal(Number(res.data.cargoWeightKg), 98.76);
+    assert.equal(Number(res.data.cargoVolumeCbm), 12.345);
+    assert.equal(res.data.packageCount, 7);
+    assert.equal(res.data.packageType, 'Bundle');
+    assert.equal(res.data.operationalNotes, 'Quick-create coverage');
+    createdShipmentIds.push(res.data.id);
+    await trackCreated();
+  });
+
   test('idempotent replay: same Idempotency-Key returns the SAME shipment (200, no duplicate)', async () => {
     const key = `replay-${suffix}-${Math.random().toString(36).slice(2, 8)}`;
     const body = clerkQuickBody({ bookingRef: `BL-${suffix}-1` });

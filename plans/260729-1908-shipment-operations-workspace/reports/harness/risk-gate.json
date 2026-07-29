@@ -1,0 +1,12 @@
+{
+  "highRisk": true,
+  "reasons": [
+    "additive database migration",
+    "shared API payload expansion",
+    "frontend route reachability for shipment write controls"
+  ],
+  "autoStopRequired": false,
+  "humanApproved": true,
+  "approvalScope": "autonomous in-scope implementation and QA only; no commit, push, deploy, or data import",
+  "largeDiff": true
+}
