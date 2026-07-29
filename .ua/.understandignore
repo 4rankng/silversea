@@ -1,0 +1,64 @@
+# Understand-Anything scope for the Silversea (TingTing) knowledge base.
+#
+# Scope = backend services/routes/db + shared contracts/calculations + infra.
+# Frontend UI, tests, plans, and docs are intentionally excluded to keep the
+# graph focused on domain logic. Re-include any of them here to broaden scope.
+#
+# Syntax mirrors .gitignore: patterns are ignored, `!` re-includes.
+
+# --- Drop everything, then re-include the scope (allowlist model) ---
+*
+!*/
+
+# Re-include the core scope directories
+!backend/src/
+!backend/src/**
+!shared/src/
+!shared/src/**
+
+# Backend root config & infra
+!backend/package.json
+!backend/tsconfig.json
+!backend/tsconfig.build.json
+!backend/drizzle.config.ts
+!backend/Dockerfile
+!backend/Makefile
+!backend/.dockerignore
+
+# Root manifests & infra
+!/package.json
+!/pnpm-workspace.yaml
+!/tsconfig.base.json
+!/eslint.config.mjs
+!/Makefile
+!/docker-compose.dev.yml
+!/.dockerignore
+!/deploy/**
+!/AGENTS.md
+!/CONTEXT.md
+
+# --- Re-exclude noise inside the allowed scope (negate re-includes above) ---
+
+# Tests everywhere
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+backend/src/tests/**
+shared/src/**/*.test.ts
+
+# Build artifacts & tooling state
+**/dist/**
+**/graphify-out/**
+**/node_modules/**
+**/.omc/**
+**/uploads/**
+**/tsconfig.tsbuildinfo
+**/*.tsbuildinfo
+
+# Type/fixture noise under src
+backend/src/**/*.d.ts
+
+# Backend scripts (one-off maintenance, not core logic)
+backend/src/scripts/**
+backend/src/reset-seed.ts

@@ -70,3 +70,11 @@ kilo.json
 *.pen
 .agents
 .claude-tmp/
+
+# Understand-Anything knowledge-base artifacts.
+# Commit the durable graphs + scoping config; ignore intermediate/run state.
+# (see docs/knowledge-base.md for how to regenerate)
+.ua/tmp/
+.ua/intermediate/
+.ua/config.json
+.ua/diff-overlay.json

@@ -1,0 +1,1220 @@
+{
+  "version": "1.0.0",
+  "project": {
+    "name": "silversea",
+    "languages": [
+      "typescript",
+      "sql"
+    ],
+    "frameworks": [
+      "Express",
+      "Drizzle ORM",
+      "Casbin",
+      "Zod"
+    ],
+    "description": "Silversea (TingTing) business-domain knowledge graph: maps the platform's core domains (Trip Operations, Finance & Billing, Advances & Governance, Salary & Payroll, Forwarder & Customer Portal, Fleet & Master Data), their business flows, and ordered process steps to the implementing code.",
+    "analyzedAt": "2026-07-29T16:24:58.550Z",
+    "gitCommitHash": "04dc2b1"
+  },
+  "nodes": [
+    {
+      "id": "domain:trip-operations",
+      "type": "domain",
+      "name": "Trip Operations",
+      "summary": "Core container-trip lifecycle: a trip is created, dispatched to a driver, transitions through in-transit and completed, then locked for settlement. Covers trip commands, the status state machine, trip pairing, container/photo capture, and GPS geotag capture.",
+      "tags": [
+        "domain",
+        "trip",
+        "lifecycle",
+        "state-machine"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entities": [
+          "Trip",
+          "TripLeg",
+          "TripPair",
+          "Truck",
+          "Trailer",
+          "Driver",
+          "Container",
+          "Route"
+        ],
+        "businessRules": [
+          "Trip status transitions: CREATED -> IN_TRANSIT -> COMPLETED -> LOCKED (or CANCELED) are enforced by the status machine service.",
+          "A locked trip is immutable to settlement — unlocks require governance approval and post a reversal ledger entry.",
+          "Trip pairing links two legs (import/export) into a round trip for salary and profitability."
+        ],
+        "crossDomainInteractions": [
+          "Posts revenue and cost to Finance-Billing ledger",
+          "Feeds driver salary into Salary-Payroll",
+          "Triggers Forwarder handoff notifications"
+        ],
+        "entryPoint": "POST /api/trips",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "domain:finance-billing",
+      "type": "domain",
+      "name": "Finance & Billing",
+      "summary": "The financial engine: ledger transaction posting, customer statements, debit-note and billing-document assembly, payment application and allocation, penalties, profit distribution, and AR/AP aging. All money flows through round2dp and the shared calculations.",
+      "tags": [
+        "domain",
+        "finance",
+        "ledger",
+        "billing",
+        "ar-ap"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entities": [
+          "LedgerEntry",
+          "BillingDocument",
+          "DebitNote",
+          "Payment",
+          "Penalty",
+          "FuelInvoice",
+          "PricingTable"
+        ],
+        "businessRules": [
+          "Every money movement posts a LedgerEntry with a TxnType; debits and credits must balance per document.",
+          "Billing documents are assembled from trip revenue, fuel, penalties, and ancillary charges via billing-line-assembly, guarded against overlaps.",
+          "Profit distribution is gated by governance approval before disbursement."
+        ],
+        "crossDomainInteractions": [
+          "Receives trip revenue/cost from Trip-Operations",
+          "Feeds receivables aging to customer statements in Forwarder-Customer-Portal",
+          "Disbursements flow to Advances-Governance and Salary-Payroll"
+        ],
+        "entryPoint": "/api/finance/*",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "domain:advances-governance",
+      "type": "domain",
+      "name": "Advances & Governance",
+      "summary": "The approval-authority layer: forwarder advance requests and their settlement lifecycle (PENDING -> CHECKED_BY_ACCOUNTANT -> APPROVED/REJECTED -> REVERSED), the governance-action queue for financial adjustments, credit-limit overrides, and debt offsets. This is where MANAGER/DIRECTOR sign-off happens.",
+      "tags": [
+        "domain",
+        "governance",
+        "approval-queue",
+        "advances"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entities": [
+          "AdvanceRequest",
+          "AdvanceSettlement",
+          "GovernanceAction",
+          "CreditOverride",
+          "DebtOffset"
+        ],
+        "businessRules": [
+          "Credit overrides are tiered: FINANCE_TIER_1 vs DIRECTOR approval based on scope and amount.",
+          "Advance settlements require accountant check before manager approval; reversals re-open the advance.",
+          "Every governance action (approve/reject/return-for-evidence/cancel) is audit-logged."
+        ],
+        "crossDomainInteractions": [
+          "Gates Finance-Billing adjustments and disbursements",
+          "Authorizes credit-limit exceptions exposed in Forwarder-Customer-Portal"
+        ],
+        "entryPoint": "/api/advance-requests, /api/governance-actions",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "domain:salary-payroll",
+      "type": "domain",
+      "name": "Salary & Payroll",
+      "summary": "Driver compensation: attendance tracking, commission calculation, payslip assembly, and salary-period processing. Computes driver salary from paired trips, attendance status (TRIP_DAY/STANDBY/PERSONAL_LEAVE/WEEKLY_OFF), and incidental costs, using shared salary calculations.",
+      "tags": [
+        "domain",
+        "salary",
+        "payroll",
+        "commission",
+        "attendance"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entities": [
+          "Driver",
+          "AttendanceRecord",
+          "Payslip",
+          "SalaryPeriod",
+          "CommissionEntry"
+        ],
+        "businessRules": [
+          "Salary is computed per salary period from paired trips and attendance; exclusions are explicit and governed.",
+          "Commission is layered on base salary per the commission service; payslips are confirmed via salary-confirmation governance."
+        ],
+        "crossDomainInteractions": [
+          "Consumes paired trip data from Trip-Operations",
+          "Salary payouts post to Finance-Billing ledger as DRIVER_SALARY/DRIVER_PAYOUT"
+        ],
+        "entryPoint": "/api/salary",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "domain:forwarder-customer-portal",
+      "type": "domain",
+      "name": "Forwarder & Customer Portal",
+      "summary": "The role-scoped external surfaces: forwarders manage shipments, containers, and delivery confirmations; customers view their shipments, download statements and debit-note PDFs, and see receivables — all scoped per-customer/business-unit. The multi-tenant boundary of the platform.",
+      "tags": [
+        "domain",
+        "portal",
+        "forwarder",
+        "customer",
+        "multi-tenant"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entities": [
+          "Shipment",
+          "Customer",
+          "UserCustomerLink",
+          "BusinessUnit",
+          "Statement",
+          "DeliveryConfirmation"
+        ],
+        "businessRules": [
+          "Every portal query is scoped by customer link or business unit — a forwarder/customer never sees another tenant's data.",
+          "Debit-note PDFs and statements are generated per-customer from the billing and statement services."
+        ],
+        "crossDomainInteractions": [
+          "Reads shipments/trips from Trip-Operations",
+          "Reads receivables and documents from Finance-Billing"
+        ],
+        "entryPoint": "/api/portal, /api/forwarder, /api/shipments",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "domain:fleet-master-data",
+      "type": "domain",
+      "name": "Fleet & Master Data",
+      "summary": "The configuration backbone: drivers, trucks, trailers, tires (with position tracking), routes, cargo types, pricing tables, fuel config and norms, penalty reasons, and the business calendar. Master data that the operational and financial domains depend on.",
+      "tags": [
+        "domain",
+        "master-data",
+        "fleet",
+        "pricing",
+        "configuration"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entities": [
+          "Driver",
+          "Truck",
+          "Trailer",
+          "Tire",
+          "TirePosition",
+          "Route",
+          "CargoType",
+          "PricingTable",
+          "FuelConfig",
+          "BusinessCalendarDay"
+        ],
+        "businessRules": [
+          "Pricing tables and fuel norms drive trip cost/revenue calculations; changes are governed for pricing.",
+          "Tire lifecycle is tracked per position across trucks and trailers.",
+          "The business calendar defines working days, weekly offs, and holidays used by attendance and salary."
+        ],
+        "crossDomainInteractions": [
+          "Pricing feeds Trip-Operations cost math",
+          "Attendance calendar feeds Salary-Payroll",
+          "Drivers/trucks are referenced by every operational flow"
+        ],
+        "entryPoint": "/api/config",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "flow:trip-lifecycle",
+      "type": "flow",
+      "name": "Trip Lifecycle",
+      "summary": "The full journey of a container trip from creation to lock: create, dispatch, transit, complete, then lock for settlement. Each transition is guarded by the status machine and audit-logged.",
+      "tags": [
+        "flow",
+        "business-process"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entryPoint": "POST /api/trips",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:trip-lifecycle:create",
+      "type": "step",
+      "name": "create",
+      "filePath": "backend/src/services/trip-command.service.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Create a new trip (CREATED) with route, driver, truck/trailer, cargo, and pricing — validated by shared Zod schemas.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:trip-lifecycle:dispatch",
+      "type": "step",
+      "name": "dispatch",
+      "filePath": "backend/src/services/dispatch-handoff.service.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Dispatch the trip to a driver; transition CREATED -> IN_TRANSIT and capture the dispatch handoff.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:trip-lifecycle:in-transit",
+      "type": "step",
+      "name": "in-transit",
+      "filePath": "backend/src/services/trip-gps-capture-job.service.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Track the trip in transit; capture GPS geotag and ETA from the GPS provider integration.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:trip-lifecycle:complete",
+      "type": "step",
+      "name": "complete",
+      "filePath": "backend/src/services/delivery-confirm.service.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Mark the trip COMPLETED; finalize containers and delivery confirmation via the forwarder.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:trip-lifecycle:lock",
+      "type": "step",
+      "name": "lock",
+      "filePath": "backend/src/services/trip-status-machine.service.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Lock the completed trip (LOCKED) for settlement; post revenue and cost to the ledger. Unlocks require governance approval.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:trip-pairing",
+      "type": "flow",
+      "name": "Trip Pairing",
+      "summary": "Pair an import trip with an export trip into a round trip so driver salary and profitability are computed on the combined journey.",
+      "tags": [
+        "flow",
+        "business-process"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "POST /api/trips/:id/pair",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:trip-pairing:select-legs",
+      "type": "step",
+      "name": "select-legs",
+      "filePath": "backend/src/services/o01-trip-pairing.service.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Select two compatible trip legs (e.g. import + export) for pairing based on route and driver.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:trip-pairing:validate",
+      "type": "step",
+      "name": "validate",
+      "filePath": "backend/src/services/o01-trip-pairing.service.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Validate pairing constraints (same driver, contiguous routes, timing) before committing.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:trip-pairing:commit",
+      "type": "step",
+      "name": "commit",
+      "filePath": "backend/src/services/o01-trip-pairing.service.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Create the TripPair record linking the legs; downstream salary and profitability use the pair.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:billing-assembly",
+      "type": "flow",
+      "name": "Billing Document Assembly",
+      "summary": "Assemble a customer billing document from trip revenue, fuel, penalties, and ancillary charges, then guard against overlapping billing and generate the debit-note PDF.",
+      "tags": [
+        "flow",
+        "business-process"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "POST /api/finance/billing-documents",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:billing-assembly:gather-lines",
+      "type": "step",
+      "name": "gather-lines",
+      "filePath": "backend/src/services/billing-line-assembly.service.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Gather billable lines (trip revenue, fuel cost, penalties, ancillary revenue) for the period and customer.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:billing-assembly:guard-overlap",
+      "type": "step",
+      "name": "guard-overlap",
+      "filePath": "backend/src/services/billing-overlap-guard.service.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Guard against overlapping billing — ensure no trip is double-billed across documents.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:billing-assembly:assemble",
+      "type": "step",
+      "name": "assemble",
+      "filePath": "backend/src/services/billingDocument.service.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Assemble the billing document rows and compute totals via shared calculations.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:billing-assembly:debit-note",
+      "type": "step",
+      "name": "debit-note",
+      "filePath": "backend/src/services/debit-note-lifecycle.service.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Transition the debit-note status and render the templated debit-note PDF/XLSX.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:payment-allocation",
+      "type": "flow",
+      "name": "Payment Application & Allocation",
+      "summary": "Receive a customer or vendor payment, allocate it against outstanding receivables/payables using FIFO aging, and post the ledger entry.",
+      "tags": [
+        "flow",
+        "business-process"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "POST /api/payments/receive",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:payment-allocation:receive",
+      "type": "step",
+      "name": "receive",
+      "filePath": "backend/src/routes/financial/payments.routes.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Receive the payment via the idempotent payments route; validate the idempotency key.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:payment-allocation:allocate",
+      "type": "step",
+      "name": "allocate",
+      "filePath": "backend/src/services/m56-payment-allocation.service.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Allocate the payment against outstanding documents using FIFO aging prioritization.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:payment-allocation:post-ledger",
+      "type": "step",
+      "name": "post-ledger",
+      "filePath": "backend/src/services/ar-status.service.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Post the PAYMENT_RECEIVED ledger entry and update AR status; trigger receivable-reminder cancellation if settled.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:advance-settlement",
+      "type": "flow",
+      "name": "Advance Settlement",
+      "summary": "The advance settlement lifecycle: a forwarder advance is requested, checked by an accountant, approved/rejected by a manager, then optionally reversed.",
+      "tags": [
+        "flow",
+        "business-process"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "/api/advance-settlements",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:advance-settlement:request",
+      "type": "step",
+      "name": "request",
+      "filePath": "backend/src/services/advance.service.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Forwarder submits an advance request (PENDING) against expected trip earnings.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:advance-settlement:accountant-check",
+      "type": "step",
+      "name": "accountant-check",
+      "filePath": "backend/src/services/advance.service.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Accountant checks the settlement (PENDING -> CHECKED_BY_ACCOUNTANT), verifying evidence and amounts.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:advance-settlement:manager-approve",
+      "type": "step",
+      "name": "manager-approve",
+      "filePath": "backend/src/services/approval-queue.service.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Manager approves or rejects; on approval, funds disburse and a FORWARDER_ADVANCE ledger entry posts.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:advance-settlement:reversal",
+      "type": "step",
+      "name": "reversal",
+      "filePath": "backend/src/services/advance.service.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Optional reversal reopens the settlement and posts a reversal entry if it was wrongly approved.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:governance-action",
+      "type": "flow",
+      "name": "Governance Action Queue",
+      "summary": "The authority queue for financial adjustments, credit-limit overrides, and debt offsets: submit -> check -> approve/reject/return-for-evidence, with tiered approval (FINANCE_TIER_1 vs DIRECTOR).",
+      "tags": [
+        "flow",
+        "business-process"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "/api/governance-actions",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:governance-action:submit",
+      "type": "step",
+      "name": "submit",
+      "filePath": "backend/src/services/governance-transition.service.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Submit a governance action (adjustment, credit override, or debt offset) into the queue (PENDING).",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:governance-action:check",
+      "type": "step",
+      "name": "check",
+      "filePath": "backend/src/services/governance-policy.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Validate the action against governance policy and the tier rules; route to the correct authority tier.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:governance-action:decide",
+      "type": "step",
+      "name": "decide",
+      "filePath": "backend/src/services/approval-queue.service.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Authority approves, rejects, or returns-for-evidence; the decision is audit-logged and posts/effects the underlying ledger entry.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:salary-close",
+      "type": "flow",
+      "name": "Salary Period Close",
+      "summary": "Close a salary period: gather attendance and paired trips, compute base salary + commission, assemble payslips, confirm via governance, and disburse.",
+      "tags": [
+        "flow",
+        "business-process"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entryPoint": "/api/salary",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:salary-close:gather-attendance",
+      "type": "step",
+      "name": "gather-attendance",
+      "filePath": "backend/src/services/attendance.service.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Gather driver attendance records (TRIP_DAY/STANDBY/PERSONAL_LEAVE/WEEKLY_OFF) for the period from the business calendar.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:salary-close:compute-salary",
+      "type": "step",
+      "name": "compute-salary",
+      "filePath": "backend/src/services/driver.service.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Compute base salary from paired trips and incidental costs via the shared tripDriverSalary calculation.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:salary-close:compute-commission",
+      "type": "step",
+      "name": "compute-commission",
+      "filePath": "backend/src/services/commission.service.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Layer commission onto the base salary per the commission service.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:salary-close:confirm",
+      "type": "step",
+      "name": "confirm",
+      "filePath": "backend/src/services/salary-confirmation-governance.service.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Confirm payslips via salary-confirmation governance before disbursement.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:salary-close:disburse",
+      "type": "step",
+      "name": "disburse",
+      "filePath": "backend/src/services/disbursement-assembly.service.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Disburse payouts, posting DRIVER_SALARY/DRIVER_PAYOUT ledger entries.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:customer-statement",
+      "type": "flow",
+      "name": "Customer Statement",
+      "summary": "Generate a customer receivables statement: assemble outstanding documents, compute aging, and export as PDF or XLSX for the customer portal.",
+      "tags": [
+        "flow",
+        "business-process"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "/api/portal/statement",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:customer-statement:scope",
+      "type": "step",
+      "name": "scope",
+      "filePath": "backend/src/lib/scoped-by-customer.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Scope the query to the logged-in customer via user-customer links and business units.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:customer-statement:assemble",
+      "type": "step",
+      "name": "assemble",
+      "filePath": "backend/src/services/statement.service.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Assemble statement data from the ledger and billing documents, computing FIFO aging buckets.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:customer-statement:export",
+      "type": "step",
+      "name": "export",
+      "filePath": "backend/src/services/pdf-export.service.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Export the statement as PDF (or XLSX) and stream it to the customer.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "flow:pricing-governance",
+      "type": "flow",
+      "name": "Pricing Table Governance",
+      "summary": "Governed changes to pricing tables and fuel norms: propose, validate against the price-config governance, approve, and apply — since pricing directly drives all billing.",
+      "tags": [
+        "flow",
+        "business-process"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "/api/config/pricing-tables",
+        "entryType": "http"
+      }
+    },
+    {
+      "id": "step:pricing-governance:propose",
+      "type": "step",
+      "name": "propose",
+      "filePath": "backend/src/routes/config/pricing-tables-governed.routes.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Propose a pricing-table or fuel-norm change through the governed config route.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:pricing-governance:validate",
+      "type": "step",
+      "name": "validate",
+      "filePath": "backend/src/services/price-config-governance.service.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Validate the proposal against price-config governance rules before it can take effect.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "step:pricing-governance:apply",
+      "type": "step",
+      "name": "apply",
+      "filePath": "backend/src/services/config.service.ts",
+      "lineRange": [
+        0,
+        0
+      ],
+      "summary": "Apply the approved pricing; downstream trip cost/revenue calculations pick up the new values.",
+      "tags": [
+        "step"
+      ],
+      "complexity": "simple"
+    }
+  ],
+  "edges": [
+    {
+      "source": "domain:trip-operations",
+      "target": "flow:trip-lifecycle",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:trip-lifecycle",
+      "target": "step:trip-lifecycle:create",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:trip-lifecycle",
+      "target": "step:trip-lifecycle:dispatch",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.3
+    },
+    {
+      "source": "flow:trip-lifecycle",
+      "target": "step:trip-lifecycle:in-transit",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:trip-lifecycle",
+      "target": "step:trip-lifecycle:complete",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "flow:trip-lifecycle",
+      "target": "step:trip-lifecycle:lock",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "domain:trip-operations",
+      "target": "flow:trip-pairing",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:trip-pairing",
+      "target": "step:trip-pairing:select-legs",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.3
+    },
+    {
+      "source": "flow:trip-pairing",
+      "target": "step:trip-pairing:validate",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:trip-pairing",
+      "target": "step:trip-pairing:commit",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "domain:finance-billing",
+      "target": "flow:billing-assembly",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:billing-assembly",
+      "target": "step:billing-assembly:gather-lines",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:billing-assembly",
+      "target": "step:billing-assembly:guard-overlap",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.4
+    },
+    {
+      "source": "flow:billing-assembly",
+      "target": "step:billing-assembly:assemble",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "flow:billing-assembly",
+      "target": "step:billing-assembly:debit-note",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "domain:finance-billing",
+      "target": "flow:payment-allocation",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:payment-allocation",
+      "target": "step:payment-allocation:receive",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.3
+    },
+    {
+      "source": "flow:payment-allocation",
+      "target": "step:payment-allocation:allocate",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:payment-allocation",
+      "target": "step:payment-allocation:post-ledger",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "domain:advances-governance",
+      "target": "flow:advance-settlement",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:advance-settlement",
+      "target": "step:advance-settlement:request",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:advance-settlement",
+      "target": "step:advance-settlement:accountant-check",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.4
+    },
+    {
+      "source": "flow:advance-settlement",
+      "target": "step:advance-settlement:manager-approve",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "flow:advance-settlement",
+      "target": "step:advance-settlement:reversal",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "domain:advances-governance",
+      "target": "flow:governance-action",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:governance-action",
+      "target": "step:governance-action:submit",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.3
+    },
+    {
+      "source": "flow:governance-action",
+      "target": "step:governance-action:check",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:governance-action",
+      "target": "step:governance-action:decide",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "domain:salary-payroll",
+      "target": "flow:salary-close",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:salary-close",
+      "target": "step:salary-close:gather-attendance",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:salary-close",
+      "target": "step:salary-close:compute-salary",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.3
+    },
+    {
+      "source": "flow:salary-close",
+      "target": "step:salary-close:compute-commission",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:salary-close",
+      "target": "step:salary-close:confirm",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "flow:salary-close",
+      "target": "step:salary-close:disburse",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "domain:forwarder-customer-portal",
+      "target": "flow:customer-statement",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:customer-statement",
+      "target": "step:customer-statement:scope",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.3
+    },
+    {
+      "source": "flow:customer-statement",
+      "target": "step:customer-statement:assemble",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:customer-statement",
+      "target": "step:customer-statement:export",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "domain:fleet-master-data",
+      "target": "flow:pricing-governance",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:pricing-governance",
+      "target": "step:pricing-governance:propose",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.3
+    },
+    {
+      "source": "flow:pricing-governance",
+      "target": "step:pricing-governance:validate",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:pricing-governance",
+      "target": "step:pricing-governance:apply",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "domain:trip-operations",
+      "target": "domain:finance-billing",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "Trips post revenue and fuel/driver cost to the ledger on lock; billing documents assemble trip revenue.",
+      "weight": 0.6
+    },
+    {
+      "source": "domain:trip-operations",
+      "target": "domain:salary-payroll",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "Paired trips and attendance feed driver salary computation.",
+      "weight": 0.6
+    },
+    {
+      "source": "domain:finance-billing",
+      "target": "domain:advances-governance",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "Financial adjustments, profit distribution, and disbursements are gated by the governance-action queue.",
+      "weight": 0.6
+    },
+    {
+      "source": "domain:finance-billing",
+      "target": "domain:forwarder-customer-portal",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "Receivables and billing documents back customer statements and debit-note PDFs in the portal.",
+      "weight": 0.6
+    },
+    {
+      "source": "domain:advances-governance",
+      "target": "domain:forwarder-customer-portal",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "Credit-limit overrides authorize shipment creation beyond a customer's standard limit.",
+      "weight": 0.6
+    },
+    {
+      "source": "domain:fleet-master-data",
+      "target": "domain:trip-operations",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "Pricing tables, fuel norms, routes, and the driver/truck roster are referenced by every trip.",
+      "weight": 0.6
+    },
+    {
+      "source": "domain:fleet-master-data",
+      "target": "domain:salary-payroll",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "The business calendar and driver master data drive attendance and salary.",
+      "weight": 0.6
+    }
+  ],
+  "layers": [],
+  "tour": [],
+  "kind": "knowledge"
+}
