@@ -359,6 +359,7 @@ export default function GovernanceActionsPage() {
             const canCheck = action.allowedActions.includes('CHECK');
             const canApprove = action.allowedActions.includes('APPROVE');
             const canReject = action.allowedActions.includes('REJECT');
+            const hasDecisionActions = canCheck || canApprove || canReject;
             const checking = mutationBusy(checkMutation, action.id)
               || (salaryDecisionBusy?.actionId === action.id && salaryDecisionBusy.decision === 'CHECK');
             const approving = mutationBusy(approveMutation, action.id)
@@ -387,12 +388,8 @@ export default function GovernanceActionsPage() {
                     <dd>{action.makerRole ?? '—'} · #{action.makerId}</dd>
                   </div>
                   <div>
-                    <dt>Phiên bản yêu cầu</dt>
-                    <dd>{action.version}</dd>
-                  </div>
-                  <div>
-                    <dt>Phiên bản dữ liệu gốc</dt>
-                    <dd>{action.originalVersion}</dd>
+                    <dt>Phiên bản</dt>
+                    <dd>YC {action.version} · Gốc {action.originalVersion}</dd>
                   </div>
                   <div>
                     <dt>Tạo lúc</dt>
@@ -431,44 +428,51 @@ export default function GovernanceActionsPage() {
                       : <strong>Chỉ xem</strong>}
                   </div>
 
-                  {isPending(action.status) ? (
-                    <div className="governance-actions__decision">
-                      <label>
-                        <span>Lý do từ chối</span>
-                        <input
-                          type="text"
-                          value={rejectReasons[action.id] ?? ''}
-                          onChange={(event) => setRejectReasons((current) => ({
-                            ...current,
-                            [action.id]: event.target.value,
-                          }))}
-                          placeholder="Nhập lý do khi từ chối"
-                          disabled={!canReject || busy}
-                        />
-                      </label>
+                  {isPending(action.status) && hasDecisionActions ? (
+                    <div className={`governance-actions__decision ${canReject ? 'has-rejection' : ''}`}>
+                      {canReject ? (
+                        <label>
+                          <span>Lý do từ chối</span>
+                          <input
+                            type="text"
+                            value={rejectReasons[action.id] ?? ''}
+                            onChange={(event) => setRejectReasons((current) => ({
+                              ...current,
+                              [action.id]: event.target.value,
+                            }))}
+                            placeholder="Nhập lý do khi từ chối"
+                            disabled={busy}
+                          />
+                        </label>
+                      ) : null}
                       <div className="governance-actions__buttons">
-                        <ActionButton
-                          action="CHECK"
-                          allowed={canCheck}
-                          busy={checking}
-                          onClick={() => runVersionedMutation(action, checkMutation, 'CHECK', 'Không thể kiểm tra yêu cầu.')}
-                        />
-                        <ActionButton
-                          action="APPROVE"
-                          allowed={canApprove}
-                          busy={approving}
-                          onClick={() => runVersionedMutation(action, approveMutation, 'APPROVE', 'Không thể phê duyệt yêu cầu.')}
-                        />
-                        <button
-                          type="button"
-                          className="governance-actions__button is-danger"
-                          disabled={!canReject || busy}
-                          onClick={() => handleReject(action)}
-                          title={canReject ? undefined : 'Bạn không có quyền từ chối yêu cầu này'}
-                        >
-                          {rejecting ? <Loader2 size={15} className="spin" /> : <XCircle size={15} />}
-                          Từ chối
-                        </button>
+                        {canCheck ? (
+                          <ActionButton
+                            action="CHECK"
+                            allowed
+                            busy={checking}
+                            onClick={() => runVersionedMutation(action, checkMutation, 'CHECK', 'Không thể kiểm tra yêu cầu.')}
+                          />
+                        ) : null}
+                        {canApprove ? (
+                          <ActionButton
+                            action="APPROVE"
+                            allowed
+                            busy={approving}
+                            onClick={() => runVersionedMutation(action, approveMutation, 'APPROVE', 'Không thể phê duyệt yêu cầu.')}
+                          />
+                        ) : null}
+                        {canReject ? (
+                          <button
+                            type="button"
+                            className="governance-actions__button is-danger"
+                            disabled={busy}
+                            onClick={() => handleReject(action)}
+                          >
+                            {rejecting ? <Loader2 size={15} className="spin" /> : <XCircle size={15} />}
+                            Từ chối
+                          </button>
+                        ) : null}
                       </div>
                     </div>
                   ) : null}
