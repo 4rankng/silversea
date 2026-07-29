@@ -1,0 +1,92 @@
+{
+  "commands": [
+    {
+      "command": "cd frontend && pnpm test -- src/lib/routes.test.ts src/App.governance-actions-route.test.tsx src/pages/AdvanceWorkspacePage.test.tsx src/pages/GovernanceActionsPage.test.tsx src/pages/financial-governance-ui.test.ts src/hooks/useFocusDeepLink.test.tsx src/components/Layout.test.ts src/pages/admin-advance-settlement-ledger-density.test.tsx",
+      "status": "pass",
+      "exitCode": 0,
+      "timestamp": "2026-07-29T05:27:49Z",
+      "summary": "The frontend runner completed 93 files and 446 tests with no failures."
+    },
+    {
+      "command": "cd frontend && npx tsc -b",
+      "status": "pass",
+      "exitCode": 0,
+      "timestamp": "2026-07-29T05:28:05Z",
+      "summary": "Frontend project typecheck completed without errors."
+    },
+    {
+      "command": "cd shared && npx tsc --noEmit",
+      "status": "pass",
+      "exitCode": 0,
+      "timestamp": "2026-07-29T05:40:25Z",
+      "summary": "Shared navigation and agent schema typecheck completed without errors."
+    },
+    {
+      "command": "pnpm lint",
+      "status": "pass",
+      "exitCode": 0,
+      "timestamp": "2026-07-29T05:28:16Z",
+      "summary": "Lint completed with zero errors; 51 pre-existing warnings remain."
+    },
+    {
+      "command": "make build",
+      "status": "pass",
+      "exitCode": 0,
+      "timestamp": "2026-07-29T05:28:34Z",
+      "summary": "Backend, shared package, and frontend production builds succeeded."
+    },
+    {
+      "command": "cd e2e && ./run_all.sh",
+      "status": "pass",
+      "exitCode": 0,
+      "timestamp": "2026-07-29T05:37:56Z",
+      "summary": "All 16 E2E suites completed: 249 passed, 0 failed, and 3 skipped out of 252 checks."
+    },
+    {
+      "command": "authenticated browser QA",
+      "status": "pass",
+      "exitCode": 0,
+      "timestamp": "2026-07-29T05:40:25Z",
+      "summary": "ADMIN, MANAGER, and ACCOUNTANT capability checks passed; responsive checks at 1440, 1024, 768, 390, and 320 pixels showed no page-level overflow."
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass",
+      "exitCode": 0,
+      "timestamp": "2026-07-29T05:40:25Z",
+      "summary": "The reviewed diff contains no whitespace errors."
+    },
+    {
+      "command": "make demo",
+      "status": "pass",
+      "exitCode": 0,
+      "timestamp": "2026-07-29T05:44:51Z",
+      "summary": "Demo images were published, migrations applied, services recreated, and the deployment health check passed."
+    },
+    {
+      "command": "public HTTP and API health smoke",
+      "status": "pass",
+      "exitCode": 0,
+      "timestamp": "2026-07-29T05:44:59Z",
+      "summary": "The public application returned HTTP 200 and the API health endpoint returned status ok."
+    },
+    {
+      "command": "authenticated deployed browser QA",
+      "status": "pass",
+      "exitCode": 0,
+      "timestamp": "2026-07-29T05:46:00Z",
+      "summary": "The deployed canonical workspace, separate governance link, legacy redirect, and desktop/mobile overflow checks passed."
+    },
+    {
+      "command": "pnpm context:check",
+      "status": "pass",
+      "exitCode": 0,
+      "timestamp": "2026-07-29T05:47:45Z",
+      "summary": "The versioned context manifest remains valid with 9 profiles and 33 context paths."
+    }
+  ],
+  "beforeAfter": {
+    "before": "Advance requests, settlement review, and governance actions appeared as three overlapping finance destinations.",
+    "after": "Advance requests and settlements share one canonical query-backed workspace while the final governance authority remains a clearly separate center."
+  }
+}

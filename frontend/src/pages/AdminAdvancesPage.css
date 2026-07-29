@@ -41,6 +41,11 @@
   user-select: none;
   position: relative;
   overflow: hidden;
+  appearance: none;
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  text-align: left;
 }
 .adv-page .adv-kpi__asset {
   position: absolute;
@@ -123,7 +128,7 @@
 /* ── Desktop grid header ──────────────────────────────────────────────── */
 .adv-page .adv-grid-head {
   display: grid;
-  grid-template-columns: minmax(180px, 1.4fr) 130px 110px 130px minmax(160px, 2fr) 150px;
+  grid-template-columns: minmax(160px, 1.3fr) 120px 96px 116px minmax(130px, 1fr) minmax(270px, 1.5fr);
   padding: 11px 16px;
   gap: 12px;
   background: var(--surface-2);
@@ -147,7 +152,7 @@
 /* ── Desktop grid row ─────────────────────────────────────────────────── */
 .adv-page .adv-grid-row {
   display: grid;
-  grid-template-columns: minmax(180px, 1.4fr) 130px 110px 130px minmax(160px, 2fr) 150px;
+  grid-template-columns: minmax(160px, 1.3fr) 120px 96px 116px minmax(130px, 1fr) minmax(270px, 1.5fr);
   padding: 12px 16px;
   gap: 12px;
   align-items: center;
@@ -214,6 +219,22 @@
   align-items: center;
   gap: 4px;
 }
+.adv-page .adv-actions .form-input {
+  min-width: 0;
+  width: 100%;
+  min-height: 44px;
+}
+.adv-page .adv-actions .btn--icon {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+}
+.adv-page .adv-readonly-state {
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-snug);
+  text-align: right;
+}
 .adv-page .adv-approver {
   font-size: var(--fs-2xs);
   color: var(--ink-3);
@@ -262,6 +283,7 @@
 
 /* ── Mobile cards (hidden on desktop) ─────────────────────────────────── */
 .adv-page .adv-cards { display: none; }
+.adv-page .adv-mobile-filter { display: none; }
 
 .adv-page .adv-mcard {
   background: var(--surface);
@@ -348,18 +370,42 @@
 
 /* Mobile action buttons */
 .adv-page .adv-mcard__actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   margin-top: 2px;
 }
+.adv-page .adv-decision-reason {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 6px;
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+}
+.adv-page .adv-decision-reason .form-input {
+  min-height: 44px;
+  font-size: 16px;
+}
 .adv-page .adv-mcard__actions .btn {
-  flex: 1;
   justify-content: center;
   min-height: 44px;
+  min-width: 0;
+  white-space: normal;
+  line-height: var(--lh-snug);
+}
+.adv-page .adv-readonly-state--mobile {
+  display: block;
+  min-height: 44px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  text-align: left;
 }
 
 /* ── Responsive: compact tablets and phones ───────────────────────────── */
-@media (max-width: 820px) {
+@media (max-width: 1279px) {
   /* KPI row collapses to a balanced 2 × 2 grid. */
   .adv-page .adv-kpi-row {
     grid-template-columns: repeat(2, 1fr);
@@ -405,5 +451,45 @@
 
   .adv-page .adv-footer {
     padding-left: 6px;
+  }
+}
+
+@media (max-width: 420px) {
+  .adv-page .adv-mcard__actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .adv-page .adv-decision-reason {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 767px) {
+  .adv-page .adv-panel .toolbar {
+    display: none;
+  }
+
+  .adv-page .adv-mobile-filter {
+    display: grid;
+    gap: 6px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    background: var(--surface);
+    color: var(--ink-2);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+  }
+
+  .adv-page .adv-mobile-filter select {
+    width: 100%;
+    min-height: 44px;
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-sm);
+    background: var(--surface);
+    color: var(--ink);
+    padding: 0 12px;
+    font: inherit;
+    font-size: 16px;
   }
 }

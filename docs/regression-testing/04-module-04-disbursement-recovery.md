@@ -5,7 +5,8 @@
 >
 > **Màn hình chính:** `/shipments/:id` (chi tiết lô, nhập chi phí), `/expenses` (danh sách khoản chi),
 > `/expenses/new` (tạo khoản chi), `/expenses/:id/edit` (sửa khoản chi), `/customers/:id/billing/new`
-> (sinh giấy báo nợ), `/admin/advance-settlements` (duyệt hoàn ứng). Vai trò thử chính: `admin`,
+> (sinh giấy báo nợ), `/advances?view=settlements` (duyệt hoàn ứng; legacy `/admin/advance-settlements`
+> vẫn chuyển hướng đến đây). Vai trò thử chính: `admin`,
 > `ketoan` (duyệt), `giaonhan` (nhập chi phí hiện trường), `clerk` (khởi tạo lô). Xem thêm đề xuất
 > nghiệp vụ Q12, Q13, Q14, Q21, Q22 trong `00-cross-cutting.md`.
 
@@ -616,7 +617,7 @@ sách nội bộ. Ngưỡng (Q13): 1.000.000đ/khoản, 5.000.000đ/người/ng�
 
 Chạy các TC-HT-01 … TC-HT-10 từ `00-cross-cutting.md` áp dụng trên các màn hình của M04
 (`/shipments/:id`, `/expenses`, `/expenses/new`, `/expenses/:id/edit`, `/customers/:id/billing/new`,
-`/admin/advance-settlements`).
+`/advances?view=settlements`).
 
 | Mã HT     | Kết quả | Bằng chứng |
 | --------- | ------- | ---------- |

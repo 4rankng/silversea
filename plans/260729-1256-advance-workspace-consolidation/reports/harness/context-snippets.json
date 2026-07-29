@@ -1,0 +1,41 @@
+{
+  "skill": "ck:cook",
+  "mode": "auto",
+  "task": "Consolidate advance requests and settlement review into one canonical office workspace, then deploy the demo environment.",
+  "acceptanceCriteria": [
+    "One finance navigation entry opens Tạm ứng & hoàn ứng",
+    "Requests and settlements remain available as durable query-backed views",
+    "The legacy settlement URL redirects while preserving non-focus query state",
+    "Trung tâm phê duyệt remains a separate authority workspace",
+    "Existing role, financial, settlement, and governance contracts are unchanged",
+    "Desktop and mobile views have no page-level horizontal overflow",
+    "Affected automated, review, deploy, and live browser gates pass"
+  ],
+  "touchpoints": [
+    "frontend/src/App.tsx",
+    "frontend/src/pages/AdvanceWorkspacePage.tsx",
+    "frontend/src/pages/AdminAdvancesPage.tsx",
+    "frontend/src/pages/AdminAdvanceSettlementsPage.tsx",
+    "frontend/src/pages/GovernanceActionsPage.tsx",
+    "frontend/src/hooks/useFocusDeepLink.ts",
+    "frontend/src/components/Layout.tsx",
+    "frontend/src/lib/routes.ts",
+    "frontend/src/data/searchRegistry.ts",
+    "shared/src/navigation/pageCatalog.ts",
+    "shared/src/schemas/agent.ts"
+  ],
+  "publicContracts": [
+    "/advances is the canonical office workspace",
+    "/admin/advance-settlements redirects to /advances?view=settlements",
+    "/governance-actions remains the final governance authority queue",
+    "ADMIN and MANAGER can submit advance proposals; ACCOUNTANT remains read-only on advance requests",
+    "ADMIN and ACCOUNTANT retain settlement review authority"
+  ],
+  "blastRadius": [
+    "Office finance navigation and browser titles",
+    "Agent/search navigation catalog",
+    "Advance request and settlement responsive presentation",
+    "Focus deep links on asynchronously loaded lists"
+  ],
+  "scoutSummary": "The source pages overlapped in navigation but not accounting authority: advance requests create governance proposals, ordinary settlement review mutates the settlement directly, and the governance center applies governed decisions. The implementation consolidates information architecture without changing APIs, database rows, ledger calculations, or RBAC."
+}

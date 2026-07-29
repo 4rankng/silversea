@@ -1,8 +1,8 @@
 ---
 phase: 2
-title: "Build canonical advances workspace"
-status: pending
-effort: "medium"
+title: Build canonical advances workspace
+status: completed
+effort: medium
 ---
 
 # Phase 2: Build canonical advances workspace
@@ -29,11 +29,11 @@ shell while keeping each screen's data and actions authoritative.
 
 ## Success Criteria
 
-- [ ] Requests and settlements are both reachable without a second top-level
+- [x] Requests and settlements are both reachable without a second top-level
       finance page.
-- [ ] No existing financial totals, filters, actions, or role gates are lost.
-- [ ] The workspace explains the request-to-governance handoff accurately.
-- [ ] 1440px, 1024px, 768px, 390px, and 320px layouts remain usable.
+- [x] No existing financial totals, filters, actions, or role gates are lost.
+- [x] The workspace explains the request-to-governance handoff accurately.
+- [x] 1440px, 1024px, 768px, 390px, and 320px layouts remain usable.
 
 ## Files
 

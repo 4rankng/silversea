@@ -110,7 +110,7 @@ describe('GovernanceActionsPage', () => {
   it('renders type, status, requester, versions, reason, and server-allowed actions', async () => {
     renderPage();
 
-    expect(await screen.findByRole('heading', { name: 'Yêu cầu chờ kiểm tra & phê duyệt' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Trung tâm phê duyệt' })).toBeTruthy();
     expect(screen.queryByText('Kiểm soát maker / checker / approver')).toBeNull();
     expect(screen.getByText('Chốt kỳ lương')).toBeTruthy();
     expect(screen.getAllByText('Chờ kiểm tra')).toHaveLength(2);

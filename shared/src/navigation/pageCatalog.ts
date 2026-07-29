@@ -154,16 +154,22 @@ export const PAGE_CATALOG = {
     agent: { description: 'Kỷ luật — danh sách phạt tài xế.' },
   },
   advances: {
-    title: 'Quản lý tạm ứng',
+    title: 'Tạm ứng & hoàn ứng',
     path: '/advances',
     section: 'financials',
-    agent: { description: 'Quản lý tạm ứng.' },
+    agent: { description: 'Quản lý yêu cầu tạm ứng và phiếu hoàn ứng.' },
+  },
+  governanceActions: {
+    title: 'Trung tâm phê duyệt',
+    path: '/governance-actions',
+    section: 'financials',
+    agent: { description: 'Kiểm tra và phê duyệt các đề nghị theo thẩm quyền.' },
   },
   adminAdvanceSettlements: {
-    title: 'Duyệt hoàn ứng',
+    title: 'Tạm ứng & hoàn ứng',
     path: '/admin/advance-settlements',
     section: 'financials',
-    agent: { description: 'Duyệt hoàn ứng.' },
+    agent: { description: 'Đường dẫn tương thích đến phiếu hoàn ứng.' },
   },
   salary: {
     title: 'Lương & Chấm công',

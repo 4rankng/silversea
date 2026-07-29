@@ -23,10 +23,10 @@ authorization.
 
 ## Success Criteria
 
-- [ ] Canonical and legacy URLs resolve for ADMIN, MANAGER, and ACCOUNTANT.
-- [ ] Navigation contains no duplicate settlement destination.
-- [ ] Route/search/title labels agree.
-- [ ] Focus cleanup preserves unrelated URL parameters.
+- [x] Canonical and legacy URLs resolve for ADMIN, MANAGER, and ACCOUNTANT.
+- [x] Navigation contains no duplicate settlement destination.
+- [x] Route/search/title labels agree.
+- [x] Focus cleanup preserves unrelated URL parameters.
 
 ## Files
 

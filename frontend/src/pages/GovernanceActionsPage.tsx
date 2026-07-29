@@ -1,4 +1,5 @@
 import React from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
   Check,
@@ -22,6 +23,7 @@ import {
   useRejectGovernanceAction,
 } from '../hooks/useFinancialQueries';
 import { formatDateTimeVN } from '../lib/format';
+import { useFocusDeepLink } from '../hooks/useFocusDeepLink';
 import './GovernanceActionsPage.css';
 
 type InboxFilter = 'PENDING' | 'ALL';
@@ -157,7 +159,11 @@ function ActionButton({
 }
 
 export default function GovernanceActionsPage() {
-  const [filter, setFilter] = React.useState<InboxFilter>('PENDING');
+  const [searchParams] = useSearchParams();
+  useFocusDeepLink('ga');
+  const [filter, setFilter] = React.useState<InboxFilter>(
+    () => searchParams.get('filter') === 'all' ? 'ALL' : 'PENDING',
+  );
   const [rejectReasons, setRejectReasons] = React.useState<Record<number, string>>({});
   const [actionErrors, setActionErrors] = React.useState<Record<number, string | null>>({});
   const [salaryDecisionBusy, setSalaryDecisionBusy] = React.useState<{
@@ -248,7 +254,7 @@ export default function GovernanceActionsPage() {
     <div className="governance-actions">
       <header className="governance-actions__hero">
         <div>
-          <h1>Yêu cầu chờ kiểm tra &amp; phê duyệt</h1>
+          <h1>Trung tâm phê duyệt</h1>
           <p>
             Rà soát các thay đổi tài chính và vận hành theo đúng thẩm quyền
             được hệ thống cấp.
@@ -367,7 +373,11 @@ export default function GovernanceActionsPage() {
             const rejecting = mutationBusy(rejectMutation, action.id);
             const busy = checking || approving || rejecting;
             return (
-              <article className="governance-actions__card" key={action.id}>
+              <article
+                className="governance-actions__card"
+                id={`ga-${action.id}`}
+                key={action.id}
+              >
                 <div className="governance-actions__card-header">
                   <div>
                     <div className="governance-actions__kicker">Yêu cầu #{action.id}</div>

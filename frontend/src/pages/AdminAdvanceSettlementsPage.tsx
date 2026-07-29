@@ -33,6 +33,34 @@ type Settlement = AdvanceSettlementWithRefs;
 
 type StatusFilter = '' | AdvanceSettlementStatus;
 
+export function summarizeSettlementStats(
+  settlements: Array<Pick<Settlement, 'status' | 'totalExpenseAmount'>>,
+) {
+  const counts: Record<string, number> = {
+    total: 0,
+    [AdvanceSettlementStatus.PENDING]: 0,
+    [AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT]: 0,
+    [AdvanceSettlementStatus.APPROVED]: 0,
+    [AdvanceSettlementStatus.REVERSED]: 0,
+    [AdvanceSettlementStatus.REJECTED]: 0,
+  };
+  const totals: Record<string, number> = {
+    [AdvanceSettlementStatus.PENDING]: 0,
+    [AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT]: 0,
+    [AdvanceSettlementStatus.APPROVED]: 0,
+    [AdvanceSettlementStatus.REVERSED]: 0,
+  };
+
+  for (const settlement of settlements) {
+    counts.total++;
+    const status = settlement.status as string;
+    if (status in counts) counts[status]++;
+    const amount = Number(settlement.totalExpenseAmount) || 0;
+    if (status in totals) totals[status] += amount;
+  }
+  return { counts, totals };
+}
+
 const TABS: { key: StatusFilter; label: string }[] = [
   { key: '', label: 'Tất cả' },
   { key: AdvanceSettlementStatus.PENDING, label: 'Chờ xử lý' },
@@ -45,6 +73,7 @@ const STATUS_COLORS: Record<string, string> = {
   PENDING: '#D97706',
   CHECKED_BY_ACCOUNTANT: '#2563EB',
   APPROVED: '#059669',
+  REVERSED: '#64748B',
   REJECTED: '#DC2626',
 };
 
@@ -71,17 +100,34 @@ interface AsKPIProps {
 
 function AsKPI({ label, value, meta, variant, iconName, active = false, hasItems = false, onClick }: AsKPIProps) {
   const interactive = typeof onClick === 'function';
-  return (
-    <div
-      className={`as-kpi as-kpi--${variant}${active ? ' is-active' : ''}${hasItems ? ' has-items' : ''}${interactive ? '' : ' as-kpi--static'}`}
-      {...(interactive
-        ? { onClick, role: 'button', tabIndex: 0, onKeyDown: (e: import('react').KeyboardEvent) => e.key === 'Enter' && onClick() }
-        : {})}
-    >
+  const content = (
+    <>
       <div className="as-kpi__label">{label}</div>
       <div className="as-kpi__value">{value}</div>
       <div className="as-kpi__meta">{meta}</div>
       <AssetIcon name={iconName} size={58} className="as-kpi__asset" />
+    </>
+  );
+  const className = `as-kpi as-kpi--${variant}${active ? ' is-active' : ''}${hasItems ? ' has-items' : ''}${interactive ? '' : ' as-kpi--static'}`;
+
+  if (interactive) {
+    return (
+      <button
+        type="button"
+        className={className}
+        onClick={onClick}
+        aria-pressed={active}
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <div
+      className={className}
+    >
+      {content}
     </div>
   );
 }
@@ -348,7 +394,7 @@ export function SettlementMobileCard({
 
 /* ── Page ──────────────────────────────────────────────────────────────── */
 
-export default function AdminAdvanceSettlementsPage() {
+export default function AdminAdvanceSettlementsPage({ embedded = false }: { embedded?: boolean }) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
 
   // Fetch ALL settlements once — client-side filtering for accurate counts/totals
@@ -368,29 +414,10 @@ export default function AdminAdvanceSettlementsPage() {
   useFocusDeepLink('as');
 
   /* ── Derived counts & totals ─────────────────────────────────────────── */
-  const stats = useMemo(() => {
-    const counts: Record<string, number> = {
-      total: 0,
-      [AdvanceSettlementStatus.PENDING]: 0,
-      [AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT]: 0,
-      [AdvanceSettlementStatus.APPROVED]: 0,
-      [AdvanceSettlementStatus.REJECTED]: 0,
-    };
-    const totals: Record<string, number> = {
-      [AdvanceSettlementStatus.PENDING]: 0,
-      [AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT]: 0,
-      [AdvanceSettlementStatus.APPROVED]: 0,
-    };
-
-    for (const s of allSettlements) {
-      counts.total++;
-      const st = s.status as string;
-      if (st in counts) counts[st]++;
-      const amt = Number(s.totalExpenseAmount) || 0;
-      if (st in totals) totals[st] += amt;
-    }
-    return { counts, totals };
-  }, [allSettlements]);
+  const stats = useMemo(
+    () => summarizeSettlementStats(allSettlements),
+    [allSettlements],
+  );
 
   const filtered = useMemo(() => {
     if (!statusFilter) return allSettlements;
@@ -416,11 +443,13 @@ export default function AdminAdvanceSettlementsPage() {
   /* ── Render ──────────────────────────────────────────────────────────── */
   return (
     <div ref={rootRef} className="as-page">
-      <PageHeader
-        title="Duyệt hoàn ứng"
-        iconName="settlement"
-        description="Kiểm tra và duyệt phiếu thanh toán tạm ứng của giao nhận"
-      />
+      {!embedded && (
+        <PageHeader
+          title="Tạm ứng & hoàn ứng"
+          iconName="settlement"
+          description="Kiểm tra và xử lý phiếu hoàn ứng của giao nhận theo thẩm quyền."
+        />
+      )}
 
       {/* ── KPI strip ─────────────────────────────────────────────────── */}
       <div className="as-kpi-row">
@@ -468,6 +497,19 @@ export default function AdminAdvanceSettlementsPage() {
             </FilterPill>
           ))}
         </Toolbar>
+        <label className="as-mobile-filter">
+          <span>Lọc theo trạng thái</span>
+          <select
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
+          >
+            {TABS.map((tab) => (
+              <option key={tab.key || 'all'} value={tab.key}>
+                {tab.label} ({tabCounts[tab.key]})
+              </option>
+            ))}
+          </select>
+        </label>
 
         {isLoading ? (
           <div className="as-loading">

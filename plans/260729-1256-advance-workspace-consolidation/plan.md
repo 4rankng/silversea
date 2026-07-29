@@ -3,7 +3,7 @@ title: Advance Workspace Consolidation
 description: >-
   Consolidate advance requests and settlement review into one canonical office
   workspace while preserving the separate governance authority queue.
-status: pending
+status: completed
 priority: P2
 branch: main
 tags:
@@ -54,8 +54,8 @@ contract changes are in scope.
 | Phase | Name | Status |
 |-------|------|--------|
 | 1 | [Consolidate navigation and routes](./phase-01-consolidate-navigation-and-routes.md) | Completed |
-| 2 | [Build canonical advances workspace](./phase-02-build-canonical-advances-workspace.md) | Pending |
-| 3 | [Regression and QA](./phase-03-regression-and-qa.md) | Pending |
+| 2 | [Build canonical advances workspace](./phase-02-build-canonical-advances-workspace.md) | Completed |
+| 3 | [Regression and QA](./phase-03-regression-and-qa.md) | Completed |
 
 ## Dependencies
 

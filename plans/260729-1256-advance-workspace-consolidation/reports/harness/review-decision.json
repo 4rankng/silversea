@@ -1,0 +1,20 @@
+{
+  "decision": "PASS",
+  "score": 9.7,
+  "criticalCount": 0,
+  "acceptanceCoverage": [
+    "Canonical workspace, durable query-backed views, and legacy redirect are covered by frontend tests and authenticated browser QA.",
+    "Governance remains a separate authority surface and the existing role capability matrix was verified for ADMIN, MANAGER, ACCOUNTANT, and DRIVER.",
+    "Responsive behavior was verified at 1440, 1024, 768, 390, and 320 pixels with no page-level horizontal overflow.",
+    "Frontend, shared contracts, production build, and all 16 E2E suites passed."
+  ],
+  "regressionProof": [
+    "Frontend runner passed 93 files and 446 tests.",
+    "Frontend and shared TypeScript checks passed.",
+    "Lint completed with zero errors and the production build succeeded.",
+    "Full E2E rerun passed 249 checks with zero failures; 3 checks were intentionally skipped.",
+    "Independent code review approved the final diff for release."
+  ],
+  "contractStatus": "OK",
+  "blockingReasons": []
+}

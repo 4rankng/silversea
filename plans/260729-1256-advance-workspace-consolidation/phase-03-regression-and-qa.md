@@ -1,8 +1,8 @@
 ---
 phase: 3
-title: "Regression and QA"
-status: pending
-effort: "medium"
+title: Regression and QA
+status: completed
+effort: medium
 ---
 
 # Phase 3: Regression and QA
@@ -28,11 +28,11 @@ with auditable artifacts.
 
 ## Success Criteria
 
-- [ ] All affected automated gates are green with `qa/` evidence.
-- [ ] Review decisions contain no unresolved blocker.
-- [ ] Workflow artifact validator passes.
-- [ ] Demo deploy succeeds and public health is green.
-- [ ] Authenticated desktop/mobile smoke checks pass.
+- [x] All affected automated gates are green with `qa/` evidence.
+- [x] Review decisions contain no unresolved blocker.
+- [x] Workflow artifact validator passes.
+- [x] Demo deploy succeeds and public health is green.
+- [x] Authenticated desktop/mobile smoke checks pass.
 
 ## Failure handling
 

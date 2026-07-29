@@ -50,6 +50,7 @@ export const AGENT_ROUTE_KEYS = [
   'payableDetail',
   'penalties',
   'advances',
+  'governanceActions',
   'adminAdvanceSettlements',
   'salary',
   'expenses',

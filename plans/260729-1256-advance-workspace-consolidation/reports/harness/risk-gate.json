@@ -1,0 +1,11 @@
+{
+  "highRisk": true,
+  "reasons": [
+    "The user explicitly requested deployment to the shared demo environment",
+    "The diff changes a financial workflow navigation surface",
+    "The diff is large enough to require adversarial validation"
+  ],
+  "autoStopRequired": true,
+  "humanApproved": true,
+  "largeDiff": true
+}

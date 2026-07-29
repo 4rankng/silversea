@@ -5,6 +5,7 @@ import { formatCurrency, formatNumber, formatDate } from '../lib/format';
 import {
   ADVANCE_REQUEST_STATUS_LABELS,
   AdvanceRequestStatus,
+  Role,
 } from '@tingting/shared';
 import { PageHeader, StatusPill, Toolbar, FilterPill } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
@@ -17,6 +18,7 @@ import {
 } from '../hooks/useQueries';
 import { advanceRequestStatusVariant } from '../lib/status-variants';
 import { useFocusDeepLink } from '../hooks/useFocusDeepLink';
+import { useAuth } from '../hooks/useAuth';
 import './AdminAdvancesPage.css';
 import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
 
@@ -70,17 +72,34 @@ interface AdvKPIProps {
 
 function AdvKPI({ label, value, meta, variant, iconName, active = false, hasItems = false, onClick }: AdvKPIProps) {
   const interactive = typeof onClick === 'function';
-  return (
-    <div
-      className={`adv-kpi adv-kpi--${variant}${active ? ' is-active' : ''}${hasItems ? ' has-items' : ''}${interactive ? '' : ' adv-kpi--static'}`}
-      {...(interactive
-        ? { onClick, role: 'button', tabIndex: 0, onKeyDown: (e: import('react').KeyboardEvent) => e.key === 'Enter' && onClick() }
-        : { 'aria-hidden': false })}
-    >
+  const content = (
+    <>
       <div className="adv-kpi__label">{label}</div>
       <div className="adv-kpi__value">{value}</div>
       <div className="adv-kpi__meta">{meta}</div>
       <AssetIcon name={iconName} size={58} className="adv-kpi__asset" />
+    </>
+  );
+  const className = `adv-kpi adv-kpi--${variant}${active ? ' is-active' : ''}${hasItems ? ' has-items' : ''}${interactive ? '' : ' adv-kpi--static'}`;
+
+  if (interactive) {
+    return (
+      <button
+        type="button"
+        className={className}
+        onClick={onClick}
+        aria-pressed={active}
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <div
+      className={className}
+    >
+      {content}
     </div>
   );
 }
@@ -92,11 +111,13 @@ function AdvanceGridRow({
   approveMutation,
   rejectMutation,
   focusId,
+  canPropose,
 }: {
   req: AdvanceRequest;
   approveMutation: ReturnType<typeof useApproveAdvanceRequest>;
   rejectMutation: ReturnType<typeof useRejectAdvanceRequest>;
   focusId?: string;
+  canPropose: boolean;
 }) {
   const [decisionReason, setDecisionReason] = useState('');
   const isApproving = approveMutation.isPending && approveMutation.variables?.id === req.id;
@@ -137,34 +158,40 @@ function AdvanceGridRow({
 
       {/* Actions / Approver */}
       <div className="adv-actions">
-        {isPending ? (
+        {isPending && canPropose ? (
           <>
             <input
               className="form-input"
-              aria-label={`Lý do xử lý yêu cầu ${req.id}`}
+              aria-label={`Lý do đề nghị cho yêu cầu ${req.id}`}
               value={decisionReason}
               onChange={(event) => setDecisionReason(event.target.value)}
-              placeholder="Lý do xử lý"
+              placeholder="Lý do đề nghị"
             />
             <button
+              type="button"
               className="btn btn--ghost btn--icon btn--sm"
               onClick={() => approveMutation.mutate(buildAdvanceDecision(req, decisionReason)!)}
               disabled={isApproving || isRejecting || !buildAdvanceDecision(req, decisionReason)}
-              title="Gửi yêu cầu duyệt vào hàng chờ"
+              title="Gửi đề nghị duyệt"
+              aria-label={`Gửi đề nghị duyệt yêu cầu ${req.id}`}
               style={{ color: 'var(--success)' }}
             >
               {isApproving ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
             </button>
             <button
+              type="button"
               className="btn btn--ghost btn--icon btn--sm"
               onClick={() => rejectMutation.mutate(buildAdvanceDecision(req, decisionReason)!)}
               disabled={isApproving || isRejecting || !buildAdvanceDecision(req, decisionReason)}
-              title="Gửi yêu cầu từ chối vào hàng chờ"
+              title="Gửi đề nghị từ chối"
+              aria-label={`Gửi đề nghị từ chối yêu cầu ${req.id}`}
               style={{ color: 'var(--danger)' }}
             >
               {isRejecting ? <Loader2 size={16} className="spin" /> : <XCircle size={16} />}
             </button>
           </>
+        ) : isPending ? (
+          <span className="adv-readonly-state">Chỉ có quyền xem</span>
         ) : req.approverName ? (
           <div className="adv-approver">
             bởi <strong>{req.approverName}</strong>
@@ -182,11 +209,13 @@ function AdvanceMobileCard({
   approveMutation,
   rejectMutation,
   focusId,
+  canPropose,
 }: {
   req: AdvanceRequest;
   approveMutation: ReturnType<typeof useApproveAdvanceRequest>;
   rejectMutation: ReturnType<typeof useRejectAdvanceRequest>;
   focusId?: string;
+  canPropose: boolean;
 }) {
   const [decisionReason, setDecisionReason] = useState('');
   const isApproving = approveMutation.isPending && approveMutation.variables?.id === req.id;
@@ -230,31 +259,39 @@ function AdvanceMobileCard({
       </div>
 
       {/* Actions */}
-      {isPending ? (
+      {isPending && canPropose ? (
         <div className="adv-mcard__actions">
-          <input
-            className="form-input"
-            aria-label={`Lý do xử lý yêu cầu ${req.id}`}
-            value={decisionReason}
-            onChange={(event) => setDecisionReason(event.target.value)}
-            placeholder="Lý do xử lý"
-          />
+          <label className="adv-decision-reason">
+            <span>Lý do đề nghị</span>
+            <input
+              className="form-input"
+              value={decisionReason}
+              onChange={(event) => setDecisionReason(event.target.value)}
+              placeholder="Nhập căn cứ xử lý"
+            />
+          </label>
           <button
+            type="button"
             className="btn btn--primary"
             onClick={() => approveMutation.mutate(buildAdvanceDecision(req, decisionReason)!)}
             disabled={isApproving || isRejecting || !buildAdvanceDecision(req, decisionReason)}
           >
             {isApproving ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
-            Gửi duyệt
+            Gửi đề nghị duyệt
           </button>
           <button
+            type="button"
             className="btn btn--danger"
             onClick={() => rejectMutation.mutate(buildAdvanceDecision(req, decisionReason)!)}
             disabled={isApproving || isRejecting || !buildAdvanceDecision(req, decisionReason)}
           >
             {isRejecting ? <Loader2 size={16} className="spin" /> : <XCircle size={16} />}
-            Gửi từ chối
+            Gửi đề nghị từ chối
           </button>
+        </div>
+      ) : isPending ? (
+        <div className="adv-readonly-state adv-readonly-state--mobile">
+          Bạn chỉ có quyền xem yêu cầu này.
         </div>
       ) : req.approverName ? (
         <div className="adv-mcard__meta-row" style={{ marginTop: 4 }}>
@@ -270,7 +307,7 @@ function AdvanceMobileCard({
 
 /* ── Page ──────────────────────────────────────────────────────────────── */
 
-export default function AdminAdvancesPage() {
+export default function AdminAdvancesPage({ embedded = false }: { embedded?: boolean }) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
 
   // Fetch ALL requests once — client-side filtering for accurate counts/totals
@@ -279,6 +316,8 @@ export default function AdminAdvancesPage() {
   const { rootRef } = usePageAnimations({ ready: !isLoading });
   const approveMutation = useApproveAdvanceRequest();
   const rejectMutation = useRejectAdvanceRequest();
+  const { user } = useAuth();
+  const canPropose = user?.role === Role.ADMIN || user?.role === Role.MANAGER;
 
   const allRequests: AdvanceRequest[] = useMemo(
     () => (data?.items ?? []) as AdvanceRequest[],
@@ -320,18 +359,22 @@ export default function AdminAdvancesPage() {
   /* ── Render ──────────────────────────────────────────────────────────── */
   return (
     <div ref={rootRef} className="adv-page">
-      <Breadcrumbs
-        className="adv-page__crumbs"
-        items={[
-          { label: 'Tổng quan', to: '/dashboard' },
-          { label: 'Tạm ứng' },
-        ]}
-      />
-      <PageHeader
-        title="Quản lý tạm ứng"
-        iconName="advances"
-        description="Duyệt hoặc từ chối yêu cầu tạm ứng"
-      />
+      {!embedded && (
+        <>
+          <Breadcrumbs
+            className="adv-page__crumbs"
+            items={[
+              { label: 'Tổng quan', to: '/dashboard' },
+              { label: 'Tạm ứng & hoàn ứng' },
+            ]}
+          />
+          <PageHeader
+            title="Tạm ứng & hoàn ứng"
+            iconName="advances"
+            description="Xem yêu cầu tạm ứng và gửi đề nghị vào Trung tâm phê duyệt."
+          />
+        </>
+      )}
 
       {/* ── KPI strip ─────────────────────────────────────────────────── */}
       <div className="adv-kpi-row">
@@ -388,6 +431,19 @@ export default function AdminAdvancesPage() {
             </FilterPill>
           ))}
         </Toolbar>
+        <label className="adv-mobile-filter">
+          <span>Lọc theo trạng thái</span>
+          <select
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
+          >
+            {TABS.map((tab) => (
+              <option key={tab.key || 'all'} value={tab.key}>
+                {tab.label} ({tabCounts[tab.key]})
+              </option>
+            ))}
+          </select>
+        </label>
 
         {isLoading ? (
           <div className="adv-loading">
@@ -419,6 +475,7 @@ export default function AdminAdvancesPage() {
                   approveMutation={approveMutation}
                   rejectMutation={rejectMutation}
                   focusId={`adv-${req.id}`}
+                  canPropose={canPropose}
                 />
               ))}
             </div>
@@ -432,6 +489,7 @@ export default function AdminAdvancesPage() {
                   approveMutation={approveMutation}
                   rejectMutation={rejectMutation}
                   focusId={`adv-${req.id}`}
+                  canPropose={canPropose}
                 />
               ))}
             </div>

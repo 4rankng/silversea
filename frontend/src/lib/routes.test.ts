@@ -23,7 +23,7 @@ describe('titleForPath (catalog-sourced, parity with pre-refactor behavior)', ()
     '/debt': 'Công nợ phải thu',
     '/debt/5': 'Công nợ phải thu',
     '/credit-overrides': 'Duyệt vượt hạn mức',
-    '/governance-actions': 'Chờ phê duyệt',
+    '/governance-actions': 'Trung tâm phê duyệt',
     '/payables': 'Công nợ phải trả',
     '/payables/9': 'Công nợ phải trả',
     '/expenses/new': 'Ghi nhận chi phí',
@@ -59,8 +59,8 @@ describe('titleForPath (catalog-sourced, parity with pre-refactor behavior)', ()
     '/my-settlements': 'Phiếu thanh toán',
     '/my-settlements/new': 'Phiếu thanh toán',
     '/my-settlements/9': 'Chi tiết phiếu thanh toán',
-    '/advances': 'Quản lý tạm ứng',
-    '/admin/advance-settlements': 'Duyệt hoàn ứng',
+    '/advances': 'Tạm ứng & hoàn ứng',
+    '/admin/advance-settlements': 'Tạm ứng & hoàn ứng',
     '/salary': 'Lương & Chấm công',
     '/': 'TransTing', // no match → app default
     '/totally-unknown': 'TransTing',
@@ -103,7 +103,7 @@ describe('agent route-key set parity (catalog ↔ AGENT_ROUTE_KEYS)', () => {
     }
   });
 
-  it('agent set size is unchanged (36 keys)', () => {
-    expect(AGENT_ROUTE_KEYS).toHaveLength(36);
+  it('agent set includes all 37 navigable office destinations', () => {
+    expect(AGENT_ROUTE_KEYS).toHaveLength(37);
   });
 });
