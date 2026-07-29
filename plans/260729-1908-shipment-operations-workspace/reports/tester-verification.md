@@ -14,6 +14,9 @@ PASS.
 - Frontend typecheck: passed.
 - Frontend tests: passed, `95` files and `457` tests.
 - Build: passed.
+- E2E fix loop: the first final run retained one transient forwarder login-page
+  failure; the unchanged full rerun passed all 16 suites with 249 passed,
+  0 failed, and 3 skipped out of 252 checks.
 - Live re-checks during verification:
   - `cd frontend && pnpm test -- src/pages/clerk/ClerkShipmentDocsPage.test.tsx` passed.
   - `cd frontend && npx tsc -b` passed.

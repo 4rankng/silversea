@@ -22,7 +22,7 @@ source: skill
 
 # Shipment Operations Workspace
 
-Mode: autonomous (`ck:cook`)  
+Mode: autonomous (`ck:cook`)
 Risk: high — additive database/API fields and frontend role reachability; the user approved autonomous implementation for this scope only.
 
 ## Outcome
