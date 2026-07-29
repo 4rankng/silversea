@@ -14,11 +14,12 @@ created: 2026-07-29
 - [x] Add explicit office-role route coverage for the company-info page.
 - [x] Show an actionable dashboard warning while company information is not configured.
 - [ ] Run all affected QA gates and independent review.
-- [ ] Update the task handoff with verified results.
+- [x] Update the task handoff with verified results.
 
-Current blocker: the latest broad frontend rerun still has an unrelated
-`ShipmentsPage.test.tsx` failure, and the latest E2E rerun hit backend
-connection refusals during suite startup.
+Current blocker: the final frontend suite is green (90 files / 432 tests), but
+the E2E rerun remains red/incomplete for unrelated existing test-data and
+system-admin KPI assertions. Scoped authorization, governed submissions,
+banner behavior, and responsive browser checks are green.
 
 Acceptance: ADMIN, MANAGER, and ACCOUNTANT can open and submit company-info
 changes through the existing governed save flow; the office dashboard shows a
