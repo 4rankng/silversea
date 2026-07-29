@@ -14,6 +14,17 @@ import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { ToastProvider } from './components/shared/Toast';
 import { homeForRole, routes } from './lib/routes';
 
+export function legacyAdvanceSettlementsTarget(search: string): string {
+  const params = new URLSearchParams(search);
+  params.set('view', 'settlements');
+  return `${routes.advances}?${params.toString()}`;
+}
+
+function LegacyAdvanceSettlementsRedirect() {
+  const location = useLocation();
+  return <Navigate to={legacyAdvanceSettlementsTarget(location.search)} replace />;
+}
+
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const TripListPage = lazy(() => import('./pages/TripListPage'));
@@ -50,8 +61,7 @@ const ForwarderAdvancesPage = lazy(() => import('./pages/ForwarderAdvancesPage')
 const ForwarderSettlementsPage = lazy(() => import('./pages/ForwarderSettlementsPage'));
 const ForwarderSettlementCreatePage = lazy(() => import('./pages/ForwarderSettlementCreatePage'));
 const SettlementPrintPage = lazy(() => import('./pages/SettlementPrintPage'));
-const AdminAdvancesPage = lazy(() => import('./pages/AdminAdvancesPage'));
-const AdminAdvanceSettlementsPage = lazy(() => import('./pages/AdminAdvanceSettlementsPage'));
+const AdvanceWorkspacePage = lazy(() => import('./pages/AdvanceWorkspacePage'));
 
 const DispatchPage = lazy(() => import('./pages/DispatchPage'));
 const ProfitPage = lazy(() => import('./pages/ProfitPage'));
@@ -190,8 +200,11 @@ export function AppRoutes() {
           <Route path="/debt/:id" element={adminOnly(page(<DebtDetailPage />))} />
           <Route path="/debt/:id/billing/new" element={adminOnly(page(<DebtDetailPage />))} />
           <Route path="/penalties" element={adminOnly(page(<PenaltyPage />))} />
-          <Route path="/advances" element={adminOnly(page(<AdminAdvancesPage />))} />
-          <Route path="/admin/advance-settlements" element={officeStaffOnly(page(<AdminAdvanceSettlementsPage />))} />
+          <Route path="/advances" element={adminOnly(page(<AdvanceWorkspacePage />))} />
+          <Route
+            path="/admin/advance-settlements"
+            element={officeStaffOnly(<LegacyAdvanceSettlementsRedirect />)}
+          />
 
           <Route path="/my-penalties" element={driverOnly(page(<DriverPenaltyPage />))} />
           <Route path="/customers" element={adminOnly(page(<CustomersPage />))} />

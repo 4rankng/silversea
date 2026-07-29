@@ -45,7 +45,7 @@ vi.mock('./pages/DriverTripsPage', () => ({
   default: () => <div>Driver home test page</div>,
 }));
 
-import { AppRoutes } from './App';
+import { AppRoutes, legacyAdvanceSettlementsTarget } from './App';
 
 function renderRoute() {
   return render(
@@ -72,5 +72,13 @@ describe('AppRoutes governance inbox RBAC', () => {
     renderRoute();
     expect(await screen.findByText('Driver home test page')).toBeTruthy();
     expect(screen.queryByText('Governance inbox test page')).toBeNull();
+  });
+});
+
+describe('legacy advance settlement route', () => {
+  it('targets the canonical settlement view and preserves deep-link parameters', () => {
+    expect(legacyAdvanceSettlementsTarget('?focus=71&source=agent')).toBe(
+      '/advances?focus=71&source=agent&view=settlements',
+    );
   });
 });

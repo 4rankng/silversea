@@ -2,6 +2,13 @@ import { useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { highlightElement } from '../lib/agentHighlight';
 
+export function clearFocusSearchParams(searchParams: URLSearchParams): URLSearchParams {
+  const next = new URLSearchParams(searchParams);
+  next.delete('focus');
+  next.delete('fdur');
+  return next;
+}
+
 /**
  * Scroll-to-and-highlight an element when the URL has `?focus=<id>`.
  * After the animation completes the `focus` param is removed from the URL.
@@ -17,9 +24,28 @@ export function useFocusDeepLink(prefix: string) {
 
   useEffect(() => {
     if (!focusId) return;
-    highlightElement(`${prefix}-${focusId}`, durationMs);
-    setSearchParams({}, { replace: true });
-  }, [focusId, prefix, durationMs, setSearchParams]);
+    const targetId = `${prefix}-${focusId}`;
+    const finish = () => {
+      if (!highlightElement(targetId, durationMs)) return false;
+      setSearchParams(clearFocusSearchParams(searchParams), { replace: true });
+      return true;
+    };
+
+    if (finish()) return;
+
+    // List/detail data often arrives after the route mounts. Keep the deep link
+    // until the target is actually present instead of silently consuming it.
+    const observer = new MutationObserver(() => {
+      if (finish()) observer.disconnect();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    const timeout = window.setTimeout(() => observer.disconnect(), 10_000);
+
+    return () => {
+      observer.disconnect();
+      window.clearTimeout(timeout);
+    };
+  }, [focusId, prefix, durationMs, searchParams, setSearchParams]);
 
   return focusId;
 }

@@ -56,7 +56,7 @@ export const routes = {
   payables: PAGE_CATALOG.payables.path,
   payableDetail: (id: number | string) => PAGE_CATALOG.payableDetail.path({ id }),
   creditOverrides: '/credit-overrides',
-  governanceActions: '/governance-actions',
+  governanceActions: PAGE_CATALOG.governanceActions.path,
   login: PAGE_CATALOG.login.path,
 
   /* ── Config (catalog admin) ─────────────────────────────────────────── */
@@ -153,7 +153,7 @@ const titleRules: TitleRule[] = [
   { test: p => p.startsWith(routes.debt), title: PAGE_CATALOG.debt.title },
   { test: p => p.startsWith(routes.payables), title: PAGE_CATALOG.payables.title },
   { test: p => p.startsWith(routes.creditOverrides), title: 'Duyệt vượt hạn mức' },
-  { test: p => p.startsWith(routes.governanceActions), title: 'Chờ phê duyệt' },
+  { test: p => p.startsWith(routes.governanceActions), title: PAGE_CATALOG.governanceActions.title },
   { test: p => p.startsWith(routes.expenseNew), title: PAGE_CATALOG.expenseNew.title },
   { test: p => /^\/expenses\/\d+\/edit$/.test(p), title: PAGE_CATALOG.expenseEdit.title },
   { test: p => p.startsWith(routes.expenses), title: PAGE_CATALOG.expenses.title },

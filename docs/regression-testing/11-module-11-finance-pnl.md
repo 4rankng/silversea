@@ -7,8 +7,8 @@
 > - `/finance` — Báo cáo lãi lỗ P&L (P&L tổng thể & chi tiết đầu xe, tạm ứng/hoàn ứng, kỳ hạn khách hàng)
 > - `/profit` — Phân chia lợi nhuận
 > - `/dashboard` — Bảng điều hành giám đốc (KPI dòng tiền, hàng hai chiều, hiệu quả xe)
-> - `/advances` — Tạm ứng theo nhân sự
-> - `/admin/advance-settlements` — Duyệt hoàn ứng
+> - `/advances` — Tạm ứng & hoàn ứng, dùng `view=requests|settlements` để chuyển giữa yêu cầu và phiếu hoàn ứng
+> - `/admin/advance-settlements` — URL tương thích cũ; chuyển hướng sang `/advances?view=settlements`
 > - `/api/agent` — Trợ lý AI cho giám đốc (chat UI trên `/dashboard`, thử ở TC-M11-06-*)
 >
 > **Vai trò thử:** `giamdoc` (xem chính, hỏi trợ lý), `ketoan` (đối soát số liệu), `admin` (duyệt hoàn ứng, cấu hình kỳ).
@@ -193,14 +193,14 @@ chi phí; phiếu xuyên kỳ phải chuyển số dư đúng.
 - **Vai trò:** `giamdoc`, `ketoan`
 - **Tiền điều kiện:** nhân viên Nguyễn Văn A có số dư đầu kỳ 07/2026 = 1.000.000đ; tạm ứng thêm 5.000.000đ; chi phí đã duyệt 3.000.000đ; hoàn ứng 1.000.000đ.
 - **Các bước:**
-  1. Mở `/advances` chọn kỳ 07/2026.
+  1. Mở `/advances?view=requests` chọn kỳ 07/2026.
   2. Xem báo cáo theo nhân sự cho A.
 - **Kết quả mong đợi (Pass):**
   - Liệt kê từng phiếu: số phiếu, ngày, số tiền, chuyến liên quan, trạng thái (Tạm ứng/Đã duyệt/Hoàn ứng).
   - Số dư cuối kỳ = 1.000.000 + 5.000.000 − 3.000.000 − 1.000.000 = 2.000.000đ.
   - Dấu cộng/trừ nhất quán theo cấu hình khóa.
 - **Phụ thuộc:** không
-- **Bằng chứng:** ảnh báo cáo `/advances` của A.
+- **Bằng chứng:** ảnh báo cáo `/advances?view=requests` của A.
 
 ### TC-M11-03-02 — Thiếu hoặc sai dữ liệu (khoản bị từ chối)
 
@@ -208,9 +208,9 @@ chi phí; phiếu xuyên kỳ phải chuyển số dư đúng.
 - **Vai trò:** `admin`
 - **Tiền điều kiện:** A nộp 1 phiếu chi phí 500.000đ bị từ chối (không hợp lệ).
 - **Các bước:**
-  1. Mở `/admin/advance-settlements`.
+  1. Mở `/advances?view=settlements` (hoặc `/admin/advance-settlements` để kiểm tra chuyển hướng).
   2. Từ chối phiếu 500.000đ với lý do.
-  3. Quay lại `/advances` kỳ 07/2026.
+  3. Quay lại `/advances?view=requests` kỳ 07/2026.
 - **Kết quả mong đợi (Pass):**
   - Phiếu 500.000đ có trạng thái "Từ chối" + lý do, không được trừ vào số dư A.
   - Số dư cuối kỳ A không đổi do khoản bị từ chối.
@@ -223,7 +223,7 @@ chi phí; phiếu xuyên kỳ phải chuyển số dư đúng.
 - **Vai trò:** `ketoan`
 - **Tiền điều kiện:** phiếu tạm ứng 10.000.000đ tạo 28/06, chi phí gắn phiếu phát sinh 03/07.
 - **Các bước:**
-  1. Mở `/advances` kỳ 06/2026 và 07/2026.
+  1. Mở `/advances?view=requests` kỳ 06/2026 và 07/2026.
   2. Kiểm tra số dư chuyển kỳ.
 - **Kết quả mong đợi (Pass):**
   - Số dư cuối kỳ 06 của A cộng 10.000.000đ.
@@ -238,7 +238,7 @@ chi phí; phiếu xuyên kỳ phải chuyển số dư đúng.
 - **Vai trò:** `ketoan`
 - **Tiền điều kiện:** A có 8 phiếu tạm ứng trong kỳ; 1 phiếu hoàn ứng một phần (2.000.000/5.000.000).
 - **Các bước:**
-  1. Mở `/advances` kỳ 07/2026 lọc theo A.
+  1. Mở `/advances?view=requests` kỳ 07/2026 lọc theo A.
   2. Kiểm tra phiếu hoàn ứng một phần.
 - **Kết quả mong đợi (Pass):**
   - 8 phiếu hiển thị đầy đủ, sắp xếp theo ngày.
@@ -253,7 +253,7 @@ chi phí; phiếu xuyên kỳ phải chuyển số dư đúng.
 - **Vai trò:** `giamdoc`, `admin`
 - **Tiền điều kiện:** nhân viên B đã nghỉ 15/07/2026, còn số dư tạm ứng 4.000.000đ chưa tất toán.
 - **Các bước:**
-  1. Mở `/advances` kỳ 07/2026.
+  1. Mở `/advances?view=requests` kỳ 07/2026.
   2. Kiểm tra dòng của B.
 - **Kết quả mong đợi (Pass):**
   - B vẫn xuất hiện với trạng thái nhân sự "Đã nghỉ việc" + số dư 4.000.000đ.
@@ -541,8 +541,8 @@ nguồn, không bịa.
 
 ### Tiêu chí toàn phân hệ M11-HT-01 … M11-HT-10
 
-Chạy TC-HT-01 … TC-HT-10 từ `00-cross-cutting.md` trên các màn hình của M11 (`/finance`, `/advances`,
-`/admin/advance-settlements`, `/dashboard`, khung chat `/api/agent`).
+Chạy TC-HT-01 … TC-HT-10 từ `00-cross-cutting.md` trên các màn hình của M11 (`/finance`,
+`/advances?view=requests`, `/advances?view=settlements`, `/dashboard`, khung chat `/api/agent`).
 
 | Mã HT     | Kết quả | Bằng chứng |
 | --------- | ------- | ---------- |

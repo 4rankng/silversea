@@ -9,9 +9,20 @@ import {
 import {
   SettlementGridRow,
   SettlementMobileCard,
+  summarizeSettlementStats,
 } from './AdminAdvanceSettlementsPage';
 
 describe('admin advance settlement ledger density', () => {
+  it('counts reversed settlements for the history filter', () => {
+    const stats = summarizeSettlementStats([
+      { status: AdvanceSettlementStatus.REVERSED, totalExpenseAmount: '1250000' },
+      { status: AdvanceSettlementStatus.APPROVED, totalExpenseAmount: '900000' },
+    ]);
+
+    expect(stats.counts.REVERSED).toBe(1);
+    expect(stats.totals.REVERSED).toBe(1_250_000);
+  });
+
   const settlement = {
     id: 7,
     code: 'PT-2607-0004',

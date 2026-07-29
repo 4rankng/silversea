@@ -45,7 +45,8 @@ const ADMIN_BASE_ITEMS: SearchItem[] = [
   { id: 'debt',     type: 'page', label: 'Công nợ phải thu',        path: '/debt',      iconName: 'receivables' },
   { id: 'payables', type: 'page', label: 'Công nợ phải trả',        path: '/payables',  iconName: 'payables' },
   { id: 'expenses', type: 'page', label: 'Chi phí phát sinh',       path: '/expenses',  iconName: 'expense' },
-  { id: 'advances', type: 'page', label: 'Tạm ứng',                 path: '/advances',  iconName: 'advances' },
+  { id: 'governance-actions', type: 'page', label: 'Trung tâm phê duyệt', path: '/governance-actions', iconName: 'checklist' },
+  { id: 'advances', type: 'page', label: 'Tạm ứng & hoàn ứng',      path: '/advances',  iconName: 'advances' },
 
   { id: 'customers', type: 'page', label: 'Khách hàng',             path: '/customers', iconName: 'customer' },
   { id: 'suppliers', type: 'page', label: 'Nhà cung cấp',           path: '/suppliers', iconName: 'supplier' },

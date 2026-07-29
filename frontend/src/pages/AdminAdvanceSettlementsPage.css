@@ -41,6 +41,11 @@
   user-select: none;
   position: relative;
   overflow: hidden;
+  appearance: none;
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  text-align: left;
 }
 .as-page .as-kpi__asset {
   position: absolute;
@@ -496,6 +501,7 @@
 
 /* ── Mobile cards (hidden on desktop) ─────────────────────────────────── */
 .as-page .as-cards { display: none; }
+.as-page .as-mobile-filter { display: none; }
 
 .as-page .as-mcard {
   background: var(--surface);
@@ -794,5 +800,35 @@
 
   .as-page .as-footer {
     padding-left: 6px;
+  }
+}
+
+@media (max-width: 767px) {
+  .as-page .as-panel .toolbar {
+    display: none;
+  }
+
+  .as-page .as-mobile-filter {
+    display: grid;
+    gap: 6px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    background: var(--surface);
+    color: var(--ink-2);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+  }
+
+  .as-page .as-mobile-filter select {
+    width: 100%;
+    min-height: 44px;
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-sm);
+    background: var(--surface);
+    color: var(--ink);
+    padding: 0 12px;
+    font: inherit;
+    font-size: 16px;
   }
 }

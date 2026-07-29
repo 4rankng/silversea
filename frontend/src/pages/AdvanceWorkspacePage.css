@@ -1,0 +1,155 @@
+.advance-workspace {
+  width: 100%;
+  min-width: 0;
+}
+
+.advance-workspace__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.advance-workspace__heading .page-header {
+  min-width: 0;
+  margin-bottom: 18px;
+}
+
+.advance-workspace__governance-link {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  text-decoration: none;
+}
+
+.advance-workspace__governance-link:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+.advance-workspace__views {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 720px;
+  margin-bottom: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.advance-workspace__views a {
+  min-width: 0;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  text-align: center;
+  text-decoration: none;
+}
+
+.advance-workspace__views a + a {
+  border-left: 1px solid var(--line);
+}
+
+.advance-workspace__views a:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.advance-workspace__views a.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  box-shadow: inset 0 -3px 0 var(--accent);
+}
+
+.advance-workspace__governance-link:focus-visible,
+.advance-workspace__views a:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
+}
+
+.advance-workspace__content,
+.advance-workspace__content > .adv-page,
+.advance-workspace__content > .as-page {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.advance-workspace__section-heading {
+  margin-bottom: 14px;
+}
+
+.advance-workspace__section-heading h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--fs-lg);
+  line-height: var(--lh-tight);
+}
+
+.advance-workspace__section-heading p {
+  margin: 5px 0 0;
+  color: var(--ink-3);
+  font-size: var(--fs-sm);
+}
+
+/* The workspace supplies the hierarchy. Keep the operational surfaces flat. */
+.advance-workspace .adv-panel,
+.advance-workspace .as-panel,
+.advance-workspace .adv-kpi,
+.advance-workspace .as-kpi {
+  background: var(--surface);
+  box-shadow: none;
+}
+
+@media (max-width: 767px) {
+  .advance-workspace__heading {
+    display: block;
+  }
+
+  .advance-workspace__governance-link {
+    width: 100%;
+    margin: -4px 0 14px;
+  }
+
+  .advance-workspace__views {
+    width: 100%;
+    max-width: none;
+    margin-bottom: 14px;
+  }
+
+  .advance-workspace__views a {
+    min-height: 52px;
+    padding: 8px;
+    line-height: var(--lh-snug);
+  }
+
+  .advance-workspace__views a span,
+  .advance-workspace__section-heading p {
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .advance-workspace__views a,
+  .advance-workspace__governance-link {
+    transition: none;
+  }
+}

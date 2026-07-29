@@ -385,7 +385,7 @@ tiếp/từ chối cập nhật tổng ngay + giữ lịch sử. Cùng góc nhì
 - **Thiết bị:** Mobile (iPhone SE 375×667) và Desktop
 - **Các bước:**
   1. A và B cùng lúc ghi khoản cho LÔ-G → kiểm tra tổng cập nhật đúng cả 2 dòng, không mất dòng.
-  2. Mở cùng lúc màn hình forwarder (mobile) và màn hình `ketoan` (desktop `/admin/advance-settlements`) → kiểm tra số liệu khớp.
+  2. Mở cùng lúc màn hình forwarder (mobile) và màn hình `ketoan` (desktop `/advances?view=settlements`) → kiểm tra số liệu khớp.
   3. Đối chiếu tổng lô ở forwarder với tổng lô ở phía `ketoan`.
 - **Kết quả mong đợi (Pass):**
   - Concurrent submit: tổng đúng, không trùng/không mất dòng.
@@ -457,7 +457,7 @@ lỗi không được đánh dấu "đã có chứng từ"; cho thử lại khô
 - **Vai trò:** `giaonhan` A, `giaonhan` B, `ketoan`
 - **Thiết bị:** Mobile (iPhone SE 375×667) và Desktop
 - **Các bước:**
-  1. `ketoan` mở chứng từ của K-400 (từ `/admin/advance-settlements`) → tải bản gốc, kiểm tra chất lượng ảnh.
+  1. `ketoan` mở chứng từ của K-400 (từ `/advances?view=settlements`) → tải bản gốc, kiểm tra chất lượng ảnh.
   2. `giaonhan` B thử mở K-400 của A để xem/xóa ảnh → kiểm tra chặn.
   3. `giaonhan` A xóa 1 ảnh của chính mình trước khi `ketoan` duyệt → kiểm tra lịch sử.
 - **Kết quả mong đợi (Pass):**
