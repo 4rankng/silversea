@@ -78,16 +78,36 @@ export default function PortalStatementPage() {
 
   const summary = data?.periodSummary;
   const rows = data?.ledgerRows ?? [];
+  const openingBalance = Number(summary?.openingBalance ?? 0);
+  const periodActivity = Number(summary?.periodActivity ?? data?.totalOutstanding ?? 0);
+  const closingBalance = Number(summary?.closingBalance ?? data?.totalOutstanding ?? 0);
+  const activityOperator = periodActivity < 0 ? '−' : '+';
+  const balanceEquationLabel = [
+    `Số dư đầu kỳ ${openingBalance.toLocaleString('vi-VN')} đồng`,
+    `${periodActivity < 0 ? 'trừ' : 'cộng'} ${Math.abs(periodActivity).toLocaleString('vi-VN')} đồng`,
+    `bằng số dư cuối kỳ ${closingBalance.toLocaleString('vi-VN')} đồng`,
+  ].join(', ');
 
   return (
     <div className="portal-page">
       <header className="portal-page__header">
-        <span className="portal-page__eyebrow">Công nợ phải thu</span>
-        <h1>Sao kê công nợ</h1>
-        <p>Kiểm tra phát sinh, thanh toán và số dư của tài khoản khách hàng.</p>
+        <div className="portal-page__title">
+          <span className="portal-page__eyebrow">Công nợ phải thu</span>
+          <h1>Sao kê công nợ</h1>
+          <p>Đối chiếu số dư, các khoản phát sinh và thanh toán theo từng thời kỳ.</p>
+        </div>
+        <div className="portal-page__headline-stat" aria-label="Số dư công nợ hiện tại">
+          <span>Số dư hiện tại</span>
+          <strong>{loading ? '—' : `${Number(data?.totalOutstanding ?? 0).toLocaleString('vi-VN')} ₫`}</strong>
+          <small>{data?.customer.name ?? 'Tài khoản đang xem'}</small>
+        </div>
       </header>
 
       <div className="portal-panel">
+        <div className="portal-panel__heading">
+          <div><span>Khoảng thời gian</span><h2>Lọc và xuất sao kê</h2></div>
+          <strong>{appliedRange.dateFrom || appliedRange.dateTo ? 'Đang lọc theo kỳ' : 'Toàn bộ lịch sử'}</strong>
+        </div>
         <form
           className="portal-filters"
           onSubmit={(event) => {
@@ -98,7 +118,7 @@ export default function PortalStatementPage() {
           <label>Từ ngày<input type="date" value={dateFrom} max={dateTo || undefined} onChange={(event) => setDateFrom(event.target.value)} /></label>
           <label>Đến ngày<input type="date" value={dateTo} min={dateFrom || undefined} onChange={(event) => setDateTo(event.target.value)} /></label>
           <div className="portal-actions">
-            <button type="submit" className="portal-button portal-button--primary">Áp dụng</button>
+            <button type="submit" className="portal-button portal-button--primary" disabled={loading}>Áp dụng kỳ</button>
             <button type="button" className="portal-button" disabled={exporting || !data} onClick={() => void exportStatement('xlsx')}><Download size={16} /> XLSX</button>
             <button type="button" className="portal-button" disabled={exporting || !data} onClick={() => void exportStatement('pdf')}><Printer size={16} /> PDF</button>
           </div>
@@ -112,16 +132,21 @@ export default function PortalStatementPage() {
           <EmptyState icon={Landmark} title="Chưa có dữ liệu sao kê" />
         ) : (
           <>
-            <div className="portal-summary">
-              <div><span>Số dư đầu kỳ</span><strong>{Number(summary?.openingBalance ?? 0).toLocaleString('vi-VN')} ₫</strong></div>
-              <div><span>Phát sinh trong kỳ</span><strong>{Number(summary?.periodActivity ?? data.totalOutstanding).toLocaleString('vi-VN')} ₫</strong></div>
-              <div><span>Số dư cuối kỳ</span><strong>{Number(summary?.closingBalance ?? data.totalOutstanding).toLocaleString('vi-VN')} ₫</strong></div>
+            <div className="portal-balance-equation" aria-label={balanceEquationLabel}>
+              <div><span>Số dư đầu kỳ</span><strong>{openingBalance.toLocaleString('vi-VN')} ₫</strong></div>
+              <span className="portal-balance-equation__operator" aria-hidden="true">{activityOperator}</span>
+              <div><span>Phát sinh trong kỳ</span><strong>{Math.abs(periodActivity).toLocaleString('vi-VN')} ₫</strong></div>
+              <span className="portal-balance-equation__operator" aria-hidden="true">=</span>
+              <div className="portal-balance-equation__result"><span>Số dư cuối kỳ</span><strong>{closingBalance.toLocaleString('vi-VN')} ₫</strong></div>
             </div>
             {data.unpaidTrips.length > 0 && (
               <section className="portal-due-list" aria-labelledby="portal-due-list-title">
-                <div>
-                  <span className="portal-page__eyebrow">Các khoản chưa thanh toán</span>
-                  <h2 id="portal-due-list-title">Ngày đến hạn</h2>
+                <div className="portal-due-list__heading">
+                  <div>
+                    <span>Cần theo dõi</span>
+                    <h2 id="portal-due-list-title">Các khoản chưa thanh toán</h2>
+                  </div>
+                  <strong>{data.unpaidTrips.length} khoản</strong>
                 </div>
                 {data.unpaidTrips.map((trip) => (
                   <article key={trip.tripId} className="portal-due-row">
@@ -145,22 +170,28 @@ export default function PortalStatementPage() {
             {rows.length === 0 ? (
               <EmptyState icon={Landmark} title="Không có phát sinh trong khoảng thời gian này" />
             ) : (
-              <div className="portal-table-wrap">
-                <table className="portal-table">
-                  <thead><tr><th>Ngày</th><th>Nội dung</th><th>Ghi nợ</th><th>Thanh toán</th><th>Số dư</th></tr></thead>
-                  <tbody>
-                    {rows.map((row) => (
-                      <tr key={row.id}>
-                        <td>{new Date(row.timestamp).toLocaleDateString('vi-VN')}</td>
-                        <td>{row.note || row.tripCode || row.txnType}</td>
-                        <td>{Number(row.debit ?? 0).toLocaleString('vi-VN')} ₫</td>
-                        <td>{Number(row.credit ?? 0).toLocaleString('vi-VN')} ₫</td>
-                        <td>{Number(row.balance ?? 0).toLocaleString('vi-VN')} ₫</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <section className="portal-ledger" aria-labelledby="portal-ledger-title">
+                <div className="portal-ledger__heading">
+                  <div><span>Chi tiết giao dịch</span><h2 id="portal-ledger-title">Phát sinh công nợ</h2></div>
+                  <strong>{rows.length} dòng</strong>
+                </div>
+                <div className="portal-table-wrap">
+                  <table className="portal-table">
+                    <thead><tr><th>Ngày</th><th>Nội dung</th><th className="portal-table__number">Ghi nợ</th><th className="portal-table__number">Thanh toán</th><th className="portal-table__number">Số dư</th></tr></thead>
+                    <tbody>
+                      {rows.map((row) => (
+                        <tr key={row.id}>
+                          <td data-label="Ngày">{new Date(row.timestamp).toLocaleDateString('vi-VN')}</td>
+                          <td data-label="Nội dung">{row.note || row.tripCode || row.txnType}</td>
+                          <td data-label="Ghi nợ" className="portal-table__number">{Number(row.debit ?? 0).toLocaleString('vi-VN')} ₫</td>
+                          <td data-label="Thanh toán" className="portal-table__number">{Number(row.credit ?? 0).toLocaleString('vi-VN')} ₫</td>
+                          <td data-label="Số dư" className="portal-table__number portal-table__balance">{Number(row.balance ?? 0).toLocaleString('vi-VN')} ₫</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
             )}
           </>
         )}

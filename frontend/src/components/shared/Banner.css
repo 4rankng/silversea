@@ -5,31 +5,36 @@
 
 .nepo-banner {
   width: 100%;
+  box-sizing: border-box;
   z-index: var(--z-sticky);
   font-family: var(--font-body);
   font-size: var(--fs-sm);
   line-height: var(--lh-snug);
-  border-bottom: 1px solid transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-lg);
 }
 
 .nepo-banner--sticky {
   position: sticky;
-  top: 0;
+  top: 12px;
 }
 
 .nepo-banner__inner {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-areas: "content action close";
   align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
+  column-gap: 12px;
+  row-gap: 8px;
+  padding: 12px 14px;
   max-width: 100%;
 }
 
 .nepo-banner__content {
+  grid-area: content;
   display: flex;
   align-items: center;
   gap: 10px;
-  flex: 1;
   min-width: 0;
 }
 
@@ -56,11 +61,12 @@
 }
 
 .nepo-banner__action {
-  flex-shrink: 0;
+  grid-area: action;
+  justify-self: end;
 }
 
 .nepo-banner__close {
-  flex-shrink: 0;
+  grid-area: close;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -77,7 +83,7 @@
 }
 .nepo-banner__close:hover {
   opacity: 1;
-  background: rgba(255, 255, 255, 0.15);
+  background: color-mix(in srgb, currentColor 10%, transparent);
 }
 .nepo-banner__close:focus-visible {
   outline: 2px solid currentColor;
@@ -88,44 +94,58 @@
 /* ─── Variants — each uses NEPO semantic token pair (fill + on-fill text) ── */
 
 .nepo-banner--info {
-  background: var(--info);
-  color: #ffffff;
-  border-bottom-color: var(--info-text);
+  background: var(--info-soft);
+  color: var(--info-text);
+  border-color: color-mix(in srgb, var(--info) 24%, transparent);
 }
-.nepo-banner--info .nepo-banner__icon { color: #ffffff; }
+.nepo-banner--info .nepo-banner__icon { color: var(--info-text); }
 
 .nepo-banner--success {
-  background: var(--accent-2);
-  color: var(--fg-on-brand);
-  border-bottom-color: var(--accent-ink);
+  background: var(--success-soft);
+  color: var(--success-text);
+  border-color: color-mix(in srgb, var(--success) 24%, transparent);
 }
-.nepo-banner--success .nepo-banner__icon { color: var(--fg-on-brand); }
+.nepo-banner--success .nepo-banner__icon { color: var(--success-text); }
 
 .nepo-banner--warning {
-  background: var(--warning);
+  background: var(--warning-soft);
   color: var(--warning-text);
-  border-bottom-color: var(--warning-deep);
+  border-color: color-mix(in srgb, var(--warning) 28%, transparent);
 }
 .nepo-banner--warning .nepo-banner__icon { color: var(--warning-text); }
-.nepo-banner--warning .nepo-banner__close:hover {
-  background: rgba(122, 67, 8, 0.12);
-}
 
 .nepo-banner--danger {
-  background: var(--danger);
-  color: #ffffff;
-  border-bottom-color: var(--danger-text);
+  background: var(--danger-soft);
+  color: var(--danger-text);
+  border-color: color-mix(in srgb, var(--danger) 24%, transparent);
 }
-.nepo-banner--danger .nepo-banner__icon { color: #ffffff; }
+.nepo-banner--danger .nepo-banner__icon { color: var(--danger-text); }
 
-/* ─── Mobile — tighten padding so the message stays legible at 420px ────── */
+/* ─── Mobile — compact two-row alert with controls in stable grid areas ─── */
 @media (max-width: 640px) {
   .nepo-banner__inner {
-    padding: 8px 12px;
-    gap: 8px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "content close"
+      "action action";
+    align-items: start;
+    padding: 10px 12px;
+    column-gap: 8px;
+    row-gap: 8px;
   }
+
+  .nepo-banner__content {
+    align-items: flex-start;
+  }
+
+  .nepo-banner__action {
+    justify-self: start;
+    padding-left: 28px;
+  }
+
   .nepo-banner__close {
-    width: var(--control-h);
-    height: var(--control-h);
+    min-width: 44px;
+    min-height: 44px;
+    margin: -8px -8px -8px 0;
   }
 }

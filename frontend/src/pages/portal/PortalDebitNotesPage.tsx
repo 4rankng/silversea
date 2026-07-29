@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { CheckCircle2, FileSpreadsheet, FileText, Printer, TriangleAlert } from 'lucide-react';
 import type { BillingDocument } from '@tingting/shared';
 import { api } from '../../lib/api';
-import { EmptyState } from '../../design-system';
+import { EmptyState, Pagination } from '../../design-system';
 import { useCustomerPortalScope, withCustomerScope } from './CustomerPortalScope';
 import './PortalPages.css';
 
@@ -45,7 +45,7 @@ export default function PortalDebitNotesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [workingId, setWorkingId] = useState<number | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [retryKey, setRetryKey] = useState(0);
@@ -61,7 +61,7 @@ export default function PortalDebitNotesPage() {
       .then((response) => {
         if (!active) return;
         setItems(response.items ?? []);
-        setTotal(response.total ?? 0);
+        setTotal(response.total ?? response.items?.length ?? 0);
       })
       .catch(() => {
         if (active) setError('Không thể tải danh sách giấy báo nợ. Vui lòng thử lại.');
@@ -90,9 +90,12 @@ export default function PortalDebitNotesPage() {
         {},
       );
       setItems((current) => current.map((item) => item.id === doc.id ? updated : item));
-      setNotice(action === 'confirm' ? 'Đã xác nhận giấy báo nợ.' : 'Đã gửi phản hồi tranh chấp.');
+      setNotice({
+        tone: 'success',
+        text: action === 'confirm' ? 'Đã xác nhận giấy báo nợ.' : 'Đã gửi phản hồi tranh chấp.',
+      });
     } catch (err) {
-      setNotice((err as Error).message || 'Không thể cập nhật giấy báo nợ.');
+      setNotice({ tone: 'error', text: (err as Error).message || 'Không thể cập nhật giấy báo nợ.' });
     } finally {
       setWorkingId(null);
     }
@@ -107,51 +110,79 @@ export default function PortalDebitNotesPage() {
       );
       triggerDownload(blob, `giay-bao-no-${doc.id}.${format}`);
     } catch (err) {
-      setNotice((err as Error).message || 'Không thể xuất giấy báo nợ.');
+      setNotice({ tone: 'error', text: (err as Error).message || 'Không thể xuất giấy báo nợ.' });
     } finally {
       setWorkingId(null);
     }
   };
 
+  const pendingCount = items.filter((item) => item.debitNoteStatus === 'PENDING_CONFIRM').length;
+  const visibleValue = items.reduce((sum, item) => sum + Number(item.totalInclVat || 0), 0);
+  const totalPages = Math.max(1, Math.ceil(total / 20));
+
   return (
     <div className="portal-page">
       <header className="portal-page__header">
-        <span className="portal-page__eyebrow">Đối soát công nợ</span>
-        <h1>Giấy báo nợ</h1>
-        <p>Xem chi tiết, tải bản đối soát và phản hồi các giấy báo nợ đang chờ xác nhận.</p>
+        <div className="portal-page__title">
+          <span className="portal-page__eyebrow">Đối soát công nợ</span>
+          <h1>Giấy báo nợ</h1>
+          <p>Kiểm tra giá trị, thời hạn và phản hồi những chứng từ cần xác nhận.</p>
+        </div>
+        <div className="portal-page__headline-stat" aria-label="Tổng số giấy báo nợ">
+          <span>Tổng chứng từ</span>
+          <strong>{loading ? '—' : total.toLocaleString('vi-VN')}</strong>
+          <small>{pendingCount > 0 ? `${pendingCount} cần phản hồi trong trang này` : 'Không có phản hồi đang chờ'}</small>
+        </div>
       </header>
 
-      {notice && <div className="portal-panel" role="status" style={{ padding: 14, marginBottom: 12 }}>{notice}</div>}
+      {notice && (
+        <div className={`portal-notice portal-notice--${notice.tone}`} role={notice.tone === 'error' ? 'alert' : 'status'}>
+          {notice.text}
+        </div>
+      )}
 
       {loading ? (
-        <div className="portal-panel portal-state" role="status">Đang tải giấy báo nợ…</div>
+        <div className="portal-panel portal-loading" role="status" aria-label="Đang tải giấy báo nợ">
+          <span className="portal-loading__bar" />
+          <span className="portal-loading__bar" />
+          <span className="portal-loading__bar" />
+        </div>
       ) : error ? (
         <div className="portal-panel portal-state portal-state--error" role="alert">
           <div><p>{error}</p><button type="button" className="portal-button" onClick={() => setRetryKey((value) => value + 1)}>Thử lại</button></div>
         </div>
       ) : items.length === 0 ? (
         <div className="portal-panel">
+          <div className="portal-panel__heading">
+            <div><span>Hồ sơ đối soát</span><h2>Chứng từ đã phát hành</h2></div>
+            <strong>0 chứng từ</strong>
+          </div>
           <EmptyState icon={FileText} title="Chưa có giấy báo nợ" description="Giấy báo nợ đã phát hành sẽ xuất hiện tại đây." />
         </div>
       ) : (
         <div className="portal-panel">
+          <div className="portal-panel__heading portal-panel__heading--split">
+            <div><span>Hồ sơ đối soát</span><h2>Chứng từ đã phát hành</h2></div>
+            <div className="portal-panel__totals">
+              <span>Giá trị trong trang</span>
+              <strong>{visibleValue.toLocaleString('vi-VN')} ₫</strong>
+            </div>
+          </div>
           <div className="portal-list">
             {items.map((doc) => {
               const pending = doc.debitNoteStatus === 'PENDING_CONFIRM';
               const busy = workingId === doc.id;
               return (
-                <article key={doc.id} className="portal-list__row">
+                <article key={doc.id} className="portal-list__row portal-debit-row">
                   <div className="portal-list__primary">
+                    <span className={statusClass(doc.debitNoteStatus)}>{STATUS_LABELS[doc.debitNoteStatus ?? 'DRAFT']}</span>
                     <strong>Kỳ {new Date(doc.rangeFrom).toLocaleDateString('vi-VN')} – {new Date(doc.rangeTo).toLocaleDateString('vi-VN')}</strong>
-                    <div className="portal-list__meta">
-                      <span>{Number(doc.totalInclVat).toLocaleString('vi-VN')} ₫</span>
-                      <span className={statusClass(doc.debitNoteStatus)}>{STATUS_LABELS[doc.debitNoteStatus ?? 'DRAFT']}</span>
-                    </div>
-                    <div className="portal-list__meta">
-                      <span>Hạn hợp đồng: {formatDate(doc.originalDueDate)}</span>
-                      <span>Ngày xử lý: {formatDate(doc.processingDueDate)}</span>
-                    </div>
+                    <span className="portal-debit-row__amount">{Number(doc.totalInclVat).toLocaleString('vi-VN')} ₫</span>
                   </div>
+                  <dl className="portal-debit-row__dates">
+                    <div><dt>Hạn hợp đồng</dt><dd>{formatDate(doc.originalDueDate)}</dd></div>
+                    <div><dt>Ngày xử lý</dt><dd>{formatDate(doc.processingDueDate)}</dd></div>
+                  </dl>
                   <div className="portal-actions">
                     <button type="button" className="portal-button" disabled={busy} onClick={() => void exportDoc(doc, 'xlsx')}>
                       <FileSpreadsheet size={16} /> XLSX
@@ -174,13 +205,9 @@ export default function PortalDebitNotesPage() {
               );
             })}
           </div>
-          {total > 20 && (
-            <div className="portal-pagination">
-              <button type="button" className="portal-button" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>Trang trước</button>
-              <span>Trang {page} / {Math.ceil(total / 20)}</span>
-              <button type="button" className="portal-button" disabled={page * 20 >= total} onClick={() => setPage((value) => value + 1)}>Trang sau</button>
-            </div>
-          )}
+          <div className="portal-pagination">
+            <Pagination page={page} totalPages={totalPages} totalItems={total} pageSize={20} onChange={setPage} />
+          </div>
         </div>
       )}
     </div>
