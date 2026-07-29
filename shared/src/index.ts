@@ -61,6 +61,7 @@ export type {
 export { parseThreshold } from './types';
 
 export { canonicalFreightDescription } from './calculations/billingDocument';
+export { isCompanyInfoConfigured } from './company-info';
 
 // ─── Navigation catalog (single source for SPA paths/titles + agent search) ──
 export { PAGE_CATALOG } from './navigation/pageCatalog';

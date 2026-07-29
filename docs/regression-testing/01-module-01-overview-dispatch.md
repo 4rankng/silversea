@@ -5,6 +5,8 @@
 >
 > **Màn hình chính:** `/dashboard`, `/dispatch`, `/trips` (+ `/trips/new`, `/trips/:id`, `/trips/:id/edit`),
 > `/fleet`. Vai trò thử chính: `admin`, `giamdoc`, `ketoan`.
+> Trên `/dashboard`, khi hồ sơ công ty chưa đủ trường bắt buộc, hiển thị banner nhắc bổ sung
+> thông tin công ty và CTA đi tới `/config/company-info`.
 
 ---
 

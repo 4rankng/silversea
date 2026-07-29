@@ -225,7 +225,7 @@ export function AppRoutes() {
           <Route path="/config/faq-entries" element={strictAdminOnly(page(<FaqEntriesConfigPage />))} />
           <Route path="/config/onboarding-settings" element={strictAdminOnly(<Navigate to="/config/app-settings" replace />)} />
           <Route path="/config/app-settings" element={strictAdminOnly(page(<AppSettingsConfigPage />))} />
-          <Route path="/config/company-info" element={adminOnly(page(<CompanyInfoConfigPage />))} />
+          <Route path="/config/company-info" element={officeStaffOnly(page(<CompanyInfoConfigPage />))} />
           <Route path="/config/trip-expense" element={adminOnly(page(<TripExpenseConfigPage />))} />
           <Route path="/config/cap-table" element={adminOnly(page(<CapTableConfigPage />))} />
           <Route path="/config/customers" element={adminOnly(page(<CustomersConfigPage />))} />

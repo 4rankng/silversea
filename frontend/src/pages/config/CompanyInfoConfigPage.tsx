@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState } from 'react';
-import type { CompanyInfo } from '@tingting/shared';
+import { useRef, useState } from 'react';
+import { isCompanyInfoConfigured, type CompanyInfo } from '@tingting/shared';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, Save, Trash2, Upload } from 'lucide-react';
 import { PageHeader, Panel } from '../../components/UI';
@@ -86,10 +86,7 @@ export default function CompanyInfoConfigPage() {
   const [message, setMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const canSave = useMemo(
-    () => FIELD_LABELS.every(({ key }) => form[key].trim().length > 0),
-    [form],
-  );
+  const canSave = isCompanyInfoConfigured(form);
 
   const updateField = (key: keyof CompanyInfoForm, value: string) => {
     setForm(current => ({ ...current, [key]: value }));
@@ -169,7 +166,7 @@ export default function CompanyInfoConfigPage() {
           <div style={{ textAlign: 'center', padding: 24, color: 'var(--ink-3)' }}>Đang tải…</div>
         ) : (
           <>
-            {!data?.name && (
+            {!isCompanyInfoConfigured(data) && (
               <div style={{ padding: '10px 14px', marginBottom: 12, borderRadius: 6, background: '#fff7ed', borderLeft: '3px solid #f59e0b', color: '#92400e', fontSize: 13, lineHeight: 1.5 }}>
                 Chưa cấu hình thông tin công ty — hãy điền các trường bên dưới. Tiêu đề công ty (tên, địa chỉ, MST, logo) sẽ hiển thị trên mọi chứng từ xuất ra (PDF/Excel).
               </div>

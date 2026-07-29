@@ -9,7 +9,7 @@ import { useSearch } from '../context/SearchContext';
 import { CONFIG_ITEMS } from '../data/searchRegistry';
 import { usePageAnimations } from '../hooks/animations';
 import { qk } from '../api/keys';
-import { Role } from '@tingting/shared';
+import { isCompanyInfoConfigured, Role } from '@tingting/shared';
 import type { CompanyInfo } from '@tingting/shared';
 import './ConfigPage.css';
 
@@ -98,10 +98,7 @@ export default function ConfigPage() {
 
   function companyInfoStatus(): string {
     if (companyInfo.isLoading) return '—';
-    // updatedAt is present only when company-info rows actually exist in the DB.
-    // The GET backfills hardcoded defaults, so taxCode is always populated and
-    // could never signal an un-configured state on its own.
-    return companyInfo.data?.updatedAt ? 'Đã cấu hình' : 'Chưa cấu hình';
+    return isCompanyInfoConfigured(companyInfo.data) ? 'Đã cấu hình' : 'Chưa cấu hình';
   }
 
   const statusInfo: Record<string, { status: string; statusColor?: string }> = {

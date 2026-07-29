@@ -110,11 +110,12 @@ describe('GovernanceActionsPage', () => {
   it('renders type, status, requester, versions, reason, and server-allowed actions', async () => {
     renderPage();
 
-    expect(await screen.findByRole('heading', { name: 'Hàng chờ quản trị' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Yêu cầu chờ kiểm tra & phê duyệt' })).toBeTruthy();
     expect(screen.getByText('Chốt kỳ lương')).toBeTruthy();
     expect(screen.getAllByText('Chờ kiểm tra')).toHaveLength(2);
     expect(screen.getByText('ACCOUNTANT · #12')).toBeTruthy();
     expect(screen.getByText('Đã đối soát đủ bảng công và điều chỉnh.')).toBeTruthy();
+    expect(screen.getByText('1 yêu cầu đang chờ quyết định theo quyền của bạn.')).toBeTruthy();
     expect(screen.getByText('Phiên bản yêu cầu').parentElement?.textContent).toContain('4');
     expect(screen.getByText('Phiên bản dữ liệu gốc').parentElement?.textContent).toContain('3');
     expect(screen.getByText('Quyền xử lý từ máy chủ:').parentElement?.textContent).toContain('Kiểm tra');

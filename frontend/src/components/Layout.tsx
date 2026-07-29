@@ -70,7 +70,7 @@ export function getNavItems(role: Role, dispatchCount?: number, penaltiesCount?:
         { key: 'profit', label: 'Phân chia lợi nhuận', path: routes.profit, icon: DollarSign, section: 'financials' },
         { key: 'debt', label: 'Công nợ phải thu', path: routes.debt, icon: Receipt, section: 'financials' },
         { key: 'credit-overrides', label: 'Duyệt vượt hạn mức', path: routes.creditOverrides, icon: Shield, section: 'financials' },
-        { key: 'governance-actions', label: 'Hàng chờ quản trị', path: routes.governanceActions, icon: ClipboardCheck, section: 'financials' },
+        { key: 'governance-actions', label: 'Chờ phê duyệt', path: routes.governanceActions, icon: ClipboardCheck, section: 'financials' },
         { key: 'payables', label: 'Công nợ phải trả', path: routes.payables, icon: Receipt, section: 'financials' },
         { key: 'expenses', label: 'Chi phí phát sinh', path: routes.expenses, icon: FileText, section: 'financials' },
         { key: 'advances', label: 'Tạm ứng', path: routes.advances, icon: Wallet, section: 'financials' },

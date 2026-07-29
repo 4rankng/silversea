@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { ShipmentStatus } from '@tingting/shared';
@@ -65,7 +65,13 @@ function toolbar() {
   return within(el as HTMLElement);
 }
 
-describe('ShipmentsPage — minimal Wave 0 list surface', () => {
+function mobileSurface() {
+  const el = document.querySelector('.shipments-page__mobile');
+  if (!el) throw new Error('mobile surface not rendered');
+  return within(el as HTMLElement);
+}
+
+describe('ShipmentsPage — shipment manifest workspace', () => {
   beforeEach(() => {
     apiGet.mockReset();
   });
@@ -80,15 +86,24 @@ describe('ShipmentsPage — minimal Wave 0 list surface', () => {
     expect(tb.getByText(/Tất cả/)).toBeTruthy();
     expect(tb.getByText('Bản nháp')).toBeTruthy();
     expect(tb.getByText('Đang xử lý')).toBeTruthy();
+    expect(tb.getByRole('button', { name: /Tất cả/ }).getAttribute('aria-pressed')).toBe('true');
+    expect(tb.getByRole('button', { name: 'Bản nháp' }).getAttribute('aria-pressed')).toBe('false');
     await waitFor(() => expect(apiGet).toHaveBeenCalled());
   });
 
   it('removes the redundant breadcrumb from the phone layout', () => {
-    expect(shipmentsPageCss).toContain(`@media (max-width: 640px) {
-  .shipments-page__crumbs {
-    display: none;
-  }
-}`);
+    expect(shipmentsPageCss).toMatch(
+      /@media \(max-width: 640px\)[\s\S]*?\.shipments-page__crumbs\s*\{\s*display:\s*none;/,
+    );
+  });
+
+  it('keeps narrow-screen controls reachable and touch friendly', () => {
+    expect(shipmentsPageCss).toMatch(
+      /\.shipments-page__mobile \.ds-pagination__controls\s*\{[\s\S]*?overflow-x:\s*auto;/,
+    );
+    expect(shipmentsPageCss).toMatch(
+      /\.shipments-page__filters \.filter-pill\s*\{[\s\S]*?min-height:\s*44px;/,
+    );
   });
 
   it('renders the empty state when the API returns no shipments', async () => {
@@ -133,12 +148,32 @@ describe('ShipmentsPage — minimal Wave 0 list surface', () => {
     // avoid colliding with the mobile card pills.
     expect(desktop.getAllByText('Bản nháp').length).toBeGreaterThanOrEqual(1);
     expect(desktop.getAllByText('Đang xử lý').length).toBeGreaterThanOrEqual(1);
+    expect(desktop.getByText('1/8/2026')).toBeTruthy();
+  });
+
+  it('keeps pagination available on the mobile list', async () => {
+    apiGet.mockResolvedValue({
+      items: [{
+        id: 1, shipmentCode: 'SHP-2607-00001', customerId: 7, customerName: 'Công ty CP Vận tải ABC',
+        status: ShipmentStatus.DRAFT, bookingRef: 'BK-1', blNumber: 'BL-1',
+        expectedDeliveryDate: null, pickupLocation: 'Cảng Cát Lái',
+        deliveryLocation: 'Kho Bình Dương', contactName: null, contactPhone: null,
+        version: 1, createdAt: '', updatedAt: '',
+      }],
+      total: 21, page: 1, limit: 20,
+    });
+
+    renderAt('/shipments');
+    const mobile = mobileSurface();
+    await waitFor(() => expect(mobile.getByText('SHP-2607-00001')).toBeTruthy());
+    expect(mobile.getByRole('button', { name: /Trang sau/i })).toBeTruthy();
   });
 
   it('renders the error message when the API call fails', async () => {
     apiGet.mockRejectedValue(new Error('network down'));
     renderAt('/shipments');
     await waitFor(() => expect(screen.getByText(/Không thể tải danh sách lô hàng/)).toBeTruthy());
+    expect(desktopSurface().queryByText('Chưa có lô hàng nào')).toBeNull();
   });
 
   it('passes the status filter through to the API as a query param', async () => {
@@ -155,6 +190,60 @@ describe('ShipmentsPage — minimal Wave 0 list surface', () => {
     await waitFor(() => expect(apiGet).toHaveBeenCalled());
     const callArg = apiGet.mock.calls[0][0] as string;
     expect(callArg).toMatch(/page=3/);
+  });
+
+  it('falls back safely for invalid status and page URL values', async () => {
+    apiGet.mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 });
+    renderAt('/shipments?status=UNKNOWN&page=2abc');
+    await waitFor(() => expect(apiGet).toHaveBeenCalled());
+    const callArg = apiGet.mock.calls[0][0] as string;
+    expect(callArg).toMatch(/page=1/);
+    expect(callArg).not.toMatch(/status=/);
+  });
+
+  it('ignores a stale response after the status filter changes', async () => {
+    let resolveFirst!: (value: unknown) => void;
+    let resolveSecond!: (value: unknown) => void;
+    const first = new Promise((resolve) => { resolveFirst = resolve; });
+    const second = new Promise((resolve) => { resolveSecond = resolve; });
+    apiGet
+      .mockImplementationOnce(() => first)
+      .mockImplementationOnce(() => second);
+
+    renderAt('/shipments');
+    await waitFor(() => expect(apiGet).toHaveBeenCalledTimes(1));
+    fireEvent.click(toolbar().getByText('Đã giao'));
+    await waitFor(() => expect(apiGet).toHaveBeenCalledTimes(2));
+
+    await act(async () => {
+      resolveSecond({
+        items: [{
+          id: 2, shipmentCode: 'SHP-FRESH', customerId: 1, customerName: 'Khách hàng mới',
+          status: ShipmentStatus.DELIVERED, bookingRef: null, blNumber: null,
+          expectedDeliveryDate: null, pickupLocation: null, deliveryLocation: null,
+          contactName: null, contactPhone: null, version: 1, createdAt: '', updatedAt: '',
+        }],
+        total: 1, page: 1, limit: 20,
+      });
+      await second;
+    });
+    await waitFor(() => expect(desktopSurface().getByText('SHP-FRESH')).toBeTruthy());
+
+    await act(async () => {
+      resolveFirst({
+        items: [{
+          id: 1, shipmentCode: 'SHP-STALE', customerId: 1, customerName: 'Khách hàng cũ',
+          status: ShipmentStatus.DRAFT, bookingRef: null, blNumber: null,
+          expectedDeliveryDate: null, pickupLocation: null, deliveryLocation: null,
+          contactName: null, contactPhone: null, version: 1, createdAt: '', updatedAt: '',
+        }],
+        total: 1, page: 1, limit: 20,
+      });
+      await first;
+    });
+
+    expect(desktopSurface().getByText('SHP-FRESH')).toBeTruthy();
+    expect(desktopSurface().queryByText('SHP-STALE')).toBeNull();
   });
 
   it('client-side-filters rows by the q= search term across code/BL/booking', async () => {

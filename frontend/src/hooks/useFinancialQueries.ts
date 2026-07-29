@@ -6,6 +6,7 @@ import {
   type FuelInvoice,
   type FuelInvoiceInput,
   type FuelInvoiceStatus,
+  type GovernanceActionRecord,
   type GovernanceActionFilters,
 } from '../api/financialClient';
 import { qk } from '../api/keys';
@@ -39,12 +40,21 @@ export function useGovernanceActions(filters?: GovernanceActionFilters) {
 }
 
 function useGovernanceActionMutation(
-  mutationFn: (input: { id: number; expectedVersion: number; reason?: string }) => Promise<unknown>,
+  mutationFn: (input: { id: number; expectedVersion: number; reason?: string }) => Promise<GovernanceActionRecord>,
+  refreshApprovedCompanyInfo = false,
 ) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn,
-    onSuccess: () => qc.invalidateQueries({ queryKey: governanceActionKeys.all }),
+    onSuccess: async (action) => {
+      await qc.invalidateQueries({ queryKey: governanceActionKeys.all });
+      if (refreshApprovedCompanyInfo && action.subjectKey === 'company-info') {
+        await Promise.all([
+          qc.invalidateQueries({ queryKey: qk.catalogs.companyInfo }),
+          qc.invalidateQueries({ queryKey: qk.configCounts.companyInfo }),
+        ]);
+      }
+    },
   });
 }
 
@@ -55,7 +65,7 @@ export function useCheckGovernanceAction() {
 
 export function useApproveGovernanceAction() {
   return useGovernanceActionMutation(({ id, expectedVersion }) =>
-    financialClient.approveGovernanceAction(id, expectedVersion));
+    financialClient.approveGovernanceAction(id, expectedVersion), true);
 }
 
 export function useRejectGovernanceAction() {
