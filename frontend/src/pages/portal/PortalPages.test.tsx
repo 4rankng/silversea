@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
@@ -20,12 +22,27 @@ import PortalDebitNotesPage from './PortalDebitNotesPage';
 import PortalStatementPage from './PortalStatementPage';
 import { CustomerPortalScopeProvider } from './CustomerPortalScope';
 
+const portalPagesCss = readFileSync(resolve(process.cwd(), 'src/pages/portal/PortalPages.css'), 'utf8');
+
 describe('customer portal pages', () => {
   beforeEach(() => {
     apiGet.mockReset();
     apiPost.mockReset();
     apiGetBlob.mockReset();
     apiGetForText.mockReset();
+  });
+
+  it('keeps the mobile ledger conversion scoped away from shipment detail tables', () => {
+    expect(portalPagesCss).toContain('.portal-ledger .portal-table thead');
+    expect(portalPagesCss).toContain('.portal-ledger .portal-table td::before');
+    expect(portalPagesCss).not.toMatch(/(^|\n)\s*\.portal-table thead\s*\{\s*display:\s*none/m);
+  });
+
+  it('collapses numeric pagination controls at customer-portal mobile widths', () => {
+    expect(portalPagesCss).toContain(
+      '.portal-pagination .ds-pagination__controls > .ds-pagination__btn:not(:first-child):not(:last-child)',
+    );
+    expect(portalPagesCss).toMatch(/\.portal-pagination \.ds-pagination__ellipsis\s*\{\s*display:\s*none;/);
   });
 
   it('PortalShipmentsPage calls the row-scoped portal shipments endpoint', async () => {
@@ -51,6 +68,9 @@ describe('customer portal pages', () => {
 
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/portal/shipments?page=1&limit=10'));
     expect(screen.getByText('SHP-2607-00042')).toBeTruthy();
+    expect(screen.getByText('Giao dự kiến')).toBeTruthy();
+    expect(screen.getByText('31/7/2026')).toBeTruthy();
+    expect(screen.getByLabelText('Tổng số lô hàng').textContent).toContain('1');
   });
 
   it('keeps a multi-customer portal list separated by the selected legal entity', async () => {
@@ -178,8 +198,11 @@ describe('customer portal pages', () => {
 
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/portal/debit-notes?page=1&limit=20'));
     expect(screen.getByText(/Kỳ 1\/7\/2026/)).toBeTruthy();
-    expect(screen.getByText('Hạn hợp đồng: 02/08/2026')).toBeTruthy();
-    expect(screen.getByText('Ngày xử lý: 03/08/2026')).toBeTruthy();
+    expect(screen.getByText('Hạn hợp đồng')).toBeTruthy();
+    expect(screen.getByText('02/08/2026')).toBeTruthy();
+    expect(screen.getByText('Ngày xử lý')).toBeTruthy();
+    expect(screen.getByText('03/08/2026')).toBeTruthy();
+    expect(screen.getByText('Giá trị trong trang')).toBeTruthy();
   });
 
   it('confirms only through the row-scoped portal action', async () => {
@@ -275,7 +298,10 @@ describe('customer portal pages', () => {
     render(<MemoryRouter><PortalStatementPage /></MemoryRouter>);
 
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/portal/statement'));
-    expect(screen.getAllByText('1.250.000 ₫')).toHaveLength(2);
+    expect(screen.getAllByText('1.250.000 ₫')).toHaveLength(3);
+    const equation = screen.getByLabelText(/Số dư đầu kỳ 0 đồng/);
+    expect(equation.textContent).toContain('Số dư đầu kỳ');
+    expect(equation.textContent).toContain('Số dư cuối kỳ');
     expect(screen.getByText('Ngày theo hợp đồng')).toBeTruthy();
     expect(screen.getByText('02/08/2026')).toBeTruthy();
     expect(screen.getByText('03/08/2026')).toBeTruthy();

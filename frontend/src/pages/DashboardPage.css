@@ -1566,17 +1566,7 @@
 }
 
 @media (max-width: 640px) {
-  .dash-wf .nepo-banner__inner {
-    align-items: flex-start;
-    flex-wrap: wrap;
-  }
-
-  .dash-wf .nepo-banner__action {
-    width: 100%;
-    padding-left: 28px;
-  }
-
   .dash-wf .wf-banner-action {
-    min-height: var(--control-h);
+    min-height: 44px;
   }
 }
