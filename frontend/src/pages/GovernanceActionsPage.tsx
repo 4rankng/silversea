@@ -248,10 +248,6 @@ export default function GovernanceActionsPage() {
     <div className="governance-actions">
       <header className="governance-actions__hero">
         <div>
-          <p className="governance-actions__eyebrow">
-            <ShieldCheck size={14} aria-hidden="true" />
-            Kiểm soát maker / checker / approver
-          </p>
           <h1>Yêu cầu chờ kiểm tra &amp; phê duyệt</h1>
           <p>
             Rà soát các thay đổi tài chính và vận hành theo đúng thẩm quyền
