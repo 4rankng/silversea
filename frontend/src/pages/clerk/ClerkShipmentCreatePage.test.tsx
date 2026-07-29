@@ -4,7 +4,7 @@
  * Verifies the M10-01-03 + Q23 contract from the UI side:
  *   - submit calls `POST /api/shipments/quick` with a client-generated
  *     `Idempotency-Key` header (UUID v4 shape);
- *   - on 201 the page navigates to the shipment detail;
+ *   - on 201 the page navigates to the allowed shipment dossier;
  *   - on a server error the Vietnamese message is shown inline and the
  *     form values are preserved so the user can retry;
  *   - customerId is required — submit is blocked with a Vietnamese hint
@@ -16,6 +16,7 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { localDateTimeToIso } from '../../lib/shipment-operations';
 
 // vi.hoisted keeps the mock fns visible inside vi.mock factories (which
 // Vitest hoists above all top-level declarations).
@@ -45,7 +46,7 @@ function renderAt(path = '/clerk/shipments/new') {
         <Route path="/clerk/shipments/new" element={<ClerkShipmentCreatePage />} />
         {/* Navigated-to destination on success — a sentinel that lets the
             test assert the redirect without mounting the real detail page. */}
-        <Route path="/shipments/:id" element={<div data-testid="detail-page" />} />
+        <Route path="/clerk/shipments/:id/docs" element={<div data-testid="dossier-page" />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -114,17 +115,39 @@ describe('ClerkShipmentCreatePage — M10.1 quick-create', () => {
     expect(idempotencyKey).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
   });
 
-  it('navigates to the shipment detail on success (201 created)', async () => {
+  it('sends operational time as an explicit instant and omits LCL-only fields for FCL', async () => {
+    quickCreateMock.mockResolvedValue({ id: 42, shipmentCode: 'SHP-2607-00042' });
+    renderAt();
+    await waitForFormReady();
+    await selectCustomer('Công ty CP Vận tải ABC');
+    fireEvent.change(screen.getByLabelText('Cut-off hải quan'), {
+      target: { value: '2026-07-29T10:00' },
+    });
+    fireEvent.change(screen.getByLabelText('Trọng lượng (kg)'), {
+      target: { value: '10.25' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Tạo lô hàng/ }));
+
+    await waitFor(() => expect(quickCreateMock).toHaveBeenCalledTimes(1));
+    const [body] = quickCreateMock.mock.calls[0];
+    expect(body.customsCutoffAt).toBe(localDateTimeToIso('2026-07-29T10:00'));
+    expect(body.cargoWeightKg).toBe('10.25');
+    expect(body).not.toHaveProperty('cargoVolumeCbm');
+    expect(body).not.toHaveProperty('packageCount');
+    expect(body).not.toHaveProperty('packageType');
+  });
+
+  it('navigates to the shipment dossier on success (201 created)', async () => {
     quickCreateMock.mockResolvedValue({ id: 42, shipmentCode: 'SHP-2607-00042' });
     renderAt();
     await waitForFormReady();
     await selectCustomer('Công ty CP Vận tải ABC');
     fireEvent.click(screen.getByRole('button', { name: /Tạo lô hàng/ }));
 
-    await waitFor(() => expect(screen.getByTestId('detail-page')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('dossier-page')).toBeTruthy());
   });
 
-  it('navigates to the shipment detail on idempotent replay (200)', async () => {
+  it('navigates to the shipment dossier on idempotent replay (200)', async () => {
     // The server returns the original shipment with 200 on a replay. The UI
     // treats both 201 and 200 as success — the api wrapper resolves either.
     quickCreateMock.mockResolvedValue({ id: 55, shipmentCode: 'SHP-2607-00055' });
@@ -133,7 +156,7 @@ describe('ClerkShipmentCreatePage — M10.1 quick-create', () => {
     await selectCustomer('Công ty TNHH XYZ');
     fireEvent.click(screen.getByRole('button', { name: /Tạo lô hàng/ }));
 
-    await waitFor(() => expect(screen.getByTestId('detail-page')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('dossier-page')).toBeTruthy());
   });
 
   it('shows the server error inline and preserves form values on failure', async () => {

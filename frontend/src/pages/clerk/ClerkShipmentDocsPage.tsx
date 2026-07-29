@@ -32,6 +32,10 @@ import {
 } from '../../api/shipmentClient';
 import type { CreditOverrideRequestRecord } from '../../api/creditOverrideClient';
 import { canCheckCreditOverride, canDecideCreditOverride } from '../../lib/credit-override-permissions';
+import {
+  formatVietnamDateTimeInput,
+  localDateTimeToIso,
+} from '../../lib/shipment-operations';
 
 interface ClerkContainerTypeOption {
   id: number;
@@ -62,6 +66,18 @@ interface ShipmentFormState {
   pickupLocation: string;
   deliveryLocation: string;
   responsibleUnitId: string;
+  tradeDirection: '' | 'IMPORT' | 'EXPORT';
+  cargoMode: '' | 'FCL' | 'LCL';
+  factoryName: string;
+  shippingLineName: string;
+  customsCutoffAt: string;
+  closingAt: string;
+  plannedReturnAt: string;
+  cargoWeightKg: string;
+  cargoVolumeCbm: string;
+  packageCount: string;
+  packageType: string;
+  operationalNotes: string;
 }
 
 interface DispatchFormState {
@@ -112,14 +128,16 @@ function defaultExpiryInput(): string {
   const next = new Date();
   next.setDate(next.getDate() + 1);
   next.setHours(17, 30, 0, 0);
-  const offset = next.getTimezoneOffset();
-  const local = new Date(next.getTime() - offset * 60_000);
-  return local.toISOString().slice(0, 16);
+  return formatVietnamDateTimeInput(next);
 }
 
 function toDateInput(value: string | null): string {
   if (!value) return '';
   return value.slice(0, 10);
+}
+
+function toDateTimeInput(value: string | null | undefined): string {
+  return formatVietnamDateTimeInput(value);
 }
 
 function creditTierLabel(tier: CreditOverrideRequestRecord['requiredTier']): string {
@@ -152,6 +170,18 @@ export default function ClerkShipmentDocsPage() {
     pickupLocation: '',
     deliveryLocation: '',
     responsibleUnitId: '',
+    tradeDirection: '',
+    cargoMode: '',
+    factoryName: '',
+    shippingLineName: '',
+    customsCutoffAt: '',
+    closingAt: '',
+    plannedReturnAt: '',
+    cargoWeightKg: '',
+    cargoVolumeCbm: '',
+    packageCount: '',
+    packageType: '',
+    operationalNotes: '',
   });
   const [version, setVersion] = useState(1);
   const [rows, setRows] = useState<ContainerRow[]>([]);
@@ -238,6 +268,20 @@ export default function ClerkShipmentDocsPage() {
       responsibleUnitId: loadedDetail.shipment.responsibleUnitId != null
         ? String(loadedDetail.shipment.responsibleUnitId)
         : '',
+      tradeDirection: loadedDetail.shipment.tradeDirection ?? '',
+      cargoMode: loadedDetail.shipment.cargoMode ?? '',
+      factoryName: loadedDetail.shipment.factoryName ?? '',
+      shippingLineName: loadedDetail.shipment.shippingLineName ?? '',
+      customsCutoffAt: toDateTimeInput(loadedDetail.shipment.customsCutoffAt),
+      closingAt: toDateTimeInput(loadedDetail.shipment.closingAt),
+      plannedReturnAt: toDateTimeInput(loadedDetail.shipment.plannedReturnAt),
+      cargoWeightKg: loadedDetail.shipment.cargoWeightKg ?? '',
+      cargoVolumeCbm: loadedDetail.shipment.cargoVolumeCbm ?? '',
+      packageCount: loadedDetail.shipment.packageCount != null
+        ? String(loadedDetail.shipment.packageCount)
+        : '',
+      packageType: loadedDetail.shipment.packageType ?? '',
+      operationalNotes: loadedDetail.shipment.operationalNotes ?? '',
     });
     setDispatchForm((current) => ({
       ...current,
@@ -274,9 +318,15 @@ export default function ClerkShipmentDocsPage() {
   const readiness = useMemo(() => {
     const missing: string[] = [];
     if (!shipmentForm.blNumber.trim()) missing.push('Số vận đơn (B/L)');
-    if (rows.length === 0) missing.push('Công-te-nơ (ít nhất một)');
+    if (shipmentForm.cargoMode === 'FCL' && rows.length === 0) {
+      missing.push('Công-te-nơ (ít nhất một)');
+    }
+    if (!shipmentForm.cargoMode) missing.push('Loại lô hàng');
+    if (shipmentForm.cargoMode === 'LCL') {
+      missing.push('Điều vận LCL chưa được hỗ trợ');
+    }
     return { ready: missing.length === 0, missing };
-  }, [shipmentForm.blNumber, rows]);
+  }, [shipmentForm.blNumber, shipmentForm.cargoMode, rows]);
 
   function updateRow(idx: number, patch: Partial<ContainerRow>) {
     setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
@@ -291,6 +341,29 @@ export default function ClerkShipmentDocsPage() {
     setContainerMsg(null);
   }
 
+  function handleCargoModeChange(nextMode: ShipmentFormState['cargoMode'] | '') {
+    setShipmentForm((current) => {
+      if (current.cargoMode === nextMode) return current;
+      if (current.cargoMode === 'LCL' && nextMode !== 'LCL') {
+        const hasLclData = Boolean(
+          current.cargoVolumeCbm || current.packageCount || current.packageType,
+        );
+        if (hasLclData && !window.confirm('Rời chế độ Hàng lẻ (LCL) sẽ xóa thể tích, số kiện và loại kiện đã nhập. Tiếp tục?')) {
+          return current;
+        }
+        return {
+          ...current,
+          cargoMode: nextMode,
+          cargoVolumeCbm: '',
+          packageCount: '',
+          packageType: '',
+        };
+      }
+      return { ...current, cargoMode: nextMode };
+    });
+    setShipmentMsg(null);
+  }
+
   async function reloadCurrentDetail() {
     await loadPageData(shipmentId);
   }
@@ -299,6 +372,7 @@ export default function ClerkShipmentDocsPage() {
     setSavingShipment(true);
     setShipmentMsg(null);
     try {
+      const cargoMode = shipmentForm.cargoMode || null;
       const updated = await updateShipment(shipmentId, {
         expectedVersion: version,
         bookingRef: shipmentForm.bookingRef.trim() || null,
@@ -309,6 +383,26 @@ export default function ClerkShipmentDocsPage() {
         pickupLocation: shipmentForm.pickupLocation.trim() || null,
         deliveryLocation: shipmentForm.deliveryLocation.trim() || null,
         responsibleUnitId: shipmentForm.responsibleUnitId ? Number(shipmentForm.responsibleUnitId) : null,
+        tradeDirection: shipmentForm.tradeDirection || null,
+        cargoMode,
+        factoryName: shipmentForm.factoryName.trim() || null,
+        shippingLineName: shipmentForm.shippingLineName.trim() || null,
+        customsCutoffAt: localDateTimeToIso(shipmentForm.customsCutoffAt),
+        closingAt: localDateTimeToIso(shipmentForm.closingAt),
+        plannedReturnAt: localDateTimeToIso(shipmentForm.plannedReturnAt),
+        cargoWeightKg: shipmentForm.cargoWeightKg || null,
+        ...(cargoMode === 'LCL' ? {
+          cargoVolumeCbm: shipmentForm.cargoVolumeCbm || null,
+          packageCount: shipmentForm.packageCount
+            ? Number(shipmentForm.packageCount)
+            : null,
+          packageType: shipmentForm.packageType.trim() || null,
+        } : {
+          cargoVolumeCbm: null,
+          packageCount: null,
+          packageType: null,
+        }),
+        operationalNotes: shipmentForm.operationalNotes.trim() || null,
       });
       await reloadCurrentDetail();
       setShipmentMsg({
@@ -403,14 +497,14 @@ export default function ClerkShipmentDocsPage() {
       if (declarationForm.id != null) {
         await updateShipmentDeclaration(shipmentId, declarationForm.id, {
           declarationNumber: declarationForm.declarationNumber.trim() || null,
-          issuedAt: declarationForm.issuedAt || null,
+          issuedAt: declarationForm.issuedAt ? localDateTimeToIso(declarationForm.issuedAt) : null,
           scope: declarationForm.scope,
           note: declarationForm.note.trim() || null,
         });
       } else {
         await createShipmentDeclaration(shipmentId, {
           declarationNumber: declarationForm.declarationNumber.trim() || null,
-          issuedAt: declarationForm.issuedAt || null,
+          issuedAt: declarationForm.issuedAt ? localDateTimeToIso(declarationForm.issuedAt) : null,
           scope: declarationForm.scope,
           note: declarationForm.note.trim() || null,
         });
@@ -464,6 +558,12 @@ export default function ClerkShipmentDocsPage() {
   }
 
   function validateDispatchForm() {
+    if (!shipmentForm.cargoMode) {
+      return 'Cần chọn loại lô hàng trước khi điều vận.';
+    }
+    if (shipmentForm.cargoMode === 'LCL') {
+      return 'Điều vận lô hàng LCL chưa được hỗ trợ; không tạo dữ liệu công-te-nơ giả.';
+    }
     if (!dispatchForm.routeId) return 'Cần chọn tuyến đường để điều vận.';
     if (!dispatchForm.cargoTypeId) return 'Cần chọn loại hàng để điều vận.';
     if (!dispatchForm.containerTypeId) return 'Cần chọn loại công-te-nơ để điều vận.';
@@ -517,7 +617,7 @@ export default function ClerkShipmentDocsPage() {
         reason: creditReason.trim(),
         shipmentId: dispatchForm.scopeMode === 'SHIPMENT' ? shipmentId : null,
         expiresAt: dispatchForm.scopeMode === 'EXPIRY'
-          ? new Date(dispatchForm.expiresAt).toISOString()
+          ? localDateTimeToIso(dispatchForm.expiresAt)
           : null,
       });
       setSelectedCreditRequest(created);
@@ -633,7 +733,7 @@ export default function ClerkShipmentDocsPage() {
   }
   if (loadError) {
     return (
-      <div style={{ padding: 16, maxWidth: 640, margin: '0 auto' }}>
+      <div style={{ padding: 16, maxWidth: 960, margin: '0 auto' }}>
         <div style={{ color: 'var(--danger)', padding: 16 }}>{loadError}</div>
       </div>
     );
@@ -647,7 +747,7 @@ export default function ClerkShipmentDocsPage() {
   );
 
   return (
-    <div style={{ padding: 16, maxWidth: 640, margin: '0 auto' }}>
+    <div style={{ padding: 16, maxWidth: 960, margin: '0 auto', minWidth: 0 }}>
       <button
         type="button"
         onClick={() => navigate(-1)}
@@ -695,7 +795,7 @@ export default function ClerkShipmentDocsPage() {
           ))}
         </SelectField>
         <TextField
-          label="Mã booking"
+          label="Số booking"
           value={shipmentForm.bookingRef}
           onChange={(event) => {
             setShipmentForm((current) => ({ ...current, bookingRef: event.target.value }));
@@ -716,6 +816,142 @@ export default function ClerkShipmentDocsPage() {
           disabled={savingShipment}
           maxLength={100}
         />
+        <div style={twoColumnFieldStyle}>
+          <SelectField
+            label="Chiều hàng"
+            value={shipmentForm.tradeDirection}
+            onChange={(event) => {
+              setShipmentForm((current) => ({
+                ...current,
+                tradeDirection: event.target.value as ShipmentFormState['tradeDirection'],
+              }));
+              setShipmentMsg(null);
+            }}
+            disabled={savingShipment}
+          >
+            <option value="">— Chọn chiều hàng —</option>
+            <option value="IMPORT">Nhập khẩu</option>
+            <option value="EXPORT">Xuất khẩu</option>
+          </SelectField>
+          <SelectField
+            label="Loại lô hàng"
+            value={shipmentForm.cargoMode}
+            onChange={(event) => handleCargoModeChange(event.target.value as ShipmentFormState['cargoMode'] | '')}
+            disabled={savingShipment}
+          >
+            <option value="">— Chưa xác định —</option>
+            <option value="FCL">Container (FCL)</option>
+            <option value="LCL">Hàng lẻ (LCL)</option>
+          </SelectField>
+        </div>
+        <div style={twoColumnFieldStyle}>
+          <TextField
+            label="Nhà máy / công trường"
+            value={shipmentForm.factoryName}
+            onChange={(event) => {
+              setShipmentForm((current) => ({ ...current, factoryName: event.target.value }));
+              setShipmentMsg(null);
+            }}
+            disabled={savingShipment}
+            maxLength={255}
+          />
+          <TextField
+            label="Hãng tàu"
+            value={shipmentForm.shippingLineName}
+            onChange={(event) => {
+              setShipmentForm((current) => ({ ...current, shippingLineName: event.target.value }));
+              setShipmentMsg(null);
+            }}
+            disabled={savingShipment}
+            maxLength={150}
+          />
+        </div>
+        <div style={threeColumnFieldStyle}>
+          <TextField
+            label="Cut-off hải quan"
+            type="datetime-local"
+            value={shipmentForm.customsCutoffAt}
+            onChange={(event) => {
+              setShipmentForm((current) => ({ ...current, customsCutoffAt: event.target.value }));
+              setShipmentMsg(null);
+            }}
+            disabled={savingShipment}
+          />
+          <TextField
+            label="Closing time"
+            type="datetime-local"
+            value={shipmentForm.closingAt}
+            onChange={(event) => {
+              setShipmentForm((current) => ({ ...current, closingAt: event.target.value }));
+              setShipmentMsg(null);
+            }}
+            disabled={savingShipment}
+          />
+          <TextField
+            label="Thời gian trả"
+            type="datetime-local"
+            value={shipmentForm.plannedReturnAt}
+            onChange={(event) => {
+              setShipmentForm((current) => ({ ...current, plannedReturnAt: event.target.value }));
+              setShipmentMsg(null);
+            }}
+            disabled={savingShipment}
+          />
+        </div>
+        <div style={twoColumnFieldStyle}>
+          <TextField
+            label="Trọng lượng (kg)"
+            type="number"
+            value={shipmentForm.cargoWeightKg}
+            onChange={(event) => {
+              setShipmentForm((current) => ({ ...current, cargoWeightKg: event.target.value }));
+              setShipmentMsg(null);
+            }}
+            disabled={savingShipment}
+            min="0"
+            step="0.01"
+          />
+          {shipmentForm.cargoMode === 'LCL' && (
+            <TextField
+              label="Thể tích (CBM)"
+              type="number"
+              value={shipmentForm.cargoVolumeCbm}
+              onChange={(event) => {
+                setShipmentForm((current) => ({ ...current, cargoVolumeCbm: event.target.value }));
+                setShipmentMsg(null);
+              }}
+              disabled={savingShipment}
+              min="0"
+              step="0.001"
+            />
+          )}
+        </div>
+        {shipmentForm.cargoMode === 'LCL' && (
+          <div style={twoColumnFieldStyle}>
+            <TextField
+              label="Số kiện"
+              type="number"
+              value={shipmentForm.packageCount}
+              onChange={(event) => {
+                setShipmentForm((current) => ({ ...current, packageCount: event.target.value }));
+                setShipmentMsg(null);
+              }}
+              disabled={savingShipment}
+              min="0"
+              step="1"
+            />
+            <TextField
+              label="Loại kiện"
+              value={shipmentForm.packageType}
+              onChange={(event) => {
+                setShipmentForm((current) => ({ ...current, packageType: event.target.value }));
+                setShipmentMsg(null);
+              }}
+              disabled={savingShipment}
+              maxLength={100}
+            />
+          </div>
+        )}
         <TextField
           label="Người liên hệ"
           value={shipmentForm.contactName}
@@ -762,12 +998,27 @@ export default function ClerkShipmentDocsPage() {
           }}
           disabled={savingShipment}
         />
+        <label style={textareaLabelStyle}>
+          Ghi chú vận hành
+          <textarea
+            value={shipmentForm.operationalNotes}
+            onChange={(event) => {
+              setShipmentForm((current) => ({ ...current, operationalNotes: event.target.value }));
+              setShipmentMsg(null);
+            }}
+            disabled={savingShipment}
+            maxLength={2000}
+            rows={4}
+            style={textareaStyle}
+          />
+        </label>
         <button type="button" onClick={handleSaveShipment} disabled={savingShipment} style={primaryBtnStyle}>
           <Save size={16} /> {savingShipment ? 'Đang lưu…' : (isPostDispatch ? 'Lưu hoặc gửi yêu cầu' : 'Lưu hồ sơ lô hàng')}
         </button>
         {shipmentMsg && <MsgLine msg={shipmentMsg} />}
       </SectionCard>
 
+      {shipmentForm.cargoMode !== 'LCL' && (
       <SectionCard title={`Công-te-nơ (${rows.length})`}>
         {rows.length === 0 && (
           <p style={{ color: 'var(--fg-3)', fontSize: 14, margin: '8px 0' }}>
@@ -824,8 +1075,9 @@ export default function ClerkShipmentDocsPage() {
         </div>
         {containerMsg && <MsgLine msg={containerMsg} />}
       </SectionCard>
+      )}
 
-      {canDispatch && isDraft && (
+      {canDispatch && isDraft && shipmentForm.cargoMode === 'FCL' && (
         <SectionCard title="Điều vận & công nợ">
           <SelectField
             label="Tuyến đường"
@@ -1108,7 +1360,7 @@ export default function ClerkShipmentDocsPage() {
                   onClick={() => setDeclarationForm({
                     id: declaration.id,
                     declarationNumber: declaration.declarationNumber ?? '',
-                    issuedAt: declaration.issuedAt ? declaration.issuedAt.slice(0, 16) : '',
+                    issuedAt: formatVietnamDateTimeInput(declaration.issuedAt),
                     scope: declaration.scope ?? 'SINGLE',
                     note: declaration.note ?? '',
                   })}
@@ -1289,7 +1541,29 @@ export default function ClerkShipmentDocsPage() {
 
 const backBtnStyle: React.CSSProperties = {
   display: 'inline-flex', alignItems: 'center', gap: 6, background: 'none',
-  border: 'none', color: 'var(--fg-2)', fontSize: 14, padding: '8px 0', cursor: 'pointer',
+  border: 'none', color: 'var(--fg-2)', fontSize: 14, minHeight: 44, padding: '8px 4px', cursor: 'pointer',
+};
+
+const twoColumnFieldStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: 12,
+  minWidth: 0,
+};
+
+const threeColumnFieldStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+  gap: 12,
+  minWidth: 0,
+};
+
+const textareaLabelStyle: React.CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  color: 'var(--fg-2)',
+  fontSize: 14,
+  fontWeight: 600,
 };
 
 const primaryBtnStyle: React.CSSProperties = {
@@ -1306,7 +1580,7 @@ const secondaryBtnStyle: React.CSSProperties = {
 
 const dangerBtnStyle: React.CSSProperties = {
   display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-  minHeight: 40, padding: '0 14px', background: 'transparent', color: 'var(--danger)',
+  minHeight: 44, padding: '0 14px', background: 'transparent', color: 'var(--danger)',
   border: '1px solid var(--danger)', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer',
 };
 
@@ -1377,7 +1651,7 @@ const primaryChipStyle: React.CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minHeight: 36,
+  minHeight: 44,
   padding: '0 14px',
   borderRadius: 999,
   border: '1px solid var(--accent, #2563eb)',

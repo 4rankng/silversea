@@ -24,6 +24,18 @@ export interface Shipment {
   deliveryLocation: string | null;
   contactName: string | null;
   contactPhone: string | null;
+  tradeDirection?: 'IMPORT' | 'EXPORT' | null;
+  cargoMode?: 'FCL' | 'LCL' | null;
+  factoryName?: string | null;
+  shippingLineName?: string | null;
+  customsCutoffAt?: string | null;
+  closingAt?: string | null;
+  plannedReturnAt?: string | null;
+  cargoWeightKg?: string | null;
+  cargoVolumeCbm?: string | null;
+  packageCount?: number | null;
+  packageType?: string | null;
+  operationalNotes?: string | null;
   createdBy: number | null;
   updatedBy: number | null;
   createdAt: string;
@@ -41,6 +53,18 @@ export interface QuickCreateShipmentRequest {
   deliveryLocation?: string | null;
   contactName?: string | null;
   contactPhone?: string | null;
+  tradeDirection?: 'IMPORT' | 'EXPORT' | null;
+  cargoMode?: 'FCL' | 'LCL' | null;
+  factoryName?: string | null;
+  shippingLineName?: string | null;
+  customsCutoffAt?: string | null;
+  closingAt?: string | null;
+  plannedReturnAt?: string | null;
+  cargoWeightKg?: string | number | null;
+  cargoVolumeCbm?: string | number | null;
+  packageCount?: number | null;
+  packageType?: string | null;
+  operationalNotes?: string | null;
 }
 
 /**
@@ -104,6 +128,18 @@ export interface UpdateShipmentRequest {
   deliveryLocation?: string | null;
   contactName?: string | null;
   contactPhone?: string | null;
+  tradeDirection?: 'IMPORT' | 'EXPORT' | null;
+  cargoMode?: 'FCL' | 'LCL' | null;
+  factoryName?: string | null;
+  shippingLineName?: string | null;
+  customsCutoffAt?: string | null;
+  closingAt?: string | null;
+  plannedReturnAt?: string | null;
+  cargoWeightKg?: string | number | null;
+  cargoVolumeCbm?: string | number | null;
+  packageCount?: number | null;
+  packageType?: string | null;
+  operationalNotes?: string | null;
 }
 
 /** Body for `PUT /api/shipments/:id/containers` (full reconcile). */
@@ -315,12 +351,14 @@ export async function listShipments(params?: {
   limit?: number;
   customerId?: number;
   status?: ShipmentStatus;
+  q?: string;
 }): Promise<ShipmentListResponse> {
   const query = new URLSearchParams();
   if (params?.page != null) query.set('page', String(params.page));
   if (params?.limit != null) query.set('limit', String(params.limit));
   if (params?.customerId != null) query.set('customerId', String(params.customerId));
   if (params?.status != null) query.set('status', params.status);
+  if (params?.q) query.set('q', params.q);
   const suffix = query.size > 0 ? `?${query.toString()}` : '';
   return api.get<ShipmentListResponse>(`/shipments${suffix}`);
 }

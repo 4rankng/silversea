@@ -25,6 +25,7 @@ const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const scopePrefix = `durable-effect-${suffix}`;
 const migrationUrl = new URL('../../drizzle/0157_durable_effect_jobs.sql', import.meta.url);
 const createdAuditLogIds: number[] = [];
+const createdBackfillJobIds: number[] = [];
 let originalCompanyLogoSetting: string | null = null;
 let companyLogoSettingExisted = false;
 
@@ -99,17 +100,21 @@ describe('durable effect jobs foundation', () => {
     });
 
     let invalidateCalls = 0;
-    const [failed] = await processDueDurableEffectJobs(10, {
+    const firstRun = await processDueDurableEffectJobs(10, {
       now: () => now,
-      cacheInvalidateKey: async () => {
-        invalidateCalls += 1;
-        throw new Error('redis unavailable');
+      cacheInvalidateKey: async (key) => {
+        if (key === 'reports:dashboard') {
+          invalidateCalls += 1;
+          throw new Error('redis unavailable');
+        }
       },
     });
+    const failed = firstRun.find((job) => job.dedupeKey === dedupeKey);
+    assert.ok(failed, 'expected the targeted cache invalidation job to be processed');
     assert.equal(invalidateCalls, 1);
-    assert.equal(failed!.status, DURABLE_EFFECT_STATUS.RETRY);
-    assert.match(failed!.lastError ?? '', /redis unavailable/);
-    assert.equal(failed!.attemptCount, 1);
+    assert.equal(failed.status, DURABLE_EFFECT_STATUS.RETRY);
+    assert.match(failed.lastError ?? '', /redis unavailable/);
+    assert.equal(failed.attemptCount, 1);
 
     await db.transaction(async (tx) => {
       await enqueueDurableEffect(tx, {
@@ -129,7 +134,7 @@ describe('durable effect jobs foundation', () => {
       leaseToken: 'expired-worker',
       leaseExpiresAt: new Date(reclaimedAt.getTime() - 1),
       nextAttemptAt: new Date(reclaimedAt.getTime() - 1),
-    }).where(eq(s.durableEffectJobs.id, failed!.id));
+    }).where(eq(s.durableEffectJobs.id, failed.id));
 
     const claims = await claimDueDurableEffectJobs(10, {
       now: () => reclaimedAt,
@@ -144,7 +149,7 @@ describe('durable effect jobs foundation', () => {
     });
     assert.equal(secondClaims.length, 0, 'active lease must fence a second claimer');
 
-    const staleAck = await markDurableEffectJobSucceeded(failed!.id, 'expired-worker', reclaimedAt);
+    const staleAck = await markDurableEffectJobSucceeded(failed.id, 'expired-worker', reclaimedAt);
     assert.equal(staleAck, null, 'stale lease token must not acknowledge another worker row');
 
     let recoveredCalls = 0;
@@ -329,6 +334,7 @@ describe('durable effect jobs foundation', () => {
       ))
       .limit(1);
     assert.ok(backfilled, 'migration backfill should create a runnable job');
+    createdBackfillJobIds.push(backfilled!.id);
     assert.equal(backfilled!.status, DURABLE_EFFECT_STATUS.PENDING);
     assert.deepEqual(backfilled!.payload, {
       storageKey: `${scopePrefix}/legacy/backfill.txt`,
@@ -341,6 +347,10 @@ describe('durable effect jobs foundation', () => {
 
 after(async () => {
   await restoreCompanyLogoSetting();
+  if (createdBackfillJobIds.length > 0) {
+    await db.delete(s.durableEffectJobs)
+      .where(sql`${s.durableEffectJobs.id} in (${sql.join(createdBackfillJobIds.map((id) => sql`${id}`), sql`, `)})`);
+  }
   await db.delete(s.durableEffectJobs)
     .where(sql`${s.durableEffectJobs.dedupeKey} like ${`${scopePrefix}%`}`);
   if (createdAuditLogIds.length > 0) {

@@ -42,9 +42,10 @@ báo rõ chưa lưu; gửi lại không tạo bản trùng (idempotency qua head
   4. Bấm "Tạo lô hàng".
 - **Kết quả mong đợi (Pass):**
   - Form một cột, nút "Tạo lô hàng" cao ≥ 44px, không bị keyboard che.
-  - Sau bấm → chuyển sang `/shipments/:id` (trang chi tiết lô).
+  - Sau bấm → chuyển sang `/clerk/shipments/:id/docs` (hồ sơ chứng từ đúng phạm vi CLERK).
   - Trạng thái lô = "Bản nháp" (DRAFT). `shipmentCode` được sinh ra, duy nhất.
-  - Lô xuất hiện ngay trên `/shipments` (danh sách của người tạo).
+  - Lô xuất hiện ngay trên `/shipments` (danh sách của người tạo); hồ sơ mới mở sẵn để bổ sung B/L,
+    chiều hàng, loại lô, nhà máy/công trường, hãng tàu, các mốc cut-off/closing/trả hàng và ghi chú vận hành.
 - **Phụ thuộc:** Q17
 - **Bằng chứng:** ảnh mobile form đã điền + ảnh trang chi tiết + ảnh danh sách `/shipments`.
 

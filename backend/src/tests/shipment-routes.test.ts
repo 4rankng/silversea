@@ -477,6 +477,43 @@ describe('GET /', () => {
     assert.ok(r.data.items.some((x: { id: number }) => x.id === draft.id));
   });
 
+  test('supports server-side q search across code, BL, booking, customer, factory, and shipping line', async () => {
+    const searchCustomer = await mkCustomer();
+    const target = await mkShipmentViaService({
+      customerId: searchCustomer.id,
+      bookingRef: `BOOK-${suffix}`,
+      blNumber: `BL-${suffix}`,
+      factoryName: `Factory ${suffix}`,
+      shippingLineName: `Line ${suffix}`,
+    });
+    const distractor = await mkShipmentViaService({
+      bookingRef: `OTHER-${suffix}`,
+      blNumber: `OTHER-BL-${suffix}`,
+      factoryName: `Other Factory ${suffix}`,
+      shippingLineName: `Other Line ${suffix}`,
+    });
+
+    for (const query of [
+      target.shipmentCode,
+      `BL-${suffix}`,
+      `BOOK-${suffix}`,
+      searchCustomer.name,
+      `Factory ${suffix}`,
+      `Line ${suffix}`,
+    ]) {
+      const r = await testFetch(`/?q=${encodeURIComponent(String(query))}&page=1&limit=20`, { token: adminToken });
+      assert.equal(r.status, 200);
+      assert.ok(r.data.items.some((row: { id: number }) => row.id === target.id), `search matches ${query}`);
+      assert.ok(!r.data.items.every((row: { id: number }) => row.id === distractor.id), 'search is not only the distractor');
+    }
+  });
+
+  test('rejects an oversized search term before querying', async () => {
+    const result = await testFetch(`/?q=${'x'.repeat(101)}`, { token: adminToken });
+    assert.equal(result.status, 400);
+    assert.match(result.data.error, /100 ký tự/);
+  });
+
   test('enforces unit AND customer-or-explicit-shipment scope for list totals and every child write', async () => {
     const baseline = await testFetch('/?page=1&limit=200', { token: clerkToken });
     assert.equal(baseline.status, 200);
@@ -632,6 +669,78 @@ describe('POST /', () => {
     createdShipmentIds.push(r.data.id);
   });
 
+  test('persists shipment operations fields on create', async () => {
+    const r = await testFetch('/', {
+      method: 'POST',
+      token: adminToken,
+      body: {
+        customerId,
+        tradeDirection: 'IMPORT',
+        cargoMode: 'LCL',
+        factoryName: `Factory ${suffix}`,
+        shippingLineName: `Line ${suffix}`,
+        customsCutoffAt: '2026-07-29T03:00:00.000Z',
+        closingAt: '2026-07-29T04:00:00.000Z',
+        plannedReturnAt: '2026-07-30T09:30:00.000Z',
+        cargoWeightKg: 111.22,
+        cargoVolumeCbm: 33.444,
+        packageCount: 9,
+        packageType: 'Bag',
+        operationalNotes: 'Create-route coverage',
+      },
+    });
+    assert.equal(r.status, 201);
+    assert.equal(r.data.tradeDirection, 'IMPORT');
+    assert.equal(r.data.cargoMode, 'LCL');
+    assert.equal(r.data.factoryName, `Factory ${suffix}`);
+    assert.equal(r.data.shippingLineName, `Line ${suffix}`);
+    assert.equal(new Date(r.data.customsCutoffAt).toISOString(), '2026-07-29T03:00:00.000Z');
+    assert.equal(new Date(r.data.closingAt).toISOString(), '2026-07-29T04:00:00.000Z');
+    assert.equal(new Date(r.data.plannedReturnAt).toISOString(), '2026-07-30T09:30:00.000Z');
+    assert.equal(r.data.cargoWeightKg, '111.22');
+    assert.equal(r.data.cargoVolumeCbm, '33.444');
+    assert.equal(Number(r.data.cargoWeightKg), 111.22);
+    assert.equal(Number(r.data.cargoVolumeCbm), 33.444);
+    assert.equal(r.data.packageCount, 9);
+    assert.equal(r.data.packageType, 'Bag');
+    assert.equal(r.data.operationalNotes, 'Create-route coverage');
+    createdShipmentIds.push(r.data.id);
+  });
+
+  test('rejects offset-free or impossible operational timestamps', async () => {
+    const bare = await testFetch('/', {
+      method: 'POST',
+      token: adminToken,
+      body: { customerId, customsCutoffAt: '2026-07-29T10:00' },
+    });
+    assert.equal(bare.status, 400);
+
+    const impossible = await testFetch('/', {
+      method: 'POST',
+      token: adminToken,
+      body: { customerId, customsCutoffAt: '2026-02-30T10:00:00.000Z' },
+    });
+    assert.equal(impossible.status, 400);
+  });
+
+  test('rejects shipment numeric values outside database precision and scale', async () => {
+    for (const body of [
+      { cargoWeightKg: 'Infinity' },
+      { cargoWeightKg: '1.234' },
+      { cargoWeightKg: '100000000.00' },
+      { cargoVolumeCbm: '1.2345' },
+      { cargoVolumeCbm: '10000000.000' },
+      { packageCount: 2_147_483_648 },
+    ]) {
+      const response = await testFetch('/', {
+        method: 'POST',
+        token: adminToken,
+        body: { customerId, ...body },
+      });
+      assert.equal(response.status, 400, JSON.stringify(body));
+    }
+  });
+
   test('CLERK can create (write allowed)', async () => {
     const r = await testFetch('/', {
       method: 'POST',
@@ -763,6 +872,43 @@ describe('PUT /:id', () => {
     assert.equal(r.data.cargoTypeId, secondaryCargoTypeId);
   });
 
+  test('updates shipment operations fields directly before dispatch', async () => {
+    const shipment = await mkShipmentViaService();
+    const r = await testFetch(`/${shipment.id}`, {
+      method: 'PUT',
+      token: adminToken,
+      body: {
+        expectedVersion: shipment.version,
+        tradeDirection: 'EXPORT',
+        cargoMode: 'FCL',
+        factoryName: `Factory updated ${suffix}`,
+        shippingLineName: `Line updated ${suffix}`,
+        customsCutoffAt: '2026-07-29T07:00:00.000Z',
+        closingAt: '2026-07-29T08:15:00.000Z',
+        plannedReturnAt: '2026-07-31T11:45:00.000Z',
+        cargoWeightKg: 222.33,
+        cargoVolumeCbm: 44.555,
+        packageCount: 18,
+        packageType: 'Case',
+        operationalNotes: 'Direct update coverage',
+      },
+    });
+    assert.equal(r.status, 200);
+    assert.equal(r.data.changeMode, 'DIRECT');
+    assert.equal(r.data.tradeDirection, 'EXPORT');
+    assert.equal(r.data.cargoMode, 'FCL');
+    assert.equal(r.data.factoryName, `Factory updated ${suffix}`);
+    assert.equal(r.data.shippingLineName, `Line updated ${suffix}`);
+    assert.equal(new Date(r.data.customsCutoffAt).toISOString(), '2026-07-29T07:00:00.000Z');
+    assert.equal(new Date(r.data.closingAt).toISOString(), '2026-07-29T08:15:00.000Z');
+    assert.equal(new Date(r.data.plannedReturnAt).toISOString(), '2026-07-31T11:45:00.000Z');
+    assert.equal(Number(r.data.cargoWeightKg), 222.33);
+    assert.equal(Number(r.data.cargoVolumeCbm), 44.555);
+    assert.equal(r.data.packageCount, 18);
+    assert.equal(r.data.packageType, 'Case');
+    assert.equal(r.data.operationalNotes, 'Direct update coverage');
+  });
+
   test('CLERK cannot read a legacy shipment without responsible unit', async () => {
     const shipment = await mkShipmentViaService({ responsibleUnitId: null });
     const r = await testFetch(`/${shipment.id}`, { token: clerkToken });
@@ -843,6 +989,66 @@ describe('PUT /:id', () => {
     assert.equal(r.data.pickupLocation, 'Bãi mới');
     assert.equal(r.data.deliveryLocation, 'Kho mới');
     assert.equal(r.data.blNumber, 'BL-Q17-MATRIX');
+  });
+
+  test('CLERK post-dispatch shipment operations fields create a change request', async () => {
+    const { transitionShipmentStatus } = await import('../services/shipment.service');
+    const shipment = await mkClerkScopedShipmentViaService({
+      factoryName: 'Factory cũ',
+      cargoMode: 'LCL',
+      operationalNotes: 'Ghi chú cũ',
+    });
+    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.IN_PROGRESS);
+
+    const r = await testFetch(`/${shipment.id}`, {
+      method: 'PUT',
+      token: clerkToken,
+      body: {
+        expectedVersion: dispatched.version,
+        factoryName: 'Factory mới',
+        cargoMode: 'FCL',
+        operationalNotes: 'Ghi chú mới',
+      },
+    });
+    assert.equal(r.status, 200);
+    assert.equal(r.data.changeMode, 'REQUESTED');
+    assert.equal(r.data.factoryName, 'Factory cũ');
+    assert.equal(r.data.cargoMode, 'LCL');
+    assert.equal(r.data.operationalNotes, 'Ghi chú cũ');
+
+    const [request] = await db.select()
+      .from(s.shipmentChangeRequests)
+      .where(inArray(s.shipmentChangeRequests.shipmentId, [shipment.id]));
+    assert.ok(request, 'change request persisted');
+    assert.match(JSON.stringify(request.afterSnapshot), /factoryName/);
+    assert.match(JSON.stringify(request.afterSnapshot), /cargoMode/);
+    assert.match(JSON.stringify(request.afterSnapshot), /operationalNotes/);
+  });
+
+  test('numerically equivalent post-dispatch values are a no-op', async () => {
+    const { transitionShipmentStatus } = await import('../services/shipment.service');
+    const shipment = await mkClerkScopedShipmentViaService({
+      cargoWeightKg: '10.00',
+      cargoVolumeCbm: '1.000',
+    });
+    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.IN_PROGRESS);
+
+    const response = await testFetch(`/${shipment.id}`, {
+      method: 'PUT',
+      token: clerkToken,
+      body: {
+        expectedVersion: dispatched.version,
+        cargoWeightKg: 10,
+        cargoVolumeCbm: 1,
+      },
+    });
+    assert.equal(response.status, 200);
+    assert.equal(response.data.changeMode, 'NOOP');
+
+    const requests = await db.select()
+      .from(s.shipmentChangeRequests)
+      .where(inArray(s.shipmentChangeRequests.shipmentId, [shipment.id]));
+    assert.equal(requests.length, 0);
   });
 });
 
@@ -931,6 +1137,21 @@ describe('POST /:id/transition', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('PUT /:id/containers', () => {
+  test('rejects container weights outside numeric(10,2)', async () => {
+    const shipment = await mkShipmentViaService();
+    for (const cargoWeightKg of ['Infinity', '1.234', '100000000.00']) {
+      const response = await testFetch(`/${shipment.id}/containers`, {
+        method: 'PUT',
+        token: adminToken,
+        body: {
+          expectedVersion: shipment.version,
+          containers: [{ containerTypeId, cargoWeightKg }],
+        },
+      });
+      assert.equal(response.status, 400, cargoWeightKg);
+    }
+  });
+
   test('inserts new containers and returns the refreshed list', async () => {
     const shipment = await mkShipmentViaService();
     const r = await testFetch(`/${shipment.id}/containers`, {
@@ -1290,6 +1511,17 @@ describe('Q17 explicit dossier subtype matrix', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('POST /:id/dispatch', () => {
+  test('rejects LCL dispatch instead of requiring fabricated container data', async () => {
+    const shipment = await mkShipmentViaService({ cargoMode: 'LCL' });
+    const response = await testFetch(`/${shipment.id}/dispatch`, {
+      method: 'POST',
+      token: managerToken,
+      body: { routeId, cargoTypeId, containerTypeId, departureDate: '2026-08-01' },
+    });
+    assert.equal(response.status, 409);
+    assert.match(response.data.error, /LCL.*chưa được hỗ trợ/);
+  });
+
   test('creates a linked trip + moves shipment to IN_PROGRESS', async () => {
     const shipment = await mkShipmentViaService();
     const r = await testFetch(`/${shipment.id}/dispatch`, {
@@ -1516,7 +1748,7 @@ describe('POST /:id/change-requests/:requestId/review', () => {
       token: managerToken,
       body: { resolution: 'APPLIED' },
     });
-    assert.equal(review.status, 200);
+    assert.equal(review.status, 200, JSON.stringify(review.data));
     assert.equal(review.data.resolution, 'APPLIED');
     assert.equal(review.data.shipmentVersion, dispatched.version + 1);
 

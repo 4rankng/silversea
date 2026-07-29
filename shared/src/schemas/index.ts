@@ -35,7 +35,7 @@ export * from './geotag';
 // Reusable numeric transform helpers to prevent string concatenation bugs and parse PG numeric types
 export const numericMoney = z.union([z.number(), z.string()]).transform((val, ctx) => {
   const num = Number(val);
-  if (isNaN(num)) {
+  if (!Number.isFinite(num)) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Giá trị tiền tệ không hợp lệ' });
     return z.NEVER;
   }
@@ -44,7 +44,7 @@ export const numericMoney = z.union([z.number(), z.string()]).transform((val, ct
 
 export const numericDecimal = z.union([z.number(), z.string()]).transform((val, ctx) => {
   const num = Number(val);
-  if (isNaN(num)) {
+  if (!Number.isFinite(num)) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Giá trị số không hợp lệ' });
     return z.NEVER;
   }
@@ -53,7 +53,7 @@ export const numericDecimal = z.union([z.number(), z.string()]).transform((val, 
 
 const positiveNumeric = z.union([z.number(), z.string()]).transform((val, ctx) => {
   const num = Number(val);
-  if (isNaN(num) || num <= 0) {
+  if (!Number.isFinite(num) || num <= 0) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Phải là số dương' });
     return z.NEVER;
   }
@@ -62,12 +62,45 @@ const positiveNumeric = z.union([z.number(), z.string()]).transform((val, ctx) =
 
 const nonNegNumeric = z.union([z.number(), z.string()]).transform((val, ctx) => {
   const num = Number(val);
-  if (isNaN(num) || num < 0) {
+  if (!Number.isFinite(num) || num < 0) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Phải là số không âm' });
     return z.NEVER;
   }
   return num;
 });
+
+function fixedScaleDecimal(label: string, integerDigits: number, scale: number) {
+  return z.union([z.number().finite(), z.string()]).transform((value, ctx) => {
+    const raw = String(value).trim();
+    const match = /^(0|[1-9]\d*)(?:\.(\d+))?$/.exec(raw);
+    if (!match) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: `${label} phải là số không âm hợp lệ` });
+      return z.NEVER;
+    }
+    const integerPart = match[1];
+    const fractionPart = match[2] ?? '';
+    if (integerPart.length > integerDigits || fractionPart.length > scale) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `${label} vượt quá giới hạn ${integerDigits} chữ số nguyên và ${scale} chữ số thập phân`,
+      });
+      return z.NEVER;
+    }
+    return `${integerPart}.${fractionPart.padEnd(scale, '0')}`;
+  });
+}
+
+const shipmentTimestamp = z.string().datetime({ offset: true }).refine((value) => {
+  const [year, month, day] = value.slice(0, 10).split('-').map(Number);
+  if (!year || !month || !day) return false;
+  return day <= new Date(Date.UTC(year, month, 0)).getUTCDate();
+}, 'Thời gian không phải ngày hợp lệ');
+const shipmentWeightKg = fixedScaleDecimal('Trọng lượng', 8, 2);
+const shipmentVolumeCbm = fixedScaleDecimal('Thể tích', 7, 3);
+const shipmentPackageCount = z.coerce.number()
+  .int('Số kiện phải là số nguyên')
+  .nonnegative('Số kiện phải là số không âm')
+  .max(2_147_483_647, 'Số kiện vượt quá giới hạn');
 
 const fullNameField = z.string().max(255).or(z.literal('')).optional();
 
@@ -1188,11 +1221,23 @@ export const upsertTripInstructionsSchema = z.object({
 // optional booking metadata that may be filled in before dispatch.
 export const createShipmentSchema = z.object({
   customerId: z.coerce.number().int().positive('Khách hàng là bắt buộc'),
-  cargoTypeId: z.coerce.number().int().positive('Loại hàng không hợp lệ').optional(),
+  cargoTypeId: z.coerce.number().int().positive('Loại hàng không hợp lệ').optional().nullable(),
   responsibleUnitId: z.coerce.number().int().positive().optional().nullable(),
   bookingRef: z.string().max(100).optional().nullable(),
   blNumber: z.string().max(100).optional().nullable(),
+  tradeDirection: z.enum(['IMPORT', 'EXPORT']).optional().nullable(),
+  cargoMode: z.enum(['FCL', 'LCL']).optional().nullable(),
+  factoryName: z.string().max(255).optional().nullable(),
+  shippingLineName: z.string().max(255).optional().nullable(),
   expectedDeliveryDate: z.string().optional().nullable(),
+  customsCutoffAt: shipmentTimestamp.optional().nullable(),
+  closingAt: shipmentTimestamp.optional().nullable(),
+  plannedReturnAt: shipmentTimestamp.optional().nullable(),
+  cargoWeightKg: shipmentWeightKg.optional().nullable(),
+  cargoVolumeCbm: shipmentVolumeCbm.optional().nullable(),
+  packageCount: shipmentPackageCount.optional().nullable(),
+  packageType: z.string().max(100).optional().nullable(),
+  operationalNotes: z.string().max(4000).optional().nullable(),
   pickupLocation: z.string().max(255).optional().nullable(),
   deliveryLocation: z.string().max(255).optional().nullable(),
   contactName: z.string().max(100).optional().nullable(),
@@ -1218,11 +1263,23 @@ export const updateShipmentSchema = z.object({
   expectedVersion: z.number().int().nonnegative('expectedVersion là bắt buộc để kiểm soát đồng thời').optional(),
   version: z.number().int().nonnegative('version là bắt buộc để kiểm soát đồng thời').optional(),
   customerId: z.coerce.number().int().positive().optional(),
-  cargoTypeId: z.coerce.number().int().positive('Loại hàng không hợp lệ').optional(),
+  cargoTypeId: z.coerce.number().int().positive('Loại hàng không hợp lệ').optional().nullable(),
   responsibleUnitId: z.coerce.number().int().positive().optional().nullable(),
   bookingRef: z.string().max(100).nullish(),
   blNumber: z.string().max(100).nullish(),
+  tradeDirection: z.enum(['IMPORT', 'EXPORT']).nullish(),
+  cargoMode: z.enum(['FCL', 'LCL']).nullish(),
+  factoryName: z.string().max(255).nullish(),
+  shippingLineName: z.string().max(255).nullish(),
   expectedDeliveryDate: z.string().nullish(),
+  customsCutoffAt: shipmentTimestamp.nullish(),
+  closingAt: shipmentTimestamp.nullish(),
+  plannedReturnAt: shipmentTimestamp.nullish(),
+  cargoWeightKg: shipmentWeightKg.optional().nullable(),
+  cargoVolumeCbm: shipmentVolumeCbm.optional().nullable(),
+  packageCount: shipmentPackageCount.optional().nullable(),
+  packageType: z.string().max(100).nullish(),
+  operationalNotes: z.string().max(4000).nullish(),
   pickupLocation: z.string().max(255).nullish(),
   deliveryLocation: z.string().max(255).nullish(),
   contactName: z.string().max(100).nullish(),
@@ -1267,7 +1324,7 @@ export const shipmentContainerBatchSchema = z.object({
     containerNumber: z.string().max(50, 'Số container không được quá 50 ký tự').optional().nullable()
       .transform(v => (v === '' ? null : v)),
     sealNumber: z.string().max(50).optional().nullable().transform(v => (v === '' ? null : v)),
-    cargoWeightKg: nonNegNumeric.optional().nullable(),
+    cargoWeightKg: shipmentWeightKg.optional().nullable(),
     notes: z.string().optional().nullable().transform(v => (v === '' ? null : v)),
   })),
 }).superRefine((data, ctx) => {

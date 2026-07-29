@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   Package,
   Search,
@@ -10,6 +10,7 @@ import {
   MapPin,
   User,
   ArrowRight,
+  Plus,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { ApiError } from '../lib/api';
@@ -17,8 +18,10 @@ import { PageHeader, StatusPill } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { EmptyState, Pagination } from '../design-system';
 import { ClickableCard } from '../components/shared/ClickableCard';
-import { SHIPMENT_STATUS_LABELS, ShipmentStatus } from '@tingting/shared';
+import { Role, SHIPMENT_STATUS_LABELS, ShipmentStatus } from '@tingting/shared';
 import { usePageAnimations } from '../hooks/animations';
+import { useAuth } from '../hooks/useAuth';
+import { routes } from '../lib/routes';
 import './ShipmentsPage.css';
 
 // ─── Types (local; the API responses are not yet in @tingting/shared types) ──
@@ -41,6 +44,13 @@ interface ShipmentRow {
   deliveryLocation: string | null;
   contactName: string | null;
   contactPhone: string | null;
+  tradeDirection?: 'IMPORT' | 'EXPORT' | null;
+  cargoMode?: 'FCL' | 'LCL' | null;
+  factoryName?: string | null;
+  shippingLineName?: string | null;
+  customsCutoffAt?: string | null;
+  closingAt?: string | null;
+  plannedReturnAt?: string | null;
   version: number;
   createdAt: string;
   updatedAt: string;
@@ -100,10 +110,43 @@ function formatDeliveryDate(iso: string | null): string {
   return d.toLocaleDateString('vi-VN');
 }
 
+function formatMilestoneDate(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return iso.length > 10
+    ? date.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+    : date.toLocaleDateString('vi-VN');
+}
+
+function nextMilestone(shipment: ShipmentRow): { label: string; value: string } | null {
+  const candidates = [
+    { label: 'Cut-off', value: shipment.customsCutoffAt },
+    { label: 'Closing', value: shipment.closingAt },
+    { label: 'Trả cont', value: shipment.plannedReturnAt },
+    { label: 'Giao dự kiến', value: shipment.expectedDeliveryDate },
+  ].filter((item): item is { label: string; value: string } => Boolean(item.value));
+  if (candidates.length === 0) return null;
+  return candidates
+    .map((item) => ({ ...item, time: new Date(item.value).getTime() }))
+    .sort((a, b) => {
+      if (Number.isNaN(a.time)) return 1;
+      if (Number.isNaN(b.time)) return -1;
+      return a.time - b.time;
+    })[0];
+}
+
+function cargoModeLabel(shipment: ShipmentRow): string | null {
+  if (shipment.cargoMode === 'FCL') return 'FCL';
+  if (shipment.cargoMode === 'LCL') return 'LCL';
+  return null;
+}
+
 const PAGE_SIZE = 20;
 
 export default function ShipmentsPage() {
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
+  const canCreate = user?.role === Role.ADMIN || user?.role === Role.MANAGER;
 
   // Filter state is mirrored in the URL query string so reloads / deep links
   // preserve the view.
@@ -167,12 +210,7 @@ export default function ShipmentsPage() {
         limit: String(PAGE_SIZE),
       });
       if (statusFilter !== 'all') qs.set('status', statusFilter);
-      // NOTE: the backend list endpoint doesn't yet support free-text `q`; we
-      // filter client-side on shipmentCode/BL/bookingRef across the fetched
-      // page (see `visibleItems` below). The param is preserved in the URL so
-      // the backend can pick it up transparently when the filter ships.
-      // Importantly `q` is NOT a fetch dependency — typing in the search box
-      // must NOT trigger a server refetch.
+      if (searchQueryParam.trim()) qs.set('q', searchQueryParam.trim());
       const res = await api.get<ShipmentListResponse>(`/shipments?${qs.toString()}`);
       if (requestId !== requestSequence.current) return;
       setData(res);
@@ -182,20 +220,12 @@ export default function ShipmentsPage() {
     } finally {
       if (requestId === requestSequence.current) setLoading(false);
     }
-  }, [page, statusFilter]);
+  }, [page, searchQueryParam, statusFilter]);
 
   useEffect(() => { void fetchData(); }, [fetchData]);
 
-  // Client-side text filter (see note above).
   const q = searchQueryParam.trim().toLowerCase();
-  const visibleItems = useMemo(() => (data?.items ?? []).filter((s) => {
-    if (!q) return true;
-    return (
-      (s.shipmentCode ?? '').toLowerCase().includes(q) ||
-      (s.blNumber ?? '').toLowerCase().includes(q) ||
-      (s.bookingRef ?? '').toLowerCase().includes(q)
-    );
-  }), [data?.items, q]);
+  const visibleItems = useMemo(() => data?.items ?? [], [data?.items]);
 
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -208,7 +238,7 @@ export default function ShipmentsPage() {
     : loading
     ? 'Đang cập nhật danh sách…'
     : q
-      ? `${visibleItems.length} kết quả phù hợp trên trang ${page}`
+      ? `${total} kết quả phù hợp`
       : `${visibleItems.length} lô hàng trên trang ${page}`;
 
   return (
@@ -224,6 +254,12 @@ export default function ShipmentsPage() {
         title="Lô hàng"
         iconName="cargo"
         description="Theo dõi hồ sơ, tuyến vận chuyển và tiến độ giao nhận"
+        action={canCreate ? (
+          <Link to={routes.shipmentNew} className="btn btn--primary shipments-page__create">
+            <Plus size={18} aria-hidden="true" />
+            Tạo lô hàng
+          </Link>
+        ) : undefined}
       />
 
       <section
@@ -261,6 +297,7 @@ export default function ShipmentsPage() {
             <input
               type="search"
               className="shipments-page__search-input"
+              maxLength={100}
               placeholder="Tìm mã lô, số B/L, mã đặt chỗ"
               aria-label="Tìm lô hàng theo mã, số B/L, hoặc mã đặt chỗ"
               value={searchInput}
@@ -312,11 +349,9 @@ export default function ShipmentsPage() {
             <EmptyState
               illustration="/assets/illustrations/empty-clients.svg"
               icon={Package}
-              title={q ? 'Không tìm thấy lô hàng phù hợp ở trang này' : 'Chưa có lô hàng nào'}
+              title={q ? 'Không tìm thấy lô hàng phù hợp' : 'Chưa có lô hàng nào'}
               description={q
-                ? (data && data.total > data.items.length
-                    ? 'Tìm kiếm hiện chỉ áp dụng trong trang đang xem. Thử sang trang kế hoặc xoá tìm kiếm để xem toàn bộ.'
-                    : 'Thử bỏ bộ lọc hoặc thay từ khoá tìm kiếm.')
+                ? 'Thử bỏ bộ lọc hoặc thay từ khoá tìm kiếm.'
                 : 'Lô hàng sẽ xuất hiện ở đây khi được tạo.'}
             />
           ) : (
@@ -352,6 +387,14 @@ export default function ShipmentsPage() {
                     </div>
                   </div>
 
+                  {(s.factoryName || cargoModeLabel(s) || s.shippingLineName) && (
+                    <div className="shipments-page__card-ops">
+                      {cargoModeLabel(s) && <strong>{cargoModeLabel(s)}</strong>}
+                      {s.factoryName && <span>{s.factoryName}</span>}
+                      {s.shippingLineName && <span>{s.shippingLineName}</span>}
+                    </div>
+                  )}
+
                   {formatRoute(s) && (
                     <div className="shipments-page__card-route">
                       <MapPin size={16} aria-hidden="true" />
@@ -361,8 +404,8 @@ export default function ShipmentsPage() {
 
                   <div className="shipments-page__card-foot">
                     <span>
-                      {s.expectedDeliveryDate ? (
-                        <><CalendarClock size={15} aria-hidden="true" /> Giao dự kiến {formatDeliveryDate(s.expectedDeliveryDate)}</>
+                      {nextMilestone(s) ? (
+                        <><CalendarClock size={15} aria-hidden="true" /> {nextMilestone(s)!.label} {formatMilestoneDate(nextMilestone(s)!.value)}</>
                       ) : s.contactName ? (
                         <><User size={15} aria-hidden="true" /> {s.contactName}</>
                       ) : (
@@ -421,7 +464,7 @@ export default function ShipmentsPage() {
                 {!loading && !hasBlockingError && visibleItems.length === 0 && (
                   <tr><td colSpan={7} className="shipments-page__cell-msg">
                     <Package size={28} aria-hidden="true" />
-                    <p>{q ? 'Không tìm thấy lô hàng phù hợp ở trang này' : 'Chưa có lô hàng nào'}</p>
+                    <p>{q ? 'Không tìm thấy lô hàng phù hợp' : 'Chưa có lô hàng nào'}</p>
                   </td></tr>
                 )}
                 {!loading && !hasBlockingError && visibleItems.map((s) => (
@@ -435,12 +478,14 @@ export default function ShipmentsPage() {
                     <td className="shipments-page__td shipments-page__td--code">
                       <span className="shipments-page__code">{s.shipmentCode ?? `#${s.id}`}</span>
                       <span className="shipments-page__sub">{customerLabel(s)}</span>
+                      {s.factoryName && <span className="shipments-page__sub">{s.factoryName}</span>}
                     </td>
                     <td className="shipments-page__td shipments-page__td--mono" title={s.blNumber ?? undefined}>
                       {s.blNumber ?? <span className="shipments-page__muted">—</span>}
                     </td>
                     <td className="shipments-page__td shipments-page__td--mono" title={s.bookingRef ?? undefined}>
                       {s.bookingRef ?? <span className="shipments-page__muted">—</span>}
+                      {cargoModeLabel(s) && <span className="shipments-page__mode">{cargoModeLabel(s)}</span>}
                     </td>
                     <td className="shipments-page__td">
                       {formatRoute(s)
@@ -455,11 +500,11 @@ export default function ShipmentsPage() {
                         : <span className="shipments-page__muted">Chưa cập nhật</span>}
                     </td>
                     <td className="shipments-page__td shipments-page__td--date">
-                      {s.expectedDeliveryDate
+                      {nextMilestone(s)
                         ? (
                           <span>
                             <CalendarClock size={15} aria-hidden="true" />
-                            {formatDeliveryDate(s.expectedDeliveryDate)}
+                            {nextMilestone(s)!.label} {formatMilestoneDate(nextMilestone(s)!.value)}
                           </span>
                         )
                         : <span className="shipments-page__muted">—</span>}

@@ -160,6 +160,12 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
   const { page, limit } = parsePagination(req);
   const customerIdVal = (req.query.customerId || req.query.customer_id) as string | undefined;
   const statusVal = req.query.status as string | undefined;
+  const q = typeof req.query.q === 'string' && req.query.q.trim().length > 0
+    ? req.query.q.trim()
+    : undefined;
+  if (q && q.length > 100) {
+    return res.status(400).json({ error: 'Từ khóa tìm kiếm không được vượt quá 100 ký tự' });
+  }
 
   // Validate the status filter early — an invalid enum value would otherwise
   // silently return an empty list, hiding a client bug.
@@ -176,6 +182,7 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     limit,
     customerId: customerIdVal ? parseInt(customerIdVal, 10) : undefined,
     status,
+    q,
     actor: getUser(req),
   });
   res.json(result);
@@ -244,7 +251,19 @@ router.post(
         responsibleUnitId: parsed.data.responsibleUnitId,
         bookingRef: parsed.data.bookingRef,
         blNumber: parsed.data.blNumber,
+        tradeDirection: parsed.data.tradeDirection,
+        cargoMode: parsed.data.cargoMode,
+        factoryName: parsed.data.factoryName,
+        shippingLineName: parsed.data.shippingLineName,
         expectedDeliveryDate: parsed.data.expectedDeliveryDate,
+        customsCutoffAt: parsed.data.customsCutoffAt,
+        closingAt: parsed.data.closingAt,
+        plannedReturnAt: parsed.data.plannedReturnAt,
+        cargoWeightKg: parsed.data.cargoWeightKg,
+        cargoVolumeCbm: parsed.data.cargoVolumeCbm,
+        packageCount: parsed.data.packageCount,
+        packageType: parsed.data.packageType,
+        operationalNotes: parsed.data.operationalNotes,
         pickupLocation: parsed.data.pickupLocation,
         deliveryLocation: parsed.data.deliveryLocation,
         contactName: parsed.data.contactName,
@@ -289,7 +308,19 @@ router.put(
           responsibleUnitId: parsed.data.responsibleUnitId,
           bookingRef: parsed.data.bookingRef,
           blNumber: parsed.data.blNumber,
+          tradeDirection: parsed.data.tradeDirection,
+          cargoMode: parsed.data.cargoMode,
+          factoryName: parsed.data.factoryName,
+          shippingLineName: parsed.data.shippingLineName,
           expectedDeliveryDate: parsed.data.expectedDeliveryDate,
+          customsCutoffAt: parsed.data.customsCutoffAt,
+          closingAt: parsed.data.closingAt,
+          plannedReturnAt: parsed.data.plannedReturnAt,
+          cargoWeightKg: parsed.data.cargoWeightKg,
+          cargoVolumeCbm: parsed.data.cargoVolumeCbm,
+          packageCount: parsed.data.packageCount,
+          packageType: parsed.data.packageType,
+          operationalNotes: parsed.data.operationalNotes,
           pickupLocation: parsed.data.pickupLocation,
           deliveryLocation: parsed.data.deliveryLocation,
           contactName: parsed.data.contactName,

@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Role, ShipmentStatus } from '@tingting/shared';
+import { localDateTimeToIso } from '../../lib/shipment-operations';
 import type {
   ShipmentChangeRequest,
   ShipmentContainer,
@@ -147,6 +148,7 @@ function baseDetail(): ShipmentDetail {
       deliveryLocation: null,
       contactName: null,
       contactPhone: null,
+      cargoMode: 'FCL',
       createdBy: null,
       updatedBy: null,
       createdAt: '2026-07-27T00:00:00Z',
@@ -238,6 +240,110 @@ describe('ClerkShipmentDocsPage', () => {
     renderAt();
     await waitFor(() => expect(screen.getByText(/Còn thiếu: Số vận đơn/)).toBeTruthy());
     expect(screen.getByText(/Công-te-nơ \(ít nhất một\)/)).toBeTruthy();
+  });
+
+  it('preserves a legacy unknown cargo mode when saving another field', async () => {
+    getDetailMock.mockResolvedValue(makeDetail({ shipment: { cargoMode: null } }));
+    updateShipmentMock.mockResolvedValue({
+      ...makeDetail().shipment,
+      cargoMode: null,
+      cargoVolumeCbm: null,
+      packageCount: null,
+      packageType: null,
+      changeMode: 'DIRECT',
+      changeRequestId: null,
+    });
+    renderAt();
+    await waitFor(() => expect(screen.getByLabelText('Số booking')).toBeTruthy());
+    fireEvent.change(screen.getByLabelText('Số booking'), { target: { value: 'BK-LEGACY' } });
+    fireEvent.click(screen.getByRole('button', { name: /Lưu hồ sơ lô hàng/ }));
+
+    await waitFor(() => expect(updateShipmentMock).toHaveBeenCalledTimes(1));
+    const [, payload] = updateShipmentMock.mock.calls[0];
+    expect(payload.bookingRef).toBe('BK-LEGACY');
+    expect(payload.cargoMode).toBeNull();
+    expect(payload.cargoVolumeCbm).toBeNull();
+    expect(payload.packageCount).toBeNull();
+    expect(payload.packageType).toBeNull();
+  });
+
+  it('persists clearing cargo mode from LCL to unknown and nulls the LCL-only payload fields', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    getDetailMock
+      .mockResolvedValueOnce(makeDetail({
+        shipment: {
+          cargoMode: 'LCL',
+          cargoVolumeCbm: '7.500',
+          packageCount: 2,
+          packageType: 'Pallet',
+        },
+      }))
+      .mockResolvedValueOnce(makeDetail({
+        shipment: {
+          cargoMode: null,
+          cargoVolumeCbm: null,
+          packageCount: null,
+          packageType: null,
+        },
+      }));
+    updateShipmentMock.mockResolvedValue({
+      ...makeDetail().shipment,
+      cargoMode: null,
+      cargoVolumeCbm: null,
+      packageCount: null,
+      packageType: null,
+      changeMode: 'DIRECT',
+      changeRequestId: null,
+    });
+
+    renderAt();
+    await waitFor(() => expect(screen.getByLabelText('Số booking')).toBeTruthy());
+    const cargoModeField = screen.getByText('Loại lô hàng').closest('.ds-field');
+    expect(cargoModeField).toBeTruthy();
+    fireEvent.click(cargoModeField!.querySelector('button.ds-select-trigger') as HTMLButtonElement);
+    const unknownOption = Array.from(cargoModeField!.querySelectorAll('.ds-select-popover li[role="option"]'))
+      .find((option) => (option.textContent || '').includes('— Chưa xác định —'));
+    expect(unknownOption).toBeTruthy();
+    fireEvent.click(unknownOption as HTMLElement);
+    fireEvent.click(screen.getByRole('button', { name: /Lưu hồ sơ lô hàng/ }));
+
+    await waitFor(() => expect(updateShipmentMock).toHaveBeenCalledTimes(1));
+    const [, payload] = updateShipmentMock.mock.calls[0];
+    expect(payload.cargoMode).toBeNull();
+    expect(payload.cargoVolumeCbm).toBeNull();
+    expect(payload.packageCount).toBeNull();
+    expect(payload.packageType).toBeNull();
+    confirmSpy.mockRestore();
+  });
+
+  it('round-trips stored operational instants without timezone drift', async () => {
+    const storedInstant = '2026-07-29T03:00:00.000Z';
+    getDetailMock.mockResolvedValue(makeDetail({
+      shipment: { customsCutoffAt: storedInstant },
+    }));
+    updateShipmentMock.mockResolvedValue({
+      ...makeDetail().shipment,
+      customsCutoffAt: storedInstant,
+      changeMode: 'DIRECT',
+      changeRequestId: null,
+    });
+    renderAt();
+    await waitFor(() => expect(screen.getByLabelText('Cut-off hải quan')).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: /Lưu hồ sơ lô hàng/ }));
+
+    await waitFor(() => expect(updateShipmentMock).toHaveBeenCalledTimes(1));
+    expect(new Date(updateShipmentMock.mock.calls[0][1].customsCutoffAt).toISOString()).toBe(storedInstant);
+  });
+
+  it('gates the unsupported LCL dispatch path without requesting container data', async () => {
+    currentUserState.role = Role.MANAGER;
+    getDetailMock.mockResolvedValue(makeDetail({
+      shipment: { cargoMode: 'LCL', blNumber: 'BL-LCL' },
+    }));
+    renderAt();
+    await waitFor(() => expect(screen.getByText(/Điều vận LCL chưa được hỗ trợ/)).toBeTruthy());
+    expect(screen.queryByText(/Công-te-nơ \(/)).toBeNull();
+    expect(screen.queryByText('Điều vận & công nợ')).toBeNull();
   });
 
   it('sends expectedVersion for container saves and reuses the refreshed version on the next shipment save', async () => {
@@ -413,19 +519,20 @@ describe('ClerkShipmentDocsPage', () => {
 
     await waitFor(() => expect(createDeclarationMock).toHaveBeenCalledWith(42, {
       declarationNumber: 'TK-001',
-      issuedAt: '2026-07-27T09:00',
+      issuedAt: localDateTimeToIso('2026-07-27T09:00'),
       scope: 'SHARED',
       note: null,
     }));
 
     fireEvent.click(await screen.findByRole('button', { name: 'Sửa' }));
     fireEvent.change(screen.getByLabelText('Số tờ khai'), { target: { value: 'TK-001A' } });
+    fireEvent.change(screen.getByLabelText('Ngày giờ phát hành'), { target: { value: '2026-07-27T10:00' } });
     fireEvent.change(declarationSection?.querySelector('select') as HTMLSelectElement, { target: { value: 'SINGLE' } });
     fireEvent.click(screen.getByRole('button', { name: /Cập nhật tờ khai/ }));
 
     await waitFor(() => expect(updateDeclarationMock).toHaveBeenCalledWith(42, 77, {
       declarationNumber: 'TK-001A',
-      issuedAt: '2026-07-27T09:00',
+      issuedAt: localDateTimeToIso('2026-07-27T10:00'),
       scope: 'SINGLE',
       note: 'Khai chung',
     }));

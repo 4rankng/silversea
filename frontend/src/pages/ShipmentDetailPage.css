@@ -94,6 +94,11 @@
   margin: 0;
   font-size: 14px;
   color: var(--fg-1);
+  overflow-wrap: anywhere;
+}
+
+.shipment-detail__fields > .shipment-detail__field--wide {
+  grid-column: 1 / -1;
 }
 
 .shipment-detail__section-title {
@@ -253,6 +258,12 @@
 .shipment-detail__dot--danger  { background: #EF4444; }
 
 @media (max-width: 640px) {
+  .shipment-detail__operate {
+    min-height: 44px;
+    width: 100%;
+    justify-content: center;
+  }
+
   .shipment-detail {
     padding: 12px;
   }

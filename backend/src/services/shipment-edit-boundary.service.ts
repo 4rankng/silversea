@@ -13,7 +13,19 @@ export type ShipmentPlanPatch = {
   responsibleUnitId?: number | null;
   bookingRef?: string | null;
   blNumber?: string | null;
+  tradeDirection?: typeof s.shipmentTradeDirectionEnum.enumValues[number] | null;
+  cargoMode?: typeof s.shipmentCargoModeEnum.enumValues[number] | null;
+  factoryName?: string | null;
+  shippingLineName?: string | null;
   expectedDeliveryDate?: string | null;
+  customsCutoffAt?: string | null;
+  closingAt?: string | null;
+  plannedReturnAt?: string | null;
+  cargoWeightKg?: string | number | null;
+  cargoVolumeCbm?: string | number | null;
+  packageCount?: number | null;
+  packageType?: string | null;
+  operationalNotes?: string | null;
   pickupLocation?: string | null;
   deliveryLocation?: string | null;
   contactName?: string | null;
@@ -42,7 +54,19 @@ const POST_DISPATCH_REQUEST_FIELDS = new Set<keyof ShipmentPlanPatch>([
   'customerId',
   'cargoTypeId',
   'responsibleUnitId',
+  'tradeDirection',
+  'cargoMode',
+  'factoryName',
+  'shippingLineName',
   'expectedDeliveryDate',
+  'customsCutoffAt',
+  'closingAt',
+  'plannedReturnAt',
+  'cargoWeightKg',
+  'cargoVolumeCbm',
+  'packageCount',
+  'packageType',
+  'operationalNotes',
   'pickupLocation',
   'deliveryLocation',
 ]);
@@ -53,9 +77,51 @@ function normalizeNullableText(value: string | null | undefined): string | null 
   return trimmed.length > 0 ? trimmed : null;
 }
 
-function normalizeNumberString(value: string | number | null | undefined): string | null {
+function normalizeNumberString(
+  value: string | number | null | undefined,
+  scale: number,
+): string | null {
   if (value == null || value === '') return null;
-  return String(value);
+  const raw = String(value).trim();
+  const num = Number(raw);
+  if (!Number.isFinite(num)) return raw;
+  return num.toFixed(scale);
+}
+
+function normalizeTimestampString(value: string | Date | null | undefined): string | null {
+  if (value == null || value === '') return null;
+  if (value instanceof Date) return value.toISOString();
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (!/(?:Z|[+-]\d{2}:\d{2})$/.test(trimmed)) return trimmed;
+  const parsed = new Date(trimmed);
+  return Number.isNaN(parsed.getTime()) ? trimmed : parsed.toISOString();
+}
+
+function normalizeShipmentPlanValue(
+  field: keyof ShipmentPlanPatch,
+  value: ShipmentPlanPatch[keyof ShipmentPlanPatch],
+) {
+  switch (field) {
+    case 'customerId':
+    case 'cargoTypeId':
+    case 'responsibleUnitId':
+    case 'packageCount':
+      return value ?? null;
+    case 'cargoWeightKg':
+      return normalizeNumberString(value as string | number | null, 2);
+    case 'cargoVolumeCbm':
+      return normalizeNumberString(value as string | number | null, 3);
+    case 'customsCutoffAt':
+    case 'closingAt':
+    case 'plannedReturnAt':
+      return normalizeTimestampString(value as string | null);
+    case 'tradeDirection':
+    case 'cargoMode':
+      return value ?? null;
+    default:
+      return normalizeNullableText(value as string | null);
+  }
 }
 
 function currentShipmentSnapshot(row: ShipmentRow) {
@@ -64,7 +130,19 @@ function currentShipmentSnapshot(row: ShipmentRow) {
     cargoTypeId: row.cargoTypeId ?? null,
     bookingRef: row.bookingRef ?? null,
     blNumber: row.blNumber ?? null,
+    tradeDirection: row.tradeDirection ?? null,
+    cargoMode: row.cargoMode ?? null,
+    factoryName: row.factoryName ?? null,
+    shippingLineName: row.shippingLineName ?? null,
     expectedDeliveryDate: row.expectedDeliveryDate ?? null,
+    customsCutoffAt: normalizeTimestampString(row.customsCutoffAt),
+    closingAt: normalizeTimestampString(row.closingAt),
+    plannedReturnAt: normalizeTimestampString(row.plannedReturnAt),
+    cargoWeightKg: normalizeNumberString(row.cargoWeightKg, 2),
+    cargoVolumeCbm: normalizeNumberString(row.cargoVolumeCbm, 3),
+    packageCount: row.packageCount ?? null,
+    packageType: row.packageType ?? null,
+    operationalNotes: row.operationalNotes ?? null,
     pickupLocation: row.pickupLocation ?? null,
     deliveryLocation: row.deliveryLocation ?? null,
     contactName: row.contactName ?? null,
@@ -99,7 +177,7 @@ function requestedContainerSnapshot(rows: ShipmentContainerDraft[]) {
       containerTypeId: row.containerTypeId ?? null,
       containerNumber: normalizeNullableText(row.containerNumber ?? null),
       sealNumber: normalizeNullableText(row.sealNumber ?? null),
-      cargoWeightKg: normalizeNumberString(row.cargoWeightKg ?? null),
+      cargoWeightKg: normalizeNumberString(row.cargoWeightKg ?? null, 2),
       notes: normalizeNullableText(row.notes ?? null),
     }))
     .sort((a, b) => {
@@ -132,9 +210,7 @@ export function classifyClerkShipmentPatch(
   const entries = Object.entries(patch) as Array<[keyof ShipmentPlanPatch, ShipmentPlanPatch[keyof ShipmentPlanPatch]]>;
   for (const [field, value] of entries) {
     if (value === undefined) continue;
-    const normalizedValue = field === 'customerId' || field === 'cargoTypeId' || field === 'responsibleUnitId'
-      ? value
-      : normalizeNullableText(value as string | null);
+    const normalizedValue = normalizeShipmentPlanValue(field, value);
     const currentValue = beforeSnapshot[field];
     if (currentValue === normalizedValue) continue;
 

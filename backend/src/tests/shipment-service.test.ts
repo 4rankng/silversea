@@ -157,6 +157,39 @@ describe('createShipment', () => {
     createdShipmentIds.push(a.id, b.id);
     assert.notEqual(a.shipmentCode, b.shipmentCode);
   });
+
+  test('persists optional shipment operations fields on create', async () => {
+    const customer = await mkCustomer();
+    const shipment = await createShipment({
+      customerId: customer.id,
+      tradeDirection: 'IMPORT',
+      cargoMode: 'LCL',
+      factoryName: `Factory ${suffix}`,
+      shippingLineName: `Line ${suffix}`,
+      customsCutoffAt: '2026-07-29T01:00:00.000Z',
+      closingAt: '2026-07-29T02:30:00.000Z',
+      plannedReturnAt: '2026-07-30T08:15:00.000Z',
+      cargoWeightKg: 1234.5,
+      cargoVolumeCbm: 45.678,
+      packageCount: 12,
+      packageType: 'Pallet',
+      operationalNotes: 'First-pass dossier',
+    });
+    createdShipmentIds.push(shipment.id);
+
+    assert.equal(shipment.tradeDirection, 'IMPORT');
+    assert.equal(shipment.cargoMode, 'LCL');
+    assert.equal(shipment.factoryName, `Factory ${suffix}`);
+    assert.equal(shipment.shippingLineName, `Line ${suffix}`);
+    assert.equal(shipment.customsCutoffAt?.toISOString(), '2026-07-29T01:00:00.000Z');
+    assert.equal(shipment.closingAt?.toISOString(), '2026-07-29T02:30:00.000Z');
+    assert.equal(shipment.plannedReturnAt?.toISOString(), '2026-07-30T08:15:00.000Z');
+    assert.equal(Number(shipment.cargoWeightKg), 1234.5);
+    assert.equal(Number(shipment.cargoVolumeCbm), 45.678);
+    assert.equal(shipment.packageCount, 12);
+    assert.equal(shipment.packageType, 'Pallet');
+    assert.equal(shipment.operationalNotes, 'First-pass dossier');
+  });
 });
 
 describe('getShipment / listShipments', () => {
@@ -177,6 +210,38 @@ describe('getShipment / listShipments', () => {
     const forC1 = await listShipments({ customerId: c1.id });
     assert.ok(forC1.some((x) => x.id === s1.id), 'c1 sees its shipment');
     assert.ok(!forC1.some((x) => x.id === s2.id), 'c1 does not see c2 shipment');
+  });
+
+  test('listShipments supports server-side search across code, customer, booking, BL, factory, and shipping line', async () => {
+    const targetCustomer = await mkCustomer();
+    const otherCustomer = await mkCustomer();
+    const target = await createShipment({
+      customerId: targetCustomer.id,
+      bookingRef: `BOOK-${suffix}`,
+      blNumber: `BL-${suffix}`,
+      factoryName: `Factory ${suffix}`,
+      shippingLineName: `Shipping ${suffix}`,
+    });
+    const other = await createShipment({
+      customerId: otherCustomer.id,
+      bookingRef: `OTHER-${suffix}`,
+      blNumber: `OTHER-BL-${suffix}`,
+      factoryName: `Other Factory ${suffix}`,
+      shippingLineName: `Other Shipping ${suffix}`,
+    });
+    createdShipmentIds.push(target.id, other.id);
+
+    const byCode = await listShipments({ q: target.shipmentCode! });
+    const byCustomer = await listShipments({ q: targetCustomer.name });
+    const byBooking = await listShipments({ q: `BOOK-${suffix}` });
+    const byBl = await listShipments({ q: `BL-${suffix}` });
+    const byFactory = await listShipments({ q: `Factory ${suffix}` });
+    const byLine = await listShipments({ q: `Shipping ${suffix}` });
+
+    for (const result of [byCode, byCustomer, byBooking, byBl, byFactory, byLine]) {
+      assert.ok(result.some((row) => row.id === target.id), 'target shipment is searchable');
+      assert.ok(!result.every((row) => row.id === other.id), 'search is not pinned to the distractor');
+    }
   });
 });
 
@@ -214,6 +279,41 @@ describe('updateShipment (optimistic lock)', () => {
       () => updateShipment(99_999_999, { version: 1 }),
       (err: unknown) => err instanceof Error && 'statusCode' in err && err.statusCode === 404,
     );
+  });
+
+  test('round-trips optional shipment operations fields on update', async () => {
+    const customer = await mkCustomer();
+    const shipment = await createShipment({ customerId: customer.id });
+    createdShipmentIds.push(shipment.id);
+
+    const updated = await updateShipment(shipment.id, {
+      version: shipment.version,
+      tradeDirection: 'EXPORT',
+      cargoMode: 'FCL',
+      factoryName: `Updated Factory ${suffix}`,
+      shippingLineName: `Updated Line ${suffix}`,
+      customsCutoffAt: '2026-07-29T05:00:00.000Z',
+      closingAt: '2026-07-29T06:30:00.000Z',
+      plannedReturnAt: '2026-07-31T04:45:00.000Z',
+      cargoWeightKg: 876.54,
+      cargoVolumeCbm: 12.345,
+      packageCount: 24,
+      packageType: 'Carton',
+      operationalNotes: 'Updated dossier note',
+    });
+
+    assert.equal(updated.tradeDirection, 'EXPORT');
+    assert.equal(updated.cargoMode, 'FCL');
+    assert.equal(updated.factoryName, `Updated Factory ${suffix}`);
+    assert.equal(updated.shippingLineName, `Updated Line ${suffix}`);
+    assert.equal(updated.customsCutoffAt?.toISOString(), '2026-07-29T05:00:00.000Z');
+    assert.equal(updated.closingAt?.toISOString(), '2026-07-29T06:30:00.000Z');
+    assert.equal(updated.plannedReturnAt?.toISOString(), '2026-07-31T04:45:00.000Z');
+    assert.equal(Number(updated.cargoWeightKg), 876.54);
+    assert.equal(Number(updated.cargoVolumeCbm), 12.345);
+    assert.equal(updated.packageCount, 24);
+    assert.equal(updated.packageType, 'Carton');
+    assert.equal(updated.operationalNotes, 'Updated dossier note');
   });
 });
 

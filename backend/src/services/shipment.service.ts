@@ -22,13 +22,18 @@
 
 import { db } from '../db';
 import * as s from '../db/schema';
-import { and, count, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
+import { and, count, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import { createTrip } from './trip.service';
 import { cacheInvalidate, cacheInvalidatePattern } from '../lib/redis';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
-import { NotificationType, validateContainerNumber } from '@tingting/shared';
+import {
+  NotificationType,
+  shipmentContainerBatchSchema,
+  updateShipmentSchema,
+  validateContainerNumber,
+} from '@tingting/shared';
 import { emitNotification } from './notification.service';
 import { resolveFreightPrice } from './pricing.service';
 import type { AuthUser } from '../middleware/auth';
@@ -78,11 +83,23 @@ export type ShipmentStatus =
 
 export interface CreateShipmentInput {
   customerId: number;
-  cargoTypeId?: number;
+  cargoTypeId?: number | null;
   responsibleUnitId?: number | null;
   bookingRef?: string | null;
   blNumber?: string | null;
+  tradeDirection?: typeof s.shipmentTradeDirectionEnum.enumValues[number] | null;
+  cargoMode?: typeof s.shipmentCargoModeEnum.enumValues[number] | null;
+  factoryName?: string | null;
+  shippingLineName?: string | null;
   expectedDeliveryDate?: string | null;
+  customsCutoffAt?: string | null;
+  closingAt?: string | null;
+  plannedReturnAt?: string | null;
+  cargoWeightKg?: string | number | null;
+  cargoVolumeCbm?: string | number | null;
+  packageCount?: number | null;
+  packageType?: string | null;
+  operationalNotes?: string | null;
   pickupLocation?: string | null;
   deliveryLocation?: string | null;
   contactName?: string | null;
@@ -94,11 +111,23 @@ export interface UpdateShipmentInput {
   expectedVersion?: number; // Required for optimistic-lock check
   version?: number;
   customerId?: number;
-  cargoTypeId?: number;
+  cargoTypeId?: number | null;
   responsibleUnitId?: number | null;
   bookingRef?: string | null;
   blNumber?: string | null;
+  tradeDirection?: typeof s.shipmentTradeDirectionEnum.enumValues[number] | null;
+  cargoMode?: typeof s.shipmentCargoModeEnum.enumValues[number] | null;
+  factoryName?: string | null;
+  shippingLineName?: string | null;
   expectedDeliveryDate?: string | null;
+  customsCutoffAt?: string | null;
+  closingAt?: string | null;
+  plannedReturnAt?: string | null;
+  cargoWeightKg?: string | number | null;
+  cargoVolumeCbm?: string | number | null;
+  packageCount?: number | null;
+  packageType?: string | null;
+  operationalNotes?: string | null;
   pickupLocation?: string | null;
   deliveryLocation?: string | null;
   contactName?: string | null;
@@ -110,6 +139,7 @@ export interface ListShipmentsOptions {
   customerId?: number;
   customerIds?: number[];
   status?: ShipmentStatus;
+  q?: string;
   limit?: number;
   offset?: number;
   actor?: AuthUser;
@@ -169,6 +199,55 @@ export interface ShipmentChangeRequestReviewResult {
   shipmentVersion: number;
   notificationDelivered: boolean;
   message: string;
+}
+
+function toNullableFixedDecimal(
+  value: string | number | null | undefined,
+  integerDigits: number,
+  scale: number,
+  fieldLabel: string,
+): string | null {
+  if (value == null || value === '') return null;
+  const raw = String(value).trim();
+  const match = /^(0|[1-9]\d*)(?:\.(\d+))?$/.exec(raw);
+  if (!match || match[1].length > integerDigits || (match[2]?.length ?? 0) > scale) {
+    throw new ApiError(400, `${fieldLabel} không hợp lệ.`);
+  }
+  return `${match[1]}.${(match[2] ?? '').padEnd(scale, '0')}`;
+}
+
+function toNullableTimestamp(
+  value: string | Date | null | undefined,
+  fieldLabel: string,
+): Date | null {
+  if (value == null || value === '') return null;
+  if (value instanceof Date) return value;
+  if (!/(?:Z|[+-]\d{2}:\d{2})$/.test(value)) {
+    throw new ApiError(400, `${fieldLabel} phải kèm múi giờ.`);
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new ApiError(400, `${fieldLabel} không hợp lệ.`);
+  }
+  return parsed;
+}
+
+function escapeLikeTerm(value: string): string {
+  return value.replace(/[\\%_]/g, (match) => `\\${match}`);
+}
+
+function buildShipmentSearchPredicate(search: string | undefined) {
+  const trimmed = search?.trim();
+  if (!trimmed) return undefined;
+  const pattern = `%${escapeLikeTerm(trimmed)}%`;
+  return or(
+    ilike(s.shipments.shipmentCode, pattern),
+    ilike(s.shipments.blNumber, pattern),
+    ilike(s.shipments.bookingRef, pattern),
+    ilike(s.customers.name, pattern),
+    ilike(s.shipments.factoryName, pattern),
+    ilike(s.shipments.shippingLineName, pattern),
+  );
 }
 
 type ShipmentDeclarationMutationInput = {
@@ -309,7 +388,19 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
     responsibleUnitId,
     bookingRef: input.bookingRef ?? null,
     blNumber: input.blNumber ?? null,
+    tradeDirection: input.tradeDirection ?? null,
+    cargoMode: input.cargoMode ?? null,
+    factoryName: input.factoryName ?? null,
+    shippingLineName: input.shippingLineName ?? null,
     expectedDeliveryDate: input.expectedDeliveryDate ?? null,
+    customsCutoffAt: toNullableTimestamp(input.customsCutoffAt, 'Hạn hải quan'),
+    closingAt: toNullableTimestamp(input.closingAt, 'Giờ closing'),
+    plannedReturnAt: toNullableTimestamp(input.plannedReturnAt, 'Ngày trả rỗng kế hoạch'),
+    cargoWeightKg: toNullableFixedDecimal(input.cargoWeightKg, 8, 2, 'Trọng lượng'),
+    cargoVolumeCbm: toNullableFixedDecimal(input.cargoVolumeCbm, 7, 3, 'Thể tích'),
+    packageCount: input.packageCount ?? null,
+    packageType: input.packageType ?? null,
+    operationalNotes: input.operationalNotes ?? null,
     pickupLocation: input.pickupLocation ?? null,
     deliveryLocation: input.deliveryLocation ?? null,
     contactName: input.contactName ?? null,
@@ -391,15 +482,21 @@ export async function listShipments(options: ListShipmentsOptions = {}) {
   if (options.status != null) {
     conditions.push(eq(s.shipments.status, options.status));
   }
+  const searchPredicate = buildShipmentSearchPredicate(options.q);
+  if (searchPredicate) {
+    conditions.push(searchPredicate);
+  }
 
   const limit = Math.max(1, Math.min(options.limit ?? 50, 200));
   const offset = Math.max(0, options.offset ?? 0);
 
-  return await db.select().from(s.shipments)
+  const rows = await db.select({ shipment: s.shipments }).from(s.shipments)
+    .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
     .where(and(...conditions))
     .orderBy(desc(s.shipments.createdAt))
     .limit(limit)
     .offset(offset);
+  return rows.map((row) => row.shipment);
 }
 
 /**
@@ -425,6 +522,10 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
   if (options.status != null) {
     conditions.push(eq(s.shipments.status, options.status));
   }
+  const searchPredicate = buildShipmentSearchPredicate(options.q);
+  if (searchPredicate) {
+    conditions.push(searchPredicate);
+  }
 
   // Join customers so the list can show a human-readable customer name
   // instead of a bare `customerId` ("KH #2698" is meaningless to users).
@@ -440,7 +541,9 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
       .orderBy(desc(s.shipments.createdAt))
       .limit(limit)
       .offset(offset),
-    db.select({ value: count() }).from(s.shipments).where(and(...conditions)),
+    db.select({ value: count() }).from(s.shipments)
+      .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
+      .where(and(...conditions)),
   ]);
   const total = Number(totalRows[0]?.value ?? 0);
   // Flatten `shipment` + `customerName` into a single object so the route
@@ -490,7 +593,19 @@ export async function updateShipment(
       responsibleUnitId: input.responsibleUnitId,
       bookingRef: input.bookingRef,
       blNumber: input.blNumber,
+      tradeDirection: input.tradeDirection,
+      cargoMode: input.cargoMode,
+      factoryName: input.factoryName,
+      shippingLineName: input.shippingLineName,
       expectedDeliveryDate: input.expectedDeliveryDate,
+      customsCutoffAt: input.customsCutoffAt,
+      closingAt: input.closingAt,
+      plannedReturnAt: input.plannedReturnAt,
+      cargoWeightKg: input.cargoWeightKg,
+      cargoVolumeCbm: input.cargoVolumeCbm,
+      packageCount: input.packageCount,
+      packageType: input.packageType,
+      operationalNotes: input.operationalNotes,
       pickupLocation: input.pickupLocation,
       deliveryLocation: input.deliveryLocation,
       contactName: input.contactName,
@@ -559,9 +674,21 @@ export async function updateShipment(
       ...(input.responsibleUnitId !== undefined ? { responsibleUnitId: input.responsibleUnitId } : {}),
       ...(input.bookingRef !== undefined ? { bookingRef: input.bookingRef } : {}),
       ...(input.blNumber !== undefined ? { blNumber: input.blNumber } : {}),
+      ...(input.tradeDirection !== undefined ? { tradeDirection: input.tradeDirection } : {}),
+      ...(input.cargoMode !== undefined ? { cargoMode: input.cargoMode } : {}),
+      ...(input.factoryName !== undefined ? { factoryName: input.factoryName } : {}),
+      ...(input.shippingLineName !== undefined ? { shippingLineName: input.shippingLineName } : {}),
       ...(input.expectedDeliveryDate !== undefined
         ? { expectedDeliveryDate: input.expectedDeliveryDate }
         : {}),
+      ...(input.customsCutoffAt !== undefined ? { customsCutoffAt: toNullableTimestamp(input.customsCutoffAt, 'Hạn hải quan') } : {}),
+      ...(input.closingAt !== undefined ? { closingAt: toNullableTimestamp(input.closingAt, 'Giờ closing') } : {}),
+      ...(input.plannedReturnAt !== undefined ? { plannedReturnAt: toNullableTimestamp(input.plannedReturnAt, 'Ngày trả rỗng kế hoạch') } : {}),
+      ...(input.cargoWeightKg !== undefined ? { cargoWeightKg: toNullableFixedDecimal(input.cargoWeightKg, 8, 2, 'Trọng lượng') } : {}),
+      ...(input.cargoVolumeCbm !== undefined ? { cargoVolumeCbm: toNullableFixedDecimal(input.cargoVolumeCbm, 7, 3, 'Thể tích') } : {}),
+      ...(input.packageCount !== undefined ? { packageCount: input.packageCount } : {}),
+      ...(input.packageType !== undefined ? { packageType: input.packageType } : {}),
+      ...(input.operationalNotes !== undefined ? { operationalNotes: input.operationalNotes } : {}),
       ...(input.pickupLocation !== undefined
         ? { pickupLocation: input.pickupLocation }
         : {}),
@@ -943,66 +1070,30 @@ function parsePlanUpdateSnapshot(snapshot: unknown): UpdateShipmentInput {
   if (!snapshot || typeof snapshot !== 'object') {
     throw new ApiError(500, 'Ảnh chụp yêu cầu thay đổi không hợp lệ');
   }
-  const candidate = snapshot as Record<string, unknown>;
-  return {
-    customerId: typeof candidate.customerId === 'number' ? candidate.customerId : undefined,
-    cargoTypeId: typeof candidate.cargoTypeId === 'number' ? candidate.cargoTypeId : undefined,
-    responsibleUnitId: typeof candidate.responsibleUnitId === 'number'
-      ? candidate.responsibleUnitId
-      : candidate.responsibleUnitId === null
-        ? null
-        : undefined,
-    bookingRef: typeof candidate.bookingRef === 'string' || candidate.bookingRef === null
-      ? candidate.bookingRef as string | null
-      : undefined,
-    blNumber: typeof candidate.blNumber === 'string' || candidate.blNumber === null
-      ? candidate.blNumber as string | null
-      : undefined,
-    expectedDeliveryDate: typeof candidate.expectedDeliveryDate === 'string' || candidate.expectedDeliveryDate === null
-      ? candidate.expectedDeliveryDate as string | null
-      : undefined,
-    pickupLocation: typeof candidate.pickupLocation === 'string' || candidate.pickupLocation === null
-      ? candidate.pickupLocation as string | null
-      : undefined,
-    deliveryLocation: typeof candidate.deliveryLocation === 'string' || candidate.deliveryLocation === null
-      ? candidate.deliveryLocation as string | null
-      : undefined,
-    contactName: typeof candidate.contactName === 'string' || candidate.contactName === null
-      ? candidate.contactName as string | null
-      : undefined,
-    contactPhone: typeof candidate.contactPhone === 'string' || candidate.contactPhone === null
-      ? candidate.contactPhone as string | null
-      : undefined,
-  };
+  const parsed = updateShipmentSchema.safeParse({
+    ...(snapshot as Record<string, unknown>),
+    expectedVersion: 0,
+  });
+  if (!parsed.success) {
+    throw new ApiError(500, 'Ảnh chụp yêu cầu thay đổi không còn hợp lệ');
+  }
+  const patch: UpdateShipmentInput = { ...parsed.data };
+  delete patch.expectedVersion;
+  return patch;
 }
 
 function parseContainerChangeSnapshot(snapshot: unknown) {
   if (!Array.isArray(snapshot)) {
     throw new ApiError(500, 'Ảnh chụp công-te-nơ không hợp lệ');
   }
-  return snapshot.map((row) => {
-    const item = row as Record<string, unknown>;
-    return {
-      id: typeof item.id === 'number' ? item.id : undefined,
-      containerTypeId: typeof item.containerTypeId === 'number'
-        ? item.containerTypeId
-        : item.containerTypeId === null
-          ? null
-          : undefined,
-      containerNumber: typeof item.containerNumber === 'string' || item.containerNumber === null
-        ? item.containerNumber as string | null
-        : undefined,
-      sealNumber: typeof item.sealNumber === 'string' || item.sealNumber === null
-        ? item.sealNumber as string | null
-        : undefined,
-      cargoWeightKg: typeof item.cargoWeightKg === 'string' || typeof item.cargoWeightKg === 'number' || item.cargoWeightKg === null
-        ? item.cargoWeightKg as string | number | null
-        : undefined,
-      notes: typeof item.notes === 'string' || item.notes === null
-        ? item.notes as string | null
-        : undefined,
-    };
+  const parsed = shipmentContainerBatchSchema.safeParse({
+    expectedVersion: 0,
+    containers: snapshot,
   });
+  if (!parsed.success) {
+    throw new ApiError(500, 'Ảnh chụp công-te-nơ không còn hợp lệ');
+  }
+  return parsed.data.containers;
 }
 
 // ─── Container batch upsert (full reconcile) ────────────────────────────────
@@ -1338,6 +1429,12 @@ async function dispatchShipmentToTripInTx(
     .for('update')
     .limit(1);
   if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
+  if (shipment.cargoMode === 'LCL') {
+    throw new ApiError(
+      409,
+      'Điều vận lô hàng LCL chưa được hỗ trợ. Vui lòng giữ lô ở hồ sơ vận hành, không tạo dữ liệu công-te-nơ giả.',
+    );
+  }
 
   const expiredDocs = await checkExpiredDocuments(shipmentId, tx);
   if (expiredDocs.length > 0) {
@@ -1646,7 +1743,19 @@ export async function reviewShipmentChangeRequest(
           ...(patch.responsibleUnitId !== undefined ? { responsibleUnitId: patch.responsibleUnitId } : {}),
           ...(patch.bookingRef !== undefined ? { bookingRef: patch.bookingRef } : {}),
           ...(patch.blNumber !== undefined ? { blNumber: patch.blNumber } : {}),
+          ...(patch.tradeDirection !== undefined ? { tradeDirection: patch.tradeDirection } : {}),
+          ...(patch.cargoMode !== undefined ? { cargoMode: patch.cargoMode } : {}),
+          ...(patch.factoryName !== undefined ? { factoryName: patch.factoryName } : {}),
+          ...(patch.shippingLineName !== undefined ? { shippingLineName: patch.shippingLineName } : {}),
           ...(patch.expectedDeliveryDate !== undefined ? { expectedDeliveryDate: patch.expectedDeliveryDate } : {}),
+          ...(patch.customsCutoffAt !== undefined ? { customsCutoffAt: toNullableTimestamp(patch.customsCutoffAt, 'Hạn hải quan') } : {}),
+          ...(patch.closingAt !== undefined ? { closingAt: toNullableTimestamp(patch.closingAt, 'Giờ closing') } : {}),
+          ...(patch.plannedReturnAt !== undefined ? { plannedReturnAt: toNullableTimestamp(patch.plannedReturnAt, 'Ngày trả rỗng kế hoạch') } : {}),
+          ...(patch.cargoWeightKg !== undefined ? { cargoWeightKg: toNullableFixedDecimal(patch.cargoWeightKg, 8, 2, 'Trọng lượng') } : {}),
+          ...(patch.cargoVolumeCbm !== undefined ? { cargoVolumeCbm: toNullableFixedDecimal(patch.cargoVolumeCbm, 7, 3, 'Thể tích') } : {}),
+          ...(patch.packageCount !== undefined ? { packageCount: patch.packageCount } : {}),
+          ...(patch.packageType !== undefined ? { packageType: patch.packageType } : {}),
+          ...(patch.operationalNotes !== undefined ? { operationalNotes: patch.operationalNotes } : {}),
           ...(patch.pickupLocation !== undefined ? { pickupLocation: patch.pickupLocation } : {}),
           ...(patch.deliveryLocation !== undefined ? { deliveryLocation: patch.deliveryLocation } : {}),
           ...(patch.contactName !== undefined ? { contactName: patch.contactName } : {}),
