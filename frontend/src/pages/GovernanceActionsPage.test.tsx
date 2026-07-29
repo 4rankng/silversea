@@ -119,7 +119,8 @@ describe('GovernanceActionsPage', () => {
     expect(screen.getByText('1 yêu cầu đang chờ quyết định theo quyền của bạn.')).toBeTruthy();
     expect(screen.getByText('Phiên bản yêu cầu').parentElement?.textContent).toContain('4');
     expect(screen.getByText('Phiên bản dữ liệu gốc').parentElement?.textContent).toContain('3');
-    expect(screen.getByText('Quyền xử lý từ máy chủ:').parentElement?.textContent).toContain('Kiểm tra');
+    expect(screen.getByText('Quyền xử lý:').parentElement?.textContent).toContain('Kiểm tra');
+    expect(screen.getByPlaceholderText('Nhập lý do khi từ chối').tagName).toBe('INPUT');
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Kiểm tra' }).disabled).toBe(false);
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Phê duyệt' }).disabled).toBe(true);
   });
@@ -243,7 +244,7 @@ describe('GovernanceActionsPage', () => {
     expect(screen.getByText(/Cần nhập lý do từ chối/i)).toBeTruthy();
     expect(rejectMutateAsyncMock).not.toHaveBeenCalled();
 
-    fireEvent.change(screen.getByPlaceholderText('Bắt buộc khi từ chối yêu cầu.'), {
+    fireEvent.change(screen.getByPlaceholderText('Nhập lý do khi từ chối'), {
       target: { value: 'Thiếu biên bản đối soát kỳ lương.' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Từ chối' }));
