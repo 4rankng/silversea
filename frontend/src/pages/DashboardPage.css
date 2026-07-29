@@ -1540,3 +1540,43 @@
     font-size: var(--fs-xl);
   }
 }
+.dash-wf .wf-banner-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--control-h);
+  padding: 4px 10px;
+  border: 1px solid currentColor;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: inherit;
+  font: 600 var(--fs-xs)/1 var(--font-body);
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.dash-wf .wf-banner-action:hover {
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.dash-wf .wf-banner-action:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .dash-wf .nepo-banner__inner {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .dash-wf .nepo-banner__action {
+    width: 100%;
+    padding-left: 28px;
+  }
+
+  .dash-wf .wf-banner-action {
+    min-height: var(--control-h);
+  }
+}

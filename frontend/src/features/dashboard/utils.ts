@@ -1,4 +1,4 @@
-import { formatCompact } from '../../lib/format';
+import { formatNumber } from '../../lib/format';
 
 export const CATEGORY_COLORS: Record<string, string> = {
   'Sửa chữa': '#8B5CF6',
@@ -15,11 +15,9 @@ export const styles = {
 } as const;
 
 export function splitKpi(v: number): { num: string; suffix: string } {
-  const s = formatCompact(v);
-  if (s.endsWith('k')) return { num: s.slice(0, -1), suffix: 'k' };
-  const i = s.lastIndexOf(' ');
-  if (i === -1) return { num: s, suffix: '' };
-  return { num: s.slice(0, i), suffix: s.slice(i + 1) };
+  // Financial KPIs must remain exact and readable. Do not abbreviate VND
+  // amounts as k/tr/tỷ; mobile cards can reflow around the full number.
+  return { num: formatNumber(v), suffix: '' };
 }
 
 export function fmtMoM(current: number, previous: number | undefined | null): string {

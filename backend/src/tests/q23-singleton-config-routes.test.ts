@@ -26,6 +26,8 @@ const idempotencyKeys = new Set<string>();
 let server: http.Server;
 let baseUrl = '';
 let makerToken = '';
+let managerMakerToken = '';
+let accountantMakerToken = '';
 let checkerToken = '';
 let approverToken = '';
 let driverToken = '';
@@ -129,16 +131,68 @@ before(async () => {
   };
 
   const maker = await mkUser(`q23-singleton-maker-${suffix}`, 'ADMIN');
+  const managerMaker = await mkUser(`q23-singleton-manager-maker-${suffix}`, 'MANAGER');
+  const accountantMaker = await mkUser(`q23-singleton-accountant-maker-${suffix}`, 'ACCOUNTANT');
   const checker = await mkUser(`q23-singleton-checker-${suffix}`, 'ACCOUNTANT');
   const approver = await mkUser(`q23-singleton-approver-${suffix}`, 'MANAGER');
   const driver = await mkUser(`q23-singleton-driver-${suffix}`, 'DRIVER');
   makerToken = sign({ ...maker, username: maker.username ?? `maker-${maker.id}` });
+  managerMakerToken = sign({
+    ...managerMaker,
+    username: managerMaker.username ?? `manager-maker-${managerMaker.id}`,
+  });
+  accountantMakerToken = sign({
+    ...accountantMaker,
+    username: accountantMaker.username ?? `accountant-maker-${accountantMaker.id}`,
+  });
   checkerToken = sign({ ...checker, username: checker.username ?? `checker-${checker.id}` });
   approverToken = sign({ ...approver, username: approver.username ?? `approver-${approver.id}` });
   driverToken = sign({ ...driver, username: driver.username ?? `driver-${driver.id}` });
 });
 
 describe('Q23 singleton config routes', () => {
+  test('MANAGER and ACCOUNTANT can submit governed company-info changes through the real PUT route', async () => {
+    const companyBefore = await requestJson('/api/company-info', { token: makerToken });
+    const expectedUpdatedAt = typeof companyBefore.body.updatedAt === 'string'
+      ? companyBefore.body.updatedAt
+      : undefined;
+    const payload = {
+      name: `Office role company ${suffix}`,
+      address: '1 Q23 Street',
+      taxCode: '0312345678',
+      representative: 'Nguyen Van A',
+      representativeTitle: 'Giám đốc',
+      bankAccount: '0123456789',
+      bankName: 'Vietcombank',
+      phone: '',
+      email: '',
+      logoStorageKey: null,
+    };
+
+    for (const [role, token] of [
+      ['MANAGER', managerMakerToken],
+      ['ACCOUNTANT', accountantMakerToken],
+    ] as const) {
+      const idempotencyKey = `q23-company-${role.toLowerCase()}-maker-${suffix}`;
+      const response = await requestJson('/api/company-info', {
+        method: 'PUT',
+        token,
+        idempotencyKey,
+        expectedUpdatedAt,
+        body: { ...payload, name: `${payload.name} ${role}` },
+      });
+
+      assert.equal(response.status, 201, `${role} PUT body ${JSON.stringify(response.body)}`);
+      expectPendingGovernance(response.body);
+      assert.equal(response.body.replayed, false);
+
+      await db.delete(s.governanceActions)
+        .where(eq(s.governanceActions.id, Number(response.body.id)));
+      await db.delete(s.idempotencyKeys)
+        .where(eq(s.idempotencyKeys.idempotencyKey, idempotencyKey));
+    }
+  });
+
   test('road/fuel/company routes enforce RBAC, replay exactly, reject drift, and require current version on existing data', async () => {
     const roadForbidden = await requestJson('/api/road-config', {
       method: 'PUT',

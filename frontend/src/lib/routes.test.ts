@@ -23,7 +23,7 @@ describe('titleForPath (catalog-sourced, parity with pre-refactor behavior)', ()
     '/debt': 'Công nợ phải thu',
     '/debt/5': 'Công nợ phải thu',
     '/credit-overrides': 'Duyệt vượt hạn mức',
-    '/governance-actions': 'Hàng chờ quản trị',
+    '/governance-actions': 'Chờ phê duyệt',
     '/payables': 'Công nợ phải trả',
     '/payables/9': 'Công nợ phải trả',
     '/expenses/new': 'Ghi nhận chi phí',

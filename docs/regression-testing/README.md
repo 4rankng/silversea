@@ -109,6 +109,7 @@ Mật khẩu cho tất cả: `admin123`. URL: http://localhost:7174
 | M10 Ứng dụng nhân viên chứng từ | `/clerk/shipments/new`, `/clerk/shipments/:id/docs`, `/shipments` | clerk-style user (CLERK role) |
 | M11 Báo cáo tài chính & lãi lỗ | `/finance`, `/profit`, `/dashboard`                    | giamdoc / ketoan / admin   |
 | Admin application settings | `/config/app-settings` | admin |
+| Thông tin công ty | `/config/company-info` | admin / giamdoc / ketoan |
 | M12 Nhiên liệu & số hóa chứng từ dầu | `/config/fuel-norms`, `/config/fuel`, `/trips/:id` (ảnh cột bơm), `/payables` (hóa đơn dầu) | ketoan / admin / laixe |
 
 > **Cổng khách hàng** (`/portal/...`) và **cổng nhân viên** (`/my-...`) dùng role-specific layout. Để

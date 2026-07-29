@@ -170,6 +170,14 @@ export default function GovernanceActionsPage() {
   const rejectMutation = useRejectGovernanceAction();
 
   const allActions = queue.data ?? [];
+  const pendingCheckCount = allActions.filter((action) => action.status === 'PENDING_CHECK').length;
+  const pendingApprovalCount = allActions.filter((action) => action.status === 'PENDING_APPROVAL').length;
+  const actionableCount = allActions.filter((action) => (
+    action.allowedActions.includes('CHECK')
+    || action.allowedActions.includes('APPROVE')
+    || action.allowedActions.includes('REJECT')
+  )).length;
+  const pendingCount = pendingCheckCount + pendingApprovalCount;
   const actions = filter === 'PENDING'
     ? allActions.filter((action) => isPending(action.status))
     : allActions;
@@ -240,11 +248,14 @@ export default function GovernanceActionsPage() {
     <div className="governance-actions">
       <header className="governance-actions__hero">
         <div>
-          <p className="governance-actions__eyebrow">Kiểm soát maker / checker / approver</p>
-          <h1>Hàng chờ quản trị</h1>
+          <p className="governance-actions__eyebrow">
+            <ShieldCheck size={14} aria-hidden="true" />
+            Kiểm soát maker / checker / approver
+          </p>
+          <h1>Yêu cầu chờ kiểm tra &amp; phê duyệt</h1>
           <p>
-            Kiểm tra và phê duyệt các thay đổi tiền, giá, công nợ, ngoại lệ,
-            chốt kỳ và điều chỉnh theo đúng quyền do hệ thống cấp.
+            Rà soát các thay đổi tài chính và vận hành theo đúng thẩm quyền
+            được hệ thống cấp.
           </p>
         </div>
         <button
@@ -259,59 +270,94 @@ export default function GovernanceActionsPage() {
       </header>
 
       <section className="governance-actions__summary" aria-label="Tổng quan hàng chờ">
+        <article className="governance-actions__summary-focus">
+          <div>
+            <span>Bạn có thể xử lý</span>
+            <strong>{actionableCount}</strong>
+          </div>
+          <p>
+            {actionableCount > 0
+              ? `${actionableCount} yêu cầu đang chờ quyết định theo quyền của bạn.`
+              : 'Hiện không có yêu cầu nào cần bạn xử lý.'}
+          </p>
+        </article>
         <article>
-          <span>Tổng yêu cầu</span>
-          <strong>{allActions.length}</strong>
+          <span>Đang chờ</span>
+          <strong>{pendingCount}</strong>
         </article>
         <article>
           <span>Chờ kiểm tra</span>
-          <strong>{allActions.filter((action) => action.status === 'PENDING_CHECK').length}</strong>
+          <strong>{pendingCheckCount}</strong>
         </article>
         <article>
           <span>Chờ phê duyệt</span>
-          <strong>{allActions.filter((action) => action.status === 'PENDING_APPROVAL').length}</strong>
-        </article>
-        <article>
-          <span>Bạn có thể xử lý</span>
-          <strong>{allActions.filter((action) => action.allowedActions.length > 0).length}</strong>
+          <strong>{pendingApprovalCount}</strong>
         </article>
       </section>
 
-      <div className="governance-actions__filter" role="group" aria-label="Phạm vi yêu cầu">
-        <button type="button" className={filter === 'PENDING' ? 'is-active' : ''} onClick={() => setFilter('PENDING')}>
-          Đang chờ
-        </button>
-        <button type="button" className={filter === 'ALL' ? 'is-active' : ''} onClick={() => setFilter('ALL')}>
-          Tất cả
-        </button>
-      </div>
-
-      {queue.isLoading ? (
-        <div className="governance-actions__state">
-          <Loader2 size={18} className="spin" />
-          Đang tải hàng chờ…
-        </div>
-      ) : null}
-
-      {queue.isError ? (
-        <div className="governance-actions__state is-error" role="alert">
-          <AlertTriangle size={18} />
+      <section className="governance-actions__queue" aria-labelledby="governance-queue-heading">
+        <div className="governance-actions__queue-header">
           <div>
-            <strong>Không tải được hàng chờ quản trị.</strong>
-            <p>{queue.error instanceof Error ? queue.error.message : 'Vui lòng thử lại.'}</p>
+            <h2 id="governance-queue-heading">Danh sách yêu cầu</h2>
+            <p>Ưu tiên các yêu cầu đang chờ, mở lịch sử khi cần đối chiếu.</p>
+          </div>
+          <div className="governance-actions__filter" role="group" aria-label="Phạm vi yêu cầu">
+            <button
+              type="button"
+              className={filter === 'PENDING' ? 'is-active' : ''}
+              aria-pressed={filter === 'PENDING'}
+              aria-label="Đang chờ"
+              onClick={() => setFilter('PENDING')}
+            >
+              Đang chờ
+              <span>{pendingCount}</span>
+            </button>
+            <button
+              type="button"
+              className={filter === 'ALL' ? 'is-active' : ''}
+              aria-pressed={filter === 'ALL'}
+              aria-label="Tất cả"
+              onClick={() => setFilter('ALL')}
+            >
+              Tất cả
+              <span>{allActions.length}</span>
+            </button>
           </div>
         </div>
-      ) : null}
 
-      {!queue.isLoading && !queue.isError && actions.length === 0 ? (
-        <div className="governance-actions__state">
-          <Clock3 size={18} />
-          Không có yêu cầu nào trong phạm vi này.
-        </div>
-      ) : null}
+        {queue.isLoading ? (
+          <div className="governance-actions__state">
+            <Loader2 size={18} className="spin" />
+            Đang tải hàng chờ…
+          </div>
+        ) : null}
 
-      {!queue.isLoading && !queue.isError && actions.length > 0 ? (
-        <div className="governance-actions__cards" data-testid="governance-action-card-list">
+        {queue.isError ? (
+          <div className="governance-actions__state is-error" role="alert">
+            <AlertTriangle size={18} />
+            <div>
+              <strong>Không tải được hàng chờ quản trị.</strong>
+              <p>{queue.error instanceof Error ? queue.error.message : 'Vui lòng thử lại.'}</p>
+            </div>
+          </div>
+        ) : null}
+
+        {!queue.isLoading && !queue.isError && actions.length === 0 ? (
+          <div className="governance-actions__state is-empty">
+            <Clock3 size={20} aria-hidden="true" />
+            <div>
+              <strong>Không có yêu cầu nào trong phạm vi này</strong>
+              <p>
+                {filter === 'PENDING'
+                  ? 'Hàng chờ đã được xử lý hết. Mở “Tất cả” để xem lịch sử.'
+                  : 'Chưa có yêu cầu quản trị nào được ghi nhận.'}
+              </p>
+            </div>
+          </div>
+        ) : null}
+
+        {!queue.isLoading && !queue.isError && actions.length > 0 ? (
+          <div className="governance-actions__cards" data-testid="governance-action-card-list">
           {actions.map((action) => {
             const tripExpenseDecision = tripExpenseDecisionSummary(action);
             const canCheck = action.allowedActions.includes('CHECK');
@@ -439,8 +485,9 @@ export default function GovernanceActionsPage() {
               </article>
             );
           })}
-        </div>
-      ) : null}
+          </div>
+        ) : null}
+      </section>
     </div>
   );
 }

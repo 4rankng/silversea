@@ -16,7 +16,11 @@ describe('getNavItems', () => {
   });
 
   it('includes the governance inbox for office roles only', () => {
-    expect(getNavItems(Role.ADMIN).some((item) => item.key === 'governance-actions' && item.path === '/governance-actions')).toBe(true);
+    expect(getNavItems(Role.ADMIN).some((item) => (
+      item.key === 'governance-actions'
+      && item.path === '/governance-actions'
+      && item.label === 'Chờ phê duyệt'
+    ))).toBe(true);
     expect(getNavItems(Role.MANAGER).some((item) => item.key === 'governance-actions' && item.path === '/governance-actions')).toBe(true);
     expect(getNavItems(Role.ACCOUNTANT).some((item) => item.key === 'governance-actions' && item.path === '/governance-actions')).toBe(true);
     expect(getNavItems(Role.DRIVER).some((item) => item.key === 'governance-actions')).toBe(false);

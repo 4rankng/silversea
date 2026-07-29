@@ -18,6 +18,7 @@ import { AuditLogWidget } from '../features/dashboard/components/AuditLogWidget'
 import { ApprovalQueueCard } from '../features/dashboard/components/ApprovalQueueCard';
 import { useApprovalQueue, canSeeApprovalQueue } from '../features/dashboard/hooks/useApprovalQueue';
 import { useDashboardAnimations } from '../features/dashboard/hooks/useDashboardAnimations';
+import { CompanyInfoSetupBanner } from '../features/dashboard/components/CompanyInfoSetupBanner';
 import { onboardingEvents } from '../lib/onboardingEvents';
 import './DashboardPage.css';
 import { CostBreakdown, DeltaPill, decisionIcon, fmtVN, greeting, runningSum, severityLabel, type CostBreakdownItem } from '../features/dashboard/components/dashboard-presenters';
@@ -347,18 +348,8 @@ export default function DashboardPage() {
           action={
             <button
               type="button"
+              className="wf-banner-action"
               onClick={() => navigate('/debt?filter=over90')}
-              style={{
-                background: 'transparent',
-                border: '1px solid currentColor',
-                color: 'inherit',
-                padding: '4px 10px',
-                borderRadius: 'var(--r-sm)',
-                fontSize: 'var(--fs-xs)',
-                fontWeight: 600,
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-              }}
             >
               Xem công nợ
             </button>
@@ -367,6 +358,7 @@ export default function DashboardPage() {
           <strong>{over90Count}</strong> khách hàng đang quá hạn trên 90 ngày. Cần xử lý sớm để giảm rủi ro nợ xấu.
         </Banner>
       )}
+      <CompanyInfoSetupBanner />
       {/* ── page head ── */}
       <header className="wf-head">
         <div className="wf-head__copy">
