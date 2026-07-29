@@ -29,7 +29,7 @@ That split is already reflected in the code and the UI. The main constraint is t
 
 ### Advance requests
 
-- Forwarder submits the request from the portal, via the forwarder client path into `/finance/advance-requests/:id/approve|reject` on the office side.
+- Office staff submits the decision from `AdminAdvancesPage`, via the shared forwarder client path into `/finance/advance-requests/:id/approve|reject`.
 - The route does `runIdempotent(... create: requestAdvanceRequestApprovalGovernance / requestAdvanceRequestRejectionGovernance ...)`, so the route itself creates a `governance_actions` row, not the final request mutation.
 - Final application happens later in `applyAdvanceRequestGovernanceAction()`, which calls `approveAdvanceRequest()` or `rejectAdvanceRequest()` inside the governance transition flow.
 - `approveAdvanceRequest()` directly mutates `advance_requests` to `APPROVED` and posts the `FORWARDER_ADVANCE` ledger entry.
