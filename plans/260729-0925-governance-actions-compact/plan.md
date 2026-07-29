@@ -1,6 +1,6 @@
 # Governance actions compact layout
 
-Status: complete
+Status: in_progress
 
 ## Goal
 
@@ -18,4 +18,6 @@ Remove the obsolete maker/checker/approver eyebrow and make `/governance-actions
 - Existing queue filtering, evidence, permissions, and mutations remain intact.
 - Desktop uses materially less vertical space while preserving readable data.
 - Mobile has no horizontal overflow and keeps usable touch targets.
+- Each request uses a compact action footer with a one-line rejection input.
+- Decision buttons remain readable but no longer dominate the request card.
 - Focused tests, frontend typecheck, lint, and build are green with artifacts under `qa/`.

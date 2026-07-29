@@ -420,57 +420,59 @@ export default function GovernanceActionsPage() {
                   </div>
                 ) : null}
 
-                <div className="governance-actions__permissions">
-                  <ShieldCheck size={16} />
-                  <span>Quyền xử lý từ máy chủ:</span>
-                  {action.allowedActions.length > 0
-                    ? action.allowedActions.map((allowedAction) => (
-                        <strong key={allowedAction}>{ACTION_LABELS[allowedAction]}</strong>
-                      ))
-                    : <strong>Chỉ xem</strong>}
-                </div>
-
-                {isPending(action.status) ? (
-                  <div className="governance-actions__decision">
-                    <div className="governance-actions__buttons">
-                      <ActionButton
-                        action="CHECK"
-                        allowed={canCheck}
-                        busy={checking}
-                        onClick={() => runVersionedMutation(action, checkMutation, 'CHECK', 'Không thể kiểm tra yêu cầu.')}
-                      />
-                      <ActionButton
-                        action="APPROVE"
-                        allowed={canApprove}
-                        busy={approving}
-                        onClick={() => runVersionedMutation(action, approveMutation, 'APPROVE', 'Không thể phê duyệt yêu cầu.')}
-                      />
-                    </div>
-                    <label>
-                      <span>Lý do từ chối</span>
-                      <textarea
-                        rows={3}
-                        value={rejectReasons[action.id] ?? ''}
-                        onChange={(event) => setRejectReasons((current) => ({
-                          ...current,
-                          [action.id]: event.target.value,
-                        }))}
-                        placeholder="Bắt buộc khi từ chối yêu cầu."
-                        disabled={!canReject || busy}
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      className="governance-actions__button is-danger"
-                      disabled={!canReject || busy}
-                      onClick={() => handleReject(action)}
-                      title={canReject ? undefined : 'Bạn không có quyền từ chối yêu cầu này'}
-                    >
-                      {rejecting ? <Loader2 size={16} className="spin" /> : <XCircle size={16} />}
-                      Từ chối
-                    </button>
+                <div className="governance-actions__footer">
+                  <div className="governance-actions__permissions">
+                    <ShieldCheck size={15} />
+                    <span>Quyền xử lý:</span>
+                    {action.allowedActions.length > 0
+                      ? action.allowedActions.map((allowedAction) => (
+                          <strong key={allowedAction}>{ACTION_LABELS[allowedAction]}</strong>
+                        ))
+                      : <strong>Chỉ xem</strong>}
                   </div>
-                ) : null}
+
+                  {isPending(action.status) ? (
+                    <div className="governance-actions__decision">
+                      <label>
+                        <span>Lý do từ chối</span>
+                        <input
+                          type="text"
+                          value={rejectReasons[action.id] ?? ''}
+                          onChange={(event) => setRejectReasons((current) => ({
+                            ...current,
+                            [action.id]: event.target.value,
+                          }))}
+                          placeholder="Nhập lý do khi từ chối"
+                          disabled={!canReject || busy}
+                        />
+                      </label>
+                      <div className="governance-actions__buttons">
+                        <ActionButton
+                          action="CHECK"
+                          allowed={canCheck}
+                          busy={checking}
+                          onClick={() => runVersionedMutation(action, checkMutation, 'CHECK', 'Không thể kiểm tra yêu cầu.')}
+                        />
+                        <ActionButton
+                          action="APPROVE"
+                          allowed={canApprove}
+                          busy={approving}
+                          onClick={() => runVersionedMutation(action, approveMutation, 'APPROVE', 'Không thể phê duyệt yêu cầu.')}
+                        />
+                        <button
+                          type="button"
+                          className="governance-actions__button is-danger"
+                          disabled={!canReject || busy}
+                          onClick={() => handleReject(action)}
+                          title={canReject ? undefined : 'Bạn không có quyền từ chối yêu cầu này'}
+                        >
+                          {rejecting ? <Loader2 size={15} className="spin" /> : <XCircle size={15} />}
+                          Từ chối
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
 
                 {actionErrors[action.id] ? (
                   <div className="governance-actions__action-error" role="alert">
