@@ -117,12 +117,11 @@ describe('GovernanceActionsPage', () => {
     expect(screen.getByText('ACCOUNTANT · #12')).toBeTruthy();
     expect(screen.getByText('Đã đối soát đủ bảng công và điều chỉnh.')).toBeTruthy();
     expect(screen.getByText('1 yêu cầu đang chờ quyết định theo quyền của bạn.')).toBeTruthy();
-    expect(screen.getByText('Phiên bản yêu cầu').parentElement?.textContent).toContain('4');
-    expect(screen.getByText('Phiên bản dữ liệu gốc').parentElement?.textContent).toContain('3');
+    expect(screen.getByText('Phiên bản').parentElement?.textContent).toContain('YC 4 · Gốc 3');
     expect(screen.getByText('Quyền xử lý:').parentElement?.textContent).toContain('Kiểm tra');
     expect(screen.getByPlaceholderText('Nhập lý do khi từ chối').tagName).toBe('INPUT');
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Kiểm tra' }).disabled).toBe(false);
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Phê duyệt' }).disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Phê duyệt' })).toBeNull();
   });
 
   it('labels salary issue and official posting operations distinctly from period close', async () => {
@@ -220,10 +219,8 @@ describe('GovernanceActionsPage', () => {
     ];
     renderPage();
 
-    const checkButtons = await screen.findAllByRole('button', { name: 'Kiểm tra' });
-    const approveButtons = screen.getAllByRole('button', { name: 'Phê duyệt' });
-    fireEvent.click(checkButtons[0]);
-    fireEvent.click(approveButtons[1]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Kiểm tra' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Phê duyệt' }));
 
     await waitFor(() => expect(checkMutateAsyncMock).toHaveBeenCalledWith({
       id: 501,
