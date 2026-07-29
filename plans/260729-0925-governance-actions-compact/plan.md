@@ -1,6 +1,6 @@
 # Governance actions compact layout
 
-Status: in_progress
+Status: complete
 
 ## Goal
 
