@@ -13,6 +13,8 @@
 
 import { db } from '../db';
 import * as s from '../db/schema';
+import { createHash } from 'node:crypto';
+import { config } from '../config';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
@@ -20,6 +22,7 @@ import {
   captureIssuedOfficialIdentitySnapshot,
   getDocument,
 } from './billingDocument.service';
+import { DURABLE_EFFECT_KIND, enqueueDurableEffect } from './durable-effect.service';
 
 type DebitNoteStatus = typeof s.debitNoteStatusEnum.enumValues[number];
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -50,9 +53,17 @@ export interface TransitionInput {
   actorUserId: number;
   /** Reject when the locked row no longer has the status observed by the caller. */
   expectedStatus?: DebitNoteStatus;
+  /** Optimistic document version observed by the caller. */
+  expectedVersion?: number;
   /** Required when targetStatus = CONFIRMED (who confirmed). */
   confirmedBy?: string;
   reason?: string;
+  disputeEvidence?: {
+    customerId: number;
+    reason: string;
+    evidenceRefs: string[];
+    idempotencyKey: string;
+  };
   transaction?: Tx;
 }
 
@@ -65,6 +76,9 @@ export async function transitionDebitNoteStatus(input: TransitionInput) {
     if (!doc) throw new ApiError(404, 'Không tìm thấy giấy báo nợ');
 
     const currentStatus = (doc.debitNoteStatus ?? 'DRAFT') as DebitNoteStatus;
+    if (input.expectedVersion !== undefined && doc.version !== input.expectedVersion) {
+      throw new ApiError(409, 'Giấy báo nợ vừa thay đổi. Vui lòng tải lại và thử lại.');
+    }
     if (input.expectedStatus !== undefined && currentStatus !== input.expectedStatus) {
       throw new ApiError(409, 'Trạng thái giấy báo nợ vừa thay đổi. Vui lòng tải lại và thử lại.');
     }
@@ -73,6 +87,16 @@ export async function transitionDebitNoteStatus(input: TransitionInput) {
         409,
         `Không thể chuyển giấy báo nợ từ "${currentStatus}" sang "${input.targetStatus}".`,
       );
+    }
+    if (currentStatus === input.targetStatus) return doc;
+    if (input.targetStatus === 'REJECTED') {
+      const evidence = input.disputeEvidence;
+      if (!evidence?.reason.trim() || !evidence.idempotencyKey.trim()) {
+        throw new ApiError(400, 'Lý do và mã giao dịch khiếu nại là bắt buộc.');
+      }
+      if (doc.entityType !== 'CUSTOMER' || doc.entityId !== evidence.customerId) {
+        throw new ApiError(404, 'Không tìm thấy giấy báo nợ');
+      }
     }
 
     const readTripSourceIds = async () => {
@@ -117,6 +141,7 @@ export async function transitionDebitNoteStatus(input: TransitionInput) {
 
     const updates: Partial<typeof s.billingDocuments.$inferInsert> = {
       debitNoteStatus: input.targetStatus,
+      version: doc.version + 1,
       updatedAt: new Date(),
     };
 
@@ -124,6 +149,23 @@ export async function transitionDebitNoteStatus(input: TransitionInput) {
     if (input.targetStatus === 'CONFIRMED') {
       updates.customerConfirmedAt = new Date();
       if (input.confirmedBy) updates.customerConfirmedBy = input.confirmedBy;
+      if (config.workflowRolloutMode !== 'OFF') {
+        const confirmedVersion = doc.version + 1;
+        const payloadHash = createHash('sha256').update(JSON.stringify({
+          documentId: doc.id,
+          confirmedVersion,
+          entityId: doc.entityId,
+          totalInclVat: doc.totalInclVat,
+          officialIdentitySnapshot: doc.officialIdentitySnapshot,
+        })).digest('hex');
+        updates.legalInvoiceRef = {
+          provider: 'REFERENCE_ONLY',
+          status: 'PENDING',
+          requestVersion: confirmedVersion,
+          payloadHash,
+          updatedAt: new Date().toISOString(),
+        };
+      }
     }
     if (currentStatus === 'DRAFT' && input.targetStatus === 'SENT') {
       const hydratedDocument = await getDocument(doc.id, tx);
@@ -148,12 +190,41 @@ export async function transitionDebitNoteStatus(input: TransitionInput) {
       .where(and(
         eq(s.billingDocuments.id, input.documentId),
         isNull(s.billingDocuments.deletedAt),
+        eq(s.billingDocuments.version, doc.version),
         statusCondition,
       ))
       .returning();
 
     if (!updated) {
       throw new ApiError(409, 'Trạng thái giấy báo nợ vừa thay đổi. Vui lòng tải lại và thử lại.');
+    }
+
+    if (input.targetStatus === 'REJECTED' && input.disputeEvidence) {
+      await tx.insert(s.billingDocumentDisputes).values({
+        documentId: doc.id,
+        documentVersion: updated.version,
+        customerId: input.disputeEvidence.customerId,
+        disputedBy: input.actorUserId,
+        reason: input.disputeEvidence.reason.trim(),
+        evidenceRefs: input.disputeEvidence.evidenceRefs
+          .map((reference) => reference.trim())
+          .filter(Boolean),
+        idempotencyKey: input.disputeEvidence.idempotencyKey.trim(),
+      });
+    }
+
+    if (input.targetStatus === 'CONFIRMED' && updated.legalInvoiceRef) {
+      await enqueueDurableEffect(tx, {
+        kind: DURABLE_EFFECT_KIND.LEGAL_INVOICE_HANDOFF,
+        payloadVersion: 1,
+        dedupeKey: `legal-invoice:REFERENCE_ONLY:${doc.id}:${updated.version}:ISSUE`,
+        payload: {
+          documentId: doc.id,
+          confirmedVersion: updated.version,
+          provider: 'REFERENCE_ONLY',
+          payloadHash: updated.legalInvoiceRef.payloadHash!,
+        },
+      });
     }
 
     return updated;
@@ -164,6 +235,22 @@ export async function transitionDebitNoteStatus(input: TransitionInput) {
   }
 
   return db.transaction(execute);
+}
+
+export async function sendDebitNoteForCustomerConfirmation(input: {
+  documentId: number;
+  expectedVersion: number;
+  actorUserId: number;
+  transaction?: Tx;
+}) {
+  return transitionDebitNoteStatus({
+    documentId: input.documentId,
+    targetStatus: 'PENDING_CONFIRM',
+    expectedStatus: 'SENT',
+    expectedVersion: input.expectedVersion,
+    actorUserId: input.actorUserId,
+    transaction: input.transaction,
+  });
 }
 
 // ─── Lock check ─────────────────────────────────────────────────────────────

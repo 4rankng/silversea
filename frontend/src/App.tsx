@@ -32,6 +32,8 @@ const TripCreatePage = lazy(() => import('./pages/TripCreatePage'));
 const TripDetailPage = lazy(() => import('./pages/TripDetailPage'));
 const TripEditPage = lazy(() => import('./pages/TripEditPage'));
 const FinancePage = lazy(() => import('./pages/FinancePage'));
+const TreasuryPositionPage = lazy(() => import('./pages/TreasuryPositionPage'));
+const RecoverableCostsPage = lazy(() => import('./pages/RecoverableCostsPage'));
 const DebtListPage = lazy(() => import('./pages/DebtListPage'));
 const DebtDetailPage = lazy(() => import('./pages/DebtDetailPage'));
 const PenaltyPage = lazy(() => import('./pages/PenaltyPage'));
@@ -135,12 +137,15 @@ export function AppRoutes() {
   const isAdmin = user?.role === Role.ADMIN;
   const driverHome = routes.myTrips;
   const forwarderHome = routes.myForwarderTrips;
-  const clerkHome = routes.clerkShipmentNew;
+  const clerkHome = routes.shipments;
   const adminHome = routes.dashboard;
   const isPortalUser = isDriver || isForwarder;
   const portalHome = isDriver ? driverHome : forwarderHome;
   const customerHome = routes.portalShipments;
   const isCustomer = user?.role === Role.CUSTOMER;
+  const accountantWithoutExecutiveDashboard = user?.role === Role.ACCOUNTANT
+    && user.workflowRolloutMode === 'ACTIVE'
+    && !user.capabilities?.includes('executive_dashboard.read');
   const defaultHome = homeForRole(user?.role ?? '');
   const homeRedirect = isDriver
     ? driverHome
@@ -158,6 +163,21 @@ export function AppRoutes() {
   const managerOrAdminOnly = (el: ReactElement) => (isAdmin || user?.role === Role.MANAGER ? el : <Navigate to={homeRedirect} replace />);
   // /users is the single home for everyone; accountants get scoped (driver-only) access.
   const officeStaffOnly = (el: ReactElement) => (isAdmin || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT ? el : <Navigate to={homeRedirect} replace />);
+  const financeReaderOnly = (el: ReactElement) => (
+    isAdmin || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT
+      ? el
+      : <Navigate to={homeRedirect} replace />
+  );
+  const activeCapabilityOnly = (capability: string, el: ReactElement) => (
+    user?.workflowRolloutMode === 'ACTIVE' && user.capabilities?.includes(capability)
+      ? el
+      : <Navigate to={homeRedirect} replace />
+  );
+  const recoverableCostOnly = (el: ReactElement) => (
+    isAdmin || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT || isClerk
+      ? el
+      : <Navigate to={homeRedirect} replace />
+  );
   // M10.1: CLERK (nhân viên chứng từ) mobile surfaces. ADMIN is admitted as
   // superuser; every other role is bounced to its own home. CLERK's home is
   // the create page itself until a clerk landing page ships.
@@ -189,7 +209,7 @@ export function AppRoutes() {
           <Route path="/" element={<Navigate to={defaultHome} replace />} />
           <Route
             path="/dashboard"
-            element={isPortalUser || isCustomer || isClerk ? <Navigate to={homeRedirect} replace /> : page(<DashboardPage />)}
+            element={isPortalUser || isCustomer || isClerk || accountantWithoutExecutiveDashboard ? <Navigate to={homeRedirect} replace /> : page(<DashboardPage />)}
           />
           <Route path="/dispatch" element={managerOrAdminOnly(page(<DispatchPage />))} />
           <Route path="/fleet" element={adminOnly(page(<FleetPage />))} />
@@ -200,7 +220,9 @@ export function AppRoutes() {
           <Route path="/trips/:id" element={adminOnly(page(<TripDetailPage />))} />
           <Route path="/trips/:id/edit" element={adminOnly(page(<TripEditPage />))} />
           <Route path="/finance" element={adminOnly(page(<FinancePage />))} />
-          <Route path="/profit" element={adminOnly(page(<ProfitPage />))} />
+          <Route path="/finance/treasury" element={activeCapabilityOnly('treasury.read', financeReaderOnly(page(<TreasuryPositionPage />)))} />
+          <Route path="/recoverable-costs" element={activeCapabilityOnly('recoverable_costs.read', recoverableCostOnly(page(<RecoverableCostsPage />)))} />
+          <Route path="/profit" element={financeReaderOnly(page(<ProfitPage />))} />
           <Route path="/debt" element={adminOnly(page(<DebtListPage />))} />
           <Route path="/debt/:id" element={adminOnly(page(<DebtDetailPage />))} />
           <Route path="/debt/:id/billing/new" element={adminOnly(page(<DebtDetailPage />))} />
@@ -218,9 +240,9 @@ export function AppRoutes() {
           {/* Wave 0: shipment (lô hàng) read-only list + detail. RBAC mirrors
               the shipments Casbin resource (ADMIN wildcard, MANAGER/ACCOUNTANT
               read). CLERK gets its own portal surface in a later wave. */}
-          <Route path="/shipments" element={officeStaffOnly(page(<ShipmentsPage />))} />
+          <Route path="/shipments" element={isClerk ? page(<ShipmentsPage />) : officeStaffOnly(page(<ShipmentsPage />))} />
           <Route path="/shipments/new" element={shipmentOperatorOnly(page(<ClerkShipmentCreatePage />))} />
-          <Route path="/shipments/:id" element={officeStaffOnly(page(<ShipmentDetailPage />))} />
+          <Route path="/shipments/:id" element={isClerk ? page(<ShipmentDetailPage />) : officeStaffOnly(page(<ShipmentDetailPage />))} />
           <Route path="/routes" element={<Navigate to="/config/routes" replace />} />
           <Route path="/trucks" element={<Navigate to="/fleet" replace />} />
           <Route path="/drivers" element={<Navigate to="/fleet" replace />} />

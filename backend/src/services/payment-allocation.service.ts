@@ -8,6 +8,12 @@ import { ApiError } from '../errors';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent, hashPayload } from './idempotency.service';
 import type { Tx } from './trip-shared';
 import { assertCanMakeGovernanceAction } from './governance-policy';
+import {
+  insertTreasuryMovement,
+  resolveTreasuryPaymentContract,
+  type ResolvedTreasuryPaymentContract,
+  type TreasuryPaymentFields,
+} from './treasury.service';
 
 const MAX_PAYMENT_INSTRUCTIONS = 200;
 const MAX_DEFAULT_AUTO_ALLOCATIONS = 200;
@@ -18,7 +24,7 @@ export interface PaymentInstruction {
   amount: number;
 }
 
-export interface PaymentReceiptInput {
+export interface PaymentReceiptInput extends TreasuryPaymentFields {
   customerId: number;
   receiptId: string;
   amount?: number;
@@ -34,6 +40,7 @@ interface NormalizedPaymentReceiptInput {
   allocationMethod: PaymentAllocationMethod;
   requestHash: string;
   allocatedBy: number | null;
+  treasury: ResolvedTreasuryPaymentContract;
 }
 
 interface PersistedPaymentReceiptResult extends PaymentReceiptResult {
@@ -111,7 +118,15 @@ function normalizePaymentInstructions(payments: PaymentInstruction[] | undefined
   return normalized;
 }
 
-function normalizePaymentReceiptInput(input: PaymentReceiptInput): NormalizedPaymentReceiptInput {
+function normalizePaymentReceiptInput(
+  input: PaymentReceiptInput,
+  treasury: ResolvedTreasuryPaymentContract = {
+    treasuryAccountId: null,
+    valueDate: null,
+    physicalReference: null,
+    paymentContractVersion: 1,
+  },
+): NormalizedPaymentReceiptInput {
   const customerId = Number(input.customerId);
   if (!Number.isInteger(customerId) || customerId <= 0) {
     throw new ApiError(400, 'customerId không hợp lệ');
@@ -135,12 +150,17 @@ function normalizePaymentReceiptInput(input: PaymentReceiptInput): NormalizedPay
   }
 
   const allocationMethod: PaymentAllocationMethod = payments ? 'EXPLICIT' : 'OLDEST_DUE';
-  const requestHash = hashPayload({
+  const baseRequestPayload = {
     customerId,
     receiptId,
     amount: receivedAmount,
     payments,
-  });
+  };
+  const requestHash = hashPayload(
+    treasury.treasuryAccountId == null
+      ? baseRequestPayload
+      : { ...baseRequestPayload, treasury },
+  );
 
   return {
     customerId,
@@ -150,6 +170,7 @@ function normalizePaymentReceiptInput(input: PaymentReceiptInput): NormalizedPay
     allocationMethod,
     requestHash,
     allocatedBy: input.allocatedBy ?? null,
+    treasury,
   };
 }
 
@@ -715,6 +736,10 @@ async function createOrReplayPaymentReceiptTx(
     unappliedAmount: String(unappliedAmount),
     allocationMethod: input.allocationMethod,
     requestHash: input.requestHash,
+    treasuryAccountId: input.treasury.treasuryAccountId,
+    valueDate: input.treasury.valueDate,
+    physicalReference: input.treasury.physicalReference,
+    paymentContractVersion: input.treasury.paymentContractVersion,
     createdBy: input.allocatedBy,
   }).returning({ id: s.paymentReceipts.id });
 
@@ -785,12 +810,13 @@ export async function requestPaymentReceiptGovernance(input: {
   transaction?: Tx;
 }): Promise<GovernanceActionRow> {
   assertCanMakeGovernanceAction('PAYMENT_RECEIPT', input.makerRole);
-  const normalized = normalizePaymentReceiptInput({
-    ...input.payment,
-    allocatedBy: input.makerId,
-  });
-
   const execute = async (tx: Tx) => {
+    const requestedAt = new Date();
+    const treasury = await resolveTreasuryPaymentContract(tx, input.payment, requestedAt);
+    const normalized = normalizePaymentReceiptInput({
+      ...input.payment,
+      allocatedBy: input.makerId,
+    }, treasury);
     await tx.execute(
       sql`select pg_advisory_xact_lock(hashtextextended(${`payment-receipt\u001f${normalized.receiptId}`}, 0))`,
     );
@@ -835,12 +861,18 @@ export async function requestPaymentReceiptGovernance(input: {
         allocationMethod: normalized.allocationMethod,
         allocatedBy: normalized.allocatedBy,
         requestHash: normalized.requestHash,
+        treasuryAccountId: treasury.treasuryAccountId,
+        valueDate: treasury.valueDate,
+        physicalReference: treasury.physicalReference,
+        paymentContractVersion: treasury.paymentContractVersion,
       },
       deltaSnapshot: {
         customerBalanceDelta: -normalized.receivedAmount,
       },
       makerId: input.makerId,
       makerRole: input.makerRole,
+      createdAt: requestedAt,
+      updatedAt: requestedAt,
     }).returning();
     return action;
   };
@@ -878,13 +910,50 @@ export async function applyPaymentReceiptGovernanceAction(
     throw new ApiError(409, 'Công nợ khách hàng đã thay đổi; yêu cầu này không thể áp dụng');
   }
 
+  const treasury = await resolveTreasuryPaymentContract(tx, {
+    treasuryAccountId: afterSnapshot?.treasuryAccountId == null
+      ? null
+      : Number(afterSnapshot.treasuryAccountId),
+    valueDate: typeof afterSnapshot?.valueDate === 'string' ? afterSnapshot.valueDate : null,
+    physicalReference: typeof afterSnapshot?.physicalReference === 'string'
+      ? afterSnapshot.physicalReference
+      : null,
+  }, action.createdAt);
+  const snapshottedContractVersion = Number(afterSnapshot?.paymentContractVersion ?? 1);
+  if (snapshottedContractVersion !== treasury.paymentContractVersion) {
+    throw new ApiError(409, 'Phiên bản hợp đồng thanh toán không còn phù hợp với thời điểm chuyển đổi kho quỹ');
+  }
+
   const persisted = await createOrReplayPaymentReceiptTx(tx, normalizePaymentReceiptInput({
     customerId,
     receiptId,
     amount,
     payments,
     allocatedBy,
-  }));
+  }, treasury));
+
+  let treasuryMovementId: number | null = null;
+  if (
+    treasury.paymentContractVersion >= 2
+    && treasury.treasuryAccountId
+    && treasury.valueDate
+    && treasury.physicalReference
+  ) {
+    const movement = await insertTreasuryMovement(tx, {
+      treasuryAccountId: treasury.treasuryAccountId,
+      direction: 'IN',
+      amount,
+      valueDate: treasury.valueDate,
+      physicalReference: treasury.physicalReference,
+      paymentContractVersion: treasury.paymentContractVersion,
+      paymentReceiptId: persisted.id,
+      sourceVersion: persisted.version,
+      externalReference: receiptId,
+      governanceActionId: action.id,
+      createdBy: action.makerId,
+    });
+    treasuryMovementId = movement.id;
+  }
 
   const [firstLedgerRow] = await tx.select({ id: s.ledger.id })
     .from(s.ledger)
@@ -910,6 +979,8 @@ export async function applyPaymentReceiptGovernanceAction(
       customerId: persisted.customerId,
       allocatedTotal: persisted.allocatedTotal,
       unappliedAmount: persisted.unappliedAmount,
+      treasuryMovementId,
+      paymentContractVersion: treasury.paymentContractVersion,
     },
   };
 }

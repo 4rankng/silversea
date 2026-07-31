@@ -718,6 +718,8 @@ export interface TripExpense {
   expenseType: string;
   buyAmount: string;
   sellAmount: string;
+  recoverablePrincipalAmount?: string | null;
+  serviceFeeAmount?: string | null;
   settlementMethod: 'COMPANY_DIRECT' | 'FORWARDER_ADVANCE';
   supplierId: number | null;
   expenseDate: string | null;
@@ -1134,6 +1136,11 @@ export interface CreatePaymentRequest {
   receiptId: string;
   amount?: number;
   payments?: { tripId: number; amount: number }[];
+  treasuryAccountId?: number;
+  valueDate?: string;
+  physicalReference?: string;
+  externalReference?: string;
+  paymentContractVersion?: 2;
 }
 
 export type PaymentAllocationMethod = 'OLDEST_DUE' | 'EXPLICIT';
@@ -1156,6 +1163,10 @@ export interface PaymentReceiptResult {
   refundedAmount: number;
   version: number;
   allocationMethod: PaymentAllocationMethod;
+  treasuryAccountId?: number | null;
+  valueDate?: string | null;
+  physicalReference?: string | null;
+  paymentContractVersion?: number;
   createdAt: string;
 }
 
@@ -1207,6 +1218,76 @@ export interface DashboardStats {
   topOverdueCustomer?: { name: string; balance: number; days: number } | null;
   topShareholder?: { name: string; percentage: number } | null;
   decisionItems?: DashboardDecisionItem[];
+}
+
+export interface TreasuryAccountPosition {
+  accountId: number;
+  code: string;
+  name: string;
+  type: 'CASH' | 'BANK';
+  openingBalance: number;
+  inflow: number;
+  outflow: number;
+  bookBalance: number;
+  asOf: string;
+  coverage: 'COMPLETE' | 'PARTIAL' | 'UNAVAILABLE';
+}
+
+export interface TreasuryPosition {
+  asOf: string;
+  currency: 'VND';
+  cashBookBalance: number | null;
+  bankBookBalance: number | null;
+  coverage: 'COMPLETE' | 'PARTIAL' | 'UNAVAILABLE';
+  accounts: TreasuryAccountPosition[];
+}
+
+export interface CustomerVisibleEventDto {
+  id: number;
+  shipmentId: number;
+  eventType: 'MILESTONE' | 'DELIVERY_PLAN' | 'DOCUMENT_UPDATE' | 'DEBIT_NOTE_CONFIRMATION';
+  version: number;
+  title: string;
+  message: string;
+  occurredAt: string;
+  acknowledged: boolean;
+  acknowledgedAt: string | null;
+}
+
+export interface RecoverableCostEligibility {
+  expenseId: number;
+  expenseVersion: number;
+  customerId: number;
+  shipmentId: number;
+  tripId: number;
+  approvalStatus: string;
+  evidenceStatus: 'COMPLETE' | 'MISSING' | 'SUBSTITUTE_ALLOWED';
+  billingState: 'ELIGIBLE' | 'CLAIMED' | 'ADJUSTMENT_REQUIRED' | 'BLOCKED';
+  recoverablePrincipalAmount: number | null;
+  serviceFeeAmount: number | null;
+  blockedReason: string | null;
+}
+
+export interface ProfitabilityReportRow {
+  dimensionKey: string;
+  dimensionLabel: string;
+  revenue: number;
+  directCost: number;
+  sharedOverhead: number;
+  profit: number;
+  marginPercent: number | null;
+  attributionStatus: 'ATTRIBUTED' | 'MISSING';
+}
+
+export interface ProfitabilityReport {
+  dimension: 'CUSTOMER' | 'ROUTE' | 'TRUCK' | 'DISPATCHER' | 'SALESPERSON' | 'MONTH' | 'YEAR' | 'CONTAINER';
+  from: string;
+  to: string;
+  asOf: string;
+  definitionVersion: 1;
+  totals: Omit<ProfitabilityReportRow, 'dimensionKey' | 'dimensionLabel' | 'attributionStatus'>;
+  rows: ProfitabilityReportRow[];
+  missingAttributionCount: number;
 }
 
 export type DashboardDecisionSeverity = 'critical' | 'warning' | 'info' | 'success';
@@ -1377,6 +1458,17 @@ export interface BillingLineRenderData {
 export type BillingLineProvenanceStatus = 'CURRENT' | 'STALE' | 'REMOVED';
 export type BillingDocumentAuthorityState = 'CURRENT' | 'STALE' | 'ADJUSTMENT_REQUIRED';
 
+export interface BillingDocumentLegalInvoiceRef {
+  provider?: string;
+  status: 'PENDING' | 'UNKNOWN' | 'ISSUED' | 'DEAD' | 'CANCELED';
+  providerReference?: string;
+  requestVersion: number;
+  payloadHash?: string;
+  checksum?: string;
+  issuedAt?: string;
+  updatedAt: string;
+}
+
 export interface BillingLineProvenance {
   sourceVersion: string | null;
   currentSourceVersion: string | null;
@@ -1453,6 +1545,7 @@ export interface BillingDocumentOfficialIdentitySnapshot {
 
 export interface BillingDocument {
   id: number;
+  version?: number;
   type: BillingDocumentType;
   entityType: BillingDocumentEntityType;
   entityId: number;
@@ -1471,6 +1564,7 @@ export interface BillingDocument {
   paymentTermDaysApplied?: number | null;
   paymentDatePolicyApplied?: 'NEXT_BUSINESS_DAY' | 'CALENDAR_DAY' | null;
   officialIdentitySnapshot?: BillingDocumentOfficialIdentitySnapshot | null;
+  legalInvoiceRef?: BillingDocumentLegalInvoiceRef | null;
   createdBy: number | null;
   createdAt: string;
   updatedAt: string;

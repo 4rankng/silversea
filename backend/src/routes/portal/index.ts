@@ -1,11 +1,16 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { ShipmentStatus } from '@tingting/shared';
+import {
+  ShipmentStatus,
+  acknowledgeCustomerEventSchema,
+  portalDebitNoteDecisionSchema,
+} from '@tingting/shared';
 import { and, count, desc, eq, isNotNull, isNull, ne } from 'drizzle-orm';
 import { db } from '../../db';
 import * as s from '../../db/schema';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { getUser } from '../../middleware/auth';
+import { requireWorkflowActive } from '../../middleware/workflow-rollout';
 import { canAccessCustomer, scopedByCustomer } from '../../lib/scoped-by-customer';
 import {
   buildLegacyXlsx,
@@ -26,12 +31,19 @@ import { parsePagination } from '../utils/pagination';
 import { ApiError } from '../../errors';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
+import {
+  acknowledgeCustomerVisibleEvent,
+  listCustomerVisibleEvents,
+} from '../../services/shipment-coordination.service';
+import { z } from 'zod';
+import { throwValidation } from '../../lib/validation';
 
 const router = Router();
 
 function toCustomerDebitNote(doc: Awaited<ReturnType<typeof getDocument>>) {
   return {
     id: doc.id,
+    version: doc.version,
     entityId: doc.entityId,
     entityName: doc.entityName,
     rangeFrom: doc.rangeFrom,
@@ -45,6 +57,7 @@ function toCustomerDebitNote(doc: Awaited<ReturnType<typeof getDocument>>) {
     debitNoteStatus: doc.debitNoteStatus,
     customerConfirmedAt: doc.customerConfirmedAt,
     customerConfirmedBy: doc.customerConfirmedBy,
+    legalInvoiceRef: doc.legalInvoiceRef,
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
     lines: doc.lines.filter((line) => !line.excluded).map((line) => ({
@@ -213,6 +226,36 @@ router.get('/shipments/:id', asyncHandler(async (req: Request, res: Response) =>
   res.json(toCustomerShipmentDetail(detail));
 }));
 
+router.get('/shipments/:id/customer-events', requireWorkflowActive, asyncHandler(async (req: Request, res: Response) => {
+  const shipmentId = parsePositiveId(String(req.params.id), 'ID lô hàng');
+  const customerId = resolveSelectedCustomerId(req);
+  const items = await listCustomerVisibleEvents({
+    shipmentId,
+    actor: getUser(req),
+    expectedCustomerId: customerId,
+  });
+  res.json({ items });
+}));
+
+router.post('/shipments/:id/customer-events/:eventId/acknowledge', requireWorkflowActive, asyncHandler(async (req: Request, res: Response) => {
+  const shipmentId = parsePositiveId(String(req.params.id), 'ID lô hàng');
+  const eventId = parsePositiveId(String(req.params.eventId), 'ID sự kiện');
+  const parsed = acknowledgeCustomerEventSchema.safeParse(req.body);
+  if (!parsed.success) throwValidation(parsed.error);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  if (!idempotencyKey) throw new ApiError(400, 'Idempotency-Key là bắt buộc');
+  const acknowledgement = await acknowledgeCustomerVisibleEvent({
+    shipmentId,
+    eventId,
+    expectedVersion: parsed.data.expectedVersion,
+    kind: parsed.data.kind,
+    idempotencyKey,
+    actor: getUser(req),
+    expectedCustomerId: resolveSelectedCustomerId(req),
+  });
+  res.status(201).json(acknowledgement);
+}));
+
 router.get('/debit-notes', asyncHandler(async (req: Request, res: Response) => {
   const { page, limit } = parsePagination(req);
   const customerId = resolveSelectedCustomerId(req);
@@ -227,6 +270,7 @@ router.get('/debit-notes', asyncHandler(async (req: Request, res: Response) => {
   const [items, totalRows] = await Promise.all([
     db.select({
       id: s.billingDocuments.id,
+      version: s.billingDocuments.version,
       entityId: s.billingDocuments.entityId,
       entityName: s.billingDocuments.entityName,
       rangeFrom: s.billingDocuments.rangeFrom,
@@ -239,6 +283,7 @@ router.get('/debit-notes', asyncHandler(async (req: Request, res: Response) => {
       debitNoteStatus: s.billingDocuments.debitNoteStatus,
       customerConfirmedAt: s.billingDocuments.customerConfirmedAt,
       customerConfirmedBy: s.billingDocuments.customerConfirmedBy,
+      legalInvoiceRef: s.billingDocuments.legalInvoiceRef,
       createdAt: s.billingDocuments.createdAt,
       updatedAt: s.billingDocuments.updatedAt,
     }).from(s.billingDocuments)
@@ -259,6 +304,12 @@ router.post('/debit-notes/:id/confirm', asyncHandler(async (req: Request, res: R
   const doc = await getOwnDebitNote(req);
   const user = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);
+  if (!idempotencyKey) throw new ApiError(400, 'Idempotency-Key là bắt buộc');
+  const input = portalDebitNoteDecisionSchema.parse({
+    decision: 'CONFIRM',
+    ...req.body,
+  });
+  const customerId = resolveSelectedCustomerId(req);
   const { result, replayed } = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.PORTAL_DEBIT_NOTE_CONFIRM,
     idempotencyKey,
@@ -266,14 +317,20 @@ router.post('/debit-notes/:id/confirm', asyncHandler(async (req: Request, res: R
       actorId: user.userId,
       documentId: doc.id,
       targetStatus: 'CONFIRMED',
+      expectedVersion: input.expectedVersion,
     },
     createdBy: user.userId,
     entityType: 'billing_document',
     create: async (tx) => {
+      const current = await getDocument(doc.id, tx);
+      if (current.entityType !== 'CUSTOMER' || current.entityId !== customerId) {
+        throw new ApiError(404, 'Không tìm thấy giấy báo nợ');
+      }
       await transitionDebitNoteStatus({
         documentId: doc.id,
         targetStatus: 'CONFIRMED',
         expectedStatus: 'PENDING_CONFIRM',
+        expectedVersion: input.expectedVersion,
         actorUserId: user.userId,
         confirmedBy: user.fullName ?? user.username ?? user.email ?? `Khách hàng #${doc.entityId}`,
         transaction: tx,
@@ -288,6 +345,15 @@ router.post('/debit-notes/:id/dispute', asyncHandler(async (req: Request, res: R
   const doc = await getOwnDebitNote(req);
   const user = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);
+  if (!idempotencyKey) throw new ApiError(400, 'Idempotency-Key là bắt buộc');
+  const input = portalDebitNoteDecisionSchema.parse({
+    decision: 'DISPUTE',
+    ...req.body,
+  });
+  if (input.decision !== 'DISPUTE') {
+    throw new ApiError(400, 'Quyết định phản hồi không hợp lệ');
+  }
+  const customerId = resolveSelectedCustomerId(req);
   const { result, replayed } = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.PORTAL_DEBIT_NOTE_DISPUTE,
     idempotencyKey,
@@ -295,15 +361,30 @@ router.post('/debit-notes/:id/dispute', asyncHandler(async (req: Request, res: R
       actorId: user.userId,
       documentId: doc.id,
       targetStatus: 'REJECTED',
+      expectedVersion: input.expectedVersion,
+      reason: input.reason,
+      evidenceRefs: input.evidenceRefs,
     },
     createdBy: user.userId,
     entityType: 'billing_document',
     create: async (tx) => {
+      const current = await getDocument(doc.id, tx);
+      if (current.entityType !== 'CUSTOMER' || current.entityId !== customerId) {
+        throw new ApiError(404, 'Không tìm thấy giấy báo nợ');
+      }
       await transitionDebitNoteStatus({
         documentId: doc.id,
         targetStatus: 'REJECTED',
         expectedStatus: 'PENDING_CONFIRM',
+        expectedVersion: input.expectedVersion,
         actorUserId: user.userId,
+        reason: input.reason,
+        disputeEvidence: {
+          customerId,
+          reason: input.reason,
+          evidenceRefs: input.evidenceRefs,
+          idempotencyKey,
+        },
         transaction: tx,
       });
       return toCustomerDebitNote(await getDocument(doc.id, tx));

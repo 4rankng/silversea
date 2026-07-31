@@ -52,6 +52,8 @@ import mapsRoutes from './routes/maps';
 import notificationRoutes from './routes/notifications';
 import salaryRoutes from './routes/salary';
 import geotagRoutes from './routes/geotag';
+import recoverableCostRoutes from './routes/recoverable-costs';
+import { requireWorkflowActive } from './middleware/workflow-rollout';
 
 await initAuditService();
 await initNotificationService();
@@ -220,6 +222,7 @@ app.use('/api/trips', authMiddleware, casbinAuthz('trips'), tripRoutes);
 // read+write. CUSTOMER/DRIVER/FORWARDER are denied at this mount; the customer
 // portal ships its own row-scoped surface in Wave 2.
 app.use('/api/shipments', authMiddleware, casbinAuthz('shipments'), shipmentRoutes);
+app.use('/api/recoverable-costs', authMiddleware, requireWorkflowActive, casbinAuthz('recoverable_costs'), recoverableCostRoutes);
 app.use('/api/portal', authMiddleware, casbinAuthz('customer_portal'), requireRoles(Role.CUSTOMER), portalRoutes);
 // Command-and-insight assistant (bot). Acts as the caller; office roles only.
 // 503 while BOT_ENABLE is off. Mounts before the catch-all /api.

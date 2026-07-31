@@ -20,6 +20,9 @@ import { useMonth } from '../hooks/useMonth';
 import { usePageAnimations, useCounterAnimation } from '../hooks/animations';
 import { TruckCapRole, TRUCK_CAP_ROLE_LABELS } from '@tingting/shared';
 import './ProfitPage.css';
+import './WorkflowFinance.css';
+import { ProfitabilityReportPanel } from '../components/finance/ProfitabilityReportPanel';
+import { useAuth } from '../hooks/useAuth';
 
 /** B2 — render a partner-role tag. Driver-contributors get a distinct "Lái xe"
  * label so investors and drivers are visually distinguishable in the per-truck
@@ -76,6 +79,7 @@ interface ProfitDistributionRequest {
 }
 
 export default function ProfitPage() {
+  const user = useAuth()?.user;
   const { confirm, dialog: confirmDialog } = useConfirm();
   const { toast: showToast } = useToast();
 
@@ -198,6 +202,10 @@ export default function ProfitPage() {
         iconName="profit"
         description="Báo cáo phân bổ lợi nhuận ròng giữa các đối tác góp vốn."
       />
+
+      {user?.workflowRolloutMode === 'ACTIVE' && user.capabilities?.includes('profitability.read') && (
+        <ProfitabilityReportPanel month={selectedMonth} year={selectedYear} />
+      )}
 
       {error && (
         <Alert variant="error" style="soft" icon={<AlertCircle size={16} />} className="mb-5">

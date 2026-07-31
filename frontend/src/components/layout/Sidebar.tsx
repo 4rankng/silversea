@@ -227,9 +227,10 @@ function Sidebar({
           (navRef as React.MutableRefObject<HTMLElement | null>).current = node;
         }}>
           {renderUngroupedItems()}
+          {user.role === 'ACCOUNTANT' && renderNavSection('Tài chính', 'financials')}
           {renderNavSection('Vận hành', 'operations')}
           {renderNavSection('Nhân sự', 'hr')}
-          {renderNavSection('Tài chính', 'financials')}
+          {user.role !== 'ACCOUNTANT' && renderNavSection('Tài chính', 'financials')}
           {renderNavSection('Danh mục', 'master-data')}
           {renderNavSection('Hệ thống', 'system')}
         </nav>

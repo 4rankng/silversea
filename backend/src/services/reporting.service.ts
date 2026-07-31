@@ -9,4 +9,5 @@ export * from './dashboard-stats.service';
 export * from './pnl.service';
 export * from './profit-distribution.service';
 export * from './receivables-report.service';
+export * from './profitability.service';
 export { calendarMonthDateRange } from './reporting-shared';

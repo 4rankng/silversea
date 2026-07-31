@@ -41,4 +41,22 @@ describe('getNavItems', () => {
     const items = getNavItems(Role.ACCOUNTANT);
     expect(items.some((item) => item.key === 'app-settings')).toBe(false);
   });
+
+  it('gives CLERK a shipment-first scoped workflow without broad finance links', () => {
+    const items = getNavItems(Role.CLERK, undefined, undefined, ['recoverable_costs.read'], 'ACTIVE');
+    expect(items[0]).toEqual(expect.objectContaining({ key: 'shipments', path: '/shipments' }));
+    expect(items.some((item) => item.key === 'recoverable-costs')).toBe(true);
+    expect(items.some((item) => ['debt', 'payables', 'treasury', 'profit'].includes(item.key))).toBe(false);
+  });
+
+  it('hides rollout workflow links while mode is OFF', () => {
+    expect(getNavItems(Role.ACCOUNTANT, undefined, undefined, ['treasury.read'], 'OFF')
+      .some((item) => item.key === 'treasury')).toBe(false);
+  });
+
+  it('keeps the executive dashboard out of the active ACCOUNTANT workspace', () => {
+    const items = getNavItems(Role.ACCOUNTANT, undefined, undefined, ['treasury.read'], 'ACTIVE');
+    expect(items.some((item) => item.key === 'dashboard')).toBe(false);
+    expect(items[0]).toEqual(expect.objectContaining({ key: 'debt' }));
+  });
 });

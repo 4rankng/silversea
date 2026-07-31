@@ -11,6 +11,13 @@ import type { Tx } from './trip-shared';
 import { applyTripPairLifecycleEffects } from './trip-pairs.service';
 import { requirePersistedTripGovernanceAuthorization } from './trip-governance-authorization.service';
 import { assertActiveApprovalApplication } from './governance-transition.service';
+import { deriveMilestoneFromTripStatus } from './milestone.service';
+import {
+  createFinancialPosting,
+  getActiveFinancialPosting,
+} from './financial-posting.service';
+import { captureProfitabilityAttributionSnapshot } from './profitability.service';
+import { config } from '../config';
 
 export async function transitionTripStatus(
   tripId: number,
@@ -253,6 +260,10 @@ export async function transitionTripStatus(
       }
 
       if (currentStatus === TripStatus.COMPLETED) {
+        const activePosting = await getActiveFinancialPosting(tx, trip.id);
+        if (config.workflowRolloutMode !== 'OFF' && !activePosting) {
+          throw new ApiError(409, 'Chuyến chưa có phiên bản hạch toán đang hiệu lực');
+        }
         await LedgerService.postTripUnlock(tx, {
           id: trip.id,
           tripCode: trip.tripCode,
@@ -274,7 +285,16 @@ export async function transitionTripStatus(
             forwarderId: fee.forwarderId ?? null,
             approvalStatus: fee.approvalStatus,
           })),
-        }, { strict: false });
+        }, { strict: false, financialPostingId: activePosting?.id });
+        if (config.workflowRolloutMode !== 'OFF') {
+          await createFinancialPosting(tx, {
+            tripId: updated.id,
+            tripVersion: updated.version,
+            reason: 'CANCELLATION',
+            governanceActionId: options?.governanceActionId,
+            effectiveAt: new Date(),
+          });
+        }
       }
 
       await applyTripPairLifecycleEffects(tx, {
@@ -301,9 +321,30 @@ export async function transitionTripStatus(
       throw new ApiError(409, 'Trạng thái chuyến đi đã bị thay đổi bởi người khác. Vui lòng tải lại.');
     }
 
+    if (trip.shipmentId != null) {
+      await deriveMilestoneFromTripStatus(
+        trip.shipmentId,
+        trip.id,
+        currentStatus,
+        targetStatus,
+        userId,
+        tx,
+      );
+    }
+
     if (targetStatus === TripStatus.COMPLETED && currentStatus === TripStatus.IN_TRANSIT) {
       const ancillaryFees = await tx.select().from(s.tripExpenses)
         .where(eq(s.tripExpenses.tripId, trip.id));
+
+      const posting = config.workflowRolloutMode === 'OFF'
+        ? null
+        : await createFinancialPosting(tx, {
+          tripId: updated.id,
+          tripVersion: updated.version,
+          reason: 'COMPLETION',
+          governanceActionId: options?.governanceActionId,
+          effectiveAt: updated.completedAt ?? new Date(),
+        });
 
       await LedgerService.postTripLock(tx, {
         id: updated.id,
@@ -326,7 +367,11 @@ export async function transitionTripStatus(
           forwarderId: fee.forwarderId ?? null,
           approvalStatus: fee.approvalStatus,
         })),
-      });
+      }, { financialPostingId: posting?.id });
+
+      if (posting) {
+        await captureProfitabilityAttributionSnapshot(tx, updated.id, posting.id);
+      }
 
       await applyTripPairLifecycleEffects(tx, {
         tripId: updated.id,

@@ -7,12 +7,12 @@
 
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq, and, isNull, sql, gte, inArray, ne } from 'drizzle-orm';
+import { eq, and, isNull, sql, gte, inArray, ne, getTableColumns } from 'drizzle-orm';
 import { TripStatus } from '@tingting/shared';
 import { cacheGet } from '../lib/redis';
 import { salaryPeriodDateRange, tripCompletionBusinessDateSql } from './reporting-shared';
 
-function recordedTripRevenue(trip: {
+export function recordedTripRevenue(trip: {
   revenue: string | null;
   vatRate: string | null;
   customerCommission: string | null;
@@ -43,7 +43,15 @@ export async function getPnlReport(month: number, year: number) {
 
     // P&L includes only trips whose revenue has posted to the ledger. Draft,
     // in-transit, and canceled trips are not yet reportable.
-    const monthTrips = await db.select().from(s.trips).where(
+    const monthTrips = await db.select({
+      ...getTableColumns(s.trips),
+      financialPostingId: s.tripFinancialPostings.id,
+      financialPostingVersion: s.tripFinancialPostings.version,
+    }).from(s.trips)
+      .leftJoin(s.tripFinancialPostings, and(
+        eq(s.tripFinancialPostings.tripId, s.trips.id),
+        eq(s.tripFinancialPostings.status, 'ACTIVE'),
+      )).where(
       and(
         inArray(s.trips.status, [TripStatus.COMPLETED, TripStatus.LOCKED]),
         isNull(s.trips.deletedAt),
@@ -114,6 +122,8 @@ export async function getPnlReport(month: number, year: number) {
 
       return {
         id: trip.id,
+        financialPostingVersionId: trip.financialPostingId,
+        financialPostingVersion: trip.financialPostingVersion,
         tripCode: trip.tripCode || `Lệnh #${trip.id}`,
         departureDate: trip.departureDate,
         routeName: trip.routeId ? routeNameById.get(trip.routeId) ?? 'Chưa có tuyến' : 'Chưa có tuyến',

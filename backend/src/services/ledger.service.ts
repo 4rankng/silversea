@@ -47,6 +47,7 @@ export interface LedgerPostRequest {
   processingDueDate?: string | null;
   paymentTermDaysApplied?: number | null;
   paymentDatePolicyApplied?: PaymentDatePolicy | null;
+  financialPostingId?: number | null;
 }
 
 export class LedgerService {
@@ -157,6 +158,7 @@ export class LedgerService {
       processingDueDate: request.processingDueDate ?? null,
       paymentTermDaysApplied: request.paymentTermDaysApplied ?? null,
       paymentDatePolicyApplied: request.paymentDatePolicyApplied ?? null,
+      financialPostingId: request.financialPostingId ?? null,
     }).returning();
 
     return inserted;
@@ -187,7 +189,7 @@ export class LedgerService {
   static async postTripLock(
     tx: Tx,
     trip: TripLedgerParams,
-    opts?: { strict?: boolean },
+    opts?: { strict?: boolean; financialPostingId?: number | null },
   ): Promise<number[]> {
     const revenue = Number(trip.revenue || 0);
     const driverSalary = Number(trip.driverSalary || 0);
@@ -248,6 +250,7 @@ export class LedgerService {
         credit: 0,
         note: label ? `Doanh thu chuyến ${label}` : 'Doanh thu chuyến',
         ...dueDateFields,
+        financialPostingId: opts?.financialPostingId ?? null,
       });
     }
 
@@ -261,6 +264,7 @@ export class LedgerService {
         debit: 0,
         credit: driverSalary,
         note: label ? `Lương sản lượng chuyến ${label}` : 'Lương sản lượng chuyến',
+        financialPostingId: opts?.financialPostingId ?? null,
       });
     }
 
@@ -275,6 +279,7 @@ export class LedgerService {
         debit: 0,
         credit: fuelCost,
         note: label ? `Chi phí dầu chuyến ${label}` : 'Chi phí dầu chuyến',
+        financialPostingId: opts?.financialPostingId ?? null,
       });
     }
 
@@ -288,6 +293,7 @@ export class LedgerService {
         debit: 0,
         credit: Number(trip.externalFreightCost),  // credit → negative balance = we owe them
         note: label ? `Cước thuê ngoài chuyến ${label}` : 'Cước thuê ngoài',
+        financialPostingId: opts?.financialPostingId ?? null,
       });
     }
 
@@ -308,6 +314,7 @@ export class LedgerService {
         credit: 0,
         note: label ? `Phí chi hộ chuyến ${label}` : 'Phí chi hộ',
         ...dueDateFields,
+        financialPostingId: opts?.financialPostingId ?? null,
       });
     }
 
@@ -322,7 +329,7 @@ export class LedgerService {
   static async postTripUnlock(
     tx: Tx,
     trip: TripLedgerParams,
-    opts?: { strict?: boolean },
+    opts?: { strict?: boolean; financialPostingId?: number | null },
   ): Promise<number[]> {
     const revenue = Number(trip.revenue || 0);
     const driverSalary = Number(trip.driverSalary || 0);
@@ -354,6 +361,7 @@ export class LedgerService {
         debit: 0,
         credit: revenue,
         note: label ? `Doanh thu chuyến ${label} (Hoàn tác)` : 'Doanh thu chuyến (Hoàn tác)',
+        financialPostingId: opts?.financialPostingId ?? null,
       });
     }
 
@@ -367,6 +375,7 @@ export class LedgerService {
         debit: driverSalary,
         credit: 0,
         note: label ? `Lương sản lượng chuyến ${label} (Hoàn tác)` : 'Lương sản lượng chuyến (Hoàn tác)',
+        financialPostingId: opts?.financialPostingId ?? null,
       });
     }
 
@@ -381,6 +390,7 @@ export class LedgerService {
         debit: fuelCost,
         credit: 0,
         note: label ? `Chi phí dầu chuyến ${label} (Hoàn tác)` : 'Chi phí dầu (Hoàn tác)',
+        financialPostingId: opts?.financialPostingId ?? null,
       });
     }
 
@@ -394,6 +404,7 @@ export class LedgerService {
         debit: Number(trip.externalFreightCost),
         credit: 0,
         note: label ? `Cước thuê ngoài chuyến ${label} (Hoàn tác)` : 'Cước thuê ngoài (Hoàn tác)',
+        financialPostingId: opts?.financialPostingId ?? null,
       });
     }
 
@@ -412,6 +423,7 @@ export class LedgerService {
         debit: 0,
         credit: sellAmt,
         note: label ? `Phí chi hộ chuyến ${label} (Hoàn tác)` : 'Phí chi hộ (Hoàn tác)',
+        financialPostingId: opts?.financialPostingId ?? null,
       });
     }
 

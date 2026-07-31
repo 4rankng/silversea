@@ -34,7 +34,7 @@ import { useAuth } from '../hooks/useAuth';
 import { api } from '../lib/api';
 import { useBadgeCounts } from '../hooks/useQueries';
 import { ROLE_LABELS } from '@tingting/shared';
-import type { Role } from '@tingting/shared';
+import { Role } from '@tingting/shared';
 import { Sidebar } from './layout/Sidebar';
 import { Topbar } from './layout/Topbar';
 import { ProfileModal } from './layout/ProfileModal';
@@ -48,14 +48,24 @@ import { BRAND } from '../brand';
 
 // ─── Navigation config ────────────────────────────────────────────────────
 
-export function getNavItems(role: Role, dispatchCount?: number, penaltiesCount?: number): NavItem[] {
+export function getNavItems(
+  role: Role,
+  dispatchCount?: number,
+  penaltiesCount?: number,
+  capabilities: readonly string[] = [],
+  workflowRolloutMode: 'OFF' | 'SHADOW' | 'ACTIVE' = 'OFF',
+): NavItem[] {
   const normRole = String(role || '').toUpperCase();
+  const workflowActive = workflowRolloutMode === 'ACTIVE';
+  const hasCapability = (capability: string) => capabilities.includes(capability);
   switch (normRole) {
     case 'MANAGER':
     case 'ACCOUNTANT':
     case 'ADMIN':
-      return [
-        { key: 'dashboard', label: 'Tổng quan', path: routes.dashboard, icon: LayoutDashboard },
+      const common: NavItem[] = [
+        ...(role !== Role.ACCOUNTANT || !workflowActive || hasCapability('executive_dashboard.read') ? [
+          { key: 'dashboard', label: 'Tổng quan', path: routes.dashboard, icon: LayoutDashboard },
+        ] : []),
 
         { key: 'dispatch', label: 'Phân xe', path: routes.dispatch, icon: Compass, section: 'operations', count: dispatchCount },
         { key: 'trips', label: 'Sổ chuyến đi', path: routes.trips, icon: Truck, section: 'operations' },
@@ -66,12 +76,15 @@ export function getNavItems(role: Role, dispatchCount?: number, penaltiesCount?:
         { key: 'salary', label: 'Lương & Chấm công', path: routes.salary, icon: CalendarDays, section: 'hr' },
         { key: 'penalties', label: 'Kỷ luật', path: routes.penalties, icon: AlertTriangle, section: 'hr', count: penaltiesCount },
 
-        { key: 'finance', label: 'Báo cáo lãi lỗ', path: routes.finance, icon: Wallet, section: 'financials' },
-        { key: 'profit', label: 'Phân chia lợi nhuận', path: routes.profit, icon: DollarSign, section: 'financials' },
         { key: 'debt', label: 'Công nợ phải thu', path: routes.debt, icon: Receipt, section: 'financials' },
+        { key: 'payables', label: 'Công nợ phải trả', path: routes.payables, icon: Receipt, section: 'financials' },
+        ...(workflowActive && hasCapability('treasury.read') ? [
+          { key: 'treasury', label: 'Sổ quỹ / ngân hàng', path: routes.treasury, icon: Landmark, section: 'financials' as const },
+        ] : []),
+        { key: 'profit', label: workflowActive ? 'Lợi nhuận' : 'Phân chia lợi nhuận', path: routes.profit, icon: DollarSign, section: 'financials' },
+        { key: 'finance', label: 'Báo cáo lãi lỗ', path: routes.finance, icon: Wallet, section: 'financials' },
         { key: 'credit-overrides', label: 'Duyệt vượt hạn mức', path: routes.creditOverrides, icon: Shield, section: 'financials' },
         { key: 'governance-actions', label: 'Trung tâm phê duyệt', path: routes.governanceActions, icon: ClipboardCheck, section: 'financials' },
-        { key: 'payables', label: 'Công nợ phải trả', path: routes.payables, icon: Receipt, section: 'financials' },
         { key: 'expenses', label: 'Chi phí phát sinh', path: routes.expenses, icon: FileText, section: 'financials' },
         { key: 'advances', label: 'Tạm ứng & hoàn ứng', path: routes.advances, icon: Wallet, section: 'financials' },
 
@@ -93,6 +106,14 @@ export function getNavItems(role: Role, dispatchCount?: number, penaltiesCount?:
         ] : []),
         { key: 'config', label: 'Cấu hình', path: routes.config, icon: Settings, section: 'system' },
       ];
+      if (role !== Role.ACCOUNTANT) return common;
+      const financePriority = new Map([
+        ['debt', 0], ['payables', 1], ['expenses', 2], ['advances', 3],
+        ['treasury', 4], ['profit', 5], ['finance', 6],
+      ]);
+      return [...common].sort((a, b) => (
+        (financePriority.get(a.key) ?? 100) - (financePriority.get(b.key) ?? 100)
+      ));
     case 'DRIVER':
       return [
         { key: 'my-trips', label: 'Hành trình', path: routes.myTrips, icon: Route, section: 'operations' },
@@ -110,6 +131,14 @@ export function getNavItems(role: Role, dispatchCount?: number, penaltiesCount?:
         { key: 'portal-shipments', label: 'Lô hàng của tôi', path: routes.portalShipments, icon: Package, section: 'operations' },
         { key: 'portal-debit-notes', label: 'Giấy báo nợ', path: routes.portalDebitNotes, icon: FileText, section: 'financials' },
         { key: 'portal-statement', label: 'Sao kê công nợ', path: routes.portalStatement, icon: Landmark, section: 'financials' },
+      ];
+    case 'CLERK':
+      return [
+        { key: 'shipments', label: 'Lô hàng được giao', path: routes.shipments, icon: Package, section: 'operations' },
+        { key: 'clerk-shipment-new', label: 'Tạo lô hàng', path: routes.clerkShipmentNew, icon: FileText, section: 'operations' },
+        ...(workflowActive && hasCapability('recoverable_costs.read') ? [
+          { key: 'recoverable-costs', label: 'Chi phí cần kiểm tra', path: routes.recoverableCosts, icon: Receipt, section: 'financials' as const },
+        ] : []),
       ];
     default:
       return [];
@@ -250,7 +279,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const penaltiesCount = badgeData?.penaltiesCount;
 
   // Nav items and active state
-  const navItems = user ? getNavItems(user.role, dispatchCount, penaltiesCount) : [];
+  const navItems = user ? getNavItems(
+    user.role,
+    dispatchCount,
+    penaltiesCount,
+    user.capabilities,
+    user.workflowRolloutMode,
+  ) : [];
   const activeKey = navItems
     .filter(item => location.pathname.startsWith(item.path))
     .sort((a, b) => b.path.length - a.path.length)[0]?.key || '';

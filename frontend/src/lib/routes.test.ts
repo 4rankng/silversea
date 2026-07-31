@@ -76,8 +76,12 @@ describe('homeForRole', () => {
     expect(homeForRole('CUSTOMER')).toBe('/portal/shipments');
   });
 
-  it('routes CLERK users to the clerk shipment create page', () => {
-    expect(homeForRole('CLERK')).toBe('/clerk/shipments/new');
+  it('routes CLERK users to their assigned shipment queue', () => {
+    expect(homeForRole('CLERK')).toBe('/shipments');
+  });
+
+  it('routes ACCOUNTANT users to the receivables workspace', () => {
+    expect(homeForRole('ACCOUNTANT')).toBe('/debt');
   });
 });
 

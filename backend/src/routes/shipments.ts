@@ -27,6 +27,7 @@
 import { Router } from 'express';
 import { Role } from '@tingting/shared';
 import { z } from 'zod';
+import { requireWorkflowActive } from '../middleware/workflow-rollout';
 import {
   createShipmentSchema,
   updateShipmentSchema,
@@ -69,6 +70,16 @@ import {
 } from '../services/idempotency.service';
 import { getRequestIdempotencyKey } from './utils/idempotency';
 import type { Tx } from '../services/trip-shared';
+import {
+  CUSTOMER_EVENT_TYPES,
+  createCustomerVisibleEvent,
+  listCustomerVisibleEvents,
+} from '../services/shipment-coordination.service';
+import {
+  createHandoff,
+  getActiveHandoffForShipment,
+  resolveHandoff,
+} from '../services/dispatch-handoff.service';
 
 // Audit event registrations — matched by the audit middleware on every write.
 // Suffix-mode registrations (prefix + suffix) cover all /:id sub-paths. The
@@ -105,6 +116,28 @@ const replaceShipmentDocumentSchema = z.object({
 
 const reviewShipmentChangeRequestSchema = z.object({
   resolution: z.enum(['APPLIED', 'REJECTED']),
+});
+
+const customerVisibleEventSchema = z.object({
+  eventKey: z.string().trim().min(1).max(120),
+  eventType: z.enum(CUSTOMER_EVENT_TYPES),
+  title: z.string().trim().min(1).max(160),
+  message: z.string().trim().min(1).max(1_000),
+  occurredAt: z.string().datetime().optional(),
+  supersedesEventId: z.number().int().positive().optional(),
+});
+
+const createHandoffSchema = z.object({
+  handlerId: z.number().int().positive().optional().nullable(),
+  priority: z.string().trim().min(1).max(20).optional(),
+  vehicleNeededBy: z.string().datetime().optional().nullable(),
+  operationalNote: z.string().trim().max(2_000).optional().nullable(),
+});
+
+const resolveHandoffSchema = z.object({
+  resolution: z.enum(['ACCEPTED', 'REJECTED']),
+  expectedVersion: z.number().int().positive(),
+  rejectReason: z.string().trim().min(1).max(1_000).optional().nullable(),
 });
 
 const router = Router();
@@ -187,6 +220,78 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
   });
   res.json(result);
 }));
+
+router.get('/:id/customer-events', requireWorkflowActive, asyncHandler(async (req: Request, res: Response) => {
+  const shipmentId = parseId(req, res);
+  if (shipmentId === null) return;
+  res.json({ items: await listCustomerVisibleEvents({ shipmentId, actor: getUser(req) }) });
+}));
+
+router.post(
+  '/:id/customer-events',
+  requireWorkflowActive,
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CLERK),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const parsed = customerVisibleEventSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const actor = getUser(req);
+    const event = await createCustomerVisibleEvent({
+      shipmentId,
+      ...parsed.data,
+      occurredAt: parsed.data.occurredAt ? new Date(parsed.data.occurredAt) : undefined,
+      createdBy: actor.userId,
+    }, actor);
+    res.status(201).json(event);
+  }),
+);
+
+router.get('/:id/dispatch-handoff', asyncHandler(async (req: Request, res: Response) => {
+  const shipmentId = parseId(req, res);
+  if (shipmentId === null) return;
+  await getShipmentDetail(shipmentId, getUser(req));
+  res.json(await getActiveHandoffForShipment(shipmentId));
+}));
+
+router.post(
+  '/:id/dispatch-handoffs',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CLERK),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const parsed = createHandoffSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const actor = getUser(req);
+    const handoff = await createHandoff({
+      shipmentId,
+      ...parsed.data,
+      vehicleNeededBy: parsed.data.vehicleNeededBy ? new Date(parsed.data.vehicleNeededBy) : null,
+      createdBy: actor.userId,
+      actor,
+    });
+    res.status(201).json(handoff);
+  }),
+);
+
+router.post(
+  '/:id/dispatch-handoffs/:handoffId/resolve',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CLERK),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const handoffId = Number(req.params.handoffId);
+    if (!Number.isInteger(handoffId) || handoffId <= 0) throw new ApiError(400, 'ID lệnh điều vận không hợp lệ');
+    const parsed = resolveHandoffSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const actor = getUser(req);
+    await getShipmentDetail(shipmentId, actor);
+    res.json(await resolveHandoff(handoffId, parsed.data.resolution, actor.userId, parsed.data.expectedVersion, {
+      rejectReason: parsed.data.rejectReason,
+      expectedShipmentId: shipmentId,
+    }));
+  }),
+);
 
 // ─── POST / — create draft shipment ────────────────────────────────────────
 router.post(

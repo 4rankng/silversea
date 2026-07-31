@@ -8,14 +8,17 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { eq, and, isNull, sql, gte, desc, inArray } from 'drizzle-orm';
 import { TripStatus, parseThreshold, type DashboardDecisionItem } from '@tingting/shared';
-import { getReceivablesSummary, getTopOverdueCustomer, CURRENT_AGING_RANGE } from './aging.service';
+import { getCustomerAgingList, getReceivablesSummary, getTopOverdueCustomer, CURRENT_AGING_RANGE } from './aging.service';
 import { cacheGet } from '../lib/redis';
 import { salaryPeriodDateRange, localDateStr, resolveCapTableSnapshot, tripCompletionBusinessDateSql } from './reporting-shared';
 import { getPnlReport } from './pnl.service';
 import { getRenewalReminders } from './expense.service';
+import { getTreasuryPosition } from './treasury.service';
+import { getProfitabilityReport } from './profitability.service';
+import { config } from '../config';
 
 export async function getDashboardStats() {
-  return cacheGet('reports:dashboard', 30, async () => {
+  return cacheGet(`reports:dashboard:${config.workflowRolloutMode}`, 30, async () => {
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth() + 1;
@@ -127,6 +130,60 @@ export async function getDashboardStats() {
       fuelWarningTrips: countFuelWarningTrips(fuelCheckRows, fuelConfig),
     });
 
+    let executive: Record<string, unknown> | undefined;
+    if (config.workflowRolloutMode === 'ACTIVE') {
+      const asOf = new Date();
+      const today = localDateStr(asOf);
+      const [todayRevenueRows, customerProfitability, debtors, treasuryAccountRows] = await Promise.all([
+        db.select({
+          total: sql<string>`coalesce(sum(${s.profitabilitySnapshots.revenue}::numeric), 0)`,
+        }).from(s.profitabilitySnapshots)
+          .innerJoin(s.tripFinancialPostings, and(
+            eq(s.tripFinancialPostings.id, s.profitabilitySnapshots.financialPostingId),
+            eq(s.tripFinancialPostings.status, 'ACTIVE'),
+          ))
+          .where(eq(s.profitabilitySnapshots.completedBusinessDate, today)),
+        getProfitabilityReport({ month, year, dimension: 'CUSTOMER', page: 1, limit: 10 }),
+        getCustomerAgingList({ asOfDate: today, page: 1, limit: 10 }),
+        db.select({ id: s.treasuryAccounts.id }).from(s.treasuryAccounts)
+          .where(eq(s.treasuryAccounts.status, 'ACTIVE')),
+      ]);
+      const treasuryPositions = await Promise.all(
+        treasuryAccountRows.map(account => getTreasuryPosition(account.id)),
+      );
+      const treasuryByType = (type: 'CASH' | 'BANK') => {
+        const accounts = treasuryPositions.filter(account => account.type === type);
+        return {
+          bookBalance: accounts.reduce((sum, account) => sum + account.bookBalance, 0),
+          completeness: accounts.length > 0 && accounts.every(account => account.completeness === 'COMPLETE')
+            ? 'COMPLETE' as const
+            : 'PARTIAL' as const,
+          accountCount: accounts.length,
+        };
+      };
+      const overdueReceivables = receivablesSummary.buckets
+        .filter(bucket => bucket.range !== CURRENT_AGING_RANGE)
+        .reduce((sum, bucket) => sum + Number(bucket.amount || 0), 0);
+      executive = {
+        asOf: asOf.toISOString(),
+        timezone: 'Asia/Ho_Chi_Minh',
+        definitionVersion: 'executive-dashboard-v1',
+        revenueToday: Number(todayRevenueRows[0]?.total ?? 0),
+        revenueMonth: Number(pnlReport.totalRevenue ?? 0),
+        costMonth: Number(pnlReport.totalCosts ?? 0) + Number(pnlReport.companyExpenses ?? 0),
+        profitMonth: Number(pnlReport.netProfit ?? 0),
+        accountsReceivable: Number(receivablesSummary.totalOutstanding ?? 0),
+        overdueAccountsReceivable: overdueReceivables,
+        cash: treasuryByType('CASH'),
+        bank: treasuryByType('BANK'),
+        topCustomers: customerProfitability.items,
+        topDebtors: debtors.customers,
+        costByType: pnlReport.categoryBreakdown,
+        profitByVehicle: pnlReport.trucks,
+        reconciliation: customerProfitability.reconciliation,
+      };
+    }
+
     return {
       revenue,
       costs,
@@ -145,6 +202,7 @@ export async function getDashboardStats() {
       topOverdueCustomer,
       topShareholder,
       decisionItems,
+      ...(executive ? { executive } : {}),
     };
   });
 }

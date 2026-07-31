@@ -1,7 +1,7 @@
 import {
   pgTable, serial, varchar, text, integer, boolean, timestamp,
   jsonb, numeric, date, pgEnum, uniqueIndex, index, check, doublePrecision, smallint,
-  customType,
+  customType, AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
@@ -733,6 +733,35 @@ export const tripLegs = pgTable('trip_legs', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+// Canonical financial posting version for one trip. Operational trip.version
+// is deliberately not used as financial provenance because unrelated dossier
+// edits also advance it.
+export const tripFinancialPostings = pgTable('trip_financial_postings', {
+  id: serial('id').primaryKey(),
+  tripId: integer('trip_id').references(() => trips.id).notNull(),
+  version: integer('version').notNull(),
+  tripVersion: integer('trip_version').notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('ACTIVE'),
+  reason: varchar('reason', { length: 30 }).notNull(),
+  governanceActionId: integer('governance_action_id'),
+  supersedesId: integer('supersedes_id').references((): AnyPgColumn => tripFinancialPostings.id),
+  effectiveAt: timestamp('effective_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('trip_financial_postings_trip_version_uniq').on(table.tripId, table.version),
+  uniqueIndex('trip_financial_postings_trip_active_uniq')
+    .on(table.tripId)
+    .where(sql`${table.status} = 'ACTIVE'`),
+  uniqueIndex('trip_financial_postings_supersedes_uniq')
+    .on(table.supersedesId)
+    .where(sql`${table.supersedesId} is not null`),
+  index('trip_financial_postings_trip_status_idx').on(table.tripId, table.status),
+  check('trip_financial_postings_version_check', sql`${table.version} > 0`),
+  check('trip_financial_postings_trip_version_check', sql`${table.tripVersion} > 0`),
+  check('trip_financial_postings_status_check', sql`${table.status} in ('ACTIVE', 'SUPERSEDED', 'REVERSED')`),
+  check('trip_financial_postings_reason_check', sql`${table.reason} in ('COMPLETION', 'GOVERNED_CORRECTION', 'CANCELLATION')`),
+]);
+
 // ─── Financials ──────────────────────────────────────────────────────────────
 
 export const ledger = pgTable('ledger', {
@@ -754,12 +783,14 @@ export const ledger = pgTable('ledger', {
   processingDueDate: date('processing_due_date'),
   paymentTermDaysApplied: integer('payment_term_days_applied'),
   paymentDatePolicyApplied: varchar('payment_date_policy_applied', { length: 30 }),
+  financialPostingId: integer('financial_posting_id').references(() => tripFinancialPostings.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => [
   // Hottest query path: every getBalance/postEntry does WHERE entity_type = ? AND entity_id = ? ORDER BY id DESC LIMIT 1
   index('ledger_entity_entity_idx').on(table.entityType, table.entityId),
   index('ledger_entity_entity_id_idx').on(table.entityType, table.entityId, table.id),
   index('ledger_entity_txn_timestamp_idx').on(table.entityType, table.txnType, table.timestamp),
+  index('ledger_financial_posting_idx').on(table.financialPostingId),
   uniqueIndex('ledger_forwarder_settlement_once_idx')
     .on(table.txnType, table.txnId, table.entityType, table.entityId)
     .where(sql`${table.txnType} = 'FORWARDER_SETTLEMENT'`),
@@ -824,6 +855,7 @@ export const debitNoteTemplates = pgTable('debit_note_templates', {
 
 export const billingDocuments = pgTable('billing_documents', {
   id: serial('id').primaryKey(),
+  version: integer('version').notNull().default(1),
   type: varchar('type', { length: 20 }).notNull(),               // DEBIT_NOTE | PAYMENT_STATEMENT
   entityType: varchar('entity_type', { length: 20 }).notNull(),  // CUSTOMER | VENDOR
   entityId: integer('entity_id').notNull(),
@@ -840,6 +872,18 @@ export const billingDocuments = pgTable('billing_documents', {
   // Separate from the template so legacy documents without a template can be
   // backfilled without inventing a partial template object.
   officialIdentitySnapshot: jsonb('official_identity_snapshot'),
+  // Reference-only legal invoice handoff state. This metadata never posts AR
+  // and never replaces the Debit Note as the debt instrument authority.
+  legalInvoiceRef: jsonb('legal_invoice_ref').$type<{
+    provider?: string;
+    status: 'PENDING' | 'UNKNOWN' | 'ISSUED' | 'DEAD' | 'CANCELED';
+    providerReference?: string;
+    requestVersion: number;
+    payloadHash?: string;
+    checksum?: string;
+    issuedAt?: string;
+    updatedAt: string;
+  }>(),
   totalInclVat: numeric('total_incl_vat', { precision: 15, scale: 0 }).notNull().default('0'),
   // Wave 2 M3.6: debit-note lifecycle status. Defaults to DRAFT (existing
   // documents are treated as DRAFT until explicitly transitioned). Nullable
@@ -883,6 +927,7 @@ export const billingDocuments = pgTable('billing_documents', {
     'billing_documents_authority_state_check',
     sql`${table.authorityState} in ('CURRENT', 'STALE', 'ADJUSTMENT_REQUIRED')`,
   ),
+  check('billing_documents_version_check', sql`${table.version} > 0`),
 ]);
 
 // Q21: reusable period-lock authority for salary, fuel, and debit-note cycles.
@@ -1001,11 +1046,11 @@ export const governanceActions = pgTable('governance_actions', {
     .where(sql`${table.subjectId} is not null and ${table.actionKind} not in ('TRIP_AR_ADJUSTMENT', 'TRIP_REOPEN') and ${table.status} in ('PENDING_CHECK', 'PENDING_APPROVAL', 'RETURNED_FOR_EVIDENCE')`),
   check(
     'governance_actions_subject_type_check',
-    sql`${table.subjectType} in ('TRIP', 'PAYMENT_RECEIPT', 'PAYMENT_REFUND', 'VENDOR_PAYMENT', 'CARRIER_PAYMENT', 'DRIVER_PAYOUT', 'COMMISSION', 'PENALTY', 'DEBT_OFFSET', 'ADVANCE_REQUEST', 'ADVANCE_SETTLEMENT', 'TRIP_EXPENSE', 'FUEL_INVOICE', 'CREDIT_OVERRIDE', 'COMPANY_EXPENSE', 'BILLING_DOCUMENT', 'SALARY_CONFIRMATION', 'SALARY_PERIOD', 'PROFIT_DISTRIBUTION', 'PRICE_CONFIG', 'ANCILLARY_REVENUE', 'EXCEPTION')`,
+    sql`${table.subjectType} in ('TRIP', 'PAYMENT_RECEIPT', 'PAYMENT_REFUND', 'VENDOR_PAYMENT', 'CARRIER_PAYMENT', 'DRIVER_PAYOUT', 'COMMISSION', 'PENALTY', 'DEBT_OFFSET', 'ADVANCE_REQUEST', 'ADVANCE_SETTLEMENT', 'TRIP_EXPENSE', 'FUEL_INVOICE', 'CREDIT_OVERRIDE', 'COMPANY_EXPENSE', 'BILLING_DOCUMENT', 'SALARY_CONFIRMATION', 'SALARY_PERIOD', 'PROFIT_DISTRIBUTION', 'PRICE_CONFIG', 'ANCILLARY_REVENUE', 'EXCEPTION', 'TREASURY_ACCOUNT', 'TREASURY_MOVEMENT')`,
   ),
   check(
     'governance_actions_action_kind_check',
-    sql`${table.actionKind} in ('TRIP_AR_ADJUSTMENT', 'TRIP_REOPEN', 'TRIP_EXPENSE_APPROVAL', 'FUEL_INVOICE_CORRECTION', 'FUEL_INVOICE_APPROVAL', 'CREDIT_OVERRIDE_APPROVAL', 'DEBT_OFFSET_APPROVAL', 'DEBT_OFFSET_CANCEL', 'ADVANCE_REQUEST_APPROVAL', 'ADVANCE_REQUEST_REJECTION', 'ADVANCE_SETTLEMENT_CORRECTION', 'ADVANCE_SETTLEMENT_REVERSAL', 'PAYMENT_RECEIPT', 'PAYMENT_REFUND', 'VENDOR_PAYMENT', 'CARRIER_PAYMENT', 'DRIVER_PAYOUT', 'COMMISSION', 'PENALTY_CREATE', 'PENALTY_CANCEL', 'COMPANY_EXPENSE', 'PROFIT_DISTRIBUTION', 'TRIP_FINANCIAL_CHANGE', 'TRIP_FINANCIAL_CLOSE', 'DEBIT_NOTE_ISSUE', 'DEBIT_NOTE_ADJUSTMENT', 'SALARY_CONFIRMATION', 'SALARY_REOPEN', 'SALARY_PERIOD_CLOSE', 'SALARY_PERIOD_REOPEN', 'SALARY_PERIOD_ADJUSTMENT', 'PRICE_CONFIG_CHANGE', 'ANCILLARY_REVENUE_CHANGE', 'FINANCIAL_EXCEPTION')`,
+    sql`${table.actionKind} in ('TRIP_AR_ADJUSTMENT', 'TRIP_REOPEN', 'TRIP_EXPENSE_APPROVAL', 'FUEL_INVOICE_CORRECTION', 'FUEL_INVOICE_APPROVAL', 'CREDIT_OVERRIDE_APPROVAL', 'DEBT_OFFSET_APPROVAL', 'DEBT_OFFSET_CANCEL', 'ADVANCE_REQUEST_APPROVAL', 'ADVANCE_REQUEST_REJECTION', 'ADVANCE_SETTLEMENT_CORRECTION', 'ADVANCE_SETTLEMENT_REVERSAL', 'PAYMENT_RECEIPT', 'PAYMENT_REFUND', 'VENDOR_PAYMENT', 'CARRIER_PAYMENT', 'DRIVER_PAYOUT', 'COMMISSION', 'PENALTY_CREATE', 'PENALTY_CANCEL', 'COMPANY_EXPENSE', 'PROFIT_DISTRIBUTION', 'TRIP_FINANCIAL_CHANGE', 'TRIP_FINANCIAL_CLOSE', 'DEBIT_NOTE_ISSUE', 'DEBIT_NOTE_ADJUSTMENT', 'SALARY_CONFIRMATION', 'SALARY_REOPEN', 'SALARY_PERIOD_CLOSE', 'SALARY_PERIOD_REOPEN', 'SALARY_PERIOD_ADJUSTMENT', 'PRICE_CONFIG_CHANGE', 'ANCILLARY_REVENUE_CHANGE', 'FINANCIAL_EXCEPTION', 'TREASURY_ACCOUNT_SETUP', 'TREASURY_CUTOVER', 'TREASURY_MOVEMENT_REVERSAL')`,
   ),
   check(
     'governance_actions_status_check',
@@ -1095,6 +1140,44 @@ export const billingDocumentLines = pgTable('billing_document_lines', {
   sortOrder: integer('sort_order').default(0).notNull(),
 }, (table) => [
   index('billing_document_lines_doc_idx').on(table.documentId),
+]);
+
+// One recoverable expense may be claimed by only one Debit Note. Approval and
+// eligibility remain authoritative on trip_expenses; this table only freezes
+// the source/version link and prevents double billing.
+export const billingDocumentRecoverableClaims = pgTable('billing_document_recoverable_claims', {
+  id: serial('id').primaryKey(),
+  documentId: integer('document_id')
+    .references(() => billingDocuments.id, { onDelete: 'cascade' }).notNull(),
+  // Plain integer avoids the schema initializer cycle: trip_expenses is
+  // declared later in this file. The generated migration adds the FK.
+  expenseId: integer('expense_id').references((): AnyPgColumn => tripExpenses.id).notNull(),
+  expenseVersion: integer('expense_version').notNull(),
+  sourceVersion: varchar('source_version', { length: 120 }).notNull(),
+  evidenceSnapshot: jsonb('evidence_snapshot').$type<Record<string, unknown>>().notNull(),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('billing_document_recoverable_claims_expense_uniq').on(table.expenseId),
+  index('billing_document_recoverable_claims_document_idx').on(table.documentId),
+  check('billing_document_recoverable_claims_version_check', sql`${table.expenseVersion} > 0`),
+]);
+
+export const billingDocumentDisputes = pgTable('billing_document_disputes', {
+  id: serial('id').primaryKey(),
+  documentId: integer('document_id').references(() => billingDocuments.id).notNull(),
+  documentVersion: integer('document_version').notNull(),
+  customerId: integer('customer_id').references(() => customers.id).notNull(),
+  disputedBy: integer('disputed_by').references(() => users.id).notNull(),
+  reason: text('reason').notNull(),
+  evidenceRefs: jsonb('evidence_refs').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+  idempotencyKey: varchar('idempotency_key', { length: 100 }).notNull(),
+  disputedAt: timestamp('disputed_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('billing_document_disputes_idempotency_uniq').on(table.idempotencyKey),
+  index('billing_document_disputes_document_idx').on(table.documentId, table.disputedAt),
+  check('billing_document_disputes_version_check', sql`${table.documentVersion} > 0`),
+  check('billing_document_disputes_reason_check', sql`length(btrim(${table.reason})) > 0`),
 ]);
 
 export const penalties = pgTable('penalties', {
@@ -1449,6 +1532,11 @@ export const tripExpenses = pgTable('trip_expenses', {
   expenseType: varchar('expense_type', { length: 50 }).notNull(),   // FK to forwarder_expense_types.code
   buyAmount: numeric('buy_amount', { precision: 15, scale: 0 }).notNull(),
   sellAmount: numeric('sell_amount', { precision: 15, scale: 0 }).notNull().default('0'),
+  // Explicit customer recovery decomposition. Legacy rows remain NULL and are
+  // reported as missing accounting classification instead of being guessed
+  // from buy amount/markup.
+  recoverablePrincipalAmount: numeric('recoverable_principal_amount', { precision: 15, scale: 0 }),
+  serviceFeeAmount: numeric('service_fee_amount', { precision: 15, scale: 0 }),
   settlementMethod: varchar('settlement_method', { length: 20 }).notNull().default('FORWARDER_ADVANCE'),
   supplierId: integer('supplier_id').references(() => suppliers.id),
   expenseDate: date('expense_date'),
@@ -1478,6 +1566,17 @@ export const tripExpenses = pgTable('trip_expenses', {
   index('trip_expenses_container_idx').on(table.containerNumber),
   index('trip_expenses_trip_container_id_idx').on(table.tripContainerId),
   index('trip_expenses_no_invoice_aggregate_idx').on(table.expenseType, table.expenseDate, table.payeeName),
+  check(
+    'trip_expenses_recoverable_split_nonnegative_check',
+    sql`(${table.recoverablePrincipalAmount} is null or ${table.recoverablePrincipalAmount} >= 0)
+      and (${table.serviceFeeAmount} is null or ${table.serviceFeeAmount} >= 0)`,
+  ),
+  check(
+    'trip_expenses_recoverable_split_consistency_check',
+    sql`(${table.recoverablePrincipalAmount} is null and ${table.serviceFeeAmount} is null)
+      or (${table.recoverablePrincipalAmount} is not null and ${table.serviceFeeAmount} is not null
+        and ${table.recoverablePrincipalAmount} + ${table.serviceFeeAmount} = ${table.sellAmount})`,
+  ),
 ]);
 
 export const fuelInvoices = pgTable('fuel_invoices', {
@@ -2440,6 +2539,40 @@ export const userShipmentLinks = pgTable('user_shipment_links', {
   index('user_shipment_links_shipment_idx').on(table.shipmentId),
 ]);
 
+// Versioned salesperson authority. A shipment-specific active assignment wins
+// over the customer's active default; missing history remains unattributed.
+export const salespersonAssignments = pgTable('salesperson_assignments', {
+  id: serial('id').primaryKey(),
+  customerId: integer('customer_id').references(() => customers.id).notNull(),
+  shipmentId: integer('shipment_id').references(() => shipments.id),
+  salespersonUserId: integer('salesperson_user_id').references(() => users.id).notNull(),
+  effectiveFrom: timestamp('effective_from', { withTimezone: true }).notNull(),
+  effectiveTo: timestamp('effective_to', { withTimezone: true }),
+  version: integer('version').notNull(),
+  supersedesAssignmentId: integer('supersedes_assignment_id')
+    .references((): AnyPgColumn => salespersonAssignments.id),
+  changeReason: text('change_reason').notNull(),
+  changedBy: integer('changed_by').references(() => users.id).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('salesperson_assignments_customer_default_active_uniq')
+    .on(table.customerId)
+    .where(sql`${table.shipmentId} is null and ${table.effectiveTo} is null`),
+  uniqueIndex('salesperson_assignments_shipment_active_uniq')
+    .on(table.shipmentId)
+    .where(sql`${table.shipmentId} is not null and ${table.effectiveTo} is null`),
+  uniqueIndex('salesperson_assignments_supersedes_uniq')
+    .on(table.supersedesAssignmentId)
+    .where(sql`${table.supersedesAssignmentId} is not null`),
+  index('salesperson_assignments_lookup_idx').on(table.customerId, table.shipmentId, table.effectiveFrom),
+  check('salesperson_assignments_version_check', sql`${table.version} > 0`),
+  check('salesperson_assignments_reason_check', sql`length(btrim(${table.changeReason})) > 0`),
+  check(
+    'salesperson_assignments_effective_range_check',
+    sql`${table.effectiveTo} is null or ${table.effectiveTo} > ${table.effectiveFrom}`,
+  ),
+]);
+
 export const shipmentChangeRequests = pgTable('shipment_change_requests', {
   id: serial('id').primaryKey(),
   shipmentId: integer('shipment_id')
@@ -2480,6 +2613,65 @@ export const shipmentMilestones = pgTable('shipment_milestones', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => [
   index('shipment_milestones_shipment_idx').on(table.shipmentId, table.occurredAt),
+  uniqueIndex('shipment_milestones_trip_type_uniq')
+    .on(table.shipmentId, table.tripId, table.type)
+    .where(sql`${table.tripId} is not null`),
+]);
+
+// Immutable, portal-safe customer communication content. Operational notes
+// remain in shipment_milestones and are never serialized through this table.
+export const customerVisibleEvents = pgTable('customer_visible_events', {
+  id: serial('id').primaryKey(),
+  shipmentId: integer('shipment_id')
+    .references(() => shipments.id, { onDelete: 'cascade' }).notNull(),
+  customerId: integer('customer_id').references(() => customers.id).notNull(),
+  milestoneId: integer('milestone_id').references(() => shipmentMilestones.id),
+  eventKey: varchar('event_key', { length: 120 }).notNull(),
+  contentVersion: integer('content_version').notNull(),
+  eventType: varchar('event_type', { length: 40 }).notNull(),
+  classification: varchar('classification', { length: 30 }).notNull().default('CUSTOMER_VISIBLE'),
+  contentSnapshot: jsonb('content_snapshot').$type<{
+    title: string;
+    message: string;
+    occurredAt: string;
+    shipmentCode?: string;
+  }>().notNull(),
+  supersedesEventId: integer('supersedes_event_id')
+    .references((): AnyPgColumn => customerVisibleEvents.id),
+  createdBy: integer('created_by').references(() => users.id).notNull(),
+  occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('customer_visible_events_key_version_uniq').on(table.eventKey, table.contentVersion),
+  uniqueIndex('customer_visible_events_supersedes_uniq')
+    .on(table.supersedesEventId)
+    .where(sql`${table.supersedesEventId} is not null`),
+  index('customer_visible_events_shipment_idx').on(table.shipmentId, table.occurredAt),
+  index('customer_visible_events_customer_idx').on(table.customerId, table.occurredAt),
+  check('customer_visible_events_version_check', sql`${table.contentVersion} > 0`),
+  check('customer_visible_events_classification_check', sql`${table.classification} = 'CUSTOMER_VISIBLE'`),
+  check(
+    'customer_visible_events_type_check',
+    sql`${table.eventType} in ('MILESTONE', 'DELIVERY_PLAN', 'DOCUMENT_UPDATE', 'DEBIT_NOTE_CONFIRMATION')`,
+  ),
+]);
+
+export const customerEventAcknowledgements = pgTable('customer_event_acknowledgements', {
+  id: serial('id').primaryKey(),
+  eventId: integer('event_id')
+    .references(() => customerVisibleEvents.id, { onDelete: 'cascade' }).notNull(),
+  eventVersion: integer('event_version').notNull(),
+  customerId: integer('customer_id').references(() => customers.id).notNull(),
+  acknowledgedBy: integer('acknowledged_by').references(() => users.id).notNull(),
+  kind: varchar('kind', { length: 20 }).notNull().default('ACKNOWLEDGED'),
+  idempotencyKey: varchar('idempotency_key', { length: 100 }).notNull(),
+  acknowledgedAt: timestamp('acknowledged_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('customer_event_ack_actor_kind_uniq').on(table.eventId, table.acknowledgedBy, table.kind),
+  uniqueIndex('customer_event_ack_idempotency_uniq').on(table.idempotencyKey),
+  index('customer_event_ack_customer_idx').on(table.customerId, table.acknowledgedAt),
+  check('customer_event_ack_version_check', sql`${table.eventVersion} > 0`),
+  check('customer_event_ack_kind_check', sql`${table.kind} in ('SEEN', 'ACKNOWLEDGED')`),
 ]);
 
 // M3.3: customer email logs. Tracks every email sent to a customer (debit
@@ -2490,6 +2682,7 @@ export const customerEmailLogs = pgTable('customer_email_logs', {
   customerId: integer('customer_id').references(() => customers.id).notNull(),
   shipmentId: integer('shipment_id').references(() => shipments.id),
   billingDocumentId: integer('billing_document_id').references(() => billingDocuments.id),
+  customerVisibleEventId: integer('customer_visible_event_id').references(() => customerVisibleEvents.id),
   // The email template / event type (e.g. 'DEBIT_NOTE_SENT', 'DELIVERY_CONFIRM').
   subject: varchar('subject', { length: 255 }).notNull(),
   recipientEmail: varchar('recipient_email', { length: 255 }),
@@ -2506,6 +2699,7 @@ export const customerEmailLogs = pgTable('customer_email_logs', {
 }, (table) => [
   index('customer_email_logs_customer_idx').on(table.customerId, table.status),
   index('customer_email_logs_status_idx').on(table.status),
+  index('customer_email_logs_visible_event_idx').on(table.customerVisibleEventId),
 ]);
 
 // Q01/Q02: durable over-limit approval workflow. Requests are bounded to one
@@ -2581,6 +2775,35 @@ export const creditOverrideRequests = pgTable('credit_override_requests', {
 
 // ─── Wave 3: Financial Close tables ─────────────────────────────────────────
 
+export const treasuryAccounts = pgTable('treasury_accounts', {
+  id: serial('id').primaryKey(),
+  code: varchar('code', { length: 50 }).notNull(),
+  name: varchar('name', { length: 160 }).notNull(),
+  type: varchar('type', { length: 20 }).notNull(),
+  currency: varchar('currency', { length: 10 }).notNull().default('VND'),
+  bankName: varchar('bank_name', { length: 160 }),
+  bankAccountNumber: varchar('bank_account_number', { length: 80 }),
+  openingBalance: numeric('opening_balance', { precision: 15, scale: 0 }).notNull().default('0'),
+  openingBalanceDate: date('opening_balance_date'),
+  cutoverAt: timestamp('cutover_at', { withTimezone: true }),
+  openingGovernanceActionId: integer('opening_governance_action_id'),
+  status: varchar('status', { length: 20 }).notNull().default('DRAFT'),
+  version: integer('version').notNull().default(1),
+  createdBy: integer('created_by').references(() => users.id).notNull(),
+  updatedBy: integer('updated_by').references(() => users.id).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('treasury_accounts_code_uniq').on(table.code),
+  index('treasury_accounts_type_status_idx').on(table.type, table.status),
+  check('treasury_accounts_type_check', sql`${table.type} in ('CASH', 'BANK')`),
+  check('treasury_accounts_currency_check', sql`${table.currency} = 'VND'`),
+  check('treasury_accounts_status_check', sql`${table.status} in ('DRAFT', 'ACTIVE', 'INACTIVE')`),
+  check('treasury_accounts_version_check', sql`${table.version} > 0`),
+  check('treasury_accounts_code_check', sql`length(btrim(${table.code})) > 0`),
+  check('treasury_accounts_name_check', sql`length(btrim(${table.name})) > 0`),
+]);
+
 export const paymentReceipts = pgTable('payment_receipts', {
   id: serial('id').primaryKey(),
   receiptId: varchar('receipt_id', { length: 100 }).notNull(),
@@ -2591,6 +2814,10 @@ export const paymentReceipts = pgTable('payment_receipts', {
   refundedAmount: numeric('refunded_amount', { precision: 15, scale: 0 }).notNull().default('0'),
   allocationMethod: varchar('allocation_method', { length: 20 }).notNull(),
   requestHash: varchar('request_hash', { length: 64 }).notNull(),
+  treasuryAccountId: integer('treasury_account_id').references(() => treasuryAccounts.id),
+  valueDate: date('value_date'),
+  physicalReference: varchar('physical_reference', { length: 160 }),
+  paymentContractVersion: integer('payment_contract_version').notNull().default(1),
   createdBy: integer('created_by').references(() => users.id),
   version: integer('version').notNull().default(1),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -2621,9 +2848,61 @@ export const paymentReceipts = pgTable('payment_receipts', {
     'payment_receipts_version_check',
     sql`${table.version} >= 1`,
   ),
+  check('payment_receipts_contract_version_check', sql`${table.paymentContractVersion} >= 1`),
+  check(
+    'payment_receipts_physical_reference_check',
+    sql`${table.physicalReference} is null or length(btrim(${table.physicalReference})) > 0`,
+  ),
   check(
     'payment_receipts_allocation_method_check',
     sql`${table.allocationMethod} in ('OLDEST_DUE', 'EXPLICIT')`,
+  ),
+]);
+
+// Append-only book movements linked to one physical collection/payment source.
+// AR/AP balances continue to live in their existing authorities.
+export const treasuryMovements = pgTable('treasury_movements', {
+  id: serial('id').primaryKey(),
+  treasuryAccountId: integer('treasury_account_id').references(() => treasuryAccounts.id).notNull(),
+  direction: varchar('direction', { length: 10 }).notNull(),
+  amount: numeric('amount', { precision: 15, scale: 0 }).notNull(),
+  valueDate: date('value_date').notNull(),
+  postedAt: timestamp('posted_at', { withTimezone: true }).defaultNow().notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('POSTED'),
+  paymentReceiptId: integer('payment_receipt_id').references(() => paymentReceipts.id),
+  ledgerEntryId: integer('ledger_entry_id').references(() => ledger.id),
+  sourceVersion: integer('source_version').notNull(),
+  paymentContractVersion: integer('payment_contract_version').notNull(),
+  physicalReference: varchar('physical_reference', { length: 160 }).notNull(),
+  externalReference: varchar('external_reference', { length: 160 }),
+  governanceActionId: integer('governance_action_id'),
+  reversalOfId: integer('reversal_of_id').references((): AnyPgColumn => treasuryMovements.id),
+  createdBy: integer('created_by').references(() => users.id).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('treasury_movements_physical_posted_uniq')
+    .on(table.treasuryAccountId, table.direction, table.physicalReference)
+    .where(sql`${table.status} = 'POSTED'`),
+  uniqueIndex('treasury_movements_receipt_posted_uniq')
+    .on(table.paymentReceiptId)
+    .where(sql`${table.paymentReceiptId} is not null and ${table.status} = 'POSTED'`),
+  uniqueIndex('treasury_movements_ledger_posted_uniq')
+    .on(table.ledgerEntryId)
+    .where(sql`${table.ledgerEntryId} is not null and ${table.status} = 'POSTED'`),
+  uniqueIndex('treasury_movements_reversal_uniq')
+    .on(table.reversalOfId)
+    .where(sql`${table.reversalOfId} is not null`),
+  index('treasury_movements_account_date_idx').on(table.treasuryAccountId, table.valueDate),
+  check('treasury_movements_direction_check', sql`${table.direction} in ('IN', 'OUT')`),
+  check('treasury_movements_amount_check', sql`${table.amount} > 0`),
+  check('treasury_movements_status_check', sql`${table.status} in ('POSTED', 'REVERSED')`),
+  check('treasury_movements_source_version_check', sql`${table.sourceVersion} > 0`),
+  check('treasury_movements_contract_version_check', sql`${table.paymentContractVersion} > 0`),
+  check('treasury_movements_physical_reference_check', sql`length(btrim(${table.physicalReference})) > 0`),
+  check(
+    'treasury_movements_exactly_one_source_check',
+    sql`(case when ${table.paymentReceiptId} is null then 0 else 1 end)
+      + (case when ${table.ledgerEntryId} is null then 0 else 1 end) = 1`,
   ),
 ]);
 
@@ -2858,6 +3137,7 @@ export const handoffStatusEnum = pgEnum('handoff_status', [
 
 export const dispatchHandoffs = pgTable('dispatch_handoffs', {
   id: serial('id').primaryKey(),
+  version: integer('version').notNull().default(1),
   // The shipment being handed off.
   shipmentId: integer('shipment_id')
     .references(() => shipments.id, { onDelete: 'cascade' }).notNull(),
@@ -2881,6 +3161,10 @@ export const dispatchHandoffs = pgTable('dispatch_handoffs', {
   dispatchedAt: timestamp('dispatched_at').defaultNow().notNull(),
   seenAt: timestamp('seen_at'),
   resolvedAt: timestamp('resolved_at'),
+  acceptedBy: integer('accepted_by').references(() => users.id),
+  supersedesHandoffId: integer('supersedes_handoff_id')
+    .references((): AnyPgColumn => dispatchHandoffs.id),
+  supersededAt: timestamp('superseded_at', { withTimezone: true }),
   // Free-text reason for REJECTED status.
   rejectReason: text('reject_reason'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -2895,6 +3179,65 @@ export const dispatchHandoffs = pgTable('dispatch_handoffs', {
   uniqueIndex('dispatch_handoffs_shipment_active_uniq')
     .on(table.shipmentId)
     .where(sql`${table.status} IN ('UNSEEN', 'SEEN')`),
+  uniqueIndex('dispatch_handoffs_supersedes_uniq')
+    .on(table.supersedesHandoffId)
+    .where(sql`${table.supersedesHandoffId} is not null`),
+  check('dispatch_handoffs_version_check', sql`${table.version} > 0`),
+  check(
+    'dispatch_handoffs_acceptance_actor_check',
+    // Existing accepted handoffs predate authenticated acceptance and receive
+    // version=1 during the additive migration. New CAS transitions increment
+    // to version>=2 and must carry the authenticated actor.
+    sql`${table.status} <> 'ACCEPTED' or ${table.version} = 1 or (${table.acceptedBy} is not null and ${table.resolvedAt} is not null)`,
+  ),
+]);
+
+export const profitabilitySnapshots = pgTable('profitability_snapshots', {
+  id: serial('id').primaryKey(),
+  financialPostingId: integer('financial_posting_id')
+    .references(() => tripFinancialPostings.id).notNull(),
+  tripId: integer('trip_id').references(() => trips.id).notNull(),
+  shipmentId: integer('shipment_id').references(() => shipments.id),
+  completedBusinessDate: date('completed_business_date').notNull(),
+  revenue: numeric('revenue', { precision: 15, scale: 0 }).notNull(),
+  directCost: numeric('direct_cost', { precision: 15, scale: 0 }).notNull(),
+  sharedOverhead: numeric('shared_overhead', { precision: 15, scale: 0 }).notNull().default('0'),
+  profit: numeric('profit', { precision: 15, scale: 0 }).notNull(),
+  attributionStatus: varchar('attribution_status', { length: 30 }).notNull(),
+  capturedAt: timestamp('captured_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('profitability_snapshots_posting_uniq').on(table.financialPostingId),
+  index('profitability_snapshots_business_date_idx').on(table.completedBusinessDate),
+  check(
+    'profitability_snapshots_attribution_status_check',
+    sql`${table.attributionStatus} in ('COMPLETE', 'MISSING_ATTRIBUTION', 'PARTIAL')`,
+  ),
+  check(
+    'profitability_snapshots_amount_check',
+    sql`${table.profit} = ${table.revenue} - ${table.directCost} - ${table.sharedOverhead}`,
+  ),
+]);
+
+export const profitabilitySnapshotDimensions = pgTable('profitability_snapshot_dimensions', {
+  id: serial('id').primaryKey(),
+  snapshotId: integer('snapshot_id')
+    .references(() => profitabilitySnapshots.id, { onDelete: 'cascade' }).notNull(),
+  dimension: varchar('dimension', { length: 30 }).notNull(),
+  dimensionKey: varchar('dimension_key', { length: 120 }).notNull(),
+  dimensionLabel: varchar('dimension_label', { length: 255 }).notNull(),
+  attributionStatus: varchar('attribution_status', { length: 30 }).notNull(),
+  metadata: jsonb('metadata').$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+}, (table) => [
+  uniqueIndex('profitability_snapshot_dimensions_uniq').on(table.snapshotId, table.dimension),
+  index('profitability_snapshot_dimensions_lookup_idx').on(table.dimension, table.dimensionKey),
+  check(
+    'profitability_snapshot_dimensions_dimension_check',
+    sql`${table.dimension} in ('CUSTOMER', 'ROUTE', 'TRUCK', 'DISPATCHER', 'SALESPERSON', 'MONTH', 'YEAR', 'CONTAINER')`,
+  ),
+  check(
+    'profitability_snapshot_dimensions_status_check',
+    sql`${table.attributionStatus} in ('ATTRIBUTED', 'MISSING')`,
+  ),
 ]);
 
 // Idempotency key registry — server-side dedupe for "resubmit doesn't

@@ -28,6 +28,7 @@ import {
   applyPaymentRefundGovernanceAction,
 } from './payment-allocation.service';
 import { applyProfitDistributionGovernanceAction } from './profit-distribution.service';
+import { applyTreasuryGovernanceAction } from './treasury.service';
 import {
   enqueueDurableEffects,
   type DurableEffectInput,
@@ -109,6 +110,9 @@ const DIRECT_MONEY_ACTION_KINDS = new Set([
   'PENALTY_CREATE',
   'PENALTY_CANCEL',
   'PROFIT_DISTRIBUTION',
+  'TREASURY_ACCOUNT_SETUP',
+  'TREASURY_CUTOVER',
+  'TREASURY_MOVEMENT_REVERSAL',
 ]);
 
 function assertExpectedActionVersion(actual: number, expected: number): void {
@@ -376,6 +380,10 @@ async function applyDirectMoneyGovernanceAction(
       return applyPenaltyCancelGovernanceAction(tx, action);
     case 'PROFIT_DISTRIBUTION':
       return applyProfitDistributionGovernanceAction(tx, action);
+    case 'TREASURY_ACCOUNT_SETUP':
+    case 'TREASURY_CUTOVER':
+    case 'TREASURY_MOVEMENT_REVERSAL':
+      return applyTreasuryGovernanceAction(tx, action);
     default:
       throw new ApiError(409, 'Loại yêu cầu không thuộc nhóm tiền trực tiếp');
   }

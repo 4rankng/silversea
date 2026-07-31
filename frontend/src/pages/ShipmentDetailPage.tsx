@@ -16,6 +16,8 @@ import {
 } from '@tingting/shared';
 import { usePageAnimations } from '../hooks/animations';
 import { useAuth } from '../hooks/useAuth';
+import { ShipmentCoordinationPanel } from '../components/shipment/ShipmentCoordinationPanel';
+import './WorkflowFinance.css';
 import './ShipmentDetailPage.css';
 
 // ─── Types (local; see ShipmentsPage for the rationale) ──────────────────────
@@ -122,7 +124,11 @@ export default function ShipmentDetailPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const shipmentId = Number(id);
-  const canOperate = user?.role === Role.ADMIN || user?.role === Role.MANAGER;
+  const canOperate = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.CLERK;
+  const coordinationActive = user?.workflowRolloutMode === 'ACTIVE'
+    && Boolean(user.capabilities?.includes('shipments.read'));
+  const canWriteCoordination = coordinationActive
+    && Boolean(user.capabilities?.includes('shipments.write'));
 
   const [data, setData] = useState<ShipmentDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -247,6 +253,10 @@ export default function ShipmentDetailPage() {
             <div className="shipment-detail__field--wide"><dt>Ghi chú vận hành</dt><dd>{shipment.operationalNotes ?? '—'}</dd></div>
           </dl>
         </section>
+
+        {coordinationActive && (
+          <ShipmentCoordinationPanel shipmentId={shipment.id} canWrite={canWriteCoordination} />
+        )}
 
         {/* Containers */}
         <section className="shipment-detail__card">

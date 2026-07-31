@@ -18,6 +18,7 @@ import { db } from '../../db';
 import * as s from '../../db/schema';
 import { requireRoles } from '../../middleware/casbin';
 import { asyncHandler } from '../../middleware/asyncHandler';
+import { requireWorkflowActive } from '../../middleware/workflow-rollout';
 import { emitNotification } from '../../services/notification.service';
 import * as financialService from '../../services/financial.service';
 import {
@@ -55,8 +56,43 @@ import {
   PROFIT_DISTRIBUTION_TRANSACTION_OPTIONS,
   runProfitDistributionWithSerializationRetry,
 } from '../../services/profit-distribution.service';
+import {
+  getTreasuryPosition,
+  requestTreasuryAccountSetup,
+  requestTreasuryCutover,
+  requestTreasuryMovementReversal,
+} from '../../services/treasury.service';
 
 const PAYABLES_CATEGORIES = new Set<string>(['fuel', 'ancillary', 'commission', 'carrier']);
+
+const treasuryPaymentFieldsSchema = z.object({
+  treasuryAccountId: z.coerce.number().int().positive().optional(),
+  valueDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày giá trị phải có định dạng YYYY-MM-DD').optional(),
+  physicalReference: z.string().trim().min(1).max(160).optional(),
+});
+const createPaymentWithTreasurySchema = z.intersection(createPaymentSchema, treasuryPaymentFieldsSchema);
+const vendorPaymentWithTreasurySchema = vendorPaymentSchema.merge(treasuryPaymentFieldsSchema);
+const treasuryAccountSetupSchema = z.object({
+  code: z.string().trim().min(1).max(50),
+  name: z.string().trim().min(1).max(160),
+  type: z.enum(['CASH', 'BANK']),
+  bankName: z.string().trim().max(160).optional(),
+  bankAccountNumber: z.string().trim().max(80).optional(),
+  openingBalance: z.number().int(),
+  openingBalanceDate: z.string().date(),
+  reason: z.string().trim().min(1).max(1000),
+  openingBalanceEvidence: z.string().trim().min(1).max(255),
+});
+const treasuryCutoverSchema = z.object({
+  expectedVersion: z.number().int().positive(),
+  cutoverAt: z.string().datetime(),
+  reason: z.string().trim().min(1).max(1000),
+  cutoverEvidence: z.string().trim().min(1).max(255),
+});
+const treasuryReversalSchema = z.object({
+  reason: z.string().trim().min(1).max(1000),
+  reversalEvidence: z.string().trim().min(1).max(255),
+});
 
 const router = Router();
 
@@ -88,7 +124,7 @@ function getRequestIdempotencyKey(req: Request): string | undefined {
 router.post('/payments/receive', asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);
-  const data = createPaymentSchema.parse(req.body);
+  const data = createPaymentWithTreasurySchema.parse(req.body);
   const { result, replayed } = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.PAYMENTS_RECEIVE,
     idempotencyKey,
@@ -102,6 +138,9 @@ router.post('/payments/receive', asyncHandler(async (req: Request, res: Response
       })),
       makerId: actor.userId,
       makerRole: actor.role,
+      treasuryAccountId: data.treasuryAccountId,
+      valueDate: data.valueDate,
+      physicalReference: data.physicalReference,
     },
     createdBy: actor.userId,
     entityType: 'governance_action',
@@ -114,6 +153,9 @@ router.post('/payments/receive', asyncHandler(async (req: Request, res: Response
           tripId: payment.tripId,
           amount: payment.amount,
         })),
+        treasuryAccountId: data.treasuryAccountId,
+        valueDate: data.valueDate,
+        physicalReference: data.physicalReference,
       },
       makerId: actor.userId,
       makerRole: actor.role,
@@ -387,7 +429,7 @@ router.post(
 router.post('/payments/vendor', asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);
-  const data = vendorPaymentSchema.parse(req.body);
+  const data = vendorPaymentWithTreasurySchema.parse(req.body);
   const { result, replayed } = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.PAYMENTS_VENDOR,
     idempotencyKey,
@@ -415,7 +457,7 @@ router.post('/payments/vendor', asyncHandler(async (req: Request, res: Response)
 router.post('/payments/carrier', asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);
-  const data = vendorPaymentSchema.parse(req.body);
+  const data = vendorPaymentWithTreasurySchema.parse(req.body);
   const { result, replayed } = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.PAYMENTS_CARRIER,
     idempotencyKey,
@@ -561,6 +603,61 @@ router.post('/drivers/:driverId/payouts', requireRoles(Role.ADMIN, Role.MANAGER,
   res.locals.auditEntityId = result.id;
   res.locals.auditEntityKey = result.subjectKey ?? `#${result.id}`;
   res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
+}));
+
+router.get('/finance/treasury/position', requireWorkflowActive, requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (_req: Request, res: Response) => {
+  const positions = await db.transaction(async (tx) => {
+    const accounts = await tx.select({ id: s.treasuryAccounts.id })
+      .from(s.treasuryAccounts).where(eq(s.treasuryAccounts.status, 'ACTIVE'));
+    return Promise.all(accounts.map(account => getTreasuryPosition(account.id, tx)));
+  });
+  res.json({
+    asOf: new Date().toISOString(),
+    currency: 'VND',
+    coverage: positions.length === 0
+      ? 'UNAVAILABLE'
+      : positions.some(position => position.completeness === 'PARTIAL') ? 'PARTIAL' : 'COMPLETE',
+    accounts: positions,
+  });
+}));
+
+router.post('/finance/treasury/accounts/setup', requireWorkflowActive, requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
+  const actor = getUser(req);
+  const body = treasuryAccountSetupSchema.parse(req.body);
+  const action = await requestTreasuryAccountSetup({
+    account: body,
+    reason: body.reason,
+    openingBalanceEvidence: body.openingBalanceEvidence,
+    makerId: actor.userId,
+    makerRole: actor.role,
+  });
+  res.status(202).json(action);
+}));
+
+router.post('/finance/treasury/accounts/:id/cutover', requireWorkflowActive, requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
+  const actor = getUser(req);
+  const accountId = z.coerce.number().int().positive().parse(req.params.id);
+  const body = treasuryCutoverSchema.parse(req.body);
+  const action = await requestTreasuryCutover({
+    accountId,
+    ...body,
+    makerId: actor.userId,
+    makerRole: actor.role,
+  });
+  res.status(202).json(action);
+}));
+
+router.post('/finance/treasury/movements/:id/reversal', requireWorkflowActive, requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+  const actor = getUser(req);
+  const movementId = z.coerce.number().int().positive().parse(req.params.id);
+  const body = treasuryReversalSchema.parse(req.body);
+  const action = await requestTreasuryMovementReversal({
+    movementId,
+    ...body,
+    makerId: actor.userId,
+    makerRole: actor.role,
+  });
+  res.status(202).json(action);
 }));
 
 export default router;

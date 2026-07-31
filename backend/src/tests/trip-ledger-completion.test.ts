@@ -29,6 +29,8 @@ after(async () => {
   if (createdTripIds.length > 0) {
     await db.delete(s.governanceActions).where(inArray(s.governanceActions.subjectId, createdTripIds));
     await db.delete(s.ledger).where(inArray(s.ledger.txnId, createdTripIds));
+    await db.delete(s.profitabilitySnapshots).where(inArray(s.profitabilitySnapshots.tripId, createdTripIds));
+    await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.tripId, createdTripIds));
     await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
   }
   if (createdUserIds.length > 0) {

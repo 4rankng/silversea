@@ -367,11 +367,16 @@ async function computeDistributionSnapshot(
 
   const trips = await executor.select({
     id: s.trips.id,
-    version: s.trips.version,
+    financialPostingId: s.tripFinancialPostings.id,
+    financialPostingVersion: s.tripFinancialPostings.version,
     truckId: s.trips.truckId,
     grossProfit: s.trips.grossProfit,
     completedAt: s.trips.completedAt,
-  }).from(s.trips).where(
+  }).from(s.trips)
+    .leftJoin(s.tripFinancialPostings, and(
+      eq(s.tripFinancialPostings.tripId, s.trips.id),
+      eq(s.tripFinancialPostings.status, 'ACTIVE'),
+    )).where(
     and(
       eq(s.trips.status, TripStatus.LOCKED),
       isNull(s.trips.deletedAt),
@@ -514,7 +519,8 @@ async function computeDistributionSnapshot(
     trips: trips
       .map(trip => ({
         id: trip.id,
-        version: trip.version,
+        financialPostingId: trip.financialPostingId,
+        financialPostingVersion: trip.financialPostingVersion,
         truckId: trip.truckId,
         grossProfit: trip.grossProfit,
         completedAt: trip.completedAt?.toISOString() ?? null,

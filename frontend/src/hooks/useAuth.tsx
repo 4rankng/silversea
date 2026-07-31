@@ -23,6 +23,7 @@ export interface AuthUser {
   /** Clerk scope: explicit shipment assignments. */
   shipmentIds?: number[];
   capabilities?: string[];
+  workflowRolloutMode?: 'OFF' | 'SHADOW' | 'ACTIVE';
   /** Assistant (bot) enabled for this deployment (BOT_ENABLE). Launcher hides when false. */
   botEnabled?: boolean;
   /** Onboarding tutorial enabled app-wide (admin toggle). Checklist panel + tours hide when false. */

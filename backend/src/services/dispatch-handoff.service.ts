@@ -22,6 +22,9 @@ import { and, desc, eq, sql } from 'drizzle-orm';
 import { NotificationType } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { emitNotification } from './notification.service';
+import type { AuthUser } from '../middleware/auth';
+import type { Tx } from './trip-shared';
+import { assertActorCanAccessShipment } from './shipment-coordination.service';
 
 export type HandoffStatus = 'UNSEEN' | 'SEEN' | 'ACCEPTED' | 'REJECTED';
 
@@ -32,6 +35,8 @@ export interface CreateHandoffInput {
   vehicleNeededBy?: Date | null;
   operationalNote?: string | null;
   createdBy: number;
+  actor?: AuthUser;
+  transaction?: Tx;
 }
 
 export interface HandoffVersionCheck {
@@ -46,24 +51,34 @@ export interface HandoffVersionCheck {
  * unique index.
  */
 export async function createHandoff(input: CreateHandoffInput) {
-  // Load the shipment to snapshot its version.
-  const [shipment] = await db.select({ id: s.shipments.id, version: s.shipments.version, shipmentCode: s.shipments.shipmentCode })
-    .from(s.shipments)
-    .where(eq(s.shipments.id, input.shipmentId))
-    .limit(1);
-  if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
+  const execute = async (tx: Tx) => {
+    if (input.actor) {
+      await assertActorCanAccessShipment(tx, input.shipmentId, input.actor, { write: true });
+    }
+    // Locking the shipment makes the version snapshot and handoff insert one
+    // authoritative operation.
+    const [shipment] = await tx.select({ id: s.shipments.id, version: s.shipments.version, shipmentCode: s.shipments.shipmentCode })
+      .from(s.shipments)
+      .where(eq(s.shipments.id, input.shipmentId))
+      .limit(1)
+      .for('update');
+    if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
 
-  // Insert the handoff row.
-  const [handoff] = await db.insert(s.dispatchHandoffs).values({
-    shipmentId: input.shipmentId,
-    handlerId: input.handlerId ?? null,
-    priority: input.priority ?? 'NORMAL',
-    vehicleNeededBy: input.vehicleNeededBy ?? null,
-    operationalNote: input.operationalNote ?? null,
-    status: 'UNSEEN',
-    handoffVersion: shipment.version,
-    createdBy: input.createdBy,
-  }).returning();
+    const [handoff] = await tx.insert(s.dispatchHandoffs).values({
+      shipmentId: input.shipmentId,
+      handlerId: input.handlerId ?? null,
+      priority: input.priority ?? 'NORMAL',
+      vehicleNeededBy: input.vehicleNeededBy ?? null,
+      operationalNote: input.operationalNote ?? null,
+      status: 'UNSEEN',
+      handoffVersion: shipment.version,
+      createdBy: input.createdBy,
+    }).returning();
+    return { handoff, shipment };
+  };
+  const { handoff, shipment } = input.transaction
+    ? await execute(input.transaction)
+    : await db.transaction(execute);
 
   // Emit notification to the handler (or all dispatchers if unassigned).
   emitNotification({
@@ -106,30 +121,76 @@ export async function markSeen(handoffId: number) {
 export async function resolveHandoff(
   handoffId: number,
   resolution: 'ACCEPTED' | 'REJECTED',
-  rejectReason?: string | null,
+  actorId: number,
+  expectedVersion: number,
+  options: { rejectReason?: string | null; expectedShipmentId?: number; transaction?: Tx } = {},
 ) {
-  const [existing] = await db.select().from(s.dispatchHandoffs)
-    .where(eq(s.dispatchHandoffs.id, handoffId)).limit(1);
-  if (!existing) throw new ApiError(404, 'Không tìm thấy lệnh điều vận');
+  const execute = async (tx: Tx) => {
+    const [existing] = await tx.select().from(s.dispatchHandoffs)
+      .where(eq(s.dispatchHandoffs.id, handoffId)).limit(1).for('update');
+    if (!existing || (options.expectedShipmentId != null && existing.shipmentId !== options.expectedShipmentId)) {
+      throw new ApiError(404, 'Không tìm thấy lệnh điều vận');
+    }
+    if (existing.version !== expectedVersion) {
+      throw new ApiError(409, 'Lệnh điều vận đã được cập nhật. Vui lòng tải lại.');
+    }
+    if (existing.status === 'ACCEPTED' || existing.status === 'REJECTED') {
+      throw new ApiError(409, `Lệnh đã kết thúc ở ${existing.status}`);
+    }
+    if (existing.handlerId != null && existing.handlerId !== actorId) {
+      throw new ApiError(403, 'Lệnh điều vận được giao cho nhân viên khác');
+    }
+    const rejectReason = options.rejectReason?.trim() || null;
+    if (resolution === 'REJECTED' && !rejectReason) {
+      throw new ApiError(400, 'Lý do từ chối là bắt buộc khi từ chối lệnh điều vận');
+    }
 
-  if (existing.status === 'ACCEPTED' || existing.status === 'REJECTED') {
-    throw new ApiError(400, `Lệnh đã kết thúc ở ${existing.status}`);
-  }
+    const now = new Date();
+    let supersedesHandoffId: number | null = null;
+    if (resolution === 'ACCEPTED') {
+      const [previousAccepted] = await tx.select().from(s.dispatchHandoffs)
+        .where(and(
+          eq(s.dispatchHandoffs.shipmentId, existing.shipmentId),
+          eq(s.dispatchHandoffs.status, 'ACCEPTED'),
+          sql`${s.dispatchHandoffs.supersededAt} is null`,
+        ))
+        .orderBy(desc(s.dispatchHandoffs.resolvedAt))
+        .limit(1)
+        .for('update');
+      if (previousAccepted) {
+        supersedesHandoffId = previousAccepted.id;
+        await tx.update(s.dispatchHandoffs).set({
+          supersededAt: now,
+          version: sql`${s.dispatchHandoffs.version} + 1`,
+          updatedAt: now,
+        }).where(and(
+          eq(s.dispatchHandoffs.id, previousAccepted.id),
+          eq(s.dispatchHandoffs.version, previousAccepted.version),
+          sql`${s.dispatchHandoffs.supersededAt} is null`,
+        ));
+      }
+    }
 
-  if (resolution === 'REJECTED' && !rejectReason?.trim()) {
-    throw new ApiError(400, 'Lý do từ chối là bắt buộc khi từ chối lệnh điều vận');
-  }
-
-  const [updated] = await db.update(s.dispatchHandoffs)
-    .set({
-      status: resolution,
-      resolvedAt: new Date(),
-      rejectReason: resolution === 'REJECTED' ? (rejectReason ?? null) : null,
-      updatedAt: new Date(),
-    })
-    .where(eq(s.dispatchHandoffs.id, handoffId))
-    .returning();
-  return updated;
+    const [updated] = await tx.update(s.dispatchHandoffs)
+      .set({
+        status: resolution,
+        resolvedAt: now,
+        acceptedBy: resolution === 'ACCEPTED' ? actorId : null,
+        supersedesHandoffId,
+        rejectReason: resolution === 'REJECTED' ? rejectReason : null,
+        version: sql`${s.dispatchHandoffs.version} + 1`,
+        updatedAt: now,
+      })
+      .where(and(
+        eq(s.dispatchHandoffs.id, handoffId),
+        eq(s.dispatchHandoffs.version, expectedVersion),
+        sql`${s.dispatchHandoffs.status} IN ('UNSEEN', 'SEEN')`,
+      ))
+      .returning();
+    if (!updated) throw new ApiError(409, 'Lệnh điều vận đã được người khác xử lý');
+    return updated;
+  };
+  return options.transaction ? execute(options.transaction) : db.transaction(execute);
 }
 
 /**

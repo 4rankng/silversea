@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { CheckCircle2, FileSpreadsheet, FileText, Printer, TriangleAlert } from 'lucide-react';
 import type { BillingDocument } from '@tingting/shared';
 import { api } from '../../lib/api';
+import { Modal } from '../../components/UI';
 import { EmptyState, Pagination } from '../../design-system';
 import { useCustomerPortalScope, withCustomerScope } from './CustomerPortalScope';
 import './PortalPages.css';
+import '../WorkflowFinance.css';
 
 const STATUS_LABELS: Record<string, string> = {
   DRAFT: 'Bản nháp',
@@ -49,6 +51,8 @@ export default function PortalDebitNotesPage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [retryKey, setRetryKey] = useState(0);
+  const [decision, setDecision] = useState<{ doc: BillingDocument; action: 'confirm' | 'dispute' } | null>(null);
+  const [disputeReason, setDisputeReason] = useState('');
 
   useEffect(() => {
     if (!customerScopeReady) return;
@@ -77,23 +81,23 @@ export default function PortalDebitNotesPage() {
   }, [selectedCustomerId]);
 
   const updateStatus = async (doc: BillingDocument, action: 'confirm' | 'dispute') => {
-    const question = action === 'confirm'
-      ? 'Xác nhận giấy báo nợ này? Sau khi xác nhận, nội dung sẽ được khóa.'
-      : 'Phản hồi tranh chấp giấy báo nợ này? Bộ phận công nợ sẽ kiểm tra lại.';
-    if (!window.confirm(question)) return;
-
     setWorkingId(doc.id);
     setNotice(null);
     try {
       const updated = await api.post<BillingDocument>(
         withCustomerScope(`/portal/debit-notes/${doc.id}/${action}`, selectedCustomerId),
-        {},
+        action === 'confirm'
+          ? { expectedVersion: doc.version }
+          : { expectedVersion: doc.version, reason: disputeReason.trim(), evidenceRefs: [] },
+        { headers: { 'Idempotency-Key': crypto.randomUUID() } },
       );
       setItems((current) => current.map((item) => item.id === doc.id ? updated : item));
       setNotice({
         tone: 'success',
         text: action === 'confirm' ? 'Đã xác nhận giấy báo nợ.' : 'Đã gửi phản hồi tranh chấp.',
       });
+      setDecision(null);
+      setDisputeReason('');
     } catch (err) {
       setNotice({ tone: 'error', text: (err as Error).message || 'Không thể cập nhật giấy báo nợ.' });
     } finally {
@@ -178,6 +182,13 @@ export default function PortalDebitNotesPage() {
                     <span className={statusClass(doc.debitNoteStatus)}>{STATUS_LABELS[doc.debitNoteStatus ?? 'DRAFT']}</span>
                     <strong>Kỳ {new Date(doc.rangeFrom).toLocaleDateString('vi-VN')} – {new Date(doc.rangeTo).toLocaleDateString('vi-VN')}</strong>
                     <span className="portal-debit-row__amount">{Number(doc.totalInclVat).toLocaleString('vi-VN')} ₫</span>
+                    <span className="portal-list__meta">
+                      Hóa đơn pháp lý: {doc.legalInvoiceRef?.status === 'ISSUED'
+                        ? `Đã ghi nhận${doc.legalInvoiceRef.providerReference ? ` · ${doc.legalInvoiceRef.providerReference}` : ''}`
+                        : doc.legalInvoiceRef?.status === 'PENDING' ? 'Đang ghi nhận tham chiếu'
+                        : doc.legalInvoiceRef?.status === 'UNKNOWN' ? 'Không xác định — cần kiểm tra'
+                        : 'Chưa có tham chiếu hóa đơn pháp lý'}
+                    </span>
                   </div>
                   <dl className="portal-debit-row__dates">
                     <div><dt>Hạn hợp đồng</dt><dd>{formatDate(doc.originalDueDate)}</dd></div>
@@ -192,10 +203,10 @@ export default function PortalDebitNotesPage() {
                     </button>
                     {pending && (
                       <>
-                        <button type="button" className="portal-button portal-button--danger" disabled={busy} onClick={() => void updateStatus(doc, 'dispute')}>
-                          <TriangleAlert size={16} /> Tranh chấp
+                        <button type="button" className="portal-button portal-button--danger" disabled={busy} onClick={() => setDecision({ doc, action: 'dispute' })}>
+                          <TriangleAlert size={16} /> Phản hồi
                         </button>
-                        <button type="button" className="portal-button portal-button--primary" disabled={busy} onClick={() => void updateStatus(doc, 'confirm')}>
+                        <button type="button" className="portal-button portal-button--primary" disabled={busy} onClick={() => setDecision({ doc, action: 'confirm' })}>
                           <CheckCircle2 size={16} /> Xác nhận
                         </button>
                       </>
@@ -210,6 +221,9 @@ export default function PortalDebitNotesPage() {
           </div>
         </div>
       )}
+      <Modal isOpen={decision != null} title={decision?.action === 'confirm' ? 'Xác nhận Giấy báo nợ' : 'Phản hồi Giấy báo nợ'} onClose={() => workingId == null && setDecision(null)} footer={<><button className="btn btn--ghost" onClick={() => setDecision(null)} disabled={workingId != null}>Hủy</button><button className={decision?.action === 'dispute' ? 'btn btn--danger' : 'btn btn--primary'} disabled={workingId != null || (decision?.action === 'dispute' && !disputeReason.trim())} onClick={() => decision && void updateStatus(decision.doc, decision.action)}>{workingId != null ? 'Đang gửi…' : decision?.action === 'confirm' ? 'Xác nhận' : 'Gửi phản hồi'}</button></>}>
+        {decision?.action === 'confirm' ? <p>Sau khi xác nhận, nội dung Giấy báo nợ sẽ được khóa để theo dõi công nợ.</p> : <div className="workflow-form"><label htmlFor="debit-note-dispute-reason">Lý do phản hồi<textarea id="debit-note-dispute-reason" className="input" rows={5} maxLength={1000} value={disputeReason} onChange={(event) => setDisputeReason(event.target.value)} required /></label><small>{disputeReason.length}/1.000 ký tự</small></div>}
+      </Modal>
     </div>
   );
 }

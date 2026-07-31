@@ -136,7 +136,7 @@ describe('M10.3 — markSeen', () => {
     const ship = await mkShipment();
     const h = await createHandoff({ shipmentId: ship.id, createdBy: clerkUserId });
     createdHandoffIds.push(h.id);
-    await resolveHandoff(h.id, 'ACCEPTED');
+    await resolveHandoff(h.id, 'ACCEPTED', clerkUserId, h.version);
     await assert.rejects(
       () => markSeen(h.id),
       (err: Error & { statusCode?: number }) => err.statusCode === 400,
@@ -149,7 +149,7 @@ describe('M10.3 — resolveHandoff', () => {
     const ship = await mkShipment();
     const h = await createHandoff({ shipmentId: ship.id, createdBy: clerkUserId });
     createdHandoffIds.push(h.id);
-    const resolved = await resolveHandoff(h.id, 'ACCEPTED');
+    const resolved = await resolveHandoff(h.id, 'ACCEPTED', clerkUserId, h.version);
     assert.equal(resolved.status, 'ACCEPTED');
     assert.ok(resolved.resolvedAt);
     assert.equal(resolved.rejectReason, null);
@@ -160,7 +160,7 @@ describe('M10.3 — resolveHandoff', () => {
     const h = await createHandoff({ shipmentId: ship.id, createdBy: clerkUserId });
     createdHandoffIds.push(h.id);
     await assert.rejects(
-      () => resolveHandoff(h.id, 'REJECTED'),
+      () => resolveHandoff(h.id, 'REJECTED', clerkUserId, h.version),
       (err: Error & { statusCode?: number }) => err.statusCode === 400 && /Lý do/.test(err.message),
     );
   });
@@ -169,7 +169,7 @@ describe('M10.3 — resolveHandoff', () => {
     const ship = await mkShipment();
     const h = await createHandoff({ shipmentId: ship.id, createdBy: clerkUserId });
     createdHandoffIds.push(h.id);
-    const resolved = await resolveHandoff(h.id, 'REJECTED', 'không đủ xe');
+    const resolved = await resolveHandoff(h.id, 'REJECTED', clerkUserId, h.version, { rejectReason: 'không đủ xe' });
     assert.equal(resolved.status, 'REJECTED');
     assert.equal(resolved.rejectReason, 'không đủ xe');
   });
@@ -178,10 +178,10 @@ describe('M10.3 — resolveHandoff', () => {
     const ship = await mkShipment();
     const h = await createHandoff({ shipmentId: ship.id, createdBy: clerkUserId });
     createdHandoffIds.push(h.id);
-    await resolveHandoff(h.id, 'ACCEPTED');
+    const resolved = await resolveHandoff(h.id, 'ACCEPTED', clerkUserId, h.version);
     await assert.rejects(
-      () => resolveHandoff(h.id, 'ACCEPTED'),
-      (err: Error & { statusCode?: number }) => err.statusCode === 400,
+      () => resolveHandoff(h.id, 'ACCEPTED', clerkUserId, resolved.version),
+      (err: Error & { statusCode?: number }) => err.statusCode === 409,
     );
   });
 });
@@ -222,7 +222,7 @@ describe('M10.3 — getActiveHandoffForShipment + listHandoffs', () => {
     const ship = await mkShipment();
     const h = await createHandoff({ shipmentId: ship.id, createdBy: clerkUserId });
     createdHandoffIds.push(h.id);
-    await resolveHandoff(h.id, 'ACCEPTED');
+    await resolveHandoff(h.id, 'ACCEPTED', clerkUserId, h.version);
     const active = await getActiveHandoffForShipment(ship.id);
     assert.equal(active, null);
   });
@@ -231,7 +231,7 @@ describe('M10.3 — getActiveHandoffForShipment + listHandoffs', () => {
     const ship = await mkShipment();
     const h = await createHandoff({ shipmentId: ship.id, createdBy: clerkUserId });
     createdHandoffIds.push(h.id);
-    await resolveHandoff(h.id, 'ACCEPTED');
+    await resolveHandoff(h.id, 'ACCEPTED', clerkUserId, h.version);
     const accepted = await listHandoffs({ status: 'ACCEPTED' });
     assert.ok(accepted.some(r => r.id === h.id));
     const unseen = await listHandoffs({ status: 'UNSEEN' });

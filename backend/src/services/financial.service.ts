@@ -19,6 +19,11 @@ import {
 } from './payment-allocation.service';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from './idempotency.service';
 import type { Tx } from './trip-shared';
+import {
+  insertTreasuryMovement,
+  resolveTreasuryPaymentContract,
+  type TreasuryPaymentFields,
+} from './treasury.service';
 
 // ─── Payment recording ─────────────────────────────────────────────────────────
 
@@ -109,7 +114,25 @@ function buildVendorPaymentSubjectKey(
   supplierId: number,
   input: VendorPaymentInput,
 ): string {
-  return `${prefix}:${supplierId}:${input.receiptId ?? ''}:${input.date}:${input.amount}:${input.confirmOverpay ? '1' : '0'}`;
+  const legacyKey = [
+    prefix,
+    supplierId,
+    input.receiptId ?? '',
+    input.date,
+    input.amount,
+    input.confirmOverpay ? '1' : '0',
+  ].join(':');
+  if (
+    input.treasuryAccountId == null
+    && input.valueDate == null
+    && input.physicalReference == null
+  ) return legacyKey;
+  return [
+    legacyKey,
+    input.treasuryAccountId ?? '',
+    input.valueDate ?? '',
+    input.physicalReference ?? '',
+  ].join(':');
 }
 
 function buildDriverPayoutReason(input: DriverPayoutInput): string {
@@ -734,7 +757,7 @@ export async function getEntityBalances(entityType: string) {
 
 // ─── Vendor payments ───────────────────────────────────────────────────────────
 
-export interface VendorPaymentInput {
+export interface VendorPaymentInput extends TreasuryPaymentFields {
   supplierId: number;
   receiptId?: string;
   amount: string;
@@ -824,6 +847,13 @@ export async function requestVendorPaymentGovernance(input: {
   assertCanMakeGovernanceAction('VENDOR_PAYMENT', input.makerRole);
 
   const execute = async (tx: Tx) => {
+    const requestedAt = new Date();
+    const treasury = await resolveTreasuryPaymentContract(tx, {
+      treasuryAccountId: input.payment.treasuryAccountId,
+      valueDate: input.payment.valueDate
+        ?? (input.payment.treasuryAccountId ? input.payment.date : null),
+      physicalReference: input.payment.physicalReference,
+    }, requestedAt);
     const [supplier] = await tx.select({ id: s.suppliers.id })
       .from(s.suppliers)
       .where(and(eq(s.suppliers.id, input.payment.supplierId), isNull(s.suppliers.deletedAt)))
@@ -859,12 +889,18 @@ export async function requestVendorPaymentGovernance(input: {
         date: input.payment.date,
         note: input.payment.note ?? '',
         confirmOverpay: input.payment.confirmOverpay ?? false,
+        treasuryAccountId: treasury.treasuryAccountId,
+        valueDate: treasury.valueDate,
+        physicalReference: treasury.physicalReference,
+        paymentContractVersion: treasury.paymentContractVersion,
       },
       deltaSnapshot: {
         vendorBalanceDelta: -paymentAmount,
       },
       makerId: input.makerId,
       makerRole: input.makerRole,
+      createdAt: requestedAt,
+      updatedAt: requestedAt,
     }).returning();
     return action;
   };
@@ -900,6 +936,42 @@ export async function applyVendorPaymentGovernanceAction(tx: Tx, action: Governa
     confirmOverpay: Boolean(afterSnapshot?.confirmOverpay),
   });
 
+  const treasury = await resolveTreasuryPaymentContract(tx, {
+    treasuryAccountId: afterSnapshot?.treasuryAccountId == null
+      ? null
+      : Number(afterSnapshot.treasuryAccountId),
+    valueDate: typeof afterSnapshot?.valueDate === 'string' ? afterSnapshot.valueDate : null,
+    physicalReference: typeof afterSnapshot?.physicalReference === 'string'
+      ? afterSnapshot.physicalReference
+      : null,
+  }, action.createdAt);
+  const snapshottedContractVersion = Number(afterSnapshot?.paymentContractVersion ?? 1);
+  if (snapshottedContractVersion !== treasury.paymentContractVersion) {
+    throw new ApiError(409, 'Phiên bản hợp đồng thanh toán không còn phù hợp với thời điểm chuyển đổi kho quỹ');
+  }
+  let treasuryMovementId: number | null = null;
+  if (
+    treasury.paymentContractVersion >= 2
+    && treasury.treasuryAccountId
+    && treasury.valueDate
+    && treasury.physicalReference
+  ) {
+    const movement = await insertTreasuryMovement(tx, {
+      treasuryAccountId: treasury.treasuryAccountId,
+      direction: 'OUT',
+      amount: Number(afterSnapshot?.amount),
+      valueDate: treasury.valueDate,
+      physicalReference: treasury.physicalReference,
+      paymentContractVersion: treasury.paymentContractVersion,
+      ledgerEntryId: posted.id,
+      sourceVersion: posted.id,
+      externalReference: posted.receiptId,
+      governanceActionId: action.id,
+      createdBy: action.makerId,
+    });
+    treasuryMovementId = movement.id;
+  }
+
   await tx.update(s.governanceActions).set({
     subjectId: posted.id,
     updatedAt: new Date(),
@@ -912,6 +984,8 @@ export async function applyVendorPaymentGovernanceAction(tx: Tx, action: Governa
       supplierId,
       receiptId: posted.receiptId,
       overpayment: posted.overpayment ?? null,
+      treasuryMovementId,
+      paymentContractVersion: treasury.paymentContractVersion,
     },
   };
 }
@@ -1051,6 +1125,13 @@ export async function requestCarrierPaymentGovernance(input: {
   assertCanMakeGovernanceAction('CARRIER_PAYMENT', input.makerRole);
 
   const execute = async (tx: Tx) => {
+    const requestedAt = new Date();
+    const treasury = await resolveTreasuryPaymentContract(tx, {
+      treasuryAccountId: input.payment.treasuryAccountId,
+      valueDate: input.payment.valueDate
+        ?? (input.payment.treasuryAccountId ? input.payment.date : null),
+      physicalReference: input.payment.physicalReference,
+    }, requestedAt);
     const [carrier] = await tx.select({ id: s.customers.id })
       .from(s.customers)
       .where(and(
@@ -1091,12 +1172,18 @@ export async function requestCarrierPaymentGovernance(input: {
         date: input.payment.date,
         note: input.payment.note ?? '',
         confirmOverpay: input.payment.confirmOverpay ?? false,
+        treasuryAccountId: treasury.treasuryAccountId,
+        valueDate: treasury.valueDate,
+        physicalReference: treasury.physicalReference,
+        paymentContractVersion: treasury.paymentContractVersion,
       },
       deltaSnapshot: {
         carrierBalanceDelta: -paymentAmount,
       },
       makerId: input.makerId,
       makerRole: input.makerRole,
+      createdAt: requestedAt,
+      updatedAt: requestedAt,
     }).returning();
     return action;
   };
@@ -1132,6 +1219,42 @@ export async function applyCarrierPaymentGovernanceAction(tx: Tx, action: Govern
     confirmOverpay: Boolean(afterSnapshot?.confirmOverpay),
   });
 
+  const treasury = await resolveTreasuryPaymentContract(tx, {
+    treasuryAccountId: afterSnapshot?.treasuryAccountId == null
+      ? null
+      : Number(afterSnapshot.treasuryAccountId),
+    valueDate: typeof afterSnapshot?.valueDate === 'string' ? afterSnapshot.valueDate : null,
+    physicalReference: typeof afterSnapshot?.physicalReference === 'string'
+      ? afterSnapshot.physicalReference
+      : null,
+  }, action.createdAt);
+  const snapshottedContractVersion = Number(afterSnapshot?.paymentContractVersion ?? 1);
+  if (snapshottedContractVersion !== treasury.paymentContractVersion) {
+    throw new ApiError(409, 'Phiên bản hợp đồng thanh toán không còn phù hợp với thời điểm chuyển đổi kho quỹ');
+  }
+  let treasuryMovementId: number | null = null;
+  if (
+    treasury.paymentContractVersion >= 2
+    && treasury.treasuryAccountId
+    && treasury.valueDate
+    && treasury.physicalReference
+  ) {
+    const movement = await insertTreasuryMovement(tx, {
+      treasuryAccountId: treasury.treasuryAccountId,
+      direction: 'OUT',
+      amount: Number(afterSnapshot?.amount),
+      valueDate: treasury.valueDate,
+      physicalReference: treasury.physicalReference,
+      paymentContractVersion: treasury.paymentContractVersion,
+      ledgerEntryId: posted.id,
+      sourceVersion: posted.id,
+      externalReference: posted.receiptId,
+      governanceActionId: action.id,
+      createdBy: action.makerId,
+    });
+    treasuryMovementId = movement.id;
+  }
+
   await tx.update(s.governanceActions).set({
     subjectId: posted.id,
     updatedAt: new Date(),
@@ -1144,6 +1267,8 @@ export async function applyCarrierPaymentGovernanceAction(tx: Tx, action: Govern
       carrierId: supplierId,
       receiptId: posted.receiptId,
       overpayment: posted.overpayment ?? null,
+      treasuryMovementId,
+      paymentContractVersion: treasury.paymentContractVersion,
     },
   };
 }

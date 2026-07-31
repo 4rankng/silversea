@@ -1002,3 +1002,5 @@ a.portal-list__row:focus-visible {
     transition: none;
   }
 }
+.portal-section__description{margin:-4px 0 16px;color:var(--fg-3)}.portal-timeline{list-style:none;margin:0;padding:0;display:grid;gap:10px}.portal-timeline li{display:grid;gap:7px;padding:14px;border:1px solid var(--border);border-radius:8px}.portal-timeline__meta{display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--fg-3);font-size:12px}.portal-timeline__meta span{color:var(--brand);font-weight:700}.portal-timeline p{margin:0;white-space:pre-wrap}.portal-timeline small{color:var(--fg-3)}.portal-timeline .portal-button{justify-self:start;min-height:44px}.portal-coordination .portal-status{display:inline-flex;align-items:center;gap:6px;justify-self:start}
+@media(max-width:639px){.portal-timeline__meta{align-items:flex-start;flex-direction:column;gap:2px}.portal-timeline .portal-button{position:sticky;bottom:calc(12px + env(safe-area-inset-bottom));width:100%;min-height:48px}}

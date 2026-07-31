@@ -35,7 +35,7 @@ services:
       retries: 5
 
   backend:
-    image: franknguyenvd/transting-backend:latest
+    image: ghcr.io/4rankng/transting-backend:latest
     restart: unless-stopped
     env_file:
       - .env
@@ -59,7 +59,7 @@ services:
         condition: service_healthy
 
   frontend:
-    image: franknguyenvd/transting-frontend:latest
+    image: ghcr.io/4rankng/transting-frontend:latest
     restart: unless-stopped
     expose:
       - "80"

@@ -49,6 +49,34 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     serviceFile: path.resolve(process.cwd(), 'src/services/driver.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_INCIDENTAL_COST',
   }],
+  ['financial/payments.routes.ts|POST|/finance/treasury/accounts/setup', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/treasury.service.ts'),
+    marker: 'export async function requestTreasuryAccountSetup(',
+  }],
+  ['financial/payments.routes.ts|POST|/finance/treasury/accounts/:id/cutover', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/treasury.service.ts'),
+    marker: 'export async function requestTreasuryCutover(',
+  }],
+  ['financial/payments.routes.ts|POST|/finance/treasury/movements/:id/reversal', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/treasury.service.ts'),
+    marker: 'export async function requestTreasuryMovementReversal(',
+  }],
+  ['portal/index.ts|POST|/shipments/:id/customer-events/:eventId/acknowledge', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/shipment-coordination.service.ts'),
+    marker: 'export async function acknowledgeCustomerVisibleEvent(',
+  }],
+  ['shipments.ts|POST|/:id/customer-events', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/shipment-coordination.service.ts'),
+    marker: 'export async function createCustomerVisibleEvent(',
+  }],
+  ['shipments.ts|POST|/:id/dispatch-handoffs', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/dispatch-handoff.service.ts'),
+    marker: 'export async function createHandoff(',
+  }],
+  ['shipments.ts|POST|/:id/dispatch-handoffs/:handoffId/resolve', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/dispatch-handoff.service.ts'),
+    marker: 'export async function resolveHandoff(',
+  }],
 ]);
 
 function walkTsFiles(root: string): string[] {

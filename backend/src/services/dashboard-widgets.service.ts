@@ -15,6 +15,7 @@ import { and, eq, sql, isNull, gte, lte, desc, count, ne } from 'drizzle-orm';
 import { TripStatus } from '@tingting/shared';
 import { getPnlReport } from './pnl.service';
 import { cacheGet } from '../lib/redis';
+import { salaryPeriodDateRange, tripCompletionBusinessDateSql } from './reporting-shared';
 
 export interface DashboardWidgets {
   twoWayCargoRatio: {
@@ -46,6 +47,8 @@ export async function getDashboardWidgets(month?: number, year?: number, skipCac
     const now = new Date();
     const m = month ?? now.getMonth() + 1;
     const y = year ?? now.getFullYear();
+    const { start: periodStart, end: periodEnd } = await salaryPeriodDateRange(m, y);
+    const completionBusinessDate = tripCompletionBusinessDateSql();
 
     // ─── Two-way-cargo ratio ──────────────────────────────────────────────
     const billableTrips = await db.select({
@@ -53,8 +56,9 @@ export async function getDashboardWidgets(month?: number, year?: number, skipCac
     }).from(s.trips).where(and(
       inArrayStatus(),
       isNull(s.trips.deletedAt),
-      sql`EXTRACT(MONTH FROM ${s.trips.departureDate}::date) = ${m}`,
-      sql`EXTRACT(YEAR FROM ${s.trips.departureDate}::date) = ${y}`,
+      sql`${s.trips.completedAt} is not null`,
+      gte(completionBusinessDate, periodStart),
+      sql`${completionBusinessDate} < ${periodEnd}`,
     ));
     const totalBillableTrips = billableTrips.length;
     const tripsWithReturnCargo = billableTrips.filter(t => t.hasReturnCargo).length;
@@ -77,10 +81,11 @@ export async function getDashboardWidgets(month?: number, year?: number, skipCac
     // Last completed trip date per truck.
     const lastTrips = await db.select({
       truckId: s.trips.truckId,
-      lastDate: sql<string>`max(${s.trips.departureDate})`.as('last_date'),
+      lastDate: sql<string>`max(${completionBusinessDate})`.as('last_date'),
     }).from(s.trips).where(and(
       inArrayStatus(),
       isNull(s.trips.deletedAt),
+      sql`${s.trips.completedAt} is not null`,
       sql`${s.trips.truckId} IS NOT NULL`,
     )).groupBy(s.trips.truckId);
     const lastTripByTruck = new Map(lastTrips.map(r => [r.truckId, r.lastDate]));

@@ -30,8 +30,11 @@ let actors: Array<{ id: number; role: string }> = [];
 let server: http.Server;
 let baseUrl = '';
 
-function documentVersion(updatedAt: unknown): number {
-  return Math.max(1, Math.floor(new Date(String(updatedAt)).getTime() / 1000));
+function documentVersion(document: { version?: unknown; updatedAt?: unknown }): number {
+  if (Number.isInteger(document.version) && Number(document.version) > 0) {
+    return Number(document.version);
+  }
+  return Math.max(1, Math.floor(new Date(String(document.updatedAt)).getTime() / 1000));
 }
 
 async function api(
@@ -217,7 +220,7 @@ describe('Q15 debit-note issue governance', () => {
     const issueKey = `q15-debit-issue-${documentId}`;
     const issue = await api('POST', `/api/finance/billing-documents/${documentId}/issue`, {
       reason: 'Đề nghị phát hành giấy báo nợ tháng 07',
-      expectedVersion: documentVersion(document.updatedAt),
+      expectedVersion: documentVersion(document),
     }, 0, issueKey);
     assert.equal(issue.status, 201);
     assert.equal(issue.body.status, 'PENDING_CHECK');
@@ -225,14 +228,14 @@ describe('Q15 debit-note issue governance', () => {
 
     const issueReplay = await api('POST', `/api/finance/billing-documents/${documentId}/issue`, {
       reason: 'Đề nghị phát hành giấy báo nợ tháng 07',
-      expectedVersion: documentVersion(document.updatedAt),
+      expectedVersion: documentVersion(document),
     }, 0, issueKey);
     assert.equal(issueReplay.status, 200);
     assert.equal(issueReplay.body.replayed, true);
 
     const issueMismatch = await api('POST', `/api/finance/billing-documents/${documentId}/issue`, {
       reason: 'Lý do khác',
-      expectedVersion: documentVersion(document.updatedAt),
+      expectedVersion: documentVersion(document),
     }, 0, issueKey);
     assert.equal(issueMismatch.status, 409);
 
@@ -299,7 +302,7 @@ describe('Q15 debit-note issue governance', () => {
 
     const issue = await api('POST', `/api/finance/billing-documents/${documentId}/issue`, {
       reason: 'Xin kiểm tra trước khi phát hành',
-      expectedVersion: documentVersion(document.updatedAt),
+      expectedVersion: documentVersion(document),
     }, 0, `q15-debit-issue-reject-${documentId}`);
     assert.equal(issue.status, 201);
     governanceActionIds.push(Number(issue.body.id));
@@ -341,7 +344,7 @@ describe('Q15 debit-note issue governance', () => {
 
     const issue = await api('POST', `/api/finance/billing-documents/${documentId}/issue`, {
       reason: 'Đề nghị phát hành bản có chuyến nguồn',
-      expectedVersion: documentVersion(document.updatedAt),
+      expectedVersion: documentVersion(document),
     }, 0, `q15-debit-issue-stale-${documentId}`);
     assert.equal(issue.status, 201);
     governanceActionIds.push(Number(issue.body.id));

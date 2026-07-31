@@ -44,7 +44,7 @@ async function createCustomer(name: string) {
 }
 
 async function createDocument(customerId: number, status: 'SENT' | 'PENDING_CONFIRM') {
-  const month = String(7 + documentIds.length).padStart(2, '0');
+  const month = String((7 + documentIds.length) % 12 || 12).padStart(2, '0');
   const [document] = await db.insert(s.billingDocuments).values({
     type: 'DEBIT_NOTE',
     entityType: 'CUSTOMER',
@@ -217,6 +217,7 @@ after(async () => {
   server.closeAllConnections();
   await new Promise<void>((resolve) => server.close(() => resolve()));
   if (documentIds.length > 0) {
+    await db.delete(s.billingDocumentDisputes).where(inArray(s.billingDocumentDisputes.documentId, documentIds));
     await db.delete(s.billingDocumentLines).where(inArray(s.billingDocumentLines.documentId, documentIds));
     await db.delete(s.billingDocuments).where(inArray(s.billingDocuments.id, documentIds));
   }
@@ -330,6 +331,7 @@ describe('CUSTOMER portal HTTP security contract', () => {
       method: 'POST',
       token: customerToken,
       idempotencyKey: `portal-confirm-non-pending-${suffix}-${ownSentId}`,
+      body: { expectedVersion: 1 },
     });
     assert.equal(response.status, 409);
   });
@@ -416,11 +418,13 @@ describe('CUSTOMER portal HTTP security contract', () => {
       method: 'POST',
       token: customerToken,
       idempotencyKey: key,
+      body: { expectedVersion: 1 },
     });
     const replay = await request(`/debit-notes/${pendingId}/confirm`, {
       method: 'POST',
       token: customerToken,
       idempotencyKey: key,
+      body: { expectedVersion: 1 },
     });
 
     assert.equal(first.status, 200);
@@ -431,5 +435,43 @@ describe('CUSTOMER portal HTTP security contract', () => {
       { ...(replay.body as Record<string, unknown>), replayed: false },
       first.body as Record<string, unknown>,
     );
+  });
+
+  test('concurrent confirm and dispute have one versioned winner and preserve dispute evidence', async () => {
+    const pendingId = (await createDocument(ownCustomerId, 'PENDING_CONFIRM')).id;
+    const [confirm, dispute] = await Promise.all([
+      request(`/debit-notes/${pendingId}/confirm`, {
+        method: 'POST',
+        token: customerToken,
+        idempotencyKey: `portal-confirm-race-${suffix}-${pendingId}`,
+        body: { expectedVersion: 1 },
+      }),
+      request(`/debit-notes/${pendingId}/dispute`, {
+        method: 'POST',
+        token: customerToken,
+        idempotencyKey: `portal-dispute-race-${suffix}-${pendingId}`,
+        body: {
+          expectedVersion: 1,
+          reason: 'Khách hàng yêu cầu đối chiếu lại khoản nâng hạ',
+          evidenceRefs: ['customer-upload://evidence-1'],
+        },
+      }),
+    ]);
+    assert.deepEqual([confirm.status, dispute.status].sort(), [200, 409]);
+
+    const detail = await request(`/debit-notes/${pendingId}`, { token: customerToken });
+    assert.equal(detail.status, 200);
+    const finalStatus = (detail.body as { debitNoteStatus: string }).debitNoteStatus;
+    assert.ok(finalStatus === 'CONFIRMED' || finalStatus === 'REJECTED');
+
+    const disputeRows = await db.select().from(s.billingDocumentDisputes)
+      .where(eq(s.billingDocumentDisputes.documentId, pendingId));
+    if (finalStatus === 'REJECTED') {
+      assert.equal(disputeRows.length, 1);
+      assert.equal(disputeRows[0]!.reason, 'Khách hàng yêu cầu đối chiếu lại khoản nâng hạ');
+      assert.deepEqual(disputeRows[0]!.evidenceRefs, ['customer-upload://evidence-1']);
+    } else {
+      assert.equal(disputeRows.length, 0);
+    }
   });
 });

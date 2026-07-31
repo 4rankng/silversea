@@ -100,6 +100,10 @@ const configSchema = z.object({
   // flag ON. Default OFF for backward compatibility; flip to ON
   // per-environment once the shipment-first migration is complete.
   shipmentFirstCreate: z.boolean().default(false),
+  // Customer-service-to-finance workflow rollout. OFF preserves legacy reads,
+  // SHADOW writes/compares new authorities without advertising capabilities,
+  // ACTIVE exposes the role workspaces after reconciliation gates pass.
+  workflowRolloutMode: z.enum(['OFF', 'SHADOW', 'ACTIVE']).default('OFF'),
   // Master key for at-rest encryption of DB-stored secrets (LLM API keys set
   // via the admin settings page). Optional; when empty, services/crypto.ts
   // derives a key from JWT_SECRET so existing deployments keep working. Set an
@@ -172,6 +176,7 @@ const raw = {
   botEnabled: parseFlag(process.env.BOT_ENABLE),
   minimaxApiKey: process.env.MINIMAX_API_KEY,
   shipmentFirstCreate: parseFlag(process.env.SHIPMENT_FIRST_CREATE),
+  workflowRolloutMode: process.env.WORKFLOW_ROLLOUT_MODE,
   settingsEncryptionKey: process.env.SETTINGS_ENCRYPTION_KEY,
   agentSlaP95GreenMs: process.env.AGENT_SLA_P95_GREEN_MS,
   agentSlaP95AmberMs: process.env.AGENT_SLA_P95_AMBER_MS,
@@ -211,6 +216,7 @@ const withDefaults = {
   vapidSubject: raw.vapidSubject || VAPID_SUBJECT_DEFAULT,
   botEnabled: raw.botEnabled,
   minimaxApiKey: raw.minimaxApiKey || '',
+  workflowRolloutMode: raw.workflowRolloutMode || 'OFF',
   settingsEncryptionKey: raw.settingsEncryptionKey || '',
   agentSlaP95GreenMs: raw.agentSlaP95GreenMs || 5000,
   agentSlaP95AmberMs: raw.agentSlaP95AmberMs || 12000,

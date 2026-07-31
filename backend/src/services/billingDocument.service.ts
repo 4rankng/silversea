@@ -168,7 +168,14 @@ export function docTotal(lines: BillingDocumentLine[]): number {
 export function documentLedgerAdjustment(lines: BillingDocumentLine[]): number {
   return Math.round(lines.reduce((sum, line) => {
     const effective = effectiveAmount(line);
-    return sum + (line.sourceType === 'ADHOC' ? effective : effective - Number(line.baseAmount));
+    // Trip revenue is already posted by the trip-close authority. Recoverable
+    // expenses are not, so they contribute their full governed customer amount
+    // exactly once when the Debit Note is issued.
+    return sum + (
+      line.sourceType === 'TRIP'
+        ? effective - Number(line.baseAmount)
+        : effective
+    );
   }, 0));
 }
 
@@ -186,6 +193,157 @@ export function buildExpenseSourceVersionToken(input: {
     ? input.updatedAt.toISOString()
     : new Date(input.updatedAt).toISOString();
   return `expense:${updatedAt}:${input.approvalStatus}:${Number(input.sellAmount ?? 0)}`;
+}
+
+function recoverableExpenseLines(lines: readonly BillingDocumentLine[]): BillingDocumentLine[] {
+  return lines.filter((line) => (
+    line.sourceType === 'EXPENSE'
+    && line.sourceId != null
+    && !line.excluded
+    && effectiveAmount(line) > 0
+  ));
+}
+
+export async function assertRecoverableSourcesClaimable(
+  tx: Tx,
+  input: {
+    documentId: number;
+    customerId: number;
+    rangeFrom: string;
+    rangeTo: string;
+    lines: readonly BillingDocumentLine[];
+    actorUserId: number | null;
+  },
+): Promise<void> {
+  const sourceLines = recoverableExpenseLines(input.lines);
+  const expenseIds = sourceLines
+    .map((line) => line.sourceId as number)
+    .sort((left, right) => left - right);
+  if (new Set(expenseIds).size !== expenseIds.length) {
+    throw new ApiError(409, 'Một chi phí thu hộ chỉ được xuất hiện một lần trên Giấy báo nợ.');
+  }
+
+  if (expenseIds.length === 0) {
+    await tx.delete(s.billingDocumentRecoverableClaims)
+      .where(eq(s.billingDocumentRecoverableClaims.documentId, input.documentId));
+    return;
+  }
+
+  const expenses = await tx.select({
+    id: s.tripExpenses.id,
+    version: s.tripExpenses.version,
+    approvalStatus: s.tripExpenses.approvalStatus,
+    sellAmount: s.tripExpenses.sellAmount,
+    recoverablePrincipalAmount: s.tripExpenses.recoverablePrincipalAmount,
+    serviceFeeAmount: s.tripExpenses.serviceFeeAmount,
+    expenseType: s.tripExpenses.expenseType,
+    expenseDate: s.tripExpenses.expenseDate,
+    invoiceNumber: s.tripExpenses.invoiceNumber,
+    invoiceDate: s.tripExpenses.invoiceDate,
+    declarationNumber: s.tripExpenses.declarationNumber,
+    noInvoiceEvidenceTypes: s.tripExpenses.noInvoiceEvidenceTypes,
+    updatedAt: s.tripExpenses.updatedAt,
+    tripId: s.tripExpenses.tripId,
+    tripCustomerId: s.trips.customerId,
+    shipmentId: s.trips.shipmentId,
+    shipmentCustomerId: s.shipments.customerId,
+  })
+    .from(s.tripExpenses)
+    .innerJoin(s.trips, eq(s.tripExpenses.tripId, s.trips.id))
+    .innerJoin(s.shipments, eq(s.trips.shipmentId, s.shipments.id))
+    .where(and(
+      inArray(s.tripExpenses.id, expenseIds),
+      isNull(s.trips.deletedAt),
+      isNull(s.shipments.deletedAt),
+    ))
+    .orderBy(s.tripExpenses.id)
+    .for('update');
+  if (expenses.length !== expenseIds.length) {
+    throw new ApiError(409, 'Có chi phí không còn gắn với lô hàng hợp lệ. Vui lòng tạo lại bản nháp.');
+  }
+
+  const existingClaims = await tx.select({
+    expenseId: s.billingDocumentRecoverableClaims.expenseId,
+    documentId: s.billingDocumentRecoverableClaims.documentId,
+  })
+    .from(s.billingDocumentRecoverableClaims)
+    .where(inArray(s.billingDocumentRecoverableClaims.expenseId, expenseIds));
+  const competing = existingClaims.find((claim) => claim.documentId !== input.documentId);
+  if (competing) {
+    throw new ApiError(
+      409,
+      `Chi phí #${competing.expenseId} đã thuộc Giấy báo nợ #${competing.documentId}.`,
+    );
+  }
+
+  const lineByExpense = new Map(sourceLines.map((line) => [line.sourceId as number, line]));
+  const claimRows = expenses.map((expense) => {
+    const line = lineByExpense.get(expense.id)!;
+    const sellAmount = Number(expense.sellAmount ?? 0);
+    const principal = expense.recoverablePrincipalAmount == null
+      ? null
+      : Number(expense.recoverablePrincipalAmount);
+    const fee = expense.serviceFeeAmount == null ? null : Number(expense.serviceFeeAmount);
+    const sourceVersion = buildExpenseSourceVersionToken(expense);
+    if (
+      expense.approvalStatus !== 'APPROVED'
+      || sellAmount <= 0
+      || principal == null
+      || fee == null
+      || principal < 0
+      || fee < 0
+      || principal + fee !== sellAmount
+    ) {
+      throw new ApiError(
+        409,
+        `Chi phí #${expense.id} chưa đủ điều kiện thu lại khách hàng hoặc chưa phân loại tiền chi hộ/phí dịch vụ.`,
+      );
+    }
+    if (
+      expense.tripCustomerId !== input.customerId
+      || expense.shipmentCustomerId !== input.customerId
+      || expense.shipmentId == null
+    ) {
+      throw new ApiError(409, `Chi phí #${expense.id} không thuộc đúng khách hàng của Giấy báo nợ.`);
+    }
+    if (!expense.expenseDate || expense.expenseDate < input.rangeFrom || expense.expenseDate > input.rangeTo) {
+      throw new ApiError(409, `Ngày chi phí #${expense.id} nằm ngoài kỳ của Giấy báo nợ.`);
+    }
+    if (!sourceVersion || renderSourceVersion(line) !== sourceVersion) {
+      throw new ApiError(409, `Chi phí #${expense.id} đã thay đổi. Vui lòng tạo lại bản nháp.`);
+    }
+    if (
+      Number(line.baseAmount) !== sellAmount
+      || (line.amountOverride != null && Number(line.amountOverride) !== sellAmount)
+    ) {
+      throw new ApiError(409, `Số tiền chi phí #${expense.id} không khớp nguồn đã phê duyệt.`);
+    }
+    return {
+      documentId: input.documentId,
+      expenseId: expense.id,
+      expenseVersion: expense.version,
+      sourceVersion,
+      evidenceSnapshot: {
+        tripId: expense.tripId,
+        shipmentId: expense.shipmentId,
+        customerId: expense.tripCustomerId,
+        expenseType: expense.expenseType,
+        expenseDate: expense.expenseDate,
+        invoiceNumber: expense.invoiceNumber,
+        invoiceDate: expense.invoiceDate,
+        declarationNumber: expense.declarationNumber,
+        noInvoiceEvidenceTypes: expense.noInvoiceEvidenceTypes,
+        recoverablePrincipalAmount: principal,
+        serviceFeeAmount: fee,
+        sellAmount,
+      },
+      createdBy: input.actorUserId,
+    };
+  });
+
+  await tx.delete(s.billingDocumentRecoverableClaims)
+    .where(eq(s.billingDocumentRecoverableClaims.documentId, input.documentId));
+  await tx.insert(s.billingDocumentRecoverableClaims).values(claimRows);
 }
 
 function renderSourceVersion(line: Pick<BillingDocumentLine, 'renderData'>): string | null {
@@ -1055,6 +1213,14 @@ export async function saveDocument(
           ...tripSourceIds(input.lines as BillingDocumentLine[]),
         ]);
         assertDraftDocumentLinesEditable(existing.debitNoteStatus);
+        await assertRecoverableSourcesClaimable(tx, {
+          documentId: existing.id,
+          customerId: input.entityId,
+          rangeFrom: input.rangeFrom,
+          rangeTo: input.rangeTo,
+          lines: input.lines as BillingDocumentLine[],
+          actorUserId: userId,
+        });
         const [updated] = await tx.update(s.billingDocuments).set({
           entityName: input.entityName ?? null,
           note: input.note ?? null,
@@ -1066,6 +1232,7 @@ export async function saveDocument(
           updatedAt: new Date(),
           debitNoteTemplateId: template?.id ?? null,
           debitNoteTemplateSnapshot: snapshot,
+          version: sql`${s.billingDocuments.version} + 1`,
         }).where(and(
           eq(s.billingDocuments.id, existing.id),
           isNull(s.billingDocuments.deletedAt),
@@ -1106,6 +1273,14 @@ export async function saveDocument(
         paymentDatePolicyApplied: dueDateSnapshot.policy,
       }).returning();
       if (!doc) throw new ApiError(500, 'Không lưu được tài liệu');
+      await assertRecoverableSourcesClaimable(tx, {
+        documentId: doc.id,
+        customerId: input.entityId,
+        rangeFrom: input.rangeFrom,
+        rangeTo: input.rangeTo,
+        lines: input.lines as BillingDocumentLine[],
+        actorUserId: userId,
+      });
       await persistLines(tx, doc.id, input.lines);
       await replaceBillingDocumentSourcePeriodLocks(tx, doc.id, sourceLockIds);
       return doc.id;
@@ -1221,6 +1396,16 @@ export async function updateDocument(
         input.lines as BillingDocumentLine[],
       )
       : [];
+    if (input.type === 'DEBIT_NOTE' && input.entityType === 'CUSTOMER') {
+      await assertRecoverableSourcesClaimable(tx, {
+        documentId: id,
+        customerId: input.entityId,
+        rangeFrom: input.rangeFrom,
+        rangeTo: input.rangeTo,
+        lines: input.lines as BillingDocumentLine[],
+        actorUserId: current.createdBy,
+      });
+    }
     const [updated] = await tx.update(s.billingDocuments).set({
       entityName: input.entityName ?? null, rangeFrom: input.rangeFrom, rangeTo: input.rangeTo,
       note: input.note ?? null, totalInclVat: String(total), updatedAt: new Date(),
@@ -1230,6 +1415,7 @@ export async function updateDocument(
       authorityWarningAt: null,
       debitNoteTemplateId: template?.id ?? null,
       debitNoteTemplateSnapshot: snapshot,
+      version: sql`${s.billingDocuments.version} + 1`,
     }).where(and(
       eq(s.billingDocuments.id, id),
       isNull(s.billingDocuments.deletedAt),
@@ -1346,7 +1532,7 @@ async function hydrateDocument(
     : (doc.authorityState as BillingDocument['authorityState']);
   const corrections = await listDocumentCorrections(doc.id, executor);
   return {
-    id: doc.id, type: doc.type as BillingDocumentType, entityType: doc.entityType as BillingDocumentEntityType,
+    id: doc.id, version: doc.version, type: doc.type as BillingDocumentType, entityType: doc.entityType as BillingDocumentEntityType,
     entityId: doc.entityId, entityName: doc.entityName ?? undefined,
     rangeFrom: doc.rangeFrom, rangeTo: doc.rangeTo, note: doc.note,
     totalInclVat: Number(doc.totalInclVat), createdBy: doc.createdBy,
@@ -1363,6 +1549,7 @@ async function hydrateDocument(
     officialIdentitySnapshot: (
       doc.officialIdentitySnapshot as BillingDocumentOfficialIdentitySnapshot | null
     ) ?? null,
+    legalInvoiceRef: doc.legalInvoiceRef ?? null,
     authorityState,
     corrections,
     createdAt: doc.createdAt.toISOString(), updatedAt: doc.updatedAt.toISOString(),
@@ -1409,6 +1596,8 @@ export async function deleteDocument(id: number, transaction?: Tx): Promise<void
           'Giấy báo nợ vừa được phát hành hoặc đổi trạng thái — không thể xóa. Vui lòng tải lại.',
         );
       }
+      await tx.delete(s.billingDocumentRecoverableClaims)
+        .where(eq(s.billingDocumentRecoverableClaims.documentId, id));
       return;
     }
     await tx.update(s.billingDocuments).set({ deletedAt: new Date(), updatedAt: new Date() })

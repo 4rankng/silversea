@@ -211,14 +211,17 @@ after(async () => {
       .where(inArray(s.idempotencyKeys.idempotencyKey, idempotencyKeys));
   }
   if (tripIds.length > 0) {
+    await db.delete(s.tripGpsCaptureJobs).where(inArray(s.tripGpsCaptureJobs.tripId, tripIds));
     await db.delete(s.notifications).where(and(
       eq(s.notifications.relatedEntityType, 'trips'),
       inArray(s.notifications.relatedEntityId, tripIds),
     ));
     await db.delete(s.driverWorkDays).where(inArray(s.driverWorkDays.tripId, tripIds));
+    await db.delete(s.profitabilitySnapshots).where(inArray(s.profitabilitySnapshots.tripId, tripIds));
     await db.delete(s.governanceActions)
       .where(inArray(s.governanceActions.subjectId, tripIds));
     await db.delete(s.ledger).where(inArray(s.ledger.txnId, tripIds));
+    await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.tripId, tripIds));
     await db.delete(s.tripLegs).where(inArray(s.tripLegs.tripId, tripIds));
     if (tripExpenseIds.length > 0) {
       await db.delete(s.governanceActions)

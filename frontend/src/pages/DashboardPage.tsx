@@ -21,6 +21,8 @@ import { useDashboardAnimations } from '../features/dashboard/hooks/useDashboard
 import { CompanyInfoSetupBanner } from '../features/dashboard/components/CompanyInfoSetupBanner';
 import { onboardingEvents } from '../lib/onboardingEvents';
 import './DashboardPage.css';
+import './WorkflowFinance.css';
+import { ExecutiveFinancialStrip } from '../components/dashboard/ExecutiveFinancialStrip';
 import { CostBreakdown, DeltaPill, decisionIcon, fmtVN, greeting, runningSum, severityLabel, type CostBreakdownItem } from '../features/dashboard/components/dashboard-presenters';
 
 type DashboardStatTone = 'revenue' | 'cost' | 'gross' | 'net' | 'debt';
@@ -395,6 +397,8 @@ export default function DashboardPage() {
           </button>
         </div>
       </header>
+
+      <ExecutiveFinancialStrip enabled={user?.workflowRolloutMode === 'ACTIVE' && Boolean(user.capabilities?.includes('executive_dashboard.read'))} />
 
       {/* ── KPI row ── */}
       <div className="wf-kpis" data-tour-id="dashboard-kpis">

@@ -22,6 +22,9 @@ import * as s from '../db/schema';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { TripStatus } from '@tingting/shared';
+import type { Tx } from './trip-shared';
+import { createCustomerVisibleEvent } from './shipment-coordination.service';
+import { config } from '../config';
 
 type MilestoneType = typeof s.shipmentMilestones.$inferSelect['type'];
 
@@ -68,29 +71,49 @@ export async function deriveMilestoneFromTripStatus(
   oldStatus: TripStatus | null,
   newStatus: TripStatus,
   actorUserId?: number | null,
+  transaction?: Tx,
 ): Promise<void> {
   const milestoneType = tripStatusToMilestoneType(oldStatus, newStatus);
   if (!milestoneType) return; // no milestone for this status
 
-  // Idempotency: check if this milestone type already exists for this
-  // shipment + trip combination. Prevents duplicates from trip status retries.
-  const [existing] = await db.select({ id: s.shipmentMilestones.id })
-    .from(s.shipmentMilestones)
-    .where(and(
-      eq(s.shipmentMilestones.shipmentId, shipmentId),
-      eq(s.shipmentMilestones.type, milestoneType),
-      eq(s.shipmentMilestones.tripId, tripId),
-    ))
-    .limit(1);
-  if (existing) return;
+  const execute = async (tx: Tx) => {
+    const occurredAt = new Date();
 
-  await db.insert(s.shipmentMilestones).values({
-    shipmentId,
-    type: milestoneType,
-    tripId,
-    changedBy: actorUserId ?? null,
-    occurredAt: new Date(),
-  });
+    const [inserted] = await tx.insert(s.shipmentMilestones).values({
+      shipmentId,
+      type: milestoneType,
+      tripId,
+      changedBy: actorUserId ?? null,
+      occurredAt,
+    }).onConflictDoNothing().returning();
+    const milestone = inserted ?? (await tx.select().from(s.shipmentMilestones)
+      .where(and(
+        eq(s.shipmentMilestones.shipmentId, shipmentId),
+        eq(s.shipmentMilestones.type, milestoneType),
+        eq(s.shipmentMilestones.tripId, tripId),
+      ))
+      .limit(1))[0];
+    if (!milestone || actorUserId == null || config.workflowRolloutMode === 'OFF') return;
+
+    const visibleCopy = {
+      BOOKING_RECEIVED: { title: 'Đã tiếp nhận booking', message: 'Thông tin booking của lô hàng đã được tiếp nhận.' },
+      IN_TRANSIT: { title: 'Đang vận chuyển', message: 'Lô hàng đang được vận chuyển.' },
+      DELIVERED: { title: 'Đã giao hàng', message: 'Lô hàng đã được giao.' },
+    } as const;
+    const copy = visibleCopy[milestoneType as keyof typeof visibleCopy];
+    if (!copy) return;
+    await createCustomerVisibleEvent({
+      shipmentId,
+      eventKey: `trip:${tripId}:milestone:${milestoneType}`,
+      eventType: 'MILESTONE',
+      title: copy.title,
+      message: copy.message,
+      occurredAt: milestone.occurredAt,
+      milestoneId: milestone.id,
+      createdBy: actorUserId,
+    }, undefined, tx);
+  };
+  await (transaction ? execute(transaction) : db.transaction(execute));
 }
 
 // ─── Manual milestone entry ─────────────────────────────────────────────────
@@ -98,15 +121,16 @@ export async function deriveMilestoneFromTripStatus(
 /**
  * Add a manual milestone (CUS staff entry). Append-only — no update or delete.
  */
-export async function addManualMilestone(input: AddMilestoneInput) {
+export async function addManualMilestone(input: AddMilestoneInput, transaction?: Tx) {
+  const client = transaction ?? db;
   // Verify the shipment exists.
-  const [shipment] = await db.select({ id: s.shipments.id })
+  const [shipment] = await client.select({ id: s.shipments.id })
     .from(s.shipments)
     .where(and(eq(s.shipments.id, input.shipmentId)))
     .limit(1);
   if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
 
-  const [milestone] = await db.insert(s.shipmentMilestones).values({
+  const [milestone] = await client.insert(s.shipmentMilestones).values({
     shipmentId: input.shipmentId,
     type: input.type,
     note: input.note ?? null,

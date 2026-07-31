@@ -4,6 +4,7 @@ import { Role } from '@tingting/shared';
 import { requireRoles } from '../../middleware/casbin';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { getUser } from '../../middleware/auth';
+import { requireWorkflowActive } from '../../middleware/workflow-rollout';
 import { getDashboardStats, getPnlReport, getReceivablesSummary, previewDistribution, getDistributionHistory, requestProfitDistributionGovernance } from '../../services/reporting.service';
 import { getFuelVarianceReport } from '../../services/pnl.service';
 import { getPaymentTermEvalReport } from '../../services/payment-term.service';
@@ -19,6 +20,7 @@ import {
   PROFIT_DISTRIBUTION_TRANSACTION_OPTIONS,
   runProfitDistributionWithSerializationRetry,
 } from '../../services/profit-distribution.service';
+import { getProfitabilityReport, PROFITABILITY_DIMENSIONS } from '../../services/profitability.service';
 
 const router = Router();
 
@@ -42,6 +44,28 @@ router.get('/reports/pnl', asyncHandler(async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Tháng là bắt buộc (month 1-12)' });
   }
   res.json(await getPnlReport(month, year));
+}));
+
+router.get('/reports/profitability', requireWorkflowActive, requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+  const month = Number(req.query.month);
+  const year = Number(req.query.year) || new Date().getFullYear();
+  const requestedDimension = String(req.query.dimension ?? 'CUSTOMER').toUpperCase();
+  const validDimension = requestedDimension === 'VEHICLE'
+    || PROFITABILITY_DIMENSIONS.includes(requestedDimension as typeof PROFITABILITY_DIMENSIONS[number]);
+  if (!Number.isInteger(month) || month < 1 || month > 12 || !Number.isInteger(year)) {
+    return res.status(400).json({ error: 'Tháng và năm báo cáo không hợp lệ' });
+  }
+  if (!validDimension) {
+    return res.status(400).json({ error: 'Chiều báo cáo lợi nhuận không hợp lệ' });
+  }
+  const { page, limit } = parsePagination(req, { limit: 50, maxLimit: 100 });
+  res.json(await getProfitabilityReport({
+    month,
+    year,
+    dimension: requestedDimension as typeof PROFITABILITY_DIMENSIONS[number] | 'VEHICLE',
+    page,
+    limit,
+  }));
 }));
 
 // ─── Receivables summary ──────────────────────────────────────────────────────

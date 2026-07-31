@@ -39,6 +39,8 @@ import {
 import { removeTripWorkDays, syncTripWorkDays } from './attendance.service';
 import { persistNotificationInTx } from './notification.service';
 import { enqueueTripGpsCaptureJob } from './trip-gps-capture-job.service';
+import { createFinancialPosting, getActiveFinancialPosting } from './financial-posting.service';
+import { captureProfitabilityAttributionSnapshot } from './profitability.service';
 
 export { checkGovernanceAction } from './governance-transition.service';
 
@@ -576,6 +578,15 @@ async function applyTripGovernanceAction(
       governanceActionId: action.id,
       tripId: completed.id,
     });
+    const financialPosting = await getActiveFinancialPosting(tx, completed.id)
+      ?? await createFinancialPosting(tx, {
+        tripId: completed.id,
+        tripVersion: completed.version,
+        reason: 'COMPLETION',
+        governanceActionId: action.id,
+        effectiveAt: completed.completedAt ?? new Date(),
+      });
+    await captureProfitabilityAttributionSnapshot(tx, completed.id, financialPosting.id);
     return {
       ledgerEntryId: null,
       applicationResult: {
@@ -584,6 +595,7 @@ async function applyTripGovernanceAction(
         resultingVersion: completed.version,
         status: completed.status,
         completedAt: completed.completedAt,
+        financialPostingVersionId: financialPosting.id,
       },
     };
   }
@@ -607,6 +619,15 @@ async function applyTripGovernanceAction(
       if (canceled.driverId) {
         await removeTripWorkDays(canceled.driverId, canceled.id, tx);
       }
+      const activePosting = await getActiveFinancialPosting(tx, canceled.id);
+      const cancellationPosting = activePosting
+        ? await createFinancialPosting(tx, {
+          tripId: canceled.id,
+          tripVersion: canceled.version,
+          reason: 'CANCELLATION',
+          governanceActionId: action.id,
+        })
+        : null;
       await persistNotificationInTx(tx, {
         type: NotificationType.TRIP_CANCELED,
         title: 'Chuyến đã hủy',
@@ -622,6 +643,7 @@ async function applyTripGovernanceAction(
           subjectId: trip.id,
           resultingVersion: canceled.version,
           status: canceled.status,
+          financialPostingVersionId: cancellationPosting?.id ?? null,
         },
       };
     }
@@ -640,6 +662,7 @@ async function applyTripGovernanceAction(
       tx,
       action.id,
     );
+    const financialPosting = await getActiveFinancialPosting(tx, updated.id);
     return {
       ledgerEntryId: null,
       applicationResult: {
@@ -647,6 +670,7 @@ async function applyTripGovernanceAction(
         subjectId: trip.id,
         resultingVersion: updated.version,
         status: updated.status,
+        financialPostingVersionId: financialPosting?.id ?? null,
       },
     };
   }

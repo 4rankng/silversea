@@ -90,3 +90,13 @@ p, MANAGER, shipments, read
 p, MANAGER, shipments, write
 p, MANAGER, shipments, delete
 p, ACCOUNTANT, shipments, read
+p, CLERK, recoverable_costs, read
+p, CLERK, recoverable_costs, write
+p, ACCOUNTANT, recoverable_costs, read
+p, ACCOUNTANT, recoverable_costs, write
+p, MANAGER, recoverable_costs, read
+p, MANAGER, recoverable_costs, write
+p, ACCOUNTANT, treasury, read
+p, ACCOUNTANT, treasury, write
+p, MANAGER, treasury, read
+p, MANAGER, treasury, write

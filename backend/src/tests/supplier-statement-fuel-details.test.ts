@@ -28,6 +28,7 @@ function ledgerRow(overrides: Partial<EnrichedLedgerRow>): EnrichedLedgerRow {
     processingDueDate: null,
     paymentTermDaysApplied: null,
     paymentDatePolicyApplied: null,
+    financialPostingId: null,
     createdAt: new Date('2026-07-24T00:00:00.000Z'),
     ...overrides,
   };

@@ -94,8 +94,9 @@ logs-redis: ## Show redis logs
 # Flow:  build+push images → pull on server → recreate backend/frontend only
 #        → drizzle-kit migrate (additive, on top of live DB) → health check.
 #
-# Prereqs: backend/.env with DOCKERHUB_USERNAME / DOCKERHUB_PASSWORD, and SSH
-# access to root@vantai.tingting.vip.
+# Prereqs: gh CLI authenticated with the `write:packages` scope
+# (gh auth refresh -h github.com -s write:packages), and SSH access to
+# root@vantai.tingting.vip.
 
 DEMO_SERVER := vantai.tingting.vip
 DEMO_PATH   := /opt/vantai
@@ -104,7 +105,7 @@ DEMO_COMPOSE := docker compose -f deploy/docker-compose.prod.yml
 demo: ## Deploy silversea to demo (vantai.tingting.vip) — keeps existing DB
 	@echo "=== Deploying silversea to $(DEMO_SERVER) ==="
 	@echo ""
-	@echo "1/3  Building + pushing images to Docker Hub..."
+	@echo "1/3  Building + pushing images to GHCR..."
 	@cd backend && $(MAKE) push
 	@cd frontend && $(MAKE) push
 	@echo ""

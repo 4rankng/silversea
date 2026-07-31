@@ -6,6 +6,7 @@ import { ApiError } from '../errors';
 import { LedgerService } from './ledger.service';
 import type { Tx } from './trip-shared';
 import {
+  assertRecoverableSourcesClaimable,
   buildExpenseSourceVersionToken,
   buildTripSourceVersionToken,
   postDebitNoteDelta,
@@ -44,8 +45,8 @@ type BillingDocumentSourceSnapshot = {
   baseAmount: number;
 };
 
-function billingDocumentVersion(updatedAt: Date): number {
-  return Math.max(1, Math.floor(updatedAt.getTime() / 1000));
+function billingDocumentVersion(document: Pick<typeof s.billingDocuments.$inferSelect, 'version'>): number {
+  return document.version;
 }
 
 function renderDataRecord(line: BillingDocumentLineRow): Record<string, unknown> | null {
@@ -270,7 +271,7 @@ export async function requestBillingDocumentAdjustment(input: {
       subjectId: document.id,
       actionKind: 'DEBIT_NOTE_ADJUSTMENT',
       reason: normalizedReason,
-      originalVersion: billingDocumentVersion(document.updatedAt),
+      originalVersion: billingDocumentVersion(document),
       beforeSnapshot: {
         originalDocumentId: document.id,
         debitNoteStatus: document.debitNoteStatus ?? 'DRAFT',
@@ -322,7 +323,7 @@ export async function requestBillingDocumentIssue(input: {
       throw new ApiError(409, 'Giấy báo nợ đã rời trạng thái nháp, không thể gửi yêu cầu phát hành mới');
     }
 
-    const currentVersion = billingDocumentVersion(document.updatedAt);
+    const currentVersion = billingDocumentVersion(document);
     if (currentVersion !== input.expectedVersion) {
       throw new ApiError(409, 'Giấy báo nợ đã thay đổi. Vui lòng tải lại trước khi gửi yêu cầu phát hành.');
     }
@@ -340,6 +341,14 @@ export async function requestBillingDocumentIssue(input: {
     await lockTripFinancialAuthority(tx, tripSourceIds(lines));
     await lockExpenseSources(tx, lines);
     await assertNoIssueSourceDrift(tx, document.id);
+    await assertRecoverableSourcesClaimable(tx, {
+      documentId: document.id,
+      customerId: document.entityId,
+      rangeFrom: document.rangeFrom,
+      rangeTo: document.rangeTo,
+      lines: lines as unknown as import('@tingting/shared').BillingDocumentLine[],
+      actorUserId: input.makerId,
+    });
     await assertNoActiveIssueAction(tx, document.id, currentVersion);
 
     const originalPeriodLock = await getClosedPeriodLock(tx, authority);
@@ -400,7 +409,7 @@ export async function applyBillingDocumentGovernanceAction(
     if ((document.debitNoteStatus ?? 'DRAFT') !== 'DRAFT') {
       throw new ApiError(409, 'Giấy báo nợ đã rời trạng thái nháp; yêu cầu phát hành không còn hợp lệ');
     }
-    if (billingDocumentVersion(document.updatedAt) !== action.originalVersion) {
+    if (billingDocumentVersion(document) !== action.originalVersion) {
       throw new ApiError(409, 'Giấy báo nợ đã thay đổi sau khi tạo yêu cầu phát hành. Vui lòng tải lại và gửi lại.');
     }
 
@@ -417,6 +426,14 @@ export async function applyBillingDocumentGovernanceAction(
     await lockTripFinancialAuthority(tx, tripSourceIds(lines));
     await lockExpenseSources(tx, lines);
     await assertNoIssueSourceDrift(tx, document.id);
+    await assertRecoverableSourcesClaimable(tx, {
+      documentId: document.id,
+      customerId: document.entityId,
+      rangeFrom: document.rangeFrom,
+      rangeTo: document.rangeTo,
+      lines: lines as unknown as import('@tingting/shared').BillingDocumentLine[],
+      actorUserId: action.makerId,
+    });
 
     await transitionDebitNoteStatus({
       documentId: document.id,
@@ -437,7 +454,7 @@ export async function applyBillingDocumentGovernanceAction(
 
     const [issued] = await tx.select({
       debitNoteStatus: s.billingDocuments.debitNoteStatus,
-      updatedAt: s.billingDocuments.updatedAt,
+      version: s.billingDocuments.version,
     })
       .from(s.billingDocuments)
       .where(eq(s.billingDocuments.id, document.id))
@@ -447,7 +464,7 @@ export async function applyBillingDocumentGovernanceAction(
       applicationResult: {
         documentId: document.id,
         documentStatus: issued?.debitNoteStatus ?? 'SENT',
-        resultingVersion: issued ? billingDocumentVersion(issued.updatedAt) : action.originalVersion + 1,
+        resultingVersion: issued?.version ?? action.originalVersion + 1,
         ledgerAdjustmentAmount: Number(document.ledgerAdjustmentAmount ?? 0),
       },
     };

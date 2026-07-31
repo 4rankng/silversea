@@ -12,6 +12,8 @@ import { resolveFreightPrice } from './pricing.service';
 import { resolveFuelNorm } from './fuel.service';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
 import { propagateTripFinancialSourceChange } from './source-change.service';
+import { createFinancialPosting, getActiveFinancialPosting } from './financial-posting.service';
+import { captureProfitabilityAttributionSnapshot } from './profitability.service';
 
 // Postgres unique-violation detector — 23505 is the SQLSTATE for any unique
 // constraint violation. Drizzle wraps the underlying postgres-js error, so the
@@ -1108,6 +1110,13 @@ export async function updateTripFigures(
     }
 
     if (tripStatus === TripStatus.COMPLETED) {
+      const previousPosting = await getActiveFinancialPosting(tx, trip.id)
+        ?? await createFinancialPosting(tx, {
+          tripId: trip.id,
+          tripVersion: trip.version,
+          reason: 'COMPLETION',
+          effectiveAt: trip.completedAt ?? new Date(),
+        });
       const mappedLedgerFees = ledgerFees.map(fee => ({
         id: fee.id,
         buyAmount: fee.buyAmount,
@@ -1131,7 +1140,14 @@ export async function updateTripFigures(
         fuelSupplierId: trip.fuelSupplierId ?? null,
         totalFuelCost: trip.totalFuelCost,
         ancillaryFees: mappedLedgerFees,
-      }, { strict: false });
+      }, { strict: false, financialPostingId: previousPosting.id });
+
+      const newPosting = await createFinancialPosting(tx, {
+        tripId: updated.id,
+        tripVersion: updated.version,
+        reason: 'GOVERNED_CORRECTION',
+        governanceActionId,
+      });
 
       await LedgerService.postTripLock(tx, {
         id: updated.id,
@@ -1146,7 +1162,8 @@ export async function updateTripFigures(
         fuelSupplierId: updated.fuelSupplierId ?? null,
         totalFuelCost: updated.totalFuelCost,
         ancillaryFees: mappedLedgerFees,
-      }, { strict: false });
+      }, { strict: false, financialPostingId: newPosting.id });
+      await captureProfitabilityAttributionSnapshot(tx, updated.id, newPosting.id);
     }
 
     // 7. Persist physical leg segments

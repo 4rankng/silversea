@@ -23,6 +23,7 @@ import { eq, isNull, sql, or, and, ne, inArray } from 'drizzle-orm';
 import { CustomerAccountType, Role } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { getEnforcer } from '../casbin/enforcer';
+import { config } from '../config';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -997,6 +998,24 @@ export async function getCapabilities(role: string): Promise<string[]> {
   // manage_users capability — the frontend gates full management UI on it.
   if (role !== Role.ACCOUNTANT && await enforcer.enforce(role, 'users', 'write')) {
     capabilities.push('manage_users');
+  }
+  if (await enforcer.enforce(role, 'shipments', 'read')) capabilities.push('shipments.read');
+  if (await enforcer.enforce(role, 'shipments', 'write')) capabilities.push('shipments.write');
+  if (role === Role.CUSTOMER) capabilities.push('customer_portal');
+  if (role === Role.DRIVER) capabilities.push('driver_portal');
+  if (role === Role.FORWARDER) capabilities.push('forwarder_portal');
+
+  if (config.workflowRolloutMode === 'ACTIVE') {
+    if (await enforcer.enforce(role, 'recoverable_costs', 'read')) capabilities.push('recoverable_costs.read');
+    if (await enforcer.enforce(role, 'recoverable_costs', 'write')) capabilities.push('recoverable_costs.request');
+    if (await enforcer.enforce(role, 'financial', 'read')) {
+      capabilities.push('receivables.read', 'payables.read', 'profitability.read');
+    }
+    if (await enforcer.enforce(role, 'treasury', 'read')) capabilities.push('treasury.read');
+    if (await enforcer.enforce(role, 'treasury', 'write')) capabilities.push('treasury.operate');
+    if (role === Role.ADMIN || role === Role.MANAGER) {
+      capabilities.push('executive_dashboard.read');
+    }
   }
   return capabilities;
 }

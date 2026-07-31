@@ -6,10 +6,12 @@ import {
   billingDocumentIssueRequestSchema,
   generateBillingDocumentSchema,
   saveBillingDocumentSchema,
+  sendDebitNoteForConfirmationSchema,
 } from '@tingting/shared';
 import { getUser } from '../../middleware/auth';
 import { requireRoles } from '../../middleware/casbin';
 import { asyncHandler } from '../../middleware/asyncHandler';
+import { requireWorkflowActive } from '../../middleware/workflow-rollout';
 import * as billingService from '../../services/billingDocument.service';
 import {
   requestBillingDocumentAdjustment,
@@ -20,6 +22,7 @@ import { attachmentDisposition } from '../../services/statement.service';
 import { invalidateReportCaches } from '../../lib/redis';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
+import { sendDebitNoteForCustomerConfirmation } from '../../services/debit-note-lifecycle.service';
 
 // Debit-note (AR) + payment-statement (AP) builder routes.
 // Mounted under the financial router → already gated by casbinAuthz('financial').
@@ -28,6 +31,7 @@ import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency
 const router = Router();
 const ROLES = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT] as const;
 const BILLING_DOCUMENT_ISSUE_REQUEST_ENDPOINT = 'billing-documents.issue.request';
+const BILLING_DOCUMENT_SEND_CONFIRMATION_ENDPOINT = 'billing-documents.send-confirmation';
 
 // POST /api/finance/billing-documents/generate — preview draft lines (pre-save)
 router.post('/finance/billing-documents/generate', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
@@ -133,6 +137,31 @@ router.post('/finance/billing-documents/:id/issue', requireRoles(...ROLES), asyn
     }),
   });
   res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
+}));
+
+router.post('/finance/billing-documents/:id/send-for-confirmation', requireWorkflowActive, requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
+  const actor = getUser(req);
+  const input = sendDebitNoteForConfirmationSchema.parse(req.body);
+  const documentId = Number(req.params.id);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result, replayed } = await runIdempotent({
+    endpoint: BILLING_DOCUMENT_SEND_CONFIRMATION_ENDPOINT,
+    idempotencyKey,
+    payload: { actorId: actor.userId, documentId, ...input },
+    createdBy: actor.userId,
+    entityType: 'billing_document',
+    create: async (tx) => {
+      await sendDebitNoteForCustomerConfirmation({
+        documentId,
+        expectedVersion: input.expectedVersion,
+        actorUserId: actor.userId,
+        transaction: tx,
+      });
+      return billingService.getDocument(documentId, tx);
+    },
+    getEntityId: () => documentId,
+  });
+  res.json({ ...result, replayed });
 }));
 
 // DELETE /api/finance/billing-documents/:id — soft delete

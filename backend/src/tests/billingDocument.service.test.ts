@@ -36,20 +36,20 @@ test('docTotal — sums non-excluded effective amounts, honors overrides + exclu
   assert.equal(docTotal(lines), 2800);
 });
 
-test('documentLedgerAdjustment — sourced edits contribute only their delta', () => {
+test('documentLedgerAdjustment — trip rows contribute delta and recoverable expense rows contribute their full billed amount', () => {
   const lines = [
     line({ sourceType: 'TRIP', baseAmount: 6_000_000, amountOverride: 6_200_000 }),
     line({ sourceType: 'EXPENSE', lineType: 'SERVICE_FEE', baseAmount: 1_000_000, amountOverride: 1_080_000 }),
   ];
-  assert.equal(documentLedgerAdjustment(lines), 280_000);
+  assert.equal(documentLedgerAdjustment(lines), 1_280_000);
 });
 
-test('documentLedgerAdjustment — ad-hoc rows add fully and excluded source rows reduce AR', () => {
+test('documentLedgerAdjustment — ad-hoc rows add fully and excluded recoverable expense rows stop contributing', () => {
   const lines = [
     line({ sourceType: 'EXPENSE', lineType: 'SERVICE_FEE', baseAmount: 1_000_000, excluded: true }),
     line({ sourceType: 'ADHOC', sourceId: null, lineType: 'ADHOC', baseAmount: 0, amountOverride: 400_000 }),
   ];
-  assert.equal(documentLedgerAdjustment(lines), -600_000);
+  assert.equal(documentLedgerAdjustment(lines), 400_000);
 });
 
 test('splitContainers — null/empty → null', () => {

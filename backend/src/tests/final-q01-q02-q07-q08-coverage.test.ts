@@ -21,6 +21,7 @@ import { disconnectRedis } from '../lib/redis';
 import { getAppSettings, saveAppSettings } from '../services/app-settings.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+const futureExpiry = new Date(Date.now() + 365 * 24 * 60 * 60 * 1_000).toISOString();
 
 const userIds: number[] = [];
 const customerIds: number[] = [];
@@ -307,6 +308,7 @@ after(async () => {
       await db.delete(s.partners).where(inArray(s.partners.id, [...new Set(partnerIds)]));
     }
     if (userIds.length > 0) {
+      await db.delete(s.notifications).where(inArray(s.notifications.userId, userIds));
       await db.delete(s.users).where(inArray(s.users.id, userIds));
     }
   } finally {
@@ -367,7 +369,7 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
       body: {
         customerId: createdCustomer.id,
         proposedAmount: 100_000,
-        expiresAt: '2026-07-30T12:00:00.000Z',
+        expiresAt: futureExpiry,
         reason: 'Chứng minh ngưỡng cảnh báo mặc định',
       },
     });
@@ -398,7 +400,7 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
       body: {
         customerId: createdCustomer.id,
         proposedAmount: 120_000,
-        expiresAt: '2026-07-31T12:00:00.000Z',
+        expiresAt: futureExpiry,
         reason: 'Chứng minh ngưỡng cảnh báo riêng khách hàng',
       },
     });
@@ -421,7 +423,7 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
       body: {
         customerId: creditCustomer.id,
         proposedAmount: 80_000,
-        expiresAt: '2026-07-30T09:00:00.000Z',
+        expiresAt: futureExpiry,
         reason: 'Tạo đề nghị để kiểm tra chặn quyền',
       },
     });
@@ -437,7 +439,7 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
         body: {
           customerId: scopedCustomerId,
           proposedAmount: 50_000,
-          expiresAt: '2026-07-30T10:00:00.000Z',
+          expiresAt: futureExpiry,
           reason: 'Không được phép tạo đề nghị',
         },
       })).status, 403);

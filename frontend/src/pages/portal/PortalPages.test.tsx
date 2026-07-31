@@ -101,7 +101,7 @@ describe('customer portal pages', () => {
   });
 
   it('PortalShipmentDetailPage calls the row-scoped portal shipment detail endpoint', async () => {
-    apiGet.mockResolvedValue({
+    apiGet.mockImplementation(async (path: string) => path.includes('/customer-events') ? { items: [] } : ({
       shipment: {
         id: 42,
         shipmentCode: 'SHP-2607-00042',
@@ -116,7 +116,7 @@ describe('customer portal pages', () => {
       documents: [],
       declarations: [],
       statusHistory: [],
-    });
+    }));
 
     render(
       <MemoryRouter initialEntries={['/portal/shipments/42']}>
@@ -141,6 +141,7 @@ describe('customer portal pages', () => {
           ],
         };
       }
+      if (path.includes('/customer-events')) return { items: [] };
       return {
         shipment: {
           id: 42,
@@ -209,6 +210,7 @@ describe('customer portal pages', () => {
     apiGet.mockResolvedValue({
       items: [{
         id: 9,
+        version: 1,
         entityName: 'Khách hàng A',
         rangeFrom: '2026-07-01',
         rangeTo: '2026-07-31',
@@ -223,12 +225,16 @@ describe('customer portal pages', () => {
       totalInclVat: 1500000,
       debitNoteStatus: 'CONFIRMED',
     });
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-
     render(<MemoryRouter><PortalDebitNotesPage /></MemoryRouter>);
     fireEvent.click(await screen.findByRole('button', { name: /Xác nhận/ }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(dialog.querySelector('.btn--primary')!);
 
-    await waitFor(() => expect(apiPost).toHaveBeenCalledWith('/portal/debit-notes/9/confirm', {}));
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
+      '/portal/debit-notes/9/confirm',
+      { expectedVersion: 1 },
+      { headers: { 'Idempotency-Key': expect.any(String) } },
+    ));
     expect(await screen.findByText('Đã xác nhận')).toBeTruthy();
   });
 
@@ -246,6 +252,7 @@ describe('customer portal pages', () => {
       return {
         items: [{
           id: 19,
+          version: 1,
           entityName: 'SilverSea Miền Bắc',
           rangeFrom: '2026-07-01',
           rangeTo: '2026-07-31',
@@ -262,8 +269,6 @@ describe('customer portal pages', () => {
       totalInclVat: 1500000,
       debitNoteStatus: 'CONFIRMED',
     });
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-
     render(
       <MemoryRouter>
         <CustomerPortalScopeProvider>
@@ -272,9 +277,15 @@ describe('customer portal pages', () => {
       </MemoryRouter>,
     );
     fireEvent.click(await screen.findByRole('button', { name: /Xác nhận/ }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(dialog.querySelector('.btn--primary')!);
 
     await waitFor(() => {
-      expect(apiPost).toHaveBeenCalledWith('/portal/debit-notes/19/confirm?customerId=9', {});
+      expect(apiPost).toHaveBeenCalledWith(
+        '/portal/debit-notes/19/confirm?customerId=9',
+        { expectedVersion: 1 },
+        { headers: { 'Idempotency-Key': expect.any(String) } },
+      );
     });
   });
 

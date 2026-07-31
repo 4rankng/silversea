@@ -26,6 +26,8 @@ const scopePrefix = `durable-effect-${suffix}`;
 const migrationUrl = new URL('../../drizzle/0157_durable_effect_jobs.sql', import.meta.url);
 const createdAuditLogIds: number[] = [];
 const createdBackfillJobIds: number[] = [];
+const createdBillingDocumentIds: number[] = [];
+const createdCustomerIds: number[] = [];
 let originalCompanyLogoSetting: string | null = null;
 let companyLogoSettingExisted = false;
 
@@ -62,7 +64,6 @@ describe('durable effect jobs foundation', () => {
         payload: { key: 'catalogs:bootstrap' },
       });
     });
-
     await assert.rejects(
       () => db.transaction(async (tx) => {
         await enqueueDurableEffect(tx, {
@@ -98,6 +99,9 @@ describe('durable effect jobs foundation', () => {
         payload: { key: 'reports:dashboard' },
       });
     });
+    await db.update(s.durableEffectJobs)
+      .set({ nextAttemptAt: new Date(0) })
+      .where(eq(s.durableEffectJobs.dedupeKey, dedupeKey));
 
     let invalidateCalls = 0;
     const firstRun = await processDueDurableEffectJobs(10, {
@@ -175,6 +179,9 @@ describe('durable effect jobs foundation', () => {
     await storageService.upload(Buffer.from('orphan'), leakedStorageKey);
     const released = await releaseStorageCleanupGuard(leakedGuard, new Error('db rollback'));
     assert.equal(released, true);
+    await db.update(s.durableEffectJobs)
+      .set({ nextAttemptAt: new Date(0) })
+      .where(eq(s.durableEffectJobs.id, leakedGuard.jobId));
 
     const processedLeak = await processDueDurableEffectJobs(10, {
       now: () => dueNow,
@@ -193,6 +200,9 @@ describe('durable effect jobs foundation', () => {
     await upsertCompanyLogoSetting(durableOwnerStorageKey);
     const releasedOwner = await releaseStorageCleanupGuard(durableOwnerGuard, new Error('process died'));
     assert.equal(releasedOwner, true);
+    await db.update(s.durableEffectJobs)
+      .set({ nextAttemptAt: new Date(0) })
+      .where(eq(s.durableEffectJobs.id, durableOwnerGuard.jobId));
 
     const processedOwned = await processDueDurableEffectJobs(10, {
       now: () => new Date(dueNow.getTime() + 5 * 60_000),
@@ -292,6 +302,89 @@ describe('durable effect jobs foundation', () => {
     assert.equal(missingJob?.status, DURABLE_EFFECT_STATUS.SUCCEEDED);
   });
 
+  test('legal invoice timeout records UNKNOWN and the retry probes before issuing again', async () => {
+    const payloadHash = 'a'.repeat(64);
+    const [customer] = await db.insert(s.customers).values({
+      name: `Durable invoice customer ${suffix}`,
+    }).returning({ id: s.customers.id });
+    createdCustomerIds.push(customer!.id);
+    const [document] = await db.insert(s.billingDocuments).values({
+      type: 'DEBIT_NOTE',
+      entityType: 'CUSTOMER',
+      entityId: customer!.id,
+      entityName: `Durable invoice customer ${suffix}`,
+      rangeFrom: '2026-07-01',
+      rangeTo: '2026-07-31',
+      totalInclVat: '1000000',
+      debitNoteStatus: 'CONFIRMED',
+      version: 2,
+      legalInvoiceRef: {
+        provider: 'TEST_PROVIDER',
+        status: 'PENDING',
+        requestVersion: 2,
+        payloadHash,
+        updatedAt: new Date().toISOString(),
+      },
+    }).returning({ id: s.billingDocuments.id });
+    createdBillingDocumentIds.push(document!.id);
+
+    const dedupeKey = `${scopePrefix}:legal-invoice-timeout`;
+    await db.transaction((tx) => enqueueDurableEffect(tx, {
+      kind: DURABLE_EFFECT_KIND.LEGAL_INVOICE_HANDOFF,
+      payloadVersion: 1,
+      dedupeKey,
+      payload: {
+        documentId: document!.id,
+        confirmedVersion: 2,
+        provider: 'TEST_PROVIDER',
+        payloadHash,
+      },
+    }));
+
+    const firstAttemptAt = new Date(Date.now() + 60_000);
+    let issueCalls = 0;
+    const firstRun = await processDueDurableEffectJobs(10, {
+      now: () => firstAttemptAt,
+      legalInvoiceHandoff: async () => {
+        issueCalls += 1;
+        throw new Error('provider response timed out');
+      },
+    });
+    const retry = firstRun.find((job) => job.dedupeKey === dedupeKey);
+    assert.equal(issueCalls, 1);
+    assert.equal(retry?.status, DURABLE_EFFECT_STATUS.RETRY);
+    const [unknownDocument] = await db.select({ legalInvoiceRef: s.billingDocuments.legalInvoiceRef })
+      .from(s.billingDocuments)
+      .where(eq(s.billingDocuments.id, document!.id));
+    assert.equal(unknownDocument?.legalInvoiceRef?.status, 'UNKNOWN');
+
+    await db.update(s.durableEffectJobs).set({ nextAttemptAt: new Date(0) })
+      .where(eq(s.durableEffectJobs.dedupeKey, dedupeKey));
+    let probeCalls = 0;
+    const secondRun = await processDueDurableEffectJobs(10, {
+      now: () => new Date(firstAttemptAt.getTime() + 5 * 60_000),
+      legalInvoiceHandoff: async () => {
+        throw new Error('retry must not issue again after an ambiguous timeout');
+      },
+      legalInvoiceStatusProbe: async () => {
+        probeCalls += 1;
+        return {
+          status: 'ISSUED',
+          providerReference: 'INV-TEST-001',
+          checksum: 'checksum-001',
+          issuedAt: '2026-07-31T12:00:00.000Z',
+        };
+      },
+    });
+    assert.equal(probeCalls, 1);
+    assert.equal(secondRun.find((job) => job.dedupeKey === dedupeKey)?.status, DURABLE_EFFECT_STATUS.SUCCEEDED);
+    const [issuedDocument] = await db.select({ legalInvoiceRef: s.billingDocuments.legalInvoiceRef })
+      .from(s.billingDocuments)
+      .where(eq(s.billingDocuments.id, document!.id));
+    assert.equal(issuedDocument?.legalInvoiceRef?.status, 'ISSUED');
+    assert.equal(issuedDocument?.legalInvoiceRef?.providerReference, 'INV-TEST-001');
+  });
+
   test('unknown kind or version becomes DEAD and migration backfills legacy cleanup audits', async () => {
     const [unknown] = await db.insert(s.durableEffectJobs).values({
       kind: 'BOGUS_KIND',
@@ -356,6 +449,14 @@ after(async () => {
   if (createdAuditLogIds.length > 0) {
     await db.delete(s.auditLogs)
       .where(sql`${s.auditLogs.id} in (${sql.join(createdAuditLogIds.map((id) => sql`${id}`), sql`, `)})`);
+  }
+  if (createdBillingDocumentIds.length > 0) {
+    await db.delete(s.billingDocuments)
+      .where(sql`${s.billingDocuments.id} in (${sql.join(createdBillingDocumentIds.map((id) => sql`${id}`), sql`, `)})`);
+  }
+  if (createdCustomerIds.length > 0) {
+    await db.delete(s.customers)
+      .where(sql`${s.customers.id} in (${sql.join(createdCustomerIds.map((id) => sql`${id}`), sql`, `)})`);
   }
   await disconnectRedis();
   await client.end();

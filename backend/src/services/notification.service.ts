@@ -10,6 +10,7 @@ import type { Tx } from './trip-shared';
 const eventBus = new EventEmitter();
 eventBus.setMaxListeners(50);
 const NOTIFICATION_EVENT = 'notification:generate';
+const NOTIFICATION_INSERT_BATCH_SIZE = 250;
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -111,7 +112,11 @@ async function generateNotification(
     relatedEntityId: payload.relatedEntityId ?? null,
     isRead: false,
   }));
-  await client.insert(notifications).values(rows);
+  for (let index = 0; index < rows.length; index += NOTIFICATION_INSERT_BATCH_SIZE) {
+    await client.insert(notifications).values(
+      rows.slice(index, index + NOTIFICATION_INSERT_BATCH_SIZE),
+    );
+  }
 
   // High-value push whitelist: only listed event types wake a device, and
   // only the configured audience. Best-effort — must never block in-app

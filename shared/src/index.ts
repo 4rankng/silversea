@@ -38,6 +38,8 @@ export type {
   CreatePaymentRequest, PaymentAllocationMethod, PaymentReceiptAllocation,
   PaymentReceiptResult, PaymentReceiptResponse, CreatePenaltyRequest, CreateAdjustmentRequest,
   LoginResponse, PaginatedResponse, DashboardStats, DashboardDecisionItem, DashboardDecisionKind, DashboardDecisionSeverity, CustomerStatement, AgingBucket, UnpaidTrip, PeriodSummary,
+  TreasuryAccountPosition, TreasuryPosition, CustomerVisibleEventDto, RecoverableCostEligibility,
+  ProfitabilityReportRow, ProfitabilityReport,
   SalaryPeriod, SalaryPeriodRange, PnlTruck, PnlMaintenanceItem, PnlTripDetail, PnlReport,
   Supplier, ExpenseCategory, Expense, ExpenseWithRefs, PayableSummary, PayablesCategory, SupplierStatement, RenewalReminder, VendorPaymentRequest,
   TripContainer, TripExpense, TripExpenseWithRefs, ForwarderTripDetail, TripExpenseWithSupplier,
@@ -110,6 +112,12 @@ export {
   agentActionResultSchema,
   faqEntryCreateSchema, faqEntryUpdateSchema, FAQ_ADMIN_PATHS,
   geotagSchema, GEOTAG_ENTITY_TYPES, GEOTAG_SOURCES, GEOTAG_PATHS,
+  customerVisibleEventContentSchema, createCustomerVisibleEventSchema,
+  acknowledgeCustomerEventSchema, recoverableCostListQuerySchema,
+  recoverableCostRequestSchema, sendDebitNoteForConfirmationSchema,
+  portalDebitNoteDecisionSchema, directMoneyTreasurySchema,
+  profitabilityReportQuerySchema, CUSTOMER_VISIBLE_EVENT_TYPES,
+  PROFITABILITY_DIMENSIONS,
 } from './schemas';
 
 export { appSettingsSchema } from './schemas/app-settings';
@@ -153,6 +161,11 @@ export type {
   GeotagInput, GeotagEntityType, GeotagSource, PhotoGeotag,
   CreateShipmentInput, UpdateShipmentInput, TransitionShipmentStatusInput,
   AttachShipmentDocumentInput, ShipmentContainerBatchInput, DispatchShipmentInput,
+  CustomerVisibleEventContent, CreateCustomerVisibleEventInput,
+  AcknowledgeCustomerEventInput, RecoverableCostListQuery,
+  RecoverableCostRequestInput, SendDebitNoteForConfirmationInput,
+  PortalDebitNoteDecisionInput, DirectMoneyTreasuryInput,
+  ProfitabilityDimension, ProfitabilityReportQuery,
 } from './schemas';
 
 export { round2dp, roundInt } from './calculations/round';

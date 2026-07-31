@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, asc, eq, inArray, isNull, lte, or } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -11,6 +11,7 @@ import type { Tx } from './trip-shared';
 export const DURABLE_EFFECT_KIND = {
   CACHE_INVALIDATE: 'CACHE_INVALIDATE',
   STORAGE_DELETE: 'STORAGE_DELETE',
+  LEGAL_INVOICE_HANDOFF: 'LEGAL_INVOICE_HANDOFF',
 } as const;
 
 export const DURABLE_EFFECT_STATUS = {
@@ -54,13 +55,28 @@ const storageDeleteJobSchema = z.object({
   maxAttempts: z.number().int().positive().max(100).optional(),
 });
 
+const legalInvoiceHandoffJobSchema = z.object({
+  kind: z.literal(DURABLE_EFFECT_KIND.LEGAL_INVOICE_HANDOFF),
+  payloadVersion: z.literal(1),
+  dedupeKey: z.string().trim().min(1).max(255),
+  payload: z.object({
+    documentId: z.number().int().positive(),
+    confirmedVersion: z.number().int().positive(),
+    provider: z.string().trim().min(1).max(80),
+    payloadHash: z.string().regex(/^[a-f0-9]{64}$/),
+  }),
+  maxAttempts: z.number().int().positive().max(100).optional(),
+});
+
 const durableEffectInputSchema = z.discriminatedUnion('kind', [
   cacheInvalidateJobSchema,
   storageDeleteJobSchema,
+  legalInvoiceHandoffJobSchema,
 ]);
 
 type CacheInvalidateEffect = z.infer<typeof cacheInvalidateJobSchema>;
 type StorageDeleteEffect = z.infer<typeof storageDeleteJobSchema>;
+type LegalInvoiceHandoffEffect = z.infer<typeof legalInvoiceHandoffJobSchema>;
 export type DurableEffectInput = z.infer<typeof durableEffectInputSchema>;
 type DurableEffectJobRow = typeof s.durableEffectJobs.$inferSelect;
 
@@ -72,12 +88,25 @@ export interface StorageCleanupGuardLease {
   leaseExpiresAt: Date;
 }
 
+export interface LegalInvoiceHandoffResult {
+  status: 'UNKNOWN' | 'ISSUED' | 'CANCELED';
+  providerReference?: string;
+  checksum?: string;
+  issuedAt?: string;
+}
+
 interface DurableEffectDependencies {
   now?: () => Date;
   uuid?: () => string;
   cacheInvalidateKey?: (key: string) => Promise<void>;
   storageDelete?: (storageKey: string) => Promise<void>;
   isStorageKeyReferenced?: (storageKey: string) => Promise<boolean>;
+  legalInvoiceHandoff?: (
+    payload: LegalInvoiceHandoffEffect['payload'],
+  ) => Promise<LegalInvoiceHandoffResult>;
+  legalInvoiceStatusProbe?: (
+    payload: LegalInvoiceHandoffEffect['payload'],
+  ) => Promise<LegalInvoiceHandoffResult>;
   leaseMs?: number;
 }
 
@@ -341,6 +370,24 @@ export async function processDurableEffectJob(
       return (await markDurableEffectJobSucceeded(job.id, job.leaseToken, now)) ?? job;
     }
 
+    if (parsed.job.kind === DURABLE_EFFECT_KIND.LEGAL_INVOICE_HANDOFF) {
+      const shouldProbe = await legalInvoiceHandoffNeedsStatusProbe(parsed.job.payload);
+      const execute = shouldProbe
+        ? dependencies.legalInvoiceStatusProbe ?? defaultLegalInvoiceHandoff
+        : dependencies.legalInvoiceHandoff ?? defaultLegalInvoiceHandoff;
+      try {
+        const result = await execute(parsed.job.payload);
+        await applyLegalInvoiceHandoffResult(parsed.job.payload, result, now, job.id, job.leaseToken);
+      } catch (error) {
+        // A provider timeout is ambiguous: persist UNKNOWN before scheduling a
+        // retry. The next attempt probes provider status and never blindly
+        // issues the legal invoice again.
+        await applyLegalInvoiceHandoffResult(parsed.job.payload, { status: 'UNKNOWN' }, now, job.id, job.leaseToken);
+        throw error;
+      }
+      return (await markDurableEffectJobSucceeded(job.id, job.leaseToken, now)) ?? job;
+    }
+
     if (parsed.job.payload.mode === STORAGE_DELETE_MODE.ORPHAN_GUARD) {
       const referenced = await isStorageKeyReferenced(parsed.job.payload.storageKey);
       if (referenced) {
@@ -492,8 +539,98 @@ async function defaultStorageKeyReferenceCheck(storageKey: string): Promise<bool
     || companyLogo.length > 0;
 }
 
+async function defaultLegalInvoiceHandoff(): Promise<LegalInvoiceHandoffResult> {
+  // SilverSea is the AR authority, not a tax-invoice issuer. Until an external
+  // provider/manual reference is configured, the durable handoff records an
+  // explicit unknown external state without inventing a legal invoice number.
+  return { status: 'UNKNOWN' };
+}
+
+async function legalInvoiceHandoffNeedsStatusProbe(
+  payload: LegalInvoiceHandoffEffect['payload'],
+): Promise<boolean> {
+  const [document] = await db.select({ legalInvoiceRef: s.billingDocuments.legalInvoiceRef })
+    .from(s.billingDocuments)
+    .where(eq(s.billingDocuments.id, payload.documentId))
+    .limit(1);
+  return document?.legalInvoiceRef?.requestVersion === payload.confirmedVersion
+    && document.legalInvoiceRef.payloadHash === payload.payloadHash
+    && document.legalInvoiceRef.status === 'UNKNOWN';
+}
+
+async function applyLegalInvoiceHandoffResult(
+  payload: LegalInvoiceHandoffEffect['payload'],
+  result: LegalInvoiceHandoffResult,
+  now: Date,
+  jobId: number,
+  leaseToken: string | null,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    if (!leaseToken) return;
+    const [activeLease] = await tx.select({ id: s.durableEffectJobs.id })
+      .from(s.durableEffectJobs)
+      .where(and(
+        eq(s.durableEffectJobs.id, jobId),
+        eq(s.durableEffectJobs.status, DURABLE_EFFECT_STATUS.RUNNING),
+        eq(s.durableEffectJobs.leaseToken, leaseToken),
+        gt(s.durableEffectJobs.leaseExpiresAt, now),
+      ))
+      .limit(1)
+      .for('update');
+    if (!activeLease) return;
+    const [document] = await tx.select({
+      id: s.billingDocuments.id,
+      version: s.billingDocuments.version,
+      debitNoteStatus: s.billingDocuments.debitNoteStatus,
+      legalInvoiceRef: s.billingDocuments.legalInvoiceRef,
+    })
+      .from(s.billingDocuments)
+      .where(and(
+        eq(s.billingDocuments.id, payload.documentId),
+        isNull(s.billingDocuments.deletedAt),
+      ))
+      .limit(1)
+      .for('update');
+    if (!document) return;
+    const reference = document.legalInvoiceRef;
+    if (
+      reference?.requestVersion !== payload.confirmedVersion
+      || reference.payloadHash !== payload.payloadHash
+      || reference.provider !== payload.provider
+    ) {
+      return;
+    }
+    if (document.debitNoteStatus === 'CANCELED' || document.debitNoteStatus === 'REJECTED') {
+      await tx.update(s.billingDocuments).set({
+        legalInvoiceRef: {
+          ...reference,
+          status: 'CANCELED',
+          updatedAt: now.toISOString(),
+        },
+        version: sql`${s.billingDocuments.version} + 1`,
+        updatedAt: now,
+      }).where(eq(s.billingDocuments.id, document.id));
+      return;
+    }
+    await tx.update(s.billingDocuments).set({
+      legalInvoiceRef: {
+        provider: payload.provider,
+        status: result.status,
+        providerReference: result.providerReference,
+        requestVersion: payload.confirmedVersion,
+        payloadHash: payload.payloadHash,
+        checksum: result.checksum,
+        issuedAt: result.issuedAt,
+        updatedAt: now.toISOString(),
+      },
+      version: sql`${s.billingDocuments.version} + 1`,
+      updatedAt: now,
+    }).where(eq(s.billingDocuments.id, document.id));
+  });
+}
+
 function parseJob(job: DurableEffectJobRow):
-  | { ok: true; job: CacheInvalidateEffect | StorageDeleteEffect }
+  | { ok: true; job: CacheInvalidateEffect | StorageDeleteEffect | LegalInvoiceHandoffEffect }
   | { ok: false; error: string } {
   if (job.kind === DURABLE_EFFECT_KIND.CACHE_INVALIDATE) {
     const parsed = cacheInvalidateJobSchema.safeParse({
@@ -518,6 +655,18 @@ function parseJob(job: DurableEffectJobRow):
     return parsed.success
       ? { ok: true, job: parsed.data }
       : { ok: false, error: `invalid storage delete payload: ${parsed.error.issues[0]?.message ?? 'unknown'}` };
+  }
+  if (job.kind === DURABLE_EFFECT_KIND.LEGAL_INVOICE_HANDOFF) {
+    const parsed = legalInvoiceHandoffJobSchema.safeParse({
+      kind: job.kind,
+      payloadVersion: job.payloadVersion,
+      dedupeKey: job.dedupeKey,
+      payload: job.payload,
+      maxAttempts: job.maxAttempts,
+    });
+    return parsed.success
+      ? { ok: true, job: parsed.data }
+      : { ok: false, error: `invalid legal invoice handoff payload: ${parsed.error.issues[0]?.message ?? 'unknown'}` };
   }
   return { ok: false, error: `unsupported durable effect kind/version: ${job.kind}@${job.payloadVersion}` };
 }
