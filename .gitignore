@@ -70,3 +70,4 @@ kilo.json
 *.pen
 .agents
 .claude-tmp/
+.ua
