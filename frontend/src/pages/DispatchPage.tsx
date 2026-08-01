@@ -467,7 +467,7 @@ export default function DispatchPage() {
                         ...current,
                         truckId,
                         trailerId: suggestion?.currentTrailerId ? String(suggestion.currentTrailerId) : '',
-                        driverId: suggestion?.assignedDriverId ? String(suggestion.assignedDriverId) : current.driverId,
+                        driverId: '',
                       }));
                     }}
                     disabled={issuing || fleetAccessDenied}

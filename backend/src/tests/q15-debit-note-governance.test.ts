@@ -23,6 +23,7 @@ const cargoTypeIds: number[] = [];
 const shipmentIds: number[] = [];
 const fulfillmentIds: number[] = [];
 const tripIds: number[] = [];
+const tripFinancialPostingIds: number[] = [];
 const podSubmissionIds: number[] = [];
 const documentIds: number[] = [];
 const governanceActionIds: number[] = [];
@@ -118,6 +119,16 @@ async function createTripFixture(status: 'LOCKED' | 'COMPLETED' = 'LOCKED', reve
   }).returning();
   tripIds.push(trip.id);
 
+  const [posting] = await db.insert(s.tripFinancialPostings).values({
+    tripId: trip.id,
+    version: 1,
+    tripVersion: trip.version,
+    status: 'ACTIVE',
+    reason: 'COMPLETION',
+    effectiveAt: trip.completedAt ?? new Date('2026-07-15T08:00:00.000Z'),
+  }).returning();
+  tripFinancialPostingIds.push(posting.id);
+
   const [submission] = await db.insert(s.tripPodSubmissions).values({
     tripId: trip.id,
     fulfillmentId: fulfillment.id,
@@ -135,7 +146,7 @@ async function createTripFixture(status: 'LOCKED' | 'COMPLETED' = 'LOCKED', reve
   return { customer, trip };
 }
 
-async function createDraftDocumentWithAdhoc(tripRevenue = 1_000_000) {
+async function createDraftDocumentFromSources(tripRevenue = 1_000_000) {
   const { customer, trip } = await createTripFixture('LOCKED', tripRevenue);
   const generated = await generateDraft({
     type: 'DEBIT_NOTE',
@@ -144,26 +155,45 @@ async function createDraftDocumentWithAdhoc(tripRevenue = 1_000_000) {
     rangeFrom: '2026-07-01',
     rangeTo: '2026-07-31',
   });
-  const input: SaveBillingDocumentInput = {
-    ...generated,
-    lines: [
-      ...generated.lines.map((line) => ({
-        ...line,
-        renderData: line.renderData ? { ...line.renderData } as Record<string, unknown> : null,
-      })),
-      {
-        sourceType: 'ADHOC',
-        sourceId: null,
-        lineType: 'ADHOC',
-        typeLabel: 'Phụ phí bổ sung',
-        unit: 'lần',
-        description: `Phụ phí Q15 ${suffix}`,
-        baseAmount: 250_000,
-        amountOverride: null,
-        excluded: false,
-        sortOrder: generated.lines.length,
-      },
-    ],
+  const input: SaveBillingDocumentInput & {
+    sourceRefs: Array<{
+      sourceType: 'TRIP' | 'EXPENSE';
+      sourceId: number;
+      financialPostingId?: number;
+      financialPostingVersion?: number;
+      postingChecksum?: string;
+      sourceVersion?: string;
+    }>;
+  } = {
+    type: 'DEBIT_NOTE',
+    entityType: 'CUSTOMER',
+    entityId: customer.id,
+    entityName: generated.entityName,
+    rangeFrom: '2026-07-01',
+    rangeTo: '2026-07-31',
+    note: null,
+    sourceRefs: generated.lines.map((line) => {
+      if (line.sourceType === 'TRIP' && line.sourceId != null) {
+        assert.ok(line.financialPostingId != null);
+        assert.ok(line.financialPostingVersion != null);
+        assert.ok(line.postingChecksum);
+        return {
+          sourceType: 'TRIP' as const,
+          sourceId: line.sourceId,
+          financialPostingId: line.financialPostingId,
+          financialPostingVersion: line.financialPostingVersion,
+          postingChecksum: line.postingChecksum,
+        };
+      }
+      assert.equal(line.sourceType, 'EXPENSE');
+      assert.ok(line.sourceId != null);
+      assert.equal(typeof line.renderData?.sourceVersion, 'string');
+      return {
+        sourceType: 'EXPENSE' as const,
+        sourceId: line.sourceId,
+        sourceVersion: String(line.renderData?.sourceVersion),
+      };
+    }),
   };
   const created = await api(
     'POST',
@@ -232,6 +262,9 @@ after(async () => {
   if (podSubmissionIds.length > 0) {
     await db.delete(s.tripPodSubmissions).where(inArray(s.tripPodSubmissions.id, podSubmissionIds));
   }
+  if (tripFinancialPostingIds.length > 0) {
+    await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.id, tripFinancialPostingIds));
+  }
   if (tripIds.length > 0) {
     await db.delete(s.trips).where(inArray(s.trips.id, tripIds));
   }
@@ -259,7 +292,7 @@ after(async () => {
 
 describe('Q15 debit-note issue governance', () => {
   it('keeps draft AR unchanged until a three-actor issue approval, then posts exactly once with replay safety', async () => {
-    const { document } = await createDraftDocumentWithAdhoc();
+    const { document } = await createDraftDocumentFromSources();
     const documentId = Number(document.id);
 
     const beforeLedger = await db.select({ id: s.ledger.id })
@@ -341,13 +374,12 @@ describe('Q15 debit-note issue governance', () => {
       .from(s.ledger)
       .where(eq(s.ledger.receiptId, `GBN:${documentId}`));
     ledgerIds.push(...postedLedger.map((row) => row.id));
-    assert.equal(postedLedger.length, 1, 'approval must post exactly one AR delta');
-    assert.equal(postedLedger[0]?.debit, storedDocument?.ledgerAdjustmentAmount);
-    assert.equal(postedLedger[0]?.credit, '0');
+    assert.equal(storedDocument?.ledgerAdjustmentAmount, '0');
+    assert.equal(postedLedger.length, 0, 'source-backed issue approval must not duplicate trip-lock AR');
   });
 
   it('stores explicit rejection reason and leaves draft/state untouched', async () => {
-    const { document } = await createDraftDocumentWithAdhoc();
+    const { document } = await createDraftDocumentFromSources();
     const documentId = Number(document.id);
 
     const issue = await api('POST', `/api/finance/billing-documents/${documentId}/issue`, {
@@ -389,7 +421,7 @@ describe('Q15 debit-note issue governance', () => {
   });
 
   it('rejects stale-source approval and keeps the draft pending approval without posting AR', async () => {
-    const { trip, document } = await createDraftDocumentWithAdhoc(1_000_000);
+    const { trip, document } = await createDraftDocumentFromSources(1_000_000);
     const documentId = Number(document.id);
 
     const issue = await api('POST', `/api/finance/billing-documents/${documentId}/issue`, {
@@ -435,29 +467,55 @@ describe('Q15 debit-note issue governance', () => {
   });
 
   it('allows normal draft update before issue approval and still keeps AR at zero', async () => {
-    const { customer, document } = await createDraftDocumentWithAdhoc();
+    const { customer, document } = await createDraftDocumentFromSources();
     const documentId = Number(document.id);
 
-    const updatedInput: SaveBillingDocumentInput = {
+    const regenerated = await generateDraft({
       type: 'DEBIT_NOTE',
       entityType: 'CUSTOMER',
       entityId: customer.id,
-      entityName: customer.name,
+      rangeFrom: '2026-07-01',
+      rangeTo: '2026-07-31',
+    });
+    const updatedInput: SaveBillingDocumentInput & {
+      sourceRefs: Array<{
+        sourceType: 'TRIP' | 'EXPENSE';
+        sourceId: number;
+        financialPostingId?: number;
+        financialPostingVersion?: number;
+        postingChecksum?: string;
+        sourceVersion?: string;
+      }>;
+    } = {
+      type: 'DEBIT_NOTE',
+      entityType: 'CUSTOMER',
+      entityId: customer.id,
+      entityName: regenerated.entityName,
       rangeFrom: '2026-07-01',
       rangeTo: '2026-07-31',
       note: 'cap nhat nhap moi',
-      lines: [{
-        sourceType: 'ADHOC',
-        sourceId: null,
-        lineType: 'ADHOC',
-        typeLabel: 'Phí điều chỉnh',
-        unit: 'lần',
-        description: 'Cập nhật nháp trước phê duyệt',
-        baseAmount: 300_000,
-        amountOverride: null,
-        excluded: false,
-        sortOrder: 0,
-      }],
+      sourceRefs: regenerated.lines.map((line) => {
+        if (line.sourceType === 'TRIP' && line.sourceId != null) {
+          assert.ok(line.financialPostingId != null);
+          assert.ok(line.financialPostingVersion != null);
+          assert.ok(line.postingChecksum);
+          return {
+            sourceType: 'TRIP' as const,
+            sourceId: line.sourceId,
+            financialPostingId: line.financialPostingId,
+            financialPostingVersion: line.financialPostingVersion,
+            postingChecksum: line.postingChecksum,
+          };
+        }
+        assert.equal(line.sourceType, 'EXPENSE');
+        assert.ok(line.sourceId != null);
+        assert.equal(typeof line.renderData?.sourceVersion, 'string');
+        return {
+          sourceType: 'EXPENSE' as const,
+          sourceId: line.sourceId,
+          sourceVersion: String(line.renderData?.sourceVersion),
+        };
+      }),
     };
 
     const updated = await api('PUT', `/api/finance/billing-documents/${documentId}`, updatedInput as unknown as Record<string, unknown>, 0, `q15-debit-update-${documentId}`);

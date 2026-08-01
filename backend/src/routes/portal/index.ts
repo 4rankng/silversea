@@ -10,7 +10,6 @@ import { db } from '../../db';
 import * as s from '../../db/schema';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { getUser } from '../../middleware/auth';
-import { requireWorkflowActive } from '../../middleware/workflow-rollout';
 import { canAccessCustomer, scopedByCustomer } from '../../lib/scoped-by-customer';
 import {
   buildLegacyXlsx,
@@ -243,7 +242,7 @@ router.get('/shipments/:id/pod-files/:fileId', asyncHandler(async (req: Request,
   res.send(file.buffer);
 }));
 
-router.get('/shipments/:id/customer-events', requireWorkflowActive, asyncHandler(async (req: Request, res: Response) => {
+router.get('/shipments/:id/customer-events', asyncHandler(async (req: Request, res: Response) => {
   const shipmentId = parsePositiveId(String(req.params.id), 'ID lô hàng');
   const customerId = resolveSelectedCustomerId(req);
   const items = await listCustomerVisibleEvents({
@@ -254,7 +253,7 @@ router.get('/shipments/:id/customer-events', requireWorkflowActive, asyncHandler
   res.json({ items });
 }));
 
-router.post('/shipments/:id/customer-events/:eventId/acknowledge', requireWorkflowActive, asyncHandler(async (req: Request, res: Response) => {
+router.post('/shipments/:id/customer-events/:eventId/acknowledge', asyncHandler(async (req: Request, res: Response) => {
   const shipmentId = parsePositiveId(String(req.params.id), 'ID lô hàng');
   const eventId = parsePositiveId(String(req.params.eventId), 'ID sự kiện');
   const parsed = acknowledgeCustomerEventSchema.safeParse(req.body);

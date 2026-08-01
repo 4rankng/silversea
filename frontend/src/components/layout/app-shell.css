@@ -32,7 +32,6 @@
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
-  transition: grid-template-columns 240ms var(--ease);
 }
 
 /* Desktop sidebar toggle (1024px and above) */
@@ -139,13 +138,6 @@
     min-width: var(--sidebar-w);
   }
 
-  .sidebar {
-    transition: width 240ms var(--ease), min-width 240ms var(--ease);
-  }
-
-  .sidebar-brand {
-    transition: padding 240ms var(--ease);
-  }
 }
 .app-main {
   display: flex;

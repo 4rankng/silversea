@@ -34,12 +34,13 @@
 
 Nếu không được phép thay đổi dữ liệu, ghi `NOT_RUN_MUTATION_NOT_AUTHORIZED`; không dùng dữ liệu khách hàng thật để lách giới hạn.
 
-### 1.3. Chế độ rollout
+### 1.3. Quy trình tài chính chuẩn
 
-- Bộ ca chính `VIS-CSF-100` đến `VIS-CSF-799` yêu cầu server trả `workflowRolloutMode = ACTIVE` và capability đúng vai trò.
-- Ca `VIS-CSF-010` và `VIS-CSF-011` kiểm tra riêng chế độ `OFF`/`SHADOW`.
-- Không đổi rollout trên staging/production nếu chưa được phê duyệt.
-- Hướng dẫn rollout và điều kiện kích hoạt nằm tại [`../customer-service-finance-workflow.md`](../customer-service-finance-workflow.md).
+- Quy trình Customer Service → vận hành → tài chính là luồng duy nhất của sản phẩm.
+- Server không trả cờ rollout; quyền hiển thị và thao tác chỉ dựa trên role,
+  capability và phạm vi dữ liệu.
+- Mọi chuyến hoàn thành mới phải có phiên bản hạch toán đang hiệu lực trước khi
+  đi tiếp qua khóa chuyến, Giấy báo nợ và báo cáo.
 
 ### 1.4. Tài khoản bắt buộc
 
@@ -100,7 +101,7 @@ Agent phải ghi ID thực tế vào báo cáo trước khi chạy. Có thể t�
 
 Không có fixture và không được phép tạo → `BLOCKED_DATA_FIXTURE`, không phải `PASS`.
 
-## 3. Preflight và rollout
+## 3. Preflight
 
 ### VIS-CSF-001 — Đúng ứng dụng và môi trường `[READ]` · Smoke
 
@@ -114,19 +115,17 @@ Không có fixture và không được phép tạo → `BLOCKED_DATA_FIXTURE`, k
 - Đăng nhập từng account, kiểm tra role qua UI hoặc `/api/auth/me`, ghi home route rồi logout.
 - **Pass:** role khớp 100%; không có account quyền rộng thay role hẹp.
 
-### VIS-CSF-003 — Capability và menu ACTIVE `[READ]` · P0
+### VIS-CSF-003 — Capability và menu theo vai trò `[READ]` · P0
 
 - **Pass:** `CLERK` chỉ có lô được giao/tạo lô/chi phí cần kiểm tra; `ACCOUNTANT` có workspace tài chính nhưng không có Dashboard điều hành; `ADMIN`/`MANAGER` có Dashboard; `CUSTOMER` chỉ có ba mục portal.
 
-### VIS-CSF-010 — Rollout OFF không lộ bề mặt mới `[READ]` · P0
+### VIS-CSF-010 — Khởi động mặc định dùng quy trình mới `[READ]` · P0
 
-- **Role:** `ADMIN`, `CLERK`, `CUSTOMER`.
-- Mở menu và URL trực tiếp `/recoverable-costs`, `/finance/treasury`; mở chi tiết lô operator/portal.
-- **Pass:** capability mới bị ẩn/redirect; timeline mới không hiện; shipment cũ vẫn dùng được.
-
-### VIS-CSF-011 — Rollout SHADOW không quảng bá capability `[READ]` · P0
-
-- **Pass:** hành vi hiển thị giống `OFF`; URL trực tiếp không làm lộ trang mới.
+- Khởi động ứng dụng bằng lệnh phát triển chuẩn, không truyền biến môi trường
+  kích hoạt quy trình.
+- **Pass:** capability đúng vai trò xuất hiện; các route tài chính được bảo vệ
+  bằng quyền thay vì trả `503`; một chuyến hoàn thành mới tạo đúng một phiên bản
+  hạch toán đang hiệu lực.
 
 ## 4. Booking, CUS và bàn giao điều vận
 
@@ -388,7 +387,8 @@ Không có fixture và không được phép tạo → `BLOCKED_DATA_FIXTURE`, k
 5. `401`–`406` cho AP/treasury.
 6. `501`–`508` cho profitability/dashboard.
 7. `601`–`608` trên các trạng thái đã tạo.
-8. Cuối cùng mới chạy `OFF`/`SHADOW` nếu được phép; khôi phục mode ban đầu.
+8. Chạy `VIS-CSF-010` trên một lần khởi động mặc định sạch để xác nhận không còn
+   phụ thuộc cờ môi trường.
 
 ## 12. Mẫu báo cáo
 
@@ -396,7 +396,9 @@ Không có fixture và không được phép tạo → `BLOCKED_DATA_FIXTURE`, k
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | VIS-CSF-... | ... | ... | PASS / FAIL / BLOCKED_* / NOT_RUN_* | ... | ... | ... | ... |
 
-Tổng kết bắt buộc: số PASS/FAIL/BLOCKED/NOT_RUN; ma trận role × route × viewport; mutation đã tạo; lỗi theo severity; và hai kết luận riêng **browser visual readiness** / **rollout readiness**.
+Tổng kết bắt buộc: số PASS/FAIL/BLOCKED/NOT_RUN; ma trận role × route × viewport;
+mutation đã tạo; lỗi theo severity; và hai kết luận riêng **browser visual
+readiness** / **new-flow readiness**.
 
 ## 13. Phủ scenario theo `ck:scenario`
 
@@ -409,7 +411,7 @@ Tổng kết bắt buộc: số PASS/FAIL/BLOCKED/NOT_RUN; ma trận role × rou
 | State transitions | `105`, `107`, `204`, `304`, `305`, `406` |
 | Environment | `001`, `601`–`606` |
 | Error cascades | `206`, `404`, `606`, `607` |
-| Authorization | `002`, `010`, `011`, `108`, `405`, ma trận quyền âm |
+| Authorization | `002`, `010`, `108`, `405`, ma trận quyền âm |
 | Data integrity | `206`, `302`, `406`, `505` |
 | Integration | `107`, `301`–`308`, `406`, `504` |
 | Compliance/audit | `105`, `107`, `302`, `406`, `608` |

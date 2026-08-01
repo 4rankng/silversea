@@ -35,6 +35,7 @@ export const routes = {
   tripDetail: (id: number | string) => PAGE_CATALOG.tripDetail.path({ id }),
   tripEdit: (id: number | string) => PAGE_CATALOG.tripEdit.path({ id }),
   finance: PAGE_CATALOG.finance.path,
+  accounting: PAGE_CATALOG.accounting.path,
   treasury: '/finance/treasury',
   recoverableCosts: '/recoverable-costs',
   profit: PAGE_CATALOG.profit.path,
@@ -132,7 +133,7 @@ export function homeForRole(role: 'DRIVER' | 'FORWARDER' | string): string {
   if (role === 'FORWARDER') return routes.myForwarderTrips;
   if (role === 'CUSTOMER') return routes.portalShipments;
   if (role === 'CLERK') return routes.shipments;
-  if (role === 'ACCOUNTANT') return routes.debt;
+  if (role === 'ACCOUNTANT') return routes.accounting;
   return routes.dashboard;
 }
 
@@ -153,6 +154,7 @@ const titleRules: TitleRule[] = [
   { test: p => p === routes.tripNew, title: PAGE_CATALOG.tripNew.title },
   { test: p => p.startsWith(routes.trips), title: PAGE_CATALOG.trips.title },
   { test: p => p === routes.finance, title: PAGE_CATALOG.finance.title },
+  { test: p => p === routes.accounting, title: PAGE_CATALOG.accounting.title },
   { test: p => p === routes.treasury, title: 'Sổ quỹ / ngân hàng' },
   { test: p => p.startsWith(routes.recoverableCosts), title: 'Chi phí thu hồi' },
   { test: p => p.startsWith(routes.profit), title: PAGE_CATALOG.profit.title },

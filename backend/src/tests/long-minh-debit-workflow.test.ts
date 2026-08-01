@@ -14,6 +14,7 @@ const cargoTypeIds: number[] = [];
 const shipmentIds: number[] = [];
 const fulfillmentIds: number[] = [];
 const tripIds: number[] = [];
+const postingIds: number[] = [];
 const declarationIds: number[] = [];
 const podSubmissionIds: number[] = [];
 
@@ -36,6 +37,9 @@ after(async () => {
   }
   if (declarationIds.length > 0) {
     await db.delete(s.shipmentDeclarations).where(inArray(s.shipmentDeclarations.id, declarationIds));
+  }
+  if (postingIds.length > 0) {
+    await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.id, postingIds));
   }
   if (tripIds.length > 0) {
     await db.delete(s.trips).where(inArray(s.trips.id, tripIds));
@@ -148,6 +152,16 @@ async function createTripFixture(input: {
     carrierType: 'OWN',
   }).returning();
   tripIds.push(trip.id);
+
+  const [posting] = await db.insert(s.tripFinancialPostings).values({
+    tripId: trip.id,
+    version: 1,
+    tripVersion: trip.version,
+    status: 'ACTIVE',
+    reason: 'COMPLETION',
+    effectiveAt: trip.completedAt!,
+  }).returning({ id: s.tripFinancialPostings.id });
+  postingIds.push(posting.id);
 
   if (shipmentId && fulfillmentId) {
     const [submission] = await db.insert(s.tripPodSubmissions).values({

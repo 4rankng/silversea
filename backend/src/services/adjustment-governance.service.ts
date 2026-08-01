@@ -39,7 +39,11 @@ import {
 import { removeTripWorkDays, syncTripWorkDays } from './attendance.service';
 import { persistNotificationInTx } from './notification.service';
 import { enqueueTripGpsCaptureJob } from './trip-gps-capture-job.service';
-import { createFinancialPosting, getActiveFinancialPosting } from './financial-posting.service';
+import {
+  createFinancialPosting,
+  getActiveFinancialPosting,
+  getFinancialPostingForGovernanceAction,
+} from './financial-posting.service';
 import { captureProfitabilityAttributionSnapshot } from './profitability.service';
 
 export { checkGovernanceAction } from './governance-transition.service';
@@ -619,15 +623,15 @@ async function applyTripGovernanceAction(
       if (canceled.driverId) {
         await removeTripWorkDays(canceled.driverId, canceled.id, tx);
       }
-      const activePosting = await getActiveFinancialPosting(tx, canceled.id);
-      const cancellationPosting = activePosting
-        ? await createFinancialPosting(tx, {
-          tripId: canceled.id,
-          tripVersion: canceled.version,
-          reason: 'CANCELLATION',
-          governanceActionId: action.id,
-        })
-        : null;
+      const cancellationPosting = await getFinancialPostingForGovernanceAction(
+        tx,
+        canceled.id,
+        action.id,
+        'CANCELLATION',
+      );
+      if (!cancellationPosting) {
+        throw new ApiError(409, 'Không tìm thấy phiên bản hạch toán hủy chuyến vừa tạo');
+      }
       await persistNotificationInTx(tx, {
         type: NotificationType.TRIP_CANCELED,
         title: 'Chuyến đã hủy',
@@ -643,7 +647,7 @@ async function applyTripGovernanceAction(
           subjectId: trip.id,
           resultingVersion: canceled.version,
           status: canceled.status,
-          financialPostingVersionId: cancellationPosting?.id ?? null,
+          financialPostingVersionId: cancellationPosting.id,
         },
       };
     }

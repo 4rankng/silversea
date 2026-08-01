@@ -15,6 +15,7 @@ import debtOffsetsRoutes from '../routes/financial/debt-offsets.routes';
 import governanceActionsRoutes from '../routes/financial/governance-actions.routes';
 import paymentsRoutes from '../routes/financial/payments.routes';
 import { initAuditService } from '../services/audit.service';
+import { generateDraft } from '../services/billingDocument.service';
 import { initNotificationService } from '../services/notification.service';
 import { disconnectRedis } from '../lib/redis';
 import { upsertPartnerFromTaxCode } from '../services/legal-partner.service';
@@ -24,6 +25,13 @@ const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const userIds: number[] = [];
 const customerIds: number[] = [];
 const supplierIds: number[] = [];
+const routeIds: number[] = [];
+const cargoTypeIds: number[] = [];
+const shipmentIds: number[] = [];
+const fulfillmentIds: number[] = [];
+const tripIds: number[] = [];
+const tripFinancialPostingIds: number[] = [];
+const podSubmissionIds: number[] = [];
 const advanceRequestIds: number[] = [];
 const advanceSettlementIds: number[] = [];
 const billingDocumentIds: number[] = [];
@@ -56,6 +64,115 @@ async function createCustomer() {
   }).returning();
   customerIds.push(customer.id);
   return customer;
+}
+
+async function createBillableDebitDocumentInput(
+  customer: { id: number; name: string },
+  note: string,
+  amount: number,
+): Promise<SaveBillingDocumentInput> {
+  const [route] = await db.insert(s.routes).values({
+    name: `Q23 billing route ${suffix}-${routeIds.length}`,
+  }).returning({ id: s.routes.id });
+  routeIds.push(route.id);
+  const [cargoType] = await db.insert(s.cargoTypes).values({
+    name: `Q23 billing cargo ${suffix}-${cargoTypeIds.length}`,
+  }).returning({ id: s.cargoTypes.id });
+  cargoTypeIds.push(cargoType.id);
+  const [shipment] = await db.insert(s.shipments).values({
+    shipmentCode: `Q23-BILL-SHP-${suffix}-${shipmentIds.length}`.slice(0, 50),
+    customerId: customer.id,
+    routeId: route.id,
+    cargoTypeId: cargoType.id,
+    cargoMode: 'LCL',
+    status: 'DRAFT',
+  }).returning();
+  shipmentIds.push(shipment.id);
+  const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+    shipmentId: shipment.id,
+    fulfillmentType: 'LCL_SHIPMENT',
+    cargoMode: 'LCL',
+    sourceShipmentVersion: shipment.version,
+    siteSnapshot: {},
+    createdBy: null,
+  }).returning();
+  fulfillmentIds.push(fulfillment.id);
+  const completedAt = new Date('2026-07-15T09:00:00.000Z');
+  const [trip] = await db.insert(s.trips).values({
+    tripCode: `Q23-BILL-${suffix}-${tripIds.length}`.slice(0, 50),
+    customerId: customer.id,
+    routeId: route.id,
+    cargoTypeId: cargoType.id,
+    shipmentId: shipment.id,
+    fulfillmentId: fulfillment.id,
+    departureDate: '2026-07-15',
+    completedAt,
+    status: 'LOCKED',
+    revenue: String(amount),
+    carrierType: 'OWN',
+  }).returning();
+  tripIds.push(trip.id);
+  const [posting] = await db.insert(s.tripFinancialPostings).values({
+    tripId: trip.id,
+    version: 1,
+    tripVersion: trip.version,
+    status: 'ACTIVE',
+    reason: 'COMPLETION',
+    effectiveAt: completedAt,
+  }).returning({ id: s.tripFinancialPostings.id });
+  tripFinancialPostingIds.push(posting.id);
+  const [submission] = await db.insert(s.tripPodSubmissions).values({
+    tripId: trip.id,
+    fulfillmentId: fulfillment.id,
+    submissionVersion: 1,
+    sourceTripVersion: trip.version,
+    status: 'ACCEPTED',
+    submittedBy: accountantActor.id,
+    submittedAt: new Date('2026-07-15T09:01:00.000Z'),
+    reviewedBy: managerActor.id,
+    reviewedAt: new Date('2026-07-15T09:02:00.000Z'),
+    rejectionReason: null,
+  }).returning({ id: s.tripPodSubmissions.id });
+  podSubmissionIds.push(submission.id);
+
+  const draft = await generateDraft({
+    type: 'DEBIT_NOTE',
+    entityType: 'CUSTOMER',
+    entityId: customer.id,
+    rangeFrom: '2026-07-01',
+    rangeTo: '2026-07-31',
+  });
+  return {
+    type: 'DEBIT_NOTE',
+    entityType: 'CUSTOMER',
+    entityId: customer.id,
+    entityName: draft.entityName,
+    rangeFrom: '2026-07-01',
+    rangeTo: '2026-07-31',
+    note,
+    sourceRefs: draft.lines.map((line) => {
+      if (line.sourceType === 'TRIP' && line.sourceId != null) {
+        assert.ok(line.financialPostingId != null);
+        assert.ok(line.financialPostingVersion != null);
+        assert.ok(line.postingChecksum);
+        return {
+          sourceType: 'TRIP' as const,
+          sourceId: line.sourceId,
+          financialPostingId: line.financialPostingId,
+          financialPostingVersion: line.financialPostingVersion,
+          postingChecksum: line.postingChecksum,
+        };
+      }
+      assert.equal(line.sourceType, 'EXPENSE');
+      assert.ok(line.sourceId != null);
+      assert.equal(typeof line.renderData?.sourceVersion, 'string');
+      return {
+        sourceType: 'EXPENSE' as const,
+        sourceId: line.sourceId,
+        sourceVersion: String(line.renderData?.sourceVersion),
+      };
+    }),
+  } as SaveBillingDocumentInput;
 }
 
 async function createLinkedCounterparties() {
@@ -135,30 +252,6 @@ async function createSettlement(forwarderId: number, requestIds: number[], note:
     })),
   );
   return settlement;
-}
-
-function adHocDocumentInput(customer: { id: number; name: string }, note: string, amount: number, description: string): SaveBillingDocumentInput {
-  return {
-    type: 'DEBIT_NOTE',
-    entityType: 'CUSTOMER',
-    entityId: customer.id,
-    entityName: customer.name,
-    rangeFrom: '2026-07-01',
-    rangeTo: '2026-07-31',
-    note,
-    lines: [{
-      sourceType: 'ADHOC',
-      sourceId: null,
-      lineType: 'ADHOC',
-      typeLabel: 'Phí dịch vụ',
-      unit: 'lần',
-      description,
-      baseAmount: amount,
-      amountOverride: null,
-      excluded: false,
-      sortOrder: 0,
-    }],
-  };
 }
 
 async function requestJson(
@@ -287,6 +380,7 @@ after(async () => {
   server.closeAllConnections();
   await new Promise<void>((resolve) => server.close(() => resolve()));
 
+  try {
   if (idempotencyKeys.length > 0) {
     await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.idempotencyKey, idempotencyKeys));
   }
@@ -295,6 +389,11 @@ after(async () => {
   }
   if (userIds.length > 0) {
     await db.delete(s.auditLogs).where(inArray(s.auditLogs.userId, userIds));
+    await db.delete(s.governanceActions).where(or(
+      inArray(s.governanceActions.makerId, userIds),
+      inArray(s.governanceActions.checkerId, userIds),
+      inArray(s.governanceActions.approverId, userIds),
+    ));
   }
   if (advanceSettlementIds.length > 0) {
     await db.delete(s.notifications).where(and(
@@ -323,6 +422,21 @@ after(async () => {
     ));
     await db.delete(s.billingDocuments).where(inArray(s.billingDocuments.id, billingDocumentIds));
   }
+  if (podSubmissionIds.length > 0) {
+    await db.delete(s.tripPodSubmissions).where(inArray(s.tripPodSubmissions.id, podSubmissionIds));
+  }
+  if (tripFinancialPostingIds.length > 0) {
+    await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.id, tripFinancialPostingIds));
+  }
+  if (tripIds.length > 0) {
+    await db.delete(s.trips).where(inArray(s.trips.id, tripIds));
+  }
+  if (fulfillmentIds.length > 0) {
+    await db.delete(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.id, fulfillmentIds));
+  }
+  if (shipmentIds.length > 0) {
+    await db.delete(s.shipments).where(inArray(s.shipments.id, shipmentIds));
+  }
   if (supplierIds.length > 0) {
     await db.update(s.customers)
       .set({ linkedSupplierId: null })
@@ -344,15 +458,23 @@ after(async () => {
   if (supplierIds.length > 0) {
     await db.delete(s.suppliers).where(inArray(s.suppliers.id, supplierIds));
   }
+  if (routeIds.length > 0) {
+    await db.delete(s.routes).where(inArray(s.routes.id, routeIds));
+  }
+  if (cargoTypeIds.length > 0) {
+    await db.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, cargoTypeIds));
+  }
   if (userIds.length > 0) {
-    await db.delete(s.governanceActions)
-      .where(inArray(s.governanceActions.makerId, userIds));
+    await db.delete(s.notifications)
+      .where(inArray(s.notifications.userId, userIds));
   }
   if (userIds.length > 0) {
     await db.delete(s.users).where(inArray(s.users.id, userIds));
   }
-  await disconnectRedis();
-  await client.end();
+  } finally {
+    await disconnectRedis();
+    await client.end();
+  }
 });
 
 describe('Q23 approved financial route idempotency', () => {
@@ -666,7 +788,7 @@ describe('Q23 approved financial route idempotency', () => {
   test('billing document create replays the original snapshot after later edits', async () => {
     const customer = await createCustomer();
     const createKey = `q23-billing-create-${customer.id}`;
-    const createBody = adHocDocumentInput(customer, 'ghi chu tao lan 1', 1250000, 'dong goc');
+    const createBody = await createBillableDebitDocumentInput(customer, 'ghi chu tao lan 1', 1250000);
 
     const first = await requestJson('/finance/billing-documents', {
       method: 'POST',
@@ -679,7 +801,7 @@ describe('Q23 approved financial route idempotency', () => {
     billingDocumentIds.push(documentId);
     billingLineDocIds.push(documentId);
 
-    const updateBody = adHocDocumentInput(customer, 'ghi chu cap nhat lan 2', 1450000, 'dong moi');
+    const updateBody = await createBillableDebitDocumentInput(customer, 'ghi chu cap nhat lan 2', 1450000);
     const updated = await requestJson(`/finance/billing-documents/${documentId}`, {
       method: 'PUT',
       body: updateBody,
@@ -703,9 +825,10 @@ describe('Q23 approved financial route idempotency', () => {
 
   test('billing document update audits same-key changed-payload conflicts and delete is first-winner', async () => {
     const customer = await createCustomer();
+    const seedBody = await createBillableDebitDocumentInput(customer, 'seed delete', 1000000);
     const created = await requestJson('/finance/billing-documents', {
       method: 'POST',
-      body: adHocDocumentInput(customer, 'seed delete', 1000000, 'seed line'),
+      body: seedBody,
       idempotencyKey: `q23-billing-seed-${customer.id}`,
     });
     const documentId = Number(created.data.id);
@@ -713,16 +836,18 @@ describe('Q23 approved financial route idempotency', () => {
     billingLineDocIds.push(documentId);
 
     const updateKey = `q23-billing-update-${documentId}`;
+    const firstUpdateBody = await createBillableDebitDocumentInput(customer, 'cap nhat 1', 1100000);
     const firstUpdate = await requestJson(`/finance/billing-documents/${documentId}`, {
       method: 'PUT',
-      body: adHocDocumentInput(customer, 'cap nhat 1', 1100000, 'dong 1'),
+      body: firstUpdateBody,
       idempotencyKey: updateKey,
     });
     assert.equal(firstUpdate.status, 200);
 
+    const conflictingUpdateBody = await createBillableDebitDocumentInput(customer, 'cap nhat 2', 1200000);
     const updateConflict = await requestJson(`/finance/billing-documents/${documentId}`, {
       method: 'PUT',
-      body: adHocDocumentInput(customer, 'cap nhat 2', 1200000, 'dong 2'),
+      body: conflictingUpdateBody,
       idempotencyKey: updateKey,
     });
     assert.equal(updateConflict.status, 409);

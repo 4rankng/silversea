@@ -1408,6 +1408,8 @@ export type BillingDocumentType = 'DEBIT_NOTE' | 'PAYMENT_STATEMENT';
 export type BillingDocumentEntityType = 'CUSTOMER' | 'VENDOR';
 export type BillingLineSourceType = 'TRIP' | 'EXPENSE' | 'ADHOC';
 export type BillingLineType = 'FREIGHT' | 'SERVICE_FEE' | 'ADHOC';
+export type BillingVatTreatment = 'STANDARD' | 'ZERO_RATED' | 'EXEMPT';
+export type BillingVatRate = 0 | 0.05 | 0.08 | 0.10;
 export type DebitNoteColumnVariable =
   | 'rowIndex'
   | 'departureDate'
@@ -1451,6 +1453,7 @@ export type DebitNoteColumnVariable =
 
 export interface BillingLineRenderData {
   tripCode?: string | null;
+  tripId?: number | null;
   documentCode?: string | null;
   departureDate?: string | null;
   deliveryDate?: string | null;
@@ -1485,6 +1488,9 @@ export interface BillingLineRenderData {
   sourceVersion?: string | null;
   sourceChangedAt?: string | null;
   sourceReason?: string | null;
+  financialPostingId?: number | null;
+  financialPostingVersion?: number | null;
+  postingChecksum?: string | null;
 }
 
 export type BillingLineProvenanceStatus = 'CURRENT' | 'STALE' | 'REMOVED';
@@ -1533,9 +1539,18 @@ export interface BillingDocumentLine {
   routeName?: string | null;
   containerNumbers?: string[] | null;
   renderData?: BillingLineRenderData | null;
-  baseAmount: number;             // generated amount (incl-VAT, VND)
+  financialPostingId?: number | null;
+  financialPostingVersion?: number | null;
+  postingChecksum?: string | null;
+  baseAmount: number;             // server-derived VAT-exclusive net amount, VND
   amountOverride?: number | null; // edited amount; effective = override ?? baseAmount
   excluded?: boolean;             // hidden from this document
+  vatTreatment?: BillingVatTreatment;
+  vatRate?: BillingVatRate;
+  vatTreatmentVersion?: string;
+  netAmount?: number;
+  taxAmount?: number;
+  grossAmount?: number;
   sortOrder: number;
   provenance?: BillingLineProvenance | null;
 }
@@ -1586,6 +1601,10 @@ export interface BillingDocument {
   rangeTo: string;
   note: string | null;
   totalInclVat: number;           // sum of non-excluded effective line amounts
+  totalNet?: number;
+  totalTax?: number;
+  totalGross?: number;
+  vatTreatmentVersion?: string;
   debitNoteStatus?: 'DRAFT' | 'SENT' | 'PENDING_CONFIRM' | 'CONFIRMED' | 'PARTIAL_PAID' | 'PAID' | 'REJECTED' | 'CANCELED' | null;
   customerConfirmedAt?: string | null;
   customerConfirmedBy?: string | null;
@@ -1632,6 +1651,10 @@ export interface BillingDocumentDraft {
   rangeTo: string;
   lines: BillingDraftLine[];
   totalInclVat: number;
+  totalNet?: number;
+  totalTax?: number;
+  totalGross?: number;
+  vatTreatmentVersion?: string;
   eligibilitySummary?: BillingDraftEligibilitySummary | null;
 }
 

@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "make dev",
     "setup": "make setup",
-    "build": "cd shared && npx tsc && cd ../backend && npx tsc && cd ../frontend && npx vite build",
+    "build": "pnpm --dir shared build && pnpm --dir backend build && pnpm --dir frontend build",
     "lint": "eslint .",
     "context": "node scripts/context-for.mjs",
     "context:check": "node scripts/context-for.mjs --check",

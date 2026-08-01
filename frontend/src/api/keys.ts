@@ -280,6 +280,23 @@ export const qk = {
     debt: ['debt'],
   },
 
+  accounting: {
+    receivables: (asOf: string) => ['accounting', 'receivables', asOf] as const,
+    payables: (asOf: string) => ['accounting', 'payables', asOf] as const,
+    profitability: (month: number, year: number) => ['accounting', 'profitability', month, year] as const,
+    transportRegister: (params: {
+      from: string;
+      to: string;
+      page: number;
+      search: string;
+      customerId: number | null;
+      carrierId: number | null;
+      ownership: string;
+      readiness: string;
+    }) =>
+      ['accounting', 'transport-register', params] as const,
+  },
+
   /* ── Penalties ──────────────────────────────────────────────────────── */
 
   penalties: {

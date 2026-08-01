@@ -8,6 +8,7 @@ import {
   eq,
   inArray,
   isNull,
+  ne,
   sql,
 } from 'drizzle-orm';
 import {
@@ -275,6 +276,7 @@ export async function loadOwnedFulfillmentTrip(
   }).from(s.shipmentFulfillments)
     .innerJoin(s.trips, and(
       eq(s.trips.fulfillmentId, s.shipmentFulfillments.id),
+      ne(s.trips.status, 'CANCELED'),
       isNull(s.trips.deletedAt),
     ))
     .where(and(

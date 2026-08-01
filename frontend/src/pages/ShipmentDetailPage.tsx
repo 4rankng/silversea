@@ -125,10 +125,9 @@ export default function ShipmentDetailPage() {
   const canOperate = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.CLERK;
   const canSeePodReview = canOperate || user?.role === Role.ACCOUNTANT;
   const canResolveCancellation = user?.role === Role.ADMIN || user?.role === Role.MANAGER;
-  const coordinationActive = user?.workflowRolloutMode === 'ACTIVE'
-    && Boolean(user.capabilities?.includes('shipments.read'));
+  const coordinationActive = Boolean(user?.capabilities?.includes('shipments.read'));
   const canWriteCoordination = coordinationActive
-    && Boolean(user.capabilities?.includes('shipments.write'));
+    && Boolean(user?.capabilities?.includes('shipments.write'));
 
   const [data, setData] = useState<ShipmentDetailData | null>(null);
   const [loading, setLoading] = useState(true);

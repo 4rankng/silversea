@@ -46,6 +46,7 @@ async function mkTrip(truckId: number | null, customerId: number, routeId: numbe
     truckId, customerId, routeId, cargoTypeId,
     status: (opts.status ?? 'COMPLETED') as 'COMPLETED',
     departureDate: opts.departureDate ?? new Date().toISOString().slice(0, 10),
+    completedAt: new Date(),
     hasReturnCargo: opts.hasReturnCargo ?? false,
   }).returning();
   createdTripIds.push(trip.id);

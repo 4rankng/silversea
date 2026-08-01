@@ -386,20 +386,17 @@ describe('chi hộ (service-fee) sell-side AR ledger posting', () => {
     assert.ok(latest, 'at least one customer ledger row exists');
     assert.equal(latest!.balance, '0', 'latest running balance is zero');
 
-    // No orphan SERVICE_FEE rows without a matching reversal — count debits
-    // equals count of reversed credits at the per-txnId level.
-    const feeIds = new Set(
-      customerRows.filter(r => r.txnType === TxnType.SERVICE_FEE).map(r => r.txnId)
-    );
-    for (const feeId of feeIds) {
-      const debit = customerRows
-        .filter(r => r.txnType === TxnType.SERVICE_FEE && r.txnId === feeId)
-        .reduce((acc, r) => acc + Number(r.debit), 0);
-      const credit = customerRows
-        .filter(r => r.txnType === TxnType.UNLOCK_REVERSAL && r.txnId === feeId)
-        .reduce((acc, r) => acc + Number(r.credit), 0);
-      assert.equal(debit, credit, `sell fee ${feeId}: debit ${debit} reversed by credit ${credit}`);
-    }
+    // Trip and fee IDs come from different tables and may overlap on a fresh
+    // database, so prove the reversal set by amounts rather than a polymorphic
+    // txnId alone.
+    const expectedReversalCredits = customerRows
+      .filter(r => r.txnType === TxnType.TRIP_REVENUE || r.txnType === TxnType.SERVICE_FEE)
+      .map(r => Number(r.debit))
+      .sort((a, b) => a - b);
+    const actualReversalCredits = reversalRows
+      .map(r => Number(r.credit))
+      .sort((a, b) => a - b);
+    assert.deepEqual(actualReversalCredits, expectedReversalCredits, 'revenue and every sell fee are reversed exactly');
   });
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -420,7 +417,10 @@ describe('chi hộ (service-fee) sell-side AR ledger posting', () => {
     await completeTripGoverned(trip.id, trip.version);
 
     const feeLedgerRows = await db.select().from(s.ledger)
-      .where(eq(s.ledger.txnId, fee.id));
+      .where(and(
+        eq(s.ledger.txnId, fee.id),
+        eq(s.ledger.txnType, TxnType.SERVICE_FEE),
+      ));
     assert.equal(feeLedgerRows.length, 1, 'SERVICE_FEE row posted for receivables-only fee');
     assert.equal(feeLedgerRows[0].entityType, 'CUSTOMER');
     assert.equal(feeLedgerRows[0].entityId, customer.id);
@@ -497,7 +497,10 @@ describe('chi hộ (service-fee) sell-side AR ledger posting', () => {
 
     // The fee still posts to CUSTOMER AR; no payable-side row is needed.
     const feeRows = await db.select().from(s.ledger)
-      .where(eq(s.ledger.txnId, fee.id));
+      .where(and(
+        eq(s.ledger.txnId, fee.id),
+        eq(s.ledger.txnType, TxnType.SERVICE_FEE),
+      ));
     assert.equal(feeRows.length, 1, 'fee produced one SERVICE_FEE AR row');
     assert.equal(feeRows[0].txnType, TxnType.SERVICE_FEE);
     assert.equal(feeRows[0].entityType, 'CUSTOMER');

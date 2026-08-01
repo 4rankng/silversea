@@ -14,7 +14,6 @@
 import { db } from '../db';
 import * as s from '../db/schema';
 import { createHash } from 'node:crypto';
-import { config } from '../config';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
@@ -149,23 +148,21 @@ export async function transitionDebitNoteStatus(input: TransitionInput) {
     if (input.targetStatus === 'CONFIRMED') {
       updates.customerConfirmedAt = new Date();
       if (input.confirmedBy) updates.customerConfirmedBy = input.confirmedBy;
-      if (config.workflowRolloutMode !== 'OFF') {
-        const confirmedVersion = doc.version + 1;
-        const payloadHash = createHash('sha256').update(JSON.stringify({
-          documentId: doc.id,
-          confirmedVersion,
-          entityId: doc.entityId,
-          totalInclVat: doc.totalInclVat,
-          officialIdentitySnapshot: doc.officialIdentitySnapshot,
-        })).digest('hex');
-        updates.legalInvoiceRef = {
-          provider: 'REFERENCE_ONLY',
-          status: 'PENDING',
-          requestVersion: confirmedVersion,
-          payloadHash,
-          updatedAt: new Date().toISOString(),
-        };
-      }
+      const confirmedVersion = doc.version + 1;
+      const payloadHash = createHash('sha256').update(JSON.stringify({
+        documentId: doc.id,
+        confirmedVersion,
+        entityId: doc.entityId,
+        totalInclVat: doc.totalInclVat,
+        officialIdentitySnapshot: doc.officialIdentitySnapshot,
+      })).digest('hex');
+      updates.legalInvoiceRef = {
+        provider: 'REFERENCE_ONLY',
+        status: 'PENDING',
+        requestVersion: confirmedVersion,
+        payloadHash,
+        updatedAt: new Date().toISOString(),
+      };
     }
     if (currentStatus === 'DRAFT' && input.targetStatus === 'SENT') {
       const hydratedDocument = await getDocument(doc.id, tx);
@@ -185,6 +182,25 @@ export async function transitionDebitNoteStatus(input: TransitionInput) {
     const statusCondition = doc.debitNoteStatus === null
       ? isNull(s.billingDocuments.debitNoteStatus)
       : eq(s.billingDocuments.debitNoteStatus, currentStatus);
+    if (input.targetStatus === 'CANCELED') {
+      const releasedAt = new Date();
+      await tx.update(s.billingDocumentTripClaims).set({
+        releasedAt,
+        releasedBy: input.actorUserId,
+        releaseReason: 'DOCUMENT_CANCELED',
+      }).where(and(
+        eq(s.billingDocumentTripClaims.documentId, doc.id),
+        isNull(s.billingDocumentTripClaims.releasedAt),
+      ));
+      await tx.update(s.billingDocumentRecoverableClaims).set({
+        releasedAt,
+        releasedBy: input.actorUserId,
+        releaseReason: 'DOCUMENT_CANCELED',
+      }).where(and(
+        eq(s.billingDocumentRecoverableClaims.documentId, doc.id),
+        isNull(s.billingDocumentRecoverableClaims.releasedAt),
+      ));
+    }
     const [updated] = await tx.update(s.billingDocuments)
       .set(updates)
       .where(and(

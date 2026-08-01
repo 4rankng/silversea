@@ -15,7 +15,6 @@ import {
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
-import { config } from '../config';
 import { ApiError } from '../errors';
 import {
   completeOwnedFulfillmentTrip,
@@ -31,7 +30,6 @@ import {
 import { storageService } from '../services/storage.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-const originalWorkflowRolloutMode = config.workflowRolloutMode;
 const originalStorageUpload = storageService.upload.bind(storageService);
 
 const createdPodStorageKeys: string[] = [];
@@ -587,8 +585,6 @@ describe('Phase 4 driver fulfillment execution', () => {
   });
 
   test('valid owned fulfillment completes once and posts one financial version', async () => {
-    config.workflowRolloutMode = 'ACTIVE';
-
     const actor = await createDriverPrincipal('valid');
     const { fulfillment, trip } = await createOwnedFulfillmentTrip(actor.driver.id);
 
@@ -656,7 +652,6 @@ describe('Phase 4 driver fulfillment execution', () => {
 });
 
 after(async () => {
-  config.workflowRolloutMode = originalWorkflowRolloutMode;
   storageService.upload = originalStorageUpload;
   try {
     for (const storageKey of createdPodStorageKeys) {

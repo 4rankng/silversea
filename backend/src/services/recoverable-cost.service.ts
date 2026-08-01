@@ -231,7 +231,10 @@ function baseRecoverableQuery() {
     .leftJoin(s.forwarderExpenseTypes, eq(s.tripExpenses.expenseType, s.forwarderExpenseTypes.code))
     .leftJoin(
       s.billingDocumentRecoverableClaims,
-      eq(s.billingDocumentRecoverableClaims.expenseId, s.tripExpenses.id),
+      and(
+        eq(s.billingDocumentRecoverableClaims.expenseId, s.tripExpenses.id),
+        isNull(s.billingDocumentRecoverableClaims.releasedAt),
+      ),
     )
     .leftJoin(
       s.billingDocuments,
@@ -299,7 +302,10 @@ export async function getRecoverableCost(
     .leftJoin(s.forwarderExpenseTypes, eq(s.tripExpenses.expenseType, s.forwarderExpenseTypes.code))
     .leftJoin(
       s.billingDocumentRecoverableClaims,
-      eq(s.billingDocumentRecoverableClaims.expenseId, s.tripExpenses.id),
+      and(
+        eq(s.billingDocumentRecoverableClaims.expenseId, s.tripExpenses.id),
+        isNull(s.billingDocumentRecoverableClaims.releasedAt),
+      ),
     )
     .leftJoin(
       s.billingDocuments,

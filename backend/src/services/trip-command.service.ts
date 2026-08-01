@@ -33,6 +33,7 @@ export interface TripWriteCommandResult {
 async function invalidateReportCaches(invalidatePnl?: boolean) {
   await Promise.all([
     cacheInvalidate('reports:dashboard'),
+    cacheInvalidate('reports:dashboard:executive'),
     cacheInvalidatePattern('reports:entity-results:*'),   // trip writes change AR/AP aging
     cacheInvalidatePattern('reports:fuel-variance:*'),    // trip writes change fuel variance
     invalidatePnl ? cacheInvalidatePattern('reports:pnl:*') : Promise.resolve(),

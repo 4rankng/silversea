@@ -23,6 +23,10 @@ vi.mock('./pages/DashboardPage', () => ({
   default: () => <div>Tổng quan</div>,
 }));
 
+vi.mock('./pages/AccountingWorkspacePage', () => ({
+  default: () => <div>Không gian kế toán</div>,
+}));
+
 vi.mock('./components/Layout', () => ({
   default: ({ children }: { children: ReactNode }) => {
     const { logout } = useAuthMock();
@@ -78,6 +82,31 @@ describe('unauthenticated route handling', () => {
 
     expect((await screen.findByTestId('location')).textContent).toBe('/login');
     expect(await screen.findByText('Đăng nhập')).toBeTruthy();
+  });
+
+  it('redirects an accountant without executive dashboard access to the accounting home', async () => {
+    useAuthMock.mockReturnValue({
+      isAuthenticated: true,
+      user: {
+        userId: 3,
+        role: 'ACCOUNTANT',
+        capabilities: [],
+      },
+      loading: false,
+      logout: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <Suspense>
+          <AppRoutes />
+        </Suspense>
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/accounting'));
+    expect(await screen.findByText('Không gian kế toán')).toBeTruthy();
   });
 
   it('replaces the protected history entry after an authenticated shell logout', async () => {

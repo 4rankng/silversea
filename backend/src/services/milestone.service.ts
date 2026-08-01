@@ -24,7 +24,6 @@ import { ApiError } from '../errors';
 import { TripStatus } from '@tingting/shared';
 import type { Tx } from './trip-shared';
 import { createCustomerVisibleEvent } from './shipment-coordination.service';
-import { config } from '../config';
 
 type MilestoneType = typeof s.shipmentMilestones.$inferSelect['type'];
 
@@ -93,7 +92,7 @@ export async function deriveMilestoneFromTripStatus(
         eq(s.shipmentMilestones.tripId, tripId),
       ))
       .limit(1))[0];
-    if (!milestone || actorUserId == null || config.workflowRolloutMode === 'OFF') return;
+    if (!milestone || actorUserId == null) return;
 
     const visibleCopy = {
       BOOKING_RECEIVED: { title: 'Đã tiếp nhận booking', message: 'Thông tin booking của lô hàng đã được tiếp nhận.' },

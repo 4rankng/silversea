@@ -13,12 +13,12 @@ import { cacheGet } from '../lib/redis';
 import { salaryPeriodDateRange, localDateStr, resolveCapTableSnapshot, tripCompletionBusinessDateSql } from './reporting-shared';
 import { getPnlReport } from './pnl.service';
 import { getRenewalReminders } from './expense.service';
-import { getTreasuryPosition } from './treasury.service';
+import { getTreasuryPositions } from './treasury.service';
 import { getProfitabilityReport } from './profitability.service';
-import { config } from '../config';
 
-export async function getDashboardStats() {
-  return cacheGet(`reports:dashboard:${config.workflowRolloutMode}`, 30, async () => {
+export async function getDashboardStats(options: { includeExecutive?: boolean } = {}) {
+  const includeExecutive = options.includeExecutive === true;
+  return cacheGet(includeExecutive ? 'reports:dashboard:executive' : 'reports:dashboard', 30, async () => {
     const now = new Date();
     const businessDateParts = new Intl.DateTimeFormat('en-US', {
       timeZone: 'Asia/Ho_Chi_Minh',
@@ -136,7 +136,7 @@ export async function getDashboardStats() {
     });
 
     let executive: Record<string, unknown> | undefined;
-    if (config.workflowRolloutMode === 'ACTIVE') {
+    if (includeExecutive) {
       const asOf = new Date();
       const today = localDateStr(asOf);
       const [todayRevenueRows, customerProfitability, debtors, treasuryAccountRows] = await Promise.all([
@@ -153,9 +153,7 @@ export async function getDashboardStats() {
         db.select({ id: s.treasuryAccounts.id }).from(s.treasuryAccounts)
           .where(eq(s.treasuryAccounts.status, 'ACTIVE')),
       ]);
-      const treasuryPositions = await Promise.all(
-        treasuryAccountRows.map(account => getTreasuryPosition(account.id)),
-      );
+      const treasuryPositions = await getTreasuryPositions(treasuryAccountRows.map(account => account.id));
       const treasuryByType = (type: 'CASH' | 'BANK') => {
         const accounts = treasuryPositions.filter(account => account.type === type);
         return {
@@ -207,7 +205,7 @@ export async function getDashboardStats() {
       topOverdueCustomer,
       topShareholder,
       decisionItems,
-      ...(executive ? { executive } : {}),
+      executive,
     };
   });
 }

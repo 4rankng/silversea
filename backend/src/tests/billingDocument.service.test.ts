@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  calculateVatSnapshot,
   effectiveAmount, docTotal, documentLedgerAdjustment, splitContainers, joinContainers,
 } from '../services/billingDocument.service';
 import type { BillingDocumentLine } from '@tingting/shared';
@@ -36,20 +37,20 @@ test('docTotal — sums non-excluded effective amounts, honors overrides + exclu
   assert.equal(docTotal(lines), 2800);
 });
 
-test('documentLedgerAdjustment — trip rows contribute delta and recoverable expense rows contribute their full billed amount', () => {
+test('documentLedgerAdjustment — trip and recoverable rows contribute only their already-posted source delta', () => {
   const lines = [
     line({ sourceType: 'TRIP', baseAmount: 6_000_000, amountOverride: 6_200_000 }),
     line({ sourceType: 'EXPENSE', lineType: 'SERVICE_FEE', baseAmount: 1_000_000, amountOverride: 1_080_000 }),
   ];
-  assert.equal(documentLedgerAdjustment(lines), 1_280_000);
+  assert.equal(documentLedgerAdjustment(lines), 280_000);
 });
 
-test('documentLedgerAdjustment — ad-hoc rows add fully and excluded recoverable expense rows stop contributing', () => {
+test('documentLedgerAdjustment — ad-hoc rows add fully and excluded legacy sources reverse their posted amount', () => {
   const lines = [
     line({ sourceType: 'EXPENSE', lineType: 'SERVICE_FEE', baseAmount: 1_000_000, excluded: true }),
     line({ sourceType: 'ADHOC', sourceId: null, lineType: 'ADHOC', baseAmount: 0, amountOverride: 400_000 }),
   ];
-  assert.equal(documentLedgerAdjustment(lines), 400_000);
+  assert.equal(documentLedgerAdjustment(lines), -600_000);
 });
 
 test('splitContainers — null/empty → null', () => {
@@ -69,4 +70,53 @@ test('joinContainers ← splitContainers roundtrip', () => {
   // null + empty lists collapse to null (DB-storable without placeholder)
   assert.equal(joinContainers(null), null);
   assert.equal(joinContainers([]), null);
+});
+
+test('calculateVatSnapshot — rounds VND half-up and reconciles net + tax = gross', () => {
+  assert.deepEqual(calculateVatSnapshot(101, 0.05), {
+    vatTreatment: 'STANDARD',
+    vatRate: 0.05,
+    vatTreatmentVersion: 'VAT-V1',
+    netAmount: 96,
+    taxAmount: 5,
+    grossAmount: 101,
+  });
+  assert.deepEqual(calculateVatSnapshot(108, 0.08), {
+    vatTreatment: 'STANDARD',
+    vatRate: 0.08,
+    vatTreatmentVersion: 'VAT-V1',
+    netAmount: 100,
+    taxAmount: 8,
+    grossAmount: 108,
+  });
+});
+
+test('calculateVatSnapshot — keeps zero-rated distinct and rejects unsupported rates', () => {
+  assert.equal(calculateVatSnapshot(500, 0).vatTreatment, 'ZERO_RATED');
+  assert.equal(calculateVatSnapshot(500, 0, 'EXEMPT').vatTreatment, 'EXEMPT');
+  assert.throws(() => calculateVatSnapshot(500, 0.07), /không thuộc chính sách/);
+  assert.throws(() => calculateVatSnapshot(500, 0, 'STANDARD'), /không khớp/);
+});
+
+test('calculateVatSnapshot — splits VAT-inclusive freight without increasing AR', () => {
+  const snapshot = calculateVatSnapshot(10_800_000, 0.08);
+  assert.deepEqual(snapshot, {
+    vatTreatment: 'STANDARD',
+    vatRate: 0.08,
+    vatTreatmentVersion: 'VAT-V1',
+    netAmount: 10_000_000,
+    taxAmount: 800_000,
+    grossAmount: 10_800_000,
+  });
+  assert.equal(documentLedgerAdjustment([{
+    sourceType: 'TRIP',
+    sourceId: 1,
+    lineType: 'FREIGHT',
+    typeLabel: 'Doanh thu',
+    unit: 'chuyến',
+    description: 'Cước vận chuyển',
+    baseAmount: 10_800_000,
+    grossAmount: snapshot.grossAmount,
+    sortOrder: 0,
+  }]), 0);
 });

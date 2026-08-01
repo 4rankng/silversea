@@ -24,7 +24,7 @@ DEFAULT_PASSWORD = os.environ.get("VISUAL_PASSWORD", "admin123")
 ACCOUNTS = {
     "ADMIN":     {"identifier": "admin",     "home": "/dashboard"},
     "MANAGER":   {"identifier": "giamdoc",   "home": "/dashboard"},
-    "ACCOUNTANT":{"identifier": "ketoan",    "home": "/dashboard"},
+    "ACCOUNTANT":{"identifier": "ketoan",    "home": "/accounting"},
     "DRIVER":    {"identifier": "laixe",     "home": "/my-trips"},
     "FORWARDER": {"identifier": "giaonhan",  "home": "/my-forwarder-trips"},
     "CUSTOMER":  {"identifier": "khachhang", "home": "/portal/shipments"},

@@ -392,11 +392,35 @@ export const billingDocumentLineSchema = z.object({
   routeName: z.string().nullable().optional(),
   containerNumbers: z.array(z.string()).nullable().optional(),
   renderData: z.record(z.unknown()).nullable().optional(),
+  financialPostingId: z.coerce.number().int().positive().nullable().optional(),
+  financialPostingVersion: z.coerce.number().int().positive().nullable().optional(),
+  postingChecksum: z.string().regex(/^[a-f0-9]{64}$/).nullable().optional(),
   baseAmount: nonNegNumeric,
   amountOverride: nonNegNumeric.nullable().optional(),
   excluded: z.boolean().optional(),
+  vatTreatment: z.enum(['STANDARD', 'ZERO_RATED', 'EXEMPT']).optional(),
+  vatRate: z.union([z.literal(0), z.literal(0.05), z.literal(0.08), z.literal(0.10)]).optional(),
+  vatTreatmentVersion: z.string().min(1).optional(),
+  netAmount: nonNegNumeric.optional(),
+  taxAmount: nonNegNumeric.optional(),
+  grossAmount: nonNegNumeric.optional(),
   sortOrder: z.coerce.number().int(),
 });
+
+export const billingDocumentSourceRefSchema = z.discriminatedUnion('sourceType', [
+  z.object({
+    sourceType: z.literal('TRIP'),
+    sourceId: z.coerce.number().int().positive(),
+    financialPostingId: z.coerce.number().int().positive(),
+    financialPostingVersion: z.coerce.number().int().positive(),
+    postingChecksum: z.string().regex(/^[a-f0-9]{64}$/, 'Checksum nguồn hạch toán không hợp lệ'),
+  }).strict(),
+  z.object({
+    sourceType: z.literal('EXPENSE'),
+    sourceId: z.coerce.number().int().positive(),
+    sourceVersion: z.string().trim().min(1).max(160),
+  }).strict(),
+]);
 
 export const generateBillingDocumentSchema = z.object({
   type: z.enum(['DEBIT_NOTE', 'PAYMENT_STATEMENT']),
@@ -406,19 +430,31 @@ export const generateBillingDocumentSchema = z.object({
   rangeTo: z.string().min(1),
 });
 
-export const saveBillingDocumentSchema = z.object({
-  type: z.enum(['DEBIT_NOTE', 'PAYMENT_STATEMENT']),
-  entityType: z.enum(['CUSTOMER', 'VENDOR']),
+const billingDocumentSaveCommonShape = {
   entityId: z.coerce.number().int().positive(),
   entityName: z.string().optional(),
   rangeFrom: z.string().min(1),
   rangeTo: z.string().min(1),
   note: z.string().nullable().optional(),
-  lines: z.array(billingDocumentLineSchema).min(1),
   // Resolved at save time so the chosen template is snapshotted onto the doc
   // (re-exports stay stable). Null/undefined = use resolution (customer/default).
   debitNoteTemplateId: z.coerce.number().int().positive().nullable().optional(),
-});
+};
+
+export const saveBillingDocumentSchema = z.discriminatedUnion('type', [
+  z.object({
+    ...billingDocumentSaveCommonShape,
+    type: z.literal('DEBIT_NOTE'),
+    entityType: z.literal('CUSTOMER'),
+    sourceRefs: z.array(billingDocumentSourceRefSchema).min(1),
+  }).strict(),
+  z.object({
+    ...billingDocumentSaveCommonShape,
+    type: z.literal('PAYMENT_STATEMENT'),
+    entityType: z.enum(['CUSTOMER', 'VENDOR']),
+    lines: z.array(billingDocumentLineSchema).min(1),
+  }).strict(),
+]);
 
 export const billingDocumentAdjustmentRequestSchema = z.object({
   reason: z.string().trim().min(1, 'Lý do là bắt buộc').max(1000),
@@ -1416,9 +1452,7 @@ export const submitShipmentForDispatchSchema = z.object({
 export const cancelShipmentFulfillmentSchema = z.object({
   expectedVersion: z.coerce.number().int().positive(),
   reason: z.string().trim().min(1, 'Lý do hủy là bắt buộc').max(2000),
-  disposition: z.nativeEnum(FulfillmentCancellationDisposition).optional().nullable(),
-  replacementFulfillmentId: z.coerce.number().int().positive().optional().nullable(),
-  notRequiredReason: z.string().trim().min(1).max(2000).optional().nullable(),
+  disposition: z.nativeEnum(FulfillmentCancellationDisposition),
 });
 
 export const tripPodFileMetadataSchema = z.object({
@@ -1550,7 +1584,20 @@ export type ContainerTypeInput = z.infer<typeof containerTypeSchema>;
 export type SealTypeInput = z.infer<typeof sealTypeSchema>;
 export type PortInput = z.infer<typeof portSchema>;
 export type GenerateBillingDocumentInput = z.infer<typeof generateBillingDocumentSchema>;
-export type SaveBillingDocumentInput = z.infer<typeof saveBillingDocumentSchema>;
+export type ParsedSaveBillingDocumentInput = z.infer<typeof saveBillingDocumentSchema>;
+export type SaveBillingDocumentInput = {
+  type: 'DEBIT_NOTE' | 'PAYMENT_STATEMENT';
+  entityType: 'CUSTOMER' | 'VENDOR';
+  entityId: number;
+  entityName?: string;
+  rangeFrom: string;
+  rangeTo: string;
+  note?: string | null;
+  debitNoteTemplateId?: number | null;
+  sourceRefs?: z.infer<typeof billingDocumentSourceRefSchema>[];
+  /** Internal adapter for pre-contract service callers; HTTP parsing rejects it for DEBIT_NOTE. */
+  lines?: z.infer<typeof billingDocumentLineSchema>[];
+};
 export type BillingDocumentAdjustmentRequestInput = z.infer<typeof billingDocumentAdjustmentRequestSchema>;
 export type BillingDocumentIssueRequestInput = z.infer<typeof billingDocumentIssueRequestSchema>;
 

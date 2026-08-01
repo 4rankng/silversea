@@ -83,7 +83,9 @@ async function mkCarrier() {
 }
 
 async function mkDriver() {
+  const user = await mkUser(`q23-driver-${suffix}-${createdDriverIds.length}`, Role.DRIVER);
   const [driver] = await db.insert(s.drivers).values({
+    userId: user.id,
     name: `Q23 driver ${suffix}-${createdDriverIds.length}`,
   }).returning();
   createdDriverIds.push(driver.id);
@@ -263,6 +265,22 @@ async function fetchNotificationCount(entityType: string, entityId: number) {
     if (!createdNotificationIds.includes(row.id)) createdNotificationIds.push(row.id);
   }
   return rows.length;
+}
+
+async function fetchNotificationRecipients(entityType: string, entityId: number) {
+  const rows = await db.select({
+    id: s.notifications.id,
+    userId: s.notifications.userId,
+  }).from(s.notifications)
+    .where(and(
+      eq(s.notifications.relatedEntityType, entityType),
+      eq(s.notifications.relatedEntityId, entityId),
+    ))
+    .orderBy(s.notifications.id);
+  for (const row of rows) {
+    if (!createdNotificationIds.includes(row.id)) createdNotificationIds.push(row.id);
+  }
+  return rows.map((row) => row.userId);
 }
 
 async function waitForNotificationCount(entityType: string, entityId: number, expectedAtLeast: number) {
@@ -465,6 +483,9 @@ after(async () => {
       await db.delete(s.suppliers).where(inArray(s.suppliers.id, createdSupplierIds));
     }
     if (createdUserIds.length > 0) {
+      await db.delete(s.notifications).where(inArray(s.notifications.userId, createdUserIds));
+      await db.delete(s.pushSubscriptions).where(inArray(s.pushSubscriptions.userId, createdUserIds));
+      await db.delete(s.auditLogs).where(inArray(s.auditLogs.userId, createdUserIds));
       await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
     }
   } catch (err) {
@@ -867,6 +888,7 @@ describe('Q23 direct-money idempotency', () => {
     const penaltyId = Number(approved.data.subjectId ?? applicationResult?.penaltyId);
     createdPenaltyIds.push(penaltyId);
     const afterApprovalNotificationCount = await waitForNotificationCount('penalties', penaltyId, 1);
+    assert.deepEqual(await fetchNotificationRecipients('penalties', penaltyId), [driver.userId]);
 
     const ledgerCountsBeforeCancel = await fetchPenaltyLedgerCounts(penaltyId, driver.id);
     assert.equal(ledgerCountsBeforeCancel.penaltyRows, 1);
@@ -894,6 +916,10 @@ describe('Q23 direct-money idempotency', () => {
       afterApprovalNotificationCount + 1,
     );
     assert.ok(notificationCountAfterCancel > afterApprovalNotificationCount);
+    assert.deepEqual(
+      await fetchNotificationRecipients('penalties', penaltyId),
+      [driver.userId, driver.userId],
+    );
 
     const replayAfterCancel = await postJson('/api/penalties', body, { idempotencyKey: key });
     assert.equal(replayAfterCancel.status, 200);
@@ -901,6 +927,10 @@ describe('Q23 direct-money idempotency', () => {
     assert.equal(
       await fetchNotificationCount('penalties', penaltyId),
       notificationCountAfterCancel,
+    );
+    assert.deepEqual(
+      await fetchNotificationRecipients('penalties', penaltyId),
+      [driver.userId, driver.userId],
     );
 
     const ledgerCountsAfterCancel = await fetchPenaltyLedgerCounts(penaltyId, driver.id);

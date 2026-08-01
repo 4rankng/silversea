@@ -11,11 +11,12 @@ import {
 import { TripPodStatus } from '@tingting/shared';
 import {
   downloadShipmentPodFile,
+  cancelShipmentFulfillment,
   reviewShipmentPod,
   type ShipmentPodReviewFile,
   type ShipmentPodReviewItem,
-  updateFulfillmentCancellationDisposition,
 } from '../../api/shipmentClient';
+import { Modal } from '../UI';
 
 export interface TripPodReviewPanelProps {
   shipmentId: number;
@@ -78,6 +79,11 @@ export function TripPodReviewPanel({
 }: TripPodReviewPanelProps) {
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [cancelDraft, setCancelDraft] = useState<{
+    item: ShipmentPodReviewItem;
+    disposition: 'REPLACED' | 'NOT_REQUIRED';
+    reason: string;
+  } | null>(null);
 
   async function handleDownload(file: ShipmentPodReviewFile) {
     setError(null);
@@ -120,63 +126,41 @@ export function TripPodReviewPanel({
     }
   }
 
-  async function handleNotRequired(item: ShipmentPodReviewItem) {
-    const activeElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const reason = window.prompt('Nhập lý do bỏ tác vụ khỏi điều kiện đóng lô hàng:', item.notRequiredReason ?? '')?.trim() ?? '';
-    if (!reason) return;
-
-    setPendingKey(`not-required-${item.fulfillmentId}`);
+  function openCancelModal(item: ShipmentPodReviewItem) {
     setError(null);
-    try {
-      await updateFulfillmentCancellationDisposition(
-        shipmentId,
-        item.fulfillmentId,
-        {
-          expectedVersion: item.fulfillmentVersion,
-          disposition: 'NOT_REQUIRED',
-          reason,
-        },
-        crypto.randomUUID(),
-      );
-      await onChanged();
-    } catch (dispositionError) {
-      setError(dispositionError instanceof Error ? dispositionError.message : 'Không thể cập nhật tác vụ đã hủy.');
-    } finally {
-      setPendingKey(null);
-      activeElement?.focus();
-    }
+    setCancelDraft({
+      item,
+      disposition: item.canceledAt ? (item.cancellationDisposition ?? 'NOT_REQUIRED') : 'REPLACED',
+      reason: item.notRequiredReason ?? '',
+    });
   }
 
-  async function handleReplacement(item: ShipmentPodReviewItem) {
-    const activeElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const replacementRaw = window.prompt('Nhập ID tác vụ thay thế:', item.replacementFulfillmentId != null ? String(item.replacementFulfillmentId) : '');
-    if (!replacementRaw) return;
-    const replacementFulfillmentId = Number(replacementRaw);
-    if (!Number.isInteger(replacementFulfillmentId) || replacementFulfillmentId <= 0) {
-      setError('ID tác vụ thay thế không hợp lệ.');
-      activeElement?.focus();
+  async function handleCancelFulfillment() {
+    if (!cancelDraft) return;
+    const reason = cancelDraft.reason.trim();
+    if (!reason) {
+      setError('Cần nhập lý do hủy tác vụ.');
       return;
     }
-    const reason = window.prompt('Nhập lý do thay thế tác vụ đã hủy:', '')?.trim() ?? '';
-    if (!reason) return;
 
-    setPendingKey(`replacement-${item.fulfillmentId}`);
+    const activeElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setPendingKey(`cancel-${cancelDraft.item.fulfillmentId}`);
     setError(null);
     try {
-      await updateFulfillmentCancellationDisposition(
+      await cancelShipmentFulfillment(
         shipmentId,
-        item.fulfillmentId,
+        cancelDraft.item.fulfillmentId,
         {
-          expectedVersion: item.fulfillmentVersion,
-          disposition: 'REPLACED',
-          replacementFulfillmentId,
+          expectedVersion: cancelDraft.item.fulfillmentVersion,
+          disposition: cancelDraft.disposition,
           reason,
         },
         crypto.randomUUID(),
       );
       await onChanged();
-    } catch (dispositionError) {
-      setError(dispositionError instanceof Error ? dispositionError.message : 'Không thể liên kết tác vụ thay thế.');
+      setCancelDraft(null);
+    } catch (cancelError) {
+      setError(cancelError instanceof Error ? cancelError.message : 'Không thể hủy tác vụ điều phối.');
     } finally {
       setPendingKey(null);
       activeElement?.focus();
@@ -211,6 +195,10 @@ export function TripPodReviewPanel({
           {items.map((item) => {
             const submission = item.currentSubmission;
             const unresolvedCancellation = item.canceledAt && !item.cancellationDisposition;
+            const canCancelFulfillment = canResolveCancellation
+              && item.cancellationDisposition == null
+              && item.tripStatus !== 'LOCKED'
+              && item.tripStatus !== 'COMPLETED';
             return (
               <article key={item.fulfillmentId} className="shipment-pod-review__item">
                 <div className="shipment-pod-review__item-head">
@@ -330,25 +318,16 @@ export function TripPodReviewPanel({
                   <p className="shipment-detail__empty">Tác vụ này chưa có hồ sơ e-POD nào được gửi lên.</p>
                 )}
 
-                {canResolveCancellation && unresolvedCancellation && (
+                {canCancelFulfillment && (
                   <div className="shipment-pod-review__actions">
                     <button
                       type="button"
-                      className="btn btn--ghost shipment-pod-review__action"
-                      onClick={() => void handleReplacement(item)}
+                      className="btn btn--danger shipment-pod-review__action"
+                      onClick={() => openCancelModal(item)}
                       disabled={pendingKey != null}
                     >
-                      {pendingKey === `replacement-${item.fulfillmentId}` ? <Loader2 size={16} className="spin" /> : <RotateCcw size={16} />}
-                      Gắn tác vụ thay thế
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn--primary shipment-pod-review__action"
-                      onClick={() => void handleNotRequired(item)}
-                      disabled={pendingKey != null}
-                    >
-                      {pendingKey === `not-required-${item.fulfillmentId}` ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
-                      Bỏ khỏi điều kiện đóng
+                      {pendingKey === `cancel-${item.fulfillmentId}` ? <Loader2 size={16} className="spin" /> : <RotateCcw size={16} />}
+                      {item.canceledAt ? 'Hoàn tất xử lý hủy' : 'Hủy tác vụ'}
                     </button>
                   </div>
                 )}
@@ -357,6 +336,94 @@ export function TripPodReviewPanel({
           })}
         </div>
       )}
+
+      <Modal
+        isOpen={cancelDraft != null}
+        title="Hủy tác vụ điều phối"
+        onClose={() => pendingKey == null && setCancelDraft(null)}
+        maxWidth={560}
+        footer={cancelDraft ? (
+          <>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() => setCancelDraft(null)}
+              disabled={pendingKey != null}
+            >
+              Đóng
+            </button>
+            <button
+              type="button"
+              className="btn btn--danger"
+              onClick={() => void handleCancelFulfillment()}
+              disabled={pendingKey != null || cancelDraft.reason.trim().length === 0}
+            >
+              {pendingKey === `cancel-${cancelDraft.item.fulfillmentId}` ? <Loader2 size={16} className="spin" /> : <AlertTriangle size={16} />}
+              Xác nhận hủy tác vụ
+            </button>
+          </>
+        ) : undefined}
+      >
+        {cancelDraft && (
+          <div className="shipment-pod-review__cancel-form">
+            <div className="shipment-pod-review__cancel-summary">
+              <strong>Tác vụ #{cancelDraft.item.fulfillmentId}</strong>
+              <span>
+                {cancelDraft.item.containerNumber
+                  ? `Container ${cancelDraft.item.containerNumber}`
+                  : cancelDraft.item.cargoMode === 'LCL'
+                    ? 'Lô hàng lẻ'
+                    : 'Tác vụ FCL'}
+              </span>
+              <span>
+                {cancelDraft.item.tripCode
+                  ? `Chuyến ${cancelDraft.item.tripCode}${cancelDraft.item.tripStatus ? ` · ${cancelDraft.item.tripStatus}` : ''}`
+                  : 'Chưa có chuyến điều xe'}
+              </span>
+            </div>
+
+            <fieldset className="shipment-pod-review__cancel-options">
+              <legend>Hướng xử lý sau khi hủy</legend>
+              <label className="shipment-pod-review__cancel-option">
+                <input
+                  type="radio"
+                  name="fulfillment-cancel-disposition"
+                  checked={cancelDraft.disposition === 'REPLACED'}
+                  onChange={() => setCancelDraft((current) => current ? { ...current, disposition: 'REPLACED' } : current)}
+                />
+                <span>
+                  <strong>Tạo tác vụ thay thế</strong>
+                  <small>Hệ thống sẽ tạo ngay một tác vụ mới cùng loại để điều phối lại.</small>
+                </span>
+              </label>
+              <label className="shipment-pod-review__cancel-option">
+                <input
+                  type="radio"
+                  name="fulfillment-cancel-disposition"
+                  checked={cancelDraft.disposition === 'NOT_REQUIRED'}
+                  onChange={() => setCancelDraft((current) => current ? { ...current, disposition: 'NOT_REQUIRED' } : current)}
+                />
+                <span>
+                  <strong>Bỏ khỏi điều kiện đóng lô</strong>
+                  <small>Chỉ dùng khi đầu việc này không còn cần thực hiện.</small>
+                </span>
+              </label>
+            </fieldset>
+
+            <label className="shipment-pod-review__cancel-reason">
+              <span>Lý do hủy</span>
+              <textarea
+                className="input"
+                rows={4}
+                value={cancelDraft.reason}
+                onChange={(event) => setCancelDraft((current) => current ? { ...current, reason: event.target.value } : current)}
+                placeholder="Nêu rõ lý do để lưu vết kiểm soát"
+                autoFocus
+              />
+            </label>
+          </div>
+        )}
+      </Modal>
     </section>
   );
 }

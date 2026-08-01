@@ -903,6 +903,10 @@ export const billingDocuments = pgTable('billing_documents', {
     updatedAt: string;
   }>(),
   totalInclVat: numeric('total_incl_vat', { precision: 15, scale: 0 }).notNull().default('0'),
+  totalNet: numeric('total_net', { precision: 15, scale: 0 }).notNull().default('0'),
+  totalTax: numeric('total_tax', { precision: 15, scale: 0 }).notNull().default('0'),
+  totalGross: numeric('total_gross', { precision: 15, scale: 0 }).notNull().default('0'),
+  vatTreatmentVersion: varchar('vat_treatment_version', { length: 30 }).notNull().default('VAT-V1'),
   // Wave 2 M3.6: debit-note lifecycle status. Defaults to DRAFT (existing
   // documents are treated as DRAFT until explicitly transitioned). Nullable
   // for backward compat (old documents get NULL = implicitly DRAFT).
@@ -1138,6 +1142,54 @@ export const billingDocumentSourcePeriodLocks = pgTable('billing_document_source
   index('billing_document_source_period_locks_period_idx').on(table.periodLockId),
 ]);
 
+// Active trip claims prevent overlapping non-voided Debit Notes from billing
+// the same trip twice while still allowing separate non-overlapping periods
+// (for example late recoverable fees in July and freight completion in August).
+// Release happens through the billing-document lifecycle: soft-delete or
+// CANCELED transitions mark the claim released instead of erasing history.
+export const billingDocumentTripClaims = pgTable('billing_document_trip_claims', {
+  id: serial('id').primaryKey(),
+  documentId: integer('document_id')
+    .references(() => billingDocuments.id, { onDelete: 'cascade' })
+    .notNull(),
+  tripId: integer('trip_id')
+    .references(() => trips.id, { onDelete: 'cascade' })
+    .notNull(),
+  financialPostingId: integer('financial_posting_id')
+    .references(() => tripFinancialPostings.id)
+    .notNull(),
+  financialPostingVersion: integer('financial_posting_version').notNull(),
+  postingChecksum: varchar('posting_checksum', { length: 64 }).notNull(),
+  rangeFrom: date('range_from').notNull(),
+  rangeTo: date('range_to').notNull(),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  releasedAt: timestamp('released_at', { withTimezone: true }),
+  releasedBy: integer('released_by').references(() => users.id),
+  releaseReason: varchar('release_reason', { length: 32 }),
+}, (table) => [
+  uniqueIndex('billing_document_trip_claims_document_trip_active_uniq')
+    .on(table.documentId, table.tripId)
+    .where(sql`${table.releasedAt} is null`),
+  index('billing_document_trip_claims_document_idx').on(table.documentId),
+  index('billing_document_trip_claims_trip_idx').on(table.tripId),
+  check('billing_document_trip_claims_posting_version_check', sql`${table.financialPostingVersion} > 0`),
+  check('billing_document_trip_claims_range_check', sql`${table.rangeFrom} <= ${table.rangeTo}`),
+  check(
+    'billing_document_trip_claims_release_reason_check',
+    sql`${table.releaseReason} is null or ${table.releaseReason} in ('SOURCE_REMOVED', 'DOCUMENT_CANCELED', 'DOCUMENT_DELETED')`,
+  ),
+  check(
+    'billing_document_trip_claims_release_actor_check',
+    sql`${table.releasedBy} is null or ${table.releasedAt} is not null`,
+  ),
+  check(
+    'billing_document_trip_claims_release_consistency_check',
+    sql`(${table.releasedAt} is null and ${table.releasedBy} is null and ${table.releaseReason} is null)
+      or (${table.releasedAt} is not null and ${table.releaseReason} is not null)`,
+  ),
+]);
+
 export const billingDocumentLines = pgTable('billing_document_lines', {
   id: serial('id').primaryKey(),
   documentId: integer('document_id').references(() => billingDocuments.id).notNull(),
@@ -1145,6 +1197,9 @@ export const billingDocumentLines = pgTable('billing_document_lines', {
   sourceId: integer('source_id'),                                // tripId | tripExpenseId | null(ADHOC)
   sourceVersion: varchar('source_version', { length: 120 }),
   sourceChangedAt: timestamp('source_changed_at', { withTimezone: true }),
+  financialPostingId: integer('financial_posting_id').references(() => tripFinancialPostings.id),
+  financialPostingVersion: integer('financial_posting_version'),
+  postingChecksum: varchar('posting_checksum', { length: 64 }),
   lineType: varchar('line_type', { length: 20 }).notNull(),      // FREIGHT | SERVICE_FEE | ADHOC
   typeLabel: varchar('type_label', { length: 100 }).notNull().default('Khác'),
   unit: varchar('unit', { length: 50 }).notNull().default('lần'),
@@ -1155,9 +1210,43 @@ export const billingDocumentLines = pgTable('billing_document_lines', {
   baseAmount: numeric('base_amount', { precision: 15, scale: 0 }).notNull().default('0'),
   amountOverride: numeric('amount_override', { precision: 15, scale: 0 }),
   excluded: boolean('excluded').default(false).notNull(),
+  vatTreatment: varchar('vat_treatment', { length: 20 }).notNull().default('EXEMPT'),
+  vatRate: numeric('vat_rate', { precision: 5, scale: 2 }).notNull().default('0'),
+  vatTreatmentVersion: varchar('vat_treatment_version', { length: 30 }).notNull().default('VAT-V1'),
+  netAmount: numeric('net_amount', { precision: 15, scale: 0 }).notNull().default('0'),
+  taxAmount: numeric('tax_amount', { precision: 15, scale: 0 }).notNull().default('0'),
+  grossAmount: numeric('gross_amount', { precision: 15, scale: 0 }).notNull().default('0'),
   sortOrder: integer('sort_order').default(0).notNull(),
 }, (table) => [
   index('billing_document_lines_doc_idx').on(table.documentId),
+  check(
+    'billing_document_lines_trip_posting_check',
+    sql`(${table.financialPostingId} is null
+      and ${table.financialPostingVersion} is null
+      and ${table.postingChecksum} is null) or (
+      ${table.sourceType} = 'TRIP'
+      and ${table.financialPostingId} is not null
+      and ${table.financialPostingVersion} is not null
+      and ${table.financialPostingVersion} > 0
+      and ${table.postingChecksum} is not null
+    )`,
+  ),
+  check(
+    'billing_document_lines_vat_treatment_check',
+    sql`${table.vatTreatment} in ('STANDARD', 'ZERO_RATED', 'EXEMPT')`,
+  ),
+  check(
+    'billing_document_lines_vat_rate_check',
+    sql`${table.vatRate} in (0, 0.05, 0.08, 0.10)`,
+  ),
+  check(
+    'billing_document_lines_vat_consistency_check',
+    sql`${table.netAmount} >= 0
+      and ${table.taxAmount} >= 0
+      and ${table.grossAmount} = ${table.netAmount} + ${table.taxAmount}
+      and ((${table.vatTreatment} = 'STANDARD' and ${table.vatRate} > 0)
+        or (${table.vatTreatment} <> 'STANDARD' and ${table.vatRate} = 0))`,
+  ),
 ]);
 
 // One recoverable expense may be claimed by only one Debit Note. Approval and
@@ -1175,10 +1264,20 @@ export const billingDocumentRecoverableClaims = pgTable('billing_document_recove
   evidenceSnapshot: jsonb('evidence_snapshot').$type<Record<string, unknown>>().notNull(),
   createdBy: integer('created_by').references(() => users.id),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  releasedAt: timestamp('released_at', { withTimezone: true }),
+  releasedBy: integer('released_by').references(() => users.id),
+  releaseReason: varchar('release_reason', { length: 32 }),
 }, (table) => [
-  uniqueIndex('billing_document_recoverable_claims_expense_uniq').on(table.expenseId),
+  uniqueIndex('billing_document_recoverable_claims_expense_active_uniq')
+    .on(table.expenseId)
+    .where(sql`${table.releasedAt} is null`),
   index('billing_document_recoverable_claims_document_idx').on(table.documentId),
   check('billing_document_recoverable_claims_version_check', sql`${table.expenseVersion} > 0`),
+  check(
+    'billing_document_recoverable_claims_release_consistency_check',
+    sql`(${table.releasedAt} is null and ${table.releasedBy} is null and ${table.releaseReason} is null)
+      or (${table.releasedAt} is not null and ${table.releaseReason} is not null)`,
+  ),
 ]);
 
 export const billingDocumentDisputes = pgTable('billing_document_disputes', {

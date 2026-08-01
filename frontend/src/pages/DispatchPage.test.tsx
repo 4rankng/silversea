@@ -197,9 +197,14 @@ function makeFleet() {
   };
 }
 
-function choose(label: string, value: string) {
+function selectFor(label: string): HTMLSelectElement {
   const select = screen.getByText(label, { selector: 'label' }).parentElement?.querySelector('select');
   if (!select) throw new Error(`missing ${label}`);
+  return select;
+}
+
+function choose(label: string, value: string) {
+  const select = selectFor(label);
   fireEvent.change(select, { target: { value } });
 }
 
@@ -258,9 +263,12 @@ describe('DispatchPage fulfillment workbench', () => {
 
     render(<DispatchPage />);
     expect((await screen.findAllByText('MSCU6639870')).length).toBeGreaterThan(0);
+    await waitFor(() => expect(selectFor('Biển số xe').querySelector('option[value="60"]')).toBeTruthy());
 
     choose('Biển số xe', '60');
+    expect(selectFor('Lái xe').value).toBe('');
     choose('Lái xe', '80');
+    expect(selectFor('Lái xe').value).toBe('80');
     fireEvent.change(screen.getByLabelText('Ngày giờ chạy'), { target: { value: '2026-08-01T08:00' } });
 
     await waitFor(() => expect((screen.getByLabelText('Kết thúc dự kiến') as HTMLInputElement).value).toBe('2026-08-01T12:00'));

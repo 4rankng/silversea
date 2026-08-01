@@ -203,7 +203,7 @@ export default function ProfitPage() {
         description="Báo cáo phân bổ lợi nhuận ròng giữa các đối tác góp vốn."
       />
 
-      {user?.workflowRolloutMode === 'ACTIVE' && user.capabilities?.includes('profitability.read') && (
+      {user?.capabilities?.includes('profitability.read') && (
         <ProfitabilityReportPanel month={selectedMonth} year={selectedYear} />
       )}
 

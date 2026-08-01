@@ -29,6 +29,7 @@ import {
   Activity,
   SlidersHorizontal,
   Landmark,
+  Calculator,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../lib/api';
@@ -53,17 +54,18 @@ export function getNavItems(
   dispatchCount?: number,
   penaltiesCount?: number,
   capabilities: readonly string[] = [],
-  workflowRolloutMode: 'OFF' | 'SHADOW' | 'ACTIVE' = 'OFF',
 ): NavItem[] {
   const normRole = String(role || '').toUpperCase();
-  const workflowActive = workflowRolloutMode === 'ACTIVE';
   const hasCapability = (capability: string) => capabilities.includes(capability);
   switch (normRole) {
     case 'MANAGER':
     case 'ACCOUNTANT':
-    case 'ADMIN':
+    case 'ADMIN': {
       const common: NavItem[] = [
-        ...(role !== Role.ACCOUNTANT || !workflowActive || hasCapability('executive_dashboard.read') ? [
+        ...(role === Role.ACCOUNTANT ? [
+          { key: 'accounting', label: 'Kế toán', path: routes.accounting, icon: Calculator, section: 'financials' as const },
+        ] : []),
+        ...(role !== Role.ACCOUNTANT || hasCapability('executive_dashboard.read') ? [
           { key: 'dashboard', label: 'Tổng quan', path: routes.dashboard, icon: LayoutDashboard },
         ] : []),
 
@@ -78,10 +80,10 @@ export function getNavItems(
 
         { key: 'debt', label: 'Công nợ phải thu', path: routes.debt, icon: Receipt, section: 'financials' },
         { key: 'payables', label: 'Công nợ phải trả', path: routes.payables, icon: Receipt, section: 'financials' },
-        ...(workflowActive && hasCapability('treasury.read') ? [
+        ...(hasCapability('treasury.read') ? [
           { key: 'treasury', label: 'Sổ quỹ / ngân hàng', path: routes.treasury, icon: Landmark, section: 'financials' as const },
         ] : []),
-        { key: 'profit', label: workflowActive ? 'Lợi nhuận' : 'Phân chia lợi nhuận', path: routes.profit, icon: DollarSign, section: 'financials' },
+        { key: 'profit', label: 'Lợi nhuận', path: routes.profit, icon: DollarSign, section: 'financials' },
         { key: 'finance', label: 'Báo cáo lãi lỗ', path: routes.finance, icon: Wallet, section: 'financials' },
         { key: 'credit-overrides', label: 'Duyệt vượt hạn mức', path: routes.creditOverrides, icon: Shield, section: 'financials' },
         { key: 'governance-actions', label: 'Trung tâm phê duyệt', path: routes.governanceActions, icon: ClipboardCheck, section: 'financials' },
@@ -108,12 +110,13 @@ export function getNavItems(
       ];
       if (role !== Role.ACCOUNTANT) return common;
       const financePriority = new Map([
-        ['debt', 0], ['payables', 1], ['expenses', 2], ['advances', 3],
-        ['treasury', 4], ['profit', 5], ['finance', 6],
+        ['accounting', 0], ['debt', 1], ['payables', 2], ['expenses', 3], ['advances', 4],
+        ['treasury', 5], ['profit', 6], ['finance', 7],
       ]);
       return [...common].sort((a, b) => (
         (financePriority.get(a.key) ?? 100) - (financePriority.get(b.key) ?? 100)
       ));
+    }
     case 'DRIVER':
       return [
         { key: 'my-trips', label: 'Hành trình', path: routes.myTrips, icon: Route, section: 'operations' },
@@ -136,7 +139,7 @@ export function getNavItems(
       return [
         { key: 'shipments', label: 'Lô hàng được giao', path: routes.shipments, icon: Package, section: 'operations' },
         { key: 'clerk-shipment-new', label: 'Tạo lô hàng', path: routes.clerkShipmentNew, icon: FileText, section: 'operations' },
-        ...(workflowActive && hasCapability('recoverable_costs.read') ? [
+        ...(hasCapability('recoverable_costs.read') ? [
           { key: 'recoverable-costs', label: 'Chi phí cần kiểm tra', path: routes.recoverableCosts, icon: Receipt, section: 'financials' as const },
         ] : []),
       ];
@@ -284,7 +287,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     dispatchCount,
     penaltiesCount,
     user.capabilities,
-    user.workflowRolloutMode,
   ) : [];
   const activeKey = navItems
     .filter(item => location.pathname.startsWith(item.path))

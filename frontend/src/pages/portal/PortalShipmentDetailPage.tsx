@@ -8,17 +8,15 @@ import { SHIPMENT_STATUS_LABELS, SHIPMENT_DOCUMENT_TYPE_LABELS } from '@tingting
 import { EmptyState } from '../../design-system';
 import { routes } from '../../lib/routes';
 import { useCustomerPortalScope, withCustomerScope } from './CustomerPortalScope';
-import { useAuth } from '../../hooks/useAuth';
 import './PortalPages.css';
 
 export default function PortalShipmentDetailPage() {
-  const user = useAuth()?.user;
-  const coordinationActive = user?.workflowRolloutMode === 'ACTIVE';
   const { id } = useParams<{ id: string }>();
   const { selectedCustomerId, ready: customerScopeReady } = useCustomerPortalScope();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [eventError, setEventError] = useState<string | null>(null);
   const [events, setEvents] = useState<CustomerVisibleEvent[]>([]);
   const [acknowledgedIds, setAcknowledgedIds] = useState<Set<number>>(new Set());
   const [selectedEvent, setSelectedEvent] = useState<CustomerVisibleEvent | null>(null);
@@ -29,19 +27,12 @@ export default function PortalShipmentDetailPage() {
     let active = true;
     setLoading(true);
     setError(null);
-    Promise.all([
-      api.get<any>(withCustomerScope(`/portal/shipments/${id}`, selectedCustomerId)),
-      coordinationActive
-        ? customerServiceFinanceClient.listPortalShipmentEvents(Number(id), selectedCustomerId)
-        : Promise.resolve({ items: [] }),
-    ])
-      .then(([response, eventResponse]) => {
-        if (active) {
-          const nextEvents = eventResponse?.items ?? [];
-          setData(response);
-          setEvents(nextEvents);
-          setAcknowledgedIds(new Set(nextEvents.filter((event) => event.acknowledged).map((event) => event.id)));
-        }
+    setEventError(null);
+    setEvents([]);
+    setAcknowledgedIds(new Set());
+    api.get<any>(withCustomerScope(`/portal/shipments/${id}`, selectedCustomerId))
+      .then((response) => {
+        if (active) setData(response);
       })
       .catch(() => {
         if (active) setError('Không thể tải chi tiết lô hàng');
@@ -49,8 +40,18 @@ export default function PortalShipmentDetailPage() {
       .finally(() => {
         if (active) setLoading(false);
       });
+    customerServiceFinanceClient.listPortalShipmentEvents(Number(id), selectedCustomerId)
+      .then((eventResponse) => {
+        if (!active) return;
+        const nextEvents = eventResponse?.items ?? [];
+        setEvents(nextEvents);
+        setAcknowledgedIds(new Set(nextEvents.filter((event) => event.acknowledged).map((event) => event.id)));
+      })
+      .catch(() => {
+        if (active) setEventError('Tạm thời chưa tải được các cập nhật từ Customer Service.');
+      });
     return () => { active = false; };
-  }, [coordinationActive, customerScopeReady, id, selectedCustomerId]);
+  }, [customerScopeReady, id, selectedCustomerId]);
 
   if (loading) return <div className="portal-page"><div className="portal-panel portal-state" role="status">Đang tải chi tiết lô hàng…</div></div>;
   if (error || !data) return (
@@ -70,7 +71,7 @@ export default function PortalShipmentDetailPage() {
       setAcknowledgedIds((current) => new Set(current).add(selectedEvent.id));
       setSelectedEvent(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Không thể xác nhận cập nhật.');
+      setEventError(err instanceof Error ? err.message : 'Không thể xác nhận cập nhật.');
     } finally { setAcknowledging(false); }
   };
 
@@ -95,14 +96,15 @@ export default function PortalShipmentDetailPage() {
           </dl>
         </section>
 
-      {coordinationActive && <section className="portal-section portal-coordination">
+      <section className="portal-section portal-coordination">
         <h2>Cập nhật từ bộ phận Customer Service</h2>
         <p className="portal-section__description">Các mốc và kế hoạch đã được gửi chính thức cho lô hàng này.</p>
-        {events.length === 0 ? <p className="portal-list__meta">Chưa có cập nhật nào.</p> : <ol className="portal-timeline">{events.map((event) => {
+        {eventError && <p className="portal-notice portal-notice--error" role="alert">{eventError}</p>}
+        {!eventError && (events.length === 0 ? <p className="portal-list__meta">Chưa có cập nhật nào.</p> : <ol className="portal-timeline">{events.map((event) => {
           const acknowledged = acknowledgedIds.has(event.id);
           return <li key={event.id}><div className="portal-timeline__meta"><span>Đã gửi khách hàng</span><time dateTime={event.occurredAt}>{new Date(event.occurredAt).toLocaleString('vi-VN')}</time></div><strong>{event.title}</strong><p>{event.message}</p><small>Phiên bản {event.version}</small>{acknowledged ? <span className="portal-status portal-status--success"><CheckCircle2 size={15}/> Khách hàng đã xác nhận</span> : <button className="portal-button portal-button--primary" onClick={() => setSelectedEvent(event)}>Xác nhận đã nhận thông tin</button>}</li>;
-        })}</ol>}
-      </section>}
+        })}</ol>)}
+      </section>
 
       {containers?.length > 0 && (
         <section className="portal-section">

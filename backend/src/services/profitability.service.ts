@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { and, asc, desc, eq, gt, gte, isNull, lt, lte, or, sql } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -251,12 +252,9 @@ export async function getProfitabilityReport(input: {
   const otherIncome = Number(pnl.otherIncome ?? 0);
   const reportedNetProfit = totals.profit - unallocatedSharedOverhead + otherIncome;
   const expectedNetProfit = Number(pnl.netProfit);
-  return {
+  const payload = {
     requestedPeriod: { month: input.month, year: input.year },
     resolvedPeriod: { start, endExclusive: end },
-    asOf: new Date().toISOString(),
-    timezone: 'Asia/Ho_Chi_Minh',
-    definitionVersion: 'profitability-v1',
     dimension: input.dimension,
     page,
     limit,
@@ -282,5 +280,16 @@ export async function getProfitabilityReport(input: {
       status: Math.abs(reportedNetProfit - expectedNetProfit) <= 1 ? 'RECONCILED' : 'PARTIAL',
       note: 'Chi phí dùng chung được giữ trong nhóm SHARED_OVERHEAD, không phân bổ vào chiều trực tiếp.',
     },
+  };
+  const definitionVersion = 'profitability-v2';
+  return {
+    ...payload,
+    asOf: new Date().toISOString(),
+    timezone: 'Asia/Ho_Chi_Minh',
+    definitionVersion,
+    consistency: 'BEST_EFFORT' as const,
+    checksum: createHash('sha256')
+      .update(JSON.stringify({ definitionVersion, payload }))
+      .digest('hex'),
   };
 }

@@ -18,7 +18,7 @@ SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
 DEMO_ACCOUNTS = {
     'admin':     {'identifier': 'admin',    'password': 'admin123', 'role': 'ADMIN',     'home': '/dashboard'},
     'manager':   {'identifier': 'giamdoc',  'password': 'admin123', 'role': 'MANAGER',   'home': '/dashboard'},
-    'accountant':{'identifier': 'ketoan',   'password': 'admin123', 'role': 'ACCOUNTANT', 'home': '/dashboard'},
+    'accountant':{'identifier': 'ketoan',   'password': 'admin123', 'role': 'ACCOUNTANT', 'home': '/accounting'},
     'clerk':     {'identifier': 'cus',      'password': 'admin123', 'role': 'CLERK',      'home': '/clerk/shipments'},
     'driver':    {'identifier': 'laixe',    'password': 'admin123', 'role': 'DRIVER',     'home': '/my-trips'},
     'forwarder': {'identifier': 'giaonhan', 'password': 'admin123', 'role': 'FORWARDER',  'home': '/my-forwarder-trips'},

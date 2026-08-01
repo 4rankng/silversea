@@ -9,7 +9,7 @@ import { escapeHtml } from '../lib/format';
 import { getCompanyInfo } from './company-info.service';
 import { stampCompanyHeaderXlsx, companyHeaderHtml, loadLogoDataUrl } from './lib/export-company';
 import { CustomerAgingListItem } from './aging.service';
-import { getCustomerReceivableSnapshot } from './customer-receivable-authority.service';
+import { getCustomerReceivableSnapshot, resolveVietnamAsOfCutoff } from './customer-receivable-authority.service';
 import { checkCreditLimit } from './credit-limit.service';
 
 type LedgerRow = typeof s.ledger.$inferSelect;
@@ -234,12 +234,30 @@ function parseIsoDateParam(raw: string | undefined): string | undefined {
   if (!raw) return undefined;
   // Strict YYYY-MM-DD check (the format the frontend date inputs emit).
   if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return undefined;
-  const t = new Date(raw + 'T00:00:00').getTime();
-  return Number.isFinite(t) ? raw : undefined;
+  try {
+    resolveVietnamAsOfCutoff(raw);
+    return raw;
+  } catch {
+    return undefined;
+  }
 }
 
 export function normalizeDateParam(raw: string | undefined): string | undefined {
   return parseIsoDateParam(raw);
+}
+
+/** Vietnam business-day bounds represented as UTC instants. */
+export function statementPeriodBounds(dateFrom?: string, dateTo?: string): {
+  fromInclusive: number | null;
+  toExclusive: number | null;
+} {
+  const fromInclusive = dateFrom
+    ? resolveVietnamAsOfCutoff(dateFrom).endExclusive.getTime() - 24 * 60 * 60 * 1000
+    : null;
+  const toExclusive = dateTo
+    ? resolveVietnamAsOfCutoff(dateTo).endExclusive.getTime()
+    : null;
+  return { fromInclusive, toExclusive };
 }
 
 /**
@@ -268,8 +286,7 @@ export function computePeriodSummary(
 ): PeriodSummary | null {
   if (!dateFrom && !dateTo) return null;
 
-  const fromTs = dateFrom ? new Date(dateFrom + 'T00:00:00').getTime() : null;
-  const toTs = dateTo ? new Date(dateTo + 'T23:59:59.999').getTime() : null;
+  const { fromInclusive: fromTs, toExclusive: toTs } = statementPeriodBounds(dateFrom, dateTo);
 
   let openingBalance = 0;
   let debitTotal = 0;
@@ -284,7 +301,7 @@ export function computePeriodSummary(
       openingBalance += entityType === 'CUSTOMER'
         ? debit - credit
         : credit - debit;
-    } else if ((fromTs === null || t >= fromTs) && (toTs === null || t <= toTs)) {
+    } else if ((fromTs === null || t >= fromTs) && (toTs === null || t < toTs)) {
       debitTotal += debit;
       creditTotal += credit;
     }
@@ -358,7 +375,7 @@ export async function getStatementData(customerId: number, dateFrom?: string, da
   const [customer] = await db.select().from(s.customers).where(eq(s.customers.id, customerId)).limit(1);
   if (!customer) return null;
   const [receivableSnapshot, creditExposure] = await Promise.all([
-    getCustomerReceivableSnapshot(customerId),
+    getCustomerReceivableSnapshot(customerId, { asOfDate: dateTo }),
     checkCreditLimit(customerId),
   ]);
 
@@ -381,12 +398,11 @@ export async function getStatementData(customerId: number, dateFrom?: string, da
   // Optional date range filter — used by frontend /debt/:id "Bộ lọc khoảng thời gian"
   // (Flow 04 §2.4.1 + PRODUCT-SPECS §4.10: "Bộ lọc khoảng thời gian: 2 ô date picker")
   if (dateFrom || dateTo) {
-    const fromTs = dateFrom ? new Date(dateFrom + 'T00:00:00').getTime() : null;
-    const toTs = dateTo ? new Date(dateTo + 'T23:59:59.999').getTime() : null;
+    const { fromInclusive: fromTs, toExclusive: toTs } = statementPeriodBounds(dateFrom, dateTo);
     ledgerRows = ledgerRows.filter((r) => {
       const t = new Date(r.timestamp).getTime();
       if (fromTs !== null && t < fromTs) return false;
-      if (toTs !== null && t > toTs) return false;
+      if (toTs !== null && t >= toTs) return false;
       return true;
     });
   }
@@ -677,14 +693,16 @@ export async function getSupplierStatement(supplierId: number, dateFrom?: string
   if (!supplier) throw new ApiError(404, 'Không tìm thấy nhà cung cấp');
 
   let ledgerRows: EnrichedLedgerRow[] = await LedgerService.getEntriesByEntity('VENDOR', supplierId);
+  const agingRows = dateTo
+    ? ledgerRows.filter(row => row.timestamp.getTime() < resolveVietnamAsOfCutoff(dateTo).endExclusive.getTime())
+    : ledgerRows;
   const periodSummary = computePeriodSummary(ledgerRows, dateFrom, dateTo, 'VENDOR');
   if (dateFrom || dateTo) {
-    const fromTs = dateFrom ? new Date(dateFrom + 'T00:00:00').getTime() : null;
-    const toTs = dateTo ? new Date(dateTo + 'T23:59:59.999').getTime() : null;
+    const { fromInclusive: fromTs, toExclusive: toTs } = statementPeriodBounds(dateFrom, dateTo);
     ledgerRows = ledgerRows.filter((r) => {
       const t = new Date(r.timestamp).getTime();
       if (fromTs !== null && t < fromTs) return false;
-      if (toTs !== null && t > toTs) return false;
+      if (toTs !== null && t >= toTs) return false;
       return true;
     });
   }
@@ -764,9 +782,9 @@ export async function getSupplierStatement(supplierId: number, dateFrom?: string
     ledgerRows = attachSupplierExpenseDetailsToLedgerRows(ledgerRows, expenseRows);
   }
 
-  const now = new Date();
+  const now = dateTo ? resolveVietnamAsOfCutoff(dateTo).referenceDate : new Date();
   const { aging } = computeFifoAging(
-    ledgerRows.map((r) => ({
+    agingRows.map((r) => ({
       timestamp: r.timestamp.toISOString(),
       debit: r.credit ?? '0',
       credit: r.debit ?? '0',
@@ -844,13 +862,14 @@ export async function getCarrierPayableStatement(
   });
 
   const periodSummary = computePeriodSummary(ledgerRows, dateFrom, dateTo, 'VENDOR');
-  const allRows = ledgerRows;
+  const allRows = dateTo
+    ? ledgerRows.filter(row => row.timestamp.getTime() < resolveVietnamAsOfCutoff(dateTo).endExclusive.getTime())
+    : ledgerRows;
   if (dateFrom || dateTo) {
-    const fromTs = dateFrom ? new Date(dateFrom + 'T00:00:00').getTime() : null;
-    const toTs = dateTo ? new Date(dateTo + 'T23:59:59.999').getTime() : null;
+    const { fromInclusive: fromTs, toExclusive: toTs } = statementPeriodBounds(dateFrom, dateTo);
     ledgerRows = ledgerRows.filter(row => {
       const timestamp = new Date(row.timestamp).getTime();
-      return (fromTs === null || timestamp >= fromTs) && (toTs === null || timestamp <= toTs);
+      return (fromTs === null || timestamp >= fromTs) && (toTs === null || timestamp < toTs);
     });
   }
 
@@ -860,7 +879,7 @@ export async function getCarrierPayableStatement(
       debit: row.credit ?? '0',
       credit: row.debit ?? '0',
     })),
-    new Date(),
+    dateTo ? resolveVietnamAsOfCutoff(dateTo).referenceDate : new Date(),
   );
   const totalOutstanding = aging.current + aging.d30 + aging.d60 + aging.over90;
 

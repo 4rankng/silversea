@@ -129,6 +129,15 @@ export const PAGE_CATALOG = {
     section: 'financials',
     agent: { description: 'Báo cáo lãi lỗ (P&L) theo tháng.' },
   },
+  accounting: {
+    title: 'Kế toán',
+    path: '/accounting',
+    section: 'financials',
+    agent: {
+      description: 'Kế toán — tổng hợp công việc vận tải, công nợ, thanh toán và báo cáo.',
+      aliases: ['ke toan', 'accounting', 'tổng quan kế toán', 'tong quan ke toan'],
+    },
+  },
   profit: {
     title: 'Phân chia lợi nhuận',
     path: '/profit',

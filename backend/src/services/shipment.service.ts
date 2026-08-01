@@ -22,7 +22,7 @@
 
 import { db } from '../db';
 import * as s from '../db/schema';
-import { and, asc, count, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, ilike, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
@@ -832,6 +832,41 @@ function isPodReviewWriter(actor: AuthUser): boolean {
   return actor.role === Role.ADMIN || actor.role === Role.MANAGER || actor.role === Role.CLERK;
 }
 
+async function regressShipmentToInProgress(
+  tx: Tx,
+  shipment: typeof s.shipments.$inferSelect,
+  options: { changedBy?: number | null; reason: string },
+) {
+  if (shipment.status !== 'DELIVERED') {
+    return shipment;
+  }
+
+  const [updated] = await tx.update(s.shipments).set({
+    status: 'IN_PROGRESS',
+    version: sql`${s.shipments.version} + 1`,
+    updatedAt: new Date(),
+  })
+    .where(and(eq(s.shipments.id, shipment.id), eq(s.shipments.status, shipment.status)))
+    .returning();
+
+  if (!updated) {
+    throw new ApiError(
+      409,
+      'Trạng thái lô hàng đã bị thay đổi bởi người khác. Vui lòng tải lại.',
+    );
+  }
+
+  await tx.insert(s.shipmentStatusHistory).values({
+    shipmentId: shipment.id,
+    fromStatus: shipment.status,
+    toStatus: 'IN_PROGRESS',
+    reason: options.reason,
+    changedBy: options.changedBy ?? null,
+  });
+
+  return updated;
+}
+
 async function loadReviewTripPodResult(
   tx: Tx,
   shipmentId: number,
@@ -900,13 +935,17 @@ export async function recomputeShipmentCompletion(
         : null,
     ));
     if (requiredFulfillments.length === 0) {
-      return shipment;
+      return regressShipmentToInProgress(tx, shipment, {
+        changedBy: options.changedBy ?? null,
+        reason: 'Tự động mở lại vì lô hàng không còn đủ tác vụ bắt buộc để giữ trạng thái đã giao.',
+      });
     }
 
     const requiredFulfillmentIds = requiredFulfillments.map((row) => row.id);
     const trips = await tx.select().from(s.trips)
       .where(and(
         inArray(s.trips.fulfillmentId, requiredFulfillmentIds),
+        ne(s.trips.status, TripStatus.CANCELED),
         isNull(s.trips.deletedAt),
       ))
       .orderBy(asc(s.trips.id))
@@ -937,7 +976,10 @@ export async function recomputeShipmentCompletion(
       return linkedTrips.length === 1;
     });
     if (!allRequiredTripsPresent) {
-      return shipment;
+      return regressShipmentToInProgress(tx, shipment, {
+        changedBy: options.changedBy ?? null,
+        reason: 'Tự động mở lại vì tác vụ bắt buộc đã thay đổi và cần điều phối lại.',
+      });
     }
 
     const allCompletedOrLocked = requiredFulfillments.every((row) => {
@@ -945,7 +987,10 @@ export async function recomputeShipmentCompletion(
       return trip != null && (trip.status === 'COMPLETED' || trip.status === 'LOCKED');
     });
     if (!allCompletedOrLocked) {
-      return shipment;
+      return regressShipmentToInProgress(tx, shipment, {
+        changedBy: options.changedBy ?? null,
+        reason: 'Tự động mở lại vì còn tác vụ bắt buộc chưa hoàn thành.',
+      });
     }
 
     let nextShipment = shipment;
@@ -1036,6 +1081,21 @@ export async function reviewTripPodSubmission(args: {
     },
     create: async (tx) => {
       await assertActorCanAccessShipment(tx, args.shipmentId, args.actor, { write: true });
+
+      // Cancellation, POD review, and aggregate recomputation all serialize on
+      // the shipment first. Keeping this shared lock order prevents a review
+      // from holding trip/fulfillment rows while cancellation holds shipment.
+      const [lockedShipment] = await tx.select({ id: s.shipments.id })
+        .from(s.shipments)
+        .where(and(
+          eq(s.shipments.id, args.shipmentId),
+          isNull(s.shipments.deletedAt),
+        ))
+        .for('update')
+        .limit(1);
+      if (!lockedShipment) {
+        throw new ApiError(404, 'Không tìm thấy lô hàng.');
+      }
 
       const [row] = await tx.select({
         submission: s.tripPodSubmissions,
@@ -1149,22 +1209,21 @@ export async function reviewTripPodSubmission(args: {
   };
 }
 
-export async function updateFulfillmentCancellationDisposition(args: {
+export async function cancelShipmentFulfillment(args: {
   shipmentId: number;
   fulfillmentId: number;
   expectedVersion: number;
   disposition: 'REPLACED' | 'NOT_REQUIRED';
-  replacementFulfillmentId?: number | null;
   reason: string;
   actor: AuthUser;
   idempotencyKey: string;
-}) {
+}): Promise<CancelShipmentFulfillmentResult & { replayed: boolean }> {
   if (args.actor.role !== Role.ADMIN && args.actor.role !== Role.MANAGER) {
-    throw new ApiError(403, 'Chỉ quản lý hoặc quản trị viên được cập nhật trạng thái hủy tác vụ.');
+    throw new ApiError(403, 'Chỉ quản lý hoặc quản trị viên được hủy tác vụ điều phối.');
   }
   const normalizedReason = args.reason.trim();
   if (!normalizedReason) {
-    throw new ApiError(400, 'Lý do cập nhật trạng thái hủy tác vụ là bắt buộc.');
+    throw new ApiError(400, 'Lý do hủy tác vụ là bắt buộc.');
   }
 
   const outcome = await runIdempotent({
@@ -1175,14 +1234,27 @@ export async function updateFulfillmentCancellationDisposition(args: {
       fulfillmentId: args.fulfillmentId,
       expectedVersion: args.expectedVersion,
       disposition: args.disposition,
-      replacementFulfillmentId: args.replacementFulfillmentId ?? null,
       reason: normalizedReason,
     },
     createdBy: args.actor.userId,
     entityType: 'shipment_fulfillment',
     responseStatusCode: 200,
     create: async (tx) => {
-      const shipment = await assertActorCanAccessShipment(tx, args.shipmentId, args.actor, { write: true });
+      await assertActorCanAccessShipment(tx, args.shipmentId, args.actor, { write: true });
+      const [shipment] = await tx.select().from(s.shipments)
+        .where(and(
+          eq(s.shipments.id, args.shipmentId),
+          isNull(s.shipments.deletedAt),
+        ))
+        .for('update')
+        .limit(1);
+      if (!shipment) {
+        throw new ApiError(404, 'Không tìm thấy lô hàng.');
+      }
+      if (shipment.status === 'CLOSED' || shipment.status === 'CANCELED') {
+        throw new ApiError(409, 'Không thể hủy tác vụ của lô hàng đã kết thúc.');
+      }
+
       const [fulfillment] = await tx.select().from(s.shipmentFulfillments)
         .where(and(
           eq(s.shipmentFulfillments.id, args.fulfillmentId),
@@ -1196,43 +1268,81 @@ export async function updateFulfillmentCancellationDisposition(args: {
       if (fulfillment.version !== args.expectedVersion) {
         throw new ApiError(409, 'Tác vụ đã thay đổi. Vui lòng tải lại.');
       }
+      if (fulfillment.cancellationDisposition != null) {
+        throw new ApiError(409, 'Tác vụ đã được xử lý hủy trước đó.');
+      }
+
+      const activeTrips = await tx.select().from(s.trips)
+        .where(and(
+          eq(s.trips.fulfillmentId, fulfillment.id),
+          isNull(s.trips.deletedAt),
+        ))
+        .for('update');
+      const liveTrips = activeTrips.filter((trip) => trip.status !== TripStatus.CANCELED);
+      if (liveTrips.length > 1) {
+        throw new ApiError(409, 'Tác vụ đang gắn nhiều chuyến hiệu lực. Vui lòng kiểm tra lại điều phối.');
+      }
+
+      const linkedTrip = liveTrips[0] ?? null;
+      if (linkedTrip?.status === TripStatus.LOCKED) {
+        throw new ApiError(409, 'Không thể hủy tác vụ đã có chuyến được khóa số liệu.');
+      }
+      if (linkedTrip?.status === TripStatus.COMPLETED) {
+        throw new ApiError(409, 'Chuyến đã hoàn thành. Vui lòng xử lý luồng hủy chuyến trước khi hủy tác vụ.');
+      }
+      if (linkedTrip != null) {
+        await transitionTripStatus(
+          linkedTrip.id,
+          TripStatus.CANCELED,
+          args.actor.userId,
+          args.actor.role,
+          undefined,
+          undefined,
+          {
+            expectedVersion: linkedTrip.version,
+            transaction: tx,
+          },
+        );
+      }
+
+      const now = new Date();
       if (fulfillment.canceledAt == null) {
-        throw new ApiError(409, 'Chỉ tác vụ đã hủy mới được gán trạng thái thay thế hoặc miễn thực hiện.');
+        await tx.update(s.shipmentFulfillments).set({
+          canceledAt: now,
+          canceledBy: args.actor.userId,
+          cancellationReason: normalizedReason,
+          updatedAt: now,
+        }).where(eq(s.shipmentFulfillments.id, fulfillment.id));
       }
 
       let replacementFulfillmentId: number | null = null;
       if (args.disposition === 'REPLACED') {
-        if (!Number.isInteger(args.replacementFulfillmentId) || (args.replacementFulfillmentId ?? 0) <= 0) {
-          throw new ApiError(400, 'Cần chọn tác vụ thay thế hợp lệ.');
-        }
-        const [replacement] = await tx.select().from(s.shipmentFulfillments)
-          .where(and(
-            eq(s.shipmentFulfillments.id, args.replacementFulfillmentId!),
-            eq(s.shipmentFulfillments.shipmentId, shipment.id),
-          ))
-          .for('update')
-          .limit(1);
+        const [replacement] = await tx.insert(s.shipmentFulfillments).values({
+          shipmentId: fulfillment.shipmentId,
+          fulfillmentType: fulfillment.fulfillmentType,
+          cargoMode: fulfillment.cargoMode,
+          shipmentContainerId: fulfillment.shipmentContainerId,
+          sourceShipmentVersion: shipment.version,
+          siteSnapshot: fulfillment.siteSnapshot,
+          createdBy: args.actor.userId,
+        }).returning();
         if (!replacement) {
-          throw new ApiError(404, 'Không tìm thấy tác vụ thay thế.');
-        }
-        if (replacement.canceledAt != null) {
-          throw new ApiError(409, 'Tác vụ thay thế phải còn hiệu lực.');
-        }
-        if (replacement.fulfillmentType !== fulfillment.fulfillmentType
-          || replacement.shipmentContainerId !== fulfillment.shipmentContainerId) {
-          throw new ApiError(409, 'Tác vụ thay thế không khớp loại tác vụ hoặc container cần thay.');
+          throw new ApiError(409, 'Không thể tạo tác vụ thay thế. Vui lòng thử lại.');
         }
         replacementFulfillmentId = replacement.id;
       }
 
       await tx.update(s.shipmentFulfillments).set({
+        canceledAt: fulfillment.canceledAt ?? now,
+        canceledBy: fulfillment.canceledBy ?? args.actor.userId,
+        cancellationReason: fulfillment.cancellationReason ?? normalizedReason,
         cancellationDisposition: args.disposition,
         replacementFulfillmentId,
         notRequiredApprovedBy: args.disposition === 'NOT_REQUIRED' ? args.actor.userId : null,
-        notRequiredApprovedAt: args.disposition === 'NOT_REQUIRED' ? new Date() : null,
+        notRequiredApprovedAt: args.disposition === 'NOT_REQUIRED' ? now : null,
         notRequiredReason: args.disposition === 'NOT_REQUIRED' ? normalizedReason : null,
         version: sql`${s.shipmentFulfillments.version} + 1`,
-        updatedAt: new Date(),
+        updatedAt: now,
       }).where(eq(s.shipmentFulfillments.id, fulfillment.id));
 
       const shipmentAfterRecompute = await recomputeShipmentCompletion(
@@ -1243,6 +1353,7 @@ export async function updateFulfillmentCancellationDisposition(args: {
       return {
         shipment: shipmentAfterRecompute,
         fulfillmentId: fulfillment.id,
+        replacementFulfillmentId,
         shipmentVersion: shipmentAfterRecompute.version,
       };
     },
@@ -1408,6 +1519,13 @@ export interface ReviewTripPodResult {
   submissionStatus: TripPodStatus;
   tripId: number;
   tripStatus: typeof s.trips.$inferSelect.status;
+  shipmentVersion: number;
+}
+
+export interface CancelShipmentFulfillmentResult {
+  shipment: Awaited<ReturnType<typeof getShipment>>;
+  fulfillmentId: number;
+  replacementFulfillmentId: number | null;
   shipmentVersion: number;
 }
 

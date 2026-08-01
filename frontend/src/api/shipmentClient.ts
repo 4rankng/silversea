@@ -350,16 +350,16 @@ export interface ReviewShipmentPodResponse {
   replayed: boolean;
 }
 
-export interface FulfillmentCancellationDispositionRequest {
+export interface CancelShipmentFulfillmentRequest {
   expectedVersion: number;
   disposition: 'REPLACED' | 'NOT_REQUIRED';
-  replacementFulfillmentId?: number | null;
   reason: string;
 }
 
-export interface FulfillmentCancellationDispositionResponse {
+export interface CancelShipmentFulfillmentResponse {
   shipment: Shipment;
   fulfillmentId: number;
+  replacementFulfillmentId: number | null;
   shipmentVersion: number;
   replayed: boolean;
 }
@@ -498,13 +498,13 @@ export async function reviewShipmentPod(
   );
 }
 
-export async function updateFulfillmentCancellationDisposition(
+export async function cancelShipmentFulfillment(
   shipmentId: number,
   fulfillmentId: number,
-  body: FulfillmentCancellationDispositionRequest,
+  body: CancelShipmentFulfillmentRequest,
   idempotencyKey: string,
-): Promise<FulfillmentCancellationDispositionResponse> {
-  return api.post<FulfillmentCancellationDispositionResponse>(
+): Promise<CancelShipmentFulfillmentResponse> {
+  return api.post<CancelShipmentFulfillmentResponse>(
     `/shipments/${shipmentId}/fulfillments/${fulfillmentId}/cancellation-disposition`,
     body,
     { headers: { 'Idempotency-Key': idempotencyKey } },

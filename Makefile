@@ -25,7 +25,7 @@ dev: ## Start everything (db, redis, backend, frontend)
 	@echo "  (Ctrl-C stops backend + frontend; db/redis keep running)"
 	@bash -c '\
 		trap "kill 0" EXIT; \
-		(cd backend && npx tsx watch src/index.ts) & \
+		(cd backend && pnpm dev) & \
 		(cd frontend && npx vite --port 7174) & \
 		wait'
 
@@ -42,14 +42,14 @@ generate: ## Generate migration from schema changes
 	cd backend && npx drizzle-kit generate
 
 seed: ## Seed database with sample data
-	cd backend && npx tsx src/seed.ts
+	cd backend && pnpm seed
 
 setup: infra ## First-time setup: infra + migrate + seed
 	@sleep 2
 	@echo "Applying migrations..."
 	@cd backend && npx drizzle-kit migrate
 	@echo "Seeding database..."
-	@cd backend && npx tsx src/seed.ts
+	@cd backend && pnpm seed
 	@echo ""
 	@echo "Setup complete! Run 'make dev' to start the app."
 	@echo "  Frontend: http://localhost:7174"
@@ -61,9 +61,9 @@ studio: ## Open Drizzle Studio
 
 # ─── Build ─────────────────────────────────────────────────────────────────────
 build: ## Build shared + backend + frontend
-	cd shared && npx tsc
-	cd backend && npx tsc
-	cd frontend && npx vite build
+	pnpm --dir shared build
+	pnpm --dir backend build
+	pnpm --dir frontend build
 
 # ─── Teardown ──────────────────────────────────────────────────────────────────
 stop: ## Stop backend/frontend (keep db/redis)

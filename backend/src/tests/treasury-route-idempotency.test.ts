@@ -18,7 +18,6 @@ import { globalErrorHandler } from '../middleware/errorHandler';
 import financialRoutes from '../routes/financial';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-const originalRolloutMode = config.workflowRolloutMode;
 const idempotencyKeys: string[] = [];
 const actionIds: number[] = [];
 let userId = 0;
@@ -46,7 +45,6 @@ async function post(path: string, body: unknown, idempotencyKey?: string) {
 }
 
 before(async () => {
-  config.workflowRolloutMode = 'ACTIVE';
   await initEnforcer();
   const [user] = await db.insert(s.users).values({
     username: `treasury-route-admin-${suffix}`,
@@ -103,7 +101,6 @@ before(async () => {
 });
 
 after(async () => {
-  config.workflowRolloutMode = originalRolloutMode;
   server.closeAllConnections();
   await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
   if (actionIds.length > 0) {

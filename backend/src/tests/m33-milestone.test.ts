@@ -59,6 +59,9 @@ async function mkTrip() {
 
 after(async () => {
   try {
+    if (createdShipmentIds.length > 0) {
+      await db.delete(s.customerVisibleEvents).where(inArray(s.customerVisibleEvents.shipmentId, createdShipmentIds));
+    }
     if (createdMilestoneIds.length > 0) {
       await db.delete(s.shipmentMilestones).where(inArray(s.shipmentMilestones.id, createdMilestoneIds));
     }

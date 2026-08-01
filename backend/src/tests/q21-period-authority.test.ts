@@ -6,6 +6,7 @@ import { client, db } from '../db';
 import * as s from '../db/schema';
 import {
   buildExpenseSourceVersionToken,
+  generateDraft,
   saveDocument,
   getDocument,
   deleteDocument,
@@ -30,6 +31,7 @@ const createdCustomerIds: number[] = [];
 const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
 const createdTripIds: number[] = [];
+const createdTripFinancialPostingIds: number[] = [];
 const createdExpenseIds: number[] = [];
 const createdDocumentIds: number[] = [];
 const createdPeriodLockIds: number[] = [];
@@ -38,23 +40,10 @@ const createdSalaryConfirmationIds: number[] = [];
 const createdSupplierIds: number[] = [];
 const createdTruckIds: number[] = [];
 const createdShipmentIds: number[] = [];
+const createdFulfillmentIds: number[] = [];
+const createdPodSubmissionIds: number[] = [];
 const createdFuelInvoiceIds: number[] = [];
 const createdGovernanceActionIds: number[] = [];
-
-function adHocLine(amount: number, description: string) {
-  return {
-    sourceType: 'ADHOC' as const,
-    sourceId: null,
-    lineType: 'ADHOC' as const,
-    typeLabel: 'Điều chỉnh',
-    unit: 'lần',
-    description,
-    baseAmount: amount,
-    amountOverride: null,
-    excluded: false,
-    sortOrder: 0,
-  };
-}
 
 async function mkCustomer(overrides: Partial<typeof s.customers.$inferInsert> = {}) {
   const [row] = await db.insert(s.customers).values({
@@ -88,14 +77,111 @@ async function mkTrip(customerId: number, departureDate: string) {
   return trip;
 }
 
-async function mkShipment(customerId: number) {
+async function mkBillableTrip(params: {
+  customerId: number;
+  departureDate: string;
+  completedAt?: Date;
+  revenue?: number;
+}) {
+  const [route] = await db.insert(s.routes).values({
+    name: `Q21 billable route ${suffix}-${createdRouteIds.length}`,
+  }).returning({ id: s.routes.id });
+  createdRouteIds.push(route.id);
+  const [cargoType] = await db.insert(s.cargoTypes).values({
+    name: `Q21 billable cargo ${suffix}-${createdCargoTypeIds.length}`,
+  }).returning({ id: s.cargoTypes.id });
+  createdCargoTypeIds.push(cargoType.id);
   const [shipment] = await db.insert(s.shipments).values({
-    shipmentCode: `Q21-SHP-${suffix}-${createdTripIds.length}`.slice(0, 50),
-    customerId,
+    shipmentCode: `Q21-BILL-SHP-${suffix}-${createdShipmentIds.length}`.slice(0, 50),
+    customerId: params.customerId,
+    routeId: route.id,
+    cargoTypeId: cargoType.id,
+    cargoMode: 'LCL',
     status: 'DRAFT',
-  }).returning({ id: s.shipments.id });
+  }).returning();
   createdShipmentIds.push(shipment.id);
-  return shipment;
+  const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+    shipmentId: shipment.id,
+    fulfillmentType: 'LCL_SHIPMENT',
+    cargoMode: 'LCL',
+    sourceShipmentVersion: shipment.version,
+    siteSnapshot: {},
+    createdBy: null,
+  }).returning();
+  createdFulfillmentIds.push(fulfillment.id);
+  const completedAt = params.completedAt ?? new Date(`${params.departureDate}T10:00:00.000Z`);
+  const [trip] = await db.insert(s.trips).values({
+    tripCode: `Q21-BILL-${suffix}-${createdTripIds.length}`.slice(0, 50),
+    customerId: params.customerId,
+    routeId: route.id,
+    cargoTypeId: cargoType.id,
+    shipmentId: shipment.id,
+    fulfillmentId: fulfillment.id,
+    departureDate: params.departureDate,
+    completedAt,
+    status: 'LOCKED',
+    revenue: String(params.revenue ?? 1_000_000),
+    carrierType: 'OWN',
+  }).returning();
+  createdTripIds.push(trip.id);
+  const [posting] = await db.insert(s.tripFinancialPostings).values({
+    tripId: trip.id,
+    version: 1,
+    tripVersion: trip.version,
+    status: 'ACTIVE',
+    reason: 'COMPLETION',
+    effectiveAt: completedAt,
+  }).returning({ id: s.tripFinancialPostings.id });
+  createdTripFinancialPostingIds.push(posting.id);
+  const podActor = await mkUser('ADMIN', 'pod');
+  const [submission] = await db.insert(s.tripPodSubmissions).values({
+    tripId: trip.id,
+    fulfillmentId: fulfillment.id,
+    submissionVersion: 1,
+    sourceTripVersion: trip.version,
+    status: 'ACCEPTED',
+    submittedBy: podActor.id,
+    submittedAt: new Date(completedAt.getTime() + 60_000),
+    reviewedBy: podActor.id,
+    reviewedAt: new Date(completedAt.getTime() + 120_000),
+    rejectionReason: null,
+  }).returning({ id: s.tripPodSubmissions.id });
+  createdPodSubmissionIds.push(submission.id);
+  return { shipment, fulfillment, trip };
+}
+
+async function createTripBackedDebitNote(params: {
+  customerId: number;
+  rangeFrom: string;
+  rangeTo: string;
+  note?: string;
+  departureDate?: string;
+  completedAt?: Date;
+  revenue?: number;
+}) {
+  const { trip } = await mkBillableTrip({
+    customerId: params.customerId,
+    departureDate: params.departureDate ?? params.rangeFrom,
+    completedAt: params.completedAt,
+    revenue: params.revenue,
+  });
+  const draft = await generateDraft({
+    type: 'DEBIT_NOTE',
+    entityType: 'CUSTOMER',
+    entityId: params.customerId,
+    rangeFrom: params.rangeFrom,
+    rangeTo: params.rangeTo,
+  });
+  const document = await saveDocument({
+    ...draft,
+    note: params.note ?? null,
+    lines: draft.lines.map((line) => ({
+      ...line,
+      renderData: line.renderData ? { ...line.renderData } as Record<string, unknown> : null,
+    })),
+  }, null);
+  createdDocumentIds.push(document.id);
+  return { trip, document };
 }
 
 async function mkExpense(tripId: number, invoiceDate: string) {
@@ -231,54 +317,58 @@ async function mkFuelInvoiceForApproval(params: {
 describe('Q21 period authority', () => {
   test('POST same-period save cannot overwrite a confirmed debit note', async () => {
     const customer = await mkCustomer();
-    const created = await saveDocument({
-      type: 'DEBIT_NOTE',
-      entityType: 'CUSTOMER',
-      entityId: customer.id,
-      entityName: customer.name,
+    const created = await createTripBackedDebitNote({
+      customerId: customer.id,
       rangeFrom: '2026-07-01',
       rangeTo: '2026-07-31',
       note: 'Q21 original note',
-      lines: [adHocLine(125000, 'Dòng gốc')],
-    }, null);
-    createdDocumentIds.push(created.id);
+      departureDate: '2026-07-12',
+      revenue: 125000,
+    });
 
     await db.update(s.billingDocuments)
       .set({ debitNoteStatus: 'CONFIRMED', updatedAt: new Date() })
-      .where(eq(s.billingDocuments.id, created.id));
+      .where(eq(s.billingDocuments.id, created.document.id));
 
     const beforeLedger = await db.select({
       id: s.ledger.id,
       debit: s.ledger.debit,
       credit: s.ledger.credit,
-    }).from(s.ledger).where(eq(s.ledger.txnId, created.id));
+    }).from(s.ledger).where(eq(s.ledger.txnId, created.document.id));
+
+    const overwrittenDraft = await generateDraft({
+      type: 'DEBIT_NOTE',
+      entityType: 'CUSTOMER',
+      entityId: customer.id,
+      rangeFrom: '2026-07-01',
+      rangeTo: '2026-07-31',
+    });
 
     await assert.rejects(
       () => saveDocument({
-        type: 'DEBIT_NOTE',
-        entityType: 'CUSTOMER',
-        entityId: customer.id,
-        entityName: `${customer.name} changed`,
-        rangeFrom: '2026-07-01',
-        rangeTo: '2026-07-31',
+        ...overwrittenDraft,
         note: 'Q21 overwritten note',
-        lines: [adHocLine(999000, 'Dòng ghi đè')],
+        entityName: `${customer.name} changed`,
+        lines: overwrittenDraft.lines.map((line) => ({
+          ...line,
+          renderData: line.renderData ? { ...line.renderData } as Record<string, unknown> : null,
+        })),
       }, null),
       (err: Error & { statusCode?: number }) =>
         err.statusCode === 409 && /khóa|xác nhận/i.test(err.message),
     );
 
-    const after = await getDocument(created.id);
+    const after = await getDocument(created.document.id);
     assert.equal(after.note, 'Q21 original note');
     assert.equal(after.lines.length, 1);
-    assert.equal(after.lines[0]?.description, 'Dòng gốc');
+    assert.match(after.lines[0]?.description ?? '', /Q21 billable route/);
     assert.equal(after.lines[0]?.baseAmount, 125000);
 
     const afterLedger = await db.select({
       id: s.ledger.id,
       debit: s.ledger.debit,
       credit: s.ledger.credit,
-    }).from(s.ledger).where(eq(s.ledger.txnId, created.id));
+    }).from(s.ledger).where(eq(s.ledger.txnId, created.document.id));
     assert.deepEqual(afterLedger, beforeLedger);
   });
 
@@ -289,43 +379,41 @@ describe('Q21 period authority', () => {
     await trackLock(authority);
 
     await assert.rejects(
-      () => saveDocument({
-        type: 'DEBIT_NOTE',
-        entityType: 'CUSTOMER',
-        entityId: customer.id,
-        entityName: customer.name,
+      () => createTripBackedDebitNote({
+        customerId: customer.id,
         rangeFrom: '2026-08-01',
         rangeTo: '2026-08-31',
-        lines: [adHocLine(200000, 'Bị khóa')],
-      }, null),
+        departureDate: '2026-08-10',
+        note: 'Bị khóa',
+        revenue: 200000,
+      }),
       (err: Error & { statusCode?: number }) => err.statusCode === 409 && /điều chỉnh/i.test(err.message),
     );
 
-    const openDoc = await saveDocument({
-      type: 'DEBIT_NOTE',
-      entityType: 'CUSTOMER',
-      entityId: customer.id,
-      entityName: customer.name,
+    const openDoc = await createTripBackedDebitNote({
+      customerId: customer.id,
       rangeFrom: '2026-09-01',
       rangeTo: '2026-09-30',
-      lines: [adHocLine(300000, 'Mở')],
-    }, null);
-    createdDocumentIds.push(openDoc.id);
-    await deleteDocument(openDoc.id);
+      departureDate: '2026-09-12',
+      note: 'Mở',
+      revenue: 300000,
+    });
+    await deleteDocument(openDoc.document.id);
     const [deleted] = await db.select({ deletedAt: s.billingDocuments.deletedAt })
       .from(s.billingDocuments)
-      .where(eq(s.billingDocuments.id, openDoc.id))
+      .where(eq(s.billingDocuments.id, openDoc.document.id))
       .limit(1);
     assert.ok(deleted?.deletedAt, 'open-period document can still be deleted');
   });
 
   test('late debit-note adjustment in current open period links to the original locked period', async () => {
     const customer = await mkCustomer();
-    const trip = await mkTrip(customer.id, '2026-05-12');
-    const shipment = await mkShipment(customer.id);
-    await db.update(s.trips)
-      .set({ shipmentId: shipment.id, updatedAt: new Date() })
-      .where(eq(s.trips.id, trip.id));
+    const { trip } = await mkBillableTrip({
+      customerId: customer.id,
+      departureDate: '2026-05-12',
+      completedAt: new Date('2026-05-12T09:00:00.000Z'),
+      revenue: 300000,
+    });
     const expense = await mkExpense(trip.id, '2026-05-12');
     const [updatedExpense] = await db.update(s.tripExpenses)
       .set({
@@ -395,19 +483,17 @@ describe('Q21 period authority', () => {
   test('debit-note reopen is blocked once the period has been issued or paid', async () => {
     const admin = await mkUser('ADMIN', 'reopen');
     const customer = await mkCustomer();
-    const document = await saveDocument({
-      type: 'DEBIT_NOTE',
-      entityType: 'CUSTOMER',
-      entityId: customer.id,
-      entityName: customer.name,
+    const document = await createTripBackedDebitNote({
+      customerId: customer.id,
       rangeFrom: '2026-10-01',
       rangeTo: '2026-10-31',
-      lines: [adHocLine(400000, 'Đã phát hành')],
-    }, null);
-    createdDocumentIds.push(document.id);
+      departureDate: '2026-10-10',
+      note: 'Đã phát hành',
+      revenue: 400000,
+    });
     await db.update(s.billingDocuments)
       .set({ debitNoteStatus: 'SENT', updatedAt: new Date() })
-      .where(eq(s.billingDocuments.id, document.id));
+      .where(eq(s.billingDocuments.id, document.document.id));
     const authority = await db.transaction((tx) =>
       resolveDebitNotePeriodAuthority(tx, customer.id, '2026-10-01', '2026-10-31'));
     await trackLock(authority);
@@ -721,8 +807,17 @@ after(async () => {
     if (createdExpenseIds.length > 0) {
       await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.id, createdExpenseIds));
     }
+    if (createdPodSubmissionIds.length > 0) {
+      await db.delete(s.tripPodSubmissions).where(inArray(s.tripPodSubmissions.id, createdPodSubmissionIds));
+    }
+    if (createdTripFinancialPostingIds.length > 0) {
+      await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.id, createdTripFinancialPostingIds));
+    }
     if (createdTripIds.length > 0) {
       await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
+    }
+    if (createdFulfillmentIds.length > 0) {
+      await db.delete(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.id, createdFulfillmentIds));
     }
     if (createdShipmentIds.length > 0) {
       await db.delete(s.shipments).where(inArray(s.shipments.id, createdShipmentIds));

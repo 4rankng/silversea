@@ -4,18 +4,18 @@ import { TripPodFileType, TripPodStatus } from '@tingting/shared';
 
 const {
   downloadShipmentPodFileMock,
+  cancelShipmentFulfillmentMock,
   reviewShipmentPodMock,
-  updateFulfillmentCancellationDispositionMock,
 } = vi.hoisted(() => ({
   downloadShipmentPodFileMock: vi.fn(),
+  cancelShipmentFulfillmentMock: vi.fn(),
   reviewShipmentPodMock: vi.fn(),
-  updateFulfillmentCancellationDispositionMock: vi.fn(),
 }));
 
 vi.mock('../../api/shipmentClient', () => ({
   downloadShipmentPodFile: downloadShipmentPodFileMock,
+  cancelShipmentFulfillment: cancelShipmentFulfillmentMock,
   reviewShipmentPod: reviewShipmentPodMock,
-  updateFulfillmentCancellationDisposition: updateFulfillmentCancellationDispositionMock,
 }));
 
 import { TripPodReviewPanel } from './TripPodReviewPanel';
@@ -77,8 +77,8 @@ function makeItem(overrides: Partial<Parameters<typeof TripPodReviewPanel>[0]['i
 describe('TripPodReviewPanel', () => {
   beforeEach(() => {
     downloadShipmentPodFileMock.mockReset();
+    cancelShipmentFulfillmentMock.mockReset();
     reviewShipmentPodMock.mockReset();
-    updateFulfillmentCancellationDispositionMock.mockReset();
   });
 
   it('renders the current submission and approves with the guarded version', async () => {
@@ -113,17 +113,16 @@ describe('TripPodReviewPanel', () => {
     await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
   });
 
-  it('submits a not-required cancellation disposition with the fulfillment version', async () => {
-    const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue('Khách xác nhận bỏ đầu việc này.');
-    updateFulfillmentCancellationDispositionMock.mockResolvedValue({});
+  it('submits a replacement cancellation command with the fulfillment version', async () => {
+    cancelShipmentFulfillmentMock.mockResolvedValue({});
     const onChanged = vi.fn().mockResolvedValue(undefined);
 
     render(
       <TripPodReviewPanel
         shipmentId={42}
         items={[makeItem({
-          canceledAt: '2026-08-01T02:00:00.000Z',
           currentSubmission: null,
+          tripStatus: 'CREATED',
         })]}
         canReview={false}
         canResolveCancellation
@@ -131,20 +130,22 @@ describe('TripPodReviewPanel', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /Bỏ khỏi điều kiện đóng/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Hủy tác vụ/i }));
+    fireEvent.change(screen.getByLabelText(/Lý do hủy/i), {
+      target: { value: 'Khách đổi phương án giao hàng.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Xác nhận hủy tác vụ/i }));
 
-    await waitFor(() => expect(updateFulfillmentCancellationDispositionMock).toHaveBeenCalledWith(
+    await waitFor(() => expect(cancelShipmentFulfillmentMock).toHaveBeenCalledWith(
       42,
       91,
       {
         expectedVersion: 4,
-        disposition: 'NOT_REQUIRED',
-        reason: 'Khách xác nhận bỏ đầu việc này.',
+        disposition: 'REPLACED',
+        reason: 'Khách đổi phương án giao hàng.',
       },
       expect.any(String),
     ));
     await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
-
-    promptSpy.mockRestore();
   });
 });

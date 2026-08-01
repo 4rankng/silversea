@@ -54,7 +54,8 @@ export type {
   VehicleAlertField, VehicleAlertStatus, VehicleAlert,
   Tire, TirePosition,
   BillingDocument, BillingDocumentOfficialIdentitySnapshot, BillingDocumentLine, BillingDocumentType, BillingDocumentEntityType,
-  BillingLineSourceType, BillingLineType, BillingDraftBlockedTrip, BillingDraftEligibilitySummary, BillingDraftLine, BillingDocumentDraft,
+  BillingLineSourceType, BillingLineType, BillingVatTreatment, BillingVatRate,
+  BillingDraftBlockedTrip, BillingDraftEligibilitySummary, BillingDraftLine, BillingDocumentDraft,
   BillingLineProvenance, BillingLineProvenanceStatus, BillingDocumentAuthorityState, BillingDocumentCorrection,
   BillingDocumentAdjustmentRequest,
   BillingLineRenderData, DebitNoteColumnVariable, DebitNoteTemplateColumn,
@@ -123,7 +124,9 @@ export {
   recoverableCostRequestSchema, sendDebitNoteForConfirmationSchema,
   portalDebitNoteDecisionSchema, directMoneyTreasurySchema,
   profitabilityReportQuerySchema, CUSTOMER_VISIBLE_EVENT_TYPES,
-  PROFITABILITY_DIMENSIONS,
+  PROFITABILITY_DIMENSIONS, accountingTransportRegisterQuerySchema,
+  accountingTransportRegisterRowSchema, accountingTransportRegisterResponseSchema,
+  ACCOUNTING_TRANSPORT_OWNERSHIP, ACCOUNTING_TRANSPORT_READINESS,
 } from './schemas';
 
 export { appSettingsSchema } from './schemas/app-settings';
@@ -175,6 +178,9 @@ export type {
   RecoverableCostRequestInput, SendDebitNoteForConfirmationInput,
   PortalDebitNoteDecisionInput, DirectMoneyTreasuryInput,
   ProfitabilityDimension, ProfitabilityReportQuery,
+  AccountingTransportOwnership, AccountingTransportReadiness,
+  AccountingTransportRegisterQuery, AccountingTransportRegisterRow,
+  AccountingTransportRegisterResponse,
 } from './schemas';
 
 export { round2dp, roundInt } from './calculations/round';

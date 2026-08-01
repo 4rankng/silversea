@@ -27,8 +27,8 @@
 import { Router } from 'express';
 import { Role } from '@tingting/shared';
 import { z } from 'zod';
-import { requireWorkflowActive } from '../middleware/workflow-rollout';
 import {
+  cancelShipmentFulfillmentSchema,
   createShipmentSchema,
   updateShipmentSchema,
   transitionShipmentStatusSchema,
@@ -39,6 +39,7 @@ import {
 } from '@tingting/shared';
 import {
   createShipment,
+  cancelShipmentFulfillment,
   createShipmentIdempotent,
   downloadShipmentPodFile,
   getShipment,
@@ -46,7 +47,6 @@ import {
   listShipmentsPaginated,
   reviewTripPodSubmission,
   updateShipment,
-  updateFulfillmentCancellationDisposition,
   transitionShipmentStatus,
   softDeleteShipment,
   batchUpsertShipmentContainers,
@@ -176,13 +176,6 @@ const reviewTripPodSchema = z.object({
   expectedVersion: z.number().int().positive(),
   resolution: z.enum(['ACCEPT', 'REJECT']),
   rejectionReason: z.string().trim().max(2_000).optional().nullable(),
-});
-
-const updateCancellationDispositionSchema = z.object({
-  expectedVersion: z.number().int().positive(),
-  disposition: z.enum(['REPLACED', 'NOT_REQUIRED']),
-  replacementFulfillmentId: z.number().int().positive().optional().nullable(),
-  reason: z.string().trim().min(1).max(1_000),
 });
 
 const router = Router();
@@ -324,7 +317,7 @@ router.get(
   }),
 );
 
-router.get('/:id/customer-events', requireWorkflowActive, asyncHandler(async (req: Request, res: Response) => {
+router.get('/:id/customer-events', asyncHandler(async (req: Request, res: Response) => {
   const shipmentId = parseId(req, res);
   if (shipmentId === null) return;
   res.json({ items: await listCustomerVisibleEvents({ shipmentId, actor: getUser(req) }) });
@@ -354,7 +347,6 @@ router.post(
 
 router.post(
   '/:id/customer-events',
-  requireWorkflowActive,
   requireRoles(Role.ADMIN, Role.MANAGER, Role.CLERK),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
@@ -731,19 +723,18 @@ router.post(
       res.status(400).json({ error: 'ID tác vụ không hợp lệ' });
       return;
     }
-    const parsed = updateCancellationDispositionSchema.safeParse(req.body);
+    const parsed = cancelShipmentFulfillmentSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     const actor = getUser(req);
     const idempotencyKey = requireShipmentIdempotencyKey(
       req,
       'Idempotency-Key là bắt buộc khi xử lý tác vụ đã hủy.',
     );
-    const updated = await updateFulfillmentCancellationDisposition({
+    const updated = await cancelShipmentFulfillment({
       shipmentId,
       fulfillmentId,
       expectedVersion: parsed.data.expectedVersion,
       disposition: parsed.data.disposition,
-      replacementFulfillmentId: parsed.data.replacementFulfillmentId ?? null,
       reason: parsed.data.reason,
       actor,
       idempotencyKey,

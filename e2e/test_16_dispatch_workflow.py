@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""E2E suite 16: dispatch workflow role, bounded-data, and responsive smoke checks."""
+"""Composite dispatch workflow RBAC, bounded-data, and responsive smoke checks."""
 
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -20,7 +20,8 @@ VIEWPORTS = [
 ]
 
 CONTROL_MIN_SIZE = 44
-MASTER_DATA_FIXTURE = next(Path("docs/quytrinh").rglob("29.7 - DATA PM.xlsx"))
+REPO_ROOT = Path(__file__).resolve().parent.parent
+MASTER_DATA_FIXTURE = next((REPO_ROOT / "docs/quytrinh").rglob("29.7 - DATA PM.xlsx"))
 
 ROLE_SURFACES = {
     "admin": "/config/master-data-import",
@@ -32,7 +33,14 @@ ROLE_SURFACES = {
 }
 
 
-def assert_control_box(page: Page, locator, label: str, results: TestResults, tc_id: str, context: str):
+def assert_control_box(
+    page: Page,
+    locator,
+    label: str,
+    results: TestResults,
+    tc_id: str,
+    context: str,
+):
     try:
         locator.wait_for(state="visible", timeout=5000)
         if not locator.is_visible():
@@ -59,9 +67,28 @@ def prepare_admin_import(page: Page):
     page.locator("#master-data-file").set_input_files(str(MASTER_DATA_FIXTURE))
 
 
-def prepare_dispatch_issue(page: Page, queue_item: dict):
-    task_locator = page.get_by_role("button", name=re.compile(re.escape(queue_item["customer"]["name"])))
-    task_locator.first.click()
+def proxy_api_for_page(page: Page):
+    def proxy_api(route):
+        response = route.fetch(
+            url=route.request.url.replace(BASE_URL, API_URL, 1),
+        )
+        route.fulfill(response=response)
+
+    page.route(f"{BASE_URL}/api/**", proxy_api)
+
+
+def dismiss_onboarding_checklist(page: Page):
+    """Keep first-run guidance from covering the role's primary action."""
+    dismiss_button = page.get_by_role("button", name=re.compile(r"Để sau$"))
+    if dismiss_button.count() > 0 and dismiss_button.first.is_visible():
+        dismiss_button.first.click()
+        page.get_by_role("dialog", name=re.compile(r"Bắt đầu sử dụng")).wait_for(
+            state="hidden", timeout=5000
+        )
+
+
+def prepare_dispatch_issue(page: Page):
+    page.locator(".dispatch-task").first.click()
     page.get_by_label("Ngày giờ chạy").fill(iso_local_now())
     end_input = page.get_by_label("Kết thúc dự kiến")
     if end_input.is_enabled():
@@ -82,6 +109,7 @@ def prepare_dispatch_issue(page: Page, queue_item: dict):
 def responsive_role_matrix(ctx: NepoTestContext, results: TestResults):
     for role, path in ROLE_SURFACES.items():
         page = ctx.new_page({"width": 1440, "height": 1000})
+        proxy_api_for_page(page)
         ctx.login_as(role, page)
         role_failures = []
         for label, width, height in VIEWPORTS:
@@ -89,6 +117,7 @@ def responsive_role_matrix(ctx: NepoTestContext, results: TestResults):
             page.goto(f"{BASE_URL}{path}")
             page.wait_for_load_state("networkidle")
             page.wait_for_timeout(250)
+            dismiss_onboarding_checklist(page)
             stayed_on_surface = path in page.url
             overflow = page.evaluate(
                 "Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) "
@@ -125,7 +154,7 @@ def responsive_role_matrix(ctx: NepoTestContext, results: TestResults):
             elif role == "clerk":
                 control_ok = assert_control_box(
                     page,
-                    page.get_by_role("button", name="Tạo chuyến với mã đã duyệt"),
+                    page.get_by_role("button", name="Gửi sang điều phối", exact=True),
                     f"{role} control",
                     results,
                     f"TC-1604-{role.upper()}-{label}-control",
@@ -144,7 +173,7 @@ def responsive_role_matrix(ctx: NepoTestContext, results: TestResults):
                         f"{label}: driver trip link",
                     )
                 else:
-                    empty_state = page.get_by_text("Chưa có lệnh vận chuyển nào")
+                    empty_state = page.locator(".empty-state")
                     control_ok = assert_control_box(
                         page,
                         empty_state,
@@ -176,12 +205,9 @@ def responsive_role_matrix(ctx: NepoTestContext, results: TestResults):
                         f"{label}: customer empty state",
                     )
             elif role == "manager":
-                api = ApiClient()
-                api.login(DEMO_ACCOUNTS["manager"]["identifier"], DEMO_ACCOUNTS["manager"]["password"])
-                queue = api.get("/api/shipments/dispatch-queue?limit=1&status=READY")
-                items = queue.get("data", {}).get("items", [])
-                if items:
-                    issue_button = prepare_dispatch_issue(page, items[0])
+                rendered_tasks = page.locator(".dispatch-task")
+                if rendered_tasks.count() > 0:
+                    issue_button = prepare_dispatch_issue(page)
                     control_ok = assert_control_box(
                         page,
                         issue_button,
@@ -189,6 +215,15 @@ def responsive_role_matrix(ctx: NepoTestContext, results: TestResults):
                         results,
                         f"TC-1604-{role.upper()}-{label}-control",
                         f"{label}: dispatch issue action",
+                    )
+                elif page.get_by_role("button", name="Tiếp nhận").count() > 0:
+                    control_ok = assert_control_box(
+                        page,
+                        page.get_by_role("button", name="Tiếp nhận").first,
+                        f"{role} control",
+                        results,
+                        f"TC-1604-{role.upper()}-{label}-control",
+                        f"{label}: dispatch handoff action",
                     )
                 else:
                     fallback = page.get_by_role("button", name="Tải lại")
@@ -314,19 +349,30 @@ def test_dispatch_workflow(ctx: NepoTestContext, results: TestResults):
     accountant_api.login(accountant_account["identifier"], accountant_account["password"])
     denied_queue = accountant_api.get("/api/shipments/dispatch-queue?limit=1")
     denied_fleet = accountant_api.get("/api/shipments/dispatch-fleet?limit=1")
-    if denied_queue.get("status") == 403 and denied_fleet.get("status") == 403:
-        results.pass_("TC-1603", "ACCOUNTANT cannot inspect or operate dispatch")
+    shipment_id = queue_items[0]["shipmentId"] if queue_items else None
+    if shipment_id is None:
+        shipment_list = manager_api.get("/api/shipments?page=1&pageSize=1")
+        shipment_items = shipment_list.get("data", {}).get("items", [])
+        shipment_id = shipment_items[0].get("id") if shipment_items else None
+    readable_shipment = accountant_api.get(f"/api/shipments/{shipment_id}") if shipment_id else {"status": 0}
+    if (
+        denied_queue.get("status") == 403
+        and denied_fleet.get("status") == 403
+        and readable_shipment.get("status") == 200
+    ):
+        results.pass_("TC-1603", "ACCOUNTANT is operationally read-only without dispatch assignment access")
     else:
         results.fail(
             "TC-1603",
-            "ACCOUNTANT cannot inspect or operate dispatch",
-            f"queue={denied_queue.get('status')}, fleet={denied_fleet.get('status')}",
+            "ACCOUNTANT is operationally read-only without dispatch assignment access",
+            f"queue={denied_queue.get('status')}, fleet={denied_fleet.get('status')}, shipment={readable_shipment.get('status')}",
         )
 
     responsive_role_matrix(ctx, results)
 
     for role in ("manager", "clerk", "driver"):
         page = ctx.new_page({"width": 390, "height": 844})
+        proxy_api_for_page(page)
         ctx.login_as(role, page)
         page.goto(f"{BASE_URL}{ROLE_SURFACES[role]}")
         page.wait_for_load_state("networkidle")
@@ -353,9 +399,9 @@ def test_dispatch_workflow(ctx: NepoTestContext, results: TestResults):
     customer_api = ApiClient()
     customer_account = DEMO_ACCOUNTS["customer"]
     customer_api.login(customer_account["identifier"], customer_account["password"])
-    customer_scope = customer_api.get("/portal/customer-scope")
+    customer_scope = customer_api.get("/api/portal/customer-scope")
     customer_id = customer_scope.get("data", {}).get("primaryCustomerId")
-    customer_list = customer_api.get(f"/portal/shipments?page=1&limit=10&customerId={customer_id}" if customer_id else "/portal/shipments?page=1&limit=10")
+    customer_list = customer_api.get(f"/api/portal/shipments?page=1&limit=10&customerId={customer_id}" if customer_id else "/api/portal/shipments?page=1&limit=10")
     customer_items = customer_list.get("data", {}).get("items") or customer_list.get("items")
     if customer_list.get("status") == 200 and isinstance(customer_items, list):
         if customer_items:

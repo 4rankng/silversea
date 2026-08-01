@@ -32,6 +32,7 @@ const TripCreatePage = lazy(() => import('./pages/TripCreatePage'));
 const TripDetailPage = lazy(() => import('./pages/TripDetailPage'));
 const TripEditPage = lazy(() => import('./pages/TripEditPage'));
 const FinancePage = lazy(() => import('./pages/FinancePage'));
+const AccountingWorkspacePage = lazy(() => import('./pages/AccountingWorkspacePage'));
 const TreasuryPositionPage = lazy(() => import('./pages/TreasuryPositionPage'));
 const RecoverableCostsPage = lazy(() => import('./pages/RecoverableCostsPage'));
 const DebtListPage = lazy(() => import('./pages/DebtListPage'));
@@ -139,13 +140,10 @@ export function AppRoutes() {
   const driverHome = routes.myTrips;
   const forwarderHome = routes.myForwarderTrips;
   const clerkHome = routes.shipments;
-  const adminHome = routes.dashboard;
   const isPortalUser = isDriver || isForwarder;
-  const portalHome = isDriver ? driverHome : forwarderHome;
   const customerHome = routes.portalShipments;
   const isCustomer = user?.role === Role.CUSTOMER;
   const accountantWithoutExecutiveDashboard = user?.role === Role.ACCOUNTANT
-    && user.workflowRolloutMode === 'ACTIVE'
     && !user.capabilities?.includes('executive_dashboard.read');
   const defaultHome = homeForRole(user?.role ?? '');
   const homeRedirect = isDriver
@@ -156,7 +154,7 @@ export function AppRoutes() {
         ? customerHome
         : isClerk
           ? clerkHome
-          : adminHome;
+          : defaultHome;
   const adminOnly = (el: ReactElement) => (isPortalUser || isCustomer || isClerk ? <Navigate to={homeRedirect} replace /> : el);
   const driverOnly = (el: ReactElement) => (isDriver ? el : <Navigate to={homeRedirect} replace />);
   const forwarderOnly = (el: ReactElement) => (isForwarder ? el : <Navigate to={homeRedirect} replace />);
@@ -169,8 +167,8 @@ export function AppRoutes() {
       ? el
       : <Navigate to={homeRedirect} replace />
   );
-  const activeCapabilityOnly = (capability: string, el: ReactElement) => (
-    user?.workflowRolloutMode === 'ACTIVE' && user.capabilities?.includes(capability)
+  const capabilityOnly = (capability: string, el: ReactElement) => (
+    user?.capabilities?.includes(capability)
       ? el
       : <Navigate to={homeRedirect} replace />
   );
@@ -221,8 +219,9 @@ export function AppRoutes() {
           <Route path="/trips/:id" element={adminOnly(page(<TripDetailPage />))} />
           <Route path="/trips/:id/edit" element={adminOnly(page(<TripEditPage />))} />
           <Route path="/finance" element={adminOnly(page(<FinancePage />))} />
-          <Route path="/finance/treasury" element={activeCapabilityOnly('treasury.read', financeReaderOnly(page(<TreasuryPositionPage />)))} />
-          <Route path="/recoverable-costs" element={activeCapabilityOnly('recoverable_costs.read', recoverableCostOnly(page(<RecoverableCostsPage />)))} />
+          <Route path="/accounting" element={officeStaffOnly(page(<AccountingWorkspacePage />))} />
+          <Route path="/finance/treasury" element={capabilityOnly('treasury.read', financeReaderOnly(page(<TreasuryPositionPage />)))} />
+          <Route path="/recoverable-costs" element={capabilityOnly('recoverable_costs.read', recoverableCostOnly(page(<RecoverableCostsPage />)))} />
           <Route path="/profit" element={financeReaderOnly(page(<ProfitPage />))} />
           <Route path="/debt" element={adminOnly(page(<DebtListPage />))} />
           <Route path="/debt/:id" element={adminOnly(page(<DebtDetailPage />))} />

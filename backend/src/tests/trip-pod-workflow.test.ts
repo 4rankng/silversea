@@ -22,9 +22,9 @@ import {
   submitPod,
 } from '../services/trip-pod.service';
 import {
+  cancelShipmentFulfillment,
   getShipmentDetail,
   reviewTripPodSubmission,
-  updateFulfillmentCancellationDisposition,
   updateShipment,
 } from '../services/shipment.service';
 import { notificationUrlForRole } from '../services/notification.service';
@@ -359,15 +359,53 @@ describe('trip pod review workflow', () => {
     );
   });
 
+  test('replacement cancellation creates a new fulfillment and cancels the old trip authority', async () => {
+    const managerUser = await createUser(Role.MANAGER, 'replacement-trip');
+    const { driver } = await createDriverPrincipal('replacement-trip');
+    const fixture = await createShipmentFixture({
+      tag: 'replacement-trip',
+      cargoMode: 'LCL',
+      fulfillmentCount: 1,
+    });
+
+    const originalTrip = await createCompletedTrip({
+      tag: 'replacement-trip-original',
+      shipmentId: fixture.shipment.id,
+      fulfillmentId: fixture.fulfillments[0]!.id,
+      customerId: fixture.customer.id,
+      routeId: fixture.route.id,
+      cargoTypeId: fixture.cargoType.id,
+      driverId: driver.id,
+      status: TripStatus.CREATED,
+    });
+
+    const canceled = await cancelShipmentFulfillment({
+      shipmentId: fixture.shipment.id,
+      fulfillmentId: fixture.fulfillments[0]!.id,
+      expectedVersion: fixture.fulfillments[0]!.version,
+      disposition: 'REPLACED',
+      reason: 'Đổi xe thực hiện tác vụ.',
+      actor: actorFromUser(managerUser),
+      idempotencyKey: `phase5-cancel-replace-${suffix}`,
+    });
+
+    assert.equal(canceled.replayed, false);
+    assert.ok(canceled.replacementFulfillmentId);
+    assert.equal(canceled.shipment.status, 'IN_PROGRESS');
+
+    const [canceledTrip] = await db.select().from(s.trips)
+      .where(eq(s.trips.id, originalTrip.id));
+    assert.equal(canceledTrip?.status, TripStatus.CANCELED);
+  });
+
   test('an unresolved canceled fulfillment blocks closure until a manager marks it not required', async () => {
     const managerUser = await createUser(Role.MANAGER, 'cancel');
     const { user: driverUser, driver } = await createDriverPrincipal('cancel');
     const fixture = await createShipmentFixture({
       tag: 'cancel',
-      cargoMode: 'LCL',
+      cargoMode: 'FCL',
+      containerCount: 2,
       fulfillmentCount: 2,
-      canceledFulfillmentIndexes: [1],
-      canceledByUserId: managerUser.id,
     });
     const trip = await createCompletedTrip({
       tag: 'cancel',
@@ -396,7 +434,7 @@ describe('trip pod review workflow', () => {
     });
     assert.equal(accepted.shipment.status, 'IN_PROGRESS');
 
-    const disposition = await updateFulfillmentCancellationDisposition({
+    const disposition = await cancelShipmentFulfillment({
       shipmentId: fixture.shipment.id,
       fulfillmentId: fixture.fulfillments[1]!.id,
       expectedVersion: fixture.fulfillments[1]!.version,
@@ -413,6 +451,94 @@ describe('trip pod review workflow', () => {
       .where(inArray(s.shipmentFulfillments.id, [fixture.fulfillments[1]!.id]));
     assert.equal(updatedCanceled?.cancellationDisposition, 'NOT_REQUIRED');
     assert.equal(updatedCanceled?.notRequiredApprovedBy, managerUser.id);
+    assert.ok(updatedCanceled?.canceledAt);
+  });
+
+  test('cannot cancel a fulfillment whose linked trip is already completed', async () => {
+    const managerUser = await createUser(Role.MANAGER, 'cancel-completed');
+    const { driver } = await createDriverPrincipal('cancel-completed');
+    const fixture = await createShipmentFixture({
+      tag: 'cancel-completed',
+      cargoMode: 'LCL',
+      fulfillmentCount: 1,
+    });
+
+    await createCompletedTrip({
+      tag: 'cancel-completed',
+      shipmentId: fixture.shipment.id,
+      fulfillmentId: fixture.fulfillments[0]!.id,
+      customerId: fixture.customer.id,
+      routeId: fixture.route.id,
+      cargoTypeId: fixture.cargoType.id,
+      driverId: driver.id,
+    });
+
+    await assert.rejects(
+      () => cancelShipmentFulfillment({
+        shipmentId: fixture.shipment.id,
+        fulfillmentId: fixture.fulfillments[0]!.id,
+        expectedVersion: fixture.fulfillments[0]!.version,
+        disposition: 'REPLACED',
+        reason: 'Đổi đầu việc sau khi chuyến đã hoàn thành.',
+        actor: actorFromUser(managerUser),
+        idempotencyKey: `phase5-cancel-completed-${suffix}`,
+      }),
+      (error: unknown) => error instanceof ApiError
+        && error.statusCode === 409
+        && /luồng hủy chuyến/i.test(error.message),
+    );
+  });
+
+  test('POD approval and fulfillment cancellation serialize without deadlock', async () => {
+    const managerUser = await createUser(Role.MANAGER, 'approve-cancel-race');
+    const { user: driverUser, driver } = await createDriverPrincipal('approve-cancel-race');
+    const fixture = await createShipmentFixture({
+      tag: 'approve-cancel-race',
+      cargoMode: 'LCL',
+      fulfillmentCount: 1,
+    });
+    const trip = await createCompletedTrip({
+      tag: 'approve-cancel-race',
+      shipmentId: fixture.shipment.id,
+      fulfillmentId: fixture.fulfillments[0]!.id,
+      customerId: fixture.customer.id,
+      routeId: fixture.route.id,
+      cargoTypeId: fixture.cargoType.id,
+      driverId: driver.id,
+    });
+    const submitted = await createSubmittedPod({
+      tag: 'approve-cancel-race',
+      driverId: driver.id,
+      driverUserId: driverUser.id,
+      fulfillmentId: fixture.fulfillments[0]!.id,
+      tripVersion: trip.version,
+    });
+
+    const [approval, cancellation] = await Promise.allSettled([
+      reviewTripPodSubmission({
+        shipmentId: fixture.shipment.id,
+        submissionId: submitted.id,
+        expectedVersion: submitted.version,
+        resolution: 'ACCEPT',
+        idempotencyKey: `phase5-review-race-${suffix}`,
+        actor: actorFromUser(managerUser),
+      }),
+      cancelShipmentFulfillment({
+        shipmentId: fixture.shipment.id,
+        fulfillmentId: fixture.fulfillments[0]!.id,
+        expectedVersion: fixture.fulfillments[0]!.version,
+        disposition: 'REPLACED',
+        reason: 'Kiểm tra cạnh tranh với duyệt e-POD.',
+        actor: actorFromUser(managerUser),
+        idempotencyKey: `phase5-cancel-race-${suffix}`,
+      }),
+    ]);
+
+    assert.equal(approval.status, 'fulfilled');
+    assert.equal(cancellation.status, 'rejected');
+    assert.ok(cancellation.status === 'rejected'
+      && cancellation.reason instanceof ApiError
+      && cancellation.reason.statusCode === 409);
   });
 
   test('switching FCL to LCL clears stranded containers when no fulfillment exists', async () => {

@@ -1,8 +1,9 @@
 import { computeFifoAging } from '@tingting/shared';
-import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 
 import { db } from '../db';
 import * as s from '../db/schema';
+import { ApiError } from '../errors';
 
 export type ReceivableAuthorityType = 'TRIP' | 'BILLING_DOCUMENT' | 'SERVICE_FEE' | 'DEBT_OFFSET' | 'OTHER';
 
@@ -38,6 +39,53 @@ export interface CustomerReceivableSnapshot {
   aging: { current: number; d30: number; d60: number; over90: number };
   totalOutstanding: number;
   maxOverdueDays: number;
+}
+
+export interface VietnamAsOfCutoff {
+  businessDate: string;
+  endExclusive: Date;
+  referenceDate: Date;
+  explicit: boolean;
+}
+
+const VIETNAM_UTC_OFFSET_MS = 7 * 60 * 60 * 1000;
+
+function vietnamBusinessDate(value: Date): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(value);
+}
+
+/** Resolve one Vietnam business date into an end-exclusive UTC cutoff. */
+export function resolveVietnamAsOfCutoff(asOfDate?: string, now: Date = new Date()): VietnamAsOfCutoff {
+  if (asOfDate == null || asOfDate.trim() === '') {
+    return {
+      businessDate: vietnamBusinessDate(now),
+      endExclusive: new Date(now.getTime() + 1),
+      referenceDate: now,
+      explicit: false,
+    };
+  }
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(asOfDate);
+  if (!match) throw new ApiError(400, 'asOfDate phải có định dạng YYYY-MM-DD');
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const calendarDate = new Date(Date.UTC(year, month - 1, day));
+  if (calendarDate.getUTCFullYear() !== year
+    || calendarDate.getUTCMonth() !== month - 1
+    || calendarDate.getUTCDate() !== day) {
+    throw new ApiError(400, 'asOfDate không phải ngày hợp lệ');
+  }
+
+  const endExclusive = new Date(Date.UTC(year, month - 1, day + 1) - VIETNAM_UTC_OFFSET_MS);
+  return {
+    businessDate: asOfDate,
+    endExclusive,
+    referenceDate: new Date(endExclusive.getTime() - 1),
+    explicit: true,
+  };
 }
 
 type DocSeedRow = {
@@ -130,8 +178,11 @@ function isServiceFeeAdjustmentRow(note: string | null): boolean {
   return note.includes('Phí chi hộ') || note.includes('Tạm ứng/nộp hộ');
 }
 
-export async function getCustomerReceivableSnapshot(customerId: number): Promise<CustomerReceivableSnapshot> {
-  const snapshots = await getCustomerReceivableSnapshots([customerId]);
+export async function getCustomerReceivableSnapshot(
+  customerId: number,
+  opts: { asOfDate?: string } = {},
+): Promise<CustomerReceivableSnapshot> {
+  const snapshots = await getCustomerReceivableSnapshots([customerId], opts);
   return snapshots.get(customerId) ?? {
     customerId,
     obligations: [],
@@ -143,10 +194,12 @@ export async function getCustomerReceivableSnapshot(customerId: number): Promise
 
 export async function getCustomerReceivableSnapshots(
   customerIds: number[],
+  opts: { asOfDate?: string } = {},
 ): Promise<Map<number, CustomerReceivableSnapshot>> {
   const dedupedCustomerIds = [...new Set(customerIds.filter((id) => Number.isInteger(id) && id > 0))];
   const snapshots = new Map<number, CustomerReceivableSnapshot>();
   if (dedupedCustomerIds.length === 0) return snapshots;
+  const cutoff = resolveVietnamAsOfCutoff(opts.asOfDate);
 
   const docSeedRows: DocSeedRow[] = await db.select({
     customerId: s.billingDocuments.entityId,
@@ -167,6 +220,7 @@ export async function getCustomerReceivableSnapshots(
       isNull(s.billingDocuments.deletedAt),
       inArray(s.billingDocuments.entityId, dedupedCustomerIds),
       sql`coalesce(${s.billingDocuments.debitNoteStatus}, 'DRAFT') not in ('DRAFT', 'CANCELED')`,
+      sql`coalesce(${s.billingDocuments.issuedAt}, ${s.billingDocuments.createdAt}) < ${cutoff.endExclusive.toISOString()}::timestamptz`,
     ));
 
   const docIds = [...new Set(docSeedRows.map((row) => row.documentId))];
@@ -181,6 +235,7 @@ export async function getCustomerReceivableSnapshots(
         eq(s.governanceActions.actionKind, 'DEBIT_NOTE_ADJUSTMENT'),
         inArray(s.governanceActions.subjectId, docIds),
         inArray(s.governanceActions.status, ['APPROVED', 'APPLIED']),
+        sql`coalesce(${s.governanceActions.appliedAt}, ${s.governanceActions.approvedAt}, ${s.governanceActions.createdAt}) < ${cutoff.endExclusive.toISOString()}::timestamptz`,
       ))
     : [];
   const docAllocationRows = docIds.length > 0
@@ -206,6 +261,7 @@ export async function getCustomerReceivableSnapshots(
             inArray(s.paymentAllocations.targetId, docIds),
           ),
         )!,
+        lt(s.paymentAllocations.createdAt, cutoff.endExclusive),
       ))
     : [];
 
@@ -301,6 +357,7 @@ export async function getCustomerReceivableSnapshots(
       eq(s.ledger.entityType, 'CUSTOMER'),
       inArray(s.ledger.entityId, dedupedCustomerIds),
       sql`${s.ledger.txnId} is not null`,
+      lt(s.ledger.timestamp, cutoff.endExclusive),
     ))
     .orderBy(s.ledger.id);
 
@@ -514,12 +571,11 @@ export async function getCustomerReceivableSnapshots(
       });
     }
 
-    const { aging, openInvoices } = computeFifoAging(syntheticEntries);
+    const { aging, openInvoices } = computeFifoAging(syntheticEntries, cutoff.referenceDate);
     let maxOverdueDays = 0;
-    const now = new Date();
     for (const invoice of openInvoices) {
       if (invoice.open <= 0) continue;
-      const ageDays = Math.floor((now.getTime() - new Date(invoice.ts).getTime()) / 86400000);
+      const ageDays = Math.floor((cutoff.referenceDate.getTime() - new Date(invoice.ts).getTime()) / 86400000);
       if (ageDays > maxOverdueDays) maxOverdueDays = ageDays;
     }
 

@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 
+const apiProxyTarget = process.env.VITE_API_PROXY_TARGET || 'http://localhost:3001';
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
@@ -15,13 +17,13 @@ export default defineConfig({
     port: 7174,
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: apiProxyTarget,
         changeOrigin: true,
       },
       // socket.io (assistant transport). `ws: true` proxies the WebSocket
       // upgrade handshake; without it the engine.io upgrade fails in dev.
       '/socket.io': {
-        target: 'http://localhost:3001',
+        target: apiProxyTarget,
         changeOrigin: true,
         ws: true,
       },

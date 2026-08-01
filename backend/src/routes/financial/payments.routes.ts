@@ -18,7 +18,6 @@ import { db } from '../../db';
 import * as s from '../../db/schema';
 import { requireRoles } from '../../middleware/casbin';
 import { asyncHandler } from '../../middleware/asyncHandler';
-import { requireWorkflowActive } from '../../middleware/workflow-rollout';
 import { emitNotification } from '../../services/notification.service';
 import * as financialService from '../../services/financial.service';
 import {
@@ -606,7 +605,7 @@ router.post('/drivers/:driverId/payouts', requireRoles(Role.ADMIN, Role.MANAGER,
   res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
-router.get('/finance/treasury/position', requireWorkflowActive, requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (_req: Request, res: Response) => {
+router.get('/finance/treasury/position', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (_req: Request, res: Response) => {
   const positions = await db.transaction(async (tx) => {
     const accounts = await tx.select({ id: s.treasuryAccounts.id })
       .from(s.treasuryAccounts).where(eq(s.treasuryAccounts.status, 'ACTIVE'));
@@ -622,7 +621,7 @@ router.get('/finance/treasury/position', requireWorkflowActive, requireRoles(Rol
   });
 }));
 
-router.post('/finance/treasury/accounts/setup', requireWorkflowActive, requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
+router.post('/finance/treasury/accounts/setup', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   const body = treasuryAccountSetupSchema.parse(req.body);
   const { result, replayed } = await runIdempotent({
@@ -645,7 +644,7 @@ router.post('/finance/treasury/accounts/setup', requireWorkflowActive, requireRo
   res.status(replayed ? 200 : 202).json({ ...result, replayed });
 }));
 
-router.post('/finance/treasury/accounts/:id/cutover', requireWorkflowActive, requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
+router.post('/finance/treasury/accounts/:id/cutover', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   const accountId = z.coerce.number().int().positive().parse(req.params.id);
   const body = treasuryCutoverSchema.parse(req.body);
@@ -668,7 +667,7 @@ router.post('/finance/treasury/accounts/:id/cutover', requireWorkflowActive, req
   res.status(replayed ? 200 : 202).json({ ...result, replayed });
 }));
 
-router.post('/finance/treasury/movements/:id/reversal', requireWorkflowActive, requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+router.post('/finance/treasury/movements/:id/reversal', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   const movementId = z.coerce.number().int().positive().parse(req.params.id);
   const body = treasuryReversalSchema.parse(req.body);

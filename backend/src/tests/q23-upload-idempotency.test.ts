@@ -334,7 +334,7 @@ describe('Q23 operational evidence replay', () => {
       assert.equal(await storageService.exists(storageKey), true);
     }
 
-    const processed = await processDueDurableEffectJobs(10, {
+    const processed = await processDueDurableEffectJobs(1000, {
       now: () => new Date(Date.now() + 60_000),
     });
     for (const row of leakedJobs) {

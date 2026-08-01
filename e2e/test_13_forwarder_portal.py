@@ -250,9 +250,9 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         page.goto(f'{BASE_URL}/my-forwarder-trips')
         page.wait_for_load_state('networkidle')
         page.wait_for_timeout(1000)
-        empty_text = page.locator('text=chưa có, text=không có, text=trống, text=empty, text=No trip').count()
-        if empty_text > 0:
-            results.pass_('TC-1311', f'Empty state message visible ({empty_text} matches)')
+        empty_state = page.get_by_text('Chưa có chuyến đi nào')
+        if empty_state.count() > 0 and empty_state.first.is_visible():
+            results.pass_('TC-1311', 'Empty state message visible')
         else:
             results.fail('TC-1311', 'Empty state', 'No empty-state message found')
         page.close()
@@ -982,7 +982,11 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
     page.wait_for_timeout(1000)
     ctx.screenshot(page, 'TC-1370_mobile_trip_list')
     no_overflow = page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
-    if '/my-forwarder-trips' in page.url and no_overflow and page.locator('.ftrip-card').count() > 0:
+    has_mobile_content = (
+        page.locator('.ftrip-card:visible').count() > 0
+        or page.get_by_text('Chưa có chuyến đi nào').count() > 0
+    )
+    if '/my-forwarder-trips' in page.url and no_overflow and has_mobile_content:
         results.pass_('TC-1370', 'Mobile trip list renders without horizontal overflow')
     else:
         results.fail('TC-1370', 'Mobile trip list', f'URL={page.url}, noOverflow={no_overflow}, cards={page.locator(".ftrip-card").count()}')

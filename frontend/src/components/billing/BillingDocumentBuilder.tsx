@@ -9,7 +9,7 @@ import { formatCurrency } from '../../lib/format';
 import { financialClient } from '../../api/financialClient';
 import { configClient } from '../../api/configClient';
 import { qk } from '../../api/keys';
-import { documentFileName, groupLinesByContainer, lineTotal, normalizeLine, splitRouteName, thisMonthRange, displayDate, TITLE, type BillingRouteGroup } from './billing-document-builder-utils';
+import { documentFileName, filterAuthoritativeDebitNoteLines, groupLinesByContainer, lineTotal, normalizeLine, selectedTripIdsFromSearch, splitRouteName, thisMonthRange, displayDate, TITLE, type BillingRouteGroup } from './billing-document-builder-utils';
 import './BillingDocumentBuilder.css';
 import type {
   BillingDocument,
@@ -18,6 +18,7 @@ import type {
   BillingDocumentEntityType,
   BillingDocumentLine,
   DebitNoteTemplate,
+  SaveBillingDocumentInput,
 } from '@tingting/shared';
 
 interface Props {
@@ -29,6 +30,9 @@ interface Props {
   entityName: string;
   initialDoc?: BillingDocument | null;
   onSaved?: () => void;
+  selectedTripIds?: number[];
+  initialRangeFrom?: string;
+  initialRangeTo?: string;
 }
 
 export default function BillingDocumentBuilder({
@@ -40,15 +44,24 @@ export default function BillingDocumentBuilder({
   entityName,
   initialDoc,
   onSaved,
+  selectedTripIds,
+  initialRangeFrom,
+  initialRangeTo,
 }: Props) {
   const { toast: showToast } = useToast();
   const isEdit = !!initialDoc;
   const autoGenerateRef = useRef(false);
   const month = useMemo(() => thisMonthRange(), []);
+  const requestedSelection = useMemo(() => {
+    const urlIds = selectedTripIdsFromSearch(window.location.search);
+    return [...new Set(selectedTripIds?.length ? selectedTripIds : urlIds)];
+  }, [selectedTripIds]);
+  const requestedFrom = initialRangeFrom ?? new URLSearchParams(window.location.search).get('from') ?? month.from;
+  const requestedTo = initialRangeTo ?? new URLSearchParams(window.location.search).get('to') ?? month.to;
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
-  const [rangeFrom, setRangeFrom] = useState(initialDoc?.rangeFrom ?? month.from);
-  const [rangeTo, setRangeTo] = useState(initialDoc?.rangeTo ?? month.to);
+  const [rangeFrom, setRangeFrom] = useState(initialDoc?.rangeFrom ?? requestedFrom);
+  const [rangeTo, setRangeTo] = useState(initialDoc?.rangeTo ?? requestedTo);
   const [lines, setLines] = useState<BillingDocumentLine[]>((initialDoc?.lines as BillingDocumentLine[]) ?? []);
   const [note, setNote] = useState(initialDoc?.note ?? '');
   const [savedId, setSavedId] = useState<number | null>(initialDoc?.id ?? null);
@@ -56,6 +69,7 @@ export default function BillingDocumentBuilder({
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [eligibilitySummary, setEligibilitySummary] = useState<BillingDraftEligibilitySummary | null>(null);
+  const [selectionError, setSelectionError] = useState<string | null>(null);
   // Selected export template. null = auto (customer/default for debit notes,
   // document-type default for payment statements), resolved + snapshotted server-side.
   const [templateId, setTemplateId] = useState<number | null>(initialDoc?.debitNoteTemplateId ?? null);
@@ -87,6 +101,14 @@ export default function BillingDocumentBuilder({
     return groups;
   }, [lines]);
 
+  const vatTotals = useMemo(() => lines.reduce((totals, line) => {
+    if (line.excluded) return totals;
+    totals.net += Number(line.netAmount ?? line.baseAmount ?? 0);
+    totals.tax += Number(line.taxAmount ?? 0);
+    totals.gross += Number(line.grossAmount ?? lineTotal(line));
+    return totals;
+  }, { net: 0, tax: 0, gross: 0 }), [lines]);
+
   useEffect(() => {
     if (!isOpen) {
       autoGenerateRef.current = false;
@@ -101,18 +123,19 @@ export default function BillingDocumentBuilder({
       setSavedId(initialDoc.id);
       setTemplateId(initialDoc.debitNoteTemplateId ?? null);
       setEligibilitySummary(null);
+      setSelectionError(null);
       return;
     }
 
-    const freshMonth = thisMonthRange();
-    setRangeFrom(freshMonth.from);
-    setRangeTo(freshMonth.to);
+    setRangeFrom(requestedFrom);
+    setRangeTo(requestedTo);
     setLines([]);
     setNote('');
     setSavedId(null);
     setTemplateId(null);
     setEligibilitySummary(null);
-  }, [isOpen, initialDoc]);
+    setSelectionError(null);
+  }, [isOpen, initialDoc, requestedFrom, requestedTo]);
 
   const generateDraft = async (from = rangeFrom, to = rangeTo, silent = false) => {
     setLoading(true);
@@ -124,10 +147,22 @@ export default function BillingDocumentBuilder({
         rangeFrom: from,
         rangeTo: to,
       });
-      setLines((draft.lines as BillingDocumentLine[]).map(normalizeLine));
+      const authoritativeLines = (draft.lines as BillingDocumentLine[]).map(normalizeLine);
+      const selection = type === 'DEBIT_NOTE'
+        ? filterAuthoritativeDebitNoteLines(authoritativeLines, requestedSelection)
+        : { lines: authoritativeLines, missingTripIds: [] };
+      const selectedLines = selection.lines;
+      const missingIds = selection.missingTripIds;
+      const nextSelectionError = missingIds.length > 0
+        ? `${missingIds.length} chuyến đã chọn không còn đủ điều kiện. Vui lòng quay lại danh sách vận tải và chọn lại.`
+        : null;
+      setSelectionError(nextSelectionError);
+      setLines(selectedLines);
       setEligibilitySummary(draft.eligibilitySummary ?? null);
       setSavedId(null);
-      if (!silent && draft.lines.length === 0) {
+      if (nextSelectionError) {
+        showToast({ kind: 'error', message: nextSelectionError });
+      } else if (!silent && selectedLines.length === 0) {
         showToast({ kind: 'info', message: 'Không có dòng công nợ trong khoảng ngày đã chọn.' });
       }
     } catch (err) {
@@ -141,8 +176,7 @@ export default function BillingDocumentBuilder({
     if (!isOpen || isEdit) return;
     if (autoGenerateRef.current) return;
     autoGenerateRef.current = true;
-    const freshMonth = thisMonthRange();
-    void generateDraft(freshMonth.from, freshMonth.to, true);
+    void generateDraft(requestedFrom, requestedTo, true);
     // Auto-generate only once per open. generateDraft intentionally stays out
     // of deps because it changes with range state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -184,16 +218,50 @@ export default function BillingDocumentBuilder({
     setSavedId(null);
   };
 
-  const buildPayload = () => ({
-    type,
-    entityType,
-    entityId,
-    entityName,
-    rangeFrom,
-    rangeTo,
-    note: note.trim() || null,
-    debitNoteTemplateId: templateId,
-    lines: lines.map((line, index) => ({
+  const buildPayload = (): SaveBillingDocumentInput => {
+    const common = {
+      entityId,
+      entityName,
+      rangeFrom,
+      rangeTo,
+      note: note.trim() || null,
+      debitNoteTemplateId: templateId,
+    };
+    if (type === 'DEBIT_NOTE') {
+      if (entityType !== 'CUSTOMER') throw new Error('Giấy báo nợ chỉ áp dụng cho khách hàng.');
+      return {
+        ...common,
+        type: 'DEBIT_NOTE',
+        entityType: 'CUSTOMER',
+        sourceRefs: lines.map((line) => {
+          if (line.sourceType === 'TRIP') {
+            if (!line.sourceId || !line.financialPostingId || !line.financialPostingVersion || !line.postingChecksum) {
+              throw new Error('Dòng chuyến thiếu nguồn hạch toán. Vui lòng lọc lại dữ liệu.');
+            }
+            return {
+              sourceType: 'TRIP' as const,
+              sourceId: line.sourceId,
+              financialPostingId: line.financialPostingId,
+              financialPostingVersion: line.financialPostingVersion,
+              postingChecksum: line.postingChecksum,
+            };
+          }
+          if (line.sourceType !== 'EXPENSE' || !line.sourceId || !line.renderData?.sourceVersion) {
+            throw new Error('Giấy báo nợ chỉ nhận nguồn chuyến hoặc chi phí đã được phê duyệt.');
+          }
+          return {
+            sourceType: 'EXPENSE' as const,
+            sourceId: line.sourceId,
+            sourceVersion: line.renderData.sourceVersion,
+          };
+        }),
+      };
+    }
+    return {
+      ...common,
+      type: 'PAYMENT_STATEMENT',
+      entityType,
+      lines: lines.map((line, index) => ({
       sourceType: line.sourceType,
       sourceId: line.sourceId,
       lineType: line.lineType,
@@ -207,10 +275,15 @@ export default function BillingDocumentBuilder({
       amountOverride: line.amountOverride != null ? Number(line.amountOverride) : null,
       excluded: line.excluded ?? false,
       sortOrder: index,
-    })),
-  });
+      })),
+    };
+  };
 
   const persistDocument = async ({ notify = true }: { notify?: boolean } = {}): Promise<BillingDocument | null> => {
+    if (selectionError) {
+      showToast({ kind: 'error', message: selectionError });
+      return null;
+    }
     if (lines.length === 0) {
       showToast({ kind: 'error', message: 'Chưa có dòng nào để lưu. Hãy lọc dòng hoặc thêm dòng trước.' });
       return null;
@@ -342,10 +415,12 @@ export default function BillingDocumentBuilder({
               Lọc lại
             </button>
           </div>
-          <button className="btn btn--ghost" type="button" onClick={addAdhoc} disabled={busy}>
-            <Plus size={15} />
-            Thêm dòng
-          </button>
+          {type === 'PAYMENT_STATEMENT' && (
+            <button className="btn btn--ghost" type="button" onClick={addAdhoc} disabled={busy}>
+              <Plus size={15} />
+              Thêm dòng trình bày
+            </button>
+          )}
         </section>
 
         <section className="billing-builder__content">
@@ -385,7 +460,7 @@ export default function BillingDocumentBuilder({
               <div className="billing-builder__state billing-builder__state--empty">
                 <AssetIcon name="document" size={46} />
                 <strong>Không có dòng công nợ trong khoảng ngày này</strong>
-                <span>Đổi khoảng ngày hoặc thêm dòng thủ công nếu cần tạo tài liệu ngoài dữ liệu hệ thống.</span>
+                <span>Đổi khoảng ngày để lấy lại các nguồn hạch toán đủ điều kiện.</span>
               </div>
             ) : (
               <>
@@ -462,7 +537,7 @@ export default function BillingDocumentBuilder({
                                         className="input billing-builder__text-field"
                                         value={line.description}
                                         rows={1}
-                                        disabled={busy}
+                                        disabled={busy || type === 'DEBIT_NOTE'}
                                         onChange={(e) => updateLine(index, { description: e.target.value })}
                                       />
                                     </td>
@@ -471,7 +546,7 @@ export default function BillingDocumentBuilder({
                                         className="input billing-builder__text-field"
                                         value={line.typeLabel}
                                         rows={1}
-                                        disabled={busy}
+                                        disabled={busy || type === 'DEBIT_NOTE'}
                                         onChange={(e) => updateLine(index, { typeLabel: e.target.value })}
                                       />
                                     </td>
@@ -481,7 +556,7 @@ export default function BillingDocumentBuilder({
                                         style={{ textAlign: 'center' }}
                                         value={line.unit}
                                         rows={1}
-                                        disabled={busy}
+                                        disabled={busy || type === 'DEBIT_NOTE'}
                                         onChange={(e) => updateLine(index, { unit: e.target.value })}
                                       />
                                     </td>
@@ -490,14 +565,16 @@ export default function BillingDocumentBuilder({
                                         type="number"
                                         className="input mono billing-builder__amount"
                                         value={amount}
-                                        disabled={busy}
-                                        onChange={(e) => updateLine(index, { amountOverride: e.target.value === '' ? null : Number(e.target.value) })}
+                                        disabled
+                                        readOnly
                                       />
                                     </td>
                                     <td className="billing-builder__row-actions">
-                                      <button className="billing-builder__action billing-builder__action--delete" type="button" onClick={() => removeLine(index)} disabled={busy} aria-label={`${line.excluded ? 'Khôi phục' : 'Xóa'} dòng ${index + 1}`}>
-                                        {line.excluded ? <RotateCcw size={15} /> : <Trash2 size={15} />}
-                                      </button>
+                                      {type === 'PAYMENT_STATEMENT' && (
+                                        <button className="billing-builder__action billing-builder__action--delete" type="button" onClick={() => removeLine(index)} disabled={busy} aria-label={`${line.excluded ? 'Khôi phục' : 'Xóa'} dòng ${index + 1}`}>
+                                          {line.excluded ? <RotateCcw size={15} /> : <Trash2 size={15} />}
+                                        </button>
+                                      )}
                                     </td>
                                   </tr>
                                 );
@@ -549,7 +626,7 @@ export default function BillingDocumentBuilder({
                                       className="input billing-builder__text-field"
                                       value={line.description}
                                       rows={2}
-                                      disabled={busy}
+                                      disabled={busy || type === 'DEBIT_NOTE'}
                                       onChange={(e) => updateLine(index, { description: e.target.value })}
                                     />
                                     <div className="billing-builder__mobile-row">
@@ -558,7 +635,7 @@ export default function BillingDocumentBuilder({
                                         className="input billing-builder__text-field"
                                         value={line.typeLabel}
                                         rows={1}
-                                        disabled={busy}
+                                        disabled={busy || type === 'DEBIT_NOTE'}
                                         onChange={(e) => updateLine(index, { typeLabel: e.target.value })}
                                       />
                                     </div>
@@ -568,7 +645,7 @@ export default function BillingDocumentBuilder({
                                         className="input billing-builder__text-field"
                                         value={line.unit}
                                         rows={1}
-                                        disabled={busy}
+                                        disabled={busy || type === 'DEBIT_NOTE'}
                                         onChange={(e) => updateLine(index, { unit: e.target.value })}
                                       />
                                     </div>
@@ -579,13 +656,15 @@ export default function BillingDocumentBuilder({
                                           type="number"
                                           className="input mono billing-builder__amount"
                                           value={amount}
-                                          disabled={busy}
-                                          onChange={(e) => updateLine(index, { amountOverride: e.target.value === '' ? null : Number(e.target.value) })}
+                                          disabled
+                                          readOnly
                                         />
                                       </label>
-                                      <button className="billing-builder__action billing-builder__action--delete" type="button" onClick={() => removeLine(index)} disabled={busy} aria-label={`${line.excluded ? 'Khôi phục' : 'Xóa'} dòng ${index + 1}`}>
-                                        {line.excluded ? <RotateCcw size={17} /> : <Trash2 size={17} />}
-                                      </button>
+                                      {type === 'PAYMENT_STATEMENT' && (
+                                        <button className="billing-builder__action billing-builder__action--delete" type="button" onClick={() => removeLine(index)} disabled={busy} aria-label={`${line.excluded ? 'Khôi phục' : 'Xóa'} dòng ${index + 1}`}>
+                                          {line.excluded ? <RotateCcw size={17} /> : <Trash2 size={17} />}
+                                        </button>
+                                      )}
                                     </div>
                                   </div>
                                 );
@@ -600,6 +679,14 @@ export default function BillingDocumentBuilder({
               </>
             )}
           </div>
+
+          {type === 'DEBIT_NOTE' && lines.length > 0 && (
+            <section aria-label="Tổng hợp VAT" style={{ display: 'grid', gap: 8, marginTop: 16, justifyContent: 'end' }}>
+              <span>Tiền trước VAT: <strong className="mono">{formatCurrency(vatTotals.net)}</strong></span>
+              <span>VAT: <strong className="mono">{formatCurrency(vatTotals.tax)}</strong></span>
+              <span>Tổng thanh toán: <strong className="mono">{formatCurrency(vatTotals.gross)}</strong></span>
+            </section>
+          )}
 
           <label className="billing-builder__note">
             <span>Ghi chú</span>

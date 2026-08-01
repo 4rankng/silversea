@@ -23,7 +23,6 @@ export interface AuthUser {
   /** Clerk scope: explicit shipment assignments. */
   shipmentIds?: number[];
   capabilities?: string[];
-  workflowRolloutMode?: 'OFF' | 'SHADOW' | 'ACTIVE';
   /** Assistant (bot) enabled for this deployment (BOT_ENABLE). Launcher hides when false. */
   botEnabled?: boolean;
   /** Onboarding tutorial enabled app-wide (admin toggle). Checklist panel + tours hide when false. */
@@ -42,6 +41,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType>(null!);
 const PENDING_LOGOUT_TOKENS_KEY = 'pending_logout_tokens';
+const AUTH_API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
 function clearUserScopedQueries(queryClient: ReturnType<typeof useQueryClient>): void {
   const authMeHash = hashKey(qk.auth.me);
@@ -74,7 +74,7 @@ function enqueuePendingLogoutToken(token: string): void {
 }
 
 async function revokeToken(token: string): Promise<void> {
-  const response = await fetch('/api/auth/logout', {
+  const response = await fetch(`${AUTH_API_BASE}/auth/logout`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,

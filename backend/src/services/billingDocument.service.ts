@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { eq, and, gte, lte, isNull, inArray, desc, or, sql, like, type SQL } from 'drizzle-orm';
@@ -42,6 +43,8 @@ import type {
   DebitNoteTemplateColumn,
   DebitNoteTemplateSnapshot,
   BillingDocumentOfficialIdentitySnapshot,
+  BillingVatRate,
+  BillingVatTreatment,
 } from '@tingting/shared';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -66,6 +69,13 @@ type BillingPartyInfo = {
   phone: string;
 };
 
+type TripClaimSeed = {
+  tripId: number;
+  financialPostingId: number;
+  financialPostingVersion: number;
+  postingChecksum: string;
+};
+
 type OfficialBillingIdentitySnapshot = BillingDocumentOfficialIdentitySnapshot;
 type DraftBuildResult = {
   lines: BillingDraftLine[];
@@ -79,6 +89,15 @@ type FrozenDebitNoteTemplateSnapshot = DebitNoteTemplateSnapshot & {
 
 function trimIdentityValue(value: string | null | undefined): string {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function isConstraintConflict(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const candidate = err as { code?: string; cause?: { code?: string } };
+  return candidate.code === '23505'
+    || candidate.cause?.code === '23505'
+    || candidate.code === '23P01'
+    || candidate.cause?.code === '23P01';
 }
 
 function stripHonorifics(value: string): string {
@@ -133,17 +152,214 @@ function tripSourceIds(lines: readonly BillingDocumentLine[]): number[] {
     .sort((left, right) => left - right);
 }
 
-async function persistedTripSourceIds(tx: Tx, documentId: number): Promise<number[]> {
-  const rows = await tx.select({ tripId: s.billingDocumentLines.sourceId })
+async function previewRecoverableTripIds(
+  tx: Tx,
+  lines: readonly BillingDocumentLine[],
+): Promise<number[]> {
+  const expenseIds = recoverableExpenseLines(lines)
+    .map((line) => line.sourceId as number)
+    .sort((left, right) => left - right);
+  if (expenseIds.length === 0) return [];
+  const rows = await tx.select({
+    tripId: s.tripExpenses.tripId,
+  })
+    .from(s.tripExpenses)
+    .where(inArray(s.tripExpenses.id, expenseIds));
+  return [...new Set(rows
+    .map((row) => row.tripId)
+    .filter((tripId): tripId is number => tripId != null))]
+    .sort((left, right) => left - right);
+}
+
+async function persistedClaimTripIds(
+  tx: Tx,
+  documentId: number,
+): Promise<number[]> {
+  const claimRows = await tx.select({
+    tripId: s.billingDocumentTripClaims.tripId,
+  })
+    .from(s.billingDocumentTripClaims)
+    .where(and(
+      eq(s.billingDocumentTripClaims.documentId, documentId),
+      isNull(s.billingDocumentTripClaims.releasedAt),
+    ));
+  const activeTripIds = [...new Set(claimRows.map((row) => row.tripId))].sort((left, right) => left - right);
+  if (activeTripIds.length > 0) return activeTripIds;
+
+  const tripLineRows = await tx.select({
+    tripId: s.billingDocumentLines.sourceId,
+  })
     .from(s.billingDocumentLines)
     .where(and(
       eq(s.billingDocumentLines.documentId, documentId),
       eq(s.billingDocumentLines.sourceType, 'TRIP'),
     ));
-  return [...new Set(rows
-    .map(row => row.tripId)
-    .filter((tripId): tripId is number => tripId != null))]
-    .sort((left, right) => left - right);
+  const tripIds = tripLineRows
+    .map((row) => row.tripId)
+    .filter((tripId): tripId is number => tripId != null);
+  const expenseRows = await tx.select({
+    tripId: s.tripExpenses.tripId,
+  })
+    .from(s.billingDocumentLines)
+    .innerJoin(s.tripExpenses, eq(s.billingDocumentLines.sourceId, s.tripExpenses.id))
+    .where(and(
+      eq(s.billingDocumentLines.documentId, documentId),
+      eq(s.billingDocumentLines.sourceType, 'EXPENSE'),
+      eq(s.billingDocumentLines.excluded, false),
+    ));
+  return [...new Set([
+    ...tripIds,
+    ...expenseRows
+      .map((row) => row.tripId)
+      .filter((tripId): tripId is number => tripId != null),
+  ])].sort((left, right) => left - right);
+}
+
+async function loadConflictingTripClaim(
+  tx: Tx,
+  input: {
+    tripIds: readonly number[];
+    rangeFrom: string;
+    rangeTo: string;
+    documentId: number;
+  },
+) {
+  if (input.tripIds.length === 0) return null;
+  const [conflict] = await tx.select({
+    tripId: s.billingDocumentTripClaims.tripId,
+    documentId: s.billingDocumentTripClaims.documentId,
+    tripCode: s.trips.tripCode,
+  })
+    .from(s.billingDocumentTripClaims)
+    .innerJoin(s.trips, eq(s.billingDocumentTripClaims.tripId, s.trips.id))
+    .where(and(
+      inArray(s.billingDocumentTripClaims.tripId, [...input.tripIds]),
+      isNull(s.billingDocumentTripClaims.releasedAt),
+      sql`${s.billingDocumentTripClaims.documentId} <> ${input.documentId}`,
+      sql`${s.billingDocumentTripClaims.rangeFrom} <= ${input.rangeTo}`,
+      sql`${s.billingDocumentTripClaims.rangeTo} >= ${input.rangeFrom}`,
+    ))
+    .orderBy(s.billingDocumentTripClaims.tripId, s.billingDocumentTripClaims.documentId)
+    .limit(1);
+  return conflict ?? null;
+}
+
+async function replaceActiveTripClaims(
+  tx: Tx,
+  input: {
+    documentId: number;
+    rangeFrom: string;
+    rangeTo: string;
+    actorUserId: number | null;
+    desiredClaims: readonly TripClaimSeed[];
+  },
+): Promise<void> {
+  const desiredByTripId = new Map<number, TripClaimSeed>();
+  for (const claim of input.desiredClaims) {
+    desiredByTripId.set(claim.tripId, claim);
+  }
+
+  const currentClaims = await tx.select({
+    id: s.billingDocumentTripClaims.id,
+    tripId: s.billingDocumentTripClaims.tripId,
+    financialPostingId: s.billingDocumentTripClaims.financialPostingId,
+    financialPostingVersion: s.billingDocumentTripClaims.financialPostingVersion,
+    postingChecksum: s.billingDocumentTripClaims.postingChecksum,
+  })
+    .from(s.billingDocumentTripClaims)
+    .where(and(
+      eq(s.billingDocumentTripClaims.documentId, input.documentId),
+      isNull(s.billingDocumentTripClaims.releasedAt),
+    ))
+    .orderBy(s.billingDocumentTripClaims.tripId)
+    .for('update');
+
+  const conflict = await loadConflictingTripClaim(tx, {
+    tripIds: [...desiredByTripId.keys()],
+    rangeFrom: input.rangeFrom,
+    rangeTo: input.rangeTo,
+    documentId: input.documentId,
+  });
+  if (conflict) {
+    throw new ApiError(
+      409,
+      `Chuyến ${conflict.tripCode ?? `#${conflict.tripId}`} đã thuộc Giấy báo nợ #${conflict.documentId} trong kỳ bị chồng lấn.`,
+    );
+  }
+
+  const currentByTripId = new Map(currentClaims.map((claim) => [claim.tripId, claim]));
+  const releaseIds = currentClaims
+    .filter((claim) => !desiredByTripId.has(claim.tripId))
+    .map((claim) => claim.id);
+  if (releaseIds.length > 0) {
+    await tx.update(s.billingDocumentTripClaims)
+      .set({
+        releasedAt: new Date(),
+        releasedBy: input.actorUserId,
+        releaseReason: 'SOURCE_REMOVED',
+      })
+      .where(inArray(s.billingDocumentTripClaims.id, releaseIds));
+  }
+
+  for (const [tripId, desired] of desiredByTripId) {
+    const current = currentByTripId.get(tripId);
+    if (!current) continue;
+    if (
+      current.financialPostingId !== desired.financialPostingId
+      || current.financialPostingVersion !== desired.financialPostingVersion
+      || current.postingChecksum !== desired.postingChecksum
+    ) {
+      await tx.update(s.billingDocumentTripClaims)
+        .set({
+          rangeFrom: input.rangeFrom,
+          rangeTo: input.rangeTo,
+          financialPostingId: desired.financialPostingId,
+          financialPostingVersion: desired.financialPostingVersion,
+          postingChecksum: desired.postingChecksum,
+        })
+        .where(eq(s.billingDocumentTripClaims.id, current.id));
+    } else {
+      await tx.update(s.billingDocumentTripClaims)
+        .set({
+          rangeFrom: input.rangeFrom,
+          rangeTo: input.rangeTo,
+        })
+        .where(eq(s.billingDocumentTripClaims.id, current.id));
+    }
+  }
+
+  const insertRows = [...desiredByTripId.values()]
+    .filter((claim) => !currentByTripId.has(claim.tripId))
+    .map((claim) => ({
+      documentId: input.documentId,
+      tripId: claim.tripId,
+      rangeFrom: input.rangeFrom,
+      rangeTo: input.rangeTo,
+      financialPostingId: claim.financialPostingId,
+      financialPostingVersion: claim.financialPostingVersion,
+      postingChecksum: claim.postingChecksum,
+      createdBy: input.actorUserId,
+    }));
+  if (insertRows.length === 0) return;
+
+  try {
+    await tx.insert(s.billingDocumentTripClaims).values(insertRows);
+  } catch (err) {
+    if (!isConstraintConflict(err)) throw err;
+    const freshConflict = await loadConflictingTripClaim(tx, {
+      tripIds: insertRows.map((row) => row.tripId),
+      rangeFrom: input.rangeFrom,
+      rangeTo: input.rangeTo,
+      documentId: input.documentId,
+    });
+    if (freshConflict) {
+      throw new ApiError(
+        409,
+        `Chuyến ${freshConflict.tripCode ?? `#${freshConflict.tripId}`} đã thuộc Giấy báo nợ #${freshConflict.documentId} trong kỳ bị chồng lấn.`,
+      );
+    }
+    throw new ApiError(409, 'Nguồn chuyến vừa bị tài liệu khác nhận trước. Vui lòng tải lại và thử lại.');
+  }
 }
 
 export function assertDraftDocumentLinesEditable(status: string | null): void {
@@ -156,8 +372,66 @@ export function assertDraftDocumentLinesEditable(status: string | null): void {
 }
 
 /** Effective incl-VAT amount for a line: excluded → 0, else override ?? base. */
-export function effectiveAmount(line: { excluded?: boolean | null; baseAmount: number; amountOverride?: number | null }): number {
+const VAT_TREATMENT_VERSION = 'VAT-V1' as const;
+const ALLOWED_VAT_RATES = new Set<number>([0, 0.05, 0.08, 0.10]);
+
+export function postingChecksum(posting: {
+  id: number;
+  tripId: number;
+  version: number;
+  tripVersion: number;
+  reason: string;
+  effectiveAt: Date | string;
+}): string {
+  return createHash('sha256').update(JSON.stringify({
+    id: posting.id,
+    tripId: posting.tripId,
+    version: posting.version,
+    tripVersion: posting.tripVersion,
+    reason: posting.reason,
+    effectiveAt: posting.effectiveAt instanceof Date
+      ? posting.effectiveAt.toISOString()
+      : new Date(posting.effectiveAt).toISOString(),
+  })).digest('hex');
+}
+
+function normalizeVatRate(value: string | number | null | undefined): BillingVatRate {
+  const rate = Number(value ?? 0);
+  if (!ALLOWED_VAT_RATES.has(rate)) {
+    throw new ApiError(409, `Thuế suất VAT ${rate} không thuộc chính sách đang hiệu lực.`);
+  }
+  return rate as BillingVatRate;
+}
+
+export function calculateVatSnapshot(
+  grossAmount: number,
+  rateInput: string | number | null | undefined,
+  treatmentInput?: BillingVatTreatment,
+) {
+  const gross = Math.round(Number(grossAmount));
+  if (!Number.isFinite(gross) || gross < 0) throw new ApiError(409, 'Giá trị gồm VAT không hợp lệ.');
+  const rate = normalizeVatRate(rateInput);
+  const treatment = treatmentInput ?? (rate === 0 ? 'ZERO_RATED' : 'STANDARD');
+  if ((treatment === 'STANDARD') !== (rate > 0)) {
+    throw new ApiError(409, 'Cách xử lý VAT không khớp thuế suất.');
+  }
+  const net = treatment === 'STANDARD'
+    ? Math.floor(gross / (1 + rate) + 0.5)
+    : gross;
+  const tax = gross - net;
+  return {
+    vatTreatment: treatment,
+    vatRate: rate,
+    vatTreatmentVersion: VAT_TREATMENT_VERSION,
+    netAmount: net,
+    taxAmount: tax,
+    grossAmount: gross,
+  } as const;
+}
+
+export function effectiveAmount(line: { excluded?: boolean | null; baseAmount: number; amountOverride?: number | null; grossAmount?: number | null }): number {
   if (line.excluded) return 0;
+  if (line.grossAmount != null) return Number(line.grossAmount);
   const override = line.amountOverride;
   return override != null ? Number(override) : Number(line.baseAmount);
 }
@@ -166,21 +440,30 @@ export function docTotal(lines: BillingDocumentLine[]): number {
   return lines.reduce((sum, l) => sum + effectiveAmount(l), 0);
 }
 
+function documentVatTotals(lines: readonly BillingDocumentLine[]) {
+  return lines.reduce((totals, line) => {
+    if (line.excluded) return totals;
+    totals.net += Number(line.netAmount ?? line.baseAmount ?? 0);
+    totals.tax += Number(line.taxAmount ?? 0);
+    totals.gross += Number(line.grossAmount ?? effectiveAmount(line));
+    return totals;
+  }, { net: 0, tax: 0, gross: 0 });
+}
+
 /**
  * Amount this debit note adds to (or removes from) AR beyond the amounts that
- * the trip lifecycle already posted. Source-backed rows contribute only their
- * override/exclusion delta; ad-hoc rows contribute their full effective value.
+ * trip-lock authority already posted. Freight and approved recoverable fees
+ * contribute only their governed delta; ad-hoc rows contribute in full.
  */
 export function documentLedgerAdjustment(lines: BillingDocumentLine[]): number {
   return Math.round(lines.reduce((sum, line) => {
     const effective = effectiveAmount(line);
-    // Trip revenue is already posted by the trip-close authority. Recoverable
-    // expenses are not, so they contribute their full governed customer amount
-    // exactly once when the Debit Note is issued.
+    // Trip revenue and approved sell-side recoverable fees are both posted by
+    // trip-lock authority. A Debit Note must never post either source twice.
     return sum + (
-      line.sourceType === 'TRIP'
-        ? effective - Number(line.baseAmount)
-        : effective
+      line.sourceType === 'ADHOC'
+        ? effective
+        : effective - Number(line.baseAmount)
     );
   }, 0));
 }
@@ -220,19 +503,18 @@ export async function assertRecoverableSourcesClaimable(
     lines: readonly BillingDocumentLine[];
     actorUserId: number | null;
   },
-): Promise<void> {
+): Promise<TripClaimSeed[]> {
   const sourceLines = recoverableExpenseLines(input.lines);
   const expenseIds = sourceLines
     .map((line) => line.sourceId as number)
     .sort((left, right) => left - right);
-  if (new Set(expenseIds).size !== expenseIds.length) {
-    throw new ApiError(409, 'Một chi phí thu hộ chỉ được xuất hiện một lần trên Giấy báo nợ.');
-  }
-
   if (expenseIds.length === 0) {
     await tx.delete(s.billingDocumentRecoverableClaims)
       .where(eq(s.billingDocumentRecoverableClaims.documentId, input.documentId));
-    return;
+    return [];
+  }
+  if (new Set(expenseIds).size !== expenseIds.length) {
+    throw new ApiError(409, 'Một chi phí thu hộ chỉ được xuất hiện một lần trên Giấy báo nợ.');
   }
 
   const expenses = await tx.select({
@@ -250,12 +532,26 @@ export async function assertRecoverableSourcesClaimable(
     noInvoiceEvidenceTypes: s.tripExpenses.noInvoiceEvidenceTypes,
     updatedAt: s.tripExpenses.updatedAt,
     tripId: s.tripExpenses.tripId,
+    tripCode: s.trips.tripCode,
+    tripStatus: s.trips.status,
+    tripVersion: s.trips.version,
+    financialPostingId: s.tripFinancialPostings.id,
+    financialPostingVersion: s.tripFinancialPostings.version,
+    financialPostingTripVersion: s.tripFinancialPostings.tripVersion,
+    financialPostingReason: s.tripFinancialPostings.reason,
+    financialPostingEffectiveAt: s.tripFinancialPostings.effectiveAt,
     tripCustomerId: s.trips.customerId,
     shipmentId: s.trips.shipmentId,
+    fulfillmentId: s.trips.fulfillmentId,
+    completionDate: sql<string | null>`to_char(${s.trips.completedAt} at time zone 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD')`,
     shipmentCustomerId: s.shipments.customerId,
   })
     .from(s.tripExpenses)
     .innerJoin(s.trips, eq(s.tripExpenses.tripId, s.trips.id))
+    .innerJoin(s.tripFinancialPostings, and(
+      eq(s.tripFinancialPostings.tripId, s.trips.id),
+      eq(s.tripFinancialPostings.status, 'ACTIVE'),
+    ))
     .innerJoin(s.shipments, eq(s.trips.shipmentId, s.shipments.id))
     .where(and(
       inArray(s.tripExpenses.id, expenseIds),
@@ -267,13 +563,22 @@ export async function assertRecoverableSourcesClaimable(
   if (expenses.length !== expenseIds.length) {
     throw new ApiError(409, 'Có chi phí không còn gắn với lô hàng hợp lệ. Vui lòng tạo lại bản nháp.');
   }
+  const latestPodByTrip = await loadLatestPodStatusByTrip(
+    [...new Set(expenses
+      .map((expense) => expense.tripId)
+      .filter((tripId): tripId is number => tripId != null))],
+    tx,
+  );
 
   const existingClaims = await tx.select({
     expenseId: s.billingDocumentRecoverableClaims.expenseId,
     documentId: s.billingDocumentRecoverableClaims.documentId,
   })
     .from(s.billingDocumentRecoverableClaims)
-    .where(inArray(s.billingDocumentRecoverableClaims.expenseId, expenseIds));
+    .where(and(
+      inArray(s.billingDocumentRecoverableClaims.expenseId, expenseIds),
+      isNull(s.billingDocumentRecoverableClaims.releasedAt),
+    ));
   const competing = existingClaims.find((claim) => claim.documentId !== input.documentId);
   if (competing) {
     throw new ApiError(
@@ -283,6 +588,7 @@ export async function assertRecoverableSourcesClaimable(
   }
 
   const lineByExpense = new Map(sourceLines.map((line) => [line.sourceId as number, line]));
+  const tripClaimsByTripId = new Map<number, TripClaimSeed>();
   const claimRows = expenses.map((expense) => {
     const line = lineByExpense.get(expense.id)!;
     const sellAmount = Number(expense.sellAmount ?? 0);
@@ -305,12 +611,28 @@ export async function assertRecoverableSourcesClaimable(
         `Chi phí #${expense.id} chưa đủ điều kiện thu lại khách hàng hoặc chưa phân loại tiền chi hộ/phí dịch vụ.`,
       );
     }
+    if (expense.tripId == null) {
+      throw new ApiError(409, `Chi phí #${expense.id} không còn gắn chuyến hợp lệ. Vui lòng tạo lại bản nháp.`);
+    }
     if (
       expense.tripCustomerId !== input.customerId
       || expense.shipmentCustomerId !== input.customerId
       || expense.shipmentId == null
     ) {
       throw new ApiError(409, `Chi phí #${expense.id} không thuộc đúng khách hàng của Giấy báo nợ.`);
+    }
+    const blockedReason = buildTripBlockedReason({
+      customerId: expense.tripCustomerId,
+      shipmentId: expense.shipmentId,
+      fulfillmentId: expense.fulfillmentId,
+      shipmentCustomerId: expense.shipmentCustomerId,
+      status: expense.tripStatus ?? '',
+    }, input.customerId, latestPodByTrip.get(expense.tripId));
+    if (blockedReason) {
+      throw new ApiError(
+        409,
+        `Chi phí #${expense.id} thuộc chuyến ${expense.tripCode ?? `#${expense.tripId}`} không đủ điều kiện xuất Giấy báo nợ: ${blockedReason}`,
+      );
     }
     if (!expense.expenseDate || expense.expenseDate < input.rangeFrom || expense.expenseDate > input.rangeTo) {
       throw new ApiError(409, `Ngày chi phí #${expense.id} nằm ngoài kỳ của Giấy báo nợ.`);
@@ -324,6 +646,19 @@ export async function assertRecoverableSourcesClaimable(
     ) {
       throw new ApiError(409, `Số tiền chi phí #${expense.id} không khớp nguồn đã phê duyệt.`);
     }
+    tripClaimsByTripId.set(expense.tripId, {
+      tripId: expense.tripId,
+      financialPostingId: expense.financialPostingId,
+      financialPostingVersion: expense.financialPostingVersion,
+      postingChecksum: postingChecksum({
+        id: expense.financialPostingId,
+        tripId: expense.tripId,
+        version: expense.financialPostingVersion,
+        tripVersion: expense.financialPostingTripVersion,
+        reason: expense.financialPostingReason,
+        effectiveAt: expense.financialPostingEffectiveAt,
+      }),
+    });
     return {
       documentId: input.documentId,
       expenseId: expense.id,
@@ -350,6 +685,7 @@ export async function assertRecoverableSourcesClaimable(
   await tx.delete(s.billingDocumentRecoverableClaims)
     .where(eq(s.billingDocumentRecoverableClaims.documentId, input.documentId));
   await tx.insert(s.billingDocumentRecoverableClaims).values(claimRows);
+  return [...tripClaimsByTripId.values()].sort((left, right) => left.tripId - right.tripId);
 }
 
 async function assertTripSourcesClaimable(
@@ -360,12 +696,12 @@ async function assertTripSourcesClaimable(
     rangeTo: string;
     lines: readonly BillingDocumentLine[];
   },
-): Promise<void> {
+): Promise<TripClaimSeed[]> {
   const sourceLines = input.lines.filter((line) => line.sourceType === 'TRIP' && line.sourceId != null);
   const tripIds = sourceLines
     .map((line) => line.sourceId as number)
     .sort((left, right) => left - right);
-  if (tripIds.length === 0) return;
+  if (tripIds.length === 0) return [];
   if (new Set(tripIds).size !== tripIds.length) {
     throw new ApiError(409, 'Một chuyến chỉ được xuất hiện một lần trên Giấy báo nợ.');
   }
@@ -378,7 +714,7 @@ async function assertTripSourcesClaimable(
     fulfillmentId: s.trips.fulfillmentId,
     status: s.trips.status,
     departureDate: s.trips.departureDate,
-    completionDate: sql<string | null>`to_char(${s.trips.completedAt}, 'YYYY-MM-DD')`,
+    completionDate: sql<string | null>`to_char(${s.trips.completedAt} at time zone 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD')`,
     revenue: s.trips.revenue,
     routeName: s.routes.name,
     notes: s.trips.notes,
@@ -386,7 +722,13 @@ async function assertTripSourcesClaimable(
     trailerPlateNumber: s.trailers.licensePlate,
     externalPlateNumber: s.trips.externalPlateNumber,
     version: s.trips.version,
+    vatRate: s.trips.vatRate,
     updatedAt: s.trips.updatedAt,
+    financialPostingId: s.tripFinancialPostings.id,
+    financialPostingVersion: s.tripFinancialPostings.version,
+    financialPostingTripVersion: s.tripFinancialPostings.tripVersion,
+    financialPostingReason: s.tripFinancialPostings.reason,
+    financialPostingEffectiveAt: s.tripFinancialPostings.effectiveAt,
     shipmentCustomerId: s.shipments.customerId,
     tradeDirection: s.shipments.tradeDirection,
     billNumber: s.shipments.blNumber,
@@ -396,6 +738,10 @@ async function assertTripSourcesClaimable(
     packageCount: s.shipments.packageCount,
     packageType: s.shipments.packageType,
   }).from(s.trips)
+    .innerJoin(s.tripFinancialPostings, and(
+      eq(s.tripFinancialPostings.tripId, s.trips.id),
+      eq(s.tripFinancialPostings.status, 'ACTIVE'),
+    ))
     .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
     .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
     .leftJoin(s.trailers, eq(s.trips.trailerId, s.trailers.id))
@@ -412,6 +758,7 @@ async function assertTripSourcesClaimable(
 
   const latestPodByTrip = await loadLatestPodStatusByTrip(tripIds, tx);
   const tripById = new Map(trips.map((trip) => [trip.id, trip]));
+  const claims: TripClaimSeed[] = [];
   for (const line of sourceLines) {
     const tripId = line.sourceId as number;
     const trip = tripById.get(tripId);
@@ -431,14 +778,32 @@ async function assertTripSourcesClaimable(
         `Chuyến ${trip.tripCode ?? `#${trip.id}`} không có ngày hoàn thành nằm trong kỳ Giấy báo nợ.`,
       );
     }
-    const sourceVersion = buildTripSourceVersionToken(trip.version);
-    if (!sourceVersion || renderSourceVersion(line) !== sourceVersion) {
-      throw new ApiError(409, `Chuyến ${trip.tripCode ?? `#${trip.id}`} đã thay đổi. Vui lòng tạo lại bản nháp.`);
+    const checksum = postingChecksum({
+      id: trip.financialPostingId,
+      tripId: trip.id,
+      version: trip.financialPostingVersion,
+      tripVersion: trip.financialPostingTripVersion,
+      reason: trip.financialPostingReason,
+      effectiveAt: trip.financialPostingEffectiveAt,
+    });
+    if (
+      line.financialPostingId !== trip.financialPostingId
+      || line.financialPostingVersion !== trip.financialPostingVersion
+      || line.postingChecksum !== checksum
+    ) {
+      throw new ApiError(409, `Nguồn hạch toán chuyến ${trip.tripCode ?? `#${trip.id}`} đã thay đổi. Vui lòng tạo lại bản nháp.`);
     }
     if (Number(line.baseAmount) !== Number(trip.revenue ?? 0)) {
       throw new ApiError(409, `Doanh thu chuyến ${trip.tripCode ?? `#${trip.id}`} không còn khớp nguồn hiện tại.`);
     }
+    claims.push({
+      tripId: trip.id,
+      financialPostingId: trip.financialPostingId,
+      financialPostingVersion: trip.financialPostingVersion,
+      postingChecksum: checksum,
+    });
   }
+  return claims;
 }
 
 function renderSourceVersion(line: Pick<BillingDocumentLine, 'renderData'>): string | null {
@@ -477,32 +842,33 @@ async function loadLineProvenance(
   const storedChangedAt = renderSourceChangedAt(line);
 
   if (line.sourceType === 'TRIP') {
-    const [trip] = await executor.select({
-      id: s.trips.id,
-      version: s.trips.version,
-      updatedAt: s.trips.updatedAt,
-    })
-      .from(s.trips)
-      .where(and(eq(s.trips.id, line.sourceId), isNull(s.trips.deletedAt)))
+    const [posting] = await executor.select().from(s.tripFinancialPostings)
+      .where(and(
+        eq(s.tripFinancialPostings.tripId, line.sourceId),
+        eq(s.tripFinancialPostings.status, 'ACTIVE'),
+      ))
       .limit(1);
 
-    if (!trip) {
+    if (!posting) {
       return {
-        sourceVersion: storedVersion,
+        sourceVersion: line.postingChecksum ?? storedVersion,
         currentSourceVersion: null,
         sourceChangedAt: storedChangedAt,
         status: 'REMOVED',
-        reason: 'Nguồn chuyến không còn tồn tại',
+        reason: 'Nguồn hạch toán chuyến không còn hiệu lực',
       };
     }
 
-    const currentVersion = buildTripSourceVersionToken(trip.version);
+    const currentVersion = postingChecksum(posting);
+    const isCurrent = line.financialPostingId === posting.id
+      && line.financialPostingVersion === posting.version
+      && line.postingChecksum === currentVersion;
     return {
-      sourceVersion: storedVersion,
+      sourceVersion: line.postingChecksum ?? storedVersion,
       currentSourceVersion: currentVersion,
-      sourceChangedAt: trip.updatedAt.toISOString(),
-      status: storedVersion === currentVersion ? 'CURRENT' : 'STALE',
-      reason: storedVersion === currentVersion ? null : 'Nguồn chuyến đã thay đổi sau khi lưu giấy báo nợ',
+      sourceChangedAt: posting.effectiveAt.toISOString(),
+      status: isCurrent ? 'CURRENT' : 'STALE',
+      reason: isCurrent ? null : 'Nguồn hạch toán chuyến đã thay đổi sau khi lưu giấy báo nợ',
     };
   }
 
@@ -800,8 +1166,8 @@ async function buildCustomerDebitLines(customerId: number, from: string, to: str
 
   const completionInRange = and(
     sql`${s.trips.completedAt} IS NOT NULL`,
-    gte(sql`DATE(${s.trips.completedAt})`, from),
-    lte(sql`DATE(${s.trips.completedAt})`, to),
+    gte(sql`(${s.trips.completedAt} at time zone 'Asia/Ho_Chi_Minh')::date`, from),
+    lte(sql`(${s.trips.completedAt} at time zone 'Asia/Ho_Chi_Minh')::date`, to),
   )!;
   const expenseInRange = sql`EXISTS (
     SELECT 1
@@ -819,7 +1185,7 @@ async function buildCustomerDebitLines(customerId: number, from: string, to: str
     fulfillmentId: s.trips.fulfillmentId,
     status: s.trips.status,
     departureDate: s.trips.departureDate,
-    completionDate: sql<string | null>`to_char(${s.trips.completedAt}, 'YYYY-MM-DD')`,
+    completionDate: sql<string | null>`to_char(${s.trips.completedAt} at time zone 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD')`,
     revenue: s.trips.revenue,
     routeName: s.routes.name,
     notes: s.trips.notes,
@@ -827,7 +1193,13 @@ async function buildCustomerDebitLines(customerId: number, from: string, to: str
     trailerPlateNumber: s.trailers.licensePlate,
     externalPlateNumber: s.trips.externalPlateNumber,
     version: s.trips.version,
+    vatRate: s.trips.vatRate,
     updatedAt: s.trips.updatedAt,
+    financialPostingId: s.tripFinancialPostings.id,
+    financialPostingVersion: s.tripFinancialPostings.version,
+    financialPostingTripVersion: s.tripFinancialPostings.tripVersion,
+    financialPostingReason: s.tripFinancialPostings.reason,
+    financialPostingEffectiveAt: s.tripFinancialPostings.effectiveAt,
     shipmentCustomerId: s.shipments.customerId,
     tradeDirection: s.shipments.tradeDirection,
     billNumber: s.shipments.blNumber,
@@ -837,6 +1209,10 @@ async function buildCustomerDebitLines(customerId: number, from: string, to: str
     packageCount: s.shipments.packageCount,
     packageType: s.shipments.packageType,
   }).from(s.trips)
+    .innerJoin(s.tripFinancialPostings, and(
+      eq(s.tripFinancialPostings.tripId, s.trips.id),
+      eq(s.tripFinancialPostings.status, 'ACTIVE'),
+    ))
     .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
     .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
     .leftJoin(s.trailers, eq(s.trips.trailerId, s.trailers.id))
@@ -877,6 +1253,7 @@ async function buildCustomerDebitLines(customerId: number, from: string, to: str
     const containers = containerNumbers(containerInfo);
     const unit = containerUnit(containerInfo);
     const renderData = buildTripRenderData({
+      tripId: trip.id,
       trip,
       containers: containerInfo,
       legs: legsByTrip.get(trip.id),
@@ -897,7 +1274,21 @@ async function buildCustomerDebitLines(customerId: number, from: string, to: str
       : null;
     renderData.sourceVersion = buildTripSourceVersionToken(trip.version);
     renderData.sourceChangedAt = trip.updatedAt.toISOString();
+    const checksum = postingChecksum({
+      id: trip.financialPostingId,
+      tripId: trip.id,
+      version: trip.financialPostingVersion,
+      tripVersion: trip.financialPostingTripVersion,
+      reason: trip.financialPostingReason,
+      effectiveAt: trip.financialPostingEffectiveAt,
+    });
+    renderData.financialPostingId = trip.financialPostingId;
+    renderData.financialPostingVersion = trip.financialPostingVersion;
+    renderData.postingChecksum = checksum;
+    renderData.sourceVersion = checksum;
+    renderData.sourceChangedAt = trip.financialPostingEffectiveAt.toISOString();
     if (trip.completionDate && trip.completionDate >= from && trip.completionDate <= to) {
+      const vat = calculateVatSnapshot(Number(trip.revenue ?? 0), trip.vatRate);
       lines.push({
         sourceType: 'TRIP', sourceId: trip.id, lineType: 'FREIGHT',
         // Trip code is NOT inlined here — it has its own "Số chứng từ" column
@@ -909,8 +1300,11 @@ async function buildCustomerDebitLines(customerId: number, from: string, to: str
         routeName: trip.routeName ?? null,
         containerNumbers: containers,
         renderData,
+        financialPostingId: trip.financialPostingId,
+        financialPostingVersion: trip.financialPostingVersion,
+        postingChecksum: checksum,
         baseAmount: Number(trip.revenue ?? 0),
-        amountOverride: null, excluded: false, sortOrder: sortOrder++,
+        amountOverride: null, excluded: false, ...vat, sortOrder: sortOrder++,
       });
     }
 
@@ -921,6 +1315,7 @@ async function buildCustomerDebitLines(customerId: number, from: string, to: str
     for (const fee of fees) {
       const amt = Number(fee.sellAmount ?? 0);
       if (amt <= 0) continue;
+      const vat = calculateVatSnapshot(amt, fee.vatRate);
       lines.push({
         sourceType: 'EXPENSE', sourceId: fee.id, lineType: 'SERVICE_FEE',
         description: fee.billingLabel ?? fee.name ?? fee.expenseType,
@@ -938,7 +1333,7 @@ async function buildCustomerDebitLines(customerId: number, from: string, to: str
           sourceVersion: buildExpenseSourceVersionToken(fee),
           sourceChangedAt: fee.updatedAt?.toISOString() ?? null,
         },
-        baseAmount: amt, amountOverride: null, excluded: false, sortOrder: sortOrder++,
+        baseAmount: amt, amountOverride: null, excluded: false, ...vat, sortOrder: sortOrder++,
       });
     }
   }
@@ -966,7 +1361,7 @@ async function buildCustomerPaymentStatementLines(customerId: number, from: stri
 
   const trips = await db.select({
     id: s.trips.id, tripCode: s.trips.tripCode, departureDate: s.trips.departureDate,
-    completionDate: sql<string | null>`to_char(${s.trips.completedAt}, 'YYYY-MM-DD')`,
+    completionDate: sql<string | null>`to_char(${s.trips.completedAt} at time zone 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD')`,
     revenue: s.trips.revenue, routeName: s.routes.name, notes: s.trips.notes,
     truckPlate: s.trucks.licensePlate, externalPlateNumber: s.trips.externalPlateNumber,
   }).from(s.trips)
@@ -979,8 +1374,8 @@ async function buildCustomerPaymentStatementLines(customerId: number, from: stri
       or(
         and(
           sql`${s.trips.completedAt} IS NOT NULL`,
-          gte(sql`DATE(${s.trips.completedAt})`, from),
-          lte(sql`DATE(${s.trips.completedAt})`, to),
+          gte(sql`(${s.trips.completedAt} at time zone 'Asia/Ho_Chi_Minh')::date`, from),
+          lte(sql`(${s.trips.completedAt} at time zone 'Asia/Ho_Chi_Minh')::date`, to),
         ),
         sql`EXISTS (
           SELECT 1
@@ -1019,6 +1414,7 @@ async function buildCustomerPaymentStatementLines(customerId: number, from: stri
     const serviceFeeDescription = approvedFees.map((fee) => fee.label).join(', ') || null;
     const renderData = {
       ...buildTripRenderData({
+        tripId: trip.id,
         trip,
         containers: containerInfo,
         legs: legsByTrip.get(trip.id),
@@ -1064,8 +1460,8 @@ async function buildCarrierPaymentLines(carrierId: number, from: string, to: str
       inArray(s.trips.status, [...BILLABLE_TRIP_STATUSES]),
       isNull(s.trips.deletedAt),
       sql`${s.trips.completedAt} IS NOT NULL`,
-      gte(sql`DATE(${s.trips.completedAt})`, from),
-      lte(sql`DATE(${s.trips.completedAt})`, to),
+      gte(sql`(${s.trips.completedAt} at time zone 'Asia/Ho_Chi_Minh')::date`, from),
+      lte(sql`(${s.trips.completedAt} at time zone 'Asia/Ho_Chi_Minh')::date`, to),
     )).orderBy(s.trips.completedAt);
 
   const containersByTrip = await loadContainersByTrip(trips.map((t) => t.id));
@@ -1134,7 +1530,13 @@ type CustomerDebitTripCandidate = {
   trailerPlateNumber: string | null;
   externalPlateNumber: string | null;
   version: number;
+  vatRate: string;
   updatedAt: Date;
+  financialPostingId: number;
+  financialPostingVersion: number;
+  financialPostingTripVersion: number;
+  financialPostingReason: string;
+  financialPostingEffectiveAt: Date;
   shipmentCustomerId: number | null;
   tradeDirection: 'IMPORT' | 'EXPORT' | null;
   billNumber: string | null;
@@ -1152,6 +1554,7 @@ type ApprovedFeeRenderInfo = {
   billingLabel: string | null;
   name: string | null;
   supplierName: string | null;
+  vatRate: string | null;
   invoiceNumber: string | null;
   declarationNumber: string | null;
   approvalStatus: string | null;
@@ -1188,7 +1591,8 @@ function vehicleTypeLabel(
 }
 
 function buildTripBlockedReason(
-  candidate: CustomerDebitTripCandidate,
+  candidate: Pick<CustomerDebitTripCandidate,
+    'shipmentId' | 'fulfillmentId' | 'customerId' | 'shipmentCustomerId' | 'status'>,
   customerId: number,
   latestPod: TripPodStatusSummary | undefined,
 ): string | null {
@@ -1240,6 +1644,7 @@ function countContainers(containers: ContainerRenderInfo[], size: '20' | '40'): 
 }
 
 export function buildTripRenderData(input: {
+  tripId?: number;
   trip: {
     tripCode: string | null;
     departureDate: string;
@@ -1255,6 +1660,7 @@ export function buildTripRenderData(input: {
   const containerCount = input.containers.length;
   const routeParts = splitRouteName(input.trip.routeName ?? '');
   return {
+    tripId: input.tripId ?? null,
     tripCode: input.trip.tripCode ?? null,
     departureDate: input.trip.departureDate,
     truckPlate: input.trip.truckPlate ?? input.trip.externalPlateNumber ?? null,
@@ -1391,6 +1797,7 @@ async function loadApprovedFeesByTrip(tripIds: number[]): Promise<Map<number, Ap
     approvalStatus: s.tripExpenses.approvalStatus, expenseDate: s.tripExpenses.expenseDate,
     updatedAt: s.tripExpenses.updatedAt,
     billingLabel: s.forwarderExpenseTypes.billingLabel, name: s.forwarderExpenseTypes.name,
+    vatRate: s.forwarderExpenseTypes.vatRate,
     supplierName: s.suppliers.name,
   }).from(s.tripExpenses)
     .leftJoin(s.forwarderExpenseTypes, eq(s.tripExpenses.expenseType, s.forwarderExpenseTypes.code))
@@ -1425,7 +1832,7 @@ export async function generateDraft(input: GenerateBillingDocumentInput): Promis
     throw new ApiError(400, 'Loại tài liệu không hợp lệ cho đối tượng này');
   }
 
-  const total = result.lines.reduce((sum, l) => sum + effectiveAmount(l), 0);
+  const totals = documentVatTotals(result.lines);
   return {
     type,
     entityType,
@@ -1434,7 +1841,11 @@ export async function generateDraft(input: GenerateBillingDocumentInput): Promis
     rangeFrom: from,
     rangeTo: to,
     lines: result.lines,
-    totalInclVat: total,
+    totalInclVat: totals.gross,
+    totalNet: totals.net,
+    totalTax: totals.tax,
+    totalGross: totals.gross,
+    vatTreatmentVersion: VAT_TREATMENT_VERSION,
     eligibilitySummary: result.eligibilitySummary ?? null,
   };
 }
@@ -1471,14 +1882,133 @@ export async function postDebitNoteDelta(
   });
 }
 
+type DebitNoteSaveInput = SaveBillingDocumentInput & { type: 'DEBIT_NOTE' };
+type DebitNoteSourceRef =
+  | { sourceType: 'TRIP'; sourceId: number; financialPostingId: number; financialPostingVersion: number; postingChecksum: string }
+  | { sourceType: 'EXPENSE'; sourceId: number; sourceVersion: string };
+type BillingDocumentServiceInput = SaveBillingDocumentInput;
+
+async function deriveDebitNoteLines(input: DebitNoteSaveInput): Promise<BillingDocumentLine[]> {
+  const generated = await buildCustomerDebitLines(input.entityId, input.rangeFrom, input.rangeTo);
+  const available = generated.lines as BillingDocumentLine[];
+  const secureRefs = input.sourceRefs as DebitNoteSourceRef[] | undefined;
+  const persistedLines = (input.lines ?? []).map((line) => ({
+    ...line,
+    renderData: line.renderData ? { ...line.renderData } : null,
+    containerNumbers: line.containerNumbers ? [...line.containerNumbers] : null,
+  }));
+  const refs: DebitNoteSourceRef[] = secureRefs ?? persistedLines.map((line) => {
+    if (line.sourceType === 'ADHOC' || line.sourceId == null) {
+      throw new ApiError(400, 'Dòng thủ công không thuộc luồng lưu Giấy báo nợ thông thường.');
+    }
+    if (line.sourceType === 'TRIP') {
+      if (
+        line.financialPostingId == null
+        || line.financialPostingVersion == null
+        || !line.postingChecksum
+      ) {
+        throw new ApiError(409, `Nguồn TRIP #${line.sourceId} thiếu dấu vết hạch toán để lưu Giấy báo nợ.`);
+      }
+      return {
+        sourceType: 'TRIP' as const,
+        sourceId: line.sourceId,
+        financialPostingId: line.financialPostingId,
+        financialPostingVersion: line.financialPostingVersion,
+        postingChecksum: line.postingChecksum,
+      };
+    }
+    const sourceVersion = renderSourceVersion(line);
+    if (!sourceVersion) {
+      throw new ApiError(409, `Nguồn EXPENSE #${line.sourceId} thiếu phiên bản nguồn để lưu Giấy báo nợ.`);
+    }
+    return {
+      sourceType: 'EXPENSE' as const,
+      sourceId: line.sourceId,
+      sourceVersion,
+    };
+  });
+  const seen = new Set<string>();
+  return refs.map((ref, index) => {
+    const key = `${ref.sourceType}:${ref.sourceId}`;
+    if (seen.has(key)) throw new ApiError(409, 'Một nguồn chỉ được chọn một lần trên Giấy báo nợ.');
+    seen.add(key);
+
+    const currentLine = available.find((candidate) => {
+      if (candidate.sourceType !== ref.sourceType || candidate.sourceId !== ref.sourceId) return false;
+      if (ref.sourceType === 'TRIP') {
+        return candidate.financialPostingId === ref.financialPostingId
+          && candidate.financialPostingVersion === ref.financialPostingVersion
+          && candidate.postingChecksum === ref.postingChecksum;
+      }
+      return renderSourceVersion(candidate) === ref.sourceVersion;
+    });
+    const persistedLine = secureRefs
+      ? null
+      : persistedLines.find((candidate) => {
+          if (candidate.sourceType !== ref.sourceType || candidate.sourceId !== ref.sourceId) return false;
+          if (ref.sourceType === 'TRIP') {
+            return candidate.financialPostingId === ref.financialPostingId
+              && candidate.financialPostingVersion === ref.financialPostingVersion
+              && candidate.postingChecksum === ref.postingChecksum;
+          }
+          return renderSourceVersion(candidate) === ref.sourceVersion;
+        });
+    const line = currentLine ?? persistedLine;
+    if (!line) {
+      throw new ApiError(409, `Nguồn ${ref.sourceType} #${ref.sourceId} đã thay đổi hoặc không còn đủ điều kiện.`);
+    }
+    return {
+      ...line,
+      renderData: line.renderData ? { ...line.renderData } : null,
+      containerNumbers: line.containerNumbers ? [...line.containerNumbers] : null,
+      amountOverride: null,
+      excluded: false,
+      sortOrder: index,
+    };
+  });
+}
+
+async function assertActiveFinancialPostingRefs(
+  tx: Tx,
+  lines: readonly BillingDocumentLine[],
+): Promise<void> {
+  const tripLines = lines.filter((line) => line.sourceType === 'TRIP');
+  if (tripLines.length === 0) return;
+  const postingIds = tripLines.map((line) => line.financialPostingId as number);
+  const rows = await tx.select().from(s.tripFinancialPostings)
+    .where(inArray(s.tripFinancialPostings.id, postingIds))
+    .orderBy(s.tripFinancialPostings.id)
+    .for('update');
+  if (rows.length !== postingIds.length) {
+    throw new ApiError(409, 'Có nguồn hạch toán không còn tồn tại. Vui lòng tạo lại bản nháp.');
+  }
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  for (const line of tripLines) {
+    const posting = byId.get(line.financialPostingId as number);
+    if (
+      !posting
+      || posting.status !== 'ACTIVE'
+      || posting.tripId !== line.sourceId
+      || posting.version !== line.financialPostingVersion
+      || postingChecksum(posting) !== line.postingChecksum
+    ) {
+      throw new ApiError(409, `Nguồn hạch toán của chuyến #${line.sourceId} đã thay đổi. Vui lòng tạo lại bản nháp.`);
+    }
+  }
+}
+
 export async function saveDocument(
-  input: SaveBillingDocumentInput,
+  input: BillingDocumentServiceInput,
   userId: number | null,
   transaction?: Tx,
 ): Promise<BillingDocument> {
-  const total = docTotal(input.lines as BillingDocumentLine[]);
-  const desiredAdjustment = input.type === 'DEBIT_NOTE' && input.entityType === 'CUSTOMER'
-    ? documentLedgerAdjustment(input.lines as BillingDocumentLine[])
+  const authoritativeLines = input.type === 'DEBIT_NOTE'
+    ? await deriveDebitNoteLines(input as DebitNoteSaveInput)
+    : (input.lines ?? (() => { throw new ApiError(400, 'Bảng kê thiếu dòng trình bày.'); })()) as BillingDocumentLine[];
+  const totals = documentVatTotals(authoritativeLines);
+  const total = totals.gross;
+  const desiredAdjustment = input.type === 'DEBIT_NOTE'
+    ? documentLedgerAdjustment(authoritativeLines)
     : 0;
   // Resolve the document template and freeze a render-only snapshot onto the doc
   // so re-exports stay stable after the template is edited/deleted.
@@ -1502,7 +2032,7 @@ export async function saveDocument(
         input.entityId,
         input.rangeFrom,
         input.rangeTo,
-        input.lines as BillingDocumentLine[],
+        authoritativeLines,
       );
       const dueDateSnapshot = await resolveCustomerPaymentDueDate(tx, input.entityId, input.rangeTo);
       const [existing] = await tx.select().from(s.billingDocuments).where(and(
@@ -1515,30 +2045,47 @@ export async function saveDocument(
       )).limit(1).for('update');
 
       if (existing) {
-        const currentTripIds = await persistedTripSourceIds(tx, existing.id);
-        await lockTripFinancialAuthority(tx, [
+        const currentTripIds = await persistedClaimTripIds(tx, existing.id);
+        const initialTripIds = [...new Set([
           ...currentTripIds,
-          ...tripSourceIds(input.lines as BillingDocumentLine[]),
-        ]);
+          ...tripSourceIds(authoritativeLines),
+          ...await previewRecoverableTripIds(tx, authoritativeLines),
+        ])];
+        await lockTripFinancialAuthority(tx, initialTripIds);
         assertDraftDocumentLinesEditable(existing.debitNoteStatus);
-        await assertTripSourcesClaimable(tx, {
+        const tripClaims = await assertTripSourcesClaimable(tx, {
           customerId: input.entityId,
           rangeFrom: input.rangeFrom,
           rangeTo: input.rangeTo,
-          lines: input.lines as BillingDocumentLine[],
+          lines: authoritativeLines,
         });
-        await assertRecoverableSourcesClaimable(tx, {
+        const recoverableTripClaims = await assertRecoverableSourcesClaimable(tx, {
           documentId: existing.id,
           customerId: input.entityId,
           rangeFrom: input.rangeFrom,
           rangeTo: input.rangeTo,
-          lines: input.lines as BillingDocumentLine[],
+          lines: authoritativeLines,
           actorUserId: userId,
         });
+        const desiredTripClaims = [...new Map(
+          [...tripClaims, ...recoverableTripClaims].map((claim) => [claim.tripId, claim]),
+        ).values()];
+        const finalTripIds = desiredTripClaims.map((claim) => claim.tripId).sort((left, right) => left - right);
+        if (finalTripIds.some((tripId) => !initialTripIds.includes(tripId))) {
+          await lockTripFinancialAuthority(tx, [
+            ...currentTripIds,
+            ...finalTripIds,
+          ]);
+        }
+        await assertActiveFinancialPostingRefs(tx, authoritativeLines);
         const [updated] = await tx.update(s.billingDocuments).set({
           entityName: input.entityName ?? null,
           note: input.note ?? null,
           totalInclVat: String(total),
+          totalNet: String(totals.net),
+          totalTax: String(totals.tax),
+          totalGross: String(totals.gross),
+          vatTreatmentVersion: VAT_TREATMENT_VERSION,
           ledgerAdjustmentAmount: String(desiredAdjustment),
           authorityState: 'CURRENT',
           authorityWarningReason: null,
@@ -1562,19 +2109,29 @@ export async function saveDocument(
           );
         }
         await tx.delete(s.billingDocumentLines).where(eq(s.billingDocumentLines.documentId, existing.id));
-        await persistLines(tx, existing.id, input.lines);
+        await persistLines(tx, existing.id, authoritativeLines);
+        await replaceActiveTripClaims(tx, {
+          documentId: existing.id,
+          rangeFrom: input.rangeFrom,
+          rangeTo: input.rangeTo,
+          actorUserId: userId,
+          desiredClaims: desiredTripClaims,
+        });
         await replaceBillingDocumentSourcePeriodLocks(tx, existing.id, sourceLockIds);
         return existing.id;
       }
 
-      await lockTripFinancialAuthority(
-        tx,
-        tripSourceIds(input.lines as BillingDocumentLine[]),
-      );
+      const initialTripIds = [...new Set([
+        ...tripSourceIds(authoritativeLines),
+        ...await previewRecoverableTripIds(tx, authoritativeLines),
+      ])];
+      await lockTripFinancialAuthority(tx, initialTripIds);
       const [doc] = await tx.insert(s.billingDocuments).values({
         type: input.type, entityType: input.entityType, entityId: input.entityId,
         entityName: input.entityName ?? null, rangeFrom: input.rangeFrom, rangeTo: input.rangeTo,
-        note: input.note ?? null, totalInclVat: String(total), createdBy: userId,
+        note: input.note ?? null, totalInclVat: String(total),
+        totalNet: String(totals.net), totalTax: String(totals.tax), totalGross: String(totals.gross),
+        vatTreatmentVersion: VAT_TREATMENT_VERSION, createdBy: userId,
         ledgerAdjustmentAmount: String(desiredAdjustment),
         authorityState: 'CURRENT',
         authorityWarningReason: null,
@@ -1587,21 +2144,36 @@ export async function saveDocument(
         paymentDatePolicyApplied: dueDateSnapshot.policy,
       }).returning();
       if (!doc) throw new ApiError(500, 'Không lưu được tài liệu');
-      await assertTripSourcesClaimable(tx, {
+      const tripClaims = await assertTripSourcesClaimable(tx, {
         customerId: input.entityId,
         rangeFrom: input.rangeFrom,
         rangeTo: input.rangeTo,
-        lines: input.lines as BillingDocumentLine[],
+        lines: authoritativeLines,
       });
-      await assertRecoverableSourcesClaimable(tx, {
+      const recoverableTripClaims = await assertRecoverableSourcesClaimable(tx, {
         documentId: doc.id,
         customerId: input.entityId,
         rangeFrom: input.rangeFrom,
         rangeTo: input.rangeTo,
-        lines: input.lines as BillingDocumentLine[],
+        lines: authoritativeLines,
         actorUserId: userId,
       });
-      await persistLines(tx, doc.id, input.lines);
+      const desiredTripClaims = [...new Map(
+        [...tripClaims, ...recoverableTripClaims].map((claim) => [claim.tripId, claim]),
+      ).values()];
+      const finalTripIds = desiredTripClaims.map((claim) => claim.tripId).sort((left, right) => left - right);
+      if (finalTripIds.some((tripId) => !initialTripIds.includes(tripId))) {
+        await lockTripFinancialAuthority(tx, finalTripIds);
+      }
+      await assertActiveFinancialPostingRefs(tx, authoritativeLines);
+      await persistLines(tx, doc.id, authoritativeLines);
+      await replaceActiveTripClaims(tx, {
+        documentId: doc.id,
+        rangeFrom: input.rangeFrom,
+        rangeTo: input.rangeTo,
+        actorUserId: userId,
+        desiredClaims: desiredTripClaims,
+      });
       await replaceBillingDocumentSourcePeriodLocks(tx, doc.id, sourceLockIds);
       return doc.id;
     }
@@ -1612,6 +2184,10 @@ export async function saveDocument(
         entityName: input.entityName ?? null,
         note: input.note ?? null,
         totalInclVat: String(total),
+        totalNet: String(totals.net),
+        totalTax: String(totals.tax),
+        totalGross: String(totals.gross),
+        vatTreatmentVersion: VAT_TREATMENT_VERSION,
         ledgerAdjustmentAmount: String(desiredAdjustment),
         authorityState: 'CURRENT',
         authorityWarningReason: null,
@@ -1621,7 +2197,7 @@ export async function saveDocument(
         debitNoteTemplateSnapshot: snapshot,
       }).where(eq(s.billingDocuments.id, existing.id));
       await tx.delete(s.billingDocumentLines).where(eq(s.billingDocumentLines.documentId, existing.id));
-      await persistLines(tx, existing.id, input.lines);
+      await persistLines(tx, existing.id, authoritativeLines);
       await postDebitNoteDelta(tx, {
         documentId: existing.id,
         customerId: input.entityId,
@@ -1637,7 +2213,9 @@ export async function saveDocument(
     const [doc] = await tx.insert(s.billingDocuments).values({
       type: input.type, entityType: input.entityType, entityId: input.entityId,
       entityName: input.entityName ?? null, rangeFrom: input.rangeFrom, rangeTo: input.rangeTo,
-      note: input.note ?? null, totalInclVat: String(total), createdBy: userId,
+      note: input.note ?? null, totalInclVat: String(total),
+      totalNet: String(totals.net), totalTax: String(totals.tax), totalGross: String(totals.gross),
+      vatTreatmentVersion: VAT_TREATMENT_VERSION, createdBy: userId,
       ledgerAdjustmentAmount: String(desiredAdjustment),
       authorityState: 'CURRENT',
       authorityWarningReason: null,
@@ -1650,7 +2228,7 @@ export async function saveDocument(
       paymentDatePolicyApplied: null,
     }).returning();
     if (!doc) throw new ApiError(500, 'Không lưu được tài liệu');
-    await persistLines(tx, doc.id, input.lines);
+    await persistLines(tx, doc.id, authoritativeLines);
     return doc.id;
   };
   const docId = transaction
@@ -1661,12 +2239,28 @@ export async function saveDocument(
 
 export async function updateDocument(
   id: number,
-  input: SaveBillingDocumentInput,
+  input: BillingDocumentServiceInput,
   transaction?: Tx,
 ): Promise<BillingDocument> {
-  const total = docTotal(input.lines as BillingDocumentLine[]);
-  const desiredAdjustment = input.type === 'DEBIT_NOTE' && input.entityType === 'CUSTOMER'
-    ? documentLedgerAdjustment(input.lines as BillingDocumentLine[])
+  // Reject immutable documents before resolving or validating replacement
+  // sources. The transaction below repeats this check under a row lock so a
+  // concurrent confirmation remains safe.
+  const preflightDb = transaction ?? db;
+  const [preflight] = await preflightDb.select({
+    debitNoteStatus: s.billingDocuments.debitNoteStatus,
+  }).from(s.billingDocuments)
+    .where(and(eq(s.billingDocuments.id, id), isNull(s.billingDocuments.deletedAt)))
+    .limit(1);
+  if (!preflight) throw new ApiError(404, 'Không tìm thấy tài liệu');
+  assertDraftDocumentLinesEditable(preflight.debitNoteStatus);
+
+  const authoritativeLines = input.type === 'DEBIT_NOTE'
+    ? await deriveDebitNoteLines(input as DebitNoteSaveInput)
+    : (input.lines ?? (() => { throw new ApiError(400, 'Bảng kê thiếu dòng trình bày.'); })()) as BillingDocumentLine[];
+  const totals = documentVatTotals(authoritativeLines);
+  const total = totals.gross;
+  const desiredAdjustment = input.type === 'DEBIT_NOTE'
+    ? documentLedgerAdjustment(authoritativeLines)
     : 0;
   // Re-snapshot on every permitted edit so the doc never shows stale template
   // styling on new line data. Confirmed/paid/canceled documents are locked.
@@ -1701,11 +2295,13 @@ export async function updateDocument(
     if (current.type !== input.type || current.entityType !== input.entityType || current.entityId !== input.entityId) {
       throw new ApiError(400, 'Không thể đổi khách hàng hoặc loại của tài liệu đã lưu');
     }
-    const currentTripIds = await persistedTripSourceIds(tx, id);
-    await lockTripFinancialAuthority(tx, [
+    const currentTripIds = await persistedClaimTripIds(tx, id);
+    const initialTripIds = [...new Set([
       ...currentTripIds,
-      ...tripSourceIds(input.lines as BillingDocumentLine[]),
-    ]);
+      ...tripSourceIds(authoritativeLines),
+      ...await previewRecoverableTripIds(tx, authoritativeLines),
+    ])];
+    await lockTripFinancialAuthority(tx, initialTripIds);
     assertDraftDocumentLinesEditable(current.debitNoteStatus);
     const sourceLockIds = input.type === 'DEBIT_NOTE' && input.entityType === 'CUSTOMER'
       ? await resolveBillingDocumentSourcePeriodLocks(
@@ -1713,28 +2309,49 @@ export async function updateDocument(
         input.entityId,
         input.rangeFrom,
         input.rangeTo,
-        input.lines as BillingDocumentLine[],
+        authoritativeLines,
       )
       : [];
     if (input.type === 'DEBIT_NOTE' && input.entityType === 'CUSTOMER') {
-      await assertTripSourcesClaimable(tx, {
+      const tripClaims = await assertTripSourcesClaimable(tx, {
         customerId: input.entityId,
         rangeFrom: input.rangeFrom,
         rangeTo: input.rangeTo,
-        lines: input.lines as BillingDocumentLine[],
+        lines: authoritativeLines,
       });
-      await assertRecoverableSourcesClaimable(tx, {
+      const recoverableTripClaims = await assertRecoverableSourcesClaimable(tx, {
         documentId: id,
         customerId: input.entityId,
         rangeFrom: input.rangeFrom,
         rangeTo: input.rangeTo,
-        lines: input.lines as BillingDocumentLine[],
+        lines: authoritativeLines,
         actorUserId: current.createdBy,
+      });
+      const desiredTripClaims = [...new Map(
+        [...tripClaims, ...recoverableTripClaims].map((claim) => [claim.tripId, claim]),
+      ).values()];
+      const finalTripIds = desiredTripClaims.map((claim) => claim.tripId).sort((left, right) => left - right);
+      if (finalTripIds.some((tripId) => !initialTripIds.includes(tripId))) {
+        await lockTripFinancialAuthority(tx, [
+          ...currentTripIds,
+          ...finalTripIds,
+        ]);
+      }
+      await replaceActiveTripClaims(tx, {
+        documentId: id,
+        rangeFrom: input.rangeFrom,
+        rangeTo: input.rangeTo,
+        actorUserId: current.createdBy,
+        desiredClaims: desiredTripClaims,
       });
     }
     const [updated] = await tx.update(s.billingDocuments).set({
       entityName: input.entityName ?? null, rangeFrom: input.rangeFrom, rangeTo: input.rangeTo,
       note: input.note ?? null, totalInclVat: String(total), updatedAt: new Date(),
+      totalNet: String(totals.net),
+      totalTax: String(totals.tax),
+      totalGross: String(totals.gross),
+      vatTreatmentVersion: VAT_TREATMENT_VERSION,
       ledgerAdjustmentAmount: String(desiredAdjustment),
       authorityState: 'CURRENT',
       authorityWarningReason: null,
@@ -1756,8 +2373,9 @@ export async function updateDocument(
         'Giấy báo nợ vừa được xác nhận hoặc khóa — không thể chỉnh sửa. Vui lòng tải lại.',
       );
     }
+    await assertActiveFinancialPostingRefs(tx, authoritativeLines);
     await tx.delete(s.billingDocumentLines).where(eq(s.billingDocumentLines.documentId, id));
-    await persistLines(tx, id, input.lines);
+    await persistLines(tx, id, authoritativeLines);
     await replaceBillingDocumentSourcePeriodLocks(tx, id, sourceLockIds);
   };
   if (transaction) {
@@ -1776,6 +2394,9 @@ async function persistLines(tx: Tx, documentId: number, lines: BillingDocumentLi
       sourceType: l.sourceType, sourceId: l.sourceId ?? null, lineType: l.lineType,
       sourceVersion: renderSourceVersion(l),
       sourceChangedAt: renderSourceChangedAt(l) ? new Date(renderSourceChangedAt(l) as string) : null,
+      financialPostingId: l.sourceType === 'TRIP' ? (l.financialPostingId ?? null) : null,
+      financialPostingVersion: l.sourceType === 'TRIP' ? (l.financialPostingVersion ?? null) : null,
+      postingChecksum: l.sourceType === 'TRIP' ? (l.postingChecksum ?? null) : null,
       typeLabel: l.typeLabel, unit: l.unit,
       description: l.description, routeName: l.routeName ?? null,
       containerNumbers: joinContainers(l.containerNumbers),
@@ -1783,6 +2404,12 @@ async function persistLines(tx: Tx, documentId: number, lines: BillingDocumentLi
       baseAmount: String(Number(l.baseAmount)),
       amountOverride: l.amountOverride != null ? String(Number(l.amountOverride)) : null,
       excluded: l.excluded ?? false, sortOrder: l.sortOrder ?? 0,
+      vatTreatment: l.vatTreatment ?? 'EXEMPT',
+      vatRate: String(l.vatRate ?? 0),
+      vatTreatmentVersion: l.vatTreatmentVersion ?? VAT_TREATMENT_VERSION,
+      netAmount: String(l.netAmount ?? l.baseAmount ?? 0),
+      taxAmount: String(l.taxAmount ?? 0),
+      grossAmount: String(l.grossAmount ?? effectiveAmount(l)),
     })),
   );
 }
@@ -1841,8 +2468,17 @@ async function hydrateDocument(
       description: l.description, routeName: l.routeName,
       containerNumbers: splitContainers(l.containerNumbers),
       renderData,
+      financialPostingId: l.financialPostingId ?? null,
+      financialPostingVersion: l.financialPostingVersion ?? null,
+      postingChecksum: l.postingChecksum ?? null,
       baseAmount: Number(l.baseAmount), amountOverride: l.amountOverride != null ? Number(l.amountOverride) : null,
       excluded: l.excluded, sortOrder: l.sortOrder,
+      vatTreatment: l.vatTreatment as BillingDocumentLine['vatTreatment'],
+      vatRate: Number(l.vatRate) as BillingDocumentLine['vatRate'],
+      vatTreatmentVersion: l.vatTreatmentVersion,
+      netAmount: Number(l.netAmount),
+      taxAmount: Number(l.taxAmount),
+      grossAmount: Number(l.grossAmount),
     };
     const normalized = { ...line, description: canonicalFreightDescription(line) };
     return {
@@ -1862,6 +2498,10 @@ async function hydrateDocument(
     entityId: doc.entityId, entityName: doc.entityName ?? undefined,
     rangeFrom: doc.rangeFrom, rangeTo: doc.rangeTo, note: doc.note,
     totalInclVat: Number(doc.totalInclVat), createdBy: doc.createdBy,
+    totalNet: Number(doc.totalNet),
+    totalTax: Number(doc.totalTax),
+    totalGross: Number(doc.totalGross),
+    vatTreatmentVersion: doc.vatTreatmentVersion,
     debitNoteStatus: doc.debitNoteStatus,
     customerConfirmedAt: doc.customerConfirmedAt?.toISOString() ?? null,
     customerConfirmedBy: doc.customerConfirmedBy,
@@ -2545,6 +3185,7 @@ async function enrichLinesForDebitNoteRender(lines: BillingDocumentLine[]): Prom
       routeName: line.routeName ?? trip.routeName ?? null,
       containerNumbers: line.containerNumbers ?? containerNumbers(containers),
       renderData: buildTripRenderData({
+        tripId: trip.id,
         trip,
         containers,
         legs: legsByTrip.get(trip.id),
@@ -2969,23 +3610,15 @@ async function renderLongMinhDebitXlsx(
     });
   });
 
-  const serviceSubtotal = printableRows.reduce(
-    (sum, row) => sum + (row.continuation
-      ? 0
-      : row.serviceAmounts.deliveryFeeAmount
-        + row.serviceAmounts.freightAmount
-        + row.serviceAmounts.portFeeAmount
-        + row.serviceAmounts.otherServiceFeeAmount
-        + row.serviceAmounts.fuelSurchargeAmount),
-    0,
-  );
-  const recoverableSubtotal = printableRows.reduce(
-    (sum, row) => sum + Number(row.recoverableLine ? effectiveAmount(row.recoverableLine) : 0),
-    0,
-  );
-  const grandTotal = Number(doc.totalInclVat ?? 0);
-  const vatAmount = 0;
-  const documentAdjustment = Math.max(0, grandTotal - serviceSubtotal - recoverableSubtotal);
+  const serviceSubtotal = doc.lines
+    .filter((line) => !line.excluded && line.sourceType !== 'EXPENSE')
+    .reduce((sum, line) => sum + effectiveAmount(line), 0);
+  const recoverableSubtotal = doc.lines
+    .filter((line) => !line.excluded && line.sourceType === 'EXPENSE')
+    .reduce((sum, line) => sum + effectiveAmount(line), 0);
+  const grandTotal = Number(doc.totalGross ?? doc.totalInclVat ?? 0);
+  const vatAmount = Number(doc.totalTax ?? 0);
+  const documentAdjustment = Math.max(0, Number(doc.totalNet ?? 0) - serviceSubtotal - recoverableSubtotal);
   const summaryStartRow = firstDataRow + printableRows.length + 1;
   const labelColumn = Math.max(1, lastColumn - 4);
   const valueColumn = lastColumn;

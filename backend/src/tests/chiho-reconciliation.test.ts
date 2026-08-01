@@ -72,6 +72,9 @@ after(async () => {
     if (createdPodSubmissionIds.length > 0) {
       await db.delete(s.tripPodSubmissions).where(inArray(s.tripPodSubmissions.id, createdPodSubmissionIds));
     }
+    if (createdShipmentIds.length > 0) {
+      await db.delete(s.customerVisibleEvents).where(inArray(s.customerVisibleEvents.shipmentId, createdShipmentIds));
+    }
     if (createdTripIds.length > 0) {
       await db.delete(s.shipmentMilestones).where(inArray(s.shipmentMilestones.tripId, createdTripIds));
     }

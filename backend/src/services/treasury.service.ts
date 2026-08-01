@@ -341,6 +341,51 @@ export async function getTreasuryPosition(accountId: number, transaction?: Tx): 
   return transaction ? execute(transaction) : db.transaction(execute);
 }
 
+export async function getTreasuryPositions(accountIds: number[], transaction?: Tx): Promise<TreasuryPosition[]> {
+  if (accountIds.length === 0) return [];
+  const uniqueAccountIds = [...new Set(accountIds)];
+  const execute = async (tx: Tx) => {
+    const [accounts, totals] = await Promise.all([
+      tx.select().from(s.treasuryAccounts)
+        .where(inArray(s.treasuryAccounts.id, uniqueAccountIds)),
+      tx.select({
+        accountId: s.treasuryMovements.treasuryAccountId,
+        totalIn: sql<string>`coalesce(sum(case when ${s.treasuryMovements.direction} = 'IN' then ${s.treasuryMovements.amount} else 0 end), 0)`,
+        totalOut: sql<string>`coalesce(sum(case when ${s.treasuryMovements.direction} = 'OUT' then ${s.treasuryMovements.amount} else 0 end), 0)`,
+      }).from(s.treasuryMovements).where(and(
+        inArray(s.treasuryMovements.treasuryAccountId, uniqueAccountIds),
+        eq(s.treasuryMovements.status, 'POSTED'),
+      )).groupBy(s.treasuryMovements.treasuryAccountId),
+    ]);
+    const accountById = new Map(accounts.map(account => [account.id, account]));
+    const totalsByAccountId = new Map(totals.map(total => [total.accountId, total]));
+    return uniqueAccountIds.map((accountId) => {
+      const account = accountById.get(accountId);
+      if (!account) throw new ApiError(404, 'Không tìm thấy tài khoản tiền mặt/ngân hàng');
+      const accountTotals = totalsByAccountId.get(accountId);
+      const openingBalance = Number(account.openingBalance);
+      const totalIn = Number(accountTotals?.totalIn ?? 0);
+      const totalOut = Number(accountTotals?.totalOut ?? 0);
+      return {
+        accountId: account.id,
+        code: account.code,
+        name: account.name,
+        type: account.type,
+        currency: account.currency,
+        openingBalance,
+        totalIn,
+        totalOut,
+        bookBalance: calculateTreasuryBookBalance(openingBalance, totalIn, totalOut),
+        completeness: account.cutoverAt && account.cutoverAt <= new Date()
+          ? 'COMPLETE' as const
+          : 'PARTIAL' as const,
+        cutoverAt: account.cutoverAt?.toISOString() ?? null,
+      };
+    });
+  };
+  return transaction ? execute(transaction) : db.transaction(execute);
+}
+
 function requiredText(value: unknown, label: string, max: number): string {
   const normalized = typeof value === 'string' ? value.trim() : '';
   if (!normalized || normalized.length > max) {

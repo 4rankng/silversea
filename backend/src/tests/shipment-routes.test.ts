@@ -376,11 +376,14 @@ after(async () => {
 
   // Users must be deleted AFTER the main transaction because audit_logs /
   // notifications / etc. created by the audit middleware and notification
-  // service reference them. Those tables aren't in our cleanup list (they're
-  // append-only audit trails in the real app), so we delete the user rows in
-  // a separate step and tolerate FK failures.
+  // service reference them. Delete the user-owned append-only rows first so
+  // reruns do not accumulate stale active principals across interrupted runs.
   try {
     if (createdUserIds.length > 0) {
+      await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.createdBy, createdUserIds));
+      await db.delete(s.notifications).where(inArray(s.notifications.userId, createdUserIds));
+      await db.delete(s.pushSubscriptions).where(inArray(s.pushSubscriptions.userId, createdUserIds));
+      await db.delete(s.auditLogs).where(inArray(s.auditLogs.userId, createdUserIds));
       await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
     }
   } catch (err) {
@@ -416,15 +419,16 @@ async function mkClerkScopedShipmentViaService(overrides: Record<string, unknown
 }
 
 async function createOwnedResources() {
+  const resourceTag = Math.random().toString(36).slice(2, 8).toUpperCase();
   const [trailer] = await db.insert(s.trailers).values({
-    licensePlate: `51R-${(10000 + createdTrailerIds.length).toString().padStart(5, '0')}`,
+    licensePlate: `51R-${resourceTag}`,
     type: '40FT',
     status: 'ACTIVE',
   }).returning();
   createdTrailerIds.push(trailer.id);
 
   const [truck] = await db.insert(s.trucks).values({
-    licensePlate: `51C-${(10000 + createdTruckIds.length).toString().padStart(5, '0')}`,
+    licensePlate: `51C-${resourceTag}`,
     currentTrailerId: trailer.id,
     trailerType: '40FT',
     status: 'ACTIVE',

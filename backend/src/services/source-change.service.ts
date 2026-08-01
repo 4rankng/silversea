@@ -24,6 +24,7 @@ import {
   loadContainersByTrip,
   loadLegRenderDataByTrip,
   postDebitNoteDelta,
+  postingChecksum,
 } from './billingDocument.service';
 import {
   resolveCustomerPaymentDueDate,
@@ -37,6 +38,9 @@ type MutableLine = {
   id?: number;
   sourceType: 'TRIP' | 'EXPENSE' | 'ADHOC';
   sourceId: number | null;
+  financialPostingId?: number | null;
+  financialPostingVersion?: number | null;
+  postingChecksum?: string | null;
   lineType: 'FREIGHT' | 'SERVICE_FEE' | 'ADHOC';
   typeLabel: string;
   unit: string;
@@ -77,10 +81,19 @@ async function buildTripDraftLineTx(tx: Tx, tripId: number): Promise<{
     version: s.trips.version,
     updatedAt: s.trips.updatedAt,
     status: s.trips.status,
+    financialPostingId: s.tripFinancialPostings.id,
+    financialPostingVersion: s.tripFinancialPostings.version,
+    financialPostingTripVersion: s.tripFinancialPostings.tripVersion,
+    financialPostingReason: s.tripFinancialPostings.reason,
+    financialPostingEffectiveAt: s.tripFinancialPostings.effectiveAt,
   })
     .from(s.trips)
     .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
     .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
+    .innerJoin(s.tripFinancialPostings, and(
+      eq(s.tripFinancialPostings.tripId, s.trips.id),
+      eq(s.tripFinancialPostings.status, 'ACTIVE'),
+    ))
     .where(and(eq(s.trips.id, tripId), isNull(s.trips.deletedAt)))
     .limit(1);
   if (
@@ -99,6 +112,7 @@ async function buildTripDraftLineTx(tx: Tx, tripId: number): Promise<{
   const legsByTrip = await loadLegRenderDataByTrip([trip.id], tx);
   const containerInfo = containersByTrip.get(trip.id) ?? [];
   const renderData = buildTripRenderData({
+    tripId: trip.id,
     trip,
     containers: containerInfo,
     legs: legsByTrip.get(trip.id),
@@ -113,6 +127,16 @@ async function buildTripDraftLineTx(tx: Tx, tripId: number): Promise<{
     line: {
       sourceType: 'TRIP',
       sourceId: trip.id,
+      financialPostingId: trip.financialPostingId,
+      financialPostingVersion: trip.financialPostingVersion,
+      postingChecksum: postingChecksum({
+        id: trip.financialPostingId,
+        tripId: trip.id,
+        version: trip.financialPostingVersion,
+        tripVersion: trip.financialPostingTripVersion,
+        reason: trip.financialPostingReason,
+        effectiveAt: trip.financialPostingEffectiveAt,
+      }),
       lineType: 'FREIGHT',
       typeLabel: 'Doanh thu',
       unit: containerUnit(containerInfo),
@@ -178,6 +202,7 @@ async function buildExpenseDraftLineTx(tx: Tx, expenseId: number): Promise<{
   const legsByTrip = await loadLegRenderDataByTrip([expense.tripId], tx);
   const containerInfo = containersByTrip.get(expense.tripId) ?? [];
   const renderData = buildTripRenderData({
+    tripId: expense.tripId,
     trip: {
       tripCode: expense.tripCode,
       departureDate: expense.departureDate,
@@ -246,6 +271,9 @@ async function loadMutableLinesTx(tx: Tx, documentId: number): Promise<MutableLi
     id: row.id,
     sourceType: row.sourceType as MutableLine['sourceType'],
     sourceId: row.sourceId ?? null,
+    financialPostingId: row.financialPostingId ?? null,
+    financialPostingVersion: row.financialPostingVersion ?? null,
+    postingChecksum: row.postingChecksum ?? null,
     lineType: row.lineType as MutableLine['lineType'],
     typeLabel: row.typeLabel,
     unit: row.unit,
@@ -281,6 +309,9 @@ async function persistMutableLinesTx(tx: Tx, documentId: number, lines: MutableL
     documentId,
     sourceType: line.sourceType,
     sourceId: line.sourceId,
+    financialPostingId: line.sourceType === 'TRIP' ? (line.financialPostingId ?? null) : null,
+    financialPostingVersion: line.sourceType === 'TRIP' ? (line.financialPostingVersion ?? null) : null,
+    postingChecksum: line.sourceType === 'TRIP' ? (line.postingChecksum ?? null) : null,
     sourceVersion: typeof line.renderData?.sourceVersion === 'string'
       ? line.renderData.sourceVersion
       : null,

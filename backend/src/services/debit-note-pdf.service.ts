@@ -45,11 +45,18 @@ export interface DebitNotePdfData {
   originalDueDate?: string | null;
   processingDueDate?: string | null;
   totalInclVat: string;
+  totalNet?: string;
+  totalTax?: string;
+  totalGross?: string;
+  vatTreatmentVersion?: string;
   lines: Array<{
     lineType: string;
     typeLabel: string;
     description: string;
     baseAmount: string;
+    netAmount?: string;
+    taxAmount?: string;
+    grossAmount?: string;
     routeName: string | null;
   }>;
   status: string | null;
@@ -80,6 +87,10 @@ export async function getDebitNoteData(documentId: number): Promise<DebitNotePdf
     originalDueDate: doc.originalDueDate,
     processingDueDate: doc.processingDueDate,
     totalInclVat: doc.totalInclVat,
+    totalNet: doc.totalNet,
+    totalTax: doc.totalTax,
+    totalGross: doc.totalGross,
+    vatTreatmentVersion: doc.vatTreatmentVersion,
     status: doc.debitNoteStatus,
     lines: lines
       .filter(l => !l.excluded)
@@ -89,6 +100,9 @@ export async function getDebitNoteData(documentId: number): Promise<DebitNotePdf
         typeLabel: l.typeLabel,
         description: l.description,
         baseAmount: l.amountOverride ?? l.baseAmount,
+        netAmount: l.netAmount,
+        taxAmount: l.taxAmount,
+        grossAmount: l.grossAmount,
         routeName: l.routeName,
       })),
   };
@@ -197,7 +211,6 @@ export function exportDebitNoteHtml(
 
   const accent = safeAccentColor(snapshot.accentColor);
   const visibleColumns = (snapshot.columns ?? []).filter(c => c.width > 0);
-  const totalColumns = visibleColumns.filter(c => c.total);
 
   // Build the rich line payload from the legacy data shape. The legacy
   // shape lacks renderData, so variable bindings that depend on it
@@ -232,16 +245,12 @@ export function exportDebitNoteHtml(
     return `          <tr>\n${cells}\n          </tr>`;
   }).join('\n');
 
-  const totalRow = totalColumns.length > 0
-    ? `          <tr class="total-row" style="background: ${accent}1A; border-top: 2px solid ${accent};">
-            <td colspan="${visibleColumns.length}">
-              TỔNG CỘNG · ${totalColumns.map(c => escapeHtml(c.label.replace(/\n/g, ' '))).join(' · ')}
-              — ${Number(data.totalInclVat).toLocaleString('vi-VN')} ₫
-            </td>
-          </tr>`
-    : `          <tr class="total-row" style="background: ${accent}1A; border-top: 2px solid ${accent};">
+  const totalNet = Number(data.totalNet ?? data.totalInclVat);
+  const totalTax = Number(data.totalTax ?? 0);
+  const totalGross = Number(data.totalGross ?? data.totalInclVat);
+  const totalRow = `          <tr class="total-row" style="background: ${accent}1A; border-top: 2px solid ${accent};">
             <td colspan="${visibleColumns.length}" style="text-align: right;">
-              TỔNG CỘNG (BAO GỒM VAT): ${Number(data.totalInclVat).toLocaleString('vi-VN')} ₫
+              TỔNG CỘNG · TRƯỚC VAT: ${totalNet.toLocaleString('vi-VN')} ₫ · VAT: ${totalTax.toLocaleString('vi-VN')} ₫ · TỔNG THANH TOÁN: ${totalGross.toLocaleString('vi-VN')} ₫
             </td>
           </tr>`;
 

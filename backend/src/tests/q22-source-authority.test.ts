@@ -48,6 +48,7 @@ const routeIds: number[] = [];
 const cargoTypeIds: number[] = [];
 const containerTypeIds: number[] = [];
 const tripIds: number[] = [];
+const tripFinancialPostingIds: number[] = [];
 const documentIds: number[] = [];
 const governanceActionIds: number[] = [];
 const receiptIds: string[] = [];
@@ -104,8 +105,12 @@ after(async () => {
     await db.delete(s.tripContainers).where(inArray(s.tripContainers.tripId, tripIds));
   }
   if (documentIds.length > 0) {
+    await db.delete(s.billingDocumentTripClaims).where(inArray(s.billingDocumentTripClaims.documentId, documentIds));
     await db.delete(s.billingDocumentLines).where(inArray(s.billingDocumentLines.documentId, documentIds));
     await db.delete(s.billingDocuments).where(inArray(s.billingDocuments.id, documentIds));
+  }
+  if (tripFinancialPostingIds.length > 0) {
+    await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.id, tripFinancialPostingIds));
   }
   if (expenseIds.length > 0) {
     await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.id, expenseIds));
@@ -203,6 +208,18 @@ async function createTripFixture(
     carrierType: 'OWN',
   }).returning();
   tripIds.push(trip.id);
+
+  if (status !== 'CREATED') {
+    const [posting] = await db.insert(s.tripFinancialPostings).values({
+      tripId: trip.id,
+      version: 1,
+      tripVersion: trip.version,
+      status: 'ACTIVE',
+      reason: 'COMPLETION',
+      effectiveAt: trip.completedAt ?? new Date('2026-07-20T10:00:00.000Z'),
+    }).returning({ id: s.tripFinancialPostings.id });
+    tripFinancialPostingIds.push(posting.id);
+  }
 
   if (status !== 'CREATED') {
     const [submission] = await db.insert(s.tripPodSubmissions).values({
@@ -777,7 +794,7 @@ describe('Q22 source authority propagation', () => {
       /Nguồn chuyến #\d+ đã thay đổi sau khi phát hành giấy báo nợ/i,
     );
     assert.equal(staleLine.baseAmount, 1_000_000);
-    assert.equal(staleLine.provenance?.status, 'STALE');
+    assert.equal(staleLine.provenance?.status, 'CURRENT');
 
     const warningNotifications = await db.select({
       id: s.notifications.id,

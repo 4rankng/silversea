@@ -5,6 +5,7 @@
  * external carrier trip margins.
  */
 
+import { createHash } from 'node:crypto';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { eq, and, isNull, sql, gte, inArray, ne, getTableColumns } from 'drizzle-orm';
@@ -309,7 +310,7 @@ export async function getPnlReport(month: number, year: number) {
     const serviceMarginTotal = truckBreakdown.reduce((s, t) => s + (t.serviceMargin ?? 0), 0);
     const breakdownExternalMarginTotal = truckBreakdown.reduce((s, t) => s + (t.externalMargin ?? 0), 0);
 
-    return {
+    const payload = {
       period: { month, year },
       totalRevenue,
       totalCosts: adjustedTotalCosts,
@@ -329,6 +330,17 @@ export async function getPnlReport(month: number, year: number) {
       serviceMarginTotal,
       externalMarginTotal: breakdownExternalMarginTotal,
       externalTripsCount: extTrips.length,
+    };
+    const definitionVersion = 'pnl-v2';
+    return {
+      ...payload,
+      asOf: new Date().toISOString(),
+      timezone: 'Asia/Ho_Chi_Minh',
+      definitionVersion,
+      consistency: 'BEST_EFFORT' as const,
+      checksum: createHash('sha256')
+        .update(JSON.stringify({ definitionVersion, payload }))
+        .digest('hex'),
     };
   });
 }

@@ -17,7 +17,6 @@ import {
   getActiveFinancialPosting,
 } from './financial-posting.service';
 import { captureProfitabilityAttributionSnapshot } from './profitability.service';
-import { config } from '../config';
 import { getDriverCompletionEvidenceStatus } from './trip-pod.service';
 
 export async function transitionTripStatus(
@@ -306,7 +305,7 @@ export async function transitionTripStatus(
 
       if (currentStatus === TripStatus.COMPLETED) {
         const activePosting = await getActiveFinancialPosting(tx, trip.id);
-        if (config.workflowRolloutMode !== 'OFF' && !activePosting) {
+        if (!activePosting) {
           throw new ApiError(409, 'Chuyến chưa có phiên bản hạch toán đang hiệu lực');
         }
         await LedgerService.postTripUnlock(tx, {
@@ -331,19 +330,13 @@ export async function transitionTripStatus(
             approvalStatus: fee.approvalStatus,
           })),
         }, { strict: false, financialPostingId: activePosting?.id });
-        // Rollout mode controls reachability, not the integrity of canonical
-        // posting rows that already exist. An ACTIVE trip posting must always
-        // be superseded when its trip is canceled, including after a rollback
-        // to OFF; legacy OFF-only trips without a posting remain compatible.
-        if (activePosting) {
-          await createFinancialPosting(tx, {
-            tripId: updated.id,
-            tripVersion: updated.version,
-            reason: 'CANCELLATION',
-            governanceActionId: options?.governanceActionId,
-            effectiveAt: new Date(),
-          });
-        }
+        await createFinancialPosting(tx, {
+          tripId: updated.id,
+          tripVersion: updated.version,
+          reason: 'CANCELLATION',
+          governanceActionId: options?.governanceActionId,
+          effectiveAt: new Date(),
+        });
       }
 
       await applyTripPairLifecycleEffects(tx, {
@@ -385,15 +378,13 @@ export async function transitionTripStatus(
       const ancillaryFees = await tx.select().from(s.tripExpenses)
         .where(eq(s.tripExpenses.tripId, trip.id));
 
-      const posting = config.workflowRolloutMode === 'OFF'
-        ? null
-        : await createFinancialPosting(tx, {
-          tripId: updated.id,
-          tripVersion: updated.version,
-          reason: 'COMPLETION',
-          governanceActionId: options?.governanceActionId,
-          effectiveAt: updated.completedAt ?? new Date(),
-        });
+      const posting = await createFinancialPosting(tx, {
+        tripId: updated.id,
+        tripVersion: updated.version,
+        reason: 'COMPLETION',
+        governanceActionId: options?.governanceActionId,
+        effectiveAt: updated.completedAt ?? new Date(),
+      });
 
       await LedgerService.postTripLock(tx, {
         id: updated.id,

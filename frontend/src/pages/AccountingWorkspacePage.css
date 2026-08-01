@@ -1,0 +1,151 @@
+.accounting-page {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+  padding-bottom: 32px;
+}
+
+.accounting-period {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px 18px;
+  border: 1px solid var(--border-1);
+  border-radius: 12px;
+  background: var(--bg-1);
+}
+
+.accounting-period > div:first-child { display: grid; gap: 5px; }
+.accounting-period strong { font-size: 15px; color: var(--fg-1); }
+.accounting-eyebrow { color: var(--fg-3); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.accounting-period__fields { display: flex; gap: 12px; }
+.accounting-period label { display: grid; gap: 5px; color: var(--fg-3); font-size: 12px; font-weight: 600; }
+.accounting-period input { min-height: 44px; padding: 0 11px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-1); color: var(--fg-1); font: inherit; }
+
+.accounting-alert { padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--warning) 38%, transparent); border-radius: 10px; background: color-mix(in srgb, var(--warning) 8%, transparent); color: var(--fg-1); font-size: 14px; }
+
+.accounting-tabs { display: flex; gap: 4px; padding: 4px; width: fit-content; max-width: 100%; border: 1px solid var(--border-1); border-radius: 10px; background: var(--bg-1); }
+.accounting-tabs a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; border-radius: 7px; color: var(--fg-3); font-size: 14px; font-weight: 700; text-decoration: none; }
+.accounting-tabs a[aria-current="page"] { background: var(--bg-3); color: var(--fg-1); }
+.accounting-tabs a:focus-visible { outline: 3px solid color-mix(in srgb, var(--brand) 32%, transparent); outline-offset: 1px; }
+
+.accounting-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.accounting-kpi { display: grid; gap: 10px; min-width: 0; padding: 16px; border: 1px solid var(--border-1); border-radius: 12px; background: var(--bg-1); }
+.accounting-kpi__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--fg-3); font-size: 13px; font-weight: 700; }
+.accounting-kpi strong { overflow-wrap: anywhere; color: var(--fg-1); font-size: clamp(20px, 2vw, 28px); line-height: 1.15; font-variant-numeric: tabular-nums; }
+.accounting-kpi small { color: var(--fg-3); font-size: 12px; }
+.accounting-kpi--positive .accounting-kpi__head { color: var(--success); }
+.accounting-kpi--danger .accounting-kpi__head { color: var(--danger); }
+.accounting-provenance { margin: -8px 0 0; color: var(--fg-3); font-size: 12px; line-height: 1.5; }
+
+.accounting-workflows { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: hidden; border: 1px solid var(--border-1); border-radius: 12px; background: var(--bg-1); }
+.accounting-workflow { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto 20px; align-items: center; gap: 12px; min-height: 96px; padding: 16px; color: inherit; text-decoration: none; border-bottom: 1px solid var(--border-1); }
+.accounting-workflow--button { width: 100%; border-top: 0; border-left: 0; border-right: 0; background: transparent; font: inherit; text-align: left; cursor: pointer; }
+.accounting-workflow:nth-child(odd) { border-right: 1px solid var(--border-1); }
+.accounting-workflow:nth-last-child(-n + 2) { border-bottom: 0; }
+.accounting-workflow:hover { background: var(--bg-2); }
+.accounting-workflow:focus-visible { position: relative; z-index: 1; outline: 3px solid color-mix(in srgb, var(--brand) 32%, transparent); outline-offset: -3px; }
+.accounting-workflow__icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 10px; background: color-mix(in srgb, var(--brand) 10%, var(--bg-1)); color: var(--brand); }
+.accounting-workflow__body { display: grid; gap: 4px; min-width: 0; }
+.accounting-workflow__body strong { color: var(--fg-1); font-size: 15px; }
+.accounting-workflow__body span { color: var(--fg-3); font-size: 13px; line-height: 1.45; }
+.accounting-workflow__metric { color: var(--fg-2); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.accounting-workflow__arrow { color: var(--fg-3); }
+
+.accounting-register { min-width: 0; overflow: hidden; border: 1px solid var(--border-1); border-radius: 12px; background: var(--bg-1); }
+.accounting-register__header { display: flex; align-items: end; justify-content: space-between; gap: 18px; padding: 16px 18px; border-bottom: 1px solid var(--border-1); }
+.accounting-register__header h2 { margin: 0; color: var(--fg-1); font-size: 18px; }
+.accounting-register__header p { margin: 4px 0 0; color: var(--fg-3); font-size: 13px; }
+.accounting-register__search { display: grid; gap: 5px; width: min(420px, 100%); }
+.accounting-register__search label { color: var(--fg-3); font-size: 12px; font-weight: 600; }
+.accounting-register__search-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+.accounting-register__search input { min-width: 0; min-height: 44px; padding: 0 11px; border: 1px solid var(--border-2); border-radius: 8px 0 0 8px; background: var(--bg-1); color: var(--fg-1); font: inherit; }
+.accounting-register__search button,
+.accounting-register__footer button { min-height: 44px; padding: 0 14px; border: 1px solid var(--border-2); border-radius: 0 8px 8px 0; background: var(--bg-2); color: var(--fg-1); font: inherit; font-weight: 700; cursor: pointer; }
+.accounting-register__table-wrap { max-height: min(58vh, 620px); overflow: auto; }
+.accounting-register table { width: 100%; min-width: 1040px; border-collapse: collapse; color: var(--fg-2); font-size: 13px; }
+.accounting-register th { position: sticky; top: 0; z-index: 1; padding: 11px 12px; background: var(--bg-2); color: var(--fg-3); font-size: 12px; text-align: left; }
+.accounting-register td { padding: 12px; border-top: 1px solid var(--border-1); vertical-align: top; font-variant-numeric: tabular-nums; }
+.accounting-register td strong,
+.accounting-register td small { display: block; }
+.accounting-register td small { margin-top: 3px; color: var(--fg-3); }
+.accounting-register td a,
+.accounting-transport-card > a { color: var(--brand); font-weight: 700; }
+.accounting-register td > a,
+.accounting-transport-card > a { display: inline-flex; align-items: center; min-height: 44px; }
+.accounting-alert button,
+.accounting-register__state button { min-height: 44px; padding: 0 10px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-2); color: var(--fg-1); font: inherit; font-weight: 700; cursor: pointer; }
+.accounting-register .accounting-money { text-align: right; white-space: nowrap; }
+.accounting-register__state { min-height: 160px; margin: 0; padding: 56px 18px; color: var(--fg-3); text-align: center; }
+.accounting-register__footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 18px; border-top: 1px solid var(--border-1); color: var(--fg-3); }
+.accounting-register__footer > div { display: flex; align-items: center; gap: 10px; }
+.accounting-register__footer button { min-height: 44px; border-radius: 8px; }
+.accounting-register__filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.accounting-register__filters label { display: grid; gap: 4px; }
+.accounting-register__filters select { min-width: 0; min-height: 44px; padding: 0 9px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-1); color: var(--fg-1); font: inherit; font-size: 13px; }
+.accounting-register__footer button:disabled { opacity: .45; cursor: not-allowed; }
+.accounting-status { display: inline-flex; padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; white-space: nowrap; }
+.accounting-status--ready { background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); }
+.accounting-status--missing { background: color-mix(in srgb, var(--warning) 13%, transparent); color: var(--fg-1); }
+.accounting-register__cards { display: none; }
+.accounting-row-check { display: flex; align-items: center; gap: 9px; min-width: 0; min-height: 44px; }
+.accounting-row-check input { width: 18px; height: 18px; margin: 1px 0 0; accent-color: var(--brand); }
+.accounting-row-check input:disabled { opacity: .45; }
+.accounting-selection { position: sticky; bottom: 0; z-index: 2; display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-top: 1px solid var(--border-2); background: var(--bg-1); }
+.accounting-selection > div { display: grid; gap: 3px; min-width: 0; margin-right: auto; }
+.accounting-selection strong { color: var(--fg-1); font-size: 14px; }
+.accounting-selection span { color: var(--fg-3); font-size: 12px; }
+.accounting-selection button,
+.accounting-selection a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 13px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-2); color: var(--fg-1); font: inherit; font-size: 13px; font-weight: 700; text-decoration: none; cursor: pointer; }
+.accounting-selection a { border-color: var(--brand); background: var(--brand); color: white; }
+
+@media (max-width: 1023px) {
+  .accounting-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .accounting-register__table-wrap { display: none; }
+  .accounting-register__cards { display: grid; max-height: 62vh; overflow: auto; }
+  .accounting-transport-card { display: grid; gap: 10px; padding: 14px; border-bottom: 1px solid var(--border-1); }
+  .accounting-transport-card:last-child { border-bottom: 0; }
+  .accounting-transport-card header { display: flex; align-items: start; justify-content: space-between; gap: 10px; }
+  .accounting-transport-card p { margin: 0; color: var(--fg-3); font-size: 13px; }
+  .accounting-transport-card dl { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0; }
+  .accounting-transport-card dl div { min-width: 0; }
+  .accounting-transport-card dt { color: var(--fg-3); font-size: 11px; }
+  .accounting-transport-card dd { margin: 3px 0 0; overflow-wrap: anywhere; color: var(--fg-1); font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+}
+
+@media (max-width: 700px) {
+  .accounting-page { gap: 14px; }
+  .accounting-period { align-items: stretch; flex-direction: column; padding: 14px; }
+  .accounting-period__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .accounting-period input { width: 100%; min-width: 0; }
+  .accounting-kpis { grid-template-columns: 1fr; }
+  .accounting-workflows { grid-template-columns: 1fr; }
+  .accounting-workflow,
+  .accounting-workflow:nth-child(odd),
+  .accounting-workflow:nth-last-child(-n + 2) { border-right: 0; border-bottom: 1px solid var(--border-1); }
+  .accounting-workflow:last-child { border-bottom: 0; }
+  .accounting-workflow { grid-template-columns: 42px minmax(0, 1fr) 20px; min-height: 92px; padding: 14px; }
+  .accounting-workflow__metric { grid-column: 2; white-space: normal; }
+  .accounting-workflow__arrow { grid-column: 3; grid-row: 1 / span 2; }
+  .accounting-register__header { align-items: stretch; flex-direction: column; padding: 14px; }
+  .accounting-transport-card dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .accounting-register__footer { align-items: stretch; flex-direction: column; padding: 12px 14px; }
+  .accounting-register__footer > div { justify-content: space-between; }
+  .accounting-selection { align-items: stretch; flex-wrap: wrap; padding: 12px 14px; }
+  .accounting-selection > div { flex-basis: 100%; }
+  .accounting-selection button,
+  .accounting-selection a { justify-content: center; flex: 1; }
+  .accounting-period input,
+  .accounting-register__search input,
+  .accounting-register__filters select { font-size: 16px; }
+}
+
+@media (max-width: 360px) {
+  .accounting-period__fields { grid-template-columns: 1fr; }
+  .accounting-workflow { grid-template-columns: 38px minmax(0, 1fr) 18px; gap: 10px; }
+  .accounting-workflow__icon { width: 38px; height: 38px; }
+  .accounting-tabs { width: 100%; }
+  .accounting-tabs a { flex: 1; min-width: 0; justify-content: center; padding: 0 8px; }
+  .accounting-transport-card dl { grid-template-columns: 1fr; }
+}

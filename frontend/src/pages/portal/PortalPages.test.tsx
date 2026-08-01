@@ -130,6 +130,37 @@ describe('customer portal pages', () => {
     expect(screen.getByText('SHP-2607-00042')).toBeTruthy();
   });
 
+  it('keeps shipment detail usable when customer-event loading fails', async () => {
+    apiGet.mockImplementation(async (path: string) => {
+      if (path.includes('/customer-events')) throw new Error('event service unavailable');
+      return {
+        shipment: {
+          id: 42,
+          shipmentCode: 'SHP-2607-00042',
+          status: ShipmentStatus.DELIVERED,
+          bookingRef: 'BK-42',
+          blNumber: 'BL-42',
+          expectedDeliveryDate: '2026-07-31',
+          pickupLocation: 'Hải Phòng',
+          deliveryLocation: 'Hà Nội',
+        },
+        containers: [], documents: [], declarations: [], statusHistory: [],
+      };
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/portal/shipments/42']}>
+        <Routes>
+          <Route path="/portal/shipments/:id" element={<PortalShipmentDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('SHP-2607-00042')).toBeTruthy();
+    expect(screen.getByText('BK-42')).toBeTruthy();
+    expect(screen.getByRole('alert').textContent).toContain('Tạm thời chưa tải được');
+  });
+
   it('binds shipment detail loading to the selected legal entity', async () => {
     apiGet.mockImplementation(async (path: string) => {
       if (path === '/portal/customer-scope') {

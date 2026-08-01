@@ -144,6 +144,10 @@ describe('profitability pagination authority', () => {
     assert.deepEqual(second.totals, first.totals);
     assert.deepEqual(second.sourceCoverage, first.sourceCoverage);
     assert.deepEqual(second.reconciliation, first.reconciliation);
+    assert.equal(first.timezone, 'Asia/Ho_Chi_Minh');
+    assert.equal(first.definitionVersion, 'profitability-v2');
+    assert.equal(first.consistency, 'BEST_EFFORT');
+    assert.match(first.checksum, /^[a-f0-9]{64}$/);
     assert.equal(first.sourceCoverage.snapshottedTrips, 52);
     assert.equal(first.totals.revenue, 52_000_000);
     assert.equal(first.totals.profit, 31_200_000);

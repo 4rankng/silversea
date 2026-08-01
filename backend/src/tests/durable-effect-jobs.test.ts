@@ -144,20 +144,25 @@ describe('durable effect jobs foundation', () => {
       now: () => reclaimedAt,
       uuid: () => 'fresh-worker',
     });
-    assert.equal(claims.length, 1);
-    assert.equal(claims[0]!.leaseToken, 'fresh-worker');
+    const claimedJob = claims.find((job) => job.dedupeKey === dedupeKey);
+    assert.ok(claimedJob, 'expected the targeted cache invalidation job to be claimed');
+    assert.equal(claimedJob!.leaseToken, 'fresh-worker');
 
     const secondClaims = await claimDueDurableEffectJobs(10, {
       now: () => reclaimedAt,
       uuid: () => 'second-worker',
     });
-    assert.equal(secondClaims.length, 0, 'active lease must fence a second claimer');
+    assert.equal(
+      secondClaims.filter((job) => job.dedupeKey === dedupeKey).length,
+      0,
+      'active lease must fence a second claimer',
+    );
 
     const staleAck = await markDurableEffectJobSucceeded(failed.id, 'expired-worker', reclaimedAt);
     assert.equal(staleAck, null, 'stale lease token must not acknowledge another worker row');
 
     let recoveredCalls = 0;
-    const recovered = await processDurableEffectJob(claims[0]!, {
+    const recovered = await processDurableEffectJob(claimedJob!, {
       now: () => reclaimedAt,
       cacheInvalidateKey: async () => {
         recoveredCalls += 1;

@@ -1,4 +1,9 @@
 import { api } from '../lib/api';
+import type {
+  AccountingTransportOwnership,
+  AccountingTransportReadiness,
+  AccountingTransportRegisterResponse,
+} from '@tingting/shared';
 
 export type RecoverableEligibilityState = 'READY_FOR_REVIEW' | 'ELIGIBLE' | 'BLOCKED' | 'ALREADY_CLAIMED' | 'ADJUSTMENT_REQUIRED';
 
@@ -86,6 +91,32 @@ export interface CustomerVisibleEvent {
 }
 
 export const customerServiceFinanceClient = {
+  getAccountingTransportRegister(params: {
+    from: string;
+    to: string;
+    page: number;
+    limit: number;
+    search?: string;
+    customerId?: number;
+    carrierId?: number;
+    ownership?: AccountingTransportOwnership;
+    readiness?: AccountingTransportReadiness;
+  }) {
+    const query = new URLSearchParams({
+      from: params.from,
+      to: params.to,
+      page: String(params.page),
+      limit: String(params.limit),
+    });
+    if (params.search?.trim()) query.set('search', params.search.trim());
+    if (params.customerId) query.set('customerId', String(params.customerId));
+    if (params.carrierId) query.set('carrierId', String(params.carrierId));
+    if (params.ownership) query.set('ownership', params.ownership);
+    if (params.readiness) query.set('readiness', params.readiness);
+    return api.get<AccountingTransportRegisterResponse>(
+      `/finance/billing-documents/transport-register?${query}`,
+    );
+  },
   listRecoverableCosts(params: { page: number; limit: number; approvalStatus?: string }) {
     const query = new URLSearchParams({ page: String(params.page), limit: String(params.limit) });
     if (params.approvalStatus) query.set('approvalStatus', params.approvalStatus);

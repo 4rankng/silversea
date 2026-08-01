@@ -8,7 +8,7 @@ import type { Tx } from './trip-shared';
 import {
   assertRecoverableSourcesClaimable,
   buildExpenseSourceVersionToken,
-  buildTripSourceVersionToken,
+  postingChecksum,
   postDebitNoteDelta,
 } from './billingDocument.service';
 import { transitionDebitNoteStatus } from './debit-note-lifecycle.service';
@@ -43,6 +43,9 @@ type BillingDocumentSourceSnapshot = {
   sourceVersion: string | null;
   sourceChangedAt: string | null;
   baseAmount: number;
+  financialPostingId: number | null;
+  financialPostingVersion: number | null;
+  postingChecksum: string | null;
 };
 
 function billingDocumentVersion(document: Pick<typeof s.billingDocuments.$inferSelect, 'version'>): number {
@@ -89,15 +92,30 @@ async function loadCurrentTripSource(tx: Tx, tripId: number): Promise<{
 } | null> {
   const [trip] = await tx.select({
     id: s.trips.id,
-    version: s.trips.version,
     revenue: s.trips.revenue,
+    postingId: s.tripFinancialPostings.id,
+    postingVersion: s.tripFinancialPostings.version,
+    postingTripVersion: s.tripFinancialPostings.tripVersion,
+    postingReason: s.tripFinancialPostings.reason,
+    postingEffectiveAt: s.tripFinancialPostings.effectiveAt,
   })
     .from(s.trips)
+    .innerJoin(s.tripFinancialPostings, and(
+      eq(s.tripFinancialPostings.tripId, s.trips.id),
+      eq(s.tripFinancialPostings.status, 'ACTIVE'),
+    ))
     .where(and(eq(s.trips.id, tripId), isNull(s.trips.deletedAt)))
     .limit(1);
   if (!trip) return null;
   return {
-    version: buildTripSourceVersionToken(trip.version),
+    version: postingChecksum({
+      id: trip.postingId,
+      tripId: trip.id,
+      version: trip.postingVersion,
+      tripVersion: trip.postingTripVersion,
+      reason: trip.postingReason,
+      effectiveAt: trip.postingEffectiveAt,
+    }),
     baseAmount: Number(trip.revenue ?? 0),
   };
 }
@@ -132,7 +150,9 @@ async function buildSourceDiffs(tx: Tx, documentId: number): Promise<SourceDiff[
     if ((line.sourceType !== 'TRIP' && line.sourceType !== 'EXPENSE') || line.sourceId == null) {
       continue;
     }
-    const previousVersion = renderSourceVersion(line);
+    const previousVersion = line.sourceType === 'TRIP'
+      ? line.postingChecksum
+      : renderSourceVersion(line);
     const current = line.sourceType === 'TRIP'
       ? await loadCurrentTripSource(tx, line.sourceId)
       : await loadCurrentExpenseSource(tx, line.sourceId);
@@ -207,6 +227,9 @@ async function captureIssueSourceSnapshots(
       sourceVersion: renderSourceVersion(line),
       sourceChangedAt: renderSourceChangedAt(line),
       baseAmount: Number(line.baseAmount ?? 0),
+      financialPostingId: line.financialPostingId,
+      financialPostingVersion: line.financialPostingVersion,
+      postingChecksum: line.postingChecksum,
     }];
   });
 }

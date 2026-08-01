@@ -4,7 +4,6 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { FuelMode, TripStatus, Role, TxnType } from '@tingting/shared';
 import { db, client } from '../db';
 import * as s from '../db/schema';
-import { config } from '../config';
 import { transitionTripStatus } from '../services/trip-status-machine.service';
 import {
   updateTripFigures,
@@ -309,35 +308,62 @@ describe('trip completion ledger posting', () => {
     assert.equal(latestSupplierRows.at(-1)?.balance, '0');
   });
 
-  test('OFF rollback still retires an existing canonical posting when canceling', async () => {
-    const originalMode = config.workflowRolloutMode;
-    try {
-      config.workflowRolloutMode = 'ACTIVE';
-      const { trip } = await createInTransitTrip({ revenue: 800_000, totalFuelCost: 250_000 });
-      const completed = await completeTripGoverned(trip.id, trip.version);
-      const [activeBefore] = await db.select().from(s.tripFinancialPostings)
-        .where(and(
-          eq(s.tripFinancialPostings.tripId, trip.id),
-          eq(s.tripFinancialPostings.status, 'ACTIVE'),
-        ));
-      assert.ok(activeBefore, 'ACTIVE completion must create the canonical posting');
+  test('canceling a completed trip retires its canonical posting', async () => {
+    const { trip } = await createInTransitTrip({ revenue: 800_000, totalFuelCost: 250_000 });
+    const completed = await completeTripGoverned(trip.id, trip.version);
+    const [activeBefore] = await db.select().from(s.tripFinancialPostings)
+      .where(and(
+        eq(s.tripFinancialPostings.tripId, trip.id),
+        eq(s.tripFinancialPostings.status, 'ACTIVE'),
+      ));
+    assert.ok(activeBefore, 'completion must create the canonical posting');
 
-      config.workflowRolloutMode = 'OFF';
-      const { checked, approvers } = await checkedCompletedTripCancellation(trip.id, completed.version);
-      await approveGovernanceAction({
+    const { checked, approvers } = await checkedCompletedTripCancellation(trip.id, completed.version);
+    const approved = await approveGovernanceAction({
+      actionId: checked.id,
+      approverId: approvers[0]!.id,
+      approverRole: Role.ADMIN,
+      expectedVersion: checked.version,
+    });
+
+    const postings = await db.select().from(s.tripFinancialPostings)
+      .where(eq(s.tripFinancialPostings.tripId, trip.id));
+    assert.equal(postings.filter((posting) => posting.status === 'ACTIVE').length, 0);
+    const cancellationPostings = postings.filter((posting) => posting.reason === 'CANCELLATION');
+    assert.equal(cancellationPostings.length, 1);
+    assert.equal(
+      (approved.applicationResult as { financialPostingVersionId?: number } | null)?.financialPostingVersionId,
+      cancellationPostings[0]!.id,
+    );
+  });
+
+  test('missing active posting aborts governed cancellation atomically', async () => {
+    const { trip } = await createInTransitTrip({ revenue: 600_000, totalFuelCost: 150_000 });
+    const completed = await completeTripGoverned(trip.id, trip.version);
+    const { checked, approvers } = await checkedCompletedTripCancellation(trip.id, completed.version);
+    await db.update(s.tripFinancialPostings)
+      .set({ status: 'REVERSED' })
+      .where(eq(s.tripFinancialPostings.tripId, trip.id));
+
+    await assert.rejects(
+      approveGovernanceAction({
         actionId: checked.id,
         approverId: approvers[0]!.id,
         approverRole: Role.ADMIN,
         expectedVersion: checked.version,
-      });
+      }),
+      /Chuyến chưa có phiên bản hạch toán đang hiệu lực/,
+    );
 
-      const postings = await db.select().from(s.tripFinancialPostings)
-        .where(eq(s.tripFinancialPostings.tripId, trip.id));
-      assert.equal(postings.filter((posting) => posting.status === 'ACTIVE').length, 0);
-      assert.equal(postings.filter((posting) => posting.reason === 'CANCELLATION').length, 1);
-    } finally {
-      config.workflowRolloutMode = originalMode;
-    }
+    const [unchangedTrip] = await db.select().from(s.trips).where(eq(s.trips.id, trip.id));
+    const [unchangedAction] = await db.select().from(s.governanceActions)
+      .where(eq(s.governanceActions.id, checked.id));
+    assert.equal(unchangedTrip.status, TripStatus.COMPLETED);
+    assert.equal(unchangedAction.status, 'PENDING_APPROVAL');
+    assert.equal(
+      (await ledgerRowsForTrip(trip.id)).filter(row => row.txnType === TxnType.UNLOCK_REVERSAL).length,
+      0,
+    );
   });
 
   test('concurrent cancels on a completed trip produce one winner and one 409 without duplicate reversals', async () => {

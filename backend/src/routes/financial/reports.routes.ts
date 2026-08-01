@@ -4,7 +4,6 @@ import { Role } from '@tingting/shared';
 import { requireRoles } from '../../middleware/casbin';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { getUser } from '../../middleware/auth';
-import { requireWorkflowActive } from '../../middleware/workflow-rollout';
 import { getDashboardStats, getPnlReport, getReceivablesSummary, previewDistribution, getDistributionHistory, requestProfitDistributionGovernance } from '../../services/reporting.service';
 import { getFuelVarianceReport } from '../../services/pnl.service';
 import { getPaymentTermEvalReport } from '../../services/payment-term.service';
@@ -27,7 +26,7 @@ const router = Router();
 // ─── Dashboard ───────────────────────────────────────────────────────────────
 
 router.get('/reports/dashboard', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (_req: Request, res: Response) => {
-  res.json(await getDashboardStats());
+  res.json(await getDashboardStats({ includeExecutive: true }));
 }));
 
 router.get('/dashboard/approval-queue', asyncHandler(async (req: Request, res: Response) => {
@@ -46,7 +45,7 @@ router.get('/reports/pnl', asyncHandler(async (req: Request, res: Response) => {
   res.json(await getPnlReport(month, year));
 }));
 
-router.get('/reports/profitability', requireWorkflowActive, requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+router.get('/reports/profitability', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const month = Number(req.query.month);
   const year = Number(req.query.year) || new Date().getFullYear();
   const requestedDimension = String(req.query.dimension ?? 'CUSTOMER').toUpperCase();

@@ -47,6 +47,10 @@ vi.mock('./pages/DashboardPage', () => ({
   default: () => <div>Dashboard test page</div>,
 }));
 
+vi.mock('./pages/AccountingWorkspacePage', () => ({
+  default: () => <div>Accounting test page</div>,
+}));
+
 import { AppRoutes } from './App';
 
 function renderRoute(path: string) {
@@ -74,7 +78,7 @@ describe('AppRoutes shipment operations reachability', () => {
   it('keeps ACCOUNTANT out of shipment write routes', async () => {
     authState.role = Role.ACCOUNTANT;
     renderRoute('/shipments/new');
-    expect(await screen.findByText('Dashboard test page')).toBeTruthy();
+    expect(await screen.findByText('Accounting test page')).toBeTruthy();
     expect(screen.queryByText('Shipment create test page')).toBeNull();
   });
 });

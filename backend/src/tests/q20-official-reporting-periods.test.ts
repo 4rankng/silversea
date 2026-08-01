@@ -5,7 +5,6 @@ import { inArray } from 'drizzle-orm';
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { cacheInvalidate, cacheInvalidatePattern, disconnectRedis } from '../lib/redis';
-import { config } from '../config';
 import { getDashboardStats } from '../services/dashboard-stats.service';
 import { getFuelApReconciliation } from '../services/fuel-ap-recon.service';
 import { getPnlReport, getFuelVarianceReport } from '../services/pnl.service';
@@ -56,7 +55,7 @@ function atBusinessNoon(dateStr: string): Date {
 async function invalidateReportCaches() {
   await Promise.all([
     cacheInvalidate('reports:dashboard'),
-    cacheInvalidate(`reports:dashboard:${config.workflowRolloutMode}`),
+    cacheInvalidate('reports:dashboard:executive'),
     cacheInvalidatePattern('reports:pnl:*'),
     cacheInvalidatePattern('reports:fuel-variance:*'),
   ]);
@@ -268,6 +267,7 @@ describe('Q20 official reporting period attribution', () => {
     const previousMonthPnl = await getPnlReport(previousMonth, previousYear);
     const currentMonthPnl = await getPnlReport(currentMonth, currentYear);
     const dashboardAfter = await getDashboardStats();
+    assert.equal(dashboardAfter.executive, undefined, 'base dashboard consumers must not load executive-only aggregates');
     const previousQuarterPreview = await previewDistribution(previousQuarter, previousQuarterYear);
     const currentQuarterPreview = await previewDistribution(currentQuarter, currentYear);
     const previousFuelVariance = await getFuelVarianceReport(previousMonth, previousYear);

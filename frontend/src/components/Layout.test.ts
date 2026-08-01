@@ -4,6 +4,11 @@ import { Role } from '@tingting/shared';
 import { getNavItems } from './Layout';
 
 describe('getNavItems', () => {
+  it('puts the dedicated accounting home first for ACCOUNTANT', () => {
+    const items = getNavItems(Role.ACCOUNTANT);
+    expect(items[0]).toMatchObject({ key: 'accounting', path: '/accounting', label: 'Kế toán' });
+    expect(getNavItems(Role.MANAGER).some((item) => item.key === 'accounting')).toBe(false);
+  });
   it('includes audit logs for ACCOUNTANT in the shared office nav source', () => {
     const items = getNavItems(Role.ACCOUNTANT);
     expect(items.some((item) => item.key === 'audit-logs' && item.path === '/audit-logs')).toBe(true);
@@ -43,20 +48,20 @@ describe('getNavItems', () => {
   });
 
   it('gives CLERK a shipment-first scoped workflow without broad finance links', () => {
-    const items = getNavItems(Role.CLERK, undefined, undefined, ['recoverable_costs.read'], 'ACTIVE');
+    const items = getNavItems(Role.CLERK, undefined, undefined, ['recoverable_costs.read']);
     expect(items[0]).toEqual(expect.objectContaining({ key: 'shipments', path: '/shipments' }));
     expect(items.some((item) => item.key === 'recoverable-costs')).toBe(true);
     expect(items.some((item) => ['debt', 'payables', 'treasury', 'profit'].includes(item.key))).toBe(false);
   });
 
-  it('hides rollout workflow links while mode is OFF', () => {
-    expect(getNavItems(Role.ACCOUNTANT, undefined, undefined, ['treasury.read'], 'OFF')
-      .some((item) => item.key === 'treasury')).toBe(false);
+  it('shows workflow links when the role has the required capability', () => {
+    expect(getNavItems(Role.ACCOUNTANT, undefined, undefined, ['treasury.read'])
+      .some((item) => item.key === 'treasury')).toBe(true);
   });
 
   it('keeps the executive dashboard out of the active ACCOUNTANT workspace', () => {
-    const items = getNavItems(Role.ACCOUNTANT, undefined, undefined, ['treasury.read'], 'ACTIVE');
+    const items = getNavItems(Role.ACCOUNTANT, undefined, undefined, ['treasury.read']);
     expect(items.some((item) => item.key === 'dashboard')).toBe(false);
-    expect(items[0]).toEqual(expect.objectContaining({ key: 'debt' }));
+    expect(items[0]).toEqual(expect.objectContaining({ key: 'accounting' }));
   });
 });

@@ -4,13 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "pnpm --dir ../shared build",
     "dev": "tsx watch src/index.ts",
+    "prebuild": "pnpm --dir ../shared build",
     "build": "tsc -p tsconfig.build.json && node fix-esm-imports.js",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
+    "preseed": "pnpm --dir ../shared build",
     "seed": "tsx src/seed.ts",
     "repair:legacy-trip-salaries": "tsx scripts/repair-legacy-trip-salaries.ts",
+    "pretest": "pnpm --dir ../shared build",
     "test": "npx tsx --test --test-concurrency=1 src/tests/*.test.ts"
   },
   "dependencies": {

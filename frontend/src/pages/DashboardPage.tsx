@@ -398,7 +398,7 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <ExecutiveFinancialStrip enabled={user?.workflowRolloutMode === 'ACTIVE' && Boolean(user.capabilities?.includes('executive_dashboard.read'))} />
+      <ExecutiveFinancialStrip enabled={Boolean(user?.capabilities?.includes('executive_dashboard.read'))} />
 
       {/* ── KPI row ── */}
       <div className="wf-kpis" data-tour-id="dashboard-kpis">

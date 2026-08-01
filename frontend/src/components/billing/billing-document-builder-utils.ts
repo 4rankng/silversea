@@ -32,6 +32,32 @@ export const SERVICE_FEE_LABELS: Record<string, string> = {
   OTHER: 'Phí chi hộ khác',
 };
 
+export function selectedTripIdsFromSearch(search: string): number[] {
+  const raw = new URLSearchParams(search).get('selectedTripIds') ?? '';
+  return [...new Set(raw.split(',')
+    .map(Number)
+    .filter((value) => Number.isInteger(value) && value > 0))];
+}
+
+export function filterAuthoritativeDebitNoteLines(
+  lines: BillingDocumentLine[],
+  selectedTripIds: number[],
+): { lines: BillingDocumentLine[]; missingTripIds: number[] } {
+  if (selectedTripIds.length === 0) return { lines, missingTripIds: [] };
+  const selected = new Set(selectedTripIds);
+  const filtered = lines.filter((line) => (
+    (line.sourceType === 'TRIP' && line.sourceId != null && selected.has(line.sourceId))
+    || (line.sourceType === 'EXPENSE' && selected.has(Number(line.renderData?.tripId)))
+  ));
+  const found = new Set(filtered
+    .filter((line) => line.sourceType === 'TRIP')
+    .map((line) => line.sourceId));
+  return {
+    lines: filtered,
+    missingTripIds: selectedTripIds.filter((tripId) => !found.has(tripId)),
+  };
+}
+
 export function normalizeFreightDescription(line: BillingDocumentLine): BillingDocumentLine {
   const description = canonicalFreightDescription(line);
   return description !== line.description ? { ...line, description } : line;

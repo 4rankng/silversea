@@ -44,7 +44,7 @@ describe('recoverable-cost and Debit Note policy', () => {
     assert.equal(result.state, 'ADJUSTMENT_REQUIRED');
   });
 
-  test('posts recoverable expense value once while trip base revenue stays at the trip authority', () => {
+  test('does not post recoverable expense again after trip-lock authority posted it', () => {
     const delta = documentLedgerAdjustment([
       {
         sourceType: 'TRIP', sourceId: 1, lineType: 'FREIGHT', typeLabel: 'Doanh thu',
@@ -57,7 +57,7 @@ describe('recoverable-cost and Debit Note policy', () => {
         amountOverride: null, excluded: false, sortOrder: 1,
       },
     ]);
-    assert.equal(delta, 1_200_000);
+    assert.equal(delta, 0);
   });
 
   test('keeps SENT and PENDING_CONFIRM distinct and registers the reference-only durable kind', () => {

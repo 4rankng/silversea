@@ -3,7 +3,7 @@
  * kept self-contained so the panel can mount at the Layout root. */
 
 .ob-checklist,
-.ob-checklist--badge {
+.ob-checklist.ob-checklist--badge {
   position: fixed;
   right: 20px;
   bottom: calc(var(--trip-action-bar-height, 0px) + 20px);
@@ -26,6 +26,9 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  min-height: 44px;
   padding: 9px 13px;
   border-radius: 999px;
   cursor: pointer;
@@ -185,5 +188,10 @@
     left: 12px;
     width: auto;
     bottom: calc(var(--trip-action-bar-height, 0px) + 12px);
+  }
+
+  .ob-checklist.ob-checklist--badge {
+    left: auto;
+    width: max-content;
   }
 }

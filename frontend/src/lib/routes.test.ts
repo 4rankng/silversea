@@ -19,6 +19,7 @@ describe('titleForPath (catalog-sourced, parity with pre-refactor behavior)', ()
     '/trips/123': 'Chi tiết lệnh vận chuyển',
     '/trips/123/edit': 'Sửa lệnh vận chuyển',
     '/finance': 'Báo cáo lãi lỗ',
+    '/accounting': 'Kế toán',
     '/profit': 'Phân chia lợi nhuận',
     '/debt': 'Công nợ phải thu',
     '/debt/5': 'Công nợ phải thu',
@@ -80,8 +81,8 @@ describe('homeForRole', () => {
     expect(homeForRole('CLERK')).toBe('/shipments');
   });
 
-  it('routes ACCOUNTANT users to the receivables workspace', () => {
-    expect(homeForRole('ACCOUNTANT')).toBe('/debt');
+  it('routes ACCOUNTANT users to the dedicated accounting workspace', () => {
+    expect(homeForRole('ACCOUNTANT')).toBe('/accounting');
   });
 });
 
@@ -107,7 +108,7 @@ describe('agent route-key set parity (catalog ↔ AGENT_ROUTE_KEYS)', () => {
     }
   });
 
-  it('agent set includes all 37 navigable office destinations', () => {
-    expect(AGENT_ROUTE_KEYS).toHaveLength(37);
+  it('agent set includes all 38 navigable office destinations', () => {
+    expect(AGENT_ROUTE_KEYS).toHaveLength(38);
   });
 });

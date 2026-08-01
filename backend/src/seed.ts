@@ -15,6 +15,8 @@ import {
   batchUpsertShipmentContainers,
   attachShipmentDocument,
 } from './services/shipment.service';
+import { seedCustomers } from './seed/seed-customers';
+import { seedReference } from './seed/seed-reference';
 
 async function seed() {
   const passwordHash = await bcrypt.hash('admin123', 10);
@@ -470,6 +472,12 @@ async function seed() {
   }
   console.log('✅ Company information defaults seeded!');
 
+  // Install the customer-owned operational master data and the Long Minh
+  // Debit Note authority as part of every supported setup/seed path. These
+  // seeders are idempotent and deliberately run after generic defaults so the
+  // approved Silver Sea identity is the final configured export identity.
+  await seedReference();
+  await seedCustomers();
   await seedShipments(passwordHash);
   await seedClerkScope();
 

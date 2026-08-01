@@ -1,10 +1,14 @@
+import { createHash } from 'node:crypto';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { cacheGet } from '../lib/redis';
-import { eq, and, or, sql, inArray, like, isNull } from 'drizzle-orm';
+import { eq, and, or, sql, inArray, like, isNull, lt } from 'drizzle-orm';
 import { computeFifoAging, TxnType } from '@tingting/shared';
 import type { PayableSummary, PayablesCategory, Supplier } from '@tingting/shared';
-import { getCustomerReceivableSnapshots } from './customer-receivable-authority.service';
+import {
+  getCustomerReceivableSnapshots,
+  resolveVietnamAsOfCutoff,
+} from './customer-receivable-authority.service';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -17,7 +21,7 @@ interface AgingConfig {
 }
 
 interface FetchOptions {
-  /** Point-in-time snapshot: only include entries up to this date (inclusive) */
+  /** Point-in-time snapshot: include entries before the next Vietnam business midnight. */
   asOfDate?: string;
   /** Restrict to a single entity — avoids fetching all entities when only one is needed */
   entityId?: number;
@@ -44,6 +48,22 @@ interface EntityAgingResult {
 interface AgingPageOptions {
   page?: number;
   limit?: number;
+}
+
+function reportChecksum(value: unknown): string {
+  return createHash('sha256').update(JSON.stringify(value)).digest('hex');
+}
+
+function historicalReportMetadata(asOfDate: string | undefined, definitionVersion: string, payload: unknown) {
+  const cutoff = resolveVietnamAsOfCutoff(asOfDate);
+  return {
+    asOf: cutoff.explicit ? cutoff.businessDate : cutoff.referenceDate.toISOString(),
+    asOfExclusive: cutoff.endExclusive.toISOString(),
+    timezone: 'Asia/Ho_Chi_Minh' as const,
+    definitionVersion,
+    consistency: 'BEST_EFFORT' as const,
+    checksum: reportChecksum({ definitionVersion, asOfExclusive: cutoff.endExclusive.toISOString(), payload }),
+  };
 }
 
 export interface CustomerAgingListItem {
@@ -81,7 +101,10 @@ async function fetchLedgerGrouped(
   ];
   if (opts.entityId !== undefined) conditions.push(eq(s.ledger.entityId, opts.entityId));
   if (opts.entityIds && opts.entityIds.length > 0) conditions.push(inArray(s.ledger.entityId, opts.entityIds));
-  if (opts.asOfDate) conditions.push(sql`${s.ledger.timestamp} <= ${opts.asOfDate}::timestamptz`);
+  if (opts.asOfDate) {
+    const cutoff = resolveVietnamAsOfCutoff(opts.asOfDate);
+    conditions.push(lt(s.ledger.timestamp, cutoff.endExclusive));
+  }
   if (opts.carrierPayables) {
     conditions.push(or(
       inArray(s.ledger.txnType, [TxnType.EXTERNAL_CARRIER_COST, TxnType.VENDOR_PAYMENT]),
@@ -136,18 +159,18 @@ function computeAging(entries: LedgerEntry[], now: Date, invertSigns: boolean) {
 function computeEntityResults(
   grouped: Map<number, LedgerEntry[]>,
   config: AgingConfig,
+  referenceDate: Date = new Date(),
 ): EntityAgingResult[] {
-  const now = new Date();
   const results: EntityAgingResult[] = [];
 
   for (const [entityId, entries] of grouped) {
-    const { aging, openInvoices } = computeAging(entries, now, config.invertSigns);
+    const { aging, openInvoices } = computeAging(entries, referenceDate, config.invertSigns);
     const totalOutstanding = aging.current + aging.d30 + aging.d60 + aging.over90;
 
     let maxOverdueDays = 0;
     for (const inv of openInvoices) {
       if (inv.open <= 0) continue;
-      const ageDays = Math.floor((now.getTime() - new Date(inv.ts).getTime()) / 86400000);
+      const ageDays = Math.floor((referenceDate.getTime() - new Date(inv.ts).getTime()) / 86400000);
       if (ageDays > maxOverdueDays) maxOverdueDays = ageDays;
     }
 
@@ -177,7 +200,8 @@ async function getEntityResultsCached(
   // invalidateReportCaches() (route-layer, post-commit). The 300s TTL is only a
   // safety net. JSON round-trip is lossless here — EntityAgingResult carries no
   // Date objects (timestamps are ISO strings).
-  const asOfKey = opts.asOfDate ?? new Date().toISOString().slice(0, 10);
+  const cutoff = resolveVietnamAsOfCutoff(opts.asOfDate);
+  const asOfKey = cutoff.businessDate;
   const txnKey = opts.carrierPayables
     ? 'carrier-payables'
     : opts.txnTypes && opts.txnTypes.length > 0
@@ -196,7 +220,7 @@ async function getEntityResultsCached(
         entityTypes: opts.entityTypes,
         excludeCarrierPayables: opts.excludeCarrierPayables,
       });
-      return computeEntityResults(grouped, config);
+      return computeEntityResults(grouped, config, cutoff.referenceDate);
     },
   );
 }
@@ -276,7 +300,10 @@ export async function getReceivablesSummary(opts: { asOfDate?: string } = {}) {
   const customerRows = await db.select({ id: s.customers.id })
     .from(s.customers)
     .where(isNull(s.customers.deletedAt));
-  const snapshotMap = await getCustomerReceivableSnapshots(customerRows.map((row) => row.id));
+  const snapshotMap = await getCustomerReceivableSnapshots(
+    customerRows.map((row) => row.id),
+    { asOfDate: opts.asOfDate },
+  );
   const results = [...snapshotMap.values()]
     .filter((snapshot) => snapshot.totalOutstanding > 0)
     .map((snapshot) => ({
@@ -311,7 +338,17 @@ export async function getReceivablesSummary(opts: { asOfDate?: string } = {}) {
     else buckets[0].count++;
   }
 
-  return { buckets, totalOutstanding, totalCustomers, overdueCustomers: totalCustomers - buckets[0].count };
+  const payload = {
+    buckets,
+    totalOutstanding,
+    totalCustomers,
+    overdueCustomers: totalCustomers - buckets[0].count,
+    overdueAmount: buckets.slice(1).reduce((sum, bucket) => sum + bucket.amount, 0),
+  };
+  return {
+    ...payload,
+    ...historicalReportMetadata(opts.asOfDate, 'receivables-summary-v2', payload),
+  };
 }
 
 export async function getTopOverdueCustomer(): Promise<{ name: string; balance: number; days: number } | null> {
@@ -353,7 +390,7 @@ export async function getCustomerAgingList(opts: { search?: string; asOfDate?: s
   const customersScope = searchedCustomerIds
     ? [...searchedCustomerIds]
     : (await db.select({ id: s.customers.id }).from(s.customers).where(isNull(s.customers.deletedAt))).map((row) => row.id);
-  const snapshotMap = await getCustomerReceivableSnapshots(customersScope);
+  const snapshotMap = await getCustomerReceivableSnapshots(customersScope, { asOfDate: opts.asOfDate });
   const results = [...snapshotMap.values()]
     .filter((snapshot) => snapshot.totalOutstanding > 0)
     .map((snapshot) => ({
@@ -382,7 +419,12 @@ export async function getCustomerAgingList(opts: { search?: string; asOfDate?: s
       { entityType: 'VENDOR', invertSigns: true },
       { asOfDate: opts.asOfDate, entityIds: linkedSupplierIds },
     );
-    const apResults = computeEntityResults(apGrouped, { entityType: 'VENDOR', invertSigns: true });
+    const apCutoff = resolveVietnamAsOfCutoff(opts.asOfDate);
+    const apResults = computeEntityResults(
+      apGrouped,
+      { entityType: 'VENDOR', invertSigns: true },
+      apCutoff.referenceDate,
+    );
     for (const r of apResults) {
       apByVendor.set(r.entityId, r.totalOutstanding);
     }
@@ -406,12 +448,16 @@ export async function getCustomerAgingList(opts: { search?: string; asOfDate?: s
 
   mapped.sort((a, b) => b.totalOutstanding - a.totalOutstanding);
   const page = paginateAgingRows(mapped, opts);
-  return {
+  const payload = {
     customers: page.rows,
     page: page.page,
     limit: page.limit,
     total: page.total,
     totalPages: page.totalPages,
+  };
+  return {
+    ...payload,
+    ...historicalReportMetadata(opts.asOfDate, 'receivables-aging-v2', payload),
   };
 }
 
@@ -558,7 +604,11 @@ export async function getPayablesSummary(opts: { asOfDate?: string; category?: P
       getPayablesForScope(vendorScope, opts.asOfDate),
       getPayablesForScope(carrierScope, opts.asOfDate),
     ]);
-    return mergePayablesSummaries(summaries);
+    const payload = mergePayablesSummaries(summaries);
+    return {
+      ...payload,
+      ...historicalReportMetadata(opts.asOfDate, 'payables-summary-v2', payload),
+    };
   }
 
   const scope: PayablesScope = (() => {
@@ -574,5 +624,9 @@ export async function getPayablesSummary(opts: { asOfDate?: string; category?: P
     }
   })();
 
-  return getPayablesForScope(scope, opts.asOfDate);
+  const payload = await getPayablesForScope(scope, opts.asOfDate);
+  return {
+    ...payload,
+    ...historicalReportMetadata(opts.asOfDate, `payables-${opts.category}-v2`, payload),
+  };
 }

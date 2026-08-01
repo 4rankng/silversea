@@ -7,11 +7,11 @@ import {
   generateBillingDocumentSchema,
   saveBillingDocumentSchema,
   sendDebitNoteForConfirmationSchema,
+  accountingTransportRegisterQuerySchema,
 } from '@tingting/shared';
 import { getUser } from '../../middleware/auth';
 import { requireRoles } from '../../middleware/casbin';
 import { asyncHandler } from '../../middleware/asyncHandler';
-import { requireWorkflowActive } from '../../middleware/workflow-rollout';
 import * as billingService from '../../services/billingDocument.service';
 import {
   requestBillingDocumentAdjustment,
@@ -23,6 +23,7 @@ import { invalidateReportCaches } from '../../lib/redis';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { sendDebitNoteForCustomerConfirmation } from '../../services/debit-note-lifecycle.service';
+import { listAccountingTransportRows } from '../../services/accounting-transport-register.service';
 
 // Debit-note (AR) + payment-statement (AP) builder routes.
 // Mounted under the financial router → already gated by casbinAuthz('financial').
@@ -68,6 +69,13 @@ router.get('/finance/billing-documents', requireRoles(...ROLES), asyncHandler(as
   const rawType = req.query.type;
   const type = rawType === 'DEBIT_NOTE' || rawType === 'PAYMENT_STATEMENT' ? rawType : undefined;
   res.json(await billingService.listDocuments(entityType, entityId, type));
+}));
+
+// GET /api/finance/billing-documents/transport-register — bounded, read-only
+// accounting projection over locked trips and ACTIVE financial postings.
+router.get('/finance/billing-documents/transport-register', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
+  const query = accountingTransportRegisterQuerySchema.parse(req.query);
+  res.json(await listAccountingTransportRows(query));
 }));
 
 // GET /api/finance/billing-documents/:id — one document with lines
@@ -139,7 +147,7 @@ router.post('/finance/billing-documents/:id/issue', requireRoles(...ROLES), asyn
   res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
-router.post('/finance/billing-documents/:id/send-for-confirmation', requireWorkflowActive, requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
+router.post('/finance/billing-documents/:id/send-for-confirmation', requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   const input = sendDebitNoteForConfirmationSchema.parse(req.body);
   const documentId = Number(req.params.id);
@@ -214,6 +222,10 @@ router.get('/finance/billing-documents/:id/export', requireRoles(...ROLES), asyn
       originalDueDate: doc.originalDueDate,
       processingDueDate: doc.processingDueDate,
       totalInclVat: String(doc.totalInclVat),
+      totalNet: String(doc.totalNet ?? doc.totalInclVat),
+      totalTax: String(doc.totalTax ?? 0),
+      totalGross: String(doc.totalGross ?? doc.totalInclVat),
+      vatTreatmentVersion: doc.vatTreatmentVersion ?? 'VAT-V1',
       status: null,
       lines: doc.lines
         .filter(l => !l.excluded)
@@ -222,6 +234,9 @@ router.get('/finance/billing-documents/:id/export', requireRoles(...ROLES), asyn
           typeLabel: l.typeLabel,
           description: l.description,
           baseAmount: String(l.amountOverride ?? l.baseAmount),
+          netAmount: String(l.netAmount ?? l.baseAmount),
+          taxAmount: String(l.taxAmount ?? 0),
+          grossAmount: String(l.grossAmount ?? l.baseAmount),
           routeName: l.routeName ?? null,
         })),
     };

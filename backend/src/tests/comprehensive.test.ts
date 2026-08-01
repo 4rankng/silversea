@@ -193,11 +193,13 @@ test('E2E — Auth flow (Login, Me, User List, Create, Delete)', async () => {
   });
   assert.strictEqual(loginRes.status, 200);
   assert.ok(loginRes.data.token);
+  assert.equal(Object.hasOwn(loginRes.data.user, 'workflowRolloutMode'), false);
 
   // Test 1.2: Authenticated /me profile fetching
   const meRes = await testFetch('/api/auth/me', { token: adminToken });
   assert.strictEqual(meRes.status, 200);
   assert.strictEqual(meRes.data.username, 'admin');
+  assert.equal(Object.hasOwn(meRes.data, 'workflowRolloutMode'), false);
 
   // Test 1.3: User CRUD - Create User
   const newUserUsername = `user_${Date.now()}_${Math.random().toString(36).substring(7)}`;
@@ -531,6 +533,7 @@ test('E2E — Financial operations (P&L, profit sharing, ledger, statements, rec
   const dashboardRes = await testFetch('/api/reports/dashboard', { token: adminToken });
   assert.strictEqual(dashboardRes.status, 200);
   assert.ok(dashboardRes.data.revenue !== undefined);
+  assert.ok(dashboardRes.data.executive !== undefined, 'authorized dashboard route must include executive aggregates');
 
   // 3. Profit distribution snapshotting
   // Seed a partner first to make sure there is capital history to distribute to

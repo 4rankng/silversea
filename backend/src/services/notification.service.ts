@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import { db } from '../db';
 import { notifications } from '../db/schema';
-import { eq, and, desc, count, inArray } from 'drizzle-orm';
+import { eq, and, desc, count, inArray, isNull } from 'drizzle-orm';
 import * as s from '../db/schema';
 import { NotificationType, FINANCIAL_ROLES, PUSH_RULES, Role, isFinancialRole } from '@tingting/shared';
 import * as pushService from './push.service';
@@ -163,23 +163,39 @@ async function resolveTargets(
   if (roles.length > 0) {
     const roleUsers = await client.select({ id: s.users.id, role: s.users.role })
       .from(s.users)
-      .where(and(inArray(s.users.role, roles as (typeof s.users.role.enumValues)[number][]), eq(s.users.status, 'ACTIVE')));
+      .where(and(
+        inArray(s.users.role, roles as (typeof s.users.role.enumValues)[number][]),
+        eq(s.users.status, 'ACTIVE'),
+        isNull(s.users.deletedAt),
+      ));
     for (const u of roleUsers) byId.set(u.id, u.role as Role);
   }
 
   if (payload.targetDriverId) {
-    const [driver] = await client.select({ userId: s.drivers.userId })
+    const [driver] = await client.select({ userId: s.drivers.userId, role: s.users.role })
       .from(s.drivers)
-      .where(eq(s.drivers.id, payload.targetDriverId))
+      .innerJoin(s.users, eq(s.users.id, s.drivers.userId))
+      .where(and(
+        eq(s.drivers.id, payload.targetDriverId),
+        eq(s.drivers.status, 'ACTIVE'),
+        isNull(s.drivers.deletedAt),
+        eq(s.users.status, 'ACTIVE'),
+        isNull(s.users.deletedAt),
+        eq(s.users.role, Role.DRIVER),
+      ))
       .limit(1);
-    if (driver?.userId) byId.set(driver.userId, Role.DRIVER);
+    if (driver?.userId) byId.set(driver.userId, driver.role as Role);
   }
 
   // Resolve roles for any explicitly-targeted user ids we don't yet know.
   const unknown = [...byId.entries()].filter(([, r]) => r === undefined).map(([uid]) => uid);
   if (unknown.length > 0) {
     const found = await client.select({ id: s.users.id, role: s.users.role })
-      .from(s.users).where(inArray(s.users.id, unknown));
+      .from(s.users).where(and(
+        inArray(s.users.id, unknown),
+        eq(s.users.status, 'ACTIVE'),
+        isNull(s.users.deletedAt),
+      ));
     for (const u of found) byId.set(u.id, u.role as Role);
   }
 

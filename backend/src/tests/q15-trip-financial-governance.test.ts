@@ -89,7 +89,15 @@ async function createInTransitTrip() {
     licensePlate: `Q15${suffix}${truckIds.length}`.replace(/[^A-Za-z0-9]/g, '').slice(-20),
   }).returning();
   truckIds.push(truck.id);
+  const [driverUser] = await db.insert(s.users).values({
+    username: `q15-trip-driver-${suffix}-${driverIds.length}`,
+    passwordHash: 'x',
+    role: Role.DRIVER,
+    status: 'ACTIVE',
+  }).returning();
+  userIds.push(driverUser.id);
   const [driver] = await db.insert(s.drivers).values({
+    userId: driverUser.id,
     name: `Q15 driver ${suffix}-${driverIds.length}`,
     assignedTruckId: truck.id,
   }).returning();
@@ -560,12 +568,25 @@ describe('Q15 trip financial governance', () => {
     const attendance = await db.select().from(s.driverWorkDays)
       .where(eq(s.driverWorkDays.tripId, trip.id));
     assert.equal(attendance.length, 1);
-    const notificationsBeforeReplay = await db.select().from(s.notifications)
+    const [tripDriver] = await db.select({
+      userId: s.drivers.userId,
+    }).from(s.drivers)
+      .where(eq(s.drivers.id, trip.driverId!))
+      .limit(1);
+    assert.ok(tripDriver?.userId);
+    const notificationsBeforeReplay = await db.select({
+      id: s.notifications.id,
+      userId: s.notifications.userId,
+    }).from(s.notifications)
       .where(and(
+        eq(s.notifications.type, 'TRIP_COMPLETED'),
         eq(s.notifications.relatedEntityType, 'trips'),
         eq(s.notifications.relatedEntityId, trip.id),
       ));
-    assert.ok(notificationsBeforeReplay.length > 0);
+    assert.deepEqual(
+      notificationsBeforeReplay.map((row) => row.userId),
+      [tripDriver.userId],
+    );
     const [gpsFailureJob] = await db.select().from(s.tripGpsCaptureJobs)
       .where(eq(s.tripGpsCaptureJobs.governanceActionId, Number(close.body.id)))
       .limit(1);
@@ -578,12 +599,16 @@ describe('Q15 trip financial governance', () => {
     assert.equal(approveReplay.status, 200);
     assert.equal(approveReplay.body.replayed, true);
     assert.equal((await ledgerRows(trip.id)).length, completedLedger.length);
-    const notificationsAfterReplay = await db.select().from(s.notifications)
+    const notificationsAfterReplay = await db.select({
+      id: s.notifications.id,
+      userId: s.notifications.userId,
+    }).from(s.notifications)
       .where(and(
+        eq(s.notifications.type, 'TRIP_COMPLETED'),
         eq(s.notifications.relatedEntityType, 'trips'),
         eq(s.notifications.relatedEntityId, trip.id),
       ));
-    assert.equal(notificationsAfterReplay.length, notificationsBeforeReplay.length);
+    assert.deepEqual(notificationsAfterReplay, notificationsBeforeReplay);
     const [gpsReplayJob] = await db.select().from(s.tripGpsCaptureJobs)
       .where(eq(s.tripGpsCaptureJobs.id, gpsFailureJob.id)).limit(1);
     assert.equal(gpsReplayJob.attemptCount, 1);

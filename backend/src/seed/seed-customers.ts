@@ -87,8 +87,10 @@ export async function seedCustomers(): Promise<CustomerSeedResult> {
       supplierId = ins!.id;
     }
 
-    // Upsert customer on (name, taxCode) partial unique where deletedAt is null.
-    const [customer] = await db.insert(s.customers).values({
+    // The active customer keys are normalized expression indexes, so PostgreSQL
+    // cannot infer them from an ON CONFLICT(name, tax_code) target. Resolve the
+    // active row explicitly, then update or insert deterministically.
+    const customerValues = {
       name: c.name,
       taxCode: c.taxCode,
       partnerId: partner!.id,
@@ -100,20 +102,30 @@ export async function seedCustomers(): Promise<CustomerSeedResult> {
       status: 'ACTIVE',
       debitNoteMode: 'MONTHLY',
       linkedSupplierId: supplierId,
-    }).onConflictDoUpdate({
-      target: [s.customers.name, s.customers.taxCode],
-      set: {
-        partnerId: partner!.id,
-        contactPerson: c.manager || null,
-        phone: c.directorPhone || null,
-        contactInfo: c.email || null,
-        paymentTermDays: c.paymentTermCuocDays ?? null,
-        linkedSupplierId: supplierId,
-        updatedAt: new Date(),
-      },
-    }).returning({ id: s.customers.id });
+    } as const;
+    const [existingCustomer] = await db.select({ id: s.customers.id })
+      .from(s.customers)
+      .where(sql`
+        ${s.customers.deletedAt} is null
+        and lower(btrim(${s.customers.name})) = lower(btrim(${c.name}))
+        and coalesce(nullif(lower(btrim(${s.customers.taxCode})), ''), '')
+          = coalesce(nullif(lower(btrim(${c.taxCode})), ''), '')
+      `)
+      .limit(1);
+    let customerId: number;
+    if (existingCustomer) {
+      await db.update(s.customers)
+        .set({ ...customerValues, updatedAt: new Date() })
+        .where(sql`${s.customers.id} = ${existingCustomer.id}`);
+      customerId = existingCustomer.id;
+    } else {
+      const [createdCustomer] = await db.insert(s.customers)
+        .values(customerValues)
+        .returning({ id: s.customers.id });
+      customerId = createdCustomer!.id;
+    }
 
-    customerByCode.set(c.internalCode, customer!.id);
+    customerByCode.set(c.internalCode, customerId);
   }
 
   await seedCompanySettings();

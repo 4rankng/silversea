@@ -1340,7 +1340,9 @@ export async function issueFulfillmentDispatchOrder(input: IssueFulfillmentDispa
   const hasExplicitInAppTarget = hasExplicitNotificationTarget(notificationPayload);
 
   if (!outcome.replayed && outcome.result.notificationPersisted && hasExplicitInAppTarget) {
-    await sendNotificationPush(notificationPayload);
+    await sendNotificationPush(notificationPayload).catch((error) => {
+      console.error('Dispatch push delivery failed after order commit:', error);
+    });
   }
 
   return {

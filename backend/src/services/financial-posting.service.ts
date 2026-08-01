@@ -15,6 +15,23 @@ export async function getActiveFinancialPosting(tx: Tx, tripId: number) {
   return posting ?? null;
 }
 
+export async function getFinancialPostingForGovernanceAction(
+  tx: Tx,
+  tripId: number,
+  governanceActionId: number,
+  reason: FinancialPostingReason,
+) {
+  const [posting] = await tx.select().from(s.tripFinancialPostings)
+    .where(and(
+      eq(s.tripFinancialPostings.tripId, tripId),
+      eq(s.tripFinancialPostings.governanceActionId, governanceActionId),
+      eq(s.tripFinancialPostings.reason, reason),
+    ))
+    .orderBy(desc(s.tripFinancialPostings.version))
+    .limit(1);
+  return posting ?? null;
+}
+
 /**
  * Creates the immutable financial version for a trip. Completion is retry-safe;
  * governed corrections supersede the current version and cancellation reverses it.

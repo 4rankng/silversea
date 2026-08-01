@@ -45,7 +45,9 @@ router.get('/ledger/customers/:id/statement', asyncHandler(async (req: Request, 
 router.get('/ledger/customers/:id/statement/export', asyncHandler(async (req: Request, res: Response) => {
   const customerId = parseInt(req.params.id as string, 10);
   const format = (req.query.format as string) || 'xlsx';
-  const data = await getStatementData(customerId);
+  const dateFrom = normalizeDateParam((req.query.dateFrom || req.query.date_from) as string | undefined);
+  const dateTo = normalizeDateParam((req.query.dateTo || req.query.date_to) as string | undefined);
+  const data = await getStatementData(customerId, dateFrom, dateTo);
   if (!data) return res.status(404).json({ error: 'Không tìm thấy khách hàng' });
 
   const dateStr = formatLocalDate();
