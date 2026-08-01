@@ -30,6 +30,12 @@ export interface CreateShipmentFulfillmentsInput {
   actorId: number;
 }
 
+export interface EnsureShipmentFulfillmentsInTxInput {
+  shipmentId: number;
+  actorId: number;
+  expectedVersion?: number;
+}
+
 function publicSiteSnapshot(snapshot: Record<string, unknown>): Record<string, unknown> {
   const projectSite = (value: unknown) => {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
@@ -166,6 +172,76 @@ function assertExistingDecompositionMatches(
   }
 }
 
+export async function ensureShipmentFulfillmentsInTx(
+  tx: Tx,
+  input: EnsureShipmentFulfillmentsInTxInput,
+): Promise<FulfillmentRow[]> {
+  if (!Number.isInteger(input.shipmentId) || input.shipmentId < 1) {
+    throw new ApiError(400, 'Lô hàng không hợp lệ.');
+  }
+  if (!Number.isInteger(input.actorId) || input.actorId < 1) {
+    throw new ApiError(400, 'Người thực hiện không hợp lệ.');
+  }
+  if (input.expectedVersion != null
+    && (!Number.isInteger(input.expectedVersion) || input.expectedVersion < 1)) {
+    throw new ApiError(400, 'expectedVersion không hợp lệ.');
+  }
+
+  await assertDecompositionActor(input.actorId, tx);
+  const [shipment] = await tx.select().from(s.shipments)
+    .where(and(eq(s.shipments.id, input.shipmentId), isNull(s.shipments.deletedAt)))
+    .for('update')
+    .limit(1);
+  if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng.');
+  if (input.expectedVersion != null && shipment.version !== input.expectedVersion) {
+    throw new ApiError(409, 'Lô hàng đã thay đổi. Vui lòng tải lại.');
+  }
+  if (shipment.status === 'CANCELED' || shipment.status === 'CLOSED') {
+    throw new ApiError(409, 'Không thể tạo tác vụ cho lô hàng đã kết thúc.');
+  }
+  if (shipment.cargoMode !== 'FCL' && shipment.cargoMode !== 'LCL') {
+    throw new ApiError(409, 'Hình thức hàng FCL/LCL chưa được xác định.');
+  }
+
+  const containers = await tx.select().from(s.shipmentContainers)
+    .where(eq(s.shipmentContainers.shipmentId, shipment.id))
+    .orderBy(asc(s.shipmentContainers.id));
+  if (shipment.cargoMode === 'FCL' && containers.length === 0) {
+    throw new ApiError(409, 'Lô hàng nguyên container phải có ít nhất một container.');
+  }
+  if (shipment.cargoMode === 'LCL' && containers.length > 0) {
+    throw new ApiError(409, 'Lô hàng lẻ không được tạo container giả.');
+  }
+
+  const existing = await listActiveRows(tx, shipment.id);
+  if (existing.length > 0) {
+    assertExistingDecompositionMatches(shipment, containers, existing);
+    return existing;
+  }
+
+  const siteSnapshot = await loadSiteSnapshot(tx, shipment);
+  const values: Array<typeof s.shipmentFulfillments.$inferInsert> = shipment.cargoMode === 'FCL'
+    ? containers.map((container) => ({
+      shipmentId: shipment.id,
+      fulfillmentType: 'FCL_CONTAINER' as const,
+      cargoMode: 'FCL' as const,
+      shipmentContainerId: container.id,
+      sourceShipmentVersion: shipment.version,
+      siteSnapshot,
+      createdBy: input.actorId,
+    }))
+    : [{
+      shipmentId: shipment.id,
+      fulfillmentType: 'LCL_SHIPMENT' as const,
+      cargoMode: 'LCL' as const,
+      shipmentContainerId: null,
+      sourceShipmentVersion: shipment.version,
+      siteSnapshot,
+      createdBy: input.actorId,
+    }];
+  return tx.insert(s.shipmentFulfillments).values(values).returning();
+}
+
 /**
  * Deterministically decompose a shipment into its independently dispatchable
  * units. The shipment row lock serializes different idempotency keys while the
@@ -184,60 +260,12 @@ export async function createShipmentFulfillments(input: CreateShipmentFulfillmen
     entityType: 'shipment_fulfillment_set',
     getEntityId: () => null,
     create: async (tx) => {
-      await assertDecompositionActor(input.actorId, tx);
-      const [shipment] = await tx.select().from(s.shipments)
-        .where(and(eq(s.shipments.id, input.shipmentId), isNull(s.shipments.deletedAt)))
-        .for('update')
-        .limit(1);
-      if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng.');
-      if (shipment.version !== input.expectedVersion) {
-        throw new ApiError(409, 'Lô hàng đã thay đổi. Vui lòng tải lại.');
-      }
-      if (shipment.status === 'CANCELED' || shipment.status === 'CLOSED') {
-        throw new ApiError(409, 'Không thể tạo tác vụ cho lô hàng đã kết thúc.');
-      }
-      if (shipment.cargoMode !== 'FCL' && shipment.cargoMode !== 'LCL') {
-        throw new ApiError(409, 'Hình thức hàng FCL/LCL chưa được xác định.');
-      }
-
-      const containers = await tx.select().from(s.shipmentContainers)
-        .where(eq(s.shipmentContainers.shipmentId, shipment.id))
-        .orderBy(asc(s.shipmentContainers.id));
-      if (shipment.cargoMode === 'FCL' && containers.length === 0) {
-        throw new ApiError(409, 'Lô hàng nguyên container phải có ít nhất một container.');
-      }
-      if (shipment.cargoMode === 'LCL' && containers.length > 0) {
-        throw new ApiError(409, 'Lô hàng lẻ không được tạo container giả.');
-      }
-
-      const existing = await listActiveRows(tx, shipment.id);
-      if (existing.length > 0) {
-        assertExistingDecompositionMatches(shipment, containers, existing);
-        return existing.map(toDto);
-      }
-
-      const siteSnapshot = await loadSiteSnapshot(tx, shipment);
-      const values: Array<typeof s.shipmentFulfillments.$inferInsert> = shipment.cargoMode === 'FCL'
-        ? containers.map((container) => ({
-          shipmentId: shipment.id,
-          fulfillmentType: 'FCL_CONTAINER' as const,
-          cargoMode: 'FCL' as const,
-          shipmentContainerId: container.id,
-          sourceShipmentVersion: shipment.version,
-          siteSnapshot,
-          createdBy: input.actorId,
-        }))
-        : [{
-          shipmentId: shipment.id,
-          fulfillmentType: 'LCL_SHIPMENT' as const,
-          cargoMode: 'LCL' as const,
-          shipmentContainerId: null,
-          sourceShipmentVersion: shipment.version,
-          siteSnapshot,
-          createdBy: input.actorId,
-        }];
-      const created = await tx.insert(s.shipmentFulfillments).values(values).returning();
-      return created.map(toDto);
+      const rows = await ensureShipmentFulfillmentsInTx(tx, {
+        shipmentId: input.shipmentId,
+        actorId: input.actorId,
+        expectedVersion: input.expectedVersion,
+      });
+      return rows.map(toDto);
     },
   });
 }

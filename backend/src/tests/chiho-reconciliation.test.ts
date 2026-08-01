@@ -44,6 +44,9 @@ const createdSupplierIds: number[] = [];
 const createdForwarderIds: number[] = [];
 const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
+const createdShipmentIds: number[] = [];
+const createdFulfillmentIds: number[] = [];
+const createdPodSubmissionIds: number[] = [];
 const createdExpenseIds: number[] = [];
 const createdGovernanceUserIds: number[] = [];
 
@@ -66,6 +69,12 @@ after(async () => {
     if (createdExpenseIds.length > 0) {
       await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.id, createdExpenseIds));
     }
+    if (createdPodSubmissionIds.length > 0) {
+      await db.delete(s.tripPodSubmissions).where(inArray(s.tripPodSubmissions.id, createdPodSubmissionIds));
+    }
+    if (createdTripIds.length > 0) {
+      await db.delete(s.shipmentMilestones).where(inArray(s.shipmentMilestones.tripId, createdTripIds));
+    }
     if (createdGovernanceUserIds.length > 0) {
       await db.delete(s.governanceActions).where(inArray(s.governanceActions.makerId, createdGovernanceUserIds));
       await db.delete(s.governanceActions).where(inArray(s.governanceActions.checkerId, createdGovernanceUserIds));
@@ -77,6 +86,12 @@ after(async () => {
       await db.delete(s.profitabilitySnapshots).where(inArray(s.profitabilitySnapshots.tripId, createdTripIds));
       await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.tripId, createdTripIds));
       await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
+    }
+    if (createdFulfillmentIds.length > 0) {
+      await db.delete(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.id, createdFulfillmentIds));
+    }
+    if (createdShipmentIds.length > 0) {
+      await db.delete(s.shipments).where(inArray(s.shipments.id, createdShipmentIds));
     }
     if (allUserIds.length > 0) {
       await db.delete(s.notifications).where(inArray(s.notifications.userId, allUserIds));
@@ -194,8 +209,8 @@ interface TripSpec {
   revenue: number;
   departureDate: string; // YYYY-MM-DD — must fall in the query window for the clean case
   fees: FeeSpec[];
-  /** When false, leave the trip COMPLETED instead of transitioning to LOCKED.
-   *  Exercises the COMPLETED-only billable path (the /debt/2 fix). Default true. */
+  /** When false, leave the trip COMPLETED with accepted e-POD so status is the
+   *  only remaining billability blocker. Default true. */
   lock?: boolean;
 }
 
@@ -210,6 +225,25 @@ async function createLockedTripWithFees(spec: TripSpec) {
   createdCustomerIds.push(customer.id);
   createdRouteIds.push(route.id);
   createdCargoTypeIds.push(cargoType.id);
+
+  const [shipment] = await db.insert(s.shipments).values({
+    shipmentCode: `RC-SHP-${suffix}`.slice(0, 50),
+    customerId: customer.id,
+    routeId: route.id,
+    cargoTypeId: cargoType.id,
+    status: 'DRAFT',
+    cargoMode: 'LCL',
+  }).returning();
+  createdShipmentIds.push(shipment.id);
+
+  const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+    shipmentId: shipment.id,
+    fulfillmentType: 'LCL_SHIPMENT',
+    cargoMode: 'LCL',
+    sourceShipmentVersion: shipment.version,
+    siteSnapshot: {},
+  }).returning();
+  createdFulfillmentIds.push(fulfillment.id);
 
   let supplierId: number | undefined;
   let forwarderId: number | undefined;
@@ -237,6 +271,8 @@ async function createLockedTripWithFees(spec: TripSpec) {
     customerId: customer.id,
     routeId: route.id,
     cargoTypeId: cargoType.id,
+    shipmentId: shipment.id,
+    fulfillmentId: fulfillment.id,
     status: TripStatus.IN_TRANSIT,
     departureDate: spec.departureDate,
     revenue: String(spec.revenue),
@@ -261,15 +297,26 @@ async function createLockedTripWithFees(spec: TripSpec) {
     createdExpenseIds.push(row.id);
   }
 
-  // IN_TRANSIT → COMPLETED posts the ledger (postTripLock). The debt notice now
-  // bills COMPLETED + LOCKED (revenue posts at completion; LOCKED is just a
-  // figures-freeze), so the trip surfaces on the note at COMPLETED already.
   const closeOutcome = await closeTripThroughGovernance(trip.id, trip.version);
   await db.update(s.trips)
     .set({ completedAt: new Date(`${spec.departureDate}T12:00:00+07:00`) })
     .where(eq(s.trips.id, trip.id));
+
+  const [acceptedPod] = await db.insert(s.tripPodSubmissions).values({
+    tripId: trip.id,
+    fulfillmentId: fulfillment.id,
+    submissionVersion: 1,
+    sourceTripVersion: closeOutcome.version,
+    status: 'ACCEPTED',
+    submittedBy: closeOutcome.managerId,
+    submittedAt: new Date(`${spec.departureDate}T13:00:00+07:00`),
+    reviewedBy: closeOutcome.managerId,
+    reviewedAt: new Date(`${spec.departureDate}T14:00:00+07:00`),
+    rejectionReason: null,
+  }).returning({ id: s.tripPodSubmissions.id });
+  createdPodSubmissionIds.push(acceptedPod.id);
+
   if (spec.lock !== false) {
-    // Optional "chốt" freeze — still billable; exercised by the legacy LOCKED cases.
     await transitionTripStatus(
       trip.id,
       TripStatus.LOCKED,
@@ -597,10 +644,10 @@ describe('US-007 aging: SERVICE_FEE AR surfaces in customer aging', () => {
   });
 });
 
-// ─── US-005b: billable status = COMPLETED + LOCKED (the /debt/2 fix) ────────
-// Revenue posts to AR at COMPLETED (postTripLock on IN_TRANSIT→COMPLETED);
-// LOCKED is an optional figures-freeze superset. The debt notice must bill BOTH.
-// (P&L / profit-distribution remain LOCKED-only by spec — a distinct concept.)
+// ─── US-005b: debit-note eligibility = LOCKED + accepted e-POD ──────────────
+// Revenue still posts to AR at COMPLETED, but debit-note assembly must exclude
+// those trips until the shipment-linked trip is LOCKED and its latest e-POD is
+// accepted. Carrier payment statements remain on their own authority path.
 
 interface BillableSeedCtx {
   customerId: number;
@@ -641,14 +688,35 @@ interface BillableTripSpec {
   externalFreightCost?: number;
 }
 
-/** Create a billable trip for an existing seed context (enables multi-trip-same-customer
- *  tests). Transitions IN_TRANSIT→COMPLETED (posts ledger) and optionally →LOCKED. */
+/** Create a shipment-linked trip for an existing seed context so debit-note
+ *  eligibility can be proven against real LOCKED + accepted-POD authority. */
 async function createBillableTrip(ctx: BillableSeedCtx, spec: BillableTripSpec) {
+  const [shipment] = await db.insert(s.shipments).values({
+    shipmentCode: `RC-SHP-${ctx.suffix}-${Math.random().toString(36).slice(2, 8)}`.slice(0, 50),
+    customerId: ctx.customerId,
+    routeId: ctx.routeId,
+    cargoTypeId: ctx.cargoTypeId,
+    status: 'DRAFT',
+    cargoMode: 'LCL',
+  }).returning();
+  createdShipmentIds.push(shipment.id);
+
+  const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+    shipmentId: shipment.id,
+    fulfillmentType: 'LCL_SHIPMENT',
+    cargoMode: 'LCL',
+    sourceShipmentVersion: shipment.version,
+    siteSnapshot: {},
+  }).returning();
+  createdFulfillmentIds.push(fulfillment.id);
+
   const [trip] = await db.insert(s.trips).values({
     tripCode: `RC-${ctx.suffix}-${Math.random().toString(36).slice(2, 8)}`.slice(0, 50),
     customerId: ctx.customerId,
     routeId: ctx.routeId,
     cargoTypeId: ctx.cargoTypeId,
+    shipmentId: shipment.id,
+    fulfillmentId: fulfillment.id,
     status: TripStatus.IN_TRANSIT,
     departureDate: spec.departureDate,
     revenue: String(spec.revenue),
@@ -674,6 +742,19 @@ async function createBillableTrip(ctx: BillableSeedCtx, spec: BillableTripSpec) 
   await db.update(s.trips)
     .set({ completedAt: new Date(`${spec.departureDate}T12:00:00+07:00`) })
     .where(eq(s.trips.id, trip.id));
+  const [acceptedPod] = await db.insert(s.tripPodSubmissions).values({
+    tripId: trip.id,
+    fulfillmentId: fulfillment.id,
+    submissionVersion: 1,
+    sourceTripVersion: closeOutcome.version,
+    status: 'ACCEPTED',
+    submittedBy: closeOutcome.managerId,
+    submittedAt: new Date(`${spec.departureDate}T13:00:00+07:00`),
+    reviewedBy: closeOutcome.managerId,
+    reviewedAt: new Date(`${spec.departureDate}T14:00:00+07:00`),
+    rejectionReason: null,
+  }).returning({ id: s.tripPodSubmissions.id });
+  createdPodSubmissionIds.push(acceptedPod.id);
   if (spec.lock !== false) {
     await transitionTripStatus(
       trip.id,
@@ -688,8 +769,8 @@ async function createBillableTrip(ctx: BillableSeedCtx, spec: BillableTripSpec) 
   return { trip };
 }
 
-describe('US-005b billable status: COMPLETED trips appear on the debt notice', () => {
-  test('a COMPLETED-only trip (never LOCKED) surfaces freight + phí chi hộ', async () => {
+describe('US-005b debit-note eligibility: only LOCKED trips with accepted e-POD appear', () => {
+  test('a COMPLETED trip with accepted e-POD is still excluded from the debt notice', async () => {
     const { customer } = await createLockedTripWithFees({
       revenue: 4_500_000,
       departureDate: '2026-06-11',
@@ -700,10 +781,13 @@ describe('US-005b billable status: COMPLETED trips appear on the debt notice', (
       type: 'DEBIT_NOTE', entityType: 'CUSTOMER', entityId: customer.id,
       rangeFrom: '2026-06-01', rangeTo: '2026-06-30',
     });
-    assert.equal(draft.lines.length, 2, 'COMPLETED trip yields freight + phí chi hộ');
-    assert.equal(draft.totalInclVat, 4_500_000 + 80_000);
-    assert.ok(draft.lines.some(l => l.lineType === 'FREIGHT'), 'freight line present');
-    assert.ok(draft.lines.some(l => l.lineType === 'SERVICE_FEE'), 'phí chi hộ line present');
+    assert.equal(draft.lines.length, 0, 'COMPLETED trip remains non-billable for debit notes');
+    assert.equal(draft.totalInclVat, 0);
+    assert.match(
+      draft.eligibilitySummary?.blockedTrips[0]?.reason ?? '',
+      /LOCKED/i,
+      'blocked reason must explain the missing LOCKED status',
+    );
   });
 
   test('a CANCELED trip is excluded (no lines, total 0)', async () => {
@@ -724,7 +808,7 @@ describe('US-005b billable status: COMPLETED trips appear on the debt notice', (
     assert.equal(draft.totalInclVat, 0);
   });
 
-  test('mixed-status: one COMPLETED + one LOCKED trip, same customer → both appear', async () => {
+  test('mixed-status: one COMPLETED + one LOCKED trip, same customer → only the LOCKED trip appears', async () => {
     const ctx = await mkBillableSeedCtx({ feesHaveSupplier: false });
     await createBillableTrip(ctx, { revenue: 3_000_000, departureDate: '2026-06-09', lock: false, fees: [] });
     await createBillableTrip(ctx, { revenue: 2_000_000, departureDate: '2026-06-10', lock: true, fees: [] });
@@ -733,8 +817,8 @@ describe('US-005b billable status: COMPLETED trips appear on the debt notice', (
       rangeFrom: '2026-06-01', rangeTo: '2026-06-30',
     });
     const freightLines = draft.lines.filter(l => l.lineType === 'FREIGHT');
-    assert.equal(freightLines.length, 2, 'both COMPLETED and LOCKED trips appear');
-    assert.equal(draft.totalInclVat, 5_000_000);
+    assert.equal(freightLines.length, 1, 'only the LOCKED trip appears');
+    assert.equal(draft.totalInclVat, 2_000_000);
   });
 });
 
@@ -758,8 +842,8 @@ describe('US-005b carrier payment statement bills COMPLETED external-carrier tri
   });
 });
 
-describe('US-005b edited-COMPLETED reconciliation: ledger stays in sync after a figure edit', () => {
-  test('after editing revenue on a COMPLETED trip, draft.totalInclVat == customer running balance', async () => {
+describe('US-005b edited-LOCKED reconciliation: eligible debt-note totals stay in sync after a figure edit', () => {
+  test('after editing revenue on a completed trip, the later LOCKED + accepted-POD draft matches customer running balance', async () => {
     const from = '2026-06-01', to = '2026-06-30';
     const { trip, customer, expenseRows } = await createLockedTripWithFees({
       revenue: 5_000_000, departureDate: '2026-06-14', lock: false,
@@ -767,15 +851,14 @@ describe('US-005b edited-COMPLETED reconciliation: ledger stays in sync after a 
     });
     const sellFees = expenseRows.reduce((a, f) => a + Number(f.sellAmount ?? 0), 0);
 
-    // Pre-edit: debt notice == ledger running balance.
+    // Pre-lock: debit notes must exclude completed-only trips even though AR exists.
     const draft0 = await generateDraft({
       type: 'DEBIT_NOTE', entityType: 'CUSTOMER', entityId: customer.id, rangeFrom: from, rangeTo: to,
     });
-    const bal0 = await LedgerService.getBalance('CUSTOMER', customer.id);
-    assert.ok(Math.abs(draft0.totalInclVat - bal0) <= 1, `pre-edit: draft ${draft0.totalInclVat} vs balance ${bal0}`);
+    assert.equal(draft0.totalInclVat, 0, 'completed-only trip is still excluded before LOCKED');
 
-    // Edit revenue via the figure-update path — the unlock+relock swap at
-    // trip-mutations.service.ts:672-712 re-posts the ledger at the new values.
+    // Edit revenue while the trip is still COMPLETED, which is the governed path
+    // for trip financial changes.
     const [current] = await db.select({ version: s.trips.version })
       .from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
     const actors = await governanceActors('chiho-change');
@@ -807,8 +890,20 @@ describe('US-005b edited-COMPLETED reconciliation: ledger stays in sync after a 
       expectedVersion: checked.version,
     });
 
+    const [afterChange] = await db.select({ version: s.trips.version })
+      .from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+    await transitionTripStatus(
+      trip.id,
+      TripStatus.LOCKED,
+      actors[0]!.id,
+      Role.MANAGER,
+      false,
+      true,
+      { expectedVersion: afterChange!.version },
+    );
+
     // Post-edit: read the trip's ACTUAL stored revenue (resolveRevenue may transform
-    // the override) and assert draft == ledger running balance == storedRevenue + fees.
+    // the override) and assert the now-eligible draft == ledger balance == storedRevenue + fees.
     const [edited] = await db.select().from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
     const expected = Number(edited.revenue) + sellFees;
     const draft1 = await generateDraft({

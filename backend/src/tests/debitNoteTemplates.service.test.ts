@@ -240,7 +240,7 @@ test('renderTemplatedXlsx DEBIT_NOTE maps legacy chung_tu tripCode columns to do
   assert.equal(ws.getCell(17, 3).value, 'TK-123');
 });
 
-test('renderTemplatedXlsx DEBIT_NOTE renders Long Minh grouped headers, continuation rows, and VAT summary', async () => {
+test('renderTemplatedXlsx DEBIT_NOTE reconciles Long Minh grouped headers, continuation rows, and canonical totals', async () => {
   const doc: BillingDocument = {
     ...debitDoc,
     totalInclVat: 2_500_000,
@@ -351,8 +351,84 @@ test('renderTemplatedXlsx DEBIT_NOTE renders Long Minh grouped headers, continua
   assert.equal(ws.getCell(18, 20).value, 200_000);
   assert.equal(ws.getCell(20, 20).value, 2_000_000);
   assert.equal(ws.getCell(21, 20).value, 500_000);
-  assert.equal(ws.getCell(22, 20).value, 160_000);
-  assert.equal(ws.getCell(23, 20).value, 2_660_000);
+  assert.equal(ws.getCell(22, 20).value, 0);
+  assert.equal(ws.getCell(23, 20).value, 0);
+  assert.equal(ws.getCell(24, 20).value, 2_500_000);
+  assert.equal(
+    Number(ws.getCell(20, 20).value)
+      + Number(ws.getCell(21, 20).value)
+      + Number(ws.getCell(22, 20).value)
+      + Number(ws.getCell(23, 20).value),
+    Number(ws.getCell(24, 20).value),
+  );
+  assert.equal(Number(ws.getCell(24, 20).value), doc.totalInclVat);
+});
+
+test('renderTemplatedXlsx DEBIT_NOTE keeps Long Minh grand total canonical when ad-hoc lines exist outside service/recoverable buckets', async () => {
+  const doc: BillingDocument = {
+    ...debitDoc,
+    totalInclVat: 2_650_000,
+    lines: [
+      line({
+        sourceType: 'TRIP',
+        sourceId: 1,
+        description: 'Cước vận chuyển',
+        baseAmount: 2_000_000,
+        renderData: {
+          tripCode: 'TRIP-ADJ',
+          factoryName: 'Nhà máy Long Minh',
+          tradeDirectionLabel: 'Nhập',
+          billNumber: 'BL-ADJ',
+          declarationNumber: 'TK-ADJ',
+          quantityLabel: '1 cont 40',
+          vehicleType: '40\'',
+          truckPlate: '15C-180.99',
+          cargoVolumeCbm: 68,
+          deliveryDate: '2026-06-15',
+          freightAmount: 2_000_000,
+        },
+      }),
+      line({
+        sourceType: 'EXPENSE',
+        sourceId: 201,
+        lineType: 'SERVICE_FEE',
+        typeLabel: 'Phí chi hộ',
+        description: 'Phí nâng hạ',
+        baseAmount: 300_000,
+        renderData: {
+          tripCode: 'TRIP-ADJ',
+          recoverableSupplierName: 'Cảng Cát Lái',
+          recoverableFeeType: 'Nâng hạ',
+          recoverableDocumentCode: 'HD-201',
+          recoverableAmount: 300_000,
+        },
+      }),
+      line({
+        sourceType: 'ADHOC',
+        sourceId: null,
+        lineType: 'ADHOC',
+        typeLabel: 'Điều chỉnh',
+        description: 'Điều chỉnh chứng từ',
+        baseAmount: 0,
+        amountOverride: 350_000,
+        renderData: {},
+      }),
+    ],
+  };
+  const snapshot = {
+    ...defaultSnapshot,
+    titleText: 'BẢNG KÊ XÁC NHẬN VẬN CHUYỂN HOÀN THÀNH / MẪU DEBIT LONG MINH',
+    orientation: 'landscape' as const,
+    columns: longMinhColumns,
+  };
+  const buf = await renderTemplatedXlsx(doc, snapshot);
+  const wb = await loadWorkbook(buf);
+  const ws = wb.worksheets[0];
+  assert.equal(ws.getCell(20, 20).value, 2_350_000);
+  assert.equal(ws.getCell(21, 20).value, 300_000);
+  assert.equal(ws.getCell(22, 20).value, 0);
+  assert.equal(ws.getCell(23, 20).value, 0);
+  assert.equal(ws.getCell(24, 20).value, 2_650_000);
 });
 
 test('renderTemplatedXlsx PAYMENT_STATEMENT resolves template variables in intro text', async () => {

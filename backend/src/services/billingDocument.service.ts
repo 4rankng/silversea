@@ -2983,15 +2983,17 @@ async function renderLongMinhDebitXlsx(
     (sum, row) => sum + Number(row.recoverableLine ? effectiveAmount(row.recoverableLine) : 0),
     0,
   );
-  const vatAmount = Math.round(serviceSubtotal * 0.08);
-  const grandTotal = serviceSubtotal + recoverableSubtotal + vatAmount;
+  const grandTotal = Number(doc.totalInclVat ?? 0);
+  const vatAmount = 0;
+  const documentAdjustment = Math.max(0, grandTotal - serviceSubtotal - recoverableSubtotal);
   const summaryStartRow = firstDataRow + printableRows.length + 1;
   const labelColumn = Math.max(1, lastColumn - 4);
   const valueColumn = lastColumn;
   const summaryRows: Array<[string, number]> = [
     ['Tổng phí dịch vụ', serviceSubtotal],
     ['Tổng phí chi hộ', recoverableSubtotal],
-    ['VAT 8% phí dịch vụ', vatAmount],
+    ['VAT đã bao gồm trong các dòng', vatAmount],
+    ['Điều chỉnh khác theo chứng từ', documentAdjustment],
     ['Tổng thanh toán', grandTotal],
   ];
   summaryRows.forEach(([label, amount], offset) => {

@@ -9,7 +9,7 @@ import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
-import { Role } from '@tingting/shared';
+import { NotificationType, Role } from '@tingting/shared';
 import { config } from '../config';
 import { initEnforcer } from '../casbin/enforcer';
 import { initAuditService } from '../services/audit.service';
@@ -20,6 +20,7 @@ import { auditLogMiddleware } from '../middleware/audit';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import { createHandoff } from '../services/dispatch-handoff.service';
 import { listDispatchQueue } from '../services/dispatch-planning.service';
+import { notificationUrlForRole } from '../services/notification.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -116,7 +117,7 @@ async function linkUserToCustomer(userId: number, customerId: number) {
 
 async function createContainerType(code: string) {
   const [containerType] = await db.insert(s.containerTypes).values({
-    code,
+    code: `${code}-${suffix.slice(-6)}-${createdContainerTypeIds.length}`.slice(0, 20),
     name: `Dispatch container ${code} ${suffix}-${createdContainerTypeIds.length}`,
   }).returning();
   createdContainerTypeIds.push(containerType.id);
@@ -157,15 +158,17 @@ async function createShipmentFixture(args: {
 
 async function createOwnedResources(options: { trailerType?: '20FT' | '40FT' } = {}) {
   const trailerType = options.trailerType ?? '20FT';
+  const plateSuffix = `${suffix.slice(-6)}${String(createdTrailerIds.length).padStart(2, '0')}`;
   const [trailer] = await db.insert(s.trailers).values({
-    licensePlate: `51R-${(10000 + createdTrailerIds.length).toString().padStart(5, '0')}`,
+    licensePlate: `51R-${plateSuffix}`.slice(0, 20),
     type: trailerType,
     status: 'ACTIVE',
   }).returning();
   createdTrailerIds.push(trailer.id);
 
+  const truckPlateSuffix = `${suffix.slice(-6)}${String(createdTruckIds.length).padStart(2, '0')}`;
   const [truck] = await db.insert(s.trucks).values({
-    licensePlate: `51C-${(10000 + createdTruckIds.length).toString().padStart(5, '0')}`,
+    licensePlate: `51C-${truckPlateSuffix}`.slice(0, 20),
     currentTrailerId: trailer.id,
     trailerType,
     status: 'ACTIVE',
@@ -359,6 +362,58 @@ describe('dispatch fulfillment workflow routes', () => {
     assert.ok(accepted.data.fulfillments[0]!.shipmentContainerId != null);
   });
 
+  test('accept rejects a partial pre-existing FCL fulfillment set', async () => {
+    const customer = await createCustomer(`Partial customer ${suffix}-${createdCustomerIds.length}`);
+    const route = await createRoute();
+    const { shipment, container } = await createShipmentFixture({
+      customerId: customer.id,
+      routeId: route.id,
+      createdBy: adminUserId,
+      cargoTypeId: null,
+    });
+    const extraType = await createContainerType(`40P${createdContainerTypeIds.length}`);
+    await db.insert(s.shipmentContainers).values({
+      shipmentId: shipment.id,
+      containerTypeId: extraType.id,
+      containerNumber: `MSCU${String(200000 + shipment.id).slice(-6)}2`,
+      createdBy: adminUserId,
+    });
+    const handoff = await createHandoff({
+      shipmentId: shipment.id,
+      createdBy: adminUserId,
+      actor: {
+        userId: adminUserId,
+        username: `dispatch-admin-${suffix}`,
+        email: null,
+        fullName: null,
+        role: Role.ADMIN,
+      },
+    });
+
+    await db.insert(s.shipmentFulfillments).values({
+      shipmentId: shipment.id,
+      fulfillmentType: 'FCL_CONTAINER',
+      cargoMode: 'FCL',
+      shipmentContainerId: container.id,
+      sourceShipmentVersion: shipment.version,
+      siteSnapshot: {},
+      createdBy: adminUserId,
+    });
+
+    const accepted = await apiFetch<{ error?: string }>(`/${shipment.id}/dispatch-handoffs/${handoff.id}/resolve`, {
+      method: 'POST',
+      token: managerToken,
+      body: { resolution: 'ACCEPTED', expectedVersion: handoff.version },
+    });
+
+    assert.equal(accepted.status, 409);
+    assert.match(accepted.data.error ?? '', /container/i);
+    const activeRows = await db.select({
+      shipmentContainerId: s.shipmentFulfillments.shipmentContainerId,
+    }).from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.shipmentId, shipment.id));
+    assert.deepEqual(activeRows.map((row) => row.shipmentContainerId), [container.id]);
+  });
+
   test('dispatch route creates a trip for one fulfillment even when shipment cargo type is null', async () => {
     const accepted = await createAcceptedFulfillment();
     const resources = await createOwnedResources();
@@ -394,12 +449,69 @@ describe('dispatch fulfillment workflow routes', () => {
     assert.equal(trip.fulfillmentId, accepted.fulfillmentId);
     assert.equal(trip.cargoTypeId, null);
 
-    const notifications = await db.select().from(s.notifications).where(and(
+    const notifications = await db.select({
+      userId: s.notifications.userId,
+    }).from(s.notifications).where(and(
       eq(s.notifications.type, 'TRIP_DISPATCHED'),
       eq(s.notifications.relatedEntityType, 'shipment_fulfillments'),
       eq(s.notifications.relatedEntityId, accepted.fulfillmentId),
     ));
-    assert.ok(notifications.length >= 1);
+    assert.deepEqual(
+      [...new Set(notifications.map((row) => row.userId))].sort((a, b) => a - b),
+      [resources.driverUser.id],
+    );
+    assert.equal(
+      notificationUrlForRole({
+        type: NotificationType.TRIP_DISPATCHED,
+        title: 'Điều phối chuyến',
+        message: 'Tài xế đã được phân công',
+        relatedEntityType: 'shipment_fulfillments',
+        relatedEntityId: accepted.fulfillmentId,
+        targetDriverId: resources.driver.id,
+      }, Role.DRIVER),
+      `/my-trips/${accepted.fulfillmentId}`,
+    );
+  });
+
+  test('external carrier dispatch creates no internal notification or push claim', async () => {
+    const accepted = await createAcceptedFulfillment();
+    const externalCarrier = await createCustomer(`External carrier ${suffix}-${createdCustomerIds.length}`);
+    await db.update(s.customers).set({ isCarrier: true }).where(eq(s.customers.id, externalCarrier.id));
+
+    const dispatch = await apiFetch<{
+      notification: { deliveredInApp: boolean; pushAttempted: boolean };
+      trip: { id: number; externalCarrierId: number | null; driverId: number | null };
+    }>(`/${accepted.shipmentId}/dispatch`, {
+      method: 'POST',
+      token: managerToken,
+      body: {
+        fulfillmentId: accepted.fulfillmentId,
+        expectedVersion: accepted.fulfillmentVersion,
+        plannedStartAt: '2026-08-01T13:00:00+07:00',
+        plannedEndAt: '2026-08-01T17:00:00+07:00',
+        endTimeConfirmed: true,
+        carrierType: 'EXTERNAL',
+        externalCarrierId: externalCarrier.id,
+        externalPlateNumber: '51H-12345',
+        externalDriverName: 'Tài xế ngoài',
+      },
+    });
+
+    assert.equal(dispatch.status, 201);
+    createdTripIds.push(dispatch.data.trip.id);
+    assert.equal(dispatch.data.trip.externalCarrierId, externalCarrier.id);
+    assert.equal(dispatch.data.trip.driverId, null);
+    assert.equal(dispatch.data.notification.deliveredInApp, false);
+    assert.equal(dispatch.data.notification.pushAttempted, false);
+
+    const notifications = await db.select({
+      userId: s.notifications.userId,
+    }).from(s.notifications).where(and(
+      eq(s.notifications.type, 'TRIP_DISPATCHED'),
+      eq(s.notifications.relatedEntityType, 'shipment_fulfillments'),
+      eq(s.notifications.relatedEntityId, accepted.fulfillmentId),
+    ));
+    assert.equal(notifications.length, 0);
   });
 
   test('rejects overlapping truck, trailer, and driver assignments', async () => {

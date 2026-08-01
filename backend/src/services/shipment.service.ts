@@ -37,7 +37,7 @@ import {
   validateContainerNumber,
 } from '@tingting/shared';
 import { resolveFreightPrice } from './pricing.service';
-import { persistNotificationInTx } from './notification.service';
+import { persistNotificationInTx, sendNotificationPush, type NotificationPayload } from './notification.service';
 import type { AuthUser } from '../middleware/auth';
 import {
   assertClerkCanAccessShipment,
@@ -1015,6 +1015,7 @@ export async function reviewTripPodSubmission(args: {
   }
 
   const normalizedReason = args.rejectionReason?.trim() || null;
+  let pushPayload: NotificationPayload | null = null;
   const outcome = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_POD_REVIEW,
     idempotencyKey: args.idempotencyKey,
@@ -1106,29 +1107,41 @@ export async function reviewTripPodSubmission(args: {
           },
         );
         await recomputeShipmentCompletion(args.shipmentId, { changedBy: args.actor.userId }, tx);
-        await persistNotificationInTx(tx, {
-          type: NotificationType.TRIP_LOCKED,
-          title: 'e-POD đã được duyệt',
-          message: `Chuyến ${row.trip.tripCode ?? `#${row.trip.id}`} đã được duyệt e-POD và khóa số liệu.`,
-          relatedEntityType: 'trips',
-          relatedEntityId: row.trip.id,
-          targetDriverId: row.trip.driverId ?? undefined,
-        });
+        if (row.trip.driverId != null) {
+          pushPayload = {
+            type: NotificationType.TRIP_LOCKED,
+            title: 'e-POD đã được duyệt',
+            message: `Chuyến ${row.trip.tripCode ?? `#${row.trip.id}`} đã được duyệt e-POD và khóa số liệu.`,
+            relatedEntityType: 'shipment_fulfillments',
+            relatedEntityId: row.fulfillment.id,
+            targetDriverId: row.trip.driverId,
+          };
+          await persistNotificationInTx(tx, pushPayload);
+        }
       } else {
-        await persistNotificationInTx(tx, {
-          type: NotificationType.SYSTEM_ANNOUNCEMENT,
-          title: 'e-POD cần bổ sung',
-          message: `e-POD của chuyến ${row.trip.tripCode ?? `#${row.trip.id}`} đã bị từ chối${normalizedReason ? `: ${normalizedReason}` : '.'} Vui lòng tạo phiên bản mới để gửi lại.`,
-          relatedEntityType: 'trips',
-          relatedEntityId: row.trip.id,
-          targetDriverId: row.trip.driverId ?? undefined,
-        });
+        if (row.trip.driverId != null) {
+          pushPayload = {
+            type: NotificationType.SYSTEM_ANNOUNCEMENT,
+            title: 'e-POD cần bổ sung',
+            message: `e-POD của chuyến ${row.trip.tripCode ?? `#${row.trip.id}`} đã bị từ chối${normalizedReason ? `: ${normalizedReason}` : '.'} Vui lòng tạo phiên bản mới để gửi lại.`,
+            relatedEntityType: 'shipment_fulfillments',
+            relatedEntityId: row.fulfillment.id,
+            targetDriverId: row.trip.driverId,
+          };
+          await persistNotificationInTx(tx, pushPayload);
+        }
       }
 
       return loadReviewTripPodResult(tx, args.shipmentId, row.submission.id);
     },
     getEntityId: (result) => result.submissionId,
   });
+
+  if (!outcome.replayed && pushPayload) {
+    await sendNotificationPush(pushPayload).catch((error) => {
+      console.error('POD review push delivery failed:', error);
+    });
+  }
 
   return {
     ...outcome.result,

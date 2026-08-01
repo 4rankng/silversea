@@ -1,9 +1,10 @@
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 
 import {
   DriverProgressEventType,
+  NotificationType,
   Role,
   TripPodFileType,
   TripPodStatus,
@@ -26,6 +27,7 @@ import {
   updateFulfillmentCancellationDisposition,
   updateShipment,
 } from '../services/shipment.service';
+import { notificationUrlForRole } from '../services/notification.service';
 import { storageService } from '../services/storage.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -315,7 +317,6 @@ describe('trip pod review workflow', () => {
       fulfillmentId: fixture.fulfillments[0]!.id,
       tripVersion: trip.version,
     });
-
     const reviewed = await reviewTripPodSubmission({
       shipmentId: fixture.shipment.id,
       submissionId: submitted.id,
@@ -334,6 +335,28 @@ describe('trip pod review workflow', () => {
     assert.equal(detail.podReviews.length, 1);
     assert.equal(detail.podReviews[0]?.currentSubmission?.status, TripPodStatus.ACCEPTED);
     assert.equal(detail.podReviews[0]?.tripStatus, TripStatus.LOCKED);
+
+    const notificationRows = await db.select({
+      userId: s.notifications.userId,
+      relatedEntityType: s.notifications.relatedEntityType,
+      relatedEntityId: s.notifications.relatedEntityId,
+    }).from(s.notifications).where(and(
+      eq(s.notifications.type, 'TRIP_LOCKED'),
+      eq(s.notifications.relatedEntityType, 'shipment_fulfillments'),
+      eq(s.notifications.relatedEntityId, fixture.fulfillments[0]!.id),
+    ));
+    assert.deepEqual(notificationRows.map((row) => row.userId), [driverUser.id]);
+    assert.equal(
+      notificationUrlForRole({
+        type: NotificationType.TRIP_LOCKED,
+        title: 'POD đã được duyệt',
+        message: 'Tài xế có thể xem lại chuyến đã khóa.',
+        relatedEntityType: 'shipment_fulfillments',
+        relatedEntityId: fixture.fulfillments[0]!.id,
+        targetDriverId: driver.id,
+      }, Role.DRIVER),
+      `/my-trips/${fixture.fulfillments[0]!.id}`,
+    );
   });
 
   test('an unresolved canceled fulfillment blocks closure until a manager marks it not required', async () => {

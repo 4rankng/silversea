@@ -23,6 +23,7 @@ import TripLegsPanel from '../components/trip/TripLegsPanel';
 import TripPodSubmission from '../components/trip/TripPodSubmission';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
+import { useAuth } from '../hooks/useAuth';
 import { useDriverEvidenceStatus, useDriverTaskDetail, useDriverTaskProgress } from '../hooks/useDriverQueries';
 import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } from '../api/driverClient';
 import { formatCurrency, formatDate } from '../lib/format';
@@ -43,23 +44,22 @@ type MilestoneType =
 
 type MilestoneCommandPayload = {
   kind: 'milestone';
-  tripId: number;
+  fulfillmentId: number;
   eventType: MilestoneType;
   occurredAt: string;
   expectedVersion: number;
-  fulfillmentId?: number;
 };
 
 type PodSubmitCommandPayload = {
   kind: 'pod-submit';
-  tripId: number;
+  fulfillmentId: number;
   submissionId: number;
   expectedVersion: number;
 };
 
 type CompleteCommandPayload = {
   kind: 'complete';
-  tripId: number;
+  fulfillmentId: number;
   expectedVersion: number;
 };
 
@@ -130,7 +130,7 @@ function getLatestMilestoneEvent(
 function isCommandPayload(
   payload: Record<string, unknown> | null,
 ): payload is DriverTaskCommandPayload {
-  return payload != null && typeof payload.kind === 'string' && typeof payload.tripId === 'number';
+  return payload != null && typeof payload.kind === 'string' && typeof payload.fulfillmentId === 'number';
 }
 
 function isMilestonePayload(payload: Record<string, unknown> | null): payload is MilestoneCommandPayload {
@@ -156,13 +156,13 @@ function isCompletePayload(payload: Record<string, unknown> | null): payload is 
 
 function commandStateForMilestone(
   commands: OfflineCommand[],
-  tripId: number,
+  fulfillmentId: number,
   eventType: MilestoneType,
 ): OfflineCommand | null {
   return commands.find((command) =>
     command.endpoint === 'driver.task.milestone'
     && isMilestonePayload(command.payload)
-    && command.payload.tripId === tripId
+    && command.payload.fulfillmentId === fulfillmentId
     && command.payload.eventType === eventType,
   ) ?? null;
 }
@@ -209,17 +209,21 @@ export default function DriverTripDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const online = useOnline();
   const [creatingDraft, setCreatingDraft] = useState(false);
   const [uploadingPod, setUploadingPod] = useState(false);
 
-  const tripId = Number(id);
-  const validTripId = Number.isInteger(tripId) && tripId > 0 ? tripId : undefined;
+  const fulfillmentId = Number(id);
+  const validFulfillmentId = Number.isInteger(fulfillmentId) && fulfillmentId > 0 ? fulfillmentId : undefined;
 
-  const taskDetail = useDriverTaskDetail(validTripId);
-  const progress = useDriverTaskProgress(validTripId);
-  const evidence = useDriverEvidenceStatus(validTripId);
-  const { commands, enqueue, drain, pendingCount, failedCount, conflictCount } = useOfflineCommandQueue({ maxPending: 12 });
+  const taskDetail = useDriverTaskDetail(validFulfillmentId);
+  const progress = useDriverTaskProgress(validFulfillmentId);
+  const evidence = useDriverEvidenceStatus(validFulfillmentId);
+  const { commands, enqueue, drain, pendingCount, failedCount, conflictCount } = useOfflineCommandQueue({
+    maxPending: 12,
+    storageScope: user ? `${user.role}:${user.userId}` : null,
+  });
   const { rootRef } = usePageAnimations({
     ready: !taskDetail.isLoading && !progress.isLoading && !evidence.isLoading,
   });
@@ -228,8 +232,8 @@ export default function DriverTripDetailPage() {
   useBackShortcut(handleBack);
 
   const tripCommands = useMemo(() => commands.filter((command) =>
-    isCommandPayload(command.payload) && command.payload.tripId === validTripId,
-  ), [commands, validTripId]);
+    isCommandPayload(command.payload) && command.payload.fulfillmentId === validFulfillmentId,
+  ), [commands, validFulfillmentId]);
 
   const refreshAll = useCallback(async () => {
     await Promise.all([
@@ -242,7 +246,7 @@ export default function DriverTripDetailPage() {
   const sendQueuedCommand = useCallback(async (command: OfflineCommand): Promise<OfflineCommandSendResult> => {
     if (command.endpoint === 'driver.task.milestone' && isMilestonePayload(command.payload)) {
       try {
-        await driverClient.recordProgress(command.payload.tripId, {
+        await driverClient.recordProgress(command.payload.fulfillmentId, {
           eventType: command.payload.eventType,
           occurredAt: command.payload.occurredAt,
           expectedVersion: command.payload.expectedVersion,
@@ -264,7 +268,7 @@ export default function DriverTripDetailPage() {
     if (command.endpoint === 'driver.task.pod.submit' && isPodSubmitPayload(command.payload)) {
       try {
         await driverClient.submitPod(
-          command.payload.tripId,
+          command.payload.fulfillmentId,
           command.payload.submissionId,
           { expectedVersion: command.payload.expectedVersion },
           command.id,
@@ -285,7 +289,7 @@ export default function DriverTripDetailPage() {
     if (command.endpoint === 'driver.task.complete' && isCompletePayload(command.payload)) {
       try {
         await driverClient.completeTrip(
-          command.payload.tripId,
+          command.payload.fulfillmentId,
           { expectedVersion: command.payload.expectedVersion },
           command.id,
         );
@@ -345,26 +349,25 @@ export default function DriverTripDetailPage() {
     if (!trip) return;
     const milestoneIndex = MILESTONES.findIndex((milestone) => milestone.eventType === eventType);
     if (milestoneIndex !== nextMilestoneIndex) return;
-    const idempotencyKey = buildOfflineCommandKey('driver', 'task', validTripId, 'milestone', eventType, 'version', trip.version);
+    const idempotencyKey = buildOfflineCommandKey('driver', 'task', validFulfillmentId, 'milestone', eventType, 'version', trip.version);
     enqueue({
       id: idempotencyKey,
       endpoint: 'driver.task.milestone',
       method: 'POST',
-      path: `/driver/me/fulfillments/${validTripId}/progress`,
+      path: `/driver/me/fulfillments/${validFulfillmentId}/progress`,
       payload: {
         kind: 'milestone',
-        tripId: validTripId,
+        fulfillmentId: validFulfillmentId,
         eventType,
         occurredAt: new Date().toISOString(),
         expectedVersion: trip.version,
-        fulfillmentId: trip.fulfillment?.id,
       },
     });
     await runDrain('Đã ghi nhận mốc tiến độ.');
   }
 
   async function handleEnsureDraft(): Promise<DriverTaskPodSubmission> {
-    if (!trip || !validTripId) {
+    if (!trip || !validFulfillmentId) {
       throw new Error('Không tìm thấy chuyến để tạo e-POD.');
     }
     if (currentSubmission?.status === 'DRAFT') {
@@ -379,7 +382,7 @@ export default function DriverTripDetailPage() {
       const idempotencyKey = buildOfflineCommandKey(
         'driver',
         'task',
-        validTripId,
+        validFulfillmentId,
         'pod-draft',
         'trip-version',
         trip.version,
@@ -387,7 +390,7 @@ export default function DriverTripDetailPage() {
         nextSubmissionVersion,
       );
       const created = await driverClient.createPodSubmission(
-        validTripId,
+        validFulfillmentId,
         { expectedVersion: trip.version },
         idempotencyKey,
       );
@@ -400,11 +403,11 @@ export default function DriverTripDetailPage() {
   }
 
   async function handleUploadPodFile(submission: DriverTaskPodSubmission, fileType: Parameters<typeof driverClient.attachPodFile>[0]['fileType'], file: File) {
-    if (!validTripId) throw new Error('ID tác vụ không hợp lệ.');
+    if (!validFulfillmentId) throw new Error('ID tác vụ không hợp lệ.');
     setUploadingPod(true);
     try {
       const uploaded = await driverClient.attachPodFile({
-        tripId: validTripId,
+        tripId: validFulfillmentId,
         submissionId: submission.id,
         fileType,
         expectedVersion: submission.version,
@@ -422,7 +425,7 @@ export default function DriverTripDetailPage() {
     const idempotencyKey = buildOfflineCommandKey(
       'driver',
       'task',
-      validTripId,
+      validFulfillmentId,
       'pod-submit',
       submission.id,
       'version',
@@ -432,10 +435,10 @@ export default function DriverTripDetailPage() {
       id: idempotencyKey,
       endpoint: 'driver.task.pod.submit',
       method: 'POST',
-      path: `/driver/me/fulfillments/${validTripId}/pod/${submission.id}/submit`,
+      path: `/driver/me/fulfillments/${validFulfillmentId}/pod/${submission.id}/submit`,
       payload: {
         kind: 'pod-submit',
-        tripId: validTripId,
+        fulfillmentId: validFulfillmentId,
         submissionId: submission.id,
         expectedVersion: submission.version,
       },
@@ -445,22 +448,22 @@ export default function DriverTripDetailPage() {
 
   async function handleCompleteTrip() {
     if (!trip) return;
-    const idempotencyKey = buildOfflineCommandKey('driver', 'task', validTripId, 'complete', 'version', trip.version);
+    const idempotencyKey = buildOfflineCommandKey('driver', 'task', validFulfillmentId, 'complete', 'version', trip.version);
     enqueue({
       id: idempotencyKey,
       endpoint: 'driver.task.complete',
       method: 'POST',
-      path: `/driver/me/fulfillments/${validTripId}/complete`,
+      path: `/driver/me/fulfillments/${validFulfillmentId}/complete`,
       payload: {
         kind: 'complete',
-        tripId: validTripId,
+        fulfillmentId: validFulfillmentId,
         expectedVersion: trip.version,
       },
     });
     await runDrain('Chuyến đã chuyển sang chờ duyệt khóa.');
   }
 
-  if (!validTripId) {
+  if (!validFulfillmentId) {
     return (
       <div className="driver-task-screen driver-task-screen--feedback">
         <div className="driver-task-feedback">
@@ -601,7 +604,7 @@ export default function DriverTripDetailPage() {
         <div className="driver-task-timeline">
           {MILESTONES.map((milestone, index) => {
             const event = getLatestMilestoneEvent(progress.data, milestone.eventType);
-            const command = commandStateForMilestone(tripCommands, trip.id, milestone.eventType);
+            const command = commandStateForMilestone(tripCommands, trip.fulfillment?.id ?? validFulfillmentId, milestone.eventType);
             const state = timelineState(Boolean(event), command, nextMilestoneIndex, index);
             const clickable = state === 'available' || state === 'retry';
             return (

@@ -3,10 +3,24 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DriverProgressEventType, TripPodStatus } from '@tingting/shared';
 
+type MockOfflineCommand = {
+  id: string;
+  endpoint: string;
+  method: string;
+  path: string;
+  payload: Record<string, unknown>;
+  status: string;
+  retryCount: number;
+  lastError: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 const {
   useDriverTaskDetailMock,
   useDriverTaskProgressMock,
   useDriverEvidenceStatusMock,
+  commandsMock,
   enqueueMock,
   drainMock,
   toastMock,
@@ -14,6 +28,7 @@ const {
   useDriverTaskDetailMock: vi.fn(),
   useDriverTaskProgressMock: vi.fn(),
   useDriverEvidenceStatusMock: vi.fn(),
+  commandsMock: vi.fn<() => MockOfflineCommand[]>(() => []),
   enqueueMock: vi.fn(),
   drainMock: vi.fn(),
   toastMock: vi.fn(),
@@ -37,6 +52,10 @@ vi.mock('../hooks/useOnline', () => ({
   useOnline: () => true,
 }));
 
+vi.mock('../hooks/useAuth', () => ({
+  useAuth: () => ({ user: { userId: 88, role: 'DRIVER' } }),
+}));
+
 vi.mock('../components/shared/Toast', () => ({
   useToast: () => ({ toast: toastMock }),
 }));
@@ -52,7 +71,7 @@ vi.mock('../components/trip/TripPodSubmission', () => ({
 vi.mock('../features/driver/useOfflineCommandQueue', () => ({
   buildOfflineCommandKey: (...parts: Array<string | number>) => parts.join(':'),
   useOfflineCommandQueue: () => ({
-    commands: [],
+    commands: commandsMock(),
     enqueue: enqueueMock,
     drain: drainMock,
     pendingCount: 0,
@@ -143,6 +162,8 @@ function renderPage() {
 
 describe('DriverTripDetailPage', () => {
   beforeEach(() => {
+    commandsMock.mockReset();
+    commandsMock.mockReturnValue([]);
     enqueueMock.mockReset();
     drainMock.mockReset();
     toastMock.mockReset();
@@ -193,11 +214,35 @@ describe('DriverTripDetailPage', () => {
       path: '/driver/me/fulfillments/88/progress',
       payload: {
         kind: 'milestone',
-        tripId: 88,
+        fulfillmentId: 88,
         eventType: DriverProgressEventType.PICKED_UP,
         expectedVersion: 3,
-        fulfillmentId: 88,
       },
     });
+  });
+
+  it('shows queued milestone retry state when fulfillment id differs from trip id', async () => {
+    commandsMock.mockReturnValue([{
+      id: 'queued-picked-up',
+      endpoint: 'driver.task.milestone',
+      method: 'POST',
+      path: '/driver/me/fulfillments/88/progress',
+      payload: {
+        kind: 'milestone',
+        fulfillmentId: 88,
+        eventType: DriverProgressEventType.PICKED_UP,
+        expectedVersion: 3,
+        occurredAt: '2026-08-01T01:00:00.000Z',
+      },
+      status: 'FAILED',
+      retryCount: 1,
+      lastError: 'offline',
+      createdAt: '2026-08-01T01:00:00.000Z',
+      updatedAt: '2026-08-01T01:01:00.000Z',
+    }]);
+
+    renderPage();
+
+    expect(await screen.findByText('Sẽ thử lại')).toBeTruthy();
   });
 });

@@ -31,13 +31,14 @@ type QueueStore = {
 const STORAGE_KEY = 'silversea.driver-offline-command-queue.v1';
 const TERMINAL_STATUSES: ReadonlySet<OfflineCommandStatus> = new Set(['DONE', 'CONFLICT']);
 
-let memoryFallback: OfflineCommand[] = [];
+const memoryFallbackByKey = new Map<string, OfflineCommand[]>();
+const persistentQueues = new Map<string, DriverOfflineCommandQueue>();
 
 function createQueueStore(storageKey = STORAGE_KEY): QueueStore {
   return {
     read() {
       if (typeof window === 'undefined' || !('localStorage' in window)) {
-        return [...memoryFallback];
+        return [...(memoryFallbackByKey.get(storageKey) ?? [])];
       }
       try {
         const raw = window.localStorage.getItem(storageKey);
@@ -57,11 +58,11 @@ function createQueueStore(storageKey = STORAGE_KEY): QueueStore {
             && typeof candidate.updatedAt === 'string';
         });
       } catch {
-        return [];
+        return [...(memoryFallbackByKey.get(storageKey) ?? [])];
       }
     },
     write(commands) {
-      memoryFallback = [...commands];
+      memoryFallbackByKey.set(storageKey, [...commands]);
       if (typeof window === 'undefined' || !('localStorage' in window)) return;
       try {
         window.localStorage.setItem(storageKey, JSON.stringify(commands));
@@ -227,11 +228,27 @@ export class DriverOfflineCommandQueue {
 
 export const driverOfflineCommandQueue = new DriverOfflineCommandQueue();
 
+function getPersistentQueue(storageScope: string): DriverOfflineCommandQueue {
+  const storageKey = `${STORAGE_KEY}:${storageScope}`;
+  const existing = persistentQueues.get(storageKey);
+  if (existing) return existing;
+  const created = new DriverOfflineCommandQueue(createQueueStore(storageKey));
+  persistentQueues.set(storageKey, created);
+  return created;
+}
+
 export function useOfflineCommandQueue(options?: {
   maxPending?: number;
   queue?: DriverOfflineCommandQueue;
+  storageScope?: string | null;
 }) {
-  const queue = options?.queue ?? driverOfflineCommandQueue;
+  const queue = useMemo(() => {
+    if (options?.queue) return options.queue;
+    if (typeof options?.storageScope === 'string' && options.storageScope.trim().length > 0) {
+      return getPersistentQueue(options.storageScope.trim());
+    }
+    return driverOfflineCommandQueue;
+  }, [options?.queue, options?.storageScope]);
   const maxPending = options?.maxPending ?? 12;
   const [commands, setCommands] = useState<OfflineCommand[]>(() => queue.listPending());
 

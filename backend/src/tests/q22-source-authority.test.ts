@@ -55,6 +55,8 @@ const expenseIds: number[] = [];
 const expenseTypeIds: number[] = [];
 const shipmentIds: number[] = [];
 const shipmentContainerIds: number[] = [];
+const fulfillmentIds: number[] = [];
+const podSubmissionIds: number[] = [];
 const tripContainerIds: number[] = [];
 const paymentReceiptIds: number[] = [];
 const paymentAllocationIds: number[] = [];
@@ -108,11 +110,17 @@ after(async () => {
   if (expenseIds.length > 0) {
     await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.id, expenseIds));
   }
+  if (podSubmissionIds.length > 0) {
+    await db.delete(s.tripPodSubmissions).where(inArray(s.tripPodSubmissions.id, podSubmissionIds));
+  }
   if (shipmentContainerIds.length > 0) {
     await db.delete(s.shipmentContainers).where(inArray(s.shipmentContainers.id, shipmentContainerIds));
   }
   if (tripIds.length > 0) {
     await db.delete(s.trips).where(inArray(s.trips.id, tripIds));
+  }
+  if (fulfillmentIds.length > 0) {
+    await db.delete(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.id, fulfillmentIds));
   }
   if (shipmentIds.length > 0) {
     await db.delete(s.shipments).where(inArray(s.shipments.id, shipmentIds));
@@ -159,11 +167,35 @@ async function createTripFixture(
   routeIds.push(route.id);
   cargoTypeIds.push(cargoType.id);
 
+  const [shipment] = await db.insert(s.shipments).values({
+    shipmentCode: `Q22-SHP-${suffix}`.slice(0, 50),
+    customerId: customer.id,
+    routeId: route.id,
+    cargoTypeId: cargoType.id,
+    status: 'DRAFT',
+    cargoMode: 'LCL',
+    createdBy: actors[0]!.id,
+    updatedBy: actors[0]!.id,
+  }).returning();
+  shipmentIds.push(shipment.id);
+
+  const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+    shipmentId: shipment.id,
+    fulfillmentType: 'LCL_SHIPMENT',
+    cargoMode: 'LCL',
+    sourceShipmentVersion: shipment.version,
+    siteSnapshot: {},
+    createdBy: actors[0]!.id,
+  }).returning();
+  fulfillmentIds.push(fulfillment.id);
+
   const [trip] = await db.insert(s.trips).values({
     tripCode: `Q22-${suffix}`.slice(0, 50),
     customerId: customer.id,
     routeId: route.id,
     cargoTypeId: cargoType.id,
+    shipmentId: shipment.id,
+    fulfillmentId: fulfillment.id,
     departureDate: dates.departureDate ?? '2026-07-15',
     completedAt: dates.completedAt ?? new Date('2026-07-20T10:00:00Z'),
     status,
@@ -171,6 +203,23 @@ async function createTripFixture(
     carrierType: 'OWN',
   }).returning();
   tripIds.push(trip.id);
+
+  if (status !== 'CREATED') {
+    const [submission] = await db.insert(s.tripPodSubmissions).values({
+      tripId: trip.id,
+      fulfillmentId: fulfillment.id,
+      submissionVersion: 1,
+      sourceTripVersion: trip.version,
+      status: 'ACCEPTED',
+      submittedBy: actors[0]!.id,
+      submittedAt: new Date('2026-07-20T11:00:00.000Z'),
+      reviewedBy: actors[1]!.id,
+      reviewedAt: new Date('2026-07-20T12:00:00.000Z'),
+      rejectionReason: null,
+    }).returning({ id: s.tripPodSubmissions.id });
+    podSubmissionIds.push(submission.id);
+  }
+
   return { customer, trip };
 }
 
@@ -497,15 +546,10 @@ describe('Q22 source authority propagation', () => {
   });
 
   test('uses completion date for freight and expense date for service-fee periods', async () => {
-    const { customer, trip } = await createTripFixture('COMPLETED', 1_000_000, {
+    const { customer, trip } = await createTripFixture('LOCKED', 1_000_000, {
       departureDate: '2026-07-31',
       completedAt: new Date('2026-08-02T09:00:00Z'),
     });
-    const { shipment } = await createShipmentFixture(customer.id);
-    await db.update(s.trips).set({
-      shipmentId: shipment.id,
-      updatedAt: new Date(),
-    }).where(eq(s.trips.id, trip.id));
     const [expenseType] = await db.insert(s.forwarderExpenseTypes).values({
       code: `Q22-EVT-${trip.id}`,
       name: `Q22 event fee ${trip.id}`,
@@ -595,7 +639,7 @@ describe('Q22 source authority propagation', () => {
   });
 
   test('recomputes draft debit-note lines from the latest trip source', async () => {
-    const { customer, trip } = await createTripFixture('COMPLETED', 1_000_000);
+    const { customer, trip } = await createTripFixture('LOCKED', 1_000_000);
     const document = await createDraftDebitNote(customer.id, actors[0]!.id);
     const before = await getDocument(document.id!);
     const beforeLine = requireTripLine(before);
@@ -624,7 +668,7 @@ describe('Q22 source authority propagation', () => {
   });
 
   test('treats only approved expenses as authoritative for debit-note and disbursement reads', async () => {
-    const { customer, trip } = await createTripFixture('COMPLETED', 1_000_000);
+    const { customer, trip } = await createTripFixture('LOCKED', 1_000_000);
     const [expenseType] = await db.insert(s.forwarderExpenseTypes).values({
       code: `Q22-AUTH-${trip.id}`,
       name: `Q22 authority fee ${trip.id}`,
@@ -843,7 +887,7 @@ describe('Q22 source authority propagation', () => {
   });
 
   test('waits on the shared trip authority lock before sending a debit note', async () => {
-    const { customer, trip } = await createTripFixture('COMPLETED', 1_000_000);
+    const { customer, trip } = await createTripFixture('LOCKED', 1_000_000);
     const document = await createDraftDebitNote(customer.id, actors[0]!.id);
 
     let releaseAuthority!: () => void;

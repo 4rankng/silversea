@@ -9,6 +9,7 @@ import { resolveHandoff } from './dispatch-handoff.service';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import { persistNotificationInTx, sendNotificationPush, type NotificationPayload } from './notification.service';
 import { assertActorCanAccessShipment } from './shipment-coordination.service';
+import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
 import { createTrip } from './trip-mutations.service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -283,95 +284,16 @@ function buildNotificationPayload(
   };
 }
 
+function hasExplicitNotificationTarget(payload: NotificationPayload): boolean {
+  return payload.targetUserId != null
+    || payload.targetDriverId != null
+    || (payload.targetRoles?.length ?? 0) > 0;
+}
+
 function toIsoOrNull(value: Date | string | null | undefined): string | null {
   if (value == null) return null;
   if (value instanceof Date) return value.toISOString();
   return typeof value === 'string' ? value : null;
-}
-
-async function ensureFulfillmentsInTx(
-  tx: Tx,
-  shipmentId: number,
-  actorId: number,
-): Promise<Array<typeof s.shipmentFulfillments.$inferSelect>> {
-  const [shipment] = await tx.select().from(s.shipments)
-    .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
-    .limit(1)
-    .for('update');
-  if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng.');
-  if (shipment.cargoMode !== 'FCL' && shipment.cargoMode !== 'LCL') {
-    throw new ApiError(409, 'Lô hàng chưa xác định hình thức FCL/LCL.');
-  }
-
-  const existing = await tx.select().from(s.shipmentFulfillments)
-    .where(and(
-      eq(s.shipmentFulfillments.shipmentId, shipment.id),
-      isNull(s.shipmentFulfillments.canceledAt),
-    ))
-    .orderBy(s.shipmentFulfillments.id);
-  if (existing.length > 0) return existing;
-
-  const containers = await tx.select().from(s.shipmentContainers)
-    .where(eq(s.shipmentContainers.shipmentId, shipment.id))
-    .orderBy(s.shipmentContainers.id);
-  if (shipment.cargoMode === 'FCL' && containers.length === 0) {
-    throw new ApiError(409, 'Lô hàng FCL phải có ít nhất một container.');
-  }
-  if (shipment.cargoMode === 'LCL' && containers.length > 0) {
-    throw new ApiError(409, 'Lô hàng LCL không được có container giả.');
-  }
-
-  const siteIds = [shipment.operationalSiteId, shipment.pickupWarehouseSiteId]
-    .filter((id): id is number => id != null);
-  const sites = siteIds.length === 0
-    ? []
-    : await tx.select().from(s.operationalSites)
-      .where(and(
-        inArray(s.operationalSites.id, siteIds),
-        eq(s.operationalSites.customerId, shipment.customerId),
-        eq(s.operationalSites.isActive, true),
-        isNull(s.operationalSites.deletedAt),
-      ));
-  const bySiteId = new Map(sites.map((site) => [site.id, {
-    id: site.id,
-    code: site.code,
-    name: site.name,
-    siteType: site.siteType,
-    address: site.address,
-    googleMapsUrl: site.googleMapsUrl,
-    contactName: site.contactName,
-    contactPhone: site.contactPhone,
-    liftFeeInvoiceName: site.liftFeeInvoiceName,
-    liftFeeInvoiceAddress: site.liftFeeInvoiceAddress,
-    liftFeeTaxCode: site.liftFeeTaxCode,
-    strictRules: site.strictRules,
-    sourceVersion: site.version,
-  }]));
-  const siteSnapshot = {
-    deliverySite: shipment.operationalSiteId ? bySiteId.get(shipment.operationalSiteId) ?? null : null,
-    pickupWarehouse: shipment.pickupWarehouseSiteId ? bySiteId.get(shipment.pickupWarehouseSiteId) ?? null : null,
-  };
-
-  const values: Array<typeof s.shipmentFulfillments.$inferInsert> = shipment.cargoMode === 'FCL'
-    ? containers.map((container) => ({
-      shipmentId: shipment.id,
-      fulfillmentType: 'FCL_CONTAINER',
-      cargoMode: 'FCL',
-      shipmentContainerId: container.id,
-      sourceShipmentVersion: shipment.version,
-      siteSnapshot,
-      createdBy: actorId,
-    }))
-    : [{
-      shipmentId: shipment.id,
-      fulfillmentType: 'LCL_SHIPMENT',
-      cargoMode: 'LCL',
-      shipmentContainerId: null,
-      sourceShipmentVersion: shipment.version,
-      siteSnapshot,
-      createdBy: actorId,
-    }];
-  return tx.insert(s.shipmentFulfillments).values(values).returning();
 }
 
 async function loadPickupSites(tx: Tx, siteIds: number[]) {
@@ -903,7 +825,10 @@ export async function acceptDispatchHandoff(input: AcceptDispatchHandoffInput) {
       input.expectedVersion,
       { expectedShipmentId: input.shipmentId, transaction: tx },
     );
-    const fulfillments = await ensureFulfillmentsInTx(tx, input.shipmentId, input.actor.userId);
+    const fulfillments = await ensureShipmentFulfillmentsInTx(tx, {
+      shipmentId: input.shipmentId,
+      actorId: input.actor.userId,
+    });
     return { handoff, fulfillments };
   });
   return {
@@ -1303,8 +1228,11 @@ async function issueOrderCreateOrUpdate(
     trip = linked ?? null;
     if (!trip) throw new ApiError(409, 'Không thể liên kết chuyến với tác vụ.');
     await replaceTripContainersForFulfillment(tx, trip.id, shipment, fulfillment, input.actor.userId);
-    await persistNotificationInTx(tx, buildNotificationPayload(trip));
-    notificationPersisted = true;
+    const notificationPayload = buildNotificationPayload(trip);
+    if (hasExplicitNotificationTarget(notificationPayload)) {
+      await persistNotificationInTx(tx, notificationPayload);
+      notificationPersisted = true;
+    }
   } else {
     const [updatedTrip] = await tx.update(s.trips).set({
       plannedStartAt,
@@ -1359,8 +1287,11 @@ async function issueOrderCreateOrUpdate(
           : previousDriverId !== driverId && Number(existingNotificationCount[0]?.total ?? 0) === 0
       )
     ) {
-      await persistNotificationInTx(tx, buildNotificationPayload(trip));
-      notificationPersisted = true;
+      const notificationPayload = buildNotificationPayload(trip);
+      if (hasExplicitNotificationTarget(notificationPayload)) {
+        await persistNotificationInTx(tx, notificationPayload);
+        notificationPersisted = true;
+      }
     }
   }
 
@@ -1405,8 +1336,11 @@ export async function issueFulfillmentDispatchOrder(input: IssueFulfillmentDispa
     create: (tx) => issueOrderCreateOrUpdate(tx, input),
   });
 
-  if (!outcome.replayed && outcome.result.notificationPersisted) {
-    await sendNotificationPush(buildNotificationPayload(outcome.result.trip));
+  const notificationPayload = buildNotificationPayload(outcome.result.trip);
+  const hasExplicitInAppTarget = hasExplicitNotificationTarget(notificationPayload);
+
+  if (!outcome.replayed && outcome.result.notificationPersisted && hasExplicitInAppTarget) {
+    await sendNotificationPush(notificationPayload);
   }
 
   return {
@@ -1430,8 +1364,8 @@ export async function issueFulfillmentDispatchOrder(input: IssueFulfillmentDispa
     },
     notification: {
       type: NotificationType.TRIP_DISPATCHED,
-      deliveredInApp: true,
-      pushAttempted: !outcome.replayed && outcome.result.notificationPersisted,
+      deliveredInApp: hasExplicitInAppTarget,
+      pushAttempted: !outcome.replayed && outcome.result.notificationPersisted && hasExplicitInAppTarget,
     },
     replayed: outcome.replayed,
   };

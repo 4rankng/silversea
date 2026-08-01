@@ -23,6 +23,7 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import { sniffImageType } from '../lib/format';
+import { enqueueStorageDelete, STORAGE_DELETE_MODE } from './durable-effect.service';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from './idempotency.service';
 import { storageService } from './storage.service';
 import type { Tx } from './trip-shared';
@@ -134,8 +135,17 @@ function isPdfBuffer(buffer: Buffer): boolean {
   return buffer.subarray(0, 5).toString('utf8') === '%PDF-';
 }
 
+function hasPdfTrailer(buffer: Buffer): boolean {
+  const tail = buffer.subarray(Math.max(0, buffer.length - 1024)).toString('utf8');
+  return tail.includes('%%EOF');
+}
+
 function fileTypeLabel(fileType: TripPodFileType): string {
   return TRIP_POD_FILE_LABELS[fileType];
+}
+
+function buildUploadAttemptSuffix(idempotencyKey: string): string {
+  return createHash('sha256').update(idempotencyKey).digest('hex').slice(0, 16);
 }
 
 function podFileDownloadUrl(fulfillmentId: number, fileId: number): string {
@@ -181,7 +191,12 @@ async function normalizePodUpload(file: UploadFileLike): Promise<NormalizedPodUp
     throw new ApiError(400, 'Tệp e-POD không hợp lệ.');
   }
 
-  if (file.mimetype === PDF_MIME_TYPE || isPdfBuffer(file.buffer)) {
+  const declaredPdf = file.mimetype === PDF_MIME_TYPE;
+  const signedPdf = isPdfBuffer(file.buffer);
+  if (declaredPdf || signedPdf) {
+    if (!declaredPdf || !signedPdf || !hasPdfTrailer(file.buffer)) {
+      throw new ApiError(400, 'Tệp PDF e-POD không hợp lệ hoặc không khớp định dạng khai báo.');
+    }
     return {
       buffer: file.buffer,
       extension: 'pdf',
@@ -228,11 +243,19 @@ function buildPodStorageKey(args: {
   idempotencyKey: string;
 }): string {
   const base = `trip-pod/${args.tripId}/submission-${args.submissionId}`;
-  if (args.fileType === TripPodFileType.TOLL_TICKET) {
-    const suffix = createHash('sha256').update(args.idempotencyKey).digest('hex').slice(0, 16);
-    return `${base}/toll-ticket-${suffix}.${args.extension}`;
-  }
-  return `${base}/${args.fileType.toLowerCase()}.${args.extension}`;
+  const suffix = buildUploadAttemptSuffix(args.idempotencyKey);
+  const slotName = args.fileType === TripPodFileType.TOLL_TICKET
+    ? 'toll-ticket'
+    : args.fileType.toLowerCase();
+  return `${base}/${slotName}-${suffix}.${args.extension}`;
+}
+
+function hashStorageKey(storageKey: string): string {
+  return createHash('sha256').update(storageKey).digest('hex').slice(0, 32);
+}
+
+function buildPodFinalDeleteDedupeKey(fileId: number, storageKey: string): string {
+  return `trip-pod-file-final:${fileId}:${hashStorageKey(storageKey)}`;
 }
 
 export async function loadOwnedFulfillmentTrip(
@@ -375,53 +398,90 @@ async function loadSubmissionTx(
   return submission;
 }
 
+async function buildSubmissionViewsTx(
+  tx: Tx,
+  requests: Array<{ submissionId: number; fulfillmentId: number; shipmentId?: number | null }>,
+): Promise<Map<number, DriverPodSubmissionView>> {
+  const submissionIds = [...new Set(requests.map((request) => request.submissionId))];
+  if (submissionIds.length === 0) {
+    return new Map();
+  }
+
+  const submissions = await tx.select().from(s.tripPodSubmissions)
+    .where(inArray(s.tripPodSubmissions.id, submissionIds));
+  const submissionById = new Map(submissions.map((submission) => [submission.id, submission]));
+
+  const files = await tx.select().from(s.tripPodFiles)
+    .where(inArray(s.tripPodFiles.submissionId, submissionIds))
+    .orderBy(asc(s.tripPodFiles.submissionId), asc(s.tripPodFiles.createdAt), asc(s.tripPodFiles.id));
+  const filesBySubmissionId = new Map<number, Array<typeof s.tripPodFiles.$inferSelect>>();
+  for (const file of files) {
+    const existing = filesBySubmissionId.get(file.submissionId) ?? [];
+    existing.push(file);
+    filesBySubmissionId.set(file.submissionId, existing);
+  }
+
+  const requestBySubmissionId = new Map(requests.map((request) => [request.submissionId, request]));
+  const views = new Map<number, DriverPodSubmissionView>();
+  for (const submissionId of submissionIds) {
+    const submission = submissionById.get(submissionId);
+    if (!submission) {
+      throw new ApiError(404, 'Không tìm thấy phiên bản e-POD.');
+    }
+    const request = requestBySubmissionId.get(submissionId);
+    if (!request) {
+      continue;
+    }
+    const submissionFiles = filesBySubmissionId.get(submission.id) ?? [];
+    const fileTypes = new Set(submissionFiles.map((file) => file.fileType as TripPodFileType));
+    const missingRequiredFileTypes = TRIP_POD_REQUIRED_FILE_TYPES
+      .filter((fileType) => !fileTypes.has(fileType));
+
+    views.set(submission.id, {
+      id: submission.id,
+      tripId: submission.tripId,
+      fulfillmentId: submission.fulfillmentId,
+      submissionVersion: submission.submissionVersion,
+      status: submission.status as TripPodStatus,
+      version: submission.version,
+      createdAt: submission.createdAt.toISOString(),
+      submittedAt: submission.submittedAt?.toISOString() ?? null,
+      submittedBy: submission.submittedBy ?? null,
+      reviewedAt: submission.reviewedAt?.toISOString() ?? null,
+      reviewedBy: submission.reviewedBy ?? null,
+      rejectionReason: submission.rejectionReason ?? null,
+      supersedesSubmissionId: submission.supersedesSubmissionId ?? null,
+      sourceTripVersion: submission.sourceTripVersion,
+      missingRequiredFileTypes,
+      isReadyForReview: submission.status === TripPodStatus.SUBMITTED && missingRequiredFileTypes.length === 0,
+      files: submissionFiles.map((file) => ({
+        id: file.id,
+        fileType: file.fileType as TripPodFileType,
+        label: fileTypeLabel(file.fileType as TripPodFileType),
+        originalFileName: file.originalFileName,
+        mimeType: file.mimeType,
+        sizeBytes: file.sizeBytes,
+        createdAt: file.createdAt.toISOString(),
+        downloadUrl: request.shipmentId != null
+          ? shipmentPodFileDownloadUrl(request.shipmentId, file.id)
+          : podFileDownloadUrl(request.fulfillmentId, file.id),
+      })),
+    });
+  }
+
+  return views;
+}
+
 async function buildSubmissionViewTx(
   tx: Tx,
   args: { submissionId: number; fulfillmentId: number; shipmentId?: number | null },
 ): Promise<DriverPodSubmissionView> {
-  const [submission] = await tx.select().from(s.tripPodSubmissions)
-    .where(eq(s.tripPodSubmissions.id, args.submissionId))
-    .limit(1);
-  if (!submission) {
+  const views = await buildSubmissionViewsTx(tx, [args]);
+  const view = views.get(args.submissionId);
+  if (!view) {
     throw new ApiError(404, 'Không tìm thấy phiên bản e-POD.');
   }
-  const files = await tx.select().from(s.tripPodFiles)
-    .where(eq(s.tripPodFiles.submissionId, submission.id))
-    .orderBy(asc(s.tripPodFiles.createdAt), asc(s.tripPodFiles.id));
-  const fileTypes = new Set(files.map((file) => file.fileType as TripPodFileType));
-  const missingRequiredFileTypes = TRIP_POD_REQUIRED_FILE_TYPES
-    .filter((fileType) => !fileTypes.has(fileType));
-
-  return {
-    id: submission.id,
-    tripId: submission.tripId,
-    fulfillmentId: submission.fulfillmentId,
-    submissionVersion: submission.submissionVersion,
-    status: submission.status as TripPodStatus,
-    version: submission.version,
-    createdAt: submission.createdAt.toISOString(),
-    submittedAt: submission.submittedAt?.toISOString() ?? null,
-    submittedBy: submission.submittedBy ?? null,
-    reviewedAt: submission.reviewedAt?.toISOString() ?? null,
-    reviewedBy: submission.reviewedBy ?? null,
-    rejectionReason: submission.rejectionReason ?? null,
-    supersedesSubmissionId: submission.supersedesSubmissionId ?? null,
-    sourceTripVersion: submission.sourceTripVersion,
-    missingRequiredFileTypes,
-    isReadyForReview: submission.status === TripPodStatus.SUBMITTED && missingRequiredFileTypes.length === 0,
-    files: files.map((file) => ({
-      id: file.id,
-      fileType: file.fileType as TripPodFileType,
-      label: fileTypeLabel(file.fileType as TripPodFileType),
-      originalFileName: file.originalFileName,
-      mimeType: file.mimeType,
-      sizeBytes: file.sizeBytes,
-      createdAt: file.createdAt.toISOString(),
-      downloadUrl: args.shipmentId != null
-        ? shipmentPodFileDownloadUrl(args.shipmentId, file.id)
-        : podFileDownloadUrl(args.fulfillmentId, file.id),
-    })),
-  };
+  return view;
 }
 
 export async function listPodSubmissionsForDriver(
@@ -435,15 +495,12 @@ export async function listPodSubmissionsForDriver(
     }).from(s.tripPodSubmissions)
       .where(eq(s.tripPodSubmissions.tripId, ownedTrip.tripId))
       .orderBy(desc(s.tripPodSubmissions.submissionVersion), desc(s.tripPodSubmissions.id));
-    const items: DriverPodSubmissionView[] = [];
-    for (const row of rows) {
-      items.push(await buildSubmissionViewTx(tx, {
-        submissionId: row.id,
-        fulfillmentId,
-        shipmentId: ownedTrip.shipmentId,
-      }));
-    }
-    return items;
+    const requests = rows.map((row) => ({
+      submissionId: row.id,
+      fulfillmentId,
+    }));
+    const views = await buildSubmissionViewsTx(tx, requests);
+    return requests.map((request) => views.get(request.submissionId)).filter((value): value is DriverPodSubmissionView => value != null);
   });
 }
 
@@ -568,7 +625,7 @@ export async function attachPodFile(args: {
 
       const [existingRequiredSlot] = args.fileType === TripPodFileType.TOLL_TICKET
         ? []
-        : await tx.select({ id: s.tripPodFiles.id }).from(s.tripPodFiles)
+        : await tx.select({ id: s.tripPodFiles.id, storageKey: s.tripPodFiles.storageKey }).from(s.tripPodFiles)
           .where(and(
             eq(s.tripPodFiles.submissionId, submission.id),
             eq(s.tripPodFiles.fileType, args.fileType),
@@ -577,6 +634,17 @@ export async function attachPodFile(args: {
           .for('update');
 
       if (existingRequiredSlot) {
+        if (existingRequiredSlot.storageKey !== storageKey) {
+          await enqueueStorageDelete(tx, {
+            dedupeKey: buildPodFinalDeleteDedupeKey(existingRequiredSlot.id, existingRequiredSlot.storageKey),
+            payload: {
+              storageKey: existingRequiredSlot.storageKey,
+              mode: STORAGE_DELETE_MODE.FINAL_DELETE,
+              entityType: 'trip_pod_files',
+              entityId: existingRequiredSlot.id,
+            },
+          });
+        }
         await tx.update(s.tripPodFiles).set({
           storageKey,
           originalFileName: normalized.originalFileName,
@@ -786,17 +854,21 @@ export async function listShipmentPodReviewItems(
       submissionIdsByFulfillment.set(row.fulfillmentId, existing);
     }
 
+    const submissionRequests = fulfillmentRows.flatMap((row) =>
+      (submissionIdsByFulfillment.get(row.fulfillment.id) ?? []).map((submissionId) => ({
+        submissionId,
+        fulfillmentId: row.fulfillment.id,
+        shipmentId,
+      })),
+    );
+    const submissionViews = await buildSubmissionViewsTx(tx, submissionRequests);
+
     const items: ShipmentPodReviewItemView[] = [];
     for (const row of fulfillmentRows) {
       const submissionIds = submissionIdsByFulfillment.get(row.fulfillment.id) ?? [];
-      const submissions: DriverPodSubmissionView[] = [];
-      for (const submissionId of submissionIds) {
-        submissions.push(await buildSubmissionViewTx(tx, {
-          submissionId,
-          fulfillmentId: row.fulfillment.id,
-          shipmentId,
-        }));
-      }
+      const submissions = submissionIds
+        .map((submissionId) => submissionViews.get(submissionId))
+        .filter((value): value is DriverPodSubmissionView => value != null);
 
       items.push({
         fulfillmentId: row.fulfillment.id,

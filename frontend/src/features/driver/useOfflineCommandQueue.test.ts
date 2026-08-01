@@ -54,4 +54,39 @@ describe('useOfflineCommandQueue', () => {
     expect(result.current.commands[0]?.status).toBe('FAILED');
     expect(result.current.commands[0]?.lastError).toBe('offline');
   });
+
+  it('namespaces persistent queues by authenticated session scope and switches safely between accounts', () => {
+    const { result, rerender } = renderHook(
+      ({ storageScope }) => useOfflineCommandQueue({ maxPending: 4, storageScope }),
+      { initialProps: { storageScope: 'driver:11' } },
+    );
+
+    act(() => {
+      result.current.enqueue({
+        id: 'driver-11-command',
+        endpoint: 'driver.task.milestone',
+        method: 'POST',
+        path: '/progress',
+        payload: { kind: 'milestone', fulfillmentId: 101, eventType: 'DELIVERED' },
+      });
+    });
+    expect(result.current.commands.map((command) => command.id)).toEqual(['driver-11-command']);
+
+    rerender({ storageScope: 'driver:22' });
+    expect(result.current.commands).toHaveLength(0);
+
+    act(() => {
+      result.current.enqueue({
+        id: 'driver-22-command',
+        endpoint: 'driver.task.complete',
+        method: 'POST',
+        path: '/complete',
+        payload: { kind: 'complete', fulfillmentId: 202, expectedVersion: 5 },
+      });
+    });
+    expect(result.current.commands.map((command) => command.id)).toEqual(['driver-22-command']);
+
+    rerender({ storageScope: 'driver:11' });
+    expect(result.current.commands.map((command) => command.id)).toEqual(['driver-11-command']);
+  });
 });

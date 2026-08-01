@@ -105,7 +105,7 @@ export async function sendNotificationPush(payload: NotificationPayload): Promis
     || (audience === 'financial' && isFinancialRole(target.role))
   );
   await Promise.allSettled(pushable.map((target) =>
-    pushService.sendToUser(target.userId, payload.title, payload.message, urlFor(payload, target.role), payload.type),
+    pushService.sendToUser(target.userId, payload.title, payload.message, notificationUrlForRole(payload, target.role), payload.type),
   ));
 }
 
@@ -143,7 +143,7 @@ async function generateNotification(
       (audience === 'financial' && isFinancialRole(t.role)),
     );
     await Promise.allSettled(pushable.map(t =>
-      pushService.sendToUser(t.userId, payload.title, payload.message, urlFor(payload, t.role), payload.type),
+      pushService.sendToUser(t.userId, payload.title, payload.message, notificationUrlForRole(payload, t.role), payload.type),
     ));
   }
 }
@@ -158,7 +158,8 @@ async function resolveTargets(
 
   if (payload.targetUserId) byId.set(payload.targetUserId, undefined);
 
-  const roles = payload.targetRoles ?? (payload.targetUserId != null ? [] : [...FINANCIAL_ROLES]);
+  const roles = payload.targetRoles
+    ?? (payload.targetUserId != null || payload.targetDriverId != null ? [] : [...FINANCIAL_ROLES]);
   if (roles.length > 0) {
     const roleUsers = await client.select({ id: s.users.id, role: s.users.role })
       .from(s.users)
@@ -191,13 +192,15 @@ async function resolveTargets(
  *  their own app surface instead of landing them on a forbidden desktop route.
  *  Mirrors frontend urlForNotification() in NotificationDrawer.tsx — the two
  *  must agree so a push and a drawer tap open the same screen. */
-function urlFor(payload: NotificationPayload, role: Role): string | undefined {
+export function notificationUrlForRole(payload: NotificationPayload, role: Role): string | undefined {
   const id = payload.relatedEntityId;
   switch (payload.relatedEntityType) {
     case 'trips':
       if (role === Role.DRIVER) return id ? `/my-trips/${id}` : '/my-trips';
       if (role === Role.FORWARDER) return id ? `/my-forwarder-trips/${id}` : '/my-forwarder-trips';
       return id ? `/trips/${id}` : '/trips';
+    case 'shipment_fulfillments':
+      return role === Role.DRIVER ? (id ? `/my-trips/${id}` : '/my-trips') : undefined;
     case 'penalties':
       return role === Role.DRIVER ? '/my-penalties' : '/penalties';
     case 'payments':

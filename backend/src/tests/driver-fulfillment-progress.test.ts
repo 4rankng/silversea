@@ -8,6 +8,10 @@ import {
   TripPodFileType,
   TxnType,
 } from '@tingting/shared';
+import {
+  DURABLE_EFFECT_KIND,
+  STORAGE_DELETE_MODE,
+} from '../services/durable-effect.service';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
@@ -28,8 +32,10 @@ import { storageService } from '../services/storage.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const originalWorkflowRolloutMode = config.workflowRolloutMode;
+const originalStorageUpload = storageService.upload.bind(storageService);
 
 const createdPodStorageKeys: string[] = [];
+const createdDurableEffectJobIds: number[] = [];
 const createdPodFileIds: number[] = [];
 const createdPodSubmissionIds: number[] = [];
 const createdTripPhotoIds: number[] = [];
@@ -398,6 +404,188 @@ describe('Phase 4 driver fulfillment execution', () => {
     }), /Còn thiếu/);
   });
 
+  test('driver pod history uses driver download URLs and rollback cleanup preserves prior required evidence', async () => {
+    const actor = await createDriverPrincipal('pod-history');
+    const { fulfillment, trip } = await createOwnedFulfillmentTrip(actor.driver.id);
+
+    const createKey = `history-create-${suffix}`;
+    usedIdempotencyKeys.push(createKey);
+    const created = await createPodSubmission({
+      driverId: actor.driver.id,
+      actorUserId: actor.user.id,
+      fulfillmentId: fulfillment.id,
+      expectedVersion: trip.version,
+      idempotencyKey: createKey,
+    });
+    createdPodSubmissionIds.push(created.submission.id);
+
+    const attachKey = `history-attach-${suffix}`;
+    usedIdempotencyKeys.push(attachKey);
+    const attached = await attachPodFile({
+      driverId: actor.driver.id,
+      actorUserId: actor.user.id,
+      fulfillmentId: fulfillment.id,
+      submissionId: created.submission.id,
+      expectedVersion: created.submission.version,
+      idempotencyKey: attachKey,
+      fileType: TripPodFileType.YARD_OR_DROP_RECEIPT,
+      file: {
+        buffer: samplePdfBuffer('history-original'),
+        mimetype: 'application/pdf',
+        originalname: 'history-original.pdf',
+        size: 128,
+      },
+    });
+    await rememberPodFileStorageKeys(attached.submission.id);
+
+    const detail = await getDriverFulfillmentDetail(actor.driver.id, fulfillment.id);
+    assert.ok(detail.podSubmissions.length > 0);
+    assert.ok(
+      detail.podSubmissions[0]?.files.every((file) =>
+        file.downloadUrl.startsWith(`/api/driver/me/fulfillments/${fulfillment.id}/pod-files/`),
+      ),
+    );
+
+    const [storedFile] = await db.select({
+      id: s.tripPodFiles.id,
+      storageKey: s.tripPodFiles.storageKey,
+    }).from(s.tripPodFiles)
+      .where(and(
+        eq(s.tripPodFiles.submissionId, created.submission.id),
+        eq(s.tripPodFiles.fileType, TripPodFileType.YARD_OR_DROP_RECEIPT),
+      ))
+      .limit(1);
+    assert.ok(storedFile);
+    const originalBuffer = await storageService.read(storedFile.storageKey);
+    assert.ok(originalBuffer);
+
+    storageService.upload = async (buffer: Buffer, key: string) => {
+      await originalStorageUpload(buffer, key);
+      throw new Error('forced upload failure after persistence');
+    };
+    try {
+      await assert.rejects(
+        () => attachPodFile({
+          driverId: actor.driver.id,
+          actorUserId: actor.user.id,
+          fulfillmentId: fulfillment.id,
+          submissionId: created.submission.id,
+          expectedVersion: attached.submission.version,
+          idempotencyKey: `history-replace-fail-${suffix}`,
+          fileType: TripPodFileType.YARD_OR_DROP_RECEIPT,
+          file: {
+            buffer: samplePdfBuffer('history-replacement'),
+            mimetype: 'application/pdf',
+            originalname: 'history-replacement.pdf',
+            size: 128,
+          },
+        }),
+        /forced upload failure after persistence/,
+      );
+    } finally {
+      storageService.upload = originalStorageUpload;
+    }
+
+    const [fileAfterFailure] = await db.select({
+      id: s.tripPodFiles.id,
+      storageKey: s.tripPodFiles.storageKey,
+    }).from(s.tripPodFiles)
+      .where(eq(s.tripPodFiles.id, storedFile.id))
+      .limit(1);
+    assert.equal(fileAfterFailure?.storageKey, storedFile.storageKey);
+
+    const preservedBuffer = await storageService.read(storedFile.storageKey);
+    assert.deepEqual(preservedBuffer, originalBuffer);
+
+    const replaceSuccessKey = `history-replace-success-${suffix}`;
+    usedIdempotencyKeys.push(replaceSuccessKey);
+    const replaced = await attachPodFile({
+      driverId: actor.driver.id,
+      actorUserId: actor.user.id,
+      fulfillmentId: fulfillment.id,
+      submissionId: created.submission.id,
+      expectedVersion: attached.submission.version,
+      idempotencyKey: replaceSuccessKey,
+      fileType: TripPodFileType.YARD_OR_DROP_RECEIPT,
+      file: {
+        buffer: samplePdfBuffer('history-success'),
+        mimetype: 'application/pdf',
+        originalname: 'history-success.pdf',
+        size: 128,
+      },
+    });
+    await rememberPodFileStorageKeys(replaced.submission.id);
+
+    const [replacedFile] = await db.select({
+      storageKey: s.tripPodFiles.storageKey,
+    }).from(s.tripPodFiles)
+      .where(eq(s.tripPodFiles.id, storedFile.id))
+      .limit(1);
+    assert.ok(replacedFile);
+    assert.notEqual(replacedFile.storageKey, storedFile.storageKey);
+
+    const finalDeleteJobs = (await db.select({
+      id: s.durableEffectJobs.id,
+      payload: s.durableEffectJobs.payload,
+    }).from(s.durableEffectJobs)
+      .where(eq(s.durableEffectJobs.kind, DURABLE_EFFECT_KIND.STORAGE_DELETE)))
+      .filter((row) => {
+        const payload = row.payload as Record<string, unknown>;
+        return payload.storageKey === storedFile.storageKey
+          && payload.mode === STORAGE_DELETE_MODE.FINAL_DELETE;
+      });
+    assert.equal(finalDeleteJobs.length, 1);
+    createdDurableEffectJobIds.push(...finalDeleteJobs.map((row) => row.id));
+  });
+
+  test('rejects pod uploads when a declared PDF does not match the file signature', async () => {
+    const actor = await createDriverPrincipal('bad-pdf');
+    const { fulfillment, trip } = await createOwnedFulfillmentTrip(actor.driver.id);
+
+    const createKey = `bad-pdf-create-${suffix}`;
+    usedIdempotencyKeys.push(createKey);
+    const created = await createPodSubmission({
+      driverId: actor.driver.id,
+      actorUserId: actor.user.id,
+      fulfillmentId: fulfillment.id,
+      expectedVersion: trip.version,
+      idempotencyKey: createKey,
+    });
+    createdPodSubmissionIds.push(created.submission.id);
+
+    await assertApiError(400, () => attachPodFile({
+      driverId: actor.driver.id,
+      actorUserId: actor.user.id,
+      fulfillmentId: fulfillment.id,
+      submissionId: created.submission.id,
+      expectedVersion: created.submission.version,
+      idempotencyKey: `bad-pdf-attach-${suffix}`,
+      fileType: TripPodFileType.YARD_OR_DROP_RECEIPT,
+      file: {
+        buffer: Buffer.from('not a real pdf payload', 'utf8'),
+        mimetype: 'application/pdf',
+        originalname: 'fake.pdf',
+        size: 22,
+      },
+    }), /không hợp lệ|không khớp định dạng/i);
+
+    await assertApiError(400, () => attachPodFile({
+      driverId: actor.driver.id,
+      actorUserId: actor.user.id,
+      fulfillmentId: fulfillment.id,
+      submissionId: created.submission.id,
+      expectedVersion: created.submission.version,
+      idempotencyKey: `bad-pdf-truncated-${suffix}`,
+      fileType: TripPodFileType.YARD_OR_DROP_RECEIPT,
+      file: {
+        buffer: Buffer.from('%PDF-1.4\nmissing eof trailer', 'utf8'),
+        mimetype: 'application/pdf',
+        originalname: 'truncated.pdf',
+        size: 28,
+      },
+    }), /không hợp lệ|không khớp định dạng/i);
+  });
+
   test('valid owned fulfillment completes once and posts one financial version', async () => {
     config.workflowRolloutMode = 'ACTIVE';
 
@@ -469,12 +657,16 @@ describe('Phase 4 driver fulfillment execution', () => {
 
 after(async () => {
   config.workflowRolloutMode = originalWorkflowRolloutMode;
+  storageService.upload = originalStorageUpload;
   try {
     for (const storageKey of createdPodStorageKeys) {
       await storageService.delete(storageKey).catch(() => undefined);
     }
     if (usedIdempotencyKeys.length > 0) {
       await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.idempotencyKey, usedIdempotencyKeys));
+    }
+    if (createdDurableEffectJobIds.length > 0) {
+      await db.delete(s.durableEffectJobs).where(inArray(s.durableEffectJobs.id, createdDurableEffectJobIds));
     }
     if (createdTripPhotoIds.length > 0) {
       await db.delete(s.tripPhotos).where(inArray(s.tripPhotos.id, createdTripPhotoIds));
