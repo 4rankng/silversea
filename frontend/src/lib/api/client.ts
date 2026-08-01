@@ -251,6 +251,13 @@ class ApiClient {
       ...opts,
     });
   }
+  postForm<T>(path: string, body: FormData, opts?: MutationOptions) {
+    return this.request<T>(path, {
+      method: 'POST',
+      body,
+      ...opts,
+    }, true);
+  }
   put<T>(path: string, body: unknown, opts?: MutationOptions) {
     return this.request<T>(path, {
       method: 'PUT',

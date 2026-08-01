@@ -54,6 +54,7 @@ const ADMIN_BASE_ITEMS: SearchItem[] = [
 ];
 
 export const CONFIG_ITEMS: SearchItem[] = [
+  { id: 'master-data-import', type: 'config', label: 'Nạp dữ liệu nền tảng', description: 'Kiểm tra và cập nhật khách hàng, nhà máy, cảng bãi, xe, rơ-moóc và lái xe từ tệp Master Data.', path: '/config/master-data-import', iconName: 'settings', action: 'Nạp dữ liệu', adminOnly: true },
   { id: 'company-info',           type: 'config', label: 'Thông tin công ty',             description: 'Tên pháp lý, địa chỉ, mã số thuế, người đại diện, liên hệ và tài khoản ngân hàng.',           path: '/config/company-info',        iconName: 'company-profile', action: 'Sửa' },
   { id: 'fuel',                   type: 'config', label: 'Định mức nhiên liệu',           description: 'Định mức tiêu hao theo xe, loại tải (vỏ rỗng, <20t, >20t) và loại tuyến (đồng bằng / núi).', path: '/config/fuel',                iconName: 'fuel',         action: 'Sửa' },
   { id: 'road-allowances',        type: 'config', label: 'Tiền đi đường',                 description: 'Tiền chuẩn theo tuyến × loại rơ-mooc. Quy tắc: − vé QL5, + chuyến về có hàng, − phí/trạm.',     path: '/config/road-allowances',     iconName: 'road-allowance', action: 'Sửa' },

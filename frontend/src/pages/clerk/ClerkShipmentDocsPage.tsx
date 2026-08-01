@@ -3,35 +3,28 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, Save, Send, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
 import { TextField, SelectField } from '../../design-system';
 import { useConfirm } from '../../components/UI';
+import { OperationalSiteDetailsDialog } from '../../components/shipment/OperationalSiteDetailsDialog';
 import { useAuth } from '../../hooks/useAuth';
 import { Role } from '@tingting/shared';
 import { tripClient } from '../../api/tripClient';
-import { formatCurrency } from '../../lib/format';
-import {
-  useApproveCreditOverrideRequest,
-  useCheckCreditOverrideRequest,
-  useCreateCreditOverrideRequest,
-  useCreditOverrideQueue,
-  useRejectCreditOverrideRequest,
-} from '../../hooks/useCreditOverrideQueries';
 import {
   addShipmentDocument,
   createShipmentDeclaration,
-  dispatchShipment,
   getShipmentDetail,
+  listOperationalSites,
   replaceShipmentDocument,
   reviewShipmentChangeRequest,
   updateShipment,
   updateShipmentDeclaration,
   saveShipmentContainers,
+  submitShipmentForDispatch,
   type ShipmentChangeRequest,
   type ShipmentDeclaration,
   type ShipmentDetail,
   type ShipmentContainer,
   type ShipmentDocument,
+  type OperationalSite,
 } from '../../api/shipmentClient';
-import type { CreditOverrideRequestRecord } from '../../api/creditOverrideClient';
-import { canCheckCreditOverride, canDecideCreditOverride } from '../../lib/credit-override-permissions';
 import {
   formatVietnamDateTimeInput,
   localDateTimeToIso,
@@ -55,9 +48,15 @@ interface ContainerRow {
   containerNumber: string;
   sealNumber: string;
   cargoWeightKg: string;
+  shippingLineName: string;
+  pickupPortId: string;
+  dropoffPortId: string;
 }
 
 interface ShipmentFormState {
+  routeId: string;
+  operationalSiteId: string;
+  pickupWarehouseSiteId: string;
   bookingRef: string;
   blNumber: string;
   contactName: string;
@@ -80,19 +79,6 @@ interface ShipmentFormState {
   operationalNotes: string;
 }
 
-interface DispatchFormState {
-  routeId: string;
-  cargoTypeId: string;
-  containerTypeId: string;
-  truckId: string;
-  driverId: string;
-  departureDate: string;
-  customerReference: string;
-  scopeMode: 'SHIPMENT' | 'EXPIRY';
-  expiresAt: string;
-  creditApprovalRequestId: string;
-}
-
 function toRow(c: ShipmentContainer): ContainerRow {
   return {
     id: c.id,
@@ -100,6 +86,9 @@ function toRow(c: ShipmentContainer): ContainerRow {
     containerNumber: c.containerNumber ?? '',
     sealNumber: c.sealNumber ?? '',
     cargoWeightKg: c.cargoWeightKg ?? '',
+    shippingLineName: c.shippingLineName ?? '',
+    pickupPortId: c.pickupPortId != null ? String(c.pickupPortId) : '',
+    dropoffPortId: c.dropoffPortId != null ? String(c.dropoffPortId) : '',
   };
 }
 
@@ -108,6 +97,9 @@ const EMPTY_ROW: ContainerRow = {
   containerNumber: '',
   sealNumber: '',
   cargoWeightKg: '',
+  shippingLineName: '',
+  pickupPortId: '',
+  dropoffPortId: '',
 };
 
 const EMPTY_DOC_FORM = {
@@ -124,24 +116,8 @@ const EMPTY_DECLARATION_FORM = {
   note: '',
 };
 
-function defaultExpiryInput(): string {
-  const next = new Date();
-  next.setDate(next.getDate() + 1);
-  next.setHours(17, 30, 0, 0);
-  return formatVietnamDateTimeInput(next);
-}
-
-function toDateInput(value: string | null): string {
-  if (!value) return '';
-  return value.slice(0, 10);
-}
-
 function toDateTimeInput(value: string | null | undefined): string {
   return formatVietnamDateTimeInput(value);
-}
-
-function creditTierLabel(tier: CreditOverrideRequestRecord['requiredTier']): string {
-  return tier === 'DIRECTOR' ? 'Giám đốc' : 'Trưởng phòng Tài chính/Kế toán';
 }
 
 export default function ClerkShipmentDocsPage() {
@@ -156,12 +132,15 @@ export default function ClerkShipmentDocsPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [containerTypes, setContainerTypes] = useState<ClerkContainerTypeOption[]>([]);
+  const [portOptions, setPortOptions] = useState<DispatchOption[]>([]);
   const [routeOptions, setRouteOptions] = useState<DispatchOption[]>([]);
-  const [cargoTypeOptions, setCargoTypeOptions] = useState<DispatchOption[]>([]);
-  const [truckOptions, setTruckOptions] = useState<DispatchOption[]>([]);
-  const [driverOptions, setDriverOptions] = useState<DispatchOption[]>([]);
+  const [operationalSites, setOperationalSites] = useState<OperationalSite[]>([]);
+  const [detailSite, setDetailSite] = useState<OperationalSite | null>(null);
 
   const [shipmentForm, setShipmentForm] = useState<ShipmentFormState>({
+    routeId: '',
+    operationalSiteId: '',
+    pickupWarehouseSiteId: '',
     bookingRef: '',
     blNumber: '',
     contactName: '',
@@ -185,18 +164,6 @@ export default function ClerkShipmentDocsPage() {
   });
   const [version, setVersion] = useState(1);
   const [rows, setRows] = useState<ContainerRow[]>([]);
-  const [dispatchForm, setDispatchForm] = useState<DispatchFormState>({
-    routeId: '',
-    cargoTypeId: '',
-    containerTypeId: '',
-    truckId: '',
-    driverId: '',
-    departureDate: '',
-    customerReference: '',
-    scopeMode: 'SHIPMENT',
-    expiresAt: defaultExpiryInput(),
-    creditApprovalRequestId: '',
-  });
   const [documentForm, setDocumentForm] = useState(EMPTY_DOC_FORM);
   const [replaceDocumentTarget, setReplaceDocumentTarget] = useState<ShipmentDocument | null>(null);
   const [declarationForm, setDeclarationForm] = useState(EMPTY_DECLARATION_FORM);
@@ -213,30 +180,8 @@ export default function ClerkShipmentDocsPage() {
   const [documentMsg, setDocumentMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [declarationMsg, setDeclarationMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [reviewMsg, setReviewMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
-  const [creditReason, setCreditReason] = useState('');
-  const [creditError, setCreditError] = useState<string | null>(null);
-  const [selectedCreditRequest, setSelectedCreditRequest] = useState<CreditOverrideRequestRecord | null>(null);
-  const [rejectingCreditRequestId, setRejectingCreditRequestId] = useState<number | null>(null);
-  const [rejectReason, setRejectReason] = useState('');
-
   const canDispatch = user?.role === Role.ADMIN || user?.role === Role.MANAGER;
   const canReview = canDispatch;
-  const creditQueueFilters = useMemo(
-    () => ({
-      status: 'PENDING',
-      customerId: detail?.shipment.customerId,
-      limit: 20,
-    }),
-    [detail?.shipment.customerId],
-  );
-  const creditQueue = useCreditOverrideQueue(
-    creditQueueFilters,
-    canDispatch && detail?.shipment.customerId != null,
-  );
-  const createCreditRequest = useCreateCreditOverrideRequest([creditQueueFilters]);
-  const checkCreditRequest = useCheckCreditOverrideRequest([creditQueueFilters]);
-  const approveCreditRequest = useApproveCreditOverrideRequest([creditQueueFilters]);
-  const rejectCreditRequest = useRejectCreditOverrideRequest([creditQueueFilters]);
   const assignedResponsibleUnitIds = useMemo(() => {
     const ids = new Set<number>();
     for (const id of user?.businessUnitIds ?? []) ids.add(id);
@@ -249,15 +194,18 @@ export default function ClerkShipmentDocsPage() {
       getShipmentDetail(currentShipmentId),
       tripClient.getBootstrap(),
     ]);
+    const sites = await listOperationalSites(loadedDetail.shipment.customerId);
     setDetail(loadedDetail);
     setVersion(loadedDetail.shipment.version);
     setRows(loadedDetail.containers.map(toRow));
     setContainerTypes(bootstrap.containerTypes);
+    setPortOptions((bootstrap.ports ?? []).map((port) => ({ id: port.id, label: port.name })));
     setRouteOptions(bootstrap.routes.map((route) => ({ id: route.id, label: route.name })));
-    setCargoTypeOptions(bootstrap.cargoTypes.map((cargoType) => ({ id: cargoType.id, label: cargoType.name })));
-    setTruckOptions(bootstrap.trucks.map((truck) => ({ id: truck.id, label: truck.licensePlate })));
-    setDriverOptions(bootstrap.drivers.map((driver) => ({ id: driver.id, label: driver.name })));
+    setOperationalSites(sites);
     setShipmentForm({
+      routeId: loadedDetail.shipment.routeId != null ? String(loadedDetail.shipment.routeId) : '',
+      operationalSiteId: loadedDetail.shipment.operationalSiteId != null ? String(loadedDetail.shipment.operationalSiteId) : '',
+      pickupWarehouseSiteId: loadedDetail.shipment.pickupWarehouseSiteId != null ? String(loadedDetail.shipment.pickupWarehouseSiteId) : '',
       bookingRef: loadedDetail.shipment.bookingRef ?? '',
       blNumber: loadedDetail.shipment.blNumber ?? '',
       contactName: loadedDetail.shipment.contactName ?? '',
@@ -283,13 +231,6 @@ export default function ClerkShipmentDocsPage() {
       packageType: loadedDetail.shipment.packageType ?? '',
       operationalNotes: loadedDetail.shipment.operationalNotes ?? '',
     });
-    setDispatchForm((current) => ({
-      ...current,
-      containerTypeId: current.containerTypeId || (loadedDetail.containers[0]?.containerTypeId != null
-        ? String(loadedDetail.containers[0].containerTypeId)
-        : ''),
-      departureDate: current.departureDate || toDateInput(loadedDetail.shipment.expectedDeliveryDate),
-    }));
   }
 
   useEffect(() => {
@@ -317,16 +258,24 @@ export default function ClerkShipmentDocsPage() {
 
   const readiness = useMemo(() => {
     const missing: string[] = [];
-    if (!shipmentForm.blNumber.trim()) missing.push('Số vận đơn (B/L)');
-    if (shipmentForm.cargoMode === 'FCL' && rows.length === 0) {
-      missing.push('Công-te-nơ (ít nhất một)');
-    }
+    if (!shipmentForm.blNumber.trim() && !shipmentForm.bookingRef.trim()) missing.push('Số vận đơn hoặc booking');
+    if (!shipmentForm.routeId) missing.push('Tuyến đường');
+    if (!shipmentForm.operationalSiteId) missing.push('Nhà máy');
     if (!shipmentForm.cargoMode) missing.push('Loại lô hàng');
+    if (shipmentForm.cargoMode === 'FCL' && (rows.length === 0 || rows.some((row) => (
+      !row.containerTypeId || !row.containerNumber.trim() || !row.shippingLineName.trim()
+      || !row.pickupPortId || !row.dropoffPortId
+    )))) missing.push('Thông tin công-te-nơ đầy đủ');
     if (shipmentForm.cargoMode === 'LCL') {
-      missing.push('Điều vận LCL chưa được hỗ trợ');
+      if (!shipmentForm.pickupWarehouseSiteId) missing.push('Kho lấy hàng');
+      if (!shipmentForm.packageType.trim()) missing.push('Loại kiện');
+      if (!shipmentForm.packageCount) missing.push('Số kiện');
+      if (!shipmentForm.cargoWeightKg) missing.push('Trọng lượng');
+      if (!shipmentForm.cargoVolumeCbm) missing.push('Thể tích');
+      if (!shipmentForm.expectedDeliveryDate) missing.push('Ngày giao dự kiến');
     }
     return { ready: missing.length === 0, missing };
-  }, [shipmentForm.blNumber, shipmentForm.cargoMode, rows]);
+  }, [shipmentForm, rows]);
 
   function updateRow(idx: number, patch: Partial<ContainerRow>) {
     setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
@@ -383,6 +332,9 @@ export default function ClerkShipmentDocsPage() {
         pickupLocation: shipmentForm.pickupLocation.trim() || null,
         deliveryLocation: shipmentForm.deliveryLocation.trim() || null,
         responsibleUnitId: shipmentForm.responsibleUnitId ? Number(shipmentForm.responsibleUnitId) : null,
+        routeId: shipmentForm.routeId ? Number(shipmentForm.routeId) : null,
+        operationalSiteId: shipmentForm.operationalSiteId ? Number(shipmentForm.operationalSiteId) : null,
+        pickupWarehouseSiteId: cargoMode === 'LCL' && shipmentForm.pickupWarehouseSiteId ? Number(shipmentForm.pickupWarehouseSiteId) : null,
         tradeDirection: shipmentForm.tradeDirection || null,
         cargoMode,
         factoryName: shipmentForm.factoryName.trim() || null,
@@ -433,6 +385,9 @@ export default function ClerkShipmentDocsPage() {
           containerNumber: r.containerNumber.trim() || null,
           sealNumber: r.sealNumber.trim() || null,
           cargoWeightKg: r.cargoWeightKg ? Number(r.cargoWeightKg) : null,
+          shippingLineName: r.shippingLineName.trim() || null,
+          pickupPortId: r.pickupPortId ? Number(r.pickupPortId) : null,
+          dropoffPortId: r.dropoffPortId ? Number(r.dropoffPortId) : null,
         })),
       });
       setVersion(res.shipmentVersion);
@@ -546,183 +501,35 @@ export default function ClerkShipmentDocsPage() {
     }
   }
 
-  async function resolveDispatchProposedAmount() {
-    if (!detail || !dispatchForm.routeId) return 0;
-    const pricing = await tripClient.getPricing(
-      detail.shipment.customerId,
-      Number(dispatchForm.routeId),
-      dispatchForm.departureDate || undefined,
-    );
-    const containerCount = Math.max(1, rows.length || 1);
-    return Math.round((pricing.price ?? 0) * containerCount);
-  }
-
-  function validateDispatchForm() {
-    if (!shipmentForm.cargoMode) {
-      return 'Cần chọn loại lô hàng trước khi điều vận.';
-    }
-    if (shipmentForm.cargoMode === 'LCL') {
-      return 'Điều vận lô hàng LCL chưa được hỗ trợ; không tạo dữ liệu công-te-nơ giả.';
-    }
-    if (!dispatchForm.routeId) return 'Cần chọn tuyến đường để điều vận.';
-    if (!dispatchForm.cargoTypeId) return 'Cần chọn loại hàng để điều vận.';
-    if (!dispatchForm.containerTypeId) return 'Cần chọn loại công-te-nơ để điều vận.';
-    if (!dispatchForm.departureDate) return 'Cần chọn ngày khởi hành.';
-    return null;
-  }
-
-  async function runDispatch(creditApprovalRequestId?: number | null) {
-    const result = await dispatchShipment(shipmentId, {
-      routeId: Number(dispatchForm.routeId),
-      cargoTypeId: Number(dispatchForm.cargoTypeId),
-      containerTypeId: Number(dispatchForm.containerTypeId),
-      truckId: dispatchForm.truckId ? Number(dispatchForm.truckId) : null,
-      driverId: dispatchForm.driverId ? Number(dispatchForm.driverId) : null,
-      departureDate: dispatchForm.departureDate,
-      customerReference: dispatchForm.customerReference.trim() || undefined,
-      containerCount: Math.max(1, rows.length || 1),
-      creditApprovalRequestId: creditApprovalRequestId ?? undefined,
-    });
-    setDispatchMsg({
-      kind: 'ok',
-      text: result.created
-        ? `Đã điều vận sang chuyến ${result.trip.tripCode ?? `#${result.trip.id}`}.`
-        : `Lô hàng đã gắn với chuyến ${result.trip.tripCode ?? `#${result.trip.id}`}.`,
-    });
-    navigate(`/trips/${result.trip.id}`);
-  }
-
-  async function handleCreateCreditRequest() {
-    if (!detail) return;
-    if (!creditReason.trim()) {
-      setCreditError('Cần nhập lý do vượt hạn mức.');
+  async function handleSubmitForDispatch() {
+    if (!readiness.ready) {
+      setDispatchMsg({ kind: 'err', text: `Còn thiếu: ${readiness.missing.join(', ')}.` });
       return;
     }
-    const validationError = validateDispatchForm();
-    if (validationError) {
-      setCreditError(validationError);
-      return;
-    }
-    setDispatching(true);
-    setCreditError(null);
-    try {
-      const proposedAmount = await resolveDispatchProposedAmount();
-      if (proposedAmount <= 0) {
-        setCreditError('Chưa xác định được giá trị lô/chuyến dự kiến để lập đề nghị.');
-        return;
-      }
-      const created = await createCreditRequest.mutateAsync({
-        customerId: detail.shipment.customerId,
-        proposedAmount,
-        reason: creditReason.trim(),
-        shipmentId: dispatchForm.scopeMode === 'SHIPMENT' ? shipmentId : null,
-        expiresAt: dispatchForm.scopeMode === 'EXPIRY'
-          ? localDateTimeToIso(dispatchForm.expiresAt)
-          : null,
-      });
-      setSelectedCreditRequest(created);
-      setDispatchForm((current) => ({ ...current, creditApprovalRequestId: String(created.id) }));
-      setDispatchMsg({ kind: 'ok', text: `Đã tạo đề nghị vượt hạn mức #${created.id}.` });
-    } catch (err) {
-      setCreditError(err instanceof Error ? err.message : 'Không thể tạo đề nghị vượt hạn mức.');
-    } finally {
-      setDispatching(false);
-    }
-  }
-
-  async function handleApproveCreditRequest(request: CreditOverrideRequestRecord, shouldDispatchAfter = false) {
-    setDispatching(true);
-    setCreditError(null);
-    try {
-      const approved = await approveCreditRequest.mutateAsync({
-        id: request.id,
-        expectedVersion: request.version,
-      });
-      setSelectedCreditRequest(approved);
-      setDispatchForm((current) => ({ ...current, creditApprovalRequestId: String(approved.id) }));
-      if (shouldDispatchAfter) {
-        await runDispatch(approved.id);
-      }
-    } catch (err) {
-      setCreditError(err instanceof Error ? err.message : 'Không thể duyệt đề nghị vượt hạn mức.');
-    } finally {
-      setDispatching(false);
-    }
-  }
-
-  async function handleCheckCreditRequest(request: CreditOverrideRequestRecord) {
-    setDispatching(true);
-    setCreditError(null);
-    try {
-      const checked = await checkCreditRequest.mutateAsync({
-        id: request.id,
-        expectedVersion: request.version,
-      });
-      setSelectedCreditRequest(checked);
-      setDispatchForm((current) => ({ ...current, creditApprovalRequestId: String(checked.id) }));
-      setDispatchMsg({
-        kind: 'ok',
-        text: `Đã kiểm tra đề nghị #${checked.id}. Người khác phải thực hiện bước phê duyệt.`,
-      });
-    } catch (err) {
-      setCreditError(err instanceof Error ? err.message : 'Không thể xác nhận kiểm tra đề nghị vượt hạn mức.');
-    } finally {
-      setDispatching(false);
-    }
-  }
-
-  async function handleRejectCreditRequest(request: CreditOverrideRequestRecord) {
-    if (!rejectReason.trim()) {
-      setCreditError('Cần nhập lý do từ chối.');
-      return;
-    }
-    setRejectingCreditRequestId(request.id);
-    setCreditError(null);
-    try {
-      await rejectCreditRequest.mutateAsync({
-        id: request.id,
-        body: {
-          expectedVersion: request.version,
-          reason: rejectReason.trim(),
-        },
-      });
-      setRejectReason('');
-      setRejectingCreditRequestId(null);
-    } catch (err) {
-      setCreditError(err instanceof Error ? err.message : 'Không thể từ chối đề nghị vượt hạn mức.');
-    } finally {
-      setRejectingCreditRequestId(null);
-    }
-  }
-
-  async function handleDispatch() {
-    const validationError = validateDispatchForm();
-    if (validationError) {
-      setDispatchMsg({ kind: 'err', text: validationError });
-      return;
-    }
-    const warningText = readiness.ready
-      ? 'Điều vận lô hàng sang chuyến?'
-      : `Lô hàng còn thiếu: ${readiness.missing.join(', ')}. Điều vận tiếp tục?`;
-    const ok = await confirm(warningText, {
-      variant: readiness.ready ? 'primary' : 'warning',
-      confirmLabel: 'Điều vận',
+    const ok = await confirm('Gửi lô hàng sang bảng điều phối?', {
+      variant: 'primary',
+      confirmLabel: 'Gửi sang điều phối',
     });
     if (!ok) return;
 
     setDispatching(true);
     setDispatchMsg(null);
-    setCreditError(null);
     try {
-      const approvalRequestId = dispatchForm.creditApprovalRequestId
-        ? Number(dispatchForm.creditApprovalRequestId)
-        : null;
-      await runDispatch(approvalRequestId);
+      const result = await submitShipmentForDispatch(
+        shipmentId,
+        { expectedVersion: version },
+        crypto.randomUUID(),
+      );
+      await reloadCurrentDetail();
+      setDispatchMsg({
+        kind: 'ok',
+        text: result.replayed ? 'Lô hàng đã có trong bảng điều phối.' : 'Đã gửi lô hàng sang bảng điều phối.',
+      });
     } catch (err) {
-      const msg = err instanceof Error && err.message.trim()
-        ? err.message
-        : 'Không thể điều vận lô hàng.';
-      setDispatchMsg({ kind: 'err', text: msg });
+      setDispatchMsg({
+        kind: 'err',
+        text: err instanceof Error && err.message.trim() ? err.message : 'Không thể gửi sang điều phối.',
+      });
     } finally {
       setDispatching(false);
     }
@@ -742,10 +549,6 @@ export default function ClerkShipmentDocsPage() {
 
   const isDraft = detail.shipment.status === 'DRAFT';
   const isPostDispatch = !isDraft;
-  const visibleCreditRequests = (creditQueue.data ?? []).filter((request) =>
-    request.scopeType === 'EXPIRY' || request.shipmentId === shipmentId,
-  );
-
   return (
     <div style={{ padding: 16, maxWidth: 960, margin: '0 auto', minWidth: 0 }}>
       <button
@@ -780,6 +583,15 @@ export default function ClerkShipmentDocsPage() {
       )}
 
       <SectionCard title="Thông tin lô hàng">
+        <SelectField
+          label="Tuyến đường"
+          value={shipmentForm.routeId}
+          onChange={(event) => { setShipmentForm((current) => ({ ...current, routeId: event.target.value })); setShipmentMsg(null); }}
+          disabled={savingShipment}
+        >
+          <option value="">— Chọn tuyến đường —</option>
+          {routeOptions.map((route) => <option key={route.id} value={String(route.id)}>{route.label}</option>)}
+        </SelectField>
         <SelectField
           label="Đơn vị phụ trách"
           value={shipmentForm.responsibleUnitId}
@@ -845,16 +657,20 @@ export default function ClerkShipmentDocsPage() {
           </SelectField>
         </div>
         <div style={twoColumnFieldStyle}>
-          <TextField
-            label="Nhà máy / công trường"
-            value={shipmentForm.factoryName}
+          <SelectField
+            label="Nhà máy"
+            value={shipmentForm.operationalSiteId}
             onChange={(event) => {
-              setShipmentForm((current) => ({ ...current, factoryName: event.target.value }));
+              const value = event.target.value;
+              setShipmentForm((current) => ({ ...current, operationalSiteId: value, factoryName: operationalSites.find((site) => String(site.id) === value)?.name ?? '' }));
+              setDetailSite(operationalSites.find((site) => String(site.id) === value) ?? null);
               setShipmentMsg(null);
             }}
             disabled={savingShipment}
-            maxLength={255}
-          />
+          >
+            <option value="">— Chọn nhà máy —</option>
+            {operationalSites.filter((site) => site.siteType === 'FACTORY').map((site) => <option key={site.id} value={String(site.id)}>{site.name}</option>)}
+          </SelectField>
           <TextField
             label="Hãng tàu"
             value={shipmentForm.shippingLineName}
@@ -868,7 +684,7 @@ export default function ClerkShipmentDocsPage() {
         </div>
         <div style={threeColumnFieldStyle}>
           <TextField
-            label="Cut-off hải quan"
+            label="Cut-off tờ khai"
             type="datetime-local"
             value={shipmentForm.customsCutoffAt}
             onChange={(event) => {
@@ -878,7 +694,7 @@ export default function ClerkShipmentDocsPage() {
             disabled={savingShipment}
           />
           <TextField
-            label="Closing time"
+            label="Giờ đóng hàng"
             type="datetime-local"
             value={shipmentForm.closingAt}
             onChange={(event) => {
@@ -928,6 +744,15 @@ export default function ClerkShipmentDocsPage() {
         </div>
         {shipmentForm.cargoMode === 'LCL' && (
           <div style={twoColumnFieldStyle}>
+            <SelectField
+              label="Kho lấy hàng"
+              value={shipmentForm.pickupWarehouseSiteId}
+              onChange={(event) => { setShipmentForm((current) => ({ ...current, pickupWarehouseSiteId: event.target.value })); setShipmentMsg(null); }}
+              disabled={savingShipment}
+            >
+              <option value="">— Chọn kho lấy hàng —</option>
+              {operationalSites.filter((site) => site.siteType === 'WAREHOUSE').map((site) => <option key={site.id} value={String(site.id)}>{site.name}</option>)}
+            </SelectField>
             <TextField
               label="Số kiện"
               type="number"
@@ -1060,6 +885,31 @@ export default function ClerkShipmentDocsPage() {
               onChange={(e) => updateRow(idx, { cargoWeightKg: e.target.value })}
               disabled={savingContainers}
             />
+            <TextField
+              label="Hãng tàu"
+              value={row.shippingLineName}
+              onChange={(e) => updateRow(idx, { shippingLineName: e.target.value })}
+              disabled={savingContainers}
+              maxLength={150}
+            />
+            <SelectField
+              label="Cảng nâng"
+              value={row.pickupPortId}
+              onChange={(e) => updateRow(idx, { pickupPortId: (e.target as HTMLSelectElement).value })}
+              disabled={savingContainers}
+            >
+              <option value="">— Chọn cảng nâng —</option>
+              {portOptions.map((port) => <option key={port.id} value={String(port.id)}>{port.label}</option>)}
+            </SelectField>
+            <SelectField
+              label="Cảng hạ"
+              value={row.dropoffPortId}
+              onChange={(e) => updateRow(idx, { dropoffPortId: (e.target as HTMLSelectElement).value })}
+              disabled={savingContainers}
+            >
+              <option value="">— Chọn cảng hạ —</option>
+              {portOptions.map((port) => <option key={port.id} value={String(port.id)}>{port.label}</option>)}
+            </SelectField>
             <button type="button" onClick={() => removeRow(idx)} style={dangerBtnStyle} aria-label="Xóa công-te-nơ">
               <Trash2 size={16} /> Xóa
             </button>
@@ -1077,268 +927,20 @@ export default function ClerkShipmentDocsPage() {
       </SectionCard>
       )}
 
-      {canDispatch && isDraft && shipmentForm.cargoMode === 'FCL' && (
-        <SectionCard title="Điều vận & công nợ">
-          <SelectField
-            label="Tuyến đường"
-            value={dispatchForm.routeId}
-            onChange={(event) => setDispatchForm((current) => ({ ...current, routeId: event.target.value }))}
-            disabled={dispatching}
-          >
-            <option value="">— Chọn tuyến —</option>
-            {routeOptions.map((route) => (
-              <option key={route.id} value={String(route.id)}>{route.label}</option>
-            ))}
-          </SelectField>
-          <SelectField
-            label="Loại hàng"
-            value={dispatchForm.cargoTypeId}
-            onChange={(event) => setDispatchForm((current) => ({ ...current, cargoTypeId: event.target.value }))}
-            disabled={dispatching}
-          >
-            <option value="">— Chọn loại hàng —</option>
-            {cargoTypeOptions.map((cargoType) => (
-              <option key={cargoType.id} value={String(cargoType.id)}>{cargoType.label}</option>
-            ))}
-          </SelectField>
-          <SelectField
-            label="Loại công-te-nơ điều vận"
-            value={dispatchForm.containerTypeId}
-            onChange={(event) => setDispatchForm((current) => ({ ...current, containerTypeId: event.target.value }))}
-            disabled={dispatching}
-          >
-            <option value="">— Chọn loại cont —</option>
-            {containerTypes.map((containerType) => (
-              <option key={containerType.id} value={String(containerType.id)}>{containerType.name}</option>
-            ))}
-          </SelectField>
-          <TextField
-            label="Ngày khởi hành"
-            type="date"
-            value={dispatchForm.departureDate}
-            onChange={(event) => setDispatchForm((current) => ({ ...current, departureDate: event.target.value }))}
-            disabled={dispatching}
-          />
-          <SelectField
-            label="Xe đầu kéo (nếu đã chốt)"
-            value={dispatchForm.truckId}
-            onChange={(event) => setDispatchForm((current) => ({ ...current, truckId: event.target.value }))}
-            disabled={dispatching}
-          >
-            <option value="">— Chọn sau —</option>
-            {truckOptions.map((truck) => (
-              <option key={truck.id} value={String(truck.id)}>{truck.label}</option>
-            ))}
-          </SelectField>
-          <SelectField
-            label="Lái xe (nếu đã chốt)"
-            value={dispatchForm.driverId}
-            onChange={(event) => setDispatchForm((current) => ({ ...current, driverId: event.target.value }))}
-            disabled={dispatching}
-          >
-            <option value="">— Chọn sau —</option>
-            {driverOptions.map((driver) => (
-              <option key={driver.id} value={String(driver.id)}>{driver.label}</option>
-            ))}
-          </SelectField>
-          <TextField
-            label="Mã tham chiếu khách hàng"
-            value={dispatchForm.customerReference}
-            onChange={(event) => setDispatchForm((current) => ({ ...current, customerReference: event.target.value }))}
-            disabled={dispatching}
-            maxLength={100}
-          />
-          <TextField
-            label="Mã phê duyệt vượt hạn mức (nếu có)"
-            value={dispatchForm.creditApprovalRequestId}
-            onChange={(event) => setDispatchForm((current) => ({ ...current, creditApprovalRequestId: event.target.value }))}
-            disabled={dispatching}
-          />
-          <div style={creditSummaryStyle}>
-            <strong>Phơi nhiễm công nợ</strong>
-            <span style={mutedTextStyle}>
-              Nếu điều vận bị chặn vì vượt hạn mức, tạo đề nghị ngay tại đây rồi chọn người khác duyệt. Khi đã có mã duyệt hợp lệ, nhập mã vào ô trên và điều vận lại.
-            </span>
-          </div>
-          <div style={{ display: 'grid', gap: 8 }}>
-            <strong>Đề nghị vượt hạn mức cho lô này</strong>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                style={dispatchForm.scopeMode === 'SHIPMENT' ? primaryChipStyle : secondaryChipStyle}
-                onClick={() => setDispatchForm((current) => ({ ...current, scopeMode: 'SHIPMENT' }))}
-              >
-                Theo lô hàng này
-              </button>
-              <button
-                type="button"
-                style={dispatchForm.scopeMode === 'EXPIRY' ? primaryChipStyle : secondaryChipStyle}
-                onClick={() => setDispatchForm((current) => ({ ...current, scopeMode: 'EXPIRY' }))}
-              >
-                Theo thời hạn
-              </button>
-            </div>
-            {dispatchForm.scopeMode === 'EXPIRY' && (
-              <TextField
-                label="Hiệu lực đến"
-                type="datetime-local"
-                value={dispatchForm.expiresAt}
-                onChange={(event) => setDispatchForm((current) => ({ ...current, expiresAt: event.target.value }))}
-                disabled={dispatching}
-              />
-            )}
-            <label style={{ display: 'grid', gap: 6 }}>
-              <span>Lý do vượt hạn mức</span>
-              <textarea
-                value={creditReason}
-                onChange={(event) => setCreditReason(event.target.value)}
-                rows={3}
-                disabled={dispatching}
-                style={textareaStyle}
-              />
-            </label>
-            <button type="button" onClick={() => { void handleCreateCreditRequest(); }} disabled={dispatching} style={secondaryBtnStyle}>
-              {dispatching ? <Loader2 size={16} className="spin" /> : <Save size={16} />}
-              Tạo đề nghị vượt hạn mức
-            </button>
-          </div>
-          {selectedCreditRequest && (
-            <div style={creditCardStyle}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <strong>Đề nghị #{selectedCreditRequest.id}</strong>
-                <span style={creditPillStyle}>{creditTierLabel(selectedCreditRequest.requiredTier)}</span>
-                <span style={creditPillStyle}>v{selectedCreditRequest.version}</span>
-              </div>
-              <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
-                <div style={creditMetricStyle}>
-                  <span style={mutedCaptionStyle}>Dư nợ</span>
-                  <strong>{formatCurrency(Number(selectedCreditRequest.outstandingAmount))}</strong>
-                </div>
-                <div style={creditMetricStyle}>
-                  <span style={mutedCaptionStyle}>Đã duyệt chưa thu</span>
-                  <strong>{formatCurrency(Number(selectedCreditRequest.approvedCommitmentAmount))}</strong>
-                </div>
-                <div style={creditMetricStyle}>
-                  <span style={mutedCaptionStyle}>Phơi nhiễm</span>
-                  <strong>{formatCurrency(Number(selectedCreditRequest.totalExposure))}</strong>
-                </div>
-                <div style={creditMetricStyle}>
-                  <span style={mutedCaptionStyle}>Phần vượt</span>
-                  <strong>{formatCurrency(Number(selectedCreditRequest.overLimitAmount))}</strong>
-                </div>
-              </div>
-            </div>
-          )}
-          {visibleCreditRequests.length > 0 && (
-            <div style={{ display: 'grid', gap: 10 }}>
-              <strong>Hàng chờ duyệt liên quan</strong>
-              {visibleCreditRequests.map((request) => (
-                <div key={request.id} style={creditCardStyle}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <strong>#{request.id}</strong>
-                    <span style={creditPillStyle}>{creditTierLabel(request.requiredTier)}</span>
-                    <span style={creditPillStyle}>{request.scopeType === 'SHIPMENT' ? 'Theo lô' : 'Theo thời hạn'}</span>
-                    <span style={creditPillStyle}>v{request.version}</span>
-                  </div>
-                  <div style={{ color: 'var(--fg-2)', fontSize: 14 }}>{request.reason}</div>
-                  <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
-                    <div style={creditMetricStyle}>
-                      <span style={mutedCaptionStyle}>Phơi nhiễm</span>
-                      <strong>{formatCurrency(Number(request.totalExposure))}</strong>
-                    </div>
-                    <div style={creditMetricStyle}>
-                      <span style={mutedCaptionStyle}>Phần vượt</span>
-                      <strong>{formatCurrency(Number(request.overLimitAmount))}</strong>
-                    </div>
-                    <div style={creditMetricStyle}>
-                      <span style={mutedCaptionStyle}>Hiệu lực</span>
-                      <strong>{request.expiresAt ? new Date(request.expiresAt).toLocaleString('vi-VN') : 'Theo lô này'}</strong>
-                    </div>
-                  </div>
-                  {request.requestedBy === user?.userId ? (
-                    <span style={mutedTextStyle}>Bạn là người tạo nên không thể tự kiểm tra hoặc quyết định đề nghị này.</span>
-                  ) : request.workflowStatus === 'PENDING_CHECK' && canCheckCreditOverride(user?.role) ? (
-                    <button
-                      type="button"
-                      onClick={() => { void handleCheckCreditRequest(request); }}
-                      disabled={dispatching}
-                      style={secondaryBtnStyle}
-                    >
-                      {checkCreditRequest.isPending ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
-                      Xác nhận kiểm tra
-                    </button>
-                  ) : request.checkedBy === user?.userId ? (
-                    <span style={mutedTextStyle}>
-                      Bạn đã kiểm tra đề nghị này; người khác phải phê duyệt hoặc từ chối.
-                    </span>
-                  ) : request.workflowStatus === 'PENDING_APPROVAL'
-                    && canDecideCreditOverride(user?.role, request.requiredTier) ? (
-                    <div style={{ display: 'grid', gap: 8 }}>
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <button
-                          type="button"
-                          onClick={() => { void handleApproveCreditRequest(request, true); }}
-                          disabled={dispatching || rejectingCreditRequestId === request.id}
-                          style={secondaryBtnStyle}
-                        >
-                          Duyệt rồi điều vận
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setRejectingCreditRequestId((current) => current === request.id ? null : request.id);
-                            setRejectReason('');
-                            setCreditError(null);
-                          }}
-                          disabled={dispatching}
-                          style={dangerBtnStyle}
-                        >
-                          Từ chối
-                        </button>
-                      </div>
-                      {rejectingCreditRequestId === request.id && (
-                        <div style={{ display: 'grid', gap: 8 }}>
-                          <textarea
-                            value={rejectReason}
-                            onChange={(event) => setRejectReason(event.target.value)}
-                            rows={3}
-                            style={textareaStyle}
-                            placeholder="Nêu rõ lý do từ chối."
-                          />
-                          <button
-                            type="button"
-                            onClick={() => { void handleRejectCreditRequest(request); }}
-                            disabled={rejectCreditRequest.isPending}
-                            style={dangerBtnStyle}
-                          >
-                            {rejectCreditRequest.isPending ? <Loader2 size={16} className="spin" /> : <Trash2 size={16} />}
-                            Xác nhận từ chối
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <span style={mutedTextStyle}>
-                      {request.workflowStatus === 'PENDING_CHECK'
-                        ? 'Đề nghị này đang chờ kiểm tra.'
-                        : `Đề nghị này đang chờ đúng cấp ${creditTierLabel(request.requiredTier)} xử lý.`}
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-          {creditQueue.isError && (
-            <div style={{ color: 'var(--danger)', fontSize: 14 }}>
-              {creditQueue.error instanceof Error ? creditQueue.error.message : 'Không thể tải hàng chờ vượt hạn mức.'}
-            </div>
-          )}
-          {creditError && (
-            <div style={{ color: 'var(--danger)', fontSize: 14 }}>{creditError}</div>
-          )}
+      {isDraft && (
+        <SectionCard title="Bàn giao điều phối">
+          <p style={mutedTextStyle}>
+            Sau khi bàn giao, Điều vận sẽ tiếp nhận từng công-te-nơ FCL hoặc lô LCL và gán nhà xe, xe, biển số cùng lái xe.
+          </p>
           {dispatchMsg && <MsgLine msg={dispatchMsg} />}
-          <button type="button" onClick={handleDispatch} disabled={dispatching} style={{ ...primaryBtnStyle, background: 'var(--accent, #2563eb)' }}>
-            <Send size={16} /> {dispatching ? 'Đang điều vận…' : 'Điều vận'}
+          <button
+            type="button"
+            onClick={() => { void handleSubmitForDispatch(); }}
+            disabled={dispatching || !readiness.ready}
+            style={{ ...primaryBtnStyle, background: 'var(--accent, #2563eb)' }}
+          >
+            {dispatching ? <Loader2 size={16} className="spin" /> : <Send size={16} />}
+            {dispatching ? 'Đang gửi…' : 'Gửi sang điều phối'}
           </button>
         </SectionCard>
       )}
@@ -1533,6 +1135,7 @@ export default function ClerkShipmentDocsPage() {
       </SectionCard>
 
       {dialog}
+      <OperationalSiteDetailsDialog site={detailSite} isOpen={Boolean(detailSite)} onClose={() => setDetailSite(null)} />
     </div>
   );
 }
@@ -1603,69 +1206,6 @@ const infoBannerStyle: React.CSSProperties = {
   fontSize: 14,
   color: 'var(--fg-2)',
   background: 'rgba(37,99,235,0.08)',
-};
-
-const creditSummaryStyle: React.CSSProperties = {
-  display: 'grid',
-  gap: 6,
-  padding: 12,
-  borderRadius: 10,
-  background: 'rgba(37,99,235,0.06)',
-};
-
-const creditCardStyle: React.CSSProperties = {
-  display: 'grid',
-  gap: 10,
-  padding: 14,
-  borderRadius: 12,
-  border: '1px solid rgba(15, 23, 42, 0.08)',
-  background: 'rgba(255,255,255,0.72)',
-};
-
-const creditMetricStyle: React.CSSProperties = {
-  display: 'grid',
-  gap: 4,
-  padding: '10px 12px',
-  borderRadius: 10,
-  background: 'rgba(248,250,252,0.92)',
-};
-
-const mutedCaptionStyle: React.CSSProperties = {
-  fontSize: 12,
-  color: 'var(--fg-3)',
-};
-
-const creditPillStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  minHeight: 24,
-  padding: '0 10px',
-  borderRadius: 999,
-  background: 'rgba(37,99,235,0.08)',
-  color: 'var(--fg-2)',
-  fontSize: 12,
-  fontWeight: 600,
-};
-
-const primaryChipStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: 44,
-  padding: '0 14px',
-  borderRadius: 999,
-  border: '1px solid var(--accent, #2563eb)',
-  background: 'var(--accent, #2563eb)',
-  color: '#fff',
-  cursor: 'pointer',
-  fontSize: 13,
-  fontWeight: 600,
-};
-
-const secondaryChipStyle: React.CSSProperties = {
-  ...primaryChipStyle,
-  background: 'transparent',
-  color: 'var(--accent, #2563eb)',
 };
 
 const rowCardStyle: React.CSSProperties = {

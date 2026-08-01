@@ -32,7 +32,7 @@ import { ApiError } from '../errors';
 export interface ResolveFreightPriceInput {
   customerId: number;
   routeId: number;
-  cargoTypeId: number;
+  cargoTypeId?: number | null;
   /** Weight in KG. Required for TIER resolution; ignored for TABLE. */
   weightKg?: number;
   /** Departure or trip date (YYYY-MM-DD). */
@@ -77,10 +77,21 @@ export interface OverlapPair {
 export async function resolveFreightPrice(
   input: ResolveFreightPriceInput,
 ): Promise<ResolvedFreightPrice> {
+  if (input.cargoTypeId == null) {
+    return {
+      source: 'MANUAL',
+      price: 0,
+      unitPrice: 0,
+      formula: 'Chưa có loại hàng — cần nhập thủ công',
+      snapshot: { reason: 'NO_CARGO_TYPE' },
+    };
+  }
+  const cargoTypeId = input.cargoTypeId;
+
   // 1. Fetch the cargo type to decide the resolution path.
   const [cargoType] = await db.select({ id: s.cargoTypes.id, isBulk: s.cargoTypes.isBulk })
     .from(s.cargoTypes)
-    .where(eq(s.cargoTypes.id, input.cargoTypeId))
+    .where(eq(s.cargoTypes.id, cargoTypeId))
     .limit(1);
 
   if (!cargoType) {
@@ -89,14 +100,16 @@ export async function resolveFreightPrice(
 
   // 2. Resolve.
   if (cargoType.isBulk) {
-    return resolveTierPrice(input);
+    return resolveTierPrice({ ...input, cargoTypeId });
   }
-  return resolveTablePrice(input);
+  return resolveTablePrice({ ...input, cargoTypeId });
 }
 
 // ─── TIER resolution (weight-tier pricing for bulk cargo) ───────────────────
 
-async function resolveTierPrice(input: ResolveFreightPriceInput): Promise<ResolvedFreightPrice> {
+async function resolveTierPrice(
+  input: ResolveFreightPriceInput & { cargoTypeId: number },
+): Promise<ResolvedFreightPrice> {
   if (input.weightKg == null || input.weightKg <= 0) {
     // Bulk cargo requires a weight to resolve. Without it, fall back to MANUAL.
     return {
@@ -174,7 +187,9 @@ async function resolveTierPrice(input: ResolveFreightPriceInput): Promise<Resolv
 
 // ─── TABLE resolution (fixed per-container pricing) ─────────────────────────
 
-async function resolveTablePrice(input: ResolveFreightPriceInput): Promise<ResolvedFreightPrice> {
+async function resolveTablePrice(
+  input: ResolveFreightPriceInput & { cargoTypeId: number },
+): Promise<ResolvedFreightPrice> {
   const [pricing] = await db.select()
     .from(s.pricingTables)
     .where(and(

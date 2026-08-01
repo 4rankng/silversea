@@ -41,6 +41,26 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
   serviceFile: string;
   marker: string;
 }>([
+  ['config/master-data-import.routes.ts|POST|/:id/apply', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/master-data-import.service.ts'),
+    marker: 'endpoint: MASTER_IMPORT_APPLY_ENDPOINT',
+  }],
+  ['config/master-data-import.routes.ts|POST|/analyze', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/master-data-import.service.ts'),
+    marker: 'export async function analyzeMasterWorkbook(',
+  }],
+  ['config/master-data-import.routes.ts|POST|/dry-run', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/master-data-import.service.ts'),
+    marker: 'export async function analyzeMasterWorkbook(',
+  }],
+  ['config/master-data-import.routes.ts|POST|/:id/reject', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/master-data-import.service.ts'),
+    marker: 'endpoint: MASTER_IMPORT_REJECT_ENDPOINT',
+  }],
+  ['config/driver-user-binding.routes.ts|POST|/:driverId', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/driver-user-binding.service.ts'),
+    marker: 'endpoint: DRIVER_USER_BIND_ENDPOINT',
+  }],
   ['driver.ts|POST|/trips/:tripId/progress', {
     serviceFile: path.resolve(process.cwd(), 'src/services/driver.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_PROGRESS',
@@ -76,6 +96,14 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
   ['shipments.ts|POST|/:id/dispatch-handoffs/:handoffId/resolve', {
     serviceFile: path.resolve(process.cwd(), 'src/services/dispatch-handoff.service.ts'),
     marker: 'export async function resolveHandoff(',
+  }],
+  ['shipments.ts|POST|/:id/submit-for-dispatch', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/shipment-intake.service.ts'),
+    marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_SUBMIT_FOR_DISPATCH',
+  }],
+  ['shipments.ts|POST|/:id/dispatch', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/dispatch-planning.service.ts'),
+    marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DISPATCH',
   }],
 ]);
 

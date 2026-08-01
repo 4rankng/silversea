@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Role, ShipmentStatus } from '@tingting/shared';
+import { ShipmentStatus } from '@tingting/shared';
 import { localDateTimeToIso } from '../../lib/shipment-operations';
 import type {
   ShipmentChangeRequest,
@@ -10,22 +10,16 @@ import type {
   ShipmentDetail,
   ShipmentDocument,
 } from '../../api/shipmentClient';
-import type { CreditOverrideRequestRecord } from '../../api/creditOverrideClient';
 
 const {
   addDocumentMock,
-  approveCreditRequestMutateAsyncMock,
-  checkCreditRequestMutateAsyncMock,
   confirmMock,
-  createCreditRequestMutateAsyncMock,
-  creditQueueHookMock,
-  creditQueueState,
   createDeclarationMock,
   currentUserState,
-  dispatchMock,
+  submitForDispatchMock,
   getBootstrapMock,
   getDetailMock,
-  rejectCreditRequestMutateAsyncMock,
+  listOperationalSitesMock,
   replaceDocumentMock,
   reviewChangeRequestMock,
   saveContainersMock,
@@ -33,22 +27,13 @@ const {
   updateShipmentMock,
 } = vi.hoisted(() => ({
   addDocumentMock: vi.fn(),
-  approveCreditRequestMutateAsyncMock: vi.fn(),
-  checkCreditRequestMutateAsyncMock: vi.fn(),
   confirmMock: vi.fn(),
-  createCreditRequestMutateAsyncMock: vi.fn(),
-  creditQueueHookMock: vi.fn(),
-  creditQueueState: {
-    data: [] as CreditOverrideRequestRecord[],
-    error: null as Error | null,
-    isError: false,
-  },
   createDeclarationMock: vi.fn(),
   currentUserState: { role: 'CLERK', businessUnitIds: [11, 12] as number[] },
-  dispatchMock: vi.fn(),
+  submitForDispatchMock: vi.fn(),
   getBootstrapMock: vi.fn(),
   getDetailMock: vi.fn(),
-  rejectCreditRequestMutateAsyncMock: vi.fn(),
+  listOperationalSitesMock: vi.fn(),
   replaceDocumentMock: vi.fn(),
   reviewChangeRequestMock: vi.fn(),
   saveContainersMock: vi.fn(),
@@ -59,8 +44,9 @@ const {
 vi.mock('../../api/shipmentClient', () => ({
   addShipmentDocument: addDocumentMock,
   createShipmentDeclaration: createDeclarationMock,
-  dispatchShipment: dispatchMock,
+  submitShipmentForDispatch: submitForDispatchMock,
   getShipmentDetail: getDetailMock,
+  listOperationalSites: listOperationalSitesMock,
   replaceShipmentDocument: replaceDocumentMock,
   reviewShipmentChangeRequest: reviewChangeRequestMock,
   saveShipmentContainers: saveContainersMock,
@@ -74,6 +60,7 @@ vi.mock('../../api/tripClient', () => ({
 
 vi.mock('../../components/UI', () => ({
   useConfirm: () => ({ confirm: confirmMock, dialog: null }),
+  Modal: ({ isOpen, children }: { isOpen: boolean; children: React.ReactNode }) => isOpen ? <div role="dialog">{children}</div> : null,
 }));
 
 vi.mock('../../hooks/useAuth', () => ({
@@ -83,26 +70,6 @@ vi.mock('../../hooks/useAuth', () => ({
       role: currentUserState.role,
       businessUnitIds: currentUserState.businessUnitIds,
     },
-  }),
-}));
-
-vi.mock('../../hooks/useCreditOverrideQueries', () => ({
-  useCreditOverrideQueue: creditQueueHookMock,
-  useCreateCreditOverrideRequest: () => ({
-    mutateAsync: createCreditRequestMutateAsyncMock,
-    isPending: false,
-  }),
-  useApproveCreditOverrideRequest: () => ({
-    mutateAsync: approveCreditRequestMutateAsyncMock,
-    isPending: false,
-  }),
-  useCheckCreditOverrideRequest: () => ({
-    mutateAsync: checkCreditRequestMutateAsyncMock,
-    isPending: false,
-  }),
-  useRejectCreditOverrideRequest: () => ({
-    mutateAsync: rejectCreditRequestMutateAsyncMock,
-    isPending: false,
   }),
 }));
 
@@ -184,24 +151,12 @@ describe('ClerkShipmentDocsPage', () => {
     currentUserState.role = 'CLERK';
     currentUserState.businessUnitIds = [11, 12];
     addDocumentMock.mockReset();
-    approveCreditRequestMutateAsyncMock.mockReset();
-    checkCreditRequestMutateAsyncMock.mockReset();
     confirmMock.mockReset();
-    createCreditRequestMutateAsyncMock.mockReset();
     createDeclarationMock.mockReset();
-    creditQueueHookMock.mockReset();
-    creditQueueHookMock.mockImplementation(() => ({
-      data: creditQueueState.data,
-      error: creditQueueState.error,
-      isError: creditQueueState.isError,
-    }));
-    creditQueueState.data = [];
-    creditQueueState.error = null;
-    creditQueueState.isError = false;
-    dispatchMock.mockReset();
+    submitForDispatchMock.mockReset();
     getBootstrapMock.mockReset();
     getDetailMock.mockReset();
-    rejectCreditRequestMutateAsyncMock.mockReset();
+    listOperationalSitesMock.mockReset();
     replaceDocumentMock.mockReset();
     reviewChangeRequestMock.mockReset();
     saveContainersMock.mockReset();
@@ -216,30 +171,13 @@ describe('ClerkShipmentDocsPage', () => {
       drivers: [{ id: 44, name: 'Nguyen Van A' }],
     });
     getDetailMock.mockResolvedValue(makeDetail());
-  });
-
-  it('does not load the finance credit queue for a clerk', async () => {
-    renderAt();
-    await waitFor(() => expect(getDetailMock).toHaveBeenCalledWith(42));
-    await waitFor(() => expect(creditQueueHookMock).toHaveBeenLastCalledWith(
-      expect.objectContaining({ customerId: 7 }),
-      false,
-    ));
-  });
-
-  it.each([Role.ADMIN, Role.MANAGER])('loads the finance credit queue for %s', async (role) => {
-    currentUserState.role = role;
-    renderAt();
-    await waitFor(() => expect(creditQueueHookMock).toHaveBeenLastCalledWith(
-      expect.objectContaining({ customerId: 7 }),
-      true,
-    ));
+    listOperationalSitesMock.mockResolvedValue([]);
   });
 
   it('shows the readiness warning when BL and containers are missing', async () => {
     renderAt();
-    await waitFor(() => expect(screen.getByText(/Còn thiếu: Số vận đơn/)).toBeTruthy());
-    expect(screen.getByText(/Công-te-nơ \(ít nhất một\)/)).toBeTruthy();
+    await waitFor(() => expect(screen.getByText(/Còn thiếu: Số vận đơn hoặc booking/)).toBeTruthy());
+    expect(screen.getByText(/Thông tin công-te-nơ đầy đủ/)).toBeTruthy();
   });
 
   it('preserves a legacy unknown cargo mode when saving another field', async () => {
@@ -328,22 +266,42 @@ describe('ClerkShipmentDocsPage', () => {
       changeRequestId: null,
     });
     renderAt();
-    await waitFor(() => expect(screen.getByLabelText('Cut-off hải quan')).toBeTruthy());
+    await waitFor(() => expect(screen.getByLabelText('Cut-off tờ khai')).toBeTruthy());
     fireEvent.click(screen.getByRole('button', { name: /Lưu hồ sơ lô hàng/ }));
 
     await waitFor(() => expect(updateShipmentMock).toHaveBeenCalledTimes(1));
     expect(new Date(updateShipmentMock.mock.calls[0][1].customsCutoffAt).toISOString()).toBe(storedInstant);
   });
 
-  it('gates the unsupported LCL dispatch path without requesting container data', async () => {
-    currentUserState.role = Role.MANAGER;
+  it('submits a complete LCL shipment to dispatch without container data', async () => {
     getDetailMock.mockResolvedValue(makeDetail({
-      shipment: { cargoMode: 'LCL', blNumber: 'BL-LCL' },
+      shipment: {
+        cargoMode: 'LCL', blNumber: 'BL-LCL', routeId: 15,
+        operationalSiteId: 81, pickupWarehouseSiteId: 82,
+        packageType: 'Pallet', packageCount: 3,
+        cargoWeightKg: '1250', cargoVolumeCbm: '8.5',
+        expectedDeliveryDate: '2026-08-10',
+      },
     }));
+    listOperationalSitesMock.mockResolvedValue([
+      { id: 81, name: 'Nhà máy A', siteType: 'FACTORY' },
+      { id: 82, name: 'Kho lấy hàng B', siteType: 'WAREHOUSE' },
+    ]);
+    submitForDispatchMock.mockResolvedValue({
+      shipment: makeDetail().shipment,
+      handoff: { id: 401, status: 'UNSEEN' },
+      replayed: false,
+    });
     renderAt();
-    await waitFor(() => expect(screen.getByText(/Điều vận LCL chưa được hỗ trợ/)).toBeTruthy());
+    const submitButton = await screen.findByRole('button', { name: 'Gửi sang điều phối' });
+    expect((submitButton as HTMLButtonElement).disabled).toBe(false);
     expect(screen.queryByText(/Công-te-nơ \(/)).toBeNull();
-    expect(screen.queryByText('Điều vận & công nợ')).toBeNull();
+    fireEvent.click(submitButton);
+    await waitFor(() => expect(submitForDispatchMock).toHaveBeenCalledWith(
+      42,
+      { expectedVersion: 3 },
+      expect.any(String),
+    ));
   });
 
   it('sends expectedVersion for container saves and reuses the refreshed version on the next shipment save', async () => {
@@ -805,101 +763,6 @@ describe('ClerkShipmentDocsPage', () => {
     expect(screen.getByText(/Đã áp dụng yêu cầu thay đổi/)).toBeTruthy();
   });
 
-  it('approves a pending credit override with expectedVersion and dispatches the shipment to the trip', async () => {
-    currentUserState.role = 'ADMIN';
-    getDetailMock.mockResolvedValue(makeDetail({
-      shipment: { expectedDeliveryDate: '2026-07-29' },
-      containers: [{
-        id: 100,
-        shipmentId: 42,
-        containerTypeId: 1,
-        containerNumber: 'MSKU1234565',
-        sealNumber: null,
-        cargoWeightKg: null,
-        notes: null,
-      }],
-    }));
-    creditQueueState.data = [{
-      id: 701,
-      customerId: 7,
-      shipmentId: 42,
-      scopeType: 'SHIPMENT',
-      status: 'PENDING',
-      requiredTier: 'FINANCE_TIER_1',
-      reason: 'Khách đang chờ giao gấp.',
-      requestedBy: 9,
-      requestedRole: 'CLERK',
-      approvedBy: null,
-      approvedRole: null,
-      approvedAt: null,
-      rejectedBy: null,
-      rejectedRole: null,
-      rejectedAt: null,
-      rejectionReason: null,
-      proposedAmount: '15000000',
-      outstandingAmount: '40000000',
-      approvedCommitmentAmount: '10000000',
-      totalExposure: '55000000',
-      creditLimit: '50000000',
-      warningThreshold: '0.9',
-      overLimitAmount: '5000000',
-      overLimitRatio: '0.1',
-      repeatException: false,
-      expiresAt: null,
-      consumedTripId: null,
-      consumedAt: null,
-      version: 4,
-      requestVersion: 1,
-      workflowStatus: 'PENDING_APPROVAL',
-      governanceActionId: 9001,
-      checkedBy: 55,
-      checkedAt: '2026-07-27T09:30:00.000Z',
-      createdAt: '2026-07-27T09:00:00.000Z',
-      updatedAt: '2026-07-27T09:00:00.000Z',
-    }];
-    approveCreditRequestMutateAsyncMock.mockResolvedValue({
-      ...creditQueueState.data[0],
-      status: 'APPROVED',
-      approvedBy: 1,
-      approvedRole: 'ADMIN',
-      approvedAt: '2026-07-27T10:00:00.000Z',
-      version: 5,
-      workflowStatus: 'APPROVED',
-      updatedAt: '2026-07-27T10:00:00.000Z',
-    });
-    dispatchMock.mockResolvedValue({
-      trip: { id: 888, tripCode: 'TRIP-888', shipmentId: 42 },
-      created: true,
-      preDispatchWarnings: [],
-    });
-
-    renderAt();
-    await waitFor(() => expect(screen.getByText('Hàng chờ duyệt liên quan')).toBeTruthy());
-
-    const dispatchSection = screen.getByText('Điều vận & công nợ').closest('section');
-    const dispatchSelects = dispatchSection?.querySelectorAll('select');
-    expect(dispatchSelects?.[0]).toBeTruthy();
-    expect(dispatchSelects?.[1]).toBeTruthy();
-    expect(dispatchSelects?.[2]).toBeTruthy();
-    fireEvent.change(dispatchSelects?.[0] as HTMLSelectElement, { target: { value: '15' } });
-    fireEvent.change(dispatchSelects?.[1] as HTMLSelectElement, { target: { value: '27' } });
-    fireEvent.change(dispatchSelects?.[2] as HTMLSelectElement, { target: { value: '1' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Duyệt rồi điều vận' }));
-
-    await waitFor(() => expect(approveCreditRequestMutateAsyncMock).toHaveBeenCalledWith({
-      id: 701,
-      expectedVersion: 4,
-    }));
-    await waitFor(() => expect(dispatchMock).toHaveBeenCalledWith(42, expect.objectContaining({
-      routeId: 15,
-      cargoTypeId: 27,
-      containerTypeId: 1,
-      departureDate: '2026-07-29',
-      containerCount: 1,
-      creditApprovalRequestId: 701,
-    })));
-    await waitFor(() => expect(screen.getByTestId('trip-detail')).toBeTruthy());
-  });
 
   it('shows the load error when the shipment is missing', async () => {
     getDetailMock.mockRejectedValue(new Error('Không tìm thấy lô hàng'));

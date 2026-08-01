@@ -1,195 +1,138 @@
-/**
- * Wave 4 M10.1 slice 2 — ClerkShipmentCreatePage tests.
- *
- * Verifies the M10-01-03 + Q23 contract from the UI side:
- *   - submit calls `POST /api/shipments/quick` with a client-generated
- *     `Idempotency-Key` header (UUID v4 shape);
- *   - on 201 the page navigates to the allowed shipment dossier;
- *   - on a server error the Vietnamese message is shown inline and the
- *     form values are preserved so the user can retry;
- *   - customerId is required — submit is blocked with a Vietnamese hint
- *     when no customer is selected.
- *
- * Mocks the shipment + customer API clients at the module boundary so the
- * test exercises the page's own orchestration, not the transport layer.
- */
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { localDateTimeToIso } from '../../lib/shipment-operations';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// vi.hoisted keeps the mock fns visible inside vi.mock factories (which
-// Vitest hoists above all top-level declarations).
-const { quickCreateMock, getBootstrapMock } = vi.hoisted(() => ({
-  quickCreateMock: vi.fn(),
-  getBootstrapMock: vi.fn(),
+const mocks = vi.hoisted(() => ({
+  bootstrap: vi.fn(),
+  quickCreate: vi.fn(),
+  sites: vi.fn(),
+  saveContainers: vi.fn(),
+  submit: vi.fn(),
+  createDeclaration: vi.fn(),
 }));
 
+vi.mock('../../api/tripClient', () => ({ tripClient: { getBootstrap: mocks.bootstrap } }));
 vi.mock('../../api/shipmentClient', () => ({
-  quickCreateShipment: quickCreateMock,
-}));
-vi.mock('../../api/tripClient', () => ({
-  tripClient: { getBootstrap: getBootstrapMock },
+  quickCreateShipment: mocks.quickCreate,
+  listOperationalSites: mocks.sites,
+  saveShipmentContainers: mocks.saveContainers,
+  submitShipmentForDispatch: mocks.submit,
+  createShipmentDeclaration: mocks.createDeclaration,
 }));
 
 import ClerkShipmentCreatePage from './ClerkShipmentCreatePage';
 
-const CUSTOMERS = [
-  { id: 7, name: 'Công ty CP Vận tải ABC', deletedAt: null },
-  { id: 9, name: 'Công ty TNHH XYZ', deletedAt: null },
+const bootstrap = {
+  customers: [{ id: 7, name: 'Công ty Long Minh' }],
+  routes: [{ id: 11, name: 'Cát Lái — Sóng Thần' }],
+  ports: [{ id: 21, name: 'Cảng Cát Lái' }, { id: 22, name: 'Cảng ICD Sóng Thần' }],
+  containerTypes: [{ id: 31, code: '40HC', name: 'Container 40 feet cao' }],
+};
+
+const sites = [
+  { id: 41, customerId: 7, code: 'NM01', name: 'Nhà máy Long Minh', siteType: 'FACTORY', address: 'Bình Dương', googleMapsUrl: 'https://maps.google.com/example', contactName: 'Anh Nam', contactPhone: '0901000000', liftFeeInvoiceName: 'Long Minh', liftFeeInvoiceAddress: 'Bình Dương', liftFeeTaxCode: '3700000000', strictRules: 'Gọi điện trước khi vào', version: 1 },
+  { id: 42, customerId: 7, code: 'KHO01', name: 'Kho Long Minh', siteType: 'WAREHOUSE', address: 'Bình Dương', googleMapsUrl: null, contactName: null, contactPhone: null, liftFeeInvoiceName: null, liftFeeInvoiceAddress: null, liftFeeTaxCode: null, strictRules: null, version: 1 },
 ];
 
-function renderAt(path = '/clerk/shipments/new') {
+function renderPage() {
   return render(
-    <MemoryRouter initialEntries={[path]}>
+    <MemoryRouter initialEntries={['/clerk/shipments/new']}>
       <Routes>
         <Route path="/clerk/shipments/new" element={<ClerkShipmentCreatePage />} />
-        {/* Navigated-to destination on success — a sentinel that lets the
-            test assert the redirect without mounting the real detail page. */}
-        <Route path="/clerk/shipments/:id/docs" element={<div data-testid="dossier-page" />} />
+        <Route path="/clerk/shipments/:id/docs" element={<div data-testid="dossier" />} />
       </Routes>
     </MemoryRouter>,
   );
 }
 
-async function waitForFormReady() {
-  // SelectField renders a custom <button> trigger (not a native select), so
-  // query by its visible label text instead of getByLabelText.
-  await waitFor(() => expect(screen.getByText('Khách hàng')).toBeTruthy());
+function choose(label: string, value: string) {
+  const labelElement = screen.getByText(label, { selector: 'label' });
+  const select = labelElement.parentElement?.querySelector('select');
+  if (!select) throw new Error(`Không tìm thấy trường chọn ${label}`);
+  fireEvent.change(select, { target: { value } });
 }
 
-/**
- * SelectField is a custom dropdown (trigger button + option list), not a
- * native <select>. Drive it the way a user does: click the trigger, then
- * click the option. The trigger is the only button with `aria-haspopup=
- * "listbox"`; the placeholder text also appears in the hidden native
- * `<option>`, so a text query would be ambiguous.
- */
-async function selectCustomer(label: string) {
-  fireEvent.click(screen.getByRole('button', { name: /Chọn khách hàng/ }));
-  const option = await screen.findByRole('option', { name: label });
-  fireEvent.click(option);
-}
-
-describe('ClerkShipmentCreatePage — M10.1 quick-create', () => {
+describe('ClerkShipmentCreatePage', () => {
   beforeEach(() => {
-    quickCreateMock.mockReset();
-    getBootstrapMock.mockReset();
-    getBootstrapMock.mockResolvedValue({ customers: CUSTOMERS });
+    Object.values(mocks).forEach((mock) => mock.mockReset());
+    mocks.bootstrap.mockResolvedValue(bootstrap);
+    mocks.sites.mockResolvedValue(sites);
+    mocks.quickCreate.mockResolvedValue({ id: 90, version: 1 });
+    mocks.saveContainers.mockResolvedValue({ shipmentVersion: 2, items: [], upsertedIds: [], changeMode: 'DIRECT', changeRequestId: null });
+    mocks.submit.mockResolvedValue({ shipment: { id: 90 }, handoff: { id: 1, status: 'UNSEEN' }, replayed: false });
+    mocks.createDeclaration.mockResolvedValue({ id: 1 });
   });
 
-  it('loads customers into the dropdown', async () => {
-    renderAt();
-    await waitForFormReady();
-    // Open the custom SelectField trigger (the aria-haspopup="listbox"
-    // button); options appear in a listbox.
-    fireEvent.click(screen.getByRole('button', { name: /Chọn khách hàng/ }));
-    await waitFor(() => expect(screen.getByRole('option', { name: 'Công ty CP Vận tải ABC' })).toBeTruthy());
-    expect(screen.getByRole('option', { name: 'Công ty TNHH XYZ' })).toBeTruthy();
+  it('loads customer master data and blocks a draft without customer', async () => {
+    renderPage();
+    await screen.findByText('Thông tin chung');
+    fireEvent.click(screen.getByRole('button', { name: /Lưu bản nháp/ }));
+    expect(screen.getByRole('alert').textContent).toContain('Vui lòng chọn khách hàng');
+    expect(mocks.quickCreate).not.toHaveBeenCalled();
   });
 
-  it('blocks submit and shows a Vietnamese hint when no customer is selected', async () => {
-    renderAt();
-    await waitForFormReady();
-    fireEvent.click(screen.getByRole('button', { name: /Tạo lô hàng/ }));
-    expect(screen.getByText(/Vui lòng chọn khách hàng/)).toBeTruthy();
-    expect(quickCreateMock).not.toHaveBeenCalled();
+  it('shows the selected factory rules and Google Maps link without a live map', async () => {
+    renderPage();
+    await screen.findByText('Thông tin chung');
+    choose('Khách hàng', '7');
+    await waitFor(() => expect(mocks.sites).toHaveBeenCalledWith(7));
+    choose('Nhà máy', '41');
+    expect(await screen.findByText('Gọi điện trước khi vào')).toBeTruthy();
+    expect(screen.getByRole('link', { name: /Mở vị trí trên Google Maps/ }).getAttribute('href')).toBe('https://maps.google.com/example');
+    expect(screen.queryByText(/theo dõi trực tiếp/i)).toBeNull();
   });
 
-  it('POSTs /api/shipments/quick with an Idempotency-Key header (UUID v4) on submit', async () => {
-    quickCreateMock.mockResolvedValue({ id: 42, shipmentCode: 'SHP-2607-00042' });
-    renderAt();
-    await waitForFormReady();
-
-    // Select a customer via the custom dropdown.
-    await selectCustomer('Công ty CP Vận tải ABC');
-    // Fill an optional field to assert it round-trips.
-    fireEvent.change(screen.getByLabelText('Số booking'), { target: { value: 'BK-TEST-1' } });
-
-    fireEvent.click(screen.getByRole('button', { name: /Tạo lô hàng/ }));
-
-    await waitFor(() => expect(quickCreateMock).toHaveBeenCalledTimes(1));
-    const [body, idempotencyKey] = quickCreateMock.mock.calls[0];
-    expect(body).toMatchObject({ customerId: 7, bookingRef: 'BK-TEST-1' });
-    // PRD M10-01-03 + Q23: client-generated UUID v4 dedupe token.
-    expect(idempotencyKey).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+  it('saves an incomplete shipment as DRAFT', async () => {
+    renderPage();
+    await screen.findByText('Thông tin chung');
+    choose('Khách hàng', '7');
+    fireEvent.change(screen.getByLabelText('Số booking'), { target: { value: 'BK-001' } });
+    fireEvent.click(screen.getByRole('button', { name: /Lưu bản nháp/ }));
+    await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledTimes(1));
+    expect(mocks.quickCreate.mock.calls[0][0]).toMatchObject({ customerId: 7, bookingRef: 'BK-001', cargoMode: 'FCL' });
+    expect(mocks.submit).not.toHaveBeenCalled();
+    expect(await screen.findByTestId('dossier')).toBeTruthy();
   });
 
-  it('sends operational time as an explicit instant and omits LCL-only fields for FCL', async () => {
-    quickCreateMock.mockResolvedValue({ id: 42, shipmentCode: 'SHP-2607-00042' });
-    renderAt();
-    await waitForFormReady();
-    await selectCustomer('Công ty CP Vận tải ABC');
-    fireEvent.change(screen.getByLabelText('Cut-off hải quan'), {
-      target: { value: '2026-07-29T10:00' },
-    });
-    fireEvent.change(screen.getByLabelText('Trọng lượng (kg)'), {
-      target: { value: '10.25' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /Tạo lô hàng/ }));
-
-    await waitFor(() => expect(quickCreateMock).toHaveBeenCalledTimes(1));
-    const [body] = quickCreateMock.mock.calls[0];
-    expect(body.customsCutoffAt).toBe(localDateTimeToIso('2026-07-29T10:00'));
-    expect(body.cargoWeightKg).toBe('10.25');
-    expect(body).not.toHaveProperty('cargoVolumeCbm');
-    expect(body).not.toHaveProperty('packageCount');
-    expect(body).not.toHaveProperty('packageType');
+  it('saves every FCL container then submits the latest shipment version', async () => {
+    renderPage();
+    await screen.findByText('Thông tin chung');
+    choose('Khách hàng', '7');
+    choose('Tuyến đường', '11');
+    await waitFor(() => expect(mocks.sites).toHaveBeenCalledWith(7));
+    choose('Nhà máy', '41');
+    fireEvent.click(screen.getByLabelText('Đóng'));
+    fireEvent.change(screen.getByLabelText('Số booking'), { target: { value: 'BK-FCL' } });
+    fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'MSCU6639870' } });
+    choose('Loại container', '31');
+    fireEvent.change(screen.getByLabelText('Hãng tàu'), { target: { value: 'MSC' } });
+    choose('Cảng nâng', '21');
+    choose('Cảng hạ', '22');
+    fireEvent.click(screen.getByRole('button', { name: /Gửi sang điều phối/ }));
+    await waitFor(() => expect(mocks.saveContainers).toHaveBeenCalledTimes(1));
+    expect(mocks.saveContainers.mock.calls[0][1].containers[0]).toMatchObject({ containerNumber: 'MSCU6639870', shippingLineName: 'MSC', pickupPortId: 21, dropoffPortId: 22 });
+    expect(mocks.submit).toHaveBeenCalledWith(90, expect.objectContaining({ expectedVersion: 2 }), expect.any(String));
   });
 
-  it('navigates to the shipment dossier on success (201 created)', async () => {
-    quickCreateMock.mockResolvedValue({ id: 42, shipmentCode: 'SHP-2607-00042' });
-    renderAt();
-    await waitForFormReady();
-    await selectCustomer('Công ty CP Vận tải ABC');
-    fireEvent.click(screen.getByRole('button', { name: /Tạo lô hàng/ }));
-
-    await waitFor(() => expect(screen.getByTestId('dossier-page')).toBeTruthy());
-  });
-
-  it('navigates to the shipment dossier on idempotent replay (200)', async () => {
-    // The server returns the original shipment with 200 on a replay. The UI
-    // treats both 201 and 200 as success — the api wrapper resolves either.
-    quickCreateMock.mockResolvedValue({ id: 55, shipmentCode: 'SHP-2607-00055' });
-    renderAt();
-    await waitForFormReady();
-    await selectCustomer('Công ty TNHH XYZ');
-    fireEvent.click(screen.getByRole('button', { name: /Tạo lô hàng/ }));
-
-    await waitFor(() => expect(screen.getByTestId('dossier-page')).toBeTruthy());
-  });
-
-  it('shows the server error inline and preserves form values on failure', async () => {
-    const err = new Error('Khóa giao dịch trùng nhưng nội dung khác — vui lòng dùng mã giao dịch mới.');
-    quickCreateMock.mockRejectedValue(err);
-    renderAt();
-    await waitForFormReady();
-    await selectCustomer('Công ty CP Vận tải ABC');
-    fireEvent.change(screen.getByLabelText('Số vận đơn (B/L)'), { target: { value: 'MAEU-KEEP' } });
-    fireEvent.click(screen.getByRole('button', { name: /Tạo lô hàng/ }));
-
-    await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
-    expect(screen.getByText(/Khóa giao dịch trùng/)).toBeTruthy();
-    // The form retains what the user typed so they can adjust + retry.
-    expect((screen.getByLabelText('Số vận đơn (B/L)') as HTMLInputElement).value).toBe('MAEU-KEEP');
-  });
-
-  it('falls back to a generic Vietnamese error when the API throws without a message', async () => {
-    quickCreateMock.mockRejectedValue(new Error());
-    renderAt();
-    await waitForFormReady();
-    await selectCustomer('Công ty CP Vận tải ABC');
-    fireEvent.click(screen.getByRole('button', { name: /Tạo lô hàng/ }));
-
-    await waitFor(() => expect(screen.getByText(/Không thể tạo lô hàng/)).toBeTruthy());
-  });
-
-  it('shows a Vietnamese error when the customer list fails to load', async () => {
-    getBootstrapMock.mockRejectedValue(new Error('network down'));
-    renderAt();
-    await waitFor(() => expect(screen.getByText(/Không thể tải danh sách khách hàng/)).toBeTruthy());
-    // The form is not rendered when customers can't load, so the quick-create
-    // call is impossible.
-    expect(quickCreateMock).not.toHaveBeenCalled();
+  it('submits one LCL fulfillment payload with warehouse, package count, KG and CBM', async () => {
+    renderPage();
+    await screen.findByText('Thông tin chung');
+    choose('Khách hàng', '7');
+    choose('Tuyến đường', '11');
+    await waitFor(() => expect(mocks.sites).toHaveBeenCalledWith(7));
+    choose('Nhà máy', '41');
+    fireEvent.click(screen.getByLabelText('Đóng'));
+    fireEvent.change(screen.getByLabelText('Số booking'), { target: { value: 'BK-LCL' } });
+    choose('Loại lô hàng', 'LCL');
+    choose('Kho lấy hàng', '42');
+    fireEvent.change(screen.getByLabelText('Quy cách đóng gói'), { target: { value: 'Pallet' } });
+    fireEvent.change(screen.getByLabelText('Số lượng'), { target: { value: '12' } });
+    fireEvent.change(screen.getByLabelText('Trọng lượng (kg)'), { target: { value: '1250' } });
+    fireEvent.change(screen.getByLabelText('Thể tích (CBM)'), { target: { value: '8.5' } });
+    fireEvent.change(screen.getByLabelText('Ngày giao dự kiến'), { target: { value: '2026-08-03' } });
+    fireEvent.click(screen.getByRole('button', { name: /Gửi sang điều phối/ }));
+    await waitFor(() => expect(mocks.submit).toHaveBeenCalledTimes(1));
+    expect(mocks.quickCreate.mock.calls[0][0]).toMatchObject({ cargoMode: 'LCL', pickupWarehouseSiteId: 42, packageType: 'Pallet', packageCount: 12, cargoWeightKg: '1250', cargoVolumeCbm: '8.5', expectedDeliveryDate: '2026-08-03' });
+    expect(mocks.saveContainers).not.toHaveBeenCalled();
   });
 });

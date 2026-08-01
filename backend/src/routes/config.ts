@@ -26,6 +26,8 @@ import type { Request, Response } from 'express';
 import { z, type output } from 'zod';
 import { createCrudRouter } from './utils/crud-factory';
 import debitNoteTemplatesRouter from './config/debit-note-templates.routes';
+import masterDataImportRouter from './config/master-data-import.routes';
+import driverUserBindingRouter from './config/driver-user-binding.routes';
 import { ApiError } from '../errors';
 import {
   getBootstrapData,
@@ -906,6 +908,9 @@ function portalBootstrap(data: Awaited<ReturnType<typeof getBootstrapData>>) {
 }
 
 export const catalogBootstrapRouter = Router();
+
+router.use('/config/master-data-imports', masterDataImportRouter);
+router.use('/config/driver-user-bindings', driverUserBindingRouter);
 
 catalogBootstrapRouter.get('/catalogs/bootstrap', asyncHandler(async (req: Request, res: Response) => {
   const data = await getBootstrapData();

@@ -95,6 +95,20 @@ export async function persistNotificationInTx(tx: Tx, payload: NotificationPaylo
   await generateNotification(payload, tx, false);
 }
 
+export async function sendNotificationPush(payload: NotificationPayload): Promise<void> {
+  const audience = PUSH_RULES[payload.type];
+  if (!audience) return;
+  const targets = await resolveTargets(payload, db);
+  const pushable = targets.filter((target) =>
+    audience === 'all'
+    || (audience === 'driver' && target.role === Role.DRIVER)
+    || (audience === 'financial' && isFinancialRole(target.role))
+  );
+  await Promise.allSettled(pushable.map((target) =>
+    pushService.sendToUser(target.userId, payload.title, payload.message, urlFor(payload, target.role), payload.type),
+  ));
+}
+
 async function generateNotification(
   payload: NotificationPayload,
   client: typeof db | Tx = db,
@@ -192,6 +206,8 @@ function urlFor(payload: NotificationPayload, role: Role): string | undefined {
       return role === Role.FORWARDER
         ? (id ? `/my-settlements/${id}` : '/my-settlements')
         : (id ? `/settlements/${id}` : '/payables/forwarder-advances');
+    case 'shipments':
+      return id ? `/dispatch?shipmentId=${id}` : '/dispatch';
     default:
       return undefined;
   }

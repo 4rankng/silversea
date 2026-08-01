@@ -1389,6 +1389,13 @@ export const decomposeShipmentFulfillmentsSchema = z.object({
   expectedVersion: z.coerce.number().int().positive(),
 });
 
+export const submitShipmentForDispatchSchema = z.object({
+  expectedVersion: z.coerce.number().int().positive(),
+  priority: z.enum(['NORMAL', 'URGENT']).optional(),
+  vehicleNeededBy: shipmentTimestamp.optional().nullable(),
+  operationalNote: z.string().trim().max(2000).optional().nullable(),
+});
+
 export const cancelShipmentFulfillmentSchema = z.object({
   expectedVersion: z.coerce.number().int().positive(),
   reason: z.string().trim().min(1, 'Lý do hủy là bắt buộc').max(2000),
@@ -1424,6 +1431,7 @@ export type ShipmentContainerBatchInput = z.infer<typeof shipmentContainerBatchS
 export type DispatchShipmentInput = z.infer<typeof dispatchShipmentSchema>;
 export type OperationalSiteInput = z.infer<typeof operationalSiteSchema>;
 export type DecomposeShipmentFulfillmentsInput = z.infer<typeof decomposeShipmentFulfillmentsSchema>;
+export type SubmitShipmentForDispatchInput = z.infer<typeof submitShipmentForDispatchSchema>;
 export type CancelShipmentFulfillmentInput = z.infer<typeof cancelShipmentFulfillmentSchema>;
 export type TripPodFileMetadataInput = z.infer<typeof tripPodFileMetadataSchema>;
 

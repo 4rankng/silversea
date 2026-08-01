@@ -97,21 +97,43 @@ export async function createHandoff(input: CreateHandoffInput) {
  * Mark a handoff as SEEN (the dispatcher opened it). Only valid on
  * UNSEEN handoffs — idempotent on SEEN (no-op).
  */
-export async function markSeen(handoffId: number) {
-  const [existing] = await db.select().from(s.dispatchHandoffs)
-    .where(eq(s.dispatchHandoffs.id, handoffId)).limit(1);
-  if (!existing) throw new ApiError(404, 'Không tìm thấy lệnh điều vận');
+export async function markSeen(
+  handoffId: number,
+  options: { actorId?: number; expectedVersion?: number; expectedShipmentId?: number; transaction?: Tx } = {},
+) {
+  const execute = async (tx: Tx) => {
+    const [existing] = await tx.select().from(s.dispatchHandoffs)
+      .where(eq(s.dispatchHandoffs.id, handoffId)).limit(1).for('update');
+    if (!existing || (options.expectedShipmentId != null && existing.shipmentId !== options.expectedShipmentId)) {
+      throw new ApiError(404, 'Không tìm thấy lệnh điều vận');
+    }
+    if (options.expectedVersion != null && existing.version !== options.expectedVersion) {
+      throw new ApiError(409, 'Lệnh điều vận đã được cập nhật. Vui lòng tải lại.');
+    }
+    if (options.actorId != null && existing.handlerId != null && existing.handlerId !== options.actorId) {
+      throw new ApiError(403, 'Lệnh điều vận được giao cho nhân viên khác');
+    }
+    if (existing.status === 'SEEN') return existing;
+    if (existing.status !== 'UNSEEN') {
+      throw new ApiError(400, `Không thể xem lệnh đang ở ${existing.status}`);
+    }
 
-  if (existing.status === 'SEEN') return existing; // idempotent
-  if (existing.status !== 'UNSEEN') {
-    throw new ApiError(400, `Không thể xem lệnh đang ở ${existing.status}`);
-  }
-
-  const [updated] = await db.update(s.dispatchHandoffs)
-    .set({ status: 'SEEN', seenAt: new Date(), updatedAt: new Date() })
-    .where(eq(s.dispatchHandoffs.id, handoffId))
-    .returning();
-  return updated;
+    const [updated] = await tx.update(s.dispatchHandoffs)
+      .set({
+        status: 'SEEN',
+        seenAt: new Date(),
+        version: sql`${s.dispatchHandoffs.version} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(s.dispatchHandoffs.id, handoffId),
+        eq(s.dispatchHandoffs.status, 'UNSEEN'),
+      ))
+      .returning();
+    if (!updated) throw new ApiError(409, 'Lệnh điều vận đã được người khác xử lý');
+    return updated;
+  };
+  return options.transaction ? execute(options.transaction) : db.transaction(execute);
 }
 
 /**

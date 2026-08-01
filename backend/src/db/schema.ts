@@ -566,7 +566,7 @@ export const trips = pgTable('trips', {
   routeId: integer('route_id').references(() => routes.id).notNull(),
   trailerId: integer('trailer_id').references(() => trailers.id),
   trailerType: trailerTypeEnum('trailer_type'),
-  cargoTypeId: integer('cargo_type_id').references(() => cargoTypes.id).notNull(),
+  cargoTypeId: integer('cargo_type_id').references(() => cargoTypes.id),
   containerCount: integer('container_count').default(1),
   status: tripStatusEnum('status').default('CREATED'),
   departureDate: date('departure_date').notNull(),

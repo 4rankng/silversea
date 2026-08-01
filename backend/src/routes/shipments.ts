@@ -34,8 +34,8 @@ import {
   transitionShipmentStatusSchema,
   attachShipmentDocumentSchema,
   shipmentContainerBatchSchema,
-  dispatchShipmentSchema,
   quickCreateShipmentSchema,
+  submitShipmentForDispatchSchema,
 } from '@tingting/shared';
 import {
   createShipment,
@@ -49,8 +49,6 @@ import {
   batchUpsertShipmentContainers,
   attachShipmentDocument,
   upsertShipmentDeclaration,
-  dispatchShipmentToTrip,
-  completeShipmentDispatchSideEffects,
   replaceShipmentDocument,
   reviewShipmentChangeRequest,
 } from '../services/shipment.service';
@@ -78,8 +76,17 @@ import {
 import {
   createHandoff,
   getActiveHandoffForShipment,
+  markSeen,
   resolveHandoff,
 } from '../services/dispatch-handoff.service';
+import { listOperationalSitesForIntake, submitShipmentForDispatch } from '../services/shipment-intake.service';
+import {
+  acceptDispatchHandoff,
+  issueFulfillmentDispatchOrder,
+  listDispatchFleet,
+  listDispatchHandoffs,
+  listDispatchQueue,
+} from '../services/dispatch-planning.service';
 
 // Audit event registrations — matched by the audit middleware on every write.
 // Suffix-mode registrations (prefix + suffix) cover all /:id sub-paths. The
@@ -91,6 +98,7 @@ import {
 registerAuditEvent('POST', '/api/shipments', AuditEvent.SHIPMENT_CREATED);
 registerAuditEvent('POST', '/api/shipments/', '/quick', AuditEvent.SHIPMENT_CREATED);
 registerAuditEvent('POST', '/api/shipments/', '/dispatch', AuditEvent.SHIPMENT_DISPATCHED);
+registerAuditEvent('POST', '/api/shipments/', '/submit-for-dispatch', AuditEvent.SHIPMENT_DISPATCHED);
 registerAuditEvent('POST', '/api/shipments/', '/transition', AuditEvent.SHIPMENT_STATUS_CHANGED);
 registerAuditEvent('POST', '/api/shipments/', '/documents', AuditEvent.SHIPMENT_DOCUMENT_UPLOADED);
 registerAuditEvent('POST', '/api/shipments/', '/documents/', AuditEvent.SHIPMENT_DOCUMENT_UPLOADED);
@@ -135,9 +143,27 @@ const createHandoffSchema = z.object({
 });
 
 const resolveHandoffSchema = z.object({
-  resolution: z.enum(['ACCEPTED', 'REJECTED']),
+  resolution: z.enum(['SEEN', 'ACCEPTED', 'REJECTED']),
   expectedVersion: z.number().int().positive(),
   rejectReason: z.string().trim().min(1).max(1_000).optional().nullable(),
+});
+
+const fulfillmentDispatchSchema = z.object({
+  fulfillmentId: z.number().int().positive(),
+  expectedVersion: z.number().int().positive(),
+  plannedStartAt: z.string().trim().min(1),
+  plannedEndAt: z.string().trim().min(1),
+  endTimeConfirmed: z.boolean(),
+  carrierType: z.enum(['OWN', 'EXTERNAL']),
+  cargoTypeId: z.number().int().positive().optional().nullable(),
+  truckId: z.number().int().positive().optional().nullable(),
+  driverId: z.number().int().positive().optional().nullable(),
+  trailerId: z.number().int().positive().optional().nullable(),
+  containerTypeId: z.number().int().positive().optional().nullable(),
+  externalCarrierId: z.number().int().positive().optional().nullable(),
+  externalPlateNumber: z.string().trim().max(20).optional().nullable(),
+  externalDriverName: z.string().trim().max(100).optional().nullable(),
+  externalDriverPhone: z.string().trim().max(20).optional().nullable(),
 });
 
 const router = Router();
@@ -221,11 +247,85 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
   res.json(result);
 }));
 
+router.get(
+  '/dispatch-handoffs',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT),
+  asyncHandler(async (req: Request, res: Response) => {
+    const status = typeof req.query.status === 'string'
+      ? req.query.status.split(',').map((value) => value.trim()).filter(Boolean)
+      : undefined;
+    const urgency = typeof req.query.urgency === 'string' ? req.query.urgency : undefined;
+    res.json(await listDispatchHandoffs({
+      actor: getUser(req),
+      cursor: typeof req.query.cursor === 'string' ? req.query.cursor : undefined,
+      limit: typeof req.query.limit === 'string' ? Number(req.query.limit) : undefined,
+      status: status as Array<'UNSEEN' | 'SEEN'> | undefined,
+      urgency: urgency as 'NORMAL' | 'URGENT' | undefined,
+      q: typeof req.query.q === 'string' ? req.query.q : undefined,
+      date: typeof req.query.date === 'string' ? req.query.date : undefined,
+    }));
+  }),
+);
+
+router.get(
+  '/dispatch-queue',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT),
+  asyncHandler(async (req: Request, res: Response) => {
+    const status = typeof req.query.status === 'string'
+      ? req.query.status.split(',').map((value) => value.trim()).filter(Boolean)
+      : undefined;
+    const urgency = typeof req.query.urgency === 'string' ? req.query.urgency : undefined;
+    res.json(await listDispatchQueue({
+      actor: getUser(req),
+      cursor: typeof req.query.cursor === 'string' ? req.query.cursor : undefined,
+      limit: typeof req.query.limit === 'string' ? Number(req.query.limit) : undefined,
+      status: status as Array<'READY' | 'DISPATCHED'> | undefined,
+      urgency: urgency as 'NORMAL' | 'URGENT' | undefined,
+      q: typeof req.query.q === 'string' ? req.query.q : undefined,
+      date: typeof req.query.date === 'string' ? req.query.date : undefined,
+    }));
+  }),
+);
+
+router.get(
+  '/dispatch-fleet',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT),
+  asyncHandler(async (req: Request, res: Response) => {
+    res.json(await listDispatchFleet({
+      actor: getUser(req),
+      limit: typeof req.query.limit === 'string' ? Number(req.query.limit) : undefined,
+      q: typeof req.query.q === 'string' ? req.query.q : undefined,
+    }));
+  }),
+);
+
 router.get('/:id/customer-events', requireWorkflowActive, asyncHandler(async (req: Request, res: Response) => {
   const shipmentId = parseId(req, res);
   if (shipmentId === null) return;
   res.json({ items: await listCustomerVisibleEvents({ shipmentId, actor: getUser(req) }) });
 }));
+
+router.post(
+  '/:id/submit-for-dispatch',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CLERK),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const parsed = submitShipmentForDispatchSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const idempotencyKey = getRequestIdempotencyKey(req);
+    const outcome = await submitShipmentForDispatch({
+      shipmentId,
+      expectedVersion: parsed.data.expectedVersion,
+      idempotencyKey: idempotencyKey ?? '',
+      actor: getUser(req),
+      priority: parsed.data.priority,
+      vehicleNeededBy: parsed.data.vehicleNeededBy ? new Date(parsed.data.vehicleNeededBy) : null,
+      operationalNote: parsed.data.operationalNote,
+    });
+    res.json({ ...outcome.result, replayed: outcome.replayed });
+  }),
+);
 
 router.post(
   '/:id/customer-events',
@@ -276,7 +376,7 @@ router.post(
 
 router.post(
   '/:id/dispatch-handoffs/:handoffId/resolve',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.CLERK),
+  requireRoles(Role.ADMIN, Role.MANAGER),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
@@ -286,10 +386,39 @@ router.post(
     if (!parsed.success) throwValidation(parsed.error);
     const actor = getUser(req);
     await getShipmentDetail(shipmentId, actor);
+    if (parsed.data.resolution === 'SEEN') {
+      res.json(await markSeen(handoffId, {
+        actorId: actor.userId,
+        expectedVersion: parsed.data.expectedVersion,
+        expectedShipmentId: shipmentId,
+      }));
+      return;
+    }
+    if (parsed.data.resolution === 'ACCEPTED') {
+      res.json(await acceptDispatchHandoff({
+        shipmentId,
+        handoffId,
+        expectedVersion: parsed.data.expectedVersion,
+        actor: actor as typeof actor & { role: Role.ADMIN | Role.MANAGER },
+      }));
+      return;
+    }
     res.json(await resolveHandoff(handoffId, parsed.data.resolution, actor.userId, parsed.data.expectedVersion, {
       rejectReason: parsed.data.rejectReason,
       expectedShipmentId: shipmentId,
     }));
+  }),
+);
+
+router.get(
+  '/operational-sites',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CLERK),
+  asyncHandler(async (req: Request, res: Response) => {
+    const customerId = Number(req.query.customerId);
+    if (!Number.isInteger(customerId) || customerId < 1) {
+      throw new ApiError(400, 'customerId không hợp lệ.');
+    }
+    res.json({ items: await listOperationalSitesForIntake(customerId, getUser(req)) });
   }),
 );
 
@@ -352,6 +481,7 @@ router.post(
     const { shipment, replayed } = await createShipmentIdempotent(
       {
         customerId: parsed.data.customerId,
+        routeId: parsed.data.routeId,
         cargoTypeId: parsed.data.cargoTypeId,
         responsibleUnitId: parsed.data.responsibleUnitId,
         bookingRef: parsed.data.bookingRef,
@@ -411,6 +541,7 @@ router.put(
         const shipment = await updateShipment(id, {
           expectedVersion: parsed.data.expectedVersion,
           customerId: parsed.data.customerId,
+          routeId: parsed.data.routeId,
           cargoTypeId: parsed.data.cargoTypeId,
           responsibleUnitId: parsed.data.responsibleUnitId,
           bookingRef: parsed.data.bookingRef,
@@ -479,44 +610,40 @@ router.post(
   }),
 );
 
-// ─── POST /:id/dispatch — shipment → linked trip ───────────────────────────
-//
-// Creates a trip linked to this shipment, snapshots the shipment's containers
-// into the new trip, and moves the shipment to IN_PROGRESS. Idempotent: a
-// second call for an already-dispatched shipment returns the existing trip.
+// ─── POST /:id/dispatch — fulfillment → linked trip ────────────────────────
 router.post(
   '/:id/dispatch',
   requireRoles(Role.ADMIN, Role.MANAGER),
   asyncHandler(async (req: Request, res: Response) => {
     const id = parseId(req, res);
     if (id === null) return;
-    const parsed = dispatchShipmentSchema.safeParse(req.body);
+    const parsed = fulfillmentDispatchSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     const user = getUser(req);
-    const outcome = await runShipmentWrite(
-      req,
-      IDEMPOTENCY_ENDPOINTS.SHIPMENT_DISPATCH,
-      { shipmentId: id, data: parsed.data },
-      async (tx) => {
-        const shipment = await getShipment(id, tx);
-        const dispatch = await dispatchShipmentToTrip(
-          id,
-          parsed.data,
-          { userId: user.userId, role: user.role },
-          tx,
-        );
-        return {
-          body: dispatch,
-          status: dispatch.created ? 201 : 200,
-          auditEntityId: id,
-          auditEntityKey: shipment.shipmentCode ?? `#${id}`,
-        };
-      },
-    );
-    if (!outcome.replayed) {
-      await completeShipmentDispatchSideEffects(outcome.result.body, id);
-    }
-    sendShipmentWrite(res, outcome.result);
+    const shipment = await getShipment(id);
+    const outcome = await issueFulfillmentDispatchOrder({
+      shipmentId: id,
+      fulfillmentId: parsed.data.fulfillmentId,
+      expectedVersion: parsed.data.expectedVersion,
+      plannedStartAt: parsed.data.plannedStartAt,
+      plannedEndAt: parsed.data.plannedEndAt,
+      endTimeConfirmed: parsed.data.endTimeConfirmed,
+      carrierType: parsed.data.carrierType,
+      cargoTypeId: parsed.data.cargoTypeId ?? null,
+      truckId: parsed.data.truckId ?? null,
+      driverId: parsed.data.driverId ?? null,
+      trailerId: parsed.data.trailerId ?? null,
+      containerTypeId: parsed.data.containerTypeId ?? null,
+      externalCarrierId: parsed.data.externalCarrierId ?? null,
+      externalPlateNumber: parsed.data.externalPlateNumber ?? null,
+      externalDriverName: parsed.data.externalDriverName ?? null,
+      externalDriverPhone: parsed.data.externalDriverPhone ?? null,
+      idempotencyKey: getRequestIdempotencyKey(req) ?? '',
+      actor: user as typeof user & { role: Role.ADMIN | Role.MANAGER },
+    });
+    res.locals.auditEntityId = id;
+    res.locals.auditEntityKey = shipment.shipmentCode ?? `#${id}`;
+    res.status(outcome.replayed ? 200 : 201).json(outcome);
   }),
 );
 

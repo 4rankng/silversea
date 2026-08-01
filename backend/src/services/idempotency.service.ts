@@ -70,6 +70,7 @@ export const IDEMPOTENCY_ENDPOINTS = {
   SHIPMENT_CONTAINERS_RECONCILE: 'shipments.containers.reconcile',
   SHIPMENT_CHANGE_REQUEST_REVIEW: 'shipments.change-requests.review',
   SHIPMENT_FULFILLMENTS_DECOMPOSE: 'shipments.fulfillments.decompose',
+  SHIPMENT_SUBMIT_FOR_DISPATCH: 'shipments.submit-for-dispatch',
   SHIPMENT_FULFILLMENT_ASSIGN: 'shipments.fulfillments.assign',
   SHIPMENT_FULFILLMENT_CANCEL: 'shipments.fulfillments.cancel',
   SHIPMENT_DELETE: 'shipments.delete',

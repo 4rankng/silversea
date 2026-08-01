@@ -141,6 +141,18 @@ export interface UpdateShipmentInput {
   updatedBy?: number | null;
 }
 
+export interface ShipmentContainerInput {
+  id?: number;
+  containerTypeId?: number | null;
+  containerNumber?: string | null;
+  sealNumber?: string | null;
+  cargoWeightKg?: string | number | null;
+  shippingLineName?: string | null;
+  pickupPortId?: number | null;
+  dropoffPortId?: number | null;
+  notes?: string | null;
+}
+
 export interface ListShipmentsOptions {
   customerId?: number;
   customerIds?: number[];
@@ -1029,14 +1041,7 @@ async function reconcileShipmentContainersInTx(
   tx: Tx,
   shipmentId: number,
   userId: number | null,
-  containers: Array<{
-    id?: number;
-    containerTypeId?: number | null;
-    containerNumber?: string | null;
-    sealNumber?: string | null;
-    cargoWeightKg?: string | number | null;
-    notes?: string | null;
-  }>,
+  containers: ShipmentContainerInput[],
 ) {
   const current = await tx.select()
     .from(s.shipmentContainers)
@@ -1058,6 +1063,9 @@ async function reconcileShipmentContainersInTx(
       containerNumber: container.containerNumber?.trim() || null,
       sealNumber: container.sealNumber?.trim() || null,
       cargoWeightKg: container.cargoWeightKg != null ? String(container.cargoWeightKg) : null,
+      shippingLineName: container.shippingLineName?.trim() || null,
+      pickupPortId: container.pickupPortId ?? null,
+      dropoffPortId: container.dropoffPortId ?? null,
       notes: container.notes ?? null,
       updatedAt: new Date(),
     };
@@ -1162,49 +1170,21 @@ function assertContainerSetValid(
 export async function batchUpsertShipmentContainers(
   shipmentId: number,
   userId: number | null,
-  containers: Array<{
-    id?: number;
-    containerTypeId?: number | null;
-    containerNumber?: string | null;
-    sealNumber?: string | null;
-    cargoWeightKg?: string | number | null;
-    notes?: string | null;
-  }>,
+  containers: ShipmentContainerInput[],
 ): Promise<Array<{ id: number }>>;
 export async function batchUpsertShipmentContainers(
   shipmentId: number,
   userId: number | null,
   expectedVersion: number,
-  containers: Array<{
-    id?: number;
-    containerTypeId?: number | null;
-    containerNumber?: string | null;
-    sealNumber?: string | null;
-    cargoWeightKg?: string | number | null;
-    notes?: string | null;
-  }>,
+  containers: ShipmentContainerInput[],
   actor?: AuthUser,
   transaction?: Tx,
 ): Promise<ShipmentContainerMutationResult>;
 export async function batchUpsertShipmentContainers(
   shipmentId: number,
   userId: number | null,
-  expectedVersionOrContainers: number | Array<{
-    id?: number;
-    containerTypeId?: number | null;
-    containerNumber?: string | null;
-    sealNumber?: string | null;
-    cargoWeightKg?: string | number | null;
-    notes?: string | null;
-  }>,
-  maybeContainers?: Array<{
-    id?: number;
-    containerTypeId?: number | null;
-    containerNumber?: string | null;
-    sealNumber?: string | null;
-    cargoWeightKg?: string | number | null;
-    notes?: string | null;
-  }>,
+  expectedVersionOrContainers: number | ShipmentContainerInput[],
+  maybeContainers?: ShipmentContainerInput[],
   actor?: AuthUser,
   transaction?: Tx,
 ): Promise<ShipmentContainerMutationResult | Array<{ id: number }>> {

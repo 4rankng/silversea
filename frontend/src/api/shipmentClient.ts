@@ -15,6 +15,7 @@ export interface Shipment {
   shipmentCode: string | null;
   version: number;
   customerId: number;
+  routeId?: number | null;
   responsibleUnitId: number | null;
   status: ShipmentStatus;
   bookingRef: string | null;
@@ -26,6 +27,8 @@ export interface Shipment {
   contactPhone: string | null;
   tradeDirection?: 'IMPORT' | 'EXPORT' | null;
   cargoMode?: 'FCL' | 'LCL' | null;
+  operationalSiteId?: number | null;
+  pickupWarehouseSiteId?: number | null;
   factoryName?: string | null;
   shippingLineName?: string | null;
   customsCutoffAt?: string | null;
@@ -45,6 +48,7 @@ export interface Shipment {
 /** Body for `POST /api/shipments/quick` — matches `quickCreateShipmentSchema`. */
 export interface QuickCreateShipmentRequest {
   customerId: number;
+  routeId?: number | null;
   responsibleUnitId?: number | null;
   bookingRef?: string | null;
   blNumber?: string | null;
@@ -55,6 +59,8 @@ export interface QuickCreateShipmentRequest {
   contactPhone?: string | null;
   tradeDirection?: 'IMPORT' | 'EXPORT' | null;
   cargoMode?: 'FCL' | 'LCL' | null;
+  operationalSiteId?: number | null;
+  pickupWarehouseSiteId?: number | null;
   factoryName?: string | null;
   shippingLineName?: string | null;
   customsCutoffAt?: string | null;
@@ -103,7 +109,27 @@ export interface ShipmentContainer {
   containerNumber: string | null;
   sealNumber: string | null;
   cargoWeightKg: string | null;
+  shippingLineName?: string | null;
+  pickupPortId?: number | null;
+  dropoffPortId?: number | null;
   notes: string | null;
+}
+
+export interface OperationalSite {
+  id: number;
+  customerId: number;
+  code: string;
+  name: string;
+  siteType: 'FACTORY' | 'WAREHOUSE';
+  address: string;
+  googleMapsUrl: string | null;
+  contactName: string | null;
+  contactPhone: string | null;
+  liftFeeInvoiceName: string | null;
+  liftFeeInvoiceAddress: string | null;
+  liftFeeTaxCode: string | null;
+  strictRules: string | null;
+  version: number;
 }
 
 /** Full detail payload returned by `GET /api/shipments/:id`. */
@@ -120,6 +146,7 @@ export interface ShipmentDetail {
 export interface UpdateShipmentRequest {
   expectedVersion: number;
   customerId?: number;
+  routeId?: number | null;
   responsibleUnitId?: number | null;
   blNumber?: string | null;
   bookingRef?: string | null;
@@ -130,6 +157,8 @@ export interface UpdateShipmentRequest {
   contactPhone?: string | null;
   tradeDirection?: 'IMPORT' | 'EXPORT' | null;
   cargoMode?: 'FCL' | 'LCL' | null;
+  operationalSiteId?: number | null;
+  pickupWarehouseSiteId?: number | null;
   factoryName?: string | null;
   shippingLineName?: string | null;
   customsCutoffAt?: string | null;
@@ -151,6 +180,9 @@ export interface ShipmentContainerBatch {
     containerNumber?: string | null;
     sealNumber?: string | null;
     cargoWeightKg?: string | number | null;
+    shippingLineName?: string | null;
+    pickupPortId?: number | null;
+    dropoffPortId?: number | null;
     notes?: string | null;
   }>;
 }
@@ -303,6 +335,25 @@ export async function saveShipmentContainers(
   body: ShipmentContainerBatch,
 ): Promise<ShipmentContainerBatchResponse> {
   return api.put<ShipmentContainerBatchResponse>(`/shipments/${id}/containers`, body);
+}
+
+export async function listOperationalSites(customerId: number): Promise<OperationalSite[]> {
+  const response = await api.get<{ items: OperationalSite[] }>(
+    `/shipments/operational-sites?customerId=${encodeURIComponent(customerId)}`,
+  );
+  return response.items;
+}
+
+export async function submitShipmentForDispatch(
+  id: number,
+  body: { expectedVersion: number; priority?: 'NORMAL' | 'URGENT'; operationalNote?: string | null },
+  idempotencyKey: string,
+) {
+  return api.post<{ shipment: Shipment; handoff: { id: number; status: 'UNSEEN' }; replayed: boolean }>(
+    `/shipments/${id}/submit-for-dispatch`,
+    body,
+    { headers: { 'Idempotency-Key': idempotencyKey } },
+  );
 }
 
 export async function addShipmentDocument(

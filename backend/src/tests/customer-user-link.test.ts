@@ -217,7 +217,7 @@ describe('customer account linkage', () => {
     assert.deepEqual(updated.customerIds, [secondaryCustomerId]);
   });
 
-  test('allows ADMIN to create and update DRIVER payroll-unit links', async () => {
+  test('allows ADMIN to manage DRIVER payroll-unit links without auto-creating a driver master', async () => {
     const [secondaryUnit] = await db.insert(s.businessUnits).values({
       code: `DRV-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
       name: `Driver payroll unit ${suffix}`,
@@ -234,6 +234,9 @@ describe('customer account linkage', () => {
 
     try {
       assert.deepEqual(driver.businessUnitIds, [businessUnitId]);
+      const autoCreatedDriver = await db.select({ id: s.drivers.id }).from(s.drivers)
+        .where(eq(s.drivers.userId, driver.id));
+      assert.equal(autoCreatedDriver.length, 0);
 
       const updated = await updateUser(driver.id, {
         businessUnitIds: [secondaryUnit.id],

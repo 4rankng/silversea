@@ -1,63 +1,36 @@
-// ClerkShipmentCreatePage — M10.1 mobile quick-shipment-create for the
-// CLERK (nhân viên chứng từ) role.
-//
-// Minimum data set: `customerId` is the only required field (mirrors the
-// backend `quickCreateShipmentSchema` — every other field is optional and
-// typically filled later from the M10.2 doc-entry page). On submit the page
-// generates a UUID v4 idempotency key and POSTs `/api/shipments/quick` with
-// it in the `Idempotency-Key` header, so a flaky-network resubmit returns
-// the original shipment instead of creating a duplicate (PRD M10-01-03,
-// Q23 proposal).
-//
-// Mobile-first: single column, large touch targets, Vietnamese labels per
-// PRD Mxx-HT-01. The success path navigates to the shipment detail page;
-// both 201 (created) and 200 (idempotent replay) are treated as success.
-
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check } from 'lucide-react';
-import { TextField, SelectField, EmptyState } from '../../design-system';
-import { tripClient } from '../../api/tripClient';
-import { quickCreateShipment } from '../../api/shipmentClient';
+import { ArrowLeft, Check, Eye, Plus, Send, Trash2 } from 'lucide-react';
+import { EmptyState, SelectField, TextField } from '../../design-system';
+import { tripClient, type CatalogData } from '../../api/tripClient';
+import {
+  listOperationalSites,
+  createShipmentDeclaration,
+  quickCreateShipment,
+  saveShipmentContainers,
+  submitShipmentForDispatch,
+  type OperationalSite,
+} from '../../api/shipmentClient';
 import { localDateTimeToIso } from '../../lib/shipment-operations';
+import { OperationalSiteDetailsDialog } from '../../components/shipment/OperationalSiteDetailsDialog';
 
-interface ClerkCustomerOption {
-  id: number;
-  name: string;
-}
-
-/** Minimal UUID v4 generator. Defers to `crypto.randomUUID` when available
- *  (every modern browser); falls back to the RFC 4122 §4.4 random-from-
- *  `crypto.getRandomValues` construction for older runtimes. */
-function uuidv4(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  // Per RFC 4122 §4.4: set version (4) and variant (10xx) bits.
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0'));
-  return `${hex.slice(0, 4).join('')}-${hex.slice(4, 6).join('')}-${hex.slice(6, 8).join('')}-${hex.slice(8, 10).join('')}-${hex.slice(10, 16).join('')}`;
-}
+type CargoMode = 'FCL' | 'LCL';
+type SaveIntent = 'DRAFT' | 'SUBMIT';
 
 interface FormState {
   customerId: string;
+  routeId: string;
   bookingRef: string;
   blNumber: string;
-  expectedDeliveryDate: string;
-  pickupLocation: string;
-  deliveryLocation: string;
-  contactName: string;
-  contactPhone: string;
+  declarationNumber: string;
   tradeDirection: '' | 'IMPORT' | 'EXPORT';
-  cargoMode: 'FCL' | 'LCL';
-  factoryName: string;
-  shippingLineName: string;
+  cargoMode: CargoMode;
+  operationalSiteId: string;
+  pickupWarehouseSiteId: string;
   customsCutoffAt: string;
   closingAt: string;
   plannedReturnAt: string;
+  expectedDeliveryDate: string;
   cargoWeightKg: string;
   cargoVolumeCbm: string;
   packageCount: string;
@@ -65,440 +38,278 @@ interface FormState {
   operationalNotes: string;
 }
 
+interface ContainerRow {
+  key: string;
+  containerNumber: string;
+  containerTypeId: string;
+  shippingLineName: string;
+  pickupPortId: string;
+  dropoffPortId: string;
+  cargoWeightKg: string;
+}
+
 const EMPTY_FORM: FormState = {
-  customerId: '',
-  bookingRef: '',
-  blNumber: '',
-  expectedDeliveryDate: '',
-  pickupLocation: '',
-  deliveryLocation: '',
-  contactName: '',
-  contactPhone: '',
-  tradeDirection: '',
-  cargoMode: 'FCL',
-  factoryName: '',
-  shippingLineName: '',
-  customsCutoffAt: '',
-  closingAt: '',
-  plannedReturnAt: '',
-  cargoWeightKg: '',
-  cargoVolumeCbm: '',
-  packageCount: '',
-  packageType: '',
-  operationalNotes: '',
+  customerId: '', routeId: '', bookingRef: '', blNumber: '', declarationNumber: '',
+  tradeDirection: '', cargoMode: 'FCL', operationalSiteId: '', pickupWarehouseSiteId: '',
+  customsCutoffAt: '', closingAt: '', plannedReturnAt: '', expectedDeliveryDate: '', cargoWeightKg: '',
+  cargoVolumeCbm: '', packageCount: '', packageType: '', operationalNotes: '',
+};
+
+function newContainer(): ContainerRow {
+  return { key: crypto.randomUUID(), containerNumber: '', containerTypeId: '', shippingLineName: '', pickupPortId: '', dropoffPortId: '', cargoWeightKg: '' };
+}
+
+function uuidv4(): string {
+  return crypto.randomUUID();
+}
+
+const sectionStyle: React.CSSProperties = {
+  border: '1px solid var(--border-2)', borderRadius: 10, padding: 16,
+  display: 'grid', gap: 16, background: 'var(--surface-1)', minWidth: 0,
+};
+
+const gridStyle: React.CSSProperties = {
+  display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: 16, minWidth: 0,
 };
 
 export default function ClerkShipmentCreatePage() {
   const navigate = useNavigate();
-  const [customers, setCustomers] = useState<ClerkCustomerOption[]>([]);
-  const [customersLoading, setCustomersLoading] = useState(true);
-  const [customersError, setCustomersError] = useState<string | null>(null);
+  const [catalogs, setCatalogs] = useState<CatalogData | null>(null);
+  const [sites, setSites] = useState<OperationalSite[]>([]);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
-  const [submitting, setSubmitting] = useState(false);
+  const [containers, setContainers] = useState<ContainerRow[]>([newContainer()]);
+  const [loading, setLoading] = useState(true);
+  const [sitesLoading, setSitesLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [saving, setSaving] = useState<SaveIntent | null>(null);
+  const [detailSite, setDetailSite] = useState<OperationalSite | null>(null);
 
-  // Load the shipment/customer bootstrap once on mount. This endpoint is
-  // auth-only (not config-gated), so CLERK can read the same active customer
-  // catalog the trip-create flow uses without broadening config permissions.
   useEffect(() => {
     let cancelled = false;
-    setCustomersLoading(true);
-    tripClient
-      .getBootstrap()
-      .then((bootstrap) => {
-        if (!cancelled) setCustomers(bootstrap.customers);
-      })
-      .catch(() => {
-        if (!cancelled) setCustomersError('Không thể tải danh sách khách hàng');
-      })
-      .finally(() => {
-        if (!cancelled) setCustomersLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
+    tripClient.getBootstrap()
+      .then((value) => { if (!cancelled) setCatalogs(value); })
+      .catch(() => { if (!cancelled) setLoadError('Không thể tải dữ liệu danh mục'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, []);
 
-  const customerOptions = useMemo(
-    () =>
-      customers.map((c) => ({ value: String(c.id), label: c.name })),
-    [customers],
-  );
+  useEffect(() => {
+    if (!form.customerId) { setSites([]); return; }
+    let cancelled = false;
+    setSitesLoading(true);
+    listOperationalSites(Number(form.customerId))
+      .then((value) => { if (!cancelled) setSites(value); })
+      .catch(() => { if (!cancelled) setSubmitError('Không thể tải danh sách nhà máy của khách hàng'); })
+      .finally(() => { if (!cancelled) setSitesLoading(false); });
+    return () => { cancelled = true; };
+  }, [form.customerId]);
+
+  const operationalSites = useMemo(() => sites.filter((site) => site.siteType === 'FACTORY'), [sites]);
+  const warehouseSites = useMemo(() => sites.filter((site) => site.siteType === 'WAREHOUSE'), [sites]);
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
-    setForm((prev) => ({ ...prev, [key]: value }));
-    // Clear any prior submit error as soon as the user edits the form —
-    // the old error no longer applies to the new input.
-    if (submitError) setSubmitError(null);
-  }
-
-  function handleCargoModeChange(nextMode: FormState['cargoMode']) {
-    setForm((current) => {
-      if (current.cargoMode === nextMode) return current;
-      if (current.cargoMode === 'LCL' && nextMode === 'FCL') {
-        const hasLclData = Boolean(
-          current.cargoVolumeCbm || current.packageCount || current.packageType,
-        );
-        if (hasLclData && !window.confirm('Chuyển sang Container (FCL) sẽ xóa thể tích, số kiện và loại kiện LCL đã nhập. Tiếp tục?')) {
-          return current;
-        }
-        return {
-          ...current,
-          cargoMode: nextMode,
-          cargoVolumeCbm: '',
-          packageCount: '',
-          packageType: '',
-        };
-      }
-      return { ...current, cargoMode: nextMode };
-    });
-    if (submitError) setSubmitError(null);
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!form.customerId) {
-      setSubmitError('Vui lòng chọn khách hàng');
-      return;
-    }
-    setSubmitting(true);
+    setForm((current) => ({ ...current, [key]: value }));
     setSubmitError(null);
-    // One UUID per form submission attempt. The offline-queue lib (separate
-    // roadmap item) will reuse this same key when it replays a queued
-    // request after a dropped connection.
-    const idempotencyKey = uuidv4();
+  }
+
+  function selectCustomer(value: string) {
+    setForm((current) => ({ ...current, customerId: value, operationalSiteId: '', pickupWarehouseSiteId: '' }));
+    setSites([]);
+    setSubmitError(null);
+  }
+
+  function selectOperationalSite(value: string) {
+    update('operationalSiteId', value);
+    const selected = sites.find((site) => String(site.id) === value) ?? null;
+    if (selected) setDetailSite(selected);
+  }
+
+  function changeMode(next: CargoMode) {
+    if (next === form.cargoMode) return;
+    const hasModeData = form.cargoMode === 'LCL'
+      ? Boolean(form.packageType || form.packageCount || form.cargoVolumeCbm)
+      : containers.some((row) => Object.entries(row).some(([key, value]) => key !== 'key' && value));
+    if (hasModeData && !window.confirm(`Chuyển sang ${next} sẽ xóa dữ liệu hàng hóa đã nhập. Tiếp tục?`)) return;
+    setForm((current) => ({ ...current, cargoMode: next, cargoVolumeCbm: '', packageCount: '', packageType: '', cargoWeightKg: '' }));
+    setContainers([newContainer()]);
+  }
+
+  function updateContainer(key: string, field: keyof Omit<ContainerRow, 'key'>, value: string) {
+    setContainers((current) => current.map((row) => row.key === key ? { ...row, [field]: value } : row));
+    setSubmitError(null);
+  }
+
+  function validate(intent: SaveIntent): string | null {
+    if (!form.customerId) return 'Vui lòng chọn khách hàng';
+    if (intent === 'DRAFT') return null;
+    if (!form.bookingRef && !form.blNumber) return 'Vui lòng nhập Số Bill hoặc Số Booking';
+    if (!form.routeId) return 'Vui lòng chọn tuyến đường';
+    if (!form.operationalSiteId) return 'Vui lòng chọn nhà máy';
+    if (form.cargoMode === 'FCL') {
+      const incomplete = containers.some((row) => !row.containerNumber || !row.containerTypeId || !row.shippingLineName || !row.pickupPortId || !row.dropoffPortId);
+      if (incomplete) return 'Vui lòng nhập đủ số container, loại container, hãng tàu, cảng nâng và cảng hạ';
+    } else if (!form.pickupWarehouseSiteId || !form.packageType || !form.packageCount || !form.cargoWeightKg || !form.cargoVolumeCbm || !form.expectedDeliveryDate) {
+      return 'Vui lòng nhập đủ kho lấy hàng, quy cách, số lượng, trọng lượng, thể tích và ngày giao dự kiến';
+    }
+    return null;
+  }
+
+  async function save(intent: SaveIntent) {
+    const validationError = validate(intent);
+    if (validationError) { setSubmitError(validationError); return; }
+    setSaving(intent);
+    setSubmitError(null);
     try {
-      const shipment = await quickCreateShipment(
-        {
-          customerId: Number(form.customerId),
-          bookingRef: form.bookingRef || null,
-          blNumber: form.blNumber || null,
-          expectedDeliveryDate: form.expectedDeliveryDate || null,
-          pickupLocation: form.pickupLocation || null,
-          deliveryLocation: form.deliveryLocation || null,
-          contactName: form.contactName || null,
-          contactPhone: form.contactPhone || null,
-          tradeDirection: form.tradeDirection || null,
-          cargoMode: form.cargoMode,
-          factoryName: form.factoryName || null,
-          shippingLineName: form.shippingLineName || null,
-          customsCutoffAt: localDateTimeToIso(form.customsCutoffAt),
-          closingAt: localDateTimeToIso(form.closingAt),
-          plannedReturnAt: localDateTimeToIso(form.plannedReturnAt),
-          cargoWeightKg: form.cargoWeightKg || null,
-          ...(form.cargoMode === 'LCL' ? {
-            cargoVolumeCbm: form.cargoVolumeCbm || null,
-            packageCount: form.packageCount ? Number(form.packageCount) : null,
-            packageType: form.packageType || null,
-          } : {}),
-          operationalNotes: form.operationalNotes || null,
-        },
-        idempotencyKey,
-      );
-      // 201 (created) and 200 (idempotent replay) are both success. Navigate
-      // to the shipment detail; the clerk's next step (M10.2 doc entry)
-      // happens there.
+      const firstContainer = containers[0];
+      const shipment = await quickCreateShipment({
+        customerId: Number(form.customerId),
+        routeId: form.routeId ? Number(form.routeId) : null,
+        bookingRef: form.bookingRef || null,
+        blNumber: form.blNumber || null,
+        tradeDirection: form.tradeDirection || null,
+        cargoMode: form.cargoMode,
+        operationalSiteId: form.operationalSiteId ? Number(form.operationalSiteId) : null,
+        pickupWarehouseSiteId: form.pickupWarehouseSiteId ? Number(form.pickupWarehouseSiteId) : null,
+        factoryName: sites.find((site) => String(site.id) === form.operationalSiteId)?.name ?? null,
+        shippingLineName: form.cargoMode === 'FCL' ? firstContainer?.shippingLineName || null : null,
+        customsCutoffAt: localDateTimeToIso(form.customsCutoffAt),
+        closingAt: localDateTimeToIso(form.closingAt),
+        plannedReturnAt: localDateTimeToIso(form.plannedReturnAt),
+        expectedDeliveryDate: form.expectedDeliveryDate || null,
+        cargoWeightKg: form.cargoMode === 'LCL' ? form.cargoWeightKg || null : null,
+        cargoVolumeCbm: form.cargoMode === 'LCL' ? form.cargoVolumeCbm || null : null,
+        packageCount: form.cargoMode === 'LCL' && form.packageCount ? Number(form.packageCount) : null,
+        packageType: form.cargoMode === 'LCL' ? form.packageType || null : null,
+        operationalNotes: [form.declarationNumber ? `Số tờ khai: ${form.declarationNumber}` : '', form.operationalNotes].filter(Boolean).join('\n') || null,
+      }, uuidv4());
+
+      let version = shipment.version;
+      if (form.declarationNumber) {
+        await createShipmentDeclaration(shipment.id, {
+          declarationNumber: form.declarationNumber,
+          scope: 'SINGLE',
+        });
+      }
+      if (form.cargoMode === 'FCL') {
+        const rowsToSave = containers.filter((row) => Object.entries(row).some(([key, value]) => key !== 'key' && value));
+        if (rowsToSave.length > 0) {
+          const result = await saveShipmentContainers(shipment.id, {
+            expectedVersion: version,
+            containers: rowsToSave.map((row) => ({
+              containerNumber: row.containerNumber || null,
+              containerTypeId: row.containerTypeId ? Number(row.containerTypeId) : null,
+              shippingLineName: row.shippingLineName || null,
+              pickupPortId: row.pickupPortId ? Number(row.pickupPortId) : null,
+              dropoffPortId: row.dropoffPortId ? Number(row.dropoffPortId) : null,
+              cargoWeightKg: row.cargoWeightKg || null,
+            })),
+          });
+          version = result.shipmentVersion;
+        }
+      }
+      if (intent === 'SUBMIT') {
+        await submitShipmentForDispatch(shipment.id, { expectedVersion: version, operationalNote: form.operationalNotes || null }, uuidv4());
+      }
       navigate(`/clerk/shipments/${shipment.id}/docs`);
-    } catch (err) {
-      // Surface any server/network-provided Vietnamese message; fall back to
-      // a generic hint when there is no usable message. The api wrapper
-      // already translates HTTP error bodies via `ApiError.fromResponse`, so
-      // `err.message` is user-facing when present.
-      const message =
-        err instanceof Error && err.message.trim()
-          ? err.message
-          : 'Không thể tạo lô hàng. Vui lòng thử lại.';
-      setSubmitError(message);
+    } catch (error) {
+      setSubmitError(error instanceof Error && error.message.trim() ? error.message : 'Không thể lưu lô hàng. Vui lòng thử lại.');
     } finally {
-      setSubmitting(false);
+      setSaving(null);
     }
   }
+
+  if (loading) return <div style={{ padding: 48, textAlign: 'center', color: 'var(--fg-3)' }}>Đang tải…</div>;
+  if (loadError) return <div role="alert" style={{ padding: 24, color: 'var(--danger)' }}>{loadError}</div>;
+  if (!catalogs?.customers.length) return <EmptyState title="Chưa có khách hàng" description="Cần ít nhất một khách hàng trước khi tạo lô hàng." />;
 
   return (
-    <div style={{ padding: 16, maxWidth: 960, margin: '0 auto', minWidth: 0 }}>
-      <button
-        type="button"
-        onClick={() => navigate(-1)}
-        aria-label="Quay lại"
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 6,
-          background: 'none',
-          border: 'none',
-          color: 'var(--fg-2)',
-          fontSize: 14,
-          minHeight: 44,
-          padding: '8px 4px',
-          cursor: 'pointer',
-        }}
-      >
+    <div style={{ padding: 16, maxWidth: 1120, margin: '0 auto', minWidth: 0 }}>
+      <button type="button" onClick={() => navigate(-1)} aria-label="Quay lại" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44, padding: '8px 4px', border: 0, background: 'none', color: 'var(--fg-2)', cursor: 'pointer' }}>
         <ArrowLeft size={18} /> Quay lại
       </button>
+      <h1 style={{ fontSize: 24, margin: '8px 0 4px' }}>Tạo lô hàng mới</h1>
+      <p style={{ color: 'var(--fg-3)', margin: '0 0 20px' }}>Lưu nháp để bổ sung sau, hoặc nhập đủ thông tin và gửi sang bảng điều phối.</p>
 
-      <h1 style={{ fontSize: 22, fontWeight: 700, marginTop: 8, marginBottom: 4 }}>
-        Tạo lô hàng
-      </h1>
-      <p style={{ color: 'var(--fg-3)', fontSize: 14, marginBottom: 24 }}>
-        Nhập thông tin tối thiểu để tạo lô nháp. Có thể bổ sung sau.
-      </p>
+      <form onSubmit={(event) => { event.preventDefault(); void save('DRAFT'); }} style={{ display: 'grid', gap: 16 }}>
+        <section style={sectionStyle}>
+          <h2 style={{ fontSize: 17, margin: 0 }}>Thông tin chung</h2>
+          <div style={gridStyle}>
+            <SelectField label="Khách hàng" required value={form.customerId} onChange={(event) => selectCustomer(event.target.value)} disabled={Boolean(saving)}>
+              <option value="">— Chọn khách hàng —</option>
+              {catalogs.customers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </SelectField>
+            <SelectField label="Tuyến đường" value={form.routeId} onChange={(event) => update('routeId', event.target.value)} disabled={Boolean(saving)}>
+              <option value="">— Chọn tuyến đường —</option>
+              {(catalogs.routes ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </SelectField>
+            <TextField label="Số booking" value={form.bookingRef} onChange={(event) => update('bookingRef', event.target.value)} maxLength={100} disabled={Boolean(saving)} />
+            <TextField label="Số vận đơn (B/L)" value={form.blNumber} onChange={(event) => update('blNumber', event.target.value)} maxLength={100} disabled={Boolean(saving)} />
+            <TextField label="Số tờ khai" value={form.declarationNumber} onChange={(event) => update('declarationNumber', event.target.value)} maxLength={100} disabled={Boolean(saving)} />
+            <SelectField label="Chiều hàng" value={form.tradeDirection} onChange={(event) => update('tradeDirection', event.target.value as FormState['tradeDirection'])} disabled={Boolean(saving)}>
+              <option value="">— Chọn chiều hàng —</option><option value="IMPORT">Nhập khẩu</option><option value="EXPORT">Xuất khẩu</option>
+            </SelectField>
+          </div>
+          <div style={gridStyle}>
+            <SelectField label="Nhà máy" value={form.operationalSiteId} onChange={(event) => selectOperationalSite(event.target.value)} disabled={!form.customerId || sitesLoading || Boolean(saving)}>
+              <option value="">{sitesLoading ? 'Đang tải…' : '— Chọn nhà máy —'}</option>
+              {operationalSites.map((site) => <option key={site.id} value={site.id}>{site.name}</option>)}
+            </SelectField>
+            {form.operationalSiteId && <button type="button" onClick={() => setDetailSite(sites.find((site) => String(site.id) === form.operationalSiteId) ?? null)} style={{ alignSelf: 'end', minHeight: 44, border: '1px solid var(--border-2)', borderRadius: 8, background: 'var(--surface-1)', color: 'var(--fg-1)', fontWeight: 600, cursor: 'pointer' }}><Eye size={17} style={{ verticalAlign: 'middle', marginRight: 7 }} />Xem thông tin nhà máy</button>}
+          </div>
+        </section>
 
-      {customersLoading ? (
-        <div style={{ textAlign: 'center', padding: 48, color: 'var(--fg-3)' }}>
-          Đang tải…
-        </div>
-      ) : customersError ? (
-        <div style={{ color: 'var(--danger)', padding: 16 }}>{customersError}</div>
-      ) : customerOptions.length === 0 ? (
-        <EmptyState
-          title="Chưa có khách hàng"
-          description="Cần ít nhất một khách hàng trước khi tạo lô hàng."
-        />
-      ) : (
-        <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <SelectField
-            label="Khách hàng"
-            required
-            value={form.customerId}
-            onChange={(e) => update('customerId', e.target.value)}
-            disabled={submitting}
-          >
-            <option value="">— Chọn khách hàng —</option>
-            {customerOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
+        <section style={sectionStyle}>
+          <h2 style={{ fontSize: 17, margin: 0 }}>Hình thức hàng</h2>
+          <SelectField label="Loại lô hàng" value={form.cargoMode} onChange={(event) => changeMode(event.target.value as CargoMode)} disabled={Boolean(saving)}>
+            <option value="FCL">Hàng nguyên container (FCL)</option><option value="LCL">Hàng lẻ (LCL)</option>
           </SelectField>
-
-          <TextField
-            label="Số booking"
-            value={form.bookingRef}
-            onChange={(e) => update('bookingRef', e.target.value)}
-            placeholder="Ví dụ: COSU1234567"
-            disabled={submitting}
-            maxLength={100}
-          />
-
-          <TextField
-            label="Số vận đơn (B/L)"
-            value={form.blNumber}
-            onChange={(e) => update('blNumber', e.target.value)}
-            placeholder="Ví dụ: MAEU1234567890"
-            disabled={submitting}
-            maxLength={100}
-          />
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-            <SelectField
-              label="Chiều hàng"
-              value={form.tradeDirection}
-              onChange={(e) => update('tradeDirection', e.target.value as FormState['tradeDirection'])}
-              disabled={submitting}
-            >
-              <option value="">— Chọn chiều hàng —</option>
-              <option value="IMPORT">Nhập khẩu</option>
-              <option value="EXPORT">Xuất khẩu</option>
-            </SelectField>
-            <SelectField
-              label="Loại lô hàng"
-              value={form.cargoMode}
-              onChange={(e) => handleCargoModeChange(e.target.value as FormState['cargoMode'])}
-              disabled={submitting}
-            >
-              <option value="FCL">Container (FCL)</option>
-              <option value="LCL">Hàng lẻ (LCL)</option>
-            </SelectField>
-          </div>
-
-          <TextField
-            label="Nhà máy / công trường"
-            value={form.factoryName}
-            onChange={(e) => update('factoryName', e.target.value)}
-            placeholder="Ví dụ: Nhà máy VSIP II"
-            disabled={submitting}
-            maxLength={255}
-          />
-
-          <TextField
-            label="Hãng tàu"
-            value={form.shippingLineName}
-            onChange={(e) => update('shippingLineName', e.target.value)}
-            placeholder="Ví dụ: Maersk"
-            disabled={submitting}
-            maxLength={150}
-          />
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-            <TextField
-              label="Cut-off hải quan"
-              type="datetime-local"
-              value={form.customsCutoffAt}
-              onChange={(e) => update('customsCutoffAt', e.target.value)}
-              disabled={submitting}
-            />
-            <TextField
-              label="Closing time"
-              type="datetime-local"
-              value={form.closingAt}
-              onChange={(e) => update('closingAt', e.target.value)}
-              disabled={submitting}
-            />
-            <TextField
-              label="Thời gian trả"
-              type="datetime-local"
-              value={form.plannedReturnAt}
-              onChange={(e) => update('plannedReturnAt', e.target.value)}
-              disabled={submitting}
-            />
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16 }}>
-            <TextField
-              label="Trọng lượng (kg)"
-              type="number"
-              value={form.cargoWeightKg}
-              onChange={(e) => update('cargoWeightKg', e.target.value)}
-              disabled={submitting}
-              min="0"
-              step="0.01"
-            />
-            {form.cargoMode === 'LCL' && (
-              <>
-                <TextField
-                  label="Thể tích (CBM)"
-                  type="number"
-                  value={form.cargoVolumeCbm}
-                  onChange={(e) => update('cargoVolumeCbm', e.target.value)}
-                  disabled={submitting}
-                  min="0"
-                  step="0.001"
-                />
-                <TextField
-                  label="Số kiện"
-                  type="number"
-                  value={form.packageCount}
-                  onChange={(e) => update('packageCount', e.target.value)}
-                  disabled={submitting}
-                  min="0"
-                  step="1"
-                />
-                <TextField
-                  label="Loại kiện"
-                  value={form.packageType}
-                  onChange={(e) => update('packageType', e.target.value)}
-                  disabled={submitting}
-                  maxLength={100}
-                />
-              </>
-            )}
-          </div>
-
-          <TextField
-            label="Ngày giao hàng dự kiến"
-            type="date"
-            value={form.expectedDeliveryDate}
-            onChange={(e) => update('expectedDeliveryDate', e.target.value)}
-            disabled={submitting}
-          />
-
-          <TextField
-            label="Điểm nhận hàng"
-            value={form.pickupLocation}
-            onChange={(e) => update('pickupLocation', e.target.value)}
-            placeholder="Ví dụ: Cảng Cát Lái"
-            disabled={submitting}
-            maxLength={255}
-          />
-
-          <TextField
-            label="Điểm giao hàng"
-            value={form.deliveryLocation}
-            onChange={(e) => update('deliveryLocation', e.target.value)}
-            placeholder="Ví dụ: Kho Bình Dương"
-            disabled={submitting}
-            maxLength={255}
-          />
-
-          <TextField
-            label="Người liên hệ"
-            value={form.contactName}
-            onChange={(e) => update('contactName', e.target.value)}
-            disabled={submitting}
-            maxLength={100}
-          />
-
-          <TextField
-            label="Số điện thoại liên hệ"
-            type="tel"
-            value={form.contactPhone}
-            onChange={(e) => update('contactPhone', e.target.value)}
-            placeholder="Ví dụ: 0901 234 567"
-            disabled={submitting}
-            maxLength={20}
-          />
-
-          <label style={{ display: 'grid', gap: 8, color: 'var(--fg-2)', fontSize: 14, fontWeight: 600 }}>
-            Ghi chú vận hành
-            <textarea
-              value={form.operationalNotes}
-              onChange={(e) => update('operationalNotes', e.target.value)}
-              disabled={submitting}
-              maxLength={2000}
-              rows={4}
-              style={{
-                width: '100%',
-                minHeight: 96,
-                resize: 'vertical',
-                border: '1px solid var(--border-2)',
-                borderRadius: 8,
-                padding: 12,
-                color: 'var(--fg-1)',
-                background: 'var(--surface-1)',
-                font: 'inherit',
-              }}
-            />
-          </label>
-
-          {submitError && (
-            <div
-              role="alert"
-              style={{
-                color: 'var(--danger)',
-                background: 'var(--danger-bg, rgba(220,38,38,0.08))',
-                padding: '12px 16px',
-                borderRadius: 8,
-                fontSize: 14,
-              }}
-            >
-              {submitError}
+          {form.cargoMode === 'FCL' ? (
+            <div style={{ display: 'grid', gap: 12 }}>
+              {containers.map((row, index) => (
+                <div key={row.key} style={{ border: '1px solid var(--border-2)', borderRadius: 8, padding: 14, display: 'grid', gap: 12, minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><strong>Container {index + 1}</strong>{containers.length > 1 && <button type="button" aria-label={`Xóa container ${index + 1}`} onClick={() => setContainers((current) => current.filter((item) => item.key !== row.key))} style={{ minWidth: 44, minHeight: 44, border: 0, background: 'none', color: 'var(--danger)', cursor: 'pointer' }}><Trash2 size={18} /></button>}</div>
+                  <div style={gridStyle}>
+                    <TextField label="Số container" value={row.containerNumber} onChange={(event) => updateContainer(row.key, 'containerNumber', event.target.value.toUpperCase())} disabled={Boolean(saving)} />
+                    <SelectField label="Loại container" value={row.containerTypeId} onChange={(event) => updateContainer(row.key, 'containerTypeId', event.target.value)} disabled={Boolean(saving)}><option value="">— Chọn loại —</option>{(catalogs.containerTypes ?? []).map((item) => <option key={item.id} value={item.id}>{item.code} — {item.name}</option>)}</SelectField>
+                    <TextField label="Hãng tàu" value={row.shippingLineName} onChange={(event) => updateContainer(row.key, 'shippingLineName', event.target.value)} disabled={Boolean(saving)} />
+                    <SelectField label="Cảng nâng" value={row.pickupPortId} onChange={(event) => updateContainer(row.key, 'pickupPortId', event.target.value)} disabled={Boolean(saving)}><option value="">— Chọn cảng nâng —</option>{(catalogs.ports ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</SelectField>
+                    <SelectField label="Cảng hạ" value={row.dropoffPortId} onChange={(event) => updateContainer(row.key, 'dropoffPortId', event.target.value)} disabled={Boolean(saving)}><option value="">— Chọn cảng hạ —</option>{(catalogs.ports ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</SelectField>
+                    <TextField label="Trọng lượng (kg)" type="number" min="0" step="0.01" value={row.cargoWeightKg} onChange={(event) => updateContainer(row.key, 'cargoWeightKg', event.target.value)} disabled={Boolean(saving)} />
+                  </div>
+                </div>
+              ))}
+              <button type="button" onClick={() => setContainers((current) => [...current, newContainer()])} disabled={Boolean(saving)} style={{ minHeight: 44, border: '1px dashed var(--border-2)', borderRadius: 8, background: 'transparent', color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer' }}><Plus size={18} style={{ verticalAlign: 'middle', marginRight: 7 }} />Thêm container</button>
+            </div>
+          ) : (
+            <div style={gridStyle}>
+              <SelectField label="Kho lấy hàng" value={form.pickupWarehouseSiteId} onChange={(event) => update('pickupWarehouseSiteId', event.target.value)} disabled={sitesLoading || Boolean(saving)}><option value="">— Chọn kho lấy hàng —</option>{warehouseSites.map((site) => <option key={site.id} value={site.id}>{site.name}</option>)}</SelectField>
+              <TextField label="Quy cách đóng gói" value={form.packageType} onChange={(event) => update('packageType', event.target.value)} placeholder="Pallet, carton…" disabled={Boolean(saving)} />
+              <TextField label="Số lượng" type="number" min="1" step="1" value={form.packageCount} onChange={(event) => update('packageCount', event.target.value)} disabled={Boolean(saving)} />
+              <TextField label="Trọng lượng (kg)" type="number" min="0" step="0.01" value={form.cargoWeightKg} onChange={(event) => update('cargoWeightKg', event.target.value)} disabled={Boolean(saving)} />
+              <TextField label="Thể tích (CBM)" type="number" min="0" step="0.001" value={form.cargoVolumeCbm} onChange={(event) => update('cargoVolumeCbm', event.target.value)} disabled={Boolean(saving)} />
             </div>
           )}
+        </section>
 
-          <button
-            type="submit"
-            disabled={submitting}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-              minHeight: 48,
-              padding: '0 24px',
-              background: submitting ? 'var(--fg-3)' : 'var(--accent, #2563eb)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 8,
-              fontSize: 16,
-              fontWeight: 600,
-              cursor: submitting ? 'not-allowed' : 'pointer',
-              width: '100%',
-            }}
-          >
-            {submitting ? 'Đang lưu…' : (<><Check size={18} /> Tạo lô hàng</>)}
-          </button>
-        </form>
-      )}
+        <section style={sectionStyle}>
+          <h2 style={{ fontSize: 17, margin: 0 }}>Mốc thời gian và lưu ý</h2>
+          <div style={gridStyle}>
+            <TextField label="Cut-off tờ khai" type="datetime-local" value={form.customsCutoffAt} onChange={(event) => update('customsCutoffAt', event.target.value)} disabled={Boolean(saving)} />
+            <TextField label="Giờ đóng hàng" type="datetime-local" value={form.closingAt} onChange={(event) => update('closingAt', event.target.value)} disabled={Boolean(saving)} />
+            <TextField label="Thời gian trả" type="datetime-local" value={form.plannedReturnAt} onChange={(event) => update('plannedReturnAt', event.target.value)} disabled={Boolean(saving)} />
+            <TextField label="Ngày giao dự kiến" type="date" value={form.expectedDeliveryDate} onChange={(event) => update('expectedDeliveryDate', event.target.value)} disabled={Boolean(saving)} />
+          </div>
+          <label style={{ display: 'grid', gap: 8, fontSize: 14, fontWeight: 600 }}>Ghi chú điều xe<textarea value={form.operationalNotes} onChange={(event) => update('operationalNotes', event.target.value)} rows={4} maxLength={2000} disabled={Boolean(saving)} style={{ width: '100%', minHeight: 96, resize: 'vertical', border: '1px solid var(--border-2)', borderRadius: 8, padding: 12, color: 'var(--fg-1)', background: 'var(--surface-1)', font: 'inherit' }} /></label>
+        </section>
+
+        {submitError && <div role="alert" style={{ color: 'var(--danger)', background: 'var(--danger-bg, rgba(220,38,38,.08))', padding: '12px 16px', borderRadius: 8 }}>{submitError}</div>}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: 12 }}>
+          <button type="submit" disabled={Boolean(saving)} style={{ minHeight: 48, border: '1px solid var(--border-2)', borderRadius: 8, background: 'var(--surface-1)', color: 'var(--fg-1)', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer' }}><Check size={18} style={{ verticalAlign: 'middle', marginRight: 8 }} />{saving === 'DRAFT' ? 'Đang lưu…' : 'Lưu bản nháp'}</button>
+          <button type="button" onClick={() => void save('SUBMIT')} disabled={Boolean(saving)} style={{ minHeight: 48, border: 0, borderRadius: 8, background: 'var(--accent, #2563eb)', color: '#fff', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer' }}><Send size={18} style={{ verticalAlign: 'middle', marginRight: 8 }} />{saving === 'SUBMIT' ? 'Đang gửi…' : 'Gửi sang điều phối'}</button>
+        </div>
+      </form>
+      <OperationalSiteDetailsDialog site={detailSite} isOpen={Boolean(detailSite)} onClose={() => setDetailSite(null)} />
     </div>
   );
 }

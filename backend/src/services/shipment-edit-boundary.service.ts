@@ -9,6 +9,7 @@ type ShipmentContainerRow = typeof s.shipmentContainers.$inferSelect;
 
 export type ShipmentPlanPatch = {
   customerId?: number;
+  routeId?: number | null;
   cargoTypeId?: number | null;
   responsibleUnitId?: number | null;
   bookingRef?: string | null;
@@ -40,6 +41,9 @@ export type ShipmentContainerDraft = {
   containerNumber?: string | null;
   sealNumber?: string | null;
   cargoWeightKg?: string | number | null;
+  shippingLineName?: string | null;
+  pickupPortId?: number | null;
+  dropoffPortId?: number | null;
   notes?: string | null;
 };
 
@@ -54,6 +58,7 @@ const POST_DISPATCH_DIRECT_FIELDS = new Set<keyof ShipmentPlanPatch>([
 
 const POST_DISPATCH_REQUEST_FIELDS = new Set<keyof ShipmentPlanPatch>([
   'customerId',
+  'routeId',
   'cargoTypeId',
   'responsibleUnitId',
   'tradeDirection',
@@ -108,6 +113,7 @@ function normalizeShipmentPlanValue(
 ) {
   switch (field) {
     case 'customerId':
+    case 'routeId':
     case 'cargoTypeId':
     case 'responsibleUnitId':
     case 'operationalSiteId':
@@ -133,6 +139,7 @@ function normalizeShipmentPlanValue(
 function currentShipmentSnapshot(row: ShipmentRow) {
   return {
     customerId: row.customerId,
+    routeId: row.routeId ?? null,
     cargoTypeId: row.cargoTypeId ?? null,
     bookingRef: row.bookingRef ?? null,
     blNumber: row.blNumber ?? null,
@@ -169,6 +176,9 @@ function currentContainerSnapshot(rows: ShipmentContainerRow[]) {
       containerNumber: row.containerNumber ?? null,
       sealNumber: row.sealNumber ?? null,
       cargoWeightKg: row.cargoWeightKg ?? null,
+      shippingLineName: row.shippingLineName ?? null,
+      pickupPortId: row.pickupPortId ?? null,
+      dropoffPortId: row.dropoffPortId ?? null,
       notes: row.notes ?? null,
     }))
     .sort((a, b) => {

@@ -559,13 +559,6 @@ export async function createUserWithTx(tx: Tx, data: {
     data.role === Role.CLERK || data.role === Role.FORWARDER ? shipmentIds : [],
   );
 
-  if (data.role === Role.DRIVER) {
-    await tx.insert(drivers).values(buildDriverValues(created.id, {
-      fullName: data.fullName, username: data.username, phone: data.phone,
-      baseSalary: data.baseSalary, socialInsurance: data.socialInsurance,
-      assignedTruckId: data.assignedTruckId, status: data.status,
-    }));
-  }
   const [withDriver] = await selectUserWithDriver(tx, eq(users.id, created.id)).limit(1);
   const customerIdsAfterSave = await loadCustomerIds(tx, created.id, created.customerId);
   const businessUnitIdsAfterSave = await loadBusinessUnitIds(tx, created.id);
@@ -573,7 +566,7 @@ export async function createUserWithTx(tx: Tx, data: {
   return addScopeIds(withDriver, customerIdsAfterSave, businessUnitIdsAfterSave, shipmentIdsAfterSave);
 }
 
-/** Create a new user with hashed password. DRIVER-role users also get a linked drivers row. */
+/** Create a new user. DRIVER accounts remain unbound until Admin links a driver master. */
 export async function createUser(data: {
   username?: string;
   email?: string;
@@ -611,24 +604,7 @@ function buildDriverUpdateSet(data: {
   return Object.keys(set).length > 1 ? set : {};
 }
 
-/** Build driver-row values shared between createUser and updateUser create-if-missing paths. */
-function buildDriverValues(userId: number, opts: {
-  fullName?: string | null; username?: string | null; phone?: string | null;
-  baseSalary?: number; socialInsurance?: number; assignedTruckId?: number | null;
-  status?: string;
-}) {
-  return {
-    userId,
-    name: opts.fullName || opts.username || opts.phone || 'Lái xe',
-    phone: opts.phone || null,
-    baseSalary: opts.baseSalary != null ? String(opts.baseSalary) : null,
-    socialInsurance: opts.socialInsurance != null ? String(opts.socialInsurance) : null,
-    assignedTruckId: opts.assignedTruckId ?? null,
-    status: (opts.status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE') as 'ACTIVE' | 'INACTIVE',
-  };
-}
-
-/** Update user fields. When the resulting role is DRIVER, upsert the linked drivers row. */
+/** Update user fields. Existing driver bindings are updated; new bindings use the Admin command. */
 export async function updateUserWithTx(id: number, data: {
   role?: string;
   status?: string;
@@ -844,12 +820,6 @@ export async function updateUserWithTx(id: number, data: {
       if (Object.keys(driverSet).length > 0) {
         await tx.update(drivers).set(driverSet).where(eq(drivers.id, existingDriver.id));
       }
-    } else {
-      await tx.insert(drivers).values(buildDriverValues(id, {
-        fullName: updated.fullName, username: updated.username, phone: updated.phone,
-        baseSalary: data.baseSalary, socialInsurance: data.socialInsurance,
-        assignedTruckId: data.assignedTruckId, status: updated.status,
-      }));
     }
   } else if (data.role !== undefined && data.role !== existing.role) {
     await tx.update(drivers).set({ deletedAt: sql`now()`, status: 'INACTIVE' })
@@ -863,7 +833,7 @@ export async function updateUserWithTx(id: number, data: {
   return addScopeIds(withDriver, customerIdsAfterSave, businessUnitIdsAfterSave, shipmentIdsAfterSave);
 }
 
-/** Update user fields. When the resulting role is DRIVER, upsert the linked drivers row. */
+/** Update user fields. Existing driver bindings are updated; new bindings use the Admin command. */
 export async function updateUser(id: number, data: {
   role?: string;
   status?: string;

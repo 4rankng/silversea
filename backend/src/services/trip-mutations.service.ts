@@ -274,11 +274,11 @@ export async function createTrip(data: {
   routeId: number;
   truckId?: number | null;
   driverId?: number | null;
-  cargoTypeId: number;
+  cargoTypeId?: number | null;
   departureDate: string;
   customerReference?: string;
   containerCount?: number;
-  containerTypeId: number;
+  containerTypeId?: number | null;
   fuelMode?: FuelMode;
   createdBy?: number;
   vatRate?: number;
@@ -300,7 +300,7 @@ export async function createTrip(data: {
 }, transaction?: Tx) {
   const execute = async (tx: Tx) => {
     const containerCount = data.containerCount ?? 1;
-    let authoritativeCargoTypeId = data.cargoTypeId;
+    let authoritativeCargoTypeId = data.cargoTypeId ?? null;
     let sourceShipmentVersion: number | null = null;
 
     // 0. Wave 0: if a shipmentId was provided, validate the shipment up front
@@ -337,28 +337,14 @@ export async function createTrip(data: {
           'Lô hàng không thuộc khách hàng của chuyến đi.',
         );
       }
-      if (shipment.cargoTypeId != null && shipment.cargoTypeId !== data.cargoTypeId) {
+      if (shipment.cargoTypeId != null && data.cargoTypeId != null && shipment.cargoTypeId !== data.cargoTypeId) {
         throw new ApiError(
           409,
           'Loại hàng của chuyến không khớp với lô hàng nguồn.',
         );
       }
-      authoritativeCargoTypeId = shipment.cargoTypeId ?? data.cargoTypeId;
-      if (shipment.cargoTypeId == null) {
-        const [seededShipment] = await tx.update(s.shipments).set({
-          cargoTypeId: authoritativeCargoTypeId,
-          version: shipment.version + 1,
-          updatedBy: data.createdBy ?? null,
-          updatedAt: new Date(),
-        })
-          .where(eq(s.shipments.id, data.shipmentId))
-          .returning({
-            version: s.shipments.version,
-          });
-        sourceShipmentVersion = seededShipment?.version ?? shipment.version + 1;
-      } else {
-        sourceShipmentVersion = shipment.version;
-      }
+      authoritativeCargoTypeId = shipment.cargoTypeId ?? null;
+      sourceShipmentVersion = shipment.version;
     }
 
     // 1. Pricing resolution — replaced the inline pricing_tables lookup with
@@ -511,15 +497,17 @@ export async function createTrip(data: {
       externalDriverPhone: data.externalDriverPhone ?? null,
     }).returning();
 
-    await tx.insert(s.tripContainers).values(
-      Array.from({ length: containerCount }, () => ({
-        tripId: trip.id,
-        containerTypeId: data.containerTypeId,
-        containerNumber: null,
-        sealNumber: null,
-        createdBy: data.createdBy ?? null,
-      })),
-    );
+    if (data.containerTypeId != null) {
+      await tx.insert(s.tripContainers).values(
+        Array.from({ length: containerCount }, () => ({
+          tripId: trip.id,
+          containerTypeId: data.containerTypeId,
+          containerNumber: null,
+          sealNumber: null,
+          createdBy: data.createdBy ?? null,
+        })),
+      );
+    }
 
     // Wave 0: if a shipmentId was provided, snapshot the shipment's real
     // containers into the trip (mirrors `dispatchShipmentToTrip`). The

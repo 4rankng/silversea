@@ -163,8 +163,12 @@ export async function transitionTripStatus(
       const containerCount = photos.filter(p => p.type === 'CONTAINER').length;
       const sealCount = photos.filter(p => p.type === 'SEAL').length;
 
-      const [cargo] = await tx.select({ requiresPhotos: s.cargoTypes.requiresPhotos })
-        .from(s.cargoTypes).where(eq(s.cargoTypes.id, trip.cargoTypeId)).limit(1);
+      const cargo = trip.cargoTypeId == null
+        ? null
+        : (await tx.select({ requiresPhotos: s.cargoTypes.requiresPhotos })
+          .from(s.cargoTypes)
+          .where(eq(s.cargoTypes.id, trip.cargoTypeId))
+          .limit(1))[0] ?? null;
       const requiresPhotos = cargo?.requiresPhotos === true; // null/false → baseline only
 
       if (!confirmNoPhoto) {

@@ -1170,6 +1170,20 @@
       "when": 1785553072250,
       "tag": "0171_lyrical_ender_wiggin",
       "breakpoints": true
+    },
+    {
+      "idx": 172,
+      "version": "7",
+      "when": 1785553338816,
+      "tag": "0172_clammy_mad_thinker",
+      "breakpoints": true
+    },
+    {
+      "idx": 173,
+      "version": "7",
+      "when": 1785555810931,
+      "tag": "0173_yummy_kronos",
+      "breakpoints": true
     }
   ]
 }
