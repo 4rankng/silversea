@@ -61,3 +61,18 @@ describe('admin search icon assignments', () => {
     expect(iconById.get('action-audit-logs')).toBe('audit-log');
   });
 });
+
+describe('role-aware search destinations', () => {
+  it('uses the accountant workspace as home without advertising blocked routes', () => {
+    const items = getSearchItems('ACCOUNTANT', ['treasury.read']);
+    expect(items.some(item => item.id === 'accounting' && item.path === '/accounting' && item.label === 'Tổng Quan')).toBe(true);
+    expect(items.some(item => item.id === 'dispatch' || item.id === 'dashboard')).toBe(false);
+    expect(items.some(item => item.id === 'treasury')).toBe(true);
+  });
+
+  it('does not add a competing dashboard destination for accountants', () => {
+    const items = getSearchItems('ACCOUNTANT', ['executive_dashboard.read']);
+    expect(items.some(item => item.id === 'dashboard')).toBe(false);
+    expect(items.filter(item => item.id === 'accounting')).toHaveLength(1);
+  });
+});

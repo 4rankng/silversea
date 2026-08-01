@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { OfflineBanner } from './shared/OfflineBanner';
 import {
@@ -40,7 +40,7 @@ import { Sidebar } from './layout/Sidebar';
 import { Topbar } from './layout/Topbar';
 import { ProfileModal } from './layout/ProfileModal';
 import { PasswordModal } from './layout/PasswordModal';
-import type { NavItem } from './layout/types';
+import type { NavItem, NavSection } from './layout/types';
 import { useBottomNavAnimations } from '../hooks/useBottomNavAnimations';
 import { routes, titleForPath } from '../lib/routes';
 import { OnboardingChecklist } from './onboarding/OnboardingChecklist';
@@ -63,13 +63,21 @@ export function getNavItems(
     case 'ADMIN': {
       const common: NavItem[] = [
         ...(role === Role.ACCOUNTANT ? [
-          { key: 'accounting', label: 'Kế toán', path: routes.accounting, icon: Calculator, section: 'financials' as const },
+          { key: 'accounting', label: 'Tổng Quan', path: routes.accounting, icon: Calculator },
         ] : []),
-        ...(role !== Role.ACCOUNTANT || hasCapability('executive_dashboard.read') ? [
-          { key: 'dashboard', label: 'Tổng quan', path: routes.dashboard, icon: LayoutDashboard },
+        ...(role !== Role.ACCOUNTANT ? [
+          {
+            key: 'dashboard',
+            label: 'Tổng quan',
+            path: routes.dashboard,
+            icon: LayoutDashboard,
+          },
         ] : []),
 
-        { key: 'dispatch', label: 'Phân xe', path: routes.dispatch, icon: Compass, section: 'operations', count: dispatchCount },
+        { key: 'fleet', label: 'Đội xe', path: routes.fleet, icon: Layers, section: 'operations' },
+        ...(role !== Role.ACCOUNTANT ? [
+          { key: 'dispatch', label: 'Phân xe', path: routes.dispatch, icon: Compass, section: 'operations' as const, count: dispatchCount },
+        ] : []),
         { key: 'trips', label: 'Sổ chuyến đi', path: routes.trips, icon: Truck, section: 'operations' },
         // Wave 0: shipment (lô hàng) — minimal read-only list. A shipment
         // precedes and outlives any single trip, so it sits adjacent to trips.
@@ -83,15 +91,14 @@ export function getNavItems(
         ...(hasCapability('treasury.read') ? [
           { key: 'treasury', label: 'Sổ quỹ / ngân hàng', path: routes.treasury, icon: Landmark, section: 'financials' as const },
         ] : []),
-        { key: 'profit', label: 'Lợi nhuận', path: routes.profit, icon: DollarSign, section: 'financials' },
-        { key: 'finance', label: 'Báo cáo lãi lỗ', path: routes.finance, icon: Wallet, section: 'financials' },
-        { key: 'credit-overrides', label: 'Duyệt vượt hạn mức', path: routes.creditOverrides, icon: Shield, section: 'financials' },
-        { key: 'governance-actions', label: 'Trung tâm phê duyệt', path: routes.governanceActions, icon: ClipboardCheck, section: 'financials' },
         { key: 'expenses', label: 'Chi phí phát sinh', path: routes.expenses, icon: FileText, section: 'financials' },
         { key: 'advances', label: 'Tạm ứng & hoàn ứng', path: routes.advances, icon: Wallet, section: 'financials' },
 
+        { key: 'profit', label: 'Lợi nhuận', path: routes.profit, icon: DollarSign, section: 'oversight' },
+        { key: 'finance', label: 'Báo cáo lãi lỗ', path: routes.finance, icon: Wallet, section: 'oversight' },
+        { key: 'credit-overrides', label: 'Duyệt vượt hạn mức', path: routes.creditOverrides, icon: Shield, section: 'oversight' },
+        { key: 'governance-actions', label: 'Trung tâm phê duyệt', path: routes.governanceActions, icon: ClipboardCheck, section: 'oversight' },
 
-        { key: 'fleet', label: 'Đội xe', path: routes.fleet, icon: Layers, section: 'master-data' },
         { key: 'customers', label: 'Khách hàng', path: routes.customers, icon: Users, section: 'master-data' },
         { key: 'suppliers', label: 'Nhà cung cấp', path: routes.suppliers, icon: Store, section: 'master-data' },
         { key: 'routes', label: 'Tuyến đường', path: routes.configRoutes, icon: Route, section: 'master-data' },
@@ -108,14 +115,7 @@ export function getNavItems(
         ] : []),
         { key: 'config', label: 'Cấu hình', path: routes.config, icon: Settings, section: 'system' },
       ];
-      if (role !== Role.ACCOUNTANT) return common;
-      const financePriority = new Map([
-        ['accounting', 0], ['debt', 1], ['payables', 2], ['expenses', 3], ['advances', 4],
-        ['treasury', 5], ['profit', 6], ['finance', 7],
-      ]);
-      return [...common].sort((a, b) => (
-        (financePriority.get(a.key) ?? 100) - (financePriority.get(b.key) ?? 100)
-      ));
+      return common;
     }
     case 'DRIVER':
       return [
@@ -142,6 +142,53 @@ export function getNavItems(
         ...(hasCapability('recoverable_costs.read') ? [
           { key: 'recoverable-costs', label: 'Chi phí cần kiểm tra', path: routes.recoverableCosts, icon: Receipt, section: 'financials' as const },
         ] : []),
+      ];
+    default:
+      return [];
+  }
+}
+
+export function getNavSections(role: Role): NavSection[] {
+  switch (role) {
+    case Role.ADMIN:
+      return [
+        { key: 'operations', label: 'Vận hành' },
+        { key: 'financials', label: 'Công nợ & dòng tiền' },
+        { key: 'oversight', label: 'Báo cáo & phê duyệt' },
+        { key: 'hr', label: 'Nhân sự' },
+        { key: 'master-data', label: 'Danh mục' },
+        { key: 'system', label: 'Quản trị' },
+      ];
+    case Role.MANAGER:
+      return [
+        { key: 'operations', label: 'Vận hành' },
+        { key: 'oversight', label: 'Báo cáo & phê duyệt' },
+        { key: 'financials', label: 'Công nợ & dòng tiền' },
+        { key: 'hr', label: 'Nhân sự' },
+        { key: 'master-data', label: 'Danh mục' },
+        { key: 'system', label: 'Hệ thống' },
+      ];
+    case Role.ACCOUNTANT:
+      return [
+        { key: 'financials', label: 'Công nợ & dòng tiền' },
+        { key: 'oversight', label: 'Báo cáo & phê duyệt' },
+        { key: 'operations', label: 'Vận hành liên quan' },
+        { key: 'hr', label: 'Nhân sự' },
+        { key: 'master-data', label: 'Danh mục' },
+        { key: 'system', label: 'Hệ thống' },
+      ];
+    case Role.DRIVER:
+    case Role.FORWARDER:
+      return [{ key: 'operations', label: 'Công việc của tôi' }];
+    case Role.CUSTOMER:
+      return [
+        { key: 'operations', label: 'Lô hàng' },
+        { key: 'financials', label: 'Tài chính' },
+      ];
+    case Role.CLERK:
+      return [
+        { key: 'operations', label: 'Chứng từ' },
+        { key: 'financials', label: 'Đối soát' },
       ];
     default:
       return [];
@@ -282,18 +329,23 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const penaltiesCount = badgeData?.penaltiesCount;
 
   // Nav items and active state
-  const navItems = user ? getNavItems(
+  const navItems = useMemo(() => user ? getNavItems(
     user.role,
     dispatchCount,
     penaltiesCount,
     user.capabilities,
-  ) : [];
+  ) : [], [dispatchCount, penaltiesCount, user]);
+  const navSections = useMemo(
+    () => user ? getNavSections(user.role) : [],
+    [user],
+  );
   const activeKey = navItems
     .filter(item => location.pathname.startsWith(item.path))
     .sort((a, b) => b.path.length - a.path.length)[0]?.key || '';
 
   const pageTitle = getPageTitle(location.pathname);
   const activeSection = navItems.find(i => i.key === activeKey)?.section;
+  const preferredOpenSection = activeSection ?? navSections[0]?.key;
 
   // Sidebar navigation handler
   const handleNavigate = useCallback((path: string) => {
@@ -329,15 +381,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     const LABEL_H = label?.offsetHeight ?? 36;
     const NAV_PAD = parseFloat(navStyle.paddingTop) + parseFloat(navStyle.paddingBottom) || 20;
     const ungroupedCount = navItems.filter(i => !i.section).length;
-    const totalH = (['operations', 'hr', 'financials', 'master-data', 'system'] as const).reduce((acc, s) => {
-      const count = navItems.filter(i => i.section === s).length;
+    const totalH = navSections.reduce((acc, section) => {
+      const count = navItems.filter(i => i.section === section.key).length;
       return count > 0 ? acc + LABEL_H + count * ITEM_H : acc;
     }, NAV_PAD + ungroupedCount * ITEM_H);
 
     if (totalH > navClientHeight) {
       setCollapsed(prev => {
         const next = new Set<string>(
-          (['operations', 'hr', 'financials', 'master-data', 'system'] as const).filter(k => k !== activeSection)
+          navSections.map(section => section.key).filter(key => key !== preferredOpenSection)
         );
         if (next.size === prev.size && [...next].every(k => prev.has(k))) return prev;
         return next;
@@ -345,8 +397,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     } else {
       setCollapsed(prev => (prev.size === 0 ? prev : new Set<string>()));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navClientHeight, sidebarOpen, activeSection, user?.role]);
+  }, [navClientHeight, sidebarOpen, navItems, navSections, preferredOpenSection]);
 
   const toggleSection = useCallback((key: string) => {
     if (!sidebarOpen) return;
@@ -384,6 +435,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const sidebarProps = {
     user,
     navItems,
+    navSections,
     activeKey,
     sidebarOpen,
     isMobileViewport,

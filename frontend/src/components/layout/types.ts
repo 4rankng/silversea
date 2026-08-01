@@ -6,11 +6,22 @@ export interface NavItem {
   label: string;
   path: string;
   icon: React.ElementType;
-  section?: 'operations' | 'hr' | 'financials' | 'master-data' | 'system';
+  section?: SectionName;
   count?: number;
 }
 
-export type SectionName = 'operations' | 'hr' | 'financials' | 'master-data' | 'system';
+export type SectionName =
+  | 'operations'
+  | 'hr'
+  | 'financials'
+  | 'oversight'
+  | 'master-data'
+  | 'system';
+
+export interface NavSection {
+  key: SectionName;
+  label: string;
+}
 
 export interface SidebarProps {
   user: {
@@ -21,6 +32,7 @@ export interface SidebarProps {
     email: string | null;
   };
   navItems: NavItem[];
+  navSections: NavSection[];
   activeKey: string;
   sidebarOpen: boolean;
   isMobileViewport: boolean;
@@ -43,6 +55,7 @@ export interface TopbarProps {
     role: Role;
     fullName?: string;
     username: string | null;
+    capabilities?: readonly string[];
   };
   isDriver: boolean;
   sidebarOpen: boolean;

@@ -155,7 +155,10 @@ function Topbar({
 
   useClickOutside(searchContainerRef, () => setSearchQuery(''), { enabled: searchQuery.length > 0 });
 
-  const roleItems = React.useMemo(() => getSearchItems(user.role), [user.role]);
+  const roleItems = React.useMemo(
+    () => getSearchItems(user.role, user.capabilities),
+    [user.capabilities, user.role],
+  );
   const matchedItems = React.useMemo(() => filterItems(roleItems, searchQuery), [roleItems, searchQuery]);
   const canUseNotifications = ['ADMIN', 'MANAGER', 'ACCOUNTANT', 'DRIVER', 'FORWARDER'].includes(user.role);
 

@@ -25,9 +25,10 @@ function NavIcon({ item }: { item: SidebarProps['navItems'][number] }) {
   return <IconC size={16} aria-hidden="true" />;
 }
 
-function Sidebar({
+export function Sidebar({
   user,
   navItems,
+  navSections,
   activeKey,
   sidebarOpen,
   isMobileViewport,
@@ -141,7 +142,7 @@ function Sidebar({
     const isCollapsed = sidebarOpen && collapsed.has(sectionName);
 
     return (
-      <div key={sectionName}>
+      <div key={sectionName} className="sidebar-section">
         <button
           className="sidebar-section-label sidebar-section-toggle"
           onClick={() => toggleSection(sectionName)}
@@ -227,12 +228,7 @@ function Sidebar({
           (navRef as React.MutableRefObject<HTMLElement | null>).current = node;
         }}>
           {renderUngroupedItems()}
-          {user.role === 'ACCOUNTANT' && renderNavSection('Tài chính', 'financials')}
-          {renderNavSection('Vận hành', 'operations')}
-          {renderNavSection('Nhân sự', 'hr')}
-          {user.role !== 'ACCOUNTANT' && renderNavSection('Tài chính', 'financials')}
-          {renderNavSection('Danh mục', 'master-data')}
-          {renderNavSection('Hệ thống', 'system')}
+          {navSections.map(section => renderNavSection(section.label, section.key))}
         </nav>
 
         <div className="sidebar-footer">
@@ -292,5 +288,3 @@ function Sidebar({
     </>
   );
 }
-
-export { Sidebar };

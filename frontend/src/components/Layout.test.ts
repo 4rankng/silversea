@@ -1,13 +1,57 @@
 import { describe, expect, it } from 'vitest';
 import { Role } from '@tingting/shared';
 
-import { getNavItems } from './Layout';
+import { getNavItems, getNavSections } from './Layout';
 
 describe('getNavItems', () => {
   it('puts the dedicated accounting home first for ACCOUNTANT', () => {
     const items = getNavItems(Role.ACCOUNTANT);
-    expect(items[0]).toMatchObject({ key: 'accounting', path: '/accounting', label: 'Kế toán' });
+    expect(items[0]).toMatchObject({ key: 'accounting', path: '/accounting', label: 'Tổng Quan' });
     expect(getNavItems(Role.MANAGER).some((item) => item.key === 'accounting')).toBe(false);
+  });
+
+  it('orders sidebar sections around each office role workflow', () => {
+    expect(getNavSections(Role.ADMIN).map((section) => section.label)).toEqual([
+      'Vận hành', 'Công nợ & dòng tiền', 'Báo cáo & phê duyệt', 'Nhân sự', 'Danh mục', 'Quản trị',
+    ]);
+    expect(getNavSections(Role.MANAGER).slice(0, 3).map((section) => section.label)).toEqual([
+      'Vận hành', 'Báo cáo & phê duyệt', 'Công nợ & dòng tiền',
+    ]);
+    expect(getNavSections(Role.ACCOUNTANT).slice(0, 3).map((section) => section.label)).toEqual([
+      'Công nợ & dòng tiền', 'Báo cáo & phê duyệt', 'Vận hành liên quan',
+    ]);
+  });
+
+  it('removes the inaccessible dispatch route from the accountant sidebar', () => {
+    expect(getNavItems(Role.ACCOUNTANT).some((item) => item.key === 'dispatch')).toBe(false);
+    expect(getNavItems(Role.MANAGER).some((item) => item.key === 'dispatch')).toBe(true);
+  });
+
+  it('keeps the approved operations order while omitting unavailable actions', () => {
+    const adminOperations = getNavItems(Role.ADMIN)
+      .filter((item) => item.section === 'operations')
+      .map((item) => item.key);
+    const accountantOperations = getNavItems(Role.ACCOUNTANT)
+      .filter((item) => item.section === 'operations')
+      .map((item) => item.key);
+    expect(adminOperations).toEqual(['fleet', 'dispatch', 'trips', 'shipments']);
+    expect(accountantOperations).toEqual(['fleet', 'trips', 'shipments']);
+  });
+
+  it('keeps every role menu structurally complete and free of duplicate destinations', () => {
+    for (const role of Object.values(Role)) {
+      const items = getNavItems(role, undefined, undefined, ['treasury.read', 'recoverable_costs.read']);
+      const sections = new Set(getNavSections(role).map((section) => section.key));
+      const keys = items.map((item) => item.key);
+      expect(new Set(keys).size, role).toBe(keys.length);
+      expect(items.every((item) => !item.section || sections.has(item.section)), role).toBe(true);
+    }
+  });
+
+  it('keeps Tổng Quan as the accountant’s only sidebar home', () => {
+    const items = getNavItems(Role.ACCOUNTANT, undefined, undefined, ['executive_dashboard.read']);
+    expect(items.filter((item) => !item.section).map((item) => item.label)).toEqual(['Tổng Quan']);
+    expect(items.some((item) => item.key === 'dashboard')).toBe(false);
   });
   it('includes audit logs for ACCOUNTANT in the shared office nav source', () => {
     const items = getNavItems(Role.ACCOUNTANT);

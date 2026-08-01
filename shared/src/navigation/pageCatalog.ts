@@ -130,11 +130,11 @@ export const PAGE_CATALOG = {
     agent: { description: 'Báo cáo lãi lỗ (P&L) theo tháng.' },
   },
   accounting: {
-    title: 'Kế toán',
+    title: 'Tổng Quan',
     path: '/accounting',
     section: 'financials',
     agent: {
-      description: 'Kế toán — tổng hợp công việc vận tải, công nợ, thanh toán và báo cáo.',
+      description: 'Tổng Quan — công việc vận tải, công nợ, thanh toán và báo cáo của kế toán.',
       aliases: ['ke toan', 'accounting', 'tổng quan kế toán', 'tong quan ke toan'],
     },
   },

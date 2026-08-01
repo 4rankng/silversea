@@ -2,7 +2,7 @@
  * Sidebar
  * ========================================================================== */
 .sidebar {
-  background: linear-gradient(180deg, var(--sb-gradient-start) 0%, var(--sb-gradient-end) 100%);
+  background: var(--sidebar);
   color: var(--sb-text);
   display: flex;
   flex-direction: column;
@@ -106,14 +106,19 @@
 
 /* legacy sidebar section labels */
 .sidebar-section-label {
-  font-family: var(--font-mono);
+  font-family: var(--font-body);
   font-size: var(--fs-xs);
   line-height: 1.35;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.02em;
   color: var(--sb-text-muted);
-  padding: 20px 12px 8px;
+  min-height: 44px;
+  padding: 14px 12px 6px;
+}
+
+.sidebar-section + .sidebar-section {
+  border-top: 1px solid color-mix(in srgb, var(--sb-line) 72%, transparent);
+  margin-top: 6px;
 }
 
 /* collapsible section toggle */
@@ -128,7 +133,7 @@
   transition: color 150ms ease;
 }
 .sidebar-section-toggle:hover {
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--fg-on-brand);
 }
 .sidebar-section-chevron {
   margin-left: auto;
@@ -193,6 +198,12 @@
   background: var(--sb-active-bg);
   color: var(--fg-on-brand);
   font-weight: 600;
+}
+.sidebar-item:focus-visible,
+.sidebar-section-toggle:focus-visible,
+.sidebar-user:focus-visible {
+  outline: 2px solid var(--fg-on-brand);
+  outline-offset: -2px;
 }
 .sidebar-item.active svg {
   color: #8FE9B6;

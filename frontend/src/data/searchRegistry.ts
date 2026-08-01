@@ -39,12 +39,16 @@ const ADMIN_BASE_ITEMS: SearchItem[] = [
   { id: 'dispatch', type: 'page', label: 'Phân xe',                 path: '/dispatch',  iconName: 'dispatch' },
   { id: 'fleet',    type: 'page', label: 'Đội xe',                  path: '/fleet',     iconName: 'tractor-head' },
   { id: 'trips',    type: 'page', label: 'Sổ chuyến đi',            path: '/trips',     iconName: 'trip-log' },
+  { id: 'shipments',type: 'page', label: 'Lô hàng',                  path: '/shipments', iconName: 'cargo' },
+  { id: 'salary',   type: 'page', label: 'Lương & Chấm công',       path: '/salary',    iconName: 'payroll' },
   { id: 'penalties',type: 'page', label: 'Kỷ luật',                 path: '/penalties', iconName: 'alert' },
   { id: 'finance',  type: 'page', label: 'Báo cáo lãi lỗ',          path: '/finance',   iconName: 'analytics' },
   { id: 'profit',   type: 'page', label: 'Phân chia lợi nhuận',     path: '/profit',    iconName: 'profit' },
   { id: 'debt',     type: 'page', label: 'Công nợ phải thu',        path: '/debt',      iconName: 'receivables' },
   { id: 'payables', type: 'page', label: 'Công nợ phải trả',        path: '/payables',  iconName: 'payables' },
   { id: 'expenses', type: 'page', label: 'Chi phí phát sinh',       path: '/expenses',  iconName: 'expense' },
+  { id: 'treasury', type: 'page', label: 'Sổ quỹ / ngân hàng',      path: '/finance/treasury', iconName: 'cashflow' },
+  { id: 'credit-overrides', type: 'page', label: 'Duyệt vượt hạn mức', path: '/credit-overrides', iconName: 'checklist' },
   { id: 'governance-actions', type: 'page', label: 'Trung tâm phê duyệt', path: '/governance-actions', iconName: 'checklist' },
   { id: 'advances', type: 'page', label: 'Tạm ứng & hoàn ứng',      path: '/advances',  iconName: 'advances' },
 
@@ -98,12 +102,16 @@ const FORWARDER_ITEMS: SearchItem[] = [
   { id: 'my-settlements',     type: 'page', label: 'Phiếu thanh toán',  path: '/my-settlements',     iconName: 'settlement' },
 ];
 
-export function getSearchItems(role: string): SearchItem[] {
+export function getSearchItems(role: string, capabilities: readonly string[] = []): SearchItem[] {
   const normRole = String(role || '').toUpperCase();
+  const hasCapability = (capability: string) => capabilities.includes(capability);
+  const officeBaseItems = ADMIN_BASE_ITEMS.filter(
+    item => item.id !== 'treasury' || hasCapability('treasury.read'),
+  );
   switch (normRole) {
     case 'ADMIN':
       return [
-        ...ADMIN_BASE_ITEMS,
+        ...officeBaseItems,
         { id: 'users',      type: 'page', label: 'Người dùng',         path: '/users',      iconName: 'users-hr' },
         { id: 'audit-logs', type: 'page', label: 'Nhật ký người dùng', path: '/audit-logs', iconName: 'audit-log' },
         ...CONFIG_ITEMS,
@@ -114,14 +122,21 @@ export function getSearchItems(role: string): SearchItem[] {
       // FAQ management) are hidden — the backend route guard (requireRoles ADMIN)
       // would 403 them anyway, so showing the card is misleading UX.
       return [
-        ...ADMIN_BASE_ITEMS,
+        ...officeBaseItems,
         { id: 'users',      type: 'page', label: 'Người dùng',         path: '/users',      iconName: 'users-hr' },
         { id: 'audit-logs', type: 'page', label: 'Nhật ký người dùng', path: '/audit-logs', iconName: 'audit-log' },
         ...CONFIG_ITEMS.filter(i => !i.adminOnly),
         ...ACTION_ITEMS,
       ];
     case 'ACCOUNTANT':
-      return [...ADMIN_BASE_ITEMS, ...CONFIG_ITEMS.filter(i => !i.adminOnly)];
+      return [
+        { id: 'accounting', type: 'page', label: 'Tổng Quan', path: '/accounting', iconName: 'overview' },
+        ...officeBaseItems
+          .filter(item => item.id !== 'dispatch' && item.id !== 'dashboard'),
+        { id: 'users', type: 'page', label: 'Người dùng', path: '/users', iconName: 'users-hr' },
+        { id: 'audit-logs', type: 'page', label: 'Nhật ký người dùng', path: '/audit-logs', iconName: 'audit-log' },
+        ...CONFIG_ITEMS.filter(i => !i.adminOnly),
+      ];
     case 'DRIVER':
       return DRIVER_ITEMS;
     case 'FORWARDER':

@@ -55,7 +55,7 @@
     transition: color 0.3s ease;
     padding-top: 4px; /* Space for the indicator */
     will-change: transform;
-    opacity: 0; /* starts hidden for anime.js entrance */
+    opacity: 1; /* navigation remains usable if the optional entrance animation cannot start */
   }
 
   .bottom-nav-indicator {

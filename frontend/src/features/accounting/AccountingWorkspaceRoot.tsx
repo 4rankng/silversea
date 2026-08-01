@@ -23,7 +23,7 @@ export function AccountingWorkspaceRoot() {
   return (
     <main className="accounting-page" data-testid="accounting-workspace">
       <PageHeader
-        title="Kế toán"
+        title="Tổng Quan"
         description="Đối chiếu vận tải, công nợ, thanh toán và báo cáo trên cùng một kỳ dữ liệu."
       />
 

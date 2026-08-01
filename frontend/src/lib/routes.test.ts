@@ -19,7 +19,7 @@ describe('titleForPath (catalog-sourced, parity with pre-refactor behavior)', ()
     '/trips/123': 'Chi tiết lệnh vận chuyển',
     '/trips/123/edit': 'Sửa lệnh vận chuyển',
     '/finance': 'Báo cáo lãi lỗ',
-    '/accounting': 'Kế toán',
+    '/accounting': 'Tổng Quan',
     '/profit': 'Phân chia lợi nhuận',
     '/debt': 'Công nợ phải thu',
     '/debt/5': 'Công nợ phải thu',
