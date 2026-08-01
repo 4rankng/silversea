@@ -18,6 +18,7 @@ import {
 } from './financial-posting.service';
 import { captureProfitabilityAttributionSnapshot } from './profitability.service';
 import { config } from '../config';
+import { getDriverCompletionEvidenceStatus } from './trip-pod.service';
 
 export async function transitionTripStatus(
   tripId: number,
@@ -30,6 +31,9 @@ export async function transitionTripStatus(
     expectedVersion?: number;
     transaction?: Tx;
     governanceActionId?: number;
+    podApprovalContext?: {
+      submissionId: number;
+    };
   },
   ) {
   // Audit rows for status transitions are produced by the auditLogMiddleware
@@ -44,6 +48,13 @@ export async function transitionTripStatus(
     }
 
     const currentStatus = trip.status as TripStatus;
+    const isDriverOwnedFulfillmentCompletion = (
+      targetStatus === TripStatus.COMPLETED
+      && currentStatus === TripStatus.IN_TRANSIT
+      && userRole === Role.DRIVER
+      && trip.fulfillmentId != null
+      && options?.governanceActionId == null
+    );
     if (currentStatus === targetStatus) {
       if (targetStatus === TripStatus.CANCELED) {
         throw new ApiError(409, 'Chuyến đi đã bị hủy');
@@ -51,7 +62,9 @@ export async function transitionTripStatus(
       return trip; // Idempotent short-circuit
     }
     if (
-      (targetStatus === TripStatus.COMPLETED && currentStatus !== TripStatus.LOCKED)
+      (targetStatus === TripStatus.COMPLETED
+        && currentStatus !== TripStatus.LOCKED
+        && !isDriverOwnedFulfillmentCompletion)
       || (targetStatus === TripStatus.CANCELED && options?.governanceActionId != null)
     ) {
       assertActiveApprovalApplication(tx, options?.governanceActionId);
@@ -119,14 +132,21 @@ export async function transitionTripStatus(
         'Chuyến đã chốt chỉ được mở lại bằng yêu cầu có kiểm tra và phê duyệt',
       );
     } else if (targetStatus === TripStatus.COMPLETED) {
-      if (userRole !== Role.ADMIN && userRole !== Role.MANAGER) {
-        throw new ApiError(403, 'Chỉ Quản lý hoặc Quản trị viên mới có quyền hoàn thành chuyến đi');
-      }
-      if (currentStatus !== TripStatus.IN_TRANSIT) {
-        throw new ApiError(409, 'Chỉ có thể hoàn thành chuyến đi đang chạy');
-      }
-      if (!governanceAuthorized) {
-        throw new ApiError(409, 'Thiếu yêu cầu quản trị đã được phê duyệt');
+      if (isDriverOwnedFulfillmentCompletion) {
+        const evidenceStatus = await getDriverCompletionEvidenceStatus(trip.id, tx);
+        if (!evidenceStatus.ready) {
+          throw new ApiError(409, `Chưa thể hoàn thành chuyến. Còn thiếu: ${evidenceStatus.missing.join(', ')}.`);
+        }
+      } else {
+        if (userRole !== Role.ADMIN && userRole !== Role.MANAGER) {
+          throw new ApiError(403, 'Chỉ Quản lý hoặc Quản trị viên mới có quyền hoàn thành chuyến đi');
+        }
+        if (currentStatus !== TripStatus.IN_TRANSIT) {
+          throw new ApiError(409, 'Chỉ có thể hoàn thành chuyến đi đang chạy');
+        }
+        if (!governanceAuthorized) {
+          throw new ApiError(409, 'Thiếu yêu cầu quản trị đã được phê duyệt');
+        }
       }
       // B2: completion is permissive — a trip may be marked "Hoàn thành"
       // without photos, and photo evidence (CONTAINER/SEAL) can be added or
@@ -135,7 +155,11 @@ export async function transitionTripStatus(
       // explicit POST /trips/:id/complete endpoint is the permissive path.
       // Falls through to the generic status update below.
     } else if (targetStatus === TripStatus.LOCKED) {
-      if (userRole !== Role.ADMIN && userRole !== Role.MANAGER) {
+      const podApprovedLock = options?.podApprovalContext != null;
+      const canLockTrip = userRole === Role.ADMIN
+        || userRole === Role.MANAGER
+        || (podApprovedLock && userRole === Role.CLERK);
+      if (!canLockTrip) {
         throw new ApiError(
           403,
           'Chỉ Quản lý hoặc Quản trị viên mới có quyền chốt khóa chuyến đi',
@@ -146,37 +170,54 @@ export async function transitionTripStatus(
         throw new ApiError(409, 'Chỉ có thể chốt chuyến đi khi ở trạng thái Hoàn thành');
       }
 
-      // Soft guard on zero-revenue
-      const revenue = Number(trip.revenue || 0);
-      if (revenue === 0 && !confirmZeroRevenue) {
-        throw new ApiError(422, 'Doanh thu bằng 0. Vui lòng xác nhận.');
+      if (podApprovedLock) {
+        const [submission] = await tx.select({
+          id: s.tripPodSubmissions.id,
+        }).from(s.tripPodSubmissions)
+          .where(and(
+            eq(s.tripPodSubmissions.id, options.podApprovalContext!.submissionId),
+            eq(s.tripPodSubmissions.tripId, tripId),
+            eq(s.tripPodSubmissions.status, 'ACCEPTED'),
+          ))
+          .limit(1);
+        if (!submission) {
+          throw new ApiError(409, 'e-POD đã duyệt không còn hợp lệ để khóa chuyến.');
+        }
       }
 
-      // Photo evidence gate (Bug 2): require at least 1 photo baseline, and
-      // when the trip's cargo type opts into requires_photos, additionally
-      // require ≥1 CONTAINER and ≥1 SEAL photo. confirmNoPhoto lets the user
-      // override (e.g. legacy trips with no photo evidence). Completion stays
-      // permissive (B2) — the gate lives only on the LOCK transition.
-      const photos = await tx.select({ type: s.tripPhotos.type })
-        .from(s.tripPhotos).where(eq(s.tripPhotos.tripId, tripId));
-      const anyCount = photos.length;
-      const containerCount = photos.filter(p => p.type === 'CONTAINER').length;
-      const sealCount = photos.filter(p => p.type === 'SEAL').length;
-
-      const cargo = trip.cargoTypeId == null
-        ? null
-        : (await tx.select({ requiresPhotos: s.cargoTypes.requiresPhotos })
-          .from(s.cargoTypes)
-          .where(eq(s.cargoTypes.id, trip.cargoTypeId))
-          .limit(1))[0] ?? null;
-      const requiresPhotos = cargo?.requiresPhotos === true; // null/false → baseline only
-
-      if (!confirmNoPhoto) {
-        if (anyCount < 1) {
-          throw new ApiError(422, 'Chưa có ảnh bằng chứng. Vui lòng tải lên ít nhất 1 ảnh hoặc xác nhận chốt không ảnh.');
+      if (!podApprovedLock) {
+        // Soft guard on zero-revenue
+        const revenue = Number(trip.revenue || 0);
+        if (revenue === 0 && !confirmZeroRevenue) {
+          throw new ApiError(422, 'Doanh thu bằng 0. Vui lòng xác nhận.');
         }
-        if (requiresPhotos && (containerCount < 1 || sealCount < 1)) {
-          throw new ApiError(422, 'Loại hàng yêu cầu ảnh: phải có ít nhất 1 ảnh CONTAINER và 1 ảnh SEAL (hoặc xác nhận chốt không ảnh).');
+
+        // Photo evidence gate (Bug 2): require at least 1 photo baseline, and
+        // when the trip's cargo type opts into requires_photos, additionally
+        // require ≥1 CONTAINER and ≥1 SEAL photo. confirmNoPhoto lets the user
+        // override (e.g. legacy trips with no photo evidence). Completion stays
+        // permissive (B2) — the gate lives only on the LOCK transition.
+        const photos = await tx.select({ type: s.tripPhotos.type })
+          .from(s.tripPhotos).where(eq(s.tripPhotos.tripId, tripId));
+        const anyCount = photos.length;
+        const containerCount = photos.filter(p => p.type === 'CONTAINER').length;
+        const sealCount = photos.filter(p => p.type === 'SEAL').length;
+
+        const cargo = trip.cargoTypeId == null
+          ? null
+          : (await tx.select({ requiresPhotos: s.cargoTypes.requiresPhotos })
+            .from(s.cargoTypes)
+            .where(eq(s.cargoTypes.id, trip.cargoTypeId))
+            .limit(1))[0] ?? null;
+        const requiresPhotos = cargo?.requiresPhotos === true; // null/false → baseline only
+
+        if (!confirmNoPhoto) {
+          if (anyCount < 1) {
+            throw new ApiError(422, 'Chưa có ảnh bằng chứng. Vui lòng tải lên ít nhất 1 ảnh hoặc xác nhận chốt không ảnh.');
+          }
+          if (requiresPhotos && (containerCount < 1 || sealCount < 1)) {
+            throw new ApiError(422, 'Loại hàng yêu cầu ảnh: phải có ít nhất 1 ảnh CONTAINER và 1 ảnh SEAL (hoặc xác nhận chốt không ảnh).');
+          }
         }
       }
 

@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Package, FileText, FileCheck2, Container, History, ClipboardPenLine,
 } from 'lucide-react';
-import { api, ApiError } from '../lib/api';
+import { ApiError } from '../lib/api';
 import { PageHeader } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { EmptyState } from '../design-system';
@@ -16,7 +16,13 @@ import {
 } from '@tingting/shared';
 import { usePageAnimations } from '../hooks/animations';
 import { useAuth } from '../hooks/useAuth';
+import {
+  getShipmentDetail as getShipmentDetailRequest,
+  type ShipmentDetail as ShipmentDetailData,
+  type ShipmentPodReviewItem,
+} from '../api/shipmentClient';
 import { ShipmentCoordinationPanel } from '../components/shipment/ShipmentCoordinationPanel';
+import { TripPodReviewPanel } from '../components/shipment/TripPodReviewPanel';
 import './WorkflowFinance.css';
 import './ShipmentDetailPage.css';
 
@@ -36,8 +42,8 @@ interface Shipment {
   deliveryLocation: string | null;
   contactName: string | null;
   contactPhone: string | null;
-  tradeDirection: 'IMPORT' | 'EXPORT' | null;
-  cargoMode: 'FCL' | 'LCL' | null;
+  tradeDirection?: 'IMPORT' | 'EXPORT' | null;
+  cargoMode?: 'FCL' | 'LCL' | null;
   factoryName: string | null;
   shippingLineName: string | null;
   customsCutoffAt: string | null;
@@ -89,14 +95,6 @@ interface ShipmentStatusHistoryRow {
   changedAt: string;
 }
 
-interface ShipmentDetailResponse {
-  shipment: Shipment;
-  containers: ShipmentContainer[];
-  documents: ShipmentDocument[];
-  declarations: ShipmentDeclaration[];
-  statusHistory: ShipmentStatusHistoryRow[];
-}
-
 const STATUS_DOT_CLASS: Record<ShipmentStatus, string> = {
   DRAFT: 'shipment-detail__dot--draft',
   IN_PROGRESS: 'shipment-detail__dot--info',
@@ -112,7 +110,7 @@ function formatDate(iso: string | null): string {
   return d.toLocaleDateString('vi-VN');
 }
 
-function formatDateTime(iso: string | null): string {
+function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return '—';
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
@@ -125,12 +123,14 @@ export default function ShipmentDetailPage() {
   const { user } = useAuth();
   const shipmentId = Number(id);
   const canOperate = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.CLERK;
+  const canSeePodReview = canOperate || user?.role === Role.ACCOUNTANT;
+  const canResolveCancellation = user?.role === Role.ADMIN || user?.role === Role.MANAGER;
   const coordinationActive = user?.workflowRolloutMode === 'ACTIVE'
     && Boolean(user.capabilities?.includes('shipments.read'));
   const canWriteCoordination = coordinationActive
     && Boolean(user.capabilities?.includes('shipments.write'));
 
-  const [data, setData] = useState<ShipmentDetailResponse | null>(null);
+  const [data, setData] = useState<ShipmentDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -152,7 +152,7 @@ export default function ShipmentDetailPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get<ShipmentDetailResponse>(`/shipments/${shipmentId}`);
+      const res = await getShipmentDetailRequest(shipmentId);
       // A newer fetch started — drop this response on the floor.
       if (reqId !== requestIdRef.current) return;
       setData(res);
@@ -195,7 +195,7 @@ export default function ShipmentDetailPage() {
     );
   }
 
-  const { shipment, containers, documents, declarations, statusHistory } = data;
+  const { shipment, containers, documents, declarations, statusHistory, podReviews } = data;
 
   return (
     <div className="shipment-detail page-anim" ref={rootRef}>
@@ -241,7 +241,7 @@ export default function ShipmentDetailPage() {
             <div><dt>Nhà máy / công trường</dt><dd>{shipment.factoryName ?? '—'}</dd></div>
             <div><dt>Hãng tàu</dt><dd>{shipment.shippingLineName ?? '—'}</dd></div>
             <div><dt>Cut-off hải quan</dt><dd>{formatDateTime(shipment.customsCutoffAt)}</dd></div>
-            <div><dt>Closing time</dt><dd>{formatDateTime(shipment.closingAt)}</dd></div>
+            <div><dt>Giờ đóng hàng</dt><dd>{formatDateTime(shipment.closingAt)}</dd></div>
             <div><dt>Thời gian trả</dt><dd>{formatDateTime(shipment.plannedReturnAt)}</dd></div>
             <div><dt>Trọng lượng</dt><dd>{shipment.cargoWeightKg ? `${shipment.cargoWeightKg} kg` : '—'}</dd></div>
             {shipment.cargoMode === 'LCL' && (
@@ -253,6 +253,16 @@ export default function ShipmentDetailPage() {
             <div className="shipment-detail__field--wide"><dt>Ghi chú vận hành</dt><dd>{shipment.operationalNotes ?? '—'}</dd></div>
           </dl>
         </section>
+
+        {canSeePodReview && (
+          <TripPodReviewPanel
+            shipmentId={shipment.id}
+            items={podReviews}
+            canReview={canOperate}
+            canResolveCancellation={canResolveCancellation}
+            onChanged={fetchDetail}
+          />
+        )}
 
         {coordinationActive && (
           <ShipmentCoordinationPanel shipmentId={shipment.id} canWrite={canWriteCoordination} />
@@ -301,7 +311,7 @@ export default function ShipmentDetailPage() {
               {documents.map((d) => (
                 <li key={d.id} className="shipment-detail__doc">
                   <FileCheck2 size={16} />
-                  <span className="shipment-detail__doc-type">{SHIPMENT_DOCUMENT_TYPE_LABELS[d.type]}</span>
+                  <span className="shipment-detail__doc-type">{d.type ? SHIPMENT_DOCUMENT_TYPE_LABELS[d.type] : 'Khác'}</span>
                   <span className="shipment-detail__doc-key">{d.storageKey}</span>
                   <span className="shipment-detail__doc-date">{formatDate(d.createdAt)}</span>
                 </li>

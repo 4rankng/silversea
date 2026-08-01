@@ -30,6 +30,7 @@ import { lockTripFinancialAuthority } from './trip-financial-authority-lock.serv
 import type {
   BillingDocument,
   BillingDocumentDraft,
+  BillingDraftBlockedTrip,
   BillingDocumentLine,
   BillingLineRenderData,
   BillingDraftLine,
@@ -66,6 +67,11 @@ type BillingPartyInfo = {
 };
 
 type OfficialBillingIdentitySnapshot = BillingDocumentOfficialIdentitySnapshot;
+type DraftBuildResult = {
+  lines: BillingDraftLine[];
+  entityName: string;
+  eligibilitySummary?: BillingDocumentDraft['eligibilitySummary'];
+};
 
 type FrozenDebitNoteTemplateSnapshot = DebitNoteTemplateSnapshot & {
   officialIdentity?: OfficialBillingIdentitySnapshot | null;
@@ -346,6 +352,95 @@ export async function assertRecoverableSourcesClaimable(
   await tx.insert(s.billingDocumentRecoverableClaims).values(claimRows);
 }
 
+async function assertTripSourcesClaimable(
+  tx: Tx,
+  input: {
+    customerId: number;
+    rangeFrom: string;
+    rangeTo: string;
+    lines: readonly BillingDocumentLine[];
+  },
+): Promise<void> {
+  const sourceLines = input.lines.filter((line) => line.sourceType === 'TRIP' && line.sourceId != null);
+  const tripIds = sourceLines
+    .map((line) => line.sourceId as number)
+    .sort((left, right) => left - right);
+  if (tripIds.length === 0) return;
+  if (new Set(tripIds).size !== tripIds.length) {
+    throw new ApiError(409, 'Một chuyến chỉ được xuất hiện một lần trên Giấy báo nợ.');
+  }
+
+  const trips = await tx.select({
+    id: s.trips.id,
+    tripCode: s.trips.tripCode,
+    customerId: s.trips.customerId,
+    shipmentId: s.trips.shipmentId,
+    fulfillmentId: s.trips.fulfillmentId,
+    status: s.trips.status,
+    departureDate: s.trips.departureDate,
+    completionDate: sql<string | null>`to_char(${s.trips.completedAt}, 'YYYY-MM-DD')`,
+    revenue: s.trips.revenue,
+    routeName: s.routes.name,
+    notes: s.trips.notes,
+    truckPlate: s.trucks.licensePlate,
+    trailerPlateNumber: s.trailers.licensePlate,
+    externalPlateNumber: s.trips.externalPlateNumber,
+    version: s.trips.version,
+    updatedAt: s.trips.updatedAt,
+    shipmentCustomerId: s.shipments.customerId,
+    tradeDirection: s.shipments.tradeDirection,
+    billNumber: s.shipments.blNumber,
+    factoryName: sql<string | null>`coalesce(${s.shipments.factoryName}, ${s.operationalSites.name})`,
+    expectedDeliveryDate: s.shipments.expectedDeliveryDate,
+    cargoVolumeCbm: s.shipments.cargoVolumeCbm,
+    packageCount: s.shipments.packageCount,
+    packageType: s.shipments.packageType,
+  }).from(s.trips)
+    .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
+    .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
+    .leftJoin(s.trailers, eq(s.trips.trailerId, s.trailers.id))
+    .leftJoin(s.shipments, eq(s.trips.shipmentId, s.shipments.id))
+    .leftJoin(s.operationalSites, eq(s.shipments.operationalSiteId, s.operationalSites.id))
+    .where(and(
+      inArray(s.trips.id, tripIds),
+      isNull(s.trips.deletedAt),
+    ))
+    .orderBy(s.trips.id) as CustomerDebitTripCandidate[];
+  if (trips.length !== tripIds.length) {
+    throw new ApiError(409, 'Có chuyến không còn tồn tại hoặc không còn gắn lô hàng hợp lệ. Vui lòng tạo lại bản nháp.');
+  }
+
+  const latestPodByTrip = await loadLatestPodStatusByTrip(tripIds, tx);
+  const tripById = new Map(trips.map((trip) => [trip.id, trip]));
+  for (const line of sourceLines) {
+    const tripId = line.sourceId as number;
+    const trip = tripById.get(tripId);
+    if (!trip) {
+      throw new ApiError(409, `Chuyến #${tripId} không còn tồn tại. Vui lòng tạo lại bản nháp.`);
+    }
+    const blockedReason = buildTripBlockedReason(trip, input.customerId, latestPodByTrip.get(tripId));
+    if (blockedReason) {
+      throw new ApiError(
+        409,
+        `Chuyến ${trip.tripCode ?? `#${trip.id}`} không đủ điều kiện xuất Giấy báo nợ: ${blockedReason}`,
+      );
+    }
+    if (!trip.completionDate || trip.completionDate < input.rangeFrom || trip.completionDate > input.rangeTo) {
+      throw new ApiError(
+        409,
+        `Chuyến ${trip.tripCode ?? `#${trip.id}`} không có ngày hoàn thành nằm trong kỳ Giấy báo nợ.`,
+      );
+    }
+    const sourceVersion = buildTripSourceVersionToken(trip.version);
+    if (!sourceVersion || renderSourceVersion(line) !== sourceVersion) {
+      throw new ApiError(409, `Chuyến ${trip.tripCode ?? `#${trip.id}`} đã thay đổi. Vui lòng tạo lại bản nháp.`);
+    }
+    if (Number(line.baseAmount) !== Number(trip.revenue ?? 0)) {
+      throw new ApiError(409, `Doanh thu chuyến ${trip.tripCode ?? `#${trip.id}`} không còn khớp nguồn hiện tại.`);
+    }
+  }
+}
+
 function renderSourceVersion(line: Pick<BillingDocumentLine, 'renderData'>): string | null {
   const raw = line.renderData?.sourceVersion;
   return typeof raw === 'string' && raw.trim() ? raw.trim() : null;
@@ -536,17 +631,19 @@ const DEFAULT_PAYMENT_STATEMENT_SNAPSHOT: DebitNoteTemplateSnapshot = {
 };
 
 function looksLikePaymentStatementColumns(cols: DebitNoteTemplateColumn[]): boolean {
+  if (cols.some((col) => col.headerGroup != null)) return false;
   const variables = new Set(cols.map((col) => col.variable));
   const ids = new Set(cols.map((col) => col.id));
   const horizontalSignals = [
     variables.has('rowIndex'),
-    variables.has('truckPlate'),
+    variables.has('truckPlate') && (variables.has('origin') || variables.has('actionType')),
     variables.has('actionType'),
     variables.has('origin') && variables.has('deliveryAddress'),
     ids.has('stt') && ids.has('bien_so'),
     ids.has('gia_vc') && ids.has('so_cont'),
+    variables.has('container20Count') || variables.has('container40Count'),
   ];
-  return horizontalSignals.filter(Boolean).length >= 2;
+  return horizontalSignals.filter(Boolean).length >= 3;
 }
 
 function normalizeTemplateColumns(cols: unknown, docType: BillingDocumentType = 'DEBIT_NOTE'): DebitNoteTemplateColumn[] {
@@ -695,7 +792,7 @@ export async function resolveDebitNoteTemplateForDoc(
  * Each LOCKED trip → a FREIGHT line (route + container separate) + its approved
  * ancillary sell fees (phí nộp hộ) → SERVICE_FEE lines.
  */
-async function buildCustomerDebitLines(customerId: number, from: string, to: string): Promise<{ lines: BillingDraftLine[]; entityName: string }> {
+async function buildCustomerDebitLines(customerId: number, from: string, to: string): Promise<DraftBuildResult> {
   const [customer] = await db.select({ id: s.customers.id, name: s.customers.name })
     .from(s.customers).where(and(eq(s.customers.id, customerId), isNull(s.customers.deletedAt)));
   if (!customer) throw new ApiError(404, 'Không tìm thấy khách hàng');
@@ -714,32 +811,68 @@ async function buildCustomerDebitLines(customerId: number, from: string, to: str
       AND period_expense.sell_amount > 0
       AND period_expense.expense_date BETWEEN ${from} AND ${to}
   )`;
-  const conditions: SQL<unknown>[] = [
-    eq(s.trips.customerId, customerId),
-    inArray(s.trips.status, [...BILLABLE_TRIP_STATUSES]),
-    isNull(s.trips.deletedAt),
-    or(completionInRange, expenseInRange)!,
-  ];
-
   const trips = await db.select({
-    id: s.trips.id, tripCode: s.trips.tripCode, departureDate: s.trips.departureDate,
+    id: s.trips.id,
+    tripCode: s.trips.tripCode,
+    customerId: s.trips.customerId,
+    shipmentId: s.trips.shipmentId,
+    fulfillmentId: s.trips.fulfillmentId,
+    status: s.trips.status,
+    departureDate: s.trips.departureDate,
     completionDate: sql<string | null>`to_char(${s.trips.completedAt}, 'YYYY-MM-DD')`,
-    revenue: s.trips.revenue, routeName: s.routes.name, notes: s.trips.notes,
-    truckPlate: s.trucks.licensePlate, externalPlateNumber: s.trips.externalPlateNumber,
-    version: s.trips.version, updatedAt: s.trips.updatedAt,
+    revenue: s.trips.revenue,
+    routeName: s.routes.name,
+    notes: s.trips.notes,
+    truckPlate: s.trucks.licensePlate,
+    trailerPlateNumber: s.trailers.licensePlate,
+    externalPlateNumber: s.trips.externalPlateNumber,
+    version: s.trips.version,
+    updatedAt: s.trips.updatedAt,
+    shipmentCustomerId: s.shipments.customerId,
+    tradeDirection: s.shipments.tradeDirection,
+    billNumber: s.shipments.blNumber,
+    factoryName: sql<string | null>`coalesce(${s.shipments.factoryName}, ${s.operationalSites.name})`,
+    expectedDeliveryDate: s.shipments.expectedDeliveryDate,
+    cargoVolumeCbm: s.shipments.cargoVolumeCbm,
+    packageCount: s.shipments.packageCount,
+    packageType: s.shipments.packageType,
   }).from(s.trips)
     .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
     .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
-    .where(and(...conditions)).orderBy(s.trips.completedAt, s.trips.id);
+    .leftJoin(s.trailers, eq(s.trips.trailerId, s.trailers.id))
+    .leftJoin(s.shipments, eq(s.trips.shipmentId, s.shipments.id))
+    .leftJoin(s.operationalSites, eq(s.shipments.operationalSiteId, s.operationalSites.id))
+    .where(and(
+      eq(s.trips.customerId, customerId),
+      isNull(s.trips.deletedAt),
+      or(completionInRange, expenseInRange)!,
+    ))
+    .orderBy(s.trips.completedAt, s.trips.id) as CustomerDebitTripCandidate[];
 
-  const tripIds = trips.map((t) => t.id);
+  const tripIds = trips.map((trip) => trip.id);
+  const latestPodByTrip = await loadLatestPodStatusByTrip(tripIds);
+  const declarationByShipment = await loadPrimaryDeclarationByShipment(
+    [...new Set(trips
+      .map((trip) => trip.shipmentId)
+      .filter((shipmentId): shipmentId is number => shipmentId != null))],
+  );
   const containersByTrip = await loadContainersByTrip(tripIds);
   const legsByTrip = await loadLegRenderDataByTrip(tripIds);
   const feesByTrip = await loadApprovedFeesByTrip(tripIds);
 
   const lines: BillingDraftLine[] = [];
+  const blockedTrips: BillingDraftBlockedTrip[] = [];
   let sortOrder = 0;
   for (const trip of trips) {
+    const blockedReason = buildTripBlockedReason(trip, customerId, latestPodByTrip.get(trip.id));
+    if (blockedReason) {
+      blockedTrips.push({
+        tripId: trip.id,
+        tripCode: trip.tripCode ?? null,
+        reason: blockedReason,
+      });
+      continue;
+    }
     const containerInfo = containersByTrip.get(trip.id) ?? [];
     const containers = containerNumbers(containerInfo);
     const unit = containerUnit(containerInfo);
@@ -749,6 +882,19 @@ async function buildCustomerDebitLines(customerId: number, from: string, to: str
       legs: legsByTrip.get(trip.id),
       note: trip.notes ?? null,
     });
+    renderData.deliveryDate = trip.expectedDeliveryDate ?? trip.completionDate ?? null;
+    renderData.factoryName = trip.factoryName ?? null;
+    renderData.tradeDirectionLabel = tradeDirectionLabel(trip.tradeDirection);
+    renderData.billNumber = trip.billNumber ?? null;
+    renderData.declarationNumber = trip.shipmentId != null
+      ? declarationByShipment.get(trip.shipmentId) ?? null
+      : null;
+    renderData.quantityLabel = quantityLabelFromCandidate(trip, containerInfo);
+    renderData.vehicleType = vehicleTypeLabel(trip, containerInfo);
+    renderData.cargoVolumeCbm = trip.cargoVolumeCbm == null ? null : Number(trip.cargoVolumeCbm);
+    renderData.freightAmount = trip.completionDate && trip.completionDate >= from && trip.completionDate <= to
+      ? Number(trip.revenue ?? 0)
+      : null;
     renderData.sourceVersion = buildTripSourceVersionToken(trip.version);
     renderData.sourceChangedAt = trip.updatedAt.toISOString();
     if (trip.completionDate && trip.completionDate >= from && trip.completionDate <= to) {
@@ -785,6 +931,10 @@ async function buildCustomerDebitLines(customerId: number, from: string, to: str
           ...renderData,
           documentCode: expenseDocumentCode(fee),
           note: fee.billingLabel ?? fee.name ?? fee.expenseType,
+          recoverableSupplierName: fee.supplierName ?? null,
+          recoverableFeeType: fee.billingLabel ?? fee.name ?? fee.expenseType,
+          recoverableDocumentCode: expenseDocumentCode(fee),
+          recoverableAmount: amt,
           sourceVersion: buildExpenseSourceVersionToken(fee),
           sourceChangedAt: fee.updatedAt?.toISOString() ?? null,
         },
@@ -793,7 +943,14 @@ async function buildCustomerDebitLines(customerId: number, from: string, to: str
     }
   }
 
-  return { lines, entityName };
+  return {
+    lines,
+    entityName,
+    eligibilitySummary: {
+      includedTripCount: trips.length - blockedTrips.length,
+      blockedTrips,
+    },
+  };
 }
 
 /**
@@ -801,7 +958,7 @@ async function buildCustomerDebitLines(customerId: number, from: string, to: str
  * each trip / shipment is one row, while freight and approved ancillary fees are
  * exposed as separate render variables for customer-specific table columns.
  */
-async function buildCustomerPaymentStatementLines(customerId: number, from: string, to: string): Promise<{ lines: BillingDraftLine[]; entityName: string }> {
+async function buildCustomerPaymentStatementLines(customerId: number, from: string, to: string): Promise<DraftBuildResult> {
   const [customer] = await db.select({ id: s.customers.id, name: s.customers.name })
     .from(s.customers).where(and(eq(s.customers.id, customerId), isNull(s.customers.deletedAt)));
   if (!customer) throw new ApiError(404, 'Không tìm thấy khách hàng');
@@ -892,7 +1049,7 @@ async function buildCustomerPaymentStatementLines(customerId: number, from: stri
 }
 
 /** Build AP carrier lines: trips we outsourced to this carrier (externalCarrierId). */
-async function buildCarrierPaymentLines(carrierId: number, from: string, to: string): Promise<{ lines: BillingDraftLine[]; entityName: string }> {
+async function buildCarrierPaymentLines(carrierId: number, from: string, to: string): Promise<DraftBuildResult> {
   const [carrier] = await db.select({ id: s.customers.id, name: s.customers.name })
     .from(s.customers).where(and(eq(s.customers.id, carrierId), isNull(s.customers.deletedAt)));
   if (!carrier) throw new ApiError(404, 'Không tìm thấy đối tác vận chuyển');
@@ -932,7 +1089,7 @@ async function buildCarrierPaymentLines(carrierId: number, from: string, to: str
 }
 
 /** Build AP supplier lines from the existing supplier statement (payable accruals). */
-async function buildSupplierPaymentLines(supplierId: number, from: string, to: string): Promise<{ lines: BillingDraftLine[]; entityName: string }> {
+async function buildSupplierPaymentLines(supplierId: number, from: string, to: string): Promise<DraftBuildResult> {
   const statement = await getSupplierStatement(supplierId, from, to);
   if (!statement) throw new ApiError(404, 'Không tìm thấy nhà cung cấp');
   const entityName = statement.supplier.name;
@@ -957,6 +1114,36 @@ async function buildSupplierPaymentLines(supplierId: number, from: string, to: s
 
 type ContainerRenderInfo = { containerNumber: string | null; containerTypeCode: string | null; containerTypeName: string | null };
 type LegRenderInfo = { origin: string | null; destination: string | null; loadingType: LoadingType | null };
+type TripPodStatusSummary = {
+  status: 'DRAFT' | 'SUBMITTED' | 'ACCEPTED' | 'REJECTED' | null;
+  rejectionReason: string | null;
+};
+type CustomerDebitTripCandidate = {
+  id: number;
+  tripCode: string | null;
+  customerId: number;
+  shipmentId: number | null;
+  fulfillmentId: number | null;
+  status: string;
+  departureDate: string;
+  completionDate: string | null;
+  revenue: string | null;
+  routeName: string | null;
+  notes: string | null;
+  truckPlate: string | null;
+  trailerPlateNumber: string | null;
+  externalPlateNumber: string | null;
+  version: number;
+  updatedAt: Date;
+  shipmentCustomerId: number | null;
+  tradeDirection: 'IMPORT' | 'EXPORT' | null;
+  billNumber: string | null;
+  factoryName: string | null;
+  expectedDeliveryDate: string | null;
+  cargoVolumeCbm: string | null;
+  packageCount: number | null;
+  packageType: string | null;
+};
 type ApprovedFeeRenderInfo = {
   tripId: number;
   id: number;
@@ -964,12 +1151,69 @@ type ApprovedFeeRenderInfo = {
   expenseType: string;
   billingLabel: string | null;
   name: string | null;
+  supplierName: string | null;
   invoiceNumber: string | null;
   declarationNumber: string | null;
   approvalStatus: string | null;
   expenseDate: string | null;
   updatedAt: Date | null;
 };
+
+function tradeDirectionLabel(value: 'IMPORT' | 'EXPORT' | null): string | null {
+  if (value === 'IMPORT') return 'Nhập';
+  if (value === 'EXPORT') return 'Xuất';
+  return null;
+}
+
+function quantityLabelFromCandidate(
+  candidate: CustomerDebitTripCandidate,
+  containers: ContainerRenderInfo[],
+): string | null {
+  const containerList = containerNumbers(containers);
+  if (containerList && containerList.length > 0) return containerList.join(', ');
+  if (candidate.packageCount && candidate.packageCount > 0) {
+    return `${candidate.packageCount}${candidate.packageType ? ` ${candidate.packageType}` : ' kiện'}`;
+  }
+  return null;
+}
+
+function vehicleTypeLabel(
+  candidate: CustomerDebitTripCandidate,
+  containers: ContainerRenderInfo[],
+): string | null {
+  const unit = containerUnit(containers);
+  if (unit !== 'cont') return unit;
+  if (candidate.packageCount && candidate.packageCount > 0) return 'LCL';
+  return null;
+}
+
+function buildTripBlockedReason(
+  candidate: CustomerDebitTripCandidate,
+  customerId: number,
+  latestPod: TripPodStatusSummary | undefined,
+): string | null {
+  if (!candidate.shipmentId || !candidate.fulfillmentId) {
+    return 'Chuyến chưa gắn fulfillment của lô hàng.';
+  }
+  if (candidate.customerId !== customerId || candidate.shipmentCustomerId !== customerId) {
+    return 'Chuyến không thuộc đúng khách hàng của Giấy báo nợ.';
+  }
+  if (candidate.status !== 'LOCKED') {
+    return 'Chuyến chưa ở trạng thái LOCKED.';
+  }
+  if (!latestPod || latestPod.status == null || latestPod.status === 'DRAFT') {
+    return 'Chưa có e-POD đã duyệt.';
+  }
+  if (latestPod.status === 'SUBMITTED') {
+    return 'e-POD đang chờ duyệt.';
+  }
+  if (latestPod.status === 'REJECTED') {
+    return latestPod.rejectionReason?.trim()
+      ? `e-POD bị từ chối: ${latestPod.rejectionReason.trim()}`
+      : 'e-POD bị từ chối.';
+  }
+  return null;
+}
 
 export function containerNumbers(containers: ContainerRenderInfo[]): string[] | null {
   const list = containers.map((c) => c.containerNumber).filter((n): n is string => Boolean(n));
@@ -1084,6 +1328,58 @@ export async function loadLegRenderDataByTrip(
   return map;
 }
 
+async function loadLatestPodStatusByTrip(
+  tripIds: number[],
+  executor: Pick<Tx, 'select'> | typeof db = db,
+): Promise<Map<number, TripPodStatusSummary>> {
+  const map = new Map<number, TripPodStatusSummary>();
+  if (tripIds.length === 0) return map;
+  const rows = await executor.select({
+    tripId: s.tripPodSubmissions.tripId,
+    status: s.tripPodSubmissions.status,
+    rejectionReason: s.tripPodSubmissions.rejectionReason,
+    submissionVersion: s.tripPodSubmissions.submissionVersion,
+    id: s.tripPodSubmissions.id,
+  }).from(s.tripPodSubmissions)
+    .where(inArray(s.tripPodSubmissions.tripId, tripIds))
+    .orderBy(s.tripPodSubmissions.tripId, desc(s.tripPodSubmissions.submissionVersion), desc(s.tripPodSubmissions.id));
+  for (const row of rows) {
+    if (map.has(row.tripId)) continue;
+    map.set(row.tripId, {
+      status: row.status,
+      rejectionReason: row.rejectionReason ?? null,
+    });
+  }
+  return map;
+}
+
+async function loadPrimaryDeclarationByShipment(
+  shipmentIds: number[],
+  executor: Pick<Tx, 'select'> | typeof db = db,
+): Promise<Map<number, string>> {
+  const map = new Map<number, string>();
+  if (shipmentIds.length === 0) return map;
+  const rows = await executor.select({
+    shipmentId: s.shipmentDeclarations.shipmentId,
+    declarationNumber: s.shipmentDeclarations.declarationNumber,
+    issuedAt: s.shipmentDeclarations.issuedAt,
+    updatedAt: s.shipmentDeclarations.updatedAt,
+    id: s.shipmentDeclarations.id,
+  }).from(s.shipmentDeclarations)
+    .where(inArray(s.shipmentDeclarations.shipmentId, shipmentIds))
+    .orderBy(
+      s.shipmentDeclarations.shipmentId,
+      desc(s.shipmentDeclarations.issuedAt),
+      desc(s.shipmentDeclarations.updatedAt),
+      desc(s.shipmentDeclarations.id),
+    );
+  for (const row of rows) {
+    if (!row.declarationNumber || map.has(row.shipmentId)) continue;
+    map.set(row.shipmentId, row.declarationNumber);
+  }
+  return map;
+}
+
 /** Bulk-load approved ancillary fees (sell side) grouped by trip — avoids N+1 per trip. */
 async function loadApprovedFeesByTrip(tripIds: number[]): Promise<Map<number, ApprovedFeeRenderInfo[]>> {
   const map = new Map<number, ApprovedFeeRenderInfo[]>();
@@ -1095,8 +1391,10 @@ async function loadApprovedFeesByTrip(tripIds: number[]): Promise<Map<number, Ap
     approvalStatus: s.tripExpenses.approvalStatus, expenseDate: s.tripExpenses.expenseDate,
     updatedAt: s.tripExpenses.updatedAt,
     billingLabel: s.forwarderExpenseTypes.billingLabel, name: s.forwarderExpenseTypes.name,
+    supplierName: s.suppliers.name,
   }).from(s.tripExpenses)
     .leftJoin(s.forwarderExpenseTypes, eq(s.tripExpenses.expenseType, s.forwarderExpenseTypes.code))
+    .leftJoin(s.suppliers, eq(s.tripExpenses.supplierId, s.suppliers.id))
     .where(and(inArray(s.tripExpenses.tripId, tripIds), eq(s.tripExpenses.approvalStatus, 'APPROVED')));
   for (const f of rows) {
     if (!map.has(f.tripId)) map.set(f.tripId, []);
@@ -1108,7 +1406,7 @@ async function loadApprovedFeesByTrip(tripIds: number[]): Promise<Map<number, Ap
 export async function generateDraft(input: GenerateBillingDocumentInput): Promise<BillingDocumentDraft> {
   const { type, entityType, entityId, rangeFrom: from, rangeTo: to } = input;
 
-  let result: { lines: BillingDraftLine[]; entityName: string };
+  let result: DraftBuildResult;
 
   if (type === 'DEBIT_NOTE' && entityType === 'CUSTOMER') {
     result = await buildCustomerDebitLines(entityId, from, to);
@@ -1128,7 +1426,17 @@ export async function generateDraft(input: GenerateBillingDocumentInput): Promis
   }
 
   const total = result.lines.reduce((sum, l) => sum + effectiveAmount(l), 0);
-  return { type, entityType, entityId, entityName: result.entityName, rangeFrom: from, rangeTo: to, lines: result.lines, totalInclVat: total };
+  return {
+    type,
+    entityType,
+    entityId,
+    entityName: result.entityName,
+    rangeFrom: from,
+    rangeTo: to,
+    lines: result.lines,
+    totalInclVat: total,
+    eligibilitySummary: result.eligibilitySummary ?? null,
+  };
 }
 
 // ─── Persistence + receivables reconciliation ────────────────────────────────
@@ -1213,6 +1521,12 @@ export async function saveDocument(
           ...tripSourceIds(input.lines as BillingDocumentLine[]),
         ]);
         assertDraftDocumentLinesEditable(existing.debitNoteStatus);
+        await assertTripSourcesClaimable(tx, {
+          customerId: input.entityId,
+          rangeFrom: input.rangeFrom,
+          rangeTo: input.rangeTo,
+          lines: input.lines as BillingDocumentLine[],
+        });
         await assertRecoverableSourcesClaimable(tx, {
           documentId: existing.id,
           customerId: input.entityId,
@@ -1273,6 +1587,12 @@ export async function saveDocument(
         paymentDatePolicyApplied: dueDateSnapshot.policy,
       }).returning();
       if (!doc) throw new ApiError(500, 'Không lưu được tài liệu');
+      await assertTripSourcesClaimable(tx, {
+        customerId: input.entityId,
+        rangeFrom: input.rangeFrom,
+        rangeTo: input.rangeTo,
+        lines: input.lines as BillingDocumentLine[],
+      });
       await assertRecoverableSourcesClaimable(tx, {
         documentId: doc.id,
         customerId: input.entityId,
@@ -1397,6 +1717,12 @@ export async function updateDocument(
       )
       : [];
     if (input.type === 'DEBIT_NOTE' && input.entityType === 'CUSTOMER') {
+      await assertTripSourcesClaimable(tx, {
+        customerId: input.entityId,
+        rangeFrom: input.rangeFrom,
+        rangeTo: input.rangeTo,
+        lines: input.lines as BillingDocumentLine[],
+      });
       await assertRecoverableSourcesClaimable(tx, {
         documentId: id,
         customerId: input.entityId,
@@ -2071,26 +2397,34 @@ function colLetter(n: number): string {
 export function renderColumnValue(line: BillingDocumentLine, col: DebitNoteTemplateColumn, rowIndex: number): string | number | Date | null {
   const data = line.renderData ?? {};
   const routeParts = splitRouteName(line.routeName ?? '');
+  const parseDateValue = (raw: string | null | undefined): string | Date | null => {
+    if (!raw) return null;
+    const [year, month, day] = String(raw).split('-').map(Number);
+    const date = year && month && day
+      ? new Date(Date.UTC(year, month - 1, day))
+      : new Date(`${raw}T00:00:00`);
+    return Number.isNaN(date.getTime()) ? String(raw) : date;
+  };
   switch (col.variable) {
     case 'rowIndex': return rowIndex;
-    case 'departureDate': {
-      const raw = data.departureDate;
-      if (!raw) return null;
-      const [year, month, day] = String(raw).split('-').map(Number);
-      const date = year && month && day
-        ? new Date(Date.UTC(year, month - 1, day))
-        : new Date(`${raw}T00:00:00`);
-      return Number.isNaN(date.getTime()) ? String(raw) : date;
-    }
+    case 'departureDate': return parseDateValue(data.departureDate);
+    case 'deliveryDate': return parseDateValue(data.deliveryDate);
     case 'truckPlate': return data.truckPlate ?? null;
+    case 'vehicleType': return data.vehicleType ?? null;
     case 'actionType': return data.actionType ?? null;
     case 'origin': return data.origin ?? routeParts?.origin ?? null;
     case 'destination': return data.destination ?? routeParts?.destination ?? line.routeName ?? null;
     case 'deliveryAddress': return data.deliveryAddress ?? null;
+    case 'factoryName': return data.factoryName ?? null;
+    case 'tradeDirectionLabel': return data.tradeDirectionLabel ?? null;
+    case 'billNumber': return data.billNumber ?? null;
+    case 'declarationNumber': return data.declarationNumber ?? null;
+    case 'quantityLabel': return data.quantityLabel ?? null;
     case 'container20Count': return data.container20Count ?? null;
     case 'container40Count': return data.container40Count ?? null;
     case 'containerCount': return data.containerCount ?? (line.containerNumbers?.length || null);
     case 'containerNumbers': return (line.containerNumbers ?? []).join(', ') || null;
+    case 'cargoVolumeCbm': return data.cargoVolumeCbm ?? null;
     case 'routeName': return line.routeName ?? null;
     case 'description': return exportDescription(line);
     case 'lineTypeLabel': return line.typeLabel;
@@ -2103,10 +2437,18 @@ export function renderColumnValue(line: BillingDocumentLine, col: DebitNoteTempl
       }
       return amount;
     }
+    case 'deliveryFeeAmount': return data.deliveryFeeAmount ?? null;
     case 'freightAmount': return data.freightAmount ?? null;
+    case 'portFeeAmount': return data.portFeeAmount ?? null;
+    case 'otherServiceFeeAmount': return data.otherServiceFeeAmount ?? null;
+    case 'fuelSurchargeAmount': return data.fuelSurchargeAmount ?? null;
     case 'serviceFeeAmount': return data.serviceFeeAmount ?? null;
     case 'totalAmount': return data.totalAmount ?? (effectiveAmount(line) || 0);
     case 'serviceFeeDescription': return data.serviceFeeDescription ?? null;
+    case 'recoverableSupplierName': return data.recoverableSupplierName ?? null;
+    case 'recoverableFeeType': return data.recoverableFeeType ?? null;
+    case 'recoverableDocumentCode': return data.recoverableDocumentCode ?? null;
+    case 'recoverableAmount': return data.recoverableAmount ?? null;
     case 'note': return data.note ?? null;
     case 'documentCode': return data.documentCode ?? null;
     case 'tripCode':
@@ -2336,6 +2678,343 @@ function groupDebitNoteLines(lines: BillingDocumentLine[]): DebitNoteLineGroup[]
   return groups;
 }
 
+const LONG_MINH_CONTINUATION_VARIABLES = new Set<DebitNoteTemplateColumn['variable']>([
+  'rowIndex',
+  'factoryName',
+  'tradeDirectionLabel',
+  'billNumber',
+  'declarationNumber',
+  'quantityLabel',
+  'vehicleType',
+  'truckPlate',
+  'cargoVolumeCbm',
+  'deliveryDate',
+  'routeName',
+  'deliveryFeeAmount',
+  'freightAmount',
+  'portFeeAmount',
+  'otherServiceFeeAmount',
+  'fuelSurchargeAmount',
+]);
+
+type LongMinhDebitGroup = {
+  representativeLine: BillingDocumentLine;
+  tripLine: BillingDocumentLine | null;
+  serviceLines: BillingDocumentLine[];
+  recoverableLines: BillingDocumentLine[];
+};
+
+type LongMinhPrintableRow = {
+  displayIndex: number | null;
+  representativeLine: BillingDocumentLine;
+  recoverableLine: BillingDocumentLine | null;
+  serviceAmounts: {
+    deliveryFeeAmount: number;
+    freightAmount: number;
+    portFeeAmount: number;
+    otherServiceFeeAmount: number;
+    fuelSurchargeAmount: number;
+  };
+  continuation: boolean;
+};
+
+function isLongMinhDebitTemplate(cols: readonly DebitNoteTemplateColumn[]): boolean {
+  const variables = new Set(cols.map((col) => col.variable));
+  return cols.some((col) => col.headerGroup != null)
+    && variables.has('deliveryDate')
+    && variables.has('quantityLabel')
+    && variables.has('recoverableAmount');
+}
+
+function longMinhGroupKey(line: BillingDocumentLine): string {
+  const data = line.renderData ?? {};
+  const stableTripIdentity = data.tripCode?.trim()
+    ? `trip-code:${data.tripCode.trim()}`
+    : line.sourceType === 'TRIP' && line.sourceId != null
+      ? `trip:${line.sourceId}`
+      : `route:${line.routeName ?? ''}`;
+  if (!stableTripIdentity.startsWith('route:')) return stableTripIdentity;
+  return [
+    stableTripIdentity,
+    data.departureDate ?? '',
+    (line.containerNumbers ?? []).join('|'),
+  ].join('\u001f');
+}
+
+function sumLongMinhServiceAmounts(lines: readonly BillingDocumentLine[]) {
+  const amounts = {
+    deliveryFeeAmount: 0,
+    freightAmount: 0,
+    portFeeAmount: 0,
+    otherServiceFeeAmount: 0,
+    fuelSurchargeAmount: 0,
+  };
+  for (const line of lines) {
+    const data = line.renderData ?? {};
+    amounts.deliveryFeeAmount += Number(data.deliveryFeeAmount ?? 0);
+    amounts.freightAmount += Number(data.freightAmount ?? (line.lineType === 'FREIGHT' ? effectiveAmount(line) : 0));
+    amounts.portFeeAmount += Number(data.portFeeAmount ?? 0);
+    amounts.otherServiceFeeAmount += Number(data.otherServiceFeeAmount ?? 0);
+    amounts.fuelSurchargeAmount += Number(data.fuelSurchargeAmount ?? 0);
+    if (
+      line.lineType !== 'FREIGHT'
+      && line.sourceType !== 'EXPENSE'
+      && Number(data.deliveryFeeAmount ?? 0) === 0
+      && Number(data.portFeeAmount ?? 0) === 0
+      && Number(data.otherServiceFeeAmount ?? 0) === 0
+      && Number(data.fuelSurchargeAmount ?? 0) === 0
+      && Number(data.freightAmount ?? 0) === 0
+    ) {
+      amounts.otherServiceFeeAmount += effectiveAmount(line);
+    }
+  }
+  return amounts;
+}
+
+function buildLongMinhPrintableRows(lines: readonly BillingDocumentLine[]): LongMinhPrintableRow[] {
+  const groups: LongMinhDebitGroup[] = [];
+  const byKey = new Map<string, LongMinhDebitGroup>();
+  for (const line of lines) {
+    const key = longMinhGroupKey(line);
+    let group = byKey.get(key);
+    if (!group) {
+      group = {
+        representativeLine: line,
+        tripLine: null,
+        serviceLines: [],
+        recoverableLines: [],
+      };
+      byKey.set(key, group);
+      groups.push(group);
+    }
+    if (!group.tripLine && line.sourceType === 'TRIP') {
+      group.tripLine = line;
+      group.representativeLine = line;
+    }
+    if (line.sourceType === 'EXPENSE' || Number(line.renderData?.recoverableAmount ?? 0) > 0) {
+      group.recoverableLines.push(line);
+    } else {
+      group.serviceLines.push(line);
+    }
+  }
+
+  return groups.flatMap<LongMinhPrintableRow>((group, index) => {
+    const representativeLine = group.tripLine ?? group.representativeLine;
+    const serviceAmounts = sumLongMinhServiceAmounts(group.serviceLines.length > 0 ? group.serviceLines : [representativeLine]);
+    if (group.recoverableLines.length === 0) {
+      return [{
+        displayIndex: index + 1,
+        representativeLine,
+        recoverableLine: null,
+        serviceAmounts,
+        continuation: false,
+      }];
+    }
+    return group.recoverableLines.map((recoverableLine, recoverableIndex) => ({
+      displayIndex: recoverableIndex === 0 ? index + 1 : null,
+      representativeLine,
+      recoverableLine,
+      serviceAmounts,
+      continuation: recoverableIndex > 0,
+    }));
+  });
+}
+
+async function renderLongMinhDebitXlsx(
+  doc: BillingDocument,
+  snap: DebitNoteTemplateSnapshot,
+): Promise<Buffer> {
+  const ExcelJSMod = await import('exceljs');
+  const ExcelJS = (ExcelJSMod as Record<string, unknown>).default
+    ? ((ExcelJSMod as Record<string, unknown>).default as typeof ExcelJSMod)
+    : ExcelJSMod;
+  const wb = new ExcelJS.Workbook();
+  const officialIdentity = await resolveBillingDocumentIdentity(doc, snap);
+  const issuer = officialIdentity?.issuer ?? null;
+  const partner = officialIdentity?.counterparty ?? null;
+  wb.creator = issuer?.name || '';
+  wb.created = new Date();
+  wb.modified = new Date();
+
+  const ws = wb.addWorksheet('Long Minh Debit');
+  const columns = normalizeTemplateColumns(snap.columns, 'DEBIT_NOTE').filter((col) => col.width > 0);
+  const printableRows = buildLongMinhPrintableRows((await enrichLinesForDebitNoteRender(doc.lines)).filter((line) => !line.excluded));
+  const headerTopRow = 15;
+  const headerBottomRow = 16;
+  const firstDataRow = 17;
+  const lastColumn = columns.length;
+  const moneyFmt = '#,##0';
+
+  ws.properties.defaultRowHeight = 18;
+  ws.pageSetup = {
+    paperSize: 9,
+    orientation: 'landscape',
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,
+    margins: { left: 0.35, right: 0.35, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 },
+  };
+  columns.forEach((column, index) => {
+    ws.getColumn(index + 1).width = Math.max(4, Math.min(36, column.width));
+  });
+
+  ws.mergeCells(7, 1, 7, lastColumn);
+  ws.getCell(7, 1).value = snap.titleText || 'BẢNG KÊ XÁC NHẬN VẬN CHUYỂN HOÀN THÀNH / MẪU DEBIT LONG MINH';
+  ws.getCell(7, 1).font = { name: 'Tahoma', size: 12, bold: true };
+  ws.getCell(7, 1).alignment = { horizontal: 'center', vertical: 'middle' };
+
+  ws.getCell(9, 1).value = 'Đơn vị phát hành';
+  ws.getCell(9, 2).value = issuer?.name || '';
+  ws.getCell(10, 1).value = 'Địa chỉ';
+  ws.getCell(10, 2).value = issuer?.address || '';
+  ws.getCell(11, 1).value = 'Khách hàng';
+  ws.getCell(11, 2).value = partner?.name || doc.entityName || '';
+  ws.getCell(12, 1).value = 'Kỳ đối soát';
+  ws.getCell(12, 2).value = `${formatVietnameseDate(doc.rangeFrom)} - ${formatVietnameseDate(doc.rangeTo)}`;
+  ws.getCell(13, 1).value = 'Điều khoản';
+  ws.getCell(13, 2).value = snap.termsText || 'Theo mẫu Long Minh đã cấu hình';
+  for (let row = 9; row <= 13; row++) {
+    ws.getCell(row, 1).font = { name: 'Tahoma', size: 10, bold: true };
+    ws.getCell(row, 2).font = { name: 'Tahoma', size: 10 };
+    ws.getCell(row, 2).alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+  }
+
+  for (let index = 0; index < columns.length; index++) {
+    const column = columns[index]!;
+    const cellTop = ws.getCell(headerTopRow, index + 1);
+    const cellBottom = ws.getCell(headerBottomRow, index + 1);
+    if (column.headerGroup) {
+      cellBottom.value = column.label;
+    } else {
+      cellTop.value = column.label;
+      ws.mergeCells(headerTopRow, index + 1, headerBottomRow, index + 1);
+    }
+  }
+  let index = 0;
+  while (index < columns.length) {
+    const headerGroup = columns[index]!.headerGroup;
+    if (!headerGroup) {
+      index += 1;
+      continue;
+    }
+    let end = index;
+    while (end + 1 < columns.length && columns[end + 1]!.headerGroup === headerGroup) end += 1;
+    ws.mergeCells(headerTopRow, index + 1, headerTopRow, end + 1);
+    ws.getCell(headerTopRow, index + 1).value = headerGroup;
+    index = end + 1;
+  }
+  for (let row = headerTopRow; row <= headerBottomRow; row++) {
+    for (let col = 1; col <= lastColumn; col++) {
+      const cell = ws.getCell(row, col);
+      cell.font = { name: 'Tahoma', size: 10, bold: true };
+      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FF000000' } },
+        left: { style: 'thin', color: { argb: 'FF000000' } },
+        right: { style: 'thin', color: { argb: 'FF000000' } },
+        bottom: { style: 'thin', color: { argb: 'FF000000' } },
+      };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E2F3' } };
+    }
+  }
+
+  printableRows.forEach((row, rowIndex) => {
+    const excelRow = firstDataRow + rowIndex;
+    columns.forEach((column, columnIndex) => {
+      const cell = ws.getCell(excelRow, columnIndex + 1);
+      let value: string | number | Date | null;
+      if (row.continuation && LONG_MINH_CONTINUATION_VARIABLES.has(column.variable)) {
+        value = null;
+      } else if (column.variable === 'rowIndex') {
+        value = row.displayIndex;
+      } else if (column.variable === 'deliveryFeeAmount') {
+        value = row.continuation ? null : row.serviceAmounts.deliveryFeeAmount || null;
+      } else if (column.variable === 'freightAmount') {
+        value = row.continuation ? null : row.serviceAmounts.freightAmount || null;
+      } else if (column.variable === 'portFeeAmount') {
+        value = row.continuation ? null : row.serviceAmounts.portFeeAmount || null;
+      } else if (column.variable === 'otherServiceFeeAmount') {
+        value = row.continuation ? null : row.serviceAmounts.otherServiceFeeAmount || null;
+      } else if (column.variable === 'fuelSurchargeAmount') {
+        value = row.continuation ? null : row.serviceAmounts.fuelSurchargeAmount || null;
+      } else if (column.variable === 'recoverableSupplierName') {
+        value = renderColumnValue(row.recoverableLine ?? row.representativeLine, column, row.displayIndex ?? rowIndex + 1);
+      } else if (column.variable === 'recoverableFeeType') {
+        value = renderColumnValue(row.recoverableLine ?? row.representativeLine, column, row.displayIndex ?? rowIndex + 1);
+      } else if (column.variable === 'recoverableDocumentCode') {
+        value = renderColumnValue(row.recoverableLine ?? row.representativeLine, column, row.displayIndex ?? rowIndex + 1);
+      } else if (column.variable === 'recoverableAmount') {
+        value = row.recoverableLine ? effectiveAmount(row.recoverableLine) : null;
+      } else {
+        value = renderColumnValue(row.representativeLine, column, row.displayIndex ?? rowIndex + 1);
+      }
+      cell.value = value;
+      cell.font = { name: 'Tahoma', size: 10 };
+      cell.alignment = {
+        horizontal: column.align === 'right' ? 'right' : column.align === 'left' ? 'left' : 'center',
+        vertical: 'middle',
+        wrapText: true,
+      };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FF000000' } },
+        left: { style: 'thin', color: { argb: 'FF000000' } },
+        right: { style: 'thin', color: { argb: 'FF000000' } },
+        bottom: { style: 'thin', color: { argb: 'FF000000' } },
+      };
+      if (column.format === 'currency' || column.format === 'number') {
+        cell.numFmt = moneyFmt;
+      } else if (value instanceof Date) {
+        cell.numFmt = 'dd/mm/yyyy';
+      }
+    });
+  });
+
+  const serviceSubtotal = printableRows.reduce(
+    (sum, row) => sum + (row.continuation
+      ? 0
+      : row.serviceAmounts.deliveryFeeAmount
+        + row.serviceAmounts.freightAmount
+        + row.serviceAmounts.portFeeAmount
+        + row.serviceAmounts.otherServiceFeeAmount
+        + row.serviceAmounts.fuelSurchargeAmount),
+    0,
+  );
+  const recoverableSubtotal = printableRows.reduce(
+    (sum, row) => sum + Number(row.recoverableLine ? effectiveAmount(row.recoverableLine) : 0),
+    0,
+  );
+  const vatAmount = Math.round(serviceSubtotal * 0.08);
+  const grandTotal = serviceSubtotal + recoverableSubtotal + vatAmount;
+  const summaryStartRow = firstDataRow + printableRows.length + 1;
+  const labelColumn = Math.max(1, lastColumn - 4);
+  const valueColumn = lastColumn;
+  const summaryRows: Array<[string, number]> = [
+    ['Tổng phí dịch vụ', serviceSubtotal],
+    ['Tổng phí chi hộ', recoverableSubtotal],
+    ['VAT 8% phí dịch vụ', vatAmount],
+    ['Tổng thanh toán', grandTotal],
+  ];
+  summaryRows.forEach(([label, amount], offset) => {
+    const row = summaryStartRow + offset;
+    ws.mergeCells(row, labelColumn, row, valueColumn - 1);
+    ws.getCell(row, labelColumn).value = label;
+    ws.getCell(row, labelColumn).font = { name: 'Tahoma', size: 10, bold: true };
+    ws.getCell(row, labelColumn).alignment = { horizontal: 'right', vertical: 'middle' };
+    ws.getCell(row, valueColumn).value = amount;
+    ws.getCell(row, valueColumn).font = { name: 'Tahoma', size: 10, bold: true };
+    ws.getCell(row, valueColumn).alignment = { horizontal: 'right', vertical: 'middle' };
+    ws.getCell(row, valueColumn).numFmt = moneyFmt;
+  });
+
+  const wordsRow = summaryStartRow + summaryRows.length + 1;
+  ws.mergeCells(wordsRow, 1, wordsRow, lastColumn);
+  ws.getCell(wordsRow, 1).value = `Bằng chữ: ${amountToVietnameseWords(grandTotal)}`;
+  ws.getCell(wordsRow, 1).font = { name: 'Tahoma', size: 10, italic: true };
+
+  const ab = await wb.xlsx.writeBuffer();
+  return Buffer.from(ab);
+}
+
 /**
  * Public entry point. `null`/`undefined` template or a mismatched document type
  * delegates to the verbatim legacy renderer. A live template is snapshotted,
@@ -2354,6 +3033,9 @@ async function renderDebitNoteXlsx(
   doc: BillingDocument,
   snap: DebitNoteTemplateSnapshot,
 ): Promise<Buffer> {
+  if (isLongMinhDebitTemplate(snap.columns)) {
+    return renderLongMinhDebitXlsx(doc, snap);
+  }
   const ExcelJSMod = await import('exceljs');
   const ExcelJS = (ExcelJSMod as Record<string, unknown>).default
     ? ((ExcelJSMod as Record<string, unknown>).default as typeof ExcelJSMod)

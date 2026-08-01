@@ -6,7 +6,13 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { eq, inArray } from 'drizzle-orm';
-import { CustomerAccountType, Role } from '@tingting/shared';
+import {
+  CustomerAccountType,
+  Role,
+  TripPodFileType,
+  TripPodStatus,
+  TripStatus,
+} from '@tingting/shared';
 import { db, client } from '../db';
 import * as s from '../db/schema';
 import { config } from '../config';
@@ -18,11 +24,21 @@ import { createShipment } from '../services/shipment.service';
 import { createUser } from '../services/user.service';
 import portalRoutes from '../routes/portal/index';
 import { disconnectRedis } from '../lib/redis';
+import { storageService } from '../services/storage.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const customerIds: number[] = [];
 const userIds: number[] = [];
 const documentIds: number[] = [];
+const routeIds: number[] = [];
+const cargoTypeIds: number[] = [];
+const shipmentIds: number[] = [];
+const fulfillmentIds: number[] = [];
+const tripIds: number[] = [];
+const driverIds: number[] = [];
+const podSubmissionIds: number[] = [];
+const podFileIds: number[] = [];
+const podStorageKeys: string[] = [];
 let customerToken: string;
 let multiCustomerToken: string;
 let unmappedCustomerToken: string;
@@ -36,11 +52,16 @@ let foreignPendingId: number;
 let multiCustomerId: number;
 let multiShipmentId: number;
 let multiPendingId: number;
+let multiShipmentPodFileId: number;
 
 async function createCustomer(name: string) {
   const [customer] = await db.insert(s.customers).values({ name: `${name} ${suffix}` }).returning();
   customerIds.push(customer.id);
   return customer;
+}
+
+function samplePdfBuffer(label: string): Buffer {
+  return Buffer.from(`%PDF-1.4\n% portal ${label}\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n`, 'utf8');
 }
 
 async function createDocument(customerId: number, status: 'SENT' | 'PENDING_CONFIRM') {
@@ -210,25 +231,125 @@ before(async () => {
   ownSentId = (await createDocument(ownCustomer.id, 'SENT')).id;
   foreignPendingId = (await createDocument(foreignCustomer.id, 'PENDING_CONFIRM')).id;
   multiPendingId = (await createDocument(multiCustomer.id, 'PENDING_CONFIRM')).id;
-  multiShipmentId = (await createShipment({ customerId: multiCustomer.id })).id;
+  multiShipmentId = (await createShipment({ customerId: multiCustomer.id, cargoMode: 'LCL' })).id;
+  shipmentIds.push(multiShipmentId);
+
+  const [route] = await db.insert(s.routes).values({
+    name: `Portal pod route ${suffix}`,
+  }).returning();
+  routeIds.push(route.id);
+
+  const [cargoType] = await db.insert(s.cargoTypes).values({
+    name: `Portal pod cargo ${suffix}`,
+  }).returning();
+  cargoTypeIds.push(cargoType.id);
+
+  const [driverUser] = await db.insert(s.users).values({
+    username: `portal-driver-${suffix}`,
+    passwordHash: 'x',
+    role: Role.DRIVER,
+    status: 'ACTIVE',
+  }).returning();
+  userIds.push(driverUser.id);
+
+  const [driver] = await db.insert(s.drivers).values({
+    userId: driverUser.id,
+    name: `Portal POD Driver ${suffix}`,
+    status: 'ACTIVE',
+  }).returning();
+  driverIds.push(driver.id);
+
+  const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+    shipmentId: multiShipmentId,
+    fulfillmentType: 'LCL_SHIPMENT',
+    cargoMode: 'LCL',
+    sourceShipmentVersion: 1,
+    siteSnapshot: {},
+  }).returning();
+  fulfillmentIds.push(fulfillment.id);
+
+  const [trip] = await db.insert(s.trips).values({
+    tripCode: `PORTAL-POD-${suffix}`.slice(0, 50),
+    customerId: multiCustomer.id,
+    routeId: route.id,
+    cargoTypeId: cargoType.id,
+    shipmentId: multiShipmentId,
+    fulfillmentId: fulfillment.id,
+    driverId: driver.id,
+    status: TripStatus.COMPLETED,
+    departureDate: '2026-08-01',
+    revenue: '1000000',
+    driverSalary: '100000',
+    totalFuelCost: '0',
+    carrierType: 'OWN',
+  }).returning();
+  tripIds.push(trip.id);
+
+  const [submission] = await db.insert(s.tripPodSubmissions).values({
+    tripId: trip.id,
+    fulfillmentId: fulfillment.id,
+    submissionVersion: 1,
+    sourceTripVersion: trip.version,
+    status: TripPodStatus.SUBMITTED,
+    submittedBy: driverUser.id,
+    submittedAt: new Date(),
+  }).returning();
+  podSubmissionIds.push(submission.id);
+
+  const storageKey = `test/portal-pod-${suffix}.pdf`;
+  await storageService.upload(samplePdfBuffer('multi-shipment'), storageKey);
+  podStorageKeys.push(storageKey);
+
+  const [podFile] = await db.insert(s.tripPodFiles).values({
+    submissionId: submission.id,
+    fileType: TripPodFileType.SIGNED_DELIVERY_NOTE,
+    storageKey,
+    originalFileName: 'portal-pod.pdf',
+    mimeType: 'application/pdf',
+    sizeBytes: samplePdfBuffer('multi-shipment').length,
+    sha256: 'a'.repeat(64),
+    uploadedBy: driverUser.id,
+  }).returning();
+  podFileIds.push(podFile.id);
+  multiShipmentPodFileId = podFile.id;
 });
 
 after(async () => {
   server.closeAllConnections();
   await new Promise<void>((resolve) => server.close(() => resolve()));
+  for (const storageKey of podStorageKeys) {
+    await storageService.delete(storageKey).catch(() => undefined);
+  }
+  if (podFileIds.length > 0) {
+    await db.delete(s.tripPodFiles).where(inArray(s.tripPodFiles.id, podFileIds));
+  }
+  if (podSubmissionIds.length > 0) {
+    await db.delete(s.tripPodSubmissions).where(inArray(s.tripPodSubmissions.id, podSubmissionIds));
+  }
+  if (tripIds.length > 0) {
+    await db.delete(s.tripContainers).where(inArray(s.tripContainers.tripId, tripIds));
+    await db.delete(s.trips).where(inArray(s.trips.id, tripIds));
+  }
+  if (fulfillmentIds.length > 0) {
+    await db.delete(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.id, fulfillmentIds));
+  }
   if (documentIds.length > 0) {
     await db.delete(s.billingDocumentDisputes).where(inArray(s.billingDocumentDisputes.documentId, documentIds));
     await db.delete(s.billingDocumentLines).where(inArray(s.billingDocumentLines.documentId, documentIds));
     await db.delete(s.billingDocuments).where(inArray(s.billingDocuments.id, documentIds));
   }
-  if (multiShipmentId) {
-    await db.delete(s.customerEmailLogs).where(eq(s.customerEmailLogs.shipmentId, multiShipmentId));
-    await db.delete(s.shipments).where(eq(s.shipments.id, multiShipmentId));
+  if (shipmentIds.length > 0) {
+    await db.delete(s.customerEmailLogs).where(inArray(s.customerEmailLogs.shipmentId, shipmentIds));
+    await db.delete(s.shipmentStatusHistory).where(inArray(s.shipmentStatusHistory.shipmentId, shipmentIds));
+    await db.delete(s.shipments).where(inArray(s.shipments.id, shipmentIds));
   }
   if (userIds.length > 0) {
     await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.createdBy, userIds));
   }
+  if (driverIds.length > 0) await db.delete(s.drivers).where(inArray(s.drivers.id, driverIds));
   if (userIds.length > 0) await db.delete(s.users).where(inArray(s.users.id, userIds));
+  if (cargoTypeIds.length > 0) await db.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, cargoTypeIds));
+  if (routeIds.length > 0) await db.delete(s.routes).where(inArray(s.routes.id, routeIds));
   if (customerIds.length > 0) await db.delete(s.customers).where(inArray(s.customers.id, customerIds));
   await disconnectRedis();
   await client.end();
@@ -308,6 +429,24 @@ describe('CUSTOMER portal HTTP security contract', () => {
       [shipmentWrongScope.status, detailWrongScope.status, confirmWrongScope.status, exportWrongScope.status],
       [404, 404, 404, 404],
     );
+  });
+
+  test('shipment POD downloads respect the selected customer scope', async () => {
+    const [downloaded, wrongScope] = await Promise.all([
+      request(`/shipments/${multiShipmentId}/pod-files/${multiShipmentPodFileId}?customerId=${multiCustomerId}`, {
+        token: multiCustomerToken,
+      }),
+      request(`/shipments/${multiShipmentId}/pod-files/${multiShipmentPodFileId}?customerId=${ownCustomerId}`, {
+        token: multiCustomerToken,
+      }),
+    ]);
+
+    assert.equal(downloaded.status, 200);
+    assert.match(downloaded.contentType, /^application\/pdf/);
+    assert.equal((downloaded.body as Buffer).subarray(0, 5).toString('ascii'), '%PDF-');
+
+    assert.equal(wrongScope.status, 404);
+    assert.equal((wrongScope.body as { error: string }).error, 'Không tìm thấy lô hàng');
   });
 
   test('own debit-note detail omits internal creator/template/source fields', async () => {

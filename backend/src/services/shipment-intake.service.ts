@@ -27,7 +27,7 @@ type SubmitShipmentForDispatchResult = {
 };
 
 export async function listOperationalSitesForIntake(customerId: number, actor: AuthUser) {
-  if (![Role.ADMIN, Role.MANAGER, Role.CLERK].includes(actor.role)) {
+  if (![Role.ADMIN, Role.MANAGER, Role.CLERK, Role.ACCOUNTANT].includes(actor.role)) {
     throw new ApiError(403, 'Bạn không có quyền xem điểm vận hành.');
   }
   if (actor.role === Role.CLERK) {
@@ -40,7 +40,7 @@ export async function listOperationalSitesForIntake(customerId: number, actor: A
     .where(and(eq(s.customers.id, customerId), isNull(s.customers.deletedAt))).limit(1);
   if (!customer) throw new ApiError(404, 'Không tìm thấy khách hàng.');
 
-  return db.select({
+  const sites = await db.select({
     id: s.operationalSites.id,
     customerId: s.operationalSites.customerId,
     code: s.operationalSites.code,
@@ -60,6 +60,23 @@ export async function listOperationalSitesForIntake(customerId: number, actor: A
     eq(s.operationalSites.isActive, true),
     isNull(s.operationalSites.deletedAt),
   )).orderBy(s.operationalSites.name);
+
+  if (actor.role === Role.ACCOUNTANT) {
+    return sites.map((site) => ({
+      id: site.id,
+      customerId: site.customerId,
+      code: site.code,
+      name: site.name,
+      siteType: site.siteType,
+      address: site.address,
+      liftFeeInvoiceName: site.liftFeeInvoiceName,
+      liftFeeInvoiceAddress: site.liftFeeInvoiceAddress,
+      liftFeeTaxCode: site.liftFeeTaxCode,
+      version: site.version,
+    }));
+  }
+
+  return sites;
 }
 
 async function assertReferenceIsActive(

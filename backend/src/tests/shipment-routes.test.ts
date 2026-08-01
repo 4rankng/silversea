@@ -41,6 +41,7 @@ import { config } from '../config';
 import { initEnforcer } from '../casbin/enforcer';
 import { initAuditService } from '../services/audit.service';
 import { cacheInvalidate } from '../lib/redis';
+import { createHandoff } from '../services/dispatch-handoff.service';
 
 import shipmentRoutes from '../routes/shipments';
 import configRoutes from '../routes/config';
@@ -61,6 +62,9 @@ const createdCargoTypeIds: number[] = [];
 const createdContainerTypeIds: number[] = [];
 const createdUserIds: number[] = [];
 const createdBusinessUnitIds: number[] = [];
+const createdTrailerIds: number[] = [];
+const createdTruckIds: number[] = [];
+const createdDriverIds: number[] = [];
 
 // Tokens minted in `before`; roled users are created on demand so the test is
 // hermetic against a fresh CI DB.
@@ -305,11 +309,25 @@ after(async () => {
   try {
     await db.transaction(async (tx) => {
       if (createdTripIds.length > 0) {
+        await tx.delete(s.notifications).where(and(
+          eq(s.notifications.type, 'TRIP_DISPATCHED'),
+          eq(s.notifications.relatedEntityType, 'trips'),
+          inArray(s.notifications.relatedEntityId, createdTripIds),
+        ));
         await tx.delete(s.tripContainers).where(inArray(s.tripContainers.tripId, createdTripIds));
         await tx.delete(s.tripLegs).where(inArray(s.tripLegs.tripId, createdTripIds));
         await tx.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
       }
       if (createdShipmentIds.length > 0) {
+        await tx.delete(s.notifications).where(and(
+          eq(s.notifications.type, 'SHIPMENT_HANDOFF'),
+          eq(s.notifications.relatedEntityType, 'shipments'),
+          inArray(s.notifications.relatedEntityId, createdShipmentIds),
+        ));
+        await tx.delete(s.shipmentFulfillments)
+          .where(inArray(s.shipmentFulfillments.shipmentId, createdShipmentIds));
+        await tx.delete(s.dispatchHandoffs)
+          .where(inArray(s.dispatchHandoffs.shipmentId, createdShipmentIds));
         await tx.delete(s.shipmentStatusHistory)
           .where(inArray(s.shipmentStatusHistory.shipmentId, createdShipmentIds));
         await tx.delete(s.shipmentContainers)
@@ -325,6 +343,15 @@ after(async () => {
       }
       if (createdCargoTypeIds.length > 0) {
         await tx.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, createdCargoTypeIds));
+      }
+      if (createdDriverIds.length > 0) {
+        await tx.delete(s.drivers).where(inArray(s.drivers.id, createdDriverIds));
+      }
+      if (createdTruckIds.length > 0) {
+        await tx.delete(s.trucks).where(inArray(s.trucks.id, createdTruckIds));
+      }
+      if (createdTrailerIds.length > 0) {
+        await tx.delete(s.trailers).where(inArray(s.trailers.id, createdTrailerIds));
       }
       if (createdRouteIds.length > 0) {
         await tx.delete(s.routes).where(inArray(s.routes.id, createdRouteIds));
@@ -386,6 +413,75 @@ async function mkClerkScopedShipmentViaService(overrides: Record<string, unknown
     responsibleUnitId: clerkBusinessUnitId,
     ...overrides,
   });
+}
+
+async function createOwnedResources() {
+  const [trailer] = await db.insert(s.trailers).values({
+    licensePlate: `51R-${(10000 + createdTrailerIds.length).toString().padStart(5, '0')}`,
+    type: '40FT',
+    status: 'ACTIVE',
+  }).returning();
+  createdTrailerIds.push(trailer.id);
+
+  const [truck] = await db.insert(s.trucks).values({
+    licensePlate: `51C-${(10000 + createdTruckIds.length).toString().padStart(5, '0')}`,
+    currentTrailerId: trailer.id,
+    trailerType: '40FT',
+    status: 'ACTIVE',
+  }).returning();
+  createdTruckIds.push(truck.id);
+
+  const driverUser = await mkUser(`sr-driver-resource-${suffix}-${createdDriverIds.length}`, Role.DRIVER);
+  const [driver] = await db.insert(s.drivers).values({
+    userId: driverUser.id,
+    name: `ShipmentRoute Driver ${suffix}-${createdDriverIds.length}`,
+    assignedTruckId: truck.id,
+    status: 'ACTIVE',
+  }).returning();
+  createdDriverIds.push(driver.id);
+
+  return { trailer, truck, driver };
+}
+
+async function createAcceptedFulfillmentFixture(overrides: {
+  cargoMode?: 'FCL' | 'LCL';
+  cargoTypeId?: number | null;
+} = {}) {
+  const shipment = await mkShipmentViaService({
+    routeId,
+    cargoMode: overrides.cargoMode ?? 'FCL',
+    cargoTypeId: overrides.cargoTypeId ?? null,
+  });
+  if ((overrides.cargoMode ?? 'FCL') === 'FCL') {
+    const { batchUpsertShipmentContainers } = await import('../services/shipment.service');
+    await batchUpsertShipmentContainers(shipment.id, null, [
+      { containerTypeId, containerNumber: 'MSKU1234565' },
+    ]);
+  }
+  const handoff = await createHandoff({
+    shipmentId: shipment.id,
+    createdBy: adminUserId,
+    actor: {
+      userId: adminUserId,
+      username: `sr-admin-${suffix}`,
+      email: null,
+      fullName: null,
+      role: Role.ADMIN,
+    },
+  });
+  const accepted = await testFetch(`/${shipment.id}/dispatch-handoffs/${handoff.id}/resolve`, {
+    method: 'POST',
+    token: managerToken,
+    body: { resolution: 'ACCEPTED', expectedVersion: handoff.version },
+  });
+  assert.equal(accepted.status, 200);
+  assert.equal(accepted.data.handoff.status, 'ACCEPTED');
+  assert.equal(accepted.data.fulfillments.length, 1);
+  return {
+    shipment,
+    fulfillmentId: accepted.data.fulfillments[0]!.id as number,
+    fulfillmentVersion: accepted.data.fulfillments[0]!.version as number,
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1511,57 +1607,99 @@ describe('Q17 explicit dossier subtype matrix', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('POST /:id/dispatch', () => {
-  test('rejects LCL dispatch instead of requiring fabricated container data', async () => {
-    const shipment = await mkShipmentViaService({ cargoMode: 'LCL' });
-    const response = await testFetch(`/${shipment.id}/dispatch`, {
-      method: 'POST',
-      token: managerToken,
-      body: { routeId, cargoTypeId, containerTypeId, departureDate: '2026-08-01' },
-    });
-    assert.equal(response.status, 409);
-    assert.match(response.data.error, /LCL.*chưa được hỗ trợ/);
-  });
-
-  test('creates a linked trip + moves shipment to IN_PROGRESS', async () => {
-    const shipment = await mkShipmentViaService();
-    const r = await testFetch(`/${shipment.id}/dispatch`, {
+  test('dispatches an accepted LCL fulfillment without fabricated container rows', async () => {
+    const accepted = await createAcceptedFulfillmentFixture({ cargoMode: 'LCL' });
+    const resources = await createOwnedResources();
+    const response = await testFetch(`/${accepted.shipment.id}/dispatch`, {
       method: 'POST',
       token: managerToken,
       body: {
-        routeId,
-        cargoTypeId,
-        containerTypeId,
-        departureDate: '2026-08-01',
+        fulfillmentId: accepted.fulfillmentId,
+        expectedVersion: accepted.fulfillmentVersion,
+        plannedStartAt: '2026-08-01T08:00:00+07:00',
+        plannedEndAt: '2026-08-01T12:00:00+07:00',
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: resources.truck.id,
+        driverId: resources.driver.id,
+        trailerId: resources.trailer.id,
+      },
+    });
+    assert.equal(response.status, 201);
+    createdTripIds.push(response.data.trip.id);
+    const tripContainers = await db.select()
+      .from(s.tripContainers)
+      .where(eq(s.tripContainers.tripId, response.data.trip.id));
+    assert.equal(tripContainers.length, 1);
+    assert.match(tripContainers[0]!.notes ?? '', /__fulfillment_lcl:/);
+  });
+
+  test('creates a linked trip for an accepted fulfillment and snapshots the container', async () => {
+    const accepted = await createAcceptedFulfillmentFixture({ cargoTypeId });
+    const resources = await createOwnedResources();
+    const r = await testFetch(`/${accepted.shipment.id}/dispatch`, {
+      method: 'POST',
+      token: managerToken,
+      body: {
+        fulfillmentId: accepted.fulfillmentId,
+        expectedVersion: accepted.fulfillmentVersion,
+        plannedStartAt: '2026-08-01T08:00:00+07:00',
+        plannedEndAt: '2026-08-01T12:00:00+07:00',
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: resources.truck.id,
+        driverId: resources.driver.id,
+        trailerId: resources.trailer.id,
       },
     });
     assert.equal(r.status, 201);
-    assert.equal(r.data.created, true);
     assert.ok(r.data.trip.id, 'trip id present');
-    assert.equal(r.data.trip.shipmentId, shipment.id);
+    assert.equal(r.data.fulfillmentId, accepted.fulfillmentId);
     createdTripIds.push(r.data.trip.id);
 
-    // Shipment should now be IN_PROGRESS.
-    const detail = await testFetch(`/${shipment.id}`, { token: adminToken });
-    assert.equal(detail.data.shipment.status, ShipmentStatus.IN_PROGRESS);
+    const [trip] = await db.select().from(s.trips).where(eq(s.trips.id, r.data.trip.id)).limit(1);
+    assert.equal(trip?.shipmentId, accepted.shipment.id);
+    assert.equal(trip?.fulfillmentId, accepted.fulfillmentId);
+    assert.equal(trip?.truckId, resources.truck.id);
+    const tripContainers = await db.select()
+      .from(s.tripContainers)
+      .where(eq(s.tripContainers.tripId, r.data.trip.id));
+    assert.equal(tripContainers.length, 1);
+    assert.match(tripContainers[0]!.notes ?? '', /__fulfillment_snapshot:/);
   });
 
-  test('idempotent: second dispatch returns the same trip with created=false', async () => {
-    const shipment = await mkShipmentViaService();
-    const first = await testFetch(`/${shipment.id}/dispatch`, {
+  test('replays the same fulfillment dispatch idempotency key with the same trip', async () => {
+    const accepted = await createAcceptedFulfillmentFixture({ cargoTypeId });
+    const resources = await createOwnedResources();
+    const idempotencyKey = `shipment-routes-dispatch-${suffix}`;
+    const body = {
+      fulfillmentId: accepted.fulfillmentId,
+      expectedVersion: accepted.fulfillmentVersion,
+      plannedStartAt: '2026-08-02T08:00:00+07:00',
+      plannedEndAt: '2026-08-02T12:00:00+07:00',
+      endTimeConfirmed: true,
+      carrierType: 'OWN' as const,
+      truckId: resources.truck.id,
+      driverId: resources.driver.id,
+      trailerId: resources.trailer.id,
+    };
+    const first = await testFetch(`/${accepted.shipment.id}/dispatch`, {
       method: 'POST',
       token: managerToken,
-      body: { routeId, cargoTypeId, containerTypeId, departureDate: '2026-08-02' },
+      idempotencyKey,
+      body,
     });
     assert.equal(first.status, 201);
     createdTripIds.push(first.data.trip.id);
 
-    const second = await testFetch(`/${shipment.id}/dispatch`, {
+    const second = await testFetch(`/${accepted.shipment.id}/dispatch`, {
       method: 'POST',
       token: managerToken,
-      body: { routeId, cargoTypeId, containerTypeId, departureDate: '2026-08-02' },
+      idempotencyKey,
+      body,
     });
     assert.equal(second.status, 200);
-    assert.equal(second.data.created, false);
+    assert.equal(second.data.replayed, true);
     assert.equal(second.data.trip.id, first.data.trip.id);
   });
 
@@ -1569,87 +1707,112 @@ describe('POST /:id/dispatch', () => {
     // CLERK has shipments write at the casbin layer, but the route handler
     // tightens dispatch to ADMIN/MANAGER only (creating a trip is an operator
     // decision). This guards the belt-and-suspenders requireRoles guard.
-    const shipment = await mkShipmentViaService();
-    const r = await testFetch(`/${shipment.id}/dispatch`, {
+    const accepted = await createAcceptedFulfillmentFixture();
+    const resources = await createOwnedResources();
+    const r = await testFetch(`/${accepted.shipment.id}/dispatch`, {
       method: 'POST',
       token: clerkToken,
-      body: { routeId, cargoTypeId, containerTypeId, departureDate: '2026-08-03' },
+      body: {
+        fulfillmentId: accepted.fulfillmentId,
+        expectedVersion: accepted.fulfillmentVersion,
+        plannedStartAt: '2026-08-03T08:00:00+07:00',
+        plannedEndAt: '2026-08-03T12:00:00+07:00',
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: resources.truck.id,
+        driverId: resources.driver.id,
+        trailerId: resources.trailer.id,
+      },
     });
     assert.equal(r.status, 403);
   });
 
-  test('rejects missing routeId with 400', async () => {
-    const shipment = await mkShipmentViaService();
-    const r = await testFetch(`/${shipment.id}/dispatch`, {
+  test('rejects missing fulfillmentId with 400', async () => {
+    const accepted = await createAcceptedFulfillmentFixture();
+    const resources = await createOwnedResources();
+    const r = await testFetch(`/${accepted.shipment.id}/dispatch`, {
       method: 'POST',
       token: managerToken,
-      body: { cargoTypeId, containerTypeId, departureDate: '2026-08-04' },
+      body: {
+        expectedVersion: accepted.fulfillmentVersion,
+        plannedStartAt: '2026-08-04T08:00:00+07:00',
+        plannedEndAt: '2026-08-04T12:00:00+07:00',
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: resources.truck.id,
+        driverId: resources.driver.id,
+        trailerId: resources.trailer.id,
+      },
     });
     assert.equal(r.status, 400);
   });
 
-  test('rejects dispatch on a non-DRAFT shipment with 409', async () => {
-    // Move a shipment to IN_PROGRESS via the service, then try dispatch.
+  test('rejects dispatch after the accepted shipment is canceled', async () => {
     const { transitionShipmentStatus } = await import('../services/shipment.service');
-    const shipment = await mkShipmentViaService();
-    await transitionShipmentStatus(shipment.id, ShipmentStatus.IN_PROGRESS);
+    const accepted = await createAcceptedFulfillmentFixture();
+    const resources = await createOwnedResources();
+    await transitionShipmentStatus(accepted.shipment.id, ShipmentStatus.CANCELED);
 
-    const r = await testFetch(`/${shipment.id}/dispatch`, {
-      method: 'POST',
-      token: managerToken,
-      body: { routeId, cargoTypeId, containerTypeId, departureDate: '2026-08-05' },
-    });
-    assert.equal(r.status, 409);
-    assert.match(r.data.error, /IN_PROGRESS/);
-  });
-
-  test('rejects a dispatch cargo that mismatches the shipment authority', async () => {
-    const shipment = await mkShipmentViaService({ cargoTypeId });
-
-    const r = await testFetch(`/${shipment.id}/dispatch`, {
+    const r = await testFetch(`/${accepted.shipment.id}/dispatch`, {
       method: 'POST',
       token: managerToken,
       body: {
-        routeId,
-        cargoTypeId: secondaryCargoTypeId,
-        containerTypeId,
-        departureDate: '2026-08-05',
+        fulfillmentId: accepted.fulfillmentId,
+        expectedVersion: accepted.fulfillmentVersion,
+        plannedStartAt: '2026-08-05T08:00:00+07:00',
+        plannedEndAt: '2026-08-05T12:00:00+07:00',
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: resources.truck.id,
+        driverId: resources.driver.id,
+        trailerId: resources.trailer.id,
       },
     });
     assert.equal(r.status, 409);
-    assert.match(r.data.error, /Loại hàng.*lô hàng nguồn/);
+    assert.match(r.data.error, /đã kết thúc/i);
   });
 
-  test('rejects dispatch on a CANCELED shipment with 409', async () => {
-    const { transitionShipmentStatus } = await import('../services/shipment.service');
-    const shipment = await mkShipmentViaService();
-    await transitionShipmentStatus(shipment.id, ShipmentStatus.CANCELED);
-
-    const r = await testFetch(`/${shipment.id}/dispatch`, {
+  test('rejects a stale fulfillment version with 409', async () => {
+    const accepted = await createAcceptedFulfillmentFixture();
+    const resources = await createOwnedResources();
+    const r = await testFetch(`/${accepted.shipment.id}/dispatch`, {
       method: 'POST',
       token: managerToken,
-      body: { routeId, cargoTypeId, containerTypeId, departureDate: '2026-08-06' },
+      body: {
+        fulfillmentId: accepted.fulfillmentId,
+        expectedVersion: accepted.fulfillmentVersion + 1,
+        plannedStartAt: '2026-08-05T08:00:00+07:00',
+        plannedEndAt: '2026-08-05T12:00:00+07:00',
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: resources.truck.id,
+        driverId: resources.driver.id,
+        trailerId: resources.trailer.id,
+      },
     });
     assert.equal(r.status, 409);
-    assert.match(r.data.error, /CANCELED/);
+    assert.match(r.data.error, /đã thay đổi/i);
   });
 
-  test('concurrent dispatches produce exactly one live trip (DB-enforced)', async () => {
-    // Fire two concurrent dispatches against the same DRAFT shipment. The
-    // partial unique index trips_shipment_id_live_uniq guarantees only one
-    // live trip survives; the loser returns the winner's trip with
-    // created=false (or 409 if the loser hit the optimistic-status guard —
-    // either outcome is acceptable as long as the DB invariant holds).
-    const shipment = await mkShipmentViaService();
-    const body = { routeId, cargoTypeId, containerTypeId, departureDate: '2026-08-07' };
+  test('concurrent dispatches against one fulfillment keep exactly one live trip', async () => {
+    const accepted = await createAcceptedFulfillmentFixture();
+    const resources = await createOwnedResources();
+    const body = {
+      fulfillmentId: accepted.fulfillmentId,
+      expectedVersion: accepted.fulfillmentVersion,
+      plannedStartAt: '2026-08-07T08:00:00+07:00',
+      plannedEndAt: '2026-08-07T12:00:00+07:00',
+      endTimeConfirmed: true,
+      carrierType: 'OWN' as const,
+      truckId: resources.truck.id,
+      driverId: resources.driver.id,
+      trailerId: resources.trailer.id,
+    };
     const [a, b] = await Promise.all([
-      testFetch(`/${shipment.id}/dispatch`, { method: 'POST', token: managerToken, body }),
-      testFetch(`/${shipment.id}/dispatch`, { method: 'POST', token: adminToken, body }),
+      testFetch(`/${accepted.shipment.id}/dispatch`, { method: 'POST', token: managerToken, body }),
+      testFetch(`/${accepted.shipment.id}/dispatch`, { method: 'POST', token: adminToken, body }),
     ]);
 
-    // Both should return success (one 201 created, one 200 created=false),
-    // OR one of them may 409 if it raced the status-guard. The DB invariant
-    // is what matters: exactly one non-CANCELED trip linked to the shipment.
     const okStatuses = new Set([200, 201, 409]);
     assert.ok(okStatuses.has(a.status), `a.status=${a.status}`);
     assert.ok(okStatuses.has(b.status), `b.status=${b.status}`);
@@ -1657,76 +1820,9 @@ describe('POST /:id/dispatch', () => {
     const linked = await db.select()
       .from(s.trips)
       .where(inArray(s.trips.status, ['CREATED', 'IN_TRANSIT', 'COMPLETED', 'LOCKED']));
-    // Filter to trips pointing at THIS shipment (the query above is broad to
-    // avoid depending on shipmentId index nullability; refine in JS).
-    const live = linked.filter((t) => t.shipmentId === shipment.id);
-    assert.equal(live.length, 1, 'exactly one live trip linked to the shipment');
+    const live = linked.filter((t) => t.fulfillmentId === accepted.fulfillmentId);
+    assert.equal(live.length, 1, 'exactly one live trip linked to the fulfillment');
     if (live[0]) createdTripIds.push(live[0].id);
-  });
-
-  test('concurrent draft cargo update vs dispatch leaves one coherent authority winner', async () => {
-    const shipment = await mkShipmentViaService({ cargoTypeId });
-    const updateBody = {
-      expectedVersion: shipment.version,
-      cargoTypeId: secondaryCargoTypeId,
-    };
-    const dispatchBody = {
-      routeId,
-      cargoTypeId,
-      containerTypeId,
-      departureDate: '2026-08-08',
-    };
-
-    const [updateResult, dispatchResult] = await Promise.all([
-      testFetch(`/${shipment.id}`, {
-        method: 'PUT',
-        token: adminToken,
-        body: updateBody,
-      }),
-      testFetch(`/${shipment.id}/dispatch`, {
-        method: 'POST',
-        token: managerToken,
-        body: dispatchBody,
-      }),
-    ]);
-
-    assert.ok([200, 409].includes(updateResult.status), `update status=${updateResult.status}`);
-    assert.ok([201, 409].includes(dispatchResult.status), `dispatch status=${dispatchResult.status}`);
-
-    const [finalShipment] = await db.select()
-      .from(s.shipments)
-      .where(eq(s.shipments.id, shipment.id))
-      .limit(1);
-    const liveTrips = await db.select()
-      .from(s.trips)
-      .where(and(
-        eq(s.trips.shipmentId, shipment.id),
-        inArray(s.trips.status, ['CREATED', 'IN_TRANSIT', 'COMPLETED', 'LOCKED']),
-      ));
-    const pendingRequests = await db.select({ id: s.shipmentChangeRequests.id })
-      .from(s.shipmentChangeRequests)
-      .where(eq(s.shipmentChangeRequests.shipmentId, shipment.id));
-
-    if (updateResult.status === 200) {
-      assert.equal(updateResult.data.changeMode, 'DIRECT');
-      assert.equal(dispatchResult.status, 409);
-      assert.equal(finalShipment?.cargoTypeId, secondaryCargoTypeId);
-      assert.equal(finalShipment?.status, ShipmentStatus.DRAFT);
-      assert.equal(liveTrips.length, 0);
-      assert.equal(pendingRequests.length, 0);
-      return;
-    }
-
-    assert.equal(updateResult.status, 409);
-    assert.equal(dispatchResult.status, 201);
-    assert.equal(finalShipment?.cargoTypeId, cargoTypeId);
-    assert.equal(finalShipment?.status, ShipmentStatus.IN_PROGRESS);
-    assert.equal(liveTrips.length, 1);
-    assert.equal(liveTrips[0]?.cargoTypeId, cargoTypeId);
-    assert.equal(pendingRequests.length, 0);
-    if (liveTrips[0] && !createdTripIds.includes(liveTrips[0].id)) {
-      createdTripIds.push(liveTrips[0].id);
-    }
   });
 });
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check, Eye, Plus, Send, Trash2 } from 'lucide-react';
-import { EmptyState, SelectField, TextField } from '../../design-system';
+import { EmptyState, SearchableSelect, SelectField, TextField } from '../../design-system';
 import { tripClient, type CatalogData } from '../../api/tripClient';
 import {
   listOperationalSites,
@@ -71,6 +71,43 @@ const sectionStyle: React.CSSProperties = {
 const gridStyle: React.CSSProperties = {
   display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: 16, minWidth: 0,
 };
+
+interface SearchableFieldProps {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; label: string; searchText?: string }>;
+  placeholder: string;
+  disabled?: boolean;
+  required?: boolean;
+}
+
+function SearchableField({
+  id,
+  label,
+  value,
+  onChange,
+  options,
+  placeholder,
+  disabled,
+  required,
+}: SearchableFieldProps) {
+  return (
+    <label htmlFor={id} style={{ display: 'grid', gap: 8, alignContent: 'start', fontSize: 14, fontWeight: 600 }}>
+      <span>{label}{required ? ' *' : ''}</span>
+      <SearchableSelect
+        id={id}
+        value={value}
+        onChange={onChange}
+        options={options}
+        placeholder={placeholder}
+        disabled={disabled}
+        required={required}
+      />
+    </label>
+  );
+}
 
 export default function ClerkShipmentCreatePage() {
   const navigate = useNavigate();
@@ -235,14 +272,25 @@ export default function ClerkShipmentCreatePage() {
         <section style={sectionStyle}>
           <h2 style={{ fontSize: 17, margin: 0 }}>Thông tin chung</h2>
           <div style={gridStyle}>
-            <SelectField label="Khách hàng" required value={form.customerId} onChange={(event) => selectCustomer(event.target.value)} disabled={Boolean(saving)}>
-              <option value="">— Chọn khách hàng —</option>
-              {catalogs.customers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </SelectField>
-            <SelectField label="Tuyến đường" value={form.routeId} onChange={(event) => update('routeId', event.target.value)} disabled={Boolean(saving)}>
-              <option value="">— Chọn tuyến đường —</option>
-              {(catalogs.routes ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </SelectField>
+            <SearchableField
+              id="shipment-customer"
+              label="Khách hàng"
+              required
+              value={form.customerId}
+              onChange={selectCustomer}
+              options={catalogs.customers.map((item) => ({ value: String(item.id), label: item.name }))}
+              placeholder="Chọn khách hàng"
+              disabled={Boolean(saving)}
+            />
+            <SearchableField
+              id="shipment-route"
+              label="Tuyến đường"
+              value={form.routeId}
+              onChange={(value) => update('routeId', value)}
+              options={(catalogs.routes ?? []).map((item) => ({ value: String(item.id), label: item.name }))}
+              placeholder="Chọn tuyến đường"
+              disabled={Boolean(saving)}
+            />
             <TextField label="Số booking" value={form.bookingRef} onChange={(event) => update('bookingRef', event.target.value)} maxLength={100} disabled={Boolean(saving)} />
             <TextField label="Số vận đơn (B/L)" value={form.blNumber} onChange={(event) => update('blNumber', event.target.value)} maxLength={100} disabled={Boolean(saving)} />
             <TextField label="Số tờ khai" value={form.declarationNumber} onChange={(event) => update('declarationNumber', event.target.value)} maxLength={100} disabled={Boolean(saving)} />
@@ -251,10 +299,15 @@ export default function ClerkShipmentCreatePage() {
             </SelectField>
           </div>
           <div style={gridStyle}>
-            <SelectField label="Nhà máy" value={form.operationalSiteId} onChange={(event) => selectOperationalSite(event.target.value)} disabled={!form.customerId || sitesLoading || Boolean(saving)}>
-              <option value="">{sitesLoading ? 'Đang tải…' : '— Chọn nhà máy —'}</option>
-              {operationalSites.map((site) => <option key={site.id} value={site.id}>{site.name}</option>)}
-            </SelectField>
+            <SearchableField
+              id="shipment-operational-site"
+              label="Nhà máy"
+              value={form.operationalSiteId}
+              onChange={selectOperationalSite}
+              options={operationalSites.map((site) => ({ value: String(site.id), label: site.name, searchText: site.address ?? '' }))}
+              placeholder={sitesLoading ? 'Đang tải…' : 'Chọn nhà máy'}
+              disabled={!form.customerId || sitesLoading || Boolean(saving)}
+            />
             {form.operationalSiteId && <button type="button" onClick={() => setDetailSite(sites.find((site) => String(site.id) === form.operationalSiteId) ?? null)} style={{ alignSelf: 'end', minHeight: 44, border: '1px solid var(--border-2)', borderRadius: 8, background: 'var(--surface-1)', color: 'var(--fg-1)', fontWeight: 600, cursor: 'pointer' }}><Eye size={17} style={{ verticalAlign: 'middle', marginRight: 7 }} />Xem thông tin nhà máy</button>}
           </div>
         </section>
@@ -273,8 +326,8 @@ export default function ClerkShipmentCreatePage() {
                     <TextField label="Số container" value={row.containerNumber} onChange={(event) => updateContainer(row.key, 'containerNumber', event.target.value.toUpperCase())} disabled={Boolean(saving)} />
                     <SelectField label="Loại container" value={row.containerTypeId} onChange={(event) => updateContainer(row.key, 'containerTypeId', event.target.value)} disabled={Boolean(saving)}><option value="">— Chọn loại —</option>{(catalogs.containerTypes ?? []).map((item) => <option key={item.id} value={item.id}>{item.code} — {item.name}</option>)}</SelectField>
                     <TextField label="Hãng tàu" value={row.shippingLineName} onChange={(event) => updateContainer(row.key, 'shippingLineName', event.target.value)} disabled={Boolean(saving)} />
-                    <SelectField label="Cảng nâng" value={row.pickupPortId} onChange={(event) => updateContainer(row.key, 'pickupPortId', event.target.value)} disabled={Boolean(saving)}><option value="">— Chọn cảng nâng —</option>{(catalogs.ports ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</SelectField>
-                    <SelectField label="Cảng hạ" value={row.dropoffPortId} onChange={(event) => updateContainer(row.key, 'dropoffPortId', event.target.value)} disabled={Boolean(saving)}><option value="">— Chọn cảng hạ —</option>{(catalogs.ports ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</SelectField>
+                    <SearchableField id={`container-${row.key}-pickup-port`} label="Cảng nâng" value={row.pickupPortId} onChange={(value) => updateContainer(row.key, 'pickupPortId', value)} options={(catalogs.ports ?? []).map((item) => ({ value: String(item.id), label: item.name }))} placeholder="Chọn cảng nâng" disabled={Boolean(saving)} />
+                    <SearchableField id={`container-${row.key}-dropoff-port`} label="Cảng hạ" value={row.dropoffPortId} onChange={(value) => updateContainer(row.key, 'dropoffPortId', value)} options={(catalogs.ports ?? []).map((item) => ({ value: String(item.id), label: item.name }))} placeholder="Chọn cảng hạ" disabled={Boolean(saving)} />
                     <TextField label="Trọng lượng (kg)" type="number" min="0" step="0.01" value={row.cargoWeightKg} onChange={(event) => updateContainer(row.key, 'cargoWeightKg', event.target.value)} disabled={Boolean(saving)} />
                   </div>
                 </div>
@@ -283,7 +336,7 @@ export default function ClerkShipmentCreatePage() {
             </div>
           ) : (
             <div style={gridStyle}>
-              <SelectField label="Kho lấy hàng" value={form.pickupWarehouseSiteId} onChange={(event) => update('pickupWarehouseSiteId', event.target.value)} disabled={sitesLoading || Boolean(saving)}><option value="">— Chọn kho lấy hàng —</option>{warehouseSites.map((site) => <option key={site.id} value={site.id}>{site.name}</option>)}</SelectField>
+              <SearchableField id="shipment-pickup-warehouse" label="Kho lấy hàng" value={form.pickupWarehouseSiteId} onChange={(value) => update('pickupWarehouseSiteId', value)} options={warehouseSites.map((site) => ({ value: String(site.id), label: site.name, searchText: site.address ?? '' }))} placeholder="Chọn kho lấy hàng" disabled={sitesLoading || Boolean(saving)} />
               <TextField label="Quy cách đóng gói" value={form.packageType} onChange={(event) => update('packageType', event.target.value)} placeholder="Pallet, carton…" disabled={Boolean(saving)} />
               <TextField label="Số lượng" type="number" min="1" step="1" value={form.packageCount} onChange={(event) => update('packageCount', event.target.value)} disabled={Boolean(saving)} />
               <TextField label="Trọng lượng (kg)" type="number" min="0" step="0.01" value={form.cargoWeightKg} onChange={(event) => update('cargoWeightKg', event.target.value)} disabled={Boolean(saving)} />

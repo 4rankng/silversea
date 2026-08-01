@@ -75,6 +75,29 @@ const columns: DebitNoteTemplateColumn[] = [
   { id: 'amount', label: 'Số tiền', variable: 'amount', width: 16, align: 'right', format: 'currency', total: true },
 ];
 
+const longMinhColumns: DebitNoteTemplateColumn[] = [
+  { id: 'stt', label: 'STT', variable: 'rowIndex', headerGroup: null, width: 6, align: 'center', format: 'number', total: false },
+  { id: 'nha_may', label: 'NHÀ MÁY', variable: 'factoryName', headerGroup: null, width: 18, align: 'left', format: 'text', total: false },
+  { id: 'xuat_nhap', label: 'NHẬP/ XUẤT', variable: 'tradeDirectionLabel', headerGroup: null, width: 10, align: 'center', format: 'text', total: false },
+  { id: 'so_bill', label: 'SỐ BILL', variable: 'billNumber', headerGroup: null, width: 12, align: 'center', format: 'text', total: false },
+  { id: 'so_to_khai', label: 'SỐ TỜ KHAI', variable: 'declarationNumber', headerGroup: null, width: 12, align: 'center', format: 'text', total: false },
+  { id: 'so_luong', label: 'SỐ CÂN/ KIỆN/ CONT', variable: 'quantityLabel', headerGroup: null, width: 16, align: 'left', format: 'text', total: false },
+  { id: 'loai_xe', label: 'LOẠI XE', variable: 'vehicleType', headerGroup: null, width: 10, align: 'center', format: 'text', total: false },
+  { id: 'bien_so', label: 'BKS', variable: 'truckPlate', headerGroup: null, width: 12, align: 'center', format: 'text', total: false },
+  { id: 'cbm', label: 'CBM', variable: 'cargoVolumeCbm', headerGroup: null, width: 8, align: 'right', format: 'number', total: false },
+  { id: 'ngay_giao', label: 'NGÀY GIAO HÀNG', variable: 'deliveryDate', headerGroup: null, width: 12, align: 'center', format: 'date', total: false },
+  { id: 'tuyen_duong', label: 'TUYẾN ĐƯỜNG MỚI', variable: 'routeName', headerGroup: null, width: 18, align: 'left', format: 'text', total: false },
+  { id: 'phi_giao_hang', label: 'PHÍ GIAO HÀNG', variable: 'deliveryFeeAmount', headerGroup: 'PHÍ DỊCH VỤ', width: 12, align: 'right', format: 'currency', total: true },
+  { id: 'cuoc_van_chuyen', label: 'CƯỚC VẬN CHUYỂN', variable: 'freightAmount', headerGroup: 'PHÍ DỊCH VỤ', width: 14, align: 'right', format: 'currency', total: true },
+  { id: 'lach_huyen', label: 'LẠCH HUYỆN', variable: 'portFeeAmount', headerGroup: 'PHÍ DỊCH VỤ', width: 12, align: 'right', format: 'currency', total: true },
+  { id: 'chi_phi_khac', label: 'CHI PHÍ KHÁC', variable: 'otherServiceFeeAmount', headerGroup: 'PHÍ DỊCH VỤ', width: 12, align: 'right', format: 'currency', total: true },
+  { id: 'phu_phi_xang_dau', label: 'PHỤ PHÍ XĂNG DẦU', variable: 'fuelSurchargeAmount', headerGroup: 'PHÍ DỊCH VỤ', width: 12, align: 'right', format: 'currency', total: true },
+  { id: 'ten_don_vi', label: 'TÊN ĐƠN VỊ', variable: 'recoverableSupplierName', headerGroup: 'PHÍ CHI HỘ', width: 18, align: 'left', format: 'text', total: false },
+  { id: 'loai_phi', label: 'LOẠI PHÍ', variable: 'recoverableFeeType', headerGroup: 'PHÍ CHI HỘ', width: 18, align: 'left', format: 'text', total: false },
+  { id: 'so_hd', label: 'SỐ HĐ', variable: 'recoverableDocumentCode', headerGroup: 'PHÍ CHI HỘ', width: 12, align: 'center', format: 'text', total: false },
+  { id: 'so_tien', label: 'SỐ TIỀN', variable: 'recoverableAmount', headerGroup: 'PHÍ CHI HỘ', width: 12, align: 'right', format: 'currency', total: true },
+];
+
 const defaultSnapshot: DebitNoteTemplateSnapshot = {
   id: 1, name: 'Mặc định', titleText: 'GIẤY BÁO NỢ',
   issuerName: null, issuerAddress: null, issuerTaxCode: null,
@@ -215,6 +238,121 @@ test('renderTemplatedXlsx DEBIT_NOTE maps legacy chung_tu tripCode columns to do
   const wb = await loadWorkbook(buf);
   const ws = wb.worksheets[0];
   assert.equal(ws.getCell(17, 3).value, 'TK-123');
+});
+
+test('renderTemplatedXlsx DEBIT_NOTE renders Long Minh grouped headers, continuation rows, and VAT summary', async () => {
+  const doc: BillingDocument = {
+    ...debitDoc,
+    totalInclVat: 2_500_000,
+    lines: [
+      line({
+        sourceType: 'TRIP',
+        sourceId: 1,
+        description: 'Cước vận chuyển',
+        baseAmount: 2_000_000,
+        routeName: 'Cát Lái - Long Minh',
+        renderData: {
+          tripCode: 'TRIP-1',
+          factoryName: 'Nhà máy Long Minh',
+          tradeDirectionLabel: 'Nhập',
+          billNumber: 'BL-001',
+          declarationNumber: 'TK-001',
+          quantityLabel: '1 cont 40',
+          vehicleType: '40\'',
+          truckPlate: '15C-180.99',
+          cargoVolumeCbm: 68,
+          deliveryDate: '2026-06-15',
+          freightAmount: 2_000_000,
+        },
+      }),
+      line({
+        sourceType: 'EXPENSE',
+        sourceId: 101,
+        lineType: 'SERVICE_FEE',
+        typeLabel: 'Phí chi hộ',
+        description: 'Phí nâng hạ',
+        baseAmount: 300_000,
+        routeName: 'Cát Lái - Long Minh',
+        renderData: {
+          tripCode: 'TRIP-1',
+          recoverableSupplierName: 'Cảng Cát Lái',
+          recoverableFeeType: 'Nâng hạ',
+          recoverableDocumentCode: 'HD-101',
+          recoverableAmount: 300_000,
+        },
+      }),
+      line({
+        sourceType: 'EXPENSE',
+        sourceId: 102,
+        lineType: 'SERVICE_FEE',
+        typeLabel: 'Phí chi hộ',
+        description: 'Phí chứng từ',
+        baseAmount: 200_000,
+        routeName: 'Cát Lái - Long Minh',
+        renderData: {
+          tripCode: 'TRIP-1',
+          recoverableSupplierName: 'Silver Sea',
+          recoverableFeeType: 'Chứng từ',
+          recoverableDocumentCode: 'HD-102',
+          recoverableAmount: 200_000,
+        },
+        sortOrder: 2,
+      }),
+    ],
+  };
+  const snapshot = {
+    ...defaultSnapshot,
+    titleText: 'BẢNG KÊ XÁC NHẬN VẬN CHUYỂN HOÀN THÀNH / MẪU DEBIT LONG MINH',
+    orientation: 'landscape' as const,
+    columns: longMinhColumns,
+    officialIdentity: {
+      issuer: {
+        name: 'Silver Sea',
+        address: 'Hải Phòng',
+        taxCode: '0201985011',
+        representative: 'Nguyễn Thị Phương',
+        representativeTitle: 'Giám đốc',
+        phone: '0976496385',
+        bankAccount: '0031000391518',
+        bankName: 'Vietcombank',
+        email: 'silverseahp@gmail.com',
+        logoStorageKey: null,
+      },
+      counterparty: {
+        entityType: 'CUSTOMER' as const,
+        name: 'Long Minh',
+        address: 'Bắc Ninh',
+        taxCode: '2300540419',
+        representative: 'Ms.Vân',
+        representativeTitle: 'Kế toán',
+        phone: '0900000000',
+        contactInfo: 'Bắc Ninh',
+      },
+      signatures: {
+        leftLabel: 'Khách hàng',
+        leftName: '',
+        rightLabel: 'Người lập',
+        rightName: 'Nguyễn Thị Phương',
+      },
+    },
+  } satisfies SnapshotWithOfficialIdentity;
+  const buf = await renderTemplatedXlsx(doc, snapshot);
+  const wb = await loadWorkbook(buf);
+  const ws = wb.worksheets[0];
+  assert.equal(ws.pageSetup.orientation, 'landscape');
+  assert.equal(ws.getCell(15, 12).value, 'PHÍ DỊCH VỤ');
+  assert.equal(ws.getCell(15, 17).value, 'PHÍ CHI HỘ');
+  assert.equal(ws.getCell(16, 20).value, 'SỐ TIỀN');
+  assert.equal(ws.getCell(17, 2).value, 'Nhà máy Long Minh');
+  assert.equal(ws.getCell(17, 13).value, 2_000_000);
+  assert.equal(ws.getCell(17, 17).value, 'Cảng Cát Lái');
+  assert.equal(ws.getCell(18, 1).value, null);
+  assert.equal(ws.getCell(18, 17).value, 'Silver Sea');
+  assert.equal(ws.getCell(18, 20).value, 200_000);
+  assert.equal(ws.getCell(20, 20).value, 2_000_000);
+  assert.equal(ws.getCell(21, 20).value, 500_000);
+  assert.equal(ws.getCell(22, 20).value, 160_000);
+  assert.equal(ws.getCell(23, 20).value, 2_660_000);
 });
 
 test('renderTemplatedXlsx PAYMENT_STATEMENT resolves template variables in intro text', async () => {

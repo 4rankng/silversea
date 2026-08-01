@@ -22,20 +22,22 @@
 
 import { db } from '../db';
 import * as s from '../db/schema';
-import { and, count, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
-import { createTrip } from './trip.service';
-import { cacheInvalidate, cacheInvalidatePattern } from '../lib/redis';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import {
   NotificationType,
+  Role,
+  TripStatus,
   shipmentContainerBatchSchema,
+  TripPodStatus,
+  TRIP_POD_REQUIRED_FILE_TYPES,
   updateShipmentSchema,
   validateContainerNumber,
 } from '@tingting/shared';
-import { emitNotification } from './notification.service';
 import { resolveFreightPrice } from './pricing.service';
+import { persistNotificationInTx } from './notification.service';
 import type { AuthUser } from '../middleware/auth';
 import {
   assertClerkCanAccessShipment,
@@ -51,6 +53,14 @@ import {
   createShipmentChangeRequest,
   persistChangeRequestDecisionNotification,
 } from './shipment-edit-boundary.service';
+import { isFulfillmentRequired } from './shipment-fulfillment.service';
+import {
+  getShipmentPodFileForDownload,
+  listShipmentPodReviewItems,
+  type ShipmentPodReviewItemView,
+} from './trip-pod.service';
+import { transitionTripStatus } from './trip-status-machine.service';
+import { assertActorCanAccessShipment } from './shipment-coordination.service';
 
 // ─── Status machine ─────────────────────────────────────────────────────────
 //
@@ -608,6 +618,22 @@ export async function updateShipment(
       );
     }
 
+    if (existing.cargoMode === 'FCL' && input.cargoMode === 'LCL') {
+      const fulfillmentRows = await tx.select({
+        id: s.shipmentFulfillments.id,
+      }).from(s.shipmentFulfillments)
+        .where(eq(s.shipmentFulfillments.shipmentId, id))
+        .for('update');
+      if (fulfillmentRows.length > 0) {
+        throw new ApiError(
+          409,
+          'Không thể chuyển lô hàng từ FCL sang LCL sau khi đã phát sinh tác vụ điều phối.',
+        );
+      }
+      await tx.delete(s.shipmentContainers)
+        .where(eq(s.shipmentContainers.shipmentId, id));
+    }
+
     const planClassification = classifyClerkShipmentPatch(existing, {
       customerId: input.customerId,
       routeId: input.routeId,
@@ -802,6 +828,419 @@ export async function transitionShipmentStatus(
   return transaction ? execute(transaction) : db.transaction(execute);
 }
 
+function isPodReviewWriter(actor: AuthUser): boolean {
+  return actor.role === Role.ADMIN || actor.role === Role.MANAGER || actor.role === Role.CLERK;
+}
+
+async function loadReviewTripPodResult(
+  tx: Tx,
+  shipmentId: number,
+  submissionId: number,
+): Promise<ReviewTripPodResult> {
+  const [row] = await tx.select({
+    shipment: s.shipments,
+    submissionId: s.tripPodSubmissions.id,
+    submissionStatus: s.tripPodSubmissions.status,
+    tripId: s.trips.id,
+    tripStatus: s.trips.status,
+  }).from(s.tripPodSubmissions)
+    .innerJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.tripPodSubmissions.fulfillmentId))
+    .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
+    .innerJoin(s.trips, eq(s.trips.id, s.tripPodSubmissions.tripId))
+    .where(and(
+      eq(s.tripPodSubmissions.id, submissionId),
+      eq(s.shipments.id, shipmentId),
+      isNull(s.shipments.deletedAt),
+      isNull(s.trips.deletedAt),
+    ))
+    .limit(1);
+  if (!row) {
+    throw new ApiError(404, 'Không tìm thấy e-POD cần xử lý.');
+  }
+  return {
+    shipment: row.shipment,
+    submissionId: row.submissionId,
+    submissionStatus: row.submissionStatus as TripPodStatus,
+    tripId: row.tripId,
+    tripStatus: row.tripStatus,
+    shipmentVersion: row.shipment.version,
+  };
+}
+
+export async function recomputeShipmentCompletion(
+  shipmentId: number,
+  options: { changedBy?: number | null } = {},
+  transaction?: Tx,
+) {
+  const execute = async (tx: Tx) => {
+    const [shipment] = await tx.select().from(s.shipments)
+      .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
+      .for('update')
+      .limit(1);
+    if (!shipment) {
+      throw new ApiError(404, 'Không tìm thấy lô hàng.');
+    }
+    if (shipment.status === 'CANCELED' || shipment.status === 'CLOSED') {
+      return shipment;
+    }
+
+    const fulfillmentRows = await tx.select().from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.shipmentId, shipmentId))
+      .orderBy(asc(s.shipmentFulfillments.id))
+      .for('update');
+    if (fulfillmentRows.length === 0) {
+      return shipment;
+    }
+
+    const fulfillmentById = new Map(fulfillmentRows.map((row) => [row.id, row]));
+    const requiredFulfillments = fulfillmentRows.filter((row) => isFulfillmentRequired(
+      row,
+      row.replacementFulfillmentId != null
+        ? fulfillmentById.get(row.replacementFulfillmentId) ?? null
+        : null,
+    ));
+    if (requiredFulfillments.length === 0) {
+      return shipment;
+    }
+
+    const requiredFulfillmentIds = requiredFulfillments.map((row) => row.id);
+    const trips = await tx.select().from(s.trips)
+      .where(and(
+        inArray(s.trips.fulfillmentId, requiredFulfillmentIds),
+        isNull(s.trips.deletedAt),
+      ))
+      .orderBy(asc(s.trips.id))
+      .for('update');
+    const tripsByFulfillment = new Map<number, typeof trips>();
+    for (const trip of trips) {
+      const fulfillmentId = trip.fulfillmentId;
+      if (fulfillmentId == null) continue;
+      const existing = tripsByFulfillment.get(fulfillmentId) ?? [];
+      existing.push(trip);
+      tripsByFulfillment.set(fulfillmentId, existing);
+    }
+
+    const acceptedSubmissions = trips.length === 0
+      ? []
+      : await tx.select({
+        tripId: s.tripPodSubmissions.tripId,
+      }).from(s.tripPodSubmissions)
+        .where(and(
+          inArray(s.tripPodSubmissions.tripId, trips.map((trip) => trip.id)),
+          eq(s.tripPodSubmissions.status, TripPodStatus.ACCEPTED),
+        ))
+        .for('update');
+    const acceptedTripIds = new Set(acceptedSubmissions.map((row) => row.tripId));
+
+    const allRequiredTripsPresent = requiredFulfillments.every((row) => {
+      const linkedTrips = tripsByFulfillment.get(row.id) ?? [];
+      return linkedTrips.length === 1;
+    });
+    if (!allRequiredTripsPresent) {
+      return shipment;
+    }
+
+    const allCompletedOrLocked = requiredFulfillments.every((row) => {
+      const trip = tripsByFulfillment.get(row.id)?.[0];
+      return trip != null && (trip.status === 'COMPLETED' || trip.status === 'LOCKED');
+    });
+    if (!allCompletedOrLocked) {
+      return shipment;
+    }
+
+    let nextShipment = shipment;
+    if (nextShipment.status === 'IN_PROGRESS') {
+      nextShipment = await transitionShipmentStatus(
+        shipmentId,
+        'DELIVERED',
+        {
+          reason: 'Tự động cập nhật khi tất cả tác vụ bắt buộc đã hoàn thành.',
+          changedBy: options.changedBy ?? null,
+        },
+        tx,
+      );
+    }
+
+    const allLockedAndAccepted = requiredFulfillments.every((row) => {
+      const trip = tripsByFulfillment.get(row.id)?.[0];
+      return trip != null && trip.status === 'LOCKED' && acceptedTripIds.has(trip.id);
+    });
+    if (!allLockedAndAccepted) {
+      return nextShipment;
+    }
+
+    if (nextShipment.status === 'IN_PROGRESS') {
+      nextShipment = await transitionShipmentStatus(
+        shipmentId,
+        'DELIVERED',
+        {
+          reason: 'Tự động cập nhật khi tất cả tác vụ bắt buộc đã hoàn thành.',
+          changedBy: options.changedBy ?? null,
+        },
+        tx,
+      );
+    }
+    if (nextShipment.status === 'DELIVERED') {
+      nextShipment = await transitionShipmentStatus(
+        shipmentId,
+        'CLOSED',
+        {
+          reason: 'Tự động chốt khi tất cả tác vụ bắt buộc đã khóa và e-POD đã được duyệt.',
+          changedBy: options.changedBy ?? null,
+        },
+        tx,
+      );
+    }
+
+    return nextShipment;
+  };
+
+  return transaction ? execute(transaction) : db.transaction(execute);
+}
+
+export async function reviewTripPodSubmission(args: {
+  shipmentId: number;
+  submissionId: number;
+  expectedVersion: number;
+  resolution: 'ACCEPT' | 'REJECT';
+  rejectionReason?: string | null;
+  idempotencyKey: string;
+  actor: AuthUser;
+}) {
+  if (!isPodReviewWriter(args.actor)) {
+    throw new ApiError(403, 'Bạn không có quyền duyệt e-POD.');
+  }
+  if (args.resolution === 'REJECT' && !args.rejectionReason?.trim()) {
+    throw new ApiError(400, 'Cần nhập lý do từ chối e-POD.');
+  }
+
+  const normalizedReason = args.rejectionReason?.trim() || null;
+  const outcome = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_POD_REVIEW,
+    idempotencyKey: args.idempotencyKey,
+    payload: {
+      shipmentId: args.shipmentId,
+      submissionId: args.submissionId,
+      expectedVersion: args.expectedVersion,
+      resolution: args.resolution,
+      rejectionReason: normalizedReason,
+    },
+    createdBy: args.actor.userId,
+    entityType: 'trip_pod_submission',
+    responseStatusCode: 200,
+    serializeResult: () => null,
+    load: async (entityId, tx) => {
+      await assertActorCanAccessShipment(tx, args.shipmentId, args.actor, { write: true });
+      return loadReviewTripPodResult(tx, args.shipmentId, entityId);
+    },
+    create: async (tx) => {
+      await assertActorCanAccessShipment(tx, args.shipmentId, args.actor, { write: true });
+
+      const [row] = await tx.select({
+        submission: s.tripPodSubmissions,
+        trip: s.trips,
+        fulfillment: s.shipmentFulfillments,
+      }).from(s.tripPodSubmissions)
+        .innerJoin(s.trips, eq(s.trips.id, s.tripPodSubmissions.tripId))
+        .innerJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.tripPodSubmissions.fulfillmentId))
+        .where(and(
+          eq(s.tripPodSubmissions.id, args.submissionId),
+          eq(s.shipmentFulfillments.shipmentId, args.shipmentId),
+          isNull(s.trips.deletedAt),
+        ))
+        .for('update')
+        .limit(1);
+      if (!row) {
+        throw new ApiError(404, 'Không tìm thấy e-POD cần xử lý.');
+      }
+      if (row.submission.version !== args.expectedVersion) {
+        throw new ApiError(409, 'Phiên bản e-POD đã thay đổi. Vui lòng tải lại.');
+      }
+      if (row.submission.status !== TripPodStatus.SUBMITTED) {
+        throw new ApiError(409, 'e-POD này đã được người khác xử lý.');
+      }
+      if (row.trip.status !== 'COMPLETED') {
+        throw new ApiError(409, 'Chỉ có thể duyệt e-POD của chuyến đã hoàn thành.');
+      }
+
+      const files = await tx.select({
+        fileType: s.tripPodFiles.fileType,
+      }).from(s.tripPodFiles)
+        .where(eq(s.tripPodFiles.submissionId, row.submission.id));
+      const availableFileTypes = new Set(files.map((file) => file.fileType as typeof TRIP_POD_REQUIRED_FILE_TYPES[number]));
+      const missingRequired = TRIP_POD_REQUIRED_FILE_TYPES.filter((fileType) => !availableFileTypes.has(fileType));
+      if (missingRequired.length > 0) {
+        throw new ApiError(409, 'e-POD chưa đủ hồ sơ bắt buộc để duyệt.');
+      }
+
+      const [updatedSubmission] = await tx.update(s.tripPodSubmissions).set({
+        status: args.resolution === 'ACCEPT' ? TripPodStatus.ACCEPTED : TripPodStatus.REJECTED,
+        reviewedBy: args.actor.userId,
+        reviewedAt: new Date(),
+        rejectionReason: args.resolution === 'REJECT' ? normalizedReason : null,
+        version: sql`${s.tripPodSubmissions.version} + 1`,
+        updatedAt: new Date(),
+      }).where(and(
+        eq(s.tripPodSubmissions.id, row.submission.id),
+        eq(s.tripPodSubmissions.status, TripPodStatus.SUBMITTED),
+        eq(s.tripPodSubmissions.version, args.expectedVersion),
+      )).returning({ id: s.tripPodSubmissions.id });
+      if (!updatedSubmission) {
+        throw new ApiError(409, 'e-POD này đã được người khác xử lý.');
+      }
+
+      if (args.resolution === 'ACCEPT') {
+        await transitionTripStatus(
+          row.trip.id,
+          TripStatus.LOCKED,
+          args.actor.userId,
+          args.actor.role,
+          true,
+          true,
+          {
+            expectedVersion: row.trip.version,
+            transaction: tx,
+            podApprovalContext: {
+              submissionId: row.submission.id,
+            },
+          },
+        );
+        await recomputeShipmentCompletion(args.shipmentId, { changedBy: args.actor.userId }, tx);
+        await persistNotificationInTx(tx, {
+          type: NotificationType.TRIP_LOCKED,
+          title: 'e-POD đã được duyệt',
+          message: `Chuyến ${row.trip.tripCode ?? `#${row.trip.id}`} đã được duyệt e-POD và khóa số liệu.`,
+          relatedEntityType: 'trips',
+          relatedEntityId: row.trip.id,
+          targetDriverId: row.trip.driverId ?? undefined,
+        });
+      } else {
+        await persistNotificationInTx(tx, {
+          type: NotificationType.SYSTEM_ANNOUNCEMENT,
+          title: 'e-POD cần bổ sung',
+          message: `e-POD của chuyến ${row.trip.tripCode ?? `#${row.trip.id}`} đã bị từ chối${normalizedReason ? `: ${normalizedReason}` : '.'} Vui lòng tạo phiên bản mới để gửi lại.`,
+          relatedEntityType: 'trips',
+          relatedEntityId: row.trip.id,
+          targetDriverId: row.trip.driverId ?? undefined,
+        });
+      }
+
+      return loadReviewTripPodResult(tx, args.shipmentId, row.submission.id);
+    },
+    getEntityId: (result) => result.submissionId,
+  });
+
+  return {
+    ...outcome.result,
+    replayed: outcome.replayed,
+  };
+}
+
+export async function updateFulfillmentCancellationDisposition(args: {
+  shipmentId: number;
+  fulfillmentId: number;
+  expectedVersion: number;
+  disposition: 'REPLACED' | 'NOT_REQUIRED';
+  replacementFulfillmentId?: number | null;
+  reason: string;
+  actor: AuthUser;
+  idempotencyKey: string;
+}) {
+  if (args.actor.role !== Role.ADMIN && args.actor.role !== Role.MANAGER) {
+    throw new ApiError(403, 'Chỉ quản lý hoặc quản trị viên được cập nhật trạng thái hủy tác vụ.');
+  }
+  const normalizedReason = args.reason.trim();
+  if (!normalizedReason) {
+    throw new ApiError(400, 'Lý do cập nhật trạng thái hủy tác vụ là bắt buộc.');
+  }
+
+  const outcome = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENT_CANCEL,
+    idempotencyKey: args.idempotencyKey,
+    payload: {
+      shipmentId: args.shipmentId,
+      fulfillmentId: args.fulfillmentId,
+      expectedVersion: args.expectedVersion,
+      disposition: args.disposition,
+      replacementFulfillmentId: args.replacementFulfillmentId ?? null,
+      reason: normalizedReason,
+    },
+    createdBy: args.actor.userId,
+    entityType: 'shipment_fulfillment',
+    responseStatusCode: 200,
+    create: async (tx) => {
+      const shipment = await assertActorCanAccessShipment(tx, args.shipmentId, args.actor, { write: true });
+      const [fulfillment] = await tx.select().from(s.shipmentFulfillments)
+        .where(and(
+          eq(s.shipmentFulfillments.id, args.fulfillmentId),
+          eq(s.shipmentFulfillments.shipmentId, shipment.id),
+        ))
+        .for('update')
+        .limit(1);
+      if (!fulfillment) {
+        throw new ApiError(404, 'Không tìm thấy tác vụ thực hiện.');
+      }
+      if (fulfillment.version !== args.expectedVersion) {
+        throw new ApiError(409, 'Tác vụ đã thay đổi. Vui lòng tải lại.');
+      }
+      if (fulfillment.canceledAt == null) {
+        throw new ApiError(409, 'Chỉ tác vụ đã hủy mới được gán trạng thái thay thế hoặc miễn thực hiện.');
+      }
+
+      let replacementFulfillmentId: number | null = null;
+      if (args.disposition === 'REPLACED') {
+        if (!Number.isInteger(args.replacementFulfillmentId) || (args.replacementFulfillmentId ?? 0) <= 0) {
+          throw new ApiError(400, 'Cần chọn tác vụ thay thế hợp lệ.');
+        }
+        const [replacement] = await tx.select().from(s.shipmentFulfillments)
+          .where(and(
+            eq(s.shipmentFulfillments.id, args.replacementFulfillmentId!),
+            eq(s.shipmentFulfillments.shipmentId, shipment.id),
+          ))
+          .for('update')
+          .limit(1);
+        if (!replacement) {
+          throw new ApiError(404, 'Không tìm thấy tác vụ thay thế.');
+        }
+        if (replacement.canceledAt != null) {
+          throw new ApiError(409, 'Tác vụ thay thế phải còn hiệu lực.');
+        }
+        if (replacement.fulfillmentType !== fulfillment.fulfillmentType
+          || replacement.shipmentContainerId !== fulfillment.shipmentContainerId) {
+          throw new ApiError(409, 'Tác vụ thay thế không khớp loại tác vụ hoặc container cần thay.');
+        }
+        replacementFulfillmentId = replacement.id;
+      }
+
+      await tx.update(s.shipmentFulfillments).set({
+        cancellationDisposition: args.disposition,
+        replacementFulfillmentId,
+        notRequiredApprovedBy: args.disposition === 'NOT_REQUIRED' ? args.actor.userId : null,
+        notRequiredApprovedAt: args.disposition === 'NOT_REQUIRED' ? new Date() : null,
+        notRequiredReason: args.disposition === 'NOT_REQUIRED' ? normalizedReason : null,
+        version: sql`${s.shipmentFulfillments.version} + 1`,
+        updatedAt: new Date(),
+      }).where(eq(s.shipmentFulfillments.id, fulfillment.id));
+
+      const shipmentAfterRecompute = await recomputeShipmentCompletion(
+        shipment.id,
+        { changedBy: args.actor.userId },
+        tx,
+      );
+      return {
+        shipment: shipmentAfterRecompute,
+        fulfillmentId: fulfillment.id,
+        shipmentVersion: shipmentAfterRecompute.version,
+      };
+    },
+  });
+
+  return {
+    ...outcome.result,
+    replayed: outcome.replayed,
+  };
+}
+
 // ─── Soft delete ────────────────────────────────────────────────────────────
 //
 // Only DRAFT or CANCELED shipments may be tombstoned — once work has started
@@ -947,6 +1386,16 @@ export interface ShipmentDetail {
   declarations: Awaited<ReturnType<typeof listShipmentDeclarations>>;
   statusHistory: Awaited<ReturnType<typeof listShipmentStatusHistory>>;
   pendingChangeRequests: Awaited<ReturnType<typeof listPendingShipmentChangeRequests>>;
+  podReviews: ShipmentPodReviewItemView[];
+}
+
+export interface ReviewTripPodResult {
+  shipment: Awaited<ReturnType<typeof getShipment>>;
+  submissionId: number;
+  submissionStatus: TripPodStatus;
+  tripId: number;
+  tripStatus: typeof s.trips.$inferSelect.status;
+  shipmentVersion: number;
 }
 
 export async function listShipmentContainers(shipmentId: number, tx?: Tx) {
@@ -1027,14 +1476,39 @@ export async function getShipmentDetail(id: number, actor?: AuthUser): Promise<S
     customerName: joined?.customerName ?? null,
     cargoTypeName: joined?.cargoTypeName ?? null,
   };
-  const [containers, documents, declarations, statusHistory, pendingChangeRequests] = await Promise.all([
+  const [containers, documents, declarations, statusHistory, pendingChangeRequests, podReviews] = await Promise.all([
     listShipmentContainers(id),
     listShipmentDocuments(id),
     listShipmentDeclarations(id),
     listShipmentStatusHistory(id),
     listPendingShipmentChangeRequests(id),
+    listShipmentPodReviewItems(id),
   ]);
-  return { shipment: shipmentWithCustomer, containers, documents, declarations, statusHistory, pendingChangeRequests };
+  return {
+    shipment: shipmentWithCustomer,
+    containers,
+    documents,
+    declarations,
+    statusHistory,
+    pendingChangeRequests,
+    podReviews,
+  };
+}
+
+export async function downloadShipmentPodFile(
+  shipmentId: number,
+  fileId: number,
+  actor?: AuthUser,
+) {
+  try {
+    await getShipmentDetail(shipmentId, actor);
+  } catch (error) {
+    if (actor?.role === Role.CLERK && error instanceof ApiError && error.statusCode === 403) {
+      throw new ApiError(404, 'Không tìm thấy tệp e-POD.');
+    }
+    throw error;
+  }
+  return getShipmentPodFileForDownload({ shipmentId, fileId });
 }
 
 async function reconcileShipmentContainersInTx(
@@ -1366,189 +1840,6 @@ export async function upsertShipmentDeclaration(
   return transaction ? execute(transaction) : db.transaction(execute);
 }
 
-// ─── Dispatch: shipment → linked trip ───────────────────────────────────────
-//
-// Phase-01 architecture: a shipment exists before any trip; on dispatch, a
-// trip is created and linked via `trips.shipmentId`, and the shipment's
-// containers are snapshotted into the new trip's `trip_containers`.
-//
-// Fulfillment-time fields (route/cargo/container-type/truck/driver) are NOT on
-// the shipment — they are decided at dispatch and forwarded to
-// `createTripCommand`. Customer comes from the shipment.
-//
-// Concurrency / idempotency model:
-//
-//   - The `trips_shipment_id_live_uniq` partial unique index (see schema.ts +
-//     migration 0114) enforces "at most one non-CANCELED trip per shipment" at
-//     the DB level. Two concurrent dispatches each create their own trip (no
-//     collision — `shipmentId` is NULL on insert), but only one of the
-//     subsequent `UPDATE trips SET shipmentId = …` updates can win: the loser
-//     raises 23505 and is caught here, after which we read + return the
-//     winner's trip. The loser's now-orphan trip is hard-deleted in the catch
-//     so it does not pollute reporting.
-//
-//   - A retry after a successful dispatch short-circuits at the existing-trip
-//     lookup and returns the existing trip with `created: false`.
-//
-//   - DRAFT-only precondition: a shipment that has already advanced past
-//     DRAFT cannot be re-dispatched. CANCELED shipments cannot be dispatched
-//     at all. This mirrors the legal-edge state machine in
-//     `transitionShipmentStatus`.
-
-type ShipmentDispatchResult = {
-  trip: typeof s.trips.$inferSelect;
-  created: boolean;
-  preDispatchWarnings: string[];
-};
-
-async function dispatchShipmentToTripInTx(
-  tx: Tx,
-  shipmentId: number,
-  fulfillment: {
-    routeId: number;
-    cargoTypeId: number;
-    containerTypeId: number;
-    truckId?: number | null;
-    driverId?: number | null;
-    departureDate: string;
-    customerReference?: string;
-    containerCount?: number;
-    creditApprovalRequestId?: number | null;
-    fuelMode?: import('@tingting/shared').FuelMode;
-  },
-  actor: { userId: number; role: import('@tingting/shared').Role },
-): Promise<ShipmentDispatchResult> {
-  const [shipment] = await tx.select()
-    .from(s.shipments)
-    .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
-    .for('update')
-    .limit(1);
-  if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
-  if (shipment.cargoMode === 'LCL') {
-    throw new ApiError(
-      409,
-      'Điều vận lô hàng LCL chưa được hỗ trợ. Vui lòng giữ lô ở hồ sơ vận hành, không tạo dữ liệu công-te-nơ giả.',
-    );
-  }
-
-  const expiredDocs = await checkExpiredDocuments(shipmentId, tx);
-  if (expiredDocs.length > 0) {
-    throw new ApiError(409, 'Lệnh giao hàng (D/O) đã hết hạn. Vui lòng tải lên D/O mới.');
-  }
-  const preDispatchWarnings = (await getDispatchReadiness(shipmentId, tx)).missing;
-
-  const [existingLiveTrip] = await tx.select()
-    .from(s.trips)
-    .where(and(
-      eq(s.trips.shipmentId, shipmentId),
-      sql`${s.trips.status} <> 'CANCELED'`,
-    ))
-    .limit(1);
-  if (existingLiveTrip) {
-    return { trip: existingLiveTrip, created: false, preDispatchWarnings };
-  }
-  if (shipment.status !== 'DRAFT') {
-    throw new ApiError(409, `Không thể điều vận lô hàng ở trạng thái "${shipment.status}".`);
-  }
-
-  const trip = await createTrip({
-    customerId: shipment.customerId,
-    routeId: fulfillment.routeId,
-    cargoTypeId: fulfillment.cargoTypeId,
-    containerTypeId: fulfillment.containerTypeId,
-    truckId: fulfillment.truckId ?? null,
-    driverId: fulfillment.driverId ?? null,
-    departureDate: fulfillment.departureDate,
-    customerReference: fulfillment.customerReference,
-    containerCount: fulfillment.containerCount,
-    creditApprovalRequestId: fulfillment.creditApprovalRequestId ?? null,
-    fuelMode: fulfillment.fuelMode,
-    createdBy: actor.userId,
-    createdByRole: actor.role,
-    shipmentId,
-  }, tx);
-
-  const [updated] = await tx.update(s.shipments)
-    .set({
-      status: 'IN_PROGRESS',
-      version: sql`${s.shipments.version} + 1`,
-      updatedAt: new Date(),
-    })
-    .where(and(eq(s.shipments.id, shipmentId), eq(s.shipments.status, 'DRAFT')))
-    .returning({ id: s.shipments.id });
-  if (!updated) {
-    throw new ApiError(
-      409,
-      'Trạng thái lô hàng đã bị thay đổi bởi người khác. Vui lòng tải lại.',
-    );
-  }
-
-  await tx.insert(s.shipmentStatusHistory).values({
-    shipmentId,
-    fromStatus: 'DRAFT',
-    toStatus: 'IN_PROGRESS',
-    reason: `Điều vận sang chuyến ${trip.tripCode}`,
-    changedBy: actor.userId,
-  });
-
-  return { trip, created: true, preDispatchWarnings };
-}
-
-export async function completeShipmentDispatchSideEffects(
-  result: ShipmentDispatchResult,
-  shipmentId: number,
-): Promise<void> {
-  if (!result.created) return;
-  emitNotification({
-    type: NotificationType.TRIP_CREATED,
-    title: 'Chuyến mới được tạo',
-    message: `Chuyến ${result.trip.tripCode} đã được tạo`,
-    relatedEntityType: 'trips',
-    relatedEntityId: result.trip.id,
-    targetDriverId: result.trip.driverId ?? undefined,
-  });
-  await Promise.all([
-    cacheInvalidate('reports:dashboard'),
-    cacheInvalidatePattern('reports:entity-results:*'),
-  ]).catch((err: unknown) => console.warn(
-    '[cache] dispatch invalidate failed', { shipmentId, err },
-  ));
-}
-
-export async function dispatchShipmentToTrip(
-  shipmentId: number,
-  fulfillment: {
-    routeId: number;
-    cargoTypeId: number;
-    containerTypeId: number;
-    truckId?: number | null;
-    driverId?: number | null;
-    departureDate: string;
-    customerReference?: string;
-    containerCount?: number;
-    creditApprovalRequestId?: number | null;
-    fuelMode?: import('@tingting/shared').FuelMode;
-  },
-  actor: { userId: number; role: import('@tingting/shared').Role },
-  transaction?: Tx,
-) {
-  if (transaction) {
-    return dispatchShipmentToTripInTx(transaction, shipmentId, fulfillment, actor);
-  }
-  return db.transaction((tx) => dispatchShipmentToTripInTx(tx, shipmentId, fulfillment, actor));
-}
-
-// Postgres unique-violation detector — 23505 is the SQLSTATE for any unique
-// constraint violation. Drizzle wraps the underlying postgres-js error, so the
-// code may live on either `err.code` (postgres-js direct) or `err.cause.code`
-// (Drizzle-wrapped). Mirrors `apiErrorFromUniqueConstraint` in
-// `routes/utils/crud-factory.ts`.
-function isUniqueViolation(err: unknown): boolean {
-  if (!err || typeof err !== 'object') return false;
-  const e = err as { code?: string; cause?: { code?: string } };
-  return e.code === '23505' || e.cause?.code === '23505';
-}
-
 // ─── M3.2: expired document check + document replacement ────────────────────
 
 /**
@@ -1576,9 +1867,9 @@ export async function checkExpiredDocuments(shipmentId: number, transaction?: Tx
 // editable surface, status `pending`). A hard mandatory gate would be a
 // breaking behavioural change while the field set is still unconfirmed, so
 // slice 2 ships the check as advisory: this helper returns the list of
-// missing recommended fields and `dispatchShipmentToTrip` surfaces them as
-// `preDispatchWarnings` in its response without blocking dispatch. The UI
-// (slice 3) shows a confirm dialog; a follow-up slice flips enforcing on
+// missing recommended fields so fulfillment-dispatch callers can show
+// `preDispatchWarnings` without blocking dispatch. The UI (slice 3) shows a
+// confirm dialog; a follow-up slice flips enforcing on
 // once Q17 / M10.2 §1 sign-off lands (mirrors the M12.2 "advisory first"
 // precedent).
 //

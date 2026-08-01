@@ -10,7 +10,7 @@ import { qk } from '../../api/keys';
 import { useBackShortcut } from '../../hooks/useBackShortcut';
 import { isGovernancePendingResponse } from '../../lib/governance';
 import { type DebitNoteTemplate, type DebitNoteTemplateColumn, type DebitNoteTemplateInput } from '@tingting/shared';
-import { blankTemplate, buildAccountTerms, cloneStarterColumns, EDITOR_SECTIONS, getAccountTerms, sectionFromTarget, templateDefaultsForType, toForm, type EditorSection, type SelectedTarget } from './debit-note-template-editor-utils';
+import { blankTemplate, buildAccountTerms, cloneStarterColumns, EDITOR_SECTIONS, getAccountTerms, normalizeTemplateColumns, sectionFromTarget, templateDefaultsForType, toForm, type EditorSection, type SelectedTarget } from './debit-note-template-editor-utils';
 import { Field, TemplatePreview } from './debit-note-template-preview';
 import { ColumnPropertyPanel, ColumnTable } from './debit-note-template-columns';
 import './config-page.css';
@@ -46,6 +46,7 @@ export default function DebitNoteTemplateEditorPage() {
   }, [template]);
 
   const visibleColumns = useMemo(() => (form.columns ?? []).filter(column => column.width > 0), [form.columns]);
+  const hasGroupedHeaders = useMemo(() => (form.columns ?? []).some(column => column.headerGroup), [form.columns]);
   const selectedColumn = useMemo(() => (
     selectedTarget.type === 'column'
       ? (form.columns ?? []).find(column => column.id === selectedTarget.columnId) ?? null
@@ -258,7 +259,7 @@ export default function DebitNoteTemplateEditorPage() {
           columns={form.columns ?? []}
           accentColor={form.accentColor}
           disabled={controlsDisabled}
-          onChange={columns => set('columns', columns)}
+          onChange={columns => set('columns', normalizeTemplateColumns(columns))}
         />
       );
     }
@@ -367,6 +368,20 @@ export default function DebitNoteTemplateEditorPage() {
           </nav>
 
           <section className="debit-editor-preview-pane">
+            {hasGroupedHeaders && (
+              <div
+                style={{
+                  marginBottom: 12,
+                  padding: 12,
+                  borderRadius: 12,
+                  border: '1px solid #c8d6f5',
+                  background: '#f5f8ff',
+                  color: '#20407a',
+                }}
+              >
+                Mẫu này dùng tiêu đề gộp nhiều tầng cho bố cục Long Minh. Khi xuất Excel, hệ thống sẽ giữ nguyên nhóm cột từ snapshot đã lưu.
+              </div>
+            )}
             <TemplatePreview
               form={form}
               disabled={controlsDisabled}

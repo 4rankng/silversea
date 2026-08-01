@@ -292,7 +292,7 @@ export async function createTrip(data: {
   fuelActualUnitPrice?: number | null;
   // Wave 0: optional link to the shipment this trip fulfills. When set, the
   // shipment must exist + be DRAFT, and the shipment's containers are
-  // snapshotted into the new trip (mirrors `dispatchShipmentToTrip`). When
+  // snapshotted into the new trip. When
   // absent, the trip is created without a shipment link (legacy behaviour).
   shipmentId?: number | null;
   creditApprovalRequestId?: number | null;
@@ -343,8 +343,24 @@ export async function createTrip(data: {
           'Loại hàng của chuyến không khớp với lô hàng nguồn.',
         );
       }
-      authoritativeCargoTypeId = shipment.cargoTypeId ?? null;
-      sourceShipmentVersion = shipment.version;
+      if (shipment.cargoTypeId == null && data.cargoTypeId != null) {
+        const [seededShipment] = await tx.update(s.shipments)
+          .set({
+            cargoTypeId: data.cargoTypeId,
+            version: sql`${s.shipments.version} + 1`,
+            updatedAt: new Date(),
+          })
+          .where(eq(s.shipments.id, shipment.id))
+          .returning({
+            cargoTypeId: s.shipments.cargoTypeId,
+            version: s.shipments.version,
+          });
+        authoritativeCargoTypeId = seededShipment?.cargoTypeId ?? data.cargoTypeId;
+        sourceShipmentVersion = seededShipment?.version ?? (shipment.version + 1);
+      } else {
+        authoritativeCargoTypeId = shipment.cargoTypeId ?? data.cargoTypeId ?? null;
+        sourceShipmentVersion = shipment.version;
+      }
     }
 
     // 1. Pricing resolution — replaced the inline pricing_tables lookup with
@@ -432,10 +448,9 @@ export async function createTrip(data: {
 
     // 4. Create trip with snapshotted rates. The trip is inserted with
     //    shipmentId = NULL even when one was provided — the link is set in a
-    //    guarded UPDATE below (see step 4b) so a concurrent createTrip /
-    //    dispatchShipmentToTrip against the same shipment surfaces as a clean
-    //    409 with a domain message rather than a generic 23505. Mirrors the
-    //    canonical pattern in `dispatchShipmentToTrip`.
+    //    guarded UPDATE below (see step 4b) so a concurrent createTrip
+    //    against the same shipment surfaces as a clean 409 with a domain
+    //    message rather than a generic 23505.
     const [trip] = await tx.insert(s.trips).values({
       tripCode,
       version: 1,
@@ -510,8 +525,8 @@ export async function createTrip(data: {
     }
 
     // Wave 0: if a shipmentId was provided, snapshot the shipment's real
-    // containers into the trip (mirrors `dispatchShipmentToTrip`). The
-    // default empty rows inserted above are kept so a shipment with no
+    // containers into the trip. The default empty rows inserted above are
+    // kept so a shipment with no
     // containers still has `containerCount` placeholder rows to render in
     // the trip UI; the snapshot ADDS the real ones when present. The snapshot
     // helper is idempotent and carries a `__shipment_snapshot:<id>` marker.
@@ -524,13 +539,13 @@ export async function createTrip(data: {
       await snapshotContainersIntoTrip(data.shipmentId, trip.id, data.createdBy ?? null, tx);
 
       // 4b. Link the trip to the shipment via UPDATE so a concurrent
-      //     createTrip / dispatchShipmentToTrip against the same shipment
-      //     surfaces as a clean domain 409 (not a generic 23505 "Dữ liệu đã
-      //     tồn tại"). The partial unique index `trips_shipment_id_live_uniq`
-      //     is the concurrency guard. On conflict the whole transaction
-      //     rolls back (including the trip insert + snapshot), so no orphan
-      //     trip persists — the loser just gets a clear 409 and can refresh
-      //     to see the winner's trip. Mirrors the dispatch path's contract.
+      //     createTrip against the same shipment surfaces as a clean domain
+      //     409 (not a generic 23505 "Dữ liệu đã tồn tại"). The partial
+      //     unique index `trips_shipment_id_live_uniq` is the concurrency
+      //     guard. On conflict the whole transaction rolls back (including
+      //     the trip insert + snapshot), so no orphan trip persists — the
+      //     loser just gets a clear 409 and can refresh to see the winner's
+      //     trip.
       try {
         const [linked] = await tx.update(s.trips)
           .set({ shipmentId: data.shipmentId })

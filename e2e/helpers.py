@@ -19,6 +19,7 @@ DEMO_ACCOUNTS = {
     'admin':     {'identifier': 'admin',    'password': 'admin123', 'role': 'ADMIN',     'home': '/dashboard'},
     'manager':   {'identifier': 'giamdoc',  'password': 'admin123', 'role': 'MANAGER',   'home': '/dashboard'},
     'accountant':{'identifier': 'ketoan',   'password': 'admin123', 'role': 'ACCOUNTANT', 'home': '/dashboard'},
+    'clerk':     {'identifier': 'cus',      'password': 'admin123', 'role': 'CLERK',      'home': '/clerk/shipments'},
     'driver':    {'identifier': 'laixe',    'password': 'admin123', 'role': 'DRIVER',     'home': '/my-trips'},
     'forwarder': {'identifier': 'giaonhan', 'password': 'admin123', 'role': 'FORWARDER',  'home': '/my-forwarder-trips'},
     'customer':  {'identifier': 'customer',  'password': 'admin123', 'role': 'CUSTOMER',   'home': '/portal/shipments'},

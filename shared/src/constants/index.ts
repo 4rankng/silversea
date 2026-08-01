@@ -108,6 +108,17 @@ export const DRIVER_PROGRESS_EVENT_LABELS: Record<DriverProgressEventType, strin
   [DriverProgressEventType.DELIVERED]: 'Đã hạ bãi / Giao hàng xong',
 } as const;
 
+export const DRIVER_FULFILLMENT_PROGRESS_SEQUENCE = [
+  DriverProgressEventType.PICKED_UP,
+  DriverProgressEventType.LOADING_OR_RETURNING,
+  DriverProgressEventType.DELIVERED,
+] as const;
+
+export const TRIP_POD_REQUIRED_FILE_TYPES = [
+  TripPodFileType.YARD_OR_DROP_RECEIPT,
+  TripPodFileType.SIGNED_DELIVERY_NOTE,
+] as const;
+
 /** M8.4 — driver incidental cost types (out-of-pocket expenses). */
 export enum DriverIncidentalCostType {
   PER_DIEM = 'PER_DIEM',

@@ -74,20 +74,26 @@ export function extractAuditEntityId(
   path: string,
   body: Record<string, unknown>,
 ): number | null {
+  const toDatabaseInteger = (value: unknown): number | null => {
+    const text = typeof value === 'number' || typeof value === 'string' ? String(value) : '';
+    if (!/^\d+$/.test(text)) return null;
+    const parsed = Number(text);
+    return Number.isSafeInteger(parsed) && parsed > 0 && parsed <= 2_147_483_647 ? parsed : null;
+  };
   const parts = path.replace('/api/', '').split('/');
   const last = parts[parts.length - 1];
-  const num = parseInt(last, 10);
-  if (!Number.isNaN(num)) return num;
+  const num = toDatabaseInteger(last);
+  if (num != null) return num;
 
   if (
     ['approve', 'reject', 'lock', 'unlock', 'cancel', 'dispatch', 'pre-departure', 'actuals', 'departure-date'].includes(last)
   ) {
     const secondLast = parts[parts.length - 2];
-    const idNum = parseInt(secondLast, 10);
-    if (!Number.isNaN(idNum)) return idNum;
+    const idNum = toDatabaseInteger(secondLast);
+    if (idNum != null) return idNum;
   }
 
-  return body?.id ? parseInt(body.id as string, 10) : null;
+  return toDatabaseInteger(body?.id);
 }
 
 export function sanitizeAuditBody(body: Record<string, unknown>): Record<string, unknown> {

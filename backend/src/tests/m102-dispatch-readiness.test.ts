@@ -3,8 +3,7 @@
  *
  * Hits the real Postgres DB (mirrors `m102-container-validation.test.ts`):
  * creates the minimum scaffolding (customer + catalogs + shipment +
- * optional BL/container), exercises `getDispatchReadiness` and asserts
- * `preDispatchWarnings` surfaces in the `dispatchShipmentToTrip` response.
+ * optional BL/container), and exercises `getDispatchReadiness`.
  *
  * Coverage (PRD M10-02-03 "mandatory fields defined before dispatch"):
  *   - ready when BL + ≥1 container are set.
@@ -12,8 +11,6 @@
  *   - missing containers → warning lists "Công-te-nơ (ít nhất một)".
  *   - missing both → both warnings, in a stable order.
  *   - 404 on missing shipment.
- *   - dispatch response carries `preDispatchWarnings` (advisory; dispatch
- *     is NOT blocked — backward-compatible with existing flows).
  */
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -25,10 +22,8 @@ import {
   createShipment,
   batchUpsertShipmentContainers,
   getDispatchReadiness,
-  dispatchShipmentToTrip,
 } from '../services/shipment.service';
 import { ApiError } from '../errors';
-import { Role } from '@tingting/shared';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -125,83 +120,6 @@ describe('M10.2 slice 2 — getDispatchReadiness (advisory)', () => {
     const result = await getDispatchReadiness(shipment.id);
     assert.equal(result.ready, false);
     assert.deepEqual(result.missing, ['Số vận đơn (B/L)']);
-  });
-});
-
-describe('M10.2 slice 2 — dispatch response carries preDispatchWarnings (advisory, not blocking)', () => {
-  test('a shipment missing BL + containers still dispatches and surfaces warnings', async () => {
-    const shipment = await mkShipment(); // no BL, no containers
-    const result = await dispatchShipmentToTrip(
-      shipment.id,
-      {
-        routeId: catalogs.route.id,
-        cargoTypeId: catalogs.cargoType.id,
-        containerTypeId: catalogs.containerType.id,
-        departureDate: '2026-08-15',
-      },
-      { userId: 1, role: Role.ADMIN },
-    );
-    createdTripIds.push(result.trip.id);
-    assert.equal(result.created, true, 'dispatch was NOT blocked — advisory only');
-    assert.ok(
-      Array.isArray(result.preDispatchWarnings),
-      'preDispatchWarnings is present in the response',
-    );
-    assert.deepEqual(result.preDispatchWarnings, [
-      'Số vận đơn (B/L)',
-      'Công-te-nơ (ít nhất một)',
-    ]);
-  });
-
-  test('a ready shipment dispatches with empty preDispatchWarnings', async () => {
-    const shipment = await mkShipment('BL-READY-2');
-    await batchUpsertShipmentContainers(shipment.id, null, [
-      { containerTypeId: catalogs.containerType.id, containerNumber: 'MEDU2497795' },
-    ]);
-    const result = await dispatchShipmentToTrip(
-      shipment.id,
-      {
-        routeId: catalogs.route.id,
-        cargoTypeId: catalogs.cargoType.id,
-        containerTypeId: catalogs.containerType.id,
-        departureDate: '2026-08-16',
-      },
-      { userId: 1, role: Role.ADMIN },
-    );
-    createdTripIds.push(result.trip.id);
-    assert.equal(result.created, true);
-    assert.deepEqual(result.preDispatchWarnings, []);
-  });
-
-  test('idempotent re-dispatch surfaces the same warnings (created=false path)', async () => {
-    const shipment = await mkShipment(); // missing BL + containers
-    const first = await dispatchShipmentToTrip(
-      shipment.id,
-      {
-        routeId: catalogs.route.id,
-        cargoTypeId: catalogs.cargoType.id,
-        containerTypeId: catalogs.containerType.id,
-        departureDate: '2026-08-17',
-      },
-      { userId: 1, role: Role.ADMIN },
-    );
-    createdTripIds.push(first.trip.id);
-    const second = await dispatchShipmentToTrip(
-      shipment.id,
-      {
-        routeId: catalogs.route.id,
-        cargoTypeId: catalogs.cargoType.id,
-        containerTypeId: catalogs.containerType.id,
-        departureDate: '2026-08-17',
-      },
-      { userId: 1, role: Role.ADMIN },
-    );
-    assert.equal(second.created, false, 'idempotent re-dispatch returns the existing trip');
-    assert.deepEqual(
-      second.preDispatchWarnings,
-      ['Số vận đơn (B/L)', 'Công-te-nơ (ít nhất một)'],
-      'warnings are computed on the same shipment state',
-    );
   });
 });
 

@@ -8,7 +8,10 @@ import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import { disconnectRedis } from '../lib/redis';
 import type { AuthUser } from '../middleware/auth';
-import { submitShipmentForDispatch } from '../services/shipment-intake.service';
+import {
+  listOperationalSitesForIntake,
+  submitShipmentForDispatch,
+} from '../services/shipment-intake.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const shipmentIds: number[] = [];
@@ -53,6 +56,13 @@ async function references() {
     name: `Factory ${suffix}`,
     siteType: 'FACTORY',
     address: 'Khu công nghiệp thử nghiệm',
+    googleMapsUrl: 'https://maps.google.com/testing',
+    contactName: 'Người liên hệ riêng',
+    contactPhone: '0900000000',
+    liftFeeInvoiceName: 'Công ty xuất hóa đơn nâng hạ',
+    liftFeeInvoiceAddress: 'Địa chỉ xuất hóa đơn',
+    liftFeeTaxCode: '0101234567',
+    strictRules: 'Gọi trước khi vào kho',
   }).returning();
   const [warehouse] = await db.insert(s.operationalSites).values({
     customerId: customer.id,
@@ -71,6 +81,22 @@ async function references() {
 }
 
 describe('shipment intake submission', () => {
+  test('returns billing identity to ACCOUNTANT without private operational contacts', async () => {
+    const accountant = await actor(Role.ACCOUNTANT);
+    const ref = await references();
+
+    const sitesForBilling = await listOperationalSitesForIntake(ref.customer.id, accountant);
+    const factory = sitesForBilling.find((site) => site.id === ref.site.id);
+
+    assert.ok(factory);
+    assert.equal(factory.liftFeeInvoiceName, 'Công ty xuất hóa đơn nâng hạ');
+    assert.equal(factory.liftFeeTaxCode, '0101234567');
+    assert.equal('contactName' in factory, false);
+    assert.equal('contactPhone' in factory, false);
+    assert.equal('strictRules' in factory, false);
+    assert.equal('googleMapsUrl' in factory, false);
+  });
+
   test('atomically moves a complete FCL draft to the dispatch queue and replays once', async () => {
     const admin = await actor(Role.ADMIN);
     const ref = await references();

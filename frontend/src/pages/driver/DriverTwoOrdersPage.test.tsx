@@ -34,6 +34,7 @@ import DriverTwoOrdersPage from './DriverTwoOrdersPage';
 
 const TRIP = (overrides: Partial<{
   id: number;
+  fulfillmentId: number | null;
   tripCode: string;
   departureDate: string;
   status: string;
@@ -42,7 +43,7 @@ const TRIP = (overrides: Partial<{
   truckPlate: string;
   containerNumbers: string[];
 }> = {}) => ({
-  id: 1, tripCode: 'TRIP-1', departureDate: '2026-07-26', status: 'CREATED',
+  id: 1, fulfillmentId: 101, tripCode: 'TRIP-1', departureDate: '2026-07-26', status: 'CREATED',
   routeName: 'Cảng Cát Lái → Kho BD', customerName: 'Công ty ABC',
   truckPlate: '51C-1234', containerNumbers: ['MSKU1234565'],
   ...overrides,
@@ -66,8 +67,8 @@ describe('DriverTwoOrdersPage — M8.3 two-orders view', () => {
     useDriverTwoOrdersMock.mockReturnValue({
       data: {
         date: '2026-07-26',
-        active: TRIP({ id: 10, tripCode: 'TRIP-A', status: 'IN_TRANSIT' }),
-        next: TRIP({ id: 20, tripCode: 'TRIP-B', status: 'CREATED' }),
+        active: TRIP({ id: 10, fulfillmentId: 110, tripCode: 'TRIP-A', status: 'IN_TRANSIT' }),
+        next: TRIP({ id: 20, fulfillmentId: 120, tripCode: 'TRIP-B', status: 'CREATED' }),
         firstOrderLate: false,
         allToday: [TRIP({ id: 10 }), TRIP({ id: 20 })],
       },
@@ -76,8 +77,8 @@ describe('DriverTwoOrdersPage — M8.3 two-orders view', () => {
     renderAt();
     const activeCard = await screen.findByTestId('two-orders-card-Lệnh đang chạy');
     const nextCard = screen.getByTestId('two-orders-card-Lệnh tiếp theo');
-    expect(activeCard.getAttribute('href')).toBe('/my-trips/10');
-    expect(nextCard.getAttribute('href')).toBe('/my-trips/20');
+    expect(activeCard.getAttribute('href')).toBe('/my-trips/110');
+    expect(nextCard.getAttribute('href')).toBe('/my-trips/120');
     expect(activeCard).not.toBe(nextCard);
   });
 
@@ -98,16 +99,16 @@ describe('DriverTwoOrdersPage — M8.3 two-orders view', () => {
           requiredGapMinutes: 70,
           actualGapMinutes: 95,
           lateByMinutes: null,
-          first: TRIP({ id: 10, tripCode: 'TRIP-A', departureDate: '2026-07-27', status: 'IN_TRANSIT' }),
-          second: TRIP({ id: 20, tripCode: 'TRIP-B', departureDate: '2026-07-28', status: 'CREATED' }),
+          first: TRIP({ id: 10, fulfillmentId: 110, tripCode: 'TRIP-A', departureDate: '2026-07-27', status: 'IN_TRANSIT' }),
+          second: TRIP({ id: 20, fulfillmentId: 120, tripCode: 'TRIP-B', departureDate: '2026-07-28', status: 'CREATED' }),
         },
       },
       isLoading: false, error: null,
     });
     renderAt();
     expect(await screen.findByTestId('ordered-pair-summary')).toBeTruthy();
-    expect(screen.getByTestId('two-orders-card-Chuyến 1').getAttribute('href')).toBe('/my-trips/10');
-    expect(screen.getByTestId('two-orders-card-Chuyến 2').getAttribute('href')).toBe('/my-trips/20');
+    expect(screen.getByTestId('two-orders-card-Chuyến 1').getAttribute('href')).toBe('/my-trips/110');
+    expect(screen.getByTestId('two-orders-card-Chuyến 2').getAttribute('href')).toBe('/my-trips/120');
     expect(screen.getByText(/22.5 km/)).toBeTruthy();
   });
 

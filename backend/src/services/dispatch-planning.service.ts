@@ -101,6 +101,13 @@ interface IssueOrderMutationResult {
   notificationPersisted: boolean;
 }
 
+const DEFAULT_ROUTE_SERVICE_SPEED_KPH = 35;
+const DEFAULT_ROUTE_SERVICE_BUFFER_MINUTES = 30;
+const TRAILER_CAPACITY_KG: Record<'20FT' | '40FT', number> = {
+  '20FT': 18_000,
+  '40FT': 30_000,
+};
+
 function assertDispatchReadActor(actor: AuthUser): void {
   if (actor.role !== Role.ADMIN && actor.role !== Role.MANAGER && actor.role !== Role.ACCOUNTANT) {
     throw new ApiError(403, 'Bạn không có quyền xem bảng điều phối.');
@@ -111,6 +118,22 @@ function assertDispatchActor(actor: AuthUser): asserts actor is DispatchActor {
   if (actor.role !== Role.ADMIN && actor.role !== Role.MANAGER) {
     throw new ApiError(403, 'Chỉ điều vận mới có quyền điều xe.');
   }
+}
+
+function accountantCustomerScopeIds(actor: AuthUser): number[] {
+  return [...new Set([
+    ...(actor.customerIds ?? []),
+    actor.customerId,
+  ].filter((value): value is number => value != null && Number.isInteger(value) && value > 0))].sort((a, b) => a - b);
+}
+
+function requireAccountantDispatchScope(actor: AuthUser): number[] | null {
+  if (actor.role !== Role.ACCOUNTANT) return null;
+  const customerIds = accountantCustomerScopeIds(actor);
+  if (customerIds.length === 0) {
+    throw new ApiError(403, 'Tài khoản kế toán chưa có phạm vi khách hàng để xem điều phối.');
+  }
+  return customerIds;
 }
 
 function parseCursor(raw: string | null | undefined): number | null {
@@ -177,19 +200,93 @@ function inferTrailerTypeFromContainerCode(code: string | null | undefined): '20
   return normalized.startsWith('20') ? '20FT' : '40FT';
 }
 
-function routeServiceDurationMinutes(): number | null {
-  return null;
+function routeServiceDurationMinutes(distanceKm: number | null | undefined): number | null {
+  if (distanceKm == null || !Number.isFinite(distanceKm) || distanceKm <= 0) {
+    return null;
+  }
+  return Math.ceil((distanceKm / DEFAULT_ROUTE_SERVICE_SPEED_KPH) * 60) + DEFAULT_ROUTE_SERVICE_BUFFER_MINUTES;
 }
 
-function buildNotificationPayload(trip: Pick<typeof s.trips.$inferSelect, 'id' | 'tripCode' | 'driverId'>): NotificationPayload {
+function redactDispatchSiteForAccountant<T extends {
+  id: number | null;
+  name: string | null;
+  address: string | null;
+  googleMapsUrl: string | null;
+  strictRules: string | null;
+}>(actor: AuthUser, site: T): T {
+  if (actor.role !== Role.ACCOUNTANT) return site;
+  return {
+    ...site,
+    address: null,
+    googleMapsUrl: null,
+    strictRules: null,
+  };
+}
+
+function inferredVehicleCapacityKg(trailerType: '20FT' | '40FT' | null | undefined): string | null {
+  if (!trailerType) return null;
+  const capacityKg = TRAILER_CAPACITY_KG[trailerType];
+  return capacityKg ? String(capacityKg) : null;
+}
+
+function authoritativeCargoWeightKg(args: {
+  shipmentCargoWeightKg: string | null;
+  containerCargoWeightKg?: string | null;
+  shipmentContainerId: number | null;
+}): string | null {
+  if (args.shipmentContainerId != null) {
+    return args.containerCargoWeightKg ?? null;
+  }
+  return args.shipmentCargoWeightKg ?? null;
+}
+
+function dispatchAssignmentChanged(
+  trip: LiveTripRow,
+  next: {
+    plannedStartAt: Date;
+    plannedEndAt: Date;
+    carrierType: 'OWN' | 'EXTERNAL';
+    truckId: number | null;
+    trailerId: number | null;
+    driverId: number | null;
+    externalCarrierId: number | null;
+    externalPlateNumber: string | null;
+    externalDriverName: string | null;
+    externalDriverPhone: string | null;
+  },
+): boolean {
+  return trip.plannedStartAt?.getTime() !== next.plannedStartAt.getTime()
+    || trip.plannedEndAt?.getTime() !== next.plannedEndAt.getTime()
+    || trip.carrierType !== next.carrierType
+    || trip.truckId !== next.truckId
+    || trip.trailerId !== next.trailerId
+    || trip.driverId !== next.driverId
+    || trip.externalCarrierId !== next.externalCarrierId
+    || trip.externalPlateNumber !== next.externalPlateNumber
+    || trip.externalDriverName !== next.externalDriverName
+    || trip.externalDriverPhone !== next.externalDriverPhone;
+}
+
+function buildNotificationPayload(
+  trip: Pick<typeof s.trips.$inferSelect, 'id' | 'tripCode' | 'driverId' | 'fulfillmentId'>,
+): NotificationPayload {
+  if (trip.fulfillmentId == null) {
+    throw new ApiError(409, 'Chuyến điều xe chưa liên kết tác vụ thực hiện.');
+  }
   return {
     type: NotificationType.TRIP_DISPATCHED,
     title: 'Lệnh điều xe mới',
     message: trip.tripCode ? `Chuyến ${trip.tripCode} đã được điều xe` : 'Bạn có lệnh điều xe mới',
-    relatedEntityType: 'trips',
-    relatedEntityId: trip.id,
+    relatedEntityType: 'shipment_fulfillments',
+    relatedEntityId: trip.fulfillmentId,
     targetDriverId: trip.driverId ?? undefined,
   };
+}
+
+function toIsoOrNull(value: Date | string | null | undefined): string | null {
+  if (value == null) return null;
+  if (value instanceof Date) return value.toISOString();
+  return typeof value === 'string' ? value : null;
 }
 
 async function ensureFulfillmentsInTx(
@@ -317,6 +414,7 @@ function toFrozenSiteSummary(source: unknown) {
 
 export async function listDispatchHandoffs(input: ListDispatchHandoffsInput) {
   assertDispatchReadActor(input.actor);
+  const accountantCustomerIds = requireAccountantDispatchScope(input.actor);
   const cursor = parseCursor(input.cursor);
   const limit = normalizeLimit(input.limit, 50);
   const statuses: DispatchHandoffStatus[] = input.status?.length ? input.status : ['UNSEEN', 'SEEN'];
@@ -356,6 +454,7 @@ export async function listDispatchHandoffs(input: ListDispatchHandoffsInput) {
       .leftJoin(s.routes, eq(s.shipments.routeId, s.routes.id))
       .where(and(
         inArray(s.dispatchHandoffs.status, statuses),
+        accountantCustomerIds ? inArray(s.shipments.customerId, accountantCustomerIds) : undefined,
         cursor ? lt(s.dispatchHandoffs.id, cursor) : undefined,
         input.urgency ? eq(s.dispatchHandoffs.priority, input.urgency) : undefined,
         date ? eq(sql`date(${s.dispatchHandoffs.vehicleNeededBy})`, date) : undefined,
@@ -389,12 +488,25 @@ export async function listDispatchHandoffs(input: ListDispatchHandoffsInput) {
       bucket.push(value);
       containerMap.set(row.shipmentId, bucket);
     }
-    const [unseenRows, seenRows] = await Promise.all([
-      tx.select({ total: count() }).from(s.dispatchHandoffs).where(eq(s.dispatchHandoffs.status, 'UNSEEN')),
-      tx.select({ total: count() }).from(s.dispatchHandoffs).where(eq(s.dispatchHandoffs.status, 'SEEN')),
-    ]);
-    const unseenCount = Number(unseenRows[0]?.total ?? 0);
-    const seenCount = Number(seenRows[0]?.total ?? 0);
+    const [statusCounts] = await tx.select({
+      unseen: sql<number>`count(*) filter (where ${s.dispatchHandoffs.status} = 'UNSEEN')`,
+      seen: sql<number>`count(*) filter (where ${s.dispatchHandoffs.status} = 'SEEN')`,
+    }).from(s.dispatchHandoffs)
+      .innerJoin(s.shipments, eq(s.dispatchHandoffs.shipmentId, s.shipments.id))
+      .innerJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
+      .where(and(
+        accountantCustomerIds ? inArray(s.shipments.customerId, accountantCustomerIds) : undefined,
+        input.urgency ? eq(s.dispatchHandoffs.priority, input.urgency) : undefined,
+        date ? eq(sql`date(${s.dispatchHandoffs.vehicleNeededBy})`, date) : undefined,
+        qPattern ? or(
+          ilike(s.customers.name, qPattern),
+          ilike(s.shipments.shipmentCode, qPattern),
+          ilike(s.shipments.bookingRef, qPattern),
+          ilike(s.shipments.blNumber, qPattern),
+        ) : undefined,
+      ));
+    const unseenCount = Number(statusCounts?.unseen ?? 0);
+    const seenCount = Number(statusCounts?.seen ?? 0);
 
     const pageRows = rows.slice(0, limit);
     return {
@@ -406,7 +518,7 @@ export async function listDispatchHandoffs(input: ListDispatchHandoffsInput) {
         shipmentVersion: row.shipmentVersion,
         urgency: row.priority,
         vehicleNeededBy: row.vehicleNeededBy?.toISOString() ?? null,
-        operationalNote: row.operationalNote,
+        operationalNote: input.actor.role === Role.ACCOUNTANT ? null : row.operationalNote,
         dispatchedAt: row.dispatchedAt.toISOString(),
         seenAt: row.seenAt?.toISOString() ?? null,
         customer: { id: row.customerId, name: row.customerName },
@@ -414,7 +526,7 @@ export async function listDispatchHandoffs(input: ListDispatchHandoffsInput) {
           id: row.routeId,
           name: row.routeName,
           distanceKm: row.routeDistanceKm,
-          serviceDurationMinutes: routeServiceDurationMinutes(),
+          serviceDurationMinutes: routeServiceDurationMinutes(row.routeDistanceKm),
         },
         shipment: {
           code: row.shipmentCode,
@@ -425,19 +537,28 @@ export async function listDispatchHandoffs(input: ListDispatchHandoffsInput) {
           closingAt: row.closingAt?.toISOString() ?? null,
           plannedReturnAt: row.plannedReturnAt?.toISOString() ?? null,
           customsCutoffAt: row.customsCutoffAt?.toISOString() ?? null,
-          operationalNotes: row.shipmentOperationalNotes,
+          operationalNotes: input.actor.role === Role.ACCOUNTANT ? null : row.shipmentOperationalNotes,
         },
         operationalSite: row.operationalSiteId ? { id: row.operationalSiteId } : null,
         pickupWarehouse: row.pickupWarehouseSiteId
           ? (() => {
             const site = pickupSites.get(row.pickupWarehouseSiteId);
-            return site ? {
+            if (!site) {
+              return redactDispatchSiteForAccountant(input.actor, {
+                id: row.pickupWarehouseSiteId,
+                name: null,
+                address: null,
+                googleMapsUrl: null,
+                strictRules: null,
+              });
+            }
+            return redactDispatchSiteForAccountant(input.actor, {
               id: site.id,
               name: site.name,
               address: site.address,
               googleMapsUrl: site.googleMapsUrl,
               strictRules: site.strictRules,
-            } : { id: row.pickupWarehouseSiteId };
+            });
           })()
           : null,
         summary: {
@@ -458,6 +579,7 @@ export async function listDispatchHandoffs(input: ListDispatchHandoffsInput) {
 
 export async function listDispatchQueue(input: ListDispatchQueueInput) {
   assertDispatchReadActor(input.actor);
+  const accountantCustomerIds = requireAccountantDispatchScope(input.actor);
   const cursor = parseCursor(input.cursor);
   const limit = normalizeLimit(input.limit, 50);
   const qPattern = buildPattern(input.q);
@@ -531,6 +653,7 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
       ))
       .where(and(
         isNull(s.shipmentFulfillments.canceledAt),
+        accountantCustomerIds ? inArray(s.shipments.customerId, accountantCustomerIds) : undefined,
         cursor ? lt(s.shipmentFulfillments.id, cursor) : undefined,
         input.urgency ? eq(s.dispatchHandoffs.priority, input.urgency) : undefined,
         date ? eq(sql`date(coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}, ${s.shipments.customsCutoffAt}))`, date) : undefined,
@@ -569,30 +692,38 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
     const trailersById = new Map(trailers.map((row) => [row.id, row]));
     const carriersById = new Map(carriers.map((row) => [row.id, row]));
     const portsById = new Map(ports.map((row) => [row.id, row]));
-    const [readyRows, dispatchedRows] = await Promise.all([
-      tx.select({ total: count() }).from(s.shipmentFulfillments)
-        .where(and(
-          isNull(s.shipmentFulfillments.canceledAt),
-          sql`not exists (
-            select 1 from ${s.trips}
-            where ${s.trips.fulfillmentId} = ${s.shipmentFulfillments.id}
-              and ${s.trips.status} <> 'CANCELED'
-              and ${s.trips.deletedAt} is null
-          )`,
-        )),
-      tx.select({ total: count() }).from(s.shipmentFulfillments)
-        .where(and(
-          isNull(s.shipmentFulfillments.canceledAt),
-          sql`exists (
-            select 1 from ${s.trips}
-            where ${s.trips.fulfillmentId} = ${s.shipmentFulfillments.id}
-              and ${s.trips.status} <> 'CANCELED'
-              and ${s.trips.deletedAt} is null
-          )`,
-        )),
-    ]);
-    const readyCount = Number(readyRows[0]?.total ?? 0);
-    const dispatchedCount = Number(dispatchedRows[0]?.total ?? 0);
+    const [filteredCounts] = await tx.select({
+      ready: sql<number>`count(*) filter (where ${s.trips.id} is null)`,
+      dispatched: sql<number>`count(*) filter (where ${s.trips.id} is not null)`,
+    }).from(s.shipmentFulfillments)
+      .innerJoin(s.shipments, eq(s.shipmentFulfillments.shipmentId, s.shipments.id))
+      .innerJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
+      .leftJoin(s.dispatchHandoffs, and(
+        eq(s.dispatchHandoffs.shipmentId, s.shipments.id),
+        eq(s.dispatchHandoffs.status, 'ACCEPTED'),
+        isNull(s.dispatchHandoffs.supersededAt),
+      ))
+      .leftJoin(s.shipmentContainers, eq(s.shipmentFulfillments.shipmentContainerId, s.shipmentContainers.id))
+      .leftJoin(s.trips, and(
+        eq(s.trips.fulfillmentId, s.shipmentFulfillments.id),
+        ne(s.trips.status, TripStatus.CANCELED),
+        isNull(s.trips.deletedAt),
+      ))
+      .where(and(
+        isNull(s.shipmentFulfillments.canceledAt),
+        accountantCustomerIds ? inArray(s.shipments.customerId, accountantCustomerIds) : undefined,
+        input.urgency ? eq(s.dispatchHandoffs.priority, input.urgency) : undefined,
+        date ? eq(sql`date(coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}, ${s.shipments.customsCutoffAt}))`, date) : undefined,
+        qPattern ? or(
+          ilike(s.customers.name, qPattern),
+          ilike(s.shipments.shipmentCode, qPattern),
+          ilike(s.shipments.bookingRef, qPattern),
+          ilike(s.shipments.blNumber, qPattern),
+          ilike(s.shipmentContainers.containerNumber, qPattern),
+        ) : undefined,
+      ));
+    const filteredReadyCount = Number(filteredCounts?.ready ?? 0);
+    const filteredDispatchedCount = Number(filteredCounts?.dispatched ?? 0);
 
     const pageRows = rows.slice(0, limit);
     return {
@@ -614,7 +745,7 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
             id: row.routeId,
             name: row.routeName,
             distanceKm: row.routeDistanceKm,
-            serviceDurationMinutes: routeServiceDurationMinutes(),
+            serviceDurationMinutes: routeServiceDurationMinutes(row.routeDistanceKm),
           },
           shipment: {
             code: row.shipmentCode,
@@ -624,10 +755,10 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
             closingAt: row.closingAt?.toISOString() ?? null,
             plannedReturnAt: row.plannedReturnAt?.toISOString() ?? null,
             customsCutoffAt: row.customsCutoffAt?.toISOString() ?? null,
-            operationalNotes: row.shipmentOperationalNotes,
+            operationalNotes: input.actor.role === Role.ACCOUNTANT ? null : row.shipmentOperationalNotes,
           },
-          operationalSite: toFrozenSiteSummary(snapshot.deliverySite),
-          pickupWarehouse: toFrozenSiteSummary(snapshot.pickupWarehouse),
+          operationalSite: redactDispatchSiteForAccountant(input.actor, toFrozenSiteSummary(snapshot.deliverySite)),
+          pickupWarehouse: redactDispatchSiteForAccountant(input.actor, toFrozenSiteSummary(snapshot.pickupWarehouse)),
           unitSummary: {
             label: row.cargoMode === 'FCL' ? 'Container' : 'Lô hàng lẻ',
             containerNumber: row.containerNumber,
@@ -654,21 +785,20 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
             trailerPlate: row.trailerId ? trailersById.get(row.trailerId)?.licensePlate ?? null : null,
             driverId: row.driverId,
             driverName: row.driverId ? driversById.get(row.driverId)?.name ?? null : null,
-            driverPhone: row.driverId ? driversById.get(row.driverId)?.phone ?? null : null,
             externalCarrierId: row.externalCarrierId,
             externalCarrierName: row.externalCarrierId ? carriersById.get(row.externalCarrierId)?.name ?? null : null,
             externalPlateNumber: row.externalPlateNumber,
             externalDriverName: row.externalDriverName,
-            externalDriverPhone: row.externalDriverPhone,
+            externalDriverPhone: input.actor.role === Role.ACCOUNTANT ? null : row.externalDriverPhone,
           } : null,
         };
       }),
       page: {
         limit,
         nextCursor: rows.length > limit ? String(pageRows.at(-1)!.fulfillmentId) : null,
-        total: readyCount + dispatchedCount,
-        readyCount,
-        dispatchedCount,
+        total: filteredReadyCount + filteredDispatchedCount,
+        readyCount: filteredReadyCount,
+        dispatchedCount: filteredDispatchedCount,
       },
     };
   });
@@ -676,6 +806,9 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
 
 export async function listDispatchFleet(input: ListDispatchFleetInput) {
   assertDispatchReadActor(input.actor);
+  if (input.actor.role === Role.ACCOUNTANT) {
+    throw new ApiError(403, 'Kế toán không được xem đội xe điều phối.');
+  }
   const limit = normalizeLimit(input.limit, 100);
   const qPattern = buildPattern(input.q);
 
@@ -736,6 +869,7 @@ export async function listDispatchFleet(input: ListDispatchFleetInput) {
         trailerType: row.trailerType,
         currentTrailerId: row.currentTrailerId,
         currentTrailerPlate: row.currentTrailerId ? trailerById.get(row.currentTrailerId)?.licensePlate ?? null : null,
+        capacityKg: inferredVehicleCapacityKg(row.trailerType),
         status: row.status,
       })),
       drivers: drivers.map((row) => ({
@@ -920,6 +1054,11 @@ async function issueOrderCreateOrUpdate(
   if (shipment.status === 'CANCELED' || shipment.status === 'CLOSED') {
     throw new ApiError(409, 'Lô hàng đã kết thúc và không thể điều xe.');
   }
+  const [route] = shipment.routeId == null
+    ? []
+    : await tx.select({
+      distanceKm: s.routes.distanceKm,
+    }).from(s.routes).where(eq(s.routes.id, shipment.routeId)).limit(1);
 
   const [fulfillment] = await tx.select().from(s.shipmentFulfillments)
     .where(and(
@@ -935,11 +1074,14 @@ async function issueOrderCreateOrUpdate(
   }
 
   const plannedStartAt = parseIsoWithZone(input.plannedStartAt, 'Giờ chạy');
-  const plannedEndAt = parseIsoWithZone(input.plannedEndAt, 'Giờ kết thúc');
+  const serviceDurationMinutes = routeServiceDurationMinutes(route?.distanceKm ?? null);
+  const plannedEndAt = serviceDurationMinutes == null
+    ? parseIsoWithZone(input.plannedEndAt, 'Giờ kết thúc')
+    : new Date(plannedStartAt.getTime() + serviceDurationMinutes * 60_000);
   if (plannedEndAt.getTime() <= plannedStartAt.getTime()) {
     throw new ApiError(400, 'Giờ kết thúc phải sau giờ chạy.');
   }
-  if (routeServiceDurationMinutes() == null && !input.endTimeConfirmed) {
+  if (serviceDurationMinutes == null && !input.endTimeConfirmed) {
     throw new ApiError(409, 'Tuyến chưa có thời lượng chuẩn. Vui lòng xác nhận giờ kết thúc.');
   }
 
@@ -953,6 +1095,9 @@ async function issueOrderCreateOrUpdate(
   let externalDriverName: string | null = null;
   let externalDriverPhone: string | null = null;
   let containerTypeId: number | null = input.containerTypeId ?? null;
+  let driverUserId: number | null = null;
+  let cargoWeightKg: string | null = shipment.cargoWeightKg ?? null;
+  let vehicleCapacityKg: string | null = null;
 
   if (input.carrierType === 'OWN') {
     if (input.truckId == null || input.driverId == null) {
@@ -962,6 +1107,7 @@ async function issueOrderCreateOrUpdate(
       id: s.trucks.id,
       currentTrailerId: s.trucks.currentTrailerId,
       status: s.trucks.status,
+      trailerType: s.trucks.trailerType,
       deletedAt: s.trucks.deletedAt,
     }).from(s.trucks).where(eq(s.trucks.id, input.truckId)).limit(1);
     if (!truck || truck.deletedAt || truck.status !== 'ACTIVE') {
@@ -972,10 +1118,30 @@ async function issueOrderCreateOrUpdate(
       userId: s.drivers.userId,
       status: s.drivers.status,
       deletedAt: s.drivers.deletedAt,
-    }).from(s.drivers).where(eq(s.drivers.id, input.driverId)).limit(1);
-    if (!driver || driver.deletedAt || driver.status !== 'ACTIVE' || driver.userId == null) {
+    }).from(s.drivers)
+      .where(eq(s.drivers.id, input.driverId))
+      .limit(1)
+      .for('update');
+    const [driverUser] = driver?.userId == null
+      ? []
+      : await tx.select({
+        status: s.users.status,
+        role: s.users.role,
+        deletedAt: s.users.deletedAt,
+      }).from(s.users).where(eq(s.users.id, driver.userId)).limit(1);
+    if (
+      !driver
+      || driver.deletedAt
+      || driver.status !== 'ACTIVE'
+      || driver.userId == null
+      || !driverUser
+      || driverUser.deletedAt
+      || driverUser.status !== 'ACTIVE'
+      || driverUser.role !== Role.DRIVER
+    ) {
       throw new ApiError(409, 'Tài xế không còn hiệu lực để nhận lệnh.');
     }
+    driverUserId = driver.userId;
     const trailerCandidateId = input.trailerId ?? truck.currentTrailerId ?? null;
     if (trailerCandidateId == null) {
       throw new ApiError(409, 'Xe đầu kéo chưa có rơ-moóc khả dụng.');
@@ -989,8 +1155,13 @@ async function issueOrderCreateOrUpdate(
     if (!trailer || trailer.deletedAt || trailer.status !== 'ACTIVE') {
       throw new ApiError(409, 'Rơ-moóc không còn hiệu lực.');
     }
+    vehicleCapacityKg = inferredVehicleCapacityKg(trailer.type ?? truck.trailerType);
     if (fulfillment.shipmentContainerId != null) {
-      const [container] = await tx.select({ code: s.containerTypes.code, containerTypeId: s.shipmentContainers.containerTypeId })
+      const [container] = await tx.select({
+        code: s.containerTypes.code,
+        containerTypeId: s.shipmentContainers.containerTypeId,
+        cargoWeightKg: s.shipmentContainers.cargoWeightKg,
+      })
         .from(s.shipmentContainers)
         .leftJoin(s.containerTypes, eq(s.shipmentContainers.containerTypeId, s.containerTypes.id))
         .where(eq(s.shipmentContainers.id, fulfillment.shipmentContainerId))
@@ -999,6 +1170,18 @@ async function issueOrderCreateOrUpdate(
         throw new ApiError(409, 'Rơ-moóc không phù hợp với loại container.');
       }
       containerTypeId = container?.containerTypeId ?? containerTypeId;
+      cargoWeightKg = authoritativeCargoWeightKg({
+        shipmentCargoWeightKg: shipment.cargoWeightKg,
+        containerCargoWeightKg: container?.cargoWeightKg ?? null,
+        shipmentContainerId: fulfillment.shipmentContainerId,
+      });
+    }
+    if (
+      cargoWeightKg != null
+      && vehicleCapacityKg != null
+      && Number(cargoWeightKg) > Number(vehicleCapacityKg)
+    ) {
+      throw new ApiError(409, 'Trọng lượng hàng vượt quá tải trọng xe.');
     }
     truckId = truck.id;
     trailerId = trailer.id;
@@ -1031,6 +1214,21 @@ async function issueOrderCreateOrUpdate(
   if (liveTrip && liveTrip.status !== TripStatus.CREATED) {
     throw new ApiError(409, 'Không thể điều chỉnh tác vụ đã xuất phát.');
   }
+  const previousDriverId = liveTrip?.driverId ?? null;
+  const assignmentChanged = liveTrip == null
+    ? true
+    : dispatchAssignmentChanged(liveTrip, {
+      plannedStartAt,
+      plannedEndAt,
+      carrierType: input.carrierType,
+      truckId,
+      trailerId,
+      driverId,
+      externalCarrierId,
+      externalPlateNumber,
+      externalDriverName,
+      externalDriverPhone,
+    });
 
   await assertResourceAvailability(tx, {
     tripId: liveTrip?.id ?? null,
@@ -1077,6 +1275,8 @@ async function issueOrderCreateOrUpdate(
       externalPlateNumber,
       externalDriverName,
       externalDriverPhone,
+      cargoWeightKg,
+      vehicleCapacityKg,
       version: sql`${s.trips.version} + 1`,
       updatedAt: new Date(),
     }).where(eq(s.trips.id, createdTrip.id)).returning({
@@ -1118,6 +1318,8 @@ async function issueOrderCreateOrUpdate(
       externalDriverName,
       externalDriverPhone,
       sourceShipmentVersion: shipment.version,
+      cargoWeightKg,
+      vehicleCapacityKg,
       version: sql`${s.trips.version} + 1`,
       updatedAt: new Date(),
     }).where(eq(s.trips.id, trip.id)).returning({
@@ -1145,10 +1347,18 @@ async function issueOrderCreateOrUpdate(
     await replaceTripContainersForFulfillment(tx, trip.id, shipment, fulfillment, input.actor.userId);
     const existingNotificationCount = await tx.select({ total: count() }).from(s.notifications).where(and(
       eq(s.notifications.type, 'TRIP_DISPATCHED'),
-      eq(s.notifications.relatedEntityType, 'trips'),
-      eq(s.notifications.relatedEntityId, trip.id),
+      eq(s.notifications.relatedEntityType, 'shipment_fulfillments'),
+      eq(s.notifications.relatedEntityId, fulfillment.id),
+      driverUserId != null ? eq(s.notifications.userId, driverUserId) : undefined,
     ));
-    if (Number(existingNotificationCount[0]?.total ?? 0) === 0) {
+    if (
+      assignmentChanged
+      && (
+        driverUserId == null
+          ? Number(existingNotificationCount[0]?.total ?? 0) === 0
+          : previousDriverId !== driverId && Number(existingNotificationCount[0]?.total ?? 0) === 0
+      )
+    ) {
       await persistNotificationInTx(tx, buildNotificationPayload(trip));
       notificationPersisted = true;
     }
@@ -1207,8 +1417,8 @@ export async function issueFulfillmentDispatchOrder(input: IssueFulfillmentDispa
       version: outcome.result.trip.version,
       tripCode: outcome.result.trip.tripCode,
       status: outcome.result.trip.status,
-      plannedStartAt: outcome.result.trip.plannedStartAt?.toISOString() ?? null,
-      plannedEndAt: outcome.result.trip.plannedEndAt?.toISOString() ?? null,
+      plannedStartAt: toIsoOrNull(outcome.result.trip.plannedStartAt),
+      plannedEndAt: toIsoOrNull(outcome.result.trip.plannedEndAt),
       carrierType: outcome.result.trip.carrierType,
       truckId: outcome.result.trip.truckId,
       trailerId: outcome.result.trip.trailerId,

@@ -28,7 +28,7 @@ import type { AddressInfo } from 'net';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { eq, inArray, desc } from 'drizzle-orm';
+import { and, eq, inArray, desc } from 'drizzle-orm';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
@@ -36,6 +36,7 @@ import { Role, ShipmentStatus, ShipmentDocumentType } from '@tingting/shared';
 import { config } from '../config';
 import { initEnforcer } from '../casbin/enforcer';
 import { initAuditService } from '../services/audit.service';
+import { createHandoff } from '../services/dispatch-handoff.service';
 
 import shipmentRoutes from '../routes/shipments';
 import { authMiddleware } from '../middleware/auth';
@@ -55,6 +56,9 @@ const createdCargoTypeIds: number[] = [];
 const createdContainerTypeIds: number[] = [];
 const createdUserIds: number[] = [];
 const createdAuditLogIds: number[] = [];
+const createdTrailerIds: number[] = [];
+const createdTruckIds: number[] = [];
+const createdDriverIds: number[] = [];
 
 let adminToken: string;
 let managerToken: string;
@@ -201,11 +205,18 @@ after(async () => {
       await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.createdBy, createdUserIds));
     }
     if (createdTripIds.length > 0) {
+      await db.delete(s.notifications).where(and(
+        eq(s.notifications.type, 'TRIP_DISPATCHED'),
+        eq(s.notifications.relatedEntityType, 'trips'),
+        inArray(s.notifications.relatedEntityId, createdTripIds),
+      ));
       await db.delete(s.tripContainers).where(inArray(s.tripContainers.tripId, createdTripIds));
       await db.delete(s.tripLegs).where(inArray(s.tripLegs.tripId, createdTripIds));
       await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
     }
     if (createdShipmentIds.length > 0) {
+      await db.delete(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.shipmentId, createdShipmentIds));
+      await db.delete(s.dispatchHandoffs).where(inArray(s.dispatchHandoffs.shipmentId, createdShipmentIds));
       await db.delete(s.shipmentStatusHistory).where(inArray(s.shipmentStatusHistory.shipmentId, createdShipmentIds));
       await db.delete(s.shipmentContainers).where(inArray(s.shipmentContainers.shipmentId, createdShipmentIds));
       await db.delete(s.shipmentDeclarations).where(inArray(s.shipmentDeclarations.shipmentId, createdShipmentIds));
@@ -217,6 +228,15 @@ after(async () => {
     }
     if (createdCargoTypeIds.length > 0) {
       await db.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, createdCargoTypeIds));
+    }
+    if (createdDriverIds.length > 0) {
+      await db.delete(s.drivers).where(inArray(s.drivers.id, createdDriverIds));
+    }
+    if (createdTruckIds.length > 0) {
+      await db.delete(s.trucks).where(inArray(s.trucks.id, createdTruckIds));
+    }
+    if (createdTrailerIds.length > 0) {
+      await db.delete(s.trailers).where(inArray(s.trailers.id, createdTrailerIds));
     }
     if (createdRouteIds.length > 0) {
       await db.delete(s.routes).where(inArray(s.routes.id, createdRouteIds));
@@ -246,6 +266,67 @@ async function mkShipmentViaService(overrides: Record<string, unknown> = {}) {
   const shipment = await createShipment({ customerId, ...overrides });
   createdShipmentIds.push(shipment.id);
   return shipment;
+}
+
+async function createOwnedResources() {
+  const [trailer] = await db.insert(s.trailers).values({
+    licensePlate: `61R-${(10000 + createdTrailerIds.length).toString().padStart(5, '0')}`,
+    type: '40FT',
+    status: 'ACTIVE',
+  }).returning();
+  createdTrailerIds.push(trailer.id);
+
+  const [truck] = await db.insert(s.trucks).values({
+    licensePlate: `61C-${(10000 + createdTruckIds.length).toString().padStart(5, '0')}`,
+    currentTrailerId: trailer.id,
+    trailerType: '40FT',
+    status: 'ACTIVE',
+  }).returning();
+  createdTruckIds.push(truck.id);
+
+  const driverUser = await mkUser(`sa-driver-resource-${suffix}-${createdDriverIds.length}`, Role.DRIVER);
+  const [driver] = await db.insert(s.drivers).values({
+    userId: driverUser.id,
+    name: `ShipmentAudit Driver ${suffix}-${createdDriverIds.length}`,
+    assignedTruckId: truck.id,
+    status: 'ACTIVE',
+  }).returning();
+  createdDriverIds.push(driver.id);
+
+  return { trailer, truck, driver };
+}
+
+async function createAcceptedFulfillment() {
+  const shipment = await mkShipmentViaService({ routeId, cargoMode: 'FCL', cargoTypeId });
+  const { batchUpsertShipmentContainers } = await import('../services/shipment.service');
+  await batchUpsertShipmentContainers(shipment.id, null, [
+    { containerTypeId, containerNumber: 'MSKU1234565' },
+  ]);
+  const handoff = await createHandoff({
+    shipmentId: shipment.id,
+    createdBy: adminUserId,
+    actor: {
+      userId: adminUserId,
+      username: `sa-admin-${suffix}`,
+      email: null,
+      fullName: null,
+      role: Role.ADMIN,
+    },
+  });
+  const accepted = await testFetch(`/${shipment.id}/dispatch-handoffs/${handoff.id}/resolve`, {
+    method: 'POST',
+    token: managerToken,
+    body: { resolution: 'ACCEPTED', expectedVersion: handoff.version },
+  });
+  assert.equal(accepted.status, 200);
+  assert.equal(accepted.data.handoff.status, 'ACCEPTED');
+  assert.equal(accepted.data.fulfillments.length, 1);
+  return {
+    shipmentId: shipment.id,
+    shipmentCode: shipment.shipmentCode,
+    fulfillmentId: accepted.data.fulfillments[0]!.id as number,
+    fulfillmentVersion: accepted.data.fulfillments[0]!.version as number,
+  };
 }
 
 describe('Audit-log every shipment write', () => {
@@ -376,17 +457,28 @@ describe('Audit-log every shipment write', () => {
   });
 
   test('POST /:id/dispatch → SHIPMENT_DISPATCHED', async () => {
-    const shipment = await mkShipmentViaService();
-    const r = await testFetch(`/${shipment.id}/dispatch`, {
+    const accepted = await createAcceptedFulfillment();
+    const resources = await createOwnedResources();
+    const r = await testFetch(`/${accepted.shipmentId}/dispatch`, {
       method: 'POST', token: managerToken,
-      body: { routeId, cargoTypeId, containerTypeId, departureDate: '2026-09-01' },
+      body: {
+        fulfillmentId: accepted.fulfillmentId,
+        expectedVersion: accepted.fulfillmentVersion,
+        plannedStartAt: '2026-09-01T08:00:00+07:00',
+        plannedEndAt: '2026-09-01T12:00:00+07:00',
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: resources.truck.id,
+        driverId: resources.driver.id,
+        trailerId: resources.trailer.id,
+      },
     });
     assert.equal(r.status, 201);
     if (r.data?.trip?.id) createdTripIds.push(r.data.trip.id);
 
     const audit = await waitForAudit(
       (row) => (row.payload as { event?: string }).event === 'SHIPMENT_DISPATCHED'
-        && row.entityId === shipment.id,
+        && row.entityId === accepted.shipmentId,
     );
     assert.ok(audit, 'SHIPMENT_DISPATCHED audit row written');
     assert.equal(audit!.entityType, 'shipments');
@@ -395,7 +487,7 @@ describe('Audit-log every shipment write', () => {
     // code (SHP-...), NOT the trip code (TRP-...). A regression that swaps
     // these would make dispatch events unsearchable by shipmentCode.
     assert.match(audit!.message, /điều vận lô hàng sang chuyến đi/);
-    assert.match(audit!.message, new RegExp(shipment.shipmentCode ?? 'SHP-'),
+    assert.match(audit!.message, new RegExp(accepted.shipmentCode ?? 'SHP-'),
       'message contains the SHIPMENT code (not the trip code)');
   });
 

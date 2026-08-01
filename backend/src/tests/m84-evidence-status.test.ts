@@ -5,9 +5,9 @@
  * getCompletionEvidenceStatus, tears down.
  *
  * Coverage (PRD M08-04-03 §3 resolved as advisory):
- *   - No evidence → not ready, all 3 missing.
- *   - With photo only → still missing DEPARTED + ARRIVED.
- *   - With photo + DEPARTED + ARRIVED → ready.
+ *   - No milestones / no POD → not ready, required items missing.
+ *   - Submitted POD without DELIVERED sequence → still blocked.
+ *   - Full milestone sequence + submitted POD → ready.
  *   - Missing field lists correct Vietnamese labels.
  */
 import { after, describe, test } from 'node:test';
@@ -17,12 +17,16 @@ import { inArray } from 'drizzle-orm';
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { getCompletionEvidenceStatus } from '../services/driver.service';
+import { DriverProgressEventType, TripPodFileType, TripPodStatus } from '@tingting/shared';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-const createdPhotoIds: number[] = [];
+const createdPodFileIds: number[] = [];
+const createdPodSubmissionIds: number[] = [];
 const createdEventIds: number[] = [];
 const createdTripIds: number[] = [];
+const createdShipmentIds: number[] = [];
+const createdFulfillmentIds: number[] = [];
 const createdDriverIds: number[] = [];
 const createdUserIds: number[] = [];
 const createdRouteIds: number[] = [];
@@ -45,62 +49,159 @@ async function setup() {
   createdRouteIds.push(rt.id);
   const [ct] = await db.insert(s.cargoTypes).values({ name: `M84EV cargo ${tag}` }).returning();
   createdCargoTypeIds.push(ct.id);
+  const [shipment] = await db.insert(s.shipments).values({
+    customerId: cust.id,
+    routeId: rt.id,
+    cargoTypeId: ct.id,
+    cargoMode: 'LCL',
+    status: 'IN_PROGRESS',
+  }).returning();
+  createdShipmentIds.push(shipment.id);
+  const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+    shipmentId: shipment.id,
+    fulfillmentType: 'LCL_SHIPMENT',
+    cargoMode: 'LCL',
+    sourceShipmentVersion: shipment.version,
+    siteSnapshot: {},
+  }).returning();
+  createdFulfillmentIds.push(fulfillment.id);
   const [trip] = await db.insert(s.trips).values({
     tripCode: `M84EV-${tag}`.slice(0, 50), driverId: d.id, customerId: cust.id,
     routeId: rt.id, cargoTypeId: ct.id, status: 'IN_TRANSIT',
     departureDate: new Date().toISOString().slice(0, 10),
+    shipmentId: shipment.id,
+    fulfillmentId: fulfillment.id,
   }).returning();
   createdTripIds.push(trip.id);
-  return { user: u, driver: d, trip };
+  return { user: u, driver: d, trip, fulfillment };
 }
 
 let tc = 0;
 
 describe('M8.4 slice 4 — advisory evidence-readiness', () => {
-  test('No evidence → not ready, all 3 missing', async () => {
+  test('No evidence → not ready, milestone and e-POD requirements are missing', async () => {
     const { trip } = await setup();
     tc++;
     const st = await getCompletionEvidenceStatus(trip.id);
     assert.equal(st.ready, false);
-    assert.equal(st.missing.length, 3);
-    assert.ok(st.missing.includes('Ảnh container/seal'));
-    assert.ok(st.missing.includes('Sự kiện xuất phát'));
-    assert.ok(st.missing.includes('Sự kiện đến nơi'));
+    assert.ok(st.missing.includes('Đã lấy vỏ / Lấy hàng'));
+    assert.ok(st.missing.includes('Đang đóng / Trả hàng'));
+    assert.ok(st.missing.includes('Đã hạ bãi / Giao hàng xong'));
+    assert.ok(st.missing.includes('Phiếu hạ bãi / trả hàng'));
+    assert.ok(st.missing.includes('Biên bản giao nhận đã ký'));
+    assert.ok(st.missing.includes('e-POD đã gửi'));
   });
 
-  test('With photo only → still missing DEPARTED + ARRIVED', async () => {
-    const { trip, user } = await setup();
+  test('Submitted POD without delivered sequence → still blocked', async () => {
+    const { trip, driver, user, fulfillment } = await setup();
     tc++;
-    const [photo] = await db.insert(s.tripPhotos).values({
-      tripId: trip.id, type: 'CONTAINER', storageKey: 'test/evidence.jpg', uploadedBy: user.id,
+    for (const eventType of [
+      DriverProgressEventType.PICKED_UP,
+      DriverProgressEventType.LOADING_OR_RETURNING,
+    ] as const) {
+      const [ev] = await db.insert(s.driverProgressEvents).values({
+        tripId: trip.id,
+        driverId: driver.id,
+        eventType,
+        occurredAt: new Date(),
+        recordedBy: user.id,
+      }).returning();
+      createdEventIds.push(ev.id);
+    }
+    const [submission] = await db.insert(s.tripPodSubmissions).values({
+      tripId: trip.id,
+      fulfillmentId: fulfillment.id,
+      submissionVersion: 1,
+      sourceTripVersion: trip.version,
+      status: TripPodStatus.SUBMITTED,
+      submittedBy: user.id,
+      submittedAt: new Date(),
     }).returning();
-    createdPhotoIds.push(photo.id);
+    createdPodSubmissionIds.push(submission.id);
+    const files = await db.insert(s.tripPodFiles).values([
+      {
+        submissionId: submission.id,
+        fileType: TripPodFileType.YARD_OR_DROP_RECEIPT,
+        storageKey: `test/evidence-${suffix}-1.jpg`,
+        originalFileName: 'yard.jpg',
+        mimeType: 'image/jpeg',
+        sizeBytes: 10,
+        sha256: '1'.repeat(64),
+        uploadedBy: user.id,
+      },
+      {
+        submissionId: submission.id,
+        fileType: TripPodFileType.SIGNED_DELIVERY_NOTE,
+        storageKey: `test/evidence-${suffix}-2.jpg`,
+        originalFileName: 'delivery.jpg',
+        mimeType: 'image/jpeg',
+        sizeBytes: 10,
+        sha256: '2'.repeat(64),
+        uploadedBy: user.id,
+      },
+    ]).returning();
+    createdPodFileIds.push(...files.map((file) => file.id));
     const st = await getCompletionEvidenceStatus(trip.id);
     assert.equal(st.ready, false);
-    assert.equal(st.missing.length, 2);
-    assert.ok(!st.missing.includes('Ảnh container/seal'));
+    assert.equal(st.hasSubmittedPod, true);
+    assert.equal(st.hasRequiredPodFiles, true);
+    assert.equal(st.hasDeliveredMilestone, false);
+    assert.ok(st.missing.includes('Đã hạ bãi / Giao hàng xong'));
   });
 
-  test('With photo + DEPARTED + ARRIVED → ready', async () => {
-    const { trip, driver, user } = await setup();
+  test('Full milestone sequence + submitted POD → ready', async () => {
+    const { trip, driver, user, fulfillment } = await setup();
     tc++;
-    const [photo] = await db.insert(s.tripPhotos).values({
-      tripId: trip.id, type: 'CONTAINER', storageKey: 'test/ready.jpg', uploadedBy: user.id,
-    }).returning();
-    createdPhotoIds.push(photo.id);
-    for (const eventType of ['DEPARTED', 'ARRIVED'] as const) {
+    for (const eventType of [
+      DriverProgressEventType.PICKED_UP,
+      DriverProgressEventType.LOADING_OR_RETURNING,
+      DriverProgressEventType.DELIVERED,
+    ] as const) {
       const [ev] = await db.insert(s.driverProgressEvents).values({
         tripId: trip.id, driverId: driver.id, eventType,
         occurredAt: new Date(), recordedBy: user.id,
       }).returning();
       createdEventIds.push(ev.id);
     }
+    const [submission] = await db.insert(s.tripPodSubmissions).values({
+      tripId: trip.id,
+      fulfillmentId: fulfillment.id,
+      submissionVersion: 1,
+      sourceTripVersion: trip.version,
+      status: TripPodStatus.SUBMITTED,
+      submittedBy: user.id,
+      submittedAt: new Date(),
+    }).returning();
+    createdPodSubmissionIds.push(submission.id);
+    const files = await db.insert(s.tripPodFiles).values([
+      {
+        submissionId: submission.id,
+        fileType: TripPodFileType.YARD_OR_DROP_RECEIPT,
+        storageKey: `test/ready-${suffix}-1.jpg`,
+        originalFileName: 'yard.jpg',
+        mimeType: 'image/jpeg',
+        sizeBytes: 10,
+        sha256: '3'.repeat(64),
+        uploadedBy: user.id,
+      },
+      {
+        submissionId: submission.id,
+        fileType: TripPodFileType.SIGNED_DELIVERY_NOTE,
+        storageKey: `test/ready-${suffix}-2.jpg`,
+        originalFileName: 'delivery.jpg',
+        mimeType: 'image/jpeg',
+        sizeBytes: 10,
+        sha256: '4'.repeat(64),
+        uploadedBy: user.id,
+      },
+    ]).returning();
+    createdPodFileIds.push(...files.map((file) => file.id));
     const st = await getCompletionEvidenceStatus(trip.id);
     assert.equal(st.ready, true);
     assert.deepEqual(st.missing, []);
-    assert.equal(st.hasContainerPhotos, true);
-    assert.equal(st.hasDepartedEvent, true);
-    assert.equal(st.hasArrivedEvent, true);
+    assert.equal(st.hasSubmittedPod, true);
+    assert.equal(st.hasRequiredPodFiles, true);
+    assert.equal(st.hasDeliveredMilestone, true);
   });
 
   test('Missing field lists correct Vietnamese labels', async () => {
@@ -115,12 +216,15 @@ describe('M8.4 slice 4 — advisory evidence-readiness', () => {
 
 after(async () => {
   try {
-    if (createdPhotoIds.length > 0) await db.delete(s.tripPhotos).where(inArray(s.tripPhotos.id, createdPhotoIds));
+    if (createdPodFileIds.length > 0) await db.delete(s.tripPodFiles).where(inArray(s.tripPodFiles.id, createdPodFileIds));
+    if (createdPodSubmissionIds.length > 0) await db.delete(s.tripPodSubmissions).where(inArray(s.tripPodSubmissions.id, createdPodSubmissionIds));
     if (createdEventIds.length > 0) await db.delete(s.driverProgressEvents).where(inArray(s.driverProgressEvents.id, createdEventIds));
     if (createdTripIds.length > 0) {
       await db.delete(s.tripContainers).where(inArray(s.tripContainers.tripId, createdTripIds));
       await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
     }
+    if (createdFulfillmentIds.length > 0) await db.delete(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.id, createdFulfillmentIds));
+    if (createdShipmentIds.length > 0) await db.delete(s.shipments).where(inArray(s.shipments.id, createdShipmentIds));
     if (createdCargoTypeIds.length > 0) await db.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, createdCargoTypeIds));
     if (createdRouteIds.length > 0) await db.delete(s.routes).where(inArray(s.routes.id, createdRouteIds));
     if (createdDriverIds.length > 0) await db.delete(s.drivers).where(inArray(s.drivers.id, createdDriverIds));

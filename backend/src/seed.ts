@@ -23,6 +23,7 @@ async function seed() {
     { username: 'admin', email: 'admin@nepo.vn', phone: '0900000000', passwordHash, role: Role.ADMIN, fullName: 'Trần Văn Admin' },
     { username: 'giamdoc', email: 'giamdoc@nepo.vn', phone: '0900000001', passwordHash, role: Role.MANAGER, fullName: 'Lê Văn Tỉnh' },
     { username: 'ketoan', email: 'ketoan@nepo.vn', phone: '0900000002', passwordHash, role: Role.ACCOUNTANT, fullName: 'Nguyễn Thị Mai' },
+    { username: 'cus', email: 'cus@nepo.vn', phone: '0900000005', passwordHash, role: Role.CLERK, fullName: 'Nhân viên CUS Demo' },
     { username: 'laixe', email: 'laixe@nepo.vn', phone: '0900000003', passwordHash, role: Role.DRIVER, fullName: 'Phạm Văn Hùng' },
     { username: 'giaonhan', email: 'giaonhan@nepo.vn', phone: '0900000004', passwordHash, role: Role.FORWARDER, fullName: 'Nguyễn Văn Giao' },
     { username: 'thu', email: 'thu@nepo.vn', phone: '0900000010', passwordHash, role: Role.DRIVER, fullName: 'Nguyễn Văn Thụ' },
@@ -470,8 +471,52 @@ async function seed() {
   console.log('✅ Company information defaults seeded!');
 
   await seedShipments(passwordHash);
+  await seedClerkScope();
 
   process.exit(0);
+}
+
+async function seedClerkScope(): Promise<void> {
+  const [clerk] = await db.select({ id: schema.users.id }).from(schema.users)
+    .where(and(eq(schema.users.username, 'cus'), eq(schema.users.role, Role.CLERK), isNull(schema.users.deletedAt)))
+    .limit(1);
+  if (!clerk) throw new Error('Không tìm thấy tài khoản CUS demo sau khi seed');
+
+  const [unit] = await db.insert(schema.businessUnits).values({
+    code: 'CUS-DEMO',
+    name: 'Đơn vị CUS Demo',
+    status: 'ACTIVE',
+  }).onConflictDoUpdate({
+    target: schema.businessUnits.code,
+    set: { name: 'Đơn vị CUS Demo', status: 'ACTIVE', updatedAt: new Date() },
+  }).returning({ id: schema.businessUnits.id });
+
+  await db.insert(schema.userBusinessUnitLinks).values({
+    userId: clerk.id,
+    businessUnitId: unit.id,
+  }).onConflictDoNothing({
+    target: [schema.userBusinessUnitLinks.userId, schema.userBusinessUnitLinks.businessUnitId],
+  });
+
+  await db.update(schema.shipments)
+    .set({ responsibleUnitId: unit.id, updatedAt: new Date() })
+    .where(sql`${schema.shipments.bookingRef} in ('SEED-SHIP-1', 'SEED-SHIP-2', 'SEED-SHIP-3')`);
+
+  const scopedCustomers = await db.select({ id: schema.customers.id }).from(schema.customers)
+    .where(and(isNull(schema.customers.deletedAt), sql`${schema.customers.taxCode} in ('0101234567', '0107654321')`));
+  for (const customer of scopedCustomers) {
+    await db.insert(schema.userCustomerLinks).values({
+      userId: clerk.id,
+      customerId: customer.id,
+    }).onConflictDoNothing({
+      target: [schema.userCustomerLinks.userId, schema.userCustomerLinks.customerId],
+    });
+  }
+
+  if (scopedCustomers[0]) {
+    await db.update(schema.users).set({ customerId: scopedCustomers[0].id }).where(eq(schema.users.id, clerk.id));
+  }
+  console.log(`✅ CUS demo scope seeded! (${scopedCustomers.length} customers, 1 business unit)`);
 }
 
 // ─── Wave 0: shipments + CUSTOMER demo user ──────────────────────────────────

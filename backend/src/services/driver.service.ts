@@ -2,7 +2,18 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { eq, ne, and, isNull, desc, asc, gte, lte, sql, inArray } from 'drizzle-orm';
 import { ApiError } from '../errors';
-import { computeVehicleAlerts, type VehicleAlert, round2dp, TxnType, type DriverProgressEventType, type DriverIncidentalCostType } from '@tingting/shared';
+import {
+  computeVehicleAlerts,
+  DRIVER_FULFILLMENT_PROGRESS_SEQUENCE,
+  DRIVER_PROGRESS_EVENT_LABELS,
+  Role,
+  round2dp,
+  TripStatus,
+  TxnType,
+  type DriverIncidentalCostType,
+  type DriverProgressEventType,
+  type VehicleAlert,
+} from '@tingting/shared';
 
 import { computeSalary } from './attendance.service';
 import { LedgerService } from './ledger.service';
@@ -11,6 +22,15 @@ import { getTripInstructions } from './trip-instructions.service';
 import { storageService } from './storage.service';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import type { Tx } from './trip-shared';
+import { transitionTripStatus } from './trip-status-machine.service';
+import {
+  getDriverCompletionEvidenceStatus,
+  listOrderedMilestoneTypesTx,
+  listPodSubmissionsForDriver,
+  loadOwnedFulfillmentTrip,
+  projectSiteSnapshot,
+  type DriverCompletionEvidenceStatus,
+} from './trip-pod.service';
 
 /**
  * Ledger txn types that count as cash the company has actually paid out / advanced
@@ -98,6 +118,7 @@ async function existingStorageKeys(keys: string[]): Promise<string[]> {
 export async function getDriverTrips(driverId: number) {
   const trips = await db.select({
     id: s.trips.id,
+    fulfillmentId: s.trips.fulfillmentId,
     tripCode: s.trips.tripCode,
     departureDate: s.trips.departureDate,
     status: s.trips.status,
@@ -153,6 +174,7 @@ export async function getDriverTrips(driverId: number) {
 
 export interface DriverTripSummary {
   id: number;
+  fulfillmentId: number | null;
   tripCode: string | null;
   departureDate: string;
   status: 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | 'LOCKED' | 'CANCELED';
@@ -164,6 +186,8 @@ export interface DriverTripSummary {
   customerName: string | null;
   containerNumbers: string[];
 }
+
+type DriverFulfillmentMilestoneType = typeof DRIVER_FULFILLMENT_PROGRESS_SEQUENCE[number];
 
 export interface DriverTwoOrdersView {
   /** Today's date (YYYY-MM-DD, server-local). */
@@ -213,6 +237,7 @@ async function loadDriverTripContainers(tripIds: number[]): Promise<Map<number, 
 function shapeDriverTripSummary(
   row: {
     id: number;
+    fulfillmentId: number | null;
     tripCode: string | null;
     departureDate: string;
     status: string | null;
@@ -227,6 +252,7 @@ function shapeDriverTripSummary(
 ): DriverTripSummary {
   return {
     id: row.id,
+    fulfillmentId: row.fulfillmentId,
     tripCode: row.tripCode,
     departureDate: row.departureDate,
     status: (row.status ?? 'CREATED') as DriverTripSummary['status'],
@@ -285,6 +311,7 @@ export async function getDriverTwoOrdersView(driverId: number): Promise<DriverTw
     if (pair) {
       const pairRows = await db.select({
         id: s.trips.id,
+        fulfillmentId: s.trips.fulfillmentId,
         tripCode: s.trips.tripCode,
         departureDate: s.trips.departureDate,
         status: s.trips.status,
@@ -343,6 +370,7 @@ export async function getDriverTwoOrdersView(driverId: number): Promise<DriverTw
 
   const rows = await db.select({
     id: s.trips.id,
+    fulfillmentId: s.trips.fulfillmentId,
     tripCode: s.trips.tripCode,
     departureDate: s.trips.departureDate,
     status: s.trips.status,
@@ -447,6 +475,132 @@ export async function getDriverTripDetail(driverId: number, tripId: number) {
   const sealPhotoKey = sealPhotoKeys[0] ?? null;
 
   return { ...trip, legs, containers, contPhotoKey, sealPhotoKey, contPhotoKeys, sealPhotoKeys, instructions };
+}
+
+function isDriverFulfillmentMilestone(
+  eventType: DriverProgressEventType,
+): eventType is DriverFulfillmentMilestoneType {
+  return DRIVER_FULFILLMENT_PROGRESS_SEQUENCE.includes(eventType as DriverFulfillmentMilestoneType);
+}
+
+function nextDriverFulfillmentMilestone(
+  recorded: readonly DriverProgressEventType[],
+): DriverFulfillmentMilestoneType | null {
+  for (const eventType of DRIVER_FULFILLMENT_PROGRESS_SEQUENCE) {
+    if (!recorded.includes(eventType)) {
+      return eventType;
+    }
+  }
+  return null;
+}
+
+function buildDriverFulfillmentSequenceError(
+  recorded: readonly DriverProgressEventType[],
+  attempted: DriverFulfillmentMilestoneType,
+): string {
+  const next = nextDriverFulfillmentMilestone(recorded);
+  if (!next) {
+    return 'Đã ghi nhận đủ 3 mốc thực hiện cho tác vụ này.';
+  }
+  if (recorded.includes(attempted)) {
+    return `Mốc ${DRIVER_PROGRESS_EVENT_LABELS[attempted]} đã được ghi nhận. Mốc tiếp theo phải là ${DRIVER_PROGRESS_EVENT_LABELS[next]}.`;
+  }
+  return `Không thể ghi nhận ${DRIVER_PROGRESS_EVENT_LABELS[attempted]}. Mốc tiếp theo phải là ${DRIVER_PROGRESS_EVENT_LABELS[next]}.`;
+}
+
+export interface DriverFulfillmentDetail {
+  fulfillmentId: number;
+  shipmentId: number;
+  shipmentCode: string | null;
+  bookingRef: string | null;
+  cargoMode: typeof s.shipments.$inferSelect.cargoMode;
+  fulfillmentType: typeof s.shipmentFulfillments.$inferSelect.fulfillmentType;
+  tripId: number;
+  tripVersion: number;
+  factoryName: string | null;
+  shippingLineName: string | null;
+  expectedDeliveryDate: string | null;
+  customsCutoffAt: string | null;
+  closingAt: string | null;
+  plannedReturnAt: string | null;
+  pickupLocation: string | null;
+  deliveryLocation: string | null;
+  contactName: string | null;
+  contactPhone: string | null;
+  siteSnapshot: Record<string, unknown>;
+  evidenceStatus: DriverCompletionEvidenceStatus;
+  milestones: DriverProgressEvent[];
+  podSubmissions: Awaited<ReturnType<typeof listPodSubmissionsForDriver>>;
+  trip: Awaited<ReturnType<typeof getDriverTripDetail>>;
+}
+
+export async function getDriverFulfillmentDetail(
+  driverId: number,
+  fulfillmentId: number,
+): Promise<DriverFulfillmentDetail> {
+  const ownedTrip = await loadOwnedFulfillmentTrip(db, fulfillmentId, driverId);
+  const trip = await getDriverTripDetail(driverId, ownedTrip.tripId);
+  if (!trip) {
+    throw new ApiError(404, 'Không tìm thấy tác vụ được giao.');
+  }
+
+  const [shipmentRow] = await db.select({
+    shipmentId: s.shipments.id,
+    shipmentCode: s.shipments.shipmentCode,
+    bookingRef: s.shipments.bookingRef,
+    cargoMode: s.shipments.cargoMode,
+    fulfillmentType: s.shipmentFulfillments.fulfillmentType,
+    factoryName: s.shipments.factoryName,
+    shippingLineName: s.shipments.shippingLineName,
+    expectedDeliveryDate: s.shipments.expectedDeliveryDate,
+    customsCutoffAt: s.shipments.customsCutoffAt,
+    closingAt: s.shipments.closingAt,
+    plannedReturnAt: s.shipments.plannedReturnAt,
+    pickupLocation: s.shipments.pickupLocation,
+    deliveryLocation: s.shipments.deliveryLocation,
+    contactName: s.shipments.contactName,
+    contactPhone: s.shipments.contactPhone,
+    siteSnapshot: s.shipmentFulfillments.siteSnapshot,
+  }).from(s.shipmentFulfillments)
+    .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
+    .where(eq(s.shipmentFulfillments.id, fulfillmentId))
+    .limit(1);
+
+  if (!shipmentRow) {
+    throw new ApiError(404, 'Không tìm thấy tác vụ được giao.');
+  }
+
+  const [evidenceStatus, milestones, podSubmissions] = await Promise.all([
+    getDriverCompletionEvidenceStatus(ownedTrip.tripId),
+    listDriverFulfillmentProgress(fulfillmentId, driverId),
+    listPodSubmissionsForDriver(driverId, fulfillmentId),
+  ]);
+
+  return {
+    fulfillmentId,
+    shipmentId: shipmentRow.shipmentId,
+    shipmentCode: shipmentRow.shipmentCode,
+    bookingRef: shipmentRow.bookingRef,
+    cargoMode: shipmentRow.cargoMode,
+    fulfillmentType: shipmentRow.fulfillmentType,
+    tripId: ownedTrip.tripId,
+    tripVersion: ownedTrip.tripVersion,
+    factoryName: shipmentRow.factoryName,
+    shippingLineName: shipmentRow.shippingLineName,
+    expectedDeliveryDate: shipmentRow.expectedDeliveryDate,
+    customsCutoffAt: shipmentRow.customsCutoffAt?.toISOString() ?? null,
+    closingAt: shipmentRow.closingAt?.toISOString() ?? null,
+    plannedReturnAt: shipmentRow.plannedReturnAt?.toISOString() ?? null,
+    pickupLocation: shipmentRow.pickupLocation,
+    deliveryLocation: shipmentRow.deliveryLocation,
+    contactName: shipmentRow.contactName,
+    contactPhone: shipmentRow.contactPhone,
+    siteSnapshot: projectSiteSnapshot(shipmentRow.siteSnapshot ?? {}),
+    evidenceStatus,
+    milestones,
+    podSubmissions,
+    trip,
+  };
 }
 
 /**
@@ -729,12 +883,73 @@ export async function recordDriverProgress(
   return { event: result, replayed };
 }
 
+export async function recordDriverFulfillmentProgress(args: {
+  fulfillmentId: number;
+  driverId: number;
+  input: {
+    eventType: DriverProgressEventType;
+    occurredAt: string;
+    note?: string;
+    expectedVersion?: number;
+  };
+  recordedBy: number;
+  idempotencyKey: string | undefined;
+}): Promise<{ event: DriverProgressEvent; replayed: boolean }> {
+  const eventType = args.input.eventType;
+  if (!isDriverFulfillmentMilestone(eventType)) {
+    throw new ApiError(400, 'Mốc thực hiện không hợp lệ.');
+  }
+
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_PROGRESS,
+    idempotencyKey: args.idempotencyKey,
+    payload: {
+      fulfillmentId: args.fulfillmentId,
+      driverId: args.driverId,
+      eventType: args.input.eventType,
+      occurredAt: args.input.occurredAt,
+      note: args.input.note ?? null,
+      expectedVersion: args.input.expectedVersion ?? null,
+    },
+    createdBy: args.recordedBy,
+    entityType: 'driver_progress_event',
+    create: async (tx) => {
+      const ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { forUpdate: true });
+      if (args.input.expectedVersion != null && ownedTrip.tripVersion !== args.input.expectedVersion) {
+        throw new ApiError(409, 'Tác vụ đã thay đổi. Vui lòng tải lại.');
+      }
+      const recorded = await listOrderedMilestoneTypesTx(tx, ownedTrip.tripId);
+      const next = nextDriverFulfillmentMilestone(recorded);
+      if (next == null || eventType !== next) {
+        throw new ApiError(409, buildDriverFulfillmentSequenceError(recorded, eventType));
+      }
+      return insertDriverProgressEventTx(tx, ownedTrip.tripId, args.driverId, args.input, args.recordedBy);
+    },
+    load: async (id, tx) => loadDriverProgressEventTx(tx, id),
+  });
+  return { event: result, replayed };
+}
+
 /** List a trip's progress events, oldest-first (timeline order). */
 export async function listDriverProgress(tripId: number, driverId: number): Promise<DriverProgressEvent[]> {
   await assertTripOwnedByDriver(tripId, driverId);
   const rows = await db.select().from(s.driverProgressEvents)
     .where(eq(s.driverProgressEvents.tripId, tripId))
     .orderBy(asc(s.driverProgressEvents.occurredAt));
+  return rows as DriverProgressEvent[];
+}
+
+export async function listDriverFulfillmentProgress(
+  fulfillmentId: number,
+  driverId: number,
+): Promise<DriverProgressEvent[]> {
+  const ownedTrip = await loadOwnedFulfillmentTrip(db, fulfillmentId, driverId);
+  const rows = await db.select().from(s.driverProgressEvents)
+    .where(and(
+      eq(s.driverProgressEvents.tripId, ownedTrip.tripId),
+      inArray(s.driverProgressEvents.eventType, [...DRIVER_FULFILLMENT_PROGRESS_SEQUENCE]),
+    ))
+    .orderBy(asc(s.driverProgressEvents.occurredAt), asc(s.driverProgressEvents.id));
   return rows as DriverProgressEvent[];
 }
 
@@ -799,6 +1014,96 @@ export async function listIncidentalCosts(tripId: number, driverId: number): Pro
     .where(eq(s.driverIncidentalCosts.tripId, tripId))
     .orderBy(desc(s.driverIncidentalCosts.createdAt));
   return rows as DriverIncidentalCost[];
+}
+
+export interface DriverFulfillmentCompletionResult {
+  tripId: number;
+  fulfillmentId: number;
+  status: typeof s.trips.$inferSelect.status;
+  version: number;
+  completedAt: string | null;
+  evidenceStatus: DriverCompletionEvidenceStatus;
+}
+
+async function buildDriverFulfillmentCompletionResultTx(
+  tx: Tx,
+  tripId: number,
+  driverId: number,
+): Promise<DriverFulfillmentCompletionResult> {
+  const [trip] = await tx.select({
+    id: s.trips.id,
+    fulfillmentId: s.trips.fulfillmentId,
+    status: s.trips.status,
+    version: s.trips.version,
+    completedAt: s.trips.completedAt,
+  }).from(s.trips)
+    .where(and(
+      eq(s.trips.id, tripId),
+      eq(s.trips.driverId, driverId),
+      isNull(s.trips.deletedAt),
+    ))
+    .limit(1);
+  if (!trip || trip.fulfillmentId == null) {
+    throw new ApiError(404, 'Không tìm thấy tác vụ được giao.');
+  }
+  const evidenceStatus = await getDriverCompletionEvidenceStatus(trip.id, tx);
+  return {
+    tripId: trip.id,
+    fulfillmentId: trip.fulfillmentId,
+    status: trip.status,
+    version: trip.version,
+    completedAt: trip.completedAt?.toISOString() ?? null,
+    evidenceStatus,
+  };
+}
+
+export async function completeOwnedFulfillmentTrip(args: {
+  fulfillmentId: number;
+  driverId: number;
+  actorUserId: number;
+  expectedVersion: number;
+  idempotencyKey: string | undefined;
+}): Promise<{ trip: DriverFulfillmentCompletionResult; replayed: boolean }> {
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_FULFILLMENT_COMPLETE,
+    idempotencyKey: args.idempotencyKey,
+    payload: {
+      fulfillmentId: args.fulfillmentId,
+      driverId: args.driverId,
+      actorUserId: args.actorUserId,
+      expectedVersion: args.expectedVersion,
+    },
+    createdBy: args.actorUserId,
+    entityType: 'trip',
+    responseStatusCode: 200,
+    create: async (tx) => {
+      const ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { forUpdate: true });
+      if (ownedTrip.tripVersion !== args.expectedVersion) {
+        throw new ApiError(409, 'Tác vụ đã thay đổi. Vui lòng tải lại.');
+      }
+      const evidenceStatus = await getDriverCompletionEvidenceStatus(ownedTrip.tripId, tx);
+      if (!evidenceStatus.ready) {
+        throw new ApiError(409, `Chưa thể hoàn thành chuyến. Còn thiếu: ${evidenceStatus.missing.join(', ')}.`);
+      }
+      const updatedTrip = await transitionTripStatus(
+        ownedTrip.tripId,
+        TripStatus.COMPLETED,
+        args.actorUserId,
+        Role.DRIVER,
+        false,
+        false,
+        {
+          expectedVersion: args.expectedVersion,
+          transaction: tx,
+        },
+      );
+      return buildDriverFulfillmentCompletionResultTx(tx, updatedTrip.id, args.driverId);
+    },
+    load: async (entityId, tx) => buildDriverFulfillmentCompletionResultTx(tx, entityId, args.driverId),
+    getEntityId: (value) => value.tripId,
+  });
+
+  return { trip: result, replayed };
 }
 
 // ─── M8.6: driver payslip periods ───────────────────────────────────────────
@@ -898,36 +1203,8 @@ export async function getDriverPayslipPeriods(driverId: number): Promise<DriverP
 // ARRIVED progress event. These are the minimum audit trail for a trip
 // that was physically driven.
 
-export interface CompletionEvidenceStatus {
-  ready: boolean;
-  missing: string[];
-  hasContainerPhotos: boolean;
-  hasDepartedEvent: boolean;
-  hasArrivedEvent: boolean;
-}
+export type CompletionEvidenceStatus = DriverCompletionEvidenceStatus;
 
 export async function getCompletionEvidenceStatus(tripId: number): Promise<CompletionEvidenceStatus> {
-  // Container photos.
-  const photoRows = await db.select({ id: s.tripPhotos.id })
-    .from(s.tripPhotos)
-    .where(eq(s.tripPhotos.tripId, tripId))
-    .limit(1);
-  const hasContainerPhotos = photoRows.length > 0;
-
-  // Progress events.
-  const progressRows = await db.select({ eventType: s.driverProgressEvents.eventType })
-    .from(s.driverProgressEvents)
-    .where(and(
-      eq(s.driverProgressEvents.tripId, tripId),
-      inArray(s.driverProgressEvents.eventType, ['DEPARTED', 'ARRIVED']),
-    ));
-  const hasDepartedEvent = progressRows.some(r => r.eventType === 'DEPARTED');
-  const hasArrivedEvent = progressRows.some(r => r.eventType === 'ARRIVED');
-
-  const missing: string[] = [];
-  if (!hasContainerPhotos) missing.push('Ảnh container/seal');
-  if (!hasDepartedEvent) missing.push('Sự kiện xuất phát');
-  if (!hasArrivedEvent) missing.push('Sự kiện đến nơi');
-
-  return { ready: missing.length === 0, missing, hasContainerPhotos, hasDepartedEvent, hasArrivedEvent };
+  return getDriverCompletionEvidenceStatus(tripId);
 }

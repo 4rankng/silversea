@@ -95,6 +95,7 @@ function makeDetail(overrides: Omit<Partial<ShipmentDetail>, 'shipment'> & {
     declarations: overrides.declarations ?? detail.declarations,
     statusHistory: overrides.statusHistory ?? detail.statusHistory,
     pendingChangeRequests: overrides.pendingChangeRequests ?? detail.pendingChangeRequests,
+    podReviews: overrides.podReviews ?? detail.podReviews,
   };
 }
 
@@ -126,6 +127,7 @@ function baseDetail(): ShipmentDetail {
     declarations: [] as ShipmentDeclaration[],
     statusHistory: [],
     pendingChangeRequests: [] as ShipmentChangeRequest[],
+    podReviews: [],
   };
 }
 

@@ -5,7 +5,7 @@ import type { AddressInfo } from 'node:net';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
@@ -16,8 +16,10 @@ import { initAuditService } from '../services/audit.service';
 import shipmentRoutes from '../routes/shipments';
 import { authMiddleware } from '../middleware/auth';
 import { casbinAuthz } from '../middleware/casbin';
+import { auditLogMiddleware } from '../middleware/audit';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import { createHandoff } from '../services/dispatch-handoff.service';
+import { listDispatchQueue } from '../services/dispatch-planning.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -56,14 +58,18 @@ async function mkUser(role: Role, tag: string) {
   return user;
 }
 
-function signToken(user: { id: number; username: string | null; role: Role | string }) {
+function signToken(
+  user: { id: number; username: string | null; role: Role | string },
+  scope: { customerId?: number | null; customerIds?: number[] } = {},
+) {
   return jwt.sign({
     userId: user.id,
     username: user.username ?? `user-${user.id}`,
     email: null,
     fullName: null,
     role: user.role as Role,
-    customerId: null,
+    customerId: scope.customerId ?? null,
+    customerIds: scope.customerIds,
   }, config.jwtSecret);
 }
 
@@ -95,12 +101,17 @@ async function createCustomer(name: string) {
   return customer;
 }
 
-async function createRoute() {
+async function createRoute(distanceKm: number | null = null) {
   const [route] = await db.insert(s.routes).values({
     name: `Dispatch route ${suffix}-${createdRouteIds.length}`,
+    distanceKm,
   }).returning();
   createdRouteIds.push(route.id);
   return route;
+}
+
+async function linkUserToCustomer(userId: number, customerId: number) {
+  await db.insert(s.userCustomerLinks).values({ userId, customerId });
 }
 
 async function createContainerType(code: string) {
@@ -117,12 +128,15 @@ async function createShipmentFixture(args: {
   routeId: number;
   createdBy: number;
   cargoTypeId?: number | null;
+  cargoWeightKg?: string | null;
+  containerCargoWeightKg?: string | null;
 }) {
   const [shipment] = await db.insert(s.shipments).values({
     customerId: args.customerId,
     routeId: args.routeId,
     cargoMode: 'FCL',
     cargoTypeId: args.cargoTypeId ?? null,
+    cargoWeightKg: args.cargoWeightKg ?? null,
     shipmentCode: `DSP-${suffix}-${createdShipmentIds.length}`,
     bookingRef: `BOOK-${suffix}-${createdShipmentIds.length}`,
     createdBy: args.createdBy,
@@ -134,16 +148,18 @@ async function createShipmentFixture(args: {
     shipmentId: shipment.id,
     containerTypeId: containerType.id,
     containerNumber: `MSCU${String(100000 + shipment.id).slice(-6)}1`,
+    cargoWeightKg: args.containerCargoWeightKg ?? null,
     createdBy: args.createdBy,
   }).returning();
 
   return { shipment, container };
 }
 
-async function createOwnedResources() {
+async function createOwnedResources(options: { trailerType?: '20FT' | '40FT' } = {}) {
+  const trailerType = options.trailerType ?? '20FT';
   const [trailer] = await db.insert(s.trailers).values({
     licensePlate: `51R-${(10000 + createdTrailerIds.length).toString().padStart(5, '0')}`,
-    type: '20FT',
+    type: trailerType,
     status: 'ACTIVE',
   }).returning();
   createdTrailerIds.push(trailer.id);
@@ -151,7 +167,7 @@ async function createOwnedResources() {
   const [truck] = await db.insert(s.trucks).values({
     licensePlate: `51C-${(10000 + createdTruckIds.length).toString().padStart(5, '0')}`,
     currentTrailerId: trailer.id,
-    trailerType: '20FT',
+    trailerType,
     status: 'ACTIVE',
   }).returning();
   createdTruckIds.push(truck.id);
@@ -165,17 +181,26 @@ async function createOwnedResources() {
   }).returning();
   createdDriverIds.push(driver.id);
 
-  return { trailer, truck, driver };
+  return { trailer, truck, driver, driverUser };
 }
 
-async function createAcceptedFulfillment() {
-  const customer = await createCustomer(`Dispatch customer ${suffix}-${createdCustomerIds.length}`);
-  const route = await createRoute();
+async function createAcceptedFulfillment(args: {
+  customerId?: number;
+  routeId?: number;
+  cargoWeightKg?: string | null;
+  containerCargoWeightKg?: string | null;
+} = {}) {
+  const customer = args.customerId == null
+    ? await createCustomer(`Dispatch customer ${suffix}-${createdCustomerIds.length}`)
+    : { id: args.customerId };
+  const route = args.routeId == null ? await createRoute() : { id: args.routeId };
   const { shipment } = await createShipmentFixture({
     customerId: customer.id,
     routeId: route.id,
     createdBy: adminUserId,
     cargoTypeId: null,
+    cargoWeightKg: args.cargoWeightKg,
+    containerCargoWeightKg: args.containerCargoWeightKg,
   });
   const handoff = await createHandoff({
     shipmentId: shipment.id,
@@ -206,6 +231,7 @@ async function createAcceptedFulfillment() {
     fulfillmentId: accepted.data.fulfillments[0]!.id,
     fulfillmentVersion: accepted.data.fulfillments[0]!.version,
     handoffId: handoff.id,
+    customerId: shipment.customerId,
   };
 }
 
@@ -215,7 +241,7 @@ before(async () => {
 
   const app = express();
   app.use(express.json());
-  app.use('/api/shipments', authMiddleware, casbinAuthz('shipments'), shipmentRoutes);
+  app.use('/api/shipments', authMiddleware, auditLogMiddleware, casbinAuthz('shipments'), shipmentRoutes);
   app.use(globalErrorHandler);
 
   await new Promise<void>((resolve) => {
@@ -244,10 +270,6 @@ after(async () => {
 
   try {
     if (createdTripIds.length > 0) {
-      await db.delete(s.notifications).where(and(
-        eq(s.notifications.type, 'TRIP_DISPATCHED'),
-        inArray(s.notifications.relatedEntityId, createdTripIds),
-      ));
       await db.delete(s.tripContainerSeals).where(inArray(
         s.tripContainerSeals.tripContainerId,
         db.select({ id: s.tripContainers.id }).from(s.tripContainers).where(inArray(s.tripContainers.tripId, createdTripIds)),
@@ -256,6 +278,14 @@ after(async () => {
       await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
     }
     if (createdShipmentIds.length > 0) {
+      await db.delete(s.notifications).where(and(
+        eq(s.notifications.type, 'TRIP_DISPATCHED'),
+        eq(s.notifications.relatedEntityType, 'shipment_fulfillments'),
+        inArray(
+          s.notifications.relatedEntityId,
+          db.select({ id: s.shipmentFulfillments.id }).from(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.shipmentId, createdShipmentIds)),
+        ),
+      ));
       await db.delete(s.notifications).where(and(
         eq(s.notifications.type, 'SHIPMENT_HANDOFF'),
         inArray(s.notifications.relatedEntityId, createdShipmentIds),
@@ -272,6 +302,8 @@ after(async () => {
     if (createdRouteIds.length > 0) await db.delete(s.routes).where(inArray(s.routes.id, createdRouteIds));
     if (createdCustomerIds.length > 0) await db.delete(s.customers).where(inArray(s.customers.id, createdCustomerIds));
     if (createdUserIds.length > 0) {
+      await db.delete(s.auditLogs).where(inArray(s.auditLogs.userId, createdUserIds));
+      await db.delete(s.notifications).where(inArray(s.notifications.userId, createdUserIds));
       await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.createdBy, createdUserIds));
       await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
     }
@@ -364,8 +396,8 @@ describe('dispatch fulfillment workflow routes', () => {
 
     const notifications = await db.select().from(s.notifications).where(and(
       eq(s.notifications.type, 'TRIP_DISPATCHED'),
-      eq(s.notifications.relatedEntityType, 'trips'),
-      eq(s.notifications.relatedEntityId, trip.id),
+      eq(s.notifications.relatedEntityType, 'shipment_fulfillments'),
+      eq(s.notifications.relatedEntityId, accepted.fulfillmentId),
     ));
     assert.ok(notifications.length >= 1);
   });
@@ -411,7 +443,7 @@ describe('dispatch fulfillment workflow routes', () => {
     assert.match(overlap.data.error ?? '', /trùng lịch/i);
   });
 
-  test('accountant is read-only on dispatch workspace', async () => {
+  test('unscoped accountant cannot read dispatch workspace and cannot mutate handoffs', async () => {
     const customer = await createCustomer(`Readonly customer ${suffix}-${createdCustomerIds.length}`);
     const route = await createRoute();
     const { shipment } = await createShipmentFixture({
@@ -435,8 +467,7 @@ describe('dispatch fulfillment workflow routes', () => {
     const queue = await apiFetch<{ items: unknown[] }>('/dispatch-handoffs', {
       token: accountantToken,
     });
-    assert.equal(queue.status, 200);
-    assert.ok(Array.isArray(queue.data.items));
+    assert.equal(queue.status, 403);
 
     const forbidden = await apiFetch<{ error?: string }>(
       `/${shipment.id}/dispatch-handoffs/${handoff.id}/resolve`,
@@ -447,5 +478,404 @@ describe('dispatch fulfillment workflow routes', () => {
       },
     );
     assert.equal(forbidden.status, 403);
+  });
+
+  test('accountant reads only scoped dispatch tasks, fleet is forbidden, and unscoped accountant is denied', async () => {
+    const scopedCustomer = await createCustomer(`Scoped customer ${suffix}-${createdCustomerIds.length}`);
+    const otherCustomer = await createCustomer(`Other customer ${suffix}-${createdCustomerIds.length}`);
+    const route = await createRoute();
+    const scopedAccepted = await createAcceptedFulfillment({ customerId: scopedCustomer.id, routeId: route.id });
+    await createAcceptedFulfillment({ customerId: otherCustomer.id, routeId: route.id });
+    const { shipment: scopedHandoffShipment } = await createShipmentFixture({
+      customerId: scopedCustomer.id,
+      routeId: route.id,
+      createdBy: adminUserId,
+    });
+    await createHandoff({
+      shipmentId: scopedHandoffShipment.id,
+      createdBy: adminUserId,
+      actor: {
+        userId: adminUserId,
+        username: `dispatch-admin-${suffix}`,
+        email: null,
+        fullName: null,
+        role: Role.ADMIN,
+      },
+    });
+    const { shipment: otherHandoffShipment } = await createShipmentFixture({
+      customerId: otherCustomer.id,
+      routeId: route.id,
+      createdBy: adminUserId,
+    });
+    await createHandoff({
+      shipmentId: otherHandoffShipment.id,
+      createdBy: adminUserId,
+      actor: {
+        userId: adminUserId,
+        username: `dispatch-admin-${suffix}`,
+        email: null,
+        fullName: null,
+        role: Role.ADMIN,
+      },
+    });
+    await linkUserToCustomer(accountantUserId, scopedCustomer.id);
+    const scopedAccountantToken = signToken(
+      { id: accountantUserId, username: `dispatch-accountant-${suffix}`, role: Role.ACCOUNTANT },
+      { customerId: scopedCustomer.id, customerIds: [scopedCustomer.id] },
+    );
+
+    const queue = await apiFetch<{
+      items: Array<{
+        shipmentId: number;
+        customer: { id: number };
+        dispatch: { externalDriverPhone: string | null } | null;
+      }>;
+    }>('/dispatch-queue', {
+      token: scopedAccountantToken,
+    });
+    assert.equal(queue.status, 200);
+    assert.ok(Array.isArray(queue.data.items));
+    if (queue.data.items[0]) {
+      assert.equal(queue.data.items[0].shipmentId, scopedAccepted.shipmentId);
+      assert.equal(queue.data.items[0].customer.id, scopedCustomer.id);
+      assert.equal(queue.data.items[0].dispatch?.externalDriverPhone ?? null, null);
+    }
+
+    const handoffs = await apiFetch<{ items: Array<{ shipmentId: number }> }>('/dispatch-handoffs', {
+      token: scopedAccountantToken,
+    });
+    assert.equal(handoffs.status, 200);
+    assert.equal(handoffs.data.items.length, 1);
+    assert.equal(handoffs.data.items[0]?.shipmentId, scopedHandoffShipment.id);
+
+    const fleetForbidden = await apiFetch<{ error?: string }>('/dispatch-fleet', {
+      token: scopedAccountantToken,
+    });
+    assert.equal(fleetForbidden.status, 403);
+
+    const unscopedAccountant = await mkUser(Role.ACCOUNTANT, 'accountant-unscoped');
+    const unscopedAccountantToken = signToken(unscopedAccountant);
+    const unscopedDenied = await apiFetch<{ error?: string }>('/dispatch-handoffs', {
+      token: unscopedAccountantToken,
+    });
+    assert.equal(unscopedDenied.status, 403);
+    assert.match(unscopedDenied.data.error ?? '', /phạm vi khách hàng/i);
+  });
+
+  test('dispatch derives planned end from route duration without explicit confirmation', async () => {
+    const route = await createRoute(70);
+    const accepted = await createAcceptedFulfillment({ routeId: route.id });
+    const resources = await createOwnedResources();
+
+    const dispatch = await apiFetch<{
+      trip: { id: number; plannedEndAt: string | null };
+      version: number;
+      replayed: boolean;
+    }>(`/${accepted.shipmentId}/dispatch`, {
+      method: 'POST',
+      token: managerToken,
+      body: {
+        fulfillmentId: accepted.fulfillmentId,
+        expectedVersion: accepted.fulfillmentVersion,
+        plannedStartAt: '2026-08-03T08:00:00+07:00',
+        plannedEndAt: '2026-08-03T23:59:00+07:00',
+        endTimeConfirmed: false,
+        carrierType: 'OWN',
+        truckId: resources.truck.id,
+        driverId: resources.driver.id,
+        trailerId: resources.trailer.id,
+      },
+    });
+    assert.equal(dispatch.status, 201);
+    assert.equal(dispatch.data.replayed, false);
+    createdTripIds.push(dispatch.data.trip.id);
+
+    const [trip] = await db.select({
+      id: s.trips.id,
+      plannedEndAt: s.trips.plannedEndAt,
+    }).from(s.trips).where(eq(s.trips.id, dispatch.data.trip.id));
+    assert.ok(trip?.plannedEndAt);
+    assert.equal(trip.plannedEndAt?.toISOString(), '2026-08-03T03:30:00.000Z');
+  });
+
+  test('rejects inactive or re-bound non-driver users when issuing or reassigning', async () => {
+    const accepted = await createAcceptedFulfillment();
+    const resources = await createOwnedResources();
+    await db.update(s.users)
+      .set({ role: Role.MANAGER })
+      .where(eq(s.users.id, resources.driverUser.id));
+
+    const dispatch = await apiFetch<{ error?: string }>(`/${accepted.shipmentId}/dispatch`, {
+      method: 'POST',
+      token: managerToken,
+      body: {
+        fulfillmentId: accepted.fulfillmentId,
+        expectedVersion: accepted.fulfillmentVersion,
+        plannedStartAt: '2026-08-03T08:00:00+07:00',
+        plannedEndAt: '2026-08-03T12:00:00+07:00',
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: resources.truck.id,
+        driverId: resources.driver.id,
+        trailerId: resources.trailer.id,
+      },
+    });
+    assert.equal(dispatch.status, 409);
+    assert.match(dispatch.data.error ?? '', /tài xế không còn hiệu lực/i);
+  });
+
+  test('rejects cargo above trailer capacity and allows half-open plan boundaries', async () => {
+    const overweightAccepted = await createAcceptedFulfillment({
+      cargoWeightKg: '19000',
+      containerCargoWeightKg: '19000',
+    });
+    const overweightResources = await createOwnedResources({ trailerType: '20FT' });
+    const overweight = await apiFetch<{ error?: string }>(`/${overweightAccepted.shipmentId}/dispatch`, {
+      method: 'POST',
+      token: managerToken,
+      body: {
+        fulfillmentId: overweightAccepted.fulfillmentId,
+        expectedVersion: overweightAccepted.fulfillmentVersion,
+        plannedStartAt: '2026-08-04T08:00:00+07:00',
+        plannedEndAt: '2026-08-04T12:00:00+07:00',
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: overweightResources.truck.id,
+        driverId: overweightResources.driver.id,
+        trailerId: overweightResources.trailer.id,
+      },
+    });
+    assert.equal(overweight.status, 409);
+    assert.match(overweight.data.error ?? '', /vượt quá tải trọng/i);
+
+    const boundaryResources = await createOwnedResources();
+    const first = await createAcceptedFulfillment();
+    const second = await createAcceptedFulfillment();
+    const firstDispatch = await apiFetch<{ trip: { id: number } }>(`/${first.shipmentId}/dispatch`, {
+      method: 'POST',
+      token: managerToken,
+      body: {
+        fulfillmentId: first.fulfillmentId,
+        expectedVersion: first.fulfillmentVersion,
+        plannedStartAt: '2026-08-04T08:00:00+07:00',
+        plannedEndAt: '2026-08-04T12:00:00+07:00',
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: boundaryResources.truck.id,
+        driverId: boundaryResources.driver.id,
+        trailerId: boundaryResources.trailer.id,
+      },
+    });
+    assert.equal(firstDispatch.status, 201);
+    createdTripIds.push(firstDispatch.data.trip.id);
+
+    const secondDispatch = await apiFetch<{ trip: { id: number } }>(`/${second.shipmentId}/dispatch`, {
+      method: 'POST',
+      token: managerToken,
+      body: {
+        fulfillmentId: second.fulfillmentId,
+        expectedVersion: second.fulfillmentVersion,
+        plannedStartAt: '2026-08-04T12:00:00+07:00',
+        plannedEndAt: '2026-08-04T16:00:00+07:00',
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: boundaryResources.truck.id,
+        driverId: boundaryResources.driver.id,
+        trailerId: boundaryResources.trailer.id,
+      },
+    });
+    assert.equal(secondDispatch.status, 201);
+    createdTripIds.push(secondDispatch.data.trip.id);
+  });
+
+  test('replays idempotent dispatch and notifies the reassigned driver with audit history preserved', async () => {
+    const accepted = await createAcceptedFulfillment();
+    const resourcesA = await createOwnedResources();
+    const resourcesB = await createOwnedResources();
+    const replayKey = `dispatch-replay-${suffix}`;
+
+    const firstDispatch = await apiFetch<{
+      version: number;
+      trip: { id: number };
+      replayed: boolean;
+    }>(`/${accepted.shipmentId}/dispatch`, {
+      method: 'POST',
+      token: managerToken,
+      idempotencyKey: replayKey,
+      body: {
+        fulfillmentId: accepted.fulfillmentId,
+        expectedVersion: accepted.fulfillmentVersion,
+        plannedStartAt: '2026-08-05T08:00:00+07:00',
+        plannedEndAt: '2026-08-05T12:00:00+07:00',
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: resourcesA.truck.id,
+        driverId: resourcesA.driver.id,
+        trailerId: resourcesA.trailer.id,
+      },
+    });
+    assert.equal(firstDispatch.status, 201);
+    assert.equal(firstDispatch.data.replayed, false);
+    createdTripIds.push(firstDispatch.data.trip.id);
+
+    const replayed = await apiFetch<{ replayed: boolean; trip: { id: number } }>(`/${accepted.shipmentId}/dispatch`, {
+      method: 'POST',
+      token: managerToken,
+      idempotencyKey: replayKey,
+      body: {
+        fulfillmentId: accepted.fulfillmentId,
+        expectedVersion: accepted.fulfillmentVersion,
+        plannedStartAt: '2026-08-05T08:00:00+07:00',
+        plannedEndAt: '2026-08-05T12:00:00+07:00',
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: resourcesA.truck.id,
+        driverId: resourcesA.driver.id,
+        trailerId: resourcesA.trailer.id,
+      },
+    });
+    assert.equal(replayed.status, 200);
+    assert.equal(replayed.data.replayed, true);
+    assert.equal(replayed.data.trip.id, firstDispatch.data.trip.id);
+
+    const reassigned = await apiFetch<{
+      version: number;
+      trip: { id: number };
+      replayed: boolean;
+    }>(`/${accepted.shipmentId}/dispatch`, {
+      method: 'POST',
+      token: managerToken,
+      body: {
+        fulfillmentId: accepted.fulfillmentId,
+        expectedVersion: firstDispatch.data.version,
+        plannedStartAt: '2026-08-05T09:00:00+07:00',
+        plannedEndAt: '2026-08-05T13:00:00+07:00',
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: resourcesB.truck.id,
+        driverId: resourcesB.driver.id,
+        trailerId: resourcesB.trailer.id,
+      },
+    });
+    assert.equal(reassigned.status, 201);
+    assert.equal(reassigned.data.replayed, false);
+    assert.equal(reassigned.data.trip.id, firstDispatch.data.trip.id);
+
+    const notifications = await db.select({
+      userId: s.notifications.userId,
+      relatedEntityId: s.notifications.relatedEntityId,
+    }).from(s.notifications).where(and(
+      eq(s.notifications.type, 'TRIP_DISPATCHED'),
+      eq(s.notifications.relatedEntityType, 'shipment_fulfillments'),
+      eq(s.notifications.relatedEntityId, accepted.fulfillmentId),
+      inArray(s.notifications.userId, [resourcesA.driverUser.id, resourcesB.driverUser.id]),
+    ));
+    assert.equal(notifications.length, 2);
+    assert.deepEqual(
+      [...new Set(notifications.map((row) => row.userId))].sort((a, b) => a - b),
+      [resourcesA.driverUser.id, resourcesB.driverUser.id].sort((a, b) => a - b),
+    );
+
+    const audits = await db.select({
+      id: s.auditLogs.id,
+      entityId: s.auditLogs.entityId,
+      payload: s.auditLogs.payload,
+    }).from(s.auditLogs)
+      .where(and(
+        eq(s.auditLogs.userId, managerUserId),
+        eq(s.auditLogs.entityId, accepted.shipmentId),
+      ))
+      .orderBy(desc(s.auditLogs.id));
+    const dispatchAudits = audits.filter((row) => (row.payload as { event?: string } | null)?.event === 'SHIPMENT_DISPATCHED');
+    assert.ok(dispatchAudits.length >= 2);
+  });
+
+  test('loads a 500-task queue within query budget and latency target while 55 vehicles exist', async (t) => {
+    const customer = await createCustomer(`Perf customer ${suffix}-${createdCustomerIds.length}`);
+    const route = await createRoute();
+    const containerType = await createContainerType(`40P${createdContainerTypeIds.length}`);
+    for (let index = 0; index < 55; index += 1) {
+      await createOwnedResources({ trailerType: index % 2 === 0 ? '20FT' : '40FT' });
+    }
+
+    const shipmentValues: Array<typeof s.shipments.$inferInsert> = Array.from({ length: 500 }, (_, index) => ({
+      customerId: customer.id,
+      routeId: route.id,
+      cargoMode: 'FCL',
+      shipmentCode: `DSP-PERF-${suffix}-${index}`,
+      bookingRef: `PERF-BOOK-${suffix}-${index}`,
+      createdBy: adminUserId,
+    }));
+    const shipments = await db.insert(s.shipments).values(shipmentValues).returning({
+      id: s.shipments.id,
+      version: s.shipments.version,
+      customerId: s.shipments.customerId,
+    });
+    createdShipmentIds.push(...shipments.map((shipment) => shipment.id));
+
+    const containerValues: Array<typeof s.shipmentContainers.$inferInsert> = shipments.map((shipment, index) => ({
+      shipmentId: shipment.id,
+      containerTypeId: containerType.id,
+      containerNumber: `PERF${String(index).padStart(7, '0')}`,
+      createdBy: adminUserId,
+    }));
+    const containers = await db.insert(s.shipmentContainers).values(containerValues).returning({
+      id: s.shipmentContainers.id,
+      shipmentId: s.shipmentContainers.shipmentId,
+    });
+    const containerByShipmentId = new Map(containers.map((container) => [container.shipmentId, container.id]));
+
+    const fulfillmentValues: Array<typeof s.shipmentFulfillments.$inferInsert> = shipments.map((shipment) => ({
+      shipmentId: shipment.id,
+      fulfillmentType: 'FCL_CONTAINER',
+      cargoMode: 'FCL',
+      shipmentContainerId: containerByShipmentId.get(shipment.id) ?? null,
+      sourceShipmentVersion: shipment.version,
+      siteSnapshot: {},
+      createdBy: adminUserId,
+    }));
+    await db.insert(s.shipmentFulfillments).values(fulfillmentValues);
+    const handoffValues: Array<typeof s.dispatchHandoffs.$inferInsert> = shipments.map((shipment) => ({
+      shipmentId: shipment.id,
+      priority: 'NORMAL',
+      status: 'ACCEPTED',
+      handoffVersion: shipment.version,
+      createdBy: adminUserId,
+      acceptedBy: managerUserId,
+      resolvedAt: new Date('2026-08-01T00:00:00.000Z'),
+    }));
+    await db.insert(s.dispatchHandoffs).values(handoffValues);
+
+    const statements: string[] = [];
+    const originalDebug = client.options.debug;
+    client.options.debug = (_connection: number, query: string) => {
+      statements.push(query);
+      if (typeof originalDebug === 'function') {
+        originalDebug(_connection, query, [], []);
+      }
+    };
+    const startedAt = performance.now();
+    try {
+      const result = await listDispatchQueue({
+        actor: {
+          userId: managerUserId,
+          username: 'dispatch-manager',
+          email: null,
+          fullName: null,
+          role: Role.MANAGER,
+        },
+        limit: 50,
+        q: `PERF-BOOK-${suffix}`,
+      });
+      const durationMs = performance.now() - startedAt;
+      const sqlStatements = statements.filter((query) => !/^begin|^commit/i.test(query.trim()));
+      t.diagnostic(`dispatch queue perf: total=${result.page.total} items=${result.items.length} sqlStatements=${sqlStatements.length} durationMs=${durationMs.toFixed(2)}`);
+      assert.equal(result.items.length, 50);
+      assert.equal(result.page.total, 500);
+      assert.ok(durationMs < 1000, `expected dispatch queue load < 1000ms, got ${durationMs.toFixed(2)}ms`);
+      assert.ok(sqlStatements.length <= 8, `expected <= 8 SQL statements, got ${sqlStatements.length}`);
+    } finally {
+      client.options.debug = originalDebug;
+    }
   });
 });

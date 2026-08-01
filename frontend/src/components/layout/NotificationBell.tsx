@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useUnreadCount, useNotifications, useMarkAllAsRead, useMarkAsRead } from '../../hooks/useNotificationQueries';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
+import { useAuth } from '../../hooks/useAuth';
 import { AssetIcon } from '../AssetIcon';
 import type { Notification } from '@tingting/shared';
+import { resolveNotificationRoute } from '../../lib/notificationClient';
 
 /** Relative time in Vietnamese, e.g. "5 phút trước". */
 function timeAgo(iso: string): string {
@@ -28,6 +30,7 @@ function timeAgo(iso: string): string {
  */
 export function NotificationBell() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -44,9 +47,10 @@ export function NotificationBell() {
 
   const openNotification = (notification: Notification) => {
     if (!notification.isRead) markAsRead.mutate(notification.id);
-    if (notification.relatedEntityType === 'advance_settlements' && notification.relatedEntityId) {
+    const destination = user ? resolveNotificationRoute(notification, user.role) : null;
+    if (destination) {
       setOpen(false);
-      navigate(`/my-settlements/${notification.relatedEntityId}`);
+      navigate(destination);
     }
   };
 

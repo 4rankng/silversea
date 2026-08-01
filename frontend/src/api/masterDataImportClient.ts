@@ -31,7 +31,11 @@ export interface MasterImportBatch {
 export async function analyzeMasterData(file: File) {
   const form = new FormData();
   form.append('file', file);
-  return api.postForm<{ batch: MasterImportBatch; replayed: boolean }>('/config/master-data-imports/analyze', form);
+  return api.postForm<{ batch: MasterImportBatch; replayed: boolean }>(
+    '/config/master-data-imports/analyze',
+    form,
+    { headers: { 'Idempotency-Key': crypto.randomUUID() } },
+  );
 }
 
 export function applyMasterData(batch: MasterImportBatch) {

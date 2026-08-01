@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, Save, Send, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
-import { TextField, SelectField } from '../../design-system';
+import { SearchableSelect, TextField, SelectField } from '../../design-system';
 import { useConfirm } from '../../components/UI';
 import { OperationalSiteDetailsDialog } from '../../components/shipment/OperationalSiteDetailsDialog';
 import { useAuth } from '../../hooks/useAuth';
@@ -118,6 +118,32 @@ const EMPTY_DECLARATION_FORM = {
 
 function toDateTimeInput(value: string | null | undefined): string {
   return formatVietnamDateTimeInput(value);
+}
+
+interface SearchableFieldProps {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; label: string; searchText?: string }>;
+  placeholder: string;
+  disabled?: boolean;
+}
+
+function SearchableField({ id, label, value, onChange, options, placeholder, disabled }: SearchableFieldProps) {
+  return (
+    <label htmlFor={id} style={{ display: 'grid', gap: 8, alignContent: 'start', fontSize: 14, fontWeight: 600 }}>
+      <span>{label}</span>
+      <SearchableSelect
+        id={id}
+        value={value}
+        onChange={onChange}
+        options={options}
+        placeholder={placeholder}
+        disabled={disabled}
+      />
+    </label>
+  );
 }
 
 export default function ClerkShipmentDocsPage() {
@@ -583,15 +609,15 @@ export default function ClerkShipmentDocsPage() {
       )}
 
       <SectionCard title="Thông tin lô hàng">
-        <SelectField
+        <SearchableField
+          id="shipment-docs-route"
           label="Tuyến đường"
           value={shipmentForm.routeId}
-          onChange={(event) => { setShipmentForm((current) => ({ ...current, routeId: event.target.value })); setShipmentMsg(null); }}
+          onChange={(value) => { setShipmentForm((current) => ({ ...current, routeId: value })); setShipmentMsg(null); }}
           disabled={savingShipment}
-        >
-          <option value="">— Chọn tuyến đường —</option>
-          {routeOptions.map((route) => <option key={route.id} value={String(route.id)}>{route.label}</option>)}
-        </SelectField>
+          options={routeOptions.map((route) => ({ value: String(route.id), label: route.label }))}
+          placeholder="Chọn tuyến đường"
+        />
         <SelectField
           label="Đơn vị phụ trách"
           value={shipmentForm.responsibleUnitId}
@@ -657,20 +683,19 @@ export default function ClerkShipmentDocsPage() {
           </SelectField>
         </div>
         <div style={twoColumnFieldStyle}>
-          <SelectField
+          <SearchableField
+            id="shipment-docs-operational-site"
             label="Nhà máy"
             value={shipmentForm.operationalSiteId}
-            onChange={(event) => {
-              const value = event.target.value;
+            onChange={(value) => {
               setShipmentForm((current) => ({ ...current, operationalSiteId: value, factoryName: operationalSites.find((site) => String(site.id) === value)?.name ?? '' }));
               setDetailSite(operationalSites.find((site) => String(site.id) === value) ?? null);
               setShipmentMsg(null);
             }}
             disabled={savingShipment}
-          >
-            <option value="">— Chọn nhà máy —</option>
-            {operationalSites.filter((site) => site.siteType === 'FACTORY').map((site) => <option key={site.id} value={String(site.id)}>{site.name}</option>)}
-          </SelectField>
+            options={operationalSites.filter((site) => site.siteType === 'FACTORY').map((site) => ({ value: String(site.id), label: site.name, searchText: site.address ?? '' }))}
+            placeholder="Chọn nhà máy"
+          />
           <TextField
             label="Hãng tàu"
             value={shipmentForm.shippingLineName}
@@ -744,15 +769,15 @@ export default function ClerkShipmentDocsPage() {
         </div>
         {shipmentForm.cargoMode === 'LCL' && (
           <div style={twoColumnFieldStyle}>
-            <SelectField
+            <SearchableField
+              id="shipment-docs-pickup-warehouse"
               label="Kho lấy hàng"
               value={shipmentForm.pickupWarehouseSiteId}
-              onChange={(event) => { setShipmentForm((current) => ({ ...current, pickupWarehouseSiteId: event.target.value })); setShipmentMsg(null); }}
+              onChange={(value) => { setShipmentForm((current) => ({ ...current, pickupWarehouseSiteId: value })); setShipmentMsg(null); }}
               disabled={savingShipment}
-            >
-              <option value="">— Chọn kho lấy hàng —</option>
-              {operationalSites.filter((site) => site.siteType === 'WAREHOUSE').map((site) => <option key={site.id} value={String(site.id)}>{site.name}</option>)}
-            </SelectField>
+              options={operationalSites.filter((site) => site.siteType === 'WAREHOUSE').map((site) => ({ value: String(site.id), label: site.name, searchText: site.address ?? '' }))}
+              placeholder="Chọn kho lấy hàng"
+            />
             <TextField
               label="Số kiện"
               type="number"
@@ -892,24 +917,24 @@ export default function ClerkShipmentDocsPage() {
               disabled={savingContainers}
               maxLength={150}
             />
-            <SelectField
+            <SearchableField
+              id={`shipment-docs-container-${row.id ?? idx}-pickup-port`}
               label="Cảng nâng"
               value={row.pickupPortId}
-              onChange={(e) => updateRow(idx, { pickupPortId: (e.target as HTMLSelectElement).value })}
+              onChange={(value) => updateRow(idx, { pickupPortId: value })}
               disabled={savingContainers}
-            >
-              <option value="">— Chọn cảng nâng —</option>
-              {portOptions.map((port) => <option key={port.id} value={String(port.id)}>{port.label}</option>)}
-            </SelectField>
-            <SelectField
+              options={portOptions.map((port) => ({ value: String(port.id), label: port.label }))}
+              placeholder="Chọn cảng nâng"
+            />
+            <SearchableField
+              id={`shipment-docs-container-${row.id ?? idx}-dropoff-port`}
               label="Cảng hạ"
               value={row.dropoffPortId}
-              onChange={(e) => updateRow(idx, { dropoffPortId: (e.target as HTMLSelectElement).value })}
+              onChange={(value) => updateRow(idx, { dropoffPortId: value })}
               disabled={savingContainers}
-            >
-              <option value="">— Chọn cảng hạ —</option>
-              {portOptions.map((port) => <option key={port.id} value={String(port.id)}>{port.label}</option>)}
-            </SelectField>
+              options={portOptions.map((port) => ({ value: String(port.id), label: port.label }))}
+              placeholder="Chọn cảng hạ"
+            />
             <button type="button" onClick={() => removeRow(idx)} style={dangerBtnStyle} aria-label="Xóa công-te-nơ">
               <Trash2 size={16} /> Xóa
             </button>

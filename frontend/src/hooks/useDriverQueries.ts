@@ -9,6 +9,30 @@ export function useDriverTrips() {
   });
 }
 
+export function useDriverTaskDetail(tripId?: number) {
+  return useQuery({
+    queryKey: qk.driver.tripDetail(tripId),
+    queryFn: () => driverClient.getTaskDetail(tripId as number),
+    enabled: Number.isInteger(tripId) && Number(tripId) > 0,
+  });
+}
+
+export function useDriverTaskProgress(tripId?: number) {
+  return useQuery({
+    queryKey: qk.driver.tripProgress(tripId),
+    queryFn: () => driverClient.listProgress(tripId as number),
+    enabled: Number.isInteger(tripId) && Number(tripId) > 0,
+  });
+}
+
+export function useDriverEvidenceStatus(tripId?: number) {
+  return useQuery({
+    queryKey: qk.driver.evidenceStatus(tripId),
+    queryFn: () => driverClient.getEvidenceStatus(tripId as number),
+    enabled: Number.isInteger(tripId) && Number(tripId) > 0,
+  });
+}
+
 export function useDriverEarnings(month: number, year: number) {
   return useQuery({
     queryKey: qk.driver.earnings(month, year),

@@ -9,10 +9,35 @@
  * Part of plans/260731-customer-audit-reseed.
  */
 import { sql } from 'drizzle-orm';
+import type { DebitNoteTemplateColumn } from '@tingting/shared';
 import { db } from '../db/index.js';
 import * as s from '../db/schema.js';
 import { COMPANY_INFO_SETTING_KEYS } from '../services/company-info.service.js';
 import { customers, companyIdentity } from './data/index.js';
+
+const LONG_MINH_TEMPLATE_NAME = 'MẪU DEBIT LONG MINH';
+const LONG_MINH_DEBIT_TEMPLATE_COLUMNS: DebitNoteTemplateColumn[] = [
+  { id: 'stt', label: 'STT', variable: 'rowIndex', headerGroup: null, width: 6, align: 'center', format: 'number', total: false },
+  { id: 'nha_may', label: 'TÊN NHÀ MÁY', variable: 'factoryName', headerGroup: null, width: 18, align: 'left', format: 'text', total: false },
+  { id: 'xuat_nhap', label: 'NHẬP/ XUẤT', variable: 'tradeDirectionLabel', headerGroup: null, width: 10, align: 'center', format: 'text', total: false },
+  { id: 'so_bill', label: 'SỐ BILL', variable: 'billNumber', headerGroup: null, width: 14, align: 'center', format: 'text', total: false },
+  { id: 'so_to_khai', label: 'SỐ TỜ KHAI', variable: 'declarationNumber', headerGroup: null, width: 14, align: 'center', format: 'text', total: false },
+  { id: 'so_luong', label: 'SỐ CÂN/ KIỆN/ CONT', variable: 'quantityLabel', headerGroup: null, width: 18, align: 'left', format: 'text', total: false },
+  { id: 'loai_xe', label: 'LOẠI XE', variable: 'vehicleType', headerGroup: null, width: 12, align: 'center', format: 'text', total: false },
+  { id: 'bien_so', label: 'BKS', variable: 'truckPlate', headerGroup: null, width: 12, align: 'center', format: 'text', total: false },
+  { id: 'cbm', label: 'CBM', variable: 'cargoVolumeCbm', headerGroup: null, width: 10, align: 'right', format: 'number', total: false },
+  { id: 'ngay_giao', label: 'NGÀY GIAO HÀNG', variable: 'deliveryDate', headerGroup: null, width: 12, align: 'center', format: 'date', total: false },
+  { id: 'tuyen_duong', label: 'TUYẾN ĐƯỜNG MỚI', variable: 'routeName', headerGroup: null, width: 20, align: 'left', format: 'text', total: false },
+  { id: 'phi_giao_hang', label: 'PHÍ GIAO HÀNG', variable: 'deliveryFeeAmount', headerGroup: 'PHÍ DỊCH VỤ', width: 12, align: 'right', format: 'currency', total: true },
+  { id: 'cuoc_van_chuyen', label: 'CƯỚC VẬN CHUYỂN', variable: 'freightAmount', headerGroup: 'PHÍ DỊCH VỤ', width: 14, align: 'right', format: 'currency', total: true },
+  { id: 'lach_huyen', label: 'LẠCH HUYỆN', variable: 'portFeeAmount', headerGroup: 'PHÍ DỊCH VỤ', width: 12, align: 'right', format: 'currency', total: true },
+  { id: 'chi_phi_khac', label: 'CHI PHÍ KHÁC', variable: 'otherServiceFeeAmount', headerGroup: 'PHÍ DỊCH VỤ', width: 12, align: 'right', format: 'currency', total: true },
+  { id: 'phu_phi_xang_dau', label: 'PHỤ PHÍ XĂNG DẦU', variable: 'fuelSurchargeAmount', headerGroup: 'PHÍ DỊCH VỤ', width: 12, align: 'right', format: 'currency', total: true },
+  { id: 'ncc', label: 'TÊN ĐƠN VỊ', variable: 'recoverableSupplierName', headerGroup: 'PHÍ CHI HỘ', width: 18, align: 'left', format: 'text', total: false },
+  { id: 'loai_phi', label: 'LOẠI PHÍ', variable: 'recoverableFeeType', headerGroup: 'PHÍ CHI HỘ', width: 18, align: 'left', format: 'text', total: false },
+  { id: 'so_chung_tu', label: 'SỐ HĐ', variable: 'recoverableDocumentCode', headerGroup: 'PHÍ CHI HỘ', width: 14, align: 'center', format: 'text', total: false },
+  { id: 'so_tien', label: 'SỐ TIỀN', variable: 'recoverableAmount', headerGroup: 'PHÍ CHI HỘ', width: 12, align: 'right', format: 'currency', total: true },
+];
 
 /** Normalize a tax code for the partners.unique_normalized_tax_code index. */
 function normTax(t: string): string {
@@ -92,6 +117,7 @@ export async function seedCustomers(): Promise<CustomerSeedResult> {
   }
 
   await seedCompanySettings();
+  await seedLongMinhDebitTemplate(customerByCode);
   console.log(`✅ Customers seeded! (${customers.length})`);
   for (const c of customers) console.log(`   • ${c.internalCode} → ${c.name}`);
   return { customerByCode };
@@ -119,4 +145,60 @@ async function seedCompanySettings(): Promise<void> {
       .onConflictDoUpdate({ target: s.appSettings.key, set: { value } });
   }
   console.log(`✅ Company identity seeded (Silver Sea, MST ${companyIdentity.taxCode})`);
+}
+
+async function seedLongMinhDebitTemplate(customerByCode: Map<string, number>): Promise<void> {
+  const customerId = customerByCode.get('LONG MINH');
+  if (!customerId) return;
+
+  const templateValues = {
+    name: LONG_MINH_TEMPLATE_NAME,
+    isDefault: false,
+    documentType: 'DEBIT_NOTE',
+    titleText: 'BẢNG KÊ XÁC NHẬN VẬN CHUYỂN HOÀN THÀNH / MẪU DEBIT LONG MINH',
+    issuerName: null,
+    issuerAddress: null,
+    issuerTaxCode: null,
+    issuerRepresentative: null,
+    accentColor: '#1F4E79',
+    showContainerColumn: true,
+    showUnitColumn: true,
+    groupingMode: 'NONE',
+    columns: LONG_MINH_DEBIT_TEMPLATE_COLUMNS,
+    amountInWords: false,
+    orientation: 'landscape',
+    termsText: 'Vui lòng đối chiếu các khoản phí dịch vụ và phí chi hộ theo từng chuyến đủ điều kiện.',
+    signatureLeftLabel: 'Khách hàng',
+    signatureLeftName: null,
+    signatureRightLabel: 'Người lập',
+    signatureRightName: null,
+    updatedAt: new Date(),
+  } as const;
+
+  const [existing] = await db.select({ id: s.debitNoteTemplates.id })
+    .from(s.debitNoteTemplates)
+    .where(sql`
+      lower(btrim(${s.debitNoteTemplates.name})) = lower(btrim(${LONG_MINH_TEMPLATE_NAME}))
+      and ${s.debitNoteTemplates.documentType} = 'DEBIT_NOTE'
+      and ${s.debitNoteTemplates.deletedAt} is null
+    `)
+    .limit(1);
+
+  let templateId: number;
+  if (existing) {
+    await db.update(s.debitNoteTemplates)
+      .set(templateValues)
+      .where(sql`${s.debitNoteTemplates.id} = ${existing.id}`);
+    templateId = existing.id;
+  } else {
+    const [created] = await db.insert(s.debitNoteTemplates)
+      .values(templateValues)
+      .returning({ id: s.debitNoteTemplates.id });
+    templateId = created!.id;
+  }
+
+  await db.update(s.customers)
+    .set({ debitNoteTemplateId: templateId, updatedAt: new Date() })
+    .where(sql`${s.customers.id} = ${customerId}`);
+  console.log(`✅ Long Minh debit template seeded and assigned (template #${templateId})`);
 }

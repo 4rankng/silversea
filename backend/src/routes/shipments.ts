@@ -40,10 +40,13 @@ import {
 import {
   createShipment,
   createShipmentIdempotent,
+  downloadShipmentPodFile,
   getShipment,
   getShipmentDetail,
   listShipmentsPaginated,
+  reviewTripPodSubmission,
   updateShipment,
+  updateFulfillmentCancellationDisposition,
   transitionShipmentStatus,
   softDeleteShipment,
   batchUpsertShipmentContainers,
@@ -87,6 +90,7 @@ import {
   listDispatchHandoffs,
   listDispatchQueue,
 } from '../services/dispatch-planning.service';
+import { attachmentDisposition } from '../services/statement.service';
 
 // Audit event registrations — matched by the audit middleware on every write.
 // Suffix-mode registrations (prefix + suffix) cover all /:id sub-paths. The
@@ -104,6 +108,8 @@ registerAuditEvent('POST', '/api/shipments/', '/documents', AuditEvent.SHIPMENT_
 registerAuditEvent('POST', '/api/shipments/', '/documents/', AuditEvent.SHIPMENT_DOCUMENT_UPLOADED);
 registerAuditEvent('POST', '/api/shipments/', '/declarations', AuditEvent.SHIPMENT_UPDATED);
 registerAuditEvent('PUT', '/api/shipments/', '/declarations/', AuditEvent.SHIPMENT_UPDATED);
+registerAuditEvent('POST', '/api/shipments/', '/pod-reviews/', AuditEvent.SHIPMENT_UPDATED);
+registerAuditEvent('POST', '/api/shipments/', '/fulfillments/', AuditEvent.SHIPMENT_UPDATED);
 registerAuditEvent('POST', '/api/shipments/', '/change-requests/', AuditEvent.SHIPMENT_UPDATED);
 registerAuditEvent('PUT', '/api/shipments/', '/containers', AuditEvent.SHIPMENT_CONTAINERS_UPDATED);
 registerAuditEvent('PUT', '/api/shipments/', '', AuditEvent.SHIPMENT_UPDATED);
@@ -166,6 +172,19 @@ const fulfillmentDispatchSchema = z.object({
   externalDriverPhone: z.string().trim().max(20).optional().nullable(),
 });
 
+const reviewTripPodSchema = z.object({
+  expectedVersion: z.number().int().positive(),
+  resolution: z.enum(['ACCEPT', 'REJECT']),
+  rejectionReason: z.string().trim().max(2_000).optional().nullable(),
+});
+
+const updateCancellationDispositionSchema = z.object({
+  expectedVersion: z.number().int().positive(),
+  disposition: z.enum(['REPLACED', 'NOT_REQUIRED']),
+  replacementFulfillmentId: z.number().int().positive().optional().nullable(),
+  reason: z.string().trim().min(1).max(1_000),
+});
+
 const router = Router();
 
 interface ShipmentWriteEnvelope<T> {
@@ -212,6 +231,12 @@ function parseId(req: Request, res: Response): number | null {
     return null;
   }
   return id;
+}
+
+function requireShipmentIdempotencyKey(req: Request, message: string): string {
+  const key = getRequestIdempotencyKey(req);
+  if (!key) throw new ApiError(400, message);
+  return key;
 }
 
 // ─── GET / — paginated list ────────────────────────────────────────────────
@@ -412,7 +437,7 @@ router.post(
 
 router.get(
   '/operational-sites',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.CLERK),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CLERK),
   asyncHandler(async (req: Request, res: Response) => {
     const customerId = Number(req.query.customerId);
     if (!Number.isInteger(customerId) || customerId < 1) {
@@ -522,6 +547,24 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   if (id === null) return;
   res.json(await getShipmentDetail(id, getUser(req)));
 }));
+
+router.get(
+  '/:id/pod-files/:fileId',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CLERK),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const fileId = parseInt(req.params.fileId as string, 10);
+    if (!Number.isInteger(fileId) || fileId <= 0) {
+      res.status(400).json({ error: 'ID tệp e-POD không hợp lệ' });
+      return;
+    }
+    const file = await downloadShipmentPodFile(shipmentId, fileId, getUser(req));
+    res.type(file.mimeType);
+    res.setHeader('Content-Disposition', attachmentDisposition(file.originalFileName));
+    res.send(file.buffer);
+  }),
+);
 
 // ─── PUT /:id — update with optimistic-lock version ────────────────────────
 router.put(
@@ -644,6 +687,70 @@ router.post(
     res.locals.auditEntityId = id;
     res.locals.auditEntityKey = shipment.shipmentCode ?? `#${id}`;
     res.status(outcome.replayed ? 200 : 201).json(outcome);
+  }),
+);
+
+router.post(
+  '/:id/pod-reviews/:submissionId/review',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CLERK),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const submissionId = parseInt(req.params.submissionId as string, 10);
+    if (!Number.isInteger(submissionId) || submissionId <= 0) {
+      res.status(400).json({ error: 'ID e-POD không hợp lệ' });
+      return;
+    }
+    const parsed = reviewTripPodSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const actor = getUser(req);
+    const idempotencyKey = requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi duyệt e-POD.');
+    const reviewed = await reviewTripPodSubmission({
+      shipmentId,
+      submissionId,
+      expectedVersion: parsed.data.expectedVersion,
+      resolution: parsed.data.resolution,
+      rejectionReason: parsed.data.rejectionReason ?? null,
+      idempotencyKey,
+      actor,
+    });
+    res.locals.auditEntityId = reviewed.shipment.id;
+    res.locals.auditEntityKey = reviewed.shipment.shipmentCode ?? `#${reviewed.shipment.id}`;
+    res.json(reviewed);
+  }),
+);
+
+router.post(
+  '/:id/fulfillments/:fulfillmentId/cancellation-disposition',
+  requireRoles(Role.ADMIN, Role.MANAGER),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const fulfillmentId = parseInt(req.params.fulfillmentId as string, 10);
+    if (!Number.isInteger(fulfillmentId) || fulfillmentId <= 0) {
+      res.status(400).json({ error: 'ID tác vụ không hợp lệ' });
+      return;
+    }
+    const parsed = updateCancellationDispositionSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const actor = getUser(req);
+    const idempotencyKey = requireShipmentIdempotencyKey(
+      req,
+      'Idempotency-Key là bắt buộc khi xử lý tác vụ đã hủy.',
+    );
+    const updated = await updateFulfillmentCancellationDisposition({
+      shipmentId,
+      fulfillmentId,
+      expectedVersion: parsed.data.expectedVersion,
+      disposition: parsed.data.disposition,
+      replacementFulfillmentId: parsed.data.replacementFulfillmentId ?? null,
+      reason: parsed.data.reason,
+      actor,
+      idempotencyKey,
+    });
+    res.locals.auditEntityId = updated.shipment.id;
+    res.locals.auditEntityKey = updated.shipment.shipmentCode ?? `#${updated.shipment.id}`;
+    res.json(updated);
   }),
 );
 

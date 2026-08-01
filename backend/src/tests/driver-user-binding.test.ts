@@ -9,11 +9,13 @@ import { Role } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { globalErrorHandler } from '../middleware/errorHandler';
+import { auditLogMiddleware } from '../middleware/audit';
 import driverUserBindingRouter from '../routes/config/driver-user-binding.routes';
 import {
   DRIVER_USER_BIND_ENDPOINT,
   driverUserBindingVersion,
 } from '../services/driver-user-binding.service';
+import { createUser } from '../services/user.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const userIds: number[] = [];
@@ -59,21 +61,32 @@ before(async () => {
   const users = await db.insert(s.users).values([
     { username: `binding-admin-${suffix}`, passwordHash: 'admin-password-hash', role: Role.ADMIN },
     { username: `binding-manager-${suffix}`, passwordHash: 'manager-password-hash', role: Role.MANAGER },
-    { username: `binding-driver-a-${suffix}`, passwordHash: 'driver-a-password-hash', role: Role.DRIVER },
-    { username: `binding-driver-b-${suffix}`, passwordHash: 'driver-b-password-hash', role: Role.DRIVER },
     { username: `binding-wrong-role-${suffix}`, passwordHash: 'wrong-role-password-hash', role: Role.MANAGER },
     { username: `binding-inactive-${suffix}`, passwordHash: 'inactive-password-hash', role: Role.DRIVER, status: 'INACTIVE' },
     { username: `binding-deleted-${suffix}`, passwordHash: 'deleted-password-hash', role: Role.DRIVER, deletedAt: new Date() },
   ]).returning({ id: s.users.id, username: s.users.username });
-  userIds.push(...users.map((user) => user.id));
+  const activeDriverUser = await createUser({
+    username: `binding-driver-a-${suffix}`,
+    password: 'driver-a-password',
+    role: Role.DRIVER,
+  });
+  const secondDriverUser = await createUser({
+    username: `binding-driver-b-${suffix}`,
+    password: 'driver-b-password',
+    role: Role.DRIVER,
+  });
+  userIds.push(...users.map((user) => user.id), activeDriverUser.id, secondDriverUser.id);
   const byUsername = new Map(users.map((user) => [user.username, user.id]));
   adminUserId = byUsername.get(`binding-admin-${suffix}`)!;
   managerUserId = byUsername.get(`binding-manager-${suffix}`)!;
-  activeDriverUserId = byUsername.get(`binding-driver-a-${suffix}`)!;
-  secondDriverUserId = byUsername.get(`binding-driver-b-${suffix}`)!;
+  activeDriverUserId = activeDriverUser.id;
+  secondDriverUserId = secondDriverUser.id;
   nonDriverUserId = byUsername.get(`binding-wrong-role-${suffix}`)!;
   inactiveDriverUserId = byUsername.get(`binding-inactive-${suffix}`)!;
   deletedDriverUserId = byUsername.get(`binding-deleted-${suffix}`)!;
+  const autoCreatedProfiles = await db.select({ id: s.drivers.id }).from(s.drivers)
+    .where(inArray(s.drivers.userId, [activeDriverUserId, secondDriverUserId]));
+  assert.equal(autoCreatedProfiles.length, 0);
 
   const drivers = await db.insert(s.drivers).values([
     { name: `Tài xế chờ liên kết ${suffix}`, status: 'ACTIVE' },
@@ -90,6 +103,7 @@ before(async () => {
 
   const app = express();
   app.use(express.json());
+  app.use(auditLogMiddleware);
   app.use('/api/config/driver-user-bindings', (req, _res, next) => {
     req.user = {
       userId: Number(req.header('X-Test-User') ?? adminUserId),
@@ -121,7 +135,10 @@ describe('driver-user binding command', () => {
     assert.equal(denied.status, 403);
     const missingKey = await requestBinding(bindableDriverId, body);
     assert.equal(missingKey.status, 400);
-    const outOfRange = await requestBinding(2_147_483_648, body, {
+    const outOfRange = await requestBinding(bindableDriverId, {
+      ...body,
+      userId: 2_147_483_648,
+    }, {
       idempotencyKey: `binding-out-of-range-${suffix}`,
     });
     assert.equal(outOfRange.status, 400);

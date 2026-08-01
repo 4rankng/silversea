@@ -65,6 +65,26 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     serviceFile: path.resolve(process.cwd(), 'src/services/driver.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_PROGRESS',
   }],
+  ['driver.ts|POST|/fulfillments/:fulfillmentId/progress', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/driver.service.ts'),
+    marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_PROGRESS',
+  }],
+  ['driver.ts|POST|/fulfillments/:fulfillmentId/pod', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/trip-pod.service.ts'),
+    marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_POD_CREATE',
+  }],
+  ['driver.ts|POST|/fulfillments/:fulfillmentId/pod/:submissionId/files', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/trip-pod.service.ts'),
+    marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_POD_FILE_ATTACH',
+  }],
+  ['driver.ts|POST|/fulfillments/:fulfillmentId/pod/:submissionId/submit', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/trip-pod.service.ts'),
+    marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_POD_SUBMIT',
+  }],
+  ['driver.ts|POST|/fulfillments/:fulfillmentId/complete', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/driver.service.ts'),
+    marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_FULFILLMENT_COMPLETE',
+  }],
   ['driver.ts|POST|/trips/:tripId/incidental-costs', {
     serviceFile: path.resolve(process.cwd(), 'src/services/driver.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_INCIDENTAL_COST',
@@ -104,6 +124,14 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
   ['shipments.ts|POST|/:id/dispatch', {
     serviceFile: path.resolve(process.cwd(), 'src/services/dispatch-planning.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DISPATCH',
+  }],
+  ['shipments.ts|POST|/:id/pod-reviews/:submissionId/review', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/shipment.service.ts'),
+    marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_POD_REVIEW',
+  }],
+  ['shipments.ts|POST|/:id/fulfillments/:fulfillmentId/cancellation-disposition', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/shipment.service.ts'),
+    marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENT_CANCEL',
   }],
 ]);
 

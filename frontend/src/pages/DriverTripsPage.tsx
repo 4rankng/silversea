@@ -11,6 +11,7 @@ import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
 
 interface TripSummary {
   id: number;
+  fulfillmentId: number | null;
   departureDate: string;
   status: TripStatus;
   driverSalary: string | null;
@@ -113,7 +114,7 @@ export default function DriverTripsPage() {
         {filteredTrips.map((trip, idx) => (
           <Link
             key={trip.id}
-            to={`/my-trips/${trip.id}`}
+            to={trip.fulfillmentId ? `/my-trips/${trip.fulfillmentId}` : '/my-trips'}
             className="panel fade-up driver-trip-card"
             style={{ '--strip': TRIP_STATUS_COLORS[trip.status], animationDelay: `${idx * 40}ms` } as React.CSSProperties}
           >

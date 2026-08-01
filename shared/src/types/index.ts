@@ -1411,24 +1411,40 @@ export type BillingLineType = 'FREIGHT' | 'SERVICE_FEE' | 'ADHOC';
 export type DebitNoteColumnVariable =
   | 'rowIndex'
   | 'departureDate'
+  | 'deliveryDate'
   | 'truckPlate'
+  | 'vehicleType'
   | 'actionType'
   | 'origin'
   | 'destination'
   | 'deliveryAddress'
+  | 'factoryName'
+  | 'tradeDirectionLabel'
+  | 'billNumber'
+  | 'declarationNumber'
+  | 'quantityLabel'
   | 'container20Count'
   | 'container40Count'
   | 'containerCount'
   | 'containerNumbers'
+  | 'cargoVolumeCbm'
   | 'routeName'
   | 'description'
   | 'lineTypeLabel'
   | 'unit'
   | 'amount'
+  | 'deliveryFeeAmount'
   | 'freightAmount'
+  | 'portFeeAmount'
+  | 'otherServiceFeeAmount'
+  | 'fuelSurchargeAmount'
   | 'serviceFeeAmount'
   | 'totalAmount'
   | 'serviceFeeDescription'
+  | 'recoverableSupplierName'
+  | 'recoverableFeeType'
+  | 'recoverableDocumentCode'
+  | 'recoverableAmount'
   | 'note'
   | 'tripCode'
   | 'documentCode';
@@ -1437,18 +1453,34 @@ export interface BillingLineRenderData {
   tripCode?: string | null;
   documentCode?: string | null;
   departureDate?: string | null;
+  deliveryDate?: string | null;
   truckPlate?: string | null;
+  vehicleType?: string | null;
   actionType?: string | null;
   origin?: string | null;
   destination?: string | null;
   deliveryAddress?: string | null;
+  factoryName?: string | null;
+  tradeDirectionLabel?: string | null;
+  billNumber?: string | null;
+  declarationNumber?: string | null;
+  quantityLabel?: string | null;
   container20Count?: number | null;
   container40Count?: number | null;
   containerCount?: number | null;
+  cargoVolumeCbm?: number | null;
+  deliveryFeeAmount?: number | null;
   freightAmount?: number | null;
+  portFeeAmount?: number | null;
+  otherServiceFeeAmount?: number | null;
+  fuelSurchargeAmount?: number | null;
   serviceFeeAmount?: number | null;
   totalAmount?: number | null;
   serviceFeeDescription?: string | null;
+  recoverableSupplierName?: string | null;
+  recoverableFeeType?: string | null;
+  recoverableDocumentCode?: string | null;
+  recoverableAmount?: number | null;
   note?: string | null;
   sourceVersion?: string | null;
   sourceChangedAt?: string | null;
@@ -1580,6 +1612,17 @@ export interface BillingDocument {
 /** Lines returned by the generate/preview step, before save. */
 export type BillingDraftLine = Omit<BillingDocumentLine, 'id' | 'documentId'>;
 
+export interface BillingDraftBlockedTrip {
+  tripId: number;
+  tripCode: string | null;
+  reason: string;
+}
+
+export interface BillingDraftEligibilitySummary {
+  includedTripCount: number;
+  blockedTrips: BillingDraftBlockedTrip[];
+}
+
 export interface BillingDocumentDraft {
   type: BillingDocumentType;
   entityType: BillingDocumentEntityType;
@@ -1589,6 +1632,7 @@ export interface BillingDocumentDraft {
   rangeTo: string;
   lines: BillingDraftLine[];
   totalInclVat: number;
+  eligibilitySummary?: BillingDraftEligibilitySummary | null;
 }
 
 export interface BillingDocumentAdjustmentRequest {
@@ -1602,6 +1646,7 @@ export interface DebitNoteTemplateColumn {
   id: string;
   label: string;
   variable: DebitNoteColumnVariable;
+  headerGroup?: string | null;
   width: number;
   align: 'left' | 'center' | 'right';
   format: 'text' | 'date' | 'number' | 'currency';

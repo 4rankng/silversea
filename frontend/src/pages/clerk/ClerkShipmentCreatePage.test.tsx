@@ -46,10 +46,21 @@ function renderPage() {
 }
 
 function choose(label: string, value: string) {
-  const labelElement = screen.getByText(label, { selector: 'label' });
-  const select = labelElement.parentElement?.querySelector('select');
-  if (!select) throw new Error(`Không tìm thấy trường chọn ${label}`);
-  fireEvent.change(select, { target: { value } });
+  const labelElement = Array.from(document.querySelectorAll('label'))
+    .find((element) => element.textContent?.trim().startsWith(label));
+  const labelledControl = labelElement?.htmlFor
+    ? document.getElementById(labelElement.htmlFor)
+    : null;
+  const control = labelledControl ?? labelElement?.parentElement?.querySelector('select');
+  if (!control) throw new Error(`Không tìm thấy trường chọn ${label}`);
+  if (control instanceof HTMLSelectElement) {
+    fireEvent.change(control, { target: { value } });
+    return;
+  }
+  fireEvent.click(control);
+  const option = document.querySelector<HTMLElement>(`[role="option"][id$="-option-${value}"]`);
+  if (!option) throw new Error(`Không tìm thấy lựa chọn ${value} trong trường ${label}`);
+  fireEvent.click(option);
 }
 
 describe('ClerkShipmentCreatePage', () => {

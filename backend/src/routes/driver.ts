@@ -1,17 +1,23 @@
 import { Router } from 'express';
+import multer from 'multer';
 // auth + Casbin applied at mount point in index.ts
 import type { Request, Response } from 'express';
 import { createHash } from 'node:crypto';
+import { z } from 'zod';
 import { getUser } from '../middleware/auth';
 import {
+  completeOwnedFulfillmentTrip,
   getDriverByUserId,
+  getDriverFulfillmentDetail,
   getDriverTrips,
   getDriverTripDetail,
   getDriverEarnings,
   getDriverPenalties,
   getDriverVehicleAlerts,
   getDriverTwoOrdersView,
+  listDriverFulfillmentProgress,
   recordDriverProgress,
+  recordDriverFulfillmentProgress,
   listDriverProgress,
   recordIncidentalCost,
   listIncidentalCosts,
@@ -19,13 +25,27 @@ import {
   getCompletionEvidenceStatus,
 } from '../services/driver.service';
 import {
+  attachPodFile,
+  createPodSubmission,
+  getDriverPodFileForDownload,
+  listPodSubmissionsForDriver,
+  submitPod,
+} from '../services/trip-pod.service';
+import {
   batchUpsertContainerSeals,
   createTripContainerInClient,
   listTripContainers,
   updateTripContainerInClient,
 } from '../services/forwarder-container.service';
 import type { TripPhotoType } from './upload';
-import { tripContainerSchema, tripContainerPatchSchema, tripContainerSealBatchSchema, driverProgressSchema, driverIncidentalCostSchema } from '@tingting/shared';
+import {
+  driverIncidentalCostSchema,
+  driverProgressSchema,
+  TripPodFileType,
+  tripContainerPatchSchema,
+  tripContainerSchema,
+  tripContainerSealBatchSchema,
+} from '@tingting/shared';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { ApiError } from '../errors';
 import { db } from '../db';
@@ -34,6 +54,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { getRequestIdempotencyKey } from './utils/idempotency';
 import { runIdempotent } from '../services/idempotency.service';
 import type { Tx } from '../services/trip-shared';
+import { runWithAuditRequestContext } from '../services/audit.service';
 import {
   enqueueStorageDelete,
   STORAGE_DELETE_MODE,
@@ -47,6 +68,39 @@ const DRIVER_IDEMPOTENCY_ENDPOINTS = {
   CONTAINER_SEALS_REPLACE: 'driver.containers.seals.replace',
   PHOTO_DELETE: 'driver.trip-photos.delete',
 } as const;
+
+const podUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024 },
+});
+
+const driverFulfillmentProgressSchema = driverProgressSchema.extend({
+  expectedVersion: z.coerce.number().int().positive(),
+});
+
+const driverFulfillmentVersionSchema = z.object({
+  expectedVersion: z.coerce.number().int().positive(),
+});
+
+const driverPodFileAttachSchema = z.object({
+  expectedVersion: z.coerce.number().int().positive(),
+  fileType: z.nativeEnum(TripPodFileType),
+});
+
+function withMaterialWriteAuditContext<T>(
+  req: Request,
+  res: Response,
+  endpoint: string,
+  fn: () => Promise<T>,
+): Promise<T> {
+  return runWithAuditRequestContext({
+    req,
+    res,
+    fullPath: (req.originalUrl || req.url || '').split('?')[0],
+    isLoginPath: false,
+    declaredMaterialWriteEndpoint: endpoint,
+  }, fn);
+}
 
 function requireDriverIdempotencyKey(req: Request): string {
   const key = getRequestIdempotencyKey(req);
@@ -150,6 +204,208 @@ router.get('/two-orders', asyncHandler(async (req: Request, res: Response) => {
   res.json(view);
 }));
 
+router.get('/fulfillments/:fulfillmentId', asyncHandler(async (req: Request, res: Response) => {
+  const fulfillmentId = parseInt(req.params.fulfillmentId as string, 10);
+  if (!Number.isInteger(fulfillmentId) || fulfillmentId <= 0) {
+    throw new ApiError(400, 'ID tác vụ không hợp lệ');
+  }
+  const driver = await getDriverByUserId(getUser(req).userId);
+  const detail = await getDriverFulfillmentDetail(driver.id, fulfillmentId);
+  res.json(detail);
+}));
+
+router.get('/fulfillments/:fulfillmentId/progress', asyncHandler(async (req: Request, res: Response) => {
+  const fulfillmentId = parseInt(req.params.fulfillmentId as string, 10);
+  if (!Number.isInteger(fulfillmentId) || fulfillmentId <= 0) {
+    throw new ApiError(400, 'ID tác vụ không hợp lệ');
+  }
+  const driver = await getDriverByUserId(getUser(req).userId);
+  const items = await listDriverFulfillmentProgress(fulfillmentId, driver.id);
+  res.json({ items });
+}));
+
+router.post('/fulfillments/:fulfillmentId/progress', asyncHandler(async (req: Request, res: Response) => {
+  const fulfillmentId = parseInt(req.params.fulfillmentId as string, 10);
+  if (!Number.isInteger(fulfillmentId) || fulfillmentId <= 0) {
+    throw new ApiError(400, 'ID tác vụ không hợp lệ');
+  }
+  const parsed = driverFulfillmentProgressSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw new ApiError(400, parsed.error.issues.map((issue) => issue.message).join('; '));
+  }
+  const driver = await getDriverByUserId(getUser(req).userId);
+  const idempotencyKey = req.header('Idempotency-Key') as string | undefined;
+  const outcome = await withMaterialWriteAuditContext(
+    req,
+    res,
+    'driver.progress',
+    () => recordDriverFulfillmentProgress({
+      fulfillmentId,
+      driverId: driver.id,
+      input: parsed.data,
+      recordedBy: getUser(req).userId,
+      idempotencyKey,
+    }),
+  );
+  res.status(outcome.replayed ? 200 : 201).json(outcome.event);
+}));
+
+router.get('/fulfillments/:fulfillmentId/evidence-status', asyncHandler(async (req: Request, res: Response) => {
+  const fulfillmentId = parseInt(req.params.fulfillmentId as string, 10);
+  if (!Number.isInteger(fulfillmentId) || fulfillmentId <= 0) {
+    throw new ApiError(400, 'ID tác vụ không hợp lệ');
+  }
+  const driver = await getDriverByUserId(getUser(req).userId);
+  const detail = await getDriverFulfillmentDetail(driver.id, fulfillmentId);
+  res.json(detail.evidenceStatus);
+}));
+
+router.get('/fulfillments/:fulfillmentId/pod', asyncHandler(async (req: Request, res: Response) => {
+  const fulfillmentId = parseInt(req.params.fulfillmentId as string, 10);
+  if (!Number.isInteger(fulfillmentId) || fulfillmentId <= 0) {
+    throw new ApiError(400, 'ID tác vụ không hợp lệ');
+  }
+  const driver = await getDriverByUserId(getUser(req).userId);
+  const items = await listPodSubmissionsForDriver(driver.id, fulfillmentId);
+  res.json({ items });
+}));
+
+router.post('/fulfillments/:fulfillmentId/pod', asyncHandler(async (req: Request, res: Response) => {
+  const fulfillmentId = parseInt(req.params.fulfillmentId as string, 10);
+  if (!Number.isInteger(fulfillmentId) || fulfillmentId <= 0) {
+    throw new ApiError(400, 'ID tác vụ không hợp lệ');
+  }
+  const parsed = driverFulfillmentVersionSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw new ApiError(400, parsed.error.issues.map((issue) => issue.message).join('; '));
+  }
+  const driver = await getDriverByUserId(getUser(req).userId);
+  const submission = await withMaterialWriteAuditContext(
+    req,
+    res,
+    'trips.pod.create',
+    () => createPodSubmission({
+      driverId: driver.id,
+      actorUserId: getUser(req).userId,
+      fulfillmentId,
+      expectedVersion: parsed.data.expectedVersion,
+      idempotencyKey: requireDriverIdempotencyKey(req),
+    }),
+  );
+  res.status(submission.replayed ? 200 : 201).json(submission.submission);
+}));
+
+router.post('/fulfillments/:fulfillmentId/pod/:submissionId/files', podUpload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+  const fulfillmentId = parseInt(req.params.fulfillmentId as string, 10);
+  const submissionId = parseInt(req.params.submissionId as string, 10);
+  if (!Number.isInteger(fulfillmentId) || fulfillmentId <= 0) {
+    throw new ApiError(400, 'ID tác vụ không hợp lệ');
+  }
+  if (!Number.isInteger(submissionId) || submissionId <= 0) {
+    throw new ApiError(400, 'ID phiên bản e-POD không hợp lệ');
+  }
+  const parsed = driverPodFileAttachSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw new ApiError(400, parsed.error.issues.map((issue) => issue.message).join('; '));
+  }
+  const file = req.file;
+  if (!file) {
+    throw new ApiError(400, 'Cần chọn tệp e-POD để tải lên.');
+  }
+  const driver = await getDriverByUserId(getUser(req).userId);
+  const submission = await withMaterialWriteAuditContext(
+    req,
+    res,
+    'trips.pod.files.attach',
+    () => attachPodFile({
+      driverId: driver.id,
+      actorUserId: getUser(req).userId,
+      fulfillmentId,
+      submissionId,
+      expectedVersion: parsed.data.expectedVersion,
+      idempotencyKey: requireDriverIdempotencyKey(req),
+      fileType: parsed.data.fileType,
+      file,
+    }),
+  );
+  res.json(submission.submission);
+}));
+
+router.post('/fulfillments/:fulfillmentId/pod/:submissionId/submit', asyncHandler(async (req: Request, res: Response) => {
+  const fulfillmentId = parseInt(req.params.fulfillmentId as string, 10);
+  const submissionId = parseInt(req.params.submissionId as string, 10);
+  if (!Number.isInteger(fulfillmentId) || fulfillmentId <= 0) {
+    throw new ApiError(400, 'ID tác vụ không hợp lệ');
+  }
+  if (!Number.isInteger(submissionId) || submissionId <= 0) {
+    throw new ApiError(400, 'ID phiên bản e-POD không hợp lệ');
+  }
+  const parsed = driverFulfillmentVersionSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw new ApiError(400, parsed.error.issues.map((issue) => issue.message).join('; '));
+  }
+  const driver = await getDriverByUserId(getUser(req).userId);
+  const submission = await withMaterialWriteAuditContext(
+    req,
+    res,
+    'trips.pod.submit',
+    () => submitPod({
+      driverId: driver.id,
+      actorUserId: getUser(req).userId,
+      fulfillmentId,
+      submissionId,
+      expectedVersion: parsed.data.expectedVersion,
+      idempotencyKey: requireDriverIdempotencyKey(req),
+    }),
+  );
+  res.json(submission.submission);
+}));
+
+router.get('/fulfillments/:fulfillmentId/pod-files/:fileId', asyncHandler(async (req: Request, res: Response) => {
+  const fulfillmentId = parseInt(req.params.fulfillmentId as string, 10);
+  const fileId = parseInt(req.params.fileId as string, 10);
+  if (!Number.isInteger(fulfillmentId) || fulfillmentId <= 0) {
+    throw new ApiError(400, 'ID tác vụ không hợp lệ');
+  }
+  if (!Number.isInteger(fileId) || fileId <= 0) {
+    throw new ApiError(400, 'ID tệp e-POD không hợp lệ');
+  }
+  const driver = await getDriverByUserId(getUser(req).userId);
+  const file = await getDriverPodFileForDownload({
+    driverId: driver.id,
+    fulfillmentId,
+    fileId,
+  });
+  res.setHeader('Content-Type', file.mimeType);
+  res.setHeader('Content-Disposition', `attachment; filename=\"${encodeURIComponent(file.originalFileName)}\"`);
+  res.send(file.buffer);
+}));
+
+router.post('/fulfillments/:fulfillmentId/complete', asyncHandler(async (req: Request, res: Response) => {
+  const fulfillmentId = parseInt(req.params.fulfillmentId as string, 10);
+  if (!Number.isInteger(fulfillmentId) || fulfillmentId <= 0) {
+    throw new ApiError(400, 'ID tác vụ không hợp lệ');
+  }
+  const parsed = driverFulfillmentVersionSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw new ApiError(400, parsed.error.issues.map((issue) => issue.message).join('; '));
+  }
+  const driver = await getDriverByUserId(getUser(req).userId);
+  const outcome = await withMaterialWriteAuditContext(
+    req,
+    res,
+    'driver.fulfillment.complete',
+    () => completeOwnedFulfillmentTrip({
+      fulfillmentId,
+      driverId: driver.id,
+      actorUserId: getUser(req).userId,
+      expectedVersion: parsed.data.expectedVersion,
+      idempotencyKey: requireDriverIdempotencyKey(req),
+    }),
+  );
+  res.json(outcome.trip);
+}));
+
 // M8.4 — driver progress events (append-only log). The create path is
 // server-side idempotent (Idempotency-Key header) so an offline-queue replay
 // (slice 2 frontend) does not duplicate events (PRD M08-04-03). Ownership is
@@ -226,9 +482,8 @@ router.get('/trips/:tripId/evidence-status', asyncHandler(async (req: Request, r
   const tripId = parseInt(req.params.tripId as string, 10);
   if (!Number.isInteger(tripId) || tripId <= 0) throw new ApiError(400, 'ID chuyến đi không hợp lệ');
   const driver = await getDriverByUserId(getUser(req).userId);
-  // Ownership is implicit — evidence status only reads, and the driver must
-  // be authenticated (driver_portal RBAC). A driver can't change another's
-  // trip state via a read-only endpoint.
+  const trip = await getDriverTripDetail(driver.id, tripId);
+  if (!trip) return res.status(404).json({ error: 'Không tìm thấy chuyến đi' });
   const status = await getCompletionEvidenceStatus(tripId);
   res.json(status);
 }));

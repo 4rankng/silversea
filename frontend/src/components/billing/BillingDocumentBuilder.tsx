@@ -13,6 +13,7 @@ import { documentFileName, groupLinesByContainer, lineTotal, normalizeLine, spli
 import './BillingDocumentBuilder.css';
 import type {
   BillingDocument,
+  BillingDraftEligibilitySummary,
   BillingDocumentType,
   BillingDocumentEntityType,
   BillingDocumentLine,
@@ -54,6 +55,7 @@ export default function BillingDocumentBuilder({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [eligibilitySummary, setEligibilitySummary] = useState<BillingDraftEligibilitySummary | null>(null);
   // Selected export template. null = auto (customer/default for debit notes,
   // document-type default for payment statements), resolved + snapshotted server-side.
   const [templateId, setTemplateId] = useState<number | null>(initialDoc?.debitNoteTemplateId ?? null);
@@ -98,6 +100,7 @@ export default function BillingDocumentBuilder({
       setNote(initialDoc.note ?? '');
       setSavedId(initialDoc.id);
       setTemplateId(initialDoc.debitNoteTemplateId ?? null);
+      setEligibilitySummary(null);
       return;
     }
 
@@ -108,6 +111,7 @@ export default function BillingDocumentBuilder({
     setNote('');
     setSavedId(null);
     setTemplateId(null);
+    setEligibilitySummary(null);
   }, [isOpen, initialDoc]);
 
   const generateDraft = async (from = rangeFrom, to = rangeTo, silent = false) => {
@@ -121,6 +125,7 @@ export default function BillingDocumentBuilder({
         rangeTo: to,
       });
       setLines((draft.lines as BillingDocumentLine[]).map(normalizeLine));
+      setEligibilitySummary(draft.eligibilitySummary ?? null);
       setSavedId(null);
       if (!silent && draft.lines.length === 0) {
         showToast({ kind: 'info', message: 'Không có dòng công nợ trong khoảng ngày đã chọn.' });
@@ -197,6 +202,7 @@ export default function BillingDocumentBuilder({
       description: line.description,
       routeName: line.routeName ?? null,
       containerNumbers: line.containerNumbers ?? null,
+      renderData: line.renderData ? { ...line.renderData } : null,
       baseAmount: Number(line.baseAmount),
       amountOverride: line.amountOverride != null ? Number(line.amountOverride) : null,
       excluded: line.excluded ?? false,
@@ -343,6 +349,32 @@ export default function BillingDocumentBuilder({
         </section>
 
         <section className="billing-builder__content">
+          {type === 'DEBIT_NOTE' && eligibilitySummary && eligibilitySummary.blockedTrips.length > 0 && (
+            <div
+              style={{
+                marginBottom: 16,
+                padding: 12,
+                borderRadius: 12,
+                border: '1px solid #f2b8b5',
+                background: '#fff4f3',
+                color: '#8f2f2f',
+              }}
+            >
+              <strong style={{ display: 'block', marginBottom: 6 }}>
+                Đã lấy {eligibilitySummary.includedTripCount} chuyến đủ điều kiện. {eligibilitySummary.blockedTrips.length} chuyến bị loại khỏi giấy báo nợ.
+              </strong>
+              <div style={{ display: 'grid', gap: 4 }}>
+                {eligibilitySummary.blockedTrips.slice(0, 6).map((trip) => (
+                  <span key={trip.tripId}>
+                    {trip.tripCode || `Chuyến #${trip.tripId}`}: {trip.reason}
+                  </span>
+                ))}
+                {eligibilitySummary.blockedTrips.length > 6 && (
+                  <span>... và {eligibilitySummary.blockedTrips.length - 6} chuyến khác.</span>
+                )}
+              </div>
+            </div>
+          )}
           <div className="billing-builder__table-wrap">
             {loading ? (
               <div className="billing-builder__state">

@@ -6,7 +6,11 @@
 // surface; later clerk/shipment operations (M10.2 doc entry, M10.3 handoff)
 // grow this file.
 
-import { ShipmentStatus } from '@tingting/shared';
+import {
+  ShipmentStatus,
+  TripPodFileType,
+  TripPodStatus,
+} from '@tingting/shared';
 import { api } from '../lib/api';
 
 /** Row shape returned by `/api/shipments/quick` and `/api/shipments/:id`. */
@@ -140,6 +144,60 @@ export interface ShipmentDetail {
   declarations: ShipmentDeclaration[];
   statusHistory: ShipmentStatusHistoryEntry[];
   pendingChangeRequests: ShipmentChangeRequest[];
+  podReviews: ShipmentPodReviewItem[];
+}
+
+export interface ShipmentPodReviewFile {
+  id: number;
+  fileType: TripPodFileType;
+  label: string;
+  originalFileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt: string;
+  downloadUrl: string;
+}
+
+export interface ShipmentPodSubmission {
+  id: number;
+  tripId: number;
+  fulfillmentId: number;
+  submissionVersion: number;
+  status: TripPodStatus;
+  version: number;
+  createdAt: string;
+  submittedAt: string | null;
+  submittedBy: number | null;
+  reviewedAt: string | null;
+  reviewedBy: number | null;
+  rejectionReason: string | null;
+  supersedesSubmissionId: number | null;
+  sourceTripVersion: number;
+  missingRequiredFileTypes: TripPodFileType[];
+  isReadyForReview: boolean;
+  files: ShipmentPodReviewFile[];
+}
+
+export interface ShipmentPodReviewItem {
+  fulfillmentId: number;
+  fulfillmentVersion: number;
+  shipmentId: number;
+  fulfillmentType: 'FCL_CONTAINER' | 'LCL_SHIPMENT';
+  cargoMode: 'FCL' | 'LCL';
+  shipmentContainerId: number | null;
+  containerNumber: string | null;
+  canceledAt: string | null;
+  cancellationDisposition: 'REPLACED' | 'NOT_REQUIRED' | null;
+  replacementFulfillmentId: number | null;
+  notRequiredReason: string | null;
+  required: boolean;
+  tripId: number | null;
+  tripCode: string | null;
+  tripStatus: ShipmentStatus | 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | 'LOCKED' | 'CANCELED' | null;
+  tripVersion: number | null;
+  driverName: string | null;
+  currentSubmission: ShipmentPodSubmission | null;
+  history: ShipmentPodSubmission[];
 }
 
 /** Body for `PUT /api/shipments/:id` — version is required (optimistic lock). */
@@ -276,6 +334,36 @@ export interface ShipmentDocumentReplacementResponse extends ShipmentDocument {
   shipmentVersion: number;
 }
 
+export interface ReviewShipmentPodRequest {
+  expectedVersion: number;
+  resolution: 'ACCEPT' | 'REJECT';
+  rejectionReason?: string | null;
+}
+
+export interface ReviewShipmentPodResponse {
+  shipment: Shipment;
+  submissionId: number;
+  submissionStatus: TripPodStatus;
+  tripId: number;
+  tripStatus: 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | 'LOCKED' | 'CANCELED';
+  shipmentVersion: number;
+  replayed: boolean;
+}
+
+export interface FulfillmentCancellationDispositionRequest {
+  expectedVersion: number;
+  disposition: 'REPLACED' | 'NOT_REQUIRED';
+  replacementFulfillmentId?: number | null;
+  reason: string;
+}
+
+export interface FulfillmentCancellationDispositionResponse {
+  shipment: Shipment;
+  fulfillmentId: number;
+  shipmentVersion: number;
+  replayed: boolean;
+}
+
 export interface ShipmentChangeRequestReviewResponse {
   shipment: Shipment;
   resolution: 'APPLIED' | 'REJECTED';
@@ -395,6 +483,39 @@ export async function reviewShipmentChangeRequest(
     `/shipments/${shipmentId}/change-requests/${requestId}/review`,
     { resolution },
   );
+}
+
+export async function reviewShipmentPod(
+  shipmentId: number,
+  submissionId: number,
+  body: ReviewShipmentPodRequest,
+  idempotencyKey: string,
+): Promise<ReviewShipmentPodResponse> {
+  return api.post<ReviewShipmentPodResponse>(
+    `/shipments/${shipmentId}/pod-reviews/${submissionId}/review`,
+    body,
+    { headers: { 'Idempotency-Key': idempotencyKey } },
+  );
+}
+
+export async function updateFulfillmentCancellationDisposition(
+  shipmentId: number,
+  fulfillmentId: number,
+  body: FulfillmentCancellationDispositionRequest,
+  idempotencyKey: string,
+): Promise<FulfillmentCancellationDispositionResponse> {
+  return api.post<FulfillmentCancellationDispositionResponse>(
+    `/shipments/${shipmentId}/fulfillments/${fulfillmentId}/cancellation-disposition`,
+    body,
+    { headers: { 'Idempotency-Key': idempotencyKey } },
+  );
+}
+
+export async function downloadShipmentPodFile(
+  shipmentId: number,
+  fileId: number,
+): Promise<Blob> {
+  return api.getBlob(`/shipments/${shipmentId}/pod-files/${fileId}`);
 }
 
 export async function listShipments(params?: {

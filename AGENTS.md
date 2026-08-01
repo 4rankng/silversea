@@ -103,6 +103,51 @@ A task is done **only when all** are true:
 4. No `TODO` / `skip` / stub / placeholder left in the changed surface.
 5. Docs updated if user-visible behavior, commands, or architecture changed.
 6. **All QA artifacts saved under `qa/`**, including any fix-loop re-runs.
+7. **The Understand-Anything knowledge base in `.ua/` is current** for the
+   committed HEAD (see *Knowledge Base* below) — run the incremental update if
+   the `Stop` hook reported staleness.
+
+---
+
+## Knowledge Base (Understand-Anything)
+
+This repo ships an [Understand-Anything](https://github.com/Egonex-AI/Understand-Anything)
+knowledge graph in `.ua/` — a structured map of files, components, layers, and
+their relationships that every agent (and human) can query instead of reading
+code blind. It is committed to git so the team and other agents share one graph
+rather than each rebuilding it.
+
+**Keep it current — this is part of the closed loop, not optional.**
+
+- **Where it lives:** `.ua/` — `knowledge-graph.json` (the graph),
+  `fingerprints.json` (structural fingerprints), `meta.json` (last commit
+  analyzed), `config.json` (`autoUpdate: true`, `outputLanguage`). The scratch
+  dirs `.ua/intermediate/` and `.ua/.trash-*/` are transient and gitignored.
+- **Auto-update trigger:** `.zcode/config.json` registers a `Stop` hook
+  (`.zcode/hooks/understand-staleness.sh`) that compares `meta.json.gitCommitHash`
+  against `HEAD` at the end of every turn. When the graph is stale it injects an
+  instruction to update it. **If that instruction appears, you MUST run the
+  incremental update before declaring the task done** — treat it like a red QA
+  gate.
+- **How to update incrementally (agent-driven, low cost):** the injected prompt
+  points at the plugin's `hooks/auto-update-prompt.md`
+  (`~/.understand-anything-plugin/hooks/auto-update-prompt.md`). Read it and
+  execute its phases — Phase 1 fingerprints changes at zero LLM cost; only
+  structurally-changed files (new/removed functions, classes, imports, exports)
+  are re-analyzed by `file-analyzer` subagents. Cosmetic-only changes spend zero
+  tokens.
+- **Skills available** (invoke by name; these live in `~/.agents/skills/`):
+  - `/understand` — full rebuild from scratch. Use `--full` to force, or on a
+    cold repo. Expensive (dispatches one subagent per file batch).
+  - `/understand-diff` — preview the architectural impact of a diff **before**
+    committing. Run this when a change is non-trivial.
+  - `/understand-explain` — ask "what is X / how does feature Y work" and get an
+    answer grounded in the graph.
+  - `/understand-onboard`, `/understand-domain`, `/understand-chat`,
+    `/understand-dashboard`, `/understand-knowledge`, `/understand-figma` —
+    exploration and specialized views.
+- **Never** hand-edit `knowledge-graph.json` / `fingerprints.json`. If the graph
+  is corrupt or wildly stale, run `/understand --full` to re-baseline.
 
 ---
 
@@ -120,6 +165,7 @@ A task is done **only when all** are true:
 | --- | --- |
 | admin | ADMIN |
 | giamdoc | MANAGER |
+| cus | CLERK |
 | ketoan | ACCOUNTANT |
 | laixe | DRIVER |
 | giaonhan | FORWARDER |

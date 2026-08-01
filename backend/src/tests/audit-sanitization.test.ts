@@ -2,8 +2,16 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { sanitizeBody } from '../middleware/audit';
+import { extractAuditEntityId } from '../services/audit.service';
 
 describe('audit request-body sanitization', () => {
+  test('keeps extracted entity IDs inside the PostgreSQL integer range', () => {
+    assert.equal(extractAuditEntityId('/api/config/driver-user-bindings/42', {}), 42);
+    assert.equal(extractAuditEntityId('/api/config/driver-user-bindings/2147483648', {}), null);
+    assert.equal(extractAuditEntityId('/api/trips/12abc/lock', {}), null);
+    assert.equal(extractAuditEntityId('/api/config/items', { id: '2147483648' }), null);
+  });
+
   test('removes Resend credentials without dropping safe mutation context', () => {
     const sanitized = sanitizeBody({
       resendApiKey: 're_plaintext_must_not_persist',

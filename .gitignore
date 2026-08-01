@@ -50,8 +50,11 @@ __pycache__/
 .opencode/
 .omc/
 .omo/
-.zcode/
-.zcode
+# ZCode: ignore local-only state, but track shared team config + hooks
+.zcode/*
+!.zcode/config.json
+!.zcode/hooks/
+!.zcode/hooks/understand-staleness.sh
 
 # QA test scripts
 frontend/qa-*.js
@@ -60,6 +63,7 @@ qa/scripts/*
 # Session state (never commit)
 HANDOFF.md
 qa/
+!qa/README.md
 
 # Autonomous SDLC runtime state (never commit)
 .autonomous-sdlc/
@@ -70,4 +74,12 @@ kilo.json
 *.pen
 .agents
 .claude-tmp/
-.ua
+
+# Understand-Anything knowledge base: commit the graph (shared across team/agents),
+# ignore transient scratch/intermediate dirs produced during analysis.
+.ua/*
+!.ua/config.json
+!.ua/knowledge-graph.json
+!.ua/meta.json
+!.ua/fingerprints.json
+!.ua/.understandignore

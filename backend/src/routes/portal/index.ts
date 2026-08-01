@@ -25,7 +25,11 @@ import {
   getStatementData,
   normalizeDateParam,
 } from '../../services/statement.service';
-import { getShipmentDetail, listShipmentsPaginated } from '../../services/shipment.service';
+import {
+  downloadShipmentPodFile,
+  getShipmentDetail,
+  listShipmentsPaginated,
+} from '../../services/shipment.service';
 import { exportCustomerStatementPdf, exportDebitNotePdf } from '../../services/pdf-export.service';
 import { parsePagination } from '../utils/pagination';
 import { ApiError } from '../../errors';
@@ -224,6 +228,19 @@ router.get('/shipments/:id', asyncHandler(async (req: Request, res: Response) =>
   }
 
   res.json(toCustomerShipmentDetail(detail));
+}));
+
+router.get('/shipments/:id/pod-files/:fileId', asyncHandler(async (req: Request, res: Response) => {
+  const shipmentId = parsePositiveId(String(req.params.id), 'ID lô hàng');
+  const fileId = parsePositiveId(String(req.params.fileId), 'ID tệp e-POD');
+  const detail = await getShipmentDetail(shipmentId);
+  if (detail.shipment.customerId !== resolveSelectedCustomerId(req)) {
+    return res.status(404).json({ error: 'Không tìm thấy lô hàng' });
+  }
+  const file = await downloadShipmentPodFile(shipmentId, fileId, getUser(req));
+  res.type(file.mimeType);
+  res.setHeader('Content-Disposition', attachmentDisposition(file.originalFileName));
+  res.send(file.buffer);
 }));
 
 router.get('/shipments/:id/customer-events', requireWorkflowActive, asyncHandler(async (req: Request, res: Response) => {

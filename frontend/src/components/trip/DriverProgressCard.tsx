@@ -85,7 +85,7 @@ export function DriverProgressCard({ tripId }: { tripId: number }) {
     try {
       await driverClient.recordProgress(
         tripId,
-        op.body as { eventType: string; occurredAt: string; note?: string },
+        op.body as { eventType: DriverProgressEventType; occurredAt: string; note?: string },
         op.id,
       );
       return { ok: true } as const;

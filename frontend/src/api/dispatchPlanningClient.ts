@@ -18,11 +18,11 @@ export interface DispatchQueueItem {
   pickupWarehouse: { id: number | null; name: string | null; address: string | null; googleMapsUrl: string | null; strictRules: string | null };
   shipment: { code: string | null; bookingRef: string | null; blNumber: string | null; declarationNumbers: string[]; closingAt: string | null; plannedReturnAt: string | null; customsCutoffAt: string | null; operationalNotes: string | null };
   unitSummary: { label: string; containerNumber: string | null; containerTypeLabel: string | null; shippingLineName: string | null; pickupPortName: string | null; dropoffPortName: string | null; packageType: string | null; packageCount: number | null; cargoWeightKg: string | null; cargoVolumeCbm: string | null };
-  dispatch: { plannedStartAt: string | null; plannedEndAt: string | null; carrierType: 'OWN' | 'EXTERNAL' | null; truckId: number | null; truckPlate: string | null; trailerId: number | null; trailerPlate: string | null; driverId: number | null; driverName: string | null; externalCarrierId: number | null; externalCarrierName: string | null; externalPlateNumber: string | null; externalDriverName: string | null; externalDriverPhone: string | null };
+  dispatch: { tripId: number; tripVersion: number | null; tripCode: string | null; tripStatus: string | null; plannedStartAt: string | null; plannedEndAt: string | null; carrierType: 'OWN' | 'EXTERNAL' | null; truckId: number | null; truckPlate: string | null; trailerId: number | null; trailerPlate: string | null; driverId: number | null; driverName: string | null; externalCarrierId: number | null; externalCarrierName: string | null; externalPlateNumber: string | null; externalDriverName: string | null; externalDriverPhone: string | null } | null;
 }
 
 export interface DispatchFleet {
-  trucks: Array<{ id: number; licensePlate: string; status: string; trailerType: string | null; currentTrailerId: number | null; currentTrailerPlate: string | null; capacityKg: string | null; assignedDriverId: number | null; assignedDriverName: string | null }>;
+  trucks: Array<{ id: number; licensePlate: string; status: string; trailerType: string | null; currentTrailerId: number | null; currentTrailerPlate: string | null; capacityKg: string | null; assignedDriverId?: number | null; assignedDriverName?: string | null }>;
   drivers: Array<{ id: number; name: string; phone: string | null; status: string; assignedTruckId: number | null; assignedTruckPlate: string | null; userId: number | null }>;
   externalCarriers: Array<{ id: number; name: string }>;
   page: { limit: number; totalTrucks: number; totalDrivers: number; totalExternalCarriers: number };
@@ -31,19 +31,27 @@ export interface DispatchFleet {
 export interface DispatchHandoffItem {
   handoffId: number; version: number; status: 'UNSEEN' | 'SEEN'; shipmentId: number; shipmentVersion: number;
   urgency: 'NORMAL' | 'URGENT'; vehicleNeededBy: string | null; operationalNote: string | null; dispatchedAt: string;
-  customer: { id: number; name: string }; route: { id: number | null; name: string | null };
-  operationalSite: { id: number | null; name: string | null; strictRules: string | null };
-  shipment: { code: string | null; bookingRef: string | null; blNumber: string | null; cargoMode: 'FCL' | 'LCL' | null; containerCount: number };
+  customer: { id: number; name: string };
+  route: { id: number | null; name: string | null; distanceKm?: number | null; serviceDurationMinutes?: number | null };
+  operationalSite: { id: number | null };
+  pickupWarehouse: { id: number | null; name: string | null; address: string | null; googleMapsUrl: string | null; strictRules: string | null } | null;
+  shipment: { code: string | null; bookingRef: string | null; blNumber: string | null; cargoMode: 'FCL' | 'LCL' | null; declarationNumbers: string[]; closingAt: string | null; plannedReturnAt: string | null; customsCutoffAt: string | null; operationalNotes: string | null };
   summary: { containerNumbers: string[]; lclLabel: string | null };
 }
 
-function queryString(values: Record<string, string | number | undefined>) {
+function queryString(values: Record<string, string | number | Array<string> | null | undefined>) {
   const params = new URLSearchParams();
-  Object.entries(values).forEach(([key, value]) => { if (value !== undefined && value !== '') params.set(key, String(value)); });
+  Object.entries(values).forEach(([key, value]) => {
+    if (Array.isArray(value)) {
+      if (value.length > 0) params.set(key, value.join(','));
+      return;
+    }
+    if (value !== undefined && value !== null && value !== '') params.set(key, String(value));
+  });
   return params.toString();
 }
 
-export function listDispatchQueue(filters: { limit?: number; q?: string; urgency?: '' | 'NORMAL' | 'URGENT'; status?: 'READY' | 'DISPATCHED'; date?: string }) {
+export function listDispatchQueue(filters: { cursor?: string | null; limit?: number; q?: string; urgency?: '' | 'NORMAL' | 'URGENT'; status?: Array<'READY' | 'DISPATCHED'>; date?: string }) {
   return api.get<{ items: DispatchQueueItem[]; page: { limit: number; nextCursor: string | null; total: number; readyCount: number; dispatchedCount: number } }>(`/shipments/dispatch-queue?${queryString(filters)}`);
 }
 
@@ -51,8 +59,8 @@ export function getDispatchFleet(q = '') {
   return api.get<DispatchFleet>(`/shipments/dispatch-fleet?${queryString({ limit: 100, q })}`);
 }
 
-export function listDispatchHandoffs(filters: { limit?: number; q?: string; urgency?: '' | 'NORMAL' | 'URGENT' }) {
-  return api.get<{ items: DispatchHandoffItem[]; page: { total: number; unseenCount: number; seenCount: number } }>(`/shipments/dispatch-handoffs?${queryString(filters)}`);
+export function listDispatchHandoffs(filters: { cursor?: string | null; limit?: number; q?: string; urgency?: '' | 'NORMAL' | 'URGENT' }) {
+  return api.get<{ items: DispatchHandoffItem[]; page: { limit: number; nextCursor: string | null; total: number; unseenCount: number; seenCount: number } }>(`/shipments/dispatch-handoffs?${queryString(filters)}`);
 }
 
 export function resolveDispatchHandoff(item: DispatchHandoffItem, resolution: 'SEEN' | 'ACCEPTED' | 'REJECTED') {

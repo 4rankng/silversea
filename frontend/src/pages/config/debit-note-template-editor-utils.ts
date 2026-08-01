@@ -51,7 +51,11 @@ export function variableLabel(value: DebitNoteColumnVariable) {
 
 export function cloneStarterColumns(documentType: DebitNoteTemplateInput['documentType'] = 'DEBIT_NOTE'): DebitNoteTemplateColumn[] {
   const source = documentType === 'PAYMENT_STATEMENT' ? defaultPaymentStatementColumns : defaultDebitNoteColumns;
-  return source.map(column => ({ ...column }));
+  return source.map(column => ({ ...column, headerGroup: column.headerGroup ?? null }));
+}
+
+export function normalizeTemplateColumns(columns: readonly DebitNoteTemplateColumn[]): DebitNoteTemplateInput['columns'] {
+  return columns.map(column => ({ ...column, headerGroup: column.headerGroup ?? null }));
 }
 
 export const DEFAULT_ACCOUNT_NUMBER = '190466529';
@@ -81,7 +85,7 @@ export function templateDefaultsForType(documentType: DebitNoteTemplateInput['do
       termsText: buildAccountTerms(DEFAULT_ACCOUNT_NUMBER, DEFAULT_BANK_NAME),
       signatureRightLabel: 'Kế toán trưởng',
       signatureRightName: null,
-      columns: cloneStarterColumns('PAYMENT_STATEMENT'),
+      columns: normalizeTemplateColumns(cloneStarterColumns('PAYMENT_STATEMENT')),
     };
   }
   return {
@@ -90,7 +94,7 @@ export function templateDefaultsForType(documentType: DebitNoteTemplateInput['do
     termsText: 'Vui lòng ghi số tham chiếu giấy báo nợ này trong chứng từ thanh toán',
     signatureRightLabel: 'Người lập',
     signatureRightName: 'Phan Kim Phụng',
-    columns: cloneStarterColumns('DEBIT_NOTE'),
+    columns: normalizeTemplateColumns(cloneStarterColumns('DEBIT_NOTE')),
   };
 }
 
@@ -109,7 +113,7 @@ export function blankTemplate(): DebitNoteTemplateInput {
     showContainerColumn: true,
     showUnitColumn: true,
     groupingMode: 'ROUTE',
-    columns: defaults.columns,
+    columns: normalizeTemplateColumns(defaults.columns),
     amountInWords: false,
     orientation: defaults.orientation,
     termsText: defaults.termsText,
@@ -134,7 +138,9 @@ export function toForm(template: DebitNoteTemplate): DebitNoteTemplateInput {
     showContainerColumn: template.showContainerColumn,
     showUnitColumn: template.showUnitColumn,
     groupingMode: template.groupingMode,
-    columns: template.columns?.length ? template.columns.map(column => ({ ...column })) : cloneStarterColumns(),
+    columns: template.columns?.length
+      ? normalizeTemplateColumns(template.columns)
+      : normalizeTemplateColumns(cloneStarterColumns()),
     amountInWords: template.amountInWords,
     orientation: template.orientation,
     termsText: template.termsText,

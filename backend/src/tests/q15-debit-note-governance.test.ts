@@ -20,7 +20,10 @@ const actorIds: number[] = [];
 const customerIds: number[] = [];
 const routeIds: number[] = [];
 const cargoTypeIds: number[] = [];
+const shipmentIds: number[] = [];
+const fulfillmentIds: number[] = [];
 const tripIds: number[] = [];
+const podSubmissionIds: number[] = [];
 const documentIds: number[] = [];
 const governanceActionIds: number[] = [];
 const idempotencyKeys: string[] = [];
@@ -78,11 +81,35 @@ async function createTripFixture(status: 'LOCKED' | 'COMPLETED' = 'LOCKED', reve
   }).returning();
   cargoTypeIds.push(cargoType.id);
 
+  const [shipment] = await db.insert(s.shipments).values({
+    shipmentCode: `Q15-SHP-${suffix}-${shipmentIds.length}`.slice(0, 50),
+    customerId: customer.id,
+    routeId: route.id,
+    cargoTypeId: cargoType.id,
+    status: 'DRAFT',
+    cargoMode: 'LCL',
+    createdBy: actors[0]?.id ?? null,
+    updatedBy: actors[0]?.id ?? null,
+  }).returning();
+  shipmentIds.push(shipment.id);
+
+  const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+    shipmentId: shipment.id,
+    fulfillmentType: 'LCL_SHIPMENT',
+    cargoMode: 'LCL',
+    sourceShipmentVersion: shipment.version,
+    siteSnapshot: {},
+    createdBy: actors[0]?.id ?? null,
+  }).returning();
+  fulfillmentIds.push(fulfillment.id);
+
   const [trip] = await db.insert(s.trips).values({
     tripCode: `Q15-DN-${suffix}-${tripIds.length}`.slice(0, 50),
     customerId: customer.id,
     routeId: route.id,
     cargoTypeId: cargoType.id,
+    shipmentId: shipment.id,
+    fulfillmentId: fulfillment.id,
     departureDate: '2026-07-15',
     completedAt: new Date('2026-07-15T08:00:00.000Z'),
     status,
@@ -90,6 +117,20 @@ async function createTripFixture(status: 'LOCKED' | 'COMPLETED' = 'LOCKED', reve
     carrierType: 'OWN',
   }).returning();
   tripIds.push(trip.id);
+
+  const [submission] = await db.insert(s.tripPodSubmissions).values({
+    tripId: trip.id,
+    fulfillmentId: fulfillment.id,
+    submissionVersion: 1,
+    sourceTripVersion: trip.version,
+    status: 'ACCEPTED',
+    submittedBy: actors[0]?.id ?? null,
+    submittedAt: new Date('2026-07-15T09:00:00.000Z'),
+    reviewedBy: actors[1]?.id ?? actors[0]?.id ?? null,
+    reviewedAt: new Date('2026-07-15T10:00:00.000Z'),
+    rejectionReason: null,
+  }).returning();
+  podSubmissionIds.push(submission.id);
 
   return { customer, trip };
 }
@@ -188,8 +229,17 @@ after(async () => {
   if (ledgerIds.length > 0) {
     await db.delete(s.ledger).where(inArray(s.ledger.id, ledgerIds));
   }
+  if (podSubmissionIds.length > 0) {
+    await db.delete(s.tripPodSubmissions).where(inArray(s.tripPodSubmissions.id, podSubmissionIds));
+  }
   if (tripIds.length > 0) {
     await db.delete(s.trips).where(inArray(s.trips.id, tripIds));
+  }
+  if (fulfillmentIds.length > 0) {
+    await db.delete(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.id, fulfillmentIds));
+  }
+  if (shipmentIds.length > 0) {
+    await db.delete(s.shipments).where(inArray(s.shipments.id, shipmentIds));
   }
   if (cargoTypeIds.length > 0) {
     await db.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, cargoTypeIds));

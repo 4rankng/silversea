@@ -13,6 +13,7 @@ import { Role } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { globalErrorHandler } from '../middleware/errorHandler';
+import { auditLogMiddleware } from '../middleware/audit';
 import masterDataImportRouter from '../routes/config/master-data-import.routes';
 import { disconnectRedis } from '../lib/redis';
 import {
@@ -45,6 +46,7 @@ let server: http.Server;
 let baseUrl = '';
 let fixtureBuffer: Buffer;
 let applyFixtureBuffer: Buffer;
+let uploadRequestSequence = 0;
 
 function setRow(sheet: ExcelJS.Worksheet, rowNumber: number, values: unknown[]): void {
   values.forEach((value, index) => {
@@ -131,6 +133,10 @@ async function requestJson(
     body = JSON.stringify(options.body);
   }
   if (options.idempotencyKey) headers['Idempotency-Key'] = options.idempotencyKey;
+  if (options.file && !options.idempotencyKey) {
+    uploadRequestSequence += 1;
+    headers['Idempotency-Key'] = `master-analyze-${suffix}-${uploadRequestSequence}`;
+  }
   const response = await fetch(`${baseUrl}${endpoint}`, { method, headers, body });
   return {
     status: response.status,
@@ -171,6 +177,7 @@ before(async () => {
 
   const app = express();
   app.use(express.json());
+  app.use(auditLogMiddleware);
   app.use('/api/config/master-data-imports', (req, _res, next) => {
     const role = String(req.header('X-Test-Role') ?? Role.ADMIN) as Role;
     const userId = Number(req.header('X-Test-User') ?? adminUserId);
@@ -423,7 +430,8 @@ describe('master-data apply', () => {
     const rejectJobs = await db.select().from(s.durableEffectJobs)
       .where(eq(s.durableEffectJobs.kind, DURABLE_EFFECT_KIND.STORAGE_DELETE));
     const rejectCleanup = rejectJobs.find((job) => (
-      job.payload.entityType === 'master_import_batches'
+      job.dedupeKey.startsWith(`master-import-source-final:${batch.id}:`)
+      && job.payload.entityType === 'master_import_batches'
       && job.payload.entityId === batch.id
       && job.payload.storageKey === sourceBeforeReject!.key
     ));
@@ -603,7 +611,8 @@ describe('master-data apply', () => {
     const jobs = await db.select().from(s.durableEffectJobs)
       .where(eq(s.durableEffectJobs.kind, DURABLE_EFFECT_KIND.STORAGE_DELETE));
     const cleanup = jobs.find((job) => (
-      job.payload.entityType === 'master_import_batches'
+      job.dedupeKey.startsWith(`master-import-source-final:${batch.id}:`)
+      && job.payload.entityType === 'master_import_batches'
       && job.payload.entityId === batch.id
       && job.payload.storageKey === sourceBeforeApply!.key
     ));

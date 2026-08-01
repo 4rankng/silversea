@@ -20,6 +20,7 @@ import { resolveEmptyIllustration } from '../../lib/emptyIllustrations';
 
 interface TripSummary {
   id: number;
+  fulfillmentId: number | null;
   tripCode: string | null;
   departureDate: string;
   status: string;
@@ -40,7 +41,7 @@ function TripCard({ trip, label, accent }: { trip: TripSummary; label: string; a
   const status = trip.status as TripStatus;
   return (
     <Link
-      to={`/my-trips/${trip.id}`}
+      to={trip.fulfillmentId ? `/my-trips/${trip.fulfillmentId}` : '/my-trips'}
       className="driver-trip-card"
       data-testid={`two-orders-card-${label}`}
       style={{ '--strip': TRIP_STATUS_COLORS[status], animationDelay: '0ms' } as React.CSSProperties}

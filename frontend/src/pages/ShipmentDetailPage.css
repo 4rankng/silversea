@@ -241,6 +241,189 @@
   font-size: 12px;
 }
 
+.shipment-pod-review {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.shipment-pod-review__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.shipment-pod-review__subtitle {
+  margin: -4px 0 0;
+  color: var(--fg-3);
+  font-size: 13px;
+}
+
+.shipment-pod-review__list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.shipment-pod-review__item {
+  border: 1px solid var(--border-2, #e5e7eb);
+  border-radius: 10px;
+  padding: 14px;
+  background: var(--bg-2, #f8fafc);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.shipment-pod-review__item-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.shipment-pod-review__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.shipment-pod-review__meta {
+  margin: 4px 0 0;
+  color: var(--fg-3);
+  font-size: 13px;
+}
+
+.shipment-pod-review__meta-pill,
+.shipment-pod-review__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.shipment-pod-review__meta-pill {
+  background: var(--bg-1, #fff);
+  border: 1px solid var(--border-2, #e5e7eb);
+  color: var(--fg-2);
+}
+
+.shipment-pod-review__meta-pill--muted {
+  background: #ecfccb;
+  border-color: #bef264;
+  color: #3f6212;
+}
+
+.shipment-pod-review__badge--draft {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.shipment-pod-review__badge--submitted {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.shipment-pod-review__badge--accepted {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.shipment-pod-review__badge--rejected {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.shipment-pod-review__submission-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: var(--fg-3);
+  font-size: 12px;
+}
+
+.shipment-pod-review__files {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.shipment-pod-review__file {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 52px;
+  width: 100%;
+  border: 1px solid var(--border-2, #e5e7eb);
+  border-radius: 10px;
+  background: var(--bg-1, #fff);
+  padding: 12px;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+.shipment-pod-review__file strong {
+  display: block;
+  font-size: 13px;
+}
+
+.shipment-pod-review__file-meta {
+  margin-top: 4px;
+  color: var(--fg-3);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.shipment-pod-review__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.shipment-pod-review__action {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.shipment-pod-review__alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  border: 1px solid #fecaca;
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.shipment-pod-review__alert--warning {
+  border-color: #fed7aa;
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.shipment-pod-review__alert--danger {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.shipment-pod-review__alert--success {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
 /* Status dot — palette mirrors ShipmentsPage pill variants. */
 .shipment-detail__dot {
   display: inline-block;
@@ -273,5 +456,14 @@
   .shipment-detail__table th,
   .shipment-detail__table td {
     padding: 6px 8px;
+  }
+
+  .shipment-pod-review__item-head {
+    flex-direction: column;
+  }
+
+  .shipment-pod-review__actions > * {
+    width: 100%;
+    justify-content: center;
   }
 }

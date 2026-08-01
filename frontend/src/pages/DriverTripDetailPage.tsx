@@ -1,83 +1,205 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Truck, Calendar, MapPin, Fuel, DollarSign, Navigation, AlertCircle, Loader2, Phone, MessageSquare } from 'lucide-react';
-import { api } from '../lib/api';
-import { formatCurrency, formatDate } from '../lib/format';
-import { TRIP_STATUS_LABELS, type TripStatus } from '@tingting/shared';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Building2,
+  CalendarClock,
+  CheckCircle2,
+  Clock3,
+  FileCheck2,
+  Loader2,
+  MapPinned,
+  Package2,
+  Phone,
+  Route,
+  ShieldAlert,
+  Truck,
+  WalletCards,
+} from 'lucide-react';
+import { DriverProgressEventType, TRIP_STATUS_LABELS, type TripStatus } from '@tingting/shared';
 import { StatusPill } from '../components/UI';
 import TripLegsPanel from '../components/trip/TripLegsPanel';
-import { DriverContainerCard } from '../components/trip/DriverContainerCard';
-import { DriverProgressCard } from '../components/trip/DriverProgressCard';
+import TripPodSubmission from '../components/trip/TripPodSubmission';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
+import { useDriverEvidenceStatus, useDriverTaskDetail, useDriverTaskProgress } from '../hooks/useDriverQueries';
+import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } from '../api/driverClient';
+import { formatCurrency, formatDate } from '../lib/format';
+import { useOnline } from '../hooks/useOnline';
+import {
+  buildOfflineCommandKey,
+  type OfflineCommand,
+  type OfflineCommandSendResult,
+  useOfflineCommandQueue,
+} from '../features/driver/useOfflineCommandQueue';
+import { useToast } from '../components/shared/Toast';
 import './DriverTripDetailPage.css';
 
-interface TripLeg {
-  id: number;
-  sequence: number;
-  origin: string;
-  destination: string;
-  km: number;
-  loadingType: string;
-}
+type MilestoneType =
+  | DriverProgressEventType.PICKED_UP
+  | DriverProgressEventType.LOADING_OR_RETURNING
+  | DriverProgressEventType.DELIVERED;
 
-interface DriverContainer {
-  id: number;
-  containerNumber: string;
-  sealNumber: string | null;
-  containerTypeId: number | null;
-  containerTypeName: string | null;
-  containerTypeCode: string | null;
-  cargoWeightKg: string | null;
-}
+type MilestoneCommandPayload = {
+  kind: 'milestone';
+  tripId: number;
+  eventType: MilestoneType;
+  occurredAt: string;
+  expectedVersion: number;
+  fulfillmentId?: number;
+};
 
-interface DriverTripDetail {
-  id: number;
-  status: TripStatus;
-  departureDate: string;
-  routeName: string | null;
-  truckPlate: string | null;
-  trailerPlate: string | null;
-  trailerType: string | null;
-  customerName: string | null;
-  cargoTypeName: string | null;
-  fuelLiters: string | null;
-  fuelMode: string | null;
-  fuelSupplierName: string | null;
-  totalRoadAllowance: string | null;
-  driverSalary: string | null;
-  hasReturnCargo: boolean | null;
-  legs: TripLeg[];
-  containers: DriverContainer[];
-  contPhotoKey: string | null;
-  sealPhotoKey: string | null;
-  notes: string | null;
-  customerReference: string | null;
-  /** Manager-authored contact + guidance (N2 / B1.3). Null when none set. */
-  instructions?: {
-    contactName: string | null;
-    contactPhone: string | null;
-    notes: string | null;
-  } | null;
-}
+type PodSubmitCommandPayload = {
+  kind: 'pod-submit';
+  tripId: number;
+  submissionId: number;
+  expectedVersion: number;
+};
+
+type CompleteCommandPayload = {
+  kind: 'complete';
+  tripId: number;
+  expectedVersion: number;
+};
+
+type DriverTaskCommandPayload =
+  | MilestoneCommandPayload
+  | PodSubmitCommandPayload
+  | CompleteCommandPayload;
+
+type TimelineState = 'done' | 'pending' | 'retry' | 'conflict' | 'available' | 'locked';
+
+const MILESTONES: Array<{
+  eventType: MilestoneType;
+  title: string;
+  help: string;
+}> = [
+  {
+    eventType: DriverProgressEventType.PICKED_UP,
+    title: 'Đã lấy vỏ / Lấy hàng',
+    help: 'Ghi nhận khi đã nhận vỏ hoặc lấy hàng xong tại điểm đầu.',
+  },
+  {
+    eventType: DriverProgressEventType.LOADING_OR_RETURNING,
+    title: 'Đang đóng / Trả hàng',
+    help: 'Ghi nhận khi vào giai đoạn đóng hàng hoặc xử lý trả hàng.',
+  },
+  {
+    eventType: DriverProgressEventType.DELIVERED,
+    title: 'Đã hạ bãi / Giao hàng xong',
+    help: 'Ghi nhận sau khi hạ bãi hoặc giao hàng hoàn tất.',
+  },
+];
 
 function tripStatusVariant(status: TripStatus): 'neutral' | 'info' | 'warn' | 'success' | 'danger' {
   switch (status) {
-    case 'IN_TRANSIT': return 'info';      // blue
-    case 'COMPLETED': return 'success';    // green
-    case 'LOCKED': return 'neutral';       // slate gray
-    case 'CANCELED': return 'danger';      // red
-    default: return 'neutral';             // CREATED — slate gray
+    case 'IN_TRANSIT':
+      return 'info';
+    case 'COMPLETED':
+      return 'success';
+    case 'LOCKED':
+      return 'neutral';
+    case 'CANCELED':
+      return 'danger';
+    default:
+      return 'neutral';
   }
 }
 
-function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
+function formatDateTime(value: string | null | undefined): string {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' });
+}
+
+function valueOrDash(value: string | null | undefined): string {
+  return value && value.trim().length > 0 ? value : '—';
+}
+
+function getLatestMilestoneEvent(
+  trip: ReturnType<typeof useDriverTaskProgress>['data'],
+  eventType: MilestoneType,
+) {
+  return [...(trip?.items ?? [])]
+    .reverse()
+    .find((item) => item.eventType === eventType);
+}
+
+function isCommandPayload(
+  payload: Record<string, unknown> | null,
+): payload is DriverTaskCommandPayload {
+  return payload != null && typeof payload.kind === 'string' && typeof payload.tripId === 'number';
+}
+
+function isMilestonePayload(payload: Record<string, unknown> | null): payload is MilestoneCommandPayload {
+  return isCommandPayload(payload)
+    && payload.kind === 'milestone'
+    && typeof payload.eventType === 'string'
+    && typeof payload.occurredAt === 'string'
+    && typeof payload.expectedVersion === 'number';
+}
+
+function isPodSubmitPayload(payload: Record<string, unknown> | null): payload is PodSubmitCommandPayload {
+  return isCommandPayload(payload)
+    && payload.kind === 'pod-submit'
+    && typeof payload.submissionId === 'number'
+    && typeof payload.expectedVersion === 'number';
+}
+
+function isCompletePayload(payload: Record<string, unknown> | null): payload is CompleteCommandPayload {
+  return isCommandPayload(payload)
+    && payload.kind === 'complete'
+    && typeof payload.expectedVersion === 'number';
+}
+
+function commandStateForMilestone(
+  commands: OfflineCommand[],
+  tripId: number,
+  eventType: MilestoneType,
+): OfflineCommand | null {
+  return commands.find((command) =>
+    command.endpoint === 'driver.task.milestone'
+    && isMilestonePayload(command.payload)
+    && command.payload.tripId === tripId
+    && command.payload.eventType === eventType,
+  ) ?? null;
+}
+
+function timelineState(eventFound: boolean, command: OfflineCommand | null, nextMilestoneIndex: number, index: number): TimelineState {
+  if (eventFound) return 'done';
+  if (command?.status === 'CONFLICT') return 'conflict';
+  if (command?.status === 'FAILED') return 'retry';
+  if (command && (command.status === 'QUEUED' || command.status === 'IN_PROGRESS')) return 'pending';
+  if (nextMilestoneIndex === index) return 'available';
+  return 'locked';
+}
+
+function timelineStateLabel(state: TimelineState): string {
+  switch (state) {
+    case 'done':
+      return 'Đã ghi nhận';
+    case 'pending':
+      return 'Đang đồng bộ';
+    case 'retry':
+      return 'Sẽ thử lại';
+    case 'conflict':
+      return 'Xung đột';
+    case 'available':
+      return 'Sẵn sàng';
+    default:
+      return 'Chờ bước trước';
+  }
+}
+
+function TaskFact({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
   return (
-    <div className="info-row">
-      <span className="info-row__icon">{icon}</span>
-      <div className="info-row__body">
-        <div className="info-row__label">{label}</div>
-        <div className="info-row__value">{value || '—'}</div>
+    <div className="driver-task-fact">
+      <span className="driver-task-fact__icon">{icon}</span>
+      <div className="driver-task-fact__body">
+        <div className="driver-task-fact__label">{label}</div>
+        <div className="driver-task-fact__value">{value}</div>
       </div>
     </div>
   );
@@ -86,212 +208,505 @@ function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string;
 export default function DriverTripDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [trip, setTrip] = useState<DriverTripDetail | null>(null);
-  const [initialLoad, setInitialLoad] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const { rootRef } = usePageAnimations({ ready: !initialLoad });
+  const { toast } = useToast();
+  const online = useOnline();
+  const [creatingDraft, setCreatingDraft] = useState(false);
+  const [uploadingPod, setUploadingPod] = useState(false);
 
-  const loadTrip = useCallback((isBackground = false) => {
-    if (!id) return;
-    if (!isBackground) setInitialLoad(true);
-    api.get<DriverTripDetail>(`/driver/me/trips/${id}`)
-      .then(setTrip)
-      .catch(() => setError('Không thể tải thông tin lệnh vận chuyển'))
-      .finally(() => { if (!isBackground) setInitialLoad(false); });
-  }, [id]);
+  const tripId = Number(id);
+  const validTripId = Number.isInteger(tripId) && tripId > 0 ? tripId : undefined;
 
-  useEffect(() => {
-    loadTrip(false);
-  }, [loadTrip]);
+  const taskDetail = useDriverTaskDetail(validTripId);
+  const progress = useDriverTaskProgress(validTripId);
+  const evidence = useDriverEvidenceStatus(validTripId);
+  const { commands, enqueue, drain, pendingCount, failedCount, conflictCount } = useOfflineCommandQueue({ maxPending: 12 });
+  const { rootRef } = usePageAnimations({
+    ready: !taskDetail.isLoading && !progress.isLoading && !evidence.isLoading,
+  });
 
-  const handleBack = () => navigate('/my-trips');
+  const handleBack = useCallback(() => navigate('/my-trips'), [navigate]);
   useBackShortcut(handleBack);
 
-  if (initialLoad) return (
-    <div className="dt-loader-container">
-      <Loader2 size={24} className="spin" style={{ display: 'inline-block' }} />
-      <p className="dt-loader-text">Đang tải…</p>
-    </div>
-  );
+  const tripCommands = useMemo(() => commands.filter((command) =>
+    isCommandPayload(command.payload) && command.payload.tripId === validTripId,
+  ), [commands, validTripId]);
 
-  if (error || !trip) return (
-    <div className="dt-error-container">
-      <button className="dt-back-btn" onClick={handleBack} style={{ marginBottom: 16 }}>
-        <ArrowLeft size={16} /> Quay lại
-      </button>
-      <div className="panel dt-error-card">
-        <AlertCircle size={32} style={{ marginBottom: 12, display: 'inline-block' }} />
-        <p className="dt-error-text">{error || 'Không tìm thấy lệnh vận chuyển'}</p>
+  const refreshAll = useCallback(async () => {
+    await Promise.all([
+      taskDetail.refetch(),
+      progress.refetch(),
+      evidence.refetch(),
+    ]);
+  }, [evidence, progress, taskDetail]);
+
+  const sendQueuedCommand = useCallback(async (command: OfflineCommand): Promise<OfflineCommandSendResult> => {
+    if (command.endpoint === 'driver.task.milestone' && isMilestonePayload(command.payload)) {
+      try {
+        await driverClient.recordProgress(command.payload.tripId, {
+          eventType: command.payload.eventType,
+          occurredAt: command.payload.occurredAt,
+          expectedVersion: command.payload.expectedVersion,
+          fulfillmentId: command.payload.fulfillmentId,
+        }, command.id);
+        return { ok: true };
+      } catch (error) {
+        if (error instanceof Error && /409|428/.test(error.message)) {
+          return { ok: false, kind: 'conflict', message: error.message };
+        }
+        return {
+          ok: false,
+          kind: 'network',
+          message: error instanceof Error ? error.message : 'Không thể đồng bộ mốc tiến độ.',
+        };
+      }
+    }
+
+    if (command.endpoint === 'driver.task.pod.submit' && isPodSubmitPayload(command.payload)) {
+      try {
+        await driverClient.submitPod(
+          command.payload.tripId,
+          command.payload.submissionId,
+          { expectedVersion: command.payload.expectedVersion },
+          command.id,
+        );
+        return { ok: true };
+      } catch (error) {
+        if (error instanceof Error && /409|428/.test(error.message)) {
+          return { ok: false, kind: 'conflict', message: error.message };
+        }
+        return {
+          ok: false,
+          kind: 'network',
+          message: error instanceof Error ? error.message : 'Không thể gửi e-POD.',
+        };
+      }
+    }
+
+    if (command.endpoint === 'driver.task.complete' && isCompletePayload(command.payload)) {
+      try {
+        await driverClient.completeTrip(
+          command.payload.tripId,
+          { expectedVersion: command.payload.expectedVersion },
+          command.id,
+        );
+        return { ok: true };
+      } catch (error) {
+        if (error instanceof Error && /409|428/.test(error.message)) {
+          return { ok: false, kind: 'conflict', message: error.message };
+        }
+        return {
+          ok: false,
+          kind: 'network',
+          message: error instanceof Error ? error.message : 'Không thể hoàn thành chuyến.',
+        };
+      }
+    }
+
+    return { ok: false, kind: 'conflict', message: 'Lệnh đồng bộ không hợp lệ.' };
+  }, []);
+
+  const runDrain = useCallback(async (successMessage?: string) => {
+    const result = await drain(sendQueuedCommand);
+    if (result.done > 0) {
+      await refreshAll();
+      if (successMessage) {
+        toast({ kind: 'success', message: successMessage });
+      }
+    } else if (result.failed > 0) {
+      toast({ kind: 'info', message: 'Đã lưu ngoại tuyến. Hệ thống sẽ tự gửi lại khi có mạng.' });
+    } else if (result.conflicts > 0) {
+      toast({ kind: 'error', message: 'Dữ liệu đã đổi trên hệ thống. Vui lòng tải lại chuyến.' });
+    }
+    return result;
+  }, [drain, refreshAll, sendQueuedCommand, toast]);
+
+  useEffect(() => {
+    if (!online || tripCommands.length === 0) return;
+    void runDrain();
+  }, [online, runDrain, tripCommands.length]);
+
+  const trip = taskDetail.data as DriverTaskDetail | undefined;
+  const currentSubmission = (trip?.currentPod ?? null) as DriverTaskPodSubmission | null;
+  const podHistory = trip?.podHistory ?? [];
+
+  const latestCompletedIndex = useMemo(() => {
+    let index = -1;
+    for (const [milestoneIndex, milestone] of MILESTONES.entries()) {
+      if (getLatestMilestoneEvent(progress.data, milestone.eventType)) {
+        index = milestoneIndex;
+      }
+    }
+    return index;
+  }, [progress.data]);
+
+  const nextMilestoneIndex = latestCompletedIndex >= MILESTONES.length - 1 ? -1 : latestCompletedIndex + 1;
+
+  async function handleMilestone(eventType: MilestoneType) {
+    if (!trip) return;
+    const milestoneIndex = MILESTONES.findIndex((milestone) => milestone.eventType === eventType);
+    if (milestoneIndex !== nextMilestoneIndex) return;
+    const idempotencyKey = buildOfflineCommandKey('driver', 'task', validTripId, 'milestone', eventType, 'version', trip.version);
+    enqueue({
+      id: idempotencyKey,
+      endpoint: 'driver.task.milestone',
+      method: 'POST',
+      path: `/driver/me/fulfillments/${validTripId}/progress`,
+      payload: {
+        kind: 'milestone',
+        tripId: validTripId,
+        eventType,
+        occurredAt: new Date().toISOString(),
+        expectedVersion: trip.version,
+        fulfillmentId: trip.fulfillment?.id,
+      },
+    });
+    await runDrain('Đã ghi nhận mốc tiến độ.');
+  }
+
+  async function handleEnsureDraft(): Promise<DriverTaskPodSubmission> {
+    if (!trip || !validTripId) {
+      throw new Error('Không tìm thấy chuyến để tạo e-POD.');
+    }
+    if (currentSubmission?.status === 'DRAFT') {
+      return currentSubmission;
+    }
+    setCreatingDraft(true);
+    try {
+      const nextSubmissionVersion = Math.max(
+        currentSubmission?.submissionVersion ?? 0,
+        ...podHistory.map((submission) => submission.submissionVersion),
+      ) + 1;
+      const idempotencyKey = buildOfflineCommandKey(
+        'driver',
+        'task',
+        validTripId,
+        'pod-draft',
+        'trip-version',
+        trip.version,
+        'submission-version',
+        nextSubmissionVersion,
+      );
+      const created = await driverClient.createPodSubmission(
+        validTripId,
+        { expectedVersion: trip.version },
+        idempotencyKey,
+      );
+      await refreshAll();
+      toast({ kind: 'success', message: 'Đã mở phiên bản e-POD mới.' });
+      return created;
+    } finally {
+      setCreatingDraft(false);
+    }
+  }
+
+  async function handleUploadPodFile(submission: DriverTaskPodSubmission, fileType: Parameters<typeof driverClient.attachPodFile>[0]['fileType'], file: File) {
+    if (!validTripId) throw new Error('ID tác vụ không hợp lệ.');
+    setUploadingPod(true);
+    try {
+      const uploaded = await driverClient.attachPodFile({
+        tripId: validTripId,
+        submissionId: submission.id,
+        fileType,
+        expectedVersion: submission.version,
+        file,
+      });
+      await refreshAll();
+      const label = uploaded.files.find((item) => item.fileType === fileType)?.originalFileName ?? file.name;
+      toast({ kind: 'success', message: `Đã lưu tệp ${label}.` });
+    } finally {
+      setUploadingPod(false);
+    }
+  }
+
+  async function handleSubmitPod(submission: DriverTaskPodSubmission) {
+    const idempotencyKey = buildOfflineCommandKey(
+      'driver',
+      'task',
+      validTripId,
+      'pod-submit',
+      submission.id,
+      'version',
+      submission.version,
+    );
+    enqueue({
+      id: idempotencyKey,
+      endpoint: 'driver.task.pod.submit',
+      method: 'POST',
+      path: `/driver/me/fulfillments/${validTripId}/pod/${submission.id}/submit`,
+      payload: {
+        kind: 'pod-submit',
+        tripId: validTripId,
+        submissionId: submission.id,
+        expectedVersion: submission.version,
+      },
+    });
+    await runDrain('Đã gửi e-POD để duyệt.');
+  }
+
+  async function handleCompleteTrip() {
+    if (!trip) return;
+    const idempotencyKey = buildOfflineCommandKey('driver', 'task', validTripId, 'complete', 'version', trip.version);
+    enqueue({
+      id: idempotencyKey,
+      endpoint: 'driver.task.complete',
+      method: 'POST',
+      path: `/driver/me/fulfillments/${validTripId}/complete`,
+      payload: {
+        kind: 'complete',
+        tripId: validTripId,
+        expectedVersion: trip.version,
+      },
+    });
+    await runDrain('Chuyến đã chuyển sang chờ duyệt khóa.');
+  }
+
+  if (!validTripId) {
+    return (
+      <div className="driver-task-screen driver-task-screen--feedback">
+        <div className="driver-task-feedback">
+          <AlertTriangle size={28} />
+          <p>ID chuyến không hợp lệ.</p>
+          <button type="button" className="driver-task-back" onClick={handleBack}>
+            <ArrowLeft size={16} />
+            <span>Quay lại danh sách</span>
+          </button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  if (taskDetail.isLoading) {
+    return (
+      <div className="driver-task-screen driver-task-screen--feedback">
+        <div className="driver-task-feedback">
+          <Loader2 size={24} className="spin" />
+          <p>Đang tải tác vụ tài xế…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!trip || taskDetail.error) {
+    return (
+      <div className="driver-task-screen driver-task-screen--feedback">
+        <div className="driver-task-feedback">
+          <AlertTriangle size={28} />
+          <p>Không thể tải lệnh vận chuyển này.</p>
+          <button type="button" className="driver-task-back" onClick={handleBack}>
+            <ArrowLeft size={16} />
+            <span>Quay lại danh sách</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const fulfillment = trip.fulfillment ?? null;
+  const pickupPoint = fulfillment?.pickupPortName ?? fulfillment?.pickupWarehouseName ?? fulfillment?.lclWarehouseName ?? '—';
+  const dropPoint = fulfillment?.dropPortName ?? fulfillment?.dropWarehouseName ?? fulfillment?.lclWarehouseName ?? '—';
+  const contactName = fulfillment?.contactName ?? trip.instructions?.contactName ?? null;
+  const contactPhone = fulfillment?.contactPhone ?? trip.instructions?.contactPhone ?? null;
+  const siteRules = fulfillment?.siteRules ?? [];
+  const completionReady = evidence.data?.ready === true
+    && getLatestMilestoneEvent(progress.data, DriverProgressEventType.DELIVERED) != null;
+  const completionBlocked = trip.status !== 'IN_TRANSIT' || !completionReady;
+  const completionReasons = evidence.data?.missingItems ?? [];
 
   return (
-    <div ref={rootRef} className="driver-trip-detail-page">
-        {/* Back button + Header */}
-        <div className="dt-header">
-          <button
-            className="dt-back-btn"
-            onClick={handleBack}
-            aria-label="Quay lại"
-          >
-            <ArrowLeft size={18} />
-          </button>
-          <div className="dt-header-title-block">
-            <h1 className="dt-title" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <img src="/assets/icons/03-trip-log-so-chuyen-chuyen-xe.png" alt="" style={{ width: 32, height: 32, flexShrink: 0 }} />
-              {trip.routeName || 'Lệnh vận chuyển'}
-            </h1>
-            <div className="dt-meta">
-              <StatusPill variant={tripStatusVariant(trip.status)}>
-                {TRIP_STATUS_LABELS[trip.status] || trip.status}
-              </StatusPill>
-              {trip.customerName && (
-                <span className="dt-subtitle">{trip.customerName}</span>
-              )}
-            </div>
+    <div ref={rootRef} className="driver-task-screen">
+      <header className="driver-task-header">
+        <button type="button" className="driver-task-back" onClick={handleBack} aria-label="Quay lại">
+          <ArrowLeft size={18} />
+        </button>
+        <div className="driver-task-header__body">
+          <p className="driver-task-header__eyebrow">Tác vụ tài xế</p>
+          <h1 className="driver-task-header__title">{trip.routeName || 'Lệnh vận chuyển'}</h1>
+          <div className="driver-task-header__meta">
+            <StatusPill variant={tripStatusVariant(trip.status)}>
+              {TRIP_STATUS_LABELS[trip.status] || trip.status}
+            </StatusPill>
+            {trip.customerName && <span className="driver-task-header__customer">{trip.customerName}</span>}
           </div>
         </div>
+      </header>
 
-        {/* Trip Info — flat section */}
-        <section className={`dt-section dt-section--status-${trip.status}`}>
-          <div className="dt-section__head">
-            <span className="dt-section__title">Thông tin chuyến</span>
-          </div>
-          <div className="dt-section__body">
-            <InfoRow icon={<Truck size={16} />} label="Xe đầu kéo" value={trip.truckPlate} />
-            <InfoRow icon={<Truck size={16} />} label="Rơ moóc" value={
-              trip.trailerPlate ? `${trip.trailerPlate}${trip.trailerType ? ` (${trip.trailerType})` : ''}` : null
-            } />
-            <InfoRow icon={<Calendar size={16} />} label="Ngày khởi hành" value={formatDate(trip.departureDate)} />
-            {trip.cargoTypeName && (
-              <InfoRow icon={<Navigation size={16} />} label="Loại hàng" value={trip.cargoTypeName} />
-            )}
-            {trip.customerReference && (
-              <InfoRow icon={<Navigation size={16} />} label="Mã tham chiếu" value={trip.customerReference} />
-            )}
-          </div>
-        </section>
-
-        <DriverContainerCard
-          tripId={trip.id}
-          containers={trip.containers ?? []}
-          contPhotoKey={trip.contPhotoKey ?? null}
-          sealPhotoKey={trip.sealPhotoKey ?? null}
-          onSaved={() => loadTrip(true)}
-        />
-
-        {/* Fuel Allocation Card — prominent for drivers */}
-        <div className="fuel-alloc-card">
-          <div className="fuel-alloc-card__header">
-            <Fuel size={20} className="fuel-alloc-card__icon" />
-            <div className="fuel-alloc-card__title-wrap">
-              <div className="fuel-alloc-card__label">
-                Số dầu được cấp
-              </div>
-              <div className="fuel-alloc-card__value">
-                {trip.fuelLiters ? `${parseFloat(trip.fuelLiters).toFixed(0)} lít` : '— lít'}
-              </div>
+      {(pendingCount > 0 || failedCount > 0 || conflictCount > 0) && (
+        <section className="driver-task-section driver-task-section--banner">
+          <div className="driver-task-sync">
+            <Clock3 size={16} />
+            <div>
+              <strong>Đồng bộ hiện trường</strong>
+              <p>
+                {pendingCount > 0 && `${pendingCount} lệnh đang chờ gửi. `}
+                {failedCount > 0 && `${failedCount} lệnh sẽ thử lại. `}
+                {conflictCount > 0 && `${conflictCount} lệnh cần tải lại để xử lý xung đột.`}
+              </p>
             </div>
           </div>
-          <div className="fuel-alloc-card__body">
-            {trip.fuelMode && (
-              <div>
-                Chế độ: <strong>{trip.fuelMode === 'AUTO' ? 'Tự động (định mức × km)' : trip.fuelMode === 'FLAT_RATE' ? 'Khoán' : trip.fuelMode}</strong>
-              </div>
-            )}
-            {trip.fuelSupplierName && (
-              <div>
-                Nhà cung cấp: <strong style={{ color: 'var(--accent)' }}>{trip.fuelSupplierName}</strong>
-              </div>
-            )}
-          </div>
+        </section>
+      )}
+
+      <section className="driver-task-section">
+        <div className="driver-task-section__head">
+          <span>Thông tin lệnh</span>
         </div>
+        <div className="driver-task-grid">
+          <TaskFact icon={<Truck size={16} />} label="Đầu kéo" value={valueOrDash(trip.truckPlate)} />
+          <TaskFact
+            icon={<Truck size={16} />}
+            label="Rơ moóc"
+            value={trip.trailerPlate ? `${trip.trailerPlate}${trip.trailerType ? ` (${trip.trailerType})` : ''}` : '—'}
+          />
+          <TaskFact icon={<Package2 size={16} />} label="Container / lô hàng" value={
+            trip.containers.length > 0
+              ? trip.containers.map((container) => container.containerNumber).join(' · ')
+              : valueOrDash(fulfillment?.modeLabel ?? trip.cargoTypeName)
+          } />
+          <TaskFact icon={<Route size={16} />} label="Tuyến" value={valueOrDash(fulfillment?.routeSummary ?? trip.routeName)} />
+          <TaskFact icon={<MapPinned size={16} />} label="Điểm lấy" value={pickupPoint} />
+          <TaskFact icon={<MapPinned size={16} />} label="Điểm trả" value={dropPoint} />
+          <TaskFact icon={<Building2 size={16} />} label="Nhà máy" value={valueOrDash(fulfillment?.factoryName)} />
+          <TaskFact icon={<CalendarClock size={16} />} label="Giờ kế hoạch" value={formatDateTime(fulfillment?.plannedAt ?? trip.departureDate)} />
+          <TaskFact icon={<Phone size={16} />} label="Người liên hệ" value={valueOrDash(contactName)} />
+          <TaskFact
+            icon={<Phone size={16} />}
+            label="Số điện thoại"
+            value={contactPhone ? <a href={`tel:${contactPhone}`} className="driver-task-link">{contactPhone}</a> : '—'}
+          />
+        </div>
+      </section>
 
-        {/* Earnings — flat section */}
-        <section className="dt-section">
-          <div className="dt-section__head">
-            <span className="dt-section__title">Thu nhập &amp; chi phí</span>
-          </div>
-          <div className="dt-section__body">
-            <div className="dt-earnings-grid">
-              <InfoRow
-                icon={<DollarSign size={16} />}
-                label="Lương phân bổ chuyến"
-                value={
-                  <span className="earnings-highlight">
-                    {trip.driverSalary ? formatCurrency(trip.driverSalary) : '—'}
-                  </span>
-                }
-              />
-              <InfoRow
-                icon={<MapPin size={16} />}
-                label="Tiền đi đường"
-                value={trip.totalRoadAllowance ? formatCurrency(trip.totalRoadAllowance) : '—'}
-              />
-            </div>
-            {trip.hasReturnCargo && (
-              <div className="return-cargo-badge">
-                <span>✓</span> Chuyến về có hàng (+300.000 đ)
-              </div>
-            )}
-          </div>
-        </section>
-
-        <TripLegsPanel legs={trip.legs || []} />
-
-        {/* Contact & guidance (N2 / B1.3) — read-only. Always shown so the
-            driver sees the section exists even before a manager fills it
-            (feedback202606 B1:60 — previously hidden when blank, which read as
-            "missing" in UAT). */}
-        <section className="dt-section dt-section--instructions">
-          <div className="dt-section__head">
-            <span className="dt-section__title">Liên hệ &amp; hướng dẫn</span>
-          </div>
-          <div className="dt-section__body">
-            {trip.instructions && (trip.instructions.contactName || trip.instructions.contactPhone || trip.instructions.notes) ? (
-              <>
-                {trip.instructions.contactName && (
-                  <InfoRow icon={<Navigation size={16} />} label="Người liên hệ" value={trip.instructions.contactName} />
-                )}
-                {trip.instructions.contactPhone && (
-                  <InfoRow
-                    icon={<Phone size={16} />}
-                    label="SĐT liên hệ"
-                    value={
-                      <a href={`tel:${trip.instructions.contactPhone}`} className="dt-tel-link">
-                        {trip.instructions.contactPhone}
-                      </a>
-                    }
-                  />
-                )}
-                {trip.instructions.notes && (
-                  <div className="dt-instructions-notes">
-                    <div className="dt-instructions-notes__title">
-                      <MessageSquare size={14} /> Ghi chú hướng dẫn
-                    </div>
-                    <p className="dt-instructions-notes__text">{trip.instructions.notes}</p>
-                  </div>
-                )}
-              </>
-            ) : (
-              <p className="dt-instructions-notes__text">Chưa có hướng dẫn liên hệ cho chuyến này.</p>
-            )}
-          </div>
-        </section>
-
-        {/* Notes */}
-        {trip.notes && (
-          <section className="dt-section">
-            <div className="dt-section__body">
-              <div className="notes-title">Ghi chú</div>
-              <p className="notes-text">{trip.notes}</p>
-            </div>
-          </section>
+      <section className="driver-task-section">
+        <div className="driver-task-section__head">
+          <span>Quy định tại điểm làm hàng</span>
+        </div>
+        {siteRules.length > 0 ? (
+          <ul className="driver-task-rules">
+            {siteRules.map((rule, index) => (
+              <li key={`${index}-${rule}`} className="driver-task-rules__item">
+                <ShieldAlert size={16} />
+                <span>{rule}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="driver-task-empty">Chưa có quy định bổ sung cho điểm làm hàng này.</p>
         )}
+      </section>
 
-        {/* M8.4 — driver progress-event form + timeline (offline-safe). */}
-        <DriverProgressCard tripId={trip.id} />
+      <section className="driver-task-section">
+        <div className="driver-task-section__head">
+          <span>Ba mốc thực hiện</span>
+        </div>
+        <div className="driver-task-timeline">
+          {MILESTONES.map((milestone, index) => {
+            const event = getLatestMilestoneEvent(progress.data, milestone.eventType);
+            const command = commandStateForMilestone(tripCommands, trip.id, milestone.eventType);
+            const state = timelineState(Boolean(event), command, nextMilestoneIndex, index);
+            const clickable = state === 'available' || state === 'retry';
+            return (
+              <button
+                type="button"
+                key={milestone.eventType}
+                className={`driver-task-step driver-task-step--${state}`}
+                disabled={!clickable}
+                onClick={() => void handleMilestone(milestone.eventType)}
+              >
+                <div className="driver-task-step__top">
+                  <span className="driver-task-step__count">Bước {index + 1}</span>
+                  <span className="driver-task-step__state">{timelineStateLabel(state)}</span>
+                </div>
+                <strong className="driver-task-step__title">{milestone.title}</strong>
+                <p className="driver-task-step__help">{milestone.help}</p>
+                <div className="driver-task-step__foot">
+                  <span>{event ? formatDateTime(event.occurredAt) : 'Chưa ghi nhận'}</span>
+                  {state === 'available' && <span>Nhấn để xác nhận</span>}
+                  {state === 'retry' && <span>Nhấn để gửi lại</span>}
+                  {state === 'conflict' && <span>Tải lại dữ liệu chuyến</span>}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="driver-task-section">
+        <div className="driver-task-section__head">
+          <span>e-POD giao hàng</span>
+        </div>
+        <TripPodSubmission
+          tripId={trip.id}
+          tripVersion={trip.version}
+          currentSubmission={currentSubmission}
+          history={podHistory}
+          pendingCommands={tripCommands}
+          creatingDraft={creatingDraft}
+          uploading={uploadingPod}
+          onEnsureDraft={handleEnsureDraft}
+          onUploadFile={handleUploadPodFile}
+          onSubmit={handleSubmitPod}
+        />
+      </section>
+
+      <section className="driver-task-section">
+        <div className="driver-task-section__head">
+          <span>Thu nhập tham chiếu</span>
+        </div>
+        <div className="driver-task-finance">
+          <TaskFact
+            icon={<WalletCards size={16} />}
+            label="Lương phân bổ"
+            value={trip.driverSalary ? formatCurrency(trip.driverSalary) : '—'}
+          />
+          <TaskFact
+            icon={<WalletCards size={16} />}
+            label="Tiền đi đường"
+            value={trip.totalRoadAllowance ? formatCurrency(trip.totalRoadAllowance) : '—'}
+          />
+        </div>
+      </section>
+
+      {trip.legs.length > 0 && (
+        <section className="driver-task-section driver-task-section--legs">
+          <div className="driver-task-section__head">
+            <span>Lộ trình chi tiết</span>
+          </div>
+          <TripLegsPanel legs={trip.legs} />
+        </section>
+      )}
+
+      <footer className="driver-task-footer">
+        <div className="driver-task-footer__body">
+          <div className="driver-task-footer__summary">
+            <strong>Hoàn thành chuyến</strong>
+            <p>
+              Chỉ bật sau khi đã ghi nhận bước 3 và gửi đủ e-POD bắt buộc.
+            </p>
+            {completionReasons.length > 0 && (
+              <ul className="driver-task-footer__issues">
+                {completionReasons.map((item) => (
+                  <li key={item.code}>{item.label}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <button
+            type="button"
+            className="driver-task-complete"
+            disabled={completionBlocked}
+            onClick={() => void handleCompleteTrip()}
+          >
+            <FileCheck2 size={18} />
+            <span>{trip.status === 'COMPLETED' ? 'Đã hoàn thành, chờ duyệt' : 'Hoàn thành chuyến'}</span>
+          </button>
+          {completionReady && trip.status === 'IN_TRANSIT' && (
+            <div className="driver-task-footer__ready">
+              <CheckCircle2 size={16} />
+              <span>Đủ điều kiện hoàn thành.</span>
+            </div>
+          )}
+        </div>
+      </footer>
     </div>
   );
 }
