@@ -21,10 +21,9 @@ const {
   creditQueueState: {
     data: {
       items: [] as CreditOverrideRequestRecord[],
-      page: 1,
       limit: 25,
-      total: 0,
-      totalPages: 0,
+      hasMore: false,
+      nextCursor: null as string | null,
     },
     isLoading: false,
     isFetching: false,
@@ -56,20 +55,20 @@ vi.mock('../hooks/useCatalogs', () => ({
 }));
 
 vi.mock('../hooks/useCreditOverrideQueries', () => ({
-  useCreditOverrideQueue: (filters: { customerId?: number; page?: number; limit?: number }) => {
+  useCreditOverrideQueue: (filters: { customerId?: number; cursor?: string; limit?: number }) => {
     const filteredItems = filters.customerId
       ? creditQueueState.data.items.filter((request) => request.customerId === filters.customerId)
       : creditQueueState.data.items;
     const limit = filters.limit ?? 25;
-    const page = filters.page ?? 1;
+    const start = filters.cursor ? Number(filters.cursor.replace('cursor:', '')) : 0;
+    const end = Math.min(start + limit, filteredItems.length);
     return {
       ...creditQueueState,
       data: {
-        items: filteredItems.slice((page - 1) * limit, page * limit),
-        page,
+        items: filteredItems.slice(start, end),
         limit,
-        total: filteredItems.length,
-        totalPages: filteredItems.length === 0 ? 0 : Math.ceil(filteredItems.length / limit),
+        hasMore: end < filteredItems.length,
+        nextCursor: end < filteredItems.length ? `cursor:${end}` : null,
       },
       refetch: queueRefetchMock,
     };
@@ -205,7 +204,8 @@ describe('CreditOverrideQueuePage', () => {
 
     expect(await screen.findByText('Lý do đề nghị 26')).toBeTruthy();
     expect(screen.queryByText('Lý do đề nghị 1')).toBeNull();
-    expect(screen.getByText(/Hiển thị/).textContent).toContain('26');
+    expect(document.querySelector('.ds-pagination__summary-slot')?.textContent)
+      .toContain('Trang 2 · 1 đề nghị');
   });
 
   it('keeps the empty queue useful and lets the user clear custom filters', async () => {

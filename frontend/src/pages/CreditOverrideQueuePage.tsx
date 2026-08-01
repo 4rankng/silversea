@@ -150,7 +150,7 @@ export default function CreditOverrideQueuePage() {
   const catalogs = useCatalogs();
   const [statusFilter, setStatusFilter] = React.useState<QueueFilterStatus>('PENDING');
   const [selectedCustomerId, setSelectedCustomerId] = React.useState('');
-  const [page, setPage] = React.useState(1);
+  const [pageCursors, setPageCursors] = React.useState<Array<string | null>>([null]);
   const [rejectReasons, setRejectReasons] = React.useState<Record<number, string>>({});
   const [actionErrors, setActionErrors] = React.useState<Record<number, string | null>>({});
 
@@ -159,9 +159,9 @@ export default function CreditOverrideQueuePage() {
       status: statusFilter === 'ALL' ? undefined : statusFilter,
       customerId: selectedCustomerId ? Number(selectedCustomerId) : undefined,
       limit: 25,
-      page,
+      cursor: pageCursors[pageCursors.length - 1] ?? undefined,
     }),
-    [page, selectedCustomerId, statusFilter],
+    [pageCursors, selectedCustomerId, statusFilter],
   );
 
   const queue = useCreditOverrideQueue(filters, true);
@@ -176,14 +176,13 @@ export default function CreditOverrideQueuePage() {
       .sort((a, b) => a.name.localeCompare(b.name, 'vi'));
   }, [catalogs.data?.customers]);
   const requests = allRequests;
-  const totalRequests = queue.data?.total ?? 0;
-  const totalPages = queue.data?.totalPages ?? 0;
+  const page = pageCursors.length;
+  const visibleTotalPages = page + (queue.data?.nextCursor ? 1 : 0);
 
   React.useEffect(() => {
-    if (!queue.data) return;
-    const lastAvailablePage = Math.max(queue.data.totalPages, 1);
-    if (page > lastAvailablePage) setPage(lastAvailablePage);
-  }, [page, queue.data]);
+    if (!queue.data || queue.data.items.length > 0 || pageCursors.length === 1) return;
+    setPageCursors((current) => current.slice(0, -1));
+  }, [pageCursors.length, queue.data]);
   const actionableCount = requests.filter((request) => canActOnRequest(request, user ?? null)).length;
   const pendingCount = requests.filter((request) => request.status === 'PENDING').length;
   const totalProposed = requests.reduce((sum, request) => sum + Number(request.proposedAmount || 0), 0);
@@ -192,7 +191,7 @@ export default function CreditOverrideQueuePage() {
   function clearFilters() {
     setStatusFilter('PENDING');
     setSelectedCustomerId('');
-    setPage(1);
+    setPageCursors([null]);
   }
 
   async function handleCheck(request: CreditOverrideRequestRecord) {
@@ -318,14 +317,14 @@ export default function CreditOverrideQueuePage() {
         <div className="credit-override-queue__toolbar">
           <div className="credit-override-queue__toolbar-title">
             <h2 id="credit-override-queue-title">Hàng chờ phê duyệt</h2>
-            <span>{totalRequests}</span>
+            <span>Trang {page}</span>
           </div>
           <div className="credit-override-queue__filters" aria-label="Bộ lọc hàng chờ">
             <label className="credit-override-queue__field is-status">
               <span>Trạng thái</span>
               <select value={statusFilter} onChange={(event) => {
                 setStatusFilter(event.target.value as QueueFilterStatus);
-                setPage(1);
+                setPageCursors([null]);
               }}>
                 <option value="PENDING">Chờ duyệt</option>
                 <option value="APPROVED">Đã duyệt</option>
@@ -340,7 +339,7 @@ export default function CreditOverrideQueuePage() {
                 <Search size={16} aria-hidden="true" />
                 <select value={selectedCustomerId} onChange={(event) => {
                   setSelectedCustomerId(event.target.value);
-                  setPage(1);
+                  setPageCursors([null]);
                 }}>
                   <option value="">Tất cả khách hàng</option>
                   {customerOptions.map((customer) => (
@@ -565,10 +564,17 @@ export default function CreditOverrideQueuePage() {
         </div>
         <Pagination
           page={page}
-          totalPages={totalPages}
-          totalItems={totalRequests}
-          pageSize={queue.data?.limit ?? 25}
-          onChange={setPage}
+          totalPages={visibleTotalPages}
+          summary={<span>Trang <b>{page}</b> · <b>{requests.length}</b> đề nghị</span>}
+          onChange={(nextPage) => {
+            if (nextPage === page + 1 && queue.data?.nextCursor) {
+              setPageCursors((current) => [...current, queue.data?.nextCursor ?? null]);
+              return;
+            }
+            if (nextPage < page) {
+              setPageCursors((current) => current.slice(0, nextPage));
+            }
+          }}
         />
         </>
       ) : null}

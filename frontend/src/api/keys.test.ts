@@ -39,6 +39,14 @@ describe('qk.* factory — key identity', () => {
     expect(qk.trips.detail(1)).not.toEqual(qk.trips.detail(2));
   });
 
+  it('keeps credit-override cursors and page sizes in separate cache entries', () => {
+    const base = { status: 'PENDING', customerId: 7 };
+    expect(qk.creditOverrides.list({ ...base, cursor: 'cursor-a', limit: 25 }))
+      .not.toEqual(qk.creditOverrides.list({ ...base, cursor: 'cursor-b', limit: 25 }));
+    expect(qk.creditOverrides.list({ ...base, cursor: 'cursor-a', limit: 25 }))
+      .not.toEqual(qk.creditOverrides.list({ ...base, cursor: 'cursor-a', limit: 50 }));
+  });
+
   it('allCatalogKeys is a readonly tuple of strings', () => {
     expect(qk.allCatalogKeys.length).toBeGreaterThan(10);
     for (const k of qk.allCatalogKeys) {

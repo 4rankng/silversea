@@ -72,15 +72,14 @@ export interface CreditOverrideListFilters {
   status?: string;
   customerId?: number;
   limit?: number;
-  page?: number;
+  cursor?: string;
 }
 
 export interface CreditOverrideListResult {
   items: CreditOverrideRequestRecord[];
-  page: number;
   limit: number;
-  total: number;
-  totalPages: number;
+  hasMore: boolean;
+  nextCursor: string | null;
 }
 
 function toQuery(filters?: CreditOverrideListFilters): string {
@@ -89,7 +88,7 @@ function toQuery(filters?: CreditOverrideListFilters): string {
   if (filters.status) query.set('status', filters.status);
   if (filters.customerId != null) query.set('customerId', String(filters.customerId));
   if (filters.limit != null) query.set('limit', String(filters.limit));
-  if (filters.page != null) query.set('page', String(filters.page));
+  if (filters.cursor) query.set('cursor', filters.cursor);
   const serialized = query.toString();
   return serialized ? `?${serialized}` : '';
 }

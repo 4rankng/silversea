@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNull, lt, ne, or, sql } from 'drizzle-orm';
 import { ROLE_LABELS, Role, TripStatus } from '@tingting/shared';
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -38,10 +38,37 @@ export type CreditOverrideView = Omit<CreditOverrideRow, 'version'> & {
 
 export interface CreditOverrideListResult {
   items: CreditOverrideView[];
-  page: number;
   limit: number;
-  total: number;
-  totalPages: number;
+  hasMore: boolean;
+  nextCursor: string | null;
+}
+
+type CreditOverrideCursor = {
+  createdAt: Date;
+  id: number;
+};
+
+function decodeCreditOverrideCursor(raw: string): CreditOverrideCursor {
+  try {
+    const parsed = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8')) as {
+      createdAt?: unknown;
+      id?: unknown;
+    };
+    const createdAt = typeof parsed.createdAt === 'string' ? new Date(parsed.createdAt) : new Date(Number.NaN);
+    if (!Number.isFinite(createdAt.getTime()) || !Number.isInteger(parsed.id) || Number(parsed.id) <= 0) {
+      throw new Error('invalid cursor');
+    }
+    return { createdAt, id: Number(parsed.id) };
+  } catch {
+    throw new ApiError(400, 'Vị trí trang danh sách không hợp lệ');
+  }
+}
+
+function encodeCreditOverrideCursor(row: CreditOverrideRow): string {
+  return Buffer.from(JSON.stringify({
+    createdAt: row.createdAt.toISOString(),
+    id: row.id,
+  }), 'utf8').toString('base64url');
 }
 
 export interface CreditCheckResult {
@@ -667,8 +694,9 @@ export async function listCreditOverrideRequests(filters: {
   customerId?: number;
   status?: CreditOverrideRow['status'];
   limit?: number;
-  page?: number;
+  cursor?: string;
 } = {}, requesterRole: Role = Role.ACCOUNTANT): Promise<CreditOverrideListResult> {
+  const cursor = filters.cursor ? decodeCreditOverrideCursor(filters.cursor) : null;
   const conditions = [
     filters.customerId != null
       ? eq(s.creditOverrideRequests.customerId, filters.customerId)
@@ -676,34 +704,38 @@ export async function listCreditOverrideRequests(filters: {
     filters.status != null
       ? eq(s.creditOverrideRequests.status, filters.status)
       : undefined,
+    cursor
+      ? or(
+        lt(s.creditOverrideRequests.createdAt, cursor.createdAt),
+        and(
+          eq(s.creditOverrideRequests.createdAt, cursor.createdAt),
+          lt(s.creditOverrideRequests.id, cursor.id),
+        ),
+      )
+      : undefined,
   ].filter((condition): condition is NonNullable<typeof condition> => condition != null);
 
   const limit = Math.min(Math.max(filters.limit ?? 25, 1), 100);
-  const page = Math.max(filters.page ?? 1, 1);
   const where = conditions.length > 0 ? and(...conditions) : undefined;
-  const [requests, [totalRow]] = await Promise.all([
-    db.select()
-      .from(s.creditOverrideRequests)
-      .where(where)
-      .orderBy(desc(s.creditOverrideRequests.createdAt), desc(s.creditOverrideRequests.id))
-      .limit(limit)
-      .offset((page - 1) * limit),
-    db.select({ total: count() })
-      .from(s.creditOverrideRequests)
-      .where(where),
-  ]);
+  const rows = await db.select()
+    .from(s.creditOverrideRequests)
+    .where(where)
+    .orderBy(desc(s.creditOverrideRequests.createdAt), desc(s.creditOverrideRequests.id))
+    .limit(limit + 1);
+  const hasMore = rows.length > limit;
+  const requests = rows.slice(0, limit);
   const decisions = await findCreditOverrideDecisions(db, requests.map((request) => request.id));
   const items = await enrichCreditOverrideViews(
     requests.map((request) => toCreditOverrideView(request, decisions.get(request.id))),
     requesterRole,
   );
-  const total = Number(totalRow?.total ?? 0);
   return {
     items,
-    page,
     limit,
-    total,
-    totalPages: total === 0 ? 0 : Math.ceil(total / limit),
+    hasMore,
+    nextCursor: hasMore && requests.length > 0
+      ? encodeCreditOverrideCursor(requests[requests.length - 1])
+      : null,
   };
 }
 

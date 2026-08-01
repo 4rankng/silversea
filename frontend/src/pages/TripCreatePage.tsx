@@ -59,7 +59,7 @@ export default function TripCreatePage() {
   const [creditExpiry, setCreditExpiry] = React.useState(defaultExpiryInput);
   const [creditRequest, setCreditRequest] = React.useState<CreditOverrideRequestRecord | null>(null);
   const [creditRequestIdInput, setCreditRequestIdInput] = React.useState('');
-  const [creditPage, setCreditPage] = React.useState(1);
+  const [creditPageCursors, setCreditPageCursors] = React.useState<Array<string | null>>([null]);
   const [creditAction, setCreditAction] = React.useState<'request' | 'approve' | 'apply' | null>(null);
   const [creditError, setCreditError] = React.useState<string | null>(null);
   const [rejectingRequestId, setRejectingRequestId] = React.useState<number | null>(null);
@@ -72,7 +72,7 @@ export default function TripCreatePage() {
       setCreditExpiry(defaultExpiryInput());
       setCreditRequest(null);
       setCreditRequestIdInput('');
-      setCreditPage(1);
+      setCreditPageCursors([null]);
       setCreditError(null);
     },
   });
@@ -94,9 +94,9 @@ export default function TripCreatePage() {
     () => ({
       customerId: creditBlock?.customerId,
       limit: 25,
-      page: creditPage,
+      cursor: creditPageCursors[creditPageCursors.length - 1] ?? undefined,
     }),
-    [creditBlock?.customerId, creditPage],
+    [creditBlock?.customerId, creditPageCursors],
   );
   const creditQueue = useCreditOverrideQueue(queueFilters, creditBlock?.customerId != null);
   const createCreditRequest = useCreateCreditOverrideRequest([queueFilters]);
@@ -107,10 +107,9 @@ export default function TripCreatePage() {
     : Math.round((form.suggestedPrice ?? 0) * expectedContainerCount);
 
   React.useEffect(() => {
-    if (!creditQueue.data) return;
-    const lastAvailablePage = Math.max(creditQueue.data.totalPages, 1);
-    if (creditPage > lastAvailablePage) setCreditPage(lastAvailablePage);
-  }, [creditPage, creditQueue.data]);
+    if (!creditQueue.data || creditQueue.data.items.length > 0 || creditPageCursors.length === 1) return;
+    setCreditPageCursors((current) => current.slice(0, -1));
+  }, [creditPageCursors.length, creditQueue.data]);
 
   const submitTrip = async (creditApprovalRequestId?: number | null) => {
     const tripId = await form.handleSubmit(undefined, { creditApprovalRequestId });
@@ -150,6 +149,7 @@ export default function TripCreatePage() {
         reason: creditReason.trim(),
         expiresAt: expiresAt.toISOString(),
       });
+      setCreditPageCursors([null]);
       setCreditRequest(created);
       setCreditRequestIdInput(String(created.id));
     } catch (error) {
@@ -466,12 +466,15 @@ export default function TripCreatePage() {
                     </div>
                   ))}
                 <Pagination
-                  page={creditQueue.data.page}
-                  totalPages={creditQueue.data.totalPages}
-                  totalItems={creditQueue.data.total}
-                  pageSize={creditQueue.data.limit}
+                  page={creditPageCursors.length}
+                  totalPages={creditPageCursors.length + (creditQueue.data.nextCursor ? 1 : 0)}
+                  summary={<span>Trang <b>{creditPageCursors.length}</b> · <b>{creditQueue.data.items.length}</b> đề nghị</span>}
                   onChange={(nextPage) => {
-                    setCreditPage(nextPage);
+                    if (nextPage === creditPageCursors.length + 1 && creditQueue.data?.nextCursor) {
+                      setCreditPageCursors((current) => [...current, creditQueue.data?.nextCursor ?? null]);
+                    } else if (nextPage < creditPageCursors.length) {
+                      setCreditPageCursors((current) => current.slice(0, nextPage));
+                    }
                     setCreditRequestIdInput('');
                   }}
                 />

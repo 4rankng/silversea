@@ -467,7 +467,7 @@ describe('Q01/Q02 credit override routes', () => {
     assert.equal(staleApprove.status, 409);
   });
 
-  test('lists the complete filtered history through stable pagination', async () => {
+  test('lists filtered history through a stable cursor during concurrent inserts and status changes', async () => {
     const customer = await mkCustomer('10000000');
     await mkLedger(customer.id, 10_500_000);
 
@@ -486,32 +486,48 @@ describe('Q01/Q02 credit override routes', () => {
       assert.equal(created.status, 201);
     }
 
+    const originalIds = [...createdCreditOverrideIds].slice(-3);
     const firstPage = await request(
-      `/api/finance/credit-overrides?customerId=${customer.id}&status=PENDING&limit=2&page=1`,
+      `/api/finance/credit-overrides?customerId=${customer.id}&status=PENDING&limit=2`,
       { token: managerToken },
     );
+
+    const concurrent = await request('/api/finance/credit-overrides', {
+      method: 'POST',
+      token: managerToken,
+      idempotencyKey: `q01-credit-page-${customer.id}-concurrent`,
+      body: {
+        customerId: customer.id,
+        proposedAmount: 200_000,
+        expiresAt: futureExpiry,
+        reason: 'Đề nghị tạo đồng thời sau trang đầu',
+      },
+    });
+    assert.equal(concurrent.status, 201);
+    await db.update(s.creditOverrideRequests)
+      .set({ status: 'CANCELED' })
+      .where(eq(s.creditOverrideRequests.id, firstPage.body.items[0].id));
+
     const secondPage = await request(
-      `/api/finance/credit-overrides?customerId=${customer.id}&status=PENDING&limit=2&page=2`,
+      `/api/finance/credit-overrides?customerId=${customer.id}&status=PENDING&limit=2&cursor=${encodeURIComponent(firstPage.body.nextCursor)}`,
       { token: managerToken },
     );
 
     assert.equal(firstPage.status, 200);
     assert.equal(secondPage.status, 200);
-    assert.deepEqual(
-      {
-        page: firstPage.body.page,
-        limit: firstPage.body.limit,
-        total: firstPage.body.total,
-        totalPages: firstPage.body.totalPages,
-        itemCount: firstPage.body.items.length,
-      },
-      { page: 1, limit: 2, total: 3, totalPages: 2, itemCount: 2 },
-    );
-    assert.equal(secondPage.body.page, 2);
+    assert.equal(firstPage.body.limit, 2);
+    assert.equal(firstPage.body.items.length, 2);
+    assert.equal(firstPage.body.hasMore, true);
+    assert.equal(typeof firstPage.body.nextCursor, 'string');
     assert.equal(secondPage.body.items.length, 1);
-    assert.equal(
-      firstPage.body.items.some((row: { id: number }) => row.id === secondPage.body.items[0].id),
-      false,
+    assert.equal(secondPage.body.hasMore, false);
+    const traversedIds = [...firstPage.body.items, ...secondPage.body.items]
+      .map((row: { id: number }) => row.id);
+    assert.equal(new Set(traversedIds).size, traversedIds.length);
+    assert.equal(traversedIds.includes(concurrent.body.id), false);
+    assert.deepEqual(
+      traversedIds.filter((id: number) => originalIds.includes(id)).sort((a: number, b: number) => a - b),
+      originalIds.sort((a, b) => a - b),
     );
   });
 
