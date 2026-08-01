@@ -5,6 +5,7 @@ import { inArray } from 'drizzle-orm';
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { cacheInvalidate, cacheInvalidatePattern, disconnectRedis } from '../lib/redis';
+import { config } from '../config';
 import { getDashboardStats } from '../services/dashboard-stats.service';
 import { getFuelApReconciliation } from '../services/fuel-ap-recon.service';
 import { getPnlReport, getFuelVarianceReport } from '../services/pnl.service';
@@ -34,6 +35,13 @@ let boundaryStart = '';
 let boundaryEnd = '';
 let previousPeriodStart = '';
 let previousPeriodEnd = '';
+let currentMonth = 0;
+let currentYear = 0;
+let previousMonth = 0;
+let previousYear = 0;
+let currentQuarter = 0;
+let previousQuarter = 0;
+let previousQuarterYear = 0;
 
 function addDays(dateStr: string, delta: number): string {
   const [year, month, day] = dateStr.split('-').map(Number);
@@ -48,6 +56,7 @@ function atBusinessNoon(dateStr: string): Date {
 async function invalidateReportCaches() {
   await Promise.all([
     cacheInvalidate('reports:dashboard'),
+    cacheInvalidate(`reports:dashboard:${config.workflowRolloutMode}`),
     cacheInvalidatePattern('reports:pnl:*'),
     cacheInvalidatePattern('reports:fuel-variance:*'),
   ]);
@@ -189,13 +198,27 @@ async function mkTruckCap(truckId: number, effectiveDate: string) {
 }
 
 before(async () => {
-  const july = await resolveSalaryPeriodDateRange(7, 2026);
-  const june = await resolveSalaryPeriodDateRange(6, 2026);
+  const businessDateParts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: 'numeric',
+  }).formatToParts(new Date());
+  currentYear = Number(businessDateParts.find(part => part.type === 'year')?.value);
+  currentMonth = Number(businessDateParts.find(part => part.type === 'month')?.value);
+  const priorMonthDate = new Date(Date.UTC(currentYear, currentMonth - 2, 1));
+  previousYear = priorMonthDate.getUTCFullYear();
+  previousMonth = priorMonthDate.getUTCMonth() + 1;
+  currentQuarter = Math.ceil(currentMonth / 3);
+  previousQuarter = currentQuarter === 1 ? 4 : currentQuarter - 1;
+  previousQuarterYear = currentQuarter === 1 ? currentYear - 1 : currentYear;
 
-  boundaryStart = july.start;
-  boundaryEnd = july.end;
-  previousPeriodStart = june.start;
-  previousPeriodEnd = june.end;
+  const currentPeriod = await resolveSalaryPeriodDateRange(currentMonth, currentYear);
+  const previousPeriod = await resolveSalaryPeriodDateRange(previousMonth, previousYear);
+
+  boundaryStart = currentPeriod.start;
+  boundaryEnd = currentPeriod.end;
+  previousPeriodStart = previousPeriod.start;
+  previousPeriodEnd = previousPeriod.end;
 
   await invalidateReportCaches();
   dashboardBefore = await getDashboardStats();
@@ -242,13 +265,13 @@ describe('Q20 official reporting period attribution', () => {
 
     await invalidateReportCaches();
 
-    const previousMonthPnl = await getPnlReport(6, 2026);
-    const currentMonthPnl = await getPnlReport(7, 2026);
+    const previousMonthPnl = await getPnlReport(previousMonth, previousYear);
+    const currentMonthPnl = await getPnlReport(currentMonth, currentYear);
     const dashboardAfter = await getDashboardStats();
-    const q2Preview = await previewDistribution(2, 2026);
-    const q3Preview = await previewDistribution(3, 2026);
-    const previousFuelVariance = await getFuelVarianceReport(6, 2026);
-    const currentFuelVariance = await getFuelVarianceReport(7, 2026);
+    const previousQuarterPreview = await previewDistribution(previousQuarter, previousQuarterYear);
+    const currentQuarterPreview = await previewDistribution(currentQuarter, currentYear);
+    const previousFuelVariance = await getFuelVarianceReport(previousMonth, previousYear);
+    const currentFuelVariance = await getFuelVarianceReport(currentMonth, currentYear);
 
     assert.equal(
       previousMonthPnl.tripDetails.some((trip) => trip.tripCode === crossPeriodTrip.tripCode),
@@ -271,14 +294,14 @@ describe('Q20 official reporting period attribution', () => {
     assert.equal(dashboardAfter.inTransitTrips, dashboardBefore.inTransitTrips + 1, 'in-transit trips remain operationally visible but stay outside official trip totals');
 
     assert.equal(
-      q2Preview.perTruck.some((row) => row.truckId === truck.id),
+      previousQuarterPreview.perTruck.some((row) => row.truckId === truck.id),
       false,
       'previous quarter distribution must not pick up a trip that only completed in the current quarter',
     );
-    const q3Truck = q3Preview.perTruck.find((row) => row.truckId === truck.id);
-    assert.ok(q3Truck, `current quarter distribution must include truck ${truck.id} once the trip completes in-quarter`);
-    assert.equal(q3Truck!.profit, 1200000);
-    assert.equal(q3Truck!.partners[0]?.amount, 1200000);
+    const currentQuarterTruck = currentQuarterPreview.perTruck.find((row) => row.truckId === truck.id);
+    assert.ok(currentQuarterTruck, `current quarter distribution must include truck ${truck.id} once the trip completes in-quarter`);
+    assert.equal(currentQuarterTruck!.profit, 1200000);
+    assert.equal(currentQuarterTruck!.partners[0]?.amount, 1200000);
 
     assert.equal(
       previousFuelVariance.trips.some((trip) => trip.tripCode === crossPeriodTrip.tripCode),

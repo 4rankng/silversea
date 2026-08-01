@@ -250,6 +250,20 @@ ALTER TABLE "payment_receipts" ADD CONSTRAINT "payment_receipts_treasury_account
 CREATE INDEX "customer_email_logs_visible_event_idx" ON "customer_email_logs" USING btree ("customer_visible_event_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "dispatch_handoffs_supersedes_uniq" ON "dispatch_handoffs" USING btree ("supersedes_handoff_id") WHERE "dispatch_handoffs"."supersedes_handoff_id" is not null;--> statement-breakpoint
 CREATE INDEX "ledger_financial_posting_idx" ON "ledger" USING btree ("financial_posting_id");--> statement-breakpoint
+DO $$
+BEGIN
+	IF EXISTS (
+		SELECT 1
+		FROM "shipment_milestones"
+		WHERE "trip_id" IS NOT NULL
+		GROUP BY "shipment_id", "trip_id", "type"
+		HAVING count(*) > 1
+	) THEN
+		RAISE EXCEPTION USING
+			MESSAGE = 'Cannot create shipment_milestones_trip_type_uniq: duplicate shipment/trip/type milestones exist',
+			HINT = 'Review and reconcile duplicate shipment milestones before retrying migration 0166; the migration will not delete operational history automatically.';
+	END IF;
+END $$;--> statement-breakpoint
 CREATE UNIQUE INDEX "shipment_milestones_trip_type_uniq" ON "shipment_milestones" USING btree ("shipment_id","trip_id","type") WHERE "shipment_milestones"."trip_id" is not null;--> statement-breakpoint
 ALTER TABLE "billing_documents" ADD CONSTRAINT "billing_documents_version_check" CHECK ("billing_documents"."version" > 0);--> statement-breakpoint
 ALTER TABLE "dispatch_handoffs" ADD CONSTRAINT "dispatch_handoffs_version_check" CHECK ("dispatch_handoffs"."version" > 0);--> statement-breakpoint

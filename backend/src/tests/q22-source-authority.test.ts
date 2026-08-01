@@ -501,6 +501,11 @@ describe('Q22 source authority propagation', () => {
       departureDate: '2026-07-31',
       completedAt: new Date('2026-08-02T09:00:00Z'),
     });
+    const { shipment } = await createShipmentFixture(customer.id);
+    await db.update(s.trips).set({
+      shipmentId: shipment.id,
+      updatedAt: new Date(),
+    }).where(eq(s.trips.id, trip.id));
     const [expenseType] = await db.insert(s.forwarderExpenseTypes).values({
       code: `Q22-EVT-${trip.id}`,
       name: `Q22 event fee ${trip.id}`,
@@ -513,6 +518,8 @@ describe('Q22 source authority propagation', () => {
       expenseType: expenseType.code,
       buyAmount: '100000',
       sellAmount: '200000',
+      recoverablePrincipalAmount: '100000',
+      serviceFeeAmount: '100000',
       expenseDate: '2026-07-31',
       payeeName: 'Q22 payee',
       note: 'Q22 cross-period event',
@@ -567,6 +574,7 @@ describe('Q22 source authority propagation', () => {
       await propagateTripFinancialSourceChange(tx, { tripId: trip.id });
       await tx.update(s.tripExpenses).set({
         sellAmount: '275000',
+        serviceFeeAmount: '175000',
         updatedAt: new Date(Date.now() + 2_000),
       }).where(eq(s.tripExpenses.id, expense.id));
       await propagateExpenseApproval(tx, { expenseId: expense.id });

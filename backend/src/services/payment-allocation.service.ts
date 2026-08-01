@@ -10,6 +10,7 @@ import type { Tx } from './trip-shared';
 import { assertCanMakeGovernanceAction } from './governance-policy';
 import {
   insertTreasuryMovement,
+  appendTreasuryReversal,
   resolveTreasuryPaymentContract,
   type ResolvedTreasuryPaymentContract,
   type TreasuryPaymentFields,
@@ -1010,6 +1011,19 @@ export async function requestPaymentRefundGovernance(
       throw new ApiError(409, 'Số tiền hoàn vượt quá khoản chưa phân bổ của phiếu thu');
     }
 
+    const [treasuryMovement] = await tx.select().from(s.treasuryMovements)
+      .where(and(
+        eq(s.treasuryMovements.paymentReceiptId, receipt.id),
+        eq(s.treasuryMovements.direction, 'IN'),
+        eq(s.treasuryMovements.status, 'POSTED'),
+        isNull(s.treasuryMovements.reversalOfId),
+      ))
+      .limit(1)
+      .for('update');
+    if (receipt.paymentContractVersion >= 2 && !treasuryMovement) {
+      throw new ApiError(409, 'Phiếu thu chưa có giao dịch kho quỹ gốc để hoàn tiền');
+    }
+
     const [action] = await tx.insert(s.governanceActions).values({
       subjectType: 'PAYMENT_REFUND',
       subjectId: receipt.id,
@@ -1027,6 +1041,8 @@ export async function requestPaymentRefundGovernance(
         unappliedAmount: Number(receipt.unappliedAmount),
         refundedAmount: Number(receipt.refundedAmount),
         version: receipt.version,
+        treasuryMovementId: treasuryMovement?.id ?? null,
+        treasuryMovementSourceVersion: treasuryMovement?.sourceVersion ?? null,
       },
       afterSnapshot: {
         paymentReceiptId: receipt.id,
@@ -1034,6 +1050,7 @@ export async function requestPaymentRefundGovernance(
         customerId: receipt.customerId,
         amount,
         reason,
+        treasuryMovementId: treasuryMovement?.id ?? null,
       },
       deltaSnapshot: {
         unappliedAmountDelta: -amount,
@@ -1060,6 +1077,9 @@ export async function applyPaymentRefundGovernanceAction(
   const paymentReceiptId = Number(afterSnapshot?.paymentReceiptId);
   const amount = Number(afterSnapshot?.amount);
   const reason = typeof afterSnapshot?.reason === 'string' ? afterSnapshot.reason.trim() : '';
+  const treasuryMovementId = afterSnapshot?.treasuryMovementId == null
+    ? null
+    : Number(afterSnapshot.treasuryMovementId);
   if (!Number.isInteger(paymentReceiptId) || paymentReceiptId < 1 || !reason) {
     throw new ApiError(409, 'Yêu cầu hoàn tiền không có dữ liệu áp dụng hợp lệ');
   }
@@ -1113,6 +1133,24 @@ export async function applyPaymentRefundGovernanceAction(
     throw new ApiError(409, 'Phiếu thu đã thay đổi; yêu cầu hoàn tiền không thể áp dụng');
   }
 
+  let refundTreasuryMovementId: number | null = null;
+  if (receipt.paymentContractVersion >= 2) {
+    if (!Number.isInteger(treasuryMovementId) || treasuryMovementId! < 1) {
+      throw new ApiError(409, 'Yêu cầu hoàn tiền thiếu liên kết giao dịch kho quỹ gốc');
+    }
+    const movement = await appendTreasuryReversal(tx, {
+      originalMovementId: treasuryMovementId!,
+      amount,
+      valueDate: new Date().toISOString().slice(0, 10),
+      sourceVersion: updatedReceipt.version,
+      physicalReference: `REFUND:${receipt.id}:V${updatedReceipt.version}`,
+      governanceActionId: action.id,
+      createdBy: action.makerId,
+      ledgerEntryId: ledgerEntry.id,
+    });
+    refundTreasuryMovementId = movement.id;
+  }
+
   return {
     ledgerEntryId: ledgerEntry.id,
     applicationResult: {
@@ -1124,6 +1162,7 @@ export async function applyPaymentRefundGovernanceAction(
       unappliedAmount: Number(updatedReceipt.unappliedAmount),
       refundedAmount: Number(updatedReceipt.refundedAmount),
       version: updatedReceipt.version,
+      treasuryMovementId: refundTreasuryMovementId,
     },
   };
 }

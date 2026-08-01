@@ -55,6 +55,8 @@ export interface ProfitabilityReport {
   dimension: ProfitabilityDimension;
   page: number;
   limit: number;
+  totalGroups: number;
+  totalPages: number;
   items: Array<{
     key: string;
     label: string | null;

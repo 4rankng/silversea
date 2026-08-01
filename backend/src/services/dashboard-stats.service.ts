@@ -20,8 +20,13 @@ import { config } from '../config';
 export async function getDashboardStats() {
   return cacheGet(`reports:dashboard:${config.workflowRolloutMode}`, 30, async () => {
     const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth() + 1;
+    const businessDateParts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: 'numeric',
+    }).formatToParts(now);
+    const year = Number(businessDateParts.find(part => part.type === 'year')?.value);
+    const month = Number(businessDateParts.find(part => part.type === 'month')?.value);
     const { start: monthStart, end: monthEnd } = await salaryPeriodDateRange(month, year);
     const completionBusinessDate = tripCompletionBusinessDateSql();
     const officialTripPeriod = and(

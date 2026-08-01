@@ -190,6 +190,11 @@ export async function getProfitabilityReport(input: {
   const nextMonth = input.month === 12 ? 1 : input.month + 1;
   const nextYear = input.month === 12 ? input.year + 1 : input.year;
   const end = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
+  const reportScope = and(
+    eq(s.profitabilitySnapshotDimensions.dimension, dimension),
+    gte(s.profitabilitySnapshots.completedBusinessDate, start),
+    lt(s.profitabilitySnapshots.completedBusinessDate, end),
+  );
   const rows = await db.select({
     key: s.profitabilitySnapshotDimensions.dimensionKey,
     label: s.profitabilitySnapshotDimensions.dimensionLabel,
@@ -205,25 +210,42 @@ export async function getProfitabilityReport(input: {
       eq(s.tripFinancialPostings.id, s.profitabilitySnapshots.financialPostingId),
       eq(s.tripFinancialPostings.status, 'ACTIVE'),
     ))
-    .where(and(
-      eq(s.profitabilitySnapshotDimensions.dimension, dimension),
-      gte(s.profitabilitySnapshots.completedBusinessDate, start),
-      lt(s.profitabilitySnapshots.completedBusinessDate, end),
-    ))
+    .where(reportScope)
     .groupBy(
       s.profitabilitySnapshotDimensions.dimensionKey,
       s.profitabilitySnapshotDimensions.dimensionLabel,
       s.profitabilitySnapshotDimensions.attributionStatus,
     )
-    .orderBy(desc(sql`sum(${s.profitabilitySnapshots.profit}::numeric)`), asc(s.profitabilitySnapshotDimensions.dimensionKey))
+    .orderBy(
+      desc(sql`sum(${s.profitabilitySnapshots.profit}::numeric)`),
+      asc(s.profitabilitySnapshotDimensions.dimensionKey),
+      asc(s.profitabilitySnapshotDimensions.dimensionLabel),
+      asc(s.profitabilitySnapshotDimensions.attributionStatus),
+    )
     .limit(limit).offset((page - 1) * limit);
+  const [aggregate] = await db.select({
+    revenue: sql<string>`coalesce(sum(${s.profitabilitySnapshots.revenue}::numeric), 0)`,
+    directCost: sql<string>`coalesce(sum(${s.profitabilitySnapshots.directCost}::numeric), 0)`,
+    sharedOverhead: sql<string>`coalesce(sum(${s.profitabilitySnapshots.sharedOverhead}::numeric), 0)`,
+    profit: sql<string>`coalesce(sum(${s.profitabilitySnapshots.profit}::numeric), 0)`,
+    snapshottedTrips: sql<number>`count(distinct ${s.profitabilitySnapshots.id})`,
+    missingAttribution: sql<number>`count(distinct case when ${s.profitabilitySnapshotDimensions.attributionStatus} = 'MISSING' then ${s.profitabilitySnapshots.id} end)`,
+    totalGroups: sql<number>`count(distinct (${s.profitabilitySnapshotDimensions.dimensionKey}, ${s.profitabilitySnapshotDimensions.dimensionLabel}, ${s.profitabilitySnapshotDimensions.attributionStatus}))`,
+  }).from(s.profitabilitySnapshots)
+    .innerJoin(s.profitabilitySnapshotDimensions, eq(s.profitabilitySnapshotDimensions.snapshotId, s.profitabilitySnapshots.id))
+    .innerJoin(s.tripFinancialPostings, and(
+      eq(s.tripFinancialPostings.id, s.profitabilitySnapshots.financialPostingId),
+      eq(s.tripFinancialPostings.status, 'ACTIVE'),
+    ))
+    .where(reportScope);
   const pnl = await getPnlReport(input.month, input.year);
-  const totals = rows.reduce((acc, row) => ({
-    revenue: acc.revenue + Number(row.revenue),
-    directCost: acc.directCost + Number(row.directCost),
-    sharedOverhead: acc.sharedOverhead + Number(row.sharedOverhead),
-    profit: acc.profit + Number(row.profit),
-  }), { revenue: 0, directCost: 0, sharedOverhead: 0, profit: 0 });
+  const totals = {
+    revenue: Number(aggregate?.revenue ?? 0),
+    directCost: Number(aggregate?.directCost ?? 0),
+    sharedOverhead: Number(aggregate?.sharedOverhead ?? 0),
+    profit: Number(aggregate?.profit ?? 0),
+  };
+  const totalGroups = Number(aggregate?.totalGroups ?? 0);
   const unallocatedSharedOverhead = Number(pnl.maintenanceExpensesTotal ?? 0)
     + Number(pnl.companyExpenses ?? 0);
   const otherIncome = Number(pnl.otherIncome ?? 0);
@@ -238,6 +260,8 @@ export async function getProfitabilityReport(input: {
     dimension: input.dimension,
     page,
     limit,
+    totalGroups,
+    totalPages: Math.max(1, Math.ceil(totalGroups / limit)),
     items: rows.map(row => ({ ...row, tripCount: Number(row.tripCount) })),
     totals,
     unallocated: {
@@ -247,9 +271,9 @@ export async function getProfitabilityReport(input: {
       otherIncome,
     },
     sourceCoverage: {
-      snapshottedTrips: rows.reduce((sum, row) => sum + Number(row.tripCount), 0),
+      snapshottedTrips: Number(aggregate?.snapshottedTrips ?? 0),
       pnlTrips: pnl.tripCount,
-      missingAttribution: rows.filter(row => row.attributionStatus === 'MISSING').reduce((sum, row) => sum + Number(row.tripCount), 0),
+      missingAttribution: Number(aggregate?.missingAttribution ?? 0),
     },
     reconciliation: {
       expectedNetProfit,

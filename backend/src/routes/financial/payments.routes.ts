@@ -90,6 +90,7 @@ const treasuryCutoverSchema = z.object({
   cutoverEvidence: z.string().trim().min(1).max(255),
 });
 const treasuryReversalSchema = z.object({
+  expectedVersion: z.number().int().positive(),
   reason: z.string().trim().min(1).max(1000),
   reversalEvidence: z.string().trim().min(1).max(255),
 });
@@ -624,40 +625,70 @@ router.get('/finance/treasury/position', requireWorkflowActive, requireRoles(Rol
 router.post('/finance/treasury/accounts/setup', requireWorkflowActive, requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   const body = treasuryAccountSetupSchema.parse(req.body);
-  const action = await requestTreasuryAccountSetup({
-    account: body,
-    reason: body.reason,
-    openingBalanceEvidence: body.openingBalanceEvidence,
-    makerId: actor.userId,
-    makerRole: actor.role,
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.TREASURY_ACCOUNT_SETUP,
+    idempotencyKey: resolveIdempotencyKey({ headerValue: req.header('Idempotency-Key') }),
+    payload: body,
+    createdBy: actor.userId,
+    entityType: 'governance_action',
+    responseStatusCode: 202,
+    create: (tx) => requestTreasuryAccountSetup({
+      account: body,
+      reason: body.reason,
+      openingBalanceEvidence: body.openingBalanceEvidence,
+      makerId: actor.userId,
+      makerRole: actor.role,
+      transaction: tx,
+    }),
   });
-  res.status(202).json(action);
+  res.locals.auditEntityId = result.id;
+  res.status(replayed ? 200 : 202).json({ ...result, replayed });
 }));
 
 router.post('/finance/treasury/accounts/:id/cutover', requireWorkflowActive, requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   const accountId = z.coerce.number().int().positive().parse(req.params.id);
   const body = treasuryCutoverSchema.parse(req.body);
-  const action = await requestTreasuryCutover({
-    accountId,
-    ...body,
-    makerId: actor.userId,
-    makerRole: actor.role,
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.TREASURY_ACCOUNT_CUTOVER,
+    idempotencyKey: resolveIdempotencyKey({ headerValue: req.header('Idempotency-Key') }),
+    payload: { accountId, ...body },
+    createdBy: actor.userId,
+    entityType: 'governance_action',
+    responseStatusCode: 202,
+    create: (tx) => requestTreasuryCutover({
+      accountId,
+      ...body,
+      makerId: actor.userId,
+      makerRole: actor.role,
+      transaction: tx,
+    }),
   });
-  res.status(202).json(action);
+  res.locals.auditEntityId = result.id;
+  res.status(replayed ? 200 : 202).json({ ...result, replayed });
 }));
 
 router.post('/finance/treasury/movements/:id/reversal', requireWorkflowActive, requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const actor = getUser(req);
   const movementId = z.coerce.number().int().positive().parse(req.params.id);
   const body = treasuryReversalSchema.parse(req.body);
-  const action = await requestTreasuryMovementReversal({
-    movementId,
-    ...body,
-    makerId: actor.userId,
-    makerRole: actor.role,
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.TREASURY_MOVEMENT_REVERSAL,
+    idempotencyKey: resolveIdempotencyKey({ headerValue: req.header('Idempotency-Key') }),
+    payload: { movementId, ...body },
+    createdBy: actor.userId,
+    entityType: 'governance_action',
+    responseStatusCode: 202,
+    create: (tx) => requestTreasuryMovementReversal({
+      movementId,
+      ...body,
+      makerId: actor.userId,
+      makerRole: actor.role,
+      transaction: tx,
+    }),
   });
-  res.status(202).json(action);
+  res.locals.auditEntityId = result.id;
+  res.status(replayed ? 200 : 202).json({ ...result, replayed });
 }));
 
 export default router;

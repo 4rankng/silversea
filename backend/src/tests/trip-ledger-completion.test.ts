@@ -4,6 +4,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { FuelMode, TripStatus, Role, TxnType } from '@tingting/shared';
 import { db, client } from '../db';
 import * as s from '../db/schema';
+import { config } from '../config';
 import { transitionTripStatus } from '../services/trip-status-machine.service';
 import {
   updateTripFigures,
@@ -306,6 +307,37 @@ describe('trip completion ledger posting', () => {
       .orderBy(s.ledger.id);
     assert.equal(latestCustomerRows.at(-1)?.balance, '0');
     assert.equal(latestSupplierRows.at(-1)?.balance, '0');
+  });
+
+  test('OFF rollback still retires an existing canonical posting when canceling', async () => {
+    const originalMode = config.workflowRolloutMode;
+    try {
+      config.workflowRolloutMode = 'ACTIVE';
+      const { trip } = await createInTransitTrip({ revenue: 800_000, totalFuelCost: 250_000 });
+      const completed = await completeTripGoverned(trip.id, trip.version);
+      const [activeBefore] = await db.select().from(s.tripFinancialPostings)
+        .where(and(
+          eq(s.tripFinancialPostings.tripId, trip.id),
+          eq(s.tripFinancialPostings.status, 'ACTIVE'),
+        ));
+      assert.ok(activeBefore, 'ACTIVE completion must create the canonical posting');
+
+      config.workflowRolloutMode = 'OFF';
+      const { checked, approvers } = await checkedCompletedTripCancellation(trip.id, completed.version);
+      await approveGovernanceAction({
+        actionId: checked.id,
+        approverId: approvers[0]!.id,
+        approverRole: Role.ADMIN,
+        expectedVersion: checked.version,
+      });
+
+      const postings = await db.select().from(s.tripFinancialPostings)
+        .where(eq(s.tripFinancialPostings.tripId, trip.id));
+      assert.equal(postings.filter((posting) => posting.status === 'ACTIVE').length, 0);
+      assert.equal(postings.filter((posting) => posting.reason === 'CANCELLATION').length, 1);
+    } finally {
+      config.workflowRolloutMode = originalMode;
+    }
   });
 
   test('concurrent cancels on a completed trip produce one winner and one 409 without duplicate reversals', async () => {

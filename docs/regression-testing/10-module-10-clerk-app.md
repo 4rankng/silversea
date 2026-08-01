@@ -17,6 +17,11 @@
 > seed hiện **chưa có tài khoản demo CLERK riêng** → dùng `admin` cho hầu hết ca (admin được phép vào clerk
 > portal — xem `clerkOrAdminOnly` trong `frontend/src/App.tsx:134`). Khi cần xác minh CLERK không thấy nút
 > "Điều vận", tạo một user CLERK tạm ở `/users` rồi đăng nhập lại. Ghi rõ lựa chọn này vào cột "Ghi chú".
+>
+> **Ngoại lệ cho bộ visual xuyên suốt mới:** khi chạy
+> [`13-customer-service-finance-visual-workflow.md`](./13-customer-service-finance-visual-workflow.md),
+> bắt buộc dùng tài khoản có role `CLERK` thật; không dùng `admin` làm đại diện vì bộ đó kiểm tra cả menu,
+> row-scope và quyền âm của CUS.
 
 ---
 

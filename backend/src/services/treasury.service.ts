@@ -1,4 +1,4 @@
-import { and, eq, lte, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, lte, sql } from 'drizzle-orm';
 import type { Role } from '@tingting/shared';
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -180,7 +180,11 @@ export async function insertTreasuryMovement(tx: Tx, input: {
     ? eq(s.treasuryMovements.paymentReceiptId, input.paymentReceiptId!)
     : eq(s.treasuryMovements.ledgerEntryId, input.ledgerEntryId!);
   const [existingSource] = await tx.select().from(s.treasuryMovements)
-    .where(and(eq(s.treasuryMovements.status, 'POSTED'), sourceFilter))
+    .where(and(
+      eq(s.treasuryMovements.status, 'POSTED'),
+      isNull(s.treasuryMovements.reversalOfId),
+      sourceFilter,
+    ))
     .limit(1);
   if (existingSource) {
     if (
@@ -220,6 +224,85 @@ export async function insertTreasuryMovement(tx: Tx, input: {
     createdBy: input.createdBy,
   }).returning();
   return movement;
+}
+
+export async function appendTreasuryReversal(tx: Tx, input: {
+  originalMovementId: number;
+  amount: number;
+  valueDate: string;
+  sourceVersion: number;
+  physicalReference: string;
+  governanceActionId: number;
+  createdBy: number;
+  ledgerEntryId?: number;
+}) {
+  assertWholeVndAmount(input.amount);
+  const valueDate = normalizeValueDate(input.valueDate);
+  const physicalReference = normalizeTreasuryPhysicalReference(input.physicalReference);
+  if (!valueDate || !physicalReference) {
+    throw new ApiError(400, 'Ngày giá trị và mã giao dịch đảo kho quỹ là bắt buộc');
+  }
+  if (!Number.isInteger(input.sourceVersion) || input.sourceVersion <= 0) {
+    throw new ApiError(400, 'Phiên bản nguồn đảo kho quỹ không hợp lệ');
+  }
+
+  const [original] = await tx.select().from(s.treasuryMovements)
+    .where(and(
+      eq(s.treasuryMovements.id, input.originalMovementId),
+      isNull(s.treasuryMovements.reversalOfId),
+    ))
+    .limit(1)
+    .for('update');
+  if (!original) throw new ApiError(404, 'Không tìm thấy giao dịch kho quỹ gốc');
+  if (original.status !== 'POSTED') {
+    throw new ApiError(409, 'Giao dịch kho quỹ gốc không còn hiệu lực');
+  }
+
+  const [existing] = await tx.select().from(s.treasuryMovements)
+    .where(and(
+      eq(s.treasuryMovements.reversalOfId, original.id),
+      eq(s.treasuryMovements.sourceVersion, input.sourceVersion),
+    ))
+    .limit(1);
+  if (existing) {
+    if (
+      existing.direction === (original.direction === 'IN' ? 'OUT' : 'IN')
+      && Number(existing.amount) === input.amount
+      && existing.physicalReference === physicalReference
+      && existing.ledgerEntryId === (input.ledgerEntryId ?? original.ledgerEntryId)
+      && existing.paymentReceiptId === (input.ledgerEntryId == null ? original.paymentReceiptId : null)
+      && existing.governanceActionId === input.governanceActionId
+    ) return existing;
+    throw new ApiError(409, 'Phiên bản nguồn đã liên kết với nội dung đảo kho quỹ khác');
+  }
+
+  const [reversed] = await tx.select({
+    amount: sql<string>`coalesce(sum(${s.treasuryMovements.amount}), 0)`,
+  }).from(s.treasuryMovements).where(and(
+    eq(s.treasuryMovements.reversalOfId, original.id),
+    eq(s.treasuryMovements.status, 'POSTED'),
+  ));
+  if (Number(reversed?.amount ?? 0) + input.amount > Number(original.amount)) {
+    throw new ApiError(409, 'Tổng tiền đảo vượt quá giao dịch kho quỹ gốc');
+  }
+
+  const [reversal] = await tx.insert(s.treasuryMovements).values({
+    treasuryAccountId: original.treasuryAccountId,
+    direction: original.direction === 'IN' ? 'OUT' : 'IN',
+    amount: String(input.amount),
+    valueDate,
+    status: 'POSTED',
+    paymentReceiptId: input.ledgerEntryId == null ? original.paymentReceiptId : null,
+    ledgerEntryId: input.ledgerEntryId ?? original.ledgerEntryId,
+    sourceVersion: input.sourceVersion,
+    paymentContractVersion: original.paymentContractVersion,
+    physicalReference,
+    externalReference: original.externalReference,
+    governanceActionId: input.governanceActionId,
+    reversalOfId: original.id,
+    createdBy: input.createdBy,
+  }).returning();
+  return reversal;
 }
 
 export async function getTreasuryPosition(accountId: number, transaction?: Tx): Promise<TreasuryPosition> {
@@ -266,6 +349,29 @@ function requiredText(value: unknown, label: string, max: number): string {
   return normalized;
 }
 
+async function assertNoActiveTreasuryGovernanceAction(tx: Tx, input: {
+  subjectType: 'TREASURY_ACCOUNT' | 'TREASURY_MOVEMENT';
+  actionKind: 'TREASURY_ACCOUNT_SETUP' | 'TREASURY_CUTOVER' | 'TREASURY_MOVEMENT_REVERSAL';
+  subjectId?: number;
+  subjectKey?: string;
+  originalVersion: number;
+}): Promise<void> {
+  const identity = input.subjectId == null
+    ? eq(s.governanceActions.subjectKey, input.subjectKey!)
+    : eq(s.governanceActions.subjectId, input.subjectId);
+  const [existing] = await tx.select({ id: s.governanceActions.id })
+    .from(s.governanceActions)
+    .where(and(
+      eq(s.governanceActions.subjectType, input.subjectType),
+      eq(s.governanceActions.actionKind, input.actionKind),
+      eq(s.governanceActions.originalVersion, input.originalVersion),
+      inArray(s.governanceActions.status, ['PENDING_CHECK', 'PENDING_APPROVAL', 'RETURNED_FOR_EVIDENCE']),
+      identity,
+    ))
+    .limit(1);
+  if (existing) throw new ApiError(409, 'Đã có yêu cầu kho quỹ đang được xử lý');
+}
+
 export async function requestTreasuryAccountSetup(input: {
   account: {
     code: string;
@@ -290,9 +396,18 @@ export async function requestTreasuryAccountSetup(input: {
     throw new ApiError(400, 'Số dư hoặc ngày số dư đầu kỳ không hợp lệ');
   }
   const execute = async (tx: Tx) => {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${`treasury-account-setup\u001f${code}`}, 0))`,
+    );
     const [existing] = await tx.select({ id: s.treasuryAccounts.id })
       .from(s.treasuryAccounts).where(eq(s.treasuryAccounts.code, code)).limit(1);
     if (existing) throw new ApiError(409, 'Mã tài khoản tiền mặt/ngân hàng đã tồn tại');
+    await assertNoActiveTreasuryGovernanceAction(tx, {
+      subjectType: 'TREASURY_ACCOUNT',
+      subjectKey: code,
+      actionKind: 'TREASURY_ACCOUNT_SETUP',
+      originalVersion: 1,
+    });
     const [action] = await tx.insert(s.governanceActions).values({
       subjectType: 'TREASURY_ACCOUNT',
       subjectKey: code,
@@ -340,6 +455,12 @@ export async function requestTreasuryCutover(input: {
     if (!account) throw new ApiError(404, 'Không tìm thấy tài khoản tiền mặt/ngân hàng');
     if (account.version !== input.expectedVersion) throw new ApiError(409, 'Tài khoản đã thay đổi. Vui lòng tải lại.');
     if (account.status !== 'ACTIVE' || account.cutoverAt) throw new ApiError(409, 'Tài khoản không thể chuyển đổi ở trạng thái hiện tại');
+    await assertNoActiveTreasuryGovernanceAction(tx, {
+      subjectType: 'TREASURY_ACCOUNT',
+      subjectId: account.id,
+      actionKind: 'TREASURY_CUTOVER',
+      originalVersion: account.version,
+    });
     const [action] = await tx.insert(s.governanceActions).values({
       subjectType: 'TREASURY_ACCOUNT',
       subjectId: account.id,
@@ -359,6 +480,7 @@ export async function requestTreasuryCutover(input: {
 
 export async function requestTreasuryMovementReversal(input: {
   movementId: number;
+  expectedVersion: number;
   reason: string;
   reversalEvidence: string;
   makerId: number;
@@ -371,6 +493,27 @@ export async function requestTreasuryMovementReversal(input: {
       .where(eq(s.treasuryMovements.id, input.movementId)).limit(1).for('update');
     if (!movement) throw new ApiError(404, 'Không tìm thấy giao dịch kho quỹ');
     if (movement.status !== 'POSTED') throw new ApiError(409, 'Giao dịch kho quỹ không còn hiệu lực');
+    if (movement.reversalOfId != null) throw new ApiError(409, 'Không thể đảo một giao dịch đảo kho quỹ');
+    if (movement.sourceVersion !== input.expectedVersion) {
+      throw new ApiError(409, 'Giao dịch kho quỹ đã thay đổi. Vui lòng tải lại.');
+    }
+    if (movement.paymentReceiptId != null) {
+      throw new ApiError(409, 'Giao dịch thu tiền chỉ được đảo qua nghiệp vụ hoàn tiền để đồng bộ công nợ và phân bổ.');
+    }
+    if (movement.ledgerEntryId != null) {
+      throw new ApiError(409, 'Giao dịch chi tiền chỉ được đảo qua nghiệp vụ chứng từ nguồn để đồng bộ sổ cái và công nợ phải trả.');
+    }
+    const [existingReversal] = await tx.select({ id: s.treasuryMovements.id })
+      .from(s.treasuryMovements)
+      .where(eq(s.treasuryMovements.reversalOfId, movement.id))
+      .limit(1);
+    if (existingReversal) throw new ApiError(409, 'Giao dịch kho quỹ đã có bút toán đảo');
+    await assertNoActiveTreasuryGovernanceAction(tx, {
+      subjectType: 'TREASURY_MOVEMENT',
+      subjectId: movement.id,
+      actionKind: 'TREASURY_MOVEMENT_REVERSAL',
+      originalVersion: movement.sourceVersion,
+    });
     const [action] = await tx.insert(s.governanceActions).values({
       subjectType: 'TREASURY_MOVEMENT',
       subjectId: movement.id,
@@ -378,7 +521,11 @@ export async function requestTreasuryMovementReversal(input: {
       reason: requiredText(input.reason, 'Lý do', 1000),
       originalVersion: movement.sourceVersion,
       beforeSnapshot: { ...movement },
-      afterSnapshot: { status: 'REVERSED' },
+      afterSnapshot: {
+        direction: movement.direction === 'IN' ? 'OUT' : 'IN',
+        amount: Number(movement.amount),
+        sourceVersion: movement.sourceVersion + 1,
+      },
       deltaSnapshot: { reversalEvidence: requiredText(input.reversalEvidence, 'Chứng từ đảo giao dịch', 255) },
       makerId: input.makerId,
       makerRole: input.makerRole,
@@ -422,29 +569,7 @@ export async function applyTreasuryGovernanceAction(tx: Tx, action: GovernanceAc
     return { applicationResult: { treasuryAccountId: account.id, cutoverAt: account.cutoverAt?.toISOString(), version: account.version } };
   }
   if (action.actionKind === 'TREASURY_MOVEMENT_REVERSAL') {
-    const [original] = await tx.update(s.treasuryMovements).set({ status: 'REVERSED' })
-      .where(and(
-        eq(s.treasuryMovements.id, action.subjectId!),
-        eq(s.treasuryMovements.status, 'POSTED'),
-      )).returning();
-    if (!original) throw new ApiError(409, 'Giao dịch kho quỹ đã được xử lý');
-    const [reversal] = await tx.insert(s.treasuryMovements).values({
-      treasuryAccountId: original.treasuryAccountId,
-      direction: original.direction === 'IN' ? 'OUT' : 'IN',
-      amount: original.amount,
-      valueDate: new Date().toISOString().slice(0, 10),
-      status: 'POSTED',
-      paymentReceiptId: original.paymentReceiptId,
-      ledgerEntryId: original.ledgerEntryId,
-      sourceVersion: original.sourceVersion + 1,
-      paymentContractVersion: original.paymentContractVersion,
-      physicalReference: `REVERSAL:${original.id}`,
-      externalReference: original.externalReference,
-      governanceActionId: action.id,
-      reversalOfId: original.id,
-      createdBy: action.makerId,
-    }).returning();
-    return { applicationResult: { treasuryMovementId: reversal.id, reversalOfId: original.id } };
+    throw new ApiError(409, 'Yêu cầu đảo kho quỹ độc lập không còn được hỗ trợ; hãy đảo qua nghiệp vụ chứng từ nguồn.');
   }
   throw new ApiError(409, 'Loại yêu cầu kho quỹ không được hỗ trợ');
 }

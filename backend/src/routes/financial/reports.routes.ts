@@ -26,7 +26,7 @@ const router = Router();
 
 // ─── Dashboard ───────────────────────────────────────────────────────────────
 
-router.get('/reports/dashboard', asyncHandler(async (_req: Request, res: Response) => {
+router.get('/reports/dashboard', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (_req: Request, res: Response) => {
   res.json(await getDashboardStats());
 }));
 

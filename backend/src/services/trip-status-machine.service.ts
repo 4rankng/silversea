@@ -286,7 +286,11 @@ export async function transitionTripStatus(
             approvalStatus: fee.approvalStatus,
           })),
         }, { strict: false, financialPostingId: activePosting?.id });
-        if (config.workflowRolloutMode !== 'OFF') {
+        // Rollout mode controls reachability, not the integrity of canonical
+        // posting rows that already exist. An ACTIVE trip posting must always
+        // be superseded when its trip is canceled, including after a rollback
+        // to OFF; legacy OFF-only trips without a posting remain compatible.
+        if (activePosting) {
           await createFinancialPosting(tx, {
             tripId: updated.id,
             tripVersion: updated.version,

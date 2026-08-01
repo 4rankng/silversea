@@ -4,7 +4,12 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
-import { saveDocument, getDocument, deleteDocument } from '../services/billingDocument.service';
+import {
+  buildExpenseSourceVersionToken,
+  saveDocument,
+  getDocument,
+  deleteDocument,
+} from '../services/billingDocument.service';
 import {
   approveGovernanceAction,
   checkGovernanceAction,
@@ -32,6 +37,7 @@ const createdUserIds: number[] = [];
 const createdSalaryConfirmationIds: number[] = [];
 const createdSupplierIds: number[] = [];
 const createdTruckIds: number[] = [];
+const createdShipmentIds: number[] = [];
 const createdFuelInvoiceIds: number[] = [];
 const createdGovernanceActionIds: number[] = [];
 
@@ -82,6 +88,16 @@ async function mkTrip(customerId: number, departureDate: string) {
   return trip;
 }
 
+async function mkShipment(customerId: number) {
+  const [shipment] = await db.insert(s.shipments).values({
+    shipmentCode: `Q21-SHP-${suffix}-${createdTripIds.length}`.slice(0, 50),
+    customerId,
+    status: 'DRAFT',
+  }).returning({ id: s.shipments.id });
+  createdShipmentIds.push(shipment.id);
+  return shipment;
+}
+
 async function mkExpense(tripId: number, invoiceDate: string) {
   const [expense] = await db.insert(s.tripExpenses).values({
     tripId,
@@ -89,6 +105,7 @@ async function mkExpense(tripId: number, invoiceDate: string) {
     buyAmount: '250000',
     sellAmount: '300000',
     approvalStatus: 'APPROVED',
+    expenseDate: invoiceDate,
     invoiceDate,
     note: 'Q21 late fuel expense',
   }).returning();
@@ -305,7 +322,23 @@ describe('Q21 period authority', () => {
   test('late debit-note adjustment in current open period links to the original locked period', async () => {
     const customer = await mkCustomer();
     const trip = await mkTrip(customer.id, '2026-05-12');
+    const shipment = await mkShipment(customer.id);
+    await db.update(s.trips)
+      .set({ shipmentId: shipment.id, updatedAt: new Date() })
+      .where(eq(s.trips.id, trip.id));
     const expense = await mkExpense(trip.id, '2026-05-12');
+    const [updatedExpense] = await db.update(s.tripExpenses)
+      .set({
+        expenseDate: '2026-06-05',
+        recoverablePrincipalAmount: '250000',
+        serviceFeeAmount: '50000',
+      })
+      .where(eq(s.tripExpenses.id, expense.id))
+      .returning({
+        updatedAt: s.tripExpenses.updatedAt,
+        approvalStatus: s.tripExpenses.approvalStatus,
+        sellAmount: s.tripExpenses.sellAmount,
+      });
 
     const lockedAuthority = await db.transaction((tx) =>
       resolveDebitNotePeriodAuthority(tx, customer.id, '2026-05-01', '2026-05-31'));
@@ -325,6 +358,10 @@ describe('Q21 period authority', () => {
         typeLabel: 'Phí nhiên liệu muộn',
         unit: 'lần',
         description: 'Điều chỉnh nhiên liệu tháng trước',
+        renderData: {
+          sourceVersion: buildExpenseSourceVersionToken(updatedExpense),
+          sourceChangedAt: updatedExpense.updatedAt.toISOString(),
+        },
         baseAmount: 300000,
         amountOverride: null,
         excluded: false,
@@ -686,6 +723,9 @@ after(async () => {
     }
     if (createdTripIds.length > 0) {
       await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
+    }
+    if (createdShipmentIds.length > 0) {
+      await db.delete(s.shipments).where(inArray(s.shipments.id, createdShipmentIds));
     }
     if (createdTruckIds.length > 0) {
       await db.delete(s.trucks).where(inArray(s.trucks.id, createdTruckIds));

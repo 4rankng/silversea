@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { readFile } from 'node:fs/promises';
 import { ApiError } from '../errors';
 import {
   calculateTreasuryBookBalance,
@@ -31,6 +32,29 @@ describe('treasury authority invariants', () => {
     assert.throws(
       () => calculateTreasuryBookBalance(0, 10.5, 0),
       (error: unknown) => error instanceof ApiError && error.statusCode === 409,
+    );
+  });
+
+  it('migration keeps canonical source uniqueness while versioning append-only reversals', async () => {
+    const migration = await readFile(
+      new URL('../../drizzle/0169_lively_sabra.sql', import.meta.url),
+      'utf8',
+    );
+    assert.match(
+      migration,
+      /treasury_movements_receipt_posted_uniq[\s\S]+reversal_of_id" is null/i,
+    );
+    assert.match(
+      migration,
+      /treasury_movements_ledger_posted_uniq[\s\S]+reversal_of_id" is null/i,
+    );
+    assert.match(
+      migration,
+      /treasury_movements_reversal_uniq[\s\S]+\("reversal_of_id","source_version"\)/i,
+    );
+    assert.match(
+      migration,
+      /UPDATE "treasury_movements" AS "original"[\s\S]+SET "status" = 'POSTED'[\s\S]+"reversal"\."reversal_of_id" = "original"\."id"/i,
     );
   });
 });

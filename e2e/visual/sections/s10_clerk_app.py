@@ -4,8 +4,9 @@
 dispatch handoff (10.3). Mobile viewport. Primary surface:
 /clerk/shipments/new, /clerk/shipments/:id/docs.
 
-Note: no CLERK demo account on localhost; ADMIN covers CLERK routes
-(casbin admits both).
+An exact CLERK fixture is mandatory. Configure VISUAL_CLERK_IDENTIFIER when
+the environment does not use the default ``clerk`` identifier; the runner
+fails preflight on a missing account or role mismatch.
 """
 from __future__ import annotations
 
@@ -25,7 +26,7 @@ def _assert_no_horizontal_scroll(ctx: VisualTestContext, max_width: int = 450):
 @tc("TC-M10-01-01", roles=["CLERK"], url="/clerk/shipments/new",
     viewport="mobile", title="M10-01-01 Clerk quick-create page renders")
 def tc_m10_01_01(ctx: VisualTestContext):
-    ctx.login("CLERK")  # resolves to admin on localhost
+    ctx.login("CLERK")
     ctx.goto("/clerk/shipments/new")
     _assert_no_horizontal_scroll(ctx)
     found = False

@@ -2885,12 +2885,12 @@ export const treasuryMovements = pgTable('treasury_movements', {
     .where(sql`${table.status} = 'POSTED'`),
   uniqueIndex('treasury_movements_receipt_posted_uniq')
     .on(table.paymentReceiptId)
-    .where(sql`${table.paymentReceiptId} is not null and ${table.status} = 'POSTED'`),
+    .where(sql`${table.paymentReceiptId} is not null and ${table.status} = 'POSTED' and ${table.reversalOfId} is null`),
   uniqueIndex('treasury_movements_ledger_posted_uniq')
     .on(table.ledgerEntryId)
-    .where(sql`${table.ledgerEntryId} is not null and ${table.status} = 'POSTED'`),
+    .where(sql`${table.ledgerEntryId} is not null and ${table.status} = 'POSTED' and ${table.reversalOfId} is null`),
   uniqueIndex('treasury_movements_reversal_uniq')
-    .on(table.reversalOfId)
+    .on(table.reversalOfId, table.sourceVersion)
     .where(sql`${table.reversalOfId} is not null`),
   index('treasury_movements_account_date_idx').on(table.treasuryAccountId, table.valueDate),
   check('treasury_movements_direction_check', sql`${table.direction} in ('IN', 'OUT')`),

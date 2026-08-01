@@ -134,7 +134,8 @@ docs/regression-testing/
 ├── 09-module-09-field-app.md          ← M09: Ứng dụng nhân viên hiện trường
 ├── 10-module-10-clerk-app.md          ← M10: Ứng dụng nhân viên chứng từ
 ├── 11-module-11-finance-pnl.md        ← M11: Báo cáo tài chính & lãi lỗ
-└── 12-module-12-fuel.md               ← M12: Nhiên liệu & số hóa chứng từ dầu
+├── 12-module-12-fuel.md               ← M12: Nhiên liệu & số hóa chứng từ dầu
+└── 13-customer-service-finance-visual-workflow.md ← Visual QA Booking → CUS → tài chính
 ```
 
 ### 4.1. Ma trận phân hệ ↔ ca kiểm thử
@@ -154,7 +155,8 @@ docs/regression-testing/
 | `10-module-10-clerk-app.md`  | 3 nhóm (10.1–10.3) | ~15           | M10-HT-01..M10-HT-10              |
 | `11-module-11-finance-pnl.md` | 6 nhóm (11.1–11.6) | ~30           | M11-HT-01..M11-HT-10              |
 | `12-module-12-fuel.md`       | 3 nhóm (12.1–12.3) | ~15           | M12-HT-01..M12-HT-10              |
-| **Tổng**                    |                   | **~400**        |                                   |
+| `13-customer-service-finance-visual-workflow.md` | Luồng xuyên phân hệ | 50 ca visual bổ sung | Role × route × viewport + đối chiếu tài chính |
+| **Tổng PRD + visual workflow** | | **~400 + 50 ca bổ sung** | |
 
 > Con số "~400" phản ánh độ phủ đậm đặc mà PRD yêu cầu: mỗi nhóm chức năng cần ≥5 ca (luồng thường,
 > thiếu/sai dữ liệu, ngoại lệ, phân quyền, gửi lại/đồng thời) cộng thêm các ca biên riêng của nhóm.
