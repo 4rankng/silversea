@@ -127,10 +127,10 @@ export function PenaltyTable({
         action={
           <>
           <Btn variant="secondary" icon={<Download size={14} />} onClick={async () => {
-            const headers = ['Lái xe', 'Mã lệnh', 'Lý do', 'Số tiền', 'Ngày'];
+            const headers = ['Lái xe', 'Mã chuyến', 'Lý do', 'Số tiền', 'Ngày'];
             const rows = filteredPenalties.map(p => [
               p.driverName || '—',
-              p.tripId ? String(p.tripId) : '—',
+              p.tripCode || '—',
               p.reasonText || p.customReason || '—',
               p.amount,
               p.date,
@@ -312,7 +312,7 @@ export function PenaltyTable({
               <table>
                 <thead>
                   <tr>
-                    <th style={{ width: 48, textAlign: 'center' }}>#</th>
+                    <th style={{ width: 54, textAlign: 'center' }}>STT</th>
                     <th>Lái xe</th>
                     <th>Chuỗi an toàn</th>
                     <th>Vi phạm {scoreFilter === '90d' ? '90N' : scoreFilter.toUpperCase()}</th>

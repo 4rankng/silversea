@@ -485,7 +485,7 @@ export default function SettlementPrintPage() {
                   className="btn btn--secondary btn--sm"
                   onClick={() => startEditingExpense(expense)}
                 >
-                  <Pencil size={14} /> Lập điều chỉnh {expense.tripCode || `#${expense.id}`}
+                  <Pencil size={14} /> Lập điều chỉnh {expense.tripCode || 'chuyến chưa có mã'}
                 </button>
               ))}
               <label>

@@ -5,6 +5,10 @@ import { Alert } from '../../../components/shared/Alert';
 import { formatCurrency } from '../../../lib/format';
 import type { Driver, PenaltyReason } from '@tingting/shared';
 import type { CreatePenaltyRequest } from '@tingting/shared';
+import { useQuery } from '@tanstack/react-query';
+import { tripClient } from '../../../api/tripClient';
+import { qk } from '../../../api/keys';
+import { SearchableSelect } from '../../../design-system/forms/SearchableSelect';
 
 interface PenaltyFormDrawerProps {
   isOpen: boolean;
@@ -31,6 +35,19 @@ export function PenaltyFormDrawer({
   const [formDate, setFormDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const tripOptionsQuery = useQuery({
+    queryKey: [...qk.trips.all, 'penalty-selector'],
+    queryFn: () => tripClient.listTrips({ limit: 100, page: 1 }),
+    enabled: isOpen,
+    staleTime: 60_000,
+  });
+  const tripOptions = (tripOptionsQuery.data?.items ?? [])
+    .filter((trip) => !formDriverId || trip.driver?.id === Number(formDriverId))
+    .map((trip) => ({
+      value: String(trip.id),
+      label: trip.tripCode || 'Chuyến chưa có mã',
+      searchText: `${trip.customer?.name ?? ''} ${trip.route?.name ?? ''} ${trip.departureDate ?? ''}`,
+    }));
 
   useEffect(() => {
     if (isOpen) {
@@ -107,8 +124,16 @@ export function PenaltyFormDrawer({
             {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
         </FormGroup>
-        <FormGroup label="Mã lệnh (tùy chọn)">
-          <input className="input" type="number" placeholder="VD: 1045" value={formTripId} onChange={e => setFormTripId(e.target.value)} />
+        <FormGroup label="Chuyến liên quan (tùy chọn)">
+          <SearchableSelect
+            id="penalty-trip"
+            value={formTripId}
+            onChange={setFormTripId}
+            options={tripOptions}
+            placeholder={tripOptionsQuery.isLoading ? 'Đang tải chuyến…' : 'Chọn theo mã chuyến'}
+            searchPlaceholder="Tìm theo mã chuyến, khách hàng hoặc tuyến…"
+            emptyMessage="Không có chuyến phù hợp với lái xe đã chọn."
+          />
         </FormGroup>
         <FormGroup label="Lý do danh mục">
           <select className="input" value={formReasonId} onChange={e => handleReasonChange(e.target.value)}>

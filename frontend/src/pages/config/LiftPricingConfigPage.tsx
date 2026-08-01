@@ -4,6 +4,7 @@ import { InlineForm } from '../../components/config/InlineForm';
 import { FormActions } from '../../components/config/FormActions';
 import { Field } from '../../components/config/Field';
 import { CrudTable } from '../../components/config/CrudTable';
+import { usePorts } from '../../hooks/useCatalogQueries';
 
 interface LiftPricing {
   id: number;
@@ -45,6 +46,8 @@ function LiftPricingForm({ saving, item, onsave, oncancel }: {
 
 export default function LiftPricingConfigPage() {
   const { rootRef: pageRef } = usePageAnimations({ ready: true, selectors: ['.cfg-row'] });
+  const { data: ports = [] } = usePorts();
+  const portNames = new Map(ports.map((port) => [port.id, port.name]));
   return (
     <div ref={pageRef}>
       <CrudTable<LiftPricing>
@@ -56,7 +59,7 @@ export default function LiftPricingConfigPage() {
         columns={[
           { header: 'Chiều', render: (r) => <span style={{ fontWeight: 600 }}>{DIR_LABELS[r.direction] ?? r.direction}</span> },
           { header: 'Đơn giá (₫)', render: (r) => Number(r.unitPrice).toLocaleString('vi-VN') },
-          { header: 'Cảng ID', render: (r) => r.portId },
+          { header: 'Cảng', render: (r) => portNames.get(r.portId) ?? 'Cảng không còn trong danh mục' },
           { header: 'Ngày hiệu lực', render: (r) => r.effectiveDate },
         ]}
         renderForm={(p) => <LiftPricingForm saving={p.saving} item={p.item} onsave={p.onSave} oncancel={p.onCancel} />}

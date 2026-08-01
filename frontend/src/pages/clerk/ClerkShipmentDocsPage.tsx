@@ -261,7 +261,7 @@ export default function ClerkShipmentDocsPage() {
 
   useEffect(() => {
     if (!Number.isFinite(shipmentId)) {
-      setLoadError('ID lô hàng không hợp lệ');
+      setLoadError('Đường dẫn lô hàng không hợp lệ');
       setLoading(false);
       return;
     }
@@ -587,10 +587,10 @@ export default function ClerkShipmentDocsPage() {
       </button>
 
       <h1 style={{ fontSize: 22, fontWeight: 700, marginTop: 8, marginBottom: 4 }}>
-        Hồ sơ lô {detail.shipment.shipmentCode ?? `#${detail.shipment.id}`}
+        Hồ sơ: {detail.shipment.shipmentCode?.trim() || 'Chưa có mã lô hàng'}
       </h1>
       <p style={{ color: 'var(--fg-3)', fontSize: 14, marginBottom: 16 }}>
-        Khách hàng: {detail.shipment.customerName ?? `#${detail.shipment.customerId}`}
+        Khách hàng: {detail.shipment.customerName?.trim() || 'Chưa có tên khách hàng'}
         {' · '}Trạng thái: {isDraft ? 'Bản nháp' : detail.shipment.status}
       </p>
 
@@ -628,8 +628,12 @@ export default function ClerkShipmentDocsPage() {
           disabled={savingShipment || assignedResponsibleUnitIds.length === 0}
         >
           <option value="">— Chưa gán —</option>
-          {assignedResponsibleUnitIds.map((unitId) => (
-            <option key={unitId} value={String(unitId)}>{`Đơn vị #${unitId}`}</option>
+          {assignedResponsibleUnitIds.map((unitId, index) => (
+            <option key={unitId} value={String(unitId)}>
+              {unitId === detail.shipment.responsibleUnitId
+                ? 'Đơn vị phụ trách hiện tại'
+                : `Đơn vị được phân quyền ${index + 1}`}
+            </option>
           ))}
         </SelectField>
         <TextField
@@ -976,7 +980,7 @@ export default function ClerkShipmentDocsPage() {
             {detail.declarations.map((declaration: ShipmentDeclaration) => (
               <article key={declaration.id} style={listRowStyle}>
                 <div>
-                  <strong>{declaration.declarationNumber || `Tờ khai #${declaration.id}`}</strong>
+                  <strong>{declaration.declarationNumber?.trim() || 'Chưa có số tờ khai'}</strong>
                   <div style={mutedTextStyle}>
                     {declaration.scope ?? 'SINGLE'} · {declaration.issuedAt ? new Date(declaration.issuedAt).toLocaleString('vi-VN') : 'Chưa có ngày phát hành'}
                   </div>
@@ -1085,7 +1089,9 @@ export default function ClerkShipmentDocsPage() {
           </SelectField>
         )}
         <TextField
-          label={replaceDocumentTarget ? `Storage key tài liệu mới thay cho #${replaceDocumentTarget.id}` : 'Storage key tài liệu'}
+          label={replaceDocumentTarget
+            ? `Đường dẫn lưu trữ mới cho tài liệu ${replaceDocumentTarget.type ?? 'hiện tại'}`
+            : 'Đường dẫn lưu trữ tài liệu'}
           value={documentForm.storageKey}
           onChange={(event) => setDocumentForm((current) => ({ ...current, storageKey: event.target.value }))}
           disabled={savingDocument}
@@ -1128,7 +1134,7 @@ export default function ClerkShipmentDocsPage() {
                 <div>
                   <strong>{request.requestKind === 'PLAN_UPDATE' ? 'Đổi kế hoạch' : 'Đổi công-te-nơ'}</strong>
                   <div style={mutedTextStyle}>
-                    Phiên bản gốc {request.sourceVersion} · {request.requester?.fullName ?? request.requester?.username ?? `User #${request.requestedBy}`}
+                    Phiên bản gốc {request.sourceVersion} · {request.requester?.fullName ?? request.requester?.username ?? 'Người dùng không xác định'}
                   </div>
                 </div>
                 {canReview ? (

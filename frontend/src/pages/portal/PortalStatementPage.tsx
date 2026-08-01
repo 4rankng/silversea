@@ -151,7 +151,7 @@ export default function PortalStatementPage() {
                 {data.unpaidTrips.map((trip) => (
                   <article key={trip.tripId} className="portal-due-row">
                     <div>
-                      <strong>{trip.note || `Chuyến #${trip.tripId}`}</strong>
+                      <strong>{trip.note || 'Chuyến chưa có mã'}</strong>
                       <span>{trip.outstanding.toLocaleString('vi-VN')} ₫ còn phải thanh toán</span>
                     </div>
                     <div>

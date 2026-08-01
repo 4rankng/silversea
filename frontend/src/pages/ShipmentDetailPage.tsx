@@ -143,7 +143,7 @@ export default function ShipmentDetailPage() {
 
   const fetchDetail = useCallback(async () => {
     if (!Number.isInteger(shipmentId) || shipmentId <= 0) {
-      setError('ID lô hàng không hợp lệ');
+      setError('Đường dẫn lô hàng không hợp lệ');
       setLoading(false);
       return;
     }
@@ -195,16 +195,18 @@ export default function ShipmentDetailPage() {
   }
 
   const { shipment, containers, documents, declarations, statusHistory, podReviews } = data;
+  const shipmentLabel = shipment.shipmentCode?.trim() || 'Chưa có mã lô hàng';
+  const customerLabel = shipment.customerName?.trim() || 'Chưa có tên khách hàng';
 
   return (
     <div className="shipment-detail page-anim" ref={rootRef}>
       <Breadcrumbs items={[
         { label: 'Lô hàng', to: '/shipments' },
-        { label: shipment.shipmentCode ?? `#${shipment.id}` },
+        { label: shipmentLabel },
       ]} />
 
       <PageHeader
-        title={shipment.shipmentCode ?? `Lô hàng #${shipment.id}`}
+        title={shipmentLabel}
         description={`Trạng thái: ${SHIPMENT_STATUS_LABELS[shipment.status]}`}
         onBack={() => navigate('/shipments')}
         action={canOperate ? (
@@ -227,7 +229,7 @@ export default function ShipmentDetailPage() {
             <span className="shipment-detail__version">v{shipment.version}</span>
           </div>
           <dl className="shipment-detail__fields">
-            <div><dt>Khách hàng</dt><dd>{shipment.customerName ?? `#${shipment.customerId}`}</dd></div>
+            <div><dt>Khách hàng</dt><dd>{customerLabel}</dd></div>
             <div><dt>Mã đặt chỗ</dt><dd>{shipment.bookingRef ?? '—'}</dd></div>
             <div><dt>Số B/L</dt><dd>{shipment.blNumber ?? '—'}</dd></div>
             <div><dt>Giao dự kiến</dt><dd>{formatDate(shipment.expectedDeliveryDate)}</dd></div>
@@ -330,7 +332,7 @@ export default function ShipmentDetailPage() {
             <ul className="shipment-detail__decls">
               {declarations.map((d) => (
                 <li key={d.id} className="shipment-detail__decl">
-                  <div><strong>{d.declarationNumber ?? `#${d.id}`}</strong></div>
+                  <div><strong>{d.declarationNumber?.trim() || 'Chưa có số tờ khai'}</strong></div>
                   <div className="shipment-detail__decl-meta">
                     Loại: {d.scope === 'SHARED' ? 'Chung' : 'Riêng'} · Ngày phát hành: {formatDate(d.issuedAt)}
                   </div>

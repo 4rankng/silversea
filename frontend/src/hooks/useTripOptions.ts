@@ -95,7 +95,7 @@ export function useTripOptions(): TripOptions {
     drivers: catalog?.drivers.map(toDriverOption) ?? [],
     trailers: catalog?.trailers?.map((t) => ({ id: t.id, label: t.licensePlate, type: t.type })) ?? [],
     cargoTypes: catalog?.cargoTypes.map((c) => ({ id: c.id, label: c.name })) ?? [],
-    containerTypes: catalog?.containerTypes.map((c) => ({ id: c.id, label: c.name || c.code || `Loại #${c.id}` })) ?? [],
+    containerTypes: catalog?.containerTypes.map((c) => ({ id: c.id, label: c.name || c.code || 'Loại container chưa đặt tên' })) ?? [],
     pricingTables: pricingQuery.data ?? [],
     loading: bootstrapQuery.isLoading || pricingQuery.isLoading,
   };

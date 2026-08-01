@@ -417,7 +417,7 @@ fontSize: 13,
             <table className="table-hover">
               <thead>
                 <tr>
-                  <th style={{ width: 44 }}>#</th>
+                  <th style={{ width: 54 }}>STT</th>
                   <th style={{ width: 140 }}>Thời gian</th>
                   <th style={{ width: 180 }}>Người dùng</th>
                   <th>Nội dung</th>

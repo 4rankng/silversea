@@ -53,7 +53,7 @@ export function FuelCard({ trip, derived, fuelPriceConfig }: FuelCardProps) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `phieu-cap-nhien-lieu-${trip.tripCode ?? trip.id}.xlsx`;
+      a.download = `phieu-cap-nhien-lieu-${trip.tripCode ?? 'chuyen-chua-co-ma'}.xlsx`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
     } catch { /* download failed */ }

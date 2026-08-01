@@ -119,7 +119,7 @@ export function CrudTable<T extends { id: number }>({
             <caption className="sr-only">{title}</caption>
             <thead>
               <tr>
-                <th style={{ width: 40 }}>#</th>
+                <th style={{ width: 54 }}>STT</th>
                 {columns.map(col => (
                   <th key={col.header} style={col.width ? { width: col.width } : undefined} className={col.className}>
                     {col.header}

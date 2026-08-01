@@ -187,7 +187,7 @@ export function TrailerCard({ trailers, trucks, crud }: { trailers: Array<{ id: 
           <table className="tt-table">
             <thead>
               <tr>
-                <th className="num">#</th>
+                <th className="num">STT</th>
                 <th>Biển số rơ-moóc</th>
                 <th>Loại</th>
                 <th>Đầu kéo đang ghép</th>

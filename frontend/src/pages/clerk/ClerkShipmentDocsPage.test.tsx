@@ -182,6 +182,34 @@ describe('ClerkShipmentDocsPage', () => {
     expect(screen.getByText(/Thông tin công-te-nơ đầy đủ/)).toBeTruthy();
   });
 
+  it('never presents database identifiers as shipment, customer, unit, or declaration names', async () => {
+    getDetailMock.mockResolvedValue(makeDetail({
+      shipment: { shipmentCode: null, customerName: null },
+      declarations: [{
+        id: 88,
+        shipmentId: 42,
+        declarationNumber: null,
+        issuedAt: null,
+        scope: 'SINGLE',
+        note: null,
+        createdBy: 1,
+        createdAt: '2026-08-01T00:00:00.000Z',
+        updatedAt: '2026-08-01T00:00:00.000Z',
+      }],
+    }));
+
+    renderAt();
+
+    expect(await screen.findByRole('heading', { name: 'Hồ sơ: Chưa có mã lô hàng' })).toBeTruthy();
+    expect(screen.getByText(/Khách hàng: Chưa có tên khách hàng/)).toBeTruthy();
+    expect(screen.getByText('Chưa có số tờ khai')).toBeTruthy();
+    const responsibleUnitSelect = screen.getByRole('button', { name: 'Đơn vị phụ trách hiện tại' });
+    expect(responsibleUnitSelect).toBeTruthy();
+    fireEvent.click(responsibleUnitSelect);
+    expect(screen.getByRole('option', { name: 'Đơn vị được phân quyền 2' })).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/#(?:42|7|11|12|88)\b/);
+  });
+
   it('preserves a legacy unknown cargo mode when saving another field', async () => {
     getDetailMock.mockResolvedValue(makeDetail({ shipment: { cargoMode: null } }));
     updateShipmentMock.mockResolvedValue({
@@ -552,7 +580,7 @@ describe('ClerkShipmentDocsPage', () => {
     expect(documentTypeSelect).toBeTruthy();
 
     fireEvent.change(documentTypeSelect!, { target: { value: 'BL' } });
-    fireEvent.change(screen.getByLabelText('Storage key tài liệu'), { target: { value: 'uploads/shipment-42/bl-v1.pdf' } });
+    fireEvent.change(screen.getByLabelText('Đường dẫn lưu trữ tài liệu'), { target: { value: 'uploads/shipment-42/bl-v1.pdf' } });
     fireEvent.click(screen.getByRole('button', { name: /Thêm tài liệu/ }));
 
     await waitFor(() => expect(addDocumentMock).toHaveBeenCalledWith(42, {
@@ -561,7 +589,7 @@ describe('ClerkShipmentDocsPage', () => {
     }));
 
     fireEvent.click(await screen.findByRole('button', { name: 'Thay thế' }));
-    fireEvent.change(screen.getByLabelText(/Storage key tài liệu mới thay cho #91/), {
+    fireEvent.change(screen.getByLabelText('Đường dẫn lưu trữ mới cho tài liệu BL'), {
       target: { value: 'uploads/shipment-42/bl-v2.pdf' },
     });
     fireEvent.change(screen.getByLabelText('Ngày hết hạn (nếu có)'), {
@@ -702,7 +730,7 @@ describe('ClerkShipmentDocsPage', () => {
     const documentTypeSelect = documentSection.closest('section')?.querySelector('select') as HTMLSelectElement | null;
     expect(documentTypeSelect).toBeTruthy();
     fireEvent.change(documentTypeSelect!, { target: { value: 'DO' } });
-    fireEvent.change(screen.getByLabelText('Storage key tài liệu'), { target: { value: 'uploads/shipment-42/do-v1.pdf' } });
+    fireEvent.change(screen.getByLabelText('Đường dẫn lưu trữ tài liệu'), { target: { value: 'uploads/shipment-42/do-v1.pdf' } });
     fireEvent.click(screen.getByRole('button', { name: /Thêm tài liệu/ }));
 
     await waitFor(() => expect(addDocumentMock).toHaveBeenCalledWith(42, {
@@ -711,7 +739,7 @@ describe('ClerkShipmentDocsPage', () => {
     }));
 
     fireEvent.click(await screen.findByRole('button', { name: 'Thay thế' }));
-    fireEvent.change(screen.getByLabelText(/Storage key tài liệu mới thay cho #91/), {
+    fireEvent.change(screen.getByLabelText('Đường dẫn lưu trữ mới cho tài liệu DO'), {
       target: { value: 'uploads/shipment-42/do-v2.pdf' },
     });
     fireEvent.change(screen.getByLabelText('Ngày hết hạn (nếu có)'), {

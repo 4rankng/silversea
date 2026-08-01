@@ -12,7 +12,7 @@ import {
   UserRoundCheck,
   XCircle,
 } from 'lucide-react';
-import { Role } from '@tingting/shared';
+import { ROLE_LABELS, Role } from '@tingting/shared';
 import type { CreditOverrideRequestRecord, CreditOverrideStatus } from '../api/creditOverrideClient';
 import {
   useApproveCreditOverrideRequest,
@@ -54,11 +54,9 @@ const WORKFLOW_LABELS = {
 
 type QueueFilterStatus = CreditOverrideStatus | 'ALL';
 
-function normalizeCustomerId(value: string): number | undefined {
-  const trimmed = value.trim();
-  if (!trimmed) return undefined;
-  const parsed = Number(trimmed);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+function displayRole(role: string | null): string {
+  if (!role) return 'Không xác định';
+  return ROLE_LABELS[role as Role] ?? 'Không xác định';
 }
 
 function statusTone(status: CreditOverrideStatus): string {
@@ -119,7 +117,7 @@ function DecisionSummary({ request }: { request: CreditOverrideRequestRecord }) 
       <div className="credit-override-queue__decision-summary is-approved">
         <CheckCircle2 size={16} />
         <span>
-          Đã duyệt bởi {request.approvedRole ?? '—'} lúc {formatDateTimeVN(request.approvedAt)}.
+          Đã duyệt bởi {displayRole(request.approvedRole)} lúc {formatDateTimeVN(request.approvedAt)}.
         </span>
       </div>
     );
@@ -129,7 +127,7 @@ function DecisionSummary({ request }: { request: CreditOverrideRequestRecord }) 
       <div className="credit-override-queue__decision-summary is-rejected">
         <XCircle size={16} />
         <span>
-          Đã từ chối bởi {request.rejectedRole ?? '—'} lúc {formatDateTimeVN(request.rejectedAt)}.
+          Đã từ chối bởi {displayRole(request.rejectedRole)} lúc {formatDateTimeVN(request.rejectedAt)}.
         </span>
       </div>
     );
@@ -148,17 +146,16 @@ function DecisionSummary({ request }: { request: CreditOverrideRequestRecord }) 
 export default function CreditOverrideQueuePage() {
   const { user } = useAuth();
   const [statusFilter, setStatusFilter] = React.useState<QueueFilterStatus>('PENDING');
-  const [customerIdInput, setCustomerIdInput] = React.useState('');
+  const [selectedCustomerId, setSelectedCustomerId] = React.useState('');
   const [rejectReasons, setRejectReasons] = React.useState<Record<number, string>>({});
   const [actionErrors, setActionErrors] = React.useState<Record<number, string | null>>({});
 
   const filters = React.useMemo(
     () => ({
       status: statusFilter === 'ALL' ? undefined : statusFilter,
-      customerId: normalizeCustomerId(customerIdInput),
       limit: 50,
     }),
-    [customerIdInput, statusFilter],
+    [statusFilter],
   );
 
   const queue = useCreditOverrideQueue(filters, true);
@@ -166,15 +163,25 @@ export default function CreditOverrideQueuePage() {
   const approveMutation = useApproveCreditOverrideRequest([filters]);
   const rejectMutation = useRejectCreditOverrideRequest([filters]);
 
-  const requests = queue.data ?? [];
+  const allRequests = queue.data ?? [];
+  const customerOptions = React.useMemo(() => {
+    const names = new Map<number, string>();
+    for (const request of allRequests) {
+      names.set(request.customerId, request.customerName || 'Khách hàng chưa có tên');
+    }
+    return [...names].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+  }, [allRequests]);
+  const requests = selectedCustomerId
+    ? allRequests.filter((request) => request.customerId === Number(selectedCustomerId))
+    : allRequests;
   const actionableCount = requests.filter((request) => canActOnRequest(request, user ?? null)).length;
   const pendingCount = requests.filter((request) => request.status === 'PENDING').length;
   const totalProposed = requests.reduce((sum, request) => sum + Number(request.proposedAmount || 0), 0);
-  const hasCustomFilters = statusFilter !== 'PENDING' || customerIdInput.trim().length > 0;
+  const hasCustomFilters = statusFilter !== 'PENDING' || selectedCustomerId.length > 0;
 
   function clearFilters() {
     setStatusFilter('PENDING');
-    setCustomerIdInput('');
+    setSelectedCustomerId('');
   }
 
   async function handleCheck(request: CreditOverrideRequestRecord) {
@@ -245,7 +252,7 @@ export default function CreditOverrideQueuePage() {
             <p className="credit-override-queue__eyebrow">Phê duyệt công nợ</p>
             <h1>Duyệt vượt hạn mức</h1>
             <p className="credit-override-queue__subtitle">
-              Kiểm soát các đề nghị vượt hạn mức công nợ theo đúng phân cấp phê duyệt.
+              Kiểm soát các đề nghị vượt hạn mức công nợ theo thẩm quyền được giao.
             </p>
           </div>
         </div>
@@ -286,13 +293,17 @@ export default function CreditOverrideQueuePage() {
         <article className="credit-override-queue__summary-card is-value">
           <span className="credit-override-queue__summary-icon" aria-hidden="true"><BadgeDollarSign size={20} /></span>
           <div>
-            <span>Tổng giá trị</span>
+            <span>Giá trị hiển thị</span>
             <strong>{formatCurrency(totalProposed)}</strong>
           </div>
         </article>
       </section>
 
-      <section className="credit-override-queue__workspace" aria-labelledby="credit-override-queue-title">
+      <section
+        className="credit-override-queue__workspace"
+        aria-labelledby="credit-override-queue-title"
+        aria-busy={queue.isFetching}
+      >
         <div className="credit-override-queue__toolbar">
           <div className="credit-override-queue__toolbar-title">
             <h2 id="credit-override-queue-title">Hàng chờ phê duyệt</h2>
@@ -310,16 +321,15 @@ export default function CreditOverrideQueuePage() {
               </select>
             </label>
             <label className="credit-override-queue__field is-search">
-              <span>Mã khách hàng</span>
+              <span>Khách hàng</span>
               <span className="credit-override-queue__search-control">
                 <Search size={16} aria-hidden="true" />
-                <input
-                  type="search"
-                  inputMode="numeric"
-                  placeholder="Tìm mã khách hàng"
-                  value={customerIdInput}
-                  onChange={(event) => setCustomerIdInput(event.target.value)}
-                />
+                <select value={selectedCustomerId} onChange={(event) => setSelectedCustomerId(event.target.value)}>
+                  <option value="">Tất cả khách hàng</option>
+                  {customerOptions.map((customer) => (
+                    <option key={customer.id} value={customer.id}>{customer.name}</option>
+                  ))}
+                </select>
               </span>
             </label>
           </div>
@@ -328,7 +338,7 @@ export default function CreditOverrideQueuePage() {
         <div className="credit-override-queue__workspace-body">
 
       {queue.isLoading ? (
-        <div className="credit-override-queue__state">
+        <div className="credit-override-queue__state" role="status" aria-live="polite">
           <Loader2 size={18} className="spin" />
           <span>Đang tải hàng chờ phê duyệt…</span>
         </div>
@@ -345,7 +355,7 @@ export default function CreditOverrideQueuePage() {
       ) : null}
 
       {!queue.isLoading && !queue.isError && requests.length === 0 ? (
-        <div className="credit-override-queue__state is-empty">
+        <div className="credit-override-queue__state is-empty" role="status" aria-live="polite">
           <span className="credit-override-queue__empty-icon" aria-hidden="true"><ShieldCheck size={38} /></span>
           <div>
             <strong>{statusFilter === 'PENDING' ? 'Không có đề nghị chờ duyệt' : 'Không có đề nghị phù hợp'}</strong>
@@ -372,7 +382,7 @@ export default function CreditOverrideQueuePage() {
                 <div className="credit-override-queue__card-header">
                   <div>
                     <div className="credit-override-queue__card-kicker">
-                      <span>Đề nghị #{request.id}</span>
+                      <span>Đề nghị vượt hạn mức</span>
                       <span className={`credit-override-queue__status ${statusTone(request.status)}`}>
                         {STATUS_LABELS[request.status]}
                       </span>
@@ -380,7 +390,7 @@ export default function CreditOverrideQueuePage() {
                         {WORKFLOW_LABELS[request.workflowStatus]}
                       </span>
                     </div>
-                    <h2>Khách hàng #{request.customerId}</h2>
+                    <h2>{request.customerName || 'Chưa có tên khách hàng'}</h2>
                   </div>
                   <div className="credit-override-queue__badges">
                     <span className="credit-override-queue__badge">{SCOPE_LABELS[request.scopeType]}</span>
@@ -397,11 +407,11 @@ export default function CreditOverrideQueuePage() {
                 <div className="credit-override-queue__facts">
                   <div>
                     <span className="credit-override-queue__fact-label">Người tạo</span>
-                    <strong>{request.requestedRole}</strong>
+                    <strong>{request.requestedByName || displayRole(request.requestedRole)}</strong>
                   </div>
                   <div>
                     <span className="credit-override-queue__fact-label">Lô hàng</span>
-                    <strong>{request.shipmentId != null ? `#${request.shipmentId}` : 'Không khóa theo lô'}</strong>
+                    <strong>{request.shipmentId != null ? request.shipmentCode || 'Chưa có mã lô hàng' : 'Không áp dụng theo lô hàng'}</strong>
                   </div>
                   <div>
                     <span className="credit-override-queue__fact-label">Hiệu lực đến</span>
@@ -415,7 +425,7 @@ export default function CreditOverrideQueuePage() {
                     <span className="credit-override-queue__fact-label">Người kiểm tra</span>
                     <strong>
                       {request.checkedBy != null
-                        ? `#${request.checkedBy} · ${formatDateTimeVN(request.checkedAt)}`
+                        ? `${request.checkedByName || 'Người dùng không xác định'} · ${formatDateTimeVN(request.checkedAt)}`
                         : 'Chưa kiểm tra'}
                     </strong>
                   </div>
@@ -456,7 +466,7 @@ export default function CreditOverrideQueuePage() {
                 <div className="credit-override-queue__meta">
                   <span>Ngưỡng cảnh báo: {Math.round(Number(request.warningThreshold || 0) * 100)}%</span>
                   <span>Tỷ lệ vượt: {Math.round(Number(request.overLimitRatio || 0) * 100)}%</span>
-                  {request.consumedTripId != null ? <span>Đã dùng cho chuyến #{request.consumedTripId}</span> : null}
+                  {request.consumedTripId != null ? <span>Đã được sử dụng cho một chuyến đi</span> : null}
                   {request.consumedAt ? <span>Dùng lúc {formatDateTimeVN(request.consumedAt)}</span> : null}
                 </div>
 

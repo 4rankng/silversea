@@ -18,6 +18,7 @@ type SubmitState = 'idle' | 'pending' | 'retry' | 'conflict';
 
 export interface TripPodSubmissionProps {
   tripId: number;
+  tripCode?: string | null;
   tripVersion: number;
   currentSubmission: DriverTaskPodSubmission | null;
   history: DriverTaskPodSubmission[];
@@ -99,6 +100,7 @@ function triggerInput(ref: React.RefObject<HTMLInputElement | null>) {
 
 export function TripPodSubmission({
   tripId,
+  tripCode,
   tripVersion,
   currentSubmission,
   history,
@@ -163,7 +165,7 @@ export function TripPodSubmission({
 
   const canSubmit = editableSubmission != null && missingRequired.length === 0 && !uploading && !creatingDraft;
   const submissionHeadline = currentSubmission
-    ? `Phiên bản #${currentSubmission.submissionVersion}`
+    ? `Phiên bản ${currentSubmission.submissionVersion}`
     : 'Chưa có phiên bản e-POD';
 
   return (
@@ -173,7 +175,7 @@ export function TripPodSubmission({
           <p className="trip-pod__eyebrow">e-POD bắt buộc</p>
           <h2 className="trip-pod__title">{submissionHeadline}</h2>
           <p className="trip-pod__subtitle">
-            Chuyến #{tripId} · phiên bản chuyến {tripVersion}
+            {tripCode || 'Chuyến chưa có mã'} · phiên bản chuyến {tripVersion}
           </p>
         </div>
         {currentSubmission && (
@@ -319,7 +321,7 @@ export function TripPodSubmission({
             {latestHistory.map((submission) => (
               <li key={submission.id} className="trip-pod__history-item">
                 <div>
-                  <strong>Phiên bản #{submission.submissionVersion}</strong>
+                  <strong>Phiên bản {submission.submissionVersion}</strong>
                   <span>{STATUS_LABELS[submission.status]}</span>
                 </div>
                 <span>{formatDateTime(submission.submittedAt ?? submission.createdAt)}</span>

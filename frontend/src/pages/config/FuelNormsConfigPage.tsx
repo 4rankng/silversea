@@ -181,7 +181,7 @@ export default function FuelNormsConfigPage() {
         emptyTitle="Chưa có định mức nhiên liệu"
         emptyHint="Thêm định mức đầu tiên cho tuyến đường."
         columns={[
-          { header: 'Tuyến đường', render: (r) => (r.routeId ? (routeMap.get(r.routeId) || `#${r.routeId}`) : '— Áp dụng chung —') },
+          { header: 'Tuyến đường', render: (r) => (r.routeId ? (routeMap.get(r.routeId) || 'Tuyến đường không còn trong danh mục') : '— Áp dụng chung —') },
           { header: 'Có hàng (l/100km)', render: (r) => <span style={{ fontWeight: 600 }}>{r.loadedLitersPer100Km}</span> },
           { header: 'Không hàng', render: (r) => r.emptyLitersPer100Km },
           { header: 'Flat-rate', render: (r) => r.flatRateLiters ?? '—' },

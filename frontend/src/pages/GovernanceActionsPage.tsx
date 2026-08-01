@@ -14,6 +14,7 @@ import type {
   GovernanceActionStatus,
   GovernanceAllowedAction,
 } from '@tingting/shared';
+import { ROLE_LABELS, Role } from '@tingting/shared';
 import type { GovernanceActionRecord } from '../api/financialClient';
 import { salaryClient } from '../api/salaryClient';
 import {
@@ -380,7 +381,7 @@ export default function GovernanceActionsPage() {
               >
                 <div className="governance-actions__card-header">
                   <div>
-                    <div className="governance-actions__kicker">Yêu cầu #{action.id}</div>
+                    <div className="governance-actions__kicker">Yêu cầu phê duyệt</div>
                     <h2>{governanceActionLabel(action)}</h2>
                   </div>
                   <span className={`governance-actions__status ${statusTone(action.status)}`}>
@@ -391,11 +392,11 @@ export default function GovernanceActionsPage() {
                 <dl className="governance-actions__facts">
                   <div>
                     <dt>Đối tượng</dt>
-                    <dd>{action.subjectType} · {action.subjectId != null ? `#${action.subjectId}` : action.subjectKey ?? '—'}</dd>
+                    <dd>{action.subjectKey || governanceActionLabel(action)}</dd>
                   </div>
                   <div>
                     <dt>Người tạo</dt>
-                    <dd>{action.makerRole ?? '—'} · #{action.makerId}</dd>
+                    <dd>{action.makerRole ? ROLE_LABELS[action.makerRole as Role] ?? 'Người dùng không xác định' : 'Người dùng không xác định'}</dd>
                   </div>
                   <div>
                     <dt>Phiên bản</dt>

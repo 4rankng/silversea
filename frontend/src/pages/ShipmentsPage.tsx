@@ -96,11 +96,14 @@ function formatRoute(s: ShipmentRow): string | null {
     .join(' → ');
 }
 
-// Human-readable customer label. The backend joins customers.name onto each
-// list row; we only fall back to the bare id in the rare case the join
-// returned null (hard-deleted customer).
+// Human-readable customer label. Database identifiers are never useful as
+// customer-facing names, including when a historical customer was removed.
 function customerLabel(s: ShipmentRow): string {
-  return s.customerName ?? `#${s.customerId}`;
+  return s.customerName?.trim() || 'Chưa có tên khách hàng';
+}
+
+function shipmentLabel(s: ShipmentRow): string {
+  return s.shipmentCode?.trim() || 'Chưa có mã lô hàng';
 }
 
 function formatDeliveryDate(iso: string | null): string {
@@ -362,12 +365,12 @@ export default function ShipmentsPage() {
                   as="article"
                   className="shipments-page__card"
                   to={`/shipments/${s.id}`}
-                  ariaLabel={`Lô hàng ${s.shipmentCode ?? `#${s.id}`}`}
+                  ariaLabel={shipmentLabel(s)}
                 >
                   <div className="shipments-page__card-top">
                     <div className="shipments-page__card-identity">
                       <span className="shipments-page__card-code">
-                        {s.shipmentCode ?? `#${s.id}`}
+                        {shipmentLabel(s)}
                       </span>
                       <span className="shipments-page__card-customer">{customerLabel(s)}</span>
                     </div>
@@ -473,10 +476,10 @@ export default function ShipmentsPage() {
                     as="tr"
                     className="shipments-page__tr"
                     to={`/shipments/${s.id}`}
-                    ariaLabel={`Lô hàng ${s.shipmentCode ?? `#${s.id}`}`}
+                    ariaLabel={shipmentLabel(s)}
                   >
                     <td className="shipments-page__td shipments-page__td--code">
-                      <span className="shipments-page__code">{s.shipmentCode ?? `#${s.id}`}</span>
+                      <span className="shipments-page__code">{shipmentLabel(s)}</span>
                       <span className="shipments-page__sub">{customerLabel(s)}</span>
                       {s.factoryName && <span className="shipments-page__sub">{s.factoryName}</span>}
                     </td>

@@ -80,7 +80,7 @@ export default function PortalShipmentDetailPage() {
       <Link to={withCustomerScope(routes.portalShipments, selectedCustomerId)} className="portal-back"><ArrowLeft size={16} /> Danh sách lô hàng</Link>
       <header className="portal-page__header">
         <span className="portal-page__eyebrow">Chi tiết lô hàng</span>
-        <h1>{shipment.shipmentCode ?? `Lô hàng #${shipment.id}`}</h1>
+        <h1>{shipment.shipmentCode?.trim() || 'Chưa có mã lô hàng'}</h1>
         <p>Trạng thái hiện tại: <span className="portal-status">{SHIPMENT_STATUS_LABELS[shipment.status as keyof typeof SHIPMENT_STATUS_LABELS]}</span></p>
       </header>
 
@@ -147,7 +147,7 @@ export default function PortalShipmentDetailPage() {
             {declarations.map((declaration: any) => (
               <div key={declaration.id} className="portal-list__row">
                 <div className="portal-list__primary">
-                  <strong>{declaration.declarationNumber}</strong>
+                  <strong>{declaration.declarationNumber?.trim() || 'Chưa có số tờ khai'}</strong>
                   <div className="portal-list__meta">{declaration.scope === 'SHARED' ? 'Dùng chung' : 'Riêng lẻ'}</div>
                 </div>
               </div>

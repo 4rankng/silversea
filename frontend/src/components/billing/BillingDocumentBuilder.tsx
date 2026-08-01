@@ -441,7 +441,7 @@ export default function BillingDocumentBuilder({
               <div style={{ display: 'grid', gap: 4 }}>
                 {eligibilitySummary.blockedTrips.slice(0, 6).map((trip) => (
                   <span key={trip.tripId}>
-                    {trip.tripCode || `Chuyến #${trip.tripId}`}: {trip.reason}
+                    {trip.tripCode || 'Chuyến chưa có mã'}: {trip.reason}
                   </span>
                 ))}
                 {eligibilitySummary.blockedTrips.length > 6 && (

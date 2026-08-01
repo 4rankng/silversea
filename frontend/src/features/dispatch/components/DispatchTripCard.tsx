@@ -100,10 +100,10 @@ export function DispatchTripCard({
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, color: 'var(--ink)' }}>
             <Link2 size={15} />
-            Cặp 2 chiều #{trip.pairing.pairId}
+            Cặp chuyến 2 chiều
           </div>
           <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>
-            Chặng {trip.pairing.order}/2 · Ghép với {trip.pairing.partnerTripCode ?? `#${trip.pairing.partnerTripId}`}
+            Chặng {trip.pairing.order}/2 · Ghép với {trip.pairing.partnerTripCode ?? 'chuyến chưa có mã'}
           </div>
         </div>
         <div style={{ marginTop: 10, display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
@@ -172,7 +172,7 @@ export function DispatchTripCard({
             <option value="">Chọn chuyến ghép</option>
             {pairCandidates.map((candidate) => (
               <option key={candidate.id} value={candidate.id}>
-                {(candidate.tripCode ?? `#${candidate.id}`)} · {candidate.routeName}
+                {(candidate.tripCode ?? 'Chuyến chưa có mã')} · {candidate.routeName}
               </option>
             ))}
           </select>
@@ -288,7 +288,7 @@ export function DispatchTripCard({
               </div>
               {trip.pairing && (
                 <div className="lb" style={{ marginTop: 4 }}>
-                  Chặng {trip.pairing.order}/2 · {trip.pairing.partnerTripCode ?? `#${trip.pairing.partnerTripId}`}
+                  Chặng {trip.pairing.order}/2 · {trip.pairing.partnerTripCode ?? 'Chuyến chưa có mã'}
                 </div>
               )}
             </div>

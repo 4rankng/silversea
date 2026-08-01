@@ -102,7 +102,7 @@ function getCustomerScopeLabel(u: UserRow, customerMap?: Map<number, string>) {
   if (ids.length === 0) {
     return u.role === Role.ACCOUNTANT ? 'Phạm vi tài chính toàn công ty' : 'Chưa liên kết khách hàng';
   }
-  const names = ids.map(id => customerMap?.get(id) ?? `Khách hàng #${id}`);
+  const names = ids.map(id => customerMap?.get(id) ?? 'Khách hàng không còn trong danh mục');
   return u.role === Role.ACCOUNTANT ? `Phạm vi kế toán: ${names.join(', ')}` : names.join(', ');
 }
 
@@ -115,12 +115,12 @@ function getClerkScopeLabel(
   const parts: string[] = [];
   const unitIds = u.businessUnitIds ?? [];
   if (unitIds.length > 0) {
-    const unitNames = unitIds.map((id) => businessUnitMap?.get(id) ?? `Đơn vị #${id}`);
+    const unitNames = unitIds.map((id) => businessUnitMap?.get(id) ?? 'Đơn vị không còn trong danh mục');
     parts.push(`Đơn vị: ${unitNames.join(', ')}`);
   }
   const customerIds = u.customerIds?.length ? u.customerIds : u.customerId ? [u.customerId] : [];
   if (customerIds.length > 0) {
-    const names = customerIds.map((id) => customerMap?.get(id) ?? `Khách hàng #${id}`);
+    const names = customerIds.map((id) => customerMap?.get(id) ?? 'Khách hàng không còn trong danh mục');
     parts.push(`Khách hàng: ${names.join(', ')}`);
   }
   if ((u.shipmentIds?.length ?? 0) > 0) {

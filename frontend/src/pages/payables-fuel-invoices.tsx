@@ -163,7 +163,7 @@ function computeCompletion(
 }
 
 function supplierNameFor(invoice: FuelInvoice, suppliersById: Map<number, string>) {
-  return suppliersById.get(invoice.supplierId) ?? `NCC #${invoice.supplierId}`;
+  return suppliersById.get(invoice.supplierId) ?? 'Nhà cung cấp không còn trong danh mục';
 }
 
 function plateForTrip(
@@ -173,7 +173,7 @@ function plateForTrip(
 ) {
   const fromTrip = tripOptionsById.get(tripId)?.truckPlate;
   if (fromTrip) return fromTrip;
-  return explicitTruckId != null ? `Xe #${explicitTruckId}` : 'Chưa gắn xe';
+  return explicitTruckId != null ? 'Xe không còn trong danh mục' : 'Chưa gắn xe';
 }
 
 function invoiceMatchesSearch(invoice: FuelInvoice, supplierName: string, search: string) {
@@ -272,7 +272,7 @@ function FuelInvoiceDetailBody({
                 <div key={allocation.id ?? `${allocation.tripId}-${allocation.voucherReference}`} className="fuel-invoice-allocation-card">
                   <div className="fuel-invoice-allocation-card__head">
                     <div>
-                      <strong>{tripMeta?.tripCode ?? `Chuyến #${allocation.tripId}`}</strong>
+                      <strong>{tripMeta?.tripCode ?? 'Chuyến chưa có mã'}</strong>
                       <span>{tripMeta?.routeName ?? 'Chuyến đã chốt'}</span>
                     </div>
                     <div className="fuel-invoice-allocation-card__amount">
@@ -353,7 +353,7 @@ function TripExpenseReferenceSelect({
       <option value="">Chọn chi phí nhiên liệu đã duyệt</option>
       {options.map((expense) => (
         <option key={expense.id} value={expense.id}>
-          #{expense.id} · {formatDate(expense.expenseDate ?? expense.createdAt)} · {formatCurrency(expense.buyAmount)}
+          {formatDate(expense.expenseDate ?? expense.createdAt)} · {formatCurrency(expense.buyAmount)}
         </option>
       ))}
     </select>
@@ -537,7 +537,7 @@ function FuelInvoiceEditor({
                     }}
                     options={tripOptions.map((trip) => ({
                       value: String(trip.id),
-                      label: `${trip.tripCode ?? `Chuyến #${trip.id}`} · ${trip.truckPlate ?? 'Chưa gắn xe'}`,
+                      label: `${trip.tripCode ?? 'Chuyến chưa có mã'} · ${trip.truckPlate ?? 'Chưa gắn xe'}`,
                       searchText: `${trip.routeName ?? ''} ${trip.departureDate ?? ''}`,
                     }))}
                     placeholder="Chọn chuyến"
@@ -600,7 +600,7 @@ function FuelInvoiceEditor({
                   />
                 </div>
                 <div className="fuel-invoice-editor__row-meta">
-                  <span>Xe: {tripOption?.truckPlate ?? (row.truckId != null ? `Xe #${row.truckId}` : 'Chưa gắn xe')}</span>
+                  <span>Xe: {tripOption?.truckPlate ?? (row.truckId != null ? 'Xe không còn trong danh mục' : 'Chưa gắn xe')}</span>
                   <span>Thành tiền: {formatCurrency(allocationAmount)}</span>
                 </div>
                 <div className="field fuel-invoice-editor__row-note">

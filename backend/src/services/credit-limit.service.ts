@@ -30,6 +30,10 @@ export type CreditOverrideView = Omit<CreditOverrideRow, 'version'> & {
   governanceActionId: number | null;
   checkedBy: number | null;
   checkedAt: Date | null;
+  customerName?: string | null;
+  shipmentCode?: string | null;
+  requestedByName?: string | null;
+  checkedByName?: string | null;
 };
 
 export interface CreditCheckResult {
@@ -178,6 +182,47 @@ function toCreditOverrideView(
     checkedBy: action?.checkerId ?? null,
     checkedAt: action?.checkedAt ?? null,
   };
+}
+
+async function enrichCreditOverrideViews(
+  views: CreditOverrideView[],
+): Promise<CreditOverrideView[]> {
+  if (views.length === 0) return views;
+
+  const customerIds = [...new Set(views.map((view) => view.customerId))];
+  const shipmentIds = [...new Set(
+    views.map((view) => view.shipmentId).filter((id): id is number => id != null),
+  )];
+  const userIds = [...new Set(
+    views.flatMap((view) => [view.requestedBy, view.checkedBy])
+      .filter((id): id is number => id != null),
+  )];
+
+  const [customers, shipments, users] = await Promise.all([
+    db.select({ id: s.customers.id, name: s.customers.name })
+      .from(s.customers)
+      .where(inArray(s.customers.id, customerIds)),
+    shipmentIds.length > 0
+      ? db.select({ id: s.shipments.id, code: s.shipments.shipmentCode })
+        .from(s.shipments)
+        .where(inArray(s.shipments.id, shipmentIds))
+      : Promise.resolve([]),
+    db.select({ id: s.users.id, fullName: s.users.fullName, username: s.users.username })
+      .from(s.users)
+      .where(inArray(s.users.id, userIds)),
+  ]);
+
+  const customerNames = new Map(customers.map((customer) => [customer.id, customer.name]));
+  const shipmentCodes = new Map(shipments.map((shipment) => [shipment.id, shipment.code]));
+  const userNames = new Map(users.map((user) => [user.id, user.fullName ?? user.username]));
+
+  return views.map((view) => ({
+    ...view,
+    customerName: customerNames.get(view.customerId) ?? null,
+    shipmentCode: view.shipmentId == null ? null : shipmentCodes.get(view.shipmentId) ?? null,
+    requestedByName: userNames.get(view.requestedBy) ?? null,
+    checkedByName: view.checkedBy == null ? null : userNames.get(view.checkedBy) ?? null,
+  }));
 }
 
 async function getApprovedUncollectedAmount(
@@ -622,7 +667,9 @@ export async function listCreditOverrideRequests(filters: {
     .orderBy(desc(s.creditOverrideRequests.createdAt))
     .limit(Math.min(Math.max(filters.limit ?? 100, 1), 200));
   const decisions = await findCreditOverrideDecisions(db, requests.map((request) => request.id));
-  return requests.map((request) => toCreditOverrideView(request, decisions.get(request.id)));
+  return enrichCreditOverrideViews(
+    requests.map((request) => toCreditOverrideView(request, decisions.get(request.id))),
+  );
 }
 
 export async function getCreditOverrideRequest(requestId: number): Promise<CreditOverrideView> {
@@ -633,7 +680,10 @@ export async function getCreditOverrideRequest(requestId: number): Promise<Credi
   if (!request) {
     throw new ApiError(404, 'Không tìm thấy đề nghị vượt hạn mức');
   }
-  return toCreditOverrideView(request, await findCreditOverrideDecision(db, request.id));
+  const [view] = await enrichCreditOverrideViews([
+    toCreditOverrideView(request, await findCreditOverrideDecision(db, request.id)),
+  ]);
+  return view;
 }
 
 async function loadApprovedOverrideForUse(

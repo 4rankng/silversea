@@ -45,13 +45,14 @@ async function mkUser(role: Role) {
 }
 
 async function mkCustomer(creditLimit: string) {
+  const name = `Q01 route customer ${suffix}-${createdCustomerIds.length}`;
   const [row] = await db.execute<{ id: number }>(sql`
     insert into customers (name, credit_limit)
-    values (${`Q01 route customer ${suffix}-${createdCustomerIds.length}`}, ${creditLimit})
+    values (${name}, ${creditLimit})
     returning id
   `);
   createdCustomerIds.push(row.id);
-  return { id: row.id };
+  return { id: row.id, name };
 }
 
 async function mkLedger(customerId: number, debit: number) {
@@ -404,7 +405,11 @@ describe('Q01/Q02 credit override routes', () => {
       token: managerToken,
     });
     assert.equal(listed.status, 200);
-    assert.ok(listed.body.some((row: { id: number }) => row.id === created.body.id));
+    const listedRequest = listed.body.find((row: { id: number }) => row.id === created.body.id);
+    assert.ok(listedRequest);
+    assert.equal(listedRequest.customerName, customer.name);
+    assert.equal(typeof listedRequest.requestedByName, 'string');
+    assert.equal(typeof listedRequest.checkedByName, 'string');
 
     const rejectKey = `q23-credit-reject-${created.body.id}`;
     const rejected = await request(`/api/finance/credit-overrides/${created.body.id}/reject`, {

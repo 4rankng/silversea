@@ -218,7 +218,7 @@ function SelectionScopeFields({
     return haystack.includes(normalizedSearch);
   });
   const selectedTitles = selectedIds
-    .map((id) => options.find((option) => option.id === id)?.title ?? `#${id}`)
+    .map((id) => options.find((option) => option.id === id)?.title ?? 'Mục không còn trong danh mục')
     .filter((value, index, array) => array.indexOf(value) === index);
 
   return (
@@ -360,10 +360,10 @@ export function EditPanel({
   }));
   const shipmentSelectionOptions: SelectionOption[] = shipmentOptions.map((shipment) => ({
     id: shipment.id,
-    title: shipment.shipmentCode ?? `Lô #${shipment.id}`,
+    title: shipment.shipmentCode ?? 'Lô hàng chưa có mã',
     subtitle: shipment.customerName
       ? `${shipment.customerName} · ${shipment.status}`
-      : `Khách hàng #${shipment.customerId} · ${shipment.status}`,
+      : `Khách hàng chưa có tên · ${shipment.status}`,
   }));
   const roleOptions = Object.values(Role).filter((candidateRole) =>
     canManageClerkScope || candidateRole !== Role.CLERK || user.role === Role.CLERK,
@@ -745,10 +745,10 @@ export function AddPanel({
   }));
   const shipmentSelectionOptions: SelectionOption[] = shipmentOptions.map((shipment) => ({
     id: shipment.id,
-    title: shipment.shipmentCode ?? `Lô #${shipment.id}`,
+    title: shipment.shipmentCode ?? 'Lô hàng chưa có mã',
     subtitle: shipment.customerName
       ? `${shipment.customerName} · ${shipment.status}`
-      : `Khách hàng #${shipment.customerId} · ${shipment.status}`,
+      : `Khách hàng chưa có tên · ${shipment.status}`,
   }));
   const roleOptions = Object.values(Role).filter((candidateRole) =>
     canManageClerkScope || candidateRole !== Role.CLERK,

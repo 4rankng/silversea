@@ -12,9 +12,14 @@ import type {
   SalaryPeriodGovernanceAction,
 } from '../api/salaryClient';
 import { useToast } from '../components/shared/Toast';
+import { ROLE_LABELS, Role } from '@tingting/shared';
 import './SalaryAttendancePage.css';
 
 export const DOW_LABELS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+
+function governanceActorLabel(role: string | null): string {
+  return role ? ROLE_LABELS[role as Role] ?? 'Người dùng không xác định' : 'Người dùng không xác định';
+}
 
 
 export const STATUS_CONFIG = {
@@ -276,7 +281,7 @@ export function PostCloseAdjustmentList({
             <div style={{ marginTop: 6, fontSize: 13, color: 'var(--fg-2)' }}>{item.reason}</div>
             <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 12, color: 'var(--fg-3)' }}>
               <span>{item.status === 'APPROVED' ? 'Đã phê duyệt' : item.status === 'PENDING_APPROVAL' ? 'Chờ phê duyệt' : 'Chờ kiểm tra'}</span>
-              <span>Tạo bởi {item.makerName || `#${item.makerId}`}</span>
+              <span>Tạo bởi {item.makerName || 'Người dùng không xác định'}</span>
               {item.checkerName && <span>Kiểm tra: {item.checkerName}</span>}
               {item.approverName && <span>Phê duyệt: {item.approverName}</span>}
             </div>
@@ -402,9 +407,9 @@ export function SalaryPeriodGovernanceList({
             </div>
             <div style={{ marginTop: 6, fontSize: 13, color: 'var(--fg-2)' }}>{item.reason}</div>
             <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 12, color: 'var(--fg-3)' }}>
-              <span>Tạo bởi #{item.makerId}</span>
-              {item.checkerId != null && <span>Kiểm tra: #{item.checkerId}</span>}
-              {item.approverId != null && <span>Phê duyệt: #{item.approverId}</span>}
+              <span>Tạo bởi {governanceActorLabel(item.makerRole)}</span>
+              {item.checkerId != null && <span>Kiểm tra: {governanceActorLabel(item.checkerRole)}</span>}
+              {item.approverId != null && <span>Phê duyệt: {governanceActorLabel(item.approverRole)}</span>}
             </div>
             {(canCheck || canApprove) && (
               <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -471,9 +476,9 @@ export function SalaryConfirmationGovernanceList({
             </div>
             <div style={{ marginTop: 6, fontSize: 13, color: 'var(--fg-2)' }}>{item.reason}</div>
             <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 12, color: 'var(--fg-3)' }}>
-              <span>Tạo bởi #{item.makerId}</span>
-              {item.checkerId != null && <span>Kiểm tra: #{item.checkerId}</span>}
-              {item.approverId != null && <span>Phê duyệt: #{item.approverId}</span>}
+              <span>Tạo bởi {governanceActorLabel(item.makerRole)}</span>
+              {item.checkerId != null && <span>Kiểm tra: {governanceActorLabel(item.checkerRole)}</span>}
+              {item.approverId != null && <span>Phê duyệt: {governanceActorLabel(item.approverRole)}</span>}
             </div>
             {(canCheck || canApprove) && (
               <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 8 }}>

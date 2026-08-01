@@ -225,7 +225,7 @@ export function TruckCard({ trucks, driverByTruck, trailers, crud }: { trucks: T
           <table className="tt-table">
             <thead>
               <tr>
-                <th className="num">#</th>
+                <th className="num">STT</th>
                 <th>Biển số xe đầu</th>
                 <th>Rơ-moóc</th>
                 <th>Lái xe gán</th>

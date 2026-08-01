@@ -168,7 +168,7 @@ export function DriverCard({ drivers, truckMap, crud }: { drivers: Driver[]; tru
           <table className="tt-table">
             <thead>
               <tr>
-                <th className="num">#</th>
+                <th className="num">STT</th>
                 <th>Tên lái xe</th>
                 <th>SĐT</th>
                 <th>Xe phân công</th>

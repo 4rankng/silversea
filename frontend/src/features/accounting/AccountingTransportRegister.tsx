@@ -304,7 +304,7 @@ function TransportTableRow({
   selected: boolean;
   onToggle: () => void;
 }) {
-  const tripLabel = row.tripCode ?? row.tripId;
+  const tripLabel = row.tripCode ?? 'chưa có mã';
 
   return (
     <tr>
@@ -318,7 +318,7 @@ function TransportTableRow({
             aria-label={`Chọn chuyến ${tripLabel}`}
           />
           <span>
-            <strong>{row.tripCode ?? `#${row.tripId}`}</strong>
+            <strong>{row.tripCode ?? 'Chuyến chưa có mã'}</strong>
             <small>{row.containerNumbers.join(', ') || 'Chưa có container'}</small>
           </span>
         </label>
@@ -353,7 +353,7 @@ function TransportCard({
   selected: boolean;
   onToggle: () => void;
 }) {
-  const tripLabel = row.tripCode ?? `Chuyến #${row.tripId}`;
+  const tripLabel = row.tripCode ?? 'Chuyến chưa có mã';
 
   return (
     <article className="accounting-transport-card">
@@ -364,7 +364,7 @@ function TransportCard({
             checked={selected}
             disabled={row.readiness.status !== 'READY'}
             onChange={onToggle}
-            aria-label={`Chọn chuyến ${row.tripCode ?? row.tripId}`}
+            aria-label={`Chọn ${tripLabel}`}
           />
           <strong>{tripLabel}</strong>
         </label>

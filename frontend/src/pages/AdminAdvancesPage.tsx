@@ -132,7 +132,7 @@ function AdvanceGridRow({
           <Wallet size={16} />
         </div>
         <span className="adv-requester-name">
-          {req.requesterName || `Đối tác ${req.requesterId}`}
+          {req.requesterName || 'Đối tác không còn trong danh sách'}
         </span>
       </div>
 
@@ -162,7 +162,7 @@ function AdvanceGridRow({
           <>
             <input
               className="form-input"
-              aria-label={`Lý do đề nghị cho yêu cầu ${req.id}`}
+              aria-label={`Lý do xử lý đề nghị của ${req.requesterName || 'đối tác không xác định'}`}
               value={decisionReason}
               onChange={(event) => setDecisionReason(event.target.value)}
               placeholder="Lý do đề nghị"
@@ -173,7 +173,7 @@ function AdvanceGridRow({
               onClick={() => approveMutation.mutate(buildAdvanceDecision(req, decisionReason)!)}
               disabled={isApproving || isRejecting || !buildAdvanceDecision(req, decisionReason)}
               title="Gửi đề nghị duyệt"
-              aria-label={`Gửi đề nghị duyệt yêu cầu ${req.id}`}
+              aria-label={`Gửi đề nghị duyệt cho ${req.requesterName || 'đối tác không xác định'}`}
               style={{ color: 'var(--success)' }}
             >
               {isApproving ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
@@ -184,7 +184,7 @@ function AdvanceGridRow({
               onClick={() => rejectMutation.mutate(buildAdvanceDecision(req, decisionReason)!)}
               disabled={isApproving || isRejecting || !buildAdvanceDecision(req, decisionReason)}
               title="Gửi đề nghị từ chối"
-              aria-label={`Gửi đề nghị từ chối yêu cầu ${req.id}`}
+              aria-label={`Gửi đề nghị từ chối cho ${req.requesterName || 'đối tác không xác định'}`}
               style={{ color: 'var(--danger)' }}
             >
               {isRejecting ? <Loader2 size={16} className="spin" /> : <XCircle size={16} />}
@@ -231,7 +231,7 @@ function AdvanceMobileCard({
             <Wallet size={16} />
           </div>
           <span className="adv-mcard__name">
-            {req.requesterName || `Đối tác ${req.requesterId}`}
+            {req.requesterName || 'Đối tác không còn trong danh sách'}
           </span>
         </div>
         <StatusPill variant={advanceRequestStatusVariant(req.status)}>

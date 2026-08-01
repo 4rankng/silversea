@@ -89,7 +89,6 @@ export default function TripCreatePage() {
 
   const queueFilters = React.useMemo(
     () => ({
-      status: 'PENDING',
       customerId: creditBlock?.customerId,
       limit: 20,
     }),
@@ -204,7 +203,7 @@ export default function TripCreatePage() {
     try {
       const ok = await submitTrip(requestId);
       if (!ok) {
-        setCreditError(form.error || 'Không thể tạo chuyến với mã phê duyệt này.');
+        setCreditError(form.error || 'Không thể tạo chuyến với đề nghị phê duyệt này.');
       }
     } finally {
       setCreditAction(null);
@@ -214,7 +213,7 @@ export default function TripCreatePage() {
   const handleApproveAndApply = async () => {
     const requestId = Number(creditRequestIdInput);
     if (!Number.isInteger(requestId) || requestId <= 0) {
-      setCreditError('Cần nhập mã đề nghị hợp lệ trước khi duyệt.');
+      setCreditError('Cần chọn một đề nghị trước khi duyệt.');
       return;
     }
     const approvedId = await handleApproveRequest(requestId);
@@ -322,15 +321,21 @@ export default function TripCreatePage() {
                 <strong>{estimatedProposedAmount > 0 ? formatCurrency(estimatedProposedAmount) : 'Chưa xác định'}</strong>
               </div>
               <div style={creditMetricStyle}>
-                <span style={creditMetricLabelStyle}>Mã đề nghị hiện có</span>
-                <input
-                  className="input mono"
-                  type="text"
-                  inputMode="numeric"
+                <span style={creditMetricLabelStyle}>Đề nghị hiện có</span>
+                <select
+                  className="input"
                   value={creditRequestIdInput}
                   onChange={(event) => setCreditRequestIdInput(event.target.value)}
-                  placeholder="Nhập mã đã được duyệt"
-                />
+                >
+                  <option value="">Chọn theo lý do và trạng thái</option>
+                  {(creditQueue.data ?? [])
+                    .filter((request) => request.shipmentId == null && request.status !== 'CANCELED')
+                    .map((request) => (
+                      <option key={request.id} value={request.id}>
+                        {request.reason} · {request.status === 'APPROVED' ? 'Đã duyệt' : request.status === 'REJECTED' ? 'Đã từ chối' : 'Chờ duyệt'}
+                      </option>
+                    ))}
+                </select>
               </div>
             </div>
 
@@ -338,7 +343,7 @@ export default function TripCreatePage() {
               <div style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 12, background: 'rgba(255,255,255,0.72)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <ShieldCheck size={16} />
-                  <strong>Đề nghị #{creditRequest.id}</strong>
+                  <strong>Đề nghị vượt hạn mức</strong>
                   <span style={creditBadgeStyle}>{creditRequest.status === 'APPROVED' ? 'Đã duyệt' : 'Chờ duyệt'}</span>
                   <span style={creditBadgeStyle}>{creditTierLabel(creditRequest.requiredTier)}</span>
                 </div>
@@ -362,7 +367,7 @@ export default function TripCreatePage() {
                 </div>
                 {creditRequest.requestedBy === user?.userId && (
                   <span style={{ color: 'var(--fg-2)', fontSize: 13 }}>
-                    Bạn là người tạo đề nghị này nên không thể tự duyệt. Chuyển mã #{creditRequest.id} cho người duyệt khác.
+                    Bạn là người tạo đề nghị này nên không thể tự duyệt. Hãy chuyển đề nghị cho một người duyệt khác.
                   </span>
                 )}
               </div>
@@ -370,13 +375,13 @@ export default function TripCreatePage() {
 
             {creditQueue.data && creditQueue.data.length > 0 && (
               <div style={{ display: 'grid', gap: 10 }}>
-                <strong>Hàng chờ duyệt cho khách hàng này</strong>
+                <strong>Các đề nghị của khách hàng này</strong>
                 {creditQueue.data
                   .filter((request) => request.shipmentId == null)
                   .map((request) => (
                     <div key={request.id} style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 12, background: 'rgba(255,255,255,0.72)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                        <strong>#{request.id}</strong>
+                        <strong>{request.reason}</strong>
                         <span style={creditBadgeStyle}>{creditTierLabel(request.requiredTier)}</span>
                         <span style={creditBadgeStyle}>v{request.version}</span>
                       </div>
@@ -492,7 +497,7 @@ export default function TripCreatePage() {
                 onClick={() => {
                   const requestId = Number(creditRequestIdInput);
                   if (!Number.isInteger(requestId) || requestId <= 0) {
-                    setCreditError('Cần nhập mã đề nghị hợp lệ trước khi áp dụng.');
+                    setCreditError('Cần chọn một đề nghị đã được duyệt trước khi áp dụng.');
                     return;
                   }
                   void handleApplyApprovedRequest(requestId);
@@ -500,7 +505,7 @@ export default function TripCreatePage() {
                 disabled={creditAction !== null}
               >
                 {creditAction === 'apply' ? <Loader2 size={16} className="spin" /> : null}
-                Tạo chuyến với mã đã duyệt
+                Tạo chuyến với đề nghị đã duyệt
               </button>
               {creditRequest
                 && canDecideCreditOverride(user?.role, creditRequest.requiredTier)
@@ -512,7 +517,7 @@ export default function TripCreatePage() {
                 disabled={creditAction !== null}
               >
                 {creditAction === 'approve' ? <Loader2 size={16} className="spin" /> : null}
-                Duyệt mã này rồi tạo chuyến
+                Duyệt đề nghị rồi tạo chuyến
               </button>
             )}
             </div>

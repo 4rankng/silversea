@@ -130,7 +130,7 @@ export function AgentDirectiveProvider({ children }: { children: ReactNode }) {
           const found = highlightElement(d.targetId, d.durationMs ?? 2000);
           return found
             ? { status: 'ok' }
-            : { status: 'error', reason: `#${d.targetId} không có trên trang` };
+            : { status: 'error', reason: 'Không tìm thấy mục cần làm nổi bật trên trang' };
         }
       }
     },

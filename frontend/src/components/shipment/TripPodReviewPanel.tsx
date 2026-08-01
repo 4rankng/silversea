@@ -204,7 +204,7 @@ export function TripPodReviewPanel({
                 <div className="shipment-pod-review__item-head">
                   <div>
                     <div className="shipment-pod-review__title-row">
-                      <strong>Tác vụ #{item.fulfillmentId}</strong>
+                      <strong>{item.containerNumber ? `Giao container ${item.containerNumber}` : 'Giao lô hàng lẻ'}</strong>
                       {item.containerNumber && (
                         <span className="shipment-pod-review__meta-pill">{item.containerNumber}</span>
                       )}
@@ -244,14 +244,14 @@ export function TripPodReviewPanel({
                 {item.cancellationDisposition === 'REPLACED' && (
                   <div className="shipment-pod-review__alert shipment-pod-review__alert--success">
                     <RotateCcw size={16} />
-                    <span>Đã liên kết tác vụ thay thế #{item.replacementFulfillmentId} cho đầu việc đã hủy.</span>
+                    <span>Đã liên kết một tác vụ thay thế cho đầu việc đã hủy.</span>
                   </div>
                 )}
 
                 {submission ? (
                   <>
                     <div className="shipment-pod-review__submission-meta">
-                      <span>Phiên bản #{submission.submissionVersion}</span>
+                      <span>Phiên bản {submission.submissionVersion}</span>
                       <span>Gửi lúc {formatDateTime(submission.submittedAt)}</span>
                       <span>Rà soát lúc {formatDateTime(submission.reviewedAt)}</span>
                     </div>
@@ -367,7 +367,7 @@ export function TripPodReviewPanel({
         {cancelDraft && (
           <div className="shipment-pod-review__cancel-form">
             <div className="shipment-pod-review__cancel-summary">
-              <strong>Tác vụ #{cancelDraft.item.fulfillmentId}</strong>
+              <strong>{cancelDraft.item.containerNumber ? `Giao container ${cancelDraft.item.containerNumber}` : 'Giao lô hàng lẻ'}</strong>
               <span>
                 {cancelDraft.item.containerNumber
                   ? `Container ${cancelDraft.item.containerNumber}`

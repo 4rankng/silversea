@@ -98,6 +98,10 @@ function makeRequest(overrides: Partial<CreditOverrideRequestRecord> = {}): Cred
     governanceActionId: 9001,
     checkedBy: 50,
     checkedAt: '2026-07-27T09:05:00.000Z',
+    customerName: 'Công ty Minh Hải',
+    shipmentCode: 'SHP-2607-00042',
+    requestedByName: 'Nguyễn Thị Lan',
+    checkedByName: 'Nguyễn Thị Mai',
     createdAt: '2026-07-27T09:00:00.000Z',
     updatedAt: '2026-07-27T09:00:00.000Z',
     ...overrides,
@@ -132,12 +136,76 @@ describe('CreditOverrideQueuePage', () => {
   it('renders exposure, limit, expiry, and reason context in a card-based queue', async () => {
     renderPage();
     expect(await screen.findByRole('heading', { name: 'Duyệt vượt hạn mức' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Hàng chờ phê duyệt' })).toBeTruthy();
     expect(screen.getByTestId('credit-override-card-list').className).toContain('credit-override-queue__cards');
-    expect(screen.getByText('Khách hàng #7')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Công ty Minh Hải' })).toBeTruthy();
+    expect(screen.getByText('Nguyễn Thị Lan')).toBeTruthy();
+    expect(screen.queryByText('CLERK')).toBeNull();
     expect(screen.getByText('Khách đang chờ giao gấp.')).toBeTruthy();
     expect(screen.getByText('55.000.000 ₫')).toBeTruthy();
     expect(screen.getByText('50.000.000 ₫')).toBeTruthy();
     expect(screen.getByText(/28\/7\/2026/)).toBeTruthy();
+  });
+
+  it('filters by customer name without exposing the database customer id', async () => {
+    creditQueueState.data = [
+      makeRequest(),
+      makeRequest({ id: 802, customerId: 8, customerName: 'Công ty Đại Dương', reason: 'Cần giao hàng trong ngày.' }),
+    ];
+    renderPage();
+
+    fireEvent.change(await screen.findByLabelText('Khách hàng'), { target: { value: '8' } });
+
+    expect(screen.getByRole('heading', { name: 'Công ty Đại Dương' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Công ty Minh Hải' })).toBeNull();
+    expect(document.body.textContent).not.toMatch(/Khách hàng\s*#\d+/);
+  });
+
+  it('keeps the empty queue useful and lets the user clear custom filters', async () => {
+    creditQueueState.data = [];
+    renderPage();
+
+    expect(await screen.findByText('Không có đề nghị chờ duyệt')).toBeTruthy();
+    expect(screen.getByText('Các đề nghị mới sẽ xuất hiện tại đây.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Xóa bộ lọc' })).toBeNull();
+
+    fireEvent.change(screen.getByLabelText('Trạng thái'), { target: { value: 'APPROVED' } });
+
+    const clearButton = screen.getByRole('button', { name: 'Xóa bộ lọc' });
+    expect(screen.getByText('Không có đề nghị phù hợp')).toBeTruthy();
+    fireEvent.click(clearButton);
+
+    expect((screen.getByLabelText('Trạng thái') as HTMLSelectElement).value).toBe('PENDING');
+    expect((screen.getByLabelText('Khách hàng') as HTMLSelectElement).value).toBe('');
+  });
+
+  it('announces loading and error states', async () => {
+    creditQueueState.data = [];
+    creditQueueState.isLoading = true;
+    const { unmount } = renderPage();
+
+    expect(screen.getByRole('status').textContent).toContain('Đang tải hàng chờ phê duyệt');
+    unmount();
+
+    creditQueueState.isLoading = false;
+    creditQueueState.isError = true;
+    creditQueueState.error = new Error('Mất kết nối');
+    renderPage();
+
+    expect(screen.getByRole('alert').textContent).toContain('Mất kết nối');
+  });
+
+  it('renders decision roles with Vietnamese labels', async () => {
+    creditQueueState.data = [makeRequest({
+      status: 'APPROVED',
+      workflowStatus: 'APPROVED',
+      approvedRole: 'ACCOUNTANT',
+      approvedAt: '2026-07-28T09:30:00.000Z',
+    })];
+    renderPage();
+
+    expect(await screen.findByText(/Đã duyệt bởi Kế toán/)).toBeTruthy();
+    expect(screen.queryByText(/ACCOUNTANT/)).toBeNull();
   });
 
   it('lets ADMIN approve either tier and sends expectedVersion', async () => {

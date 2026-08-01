@@ -512,7 +512,7 @@ export default function SupplierListPage() {
                         <span style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
                           <span style={{ flexShrink: 0, color: '#16a34a', fontWeight: 700, background: '#dcfce7', border: '1px solid #bbf7d0', borderRadius: 4, padding: '1px 5px', letterSpacing: '0.02em', fontSize: 12 }}>2 chiều</span>
                           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {customerLookup.get(s.linkedCustomerId) ?? `ID ${s.linkedCustomerId}`}
+                            {customerLookup.get(s.linkedCustomerId) ?? 'Khách hàng không còn trong danh mục'}
                           </span>
                         </span>
                       ) : (

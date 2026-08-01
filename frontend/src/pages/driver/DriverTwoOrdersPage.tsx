@@ -56,7 +56,7 @@ function TripCard({ trip, label, accent }: { trip: TripSummary; label: string; a
       <div className="dt-card__meta">
         <span className="dt-card__meta-item">
           <Truck size={14} />
-          <span className="dt-card__meta-text">{trip.tripCode ?? `#${trip.id}`}</span>
+          <span className="dt-card__meta-text">{trip.tripCode ?? 'Chuyến chưa có mã'}</span>
         </span>
         <span className="dt-card__meta-item">
           <Building2 size={14} />

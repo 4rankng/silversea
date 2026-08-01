@@ -1,119 +1,262 @@
 .credit-override-queue {
-  display: grid;
-  gap: 18px;
-  padding: 20px;
-}
-
-.credit-override-queue__hero,
-.credit-override-queue__summary-card,
-.credit-override-queue__filters,
-.credit-override-queue__card,
-.credit-override-queue__state {
-  border: 1px solid var(--border-2);
-  border-radius: 20px;
-  background: var(--surface-1);
-}
-
-.credit-override-queue__hero {
   display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: flex-start;
-  padding: 24px;
+  min-width: 0;
+  flex-direction: column;
+  gap: 18px;
 }
 
-.credit-override-queue__eyebrow {
-  margin: 0 0 8px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+.credit-override-queue__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.credit-override-queue__heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 14px;
+}
+
+.credit-override-queue__heading-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--brand) 24%, transparent);
+  border-radius: 10px;
+  background: var(--accent-soft);
   color: var(--brand);
 }
 
-.credit-override-queue__hero h1 {
+.credit-override-queue__eyebrow {
+  margin: 0 0 3px;
+  color: var(--brand);
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.credit-override-queue__header h1 {
   margin: 0;
-  font-size: clamp(24px, 3vw, 32px);
-  line-height: 1.15;
+  color: var(--ink, var(--fg-1));
+  font-family: var(--font-display);
+  font-size: clamp(24px, 2.4vw, 30px);
+  line-height: 1.18;
 }
 
 .credit-override-queue__subtitle {
-  margin: 10px 0 0;
-  max-width: 720px;
-  color: var(--fg-2);
+  margin: 4px 0 0;
+  color: var(--ink-2, var(--fg-2));
+  font-size: var(--fs-sm);
+  line-height: 1.45;
 }
 
 .credit-override-queue__refresh,
-.credit-override-queue__button {
+.credit-override-queue__button,
+.credit-override-queue__clear-filters {
   display: inline-flex;
+  min-height: 44px;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 44px;
-  padding: 0 16px;
-  border-radius: 14px;
-  border: 1px solid var(--border-2);
-  background: var(--surface-2);
-  color: var(--fg-1);
-  font-weight: 600;
+  border: 1px solid var(--line-2, var(--border-2));
+  border-radius: 8px;
+  background: var(--surface, var(--surface-1));
+  color: var(--ink, var(--fg-1));
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 700;
   cursor: pointer;
+  transition: background 140ms var(--ease), border-color 140ms var(--ease), color 140ms var(--ease);
+}
+
+.credit-override-queue__refresh {
+  flex: 0 0 auto;
+  padding: 0 14px;
+}
+
+.credit-override-queue__refresh:hover,
+.credit-override-queue__button.is-secondary:hover,
+.credit-override-queue__clear-filters:hover {
+  border-color: color-mix(in srgb, var(--brand) 28%, var(--line-2, var(--border-2)));
+  background: var(--accent-soft);
+  color: var(--brand);
+}
+
+.credit-override-queue__refresh:focus-visible,
+.credit-override-queue__button:focus-visible,
+.credit-override-queue__clear-filters:focus-visible,
+.credit-override-queue__field input:focus-visible,
+.credit-override-queue__field select:focus-visible,
+.credit-override-queue__reject-field textarea:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
 }
 
 .credit-override-queue__button.is-primary {
-  background: var(--brand);
   border-color: var(--brand);
-  color: white;
+  background: var(--brand);
+  color: var(--fg-on-brand, #fff);
 }
 
-.credit-override-queue__button.is-secondary {
-  background: var(--surface-1);
+.credit-override-queue__button.is-primary:hover {
+  border-color: var(--brand-strong, var(--brand));
+  background: var(--brand-strong, var(--brand));
 }
 
 .credit-override-queue__refresh:disabled,
 .credit-override-queue__button:disabled {
-  opacity: 0.65;
+  opacity: 0.58;
   cursor: default;
 }
 
 .credit-override-queue__summary {
   display: grid;
-  gap: 14px;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  overflow: hidden;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--line, var(--border-2));
+  border-radius: 10px;
+  background: var(--surface, var(--surface-1));
 }
 
 .credit-override-queue__summary-card {
-  display: grid;
-  gap: 6px;
-  padding: 18px;
+  --metric-color: var(--ink-3, var(--fg-3));
+  display: flex;
+  min-width: 0;
+  min-height: 104px;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  border-left: 1px solid var(--line, var(--border-2));
+  box-shadow: inset 3px 0 0 var(--metric-color);
 }
 
-.credit-override-queue__summary-card span {
-  color: var(--fg-2);
-  font-size: 13px;
+.credit-override-queue__summary-card:first-child {
+  border-left: 0;
+}
+
+.credit-override-queue__summary-card.is-pending {
+  --metric-color: var(--warning, #d97706);
+}
+
+.credit-override-queue__summary-card.is-actionable,
+.credit-override-queue__summary-card.is-value {
+  --metric-color: var(--brand);
+}
+
+.credit-override-queue__summary-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  place-items: center;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--metric-color) 10%, transparent);
+  color: var(--metric-color);
+}
+
+.credit-override-queue__summary-card > div {
+  min-width: 0;
+}
+
+.credit-override-queue__summary-card div > span {
+  display: block;
+  overflow: hidden;
+  color: var(--ink-2, var(--fg-2));
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .credit-override-queue__summary-card strong {
-  font-size: 24px;
+  display: block;
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+  color: var(--ink, var(--fg-1));
+  font-family: var(--font-mono);
+  font-size: clamp(21px, 2vw, 26px);
+  font-variant-numeric: tabular-nums;
   line-height: 1.1;
 }
 
+.credit-override-queue__workspace {
+  overflow: hidden;
+  border: 1px solid var(--line, var(--border-2));
+  border-radius: 10px;
+  background: var(--surface, var(--surface-1));
+}
+
+.credit-override-queue__toolbar {
+  display: flex;
+  min-height: 76px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line, var(--border-2));
+}
+
+.credit-override-queue__toolbar-title {
+  display: flex;
+  min-width: max-content;
+  align-items: center;
+  gap: 9px;
+}
+
+.credit-override-queue__toolbar-title h2 {
+  margin: 0;
+  color: var(--ink, var(--fg-1));
+  font-size: var(--fs-lg);
+  line-height: 1.25;
+}
+
+.credit-override-queue__toolbar-title > span {
+  display: inline-grid;
+  min-width: 28px;
+  height: 24px;
+  place-items: center;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--surface-3, var(--bg-3));
+  color: var(--ink-2, var(--fg-2));
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 800;
+}
+
 .credit-override-queue__filters {
-  display: grid;
-  gap: 14px;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  padding: 18px;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .credit-override-queue__field {
-  display: grid;
-  gap: 8px;
+  min-width: 0;
 }
 
-.credit-override-queue__field span,
-.credit-override-queue__fact-label {
-  color: var(--fg-2);
-  font-size: 12px;
-  font-weight: 600;
+.credit-override-queue__field.is-status {
+  width: 178px;
+}
+
+.credit-override-queue__field.is-search {
+  width: min(260px, 30vw);
+}
+
+.credit-override-queue__field > span:first-child {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .credit-override-queue__field input,
@@ -121,23 +264,59 @@
 .credit-override-queue__reject-field textarea {
   width: 100%;
   min-width: 0;
-  border: 1px solid var(--border-2);
-  border-radius: 14px;
-  padding: 12px 14px;
-  background: var(--surface-2);
-  color: var(--fg-1);
+  border: 1px solid var(--line-2, var(--border-2));
+  border-radius: 8px;
+  background: var(--surface, var(--surface-1));
+  color: var(--ink, var(--fg-1));
   font: inherit;
+  font-size: var(--fs-sm);
+}
+
+.credit-override-queue__field input,
+.credit-override-queue__field select {
+  min-height: 44px;
+}
+
+.credit-override-queue__field select {
+  padding: 0 34px 0 12px;
+}
+
+.credit-override-queue__search-control {
+  position: relative;
+  display: block;
+}
+
+.credit-override-queue__search-control > svg {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 12px;
+  color: var(--ink-3, var(--fg-3));
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.credit-override-queue__search-control input,
+.credit-override-queue__search-control select {
+  padding: 0 12px 0 38px;
+}
+
+.credit-override-queue__workspace-body {
+  padding: 16px;
 }
 
 .credit-override-queue__cards {
   display: grid;
-  gap: 16px;
+  gap: 12px;
 }
 
 .credit-override-queue__card {
   display: grid;
-  gap: 16px;
-  padding: 20px;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--line, var(--border-2));
+  border-radius: 10px;
+  background: var(--surface, var(--surface-1));
 }
 
 .credit-override-queue__card-header,
@@ -150,55 +329,57 @@
 .credit-override-queue__action-error,
 .credit-override-queue__state {
   display: flex;
-  gap: 10px;
   align-items: center;
+  gap: 9px;
   flex-wrap: wrap;
 }
 
 .credit-override-queue__card-header {
-  justify-content: space-between;
   align-items: flex-start;
+  justify-content: space-between;
 }
 
 .credit-override-queue__card-kicker {
-  color: var(--fg-2);
-  font-size: 13px;
+  color: var(--ink-2, var(--fg-2));
+  font-size: var(--fs-xs);
 }
 
 .credit-override-queue__card h2 {
-  margin: 6px 0 0;
-  font-size: 22px;
+  margin: 5px 0 0;
+  color: var(--ink, var(--fg-1));
+  font-size: var(--fs-lg);
 }
 
 .credit-override-queue__status,
 .credit-override-queue__badge {
   display: inline-flex;
+  min-height: 28px;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
+  gap: 5px;
+  padding: 4px 9px;
   border-radius: 999px;
-  background: var(--surface-2);
-  color: var(--fg-2);
-  font-size: 12px;
+  background: var(--surface-3, var(--bg-3));
+  color: var(--ink-2, var(--fg-2));
+  font-size: var(--fs-2xs);
   font-weight: 700;
 }
 
 .credit-override-queue__status.is-approved,
 .credit-override-queue__decision-summary.is-approved {
-  background: rgba(33, 133, 93, 0.12);
-  color: #0f6d4b;
+  background: color-mix(in srgb, var(--success, #21855d) 11%, transparent);
+  color: var(--success-text, #0f6d4b);
 }
 
 .credit-override-queue__status.is-rejected,
 .credit-override-queue__decision-summary.is-rejected {
-  background: rgba(185, 28, 28, 0.12);
-  color: #b91c1c;
+  background: color-mix(in srgb, var(--danger, #b91c1c) 10%, transparent);
+  color: var(--danger-text, #b91c1c);
 }
 
 .credit-override-queue__status.is-canceled,
 .credit-override-queue__decision-summary.is-canceled {
-  background: rgba(107, 114, 128, 0.14);
-  color: #4b5563;
+  background: var(--surface-3, var(--bg-3));
+  color: var(--ink-2, var(--fg-2));
 }
 
 .credit-override-queue__status.is-pending,
@@ -206,85 +387,281 @@
 .credit-override-queue__read-only,
 .credit-override-queue__action-error,
 .credit-override-queue__state.is-error {
-  background: rgba(180, 83, 9, 0.12);
-  color: #b45309;
+  background: color-mix(in srgb, var(--warning, #d97706) 10%, transparent);
+  color: var(--warning-text, #9a4b08);
 }
 
 .credit-override-queue__facts,
 .credit-override-queue__money-grid {
   display: grid;
-  gap: 14px;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.credit-override-queue__fact-label {
+  color: var(--ink-3, var(--fg-3));
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
 }
 
 .credit-override-queue__facts strong,
 .credit-override-queue__money-grid strong {
   display: block;
+  min-width: 0;
   margin-top: 4px;
-  font-size: 16px;
+  overflow-wrap: anywhere;
+  color: var(--ink, var(--fg-1));
+  font-size: var(--fs-sm);
   line-height: 1.35;
 }
 
+.credit-override-queue__money-grid strong {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
 .credit-override-queue__reason {
-  padding: 14px 16px;
-  border-radius: 16px;
-  background: var(--surface-2);
+  padding: 12px 14px;
+  border-left: 3px solid color-mix(in srgb, var(--brand) 40%, transparent);
+  border-radius: 0 8px 8px 0;
+  background: var(--surface-2, var(--bg-2));
 }
 
 .credit-override-queue__reason p {
-  margin: 8px 0 0;
+  margin: 6px 0 0;
+  color: var(--ink, var(--fg-1));
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 .credit-override-queue__meta {
-  color: var(--fg-2);
-  font-size: 13px;
+  color: var(--ink-2, var(--fg-2));
+  font-size: var(--fs-xs);
 }
 
-.credit-override-queue__actions {
+.credit-override-queue__actions,
+.credit-override-queue__decision-box,
+.credit-override-queue__reject-field {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .credit-override-queue__decision-box {
-  display: grid;
-  gap: 12px;
-  padding: 16px;
-  border-radius: 18px;
-  border: 1px dashed var(--border-2);
-  background: var(--surface-2);
+  padding: 14px;
+  border: 1px solid var(--line, var(--border-2));
+  border-radius: 8px;
+  background: var(--surface-2, var(--bg-2));
 }
 
-.credit-override-queue__reject-field {
-  display: grid;
-  gap: 8px;
+.credit-override-queue__reject-field > span {
+  color: var(--ink-2, var(--fg-2));
+  font-size: var(--fs-xs);
+  font-weight: 700;
+}
+
+.credit-override-queue__reject-field textarea {
+  padding: 11px 12px;
+  resize: vertical;
 }
 
 .credit-override-queue__state {
-  padding: 18px;
+  min-height: 72px;
+  padding: 16px;
+}
+
+.credit-override-queue__state p {
+  margin: 4px 0 0;
 }
 
 .credit-override-queue__state.is-empty {
-  color: var(--fg-2);
+  min-height: 300px;
+  flex-direction: column;
+  justify-content: center;
+  color: var(--ink-2, var(--fg-2));
+  text-align: center;
 }
 
-@media (max-width: 720px) {
+.credit-override-queue__state.is-empty strong {
+  display: block;
+  color: var(--ink, var(--fg-1));
+  font-size: var(--fs-md);
+}
+
+.credit-override-queue__empty-icon {
+  display: grid;
+  width: 64px;
+  height: 64px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--brand) 18%, transparent);
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--brand);
+}
+
+.credit-override-queue__clear-filters {
+  padding: 0 14px;
+}
+
+@media (max-width: 960px) {
+  .credit-override-queue__summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .credit-override-queue__summary-card:nth-child(3) {
+    border-top: 1px solid var(--line, var(--border-2));
+    border-left: 0;
+  }
+
+  .credit-override-queue__summary-card:nth-child(4) {
+    border-top: 1px solid var(--line, var(--border-2));
+  }
+
+  .credit-override-queue__toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .credit-override-queue__filters {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .credit-override-queue__field.is-search {
+    width: min(360px, 100%);
+  }
+}
+
+@media (max-width: 640px) {
   .credit-override-queue {
+    gap: 14px;
+  }
+
+  .credit-override-queue__header {
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .credit-override-queue__heading {
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .credit-override-queue__heading-icon {
+    width: 44px;
+    height: 44px;
+    flex-basis: 44px;
+  }
+
+  .credit-override-queue__eyebrow {
+    display: none;
+  }
+
+  .credit-override-queue__header h1 {
+    font-size: 22px;
+  }
+
+  .credit-override-queue__subtitle {
+    font-size: var(--fs-xs);
+  }
+
+  .credit-override-queue__refresh {
+    width: 44px;
+    padding: 0;
+  }
+
+  .credit-override-queue__refresh > span {
+    position: absolute;
+    overflow: hidden;
+    width: 1px;
+    height: 1px;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .credit-override-queue__summary-card {
+    min-height: 96px;
+    gap: 9px;
+    padding: 13px 12px;
+  }
+
+  .credit-override-queue__summary-icon {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+  }
+
+  .credit-override-queue__summary-card div > span {
+    white-space: normal;
+  }
+
+  .credit-override-queue__summary-card strong {
+    font-size: 20px;
+  }
+
+  .credit-override-queue__summary-card.is-value .credit-override-queue__summary-icon {
+    display: none;
+  }
+
+  .credit-override-queue__summary-card.is-value strong {
+    font-size: 17px;
+    white-space: nowrap;
+  }
+
+  .credit-override-queue__toolbar,
+  .credit-override-queue__workspace-body {
     padding: 14px;
   }
 
-  .credit-override-queue__hero,
-  .credit-override-queue__card {
-    padding: 16px;
-  }
-
-  .credit-override-queue__hero {
+  .credit-override-queue__filters {
+    display: grid;
     grid-template-columns: 1fr;
   }
 
-  .credit-override-queue__refresh,
-  .credit-override-queue__button {
+  .credit-override-queue__field.is-status,
+  .credit-override-queue__field.is-search {
     width: 100%;
+  }
+
+  .credit-override-queue__card {
+    padding: 14px;
+  }
+
+  .credit-override-queue__facts,
+  .credit-override-queue__money-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .credit-override-queue__decision-buttons,
+  .credit-override-queue__decision-buttons .credit-override-queue__button,
+  .credit-override-queue__decision-box > .credit-override-queue__button {
+    width: 100%;
+  }
+
+  .credit-override-queue__state.is-empty {
+    min-height: 260px;
+  }
+}
+
+@media (max-width: 380px) {
+  .credit-override-queue__heading-icon {
+    display: none;
+  }
+
+  .credit-override-queue__summary-card.is-actionable,
+  .credit-override-queue__summary-card.is-value {
+    grid-column: 1 / -1;
+    border-left: 0;
+  }
+
+  .credit-override-queue__summary-card.is-value .credit-override-queue__summary-icon {
+    display: grid;
+  }
+
+  .credit-override-queue__facts,
+  .credit-override-queue__money-grid {
+    grid-template-columns: 1fr;
   }
 }

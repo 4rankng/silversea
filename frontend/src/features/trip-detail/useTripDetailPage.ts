@@ -159,7 +159,7 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
     const fuelVarianceOver = fuelVarianceLiters > 0;
 
     const externalCarrierName = trip.externalCarrierId
-      ? (catalogData?.customers.find(c => c.id === trip.externalCarrierId)?.name ?? `ID ${trip.externalCarrierId}`)
+      ? (catalogData?.customers.find(c => c.id === trip.externalCarrierId)?.name ?? 'Đơn vị vận chuyển không còn trong danh mục')
       : '—';
 
     return {

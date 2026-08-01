@@ -174,6 +174,38 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
     ))).toBeTruthy();
   });
 
+  it('uses neutral business labels when shipment and customer names are unavailable', async () => {
+    apiGet.mockResolvedValue({
+      items: [{
+        id: 801,
+        shipmentCode: null,
+        customerId: 7,
+        customerName: null,
+        status: ShipmentStatus.DRAFT,
+        bookingRef: null,
+        blNumber: null,
+        expectedDeliveryDate: null,
+        pickupLocation: null,
+        deliveryLocation: null,
+        contactName: null,
+        contactPhone: null,
+        version: 1,
+        createdAt: '2026-08-01T00:00:00Z',
+        updatedAt: '2026-08-01T00:00:00Z',
+      }],
+      total: 1,
+      page: 1,
+      limit: 20,
+    });
+
+    renderAt('/shipments');
+    const desktop = desktopSurface();
+    await waitFor(() => expect(desktop.getByText('Chưa có mã lô hàng')).toBeTruthy());
+    expect(desktop.getByText('Chưa có tên khách hàng')).toBeTruthy();
+    expect(desktop.queryByText('#801')).toBeNull();
+    expect(desktop.queryByText('#7')).toBeNull();
+  });
+
   it('keeps pagination available on the mobile list', async () => {
     apiGet.mockResolvedValue({
       items: [{

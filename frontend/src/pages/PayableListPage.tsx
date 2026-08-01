@@ -19,6 +19,10 @@ import { FuelInvoicesPanel } from './payables-fuel-invoices';
 import './PayableListPage.css';
 import '../components/shared/HeroKpiRow.css';
 import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
+import { useQuery } from '@tanstack/react-query';
+import { tripClient } from '../api/tripClient';
+import { qk } from '../api/keys';
+import { SearchableSelect } from '../design-system/forms/SearchableSelect';
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 
@@ -73,6 +77,17 @@ function CommissionModal({
     [catalogData?.suppliers],
   );
   const [form, setForm] = useState<CommissionForm>({ supplierId: '', amount: '', tripId: '', note: '' });
+  const tripOptionsQuery = useQuery({
+    queryKey: [...qk.trips.all, 'commission-selector'],
+    queryFn: () => tripClient.listTrips({ limit: 100, page: 1 }),
+    enabled: isOpen,
+    staleTime: 60_000,
+  });
+  const tripOptions = (tripOptionsQuery.data?.items ?? []).map((trip) => ({
+    value: String(trip.id),
+    label: trip.tripCode || 'Chuyến chưa có mã',
+    searchText: `${trip.customer?.name ?? ''} ${trip.route?.name ?? ''} ${trip.departureDate ?? ''}`,
+  }));
 
   useEffect(() => {
     if (isOpen) setForm({ supplierId: '', amount: '', tripId: '', note: '' });
@@ -155,15 +170,15 @@ function CommissionModal({
           )}
         </div>
         <div className="field">
-          <label htmlFor="commission-trip">Mã chuyến (tuỳ chọn)</label>
-          <input
+          <label htmlFor="commission-trip">Chuyến liên quan (tuỳ chọn)</label>
+          <SearchableSelect
             id="commission-trip"
-            className="input"
-            type="number"
-            min="1"
-            placeholder="VD: 1234"
             value={form.tripId}
-            onChange={e => setForm(f => ({ ...f, tripId: e.target.value }))}
+            onChange={(value) => setForm((current) => ({ ...current, tripId: value }))}
+            options={tripOptions}
+            placeholder={tripOptionsQuery.isLoading ? 'Đang tải chuyến…' : 'Chọn theo mã chuyến'}
+            searchPlaceholder="Tìm theo mã chuyến, khách hàng hoặc tuyến…"
+            emptyMessage="Không có chuyến phù hợp."
           />
         </div>
         <div className="field">

@@ -118,7 +118,7 @@ describe('DispatchTripCard pairing UI', () => {
       />,
     );
 
-    expect(screen.getByText(/Cặp 2 chiều #42/)).toBeTruthy();
+    expect(screen.getByText('Cặp chuyến 2 chiều')).toBeTruthy();
     expect(screen.getByText(/22.5 km/)).toBeTruthy();
     expect(screen.queryByText('Ghép 2 chiều')).toBeNull();
   });

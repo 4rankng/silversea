@@ -112,7 +112,9 @@ export default function PortalDebitNotesPage() {
       const blob = await api.getBlob(
         withCustomerScope(`/portal/debit-notes/${doc.id}/export?format=${format}`, selectedCustomerId),
       );
-      triggerDownload(blob, `giay-bao-no-${doc.id}.${format}`);
+      const documentName = doc.entityName?.trim() || 'khach-hang';
+      const safeDocumentName = documentName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
+      triggerDownload(blob, `giay-bao-no-${safeDocumentName || 'khach-hang'}-${doc.rangeFrom}-${doc.rangeTo}.${format}`);
     } catch (err) {
       setNotice({ tone: 'error', text: (err as Error).message || 'Không thể xuất giấy báo nợ.' });
     } finally {

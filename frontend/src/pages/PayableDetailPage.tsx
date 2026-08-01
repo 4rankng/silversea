@@ -119,7 +119,9 @@ export default function PayableDetailPage() {
       } else {
         const a = document.createElement('a');
         a.href = url;
-        a.download = `sao-ke-ncc-${id}.xlsx`;
+        const supplierName = typedStatement?.supplier.name || 'nha-cung-cap';
+        const safeSupplierName = supplierName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
+        a.download = `sao-ke-${safeSupplierName || 'nha-cung-cap'}.xlsx`;
         a.click();
         URL.revokeObjectURL(url);
       }

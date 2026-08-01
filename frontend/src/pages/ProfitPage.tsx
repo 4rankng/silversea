@@ -497,7 +497,7 @@ export default function ProfitPage() {
                     Đã gửi yêu cầu phân chia Quý {distributionRequest.afterSnapshot.quarter} / {distributionRequest.afterSnapshot.year}
                   </h4>
                   <p style={{ margin: 0, fontSize: 13, color: 'var(--fg-2)' }}>
-                    Yêu cầu #{distributionRequest.id} đang chờ kiểm tra. Chưa có khoản lợi nhuận nào được phân phối; một người kiểm tra và một người phê duyệt độc lập phải hoàn tất trước khi hệ thống ghi nhận.
+                    Yêu cầu phân chia lợi nhuận đang chờ kiểm tra. Chưa có khoản lợi nhuận nào được phân phối; một người kiểm tra và một người phê duyệt độc lập phải hoàn tất trước khi hệ thống ghi nhận.
                   </p>
                 </div>
               )}

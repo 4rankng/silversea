@@ -8,9 +8,9 @@ import { CustomerPortalScopeProvider, useCustomerPortalScope } from './CustomerP
 import './CustomerPortalLayout.css';
 
 const portalNav = [
-  { to: routes.portalShipments, label: 'Lô hàng', fullLabel: 'Lô hàng của tôi', icon: Package },
-  { to: routes.portalDebitNotes, label: 'Giấy báo nợ', fullLabel: 'Giấy báo nợ', icon: FileText },
-  { to: routes.portalStatement, label: 'Sao kê', fullLabel: 'Sao kê công nợ', icon: Landmark },
+  { to: routes.portalShipments, label: 'Lô hàng của tôi', icon: Package },
+  { to: routes.portalDebitNotes, label: 'Giấy báo nợ', icon: FileText },
+  { to: routes.portalStatement, label: 'Sao kê công nợ', icon: Landmark },
 ] as const;
 
 function CustomerPortalLayoutBody({ children }: { children: React.ReactNode }) {
@@ -120,7 +120,7 @@ function CustomerPortalLayoutBody({ children }: { children: React.ReactNode }) {
 
         <nav className="customer-shell__nav" aria-label="Khu vực khách hàng">
           <span className="customer-shell__nav-label">Theo dõi và đối soát</span>
-          {portalNav.map(({ to, fullLabel, icon: Icon }) => (
+          {portalNav.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -128,7 +128,7 @@ function CustomerPortalLayoutBody({ children }: { children: React.ReactNode }) {
               className={({ isActive }) => `customer-shell__nav-item ${isActive ? 'is-active' : ''}`}
             >
               <Icon size={18} aria-hidden="true" />
-              <span>{fullLabel}</span>
+              <span>{label}</span>
             </NavLink>
           ))}
         </nav>

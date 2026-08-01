@@ -403,7 +403,7 @@ export default function DriverTripDetailPage() {
   }
 
   async function handleUploadPodFile(submission: DriverTaskPodSubmission, fileType: Parameters<typeof driverClient.attachPodFile>[0]['fileType'], file: File) {
-    if (!validFulfillmentId) throw new Error('ID tác vụ không hợp lệ.');
+    if (!validFulfillmentId) throw new Error('Không thể xác định tác vụ giao hàng.');
     setUploadingPod(true);
     try {
       const uploaded = await driverClient.attachPodFile({
@@ -468,7 +468,7 @@ export default function DriverTripDetailPage() {
       <div className="driver-task-screen driver-task-screen--feedback">
         <div className="driver-task-feedback">
           <AlertTriangle size={28} />
-          <p>ID chuyến không hợp lệ.</p>
+          <p>Không thể xác định chuyến đi từ liên kết này.</p>
           <button type="button" className="driver-task-back" onClick={handleBack}>
             <ArrowLeft size={16} />
             <span>Quay lại danh sách</span>
@@ -639,6 +639,7 @@ export default function DriverTripDetailPage() {
         </div>
         <TripPodSubmission
           tripId={trip.id}
+          tripCode={trip.tripCode}
           tripVersion={trip.version}
           currentSubmission={currentSubmission}
           history={podHistory}

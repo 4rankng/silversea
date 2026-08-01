@@ -80,7 +80,7 @@ export default function MasterDataImportPage() {
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `bao-cao-master-data-${batch.id}.csv`;
+    anchor.download = `bao-cao-du-lieu-nen-tang-${new Date().toISOString().slice(0, 10)}.csv`;
     anchor.click();
     URL.revokeObjectURL(url);
   }

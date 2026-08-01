@@ -109,7 +109,7 @@ export default function PortalShipmentsPage() {
                 className={`portal-list__row portal-shipment-row portal-shipment-row--${s.status.toLowerCase()}`}
               >
                 <div className="portal-list__primary">
-                  <strong>{s.shipmentCode ?? `Lô hàng #${s.id}`}</strong>
+                  <strong>{s.shipmentCode?.trim() || 'Chưa có mã lô hàng'}</strong>
                   <div className="portal-list__meta">
                     {s.bookingRef && <span>Booking: {s.bookingRef}</span>}
                     {s.blNumber && <span>B/L: {s.blNumber}</span>}

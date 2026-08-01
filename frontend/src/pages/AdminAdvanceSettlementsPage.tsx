@@ -187,7 +187,7 @@ export function SettlementGridRow({
           <div className="as-record">
             {plan ? (
               <Link to={`/trips/${plan.tripId}`} className="as-code-link">
-                {plan.tripCode || `Chuyến #${plan.tripId}`}
+                {plan.tripCode || 'Chuyến chưa có mã'}
               </Link>
             ) : (
               <Link to={`/settlements/${s.id}`} className="as-code-link">{s.code}</Link>
@@ -342,7 +342,7 @@ export function SettlementMobileCard({
           {plans.map(plan => (
             <div className="as-mcard__plan" key={plan.tripId}>
               <div className="as-mcard__plan-head">
-                <Link to={`/trips/${plan.tripId}`}>{plan.tripCode || `Chuyến #${plan.tripId}`}</Link>
+                <Link to={`/trips/${plan.tripId}`}>{plan.tripCode || 'Chuyến chưa có mã'}</Link>
                 <strong>{plan.containerCount} cont</strong>
               </div>
               <div className="as-mcard__plan-meta">

@@ -306,7 +306,7 @@ export default function DispatchPage() {
     setSuccess(null);
     try {
       await resolveDispatchHandoff(handoff, 'ACCEPTED');
-      setSuccess(`Đã tiếp nhận lô ${handoff.shipment.code || handoff.shipment.bookingRef || handoff.shipmentId} và tạo tác vụ điều phối.`);
+      setSuccess(`Đã tiếp nhận ${handoff.shipment.code || handoff.shipment.bookingRef || 'lô hàng vừa chọn'} và tạo tác vụ điều phối.`);
       await load(currentTaskCursor);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Không thể tiếp nhận lô hàng');
@@ -371,7 +371,7 @@ export default function DispatchPage() {
                 <div key={`handoff-${handoff.handoffId}`} className="dispatch-handoff">
                   <div>
                     <span className="dispatch-urgent">Lô mới</span>
-                    <strong>{handoff.shipment.code || handoff.shipment.bookingRef || `Lô #${handoff.shipmentId}`}</strong>
+                    <strong>{handoff.shipment.code || handoff.shipment.bookingRef || 'Lô hàng chưa có mã'}</strong>
                     <small>
                       {handoff.customer.name} · {handoff.shipment.cargoMode === 'FCL' ? `${handoff.summary.containerNumbers.length} container` : handoff.summary.lclLabel}
                     </small>

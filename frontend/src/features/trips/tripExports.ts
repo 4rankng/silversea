@@ -12,6 +12,8 @@ export type TripExportFilters = {
 
 export interface TripExportOptions extends TripExportFilters {
   fetcher: (params: TripExportFilters) => Promise<{ items: TripDetail[]; total: number; pageSize: number }>;
+  truckLabel?: string;
+  customerLabel?: string;
 }
 
 const EXPORT_HEADERS = [
@@ -88,8 +90,8 @@ function subtitleParts(opts: TripExportOptions): string {
   else if (opts.dateFrom) parts.push(`Từ ${opts.dateFrom}`);
   else if (opts.dateTo) parts.push(`Đến ${opts.dateTo}`);
   if (opts.status) parts.push(`Trạng thái: ${opts.status}`);
-  if (opts.truckId) parts.push(`Xe: #${opts.truckId}`);
-  if (opts.customerId) parts.push(`Khách hàng: #${opts.customerId}`);
+  if (opts.truckId) parts.push(`Xe: ${opts.truckLabel || 'không còn trong danh mục'}`);
+  if (opts.customerId) parts.push(`Khách hàng: ${opts.customerLabel || 'không còn trong danh mục'}`);
   if (opts.search) parts.push(`Tìm kiếm: "${opts.search}"`);
   return parts.join(' · ') || 'Tất cả chuyến trong kỳ';
 }

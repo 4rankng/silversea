@@ -340,8 +340,12 @@ export default function TripListPage() {
     else if (listDateFrom) filterParts.push(`Từ ${listDateFrom}`);
     else if (listDateTo) filterParts.push(`Đến ${listDateTo}`);
     if (statusFilter) filterParts.push(`Trạng thái: ${statusFilter}`);
-    if (truckFilter) filterParts.push(`Xe: #${truckFilter}`);
-    if (customerFilter) filterParts.push(`Khách hàng: #${customerFilter}`);
+    if (truckFilter) {
+      filterParts.push(`Xe: ${truckOptions.find((truck) => truck.id === truckFilter)?.licensePlate ?? 'không còn trong danh mục'}`);
+    }
+    if (customerFilter) {
+      filterParts.push(`Khách hàng: ${customerOptions.find((customer) => customer.id === customerFilter)?.name ?? 'không còn trong danh mục'}`);
+    }
     if (debouncedSearch) filterParts.push(`Tìm kiếm: "${debouncedSearch}"`);
     await downloadCSV(`so-chuyen-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows, {
       title: 'SỔ CHUYẾN ĐI',
@@ -350,7 +354,7 @@ export default function TripListPage() {
       totalsColumns: [5, 8, 10, 11, 12, 13, 14],
       totalsLabel: 'TỔNG CỘNG',
     });
-  }, [statusFilter, truckFilter, customerFilter, debouncedSearch, listDateFrom, listDateTo]);
+  }, [statusFilter, truckFilter, customerFilter, debouncedSearch, listDateFrom, listDateTo, truckOptions, customerOptions]);
 
   // ── Table instance ──
   const columns = useMemo(() => buildTripColumns(warnThreshold, {
