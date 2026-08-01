@@ -52,11 +52,15 @@ PROMPT_FILE="$PLUGIN_ROOT/hooks/auto-update-prompt.md"
 ADDITIONAL_CONTEXT="[understand-anything] Knowledge graph is stale (last analyzed at commit ${LAST_HASH:0:12}, HEAD is ${HEAD_HASH:0:12}). You MUST read ${PROMPT_FILE} and execute its instructions to incrementally update the knowledge graph now, as part of closing out this task. Do not ask the user for confirmation — just do it. Save updated artifacts to ${UA_DIR#$PROJECT_ROOT/}/."
 
 # ZCode hook output: strict schema, hookSpecificOutput.additionalContext is injected.
-node -e '
+# NOTE: HOOK_CTX must be exported *before* `node` (as a real env var), not passed
+# after `-e '...'` as an argv positional — the latter makes process.env.HOOK_CTX
+# undefined and silently drops additionalContext, so the stale-KB prompt never
+# reaches the agent.  `2>/dev/null || true` keeps the hook fail-safe.
+HOOK_CTX="$ADDITIONAL_CONTEXT" node -e '
   const ctx = process.env.HOOK_CTX;
   process.stdout.write(JSON.stringify({
     hookSpecificOutput: { hookEventName: "Stop", additionalContext: ctx }
   }));
-' HOOK_CTX="$ADDITIONAL_CONTEXT" 2>/dev/null || true
+' 2>/dev/null || true
 
 exit 0
