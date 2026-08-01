@@ -1,9 +1,8 @@
-.PHONY: push deploy
+.PHONY: push
 
 IMAGE_NAME  := ghcr.io/4rankng/transting-frontend
 SOURCE_TAG  := $(shell cd .. && node scripts/release-source-tag.mjs)
 BUILDER     := bb
-PROD_SERVER := nepo.tingting.vip
 
 ## push: Build & push frontend image to GHCR
 push:
@@ -24,15 +23,3 @@ push:
 		-f frontend/Dockerfile \
 		.
 	@echo "Push complete: $(IMAGE_NAME):latest ($(SOURCE_TAG))"
-
-## deploy: Pull & restart frontend on droplet
-deploy:
-	@echo "Deploying frontend on production..."
-	@echo "Pulling latest image..."
-	ssh root@$(PROD_SERVER) "cd /opt/nepocorp && docker compose -f deploy/docker-compose.prod.yml pull frontend"
-	@echo "Restarting frontend service..."
-	ssh root@$(PROD_SERVER) "cd /opt/nepocorp && docker compose -f deploy/docker-compose.prod.yml up -d --force-recreate --no-deps frontend"
-	@echo "Cleaning up unused images..."
-	ssh root@$(PROD_SERVER) "docker image prune -f"
-	@echo "Frontend deployment complete!"
-	@echo "https://$(PROD_SERVER)"

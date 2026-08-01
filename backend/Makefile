@@ -1,9 +1,8 @@
-.PHONY: push deploy link-drivers link-drivers-apply
+.PHONY: push link-drivers link-drivers-apply
 
 IMAGE_NAME  := ghcr.io/4rankng/transting-backend
 SOURCE_TAG  := $(shell cd .. && node scripts/release-source-tag.mjs)
 BUILDER     := bb
-PROD_SERVER := nepo.tingting.vip
 
 ## push: Build & push backend image to GHCR
 push:
@@ -24,28 +23,6 @@ push:
 		-f backend/Dockerfile \
 		.
 	@echo "Push complete: $(IMAGE_NAME):latest ($(SOURCE_TAG))"
-
-## deploy: Pull & restart backend on droplet + run migrations
-deploy:
-	@echo "Deploying backend on production..."
-	@echo "Pulling latest image..."
-	ssh root@$(PROD_SERVER) "cd /opt/nepocorp && docker compose -f deploy/docker-compose.prod.yml pull backend"
-	@echo "Restarting backend service (new image for migrations)..."
-	ssh root@$(PROD_SERVER) "cd /opt/nepocorp && docker compose -f deploy/docker-compose.prod.yml up -d --force-recreate --no-deps backend"
-	@echo "Waiting for backend container to be ready..."
-	@for i in 1 2 3 4 5 6 7 8 9 10; do \
-		if ssh root@$(PROD_SERVER) "docker exec nepocorp-backend-1 echo ok" >/dev/null 2>&1; then \
-			break; \
-		fi; \
-		echo "  waiting... ($$i)"; \
-		sleep 2; \
-	done
-	@echo "Running database migrations..."
-	ssh root@$(PROD_SERVER) "docker exec nepocorp-backend-1 npx drizzle-kit migrate"
-	@echo "Cleaning up unused images..."
-	ssh root@$(PROD_SERVER) "docker image prune -f"
-	@echo "Backend deployment complete!"
-	@echo "API: https://$(PROD_SERVER)/api/health"
 
 ## link-drivers: Dry-run — list orphan drivers that would link to existing users
 link-drivers:
