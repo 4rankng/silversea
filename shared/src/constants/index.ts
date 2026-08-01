@@ -43,6 +43,47 @@ export enum ShipmentDocumentType {
   OTHER = 'OTHER',
 }
 
+export enum OperationalSiteType {
+  FACTORY = 'FACTORY',
+  WAREHOUSE = 'WAREHOUSE',
+}
+
+export enum MasterImportStatus {
+  ANALYZED = 'ANALYZED',
+  APPLIED = 'APPLIED',
+  REJECTED = 'REJECTED',
+}
+
+export enum MasterImportRowClassification {
+  ACCEPTED = 'ACCEPTED',
+  BLOCKED = 'BLOCKED',
+  TEMPLATE = 'TEMPLATE',
+  EXAMPLE = 'EXAMPLE',
+}
+
+export enum ShipmentFulfillmentType {
+  FCL_CONTAINER = 'FCL_CONTAINER',
+  LCL_SHIPMENT = 'LCL_SHIPMENT',
+}
+
+export enum FulfillmentCancellationDisposition {
+  REPLACED = 'REPLACED',
+  NOT_REQUIRED = 'NOT_REQUIRED',
+}
+
+export enum TripPodStatus {
+  DRAFT = 'DRAFT',
+  SUBMITTED = 'SUBMITTED',
+  ACCEPTED = 'ACCEPTED',
+  REJECTED = 'REJECTED',
+}
+
+export enum TripPodFileType {
+  YARD_OR_DROP_RECEIPT = 'YARD_OR_DROP_RECEIPT',
+  SIGNED_DELIVERY_NOTE = 'SIGNED_DELIVERY_NOTE',
+  TOLL_TICKET = 'TOLL_TICKET',
+}
+
 /** M8.4 — driver-reported progress event types (append-only log). */
 export enum DriverProgressEventType {
   DEPARTED = 'DEPARTED',
@@ -50,6 +91,9 @@ export enum DriverProgressEventType {
   FUELED = 'FUELED',
   INCIDENT = 'INCIDENT',
   NOTE = 'NOTE',
+  PICKED_UP = 'PICKED_UP',
+  LOADING_OR_RETURNING = 'LOADING_OR_RETURNING',
+  DELIVERED = 'DELIVERED',
 }
 
 /** Vietnamese labels for driver progress events (PRD Mxx-HT-01). */
@@ -59,6 +103,9 @@ export const DRIVER_PROGRESS_EVENT_LABELS: Record<DriverProgressEventType, strin
   [DriverProgressEventType.FUELED]: 'Đổ dầu',
   [DriverProgressEventType.INCIDENT]: 'Sự cố',
   [DriverProgressEventType.NOTE]: 'Ghi chú',
+  [DriverProgressEventType.PICKED_UP]: 'Đã lấy vỏ / Lấy hàng',
+  [DriverProgressEventType.LOADING_OR_RETURNING]: 'Đang đóng / Trả hàng',
+  [DriverProgressEventType.DELIVERED]: 'Đã hạ bãi / Giao hàng xong',
 } as const;
 
 /** M8.4 — driver incidental cost types (out-of-pocket expenses). */

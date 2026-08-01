@@ -90,7 +90,6 @@ async function createInTransitTrip() {
   }).returning();
   truckIds.push(truck.id);
   const [driver] = await db.insert(s.drivers).values({
-    userId: actors[3]?.id,
     name: `Q15 driver ${suffix}-${driverIds.length}`,
     assignedTruckId: truck.id,
   }).returning();
@@ -256,6 +255,12 @@ after(async () => {
     await db.delete(s.trucks).where(inArray(s.trucks.id, truckIds));
   }
   if (userIds.length > 0) {
+    // Notifications can be emitted asynchronously after the trip-scoped
+    // cleanup above. Remove every row owned by this test's principals before
+    // deleting those principals so the suite is isolated from delivery timing
+    // and from IDs reused after a local database reset.
+    await db.delete(s.notifications).where(inArray(s.notifications.userId, userIds));
+    await db.delete(s.pushSubscriptions).where(inArray(s.pushSubscriptions.userId, userIds));
     await db.delete(s.auditLogs).where(inArray(s.auditLogs.userId, userIds));
     await db.delete(s.users).where(inArray(s.users.id, userIds));
   }

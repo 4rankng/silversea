@@ -83,12 +83,15 @@ export type ShipmentStatus =
 
 export interface CreateShipmentInput {
   customerId: number;
+  routeId?: number | null;
   cargoTypeId?: number | null;
   responsibleUnitId?: number | null;
   bookingRef?: string | null;
   blNumber?: string | null;
   tradeDirection?: typeof s.shipmentTradeDirectionEnum.enumValues[number] | null;
   cargoMode?: typeof s.shipmentCargoModeEnum.enumValues[number] | null;
+  operationalSiteId?: number | null;
+  pickupWarehouseSiteId?: number | null;
   factoryName?: string | null;
   shippingLineName?: string | null;
   expectedDeliveryDate?: string | null;
@@ -111,12 +114,15 @@ export interface UpdateShipmentInput {
   expectedVersion?: number; // Required for optimistic-lock check
   version?: number;
   customerId?: number;
+  routeId?: number | null;
   cargoTypeId?: number | null;
   responsibleUnitId?: number | null;
   bookingRef?: string | null;
   blNumber?: string | null;
   tradeDirection?: typeof s.shipmentTradeDirectionEnum.enumValues[number] | null;
   cargoMode?: typeof s.shipmentCargoModeEnum.enumValues[number] | null;
+  operationalSiteId?: number | null;
+  pickupWarehouseSiteId?: number | null;
   factoryName?: string | null;
   shippingLineName?: string | null;
   expectedDeliveryDate?: string | null;
@@ -384,12 +390,15 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
   // 1. Insert the shipment row (DRAFT default, version 1).
   const [shipment] = await tx.insert(s.shipments).values({
     customerId: input.customerId,
+    routeId: input.routeId ?? null,
     cargoTypeId: input.cargoTypeId ?? null,
     responsibleUnitId,
     bookingRef: input.bookingRef ?? null,
     blNumber: input.blNumber ?? null,
     tradeDirection: input.tradeDirection ?? null,
     cargoMode: input.cargoMode ?? null,
+    operationalSiteId: input.operationalSiteId ?? null,
+    pickupWarehouseSiteId: input.pickupWarehouseSiteId ?? null,
     factoryName: input.factoryName ?? null,
     shippingLineName: input.shippingLineName ?? null,
     expectedDeliveryDate: input.expectedDeliveryDate ?? null,
@@ -589,12 +598,15 @@ export async function updateShipment(
 
     const planClassification = classifyClerkShipmentPatch(existing, {
       customerId: input.customerId,
+      routeId: input.routeId,
       cargoTypeId: input.cargoTypeId,
       responsibleUnitId: input.responsibleUnitId,
       bookingRef: input.bookingRef,
       blNumber: input.blNumber,
       tradeDirection: input.tradeDirection,
       cargoMode: input.cargoMode,
+      operationalSiteId: input.operationalSiteId,
+      pickupWarehouseSiteId: input.pickupWarehouseSiteId,
       factoryName: input.factoryName,
       shippingLineName: input.shippingLineName,
       expectedDeliveryDate: input.expectedDeliveryDate,
@@ -670,12 +682,15 @@ export async function updateShipment(
     const [updated] = await tx.update(s.shipments).set({
       version: nextVersion,
       ...(input.customerId != null ? { customerId: input.customerId } : {}),
+      ...(input.routeId !== undefined ? { routeId: input.routeId } : {}),
       ...(input.cargoTypeId !== undefined ? { cargoTypeId: input.cargoTypeId } : {}),
       ...(input.responsibleUnitId !== undefined ? { responsibleUnitId: input.responsibleUnitId } : {}),
       ...(input.bookingRef !== undefined ? { bookingRef: input.bookingRef } : {}),
       ...(input.blNumber !== undefined ? { blNumber: input.blNumber } : {}),
       ...(input.tradeDirection !== undefined ? { tradeDirection: input.tradeDirection } : {}),
       ...(input.cargoMode !== undefined ? { cargoMode: input.cargoMode } : {}),
+      ...(input.operationalSiteId !== undefined ? { operationalSiteId: input.operationalSiteId } : {}),
+      ...(input.pickupWarehouseSiteId !== undefined ? { pickupWarehouseSiteId: input.pickupWarehouseSiteId } : {}),
       ...(input.factoryName !== undefined ? { factoryName: input.factoryName } : {}),
       ...(input.shippingLineName !== undefined ? { shippingLineName: input.shippingLineName } : {}),
       ...(input.expectedDeliveryDate !== undefined
@@ -1745,6 +1760,8 @@ export async function reviewShipmentChangeRequest(
           ...(patch.blNumber !== undefined ? { blNumber: patch.blNumber } : {}),
           ...(patch.tradeDirection !== undefined ? { tradeDirection: patch.tradeDirection } : {}),
           ...(patch.cargoMode !== undefined ? { cargoMode: patch.cargoMode } : {}),
+          ...(patch.operationalSiteId !== undefined ? { operationalSiteId: patch.operationalSiteId } : {}),
+          ...(patch.pickupWarehouseSiteId !== undefined ? { pickupWarehouseSiteId: patch.pickupWarehouseSiteId } : {}),
           ...(patch.factoryName !== undefined ? { factoryName: patch.factoryName } : {}),
           ...(patch.shippingLineName !== undefined ? { shippingLineName: patch.shippingLineName } : {}),
           ...(patch.expectedDeliveryDate !== undefined ? { expectedDeliveryDate: patch.expectedDeliveryDate } : {}),

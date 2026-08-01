@@ -384,6 +384,11 @@ async function fetchTodayReminderNotifications(
 // Notification service needs its event listener initialized once per process.
 before(async () => {
   initNotificationService();
+  // Positive reminder scenarios are intentionally about delivery/dedupe, not
+  // the wall-clock weekday. Mark the current test date as working so the suite
+  // stays deterministic when CI runs on a weekend; the dedicated weekend case
+  // below uses a different Saturday with no override.
+  await mkCalendarDay(businessDateNow(), true, 'M57 current test working day');
   const [row] = await db
     .select({ value: s.appSettings.value })
     .from(s.appSettings)
@@ -546,7 +551,7 @@ describe('M5.7 — runReceivableReminders', () => {
   });
 
   test('does not send on an ordinary weekend without a calendar override', async () => {
-    const saturday = findWeekday(todayBusinessDate, 6);
+    const saturday = findWeekday(addCalendarDays(todayBusinessDate, 1), 6);
     const c = await mkCustomer();
     const r = await mkRoute(); const cg = await mkCargo();
     const t = await mkOverdueTrip(c.id, r.id, cg.id, saturday);

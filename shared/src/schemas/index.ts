@@ -3,6 +3,7 @@ import {
   CustomerAccountType, FuelMode, LoadingType, Role, SupplierType,
   TrailerType, TruckStatus, TrailerStatus, DriverStatus, CustomerStatus,
   ShipmentStatus, ShipmentDocumentType,
+  OperationalSiteType, FulfillmentCancellationDisposition, TripPodFileType,
   DriverProgressEventType,
   DriverIncidentalCostType,
   NO_INVOICE_APPROVAL_TITLES,
@@ -1221,12 +1222,15 @@ export const upsertTripInstructionsSchema = z.object({
 // optional booking metadata that may be filled in before dispatch.
 export const createShipmentSchema = z.object({
   customerId: z.coerce.number().int().positive('Khách hàng là bắt buộc'),
+  routeId: z.coerce.number().int().positive('Tuyến đường không hợp lệ').optional().nullable(),
   cargoTypeId: z.coerce.number().int().positive('Loại hàng không hợp lệ').optional().nullable(),
   responsibleUnitId: z.coerce.number().int().positive().optional().nullable(),
   bookingRef: z.string().max(100).optional().nullable(),
   blNumber: z.string().max(100).optional().nullable(),
   tradeDirection: z.enum(['IMPORT', 'EXPORT']).optional().nullable(),
   cargoMode: z.enum(['FCL', 'LCL']).optional().nullable(),
+  operationalSiteId: z.coerce.number().int().positive().optional().nullable(),
+  pickupWarehouseSiteId: z.coerce.number().int().positive().optional().nullable(),
   factoryName: z.string().max(255).optional().nullable(),
   shippingLineName: z.string().max(255).optional().nullable(),
   expectedDeliveryDate: z.string().optional().nullable(),
@@ -1263,12 +1267,15 @@ export const updateShipmentSchema = z.object({
   expectedVersion: z.number().int().nonnegative('expectedVersion là bắt buộc để kiểm soát đồng thời').optional(),
   version: z.number().int().nonnegative('version là bắt buộc để kiểm soát đồng thời').optional(),
   customerId: z.coerce.number().int().positive().optional(),
+  routeId: z.coerce.number().int().positive('Tuyến đường không hợp lệ').optional().nullable(),
   cargoTypeId: z.coerce.number().int().positive('Loại hàng không hợp lệ').optional().nullable(),
   responsibleUnitId: z.coerce.number().int().positive().optional().nullable(),
   bookingRef: z.string().max(100).nullish(),
   blNumber: z.string().max(100).nullish(),
   tradeDirection: z.enum(['IMPORT', 'EXPORT']).nullish(),
   cargoMode: z.enum(['FCL', 'LCL']).nullish(),
+  operationalSiteId: z.coerce.number().int().positive().nullish(),
+  pickupWarehouseSiteId: z.coerce.number().int().positive().nullish(),
   factoryName: z.string().max(255).nullish(),
   shippingLineName: z.string().max(255).nullish(),
   expectedDeliveryDate: z.string().nullish(),
@@ -1325,6 +1332,10 @@ export const shipmentContainerBatchSchema = z.object({
       .transform(v => (v === '' ? null : v)),
     sealNumber: z.string().max(50).optional().nullable().transform(v => (v === '' ? null : v)),
     cargoWeightKg: shipmentWeightKg.optional().nullable(),
+    shippingLineName: z.string().trim().max(255).optional().nullable()
+      .transform(v => (v === '' ? null : v)),
+    pickupPortId: z.coerce.number().int().positive().optional().nullable(),
+    dropoffPortId: z.coerce.number().int().positive().optional().nullable(),
     notes: z.string().optional().nullable().transform(v => (v === '' ? null : v)),
   })),
 }).superRefine((data, ctx) => {
@@ -1358,6 +1369,43 @@ export const dispatchShipmentSchema = z.object({
   fuelMode: z.nativeEnum(FuelMode).optional(),
 });
 
+export const operationalSiteSchema = z.object({
+  customerId: z.coerce.number().int().positive('Khách hàng là bắt buộc'),
+  code: z.string().trim().min(1, 'Mã điểm vận hành là bắt buộc').max(80),
+  name: z.string().trim().min(1, 'Tên điểm vận hành là bắt buộc').max(255),
+  siteType: z.nativeEnum(OperationalSiteType),
+  address: z.string().trim().min(1, 'Địa chỉ là bắt buộc').max(2000),
+  googleMapsUrl: z.string().url('Liên kết Google Maps không hợp lệ').max(2000).optional().nullable(),
+  contactName: z.string().trim().max(120).optional().nullable(),
+  contactPhone: z.string().trim().max(30).optional().nullable(),
+  liftFeeInvoiceName: z.string().trim().max(255).optional().nullable(),
+  liftFeeInvoiceAddress: z.string().trim().max(2000).optional().nullable(),
+  liftFeeTaxCode: z.string().trim().max(40).optional().nullable(),
+  strictRules: z.string().trim().max(8000).optional().nullable(),
+  isActive: z.boolean().optional(),
+});
+
+export const decomposeShipmentFulfillmentsSchema = z.object({
+  expectedVersion: z.coerce.number().int().positive(),
+});
+
+export const cancelShipmentFulfillmentSchema = z.object({
+  expectedVersion: z.coerce.number().int().positive(),
+  reason: z.string().trim().min(1, 'Lý do hủy là bắt buộc').max(2000),
+  disposition: z.nativeEnum(FulfillmentCancellationDisposition).optional().nullable(),
+  replacementFulfillmentId: z.coerce.number().int().positive().optional().nullable(),
+  notRequiredReason: z.string().trim().min(1).max(2000).optional().nullable(),
+});
+
+export const tripPodFileMetadataSchema = z.object({
+  fileType: z.nativeEnum(TripPodFileType),
+  storageKey: z.string().trim().min(1).max(255),
+  originalFileName: z.string().trim().min(1).max(255),
+  mimeType: z.string().trim().min(1).max(120),
+  sizeBytes: z.coerce.number().int().positive(),
+  sha256: z.string().regex(/^[a-f0-9]{64}$/i, 'Mã kiểm tra tệp không hợp lệ'),
+});
+
 // ─── Inferred types ──────────────────────────────────────────────────────────
 
 export type CreateTripInput = z.infer<typeof createTripSchema>;
@@ -1374,6 +1422,10 @@ export type TransitionShipmentStatusInput = z.infer<typeof transitionShipmentSta
 export type AttachShipmentDocumentInput = z.infer<typeof attachShipmentDocumentSchema>;
 export type ShipmentContainerBatchInput = z.infer<typeof shipmentContainerBatchSchema>;
 export type DispatchShipmentInput = z.infer<typeof dispatchShipmentSchema>;
+export type OperationalSiteInput = z.infer<typeof operationalSiteSchema>;
+export type DecomposeShipmentFulfillmentsInput = z.infer<typeof decomposeShipmentFulfillmentsSchema>;
+export type CancelShipmentFulfillmentInput = z.infer<typeof cancelShipmentFulfillmentSchema>;
+export type TripPodFileMetadataInput = z.infer<typeof tripPodFileMetadataSchema>;
 
 // M8.4 — driver progress event. The driver records what actually happened on
 // the road (departure/arrival/fuel/incident/note) with a client-supplied

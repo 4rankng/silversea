@@ -348,9 +348,9 @@ describe('createTrip with shipmentId', () => {
 
   test('concurrent createTrip calls for the same shipment: one wins, the other gets a clean 409', async () => {
     // Race two createTrip calls against the same DRAFT shipment. The partial
-    // unique index `trips_shipment_id_live_uniq` guarantees only one trip can
-    // be linked; the loser's transaction rolls back (no orphan trip) and the
-    // service converts the 23505 into a domain 409 with a Vietnamese message.
+    // null-fulfillment guard guarantees only one unassigned live trip can be
+    // linked. Once decomposition is used, one live trip is allowed for each
+    // distinct fulfillment instead.
     const customer = await mkCustomer();
     const cat = await mkCatalogs();
     const shipment = await createShipment({ customerId: customer.id });

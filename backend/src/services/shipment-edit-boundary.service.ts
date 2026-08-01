@@ -15,6 +15,8 @@ export type ShipmentPlanPatch = {
   blNumber?: string | null;
   tradeDirection?: typeof s.shipmentTradeDirectionEnum.enumValues[number] | null;
   cargoMode?: typeof s.shipmentCargoModeEnum.enumValues[number] | null;
+  operationalSiteId?: number | null;
+  pickupWarehouseSiteId?: number | null;
   factoryName?: string | null;
   shippingLineName?: string | null;
   expectedDeliveryDate?: string | null;
@@ -56,6 +58,8 @@ const POST_DISPATCH_REQUEST_FIELDS = new Set<keyof ShipmentPlanPatch>([
   'responsibleUnitId',
   'tradeDirection',
   'cargoMode',
+  'operationalSiteId',
+  'pickupWarehouseSiteId',
   'factoryName',
   'shippingLineName',
   'expectedDeliveryDate',
@@ -106,6 +110,8 @@ function normalizeShipmentPlanValue(
     case 'customerId':
     case 'cargoTypeId':
     case 'responsibleUnitId':
+    case 'operationalSiteId':
+    case 'pickupWarehouseSiteId':
     case 'packageCount':
       return value ?? null;
     case 'cargoWeightKg':
@@ -132,6 +138,8 @@ function currentShipmentSnapshot(row: ShipmentRow) {
     blNumber: row.blNumber ?? null,
     tradeDirection: row.tradeDirection ?? null,
     cargoMode: row.cargoMode ?? null,
+    operationalSiteId: row.operationalSiteId ?? null,
+    pickupWarehouseSiteId: row.pickupWarehouseSiteId ?? null,
     factoryName: row.factoryName ?? null,
     shippingLineName: row.shippingLineName ?? null,
     expectedDeliveryDate: row.expectedDeliveryDate ?? null,

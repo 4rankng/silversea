@@ -2,7 +2,7 @@ UPDATE "users" AS "u"
 SET
   "customer_account_type" = 'CORPORATE_GROUP',
   "updated_at" = now()
-WHERE "u"."role" = 'CUSTOMER'
+WHERE "u"."role"::text = 'CUSTOMER'
   AND "u"."customer_account_type" = 'SINGLE_ENTITY'
   AND (
     SELECT COUNT(DISTINCT "ucl"."customer_id")

@@ -15,14 +15,14 @@ interface VnParts {
   day: number; // 1-31
 }
 
-function vnParts(): VnParts {
+function vnParts(now: Date = new Date(Date.now())): VnParts {
   const fmt = new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Asia/Ho_Chi_Minh',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
   });
-  const parts = fmt.formatToParts(new Date());
+  const parts = fmt.formatToParts(now);
   const get = (type: string): number => {
     const v = parts.find((p) => p.type === type)?.value;
     return v ? Number(v) : 0;

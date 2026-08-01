@@ -1,7 +1,7 @@
 import {
   pgTable, serial, varchar, text, integer, boolean, timestamp,
   jsonb, numeric, date, pgEnum, uniqueIndex, index, check, doublePrecision, smallint,
-  customType, AnyPgColumn,
+  customType, AnyPgColumn, foreignKey,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
@@ -166,7 +166,11 @@ export const drivers = pgTable('drivers', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
-});
+}, (table) => [
+  uniqueIndex('drivers_active_user_uniq_idx')
+    .on(table.userId)
+    .where(sql`${table.userId} is not null and ${table.deletedAt} is null`),
+]);
 
 export const partners = pgTable('partners', {
   id: serial('id').primaryKey(),
@@ -644,6 +648,7 @@ export const trips = pgTable('trips', {
   // FK is intentionally ON DELETE NO ACTION (the default): a shipment with live
   // trips must never be hard-deleted. Use shipments.deletedAt for tombstoning.
   shipmentId: integer('shipment_id').references(() => shipments.id),
+  fulfillmentId: integer('fulfillment_id'),
   sourceShipmentVersion: integer('source_shipment_version'),
   completedAt: timestamp('completed_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -661,16 +666,29 @@ export const trips = pgTable('trips', {
     .where(sql`${table.activeTripPairId} is not null`),
   // Wave 0: look up a shipment's trips.
   index('trips_shipment_id_idx').on(table.shipmentId),
-  // Wave 0 (shipment-routes slice): one LIVE trip per shipment. A partial
-  // unique index — scoped to non-CANCELED trips with a non-null shipmentId —
-  // lets a shipment have multiple historical/canceled trips over its lifecycle
-  // while preventing two concurrent dispatches from each creating a trip for
-  // the same shipment. Enforced at the DB so it holds regardless of how many
-  // backend processes are running. Canceled trips are excluded so a
-  // re-dispatch after a cancel is allowed.
-  uniqueIndex('trips_shipment_id_live_uniq')
+  index('trips_fulfillment_id_idx').on(table.fulfillmentId),
+  uniqueIndex('trips_id_fulfillment_uniq_idx').on(table.id, table.fulfillmentId),
+  // A fulfillment is the independently dispatchable authority. Multiple live
+  // trips may belong to one shipment only when they reference distinct
+  // fulfillments; canceled history does not prevent a governed replacement.
+  uniqueIndex('trips_fulfillment_id_live_uniq')
+    .on(table.fulfillmentId)
+    .where(sql`${table.fulfillmentId} is not null and ${table.status} <> 'CANCELED'`),
+  // Until every trip-create surface supplies a fulfillment, an unassigned
+  // live trip still reserves the shipment. This prevents the nullable column
+  // from bypassing the one-active-trip-per-dispatch-unit invariant.
+  uniqueIndex('trips_shipment_without_fulfillment_live_uniq')
     .on(table.shipmentId)
-    .where(sql`${table.shipmentId} is not null and ${table.status} <> 'CANCELED'`),
+    .where(sql`${table.shipmentId} is not null and ${table.fulfillmentId} is null and ${table.status} <> 'CANCELED'`),
+  foreignKey({
+    columns: [table.shipmentId, table.fulfillmentId],
+    foreignColumns: [shipmentFulfillments.shipmentId, shipmentFulfillments.id],
+    name: 'trips_shipment_fulfillment_fk',
+  }),
+  check(
+    'trips_shipment_fulfillment_presence_check',
+    sql`${table.fulfillmentId} is null or ${table.shipmentId} is not null`,
+  ),
   check(
     'trips_active_trip_pair_order_check',
     sql`${table.activeTripPairOrder} is null or ${table.activeTripPairOrder} in (1, 2)`,
@@ -2400,6 +2418,117 @@ export const shipmentChangeRequestKindEnum = pgEnum('shipment_change_request_kin
   'PLAN_UPDATE',
   'CONTAINER_RECONCILE',
 ]);
+export const operationalSiteTypeEnum = pgEnum('operational_site_type', [
+  'FACTORY', 'WAREHOUSE',
+]);
+export const masterImportStatusEnum = pgEnum('master_import_status', [
+  'ANALYZED', 'APPLIED', 'REJECTED',
+]);
+export const masterImportRowClassificationEnum = pgEnum('master_import_row_classification', [
+  'ACCEPTED', 'BLOCKED', 'TEMPLATE', 'EXAMPLE',
+]);
+export const shipmentFulfillmentTypeEnum = pgEnum('shipment_fulfillment_type', [
+  'FCL_CONTAINER', 'LCL_SHIPMENT',
+]);
+export const fulfillmentCancellationDispositionEnum = pgEnum('fulfillment_cancellation_disposition', [
+  'REPLACED', 'NOT_REQUIRED',
+]);
+export const tripPodStatusEnum = pgEnum('trip_pod_status', [
+  'DRAFT', 'SUBMITTED', 'ACCEPTED', 'REJECTED',
+]);
+export const tripPodFileTypeEnum = pgEnum('trip_pod_file_type', [
+  'YARD_OR_DROP_RECEIPT', 'SIGNED_DELIVERY_NOTE', 'TOLL_TICKET',
+]);
+
+// Customer-owned factories and pickup warehouses. The database row is the
+// live master; issued fulfillments snapshot the operational fields that must
+// not drift when an administrator later updates this record.
+export const operationalSites = pgTable('operational_sites', {
+  id: serial('id').primaryKey(),
+  customerId: integer('customer_id').references(() => customers.id).notNull(),
+  code: varchar('code', { length: 80 }).notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  siteType: operationalSiteTypeEnum('site_type').notNull(),
+  address: text('address').notNull(),
+  googleMapsUrl: text('google_maps_url'),
+  contactName: varchar('contact_name', { length: 120 }),
+  contactPhone: varchar('contact_phone', { length: 30 }),
+  liftFeeInvoiceName: varchar('lift_fee_invoice_name', { length: 255 }),
+  liftFeeInvoiceAddress: text('lift_fee_invoice_address'),
+  liftFeeTaxCode: varchar('lift_fee_tax_code', { length: 40 }),
+  strictRules: text('strict_rules'),
+  version: integer('version').notNull().default(1),
+  isActive: boolean('is_active').notNull().default(true),
+  createdBy: integer('created_by').references(() => users.id),
+  updatedBy: integer('updated_by').references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+}, (table) => [
+  uniqueIndex('operational_sites_customer_code_uniq_idx')
+    .on(table.customerId, table.code)
+    .where(sql`${table.deletedAt} is null`),
+  uniqueIndex('operational_sites_customer_id_id_uniq_idx').on(table.customerId, table.id),
+  index('operational_sites_customer_type_idx').on(table.customerId, table.siteType, table.isActive),
+  check('operational_sites_code_not_blank_check', sql`length(btrim(${table.code})) > 0`),
+  check('operational_sites_name_not_blank_check', sql`length(btrim(${table.name})) > 0`),
+  check('operational_sites_address_not_blank_check', sql`length(btrim(${table.address})) > 0`),
+  check('operational_sites_version_positive_check', sql`${table.version} > 0`),
+]);
+
+// Persistent, auditable workbook analysis. The uploaded source is private and
+// short-lived; row results expose only classification and redacted reasons.
+export const masterImportBatches = pgTable('master_import_batches', {
+  id: serial('id').primaryKey(),
+  sourceFileName: varchar('source_file_name', { length: 255 }).notNull(),
+  sourceFileHash: varchar('source_file_hash', { length: 64 }).notNull(),
+  parserVersion: varchar('parser_version', { length: 40 }).notNull(),
+  privateStorageKey: varchar('private_storage_key', { length: 255 }),
+  status: masterImportStatusEnum('status').notNull().default('ANALYZED'),
+  summary: jsonb('summary').$type<Record<string, number>>().notNull().default(sql`'{}'::jsonb`),
+  warningCodes: jsonb('warning_codes').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+  version: integer('version').notNull().default(1),
+  analyzedBy: integer('analyzed_by').references(() => users.id).notNull(),
+  appliedBy: integer('applied_by').references(() => users.id),
+  analyzedAt: timestamp('analyzed_at', { withTimezone: true }).defaultNow().notNull(),
+  appliedAt: timestamp('applied_at', { withTimezone: true }),
+}, (table) => [
+  uniqueIndex('master_import_batches_hash_parser_uniq_idx')
+    .on(table.sourceFileHash, table.parserVersion),
+  check('master_import_batches_hash_check', sql`length(${table.sourceFileHash}) = 64`),
+  check('master_import_batches_version_positive_check', sql`${table.version} > 0`),
+  check(
+    'master_import_batches_apply_attribution_check',
+    sql`(${table.status} = 'APPLIED' and ${table.appliedBy} is not null and ${table.appliedAt} is not null)
+      or (${table.status} <> 'APPLIED' and ${table.appliedBy} is null and ${table.appliedAt} is null)`,
+  ),
+]);
+
+export const masterImportRowResults = pgTable('master_import_row_results', {
+  id: serial('id').primaryKey(),
+  batchId: integer('batch_id')
+    .references(() => masterImportBatches.id, { onDelete: 'cascade' }).notNull(),
+  sheetName: varchar('sheet_name', { length: 160 }).notNull(),
+  rowNumber: integer('row_number').notNull(),
+  entityType: varchar('entity_type', { length: 80 }).notNull(),
+  classification: masterImportRowClassificationEnum('classification').notNull(),
+  naturalKeyHash: varchar('natural_key_hash', { length: 64 }),
+  payloadHash: varchar('payload_hash', { length: 64 }),
+  reasonCode: varchar('reason_code', { length: 80 }),
+  redactedReason: text('redacted_reason'),
+  appliedEntityType: varchar('applied_entity_type', { length: 80 }),
+  appliedEntityId: integer('applied_entity_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('master_import_rows_batch_sheet_row_uniq_idx')
+    .on(table.batchId, table.sheetName, table.rowNumber),
+  index('master_import_rows_batch_class_idx').on(table.batchId, table.classification),
+  check('master_import_rows_row_positive_check', sql`${table.rowNumber} > 0`),
+  check(
+    'master_import_rows_reason_check',
+    sql`${table.classification} <> 'BLOCKED' or (${table.reasonCode} is not null and ${table.redactedReason} is not null)`,
+  ),
+]);
 
 export const shipments = pgTable('shipments', {
   id: serial('id').primaryKey(),
@@ -2411,6 +2540,7 @@ export const shipments = pgTable('shipments', {
   // Optimistic locking, mirroring trips.
   version: integer('version').default(1).notNull(),
   customerId: integer('customer_id').references(() => customers.id).notNull(),
+  routeId: integer('route_id').references(() => routes.id),
   cargoTypeId: integer('cargo_type_id').references(() => cargoTypes.id),
   responsibleUnitId: integer('responsible_unit_id')
     .references(() => businessUnits.id, { onDelete: 'set null' }),
@@ -2419,6 +2549,8 @@ export const shipments = pgTable('shipments', {
   blNumber: varchar('bl_number', { length: 100 }),
   tradeDirection: shipmentTradeDirectionEnum('trade_direction'),
   cargoMode: shipmentCargoModeEnum('cargo_mode'),
+  operationalSiteId: integer('operational_site_id').references(() => operationalSites.id),
+  pickupWarehouseSiteId: integer('pickup_warehouse_site_id').references(() => operationalSites.id),
   factoryName: varchar('factory_name', { length: 255 }),
   shippingLineName: varchar('shipping_line_name', { length: 255 }),
   expectedDeliveryDate: date('expected_delivery_date'),
@@ -2440,9 +2572,23 @@ export const shipments = pgTable('shipments', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
 }, (table) => [
+  uniqueIndex('shipments_id_cargo_mode_uniq_idx').on(table.id, table.cargoMode),
   index('shipments_customer_status_idx').on(table.customerId, table.status),
+  index('shipments_route_idx').on(table.routeId),
   index('shipments_responsible_unit_idx').on(table.responsibleUnitId, table.status),
   index('shipments_status_idx').on(table.status),
+  index('shipments_operational_site_idx').on(table.operationalSiteId),
+  index('shipments_pickup_warehouse_idx').on(table.pickupWarehouseSiteId),
+  foreignKey({
+    columns: [table.customerId, table.operationalSiteId],
+    foreignColumns: [operationalSites.customerId, operationalSites.id],
+    name: 'shipments_customer_operational_site_fk',
+  }),
+  foreignKey({
+    columns: [table.customerId, table.pickupWarehouseSiteId],
+    foreignColumns: [operationalSites.customerId, operationalSites.id],
+    name: 'shipments_customer_pickup_warehouse_fk',
+  }),
 ]);
 
 // Booking confirmation, bill of lading, delivery order, customs declaration
@@ -2519,12 +2665,193 @@ export const shipmentContainers = pgTable('shipment_containers', {
   containerNumber: varchar('container_number', { length: 50 }),
   sealNumber: varchar('seal_number', { length: 50 }),
   cargoWeightKg: numeric('cargo_weight_kg', { precision: 10, scale: 2 }),
+  shippingLineName: varchar('shipping_line_name', { length: 255 }),
+  pickupPortId: integer('pickup_port_id').references(() => ports.id),
+  dropoffPortId: integer('dropoff_port_id').references(() => ports.id),
   notes: text('notes'),
   createdBy: integer('created_by').references(() => users.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
   index('shipment_containers_shipment_id_idx').on(table.shipmentId),
+  index('shipment_containers_pickup_port_idx').on(table.pickupPortId),
+  index('shipment_containers_dropoff_port_idx').on(table.dropoffPortId),
+  uniqueIndex('shipment_containers_shipment_id_id_uniq_idx').on(table.shipmentId, table.id),
+]);
+
+// Independently dispatchable unit derived from one shipment. Execution state
+// remains authoritative on trips; this row owns only identity, requiredness,
+// assignment snapshots, and governed cancellation/replacement provenance.
+export const shipmentFulfillments = pgTable('shipment_fulfillments', {
+  id: serial('id').primaryKey(),
+  shipmentId: integer('shipment_id')
+    .references(() => shipments.id, { onDelete: 'cascade' }).notNull(),
+  fulfillmentType: shipmentFulfillmentTypeEnum('fulfillment_type').notNull(),
+  cargoMode: shipmentCargoModeEnum('cargo_mode').notNull(),
+  shipmentContainerId: integer('shipment_container_id')
+    .references(() => shipmentContainers.id, { onDelete: 'restrict' }),
+  sourceShipmentVersion: integer('source_shipment_version').notNull(),
+  siteSnapshot: jsonb('site_snapshot').$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+  version: integer('version').notNull().default(1),
+  canceledAt: timestamp('canceled_at', { withTimezone: true }),
+  canceledBy: integer('canceled_by').references(() => users.id),
+  cancellationReason: text('cancellation_reason'),
+  cancellationDisposition: fulfillmentCancellationDispositionEnum('cancellation_disposition'),
+  replacementFulfillmentId: integer('replacement_fulfillment_id'),
+  notRequiredApprovedBy: integer('not_required_approved_by').references(() => users.id),
+  notRequiredApprovedAt: timestamp('not_required_approved_at', { withTimezone: true }),
+  notRequiredReason: text('not_required_reason'),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('shipment_fulfillments_shipment_id_id_uniq_idx').on(table.shipmentId, table.id),
+  index('shipment_fulfillments_shipment_idx').on(table.shipmentId),
+  uniqueIndex('shipment_fulfillments_active_container_uniq_idx')
+    .on(table.shipmentContainerId)
+    .where(sql`${table.shipmentContainerId} is not null and ${table.canceledAt} is null`),
+  uniqueIndex('shipment_fulfillments_active_lcl_uniq_idx')
+    .on(table.shipmentId)
+    .where(sql`${table.fulfillmentType} = 'LCL_SHIPMENT' and ${table.canceledAt} is null`),
+  uniqueIndex('shipment_fulfillments_replacement_uniq_idx')
+    .on(table.replacementFulfillmentId)
+    .where(sql`${table.replacementFulfillmentId} is not null`),
+  check(
+    'shipment_fulfillments_type_container_check',
+    sql`(${table.cargoMode} = 'FCL' and ${table.fulfillmentType} = 'FCL_CONTAINER'
+          and ${table.shipmentContainerId} is not null)
+      or (${table.cargoMode} = 'LCL' and ${table.fulfillmentType} = 'LCL_SHIPMENT'
+          and ${table.shipmentContainerId} is null)`,
+  ),
+  check('shipment_fulfillments_source_version_check', sql`${table.sourceShipmentVersion} > 0`),
+  check('shipment_fulfillments_version_check', sql`${table.version} > 0`),
+  check(
+    'shipment_fulfillments_cancel_attribution_check',
+    sql`(${table.canceledAt} is null and ${table.canceledBy} is null and ${table.cancellationReason} is null
+          and ${table.cancellationDisposition} is null and ${table.replacementFulfillmentId} is null
+          and ${table.notRequiredApprovedBy} is null and ${table.notRequiredApprovedAt} is null
+          and ${table.notRequiredReason} is null)
+      or (${table.canceledAt} is not null and ${table.canceledBy} is not null
+          and length(btrim(${table.cancellationReason})) > 0)`,
+  ),
+  check(
+    'shipment_fulfillments_disposition_check',
+    sql`${table.cancellationDisposition} is null
+      or (${table.cancellationDisposition} = 'REPLACED' and ${table.replacementFulfillmentId} is not null
+          and ${table.notRequiredApprovedBy} is null and ${table.notRequiredApprovedAt} is null
+          and ${table.notRequiredReason} is null)
+      or (${table.cancellationDisposition} = 'NOT_REQUIRED' and ${table.replacementFulfillmentId} is null
+          and ${table.notRequiredApprovedBy} is not null and ${table.notRequiredApprovedAt} is not null
+          and length(btrim(${table.notRequiredReason})) > 0)`,
+  ),
+  check(
+    'shipment_fulfillments_replacement_not_self_check',
+    sql`${table.replacementFulfillmentId} is null or ${table.replacementFulfillmentId} <> ${table.id}`,
+  ),
+  foreignKey({
+    columns: [table.shipmentId, table.cargoMode],
+    foreignColumns: [shipments.id, shipments.cargoMode],
+    name: 'shipment_fulfillments_shipment_cargo_mode_fk',
+  }),
+  foreignKey({
+    columns: [table.shipmentId, table.shipmentContainerId],
+    foreignColumns: [shipmentContainers.shipmentId, shipmentContainers.id],
+    name: 'shipment_fulfillments_shipment_container_fk',
+  }),
+  foreignKey({
+    columns: [table.shipmentId, table.replacementFulfillmentId],
+    foreignColumns: [table.shipmentId, table.id],
+    name: 'shipment_fulfillments_shipment_replacement_fk',
+  }),
+]);
+
+// Immutable, versioned proof-of-delivery submissions. Generic trip photos do
+// not satisfy these typed slots. Phase 4 owns driver submission; Phase 5 owns
+// first-winner review and shipment aggregate closure.
+export const tripPodSubmissions = pgTable('trip_pod_submissions', {
+  id: serial('id').primaryKey(),
+  tripId: integer('trip_id').references(() => trips.id, { onDelete: 'cascade' }).notNull(),
+  fulfillmentId: integer('fulfillment_id')
+    .references(() => shipmentFulfillments.id, { onDelete: 'restrict' }).notNull(),
+  submissionVersion: integer('submission_version').notNull(),
+  sourceTripVersion: integer('source_trip_version').notNull(),
+  status: tripPodStatusEnum('status').notNull().default('DRAFT'),
+  supersedesSubmissionId: integer('supersedes_submission_id')
+    .references((): AnyPgColumn => tripPodSubmissions.id, { onDelete: 'restrict' }),
+  submittedBy: integer('submitted_by').references(() => users.id),
+  submittedAt: timestamp('submitted_at', { withTimezone: true }),
+  reviewedBy: integer('reviewed_by').references(() => users.id),
+  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+  rejectionReason: text('rejection_reason'),
+  version: integer('version').notNull().default(1),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('trip_pod_submissions_trip_id_id_uniq_idx').on(table.tripId, table.id),
+  uniqueIndex('trip_pod_submissions_trip_version_uniq_idx')
+    .on(table.tripId, table.submissionVersion),
+  uniqueIndex('trip_pod_submissions_supersedes_uniq_idx')
+    .on(table.supersedesSubmissionId)
+    .where(sql`${table.supersedesSubmissionId} is not null`),
+  uniqueIndex('trip_pod_submissions_open_uniq_idx')
+    .on(table.tripId)
+    .where(sql`${table.status} in ('DRAFT', 'SUBMITTED')`),
+  uniqueIndex('trip_pod_submissions_accepted_uniq_idx')
+    .on(table.tripId)
+    .where(sql`${table.status} = 'ACCEPTED'`),
+  index('trip_pod_submissions_fulfillment_status_idx').on(table.fulfillmentId, table.status),
+  foreignKey({
+    columns: [table.tripId, table.fulfillmentId],
+    foreignColumns: [trips.id, trips.fulfillmentId],
+    name: 'trip_pod_submissions_trip_fulfillment_fk',
+  }),
+  foreignKey({
+    columns: [table.tripId, table.supersedesSubmissionId],
+    foreignColumns: [table.tripId, table.id],
+    name: 'trip_pod_submissions_trip_supersedes_fk',
+  }),
+  check('trip_pod_submissions_submission_version_check', sql`${table.submissionVersion} > 0`),
+  check('trip_pod_submissions_source_trip_version_check', sql`${table.sourceTripVersion} > 0`),
+  check('trip_pod_submissions_version_check', sql`${table.version} > 0`),
+  check(
+    'trip_pod_submissions_state_check',
+    sql`(${table.status} = 'DRAFT' and ${table.submittedBy} is null and ${table.submittedAt} is null
+          and ${table.reviewedBy} is null and ${table.reviewedAt} is null and ${table.rejectionReason} is null)
+      or (${table.status} = 'SUBMITTED' and ${table.submittedBy} is not null and ${table.submittedAt} is not null
+          and ${table.reviewedBy} is null and ${table.reviewedAt} is null and ${table.rejectionReason} is null)
+      or (${table.status} = 'ACCEPTED' and ${table.submittedBy} is not null and ${table.submittedAt} is not null
+          and ${table.reviewedBy} is not null and ${table.reviewedAt} is not null and ${table.rejectionReason} is null)
+      or (${table.status} = 'REJECTED' and ${table.submittedBy} is not null and ${table.submittedAt} is not null
+          and ${table.reviewedBy} is not null and ${table.reviewedAt} is not null
+          and length(btrim(${table.rejectionReason})) > 0)`,
+  ),
+  check(
+    'trip_pod_submissions_supersession_check',
+    sql`(${table.submissionVersion} = 1 and ${table.supersedesSubmissionId} is null)
+      or (${table.submissionVersion} > 1 and ${table.supersedesSubmissionId} is not null)`,
+  ),
+]);
+
+export const tripPodFiles = pgTable('trip_pod_files', {
+  id: serial('id').primaryKey(),
+  submissionId: integer('submission_id')
+    .references(() => tripPodSubmissions.id, { onDelete: 'cascade' }).notNull(),
+  fileType: tripPodFileTypeEnum('file_type').notNull(),
+  storageKey: varchar('storage_key', { length: 255 }).notNull(),
+  originalFileName: varchar('original_file_name', { length: 255 }).notNull(),
+  mimeType: varchar('mime_type', { length: 120 }).notNull(),
+  sizeBytes: integer('size_bytes').notNull(),
+  sha256: varchar('sha256', { length: 64 }).notNull(),
+  uploadedBy: integer('uploaded_by').references(() => users.id).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('trip_pod_files_storage_key_uniq_idx').on(table.storageKey),
+  uniqueIndex('trip_pod_files_required_slot_uniq_idx')
+    .on(table.submissionId, table.fileType)
+    .where(sql`${table.fileType} <> 'TOLL_TICKET'`),
+  index('trip_pod_files_submission_idx').on(table.submissionId),
+  check('trip_pod_files_size_positive_check', sql`${table.sizeBytes} > 0`),
+  check('trip_pod_files_sha256_check', sql`length(${table.sha256}) = 64`),
 ]);
 
 export const userShipmentLinks = pgTable('user_shipment_links', {
@@ -3302,6 +3629,7 @@ export const idempotencyKeys = pgTable('idempotency_keys', {
 // status. Lifecycle transitions stay with `transitionTripStatus`.
 export const driverProgressEventTypeEnum = pgEnum('driver_progress_event_type', [
   'DEPARTED', 'ARRIVED', 'FUELED', 'INCIDENT', 'NOTE',
+  'PICKED_UP', 'LOADING_OR_RETURNING', 'DELIVERED',
 ]);
 
 export const driverProgressEvents = pgTable('driver_progress_events', {

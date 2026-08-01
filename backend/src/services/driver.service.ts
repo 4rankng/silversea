@@ -50,6 +50,31 @@ export async function getDriverByUserId(userId: number) {
   return driver;
 }
 
+/** Resolve a driver profile that may safely receive an authenticated trip. */
+export async function assertDispatchableDriverPrincipal(
+  driverId: number,
+  client: Tx | typeof db = db,
+) {
+  const [row] = await client.select({
+    driver: s.drivers,
+    userRole: s.users.role,
+    userStatus: s.users.status,
+    userDeletedAt: s.users.deletedAt,
+  }).from(s.drivers)
+    .leftJoin(s.users, eq(s.users.id, s.drivers.userId))
+    .where(and(eq(s.drivers.id, driverId), isNull(s.drivers.deletedAt)))
+    .limit(1);
+  if (!row) throw new ApiError(404, 'Không tìm thấy tài xế.');
+  if (row.driver.status !== 'ACTIVE'
+    || row.driver.userId == null
+    || row.userRole !== 'DRIVER'
+    || row.userStatus !== 'ACTIVE'
+    || row.userDeletedAt != null) {
+    throw new ApiError(409, 'Tài xế chưa được liên kết với tài khoản DRIVER đang hoạt động.');
+  }
+  return row.driver;
+}
+
 async function existingStorageKeys(keys: string[]): Promise<string[]> {
   const checked = await Promise.all(keys.map(async key => {
     try {
