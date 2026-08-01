@@ -1,5 +1,17 @@
 import React from 'react';
-import { AlertTriangle, CheckCircle2, Clock3, Loader2, RefreshCcw, ShieldAlert, XCircle } from 'lucide-react';
+import {
+  AlertTriangle,
+  BadgeDollarSign,
+  CheckCircle2,
+  ListChecks,
+  Loader2,
+  RefreshCcw,
+  Search,
+  ShieldAlert,
+  ShieldCheck,
+  UserRoundCheck,
+  XCircle,
+} from 'lucide-react';
 import { Role } from '@tingting/shared';
 import type { CreditOverrideRequestRecord, CreditOverrideStatus } from '../api/creditOverrideClient';
 import {
@@ -158,6 +170,12 @@ export default function CreditOverrideQueuePage() {
   const actionableCount = requests.filter((request) => canActOnRequest(request, user ?? null)).length;
   const pendingCount = requests.filter((request) => request.status === 'PENDING').length;
   const totalProposed = requests.reduce((sum, request) => sum + Number(request.proposedAmount || 0), 0);
+  const hasCustomFilters = statusFilter !== 'PENDING' || customerIdInput.trim().length > 0;
+
+  function clearFilters() {
+    setStatusFilter('PENDING');
+    setCustomerIdInput('');
+  }
 
   async function handleCheck(request: CreditOverrideRequestRecord) {
     setActionErrors((current) => ({ ...current, [request.id]: null }));
@@ -218,67 +236,96 @@ export default function CreditOverrideQueuePage() {
 
   return (
     <div className="credit-override-queue">
-      <header className="credit-override-queue__hero">
-        <div>
-          <p className="credit-override-queue__eyebrow">Phê duyệt công nợ</p>
-          <h1>Duyệt vượt hạn mức</h1>
-          <p className="credit-override-queue__subtitle">
-            Theo dõi các đề nghị vượt hạn mức, áp dụng đúng phân cấp FINANCE_TIER_1 và DIRECTOR,
-            đồng thời chặn tự duyệt trên toàn bộ hàng chờ.
-          </p>
+      <header className="credit-override-queue__header">
+        <div className="credit-override-queue__heading">
+          <span className="credit-override-queue__heading-icon" aria-hidden="true">
+            <ShieldCheck size={24} />
+          </span>
+          <div>
+            <p className="credit-override-queue__eyebrow">Phê duyệt công nợ</p>
+            <h1>Duyệt vượt hạn mức</h1>
+            <p className="credit-override-queue__subtitle">
+              Kiểm soát các đề nghị vượt hạn mức công nợ theo đúng phân cấp phê duyệt.
+            </p>
+          </div>
         </div>
         <button
           type="button"
           className="credit-override-queue__refresh"
           onClick={() => queue.refetch()}
           disabled={queue.isFetching}
+          aria-label={queue.isFetching ? 'Đang tải lại hàng chờ' : 'Tải lại hàng chờ'}
         >
           {queue.isFetching ? <Loader2 size={16} className="spin" /> : <RefreshCcw size={16} />}
-          Tải lại
+          <span>Tải lại</span>
         </button>
       </header>
 
-      <section className="credit-override-queue__summary">
-        <article className="credit-override-queue__summary-card">
-          <span>Đề nghị đang hiển thị</span>
-          <strong>{requests.length}</strong>
+      <section className="credit-override-queue__summary" aria-label="Tóm tắt hàng chờ">
+        <article className="credit-override-queue__summary-card is-neutral">
+          <span className="credit-override-queue__summary-icon" aria-hidden="true"><ListChecks size={20} /></span>
+          <div>
+            <span>Đề nghị hiển thị</span>
+            <strong>{requests.length}</strong>
+          </div>
         </article>
-        <article className="credit-override-queue__summary-card">
-          <span>Đang chờ duyệt</span>
-          <strong>{pendingCount}</strong>
+        <article className="credit-override-queue__summary-card is-pending">
+          <span className="credit-override-queue__summary-icon" aria-hidden="true"><ShieldAlert size={20} /></span>
+          <div>
+            <span>Đang chờ duyệt</span>
+            <strong>{pendingCount}</strong>
+          </div>
         </article>
-        <article className="credit-override-queue__summary-card">
-          <span>Bạn có thể xử lý</span>
-          <strong>{actionableCount}</strong>
+        <article className="credit-override-queue__summary-card is-actionable">
+          <span className="credit-override-queue__summary-icon" aria-hidden="true"><UserRoundCheck size={20} /></span>
+          <div>
+            <span>Cần bạn xử lý</span>
+            <strong>{actionableCount}</strong>
+          </div>
         </article>
-        <article className="credit-override-queue__summary-card">
-          <span>Tổng giá trị đề nghị</span>
-          <strong>{formatCurrency(totalProposed)}</strong>
+        <article className="credit-override-queue__summary-card is-value">
+          <span className="credit-override-queue__summary-icon" aria-hidden="true"><BadgeDollarSign size={20} /></span>
+          <div>
+            <span>Tổng giá trị</span>
+            <strong>{formatCurrency(totalProposed)}</strong>
+          </div>
         </article>
       </section>
 
-      <section className="credit-override-queue__filters" aria-label="Bộ lọc hàng chờ">
-        <label className="credit-override-queue__field">
-          <span>Trạng thái</span>
-          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as QueueFilterStatus)}>
-            <option value="PENDING">Chờ duyệt</option>
-            <option value="APPROVED">Đã duyệt</option>
-            <option value="REJECTED">Đã từ chối</option>
-            <option value="CANCELED">Đã hủy</option>
-            <option value="ALL">Tất cả</option>
-          </select>
-        </label>
-        <label className="credit-override-queue__field">
-          <span>Mã khách hàng</span>
-          <input
-            type="text"
-            inputMode="numeric"
-            placeholder="Ví dụ: 42"
-            value={customerIdInput}
-            onChange={(event) => setCustomerIdInput(event.target.value)}
-          />
-        </label>
-      </section>
+      <section className="credit-override-queue__workspace" aria-labelledby="credit-override-queue-title">
+        <div className="credit-override-queue__toolbar">
+          <div className="credit-override-queue__toolbar-title">
+            <h2 id="credit-override-queue-title">Hàng chờ phê duyệt</h2>
+            <span>{requests.length}</span>
+          </div>
+          <div className="credit-override-queue__filters" aria-label="Bộ lọc hàng chờ">
+            <label className="credit-override-queue__field is-status">
+              <span>Trạng thái</span>
+              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as QueueFilterStatus)}>
+                <option value="PENDING">Chờ duyệt</option>
+                <option value="APPROVED">Đã duyệt</option>
+                <option value="REJECTED">Đã từ chối</option>
+                <option value="CANCELED">Đã hủy</option>
+                <option value="ALL">Tất cả</option>
+              </select>
+            </label>
+            <label className="credit-override-queue__field is-search">
+              <span>Mã khách hàng</span>
+              <span className="credit-override-queue__search-control">
+                <Search size={16} aria-hidden="true" />
+                <input
+                  type="search"
+                  inputMode="numeric"
+                  placeholder="Tìm mã khách hàng"
+                  value={customerIdInput}
+                  onChange={(event) => setCustomerIdInput(event.target.value)}
+                />
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <div className="credit-override-queue__workspace-body">
 
       {queue.isLoading ? (
         <div className="credit-override-queue__state">
@@ -299,8 +346,16 @@ export default function CreditOverrideQueuePage() {
 
       {!queue.isLoading && !queue.isError && requests.length === 0 ? (
         <div className="credit-override-queue__state is-empty">
-          <Clock3 size={18} />
-          <span>Không có đề nghị nào khớp với bộ lọc hiện tại.</span>
+          <span className="credit-override-queue__empty-icon" aria-hidden="true"><ShieldCheck size={38} /></span>
+          <div>
+            <strong>{statusFilter === 'PENDING' ? 'Không có đề nghị chờ duyệt' : 'Không có đề nghị phù hợp'}</strong>
+            <p>{hasCustomFilters ? 'Hãy thay đổi bộ lọc để xem các đề nghị khác.' : 'Các đề nghị mới sẽ xuất hiện tại đây.'}</p>
+          </div>
+          {hasCustomFilters ? (
+            <button type="button" className="credit-override-queue__clear-filters" onClick={clearFilters}>
+              Xóa bộ lọc
+            </button>
+          ) : null}
         </div>
       ) : null}
 
@@ -481,6 +536,8 @@ export default function CreditOverrideQueuePage() {
           })}
         </div>
       ) : null}
+        </div>
+      </section>
     </div>
   );
 }
