@@ -271,7 +271,7 @@ export async function getFuelApReconciliation(input: FuelApReconInput): Promise<
 
     supplierRows.push({
       supplierId: sid,
-      supplierName: supplierNames.get(sid) ?? `#${sid}`,
+      supplierName: supplierNames.get(sid) ?? 'Nhà cung cấp chưa xác định',
       expectedFuelCost: exp.total,
       invoicedFuelCost: inv.total,
       variance,

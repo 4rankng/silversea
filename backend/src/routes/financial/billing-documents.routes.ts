@@ -216,7 +216,7 @@ router.get('/finance/billing-documents/:id/export', requireRoles(...ROLES), asyn
     // delegate to the template-aware renderer.
     const data = {
       documentId: doc.id,
-      entityName: doc.entityName ?? `#${doc.entityId}`,
+      entityName: doc.entityName ?? 'Khách hàng chưa xác định',
       rangeFrom: doc.rangeFrom,
       rangeTo: doc.rangeTo,
       originalDueDate: doc.originalDueDate,

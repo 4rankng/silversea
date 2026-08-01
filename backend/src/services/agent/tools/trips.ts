@@ -52,11 +52,11 @@ export const tripTools = [
     run: async (args) => {
       const trip = await getTripById(args.id);
       if (!trip) {
-        throw new ToolError(`Không tìm thấy chuyến #${args.id}`, 'not_found');
+        throw new ToolError('Không tìm thấy chuyến đã chọn', 'not_found');
       }
       return trip;
     },
-    label: (a) => `Chuyến #${a.id}`,
+    label: () => 'Chi tiết chuyến đi',
   }),
 
   defineReadTool({
@@ -78,7 +78,7 @@ export const tripTools = [
     allowedRoles: OFFICE_ROLES,
     params: z.object({ tripId: z.coerce.number().int().positive() }),
     run: (args) => getTripExpenses(db, args.tripId),
-    label: (a) => `Chi phí chuyến #${a.tripId}`,
+    label: () => 'Chi phí chuyến đi',
   }),
 
   defineReadTool({
@@ -87,7 +87,7 @@ export const tripTools = [
     allowedRoles: OFFICE_ROLES,
     params: z.object({ tripId: z.coerce.number().int().positive() }),
     run: (args) => listTripContainers(args.tripId),
-    label: (a) => `Container chuyến #${a.tripId}`,
+    label: () => 'Container của chuyến đi',
   }),
 
   defineReadTool({
@@ -96,7 +96,7 @@ export const tripTools = [
     allowedRoles: OFFICE_ROLES,
     params: z.object({ tripId: z.coerce.number().int().positive() }),
     run: (args) => getTripAdjustments(args.tripId),
-    label: (a) => `Điều chỉnh chuyến #${a.tripId}`,
+    label: () => 'Điều chỉnh chuyến đi',
   }),
 
   defineReadTool({

@@ -19,7 +19,7 @@ export const salaryTools = [
       month: monthSchema,
     }),
     run: (args) => computeSalary(args.driverId, args.year, args.month),
-    label: (a) => `Lương tài xế #${a.driverId} ${a.month}/${a.year}`,
+    label: (a) => `Lương lái xe tháng ${a.month}/${a.year}`,
   }),
 
   defineReadTool({
@@ -41,6 +41,6 @@ export const salaryTools = [
       month: monthSchema,
     }),
     run: (args) => computeAttendanceSummary(args.driverId, args.year, args.month),
-    label: (a) => `Chấm công #${a.driverId} ${a.month}/${a.year}`,
+    label: (a) => `Chấm công lái xe tháng ${a.month}/${a.year}`,
   }),
 ] as const;

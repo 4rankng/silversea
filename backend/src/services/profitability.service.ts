@@ -145,8 +145,8 @@ export async function captureProfitabilityAttributionSnapshot(
     customer: { id: trip.customerId, name: trip.customerName },
     route: { id: trip.routeId, name: trip.routeName },
     truck,
-    dispatcher: dispatcher ? { id: dispatcher.id, name: dispatcher.name || dispatcher.username || `#${dispatcher.id}` } : null,
-    salesperson: salesperson ? { id: salesperson.id, name: salesperson.name || salesperson.username || `#${salesperson.id}` } : null,
+    dispatcher: dispatcher ? { id: dispatcher.id, name: dispatcher.name || 'Nhân viên điều hành' } : null,
+    salesperson: salesperson ? { id: salesperson.id, name: salesperson.name || 'Nhân viên kinh doanh' } : null,
     container,
   });
   const revenue = recordedTripRevenue(trip);

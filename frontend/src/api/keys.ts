@@ -373,8 +373,15 @@ export const qk = {
 
   creditOverrides: {
     all: ['credit-overrides'] as const,
-    list: (filters?: { status?: string; customerId?: number; shipmentId?: number }) =>
-      ['credit-overrides', filters?.status ?? null, filters?.customerId ?? null, filters?.shipmentId ?? null] as const,
+    list: (filters?: { status?: string; customerId?: number; shipmentId?: number; page?: number; limit?: number }) =>
+      [
+        'credit-overrides',
+        filters?.status ?? null,
+        filters?.customerId ?? null,
+        filters?.shipmentId ?? null,
+        filters?.page ?? 1,
+        filters?.limit ?? 25,
+      ] as const,
   },
 
   gpsSettings: {

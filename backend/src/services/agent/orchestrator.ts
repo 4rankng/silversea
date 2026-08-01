@@ -147,7 +147,7 @@ function directiveAckText(
   ack: AgentActionResult,
 ): AgentResponse {
   const title = PAGE_CATALOG[d.routeKey]?.title ?? d.routeKey;
-  const where = d.kind === 'focus' ? `${title} #${d.id}` : title;
+  const where = d.kind === 'focus' ? `${title} đã chọn` : title;
   if (ack.status === 'ok') {
     return { type: 'text', content: `Đã mở trang ${where} cho bạn.` };
   }

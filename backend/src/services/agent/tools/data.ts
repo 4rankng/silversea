@@ -138,10 +138,10 @@ export const dataTools = [
     }),
     run: async (args) => {
       const row = await semanticDetail(args.entity, args.id);
-      if (!row) throw new ToolError(`Không tìm thấy ${args.entity} #${args.id}`, 'not_found');
+      if (!row) throw new ToolError(`Không tìm thấy ${args.entity} đã chọn`, 'not_found');
       return row;
     },
-    label: (a) => `${a.entity} #${a.id}`,
+    label: (a) => `Chi tiết ${a.entity}`,
   }),
 
   defineReadTool({

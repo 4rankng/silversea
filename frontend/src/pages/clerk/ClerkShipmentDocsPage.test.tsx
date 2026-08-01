@@ -171,6 +171,10 @@ describe('ClerkShipmentDocsPage', () => {
       cargoTypes: [{ id: 27, name: 'Hàng khô' }],
       trucks: [{ id: 31, licensePlate: '51D-123.45' }],
       drivers: [{ id: 44, name: 'Nguyen Van A' }],
+      businessUnits: [
+        { id: 11, code: 'CT', name: 'Phòng Chứng từ' },
+        { id: 12, code: 'DH', name: 'Phòng Điều hành' },
+      ],
     });
     getDetailMock.mockResolvedValue(makeDetail());
     listOperationalSitesMock.mockResolvedValue([]);
@@ -203,10 +207,10 @@ describe('ClerkShipmentDocsPage', () => {
     expect(await screen.findByRole('heading', { name: 'Hồ sơ: Chưa có mã lô hàng' })).toBeTruthy();
     expect(screen.getByText(/Khách hàng: Chưa có tên khách hàng/)).toBeTruthy();
     expect(screen.getByText('Chưa có số tờ khai')).toBeTruthy();
-    const responsibleUnitSelect = screen.getByRole('button', { name: 'Đơn vị phụ trách hiện tại' });
+    const responsibleUnitSelect = screen.getByRole('button', { name: 'Phòng Chứng từ' });
     expect(responsibleUnitSelect).toBeTruthy();
     fireEvent.click(responsibleUnitSelect);
-    expect(screen.getByRole('option', { name: 'Đơn vị được phân quyền 2' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'Phòng Điều hành' })).toBeTruthy();
     expect(document.body.textContent).not.toMatch(/#(?:42|7|11|12|88)\b/);
   });
 

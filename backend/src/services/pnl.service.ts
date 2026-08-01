@@ -125,7 +125,7 @@ export async function getPnlReport(month: number, year: number) {
         id: trip.id,
         financialPostingVersionId: trip.financialPostingId,
         financialPostingVersion: trip.financialPostingVersion,
-        tripCode: trip.tripCode || `Lệnh #${trip.id}`,
+        tripCode: trip.tripCode || 'Lệnh chưa có mã',
         departureDate: trip.departureDate,
         routeName: trip.routeId ? routeNameById.get(trip.routeId) ?? 'Chưa có tuyến' : 'Chưa có tuyến',
         revenue,

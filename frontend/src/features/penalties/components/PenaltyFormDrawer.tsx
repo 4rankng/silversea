@@ -35,9 +35,15 @@ export function PenaltyFormDrawer({
   const [formDate, setFormDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [tripSearch, setTripSearch] = useState('');
   const tripOptionsQuery = useQuery({
-    queryKey: [...qk.trips.all, 'penalty-selector'],
-    queryFn: () => tripClient.listTrips({ limit: 100, page: 1 }),
+    queryKey: [...qk.trips.all, 'penalty-selector', formDriverId, tripSearch],
+    queryFn: () => tripClient.listTrips({
+      limit: 50,
+      page: 1,
+      driverId: formDriverId ? Number(formDriverId) : undefined,
+      search: tripSearch || undefined,
+    }),
     enabled: isOpen,
     staleTime: 60_000,
   });
@@ -45,7 +51,12 @@ export function PenaltyFormDrawer({
     .filter((trip) => !formDriverId || trip.driver?.id === Number(formDriverId))
     .map((trip) => ({
       value: String(trip.id),
-      label: trip.tripCode || 'Chuyến chưa có mã',
+      label: [
+        trip.tripCode || 'Chuyến chưa có mã',
+        trip.customer?.name || 'Khách hàng chưa xác định',
+        trip.route?.name || 'Tuyến chưa xác định',
+        trip.departureDate || 'Chưa có ngày khởi hành',
+      ].join(' · '),
       searchText: `${trip.customer?.name ?? ''} ${trip.route?.name ?? ''} ${trip.departureDate ?? ''}`,
     }));
 
@@ -57,6 +68,7 @@ export function PenaltyFormDrawer({
       setFormCustomReason('');
       setFormAmount('');
       setFormDate(new Date().toISOString().slice(0, 10));
+      setTripSearch('');
       setSubmitError(null);
     }
   }, [isOpen, preselectedDriverId]);
@@ -130,9 +142,10 @@ export function PenaltyFormDrawer({
             value={formTripId}
             onChange={setFormTripId}
             options={tripOptions}
+            onSearchChange={setTripSearch}
             placeholder={tripOptionsQuery.isLoading ? 'Đang tải chuyến…' : 'Chọn theo mã chuyến'}
+            emptyMessage={tripOptionsQuery.isFetching ? 'Đang tìm chuyến phù hợp…' : 'Không có chuyến phù hợp với lái xe đã chọn.'}
             searchPlaceholder="Tìm theo mã chuyến, khách hàng hoặc tuyến…"
-            emptyMessage="Không có chuyến phù hợp với lái xe đã chọn."
           />
         </FormGroup>
         <FormGroup label="Lý do danh mục">

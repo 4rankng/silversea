@@ -40,7 +40,7 @@ export const payablesTools = [
       dateTo: z.string().optional(),
     }),
     run: (args) => getSupplierStatement(args.supplierId, args.dateFrom, args.dateTo),
-    label: (a) => `Sao kê NCC #${a.supplierId}`,
+    label: () => 'Sao kê nhà cung cấp',
   }),
 
   defineReadTool({
@@ -49,6 +49,6 @@ export const payablesTools = [
     allowedRoles: OFFICE_ROLES,
     params: z.object({ supplierId: z.coerce.number().int().positive() }),
     run: (args) => LedgerService.getBalance('VENDOR', args.supplierId),
-    label: (a) => `Nợ NCC #${a.supplierId}`,
+    label: () => 'Công nợ nhà cung cấp',
   }),
 ] as const;

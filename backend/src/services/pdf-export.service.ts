@@ -58,7 +58,7 @@ export async function exportDebitNotePdf(docData: BillingDocument): Promise<Buff
       `Kỳ ${viDate(docData.rangeFrom)} – ${viDate(docData.rangeTo)}`,
     );
     doc.font('Bold').fontSize(11).fillColor('#14251d')
-      .text(`Khách hàng: ${docData.entityName ?? `#${docData.entityId}`}`);
+      .text(`Khách hàng: ${docData.entityName ?? 'Chưa xác định'}`);
     doc.font('Regular').fontSize(10)
       .text(`Trạng thái: ${docData.debitNoteStatus ?? 'DRAFT'}`);
     doc.moveDown(0.8);

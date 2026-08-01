@@ -83,6 +83,18 @@ const ACTION_KIND_LABELS: Record<string, string> = {
   FINANCIAL_EXCEPTION: 'Ngoại lệ tài chính',
 };
 
+const SUBJECT_TYPE_LABELS: Record<string, string> = {
+  SALARY_PERIOD: 'Kỳ lương',
+  SALARY_CONFIRMATION: 'Phiếu lương',
+  TRIP: 'Chuyến đi',
+  TRIP_EXPENSE: 'Chi phí chuyến',
+  FUEL_INVOICE: 'Hóa đơn nhiên liệu',
+  ADVANCE_REQUEST: 'Đề nghị tạm ứng',
+  ADVANCE_SETTLEMENT: 'Phiếu thanh toán',
+  CREDIT_OVERRIDE: 'Hạn mức công nợ',
+  BILLING_DOCUMENT: 'Chứng từ công nợ',
+};
+
 export function governanceActionLabel(action: GovernanceActionRecord): string {
   if (action.actionKind === 'SALARY_PERIOD_CLOSE') {
     const operation = action.afterSnapshot?.operation;
@@ -392,7 +404,7 @@ export default function GovernanceActionsPage() {
                 <dl className="governance-actions__facts">
                   <div>
                     <dt>Đối tượng</dt>
-                    <dd>{action.subjectKey || governanceActionLabel(action)}</dd>
+                    <dd>{action.subjectKey || SUBJECT_TYPE_LABELS[action.subjectType] || 'Nghiệp vụ liên quan'}</dd>
                   </div>
                   <div>
                     <dt>Người tạo</dt>

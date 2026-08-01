@@ -660,7 +660,7 @@ describe('Q06 fuel invoice routes', () => {
       },
     });
     assert.equal(pendingLinkUpdate.status, 400);
-    assert.match(String(pendingLinkUpdate.body.error), /chưa ở trạng thái APPROVED/i);
+    assert.match(String(pendingLinkUpdate.body.error), /chưa được phê duyệt/i);
   });
 
   test('linkage rejects non-fuel, wrong-trip, mismatched date, mismatched litres, and mismatched reference', async () => {

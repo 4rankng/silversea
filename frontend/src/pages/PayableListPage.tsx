@@ -58,7 +58,7 @@ interface CommissionForm {
   note: string;
 }
 
-function CommissionModal({
+export function CommissionModal({
   isOpen,
   onClose,
   onSubmit,
@@ -77,20 +77,29 @@ function CommissionModal({
     [catalogData?.suppliers],
   );
   const [form, setForm] = useState<CommissionForm>({ supplierId: '', amount: '', tripId: '', note: '' });
+  const [tripSearch, setTripSearch] = useState('');
   const tripOptionsQuery = useQuery({
-    queryKey: [...qk.trips.all, 'commission-selector'],
-    queryFn: () => tripClient.listTrips({ limit: 100, page: 1 }),
+    queryKey: [...qk.trips.all, 'commission-selector', tripSearch],
+    queryFn: () => tripClient.listTrips({ limit: 50, page: 1, search: tripSearch || undefined }),
     enabled: isOpen,
     staleTime: 60_000,
   });
   const tripOptions = (tripOptionsQuery.data?.items ?? []).map((trip) => ({
     value: String(trip.id),
-    label: trip.tripCode || 'Chuyến chưa có mã',
+    label: [
+      trip.tripCode || 'Chuyến chưa có mã',
+      trip.customer?.name || 'Khách hàng chưa xác định',
+      trip.route?.name || 'Tuyến chưa xác định',
+      trip.departureDate || 'Chưa có ngày khởi hành',
+    ].join(' · '),
     searchText: `${trip.customer?.name ?? ''} ${trip.route?.name ?? ''} ${trip.departureDate ?? ''}`,
   }));
 
   useEffect(() => {
-    if (isOpen) setForm({ supplierId: '', amount: '', tripId: '', note: '' });
+    if (isOpen) {
+      setForm({ supplierId: '', amount: '', tripId: '', note: '' });
+      setTripSearch('');
+    }
   }, [isOpen]);
 
   // Mirror the commissionSchema upper bound (≤ 1 tỷ VND) client-side so a typo
@@ -176,9 +185,10 @@ function CommissionModal({
             value={form.tripId}
             onChange={(value) => setForm((current) => ({ ...current, tripId: value }))}
             options={tripOptions}
+            onSearchChange={setTripSearch}
             placeholder={tripOptionsQuery.isLoading ? 'Đang tải chuyến…' : 'Chọn theo mã chuyến'}
+            emptyMessage={tripOptionsQuery.isFetching ? 'Đang tìm chuyến phù hợp…' : 'Không có chuyến phù hợp.'}
             searchPlaceholder="Tìm theo mã chuyến, khách hàng hoặc tuyến…"
-            emptyMessage="Không có chuyến phù hợp."
           />
         </div>
         <div className="field">

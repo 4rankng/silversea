@@ -32,6 +32,6 @@ export const ledgerTools = [
       entityId: z.coerce.number().int().positive(),
     }),
     run: (args) => LedgerService.getBalance(args.entityType, args.entityId),
-    label: (a) => `Số dư ${a.entityType} #${a.entityId}`,
+    label: (a) => `Số dư ${a.entityType}`,
   }),
 ] as const;

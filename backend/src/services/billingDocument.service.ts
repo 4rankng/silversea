@@ -283,7 +283,7 @@ async function replaceActiveTripClaims(
   if (conflict) {
     throw new ApiError(
       409,
-      `Chuyến ${conflict.tripCode ?? `#${conflict.tripId}`} đã thuộc Giấy báo nợ #${conflict.documentId} trong kỳ bị chồng lấn.`,
+      `Chuyến ${conflict.tripCode ?? 'chưa có mã'} đã thuộc một giấy báo nợ trong kỳ bị chồng lấn.`,
     );
   }
 
@@ -355,7 +355,7 @@ async function replaceActiveTripClaims(
     if (freshConflict) {
       throw new ApiError(
         409,
-        `Chuyến ${freshConflict.tripCode ?? `#${freshConflict.tripId}`} đã thuộc Giấy báo nợ #${freshConflict.documentId} trong kỳ bị chồng lấn.`,
+        `Chuyến ${freshConflict.tripCode ?? 'chưa có mã'} đã thuộc một giấy báo nợ trong kỳ bị chồng lấn.`,
       );
     }
     throw new ApiError(409, 'Nguồn chuyến vừa bị tài liệu khác nhận trước. Vui lòng tải lại và thử lại.');
@@ -583,7 +583,7 @@ export async function assertRecoverableSourcesClaimable(
   if (competing) {
     throw new ApiError(
       409,
-      `Chi phí #${competing.expenseId} đã thuộc Giấy báo nợ #${competing.documentId}.`,
+      'Chi phí đã chọn đã thuộc một giấy báo nợ khác.',
     );
   }
 
@@ -608,18 +608,18 @@ export async function assertRecoverableSourcesClaimable(
     ) {
       throw new ApiError(
         409,
-        `Chi phí #${expense.id} chưa đủ điều kiện thu lại khách hàng hoặc chưa phân loại tiền chi hộ/phí dịch vụ.`,
+        'Chi phí đã chọn chưa đủ điều kiện thu lại khách hàng hoặc chưa phân loại tiền chi hộ/phí dịch vụ.',
       );
     }
     if (expense.tripId == null) {
-      throw new ApiError(409, `Chi phí #${expense.id} không còn gắn chuyến hợp lệ. Vui lòng tạo lại bản nháp.`);
+      throw new ApiError(409, 'Chi phí đã chọn không còn gắn chuyến hợp lệ. Vui lòng tạo lại bản nháp.');
     }
     if (
       expense.tripCustomerId !== input.customerId
       || expense.shipmentCustomerId !== input.customerId
       || expense.shipmentId == null
     ) {
-      throw new ApiError(409, `Chi phí #${expense.id} không thuộc đúng khách hàng của Giấy báo nợ.`);
+      throw new ApiError(409, 'Chi phí đã chọn không thuộc đúng khách hàng của giấy báo nợ.');
     }
     const blockedReason = buildTripBlockedReason({
       customerId: expense.tripCustomerId,
@@ -631,20 +631,20 @@ export async function assertRecoverableSourcesClaimable(
     if (blockedReason) {
       throw new ApiError(
         409,
-        `Chi phí #${expense.id} thuộc chuyến ${expense.tripCode ?? `#${expense.tripId}`} không đủ điều kiện xuất Giấy báo nợ: ${blockedReason}`,
+        `Chi phí thuộc chuyến ${expense.tripCode ?? 'chưa có mã'} không đủ điều kiện xuất giấy báo nợ: ${blockedReason}`,
       );
     }
     if (!expense.expenseDate || expense.expenseDate < input.rangeFrom || expense.expenseDate > input.rangeTo) {
-      throw new ApiError(409, `Ngày chi phí #${expense.id} nằm ngoài kỳ của Giấy báo nợ.`);
+      throw new ApiError(409, 'Ngày của chi phí đã chọn nằm ngoài kỳ giấy báo nợ.');
     }
     if (!sourceVersion || renderSourceVersion(line) !== sourceVersion) {
-      throw new ApiError(409, `Chi phí #${expense.id} đã thay đổi. Vui lòng tạo lại bản nháp.`);
+      throw new ApiError(409, 'Chi phí đã chọn đã thay đổi. Vui lòng tạo lại bản nháp.');
     }
     if (
       Number(line.baseAmount) !== sellAmount
       || (line.amountOverride != null && Number(line.amountOverride) !== sellAmount)
     ) {
-      throw new ApiError(409, `Số tiền chi phí #${expense.id} không khớp nguồn đã phê duyệt.`);
+      throw new ApiError(409, 'Số tiền chi phí đã chọn không khớp nguồn đã phê duyệt.');
     }
     tripClaimsByTripId.set(expense.tripId, {
       tripId: expense.tripId,
@@ -763,19 +763,19 @@ async function assertTripSourcesClaimable(
     const tripId = line.sourceId as number;
     const trip = tripById.get(tripId);
     if (!trip) {
-      throw new ApiError(409, `Chuyến #${tripId} không còn tồn tại. Vui lòng tạo lại bản nháp.`);
+      throw new ApiError(409, 'Chuyến đã chọn không còn tồn tại. Vui lòng tạo lại bản nháp.');
     }
     const blockedReason = buildTripBlockedReason(trip, input.customerId, latestPodByTrip.get(tripId));
     if (blockedReason) {
       throw new ApiError(
         409,
-        `Chuyến ${trip.tripCode ?? `#${trip.id}`} không đủ điều kiện xuất Giấy báo nợ: ${blockedReason}`,
+        `Chuyến ${trip.tripCode ?? 'chưa có mã'} không đủ điều kiện xuất giấy báo nợ: ${blockedReason}`,
       );
     }
     if (!trip.completionDate || trip.completionDate < input.rangeFrom || trip.completionDate > input.rangeTo) {
       throw new ApiError(
         409,
-        `Chuyến ${trip.tripCode ?? `#${trip.id}`} không có ngày hoàn thành nằm trong kỳ Giấy báo nợ.`,
+        `Chuyến ${trip.tripCode ?? 'chưa có mã'} không có ngày hoàn thành nằm trong kỳ giấy báo nợ.`,
       );
     }
     const checksum = postingChecksum({
@@ -791,10 +791,10 @@ async function assertTripSourcesClaimable(
       || line.financialPostingVersion !== trip.financialPostingVersion
       || line.postingChecksum !== checksum
     ) {
-      throw new ApiError(409, `Nguồn hạch toán chuyến ${trip.tripCode ?? `#${trip.id}`} đã thay đổi. Vui lòng tạo lại bản nháp.`);
+      throw new ApiError(409, `Nguồn hạch toán chuyến ${trip.tripCode ?? 'chưa có mã'} đã thay đổi. Vui lòng tạo lại bản nháp.`);
     }
     if (Number(line.baseAmount) !== Number(trip.revenue ?? 0)) {
-      throw new ApiError(409, `Doanh thu chuyến ${trip.tripCode ?? `#${trip.id}`} không còn khớp nguồn hiện tại.`);
+      throw new ApiError(409, `Doanh thu chuyến ${trip.tripCode ?? 'chưa có mã'} không còn khớp nguồn hiện tại.`);
     }
     claims.push({
       tripId: trip.id,
@@ -1874,7 +1874,7 @@ export async function postDebitNoteDelta(
     entityId: input.customerId,
     debit: delta > 0 ? delta : 0,
     credit: delta < 0 ? Math.abs(delta) : 0,
-    note: `Điều chỉnh công nợ theo Giấy báo nợ #${input.documentId}`,
+    note: 'Điều chỉnh công nợ theo giấy báo nợ',
     originalDueDate: input.originalDueDate,
     processingDueDate: input.processingDueDate,
     paymentTermDaysApplied: input.paymentTermDaysApplied,
@@ -1907,7 +1907,7 @@ async function deriveDebitNoteLines(input: DebitNoteSaveInput): Promise<BillingD
         || line.financialPostingVersion == null
         || !line.postingChecksum
       ) {
-        throw new ApiError(409, `Nguồn TRIP #${line.sourceId} thiếu dấu vết hạch toán để lưu Giấy báo nợ.`);
+        throw new ApiError(409, 'Nguồn chuyến đi thiếu dấu vết hạch toán để lưu giấy báo nợ.');
       }
       return {
         sourceType: 'TRIP' as const,
@@ -1919,7 +1919,7 @@ async function deriveDebitNoteLines(input: DebitNoteSaveInput): Promise<BillingD
     }
     const sourceVersion = renderSourceVersion(line);
     if (!sourceVersion) {
-      throw new ApiError(409, `Nguồn EXPENSE #${line.sourceId} thiếu phiên bản nguồn để lưu Giấy báo nợ.`);
+      throw new ApiError(409, 'Nguồn chi phí thiếu phiên bản nguồn để lưu giấy báo nợ.');
     }
     return {
       sourceType: 'EXPENSE' as const,
@@ -1955,7 +1955,7 @@ async function deriveDebitNoteLines(input: DebitNoteSaveInput): Promise<BillingD
         });
     const line = currentLine ?? persistedLine;
     if (!line) {
-      throw new ApiError(409, `Nguồn ${ref.sourceType} #${ref.sourceId} đã thay đổi hoặc không còn đủ điều kiện.`);
+      throw new ApiError(409, 'Nguồn dữ liệu đã thay đổi hoặc không còn đủ điều kiện.');
     }
     return {
       ...line,
@@ -1992,7 +1992,7 @@ async function assertActiveFinancialPostingRefs(
       || posting.version !== line.financialPostingVersion
       || postingChecksum(posting) !== line.postingChecksum
     ) {
-      throw new ApiError(409, `Nguồn hạch toán của chuyến #${line.sourceId} đã thay đổi. Vui lòng tạo lại bản nháp.`);
+      throw new ApiError(409, 'Nguồn hạch toán của chuyến đã thay đổi. Vui lòng tạo lại bản nháp.');
     }
   }
 }

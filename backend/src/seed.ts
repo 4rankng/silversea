@@ -350,7 +350,7 @@ async function seed() {
       credit: String(amount),
       balance: String(newBalance),
       timestamp: exp.createdAt ?? new Date(),
-      note: `Backfill: chi phí #${exp.id}`,
+      note: 'Bổ sung dữ liệu chi phí cũ',
     });
     backfilledLedger++;
   }

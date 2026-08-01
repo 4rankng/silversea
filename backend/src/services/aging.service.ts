@@ -435,7 +435,7 @@ export async function getCustomerAgingList(opts: { search?: string; asOfDate?: s
     const linkedSupplierApBalance = linkedSupplierId != null ? (apByVendor.get(linkedSupplierId) ?? 0) : 0;
     return {
       customerId: r.entityId,
-      customerName: nameMap.get(r.entityId) || `Khách hàng #${r.entityId}`,
+      customerName: nameMap.get(r.entityId) || 'Khách hàng chưa xác định',
       contactInfo: contactMap.get(r.entityId) || null,
       linkedSupplierId,
       linkedSupplierApBalance,

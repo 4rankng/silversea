@@ -49,7 +49,7 @@ export async function assertCurrentForwarderExpenseAssignments(opts: {
   const assignedExpenseIds = new Set(currentAssignments.map((row) => row.tripExpenseId));
   const unassignedExpenseId = uniqueExpenseIds.find((id) => !assignedExpenseIds.has(id));
   if (unassignedExpenseId !== undefined) {
-    throw new AdvanceError(400, `Chi phí #${unassignedExpenseId} không còn thuộc lô hàng được giao`);
+    throw new AdvanceError(400, 'Chi phí đã chọn không còn thuộc lô hàng được giao');
   }
 }
 
@@ -102,10 +102,10 @@ export async function validateSettlementInputs(opts: {
 
   for (const req of requests) {
     if (req.requesterId !== forwarderId) {
-      throw new AdvanceError(400, `Yêu cầu tạm ứng #${req.id} không thuộc về bạn`);
+      throw new AdvanceError(400, 'Yêu cầu tạm ứng đã chọn không thuộc về bạn');
     }
     if (req.status !== 'APPROVED') {
-      throw new AdvanceError(400, `Yêu cầu tạm ứng #${req.id} chưa được duyệt`);
+      throw new AdvanceError(400, 'Yêu cầu tạm ứng đã chọn chưa được duyệt');
     }
   }
 
@@ -148,10 +148,10 @@ export async function validateSettlementInputs(opts: {
 
     for (const exp of expenseRows) {
       if (exp.forwarderId !== forwarderId) {
-        throw new AdvanceError(400, `Chi phí #${exp.id} không thuộc về bạn`);
+        throw new AdvanceError(400, 'Chi phí đã chọn không thuộc về bạn');
       }
       if (exp.approvalStatus === 'REJECTED') {
-        throw new AdvanceError(400, `Chi phí #${exp.id} đã bị từ chối`);
+        throw new AdvanceError(400, 'Chi phí đã chọn đã bị từ chối');
       }
       const scopeWhere = exp.tripContainerId == null
         ? and(eq(s.tripExpenseCompletionScopes.tripId, exp.tripId), isNull(s.tripExpenseCompletionScopes.tripContainerId))
@@ -159,7 +159,7 @@ export async function validateSettlementInputs(opts: {
       const [scope] = await dbOrTx.select({ status: s.tripExpenseCompletionScopes.status })
         .from(s.tripExpenseCompletionScopes).where(scopeWhere).limit(1);
       if (scope?.status !== 'COMPLETED') {
-        throw new AdvanceError(400, `Chi phí #${exp.id} chưa được Ops đánh dấu kê xong`);
+        throw new AdvanceError(400, 'Chi phí đã chọn chưa được điều hành xác nhận kê xong');
       }
     }
 

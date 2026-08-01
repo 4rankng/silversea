@@ -59,7 +59,7 @@ export function evaluateRecoverableEligibility(
     }
     return {
       state: 'ALREADY_CLAIMED',
-      blockedReason: `Chi phí đã thuộc Giấy báo nợ #${input.claimDocumentId}.`,
+      blockedReason: 'Chi phí đã thuộc một giấy báo nợ.',
     };
   }
   if (input.approvalStatus === 'PENDING') {

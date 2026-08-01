@@ -221,7 +221,7 @@ export class LedgerService {
       departureDate = storedTrip?.departureDate;
     }
     if (!departureDate) {
-      throw new Error(`Chuyến #${trip.id} không có ngày khởi hành để chốt hạn thanh toán`);
+      throw new Error(`Chuyến ${trip.tripCode ?? 'chưa có mã'} không có ngày khởi hành để chốt hạn thanh toán`);
     }
     const basisDate = departureDate instanceof Date
       ? departureDate.toISOString().slice(0, 10)

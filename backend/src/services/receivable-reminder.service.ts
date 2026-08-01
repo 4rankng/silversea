@@ -1025,7 +1025,7 @@ async function emitTerminalFailureAlert(
 ): Promise<void> {
   const targetUserIds = await loadUserIdsForRoles(REMINDER_TERMINAL_ESCALATION_ROLES);
   if (targetUserIds.length === 0) return;
-  const message = `Khách hàng ${customerName} có email log #${logId} thất bại sau 3 lần gửi lại. CUS/chứng từ và kế toán cần xử lý thủ công. Lỗi cuối: ${errorMessage}`;
+  const message = `Email công nợ của khách hàng ${customerName} đã gửi lại không thành công 3 lần. Bộ phận chứng từ và kế toán cần xử lý thủ công. Lỗi cuối: ${errorMessage}`;
   await insertNotificationsOnce({
     lockKey: `receivable-reminder:terminal:${logId}`,
     title: 'Email nhắc công nợ thất bại',
@@ -1034,7 +1034,7 @@ async function emitTerminalFailureAlert(
     customerId,
     targetUserIds,
     businessDate: getBusinessClock(new Date()).date,
-    existingMessageToken: `email log #${logId}`,
+    existingMessageToken: `email-log:${logId}`,
   });
 }
 
@@ -1271,7 +1271,10 @@ function reminderPortalFallbackErrorMessage(
 
 function isDebtOffsetAdjustmentRow(note: string | null, txnId: number): boolean {
   if (!note) return false;
-  return note === `Đối trừ công nợ #${txnId}` || note === `Hoàn tác đối trừ công nợ #${txnId}`;
+  return note === 'Đối trừ công nợ khách hàng và nhà cung cấp'
+    || note === 'Hoàn tác đối trừ công nợ khách hàng và nhà cung cấp'
+    || note === `Đối trừ công nợ #${txnId}`
+    || note === `Hoàn tác đối trừ công nợ #${txnId}`;
 }
 
 function isServiceFeeAdjustmentRow(note: string | null): boolean {

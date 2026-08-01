@@ -545,7 +545,7 @@ async function appendLateApprovedServiceFeeTx(tx: Tx, expenseId: number): Promis
     return;
   }
   if (!expense.expenseDate) {
-    throw new ApiError(400, `Chi phí #${expense.expenseId}: ngày chi thực tế là bắt buộc trước khi phê duyệt`);
+    throw new ApiError(400, 'Ngày chi thực tế là bắt buộc trước khi phê duyệt chi phí');
   }
 
   const existingRows = await tx.select({
@@ -606,7 +606,7 @@ export async function propagateTripFinancialSourceChange(tx: Tx, input: {
     await markIssuedDocumentSourceDriftTx(
       tx,
       documentId,
-      `Nguồn chuyến #${input.tripId} đã thay đổi sau khi phát hành giấy báo nợ. Vui lòng lập điều chỉnh hoặc hoàn tác theo quy trình.`,
+      'Nguồn chuyến đã thay đổi sau khi phát hành giấy báo nợ. Vui lòng lập điều chỉnh hoặc hoàn tác theo quy trình.',
     );
   }
 }
@@ -622,7 +622,7 @@ export async function propagateExpenseApproval(tx: Tx, input: {
     await markIssuedDocumentSourceDriftTx(
       tx,
       documentId,
-      `Chi phí #${input.expenseId} đã thay đổi sau khi phát hành giấy báo nợ. Vui lòng lập điều chỉnh hoặc hoàn tác theo quy trình.`,
+      'Chi phí đã thay đổi sau khi phát hành giấy báo nợ. Vui lòng lập điều chỉnh hoặc hoàn tác theo quy trình.',
     );
   }
 }

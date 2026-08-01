@@ -131,7 +131,7 @@ export async function resolveDebitNotePeriodAuthority(
     .where(eq(s.customers.id, customerId))
     .limit(1);
   if (!customer) {
-    throw new ApiError(404, `Không tìm thấy khách hàng #${customerId}`);
+    throw new ApiError(404, 'Không tìm thấy khách hàng đã chọn');
   }
   const window = resolveDebitNoteWindowForRange(rangeFrom, rangeTo, customer.debitNoteMode);
   return {
@@ -254,7 +254,7 @@ async function assertDebitNotePeriodCanReopen(tx: Tx, lock: typeof s.periodLocks
   if (blockedDoc) {
     throw new ApiError(
       409,
-      `Kỳ giấy báo nợ ${lock.periodKey} đã phát hành hoặc khóa bởi giấy báo nợ #${blockedDoc.id}, không thể mở lại trực tiếp`,
+      `Kỳ giấy báo nợ ${lock.periodKey} đã được phát hành hoặc khóa, không thể mở lại trực tiếp`,
     );
   }
 

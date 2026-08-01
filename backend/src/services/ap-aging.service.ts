@@ -230,7 +230,7 @@ export async function getApAgingDetail(opts: {
 
     supplierRows.push({
       supplierId: sid,
-      supplierName: supplierNames.get(sid) ?? `Nhà cung cấp #${sid}`,
+      supplierName: supplierNames.get(sid) ?? 'Nhà cung cấp chưa xác định',
       totalPayable: acc.totalPayable,
       totalPaid: acc.totalPaid,
       outstanding,

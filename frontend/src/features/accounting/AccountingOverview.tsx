@@ -79,10 +79,8 @@ export function AccountingOverview({
       </section>
 
       <p className="accounting-provenance">
-        Kỳ dữ liệu đến {displayBusinessDate(to)} · Nguồn phải thu{' '}
-        {receivables.data?.checksum?.slice(0, 8) ?? 'chưa tải'} · phải trả{' '}
-        {payables.data?.checksum?.slice(0, 8) ?? 'chưa tải'} · lợi nhuận{' '}
-        {profitability.data?.checksum?.slice(0, 8) ?? 'chưa tải'}
+        Kỳ dữ liệu đến {displayBusinessDate(to)} · Tổng hợp từ công nợ phải thu, công nợ phải trả
+        và báo cáo lợi nhuận
       </p>
 
       <section className="accounting-workflows" aria-label="Nghiệp vụ kế toán">

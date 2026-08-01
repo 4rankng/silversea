@@ -177,7 +177,7 @@ after(async () => {
     if (createdOffsetIds.length > 0) await db.delete(s.debtOffsets).where(inArray(s.debtOffsets.id, createdOffsetIds));
     // Sweep ALL m64-related ledger rows (approval + cancel entries we may not
     // have tracked individually) by note prefix.
-    await db.delete(s.ledger).where(sql`${s.ledger.note} LIKE 'm64 test%' OR ${s.ledger.note} LIKE 'Đối trừ công nợ #%' OR ${s.ledger.note} LIKE 'Hoàn tác đối trừ công nợ #%'`);
+    await db.delete(s.ledger).where(sql`${s.ledger.note} LIKE 'm64 test%' OR ${s.ledger.note} = 'Đối trừ công nợ khách hàng và nhà cung cấp' OR ${s.ledger.note} = 'Hoàn tác đối trừ công nợ khách hàng và nhà cung cấp'`);
     if (createdLedgerIds.length > 0) await db.delete(s.ledger).where(inArray(s.ledger.id, createdLedgerIds));
     await db.delete(s.customers).where(sql`${s.customers.name} LIKE ${custPattern}`);
     await db.delete(s.suppliers).where(sql`${s.suppliers.name} LIKE ${supPattern}`);
@@ -443,7 +443,7 @@ describe('M6.4 — M06-04-03 cancel-after-approve uses reversal', () => {
 
     const reversalRows = await db.select({ id: s.ledger.id })
       .from(s.ledger)
-      .where(sql`${s.ledger.txnType} = 'ADJUSTMENT' AND ${s.ledger.txnId} = ${offset.id} AND ${s.ledger.note} LIKE ${`Hoàn tác đối trừ công nợ #${offset.id}%`}`);
+      .where(sql`${s.ledger.txnType} = 'ADJUSTMENT' AND ${s.ledger.txnId} = ${offset.id} AND ${s.ledger.note} = 'Hoàn tác đối trừ công nợ khách hàng và nhà cung cấp'`);
     createdLedgerIds.push(...reversalRows.map(row => row.id));
     assert.equal(reversalRows.length, 2, 'exactly one reversing customer/vendor pair posts');
   });
@@ -559,7 +559,7 @@ describe('M6.4 — M06-04-05 duplicate / concurrent approve', () => {
     // (one CUSTOMER credit + one VENDOR debit), not 4.
     const adjRows = await db.select({ id: s.ledger.id, entityType: s.ledger.entityType })
       .from(s.ledger)
-      .where(sql`${s.ledger.txnType} = 'ADJUSTMENT' AND ${s.ledger.txnId} = ${offset.id} AND ${s.ledger.note} LIKE ${`Đối trừ công nợ #${offset.id}%`}`);
+      .where(sql`${s.ledger.txnType} = 'ADJUSTMENT' AND ${s.ledger.txnId} = ${offset.id} AND ${s.ledger.note} = 'Đối trừ công nợ khách hàng và nhà cung cấp'`);
     createdLedgerIds.push(...adjRows.map(r => r.id));
     assert.equal(adjRows.length, 2,
       `expected exactly 2 ADJUSTMENT rows for offset ${offset.id}, got ${adjRows.length}. Race D1.`);

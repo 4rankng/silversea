@@ -271,7 +271,7 @@ export async function requestSalaryPeriodAdjustment(input: {
       .where(eq(s.drivers.id, input.driverId))
       .limit(1);
     if (!driver) {
-      throw new ApiError(404, `Không tìm thấy lái xe #${input.driverId}`);
+      throw new ApiError(404, 'Không tìm thấy lái xe đã chọn');
     }
 
     const [action] = await tx.insert(s.governanceActions).values({
@@ -336,7 +336,7 @@ export async function checkSalaryPeriodAdjustment(input: {
       existing.subjectType !== ADJUSTMENT_SUBJECT_TYPE ||
       existing.actionKind !== ADJUSTMENT_ACTION_KIND
     ) {
-      throw new ApiError(404, `Không tìm thấy điều chỉnh hậu chốt #${input.actionId}`);
+      throw new ApiError(404, 'Không tìm thấy điều chỉnh hậu chốt đã chọn');
     }
     const parsed = parseAdjustmentSubject(
       existing.subjectKey,
@@ -345,7 +345,7 @@ export async function checkSalaryPeriodAdjustment(input: {
     if (parsed.sourcePeriod !== input.period) {
       throw new ApiError(
         404,
-        `Không tìm thấy điều chỉnh hậu chốt #${input.actionId} của kỳ ${input.period}`,
+        `Không tìm thấy điều chỉnh hậu chốt của kỳ ${input.period}`,
       );
     }
     if (existing.version !== input.expectedVersion) {
@@ -357,7 +357,7 @@ export async function checkSalaryPeriodAdjustment(input: {
     if (existing.status !== 'PENDING_CHECK') {
       throw new ApiError(
         409,
-        `Điều chỉnh hậu chốt #${input.actionId} đang ở trạng thái ${existing.status}, không thể kiểm tra tiếp`,
+        `Điều chỉnh hậu chốt đang ở trạng thái ${existing.status}, không thể kiểm tra tiếp`,
       );
     }
 
@@ -414,7 +414,7 @@ export async function approveSalaryPeriodAdjustment(input: {
       existing.subjectType !== ADJUSTMENT_SUBJECT_TYPE ||
       existing.actionKind !== ADJUSTMENT_ACTION_KIND
     ) {
-      throw new ApiError(404, `Không tìm thấy điều chỉnh hậu chốt #${input.actionId}`);
+      throw new ApiError(404, 'Không tìm thấy điều chỉnh hậu chốt đã chọn');
     }
     const parsed = parseAdjustmentSubject(
       existing.subjectKey,
@@ -423,7 +423,7 @@ export async function approveSalaryPeriodAdjustment(input: {
     if (parsed.sourcePeriod !== input.period) {
       throw new ApiError(
         404,
-        `Không tìm thấy điều chỉnh hậu chốt #${input.actionId} của kỳ ${input.period}`,
+        `Không tìm thấy điều chỉnh hậu chốt của kỳ ${input.period}`,
       );
     }
     if (existing.version !== input.expectedVersion) {
@@ -435,7 +435,7 @@ export async function approveSalaryPeriodAdjustment(input: {
     if (existing.status !== 'PENDING_APPROVAL') {
       throw new ApiError(
         409,
-        `Điều chỉnh hậu chốt #${input.actionId} đang ở trạng thái ${existing.status}, không thể phê duyệt tiếp`,
+        `Điều chỉnh hậu chốt đang ở trạng thái ${existing.status}, không thể phê duyệt tiếp`,
       );
     }
 
@@ -562,7 +562,7 @@ export async function listSalaryPeriodAdjustments(input: {
     sourcePeriod: row.parsed.sourcePeriod,
     targetPeriod: row.parsed.targetPeriod,
     driverId: row.parsed.driverId,
-    driverName: driverNames.get(row.parsed.driverId) ?? `Lái xe #${row.parsed.driverId}`,
+    driverName: driverNames.get(row.parsed.driverId) ?? 'Lái xe chưa xác định',
     amount: row.parsed.amount,
     reason: row.reason,
     status: row.status as SalaryAdjustmentStatus,

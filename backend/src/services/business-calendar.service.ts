@@ -122,7 +122,7 @@ export async function resolveCustomerPaymentDueDate(
     .where(eq(s.customers.id, customerId))
     .limit(1);
   if (!customer) {
-    throw new Error(`Không tìm thấy khách hàng #${customerId} để chốt hạn thanh toán`);
+    throw new Error('Không tìm thấy khách hàng đã chọn để chốt hạn thanh toán');
   }
 
   const paymentTermDays = customer.paymentTermDays ?? 30;

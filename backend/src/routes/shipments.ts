@@ -461,7 +461,7 @@ router.post(
           body: shipment,
           status: 201,
           auditEntityId: shipment.id,
-          auditEntityKey: shipment.shipmentCode ?? `#${shipment.id}`,
+          auditEntityKey: shipment.shipmentCode ?? "Lô hàng chưa có mã",
         };
       },
     );
@@ -528,7 +528,7 @@ router.post(
       getUser(req),
     );
     res.locals.auditEntityId = shipment.id;
-    res.locals.auditEntityKey = shipment.shipmentCode ?? `#${shipment.id}`;
+    res.locals.auditEntityKey = shipment.shipmentCode ?? "Lô hàng chưa có mã";
     res.status(replayed ? 200 : 201).json(shipment);
   }),
 );
@@ -606,7 +606,7 @@ router.put(
           body: shipment,
           status: 200,
           auditEntityId: shipment.id,
-          auditEntityKey: shipment.shipmentCode ?? `#${shipment.id}`,
+          auditEntityKey: shipment.shipmentCode ?? "Lô hàng chưa có mã",
         };
       },
     );
@@ -637,7 +637,7 @@ router.post(
           body: shipment,
           status: 200,
           auditEntityId: shipment.id,
-          auditEntityKey: shipment.shipmentCode ?? `#${shipment.id}`,
+          auditEntityKey: shipment.shipmentCode ?? "Lô hàng chưa có mã",
         };
       },
     );
@@ -677,7 +677,7 @@ router.post(
       actor: user as typeof user & { role: Role.ADMIN | Role.MANAGER },
     });
     res.locals.auditEntityId = id;
-    res.locals.auditEntityKey = shipment.shipmentCode ?? `#${id}`;
+    res.locals.auditEntityKey = shipment.shipmentCode ?? "Lô hàng chưa có mã";
     res.status(outcome.replayed ? 200 : 201).json(outcome);
   }),
 );
@@ -707,7 +707,7 @@ router.post(
       actor,
     });
     res.locals.auditEntityId = reviewed.shipment.id;
-    res.locals.auditEntityKey = reviewed.shipment.shipmentCode ?? `#${reviewed.shipment.id}`;
+    res.locals.auditEntityKey = reviewed.shipment.shipmentCode ?? "Lô hàng chưa có mã";
     res.json(reviewed);
   }),
 );
@@ -740,7 +740,7 @@ router.post(
       idempotencyKey,
     });
     res.locals.auditEntityId = updated.shipment.id;
-    res.locals.auditEntityKey = updated.shipment.shipmentCode ?? `#${updated.shipment.id}`;
+    res.locals.auditEntityKey = updated.shipment.shipmentCode ?? "Lô hàng chưa có mã";
     res.json(updated);
   }),
 );
@@ -774,7 +774,7 @@ router.post(
           body: doc,
           status: 201,
           auditEntityId: id,
-          auditEntityKey: shipment.shipmentCode ?? `#${id}`,
+          auditEntityKey: shipment.shipmentCode ?? "Lô hàng chưa có mã",
         };
       },
     );
@@ -812,7 +812,7 @@ router.post(
           body: replaced,
           status: 201,
           auditEntityId: shipment.id,
-          auditEntityKey: shipment.shipmentCode ?? `#${shipment.id}`,
+          auditEntityKey: shipment.shipmentCode ?? "Lô hàng chưa có mã",
         };
       },
     );
@@ -846,7 +846,7 @@ router.post(
           body: declaration,
           status: 201,
           auditEntityId: shipment.id,
-          auditEntityKey: shipment.shipmentCode ?? `#${shipment.id}`,
+          auditEntityKey: shipment.shipmentCode ?? "Lô hàng chưa có mã",
         };
       },
     );
@@ -886,7 +886,7 @@ router.put(
           body: declaration,
           status: 200,
           auditEntityId: shipment.id,
-          auditEntityKey: shipment.shipmentCode ?? `#${shipment.id}`,
+          auditEntityKey: shipment.shipmentCode ?? "Lô hàng chưa có mã",
         };
       },
     );
@@ -971,7 +971,7 @@ router.post(
           body: reviewed,
           status: 200,
           auditEntityId: reviewed.shipment.id,
-          auditEntityKey: reviewed.shipment.shipmentCode ?? `#${reviewed.shipment.id}`,
+          auditEntityKey: reviewed.shipment.shipmentCode ?? "Lô hàng chưa có mã",
         };
       },
     );
@@ -1008,7 +1008,7 @@ router.delete(
           body: { ok: true },
           status: 200,
           auditEntityId: shipment.id,
-          auditEntityKey: shipment.shipmentCode ?? `#${shipment.id}`,
+          auditEntityKey: shipment.shipmentCode ?? "Lô hàng chưa có mã",
         };
       },
     );

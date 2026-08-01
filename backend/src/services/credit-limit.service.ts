@@ -1,5 +1,5 @@
 import { and, count, desc, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
-import { Role, TripStatus } from '@tingting/shared';
+import { ROLE_LABELS, Role, TripStatus } from '@tingting/shared';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
@@ -35,6 +35,14 @@ export type CreditOverrideView = Omit<CreditOverrideRow, 'version'> & {
   requestedByName?: string | null;
   checkedByName?: string | null;
 };
+
+export interface CreditOverrideListResult {
+  items: CreditOverrideView[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
 
 export interface CreditCheckResult {
   customerId: number;
@@ -186,6 +194,7 @@ function toCreditOverrideView(
 
 async function enrichCreditOverrideViews(
   views: CreditOverrideView[],
+  requesterRole: Role,
 ): Promise<CreditOverrideView[]> {
   if (views.length === 0) return views;
 
@@ -207,14 +216,21 @@ async function enrichCreditOverrideViews(
         .from(s.shipments)
         .where(inArray(s.shipments.id, shipmentIds))
       : Promise.resolve([]),
-    db.select({ id: s.users.id, fullName: s.users.fullName, username: s.users.username })
+    db.select({ id: s.users.id, fullName: s.users.fullName, role: s.users.role })
       .from(s.users)
-      .where(inArray(s.users.id, userIds)),
+      .where(and(inArray(s.users.id, userIds), isNull(s.users.deletedAt))),
   ]);
 
   const customerNames = new Map(customers.map((customer) => [customer.id, customer.name]));
   const shipmentCodes = new Map(shipments.map((shipment) => [shipment.id, shipment.code]));
-  const userNames = new Map(users.map((user) => [user.id, user.fullName ?? user.username]));
+  const userNames = new Map(users.map((user) => {
+    const role = user.role as Role;
+    const canSeeName = requesterRole === Role.ADMIN || role !== Role.ADMIN;
+    return [
+      user.id,
+      (canSeeName ? user.fullName?.trim() : '') || ROLE_LABELS[role] || 'Người dùng',
+    ];
+  }));
 
   return views.map((view) => ({
     ...view,
@@ -651,7 +667,8 @@ export async function listCreditOverrideRequests(filters: {
   customerId?: number;
   status?: CreditOverrideRow['status'];
   limit?: number;
-} = {}): Promise<CreditOverrideView[]> {
+  page?: number;
+} = {}, requesterRole: Role = Role.ACCOUNTANT): Promise<CreditOverrideListResult> {
   const conditions = [
     filters.customerId != null
       ? eq(s.creditOverrideRequests.customerId, filters.customerId)
@@ -661,18 +678,39 @@ export async function listCreditOverrideRequests(filters: {
       : undefined,
   ].filter((condition): condition is NonNullable<typeof condition> => condition != null);
 
-  const requests = await db.select()
-    .from(s.creditOverrideRequests)
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(desc(s.creditOverrideRequests.createdAt))
-    .limit(Math.min(Math.max(filters.limit ?? 100, 1), 200));
+  const limit = Math.min(Math.max(filters.limit ?? 25, 1), 100);
+  const page = Math.max(filters.page ?? 1, 1);
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  const [requests, [totalRow]] = await Promise.all([
+    db.select()
+      .from(s.creditOverrideRequests)
+      .where(where)
+      .orderBy(desc(s.creditOverrideRequests.createdAt), desc(s.creditOverrideRequests.id))
+      .limit(limit)
+      .offset((page - 1) * limit),
+    db.select({ total: count() })
+      .from(s.creditOverrideRequests)
+      .where(where),
+  ]);
   const decisions = await findCreditOverrideDecisions(db, requests.map((request) => request.id));
-  return enrichCreditOverrideViews(
+  const items = await enrichCreditOverrideViews(
     requests.map((request) => toCreditOverrideView(request, decisions.get(request.id))),
+    requesterRole,
   );
+  const total = Number(totalRow?.total ?? 0);
+  return {
+    items,
+    page,
+    limit,
+    total,
+    totalPages: total === 0 ? 0 : Math.ceil(total / limit),
+  };
 }
 
-export async function getCreditOverrideRequest(requestId: number): Promise<CreditOverrideView> {
+export async function getCreditOverrideRequest(
+  requestId: number,
+  requesterRole: Role = Role.ACCOUNTANT,
+): Promise<CreditOverrideView> {
   const [request] = await db.select()
     .from(s.creditOverrideRequests)
     .where(eq(s.creditOverrideRequests.id, requestId))
@@ -682,7 +720,7 @@ export async function getCreditOverrideRequest(requestId: number): Promise<Credi
   }
   const [view] = await enrichCreditOverrideViews([
     toCreditOverrideView(request, await findCreditOverrideDecision(db, request.id)),
-  ]);
+  ], requesterRole);
   return view;
 }
 

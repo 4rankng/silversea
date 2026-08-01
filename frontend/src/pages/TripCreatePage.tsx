@@ -19,6 +19,7 @@ import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useDirtyGuard } from '../hooks/useDirtyGuard';
 import { useConfirm } from '../components/UI';
+import { Pagination } from '../design-system';
 import { useAuth } from '../hooks/useAuth';
 import type { CreditOverrideRequestRecord } from '../api/creditOverrideClient';
 import {
@@ -58,6 +59,7 @@ export default function TripCreatePage() {
   const [creditExpiry, setCreditExpiry] = React.useState(defaultExpiryInput);
   const [creditRequest, setCreditRequest] = React.useState<CreditOverrideRequestRecord | null>(null);
   const [creditRequestIdInput, setCreditRequestIdInput] = React.useState('');
+  const [creditPage, setCreditPage] = React.useState(1);
   const [creditAction, setCreditAction] = React.useState<'request' | 'approve' | 'apply' | null>(null);
   const [creditError, setCreditError] = React.useState<string | null>(null);
   const [rejectingRequestId, setRejectingRequestId] = React.useState<number | null>(null);
@@ -70,6 +72,7 @@ export default function TripCreatePage() {
       setCreditExpiry(defaultExpiryInput());
       setCreditRequest(null);
       setCreditRequestIdInput('');
+      setCreditPage(1);
       setCreditError(null);
     },
   });
@@ -90,9 +93,10 @@ export default function TripCreatePage() {
   const queueFilters = React.useMemo(
     () => ({
       customerId: creditBlock?.customerId,
-      limit: 20,
+      limit: 25,
+      page: creditPage,
     }),
-    [creditBlock?.customerId],
+    [creditBlock?.customerId, creditPage],
   );
   const creditQueue = useCreditOverrideQueue(queueFilters, creditBlock?.customerId != null);
   const createCreditRequest = useCreateCreditOverrideRequest([queueFilters]);
@@ -101,6 +105,12 @@ export default function TripCreatePage() {
   const estimatedProposedAmount = creditBlock?.proposedAmount && creditBlock.proposedAmount > 0
     ? creditBlock.proposedAmount
     : Math.round((form.suggestedPrice ?? 0) * expectedContainerCount);
+
+  React.useEffect(() => {
+    if (!creditQueue.data) return;
+    const lastAvailablePage = Math.max(creditQueue.data.totalPages, 1);
+    if (creditPage > lastAvailablePage) setCreditPage(lastAvailablePage);
+  }, [creditPage, creditQueue.data]);
 
   const submitTrip = async (creditApprovalRequestId?: number | null) => {
     const tripId = await form.handleSubmit(undefined, { creditApprovalRequestId });
@@ -150,7 +160,7 @@ export default function TripCreatePage() {
   };
 
   const handleApproveRequest = async (requestId: number) => {
-    const request = creditQueue.data?.find((item) => item.id === requestId) ?? creditRequest;
+    const request = creditQueue.data?.items.find((item) => item.id === requestId) ?? creditRequest;
     if (!request) {
       setCreditError('Không tìm thấy phiên bản hiện tại của đề nghị để duyệt. Vui lòng tải lại hàng chờ.');
       return null;
@@ -328,7 +338,7 @@ export default function TripCreatePage() {
                   onChange={(event) => setCreditRequestIdInput(event.target.value)}
                 >
                   <option value="">Chọn theo lý do và trạng thái</option>
-                  {(creditQueue.data ?? [])
+                  {(creditQueue.data?.items ?? [])
                     .filter((request) => request.shipmentId == null && request.status !== 'CANCELED')
                     .map((request) => (
                       <option key={request.id} value={request.id}>
@@ -373,17 +383,16 @@ export default function TripCreatePage() {
               </div>
             )}
 
-            {creditQueue.data && creditQueue.data.length > 0 && (
+            {creditQueue.data && creditQueue.data.items.length > 0 && (
               <div style={{ display: 'grid', gap: 10 }}>
                 <strong>Các đề nghị của khách hàng này</strong>
-                {creditQueue.data
+                {creditQueue.data.items
                   .filter((request) => request.shipmentId == null)
                   .map((request) => (
                     <div key={request.id} style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 12, background: 'rgba(255,255,255,0.72)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                         <strong>{request.reason}</strong>
                         <span style={creditBadgeStyle}>{creditTierLabel(request.requiredTier)}</span>
-                        <span style={creditBadgeStyle}>v{request.version}</span>
                       </div>
                       <div style={{ color: 'var(--fg-2)', fontSize: 14 }}>{request.reason}</div>
                       <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
@@ -456,6 +465,16 @@ export default function TripCreatePage() {
                       )}
                     </div>
                   ))}
+                <Pagination
+                  page={creditQueue.data.page}
+                  totalPages={creditQueue.data.totalPages}
+                  totalItems={creditQueue.data.total}
+                  pageSize={creditQueue.data.limit}
+                  onChange={(nextPage) => {
+                    setCreditPage(nextPage);
+                    setCreditRequestIdInput('');
+                  }}
+                />
               </div>
             )}
             {creditQueue.isError && (

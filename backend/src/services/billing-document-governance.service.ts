@@ -522,7 +522,7 @@ export async function applyBillingDocumentGovernanceAction(
     entityId: document.entityId,
     debit: adjustmentAmount > 0 ? adjustmentAmount : 0,
     credit: adjustmentAmount < 0 ? Math.abs(adjustmentAmount) : 0,
-    note: `Điều chỉnh giấy báo nợ #${document.id}: ${action.reason}`,
+    note: `Điều chỉnh giấy báo nợ: ${action.reason}`,
     originalDueDate: document.originalDueDate,
     processingDueDate: document.processingDueDate,
     paymentTermDaysApplied: document.paymentTermDaysApplied,

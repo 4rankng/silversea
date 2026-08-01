@@ -4,6 +4,48 @@ import { Role } from '@tingting/shared';
 import { getNavItems, getNavSections } from './Layout';
 
 describe('getNavItems', () => {
+  it.each([
+    [Role.ADMIN, [
+      ['Tổng quan', '/dashboard'], ['Đội xe', '/fleet'], ['Phân xe', '/dispatch'],
+      ['Sổ chuyến đi', '/trips'], ['Lô hàng', '/shipments'], ['Lương & Chấm công', '/salary'],
+      ['Kỷ luật', '/penalties'], ['Công nợ phải thu', '/debt'], ['Công nợ phải trả', '/payables'],
+      ['Sổ quỹ / ngân hàng', '/finance/treasury'], ['Chi phí phát sinh', '/expenses'],
+      ['Tạm ứng & hoàn ứng', '/advances'], ['Lợi nhuận', '/profit'], ['Báo cáo lãi lỗ', '/finance'],
+      ['Duyệt vượt hạn mức', '/credit-overrides'], ['Trung tâm phê duyệt', '/governance-actions'],
+      ['Khách hàng', '/customers'], ['Nhà cung cấp', '/suppliers'], ['Tuyến đường', '/config/routes'],
+      ['Người dùng', '/users'], ['Cài đặt ứng dụng', '/config/app-settings'],
+      ['Giám sát Chatbot', '/chatbot-monitoring'], ['Nhật ký người dùng', '/audit-logs'], ['Cấu hình', '/config'],
+    ]],
+    [Role.MANAGER, [
+      ['Tổng quan', '/dashboard'], ['Đội xe', '/fleet'], ['Phân xe', '/dispatch'],
+      ['Sổ chuyến đi', '/trips'], ['Lô hàng', '/shipments'], ['Lương & Chấm công', '/salary'],
+      ['Kỷ luật', '/penalties'], ['Công nợ phải thu', '/debt'], ['Công nợ phải trả', '/payables'],
+      ['Sổ quỹ / ngân hàng', '/finance/treasury'], ['Chi phí phát sinh', '/expenses'],
+      ['Tạm ứng & hoàn ứng', '/advances'], ['Lợi nhuận', '/profit'], ['Báo cáo lãi lỗ', '/finance'],
+      ['Duyệt vượt hạn mức', '/credit-overrides'], ['Trung tâm phê duyệt', '/governance-actions'],
+      ['Khách hàng', '/customers'], ['Nhà cung cấp', '/suppliers'], ['Tuyến đường', '/config/routes'],
+      ['Người dùng', '/users'], ['Nhật ký người dùng', '/audit-logs'], ['Cấu hình', '/config'],
+    ]],
+    [Role.ACCOUNTANT, [
+      ['Tổng Quan', '/accounting'], ['Đội xe', '/fleet'], ['Sổ chuyến đi', '/trips'],
+      ['Lô hàng', '/shipments'], ['Lương & Chấm công', '/salary'], ['Kỷ luật', '/penalties'],
+      ['Công nợ phải thu', '/debt'], ['Công nợ phải trả', '/payables'],
+      ['Sổ quỹ / ngân hàng', '/finance/treasury'], ['Chi phí phát sinh', '/expenses'],
+      ['Tạm ứng & hoàn ứng', '/advances'], ['Lợi nhuận', '/profit'], ['Báo cáo lãi lỗ', '/finance'],
+      ['Duyệt vượt hạn mức', '/credit-overrides'], ['Trung tâm phê duyệt', '/governance-actions'],
+      ['Khách hàng', '/customers'], ['Nhà cung cấp', '/suppliers'], ['Tuyến đường', '/config/routes'],
+      ['Người dùng', '/users'], ['Nhật ký người dùng', '/audit-logs'], ['Cấu hình', '/config'],
+    ]],
+    [Role.DRIVER, [['Hành trình', '/my-trips'], ['Thu nhập', '/my-earnings'], ['Kỷ luật', '/my-penalties']]],
+    [Role.FORWARDER, [['Chuyến đi', '/my-forwarder-trips'], ['Tạm ứng', '/my-advances'], ['Phiếu thanh toán', '/my-settlements']]],
+    [Role.CLERK, [['Lô hàng được giao', '/shipments'], ['Tạo lô hàng', '/clerk/shipments/new'], ['Chi phí cần kiểm tra', '/recoverable-costs']]],
+    [Role.CUSTOMER, [['Lô hàng của tôi', '/portal/shipments'], ['Giấy báo nợ', '/portal/debit-notes'], ['Sao kê công nợ', '/portal/statement']]],
+  ] as const)('matches the approved exact label and path matrix for %s', (role, expected) => {
+    const actual = getNavItems(role, undefined, undefined, ['treasury.read', 'recoverable_costs.read'])
+      .map(({ label, path }) => [label, path]);
+    expect(actual).toEqual(expected);
+  });
+
   it('puts the dedicated accounting home first for ACCOUNTANT', () => {
     const items = getNavItems(Role.ACCOUNTANT);
     expect(items[0]).toMatchObject({ key: 'accounting', path: '/accounting', label: 'Tổng Quan' });

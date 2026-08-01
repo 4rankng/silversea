@@ -22,6 +22,7 @@ export interface SearchableSelectProps {
   name?: string;
   value: string;
   onChange: (value: string) => void;
+  onSearchChange?: (query: string) => void;
   options: SearchableSelectOption[];
   placeholder?: string;
   searchPlaceholder?: string;
@@ -29,6 +30,7 @@ export interface SearchableSelectProps {
   disabled?: boolean;
   required?: boolean;
   className?: string;
+  searchDebounceMs?: number;
 }
 
 function normalizeSearchText(value: string): string {
@@ -46,6 +48,7 @@ export function SearchableSelect({
   name,
   value,
   onChange,
+  onSearchChange,
   options,
   placeholder = 'Chọn một mục',
   searchPlaceholder = 'Nhập để tìm kiếm…',
@@ -53,6 +56,7 @@ export function SearchableSelect({
   disabled = false,
   required = false,
   className = '',
+  searchDebounceMs = 250,
 }: SearchableSelectProps) {
   const listboxId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -90,6 +94,12 @@ export function SearchableSelect({
     const frame = requestAnimationFrame(() => searchInputRef.current?.focus());
     return () => cancelAnimationFrame(frame);
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!onSearchChange) return;
+    const timer = window.setTimeout(() => onSearchChange(query.trim()), searchDebounceMs);
+    return () => window.clearTimeout(timer);
+  }, [onSearchChange, query, searchDebounceMs]);
 
   useEffect(() => {
     if (activeIndex >= filteredOptions.length) {

@@ -144,7 +144,7 @@ function buildDriverPayoutSubjectKey(driverId: number, input: DriverPayoutInput)
 }
 
 function buildPenaltyCreateReason(input: PenaltyInput): string {
-  return input.customReason?.trim() || `Đề nghị ghi nhận kỷ luật cho lái xe #${input.driverId}`;
+  return input.customReason?.trim() || 'Đề nghị ghi nhận kỷ luật lái xe';
 }
 
 function buildPenaltyCreateSubjectKey(input: PenaltyInput): string {
@@ -616,7 +616,7 @@ async function cancelPenaltyTx(tx: Tx, penaltyId: number, reason?: string): Prom
     entityId: penalty.driverId,
     debit: 0,
     credit: Number(penalty.amount),
-    note: reason || `Hủy kỷ luật #${penalty.id}`,
+    note: reason || 'Hủy quyết định kỷ luật lái xe',
   });
 
   return claimed;
@@ -671,7 +671,7 @@ export async function requestPenaltyCancelGovernance(input: {
       subjectId: penalty.id,
       subjectKey: `penalty:${penalty.id}:cancel`,
       actionKind: 'PENALTY_CANCEL',
-      reason: input.reason?.trim() || `Đề nghị hủy kỷ luật #${penalty.id}`,
+      reason: input.reason?.trim() || 'Đề nghị hủy quyết định kỷ luật lái xe',
       originalVersion: penaltyVersionFromTimestamp(penalty.updatedAt),
       beforeSnapshot: {
         driverId: penalty.driverId,

@@ -331,7 +331,7 @@ router.post(
       emitNotification({
         type: NotificationType.TRIP_UNLOCKED,
         title: 'Chuyến đã mở khóa',
-        message: `Yêu cầu mở khóa chuyến #${result.subjectId} đã được phê duyệt`,
+        message: 'Yêu cầu mở khóa chuyến đã được phê duyệt',
         relatedEntityType: 'trips',
         relatedEntityId: result.subjectId ?? undefined,
       });
@@ -395,7 +395,7 @@ router.post(
         emitNotification({
           type: NotificationType.PENALTY_CREATED,
           title: 'Phạt mới',
-          message: `Kỷ luật #${penaltyId} đã được phê duyệt`,
+          message: 'Quyết định kỷ luật đã được phê duyệt',
           relatedEntityType: 'penalties',
           relatedEntityId: penaltyId,
           targetDriverId: driverId,
@@ -414,7 +414,7 @@ router.post(
         emitNotification({
           type: NotificationType.PENALTY_CANCELED,
           title: 'Hủy phạt',
-          message: `Kỷ luật #${penaltyId} đã được hủy theo phê duyệt`,
+          message: 'Quyết định kỷ luật đã được hủy theo phê duyệt',
           relatedEntityType: 'penalties',
           relatedEntityId: penaltyId,
           targetDriverId: driverId,
@@ -554,7 +554,7 @@ router.post('/commissions', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTA
     }),
   });
   res.locals.auditEntityId = result.id;
-  res.locals.auditEntityKey = result.subjectKey ?? `#${result.id}`;
+  res.locals.auditEntityKey = result.subjectKey ?? "Quyết định chưa có tên";
   res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
@@ -601,7 +601,7 @@ router.post('/drivers/:driverId/payouts', requireRoles(Role.ADMIN, Role.MANAGER,
     }),
   });
   res.locals.auditEntityId = result.id;
-  res.locals.auditEntityKey = result.subjectKey ?? `#${result.id}`;
+  res.locals.auditEntityKey = result.subjectKey ?? "Quyết định chưa có tên";
   res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 

@@ -81,7 +81,7 @@ export async function getDebitNoteData(documentId: number): Promise<DebitNotePdf
 
   return {
     documentId: doc.id,
-    entityName: doc.entityName ?? `#${doc.entityId}`,
+    entityName: doc.entityName ?? 'Khách hàng chưa xác định',
     rangeFrom: doc.rangeFrom,
     rangeTo: doc.rangeTo,
     originalDueDate: doc.originalDueDate,
@@ -358,7 +358,7 @@ ${totalRow}
   </div>
 
   <div class="footer">
-    Giấy báo nợ #${data.documentId} · ${escapeHtml(partyAName)} · Xuất ngày ${escapeHtml(dateStr)}
+    Giấy báo nợ kỳ ${escapeHtml(data.rangeFrom)} – ${escapeHtml(data.rangeTo)} · ${escapeHtml(partyAName)} · Xuất ngày ${escapeHtml(dateStr)}
   </div>
 </body>
 </html>`;
@@ -427,7 +427,7 @@ function exportLegacyHtml(data: DebitNotePdfData, dateStr: string): string {
     </tbody>
   </table>
   <div class="footer">
-    Giấy báo nợ #${data.documentId} — TingTing Logistics — Xuất ngày ${escapeHtml(dateStr)}
+    Giấy báo nợ kỳ ${escapeHtml(data.rangeFrom)} – ${escapeHtml(data.rangeTo)} — TingTing Logistics — Xuất ngày ${escapeHtml(dateStr)}
   </div>
 </body>
 </html>`;

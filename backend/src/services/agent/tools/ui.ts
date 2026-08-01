@@ -170,7 +170,7 @@ export const uiTools: AgentToolDef[] = [
       prefix: z.string().optional(),
     }),
     (a) => ({ kind: 'focus', routeKey: a.routeKey, id: a.id, prefix: a.prefix }),
-    (a) => `Tô sáng ${a.routeKey} #${a.id}`,
+    (a) => `Tô sáng mục ${a.routeKey}`,
   ),
   // Keep open/prefill out of the advertised tool list until pages actually
   // register component handlers. The system prompt already tells the model not

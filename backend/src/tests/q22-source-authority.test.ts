@@ -791,7 +791,7 @@ describe('Q22 source authority propagation', () => {
     assert.equal(staleDocument.authorityState, 'ADJUSTMENT_REQUIRED');
     assert.match(
       persistedDocumentWarning?.authorityWarningReason ?? '',
-      /Nguồn chuyến #\d+ đã thay đổi sau khi phát hành giấy báo nợ/i,
+      /Nguồn chuyến đã thay đổi sau khi phát hành giấy báo nợ/i,
     );
     assert.equal(staleLine.baseAmount, 1_000_000);
     assert.equal(staleLine.provenance?.status, 'CURRENT');

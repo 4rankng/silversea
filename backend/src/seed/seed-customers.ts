@@ -212,5 +212,5 @@ async function seedLongMinhDebitTemplate(customerByCode: Map<string, number>): P
   await db.update(s.customers)
     .set({ debitNoteTemplateId: templateId, updatedAt: new Date() })
     .where(sql`${s.customers.id} = ${customerId}`);
-  console.log(`✅ Long Minh debit template seeded and assigned (template #${templateId})`);
+  console.log(`✅ Long Minh debit template seeded and assigned (internal template key ${templateId})`);
 }

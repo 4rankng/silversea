@@ -20,7 +20,7 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
  */
 export async function getBootstrapData() {
   return cacheGet('catalogs:bootstrap', 60, async () => {
-    const [customersList, trucksList, driversList, routesList, cargoTypesList, expenseCategoriesList, suppliersList, trailersList, containerTypesList, portsList, forwarderExpenseTypesList] = await Promise.all([
+    const [customersList, trucksList, driversList, routesList, cargoTypesList, expenseCategoriesList, suppliersList, trailersList, containerTypesList, portsList, forwarderExpenseTypesList, businessUnitsList] = await Promise.all([
       db.select().from(s.customers).where(isNull(s.customers.deletedAt)),
       db.select().from(s.trucks).where(isNull(s.trucks.deletedAt)),
       db.select().from(s.drivers).where(isNull(s.drivers.deletedAt)),
@@ -32,6 +32,9 @@ export async function getBootstrapData() {
       db.select().from(s.containerTypes).where(isNull(s.containerTypes.deletedAt)),
       db.select().from(s.ports).where(isNull(s.ports.deletedAt)),
       db.select().from(s.forwarderExpenseTypes).where(isNull(s.forwarderExpenseTypes.deletedAt)),
+      db.select({ id: s.businessUnits.id, code: s.businessUnits.code, name: s.businessUnits.name })
+        .from(s.businessUnits)
+        .where(eq(s.businessUnits.status, 'ACTIVE')),
     ]);
 
     const activeForwarderExpenseTypes = forwarderExpenseTypesList
@@ -68,6 +71,7 @@ export async function getBootstrapData() {
       containerTypes: containerTypesList,
       ports: portsList,
       forwarderExpenseTypes: activeForwarderExpenseTypes,
+      businessUnits: businessUnitsList,
     };
   });
 }

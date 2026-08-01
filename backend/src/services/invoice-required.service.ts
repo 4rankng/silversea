@@ -143,5 +143,5 @@ export async function assertInvoiceRequiredForExpense(
     expense.invoiceNumber,
     expense.invoiceDate,
   );
-  assertInvoiceRequired(result, `Chi phí #${expenseId}`);
+  assertInvoiceRequired(result, 'Chi phí đã chọn');
 }

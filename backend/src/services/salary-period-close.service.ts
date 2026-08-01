@@ -453,7 +453,7 @@ async function buildSalaryPeriodReadinessSummary(
         if (row?.status === 'TRIP_DAY' && row.tripId === trip.tripId) continue;
         issues.push({
           code: 'MISSING_TRIP_DAY',
-          message: `Chuyến #${trip.tripId} hoàn thành trong kỳ nhưng thiếu ngày công thực tế ${date}.`,
+          message: `Chuyến chưa có mã hoàn thành trong kỳ nhưng thiếu ngày công thực tế ${date}.`,
         });
         break;
       }
@@ -1377,7 +1377,7 @@ export async function createSalaryPeriodExclusion(input: {
     const readiness = await buildSalaryPeriodReadinessSummary(tx, input.period);
     const driver = readiness.drivers.find((item) => item.driverId === input.driverId);
     if (!driver) {
-      throw new ApiError(404, `Không tìm thấy lái xe #${input.driverId} trong phạm vi kỳ lương ${input.period}`);
+      throw new ApiError(404, `Không tìm thấy lái xe đã chọn trong phạm vi kỳ lương ${input.period}`);
     }
     if (driver.issues.length === 0) {
       throw new ApiError(409, `Lái xe ${driver.driverName} đã sẵn sàng, không cần loại trừ khỏi kỳ ${input.period}`);
@@ -1451,7 +1451,7 @@ export async function checkSalaryPeriodExclusion(input: {
     if (!existing ||
       existing.subjectType !== SALARY_EXCLUSION_SUBJECT_TYPE ||
       existing.actionKind !== SALARY_EXCLUSION_ACTION_KIND) {
-      throw new ApiError(404, `Không tìm thấy đề nghị loại trừ #${input.actionId}`);
+      throw new ApiError(404, 'Không tìm thấy đề nghị loại trừ đã chọn');
     }
     if (input.expectedVersion != null && existing.version !== input.expectedVersion) {
       throw new ApiError(409, 'Đề nghị loại trừ đã được cập nhật. Vui lòng tải lại.');
@@ -1460,7 +1460,7 @@ export async function checkSalaryPeriodExclusion(input: {
       throw new ApiError(409, 'Người đề nghị không được tự kiểm tra loại trừ kỳ lương của mình');
     }
     if (existing.status !== 'PENDING_CHECK') {
-      throw new ApiError(409, `Đề nghị loại trừ #${input.actionId} đang ở trạng thái ${existing.status}, không thể kiểm tra tiếp`);
+      throw new ApiError(409, `Đề nghị loại trừ đang ở trạng thái ${existing.status}, không thể kiểm tra tiếp`);
     }
 
     const [updated] = await tx.update(s.governanceActions)
@@ -1532,7 +1532,7 @@ export async function approveSalaryPeriodExclusion(input: {
     if (!existing ||
       existing.subjectType !== SALARY_EXCLUSION_SUBJECT_TYPE ||
       existing.actionKind !== SALARY_EXCLUSION_ACTION_KIND) {
-      throw new ApiError(404, `Không tìm thấy đề nghị loại trừ #${input.actionId}`);
+      throw new ApiError(404, 'Không tìm thấy đề nghị loại trừ đã chọn');
     }
     if (input.expectedVersion != null && existing.version !== input.expectedVersion) {
       throw new ApiError(409, 'Đề nghị loại trừ đã được cập nhật. Vui lòng tải lại.');
@@ -1541,7 +1541,7 @@ export async function approveSalaryPeriodExclusion(input: {
       throw new ApiError(409, 'Loại trừ kỳ lương phải được phê duyệt bởi người khác với người đề nghị và người kiểm tra');
     }
     if (existing.status !== 'PENDING_APPROVAL') {
-      throw new ApiError(409, `Đề nghị loại trừ #${input.actionId} đang ở trạng thái ${existing.status}, không thể phê duyệt tiếp`);
+      throw new ApiError(409, `Đề nghị loại trừ đang ở trạng thái ${existing.status}, không thể phê duyệt tiếp`);
     }
 
     const [updated] = await tx.update(s.governanceActions)
@@ -1626,7 +1626,7 @@ export async function completeSalaryPeriodExclusionFollowup(input: {
       || existing.subjectType !== SALARY_EXCLUSION_SUBJECT_TYPE
       || existing.actionKind !== SALARY_EXCLUSION_ACTION_KIND
     ) {
-      throw new ApiError(404, `Không tìm thấy đề nghị loại trừ #${input.actionId}`);
+      throw new ApiError(404, 'Không tìm thấy đề nghị loại trừ đã chọn');
     }
     if (existing.status !== 'APPROVED') {
       throw new ApiError(409, 'Chỉ có thể hoàn tất xử lý cho loại trừ đã được phê duyệt');

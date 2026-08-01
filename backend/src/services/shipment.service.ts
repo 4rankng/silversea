@@ -1171,7 +1171,7 @@ export async function reviewTripPodSubmission(args: {
           pushPayload = {
             type: NotificationType.TRIP_LOCKED,
             title: 'e-POD đã được duyệt',
-            message: `Chuyến ${row.trip.tripCode ?? `#${row.trip.id}`} đã được duyệt e-POD và khóa số liệu.`,
+            message: `Chuyến ${row.trip.tripCode ?? 'chưa có mã'} đã được duyệt e-POD và khóa số liệu.`,
             relatedEntityType: 'shipment_fulfillments',
             relatedEntityId: row.fulfillment.id,
             targetDriverId: row.trip.driverId,
@@ -1183,7 +1183,7 @@ export async function reviewTripPodSubmission(args: {
           pushPayload = {
             type: NotificationType.SYSTEM_ANNOUNCEMENT,
             title: 'e-POD cần bổ sung',
-            message: `e-POD của chuyến ${row.trip.tripCode ?? `#${row.trip.id}`} đã bị từ chối${normalizedReason ? `: ${normalizedReason}` : '.'} Vui lòng tạo phiên bản mới để gửi lại.`,
+            message: `e-POD của chuyến ${row.trip.tripCode ?? 'chưa có mã'} đã bị từ chối${normalizedReason ? `: ${normalizedReason}` : '.'} Vui lòng tạo phiên bản mới để gửi lại.`,
             relatedEntityType: 'shipment_fulfillments',
             relatedEntityId: row.fulfillment.id,
             targetDriverId: row.trip.driverId,
@@ -1591,8 +1591,8 @@ export async function getShipmentDetail(id: number, actor?: AuthUser): Promise<S
     const scope = await loadClerkShipmentScope(actor.userId);
     assertClerkCanAccessShipment(scope, shipment);
   }
-  // Join the customer name so the detail page can show a readable label
-  // instead of "Khách hàng #{id}". leftJoin keeps the row even if the
+  // Join the customer name so the detail page can show a readable label.
+  // leftJoin keeps the row even if the
   // customer was hard-deleted (customerName = null in that case).
   const [joined] = await db.select({
     customerName: s.customers.name,

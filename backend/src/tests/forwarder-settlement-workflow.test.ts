@@ -220,14 +220,14 @@ describe('forwarder settlement streamlined workflow', () => {
 
     await assert.rejects(
       validateSettlementInputs({ dbOrTx: db, forwarderId, advanceRequestIds: [requestId], tripExpenseIds: [general.id] }),
-      /chưa được Ops đánh dấu kê xong/,
+      /chưa được điều hành xác nhận kê xong/,
     );
     await markCompleted(null);
     await validateSettlementInputs({ dbOrTx: db, forwarderId, advanceRequestIds: [requestId], tripExpenseIds: [general.id] });
 
     await assert.rejects(
       validateSettlementInputs({ dbOrTx: db, forwarderId, advanceRequestIds: [requestId], tripExpenseIds: [container.id] }),
-      /chưa được Ops đánh dấu kê xong/,
+      /chưa được điều hành xác nhận kê xong/,
     );
     await markCompleted(containerId);
     await validateSettlementInputs({ dbOrTx: db, forwarderId, advanceRequestIds: [requestId], tripExpenseIds: [container.id] });

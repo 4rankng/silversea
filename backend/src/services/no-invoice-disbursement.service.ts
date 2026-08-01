@@ -257,7 +257,7 @@ function missingEvidenceLabels(
     if (invalid.length > 0) {
       throw new ApiError(
         400,
-        `Chi phí #${expense.id}: bằng chứng ${invalid.join(', ')} không được phép cho hạng mục "${expense.expenseType}"`,
+        `Chi phí ${expense.expenseType}: bằng chứng ${invalid.join(', ')} không được phép cho hạng mục này`,
       );
     }
   }
@@ -364,15 +364,15 @@ export async function reviewNoInvoiceDisbursementApproval(
 
   const policy = await getForwarderExpenseTypePolicy(q, expense.expenseType);
   if (!policy) {
-    throw new ApiError(400, `Chi phí #${expenseId}: hạng mục "${expense.expenseType}" chưa được cấu hình cho chi không hóa đơn`);
+    throw new ApiError(400, `Hạng mục "${expense.expenseType}" chưa được cấu hình cho chi không hóa đơn`);
   }
   if (policy.requiresInvoice) {
-    throw new ApiError(400, `Chi phí #${expenseId}: hạng mục "${expense.expenseType}" bắt buộc phải có hóa đơn`);
+    throw new ApiError(400, `Hạng mục "${expense.expenseType}" bắt buộc phải có hóa đơn`);
   }
 
   const substituteAllowed = policy.substituteEvidenceAllowed ?? true;
   if (!substituteAllowed) {
-    throw new ApiError(400, `Chi phí #${expenseId}: hạng mục "${expense.expenseType}" không cho phép chi hộ không hóa đơn`);
+    throw new ApiError(400, `Hạng mục "${expense.expenseType}" không cho phép chi hộ không hóa đơn`);
   }
 
   const policySnapshot = buildNoInvoicePolicySnapshot(policy);
@@ -418,7 +418,7 @@ export async function reviewNoInvoiceDisbursementApproval(
     return {
       outcome: 'RETURN_FOR_EVIDENCE',
       policySnapshot,
-      returnReason: `Chi phí #${expenseId}: khoản chi vượt ngưỡng nội bộ, cần ghi rõ lý do ngoại lệ trước khi trình ${approvalTitleLabel(requiredApprovalTitle)}`,
+      returnReason: `Khoản chi vượt ngưỡng nội bộ, cần ghi rõ lý do ngoại lệ trước khi trình ${approvalTitleLabel(requiredApprovalTitle)}`,
       aggregateAmount,
       requiredApprovalTitle,
       requiresExceptionReason,
@@ -428,13 +428,13 @@ export async function reviewNoInvoiceDisbursementApproval(
   if (requiresDirector && !directorRequired(actorRole)) {
     throw new ApiError(
       403,
-      `Chi phí #${expenseId}: khoản ${amount.toLocaleString('vi-VN')} ₫ hoặc tổng ngày ${aggregateAmount.toLocaleString('vi-VN')} ₫ vượt thẩm quyền tài chính, cần giám đốc phê duyệt`,
+      `Khoản ${amount.toLocaleString('vi-VN')} ₫ hoặc tổng ngày ${aggregateAmount.toLocaleString('vi-VN')} ₫ vượt thẩm quyền tài chính, cần giám đốc phê duyệt`,
     );
   }
   if (requiresFinanceLead && !financeLeadRequired(actorRole)) {
     throw new ApiError(
       403,
-      `Chi phí #${expenseId}: khoản ${amount.toLocaleString('vi-VN')} ₫ hoặc tổng ngày ${aggregateAmount.toLocaleString('vi-VN')} ₫ vượt ngưỡng mặc định, cần ${approvalTitleLabel(requiredApprovalTitle)} phê duyệt`,
+      `Khoản ${amount.toLocaleString('vi-VN')} ₫ hoặc tổng ngày ${aggregateAmount.toLocaleString('vi-VN')} ₫ vượt ngưỡng mặc định, cần ${approvalTitleLabel(requiredApprovalTitle)} phê duyệt`,
     );
   }
 

@@ -299,7 +299,7 @@ export async function approveDebtOffset(
       entityId: offset.customerId,
       debit: 0,
       credit: amount,
-      note: `Đối trừ công nợ #${id}`,
+      note: 'Đối trừ công nợ khách hàng và nhà cung cấp',
     });
 
     // DEBIT on vendor: reduces AP (VENDOR balance += credit − debit)
@@ -310,7 +310,7 @@ export async function approveDebtOffset(
       entityId: offset.supplierId,
       debit: amount,
       credit: 0,
-      note: `Đối trừ công nợ #${id}`,
+      note: 'Đối trừ công nợ khách hàng và nhà cung cấp',
     });
 
     // Stamp approvedBy and approvedAt
@@ -402,7 +402,7 @@ export async function cancelDebtOffset(
       entityId: offset.customerId,
       debit: amount,
       credit: 0,
-      note: `Hoàn tác đối trừ công nợ #${id}`,
+      note: 'Hoàn tác đối trừ công nợ khách hàng và nhà cung cấp',
     });
 
     // CREDIT on vendor: restores AP (VENDOR balance += credit − debit).
@@ -413,7 +413,7 @@ export async function cancelDebtOffset(
       entityId: offset.supplierId,
       debit: 0,
       credit: amount,
-      note: `Hoàn tác đối trừ công nợ #${id}`,
+      note: 'Hoàn tác đối trừ công nợ khách hàng và nhà cung cấp',
     });
 
     return claimed;

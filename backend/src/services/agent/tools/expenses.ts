@@ -32,10 +32,10 @@ export const expenseTools = [
     params: z.object({ id: z.coerce.number().int().positive() }),
     run: async (args) => {
       const expense = await getExpense(db, args.id);
-      if (!expense) throw new ToolError(`Không tìm thấy chi phí #${args.id}`, 'not_found');
+      if (!expense) throw new ToolError('Không tìm thấy chi phí đã chọn', 'not_found');
       return expense;
     },
-    label: (a) => `Chi phí #${a.id}`,
+    label: () => 'Chi tiết chi phí',
   }),
 
   defineReadTool({

@@ -58,7 +58,7 @@ router.post('/penalties', asyncHandler(async (req: Request, res: Response) => {
     }),
   });
   res.locals.auditEntityId = result.id;
-  res.locals.auditEntityKey = result.subjectKey ?? `#${result.id}`;
+  res.locals.auditEntityKey = result.subjectKey ?? "Quyết định chưa có tên";
   res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
@@ -87,7 +87,7 @@ router.post('/penalties/:id/cancel', requireRoles(Role.ADMIN, Role.MANAGER), asy
     }),
   });
   res.locals.auditEntityId = result.id;
-  res.locals.auditEntityKey = result.subjectKey ?? `#${result.id}`;
+  res.locals.auditEntityKey = result.subjectKey ?? "Quyết định chưa có tên";
   res.status(200).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 

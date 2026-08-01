@@ -34,10 +34,10 @@ export const receivablesTools = [
     }),
     run: async (args) => {
       const data = await getStatementData(args.customerId, args.dateFrom, args.dateTo);
-      if (!data) throw new ToolError(`Không có dữ liệu sao kê khách #${args.customerId}`, 'not_found');
+      if (!data) throw new ToolError('Không có dữ liệu sao kê của khách hàng đã chọn', 'not_found');
       return data;
     },
-    label: (a) => `Sao kê khách #${a.customerId}`,
+    label: () => 'Sao kê khách hàng',
   }),
 
   defineReadTool({
@@ -46,7 +46,7 @@ export const receivablesTools = [
     allowedRoles: OFFICE_ROLES,
     params: z.object({ customerId: z.coerce.number().int().positive() }),
     run: (args) => LedgerService.getBalance('CUSTOMER', args.customerId),
-    label: (a) => `Nợ khách #${a.customerId}`,
+    label: () => 'Công nợ khách hàng',
   }),
 
   defineReadTool({

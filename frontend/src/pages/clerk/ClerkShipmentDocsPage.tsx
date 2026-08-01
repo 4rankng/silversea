@@ -189,6 +189,7 @@ export default function ClerkShipmentDocsPage() {
     operationalNotes: '',
   });
   const [version, setVersion] = useState(1);
+  const [businessUnitNames, setBusinessUnitNames] = useState<Map<number, string>>(new Map());
   const [rows, setRows] = useState<ContainerRow[]>([]);
   const [documentForm, setDocumentForm] = useState(EMPTY_DOC_FORM);
   const [replaceDocumentTarget, setReplaceDocumentTarget] = useState<ShipmentDocument | null>(null);
@@ -227,6 +228,7 @@ export default function ClerkShipmentDocsPage() {
     setContainerTypes(bootstrap.containerTypes);
     setPortOptions((bootstrap.ports ?? []).map((port) => ({ id: port.id, label: port.name })));
     setRouteOptions(bootstrap.routes.map((route) => ({ id: route.id, label: route.name })));
+    setBusinessUnitNames(new Map((bootstrap.businessUnits ?? []).map((unit) => [unit.id, unit.name])));
     setOperationalSites(sites);
     setShipmentForm({
       routeId: loadedDetail.shipment.routeId != null ? String(loadedDetail.shipment.routeId) : '',
@@ -628,11 +630,9 @@ export default function ClerkShipmentDocsPage() {
           disabled={savingShipment || assignedResponsibleUnitIds.length === 0}
         >
           <option value="">— Chưa gán —</option>
-          {assignedResponsibleUnitIds.map((unitId, index) => (
+          {assignedResponsibleUnitIds.map((unitId) => (
             <option key={unitId} value={String(unitId)}>
-              {unitId === detail.shipment.responsibleUnitId
-                ? 'Đơn vị phụ trách hiện tại'
-                : `Đơn vị được phân quyền ${index + 1}`}
+              {businessUnitNames.get(unitId) ?? 'Đơn vị chưa xác định'}
             </option>
           ))}
         </SelectField>

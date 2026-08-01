@@ -204,7 +204,7 @@ export async function assertFuelReconClear(
   throw new ApiError(
     409,
     `Chênh lệch nhiên liệu ${varianceAbs.toLocaleString('vi-VN')} ₫ (${pct}) cho nhà cung cấp ` +
-    `${row?.supplierName ?? `#${expense.supplierId}`} trong kỳ ${period.from} → ${period.to}. ` +
+    `${row?.supplierName ?? 'Nhà cung cấp chưa xác định'} trong kỳ ${period.from} → ${period.to}. ` +
     `Cần ghi giải trình trước khi phê duyệt.`,
   );
 }

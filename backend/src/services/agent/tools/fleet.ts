@@ -37,7 +37,7 @@ export const fleetTools = [
       year: z.coerce.number().int().min(2000),
     }),
     run: (args) => getDriverEarnings(args.driverId, args.month, args.year),
-    label: (a) => `Thu nhập #${a.driverId}`,
+    label: () => 'Thu nhập lái xe',
   }),
 
   defineReadTool({
@@ -50,7 +50,7 @@ export const fleetTools = [
       dateTo: z.string().optional(),
     }),
     run: (args) => getDriverPenalties(args.driverId, args.dateFrom, args.dateTo),
-    label: (a) => `Phạt #${a.driverId}`,
+    label: () => 'Kỷ luật lái xe',
   }),
 
   defineReadTool({

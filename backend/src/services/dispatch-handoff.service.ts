@@ -84,7 +84,7 @@ export async function createHandoff(input: CreateHandoffInput) {
   emitNotification({
     type: NotificationType.SHIPMENT_HANDOFF,
     title: 'Lô hàng mới cần điều vận',
-    message: `Lô ${shipment.shipmentCode ?? `#${shipment.id}`} đã được giao cho điều vận`,
+    message: `Lô ${shipment.shipmentCode ?? 'chưa có mã'} đã được giao cho điều vận`,
     relatedEntityType: 'shipments',
     relatedEntityId: shipment.id,
     targetUserId: input.handlerId ?? undefined,

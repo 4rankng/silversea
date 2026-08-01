@@ -264,7 +264,6 @@ async function toEffectiveFuelInvoiceView(
 function assertLinkedFuelExpenseAuthority(params: {
   allocationLabel: string;
   tripId: number;
-  tripExpenseId: number;
   invoiceSupplierId: number;
   voucherReference: string;
   voucherDate: string;
@@ -275,7 +274,6 @@ function assertLinkedFuelExpenseAuthority(params: {
   const {
     allocationLabel,
     tripId,
-    tripExpenseId,
     invoiceSupplierId,
     voucherReference,
     voucherDate,
@@ -285,31 +283,31 @@ function assertLinkedFuelExpenseAuthority(params: {
   } = params;
 
   if (!expense) {
-    throw new ApiError(400, `Không tìm thấy chi phí nhiên liệu #${tripExpenseId} cho ${allocationLabel}`);
+    throw new ApiError(400, `Không tìm thấy chi phí nhiên liệu cho ${allocationLabel}`);
   }
   if (expense.tripId !== tripId) {
-    throw new ApiError(400, `Chi phí nhiên liệu #${tripExpenseId} không thuộc chuyến #${tripId}`);
+    throw new ApiError(400, 'Chi phí nhiên liệu không thuộc chuyến đã chọn');
   }
   if (!isFuelExpenseType(expense.expenseType)) {
-    throw new ApiError(400, `Chi phí #${tripExpenseId} không phải chi phí nhiên liệu thực tế`);
+    throw new ApiError(400, 'Chi phí đã chọn không phải chi phí nhiên liệu thực tế');
   }
   if (expense.supplierId !== invoiceSupplierId) {
-    throw new ApiError(400, `Chi phí nhiên liệu #${tripExpenseId} không khớp nhà cung cấp trên hóa đơn`);
+    throw new ApiError(400, 'Chi phí nhiên liệu không khớp nhà cung cấp trên hóa đơn');
   }
   if (expense.approvalStatus !== 'APPROVED') {
-    throw new ApiError(400, `Chi phí nhiên liệu #${tripExpenseId} chưa ở trạng thái APPROVED`);
+    throw new ApiError(400, 'Chi phí nhiên liệu chưa được phê duyệt');
   }
   if (!expense.expenseDate) {
-    throw new ApiError(400, `Chi phí nhiên liệu #${tripExpenseId} chưa có ngày chi thực tế để đối chiếu`);
+    throw new ApiError(400, 'Chi phí nhiên liệu chưa có ngày chi thực tế để đối chiếu');
   }
   if (expense.expenseDate !== voucherDate) {
-    throw new ApiError(400, `${allocationLabel} phải trùng ngày chi ${expense.expenseDate} của chi phí nhiên liệu #${tripExpenseId}`);
+    throw new ApiError(400, `${allocationLabel} phải trùng ngày chi ${expense.expenseDate} của chi phí nhiên liệu`);
   }
   const approvedAmount = Number(expense.buyAmount);
   if (!amountsMatch(computedAmount, approvedAmount)) {
     throw new ApiError(
       400,
-      `${allocationLabel} không khớp chi phí nhiên liệu đã duyệt #${tripExpenseId}: ${computedAmount} != ${approvedAmount}`,
+      `${allocationLabel} không khớp chi phí nhiên liệu đã duyệt: ${computedAmount} != ${approvedAmount}`,
     );
   }
 
@@ -319,7 +317,7 @@ function assertLinkedFuelExpenseAuthority(params: {
     if (!normalizedVoucherReference || !authoritativeReferences.includes(normalizedVoucherReference)) {
       throw new ApiError(
         400,
-        `${allocationLabel} phải khớp chứng từ đã duyệt của chi phí nhiên liệu #${tripExpenseId}: ${authoritativeReferences.join(' / ')}`,
+        `${allocationLabel} phải khớp chứng từ đã duyệt của chi phí nhiên liệu: ${authoritativeReferences.join(' / ')}`,
       );
     }
     return;
@@ -328,7 +326,7 @@ function assertLinkedFuelExpenseAuthority(params: {
   if (photoCount <= 0) {
     throw new ApiError(
       400,
-      `Chi phí nhiên liệu #${tripExpenseId} chưa có số hóa đơn/tờ khai và cũng chưa có ảnh phiếu bơm hoặc chứng từ`,
+      'Chi phí nhiên liệu chưa có số hóa đơn/tờ khai và cũng chưa có ảnh phiếu bơm hoặc chứng từ',
     );
   }
 }
@@ -406,6 +404,7 @@ async function buildAllocationRows(
   const trips = tripIds.length > 0
     ? await tx.select({
       id: s.trips.id,
+      tripCode: s.trips.tripCode,
       truckId: s.trips.truckId,
       deletedAt: s.trips.deletedAt,
     }).from(s.trips).where(inArray(s.trips.id, tripIds))
@@ -436,7 +435,7 @@ async function buildAllocationRows(
   const rows = input.allocations.map((allocation) => {
     const trip = tripById.get(allocation.tripId);
     if (!trip || trip.deletedAt) {
-      throw new ApiError(400, `Không tìm thấy chuyến #${allocation.tripId} cho dòng phân bổ`);
+      throw new ApiError(400, 'Không tìm thấy chuyến đã chọn cho dòng phân bổ');
     }
     if (!allocation.voucherReference) {
       throw new ApiError(400, 'Mỗi dòng phân bổ phải có số phiếu hoặc nhật ký đổ nhiên liệu');
@@ -446,9 +445,8 @@ async function buildAllocationRows(
     }
     if (allocation.tripExpenseId != null) {
       assertLinkedFuelExpenseAuthority({
-        allocationLabel: `Dòng phân bổ chuyến #${allocation.tripId}`,
+        allocationLabel: `Dòng phân bổ chuyến ${trip.tripCode ?? 'chưa có mã'}`,
         tripId: allocation.tripId,
-        tripExpenseId: allocation.tripExpenseId,
         invoiceSupplierId: input.supplierId,
         voucherReference: allocation.voucherReference,
         voucherDate: allocation.voucherDate,
@@ -459,10 +457,10 @@ async function buildAllocationRows(
     }
     const truckId = allocation.truckId ?? trip.truckId;
     if (truckId == null) {
-      throw new ApiError(400, `Chuyến #${allocation.tripId} chưa có xe để phân bổ nhiên liệu`);
+      throw new ApiError(400, `Chuyến ${trip.tripCode ?? 'chưa có mã'} chưa có xe để phân bổ nhiên liệu`);
     }
     if (allocation.truckId != null && trip.truckId != null && allocation.truckId !== trip.truckId) {
-      throw new ApiError(400, `Xe phân bổ không khớp xe của chuyến #${allocation.tripId}`);
+      throw new ApiError(400, `Xe phân bổ không khớp xe của chuyến ${trip.tripCode ?? 'chưa có mã'}`);
     }
     allocatedLiters = round2dp(allocatedLiters + allocation.liters);
     return {
@@ -802,7 +800,6 @@ export async function approveFuelInvoice(
       assertLinkedFuelExpenseAuthority({
         allocationLabel: `Dòng phân bổ ${allocation.id}`,
         tripId: allocation.tripId,
-        tripExpenseId: allocation.tripExpenseId,
         invoiceSupplierId: invoice.supplierId,
         voucherReference: allocation.voucherReference,
         voucherDate: allocation.voucherDate,

@@ -84,7 +84,7 @@ export async function assertCanAllocateDisbursement(tripExpenseId: number): Prom
   if (result.alreadyAllocated) {
     throw new ApiError(
       409,
-      `Chi phí đã có trong giấy báo nợ #${result.allocatedDocumentId}. Sử dụng điều chỉnh nếu cần thay đổi kỳ.`,
+      'Chi phí đã có trong một giấy báo nợ. Sử dụng điều chỉnh nếu cần thay đổi kỳ.',
     );
   }
 }

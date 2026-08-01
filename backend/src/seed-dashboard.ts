@@ -431,7 +431,7 @@ async function insertLedgerEntry(customerId: number, amount: number, tripId: num
     credit: '0',
     balance: vnd(newBalance),
     timestamp: new Date(dateStr + 'T08:00:00Z'),
-    note: `Cước chuyến #${tripId}`,
+    note: 'Cước vận chuyển',
   });
 }
 

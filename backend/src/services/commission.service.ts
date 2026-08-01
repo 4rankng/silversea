@@ -20,7 +20,7 @@ type CommissionStoredResult = CommissionResult & { id: number };
 type GovernanceActionRow = typeof s.governanceActions.$inferSelect;
 
 function buildCommissionReason(input: CommissionInput): string {
-  return input.note?.trim() || `Đề nghị ghi nhận hoa hồng NCC #${input.supplierId}`;
+  return input.note?.trim() || 'Đề nghị ghi nhận hoa hồng nhà cung cấp';
 }
 
 function buildCommissionSubjectKey(input: CommissionInput): string {

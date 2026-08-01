@@ -61,7 +61,7 @@ async function loadBoundAction(
   ) {
     throw new ApiError(
       404,
-      `Không tìm thấy yêu cầu ${operationLabel(operation)} #${actionId} của kỳ ${period}`,
+      `Không tìm thấy yêu cầu ${operationLabel(operation)} của kỳ ${period}`,
     );
   }
   return action;

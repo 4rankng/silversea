@@ -77,6 +77,7 @@ export interface CustomerStatementData {
   availableCapacity: number | null;
   unpaidTrips: Array<{
     tripId: number;
+    tripCode: string | null;
     date: string;
     outstanding: number;
     note: string;
@@ -598,10 +599,11 @@ export async function getStatementData(customerId: number, dateFrom?: string, da
         ?? obligation.authorityId;
       const directRevenue = revenueAuthorityByTrip.get(tripId);
       const note = obligation.authorityType === 'BILLING_DOCUMENT'
-        ? obligation.label ?? `Giấy báo nợ #${obligation.authorityId}`
+        ? obligation.label ?? 'Giấy báo nợ chưa có số chứng từ'
         : tripNotes.get(tripId) || directRevenue?.note || '';
       return {
         tripId,
+        tripCode: tripDetailsMap.get(tripId)?.tripCode ?? null,
         date: obligation.issueTimestamp.slice(0, 10),
         issueTimestamp: obligation.issueTimestamp,
         outstanding: obligation.outstanding,
@@ -1092,7 +1094,7 @@ async function buildStatementXlsx(config: StatementExportConfig, dateStr: string
 
     for (const item of config.unpaidTrips) {
       const values = [
-        `#${item.tripId}`,
+        item.tripCode ?? 'Chuyến chưa có mã',
         item.date,
         item.originalDueDate ?? 'Chưa có dữ liệu lịch sử',
         item.processingDueDate ?? 'Chưa có dữ liệu lịch sử',
@@ -1240,7 +1242,7 @@ async function buildStatementHtml(config: StatementExportConfig, dateStr: string
 
   const contactHtml = config.contactLines.map(l => escapeHtml(l)).join('<br>\n  ');
   const dueDateRows = (config.unpaidTrips ?? []).map(item => `<tr>
-    <td>#${item.tripId}</td>
+    <td>${escapeHtml(item.tripCode ?? 'Chuyến chưa có mã')}</td>
     <td>${escapeHtml(item.date)}</td>
     <td>${escapeHtml(item.originalDueDate ?? 'Chưa có dữ liệu lịch sử')}</td>
     <td>${escapeHtml(item.processingDueDate ?? 'Chưa có dữ liệu lịch sử')}</td>

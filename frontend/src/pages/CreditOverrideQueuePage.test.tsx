@@ -19,7 +19,13 @@ const {
     userId: 99,
   },
   creditQueueState: {
-    data: [] as CreditOverrideRequestRecord[],
+    data: {
+      items: [] as CreditOverrideRequestRecord[],
+      page: 1,
+      limit: 25,
+      total: 0,
+      totalPages: 0,
+    },
     isLoading: false,
     isFetching: false,
     isError: false,
@@ -38,11 +44,36 @@ vi.mock('../hooks/useAuth', () => ({
   }),
 }));
 
-vi.mock('../hooks/useCreditOverrideQueries', () => ({
-  useCreditOverrideQueue: () => ({
-    ...creditQueueState,
-    refetch: queueRefetchMock,
+vi.mock('../hooks/useCatalogs', () => ({
+  useCatalogs: () => ({
+    data: {
+      customers: [
+        { id: 7, name: 'Công ty Minh Hải' },
+        { id: 8, name: 'Công ty Đại Dương' },
+      ],
+    },
   }),
+}));
+
+vi.mock('../hooks/useCreditOverrideQueries', () => ({
+  useCreditOverrideQueue: (filters: { customerId?: number; page?: number; limit?: number }) => {
+    const filteredItems = filters.customerId
+      ? creditQueueState.data.items.filter((request) => request.customerId === filters.customerId)
+      : creditQueueState.data.items;
+    const limit = filters.limit ?? 25;
+    const page = filters.page ?? 1;
+    return {
+      ...creditQueueState,
+      data: {
+        items: filteredItems.slice((page - 1) * limit, page * limit),
+        page,
+        limit,
+        total: filteredItems.length,
+        totalPages: filteredItems.length === 0 ? 0 : Math.ceil(filteredItems.length / limit),
+      },
+      refetch: queueRefetchMock,
+    };
+  },
   useApproveCreditOverrideRequest: () => ({
     mutateAsync: approveMutateAsyncMock,
     isPending: false,
@@ -126,7 +157,7 @@ describe('CreditOverrideQueuePage', () => {
     queueRefetchMock.mockReset();
     currentUserState.role = Role.ADMIN;
     currentUserState.userId = 99;
-    creditQueueState.data = [makeRequest()];
+    creditQueueState.data.items = [makeRequest()];
     creditQueueState.isLoading = false;
     creditQueueState.isFetching = false;
     creditQueueState.isError = false;
@@ -148,7 +179,7 @@ describe('CreditOverrideQueuePage', () => {
   });
 
   it('filters by customer name without exposing the database customer id', async () => {
-    creditQueueState.data = [
+    creditQueueState.data.items = [
       makeRequest(),
       makeRequest({ id: 802, customerId: 8, customerName: 'Công ty Đại Dương', reason: 'Cần giao hàng trong ngày.' }),
     ];
@@ -161,8 +192,24 @@ describe('CreditOverrideQueuePage', () => {
     expect(document.body.textContent).not.toMatch(/Khách hàng\s*#\d+/);
   });
 
+  it('lets reviewers reach every matching request through pagination', async () => {
+    creditQueueState.data.items = Array.from({ length: 26 }, (_, index) => makeRequest({
+      id: 800 + index,
+      reason: `Lý do đề nghị ${index + 1}`,
+    }));
+    renderPage();
+
+    expect(await screen.findByText('Lý do đề nghị 1')).toBeTruthy();
+    expect(screen.queryByText('Lý do đề nghị 26')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '2' }));
+
+    expect(await screen.findByText('Lý do đề nghị 26')).toBeTruthy();
+    expect(screen.queryByText('Lý do đề nghị 1')).toBeNull();
+    expect(screen.getByText(/Hiển thị/).textContent).toContain('26');
+  });
+
   it('keeps the empty queue useful and lets the user clear custom filters', async () => {
-    creditQueueState.data = [];
+    creditQueueState.data.items = [];
     renderPage();
 
     expect(await screen.findByText('Không có đề nghị chờ duyệt')).toBeTruthy();
@@ -180,7 +227,7 @@ describe('CreditOverrideQueuePage', () => {
   });
 
   it('announces loading and error states', async () => {
-    creditQueueState.data = [];
+    creditQueueState.data.items = [];
     creditQueueState.isLoading = true;
     const { unmount } = renderPage();
 
@@ -196,7 +243,7 @@ describe('CreditOverrideQueuePage', () => {
   });
 
   it('renders decision roles with Vietnamese labels', async () => {
-    creditQueueState.data = [makeRequest({
+    creditQueueState.data.items = [makeRequest({
       status: 'APPROVED',
       workflowStatus: 'APPROVED',
       approvedRole: 'ACCOUNTANT',
@@ -209,7 +256,7 @@ describe('CreditOverrideQueuePage', () => {
   });
 
   it('lets ADMIN approve either tier and sends expectedVersion', async () => {
-    creditQueueState.data = [
+    creditQueueState.data.items = [
       makeRequest({ id: 701, requiredTier: 'FINANCE_TIER_1', version: 4 }),
       makeRequest({ id: 702, requiredTier: 'DIRECTOR', version: 9 }),
     ];
@@ -230,7 +277,7 @@ describe('CreditOverrideQueuePage', () => {
   });
 
   it('lets a distinct finance actor complete the checker step before approval', async () => {
-    creditQueueState.data = [
+    creditQueueState.data.items = [
       makeRequest({
         workflowStatus: 'PENDING_CHECK',
         checkedBy: null,
@@ -251,7 +298,7 @@ describe('CreditOverrideQueuePage', () => {
   });
 
   it('prevents the checker from also approving the same request', async () => {
-    creditQueueState.data = [makeRequest({ checkedBy: 99 })];
+    creditQueueState.data.items = [makeRequest({ checkedBy: 99 })];
     renderPage();
 
     expect(await screen.findByText(/người khác phải phê duyệt hoặc từ chối/i)).toBeTruthy();
@@ -259,7 +306,7 @@ describe('CreditOverrideQueuePage', () => {
   });
 
   it('shows wrong-tier requests as read-only for ACCOUNTANT and MANAGER', async () => {
-    creditQueueState.data = [
+    creditQueueState.data.items = [
       makeRequest({ id: 701, requiredTier: 'FINANCE_TIER_1' }),
       makeRequest({ id: 702, requiredTier: 'DIRECTOR' }),
     ];
@@ -290,7 +337,7 @@ describe('CreditOverrideQueuePage', () => {
   });
 
   it('blocks self-approval in the dedicated queue', async () => {
-    creditQueueState.data = [makeRequest({ requestedBy: 99 })];
+    creditQueueState.data.items = [makeRequest({ requestedBy: 99 })];
     renderPage();
 
     expect(await screen.findByText(/không thể tự kiểm tra, phê duyệt hoặc từ chối/i)).toBeTruthy();

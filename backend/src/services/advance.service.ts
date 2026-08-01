@@ -375,7 +375,7 @@ export async function approveAdvanceRequest(
     const [user] = await tx.select({ fullName: s.users.fullName })
       .from(s.users)
       .where(eq(s.users.id, request.requesterId));
-    const requesterName = user?.fullName ?? `#${request.requesterId}`;
+    const requesterName = user?.fullName?.trim() || 'Nhân viên giao nhận';
 
     const now = new Date();
     const [updated] = await tx.update(s.advanceRequests)
@@ -1170,7 +1170,7 @@ export async function approveAdvanceSettlement(
       entityId: settlement.forwarderId,
       debit: totalAmount,
       credit: 0,
-      note: `Thanh toán tạm ứng #${settlement.id}`,
+      note: 'Thanh toán và quyết toán tạm ứng',
     });
 
     return {

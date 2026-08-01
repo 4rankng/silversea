@@ -114,7 +114,7 @@ describe('GovernanceActionsPage', () => {
     expect(screen.queryByText('Kiểm soát maker / checker / approver')).toBeNull();
     expect(screen.getByText('Chốt kỳ lương')).toBeTruthy();
     expect(screen.getAllByText('Chờ kiểm tra')).toHaveLength(2);
-    expect(screen.getByText('ACCOUNTANT · #12')).toBeTruthy();
+    expect(screen.getByText('Kế toán')).toBeTruthy();
     expect(screen.getByText('Đã đối soát đủ bảng công và điều chỉnh.')).toBeTruthy();
     expect(screen.getByText('1 yêu cầu đang chờ quyết định theo quyền của bạn.')).toBeTruthy();
     expect(screen.getByText('Phiên bản').parentElement?.textContent).toContain('YC 4 · Gốc 3');

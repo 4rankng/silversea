@@ -98,7 +98,7 @@ def test_customer_portal(ctx: NepoTestContext, results: TestResults):
     min_target = mobile.locator('.customer-shell__bottom-nav a').evaluate_all(
         '(els) => Math.min(...els.map((el) => el.getBoundingClientRect().height))'
     )
-    if mobile_nav == ['Lô hàng', 'Giấy báo nợ', 'Sao kê'] and min_target >= 44:
+    if mobile_nav == ['Lô hàng của tôi', 'Giấy báo nợ', 'Sao kê công nợ'] and min_target >= 44:
         results.pass_('TC-1520', 'Mobile bottom navigation has three usable customer actions')
     else:
         results.fail('TC-1520', 'Mobile navigation', f'nav={mobile_nav}, minHeight={min_target}')

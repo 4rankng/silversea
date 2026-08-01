@@ -405,11 +405,19 @@ describe('Q01/Q02 credit override routes', () => {
       token: managerToken,
     });
     assert.equal(listed.status, 200);
-    const listedRequest = listed.body.find((row: { id: number }) => row.id === created.body.id);
+    const listedRequest = listed.body.items.find((row: { id: number }) => row.id === created.body.id);
     assert.ok(listedRequest);
     assert.equal(listedRequest.customerName, customer.name);
-    assert.equal(typeof listedRequest.requestedByName, 'string');
-    assert.equal(typeof listedRequest.checkedByName, 'string');
+    assert.equal(listedRequest.requestedByName, 'Kế toán');
+    assert.equal(listedRequest.checkedByName, 'Quản trị viên');
+
+    const detailed = await request(`/api/finance/credit-overrides/${created.body.id}`, {
+      token: managerToken,
+    });
+    assert.equal(detailed.status, 200);
+    assert.equal(detailed.body.customerName, customer.name);
+    assert.equal(detailed.body.requestedByName, 'Kế toán');
+    assert.equal(detailed.body.checkedByName, 'Quản trị viên');
 
     const rejectKey = `q23-credit-reject-${created.body.id}`;
     const rejected = await request(`/api/finance/credit-overrides/${created.body.id}/reject`, {
@@ -457,6 +465,54 @@ describe('Q01/Q02 credit override routes', () => {
       body: { expectedVersion: checked.body.version },
     });
     assert.equal(staleApprove.status, 409);
+  });
+
+  test('lists the complete filtered history through stable pagination', async () => {
+    const customer = await mkCustomer('10000000');
+    await mkLedger(customer.id, 10_500_000);
+
+    for (let index = 1; index <= 3; index += 1) {
+      const created = await request('/api/finance/credit-overrides', {
+        method: 'POST',
+        token: managerToken,
+        idempotencyKey: `q01-credit-page-${customer.id}-${index}`,
+        body: {
+          customerId: customer.id,
+          proposedAmount: 100_000 + index,
+          expiresAt: futureExpiry,
+          reason: `Đề nghị phân trang ${index}`,
+        },
+      });
+      assert.equal(created.status, 201);
+    }
+
+    const firstPage = await request(
+      `/api/finance/credit-overrides?customerId=${customer.id}&status=PENDING&limit=2&page=1`,
+      { token: managerToken },
+    );
+    const secondPage = await request(
+      `/api/finance/credit-overrides?customerId=${customer.id}&status=PENDING&limit=2&page=2`,
+      { token: managerToken },
+    );
+
+    assert.equal(firstPage.status, 200);
+    assert.equal(secondPage.status, 200);
+    assert.deepEqual(
+      {
+        page: firstPage.body.page,
+        limit: firstPage.body.limit,
+        total: firstPage.body.total,
+        totalPages: firstPage.body.totalPages,
+        itemCount: firstPage.body.items.length,
+      },
+      { page: 1, limit: 2, total: 3, totalPages: 2, itemCount: 2 },
+    );
+    assert.equal(secondPage.body.page, 2);
+    assert.equal(secondPage.body.items.length, 1);
+    assert.equal(
+      firstPage.body.items.some((row: { id: number }) => row.id === secondPage.body.items[0].id),
+      false,
+    );
   });
 
   test('credit override create rolls back when idempotency persistence fails after the business callback', async () => {

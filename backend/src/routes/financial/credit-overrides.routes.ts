@@ -46,7 +46,8 @@ const rejectSchema = decisionSchema.extend({
 const listSchema = z.object({
   customerId: z.coerce.number().int().positive().optional(),
   status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'CANCELED']).optional(),
-  limit: z.coerce.number().int().min(1).max(200).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  page: z.coerce.number().int().min(1).optional(),
 });
 
 function parseRequestId(rawId: string | string[]): number {
@@ -54,7 +55,7 @@ function parseRequestId(rawId: string | string[]): number {
   if (!Number.isInteger(id) || id <= 0) {
     throw new z.ZodError([{
       code: z.ZodIssueCode.custom,
-      message: 'ID đề nghị vượt hạn mức không hợp lệ',
+      message: 'Đề nghị vượt hạn mức không hợp lệ',
       path: ['id'],
     }]);
   }
@@ -81,7 +82,7 @@ router.get(
   requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT),
   asyncHandler(async (req, res) => {
     const filters = listSchema.parse(req.query);
-    res.json(await listCreditOverrideRequests(filters));
+    res.json(await listCreditOverrideRequests(filters, getUser(req).role));
   }),
 );
 
@@ -89,7 +90,7 @@ router.get(
   '/finance/credit-overrides/:id',
   requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT),
   asyncHandler(async (req, res) => {
-    res.json(await getCreditOverrideRequest(parseRequestId(req.params.id)));
+    res.json(await getCreditOverrideRequest(parseRequestId(req.params.id), getUser(req).role));
   }),
 );
 

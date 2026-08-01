@@ -348,7 +348,7 @@ router.post('/debit-notes/:id/confirm', asyncHandler(async (req: Request, res: R
         expectedStatus: 'PENDING_CONFIRM',
         expectedVersion: input.expectedVersion,
         actorUserId: user.userId,
-        confirmedBy: user.fullName ?? user.username ?? user.email ?? `Khách hàng #${doc.entityId}`,
+        confirmedBy: user.fullName?.trim() || 'Khách hàng xác nhận',
         transaction: tx,
       });
       return toCustomerDebitNote(await getDocument(doc.id, tx));

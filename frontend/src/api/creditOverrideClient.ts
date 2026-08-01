@@ -72,6 +72,15 @@ export interface CreditOverrideListFilters {
   status?: string;
   customerId?: number;
   limit?: number;
+  page?: number;
+}
+
+export interface CreditOverrideListResult {
+  items: CreditOverrideRequestRecord[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
 }
 
 function toQuery(filters?: CreditOverrideListFilters): string {
@@ -80,13 +89,14 @@ function toQuery(filters?: CreditOverrideListFilters): string {
   if (filters.status) query.set('status', filters.status);
   if (filters.customerId != null) query.set('customerId', String(filters.customerId));
   if (filters.limit != null) query.set('limit', String(filters.limit));
+  if (filters.page != null) query.set('page', String(filters.page));
   const serialized = query.toString();
   return serialized ? `?${serialized}` : '';
 }
 
 export const creditOverrideClient = {
   listRequests: (filters?: CreditOverrideListFilters) =>
-    api.get<CreditOverrideRequestRecord[]>(`/finance/credit-overrides${toQuery(filters)}`),
+    api.get<CreditOverrideListResult>(`/finance/credit-overrides${toQuery(filters)}`),
 
   getRequest: (id: number) =>
     api.get<CreditOverrideRequestRecord>(`/finance/credit-overrides/${id}`),

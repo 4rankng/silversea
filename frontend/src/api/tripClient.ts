@@ -49,6 +49,7 @@ export interface CatalogData {
     vatRate?: string | null;
   }>;
   suppliers: Array<{ id: number; name: string; status: string }>;
+  businessUnits?: Array<{ id: number; code: string | null; name: string }>;
 }
 
 type ListTripsParams = {
@@ -59,6 +60,7 @@ type ListTripsParams = {
   dateTo?: string;
   search?: string;
   truckId?: number;
+  driverId?: number;
   customerId?: number;
 };
 

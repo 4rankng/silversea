@@ -21,6 +21,8 @@ import {
   useRejectCreditOverrideRequest,
 } from '../hooks/useCreditOverrideQueries';
 import { useAuth } from '../hooks/useAuth';
+import { useCatalogs } from '../hooks/useCatalogs';
+import { Pagination } from '../design-system';
 import { canCheckCreditOverride, canDecideCreditOverride } from '../lib/credit-override-permissions';
 import { formatCurrency, formatDateTimeVN } from '../lib/format';
 import './CreditOverrideQueuePage.css';
@@ -145,17 +147,21 @@ function DecisionSummary({ request }: { request: CreditOverrideRequestRecord }) 
 
 export default function CreditOverrideQueuePage() {
   const { user } = useAuth();
+  const catalogs = useCatalogs();
   const [statusFilter, setStatusFilter] = React.useState<QueueFilterStatus>('PENDING');
   const [selectedCustomerId, setSelectedCustomerId] = React.useState('');
+  const [page, setPage] = React.useState(1);
   const [rejectReasons, setRejectReasons] = React.useState<Record<number, string>>({});
   const [actionErrors, setActionErrors] = React.useState<Record<number, string | null>>({});
 
   const filters = React.useMemo(
     () => ({
       status: statusFilter === 'ALL' ? undefined : statusFilter,
-      limit: 50,
+      customerId: selectedCustomerId ? Number(selectedCustomerId) : undefined,
+      limit: 25,
+      page,
     }),
-    [statusFilter],
+    [page, selectedCustomerId, statusFilter],
   );
 
   const queue = useCreditOverrideQueue(filters, true);
@@ -163,17 +169,21 @@ export default function CreditOverrideQueuePage() {
   const approveMutation = useApproveCreditOverrideRequest([filters]);
   const rejectMutation = useRejectCreditOverrideRequest([filters]);
 
-  const allRequests = queue.data ?? [];
+  const allRequests = queue.data?.items ?? [];
   const customerOptions = React.useMemo(() => {
-    const names = new Map<number, string>();
-    for (const request of allRequests) {
-      names.set(request.customerId, request.customerName || 'Khách hàng chưa có tên');
-    }
-    return [...names].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, 'vi'));
-  }, [allRequests]);
-  const requests = selectedCustomerId
-    ? allRequests.filter((request) => request.customerId === Number(selectedCustomerId))
-    : allRequests;
+    return [...(catalogs.data?.customers ?? [])]
+      .map(({ id, name }) => ({ id, name: name || 'Khách hàng chưa có tên' }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+  }, [catalogs.data?.customers]);
+  const requests = allRequests;
+  const totalRequests = queue.data?.total ?? 0;
+  const totalPages = queue.data?.totalPages ?? 0;
+
+  React.useEffect(() => {
+    if (!queue.data) return;
+    const lastAvailablePage = Math.max(queue.data.totalPages, 1);
+    if (page > lastAvailablePage) setPage(lastAvailablePage);
+  }, [page, queue.data]);
   const actionableCount = requests.filter((request) => canActOnRequest(request, user ?? null)).length;
   const pendingCount = requests.filter((request) => request.status === 'PENDING').length;
   const totalProposed = requests.reduce((sum, request) => sum + Number(request.proposedAmount || 0), 0);
@@ -182,6 +192,7 @@ export default function CreditOverrideQueuePage() {
   function clearFilters() {
     setStatusFilter('PENDING');
     setSelectedCustomerId('');
+    setPage(1);
   }
 
   async function handleCheck(request: CreditOverrideRequestRecord) {
@@ -307,12 +318,15 @@ export default function CreditOverrideQueuePage() {
         <div className="credit-override-queue__toolbar">
           <div className="credit-override-queue__toolbar-title">
             <h2 id="credit-override-queue-title">Hàng chờ phê duyệt</h2>
-            <span>{requests.length}</span>
+            <span>{totalRequests}</span>
           </div>
           <div className="credit-override-queue__filters" aria-label="Bộ lọc hàng chờ">
             <label className="credit-override-queue__field is-status">
               <span>Trạng thái</span>
-              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as QueueFilterStatus)}>
+              <select value={statusFilter} onChange={(event) => {
+                setStatusFilter(event.target.value as QueueFilterStatus);
+                setPage(1);
+              }}>
                 <option value="PENDING">Chờ duyệt</option>
                 <option value="APPROVED">Đã duyệt</option>
                 <option value="REJECTED">Đã từ chối</option>
@@ -324,7 +338,10 @@ export default function CreditOverrideQueuePage() {
               <span>Khách hàng</span>
               <span className="credit-override-queue__search-control">
                 <Search size={16} aria-hidden="true" />
-                <select value={selectedCustomerId} onChange={(event) => setSelectedCustomerId(event.target.value)}>
+                <select value={selectedCustomerId} onChange={(event) => {
+                  setSelectedCustomerId(event.target.value);
+                  setPage(1);
+                }}>
                   <option value="">Tất cả khách hàng</option>
                   {customerOptions.map((customer) => (
                     <option key={customer.id} value={customer.id}>{customer.name}</option>
@@ -370,6 +387,7 @@ export default function CreditOverrideQueuePage() {
       ) : null}
 
       {!queue.isLoading && !queue.isError && requests.length > 0 ? (
+        <>
         <div className="credit-override-queue__cards" data-testid="credit-override-card-list">
           {requests.map((request) => {
             const readOnlyReason = decisionMessage(request, user ?? null);
@@ -545,6 +563,14 @@ export default function CreditOverrideQueuePage() {
             );
           })}
         </div>
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          totalItems={totalRequests}
+          pageSize={queue.data?.limit ?? 25}
+          onChange={setPage}
+        />
+        </>
       ) : null}
         </div>
       </section>

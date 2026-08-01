@@ -170,7 +170,11 @@ function directAuthorityTypeForTxnType(txnType: string): ReceivableAuthorityType
 
 function isDebtOffsetAdjustmentRow(note: string | null, txnId: number): boolean {
   if (!note) return false;
-  return note.includes('bù trừ') || note.includes(`offset #${txnId}`) || note.includes(`offset ${txnId}`);
+  const normalized = note.toLocaleLowerCase('vi');
+  return normalized.includes('đối trừ công nợ')
+    || normalized.includes('bù trừ')
+    || normalized.includes(`offset #${txnId}`)
+    || normalized.includes(`offset ${txnId}`);
 }
 
 function isServiceFeeAdjustmentRow(note: string | null): boolean {
@@ -516,7 +520,7 @@ export async function getCustomerReceivableSnapshots(
         issueTimestamp: doc.issueTimestamp,
         originalDueDate: doc.originalDueDate,
         processingDueDate: doc.processingDueDate,
-        label: `Giấy báo nợ #${documentId}`,
+        label: 'Giấy báo nợ',
         paymentHistory: [...doc.allocations].sort((left, right) => left.timestamp.localeCompare(right.timestamp) || left.id - right.id),
       });
     }

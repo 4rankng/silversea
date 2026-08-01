@@ -309,7 +309,7 @@ export async function createShipmentChangeRequest(
     await persistNotificationInTx(tx, {
       type: NotificationType.SHIPMENT_HANDOFF,
       title: 'Có yêu cầu thay đổi kế hoạch lô hàng',
-      message: `Lô ${input.shipment.shipmentCode ?? `#${input.shipment.id}`} có thay đổi cần điều vận xem lại`,
+      message: `Lô ${input.shipment.shipmentCode ?? 'chưa có mã'} có thay đổi cần điều vận xem lại`,
       relatedEntityType: 'shipments',
       relatedEntityId: input.shipment.id,
       targetRoles: [Role.ADMIN, Role.MANAGER],
@@ -334,8 +334,8 @@ export async function persistChangeRequestDecisionNotification(tx: Tx, input: {
       ? 'Yêu cầu thay đổi lô hàng đã được áp dụng'
       : 'Yêu cầu thay đổi lô hàng đã bị từ chối',
     message: input.resolution === 'APPLIED'
-      ? `Lô ${input.shipmentCode ?? `#${input.shipmentId}`} đã được cập nhật theo yêu cầu của bạn`
-      : `Yêu cầu thay đổi cho lô ${input.shipmentCode ?? `#${input.shipmentId}`} đã bị từ chối`,
+      ? `Lô ${input.shipmentCode ?? 'chưa có mã'} đã được cập nhật theo yêu cầu của bạn`
+      : `Yêu cầu thay đổi cho lô ${input.shipmentCode ?? 'chưa có mã'} đã bị từ chối`,
     relatedEntityType: 'shipments',
     relatedEntityId: input.shipmentId,
     targetUserId: input.requesterId,
