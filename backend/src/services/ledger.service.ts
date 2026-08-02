@@ -91,6 +91,10 @@ export function customerTripReceivableAmount(
   return round2dp(Number(revenue ?? 0) + Number(fuelSurchargeAmount ?? 0));
 }
 
+export function tripExpenseVendorReceiptId(expenseId: number): string {
+  return `TRIP_EXPENSE:${expenseId}`.slice(0, 100);
+}
+
 /**
  * Resolve the polymorphic external-carrier soft pointer to the CARRIER ledger
  * entity id. Today only CUSTOMER-typed external entities post to the (AR-side)
@@ -413,6 +417,7 @@ export class LedgerService {
       await this.postEntry(tx, {
         txnType: TxnType.VENDOR_EXPENSE,
         txnId: fee.id,
+        receiptId: tripExpenseVendorReceiptId(fee.id),
         entityType: 'VENDOR',
         entityId: fee.supplierId,
         debit: 0,
@@ -542,6 +547,7 @@ export class LedgerService {
       await this.postEntry(tx, {
         txnType: TxnType.UNLOCK_REVERSAL,
         txnId: fee.id,
+        receiptId: tripExpenseVendorReceiptId(fee.id),
         entityType: 'VENDOR',
         entityId: fee.supplierId,
         debit: Number(fee.buyAmount),

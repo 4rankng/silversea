@@ -20,7 +20,6 @@ import authRoutes from '../routes/auth';
 import { appSettingsRouter } from '../routes/app-settings';
 import configRoutes, { salaryPeriodsAdminRouter, tireLifecycleRouter } from '../routes/config';
 import paymentsRoutes from '../routes/financial/payments.routes';
-import faqAdminRoutes from '../routes/faq-admin';
 import gpsSettingsRoutes from '../routes/gps-settings';
 import llmSettingsRoutes from '../routes/llm-settings';
 import { getAppSettings, saveAppSettings } from '../services/app-settings.service';
@@ -34,7 +33,6 @@ const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const idempotencyKeys = new Set<string>();
 const createdUserIds = new Set<number>();
 const createdBusinessUnitIds = new Set<number>();
-const createdFaqEntryIds = new Set<number>();
 const createdDebitTemplateIds = new Set<number>();
 const createdSalaryOverrideIds = new Set<number>();
 const createdTruckIds = new Set<number>();
@@ -128,7 +126,6 @@ async function cleanupPriorQ23ReplayArtifacts() {
     isNull(s.salaryPeriods.deletedAt),
   ));
   await db.delete(s.debitNoteTemplates).where(like(s.debitNoteTemplates.name, 'Q23 Template %'));
-  await db.delete(s.faqEntries).where(like(s.faqEntries.question, 'Q23 FAQ %'));
 }
 
 async function requestJson(path: string, init: {
@@ -173,7 +170,6 @@ before(async () => {
   app.use('/api/admin/app-settings', authMiddleware, casbinAuthz('config'), appSettingsRouter);
   app.use('/api/admin/gps-settings', authMiddleware, requireRoles(Role.ADMIN), gpsSettingsRoutes);
   app.use('/api/admin/llm-settings', authMiddleware, casbinAuthz('llm-settings'), requireRoles(Role.ADMIN), llmSettingsRoutes);
-  app.use('/api/admin/faq-entries', authMiddleware, casbinAuthz('faq-admin'), requireRoles(Role.ADMIN), faqAdminRoutes);
   app.use('/api', authMiddleware, casbinAuthz('config'), configRoutes);
   app.use('/api/salary-periods', authMiddleware, casbinAuthz('config'), salaryPeriodsAdminRouter);
   app.use('/api/fleet/tires', authMiddleware, casbinAuthz('config'), tireLifecycleRouter);
@@ -432,7 +428,7 @@ describe('Q23 focused settings/config replay closure', () => {
     assert.equal(unitDeleteReplay.body.replayed, true);
   });
 
-  test('admin-only settings and FAQ routes replay correctly and reject stale writes', async () => {
+  test('admin-only settings routes replay correctly and reject stale writes', async () => {
     const gpsRead = await requestJson('/api/admin/gps-settings', { token: adminToken });
     assert.equal(gpsRead.status, 200);
     const gpsVersion = typeof gpsRead.body.updatedAt === 'string' ? String(gpsRead.body.updatedAt) : undefined;
@@ -502,75 +498,6 @@ describe('Q23 focused settings/config replay closure', () => {
     });
     assert.equal(llmFirst.status, 200);
     assert.equal(llmReplay.body.replayed, true);
-
-    const faqForbidden = await requestJson('/api/admin/faq-entries', {
-      method: 'POST',
-      token: managerToken,
-      idempotencyKey: `q23-faq-forbidden-${suffix}`,
-      body: { question: 'Forbidden?', answer: 'No.' },
-    });
-    assert.equal(faqForbidden.status, 403);
-
-    const faqKey = `q23-faq-create-${suffix}`;
-    const faqPayload = {
-      question: `Q23 FAQ ${suffix}?`,
-      answer: 'Answer',
-      requiredTerms: ['phạt'],
-    };
-    const [faqCreateA, faqCreateB] = await Promise.all([
-      requestJson('/api/admin/faq-entries', {
-        method: 'POST',
-        token: adminToken,
-        idempotencyKey: faqKey,
-        body: faqPayload,
-      }),
-      requestJson('/api/admin/faq-entries', {
-        method: 'POST',
-        token: adminToken,
-        idempotencyKey: faqKey,
-        body: faqPayload,
-      }),
-    ]);
-    assert.equal(faqCreateA.status, 201);
-    assert.equal(faqCreateB.status, 201);
-    const faqEntry = (faqCreateA.body.entry ?? faqCreateB.body.entry) as Record<string, unknown>;
-    const faqId = Number(faqEntry.id);
-    createdFaqEntryIds.add(faqId);
-    const faqVersion = String(faqEntry.updatedAt);
-
-    const faqUpdateKey = `q23-faq-update-${suffix}`;
-    const faqUpdate = await requestJson(`/api/admin/faq-entries/${faqId}`, {
-      method: 'PUT',
-      token: adminToken,
-      idempotencyKey: faqUpdateKey,
-      expectedUpdatedAt: faqVersion,
-      body: { answer: 'Answer updated' },
-    });
-    const faqStale = await requestJson(`/api/admin/faq-entries/${faqId}`, {
-      method: 'PUT',
-      token: adminToken,
-      idempotencyKey: `q23-faq-stale-${suffix}`,
-      expectedUpdatedAt: faqVersion,
-      body: { answer: 'Answer stale' },
-    });
-    assert.equal(faqUpdate.status, 200);
-    assert.equal(faqStale.status, 409);
-
-    const faqDeleteKey = `q23-faq-delete-${suffix}`;
-    const faqDelete = await requestJson(`/api/admin/faq-entries/${faqId}`, {
-      method: 'DELETE',
-      token: adminToken,
-      idempotencyKey: faqDeleteKey,
-      expectedUpdatedAt: String((faqUpdate.body.entry as Record<string, unknown>).updatedAt),
-    });
-    const faqDeleteReplay = await requestJson(`/api/admin/faq-entries/${faqId}`, {
-      method: 'DELETE',
-      token: adminToken,
-      idempotencyKey: faqDeleteKey,
-      expectedUpdatedAt: String((faqUpdate.body.entry as Record<string, unknown>).updatedAt),
-    });
-    assert.equal(faqDelete.status, 200);
-    assert.equal(faqDeleteReplay.body.replayed, true);
   });
 
   test('config custom routes and tire lifecycle enforce replay, version, and slot concurrency', async () => {
@@ -1027,9 +954,6 @@ after(async () => {
 
   if (createdDebitTemplateIds.size > 0) {
     await db.delete(s.debitNoteTemplates).where(inArray(s.debitNoteTemplates.id, [...createdDebitTemplateIds]));
-  }
-  if (createdFaqEntryIds.size > 0) {
-    await db.delete(s.faqEntries).where(inArray(s.faqEntries.id, [...createdFaqEntryIds]));
   }
   if (createdSalaryOverrideIds.size > 0) {
     await db.delete(s.salaryPeriods).where(inArray(s.salaryPeriods.id, [...createdSalaryOverrideIds]));

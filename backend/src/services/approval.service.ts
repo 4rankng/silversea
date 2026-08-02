@@ -8,6 +8,7 @@ import { assertFuelReconClear } from './fuel-recon-guard.service';
 import { assertInvoiceRequiredForExpense } from './invoice-required.service';
 import { reviewNoInvoiceDisbursementApproval, toNoInvoicePolicySnapshotValue } from './no-invoice-disbursement.service';
 import { propagateExpenseApproval } from './source-change.service';
+import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
 import { assertCanMakeGovernanceAction } from './governance-policy';
 import type {
   GovernanceActionRow,
@@ -186,6 +187,10 @@ export async function processExpenseApproval(
   expectedExpenseVersion?: number,
 ): Promise<GuardedResult | { ok: true; outcome: 'APPROVED' | 'REJECTED' | 'RETURN_FOR_EVIDENCE' }> {
   const execute = async (tx: Tx) => {
+    if (action === 'APPROVED') {
+      await lockTripFinancialAuthority(tx, [tripId]);
+    }
+
     // Verify expense belongs to the specified trip
     const [expense] = await tx.select({
       tripId: s.tripExpenses.tripId,

@@ -25,10 +25,6 @@ export * from './llm-settings';
 // Used by the ADMIN-only settings route and the frontend config page.
 export * from './ocr-settings';
 
-// Admin FAQ knowledge base management — create/update/delete entries with
-// automatic embedding regeneration on save. Backs the chatbot fast lane.
-export * from './faq';
-
 // Event-driven mobile GPS geotagging — Zod submit schema + types consumed by
 // the geotag route/service (backend) and the geotag client (frontend).
 export * from './geotag';

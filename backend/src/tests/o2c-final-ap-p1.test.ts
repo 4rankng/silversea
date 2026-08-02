@@ -1,7 +1,7 @@
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { eq, inArray, sql } from 'drizzle-orm';
-import { Role, TripStatus, TxnType } from '@tingting/shared';
+import { and, eq, inArray, sql } from 'drizzle-orm';
+import { FuelMode, Role, TripStatus, TxnType } from '@tingting/shared';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
@@ -11,9 +11,12 @@ import {
   approveGovernanceAction,
   checkGovernanceAction,
   requestTripFinancialClose,
+  requestTripFinancialChange,
 } from '../services/adjustment-governance.service';
 import { ApSnapshotService } from '../services/ap-snapshot.service';
+import { LedgerService, tripExpenseVendorReceiptId } from '../services/ledger.service';
 import { SnapshotServices } from '../services/snapshot-services';
+import { lockTripFinancialAuthority } from '../services/trip-financial-authority-lock.service';
 
 const createdTripIds: number[] = [];
 const createdCustomerIds: number[] = [];
@@ -218,6 +221,13 @@ async function completeTripGoverned(tripId: number, expectedVersion: number) {
     approverRole: Role.ADMIN,
     expectedVersion: checked.version,
   });
+
+  const [completed] = await db.select()
+    .from(s.trips)
+    .where(eq(s.trips.id, tripId))
+    .limit(1);
+  assert.ok(completed);
+  return completed;
 }
 
 async function governTripExpenseApproval(tripId: number, expenseId: number, expectedVersion: number) {
@@ -261,6 +271,66 @@ async function governTripExpenseApproval(tripId: number, expenseId: number, expe
     approve(actors.approverAId),
     approve(actors.approverBId),
   ]);
+}
+
+async function prepareTripExpenseApproval(tripId: number, expenseId: number, expectedVersion: number) {
+  const actors = await createActors('expense-race');
+  const action = await requestTripExpenseDecision({
+    tripId,
+    expenseId,
+    decision: 'APPROVED',
+    reason: 'Duyệt chi phí NCC cho chuyến đã hoàn thành',
+    evidence: {
+      reviewNote: 'Đã đối chiếu chứng từ và số tiền chi hộ',
+      attachmentRefs: ['O2C-AP-RACE'],
+    },
+    expectedExpenseVersion: expectedVersion,
+    makerId: actors.makerId,
+    makerRole: Role.MANAGER,
+  });
+  const checked = await checkGovernanceAction({
+    actionId: action.id,
+    checkerId: actors.checkerId,
+    checkerRole: Role.ACCOUNTANT,
+    expectedVersion: action.version,
+  });
+  return {
+    checkedActionId: action.id,
+    checkedVersion: checked.version,
+    approverId: actors.approverAId,
+  };
+}
+
+async function prepareTripFinancialChange(tripId: number, expectedVersion: number) {
+  const actors = await createActors('trip-change');
+  const action = await requestTripFinancialChange({
+    tripId,
+    reason: 'Điều chỉnh chuyến đã hoàn thành trong lúc duyệt chi phí',
+    figures: {
+      legs: [],
+      fuelMode: FuelMode.AUTO,
+      fuelSupplementLiters: 0,
+      tollsDiscount: 0,
+      tollsAddition: 0,
+      tollsStations: 0,
+      hasReturnCargo: false,
+      revenue: 2_450_000,
+    },
+    makerId: actors.makerId,
+    makerRole: Role.MANAGER,
+    expectedTripVersion: expectedVersion,
+  });
+  const checked = await checkGovernanceAction({
+    actionId: action.id,
+    checkerId: actors.checkerId,
+    checkerRole: Role.ACCOUNTANT,
+    expectedVersion: action.version,
+  });
+  return {
+    checkedActionId: action.id,
+    checkedVersion: checked.version,
+    approverId: actors.approverAId,
+  };
 }
 
 describe('O2C final AP P1 fixes', () => {
@@ -335,5 +405,113 @@ describe('O2C final AP P1 fixes', () => {
     }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
     assert.equal(updatedTrip?.arSnapshotDirty, true);
     assert.equal(updatedTrip?.apSnapshotDirty, true);
+  });
+
+  test('late approval serializes with completed-trip financial correction and posts against the active authority', async () => {
+    const { trip, expense, expenseSupplier } = await createTripFixture({
+      expenseApprovalStatus: 'PENDING',
+    });
+    const completed = await completeTripGoverned(trip.id, trip.version);
+    const expenseApproval = await prepareTripExpenseApproval(trip.id, expense.id, expense.version);
+    const financialChange = await prepareTripFinancialChange(trip.id, completed.version);
+
+    let releaseLock!: () => void;
+    const lockHeld = new Promise<void>((resolve) => {
+      releaseLock = resolve;
+    });
+    let holderReady!: () => void;
+    const holderReadyPromise = new Promise<void>((resolve) => {
+      holderReady = resolve;
+    });
+    const lockHolder = db.transaction(async (tx) => {
+      await lockTripFinancialAuthority(tx, [trip.id]);
+      holderReady();
+      await lockHeld;
+    });
+    await holderReadyPromise;
+
+    const correctionPromise = approveGovernanceAction({
+      actionId: financialChange.checkedActionId,
+      approverId: financialChange.approverId,
+      approverRole: Role.ADMIN,
+      expectedVersion: financialChange.checkedVersion,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    const approvalPromise = approveGovernanceAction({
+      actionId: expenseApproval.checkedActionId,
+      approverId: expenseApproval.approverId,
+      approverRole: Role.ADMIN,
+      expectedVersion: expenseApproval.checkedVersion,
+    });
+    releaseLock();
+    await lockHolder;
+    await Promise.all([correctionPromise, approvalPromise]);
+
+    const [activePosting] = await db.select({
+      id: s.tripFinancialPostings.id,
+    }).from(s.tripFinancialPostings).where(and(
+      eq(s.tripFinancialPostings.tripId, trip.id),
+      eq(s.tripFinancialPostings.status, 'ACTIVE'),
+    )).limit(1);
+    assert.ok(activePosting);
+
+    const vendorRows = await db.select().from(s.ledger)
+      .where(eq(s.ledger.txnId, expense.id))
+      .orderBy(s.ledger.id);
+    const activePostingRows = vendorRows.filter((row) => (
+      row.entityType === 'VENDOR'
+      && row.entityId === expenseSupplier.id
+      && row.txnType === TxnType.VENDOR_EXPENSE
+      && row.financialPostingId === activePosting.id
+    ));
+    const netPayable = vendorRows
+      .filter((row) => row.entityType === 'VENDOR' && row.entityId === expenseSupplier.id)
+      .reduce((sum, row) => sum + Number(row.credit) - Number(row.debit), 0);
+    const receiptScopedRows = vendorRows.filter((row) => row.receiptId === tripExpenseVendorReceiptId(expense.id));
+    const receiptScopedNet = receiptScopedRows
+      .reduce((sum, row) => sum + Number(row.credit) - Number(row.debit), 0);
+    assert.equal(activePostingRows.length, 1);
+    assert.equal(netPayable, 300000);
+    assert.equal(receiptScopedNet, 300000);
+
+    const [updatedTrip] = await db.select({
+      arSnapshotDirty: s.trips.arSnapshotDirty,
+      apSnapshotDirty: s.trips.apSnapshotDirty,
+      version: s.trips.version,
+    }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+    assert.equal(updatedTrip?.arSnapshotDirty, true);
+    assert.equal(updatedTrip?.apSnapshotDirty, true);
+    assert.ok((updatedTrip?.version ?? 0) > completed.version);
+  });
+
+  test('late approval ignores unrelated vendor adjustment rows whose txnId collides with the expense id', async () => {
+    const { trip, expense, expenseSupplier } = await createTripFixture({
+      expenseApprovalStatus: 'PENDING',
+    });
+    await completeTripGoverned(trip.id, trip.version);
+
+    await db.transaction(async (tx) => {
+      await LedgerService.postEntry(tx, {
+        txnType: TxnType.ADJUSTMENT,
+        txnId: expense.id,
+        receiptId: `UNRELATED-VENDOR-ADJUSTMENT:${expense.id}`,
+        entityType: 'VENDOR',
+        entityId: expenseSupplier.id,
+        debit: 0,
+        credit: 999999,
+        note: 'Điều chỉnh NCC không liên quan',
+      });
+    });
+
+    const approvalResults = await governTripExpenseApproval(trip.id, expense.id, expense.version);
+    assert.equal(approvalResults.filter((result) => result.ok).length, 1);
+
+    const vendorRows = await db.select().from(s.ledger)
+      .where(eq(s.ledger.txnId, expense.id))
+      .orderBy(s.ledger.id);
+    const lateApprovalRows = vendorRows.filter((row) => row.receiptId === tripExpenseVendorReceiptId(expense.id));
+    assert.equal(lateApprovalRows.length, 1);
+    assert.equal(lateApprovalRows[0]?.txnType, TxnType.VENDOR_EXPENSE);
+    assert.equal(lateApprovalRows[0]?.credit, '300000');
   });
 });

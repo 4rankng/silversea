@@ -8,7 +8,7 @@ import {
 } from '@tingting/shared';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
-import { customerTripReceivableAmount, LedgerService } from './ledger.service';
+import { customerTripReceivableAmount, LedgerService, tripExpenseVendorReceiptId } from './ledger.service';
 import type { Tx } from './trip-shared';
 import {
   assertDraftDocumentLinesEditable,
@@ -630,6 +630,7 @@ async function appendLateApprovedVendorExpenseTx(tx: Tx, expenseId: number): Pro
     throw new ApiError(400, 'Ngày khởi hành là bắt buộc trước khi ghi nhận công nợ NCC cho chi phí đã duyệt');
   }
 
+  const sourceReceiptId = tripExpenseVendorReceiptId(expenseId);
   const existingRows = await tx.select({
     id: s.ledger.id,
     debit: s.ledger.debit,
@@ -643,11 +644,7 @@ async function appendLateApprovedVendorExpenseTx(tx: Tx, expenseId: number): Pro
     .where(and(
       eq(s.ledger.entityType, 'VENDOR'),
       eq(s.ledger.entityId, expense.supplierId),
-      eq(s.ledger.txnId, expenseId),
-      or(
-        eq(s.ledger.txnType, TxnType.VENDOR_EXPENSE),
-        eq(s.ledger.txnType, TxnType.ADJUSTMENT),
-      ),
+      eq(s.ledger.receiptId, sourceReceiptId),
     ));
   const posted = existingRows.reduce((sum, row) => sum + Number(row.credit) - Number(row.debit), 0);
   const delta = round2dp(Number(expense.buyAmount ?? 0) - posted);
@@ -690,6 +687,7 @@ async function appendLateApprovedVendorExpenseTx(tx: Tx, expenseId: number): Pro
     note: existingRows.length === 0
       ? `Chi hộ NCC chuyến ${expense.tripCode ?? ''}`.trim()
       : `Điều chỉnh chi hộ NCC chuyến ${expense.tripCode ?? ''}`.trim(),
+    receiptId: sourceReceiptId,
     ...dueDateFields,
     financialPostingId: activeFinancialPosting?.id ?? null,
   });

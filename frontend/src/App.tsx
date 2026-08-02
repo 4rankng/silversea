@@ -82,7 +82,6 @@ const FuelNormsConfigPage = lazy(() => import('./pages/config/FuelNormsConfigPag
 const WeightPricingTiersConfigPage = lazy(() => import('./pages/config/WeightPricingTiersConfigPage'));
 const LiftPricingConfigPage = lazy(() => import('./pages/config/LiftPricingConfigPage'));
 const AncillaryRevenueConfigPage = lazy(() => import('./pages/config/AncillaryRevenueConfigPage'));
-const FaqEntriesConfigPage = lazy(() => import('./pages/config/FaqEntriesConfigPage'));
 const AppSettingsConfigPage = lazy(() => import('./pages/config/AppSettingsConfigPage'));
 const MasterDataImportPage = lazy(() => import('./pages/config/MasterDataImportPage'));
 const CompanyInfoConfigPage = lazy(() => import('./pages/config/CompanyInfoConfigPage'));
@@ -260,7 +259,6 @@ export function AppRoutes() {
           <Route path="/config/lift-pricing" element={adminOnly(page(<LiftPricingConfigPage />))} />
           <Route path="/config/ancillary-revenue" element={adminOnly(page(<AncillaryRevenueConfigPage />))} />
           <Route path="/config/llm-settings" element={strictAdminOnly(<Navigate to="/config/app-settings" replace />)} />
-          <Route path="/config/faq-entries" element={strictAdminOnly(page(<FaqEntriesConfigPage />))} />
           <Route path="/config/app-settings" element={strictAdminOnly(page(<AppSettingsConfigPage />))} />
           <Route path="/config/master-data-import" element={strictAdminOnly(page(<MasterDataImportPage />))} />
           <Route path="/config/company-info" element={officeStaffOnly(page(<CompanyInfoConfigPage />))} />

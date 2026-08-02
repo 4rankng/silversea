@@ -79,7 +79,6 @@ export const CONFIG_ITEMS: SearchItem[] = [
   { id: 'forwarder-expense-types',type: 'config', label: 'Loại chi phí giao nhận',       description: 'Danh mục các khoản chi phí phát sinh do nhân viên giao nhận nhập (nâng hạ, hải quan, cân xe, kiểm tra…).', path: '/config/forwarder-expense-types', iconName: 'forwarder-expense', action: 'Sửa' },
   { id: 'debit-note-templates',  type: 'config', label: 'Mẫu giấy báo nợ',             description: 'Tạo và chọn mẫu xuất Excel giấy báo nợ theo từng khách hàng — logo, tiêu đề, cột, màu, điều khoản.',     path: '/config/debit-note-templates',  iconName: 'debit-note-template', action: 'Sửa' },
   // ADMIN-only — filtered out for MANAGER/ACCOUNTANT in getSearchItems below.
-  { id: 'faq-entries',           type: 'config', label: 'Câu hỏi thường gặp (FAQ)',      description: 'Quản lý cơ sở tri thức cho trợ lý ảo. Tự động tạo embedding khi lưu để trả lời câu hỏi nhanh.',         path: '/config/faq-entries',           iconName: 'faq',         action: 'Sửa', adminOnly: true },
   { id: 'app-settings',          type: 'config', label: 'Cài đặt ứng dụng',               description: 'Bật/tắt tính năng, chọn nhà cung cấp AI và cấu hình tài khoản định vị Bách Khoa.',                       path: '/config/app-settings',          iconName: 'app-settings', action: 'Sửa', adminOnly: true },
 ];
 

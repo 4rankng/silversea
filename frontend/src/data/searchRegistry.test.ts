@@ -18,7 +18,6 @@ const DISTINCT_CONFIG_ICONS = {
   'expense-categories': 'expense-category',
   'forwarder-expense-types': 'forwarder-expense',
   'debit-note-templates': 'debit-note-template',
-  'faq-entries': 'faq',
   'app-settings': 'app-settings',
 } as const;
 

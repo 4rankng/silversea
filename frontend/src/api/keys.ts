@@ -35,14 +35,6 @@ export const qk = {
     conversation: (id: string) => ['agent', 'conversation', id] as const,
   },
 
-  /* ── FAQ entries (admin-managed knowledge base) ────────────────────── */
-  faq: {
-    all: ['faq-entries'] as const,
-    /** Filtered list — search term + inactive visibility are part of the key. */
-    list: (search?: string, includeInactive?: boolean) =>
-      ['faq-entries', { search, includeInactive }] as const,
-  },
-
   /* ── Catalog (the big bootstrap + individual lookup tables) ─────────── */
 
   catalogs: {
