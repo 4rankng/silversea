@@ -194,7 +194,12 @@ def responsive_role_matrix(ctx: NepoTestContext, results: TestResults):
                         f"{label}: customer shipment link",
                     )
                 else:
-                    empty_state = page.get_by_text("Chưa có lô hàng")
+                    # Measure the complete empty-state surface, not its one-line
+                    # heading. The 44px rule applies to the usable surface; the
+                    # title itself is intentionally normal text height.
+                    empty_state = page.locator(".ds-empty-state").filter(
+                        has_text="Chưa có lô hàng"
+                    )
                     control_ok = assert_control_box(
                         page,
                         empty_state,
@@ -401,7 +406,8 @@ def test_dispatch_workflow(ctx: NepoTestContext, results: TestResults):
     customer_scope = customer_api.get("/api/portal/customer-scope")
     customer_id = customer_scope.get("data", {}).get("primaryCustomerId")
     customer_list = customer_api.get(f"/api/portal/shipments?page=1&limit=10&customerId={customer_id}" if customer_id else "/api/portal/shipments?page=1&limit=10")
-    customer_items = customer_list.get("data", {}).get("items") or customer_list.get("items")
+    customer_data = customer_list.get("data", {})
+    customer_items = customer_data.get("items") if "items" in customer_data else customer_list.get("items")
     if customer_list.get("status") == 200 and isinstance(customer_items, list):
         if customer_items:
             first_customer_item = customer_items[0]

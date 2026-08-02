@@ -1,34 +1,150 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
-import { describe, it } from 'node:test';
+import { after, describe, it } from 'node:test';
+import { inArray } from 'drizzle-orm';
+import { client, db } from '../db';
+import * as s from '../db/schema';
+
+const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+const ids = {
+  customers: [] as number[],
+  routes: [] as number[],
+  cargoTypes: [] as number[],
+  shipments: [] as number[],
+  trips: [] as number[],
+  milestones: [] as number[],
+};
+
+after(async () => {
+  if (ids.milestones.length > 0) {
+    await db.delete(s.shipmentMilestones).where(inArray(s.shipmentMilestones.id, ids.milestones));
+  }
+  if (ids.trips.length > 0) {
+    await db.delete(s.trips).where(inArray(s.trips.id, ids.trips));
+  }
+  if (ids.shipments.length > 0) {
+    await db.delete(s.shipments).where(inArray(s.shipments.id, ids.shipments));
+  }
+  if (ids.cargoTypes.length > 0) {
+    await db.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, ids.cargoTypes));
+  }
+  if (ids.routes.length > 0) {
+    await db.delete(s.routes).where(inArray(s.routes.id, ids.routes));
+  }
+  if (ids.customers.length > 0) {
+    await db.delete(s.customers).where(inArray(s.customers.id, ids.customers));
+  }
+  await client.end();
+});
 
 describe('customer workflow migration safety', () => {
-  it('keeps milestone uniqueness in the squashed baseline and preserves duplicate-preflight discipline in current incrementals', async () => {
-    const baselinePath = path.resolve(process.cwd(), 'drizzle/0000_third_wrecking_crew.sql');
-    const incrementalPath = path.resolve(process.cwd(), 'drizzle/0002_o2c_rev1_extensions.sql');
-    const baseline = await readFile(baselinePath, 'utf8');
-    const incremental = await readFile(incrementalPath, 'utf8');
+  it('enforces the current shipment milestone uniqueness fence only for trip-derived rows', async () => {
+    const indexRows = await client<{ indexname: string; indexdef: string }[]>`
+      select indexname, indexdef
+      from pg_indexes
+      where schemaname = 'public'
+        and tablename = 'shipment_milestones'
+        and indexname = 'shipment_milestones_trip_type_uniq'
+    `;
+    assert.equal(indexRows.length, 1, 'expected the canonical shipment milestone uniqueness index');
+    assert.match(indexRows[0]!.indexdef, /unique index .*shipment_milestones_trip_type_uniq/i);
+    assert.match(indexRows[0]!.indexdef, /where .*trip_id.*is not null/i);
 
-    assert.match(
-      baseline,
-      /CREATE UNIQUE INDEX "shipment_milestones_trip_type_uniq" ON "shipment_milestones"[\s\S]+WHERE "shipment_milestones"\."trip_id" is not null;/,
-      'the squashed baseline must keep the canonical milestone uniqueness contract',
+    const [customer] = await db.insert(s.customers)
+      .values({ name: `Migration safety customer ${suffix}` })
+      .returning({ id: s.customers.id });
+    ids.customers.push(customer.id);
+    const [route] = await db.insert(s.routes)
+      .values({ name: `Migration safety route ${suffix}` })
+      .returning({ id: s.routes.id });
+    ids.routes.push(route.id);
+    const [cargoType] = await db.insert(s.cargoTypes)
+      .values({ name: `Migration safety cargo ${suffix}` })
+      .returning({ id: s.cargoTypes.id });
+    ids.cargoTypes.push(cargoType.id);
+    const [shipment] = await db.insert(s.shipments)
+      .values({
+        shipmentCode: `MILESTONE-${suffix}`,
+        customerId: customer.id,
+        routeId: route.id,
+        cargoTypeId: cargoType.id,
+      })
+      .returning({ id: s.shipments.id });
+    ids.shipments.push(shipment.id);
+    const [trip] = await db.insert(s.trips)
+      .values({
+        tripCode: `MILESTONE-TRIP-${suffix}`,
+        shipmentId: shipment.id,
+        customerId: customer.id,
+        routeId: route.id,
+        cargoTypeId: cargoType.id,
+        departureDate: '2026-08-02',
+      })
+      .returning({ id: s.trips.id });
+    ids.trips.push(trip.id);
+
+    const [derived] = await db.insert(s.shipmentMilestones)
+      .values({
+        shipmentId: shipment.id,
+        tripId: trip.id,
+        type: 'DISPATCHED',
+        occurredAt: new Date('2026-08-02T06:00:00.000Z'),
+      })
+      .returning({ id: s.shipmentMilestones.id });
+    ids.milestones.push(derived.id);
+
+    await assert.rejects(
+      () => db.insert(s.shipmentMilestones).values({
+        shipmentId: shipment.id,
+        tripId: trip.id,
+        type: 'DISPATCHED',
+        occurredAt: new Date('2026-08-02T06:05:00.000Z'),
+      }),
+      (error: unknown) => (
+        error instanceof Error
+        && 'cause' in error
+        && error.cause instanceof Error
+        && /shipment_milestones_trip_type_uniq|duplicate key/i.test(error.cause.message)
+      ),
     );
 
-    const preflightPosition = incremental.indexOf('HAVING count(*) > 1');
-    const uniqueIndexPosition = incremental.indexOf(
-      'CREATE UNIQUE INDEX "lift_pricing_port_type_state_dir_date_uniq"',
-    );
-    assert.ok(preflightPosition >= 0, 'current incrementals must still prove duplicate-data preflights exist');
-    assert.ok(uniqueIndexPosition >= 0, 'current incrementals must create their target unique index');
-    assert.ok(
-      preflightPosition < uniqueIndexPosition,
-      'duplicate-data preflight must precede the new unique index in current incrementals',
-    );
+    const manualRows = await db.insert(s.shipmentMilestones)
+      .values([
+        {
+          shipmentId: shipment.id,
+          tripId: null,
+          type: 'MANUAL',
+          note: 'first manual note',
+          occurredAt: new Date('2026-08-02T07:00:00.000Z'),
+        },
+        {
+          shipmentId: shipment.id,
+          tripId: null,
+          type: 'MANUAL',
+          note: 'second manual note',
+          occurredAt: new Date('2026-08-02T07:05:00.000Z'),
+        },
+      ])
+      .returning({ id: s.shipmentMilestones.id });
+    ids.milestones.push(...manualRows.map((row) => row.id));
+    assert.equal(manualRows.length, 2, 'manual milestones must stay append-only when tripId is null');
+  });
+
+  it('keeps duplicate-data preflight ahead of the current O2C unique-index migration work', async () => {
+    const incremental = await client<{ migration_sql: string }[]>`
+      select pg_read_file('drizzle/0002_o2c_rev1_extensions.sql') as migration_sql
+    `.catch(async () => {
+      const { readFile } = await import('node:fs/promises');
+      return [{ migration_sql: await readFile(new URL('../../drizzle/0002_o2c_rev1_extensions.sql', import.meta.url), 'utf8') }];
+    });
+    const migrationSql = incremental[0]!.migration_sql;
+    const preflightPosition = migrationSql.indexOf('HAVING count(*) > 1');
+    const uniqueIndexPosition = migrationSql.indexOf('CREATE UNIQUE INDEX "lift_pricing_port_type_state_dir_date_uniq"');
+    assert.ok(preflightPosition >= 0, 'current incrementals must still contain a duplicate-data preflight');
+    assert.ok(uniqueIndexPosition >= 0, 'current incrementals must still create the target unique index');
+    assert.ok(preflightPosition < uniqueIndexPosition, 'duplicate-data preflight must precede the unique-index creation');
     assert.match(
-      incremental,
-      /RAISE EXCEPTION 'Duplicate lift-pricing matrix rows must be reconciled before applying the O2C rev1 unique constraint';/,
+      migrationSql,
+      /Duplicate lift-pricing matrix rows must be reconciled before applying the O2C rev1 unique constraint/,
     );
   });
 });

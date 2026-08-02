@@ -14,6 +14,8 @@ import * as s from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { createHash } from 'node:crypto';
 import { round2dp } from '@tingting/shared';
+import { ApiError } from '../errors';
+import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
 import type { Tx } from './trip-shared';
 
 /** Accepts either the shared db handle or a transaction (both have select/update). */
@@ -141,6 +143,18 @@ export class ArSnapshotService {
    */
   static async recapture(tripId: number, transaction?: Tx): Promise<void> {
     const execute = async (tx: Tx) => {
+      await lockTripFinancialAuthority(tx, [tripId]);
+      const [trip] = await tx.select({ status: s.trips.status })
+        .from(s.trips)
+        .where(eq(s.trips.id, tripId))
+        .limit(1)
+        .for('update');
+      if (!trip) {
+        throw new ApiError(404, 'Không tìm thấy chuyến đi');
+      }
+      if (trip.status !== 'COMPLETED') {
+        throw new ApiError(409, 'Chỉ có thể chụp lại đối soát AR cho chuyến đã hoàn thành');
+      }
       await this.captureSnapshot(tripId, tx);
     };
     if (transaction) {

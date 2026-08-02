@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import { NavigateFunction } from 'react-router-dom';
 import { Receipt, Wallet, CheckCircle2, FileCheck2, ChevronLeft, ChevronRight, Check, Loader2 } from 'lucide-react';
 import type { ApprovalItemType, ApprovalQueueItem, ApprovalQueueResponse } from '../hooks/useApprovalQueue';
-import { resolveEmptyIllustration } from '../../../lib/emptyIllustrations';
 import { StatusStrip } from '../../../components/shared/StatusStrip';
 
 const TYPE_LABEL: Partial<Record<ApprovalItemType, string>> = {
@@ -124,10 +123,15 @@ export function ApprovalQueueCard({ data, loading, navigate }: Props) {
         )}
       </div>
 
-      {total === 0 ? (
+      {loading ? (
+        <div className="approval-queue__loading" role="status" aria-live="polite">
+          <Loader2 className="approval-queue__loading-icon spin" aria-hidden="true" />
+          <span>Đang tải danh sách cần duyệt…</span>
+        </div>
+      ) : total === 0 ? (
         <div className="approval-queue__empty">
           <img
-            src={resolveEmptyIllustration('empty-audit')}
+            src="/assets/illustrations/empty-approvals-cleared.webp"
             alt=""
             className="approval-queue__empty-art"
             aria-hidden

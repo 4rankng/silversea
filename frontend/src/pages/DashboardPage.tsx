@@ -532,12 +532,12 @@ export default function DashboardPage() {
               {(() => {
                 if (chartRevenue.length === 0) {
                   return (
-                    <div style={{ padding: '24px 16px', flex: 1 }}>
+                    <div className="wf-chart-empty-wrap">
                       <DsEmptyState
                         title="Chưa có dữ liệu trong kỳ"
                         description="Biểu đồ sẽ xuất hiện khi kỳ này ghi nhận doanh thu hoặc lợi nhuận gộp dương."
-                        preview="rows"
-                        previewCount={3}
+                        illustration="/assets/illustrations/empty-revenue-period.webp"
+                        className="wf-chart-empty"
                       />
                     </div>
                   );
@@ -546,12 +546,12 @@ export default function DashboardPage() {
                 const totalGp = chartGross.reduce((a, b) => a + b, 0);
                 if (totalRev === 0 && totalGp === 0) {
                   return (
-                    <div style={{ padding: '24px 16px', flex: 1 }}>
+                    <div className="wf-chart-empty-wrap">
                       <DsEmptyState
                         title="Chưa đủ dữ liệu lịch sử"
                         description="Biểu đồ doanh thu & lợi nhuận gộp sẽ xuất hiện tại đây sau khi có chuyến đầu tiên trong kỳ."
-                        preview="rows"
-                        previewCount={4}
+                        illustration="/assets/illustrations/empty-revenue-period.webp"
+                        className="wf-chart-empty"
                       />
                     </div>
                   );
@@ -597,7 +597,12 @@ export default function DashboardPage() {
             </div>
             <div className="body">
               {costBreakdown.length === 0 ? (
-                <div style={{ padding: 16, fontSize: 12, color: 'var(--wf-ink-3)' }}>Chưa có chi phí ghi nhận trong tháng.</div>
+                <DsEmptyState
+                  title="Chưa có chi phí trong tháng"
+                  description="Cơ cấu chi phí sẽ xuất hiện sau khi có khoản chi được ghi nhận."
+                  illustration="/assets/illustrations/empty-cost-composition.webp"
+                  className="wf-dashboard-empty wf-dashboard-empty--cost"
+                />
               ) : (
                 <CostBreakdown items={costBreakdown} total={d?.totalPie ?? costs} />
               )}
@@ -614,7 +619,12 @@ export default function DashboardPage() {
               </div>
               <div className="wf-vlist">
                 {topTrucks.length === 0 ? (
-                  <div style={{ padding: '8px 0', fontSize: 12, color: 'var(--wf-ink-3)' }}>Chưa có dữ liệu xe trong tháng.</div>
+                  <DsEmptyState
+                    title="Chưa có dữ liệu xe"
+                    description="Biên lợi nhuận sẽ xuất hiện khi có chuyến hoàn tất trong tháng."
+                    illustration="/assets/illustrations/empty-vehicle-profit.webp"
+                    className="wf-dashboard-empty wf-dashboard-empty--inline"
+                  />
                 ) : topTrucks.map((t, i) => (
                   <div key={i} className="wf-vrow">
                     <span className="plate" title={t.plate}>{t.plate}</span>
@@ -636,7 +646,12 @@ export default function DashboardPage() {
               </div>
               <div className="wf-rlist">
                 {topRoutes.length === 0 ? (
-                  <div style={{ padding: 10, fontSize: 12, color: 'var(--wf-ink-3)' }}>Chưa có dữ liệu tuyến.</div>
+                  <DsEmptyState
+                    title="Chưa có dữ liệu tuyến"
+                    description="Xếp hạng sẽ xuất hiện khi tuyến có lợi nhuận gộp."
+                    illustration="/assets/illustrations/empty-profitable-routes.webp"
+                    className="wf-dashboard-empty wf-dashboard-empty--inline"
+                  />
                 ) : topRoutes.map((r, i) => (
                   <div key={i} className="wf-rrow">
                     <span className="rk">{i + 1}</span>

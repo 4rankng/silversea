@@ -19,6 +19,8 @@ import { globalErrorHandler } from '../middleware/errorHandler';
 import financialRoutes from '../routes/financial';
 import { initAuditService } from '../services/audit.service';
 import { initNotificationService } from '../services/notification.service';
+import { ArSnapshotService } from '../services/ar-snapshot.service';
+import { lockTripFinancialAuthority } from '../services/trip-financial-authority-lock.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdUserIds: number[] = [];
@@ -81,6 +83,9 @@ async function createDirtyTrip() {
     completedAt: new Date(),
     carrierType: 'OWN',
     revenue: '2000000',
+    arCostHash: null,
+    arSnapshotDirty: true,
+    arSnapshotChangedAt: new Date(),
     apCostHash: null,
     apSnapshotDirty: true,
     apSnapshotChangedAt: new Date(),
@@ -195,6 +200,112 @@ after(async () => {
 });
 
 describe('financial snapshot routes', () => {
+  test('AR recapture validates lifecycle, replays exactly, and is audited', async () => {
+    const missingRes = await fetch(`${baseUrl}/api/finance/snapshots/ar/2147483647/recapture`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accountantToken}`,
+        'Idempotency-Key': 'ar-recapture-missing',
+      },
+    });
+    assert.equal(missingRes.status, 404);
+
+    const { trip: nonCompletedTrip } = await createDirtyTrip();
+    await db.update(s.trips).set({ status: 'IN_TRANSIT' }).where(eq(s.trips.id, nonCompletedTrip.id));
+    const invalidLifecycleRes = await fetch(`${baseUrl}/api/finance/snapshots/ar/${nonCompletedTrip.id}/recapture`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accountantToken}`,
+        'Idempotency-Key': `ar-recapture-invalid-${nonCompletedTrip.id}`,
+      },
+    });
+    assert.equal(invalidLifecycleRes.status, 409);
+
+    const { trip } = await createDirtyTrip();
+    const path = `/api/finance/snapshots/ar/${trip.id}/recapture`;
+    const idempotencyKey = `ar-recapture-${trip.id}`;
+    const recaptureRes = await fetch(`${baseUrl}${path}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accountantToken}`,
+        'Idempotency-Key': idempotencyKey,
+      },
+    });
+    assert.equal(recaptureRes.status, 200);
+    assert.equal((await recaptureRes.json() as { replayed: boolean }).replayed, false);
+    const [captured] = await db.select({
+      arCostHash: s.trips.arCostHash,
+      arSnapshotDirty: s.trips.arSnapshotDirty,
+      arSnapshotChangedAt: s.trips.arSnapshotChangedAt,
+    }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+    assert.ok(captured?.arCostHash);
+    assert.equal(captured?.arSnapshotDirty, false);
+
+    const replayRes = await fetch(`${baseUrl}${path}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accountantToken}`,
+        'Idempotency-Key': idempotencyKey,
+      },
+    });
+    assert.equal(replayRes.status, 200);
+    assert.equal((await replayRes.json() as { replayed: boolean }).replayed, true);
+    const [replayed] = await db.select({
+      arSnapshotChangedAt: s.trips.arSnapshotChangedAt,
+    }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+    assert.equal(replayed?.arSnapshotChangedAt?.toISOString(), captured?.arSnapshotChangedAt?.toISOString());
+
+    const auditRow = await waitForAudit(path);
+    assert.equal(auditRow?.event, 'ENTITY_UPDATED');
+    assert.equal(auditRow?.statusCode, 200);
+  });
+
+  test('AR recapture serializes behind a financial edit and captures its final hash', async () => {
+    const { trip } = await createDirtyTrip();
+    let releaseMutation!: () => void;
+    let signalLocked!: () => void;
+    const mutationGate = new Promise<void>((resolve) => { releaseMutation = resolve; });
+    const lockAcquired = new Promise<void>((resolve) => { signalLocked = resolve; });
+    const mutation = db.transaction(async (tx) => {
+      await lockTripFinancialAuthority(tx, [trip.id]);
+      await tx.update(s.trips).set({ totalCost: '765432' }).where(eq(s.trips.id, trip.id));
+      await ArSnapshotService.markDirty(trip.id, tx);
+      signalLocked();
+      await mutationGate;
+    });
+    await lockAcquired;
+
+    let recaptureSettled = false;
+    const recapture = fetch(`${baseUrl}/api/finance/snapshots/ar/${trip.id}/recapture`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accountantToken}`,
+        'Idempotency-Key': `ar-recapture-race-${trip.id}`,
+      },
+    }).finally(() => { recaptureSettled = true; });
+    await new Promise((resolve) => setTimeout(resolve, 75));
+    assert.equal(recaptureSettled, false, 'recapture must wait for the financial-authority lock');
+
+    releaseMutation();
+    await mutation;
+    const recaptureRes = await recapture;
+    assert.equal(recaptureRes.status, 200);
+    const [captured] = await db.select({
+      arCostHash: s.trips.arCostHash,
+      arSnapshotDirty: s.trips.arSnapshotDirty,
+    }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+    assert.ok(captured?.arCostHash);
+    assert.equal(captured?.arSnapshotDirty, false);
+
+    await ArSnapshotService.markDirty(trip.id, db);
+    const [verified] = await db.select({
+      arCostHash: s.trips.arCostHash,
+      arSnapshotDirty: s.trips.arSnapshotDirty,
+    }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+    assert.equal(verified?.arCostHash, captured?.arCostHash);
+    assert.equal(verified?.arSnapshotDirty, false, 'captured hash must match the serialized final cost state');
+  });
+
   test('lists dirty AP trips and recapture writes an audited ENTITY_UPDATED event', async () => {
     const { trip } = await createDirtyTrip();
 

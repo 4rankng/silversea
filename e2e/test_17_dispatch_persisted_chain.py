@@ -25,6 +25,7 @@ RUN_SUFFIX = uuid.uuid4().hex[:8].upper()
 BOOKING_PREFIX = f"E2E-LM-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{RUN_SUFFIX}"
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PDF_BYTES = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n"
+_ACTIVE_FLEET_FIXTURE: dict[str, int | None] | None = None
 
 
 def iso_at(hours_ahead: int) -> str:
@@ -104,6 +105,7 @@ def login_api(role_key: str) -> ApiClient:
 
 
 def bootstrap_master_data_fixture(driver_id: int) -> tuple[int, str, str]:
+    global _ACTIVE_FLEET_FIXTURE
     truck_plate = f"E2E-{RUN_SUFFIX}"
     trailer_plate = f"E2E-TR-{RUN_SUFFIX}"
     script = r"""
@@ -281,7 +283,10 @@ if (trailerExisting) {
   trailerId = createdTrailer.id;
 }
 
-const [driverExisting] = await db.select({ id: s.drivers.id })
+const [driverExisting] = await db.select({
+  id: s.drivers.id,
+  assignedTruckId: s.drivers.assignedTruckId,
+})
   .from(s.drivers)
   .where(and(isNull(s.drivers.deletedAt), eq(s.drivers.id, driverId)))
   .limit(1);
@@ -322,6 +327,8 @@ const plannedEndAt = new Date(plannedStartAt.getTime() + 2 * 60 * 60 * 1000);
 
 console.log(JSON.stringify({
   customerId,
+  driverId,
+  originalAssignedTruckId: driverExisting.assignedTruckId,
   truckId: createdTruck.id,
   trailerId,
   plannedStartAt: plannedStartAt.toISOString(),
@@ -373,12 +380,80 @@ main().then(() => {
             and isinstance(fixture.get("plannedEndAt"), str)
         ):
             truck_id = fixture["truckId"]
+            _ACTIVE_FLEET_FIXTURE = {
+                "driverId": fixture["driverId"],
+                "originalAssignedTruckId": fixture.get("originalAssignedTruckId"),
+                "truckId": truck_id,
+                "trailerId": fixture["trailerId"],
+            }
             print(
                 f"🧱 Bootstrapped isolated Long Minh fixture with truck #{truck_id} "
                 f"for {fixture['plannedStartAt']} → {fixture['plannedEndAt']}"
             )
             return truck_id, fixture["plannedStartAt"], fixture["plannedEndAt"]
     raise RuntimeError(f"master data bootstrap did not return dispatch fixture data:\n{result.stdout}")
+
+
+def cleanup_fleet_fixture() -> None:
+    """Restore the demo driver and retire per-run fleet assets after local E2E."""
+    global _ACTIVE_FLEET_FIXTURE
+    fixture = _ACTIVE_FLEET_FIXTURE
+    if fixture is None:
+        return
+    cleanup_script = r"""
+import { eq } from 'drizzle-orm';
+import { db } from './src/db';
+import * as s from './src/db/schema';
+
+const driverId = __DRIVER_ID__;
+const originalAssignedTruckId = __ORIGINAL_TRUCK_ID__;
+const truckId = __TRUCK_ID__;
+const trailerId = __TRAILER_ID__;
+const now = new Date();
+
+async function main() {
+  await db.update(s.drivers)
+    .set({ assignedTruckId: originalAssignedTruckId, updatedAt: now })
+    .where(eq(s.drivers.id, driverId));
+  await db.update(s.trucks)
+    .set({ status: 'INACTIVE', deletedAt: now, updatedAt: now })
+    .where(eq(s.trucks.id, truckId));
+  await db.update(s.trailers)
+    .set({ status: 'INACTIVE', deletedAt: now, updatedAt: now })
+    .where(eq(s.trailers.id, trailerId));
+}
+
+main().then(() => process.exit(0)).catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
+"""
+    cleanup_script = (
+        cleanup_script
+        .replace("__DRIVER_ID__", str(fixture["driverId"]))
+        .replace("__ORIGINAL_TRUCK_ID__", "null" if fixture["originalAssignedTruckId"] is None else str(fixture["originalAssignedTruckId"]))
+        .replace("__TRUCK_ID__", str(fixture["truckId"]))
+        .replace("__TRAILER_ID__", str(fixture["trailerId"]))
+    )
+    result = subprocess.run(
+        ["pnpm", "exec", "tsx", "-e", cleanup_script],
+        cwd=REPO_ROOT / "backend",
+        env={
+            **os.environ,
+            "DATABASE_URL": "postgres://postgres:postgres@localhost:5441/silversea",
+        },
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            "fleet fixture cleanup failed:\n"
+            f"stdout:\n{result.stdout}\n"
+            f"stderr:\n{result.stderr}"
+        )
+    print(f"🧹 Restored driver assignment and retired truck #{fixture['truckId']}")
+    _ACTIVE_FLEET_FIXTURE = None
 
 
 def ensure_master_data_loaded(admin_api: ApiClient, driver_id: int) -> tuple[int, str, str]:
@@ -1008,4 +1083,9 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
 
 
 if __name__ == "__main__":
-    sys.exit(run_suite(TITLE, test_dispatch_persisted_chain))
+    exit_code = 1
+    try:
+        exit_code = run_suite(TITLE, test_dispatch_persisted_chain)
+    finally:
+        cleanup_fleet_fixture()
+    sys.exit(exit_code)

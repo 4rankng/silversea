@@ -1,6 +1,5 @@
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
 import { eq, inArray } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 import { client, db } from '../db';
@@ -104,24 +103,49 @@ after(async () => {
 });
 
 describe('forwarder shipment scope', () => {
-  test('squashed baseline keeps explicit shipment-scope tables and current runtime contract avoids legacy broad backfills', async () => {
-    const migration = await readFile(
-      new URL('../../drizzle/0000_third_wrecking_crew.sql', import.meta.url),
-      'utf8',
+  test('current schema keeps explicit shipment-scope links with unique and lookup indexes', async () => {
+    const tableRows = await client<{ table_name: string }[]>`
+      select table_name
+      from information_schema.tables
+      where table_schema = 'public'
+        and table_name = 'user_shipment_links'
+    `;
+    assert.equal(tableRows.length, 1, 'expected the shipment-scope link table to exist in the current schema');
+
+    const indexRows = await client<{ indexname: string; indexdef: string }[]>`
+      select indexname, indexdef
+      from pg_indexes
+      where schemaname = 'public'
+        and tablename = 'user_shipment_links'
+        and indexname in (
+          'user_shipment_links_user_shipment_uniq_idx',
+          'user_shipment_links_user_idx',
+          'user_shipment_links_shipment_idx'
+        )
+      order by indexname
+    `;
+    assert.deepEqual(
+      indexRows.map((row) => row.indexname),
+      [
+        'user_shipment_links_shipment_idx',
+        'user_shipment_links_user_idx',
+        'user_shipment_links_user_shipment_uniq_idx',
+      ],
     );
-    const userService = await readFile(
-      new URL('../services/user.service.ts', import.meta.url),
-      'utf8',
+    assert.match(
+      indexRows.find((row) => row.indexname === 'user_shipment_links_user_shipment_uniq_idx')!.indexdef,
+      /unique index .* \(user_id, shipment_id\)/i,
     );
 
-    assert.match(migration, /CREATE TABLE "user_shipment_links" \(/);
-    assert.match(migration, /CREATE UNIQUE INDEX "user_shipment_links_user_shipment_uniq_idx"/);
-    assert.match(migration, /CREATE INDEX "user_shipment_links_user_idx"/);
-    assert.match(migration, /CREATE INDEX "user_shipment_links_shipment_idx"/);
-    assert.doesNotMatch(migration, /active_forwarder_count\s*>\s*1/i);
-    assert.doesNotMatch(migration, /CROSS\s+JOIN/i);
-    assert.match(userService, /data\.role === Role\.FORWARDER/);
-    assert.match(userService, /\(data\.status \?\? 'ACTIVE'\) !== 'INACTIVE' && shipmentIds\.length === 0/);
+    await assert.rejects(
+      () => db.insert(s.userShipmentLinks).values({ userId: forwarderA, shipmentId: shipmentA }),
+      (error: unknown) => (
+        error instanceof Error
+        && 'cause' in error
+        && error.cause instanceof Error
+        && /user_shipment_links_user_shipment_uniq_idx|duplicate key/i.test(error.cause.message)
+      ),
+    );
   });
 
   test('ACTIVE forwarder accounts require admin-managed shipment assignments', async () => {

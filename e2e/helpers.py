@@ -8,6 +8,7 @@ import sys
 import time
 import traceback
 from pathlib import Path
+from urllib.parse import urlparse
 from playwright.sync_api import sync_playwright, Page, Browser, BrowserContext
 
 BASE_URL = os.environ.get('NEPO_URL', 'http://localhost:7173')
@@ -22,7 +23,12 @@ DEMO_ACCOUNTS = {
     'clerk':     {'identifier': 'cus',      'password': 'Abc123', 'role': 'CLERK',      'home': '/clerk/shipments'},
     'driver':    {'identifier': 'laixe',    'password': 'Abc123', 'role': 'DRIVER',     'home': '/my-trips'},
     'forwarder': {'identifier': 'giaonhan', 'password': 'Abc123', 'role': 'FORWARDER',  'home': '/my-forwarder-trips'},
-    'customer':  {'identifier': 'e2e-customer', 'password': 'Abc123', 'role': 'CUSTOMER', 'home': '/portal/shipments'},
+    'customer':  {
+        'identifier': os.environ.get('NEPO_CUSTOMER_USERNAME', 'e2e-customer'),
+        'password': os.environ.get('NEPO_CUSTOMER_PASSWORD', 'Abc123'),
+        'role': 'CUSTOMER',
+        'home': '/portal/shipments',
+    },
 }
 
 
@@ -33,6 +39,14 @@ def ensure_customer_test_account() -> dict:
     login = customer_api.login(account['identifier'], account['password'])
     if login.get('user', {}).get('role') == account['role']:
         return login
+
+    api_host = (urlparse(API_URL).hostname or '').lower()
+    if api_host not in {'localhost', '127.0.0.1', '::1'}:
+        return {
+            'error': 'Automatic CUSTOMER fixture creation is disabled outside localhost; '
+                     'set NEPO_CUSTOMER_USERNAME and NEPO_CUSTOMER_PASSWORD to a dedicated account.',
+            'status': login.get('status', 403),
+        }
 
     admin_api = ApiClient()
     admin_login = admin_api.login(

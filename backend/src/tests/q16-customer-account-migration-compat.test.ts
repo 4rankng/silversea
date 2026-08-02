@@ -1,6 +1,5 @@
 import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
 import bcrypt from 'bcryptjs';
 import { eq, inArray } from 'drizzle-orm';
 import { CustomerAccountType, Role } from '@tingting/shared';
@@ -80,17 +79,37 @@ test('squashed baseline persists the customer-account-type contract while histor
     customerIds: [groupCustomerAId, groupCustomerBId],
   });
 
-  const baseline = await readFile(
-    new URL('../../drizzle/0000_third_wrecking_crew.sql', import.meta.url),
-    'utf8',
+  const enumRows = await client<{ enumlabel: string }[]>`
+    select e.enumlabel
+    from pg_type t
+    join pg_enum e on e.enumtypid = t.oid
+    join pg_namespace n on n.oid = t.typnamespace
+    where n.nspname = 'public'
+      and t.typname = 'customer_account_type'
+    order by e.enumsortorder
+  `;
+  assert.deepEqual(
+    enumRows.map((row) => row.enumlabel),
+    ['SINGLE_ENTITY', 'CORPORATE_GROUP', 'AGENCY'],
+    'expected the canonical customer-account-type enum labels in the current schema',
   );
+  const [columnRow] = await client<{
+    column_default: string | null;
+    is_nullable: 'YES' | 'NO';
+    udt_name: string;
+  }[]>`
+    select column_default, is_nullable, udt_name
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'users'
+      and column_name = 'customer_account_type'
+  `;
+  assert.ok(columnRow, 'expected users.customer_account_type to exist in the current schema');
+  assert.equal(columnRow.is_nullable, 'NO');
+  assert.equal(columnRow.udt_name, 'customer_account_type');
   assert.match(
-    baseline,
-    /CREATE TYPE "public"\."customer_account_type" AS ENUM\('SINGLE_ENTITY', 'CORPORATE_GROUP', 'AGENCY'\);/,
-  );
-  assert.match(
-    baseline,
-    /"customer_account_type" "customer_account_type" DEFAULT 'SINGLE_ENTITY' NOT NULL,/,
+    columnRow.column_default ?? '',
+    /'SINGLE_ENTITY'::customer_account_type/i,
   );
 
   const singleEntityUser = await loadPersistedCustomerAccountType(singleEntityUserId);
@@ -100,6 +119,10 @@ test('squashed baseline persists the customer-account-type contract while histor
   assert.equal(singleEntityUser.customerId, primaryCustomerId);
   assert.equal(multiEntityUser.customerAccountType, CustomerAccountType.SINGLE_ENTITY);
   assert.equal(multiEntityUser.customerId, groupCustomerAId);
+  const multiLinkRows = await db.select({ customerId: s.userCustomerLinks.customerId })
+    .from(s.userCustomerLinks)
+    .where(eq(s.userCustomerLinks.userId, multiEntityUserId));
+  assert.equal(multiLinkRows.length, 2, 'historical multi-link rows must still be readable before runtime repair');
 });
 
 test('updateUser keeps a historical multi-link customer account editable and repairs its persisted type', async () => {

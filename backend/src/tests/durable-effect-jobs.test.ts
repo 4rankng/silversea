@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { after, before, beforeEach, describe, test } from 'node:test';
-import { readFile } from 'node:fs/promises';
-import { and, eq, sql } from 'drizzle-orm';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { eq, sql } from 'drizzle-orm';
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { disconnectRedis } from '../lib/redis';
@@ -27,6 +29,8 @@ const createdBillingDocumentIds: number[] = [];
 const createdCustomerIds: number[] = [];
 let originalCompanyLogoSetting: string | null = null;
 let companyLogoSettingExisted = false;
+const sourceRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
+const source = (path: string): string => readFileSync(join(sourceRoot, path), 'utf8');
 
 before(async () => {
   const [row] = await db.select({ value: s.appSettings.value })
@@ -387,7 +391,7 @@ describe('durable effect jobs foundation', () => {
     assert.equal(issuedDocument?.legalInvoiceRef?.providerReference, 'INV-TEST-001');
   });
 
-  test('unknown kind or version becomes DEAD, while the squashed baseline keeps the durable-effect schema and 0003 only drops agent metrics', async () => {
+  test('unknown kind or version becomes DEAD, while current schema source keeps durable-effect fences without legacy turn metrics', async () => {
     const [unknown] = await db.insert(s.durableEffectJobs).values({
       kind: 'BOGUS_KIND',
       payloadVersion: 9,
@@ -407,15 +411,45 @@ describe('durable effect jobs foundation', () => {
     assert.equal(deadJob?.status, DURABLE_EFFECT_STATUS.DEAD);
     assert.match(deadJob?.lastError ?? '', /unsupported durable effect kind\/version/i);
 
-    const baseline = await readFile(new URL('../../drizzle/0000_third_wrecking_crew.sql', import.meta.url), 'utf8');
-    const metricsDrop = await readFile(new URL('../../drizzle/0003_drop_agent_turn_metrics.sql', import.meta.url), 'utf8');
+    const tables = await client<{ table_name: string }[]>`
+      select table_name
+      from information_schema.tables
+      where table_schema = 'public'
+        and table_name = 'durable_effect_jobs'
+    `;
+    assert.deepEqual(tables.map((row) => row.table_name), ['durable_effect_jobs']);
 
-    assert.match(baseline, /CREATE TABLE "durable_effect_jobs" \(/);
-    assert.match(baseline, /CREATE UNIQUE INDEX "durable_effect_jobs_kind_dedupe_uniq_idx"/);
-    assert.match(baseline, /CREATE INDEX "durable_effect_jobs_due_idx"/);
-    assert.match(baseline, /CREATE INDEX "durable_effect_jobs_lease_idx"/);
-    assert.match(metricsDrop, /^DROP TABLE "agent_turn_metrics" CASCADE;$/m);
-    assert.doesNotMatch(metricsDrop, /durable_effect_jobs/i);
+    const schemaSource = source('db/schema.ts');
+    assert.match(schemaSource, /export const durableEffectJobs = pgTable\('durable_effect_jobs'/);
+    assert.doesNotMatch(schemaSource, /export const agentTurnMetrics\b/);
+
+    const indexes = await client<{ indexname: string; indexdef: string }[]>`
+      select indexname, indexdef
+      from pg_indexes
+      where schemaname = 'public'
+        and tablename = 'durable_effect_jobs'
+      order by indexname
+    `;
+    const indexByName = new Map(indexes.map((row) => [row.indexname, row.indexdef]));
+    assert.match(indexByName.get('durable_effect_jobs_kind_dedupe_uniq_idx') ?? '', /unique index/i);
+    assert.match(indexByName.get('durable_effect_jobs_due_idx') ?? '', /\(status, next_attempt_at, id\)/i);
+    assert.match(indexByName.get('durable_effect_jobs_lease_idx') ?? '', /\(status, lease_expires_at\)/i);
+
+    const checks = await client<{ conname: string; definition: string }[]>`
+      select conname, pg_get_constraintdef(oid) as definition
+      from pg_constraint
+      where conrelid = 'durable_effect_jobs'::regclass
+        and conname in (
+          'durable_effect_jobs_status_check',
+          'durable_effect_jobs_attempt_count_check',
+          'durable_effect_jobs_max_attempts_check'
+        )
+      order by conname
+    `;
+    const checkByName = new Map(checks.map((row) => [row.conname, row.definition]));
+    assert.match(checkByName.get('durable_effect_jobs_status_check') ?? '', /PENDING.*RUNNING.*RETRY.*SUCCEEDED.*CANCELLED.*DEAD/i);
+    assert.match(checkByName.get('durable_effect_jobs_attempt_count_check') ?? '', /attempt_count >= 0/i);
+    assert.match(checkByName.get('durable_effect_jobs_max_attempts_check') ?? '', /max_attempts > 0/i);
   });
 });
 

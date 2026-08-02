@@ -24,17 +24,21 @@ describe('chatbot latency regression guards', () => {
   test('cancelled socket turns are persisted for abort telemetry', () => {
     const socket = source('agentSocket.ts');
     const orchestrator = source('services/agent/orchestrator.ts');
+    const schema = source('db/schema.ts');
     assert.match(socket, /await previousCompletion/);
     assert.match(socket, /ac\.signal\.aborted && !turnRecorded/);
     assert.match(socket, /await recordAbortedTurn\(/);
     assert.match(orchestrator, /promptTokens:\s*0/);
     assert.match(orchestrator, /completionTokens:\s*0/);
+    assert.match(schema, /export const agentMessages = pgTable\('agent_messages'/);
+    assert.match(schema, /tokensIn:\s*integer\('tokens_in'\)/);
+    assert.match(schema, /tokensOut:\s*integer\('tokens_out'\)/);
+    assert.doesNotMatch(schema, /export const agentTurnMetrics\b/);
     assert.equal(
       existsSync(join(root, 'routes/admin-chatbot-metrics.ts')),
       false,
       'legacy agent_turn_metrics route should stay removed after the 0003 drop',
     );
-    assert.match(source('../drizzle/0003_drop_agent_turn_metrics.sql'), /DROP TABLE "agent_turn_metrics" CASCADE;/);
   });
 
   test('streaming-disabled fallback cannot create an empty text stream', () => {

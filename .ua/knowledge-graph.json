@@ -44,8 +44,8 @@
       "pnpm"
     ],
     "description": "TingTing — Vietnamese trucking logistics platform for the SilverSea customer. A pnpm monorepo: Express 5 / Drizzle ORM / PostgreSQL / Casbin backend, React / Vite / TanStack frontend, and a shared TypeScript contracts package (schemas, constants, financial calculations).",
-    "analyzedAt": "2026-08-01T12:52:28.267Z",
-    "gitCommitHash": "340ab9160cfde30f9330927e57ce1aba94663120"
+    "analyzedAt": "2026-08-02T07:30:38.113Z",
+    "gitCommitHash": "081b8fdec4ca23e1ed299c7f6ede5a160bc68de3"
   },
   "nodes": [
     {
@@ -21873,18 +21873,6 @@
       "complexity": "simple"
     },
     {
-      "id": "file:backend/src/tests/agent-latency-regressions.test.ts",
-      "type": "file",
-      "name": "agent-latency-regressions.test.ts",
-      "filePath": "backend/src/tests/agent-latency-regressions.test.ts",
-      "summary": "Regression tests guarding agent per-intent latency budgets.",
-      "tags": [
-        "test",
-        "spec"
-      ],
-      "complexity": "simple"
-    },
-    {
       "id": "file:backend/src/tests/agent-orchestrator-metrics.test.ts",
       "type": "file",
       "name": "agent-orchestrator-metrics.test.ts",
@@ -23113,18 +23101,6 @@
         "spec"
       ],
       "complexity": "moderate"
-    },
-    {
-      "id": "file:backend/src/tests/o01-trip-pair-concurrency.test.ts",
-      "type": "file",
-      "name": "o01-trip-pair-concurrency.test.ts",
-      "filePath": "backend/src/tests/o01-trip-pair-concurrency.test.ts",
-      "summary": "Test suite covering o01 trip pair concurrency.",
-      "tags": [
-        "test",
-        "spec"
-      ],
-      "complexity": "complex"
     },
     {
       "id": "file:backend/src/tests/o01-trip-pairing.service.test.ts",
@@ -56731,20 +56707,6 @@
       "complexity": "complex"
     },
     {
-      "id": "file:backend/src/tests/durable-effect-jobs.test.ts",
-      "type": "file",
-      "name": "durable-effect-jobs.test.ts",
-      "filePath": "backend/src/tests/durable-effect-jobs.test.ts",
-      "summary": "Integration test for the durable-effect job queue covering enqueue/claim/process lifecycle, storage-delete guards, and migration backfill of company-logo settings.",
-      "tags": [
-        "test",
-        "durable-effect",
-        "job-queue",
-        "integration"
-      ],
-      "complexity": "complex"
-    },
-    {
       "id": "function:backend/src/services/shipment-fulfillment.service.ts:ensureShipmentFulfillmentsInTx",
       "type": "function",
       "name": "ensureShipmentFulfillmentsInTx",
@@ -59517,6 +59479,887 @@
       ],
       "complexity": "moderate",
       "languageNotes": "Backend CORS_ORIGIN points at https://vantai.tingting.vip. Backend/frontend images are pulled from ghcr.io/4rankng/transting-{backend,frontend}:latest. Compose project name is 'nepocorp' (legacy local naming) while the public CORS host is vantai.tingting.vip."
+    },
+    {
+      "id": "file:backend/src/routes/financial/snapshot.routes.ts",
+      "type": "file",
+      "name": "snapshot.routes.ts",
+      "filePath": "backend/src/routes/financial/snapshot.routes.ts",
+      "summary": "Defines role-gated financial snapshot recapture endpoints for AR, AP, and fuel-surcharge authorities, wrapping each material write in the shared idempotency command boundary.",
+      "tags": [
+        "api-handler",
+        "financial",
+        "rbac",
+        "idempotency"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "Strict TypeScript using Drizzle ORM and the repository financial-authority conventions."
+    },
+    {
+      "id": "function:backend/src/routes/financial/snapshot.routes.ts:runSnapshotRecaptureWriteCommand",
+      "type": "function",
+      "name": "runSnapshotRecaptureWriteCommand",
+      "filePath": "backend/src/routes/financial/snapshot.routes.ts",
+      "lineRange": [
+        30,
+        56
+      ],
+      "summary": "Executes a snapshot recapture through the shared idempotent material-write boundary.",
+      "tags": [
+        "api-handler",
+        "idempotency"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:backend/src/services/ap-snapshot.service.ts",
+      "type": "file",
+      "name": "ap-snapshot.service.ts",
+      "filePath": "backend/src/services/ap-snapshot.service.ts",
+      "summary": "Captures deterministic accounts-payable cost hashes for completed trips, tracks dirty AP snapshots, and supports locked recapture of supplier-facing cost authority.",
+      "tags": [
+        "service",
+        "financial",
+        "snapshot",
+        "data-integrity"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "Strict TypeScript using Drizzle ORM and the repository financial-authority conventions."
+    },
+    {
+      "id": "function:backend/src/services/ap-snapshot.service.ts:collectApPayableExpenses",
+      "type": "function",
+      "name": "collectApPayableExpenses",
+      "filePath": "backend/src/services/ap-snapshot.service.ts",
+      "lineRange": [
+        13,
+        30
+      ],
+      "summary": "Selects and normalizes approved company-direct supplier expenses that contribute to AP authority.",
+      "tags": [
+        "utility",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/src/services/ap-snapshot.service.ts:computeApHash",
+      "type": "function",
+      "name": "computeApHash",
+      "filePath": "backend/src/services/ap-snapshot.service.ts",
+      "lineRange": [
+        32,
+        84
+      ],
+      "summary": "Builds a stable hash from payable trip, carrier, fuel, and supplier-expense inputs.",
+      "tags": [
+        "utility",
+        "workflow"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "class:backend/src/services/ap-snapshot.service.ts:ApSnapshotService",
+      "type": "class",
+      "name": "ApSnapshotService",
+      "filePath": "backend/src/services/ap-snapshot.service.ts",
+      "lineRange": [
+        86,
+        146
+      ],
+      "summary": "Owns AP snapshot capture, dirty tracking, listing, and locked recapture operations.",
+      "tags": [
+        "service",
+        "snapshot"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:backend/src/services/ar-snapshot.service.ts",
+      "type": "file",
+      "name": "ar-snapshot.service.ts",
+      "filePath": "backend/src/services/ar-snapshot.service.ts",
+      "summary": "Captures deterministic accounts-receivable and trip-cost hashes, tracks dirty AR snapshots, and supports locked recapture when financial inputs change.",
+      "tags": [
+        "service",
+        "financial",
+        "snapshot",
+        "data-integrity"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "Strict TypeScript using Drizzle ORM and the repository financial-authority conventions."
+    },
+    {
+      "id": "function:backend/src/services/ar-snapshot.service.ts:computeCostHash",
+      "type": "function",
+      "name": "computeCostHash",
+      "filePath": "backend/src/services/ar-snapshot.service.ts",
+      "lineRange": [
+        28,
+        74
+      ],
+      "summary": "Builds a stable hash from trip revenue, cost, tax, commission, and expense inputs.",
+      "tags": [
+        "utility",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:backend/src/services/ar-snapshot.service.ts:ArSnapshotService",
+      "type": "class",
+      "name": "ArSnapshotService",
+      "filePath": "backend/src/services/ar-snapshot.service.ts",
+      "lineRange": [
+        76,
+        152
+      ],
+      "summary": "Owns AR snapshot capture, dirty tracking, listing, and locked recapture operations.",
+      "tags": [
+        "service",
+        "snapshot"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:backend/src/services/snapshot-services.ts",
+      "type": "file",
+      "name": "snapshot-services.ts",
+      "filePath": "backend/src/services/snapshot-services.ts",
+      "summary": "Coordinates AR, AP, and fuel-surcharge snapshot lifecycles, including degraded AP capture, dirty marking, locked recapture, and customer fuel-surcharge recomputation.",
+      "tags": [
+        "service",
+        "financial",
+        "snapshot",
+        "data-integrity"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "Strict TypeScript using Drizzle ORM and the repository financial-authority conventions."
+    },
+    {
+      "id": "class:backend/src/services/snapshot-services.ts:SnapshotServices",
+      "type": "class",
+      "name": "SnapshotServices",
+      "filePath": "backend/src/services/snapshot-services.ts",
+      "lineRange": [
+        14,
+        134
+      ],
+      "summary": "Coordinates cross-authority snapshot capture and fuel-surcharge recapture behavior.",
+      "tags": [
+        "service",
+        "snapshot"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:backend/src/tests/agent-latency-regressions.test.ts",
+      "type": "file",
+      "name": "agent-latency-regressions.test.ts",
+      "filePath": "backend/src/tests/agent-latency-regressions.test.ts",
+      "summary": "Static regression checks that critical agent and governance paths avoid latency-prone or bypass-prone implementation patterns.",
+      "tags": [
+        "test",
+        "integration",
+        "regression"
+      ],
+      "complexity": "simple",
+      "languageNotes": "Strict TypeScript using Drizzle ORM and the repository financial-authority conventions."
+    },
+    {
+      "id": "file:backend/src/tests/durable-effect-jobs.test.ts",
+      "type": "file",
+      "name": "durable-effect-jobs.test.ts",
+      "filePath": "backend/src/tests/durable-effect-jobs.test.ts",
+      "summary": "Integration tests for durable effect jobs, including retries, deduplication, scoped cleanup, and persisted company-logo side effects.",
+      "tags": [
+        "test",
+        "integration",
+        "regression"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Strict TypeScript using Drizzle ORM and the repository financial-authority conventions."
+    },
+    {
+      "id": "function:backend/src/tests/durable-effect-jobs.test.ts:upsertCompanyLogoSetting",
+      "type": "function",
+      "name": "upsertCompanyLogoSetting",
+      "filePath": "backend/src/tests/durable-effect-jobs.test.ts",
+      "lineRange": [
+        438,
+        451
+      ],
+      "summary": "Creates or updates the company-logo setting used by durable-effect tests.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/src/tests/durable-effect-jobs.test.ts:restoreCompanyLogoSetting",
+      "type": "function",
+      "name": "restoreCompanyLogoSetting",
+      "filePath": "backend/src/tests/durable-effect-jobs.test.ts",
+      "lineRange": [
+        453,
+        470
+      ],
+      "summary": "Restores the original company-logo setting after durable-effect tests.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:backend/src/tests/o01-trip-pair-concurrency.test.ts",
+      "type": "file",
+      "name": "o01-trip-pair-concurrency.test.ts",
+      "filePath": "backend/src/tests/o01-trip-pair-concurrency.test.ts",
+      "summary": "Concurrency integration tests proving trip-pair creation has one winner, deterministic conflicts, completion-evidence enforcement, and consistent persisted pair state.",
+      "tags": [
+        "test",
+        "integration",
+        "regression"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Strict TypeScript using Drizzle ORM and the repository financial-authority conventions."
+    },
+    {
+      "id": "function:backend/src/tests/o01-trip-pair-concurrency.test.ts:assertOneWinnerOneConflict",
+      "type": "function",
+      "name": "assertOneWinnerOneConflict",
+      "filePath": "backend/src/tests/o01-trip-pair-concurrency.test.ts",
+      "lineRange": [
+        47,
+        60
+      ],
+      "summary": "Asserts that a concurrent trip-pair attempt produces exactly one success and one conflict.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/src/tests/o01-trip-pair-concurrency.test.ts:mkTrip",
+      "type": "function",
+      "name": "mkTrip",
+      "filePath": "backend/src/tests/o01-trip-pair-concurrency.test.ts",
+      "lineRange": [
+        62,
+        85
+      ],
+      "summary": "Creates a persisted trip fixture for trip-pair concurrency scenarios.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/src/tests/o01-trip-pair-concurrency.test.ts:seedCompletionEvidence",
+      "type": "function",
+      "name": "seedCompletionEvidence",
+      "filePath": "backend/src/tests/o01-trip-pair-concurrency.test.ts",
+      "lineRange": [
+        87,
+        106
+      ],
+      "summary": "Persists POD evidence required before completing a trip in concurrency tests.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/src/tests/o01-trip-pair-concurrency.test.ts:pairPayload",
+      "type": "function",
+      "name": "pairPayload",
+      "filePath": "backend/src/tests/o01-trip-pair-concurrency.test.ts",
+      "lineRange": [
+        108,
+        127
+      ],
+      "summary": "Builds the paired-trip command payload from two persisted trip fixtures.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/src/tests/o01-trip-pair-concurrency.test.ts:runPair",
+      "type": "function",
+      "name": "runPair",
+      "filePath": "backend/src/tests/o01-trip-pair-concurrency.test.ts",
+      "lineRange": [
+        129,
+        141
+      ],
+      "summary": "Runs trip-pair creation through the idempotency service.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/src/tests/o01-trip-pair-concurrency.test.ts:assertPairIntegrity",
+      "type": "function",
+      "name": "assertPairIntegrity",
+      "filePath": "backend/src/tests/o01-trip-pair-concurrency.test.ts",
+      "lineRange": [
+        143,
+        182
+      ],
+      "summary": "Verifies persisted pair membership, ordering, status, and active-pair invariants.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:backend/src/tests/o2c-rev1.snapshot-routes.test.ts",
+      "type": "file",
+      "name": "o2c-rev1.snapshot-routes.test.ts",
+      "filePath": "backend/src/tests/o2c-rev1.snapshot-routes.test.ts",
+      "summary": "Authenticated route integration tests for AR, AP, and fuel-surcharge snapshot recapture, RBAC, idempotency, audit logging, and dirty-state clearing.",
+      "tags": [
+        "test",
+        "integration",
+        "regression"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Strict TypeScript using Drizzle ORM and the repository financial-authority conventions."
+    },
+    {
+      "id": "function:backend/src/tests/o2c-rev1.snapshot-routes.test.ts:createDirtyTrip",
+      "type": "function",
+      "name": "createDirtyTrip",
+      "filePath": "backend/src/tests/o2c-rev1.snapshot-routes.test.ts",
+      "lineRange": [
+        55,
+        102
+      ],
+      "summary": "Creates a completed trip with dirty snapshot state and related financial fixtures.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/src/tests/o2c-rev1.snapshot-routes.test.ts:waitForAudit",
+      "type": "function",
+      "name": "waitForAudit",
+      "filePath": "backend/src/tests/o2c-rev1.snapshot-routes.test.ts",
+      "lineRange": [
+        104,
+        122
+      ],
+      "summary": "Polls for the expected snapshot-route audit record.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:e2e/helpers.py",
+      "type": "file",
+      "name": "helpers.py",
+      "filePath": "e2e/helpers.py",
+      "summary": "Shared Playwright and HTTP test harness providing role login, customer-account setup, assertions, screenshots, API access, and structured suite reporting.",
+      "tags": [
+        "test",
+        "e2e",
+        "integration",
+        "playwright"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Python E2E harness code using synchronous Playwright and direct authenticated HTTP helpers."
+    },
+    {
+      "id": "function:e2e/helpers.py:ensure_customer_test_account",
+      "type": "function",
+      "name": "ensure_customer_test_account",
+      "filePath": "e2e/helpers.py",
+      "lineRange": [
+        29,
+        61
+      ],
+      "summary": "Ensures the dedicated customer E2E account is associated with a customer record.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:e2e/helpers.py:assert_url_contains",
+      "type": "function",
+      "name": "assert_url_contains",
+      "filePath": "e2e/helpers.py",
+      "lineRange": [
+        246,
+        247
+      ],
+      "summary": "Supports shared playwright and http test harness providing role login, customer-account setup, assertions, screenshots, api access, and structured suite reporting.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:e2e/helpers.py:assert_element_visible",
+      "type": "function",
+      "name": "assert_element_visible",
+      "filePath": "e2e/helpers.py",
+      "lineRange": [
+        249,
+        254
+      ],
+      "summary": "Supports shared playwright and http test harness providing role login, customer-account setup, assertions, screenshots, api access, and structured suite reporting.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:e2e/helpers.py:assert_text_visible",
+      "type": "function",
+      "name": "assert_text_visible",
+      "filePath": "e2e/helpers.py",
+      "lineRange": [
+        256,
+        261
+      ],
+      "summary": "Supports shared playwright and http test harness providing role login, customer-account setup, assertions, screenshots, api access, and structured suite reporting.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:e2e/helpers.py:assert_redirected_to",
+      "type": "function",
+      "name": "assert_redirected_to",
+      "filePath": "e2e/helpers.py",
+      "lineRange": [
+        263,
+        268
+      ],
+      "summary": "Supports shared playwright and http test harness providing role login, customer-account setup, assertions, screenshots, api access, and structured suite reporting.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:e2e/helpers.py:run_suite",
+      "type": "function",
+      "name": "run_suite",
+      "filePath": "e2e/helpers.py",
+      "lineRange": [
+        271,
+        286
+      ],
+      "summary": "Runs an E2E suite within the shared browser context and writes structured results.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:e2e/helpers.py:TestResults",
+      "type": "class",
+      "name": "TestResults",
+      "filePath": "e2e/helpers.py",
+      "lineRange": [
+        64,
+        123
+      ],
+      "summary": "Collects E2E pass, fail, skip, timing, console, and JSON report data.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "class:e2e/helpers.py:ApiClient",
+      "type": "class",
+      "name": "ApiClient",
+      "filePath": "e2e/helpers.py",
+      "lineRange": [
+        126,
+        187
+      ],
+      "summary": "Provides authenticated JSON HTTP operations for E2E setup and assertions.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "class:e2e/helpers.py:NepoTestContext",
+      "type": "class",
+      "name": "NepoTestContext",
+      "filePath": "e2e/helpers.py",
+      "lineRange": [
+        190,
+        243
+      ],
+      "summary": "Manages Playwright browser lifecycle, pages, role login, and screenshots for E2E suites.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:e2e/test_15_customer_portal.py",
+      "type": "file",
+      "name": "test_15_customer_portal.py",
+      "filePath": "e2e/test_15_customer_portal.py",
+      "summary": "End-to-end customer portal coverage for authenticated shipment and office views, role isolation, responsive navigation, and horizontal-overflow safety.",
+      "tags": [
+        "test",
+        "e2e",
+        "integration",
+        "playwright"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "Python E2E harness code using synchronous Playwright and direct authenticated HTTP helpers."
+    },
+    {
+      "id": "function:e2e/test_15_customer_portal.py:_login_customer",
+      "type": "function",
+      "name": "_login_customer",
+      "filePath": "e2e/test_15_customer_portal.py",
+      "lineRange": [
+        10,
+        18
+      ],
+      "summary": "Supports end-to-end customer portal coverage for authenticated shipment and office views, role isolation, responsive navigation, and horizontal-overflow safety.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:e2e/test_15_customer_portal.py:_no_horizontal_overflow",
+      "type": "function",
+      "name": "_no_horizontal_overflow",
+      "filePath": "e2e/test_15_customer_portal.py",
+      "lineRange": [
+        21,
+        24
+      ],
+      "summary": "Supports end-to-end customer portal coverage for authenticated shipment and office views, role isolation, responsive navigation, and horizontal-overflow safety.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:e2e/test_15_customer_portal.py:test_customer_portal",
+      "type": "function",
+      "name": "test_customer_portal",
+      "filePath": "e2e/test_15_customer_portal.py",
+      "lineRange": [
+        27,
+        121
+      ],
+      "summary": "Validates customer portal data access, role boundaries, responsive navigation, and overflow behavior.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "type": "file",
+      "name": "test_17_dispatch_persisted_chain.py",
+      "filePath": "e2e/test_17_dispatch_persisted_chain.py",
+      "summary": "Comprehensive persisted-chain E2E scenario spanning dispatch master data, trip lifecycle, evidence, pricing, billing, documents, treasury, and authority readbacks.",
+      "tags": [
+        "test",
+        "e2e",
+        "integration",
+        "playwright"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Python E2E harness code using synchronous Playwright and direct authenticated HTTP helpers."
+    },
+    {
+      "id": "function:e2e/test_17_dispatch_persisted_chain.py:iso_at",
+      "type": "function",
+      "name": "iso_at",
+      "filePath": "e2e/test_17_dispatch_persisted_chain.py",
+      "lineRange": [
+        30,
+        35
+      ],
+      "summary": "Supports comprehensive persisted-chain e2e scenario spanning dispatch master data, trip lifecycle, evidence, pricing, billing, documents, treasury, and authority readbacks.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:e2e/test_17_dispatch_persisted_chain.py:month_range",
+      "type": "function",
+      "name": "month_range",
+      "filePath": "e2e/test_17_dispatch_persisted_chain.py",
+      "lineRange": [
+        38,
+        45
+      ],
+      "summary": "Supports comprehensive persisted-chain e2e scenario spanning dispatch master data, trip lifecycle, evidence, pricing, billing, documents, treasury, and authority readbacks.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:e2e/test_17_dispatch_persisted_chain.py:first_items",
+      "type": "function",
+      "name": "first_items",
+      "filePath": "e2e/test_17_dispatch_persisted_chain.py",
+      "lineRange": [
+        48,
+        54
+      ],
+      "summary": "Supports comprehensive persisted-chain e2e scenario spanning dispatch master data, trip lifecycle, evidence, pricing, billing, documents, treasury, and authority readbacks.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:e2e/test_17_dispatch_persisted_chain.py:get_with_query",
+      "type": "function",
+      "name": "get_with_query",
+      "filePath": "e2e/test_17_dispatch_persisted_chain.py",
+      "lineRange": [
+        57,
+        60
+      ],
+      "summary": "Supports comprehensive persisted-chain e2e scenario spanning dispatch master data, trip lifecycle, evidence, pricing, billing, documents, treasury, and authority readbacks.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:e2e/test_17_dispatch_persisted_chain.py:pick_named",
+      "type": "function",
+      "name": "pick_named",
+      "filePath": "e2e/test_17_dispatch_persisted_chain.py",
+      "lineRange": [
+        63,
+        68
+      ],
+      "summary": "Supports comprehensive persisted-chain e2e scenario spanning dispatch master data, trip lifecycle, evidence, pricing, billing, documents, treasury, and authority readbacks.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:e2e/test_17_dispatch_persisted_chain.py:api_failure_detail",
+      "type": "function",
+      "name": "api_failure_detail",
+      "filePath": "e2e/test_17_dispatch_persisted_chain.py",
+      "lineRange": [
+        71,
+        77
+      ],
+      "summary": "Supports comprehensive persisted-chain e2e scenario spanning dispatch master data, trip lifecycle, evidence, pricing, billing, documents, treasury, and authority readbacks.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:e2e/test_17_dispatch_persisted_chain.py:assert_ok",
+      "type": "function",
+      "name": "assert_ok",
+      "filePath": "e2e/test_17_dispatch_persisted_chain.py",
+      "lineRange": [
+        80,
+        85
+      ],
+      "summary": "Supports comprehensive persisted-chain e2e scenario spanning dispatch master data, trip lifecycle, evidence, pricing, billing, documents, treasury, and authority readbacks.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:e2e/test_17_dispatch_persisted_chain.py:require_json_array",
+      "type": "function",
+      "name": "require_json_array",
+      "filePath": "e2e/test_17_dispatch_persisted_chain.py",
+      "lineRange": [
+        88,
+        94
+      ],
+      "summary": "Supports comprehensive persisted-chain e2e scenario spanning dispatch master data, trip lifecycle, evidence, pricing, billing, documents, treasury, and authority readbacks.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:e2e/test_17_dispatch_persisted_chain.py:login_api",
+      "type": "function",
+      "name": "login_api",
+      "filePath": "e2e/test_17_dispatch_persisted_chain.py",
+      "lineRange": [
+        97,
+        103
+      ],
+      "summary": "Supports comprehensive persisted-chain e2e scenario spanning dispatch master data, trip lifecycle, evidence, pricing, billing, documents, treasury, and authority readbacks.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:e2e/test_17_dispatch_persisted_chain.py:bootstrap_master_data_fixture",
+      "type": "function",
+      "name": "bootstrap_master_data_fixture",
+      "filePath": "e2e/test_17_dispatch_persisted_chain.py",
+      "lineRange": [
+        106,
+        381
+      ],
+      "summary": "Seeds deterministic dispatch master data through the backend TypeScript runtime for the persisted-chain scenario.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:e2e/test_17_dispatch_persisted_chain.py:ensure_master_data_loaded",
+      "type": "function",
+      "name": "ensure_master_data_loaded",
+      "filePath": "e2e/test_17_dispatch_persisted_chain.py",
+      "lineRange": [
+        384,
+        389
+      ],
+      "summary": "Supports comprehensive persisted-chain e2e scenario spanning dispatch master data, trip lifecycle, evidence, pricing, billing, documents, treasury, and authority readbacks.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:e2e/test_17_dispatch_persisted_chain.py:request_binary",
+      "type": "function",
+      "name": "request_binary",
+      "filePath": "e2e/test_17_dispatch_persisted_chain.py",
+      "lineRange": [
+        392,
+        400
+      ],
+      "summary": "Supports comprehensive persisted-chain e2e scenario spanning dispatch master data, trip lifecycle, evidence, pricing, billing, documents, treasury, and authority readbacks.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:e2e/test_17_dispatch_persisted_chain.py:request_json",
+      "type": "function",
+      "name": "request_json",
+      "filePath": "e2e/test_17_dispatch_persisted_chain.py",
+      "lineRange": [
+        403,
+        422
+      ],
+      "summary": "Sends an authenticated JSON request and normalizes success and error responses.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:e2e/test_17_dispatch_persisted_chain.py:request_multipart",
+      "type": "function",
+      "name": "request_multipart",
+      "filePath": "e2e/test_17_dispatch_persisted_chain.py",
+      "lineRange": [
+        425,
+        466
+      ],
+      "summary": "Builds and sends an authenticated multipart upload with an idempotency key.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:e2e/test_17_dispatch_persisted_chain.py:workbook_has_expected_template",
+      "type": "function",
+      "name": "workbook_has_expected_template",
+      "filePath": "e2e/test_17_dispatch_persisted_chain.py",
+      "lineRange": [
+        469,
+        479
+      ],
+      "summary": "Inspects an exported workbook archive for the expected template and bill number.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:e2e/test_17_dispatch_persisted_chain.py:test_dispatch_persisted_chain",
+      "type": "function",
+      "name": "test_dispatch_persisted_chain",
+      "filePath": "e2e/test_17_dispatch_persisted_chain.py",
+      "lineRange": [
+        482,
+        1007
+      ],
+      "summary": "Exercises and verifies the complete persisted dispatch-to-finance business chain.",
+      "tags": [
+        "test",
+        "helper"
+      ],
+      "complexity": "complex"
     }
   ],
   "edges": [
@@ -66235,13 +67078,6 @@
     },
     {
       "source": "file:backend/src/services/agent/orchestrator.ts",
-      "target": "file:backend/src/tests/agent-latency-regressions.test.ts",
-      "type": "tested_by",
-      "direction": "forward",
-      "weight": 0.5
-    },
-    {
-      "source": "file:backend/src/services/agent/orchestrator.ts",
       "target": "file:backend/src/tests/agent-orchestrator-metrics.test.ts",
       "type": "tested_by",
       "direction": "forward",
@@ -66838,13 +67674,6 @@
     {
       "source": "file:backend/src/services/metrics/metric-registry.ts",
       "target": "file:backend/src/tests/metric-registry.test.ts",
-      "type": "tested_by",
-      "direction": "forward",
-      "weight": 0.5
-    },
-    {
-      "source": "file:backend/src/services/trip-pairs.service.ts",
-      "target": "file:backend/src/tests/o01-trip-pair-concurrency.test.ts",
       "type": "tested_by",
       "direction": "forward",
       "weight": 0.5
@@ -97536,41 +98365,6 @@
       "weight": 0.7
     },
     {
-      "source": "file:backend/src/tests/durable-effect-jobs.test.ts",
-      "target": "file:backend/src/db/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/tests/durable-effect-jobs.test.ts",
-      "target": "file:backend/src/db/schema.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/tests/durable-effect-jobs.test.ts",
-      "target": "file:backend/src/lib/redis.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/tests/durable-effect-jobs.test.ts",
-      "target": "file:backend/src/services/durable-effect.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/tests/durable-effect-jobs.test.ts",
-      "target": "file:backend/src/services/storage.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
       "source": "function:backend/src/services/trip-command.service.ts:createTripWriteCommand",
       "target": "file:backend/src/services/trip.service.ts",
       "type": "calls",
@@ -110542,62 +111336,6 @@
       "recoveredFromImportMap": true
     },
     {
-      "source": "file:backend/src/tests/o01-trip-pair-concurrency.test.ts",
-      "target": "file:backend/src/db/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7,
-      "recoveredFromImportMap": true
-    },
-    {
-      "source": "file:backend/src/tests/o01-trip-pair-concurrency.test.ts",
-      "target": "file:backend/src/db/schema.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7,
-      "recoveredFromImportMap": true
-    },
-    {
-      "source": "file:backend/src/tests/o01-trip-pair-concurrency.test.ts",
-      "target": "file:backend/src/services/adjustment-governance.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7,
-      "recoveredFromImportMap": true
-    },
-    {
-      "source": "file:backend/src/tests/o01-trip-pair-concurrency.test.ts",
-      "target": "file:backend/src/services/governance-transition.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7,
-      "recoveredFromImportMap": true
-    },
-    {
-      "source": "file:backend/src/tests/o01-trip-pair-concurrency.test.ts",
-      "target": "file:backend/src/services/idempotency.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7,
-      "recoveredFromImportMap": true
-    },
-    {
-      "source": "file:backend/src/tests/o01-trip-pair-concurrency.test.ts",
-      "target": "file:backend/src/services/trip-command.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7,
-      "recoveredFromImportMap": true
-    },
-    {
-      "source": "file:backend/src/tests/o01-trip-pair-concurrency.test.ts",
-      "target": "file:backend/src/services/trip-pairs.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7,
-      "recoveredFromImportMap": true
-    },
-    {
       "source": "file:backend/src/tests/o01-trip-pairs.routes.test.ts",
       "target": "file:backend/src/config/index.ts",
       "type": "imports",
@@ -119628,6 +120366,902 @@
       "direction": "forward",
       "weight": 0.7,
       "recoveredFromImportMap": true
+    },
+    {
+      "source": "file:backend/src/routes/financial/snapshot.routes.ts",
+      "target": "function:backend/src/routes/financial/snapshot.routes.ts:runSnapshotRecaptureWriteCommand",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/ap-snapshot.service.ts",
+      "target": "function:backend/src/services/ap-snapshot.service.ts:collectApPayableExpenses",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/ap-snapshot.service.ts",
+      "target": "function:backend/src/services/ap-snapshot.service.ts:computeApHash",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/ap-snapshot.service.ts",
+      "target": "class:backend/src/services/ap-snapshot.service.ts:ApSnapshotService",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/ap-snapshot.service.ts",
+      "target": "class:backend/src/services/ap-snapshot.service.ts:ApSnapshotService",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:backend/src/services/ar-snapshot.service.ts",
+      "target": "function:backend/src/services/ar-snapshot.service.ts:computeCostHash",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/ar-snapshot.service.ts",
+      "target": "class:backend/src/services/ar-snapshot.service.ts:ArSnapshotService",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/ar-snapshot.service.ts",
+      "target": "class:backend/src/services/ar-snapshot.service.ts:ArSnapshotService",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:backend/src/services/snapshot-services.ts",
+      "target": "class:backend/src/services/snapshot-services.ts:SnapshotServices",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/snapshot-services.ts",
+      "target": "class:backend/src/services/snapshot-services.ts:SnapshotServices",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:backend/src/tests/durable-effect-jobs.test.ts",
+      "target": "function:backend/src/tests/durable-effect-jobs.test.ts:upsertCompanyLogoSetting",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/tests/durable-effect-jobs.test.ts",
+      "target": "function:backend/src/tests/durable-effect-jobs.test.ts:restoreCompanyLogoSetting",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/tests/o01-trip-pair-concurrency.test.ts",
+      "target": "function:backend/src/tests/o01-trip-pair-concurrency.test.ts:assertOneWinnerOneConflict",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/tests/o01-trip-pair-concurrency.test.ts",
+      "target": "function:backend/src/tests/o01-trip-pair-concurrency.test.ts:mkTrip",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/tests/o01-trip-pair-concurrency.test.ts",
+      "target": "function:backend/src/tests/o01-trip-pair-concurrency.test.ts:seedCompletionEvidence",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/tests/o01-trip-pair-concurrency.test.ts",
+      "target": "function:backend/src/tests/o01-trip-pair-concurrency.test.ts:pairPayload",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/tests/o01-trip-pair-concurrency.test.ts",
+      "target": "function:backend/src/tests/o01-trip-pair-concurrency.test.ts:runPair",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/tests/o01-trip-pair-concurrency.test.ts",
+      "target": "function:backend/src/tests/o01-trip-pair-concurrency.test.ts:assertPairIntegrity",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/tests/o2c-rev1.snapshot-routes.test.ts",
+      "target": "function:backend/src/tests/o2c-rev1.snapshot-routes.test.ts:createDirtyTrip",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/tests/o2c-rev1.snapshot-routes.test.ts",
+      "target": "function:backend/src/tests/o2c-rev1.snapshot-routes.test.ts:waitForAudit",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:e2e/helpers.py",
+      "target": "function:e2e/helpers.py:ensure_customer_test_account",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:e2e/helpers.py",
+      "target": "function:e2e/helpers.py:ensure_customer_test_account",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:e2e/helpers.py",
+      "target": "function:e2e/helpers.py:assert_url_contains",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:e2e/helpers.py",
+      "target": "function:e2e/helpers.py:assert_url_contains",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:e2e/helpers.py",
+      "target": "function:e2e/helpers.py:assert_element_visible",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:e2e/helpers.py",
+      "target": "function:e2e/helpers.py:assert_element_visible",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:e2e/helpers.py",
+      "target": "function:e2e/helpers.py:assert_text_visible",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:e2e/helpers.py",
+      "target": "function:e2e/helpers.py:assert_text_visible",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:e2e/helpers.py",
+      "target": "function:e2e/helpers.py:assert_redirected_to",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:e2e/helpers.py",
+      "target": "function:e2e/helpers.py:assert_redirected_to",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:e2e/helpers.py",
+      "target": "function:e2e/helpers.py:run_suite",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:e2e/helpers.py",
+      "target": "function:e2e/helpers.py:run_suite",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:e2e/helpers.py",
+      "target": "class:e2e/helpers.py:TestResults",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:e2e/helpers.py",
+      "target": "class:e2e/helpers.py:TestResults",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:e2e/helpers.py",
+      "target": "class:e2e/helpers.py:ApiClient",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:e2e/helpers.py",
+      "target": "class:e2e/helpers.py:ApiClient",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:e2e/helpers.py",
+      "target": "class:e2e/helpers.py:NepoTestContext",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:e2e/helpers.py",
+      "target": "class:e2e/helpers.py:NepoTestContext",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:e2e/test_15_customer_portal.py",
+      "target": "function:e2e/test_15_customer_portal.py:_login_customer",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:e2e/test_15_customer_portal.py",
+      "target": "function:e2e/test_15_customer_portal.py:_login_customer",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:e2e/test_15_customer_portal.py",
+      "target": "function:e2e/test_15_customer_portal.py:_no_horizontal_overflow",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:e2e/test_15_customer_portal.py",
+      "target": "function:e2e/test_15_customer_portal.py:_no_horizontal_overflow",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:e2e/test_15_customer_portal.py",
+      "target": "function:e2e/test_15_customer_portal.py:test_customer_portal",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:e2e/test_15_customer_portal.py",
+      "target": "function:e2e/test_15_customer_portal.py:test_customer_portal",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:iso_at",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:iso_at",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:month_range",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:month_range",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:first_items",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:first_items",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:get_with_query",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:get_with_query",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:pick_named",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:pick_named",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:api_failure_detail",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:api_failure_detail",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:assert_ok",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:assert_ok",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:require_json_array",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:require_json_array",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:login_api",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:login_api",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:bootstrap_master_data_fixture",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:bootstrap_master_data_fixture",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:ensure_master_data_loaded",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:ensure_master_data_loaded",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:request_binary",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:request_binary",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:request_json",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:request_json",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:request_multipart",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:request_multipart",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:workbook_has_expected_template",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:workbook_has_expected_template",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:test_dispatch_persisted_chain",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "function:e2e/test_17_dispatch_persisted_chain.py:test_dispatch_persisted_chain",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:backend/src/routes/financial/snapshot.routes.ts",
+      "target": "file:backend/src/middleware/casbin.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/routes/financial/snapshot.routes.ts",
+      "target": "file:backend/src/middleware/asyncHandler.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/routes/financial/snapshot.routes.ts",
+      "target": "file:backend/src/middleware/auth.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/routes/financial/snapshot.routes.ts",
+      "target": "file:backend/src/errors.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/routes/financial/snapshot.routes.ts",
+      "target": "file:backend/src/services/snapshot-services.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/routes/financial/snapshot.routes.ts",
+      "target": "file:backend/src/services/trip-shared.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/services/ap-snapshot.service.ts",
+      "target": "file:backend/src/db/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/services/ap-snapshot.service.ts",
+      "target": "file:backend/src/db/schema.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/services/ap-snapshot.service.ts",
+      "target": "file:backend/src/errors.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/services/ap-snapshot.service.ts",
+      "target": "file:backend/src/services/trip-shared.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/services/ar-snapshot.service.ts",
+      "target": "file:backend/src/db/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/services/ar-snapshot.service.ts",
+      "target": "file:backend/src/db/schema.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/services/ar-snapshot.service.ts",
+      "target": "file:backend/src/errors.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/services/ar-snapshot.service.ts",
+      "target": "file:backend/src/services/trip-shared.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/services/snapshot-services.ts",
+      "target": "file:backend/src/db/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/services/snapshot-services.ts",
+      "target": "file:backend/src/db/schema.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/services/snapshot-services.ts",
+      "target": "file:backend/src/errors.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/services/snapshot-services.ts",
+      "target": "file:backend/src/services/trip-shared.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/tests/durable-effect-jobs.test.ts",
+      "target": "file:backend/src/db/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/db/index.ts",
+      "target": "file:backend/src/tests/durable-effect-jobs.test.ts",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:backend/src/tests/durable-effect-jobs.test.ts",
+      "target": "file:backend/src/db/schema.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/db/schema.ts",
+      "target": "file:backend/src/tests/durable-effect-jobs.test.ts",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:backend/src/tests/durable-effect-jobs.test.ts",
+      "target": "file:backend/src/lib/redis.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/lib/redis.ts",
+      "target": "file:backend/src/tests/durable-effect-jobs.test.ts",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:backend/src/tests/o01-trip-pair-concurrency.test.ts",
+      "target": "file:backend/src/db/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/db/index.ts",
+      "target": "file:backend/src/tests/o01-trip-pair-concurrency.test.ts",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:backend/src/tests/o01-trip-pair-concurrency.test.ts",
+      "target": "file:backend/src/db/schema.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/db/schema.ts",
+      "target": "file:backend/src/tests/o01-trip-pair-concurrency.test.ts",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:backend/src/tests/o01-trip-pair-concurrency.test.ts",
+      "target": "file:backend/src/lib/redis.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/lib/redis.ts",
+      "target": "file:backend/src/tests/o01-trip-pair-concurrency.test.ts",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:backend/src/tests/o2c-rev1.snapshot-routes.test.ts",
+      "target": "file:backend/src/db/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/db/index.ts",
+      "target": "file:backend/src/tests/o2c-rev1.snapshot-routes.test.ts",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:backend/src/tests/o2c-rev1.snapshot-routes.test.ts",
+      "target": "file:backend/src/db/schema.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/db/schema.ts",
+      "target": "file:backend/src/tests/o2c-rev1.snapshot-routes.test.ts",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:backend/src/tests/o2c-rev1.snapshot-routes.test.ts",
+      "target": "file:backend/src/config/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/config/index.ts",
+      "target": "file:backend/src/tests/o2c-rev1.snapshot-routes.test.ts",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:backend/src/tests/o2c-rev1.snapshot-routes.test.ts",
+      "target": "file:backend/src/casbin/enforcer.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/casbin/enforcer.ts",
+      "target": "file:backend/src/tests/o2c-rev1.snapshot-routes.test.ts",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:backend/src/tests/o2c-rev1.snapshot-routes.test.ts",
+      "target": "file:backend/src/middleware/auth.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/middleware/auth.ts",
+      "target": "file:backend/src/tests/o2c-rev1.snapshot-routes.test.ts",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:backend/src/tests/o2c-rev1.snapshot-routes.test.ts",
+      "target": "file:backend/src/middleware/audit.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/middleware/audit.ts",
+      "target": "file:backend/src/tests/o2c-rev1.snapshot-routes.test.ts",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:backend/src/tests/o2c-rev1.snapshot-routes.test.ts",
+      "target": "file:backend/src/middleware/casbin.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/middleware/casbin.ts",
+      "target": "file:backend/src/tests/o2c-rev1.snapshot-routes.test.ts",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:backend/src/tests/o2c-rev1.snapshot-routes.test.ts",
+      "target": "file:backend/src/middleware/errorHandler.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/middleware/errorHandler.ts",
+      "target": "file:backend/src/tests/o2c-rev1.snapshot-routes.test.ts",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:backend/src/tests/o2c-rev1.snapshot-routes.test.ts",
+      "target": "file:backend/src/routes/financial/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/routes/financial/index.ts",
+      "target": "file:backend/src/tests/o2c-rev1.snapshot-routes.test.ts",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:e2e/test_15_customer_portal.py",
+      "target": "file:e2e/helpers.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:e2e/helpers.py",
+      "target": "file:e2e/test_15_customer_portal.py",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "target": "file:e2e/helpers.py",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:e2e/helpers.py",
+      "target": "file:e2e/test_17_dispatch_persisted_chain.py",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
     }
   ],
   "layers": [
@@ -120266,7 +121900,8 @@
         "file:backend/src/routes/portal/index.ts",
         "file:backend/src/routes/shipments.ts",
         "file:backend/src/routes/trips.ts",
-        "file:backend/src/agentSocket.ts"
+        "file:backend/src/agentSocket.ts",
+        "file:backend/src/routes/financial/snapshot.routes.ts"
       ]
     },
     {
@@ -120460,7 +122095,10 @@
         "file:backend/src/services/user.service.ts",
         "file:backend/src/services/trip-command.service.ts",
         "file:backend/src/services/aging.service.ts",
-        "file:backend/src/services/pnl.service.ts"
+        "file:backend/src/services/pnl.service.ts",
+        "file:backend/src/services/ap-snapshot.service.ts",
+        "file:backend/src/services/ar-snapshot.service.ts",
+        "file:backend/src/services/snapshot-services.ts"
       ]
     },
     {
@@ -120877,7 +122515,6 @@
         "file:backend/src/tests/agent-eval-runner.test.ts",
         "file:backend/src/tests/agent-eval/golden-qa.json",
         "file:backend/src/tests/agent-event-schema.test.ts",
-        "file:backend/src/tests/agent-latency-regressions.test.ts",
         "file:backend/src/tests/agent-orchestrator-metrics.test.ts",
         "file:backend/src/tests/agent-p0-instrumentation.test.ts",
         "file:backend/src/tests/agent-semantic-data.test.ts",
@@ -120980,7 +122617,6 @@
         "file:backend/src/tests/master-data-import.test.ts",
         "file:backend/src/tests/material-write-registry-exhaustive.test.ts",
         "file:backend/src/tests/metric-registry.test.ts",
-        "file:backend/src/tests/o01-trip-pair-concurrency.test.ts",
         "file:backend/src/tests/o01-trip-pairing.service.test.ts",
         "file:backend/src/tests/o01-trip-pairs.routes.test.ts",
         "file:backend/src/tests/ocr-openrouter.test.ts",
@@ -121206,7 +122842,6 @@
         "file:backend/src/tests/accounting-transport-register.test.ts",
         "file:backend/src/tests/comprehensive.test.ts",
         "file:backend/src/tests/driver-fulfillment-progress.test.ts",
-        "file:backend/src/tests/durable-effect-jobs.test.ts",
         "file:backend/src/tests/m33-milestone.test.ts",
         "file:backend/src/tests/q01-credit-override-routes.test.ts",
         "file:backend/src/tests/q15-debit-note-governance.test.ts",
@@ -121222,7 +122857,14 @@
         "file:frontend/src/pages/portal/PortalPages.test.tsx",
         "file:shared/src/schemas/billing-document-security.test.ts",
         "file:frontend/src/pages/AccountingWorkspacePage.test.tsx",
-        "file:shared/src/schemas/customer-service-finance.test.ts"
+        "file:shared/src/schemas/customer-service-finance.test.ts",
+        "file:backend/src/tests/agent-latency-regressions.test.ts",
+        "file:backend/src/tests/durable-effect-jobs.test.ts",
+        "file:backend/src/tests/o01-trip-pair-concurrency.test.ts",
+        "file:backend/src/tests/o2c-rev1.snapshot-routes.test.ts",
+        "file:e2e/helpers.py",
+        "file:e2e/test_15_customer_portal.py",
+        "file:e2e/test_17_dispatch_persisted_chain.py"
       ]
     },
     {

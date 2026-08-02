@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "340ab9160cfde30f9330927e57ce1aba94663120",
-  "generatedAt": "2026-08-02T06:44:25.932Z",
+  "gitCommitHash": "081b8fdec4ca23e1ed299c7f6ede5a160bc68de3",
+  "generatedAt": "2026-08-02T07:29:57.498Z",
   "files": {
     ".codex/context-manifest.json": {
       "filePath": ".codex/context-manifest.json",
@@ -38494,7 +38494,7 @@
     },
     "backend/src/tests/agent-latency-regressions.test.ts": {
       "filePath": "backend/src/tests/agent-latency-regressions.test.ts",
-      "contentHash": "935f4909cca9fe828ca443cd7fda39d611c8c53af01c589e8a27777a75a23a9b",
+      "contentHash": "accc27f6c4d30cc88607a859be425e03756d23930b21a5907a05e0d749b9bac1",
       "functions": [
         {
           "name": "source",
@@ -38524,6 +38524,7 @@
         {
           "source": "node:fs",
           "specifiers": [
+            "existsSync",
             "readFileSync"
           ]
         },
@@ -38542,7 +38543,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 41,
+      "totalLines": 45,
       "hasStructuralAnalysis": true
     },
     "backend/src/tests/agent-orchestrator-metrics.test.ts": {
@@ -42126,7 +42127,7 @@
     },
     "backend/src/tests/durable-effect-jobs.test.ts": {
       "filePath": "backend/src/tests/durable-effect-jobs.test.ts",
-      "contentHash": "89349a77ec2580768728da74ecbcf500728baca6908610adebae9b1646f29667",
+      "contentHash": "19bc357d99abf6e394329cec31389affcb6b599f05a8c9335dfda2d1de9cf9b7",
       "functions": [
         {
           "name": "upsertCompanyLogoSetting",
@@ -42143,13 +42144,6 @@
           "returnType": "Promise<void>",
           "exported": false,
           "lineCount": 18
-        },
-        {
-          "name": "runMigrationBackfillStatement",
-          "params": [],
-          "returnType": "Promise<void>",
-          "exported": false,
-          "lineCount": 10
         },
         {
           "name": "cleanupScopeJobs",
@@ -42186,7 +42180,6 @@
         {
           "source": "drizzle-orm",
           "specifiers": [
-            "and",
             "eq",
             "sql"
           ]
@@ -42235,7 +42228,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 519,
+      "totalLines": 476,
       "hasStructuralAnalysis": true
     },
     "backend/src/tests/email-service.test.ts": {
@@ -47735,7 +47728,7 @@
     },
     "backend/src/tests/o01-trip-pair-concurrency.test.ts": {
       "filePath": "backend/src/tests/o01-trip-pair-concurrency.test.ts",
-      "contentHash": "325e905555755c66591288be0b656d543afb37d0af8c0cab9531040b46b9cf8c",
+      "contentHash": "78b5d73f8022fa9e29d0cbaca76f967c27a3d2af909c3ef47beaa4b454fc0ec1",
       "functions": [
         {
           "name": "apiStatus",
@@ -47762,6 +47755,15 @@
           ],
           "exported": false,
           "lineCount": 24
+        },
+        {
+          "name": "seedCompletionEvidence",
+          "params": [
+            "tripId",
+            "uploadedBy"
+          ],
+          "exported": false,
+          "lineCount": 20
         },
         {
           "name": "pairPayload",
@@ -47847,6 +47849,12 @@
           ]
         },
         {
+          "source": "../lib/redis",
+          "specifiers": [
+            "disconnectRedis"
+          ]
+        },
+        {
           "source": "../services/governance-transition.service",
           "specifiers": [
             "checkGovernanceAction"
@@ -47873,7 +47881,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 425,
+      "totalLines": 450,
       "hasStructuralAnalysis": true
     },
     "backend/src/tests/o01-trip-pairing.service.test.ts": {
@@ -101362,6 +101370,1066 @@
       "imports": [],
       "exports": [],
       "totalLines": 16,
+      "hasStructuralAnalysis": true
+    },
+    "backend/src/routes/financial/snapshot.routes.ts": {
+      "filePath": "backend/src/routes/financial/snapshot.routes.ts",
+      "contentHash": "ed733542c20f6ae2898112ea20c875a0f8ffd7c67934c4147e31e3fb01c3f657",
+      "functions": [
+        {
+          "name": "parseTripId",
+          "params": [
+            "req"
+          ],
+          "returnType": "number",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "runSnapshotRecaptureWriteCommand",
+          "params": [
+            "input"
+          ],
+          "exported": false,
+          "lineCount": 27
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "express",
+          "specifiers": [
+            "Router"
+          ]
+        },
+        {
+          "source": "express",
+          "specifiers": [
+            "Request",
+            "Response"
+          ]
+        },
+        {
+          "source": "@tingting/shared",
+          "specifiers": [
+            "Role"
+          ]
+        },
+        {
+          "source": "../../middleware/casbin",
+          "specifiers": [
+            "requireRoles"
+          ]
+        },
+        {
+          "source": "../../middleware/asyncHandler",
+          "specifiers": [
+            "asyncHandler"
+          ]
+        },
+        {
+          "source": "../../middleware/auth",
+          "specifiers": [
+            "getUser"
+          ]
+        },
+        {
+          "source": "../../errors",
+          "specifiers": [
+            "ApiError"
+          ]
+        },
+        {
+          "source": "../../services/ap-snapshot.service",
+          "specifiers": [
+            "ApSnapshotService"
+          ]
+        },
+        {
+          "source": "../../services/ar-snapshot.service",
+          "specifiers": [
+            "ArSnapshotService"
+          ]
+        },
+        {
+          "source": "../../services/snapshot-services",
+          "specifiers": [
+            "SnapshotServices"
+          ]
+        },
+        {
+          "source": "../../services/idempotency.service",
+          "specifiers": [
+            "IDEMPOTENCY_ENDPOINTS",
+            "resolveIdempotencyKey",
+            "runIdempotent"
+          ]
+        },
+        {
+          "source": "../../services/trip-shared",
+          "specifiers": [
+            "Tx"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 107,
+      "hasStructuralAnalysis": true
+    },
+    "backend/src/services/ap-snapshot.service.ts": {
+      "filePath": "backend/src/services/ap-snapshot.service.ts",
+      "contentHash": "d7d1c8b12cf009954e2595fe02fbf9285ae4e5d76f64481d8230eba1156fc318",
+      "functions": [
+        {
+          "name": "collectApPayableExpenses",
+          "params": [
+            "expenses"
+          ],
+          "exported": false,
+          "lineCount": 18
+        },
+        {
+          "name": "computeApHash",
+          "params": [
+            "tripId",
+            "tx"
+          ],
+          "returnType": "Promise<string>",
+          "exported": false,
+          "lineCount": 53
+        }
+      ],
+      "classes": [
+        {
+          "name": "ApSnapshotService",
+          "methods": [
+            "captureSnapshot",
+            "markDirty",
+            "listDirty",
+            "recapture"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 61
+        }
+      ],
+      "imports": [
+        {
+          "source": "node:crypto",
+          "specifiers": [
+            "createHash"
+          ]
+        },
+        {
+          "source": "drizzle-orm",
+          "specifiers": [
+            "eq"
+          ]
+        },
+        {
+          "source": "@tingting/shared",
+          "specifiers": [
+            "round2dp"
+          ]
+        },
+        {
+          "source": "../db",
+          "specifiers": [
+            "db"
+          ]
+        },
+        {
+          "source": "../db/schema",
+          "specifiers": [
+            "* as s"
+          ]
+        },
+        {
+          "source": "../errors",
+          "specifiers": [
+            "ApiError"
+          ]
+        },
+        {
+          "source": "./trip-financial-authority-lock.service",
+          "specifiers": [
+            "lockTripFinancialAuthority"
+          ]
+        },
+        {
+          "source": "./trip-shared",
+          "specifiers": [
+            "Tx"
+          ]
+        }
+      ],
+      "exports": [
+        "ApSnapshotService"
+      ],
+      "totalLines": 147,
+      "hasStructuralAnalysis": true
+    },
+    "backend/src/services/ar-snapshot.service.ts": {
+      "filePath": "backend/src/services/ar-snapshot.service.ts",
+      "contentHash": "06cac4beb146496a019166e2346deea785065b4f168647c2571e4ea42bcf94f3",
+      "functions": [
+        {
+          "name": "computeCostHash",
+          "params": [
+            "tripId",
+            "tx"
+          ],
+          "returnType": "Promise<string>",
+          "exported": false,
+          "lineCount": 47
+        }
+      ],
+      "classes": [
+        {
+          "name": "ArSnapshotService",
+          "methods": [
+            "captureSnapshot",
+            "markDirty",
+            "listDirty",
+            "recapture"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 89
+        }
+      ],
+      "imports": [
+        {
+          "source": "../db",
+          "specifiers": [
+            "db"
+          ]
+        },
+        {
+          "source": "../db/schema",
+          "specifiers": [
+            "* as s"
+          ]
+        },
+        {
+          "source": "drizzle-orm",
+          "specifiers": [
+            "eq"
+          ]
+        },
+        {
+          "source": "node:crypto",
+          "specifiers": [
+            "createHash"
+          ]
+        },
+        {
+          "source": "@tingting/shared",
+          "specifiers": [
+            "round2dp"
+          ]
+        },
+        {
+          "source": "../errors",
+          "specifiers": [
+            "ApiError"
+          ]
+        },
+        {
+          "source": "./trip-financial-authority-lock.service",
+          "specifiers": [
+            "lockTripFinancialAuthority"
+          ]
+        },
+        {
+          "source": "./trip-shared",
+          "specifiers": [
+            "Tx"
+          ]
+        }
+      ],
+      "exports": [
+        "ArSnapshotService"
+      ],
+      "totalLines": 167,
+      "hasStructuralAnalysis": true
+    },
+    "backend/src/services/snapshot-services.ts": {
+      "filePath": "backend/src/services/snapshot-services.ts",
+      "contentHash": "74da078f18c0936693d464a19751278ce4037e0ea68e7883bd48827c043da32b",
+      "functions": [],
+      "classes": [
+        {
+          "name": "SnapshotServices",
+          "methods": [
+            "captureApWithDegradation",
+            "markBothDirty",
+            "listFuelSurchargeDirty",
+            "recaptureFuelSurcharge"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 121
+        }
+      ],
+      "imports": [
+        {
+          "source": "@tingting/shared",
+          "specifiers": [
+            "computeFuelSurcharge"
+          ]
+        },
+        {
+          "source": "drizzle-orm",
+          "specifiers": [
+            "and",
+            "eq",
+            "isNull"
+          ]
+        },
+        {
+          "source": "../db",
+          "specifiers": [
+            "db"
+          ]
+        },
+        {
+          "source": "../db/schema",
+          "specifiers": [
+            "* as s"
+          ]
+        },
+        {
+          "source": "../errors",
+          "specifiers": [
+            "ApiError"
+          ]
+        },
+        {
+          "source": "./ap-snapshot.service",
+          "specifiers": [
+            "ApSnapshotService"
+          ]
+        },
+        {
+          "source": "./ar-snapshot.service",
+          "specifiers": [
+            "ArSnapshotService"
+          ]
+        },
+        {
+          "source": "./trip-financial-authority-lock.service",
+          "specifiers": [
+            "lockTripFinancialAuthority"
+          ]
+        },
+        {
+          "source": "./trip-shared",
+          "specifiers": [
+            "Tx"
+          ]
+        }
+      ],
+      "exports": [
+        "SnapshotServices"
+      ],
+      "totalLines": 135,
+      "hasStructuralAnalysis": true
+    },
+    "backend/src/tests/o2c-rev1.snapshot-routes.test.ts": {
+      "filePath": "backend/src/tests/o2c-rev1.snapshot-routes.test.ts",
+      "contentHash": "926c2d4f9413ed899c65a85c3e1cce172a34668242a4ed55c3c69d8cc57445a9",
+      "functions": [
+        {
+          "name": "mkUser",
+          "params": [
+            "username",
+            "role"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "sign",
+          "params": [
+            "user"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "createDirtyTrip",
+          "params": [],
+          "exported": false,
+          "lineCount": 51
+        },
+        {
+          "name": "waitForAudit",
+          "params": [
+            "path"
+          ],
+          "exported": false,
+          "lineCount": 19
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "after",
+            "before",
+            "describe",
+            "test"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "node:http",
+          "specifiers": [
+            "http"
+          ]
+        },
+        {
+          "source": "node:net",
+          "specifiers": [
+            "AddressInfo"
+          ]
+        },
+        {
+          "source": "express",
+          "specifiers": [
+            "express"
+          ]
+        },
+        {
+          "source": "jsonwebtoken",
+          "specifiers": [
+            "jwt"
+          ]
+        },
+        {
+          "source": "bcryptjs",
+          "specifiers": [
+            "bcrypt"
+          ]
+        },
+        {
+          "source": "drizzle-orm",
+          "specifiers": [
+            "eq",
+            "inArray",
+            "sql"
+          ]
+        },
+        {
+          "source": "@tingting/shared",
+          "specifiers": [
+            "Role"
+          ]
+        },
+        {
+          "source": "../db",
+          "specifiers": [
+            "db",
+            "client"
+          ]
+        },
+        {
+          "source": "../db/schema",
+          "specifiers": [
+            "* as s"
+          ]
+        },
+        {
+          "source": "../config",
+          "specifiers": [
+            "config"
+          ]
+        },
+        {
+          "source": "../casbin/enforcer",
+          "specifiers": [
+            "initEnforcer"
+          ]
+        },
+        {
+          "source": "../middleware/auth",
+          "specifiers": [
+            "authMiddleware"
+          ]
+        },
+        {
+          "source": "../middleware/audit",
+          "specifiers": [
+            "auditLogMiddleware"
+          ]
+        },
+        {
+          "source": "../middleware/casbin",
+          "specifiers": [
+            "casbinAuthz"
+          ]
+        },
+        {
+          "source": "../middleware/errorHandler",
+          "specifiers": [
+            "globalErrorHandler"
+          ]
+        },
+        {
+          "source": "../routes/financial",
+          "specifiers": [
+            "financialRoutes"
+          ]
+        },
+        {
+          "source": "../services/audit.service",
+          "specifiers": [
+            "initAuditService"
+          ]
+        },
+        {
+          "source": "../services/notification.service",
+          "specifiers": [
+            "initNotificationService"
+          ]
+        },
+        {
+          "source": "../services/ar-snapshot.service",
+          "specifiers": [
+            "ArSnapshotService"
+          ]
+        },
+        {
+          "source": "../services/trip-financial-authority-lock.service",
+          "specifiers": [
+            "lockTripFinancialAuthority"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 468,
+      "hasStructuralAnalysis": true
+    },
+    "e2e/helpers.py": {
+      "filePath": "e2e/helpers.py",
+      "contentHash": "d34a264fe08bb8f4219ecb84a265a5d8c7cc97b39e2cf7b74837acbfbe909fea",
+      "functions": [
+        {
+          "name": "ensure_customer_test_account",
+          "params": [],
+          "returnType": "dict",
+          "exported": true,
+          "lineCount": 41
+        },
+        {
+          "name": "assert_url_contains",
+          "params": [
+            "page",
+            "fragment"
+          ],
+          "returnType": "bool",
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "assert_element_visible",
+          "params": [
+            "page",
+            "selector",
+            "timeout"
+          ],
+          "returnType": "bool",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "assert_text_visible",
+          "params": [
+            "page",
+            "text",
+            "timeout"
+          ],
+          "returnType": "bool",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "assert_redirected_to",
+          "params": [
+            "page",
+            "path",
+            "timeout"
+          ],
+          "returnType": "bool",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "run_suite",
+          "params": [
+            "suite_name",
+            "test_fn",
+            "headless"
+          ],
+          "exported": true,
+          "lineCount": 16
+        }
+      ],
+      "classes": [
+        {
+          "name": "TestResults",
+          "methods": [
+            "__init__",
+            "pass_",
+            "fail",
+            "skip",
+            "passed",
+            "failed",
+            "skipped",
+            "total",
+            "print_summary",
+            "write_json"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 60
+        },
+        {
+          "name": "ApiClient",
+          "methods": [
+            "__init__",
+            "login",
+            "_request",
+            "get",
+            "post",
+            "put",
+            "patch",
+            "delete"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 62
+        },
+        {
+          "name": "NepoTestContext",
+          "methods": [
+            "__init__",
+            "__enter__",
+            "__exit__",
+            "new_page",
+            "login_as",
+            "screenshot"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 54
+        }
+      ],
+      "imports": [
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "time",
+          "specifiers": [
+            "time"
+          ]
+        },
+        {
+          "source": "traceback",
+          "specifiers": [
+            "traceback"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "urllib.parse",
+          "specifiers": [
+            "urlparse"
+          ]
+        },
+        {
+          "source": "playwright.sync_api",
+          "specifiers": [
+            "sync_playwright",
+            "Page",
+            "Browser",
+            "BrowserContext"
+          ]
+        }
+      ],
+      "exports": [
+        "ensure_customer_test_account",
+        "TestResults",
+        "ApiClient",
+        "NepoTestContext",
+        "assert_url_contains",
+        "assert_element_visible",
+        "assert_text_visible",
+        "assert_redirected_to",
+        "run_suite"
+      ],
+      "totalLines": 301,
+      "hasStructuralAnalysis": true
+    },
+    "e2e/test_15_customer_portal.py": {
+      "filePath": "e2e/test_15_customer_portal.py",
+      "contentHash": "b44374a1e2e7cbf609403892d972c67027ba687bbefeb347aba611224cb48f44",
+      "functions": [
+        {
+          "name": "_login_customer",
+          "params": [
+            "page"
+          ],
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "_no_horizontal_overflow",
+          "params": [
+            "page"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "test_customer_portal",
+          "params": [
+            "ctx",
+            "results"
+          ],
+          "exported": true,
+          "lineCount": 95
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "helpers",
+          "specifiers": [
+            "*"
+          ]
+        }
+      ],
+      "exports": [
+        "_login_customer",
+        "_no_horizontal_overflow",
+        "test_customer_portal"
+      ],
+      "totalLines": 126,
+      "hasStructuralAnalysis": true
+    },
+    "e2e/test_17_dispatch_persisted_chain.py": {
+      "filePath": "e2e/test_17_dispatch_persisted_chain.py",
+      "contentHash": "e836ad1967cd542dff9f6125aac7603ca3d50f1544e486a493ff639f3f2382ba",
+      "functions": [
+        {
+          "name": "iso_at",
+          "params": [
+            "hours_ahead"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "month_range",
+          "params": [
+            "now"
+          ],
+          "returnType": "tuple[str, str]",
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "first_items",
+          "params": [
+            "payload"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "get_with_query",
+          "params": [
+            "api",
+            "path",
+            "params"
+          ],
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "pick_named",
+          "params": [
+            "items",
+            "label",
+            "needle"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "api_failure_detail",
+          "params": [
+            "response"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "assert_ok",
+          "params": [
+            "results",
+            "tc_id",
+            "title",
+            "condition",
+            "detail"
+          ],
+          "returnType": "bool",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "require_json_array",
+          "params": [
+            "results",
+            "tc_id",
+            "title",
+            "response"
+          ],
+          "returnType": "list[dict] | None",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "login_api",
+          "params": [
+            "role_key"
+          ],
+          "returnType": "ApiClient",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "bootstrap_master_data_fixture",
+          "params": [
+            "driver_id"
+          ],
+          "returnType": "tuple[int, str, str]",
+          "exported": true,
+          "lineCount": 276
+        },
+        {
+          "name": "ensure_master_data_loaded",
+          "params": [
+            "admin_api",
+            "driver_id"
+          ],
+          "returnType": "tuple[int, str, str]",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "request_binary",
+          "params": [
+            "api",
+            "path",
+            "headers"
+          ],
+          "returnType": "tuple[int, dict[str, str], bytes]",
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "request_json",
+          "params": [
+            "api",
+            "method",
+            "path",
+            "body",
+            "headers"
+          ],
+          "exported": true,
+          "lineCount": 20
+        },
+        {
+          "name": "request_multipart",
+          "params": [
+            "api",
+            "path",
+            "fields",
+            "file_field",
+            "filename",
+            "file_bytes",
+            "content_type",
+            "idempotency_key"
+          ],
+          "exported": true,
+          "lineCount": 42
+        },
+        {
+          "name": "workbook_has_expected_template",
+          "params": [
+            "blob",
+            "template_name",
+            "bill_number"
+          ],
+          "returnType": "tuple[bool, str]",
+          "exported": true,
+          "lineCount": 11
+        },
+        {
+          "name": "test_dispatch_persisted_chain",
+          "params": [
+            "ctx",
+            "results"
+          ],
+          "exported": true,
+          "lineCount": 526
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "datetime",
+          "specifiers": [
+            "datetime",
+            "timedelta"
+          ]
+        },
+        {
+          "source": "io",
+          "specifiers": [
+            "BytesIO"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "os",
+          "specifiers": [
+            "os"
+          ]
+        },
+        {
+          "source": "subprocess",
+          "specifiers": [
+            "subprocess"
+          ]
+        },
+        {
+          "source": "sys",
+          "specifiers": [
+            "sys"
+          ]
+        },
+        {
+          "source": "urllib.error",
+          "specifiers": [
+            "urllib.error"
+          ]
+        },
+        {
+          "source": "urllib.parse",
+          "specifiers": [
+            "urllib.parse"
+          ]
+        },
+        {
+          "source": "urllib.request",
+          "specifiers": [
+            "urllib.request"
+          ]
+        },
+        {
+          "source": "uuid",
+          "specifiers": [
+            "uuid"
+          ]
+        },
+        {
+          "source": "zipfile",
+          "specifiers": [
+            "zipfile"
+          ]
+        },
+        {
+          "source": "helpers",
+          "specifiers": [
+            "*"
+          ]
+        }
+      ],
+      "exports": [
+        "iso_at",
+        "month_range",
+        "first_items",
+        "get_with_query",
+        "pick_named",
+        "api_failure_detail",
+        "assert_ok",
+        "require_json_array",
+        "login_api",
+        "bootstrap_master_data_fixture",
+        "ensure_master_data_loaded",
+        "request_binary",
+        "request_json",
+        "request_multipart",
+        "workbook_has_expected_template",
+        "test_dispatch_persisted_chain"
+      ],
+      "totalLines": 1012,
       "hasStructuralAnalysis": true
     }
   }
