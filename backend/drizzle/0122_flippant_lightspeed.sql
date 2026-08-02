@@ -1,1 +1,0 @@
-ALTER TABLE "payment_allocations" ALTER COLUMN "receipt_id" SET DATA TYPE varchar(100);

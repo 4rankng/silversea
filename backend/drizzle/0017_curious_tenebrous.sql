@@ -1,1 +1,0 @@
-ALTER TABLE "trips" ADD COLUMN "road_allowance_override" numeric(15, 0);

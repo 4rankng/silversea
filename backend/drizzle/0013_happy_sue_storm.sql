@@ -1,1 +1,0 @@
-ALTER TABLE "routes" ADD COLUMN "default_legs" jsonb;

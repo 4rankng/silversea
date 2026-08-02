@@ -1,1 +1,0 @@
-ALTER TABLE "audit_logs" ADD COLUMN "actor_name" varchar(255);

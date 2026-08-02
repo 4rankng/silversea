@@ -159,7 +159,7 @@ rather than each rebuilding it.
 - Backend health: http://localhost:3001/api/health
 - Drizzle ORM only — **no raw SQL**. Financial precision via `round2dp()` / `computeTripTotals()`.
 
-## Demo accounts (all passwords `admin123`)
+## Demo accounts (all passwords `Abc123`)
 
 | Username | Role |
 | --- | --- |
@@ -173,7 +173,7 @@ rather than each rebuilding it.
 | pho | DRIVER |
 | quyet | DRIVER |
 
-Open http://localhost:7174 and log in with `admin / admin123`. ✅
+Open http://localhost:7174 and log in with `admin / Abc123`. ✅
 
 
 # STAGING ACCOUNT
@@ -189,4 +189,4 @@ Open http://localhost:7174 and log in with `admin / admin123`. ✅
 
 https://vantai.tingting.vip/
 
-All password 123456
+All password Abc123

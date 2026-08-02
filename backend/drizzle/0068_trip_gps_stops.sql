@@ -1,1 +1,0 @@
-ALTER TABLE "trip_gps_tracks" ADD COLUMN IF NOT EXISTS "stops" jsonb;

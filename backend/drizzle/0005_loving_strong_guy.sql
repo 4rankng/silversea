@@ -1,1 +1,0 @@
-ALTER TABLE "trips" ADD COLUMN "container_count" integer DEFAULT 1;

@@ -1,2 +1,0 @@
-CREATE TYPE "public"."customer_account_type" AS ENUM('SINGLE_ENTITY', 'CORPORATE_GROUP', 'AGENCY');--> statement-breakpoint
-ALTER TABLE "users" ADD COLUMN "customer_account_type" "customer_account_type" DEFAULT 'SINGLE_ENTITY' NOT NULL;

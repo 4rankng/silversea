@@ -1,1 +1,0 @@
-ALTER TABLE "trips" ADD COLUMN "toll_cost" numeric(15, 0);

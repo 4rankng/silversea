@@ -1,1 +1,0 @@
-ALTER TABLE "ports" ADD CONSTRAINT "ports_code_unique" UNIQUE("code");

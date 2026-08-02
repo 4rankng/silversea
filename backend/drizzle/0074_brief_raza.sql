@@ -1,2 +1,0 @@
-ALTER TABLE "billing_document_lines" ADD COLUMN "type_label" varchar(100) DEFAULT 'Khác' NOT NULL;--> statement-breakpoint
-ALTER TABLE "billing_document_lines" ADD COLUMN "unit" varchar(50) DEFAULT 'lần' NOT NULL;

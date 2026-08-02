@@ -19,7 +19,7 @@ import { seedCustomers } from './seed/seed-customers';
 import { seedReference } from './seed/seed-reference';
 
 async function seed() {
-  const passwordHash = await bcrypt.hash('admin123', 10);
+  const passwordHash = await bcrypt.hash('Abc123', 10);
 
   const users = [
     { username: 'admin', email: 'admin@nepo.vn', phone: '0900000000', passwordHash, role: Role.ADMIN, fullName: 'Trần Văn Admin' },
@@ -39,7 +39,7 @@ async function seed() {
 
   console.log('✅ Users seeded!');
   for (const u of users) {
-    console.log(`  ${u.username} / admin123 (${u.role})`);
+    console.log(`  ${u.username} / Abc123 (${u.role})`);
   }
 
   // ─── Drivers — linked to user accounts via user_id ─────────────────────
@@ -567,7 +567,7 @@ export async function seedShipments(passwordHash: string) {
     target: schema.users.username,
     set: { passwordHash, role: Role.CUSTOMER, email: 'customer@nepo.vn', phone: '0900000020', fullName: 'Khách hàng Demo' },
   });
-  console.log('  ✅ CUSTOMER demo user (customer / admin123)');
+  console.log('  ✅ CUSTOMER demo user (customer / Abc123)');
 
   // 2. Two sample customers (operator-side AR customers — distinct from the
   //    CUSTOMER demo user above). Stable tax codes make the seed idempotent.

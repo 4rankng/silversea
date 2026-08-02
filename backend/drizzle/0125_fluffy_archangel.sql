@@ -1,1 +1,0 @@
-ALTER TABLE "forwarder_expense_types" ADD COLUMN "substitute_evidence_allowed" boolean DEFAULT true;

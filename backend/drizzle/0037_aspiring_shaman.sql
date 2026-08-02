@@ -1,1 +1,0 @@
-ALTER TABLE "suppliers" ADD COLUMN "is_fuel_supplier" boolean DEFAULT false NOT NULL;
