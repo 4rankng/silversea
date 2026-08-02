@@ -30,7 +30,6 @@ export function selectToolsForMessage(tools: AgentToolDef[], message: string): A
   let classified = false;
 
   if (/(huong dan|cach lam|tutorial|tung buoc|lam the nao)/i.test(text)) {
-    keep.add('tours.search');
     keep.add('knowledge.search');
     classified = true;
   }

@@ -235,7 +235,6 @@ const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   { method: 'PUT', endpoint: 'config.road-config.update', pattern: /^\/api\/road-config$/ },
   { method: 'PUT', endpoint: 'config.fuel-config.update', pattern: /^\/api\/fuel-config$/ },
   { method: 'PUT', endpoint: 'config.company-info.update', pattern: /^\/api\/company-info$/ },
-  { method: 'PUT', endpoint: 'admin.onboarding-settings.update', pattern: /^\/api\/admin\/onboarding-settings$/ },
   { method: 'PUT', endpoint: 'config.salary-periods.default.update', pattern: /^\/api\/salary-periods\/default$/ },
   { method: 'POST', endpoint: 'config.salary-periods.override.create', pattern: /^\/api\/salary-periods$/ },
   { method: 'PUT', endpoint: 'config.salary-periods.override.update', pattern: /^\/api\/salary-periods\/[^/]+$/ },

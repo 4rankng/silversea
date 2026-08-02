@@ -62,9 +62,6 @@ export default function FuelConfigPage() {
         setMessage('Đã gửi yêu cầu cập nhật định mức nhiên liệu để kiểm tra và phê duyệt. Cấu hình hiện chưa thay đổi.');
         return;
       }
-      // Onboarding product event: fuel config was saved. The fuel-config tour
-      // and any future checklist item keyed on this wait on it.
-      onboardingEvents.emit('config.fuel_saved');
       navigate('/config');
     } catch (e) { setError(e instanceof Error ? e.message : 'Lỗi lưu'); } finally { setSaving(false); }
   };

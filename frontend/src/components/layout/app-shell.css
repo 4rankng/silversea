@@ -10,9 +10,9 @@
   z-index: var(--z-max);
   min-height: 44px;
   padding: 10px 16px;
-  background: var(--brand, #4f46e5);
+  background: var(--accent-2);
   color: var(--fg-on-brand);
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   font-size: var(--fs-sm);
   font-weight: 600;
   text-decoration: none;
@@ -153,14 +153,19 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 30px 34px 40px;
-  scrollbar-gutter: stable;
+  padding: 24px 24px 32px;
+  scrollbar-gutter: stable both-edges;
   scroll-behavior: smooth;
+}
+
+.app-main:not(.driver-mode) .app-body > :where(div, section) {
+  width: min(100%, var(--content-max-w));
+  margin-inline: auto;
 }
 
 @media (min-width: 1024px) and (max-width: 1280px) {
   .app-body,
   .content {
-    padding: 26px 24px 38px;
+    padding: 24px 20px 32px;
   }
 }

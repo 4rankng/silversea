@@ -189,7 +189,7 @@
   --wf-radius: 14px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 18px;
   color: var(--wf-ink);
   font-size: var(--fs-sm);
   line-height: 1.45;
@@ -279,9 +279,9 @@
 }
 .dash-wf .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: 0; }
 .dash-wf .lbl {
-  font-family: var(--font-mono); text-transform: uppercase;
-  letter-spacing: 0.08em; font-size: var(--fs-2xs); font-weight: 600;
-  color: var(--wf-ink-3);
+  font-family: var(--font-body);
+  letter-spacing: 0; font-size: 13px; font-weight: 650;
+  color: var(--wf-ink-2);
 }
 
 .dash-wf .wf-head { display: flex; flex-direction: column; gap: 12px; }
@@ -1090,19 +1090,16 @@
 
 .dash-wf .wf-kpi__icon {
   display: inline-grid;
-  width: 29px;
-  height: 29px;
+  width: 20px;
+  height: 20px;
   place-items: center;
-  border: 1px solid var(--wf-border);
-  border-radius: 9px;
-  background: var(--color-base-200);
-  color: var(--wf-green);
+  color: var(--wf-ink-3);
 }
 
-.dash-wf .wf-kpi--cost .wf-kpi__icon { color: var(--wf-amber); }
-.dash-wf .wf-kpi--gross .wf-kpi__icon { color: var(--wf-blue); }
-.dash-wf .wf-kpi--net .wf-kpi__icon { color: var(--wf-green-500); }
-.dash-wf .wf-kpi--debt .wf-kpi__icon { color: var(--wf-red); }
+.dash-wf .wf-kpi--cost .wf-kpi__icon,
+.dash-wf .wf-kpi--gross .wf-kpi__icon,
+.dash-wf .wf-kpi--net .wf-kpi__icon,
+.dash-wf .wf-kpi--debt .wf-kpi__icon { color: var(--wf-ink-3); }
 
 .dash-wf .wf-kpi .row1 .lbl {
   align-items: center;
@@ -1493,8 +1490,8 @@
 }
 
 .dash-wf .wf-kpi .lbl {
-  letter-spacing: 0.1em;
-  font-size: var(--fs-2xs);
+  letter-spacing: 0;
+  font-size: 13px;
 }
 
 .dash-wf .wf-head h1 {

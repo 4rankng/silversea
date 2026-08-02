@@ -4,8 +4,8 @@
 
 .ds-table-scroll {
   overflow-x: auto;
-  border-radius: var(--r);
-  border: 1px solid var(--line);
+  border-radius: 12px;
+  border: 1px solid var(--line-2);
   background: var(--surface);
   scrollbar-color: rgba(0, 90, 45, 0.25) transparent;
   scrollbar-width: thin;
@@ -28,15 +28,16 @@
 
 .ds-table thead th {
   text-align: left;
-  font-size: var(--fs-xs);
+  font-size: 13px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  text-transform: none;
+  letter-spacing: 0;
   color: var(--ink-2);
-  padding: 11px 12px;
+  padding: 12px 14px;
   background: var(--surface-2);
   border-bottom: 1px solid var(--line-2);
   white-space: nowrap;
+  line-height: 1.4;
 }
 
 .ds-table th.num,
@@ -45,11 +46,12 @@
 }
 
 .ds-table tbody td {
-  padding: 11px 12px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--line);
   color: var(--ink, var(--fg));
   vertical-align: middle;
   overflow-wrap: anywhere;
+  line-height: 1.45;
 }
 
 .ds-table tbody tr:last-child td {
@@ -62,7 +64,7 @@
 }
 
 .ds-table tbody tr.is-clickable:hover {
-  background: color-mix(in srgb, var(--accent-soft) 38%, white);
+  background: color-mix(in srgb, var(--surface-accent) 72%, white);
 }
 
 .ds-table tbody tr.is-clickable:focus-visible {
@@ -97,6 +99,9 @@
   padding: 32px;
   text-align: center;
   color: var(--fg-3, var(--ink-3));
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
 }
 
 .ds-mobile-list {
@@ -108,8 +113,8 @@
 .ds-mobile-card {
   background: var(--surface, #fff);
   border: 1px solid var(--line);
-  border-radius: var(--r);
-  padding: 12px 14px;
+  border-radius: 12px;
+  padding: 14px 16px;
   color: var(--ink, var(--fg));
 }
 
@@ -121,6 +126,11 @@
 .ds-mobile-card.is-clickable:hover {
   border-color: var(--line-strong);
   background: var(--surface-2);
+}
+
+.ds-mobile-card.is-clickable:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 68%, white);
+  outline-offset: 2px;
 }
 
 .ds-table-wrap--mobile {

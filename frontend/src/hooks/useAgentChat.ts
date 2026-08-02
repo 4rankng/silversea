@@ -26,13 +26,6 @@ export interface UseAgentChatOptions {
   /** Called for every directive the stream emits (navigation/open/prefill).
    *  Returns the outcome so navigate/focus can be acked back to the server. */
   onDirective?: (d: AgentDirective) => DirectiveOutcome;
-  /** Called when the assistant's final answer launches a curated tour
-   *  ({type:'start_tour'}). Auto-launches the TourController. */
-  onStartTour?: (tourId: string) => void;
-  /** Phase 7: resume a tour from the server-persisted step. */
-  onContinueTour?: (tourId: string) => void;
-  /** Phase 7: cancel any active tour. */
-  onCancelTour?: (tourId: string) => void;
 }
 
 export interface UseAgentChat {
@@ -77,12 +70,6 @@ export function useAgentChat(opts: UseAgentChatOptions = {}): UseAgentChat {
   // once per send) always sees the current handler.
   const directiveRef = useRef(opts.onDirective);
   directiveRef.current = opts.onDirective;
-  const startTourRef = useRef(opts.onStartTour);
-  startTourRef.current = opts.onStartTour;
-  const continueTourRef = useRef(opts.onContinueTour);
-  continueTourRef.current = opts.onContinueTour;
-  const cancelTourRef = useRef(opts.onCancelTour);
-  cancelTourRef.current = opts.onCancelTour;
   const abortRef = useRef<AbortController | null>(null);
   const pendingPageDirectiveRef = useRef<AgentDirective | null>(null);
   const turnStartedAtRef = useRef<number | null>(null);
@@ -213,31 +200,7 @@ export function useAgentChat(opts: UseAgentChatOptions = {}): UseAgentChat {
             { id: uid(), role: 'assistant', response, createdAt: new Date().toISOString() },
           ]);
           requestAnimationFrame(reportClientWait);
-          // A curated-tour answer: launch it (deferred so the bubble paints first).
-          if (response.type === 'start_tour') {
-            const tourId = response.tourId;
-            requestAnimationFrame(() => {
-              window.setTimeout(() => {
-                startTourRef.current?.(tourId);
-              }, 0);
-            });
-          } else if (response.type === 'continue_tour') {
-            // Phase 7: resume the tour (the controller fetches the server step).
-            const tourId = response.tourId;
-            requestAnimationFrame(() => {
-              window.setTimeout(() => {
-                continueTourRef.current?.(tourId);
-              }, 0);
-            });
-          } else if (response.type === 'cancel_tour') {
-            // Phase 7: stop any active tour.
-            const tourId = response.tourId;
-            requestAnimationFrame(() => {
-              window.setTimeout(() => {
-                cancelTourRef.current?.(tourId);
-              }, 0);
-            });
-          } else {
+          {
             const pending = pendingPageDirectiveRef.current;
             pendingPageDirectiveRef.current = null;
             if (pending) {

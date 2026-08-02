@@ -17,7 +17,6 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 const KEYS = {
   bot: 'app.bot_enabled',
-  tutorial: 'onboarding.tutorial_enabled',
   gps: 'app.gps_enabled',
   creditWarningThresholdDefault: 'credit.warning_threshold_default',
   creditTierOneAmountCap: 'credit.tier_one_amount_cap',
@@ -68,7 +67,6 @@ export async function getAppSettingsUpdatedAt(
     .from(s.appSettings)
     .where(inArray(s.appSettings.key, [
       KEYS.bot,
-      KEYS.tutorial,
       KEYS.gps,
       KEYS.creditWarningThresholdDefault,
       KEYS.creditTierOneAmountCap,
@@ -84,7 +82,6 @@ async function readAppSettingsRows(q: typeof db | Tx = db) {
     .from(s.appSettings)
     .where(inArray(s.appSettings.key, [
       KEYS.bot,
-      KEYS.tutorial,
       KEYS.gps,
       KEYS.creditWarningThresholdDefault,
       KEYS.creditTierOneAmountCap,
@@ -99,7 +96,6 @@ function settingsFromRows(
   const values = new Map(rows.map((row) => [row.key, row.value]));
   return {
     botEnabled: parseBooleanSetting(values.get(KEYS.bot) ?? undefined, config.botEnabled),
-    tutorialEnabled: parseBooleanSetting(values.get(KEYS.tutorial) ?? undefined, true),
     gpsEnabled: parseBooleanSetting(values.get(KEYS.gps) ?? undefined, gpsEnabledDefault),
     creditWarningThresholdDefault: parseNumberSetting(values.get(KEYS.creditWarningThresholdDefault) ?? undefined, 0.8),
     creditTierOneAmountCap: Math.trunc(parseNumberSetting(values.get(KEYS.creditTierOneAmountCap) ?? undefined, 0)),
@@ -160,7 +156,6 @@ function mergeDirectSettings(
   return {
     ...current,
     botEnabled: next.botEnabled,
-    tutorialEnabled: next.tutorialEnabled,
     gpsEnabled: next.gpsEnabled,
   };
 }
@@ -241,7 +236,6 @@ export async function saveAppSettingsInTx(
   });
   const updatedAt = await upsertAppSettingsEntries(tx, [
     [KEYS.bot, String(next.botEnabled)],
-    [KEYS.tutorial, String(next.tutorialEnabled)],
     [KEYS.gps, String(next.gpsEnabled)],
     [KEYS.creditWarningThresholdDefault, String(next.creditWarningThresholdDefault)],
     [KEYS.creditTierOneAmountCap, String(next.creditTierOneAmountCap)],
@@ -259,7 +253,6 @@ export async function saveDirectAppSettingsInTx(
   const merged = mergeDirectSettings(current, next);
   const updatedAt = await upsertAppSettingsEntries(tx, [
     [KEYS.bot, String(merged.botEnabled)],
-    [KEYS.tutorial, String(merged.tutorialEnabled)],
     [KEYS.gps, String(merged.gpsEnabled)],
   ]);
   return { settings: merged, updatedAt };
@@ -298,27 +291,6 @@ export async function saveAppSettings(next: AppSettings): Promise<AppSettings> {
   const previous = await getAppSettings();
   await db.transaction((tx) => saveAppSettingsInTx(tx, previous, next));
   return applySavedAppSettings(previous, next);
-}
-
-/**
- * Compatibility write for the former onboarding-only admin endpoint. Updating
- * this one key directly prevents an older client from accidentally restoring a
- * bot setting that was changed at the same time in the unified settings page.
- */
-export async function setTutorialEnabled(tutorialEnabled: boolean): Promise<void> {
-  await db.transaction((tx) => setTutorialEnabledInTx(tx, tutorialEnabled));
-
-  cached = cached ? { ...cached, tutorialEnabled } : null;
-}
-
-export async function setTutorialEnabledInTx(
-  tx: Tx,
-  tutorialEnabled: boolean,
-): Promise<{ tutorialEnabled: boolean; updatedAt: string }> {
-  const updatedAt = await upsertAppSettingsEntries(tx, [
-    [KEYS.tutorial, tutorialEnabled ? 'true' : 'false'],
-  ]);
-  return { tutorialEnabled, updatedAt };
 }
 
 function assertGovernedFinancialPolicyUnchanged(

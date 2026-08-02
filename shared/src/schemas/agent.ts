@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { PAGE_CATALOG } from '../navigation/pageCatalog';
-import { PRODUCT_EVENTS } from '../onboarding/events';
 
 /**
  * Agent (command-and-insight assistant) wire contract.
@@ -10,7 +9,7 @@ import { PRODUCT_EVENTS } from '../onboarding/events';
  *
  *   1. Directive      — how the agent drives the UI (navigate/focus/open/prefill/toast/scrollTo)
  *   2. Widget         — a typed, natively-rendered card building block
- *   3. AgentResponse  — the assistant's final answer: text | insight_card | tutorial | start_tour | directive
+ *   3. AgentResponse  — the assistant's final answer: text | insight_card | directive
  *
  * Kept in `shared` (not the flat `schemas/index.ts`, which is already 800+
  * lines of entity CRUD) because this is a self-contained, cross-boundary
@@ -275,33 +274,6 @@ export const agentCitationSchema = z.object({
 });
 export type AgentCitation = z.infer<typeof agentCitationSchema>;
 
-// ─── Tutorial steps (assistant-guided UI walkthroughs) ─────────────────────
-/**
- * `completionEvent` / `completionTimeoutMs` are the Phase 3 event-driven-step
- * extension (plan decision D1: extend, don't replace). They are OPTIONAL and
- * used ONLY by curated tours in `TOUR_CATALOG` — the freeform LLM `tutorial`
- * response path never sets them (the model is not told they exist). A step with
- * `completionEvent` becomes an *interaction step*: the TourController waits on
- * `onboardingEvents.waitFor(completionEvent)` and auto-advances when the user
- * performs the real action, with a manual-fallback button as an escape.
- * `completionTimeoutMs` of 0/undefined = wait indefinitely (Phase 3 default).
- */
-const productEventSchema = z.enum([...PRODUCT_EVENTS] as [string, ...string[]]);
-export const agentTutorialStepSchema = z.object({
-  title: z.string(),
-  body: z.string(),
-  /** Optional field/value example shown as a compact hint. */
-  example: z.string().optional(),
-  /** Optional UI action for this step, usually scrollTo/highlight or navigate. */
-  directive: agentDirectiveSchema.optional(),
-  /** When set, this is an interaction step that waits for a real business event
-   *  (curated tours only). Must be a member of PRODUCT_EVENTS. */
-  completionEvent: productEventSchema.optional(),
-  /** Timeout for completionEvent. 0/undefined = wait forever (manual fallback). */
-  completionTimeoutMs: z.number().int().nonnegative().optional(),
-});
-export type AgentTutorialStep = z.infer<typeof agentTutorialStepSchema>;
-
 // ─── Final response ────────────────────────────────────────────────────────
 export const agentResponseSchema = z.discriminatedUnion('type', [
   z.object({
@@ -323,34 +295,6 @@ export const agentResponseSchema = z.discriminatedUnion('type', [
     widgets: z.array(agentWidgetSchema).min(1),
     actions: z.array(agentActionChipSchema).optional(),
     citations: z.array(agentCitationSchema).optional(),
-  }),
-  z.object({
-    type: z.literal('tutorial'),
-    title: z.string(),
-    summary: z.string(),
-    steps: z.array(agentTutorialStepSchema).min(1).max(8),
-    actions: z.array(agentActionChipSchema).optional(),
-    citations: z.array(agentCitationSchema).optional(),
-  }),
-  // Launch a curated tour from shared/src/tours/catalog.ts. The agent emits this
-  // as its final answer for workflow-shaped how-to requests (validated + caught
-  // by the orchestrator's tour net when the model rambles a freeform tutorial).
-  // The frontend MessageBubble arm calls TourController.start(tourId).
-  z.object({ type: z.literal('start_tour'), tourId: z.string().min(1) }),
-  // Phase 7: typed tour-control responses mirroring start_tour. The chatbot can
-  // resume or stop a tour it started. `tourVersion` lets the frontend detect a
-  // stale catalog vs server-progress mismatch. The orchestrator validates the
-  // tourId against the catalog + the caller's role BEFORE emitting (safe
-  // registry); an unknown/role-denied id is downgraded to a text denial.
-  z.object({
-    type: z.literal('continue_tour'),
-    tourId: z.string().min(1),
-    tourVersion: z.number().int().positive().optional(),
-  }),
-  z.object({
-    type: z.literal('cancel_tour'),
-    tourId: z.string().min(1),
-    tourVersion: z.number().int().positive().optional(),
   }),
   z.object({ type: z.literal('directive'), directive: agentDirectiveSchema }),
 ]);
@@ -390,7 +334,7 @@ export type AgentConversation = z.infer<typeof agentConversationSchema>;
 //
 // NOTE the discriminator is `type` (AG-UI BaseEvent convention), NOT `event`.
 // Do not confuse these event `type` literals with the `AgentResponse.type`
-// discriminator (text/insight_card/tutorial/start_tour/directive) above — they
+// discriminator (text/insight_card/directive) above — they
 // are separate unions that happen to share the string 'directive'.
 export const agentEventSchema = z.discriminatedUnion('type', [
   z.object({
@@ -445,7 +389,7 @@ export const agentEventSchema = z.discriminatedUnion('type', [
   // ── Text-message streaming (token-by-token for {type:'text'} answers) ─────
   // AG-UI text-message triad. Emitted only for streamable prose answers
   // (terminal ReAct prose + the produceFinalAnswer prose fallback). Structured
-  // answers (insight_card/tutorial/directive/start_tour) need complete JSON for
+  // answers (insight_card/directive) need complete JSON for
   // Zod validation, so they are buffered and arrive whole in RUN_FINISHED.
   // The frontend correlates START/CONTENT/END by `messageId` into one pending
   // bubble; RUN_FINISHED carries the authoritative full text for persistence.

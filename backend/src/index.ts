@@ -44,8 +44,6 @@ import adminChatbotMetricsRoutes from './routes/admin-chatbot-metrics';
 import llmSettingsRoutes from './routes/llm-settings';
 import { appSettingsRouter } from './routes/app-settings';
 import faqAdminRoutes from './routes/faq-admin';
-import { onboardingRouter } from './routes/onboarding';
-import { onboardingSettingsRouter } from './routes/onboarding-settings';
 import { uploadRouter, photosRouter } from './routes/upload';
 import ocrRoutes from './routes/ocr';
 import mapsRoutes from './routes/maps';
@@ -195,10 +193,6 @@ app.use('/api/admin/chatbot', authMiddleware, casbinAuthz('chatbot-metrics'), ad
 // belt-and-suspenders gate. MUST mount before the catch-all /api.
 app.use('/api/admin/llm-settings', authMiddleware, casbinAuthz('llm-settings'), requireRoles(Role.ADMIN), llmSettingsRoutes);
 app.use('/api/admin/app-settings', authMiddleware, casbinAuthz('config'), appSettingsRouter);
-// Admin onboarding master switch (turn the onboarding tutorial on/off app-wide).
-// ADMIN-only: same gate pattern as llm-settings — the `onboarding-settings`
-// Casbin resource has no policy row, so only the ADMIN wildcard matches.
-app.use('/api/admin/onboarding-settings', authMiddleware, casbinAuthz('onboarding-settings'), requireRoles(Role.ADMIN), onboardingSettingsRouter);
 // Admin FAQ knowledge base management (create/update/delete + auto-embed).
 // ADMIN-only: same gate pattern as llm-settings — the `faq-admin` Casbin
 // resource has no policy row, so only the ADMIN wildcard matches; requireRoles
@@ -226,10 +220,6 @@ app.use('/api/portal', authMiddleware, casbinAuthz('customer_portal'), requireRo
 // Command-and-insight assistant (bot). Acts as the caller; office roles only.
 // 503 while BOT_ENABLE is off. Mounts before the catch-all /api.
 app.use('/api/agent', authMiddleware, casbinAuthz('agent'), agentRoutes);
-// Onboarding (Phase 4): tour progress + checklist tasks. Office roles only —
-// mirrors the agent gate. The `onboarding` Casbin resource has explicit policy
-// rows for MANAGER/ACCOUNTANT; ADMIN matches via its wildcard.
-app.use('/api/onboarding', authMiddleware, casbinAuthz('onboarding'), requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), onboardingRouter);
 // Catalog bootstrap is used by both office pages and portal forms. The router
 // trims sensitive catalogs for DRIVER/FORWARDER before responding.
 app.use('/api', authMiddleware, catalogBootstrapRouter);

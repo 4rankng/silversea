@@ -10,7 +10,6 @@ import type { FormLeg } from './useTripFormLegs';
 import type { UseTripFormStateReturn, ContainerFormRow, SealFormRow } from './useTripFormState';
 import { resolveContainerCount } from './tripFormDispatchUtils';
 import { moneyInputToNumber } from '../lib/moneyInput';
-import { onboardingEvents } from '../lib/onboardingEvents';
 
 function moneyOrZero(value: string): number { return moneyInputToNumber(value) ?? 0; }
 function moneyOrUndefined(value: string): number | undefined { return moneyInputToNumber(value); }
@@ -393,7 +392,6 @@ const handleSubmit = useCallback(
         } else {
           // The figures request has committed. Later best-effort work must not
           // erase this narrower completed outcome.
-          onboardingEvents.emit('trip.figures_saved', { tripId: existingTrip.id });
         }
 
         await saveContainers(existingTrip.id);

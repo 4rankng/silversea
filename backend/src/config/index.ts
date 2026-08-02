@@ -115,11 +115,6 @@ const configSchema = z.object({
   // user is still taken to the page. Kill-switch — disable via env without a
   // redeploy if the matcher ever false-positives in production.
   agentNavigateGuardrail: z.boolean().default(true),
-  // Tour net: validate an emitted {type:'start_tour} (role + existence) and
-  // conservatively launch a curated tour when the model rambled a freeform
-  // tutorial that matches one. Kill-switch — disable via env if it ever
-  // false-positives (e.g. hijacks a narrow how-to question).
-  agentTourGuardrail: z.boolean().default(true),
   // P1 Intent Router: deterministic route-before-reasoning. When ON, the agent
   // socket runs routeIntent() after the FAQ lane abstains and before the
   // orchestrator. Navigation intents (Lane 0) resolve to a directive with 0
@@ -176,7 +171,6 @@ const raw = {
   agentSlaP95GreenMs: process.env.AGENT_SLA_P95_GREEN_MS,
   agentSlaP95AmberMs: process.env.AGENT_SLA_P95_AMBER_MS,
   agentNavigateGuardrail: parseFlag(process.env.AGENT_NAVIGATE_GUARDRAIL, true),
-  agentTourGuardrail: parseFlag(process.env.AGENT_TOUR_GUARDRAIL, true),
   agentIntentRouter: parseFlag(process.env.AGENT_INTENT_ROUTER, true),
   agentStreamingEnabled: parseFlag(process.env.AGENT_STREAMING_ENABLED, false),
   agentFailover: parseFlag(process.env.AGENT_FAILOVER, true),
@@ -215,7 +209,6 @@ const withDefaults = {
   agentSlaP95GreenMs: raw.agentSlaP95GreenMs || 5000,
   agentSlaP95AmberMs: raw.agentSlaP95AmberMs || 12000,
   agentNavigateGuardrail: raw.agentNavigateGuardrail,
-  agentTourGuardrail: raw.agentTourGuardrail,
   agentIntentRouter: raw.agentIntentRouter,
   agentStreamingEnabled: raw.agentStreamingEnabled,
   agentFailover: raw.agentFailover,
@@ -269,7 +262,6 @@ export const config = result.success ? result.data : configSchema.parse({
   agentSlaP95GreenMs: 5000,
   agentSlaP95AmberMs: 12000,
   agentNavigateGuardrail: true,
-  agentTourGuardrail: true,
   agentIntentRouter: true,
   agentFailover: true,
   agentRateLimitPerMin: 20,

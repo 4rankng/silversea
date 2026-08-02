@@ -14,7 +14,6 @@ import { CardSection } from '../components/trip/CardSection';
 import { TripSummaryCard } from '../components/trip/TripSummaryCard';
 import { TripChecklistPanel } from '../components/trip/TripChecklistPanel';
 import { ActionBar } from '../components/trip/ActionBar';
-import { onboardingEvents } from '../lib/onboardingEvents';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useDirtyGuard } from '../hooks/useDirtyGuard';
@@ -114,7 +113,6 @@ export default function TripCreatePage() {
   const submitTrip = async (creditApprovalRequestId?: number | null) => {
     const tripId = await form.handleSubmit(undefined, { creditApprovalRequestId });
     if (tripId) {
-      onboardingEvents.emit('trip.created', { tripId });
       navigate(`/trips/${tripId}`);
       return true;
     }

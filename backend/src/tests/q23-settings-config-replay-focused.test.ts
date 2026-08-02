@@ -23,7 +23,6 @@ import paymentsRoutes from '../routes/financial/payments.routes';
 import faqAdminRoutes from '../routes/faq-admin';
 import gpsSettingsRoutes from '../routes/gps-settings';
 import llmSettingsRoutes from '../routes/llm-settings';
-import { onboardingSettingsRouter } from '../routes/onboarding-settings';
 import { getAppSettings, saveAppSettings } from '../services/app-settings.service';
 import { invalidateGpsSettings } from '../services/gps/settings';
 import { invalidateGpsProvider } from '../services/gps/providers';
@@ -174,7 +173,6 @@ before(async () => {
   app.use('/api/admin/app-settings', authMiddleware, casbinAuthz('config'), appSettingsRouter);
   app.use('/api/admin/gps-settings', authMiddleware, requireRoles(Role.ADMIN), gpsSettingsRoutes);
   app.use('/api/admin/llm-settings', authMiddleware, casbinAuthz('llm-settings'), requireRoles(Role.ADMIN), llmSettingsRoutes);
-  app.use('/api/admin/onboarding-settings', authMiddleware, casbinAuthz('onboarding-settings'), requireRoles(Role.ADMIN), onboardingSettingsRouter);
   app.use('/api/admin/faq-entries', authMiddleware, casbinAuthz('faq-admin'), requireRoles(Role.ADMIN), faqAdminRoutes);
   app.use('/api', authMiddleware, casbinAuthz('config'), configRoutes);
   app.use('/api/salary-periods', authMiddleware, casbinAuthz('config'), salaryPeriodsAdminRouter);
@@ -504,38 +502,6 @@ describe('Q23 focused settings/config replay closure', () => {
     });
     assert.equal(llmFirst.status, 200);
     assert.equal(llmReplay.body.replayed, true);
-
-    const onboardingRead = await requestJson('/api/admin/onboarding-settings', { token: adminToken });
-    const onboardingVersion = typeof onboardingRead.body.updatedAt === 'string'
-      ? String(onboardingRead.body.updatedAt)
-      : undefined;
-    const onboardingForbidden = await requestJson('/api/admin/onboarding-settings', {
-      method: 'PUT',
-      token: managerToken,
-      idempotencyKey: `q23-onboarding-forbidden-${suffix}`,
-      body: { tutorialEnabled: false },
-      expectedUpdatedAt: onboardingVersion,
-    });
-    assert.equal(onboardingForbidden.status, 403);
-
-    const onboardingKey = `q23-onboarding-${suffix}`;
-    const onboardingPayload = { tutorialEnabled: !Boolean(onboardingRead.body.tutorialEnabled) };
-    const onboardingFirst = await requestJson('/api/admin/onboarding-settings', {
-      method: 'PUT',
-      token: adminToken,
-      idempotencyKey: onboardingKey,
-      body: onboardingPayload,
-      expectedUpdatedAt: onboardingVersion,
-    });
-    const onboardingReplay = await requestJson('/api/admin/onboarding-settings', {
-      method: 'PUT',
-      token: adminToken,
-      idempotencyKey: onboardingKey,
-      body: onboardingPayload,
-      expectedUpdatedAt: onboardingVersion,
-    });
-    assert.equal(onboardingFirst.status, 200);
-    assert.equal(onboardingReplay.body.replayed, true);
 
     const faqForbidden = await requestJson('/api/admin/faq-entries', {
       method: 'POST',

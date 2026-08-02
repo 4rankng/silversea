@@ -4,7 +4,6 @@ import { tripClient } from '../../../api/tripClient';
 import { qk } from '../../../api/keys';
 import type { NormalizedTrip } from '../../../hooks/useTripQueries';
 import { useConfirm } from '../../../components/UI';
-import { onboardingEvents } from '../../../lib/onboardingEvents';
 import { splitRoute } from '../../../lib/route';
 import type { PairingState, PairTripDraftState, ReassignState, Toast } from '../utils';
 
@@ -89,7 +88,6 @@ export function useDispatchMutations(pendingTrips: NormalizedTrip[]) {
     setActionLoading(tripId);
     try {
       await tripClient.dispatchTrip(tripId);
-      onboardingEvents.emit('trip.dispatched', { tripId });
       const code = trip?.tripCode || '';
       addToast('success', code ? `Đã xuất phát chuyến ${code}` : 'Đã xuất phát chuyến đi');
       await queryClient.invalidateQueries({ queryKey: qk.trips.dispatch });

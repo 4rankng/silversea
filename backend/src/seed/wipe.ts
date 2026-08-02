@@ -4,7 +4,7 @@
  *
  * Hard contract (enforced by tests):
  *   - `users` is NEVER touched.
- *   - `push_subscriptions`, `user_onboarding_*`, `onboarding_events`,
+ *   - `push_subscriptions`,
  *     `agent_*`, `faq_entries`, `knowledge_chunks`, `idempotency_keys` are
  *     NEVER touched.
  *
@@ -27,9 +27,6 @@ import type { Database } from '../db/index.js';
 export const PRESERVED_TABLES = [
   'users',
   'push_subscriptions',
-  'user_onboarding_progress',
-  'user_onboarding_tasks',
-  'onboarding_events',
   'agent_conversations',
   'agent_messages',
   'agent_turn_metrics',

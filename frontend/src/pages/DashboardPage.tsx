@@ -27,14 +27,6 @@ import { CostBreakdown, DeltaPill, decisionIcon, fmtVN, greeting, runningSum, se
 
 type DashboardStatTone = 'revenue' | 'cost' | 'gross' | 'net' | 'debt';
 
-const DASHBOARD_STAT_STRIP_COLORS: Record<DashboardStatTone, string> = {
-  revenue: 'var(--wf-green)',
-  cost: 'var(--wf-amber)',
-  gross: 'var(--wf-blue)',
-  net: 'var(--wf-green-500)',
-  debt: 'var(--wf-red)',
-};
-
 const DECISION_STRIP_COLORS: Record<DashboardDecisionItem['severity'], string> = {
   critical: 'var(--wf-red)',
   warning: 'var(--wf-amber)',
@@ -55,7 +47,6 @@ interface DashboardStatProps {
 function DashboardStat({ tone, icon, label, delta, value, valueRef, description }: DashboardStatProps) {
   return (
     <div className={`d-stats d-card d-card-border bg-base-100 wf-kpi wf-kpi--${tone}`}>
-      <StatusStrip color={DASHBOARD_STAT_STRIP_COLORS[tone]} />
       <div className="d-stat">
         <div className="d-stat-title row1">
           <span className="lbl">
@@ -370,14 +361,9 @@ export default function DashboardPage() {
             </span>
             <span>Trung tâm điều hành · {String(currentMonth).padStart(2, '0')}/{currentYear}</span>
           </div>
-          <h1>
-            {greeting()},{' '}
-            <span style={{ fontWeight: 800 }}>
-              {user?.fullName || (user?.role && ROLE_LABELS[user.role as Role]) || user?.username || 'bạn'}
-            </span>
-          </h1>
+          <h1>Tổng quan vận hành</h1>
           <div className="wf-sum">
-            Tháng {currentMonth}/{currentYear} đang hoạt động — doanh thu{' '}
+            {greeting()}, {user?.fullName || (user?.role && ROLE_LABELS[user.role as Role]) || user?.username || 'bạn'}. Tháng {currentMonth}/{currentYear} có doanh thu{' '}
             {prevPnlReport ? (
               revenue >= prevRevenue
                 ? <span className="pos">{revenueMoM} so với tháng trước</span>
@@ -409,7 +395,7 @@ export default function DashboardPage() {
           delta={<DeltaPill mom={revenueMoM} />}
           value={fmtVN(revenue)}
           valueRef={element => { kpiRefs.current.revenue = element; }}
-          description={<>Tháng trước · {formatNumber(prevRevenue)} đ</>}
+          description={<>Tháng trước · {formatNumber(prevRevenue)} ₫</>}
         />
         <DashboardStat
           tone="cost"
@@ -555,8 +541,8 @@ export default function DashboardPage() {
                   return (
                     <div style={{ padding: '24px 16px', flex: 1 }}>
                       <DsEmptyState
-                        title="Đang tải dữ liệu"
-                        description="Đang thu thập số liệu doanh thu và lợi nhuận…"
+                        title="Chưa có dữ liệu trong kỳ"
+                        description="Biểu đồ sẽ xuất hiện khi kỳ này ghi nhận doanh thu hoặc lợi nhuận gộp dương."
                         preview="rows"
                         previewCount={3}
                       />

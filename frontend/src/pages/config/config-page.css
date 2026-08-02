@@ -78,8 +78,8 @@
 /* ── Header back arrow — soften & match dashboard back affordance ── */
 .cfg-page .page-header__back-btn,
 .cfg-page .page-header [aria-label*="quay" i] {
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   border-radius: 8px;
   display: inline-flex;
   align-items: center;
@@ -940,7 +940,7 @@
 }
 
 .cfg-secret-input .input {
-  padding-right: 42px;
+  padding-right: 54px;
 }
 
 .cfg-secret-input__toggle {
@@ -949,8 +949,8 @@
   right: 8px;
   display: inline-grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   color: var(--ink-3);
   background: transparent;

@@ -27,8 +27,6 @@ import { todayIsoVn } from './tools/period.js';
 export const STRUCTURED_RESPONSE_HINT = `Kết quả cuối phải là một JSON hợp lệ:
 - text: {"type":"text","content":"...","actions":[{"label":"...","directive":{...}}]} (actions is optional)
 - insight_card: {"type":"insight_card","title":"...","summary":"...","widgets":[...]}
-- tutorial: {"type":"tutorial","title":"...","summary":"...","steps":[...]}
-- start_tour: {"type":"start_tour","tourId":"..."}
 - directive: {"type":"directive","directive":{...}}
 Widget: kpi_grid, bar_chart, line_chart, table, callout hoặc anomaly_list. KPI value phải là số VND đầy đủ; format chỉ vnd|percent|number|days. Không có directive hợp lệ thì bỏ actions.`;
 
@@ -51,7 +49,6 @@ export interface SystemPromptSections {
   persona: string;
   time: string;
   toolPolicy: string[];
-  tourPolicy: string[];
   uiPolicy: string[];
   route: string[];
   responseShape: string;
@@ -69,7 +66,6 @@ export function buildSystemPromptSections(
 ): SystemPromptSections {
   const names = new Set(tools.map((tool) => tool.name));
   const hasData = [...names].some((name) => name.startsWith('data.') || name === 'report.run');
-  const hasTours = names.has('tours.search');
   const needsUiDetail = /(mo|vao|them|sua|xoa|nut|form|trang|huong dan|cach lam)/i.test(
     normalizeForIntent(message),
   );
@@ -84,13 +80,6 @@ export function buildSystemPromptSections(
     );
     toolPolicy.push(
       '- Định danh mơ hồ: data.search trước, data.detail chỉ khi cần thêm trường.',
-    );
-  }
-
-  const tourPolicy: string[] = [];
-  if (hasTours) {
-    tourPolicy.push(
-      '- Luồng hướng dẫn có sẵn: gọi tours.search rồi dùng start_tour. Câu hỏi thao tác hẹp dùng tutorial ngắn.',
     );
   }
 
@@ -115,7 +104,7 @@ export function buildSystemPromptSections(
       ? 'Trả lời trực tiếp bằng văn bản, không JSON.'
       : STRUCTURED_RESPONSE_HINT;
 
-  return { persona, time, toolPolicy, tourPolicy, uiPolicy, route, responseShape };
+  return { persona, time, toolPolicy, uiPolicy, route, responseShape };
 }
 
 /**
@@ -123,7 +112,7 @@ export function buildSystemPromptSections(
  * the orchestrator needs; its output must remain byte-for-byte identical to the
  * pre-refactor inline builder (see tests/agent-system-prompt.test.ts).
  *
- * Section order: persona → time → tool policy → tour policy → UI policy →
+ * Section order: persona → time → tool policy → UI policy →
  * route → response shape. Empty sections are dropped; remaining lines are
  * joined with `\n`.
  */
@@ -137,7 +126,6 @@ export function buildSystemPrompt(
     s.persona,
     s.time,
     ...s.toolPolicy,
-    ...s.tourPolicy,
     ...s.uiPolicy,
     ...s.route,
     s.responseShape,

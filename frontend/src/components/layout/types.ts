@@ -62,7 +62,6 @@ export interface TopbarProps {
   menuButtonRef: React.RefObject<HTMLButtonElement | null>;
   pageTitle: string;
   onToggleSidebar: () => void;
-  onOpenTutorialLibrary?: () => void;
 }
 
 export interface ProfileModalProps {

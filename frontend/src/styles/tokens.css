@@ -197,8 +197,9 @@
   --avatar-lg: 44px;
 
   --sidebar-w: 248px;
-  --topbar-h: 48px;
+  --topbar-h: 56px;
   --control-h: 44px;
+  --content-max-w: 1440px;
 
   /* --- Canonical status strip (Vantai invariant) ---
    * Per docs/design-guidelines.md: every status marker is a centered 3x20px

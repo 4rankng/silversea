@@ -166,7 +166,6 @@ describe('app-settings route authorization', () => {
     const read = await request('/', { token: managerToken });
     assert.equal(read.status, 200);
     assert.equal(typeof read.body.botEnabled, 'boolean');
-    assert.equal(typeof read.body.tutorialEnabled, 'boolean');
     assert.equal(typeof read.body.gpsEnabled, 'boolean');
 
     const write = await request('/', {
@@ -199,7 +198,6 @@ describe('app-settings route authorization', () => {
 
     const flipped = {
       botEnabled: !originalSettings.botEnabled,
-      tutorialEnabled: originalSettings.tutorialEnabled,
       gpsEnabled: originalSettings.gpsEnabled,
       creditWarningThresholdDefault: originalSettings.creditWarningThresholdDefault,
       creditTierOneAmountCap: originalSettings.creditTierOneAmountCap,
@@ -230,7 +228,6 @@ describe('app-settings route authorization', () => {
 
     const proposed = {
       botEnabled: !Boolean(read.body.botEnabled),
-      tutorialEnabled: Boolean(read.body.tutorialEnabled),
       gpsEnabled: Boolean(read.body.gpsEnabled),
       creditWarningThresholdDefault: Number(read.body.creditWarningThresholdDefault ?? originalSettings.creditWarningThresholdDefault),
       creditTierOneAmountCap: Number(read.body.creditTierOneAmountCap ?? originalSettings.creditTierOneAmountCap),

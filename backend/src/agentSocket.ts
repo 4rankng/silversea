@@ -64,10 +64,6 @@ function renderResponseText(response: AgentResponse): string {
       return response.content;
     case 'insight_card':
       return response.summary ?? response.title ?? '';
-    case 'tutorial':
-      return `${response.title}: ${response.summary}`;
-    case 'start_tour':
-      return `(đã mở hướng dẫn ${response.tourId})`;
     case 'directive':
       return response.directive.kind === 'navigate' || response.directive.kind === 'focus'
         ? `(đã mở trang ${response.directive.routeKey})`

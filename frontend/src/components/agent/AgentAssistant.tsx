@@ -13,12 +13,10 @@ import { AssetIcon } from '../AssetIcon';
 import { useAuth } from '../../hooks/useAuth';
 import { useAgentChat } from '../../hooks/useAgentChat';
 import { useAgentDirectives } from '../../context/AgentDirectiveContext';
-import { useTourController } from '../../context/TourControllerContext';
-import { Role, TOUR_CATALOG } from '@tingting/shared';
+import { Role } from '@tingting/shared';
 import { ErrorBoundary } from '../shared/ErrorBoundary';
 import { InsightCard } from './InsightCard';
-import { TutorialCard } from './TutorialCard';
-import type { AgentDirective, AgentMessage, AgentResponse, TourId } from '@tingting/shared';
+import type { AgentDirective, AgentMessage, AgentResponse } from '@tingting/shared';
 import { BRAND } from '../../brand';
 import './agent.css';
 
@@ -34,7 +32,6 @@ export function AgentAssistant() {
   const isPinnedToBottom = useRef(true);
   const location = useLocation();
   const { send: sendDirective } = useAgentDirectives();
-  const { start: startTour, cancel: cancelTour } = useTourController();
 
   const handleDirective = useCallback(
     (directive: AgentDirective) => {
@@ -46,21 +43,8 @@ export function AgentAssistant() {
     [sendDirective],
   );
 
-  // Phase 7: continue_tour reuses start(tourId, undefined, 'chatbot') — the
-  // controller's reconcile fetches the server-persisted resume step. cancel_tour
-  // stops the active tour. The chatbot stays a safe SELECTOR: it can only
-  // launch/continue/cancel tours the orchestrator already role-validated.
-  const handleContinueTour = useCallback(
-    (tourId: string) => startTour(tourId, undefined, 'chatbot'),
-    [startTour],
-  );
-  const handleCancelTour = useCallback(() => cancelTour(), [cancelTour]);
-
   const chat = useAgentChat({
     onDirective: handleDirective,
-    onStartTour: startTour,
-    onContinueTour: handleContinueTour,
-    onCancelTour: handleCancelTour,
   });
 
   const scrollToLatest = useCallback((behavior: ScrollBehavior = 'auto') => {
@@ -265,28 +249,6 @@ const RESPONSE_RENDERERS: Record<AgentResponse['type'], ResponseRenderer> = {
       ? <InsightCard card={response} onAction={ctx.onAction} rootRef={ctx.messageRef} />
       : null
   ),
-  tutorial: (response, ctx) => (
-    response.type === 'tutorial' ? <TutorialCard tutorial={response} onAction={ctx.onAction} /> : null
-  ),
-  start_tour: (response) => {
-    if (response.type !== 'start_tour') return null;
-    // Auto-launched by useAgentChat onStartTour; this arm covers the rehydrated
-    // (reload) case so the stored message renders a meaningful bubble.
-    const title = TOUR_CATALOG[response.tourId as TourId]?.title ?? response.tourId;
-    return <AssistantTextBubble content={`Đã mở hướng dẫn **${title}** cho bạn.`} />;
-  },
-  // Phase 7: tour-control responses. Auto-handled by useAgentChat; these arms
-  // cover the rehydrated-message render case (Vietnamese confirmation bubble).
-  continue_tour: (response) => {
-    if (response.type !== 'continue_tour') return null;
-    const title = TOUR_CATALOG[response.tourId as TourId]?.title ?? response.tourId;
-    return <AssistantTextBubble content={`Đã tiếp tục hướng dẫn **${title}**.`} />;
-  },
-  cancel_tour: (response) => {
-    if (response.type !== 'cancel_tour') return null;
-    const title = TOUR_CATALOG[response.tourId as TourId]?.title ?? response.tourId;
-    return <AssistantTextBubble content={`Đã dừng hướng dẫn **${title}**.`} />;
-  },
   directive: () => <AssistantTextBubble content="Đã mở trang cho bạn." />,
   text: (response, ctx) => {
     if (response.type !== 'text') return null;

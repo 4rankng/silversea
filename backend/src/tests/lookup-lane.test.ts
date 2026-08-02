@@ -35,7 +35,7 @@ describe('P1 Lane 2 — must NOT trigger for non-lookup queries', () => {
   const nonLookupCases: { msg: string; desc: string }[] = [
     { msg: 'tại sao lợi nhuận giảm?', desc: 'analytical question' },
     { msg: 'lợi nhuận xe 15C-136.31 tháng 6 là bao nhiêu?', desc: 'too long (>60 chars) + analytical' },
-    { msg: 'hướng dẫn tạo chuyến', desc: 'tutorial request' },
+    { msg: 'hướng dẫn tạo chuyến', desc: 'how-to request (not entity lookup)' },
     { msg: 'mở trang công nợ', desc: 'navigation intent (not lookup)' },
     { msg: 'tóm tắt việc hôm nay', desc: 'summary intent (not lookup)' },
     { msg: 'cty có bao nhiêu xe', desc: 'aggregate question (not entity lookup)' },

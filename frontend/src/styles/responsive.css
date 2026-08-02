@@ -38,7 +38,7 @@
   .sidebar {
     position: fixed;
     left: 0; top: 0; bottom: 0;
-    width: var(--sidebar-w);
+    width: min(var(--sidebar-w), calc(100vw - 28px));
     z-index: var(--z-modal);
     transform: translateX(-100%);
     transition: transform 240ms var(--ease);
@@ -53,12 +53,22 @@
   }
 
   /* ── Content ── */
-  .app-body, .content { padding: 20px 16px calc(40px + env(safe-area-inset-bottom, 0px)); }
+  .app-body, .content { padding: 20px 16px calc(32px + env(safe-area-inset-bottom, 0px)); }
 
   /* ── Topbar ── */
-  .topbar-search { width: 180px; }
+  .topbar__context {
+    min-width: 112px;
+    max-width: 136px;
+    padding-right: 0;
+  }
+  .topbar__search {
+    min-width: 120px;
+  }
   .topbar {
     height: calc(var(--topbar-h) + env(safe-area-inset-top, 0px));
+    min-height: calc(var(--topbar-h) + env(safe-area-inset-top, 0px));
+    padding-left: 16px;
+    padding-right: 16px;
     padding-top: constant(safe-area-inset-top, 0px);
     padding-top: env(safe-area-inset-top, 0px);
     background: var(--sb-bg);
@@ -188,15 +198,15 @@
   }
 
   /* ── App shell ── */
-  .app-body, .content { padding: 6px 10px calc(24px + env(safe-area-inset-bottom, 0px)); }
+  .app-body, .content { padding: 14px 12px calc(28px + env(safe-area-inset-bottom, 0px)); }
 
   /* ── Topbar ── */
   .topbar {
-    padding: constant(safe-area-inset-top, 0px) 8px 0;
-    padding: env(safe-area-inset-top, 0px) 8px 0;
-    gap: 6px;
-    height: calc(48px + env(safe-area-inset-top, 0px));
-    min-height: calc(48px + env(safe-area-inset-top, 0px));
+    padding: constant(safe-area-inset-top, 0px) 10px 0;
+    padding: env(safe-area-inset-top, 0px) 10px 0;
+    gap: 8px;
+    height: calc(var(--topbar-h) + env(safe-area-inset-top, 0px));
+    min-height: calc(var(--topbar-h) + env(safe-area-inset-top, 0px));
   }
   .topbar--driver {
     padding-top: calc(2px + constant(safe-area-inset-top, 0px));
@@ -240,9 +250,9 @@
   thead.sticky-header { position: relative; }
 
   /* ── Page header ── */
-  .page-title { font-size: var(--fs-lg); line-height: 1.35; margin-bottom: 2px; }
+  .page-title { font-size: var(--fs-xl); line-height: 1.3; margin-bottom: 2px; }
   .page-subtitle { font-size: var(--fs-xs); line-height: 1.4; }
-  .page-header { flex-direction: column; gap: 10px; align-items: flex-start; margin-bottom: 12px; }
+  .page-header { flex-direction: column; gap: 12px; align-items: flex-start; margin-bottom: 16px; }
   .page-header .page-actions,
   .page-actions,
   .page-header .header-actions,
@@ -250,7 +260,7 @@
   .page-actions .btn,
   .header-actions .btn,
   .page-header .btn,
-  .page-header .btn-primary { flex: 1 1 auto; min-width: 0; justify-content: center; min-height: 44px; }
+  .page-header .btn-primary { flex: 1 1 180px; min-width: 0; justify-content: center; min-height: 44px; }
   .trip-detail-title { font-size: var(--fs-xl); gap: 8px; line-height: 1.2; }
   .trip-detail-title > span { flex: 1 1 auto; min-width: 0; }
   .trip-detail-subtitle { margin-left: 0; font-size: var(--fs-xs); }

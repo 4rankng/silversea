@@ -801,6 +801,18 @@
 .dispatch-pane { min-width: 0; border: 1px solid var(--border-2); border-radius: 10px; background: var(--surface-1); display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; }
 .dispatch-pane__head { min-height: 48px; padding: 12px 14px; border-bottom: 1px solid var(--border-2); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .dispatch-pane__head span { color: var(--fg-3); font-size: 12px; }
+.dispatch-pane__head > div { display: flex; align-items: center; gap: 6px; }
+.dispatch-pane__head button {
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink-2);
+  font: 600 var(--fs-xs)/1.35 var(--font-body);
+}
+.dispatch-pane__head button:hover:not(:disabled) { background: var(--surface-2); color: var(--ink); }
+.dispatch-pane__head button:disabled { cursor: not-allowed; opacity: .45; }
 .dispatch-pane__scroll { min-height: 0; overflow: auto; overscroll-behavior: contain; }
 .dispatch-task { width: 100%; padding: 14px; border: 0; border-bottom: 1px solid var(--border-2); background: transparent; text-align: left; color: var(--fg-1); display: grid; gap: 6px; cursor: pointer; }
 .dispatch-handoff { padding: 14px; border-bottom: 1px solid var(--border-2); background: #eff6ff; display: flex; align-items: center; justify-content: space-between; gap: 10px; }

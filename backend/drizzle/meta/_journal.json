@@ -8,6 +8,13 @@
       "when": 1785640132621,
       "tag": "0000_third_wrecking_crew",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785643159380,
+      "tag": "0001_drop_onboarding_tables",
+      "breakpoints": true
     }
   ]
 }

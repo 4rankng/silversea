@@ -24,7 +24,6 @@ import { analyzerTools } from './tools/analyzers';
 import { dataTools } from './tools/data';
 import { reportTools } from './tools/reports';
 import { uiTools } from './tools/ui';
-import { toursTools } from './tools/tours';
 import { knowledgeTools } from './tools/knowledge';
 
 // Tools no longer advertised to the LLM because the semantic gateway (`data.*`)
@@ -56,7 +55,6 @@ const ALL_TOOLS: AgentToolDef[] = [
   ...dataTools,
   ...reportTools,
   ...uiTools,
-  ...toursTools,
   ...knowledgeTools,
   ...tripTools,
   ...receivablesTools,

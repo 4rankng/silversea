@@ -5,12 +5,12 @@
  *
  * 1. GOLDEN PARITY — the exact strings the pre-refactor inline
  *    orchestrator.buildSystemPrompt produced for three representative inputs
- *    (no-tool chat / data+route / tours+UI) are pinned. Any byte drift in the
+ *    (no-tool chat / data+route / UI) are pinned. Any byte drift in the
  *    extracted module flips these red. This is the contract that lets us call
  *    the refactor behavior-preserving.
  *
  * 2. SECTION CONTRACT — buildSystemPromptSections exposes the named, ordered
- *    sections (persona/time/toolPolicy/tourPolicy/uiPolicy/route/responseShape)
+ *    sections (persona/time/toolPolicy/uiPolicy/route/responseShape)
  *    so future context-engineering work (per-role few-shot, token-budget
  *    pruning) can target one section without re-reading the whole assembler.
  *    These tests pin which sections fire for which tool/message combinations.
@@ -94,43 +94,31 @@ describe('buildSystemPrompt — golden parity', () => {
     assert.ok(got.includes('- Mọi số liệu phải lấy từ công cụ.'));
   });
 
-  test('tours.search present → tour policy line, no data-policy lines', () => {
-    // Note: a message like "hướng dẫn" itself contains the substring "dan" that
-    // the UI-verb heuristic matches, so UI policy legitimately fires for it.
-    // Use a neutral message here to isolate tour-vs-data policy from UI.
-    const got = buildSystemPrompt(ctx(), [tool('tours.search')], 'bao nhieu tien');
-    assert.ok(got.includes('- Luồng hướng dẫn có sẵn: gọi tours.search'));
-    assert.ok(!got.includes('- Mọi số liệu'));
-    assert.ok(!got.includes('Cần mở/thao tác'), 'no ui policy for non-UI message');
-  });
-
   test('UI-triggering message + tools → ui-policy lines fire (diacritic-insensitive)', () => {
     // "mở" without diacritics ("mo") must still trigger UI policy — this is the
-    // normalizeForIntent heuristic the orchestrator relied on. Tour-only toolset
-    // here so we isolate the UI heuristic from the data branches. The actual
+    // normalizeForIntent heuristic the orchestrator relied on. A non-data tool
+    // here isolates the UI heuristic from the data branches. The actual
     // text uses ';' as separator inside the bullet (not a trailing period).
-    const got = buildSystemPrompt(ctx(), [tool('tours.search')], 'mo trang nhom');
+    const got = buildSystemPrompt(ctx(), [tool('ui.navigate')], 'mo trang nhom');
     assert.ok(got.includes('- Cần mở/thao tác: dùng directive thật;'));
     assert.ok(got.includes('- open/prefill chỉ hỗ trợ componentId debt.record-payment'));
   });
 
-  test('data + tours + ui-trigger + route → all sections present in correct order', () => {
+  test('data + ui-trigger + route → all sections present in correct order', () => {
     const got = buildSystemPrompt(
       ctx({ currentRouteKey: '/fleet/1' }),
-      [tool('data.search'), tool('tours.search')],
+      [tool('data.search'), tool('ui.navigate')],
       'them xe moi',
     );
     const idxPersona = got.indexOf('Bạn là trợ lý TransTing');
     const idxTime = got.indexOf('Hôm nay:');
     const idxData = got.indexOf('- Mọi số liệu');
-    const idxTour = got.indexOf('- Luồng hướng dẫn');
     const idxUi = got.indexOf('- Cần mở/thao tác');
     const idxRoute = got.indexOf('Trang hiện tại:');
     const idxShape = got.indexOf('Kết quả cuối');
     assert.ok(idxPersona >= 0 && idxTime > idxPersona, 'persona before time');
     assert.ok(idxData > idxTime, 'data after time');
-    assert.ok(idxTour > idxData, 'tour after data');
-    assert.ok(idxUi > idxTour, 'ui after tour');
+    assert.ok(idxUi > idxData, 'ui after data');
     assert.ok(idxRoute > idxUi, 'route after ui');
     assert.ok(idxShape > idxRoute, 'response shape last');
   });
@@ -150,7 +138,7 @@ describe('buildSystemPromptSections — section contract', () => {
   });
 
   test('toolPolicy empty when no data tool', () => {
-    const s = buildSystemPromptSections(ctx(), [tool('tours.search')], 'hi');
+    const s = buildSystemPromptSections(ctx(), [tool('ui.navigate')], 'hi');
     assert.deepStrictEqual(s.toolPolicy, []);
   });
 
@@ -159,13 +147,8 @@ describe('buildSystemPromptSections — section contract', () => {
     assert.strictEqual(s.toolPolicy.length, 2);
   });
 
-  test('tourPolicy empty without tours.search', () => {
-    const s = buildSystemPromptSections(ctx(), [tool('data.search')], 'hướng dẫn');
-    assert.deepStrictEqual(s.tourPolicy, []);
-  });
-
   test('uiPolicy empty when message has no UI verb', () => {
-    const s = buildSystemPromptSections(ctx(), [tool('tours.search')], 'bao nhieu tien');
+    const s = buildSystemPromptSections(ctx(), [tool('ui.navigate')], 'bao nhieu tien');
     assert.deepStrictEqual(s.uiPolicy, []);
   });
 

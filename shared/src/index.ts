@@ -163,7 +163,7 @@ export type {
   GenerateBillingDocumentInput, SaveBillingDocumentInput, BillingDocumentAdjustmentRequestInput, BillingDocumentLineInput,
   DebitNoteTemplateInput, DebitNoteColumnInput, DebitNoteColumnVariableInput,
   BachKhoaVehicle,
-  AgentDirective, AgentWidget, WidgetFormat, AgentActionChip, AgentCitation, Provenance, AgentTutorialStep, AgentResponse,
+  AgentDirective, AgentWidget, WidgetFormat, AgentActionChip, AgentCitation, Provenance, AgentResponse,
   AgentMessage, AgentConversation, AgentEvent, AgentRouteKey,
   AckedDirectiveKind, AgentActionResult,
   FaqEntry, FaqEntryCreate, FaqEntryUpdate, FaqEmbeddingStatus, FaqEntryMutationResponse,
@@ -231,23 +231,6 @@ export type {
 // ─── Admin Bách Khoa GPS credentials ────────────────────────────────────────
 export { GPS_SETTINGS_PATHS, gpsSettingsUpdateSchema } from './schemas/gps-settings';
 export type { GpsSettingsResponse, GpsSettingsUpdate } from './schemas/gps-settings';
-
-// ─── Curated tour catalog (agent-guided walkthroughs) ───────────────────────
-// Single source for the backend tours.search tool + the frontend on-demand list
-// and TourController. See ./tours/catalog.ts.
-export { TOUR_CATALOG, TOUR_IDS, toursForRole, getTour } from './tours';
-export type { Tour, TourId } from './tours';
-
-// ─── Onboarding product-event catalog ───────────────────────────────────────
-// Closed set of business/UI events the onboarding layer (tour completion steps,
-// role checklists, lifecycle analytics) reacts to. See ./onboarding/events.ts.
-export { PRODUCT_EVENTS, ONBOARDING_EVENT_NAMES, ONBOARDING_TASKS, tasksForRole, getTask } from './onboarding';
-export type { ProductEventName, ProductEventPayloads, PayloadOf, OnboardingEventName, TriggerSource, OnboardingTask, TaskCompletion } from './onboarding';
-
-// ─── Onboarding admin settings (master on/off toggle) ──────────────────────
-// DB-backed admin switch for the onboarding tutorial. See ./schemas/onboarding-settings.ts.
-export { ONBOARDING_SETTINGS_PATHS } from './schemas/onboarding-settings';
-export type { OnboardingSettingsResponse, OnboardingSettingsUpdate } from './schemas/onboarding-settings';
 
 // ─── Q22 source/dependent authority policy ─────────────────────────────────
 export {

@@ -7,13 +7,13 @@
   align-items: center;
   justify-content: center;
   gap: 7px;
-  min-height: 45px;
+  min-height: 44px;
   padding: 10px 15px;
-  border-radius: 11px;
+  border-radius: 10px;
   font-family: var(--font-body);
   font-size: var(--fs-sm);
   font-weight: 600;
-  line-height: 1.35;
+  line-height: 1.4;
   border: 1px solid transparent;
   background: transparent;
   color: var(--ink);
@@ -54,7 +54,7 @@
 .btn--ghost {
   background: transparent;
   color: var(--ink-2);
-  padding: 10px 11px;
+  padding: 10px 12px;
 }
 .btn--ghost:hover { background: var(--surface-2); color: var(--ink); }
 .btn--danger {
@@ -66,10 +66,10 @@
   background: var(--danger-text);
   border-color: var(--danger-text);
 }
-.btn--sm { min-height: 45px; padding: 9px 12px; font-size: var(--fs-xs); line-height: 1.35; }
-.btn--lg { padding: 12px 22px; font-size: 15px; border-radius: 12px; min-height: 46px; }
-.btn--icon { width: 45px; min-width: 45px; height: 45px; min-height: 45px; padding: 0; }
-.btn--icon.btn--sm { width: 45px; min-width: 45px; height: 45px; min-height: 45px; padding: 0; }
+.btn--sm { min-height: 44px; padding: 9px 12px; font-size: var(--fs-xs); line-height: 1.35; }
+.btn--lg { padding: 12px 18px; font-size: 15px; border-radius: 12px; min-height: 46px; }
+.btn--icon { width: 44px; min-width: 44px; height: 44px; min-height: 44px; padding: 0; }
+.btn--icon.btn--sm { width: 44px; min-width: 44px; height: 44px; min-height: 44px; padding: 0; }
 
 /* Legacy single-dash variants (.btn-primary/.btn-secondary/.btn-ghost/.btn-sm/
    .btn-icon) were retired during CTA unification — all call sites now use the
@@ -78,28 +78,28 @@
 
 @media (max-width: 640px) {
   .btn {
-    min-height: 45px;
+    min-height: 44px;
     padding: 11px 14px;
     font-size: var(--fs-sm);
     white-space: normal;
   }
 
   .btn--sm {
-    min-height: 45px;
+    min-height: 44px;
     padding: 9px 11px;
   }
 
   .btn--icon {
-    width: 45px;
-    min-width: 45px;
-    height: 45px;
-    min-height: 45px;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
   }
 
   .btn--icon.btn--sm {
-    width: 45px;
-    min-width: 45px;
-    height: 45px;
-    min-height: 45px;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
   }
 }

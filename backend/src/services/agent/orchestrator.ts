@@ -26,8 +26,6 @@ import {
   agentDirectiveSchema,
   ACKED_DIRECTIVE_KINDS,
   Role,
-  toursForRole,
-  getTour,
   type AgentEvent,
   type AgentResponse,
   type AgentDirective,
@@ -164,49 +162,6 @@ function normalizeForIntent(text: string): string {
     .replace(/đ/g, 'd')
     .replace(/Đ/g, 'D')
     .toLowerCase();
-}
-
-/** Tour net — deterministic safety net beneath the model's tour selection,
- *  mirroring synthesizeNavigateFromProse's role for navigation. Two jobs:
- *   (1) VALIDATE: an emitted {type:'start_tour'} whose tourId is unknown or not
- *       visible to the user's role → downgrade to an honest text line (also
- *       breaks a potential MiniMax retry loop on a bogus id).
- *   (2) CATCH: a freeform {type:'tutorial'} whose title STRONGLY matches a
- *       catalog tour the user can see → launch the curated tour instead (the
- *       model rebuilt a tour we already authored). Title-match is intentionally
- *       strict (≥6 chars, equality or containment) so a narrow how-to such as
- *       "đơn giá dầu ở đâu" stays a freeform answer and isn't hijacked into a
- *       6-step tour. Deterministic + unit-tested. */
-export function synthesizeStartTourFromResponse(response: AgentResponse, role: Role): AgentResponse {
-  if (response.type === 'start_tour' || response.type === 'continue_tour' || response.type === 'cancel_tour') {
-    // Phase 7: validate ANY tour-control response against the catalog + the
-    // caller's role before emitting (safe registry). An unknown or role-denied
-    // id degrades to a Vietnamese text denial — the chatbot can SELECT a tour
-    // but never invent one, and never reaches a tour the role can't run.
-    const tour = getTour(response.tourId);
-    const visible = tour ? toursForRole(role).some((t) => t.id === tour.id) : false;
-    if (!tour || !visible) {
-      return {
-        type: 'text',
-        content: `Hướng dẫn "${response.tourId}" không khả dụng cho vai trò của bạn.`,
-      };
-    }
-    // Stamp the authoritative catalog version so the frontend can detect a
-    // stale catalog vs server-progress mismatch on continue_tour.
-    if (response.type === 'continue_tour' || response.type === 'cancel_tour') {
-      return { ...response, tourVersion: tour.version };
-    }
-    return response;
-  }
-  if (response.type === 'tutorial') {
-    const normTitle = normalizeForIntent(response.title);
-    const match = toursForRole(role).find((t) => {
-      const tt = normalizeForIntent(t.title);
-      return tt.length >= 6 && (normTitle === tt || normTitle.includes(tt));
-    });
-    if (match) return { type: 'start_tour', tourId: match.id };
-  }
-  return response;
 }
 
 /** A3 guardrail helper: scan a prose answer for a path-like token that resolves
@@ -804,13 +759,6 @@ export async function runAgent(opts: {
         }
       }
 
-      // Tour net: validate an emitted {type:'start_tour'} (role + existence) and
-      // conservatively launch a curated tour when the model rambled a freeform
-      // tutorial matching one. Mirrors the A3 navigate net; kill-switch gated.
-      if (config.agentTourGuardrail && !opts.signal?.aborted) {
-        response = synthesizeStartTourFromResponse(response, ctx.role);
-      }
-
       // Telemetry: a navigate/focus directive in the terminal answer counts as
       // "navigate emitted" whether or not the ack path ran — the frontend still
       // applies the directive from the done event.
@@ -851,7 +799,7 @@ export async function runAgent(opts: {
       // ReAct loop called knowledge.search, the tool returned chunks with source
       // metadata. Extract the top sources and attach them as citations[] on the
       // final response so the user sees provenance (doc-RAG grounding).
-      if (collectedCitations.length > 0 && (response.type === 'text' || response.type === 'insight_card' || response.type === 'tutorial')) {
+      if (collectedCitations.length > 0 && (response.type === 'text' || response.type === 'insight_card')) {
         response = { ...response, citations: collectedCitations };
       }
 

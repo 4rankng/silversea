@@ -5,7 +5,6 @@ import {
   Cpu,
   Eye,
   EyeOff,
-  GraduationCap,
   Loader2,
   Mail,
   MapPin,
@@ -162,7 +161,6 @@ export default function AppSettingsConfigPage() {
 
   const [features, setFeatures] = useState<AppSettings>({
     botEnabled: false,
-    tutorialEnabled: true,
     gpsEnabled: false,
     creditWarningThresholdDefault: 0.8,
     creditTierOneAmountCap: 0,
@@ -347,14 +345,6 @@ export default function AppSettingsConfigPage() {
             description="Cho phép người dùng văn phòng mở và sử dụng trợ lý ảo trong ứng dụng."
             enabled={features.botEnabled}
             onChange={() => updateFeature('botEnabled')}
-            disabled={appSettings.isLoading || appSettings.isError || saveAppSettings.isPending}
-          />
-          <FeatureSwitch
-            icon={<GraduationCap size={19} />}
-            label="Hướng dẫn sử dụng"
-            description="Hiển thị bảng checklist và các tour hướng dẫn cho người dùng mới."
-            enabled={features.tutorialEnabled}
-            onChange={() => updateFeature('tutorialEnabled')}
             disabled={appSettings.isLoading || appSettings.isError || saveAppSettings.isPending}
           />
           <div className="cfg-section" style={{ display: 'grid', gap: 14 }}>

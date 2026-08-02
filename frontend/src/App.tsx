@@ -4,8 +4,6 @@ import { AuthProvider, useAuth } from './hooks/useAuth';
 import { SearchProvider } from './context/SearchContext';
 import { MonthProvider } from './hooks/useMonth';
 import { AgentDirectiveProvider } from './context/AgentDirectiveProvider';
-import { TourControllerProvider } from './context/TourControllerContext';
-import { TourController } from './components/agent/TourController';
 import { ReducedMotionProvider } from './hooks/usePrefersReducedMotion';
 import { Role } from '@tingting/shared';
 import Layout from './components/Layout';
@@ -264,7 +262,6 @@ export function AppRoutes() {
           <Route path="/config/ancillary-revenue" element={adminOnly(page(<AncillaryRevenueConfigPage />))} />
           <Route path="/config/llm-settings" element={strictAdminOnly(<Navigate to="/config/app-settings" replace />)} />
           <Route path="/config/faq-entries" element={strictAdminOnly(page(<FaqEntriesConfigPage />))} />
-          <Route path="/config/onboarding-settings" element={strictAdminOnly(<Navigate to="/config/app-settings" replace />)} />
           <Route path="/config/app-settings" element={strictAdminOnly(page(<AppSettingsConfigPage />))} />
           <Route path="/config/master-data-import" element={strictAdminOnly(page(<MasterDataImportPage />))} />
           <Route path="/config/company-info" element={officeStaffOnly(page(<CompanyInfoConfigPage />))} />
@@ -333,16 +330,11 @@ export default function App() {
       <AuthProvider>
         <ToastProvider>
           <AgentDirectiveProvider>
-            <TourControllerProvider>
-              <MonthProvider>
-                <SearchProvider>
-                  <AppRoutes />
-                </SearchProvider>
-              </MonthProvider>
-              {/* Sibling of <AppRoutes/>, OUTSIDE the agent Drawer so it survives
-                  route changes and never inherits the drawer's navigate-close. */}
-              <TourController />
-            </TourControllerProvider>
+            <MonthProvider>
+              <SearchProvider>
+                <AppRoutes />
+              </SearchProvider>
+            </MonthProvider>
           </AgentDirectiveProvider>
         </ToastProvider>
       </AuthProvider>

@@ -32,9 +32,6 @@ const REVIEWED_NON_MATERIAL_MUTATIONS = new Map<string, string>([
   ['notifications.ts|POST|/read-all', 'Per-user notification read markers.'],
   ['notifications.ts|POST|/subscribe', 'Replaceable per-user browser push subscription.'],
   ['notifications.ts|POST|/unsubscribe', 'Idempotent deletion of a browser push subscription.'],
-  ['onboarding.ts|PUT|/progress/:tourId', 'Replaceable per-user tutorial progress; no operational business entity mutation.'],
-  ['onboarding.ts|PUT|/tasks/:taskId', 'Replaceable per-user tutorial checklist state; no operational business entity mutation.'],
-  ['onboarding.ts|POST|/events', 'Append-only product analytics telemetry; no operational business entity mutation.'],
   ['trips.ts|POST|/:id/pod-recovered', 'O2C POD-recovery flag setter (accountant/CUS); no direct financial mutation — the completion transition that consumes it runs its own durable boundary.'],
   ['trips.ts|POST|/:id/paper-order-collected', 'O2C field-ops hand-off timestamp (Ops); operational marker, no financial mutation.'],
   ['trips.ts|POST|/:id/driver-order-accepted', 'O2C field-ops hand-off timestamp (Driver); operational marker, no financial mutation.'],
@@ -524,8 +521,6 @@ describe('material-write registry coverage', () => {
     const routes = extractMountedMutationRoutes();
     const discovered = new Map(routes.map((route) => [route.sourceKey, route.routePath]));
     const expected = new Map([
-      ['onboarding.ts|PUT|/progress/:tourId', '/api/onboarding/progress/123'],
-      ['onboarding-settings.ts|PUT|/', '/api/admin/onboarding-settings'],
       ['app-settings.ts|PUT|/', '/api/admin/app-settings'],
       ['upload.ts|POST|/company-logo', '/api/upload/company-logo'],
       ['financial/payments.routes.ts|POST|/payments/receive', '/api/payments/receive'],

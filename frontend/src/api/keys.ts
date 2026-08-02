@@ -437,13 +437,6 @@ export const qk = {
     entity: (endpoint: string) => [endpoint] as const,
   },
 
-  /* ── Onboarding (Phase 4): tour progress + checklist tasks ─────────── */
-
-  onboarding: {
-    progressAll: ['onboarding', 'progress'] as const,
-    tasksAll: ['onboarding', 'tasks'] as const,
-  },
-
 } as const;
 
 // ── Compile-time guard: allCatalogKeys must cover every qk.catalogs prefix ────

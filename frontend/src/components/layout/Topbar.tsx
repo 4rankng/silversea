@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, ChevronRight, Calendar, BookOpen } from 'lucide-react';
+import { ChevronDown, ChevronRight, Calendar } from 'lucide-react';
 import { useSalaryPeriod } from '../../hooks/useCatalogQueries';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
@@ -144,7 +144,6 @@ function Topbar({
   pageTitle,
   menuButtonRef,
   onToggleSidebar,
-  onOpenTutorialLibrary,
 }: TopbarProps) {
   const topbarRef = useTopbarEntrance();
   const navigate = useNavigate();
@@ -255,11 +254,6 @@ function Topbar({
 
       <div className="topbar__actions">
         {!isDriver && <MonthNavigator />}
-        {onOpenTutorialLibrary && (
-          <button type="button" className="topbar__toggle" onClick={onOpenTutorialLibrary} aria-label="Mở hướng dẫn sử dụng" title="Hướng dẫn sử dụng">
-            <BookOpen size={18} aria-hidden="true" />
-          </button>
-        )}
         {canUseNotifications && <NotificationBell />}
         <AgentAssistant />
       </div>

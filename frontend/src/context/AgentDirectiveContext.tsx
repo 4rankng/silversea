@@ -21,13 +21,6 @@ interface AgentDirectiveContextValue {
   /** Apply a directive (called by useAgentChat + action chips). Returns the
    *  outcome so the caller can ack navigate/focus directives. */
   send: (d: AgentDirective) => DirectiveOutcome;
-  /** Async variant for the TourController: navigates then AWAITS the target
-   *  element mounting (so the spotlight lands), returning a DirectiveOutcome
-   *  whose `reason` is 'highlight-missed' when the target never appeared
-   *  (graceful degradation). `send` stays synchronous for the chat ack path —
-   *  never await inside useAgentChat's directive ack or the synchronous
-   *  `outcome.status` read corrupts. */
-  sendAndWait: (d: AgentDirective) => Promise<DirectiveOutcome>;
   /** Register a modal/form handler for the current page (used by useAgentOpenable). */
   register: (componentId: string, handler: OpenHandler) => void;
   unregister: (componentId: string) => void;
