@@ -542,7 +542,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               {/* Avatar & Role Card (Vertical Span) */}
               <div className="profile-bento-card profile-bento-card--avatar">
                 <div className="bento-avatar">
-                  <User size={26} aria-hidden="true" />
+                  <img
+                    src="/assets/avatars/driver-cartoon-v1.png"
+                    alt=""
+                    aria-hidden="true"
+                  />
                 </div>
                 <div className="bento-role-badge">
                   <Shield size={10} />

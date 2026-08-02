@@ -8,10 +8,16 @@
 >
 > - `docs/prd/Module1.docx` … `docs/prd/Module12.docx` — 12 phân hệ nghiệp vụ (8–7 nhóm chức năng mỗi phân hệ)
 > - `docs/prd/business-logic-qa-proposals.md` — 23 quy tắc logic nghiệp vụ (Q01–Q23), SilverSea đã chấp thuận toàn bộ đề xuất TingTing ngày 27/07/2026
+> - `docs/prd/O2C Flow.md` và `docs/prd/O2C dev-rev1.md` — quy trình Order-to-Cash end-to-end (quyết định 01/08/2026) → tệp `14-order-to-cash-workflow.md`
+> - `docs/prd/sidebar-organization-by-role.txt` — sắp xếp menu theo 7 vai trò (cập nhật 01/08/2026) → tệp `15-navigation-menu-by-role.md`
 >
 > **Trạng thái PRD.** SilverSea đã chấp thuận Q01–Q23 theo toàn bộ đề xuất
 > TingTing ngày 27/07/2026. Các ca phụ thuộc Q không còn bị chặn về thẩm quyền,
 > nhưng chỉ được đánh dấu Pass khi hành vi đã được triển khai và có bằng chứng.
+>
+> **Supersession O2C (01/08/2026).** Quy trình O2C mới (xem `14-order-to-cash-workflow.md` §8) định nghĩa
+> lại máy trạng thái lô hàng: trạng thái kết thúc là `Hoàn thành`, **loại bỏ `Đã khóa (Locked/Billed)`**,
+> chi phí vẫn sửa được sau khi hoàn thành. Nếu ca M01 cũ mâu thuẫn, **quy tắc O2C là chân lý mới**.
 
 ---
 
@@ -68,7 +74,10 @@ Sau mỗi ca kiểm thử, điền vào Bảng nghiệm thu (template trong mỗ
 
 ## 2. Tài khoản demo
 
-Mật khẩu cho tất cả: `admin123`. URL: http://localhost:7174
+Mật khẩu cho tất cả: `Abc123`. URL: http://localhost:7174
+
+> **Ghi chú mật khẩu.** `AGENTS.md` (workspace contract) ghi mật khẩu demo là `Abc123`. Nếu môi trường
+> thử của bạn dùng mật khẩu khác (vd `admin123`), dùng đúng mật khẩu môi trường đó và ghi rõ trong báo cáo.
 
 | Tên đăng nhập | Vai trò     | Phù hợp thử                                                                 |
 | ------------- | ----------- | --------------------------------------------------------------------------- |
@@ -111,6 +120,8 @@ Mật khẩu cho tất cả: `admin123`. URL: http://localhost:7174
 | Admin application settings | `/config/app-settings` | admin |
 | Thông tin công ty | `/config/company-info` | admin / giamdoc / ketoan |
 | M12 Nhiên liệu & số hóa chứng từ dầu | `/config/fuel-norms`, `/config/fuel`, `/trips/:id` (ảnh cột bơm), `/payables` (hóa đơn dầu) | ketoan / admin / laixe |
+| O2C Quy trình end-to-end | `/shipments`, `/dispatch`, `/trips`, `/expenses`, `/debt`, `/payables`, `/finance` | admin / ketoan / clerk / giaonhan / laixe |
+| Điều hướng & menu theo vai trò | `/dashboard`, `/accounting`, `/my-trips`, `/my-forwarder-trips`, `/portal/shipments`, `/finance/treasury`, `/credit-overrides`, `/governance-actions`, `/chatbot-monitoring`, `/recoverable-costs`, `/portal/statement` | tất cả 7 vai trò |
 
 > **Cổng khách hàng** (`/portal/...`) và **cổng nhân viên** (`/my-...`) dùng role-specific layout. Để
 > thử, đăng nhập bằng đúng role (customer / laixe / giaonhan) — guard sẽ tự chuyển hướng.
@@ -135,7 +146,9 @@ docs/regression-testing/
 ├── 10-module-10-clerk-app.md          ← M10: Ứng dụng nhân viên chứng từ
 ├── 11-module-11-finance-pnl.md        ← M11: Báo cáo tài chính & lãi lỗ
 ├── 12-module-12-fuel.md               ← M12: Nhiên liệu & số hóa chứng từ dầu
-└── 13-customer-service-finance-visual-workflow.md ← Visual QA Booking → CUS → tài chính
+├── 13-customer-service-finance-visual-workflow.md ← Visual QA Booking → CUS → tài chính
+├── 14-order-to-cash-workflow.md       ← O2C: Quy trình end-to-end (Bước 0-4 + đối chiếu liên phân hệ)
+└── 15-navigation-menu-by-role.md      ← Điều hướng & menu theo 7 vai trò (RBAC navigation)
 ```
 
 ### 4.1. Ma trận phân hệ ↔ ca kiểm thử
@@ -156,7 +169,9 @@ docs/regression-testing/
 | `11-module-11-finance-pnl.md` | 6 nhóm (11.1–11.6) | ~30           | M11-HT-01..M11-HT-10              |
 | `12-module-12-fuel.md`       | 3 nhóm (12.1–12.3) | ~15           | M12-HT-01..M12-HT-10              |
 | `13-customer-service-finance-visual-workflow.md` | Luồng xuyên phân hệ | 50 ca visual bổ sung | Role × route × viewport + đối chiếu tài chính |
-| **Tổng PRD + visual workflow** | | **~400 + 50 ca bổ sung** | |
+| `14-order-to-cash-workflow.md` | Luồng O2C (Bước 0-4) | ~38 ca | O2C-HT-01..O2C-HT-10 |
+| `15-navigation-menu-by-role.md` | 7 vai trò × menu/navigation | ~30 ca | NAV-HT-01..NAV-HT-10 |
+| **Tổng PRD + visual workflow** | | **~470 + 50 ca bổ sung** | |
 
 > Con số "~400" phản ánh độ phủ đậm đặc mà PRD yêu cầu: mỗi nhóm chức năng cần ≥5 ca (luồng thường,
 > thiếu/sai dữ liệu, ngoại lệ, phân quyền, gửi lại/đồng thời) cộng thêm các ca biên riêng của nhóm.
@@ -194,11 +209,12 @@ Module 3 (CUS) thêm 2 nhóm:
 
 ### 6.1. Trước mỗi release (smoke)
 
-1. Đăng nhập lần lượt bằng 7 vai trò (admin, giamdoc, ketoan, giaonhan, laixe, customer, clerk).
-2. Mở màn hình nhà của mỗi vai trò — phải load không lỗi.
+1. Đăng nhập lần lượt bằng 7 vai trò (admin, giamdoc, ketoan, giaonhan, laixe, customer, clerk) và xác nhận **trang bắt đầu đúng theo PRD sidebar** (xem `15-navigation-menu-by-role.md` §9): admin/giamdoc → `/dashboard`, ketoan → `/accounting`, laixe → `/my-trips`, giaonhan → `/my-forwarder-trips`, clerk → `/shipments`, customer → `/portal/shipments`.
+2. Mở màn hình nhà của mỗi vai trò — phải load không lỗi, nhóm quan trọng nhất mở sẵn.
 3. Mở `/dashboard` với admin — phải hiển thị 4 chỉ số chính.
 4. Mở `/finance` với giamdoc — phải hiển thị báo cáo lãi lỗ kỳ hiện tại.
 5. Mở `/portal/debit-notes` với customer — phải thấy đúng giấy báo nợ của customer đó.
+6. Chạy 1 ca end-to-end O2C (TC-O2C-06-01) — xác nhận dữ liệu chảy đúng từ lô đến AR.
 
 ### 6.2. Khi một phân hệ thay đổi
 

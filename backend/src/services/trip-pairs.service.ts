@@ -39,6 +39,10 @@ interface TripRowForPairing {
   carrierType: string;
   revenue: string | null;
   totalCost: string | null;
+  tollsStations: number;
+  tollPerStationApplied: string | null;
+  tollDeduction: string | null;
+  tollCost: string | null;
   routeDistanceKm?: number | null;
 }
 
@@ -66,6 +70,29 @@ function toNumber(value: string | number | null | undefined): number | null {
 function toText(value: string | number | null | undefined): string | null {
   if (value == null) return null;
   return String(value);
+}
+
+/**
+ * O2C "kẹp hàng" (backhaul) toll dedup (PRD Bước 2, 01/08/2026). A paired
+ * two-way trip physically pays the closed-loop VETC toll once, so the second
+ * trip carries a `tollDeduction` equal to its gross toll. This returns the
+ * derived-field delta to persist on the second trip so its stored `tollCost` and
+ * `totalCost` stay consistent with `computeTripTotals` (net = max(0, gross − ded)).
+ * Trip 1 keeps its full toll (the pair bears the toll once across both trips).
+ */
+function backhaulTollDeductionForSecond(trip: TripRowForPairing): {
+  tollDeduction: string;
+  tollCost: string;
+  totalCostDelta: number;
+} {
+  const grossToll = (trip.tollsStations ?? 0) * Number(trip.tollPerStationApplied ?? 0);
+  const previousNetToll = Number(trip.tollCost ?? 0);
+  const newNetToll = Math.max(0, grossToll - grossToll);
+  return {
+    tollDeduction: String(grossToll),
+    tollCost: String(newNetToll),
+    totalCostDelta: newNetToll - previousNetToll,
+  };
 }
 
 function firstBlockingMessage(code: string): string {
@@ -256,6 +283,10 @@ async function loadTripsForPairing(tx: Tx, tripIds: [number, number]) {
     carrierType: s.trips.carrierType,
     revenue: s.trips.revenue,
     totalCost: s.trips.totalCost,
+    tollsStations: s.trips.tollsStations,
+    tollPerStationApplied: s.trips.tollPerStationApplied,
+    tollDeduction: s.trips.tollDeduction,
+    tollCost: s.trips.tollCost,
   }).from(s.trips)
     .where(and(inArray(s.trips.id, tripIds), isNull(s.trips.deletedAt)))
     .orderBy(s.trips.id)
@@ -413,8 +444,21 @@ export async function createTripPair(
       updatedAt: new Date(),
     } as const;
 
+    // O2C "kẹp hàng": the second trip of a backhaul pair nets out its VETC toll
+    // (paid once for the pair). Persist the dedup plus the matching derived
+    // tollCost/totalCost so the row stays consistent with computeTripTotals.
+    const secondToll = backhaulTollDeductionForSecond(locked.second);
+    const secondTotalCost = Math.max(0, Number(locked.second.totalCost ?? 0) + secondToll.totalCostDelta);
+
     await tx.update(s.trips).set(firstUpdate).where(eq(s.trips.id, input.firstTripId));
     await tx.update(s.trips).set(secondUpdate).where(eq(s.trips.id, input.secondTripId));
+    // Apply backhaul toll dedup to the second trip's toll + cost fields.
+    await tx.update(s.trips).set({
+      tollDeduction: secondToll.tollDeduction,
+      tollCost: secondToll.tollCost,
+      totalCost: String(secondTotalCost),
+      updatedAt: new Date(),
+    }).where(eq(s.trips.id, input.secondTripId));
 
     return serializePairRecord(pair);
   };
@@ -423,6 +467,9 @@ export async function createTripPair(
 
 async function clearActivePairOnTrips(tx: Tx, tripIds: number[]) {
   if (tripIds.length === 0) return;
+  // Only clears pair-linkage fields. Toll restore for the surviving trip is
+  // handled by the caller (breakPersistedTripPair); the canceled/non-surviving
+  // trip is zeroed by the cancellation flow elsewhere.
   await tx.update(s.trips).set({
     activeTripPairId: null,
     activeTripPairOrder: null,
@@ -452,6 +499,31 @@ async function breakPersistedTripPair(tx: Tx, args: {
   }).where(eq(s.tripPairs.id, args.pairId));
 
   await clearActivePairOnTrips(tx, [args.firstTripId, args.secondTripId]);
+
+  // O2C "kẹp hàng": the second trip's VETC toll was netted out while paired.
+  // When the pair breaks, restore the survivor's full toll so the pair does not
+  // silently lose a toll. (The canceled/non-surviving trip is zeroed elsewhere.)
+  if (args.survivingTripId != null) {
+    const [survivor] = await tx.select({
+      tollsStations: s.trips.tollsStations,
+      tollPerStationApplied: s.trips.tollPerStationApplied,
+      tollDeduction: s.trips.tollDeduction,
+      tollCost: s.trips.tollCost,
+      totalCost: s.trips.totalCost,
+    }).from(s.trips).where(eq(s.trips.id, args.survivingTripId)).limit(1);
+    if (survivor && Number(survivor.tollDeduction ?? 0) > 0) {
+      const grossToll = (survivor.tollsStations ?? 0) * Number(survivor.tollPerStationApplied ?? 0);
+      const previousNetToll = Number(survivor.tollCost ?? 0);
+      const restoredCostDelta = grossToll - previousNetToll;
+      const restoredTotalCost = Math.max(0, Number(survivor.totalCost ?? 0) + restoredCostDelta);
+      await tx.update(s.trips).set({
+        tollDeduction: '0',
+        tollCost: String(grossToll),
+        totalCost: String(restoredTotalCost),
+        updatedAt: new Date(),
+      }).where(eq(s.trips.id, args.survivingTripId));
+    }
+  }
 }
 
 export async function applyTripPairLifecycleEffects(

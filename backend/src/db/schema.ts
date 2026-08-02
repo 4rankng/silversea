@@ -647,6 +647,14 @@ export const trips = pgTable('trips', {
   fuelSurchargeSnapshotDirty: boolean('fuel_surcharge_snapshot_dirty').notNull().default(false),
   totalRoadAllowance: numeric('total_road_allowance', { precision: 15, scale: 0 }),
   tollCost: numeric('toll_cost', { precision: 15, scale: 0 }),
+  // O2C "kẹp hàng" (backhaul pair) toll dedup (PRD Bước 2, 01/08/2026): a
+  // closed-loop road toll (VETC) is physically paid once for a paired two-way
+  // trip, so the second trip carries a `toll_deduction` equal to its gross toll.
+  // `computeTripTotals` nets this off `tollCost` (the single source of truth),
+  // which then flows to totalCost / P&L / ledger. Distinct from `tollsDiscount`,
+  // which is a manual override that also docks the driver's road allowance and
+  // would double-count if reused here.
+  tollDeduction: numeric('toll_deduction', { precision: 15, scale: 0 }).notNull().default('0'),
   roadAllowanceOverride: numeric('road_allowance_override', { precision: 15, scale: 0 }),
   totalCost: numeric('total_cost', { precision: 15, scale: 0 }),
   revenue: numeric('revenue', { precision: 15, scale: 0 }),

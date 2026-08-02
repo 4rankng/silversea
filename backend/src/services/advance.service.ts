@@ -580,6 +580,140 @@ export async function createAdvanceSettlement(
   return transaction ? execute(transaction) : db.transaction(execute);
 }
 
+/**
+ * O2C "Ranh giới Tạm ứng" (PRD Bước 4, O2C Flow.md:72 / O2C dev-rev1.md:87):
+ * "Ngay khi phí chi hộ được Kế toán duyệt, hệ thống tự động sinh bút toán cấn
+ * trừ vào dư nợ tạm ứng của cá nhân Ops/Lái xe."
+ *
+ * Fires on every trip-expense approval (called from propagateExpenseApproval in
+ * source-change.service.ts). Auto-creates an APPROVED settlement that FIFO-links
+ * the forwarder's outstanding advances and posts the FORWARDER_SETTLEMENT offset
+ * — no second human approval (PRD: "tự động sinh"). The four required pieces for
+ * getOutstandingAdvanceBalance to drop are created: APPROVED settlement +
+ * advance-request link + expense link + ledger debit.
+ *
+ * Guarded so it never double-posts:
+ *  - skips when the expense is already linked to a non-dead settlement (the
+ *    manual batch flow approves expenses via the same hook);
+ *  - skips unless settlementMethod = FORWARDER_ADVANCE with a forwarderId
+ *    (COMPANY_DIRECT expenses were never fronted by Ops; drivers have no
+ *    advances today — PRD's "Lái xe" is forwarder-scoped here);
+ *  - skips when the forwarder has no outstanding advance (nothing to offset).
+ *
+ * Idempotent: re-running on an already-offset expense finds the existing link
+ * and returns early.
+ */
+export async function autoOffsetExpenseApproval(tx: Tx, expenseId: number): Promise<void> {
+  const [expense] = await tx.select()
+    .from(s.tripExpenses).where(eq(s.tripExpenses.id, expenseId)).limit(1);
+
+  if (!expense) return;
+  if (expense.approvalStatus !== 'APPROVED') return;
+  if (expense.settlementMethod !== 'FORWARDER_ADVANCE') return;
+  const forwarderId = expense.forwarderId ?? expense.createdBy;
+  if (!forwarderId) return;
+  const amount = round2dp(Number(expense.buyAmount));
+  if (amount <= 0) return;
+
+  // Double-post guard: skip if this expense is already linked to a non-dead
+  // settlement (covers both the manual batch flow and a prior auto-offset run).
+  const [existingLink] = await tx.select({ id: s.settlementExpenses.id })
+    .from(s.settlementExpenses)
+    .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.settlementExpenses.settlementId))
+    .where(and(
+      eq(s.settlementExpenses.tripExpenseId, expenseId),
+      notInArray(s.advanceSettlements.status, ['REJECTED', 'REVERSED']),
+    ))
+    .limit(1);
+  if (existingLink) return;
+
+  // FIFO-select the forwarder's outstanding APPROVED advances (oldest first)
+  // until the expense amount is covered. Mirrors getOutstandingAdvanceBalance's
+  // candidate set (APPROVED requests not already in an APPROVED settlement).
+  const settledIds = await tx.select({ advanceRequestId: s.advanceSettlementRequests.advanceRequestId })
+    .from(s.advanceSettlementRequests)
+    .innerJoin(s.advanceSettlements, eq(s.advanceSettlementRequests.settlementId, s.advanceSettlements.id))
+    .where(eq(s.advanceSettlements.status, 'APPROVED'));
+  const settledSet = new Set(settledIds.map(r => r.advanceRequestId));
+
+  const candidates = await tx.select({
+    id: s.advanceRequests.id,
+    amount: s.advanceRequests.amount,
+    approvedAt: s.advanceRequests.approvedAt,
+  }).from(s.advanceRequests)
+    .where(and(
+      eq(s.advanceRequests.requesterId, forwarderId),
+      eq(s.advanceRequests.status, 'APPROVED'),
+    ))
+    .orderBy(desc(s.advanceRequests.approvedAt), s.advanceRequests.id)
+    .for('update');
+
+  // FIFO by earliest approvedAt: sort ascending (DESC fetch then reverse, or
+  // use asc). Use ascending order to consume oldest advances first.
+  const available = candidates
+    .filter(c => !settledSet.has(c.id))
+    .sort((a, b) => {
+      const ta = a.approvedAt ? new Date(a.approvedAt).getTime() : 0;
+      const tb = b.approvedAt ? new Date(b.approvedAt).getTime() : 0;
+      return ta - tb;
+    });
+
+  if (available.length === 0) return; // nothing to offset against — no-op
+
+  const linkedAdvanceIds: number[] = [];
+  let linkedAmount = 0;
+  for (const req of available) {
+    if (linkedAmount >= amount) break;
+    linkedAdvanceIds.push(req.id);
+    linkedAmount = round2dp(linkedAmount + Number(req.amount));
+  }
+  // The refund (advance surplus > expense) is cash the forwarder returns.
+  const refundAmount = linkedAmount > amount ? round2dp(linkedAmount - amount) : 0;
+
+  // Create the APPROVED auto-settlement (PRD: "tự động sinh" — no maker-checker).
+  const code = await generateSettlementCode(tx);
+  const [trip] = await tx.select({ tripCode: s.trips.tripCode })
+    .from(s.trips).where(eq(s.trips.id, expense.tripId)).limit(1);
+  const [settlement] = await tx.insert(s.advanceSettlements).values({
+    code,
+    forwarderId,
+    totalExpenseAmount: String(amount),
+    refundAmount: String(refundAmount),
+    status: 'APPROVED',
+    note: `Tự quyết toán khi duyệt chi hộ chuyến ${trip?.tripCode ?? expense.tripId} (O2C Bước 4)`,
+    approvedAt: new Date(),
+    updatedAt: new Date(),
+  }).returning();
+
+  await tx.insert(s.advanceSettlementRequests).values(
+    linkedAdvanceIds.map(advanceRequestId => ({ settlementId: settlement.id, advanceRequestId })),
+  );
+
+  // Reuse the canonical expense snapshot for the link row.
+  await tx.insert(s.settlementExpenses).values({
+    settlementId: settlement.id,
+    tripExpenseId: expense.id,
+    originalBuyAmount: expense.buyAmount,
+    adjustedBuyAmount: expense.buyAmount,
+    submittedSellAmount: expense.sellAmount,
+    originalSnapshot: expenseSnapshot(expense),
+    adjustedSnapshot: expenseSnapshot(expense),
+  });
+
+  // Post the offset ledger entry — mirrors the manual settlement posting shape
+  // (advance.service.ts:1166-1174) so the forwarder balance behaves identically.
+  const totalOffset = round2dp(amount + refundAmount);
+  await LedgerService.postEntry(tx, {
+    txnType: TxnType.FORWARDER_SETTLEMENT,
+    txnId: settlement.id,
+    entityType: 'FORWARDER',
+    entityId: forwarderId,
+    debit: totalOffset,
+    credit: 0,
+    note: `Tự quyết toán chi hộ chuyến ${trip?.tripCode ?? expense.tripId}`,
+  });
+}
+
 export async function listAdvanceSettlements(filters?: { forwarderId?: number; status?: string }) {
   const conditions = [];
   if (filters?.forwarderId) conditions.push(eq(s.advanceSettlements.forwarderId, filters.forwarderId));

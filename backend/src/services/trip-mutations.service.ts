@@ -709,6 +709,10 @@ export type TripFigureUpdateInput = {
     tollsDiscount?: number;
     tollsAddition?: number;
     tollsStations?: number;
+    /** O2C "kẹp hàng" backhaul toll dedup (PRD Bước 2). System-managed by the
+     * trip-pairing flow; the figures-correction path preserves/echoes it so a
+     * re-run does not silently drop the dedup. Undefined ⇒ keep existing trip row value. */
+    tollDeduction?: number;
     hasReturnCargo?: boolean;
     roadAllowanceOverride?: number | null;
     driverSalary?: number;
@@ -1057,6 +1061,8 @@ export async function updateTripFigures(
       tollsDiscount: data.tollsDiscount ?? 0,
       tollsAddition: data.tollsAddition ?? 0,
       tollsStations: data.tollsStations ?? 0,
+      // Preserve system-managed backhaul dedup across recalc; pair flow is the writer.
+      tollDeduction: data.tollDeduction ?? Number(trip.tollDeduction ?? 0),
       tollPerStation: tollPerStationApplied,
       hasReturnCargo: data.hasReturnCargo ?? false,
       returnCargoBonus: returnCargoBonusApplied,
@@ -1139,6 +1145,7 @@ export async function updateTripFigures(
       tollsDiscount: String(data.tollsDiscount || 0),
       tollsAddition: String(data.tollsAddition || 0),
       tollsStations: data.tollsStations || 0,
+      tollDeduction: String(data.tollDeduction ?? Number(trip.tollDeduction ?? 0)),
       hasReturnCargo: data.hasReturnCargo ?? false,
       driverSalary: String(driverSalary),
       roadAllowanceOverride: data.roadAllowanceOverride != null ? String(data.roadAllowanceOverride) : null,

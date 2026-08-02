@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "081b8fdec4ca23e1ed299c7f6ede5a160bc68de3",
-  "generatedAt": "2026-08-02T07:29:57.498Z",
+  "gitCommitHash": "82fd7c641cc22b36abe94972d6e58301873a5154",
+  "generatedAt": "2026-08-02T08:57:46.219Z",
   "files": {
     ".codex/context-manifest.json": {
       "filePath": ".codex/context-manifest.json",
@@ -41133,7 +41133,7 @@
     },
     "backend/src/tests/customer-workflow-migration-safety.test.ts": {
       "filePath": "backend/src/tests/customer-workflow-migration-safety.test.ts",
-      "contentHash": "4bbfffa9c3fc802c90d4f606d0ddf556fd91f28ea851990b28f035c615dcc85b",
+      "contentHash": "e3dbda853868efaf3c0bbfef927b6f77b1b263c1f2b57aed0dd298e5af40309b",
       "functions": [],
       "classes": [],
       "imports": [
@@ -41144,27 +41144,35 @@
           ]
         },
         {
-          "source": "node:fs/promises",
-          "specifiers": [
-            "readFile"
-          ]
-        },
-        {
-          "source": "node:path",
-          "specifiers": [
-            "path"
-          ]
-        },
-        {
           "source": "node:test",
           "specifiers": [
+            "after",
             "describe",
             "it"
+          ]
+        },
+        {
+          "source": "drizzle-orm",
+          "specifiers": [
+            "inArray"
+          ]
+        },
+        {
+          "source": "../db",
+          "specifiers": [
+            "client",
+            "db"
+          ]
+        },
+        {
+          "source": "../db/schema",
+          "specifiers": [
+            "* as s"
           ]
         }
       ],
       "exports": [],
-      "totalLines": 27,
+      "totalLines": 151,
       "hasStructuralAnalysis": true
     },
     "backend/src/tests/d1-concurrent-expense-approval.test.ts": {
@@ -42127,8 +42135,17 @@
     },
     "backend/src/tests/durable-effect-jobs.test.ts": {
       "filePath": "backend/src/tests/durable-effect-jobs.test.ts",
-      "contentHash": "19bc357d99abf6e394329cec31389affcb6b599f05a8c9335dfda2d1de9cf9b7",
+      "contentHash": "52a80784e182108ab78119dd8df3092367610720266d460fc81b60ead66cf481",
       "functions": [
+        {
+          "name": "source",
+          "params": [
+            "path"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 1
+        },
         {
           "name": "upsertCompanyLogoSetting",
           "params": [
@@ -42172,9 +42189,22 @@
           ]
         },
         {
-          "source": "node:fs/promises",
+          "source": "node:fs",
           "specifiers": [
-            "readFile"
+            "readFileSync"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "dirname",
+            "join"
+          ]
+        },
+        {
+          "source": "node:url",
+          "specifiers": [
+            "fileURLToPath"
           ]
         },
         {
@@ -42228,7 +42258,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 476,
+      "totalLines": 510,
       "hasStructuralAnalysis": true
     },
     "backend/src/tests/email-service.test.ts": {
@@ -43132,7 +43162,7 @@
     },
     "backend/src/tests/forwarder-trip-scope.test.ts": {
       "filePath": "backend/src/tests/forwarder-trip-scope.test.ts",
-      "contentHash": "f508de7669e16ced979a55cd3f95821dc14acafdd4f493f2d01f4477e94084a0",
+      "contentHash": "f328d92ea05ec739219b920463803ef1cce0e21d1b5a943805d8f92a1a6dfa24",
       "functions": [],
       "classes": [],
       "imports": [
@@ -43149,12 +43179,6 @@
           "source": "node:assert/strict",
           "specifiers": [
             "assert"
-          ]
-        },
-        {
-          "source": "node:fs/promises",
-          "specifiers": [
-            "readFile"
           ]
         },
         {
@@ -43208,7 +43232,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 286,
+      "totalLines": 319,
       "hasStructuralAnalysis": true
     },
     "backend/src/tests/fuel-service.test.ts": {
@@ -51887,7 +51911,7 @@
     },
     "backend/src/tests/q16-customer-account-migration-compat.test.ts": {
       "filePath": "backend/src/tests/q16-customer-account-migration-compat.test.ts",
-      "contentHash": "38b60851240dee9c5cf5d2c72f6d02e8e9798fd3e3915d4d942f9a3a09ab10ac",
+      "contentHash": "484f3cf969d87563bd0e2dcc8e094627225cb481f4b3532083b651910dafcb3d",
       "functions": [
         {
           "name": "createCustomer",
@@ -51927,12 +51951,6 @@
           "source": "node:assert/strict",
           "specifiers": [
             "assert"
-          ]
-        },
-        {
-          "source": "node:fs/promises",
-          "specifiers": [
-            "readFile"
           ]
         },
         {
@@ -51982,7 +52000,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 139,
+      "totalLines": 170,
       "hasStructuralAnalysis": true
     },
     "backend/src/tests/q18-adjustment-governance.test.ts": {
@@ -58139,7 +58157,7 @@
     },
     "backend/src/tests/treasury-authority.test.ts": {
       "filePath": "backend/src/tests/treasury-authority.test.ts",
-      "contentHash": "4a5636c5580d24ff556f4c15c7b7c33f64463611ebec91b5b0fe5005a451823d",
+      "contentHash": "fee2f6ab2f6989d1956dd7e7f80c0f5b1e0c762ec19b0d6d6592ab24e5d01ffa",
       "functions": [],
       "classes": [],
       "imports": [
@@ -58152,14 +58170,15 @@
         {
           "source": "node:test",
           "specifiers": [
+            "after",
             "describe",
             "it"
           ]
         },
         {
-          "source": "node:fs/promises",
+          "source": "../db",
           "specifiers": [
-            "readFile"
+            "client"
           ]
         },
         {
@@ -58177,7 +58196,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 61,
+      "totalLines": 90,
       "hasStructuralAnalysis": true
     },
     "backend/src/tests/treasury-reversal-governance.test.ts": {
@@ -71326,7 +71345,7 @@
     },
     "frontend/src/features/dashboard/components/ApprovalQueueCard.tsx": {
       "filePath": "frontend/src/features/dashboard/components/ApprovalQueueCard.tsx",
-      "contentHash": "1f05c76a582697a08b0a7c21ddf156359ded43282e1536947ecb56cd53222f9e",
+      "contentHash": "9ee968bb83d9e830d1439989cb4cbf12e8912a07c092c7c0db73489f4ead8383",
       "functions": [
         {
           "name": "fmtVN",
@@ -71342,7 +71361,7 @@
             "{ data, loading, navigate }"
           ],
           "exported": true,
-          "lineCount": 110
+          "lineCount": 115
         },
         {
           "name": "Row",
@@ -71391,12 +71410,6 @@
           ]
         },
         {
-          "source": "../../../lib/emptyIllustrations",
-          "specifiers": [
-            "resolveEmptyIllustration"
-          ]
-        },
-        {
           "source": "../../../components/shared/StatusStrip",
           "specifiers": [
             "StatusStrip"
@@ -71406,7 +71419,7 @@
       "exports": [
         "ApprovalQueueCard"
       ],
-      "totalLines": 234,
+      "totalLines": 238,
       "hasStructuralAnalysis": true
     },
     "frontend/src/features/dashboard/components/AuditLogWidget.tsx": {
@@ -85259,7 +85272,7 @@
     },
     "frontend/src/pages/DashboardPage.tsx": {
       "filePath": "frontend/src/pages/DashboardPage.tsx",
-      "contentHash": "561002782aacc9c638ab983c36bb82ee40ac8ec38f3007d31b186994084765e9",
+      "contentHash": "02591bd12930b87afc1b1c3372c75eaf3e57fa94a9a4ec2f9b5b6ac20e08a6b9",
       "functions": [
         {
           "name": "DashboardStat",
@@ -85267,13 +85280,13 @@
             "{ tone, icon, label, delta, value, valueRef, description }"
           ],
           "exported": false,
-          "lineCount": 20
+          "lineCount": 19
         },
         {
           "name": "DashboardPage",
           "params": [],
           "exported": true,
-          "lineCount": 602
+          "lineCount": 606
         }
       ],
       "classes": [],
@@ -85419,12 +85432,6 @@
           ]
         },
         {
-          "source": "../lib/onboardingEvents",
-          "specifiers": [
-            "onboardingEvents"
-          ]
-        },
-        {
           "source": "./DashboardPage.css",
           "specifiers": []
         },
@@ -85455,7 +85462,7 @@
       "exports": [
         "DashboardPage"
       ],
-      "totalLines": 695,
+      "totalLines": 689,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/DebtDetailPage.css": {
@@ -102430,6 +102437,51 @@
         "test_dispatch_persisted_chain"
       ],
       "totalLines": 1012,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/features/dashboard/components/ApprovalQueueCard.test.tsx": {
+      "filePath": "frontend/src/features/dashboard/components/ApprovalQueueCard.test.tsx",
+      "contentHash": "6ff0c293743b58daac6301858c93e6986738c4c1df6bf724721bcec378cb8582",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "@testing-library/react",
+          "specifiers": [
+            "render",
+            "screen"
+          ]
+        },
+        {
+          "source": "react-router-dom",
+          "specifiers": [
+            "NavigateFunction"
+          ]
+        },
+        {
+          "source": "vitest",
+          "specifiers": [
+            "describe",
+            "expect",
+            "it",
+            "vi"
+          ]
+        },
+        {
+          "source": "./ApprovalQueueCard",
+          "specifiers": [
+            "ApprovalQueueCard"
+          ]
+        },
+        {
+          "source": "../hooks/useApprovalQueue",
+          "specifiers": [
+            "ApprovalQueueResponse"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 41,
       "hasStructuralAnalysis": true
     }
   }

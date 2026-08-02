@@ -20,6 +20,10 @@ export interface ComputeTripTotalsInput {
   tollsAddition: number;
   tollsStations: number;
   tollPerStation: number;
+  /** O2C "kẹp hàng" backhaul toll dedup (PRD Bước 2). Net toll paid by this trip =
+   * gross toll − tollDeduction (clamped ≥ 0). Set on the second trip of a pair so
+   * the closed-loop VETC toll is counted once across the pair. Default 0. */
+  tollDeduction?: number;
   hasReturnCargo: boolean;
   returnCargoBonus: number;
   revenue: number;
@@ -45,7 +49,8 @@ export interface ComputeTripTotalsOutput {
   fuelPriceVariance: number;
   effectiveFuelPrice: number;
   totalRoadAllowance: number;
-  tollCost: number;            // tollsStations × tollPerStation; separate from road allowance
+  tollCost: number;            // net toll (gross − tollDeduction); separate from road allowance
+  tollDeduction: number;       // echo of input; 0 when no backhaul dedup applies
   totalCost: number;
   grossProfit: number;
   freightExVat: number;        // revenue / (1 + vatRate); equals revenue when vatRate=0
@@ -160,7 +165,12 @@ export function computeTripTotals(input: ComputeTripTotalsInput): ComputeTripTot
   // computeRoadAllowance already subtracts tolls from the base rate (driver pays tolls
   // from their allowance). tollCost is the gross toll expense, added to totalCost so
   // the company's P&L reflects the full cost picture: roadAllowance (net) + tollCost.
-  const tollCost = input.tollsStations * input.tollPerStation;
+  // O2C "kẹp hàng" (backhaul pair): the closed-loop VETC toll is physically paid once
+  // for the pair, so the second trip carries a `tollDeduction` that nets it out here.
+  // Gross toll remains reconstructable as tollsStations × tollPerStation.
+  const tollDeduction = input.tollDeduction ?? 0;
+  const grossToll = input.tollsStations * input.tollPerStation;
+  const tollCost = Math.max(0, grossToll - tollDeduction);
 
   // Recorded revenue = freight ex-VAT minus customer commission
   const customerCommission = input.customerCommission ?? 0;
@@ -196,6 +206,7 @@ export function computeTripTotals(input: ComputeTripTotalsInput): ComputeTripTot
     effectiveFuelPrice,
     totalRoadAllowance,
     tollCost,
+    tollDeduction,
     totalCost,
     grossProfit,
     freightExVat,

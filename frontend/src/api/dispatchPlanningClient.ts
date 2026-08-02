@@ -1,4 +1,32 @@
 import { api } from '../lib/api';
+import type { CursorPaginatedResponse } from '@tingting/shared';
+
+export interface DispatchTruck {
+  id: number;
+  licensePlate: string;
+  status: string;
+  trailerType: string | null;
+  currentTrailerId: number | null;
+  currentTrailerPlate: string | null;
+  capacityKg: string | null;
+  assignedDriverId: number | null;
+  assignedDriverName: string | null;
+}
+
+export interface DispatchDriver {
+  id: number;
+  name: string;
+  phone: string | null;
+  status: string;
+  assignedTruckId: number | null;
+  assignedTruckPlate: string | null;
+  userId: number | null;
+}
+
+export interface DispatchExternalCarrier {
+  id: number;
+  name: string;
+}
 
 export interface DispatchQueueItem {
   fulfillmentId: number;
@@ -22,10 +50,9 @@ export interface DispatchQueueItem {
 }
 
 export interface DispatchFleet {
-  trucks: Array<{ id: number; licensePlate: string; status: string; trailerType: string | null; currentTrailerId: number | null; currentTrailerPlate: string | null; capacityKg: string | null; assignedDriverId?: number | null; assignedDriverName?: string | null }>;
-  drivers: Array<{ id: number; name: string; phone: string | null; status: string; assignedTruckId: number | null; assignedTruckPlate: string | null; userId: number | null }>;
-  externalCarriers: Array<{ id: number; name: string }>;
-  page: { limit: number; totalTrucks: number; totalDrivers: number; totalExternalCarriers: number };
+  trucks: CursorPaginatedResponse<DispatchTruck>;
+  drivers: CursorPaginatedResponse<DispatchDriver>;
+  externalCarriers: CursorPaginatedResponse<DispatchExternalCarrier>;
 }
 
 export interface DispatchHandoffItem {
@@ -52,15 +79,32 @@ function queryString(values: Record<string, string | number | Array<string> | nu
 }
 
 export function listDispatchQueue(filters: { cursor?: string | null; limit?: number; q?: string; urgency?: '' | 'NORMAL' | 'URGENT'; status?: Array<'READY' | 'DISPATCHED'>; date?: string }) {
-  return api.get<{ items: DispatchQueueItem[]; page: { limit: number; nextCursor: string | null; total: number; readyCount: number; dispatchedCount: number } }>(`/shipments/dispatch-queue?${queryString(filters)}`);
+  return api.get<CursorPaginatedResponse<DispatchQueueItem> & { readyCount: number; dispatchedCount: number }>(`/shipments/dispatch-queue?${queryString(filters)}`);
 }
 
-export function getDispatchFleet(q = '') {
-  return api.get<DispatchFleet>(`/shipments/dispatch-fleet?${queryString({ limit: 100, q })}`);
+type DispatchResource = 'TRUCK' | 'DRIVER' | 'EXTERNAL_CARRIER';
+type DispatchResourceItem<R extends DispatchResource> = R extends 'TRUCK'
+  ? DispatchTruck
+  : R extends 'DRIVER'
+    ? DispatchDriver
+    : DispatchExternalCarrier;
+
+export function listDispatchFleetResources<R extends DispatchResource>(resource: R, filters: { cursor?: string | null; limit?: number; q?: string } = {}) {
+  return api.get<CursorPaginatedResponse<DispatchResourceItem<R>>>(`/shipments/dispatch-fleet?${queryString({ resource, ...filters })}`);
+}
+
+export async function getDispatchFleet(filters: { limit?: number } = {}): Promise<DispatchFleet> {
+  const limit = filters.limit ?? 100;
+  const [trucks, drivers, externalCarriers] = await Promise.all([
+    listDispatchFleetResources('TRUCK', { limit }),
+    listDispatchFleetResources('DRIVER', { limit }),
+    listDispatchFleetResources('EXTERNAL_CARRIER', { limit }),
+  ]);
+  return { trucks, drivers, externalCarriers };
 }
 
 export function listDispatchHandoffs(filters: { cursor?: string | null; limit?: number; q?: string; urgency?: '' | 'NORMAL' | 'URGENT' }) {
-  return api.get<{ items: DispatchHandoffItem[]; page: { limit: number; nextCursor: string | null; total: number; unseenCount: number; seenCount: number } }>(`/shipments/dispatch-handoffs?${queryString(filters)}`);
+  return api.get<CursorPaginatedResponse<DispatchHandoffItem> & { unseenCount: number; seenCount: number }>(`/shipments/dispatch-handoffs?${queryString(filters)}`);
 }
 
 export function resolveDispatchHandoff(item: DispatchHandoffItem, resolution: 'SEEN' | 'ACCEPTED' | 'REJECTED') {

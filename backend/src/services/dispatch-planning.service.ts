@@ -737,7 +737,23 @@ export async function listDispatchFleet(input: ListDispatchFleetInput) {
   const qPattern = buildPattern(input.q);
 
   return db.transaction(async (tx) => {
-    const [trucks, drivers, externalCarriers] = await Promise.all([
+    const truckWhere = and(
+      isNull(s.trucks.deletedAt),
+      qPattern ? ilike(s.trucks.licensePlate, qPattern) : undefined,
+    );
+    const driverWhere = and(
+      isNull(s.drivers.deletedAt),
+      qPattern ? ilike(s.drivers.name, qPattern) : undefined,
+    );
+    const externalCarrierWhere = and(
+      eq(s.customers.isCarrier, true),
+      isNull(s.customers.deletedAt),
+      qPattern ? ilike(s.customers.name, qPattern) : undefined,
+    );
+    const [truckTotals, driverTotals, externalCarrierTotals, trucks, drivers, externalCarriers] = await Promise.all([
+      tx.select({ value: count() }).from(s.trucks).where(truckWhere),
+      tx.select({ value: count() }).from(s.drivers).where(driverWhere),
+      tx.select({ value: count() }).from(s.customers).where(externalCarrierWhere),
       tx.select({
         id: s.trucks.id,
         licensePlate: s.trucks.licensePlate,
@@ -745,10 +761,7 @@ export async function listDispatchFleet(input: ListDispatchFleetInput) {
         currentTrailerId: s.trucks.currentTrailerId,
         status: s.trucks.status,
       }).from(s.trucks)
-        .where(and(
-          isNull(s.trucks.deletedAt),
-          qPattern ? ilike(s.trucks.licensePlate, qPattern) : undefined,
-        ))
+        .where(truckWhere)
         .orderBy(s.trucks.licensePlate)
         .limit(limit),
       tx.select({
@@ -759,21 +772,14 @@ export async function listDispatchFleet(input: ListDispatchFleetInput) {
         status: s.drivers.status,
         userId: s.drivers.userId,
       }).from(s.drivers)
-        .where(and(
-          isNull(s.drivers.deletedAt),
-          qPattern ? ilike(s.drivers.name, qPattern) : undefined,
-        ))
+        .where(driverWhere)
         .orderBy(s.drivers.name)
         .limit(limit),
       tx.select({
         id: s.customers.id,
         name: s.customers.name,
       }).from(s.customers)
-        .where(and(
-          eq(s.customers.isCarrier, true),
-          isNull(s.customers.deletedAt),
-          qPattern ? ilike(s.customers.name, qPattern) : undefined,
-        ))
+        .where(externalCarrierWhere)
         .orderBy(s.customers.name)
         .limit(limit),
     ]);
@@ -808,9 +814,9 @@ export async function listDispatchFleet(input: ListDispatchFleetInput) {
       externalCarriers,
       page: {
         limit,
-        totalTrucks: trucks.length,
-        totalDrivers: drivers.length,
-        totalExternalCarriers: externalCarriers.length,
+        totalTrucks: Number(truckTotals[0]?.value ?? 0),
+        totalDrivers: Number(driverTotals[0]?.value ?? 0),
+        totalExternalCarriers: Number(externalCarrierTotals[0]?.value ?? 0),
       },
     };
   });

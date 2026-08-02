@@ -408,6 +408,74 @@ test('tollCost NOT included in totalCost for EXTERNAL trips', () => {
   assert.strictEqual(r.totalCost, 5400000);
 });
 
+// --- Backhaul (kẹp hàng) toll dedup tests ----------------------------------
+
+test('tollDeduction=0 (default) keeps gross toll in tollCost (no regression)', () => {
+  const r = computeTripTotals({
+    ...BASE_A4,
+    tollsStations: 3,
+    tollPerStation: 70000,
+  });
+  // gross = 3 × 70000 = 210000; no dedup ⇒ net = gross
+  assert.strictEqual(r.tollDeduction, 0);
+  assert.strictEqual(r.tollCost, 210000);
+});
+
+test('tollDeduction equal to gross toll nets tollCost to 0 (second trip of a backhaul pair)', () => {
+  const r = computeTripTotals({
+    ...BASE_A4,
+    tollsStations: 3,
+    tollPerStation: 70000,
+    tollDeduction: 210000, // == gross toll
+  });
+  assert.strictEqual(r.tollDeduction, 210000);
+  assert.strictEqual(r.tollCost, 0); // net toll paid by this trip
+  // totalCost must drop by the full gross toll (210000) vs the no-dedup case
+  // BASE_A4 no-dedup totalCost = fuel(920000) + road(290000) + toll(210000) + salary(800000) = 2220000
+  assert.strictEqual(r.totalCost, 2220000 - 210000);
+});
+
+test('partial tollDeduction nets only the deducted amount off tollCost', () => {
+  const r = computeTripTotals({
+    ...BASE_A4,
+    tollsStations: 4,
+    tollPerStation: 50000, // gross = 200000
+    tollDeduction: 80000,
+  });
+  assert.strictEqual(r.tollCost, 120000); // 200000 - 80000
+});
+
+test('tollDeduction larger than gross toll clamps net toll to 0 (never negative)', () => {
+  const r = computeTripTotals({
+    ...BASE_A4,
+    tollsStations: 2,
+    tollPerStation: 50000, // gross = 100000
+    tollDeduction: 999999, // exceeds gross
+  });
+  assert.strictEqual(r.tollCost, 0); // clamped, not negative
+});
+
+test('tollDeduction does NOT touch road allowance (distinct from tollsDiscount)', () => {
+  // tollsDiscount docks the driver's road allowance; tollDeduction must not.
+  const base = { ...BASE_A4, tollsStations: 2, tollPerStation: 50000, tollsAddition: 0 };
+  const withoutDeduction = computeTripTotals(base);
+  const withDeduction = computeTripTotals({ ...base, tollDeduction: 100000 });
+  assert.strictEqual(withDeduction.totalRoadAllowance, withoutDeduction.totalRoadAllowance);
+  assert.strictEqual(withDeduction.tollCost, 0);
+  assert.strictEqual(withoutDeduction.tollCost, 100000);
+});
+
+test('pair bears the toll once: trip1 gross + trip2 net(0) == single gross toll', () => {
+  // The O2C invariant: across a backhaul pair, the toll is counted exactly once.
+  const trip1 = computeTripTotals({
+    ...BASE_A4, tollsStations: 3, tollPerStation: 70000, // gross 210000, no dedup
+  });
+  const trip2 = computeTripTotals({
+    ...BASE_A4, tollsStations: 3, tollPerStation: 70000, tollDeduction: 210000, // net 0
+  });
+  assert.strictEqual(trip1.tollCost + trip2.tollCost, 210000); // == one gross toll
+});
+
 // --- Commission (recordedRevenue) tests ------------------------------------
 
 test('customerCommission=0: recordedRevenue equals freightExVat (backward compat)', () => {

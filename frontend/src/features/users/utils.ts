@@ -9,6 +9,11 @@ export interface BusinessUnit {
   updatedAt: string;
 }
 
+export const BUSINESS_UNIT_STATUS_LABELS: Record<BusinessUnit['status'], string> = {
+  ACTIVE: 'Đang sử dụng',
+  INACTIVE: 'Ngừng sử dụng',
+};
+
 export interface ShipmentScopeOption {
   id: number;
   shipmentCode: string | null;

@@ -724,6 +724,14 @@ export async function propagateExpenseApproval(tx: Tx, input: {
   if (expense?.tripStatus === 'COMPLETED') {
     await SnapshotServices.markBothDirty(expense.tripId, tx);
   }
+  // O2C Bước 4 "Ranh giới Tạm ứng": auto-offset the forwarder's advance the
+  // moment a chi hộ fee is approved (PRD: "ngay khi phí chi hộ được Kế toán
+  // duyệt, hệ thống tự động sinh bút toán cấn trừ"). Lazy import avoids the
+  // advance.service ↔ source-change.service module cycle; the function is
+  // internally guarded against double-posting (manual batch flow uses the same
+  // hook) and skips non-FORWARDER_ADVANCE / driver expenses.
+  const { autoOffsetExpenseApproval } = await import('./advance.service');
+  await autoOffsetExpenseApproval(tx, input.expenseId);
   const desired = await buildExpenseDraftLineTx(tx, input.expenseId);
   await syncSourceAcrossDraftDocumentsTx(tx, 'EXPENSE', input.expenseId, desired);
   const issuedDocumentIds = await collectIssuedDocumentIdsForSourceTx(tx, 'EXPENSE', input.expenseId);

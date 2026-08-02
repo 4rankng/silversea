@@ -232,6 +232,9 @@ export const updateTripFiguresSchema = z.object({
   tollsDiscount: nonNegNumeric.optional(),
   tollsAddition: nonNegNumeric.optional(),
   tollsStations: z.coerce.number().int().nonnegative().optional(),
+  /** O2C "kẹp hàng" backhaul toll dedup. System-managed by the pairing flow;
+   * exposed here so an independently-approved financial correction can override. */
+  tollDeduction: nonNegNumeric.optional(),
   hasReturnCargo: z.boolean().optional(),
   roadAllowanceOverride: nonNegNumeric.nullable().optional(),
   driverSalary: nonNegNumeric.optional(),

@@ -259,6 +259,7 @@ export async function transitionTripStatus(
         totalFuelCost: '0',
         totalRoadAllowance: '0',
         tollCost: '0',
+        tollDeduction: '0',
         roadAllowanceOverride: '0',
         totalCost: '0',
         revenue: '0',

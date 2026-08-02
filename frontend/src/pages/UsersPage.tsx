@@ -11,6 +11,7 @@ import { configClient } from '../api/configClient';
 import { useUserMutations } from '../features/users/hooks/useUserMutations';
 import { UserTable } from '../features/users/components/UserTable';
 import { AddPanel, EditPanel } from '../features/users/components/UserForm';
+import { BUSINESS_UNIT_STATUS_LABELS } from '../features/users/utils';
 import type { UserRow, FilterKey } from '../features/users/utils';
 import { usePageAnimations } from '../hooks/animations';
 import { useToast } from '../components/shared/Toast';
@@ -322,7 +323,7 @@ export default function UsersPage() {
             <div>
               <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Đơn vị phụ trách</h2>
               <p style={{ margin: '4px 0 0', color: 'var(--fg-3)', fontSize: 14 }}>
-                Xóa theo Q17 dùng nghĩa ngưng sử dụng: chuyển trạng thái sang INACTIVE, giữ nguyên lịch sử và liên kết cũ.
+                Ngừng sử dụng để ẩn đơn vị khỏi các lựa chọn mới. Lịch sử và các liên kết hiện có vẫn được giữ nguyên.
               </p>
             </div>
           </div>
@@ -390,7 +391,7 @@ export default function UsersPage() {
                 <div>
                   <strong>{unit.name}</strong>
                   <div style={{ color: 'var(--fg-3)', fontSize: 13 }}>
-                    {unit.code ? `Mã ${unit.code}` : 'Không có mã'} · {unit.status}
+                    {unit.code ? `Mã ${unit.code}` : 'Không có mã'} · {BUSINESS_UNIT_STATUS_LABELS[unit.status]}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

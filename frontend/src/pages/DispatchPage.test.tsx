@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -19,6 +21,8 @@ vi.mock('../api/dispatchPlanningClient', () => ({
 
 import DispatchPage from './DispatchPage';
 import type { DispatchHandoffItem, DispatchQueueItem } from '../api/dispatchPlanningClient';
+
+const dispatchPageCss = readFileSync(resolve(process.cwd(), 'src/pages/DispatchPage.css'), 'utf8');
 
 type TaskOverrides = Partial<Omit<DispatchQueueItem, 'customer' | 'route' | 'operationalSite' | 'pickupWarehouse' | 'shipment' | 'unitSummary' | 'dispatch'>> & {
   customer?: Partial<DispatchQueueItem['customer']>;
@@ -197,15 +201,15 @@ function makeFleet() {
   };
 }
 
-function selectFor(label: string): HTMLSelectElement {
-  const select = screen.getByText(label, { selector: 'label' }).parentElement?.querySelector('select');
-  if (!select) throw new Error(`missing ${label}`);
-  return select;
+function fieldTriggerFor(label: string): HTMLButtonElement {
+  const trigger = screen.getByText(label, { selector: 'label' }).parentElement?.querySelector('button');
+  if (!trigger) throw new Error(`missing ${label}`);
+  return trigger;
 }
 
-function choose(label: string, value: string) {
-  const select = selectFor(label);
-  fireEvent.change(select, { target: { value } });
+async function choose(label: string, optionName: string) {
+  fireEvent.click(fieldTriggerFor(label));
+  fireEvent.click(await screen.findByRole('option', { name: optionName }));
 }
 
 function deferred<T>() {
@@ -236,16 +240,101 @@ describe('DispatchPage fulfillment workbench', () => {
     });
   });
 
+  it('switches the bounded workbench to full-width tabs before its panes become cramped', () => {
+    expect(dispatchPageCss).toMatch(
+      /\.dispatch-workbench\s*\{[^}]*container:\s*dispatch-workbench\s*\/\s*inline-size;/,
+    );
+    expect(dispatchPageCss).toMatch(
+      /@container dispatch-workbench \(max-width: 1199px\)[\s\S]*?\.dispatch-mobile-tabs\s*\{[^}]*display:\s*grid;[\s\S]*?\.dispatch-workbench__grid\s*\{[^}]*display:\s*block;/,
+    );
+    expect(dispatchPageCss).toMatch(
+      /\.dispatch-mobile-tabs button\[aria-selected='true'\]\s*\{[^}]*border-bottom-color:\s*var\(--brand\);[^}]*background:\s*transparent;/,
+    );
+    expect(dispatchPageCss).toMatch(
+      /@container dispatch-workbench \(min-width: 960px\) and \(max-width: 1199px\)[\s\S]*?\.dispatch-pane--detail \.dispatch-detail\s*\{[^}]*grid-template-columns:\s*minmax\(300px, \.8fr\) minmax\(520px, 1\.2fr\);/,
+    );
+  });
+
   it('renders bounded panes, accepts handoff, and keeps the fleet visible', async () => {
     render(<DispatchPage />);
     expect((await screen.findAllByText('MSCU6639870')).length).toBeGreaterThan(0);
     expect(screen.getByText('2/50 đang tải · 2 tổng')).toBeTruthy();
     expect(screen.getAllByText('51D-12345').length).toBeGreaterThan(0);
+    expect(screen.getByText('Thông tin tác vụ')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Phương tiện và lịch chạy' })).toBeTruthy();
     expect(screen.getByText('Gọi điện trước khi vào')).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /Google Maps/i })).toBeNull();
     expect(screen.queryByText(/Vị trí thời gian thực/)).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Tiếp nhận' }));
     await waitFor(() => expect(mocks.resolve).toHaveBeenCalledWith(expect.objectContaining({ handoffId: 40 }), 'ACCEPTED'));
+  });
+
+  it('renders the authoritative fleet total instead of the response limit or loaded row count', async () => {
+    const fleet = makeFleet();
+    mocks.fleet.mockResolvedValue({
+      ...fleet,
+      trucks: [
+        ...fleet.trucks,
+        {
+          ...fleet.trucks[0],
+          id: 61,
+          licensePlate: '51D-54321',
+          status: 'MAINTENANCE',
+        },
+      ],
+      page: { limit: 100, totalTrucks: 137, totalDrivers: 129, totalExternalCarriers: 4 },
+    });
+
+    render(<DispatchPage />);
+
+    expect(await screen.findByRole('tab', { name: 'Đội xe (137)' })).toBeTruthy();
+    expect(screen.getByText('2/137 đã tải · 1 sẵn sàng')).toBeTruthy();
+    expect(screen.queryByText('51D-54321')).toBeNull();
+    expect(screen.queryByRole('tab', { name: 'Đội xe (100)' })).toBeNull();
+  });
+
+  it('keeps resources beyond the first 100 available for assignment', async () => {
+    const fleet = makeFleet();
+    const trucks = Array.from({ length: 100 }, (_, index) => ({
+      ...fleet.trucks[0],
+      id: 1_000 + index,
+      licensePlate: `51D-${String(index).padStart(5, '0')}`,
+      currentTrailerId: null,
+      currentTrailerPlate: null,
+    }));
+    const initialFleet = {
+      ...fleet,
+      trucks,
+      page: { ...fleet.page, totalTrucks: 101 },
+    };
+    const remoteTruck = {
+      ...fleet.trucks[0],
+      id: 9_999,
+      licensePlate: '99Z-REACHABLE',
+      currentTrailerId: null,
+      currentTrailerPlate: null,
+    };
+    mocks.fleet
+      .mockResolvedValueOnce(initialFleet)
+      .mockResolvedValueOnce({
+        ...initialFleet,
+        trucks: [remoteTruck],
+        drivers: [],
+        externalCarriers: [],
+        page: { ...initialFleet.page, totalTrucks: 1, totalDrivers: 0, totalExternalCarriers: 0 },
+      });
+
+    render(<DispatchPage />);
+    await screen.findByRole('tab', { name: 'Đội xe (101)' });
+    fireEvent.click(fieldTriggerFor('Biển số xe'));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Tìm biển số xe' }), {
+      target: { value: '99Z-REACHABLE' },
+    });
+
+    expect(await screen.findByRole('option', { name: '99Z-REACHABLE' }, { timeout: 1_000 })).toBeTruthy();
+    fireEvent.click(screen.getByRole('option', { name: '99Z-REACHABLE' }));
+    expect(fieldTriggerFor('Biển số xe').textContent).toContain('99Z-REACHABLE');
   });
 
   it('auto-derives planned end time from route duration and submits without explicit confirmation', async () => {
@@ -263,12 +352,12 @@ describe('DispatchPage fulfillment workbench', () => {
 
     render(<DispatchPage />);
     expect((await screen.findAllByText('MSCU6639870')).length).toBeGreaterThan(0);
-    await waitFor(() => expect(selectFor('Biển số xe').querySelector('option[value="60"]')).toBeTruthy());
+    await waitFor(() => expect(fieldTriggerFor('Biển số xe')).toBeTruthy());
 
-    choose('Biển số xe', '60');
-    expect(selectFor('Lái xe').value).toBe('');
-    choose('Lái xe', '80');
-    expect(selectFor('Lái xe').value).toBe('80');
+    await choose('Biển số xe', '51D-12345');
+    expect(fieldTriggerFor('Lái xe').textContent).toContain('— Chọn lái xe —');
+    await choose('Lái xe', 'Nguyễn Văn A');
+    expect(fieldTriggerFor('Lái xe').textContent).toContain('Nguyễn Văn A');
     fireEvent.change(screen.getByLabelText('Ngày giờ chạy'), { target: { value: '2026-08-01T08:00' } });
 
     await waitFor(() => expect((screen.getByLabelText('Kết thúc dự kiến') as HTMLInputElement).value).toBe('2026-08-01T12:00'));

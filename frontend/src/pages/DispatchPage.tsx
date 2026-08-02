@@ -1,15 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, CheckCircle2, ExternalLink, RefreshCw, Search, Send, Truck } from 'lucide-react';
-import { EmptyState, SelectField, TextField } from '../design-system';
+import { AlertTriangle, CheckCircle2, RefreshCw, Search, Send, Truck } from 'lucide-react';
+import { EmptyState, SearchableSelect, SelectField, TextField } from '../design-system';
 import {
   getDispatchFleet,
   issueDispatchOrder,
+  listDispatchFleetResources,
   listDispatchHandoffs,
   listDispatchQueue,
   resolveDispatchHandoff,
+  type DispatchDriver,
+  type DispatchExternalCarrier,
   type DispatchFleet,
   type DispatchHandoffItem,
   type DispatchQueueItem,
+  type DispatchTruck,
 } from '../api/dispatchPlanningClient';
 import { formatVietnamDateTimeInput, localDateTimeToIso } from '../lib/shipment-operations';
 import './DispatchPage.css';
@@ -75,19 +79,25 @@ function computePlannedEndAt(plannedStartAt: string, serviceDurationMinutes: num
 
 function normalizeFleet(resources: DispatchFleet | null): DispatchFleet | null {
   if (!resources) return null;
-  const loadedDrivers = resources.drivers.slice(0, FLEET_PAGE_LIMIT);
+  const loadedDrivers = resources.drivers.items;
   return {
     ...resources,
-    drivers: loadedDrivers,
-    trucks: resources.trucks.slice(0, FLEET_PAGE_LIMIT).map((truck) => {
-      const assigned = loadedDrivers.find((driver) => driver.assignedTruckId === truck.id);
-      return {
-        ...truck,
-        assignedDriverId: assigned?.id ?? null,
-        assignedDriverName: assigned?.name ?? null,
-      };
-    }),
+    trucks: {
+      ...resources.trucks,
+      items: resources.trucks.items.map((truck) => {
+        const assigned = loadedDrivers.find((driver) => driver.assignedTruckId === truck.id);
+        return {
+          ...truck,
+          assignedDriverId: truck.assignedDriverId ?? assigned?.id ?? null,
+          assignedDriverName: truck.assignedDriverName ?? assigned?.name ?? null,
+        };
+      }),
+    },
   };
+}
+
+function mergeById<T extends { id: number }>(...groups: Array<ReadonlyArray<T>>): T[] {
+  return [...new Map(groups.flat().map((item) => [item.id, item])).values()];
 }
 
 function isFleetAccessDenied(reason: unknown) {
@@ -109,25 +119,52 @@ export default function DispatchPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [mobilePane, setMobilePane] = useState<MobilePane>('TASKS');
   const [assignment, setAssignment] = useState<AssignmentForm>(EMPTY_ASSIGNMENT);
-  const [truckSearch, setTruckSearch] = useState('');
-  const [driverSearch, setDriverSearch] = useState('');
-  const [carrierSearch, setCarrierSearch] = useState('');
   const [fleetAccessDenied, setFleetAccessDenied] = useState(false);
   const [taskTotals, setTaskTotals] = useState({ handoffs: 0, queue: 0, ready: 0, dispatched: 0 });
   const [taskCursorStack, setTaskCursorStack] = useState<TaskCursorState[]>([INITIAL_TASK_CURSOR]);
   const [taskPageIndex, setTaskPageIndex] = useState(0);
   const [nextTaskCursor, setNextTaskCursor] = useState<TaskCursorState | null>(null);
+  const [truckSearchItems, setTruckSearchItems] = useState<DispatchTruck[]>([]);
+  const [driverSearchItems, setDriverSearchItems] = useState<DispatchDriver[]>([]);
+  const [carrierSearchItems, setCarrierSearchItems] = useState<DispatchExternalCarrier[]>([]);
   const loadRequestIdRef = useRef(0);
+  const resourceSearchRequestIds = useRef({ TRUCK: 0, DRIVER: 0, EXTERNAL_CARRIER: 0 });
 
   const currentTaskCursor = taskCursorStack[taskPageIndex] ?? INITIAL_TASK_CURSOR;
   const selected = useMemo(() => items.find((item) => item.fulfillmentId === selectedId) ?? null, [items, selectedId]);
   const taskCountLoaded = handoffs.length + items.length;
-  const activeTrucks = fleet?.trucks.filter((truck) => truck.status === 'ACTIVE') ?? [];
-  const eligibleDrivers = fleet?.drivers.filter((driver) => driver.status === 'ACTIVE' && driver.userId != null) ?? [];
-  const filteredTrucks = activeTrucks.filter((truck) => truck.licensePlate.toLowerCase().includes(truckSearch.trim().toLowerCase()));
-  const filteredDrivers = eligibleDrivers.filter((driver) => driver.name.toLowerCase().includes(driverSearch.trim().toLowerCase()));
-  const filteredExternalCarriers = (fleet?.externalCarriers ?? []).filter((carrier) => carrier.name.toLowerCase().includes(carrierSearch.trim().toLowerCase()));
-
+  const selectedTruck = selected?.dispatch?.truckId && selected.dispatch.truckPlate
+    ? {
+      id: selected.dispatch.truckId,
+      licensePlate: selected.dispatch.truckPlate,
+      status: 'ACTIVE',
+      trailerType: null,
+      currentTrailerId: selected.dispatch.trailerId,
+      currentTrailerPlate: selected.dispatch.trailerPlate,
+      capacityKg: null,
+      assignedDriverId: selected.dispatch.driverId,
+      assignedDriverName: selected.dispatch.driverName,
+    } satisfies DispatchTruck
+    : null;
+  const selectedDriver = selected?.dispatch?.driverId && selected.dispatch.driverName
+    ? {
+      id: selected.dispatch.driverId,
+      name: selected.dispatch.driverName,
+      phone: null,
+      status: 'ACTIVE',
+      assignedTruckId: selected.dispatch.truckId,
+      assignedTruckPlate: selected.dispatch.truckPlate,
+      userId: selected.dispatch.driverId,
+    } satisfies DispatchDriver
+    : null;
+  const selectedCarrier = selected?.dispatch?.externalCarrierId && selected.dispatch.externalCarrierName
+    ? { id: selected.dispatch.externalCarrierId, name: selected.dispatch.externalCarrierName } satisfies DispatchExternalCarrier
+    : null;
+  const truckChoices = mergeById(fleet?.trucks.items ?? [], truckSearchItems, selectedTruck ? [selectedTruck] : []);
+  const driverChoices = mergeById(fleet?.drivers.items ?? [], driverSearchItems, selectedDriver ? [selectedDriver] : []);
+  const carrierChoices = mergeById(fleet?.externalCarriers.items ?? [], carrierSearchItems, selectedCarrier ? [selectedCarrier] : []);
+  const activeTrucks = truckChoices.filter((truck) => truck.status === 'ACTIVE');
+  const eligibleDrivers = driverChoices.filter((driver) => driver.status === 'ACTIVE' && driver.userId != null);
   const load = useCallback(async (cursorState: TaskCursorState) => {
     const requestId = ++loadRequestIdRef.current;
     setLoading(true);
@@ -147,7 +184,7 @@ export default function DispatchPage() {
         q: searchQuery || undefined,
         urgency,
       });
-      const resources = await getDispatchFleet().catch((reason) => {
+      const resources = await getDispatchFleet({ limit: FLEET_PAGE_LIMIT }).catch((reason) => {
         if (isFleetAccessDenied(reason)) return null;
         throw reason;
       });
@@ -160,15 +197,15 @@ export default function DispatchPage() {
       setFleet(normalizedFleet);
       setFleetAccessDenied(resources == null);
       setTaskTotals({
-        handoffs: inbox.page.total,
-        queue: queue.page.total,
-        ready: queue.page.readyCount,
-        dispatched: queue.page.dispatchedCount,
+        handoffs: inbox.total,
+        queue: queue.total,
+        ready: queue.readyCount,
+        dispatched: queue.dispatchedCount,
       });
-      const nextCursor = inbox.page.nextCursor
-        ? { handoffCursor: inbox.page.nextCursor, queueCursor: cursorState.queueCursor }
-        : queue.page.nextCursor
-          ? { handoffCursor: null, queueCursor: queue.page.nextCursor }
+      const nextCursor = inbox.nextCursor
+        ? { handoffCursor: inbox.nextCursor, queueCursor: cursorState.queueCursor }
+        : queue.nextCursor
+          ? { handoffCursor: null, queueCursor: queue.nextCursor }
           : null;
       setNextTaskCursor(nextCursor);
       setSelectedId((current) => current && queueItems.some((item) => item.fulfillmentId === current)
@@ -213,9 +250,6 @@ export default function DispatchPage() {
       plannedEndAt: formatVietnamDateTimeInput(selected.dispatch?.plannedEndAt ?? null),
       endTimeConfirmed: selected.route.serviceDurationMinutes == null && Boolean(selected.dispatch?.plannedEndAt),
     });
-    setTruckSearch('');
-    setDriverSearch('');
-    setCarrierSearch('');
   }, [selected]);
 
   useEffect(() => {
@@ -231,6 +265,59 @@ export default function DispatchPage() {
     setAssignment((current) => ({ ...current, [key]: value }));
     setError(null);
     setSuccess(null);
+  }
+
+  const searchFleetResource = useCallback(async (
+    resource: 'TRUCK' | 'DRIVER' | 'EXTERNAL_CARRIER',
+    q: string,
+  ) => {
+    const requestId = ++resourceSearchRequestIds.current[resource];
+    const setItems = resource === 'TRUCK'
+      ? setTruckSearchItems
+      : resource === 'DRIVER'
+        ? setDriverSearchItems
+        : setCarrierSearchItems;
+    if (!q) {
+      setItems([] as never[]);
+      return;
+    }
+    try {
+      const result = await listDispatchFleetResources(resource, { q, limit: 25 });
+      if (requestId !== resourceSearchRequestIds.current[resource]) return;
+      setItems(result.items as never[]);
+    } catch (reason) {
+      if (requestId !== resourceSearchRequestIds.current[resource]) return;
+      setItems([] as never[]);
+      setError(reason instanceof Error ? reason.message : 'Không thể tìm tài nguyên điều phối');
+    }
+  }, []);
+
+  const searchTrucks = useCallback((q: string) => { void searchFleetResource('TRUCK', q); }, [searchFleetResource]);
+  const searchDrivers = useCallback((q: string) => { void searchFleetResource('DRIVER', q); }, [searchFleetResource]);
+  const searchCarriers = useCallback((q: string) => { void searchFleetResource('EXTERNAL_CARRIER', q); }, [searchFleetResource]);
+
+  function rememberTruck(truck: DispatchTruck | undefined) {
+    if (!truck) return;
+    setFleet((current) => current ? {
+      ...current,
+      trucks: { ...current.trucks, items: mergeById(current.trucks.items, [truck]) },
+    } : current);
+  }
+
+  function rememberDriver(driver: DispatchDriver | undefined) {
+    if (!driver) return;
+    setFleet((current) => current ? {
+      ...current,
+      drivers: { ...current.drivers, items: mergeById(current.drivers.items, [driver]) },
+    } : current);
+  }
+
+  function rememberCarrier(carrier: DispatchExternalCarrier | undefined) {
+    if (!carrier) return;
+    setFleet((current) => current ? {
+      ...current,
+      externalCarriers: { ...current.externalCarriers, items: mergeById(current.externalCarriers.items, [carrier]) },
+    } : current);
   }
 
   function goToNextTaskPage() {
@@ -348,7 +435,7 @@ export default function DispatchPage() {
       <div className="dispatch-mobile-tabs" role="tablist" aria-label="Khu vực điều phối">
         {([
           ['TASKS', `Tác vụ (${taskTotals.handoffs + taskTotals.queue})`],
-          ['FLEET', fleetAccessDenied ? 'Đội xe (ẩn)' : `Đội xe (${fleet?.page.totalTrucks ?? 0})`],
+          ['FLEET', fleetAccessDenied ? 'Đội xe (ẩn)' : `Đội xe (${fleet?.trucks.total ?? 0})`],
           ['DETAIL', 'Chi tiết'],
         ] as const).map(([value, label]) => (
           <button key={value} type="button" role="tab" aria-selected={mobilePane === value} onClick={() => setMobilePane(value)}>
@@ -414,7 +501,7 @@ export default function DispatchPage() {
         <section className={`dispatch-pane dispatch-pane--fleet ${mobilePane === 'FLEET' ? 'is-mobile-active' : ''}`} aria-label="Đội xe">
           <div className="dispatch-pane__head">
             <strong>Đội xe sẵn sàng</strong>
-            <span>{fleetAccessDenied ? 'Ẩn theo phân quyền' : `${activeTrucks.length}/${FLEET_PAGE_LIMIT} đang tải`}</span>
+            <span>{fleetAccessDenied ? 'Ẩn theo phân quyền' : `${fleet?.trucks.items.length ?? 0}/${fleet?.trucks.total ?? 0} đã tải · ${activeTrucks.length} sẵn sàng`}</span>
           </div>
           <div className="dispatch-pane__scroll">
             {fleetAccessDenied ? <EmptyState title="Không có quyền xem đội xe" description="Tài khoản hiện tại chỉ được xem tác vụ điều phối trong phạm vi cho phép." /> : activeTrucks.map((truck) => (
@@ -438,61 +525,103 @@ export default function DispatchPage() {
           <div className="dispatch-pane__scroll dispatch-detail">
             {!selected ? <EmptyState title="Chọn một tác vụ" description="Thông tin lô hàng và biểu mẫu phân xe sẽ hiển thị tại đây." /> : <>
               <div className="dispatch-detail__summary">
-                <h2>{selected.unitSummary.label}</h2>
-                <DetailLine label="Khách hàng" value={selected.customer.name} />
-                <DetailLine label="Bill / Booking" value={selected.shipment.blNumber || selected.shipment.bookingRef} />
-                <DetailLine label="Tờ khai" value={selected.shipment.declarationNumbers.join(', ')} />
-                <DetailLine label="Tuyến" value={selected.route.name} />
-                <DetailLine label="Nhà máy" value={selected.operationalSite.name} />
-                <DetailLine label="Cảng nâng → Cảng hạ" value={[selected.unitSummary.pickupPortName, selected.unitSummary.dropoffPortName].filter(Boolean).join(' → ')} />
-                <DetailLine label="Trạng thái điều xe" value={selected.taskStatus === 'DISPATCHED' ? selected.dispatch?.tripCode || 'Đã phát hành' : 'Chưa phát hành'} />
-                {selected.operationalSite.googleMapsUrl && <a href={selected.operationalSite.googleMapsUrl} target="_blank" rel="noreferrer"><ExternalLink size={15} />Mở Google Maps</a>}
-                {selected.operationalSite.strictRules && <div className="dispatch-site-rules"><strong>Quy định nhà máy</strong><p>{selected.operationalSite.strictRules}</p></div>}
-                {selected.shipment.operationalNotes && <div className="dispatch-note"><strong>Ghi chú điều xe</strong><p>{selected.shipment.operationalNotes}</p></div>}
+                <div className="dispatch-detail__title">
+                  <span>Thông tin tác vụ</span>
+                  <h2>{selected.unitSummary.label}</h2>
+                </div>
+                <div className="dispatch-detail__facts">
+                  <DetailLine label="Khách hàng" value={selected.customer.name} />
+                  <DetailLine label="Bill / Booking" value={selected.shipment.blNumber || selected.shipment.bookingRef} />
+                  <DetailLine label="Tờ khai" value={selected.shipment.declarationNumbers.join(', ')} />
+                  <DetailLine label="Tuyến" value={selected.route.name} />
+                  <DetailLine label="Nhà máy" value={selected.operationalSite.name} />
+                  <DetailLine label="Cảng nâng → Cảng hạ" value={[selected.unitSummary.pickupPortName, selected.unitSummary.dropoffPortName].filter(Boolean).join(' → ')} />
+                  <DetailLine label="Trạng thái điều xe" value={selected.taskStatus === 'DISPATCHED' ? selected.dispatch?.tripCode || 'Đã phát hành' : 'Chưa phát hành'} />
+                </div>
+                {(selected.operationalSite.strictRules || selected.shipment.operationalNotes) && (
+                  <div className="dispatch-constraints">
+                    <h3>Yêu cầu vận hành</h3>
+                    {selected.operationalSite.strictRules && <div className="dispatch-site-rules"><strong>Quy định nhà máy</strong><p>{selected.operationalSite.strictRules}</p></div>}
+                    {selected.shipment.operationalNotes && <div className="dispatch-note"><strong>Ghi chú điều xe</strong><p>{selected.shipment.operationalNotes}</p></div>}
+                  </div>
+                )}
               </div>
               <div className="dispatch-assignment">
-                <SelectField label="Hình thức nhà xe" value={assignment.carrierType} onChange={(event) => update('carrierType', event.target.value as AssignmentForm['carrierType'])} disabled={issuing}>
-                  <option value="OWN">Đội xe nội bộ</option>
-                  <option value="EXTERNAL">Nhà xe đối tác</option>
-                </SelectField>
-                {assignment.carrierType === 'OWN' ? <>
-                  <TextField label="Tìm xe" value={truckSearch} onChange={(event) => setTruckSearch(event.target.value)} placeholder="Nhập biển số xe" disabled={issuing || fleetAccessDenied} />
-                  <SelectField
-                    label="Biển số xe"
-                    value={assignment.truckId}
-                    onChange={(event) => {
-                      const truckId = event.target.value;
-                      const suggestion = fleet?.trucks.find((truck) => String(truck.id) === truckId);
-                      setAssignment((current) => ({
-                        ...current,
-                        truckId,
-                        trailerId: suggestion?.currentTrailerId ? String(suggestion.currentTrailerId) : '',
-                        driverId: '',
-                      }));
-                    }}
-                    disabled={issuing || fleetAccessDenied}
-                  >
-                    <option value="">— Chọn xe —</option>
-                    {filteredTrucks.map((truck) => <option key={truck.id} value={truck.id}>{truck.licensePlate}</option>)}
+                <div className="dispatch-assignment__title">
+                  <span>Phân xe</span>
+                  <h2>Phương tiện và lịch chạy</h2>
+                </div>
+                <div className="dispatch-assignment__fields">
+                  <SelectField className="dispatch-assignment__carrier-type" label="Hình thức nhà xe" value={assignment.carrierType} onChange={(event) => update('carrierType', event.target.value as AssignmentForm['carrierType'])} disabled={issuing}>
+                    <option value="OWN">Đội xe nội bộ</option>
+                    <option value="EXTERNAL">Nhà xe đối tác</option>
                   </SelectField>
-                  <TextField label="Tìm lái xe" value={driverSearch} onChange={(event) => setDriverSearch(event.target.value)} placeholder="Nhập tên lái xe" disabled={issuing || fleetAccessDenied} />
-                  <SelectField label="Lái xe" value={assignment.driverId} onChange={(event) => update('driverId', event.target.value)} disabled={issuing || fleetAccessDenied}>
-                    <option value="">— Chọn lái xe —</option>
-                    {filteredDrivers.map((driver) => <option key={driver.id} value={driver.id}>{driver.name}</option>)}
-                  </SelectField>
-                  <TextField label="Rơ-moóc" value={fleet?.trucks.find((truck) => String(truck.currentTrailerId) === assignment.trailerId)?.currentTrailerPlate ?? ''} disabled helpText="Tự điền theo xe; hệ thống kiểm tra lại khi phát lệnh." />
-                </> : <>
-                  <TextField label="Tìm nhà xe" value={carrierSearch} onChange={(event) => setCarrierSearch(event.target.value)} placeholder="Nhập tên nhà xe" disabled={issuing} />
-                  <SelectField label="Nhà xe" value={assignment.externalCarrierId} onChange={(event) => update('externalCarrierId', event.target.value)} disabled={issuing}>
-                    <option value="">— Chọn nhà xe —</option>
-                    {filteredExternalCarriers.map((carrier) => <option key={carrier.id} value={carrier.id}>{carrier.name}</option>)}
-                  </SelectField>
-                  <TextField label="Biển số xe" value={assignment.externalPlateNumber} onChange={(event) => update('externalPlateNumber', event.target.value.toUpperCase())} disabled={issuing} />
-                  <TextField label="Tên lái xe" value={assignment.externalDriverName} onChange={(event) => update('externalDriverName', event.target.value)} disabled={issuing} />
-                  <TextField label="Số điện thoại lái xe" value={assignment.externalDriverPhone} onChange={(event) => update('externalDriverPhone', event.target.value)} disabled={issuing} />
-                </>}
-                <TextField label="Ngày giờ chạy" type="datetime-local" value={assignment.plannedStartAt} onChange={(event) => update('plannedStartAt', event.target.value)} disabled={issuing} />
-                <TextField label="Kết thúc dự kiến" type="datetime-local" value={assignment.plannedEndAt} onChange={(event) => update('plannedEndAt', event.target.value)} disabled={issuing || selected.route.serviceDurationMinutes != null} />
+                  {assignment.carrierType === 'OWN' ? <>
+                    <div className="ds-field">
+                      <label htmlFor="dispatch-truck" className="ds-field__label">Biển số xe</label>
+                      <SearchableSelect
+                        id="dispatch-truck"
+                        value={assignment.truckId}
+                        onChange={(truckId) => {
+                          const suggestion = truckChoices.find((truck) => String(truck.id) === truckId);
+                          rememberTruck(suggestion);
+                          setAssignment((current) => ({
+                            ...current,
+                            truckId,
+                            trailerId: suggestion?.currentTrailerId ? String(suggestion.currentTrailerId) : '',
+                            driverId: '',
+                          }));
+                        }}
+                        options={activeTrucks.map((truck) => ({ value: String(truck.id), label: truck.licensePlate }))}
+                        onSearchChange={searchTrucks}
+                        placeholder="— Chọn xe —"
+                        searchPlaceholder="Tìm biển số xe"
+                        disabled={issuing || fleetAccessDenied}
+                      />
+                    </div>
+                    <div className="ds-field">
+                      <label htmlFor="dispatch-driver" className="ds-field__label">Lái xe</label>
+                      <SearchableSelect
+                        id="dispatch-driver"
+                        value={assignment.driverId}
+                        onChange={(driverId) => {
+                          rememberDriver(driverChoices.find((driver) => String(driver.id) === driverId));
+                          update('driverId', driverId);
+                        }}
+                        options={eligibleDrivers.map((driver) => ({ value: String(driver.id), label: driver.name, searchText: driver.phone ?? '' }))}
+                        onSearchChange={searchDrivers}
+                        placeholder="— Chọn lái xe —"
+                        searchPlaceholder="Tìm tên lái xe"
+                        disabled={issuing || fleetAccessDenied}
+                      />
+                    </div>
+                    <TextField className="dispatch-assignment__full" label="Rơ-moóc" value={truckChoices.find((truck) => String(truck.currentTrailerId) === assignment.trailerId)?.currentTrailerPlate ?? ''} disabled helpText="Tự điền theo xe; hệ thống kiểm tra lại khi phát lệnh." />
+                  </> : <>
+                    <div className="ds-field dispatch-assignment__full">
+                      <label htmlFor="dispatch-carrier" className="ds-field__label">Nhà xe</label>
+                      <SearchableSelect
+                        id="dispatch-carrier"
+                        value={assignment.externalCarrierId}
+                        onChange={(externalCarrierId) => {
+                          rememberCarrier(carrierChoices.find((carrier) => String(carrier.id) === externalCarrierId));
+                          update('externalCarrierId', externalCarrierId);
+                        }}
+                        options={carrierChoices.map((carrier) => ({ value: String(carrier.id), label: carrier.name }))}
+                        onSearchChange={searchCarriers}
+                        placeholder="— Chọn nhà xe —"
+                        searchPlaceholder="Tìm tên nhà xe"
+                        disabled={issuing}
+                      />
+                    </div>
+                    <TextField label="Biển số xe" value={assignment.externalPlateNumber} onChange={(event) => update('externalPlateNumber', event.target.value.toUpperCase())} disabled={issuing} />
+                    <TextField label="Tên lái xe" value={assignment.externalDriverName} onChange={(event) => update('externalDriverName', event.target.value)} disabled={issuing} />
+                    <TextField className="dispatch-assignment__full" label="Số điện thoại lái xe" value={assignment.externalDriverPhone} onChange={(event) => update('externalDriverPhone', event.target.value)} disabled={issuing} />
+                  </>}
+                </div>
+                <div className="dispatch-assignment__schedule">
+                  <TextField label="Ngày giờ chạy" type="datetime-local" value={assignment.plannedStartAt} onChange={(event) => update('plannedStartAt', event.target.value)} disabled={issuing} />
+                  <TextField label="Kết thúc dự kiến" type="datetime-local" value={assignment.plannedEndAt} onChange={(event) => update('plannedEndAt', event.target.value)} disabled={issuing || selected.route.serviceDurationMinutes != null} />
+                </div>
                 {selected.route.serviceDurationMinutes == null && <label className="dispatch-confirm"><input type="checkbox" checked={assignment.endTimeConfirmed} onChange={(event) => update('endTimeConfirmed', event.target.checked)} />Tôi xác nhận giờ kết thúc vì tuyến chưa có thời lượng chuẩn.</label>}
                 <button type="button" onClick={() => void issue()} disabled={issuing} className="dispatch-issue">
                   <Send size={18} />{issuing ? 'Đang phát hành…' : 'Phát hành lệnh điều xe'}

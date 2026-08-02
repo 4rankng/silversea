@@ -177,7 +177,7 @@ function ExpenseTypeForm({
           <div>
             <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>Chính sách chi không hóa đơn</div>
             <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 4 }}>
-              Chỉ áp dụng cho các hạng mục hợp lệ theo Q12-Q14. Phiên bản hiện tại: <strong>{item?.noInvoicePolicyVersion ?? 1}</strong>
+              Chỉ áp dụng cho các hạng mục được phép chi không hóa đơn. Phiên bản chính sách: <strong>{item?.noInvoicePolicyVersion ?? 1}</strong>
             </div>
           </div>
 

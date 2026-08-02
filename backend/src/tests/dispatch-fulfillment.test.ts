@@ -674,6 +674,52 @@ describe('dispatch fulfillment workflow routes', () => {
     assert.match(unscopedDenied.data.error ?? '', /phạm vi khách hàng/i);
   });
 
+  test('dispatch fleet totals remain authoritative when result rows are limited', async () => {
+    const countToken = `CNT${suffix.replace(/[^a-z0-9]/gi, '').slice(-8).toUpperCase()}`;
+    const trucks = await db.insert(s.trucks).values(Array.from({ length: 3 }, (_, index) => ({
+      licensePlate: `${countToken}${index}`,
+      status: 'ACTIVE' as const,
+    }))).returning({ id: s.trucks.id });
+    createdTruckIds.push(...trucks.map((truck) => truck.id));
+
+    const drivers = await db.insert(s.drivers).values(Array.from({ length: 3 }, (_, index) => ({
+      name: `${countToken} Driver ${index}`,
+      status: 'ACTIVE' as const,
+    }))).returning({ id: s.drivers.id });
+    createdDriverIds.push(...drivers.map((driver) => driver.id));
+
+    const carriers = await db.insert(s.customers).values(Array.from({ length: 3 }, (_, index) => ({
+      name: `${countToken} Carrier ${index}`,
+      isCarrier: true,
+    }))).returning({ id: s.customers.id });
+    createdCustomerIds.push(...carriers.map((carrier) => carrier.id));
+
+    const response = await apiFetch<{
+      trucks: Array<{ id: number }>;
+      drivers: Array<{ id: number }>;
+      externalCarriers: Array<{ id: number }>;
+      page: {
+        limit: number;
+        totalTrucks: number;
+        totalDrivers: number;
+        totalExternalCarriers: number;
+      };
+    }>(`/dispatch-fleet?limit=1&q=${encodeURIComponent(countToken)}`, {
+      token: managerToken,
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.data.trucks.length, 1);
+    assert.equal(response.data.drivers.length, 1);
+    assert.equal(response.data.externalCarriers.length, 1);
+    assert.deepEqual(response.data.page, {
+      limit: 1,
+      totalTrucks: 3,
+      totalDrivers: 3,
+      totalExternalCarriers: 3,
+    });
+  });
+
   test('dispatch derives planned end from route duration without explicit confirmation', async () => {
     const route = await createRoute(70);
     const accepted = await createAcceptedFulfillment({ routeId: route.id });
