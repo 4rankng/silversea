@@ -18,7 +18,6 @@ import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useAgentOpenable } from '../hooks/useAgentOpenable';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { qk } from '../api/keys';
-import { onboardingEvents } from '../lib/onboardingEvents';
 import './DebtDetailPage.css';
 import { normalizeAging, money, rowTypeLabel, FILTER_OPTIONS, type LedgerFilter, type WorkspaceTab } from './debt-detail-ledger';
 import { PeriodFilter, resolvePeriodRange, initialPeriodState, applyModeSwitch } from '../components/debt/PeriodFilter';
@@ -337,12 +336,6 @@ export default function DebtDetailPage() {
       }, {
         headers: { 'Idempotency-Key': payRequestKey },
       });
-      if (!response.replayed) {
-        onboardingEvents.emit('receivable.payment_recorded', {
-          customerId: Number(id),
-          amountVnd: response.result.receivedAmount,
-        });
-      }
       // Broad prefix — invalidates every customer-statement query regardless
       // of period range, so the AR detail page's month/range-scoped statement
       // refetches alongside any other cached variant.

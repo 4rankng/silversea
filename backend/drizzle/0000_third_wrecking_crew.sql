@@ -2381,8 +2381,11 @@ ALTER TABLE "shipment_fulfillments" ADD CONSTRAINT "shipment_fulfillments_shipme
 ALTER TABLE "shipment_fulfillments" ADD CONSTRAINT "shipment_fulfillments_canceled_by_users_id_fk" FOREIGN KEY ("canceled_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shipment_fulfillments" ADD CONSTRAINT "shipment_fulfillments_not_required_approved_by_users_id_fk" FOREIGN KEY ("not_required_approved_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shipment_fulfillments" ADD CONSTRAINT "shipment_fulfillments_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "shipments_id_cargo_mode_uniq_idx" ON "shipments" USING btree ("id","cargo_mode");--> statement-breakpoint
 ALTER TABLE "shipment_fulfillments" ADD CONSTRAINT "shipment_fulfillments_shipment_cargo_mode_fk" FOREIGN KEY ("shipment_id","cargo_mode") REFERENCES "public"."shipments"("id","cargo_mode") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "shipment_containers_shipment_id_id_uniq_idx" ON "shipment_containers" USING btree ("shipment_id","id");--> statement-breakpoint
 ALTER TABLE "shipment_fulfillments" ADD CONSTRAINT "shipment_fulfillments_shipment_container_fk" FOREIGN KEY ("shipment_id","shipment_container_id") REFERENCES "public"."shipment_containers"("shipment_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "shipment_fulfillments_shipment_id_id_uniq_idx" ON "shipment_fulfillments" USING btree ("shipment_id","id");--> statement-breakpoint
 ALTER TABLE "shipment_fulfillments" ADD CONSTRAINT "shipment_fulfillments_shipment_replacement_fk" FOREIGN KEY ("shipment_id","replacement_fulfillment_id") REFERENCES "public"."shipment_fulfillments"("shipment_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shipment_milestones" ADD CONSTRAINT "shipment_milestones_shipment_id_shipments_id_fk" FOREIGN KEY ("shipment_id") REFERENCES "public"."shipments"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shipment_milestones" ADD CONSTRAINT "shipment_milestones_trip_id_trips_id_fk" FOREIGN KEY ("trip_id") REFERENCES "public"."trips"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -2397,6 +2400,7 @@ ALTER TABLE "shipments" ADD CONSTRAINT "shipments_operational_site_id_operationa
 ALTER TABLE "shipments" ADD CONSTRAINT "shipments_pickup_warehouse_site_id_operational_sites_id_fk" FOREIGN KEY ("pickup_warehouse_site_id") REFERENCES "public"."operational_sites"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shipments" ADD CONSTRAINT "shipments_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shipments" ADD CONSTRAINT "shipments_updated_by_users_id_fk" FOREIGN KEY ("updated_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "operational_sites_customer_id_id_uniq_idx" ON "operational_sites" USING btree ("customer_id","id");--> statement-breakpoint
 ALTER TABLE "shipments" ADD CONSTRAINT "shipments_customer_operational_site_fk" FOREIGN KEY ("customer_id","operational_site_id") REFERENCES "public"."operational_sites"("customer_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "shipments" ADD CONSTRAINT "shipments_customer_pickup_warehouse_fk" FOREIGN KEY ("customer_id","pickup_warehouse_site_id") REFERENCES "public"."operational_sites"("customer_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "suppliers" ADD CONSTRAINT "suppliers_partner_id_partners_id_fk" FOREIGN KEY ("partner_id") REFERENCES "public"."partners"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -2451,7 +2455,9 @@ ALTER TABLE "trip_pod_submissions" ADD CONSTRAINT "trip_pod_submissions_fulfillm
 ALTER TABLE "trip_pod_submissions" ADD CONSTRAINT "trip_pod_submissions_supersedes_submission_id_trip_pod_submissions_id_fk" FOREIGN KEY ("supersedes_submission_id") REFERENCES "public"."trip_pod_submissions"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "trip_pod_submissions" ADD CONSTRAINT "trip_pod_submissions_submitted_by_users_id_fk" FOREIGN KEY ("submitted_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "trip_pod_submissions" ADD CONSTRAINT "trip_pod_submissions_reviewed_by_users_id_fk" FOREIGN KEY ("reviewed_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "trips_id_fulfillment_uniq_idx" ON "trips" USING btree ("id","fulfillment_id");--> statement-breakpoint
 ALTER TABLE "trip_pod_submissions" ADD CONSTRAINT "trip_pod_submissions_trip_fulfillment_fk" FOREIGN KEY ("trip_id","fulfillment_id") REFERENCES "public"."trips"("id","fulfillment_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "trip_pod_submissions_trip_id_id_uniq_idx" ON "trip_pod_submissions" USING btree ("trip_id","id");--> statement-breakpoint
 ALTER TABLE "trip_pod_submissions" ADD CONSTRAINT "trip_pod_submissions_trip_supersedes_fk" FOREIGN KEY ("trip_id","supersedes_submission_id") REFERENCES "public"."trip_pod_submissions"("trip_id","id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "trips" ADD CONSTRAINT "trips_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "trips" ADD CONSTRAINT "trips_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -2577,7 +2583,6 @@ CREATE INDEX "notifications_user_created_idx" ON "notifications" USING btree ("u
 CREATE INDEX "onboarding_events_user_created_idx" ON "onboarding_events" USING btree ("user_id","created_at");--> statement-breakpoint
 CREATE INDEX "onboarding_events_name_created_idx" ON "onboarding_events" USING btree ("event_name","created_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "operational_sites_customer_code_uniq_idx" ON "operational_sites" USING btree ("customer_id","code") WHERE "operational_sites"."deleted_at" is null;--> statement-breakpoint
-CREATE UNIQUE INDEX "operational_sites_customer_id_id_uniq_idx" ON "operational_sites" USING btree ("customer_id","id");--> statement-breakpoint
 CREATE INDEX "operational_sites_customer_type_idx" ON "operational_sites" USING btree ("customer_id","site_type","is_active");--> statement-breakpoint
 CREATE UNIQUE INDEX "partners_normalized_tax_code_uniq_idx" ON "partners" USING btree ("normalized_tax_code");--> statement-breakpoint
 CREATE INDEX "payment_allocations_customer_idx" ON "payment_allocations" USING btree ("customer_id");--> statement-breakpoint
@@ -2624,10 +2629,8 @@ CREATE INDEX "shipment_change_requests_shipment_created_idx" ON "shipment_change
 CREATE INDEX "shipment_containers_shipment_id_idx" ON "shipment_containers" USING btree ("shipment_id");--> statement-breakpoint
 CREATE INDEX "shipment_containers_pickup_port_idx" ON "shipment_containers" USING btree ("pickup_port_id");--> statement-breakpoint
 CREATE INDEX "shipment_containers_dropoff_port_idx" ON "shipment_containers" USING btree ("dropoff_port_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "shipment_containers_shipment_id_id_uniq_idx" ON "shipment_containers" USING btree ("shipment_id","id");--> statement-breakpoint
 CREATE INDEX "shipment_declarations_shipment_id_idx" ON "shipment_declarations" USING btree ("shipment_id");--> statement-breakpoint
 CREATE INDEX "shipment_documents_shipment_id_idx" ON "shipment_documents" USING btree ("shipment_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "shipment_fulfillments_shipment_id_id_uniq_idx" ON "shipment_fulfillments" USING btree ("shipment_id","id");--> statement-breakpoint
 CREATE INDEX "shipment_fulfillments_shipment_idx" ON "shipment_fulfillments" USING btree ("shipment_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "shipment_fulfillments_active_container_uniq_idx" ON "shipment_fulfillments" USING btree ("shipment_container_id") WHERE "shipment_fulfillments"."shipment_container_id" is not null and "shipment_fulfillments"."canceled_at" is null;--> statement-breakpoint
 CREATE UNIQUE INDEX "shipment_fulfillments_active_lcl_uniq_idx" ON "shipment_fulfillments" USING btree ("shipment_id") WHERE "shipment_fulfillments"."fulfillment_type" = 'LCL_SHIPMENT' and "shipment_fulfillments"."canceled_at" is null;--> statement-breakpoint
@@ -2635,7 +2638,6 @@ CREATE UNIQUE INDEX "shipment_fulfillments_replacement_uniq_idx" ON "shipment_fu
 CREATE INDEX "shipment_milestones_shipment_idx" ON "shipment_milestones" USING btree ("shipment_id","occurred_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "shipment_milestones_trip_type_uniq" ON "shipment_milestones" USING btree ("shipment_id","trip_id","type") WHERE "shipment_milestones"."trip_id" is not null;--> statement-breakpoint
 CREATE INDEX "shipment_status_history_shipment_id_idx" ON "shipment_status_history" USING btree ("shipment_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "shipments_id_cargo_mode_uniq_idx" ON "shipments" USING btree ("id","cargo_mode");--> statement-breakpoint
 CREATE INDEX "shipments_customer_status_idx" ON "shipments" USING btree ("customer_id","status");--> statement-breakpoint
 CREATE INDEX "shipments_route_idx" ON "shipments" USING btree ("route_id");--> statement-breakpoint
 CREATE INDEX "shipments_responsible_unit_idx" ON "shipments" USING btree ("responsible_unit_id","status");--> statement-breakpoint
@@ -2679,7 +2681,6 @@ CREATE INDEX "trip_photos_trip_container_id_idx" ON "trip_photos" USING btree ("
 CREATE UNIQUE INDEX "trip_pod_files_storage_key_uniq_idx" ON "trip_pod_files" USING btree ("storage_key");--> statement-breakpoint
 CREATE UNIQUE INDEX "trip_pod_files_required_slot_uniq_idx" ON "trip_pod_files" USING btree ("submission_id","file_type") WHERE "trip_pod_files"."file_type" <> 'TOLL_TICKET';--> statement-breakpoint
 CREATE INDEX "trip_pod_files_submission_idx" ON "trip_pod_files" USING btree ("submission_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "trip_pod_submissions_trip_id_id_uniq_idx" ON "trip_pod_submissions" USING btree ("trip_id","id");--> statement-breakpoint
 CREATE UNIQUE INDEX "trip_pod_submissions_trip_version_uniq_idx" ON "trip_pod_submissions" USING btree ("trip_id","submission_version");--> statement-breakpoint
 CREATE UNIQUE INDEX "trip_pod_submissions_supersedes_uniq_idx" ON "trip_pod_submissions" USING btree ("supersedes_submission_id") WHERE "trip_pod_submissions"."supersedes_submission_id" is not null;--> statement-breakpoint
 CREATE UNIQUE INDEX "trip_pod_submissions_open_uniq_idx" ON "trip_pod_submissions" USING btree ("trip_id") WHERE "trip_pod_submissions"."status" in ('DRAFT', 'SUBMITTED');--> statement-breakpoint
@@ -2693,7 +2694,6 @@ CREATE INDEX "trips_active_trip_pair_idx" ON "trips" USING btree ("active_trip_p
 CREATE UNIQUE INDEX "trips_active_trip_pair_order_uniq" ON "trips" USING btree ("active_trip_pair_id","active_trip_pair_order") WHERE "trips"."active_trip_pair_id" is not null;--> statement-breakpoint
 CREATE INDEX "trips_shipment_id_idx" ON "trips" USING btree ("shipment_id");--> statement-breakpoint
 CREATE INDEX "trips_fulfillment_id_idx" ON "trips" USING btree ("fulfillment_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "trips_id_fulfillment_uniq_idx" ON "trips" USING btree ("id","fulfillment_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "trips_fulfillment_id_live_uniq" ON "trips" USING btree ("fulfillment_id") WHERE "trips"."fulfillment_id" is not null and "trips"."status" <> 'CANCELED';--> statement-breakpoint
 CREATE UNIQUE INDEX "trips_shipment_without_fulfillment_live_uniq" ON "trips" USING btree ("shipment_id") WHERE "trips"."shipment_id" is not null and "trips"."fulfillment_id" is null and "trips"."status" <> 'CANCELED';--> statement-breakpoint
 CREATE INDEX "truck_cap_table_truck_effective_idx" ON "truck_cap_table" USING btree ("truck_id","effective_date");--> statement-breakpoint

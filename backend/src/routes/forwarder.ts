@@ -53,6 +53,8 @@ import {
   STORAGE_DELETE_MODE,
   type StorageCleanupGuardLease,
 } from '../services/durable-effect.service';
+import { resolveLiftPrice } from '../services/pricing.service';
+import { z } from 'zod';
 
 const expensePhotoUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 // Unify with upload.ts / expense.ts (2048). Was 1600 — inconsistent downscale ceiling.
@@ -277,6 +279,23 @@ router.post('/trips/:tripId/containers', asyncHandler(async (req: Request, res: 
 router.get('/suppliers', asyncHandler(async (_req: Request, res: Response) => {
   const items = await listActiveSuppliersForForwarder();
   res.json({ items });
+}));
+
+const resolveLiftPriceQuerySchema = z.object({
+  portId: z.coerce.number().int().positive(),
+  containerTypeId: z.coerce.number().int().positive(),
+  direction: z.enum(['LIFT_UP', 'LIFT_DOWN']),
+  loadState: z.enum(['LOADED', 'EMPTY']),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+
+router.get('/lift-pricing/resolve', asyncHandler(async (req: Request, res: Response) => {
+  const parsed = resolveLiftPriceQuerySchema.safeParse(req.query);
+  if (!parsed.success) throwValidation(parsed.error);
+  const resolved = await resolveLiftPrice(parsed.data);
+  res.json(resolved
+    ? { ...resolved, source: 'MATRIX' as const }
+    : { suggestedPrice: 0, liftPricingId: null, effectiveDate: null, source: 'MANUAL' as const });
 }));
 
 router.post('/expenses', asyncHandler(async (req: Request, res: Response) => {

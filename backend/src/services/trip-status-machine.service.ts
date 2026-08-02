@@ -18,6 +18,7 @@ import {
 } from './financial-posting.service';
 import { captureProfitabilityAttributionSnapshot } from './profitability.service';
 import { ArSnapshotService } from './ar-snapshot.service';
+import { ApSnapshotService } from './ap-snapshot.service';
 
 export async function transitionTripStatus(
   tripId: number,
@@ -390,6 +391,19 @@ export async function transitionTripStatus(
       // O2C AR snapshot: capture the canonical cost hash so post-completion cost
       // edits flip ar_snapshot_dirty for the accountant reconciliation view.
       await ArSnapshotService.captureSnapshot(updated.id, tx);
+      try {
+        await ApSnapshotService.captureSnapshot(updated.id, tx);
+      } catch (error) {
+        console.warn('[ap-snapshot] capture failed during completion', {
+          tripId: updated.id,
+          error: error instanceof Error ? error.message : error,
+        });
+        await tx.update(s.trips).set({
+          apCostHash: null,
+          apSnapshotDirty: true,
+          apSnapshotChangedAt: new Date(),
+        }).where(eq(s.trips.id, updated.id));
+      }
 
       if (posting) {
         await captureProfitabilityAttributionSnapshot(tx, updated.id, posting.id);

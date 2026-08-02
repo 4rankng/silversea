@@ -8,6 +8,7 @@ const {
   apiGetMock,
   uploadMock,
   listSuppliersMock,
+  resolveLiftPriceMock,
   geotagSubmitMock,
   toastMock,
   renderHistory,
@@ -16,6 +17,7 @@ const {
   apiGetMock: vi.fn(),
   uploadMock: vi.fn(),
   listSuppliersMock: vi.fn(),
+  resolveLiftPriceMock: vi.fn(),
   geotagSubmitMock: vi.fn(),
   toastMock: vi.fn(),
   renderHistory: [] as Array<number | null>,
@@ -32,6 +34,7 @@ vi.mock('../lib/api', () => ({
 vi.mock('../api/forwarderClient', () => ({
   forwarderClient: {
     listSuppliers: listSuppliersMock,
+    resolveLiftPrice: resolveLiftPriceMock,
   },
 }));
 
@@ -55,8 +58,8 @@ vi.mock('../hooks/useQueries', () => ({
       customerReference: null,
       notes: null,
       instructions: null,
-      containers: [],
-      legs: [],
+      containers: [{ id: 91, containerTypeId: 3, containerTypeName: '20 feet', containerNumber: 'MSKU1234567' }],
+      legs: [{ id: 1, sequence: 1, origin: 'Hải Phòng', destination: 'ICD', km: 100, loadingType: 'HANG' }],
       completionScopes: [],
       expenses: [
         {
@@ -83,7 +86,11 @@ vi.mock('../hooks/useForwarderQueries', () => ({
 }));
 
 vi.mock('../hooks/useCatalogs', () => ({
-  useCatalogs: () => ({ data: { forwarderExpenseTypes: [] } }),
+  useCatalogs: () => ({ data: {
+    forwarderExpenseTypes: [],
+    ports: [{ id: 7, name: 'Cảng Tân Vũ', code: 'TV', city: 'Hải Phòng' }],
+    containerTypes: [{ id: 3, code: '20DC', name: '20 feet' }],
+  } }),
 }));
 
 vi.mock('../hooks/animations', () => ({
@@ -171,11 +178,35 @@ describe('ForwarderTripDetailPage photo upload geolocation recovery', () => {
     apiGetMock.mockReset();
     uploadMock.mockReset();
     listSuppliersMock.mockReset();
+    resolveLiftPriceMock.mockReset();
     geotagSubmitMock.mockReset();
     toastMock.mockReset();
     renderHistory.splice(0, renderHistory.length);
     listSuppliersMock.mockResolvedValue({ items: [] });
+    resolveLiftPriceMock.mockResolvedValue({
+      suggestedPrice: 950000,
+      liftPricingId: 22,
+      effectiveDate: '2026-07-01',
+      source: 'MATRIX',
+    });
     apiGetMock.mockResolvedValue({ items: [] });
+  });
+
+  it('fills the lift buy amount from the selected port and container matrix', async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm' }));
+    fireEvent.change(screen.getByDisplayValue('— Chọn cảng —'), { target: { value: '7' } });
+
+    await waitFor(() => expect(resolveLiftPriceMock).toHaveBeenCalledWith({
+      portId: 7,
+      containerTypeId: 3,
+      direction: 'LIFT_UP',
+      loadState: 'LOADED',
+      date: expect.any(String),
+    }));
+    await waitFor(() => expect((screen.getAllByPlaceholderText('0')[0] as HTMLInputElement).value).toBe('950000'));
+    expect(screen.getByText(/Gợi ý 950.000 VNĐ/)).toBeTruthy();
   });
 
   it.each([

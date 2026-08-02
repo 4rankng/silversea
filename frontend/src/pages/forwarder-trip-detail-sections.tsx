@@ -4,7 +4,14 @@ import { FormGroup } from '../components/UI';
 import { formatCurrency } from '../lib/format';
 import type { useForwarderTripDetail } from '../hooks/useQueries';
 
-export interface ForwarderContainer { id: number; containerNumber?: string; sealNumber?: string | null; notes?: string | null }
+export interface ForwarderContainer {
+  id: number;
+  containerTypeId?: number | null;
+  containerTypeName?: string | null;
+  containerNumber?: string;
+  sealNumber?: string | null;
+  notes?: string | null;
+}
 
 export function ForwarderTripLoading() {
   return <div style={{ padding: 32, textAlign: 'center', color: 'var(--fg-3)' }}>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Truck, Calendar, MapPin, Package, Plus, CheckCircle2, RotateCcw } from 'lucide-react';
 import { businessDateISO, formatDate } from '../lib/format';
@@ -41,6 +41,9 @@ const newExpenseForm = () => ({
   settlementMethod: 'FORWARDER_ADVANCE' as 'FORWARDER_ADVANCE' | 'COMPANY_DIRECT',
   supplierId: '',
   tripContainerId: '',
+  portId: '',
+  containerTypeId: '',
+  loadState: 'LOADED' as 'LOADED' | 'EMPTY',
   expenseDate: businessDateISO(),
   payeeName: '',
   invoiceNumber: '',
@@ -111,6 +114,8 @@ export default function ForwarderTripDetailPage() {
   const [editingExpenseId, setEditingExpenseId] = useState<number | null>(null);
   const [expenseForm, setExpenseForm] = useState(newExpenseForm);
   const [expenseFormBaseline, setExpenseFormBaseline] = useState(newExpenseForm);
+  const [liftAmountManuallyEdited, setLiftAmountManuallyEdited] = useState(false);
+  const lastAppliedLiftSuggestionKey = useRef<string | null>(null);
   const [expenseErrors, setExpenseErrors] = useState<{
     buyAmount?: string;
     declarationNumber?: string;
@@ -188,6 +193,58 @@ export default function ForwarderTripDetailPage() {
     }
   }
 
+  const isLiftExpense = expenseForm.expenseType === 'LIFTING' || expenseForm.expenseType === 'LOWERING';
+  const liftDirection = expenseForm.expenseType === 'LOWERING' ? 'LIFT_DOWN' as const : 'LIFT_UP' as const;
+  const liftPriceQuery = useQuery({
+    queryKey: [
+      'forwarder',
+      'lift-price',
+      expenseForm.portId,
+      expenseForm.containerTypeId,
+      liftDirection,
+      expenseForm.loadState,
+      expenseForm.expenseDate,
+    ],
+    queryFn: () => forwarderClient.resolveLiftPrice({
+      portId: Number(expenseForm.portId),
+      containerTypeId: Number(expenseForm.containerTypeId),
+      direction: liftDirection,
+      loadState: expenseForm.loadState,
+      date: expenseForm.expenseDate,
+    }),
+    enabled: isLiftExpense
+      && Number(expenseForm.portId) > 0
+      && Number(expenseForm.containerTypeId) > 0
+      && Boolean(expenseForm.expenseDate),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  useEffect(() => {
+    const suggestedPrice = liftPriceQuery.data?.suggestedPrice ?? 0;
+    const suggestionKey = [
+      expenseForm.portId,
+      expenseForm.containerTypeId,
+      liftDirection,
+      expenseForm.loadState,
+      expenseForm.expenseDate,
+    ].join('|');
+    if (
+      !isLiftExpense
+      || liftAmountManuallyEdited
+      || liftPriceQuery.data?.source !== 'MATRIX'
+      || suggestedPrice <= 0
+      || lastAppliedLiftSuggestionKey.current === suggestionKey
+    ) return;
+    const value = String(suggestedPrice);
+    const hasMarkup = FORWARDER_EXPENSE_TYPE_DEFAULTS[expenseForm.expenseType]?.defaultMarkup ?? false;
+    setExpenseForm((current) => ({
+      ...current,
+      buyAmount: value,
+      sellAmount: hasMarkup ? current.sellAmount : value,
+    }));
+    lastAppliedLiftSuggestionKey.current = suggestionKey;
+  }, [expenseForm.containerTypeId, expenseForm.expenseDate, expenseForm.expenseType, expenseForm.loadState, expenseForm.portId, isLiftExpense, liftAmountManuallyEdited, liftDirection, liftPriceQuery.data]);
+
   if (loading) return <ForwarderTripLoading />;
 
   if (queryError || !trip) return <ForwarderTripError queryError={Boolean(queryError)} onBack={handleBack} />;
@@ -216,9 +273,11 @@ export default function ForwarderTripDetailPage() {
       sellAmount: hasMarkup ? '' : f.buyAmount,
     }));
     setExpenseErrors({});
+    setLiftAmountManuallyEdited(false);
   };
 
   const handleBuyAmountChange = (val: string) => {
+    if (isLiftExpense) setLiftAmountManuallyEdited(true);
     const hasMarkup = FORWARDER_EXPENSE_TYPE_DEFAULTS[expenseForm.expenseType]?.defaultMarkup ?? false;
     setExpenseForm(f => ({
       ...f,
@@ -317,6 +376,12 @@ export default function ForwarderTripDetailPage() {
   const completedScopeCount = completionScopes.filter(scope => scope.status === ExpenseEntryStatus.COMPLETED).length;
   const totalScopeCount = completionScopes.length;
   const legs = (trip.legs || []) as Array<{ id: number; sequence: number; origin: string; destination: string; km: number; loadingType: string; polylinePath?: string | null }>;
+  const portOptions = catalogs?.ports ?? [];
+  const containerTypeOptions = catalogs?.containerTypes ?? [];
+  const suggestedLiftPrice = liftPriceQuery.data?.source === 'MATRIX' ? liftPriceQuery.data.suggestedPrice : 0;
+  const liftPriceDelta = suggestedLiftPrice > 0 && Number.isFinite(Number(expenseForm.buyAmount))
+    ? Number(expenseForm.buyAmount) - suggestedLiftPrice
+    : 0;
   const selectedExpenseContainer = containers.find(c => String(c.id) === expenseForm.tripContainerId);
   const selectedExpenseTypeConfig = forwarderExpenseTypeOptions.find(type => type.code === expenseForm.expenseType);
   const noInvoiceAllowed = !selectedExpenseTypeConfig?.requiresInvoice && selectedExpenseTypeConfig?.substituteEvidenceAllowed !== false;
@@ -328,9 +393,12 @@ export default function ForwarderTripDetailPage() {
       const willOpen = !prev;
       if (willOpen && !expenseForm.tripContainerId && containers.length === 1) {
         const selectedContainerId = String(containers[0].id);
-        setExpenseForm(f => ({ ...f, tripContainerId: selectedContainerId }));
-        setExpenseFormBaseline(f => ({ ...f, tripContainerId: selectedContainerId }));
+        const containerTypeId = containers[0].containerTypeId ? String(containers[0].containerTypeId) : '';
+        const loadState = legs[0]?.loadingType === 'VO' ? 'EMPTY' as const : 'LOADED' as const;
+        setExpenseForm(f => ({ ...f, tripContainerId: selectedContainerId, containerTypeId, loadState }));
+        setExpenseFormBaseline(f => ({ ...f, tripContainerId: selectedContainerId, containerTypeId, loadState }));
       }
+      if (willOpen) setLiftAmountManuallyEdited(false);
       return willOpen;
     });
   };
@@ -344,6 +412,11 @@ export default function ForwarderTripDetailPage() {
       settlementMethod: exp.settlementMethod === 'COMPANY_DIRECT' ? 'COMPANY_DIRECT' : 'FORWARDER_ADVANCE',
       supplierId: exp.supplierId ? String(exp.supplierId) : '',
       tripContainerId: exp.tripContainerId ? String(exp.tripContainerId) : '',
+      portId: '',
+      containerTypeId: containers.find(container => container.id === exp.tripContainerId)?.containerTypeId
+        ? String(containers.find(container => container.id === exp.tripContainerId)!.containerTypeId)
+        : '',
+      loadState: legs[0]?.loadingType === 'VO' ? 'EMPTY' : 'LOADED',
       expenseDate: exp.expenseDate ? String(exp.expenseDate).slice(0, 10) : businessDateISO(),
       payeeName: exp.payeeName ?? '',
       invoiceNumber: exp.invoiceNumber ?? '',
@@ -356,6 +429,7 @@ export default function ForwarderTripDetailPage() {
     setExpenseFormBaseline(editForm);
     setExpenseErrors({});
     setExpenseSubmitError(null);
+    setLiftAmountManuallyEdited(true);
     setShowExpenseForm(true);
   };
   const generalExpenses = expenses.filter(exp => !exp.tripContainerId);
@@ -499,6 +573,21 @@ export default function ForwarderTripDetailPage() {
                     {expenseErrors.buyAmount}
                   </span>
                 )}
+                {isLiftExpense && liftPriceQuery.isFetching && (
+                  <span className="fwd-price-hint" role="status">Đang tra biểu giá nâng/hạ…</span>
+                )}
+                {isLiftExpense && liftPriceQuery.isError && (
+                  <span className="fwd-price-hint fwd-price-hint--error">Không tra được biểu giá. Bạn vẫn có thể nhập giá thực tế.</span>
+                )}
+                {isLiftExpense && !liftPriceQuery.isFetching && suggestedLiftPrice > 0 && (
+                  <span className="fwd-price-hint">
+                    Gợi ý {suggestedLiftPrice.toLocaleString('vi-VN')} VNĐ
+                    {liftPriceDelta !== 0 ? ` · chênh ${liftPriceDelta > 0 ? '+' : ''}${liftPriceDelta.toLocaleString('vi-VN')} VNĐ` : ''}
+                  </span>
+                )}
+                {isLiftExpense && liftPriceQuery.data?.source === 'MANUAL' && (
+                  <span className="fwd-price-hint">Chưa có biểu giá phù hợp. Nhập giá thực tế.</span>
+                )}
               </FormGroup>
 
               <FormGroup
@@ -538,6 +627,28 @@ export default function ForwarderTripDetailPage() {
 
             {/* Row 2: supplier (when company-direct) + container number */}
             <div className="fwd-expense-grid fwd-expense-grid--context">
+              {isLiftExpense && (
+                <>
+                  <FormGroup label="Cảng / bãi *">
+                    <select className="input" value={expenseForm.portId} onChange={e => { setLiftAmountManuallyEdited(false); setExpenseForm(f => ({ ...f, portId: e.target.value })); }}>
+                      <option value="">— Chọn cảng —</option>
+                      {portOptions.map(port => <option key={port.id} value={port.id}>{port.name}</option>)}
+                    </select>
+                  </FormGroup>
+                  <FormGroup label="Loại container *">
+                    <select className="input" value={expenseForm.containerTypeId} onChange={e => { setLiftAmountManuallyEdited(false); setExpenseForm(f => ({ ...f, containerTypeId: e.target.value })); }}>
+                      <option value="">— Chọn loại —</option>
+                      {containerTypeOptions.map(type => <option key={type.id} value={type.id}>{type.code} — {type.name}</option>)}
+                    </select>
+                  </FormGroup>
+                  <FormGroup label="Hàng / Rỗng">
+                    <select className="input" value={expenseForm.loadState} onChange={e => { setLiftAmountManuallyEdited(false); setExpenseForm(f => ({ ...f, loadState: e.target.value as 'LOADED' | 'EMPTY' })); }}>
+                      <option value="LOADED">Hàng</option>
+                      <option value="EMPTY">Rỗng</option>
+                    </select>
+                  </FormGroup>
+                </>
+              )}
               {expenseForm.settlementMethod === 'COMPANY_DIRECT' && (
                 <FormGroup label="Nhà cung cấp *">
                   <select
@@ -598,7 +709,15 @@ export default function ForwarderTripDetailPage() {
                   <select
                     className="input"
                     value={expenseForm.tripContainerId}
-                    onChange={e => setExpenseForm(f => ({ ...f, tripContainerId: e.target.value }))}
+                    onChange={e => {
+                      const selected = containers.find(container => String(container.id) === e.target.value);
+                      setLiftAmountManuallyEdited(false);
+                      setExpenseForm(f => ({
+                        ...f,
+                        tripContainerId: e.target.value,
+                        containerTypeId: selected?.containerTypeId ? String(selected.containerTypeId) : f.containerTypeId,
+                      }));
+                    }}
                   >
                     <option value="">Chi phí chung của chuyến</option>
                     {containers.map(c => (

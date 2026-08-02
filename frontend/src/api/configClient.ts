@@ -55,7 +55,7 @@ export const configClient = {
 
   saveFuelConfig: (data: {
     loadedNorm: number; emptyNorm: number; supplement: number;
-    unitPrice: number; warningThreshold: number; criticalThreshold: number;
+    unitPrice: number; baseUnitPrice?: number | null; warningThreshold: number; criticalThreshold: number;
   }) => api.put<FuelConfig | PendingGovernanceResponse>(CONFIG.FUEL_CONFIG, data),
 
   getCompanyInfo: () => api.get<CompanyInfo>(CONFIG.COMPANY_INFO),

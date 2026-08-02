@@ -30,7 +30,7 @@ const postingIds: number[] = [];
 const documentIds: number[] = [];
 const sourceLockDocIds: number[] = [];
 const templateIds: number[] = [];
-let actorId = 1;
+const actorId = 1;
 let originalCompanyRows: Array<typeof s.appSettings.$inferSelect> = [];
 
 type CompanySeed = Record<Exclude<CompanyInfoField, 'logoStorageKey'>, string> & {

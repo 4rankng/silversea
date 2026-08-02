@@ -166,7 +166,7 @@ export async function resolveCustomerPaymentDueDate(
  * global default — feature is opt-in per supplier per kind.
  */
 export async function resolveSupplierPaymentDueDate(
-  tx: Tx,
+  tx: Tx | typeof db,
   supplierId: number,
   kind: 'CHI_HO' | 'CUOC',
   basisDate: string,

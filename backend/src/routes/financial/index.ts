@@ -12,6 +12,7 @@ import billingDocumentsRoutes from './billing-documents.routes';
 import governanceActionsRoutes from './governance-actions.routes';
 import creditOverridesRoutes from './credit-overrides.routes';
 import fuelInvoicesRoutes from './fuel-invoices.routes';
+import snapshotRoutes from './snapshot.routes';
 
 // Audit event registrations
 registerAuditEvent('POST', '/api/payments/receive', AuditEvent.PAYMENT_RECEIVED);
@@ -41,12 +42,15 @@ registerAuditEvent('POST', '/api/finance/credit-overrides/', '/reject', AuditEve
 registerAuditEvent('POST', '/api/finance/fuel-invoices', AuditEvent.ENTITY_CREATED);
 registerAuditEvent('PUT', '/api/finance/fuel-invoices/', AuditEvent.ENTITY_UPDATED);
 registerAuditEvent('POST', '/api/finance/fuel-invoices/', '/approve', AuditEvent.ENTITY_UPDATED);
+registerAuditEvent('POST', '/api/finance/snapshots/ar/', '/recapture', AuditEvent.ENTITY_UPDATED);
+registerAuditEvent('POST', '/api/finance/snapshots/ap/', '/recapture', AuditEvent.ENTITY_UPDATED);
 
 const router = Router();
 
 router.use(governanceActionsRoutes);
 router.use(creditOverridesRoutes);
 router.use(fuelInvoicesRoutes);
+router.use(snapshotRoutes);
 router.use(ledgerRoutes);
 router.use(paymentsRoutes);
 router.use(penaltiesRoutes);

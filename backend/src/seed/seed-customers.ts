@@ -99,6 +99,7 @@ export async function seedCustomers(): Promise<CustomerSeedResult> {
       contactInfo: c.email || null,
       // payment-term days drive AR aging (M5.1). Long Minh: 15 days cước.
       paymentTermDays: c.paymentTermCuocDays ?? null,
+      fuelSurchargeSharePct: c.internalCode === 'LONG MINH' ? '50.00' : null,
       status: 'ACTIVE',
       debitNoteMode: 'MONTHLY',
       linkedSupplierId: supplierId,

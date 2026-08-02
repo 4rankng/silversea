@@ -31,6 +31,22 @@ async function buildSupplierDueDateFields(
   } as const;
 }
 
+async function buildCarrierDueDateFields(
+  tx: Tx,
+  customerCarrierId: number,
+  basisDate: string,
+) {
+  const [carrier] = await tx.select({
+    linkedSupplierId: s.customers.linkedSupplierId,
+  })
+    .from(s.customers)
+    .where(eq(s.customers.id, customerCarrierId))
+    .limit(1);
+
+  if (!carrier?.linkedSupplierId) return null;
+  return buildSupplierDueDateFields(tx, carrier.linkedSupplierId, 'CUOC', basisDate);
+}
+
 /** Common trip shape for ledger completion/reversal operations */
 interface TripLedgerParams {
   id: number;
@@ -158,6 +174,12 @@ export class LedgerService {
       }
     }
 
+    for (const fee of this.collectVendorPayableFees(trip.ancillaryFees ?? [])) {
+      if (!entities.find(e => e.entityType === 'VENDOR' && e.entityId === fee.supplierId)) {
+        entities.push({ entityType: 'VENDOR', entityId: fee.supplierId });
+      }
+    }
+
     return entities;
   }
 
@@ -209,10 +231,9 @@ export class LedgerService {
   }
 
   /**
-   * Ancillary services/ocean-fee amounts are now receivables-only: they may
-   * post SERVICE_FEE to the customer ledger for debit notes, but they no longer
-   * create payable/cost ledger entries. Keep this compatibility seam so callers
-   * that surface skipped-fee warnings do not need to change.
+   * Compatibility seam for the legacy "skip invalid ancillary fee" contract.
+   * Phase 4 adds supplier AP postings for approved COMPANY_DIRECT fees, but the
+   * previous null-counterparty skip behavior remains disabled.
    */
   private static validateAncillaryFees(
     fees: TripLedgerParams['ancillaryFees'],
@@ -221,6 +242,17 @@ export class LedgerService {
     void fees;
     void opts;
     return [];
+  }
+
+  private static collectVendorPayableFees(
+    fees: TripLedgerParams['ancillaryFees'],
+  ): Array<NonNullable<TripLedgerParams['ancillaryFees']>[number] & { supplierId: number }> {
+    return (fees ?? []).filter((fee): fee is NonNullable<TripLedgerParams['ancillaryFees']>[number] & { supplierId: number } => (
+      fee.approvalStatus === 'APPROVED'
+      && fee.settlementMethod === 'COMPANY_DIRECT'
+      && fee.supplierId != null
+      && Number(fee.buyAmount) > 0
+    ));
   }
 
   /**
@@ -290,8 +322,9 @@ export class LedgerService {
     const fuelSupplierDueDateFields = trip.fuelSupplierId
       ? await buildSupplierDueDateFields(tx, trip.fuelSupplierId, 'CHI_HO', basisDate)
       : null;
-    const carrierSupplierDueDateFields = (carrierType === 'EXTERNAL' && resolveExternalCarrierId(trip))
-      ? await buildSupplierDueDateFields(tx, resolveExternalCarrierId(trip)!, 'CUOC', basisDate)
+    const externalCarrierEntityId = resolveExternalCarrierId(trip);
+    const carrierSupplierDueDateFields = (carrierType === 'EXTERNAL' && externalCarrierEntityId)
+      ? await buildCarrierDueDateFields(tx, externalCarrierEntityId, basisDate)
       : null;
 
     // ── 2. Customer freight revenue (always incl-VAT, unchanged) ──
@@ -341,7 +374,6 @@ export class LedgerService {
     }
 
     // ── 4. EXTERNAL: carrier payable on its isolated CARRIER ledger ──
-    const externalCarrierEntityId = resolveExternalCarrierId(trip);
     if (carrierType === 'EXTERNAL' && externalCarrierEntityId && Number(trip.externalFreightCost || 0) > 0) {
       await this.postEntry(tx, {
         txnType: TxnType.EXTERNAL_CARRIER_COST,
@@ -356,10 +388,23 @@ export class LedgerService {
       });
     }
 
-    // ── 5. Ancillary fees — sell side only (customer AR for phí chi hộ) ──
-    // These amounts exist to feed debit notes/statements and customer AR. Their
-    // buy side, payable, and profit are intentionally outside this transport
-    // management scope.
+    // ── 5. Approved COMPANY_DIRECT chi-hộ supplier expenses → vendor AP ──
+    for (const fee of this.collectVendorPayableFees(postableFees)) {
+      const vendorDueDateFields = await buildSupplierDueDateFields(tx, fee.supplierId, 'CHI_HO', basisDate);
+      await this.postEntry(tx, {
+        txnType: TxnType.VENDOR_EXPENSE,
+        txnId: fee.id,
+        entityType: 'VENDOR',
+        entityId: fee.supplierId,
+        debit: 0,
+        credit: Number(fee.buyAmount),
+        note: label ? `Chi hộ NCC chuyến ${label}` : 'Chi hộ NCC',
+        ...(vendorDueDateFields ?? {}),
+        financialPostingId: opts?.financialPostingId ?? null,
+      });
+    }
+
+    // ── 6. Ancillary fees — sell side only (customer AR for phí chi hộ) ──
     for (const fee of postableFees) {
       if (fee.approvalStatus !== 'APPROVED') continue;
       const sellAmt = Number(fee.sellAmount);
@@ -469,8 +514,22 @@ export class LedgerService {
       });
     }
 
-    // ── 5. Reverse ancillary fees — sell side (customer AR for phí chi hộ) ──
-    // Mirrors section 5 of postTripCompletion: swap debit↔credit so the net customer
+    // ── 5. Reverse approved COMPANY_DIRECT chi-hộ supplier expenses ──
+    for (const fee of this.collectVendorPayableFees(postableFees)) {
+      await this.postEntry(tx, {
+        txnType: TxnType.UNLOCK_REVERSAL,
+        txnId: fee.id,
+        entityType: 'VENDOR',
+        entityId: fee.supplierId,
+        debit: Number(fee.buyAmount),
+        credit: 0,
+        note: label ? `Chi hộ NCC chuyến ${label} (Hoàn tác)` : 'Chi hộ NCC (Hoàn tác)',
+        financialPostingId: opts?.financialPostingId ?? null,
+      });
+    }
+
+    // ── 6. Reverse ancillary fees — sell side (customer AR for phí chi hộ) ──
+    // Mirrors section 6 of postTripCompletion: swap debit↔credit so the net customer
     // contribution from this trip's sell-side fees returns to zero.
     for (const fee of postableFees) {
       if (fee.approvalStatus !== 'APPROVED') continue;

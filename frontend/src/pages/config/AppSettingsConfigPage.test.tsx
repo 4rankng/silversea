@@ -12,7 +12,6 @@ const mocks = vi.hoisted(() => ({
   appSettings: {
     data: {
       botEnabled: true,
-      tutorialEnabled: true,
       gpsEnabled: false,
       creditWarningThresholdDefault: 0.8,
       creditTierOneAmountCap: 1000000,
@@ -118,7 +117,6 @@ describe('AppSettingsConfigPage — Resend credential', () => {
   beforeEach(() => {
     mocks.saveAppSettings.mockReset().mockResolvedValue({
       botEnabled: true,
-      tutorialEnabled: true,
       gpsEnabled: false,
       creditWarningThresholdDefault: 0.75,
       creditTierOneAmountCap: 1500000,
@@ -185,7 +183,6 @@ describe('AppSettingsConfigPage — Resend credential', () => {
     await waitFor(() => {
       expect(mocks.saveAppSettings).toHaveBeenCalledWith({
         botEnabled: true,
-        tutorialEnabled: true,
         gpsEnabled: false,
         creditWarningThresholdDefault: 0.75,
         creditTierOneAmountCap: 1500000,

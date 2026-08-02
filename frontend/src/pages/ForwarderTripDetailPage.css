@@ -63,6 +63,18 @@
   padding-right: 10px;
 }
 
+.fwd-price-hint {
+  display: block;
+  margin-top: 4px;
+  color: var(--fg-3);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.fwd-price-hint--error {
+  color: var(--danger);
+}
+
 @container (max-width: 860px) {
   .fwd-expense-grid--primary,
   .fwd-expense-grid--context,

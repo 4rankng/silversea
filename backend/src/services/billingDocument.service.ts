@@ -716,6 +716,7 @@ async function assertTripSourcesClaimable(
     departureDate: s.trips.departureDate,
     completionDate: sql<string | null>`to_char(${s.trips.completedAt} at time zone 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD')`,
     revenue: s.trips.revenue,
+    fuelSurchargeAmount: s.trips.fuelSurchargeAmount,
     routeName: s.routes.name,
     notes: s.trips.notes,
     truckPlate: s.trucks.licensePlate,
@@ -1362,7 +1363,7 @@ async function buildCustomerPaymentStatementLines(customerId: number, from: stri
   const trips = await db.select({
     id: s.trips.id, tripCode: s.trips.tripCode, departureDate: s.trips.departureDate,
     completionDate: sql<string | null>`to_char(${s.trips.completedAt} at time zone 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD')`,
-    revenue: s.trips.revenue, routeName: s.routes.name, notes: s.trips.notes,
+    revenue: s.trips.revenue, fuelSurchargeAmount: s.trips.fuelSurchargeAmount, routeName: s.routes.name, notes: s.trips.notes,
     truckPlate: s.trucks.licensePlate, externalPlateNumber: s.trips.externalPlateNumber,
   }).from(s.trips)
     .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
@@ -1524,6 +1525,7 @@ type CustomerDebitTripCandidate = {
   departureDate: string;
   completionDate: string | null;
   revenue: string | null;
+  fuelSurchargeAmount: string | null;
   routeName: string | null;
   notes: string | null;
   truckPlate: string | null;
@@ -1652,6 +1654,7 @@ export function buildTripRenderData(input: {
     notes: string | null;
     truckPlate: string | null;
     externalPlateNumber: string | null;
+    fuelSurchargeAmount?: string | null;
   };
   containers: ContainerRenderInfo[];
   legs?: LegRenderInfo;
@@ -1677,6 +1680,7 @@ export function buildTripRenderData(input: {
     container20Count: countContainers(input.containers, '20') || null,
     container40Count: countContainers(input.containers, '40') || null,
     containerCount: containerCount || null,
+    fuelSurchargeAmount: Number(input.trip.fuelSurchargeAmount ?? 0),
     note: input.note ?? null,
   };
 }
@@ -3144,6 +3148,7 @@ async function enrichLinesForDebitNoteRender(lines: BillingDocumentLine[]): Prom
     id: s.trips.id,
     tripCode: s.trips.tripCode,
     departureDate: s.trips.departureDate,
+    fuelSurchargeAmount: s.trips.fuelSurchargeAmount,
     routeName: s.routes.name,
     notes: s.trips.notes,
     truckPlate: s.trucks.licensePlate,

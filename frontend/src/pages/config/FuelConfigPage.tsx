@@ -9,7 +9,6 @@ import type { FuelPriceHistory } from '@tingting/shared';
 import './config-page.css';
 import { resolveEmptyIllustration } from '../../lib/emptyIllustrations';
 import { isGovernancePendingResponse } from '../../lib/governance';
-import { onboardingEvents } from '../../lib/onboardingEvents';
 
 export default function FuelConfigPage() {
   const { rootRef: pageRef } = usePageAnimations({ ready: true, selectors: ['.cfg-row'] });
@@ -17,7 +16,7 @@ export default function FuelConfigPage() {
   const { data: fuelConfig } = useFuelConfig();
   const saveFuel = useSaveFuelConfig();
   const [form, setForm] = useState({
-    loadedNorm: '', emptyNorm: '', supplement: '', unitPrice: '',
+    loadedNorm: '', emptyNorm: '', supplement: '', unitPrice: '', baseUnitPrice: '',
     warningThreshold: '37', criticalThreshold: '40',
   });
   const [saving, setSaving] = useState(false);
@@ -35,6 +34,7 @@ export default function FuelConfigPage() {
         emptyNorm: f.emptyNorm ?? f.empty_norm ?? '',
         supplement: f.supplement ?? '0',
         unitPrice: f.unitPrice ?? f.unit_price ?? '',
+        baseUnitPrice: f.baseUnitPrice ?? f.base_unit_price ?? '',
         warningThreshold: f.warningThreshold ?? f.warning_threshold ?? '37',
         criticalThreshold: f.criticalThreshold ?? f.critical_threshold ?? '40',
       });
@@ -55,6 +55,7 @@ export default function FuelConfigPage() {
         emptyNorm: Number(form.emptyNorm),
         supplement: Number(form.supplement) || 0,
         unitPrice: Number(form.unitPrice),
+        baseUnitPrice: form.baseUnitPrice ? Number(form.baseUnitPrice) : null,
         warningThreshold: form.warningThreshold ? Number(form.warningThreshold) : 37,
         criticalThreshold: form.criticalThreshold ? Number(form.criticalThreshold) : 40,
       });
@@ -65,6 +66,12 @@ export default function FuelConfigPage() {
       navigate('/config');
     } catch (e) { setError(e instanceof Error ? e.message : 'Lỗi lưu'); } finally { setSaving(false); }
   };
+
+  const currentUnitPrice = Number(form.unitPrice || 0);
+  const baseUnitPrice = Number(form.baseUnitPrice || 0);
+  const surchargeDelta = form.baseUnitPrice
+    ? Math.max(0, currentUnitPrice - baseUnitPrice)
+    : null;
 
   return (
     <div ref={pageRef} className="cfg-page cfg-page--fuel">
@@ -89,6 +96,21 @@ export default function FuelConfigPage() {
           <div className="field" id="fuel-unit-price-field">
             <label htmlFor="fuel-unit-price">Đơn giá nhiên liệu hiện hành (đ/lít)</label>
             <input id="fuel-unit-price" name="unitPrice" className="input" type="number" value={form.unitPrice} onChange={e => setForm(f => ({ ...f, unitPrice: e.target.value }))} placeholder="VD: 23000" />
+          </div>
+        </div>
+        <div className="cfg-form-grid">
+          <div className="field" id="fuel-base-unit-price-field">
+            <label htmlFor="fuel-base-unit-price">Giá dầu gốc tính phụ phí (đ/lít)</label>
+            <input id="fuel-base-unit-price" name="baseUnitPrice" className="input" type="number" value={form.baseUnitPrice} onChange={e => setForm(f => ({ ...f, baseUnitPrice: e.target.value }))} placeholder="Để trống nếu chưa áp dụng" />
+            <p className="cfg-field-hint">Chỉ phần giá hiện hành cao hơn giá gốc mới được dùng để tính phụ phí.</p>
+          </div>
+          <div className="field" id="fuel-base-unit-price-preview">
+            <label>Chênh lệch tính phụ phí</label>
+            <div className="input" aria-live="polite" style={{ display: 'flex', alignItems: 'center', minHeight: 44 }}>
+              {surchargeDelta == null
+                ? 'Không phát sinh chênh lệch'
+                : `${surchargeDelta.toLocaleString('vi-VN')} đ/lít`}
+            </div>
           </div>
         </div>
 

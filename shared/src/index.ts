@@ -184,6 +184,12 @@ export type {
 } from './schemas';
 
 export { round2dp, roundInt } from './calculations/round';
+export { computeFuelSurcharge } from './calculations/fuelSurcharge';
+export type {
+  ComputeFuelSurchargeInput,
+  ComputeFuelSurchargeResult,
+  FuelSurchargeSnapshot,
+} from './calculations/fuelSurcharge';
 export { computeTripDriverSalary, resolveTripDriverSalary, TRIP_SALARY_WORK_DAYS } from './calculations/tripDriverSalary';
 export {
   normalizeContainerNumber,

@@ -10,7 +10,6 @@ const {
   apiPostMock,
   toastMock,
   refetchMock,
-  emitMock,
   randomUuidMock,
   useAgentOpenableMock,
 } = vi.hoisted(() => ({
@@ -20,7 +19,6 @@ const {
   apiPostMock: vi.fn(),
   toastMock: vi.fn(),
   refetchMock: vi.fn(),
-  emitMock: vi.fn(),
   randomUuidMock: vi.fn(),
   useAgentOpenableMock: vi.fn(),
 }));
@@ -97,10 +95,6 @@ vi.mock('../components/billing/BillingDocumentsPanel', () => ({
   default: () => null,
 }));
 
-vi.mock('../lib/onboardingEvents', () => ({
-  onboardingEvents: { emit: emitMock },
-}));
-
 import DebtDetailPage from './DebtDetailPage';
 
 const statement = {
@@ -160,7 +154,6 @@ describe('DebtDetailPage payment flow', () => {
     apiPostMock.mockReset();
     toastMock.mockReset();
     refetchMock.mockReset();
-    emitMock.mockReset();
     randomUuidMock.mockReset();
     useAgentOpenableMock.mockReset();
     agentOpenCallback = null;
@@ -255,10 +248,6 @@ describe('DebtDetailPage payment flow', () => {
         message: expect.stringContaining('còn 500.000'),
       })),
     );
-    expect(emitMock).toHaveBeenCalledWith('receivable.payment_recorded', {
-      customerId: 7,
-      amountVnd: 2_000_000,
-    });
     expect(refetchMock).toHaveBeenCalled();
   });
 

@@ -55,7 +55,7 @@ export const liftDirectionEnum = pgEnum('lift_direction', ['LIFT_UP', 'LIFT_DOWN
 // O2C B3: cargo state for the lift-pricing matrix. The customer's port-fee
 // schedule (THÔNG TIN CẢNG BÃI) prices lifts differently for empty vs loaded
 // containers (Container Rỗng vs Container Hàng).
-export const liftCargoStateEnum = pgEnum('lift_cargo_state', ['EMPTY', 'LOADED']);
+export const loadStateEnum = pgEnum('load_state', ['LOADED', 'EMPTY']);
 // Type of ancillary (non-transport) revenue. PRD M2.5 §1 proposes this set;
 // additional types can be added via ALTER TYPE ADD VALUE if the customer
 // confirms more.
@@ -281,6 +281,7 @@ export const customers = pgTable('customers', {
   // Wave 3: payment-term days for this customer (e.g. 30 = net 30). Used by
   // M5.1 to compute overdue-days. NULL = use the global default.
   paymentTermDays: integer('payment_term_days'),
+  fuelSurchargeSharePct: numeric('fuel_surcharge_share_pct', { precision: 5, scale: 2 }),
   // O2C G1: dual payment terms — the customer's HĐVC specifies two independent
   // due-date windows. HẠN TT CƯỚC (freight) and HẠN TT CHI HỘ (agency/chi hộ
   // fees) have different term lengths (e.g. Long Minh: freight=15d, chi hộ=25d).
@@ -431,6 +432,7 @@ export const fuelConfig = pgTable('fuel_config', {
   emptyNorm: numeric('empty_norm', { precision: 6, scale: 2 }).notNull(),
   supplement: numeric('supplement', { precision: 6, scale: 2 }).default('3'),
   unitPrice: numeric('unit_price', { precision: 10, scale: 0 }).notNull(),
+  baseUnitPrice: numeric('base_unit_price', { precision: 10, scale: 0 }),
   warningThreshold: numeric('warning_threshold', { precision: 6, scale: 2 }).default('37'),
   criticalThreshold: numeric('critical_threshold', { precision: 6, scale: 2 }).default('40'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -493,7 +495,7 @@ export const liftPricing = pgTable('lift_pricing', {
   // O2C B3: EMPTY (Container Rỗng) vs LOADED (Container Hàng) — the port-fee
   // matrix has separate columns for each. Defaults LOADED so existing rows
   // (pre-O2C) are treated as loaded (the more common case).
-  cargoState: liftCargoStateEnum('cargo_state').notNull().default('LOADED'),
+  loadState: loadStateEnum('load_state').notNull().default('LOADED'),
   unitPrice: numeric('unit_price', { precision: 15, scale: 0 }).notNull(),
   effectiveDate: date('effective_date').notNull().defaultNow(),
   note: text('note'),
@@ -502,7 +504,7 @@ export const liftPricing = pgTable('lift_pricing', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
 }, (table) => [
-  index('lift_pricing_port_type_state_dir_date_idx').on(table.portId, table.containerTypeId, table.cargoState, table.direction, table.effectiveDate),
+  uniqueIndex('lift_pricing_port_type_state_dir_date_uniq').on(table.portId, table.containerTypeId, table.direction, table.loadState, table.effectiveDate),
 ]);
 
 // M2.5: ancillary (non-transport) revenue. Each entry is recorded exactly
@@ -640,6 +642,9 @@ export const trips = pgTable('trips', {
   // Derived Fields
   fuelLiters: numeric('fuel_liters', { precision: 10, scale: 2 }),
   totalFuelCost: numeric('total_fuel_cost', { precision: 15, scale: 0 }),
+  fuelSurchargeAmount: numeric('fuel_surcharge_amount', { precision: 15, scale: 0 }).notNull().default('0'),
+  fuelSurchargeSnapshot: jsonb('fuel_surcharge_snapshot').$type<Record<string, unknown>>(),
+  fuelSurchargeSnapshotDirty: boolean('fuel_surcharge_snapshot_dirty').notNull().default(false),
   totalRoadAllowance: numeric('total_road_allowance', { precision: 15, scale: 0 }),
   tollCost: numeric('toll_cost', { precision: 15, scale: 0 }),
   roadAllowanceOverride: numeric('road_allowance_override', { precision: 15, scale: 0 }),
@@ -717,6 +722,9 @@ export const trips = pgTable('trips', {
   arCostHash: varchar('ar_cost_hash', { length: 64 }),
   arSnapshotDirty: boolean('ar_snapshot_dirty').notNull().default(false),
   arSnapshotChangedAt: timestamp('ar_snapshot_changed_at', { withTimezone: true }),
+  apCostHash: varchar('ap_cost_hash', { length: 64 }),
+  apSnapshotDirty: boolean('ap_snapshot_dirty').notNull().default(false),
+  apSnapshotChangedAt: timestamp('ap_snapshot_changed_at', { withTimezone: true }),
   // O2C H4: P&L snapshot of grossProfit captured at completion. The mutable
   // `grossProfit` column can drift if costs are edited post-completion; P&L
   // reports (pnl.service, profit-distribution, fuel-variance) read this frozen
@@ -3803,4 +3811,3 @@ export const deleteRequests = pgTable('delete_requests', {
 }, (table) => [
   index('delete_requests_status_idx').on(table.status),
 ]);
-

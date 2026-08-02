@@ -338,6 +338,47 @@ describe('chi hộ (service-fee) sell-side AR ledger posting', () => {
     assert.equal(sellFeeRows.length, 0, 'zero-sell fee must not post SERVICE_FEE AR');
   });
 
+  test('an APPROVED COMPANY_DIRECT fee posts one VENDOR_EXPENSE payable and reverses it on cancellation', async () => {
+    const { trip, supplierId, expenseRows } = await createInTransitTripWithFees(
+      { revenue: 2_500_000 },
+      [
+        { buyAmount: 100_000, sellAmount: 120_000, settlementMethod: 'COMPANY_DIRECT' },
+      ],
+    );
+    assert.ok(supplierId, 'test fixture should create a supplier');
+    const fee = expenseRows[0];
+    assert.ok(fee, 'test fixture should create one fee row');
+
+    const completed = await completeTripGoverned(trip.id, trip.version);
+
+    const postedRows = await db.select().from(s.ledger)
+      .where(and(
+        eq(s.ledger.txnId, fee.id),
+        eq(s.ledger.entityType, 'VENDOR'),
+        eq(s.ledger.entityId, supplierId!),
+      ))
+      .orderBy(s.ledger.id);
+    const vendorExpenseRows = postedRows.filter((row) => row.txnType === TxnType.VENDOR_EXPENSE);
+    assert.equal(vendorExpenseRows.length, 1, 'exactly one supplier payable row should post');
+    assert.equal(vendorExpenseRows[0].debit, '0');
+    assert.equal(vendorExpenseRows[0].credit, '100000');
+
+    await approveCompletedCancellation(trip.id, completed.version);
+
+    const allVendorRows = await db.select().from(s.ledger)
+      .where(and(
+        eq(s.ledger.txnId, fee.id),
+        eq(s.ledger.entityType, 'VENDOR'),
+        eq(s.ledger.entityId, supplierId!),
+      ))
+      .orderBy(s.ledger.id);
+    const reversalRows = allVendorRows.filter((row) => row.txnType === TxnType.UNLOCK_REVERSAL);
+    assert.equal(reversalRows.length, 1, 'exactly one supplier payable reversal should post');
+    assert.equal(reversalRows[0].debit, '100000');
+    assert.equal(reversalRows[0].credit, '0');
+    assert.equal(allVendorRows.at(-1)?.balance, '0', 'supplier balance should net back to zero');
+  });
+
   test('a PENDING fee produces no buy-side AND no sell-side posting', async () => {
     const { trip, customer } = await createInTransitTripWithFees(
       { revenue: 1_500_000 },

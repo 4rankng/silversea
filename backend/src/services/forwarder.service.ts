@@ -27,7 +27,7 @@ export {
   batchUpsertContainerSeals,
   batchUpsertTripContainers,
 } from './forwarder-container.service';
-import { ArSnapshotService } from './ar-snapshot.service';
+import { SnapshotServices } from './snapshot-services';
 
 /**
  * Either the singleton db client or an in-flight transaction client. Both
@@ -241,8 +241,8 @@ export async function createTripExpense(
   },
 ) {
   // O2C: costs stay editable after COMPLETED (no hard-freeze). CANCELED trips
-  // remain immutable. A cost edit on a completed trip flips ar_snapshot_dirty so
-  // the accountant reconciliation view surfaces it.
+  // remain immutable. A cost edit on a completed trip re-evaluates both
+  // reconciliation snapshots so AR/AP queues stay honest.
   const [trip] = await txOrDb.select({ status: s.trips.status })
     .from(s.trips).where(eq(s.trips.id, data.tripId)).limit(1);
   if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
@@ -273,9 +273,8 @@ export async function createTripExpense(
   const scopeKey = tripContainerId ?? -data.tripId;
   await txOrDb.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);
 
-  // Ancillary service/ocean-fee rows are now receivables-only for debit notes
-  // and customer AR. They no longer require a payable counterparty because no
-  // vendor/forwarder payable is posted when the trip is completed.
+  // Null counterparties remain allowed for receivables-only fees. Approved
+  // COMPANY_DIRECT rows with a supplier now also feed supplier AP at completion.
 
   // Authenticated actor-backed writes start pending: office creation is not
   // approval and Q15 requires a distinct approver. Preserve the historical
@@ -322,10 +321,10 @@ export async function createTripExpense(
   if (data.forwarderId != null) {
     await resetExpenseScope(txOrDb, data.tripId, tripContainerId);
   }
-  // O2C: a cost edit on a completed trip flips ar_snapshot_dirty so the
-  // accountant reconciliation view surfaces it. No-op for non-completed trips.
+  // O2C: a cost edit on a completed trip re-evaluates both reconciliation
+  // snapshots. No-op for non-completed trips.
   if (trip.status === 'COMPLETED') {
-    await ArSnapshotService.markDirty(data.tripId, txOrDb);
+    await SnapshotServices.markBothDirty(data.tripId, txOrDb);
   }
   return inserted;
 }
@@ -476,9 +475,9 @@ export async function updateTripExpense(
   if (patch.tripContainerId !== undefined && patch.tripContainerId !== existing.tripContainerId) {
     await resetExpenseScope(txOrDb, existing.tripId, patch.tripContainerId);
   }
-  // O2C: a cost edit on a completed trip flips ar_snapshot_dirty.
+  // O2C: a cost edit on a completed trip re-evaluates both snapshots.
   if (trip?.status === 'COMPLETED') {
-    await ArSnapshotService.markDirty(existing.tripId, txOrDb);
+    await SnapshotServices.markBothDirty(existing.tripId, txOrDb);
   }
   return updated;
 }
@@ -607,7 +606,7 @@ export async function deleteTripExpense(expenseId: number, forwarderId: number) 
     const [trip] = await tx.select({ status: s.trips.status }).from(s.trips)
       .where(eq(s.trips.id, existing.tripId)).limit(1);
     // O2C: CANCELED trips are immutable; COMPLETED trips allow cost edits
-    // (deletion flips ar_snapshot_dirty — the reconciliation view surfaces it).
+    // (deletion re-evaluates both snapshots for the reconciliation queues).
     if (trip?.status === 'CANCELED') {
       throw new ApiError(409, 'Không thể xóa chi phí của chuyến đã hủy');
     }
@@ -622,7 +621,7 @@ export async function deleteTripExpense(expenseId: number, forwarderId: number) 
     await tx.delete(s.tripExpenses).where(eq(s.tripExpenses.id, expenseId));
     await resetExpenseScope(tx, existing.tripId, existing.tripContainerId);
     if (trip?.status === 'COMPLETED') {
-      await ArSnapshotService.markDirty(existing.tripId, tx);
+      await SnapshotServices.markBothDirty(existing.tripId, tx);
     }
     return 'DELETED';
   });

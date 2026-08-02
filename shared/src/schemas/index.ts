@@ -693,6 +693,7 @@ export const customerSchema = z.object({
   creditLimit: nonNegNumeric.optional(),
   creditWarningThreshold: z.number().min(0.01).max(0.99).optional().nullable(),
   paymentTermDays: z.number().int().min(0).max(3650).optional().nullable(),
+  fuelSurchargeSharePct: z.number().min(0).max(100).optional().nullable(),
   paymentDatePolicy: paymentDatePolicySchema.optional().default('NEXT_BUSINESS_DAY'),
   status: z.nativeEnum(CustomerStatus).optional().default(CustomerStatus.ACTIVE),
   isCarrier: z.boolean().optional().default(false),
@@ -823,6 +824,7 @@ export const fuelConfigSchema = z.object({
   emptyNorm: positiveNumeric,
   supplement: nonNegNumeric.optional().default(3),
   unitPrice: positiveNumeric,
+  baseUnitPrice: positiveNumeric.optional().nullable(),
   warningThreshold: nonNegNumeric.optional().default(37),
   criticalThreshold: nonNegNumeric.optional().default(40),
 });
@@ -860,6 +862,7 @@ export const liftPricingSchema = z.object({
   portId: z.coerce.number().int().positive(),
   containerTypeId: z.coerce.number().int().positive(),
   direction: z.enum(['LIFT_UP', 'LIFT_DOWN']),
+  loadState: z.enum(['LOADED', 'EMPTY']).default('LOADED'),
   unitPrice: positiveNumeric,
   effectiveDate: z.string().min(1).default(() => new Date().toISOString().slice(0, 10)),
   note: z.string().optional().nullable(),

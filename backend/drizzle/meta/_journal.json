@@ -15,6 +15,13 @@
       "when": 1785643159380,
       "tag": "0001_drop_onboarding_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785646041170,
+      "tag": "0002_o2c_rev1_extensions",
+      "breakpoints": true
     }
   ]
 }

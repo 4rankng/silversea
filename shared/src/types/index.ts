@@ -70,6 +70,7 @@ export interface Customer {
   creditLimit: string | null;
   creditWarningThreshold?: string | null;
   paymentTermDays?: number | null;
+  fuelSurchargeSharePct?: string | null;
   paymentDatePolicy?: 'NEXT_BUSINESS_DAY' | 'CALENDAR_DAY';
   status: CustomerStatus;
   isCarrier: boolean;
@@ -212,6 +213,7 @@ export interface FuelConfig {
   emptyNorm: string;
   supplement: string;
   unitPrice: string;
+  baseUnitPrice: string | null;
   warningThreshold: string;
   criticalThreshold: string;
   createdAt: string;
@@ -305,6 +307,9 @@ export interface Trip {
   driverSalary: string | null;
   fuelLiters: string | null;
   totalFuelCost: string | null;
+  fuelSurchargeAmount: string | null;
+  fuelSurchargeSnapshot: Record<string, unknown> | null;
+  fuelSurchargeSnapshotDirty: boolean;
   totalRoadAllowance: string | null;
   roadAllowanceOverride: string | null;
   totalCost: string | null;

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TripPodFileType, TripPodStatus } from '@tingting/shared';
 
 const {
@@ -79,7 +79,10 @@ describe('TripPodReviewPanel', () => {
     downloadShipmentPodFileMock.mockReset();
     cancelShipmentFulfillmentMock.mockReset();
     reviewShipmentPodMock.mockReset();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
   });
+
+  afterEach(() => vi.restoreAllMocks());
 
   it('renders the current submission and approves with the guarded version', async () => {
     reviewShipmentPodMock.mockResolvedValue({});
@@ -105,6 +108,7 @@ describe('TripPodReviewPanel', () => {
       81,
       {
         expectedVersion: 5,
+        podRecovered: true,
         resolution: 'ACCEPT',
         rejectionReason: null,
       },

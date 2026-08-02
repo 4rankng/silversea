@@ -227,6 +227,22 @@ function hasMaterialSupplierRelationChange(data: Partial<SupplierPayload>): bool
   ].some((field) => field in data);
 }
 
+async function markCompletedFuelSurchargeTripsDirty(
+  tx: CrudTx,
+  scope?: { customerId?: number },
+): Promise<void> {
+  const conditions = [
+    eq(s.trips.status, 'COMPLETED'),
+    sql`${s.trips.fuelSurchargeSnapshot} is not null`,
+  ];
+  if (scope?.customerId != null) {
+    conditions.push(eq(s.trips.customerId, scope.customerId));
+  }
+  await tx.update(s.trips)
+    .set({ fuelSurchargeSnapshotDirty: true })
+    .where(and(...conditions));
+}
+
 const MATERIAL_FORWARDER_POLICY_FIELDS = new Set<keyof ForwarderExpenseTypePayload>([
   'requiresInvoice',
   'substituteEvidenceAllowed',
@@ -422,6 +438,11 @@ registerGovernedCustomResource({
       currentUpdatedAt ? new Date(currentUpdatedAt) : null,
     );
     const saved = await upsertFuelConfigInTx(tx, payload, action.approverId ?? undefined);
+    const currentPriceChanged = String(existing?.unitPrice ?? '') !== String(saved.result.unitPrice ?? '');
+    const basePriceChanged = String(existing?.baseUnitPrice ?? '') !== String(saved.result.baseUnitPrice ?? '');
+    if (currentPriceChanged || basePriceChanged) {
+      await markCompletedFuelSurchargeTripsDirty(tx);
+    }
     return {
       applicationResult: {
         resource: GOVERNED_SINGLETON_RESOURCES.fuelConfig,
@@ -976,6 +997,9 @@ router.use('/customers', createCrudRouter(s.customers, customerSchema, {
   },
   afterUpdate: async (item, data, _req, tx) => {
     await syncCustomerRelationsHook(tx, item, data);
+    if ('fuelSurchargeSharePct' in data) {
+      await markCompletedFuelSurchargeTripsDirty(tx, { customerId: item.id });
+    }
   },
 }));
 router.use(

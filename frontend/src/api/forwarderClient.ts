@@ -41,6 +41,19 @@ export const forwarderClient = {
     return api.get<{ items: Array<{ id: number; name: string; contactPerson: string | null; phone: string | null }> }>(FORWARDER.SUPPLIERS);
   },
 
+  resolveLiftPrice: async (params: {
+    portId: number;
+    containerTypeId: number;
+    direction: 'LIFT_UP' | 'LIFT_DOWN';
+    loadState: 'LOADED' | 'EMPTY';
+    date: string;
+  }) => api.get<{
+    suggestedPrice: number;
+    liftPricingId: number | null;
+    effectiveDate: string | null;
+    source: 'MATRIX' | 'MANUAL';
+  }>(`/forwarder/me/lift-pricing/resolve${toQuery(params)}`),
+
   createContainer: async (tripId: number, data: { containerTypeId?: number; containerNumber: string; sealNumber?: string; notes?: string }) => {
     return api.post(FORWARDER.CONTAINERS(tripId), data);
   },

@@ -25,6 +25,8 @@
 import { db } from '../db';
 import * as s from '../db/schema';
 import { and, desc, eq, isNull, lte, ne } from 'drizzle-orm';
+import { computeFuelSurcharge } from '@tingting/shared';
+import type { FuelSurchargeSnapshot } from '@tingting/shared';
 import { ApiError } from '../errors';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -103,6 +105,48 @@ export async function resolveFreightPrice(
     return resolveTierPrice({ ...input, cargoTypeId });
   }
   return resolveTablePrice({ ...input, cargoTypeId });
+}
+
+export async function resolveFuelSurcharge(input: {
+  customerId: number;
+  fuelLiters: number;
+  date?: Date;
+}): Promise<{ amount: number; snapshot: FuelSurchargeSnapshot }> {
+  const [customer, config] = await Promise.all([
+    db.select({ fuelSurchargeSharePct: s.customers.fuelSurchargeSharePct })
+      .from(s.customers)
+      .where(eq(s.customers.id, input.customerId))
+      .limit(1)
+      .then((rows) => rows[0] ?? null),
+    db.select({
+      unitPrice: s.fuelConfig.unitPrice,
+      baseUnitPrice: s.fuelConfig.baseUnitPrice,
+    })
+      .from(s.fuelConfig)
+      .where(isNull(s.fuelConfig.deletedAt))
+      .limit(1)
+      .then((rows) => rows[0] ?? null),
+  ]);
+
+  const currentPrice = config?.unitPrice != null ? Number(config.unitPrice) : null;
+  const basePrice = config?.baseUnitPrice != null ? Number(config.baseUnitPrice) : null;
+  const sharePct = customer?.fuelSurchargeSharePct != null ? Number(customer.fuelSurchargeSharePct) : null;
+  return {
+    amount: computeFuelSurcharge({
+      currentPrice,
+      basePrice,
+      sharePct,
+      quotaLiters: input.fuelLiters,
+    }).amount,
+    snapshot: {
+      currentFuelPrice: currentPrice,
+      baseFuelPrice: basePrice,
+      quotaLiters: input.fuelLiters,
+      customerSharePct: sharePct,
+      customerId: input.customerId,
+      computedAt: new Date().toISOString(),
+    },
+  };
 }
 
 // ─── TIER resolution (weight-tier pricing for bulk cargo) ───────────────────
@@ -335,6 +379,7 @@ export interface ResolveLiftPriceInput {
   portId: number;
   containerTypeId: number;
   direction: 'LIFT_UP' | 'LIFT_DOWN';
+  loadState: 'LOADED' | 'EMPTY';
   /** Trip or expense date (YYYY-MM-DD). */
   date: string;
 }
@@ -352,6 +397,7 @@ export async function resolveLiftPrice(input: ResolveLiftPriceInput): Promise<Re
       eq(s.liftPricing.portId, input.portId),
       eq(s.liftPricing.containerTypeId, input.containerTypeId),
       eq(s.liftPricing.direction, input.direction),
+      eq(s.liftPricing.loadState, input.loadState),
       lte(s.liftPricing.effectiveDate, input.date),
       isNull(s.liftPricing.deletedAt),
     ))

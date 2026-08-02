@@ -122,6 +122,7 @@ export async function upsertFuelConfigInTx(
     emptyNorm: number;
     supplement?: number;
     unitPrice: number;
+    baseUnitPrice?: number | null;
     warningThreshold: number;
     criticalThreshold: number;
   },
@@ -133,6 +134,7 @@ export async function upsertFuelConfigInTx(
     emptyNorm: String(data.emptyNorm),
     supplement: String(data.supplement ?? 0),
     unitPrice: String(data.unitPrice),
+    baseUnitPrice: data.baseUnitPrice != null ? String(data.baseUnitPrice) : null,
     warningThreshold: String(data.warningThreshold),
     criticalThreshold: String(data.criticalThreshold),
     updatedAt: now,
@@ -171,6 +173,7 @@ export async function upsertFuelConfig(data: {
   emptyNorm: number;
   supplement?: number;
   unitPrice: number;
+  baseUnitPrice?: number | null;
   warningThreshold: number;
   criticalThreshold: number;
 }, userId?: number): Promise<{ result: typeof s.fuelConfig.$inferSelect; status: number }> {

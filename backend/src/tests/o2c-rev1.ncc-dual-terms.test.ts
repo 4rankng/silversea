@@ -1,6 +1,6 @@
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db, client } from '../db';
 import * as s from '../db/schema';
 import { resolveSupplierPaymentDueDate } from '../services/business-calendar.service';
@@ -148,14 +148,14 @@ describe('O2C rev1 §B0 — NCC dual payment terms', () => {
       customerId: customer.id,
       routeId: route.id,
       cargoTypeId: cargoType.id,
-      departureDate: new Date('2026-08-02'),
+      departureDate: '2026-08-02',
       carrierType: 'OWN',
       fuelSupplierId,
       totalFuelCost: '1000000',
       revenue: '0',           // zero out the customer-revenue branch
       driverSalary: '0',
       status: 'IN_TRANSIT',
-    }).returning({ id: s.trips.id });
+    }).returning({ id: s.trips.id, tripCode: s.trips.tripCode });
     createdTripIds.push(trip.id);
     createdLedgerTxnIds.push(trip.id);
 
@@ -173,7 +173,7 @@ describe('O2C rev1 §B0 — NCC dual payment terms', () => {
         driverSalary: '0',
         totalFuelCost: '1000000',
         tripCode: trip.tripCode,
-        departureDate: new Date('2026-08-02'),
+        departureDate: '2026-08-02',
         ancillaryFees: [],
       });
     });
@@ -185,5 +185,69 @@ describe('O2C rev1 §B0 — NCC dual payment terms', () => {
     assert.equal(vendorRow.entityId, fuelSupplierId);
     assert.equal(vendorRow.paymentTermDaysApplied, 15,
       'fuel-supplier VENDOR row must carry chiHoDueDays (15), was null before Phase 1');
+  });
+
+  test('external carrier payable resolves cuocDueDays through the explicit customer-supplier link', async () => {
+    const supplierId = await insertSupplier({ chiHoDueDays: 15, cuocDueDays: 30 });
+    const [carrier] = await db.insert(s.customers).values({
+      name: `O2C-REV1-CARRIER-${Date.now()}`,
+      isCarrier: true,
+      linkedSupplierId: supplierId,
+      paymentTermDays: 30,
+    }).returning({ id: s.customers.id });
+    createdCustomerIds.push(carrier.id);
+
+    const [customer] = await db.insert(s.customers).values({
+      name: `O2C-REV1-OWNER-${Date.now()}`,
+      paymentTermDays: 30,
+    }).returning({ id: s.customers.id });
+    createdCustomerIds.push(customer.id);
+    const [route] = await db.insert(s.routes).values({
+      name: `O2C-REV1-CARRIER-ROUTE-${Date.now()}`,
+      distanceKm: 50,
+    }).returning({ id: s.routes.id });
+    createdRouteIds.push(route.id);
+    const [cargoType] = await db.insert(s.cargoTypes).values({
+      name: `O2C-REV1-CARRIER-CARGO-${Date.now()}`,
+      isBulk: false,
+    }).returning({ id: s.cargoTypes.id });
+    createdCargoTypeIds.push(cargoType.id);
+    const [trip] = await db.insert(s.trips).values({
+      tripCode: `O2C-CARRIER-${Date.now()}`,
+      customerId: customer.id,
+      routeId: route.id,
+      cargoTypeId: cargoType.id,
+      departureDate: '2026-08-02',
+      carrierType: 'EXTERNAL',
+      externalEntityId: carrier.id,
+      externalEntityType: 'CUSTOMER',
+      externalFreightCost: '3500000',
+      revenue: '0',
+      driverSalary: '0',
+      status: 'IN_TRANSIT',
+    }).returning({ id: s.trips.id, tripCode: s.trips.tripCode });
+    createdTripIds.push(trip.id);
+    createdLedgerTxnIds.push(trip.id);
+
+    await db.transaction(tx => LedgerService.postTripCompletion(tx, {
+      id: trip.id,
+      customerId: customer.id,
+      driverId: null,
+      carrierType: 'EXTERNAL',
+      externalEntityId: carrier.id,
+      externalEntityType: 'CUSTOMER',
+      externalFreightCost: '3500000',
+      revenue: '0',
+      driverSalary: '0',
+      tripCode: trip.tripCode,
+      departureDate: '2026-08-02',
+      ancillaryFees: [],
+    }));
+
+    const [carrierRow] = await db.select().from(s.ledger).where(and(
+      eq(s.ledger.txnId, trip.id),
+      eq(s.ledger.entityType, 'CARRIER'),
+    ));
+    assert.equal(carrierRow?.paymentTermDaysApplied, 30);
   });
 });

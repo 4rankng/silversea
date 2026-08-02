@@ -19,7 +19,6 @@ import { ApprovalQueueCard } from '../features/dashboard/components/ApprovalQueu
 import { useApprovalQueue, canSeeApprovalQueue } from '../features/dashboard/hooks/useApprovalQueue';
 import { useDashboardAnimations } from '../features/dashboard/hooks/useDashboardAnimations';
 import { CompanyInfoSetupBanner } from '../features/dashboard/components/CompanyInfoSetupBanner';
-import { onboardingEvents } from '../lib/onboardingEvents';
 import './DashboardPage.css';
 import './WorkflowFinance.css';
 import { ExecutiveFinancialStrip } from '../components/dashboard/ExecutiveFinancialStrip';
@@ -91,12 +90,6 @@ export default function DashboardPage() {
 
   // KPI refs for counter animation — point to <span> wrapping just the number
   const kpiRefs = useRef<Record<string, HTMLSpanElement | null>>({});
-
-  // Completing the orientation task is tied to actually opening this page,
-  // not to a tutorial button or an unrelated dashboard event.
-  useEffect(() => {
-    onboardingEvents.emit('fleet.dashboard_viewed');
-  }, []);
 
   const {
     stats, loading, prevPnlReport,

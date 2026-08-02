@@ -8,7 +8,7 @@ import { TripStatus, FuelMode, Role, TxnType } from '@tingting/shared';
 import type { TripLegInput } from '@tingting/shared';
 import { resolveTripDriverSalary, computeTripTotals, type ComputeTripTotalsOutput } from '@tingting/shared';
 import { ApiError } from '../errors';
-import { resolveFreightPrice } from './pricing.service';
+import { resolveFreightPrice, resolveFuelSurcharge } from './pricing.service';
 import { resolveFuelNorm } from './fuel.service';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
 import { propagateTripFinancialSourceChange } from './source-change.service';
@@ -1026,6 +1026,11 @@ export async function updateTripFigures(
     };
 
     const totals = computeTripTotals(totalsInput);
+    const fuelSurcharge = await resolveFuelSurcharge({
+      customerId: data.customerId ?? trip.customerId,
+      fuelLiters: totals.totalFuelLiters,
+      date: new Date(`${data.departureDate ?? trip.departureDate}T00:00:00.000Z`),
+    });
 
     // B3 / D4: pin the fuel component of committed legacy trips to stored
     // totals. computeTripTotals ran with the 0 sentinel price for these trips
@@ -1079,6 +1084,9 @@ export async function updateTripFigures(
       roadAllowanceOverride: data.roadAllowanceOverride != null ? String(data.roadAllowanceOverride) : null,
       fuelLiters: String(totals.totalFuelLiters),
       totalFuelCost: String(totals.totalFuelCost),
+      fuelSurchargeAmount: String(fuelSurcharge.amount),
+      fuelSurchargeSnapshot: fuelSurcharge.snapshot as unknown as Record<string, unknown>,
+      fuelSurchargeSnapshotDirty: false,
       totalRoadAllowance: String(totals.totalRoadAllowance),
       tollCost: String(totals.tollCost),
       ...(data.completedAt ? { completedAt: new Date(data.completedAt) } : {}),

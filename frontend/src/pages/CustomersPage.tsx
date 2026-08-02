@@ -33,6 +33,12 @@ const STATUS_LABELS: Record<string, string> = {
   [CustomerStatus.LOCKED]: 'Tạm khoá',
 };
 
+const pairedFieldGridStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: 12,
+} as const;
+
 function riskDot(debt: number | null, limit: number | null) {
   if (!debt || !limit || limit === 0) return 'low';
   const ratio = debt / limit;
@@ -80,6 +86,9 @@ function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, suppliers }
   const [paymentTermDays, setPaymentTermDays] = useState(
     item?.paymentTermDays != null ? String(item.paymentTermDays) : '30',
   );
+  const [fuelSurchargeSharePct, setFuelSurchargeSharePct] = useState(
+    item?.fuelSurchargeSharePct != null ? String(item.fuelSurchargeSharePct) : '',
+  );
   const [paymentDatePolicy, setPaymentDatePolicy] = useState(
     item?.paymentDatePolicy ?? 'NEXT_BUSINESS_DAY',
   );
@@ -96,6 +105,7 @@ function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, suppliers }
       setPhone(item?.phone || '');
       setCreditLimit(item?.creditLimit || '');
       setPaymentTermDays(item?.paymentTermDays != null ? String(item.paymentTermDays) : '30');
+      setFuelSurchargeSharePct(item?.fuelSurchargeSharePct != null ? String(item.fuelSurchargeSharePct) : '');
       setPaymentDatePolicy(item?.paymentDatePolicy ?? 'NEXT_BUSINESS_DAY');
       setStatus(item?.status || CustomerStatus.ACTIVE);
       setIsCarrier(item?.isCarrier ?? false);
@@ -114,6 +124,7 @@ function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, suppliers }
       phone: phone.trim() || undefined,
       creditLimit: creditLimit ? Number(creditLimit) : undefined,
       paymentTermDays: paymentTermDays ? Number(paymentTermDays) : null,
+      fuelSurchargeSharePct: fuelSurchargeSharePct ? Number(fuelSurchargeSharePct) : null,
       paymentDatePolicy,
       status,
       isCarrier,
@@ -149,7 +160,7 @@ function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, suppliers }
           </label>
           <input id="cust-name" className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Tên công ty hoặc cá nhân" autoFocus />
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div style={pairedFieldGridStyle}>
           <div className="field">
             <label htmlFor="cust-tax" style={labelStyle}>Mã số thuế</label>
             <input id="cust-tax" className="input" value={taxCode} onChange={e => setTaxCode(e.target.value)} placeholder="0312…" />
@@ -161,7 +172,7 @@ function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, suppliers }
             </select>
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div style={pairedFieldGridStyle}>
           <div className="field">
             <label htmlFor="cust-contact" style={labelStyle}>Người liên hệ</label>
             <input id="cust-contact" className="input" value={contactPerson} onChange={e => setContactPerson(e.target.value)} placeholder="Anh Tuấn · Kế toán" />
@@ -175,7 +186,7 @@ function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, suppliers }
           <label htmlFor="cust-credit" style={labelStyle}>Hạn mức tín dụng (đ)</label>
           <input id="cust-credit" className="input" type="number" value={creditLimit} onChange={e => setCreditLimit(e.target.value)} placeholder="0" />
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div style={pairedFieldGridStyle}>
           <div className="field">
             <label htmlFor="cust-payment-term" style={labelStyle}>Thời hạn thanh toán (ngày)</label>
             <input
@@ -187,6 +198,23 @@ function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, suppliers }
               value={paymentTermDays}
               onChange={e => setPaymentTermDays(e.target.value)}
             />
+          </div>
+          <div className="field">
+            <label htmlFor="cust-fuel-share" style={labelStyle}>Tỷ lệ chia sẻ phụ phí xăng dầu (%)</label>
+            <input
+              id="cust-fuel-share"
+              className="input"
+              type="number"
+              min={0}
+              max={100}
+              step="0.01"
+              value={fuelSurchargeSharePct}
+              onChange={e => setFuelSurchargeSharePct(e.target.value)}
+              placeholder="Để trống nếu không áp dụng"
+            />
+            <div style={{ marginTop: 6, fontSize: 12, lineHeight: 1.4, color: 'var(--ink-3)' }}>
+              Để trống nếu khách hàng không áp dụng phụ phí.
+            </div>
           </div>
           <div className="field">
             <label htmlFor="cust-payment-date-policy" style={labelStyle}>Ngày đến hạn rơi vào ngày nghỉ</label>
@@ -201,7 +229,7 @@ function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, suppliers }
             </select>
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div style={pairedFieldGridStyle}>
           <div className="field">
             <label htmlFor="cust-debit-mode" style={labelStyle}>Giấy báo nợ</label>
             <select

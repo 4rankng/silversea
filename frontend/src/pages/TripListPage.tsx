@@ -19,7 +19,6 @@ import { TripListHero } from './trip-list-hero';
 import { useTripListAnimations } from './use-trip-list-animations';
 import './TripListPage.css';
 import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
-import { onboardingEvents } from '../lib/onboardingEvents';
 
 export default function TripListPage() {
   const rootRef = useTripListAnimations();
@@ -30,12 +29,6 @@ export default function TripListPage() {
   const { data: fuelConfig } = useFuelConfig();
   const { data: salaryPeriod } = useSalaryPeriod(month, year);
   const canCopyPlan = user?.role === Role.ADMIN || user?.role === Role.MANAGER;
-
-  // The onboarding checklist's "Mở danh sách chuyến xe" task completes when
-  // the user really reaches this page, independently of creating a new trip.
-  useEffect(() => {
-    onboardingEvents.emit('trips.list_viewed');
-  }, []);
 
   const warnThreshold = useMemo(
     () => (fuelConfig
@@ -406,7 +399,7 @@ export default function TripListPage() {
         ]}
         renderLink={(to, children) => <a onClick={() => navigate(to)} style={{ cursor: 'pointer' }}>{children}</a>}
       />
-      <TripListHero todayLabel={todayLabel} statusCounts={statusCounts} summary={summary} quickEdit={quickEdit} toggleQuickEdit={toggleQuickEdit} handleExport={handleExport} onAdd={() => { onboardingEvents.emit('ui.trip_create_clicked'); navigate('/trips/new'); }} breakdownPct={breakdownPct} warnThreshold={warnThreshold} month={month} />
+      <TripListHero todayLabel={todayLabel} statusCounts={statusCounts} summary={summary} quickEdit={quickEdit} toggleQuickEdit={toggleQuickEdit} handleExport={handleExport} onAdd={() => { navigate('/trips/new'); }} breakdownPct={breakdownPct} warnThreshold={warnThreshold} month={month} />
 
       <TripFiltersBar
         statusCounts={statusCounts}

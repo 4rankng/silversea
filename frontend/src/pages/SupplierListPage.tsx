@@ -21,6 +21,7 @@ import { Money } from '../components/shared/Money';
 import { StatusStrip, StatusDot } from '../components/shared/StatusStrip';
 import { usePageAnimations } from '../hooks/animations';
 import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
+import './SupplierListPage.css';
 
 type FilterKey = 'all' | 'active' | 'inactive';
 
@@ -116,7 +117,7 @@ function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, customers }
           </label>
           <input id="supp-name" className="input" value={name} onChange={e => setName(e.target.value)} placeholder="VD: Garage Auto 123" autoFocus />
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="supplier-form-grid">
           <div className="field">
             <label htmlFor="supp-tax" style={labelStyle}>Mã số thuế</label>
             <input id="supp-tax" className="input" value={taxCode} onChange={e => setTaxCode(e.target.value)} placeholder="0312…" />
@@ -128,7 +129,7 @@ function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, customers }
             </select>
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="supplier-form-grid">
           <div className="field">
             <label htmlFor="supp-contact" style={labelStyle}>Người liên hệ</label>
             <input id="supp-contact" className="input" value={contactPerson} onChange={e => setContactPerson(e.target.value)} placeholder="Anh Tuấn · Kế toán" />
@@ -142,7 +143,7 @@ function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, customers }
           <label htmlFor="supp-note" style={labelStyle}>Ghi chú</label>
           <input id="supp-note" className="input" value={note} onChange={e => setNote(e.target.value)} placeholder="Ghi chú thêm…" />
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="supplier-form-grid">
           <div className="field">
             <label htmlFor="supp-chiho-due" style={labelStyle}>Hạn thanh toán Chi hộ (ngày)</label>
             <input

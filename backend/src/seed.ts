@@ -17,6 +17,7 @@ import {
 } from './services/shipment.service';
 import { seedCustomers } from './seed/seed-customers';
 import { seedReference } from './seed/seed-reference';
+import { seedLiftPricing } from './seed/seed-lift-pricing';
 
 async function seed() {
   const passwordHash = await bcrypt.hash('Abc123', 10);
@@ -472,11 +473,29 @@ async function seed() {
   }
   console.log('✅ Company information defaults seeded!');
 
+  const [existingFuelConfig] = await db.select({ id: schema.fuelConfig.id })
+    .from(schema.fuelConfig)
+    .where(isNull(schema.fuelConfig.deletedAt))
+    .limit(1);
+  if (!existingFuelConfig) {
+    await db.insert(schema.fuelConfig).values({
+      loadedNorm: '35',
+      emptyNorm: '22',
+      supplement: '3',
+      unitPrice: '23000',
+      baseUnitPrice: '23000',
+      warningThreshold: '37',
+      criticalThreshold: '40',
+    });
+    console.log('✅ Fuel config seeded with neutral surcharge baseline.');
+  }
+
   // Install the customer-owned operational master data and the Long Minh
   // Debit Note authority as part of every supported setup/seed path. These
   // seeders are idempotent and deliberately run after generic defaults so the
   // approved Silver Sea identity is the final configured export identity.
-  await seedReference();
+  const reference = await seedReference();
+  await seedLiftPricing(reference);
   await seedCustomers();
   await seedShipments(passwordHash);
   await seedClerkScope();

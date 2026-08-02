@@ -7,7 +7,7 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { ApiError } from '../errors';
-import { ArSnapshotService } from './ar-snapshot.service';
+import { SnapshotServices } from './snapshot-services';
 import type { Tx } from './trip-shared';
 
 /** Fields a FORWARDER is allowed to see on a field-cost response. */
@@ -24,8 +24,8 @@ export interface FieldCostResponse {
  * narrow allow-list — never the full trip row (which carries revenue,
  * grossProfit, driverSalary, externalFreightCost the PRD withholds from Ops).
  *
- * If the parent trip is COMPLETED, the AR snapshot is marked dirty so the
- * accountant reconciliation view surfaces the late cost.
+ * If the parent trip is COMPLETED, both reconciliation snapshots are
+ * re-evaluated so the accountant queues surface the late cost correctly.
  */
 export async function recordFieldCost(args: {
   tripId: number;
@@ -57,9 +57,9 @@ export async function recordFieldCost(args: {
       approvalStatus: 'PENDING',
     }).returning({ id: s.tripExpenses.id });
 
-    // Late cost on a completed trip → mark the AR snapshot dirty.
+    // Late cost on a completed trip → re-evaluate both reconciliation snapshots.
     if (trip.status === 'COMPLETED') {
-      await ArSnapshotService.markDirty(trip.id, tx);
+      await SnapshotServices.markBothDirty(trip.id, tx);
     }
 
     // Field-filtered response: only what Ops needs.
@@ -73,9 +73,9 @@ export async function recordFieldCost(args: {
 }
 
 /**
- * Thin helper resolving the external-carrier soft pointer for display purposes.
- * Returns the customer/supplier name when the entity is resolvable, else null.
- * (App-layer resolution per the project's soft-columns convention.)
+ * Thin helper preserving the raw external-carrier soft pointer for display
+ * lookups only. This is intentionally separate from the ledger resolver, which
+ * maps only CUSTOMER-typed external carriers into the CARRIER subledger.
  */
 export function resolveExternalCarrier(trip: {
   externalEntityId?: number | null;
