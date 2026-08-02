@@ -35,8 +35,31 @@ infra: ## Start only db and redis (+ adminer)
 		docker-compose -f docker-compose.dev.yml up -d
 
 # ─── Database ──────────────────────────────────────────────────────────────────
-migrate: ## Run database migrations
+DB_CONTAINER := silversea-db
+DB_NAME      := silversea
+DB_USER      := postgres
+MIGRATION_SQL := backend/drizzle/0000_black_kingpin.sql
+
+migrate: ## Run database migrations (drizzle-kit)
 	cd backend && npx drizzle-kit migrate
+
+# Apply the baseline migration SQL directly. Drizzle-kit's interactive spinner
+# hangs on large schemas; the direct psql apply is reliable. Applied twice
+# because drizzle generates FK constraints before the unique indexes they depend
+# on — the first pass creates tables + indexes, the second resolves the FKs.
+migrate-sql:
+	@docker exec -i $(DB_CONTAINER) psql -U $(DB_USER) -d $(DB_NAME) -c "CREATE EXTENSION IF NOT EXISTS vector;" >/dev/null 2>&1
+	@docker exec -i $(DB_CONTAINER) psql -U $(DB_USER) -d $(DB_NAME) -q < $(MIGRATION_SQL) >/dev/null 2>&1
+	@docker exec -i $(DB_CONTAINER) psql -U $(DB_USER) -d $(DB_NAME) -q < $(MIGRATION_SQL) >/dev/null 2>&1
+	@echo "✅ Migration applied (2-pass for FK ordering)"
+
+# Drop and recreate the database from scratch (dev/staging — loses all data).
+db-recreate:
+	@echo "Recreating database $(DB_NAME) from scratch..."
+	@docker exec $(DB_CONTAINER) psql -U $(DB_USER) -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$(DB_NAME)' AND pid <> pg_backend_pid();" >/dev/null 2>&1
+	@docker exec $(DB_CONTAINER) psql -U $(DB_USER) -d postgres -c "DROP DATABASE IF EXISTS $(DB_NAME);" >/dev/null 2>&1
+	@docker exec $(DB_CONTAINER) psql -U $(DB_USER) -d postgres -c "CREATE DATABASE $(DB_NAME);" >/dev/null 2>&1
+	@echo "✅ Database recreated"
 
 generate: ## Generate migration from schema changes
 	cd backend && npx drizzle-kit generate
@@ -44,10 +67,10 @@ generate: ## Generate migration from schema changes
 seed: ## Seed database with sample data
 	cd backend && pnpm seed
 
-setup: infra ## First-time setup: infra + migrate + seed
+setup: infra ## First-time setup: infra + recreate DB + migrate + seed
 	@sleep 2
-	@echo "Applying migrations..."
-	@cd backend && npx drizzle-kit migrate
+	@$(MAKE) db-recreate
+	@$(MAKE) migrate-sql
 	@echo "Seeding database..."
 	@cd backend && pnpm seed
 	@echo ""
