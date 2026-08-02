@@ -4,6 +4,8 @@ import { round2dp } from '@tingting/shared';
 
 import { db } from '../db';
 import * as s from '../db/schema';
+import { ApiError } from '../errors';
+import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
 import type { Tx } from './trip-shared';
 
 type DbOrTx = typeof db | Tx;
@@ -65,6 +67,9 @@ async function computeApHash(tripId: number, tx: DbOrTx): Promise<string> {
 
   const payload = {
     carrierType: 'OWN',
+    fuelSupplierId: trip.fuelSupplierId && Number(trip.totalFuelCost ?? 0) > 0
+      ? trip.fuelSupplierId
+      : null,
     totalFuelCost: trip.fuelSupplierId && Number(trip.totalFuelCost ?? 0) > 0
       ? round2dp(Number(trip.totalFuelCost ?? 0))
       : null,
@@ -120,6 +125,18 @@ export class ApSnapshotService {
 
   static async recapture(tripId: number): Promise<void> {
     await db.transaction(async (tx) => {
+      await lockTripFinancialAuthority(tx, [tripId]);
+      const [trip] = await tx.select({ status: s.trips.status })
+        .from(s.trips)
+        .where(eq(s.trips.id, tripId))
+        .limit(1)
+        .for('update');
+      if (!trip) {
+        throw new ApiError(404, 'Không tìm thấy chuyến đi');
+      }
+      if (trip.status !== 'COMPLETED') {
+        throw new ApiError(409, 'Chỉ có thể chụp lại đối soát AP cho chuyến đã hoàn thành');
+      }
       await this.captureSnapshot(tripId, tx);
     });
   }

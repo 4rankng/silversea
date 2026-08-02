@@ -44,6 +44,7 @@ registerAuditEvent('PUT', '/api/finance/fuel-invoices/', AuditEvent.ENTITY_UPDAT
 registerAuditEvent('POST', '/api/finance/fuel-invoices/', '/approve', AuditEvent.ENTITY_UPDATED);
 registerAuditEvent('POST', '/api/finance/snapshots/ar/', '/recapture', AuditEvent.ENTITY_UPDATED);
 registerAuditEvent('POST', '/api/finance/snapshots/ap/', '/recapture', AuditEvent.ENTITY_UPDATED);
+registerAuditEvent('POST', '/api/finance/snapshots/fuel-surcharge/', '/recapture', AuditEvent.ENTITY_UPDATED);
 
 const router = Router();
 

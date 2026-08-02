@@ -286,7 +286,10 @@ const resolveLiftPriceQuerySchema = z.object({
   containerTypeId: z.coerce.number().int().positive(),
   direction: z.enum(['LIFT_UP', 'LIFT_DOWN']),
   loadState: z.enum(['LOADED', 'EMPTY']),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
+    const parsed = new Date(`${value}T00:00:00.000Z`);
+    return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+  }, 'Ngày áp dụng không hợp lệ'),
 });
 
 router.get('/lift-pricing/resolve', asyncHandler(async (req: Request, res: Response) => {

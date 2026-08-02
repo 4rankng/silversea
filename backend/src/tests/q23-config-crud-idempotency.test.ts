@@ -24,6 +24,7 @@ const partnerIds: number[] = [];
 let actorId = 0;
 let checkerId = 0;
 let approverId = 0;
+let alternateCheckerId = 0;
 let actors: Array<{ id: number; role: Role }> = [];
 const governanceActionIds: number[] = [];
 let server: http.Server;
@@ -109,10 +110,17 @@ before(async () => {
       role: Role.MANAGER,
       status: 'ACTIVE',
     },
+    {
+      username: `q23-config-alt-checker-${suffix}`,
+      passwordHash: 'x',
+      role: Role.ACCOUNTANT,
+      status: 'ACTIVE',
+    },
   ]).returning({ id: s.users.id, role: s.users.role }) as Array<{ id: number; role: Role }>;
   actorId = actors[0]!.id;
   checkerId = actors[1]!.id;
   approverId = actors[2]!.id;
+  alternateCheckerId = actors[3]!.id;
 
   const app = express();
   app.use(express.json());
@@ -172,7 +180,7 @@ after(async () => {
   }
   await db.delete(s.cargoTypes)
     .where(eq(s.cargoTypes.name, `Q23 hook side effect ${suffix}`));
-  const actorIds = [actorId, checkerId, approverId].filter((id) => id > 0);
+  const actorIds = [actorId, checkerId, approverId, alternateCheckerId].filter((id) => id > 0);
   if (actorIds.length > 0) {
     await db.delete(s.notifications).where(inArray(s.notifications.userId, actorIds));
     await db.delete(s.governanceActions).where(or(
@@ -187,6 +195,60 @@ after(async () => {
 });
 
 describe('Q23 generated configuration CRUD replay', () => {
+  it('keeps an accountant fuel-surcharge share update pending and unchanged until independent approval', async () => {
+    const created = await api('POST', '/api/customers', {
+      name: `Q23 governed fuel customer ${suffix}`,
+      fuelSurchargeSharePct: 10,
+    }, `q23-fuel-customer-create-${suffix}`);
+    assert.equal(created.status, 201, JSON.stringify(created.body));
+    await approvePendingAction(created.body);
+
+    const [customer] = await db.select().from(s.customers)
+      .where(eq(s.customers.name, `Q23 governed fuel customer ${suffix}`));
+    assert.ok(customer);
+    customerIds.push(customer.id);
+    assert.equal(customer.fuelSurchargeSharePct, '10.00');
+
+    const pending = await api(
+      'PUT',
+      `/api/customers/${customer.id}`,
+      { fuelSurchargeSharePct: 35 },
+      `q23-fuel-customer-update-${suffix}`,
+      customer.updatedAt.toISOString(),
+      1,
+    );
+    assert.equal(pending.status, 201, JSON.stringify(pending.body));
+    assert.equal(pending.body.status, 'PENDING_CHECK');
+    governanceActionIds.push(Number(pending.body.id));
+
+    const [stillCurrent] = await db.select().from(s.customers)
+      .where(eq(s.customers.id, customer.id));
+    assert.equal(stillCurrent.fuelSurchargeSharePct, '10.00');
+
+    const checked = await api(
+      'POST',
+      `/api/governance-actions/${pending.body.id}/check`,
+      { expectedVersion: Number(pending.body.version) },
+      `q23-fuel-check-${suffix}`,
+      undefined,
+      3,
+    );
+    assert.equal(checked.status, 200, JSON.stringify(checked.body));
+    const approved = await api(
+      'POST',
+      `/api/governance-actions/${pending.body.id}/approve`,
+      { expectedVersion: Number(checked.body.version) },
+      `q23-fuel-approve-${suffix}`,
+      undefined,
+      2,
+    );
+    assert.equal(approved.status, 200, JSON.stringify(approved.body));
+
+    const [changed] = await db.select().from(s.customers)
+      .where(eq(s.customers.id, customer.id));
+    assert.equal(changed.fuelSurchargeSharePct, '35.00');
+  });
+
   it('requires an idempotency key for material generated writes', async () => {
     const response = await api('POST', '/api/routes', {
       name: `Q23 missing key ${suffix}`,

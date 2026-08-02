@@ -6,7 +6,7 @@ from helpers import *
 
 def test_fleet(ctx: NepoTestContext, results: TestResults):
     api = ApiClient()
-    api.login('admin', 'admin123')
+    api.login('admin', 'Abc123')
 
     # TC-0701: Dispatch page loads
     page = ctx.new_page()

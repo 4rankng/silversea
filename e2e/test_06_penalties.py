@@ -6,7 +6,7 @@ from helpers import *
 
 def test_penalties(ctx: NepoTestContext, results: TestResults):
     api = ApiClient()
-    api.login('admin', 'admin123')
+    api.login('admin', 'Abc123')
 
     # TC-0601: Penalties page loads
     page = ctx.new_page()
@@ -59,7 +59,7 @@ def test_penalties(ctx: NepoTestContext, results: TestResults):
 
     # TC-0605: DRIVER cannot create penalty
     api_driver = ApiClient()
-    api_driver.login('laixe', 'admin123')
+    api_driver.login('laixe', 'Abc123')
     if driver_items:
         resp = api_driver.post('/api/penalties', {
             'driverId': driver_items[0]['id'],

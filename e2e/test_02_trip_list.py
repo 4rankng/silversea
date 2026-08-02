@@ -6,7 +6,7 @@ from helpers import *
 
 def test_trip_list(ctx: NepoTestContext, results: TestResults):
     api = ApiClient()
-    api.login('admin', 'admin123')
+    api.login('admin', 'Abc123')
 
     # TC-0201: Trip list API returns data
     resp = api.get('/api/trips')
@@ -54,7 +54,7 @@ def test_trip_list(ctx: NepoTestContext, results: TestResults):
 
     # TC-0206: ACCOUNTANT can view trip list
     api_acct = ApiClient()
-    api_acct.login('ketoan', 'admin123')
+    api_acct.login('ketoan', 'Abc123')
     resp = api_acct.get('/api/trips')
     if resp.get('status') == 200:
         results.pass_('TC-0206', 'ACCOUNTANT views trip list')

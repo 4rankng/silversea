@@ -4,7 +4,7 @@ import * as s from '../db/schema';
 import { eq, and, gte, lte, isNull, inArray, desc, or, sql, like, type SQL } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { getSupplierStatement } from './statement.service';
-import { LedgerService } from './ledger.service';
+import { customerTripReceivableAmount, LedgerService } from './ledger.service';
 import {
   canonicalFreightDescription,
   BILLABLE_TRIP_STATUSES,
@@ -794,7 +794,7 @@ async function assertTripSourcesClaimable(
     ) {
       throw new ApiError(409, `Nguồn hạch toán chuyến ${trip.tripCode ?? 'chưa có mã'} đã thay đổi. Vui lòng tạo lại bản nháp.`);
     }
-    if (Number(line.baseAmount) !== Number(trip.revenue ?? 0)) {
+    if (Number(line.baseAmount) !== customerTripReceivableAmount(trip.revenue, trip.fuelSurchargeAmount)) {
       throw new ApiError(409, `Doanh thu chuyến ${trip.tripCode ?? 'chưa có mã'} không còn khớp nguồn hiện tại.`);
     }
     claims.push({
@@ -1188,6 +1188,7 @@ async function buildCustomerDebitLines(customerId: number, from: string, to: str
     departureDate: s.trips.departureDate,
     completionDate: sql<string | null>`to_char(${s.trips.completedAt} at time zone 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD')`,
     revenue: s.trips.revenue,
+    fuelSurchargeAmount: s.trips.fuelSurchargeAmount,
     routeName: s.routes.name,
     notes: s.trips.notes,
     truckPlate: s.trucks.licensePlate,
@@ -1289,7 +1290,9 @@ async function buildCustomerDebitLines(customerId: number, from: string, to: str
     renderData.sourceVersion = checksum;
     renderData.sourceChangedAt = trip.financialPostingEffectiveAt.toISOString();
     if (trip.completionDate && trip.completionDate >= from && trip.completionDate <= to) {
-      const vat = calculateVatSnapshot(Number(trip.revenue ?? 0), trip.vatRate);
+      // Revenue and surcharge are already incl-VAT; split the combined amount once.
+      const receivableAmount = customerTripReceivableAmount(trip.revenue, trip.fuelSurchargeAmount);
+      const vat = calculateVatSnapshot(receivableAmount, trip.vatRate);
       lines.push({
         sourceType: 'TRIP', sourceId: trip.id, lineType: 'FREIGHT',
         // Trip code is NOT inlined here — it has its own "Số chứng từ" column
@@ -1304,7 +1307,7 @@ async function buildCustomerDebitLines(customerId: number, from: string, to: str
         financialPostingId: trip.financialPostingId,
         financialPostingVersion: trip.financialPostingVersion,
         postingChecksum: checksum,
-        baseAmount: Number(trip.revenue ?? 0),
+        baseAmount: receivableAmount,
         amountOverride: null, excluded: false, ...vat, sortOrder: sortOrder++,
       });
     }

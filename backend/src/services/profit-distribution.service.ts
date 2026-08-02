@@ -367,6 +367,7 @@ async function computeDistributionSnapshot(
 
   const trips = await executor.select({
     id: s.trips.id,
+    tripVersion: s.trips.version,
     financialPostingId: s.tripFinancialPostings.id,
     financialPostingVersion: s.tripFinancialPostings.version,
     truckId: s.trips.truckId,
@@ -524,10 +525,12 @@ async function computeDistributionSnapshot(
     trips: trips
       .map(trip => ({
         id: trip.id,
+        tripVersion: trip.tripVersion,
         financialPostingId: trip.financialPostingId,
         financialPostingVersion: trip.financialPostingVersion,
         truckId: trip.truckId,
         grossProfit: trip.grossProfit,
+        liveGrossProfit: trip.liveGrossProfit,
         completedAt: trip.completedAt?.toISOString() ?? null,
       }))
       .sort((left, right) => left.id - right.id),

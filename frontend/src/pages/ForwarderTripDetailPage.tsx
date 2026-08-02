@@ -351,6 +351,7 @@ export default function ForwarderTripDetailPage() {
       {
         onSuccess: () => {
           const resetForm = newExpenseForm();
+          lastAppliedLiftSuggestionKey.current = null;
           setExpenseForm(resetForm);
           setExpenseFormBaseline(resetForm);
           setExpenseErrors({});
@@ -399,6 +400,7 @@ export default function ForwarderTripDetailPage() {
         setExpenseFormBaseline(f => ({ ...f, tripContainerId: selectedContainerId, containerTypeId, loadState }));
       }
       if (willOpen) setLiftAmountManuallyEdited(false);
+      if (willOpen) lastAppliedLiftSuggestionKey.current = null;
       return willOpen;
     });
   };
@@ -872,7 +874,7 @@ export default function ForwarderTripDetailPage() {
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               <button
                 className="btn btn--ghost btn--sm"
-                onClick={() => { setShowExpenseForm(false); setEditingExpenseId(null); setExpenseErrors({}); setExpenseSubmitError(null); }}
+                onClick={() => { lastAppliedLiftSuggestionKey.current = null; setShowExpenseForm(false); setEditingExpenseId(null); setExpenseErrors({}); setExpenseSubmitError(null); }}
                 disabled={createExpenseMut.isPending || updateExpenseMut.isPending}
               >
                 Hủy

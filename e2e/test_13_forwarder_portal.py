@@ -18,7 +18,7 @@ def _check_no_financial_keys(data, prefix=''):
 
 def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
     api_fwd = ApiClient()
-    api_fwd.login('giaonhan', 'admin123')
+    api_fwd.login('giaonhan', 'Abc123')
     secondary_forwarder = None
     api_secondary = None
 
@@ -97,7 +97,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
 
     # TC-1306: Non-FORWARDER calls forwarder API
     api_admin = ApiClient()
-    api_admin.login('admin', 'admin123')
+    api_admin.login('admin', 'Abc123')
     resp = api_admin.get('/api/forwarder/me/trips')
     if resp.get('status') in (401, 403, 404):
         results.pass_('TC-1306', f'ADMIN GET /api/forwarder/me/trips → {resp.get("status")}')
@@ -168,7 +168,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         created_secondary = api_admin.post('/api/auth/users', {
             'username': secondary_username,
             'fullName': 'E2E Forwarder Scope',
-            'password': 'admin123',
+            'password': 'Abc123',
             'role': 'FORWARDER',
             'status': 'ACTIVE',
             'shipmentIds': [secondary_shipment_id or shipment_id],
@@ -176,7 +176,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         if created_secondary.get('status') in (200, 201):
             secondary_forwarder = created_secondary.get('data', {})
             api_secondary = ApiClient()
-            login_secondary = api_secondary.login(secondary_username, 'admin123')
+            login_secondary = api_secondary.login(secondary_username, 'Abc123')
             if not login_secondary.get('token'):
                 results.fail('TC-1353-FIXTURE', 'Login second forwarder fixture', str(login_secondary))
                 api_secondary = None
@@ -963,7 +963,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
 
     # TC-1364: MANAGER views forwarder expenses
     api_mgr = ApiClient()
-    api_mgr.login('giamdoc', 'admin123')
+    api_mgr.login('giamdoc', 'Abc123')
     resp = api_mgr.get('/api/forwarder-expenses')
     if resp.get('status') == 200:
         results.pass_('TC-1364', 'MANAGER views forwarder expenses → 200')

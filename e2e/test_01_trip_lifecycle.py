@@ -12,7 +12,7 @@ def get_first_trip_id(api: ApiClient) -> int:
 
 def test_trips(ctx: NepoTestContext, results: TestResults):
     api = ApiClient()
-    api.login('admin', 'admin123')
+    api.login('admin', 'Abc123')
 
     # ── API: Get catalogs for creating a trip ──
     customers = api.get('/api/customers')
@@ -120,7 +120,7 @@ def test_trips(ctx: NepoTestContext, results: TestResults):
 
     # ── TC-0105: ACCOUNTANT can view trips ──
     api_acct = ApiClient()
-    api_acct.login('ketoan', 'admin123')
+    api_acct.login('ketoan', 'Abc123')
     resp = api_acct.get('/api/trips')
     if resp.get('status') == 200:
         results.pass_('TC-0105', 'ACCOUNTANT can list trips')
@@ -129,7 +129,7 @@ def test_trips(ctx: NepoTestContext, results: TestResults):
 
     # ── TC-0106: DRIVER cannot create trip via API ──
     api_driver = ApiClient()
-    api_driver.login('laixe', 'admin123')
+    api_driver.login('laixe', 'Abc123')
     resp = api_driver.post('/api/trips', trip_payload)
     if resp.get('status') in (403, 401):
         results.pass_('TC-0106', 'DRIVER cannot create trip → 403')

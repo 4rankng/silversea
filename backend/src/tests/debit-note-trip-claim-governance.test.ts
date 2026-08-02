@@ -85,6 +85,7 @@ async function createTripFixture(options: {
   departureDate: string;
   completedAt: Date;
   revenue: number;
+  fuelSurchargeAmount?: number;
   createRecoverableExpense?: boolean;
   expenseDate?: string;
 }) {
@@ -136,6 +137,7 @@ async function createTripFixture(options: {
     completedAt: options.completedAt,
     status: 'COMPLETED',
     revenue: String(options.revenue),
+    fuelSurchargeAmount: String(options.fuelSurchargeAmount ?? 0),
     carrierType: 'OWN',
   }).returning();
   tripIds.push(trip.id);
@@ -219,6 +221,29 @@ async function saveDraft(customerId: number, rangeFrom: string, rangeTo: string)
   documentIds.push(document.id!);
   return document;
 }
+
+test('stores the incl-VAT fuel surcharge in the canonical freight total without duplicating AR', async () => {
+  const { customer } = await createTripFixture({
+    tripCodePrefix: 'Q15-FUEL-AR',
+    departureDate: '2026-08-02',
+    completedAt: new Date('2026-08-02T09:00:00.000Z'),
+    revenue: 1_000_000,
+    fuelSurchargeAmount: 250_000,
+  });
+
+  const draft = await buildDraftInput(customer.id, '2026-08-01', '2026-08-31');
+  const freight = (draft.lines ?? []).find((line) => line.sourceType === 'TRIP');
+  assert.ok(freight);
+  assert.equal(freight.baseAmount, 1_250_000);
+  assert.equal(freight.grossAmount, 1_250_000);
+  assert.equal(freight.renderData?.freightAmount, 1_000_000);
+  assert.equal(freight.renderData?.fuelSurchargeAmount, 250_000);
+
+  const saved = await saveDocument(draft, actorId);
+  documentIds.push(saved.id!);
+  assert.equal(saved.totalInclVat, 1_250_000);
+  assert.equal(saved.ledgerAdjustmentAmount, 0);
+});
 
 test('allows the same trip on non-overlapping periods when July is expense-only and August is freight', async () => {
   const { customer } = await createTripFixture({

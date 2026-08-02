@@ -21,7 +21,7 @@ def test_driver_portal(ctx: NepoTestContext, results: TestResults):
     page.wait_for_timeout(1000)
     on_my_trips = '/my-trips' in page.url
     api_driver = ApiClient()
-    api_driver.login('laixe', 'admin123')
+    api_driver.login('laixe', 'Abc123')
     api_resp = api_driver.get('/api/driver/me/trips')
     api_ok = api_resp.get('status') == 200
     if on_my_trips and api_ok:
@@ -79,7 +79,7 @@ def test_driver_portal(ctx: NepoTestContext, results: TestResults):
 
     # TC-1105: Non-DRIVER calls driver API
     api_admin = ApiClient()
-    api_admin.login('admin', 'admin123')
+    api_admin.login('admin', 'Abc123')
     resp = api_admin.get('/api/driver/me/trips')
     if resp.get('status') in (403, 404):
         results.pass_('TC-1105', f'ADMIN → /api/driver/me/trips → {resp.get("status")}')

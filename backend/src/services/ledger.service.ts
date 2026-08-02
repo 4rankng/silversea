@@ -1,7 +1,7 @@
 import { db } from '../db';
 import * as s from '../db/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
-import { TxnType } from '@tingting/shared';
+import { round2dp, TxnType } from '@tingting/shared';
 import type { Tx } from './trip-shared';
 import {
   resolveCustomerPaymentDueDate,
@@ -55,6 +55,8 @@ interface TripLedgerParams {
   tripCode: string | null;
   departureDate?: string | Date;
   revenue: string | null;
+  /** Already incl-VAT, matching the existing trip revenue authority. */
+  fuelSurchargeAmount?: string | null;
   driverSalary: string | null;
   carrierType?: string;
   // O2C: polymorphic external-carrier soft pointer (external_entity_id +
@@ -74,6 +76,19 @@ interface TripLedgerParams {
     forwarderId: number | null;
     approvalStatus: string;
   }>;
+}
+
+/**
+ * Canonical customer receivable for a completed trip. Both inputs are stored
+ * as already incl-VAT amounts, so this combines them without applying VAT a
+ * second time. Keeping the surcharge under TRIP_REVENUE avoids a numeric-id
+ * collision with expense-backed SERVICE_FEE ledger entries.
+ */
+export function customerTripReceivableAmount(
+  revenue: string | number | null | undefined,
+  fuelSurchargeAmount: string | number | null | undefined,
+): number {
+  return round2dp(Number(revenue ?? 0) + Number(fuelSurchargeAmount ?? 0));
 }
 
 /**
@@ -269,6 +284,8 @@ export class LedgerService {
     opts?: { strict?: boolean; financialPostingId?: number | null },
   ): Promise<number[]> {
     const revenue = Number(trip.revenue || 0);
+    const fuelSurchargeAmount = Number(trip.fuelSurchargeAmount || 0);
+    const customerReceivable = customerTripReceivableAmount(revenue, fuelSurchargeAmount);
     const driverSalary = Number(trip.driverSalary || 0);
     const carrierType = trip.carrierType ?? 'OWN';
     const fees = trip.ancillaryFees ?? [];
@@ -327,17 +344,19 @@ export class LedgerService {
       ? await buildCarrierDueDateFields(tx, externalCarrierEntityId, basisDate)
       : null;
 
-    // ── 2. Customer freight revenue (always incl-VAT, unchanged) ──
+    // ── 2. Customer freight revenue + fuel surcharge (already incl-VAT) ──
     // Skip zero-value entries to avoid polluting ledger with meaningless rows.
-    if (revenue > 0) {
+    if (customerReceivable > 0) {
       await this.postEntry(tx, {
         txnType: TxnType.TRIP_REVENUE,
         txnId: trip.id,
         entityType: 'CUSTOMER',
         entityId: trip.customerId,
-        debit: revenue,
+        debit: customerReceivable,
         credit: 0,
-        note: label ? `Doanh thu chuyến ${label}` : 'Doanh thu chuyến',
+        note: fuelSurchargeAmount > 0
+          ? (label ? `Doanh thu và phụ phí nhiên liệu chuyến ${label}` : 'Doanh thu và phụ phí nhiên liệu chuyến')
+          : (label ? `Doanh thu chuyến ${label}` : 'Doanh thu chuyến'),
         ...dueDateFields,
         financialPostingId: opts?.financialPostingId ?? null,
       });
@@ -437,6 +456,8 @@ export class LedgerService {
     opts?: { strict?: boolean; financialPostingId?: number | null },
   ): Promise<number[]> {
     const revenue = Number(trip.revenue || 0);
+    const fuelSurchargeAmount = Number(trip.fuelSurchargeAmount || 0);
+    const customerReceivable = customerTripReceivableAmount(revenue, fuelSurchargeAmount);
     const driverSalary = Number(trip.driverSalary || 0);
     const carrierType = trip.carrierType ?? 'OWN';
     const fees = trip.ancillaryFees ?? [];
@@ -457,15 +478,17 @@ export class LedgerService {
     await this.lockEntities(tx, entitiesToLock);
 
     // ── 2. Reverse customer freight revenue (swap debit↔credit) ──
-    if (revenue > 0) {
+    if (customerReceivable > 0) {
       await this.postEntry(tx, {
         txnType: TxnType.UNLOCK_REVERSAL,
         txnId: trip.id,
         entityType: 'CUSTOMER',
         entityId: trip.customerId,
         debit: 0,
-        credit: revenue,
-        note: label ? `Doanh thu chuyến ${label} (Hoàn tác)` : 'Doanh thu chuyến (Hoàn tác)',
+        credit: customerReceivable,
+        note: fuelSurchargeAmount > 0
+          ? (label ? `Doanh thu và phụ phí nhiên liệu chuyến ${label} (Hoàn tác)` : 'Doanh thu và phụ phí nhiên liệu chuyến (Hoàn tác)')
+          : (label ? `Doanh thu chuyến ${label} (Hoàn tác)` : 'Doanh thu chuyến (Hoàn tác)'),
         financialPostingId: opts?.financialPostingId ?? null,
       });
     }

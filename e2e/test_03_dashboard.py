@@ -6,7 +6,7 @@ from helpers import *
 
 def test_dashboard(ctx: NepoTestContext, results: TestResults):
     api = ApiClient()
-    api.login('admin', 'admin123')
+    api.login('admin', 'Abc123')
 
     # TC-0301: Dashboard page loads
     page = ctx.new_page()

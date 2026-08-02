@@ -2,13 +2,13 @@ import { useEffect, useId, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Bot,
-  Cpu,
   Eye,
   EyeOff,
   Loader2,
   Mail,
   MapPin,
   Save,
+  ScanLine,
   ShieldCheck,
   Trash2,
 } from 'lucide-react';
@@ -20,6 +20,7 @@ import {
   type AppSettings,
   type LlmProvider,
   type LlmSettingsUpdate,
+  type OcrSettingsUpdate,
 } from '@tingting/shared';
 import { PageHeader, Panel, useConfirm } from '../../components/UI';
 import { formatCurrency } from '../../lib/format';
@@ -31,6 +32,7 @@ import {
 } from '../../hooks/useAppSettings';
 import { useGpsSettings, useSaveGpsSettings } from '../../hooks/useGpsSettings';
 import { useLlmSettings, useSaveLlmSettings } from '../../hooks/useLlmSettings';
+import { useOcrSettings, useSaveOcrSettings } from '../../hooks/useOcrSettings';
 import { usePageAnimations } from '../../hooks/animations';
 import { userClient } from '../../api/userClient';
 import { isGovernancePendingResponse } from '../../lib/governance';
@@ -155,6 +157,8 @@ export default function AppSettingsConfigPage() {
   const saveEmailSettings = useSaveEmailSettings();
   const llmSettings = useLlmSettings();
   const saveLlmSettings = useSaveLlmSettings();
+  const ocrSettings = useOcrSettings();
+  const saveOcrSettings = useSaveOcrSettings();
   const gpsSettings = useGpsSettings();
   const saveGpsSettings = useSaveGpsSettings();
   const { confirm, dialog: confirmDialog } = useConfirm();
@@ -175,11 +179,15 @@ export default function AppSettingsConfigPage() {
   const [provider, setProvider] = useState<LlmProvider>('minimax');
   const [minimaxKey, setMinimaxKey] = useState('');
   const [openrouterKey, setOpenrouterKey] = useState('');
+  const [ocrEnabled, setOcrEnabled] = useState(false);
+  const [ocrOpenrouterKey, setOcrOpenrouterKey] = useState('');
+  const [ocrGeminiKey, setOcrGeminiKey] = useState('');
   const [gpsUsername, setGpsUsername] = useState('');
   const [gpsPassword, setGpsPassword] = useState('');
   const [resendApiKey, setResendApiKey] = useState('');
   const [generalMessage, setGeneralMessage] = useState<string | null>(null);
   const [aiMessage, setAiMessage] = useState<string | null>(null);
+  const [ocrMessage, setOcrMessage] = useState<string | null>(null);
   const [emailMessage, setEmailMessage] = useState<string | null>(null);
   const [gpsMessage, setGpsMessage] = useState<string | null>(null);
 
@@ -194,6 +202,10 @@ export default function AppSettingsConfigPage() {
   useEffect(() => {
     if (llmSettings.data) setProvider(llmSettings.data.provider);
   }, [llmSettings.data]);
+
+  useEffect(() => {
+    if (ocrSettings.data) setOcrEnabled(ocrSettings.data.enabled);
+  }, [ocrSettings.data]);
 
   useEffect(() => {
     if (gpsSettings.data) setGpsUsername(gpsSettings.data.username);
@@ -214,9 +226,10 @@ export default function AppSettingsConfigPage() {
     }
     setGeneralMessage(null);
     const result = await saveAppSettings.mutateAsync({
-      ...features,
+      ...(appSettings.data ?? features),
       creditWarningThresholdDefault: threshold,
       creditTierOneAmountCap: parsedCap,
+      salaryPayrollBusinessUnitId: features.salaryPayrollBusinessUnitId,
     });
     if (isGovernancePendingResponse(result)) {
       setGeneralMessage('Đã gửi yêu cầu cập nhật cài đặt ứng dụng để kiểm tra và phê duyệt. Cấu hình hiện chưa thay đổi.');
@@ -225,18 +238,53 @@ export default function AppSettingsConfigPage() {
     setGeneralMessage('Đã lưu cài đặt ứng dụng.');
   };
 
-  const saveAi = async () => {
+  const saveChatbot = async () => {
     setAiMessage(null);
     const payload: LlmSettingsUpdate = { provider };
     if (minimaxKey.trim()) payload.minimaxApiKey = minimaxKey.trim();
     if (openrouterKey.trim()) payload.openrouterApiKey = openrouterKey.trim();
+    const providerChanged = llmSettings.data?.provider !== provider;
+    const credentialsChanged = !!(payload.minimaxApiKey || payload.openrouterApiKey);
+    const botToggleChanged = appSettings.data?.botEnabled !== features.botEnabled;
     try {
-      await saveLlmSettings.mutateAsync(payload);
+      // Configure the provider before enabling the launcher, so there is no
+      // window where users can open a chatbot whose selected provider has no
+      // key. Disabling takes effect first for the inverse reason.
+      if (botToggleChanged && !features.botEnabled) {
+        await saveAppSettings.mutateAsync({
+          ...(appSettings.data ?? features),
+          botEnabled: features.botEnabled,
+        });
+      }
+      if (providerChanged || credentialsChanged) {
+        await saveLlmSettings.mutateAsync(payload);
+      }
+      if (botToggleChanged && features.botEnabled) {
+        await saveAppSettings.mutateAsync({
+          ...(appSettings.data ?? features),
+          botEnabled: features.botEnabled,
+        });
+      }
       setMinimaxKey('');
       setOpenrouterKey('');
-      setAiMessage('Đã lưu cấu hình AI.');
+      setAiMessage('Đã lưu cài đặt trợ lý ảo.');
     } catch {
       setAiMessage(null);
+    }
+  };
+
+  const saveOcr = async () => {
+    setOcrMessage(null);
+    const payload: OcrSettingsUpdate = { enabled: ocrEnabled };
+    if (ocrOpenrouterKey.trim()) payload.openrouterApiKey = ocrOpenrouterKey.trim();
+    if (ocrGeminiKey.trim()) payload.geminiApiKey = ocrGeminiKey.trim();
+    try {
+      await saveOcrSettings.mutateAsync(payload);
+      setOcrOpenrouterKey('');
+      setOcrGeminiKey('');
+      setOcrMessage('Đã lưu cài đặt nhận dạng OCR.');
+    } catch {
+      setOcrMessage(null);
     }
   };
 
@@ -279,7 +327,10 @@ export default function AppSettingsConfigPage() {
       const tasks: Promise<unknown>[] = [];
       const previous = appSettings.data;
       if (previous && previous.gpsEnabled !== features.gpsEnabled) {
-        tasks.push(saveAppSettings.mutateAsync(features));
+        tasks.push(saveAppSettings.mutateAsync({
+          ...previous,
+          gpsEnabled: features.gpsEnabled,
+        }));
       }
       // Credentials are only meaningful while GPS is on. When the user has
       // also typed something into the credential fields, send them along.
@@ -307,6 +358,23 @@ export default function AppSettingsConfigPage() {
   const chosenKeyReady = provider === 'openrouter'
     ? openrouterKeySet || openrouterKey.trim() !== ''
     : minimaxKeySet || minimaxKey.trim() !== '';
+  const chatbotToggleChanged = !!appSettings.data
+    && appSettings.data.botEnabled !== features.botEnabled;
+  const chatbotProviderChanged = !!llmSettings.data && llmSettings.data.provider !== provider;
+  const chatbotCredentialsChanged = minimaxKey.trim() !== '' || openrouterKey.trim() !== '';
+  const chatbotCanSave = chatbotToggleChanged || chatbotProviderChanged || chatbotCredentialsChanged;
+  const chatbotNeedsReadyProvider = features.botEnabled || chatbotProviderChanged || chatbotCredentialsChanged;
+  const ocrOpenrouterKeySet = !!ocrSettings.data?.openrouterKeySet;
+  const ocrGeminiKeySet = !!ocrSettings.data?.geminiKeySet;
+  const ocrHasKey = ocrOpenrouterKeySet
+    || ocrGeminiKeySet
+    || ocrOpenrouterKey.trim() !== ''
+    || ocrGeminiKey.trim() !== '';
+  const ocrChanged = !!ocrSettings.data && (
+    ocrSettings.data.enabled !== ocrEnabled
+    || ocrOpenrouterKey.trim() !== ''
+    || ocrGeminiKey.trim() !== ''
+  );
   // Credentials are only required while the feature is enabled. When off, the
   // fields are disabled and the save button stays inert — no validation pressure.
   const gpsCredsRequired = features.gpsEnabled;
@@ -335,18 +403,10 @@ export default function AppSettingsConfigPage() {
 
       <div className="cfg-app-settings-stack">
         <Panel
-          title="Tính năng ứng dụng"
-          subtitle="Các thay đổi có hiệu lực cho toàn bộ người dùng sau khi lưu"
+          title="Chính sách vận hành"
+          subtitle="Các ngưỡng và phạm vi áp dụng dùng chung trên toàn hệ thống"
           action={<ShieldCheck size={18} className="cfg-panel-action-icon" />}
         >
-          <FeatureSwitch
-            icon={<Bot size={19} />}
-            label="Trợ lý ảo"
-            description="Cho phép người dùng văn phòng mở và sử dụng trợ lý ảo trong ứng dụng."
-            enabled={features.botEnabled}
-            onChange={() => updateFeature('botEnabled')}
-            disabled={appSettings.isLoading || appSettings.isError || saveAppSettings.isPending}
-          />
           <div className="cfg-section" style={{ display: 'grid', gap: 14 }}>
             <div className="field">
               <label htmlFor="credit-warning-threshold-default">Ngưỡng cảnh báo công nợ mặc định (%)</label>
@@ -462,10 +522,23 @@ export default function AppSettingsConfigPage() {
         </Panel>
 
         <Panel
-          title="Nhà cung cấp AI"
-          subtitle="Chọn mô hình và API key cho mọi cuộc hội thoại với trợ lý ảo"
-          action={<Cpu size={18} className="cfg-panel-action-icon" />}
+          title="Trợ lý ảo"
+          subtitle="Bật hoặc tắt chatbot và quản lý nhà cung cấp AI trong cùng một nơi"
+          action={<Bot size={18} className="cfg-panel-action-icon" />}
         >
+          <FeatureSwitch
+            icon={<Bot size={19} />}
+            label="Sử dụng trợ lý ảo"
+            description="Cho phép người dùng văn phòng mở và sử dụng chatbot trong ứng dụng. API key bên dưới được giữ lại khi tắt."
+            enabled={features.botEnabled}
+            onChange={() => updateFeature('botEnabled')}
+            disabled={
+              appSettings.isLoading
+              || appSettings.isError
+              || saveAppSettings.isPending
+              || saveLlmSettings.isPending
+            }
+          />
           <div className="cfg-security-note">
             <ShieldCheck size={16} aria-hidden="true" />
             <span>API key được mã hóa khi lưu. Giá trị đầy đủ không bao giờ gửi lại trình duyệt.</span>
@@ -515,11 +588,24 @@ export default function AppSettingsConfigPage() {
           <div className="cfg-form-actions">
             <button
               className="btn btn--primary"
-              disabled={!llmSettings.data || llmSettings.isError || saveLlmSettings.isPending || !chosenKeyReady}
-              onClick={saveAi}
+              disabled={
+                !llmSettings.data
+                || !appSettings.data
+                || llmSettings.isError
+                || appSettings.isError
+                || saveLlmSettings.isPending
+                || saveAppSettings.isPending
+                || !chatbotCanSave
+                || (chatbotNeedsReadyProvider && !chosenKeyReady)
+              }
+              onClick={saveChatbot}
             >
-              {saveLlmSettings.isPending ? <Loader2 size={15} className="spin" /> : <Save size={15} />}
-              {saveLlmSettings.isPending ? 'Đang lưu…' : 'Lưu cấu hình AI'}
+              {saveLlmSettings.isPending || saveAppSettings.isPending
+                ? <Loader2 size={15} className="spin" />
+                : <Save size={15} />}
+              {saveLlmSettings.isPending || saveAppSettings.isPending
+                ? 'Đang lưu…'
+                : 'Lưu cài đặt trợ lý'}
             </button>
             {aiMessage && <span className="cfg-form-success" role="status">{aiMessage}</span>}
             {saveLlmSettings.error && (
@@ -530,6 +616,81 @@ export default function AppSettingsConfigPage() {
             {llmSettings.error && (
               <span className="cfg-form-error" role="alert">
                 {llmSettings.error instanceof Error ? llmSettings.error.message : 'Không thể tải cấu hình AI.'}
+              </span>
+            )}
+          </div>
+        </Panel>
+
+        <Panel
+          title="Nhận dạng OCR"
+          subtitle="Bật hoặc tắt nhận dạng hình ảnh và quản lý API key riêng cho OCR"
+          action={<ScanLine size={18} className="cfg-panel-action-icon" />}
+        >
+          <FeatureSwitch
+            icon={<ScanLine size={19} />}
+            label="Sử dụng OCR"
+            description="Cho phép nhận dạng số container, số seal và thông tin từ ảnh. API key được giữ lại khi tắt."
+            enabled={ocrEnabled}
+            onChange={() => setOcrEnabled((current) => !current)}
+            disabled={ocrSettings.isLoading || ocrSettings.isError || saveOcrSettings.isPending}
+          />
+          <div className="cfg-security-note">
+            <ShieldCheck size={16} aria-hidden="true" />
+            <span>API key OCR được mã hóa riêng khi lưu và không dùng chung với chatbot. Giá trị đầy đủ không bao giờ gửi lại trình duyệt.</span>
+          </div>
+          <div className="cfg-credentials-grid">
+            <SecretField
+              id="ocr-openrouter-key"
+              label="OpenRouter API key cho OCR"
+              value={ocrOpenrouterKey}
+              onChange={setOcrOpenrouterKey}
+              saved={ocrOpenrouterKeySet}
+              maskedPreview={ocrSettings.data?.openrouterKeyMasked ?? ''}
+              placeholder="Nhập OpenRouter API key cho OCR"
+              disabled={ocrSettings.isLoading || ocrSettings.isError || saveOcrSettings.isPending}
+            />
+            <SecretField
+              id="ocr-gemini-key"
+              label="Gemini API key dự phòng"
+              value={ocrGeminiKey}
+              onChange={setOcrGeminiKey}
+              saved={ocrGeminiKeySet}
+              maskedPreview={ocrSettings.data?.geminiKeyMasked ?? ''}
+              placeholder="Nhập Gemini API key cho OCR"
+              disabled={ocrSettings.isLoading || ocrSettings.isError || saveOcrSettings.isPending}
+            />
+          </div>
+          <p className="cfg-field-hint cfg-ocr-provider-note">
+            OCR ưu tiên OpenRouter và tự động chuyển sang Gemini khi nhà cung cấp chính không phản hồi.
+          </p>
+          <div className="cfg-form-actions">
+            <button
+              className="btn btn--primary"
+              disabled={
+                !ocrSettings.data
+                || ocrSettings.isError
+                || saveOcrSettings.isPending
+                || !ocrChanged
+                || (ocrEnabled && !ocrHasKey)
+              }
+              onClick={saveOcr}
+            >
+              {saveOcrSettings.isPending ? <Loader2 size={15} className="spin" /> : <Save size={15} />}
+              {saveOcrSettings.isPending ? 'Đang lưu…' : 'Lưu cài đặt OCR'}
+            </button>
+            {ocrMessage && <span className="cfg-form-success" role="status">{ocrMessage}</span>}
+            {saveOcrSettings.error && (
+              <span className="cfg-form-error" role="alert">
+                {saveOcrSettings.error instanceof Error
+                  ? saveOcrSettings.error.message
+                  : 'Không thể lưu cài đặt OCR.'}
+              </span>
+            )}
+            {ocrSettings.error && (
+              <span className="cfg-form-error" role="alert">
+                {ocrSettings.error instanceof Error
+                  ? ocrSettings.error.message
+                  : 'Không thể tải cài đặt OCR.'}
               </span>
             )}
           </div>

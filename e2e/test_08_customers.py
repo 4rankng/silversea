@@ -6,7 +6,7 @@ from helpers import *
 
 def test_customers(ctx: NepoTestContext, results: TestResults):
     api = ApiClient()
-    api.login('admin', 'admin123')
+    api.login('admin', 'Abc123')
 
     # TC-0801: Customers page loads
     page = ctx.new_page()
@@ -41,7 +41,7 @@ def test_customers(ctx: NepoTestContext, results: TestResults):
 
     # TC-0804: ACCOUNTANT views customers
     api_acct = ApiClient()
-    api_acct.login('ketoan', 'admin123')
+    api_acct.login('ketoan', 'Abc123')
     resp = api_acct.get('/api/customers')
     if resp.get('status') == 200:
         results.pass_('TC-0804', 'ACCOUNTANT views customers')
@@ -50,7 +50,7 @@ def test_customers(ctx: NepoTestContext, results: TestResults):
 
     # TC-0805: DRIVER cannot access customers
     api_driver = ApiClient()
-    api_driver.login('laixe', 'admin123')
+    api_driver.login('laixe', 'Abc123')
     resp = api_driver.get('/api/customers')
     if resp.get('status') == 403:
         results.pass_('TC-0805', 'DRIVER cannot access customers → 403')

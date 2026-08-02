@@ -53,17 +53,18 @@ function sign(user: { id: number; username: string | null; role: Role | string }
 }
 
 async function createDirtyTrip() {
+  const fixtureSuffix = `${suffix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
   const [customer] = await db.insert(s.customers)
-    .values({ name: `O2C snapshot route customer ${suffix}` })
+    .values({ name: `O2C snapshot route customer ${fixtureSuffix}` })
     .returning();
   const [supplier] = await db.insert(s.suppliers)
-    .values({ name: `O2C snapshot route supplier ${suffix}` })
+    .values({ name: `O2C snapshot route supplier ${fixtureSuffix}` })
     .returning();
   const [route] = await db.insert(s.routes)
-    .values({ name: `O2C snapshot route ${suffix}` })
+    .values({ name: `O2C snapshot route ${fixtureSuffix}` })
     .returning();
   const [cargoType] = await db.insert(s.cargoTypes)
-    .values({ name: `O2C snapshot route cargo ${suffix}` })
+    .values({ name: `O2C snapshot route cargo ${fixtureSuffix}` })
     .returning();
   createdCustomerIds.push(customer.id);
   createdSupplierIds.push(supplier.id);
@@ -71,7 +72,7 @@ async function createDirtyTrip() {
   createdCargoTypeIds.push(cargoType.id);
 
   const [trip] = await db.insert(s.trips).values({
-    tripCode: `AP-ROUTE-${suffix}`.slice(0, 50),
+    tripCode: `AP-ROUTE-${fixtureSuffix}`.slice(0, 50),
     customerId: customer.id,
     routeId: route.id,
     cargoTypeId: cargoType.id,
@@ -222,5 +223,93 @@ describe('financial snapshot routes', () => {
     assert.ok(auditRow, 'recapture should be audited');
     assert.equal(auditRow?.event, 'ENTITY_UPDATED');
     assert.equal(auditRow?.statusCode, 200);
+  });
+
+  test('AP recapture rejects missing and non-completed trips with domain status codes', async () => {
+    const missingRes = await fetch(`${baseUrl}/api/finance/snapshots/ap/2147483647/recapture`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accountantToken}` },
+    });
+    assert.equal(missingRes.status, 404);
+
+    const { trip } = await createDirtyTrip();
+    await db.update(s.trips).set({ status: 'IN_TRANSIT' }).where(eq(s.trips.id, trip.id));
+    const invalidLifecycleRes = await fetch(`${baseUrl}/api/finance/snapshots/ap/${trip.id}/recapture`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accountantToken}` },
+    });
+    assert.equal(invalidLifecycleRes.status, 409);
+  });
+
+  test('lists and audited-recaptures dirty fuel-surcharge snapshots', async () => {
+    const { trip } = await createDirtyTrip();
+    await db.update(s.trips).set({
+      fuelLiters: '100',
+      fuelSurchargeSnapshotDirty: true,
+      fuelSurchargeSnapshot: {
+        currentFuelPrice: 1,
+        baseFuelPrice: 1,
+        quotaLiters: 100,
+        customerSharePct: 1,
+        customerId: trip.customerId,
+        computedAt: new Date(0).toISOString(),
+      },
+    }).where(eq(s.trips.id, trip.id));
+
+    const listRes = await fetch(`${baseUrl}/api/finance/snapshots/fuel-surcharge/dirty`, {
+      headers: { Authorization: `Bearer ${accountantToken}` },
+    });
+    assert.equal(listRes.status, 200);
+    const listData = await listRes.json() as Array<{ id: number }>;
+    assert.ok(listData.some((row) => row.id === trip.id));
+
+    const path = `/api/finance/snapshots/fuel-surcharge/${trip.id}/recapture`;
+    const recaptureRes = await fetch(`${baseUrl}${path}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accountantToken}` },
+    });
+    assert.equal(recaptureRes.status, 200);
+    const [updated] = await db.select({
+      fuelSurchargeSnapshot: s.trips.fuelSurchargeSnapshot,
+      fuelSurchargeSnapshotDirty: s.trips.fuelSurchargeSnapshotDirty,
+    }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+    assert.equal(updated?.fuelSurchargeSnapshotDirty, false);
+    assert.notEqual(updated?.fuelSurchargeSnapshot?.computedAt, new Date(0).toISOString());
+
+    const auditRow = await waitForAudit(path);
+    assert.equal(auditRow?.event, 'ENTITY_UPDATED');
+    assert.equal(auditRow?.statusCode, 200);
+  });
+
+  test('fuel-surcharge recapture rejects a changed amount and preserves the dirty snapshot', async () => {
+    const { trip } = await createDirtyTrip();
+    const historicalComputedAt = new Date(0).toISOString();
+    await db.update(s.trips).set({
+      fuelLiters: '100',
+      fuelSurchargeAmount: '999999',
+      fuelSurchargeSnapshotDirty: true,
+      fuelSurchargeSnapshot: {
+        currentFuelPrice: 1,
+        baseFuelPrice: 1,
+        quotaLiters: 100,
+        customerSharePct: 1,
+        customerId: trip.customerId,
+        computedAt: historicalComputedAt,
+      },
+    }).where(eq(s.trips.id, trip.id));
+
+    const recaptureRes = await fetch(
+      `${baseUrl}/api/finance/snapshots/fuel-surcharge/${trip.id}/recapture`,
+      { method: 'POST', headers: { Authorization: `Bearer ${accountantToken}` } },
+    );
+    assert.equal(recaptureRes.status, 409);
+    const [unchanged] = await db.select({
+      fuelSurchargeAmount: s.trips.fuelSurchargeAmount,
+      fuelSurchargeSnapshot: s.trips.fuelSurchargeSnapshot,
+      fuelSurchargeSnapshotDirty: s.trips.fuelSurchargeSnapshotDirty,
+    }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+    assert.equal(unchanged?.fuelSurchargeAmount, '999999');
+    assert.equal(unchanged?.fuelSurchargeSnapshot?.computedAt, historicalComputedAt);
+    assert.equal(unchanged?.fuelSurchargeSnapshotDirty, true);
   });
 });

@@ -6,6 +6,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   saveAppSettings: vi.fn(),
+  saveLlmSettings: vi.fn(),
+  saveOcrSettings: vi.fn(),
   saveEmail: vi.fn(),
   confirm: vi.fn(),
   emailSettings: vi.fn(),
@@ -32,6 +34,18 @@ const mocks = vi.hoisted(() => ({
         minimax: 'MiniMax-M2.7-highspeed',
         openrouter: 'deepseek/deepseek-v4-flash',
       },
+    },
+    isLoading: false,
+    isError: false,
+    error: null,
+  },
+  ocrSettings: {
+    data: {
+      enabled: true,
+      openrouterKeySet: true,
+      geminiKeySet: false,
+      openrouterKeyMasked: '••••••••ocr1',
+      geminiKeyMasked: '',
     },
     isLoading: false,
     isError: false,
@@ -84,7 +98,12 @@ vi.mock('../../hooks/useAppSettings', () => ({
 
 vi.mock('../../hooks/useLlmSettings', () => ({
   useLlmSettings: () => mocks.llmSettings,
-  useSaveLlmSettings: () => mutationResult(),
+  useSaveLlmSettings: () => mutationResult(mocks.saveLlmSettings),
+}));
+
+vi.mock('../../hooks/useOcrSettings', () => ({
+  useOcrSettings: () => mocks.ocrSettings,
+  useSaveOcrSettings: () => mutationResult(mocks.saveOcrSettings),
 }));
 
 vi.mock('../../hooks/useGpsSettings', () => ({
@@ -113,7 +132,7 @@ function renderPage() {
   );
 }
 
-describe('AppSettingsConfigPage — Resend credential', () => {
+describe('AppSettingsConfigPage', () => {
   beforeEach(() => {
     mocks.saveAppSettings.mockReset().mockResolvedValue({
       botEnabled: true,
@@ -122,6 +141,8 @@ describe('AppSettingsConfigPage — Resend credential', () => {
       creditTierOneAmountCap: 1500000,
       salaryPayrollBusinessUnitId: null,
     });
+    mocks.saveLlmSettings.mockReset().mockResolvedValue(mocks.llmSettings.data);
+    mocks.saveOcrSettings.mockReset().mockResolvedValue(mocks.ocrSettings.data);
     mocks.saveEmail.mockReset().mockResolvedValue({
       resendKeySet: true,
       resendKeyMasked: '••••••••7890',
@@ -209,5 +230,59 @@ describe('AppSettingsConfigPage — Resend credential', () => {
     expect(screen.getByRole('status').textContent).toContain(
       'Đã gửi yêu cầu cập nhật cài đặt ứng dụng để kiểm tra và phê duyệt. Cấu hình hiện chưa thay đổi.',
     );
+  });
+
+  it('groups the chatbot toggle with its provider keys and keeps OCR independent', () => {
+    renderPage();
+
+    const chatbotSection = screen.getByRole('region', { name: 'Trợ lý ảo' });
+    expect(chatbotSection.textContent).toContain('Sử dụng trợ lý ảo');
+    expect(chatbotSection.textContent).toContain('MiniMax API key');
+    expect(chatbotSection.textContent).toContain('OpenRouter API key');
+
+    const policySection = screen.getByRole('region', { name: 'Chính sách vận hành' });
+    expect(policySection.textContent).not.toContain('Sử dụng trợ lý ảo');
+
+    const ocrSection = screen.getByRole('region', { name: 'Nhận dạng OCR' });
+    expect(ocrSection.textContent).toContain('Sử dụng OCR');
+    expect(ocrSection.textContent).toContain('OpenRouter API key cho OCR');
+    expect(ocrSection.textContent).toContain('Gemini API key dự phòng');
+    expect(ocrSection.textContent).toContain('không dùng chung với chatbot');
+  });
+
+  it('saves a chatbot toggle from the same section without rewriting stored keys', async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('switch', { name: /Sử dụng trợ lý ảo/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu cài đặt trợ lý' }));
+
+    await waitFor(() => {
+      expect(mocks.saveAppSettings).toHaveBeenCalledWith({
+        botEnabled: false,
+        gpsEnabled: false,
+        creditWarningThresholdDefault: 0.8,
+        creditTierOneAmountCap: 1000000,
+        salaryPayrollBusinessUnitId: null,
+      });
+    });
+    expect(mocks.saveLlmSettings).not.toHaveBeenCalled();
+  });
+
+  it('saves the OCR toggle and replacement key through the independent OCR contract', async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('switch', { name: /Sử dụng OCR/ }));
+    fireEvent.change(screen.getByLabelText('Gemini API key dự phòng'), {
+      target: { value: '  gemini-ocr-new  ' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu cài đặt OCR' }));
+
+    await waitFor(() => {
+      expect(mocks.saveOcrSettings).toHaveBeenCalledWith({
+        enabled: false,
+        geminiApiKey: 'gemini-ocr-new',
+      });
+    });
+    expect(screen.getByRole('status').textContent).toContain('Đã lưu cài đặt nhận dạng OCR');
   });
 });

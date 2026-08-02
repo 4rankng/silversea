@@ -1,8 +1,8 @@
 """Demo accounts for visual regression testing on localhost + staging.
 
 Staging (vantai.tingting.vip) uses password `123456`; localhost uses
-`admin123`. Set VISUAL_PASSWORD env var to override, or rely on the
-default `admin123` for localhost.
+`Abc123`. Set VISUAL_PASSWORD env var to override, or rely on the
+default `Abc123` for localhost.
 
 The runner uses `khachhang` as the primary CUSTOMER account (matches
 staging) and falls back to `customer` if `khachhang` is not seeded.
@@ -14,7 +14,7 @@ import os
 # Default password for the localhost dev stack. Staging (vantai.tingting.vip)
 # uses "123456" — override at runtime by setting the VISUAL_PASSWORD env var
 # rather than editing this file, so the same code works in both environments.
-DEFAULT_PASSWORD = os.environ.get("VISUAL_PASSWORD", "admin123")
+DEFAULT_PASSWORD = os.environ.get("VISUAL_PASSWORD", "Abc123")
 
 # role_key -> identifier. The role_key doubles as the canonical RBAC role
 # name used throughout the regression docs. Every entry must authenticate as

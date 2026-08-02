@@ -206,19 +206,6 @@ export type { FifoAgingInput, AgingBuckets, OpenInvoice } from './calculations/f
 export { computeVehicleAlerts, VEHICLE_ALERT_LABELS } from './calculations/vehicleAlerts';
 export type { VehicleAlertInput } from './calculations/vehicleAlerts';
 
-// ─── Chatbot (agent) performance monitoring ────────────────────────────────
-// Plain TS interfaces + API path constants for the ADMIN aggregation API and
-// the dashboard frontend. See ./schemas/chatbot-metrics.ts.
-export type {
-  ChatbotSlaThresholds,
-  ChatbotMetricSummary,
-  ChatbotLatencyBreakdown,
-  ChatbotMetricDay,
-  ChatbotToolStat,
-  ChatbotRecentTurn,
-} from './schemas/chatbot-metrics';
-export { CHATBOT_METRICS_PATHS } from './schemas/chatbot-metrics';
-
 // ─── Admin LLM provider settings (MiniMax / OpenRouter) ─────────────────────
 // ADMIN-only settings API + frontend config page. See ./schemas/llm-settings.ts.
 export {
@@ -233,6 +220,8 @@ export type {
   LlmSettingsResponse,
   LlmSettingsUpdate,
 } from './schemas/llm-settings';
+export { OCR_SETTINGS_PATHS, ocrSettingsUpdateSchema } from './schemas/ocr-settings';
+export type { OcrSettingsResponse, OcrSettingsUpdate } from './schemas/ocr-settings';
 
 // ─── Admin Bách Khoa GPS credentials ────────────────────────────────────────
 export { GPS_SETTINGS_PATHS, gpsSettingsUpdateSchema } from './schemas/gps-settings';

@@ -9,11 +9,11 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
     run_suffix = uuid4().hex[:10]
     supplier_name = f'E2E Supplier TC1201 {run_suffix}'
     api = ApiClient()
-    api.login('admin', 'admin123')
+    api.login('admin', 'Abc123')
     checker_api = ApiClient()
-    checker_api.login('ketoan', 'admin123')
+    checker_api.login('ketoan', 'Abc123')
     approver_api = ApiClient()
-    approver_api.login('giamdoc', 'admin123')
+    approver_api.login('giamdoc', 'Abc123')
 
     def advance_governance(action):
         checked = checker_api.post(
@@ -495,7 +495,7 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
     # ══════════════════════════════════════════════════════════════════
 
     driver_api = ApiClient()
-    driver_api.login('laixe', 'admin123')
+    driver_api.login('laixe', 'Abc123')
 
     # TC-1240: DRIVER blocked from /expenses page
     page = ctx.new_page()
@@ -541,7 +541,7 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
 
     # TC-1243: ACCOUNTANT allowed
     acct_api = ApiClient()
-    acct_api.login('ketoan', 'admin123')
+    acct_api.login('ketoan', 'Abc123')
     resp = acct_api.get('/api/expenses')
     if resp.get('status') == 200:
         results.pass_('TC-1243', 'ACCOUNTANT can GET /api/expenses')
@@ -550,7 +550,7 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
 
     # TC-1244: MANAGER allowed
     mgr_api = ApiClient()
-    mgr_api.login('giamdoc', 'admin123')
+    mgr_api.login('giamdoc', 'Abc123')
     resp = mgr_api.get('/api/expenses')
     if resp.get('status') == 200:
         results.pass_('TC-1244', 'MANAGER can GET /api/expenses')

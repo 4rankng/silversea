@@ -11,7 +11,7 @@ def test_auth(ctx: NepoTestContext, results: TestResults):
     page.goto(f'{BASE_URL}/login')
     page.wait_for_load_state('networkidle')
     page.fill('input[id="username-input"], input[id="identifier"], input[placeholder*="Tên đăng nhập"]', 'giamdoc')
-    page.fill('input[type="password"]', 'admin123')
+    page.fill('input[type="password"]', 'Abc123')
     page.click('button[type="submit"], button:has-text("Đăng nhập")')
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1000)
@@ -27,7 +27,7 @@ def test_auth(ctx: NepoTestContext, results: TestResults):
     page.goto(f'{BASE_URL}/login')
     page.wait_for_load_state('networkidle')
     page.fill('input[id="username-input"], input[id="identifier"], input[placeholder*="Tên đăng nhập"]', 'laixe')
-    page.fill('input[type="password"]', 'admin123')
+    page.fill('input[type="password"]', 'Abc123')
     page.click('button[type="submit"], button:has-text("Đăng nhập")')
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1000)
@@ -42,7 +42,7 @@ def test_auth(ctx: NepoTestContext, results: TestResults):
     page.goto(f'{BASE_URL}/login')
     page.wait_for_load_state('networkidle')
     page.fill('input[id="username-input"], input[id="identifier"], input[placeholder*="Tên đăng nhập"]', 'giaonhan')
-    page.fill('input[type="password"]', 'admin123')
+    page.fill('input[type="password"]', 'Abc123')
     page.click('button[type="submit"], button:has-text("Đăng nhập")')
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1000)
@@ -108,7 +108,7 @@ def test_auth(ctx: NepoTestContext, results: TestResults):
     page = ctx.new_page()
     page.goto(f'{BASE_URL}/login')
     page.wait_for_load_state('networkidle')
-    page.fill('input[type="password"]', 'admin123')
+    page.fill('input[type="password"]', 'Abc123')
     submit = page.locator('button[type="submit"], button:has-text("Đăng nhập")').first
     # The form prevents an invalid submission by disabling its primary action
     # until both required credentials are present.
@@ -147,7 +147,7 @@ def test_auth(ctx: NepoTestContext, results: TestResults):
 
     # TC-0018: DRIVER → GET /api/trips → 403
     api_driver = ApiClient()
-    api_driver.login('laixe', 'admin123')
+    api_driver.login('laixe', 'Abc123')
     resp = api_driver.get('/api/trips')
     if resp.get('status') == 403:
         results.pass_('TC-0018', 'DRIVER → GET /api/trips → 403')
@@ -257,7 +257,7 @@ def test_auth(ctx: NepoTestContext, results: TestResults):
 
     # TC-0040: FORWARDER → GET /api/trips → 403
     api_fwd = ApiClient()
-    api_fwd.login('giaonhan', 'admin123')
+    api_fwd.login('giaonhan', 'Abc123')
     resp = api_fwd.get('/api/trips')
     if resp.get('status') == 403:
         results.pass_('TC-0040', 'FORWARDER → GET /api/trips → 403')

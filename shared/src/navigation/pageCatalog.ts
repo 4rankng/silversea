@@ -198,15 +198,6 @@ export const PAGE_CATALOG = {
     section: 'system',
     agent: { description: 'Nhật ký thao tác người dùng.' },
   },
-  chatbotMonitoring: {
-    title: 'Giám sát Chatbot',
-    path: '/chatbot-monitoring',
-    section: 'system',
-    agent: {
-      description: 'Giám sát Chatbot — hiệu năng bot: độ trễ, lỗi, công cụ, chi phí.',
-      aliases: ['chatbot monitoring', 'hieu nang bot', 'giam sat chatbot', 'bot performance'],
-    },
-  },
   customers: {
     title: 'Khách hàng',
     path: '/customers',

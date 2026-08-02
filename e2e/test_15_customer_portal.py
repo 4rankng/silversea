@@ -10,7 +10,7 @@ from helpers import *
 def _login_customer(page):
     page.goto(BASE_URL)
     page.fill('#username-input', 'customer')
-    page.fill('#password-input', 'admin123')
+    page.fill('#password-input', 'Abc123')
     page.click('button[type="submit"]')
     page.wait_for_url('**/portal/shipments', timeout=8_000)
     page.wait_for_selector('h1')
@@ -24,7 +24,7 @@ def _no_horizontal_overflow(page):
 
 def test_customer_portal(ctx: NepoTestContext, results: TestResults):
     customer_api = ApiClient()
-    login = customer_api.login('customer', 'admin123')
+    login = customer_api.login('customer', 'Abc123')
     if login.get('user', {}).get('role') == 'CUSTOMER':
         results.pass_('TC-1501', 'CUSTOMER demo account authenticates with CUSTOMER role')
     else:
@@ -43,7 +43,7 @@ def test_customer_portal(ctx: NepoTestContext, results: TestResults):
         results.fail('TC-1503', 'Operator shipment API denial', f"status={office.get('status')}")
 
     admin_api = ApiClient()
-    admin_api.login('admin', 'admin123')
+    admin_api.login('admin', 'Abc123')
     admin_shipments = admin_api.get('/api/shipments?limit=100')
     own_ids = {
         row['id'] for row in shipments.get('data', {}).get('items', [])

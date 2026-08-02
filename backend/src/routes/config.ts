@@ -173,6 +173,8 @@ const MATERIAL_CUSTOMER_CONFIG_FIELDS = new Set<keyof CustomerMutationPayload>([
   'debitNoteMode',
   'debitNoteTemplateId',
   'linkedSupplierId',
+  // This share directly changes the amount collected through customer AR.
+  'fuelSurchargeSharePct',
 ]);
 
 function hasMaterialCustomerConfigChange(data: CustomerMutationPayload): boolean {

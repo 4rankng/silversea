@@ -6,7 +6,7 @@ from helpers import *
 
 def test_debt(ctx: NepoTestContext, results: TestResults):
     api = ApiClient()
-    api.login('admin', 'admin123')
+    api.login('admin', 'Abc123')
 
     # TC-0401: Debt list page loads
     page = ctx.new_page()
@@ -53,7 +53,7 @@ def test_debt(ctx: NepoTestContext, results: TestResults):
 
     # TC-0405: DRIVER cannot access debt
     api_driver = ApiClient()
-    api_driver.login('laixe', 'admin123')
+    api_driver.login('laixe', 'Abc123')
     resp = api_driver.get('/api/ledger')
     if resp.get('status') == 403:
         results.pass_('TC-0405', 'DRIVER cannot access ledger → 403')

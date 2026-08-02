@@ -16,13 +16,13 @@ SCREENSHOT_DIR = Path(os.environ.get('NEPO_SCREENSHOTS', '/tmp/nepo-e2e'))
 SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
 
 DEMO_ACCOUNTS = {
-    'admin':     {'identifier': 'admin',    'password': 'admin123', 'role': 'ADMIN',     'home': '/dashboard'},
-    'manager':   {'identifier': 'giamdoc',  'password': 'admin123', 'role': 'MANAGER',   'home': '/dashboard'},
-    'accountant':{'identifier': 'ketoan',   'password': 'admin123', 'role': 'ACCOUNTANT', 'home': '/accounting'},
-    'clerk':     {'identifier': 'cus',      'password': 'admin123', 'role': 'CLERK',      'home': '/clerk/shipments'},
-    'driver':    {'identifier': 'laixe',    'password': 'admin123', 'role': 'DRIVER',     'home': '/my-trips'},
-    'forwarder': {'identifier': 'giaonhan', 'password': 'admin123', 'role': 'FORWARDER',  'home': '/my-forwarder-trips'},
-    'customer':  {'identifier': 'customer',  'password': 'admin123', 'role': 'CUSTOMER',   'home': '/portal/shipments'},
+    'admin':     {'identifier': 'admin',    'password': 'Abc123', 'role': 'ADMIN',     'home': '/dashboard'},
+    'manager':   {'identifier': 'giamdoc',  'password': 'Abc123', 'role': 'MANAGER',   'home': '/dashboard'},
+    'accountant':{'identifier': 'ketoan',   'password': 'Abc123', 'role': 'ACCOUNTANT', 'home': '/accounting'},
+    'clerk':     {'identifier': 'cus',      'password': 'Abc123', 'role': 'CLERK',      'home': '/clerk/shipments'},
+    'driver':    {'identifier': 'laixe',    'password': 'Abc123', 'role': 'DRIVER',     'home': '/my-trips'},
+    'forwarder': {'identifier': 'giaonhan', 'password': 'Abc123', 'role': 'FORWARDER',  'home': '/my-forwarder-trips'},
+    'customer':  {'identifier': 'customer',  'password': 'Abc123', 'role': 'CUSTOMER',   'home': '/portal/shipments'},
 }
 
 

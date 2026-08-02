@@ -918,6 +918,10 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
+.cfg-ocr-provider-note {
+  margin-top: 10px;
+}
+
 .cfg-danger-action {
   color: var(--danger);
   border-color: color-mix(in srgb, var(--danger) 42%, var(--line));

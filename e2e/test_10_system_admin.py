@@ -18,7 +18,7 @@ def version_headers(user: dict) -> dict:
 
 def test_system_admin(ctx: NepoTestContext, results: TestResults):
     api = ApiClient()
-    api.login('admin', 'admin123')
+    api.login('admin', 'Abc123')
 
     # ── Users Page Tests (TC-1001 to TC-1017) ──
 
@@ -195,7 +195,7 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
 
     # TC-1013: MANAGER can access users
     api_mgr = ApiClient()
-    api_mgr.login('giamdoc', 'admin123')
+    api_mgr.login('giamdoc', 'Abc123')
     resp = api_mgr.get('/api/auth/users')
     page = ctx.new_page()
     ctx.login_as('manager', page)
@@ -211,7 +211,7 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
 
     # TC-1014: ACCOUNTANT users access
     api_acc = ApiClient()
-    api_acc.login('ketoan', 'admin123')
+    api_acc.login('ketoan', 'Abc123')
     resp = api_acc.get('/api/auth/users')
     page = ctx.new_page()
     ctx.login_as('accountant', page)
@@ -338,7 +338,7 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
 
     # TC-1026: MANAGER view audit logs
     api_mgr = ApiClient()
-    api_mgr.login('giamdoc', 'admin123')
+    api_mgr.login('giamdoc', 'Abc123')
     resp = api_mgr.get('/api/audit-logs')
     page = ctx.new_page()
     ctx.login_as('manager', page)
@@ -353,7 +353,7 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
 
     # TC-1027: ACCOUNTANT view audit logs
     api_acc = ApiClient()
-    api_acc.login('ketoan', 'admin123')
+    api_acc.login('ketoan', 'Abc123')
     resp = api_acc.get('/api/audit-logs')
     page = ctx.new_page()
     ctx.login_as('accountant', page)

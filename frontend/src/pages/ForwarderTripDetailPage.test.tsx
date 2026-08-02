@@ -9,6 +9,7 @@ const {
   uploadMock,
   listSuppliersMock,
   resolveLiftPriceMock,
+  createExpenseMock,
   geotagSubmitMock,
   toastMock,
   renderHistory,
@@ -18,6 +19,7 @@ const {
   uploadMock: vi.fn(),
   listSuppliersMock: vi.fn(),
   resolveLiftPriceMock: vi.fn(),
+  createExpenseMock: vi.fn(),
   geotagSubmitMock: vi.fn(),
   toastMock: vi.fn(),
   renderHistory: [] as Array<number | null>,
@@ -76,7 +78,7 @@ vi.mock('../hooks/useQueries', () => ({
     error: null,
   }),
   useCreateForwarderContainer: () => ({ mutate: vi.fn(), isPending: false }),
-  useCreateForwarderExpense: () => ({ mutate: vi.fn(), isPending: false }),
+  useCreateForwarderExpense: () => ({ mutate: createExpenseMock, isPending: false }),
   useDeleteForwarderExpense: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
@@ -179,6 +181,7 @@ describe('ForwarderTripDetailPage photo upload geolocation recovery', () => {
     uploadMock.mockReset();
     listSuppliersMock.mockReset();
     resolveLiftPriceMock.mockReset();
+    createExpenseMock.mockReset();
     geotagSubmitMock.mockReset();
     toastMock.mockReset();
     renderHistory.splice(0, renderHistory.length);
@@ -189,6 +192,7 @@ describe('ForwarderTripDetailPage photo upload geolocation recovery', () => {
       effectiveDate: '2026-07-01',
       source: 'MATRIX',
     });
+    createExpenseMock.mockImplementation((_payload, options) => options?.onSuccess?.());
     apiGetMock.mockResolvedValue({ items: [] });
   });
 
@@ -207,6 +211,22 @@ describe('ForwarderTripDetailPage photo upload geolocation recovery', () => {
     }));
     await waitFor(() => expect((screen.getAllByPlaceholderText('0')[0] as HTMLInputElement).value).toBe('950000'));
     expect(screen.getByText(/Gợi ý 950.000 VNĐ/)).toBeTruthy();
+  });
+
+  it('reapplies the same matrix suggestion for a consecutive expense entry', async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm' }));
+    fireEvent.change(screen.getByDisplayValue('— Chọn cảng —'), { target: { value: '7' } });
+    await waitFor(() => expect((screen.getAllByPlaceholderText('0')[0] as HTMLInputElement).value).toBe('950000'));
+    fireEvent.change(screen.getByPlaceholderText('Số hóa đơn'), { target: { value: 'HD-001' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu chi phí' }));
+    await waitFor(() => expect(createExpenseMock).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm' }));
+    fireEvent.change(screen.getByDisplayValue('— Chọn cảng —'), { target: { value: '7' } });
+
+    await waitFor(() => expect((screen.getAllByPlaceholderText('0')[0] as HTMLInputElement).value).toBe('950000'));
   });
 
   it.each([

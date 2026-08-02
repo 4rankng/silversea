@@ -366,6 +366,13 @@ export const qk = {
     detail: ['llmSettings', 'detail'] as const,
   },
 
+  /* ── Admin OCR settings (runtime toggle + provider keys) ────────────── */
+
+  ocrSettings: {
+    all: ['ocrSettings'] as const,
+    detail: ['ocrSettings', 'detail'] as const,
+  },
+
   appSettings: {
     general: ['app-settings'] as const,
     email: ['email-settings'] as const,

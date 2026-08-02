@@ -8,7 +8,7 @@ import {
 } from '@tingting/shared';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
-import { LedgerService } from './ledger.service';
+import { customerTripReceivableAmount, LedgerService } from './ledger.service';
 import type { Tx } from './trip-shared';
 import {
   assertDraftDocumentLinesEditable,
@@ -74,6 +74,7 @@ async function buildTripDraftLineTx(tx: Tx, tripId: number): Promise<{
     departureDate: s.trips.departureDate,
     completionDate: sql<string | null>`to_char(${s.trips.completedAt}, 'YYYY-MM-DD')`,
     revenue: s.trips.revenue,
+    fuelSurchargeAmount: s.trips.fuelSurchargeAmount,
     routeName: s.routes.name,
     notes: s.trips.notes,
     truckPlate: s.trucks.licensePlate,
@@ -100,7 +101,7 @@ async function buildTripDraftLineTx(tx: Tx, tripId: number): Promise<{
     !trip
     || typeof trip.status !== 'string'
     || !isBillableTripStatus(trip.status)
-    || Number(trip.revenue ?? 0) <= 0
+    || customerTripReceivableAmount(trip.revenue, trip.fuelSurchargeAmount) <= 0
   ) {
     return null;
   }
@@ -144,7 +145,7 @@ async function buildTripDraftLineTx(tx: Tx, tripId: number): Promise<{
       routeName: trip.routeName ?? null,
       containerNumbers: containerNumbers(containerInfo),
       renderData,
-      baseAmount: Number(trip.revenue ?? 0),
+      baseAmount: customerTripReceivableAmount(trip.revenue, trip.fuelSurchargeAmount),
       amountOverride: null,
       excluded: false,
       sortOrder: 0,

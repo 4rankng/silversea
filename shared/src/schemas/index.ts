@@ -16,10 +16,6 @@ import {
 // from the entity-CRUD schemas below. See ./agent.ts for the design notes.
 export * from './agent';
 
-// Chatbot (agent) performance monitoring — plain TS interfaces + API path
-// constants consumed by the ADMIN aggregation API and the dashboard frontend.
-export * from './chatbot-metrics';
-
 // Admin LLM provider settings (MiniMax / OpenRouter selection + API keys).
 // Zod update schema + response interface; used by the ADMIN-only settings route
 // and the frontend config page.

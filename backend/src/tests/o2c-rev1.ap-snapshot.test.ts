@@ -224,14 +224,37 @@ describe('O2C rev1 Phase 4 — AP snapshot dirtying', () => {
     assert.equal(recaptured?.apSnapshotDirty, false);
   });
 
-  test('AP capture failure degrades to dirty queue without rolling back completion', async () => {
+  test('changing the fuel supplier identity dirties AP even when the amount is unchanged', async () => {
+    const { trip, supplier } = await createTripFixture();
+    await db.update(s.trips).set({
+      fuelSupplierId: supplier.id,
+      totalFuelCost: '500000',
+    }).where(eq(s.trips.id, trip.id));
+    await completeTripGoverned(trip.id, trip.version);
+
+    const [replacementSupplier] = await db.insert(s.suppliers)
+      .values({ name: `O2C AP replacement fuel supplier ${Date.now()}` })
+      .returning();
+    createdSupplierIds.push(replacementSupplier.id);
+    await db.transaction(async (tx) => {
+      await tx.update(s.trips).set({ fuelSupplierId: replacementSupplier.id })
+        .where(eq(s.trips.id, trip.id));
+      await ApSnapshotService.markDirty(trip.id, tx);
+    });
+
+    const [updated] = await db.select({ apSnapshotDirty: s.trips.apSnapshotDirty })
+      .from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+    assert.equal(updated?.apSnapshotDirty, true);
+  });
+
+  test('a real PostgreSQL statement failure during AP capture degrades without aborting completion', async () => {
     const { trip } = await createTripFixture();
     const originalCapture = ApSnapshotService.captureSnapshot;
     ApSnapshotService.captureSnapshot = (async (
       _tripId: number,
-      _tx: Parameters<typeof originalCapture>[1],
+      tx: Parameters<typeof originalCapture>[1],
     ) => {
-      throw new Error('forced ap snapshot failure');
+      await tx.execute(sql`SELECT 1 / 0`);
     }) as typeof ApSnapshotService.captureSnapshot;
 
     try {

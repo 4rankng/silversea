@@ -14,6 +14,7 @@ import { lockTripFinancialAuthority } from './trip-financial-authority-lock.serv
 import { propagateTripFinancialSourceChange } from './source-change.service';
 import { createFinancialPosting, getActiveFinancialPosting } from './financial-posting.service';
 import { captureProfitabilityAttributionSnapshot } from './profitability.service';
+import { SnapshotServices } from './snapshot-services';
 
 // Postgres unique-violation detector — 23505 is the SQLSTATE for any unique
 // constraint violation. Drizzle wraps the underlying postgres-js error, so the
@@ -1026,11 +1027,24 @@ export async function updateTripFigures(
     };
 
     const totals = computeTripTotals(totalsInput);
-    const fuelSurcharge = await resolveFuelSurcharge({
-      customerId: data.customerId ?? trip.customerId,
-      fuelLiters: totals.totalFuelLiters,
-      date: new Date(`${data.departureDate ?? trip.departureDate}T00:00:00.000Z`),
-    });
+    // A completed trip's surcharge is an accounting snapshot. Ordinary governed
+    // edits may change litres/customer, but must leave the historical amount and
+    // provenance untouched; the dedicated audited recapture flow is the only
+    // operation that re-resolves live fuel/customer configuration.
+    const fuelSurcharge = tripStatus === TripStatus.COMPLETED
+      ? {
+          amount: Number(trip.fuelSurchargeAmount ?? 0),
+          snapshot: trip.fuelSurchargeSnapshot,
+          dirty: trip.fuelSurchargeSnapshotDirty,
+        }
+      : {
+          ...(await resolveFuelSurcharge({
+            customerId: data.customerId ?? trip.customerId,
+            fuelLiters: totals.totalFuelLiters,
+            date: new Date(`${data.departureDate ?? trip.departureDate}T00:00:00.000Z`),
+          })),
+          dirty: false,
+        };
 
     // B3 / D4: pin the fuel component of committed legacy trips to stored
     // totals. computeTripTotals ran with the 0 sentinel price for these trips
@@ -1086,7 +1100,7 @@ export async function updateTripFigures(
       totalFuelCost: String(totals.totalFuelCost),
       fuelSurchargeAmount: String(fuelSurcharge.amount),
       fuelSurchargeSnapshot: fuelSurcharge.snapshot as unknown as Record<string, unknown>,
-      fuelSurchargeSnapshotDirty: false,
+      fuelSurchargeSnapshotDirty: fuelSurcharge.dirty,
       totalRoadAllowance: String(totals.totalRoadAllowance),
       tollCost: String(totals.tollCost),
       ...(data.completedAt ? { completedAt: new Date(data.completedAt) } : {}),
@@ -1152,6 +1166,7 @@ export async function updateTripFigures(
         externalFreightCost: trip.externalFreightCost ?? null,
         fuelSupplierId: trip.fuelSupplierId ?? null,
         totalFuelCost: trip.totalFuelCost,
+        fuelSurchargeAmount: trip.fuelSurchargeAmount,
         ancillaryFees: mappedLedgerFees,
       }, { strict: false, financialPostingId: previousPosting.id });
 
@@ -1175,9 +1190,14 @@ export async function updateTripFigures(
         externalFreightCost: updated.externalFreightCost ?? null,
         fuelSupplierId: updated.fuelSupplierId ?? null,
         totalFuelCost: updated.totalFuelCost,
+        fuelSurchargeAmount: updated.fuelSurchargeAmount,
         ancillaryFees: mappedLedgerFees,
       }, { strict: false, financialPostingId: newPosting.id });
       await captureProfitabilityAttributionSnapshot(tx, updated.id, newPosting.id);
+      // Hash the exact reposted authority in this transaction. If another
+      // financial writer wins later it will serialize on the same trip lock and
+      // dirty these snapshots again, so no dirty signal can be lost.
+      await SnapshotServices.markBothDirty(updated.id, tx);
     }
 
     // 7. Persist physical leg segments

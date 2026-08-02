@@ -1,13 +1,14 @@
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { eq, inArray, isNull } from 'drizzle-orm';
-import { FuelMode, LoadingType } from '@tingting/shared';
+import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { FuelMode, LoadingType, TxnType } from '@tingting/shared';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
 import { updateTripFigures } from '../services/trip-mutations.service';
-import { buildTripRenderData } from '../services/billingDocument.service';
+import { buildTripRenderData, documentLedgerAdjustment } from '../services/billingDocument.service';
 import { resolveFuelSurcharge } from '../services/pricing.service';
+import { customerTripReceivableAmount, LedgerService } from '../services/ledger.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdCustomerIds: number[] = [];
@@ -81,6 +82,7 @@ before(async () => {
 
 after(async () => {
   if (createdTripIds.length > 0) {
+    await db.delete(s.ledger).where(inArray(s.ledger.txnId, createdTripIds));
     await db.delete(s.tripLegs).where(inArray(s.tripLegs.tripId, createdTripIds));
     await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
   }
@@ -188,5 +190,70 @@ describe('Phase 3 fuel surcharge', () => {
       note: updated.notes,
     });
     assert.equal(renderData.fuelSurchargeAmount, 250000);
+  });
+
+  test('customer AR, debit-note authority, and reversal reconcile revenue plus incl-VAT surcharge exactly', async () => {
+    const customer = await mkCustomer();
+    const route = await mkRoute();
+    const trip = await mkTrip(customer.id, route.id);
+    const revenue = '1000000';
+    const fuelSurchargeAmount = '250000';
+    const receivable = customerTripReceivableAmount(revenue, fuelSurchargeAmount);
+    assert.equal(receivable, 1_250_000);
+
+    await db.transaction(async (tx) => {
+      const ledgerTrip = {
+        id: trip.id,
+        customerId: customer.id,
+        driverId: null,
+        tripCode: `FUEL-AR-${trip.id}`,
+        departureDate: '2026-08-02',
+        revenue,
+        fuelSurchargeAmount,
+        driverSalary: '0',
+        carrierType: 'OWN',
+        ancillaryFees: [],
+      };
+      await LedgerService.postTripCompletion(tx, ledgerTrip);
+      await LedgerService.postTripCompletionReverse(tx, ledgerTrip);
+    });
+
+    const rows = await db.select({
+      txnType: s.ledger.txnType,
+      debit: s.ledger.debit,
+      credit: s.ledger.credit,
+    }).from(s.ledger).where(and(
+      eq(s.ledger.txnId, trip.id),
+      eq(s.ledger.entityType, 'CUSTOMER'),
+      eq(s.ledger.entityId, customer.id),
+    ));
+    assert.deepEqual(rows.map((row) => ({
+      txnType: row.txnType,
+      debit: Number(row.debit),
+      credit: Number(row.credit),
+    })), [
+      { txnType: TxnType.TRIP_REVENUE, debit: 1_250_000, credit: 0 },
+      { txnType: TxnType.UNLOCK_REVERSAL, debit: 0, credit: 1_250_000 },
+    ]);
+
+    // The source-backed freight line is already represented in trip-lock AR,
+    // so a stored debit note contributes no duplicate ledger adjustment.
+    const canonicalLine = {
+      sourceType: 'TRIP' as const,
+      sourceId: trip.id,
+      lineType: 'FREIGHT' as const,
+      typeLabel: 'Doanh thu',
+      unit: 'chuyến',
+      description: 'Cước vận chuyển và phụ phí nhiên liệu',
+      routeName: null,
+      containerNumbers: null,
+      renderData: { fuelSurchargeAmount: 250000 },
+      baseAmount: receivable,
+      amountOverride: null,
+      excluded: false,
+      sortOrder: 0,
+    };
+    assert.equal(documentLedgerAdjustment([canonicalLine]), 0);
+    assert.equal(documentLedgerAdjustment([{ ...canonicalLine, amountOverride: 1_300_000 }]), 50_000);
   });
 });

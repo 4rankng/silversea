@@ -6,7 +6,7 @@ from helpers import *
 
 def test_config(ctx: NepoTestContext, results: TestResults):
     api = ApiClient()
-    api.login('admin', 'admin123')
+    api.login('admin', 'Abc123')
 
     # TC-0901: Config hub page loads
     page = ctx.new_page()
@@ -106,7 +106,7 @@ def test_config(ctx: NepoTestContext, results: TestResults):
 
     # TC-0912: DRIVER cannot access config
     api_driver = ApiClient()
-    api_driver.login('laixe', 'admin123')
+    api_driver.login('laixe', 'Abc123')
     resp = api_driver.get('/api/routes')
     if resp.get('status') == 403:
         results.pass_('TC-0912', 'DRIVER cannot access config APIs → 403')
