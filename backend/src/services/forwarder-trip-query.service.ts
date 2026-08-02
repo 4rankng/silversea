@@ -100,7 +100,7 @@ export async function assertForwarderMutableTripScope(
   if (
     trip.tripStatus === 'COMPLETED'
     || trip.tripStatus === 'CANCELED'
-    || (trip.shipmentStatus !== 'DRAFT' && trip.shipmentStatus !== 'IN_PROGRESS')
+    || (trip.shipmentStatus === 'COMPLETED' || trip.shipmentStatus === 'CANCELED')
   ) {
     throw new ApiError(409, 'Không thể cập nhật chuyến hoặc lô hàng đã kết thúc');
   }

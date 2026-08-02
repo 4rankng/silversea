@@ -108,7 +108,7 @@ export function AccountingOverview({
           <span className="accounting-workflow__body">
             <strong>Đối chiếu vận tải</strong>
             <span>
-              Kiểm tra chuyến đã khóa, e-POD và nguồn tài chính trước khi lập
+              Kiểm tra chuyến đã hoàn thành, e-POD và nguồn tài chính trước khi lập
               chứng từ.
             </span>
           </span>

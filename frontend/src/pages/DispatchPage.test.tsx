@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   queue: vi.fn(),
   fleet: vi.fn(),
+  fleetResource: vi.fn(),
   inbox: vi.fn(),
   resolve: vi.fn(),
   issue: vi.fn(),
@@ -14,6 +15,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../api/dispatchPlanningClient', () => ({
   listDispatchQueue: mocks.queue,
   getDispatchFleet: mocks.fleet,
+  listDispatchFleetResources: mocks.fleetResource,
   listDispatchHandoffs: mocks.inbox,
   resolveDispatchHandoff: mocks.resolve,
   issueDispatchOrder: mocks.issue,
@@ -176,28 +178,42 @@ function makeBaseHandoff(): DispatchHandoffItem {
 
 function makeFleet() {
   return {
-    trucks: [{
-      id: 60,
-      licensePlate: '51D-12345',
-      status: 'ACTIVE',
-      trailerType: '40FT',
-      currentTrailerId: 70,
-      currentTrailerPlate: '51R-12345',
-      capacityKg: '30000',
-      assignedDriverId: 80,
-      assignedDriverName: 'Nguyễn Văn A',
-    }],
-    drivers: [{
-      id: 80,
-      name: 'Nguyễn Văn A',
-      phone: '0901',
-      status: 'ACTIVE',
-      assignedTruckId: 60,
-      assignedTruckPlate: '51D-12345',
-      userId: 90,
-    }],
-    externalCarriers: [{ id: 81, name: 'Nhà xe A' }],
-    page: { limit: 100, totalTrucks: 1, totalDrivers: 1, totalExternalCarriers: 1 },
+    trucks: {
+      items: [{
+        id: 60,
+        licensePlate: '51D-12345',
+        status: 'ACTIVE',
+        trailerType: '40FT',
+        currentTrailerId: 70,
+        currentTrailerPlate: '51R-12345',
+        capacityKg: '30000',
+        assignedDriverId: 80,
+        assignedDriverName: 'Nguyễn Văn A',
+      }],
+      total: 1,
+      limit: 100,
+      nextCursor: null,
+    },
+    drivers: {
+      items: [{
+        id: 80,
+        name: 'Nguyễn Văn A',
+        phone: '0901',
+        status: 'ACTIVE',
+        assignedTruckId: 60,
+        assignedTruckPlate: '51D-12345',
+        userId: 90,
+      }],
+      total: 1,
+      limit: 100,
+      nextCursor: null,
+    },
+    externalCarriers: {
+      items: [{ id: 81, name: 'Nhà xe A' }],
+      total: 1,
+      limit: 100,
+      nextCursor: null,
+    },
   };
 }
 
@@ -223,13 +239,14 @@ describe('DispatchPage fulfillment workbench', () => {
     Object.values(mocks).forEach((mock) => mock.mockReset());
     mocks.queue.mockResolvedValue({
       items: [makeTask()],
-      page: { limit: 50, nextCursor: null, total: 1, readyCount: 1, dispatchedCount: 0 },
+      limit: 50, nextCursor: null, total: 1, readyCount: 1, dispatchedCount: 0,
     });
     mocks.inbox.mockResolvedValue({
       items: [makeHandoff()],
-      page: { limit: 50, nextCursor: null, total: 1, unseenCount: 1, seenCount: 0 },
+      limit: 50, nextCursor: null, total: 1, unseenCount: 1, seenCount: 0,
     });
     mocks.fleet.mockResolvedValue(makeFleet());
+    mocks.fleetResource.mockResolvedValue({ items: [], total: 0, limit: 25, nextCursor: null });
     mocks.resolve.mockResolvedValue({ handoff: { id: 40, status: 'ACCEPTED', version: 2 }, fulfillments: [] });
     mocks.issue.mockResolvedValue({
       fulfillmentId: 10,
@@ -274,16 +291,19 @@ describe('DispatchPage fulfillment workbench', () => {
     const fleet = makeFleet();
     mocks.fleet.mockResolvedValue({
       ...fleet,
-      trucks: [
+      trucks: {
         ...fleet.trucks,
-        {
-          ...fleet.trucks[0],
-          id: 61,
-          licensePlate: '51D-54321',
-          status: 'MAINTENANCE',
-        },
-      ],
-      page: { limit: 100, totalTrucks: 137, totalDrivers: 129, totalExternalCarriers: 4 },
+        items: [
+          ...fleet.trucks.items,
+          {
+            ...fleet.trucks.items[0],
+            id: 61,
+            licensePlate: '51D-54321',
+            status: 'MAINTENANCE',
+          },
+        ],
+        total: 137,
+      },
     });
 
     render(<DispatchPage />);
@@ -297,7 +317,7 @@ describe('DispatchPage fulfillment workbench', () => {
   it('keeps resources beyond the first 100 available for assignment', async () => {
     const fleet = makeFleet();
     const trucks = Array.from({ length: 100 }, (_, index) => ({
-      ...fleet.trucks[0],
+      ...fleet.trucks.items[0],
       id: 1_000 + index,
       licensePlate: `51D-${String(index).padStart(5, '0')}`,
       currentTrailerId: null,
@@ -305,25 +325,22 @@ describe('DispatchPage fulfillment workbench', () => {
     }));
     const initialFleet = {
       ...fleet,
-      trucks,
-      page: { ...fleet.page, totalTrucks: 101 },
+      trucks: { items: trucks, total: 101, limit: 100, nextCursor: 'truck-page-2' },
     };
     const remoteTruck = {
-      ...fleet.trucks[0],
+      ...fleet.trucks.items[0],
       id: 9_999,
       licensePlate: '99Z-REACHABLE',
       currentTrailerId: null,
       currentTrailerPlate: null,
     };
-    mocks.fleet
-      .mockResolvedValueOnce(initialFleet)
-      .mockResolvedValueOnce({
-        ...initialFleet,
-        trucks: [remoteTruck],
-        drivers: [],
-        externalCarriers: [],
-        page: { ...initialFleet.page, totalTrucks: 1, totalDrivers: 0, totalExternalCarriers: 0 },
-      });
+    mocks.fleet.mockResolvedValueOnce(initialFleet);
+    mocks.fleetResource.mockResolvedValueOnce({
+      items: [remoteTruck],
+      total: 1,
+      limit: 25,
+      nextCursor: null,
+    });
 
     render(<DispatchPage />);
     await screen.findByRole('tab', { name: 'Đội xe (101)' });
@@ -333,21 +350,74 @@ describe('DispatchPage fulfillment workbench', () => {
     });
 
     expect(await screen.findByRole('option', { name: '99Z-REACHABLE' }, { timeout: 1_000 })).toBeTruthy();
+    expect(mocks.fleetResource).toHaveBeenCalledWith('TRUCK', { q: '99Z-REACHABLE', limit: 25 });
     fireEvent.click(screen.getByRole('option', { name: '99Z-REACHABLE' }));
     expect(fieldTriggerFor('Biển số xe').textContent).toContain('99Z-REACHABLE');
+  });
+
+  it('traverses the fleet cursor instead of treating the first page limit as the fleet size', async () => {
+    const fleet = makeFleet();
+    mocks.fleet.mockResolvedValueOnce({
+      ...fleet,
+      trucks: { ...fleet.trucks, total: 2, nextCursor: 'truck-page-2' },
+    });
+    mocks.fleetResource.mockResolvedValueOnce({
+      items: [{ ...fleet.trucks.items[0], id: 61, licensePlate: '51D-67890' }],
+      total: 2,
+      limit: 100,
+      nextCursor: null,
+    });
+
+    render(<DispatchPage />);
+    expect(await screen.findByText('1/2 đã tải · 1 sẵn sàng')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Tải thêm xe' }));
+
+    expect(await screen.findByText('51D-67890')).toBeTruthy();
+    expect(screen.getByText('2/2 đã tải · 2 sẵn sàng')).toBeTruthy();
+    expect(mocks.fleetResource).toHaveBeenCalledWith('TRUCK', {
+      cursor: 'truck-page-2',
+      limit: 100,
+      q: undefined,
+    });
+    expect(screen.queryByRole('button', { name: 'Tải thêm xe' })).toBeNull();
+  });
+
+  it('uses independent server searches for drivers and external carriers', async () => {
+    render(<DispatchPage />);
+    await screen.findByRole('tab', { name: 'Đội xe (1)' });
+
+    fireEvent.click(fieldTriggerFor('Lái xe'));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Tìm tên lái xe' }), {
+      target: { value: 'Tài xế ngoài trang' },
+    });
+    await waitFor(() => expect(mocks.fleetResource).toHaveBeenCalledWith('DRIVER', {
+      q: 'Tài xế ngoài trang',
+      limit: 25,
+    }));
+
+    fireEvent.click(fieldTriggerFor('Lái xe'));
+    await choose('Hình thức nhà xe', 'Nhà xe đối tác');
+    fireEvent.click(fieldTriggerFor('Nhà xe'));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Tìm tên nhà xe' }), {
+      target: { value: 'Đối tác ngoài trang' },
+    });
+    await waitFor(() => expect(mocks.fleetResource).toHaveBeenCalledWith('EXTERNAL_CARRIER', {
+      q: 'Đối tác ngoài trang',
+      limit: 25,
+    }));
   });
 
   it('auto-derives planned end time from route duration and submits without explicit confirmation', async () => {
     mocks.inbox.mockResolvedValue({
       items: [],
-      page: { limit: 50, nextCursor: null, total: 0, unseenCount: 0, seenCount: 0 },
+      limit: 50, nextCursor: null, total: 0, unseenCount: 0, seenCount: 0,
     });
     mocks.queue.mockResolvedValue({
       items: [makeTask({
         route: { id: 2, name: 'Cát Lái — Sóng Thần', distanceKm: 35, serviceDurationMinutes: 240 },
         dispatch: null,
       })],
-      page: { limit: 50, nextCursor: null, total: 1, readyCount: 1, dispatchedCount: 0 },
+      limit: 50, nextCursor: null, total: 1, readyCount: 1, dispatchedCount: 0,
     });
 
     render(<DispatchPage />);
@@ -403,16 +473,16 @@ describe('DispatchPage fulfillment workbench', () => {
     }));
     mocks.inbox.mockResolvedValue({
       items: [],
-      page: { limit: 50, nextCursor: null, total: 0, unseenCount: 0, seenCount: 0 },
+      limit: 50, nextCursor: null, total: 0, unseenCount: 0, seenCount: 0,
     });
     mocks.queue
       .mockResolvedValueOnce({
         items: pageOneItems,
-        page: { limit: 50, nextCursor: 'queue-page-2', total: 51, readyCount: 50, dispatchedCount: 1 },
+        limit: 50, nextCursor: 'queue-page-2', total: 51, readyCount: 50, dispatchedCount: 1,
       })
       .mockResolvedValueOnce({
         items: [makeTask({ fulfillmentId: 9_999, unitSummary: { label: 'TASK-51' }, dispatch: null })],
-        page: { limit: 50, nextCursor: null, total: 51, readyCount: 50, dispatchedCount: 1 },
+        limit: 50, nextCursor: null, total: 51, readyCount: 50, dispatchedCount: 1,
       });
 
     render(<DispatchPage />);
@@ -429,12 +499,12 @@ describe('DispatchPage fulfillment workbench', () => {
   });
 
   it('ignores stale responses when a newer search request finishes first', async () => {
-    const slowInbox = deferred<{ items: ReturnType<typeof makeHandoff>[]; page: { limit: number; nextCursor: string | null; total: number; unseenCount: number; seenCount: number } }>();
+    const slowInbox = deferred<{ items: ReturnType<typeof makeHandoff>[]; limit: number; nextCursor: string | null; total: number; unseenCount: number; seenCount: number }>();
     mocks.inbox.mockImplementation(({ q }: { q?: string }) => {
       if (q === 'fresh') {
         return Promise.resolve({
           items: [],
-          page: { limit: 50, nextCursor: null, total: 0, unseenCount: 0, seenCount: 0 },
+          limit: 50, nextCursor: null, total: 0, unseenCount: 0, seenCount: 0,
         });
       }
       return slowInbox.promise;
@@ -446,7 +516,7 @@ describe('DispatchPage fulfillment workbench', () => {
         customer: { id: 1, name: q === 'fresh' ? 'Khách mới' : 'Khách cũ' },
         dispatch: null,
       })],
-      page: { limit: 50, nextCursor: null, total: 1, readyCount: 1, dispatchedCount: 0 },
+      limit: 50, nextCursor: null, total: 1, readyCount: 1, dispatchedCount: 0,
     }));
     mocks.fleet.mockResolvedValue(makeFleet());
 
@@ -459,7 +529,7 @@ describe('DispatchPage fulfillment workbench', () => {
     await act(async () => {
       slowInbox.resolve({
         items: [],
-        page: { limit: 50, nextCursor: null, total: 0, unseenCount: 0, seenCount: 0 },
+        limit: 50, nextCursor: null, total: 0, unseenCount: 0, seenCount: 0,
       });
       await slowInbox.promise;
     });

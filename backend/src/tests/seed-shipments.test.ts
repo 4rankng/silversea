@@ -4,7 +4,7 @@
  * Verifies the seed block exported from `seed.ts`:
  *   - Creates the CUSTOMER demo user.
  *   - Creates the 2 stable sample customers (or finds them by taxCode).
- *   - Creates the 3 sample shipments across DRAFT / IN_PROGRESS / DELIVERED.
+ *   - Creates the 3 sample shipments across NEW / DISPATCHED / PENDING_EXPENSE_APPROVAL.
  *   - Attaches the expected children to the seeded shipments (containers,
  *     documents, declarations, status-history rows).
  *   - IDEMPOTENCY: running the seed twice produces the same row counts —
@@ -128,7 +128,7 @@ describe('seedShipments — Wave 0 shipment + CUSTOMER seed', () => {
     assert.ok(u.customerId, 'CUSTOMER demo user is linked to an AR customer for portal row scope');
   });
 
-  test('creates 3 sample shipments across DRAFT / IN_PROGRESS / DELIVERED', async () => {
+  test('creates 3 sample shipments across NEW / DISPATCHED / PENDING_EXPENSE_APPROVAL', async () => {
     const shipments = await findSeedShipments();
     assert.equal(shipments.length, 3, 'exactly 3 SEED-SHIP-* shipments');
 
@@ -142,9 +142,9 @@ describe('seedShipments — Wave 0 shipment + CUSTOMER seed', () => {
       .from(s.shipments)
       .where(inArray(s.shipments.bookingRef, SENTINEL_BOOKING_REFS));
     const statusByRef = new Map(rows.map((r) => [r.bookingRef, r.status]));
-    assert.equal(statusByRef.get('SEED-SHIP-1'), 'DRAFT');
-    assert.equal(statusByRef.get('SEED-SHIP-2'), 'IN_PROGRESS');
-    assert.equal(statusByRef.get('SEED-SHIP-3'), 'DELIVERED');
+    assert.equal(statusByRef.get('SEED-SHIP-1'), 'NEW');
+    assert.equal(statusByRef.get('SEED-SHIP-2'), 'DISPATCHED');
+    assert.equal(statusByRef.get('SEED-SHIP-3'), 'PENDING_EXPENSE_APPROVAL');
   });
 
   test('attaches expected children to seeded shipments', async () => {
@@ -175,9 +175,9 @@ describe('seedShipments — Wave 0 shipment + CUSTOMER seed', () => {
     assert.equal(ship3Decls.length, 1, 'SEED-SHIP-3 has 1 declaration');
 
     // Status history: creation row + transitions.
-    // SEED-SHIP-1 (DRAFT): 1 row (creation).
-    // SEED-SHIP-2 (IN_PROGRESS): 2 rows (creation + DRAFT→IN_PROGRESS).
-    // SEED-SHIP-3 (DELIVERED): 3 rows (creation + DRAFT→IN_PROGRESS + IN_PROGRESS→DELIVERED).
+    // SEED-SHIP-1 (NEW): 1 row (creation).
+    // SEED-SHIP-2 (DISPATCHED): 2 rows (creation + NEW→DISPATCHED).
+    // SEED-SHIP-3 (PENDING_EXPENSE_APPROVAL): 3 rows (creation + NEW→DISPATCHED + DISPATCHED→PENDING_EXPENSE_APPROVAL).
     const history = await db.select()
       .from(s.shipmentStatusHistory)
       .where(inArray(s.shipmentStatusHistory.shipmentId, ids));

@@ -109,8 +109,8 @@ export async function assertActorCanAccessShipment(
   }
 
   const officeRoles: Role[] = options.write
-    ? [Role.ADMIN, Role.MANAGER, Role.CLERK]
-    : [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CLERK];
+    ? [Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.CLERK]
+    : [Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.ACCOUNTANT, Role.CLERK];
   if (!officeRoles.includes(actor.role)) throw new ApiError(403, 'Bạn không có quyền thao tác lô hàng');
   return shipment;
 }

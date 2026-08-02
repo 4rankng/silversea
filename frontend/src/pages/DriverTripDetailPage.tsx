@@ -38,6 +38,7 @@ import { useToast } from '../components/shared/Toast';
 import './DriverTripDetailPage.css';
 
 type MilestoneType =
+  | DriverProgressEventType.ORDER_RECEIVED
   | DriverProgressEventType.PICKED_UP
   | DriverProgressEventType.LOADING_OR_RETURNING
   | DriverProgressEventType.DELIVERED;
@@ -75,6 +76,11 @@ const MILESTONES: Array<{
   title: string;
   help: string;
 }> = [
+  {
+    eventType: DriverProgressEventType.ORDER_RECEIVED,
+    title: 'Đã nhận lệnh gốc',
+    help: 'Xác nhận đã nhận lệnh giấy từ Ops. Thời điểm này được lưu để theo dõi SLA bàn giao.',
+  },
   {
     eventType: DriverProgressEventType.PICKED_UP,
     title: 'Đã lấy vỏ / Lấy hàng',
@@ -458,7 +464,7 @@ export default function DriverTripDetailPage() {
         expectedVersion: trip.version,
       },
     });
-    await runDrain('Chuyến đã chuyển sang chờ duyệt khóa.');
+    await runDrain('Chuyến đã chuyển sang chờ kế toán/CUS duyệt phí.');
   }
 
   if (!validFulfillmentId) {
@@ -597,7 +603,7 @@ export default function DriverTripDetailPage() {
 
       <section className="driver-task-section">
         <div className="driver-task-section__head">
-          <span>Ba mốc thực hiện</span>
+          <span>Bốn mốc thực hiện</span>
         </div>
         <div className="driver-task-timeline">
           {MILESTONES.map((milestone, index) => {
@@ -682,7 +688,7 @@ export default function DriverTripDetailPage() {
           <div className="driver-task-footer__summary">
             <strong>Hoàn thành chuyến</strong>
             <p>
-              Chỉ bật sau khi đã ghi nhận bước 3 và gửi đủ e-POD bắt buộc.
+              Sau khi ghi nhận đủ bước 3 và gửi e-POD, chuyến sẽ chuyển sang Chờ duyệt phí để kế toán/CUS xử lý.
             </p>
             {completionReasons.length > 0 && (
               <ul className="driver-task-footer__issues">
@@ -699,12 +705,12 @@ export default function DriverTripDetailPage() {
             onClick={() => void handleCompleteTrip()}
           >
             <FileCheck2 size={18} />
-            <span>{trip.status === 'COMPLETED' ? 'Đã hoàn thành, chờ duyệt' : 'Hoàn thành chuyến'}</span>
+            <span>{trip.status === 'COMPLETED' ? 'Đã gửi chờ duyệt phí' : 'Gửi chờ duyệt phí'}</span>
           </button>
           {completionReady && trip.status === 'IN_TRANSIT' && (
             <div className="driver-task-footer__ready">
               <CheckCircle2 size={16} />
-              <span>Đủ điều kiện hoàn thành.</span>
+              <span>Đủ điều kiện gửi Kế toán/CUS duyệt phí.</span>
             </div>
           )}
         </div>

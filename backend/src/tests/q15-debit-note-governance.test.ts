@@ -87,7 +87,7 @@ async function createTripFixture(status: 'COMPLETED' = 'COMPLETED', revenue = 1_
     customerId: customer.id,
     routeId: route.id,
     cargoTypeId: cargoType.id,
-    status: 'DRAFT',
+    status: 'NEW',
     cargoMode: 'LCL',
     createdBy: actors[0]?.id ?? null,
     updatedBy: actors[0]?.id ?? null,

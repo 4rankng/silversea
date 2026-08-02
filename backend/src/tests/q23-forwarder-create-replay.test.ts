@@ -95,7 +95,7 @@ before(async () => {
     shipmentCode: `Q23-SHIP-${suffix}`,
     customerId,
     cargoTypeId,
-    status: 'IN_PROGRESS',
+    status: 'DISPATCHED',
   }).returning({ id: s.shipments.id });
   shipmentId = shipment.id;
   await db.insert(s.userShipmentLinks).values({

@@ -113,7 +113,7 @@ before(async () => {
     shipmentCode: `${NS}-shipment-${suffix}`,
     customerId,
     cargoTypeId,
-    status: 'IN_PROGRESS',
+    status: 'DISPATCHED',
   }).returning({ id: s.shipments.id });
   shipmentId = shipment.id;
   const [trip] = await db.insert(s.trips).values({

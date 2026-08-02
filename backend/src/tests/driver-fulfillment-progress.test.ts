@@ -6,6 +6,7 @@ import {
   DRIVER_FULFILLMENT_PROGRESS_SEQUENCE,
   DriverProgressEventType,
   TripPodFileType,
+  TripStatus,
   TxnType,
 } from '@tingting/shared';
 import {
@@ -112,7 +113,7 @@ async function createOwnedFulfillmentTrip(driverId: number) {
     routeId: route.id,
     cargoTypeId: cargoType.id,
     cargoMode: 'LCL',
-    status: 'IN_PROGRESS',
+    status: 'DISPATCHED',
     bookingRef: `BOOK-${suffix}-${createdShipmentIds.length + 1}`,
     factoryName: 'Kho VSIP',
     contactName: 'Điều phối kho',
@@ -271,7 +272,7 @@ describe('Phase 4 driver fulfillment execution', () => {
       },
     }), /Mốc tiếp theo phải là/);
 
-    const replayKey = `picked-up-${suffix}`;
+    const replayKey = `order-received-${suffix}`;
     usedIdempotencyKeys.push(replayKey);
     const first = await recordDriverFulfillmentProgress({
       fulfillmentId: fulfillment.id,
@@ -279,7 +280,7 @@ describe('Phase 4 driver fulfillment execution', () => {
       recordedBy: actor.user.id,
       idempotencyKey: replayKey,
       input: {
-        eventType: DriverProgressEventType.PICKED_UP,
+        eventType: DriverProgressEventType.ORDER_RECEIVED,
         occurredAt: '2026-08-01T08:05:00.000Z',
         expectedVersion: trip.version,
       },
@@ -293,7 +294,7 @@ describe('Phase 4 driver fulfillment execution', () => {
       recordedBy: actor.user.id,
       idempotencyKey: replayKey,
       input: {
-        eventType: DriverProgressEventType.PICKED_UP,
+        eventType: DriverProgressEventType.ORDER_RECEIVED,
         occurredAt: '2026-08-01T08:05:00.000Z',
         expectedVersion: trip.version,
       },
@@ -305,11 +306,11 @@ describe('Phase 4 driver fulfillment execution', () => {
       fulfillmentId: fulfillment.id,
       driverId: actor.driver.id,
       recordedBy: actor.user.id,
-      idempotencyKey: `repeat-picked-up-${suffix}`,
+      idempotencyKey: `repeat-order-received-${suffix}`,
       input: {
-        eventType: DriverProgressEventType.PICKED_UP,
+        eventType: DriverProgressEventType.ORDER_RECEIVED,
         occurredAt: '2026-08-01T08:10:00.000Z',
-        expectedVersion: trip.version,
+        expectedVersion: undefined,
       },
     }), /Mốc tiếp theo phải là/);
 
@@ -323,7 +324,7 @@ describe('Phase 4 driver fulfillment execution', () => {
     const actor = await createDriverPrincipal('incomplete');
     const { fulfillment, trip } = await createOwnedFulfillmentTrip(actor.driver.id);
 
-    for (const eventType of DRIVER_FULFILLMENT_PROGRESS_SEQUENCE) {
+    for (const [index, eventType] of DRIVER_FULFILLMENT_PROGRESS_SEQUENCE.entries()) {
       const key = `milestone-${eventType}-${suffix}-${trip.id}`;
       usedIdempotencyKeys.push(key);
       const result = await recordDriverFulfillmentProgress({
@@ -334,7 +335,7 @@ describe('Phase 4 driver fulfillment execution', () => {
         input: {
           eventType,
           occurredAt: isoHour(createdProgressEventIds.length + 8, 0),
-          expectedVersion: trip.version,
+          expectedVersion: index === 0 ? trip.version : undefined,
         },
       });
       createdProgressEventIds.push(result.event.id);
@@ -584,7 +585,7 @@ describe('Phase 4 driver fulfillment execution', () => {
     }), /không hợp lệ|không khớp định dạng/i);
   });
 
-  test('O2C: driver-owned completion is removed — the e-POD acceptance path owns completion', async () => {
+  test('O2C: driver completion hands the shipment to Pending Expense Approval without financial posting', async () => {
     const actor = await createDriverPrincipal('valid');
     const { fulfillment, trip } = await createOwnedFulfillmentTrip(actor.driver.id);
 
@@ -599,7 +600,7 @@ describe('Phase 4 driver fulfillment execution', () => {
         input: {
           eventType,
           occurredAt: isoHour(index + 8, 30),
-          expectedVersion: trip.version,
+          expectedVersion: index === 0 ? trip.version : undefined,
         },
       });
       createdProgressEventIds.push(result.event.id);
@@ -613,25 +614,24 @@ describe('Phase 4 driver fulfillment execution', () => {
       prefix: 'valid',
     });
 
-    // O2C: the permissive driver completion is removed. The driver endpoint now
-    // rejects, pointing to the e-POD acceptance flow (accountant/CUS completes).
+    // Driver completion is an operational handoff, not the governed financial
+    // completion. The trip remains in transit while the shipment waits for
+    // Accounting/CUS and the separate maker/checker approval.
     const completeKey = `complete-valid-${suffix}`;
     usedIdempotencyKeys.push(completeKey);
-    await assert.rejects(
-      completeOwnedFulfillmentTrip({
-        fulfillmentId: fulfillment.id,
-        driverId: actor.driver.id,
-        actorUserId: actor.user.id,
-        expectedVersion: trip.version,
-        idempotencyKey: completeKey,
-      }),
-      (err: Error) => {
-        // The idempotency layer may wrap the 409; assert on the message which
-        // points the driver to the e-POD acceptance flow.
-        assert.match(err.message, /duyệt e-POD/);
-        return true;
-      },
-    );
+    const [currentTrip] = await db.select({ version: s.trips.version })
+      .from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+    const completed = await completeOwnedFulfillmentTrip({
+      fulfillmentId: fulfillment.id,
+      driverId: actor.driver.id,
+      actorUserId: actor.user.id,
+      expectedVersion: currentTrip!.version,
+      idempotencyKey: completeKey,
+    });
+    assert.equal(completed.trip.status, TripStatus.IN_TRANSIT);
+    const [shipment] = await db.select({ status: s.shipments.status })
+      .from(s.shipments).where(eq(s.shipments.id, fulfillment.shipmentId)).limit(1);
+    assert.equal(shipment?.status, 'PENDING_EXPENSE_APPROVAL');
   });
 });
 
@@ -696,5 +696,4 @@ after(async () => {
     console.warn('[driver-fulfillment-progress.test] cleanup partial:', (error as Error).message);
   }
   try { await client.end(); } catch { /* ignore */ }
-  process.exit(0);
 });

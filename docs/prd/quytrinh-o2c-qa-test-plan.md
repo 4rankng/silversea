@@ -7,16 +7,16 @@
 >
 > **Đối tượng:** Nhân viên QA (con người), thao tác trực tiếp trên website.
 >
-> ⚠️ **Đọc trước §0 — "Khác biệt giữa tài liệu thiết kế và phần mềm thực tế".**
-> Có một số chỗ phần mềm thực tế KHÁC mô tả thiết kế ban đầu. Nếu không đọc, QA
-> có thể báo **sai lỗi** (false-positive). Các chỗ khác nhau được đánh dấu 🟡
-> trong suốt tài liệu.
+> **Nguồn sự thật:** [`O2C dev-rev1.md`](./O2C%20dev-rev1.md) và
+> [`O2C Flow.md`](./O2C%20Flow.md). Phần mềm, test tự động và tài liệu QA phải
+> tuân thủ PRD. Hành vi khác PRD là lỗi, trừ khi PRD ghi rõ một quyết định thay đổi
+> đã được phê duyệt.
 
 ---
 
 ## Mục lục
 
-- [§0 Khác biệt thiết kế vs phần mềm (đọc trước!)](#0-khác-biệt-thiết-kế-vs-phần-mềm-đọc-trước)
+- [§0 Quy tắc nguồn sự thật](#0-quy-tắc-nguồn-sự-thật)
 - [§1 Thông tin môi trường & tài khoản](#1-thông-tin-môi-trường--tài-khoản)
 - [§2 Chuẩn bị dữ liệu (Bước 0)](#2-chuẩn-bị-dữ-liệu-bước-0)
 - [§3 Luồng kiểm thử chính (Bước 1 → 4)](#3-luồng-kiểm-thử-chính)
@@ -35,24 +35,23 @@
 
 ---
 
-## 0. Khác biệt thiết kế vs phần mềm (đọc trước!)
+## 0. Quy tắc nguồn sự thật
 
-Tài liệu thiết kế mô tả luồng lý tưởng. Phần mềm thực tế đã đơn giản hóa / thay
-đổi một số điểm. Test theo **hành vi thực tế**. Các điểm dưới đây KHÔNG phải là
-lỗi.
+1. Kiểm thử theo PRD, không kiểm thử theo giới hạn hiện tại của phần mềm.
+2. Không sửa kết quả mong đợi để hợp thức hóa hành vi đang chạy.
+3. Mọi sai lệch phải được ghi lỗi và truy vết về yêu cầu PRD tương ứng.
+4. Chỉ hai điều chỉnh sau là hợp lệ vì đã được phê duyệt trong PRD:
+   - Bỏ trạng thái `Đã khóa`; `Hoàn thành` là trạng thái kết thúc và chi phí vẫn
+     được chỉnh sửa theo cơ chế có dấu vết/đối soát.
+   - Hoàn thành áp dụng maker/checker theo quyết định Q15: Kế toán/CUS tạo yêu
+     cầu, người có quyền độc lập phê duyệt.
 
-| # | Thiết kế mô tả | Phần mềm thực tế | Hướng dẫn test |
-|---|-----------|------------------|----------------|
-| **A** | Lô hàng qua **5 trạng thái**: Mới tạo → Đã điều xe → Đang chạy → Chờ duyệt phí → Hoàn thành | Chuyến xe chỉ hiển thị **3 trạng thái chính**: `Mới tạo` → `Đang chạy` → `Hoàn thành`, thêm `Đã hủy`. **Không có** nhãn riêng "Đã điều xe" hay "Chờ duyệt phí". | Quan sát nhãn trạng thái trên màn: `Mới tạo / Đang chạy / Hoàn thành`. Việc "điều xe" là một **hành động**, không làm đổi sang nhãn trạng thái riêng. |
-| **B** | Có trạng thái `Đã khóa` | **Đã loại bỏ** `Đã khóa`. `Hoàn thành` là trạng thái kết thúc; chi phí **vẫn sửa được** sau khi hoàn thành. | **Không test** "khóa cứng / không sửa được". Test rằng chi phí vẫn sửa được sau Hoàn thành. |
-| **C** 🟡 | "Khi duyệt phí chi hộ → hệ thống **tự sinh** bút toán cấn trừ tạm ứng" | **KHÔNG tự động**. Cấn trừ tạm ứng làm **thủ công** qua mục **Phiếu quyết toán**. Việc duyệt chi phí chỉ cập nhật trạng thái chi phí. | Không kỳ vọng tự cấn trừ. Test cấn trừ như một luồng quyết toán riêng. |
-| **D** 🟡 | Kẹp hàng: chỉ tính **1 lần phí đường**, tránh nhân đôi | **Chưa tự động**. Phí đường nhập **thủ công**, chưa có cơ chế tự gom. | Nhập phí đường bằng tay; tự kiểm soát không trùng lặp. **Báo cáo nếu** thấy phí đường bị nhân đôi mà không có chỗ giảm. |
-| **E** | Hoàn thành là thao tác trực tiếp của Kế toán | Hoàn thành đi qua **luồng phê duyệt 2 bước**: Kế toán tạo yêu cầu → người có quyền duyệt → chuyến mới thực sự sang `Hoàn thành`. | Test luồng tạo yêu cầu + phê duyệt. Có thể một người tạo, người khác duyệt. |
-| **F** | Phụ phí xăng dầu tự tính ngay khi tạo lô | Đã triển khai: `Phụ phí = (Giá dầu hiện tại − Giá dầu gốc) × Số lít định mức × % chia sẻ khách hàng`. Tự tính khi tạo chuyến. | Tính tay theo công thức và so sánh với số trên màn. |
+Các hành vi bắt buộc, không phải ngoại lệ:
 
-> **Nguyên tắc:** nếu phát hiện hành vi khác thiết kế mà **chưa** liệt kê ở bảng
-> này → ghi lỗi (có thể là lỗi thật hoặc cần bổ sung). Nếu trùng ô trên → đó là
-> quyết định thiết kế, **không phải lỗi**.
+- Lô hàng có đủ năm trạng thái `Mới tạo → Đã điều xe → Đang chạy → Chờ duyệt phí → Hoàn thành`.
+- Kẹp hàng tự động chỉ ghi nhận một lần định mức phí đường bộ khép kín.
+- Duyệt phí chi hộ tự động sinh bút toán cấn trừ tạm ứng của Ops/Lái xe.
+- Giá cước dự kiến, phụ phí xăng dầu và giá nâng/hạ được hệ thống tự áp theo dữ liệu nền.
 
 ---
 
@@ -73,11 +72,12 @@ lỗi.
 | `giamdoc` | Giám đốc | Báo cáo, P&L, phê duyệt các yêu cầu, dữ liệu nhạy cảm |
 | `ketoan` | Kế toán | Thu hồi POD, duyệt chi phí, hoàn thành lô, công nợ AR/AP |
 | `cus` | Nhân viên chứng từ (CUS) | Tạo lô hàng |
+| `dieuvan` | Điều vận | Lập kế hoạch, gán xe và phát hành lệnh điều xe |
 | `giaonhan` | Ops / Hiện trường | Chi hộ, cập nhật phí nâng/hạ |
 | `laixe` (`thu`, `pho`, `quyet`) | Lái xe | Nhận lệnh, cập nhật chi phí, hoàn thành chuyến |
 
 > 📝 Dùng đúng tài khoản cho đúng vai trò. `cus` = nhân viên chứng từ (tạo lô);
-> `giaonhan` = Ops/hiện trường (chi hộ).
+> `dieuvan` = điều vận; `giaonhan` = Ops/hiện trường (chi hộ).
 
 ---
 
@@ -114,20 +114,20 @@ các mục đã có dữ liệu:
 **kết quả mong đợi quan sát được trên màn hình** (số liệu, màu trạng thái,
 thông báo).
 
-Sơ đồ luồng thực tế:
+Sơ đồ luồng PRD bắt buộc:
 
 ```
-CUS tạo lô ──▶ Điều vận điều xe ──▶ Ops chi hộ + Lái xe chạy
- (Mới tạo)     (Mới tạo → Đang chạy sau khi phát hành)       │
+CUS tạo lô ──▶ Điều vận điều xe ──▶ Lái xe nhận lệnh ──▶ Ops/Lái xe thực hiện
+ (Mới tạo)       (Đã điều xe)          (Đang chạy)                       │
                                                             ▼
-                                          Kế toán thu hồi POD (cổng chặn)
+                                      Nộp chi phí ──▶ Chờ duyệt phí
                                                             │
                                                             ▼
-                                          Kế toán duyệt chi phí + Hoàn thành
-                                          (luồng phê duyệt 2 bước)
+                                      Kế toán thu hồi POD + duyệt chi phí
+                                      (tự động cấn trừ tạm ứng)
                                                             │
                                                             ▼
-                                              Hoàn thành → chụp số liệu AR + AP
+                                      Maker/checker Hoàn thành → AR + AP snapshot
 ```
 
 ---
@@ -161,13 +161,14 @@ CUS tạo lô ──▶ Điều vận điều xe ──▶ Ops chi hộ + Lái x
 
 ### Test 2 — Điều xe (Dispatch)
 
-**Vai trò:** `admin` hoặc `giamdoc` (Giám đốc). **Chỉ 2 vai trò này được điều xe.**
+**Vai trò:** tài khoản **Điều vận**. `admin`/`giamdoc` có thể dùng để hỗ trợ hoặc
+phê duyệt, nhưng không thay thế quyền thao tác hằng ngày của Điều vận.
 **Màn hình:** Điều xe / Bảng kế hoạch điều phối (menu **Phân xe**).
 
 **Tiền điều kiện:** có lô ở trạng thái `Mới tạo` (từ Test 1).
 
 **Các bước:**
-1. Đăng nhập `admin`. Mở màn **Điều xe** (Bảng kế hoạch điều phối).
+1. Đăng nhập tài khoản Điều vận. Mở màn **Điều xe** (Bảng kế hoạch điều phối).
 2. Chọn lô cần điều xe.
 3. Gán: **Xe** (chọn xe `Xe nhà` hoặc `Xe ngoài`), **Tài xế**, **Rơ-moóc**,
    thời gian dự kiến.
@@ -175,7 +176,7 @@ CUS tạo lô ──▶ Điều vận điều xe ──▶ Ops chi hộ + Lái x
 
 **Kết quả mong đợi (Pass):**
 - ✅ Lệnh phát hành thành công (thông báo trên màn).
-- ✅ Chuyển sang trạng thái **`Đang chạy`**.
+- ✅ Lô chuyển chính xác sang trạng thái **`Đã điều xe`**.
 - ✅ Lệnh xuất hiện trên ứng dụng của tài xế được gán (màn **Chuyến đi của tôi**).
 - ✅ Nhãn **`Xe nhà`** hoặc **`Xe ngoài`** hiển thị ở chi tiết (dùng để tách P&L).
 
@@ -185,9 +186,9 @@ CUS tạo lô ──▶ Điều vận điều xe ──▶ Ops chi hộ + Lái x
 
 **Bằng chứng:** ảnh màn Điều xe sau phát hành + ảnh chi tiết lô (trạng thái + nhãn xe).
 
-> 🟡 **Ghi chú "kẹp hàng":** có thể ghép 2 lệnh chạy 2 chiều. Tuy nhiên việc
-> **chỉ tính 1 lần phí đường** hiện **nhập tay**, không tự động (xem §0-D). Test
-> riêng nếu cần.
+> **Kẹp hàng là tự động:** ghép hai lệnh chạy hai chiều phải tự động áp đúng một
+> định mức phí đường bộ khép kín. Nếu hệ thống yêu cầu người dùng tự giảm bằng
+> tay hoặc ghi nhận hai lần, ghi lỗi P1.
 
 ---
 
@@ -196,7 +197,8 @@ CUS tạo lô ──▶ Điều vận điều xe ──▶ Ops chi hộ + Lái x
 **Vai trò:** `giaonhan` (Ops / Hiện trường).
 **Màn hình:** **Chuyến đi của tôi (Ops)**, mở chi tiết chuyến → tạo chi hộ.
 
-**Tiền điều kiện:** chuyến đang `Đang chạy` (sau Test 2). Đã có Bảng giá Nâng/Hạ.
+**Tiền điều kiện:** lô đã `Đã điều xe`; lái xe xác nhận lệnh để chuyển sang
+`Đang chạy`. Đã có Bảng giá Nâng/Hạ.
 
 **Các bước:**
 1. Đăng nhập `giaonhan`. Mở **Chuyến đi của tôi**, chọn chuyến.
@@ -210,6 +212,8 @@ CUS tạo lô ──▶ Điều vận điều xe ──▶ Ops chi hộ + Lái x
 - ✅ Chi phí lưu về đúng lô, trạng thái **`Chờ duyệt`**.
 - ✅ Ảnh biên lai đính kèm thành công, xem lại được.
 - ✅ Mọi khoản chi (từ nhiều Ops/Lái xe) **gom về cùng 1 mã lô**.
+- ✅ Khi Ops/Lái xe hoàn tất và gửi các khoản chi, lô chuyển sang
+  **`Chờ duyệt phí`**; không nhảy thẳng đến `Hoàn thành`.
 
 **❌ Báo lỗi nếu:** tiền nâng hạ gõ tay được; chi phí lưu sai lô; ảnh không lưu.
 
@@ -237,6 +241,7 @@ CUS tạo lô ──▶ Điều vận điều xe ──▶ Ops chi hộ + Lái x
 - ✅ Ảnh nhiên liệu tải lên được; dữ liệu (số lít/đơn giá) bóc tách hiển thị để xác nhận.
 - ✅ Bấm hoàn thành → chuyến **vẫn chưa** sang `Hoàn thành` ở cấp lô (cần Kế toán
   thu hồi POD + duyệt — xem Test 5, 6).
+- ✅ Lô hiển thị **`Chờ duyệt phí`** sau khi dữ liệu vận hành đã được gửi đầy đủ.
 
 **❌ Báo lỗi nếu:** không thấy lệnh; giờ nhận lệnh sai; ảnh không lưu; nút hoàn thành lỗi.
 
@@ -281,19 +286,26 @@ thu hồi POD.
 2. **Phân loại** chi hộ: nhóm **CÓ hóa đơn** (nâng hạ, lưu kho) vs **KHÔNG hóa đơn**.
 3. Áp mức **VAT** đúng (0/5/8/10%) theo nhóm.
 4. **Duyệt** từng khoản chi phí (đi qua luồng phê duyệt).
-5. Tạo **yêu cầu hoàn thành** lô.
-6. Đăng nhập `admin`/`giamdoc` → mục **Yêu cầu phê duyệt** → **phê duyệt** yêu cầu.
+5. Kiểm tra bút toán **cấn trừ tạm ứng tự động** của đúng Ops/Lái xe ngay sau
+   khi khoản phí được duyệt. Không tạo Phiếu quyết toán thủ công để thay thế bước này.
+6. Tạo **yêu cầu hoàn thành** lô.
+7. Đăng nhập bằng tài khoản phê duyệt độc lập → mục **Yêu cầu phê duyệt** →
+   **phê duyệt** yêu cầu.
 
 **Kết quả mong đợi (Pass):**
 - ✅ Hai nhóm chi hộ (CÓ/KHÔNG hóa đơn) tách bạch.
 - ✅ VAT áp đúng nhóm.
 - ✅ Duyệt chi phí → trạng thái chuyển `Chờ duyệt → Đã duyệt`.
+- ✅ Duyệt chi phí → hệ thống tự sinh một giao dịch cấn trừ vào dư nợ tạm ứng
+  của đúng người phát sinh; không sinh trùng khi duyệt/gửi lại cùng yêu cầu.
 - ✅ Yêu cầu hoàn thành tạo thành công (hệ thống báo đã ghi nhận yêu cầu).
 - ✅ Sau khi được phê duyệt → chuyến **sang `Hoàn thành`**.
 
-**❌ Báo lỗi nếu:** duyệt chi phí không cần phê duyệt; VAT sai; hoàn thành không qua phê duyệt.
+**❌ Báo lỗi nếu:** VAT sai; không tự cấn trừ; cấn trừ sai người/sai số tiền;
+maker tự phê duyệt yêu cầu của mình; hoặc hoàn thành bỏ qua cổng POD.
 
-**Bằng chứng:** ảnh phân loại chi hộ + ảnh danh sách yêu cầu phê duyệt + ảnh chuyến `Hoàn thành`.
+**Bằng chứng:** ảnh phân loại chi hộ + ảnh bút toán cấn trừ tự động + ảnh danh
+sách yêu cầu phê duyệt + ảnh lô `Hoàn thành`.
 
 ---
 
@@ -338,7 +350,7 @@ làm được**.
 
 | # | Hành động | Vai trò thử | Kết quả mong đợi |
 |---|-----------|-------------|------------------|
-| RB-1 | Vào màn **Điều xe** | `laixe`, `giaonhan` | Bị chuyển hướng / hiện thông báo không có quyền; không thấy nút điều xe |
+| RB-1 | Vào màn **Điều xe** | Điều vận: được phép; `laixe`, `giaonhan`: thử truy cập | Điều vận thao tác được; Lái xe/Ops bị chuyển hướng hoặc hiện thông báo không có quyền |
 | RB-2 | Vào màn **Công nợ AR**, **AP**, **P&L** | `laixe`, `giaonhan`, `cus` | Bị chuyển hướng / hiện thông báo không có quyền |
 | RB-3 | Bấm **"Hoàn thành"** lô | `laixe`, `giaonhan` | Bị chặn / nút bị ẩn |
 | RB-4 | Đánh dấu **thu hồi POD** | `laixe` | Bị chặn (chỉ Kế toán / Nhân viên chứng từ được làm) |
@@ -356,7 +368,9 @@ nhuận, giá vốn, lương) hoặc vẫn thao tác được (điều xe, hoàn
 |---|----------|---------|------------------|
 | EG-1 | Hoàn thành khi **chưa thu hồi POD** | `ketoan` | Bị chặn; không đổi trạng thái (Test 5) |
 | EG-2 | **Bấm 2 lần** "Hoàn thành" (mạng chậm) | `ketoan` | Chỉ tạo 1 yêu cầu / 1 bộ số liệu; lần 2 báo "đã có" |
-| EG-3 | Điều xe cho **xe đang bận** (đã gán chuyến đang chạy) | `admin` | Cảnh báo / chặn (không gán trùng) |
+| EG-3 | Điều xe cho **xe đang bận** (đã gán chuyến đang chạy) | Điều vận | Cảnh báo / chặn (không gán trùng) |
+| EG-3A | Kẹp hai lệnh chạy hai chiều | Điều vận | Hệ thống tự chỉ tính một định mức phí đường khép kín; không cần sửa tay |
+| EG-3B | Duyệt lại cùng một khoản phí chi hộ | `ketoan` | Chỉ có một bút toán cấn trừ tạm ứng; thao tác lặp là idempotent |
 | EG-4 | Sửa chi phí **sau Hoàn thành** | `ketoan` | Sửa được; số liệu AR/AP đánh dấu "đã thay đổi" (Test 7) |
 | EG-5 | Mất kết nối khi Ops/Lái xe đẩy chi phí | `giaonhan`, `laixe` | Thông báo tiếng Việt; dữ liệu không mất; online lại gửi thành công |
 | EG-6 | Hủy chuyến **đã Hoàn thành** | `admin` | Cần phê duyệt; **hoàn tác** công nợ AR/AP đã ghi |
@@ -413,8 +427,8 @@ Chọn **1 lô đã đi đủ 4 bước** và đối chiếu số liệu chảy 
 2. **Tái hiện được:** ghi rõ môi trường (staging/nội bộ), trình duyệt, thời điểm,
    tài khoản dùng.
 3. **Đính kèm bằng chứng:** ảnh màn hình + ảnh thông báo lỗi hiện trên màn.
-4. **Kiểm tra §0 trước khi báo:** nếu lỗi trùng "khác biệt thiết kế vs phần mềm"
-   → đó là quyết định thiết kế, **không phải lỗi**.
+4. **Đối chiếu PRD trước khi báo:** trích đúng bước/yêu cầu PRD. Nếu phần mềm
+   khác PRD, ghi lỗi; không tạo ngoại lệ theo hành vi hiện tại.
 5. **Phân loại ưu tiên:**
    - **P0** (chặn nghiệp vụ, hỏng sổ sách/công nợ): ví dụ hoàn thành được khi
      chưa POD; dữ liệu nhạy cảm lộ cho vai trò không có quyền; số liệu AR/AP lệch/sai.

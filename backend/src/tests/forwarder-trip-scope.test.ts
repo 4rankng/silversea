@@ -198,7 +198,7 @@ describe('forwarder shipment scope', () => {
     );
     await db.insert(s.userShipmentLinks).values({ userId: forwarderA, shipmentId: shipmentA });
 
-    await db.update(s.shipments).set({ status: 'CLOSED' }).where(inArray(s.shipments.id, [shipmentA]));
+    await db.update(s.shipments).set({ status: 'COMPLETED' }).where(inArray(s.shipments.id, [shipmentA]));
     await assert.rejects(
       () => assertForwarderMutableTripScope(tripA, forwarderA),
       (error: unknown) => (
@@ -215,9 +215,9 @@ describe('forwarder shipment scope', () => {
         status: 'ACTIVE',
         shipmentIds: [shipmentA],
       }),
-      /nháp hoặc đang thực hiện/,
+      /chưa kết thúc/,
     );
-    await db.update(s.shipments).set({ status: 'DRAFT' }).where(inArray(s.shipments.id, [shipmentA]));
+    await db.update(s.shipments).set({ status: 'NEW' }).where(inArray(s.shipments.id, [shipmentA]));
   });
 
   test('mutable-scope validation serializes a concurrent terminal shipment transition', async () => {
@@ -240,7 +240,7 @@ describe('forwarder shipment scope', () => {
     let transitionCompleted = false;
     const terminalTransition = db.transaction(async (tx) => {
       await tx.update(s.shipments)
-        .set({ status: 'CLOSED' })
+        .set({ status: 'COMPLETED' })
         .where(eq(s.shipments.id, shipmentA));
       transitionCompleted = true;
     });
@@ -251,7 +251,7 @@ describe('forwarder shipment scope', () => {
     await guardedMutation;
     await terminalTransition;
     assert.equal(transitionCompleted, true);
-    await db.update(s.shipments).set({ status: 'DRAFT' }).where(eq(s.shipments.id, shipmentA));
+    await db.update(s.shipments).set({ status: 'NEW' }).where(eq(s.shipments.id, shipmentA));
   });
 
   test('shared assignment allows trip visibility but only the owner can edit each expense', async () => {

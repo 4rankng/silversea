@@ -191,21 +191,22 @@ describe('DriverTripDetailPage', () => {
     });
   });
 
-  it('renders the three ordered milestones and blocks completion until evidence is ready', async () => {
+  it('renders the four ordered milestones and blocks handoff until evidence is ready', async () => {
     renderPage();
 
-    expect(await screen.findByText(/Ba mốc thực hiện/)).toBeTruthy();
+    expect(await screen.findByText(/Bốn mốc thực hiện/)).toBeTruthy();
+    expect(screen.getByText('Đã nhận lệnh gốc')).toBeTruthy();
     expect(screen.getByText('Đã lấy vỏ / Lấy hàng')).toBeTruthy();
     expect(screen.getByText('Đang đóng / Trả hàng')).toBeTruthy();
     expect(screen.getByText('Đã hạ bãi / Giao hàng xong')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Hoàn thành chuyến/ }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByRole('button', { name: /Gửi chờ duyệt phí/ }).hasAttribute('disabled')).toBe(true);
     expect(screen.getByText(/Thiếu biên bản giao nhận có ký nhận/)).toBeTruthy();
   });
 
   it('queues the next available milestone with the trip version and fulfillment id', async () => {
     renderPage();
 
-    fireEvent.click(await screen.findByRole('button', { name: /Đã lấy vỏ \/ Lấy hàng/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Đã nhận lệnh gốc/ }));
 
     await waitFor(() => expect(enqueueMock).toHaveBeenCalledTimes(1));
     expect(enqueueMock.mock.calls[0]?.[0]).toMatchObject({
@@ -215,7 +216,7 @@ describe('DriverTripDetailPage', () => {
       payload: {
         kind: 'milestone',
         fulfillmentId: 88,
-        eventType: DriverProgressEventType.PICKED_UP,
+        eventType: DriverProgressEventType.ORDER_RECEIVED,
         expectedVersion: 3,
       },
     });

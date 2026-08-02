@@ -39,9 +39,20 @@ interface TaskCursorState {
   queueCursor: string | null;
 }
 
+interface ResourceSearchState<T> {
+  query: string;
+  items: T[];
+  nextCursor: string | null;
+  loadingMore: boolean;
+}
+
 const TASK_PAGE_LIMIT = 50;
 const FLEET_PAGE_LIMIT = 100;
 const INITIAL_TASK_CURSOR: TaskCursorState = { handoffCursor: null, queueCursor: null };
+
+function emptyResourceSearch<T>(): ResourceSearchState<T> {
+  return { query: '', items: [], nextCursor: null, loadingMore: false };
+}
 
 const EMPTY_ASSIGNMENT: AssignmentForm = {
   carrierType: 'OWN',
@@ -124,9 +135,9 @@ export default function DispatchPage() {
   const [taskCursorStack, setTaskCursorStack] = useState<TaskCursorState[]>([INITIAL_TASK_CURSOR]);
   const [taskPageIndex, setTaskPageIndex] = useState(0);
   const [nextTaskCursor, setNextTaskCursor] = useState<TaskCursorState | null>(null);
-  const [truckSearchItems, setTruckSearchItems] = useState<DispatchTruck[]>([]);
-  const [driverSearchItems, setDriverSearchItems] = useState<DispatchDriver[]>([]);
-  const [carrierSearchItems, setCarrierSearchItems] = useState<DispatchExternalCarrier[]>([]);
+  const [truckSearch, setTruckSearch] = useState<ResourceSearchState<DispatchTruck>>(emptyResourceSearch);
+  const [driverSearch, setDriverSearch] = useState<ResourceSearchState<DispatchDriver>>(emptyResourceSearch);
+  const [carrierSearch, setCarrierSearch] = useState<ResourceSearchState<DispatchExternalCarrier>>(emptyResourceSearch);
   const loadRequestIdRef = useRef(0);
   const resourceSearchRequestIds = useRef({ TRUCK: 0, DRIVER: 0, EXTERNAL_CARRIER: 0 });
 
@@ -160,9 +171,9 @@ export default function DispatchPage() {
   const selectedCarrier = selected?.dispatch?.externalCarrierId && selected.dispatch.externalCarrierName
     ? { id: selected.dispatch.externalCarrierId, name: selected.dispatch.externalCarrierName } satisfies DispatchExternalCarrier
     : null;
-  const truckChoices = mergeById(fleet?.trucks.items ?? [], truckSearchItems, selectedTruck ? [selectedTruck] : []);
-  const driverChoices = mergeById(fleet?.drivers.items ?? [], driverSearchItems, selectedDriver ? [selectedDriver] : []);
-  const carrierChoices = mergeById(fleet?.externalCarriers.items ?? [], carrierSearchItems, selectedCarrier ? [selectedCarrier] : []);
+  const truckChoices = mergeById(fleet?.trucks.items ?? [], truckSearch.items, selectedTruck ? [selectedTruck] : []);
+  const driverChoices = mergeById(fleet?.drivers.items ?? [], driverSearch.items, selectedDriver ? [selectedDriver] : []);
+  const carrierChoices = mergeById(fleet?.externalCarriers.items ?? [], carrierSearch.items, selectedCarrier ? [selectedCarrier] : []);
   const activeTrucks = truckChoices.filter((truck) => truck.status === 'ACTIVE');
   const eligibleDrivers = driverChoices.filter((driver) => driver.status === 'ACTIVE' && driver.userId != null);
   const load = useCallback(async (cursorState: TaskCursorState) => {
@@ -267,34 +278,134 @@ export default function DispatchPage() {
     setSuccess(null);
   }
 
-  const searchFleetResource = useCallback(async (
-    resource: 'TRUCK' | 'DRIVER' | 'EXTERNAL_CARRIER',
-    q: string,
-  ) => {
-    const requestId = ++resourceSearchRequestIds.current[resource];
-    const setItems = resource === 'TRUCK'
-      ? setTruckSearchItems
-      : resource === 'DRIVER'
-        ? setDriverSearchItems
-        : setCarrierSearchItems;
+  const searchTrucks = useCallback(async (q: string) => {
+    const requestId = ++resourceSearchRequestIds.current.TRUCK;
     if (!q) {
-      setItems([] as never[]);
+      setTruckSearch(emptyResourceSearch());
       return;
     }
     try {
-      const result = await listDispatchFleetResources(resource, { q, limit: 25 });
-      if (requestId !== resourceSearchRequestIds.current[resource]) return;
-      setItems(result.items as never[]);
+      const result = await listDispatchFleetResources('TRUCK', { q, limit: 25 });
+      if (requestId !== resourceSearchRequestIds.current.TRUCK) return;
+      setTruckSearch({ query: q, items: result.items, nextCursor: result.nextCursor, loadingMore: false });
     } catch (reason) {
-      if (requestId !== resourceSearchRequestIds.current[resource]) return;
-      setItems([] as never[]);
+      if (requestId !== resourceSearchRequestIds.current.TRUCK) return;
+      setTruckSearch(emptyResourceSearch());
       setError(reason instanceof Error ? reason.message : 'Không thể tìm tài nguyên điều phối');
     }
   }, []);
 
-  const searchTrucks = useCallback((q: string) => { void searchFleetResource('TRUCK', q); }, [searchFleetResource]);
-  const searchDrivers = useCallback((q: string) => { void searchFleetResource('DRIVER', q); }, [searchFleetResource]);
-  const searchCarriers = useCallback((q: string) => { void searchFleetResource('EXTERNAL_CARRIER', q); }, [searchFleetResource]);
+  const searchDrivers = useCallback(async (q: string) => {
+    const requestId = ++resourceSearchRequestIds.current.DRIVER;
+    if (!q) {
+      setDriverSearch(emptyResourceSearch());
+      return;
+    }
+    try {
+      const result = await listDispatchFleetResources('DRIVER', { q, limit: 25 });
+      if (requestId !== resourceSearchRequestIds.current.DRIVER) return;
+      setDriverSearch({ query: q, items: result.items, nextCursor: result.nextCursor, loadingMore: false });
+    } catch (reason) {
+      if (requestId !== resourceSearchRequestIds.current.DRIVER) return;
+      setDriverSearch(emptyResourceSearch());
+      setError(reason instanceof Error ? reason.message : 'Không thể tìm tài nguyên điều phối');
+    }
+  }, []);
+
+  const searchCarriers = useCallback(async (q: string) => {
+    const requestId = ++resourceSearchRequestIds.current.EXTERNAL_CARRIER;
+    if (!q) {
+      setCarrierSearch(emptyResourceSearch());
+      return;
+    }
+    try {
+      const result = await listDispatchFleetResources('EXTERNAL_CARRIER', { q, limit: 25 });
+      if (requestId !== resourceSearchRequestIds.current.EXTERNAL_CARRIER) return;
+      setCarrierSearch({ query: q, items: result.items, nextCursor: result.nextCursor, loadingMore: false });
+    } catch (reason) {
+      if (requestId !== resourceSearchRequestIds.current.EXTERNAL_CARRIER) return;
+      setCarrierSearch(emptyResourceSearch());
+      setError(reason instanceof Error ? reason.message : 'Không thể tìm tài nguyên điều phối');
+    }
+  }, []);
+
+  const loadMoreTrucks = useCallback(async () => {
+    const searchPage = truckSearch.query !== '';
+    const cursor = searchPage ? truckSearch.nextCursor : fleet?.trucks.nextCursor;
+    if (!cursor) return;
+    const requestId = ++resourceSearchRequestIds.current.TRUCK;
+    setTruckSearch((current) => ({ ...current, loadingMore: true }));
+    try {
+      const result = await listDispatchFleetResources('TRUCK', {
+        cursor,
+        limit: searchPage ? 25 : FLEET_PAGE_LIMIT,
+        q: searchPage ? truckSearch.query : undefined,
+      });
+      if (requestId !== resourceSearchRequestIds.current.TRUCK) return;
+      if (searchPage) {
+        setTruckSearch((current) => ({ ...current, items: mergeById(current.items, result.items), nextCursor: result.nextCursor, loadingMore: false }));
+      } else {
+        setFleet((current) => current ? { ...current, trucks: { ...result, items: mergeById(current.trucks.items, result.items) } } : current);
+        setTruckSearch((current) => ({ ...current, loadingMore: false }));
+      }
+    } catch (reason) {
+      if (requestId !== resourceSearchRequestIds.current.TRUCK) return;
+      setTruckSearch((current) => ({ ...current, loadingMore: false }));
+      setError(reason instanceof Error ? reason.message : 'Không thể tải thêm xe');
+    }
+  }, [fleet?.trucks.nextCursor, truckSearch]);
+
+  const loadMoreDrivers = useCallback(async () => {
+    const searchPage = driverSearch.query !== '';
+    const cursor = searchPage ? driverSearch.nextCursor : fleet?.drivers.nextCursor;
+    if (!cursor) return;
+    const requestId = ++resourceSearchRequestIds.current.DRIVER;
+    setDriverSearch((current) => ({ ...current, loadingMore: true }));
+    try {
+      const result = await listDispatchFleetResources('DRIVER', {
+        cursor,
+        limit: searchPage ? 25 : FLEET_PAGE_LIMIT,
+        q: searchPage ? driverSearch.query : undefined,
+      });
+      if (requestId !== resourceSearchRequestIds.current.DRIVER) return;
+      if (searchPage) {
+        setDriverSearch((current) => ({ ...current, items: mergeById(current.items, result.items), nextCursor: result.nextCursor, loadingMore: false }));
+      } else {
+        setFleet((current) => current ? { ...current, drivers: { ...result, items: mergeById(current.drivers.items, result.items) } } : current);
+        setDriverSearch((current) => ({ ...current, loadingMore: false }));
+      }
+    } catch (reason) {
+      if (requestId !== resourceSearchRequestIds.current.DRIVER) return;
+      setDriverSearch((current) => ({ ...current, loadingMore: false }));
+      setError(reason instanceof Error ? reason.message : 'Không thể tải thêm lái xe');
+    }
+  }, [driverSearch, fleet?.drivers.nextCursor]);
+
+  const loadMoreCarriers = useCallback(async () => {
+    const searchPage = carrierSearch.query !== '';
+    const cursor = searchPage ? carrierSearch.nextCursor : fleet?.externalCarriers.nextCursor;
+    if (!cursor) return;
+    const requestId = ++resourceSearchRequestIds.current.EXTERNAL_CARRIER;
+    setCarrierSearch((current) => ({ ...current, loadingMore: true }));
+    try {
+      const result = await listDispatchFleetResources('EXTERNAL_CARRIER', {
+        cursor,
+        limit: searchPage ? 25 : FLEET_PAGE_LIMIT,
+        q: searchPage ? carrierSearch.query : undefined,
+      });
+      if (requestId !== resourceSearchRequestIds.current.EXTERNAL_CARRIER) return;
+      if (searchPage) {
+        setCarrierSearch((current) => ({ ...current, items: mergeById(current.items, result.items), nextCursor: result.nextCursor, loadingMore: false }));
+      } else {
+        setFleet((current) => current ? { ...current, externalCarriers: { ...result, items: mergeById(current.externalCarriers.items, result.items) } } : current);
+        setCarrierSearch((current) => ({ ...current, loadingMore: false }));
+      }
+    } catch (reason) {
+      if (requestId !== resourceSearchRequestIds.current.EXTERNAL_CARRIER) return;
+      setCarrierSearch((current) => ({ ...current, loadingMore: false }));
+      setError(reason instanceof Error ? reason.message : 'Không thể tải thêm nhà xe');
+    }
+  }, [carrierSearch, fleet?.externalCarriers.nextCursor]);
 
   function rememberTruck(truck: DispatchTruck | undefined) {
     if (!truck) return;
@@ -517,6 +628,11 @@ export default function DispatchPage() {
                 </div>
               </div>
             ))}
+            {!fleetAccessDenied && fleet?.trucks.nextCursor ? (
+              <button type="button" className="dispatch-fleet-load-more" onClick={() => void loadMoreTrucks()} disabled={truckSearch.loadingMore}>
+                {truckSearch.loadingMore ? 'Đang tải…' : 'Tải thêm xe'}
+              </button>
+            ) : null}
           </div>
         </section>
 
@@ -574,6 +690,9 @@ export default function DispatchPage() {
                         }}
                         options={activeTrucks.map((truck) => ({ value: String(truck.id), label: truck.licensePlate }))}
                         onSearchChange={searchTrucks}
+                        hasMore={Boolean(truckSearch.query ? truckSearch.nextCursor : fleet?.trucks.nextCursor)}
+                        loadingMore={truckSearch.loadingMore}
+                        onLoadMore={() => void loadMoreTrucks()}
                         placeholder="— Chọn xe —"
                         searchPlaceholder="Tìm biển số xe"
                         disabled={issuing || fleetAccessDenied}
@@ -590,6 +709,9 @@ export default function DispatchPage() {
                         }}
                         options={eligibleDrivers.map((driver) => ({ value: String(driver.id), label: driver.name, searchText: driver.phone ?? '' }))}
                         onSearchChange={searchDrivers}
+                        hasMore={Boolean(driverSearch.query ? driverSearch.nextCursor : fleet?.drivers.nextCursor)}
+                        loadingMore={driverSearch.loadingMore}
+                        onLoadMore={() => void loadMoreDrivers()}
                         placeholder="— Chọn lái xe —"
                         searchPlaceholder="Tìm tên lái xe"
                         disabled={issuing || fleetAccessDenied}
@@ -608,6 +730,9 @@ export default function DispatchPage() {
                         }}
                         options={carrierChoices.map((carrier) => ({ value: String(carrier.id), label: carrier.name }))}
                         onSearchChange={searchCarriers}
+                        hasMore={Boolean(carrierSearch.query ? carrierSearch.nextCursor : fleet?.externalCarriers.nextCursor)}
+                        loadingMore={carrierSearch.loadingMore}
+                        onLoadMore={() => void loadMoreCarriers()}
                         placeholder="— Chọn nhà xe —"
                         searchPlaceholder="Tìm tên nhà xe"
                         disabled={issuing}

@@ -83,6 +83,10 @@ describe('homeForRole', () => {
   it('routes ACCOUNTANT users to the dedicated accounting workspace', () => {
     expect(homeForRole('ACCOUNTANT')).toBe('/accounting');
   });
+
+  it('routes DISPATCHER users to the dispatch workspace', () => {
+    expect(homeForRole('DISPATCHER')).toBe('/dispatch');
+  });
 });
 
 /**

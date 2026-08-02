@@ -291,7 +291,7 @@ export async function createTrip(data: {
   fuelSupplierId?: number | null;
   fuelActualUnitPrice?: number | null;
   // Wave 0: optional link to the shipment this trip fulfills. When set, the
-  // shipment must exist + be DRAFT, and the shipment's containers are
+  // shipment must exist + still be open for dispatching, and the shipment's containers are
   // snapshotted into the new trip. When
   // absent, the trip is created without a shipment link (legacy behaviour).
   shipmentId?: number | null;
@@ -325,7 +325,7 @@ export async function createTrip(data: {
       if (!shipment) {
         throw new ApiError(404, 'Không tìm thấy lô hàng');
       }
-      if (shipment.status !== 'DRAFT') {
+      if (shipment.status !== 'NEW' && shipment.status !== 'DISPATCHED') {
         throw new ApiError(
           409,
           `Không thể gắn lô hàng ở trạng thái "${shipment.status}".`,

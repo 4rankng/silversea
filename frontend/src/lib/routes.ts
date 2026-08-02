@@ -133,6 +133,7 @@ export function homeForRole(role: 'DRIVER' | 'FORWARDER' | string): string {
   if (role === 'CUSTOMER') return routes.portalShipments;
   if (role === 'CLERK') return routes.shipments;
   if (role === 'ACCOUNTANT') return routes.accounting;
+  if (role === 'DISPATCHER') return routes.dispatch;
   return routes.dashboard;
 }
 

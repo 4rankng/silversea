@@ -96,7 +96,7 @@ async function mkPricingTable(customerId: number, routeId: number, price: string
 async function mkShipment(customerId: number) {
   const [shipment] = await db.insert(s.shipments).values({
     customerId,
-    status: 'DRAFT',
+    status: 'NEW',
     version: 1,
   }).returning();
   createdShipmentIds.push(shipment.id);

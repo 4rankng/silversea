@@ -144,7 +144,7 @@ describe('forwarder settlement streamlined workflow', () => {
       shipmentCode: `ST-SHIP-${suffix}`.slice(0, 50),
       customerId: customer.id,
       cargoTypeId: cargoType.id,
-      status: 'IN_PROGRESS',
+      status: 'DISPATCHED',
     }).returning();
     ids.shipments.push(shipment.id);
     await db.insert(s.userShipmentLinks).values({ userId: forwarderId, shipmentId: shipment.id });

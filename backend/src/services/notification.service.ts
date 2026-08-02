@@ -27,9 +27,9 @@ export interface NotificationPayload {
 
 // ─── Core CRUD ─────────────────────────────────────────────────────────────
 
-/** O2C push MVP: "dispatcher" audience = Điều vận authority (MANAGER/ADMIN). */
+/** O2C push MVP: dispatcher audience includes the dedicated Điều vận role. */
 function isDispatcherRole(role: string): boolean {
-  return role === Role.MANAGER || role === Role.ADMIN;
+  return role === Role.DISPATCHER || role === Role.MANAGER || role === Role.ADMIN;
 }
 
 export async function getNotifications(userId: number, page = 1, limit = 20) {

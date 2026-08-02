@@ -826,6 +826,18 @@
 .dispatch-task__dates { display: grid; gap: 3px; margin-top: 3px; color: var(--fg-2); font-size: 12px; }
 .dispatch-urgent { border-radius: 999px; padding: 3px 8px; background: #fef2f2; color: #b91c1c; font-size: 11px; font-weight: 800; }
 .dispatch-fleet-row { padding: 12px 14px; display: flex; align-items: flex-start; gap: 10px; border-bottom: 1px solid var(--border-2); }
+.dispatch-fleet-load-more {
+  width: calc(100% - 24px);
+  min-height: 42px;
+  margin: 12px;
+  color: var(--brand);
+  font-weight: 700;
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.dispatch-fleet-load-more:disabled { color: var(--fg-3); cursor: wait; }
 .dispatch-detail { padding: 18px; display: grid; gap: 22px; align-content: start; }
 .dispatch-detail__summary, .dispatch-assignment { min-width: 0; display: grid; gap: 16px; align-content: start; }
 .dispatch-detail__title, .dispatch-assignment__title { display: grid; gap: 3px; }

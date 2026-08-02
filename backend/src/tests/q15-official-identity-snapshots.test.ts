@@ -131,7 +131,7 @@ async function createTripFixture(
     customerId,
     routeId: route.id,
     cargoTypeId: cargoType.id,
-    status: 'DRAFT',
+    status: 'NEW',
     cargoMode: 'LCL',
   }).returning();
   shipmentIds.push(shipment.id);

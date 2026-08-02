@@ -406,7 +406,7 @@ describe('Audit-log every shipment write', () => {
     const shipment = await mkShipmentViaService();
     const r = await testFetch(`/${shipment.id}/transition`, {
       method: 'POST', token: adminToken,
-      body: { status: ShipmentStatus.IN_PROGRESS, reason: 'audit test' },
+      body: { status: ShipmentStatus.DISPATCHED, reason: 'audit test' },
     });
     assert.equal(r.status, 200);
 

@@ -54,7 +54,7 @@ async function setup() {
     routeId: rt.id,
     cargoTypeId: ct.id,
     cargoMode: 'LCL',
-    status: 'IN_PROGRESS',
+    status: 'DISPATCHED',
   }).returning();
   createdShipmentIds.push(shipment.id);
   const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
@@ -96,6 +96,7 @@ describe('M8.4 slice 4 — advisory evidence-readiness', () => {
     const { trip, driver, user, fulfillment } = await setup();
     tc++;
     for (const eventType of [
+      DriverProgressEventType.ORDER_RECEIVED,
       DriverProgressEventType.PICKED_UP,
       DriverProgressEventType.LOADING_OR_RETURNING,
     ] as const) {
@@ -153,6 +154,7 @@ describe('M8.4 slice 4 — advisory evidence-readiness', () => {
     const { trip, driver, user, fulfillment } = await setup();
     tc++;
     for (const eventType of [
+      DriverProgressEventType.ORDER_RECEIVED,
       DriverProgressEventType.PICKED_UP,
       DriverProgressEventType.LOADING_OR_RETURNING,
       DriverProgressEventType.DELIVERED,
@@ -197,7 +199,7 @@ describe('M8.4 slice 4 — advisory evidence-readiness', () => {
     ]).returning();
     createdPodFileIds.push(...files.map((file) => file.id));
     const st = await getCompletionEvidenceStatus(trip.id);
-    assert.equal(st.ready, true);
+    assert.equal(st.ready, true, JSON.stringify(st));
     assert.deepEqual(st.missing, []);
     assert.equal(st.hasSubmittedPod, true);
     assert.equal(st.hasRequiredPodFiles, true);

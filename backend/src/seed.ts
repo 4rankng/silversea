@@ -27,6 +27,7 @@ async function seed() {
     { username: 'giamdoc', email: 'giamdoc@nepo.vn', phone: '0900000001', passwordHash, role: Role.MANAGER, fullName: 'Lê Văn Tỉnh' },
     { username: 'ketoan', email: 'ketoan@nepo.vn', phone: '0900000002', passwordHash, role: Role.ACCOUNTANT, fullName: 'Nguyễn Thị Mai' },
     { username: 'cus', email: 'cus@nepo.vn', phone: '0900000005', passwordHash, role: Role.CLERK, fullName: 'Nhân viên CUS Demo' },
+    { username: 'dieuvan', email: 'dieuvan@nepo.vn', phone: '0900000006', passwordHash, role: Role.DISPATCHER, fullName: 'Nhân viên Điều vận Demo' },
     { username: 'laixe', email: 'laixe@nepo.vn', phone: '0900000003', passwordHash, role: Role.DRIVER, fullName: 'Phạm Văn Hùng' },
     { username: 'giaonhan', email: 'giaonhan@nepo.vn', phone: '0900000004', passwordHash, role: Role.FORWARDER, fullName: 'Nguyễn Văn Giao' },
     { username: 'thu', email: 'thu@nepo.vn', phone: '0900000010', passwordHash, role: Role.DRIVER, fullName: 'Nguyễn Văn Thụ' },
@@ -624,7 +625,7 @@ export async function seedShipments(passwordHash: string) {
     .set({ customerId: portalCustomer.id })
     .where(eq(schema.users.username, 'customer'));
 
-  // 3. Sample shipments — three across DRAFT / IN_PROGRESS / DELIVERED.
+  // 3. Sample shipments — three across NEW / DISPATCHED / PENDING_EXPENSE_APPROVAL.
   //    Sentinels via bookingRef so re-runs do NOT call createShipment twice.
   type ShipmentSeed = {
     sentinel: string; // bookingRef sentinel — must be unique + stable
@@ -635,7 +636,7 @@ export async function seedShipments(passwordHash: string) {
     deliveryLocation: string;
     contactName: string;
     contactPhone: string;
-    advanceTo?: 'IN_PROGRESS' | 'DELIVERED';
+    advanceTo?: 'DISPATCHED' | 'PENDING_EXPENSE_APPROVAL';
     containers?: Array<{ containerNumber: string; sealNumber: string; cargoWeightKg: number }>;
     document?: { type: 'BOOKING' | 'BL' | 'DO' | 'DECLARATION' | 'OTHER'; storageKey: string };
     declaration?: { declarationNumber: string; scope: 'SINGLE' | 'SHARED'; note: string };
@@ -652,7 +653,7 @@ export async function seedShipments(passwordHash: string) {
       deliveryLocation: 'Kho Biển Bạc',
       contactName: 'Phạm Thị Biển',
       contactPhone: '02253555555',
-      // Stays in DRAFT — represents a freshly-created booking not yet dispatched.
+      // Stays in NEW — represents a freshly-created booking not yet dispatched.
     },
     {
       sentinel: 'SEED-SHIP-2',
@@ -663,7 +664,7 @@ export async function seedShipments(passwordHash: string) {
       deliveryLocation: 'ICD Hà Nội',
       contactName: 'Trịnh Văn Hà',
       contactPhone: '02438888888',
-      advanceTo: 'IN_PROGRESS',
+      advanceTo: 'DISPATCHED',
       containers: [
         { containerNumber: 'MSKU1234565', sealNumber: 'SEED-SEAL-001', cargoWeightKg: 18500 },
         { containerNumber: 'TCNU7425363', sealNumber: 'SEED-SEAL-002', cargoWeightKg: 19200 },
@@ -678,7 +679,7 @@ export async function seedShipments(passwordHash: string) {
       deliveryLocation: 'Kho Biển Bạc',
       contactName: 'Phạm Thị Biển',
       contactPhone: '02253555555',
-      advanceTo: 'DELIVERED',
+      advanceTo: 'PENDING_EXPENSE_APPROVAL',
       containers: [
         { containerNumber: 'OOLU8312661', sealNumber: 'SEED-SEAL-003', cargoWeightKg: 17800 },
       ],
@@ -700,7 +701,7 @@ export async function seedShipments(passwordHash: string) {
     }
 
     // Use createShipment so the row gets the canonical shipmentCode + an
-    // initial DRAFT history row, matching the production path.
+    // initial NEW history row, matching the production path.
     const shipment = await createShipment({
       customerId: s.customerId,
       bookingRef: s.sentinel,
@@ -734,12 +735,12 @@ export async function seedShipments(passwordHash: string) {
         note: s.declaration.note,
       });
     }
-    if (s.advanceTo === 'IN_PROGRESS') {
-      await transitionShipmentStatus(shipment.id, 'IN_PROGRESS', { reason: 'Điều vận (seed)' });
-    } else if (s.advanceTo === 'DELIVERED') {
-      // Two legal edges required: DRAFT → IN_PROGRESS → DELIVERED.
-      await transitionShipmentStatus(shipment.id, 'IN_PROGRESS', { reason: 'Điều vận (seed)' });
-      await transitionShipmentStatus(shipment.id, 'DELIVERED', { reason: 'Giao hàng (seed)' });
+    if (s.advanceTo === 'DISPATCHED') {
+      await transitionShipmentStatus(shipment.id, 'DISPATCHED', { reason: 'Điều vận (seed)' });
+    } else if (s.advanceTo === 'PENDING_EXPENSE_APPROVAL') {
+      // Two legal edges required: NEW → DISPATCHED → PENDING_EXPENSE_APPROVAL.
+      await transitionShipmentStatus(shipment.id, 'DISPATCHED', { reason: 'Điều vận (seed)' });
+      await transitionShipmentStatus(shipment.id, 'PENDING_EXPENSE_APPROVAL', { reason: 'Giao hàng (seed)' });
     }
     createdCount++;
   }

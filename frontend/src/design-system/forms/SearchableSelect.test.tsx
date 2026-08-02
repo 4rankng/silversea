@@ -95,4 +95,24 @@ describe('SearchableSelect', () => {
     expect(onSearchChange).toHaveBeenLastCalledWith('minh hai');
     vi.useRealTimers();
   });
+
+  it('loads the next cursor page without closing the selector', () => {
+    const onLoadMore = vi.fn();
+    render(
+      <SearchableSelect
+        id="truckId"
+        value=""
+        onChange={() => {}}
+        options={ROUTES}
+        hasMore
+        onLoadMore={onLoadMore}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button'));
+    fireEvent.click(screen.getByRole('button', { name: 'Tải thêm kết quả' }));
+
+    expect(onLoadMore).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('combobox')).toBeTruthy();
+  });
 });

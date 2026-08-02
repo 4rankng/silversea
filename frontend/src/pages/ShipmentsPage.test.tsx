@@ -63,8 +63,8 @@ function desktopSurface() {
   return within(el as HTMLElement);
 }
 
-// The toolbar is the third shared surface. KPI labels ("Bản nháp",
-// "Đang xử lý", "Đã giao") collide with filter-pill text, so filter-pill
+// The toolbar is the third shared surface. Lifecycle KPI labels collide with
+// filter-pill text, so filter-pill
 // assertions must scope to the toolbar.
 function toolbar() {
   const el = document.querySelector('.shipments-page__toolbar');
@@ -89,13 +89,13 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
     renderAt('/shipments');
     expect(pageTitleH1()?.textContent).toBe('Lô hàng');
     // Filter pills render the catalogue. Scope to the toolbar — KPI labels
-    // ("Bản nháp", "Đang xử lý", "Đã giao") would otherwise collide.
+    // lifecycle labels would otherwise collide.
     const tb = toolbar();
     expect(tb.getByText(/Tất cả/)).toBeTruthy();
-    expect(tb.getByText('Bản nháp')).toBeTruthy();
-    expect(tb.getByText('Đang xử lý')).toBeTruthy();
+    expect(tb.getByText('Mới tạo')).toBeTruthy();
+    expect(tb.getByText('Đã điều xe')).toBeTruthy();
     expect(tb.getByRole('button', { name: /Tất cả/ }).getAttribute('aria-pressed')).toBe('true');
-    expect(tb.getByRole('button', { name: 'Bản nháp' }).getAttribute('aria-pressed')).toBe('false');
+    expect(tb.getByRole('button', { name: /^Mới tạo/ }).getAttribute('aria-pressed')).toBe('false');
     await waitFor(() => expect(apiGet).toHaveBeenCalled());
   });
 
@@ -142,14 +142,14 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
       items: [
         {
           id: 1, shipmentCode: 'SHP-2607-00001', customerId: 7, customerName: 'Công ty CP Vận tải ABC',
-          status: ShipmentStatus.DRAFT, bookingRef: 'BK-1', blNumber: 'BL-1',
+          status: ShipmentStatus.NEW, bookingRef: 'BK-1', blNumber: 'BL-1',
           expectedDeliveryDate: '2026-08-01', pickupLocation: null,
           deliveryLocation: null, contactName: null, contactPhone: null,
           version: 1, createdAt: '2026-07-25T00:00:00Z', updatedAt: '2026-07-25T00:00:00Z',
         },
         {
           id: 2, shipmentCode: 'SHP-2607-00002', customerId: 9, customerName: 'Công ty TNHH XYZ Logistik',
-          status: ShipmentStatus.IN_PROGRESS, bookingRef: null, blNumber: 'BL-2',
+          status: ShipmentStatus.DISPATCHED, bookingRef: null, blNumber: 'BL-2',
           expectedDeliveryDate: null, pickupLocation: null, deliveryLocation: null,
           contactName: null, contactPhone: null,
           version: 3, createdAt: '2026-07-25T00:00:00Z', updatedAt: '2026-07-25T00:00:00Z',
@@ -166,8 +166,8 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
     expect(desktop.getByText('Công ty CP Vận tải ABC')).toBeTruthy();
     // Status labels render in the row pills. Scoped to the desktop table to
     // avoid colliding with the mobile card pills.
-    expect(desktop.getAllByText('Bản nháp').length).toBeGreaterThanOrEqual(1);
-    expect(desktop.getAllByText('Đang xử lý').length).toBeGreaterThanOrEqual(1);
+    expect(desktop.getAllByText('Mới tạo').length).toBeGreaterThanOrEqual(1);
+    expect(desktop.getAllByText('Đã điều xe').length).toBeGreaterThanOrEqual(1);
     expect(desktop.getByText((_, element) => Boolean(
       element?.classList.contains('shipments-page__td--date')
       && element.textContent?.includes('1/8/2026'),
@@ -181,7 +181,7 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
         shipmentCode: null,
         customerId: 7,
         customerName: null,
-        status: ShipmentStatus.DRAFT,
+        status: ShipmentStatus.NEW,
         bookingRef: null,
         blNumber: null,
         expectedDeliveryDate: null,
@@ -210,7 +210,7 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
     apiGet.mockResolvedValue({
       items: [{
         id: 1, shipmentCode: 'SHP-2607-00001', customerId: 7, customerName: 'Công ty CP Vận tải ABC',
-        status: ShipmentStatus.DRAFT, bookingRef: 'BK-1', blNumber: 'BL-1',
+        status: ShipmentStatus.NEW, bookingRef: 'BK-1', blNumber: 'BL-1',
         expectedDeliveryDate: null, pickupLocation: 'Cảng Cát Lái',
         deliveryLocation: 'Kho Bình Dương', contactName: null, contactPhone: null,
         version: 1, createdAt: '', updatedAt: '',
@@ -233,10 +233,10 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
 
   it('passes the status filter through to the API as a query param', async () => {
     apiGet.mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 });
-    renderAt('/shipments?status=DELIVERED');
+    renderAt('/shipments?status=PENDING_EXPENSE_APPROVAL');
     await waitFor(() => expect(apiGet).toHaveBeenCalled());
     const callArg = apiGet.mock.calls[0][0] as string;
-    expect(callArg).toMatch(/status=DELIVERED/);
+    expect(callArg).toMatch(/status=PENDING_EXPENSE_APPROVAL/);
   });
 
   it('passes the page number through to the API', async () => {
@@ -267,14 +267,14 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
 
     renderAt('/shipments');
     await waitFor(() => expect(apiGet).toHaveBeenCalledTimes(1));
-    fireEvent.click(toolbar().getByText('Đã giao'));
+    fireEvent.click(toolbar().getByText('Chờ duyệt phí'));
     await waitFor(() => expect(apiGet).toHaveBeenCalledTimes(2));
 
     await act(async () => {
       resolveSecond({
         items: [{
           id: 2, shipmentCode: 'SHP-FRESH', customerId: 1, customerName: 'Khách hàng mới',
-          status: ShipmentStatus.DELIVERED, bookingRef: null, blNumber: null,
+          status: ShipmentStatus.PENDING_EXPENSE_APPROVAL, bookingRef: null, blNumber: null,
           expectedDeliveryDate: null, pickupLocation: null, deliveryLocation: null,
           contactName: null, contactPhone: null, version: 1, createdAt: '', updatedAt: '',
         }],
@@ -288,7 +288,7 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
       resolveFirst({
         items: [{
           id: 1, shipmentCode: 'SHP-STALE', customerId: 1, customerName: 'Khách hàng cũ',
-          status: ShipmentStatus.DRAFT, bookingRef: null, blNumber: null,
+          status: ShipmentStatus.NEW, bookingRef: null, blNumber: null,
           expectedDeliveryDate: null, pickupLocation: null, deliveryLocation: null,
           contactName: null, contactPhone: null, version: 1, createdAt: '', updatedAt: '',
         }],
@@ -304,7 +304,7 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
   it('passes q to the server and renders the returned matches', async () => {
     apiGet.mockResolvedValue({
       items: [
-        { id: 2, shipmentCode: 'SHP-BBB', customerId: 1, customerName: 'KH Beta', status: ShipmentStatus.DRAFT,
+        { id: 2, shipmentCode: 'SHP-BBB', customerId: 1, customerName: 'KH Beta', status: ShipmentStatus.NEW,
           bookingRef: 'BK-2', blNumber: 'BL-XYZ', expectedDeliveryDate: null,
           pickupLocation: null, deliveryLocation: null, contactName: null,
           contactPhone: null, version: 1, createdAt: '', updatedAt: '' },
@@ -322,11 +322,11 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
     apiGet.mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 });
     renderAt('/shipments?page=3');
     await waitFor(() => expect(apiGet).toHaveBeenCalled());
-    // Clicking the "Đã giao" pill should drop page=3 and set status=DELIVERED.
-    fireEvent.click(toolbar().getByText('Đã giao'));
+    // Clicking the pending-expense pill should drop page=3 and set the canonical status.
+    fireEvent.click(toolbar().getByText('Chờ duyệt phí'));
     await waitFor(() => {
       const lastCall = apiGet.mock.calls.at(-1)?.[0] as string;
-      expect(lastCall).toMatch(/status=DELIVERED/);
+      expect(lastCall).toMatch(/status=PENDING_EXPENSE_APPROVAL/);
       expect(lastCall).not.toMatch(/page=3/);
     });
   });

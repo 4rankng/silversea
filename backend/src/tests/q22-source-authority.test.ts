@@ -177,7 +177,7 @@ async function createTripFixture(
     customerId: customer.id,
     routeId: route.id,
     cargoTypeId: cargoType.id,
-    status: 'DRAFT',
+    status: 'NEW',
     cargoMode: 'LCL',
     createdBy: actors[0]!.id,
     updatedBy: actors[0]!.id,
@@ -249,7 +249,7 @@ async function createShipmentFixture(customerId: number, options: {
   const [shipment] = await db.insert(s.shipments).values({
     shipmentCode: `Q22-SHP-${suffix}`.slice(0, 50),
     customerId,
-    status: 'DRAFT',
+    status: 'NEW',
     createdBy: actors[0]!.id,
     updatedBy: actors[0]!.id,
   }).returning();
@@ -498,7 +498,7 @@ describe('Q22 source authority propagation', () => {
     const { shipment, trip, primaryCargo, secondaryCargo } = await createShipmentTripAuthorityFixture();
     const dispatched = await transitionShipmentStatus(
       shipment.id,
-      'IN_PROGRESS',
+      'DISPATCHED',
       { changedBy: actors[0]!.id },
     );
 

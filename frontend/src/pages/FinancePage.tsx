@@ -195,10 +195,10 @@ export default function FinancePage() {
                   <EmptyIllustration name="empty-pricing" width={150} height={124} />
                   <div>
                     {chartView === 'day'
-                      ? `Chưa có chuyến nào được khóa trong tháng ${month}/${year}`
-                      : `Chưa có chuyến nào được khóa trong năm ${year}`}
+                      ? `Chưa có chuyến nào hoàn thành trong tháng ${month}/${year}`
+                      : `Chưa có chuyến nào hoàn thành trong năm ${year}`}
                   </div>
-                  <div style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--wf-ink-3)' }}>Khoá lệnh để xem xu hướng doanh thu</div>
+                  <div style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--wf-ink-3)' }}>Hoàn thành chuyến để xem xu hướng doanh thu</div>
                 </div>
               ) : (
                 <RevenueTrendChart
@@ -267,7 +267,7 @@ export default function FinancePage() {
               <div style={{ height: 160, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--fg-3)', fontSize: 13, gap: 8 }}>
                 <EmptyIllustration name="empty-pie" width={126} height={104} />
                 <div>Chưa có dữ liệu chi phí</div>
-                <div style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--fg-3)' }}>Khoá lệnh có chi tiết nhiên liệu/đường để xem cơ cấu</div>
+                <div style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--fg-3)' }}>Hoàn thành chuyến có chi tiết nhiên liệu/đường để xem cơ cấu</div>
               </div>
             )}
           </div>
@@ -284,7 +284,7 @@ export default function FinancePage() {
               <div style={{ height: 80, background: 'var(--bg-2)', borderRadius: 6 }} />
             ) : topTrucks.length === 0 ? (
               <div style={{ height: 72, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--fg-3)', fontSize: 12 }}>
-                Chưa có xe nào có chuyến đã khóa trong tháng này
+                Chưa có xe nào có chuyến hoàn thành trong tháng này
               </div>
             ) : (
               (() => {

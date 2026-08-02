@@ -5,7 +5,7 @@ import { SearchableSelect, TextField, SelectField } from '../../design-system';
 import { useConfirm } from '../../components/UI';
 import { OperationalSiteDetailsDialog } from '../../components/shipment/OperationalSiteDetailsDialog';
 import { useAuth } from '../../hooks/useAuth';
-import { Role } from '@tingting/shared';
+import { Role, ShipmentStatus } from '@tingting/shared';
 import { tripClient } from '../../api/tripClient';
 import {
   addShipmentDocument,
@@ -575,7 +575,7 @@ export default function ClerkShipmentDocsPage() {
   }
   if (!detail) return null;
 
-  const isDraft = detail.shipment.status === 'DRAFT';
+  const isDraft = detail.shipment.status === ShipmentStatus.NEW;
   const isPostDispatch = !isDraft;
   return (
     <div style={{ padding: 16, maxWidth: 960, margin: '0 auto', minWidth: 0 }}>

@@ -86,6 +86,25 @@ def dismiss_onboarding_checklist(page: Page):
     _ = page  # touch the arg so the signature stays stable for callers
 
 
+def pick_dispatch_searchable_option(page: Page, field_id: str, label: str, query: str = "") -> bool:
+    native = page.get_by_label(label)
+    if native.count() > 0 and native.locator("option").count() > 1:
+        native.select_option(index=1)
+        return True
+
+    trigger = page.locator(f"#{field_id}")
+    if trigger.count() == 0 or not trigger.is_enabled():
+        return False
+    trigger.click()
+    search = page.get_by_role("combobox").last
+    if query:
+        search.fill(query)
+    options = page.get_by_role("option")
+    options.first.wait_for(state="visible", timeout=5000)
+    options.first.click()
+    return True
+
+
 def prepare_dispatch_issue(page: Page):
     page.locator(".dispatch-task").first.click()
     page.get_by_label("Ngày giờ chạy").fill(iso_local_now())
@@ -95,13 +114,8 @@ def prepare_dispatch_issue(page: Page):
     elif page.locator("label.dispatch-confirm input").count() > 0:
         page.get_by_label("Tôi xác nhận giờ kết thúc vì tuyến chưa có thời lượng chuẩn.").check()
 
-    truck_select = page.get_by_label("Biển số xe")
-    if truck_select.count() > 0:
-        if truck_select.locator("option").count() > 1:
-            truck_select.select_option(index=1)
-    driver_select = page.get_by_label("Lái xe")
-    if driver_select.count() > 0 and driver_select.input_value() == "" and driver_select.locator("option").count() > 1:
-        driver_select.select_option(index=1)
+    pick_dispatch_searchable_option(page, "dispatch-truck", "Biển số xe")
+    pick_dispatch_searchable_option(page, "dispatch-driver", "Lái xe")
     return page.get_by_role("button", name="Phát hành lệnh điều xe")
 
 
@@ -262,13 +276,15 @@ def test_dispatch_workflow(ctx: NepoTestContext, results: TestResults):
     queue = manager_api.get("/api/shipments/dispatch-queue?limit=50&status=READY")
     queue_data = queue.get("data", {})
     queue_items = queue_data.get("items")
-    queue_page = queue_data.get("page", {})
     if (
         queue.get("status") == 200
         and isinstance(queue_items, list)
         and len(queue_items) <= 50
-        and queue_page.get("limit", 50) <= 50
-        and isinstance(queue_page.get("total"), int)
+        and queue_data.get("limit", 50) <= 50
+        and isinstance(queue_data.get("total"), int)
+        and isinstance(queue_data.get("readyCount"), int)
+        and isinstance(queue_data.get("dispatchedCount"), int)
+        and "page" not in queue_data
     ):
         first_queue_item = queue_items[0] if queue_items else None
         queue_detail_ok = True
@@ -304,12 +320,33 @@ def test_dispatch_workflow(ctx: NepoTestContext, results: TestResults):
             results.pass_(
                 "TC-1601",
                 "Dispatch queue is server-bounded",
-                f"loaded={len(queue_items)}, total={queue_page.get('total')}, first_item_contract=ok",
+                f"loaded={len(queue_items)}, total={queue_data.get('total')}, first_item_contract=ok",
             )
         else:
             results.fail("TC-1601", "Dispatch queue is server-bounded", f"contract mismatch: {queue}")
     else:
         results.fail("TC-1601", "Dispatch queue is server-bounded", str(queue))
+
+    handoffs = manager_api.get("/api/shipments/dispatch-handoffs?limit=50")
+    handoff_data = handoffs.get("data", {})
+    handoff_items = handoff_data.get("items")
+    if (
+        handoffs.get("status") == 200
+        and isinstance(handoff_items, list)
+        and len(handoff_items) <= 50
+        and handoff_data.get("limit", 50) <= 50
+        and isinstance(handoff_data.get("total"), int)
+        and isinstance(handoff_data.get("unseenCount"), int)
+        and isinstance(handoff_data.get("seenCount"), int)
+        and "page" not in handoff_data
+    ):
+        results.pass_(
+            "TC-1601C",
+            "Dispatch handoff queue is flat and bounded",
+            f"loaded={len(handoff_items)}, total={handoff_data.get('total')}",
+        )
+    else:
+        results.fail("TC-1601C", "Dispatch handoff queue is flat and bounded", str(handoffs))
 
     if queue.get("status") == 200 and queue_items:
         first_item = queue_items[0]
@@ -321,20 +358,31 @@ def test_dispatch_workflow(ctx: NepoTestContext, results: TestResults):
         else:
             results.pass_("TC-1601B", "Dispatch queue has a deterministic shipment identity", first_item["shipment"].get("code") or first_item["shipment"].get("bookingRef") or first_item["shipment"].get("blNumber"))
 
-    fleet = manager_api.get("/api/shipments/dispatch-fleet?limit=100")
-    fleet_data = fleet.get("data", {})
-    trucks = fleet_data.get("trucks")
-    drivers = fleet_data.get("drivers")
+    truck_fleet = manager_api.get("/api/shipments/dispatch-fleet?resource=TRUCK&limit=100")
+    driver_fleet = manager_api.get("/api/shipments/dispatch-fleet?resource=DRIVER&limit=100")
+    fleet_data = truck_fleet.get("data", {})
+    driver_fleet_data = driver_fleet.get("data", {})
+    trucks = fleet_data.get("items")
+    drivers = driver_fleet_data.get("items")
     if (
-        fleet.get("status") == 200
+        truck_fleet.get("status") == 200
+        and driver_fleet.get("status") == 200
         and isinstance(trucks, list)
         and isinstance(drivers, list)
         and len(trucks) <= 100
         and len(drivers) <= 100
+        and isinstance(fleet_data.get("total"), int)
+        and isinstance(driver_fleet_data.get("total"), int)
+        and "page" not in fleet_data
+        and "page" not in driver_fleet_data
     ):
         if trucks:
             first_truck = trucks[0]
-            if not isinstance(first_truck.get("licensePlate"), str) or "capacityKg" not in first_truck:
+            if (
+                not isinstance(first_truck.get("licensePlate"), str)
+                or "capacityKg" not in first_truck
+                or "assignedDriverId" not in first_truck
+            ):
                 results.fail("TC-1602B", "Fleet contract exposes truck capacity", str(first_truck))
             else:
                 results.pass_("TC-1602B", "Fleet contract exposes truck capacity", f"{first_truck.get('licensePlate')} capacity={first_truck.get('capacityKg')}")
@@ -344,15 +392,15 @@ def test_dispatch_workflow(ctx: NepoTestContext, results: TestResults):
                 results.fail("TC-1602C", "Fleet contract exposes driver binding", str(first_driver))
             else:
                 results.pass_("TC-1602C", "Fleet contract exposes driver binding", f"{first_driver.get('name')} userId={first_driver.get('userId')}")
-        results.pass_("TC-1602", "Fleet response is bounded", f"trucks={len(trucks)}, drivers={len(drivers)}")
+        results.pass_("TC-1602", "Fleet response is bounded", f"trucks={len(trucks)}/{fleet_data.get('total')}, drivers={len(drivers)}/{driver_fleet_data.get('total')}")
     else:
-        results.fail("TC-1602", "Fleet response is bounded", str(fleet))
+        results.fail("TC-1602", "Fleet response is bounded", f"trucks={truck_fleet}, drivers={driver_fleet}")
 
     accountant_api = ApiClient()
     accountant_account = DEMO_ACCOUNTS["accountant"]
     accountant_api.login(accountant_account["identifier"], accountant_account["password"])
     denied_queue = accountant_api.get("/api/shipments/dispatch-queue?limit=1")
-    denied_fleet = accountant_api.get("/api/shipments/dispatch-fleet?limit=1")
+    denied_fleet = accountant_api.get("/api/shipments/dispatch-fleet?resource=TRUCK&limit=1")
     shipment_id = queue_items[0]["shipmentId"] if queue_items else None
     if shipment_id is None:
         shipment_list = manager_api.get("/api/shipments?page=1&pageSize=1")

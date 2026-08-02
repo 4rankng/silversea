@@ -18,7 +18,7 @@ export function TripListHero({ todayLabel, statusCounts, summary, quickEdit, tog
               <div className="hero-sub">
                 {statusCounts.all} chuyến đã ghi nhận
                 {statusCounts[TripStatus.COMPLETED] > 0 && (
-                  <span title="Chờ khóa: chuyến đã hoàn thành, chờ kế toán xác nhận khóa sổ kế toán"> · {statusCounts[TripStatus.COMPLETED]} chờ khóa</span>
+                  <span title="Chuyến đã hoàn thành và đã ghi nhận tài chính"> · {statusCounts[TripStatus.COMPLETED]} hoàn thành</span>
                 )}
                 {(summary?.missingFuel ?? 0) > 0 && <> · {summary?.missingFuel} chưa khai báo dầu</>}
               </div>

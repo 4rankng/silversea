@@ -306,10 +306,10 @@ async function validateShipmentIds(
     throw new ApiError(400, 'Lô hàng liên kết không tồn tại');
   }
   const terminalShipment = rows.find(
-    (row) => row.status !== 'DRAFT' && row.status !== 'IN_PROGRESS',
+    (row) => row.status === 'COMPLETED' || row.status === 'CANCELED',
   );
   if (terminalShipment) {
-    throw new ApiError(400, 'Chỉ được gán lô hàng đang nháp hoặc đang thực hiện');
+    throw new ApiError(400, 'Chỉ được gán lô hàng chưa kết thúc');
   }
   const invalid = businessUnitIds === undefined
     ? undefined

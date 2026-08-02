@@ -96,10 +96,11 @@ interface ShipmentStatusHistoryRow {
 }
 
 const STATUS_DOT_CLASS: Record<ShipmentStatus, string> = {
-  DRAFT: 'shipment-detail__dot--draft',
-  IN_PROGRESS: 'shipment-detail__dot--info',
-  DELIVERED: 'shipment-detail__dot--success',
-  CLOSED: 'shipment-detail__dot--muted',
+  NEW: 'shipment-detail__dot--draft',
+  DISPATCHED: 'shipment-detail__dot--info',
+  IN_TRANSIT: 'shipment-detail__dot--info',
+  PENDING_EXPENSE_APPROVAL: 'shipment-detail__dot--warning',
+  COMPLETED: 'shipment-detail__dot--success',
   CANCELED: 'shipment-detail__dot--danger',
 };
 
@@ -123,7 +124,8 @@ export default function ShipmentDetailPage() {
   const { user } = useAuth();
   const shipmentId = Number(id);
   const canOperate = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.CLERK;
-  const canSeePodReview = canOperate || user?.role === Role.ACCOUNTANT;
+  const canReviewPod = canOperate || user?.role === Role.ACCOUNTANT;
+  const canSeePodReview = canReviewPod;
   const canResolveCancellation = user?.role === Role.ADMIN || user?.role === Role.MANAGER;
   const coordinationActive = Boolean(user?.capabilities?.includes('shipments.read'));
   const canWriteCoordination = coordinationActive
@@ -259,7 +261,7 @@ export default function ShipmentDetailPage() {
           <TripPodReviewPanel
             shipmentId={shipment.id}
             items={podReviews}
-            canReview={canOperate}
+            canReview={canReviewPod}
             canResolveCancellation={canResolveCancellation}
             onChanged={fetchDetail}
           />

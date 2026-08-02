@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Role } from '@tingting/shared';
+import { Role, ShipmentStatus } from '@tingting/shared';
 import type { Customer, Truck } from '@tingting/shared';
 import { listShipments } from '../api/shipmentClient';
 import { userClient } from '../api/userClient';
@@ -30,7 +30,7 @@ async function loadAllShipmentScopeOptions() {
   } while (items.length < total);
   return {
     items: items.filter(
-      (shipment) => shipment.status === 'DRAFT' || shipment.status === 'IN_PROGRESS',
+      (shipment) => shipment.status === ShipmentStatus.NEW || shipment.status === ShipmentStatus.DISPATCHED || shipment.status === ShipmentStatus.IN_TRANSIT,
     ),
   };
 }

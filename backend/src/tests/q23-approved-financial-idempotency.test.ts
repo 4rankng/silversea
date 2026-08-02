@@ -85,7 +85,7 @@ async function createBillableDebitDocumentInput(
     routeId: route.id,
     cargoTypeId: cargoType.id,
     cargoMode: 'LCL',
-    status: 'DRAFT',
+    status: 'NEW',
   }).returning();
   shipmentIds.push(shipment.id);
   const [fulfillment] = await db.insert(s.shipmentFulfillments).values({

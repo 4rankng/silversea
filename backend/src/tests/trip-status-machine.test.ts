@@ -43,7 +43,7 @@ const TRANSITION_RULES: TransitionRule[] = [
   // COMPLETED target (from IN_TRANSIT — completion now carries the photo /
   // zero-revenue / e-POD gates and the POD-recovery gate formerly on
   // COMPLETED → LOCKED). A direct re-complete of COMPLETED is blocked.
-  { from: 'IN_TRANSIT', to: 'COMPLETED', allowed: true, roles: ['ADMIN', 'MANAGER', 'CLERK'], description: 'Complete a running trip (e-POD acceptance path or governed close; gates enforced)' },
+  { from: 'IN_TRANSIT', to: 'COMPLETED', allowed: true, roles: ['ADMIN', 'MANAGER'], description: 'Complete a running trip through the governed close path; evidence gates are enforced' },
   // Direct COMPLETED → COMPLETED is blocked. A separate governed request applies
   // the exceptional reopen (COMPLETED → IN_TRANSIT) after maker/checker/approver
   // separation, after which the trip can be re-completed.
@@ -117,7 +117,7 @@ describe('Trip Status Machine — Role Permission Rules', () => {
     }
   });
 
-  test('COMPLETE requires ADMIN or MANAGER (CLERK only via e-POD acceptance path)', () => {
+  test('COMPLETE requires ADMIN or MANAGER through governed approval', () => {
     const completeRules = TRANSITION_RULES.filter(
       r => r.to === 'COMPLETED' && r.from !== 'COMPLETED' && r.allowed
     );

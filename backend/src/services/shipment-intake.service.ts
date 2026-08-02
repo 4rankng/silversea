@@ -198,32 +198,23 @@ export async function submitShipmentForDispatch(input: SubmitShipmentForDispatch
       if (shipment.version !== input.expectedVersion) {
         throw new ApiError(409, 'Lô hàng đã thay đổi. Vui lòng tải lại.');
       }
-      if (shipment.status !== 'DRAFT') {
-        throw new ApiError(409, 'Chỉ lô hàng nháp mới được gửi sang điều phối.');
+      if (shipment.status !== 'NEW') {
+        throw new ApiError(409, 'Chỉ lô hàng ở trạng thái Mới tạo mới được gửi sang điều phối.');
       }
       await assertIntakeReady(tx, shipment);
 
       const nextVersion = shipment.version + 1;
       const now = new Date();
       const [updatedShipment] = await tx.update(s.shipments).set({
-        status: 'IN_PROGRESS',
         version: nextVersion,
         updatedBy: input.actor.userId,
         updatedAt: now,
       }).where(and(
         eq(s.shipments.id, shipment.id),
         eq(s.shipments.version, shipment.version),
-        eq(s.shipments.status, 'DRAFT'),
+        eq(s.shipments.status, 'NEW'),
       )).returning();
       if (!updatedShipment) throw new ApiError(409, 'Lô hàng đã được gửi bởi người khác.');
-
-      await tx.insert(s.shipmentStatusHistory).values({
-        shipmentId: shipment.id,
-        fromStatus: 'DRAFT',
-        toStatus: 'IN_PROGRESS',
-        reason: 'Gửi sang bảng điều phối',
-        changedBy: input.actor.userId,
-      });
       const [handoff] = await tx.insert(s.dispatchHandoffs).values({
         shipmentId: shipment.id,
         handlerId: null,

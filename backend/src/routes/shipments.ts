@@ -269,7 +269,7 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
 
 router.get(
   '/dispatch-handoffs',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.ACCOUNTANT),
   asyncHandler(async (req: Request, res: Response) => {
     const status = typeof req.query.status === 'string'
       ? req.query.status.split(',').map((value) => value.trim()).filter(Boolean)
@@ -289,7 +289,7 @@ router.get(
 
 router.get(
   '/dispatch-queue',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.ACCOUNTANT),
   asyncHandler(async (req: Request, res: Response) => {
     const status = typeof req.query.status === 'string'
       ? req.query.status.split(',').map((value) => value.trim()).filter(Boolean)
@@ -309,10 +309,16 @@ router.get(
 
 router.get(
   '/dispatch-fleet',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.ACCOUNTANT),
   asyncHandler(async (req: Request, res: Response) => {
+    const resource = typeof req.query.resource === 'string' ? req.query.resource.trim() : '';
+    if (resource !== 'TRUCK' && resource !== 'DRIVER' && resource !== 'EXTERNAL_CARRIER') {
+      throw new ApiError(400, 'resource phải là TRUCK, DRIVER hoặc EXTERNAL_CARRIER.');
+    }
     res.json(await listDispatchFleet({
       actor: getUser(req),
+      resource,
+      cursor: typeof req.query.cursor === 'string' ? req.query.cursor : undefined,
       limit: typeof req.query.limit === 'string' ? Number(req.query.limit) : undefined,
       q: typeof req.query.q === 'string' ? req.query.q : undefined,
     }));
@@ -395,7 +401,7 @@ router.post(
 
 router.post(
   '/:id/dispatch-handoffs/:handoffId/resolve',
-  requireRoles(Role.ADMIN, Role.MANAGER),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
@@ -418,7 +424,7 @@ router.post(
         shipmentId,
         handoffId,
         expectedVersion: parsed.data.expectedVersion,
-        actor: actor as typeof actor & { role: Role.ADMIN | Role.MANAGER },
+        actor: actor as typeof actor & { role: Role.ADMIN | Role.MANAGER | Role.DISPATCHER },
       }));
       return;
     }
@@ -650,7 +656,7 @@ router.post(
 // ─── POST /:id/dispatch — fulfillment → linked trip ────────────────────────
 router.post(
   '/:id/dispatch',
-  requireRoles(Role.ADMIN, Role.MANAGER),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const id = parseId(req, res);
     if (id === null) return;
@@ -676,7 +682,7 @@ router.post(
       externalDriverName: parsed.data.externalDriverName ?? null,
       externalDriverPhone: parsed.data.externalDriverPhone ?? null,
       idempotencyKey: getRequestIdempotencyKey(req) ?? '',
-      actor: user as typeof user & { role: Role.ADMIN | Role.MANAGER },
+      actor: user as typeof user & { role: Role.ADMIN | Role.MANAGER | Role.DISPATCHER },
     });
     res.locals.auditEntityId = id;
     res.locals.auditEntityKey = shipment.shipmentCode ?? "Lô hàng chưa có mã";
@@ -686,7 +692,7 @@ router.post(
 
 router.post(
   '/:id/pod-reviews/:submissionId/review',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.CLERK),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CLERK),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;

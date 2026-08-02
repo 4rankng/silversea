@@ -134,7 +134,7 @@ describe('shipment intake submission', () => {
       submitShipmentForDispatch(command),
     ]);
     assert.deepEqual([left.replayed, right.replayed].sort(), [false, true]);
-    assert.equal(left.result.shipment.status, 'IN_PROGRESS');
+    assert.equal(left.result.shipment.status, 'NEW');
     assert.equal(left.result.handoff.status, 'UNSEEN');
     assert.equal(left.result.handoff.handoffVersion, shipment.version + 1);
     const handoffs = await db.select().from(s.dispatchHandoffs)
@@ -167,7 +167,7 @@ describe('shipment intake submission', () => {
       (error: unknown) => error instanceof ApiError && error.statusCode === 409,
     );
     const [unchanged] = await db.select().from(s.shipments).where(eq(s.shipments.id, shipment.id));
-    assert.equal(unchanged.status, 'DRAFT');
+    assert.equal(unchanged.status, 'NEW');
     assert.equal(unchanged.version, shipment.version);
     const handoffs = await db.select().from(s.dispatchHandoffs)
       .where(eq(s.dispatchHandoffs.shipmentId, shipment.id));
@@ -201,7 +201,7 @@ describe('shipment intake submission', () => {
       idempotencyKey: key,
       actor: admin,
     });
-    assert.equal(result.result.shipment.status, 'IN_PROGRESS');
+    assert.equal(result.result.shipment.status, 'NEW');
     const handoffs = await db.select().from(s.dispatchHandoffs)
       .where(eq(s.dispatchHandoffs.shipmentId, shipment.id));
     assert.equal(handoffs.length, 1);
@@ -244,7 +244,7 @@ describe('shipment intake submission', () => {
       );
     }
     const [unchanged] = await db.select().from(s.shipments).where(eq(s.shipments.id, shipment.id));
-    assert.equal(unchanged.status, 'DRAFT');
+    assert.equal(unchanged.status, 'NEW');
   });
 });
 

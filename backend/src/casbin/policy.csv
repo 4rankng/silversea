@@ -86,6 +86,8 @@ p, MANAGER, shipments, read
 p, MANAGER, shipments, write
 p, MANAGER, shipments, delete
 p, ACCOUNTANT, shipments, read
+p, DISPATCHER, shipments, read
+p, DISPATCHER, shipments, write
 // Dispatch workflow uses separate resources so broad shipment access cannot
 // accidentally authorize dispatch, driver execution, or e-POD review.
 p, MANAGER, shipment_fulfillments, read

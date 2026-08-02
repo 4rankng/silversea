@@ -67,10 +67,11 @@ type StatusFilter = 'all' | ShipmentStatus;
 
 const STATUS_FILTER_ORDER = [
   'all',
-  ShipmentStatus.DRAFT,
-  ShipmentStatus.IN_PROGRESS,
-  ShipmentStatus.DELIVERED,
-  ShipmentStatus.CLOSED,
+  ShipmentStatus.NEW,
+  ShipmentStatus.DISPATCHED,
+  ShipmentStatus.IN_TRANSIT,
+  ShipmentStatus.PENDING_EXPENSE_APPROVAL,
+  ShipmentStatus.COMPLETED,
   ShipmentStatus.CANCELED,
 ] as const satisfies readonly StatusFilter[];
 
@@ -81,10 +82,11 @@ const STATUS_FILTER_LABELS: Record<StatusFilter, string> = {
 
 // Status → StatusPill variant (mirrors the trip status-color pattern).
 const STATUS_PILL_VARIANT: Record<ShipmentStatus, 'neutral' | 'info' | 'success' | 'danger'> = {
-  DRAFT: 'neutral',
-  IN_PROGRESS: 'info',
-  DELIVERED: 'success',
-  CLOSED: 'neutral',
+  NEW: 'neutral',
+  DISPATCHED: 'info',
+  IN_TRANSIT: 'info',
+  PENDING_EXPENSE_APPROVAL: 'info',
+  COMPLETED: 'success',
   CANCELED: 'danger',
 };
 

@@ -102,7 +102,7 @@ async function createTripFixture(input: {
       customerId: input.customerId,
       routeId: input.routeId,
       cargoTypeId: input.cargoTypeId,
-      status: 'DRAFT',
+      status: 'NEW',
       cargoMode: 'LCL',
       tradeDirection: input.tradeDirection ?? 'IMPORT',
       blNumber: `BL-${input.tripCode}`,

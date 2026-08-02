@@ -122,6 +122,32 @@
   text-align: center;
 }
 
+.searchable-select__load-more {
+  padding: 6px;
+  border-top: 1px solid var(--line);
+}
+
+.searchable-select__load-more button {
+  width: 100%;
+  min-height: 40px;
+  color: var(--brand);
+  font: inherit;
+  font-weight: 600;
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.searchable-select__load-more button:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+
+.searchable-select__load-more button:disabled {
+  color: var(--ink-3);
+  cursor: wait;
+}
+
 @media (max-width: 640px) {
   .searchable-select__popover {
     min-width: 100%;

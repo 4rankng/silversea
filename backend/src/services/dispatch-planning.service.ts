@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gt, ilike, inArray, isNotNull, isNull, lt, ne, or, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gt, ilike, inArray, isNotNull, isNull, lt, ne, or, sql } from 'drizzle-orm';
 import { NotificationType, Role, TripStatus, type FuelMode } from '@tingting/shared';
 
 import { db } from '../db';
@@ -10,10 +10,11 @@ import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import { persistNotificationInTx, sendNotificationPush, type NotificationPayload } from './notification.service';
 import { assertActorCanAccessShipment } from './shipment-coordination.service';
 import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
+import { transitionShipmentStatus } from './shipment.service';
 import { createTrip } from './trip-mutations.service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
-type DispatchActor = AuthUser & { role: Role.ADMIN | Role.MANAGER };
+type DispatchActor = AuthUser & { role: Role.ADMIN | Role.MANAGER | Role.DISPATCHER };
 
 export interface ListDispatchHandoffsInput {
   actor: AuthUser;
@@ -37,6 +38,8 @@ export interface ListDispatchQueueInput {
 
 export interface ListDispatchFleetInput {
   actor: AuthUser;
+  resource: 'TRUCK' | 'DRIVER' | 'EXTERNAL_CARRIER';
+  cursor?: string | null;
   limit?: number;
   q?: string;
 }
@@ -96,6 +99,23 @@ type LiveTripRow = Pick<
 
 type DispatchHandoffStatus = typeof s.dispatchHandoffs.status.enumValues[number];
 type DispatchQueueStatus = 'READY' | 'DISPATCHED';
+type DispatchFleetResource = ListDispatchFleetInput['resource'];
+
+type DispatchCursorScope = 'dispatch-handoffs' | 'dispatch-queue';
+
+interface DispatchListCursorPayload {
+  v: 1;
+  scope: DispatchCursorScope;
+  id: number;
+}
+
+interface DispatchFleetCursorPayload {
+  v: 1;
+  scope: 'dispatch-fleet';
+  resource: DispatchFleetResource;
+  sortKey: string;
+  id: number;
+}
 
 interface IssueOrderMutationResult {
   fulfillment: typeof s.shipmentFulfillments.$inferSelect;
@@ -111,13 +131,13 @@ const TRAILER_CAPACITY_KG: Record<'20FT' | '40FT', number> = {
 };
 
 function assertDispatchReadActor(actor: AuthUser): void {
-  if (actor.role !== Role.ADMIN && actor.role !== Role.MANAGER && actor.role !== Role.ACCOUNTANT) {
+  if (actor.role !== Role.ADMIN && actor.role !== Role.MANAGER && actor.role !== Role.DISPATCHER && actor.role !== Role.ACCOUNTANT) {
     throw new ApiError(403, 'Bạn không có quyền xem bảng điều phối.');
   }
 }
 
 function assertDispatchActor(actor: AuthUser): asserts actor is DispatchActor {
-  if (actor.role !== Role.ADMIN && actor.role !== Role.MANAGER) {
+  if (actor.role !== Role.ADMIN && actor.role !== Role.MANAGER && actor.role !== Role.DISPATCHER) {
     throw new ApiError(403, 'Chỉ điều vận mới có quyền điều xe.');
   }
 }
@@ -138,13 +158,82 @@ function requireAccountantDispatchScope(actor: AuthUser): number[] | null {
   return customerIds;
 }
 
-function parseCursor(raw: string | null | undefined): number | null {
+function decodeCursorPayload(raw: string): unknown {
+  try {
+    return JSON.parse(Buffer.from(raw, 'base64url').toString('utf8'));
+  } catch {
+    throw new ApiError(400, 'cursor không hợp lệ.');
+  }
+}
+
+function encodeCursorPayload(payload: DispatchListCursorPayload | DispatchFleetCursorPayload): string {
+  return Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+}
+
+function parseCursor(raw: string | null | undefined, scope: DispatchCursorScope): number | null {
   if (!raw) return null;
-  const value = Number(raw);
+  const payload = decodeCursorPayload(raw);
+  if (
+    !payload
+    || typeof payload !== 'object'
+    || Array.isArray(payload)
+  ) {
+    throw new ApiError(400, 'cursor không hợp lệ.');
+  }
+  const parsed = payload as Partial<DispatchListCursorPayload>;
+  const id = typeof parsed.id === 'number' ? parsed.id : null;
+  if (
+    parsed.v !== 1
+    || parsed.scope !== scope
+    || id == null
+    || !Number.isInteger(id)
+    || id <= 0
+  ) {
+    throw new ApiError(400, 'cursor không hợp lệ.');
+  }
+  const value = id;
   if (!Number.isInteger(value) || value <= 0) {
     throw new ApiError(400, 'cursor không hợp lệ.');
   }
   return value;
+}
+
+function encodeDescendingIdCursor(scope: DispatchCursorScope, id: number): string {
+  return encodeCursorPayload({ v: 1, scope, id });
+}
+
+function parseFleetCursor(
+  raw: string | null | undefined,
+  resource: DispatchFleetResource,
+): { sortKey: string; id: number } | null {
+  if (!raw) return null;
+  const payload = decodeCursorPayload(raw);
+  if (
+    !payload
+    || typeof payload !== 'object'
+    || Array.isArray(payload)
+  ) {
+    throw new ApiError(400, 'cursor không hợp lệ.');
+  }
+  const parsed = payload as Partial<DispatchFleetCursorPayload>;
+  const id = typeof parsed.id === 'number' ? parsed.id : null;
+  if (
+    parsed.v !== 1
+    || parsed.scope !== 'dispatch-fleet'
+    || parsed.resource !== resource
+    || typeof parsed.sortKey !== 'string'
+    || parsed.sortKey.length === 0
+    || id == null
+    || !Number.isInteger(id)
+    || id <= 0
+  ) {
+    throw new ApiError(400, 'cursor không hợp lệ.');
+  }
+  return { sortKey: parsed.sortKey, id };
+}
+
+function encodeFleetCursor(resource: DispatchFleetResource, sortKey: string, id: number): string {
+  return encodeCursorPayload({ v: 1, scope: 'dispatch-fleet', resource, sortKey, id });
 }
 
 function normalizeLimit(raw: number | undefined, max: number): number {
@@ -174,6 +263,14 @@ function buildPattern(raw: string | undefined): string | null {
     throw new ApiError(400, 'Từ khóa tìm kiếm không được vượt quá 100 ký tự.');
   }
   return `%${escapeLikeTerm(value)}%`;
+}
+
+function unaccentedIlike(column: unknown, pattern: string) {
+  return sql`unaccent(${column}) ILIKE unaccent(${pattern})`;
+}
+
+function sumSelectedStatusCounts<T extends string>(selected: T[], counts: Partial<Record<T, number>>) {
+  return selected.reduce((sum, status) => sum + (counts[status] ?? 0), 0);
 }
 
 function parseIsoWithZone(value: string, label: string): Date {
@@ -338,7 +435,7 @@ function toFrozenSiteSummary(source: unknown) {
 export async function listDispatchHandoffs(input: ListDispatchHandoffsInput) {
   assertDispatchReadActor(input.actor);
   const accountantCustomerIds = requireAccountantDispatchScope(input.actor);
-  const cursor = parseCursor(input.cursor);
+  const cursor = parseCursor(input.cursor, 'dispatch-handoffs');
   const limit = normalizeLimit(input.limit, 50);
   const statuses: DispatchHandoffStatus[] = input.status?.length ? input.status : ['UNSEEN', 'SEEN'];
   const qPattern = buildPattern(input.q);
@@ -430,6 +527,10 @@ export async function listDispatchHandoffs(input: ListDispatchHandoffsInput) {
       ));
     const unseenCount = Number(statusCounts?.unseen ?? 0);
     const seenCount = Number(statusCounts?.seen ?? 0);
+    const total = sumSelectedStatusCounts(statuses, {
+      UNSEEN: unseenCount,
+      SEEN: seenCount,
+    });
 
     const pageRows = rows.slice(0, limit);
     return {
@@ -489,13 +590,11 @@ export async function listDispatchHandoffs(input: ListDispatchHandoffsInput) {
           lclLabel: row.cargoMode === 'LCL' ? 'Lô hàng lẻ' : null,
         },
       })),
-      page: {
-        limit,
-        nextCursor: rows.length > limit ? String(pageRows.at(-1)!.handoffId) : null,
-        total: unseenCount + seenCount,
-        unseenCount,
-        seenCount,
-      },
+      total,
+      limit,
+      nextCursor: rows.length > limit ? encodeDescendingIdCursor('dispatch-handoffs', pageRows.at(-1)!.handoffId) : null,
+      unseenCount,
+      seenCount,
     };
   });
 }
@@ -503,7 +602,7 @@ export async function listDispatchHandoffs(input: ListDispatchHandoffsInput) {
 export async function listDispatchQueue(input: ListDispatchQueueInput) {
   assertDispatchReadActor(input.actor);
   const accountantCustomerIds = requireAccountantDispatchScope(input.actor);
-  const cursor = parseCursor(input.cursor);
+  const cursor = parseCursor(input.cursor, 'dispatch-queue');
   const limit = normalizeLimit(input.limit, 50);
   const qPattern = buildPattern(input.q);
   const date = normalizeDate(input.date);
@@ -648,6 +747,10 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
       ));
     const filteredReadyCount = Number(filteredCounts?.ready ?? 0);
     const filteredDispatchedCount = Number(filteredCounts?.dispatched ?? 0);
+    const total = sumSelectedStatusCounts(statuses, {
+      READY: filteredReadyCount,
+      DISPATCHED: filteredDispatchedCount,
+    });
 
     const pageRows = rows.slice(0, limit);
     return {
@@ -717,13 +820,11 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
           } : null,
         };
       }),
-      page: {
-        limit,
-        nextCursor: rows.length > limit ? String(pageRows.at(-1)!.fulfillmentId) : null,
-        total: filteredReadyCount + filteredDispatchedCount,
-        readyCount: filteredReadyCount,
-        dispatchedCount: filteredDispatchedCount,
-      },
+      total,
+      limit,
+      nextCursor: rows.length > limit ? encodeDescendingIdCursor('dispatch-queue', pageRows.at(-1)!.fulfillmentId) : null,
+      readyCount: filteredReadyCount,
+      dispatchedCount: filteredDispatchedCount,
     };
   });
 }
@@ -733,91 +834,170 @@ export async function listDispatchFleet(input: ListDispatchFleetInput) {
   if (input.actor.role === Role.ACCOUNTANT) {
     throw new ApiError(403, 'Kế toán không được xem đội xe điều phối.');
   }
+  const cursor = parseFleetCursor(input.cursor, input.resource);
   const limit = normalizeLimit(input.limit, 100);
   const qPattern = buildPattern(input.q);
 
   return db.transaction(async (tx) => {
-    const truckWhere = and(
-      isNull(s.trucks.deletedAt),
-      qPattern ? ilike(s.trucks.licensePlate, qPattern) : undefined,
-    );
-    const driverWhere = and(
-      isNull(s.drivers.deletedAt),
-      qPattern ? ilike(s.drivers.name, qPattern) : undefined,
-    );
+    if (input.resource === 'TRUCK') {
+      const truckWhere = and(
+        isNull(s.trucks.deletedAt),
+        qPattern ? unaccentedIlike(s.trucks.licensePlate, qPattern) : undefined,
+        cursor ? or(
+          gt(s.trucks.licensePlate, cursor.sortKey),
+          and(eq(s.trucks.licensePlate, cursor.sortKey), gt(s.trucks.id, cursor.id)),
+        ) : undefined,
+      );
+      const truckCountWhere = and(
+        isNull(s.trucks.deletedAt),
+        qPattern ? unaccentedIlike(s.trucks.licensePlate, qPattern) : undefined,
+      );
+      const [truckTotals, truckRows] = await Promise.all([
+        tx.select({ value: count() }).from(s.trucks).where(truckCountWhere),
+        tx.select({
+          id: s.trucks.id,
+          licensePlate: s.trucks.licensePlate,
+          trailerType: s.trucks.trailerType,
+          currentTrailerId: s.trucks.currentTrailerId,
+          status: s.trucks.status,
+        }).from(s.trucks)
+          .where(truckWhere)
+          .orderBy(asc(s.trucks.licensePlate), asc(s.trucks.id))
+          .limit(limit + 1),
+      ]);
+      const pageRows = truckRows.slice(0, limit);
+      const trailerIds = pageRows.map((row) => row.currentTrailerId).filter((id): id is number => id != null);
+      const truckIds = pageRows.map((row) => row.id);
+      const [trailers, assignedDrivers] = await Promise.all([
+        trailerIds.length === 0
+          ? []
+          : tx.select({ id: s.trailers.id, licensePlate: s.trailers.licensePlate })
+            .from(s.trailers)
+            .where(inArray(s.trailers.id, [...new Set(trailerIds)])),
+        truckIds.length === 0
+          ? []
+          : tx.select({ id: s.drivers.id, name: s.drivers.name, assignedTruckId: s.drivers.assignedTruckId })
+            .from(s.drivers)
+            .where(and(
+              isNull(s.drivers.deletedAt),
+              inArray(s.drivers.assignedTruckId, truckIds),
+            ))
+            .orderBy(asc(s.drivers.id)),
+      ]);
+      const trailerById = new Map(trailers.map((row) => [row.id, row]));
+      const assignedDriverByTruckId = new Map<number, { id: number; name: string }>();
+      for (const row of assignedDrivers) {
+        if (row.assignedTruckId == null || assignedDriverByTruckId.has(row.assignedTruckId)) continue;
+        assignedDriverByTruckId.set(row.assignedTruckId, { id: row.id, name: row.name });
+      }
+
+      return {
+        items: pageRows.map((row) => ({
+          id: row.id,
+          licensePlate: row.licensePlate,
+          trailerType: row.trailerType,
+          currentTrailerId: row.currentTrailerId,
+          currentTrailerPlate: row.currentTrailerId ? trailerById.get(row.currentTrailerId)?.licensePlate ?? null : null,
+          capacityKg: inferredVehicleCapacityKg(row.trailerType),
+          status: row.status,
+          assignedDriverId: assignedDriverByTruckId.get(row.id)?.id ?? null,
+          assignedDriverName: assignedDriverByTruckId.get(row.id)?.name ?? null,
+        })),
+        total: Number(truckTotals[0]?.value ?? 0),
+        limit,
+        nextCursor: truckRows.length > limit
+          ? encodeFleetCursor('TRUCK', pageRows.at(-1)!.licensePlate, pageRows.at(-1)!.id)
+          : null,
+      };
+    }
+
+    if (input.resource === 'DRIVER') {
+      const driverWhere = and(
+        isNull(s.drivers.deletedAt),
+        qPattern ? unaccentedIlike(s.drivers.name, qPattern) : undefined,
+        cursor ? or(
+          gt(s.drivers.name, cursor.sortKey),
+          and(eq(s.drivers.name, cursor.sortKey), gt(s.drivers.id, cursor.id)),
+        ) : undefined,
+      );
+      const driverCountWhere = and(
+        isNull(s.drivers.deletedAt),
+        qPattern ? unaccentedIlike(s.drivers.name, qPattern) : undefined,
+      );
+      const [driverTotals, driverRows] = await Promise.all([
+        tx.select({ value: count() }).from(s.drivers).where(driverCountWhere),
+        tx.select({
+          id: s.drivers.id,
+          name: s.drivers.name,
+          phone: s.drivers.phone,
+          assignedTruckId: s.drivers.assignedTruckId,
+          status: s.drivers.status,
+          userId: s.drivers.userId,
+        }).from(s.drivers)
+          .where(driverWhere)
+          .orderBy(asc(s.drivers.name), asc(s.drivers.id))
+          .limit(limit + 1),
+      ]);
+      const pageRows = driverRows.slice(0, limit);
+      const assignedTruckIds = pageRows.map((row) => row.assignedTruckId).filter((id): id is number => id != null);
+      const assignedTrucks = assignedTruckIds.length === 0
+        ? []
+        : await tx.select({ id: s.trucks.id, licensePlate: s.trucks.licensePlate })
+          .from(s.trucks)
+          .where(inArray(s.trucks.id, [...new Set(assignedTruckIds)]));
+      const truckById = new Map(assignedTrucks.map((row) => [row.id, row]));
+
+      return {
+        items: pageRows.map((row) => ({
+          id: row.id,
+          name: row.name,
+          phone: row.phone,
+          assignedTruckId: row.assignedTruckId,
+          assignedTruckPlate: row.assignedTruckId ? truckById.get(row.assignedTruckId)?.licensePlate ?? null : null,
+          status: row.status,
+          userId: row.userId,
+        })),
+        total: Number(driverTotals[0]?.value ?? 0),
+        limit,
+        nextCursor: driverRows.length > limit
+          ? encodeFleetCursor('DRIVER', pageRows.at(-1)!.name, pageRows.at(-1)!.id)
+          : null,
+      };
+    }
+
     const externalCarrierWhere = and(
       eq(s.customers.isCarrier, true),
       isNull(s.customers.deletedAt),
-      qPattern ? ilike(s.customers.name, qPattern) : undefined,
+      qPattern ? unaccentedIlike(s.customers.name, qPattern) : undefined,
+      cursor ? or(
+        gt(s.customers.name, cursor.sortKey),
+        and(eq(s.customers.name, cursor.sortKey), gt(s.customers.id, cursor.id)),
+      ) : undefined,
     );
-    const [truckTotals, driverTotals, externalCarrierTotals, trucks, drivers, externalCarriers] = await Promise.all([
-      tx.select({ value: count() }).from(s.trucks).where(truckWhere),
-      tx.select({ value: count() }).from(s.drivers).where(driverWhere),
-      tx.select({ value: count() }).from(s.customers).where(externalCarrierWhere),
-      tx.select({
-        id: s.trucks.id,
-        licensePlate: s.trucks.licensePlate,
-        trailerType: s.trucks.trailerType,
-        currentTrailerId: s.trucks.currentTrailerId,
-        status: s.trucks.status,
-      }).from(s.trucks)
-        .where(truckWhere)
-        .orderBy(s.trucks.licensePlate)
-        .limit(limit),
-      tx.select({
-        id: s.drivers.id,
-        name: s.drivers.name,
-        phone: s.drivers.phone,
-        assignedTruckId: s.drivers.assignedTruckId,
-        status: s.drivers.status,
-        userId: s.drivers.userId,
-      }).from(s.drivers)
-        .where(driverWhere)
-        .orderBy(s.drivers.name)
-        .limit(limit),
+    const externalCarrierCountWhere = and(
+      eq(s.customers.isCarrier, true),
+      isNull(s.customers.deletedAt),
+      qPattern ? unaccentedIlike(s.customers.name, qPattern) : undefined,
+    );
+    const [externalCarrierTotals, externalCarrierRows] = await Promise.all([
+      tx.select({ value: count() }).from(s.customers).where(externalCarrierCountWhere),
       tx.select({
         id: s.customers.id,
         name: s.customers.name,
       }).from(s.customers)
         .where(externalCarrierWhere)
-        .orderBy(s.customers.name)
-        .limit(limit),
+        .orderBy(asc(s.customers.name), asc(s.customers.id))
+        .limit(limit + 1),
     ]);
-    const trailerIds = trucks.map((row) => row.currentTrailerId).filter((id): id is number => id != null);
-    const assignedTruckIds = drivers.map((row) => row.assignedTruckId).filter((id): id is number => id != null);
-    const [trailers, assignedTrucks] = await Promise.all([
-      trailerIds.length === 0 ? [] : tx.select({ id: s.trailers.id, licensePlate: s.trailers.licensePlate }).from(s.trailers).where(inArray(s.trailers.id, [...new Set(trailerIds)])),
-      assignedTruckIds.length === 0 ? [] : tx.select({ id: s.trucks.id, licensePlate: s.trucks.licensePlate }).from(s.trucks).where(inArray(s.trucks.id, [...new Set(assignedTruckIds)])),
-    ]);
-    const trailerById = new Map(trailers.map((row) => [row.id, row]));
-    const truckById = new Map(assignedTrucks.map((row) => [row.id, row]));
+    const pageRows = externalCarrierRows.slice(0, limit);
 
     return {
-      trucks: trucks.map((row) => ({
-        id: row.id,
-        licensePlate: row.licensePlate,
-        trailerType: row.trailerType,
-        currentTrailerId: row.currentTrailerId,
-        currentTrailerPlate: row.currentTrailerId ? trailerById.get(row.currentTrailerId)?.licensePlate ?? null : null,
-        capacityKg: inferredVehicleCapacityKg(row.trailerType),
-        status: row.status,
-      })),
-      drivers: drivers.map((row) => ({
-        id: row.id,
-        name: row.name,
-        phone: row.phone,
-        assignedTruckId: row.assignedTruckId,
-        assignedTruckPlate: row.assignedTruckId ? truckById.get(row.assignedTruckId)?.licensePlate ?? null : null,
-        status: row.status,
-        userId: row.userId,
-      })),
-      externalCarriers,
-      page: {
-        limit,
-        totalTrucks: Number(truckTotals[0]?.value ?? 0),
-        totalDrivers: Number(driverTotals[0]?.value ?? 0),
-        totalExternalCarriers: Number(externalCarrierTotals[0]?.value ?? 0),
-      },
+      items: pageRows,
+      total: Number(externalCarrierTotals[0]?.value ?? 0),
+      limit,
+      nextCursor: externalCarrierRows.length > limit
+        ? encodeFleetCursor('EXTERNAL_CARRIER', pageRows.at(-1)!.name, pageRows.at(-1)!.id)
+        : null,
     };
   });
 }
@@ -985,7 +1165,7 @@ async function issueOrderCreateOrUpdate(
     .limit(1)
     .for('update');
   if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng.');
-  if (shipment.status === 'CANCELED' || shipment.status === 'CLOSED') {
+  if (shipment.status === 'CANCELED' || shipment.status === 'COMPLETED') {
     throw new ApiError(409, 'Lô hàng đã kết thúc và không thể điều xe.');
   }
   const [route] = shipment.routeId == null
@@ -1312,6 +1492,18 @@ async function issueOrderCreateOrUpdate(
     version: sql`${s.shipmentFulfillments.version} + 1`,
     updatedAt: new Date(),
   }).where(eq(s.shipmentFulfillments.id, fulfillment.id)).returning();
+
+  if (shipment.status === 'NEW') {
+    await transitionShipmentStatus(
+      shipment.id,
+      'DISPATCHED',
+      {
+        reason: 'Phát hành lệnh điều xe.',
+        changedBy: input.actor.userId,
+      },
+      tx,
+    );
+  }
 
   return {
     fulfillment: updatedFulfillment ?? fulfillment,

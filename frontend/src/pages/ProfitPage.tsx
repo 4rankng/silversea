@@ -229,7 +229,7 @@ export default function ProfitPage() {
                 <span className="profit-hero__currency">₫</span>
               </div>
               <div className="profit-hero__sub">
-                Dựa trên <strong>{report?.tripCount || 0}</strong> chuyến đã khóa trong kỳ
+                Dựa trên <strong>{report?.tripCount || 0}</strong> chuyến hoàn thành trong kỳ
               </div>
             </div>
           </div>

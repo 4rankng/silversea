@@ -51,7 +51,7 @@ describe('customer portal pages', () => {
         {
           id: 42,
           shipmentCode: 'SHP-2607-00042',
-          status: ShipmentStatus.IN_PROGRESS,
+          status: ShipmentStatus.DISPATCHED,
           bookingRef: 'BK-42',
           blNumber: 'BL-42',
           expectedDeliveryDate: '2026-07-31',
@@ -105,7 +105,7 @@ describe('customer portal pages', () => {
       shipment: {
         id: 42,
         shipmentCode: 'SHP-2607-00042',
-        status: ShipmentStatus.DELIVERED,
+        status: ShipmentStatus.PENDING_EXPENSE_APPROVAL,
         bookingRef: 'BK-42',
         blNumber: 'BL-42',
         expectedDeliveryDate: '2026-07-31',
@@ -137,7 +137,7 @@ describe('customer portal pages', () => {
         shipment: {
           id: 42,
           shipmentCode: 'SHP-2607-00042',
-          status: ShipmentStatus.DELIVERED,
+          status: ShipmentStatus.PENDING_EXPENSE_APPROVAL,
           bookingRef: 'BK-42',
           blNumber: 'BL-42',
           expectedDeliveryDate: '2026-07-31',
@@ -177,7 +177,7 @@ describe('customer portal pages', () => {
         shipment: {
           id: 42,
           shipmentCode: 'SHP-2607-00042',
-          status: ShipmentStatus.DELIVERED,
+          status: ShipmentStatus.PENDING_EXPENSE_APPROVAL,
           bookingRef: null,
           blNumber: null,
           expectedDeliveryDate: null,

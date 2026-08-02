@@ -6,12 +6,12 @@ import {
   computeVehicleAlerts,
   DRIVER_FULFILLMENT_PROGRESS_SEQUENCE,
   DRIVER_PROGRESS_EVENT_LABELS,
+  DriverProgressEventType,
   Role,
   round2dp,
   TripStatus,
   TxnType,
   type DriverIncidentalCostType,
-  type DriverProgressEventType,
   type VehicleAlert,
 } from '@tingting/shared';
 
@@ -917,6 +917,14 @@ export async function recordDriverFulfillmentProgress(args: {
     createdBy: args.recordedBy,
     entityType: 'driver_progress_event',
     create: async (tx) => {
+      // Shipment is the aggregate lock root. Acquire it before the trip so
+      // driver acknowledgement follows the same lock order as dispatch/POD
+      // review and cannot deadlock against those workflows.
+      await tx.select({ id: s.shipments.id })
+        .from(s.shipmentFulfillments)
+        .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
+        .where(eq(s.shipmentFulfillments.id, args.fulfillmentId))
+        .for('update');
       const ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { forUpdate: true });
       if (args.input.expectedVersion != null && ownedTrip.tripVersion !== args.input.expectedVersion) {
         throw new ApiError(409, 'Tác vụ đã thay đổi. Vui lòng tải lại.');
@@ -926,7 +934,24 @@ export async function recordDriverFulfillmentProgress(args: {
       if (next == null || eventType !== next) {
         throw new ApiError(409, buildDriverFulfillmentSequenceError(recorded, eventType));
       }
-      return insertDriverProgressEventTx(tx, ownedTrip.tripId, args.driverId, args.input, args.recordedBy);
+      const event = await insertDriverProgressEventTx(tx, ownedTrip.tripId, args.driverId, args.input, args.recordedBy);
+      if (eventType === DriverProgressEventType.ORDER_RECEIVED && ownedTrip.tripStatus === TripStatus.CREATED) {
+        await transitionTripStatus(
+          ownedTrip.tripId,
+          TripStatus.IN_TRANSIT,
+          args.recordedBy,
+          Role.DRIVER,
+          false,
+          false,
+          {
+            expectedVersion: ownedTrip.tripVersion,
+            transaction: tx,
+          },
+        );
+        const { recomputeShipmentCompletion } = await import('./shipment.service');
+        await recomputeShipmentCompletion(ownedTrip.shipmentId, { changedBy: args.recordedBy }, tx);
+      }
+      return event;
     },
     load: async (id, tx) => loadDriverProgressEventTx(tx, id),
   });
@@ -1080,6 +1105,11 @@ export async function completeOwnedFulfillmentTrip(args: {
     entityType: 'trip',
     responseStatusCode: 200,
     create: async (tx) => {
+      await tx.select({ id: s.shipments.id })
+        .from(s.shipmentFulfillments)
+        .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
+        .where(eq(s.shipmentFulfillments.id, args.fulfillmentId))
+        .for('update');
       const ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { forUpdate: true });
       if (ownedTrip.tripVersion !== args.expectedVersion) {
         throw new ApiError(409, 'Tác vụ đã thay đổi. Vui lòng tải lại.');
@@ -1088,15 +1118,13 @@ export async function completeOwnedFulfillmentTrip(args: {
       if (!evidenceStatus.ready) {
         throw new ApiError(409, `Chưa thể hoàn thành chuyến. Còn thiếu: ${evidenceStatus.missing.join(', ')}.`);
       }
-      // O2C reconciliation (01/08/2026): the permissive driver-owned completion
-      // is removed — the PRD's POD gate requires accountant/CUS e-POD acceptance
-      // before completion. The driver submits evidence; the e-POD ACCEPT path
-      // (shipment.service.reviewTripPodSubmission) drives IN_TRANSIT → COMPLETED.
-      // This endpoint now rejects with a clear pointer to the e-POD flow.
-      throw new ApiError(
-        409,
-        'Chuyến đi hiện do kế toán/CUS duyệt e-POD để hoàn thành. Vui lòng gửi e-POD và đợi duyệt.',
-      );
+      // Driver "Hoàn thành" means hand off the operational evidence for
+      // accounting review. It never posts revenue or changes the trip to the
+      // financial COMPLETED state; Q15 reserves that transition for the
+      // independently approved close action.
+      const { recomputeShipmentCompletion } = await import('./shipment.service');
+      await recomputeShipmentCompletion(ownedTrip.shipmentId, { changedBy: args.actorUserId }, tx);
+      return buildDriverFulfillmentCompletionResultTx(tx, ownedTrip.tripId, args.driverId);
     },
     load: async (entityId, tx) => buildDriverFulfillmentCompletionResultTx(tx, entityId, args.driverId),
     getEntityId: (value) => value.tripId,

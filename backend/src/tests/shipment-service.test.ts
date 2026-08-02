@@ -7,11 +7,11 @@
  * service, and tears everything down in reverse-FK order in `after`.
  *
  * Coverage:
- *   - createShipment: DRAFT row, generated unique code, initial history row.
+ *   - createShipment: NEW row, generated unique code, initial history row.
  *   - getShipment / listShipments: 404 on missing; pagination + filters; excludes soft-deleted.
  *   - updateShipment: optimistic-lock bump; 409 on stale version.
  *   - transitionShipmentStatus: legal edges only; idempotent same-status; history rows; 404.
- *   - softDeleteShipment: only DRAFT/CANCELED; version-guarded.
+ *   - softDeleteShipment: only NEW/CANCELED; version-guarded.
  *   - snapshotContainersIntoTrip: copies rows once, idempotent on retry.
  *   - formatShipmentCode: pure unit checks.
  */
@@ -127,7 +127,7 @@ describe('formatShipmentCode', () => {
 // ─── DB-touching ────────────────────────────────────────────────────────────
 
 describe('createShipment', () => {
-  test('inserts a DRAFT row with a unique code and initial history row', async () => {
+  test('inserts a NEW row with a unique code and initial history row', async () => {
     const customer = await mkCustomer();
     const shipment = await createShipment({
       customerId: customer.id,
@@ -136,7 +136,7 @@ describe('createShipment', () => {
     });
     createdShipmentIds.push(shipment.id);
 
-    assert.equal(shipment.status, 'DRAFT');
+    assert.equal(shipment.status, 'NEW');
     assert.equal(shipment.version, 1);
     assert.ok(shipment.shipmentCode, 'shipmentCode generated');
     assert.match(shipment.shipmentCode!, /^SHP-\d{4}-\d{5}$/);
@@ -147,7 +147,7 @@ describe('createShipment', () => {
       .where(eq(s.shipmentStatusHistory.shipmentId, shipment.id));
     assert.ok(hist, 'history row exists');
     assert.equal(hist.fromStatus, null);
-    assert.equal(hist.toStatus, 'DRAFT');
+    assert.equal(hist.toStatus, 'NEW');
   });
 
   test('codes are unique across two shipments', async () => {
@@ -318,30 +318,33 @@ describe('updateShipment (optimistic lock)', () => {
 });
 
 describe('transitionShipmentStatus', () => {
-  test('DRAFT → IN_PROGRESS → DELIVERED → CLOSED writes one history row each', async () => {
+  test('NEW → DISPATCHED → IN_TRANSIT → PENDING_EXPENSE_APPROVAL → COMPLETED writes one history row each', async () => {
     const customer = await mkCustomer();
     const shipment = await createShipment({ customerId: customer.id });
     createdShipmentIds.push(shipment.id);
 
-    const inflight = await transitionShipmentStatus(shipment.id, 'IN_PROGRESS', {
+    const inflight = await transitionShipmentStatus(shipment.id, 'DISPATCHED', {
       reason: 'Bắt đầu vận chuyển',
     });
-    assert.equal(inflight.status, 'IN_PROGRESS');
+    assert.equal(inflight.status, 'DISPATCHED');
 
-    const delivered = await transitionShipmentStatus(shipment.id, 'DELIVERED');
-    assert.equal(delivered.status, 'DELIVERED');
+    const running = await transitionShipmentStatus(shipment.id, 'IN_TRANSIT');
+    assert.equal(running.status, 'IN_TRANSIT');
 
-    const closed = await transitionShipmentStatus(shipment.id, 'CLOSED');
-    assert.equal(closed.status, 'CLOSED');
+    const delivered = await transitionShipmentStatus(shipment.id, 'PENDING_EXPENSE_APPROVAL');
+    assert.equal(delivered.status, 'PENDING_EXPENSE_APPROVAL');
+
+    const closed = await transitionShipmentStatus(shipment.id, 'COMPLETED');
+    assert.equal(closed.status, 'COMPLETED');
 
     const history = await db.select().from(s.shipmentStatusHistory)
       .where(eq(s.shipmentStatusHistory.shipmentId, shipment.id))
       .orderBy(s.shipmentStatusHistory.id);
-    // 1 creation row + 3 transitions = 4
-    assert.equal(history.length, 4);
+    // 1 creation row + 4 transitions = 5
+    assert.equal(history.length, 5);
     assert.deepEqual(
       history.map((h) => h.toStatus),
-      ['DRAFT', 'IN_PROGRESS', 'DELIVERED', 'CLOSED'],
+      ['NEW', 'DISPATCHED', 'IN_TRANSIT', 'PENDING_EXPENSE_APPROVAL', 'COMPLETED'],
     );
     assert.equal(history[1].reason, 'Bắt đầu vận chuyển');
   });
@@ -351,8 +354,8 @@ describe('transitionShipmentStatus', () => {
     const shipment = await createShipment({ customerId: customer.id });
     createdShipmentIds.push(shipment.id);
 
-    const result = await transitionShipmentStatus(shipment.id, 'DRAFT');
-    assert.equal(result.status, 'DRAFT');
+    const result = await transitionShipmentStatus(shipment.id, 'NEW');
+    assert.equal(result.status, 'NEW');
 
     // Only the creation history row should exist — no duplicate.
     const history = await db.select().from(s.shipmentStatusHistory)
@@ -365,32 +368,33 @@ describe('transitionShipmentStatus', () => {
     const shipment = await createShipment({ customerId: customer.id });
     createdShipmentIds.push(shipment.id);
 
-    // DRAFT → DELIVERED is not a legal edge.
+    // NEW → PENDING_EXPENSE_APPROVAL is not a legal edge.
     await assert.rejects(
-      () => transitionShipmentStatus(shipment.id, 'DELIVERED'),
+      () => transitionShipmentStatus(shipment.id, 'PENDING_EXPENSE_APPROVAL'),
       (err: unknown) => err instanceof Error && 'statusCode' in err && err.statusCode === 409,
     );
 
-    // CLOSED has no outgoing edges.
-    await transitionShipmentStatus(shipment.id, 'IN_PROGRESS');
-    await transitionShipmentStatus(shipment.id, 'DELIVERED');
-    await transitionShipmentStatus(shipment.id, 'CLOSED');
+    // COMPLETED has no outgoing edges.
+    await transitionShipmentStatus(shipment.id, 'DISPATCHED');
+    await transitionShipmentStatus(shipment.id, 'IN_TRANSIT');
+    await transitionShipmentStatus(shipment.id, 'PENDING_EXPENSE_APPROVAL');
+    await transitionShipmentStatus(shipment.id, 'COMPLETED');
     await assert.rejects(
-      () => transitionShipmentStatus(shipment.id, 'IN_PROGRESS'),
+      () => transitionShipmentStatus(shipment.id, 'DISPATCHED'),
       (err: unknown) => err instanceof Error && 'statusCode' in err && err.statusCode === 409,
     );
   });
 
   test('throws 404 for a missing shipment', async () => {
     await assert.rejects(
-      () => transitionShipmentStatus(99_999_999, 'IN_PROGRESS'),
+      () => transitionShipmentStatus(99_999_999, 'DISPATCHED'),
       (err: unknown) => err instanceof Error && 'statusCode' in err && err.statusCode === 404,
     );
   });
 });
 
 describe('softDeleteShipment', () => {
-  test('removes a DRAFT shipment by setting deletedAt', async () => {
+  test('removes a NEW shipment by setting deletedAt', async () => {
     const customer = await mkCustomer();
     const shipment = await createShipment({ customerId: customer.id });
     createdShipmentIds.push(shipment.id);
@@ -403,12 +407,12 @@ describe('softDeleteShipment', () => {
     assert.ok(!rows.some((r) => r.id === shipment.id));
   });
 
-  test('refuses to delete an IN_PROGRESS shipment with 409', async () => {
+  test('refuses to delete an DISPATCHED shipment with 409', async () => {
     const customer = await mkCustomer();
     const shipment = await createShipment({ customerId: customer.id });
     createdShipmentIds.push(shipment.id);
 
-    const inflight = await transitionShipmentStatus(shipment.id, 'IN_PROGRESS');
+    const inflight = await transitionShipmentStatus(shipment.id, 'DISPATCHED');
     await assert.rejects(
       () => softDeleteShipment(shipment.id, { version: inflight.version }),
       (err: unknown) => err instanceof Error && 'statusCode' in err && err.statusCode === 409,

@@ -97,8 +97,8 @@ async function assertDecompositionActor(actorId: number, executor: Tx | typeof d
   if (!actor || actor.deletedAt || actor.status !== 'ACTIVE') {
     throw new ApiError(403, 'Tài khoản điều vận không còn hiệu lực.');
   }
-  if (actor.role !== 'ADMIN' && actor.role !== 'MANAGER') {
-    throw new ApiError(403, 'Chỉ quản lý điều vận được tạo tác vụ thực hiện.');
+  if (actor.role !== 'ADMIN' && actor.role !== 'MANAGER' && actor.role !== 'DISPATCHER') {
+    throw new ApiError(403, 'Chỉ Điều vận, Quản lý hoặc Quản trị viên được tạo tác vụ thực hiện.');
   }
 }
 
@@ -196,7 +196,7 @@ export async function ensureShipmentFulfillmentsInTx(
   if (input.expectedVersion != null && shipment.version !== input.expectedVersion) {
     throw new ApiError(409, 'Lô hàng đã thay đổi. Vui lòng tải lại.');
   }
-  if (shipment.status === 'CANCELED' || shipment.status === 'CLOSED') {
+  if (shipment.status === 'CANCELED' || shipment.status === 'CLOSED' || shipment.status === 'COMPLETED') {
     throw new ApiError(409, 'Không thể tạo tác vụ cho lô hàng đã kết thúc.');
   }
   if (shipment.cargoMode !== 'FCL' && shipment.cargoMode !== 'LCL') {
@@ -297,7 +297,7 @@ export async function assertFulfillmentReadyForDispatch(
     .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
     .limit(1);
   if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng.');
-  if (shipment.status === 'CLOSED' || shipment.status === 'CANCELED') {
+  if (shipment.status === 'COMPLETED' || shipment.status === 'CANCELED') {
     throw new ApiError(409, 'Lô hàng đã kết thúc và không thể điều xe.');
   }
   return row;

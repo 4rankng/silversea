@@ -23,18 +23,21 @@ export const BILLABLE_TRIP_STATUSES = [TripStatus.COMPLETED] as const;
  * `backend/src/db/schema.ts` and the legal edges in
  * `shipment.service.ts`'s `LEGAL_TRANSITIONS`:
  *
- *   DRAFT ──► IN_PROGRESS ──► DELIVERED ──► CLOSED
- *                │
- *                └──► CANCELED   (DRAFT can also go straight to CANCELED)
+ *   NEW ──► DISPATCHED ──► IN_TRANSIT ──► PENDING_EXPENSE_APPROVAL ──► COMPLETED
+ *                              ▲                  │
+ *                              └──────────────────┘
+ *                                                └──► CANCELED
  *
- * CANCELED and CLOSED are terminal sinks. Kept in shared so the zod schema,
- * the frontend, and the service all share one source of truth.
+ * The PRD requires one canonical shipment status field with five operational
+ * stages plus cancellation. Costs remain editable after COMPLETED; hard lock
+ * is intentionally out of scope until the customer explicitly asks for it.
  */
 export enum ShipmentStatus {
-  DRAFT = 'DRAFT',
-  IN_PROGRESS = 'IN_PROGRESS',
-  DELIVERED = 'DELIVERED',
-  CLOSED = 'CLOSED',
+  NEW = 'NEW',
+  DISPATCHED = 'DISPATCHED',
+  IN_TRANSIT = 'IN_TRANSIT',
+  PENDING_EXPENSE_APPROVAL = 'PENDING_EXPENSE_APPROVAL',
+  COMPLETED = 'COMPLETED',
   CANCELED = 'CANCELED',
 }
 
@@ -90,6 +93,7 @@ export enum TripPodFileType {
 
 /** M8.4 — driver-reported progress event types (append-only log). */
 export enum DriverProgressEventType {
+  ORDER_RECEIVED = 'ORDER_RECEIVED',
   DEPARTED = 'DEPARTED',
   ARRIVED = 'ARRIVED',
   FUELED = 'FUELED',
@@ -102,6 +106,7 @@ export enum DriverProgressEventType {
 
 /** Vietnamese labels for driver progress events (PRD Mxx-HT-01). */
 export const DRIVER_PROGRESS_EVENT_LABELS: Record<DriverProgressEventType, string> = {
+  [DriverProgressEventType.ORDER_RECEIVED]: 'Đã nhận lệnh gốc',
   [DriverProgressEventType.DEPARTED]: 'Xuất phát',
   [DriverProgressEventType.ARRIVED]: 'Đến nơi',
   [DriverProgressEventType.FUELED]: 'Đổ dầu',
@@ -113,6 +118,7 @@ export const DRIVER_PROGRESS_EVENT_LABELS: Record<DriverProgressEventType, strin
 } as const;
 
 export const DRIVER_FULFILLMENT_PROGRESS_SEQUENCE = [
+  DriverProgressEventType.ORDER_RECEIVED,
   DriverProgressEventType.PICKED_UP,
   DriverProgressEventType.LOADING_OR_RETURNING,
   DriverProgressEventType.DELIVERED,
@@ -145,12 +151,36 @@ export const DRIVER_INCIDENTAL_COST_LABELS: Record<DriverIncidentalCostType, str
 
 /** Vietnamese labels for shipment statuses (PRD Mxx-HT-01). */
 export const SHIPMENT_STATUS_LABELS: Record<ShipmentStatus, string> = {
-  [ShipmentStatus.DRAFT]: 'Bản nháp',
-  [ShipmentStatus.IN_PROGRESS]: 'Đang xử lý',
-  [ShipmentStatus.DELIVERED]: 'Đã giao',
-  [ShipmentStatus.CLOSED]: 'Đã đóng',
+  [ShipmentStatus.NEW]: 'Mới tạo',
+  [ShipmentStatus.DISPATCHED]: 'Đã điều xe',
+  [ShipmentStatus.IN_TRANSIT]: 'Đang chạy',
+  [ShipmentStatus.PENDING_EXPENSE_APPROVAL]: 'Chờ duyệt phí',
+  [ShipmentStatus.COMPLETED]: 'Hoàn thành',
   [ShipmentStatus.CANCELED]: 'Đã hủy',
 };
+
+export function canonicalShipmentStatus(status: ShipmentStatus | string | null | undefined): ShipmentStatus | null {
+  switch (status) {
+    case ShipmentStatus.NEW:
+    case 'DRAFT':
+      return ShipmentStatus.NEW;
+    case ShipmentStatus.DISPATCHED:
+    case 'IN_PROGRESS':
+      return ShipmentStatus.DISPATCHED;
+    case ShipmentStatus.IN_TRANSIT:
+      return ShipmentStatus.IN_TRANSIT;
+    case ShipmentStatus.PENDING_EXPENSE_APPROVAL:
+    case 'DELIVERED':
+      return ShipmentStatus.PENDING_EXPENSE_APPROVAL;
+    case ShipmentStatus.COMPLETED:
+    case 'CLOSED':
+      return ShipmentStatus.COMPLETED;
+    case ShipmentStatus.CANCELED:
+      return ShipmentStatus.CANCELED;
+    default:
+      return null;
+  }
+}
 
 export const SHIPMENT_DOCUMENT_TYPE_LABELS: Record<ShipmentDocumentType, string> = {
   [ShipmentDocumentType.BOOKING]: 'Xác nhận đặt chỗ',
@@ -184,6 +214,7 @@ export enum Role {
   // and their docs/declarations; cannot dispatch or post to ledger. Gets
   // `shipments read|write` + `customer_portal read` per phase-01 architecture.
   CLERK = 'CLERK',
+  DISPATCHER = 'DISPATCHER',
 }
 
 /** Roles that can approve expense approvals and access financial reports. */
@@ -306,6 +337,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   [Role.DRIVER]: 'Lái xe',
   [Role.FORWARDER]: 'Giao nhận',
   [Role.CUSTOMER]: 'Khách hàng',
+  [Role.DISPATCHER]: 'Điều vận',
   [Role.CLERK]: 'Nhân viên chứng từ',
 };
 

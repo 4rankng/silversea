@@ -133,6 +133,7 @@ export function AppRoutes() {
   const isForwarder = user?.role === Role.FORWARDER;
   const isClerk = user?.role === Role.CLERK;
   const isAdmin = user?.role === Role.ADMIN;
+  const isDispatcher = user?.role === Role.DISPATCHER;
   const driverHome = routes.myTrips;
   const forwarderHome = routes.myForwarderTrips;
   const clerkHome = routes.shipments;
@@ -151,11 +152,16 @@ export function AppRoutes() {
         : isClerk
           ? clerkHome
           : defaultHome;
-  const adminOnly = (el: ReactElement) => (isPortalUser || isCustomer || isClerk ? <Navigate to={homeRedirect} replace /> : el);
+  const adminOnly = (el: ReactElement) => (isPortalUser || isCustomer || isClerk || isDispatcher ? <Navigate to={homeRedirect} replace /> : el);
   const driverOnly = (el: ReactElement) => (isDriver ? el : <Navigate to={homeRedirect} replace />);
   const forwarderOnly = (el: ReactElement) => (isForwarder ? el : <Navigate to={homeRedirect} replace />);
   const customerOnly = (el: ReactElement) => (isCustomer ? el : <Navigate to={homeRedirect} replace />);
   const managerOrAdminOnly = (el: ReactElement) => (isAdmin || user?.role === Role.MANAGER ? el : <Navigate to={homeRedirect} replace />);
+  const dispatchOnly = (el: ReactElement) => (
+    isAdmin || user?.role === Role.MANAGER || isDispatcher
+      ? el
+      : <Navigate to={homeRedirect} replace />
+  );
   // /users is the single home for everyone; accountants get scoped (driver-only) access.
   const officeStaffOnly = (el: ReactElement) => (isAdmin || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT ? el : <Navigate to={homeRedirect} replace />);
   const financeReaderOnly = (el: ReactElement) => (
@@ -204,9 +210,9 @@ export function AppRoutes() {
           <Route path="/" element={<Navigate to={defaultHome} replace />} />
           <Route
             path="/dashboard"
-            element={isPortalUser || isCustomer || isClerk || accountantWithoutExecutiveDashboard ? <Navigate to={homeRedirect} replace /> : page(<DashboardPage />)}
+            element={isPortalUser || isCustomer || isClerk || isDispatcher || accountantWithoutExecutiveDashboard ? <Navigate to={homeRedirect} replace /> : page(<DashboardPage />)}
           />
-          <Route path="/dispatch" element={managerOrAdminOnly(page(<DispatchPage />))} />
+          <Route path="/dispatch" element={dispatchOnly(page(<DispatchPage />))} />
           <Route path="/fleet" element={adminOnly(page(<FleetPage />))} />
 <Route path="/fleet/:id/tires" element={officeStaffOnly(page(<TruckTiresPage />))} />
 <Route path="/fleet/trailers/:id/tires" element={officeStaffOnly(page(<TruckTiresPage vehicle="trailer" />))} />

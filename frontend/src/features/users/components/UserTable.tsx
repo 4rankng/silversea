@@ -55,6 +55,7 @@ const AVATAR_CLS: Record<Role, string> = {
   [Role.FORWARDER]: 'user-avatar--forwarder',
   [Role.CUSTOMER]: 'user-avatar--forwarder',
   [Role.CLERK]: 'user-avatar--accountant',
+  [Role.DISPATCHER]: 'user-avatar--manager',
 };
 
 const AVATAR_ICON: Record<Role, typeof Users> = {
@@ -65,6 +66,7 @@ const AVATAR_ICON: Record<Role, typeof Users> = {
   [Role.FORWARDER]: UserCog,
   [Role.CUSTOMER]: Users,
   [Role.CLERK]: UserCog,
+  [Role.DISPATCHER]: UserCog,
 };
 
 const ROLE_FILTER_CLS: Record<string, string> = {
@@ -75,6 +77,7 @@ const ROLE_FILTER_CLS: Record<string, string> = {
   [Role.FORWARDER]: 'filter-pill--forwarder',
   [Role.CUSTOMER]: 'filter-pill--forwarder',
   [Role.CLERK]: 'filter-pill--accountant',
+  [Role.DISPATCHER]: 'filter-pill--manager',
 };
 
 function RoleAvatar({ role }: { role: Role }) {

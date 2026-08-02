@@ -97,7 +97,7 @@ async function mkBillableTrip(params: {
     routeId: route.id,
     cargoTypeId: cargoType.id,
     cargoMode: 'LCL',
-    status: 'DRAFT',
+    status: 'NEW',
   }).returning();
   createdShipmentIds.push(shipment.id);
   const [fulfillment] = await db.insert(s.shipmentFulfillments).values({

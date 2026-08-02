@@ -11,7 +11,7 @@ export function getProfitPreviewEmptyMessage(preview: ProfitPreviewState): strin
   if (hasEntityRows || hasDistributionRows) return null;
 
   if ((preview.tripCount ?? 0) === 0) {
-    return 'Chưa có chuyến đã khóa trong quý này để phân phối.';
+    return 'Chưa có chuyến hoàn thành trong quý này để phân phối.';
   }
 
   if ((preview.undistributedProfit ?? 0) > 0) {

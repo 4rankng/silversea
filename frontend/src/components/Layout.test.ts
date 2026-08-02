@@ -39,6 +39,7 @@ describe('getNavItems', () => {
     [Role.DRIVER, [['Hành trình', '/my-trips'], ['Thu nhập', '/my-earnings'], ['Kỷ luật', '/my-penalties']]],
     [Role.FORWARDER, [['Chuyến đi', '/my-forwarder-trips'], ['Tạm ứng', '/my-advances'], ['Phiếu thanh toán', '/my-settlements']]],
     [Role.CLERK, [['Lô hàng được giao', '/shipments'], ['Tạo lô hàng', '/clerk/shipments/new'], ['Chi phí cần kiểm tra', '/recoverable-costs']]],
+    [Role.DISPATCHER, [['Phân xe', '/dispatch'], ['Lô hàng', '/shipments']]],
     [Role.CUSTOMER, [['Lô hàng của tôi', '/portal/shipments'], ['Giấy báo nợ', '/portal/debit-notes'], ['Sao kê công nợ', '/portal/statement']]],
   ] as const)('matches the approved exact label and path matrix for %s', (role, expected) => {
     const actual = getNavItems(role, undefined, undefined, ['treasury.read', 'recoverable_costs.read'])

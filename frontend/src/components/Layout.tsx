@@ -55,6 +55,11 @@ export function getNavItems(
   const normRole = String(role || '').toUpperCase();
   const hasCapability = (capability: string) => capabilities.includes(capability);
   switch (normRole) {
+    case 'DISPATCHER':
+      return [
+        { key: 'dispatch', label: 'Phân xe', path: routes.dispatch, icon: Compass, section: 'operations', count: dispatchCount },
+        { key: 'shipments', label: 'Lô hàng', path: routes.shipments, icon: Package, section: 'operations' },
+      ];
     case 'MANAGER':
     case 'ACCOUNTANT':
     case 'ADMIN': {
@@ -186,6 +191,8 @@ export function getNavSections(role: Role): NavSection[] {
         { key: 'operations', label: 'Chứng từ' },
         { key: 'financials', label: 'Đối soát' },
       ];
+    case Role.DISPATCHER:
+      return [{ key: 'operations', label: 'Điều vận' }];
     default:
       return [];
   }

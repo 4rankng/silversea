@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { CalendarClock, ChevronRight, Package } from 'lucide-react';
 import { api } from '../../lib/api';
-import { SHIPMENT_STATUS_LABELS, type ShipmentStatus } from '@tingting/shared';
+import { SHIPMENT_STATUS_LABELS, ShipmentStatus } from '@tingting/shared';
 import { ClickableCard } from '../../components/shared/ClickableCard';
 import { EmptyState, Pagination } from '../../design-system';
 import { routes } from '../../lib/routes';
@@ -18,8 +18,8 @@ interface ShipmentRow {
 }
 
 function shipmentStatusClass(status: ShipmentStatus) {
-  if (status === 'IN_PROGRESS') return 'portal-status portal-status--action';
-  if (status === 'DELIVERED' || status === 'CLOSED') return 'portal-status portal-status--success';
+  if (status === ShipmentStatus.DISPATCHED || status === ShipmentStatus.IN_TRANSIT || status === ShipmentStatus.PENDING_EXPENSE_APPROVAL) return 'portal-status portal-status--action';
+  if (status === ShipmentStatus.COMPLETED) return 'portal-status portal-status--success';
   if (status === 'CANCELED') return 'portal-status portal-status--danger';
   return 'portal-status';
 }

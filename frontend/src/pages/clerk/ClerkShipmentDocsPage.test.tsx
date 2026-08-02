@@ -108,7 +108,7 @@ function baseDetail(): ShipmentDetail {
       customerId: 7,
       customerName: 'Công ty ABC',
       responsibleUnitId: 11,
-      status: ShipmentStatus.DRAFT,
+      status: ShipmentStatus.NEW,
       blNumber: null,
       bookingRef: null,
       expectedDeliveryDate: null,
@@ -420,12 +420,12 @@ describe('ClerkShipmentDocsPage', () => {
 
   it('surfaces the server request message for post-dispatch plan edits', async () => {
     getDetailMock.mockResolvedValue(makeDetail({
-      shipment: { status: ShipmentStatus.IN_PROGRESS, version: 8, pickupLocation: 'Kho A' },
+      shipment: { status: ShipmentStatus.DISPATCHED, version: 8, pickupLocation: 'Kho A' },
     }));
     updateShipmentMock.mockResolvedValue({
       ...makeDetail().shipment,
       version: 8,
-      status: ShipmentStatus.IN_PROGRESS,
+      status: ShipmentStatus.DISPATCHED,
       pickupLocation: 'Kho A',
       changeMode: 'REQUESTED',
       changeRequestId: 501,
@@ -762,7 +762,7 @@ describe('ClerkShipmentDocsPage', () => {
     currentUserState.role = 'MANAGER';
     getDetailMock
       .mockResolvedValueOnce(makeDetail({
-        shipment: { status: ShipmentStatus.IN_PROGRESS, version: 8 },
+        shipment: { status: ShipmentStatus.DISPATCHED, version: 8 },
         pendingChangeRequests: [{
           id: 501,
           shipmentId: 42,
@@ -776,11 +776,11 @@ describe('ClerkShipmentDocsPage', () => {
         }],
       }))
       .mockResolvedValue(makeDetail({
-        shipment: { status: ShipmentStatus.IN_PROGRESS, version: 9, pickupLocation: 'Kho B' },
+        shipment: { status: ShipmentStatus.DISPATCHED, version: 9, pickupLocation: 'Kho B' },
         pendingChangeRequests: [],
       }));
     reviewChangeRequestMock.mockResolvedValue({
-      shipment: { ...makeDetail().shipment, version: 9, pickupLocation: 'Kho B', status: ShipmentStatus.IN_PROGRESS },
+      shipment: { ...makeDetail().shipment, version: 9, pickupLocation: 'Kho B', status: ShipmentStatus.DISPATCHED },
       resolution: 'APPLIED',
       changeRequestId: 501,
       shipmentVersion: 9,

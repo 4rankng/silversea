@@ -141,7 +141,7 @@ async function createShipmentFixture(args: {
     cargoTypeId: catalogs.cargoType.id,
     responsibleUnitId: args.responsibleUnitId ?? null,
     cargoMode: args.cargoMode,
-    status: args.status ?? 'IN_PROGRESS',
+    status: args.status ?? 'DISPATCHED',
     bookingRef: `P5-${args.tag}-${suffix}`,
   }).returning();
   createdShipmentIds.push(shipment.id);
@@ -296,7 +296,7 @@ async function createSubmittedPod(args: {
 }
 
 describe('trip pod review workflow', () => {
-  test('scoped clerk approval completes the trip and closes the shipment when the required fulfillment is satisfied', async () => {
+  test('scoped clerk approval accepts evidence and moves the shipment to pending expense approval', async () => {
     const clerkUser = await createUser(Role.CLERK, 'approve');
     const businessUnit = await createBusinessUnit('approve');
     const { user: driverUser, driver } = await createDriverPrincipal('approve');
@@ -335,13 +335,13 @@ describe('trip pod review workflow', () => {
 
     assert.equal(reviewed.replayed, false);
     assert.equal(reviewed.submissionStatus, TripPodStatus.ACCEPTED);
-    assert.equal(reviewed.tripStatus, TripStatus.COMPLETED);
-    assert.equal(reviewed.shipment.status, 'CLOSED');
+    assert.equal(reviewed.tripStatus, TripStatus.IN_TRANSIT);
+    assert.equal(reviewed.shipment.status, 'PENDING_EXPENSE_APPROVAL');
 
     const detail = await getShipmentDetail(fixture.shipment.id, actorFromUser(clerkUser));
     assert.equal(detail.podReviews.length, 1);
     assert.equal(detail.podReviews[0]?.currentSubmission?.status, TripPodStatus.ACCEPTED);
-    assert.equal(detail.podReviews[0]?.tripStatus, TripStatus.COMPLETED);
+    assert.equal(detail.podReviews[0]?.tripStatus, TripStatus.IN_TRANSIT);
 
     const notificationRows = await db.select({
       userId: s.notifications.userId,
@@ -398,7 +398,7 @@ describe('trip pod review workflow', () => {
 
     assert.equal(canceled.replayed, false);
     assert.ok(canceled.replacementFulfillmentId);
-    assert.equal(canceled.shipment.status, 'IN_PROGRESS');
+    assert.equal(canceled.shipment.status, 'DISPATCHED');
 
     const [canceledTrip] = await db.select().from(s.trips)
       .where(eq(s.trips.id, originalTrip.id));
@@ -440,7 +440,7 @@ describe('trip pod review workflow', () => {
       idempotencyKey: `phase5-review-cancel-${suffix}`,
       actor: actorFromUser(managerUser),
     });
-    assert.equal(accepted.shipment.status, 'IN_PROGRESS');
+    assert.equal(accepted.shipment.status, 'DISPATCHED');
 
     const disposition = await cancelShipmentFulfillment({
       shipmentId: fixture.shipment.id,
@@ -453,7 +453,7 @@ describe('trip pod review workflow', () => {
     });
 
     assert.equal(disposition.replayed, false);
-    assert.equal(disposition.shipment.status, 'CLOSED');
+    assert.equal(disposition.shipment.status, 'PENDING_EXPENSE_APPROVAL');
 
     const [updatedCanceled] = await db.select().from(s.shipmentFulfillments)
       .where(inArray(s.shipmentFulfillments.id, [fixture.fulfillments[1]!.id]));
@@ -515,8 +515,7 @@ describe('trip pod review workflow', () => {
       cargoTypeId: fixture.cargoType.id,
       driverId: driver.id,
     });
-    // O2C: e-POD acceptance now drives IN_TRANSIT → COMPLETED and requires
-    // podRecoveredAt. Dispatch the trip and mark POD recovered first.
+    // O2C: e-POD acceptance is evidence for the governed completion action.
     await db.update(s.trips).set({
       status: TripStatus.IN_TRANSIT,
       podRecoveredAt: new Date(),
@@ -562,7 +561,7 @@ describe('trip pod review workflow', () => {
     const fixture = await createShipmentFixture({
       tag: 'reconcile',
       cargoMode: 'FCL',
-      status: 'DRAFT',
+      status: 'NEW',
       containerCount: 2,
     });
     assert.equal(fixture.containers.length, 2);
@@ -583,7 +582,7 @@ describe('trip pod review workflow', () => {
     const fixture = await createShipmentFixture({
       tag: 'reconcile-blocked',
       cargoMode: 'FCL',
-      status: 'DRAFT',
+      status: 'NEW',
       containerCount: 1,
       fulfillmentCount: 1,
     });
@@ -618,6 +617,7 @@ describe('trip pod review workflow', () => {
     });
 
     for (const [index, eventType] of [
+      DriverProgressEventType.ORDER_RECEIVED,
       DriverProgressEventType.PICKED_UP,
       DriverProgressEventType.LOADING_OR_RETURNING,
       DriverProgressEventType.DELIVERED,

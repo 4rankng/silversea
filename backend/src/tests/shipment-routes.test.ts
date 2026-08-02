@@ -13,13 +13,13 @@
  *   - Create: 201 + generated shipmentCode; validation 400; RBAC 403.
  *   - Detail: 200 with containers/documents/declarations/statusHistory; 404.
  *   - Update: optimistic-lock bump; 409 on stale; validation 400.
- *   - Transition: legal edge DRAFT→IN_PROGRESS; illegal edge DRAFT→CLOSED → 409;
+ *   - Transition: legal edge NEW→DISPATCHED; illegal edge NEW→COMPLETED → 409;
  *     idempotent same-status; 404 on missing.
  *   - Containers PUT: full reconcile (insert/update/delete); 404 on missing shipment.
  *   - Documents POST: records the metadata row; 404 on missing shipment.
- *   - Dispatch: creates a linked trip + moves shipment to IN_PROGRESS; idempotent
+ *   - Dispatch: creates a linked trip + moves shipment to DISPATCHED; idempotent
  *     second call returns the same trip with `created: false`.
- *   - Delete: soft-delete DRAFT; version-gated (400 without version); 404.
+ *   - Delete: soft-delete NEW; version-gated (400 without version); 404.
  *
  * Hits the real Postgres DB and the real Casbin enforcer (initEnforcer) so the
  * RBAC assertions reflect the shipped policy.csv exactly. All seeded rows are
@@ -572,7 +572,7 @@ describe('GET /', () => {
 
   test('filters by status', async () => {
     const draft = await mkShipmentViaService();
-    const r = await testFetch('/?status=DRAFT', { token: adminToken });
+    const r = await testFetch('/?status=NEW', { token: adminToken });
     assert.equal(r.status, 200);
     assert.ok(r.data.items.some((x: { id: number }) => x.id === draft.id));
   });
@@ -751,7 +751,7 @@ describe('POST /', () => {
     });
     assert.equal(r.status, 201);
     assert.equal(r.data.customerId, customerId);
-    assert.equal(r.data.status, ShipmentStatus.DRAFT);
+    assert.equal(r.data.status, ShipmentStatus.NEW);
     assert.equal(r.data.version, 1);
     assert.match(r.data.shipmentCode, /^SHP-\d{4}-\d{5}$/);
     createdShipmentIds.push(r.data.id);
@@ -887,7 +887,7 @@ describe('GET /:id', () => {
     assert.ok(Array.isArray(r.data.statusHistory));
     // Creation writes the initial history row.
     assert.equal(r.data.statusHistory.length, 1);
-    assert.equal(r.data.statusHistory[0].toStatus, ShipmentStatus.DRAFT);
+    assert.equal(r.data.statusHistory[0].toStatus, ShipmentStatus.NEW);
   });
 
   test('404 on missing shipment', async () => {
@@ -1020,7 +1020,7 @@ describe('PUT /:id', () => {
     const shipment = await mkClerkScopedShipmentViaService({
       pickupLocation: 'Bãi cũ',
     });
-    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.IN_PROGRESS);
+    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.DISPATCHED);
 
     const r = await testFetch(`/${shipment.id}`, {
       method: 'PUT',
@@ -1044,7 +1044,7 @@ describe('PUT /:id', () => {
       contactName: 'Đầu mối cũ',
       responsibleUnitId: clerkBusinessUnitId,
     });
-    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.IN_PROGRESS);
+    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.DISPATCHED);
 
     const r = await testFetch(`/${shipment.id}`, {
       method: 'PUT',
@@ -1098,7 +1098,7 @@ describe('PUT /:id', () => {
       cargoMode: 'LCL',
       operationalNotes: 'Ghi chú cũ',
     });
-    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.IN_PROGRESS);
+    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.DISPATCHED);
 
     const r = await testFetch(`/${shipment.id}`, {
       method: 'PUT',
@@ -1131,7 +1131,7 @@ describe('PUT /:id', () => {
       cargoWeightKg: '10.00',
       cargoVolumeCbm: '1.000',
     });
-    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.IN_PROGRESS);
+    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.DISPATCHED);
 
     const response = await testFetch(`/${shipment.id}`, {
       method: 'PUT',
@@ -1157,47 +1157,47 @@ describe('PUT /:id', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('POST /:id/transition', () => {
-  test('DRAFT → IN_PROGRESS (legal)', async () => {
+  test('NEW → DISPATCHED (legal)', async () => {
     const shipment = await mkShipmentViaService();
     const r = await testFetch(`/${shipment.id}/transition`, {
       method: 'POST',
       token: adminToken,
-      body: { status: ShipmentStatus.IN_PROGRESS, reason: 'Bắt đầu xử lý' },
+      body: { status: ShipmentStatus.DISPATCHED, reason: 'Bắt đầu xử lý' },
     });
     assert.equal(r.status, 200);
-    assert.equal(r.data.status, ShipmentStatus.IN_PROGRESS);
+    assert.equal(r.data.status, ShipmentStatus.DISPATCHED);
   });
 
-  test('DRAFT → CLOSED (illegal) → 409', async () => {
+  test('NEW → COMPLETED (illegal) → 409', async () => {
     const shipment = await mkShipmentViaService();
     const r = await testFetch(`/${shipment.id}/transition`, {
       method: 'POST',
       token: adminToken,
-      body: { status: ShipmentStatus.CLOSED },
+      body: { status: ShipmentStatus.COMPLETED },
     });
     assert.equal(r.status, 409);
   });
 
   test('same-status is idempotent (200, no duplicate history)', async () => {
     const shipment = await mkShipmentViaService();
-    // Transition to IN_PROGRESS, then again — second is a no-op.
+    // Transition to DISPATCHED, then again — second is a no-op.
     await testFetch(`/${shipment.id}/transition`, {
       method: 'POST',
       token: adminToken,
-      body: { status: ShipmentStatus.IN_PROGRESS },
+      body: { status: ShipmentStatus.DISPATCHED },
     });
     const r = await testFetch(`/${shipment.id}/transition`, {
       method: 'POST',
       token: adminToken,
-      body: { status: ShipmentStatus.IN_PROGRESS },
+      body: { status: ShipmentStatus.DISPATCHED },
     });
     assert.equal(r.status, 200);
 
-    // History should contain exactly one IN_PROGRESS row (creation row + one
+    // History should contain exactly one DISPATCHED row (creation row + one
     // transition), proving the second call did not duplicate.
     const detail = await testFetch(`/${shipment.id}`, { token: adminToken });
     const transitions = detail.data.statusHistory.filter(
-      (h: { toStatus: string }) => h.toStatus === ShipmentStatus.IN_PROGRESS,
+      (h: { toStatus: string }) => h.toStatus === ShipmentStatus.DISPATCHED,
     );
     assert.equal(transitions.length, 1);
   });
@@ -1206,7 +1206,7 @@ describe('POST /:id/transition', () => {
     const r = await testFetch('/99999999/transition', {
       method: 'POST',
       token: adminToken,
-      body: { status: ShipmentStatus.IN_PROGRESS },
+      body: { status: ShipmentStatus.DISPATCHED },
     });
     assert.equal(r.status, 404);
   });
@@ -1226,7 +1226,7 @@ describe('POST /:id/transition', () => {
     const r = await testFetch(`/${shipment.id}/transition`, {
       method: 'POST',
       token: clerkToken,
-      body: { status: ShipmentStatus.IN_PROGRESS },
+      body: { status: ShipmentStatus.DISPATCHED },
     });
     assert.equal(r.status, 403);
   });
@@ -1352,15 +1352,15 @@ describe('PUT /:id/containers', () => {
         containers: [{
           containerTypeId,
           containerNumber: 'MSKU1234565',
-          sealNumber: 'SEAL-Q17-DRAFT',
+          sealNumber: 'SEAL-Q17-NEW',
         }],
       },
     });
     assert.equal(draftSave.status, 200);
     assert.equal(draftSave.data.changeMode, 'DIRECT');
-    assert.equal(draftSave.data.items[0]?.sealNumber, 'SEAL-Q17-DRAFT');
+    assert.equal(draftSave.data.items[0]?.sealNumber, 'SEAL-Q17-NEW');
 
-    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.IN_PROGRESS);
+    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.DISPATCHED);
     const draftContainer = draftSave.data.items[0];
     const requestedSave = await testFetch(`/${shipment.id}/containers`, {
       method: 'PUT',
@@ -1381,7 +1381,7 @@ describe('PUT /:id/containers', () => {
 
     const detail = await testFetch(`/${shipment.id}`, { token: adminToken });
     assert.equal(detail.status, 200);
-    assert.equal(detail.data.containers[0]?.sealNumber, 'SEAL-Q17-DRAFT');
+    assert.equal(detail.data.containers[0]?.sealNumber, 'SEAL-Q17-NEW');
 
     const [request] = await db.select()
       .from(s.shipmentChangeRequests)
@@ -1834,7 +1834,7 @@ describe('POST /:id/change-requests/:requestId/review', () => {
   test('MANAGER can apply a pending request and bump the shipment version', async () => {
     const { transitionShipmentStatus } = await import('../services/shipment.service');
     const shipment = await mkClerkScopedShipmentViaService({ pickupLocation: 'Kho cũ' });
-    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.IN_PROGRESS);
+    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.DISPATCHED);
     const requestResponse = await testFetch(`/${shipment.id}`, {
       method: 'PUT',
       token: clerkToken,
@@ -1860,7 +1860,7 @@ describe('POST /:id/change-requests/:requestId/review', () => {
   test('request creation persists notifications for both manager and admin recipients', async () => {
     const { transitionShipmentStatus } = await import('../services/shipment.service');
     const shipment = await mkClerkScopedShipmentViaService({ pickupLocation: 'Kho A' });
-    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.IN_PROGRESS);
+    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.DISPATCHED);
     const response = await testFetch(`/${shipment.id}`, {
       method: 'PUT',
       token: clerkToken,
@@ -1883,7 +1883,7 @@ describe('POST /:id/change-requests/:requestId/review', () => {
   test('stale apply conflicts but stale reject closes the request and targets only its requester', async () => {
     const { transitionShipmentStatus } = await import('../services/shipment.service');
     const shipment = await mkClerkScopedShipmentViaService({ pickupLocation: 'Kho nguồn' });
-    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.IN_PROGRESS);
+    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.DISPATCHED);
     const requestResponse = await testFetch(`/${shipment.id}`, {
       method: 'PUT',
       token: clerkToken,
@@ -1938,7 +1938,7 @@ describe('POST /:id/change-requests/:requestId/review', () => {
   test('ADMIN and MANAGER first-decision review has exactly one winner', async () => {
     const { transitionShipmentStatus } = await import('../services/shipment.service');
     const shipment = await mkClerkScopedShipmentViaService({ deliveryLocation: 'Điểm cũ' });
-    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.IN_PROGRESS);
+    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.DISPATCHED);
     const requestResponse = await testFetch(`/${shipment.id}`, {
       method: 'PUT',
       token: clerkToken,
@@ -1981,7 +1981,7 @@ describe('POST /:id/change-requests/:requestId/review', () => {
   test('ACCOUNTANT cannot review a shipment change request', async () => {
     const { transitionShipmentStatus } = await import('../services/shipment.service');
     const shipment = await mkClerkScopedShipmentViaService({ pickupLocation: 'Kho A' });
-    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.IN_PROGRESS);
+    const dispatched = await transitionShipmentStatus(shipment.id, ShipmentStatus.DISPATCHED);
     const requestResponse = await testFetch(`/${shipment.id}`, {
       method: 'PUT',
       token: clerkToken,
@@ -2006,7 +2006,7 @@ describe('POST /:id/change-requests/:requestId/review', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('DELETE /:id', () => {
-  test('soft-deletes a DRAFT shipment', async () => {
+  test('soft-deletes a NEW shipment', async () => {
     const shipment = await mkShipmentViaService();
     const r = await testFetch(`/${shipment.id}?version=${shipment.version}`, {
       method: 'DELETE',

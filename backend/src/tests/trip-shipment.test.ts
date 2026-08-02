@@ -7,7 +7,7 @@
  *   - createTrip WITH shipmentId → trip is linked + shipment containers are
  *     snapshotted into the trip.
  *   - createTrip WITH a missing shipmentId → 404.
- *   - createTrip WITH a non-DRAFT shipmentId → 409.
+ *   - createTrip WITH a non-NEW shipmentId → 409.
  *   - createTrip WITH a shipmentId belonging to a different customer → 400.
  *   - The SHIPMENT_FIRST_CREATE flag-conditional route check: when ON,
  *     missing shipmentId is rejected at the route layer.
@@ -157,7 +157,7 @@ describe('createTrip without shipmentId (legacy, regression guard)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('createTrip with shipmentId', () => {
-  test('links the trip to the DRAFT shipment and snapshots containers', async () => {
+  test('links the trip to the NEW shipment and snapshots containers', async () => {
     const customer = await mkCustomer();
     const cat = await mkCatalogs();
     const shipment = await createShipment({ customerId: customer.id, cargoTypeId: cat.cargoType.id });
@@ -269,14 +269,15 @@ describe('createTrip with shipmentId', () => {
     );
   });
 
-  test('throws 409 when the shipment is not DRAFT', async () => {
+  test('allows dispatch planning but rejects trip creation after the shipment is already running', async () => {
     const customer = await mkCustomer();
     const cat = await mkCatalogs();
     const shipment = await createShipment({ customerId: customer.id });
     createdShipmentIds.push(shipment.id);
-    // Advance past DRAFT via the service.
+    // Advance past NEW via the service.
     const { transitionShipmentStatus } = await import('../services/shipment.service');
-    await transitionShipmentStatus(shipment.id, 'IN_PROGRESS');
+    await transitionShipmentStatus(shipment.id, 'DISPATCHED');
+    await transitionShipmentStatus(shipment.id, 'IN_TRANSIT');
 
     await assert.rejects(
       () => createTrip({
@@ -347,7 +348,7 @@ describe('createTrip with shipmentId', () => {
   });
 
   test('concurrent createTrip calls for the same shipment: one wins, the other gets a clean 409', async () => {
-    // Race two createTrip calls against the same DRAFT shipment. The partial
+    // Race two createTrip calls against the same NEW shipment. The partial
     // null-fulfillment guard guarantees only one unassigned live trip can be
     // linked. Once decomposition is used, one live trip is allowed for each
     // distinct fulfillment instead.

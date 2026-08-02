@@ -23,7 +23,7 @@ export const vectorColumn1536 = vector1536Builder;
 export const tripStatusEnum = pgEnum('trip_status', ['CREATED', 'IN_TRANSIT', 'COMPLETED', 'CANCELED']);
 export const fuelModeEnum = pgEnum('fuel_mode', ['AUTO', 'FLAT_RATE']);
 export const loadingTypeEnum = pgEnum('loading_type', ['HANG', 'VO']);
-export const roleEnum = pgEnum('role', ['ADMIN', 'MANAGER', 'ACCOUNTANT', 'DRIVER', 'FORWARDER', 'CUSTOMER', 'CLERK']);
+export const roleEnum = pgEnum('role', ['ADMIN', 'MANAGER', 'ACCOUNTANT', 'DRIVER', 'FORWARDER', 'CUSTOMER', 'CLERK', 'DISPATCHER']);
 export const customerAccountTypeEnum = pgEnum('customer_account_type', ['SINGLE_ENTITY', 'CORPORATE_GROUP', 'AGENCY']);
 export const txnTypeEnum = pgEnum('txn_type', ['TRIP_REVENUE', 'PAYMENT_RECEIVED', 'PENALTY', 'MANAGEMENT_FEE', 'ADJUSTMENT', 'DRIVER_SALARY', 'VENDOR_EXPENSE', 'VENDOR_PAYMENT', 'FORWARDER_ADVANCE', 'FORWARDER_SETTLEMENT', 'EXTERNAL_CARRIER_COST', 'FUEL_EXPENSE', 'UNLOCK_REVERSAL', 'COMMISSION', 'DRIVER_PAYOUT', 'SERVICE_FEE']);
 export const trailerTypeEnum = pgEnum('trailer_type', ['20FT', '40FT']);
@@ -2456,7 +2456,8 @@ export const schedulerRunLogs = pgTable('scheduler_run_logs', {
 // Scope of this Wave 0 schema slice: tables + FK + migration only. The
 // service, router, RBAC, and frontend are subsequent Wave 0 checkboxes.
 export const shipmentStatusEnum = pgEnum('shipment_status', [
-  'DRAFT', 'IN_PROGRESS', 'DELIVERED', 'CLOSED', 'CANCELED',
+  'NEW', 'DISPATCHED', 'IN_TRANSIT', 'PENDING_EXPENSE_APPROVAL', 'COMPLETED', 'CANCELED',
+  'DRAFT', 'IN_PROGRESS', 'DELIVERED', 'CLOSED',
 ]);
 
 export const shipmentDocumentTypeEnum = pgEnum('shipment_document_type', [
@@ -2604,7 +2605,7 @@ export const shipments = pgTable('shipments', {
   cargoTypeId: integer('cargo_type_id').references(() => cargoTypes.id),
   responsibleUnitId: integer('responsible_unit_id')
     .references(() => businessUnits.id, { onDelete: 'set null' }),
-  status: shipmentStatusEnum('status').default('DRAFT'),
+  status: shipmentStatusEnum('status').default('NEW'),
   bookingRef: varchar('booking_ref', { length: 100 }),
   blNumber: varchar('bl_number', { length: 100 }),
   tradeDirection: shipmentTradeDirectionEnum('trade_direction'),
@@ -3688,7 +3689,7 @@ export const idempotencyKeys = pgTable('idempotency_keys', {
 // These events are audit-style records only — they do NOT mutate trip
 // status. Lifecycle transitions stay with `transitionTripStatus`.
 export const driverProgressEventTypeEnum = pgEnum('driver_progress_event_type', [
-  'DEPARTED', 'ARRIVED', 'FUELED', 'INCIDENT', 'NOTE',
+  'ORDER_RECEIVED', 'DEPARTED', 'ARRIVED', 'FUELED', 'INCIDENT', 'NOTE',
   'PICKED_UP', 'LOADING_OR_RETURNING', 'DELIVERED',
 ]);
 

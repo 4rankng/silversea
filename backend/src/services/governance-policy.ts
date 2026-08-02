@@ -57,6 +57,7 @@ const ROLE_CAPABILITIES: Readonly<Record<Role, ReadonlySet<GovernanceCapability>
   [Role.DRIVER]: new Set(),
   [Role.FORWARDER]: new Set(),
   [Role.CUSTOMER]: new Set(),
+  [Role.DISPATCHER]: new Set(),
   [Role.CLERK]: new Set(['RECOVERABLE_COST_REQUEST']),
 };
 

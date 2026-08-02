@@ -42,6 +42,7 @@ let accountantUserId = 0;
 let adminToken = '';
 let managerToken = '';
 let accountantToken = '';
+let dispatcherToken = '';
 
 type ApiResponse<T> = {
   status: number;
@@ -258,12 +259,14 @@ before(async () => {
   const admin = await mkUser(Role.ADMIN, 'admin');
   const manager = await mkUser(Role.MANAGER, 'manager');
   const accountant = await mkUser(Role.ACCOUNTANT, 'accountant');
+  const dispatcher = await mkUser(Role.DISPATCHER, 'dispatcher');
   adminUserId = admin.id;
   managerUserId = manager.id;
   accountantUserId = accountant.id;
   adminToken = signToken(admin);
   managerToken = signToken(manager);
   accountantToken = signToken(accountant);
+  dispatcherToken = signToken(dispatcher);
 });
 
 after(async () => {
@@ -316,7 +319,7 @@ after(async () => {
 });
 
 describe('dispatch fulfillment workflow routes', () => {
-  test('manager can mark handoff seen and accept it into fulfillments', async () => {
+  test('dedicated dispatcher can mark handoff seen and accept it into fulfillments', async () => {
     const customer = await createCustomer(`Seen customer ${suffix}-${createdCustomerIds.length}`);
     const route = await createRoute();
     const { shipment } = await createShipmentFixture({
@@ -341,11 +344,11 @@ describe('dispatch fulfillment workflow routes', () => {
       `/${shipment.id}/dispatch-handoffs/${handoff.id}/resolve`,
       {
         method: 'POST',
-        token: managerToken,
+        token: dispatcherToken,
         body: { resolution: 'SEEN', expectedVersion: handoff.version },
       },
     );
-    assert.equal(seen.status, 200);
+    assert.equal(seen.status, 200, JSON.stringify(seen.data));
     assert.equal(seen.data.status, 'SEEN');
 
     const accepted = await apiFetch<{
@@ -353,10 +356,10 @@ describe('dispatch fulfillment workflow routes', () => {
       fulfillments: Array<{ id: number; shipmentContainerId: number | null }>;
     }>(`/${shipment.id}/dispatch-handoffs/${handoff.id}/resolve`, {
       method: 'POST',
-      token: managerToken,
+      token: dispatcherToken,
       body: { resolution: 'ACCEPTED', expectedVersion: seen.data.version },
     });
-    assert.equal(accepted.status, 200);
+    assert.equal(accepted.status, 200, JSON.stringify(accepted.data));
     assert.equal(accepted.data.handoff.status, 'ACCEPTED');
     assert.equal(accepted.data.fulfillments.length, 1);
     assert.ok(accepted.data.fulfillments[0]!.shipmentContainerId != null);
@@ -660,7 +663,7 @@ describe('dispatch fulfillment workflow routes', () => {
     assert.equal(handoffs.data.items.length, 1);
     assert.equal(handoffs.data.items[0]?.shipmentId, scopedHandoffShipment.id);
 
-    const fleetForbidden = await apiFetch<{ error?: string }>('/dispatch-fleet', {
+    const fleetForbidden = await apiFetch<{ error?: string }>('/dispatch-fleet?resource=TRUCK', {
       token: scopedAccountantToken,
     });
     assert.equal(fleetForbidden.status, 403);
@@ -674,50 +677,339 @@ describe('dispatch fulfillment workflow routes', () => {
     assert.match(unscopedDenied.data.error ?? '', /phạm vi khách hàng/i);
   });
 
-  test('dispatch fleet totals remain authoritative when result rows are limited', async () => {
+  test('dispatch handoffs use flat cursor pagination with scope-bound cursors and status-filter totals', async () => {
+    const customer = await createCustomer(`Handoff cursor ${suffix}-${createdCustomerIds.length}`);
+    const route = await createRoute();
+    const shipments = [];
+    for (let index = 0; index < 3; index += 1) {
+      shipments.push(await createShipmentFixture({
+        customerId: customer.id,
+        routeId: route.id,
+        createdBy: adminUserId,
+        cargoTypeId: null,
+      }));
+    }
+    const handoffs = [];
+    for (const { shipment } of shipments) {
+      handoffs.push(await createHandoff({
+        shipmentId: shipment.id,
+        createdBy: adminUserId,
+        actor: {
+          userId: adminUserId,
+          username: `dispatch-admin-${suffix}`,
+          email: null,
+          fullName: null,
+          role: Role.ADMIN,
+        },
+      }));
+    }
+    const seenResponse = await apiFetch<{ handoff: { status: string } }>(
+      `/${shipments[0]!.shipment.id}/dispatch-handoffs/${handoffs[0]!.id}/resolve`,
+      {
+        method: 'POST',
+        token: managerToken,
+        body: { resolution: 'SEEN', expectedVersion: handoffs[0]!.version },
+      },
+    );
+    assert.equal(seenResponse.status, 200);
+
+    const firstPage = await apiFetch<{
+      items: Array<{ handoffId: number; shipmentId: number }>;
+      total: number;
+      limit: number;
+      nextCursor: string | null;
+      unseenCount: number;
+      seenCount: number;
+      page?: unknown;
+    }>(`/dispatch-handoffs?limit=1&q=${encodeURIComponent(customer.name)}`, {
+      token: managerToken,
+    });
+    assert.equal(firstPage.status, 200);
+    assert.equal(firstPage.data.limit, 1);
+    assert.equal(firstPage.data.total, 3);
+    assert.equal(firstPage.data.unseenCount, 2);
+    assert.equal(firstPage.data.seenCount, 1);
+    assert.equal(firstPage.data.page, undefined);
+    assert.equal(firstPage.data.items.length, 1);
+    assert.equal(typeof firstPage.data.nextCursor, 'string');
+
+    const secondPage = await apiFetch<{
+      items: Array<{ handoffId: number }>;
+      total: number;
+      nextCursor: string | null;
+    }>(`/dispatch-handoffs?limit=1&q=${encodeURIComponent(customer.name)}&cursor=${encodeURIComponent(firstPage.data.nextCursor ?? '')}`, {
+      token: managerToken,
+    });
+    assert.equal(secondPage.status, 200);
+    assert.equal(secondPage.data.total, 3);
+    assert.equal(secondPage.data.items.length, 1);
+    assert.equal(typeof secondPage.data.nextCursor, 'string');
+
+    const thirdPage = await apiFetch<{
+      items: Array<{ handoffId: number }>;
+      total: number;
+      nextCursor: string | null;
+    }>(`/dispatch-handoffs?limit=1&q=${encodeURIComponent(customer.name)}&cursor=${encodeURIComponent(secondPage.data.nextCursor ?? '')}`, {
+      token: managerToken,
+    });
+    assert.equal(thirdPage.status, 200);
+    assert.equal(thirdPage.data.total, 3);
+    assert.equal(thirdPage.data.items.length, 1);
+    assert.equal(thirdPage.data.nextCursor, null);
+
+    const traversedHandoffIds = [
+      ...firstPage.data.items,
+      ...secondPage.data.items,
+      ...thirdPage.data.items,
+    ].map((item) => item.handoffId);
+    assert.equal(new Set(traversedHandoffIds).size, traversedHandoffIds.length);
+    assert.deepEqual([...traversedHandoffIds].sort((a, b) => a - b), handoffs.map((handoff) => handoff.id).sort((a, b) => a - b));
+
+    const unseenOnly = await apiFetch<{
+      total: number;
+      unseenCount: number;
+      seenCount: number;
+      items: Array<{ handoffId: number }>;
+    }>(`/dispatch-handoffs?limit=10&q=${encodeURIComponent(customer.name)}&status=UNSEEN`, {
+      token: managerToken,
+    });
+    assert.equal(unseenOnly.status, 200);
+    assert.equal(unseenOnly.data.total, 2);
+    assert.equal(unseenOnly.data.unseenCount, 2);
+    assert.equal(unseenOnly.data.seenCount, 1);
+    assert.equal(unseenOnly.data.items.length, 2);
+
+    const malformedCursor = await apiFetch<{ error?: string }>('/dispatch-handoffs?cursor=not-a-valid-cursor', {
+      token: managerToken,
+    });
+    assert.equal(malformedCursor.status, 400);
+    assert.match(malformedCursor.data.error ?? '', /cursor không hợp lệ/i);
+
+    const wrongScopeCursor = await apiFetch<{ error?: string }>(`/dispatch-queue?cursor=${encodeURIComponent(firstPage.data.nextCursor ?? '')}`, {
+      token: managerToken,
+    });
+    assert.equal(wrongScopeCursor.status, 400);
+    assert.match(wrongScopeCursor.data.error ?? '', /cursor không hợp lệ/i);
+  });
+
+  test('dispatch queue uses flat cursor pagination with scope-bound cursors and status-filter totals', async () => {
+    const customer = await createCustomer(`Queue cursor ${suffix}-${createdCustomerIds.length}`);
+    const route = await createRoute();
+    const readyA = await createAcceptedFulfillment({ customerId: customer.id, routeId: route.id });
+    const readyB = await createAcceptedFulfillment({ customerId: customer.id, routeId: route.id });
+    const dispatched = await createAcceptedFulfillment({ customerId: customer.id, routeId: route.id });
+    const resources = await createOwnedResources();
+
+    const dispatch = await apiFetch<{ trip: { id: number } }>(`/${dispatched.shipmentId}/dispatch`, {
+      method: 'POST',
+      token: managerToken,
+      body: {
+        fulfillmentId: dispatched.fulfillmentId,
+        expectedVersion: dispatched.fulfillmentVersion,
+        plannedStartAt: '2026-08-02T09:00:00+07:00',
+        plannedEndAt: '2026-08-02T11:00:00+07:00',
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: resources.truck.id,
+        driverId: resources.driver.id,
+        trailerId: resources.trailer.id,
+      },
+    });
+    assert.equal(dispatch.status, 201);
+    createdTripIds.push(dispatch.data.trip.id);
+
+    const firstPage = await apiFetch<{
+      items: Array<{ fulfillmentId: number; taskStatus: string }>;
+      total: number;
+      limit: number;
+      nextCursor: string | null;
+      readyCount: number;
+      dispatchedCount: number;
+      page?: unknown;
+    }>(`/dispatch-queue?limit=1&status=READY&q=${encodeURIComponent(customer.name)}`, {
+      token: managerToken,
+    });
+    assert.equal(firstPage.status, 200);
+    assert.equal(firstPage.data.page, undefined);
+    assert.equal(firstPage.data.limit, 1);
+    assert.equal(firstPage.data.total, 2);
+    assert.equal(firstPage.data.readyCount, 2);
+    assert.equal(firstPage.data.dispatchedCount, 1);
+    assert.equal(firstPage.data.items.length, 1);
+    assert.equal(firstPage.data.items[0]?.taskStatus, 'READY');
+    assert.equal(typeof firstPage.data.nextCursor, 'string');
+
+    const secondPage = await apiFetch<{
+      items: Array<{ fulfillmentId: number; taskStatus: string }>;
+      total: number;
+      nextCursor: string | null;
+      readyCount: number;
+      dispatchedCount: number;
+    }>(`/dispatch-queue?limit=1&status=READY&q=${encodeURIComponent(customer.name)}&cursor=${encodeURIComponent(firstPage.data.nextCursor ?? '')}`, {
+      token: managerToken,
+    });
+    assert.equal(secondPage.status, 200);
+    assert.equal(secondPage.data.total, 2);
+    assert.equal(secondPage.data.readyCount, 2);
+    assert.equal(secondPage.data.dispatchedCount, 1);
+    assert.equal(secondPage.data.items.length, 1);
+    assert.equal(secondPage.data.items[0]?.taskStatus, 'READY');
+    assert.equal(secondPage.data.nextCursor, null);
+
+    const traversedQueueIds = [...firstPage.data.items, ...secondPage.data.items].map((item) => item.fulfillmentId);
+    assert.equal(new Set(traversedQueueIds).size, traversedQueueIds.length);
+    assert.deepEqual([...traversedQueueIds].sort((a, b) => a - b), [readyA.fulfillmentId, readyB.fulfillmentId].sort((a, b) => a - b));
+
+    const dispatchedOnly = await apiFetch<{
+      items: Array<{ fulfillmentId: number; taskStatus: string }>;
+      total: number;
+      readyCount: number;
+      dispatchedCount: number;
+    }>(`/dispatch-queue?limit=10&status=DISPATCHED&q=${encodeURIComponent(customer.name)}`, {
+      token: managerToken,
+    });
+    assert.equal(dispatchedOnly.status, 200);
+    assert.equal(dispatchedOnly.data.total, 1);
+    assert.equal(dispatchedOnly.data.readyCount, 2);
+    assert.equal(dispatchedOnly.data.dispatchedCount, 1);
+    assert.equal(dispatchedOnly.data.items.length, 1);
+    assert.equal(dispatchedOnly.data.items[0]?.fulfillmentId, dispatched.fulfillmentId);
+    assert.equal(dispatchedOnly.data.items[0]?.taskStatus, 'DISPATCHED');
+
+    const malformedCursor = await apiFetch<{ error?: string }>('/dispatch-queue?cursor=not-a-valid-cursor', {
+      token: managerToken,
+    });
+    assert.equal(malformedCursor.status, 400);
+    assert.match(malformedCursor.data.error ?? '', /cursor không hợp lệ/i);
+
+  });
+
+  test('dispatch fleet resources use flat cursor pagination with resource-bound cursors and unaccented search', async () => {
     const countToken = `CNT${suffix.replace(/[^a-z0-9]/gi, '').slice(-8).toUpperCase()}`;
-    const trucks = await db.insert(s.trucks).values(Array.from({ length: 3 }, (_, index) => ({
-      licensePlate: `${countToken}${index}`,
+    const trailers = await db.insert(s.trailers).values(Array.from({ length: 3 }, (_, index) => ({
+      licensePlate: `51R-${countToken}${index}`.slice(0, 20),
+      type: '20FT' as const,
       status: 'ACTIVE' as const,
+    }))).returning({ id: s.trailers.id });
+    createdTrailerIds.push(...trailers.map((trailer) => trailer.id));
+
+    const trucks = await db.insert(s.trucks).values(Array.from({ length: 3 }, (_, index) => ({
+      licensePlate: `${countToken}-TRUCK-${index}`,
+      status: 'ACTIVE' as const,
+      trailerType: '20FT' as const,
+      currentTrailerId: trailers[index]!.id,
     }))).returning({ id: s.trucks.id });
     createdTruckIds.push(...trucks.map((truck) => truck.id));
 
     const drivers = await db.insert(s.drivers).values(Array.from({ length: 3 }, (_, index) => ({
-      name: `${countToken} Driver ${index}`,
+      name: `${countToken} Tài xế Ánh ${index}`,
       status: 'ACTIVE' as const,
+      assignedTruckId: trucks[index]!.id,
     }))).returning({ id: s.drivers.id });
     createdDriverIds.push(...drivers.map((driver) => driver.id));
 
     const carriers = await db.insert(s.customers).values(Array.from({ length: 3 }, (_, index) => ({
-      name: `${countToken} Carrier ${index}`,
+      name: `${countToken} Nhà xe Ánh ${index}`,
       isCarrier: true,
     }))).returning({ id: s.customers.id });
     createdCustomerIds.push(...carriers.map((carrier) => carrier.id));
 
     const response = await apiFetch<{
-      trucks: Array<{ id: number }>;
-      drivers: Array<{ id: number }>;
-      externalCarriers: Array<{ id: number }>;
-      page: {
-        limit: number;
-        totalTrucks: number;
-        totalDrivers: number;
-        totalExternalCarriers: number;
-      };
-    }>(`/dispatch-fleet?limit=1&q=${encodeURIComponent(countToken)}`, {
+      items: Array<{ id: number; assignedDriverId: number | null; assignedDriverName: string | null }>;
+      total: number;
+      limit: number;
+      nextCursor: string | null;
+      page?: unknown;
+    }>(`/dispatch-fleet?resource=TRUCK&limit=1&q=${encodeURIComponent(countToken)}`, {
       token: managerToken,
     });
 
     assert.equal(response.status, 200);
-    assert.equal(response.data.trucks.length, 1);
-    assert.equal(response.data.drivers.length, 1);
-    assert.equal(response.data.externalCarriers.length, 1);
-    assert.deepEqual(response.data.page, {
-      limit: 1,
-      totalTrucks: 3,
-      totalDrivers: 3,
-      totalExternalCarriers: 3,
+    assert.equal(response.data.page, undefined);
+    assert.equal(response.data.items.length, 1);
+    assert.equal(response.data.total, 3);
+    assert.equal(response.data.limit, 1);
+    assert.equal(response.data.items[0]?.assignedDriverId, drivers[0]!.id);
+    assert.equal(response.data.items[0]?.assignedDriverName, `${countToken} Tài xế Ánh 0`);
+    assert.equal(typeof response.data.nextCursor, 'string');
+
+    const secondTruckPage = await apiFetch<{
+      items: Array<{ id: number }>;
+      total: number;
+      nextCursor: string | null;
+    }>(`/dispatch-fleet?resource=TRUCK&limit=1&q=${encodeURIComponent(countToken)}&cursor=${encodeURIComponent(response.data.nextCursor ?? '')}`, {
+      token: managerToken,
     });
+    assert.equal(secondTruckPage.status, 200);
+    assert.equal(secondTruckPage.data.total, 3);
+    assert.equal(secondTruckPage.data.items.length, 1);
+    assert.equal(typeof secondTruckPage.data.nextCursor, 'string');
+
+    const thirdTruckPage = await apiFetch<{
+      items: Array<{ id: number }>;
+      total: number;
+      nextCursor: string | null;
+    }>(`/dispatch-fleet?resource=TRUCK&limit=1&q=${encodeURIComponent(countToken)}&cursor=${encodeURIComponent(secondTruckPage.data.nextCursor ?? '')}`, {
+      token: managerToken,
+    });
+    assert.equal(thirdTruckPage.status, 200);
+    assert.equal(thirdTruckPage.data.total, 3);
+    assert.equal(thirdTruckPage.data.items.length, 1);
+    assert.equal(thirdTruckPage.data.nextCursor, null);
+    const traversedTruckIds = [...response.data.items, ...secondTruckPage.data.items, ...thirdTruckPage.data.items].map((item) => item.id);
+    assert.equal(new Set(traversedTruckIds).size, traversedTruckIds.length);
+    assert.deepEqual([...traversedTruckIds].sort((a, b) => a - b), trucks.map((truck) => truck.id).sort((a, b) => a - b));
+
+    const driverSearch = await apiFetch<{
+      items: Array<{ id: number; name: string }>;
+      total: number;
+      limit: number;
+      nextCursor: string | null;
+    }>(`/dispatch-fleet?resource=DRIVER&limit=1&q=${encodeURIComponent(`${countToken} tai xe anh`)}`, {
+      token: managerToken,
+    });
+    assert.equal(driverSearch.status, 200);
+    assert.equal(driverSearch.data.total, 3);
+    assert.equal(driverSearch.data.limit, 1);
+    assert.equal(driverSearch.data.items.length, 1);
+    assert.equal(driverSearch.data.items[0]?.id, drivers[0]!.id);
+    assert.equal(typeof driverSearch.data.nextCursor, 'string');
+
+    const nextDriverPage = await apiFetch<{
+      items: Array<{ id: number }>;
+      total: number;
+      nextCursor: string | null;
+    }>(`/dispatch-fleet?resource=DRIVER&limit=1&q=${encodeURIComponent(`${countToken} tai xe anh`)}&cursor=${encodeURIComponent(driverSearch.data.nextCursor ?? '')}`, {
+      token: managerToken,
+    });
+    assert.equal(nextDriverPage.status, 200);
+    assert.equal(nextDriverPage.data.total, 3);
+    assert.equal(nextDriverPage.data.items.length, 1);
+    assert.notEqual(nextDriverPage.data.items[0]?.id, driverSearch.data.items[0]?.id);
+
+    const carrierSearch = await apiFetch<{
+      items: Array<{ id: number }>;
+      total: number;
+      nextCursor: string | null;
+    }>(`/dispatch-fleet?resource=EXTERNAL_CARRIER&limit=2&q=${encodeURIComponent(`${countToken} nha xe anh`)}`, {
+      token: managerToken,
+    });
+    assert.equal(carrierSearch.status, 200);
+    assert.equal(carrierSearch.data.total, 3);
+    assert.equal(carrierSearch.data.items.length, 2);
+    assert.equal(typeof carrierSearch.data.nextCursor, 'string');
+
+    const malformedCursor = await apiFetch<{ error?: string }>('/dispatch-fleet?resource=TRUCK&cursor=not-a-valid-cursor', {
+      token: managerToken,
+    });
+    assert.equal(malformedCursor.status, 400);
+    assert.match(malformedCursor.data.error ?? '', /cursor không hợp lệ/i);
+
+    const crossResourceCursor = await apiFetch<{ error?: string }>(`/dispatch-fleet?resource=DRIVER&cursor=${encodeURIComponent(response.data.nextCursor ?? '')}`, {
+      token: managerToken,
+    });
+    assert.equal(crossResourceCursor.status, 400);
+    assert.match(crossResourceCursor.data.error ?? '', /cursor không hợp lệ/i);
   });
 
   test('dispatch derives planned end from route duration without explicit confirmation', async () => {
@@ -1027,9 +1319,9 @@ describe('dispatch fulfillment workflow routes', () => {
       });
       const durationMs = performance.now() - startedAt;
       const sqlStatements = statements.filter((query) => !/^begin|^commit/i.test(query.trim()));
-      t.diagnostic(`dispatch queue perf: total=${result.page.total} items=${result.items.length} sqlStatements=${sqlStatements.length} durationMs=${durationMs.toFixed(2)}`);
+      t.diagnostic(`dispatch queue perf: total=${result.total} items=${result.items.length} sqlStatements=${sqlStatements.length} durationMs=${durationMs.toFixed(2)}`);
       assert.equal(result.items.length, 50);
-      assert.equal(result.page.total, 500);
+      assert.equal(result.total, 500);
       assert.ok(durationMs < 1000, `expected dispatch queue load < 1000ms, got ${durationMs.toFixed(2)}ms`);
       assert.ok(sqlStatements.length <= 8, `expected <= 8 SQL statements, got ${sqlStatements.length}`);
     } finally {

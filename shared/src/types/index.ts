@@ -1210,6 +1210,13 @@ export interface PaginatedResponse<T> {
   pageSize: number;
 }
 
+export interface CursorPaginatedResponse<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  nextCursor: string | null;
+}
+
 export interface DashboardStats {
   revenue: number;
   costs: number;

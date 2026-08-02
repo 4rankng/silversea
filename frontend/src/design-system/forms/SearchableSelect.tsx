@@ -31,6 +31,9 @@ export interface SearchableSelectProps {
   required?: boolean;
   className?: string;
   searchDebounceMs?: number;
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
 }
 
 function normalizeSearchText(value: string): string {
@@ -57,6 +60,9 @@ export function SearchableSelect({
   required = false,
   className = '',
   searchDebounceMs = 250,
+  hasMore = false,
+  loadingMore = false,
+  onLoadMore,
 }: SearchableSelectProps) {
   const listboxId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -96,10 +102,10 @@ export function SearchableSelect({
   }, [isOpen]);
 
   useEffect(() => {
-    if (!onSearchChange) return;
+    if (!isOpen || !onSearchChange) return;
     const timer = window.setTimeout(() => onSearchChange(query.trim()), searchDebounceMs);
     return () => window.clearTimeout(timer);
-  }, [onSearchChange, query, searchDebounceMs]);
+  }, [isOpen, onSearchChange, query, searchDebounceMs]);
 
   useEffect(() => {
     if (activeIndex >= filteredOptions.length) {
@@ -225,6 +231,18 @@ export function SearchableSelect({
             ) : (
               <li className="searchable-select__empty">{emptyMessage}</li>
             )}
+            {hasMore && onLoadMore ? (
+              <li className="searchable-select__load-more" role="presentation">
+                <button
+                  type="button"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={onLoadMore}
+                  disabled={loadingMore}
+                >
+                  {loadingMore ? 'Đang tải…' : 'Tải thêm kết quả'}
+                </button>
+              </li>
+            ) : null}
           </ul>
         </div>
       ) : null}

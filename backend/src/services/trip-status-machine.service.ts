@@ -31,9 +31,6 @@ export async function transitionTripStatus(
     expectedVersion?: number;
     transaction?: Tx;
     governanceActionId?: number;
-    podApprovalContext?: {
-      submissionId: number;
-    };
   },
   ) {
   // Audit rows for status transitions are produced by the auditLogMiddleware
@@ -48,24 +45,16 @@ export async function transitionTripStatus(
     }
 
     const currentStatus = trip.status as TripStatus;
-    // O2C reconciliation: the permissive driver-Hoàn thành path is removed
-    // (docs/prd/O2C dev.md — POD gate before Completed). The sole completion
-    // route is the e-POD acceptance path (shipment.service), which carries
-    // podApprovalContext. A governed close request also targets COMPLETED
-    // via governanceActionId.
-    const isPodApprovedCompletion = options?.podApprovalContext != null;
+    // O2C/Q15: completing a trip is a governed maker-checker action. Accepting
+    // e-POD is necessary evidence, but is never an alternate completion path.
     if (currentStatus === targetStatus) {
       if (targetStatus === TripStatus.CANCELED) {
         throw new ApiError(409, 'Chuyến đi đã bị hủy');
       }
       return trip; // Idempotent short-circuit
     }
-    // Completion via a governed close request (not the e-POD path) needs the
-    // persisted maker-checker-approver authorization. The e-POD acceptance path
-    // is its own authorization (the accountant/CUS reviewed and accepted the
-    // digital proof) and carries podApprovalContext instead.
     if (
-      (targetStatus === TripStatus.COMPLETED && !isPodApprovedCompletion)
+      targetStatus === TripStatus.COMPLETED
       || (targetStatus === TripStatus.CANCELED && options?.governanceActionId != null)
     ) {
       assertActiveApprovalApplication(tx, options?.governanceActionId);
@@ -125,11 +114,8 @@ export async function transitionTripStatus(
         );
       }
     } else if (targetStatus === TripStatus.COMPLETED) {
-      // ─── Gates migrated one hop earlier from the former COMPLETED → LOCKED
-      // branch (O2C reconciliation, docs/prd/O2C dev.md, 01/08/2026). The
-      // permissive driver-Hoàn thành path is removed — the sole completion
-      // routes are: (a) e-POD acceptance (accountant/CUS, carries
-      // podApprovalContext) and (b) a governed close request (governanceActionId).
+      // O2C completion gates. There is no later LOCKED state: completion is
+      // terminal and requires both approved evidence and governed approval.
       // Q18: a completed trip is terminal; it cannot be re-completed directly.
       if (currentStatus === TripStatus.COMPLETED) {
         throw new ApiError(
@@ -140,37 +126,16 @@ export async function transitionTripStatus(
       if (currentStatus !== TripStatus.IN_TRANSIT) {
         throw new ApiError(409, 'Chỉ có thể hoàn thành chuyến đi đang chạy');
       }
-      // RBAC: ADMIN/MANAGER always; CLERK only via the e-POD acceptance path
-      // (podApprovalContext present — the accountant/CUS reviewed digital proof).
       const canComplete = userRole === Role.ADMIN
-        || userRole === Role.MANAGER
-        || (isPodApprovedCompletion && userRole === Role.CLERK);
+        || userRole === Role.MANAGER;
       if (!canComplete) {
         throw new ApiError(
           403,
           'Chỉ Quản lý hoặc Quản trị viên mới có quyền hoàn thành chuyến đi',
         );
       }
-      // A governed close (not the e-POD path) must carry an active approval.
-      if (!isPodApprovedCompletion && !governanceAuthorized) {
+      if (!governanceAuthorized) {
         throw new ApiError(409, 'Thiếu yêu cầu quản trị đã được phê duyệt');
-      }
-
-      // e-POD acceptance binding: verify the accepted submission belongs to
-      // this trip. (The governed-close path has no podApprovalContext.)
-      if (isPodApprovedCompletion) {
-        const [submission] = await tx.select({
-          id: s.tripPodSubmissions.id,
-        }).from(s.tripPodSubmissions)
-          .where(and(
-            eq(s.tripPodSubmissions.id, options!.podApprovalContext!.submissionId),
-            eq(s.tripPodSubmissions.tripId, tripId),
-            eq(s.tripPodSubmissions.status, 'ACCEPTED'),
-          ))
-          .limit(1);
-        if (!submission) {
-          throw new ApiError(409, 'e-POD đã duyệt không còn hợp lệ để hoàn thành chuyến.');
-        }
       }
 
       // POD-recovery gate (O2C): physical paper return ("Đã thu hồi chứng từ
@@ -408,6 +373,17 @@ export async function transitionTripStatus(
         actorId: userId,
         completedAt: updated.completedAt ?? null,
       });
+
+      if (updated.fulfillmentId != null) {
+        const [fulfillment] = await tx.select({ shipmentId: s.shipmentFulfillments.shipmentId })
+          .from(s.shipmentFulfillments)
+          .where(eq(s.shipmentFulfillments.id, updated.fulfillmentId))
+          .limit(1);
+        if (fulfillment) {
+          const { recomputeShipmentCompletion } = await import('./shipment.service');
+          await recomputeShipmentCompletion(fulfillment.shipmentId, { changedBy: userId }, tx);
+        }
+      }
     }
 
     // Other transitions (e.g. IN_TRANSIT → COMPLETED triggered from /actuals)

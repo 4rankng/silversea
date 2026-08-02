@@ -175,7 +175,18 @@ describe('O2C auto advance-offset on chi hộ approval', () => {
   });
 
   test('skip when the forwarder has no outstanding advance (no-op, no error)', async () => {
-    const expense = await insertExpense({ buyAmount: 100_000, approvalStatus: 'APPROVED' });
+    const [isolatedForwarder] = await db.insert(s.users).values({
+      username: `o2c-no-advance-${Date.now()}`,
+      passwordHash: 'x',
+      fullName: 'Ops không tạm ứng',
+      role: 'FORWARDER',
+    }).returning();
+    ids.users.push(isolatedForwarder.id);
+    const expense = await insertExpense({
+      buyAmount: 100_000,
+      approvalStatus: 'APPROVED',
+      forwarderId: isolatedForwarder.id,
+    });
 
     await db.transaction(async (tx) => { await autoOffsetExpenseApproval(tx, expense.id); });
 

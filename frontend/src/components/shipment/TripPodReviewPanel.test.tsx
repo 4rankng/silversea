@@ -101,7 +101,7 @@ describe('TripPodReviewPanel', () => {
     expect(screen.getByText(/Chuyến TRIP-77/)).toBeTruthy();
     expect(screen.getByText('Phiếu hạ bãi / trả hàng')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: /Duyệt & khóa chuyến/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Duyệt e-POD/i }));
 
     await waitFor(() => expect(reviewShipmentPodMock).toHaveBeenCalledWith(
       42,

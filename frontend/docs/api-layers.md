@@ -93,6 +93,29 @@ frontend so contributors know where to add endpoints, hooks, and pages.
 5. **Page** consumes the hook. Pages must remain thin (≤ 200 LOC) —
    they compose feature components, not raw data plumbing.
 
+## Pagination contracts to preserve
+
+Dispatch planning endpoints in `src/api/dispatchPlanningClient.ts` use cursor
+pagination end-to-end. Keep the client and backend aligned on these invariants:
+
+- `listDispatchQueue`, `listDispatchHandoffs`, and `listDispatchFleetResources`
+  all consume the flat `{ items, total, limit, nextCursor }` response shape.
+- Treat `total` as authoritative. Do not infer it from `limit`, `items.length`,
+  or a partially loaded page.
+- Treat `nextCursor` as opaque. Pass it through unchanged to the next request;
+  do not parse, normalize, or derive meaning from it.
+- `getDispatchFleet()` fans out three independent requests for `TRUCK`,
+  `DRIVER`, and `EXTERNAL_CARRIER`. Each resource keeps its own pagination
+  stream and cache state.
+- Search filters ride the same cursor stream as the list they refine. Do not
+  reuse one cursor across different search terms or resource types.
+- The backend `dispatch-fleet` route requires an explicit `resource` query
+  parameter. Keep that contract in the client rather than synthesizing a
+  default on the server.
+
+If this contract changes, update the client tests and the backend route/service
+together so pagination behavior stays explicit and regression-safe.
+
 ## Why two API layers (not one)?
 
 | Need | Where it lives | Why |

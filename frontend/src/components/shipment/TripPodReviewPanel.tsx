@@ -182,10 +182,10 @@ export function TripPodReviewPanel({
         <div>
           <h3 className="shipment-detail__section-title">
             <FileText size={16} />
-            e-POD &amp; điều kiện đóng lô hàng
+            e-POD &amp; điều kiện hoàn thành lô hàng
           </h3>
           <p className="shipment-pod-review__subtitle">
-            Duyệt hồ sơ giao hàng theo từng tác vụ và xử lý các đầu việc đã hủy trước khi hệ thống tự đóng lô hàng.
+            Duyệt hồ sơ giao hàng theo từng tác vụ và xử lý các đầu việc đã hủy trước khi hệ thống chuyển lô hàng sang Hoàn thành.
           </p>
         </div>
       </div>
@@ -317,7 +317,7 @@ export function TripPodReviewPanel({
                           disabled={pendingKey != null}
                         >
                           {pendingKey === `review-${submission.id}-ACCEPT` ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
-                          Duyệt &amp; khóa chuyến
+                          Duyệt e-POD
                         </button>
                       </div>
                     )}
