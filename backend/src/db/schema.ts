@@ -1762,6 +1762,19 @@ export const tripExpenses = pgTable('trip_expenses', {
   // deleting a container row downgrades the expense to trip-level (loose
   // containerNumber still present) instead of orphaning or failing the delete.
   tripContainerId: integer('trip_container_id').references(() => tripContainers.id, { onDelete: 'set null' }),
+  // Immutable pricing evidence for lift/lower expenses. The FK identifies the
+  // catalog row; the JSON snapshot preserves the selectors and resolved price
+  // even if that catalog row is later edited or retired.
+  liftPricingId: integer('lift_pricing_id').references(() => liftPricing.id),
+  liftPricingSnapshot: jsonb('lift_pricing_snapshot').$type<{
+    portId: number;
+    containerTypeId: number;
+    direction: 'LIFT_UP' | 'LIFT_DOWN';
+    loadState: 'LOADED' | 'EMPTY';
+    expenseDate: string;
+    effectiveDate: string;
+    unitPrice: number;
+  }>(),
   approvalStatus: varchar('approval_status', { length: 20 }).notNull().default('APPROVED'),
   // O2C: real approval timestamp. Unlike approvalStatus (which defaults to
   // 'APPROVED' for legacy rows), this is NULL until a real accountant approval
@@ -1781,6 +1794,7 @@ export const tripExpenses = pgTable('trip_expenses', {
   index('trip_expenses_trip_id_idx').on(table.tripId),
   index('trip_expenses_container_idx').on(table.containerNumber),
   index('trip_expenses_trip_container_id_idx').on(table.tripContainerId),
+  index('trip_expenses_lift_pricing_id_idx').on(table.liftPricingId),
   index('trip_expenses_no_invoice_aggregate_idx').on(table.expenseType, table.expenseDate, table.payeeName),
   check(
     'trip_expenses_recoverable_split_nonnegative_check',
@@ -1931,19 +1945,31 @@ export const advanceSettlements = pgTable('advance_settlements', {
   checkedAt: timestamp('checked_at'),
   approvedBy: integer('approved_by').references(() => users.id),
   approvedAt: timestamp('approved_at'),
+  // Immutable idempotency authority for the automatic O2C expense-offset hook.
+  // Manual settlements leave this null; one approved expense can create at
+  // most one automatic settlement even under concurrent approval replays.
+  autoOffsetExpenseId: integer('auto_offset_expense_id').references(() => tripExpenses.id),
   note: text('note'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
   uniqueIndex('advance_settlements_code_unique_idx').on(table.code),
+  uniqueIndex('advance_settlements_auto_offset_expense_uniq')
+    .on(table.autoOffsetExpenseId)
+    .where(sql`${table.autoOffsetExpenseId} IS NOT NULL`),
 ]);
 
 export const advanceSettlementRequests = pgTable('advance_settlement_requests', {
   id: serial('id').primaryKey(),
   settlementId: integer('settlement_id').references(() => advanceSettlements.id).notNull(),
   advanceRequestId: integer('advance_request_id').references(() => advanceRequests.id).notNull(),
+  // The consumed slice of this advance. A request can fund multiple automatic
+  // settlements while its unallocated residual remains outstanding.
+  allocatedAmount: numeric('allocated_amount', { precision: 15, scale: 0 }).default('0').notNull(),
 }, (table) => [
   uniqueIndex('adv_settlement_req_unique_idx').on(table.settlementId, table.advanceRequestId),
+  index('adv_settlement_req_request_idx').on(table.advanceRequestId),
+  check('adv_settlement_req_allocated_nonneg_check', sql`${table.allocatedAmount} >= 0`),
 ]);
 
 export const settlementExpenses = pgTable('settlement_expenses', {
@@ -2457,7 +2483,6 @@ export const schedulerRunLogs = pgTable('scheduler_run_logs', {
 // service, router, RBAC, and frontend are subsequent Wave 0 checkboxes.
 export const shipmentStatusEnum = pgEnum('shipment_status', [
   'NEW', 'DISPATCHED', 'IN_TRANSIT', 'PENDING_EXPENSE_APPROVAL', 'COMPLETED', 'CANCELED',
-  'DRAFT', 'IN_PROGRESS', 'DELIVERED', 'CLOSED',
 ]);
 
 export const shipmentDocumentTypeEnum = pgEnum('shipment_document_type', [

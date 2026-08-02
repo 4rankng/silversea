@@ -38,6 +38,8 @@ const actionIds: number[] = [];
 const tripExpenseIds: number[] = [];
 const expenseTypeIds: number[] = [];
 const idempotencyKeys: string[] = [];
+const shipmentIds: number[] = [];
+const fulfillmentIds: number[] = [];
 
 let actors: Array<{ id: number; role: string }> = [];
 let server: http.Server;
@@ -102,6 +104,20 @@ async function createInTransitTrip() {
     assignedTruckId: truck.id,
   }).returning();
   driverIds.push(driver.id);
+  const [shipment] = await db.insert(s.shipments).values({
+    customerId: customer.id,
+    status: 'IN_TRANSIT',
+    cargoMode: 'LCL',
+  }).returning();
+  shipmentIds.push(shipment.id);
+  const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+    shipmentId: shipment.id,
+    fulfillmentType: 'LCL_SHIPMENT',
+    cargoMode: 'LCL',
+    sourceShipmentVersion: shipment.version,
+    siteSnapshot: {},
+  }).returning();
+  fulfillmentIds.push(fulfillment.id);
   const [trip] = await db.insert(s.trips).values({
     tripCode: `Q15-TRIP-${suffix}-${tripIds.length}`.slice(0, 50),
     customerId: customer.id,
@@ -116,6 +132,8 @@ async function createInTransitTrip() {
     fuelSupplierId: supplier.id,
     fuelMode: FuelMode.AUTO,
     carrierType: 'OWN',
+    shipmentId: shipment.id,
+    fulfillmentId: fulfillment.id,
     // O2C: the governed-close path requires POD recovery before completion.
     podRecoveredAt: new Date(),
     podRecoveredBy: driverUser.id,
@@ -127,6 +145,24 @@ async function createInTransitTrip() {
     type: 'OTHER',
     storageKey: `q15-photo-${trip.id}.jpg`,
     uploadedBy: driverUser.id,
+  });
+  await db.insert(s.tripPodSubmissions).values({
+    tripId: trip.id,
+    fulfillmentId: fulfillment.id,
+    submissionVersion: 1,
+    sourceTripVersion: trip.version,
+    status: 'ACCEPTED',
+    submittedBy: driverUser.id,
+    submittedAt: new Date(),
+    reviewedBy: actors[1]!.id,
+    reviewedAt: new Date(),
+  });
+  await db.insert(s.tripExpenseCompletionScopes).values({
+    tripId: trip.id,
+    tripContainerId: null,
+    status: 'COMPLETED',
+    completedBy: actors[0]!.id,
+    completedAt: new Date(),
   });
   tripIds.push(trip.id);
   return trip;
@@ -240,6 +276,14 @@ after(async () => {
       .where(inArray(s.governanceActions.subjectId, tripIds));
     await db.delete(s.ledger).where(inArray(s.ledger.txnId, tripIds));
     await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.tripId, tripIds));
+    const milestones = await db.select({ id: s.shipmentMilestones.id })
+      .from(s.shipmentMilestones)
+      .where(inArray(s.shipmentMilestones.tripId, tripIds));
+    if (milestones.length > 0) {
+      await db.delete(s.customerVisibleEvents)
+        .where(inArray(s.customerVisibleEvents.milestoneId, milestones.map((row) => row.id)));
+    }
+    await db.delete(s.shipmentMilestones).where(inArray(s.shipmentMilestones.tripId, tripIds));
     await db.delete(s.tripLegs).where(inArray(s.tripLegs.tripId, tripIds));
     // createInTransitTrip inserts a trip_photos row per trip; trips.id has a
     // RESTRICT FK from trip_photos.trip_id, so these must be removed before the
@@ -251,6 +295,12 @@ after(async () => {
       await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.id, tripExpenseIds));
     }
     await db.delete(s.trips).where(inArray(s.trips.id, tripIds));
+  }
+  if (fulfillmentIds.length > 0) {
+    await db.delete(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.id, fulfillmentIds));
+  }
+  if (shipmentIds.length > 0) {
+    await db.delete(s.shipments).where(inArray(s.shipments.id, shipmentIds));
   }
   if (actionIds.length > 0) {
     await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, actionIds));
@@ -521,7 +571,7 @@ describe('Q15 trip financial governance', () => {
     const close = await api('POST', `/api/trips/${trip.id}/complete`, {
       expectedVersion: trip.version,
       reason: 'Hoàn thành vận chuyển và ghi nhận công nợ',
-    }, 0, closeKey);
+    }, 1, closeKey);
     assert.equal(close.status, 202);
     assert.equal(close.body.actionKind, 'TRIP_FINANCIAL_CLOSE');
     actionIds.push(Number(close.body.id));
@@ -529,7 +579,7 @@ describe('Q15 trip financial governance', () => {
     const closeReplay = await api('POST', `/api/trips/${trip.id}/complete`, {
       expectedVersion: trip.version,
       reason: 'Hoàn thành vận chuyển và ghi nhận công nợ',
-    }, 0, closeKey);
+    }, 1, closeKey);
     assert.equal(closeReplay.status, 202);
     assert.equal(closeReplay.body.id, close.body.id);
     assert.equal(closeReplay.body.replayed, true);
@@ -539,24 +589,24 @@ describe('Q15 trip financial governance', () => {
     assert.equal(stillInTransit.status, TripStatus.IN_TRANSIT);
     assert.equal((await ledgerRows(trip.id)).length, 0);
     assert.ok(await waitForAuditEvent(
-      actors[0]!.id,
+      actors[1]!.id,
       'TRIP_FINANCIAL_CLOSE_REQUESTED',
       trip.id,
     ));
 
     const selfCheck = await api('POST', `/api/governance-actions/${close.body.id}/check`, {
       expectedVersion: close.body.version,
-    }, 0, `q15-close-self-check-${suffix}`);
+    }, 1, `q15-close-self-check-${suffix}`);
     assert.equal(selfCheck.status, 403);
 
     const checked = await api('POST', `/api/governance-actions/${close.body.id}/check`, {
       expectedVersion: close.body.version,
-    }, 1, `q15-close-check-${suffix}`);
+    }, 0, `q15-close-check-${suffix}`);
     assert.equal(checked.status, 200);
 
     const checkerApprove = await api('POST', `/api/governance-actions/${close.body.id}/approve`, {
       expectedVersion: checked.body.version,
-    }, 1, `q15-close-checker-approve-${suffix}`);
+    }, 0, `q15-close-checker-approve-${suffix}`);
     assert.equal(checkerApprove.status, 403);
 
     const approveKeyA = `q15-close-approve-a-${suffix}`;
@@ -860,11 +910,11 @@ describe('Q15 trip financial governance', () => {
     const close = await api('POST', `/api/trips/${trip.id}/complete`, {
       expectedVersion: trip.version,
       reason: 'Kiểm thử ranh giới ủy quyền bền vững',
-    }, 0, `q15-forged-close-${suffix}`);
+    }, 1, `q15-forged-close-${suffix}`);
     actionIds.push(Number(close.body.id));
     const checkedClose = await api('POST', `/api/governance-actions/${close.body.id}/check`, {
       expectedVersion: close.body.version,
-    }, 1, `q15-forged-close-check-${suffix}`);
+    }, 0, `q15-forged-close-check-${suffix}`);
     assert.equal(checkedClose.status, 200);
 
     let retainedCallbackArgument: unknown;
@@ -1180,11 +1230,11 @@ describe('Q15 trip financial governance', () => {
     const close = await api('POST', `/api/trips/${trip.id}/complete`, {
       expectedVersion: trip.version,
       reason: 'Kiểm thử hàng đợi GPS bền vững',
-    }, 0, `q15-gps-close-${suffix}`);
+    }, 1, `q15-gps-close-${suffix}`);
     actionIds.push(Number(close.body.id));
     const checked = await api('POST', `/api/governance-actions/${close.body.id}/check`, {
       expectedVersion: close.body.version,
-    }, 1, `q15-gps-check-${suffix}`);
+    }, 0, `q15-gps-check-${suffix}`);
     await api('POST', `/api/governance-actions/${close.body.id}/approve`, {
       expectedVersion: checked.body.version,
     }, 2, `q15-gps-approve-${suffix}`);
@@ -1251,11 +1301,11 @@ describe('Q15 trip financial governance', () => {
     const close = await api('POST', `/api/trips/${trip.id}/complete`, {
       expectedVersion: trip.version,
       reason: 'Kiểm thử mất tiến trình ngay sau commit',
-    }, 0, `q15-gps-outbox-close-${suffix}`);
+    }, 1, `q15-gps-outbox-close-${suffix}`);
     actionIds.push(Number(close.body.id));
     const checked = await api('POST', `/api/governance-actions/${close.body.id}/check`, {
       expectedVersion: close.body.version,
-    }, 1, `q15-gps-outbox-check-${suffix}`);
+    }, 0, `q15-gps-outbox-check-${suffix}`);
     const approved = await approveGovernanceAction({
       actionId: Number(close.body.id),
       approverId: actors[2]!.id,
@@ -1292,11 +1342,11 @@ describe('Q15 trip financial governance', () => {
     const close = await api('POST', `/api/trips/${completedSource.id}/complete`, {
       expectedVersion: completedSource.version,
       reason: 'Hoàn thành để kiểm thử cập nhật hàng loạt',
-    }, 0, `q15-bulk-close-${suffix}`);
+    }, 1, `q15-bulk-close-${suffix}`);
     actionIds.push(Number(close.body.id));
     const checked = await api('POST', `/api/governance-actions/${close.body.id}/check`, {
       expectedVersion: close.body.version,
-    }, 1, `q15-bulk-close-check-${suffix}`);
+    }, 0, `q15-bulk-close-check-${suffix}`);
     await api('POST', `/api/governance-actions/${close.body.id}/approve`, {
       expectedVersion: checked.body.version,
     }, 2, `q15-bulk-close-approve-${suffix}`);
@@ -1342,11 +1392,11 @@ describe('Q15 trip financial governance', () => {
     const rejected = await api('POST', `/api/trips/${rejectedTrip.id}/complete`, {
       expectedVersion: rejectedTrip.version,
       reason: 'Đề nghị hoàn thành',
-    }, 0, `q15-close-reject-${suffix}`);
+    }, 1, `q15-close-reject-${suffix}`);
     actionIds.push(Number(rejected.body.id));
     const rejectedChecked = await api('POST', `/api/governance-actions/${rejected.body.id}/check`, {
       expectedVersion: rejected.body.version,
-    }, 1, `q15-rejected-check-${suffix}`);
+    }, 0, `q15-rejected-check-${suffix}`);
     const rejection = await api('POST', `/api/governance-actions/${rejected.body.id}/reject`, {
       expectedVersion: rejectedChecked.body.version,
       reason: 'Chưa đủ căn cứ hoàn thành',
@@ -1362,11 +1412,11 @@ describe('Q15 trip financial governance', () => {
     const stale = await api('POST', `/api/trips/${staleTrip.id}/complete`, {
       expectedVersion: staleTrip.version,
       reason: 'Đề nghị hoàn thành',
-    }, 0, `q15-close-stale-${suffix}`);
+    }, 1, `q15-close-stale-${suffix}`);
     actionIds.push(Number(stale.body.id));
     const staleChecked = await api('POST', `/api/governance-actions/${stale.body.id}/check`, {
       expectedVersion: stale.body.version,
-    }, 1, `q15-stale-check-${suffix}`);
+    }, 0, `q15-stale-check-${suffix}`);
     await db.update(s.trips).set({ version: staleTrip.version + 1 })
       .where(eq(s.trips.id, staleTrip.id));
     const staleApproval = await api('POST', `/api/governance-actions/${stale.body.id}/approve`, {

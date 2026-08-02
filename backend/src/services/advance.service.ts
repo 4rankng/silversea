@@ -523,7 +523,7 @@ export async function createAdvanceSettlement(
       }
     }
     // Shared validation: existence, ownership, status, and already-linked checks
-    const { tripExpenses: tripExpenseRows } =
+    const { advanceRequests: advanceRequestRows, tripExpenses: tripExpenseRows } =
       await validateSettlementInputs({
         dbOrTx: tx,
         forwarderId,
@@ -556,6 +556,7 @@ export async function createAdvanceSettlement(
       data.advanceRequestIds.map(advanceRequestId => ({
         settlementId: settlement.id,
         advanceRequestId,
+        allocatedAmount: advanceRequestRows.find((request) => request.id === advanceRequestId)!.amount,
       })),
     );
 
@@ -604,14 +605,42 @@ export async function createAdvanceSettlement(
  * and returns early.
  */
 export async function autoOffsetExpenseApproval(tx: Tx, expenseId: number): Promise<void> {
-  const [expense] = await tx.select()
+  const [initialExpense] = await tx.select()
     .from(s.tripExpenses).where(eq(s.tripExpenses.id, expenseId)).limit(1);
 
+  if (!initialExpense) return;
+  if (initialExpense.approvalStatus !== 'APPROVED') return;
+  if (initialExpense.settlementMethod !== 'FORWARDER_ADVANCE') return;
+  const initialForwarderId = initialExpense.forwarderId ?? initialExpense.createdBy;
+  if (!initialForwarderId) return;
+
+  // Different expenses for the same Ops balance must allocate serially so they
+  // cannot both consume the same residual advance snapshot.
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(6202, ${initialForwarderId})`);
+
+  // Share the established manual-settlement lock order: advance requests first,
+  // then expense. This closes races between automatic and governed settlement
+  // creation without introducing a request/expense lock inversion.
+  const candidateRequestIds = await tx.select({ id: s.advanceRequests.id })
+    .from(s.advanceRequests)
+    .where(and(
+      eq(s.advanceRequests.requesterId, initialForwarderId),
+      eq(s.advanceRequests.status, 'APPROVED'),
+    ));
+  for (const requestId of candidateRequestIds.map((row) => row.id).sort((a, b) => a - b)) {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(6101, ${requestId})`);
+  }
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
+
+  // Re-read every eligibility field and link only after all shared locks are
+  // held. A stale pre-lock snapshot must never authorize a financial posting.
+  const [expense] = await tx.select()
+    .from(s.tripExpenses).where(eq(s.tripExpenses.id, expenseId)).limit(1);
   if (!expense) return;
   if (expense.approvalStatus !== 'APPROVED') return;
   if (expense.settlementMethod !== 'FORWARDER_ADVANCE') return;
   const forwarderId = expense.forwarderId ?? expense.createdBy;
-  if (!forwarderId) return;
+  if (!forwarderId || forwarderId !== initialForwarderId) return;
   const amount = round2dp(Number(expense.buyAmount));
   if (amount <= 0) return;
 
@@ -627,15 +656,7 @@ export async function autoOffsetExpenseApproval(tx: Tx, expenseId: number): Prom
     .limit(1);
   if (existingLink) return;
 
-  // FIFO-select the forwarder's outstanding APPROVED advances (oldest first)
-  // until the expense amount is covered. Mirrors getOutstandingAdvanceBalance's
-  // candidate set (APPROVED requests not already in an APPROVED settlement).
-  const settledIds = await tx.select({ advanceRequestId: s.advanceSettlementRequests.advanceRequestId })
-    .from(s.advanceSettlementRequests)
-    .innerJoin(s.advanceSettlements, eq(s.advanceSettlementRequests.settlementId, s.advanceSettlements.id))
-    .where(eq(s.advanceSettlements.status, 'APPROVED'));
-  const settledSet = new Set(settledIds.map(r => r.advanceRequestId));
-
+  // FIFO-select approved advances and lock them before calculating residuals.
   const candidates = await tx.select({
     id: s.advanceRequests.id,
     amount: s.advanceRequests.amount,
@@ -648,10 +669,36 @@ export async function autoOffsetExpenseApproval(tx: Tx, expenseId: number): Prom
     .orderBy(desc(s.advanceRequests.approvedAt), s.advanceRequests.id)
     .for('update');
 
+  const activeAllocations = candidates.length === 0
+    ? []
+    : await tx.select({
+        advanceRequestId: s.advanceSettlementRequests.advanceRequestId,
+        allocatedAmount: sql<string>`coalesce(sum(${s.advanceSettlementRequests.allocatedAmount}::numeric), 0)`,
+      })
+        .from(s.advanceSettlementRequests)
+        .innerJoin(
+          s.advanceSettlements,
+          eq(s.advanceSettlementRequests.settlementId, s.advanceSettlements.id),
+        )
+        .where(and(
+          inArray(s.advanceSettlementRequests.advanceRequestId, candidates.map((candidate) => candidate.id)),
+          notInArray(s.advanceSettlements.status, ['REJECTED', 'REVERSED']),
+        ))
+        .groupBy(s.advanceSettlementRequests.advanceRequestId);
+  const allocatedByRequest = new Map(
+    activeAllocations.map((allocation) => [allocation.advanceRequestId, Number(allocation.allocatedAmount)]),
+  );
+
   // FIFO by earliest approvedAt: sort ascending (DESC fetch then reverse, or
   // use asc). Use ascending order to consume oldest advances first.
   const available = candidates
-    .filter(c => !settledSet.has(c.id))
+    .map((candidate) => ({
+      ...candidate,
+      remainingAmount: round2dp(
+        Number(candidate.amount) - (allocatedByRequest.get(candidate.id) ?? 0),
+      ),
+    }))
+    .filter((candidate) => candidate.remainingAmount > 0)
     .sort((a, b) => {
       const ta = a.approvedAt ? new Date(a.approvedAt).getTime() : 0;
       const tb = b.approvedAt ? new Date(b.approvedAt).getTime() : 0;
@@ -660,15 +707,18 @@ export async function autoOffsetExpenseApproval(tx: Tx, expenseId: number): Prom
 
   if (available.length === 0) return; // nothing to offset against — no-op
 
-  const linkedAdvanceIds: number[] = [];
-  let linkedAmount = 0;
+  const allocations: Array<{ advanceRequestId: number; allocatedAmount: number }> = [];
+  let remainingExpenseAmount = amount;
   for (const req of available) {
-    if (linkedAmount >= amount) break;
-    linkedAdvanceIds.push(req.id);
-    linkedAmount = round2dp(linkedAmount + Number(req.amount));
+    if (remainingExpenseAmount <= 0) break;
+    const allocatedAmount = Math.min(req.remainingAmount, remainingExpenseAmount);
+    allocations.push({ advanceRequestId: req.id, allocatedAmount });
+    remainingExpenseAmount = round2dp(remainingExpenseAmount - allocatedAmount);
   }
-  // The refund (advance surplus > expense) is cash the forwarder returns.
-  const refundAmount = linkedAmount > amount ? round2dp(linkedAmount - amount) : 0;
+
+  // An automatic settlement is atomic: if approved advances cannot fully cover
+  // the expense, leave it for the governed manual flow instead of overdrawing.
+  if (remainingExpenseAmount > 0) return;
 
   // Create the APPROVED auto-settlement (PRD: "tự động sinh" — no maker-checker).
   const code = await generateSettlementCode(tx);
@@ -678,15 +728,20 @@ export async function autoOffsetExpenseApproval(tx: Tx, expenseId: number): Prom
     code,
     forwarderId,
     totalExpenseAmount: String(amount),
-    refundAmount: String(refundAmount),
+    refundAmount: '0',
     status: 'APPROVED',
+    autoOffsetExpenseId: expense.id,
     note: `Tự quyết toán khi duyệt chi hộ chuyến ${trip?.tripCode ?? expense.tripId} (O2C Bước 4)`,
     approvedAt: new Date(),
     updatedAt: new Date(),
   }).returning();
 
   await tx.insert(s.advanceSettlementRequests).values(
-    linkedAdvanceIds.map(advanceRequestId => ({ settlementId: settlement.id, advanceRequestId })),
+    allocations.map((allocation) => ({
+      settlementId: settlement.id,
+      advanceRequestId: allocation.advanceRequestId,
+      allocatedAmount: String(allocation.allocatedAmount),
+    })),
   );
 
   // Reuse the canonical expense snapshot for the link row.
@@ -702,13 +757,12 @@ export async function autoOffsetExpenseApproval(tx: Tx, expenseId: number): Prom
 
   // Post the offset ledger entry — mirrors the manual settlement posting shape
   // (advance.service.ts:1166-1174) so the forwarder balance behaves identically.
-  const totalOffset = round2dp(amount + refundAmount);
   await LedgerService.postEntry(tx, {
     txnType: TxnType.FORWARDER_SETTLEMENT,
     txnId: settlement.id,
     entityType: 'FORWARDER',
     entityId: forwarderId,
-    debit: totalOffset,
+    debit: amount,
     credit: 0,
     note: `Tự quyết toán chi hộ chuyến ${trip?.tripCode ?? expense.tripId}`,
   });
@@ -971,6 +1025,7 @@ export async function updateAdvanceSettlement(
     await tx.insert(s.advanceSettlementRequests).values(data.advanceRequestIds.map(advanceRequestId => ({
       settlementId,
       advanceRequestId,
+      allocatedAmount: validated.advanceRequests.find((request) => request.id === advanceRequestId)!.amount,
     })));
     if (removedLinks.length > 0) {
       await tx.delete(s.settlementExpenses)
@@ -1921,40 +1976,34 @@ export async function rejectAdvanceSettlement(
 
 // ── Outstanding advance balance (F1) ─────────────────────────────────────────
 //
-// Locked formula (Option 1, customer-confirmed):
-//   outstanding = Σ APPROVED advance_requests.amount
-//                 NOT linked to any APPROVED advance_settlement.
-// A request is "settled" only when its id appears in
-// advance_settlement_requests.advance_request_id AND the linked
-// advance_settlements.status = 'APPROVED'. PENDING / CHECKED_BY_ACCOUNTANT
-// settlements do NOT reduce the balance (conservative). LedgerService is
-// intentionally NOT used — forwarder ancillary-fee debits pollute it.
-
-// Subquery: advance_request_ids that are linked to an APPROVED settlement.
-// Reused by both balance functions so the "settled" definition stays in one place.
-const settledRequestIds = db.select({ advanceRequestId: s.advanceSettlementRequests.advanceRequestId })
-  .from(s.advanceSettlementRequests)
-  .innerJoin(
-    s.advanceSettlements,
-    eq(s.advanceSettlementRequests.settlementId, s.advanceSettlements.id),
-  )
-  .where(eq(s.advanceSettlements.status, 'APPROVED'));
+// Locked formula (partial-allocation authority):
+//   outstanding = Σ max(APPROVED advance amount - APPROVED allocations, 0)
+// Pending/checked allocations reserve a request from concurrent auto-use but do
+// not reduce the reported balance until approval. LedgerService is intentionally
+// not used because unrelated forwarder debits share that ledger.
+const approvedAllocatedAmount = sql<string>`coalesce((
+  select sum(allocation.allocated_amount::numeric)
+  from advance_settlement_requests allocation
+  inner join advance_settlements settlement
+    on settlement.id = allocation.settlement_id
+  where allocation.advance_request_id = ${s.advanceRequests.id}
+    and settlement.status = 'APPROVED'
+), 0)`;
 
 /**
- * Sum of APPROVED advance_requests.amount not covered by any APPROVED settlement.
+ * Sum the unallocated residual of every APPROVED advance request.
  * Pass `forwarderUserId` to scope to one forwarder; omit for the cross-forwarder total.
  */
 export async function getOutstandingAdvanceBalance(forwarderUserId?: number): Promise<number> {
   const conditions = [
     eq(s.advanceRequests.status, 'APPROVED'),
-    notInArray(s.advanceRequests.id, settledRequestIds),
   ];
   if (forwarderUserId) {
     conditions.push(eq(s.advanceRequests.requesterId, forwarderUserId));
   }
 
   const [row] = await db.select({
-    total: sql<string>`coalesce(sum(${s.advanceRequests.amount}::numeric), 0)`,
+    total: sql<string>`coalesce(sum(greatest(${s.advanceRequests.amount}::numeric - ${approvedAllocatedAmount}, 0)), 0)`,
   }).from(s.advanceRequests)
     .where(and(...conditions));
 
@@ -1972,12 +2021,11 @@ export async function getOutstandingAdvanceBalances(): Promise<{
   const rows = await db.select({
     forwarderId: s.advanceRequests.requesterId,
     name: s.users.fullName,
-    outstanding: sql<string>`sum(${s.advanceRequests.amount}::numeric)`,
+    outstanding: sql<string>`sum(greatest(${s.advanceRequests.amount}::numeric - ${approvedAllocatedAmount}, 0))`,
   }).from(s.advanceRequests)
     .innerJoin(s.users, eq(s.advanceRequests.requesterId, s.users.id))
     .where(and(
       eq(s.advanceRequests.status, 'APPROVED'),
-      notInArray(s.advanceRequests.id, settledRequestIds),
     ))
     .groupBy(s.advanceRequests.requesterId, s.users.fullName);
 

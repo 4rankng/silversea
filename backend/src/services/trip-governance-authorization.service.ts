@@ -2,6 +2,10 @@ import { and, eq, isNull } from 'drizzle-orm';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
+import {
+  assertTripCloseEvidenceBinding,
+  requireTripCloseReadiness,
+} from './trip-close-readiness.service';
 
 type TripGovernanceOperation = 'CLOSE' | 'EDIT_COMPLETED' | 'CANCEL_COMPLETED';
 
@@ -89,6 +93,10 @@ export async function requirePersistedTripGovernanceAuthorization(input: {
       409,
       'Yêu cầu quản trị không hợp lệ hoặc không còn quyền áp dụng chuyến đi',
     );
+  }
+  if (input.operation === 'CLOSE') {
+    const currentEvidence = await requireTripCloseReadiness(input.tx, input.tripId);
+    assertTripCloseEvidenceBinding(after, currentEvidence);
   }
   if (
     input.operation === 'EDIT_COMPLETED'

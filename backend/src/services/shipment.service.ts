@@ -94,6 +94,29 @@ export type ShipmentStatus =
   | 'COMPLETED'
   | 'CANCELED';
 
+function normalizeShipmentStatusValue(status: string | null | undefined): ShipmentStatus | null {
+  return canonicalShipmentStatus(status);
+}
+
+function normalizeShipmentRow<T extends { status: string | null }>(shipment: T): T {
+  const normalizedStatus = normalizeShipmentStatusValue(shipment.status);
+  return normalizedStatus == null
+    ? shipment
+    : { ...shipment, status: normalizedStatus } as T;
+}
+
+function normalizeShipmentStatusHistoryRow<
+  T extends { fromStatus: string | null; toStatus: string },
+>(row: T): T {
+  const fromStatus = normalizeShipmentStatusValue(row.fromStatus);
+  const toStatus = normalizeShipmentStatusValue(row.toStatus);
+  return {
+    ...row,
+    fromStatus,
+    toStatus: toStatus ?? row.toStatus,
+  };
+}
+
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export interface CreateShipmentInput {
@@ -505,7 +528,7 @@ export async function getShipment(id: number, tx?: Tx) {
     .where(and(eq(s.shipments.id, id), isNull(s.shipments.deletedAt)))
     .limit(1);
   if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
-  return shipment;
+  return normalizeShipmentRow(shipment);
 }
 
 export async function listShipments(options: ListShipmentsOptions = {}) {
@@ -532,7 +555,7 @@ export async function listShipments(options: ListShipmentsOptions = {}) {
     .orderBy(desc(s.shipments.createdAt))
     .limit(limit)
     .offset(offset);
-  return rows.map((row) => row.shipment);
+  return rows.map((row) => normalizeShipmentRow(row.shipment));
 }
 
 /**
@@ -584,7 +607,10 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
   const total = Number(totalRows[0]?.value ?? 0);
   // Flatten `shipment` + `customerName` into a single object so the route
   // layer returns `{ ...shipmentColumns, customerName }` directly.
-  const flatItems = items.map((row) => ({ ...row.shipment, customerName: row.customerName }));
+  const flatItems = items.map((row) => ({
+    ...normalizeShipmentRow(row.shipment),
+    customerName: row.customerName,
+  }));
   return { items: flatItems, total, page, limit };
 }
 
@@ -969,6 +995,40 @@ export async function recomputeShipmentCompletion(
         .for('update');
     const acceptedTripIds = new Set(acceptedSubmissions.map((row) => row.tripId));
 
+    const tripIds = trips.map((trip) => trip.id);
+    const [tripContainerRows, expenseScopeRows] = tripIds.length === 0
+      ? [[], []] as const
+      : await Promise.all([
+        tx.select({ tripId: s.tripContainers.tripId, id: s.tripContainers.id })
+          .from(s.tripContainers)
+          .where(inArray(s.tripContainers.tripId, tripIds))
+          .for('update'),
+        tx.select({
+          tripId: s.tripExpenseCompletionScopes.tripId,
+          tripContainerId: s.tripExpenseCompletionScopes.tripContainerId,
+          status: s.tripExpenseCompletionScopes.status,
+        }).from(s.tripExpenseCompletionScopes)
+          .where(inArray(s.tripExpenseCompletionScopes.tripId, tripIds))
+          .for('update'),
+      ]);
+    const containerIdsByTrip = new Map<number, number[]>();
+    for (const container of tripContainerRows) {
+      const current = containerIdsByTrip.get(container.tripId) ?? [];
+      current.push(container.id);
+      containerIdsByTrip.set(container.tripId, current);
+    }
+    const completedExpenseScopeKeys = new Set(
+      expenseScopeRows
+        .filter((scope) => scope.status === 'COMPLETED')
+        .map((scope) => `${scope.tripId}:${scope.tripContainerId ?? 'general'}`),
+    );
+    const hasCompletedExpenseScopes = (tripId: number) => (
+      completedExpenseScopeKeys.has(`${tripId}:general`)
+      && (containerIdsByTrip.get(tripId) ?? []).every((containerId) => (
+        completedExpenseScopeKeys.has(`${tripId}:${containerId}`)
+      ))
+    );
+
     const allRequiredTripsPresent = requiredFulfillments.every((row) => {
       const linkedTrips = tripsByFulfillment.get(row.id) ?? [];
       return linkedTrips.length === 1;
@@ -991,17 +1051,23 @@ export async function recomputeShipmentCompletion(
       const trip = tripsByFulfillment.get(row.id)?.[0];
       return trip != null && trip.status === 'COMPLETED';
     });
+    const allExpenseScopesComplete = requiredFulfillments.every((row) => {
+      const trip = tripsByFulfillment.get(row.id)?.[0];
+      return trip != null && hasCompletedExpenseScopes(trip.id);
+    });
     const anyInTransit = trips.some((trip) => trip.status === TripStatus.IN_TRANSIT);
     const allAwaitingApproval = requiredFulfillments.every((row) => {
       const trip = tripsByFulfillment.get(row.id)?.[0];
       const latestSubmissionStatus = trip == null ? null : latestSubmissionByTripId.get(trip.id) ?? null;
       return trip != null
         && latestSubmissionStatus != null
+        && hasCompletedExpenseScopes(trip.id)
         && (latestSubmissionStatus === TripPodStatus.SUBMITTED || latestSubmissionStatus === TripPodStatus.ACCEPTED);
     });
     const allCompletedAndAccepted = requiredFulfillments.every((row) => {
       const trip = tripsByFulfillment.get(row.id)?.[0];
       return trip != null && trip.status === 'COMPLETED'
+        && hasCompletedExpenseScopes(trip.id)
         && acceptedTripIds.has(trip.id)
         && trip.podRecoveredAt != null;
     });
@@ -1011,7 +1077,7 @@ export async function recomputeShipmentCompletion(
     if (allCompletedAndAccepted) {
       targetStatus = 'COMPLETED';
       reason = 'Tự động hoàn thành khi mọi tác vụ đã duyệt e-POD, thu hồi POD gốc và chốt xong.';
-    } else if (allAwaitingApproval || allCompleted) {
+    } else if (allAwaitingApproval || (allCompleted && allExpenseScopesComplete)) {
       targetStatus = 'PENDING_EXPENSE_APPROVAL';
       reason = 'Tự động chuyển sang Chờ duyệt phí khi mọi tác vụ đã nộp đủ hồ sơ chờ kế toán/CUS duyệt.';
     } else if (anyInTransit) {
@@ -1592,9 +1658,10 @@ export async function listShipmentDeclarations(shipmentId: number, tx?: Tx) {
 
 export async function listShipmentStatusHistory(shipmentId: number, tx?: Tx) {
   const client = tx ?? db;
-  return await client.select().from(s.shipmentStatusHistory)
+  const rows = await client.select().from(s.shipmentStatusHistory)
     .where(eq(s.shipmentStatusHistory.shipmentId, shipmentId))
     .orderBy(desc(s.shipmentStatusHistory.changedAt));
+  return rows.map((row) => normalizeShipmentStatusHistoryRow(row));
 }
 
 export async function listPendingShipmentChangeRequests(

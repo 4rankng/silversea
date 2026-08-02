@@ -211,6 +211,16 @@ describe('ForwarderTripDetailPage photo upload geolocation recovery', () => {
     }));
     await waitFor(() => expect((screen.getAllByPlaceholderText('0')[0] as HTMLInputElement).value).toBe('950000'));
     expect(screen.getByText(/Áp tự động 950.000 VNĐ/)).toBeTruthy();
+    fireEvent.change(screen.getByPlaceholderText('Số hóa đơn'), { target: { value: 'HD-LIFT-001' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu chi phí' }));
+    await waitFor(() => expect(createExpenseMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        portId: 7,
+        containerTypeId: 3,
+        loadState: 'LOADED',
+      }),
+      expect.any(Object),
+    ));
   });
 
   it('reapplies the same matrix suggestion for a consecutive expense entry', async () => {

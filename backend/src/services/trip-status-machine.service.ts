@@ -19,6 +19,7 @@ import {
 import { captureProfitabilityAttributionSnapshot } from './profitability.service';
 import { ArSnapshotService } from './ar-snapshot.service';
 import { SnapshotServices } from './snapshot-services';
+import { lockTripCloseAggregate } from './trip-close-readiness.service';
 
 export async function transitionTripStatus(
   tripId: number,
@@ -38,6 +39,9 @@ export async function transitionTripStatus(
   // Subject + Verb + Natural Key sentences.
   const execute = async (tx: Tx) => {
     let governanceAuthorized = false;
+    if (targetStatus === TripStatus.COMPLETED) {
+      await lockTripCloseAggregate(tx, tripId);
+    }
     const [trip] = await tx.select().from(s.trips).where(eq(s.trips.id, tripId)).limit(1).for('update');
     if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
     if (options?.expectedVersion !== undefined && trip.version !== options.expectedVersion) {

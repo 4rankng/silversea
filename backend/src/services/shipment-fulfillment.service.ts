@@ -1,4 +1,5 @@
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
+import { canonicalShipmentStatus } from '@tingting/shared';
 
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -196,7 +197,8 @@ export async function ensureShipmentFulfillmentsInTx(
   if (input.expectedVersion != null && shipment.version !== input.expectedVersion) {
     throw new ApiError(409, 'Lô hàng đã thay đổi. Vui lòng tải lại.');
   }
-  if (shipment.status === 'CANCELED' || shipment.status === 'CLOSED' || shipment.status === 'COMPLETED') {
+  const shipmentStatus = canonicalShipmentStatus(shipment.status);
+  if (shipmentStatus === 'CANCELED' || shipmentStatus === 'COMPLETED') {
     throw new ApiError(409, 'Không thể tạo tác vụ cho lô hàng đã kết thúc.');
   }
   if (shipment.cargoMode !== 'FCL' && shipment.cargoMode !== 'LCL') {

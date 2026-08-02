@@ -323,6 +323,9 @@ export default function ForwarderTripDetailPage() {
       invoiceDate: expenseForm.invoiceDate || undefined,
       declarationNumber: expenseForm.declarationNumber.trim() || undefined,
       tripContainerId: expenseForm.tripContainerId ? parseInt(expenseForm.tripContainerId, 10) : undefined,
+      portId: isLiftExpense && expenseForm.portId ? parseInt(expenseForm.portId, 10) : undefined,
+      containerTypeId: isLiftExpense && expenseForm.containerTypeId ? parseInt(expenseForm.containerTypeId, 10) : undefined,
+      loadState: isLiftExpense ? expenseForm.loadState : undefined,
       note: expenseForm.note.trim() || undefined,
       noInvoiceEvidenceTypes: expenseForm.noInvoiceEvidenceTypes,
     };
@@ -590,7 +593,7 @@ export default function ForwarderTripDetailPage() {
                   </span>
                 )}
                 {isLiftExpense && liftPriceQuery.data?.source === 'MANUAL' && (
-                  <span className="fwd-price-hint">Chưa có biểu giá phù hợp. Nhập giá thực tế.</span>
+                  <span className="fwd-price-hint fwd-price-hint--error">Chưa có biểu giá phù hợp. Không được nhập tay phí nâng/hạ; cần bổ sung bảng giá trước khi lưu.</span>
                 )}
               </FormGroup>
 

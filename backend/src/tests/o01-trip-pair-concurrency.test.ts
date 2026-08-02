@@ -18,6 +18,11 @@ import {
 } from '../services/idempotency.service';
 import { transitionTripWriteCommand } from '../services/trip-command.service';
 import { createTripPair } from '../services/trip-pairs.service';
+import {
+  attachAcceptedTripCloseEvidence,
+  cleanupTripCloseMilestones,
+  cleanupTripCloseShipments,
+} from './helpers/o2c-close-fixture';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdTripIds: number[] = [];
@@ -27,6 +32,7 @@ const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
 const createdTruckIds: number[] = [];
 const createdDriverIds: number[] = [];
+const createdShipmentIds: number[] = [];
 
 let actors: Array<{ id: number; role: string }> = [];
 
@@ -253,6 +259,7 @@ after(async () => {
       inArray(s.governanceActions.subjectId, createdTripIds),
     ));
     await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.createdBy, createdUserIds));
+    await cleanupTripCloseMilestones(createdTripIds);
     await db.update(s.trips).set({
       activeTripPairId: null,
       activeTripPairOrder: null,
@@ -262,6 +269,7 @@ after(async () => {
       inArray(s.tripPairs.secondTripId, createdTripIds),
     ));
     await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
+    await cleanupTripCloseShipments(createdShipmentIds);
   }
   if (createdDriverIds.length > 0) {
     await db.delete(s.drivers).where(inArray(s.drivers.id, createdDriverIds));
@@ -414,17 +422,25 @@ describe('O01 persisted trip-pair concurrency', () => {
       canonicalDestination: 'Cát Lái',
     });
     await seedCompletionEvidence(first.id, actors[0]!.id);
+    const closeEvidence = await attachAcceptedTripCloseEvidence({
+      tripId: first.id,
+      tripVersion: first.version,
+      customerId: createdCustomerIds[0]!,
+      submittedBy: actors[0]!.id,
+      reviewedBy: actors[1]!.id,
+    });
+    createdShipmentIds.push(closeEvidence.shipmentId);
     const requested = await requestTripFinancialClose({
       tripId: first.id,
       reason: 'Xác nhận hoàn thành chuyến trong kiểm thử tranh chấp ghép chuyến',
-      makerId: actors[0]!.id,
-      makerRole: actors[0]!.role,
+      makerId: actors[1]!.id,
+      makerRole: actors[1]!.role,
       expectedTripVersion: first.version,
     });
     const checked = await checkGovernanceAction({
       actionId: requested.id,
-      checkerId: actors[1]!.id,
-      checkerRole: actors[1]!.role,
+      checkerId: actors[0]!.id,
+      checkerRole: actors[0]!.role,
       expectedVersion: requested.version,
     });
 

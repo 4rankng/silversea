@@ -266,6 +266,31 @@ describe('Q15 shared governance foundation', () => {
     );
   });
 
+  it('assigns O2C close creation to Accounting/CUS with an independent finance checker and manager approver', () => {
+    assert.doesNotThrow(() => assertCanMakeGovernanceAction('TRIP_FINANCIAL_CLOSE', Role.ACCOUNTANT));
+    assert.doesNotThrow(() => assertCanMakeGovernanceAction('TRIP_FINANCIAL_CLOSE', Role.CLERK));
+    for (const role of [Role.ADMIN, Role.MANAGER, Role.DRIVER, Role.FORWARDER, Role.DISPATCHER]) {
+      assert.throws(
+        () => assertCanMakeGovernanceAction('TRIP_FINANCIAL_CLOSE', role),
+        (error: unknown) => error instanceof ApiError && error.statusCode === 403,
+      );
+    }
+    const action = {
+      actionKind: 'TRIP_FINANCIAL_CLOSE',
+      status: 'PENDING_CHECK',
+      makerId: actors[0]!.id,
+      checkerId: actors[1]!.id,
+    };
+    assert.doesNotThrow(() => assertCanCheckGovernanceAction(action, {
+      actorId: actors[1]!.id,
+      actorRole: Role.ACCOUNTANT,
+    }));
+    assert.doesNotThrow(() => assertCanApproveGovernanceAction(action, {
+      actorId: actors[2]!.id,
+      actorRole: Role.MANAGER,
+    }));
+  });
+
   it('enforces pairwise actors, capabilities, role snapshots and allowed actions', async () => {
     const action = await createAction();
     assert.deepEqual(getGovernanceAllowedActions(action, {

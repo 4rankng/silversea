@@ -4,7 +4,7 @@
 import { db } from '../db';
 import * as s from '../db/schema';
 import { eq, and, isNull, sql } from 'drizzle-orm';
-import { TripStatus, FuelMode, Role, TxnType } from '@tingting/shared';
+import { canonicalShipmentStatus, TripStatus, FuelMode, Role, TxnType } from '@tingting/shared';
 import type { TripLegInput } from '@tingting/shared';
 import { resolveTripDriverSalary, computeTripTotals, type ComputeTripTotalsOutput } from '@tingting/shared';
 import { ApiError } from '../errors';
@@ -325,10 +325,11 @@ export async function createTrip(data: {
       if (!shipment) {
         throw new ApiError(404, 'Không tìm thấy lô hàng');
       }
-      if (shipment.status !== 'NEW' && shipment.status !== 'DISPATCHED') {
+      const shipmentStatus = canonicalShipmentStatus(shipment.status);
+      if (shipmentStatus !== 'NEW' && shipmentStatus !== 'DISPATCHED') {
         throw new ApiError(
           409,
-          `Không thể gắn lô hàng ở trạng thái "${shipment.status}".`,
+          `Không thể gắn lô hàng ở trạng thái "${shipmentStatus ?? shipment.status}".`,
         );
       }
       if (shipment.customerId !== data.customerId) {

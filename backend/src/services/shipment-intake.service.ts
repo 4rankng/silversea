@@ -1,5 +1,5 @@
-import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
-import { Role } from '@tingting/shared';
+import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { canonicalShipmentStatus, Role } from '@tingting/shared';
 
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -198,7 +198,7 @@ export async function submitShipmentForDispatch(input: SubmitShipmentForDispatch
       if (shipment.version !== input.expectedVersion) {
         throw new ApiError(409, 'Lô hàng đã thay đổi. Vui lòng tải lại.');
       }
-      if (shipment.status !== 'NEW') {
+      if (canonicalShipmentStatus(shipment.status) !== 'NEW') {
         throw new ApiError(409, 'Chỉ lô hàng ở trạng thái Mới tạo mới được gửi sang điều phối.');
       }
       await assertIntakeReady(tx, shipment);

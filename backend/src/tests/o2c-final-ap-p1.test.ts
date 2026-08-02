@@ -18,6 +18,11 @@ import { ApSnapshotService } from '../services/ap-snapshot.service';
 import { LedgerService, tripExpenseVendorReceiptId } from '../services/ledger.service';
 import { SnapshotServices } from '../services/snapshot-services';
 import { lockTripFinancialAuthority } from '../services/trip-financial-authority-lock.service';
+import {
+  attachAcceptedTripCloseEvidence,
+  cleanupTripCloseMilestones,
+  cleanupTripCloseShipments,
+} from './helpers/o2c-close-fixture';
 
 const createdTripIds: number[] = [];
 const createdCustomerIds: number[] = [];
@@ -28,6 +33,7 @@ const createdExpenseTypeIds: number[] = [];
 const createdExpenseIds: number[] = [];
 const createdUserIds: number[] = [];
 const createdDriverIds: number[] = [];
+const createdShipmentIds: number[] = [];
 
 before(async () => {
   const columns = await db.execute(sql`
@@ -54,8 +60,10 @@ after(async () => {
     await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.tripId, createdTripIds));
     await db.delete(s.tripLegs).where(inArray(s.tripLegs.tripId, createdTripIds));
     await db.delete(s.tripPhotos).where(inArray(s.tripPhotos.tripId, createdTripIds));
+    await cleanupTripCloseMilestones(createdTripIds);
     await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
   }
+  await cleanupTripCloseShipments(createdShipmentIds);
   if (createdExpenseTypeIds.length > 0) {
     await db.delete(s.forwarderExpenseTypes)
       .where(inArray(s.forwarderExpenseTypes.id, createdExpenseTypeIds));
@@ -203,17 +211,27 @@ async function createTripFixture(input?: {
 
 async function completeTripGoverned(tripId: number, expectedVersion: number) {
   const actors = await createActors('trip-close');
+  const [trip] = await db.select({ customerId: s.trips.customerId })
+    .from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+  const closeEvidence = await attachAcceptedTripCloseEvidence({
+    tripId,
+    tripVersion: expectedVersion,
+    customerId: trip.customerId,
+    submittedBy: actors.makerId,
+    reviewedBy: actors.checkerId,
+  });
+  createdShipmentIds.push(closeEvidence.shipmentId);
   const action = await requestTripFinancialClose({
     tripId,
     reason: 'Hoàn thành chuyến để chụp AP snapshot',
-    makerId: actors.makerId,
-    makerRole: Role.MANAGER,
+    makerId: actors.checkerId,
+    makerRole: Role.ACCOUNTANT,
     expectedTripVersion: expectedVersion,
   });
   const checked = await checkGovernanceAction({
     actionId: action.id,
-    checkerId: actors.checkerId,
-    checkerRole: Role.ACCOUNTANT,
+    checkerId: actors.makerId,
+    checkerRole: Role.MANAGER,
     expectedVersion: action.version,
   });
   await approveGovernanceAction({

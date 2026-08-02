@@ -3,6 +3,10 @@ import { NotificationType, Role, TripStatus, TxnType } from '@tingting/shared';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
+import {
+  lockTripCloseAggregate,
+  requireTripCloseReadiness,
+} from './trip-close-readiness.service';
 import { LedgerService } from './ledger.service';
 import type { Tx } from './trip-shared';
 import {
@@ -258,16 +262,11 @@ export async function requestTripFinancialClose(input: {
   transaction?: Tx;
 }) {
   assertCanMakeGovernanceAction('TRIP_FINANCIAL_CLOSE', input.makerRole);
-  if (input.makerRole !== Role.ADMIN && input.makerRole !== Role.MANAGER) {
-    throw new ApiError(403, 'Chỉ Quản lý hoặc Quản trị viên mới có quyền đề nghị hoàn thành chuyến đi');
-  }
   assertExpectedTripVersion(input.expectedTripVersion);
   const reason = requireReason(input.reason);
 
   const execute = async (tx: Tx) => {
-    const [trip] = await tx.select().from(s.trips)
-      .where(eq(s.trips.id, input.tripId)).limit(1).for('update');
-    if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
+    const trip = await lockTripCloseAggregate(tx, input.tripId);
     if (trip.version !== input.expectedTripVersion) {
       throw new ApiError(409, 'Chuyến đi đã được thay đổi. Vui lòng tải lại.');
     }
@@ -286,6 +285,7 @@ export async function requestTripFinancialClose(input: {
         'Chưa có ảnh bằng chứng. Vui lòng tải lên ít nhất 1 ảnh trước khi đề nghị hoàn thành.',
       );
     }
+    const closeEvidence = await requireTripCloseReadiness(tx, trip.id);
     await assertNoPendingTripGovernanceAction(
       tx,
       trip.id,
@@ -306,7 +306,7 @@ export async function requestTripFinancialClose(input: {
         totalCost: trip.totalCost,
         grossProfit: trip.grossProfit,
       },
-      afterSnapshot: { status: TripStatus.COMPLETED },
+      afterSnapshot: { status: TripStatus.COMPLETED, ...closeEvidence },
       deltaSnapshot: null,
       makerId: input.makerId,
       makerRole: input.makerRole,
@@ -545,8 +545,10 @@ async function applyTripGovernanceAction(
   if (kind === 'TRIP_REOPEN' || kind === 'TRIP_FINANCIAL_CHANGE') {
     await lockTripFinancialAuthority(tx, [action.subjectId]);
   }
-  const [trip] = await tx.select().from(s.trips)
-    .where(eq(s.trips.id, action.subjectId)).limit(1).for('update');
+  const trip = kind === 'TRIP_FINANCIAL_CLOSE'
+    ? await lockTripCloseAggregate(tx, action.subjectId)
+    : (await tx.select().from(s.trips)
+      .where(eq(s.trips.id, action.subjectId)).limit(1).for('update'))[0];
   if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi gốc');
   if (trip.version !== action.originalVersion) {
     throw new ApiError(409, 'Dữ liệu gốc đã thay đổi; yêu cầu này không thể áp dụng');

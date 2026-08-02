@@ -181,14 +181,14 @@ async function closeTripThroughGovernance(tripId: number, expectedVersion: numbe
   const action = await requestTripFinancialClose({
     tripId,
     reason: 'Hoàn thành chuyến theo quy trình quản trị kiểm thử',
-    makerId: actors[0]!.id,
-    makerRole: Role.MANAGER,
+    makerId: actors[1]!.id,
+    makerRole: Role.ACCOUNTANT,
     expectedTripVersion: expectedVersion,
   });
   const checked = await checkGovernanceAction({
     actionId: action.id,
-    checkerId: actors[1]!.id,
-    checkerRole: Role.ACCOUNTANT,
+    checkerId: actors[0]!.id,
+    checkerRole: Role.MANAGER,
     expectedVersion: action.version,
   });
   await approveGovernanceAction({
@@ -321,26 +321,48 @@ async function createCompletedTripWithFees(spec: TripSpec) {
     createdExpenseIds.push(row.id);
   }
 
+  await db.insert(s.tripExpenseCompletionScopes).values({
+    tripId: trip.id,
+    tripContainerId: null,
+    status: 'COMPLETED',
+    completedBy: 1,
+    completedAt: new Date(`${spec.departureDate}T12:00:00+07:00`),
+  });
+  const [acceptedPod] = await db.insert(s.tripPodSubmissions).values({
+    tripId: trip.id,
+    fulfillmentId: fulfillment.id,
+    submissionVersion: 1,
+    sourceTripVersion: trip.version,
+    status: 'ACCEPTED',
+    submittedBy: 1,
+    submittedAt: new Date(`${spec.departureDate}T13:00:00+07:00`),
+    reviewedBy: 1,
+    reviewedAt: new Date(`${spec.departureDate}T14:00:00+07:00`),
+    rejectionReason: null,
+  }).returning({ id: s.tripPodSubmissions.id });
+  createdPodSubmissionIds.push(acceptedPod.id);
+
   // O2C: the governed close drives IN_TRANSIT → COMPLETED, posting revenue/AP.
   const closeOutcome = await closeTripThroughGovernance(trip.id, trip.version);
   await db.update(s.trips)
     .set({ completedAt: new Date(`${spec.departureDate}T12:00:00+07:00`) })
     .where(eq(s.trips.id, trip.id));
 
-  if (spec.attachAcceptedPod !== false) {
-    const [acceptedPod] = await db.insert(s.tripPodSubmissions).values({
+  if (spec.attachAcceptedPod === false) {
+    const [rejectedPod] = await db.insert(s.tripPodSubmissions).values({
       tripId: trip.id,
       fulfillmentId: fulfillment.id,
-      submissionVersion: 1,
+      submissionVersion: 2,
       sourceTripVersion: closeOutcome.version,
-      status: 'ACCEPTED',
+      status: 'REJECTED',
+      supersedesSubmissionId: acceptedPod.id,
       submittedBy: closeOutcome.managerId,
       submittedAt: new Date(`${spec.departureDate}T13:00:00+07:00`),
       reviewedBy: closeOutcome.managerId,
       reviewedAt: new Date(`${spec.departureDate}T14:00:00+07:00`),
-      rejectionReason: null,
+      rejectionReason: 'Bản e-POD mới không hợp lệ',
     }).returning({ id: s.tripPodSubmissions.id });
-    createdPodSubmissionIds.push(acceptedPod.id);
+    createdPodSubmissionIds.push(rejectedPod.id);
   }
 
   return { trip, customer, supplierId, forwarderId, expenseRows, customerName: customer.name };
@@ -949,24 +971,45 @@ async function createBillableTrip(ctx: BillableSeedCtx, spec: BillableTripSpec) 
     }).returning();
     createdExpenseIds.push(row.id);
   }
+  await db.insert(s.tripExpenseCompletionScopes).values({
+    tripId: trip.id,
+    tripContainerId: null,
+    status: 'COMPLETED',
+    completedBy: 1,
+    completedAt: new Date(`${spec.departureDate}T12:00:00+07:00`),
+  });
+  const [acceptedPod] = await db.insert(s.tripPodSubmissions).values({
+    tripId: trip.id,
+    fulfillmentId: fulfillment.id,
+    submissionVersion: 1,
+    sourceTripVersion: trip.version,
+    status: 'ACCEPTED',
+    submittedBy: 1,
+    submittedAt: new Date(`${spec.departureDate}T13:00:00+07:00`),
+    reviewedBy: 1,
+    reviewedAt: new Date(`${spec.departureDate}T14:00:00+07:00`),
+    rejectionReason: null,
+  }).returning({ id: s.tripPodSubmissions.id });
+  createdPodSubmissionIds.push(acceptedPod.id);
   const closeOutcome = await closeTripThroughGovernance(trip.id, trip.version);
   await db.update(s.trips)
     .set({ completedAt: new Date(`${spec.departureDate}T12:00:00+07:00`) })
     .where(eq(s.trips.id, trip.id));
-  if (spec.attachAcceptedPod !== false) {
-    const [acceptedPod] = await db.insert(s.tripPodSubmissions).values({
+  if (spec.attachAcceptedPod === false) {
+    const [rejectedPod] = await db.insert(s.tripPodSubmissions).values({
       tripId: trip.id,
       fulfillmentId: fulfillment.id,
-      submissionVersion: 1,
+      submissionVersion: 2,
       sourceTripVersion: closeOutcome.version,
-      status: 'ACCEPTED',
+      status: 'REJECTED',
+      supersedesSubmissionId: acceptedPod.id,
       submittedBy: closeOutcome.managerId,
       submittedAt: new Date(`${spec.departureDate}T13:00:00+07:00`),
       reviewedBy: closeOutcome.managerId,
       reviewedAt: new Date(`${spec.departureDate}T14:00:00+07:00`),
-      rejectionReason: null,
+      rejectionReason: 'Bản e-POD mới không hợp lệ',
     }).returning({ id: s.tripPodSubmissions.id });
-    createdPodSubmissionIds.push(acceptedPod.id);
+    createdPodSubmissionIds.push(rejectedPod.id);
   }
   return { trip };
 }

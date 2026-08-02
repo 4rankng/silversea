@@ -6,7 +6,7 @@ import { client as dbClient } from './db';
 import { disconnectRedis } from './lib/redis';
 import { initEnforcer } from './casbin/enforcer';
 import { authMiddleware, assetAuthMiddleware } from './middleware/auth';
-import { casbinAuthz } from './middleware/casbin';
+import { casbinAuthz, tripRouteAuthz } from './middleware/casbin';
 import { requireRoles } from './middleware/casbin';
 import { Role } from '@tingting/shared';
 import { auditLogMiddleware } from './middleware/audit';
@@ -198,7 +198,7 @@ app.use('/api/ocr', authMiddleware, casbinAuthz('ocr'), ocrRoutes);
 // ownership resolved inside the service. MUST mount before the catch-all /api.
 app.use('/api/geotag', authMiddleware, casbinAuthz('geotag'), geotagRoutes);
 app.use('/api/notifications', authMiddleware, casbinAuthz('notifications'), notificationRoutes);
-app.use('/api/trips', authMiddleware, casbinAuthz('trips'), tripRoutes);
+app.use('/api/trips', authMiddleware, tripRouteAuthz(), tripRoutes);
 // Shipments (Wave 0 — lô hàng): first-class shipment entity that every later
 // wave (CUS portal, debit-note, dispatch handoff) builds on. RBAC matrix:
 // ADMIN wildcard · MANAGER read+write+delete · ACCOUNTANT read · CLERK

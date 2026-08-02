@@ -11,6 +11,7 @@ import CustomerPortalLayout from './pages/portal/CustomerPortalLayout';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { ToastProvider } from './components/shared/Toast';
 import { homeForRole, routes } from './lib/routes';
+import { canReadShipmentRoutes } from './lib/role-access';
 
 export function legacyAdvanceSettlementsTarget(search: string): string {
   const params = new URLSearchParams(search);
@@ -164,6 +165,11 @@ export function AppRoutes() {
   );
   // /users is the single home for everyone; accountants get scoped (driver-only) access.
   const officeStaffOnly = (el: ReactElement) => (isAdmin || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT ? el : <Navigate to={homeRedirect} replace />);
+  const shipmentReaderOnly = (el: ReactElement) => (
+    canReadShipmentRoutes(user?.role)
+      ? el
+      : <Navigate to={homeRedirect} replace />
+  );
   const financeReaderOnly = (el: ReactElement) => (
     isAdmin || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT
       ? el
@@ -239,12 +245,11 @@ export function AppRoutes() {
           <Route path="/customers" element={adminOnly(page(<CustomersPage />))} />
           <Route path="/customers/:id" element={adminOnly(page(<DebtDetailPage />))} />
           <Route path="/customers/:id/billing/new" element={adminOnly(page(<DebtDetailPage />))} />
-          {/* Wave 0: shipment (lô hàng) read-only list + detail. RBAC mirrors
-              the shipments Casbin resource (ADMIN wildcard, MANAGER/ACCOUNTANT
-              read). CLERK gets its own portal surface in a later wave. */}
-          <Route path="/shipments" element={isClerk ? page(<ShipmentsPage />) : officeStaffOnly(page(<ShipmentsPage />))} />
+          {/* Shipment list/detail mirrors the backend read policy, including
+              Dispatcher read access. Mutation routes remain separately gated. */}
+          <Route path="/shipments" element={shipmentReaderOnly(page(<ShipmentsPage />))} />
           <Route path="/shipments/new" element={shipmentOperatorOnly(page(<ClerkShipmentCreatePage />))} />
-          <Route path="/shipments/:id" element={isClerk ? page(<ShipmentDetailPage />) : officeStaffOnly(page(<ShipmentDetailPage />))} />
+          <Route path="/shipments/:id" element={shipmentReaderOnly(page(<ShipmentDetailPage />))} />
           <Route path="/routes" element={<Navigate to="/config/routes" replace />} />
           <Route path="/trucks" element={<Navigate to="/fleet" replace />} />
           <Route path="/drivers" element={<Navigate to="/fleet" replace />} />

@@ -29,6 +29,7 @@ import {
 } from '../services/shipment.service';
 import { notificationUrlForRole } from '../services/notification.service';
 import { storageService } from '../services/storage.service';
+import { setTripExpenseCompletion } from '../services/forwarder.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -219,6 +220,12 @@ async function createFulfillmentTrip(args: {
     podRecoveredBy: args.driverId,
   }).returning();
   createdTripIds.push(trip.id);
+  await db.insert(s.tripExpenseCompletionScopes).values({
+    tripId: trip.id,
+    tripContainerId: null,
+    status: 'COMPLETED',
+    completedAt: new Date(),
+  });
   return trip;
 }
 
@@ -337,6 +344,13 @@ describe('trip pod review workflow', () => {
     assert.equal(reviewed.submissionStatus, TripPodStatus.ACCEPTED);
     assert.equal(reviewed.tripStatus, TripStatus.IN_TRANSIT);
     assert.equal(reviewed.shipment.status, 'PENDING_EXPENSE_APPROVAL');
+
+    await setTripExpenseCompletion(trip.id, null, false, clerkUser.id);
+    const reopened = await getShipmentDetail(fixture.shipment.id, actorFromUser(clerkUser));
+    assert.equal(reopened.shipment.status, 'IN_TRANSIT');
+    await setTripExpenseCompletion(trip.id, null, true, clerkUser.id);
+    const readyAgain = await getShipmentDetail(fixture.shipment.id, actorFromUser(clerkUser));
+    assert.equal(readyAgain.shipment.status, 'PENDING_EXPENSE_APPROVAL');
 
     const detail = await getShipmentDetail(fixture.shipment.id, actorFromUser(clerkUser));
     assert.equal(detail.podReviews.length, 1);

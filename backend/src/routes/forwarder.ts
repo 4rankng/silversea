@@ -39,7 +39,7 @@ import {
   runIdempotent,
   waitForIdempotencyRecord,
 } from '../services/idempotency.service';
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq, isNull, lte, sql } from 'drizzle-orm';
 import type { Tx } from '../services/trip-shared';
 import { ApiError } from '../errors';
 import {
@@ -292,6 +292,98 @@ const resolveLiftPriceQuerySchema = z.object({
   }, 'Ngày áp dụng không hợp lệ'),
 });
 
+type LiftExpenseType = 'LIFTING' | 'LOWERING';
+type LiftPricingSnapshot = NonNullable<typeof s.tripExpenses.$inferSelect.liftPricingSnapshot>;
+
+function isLiftExpenseType(expenseType: string): expenseType is LiftExpenseType {
+  return expenseType === 'LIFTING' || expenseType === 'LOWERING';
+}
+
+function isValidIsoDate(value: string): boolean {
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+async function resolveLiftPricingForWrite(
+  tx: Tx,
+  input: {
+    tripId: number;
+    tripContainerId: number | null | undefined;
+    expenseType: LiftExpenseType;
+    expenseDate: string | null | undefined;
+    portId: number | undefined;
+    containerTypeId: number | undefined;
+    loadState: 'LOADED' | 'EMPTY' | undefined;
+    requestedBuyAmount: number;
+  },
+): Promise<{ liftPricingId: number; snapshot: LiftPricingSnapshot }> {
+  if (input.tripContainerId == null) {
+    throw new ApiError(400, 'Chi phí nâng/hạ phải gắn với container của chuyến');
+  }
+  if (!input.expenseDate || input.portId == null || input.loadState == null) {
+    throw new ApiError(400, 'Cần chọn ngày chi, cảng và trạng thái hàng/rỗng cho chi phí nâng/hạ');
+  }
+  if (!isValidIsoDate(input.expenseDate)) {
+    throw new ApiError(400, 'Ngày chi không hợp lệ');
+  }
+
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(6103, ${input.tripContainerId})`);
+  const [container] = await tx.select({
+    tripId: s.tripContainers.tripId,
+    containerTypeId: s.tripContainers.containerTypeId,
+  }).from(s.tripContainers)
+    .where(eq(s.tripContainers.id, input.tripContainerId))
+    .limit(1)
+    .for('share');
+  if (!container || container.tripId !== input.tripId) {
+    throw new ApiError(400, 'Container không thuộc chuyến này');
+  }
+  if (container.containerTypeId == null) {
+    throw new ApiError(409, 'Container chưa có loại để xác định biểu phí nâng/hạ');
+  }
+  if (input.containerTypeId != null && input.containerTypeId !== container.containerTypeId) {
+    throw new ApiError(422, 'Loại container không khớp dữ liệu chuyến hiện tại');
+  }
+
+  const direction = input.expenseType === 'LIFTING' ? 'LIFT_UP' : 'LIFT_DOWN';
+  const [pricing] = await tx.select({
+    id: s.liftPricing.id,
+    unitPrice: s.liftPricing.unitPrice,
+    effectiveDate: s.liftPricing.effectiveDate,
+  }).from(s.liftPricing)
+    .where(and(
+      eq(s.liftPricing.portId, input.portId),
+      eq(s.liftPricing.containerTypeId, container.containerTypeId),
+      eq(s.liftPricing.direction, direction),
+      eq(s.liftPricing.loadState, input.loadState),
+      lte(s.liftPricing.effectiveDate, input.expenseDate),
+      isNull(s.liftPricing.deletedAt),
+    ))
+    .orderBy(desc(s.liftPricing.effectiveDate), desc(s.liftPricing.id))
+    .limit(1)
+    .for('share');
+  if (!pricing) {
+    throw new ApiError(409, 'Chưa có biểu phí nâng/hạ phù hợp với container và ngày chi');
+  }
+
+  const unitPrice = Number(pricing.unitPrice);
+  if (input.requestedBuyAmount !== unitPrice) {
+    throw new ApiError(422, 'Số tiền nâng/hạ không khớp biểu phí hiện hành');
+  }
+  return {
+    liftPricingId: pricing.id,
+    snapshot: {
+      portId: input.portId,
+      containerTypeId: container.containerTypeId,
+      direction,
+      loadState: input.loadState,
+      expenseDate: input.expenseDate,
+      effectiveDate: pricing.effectiveDate,
+      unitPrice,
+    },
+  };
+}
+
 router.get('/lift-pricing/resolve', asyncHandler(async (req: Request, res: Response) => {
   const parsed = resolveLiftPriceQuerySchema.safeParse(req.query);
   if (!parsed.success) throwValidation(parsed.error);
@@ -314,12 +406,24 @@ router.post('/expenses', asyncHandler(async (req: Request, res: Response) => {
     responseStatusCode: 201,
     create: async (tx) => {
       await assertForwarderMutableTripScope(parsed.data.tripId, forwarder.id, tx);
+      const liftPricing = isLiftExpenseType(parsed.data.expenseType)
+        ? await resolveLiftPricingForWrite(tx, {
+            tripId: parsed.data.tripId,
+            tripContainerId: parsed.data.tripContainerId,
+            expenseType: parsed.data.expenseType,
+            expenseDate: parsed.data.expenseDate,
+            portId: parsed.data.portId,
+            containerTypeId: parsed.data.containerTypeId,
+            loadState: parsed.data.loadState,
+            requestedBuyAmount: parsed.data.buyAmount,
+          })
+        : null;
       return createTripExpense(tx, {
         tripId: parsed.data.tripId,
         forwarderId: forwarder.id,
         createdBy: forwarder.id,
         expenseType: parsed.data.expenseType,
-        buyAmount: String(parsed.data.buyAmount),
+        buyAmount: String(liftPricing?.snapshot.unitPrice ?? parsed.data.buyAmount),
         sellAmount: String(parsed.data.sellAmount ?? 0),
         settlementMethod: parsed.data.settlementMethod,
         supplierId: parsed.data.supplierId ?? null,
@@ -330,6 +434,8 @@ router.post('/expenses', asyncHandler(async (req: Request, res: Response) => {
         declarationNumber: parsed.data.declarationNumber ?? null,
         containerNumber: parsed.data.containerNumber ?? null,
         tripContainerId: parsed.data.tripContainerId ?? null,
+        liftPricingId: liftPricing?.liftPricingId ?? null,
+        liftPricingSnapshot: liftPricing?.snapshot ?? null,
         note: parsed.data.note ?? null,
         noInvoiceEvidenceTypes: parsed.data.noInvoiceEvidenceTypes ?? [],
       });
@@ -348,7 +454,7 @@ router.patch('/expenses/:id', asyncHandler(async (req: Request, res: Response) =
     req,
     'Cần tải lại phiên bản chi phí mới nhất trước khi cập nhật.',
   );
-  const patch = {
+  const patch: Parameters<typeof updateForwarderTripExpenseInTx>[3] = {
     expenseType: parsed.data.expenseType,
     buyAmount: parsed.data.buyAmount !== undefined ? String(parsed.data.buyAmount) : undefined,
     sellAmount: parsed.data.sellAmount !== undefined ? String(parsed.data.sellAmount) : undefined,
@@ -372,16 +478,66 @@ router.patch('/expenses/:id', asyncHandler(async (req: Request, res: Response) =
       forwarderId: forwarder.id,
       expectedUpdatedAt: expectedUpdatedAt.toISOString(),
       ...patch,
+      portId: parsed.data.portId,
+      containerTypeId: parsed.data.containerTypeId,
+      loadState: parsed.data.loadState,
     },
     createdBy: forwarder.id,
     responseStatusCode: 200,
-    create: (tx) => updateForwarderTripExpenseInTx(
-      tx,
-      expenseId,
-      forwarder.id,
-      patch,
-      expectedUpdatedAt,
-    ),
+    create: async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
+      const [existing] = await tx.select({
+        tripId: s.tripExpenses.tripId,
+        expenseType: s.tripExpenses.expenseType,
+        buyAmount: s.tripExpenses.buyAmount,
+        expenseDate: s.tripExpenses.expenseDate,
+        tripContainerId: s.tripExpenses.tripContainerId,
+        liftPricingId: s.tripExpenses.liftPricingId,
+        liftPricingSnapshot: s.tripExpenses.liftPricingSnapshot,
+      }).from(s.tripExpenses).where(eq(s.tripExpenses.id, expenseId)).limit(1);
+      if (!existing) throw new ApiError(404, 'Không tìm thấy chi phí');
+
+      const nextExpenseType = parsed.data.expenseType ?? existing.expenseType;
+      const pricingInputsChanged = [
+        parsed.data.expenseType,
+        parsed.data.buyAmount,
+        parsed.data.expenseDate,
+        parsed.data.tripContainerId,
+        parsed.data.portId,
+        parsed.data.containerTypeId,
+        parsed.data.loadState,
+      ].some((value) => value !== undefined);
+      if (isLiftExpenseType(nextExpenseType) && (pricingInputsChanged || existing.liftPricingId == null)) {
+        const prior = existing.liftPricingSnapshot;
+        const liftPricing = await resolveLiftPricingForWrite(tx, {
+          tripId: existing.tripId,
+          tripContainerId: parsed.data.tripContainerId === undefined
+            ? existing.tripContainerId
+            : parsed.data.tripContainerId,
+          expenseType: nextExpenseType,
+          expenseDate: parsed.data.expenseDate === undefined
+            ? existing.expenseDate
+            : parsed.data.expenseDate,
+          portId: parsed.data.portId ?? prior?.portId,
+          containerTypeId: parsed.data.containerTypeId ?? prior?.containerTypeId,
+          loadState: parsed.data.loadState ?? prior?.loadState,
+          requestedBuyAmount: parsed.data.buyAmount ?? Number(existing.buyAmount),
+        });
+        patch.buyAmount = String(liftPricing.snapshot.unitPrice);
+        patch.liftPricingId = liftPricing.liftPricingId;
+        patch.liftPricingSnapshot = liftPricing.snapshot;
+      } else if (!isLiftExpenseType(nextExpenseType) && isLiftExpenseType(existing.expenseType)) {
+        patch.liftPricingId = null;
+        patch.liftPricingSnapshot = null;
+      }
+      return updateForwarderTripExpenseInTx(
+        tx,
+        expenseId,
+        forwarder.id,
+        patch,
+        expectedUpdatedAt,
+      );
+    },
   });
   res.status(outcome.statusCode).json(outcome.result);
 }));

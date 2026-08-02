@@ -57,3 +57,21 @@ export function casbinAuthz(resource: string) {
     }
   };
 }
+
+/**
+ * Authorizes the trip surface while exposing only the CUS close-maker command
+ * required by the O2C PRD. All other CUS trip operations remain denied.
+ */
+export function tripRouteAuthz() {
+  const authorizeTrips = casbinAuthz('trips');
+  return (req: Request, res: Response, next: NextFunction) => {
+    const isClerkCloseRequest = req.user?.role === Role.CLERK
+      && req.method === 'POST'
+      && /^\/\d+\/complete\/?$/.test(req.path);
+    if (isClerkCloseRequest) {
+      next();
+      return;
+    }
+    return authorizeTrips(req, res, next);
+  };
+}

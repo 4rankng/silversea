@@ -30,6 +30,15 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
             'noInvoiceEvidenceTypes': ['ONSITE_PHOTO'],
         }
 
+    def customs_invoice_fields(label):
+        return {
+            'expenseDate': '2026-07-28',
+            'payeeName': f'E2E customs payee {label}',
+            'invoiceNumber': f'E2E-CUSTOMS-{label}',
+            'invoiceDate': '2026-07-28',
+            'declarationNumber': f'E2E-DECL-{label}',
+        }
+
     # ── Section 1: Access & RBAC (TC-1301 to TC-1308) ──
 
     # TC-1301: FORWARDER accesses portal
@@ -148,12 +157,18 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
             fwd_trips = data
         elif isinstance(data, dict):
             fwd_trips = data.get('items', data.get('data', []))
-    trip_id = fwd_trips[0]['id'] if fwd_trips else None
+    mutable_trips = [
+        trip for trip in fwd_trips
+        if trip.get('status', trip.get('tripStatus')) not in ('COMPLETED', 'CANCELED')
+    ]
+    trip_id = mutable_trips[0]['id'] if mutable_trips else None
     trip_detail_fixture = api_fwd.get(f'/api/forwarder/me/trips/{trip_id}') if trip_id else {}
     trip_detail_data = trip_detail_fixture.get('data', {}) if trip_detail_fixture.get('status') == 200 else {}
     shipment_id = trip_detail_data.get('shipmentId')
     secondary_shipment_id = None
-    for candidate in fwd_trips[1:]:
+    for candidate in mutable_trips:
+        if candidate.get('id') == trip_id:
+            continue
         candidate_detail = api_fwd.get(f'/api/forwarder/me/trips/{candidate.get("id")}')
         candidate_shipment_id = (
             candidate_detail.get('data', {}).get('shipmentId')
@@ -163,6 +178,25 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         if candidate_shipment_id and candidate_shipment_id != shipment_id:
             secondary_shipment_id = candidate_shipment_id
             break
+    if secondary_shipment_id is None:
+        shipment_catalog = api_admin.get('/api/shipments?limit=100')
+        shipment_catalog_data = shipment_catalog.get('data', {})
+        shipment_candidates = (
+            shipment_catalog_data
+            if isinstance(shipment_catalog_data, list)
+            else shipment_catalog_data.get('items', shipment_catalog_data.get('data', []))
+            if isinstance(shipment_catalog_data, dict)
+            else []
+        )
+        secondary_shipment = next(
+            (
+                row for row in shipment_candidates
+                if row.get('id') != shipment_id
+                and row.get('status') not in ('COMPLETED', 'CANCELED')
+            ),
+            None,
+        )
+        secondary_shipment_id = secondary_shipment.get('id') if secondary_shipment else None
     if shipment_id:
         secondary_username = f'e2e_forwarder_{uuid.uuid4().hex[:10]}'
         created_secondary = api_admin.post('/api/auth/users', {
@@ -171,7 +205,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
             'password': 'Abc123',
             'role': 'FORWARDER',
             'status': 'ACTIVE',
-            'shipmentIds': [secondary_shipment_id or shipment_id],
+            'shipmentIds': [secondary_shipment_id] if secondary_shipment_id else [],
         })
         if created_secondary.get('status') in (200, 201):
             secondary_forwarder = created_secondary.get('data', {})
@@ -180,7 +214,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
             if not login_secondary.get('token'):
                 results.fail('TC-1353-FIXTURE', 'Login second forwarder fixture', str(login_secondary))
                 api_secondary = None
-            elif secondary_shipment_id:
+            else:
                 out_of_scope = api_secondary.get(f'/api/forwarder/me/trips/{trip_id}')
                 if out_of_scope.get('status') == 404:
                     results.pass_('TC-1309', 'Out-of-scope trip detail is hidden from another forwarder')
@@ -190,12 +224,6 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
                         'Out-of-scope trip detail',
                         f'Expected 404, got {out_of_scope.get("status")}',
                     )
-            else:
-                results.fail(
-                    'TC-1309',
-                    'Out-of-scope trip fixture',
-                    'No second shipment was available for an independent forwarder assignment',
-                )
         else:
             results.fail(
                 'TC-1353-FIXTURE',
@@ -481,6 +509,19 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
 
     # ── Section 4: Containers (TC-1330 to TC-1336) ──
     created_container_ids = []
+    lift_matrix_payload = api_admin.get('/api/lift-pricing')
+    lift_matrix_data = lift_matrix_payload.get('data', {})
+    lift_matrix_rows = (
+        lift_matrix_data
+        if isinstance(lift_matrix_data, list)
+        else lift_matrix_data.get('items', lift_matrix_data.get('data', []))
+        if isinstance(lift_matrix_data, dict)
+        else []
+    )
+    lift_matrix_row = next(
+        (row for row in lift_matrix_rows if row.get('direction') == 'LIFT_UP'),
+        None,
+    )
 
     if not trip_id:
         for tc in ['TC-1330', 'TC-1331', 'TC-1332', 'TC-1333', 'TC-1334', 'TC-1335', 'TC-1336']:
@@ -490,6 +531,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         resp = api_fwd.post(f'/api/forwarder/me/trips/{trip_id}/containers', {
             'containerNumber': 'E2E-CTN-001',
             'sealNumber': 'SEAL-001',
+            **({'containerTypeId': lift_matrix_row['containerTypeId']} if lift_matrix_row else {}),
         })
         if resp.get('status') in (200, 201) or (resp.get('data') and resp.get('data', {}).get('id')):
             ctn_id = resp.get('data', {}).get('id')
@@ -600,13 +642,24 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         for tc in ['TC-1340', 'TC-1341', 'TC-1342', 'TC-1343', 'TC-1344', 'TC-1345', 'TC-1346', 'TC-1347']:
             results.skip(tc, 'Expense test', 'No trips available for forwarder')
     else:
+        lift_expense_fields = None
+        if created_container_ids and lift_matrix_row:
+            lift_expense_fields = {
+                'tripContainerId': created_container_ids[0],
+                'portId': lift_matrix_row['portId'],
+                'containerTypeId': lift_matrix_row['containerTypeId'],
+                'loadState': lift_matrix_row.get('loadState', 'LOADED'),
+                'buyAmount': int(float(lift_matrix_row['unitPrice'])),
+                'expenseDate': str(lift_matrix_row['effectiveDate'])[:10],
+            }
+
         # TC-1340: Create LIFTING expense
         resp = api_fwd.post('/api/forwarder/me/expenses', {
             'tripId': trip_id,
             'expenseType': 'LIFTING',
-            'buyAmount': 500000,
             **no_invoice_fields('TC-1340'),
-        })
+            **(lift_expense_fields or {}),
+        }) if lift_expense_fields else {'status': 409, 'error': 'Missing lift-pricing fixture'}
         if resp.get('status') in (200, 201) or (resp.get('data') and resp.get('data', {}).get('id')):
             exp_id = resp.get('data', {}).get('id')
             created_expense_ids.append(exp_id)
@@ -619,8 +672,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
             'tripId': trip_id,
             'expenseType': 'CUSTOMS',
             'buyAmount': 300000,
-            'declarationNumber': 'E2E-CUSTOMS-1341',
-            **no_invoice_fields('TC-1341'),
+            **customs_invoice_fields('TC-1341'),
         })
         if resp.get('status') in (200, 201) or (resp.get('data') and resp.get('data', {}).get('id')):
             exp_id = resp.get('data', {}).get('id')
@@ -633,9 +685,9 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         resp = api_fwd.post('/api/forwarder/me/expenses', {
             'tripId': trip_id,
             'expenseType': 'LIFTING',
-            'buyAmount': 200000,
             **no_invoice_fields('TC-1342'),
-        })
+            **(lift_expense_fields or {}),
+        }) if lift_expense_fields else {'status': 409, 'error': 'Missing lift-pricing fixture'}
         if resp.get('status') in (200, 201) or (resp.get('data') and resp.get('data', {}).get('id')):
             exp_id = resp.get('data', {}).get('id')
             created_expense_ids.append(exp_id)
@@ -667,7 +719,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
 
         # TC-1345: Multiple different-type expenses
         multi_types = [
-            ('LIFTING', 100000),
+            ('OTHER', 100000),
             ('CUSTOMS', 150000),
             ('INFRASTRUCTURE', 200000),
         ]
@@ -677,8 +729,11 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
                 'tripId': trip_id,
                 'expenseType': etype,
                 'buyAmount': amt,
-                **no_invoice_fields(f'TC-1345-{etype}'),
-                **({'declarationNumber': 'E2E-CUSTOMS-1345'} if etype == 'CUSTOMS' else {}),
+                **(
+                    customs_invoice_fields('TC-1345')
+                    if etype == 'CUSTOMS'
+                    else no_invoice_fields(f'TC-1345-{etype}')
+                ),
             })
             if resp.get('status') in (200, 201) or (resp.get('data') and resp.get('data', {}).get('id')):
                 exp_id = resp.get('data', {}).get('id')

@@ -13,6 +13,11 @@ import {
   requestTripFinancialClose,
 } from '../services/adjustment-governance.service';
 import { disconnectRedis } from '../lib/redis';
+import {
+  attachAcceptedTripCloseEvidence,
+  cleanupTripCloseMilestones,
+  cleanupTripCloseShipments,
+} from './helpers/o2c-close-fixture';
 
 /**
  * US-002 / US-003 — chi hộ (service-fee) sell-side AR posting.
@@ -33,6 +38,7 @@ const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
 const createdExpenseIds: number[] = [];
 const createdGovernanceUserIds: number[] = [];
+const createdShipmentIds: number[] = [];
 
 after(async () => {
   let cleanupStep = 'governance actions';
@@ -56,7 +62,9 @@ after(async () => {
     await db.delete(s.profitabilitySnapshots).where(inArray(s.profitabilitySnapshots.tripId, createdTripIds));
     await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.tripId, createdTripIds));
     await db.delete(s.tripPhotos).where(inArray(s.tripPhotos.tripId, createdTripIds));
+    await cleanupTripCloseMilestones(createdTripIds);
     await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
+    await cleanupTripCloseShipments(createdShipmentIds);
   }
   const allUserIds = [...createdForwarderIds, ...createdGovernanceUserIds];
   if (allUserIds.length > 0) {
@@ -126,17 +134,30 @@ async function completeTripGoverned(tripId: number, expectedVersion: number) {
     { username: `chiho-close-approver-${suffix}`, passwordHash: 'x', role: Role.ADMIN },
   ]).returning({ id: s.users.id });
   createdGovernanceUserIds.push(...actors.map((actor) => actor.id));
+  const [trip] = await db.select({ customerId: s.trips.customerId })
+    .from(s.trips)
+    .where(eq(s.trips.id, tripId))
+    .limit(1);
+  assert.ok(trip);
+  const evidence = await attachAcceptedTripCloseEvidence({
+    tripId,
+    tripVersion: expectedVersion,
+    customerId: trip.customerId,
+    submittedBy: actors[0]!.id,
+    reviewedBy: actors[1]!.id,
+  });
+  createdShipmentIds.push(evidence.shipmentId);
   const action = await requestTripFinancialClose({
     tripId,
     reason: 'Hoàn thành chuyến và ghi nhận phí chi hộ',
-    makerId: actors[0]!.id,
-    makerRole: Role.MANAGER,
+    makerId: actors[1]!.id,
+    makerRole: Role.ACCOUNTANT,
     expectedTripVersion: expectedVersion,
   });
   const checked = await checkGovernanceAction({
     actionId: action.id,
-    checkerId: actors[1]!.id,
-    checkerRole: Role.ACCOUNTANT,
+    checkerId: actors[0]!.id,
+    checkerRole: Role.MANAGER,
     expectedVersion: action.version,
   });
   await approveGovernanceAction({

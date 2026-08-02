@@ -1137,6 +1137,11 @@ export const baseTripExpenseSchema = z.object({
    *  When present the server mirrors `containerNumber` from it so the label
    *  can never drift from a real container. */
   tripContainerId: z.number().int().positive().nullish(),
+  /** Tariff selectors for lift/lower expenses. The server derives direction
+   *  from expenseType and verifies containerTypeId against tripContainerId. */
+  portId: z.number().int().positive().optional(),
+  containerTypeId: z.number().int().positive().optional(),
+  loadState: z.enum(['LOADED', 'EMPTY']).optional(),
   note: z.string().optional(),
   noInvoiceEvidenceTypes: noInvoiceEvidenceTypesSchema.optional(),
 });

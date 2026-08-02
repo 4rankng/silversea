@@ -13,6 +13,7 @@ import { config } from '../config';
 import { initEnforcer } from '../casbin/enforcer';
 import { initAuditService } from '../services/audit.service';
 import { cacheInvalidate, disconnectRedis } from '../lib/redis';
+import { attachAcceptedTripCloseEvidence } from './helpers/o2c-close-fixture';
 
 
 // Import route handlers directly to avoid port conflicts
@@ -500,22 +501,30 @@ test('E2E — Trip dispatch lifecycle (Create, Reassign, Pre-departure, Dispatch
   // until an explicit completion call (POST /complete). Photos are optional.
   assert.strictEqual(actualsRes.data.status, TripStatus.IN_TRANSIT);
 
+  await attachAcceptedTripCloseEvidence({
+    tripId,
+    tripVersion: actualsRes.data.version,
+    customerId,
+    submittedBy: adminUserId,
+    reviewedBy: adminUserId,
+  });
+
   // 6b. Explicit completion (B2): IN_TRANSIT -> COMPLETED via dedicated endpoint.
   const completeRes = await testFetch(`/api/trips/${tripId}/complete`, {
     method: 'POST',
-    token: managerToken,
+    token: accountantToken,
     headers: { 'Idempotency-Key': `comprehensive-trip-complete-${tripId}` },
     body: JSON.stringify({
       expectedVersion: actualsRes.data.version,
       governanceReason: 'Hoàn thành chuyến kiểm thử E2E theo quy trình quản trị',
     }),
   });
-  assert.strictEqual(completeRes.status, 202);
+  assert.strictEqual(completeRes.status, 202, JSON.stringify(completeRes.data));
   assert.strictEqual(completeRes.data.actionKind, 'TRIP_FINANCIAL_CLOSE');
 
   const checkCloseRes = await testFetch(`/api/governance-actions/${completeRes.data.id}/check`, {
     method: 'POST',
-    token: accountantToken,
+    token: managerToken,
     headers: { 'Idempotency-Key': `comprehensive-trip-complete-check-${completeRes.data.id}` },
     body: JSON.stringify({ expectedVersion: completeRes.data.version }),
   });

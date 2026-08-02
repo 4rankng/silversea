@@ -1,5 +1,5 @@
 import { and, asc, count, desc, eq, gt, ilike, inArray, isNotNull, isNull, lt, ne, or, sql } from 'drizzle-orm';
-import { NotificationType, Role, TripStatus, type FuelMode } from '@tingting/shared';
+import { canonicalShipmentStatus, NotificationType, Role, TripStatus, type FuelMode } from '@tingting/shared';
 
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -1493,7 +1493,7 @@ async function issueOrderCreateOrUpdate(
     updatedAt: new Date(),
   }).where(eq(s.shipmentFulfillments.id, fulfillment.id)).returning();
 
-  if (shipment.status === 'NEW') {
+  if (canonicalShipmentStatus(shipment.status) === 'NEW') {
     await transitionShipmentStatus(
       shipment.id,
       'DISPATCHED',

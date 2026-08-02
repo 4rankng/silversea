@@ -522,7 +522,10 @@ describe('O01 two-way dispatch pairing routes', () => {
       tollDeduction: s.trips.tollDeduction, tollCost: s.trips.tollCost,
     }).from(s.trips).where(eq(s.trips.id, tollFirst.id)).limit(1);
     const [secondRow] = await db.select({
-      tollDeduction: s.trips.tollDeduction, tollCost: s.trips.tollCost,
+      tollDeduction: s.trips.tollDeduction,
+      tollCost: s.trips.tollCost,
+      totalCost: s.trips.totalCost,
+      grossProfit: s.trips.grossProfit,
     }).from(s.trips).where(eq(s.trips.id, tollSecond.id)).limit(1);
 
     // Trip 1 keeps its full toll; trip 2 is netted out (dedup == gross) so the
@@ -531,6 +534,8 @@ describe('O01 two-way dispatch pairing routes', () => {
     assert.equal(Number(firstRow.tollCost), grossToll);
     assert.equal(Number(secondRow.tollDeduction), grossToll);
     assert.equal(Number(secondRow.tollCost), 0);
+    assert.equal(Number(secondRow.totalCost), 790000);
+    assert.equal(Number(secondRow.grossProfit), 710000);
     assert.equal(Number(firstRow.tollCost) + Number(secondRow.tollCost), grossToll);
 
     // Break the pair by canceling trip 1; trip 2 survives and its toll must be restored.
@@ -538,10 +543,15 @@ describe('O01 two-way dispatch pairing routes', () => {
     assert.equal(cancel.status, 200);
 
     const [restoredSurvivor] = await db.select({
-      tollDeduction: s.trips.tollDeduction, tollCost: s.trips.tollCost,
+      tollDeduction: s.trips.tollDeduction,
+      tollCost: s.trips.tollCost,
+      totalCost: s.trips.totalCost,
+      grossProfit: s.trips.grossProfit,
     }).from(s.trips).where(eq(s.trips.id, tollSecond.id)).limit(1);
     assert.equal(Number(restoredSurvivor.tollDeduction), 0);
     assert.equal(Number(restoredSurvivor.tollCost), grossToll); // full toll back
+    assert.equal(Number(restoredSurvivor.totalCost), 900000);
+    assert.equal(Number(restoredSurvivor.grossProfit), 600000);
   });
 
   test('service rejects forged capacity and cargo while accepting the authoritative draft', async () => {

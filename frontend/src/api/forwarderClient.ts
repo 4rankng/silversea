@@ -73,6 +73,9 @@ export const forwarderClient = {
     containerNumber?: string;
     /** B5: authoritative container FK (id). When set the server mirrors containerNumber. */
     tripContainerId?: number;
+    portId?: number;
+    containerTypeId?: number;
+    loadState?: 'LOADED' | 'EMPTY';
     note?: string;
     noInvoiceEvidenceTypes?: string[];
   }) => {
@@ -91,6 +94,9 @@ export const forwarderClient = {
     invoiceDate?: string | null;
     declarationNumber?: string | null;
     tripContainerId?: number | null;
+    portId?: number;
+    containerTypeId?: number;
+    loadState?: 'LOADED' | 'EMPTY';
     note?: string | null;
     noInvoiceEvidenceTypes?: string[] | null;
   }) => api.patch(`/forwarder/me/expenses/${id}`, data, { expectedUpdatedAt }),

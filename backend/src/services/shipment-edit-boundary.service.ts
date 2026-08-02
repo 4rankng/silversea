@@ -235,7 +235,7 @@ export function classifyClerkShipmentPatch(
     changedFields.push(field);
     afterSnapshot[field] = normalizedValue as never;
 
-    if (existing.status === 'NEW' || existing.status === 'DRAFT' || POST_DISPATCH_DIRECT_FIELDS.has(field)) {
+    if (existing.status === 'NEW' || POST_DISPATCH_DIRECT_FIELDS.has(field)) {
       directPatch[field] = normalizedValue as never;
       continue;
     }

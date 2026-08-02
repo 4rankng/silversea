@@ -39,6 +39,7 @@ interface TripRowForPairing {
   carrierType: string;
   revenue: string | null;
   totalCost: string | null;
+  grossProfit: string | null;
   tollsStations: number;
   tollPerStationApplied: string | null;
   tollDeduction: string | null;
@@ -283,6 +284,7 @@ async function loadTripsForPairing(tx: Tx, tripIds: [number, number]) {
     carrierType: s.trips.carrierType,
     revenue: s.trips.revenue,
     totalCost: s.trips.totalCost,
+    grossProfit: s.trips.grossProfit,
     tollsStations: s.trips.tollsStations,
     tollPerStationApplied: s.trips.tollPerStationApplied,
     tollDeduction: s.trips.tollDeduction,
@@ -448,7 +450,13 @@ export async function createTripPair(
     // (paid once for the pair). Persist the dedup plus the matching derived
     // tollCost/totalCost so the row stays consistent with computeTripTotals.
     const secondToll = backhaulTollDeductionForSecond(locked.second);
-    const secondTotalCost = Math.max(0, Number(locked.second.totalCost ?? 0) + secondToll.totalCostDelta);
+    const previousSecondTotalCost = Number(locked.second.totalCost ?? 0);
+    const secondTotalCost = Math.max(0, previousSecondTotalCost + secondToll.totalCostDelta);
+    const appliedTotalCostDelta = secondTotalCost - previousSecondTotalCost;
+    const secondGrossProfit = Number(
+      locked.second.grossProfit
+      ?? (Number(locked.second.revenue ?? 0) - previousSecondTotalCost),
+    ) - appliedTotalCostDelta;
 
     await tx.update(s.trips).set(firstUpdate).where(eq(s.trips.id, input.firstTripId));
     await tx.update(s.trips).set(secondUpdate).where(eq(s.trips.id, input.secondTripId));
@@ -457,6 +465,7 @@ export async function createTripPair(
       tollDeduction: secondToll.tollDeduction,
       tollCost: secondToll.tollCost,
       totalCost: String(secondTotalCost),
+      grossProfit: String(secondGrossProfit),
       updatedAt: new Date(),
     }).where(eq(s.trips.id, input.secondTripId));
 
@@ -510,16 +519,23 @@ async function breakPersistedTripPair(tx: Tx, args: {
       tollDeduction: s.trips.tollDeduction,
       tollCost: s.trips.tollCost,
       totalCost: s.trips.totalCost,
+      revenue: s.trips.revenue,
+      grossProfit: s.trips.grossProfit,
     }).from(s.trips).where(eq(s.trips.id, args.survivingTripId)).limit(1);
     if (survivor && Number(survivor.tollDeduction ?? 0) > 0) {
       const grossToll = (survivor.tollsStations ?? 0) * Number(survivor.tollPerStationApplied ?? 0);
       const previousNetToll = Number(survivor.tollCost ?? 0);
       const restoredCostDelta = grossToll - previousNetToll;
       const restoredTotalCost = Math.max(0, Number(survivor.totalCost ?? 0) + restoredCostDelta);
+      const restoredGrossProfit = Number(
+        survivor.grossProfit
+        ?? (Number(survivor.revenue ?? 0) - Number(survivor.totalCost ?? 0)),
+      ) - restoredCostDelta;
       await tx.update(s.trips).set({
         tollDeduction: '0',
         tollCost: String(grossToll),
         totalCost: String(restoredTotalCost),
+        grossProfit: String(restoredGrossProfit),
         updatedAt: new Date(),
       }).where(eq(s.trips.id, args.survivingTripId));
     }

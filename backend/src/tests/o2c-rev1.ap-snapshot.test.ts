@@ -14,6 +14,11 @@ import {
 import { ApSnapshotService } from '../services/ap-snapshot.service';
 import { SnapshotServices } from '../services/snapshot-services';
 import { disconnectRedis } from '../lib/redis';
+import {
+  attachAcceptedTripCloseEvidence,
+  cleanupTripCloseMilestones,
+  cleanupTripCloseShipments,
+} from './helpers/o2c-close-fixture';
 
 const createdTripIds: number[] = [];
 const createdCustomerIds: number[] = [];
@@ -22,6 +27,7 @@ const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
 const createdExpenseIds: number[] = [];
 const createdUserIds: number[] = [];
+const createdShipmentIds: number[] = [];
 
 before(async () => {
   const columns = await db.execute(sql`
@@ -44,8 +50,10 @@ after(async () => {
     await db.delete(s.profitabilitySnapshots).where(inArray(s.profitabilitySnapshots.tripId, createdTripIds));
     await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.tripId, createdTripIds));
     await db.delete(s.tripPhotos).where(inArray(s.tripPhotos.tripId, createdTripIds));
+    await cleanupTripCloseMilestones(createdTripIds);
     await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
   }
+  await cleanupTripCloseShipments(createdShipmentIds);
   if (createdUserIds.length > 0) {
     await db.delete(s.notifications).where(inArray(s.notifications.userId, createdUserIds));
     await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
@@ -136,17 +144,28 @@ async function completeTripGoverned(tripId: number, expectedVersion: number) {
   ]).returning({ id: s.users.id });
   createdUserIds.push(...actors.map((actor) => actor.id));
 
+  const [trip] = await db.select({ customerId: s.trips.customerId })
+    .from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+  const closeEvidence = await attachAcceptedTripCloseEvidence({
+    tripId,
+    tripVersion: expectedVersion,
+    customerId: trip.customerId,
+    submittedBy: actors[0]!.id,
+    reviewedBy: actors[1]!.id,
+  });
+  createdShipmentIds.push(closeEvidence.shipmentId);
+
   const action = await requestTripFinancialClose({
     tripId,
     reason: 'Hoàn thành chuyến để kiểm tra AP snapshot',
-    makerId: actors[0]!.id,
-    makerRole: Role.MANAGER,
+    makerId: actors[1]!.id,
+    makerRole: Role.ACCOUNTANT,
     expectedTripVersion: expectedVersion,
   });
   const checked = await checkGovernanceAction({
     actionId: action.id,
-    checkerId: actors[1]!.id,
-    checkerRole: Role.ACCOUNTANT,
+    checkerId: actors[0]!.id,
+    checkerRole: Role.MANAGER,
     expectedVersion: action.version,
   });
   await approveGovernanceAction({

@@ -9,12 +9,14 @@ from pathlib import Path
 import json
 import os
 import subprocess
+import struct
 import sys
 import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
 import zipfile
+import zlib
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import *  # noqa: E402,F403
@@ -26,6 +28,25 @@ BOOKING_PREFIX = f"E2E-LM-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{RUN_SUFFIX
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PDF_BYTES = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n"
 _ACTIVE_FLEET_FIXTURE: dict[str, int | None] | None = None
+
+
+def sample_png_bytes() -> bytes:
+    raw_scanline = b"\x00\xff\xff\xff\xff"
+
+    def chunk(tag: bytes, payload: bytes) -> bytes:
+        return (
+            struct.pack(">I", len(payload))
+            + tag
+            + payload
+            + struct.pack(">I", zlib.crc32(tag + payload) & 0xFFFFFFFF)
+        )
+
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0))
+        + chunk(b"IDAT", zlib.compress(raw_scanline))
+        + chunk(b"IEND", b"")
+    )
 
 
 def iso_at(hours_ahead: int) -> str:
@@ -559,6 +580,7 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
     clerk_api = login_api("clerk")
     manager_api = login_api("manager")
     driver_api = login_api("driver")
+    forwarder_api = login_api("forwarder")
     accountant_api = login_api("accountant")
     month_from, month_to = month_range()
     driver_me_status, driver_me_body = request_json(driver_api, "GET", "/api/auth/me")
@@ -668,15 +690,15 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
         headers={"Idempotency-Key": f"{BOOKING_PREFIX}-quick"},
     )
     if create_status not in (200, 201):
-        results.fail("TC-1707", "Clerk creates a draft shipment", api_failure_detail(create_body))
+        results.fail("TC-1707", "Clerk creates a new shipment", api_failure_detail(create_body))
         return
     shipment = create_body
-    if shipment.get("status") != "DRAFT":
-        results.fail("TC-1707", "Draft shipment status", str(shipment))
+    if shipment.get("status") != "NEW":
+        results.fail("TC-1707", "New shipment status", str(shipment))
         return
     shipment_id = shipment["id"]
     shipment_version = shipment["version"]
-    results.pass_("TC-1707", "Clerk creates a draft shipment", f"shipment#{shipment_id} version={shipment_version}")
+    results.pass_("TC-1707", "Clerk creates a new shipment", f"shipment#{shipment_id} version={shipment_version}")
 
     forbidden_dispatch_status, forbidden_dispatch_body = request_json(
         clerk_api,
@@ -812,27 +834,43 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
     results.pass_("TC-1713", "Driver sees the dispatched trip", f"trip#{trip_id} assigned to driver#{driver_record_id}")
 
     progress_events = [
-        ("PICKED_UP", "Đã lấy vỏ / Lấy hàng", 1),
-        ("LOADING_OR_RETURNING", "Đang đóng / Trả hàng", 2),
-        ("DELIVERED", "Đã hạ bãi / Giao hàng xong", 3),
+        ("ORDER_RECEIVED", "Đã nhận lệnh gốc", 1),
+        ("PICKED_UP", "Đã lấy vỏ / Lấy hàng", 2),
+        ("LOADING_OR_RETURNING", "Đang đóng / Trả hàng", 3),
+        ("DELIVERED", "Đã hạ bãi / Giao hàng xong", 4),
     ]
     for index, (event_type, label, offset) in enumerate(progress_events, start=1):
+        progress_payload = {
+            "eventType": event_type,
+            "occurredAt": iso_at(offset),
+            "note": f"progress-{event_type.lower()}-{BOOKING_PREFIX}",
+            "expectedVersion": trip_version,
+        }
         status, body = request_json(
             driver_api,
             "POST",
             f"/api/driver/me/fulfillments/{fulfillment_id}/progress",
-            {
-                "eventType": event_type,
-                "occurredAt": iso_at(offset),
-                "note": f"progress-{event_type.lower()}-{BOOKING_PREFIX}",
-                "expectedVersion": trip_version,
-            },
+            progress_payload,
             headers={"Idempotency-Key": f"{BOOKING_PREFIX}-progress-{index}"},
         )
         if status not in (200, 201):
             results.fail(f"TC-1714-{index}", f"Driver records {label}", api_failure_detail(body))
             return
         results.pass_(f"TC-1714-{index}", f"Driver records {label}", f"event={event_type}")
+        refreshed_status, refreshed_body = request_json(
+            driver_api,
+            "GET",
+            f"/api/driver/me/fulfillments/{fulfillment_id}",
+        )
+        if refreshed_status != 200 or not isinstance(refreshed_body, dict) or not isinstance(refreshed_body.get("tripVersion"), int):
+            results.fail(f"TC-1714-{index}V", f"Driver fulfillment detail refreshes after {label}", str(refreshed_body))
+            return
+        trip_version = refreshed_body["tripVersion"]
+        if event_type == "ORDER_RECEIVED":
+            if refreshed_body.get("trip", {}).get("status") != "IN_TRANSIT":
+                results.fail("TC-1714-1B", "Driver acknowledgement activates the trip", str(refreshed_body))
+                return
+            results.pass_("TC-1714-1B", "Driver acknowledgement activates the trip", f"trip#{trip_id} version={trip_version}")
 
     pod_create_status, pod_create_body = request_json(
         driver_api,
@@ -898,10 +936,106 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
     assert_ok(
         results,
         "TC-1718",
-        "Driver cannot bypass e-POD review to complete the trip",
-        complete_status == 409 and "duyệt e-POD" in api_failure_detail(complete_body),
-        api_failure_detail(complete_body),
+        "Driver completes the operational handoff after e-POD submission",
+        complete_status in (200, 201)
+        and complete_body.get("status") == "IN_TRANSIT"
+        and complete_body.get("evidenceStatus", {}).get("latestSubmissionStatus") == "SUBMITTED",
+        str(complete_body),
     )
+    if isinstance(complete_body, dict) and isinstance(complete_body.get("version"), int):
+        trip_version = complete_body["version"]
+
+    users_payload = admin_api.get("/api/auth/users")
+    user_rows = first_items(users_payload)
+    forwarder_user = next(
+        (row for row in user_rows if row.get("username") == "giaonhan"),
+        None,
+    )
+    if not forwarder_user:
+        results.fail("TC-1718B", "Ops forwarder account is available", str(users_payload))
+        return
+    current_shipment_ids = list(forwarder_user.get("shipmentIds") or [])
+    if shipment_id not in current_shipment_ids:
+        assignable_shipment_ids = []
+        for assigned_shipment_id in current_shipment_ids:
+            assigned_detail = admin_api.get(f"/api/shipments/{assigned_shipment_id}")
+            assigned_payload = assigned_detail.get("data", assigned_detail)
+            assigned_status = assigned_payload.get("shipment", {}).get("status")
+            if assigned_status not in ("COMPLETED", "CANCELED"):
+                assignable_shipment_ids.append(assigned_shipment_id)
+        assign_status, assign_body = request_json(
+            admin_api,
+            "PATCH",
+            f"/api/auth/users/{forwarder_user['id']}",
+            {"shipmentIds": [*assignable_shipment_ids, shipment_id]},
+            headers={
+                "If-Unmodified-Since": forwarder_user["updatedAt"],
+                "Idempotency-Key": f"{BOOKING_PREFIX}-forwarder-scope",
+            },
+        )
+        if assign_status != 200:
+            results.fail("TC-1718B", "Admin assigns the shipment to Ops", api_failure_detail(assign_body))
+            return
+    completion_status, completion_body = request_json(
+        forwarder_api,
+        "PUT",
+        f"/api/forwarder/me/trips/{trip_id}/expense-completion",
+        {"tripContainerId": None, "completed": True},
+        headers={"Idempotency-Key": f"{BOOKING_PREFIX}-expense-completion"},
+    )
+    if completion_status != 200 or completion_body.get("status") != "COMPLETED":
+        results.fail("TC-1718C", "Ops completes the general expense scope", api_failure_detail(completion_body))
+        return
+    results.pass_("TC-1718C", "Ops completes the general expense scope", f"trip#{trip_id}")
+
+    forwarder_trip_response = forwarder_api.get(f"/api/forwarder/me/trips/{trip_id}")
+    forwarder_trip_detail = forwarder_trip_response.get("data", forwarder_trip_response)
+    completion_scopes = forwarder_trip_detail.get("completionScopes") or []
+    pending_container_scope_ids = [
+        scope.get("tripContainerId")
+        for scope in completion_scopes
+        if scope.get("tripContainerId") is not None and scope.get("status") != "COMPLETED"
+    ]
+    for index, trip_container_scope_id in enumerate(pending_container_scope_ids, start=1):
+        scope_completion_status, scope_completion_body = request_json(
+            forwarder_api,
+            "PUT",
+            f"/api/forwarder/me/trips/{trip_id}/expense-completion",
+            {"tripContainerId": trip_container_scope_id, "completed": True},
+            headers={"Idempotency-Key": f"{BOOKING_PREFIX}-expense-completion-container-{index}"},
+        )
+        if scope_completion_status != 200 or scope_completion_body.get("status") != "COMPLETED":
+            results.fail(
+                f"TC-1718D-{index}",
+                "Ops completes every remaining container expense scope",
+                api_failure_detail(scope_completion_body),
+            )
+            return
+        results.pass_(
+            f"TC-1718D-{index}",
+            "Ops completes every remaining container expense scope",
+            f"tripContainerId={trip_container_scope_id}",
+        )
+
+    forwarder_trip_response = forwarder_api.get(f"/api/forwarder/me/trips/{trip_id}")
+    forwarder_trip_detail = forwarder_trip_response.get("data", forwarder_trip_response)
+    remaining_completion_scopes = [
+        scope for scope in (forwarder_trip_detail.get("completionScopes") or [])
+        if scope.get("status") != "COMPLETED"
+    ]
+    if remaining_completion_scopes:
+        results.fail(
+            "TC-1718E",
+            "Ops completion scopes are fully closed before accounting review",
+            str(remaining_completion_scopes),
+        )
+        return
+    shipment_detail = clerk_api.get(f"/api/shipments/{shipment_id}")
+    shipment_payload = shipment_detail.get("data", shipment_detail)
+    if shipment_payload.get("shipment", {}).get("status") != "PENDING_EXPENSE_APPROVAL":
+        results.fail("TC-1718E", "Shipment moves to pending expense approval after full ops handoff", str(shipment_payload))
+        return
+    results.pass_("TC-1718E", "Shipment moves to pending expense approval after full ops handoff", f"shipment#{shipment_id}")
 
     driver_forbidden_export_status, driver_forbidden_export_body = request_json(
         driver_api,
@@ -934,8 +1068,8 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
     if review_status not in (200, 201):
         results.fail("TC-1720", "Clerk accepts the e-POD", api_failure_detail(review_body))
         return
-    if review_body.get("tripStatus") != "COMPLETED" or review_body.get("shipment", {}).get("status") != "CLOSED":
-        results.fail("TC-1720", "Complete/close after e-POD acceptance", str(review_body))
+    if review_body.get("tripStatus") != "IN_TRANSIT" or review_body.get("shipment", {}).get("status") != "PENDING_EXPENSE_APPROVAL":
+        results.fail("TC-1720", "Pending expense approval after e-POD acceptance", str(review_body))
         return
     results.pass_("TC-1720", "Clerk accepts the e-POD", f"trip={review_body.get('tripStatus')} shipment={review_body.get('shipment', {}).get('status')}")
 
@@ -956,13 +1090,80 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
 
     shipment_detail = clerk_api.get(f"/api/shipments/{shipment_id}")
     shipment_payload = shipment_detail.get("data", shipment_detail)
-    if shipment_payload.get("shipment", {}).get("status") != "CLOSED":
-        results.fail("TC-1722", "Shipment is closed in persisted detail", str(shipment_payload))
+    if shipment_payload.get("shipment", {}).get("status") != "PENDING_EXPENSE_APPROVAL":
+        results.fail("TC-1722", "Shipment is pending expense approval in persisted detail", str(shipment_payload))
         return
     if not shipment_payload.get("podReviews"):
         results.fail("TC-1722", "Shipment detail exposes POD review", str(shipment_payload))
         return
-    results.pass_("TC-1722", "Shipment is closed in persisted detail", f"shipment#{shipment_id}")
+    results.pass_("TC-1722", "Shipment is pending expense approval in persisted detail", f"shipment#{shipment_id}")
+    current_trip_version = shipment_payload.get("podReviews", [{}])[0].get("tripVersion")
+    if isinstance(current_trip_version, int):
+        trip_version = current_trip_version
+
+    for index, photo_type in enumerate(("CONTAINER", "SEAL"), start=1):
+        photo_status, photo_body = request_multipart(
+            accountant_api,
+            "/api/upload",
+            fields={"trip_id": str(trip_id), "type": photo_type},
+            file_field="file",
+            filename=f"{photo_type.lower()}-{BOOKING_PREFIX}.png",
+            file_bytes=sample_png_bytes(),
+            content_type="image/png",
+            idempotency_key=f"{BOOKING_PREFIX}-photo-{index}",
+        )
+        if photo_status not in (200, 201):
+            results.fail(f"TC-1722-{index}", f"Office uploads {photo_type.lower()} evidence photo", api_failure_detail(photo_body))
+            return
+        results.pass_(f"TC-1722-{index}", f"Office uploads {photo_type.lower()} evidence photo", str(photo_body))
+
+    close_request_status, close_request_body = request_json(
+        accountant_api,
+        "POST",
+        f"/api/trips/{trip_id}/complete",
+        {
+            "expectedVersion": trip_version,
+            "reason": "Hoàn thành vận chuyển và ghi nhận công nợ Long Minh",
+        },
+        headers={"Idempotency-Key": f"{BOOKING_PREFIX}-close-request"},
+    )
+    if close_request_status != 202:
+        results.fail("TC-1723", "Accountant submits the governed close request", api_failure_detail(close_request_body))
+        return
+    if close_request_body.get("actionKind") != "TRIP_FINANCIAL_CLOSE":
+        results.fail("TC-1723", "Governed close request contract", str(close_request_body))
+        return
+    action_id = close_request_body["id"]
+    action_version = close_request_body["version"]
+    results.pass_("TC-1723", "Accountant submits the governed close request", f"action#{action_id} version={action_version}")
+
+    check_status, check_body = request_json(
+        manager_api,
+        "POST",
+        f"/api/governance-actions/{action_id}/check",
+        {"expectedVersion": action_version},
+        headers={"Idempotency-Key": f"{BOOKING_PREFIX}-close-check"},
+    )
+    if check_status != 200:
+        results.fail("TC-1724", "Manager checks the governed close request", api_failure_detail(check_body))
+        return
+    action_version = check_body["version"]
+    results.pass_("TC-1724", "Manager checks the governed close request", f"action#{action_id} version={action_version}")
+
+    approve_status, approve_body = request_json(
+        admin_api,
+        "POST",
+        f"/api/governance-actions/{action_id}/approve",
+        {"expectedVersion": action_version},
+        headers={"Idempotency-Key": f"{BOOKING_PREFIX}-close-approve"},
+    )
+    if approve_status != 200:
+        results.fail("TC-1725", "Admin approves the governed close request", api_failure_detail(approve_body))
+        return
+    if approve_body.get("applicationResult", {}).get("status") != "COMPLETED":
+        results.fail("TC-1725", "Governed close applies completion", str(approve_body))
+        return
+    results.pass_("TC-1725", "Admin approves the governed close request", f"trip={approve_body.get('applicationResult', {}).get('status')}")
 
     generate_status, generate_body = request_json(
         accountant_api,
@@ -995,12 +1196,12 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
             if line.get("sourceType") == "TRIP"
         ]
         results.fail(
-            "TC-1723",
-            "Debit note draft includes the closed Long Minh trip",
+            "TC-1726",
+            "Debit note draft includes the eligible Long Minh trip",
             f"targetTripId={trip_id}, generatedTripIds={generated_trip_ids}, eligibility={draft.get('eligibilitySummary')}",
         )
         return
-    results.pass_("TC-1723", "Accountant generates the debit note draft", f"trip#{trip_id} is eligible")
+    results.pass_("TC-1726", "Accountant generates the debit note draft", f"trip#{trip_id} is eligible")
 
     source_refs = []
     for line in selected_lines:
@@ -1038,23 +1239,23 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
         headers={"Idempotency-Key": f"{BOOKING_PREFIX}-save"},
     )
     if save_status not in (200, 201):
-        results.fail("TC-1724", "Accountant saves the Long Minh debit note", api_failure_detail(save_body))
+        results.fail("TC-1727", "Accountant saves the Long Minh debit note", api_failure_detail(save_body))
         return
     document_id = save_body["id"]
-    results.pass_("TC-1724", "Accountant saves the Long Minh debit note", f"document#{document_id} template#{template['id']}")
+    results.pass_("TC-1727", "Accountant saves the Long Minh debit note", f"document#{document_id} template#{template['id']}")
 
     export_status, export_headers, export_blob = request_binary(
         accountant_api,
         f"/api/finance/billing-documents/{document_id}/export?format=xlsx",
     )
     if export_status != 200:
-        results.fail("TC-1725", "Accountant exports the saved Long Minh debit note", f"status={export_status}")
+        results.fail("TC-1728", "Accountant exports the saved Long Minh debit note", f"status={export_status}")
         return
     ok, detail = workbook_has_expected_template(export_blob, "BẢNG KÊ XÁC NHẬN VẬN CHUYỂN HOÀN THÀNH / MẪU DEBIT LONG MINH", bl_number)
     if not ok:
-        results.fail("TC-1725", "Exported workbook uses Long Minh template", detail)
+        results.fail("TC-1728", "Exported workbook uses Long Minh template", detail)
         return
-    results.pass_("TC-1725", "Accountant exports the saved Long Minh debit note", detail)
+    results.pass_("TC-1728", "Accountant exports the saved Long Minh debit note", detail)
 
     page = ctx.new_page({"width": 1440, "height": 1000})
     def proxy_api(route):
@@ -1073,12 +1274,12 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
     body_text = page.locator("body").inner_text()
     assert_ok(
         results,
-        "TC-1726",
+        "TC-1729",
         "Shipment detail page shows the closed chain",
         booking_ref in body_text and customer["name"] in body_text,
         f"booking={booking_ref} customer={customer['name']}",
     )
-    ctx.screenshot(page, f"TC-1726_shipment_{shipment_id}_closed")
+    ctx.screenshot(page, f"TC-1729_shipment_{shipment_id}_closed")
     page.close()
 
 

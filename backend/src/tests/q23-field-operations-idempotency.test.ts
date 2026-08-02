@@ -38,6 +38,8 @@ let customerId = 0;
 let shipmentId = 0;
 let routeId = 0;
 let cargoTypeId = 0;
+let liftPortId = 0;
+let liftContainerTypeId = 0;
 let server: http.Server;
 let baseUrl = '';
 let imageBuffer: Buffer;
@@ -167,6 +169,34 @@ before(async () => {
     name: `Q23 Field Cargo ${suffix}`,
   }).returning({ id: s.cargoTypes.id });
   cargoTypeId = cargoType.id;
+  const [liftContainerType] = await db.insert(s.containerTypes).values({
+    code: `Q23-${suffix}`.slice(0, 20),
+    name: `Q23 Lift ${suffix}`.slice(0, 50),
+  }).returning({ id: s.containerTypes.id });
+  liftContainerTypeId = liftContainerType.id;
+  const [liftPort] = await db.insert(s.ports).values({
+    name: `Q23 Lift Port ${suffix}`,
+    code: `Q23P${Date.now()}`.slice(0, 20),
+  }).returning({ id: s.ports.id });
+  liftPortId = liftPort.id;
+  await db.insert(s.liftPricing).values([
+    {
+      portId: liftPortId,
+      containerTypeId: liftContainerTypeId,
+      direction: 'LIFT_UP',
+      loadState: 'LOADED',
+      unitPrice: '120000',
+      effectiveDate: '2026-01-01',
+    },
+    {
+      portId: liftPortId,
+      containerTypeId: liftContainerTypeId,
+      direction: 'LIFT_DOWN',
+      loadState: 'LOADED',
+      unitPrice: '140000',
+      effectiveDate: '2026-01-01',
+    },
+  ]);
   const [shipment] = await db.insert(s.shipments).values({
     shipmentCode: `Q23-FIELD-SHP-${suffix}`.slice(0, 50),
     customerId,
@@ -192,6 +222,7 @@ before(async () => {
 
   const container = await createTripContainer({
     tripId,
+    containerTypeId: liftContainerTypeId,
     containerNumber: 'CONT0000001',
     sealNumber: null,
     notes: 'seed',
@@ -299,10 +330,13 @@ after(async () => {
   await db.delete(s.tripContainerSeals).where(eq(s.tripContainerSeals.tripContainerId, tripContainerId));
   await db.delete(s.tripContainers).where(eq(s.tripContainers.tripId, tripId));
   await db.delete(s.tripExpenses).where(eq(s.tripExpenses.tripId, tripId));
+  await db.delete(s.liftPricing).where(eq(s.liftPricing.portId, liftPortId));
   await db.delete(s.trips).where(eq(s.trips.id, tripId));
   await db.delete(s.userShipmentLinks).where(eq(s.userShipmentLinks.shipmentId, shipmentId));
   await db.delete(s.shipments).where(eq(s.shipments.id, shipmentId));
   await db.delete(s.cargoTypes).where(eq(s.cargoTypes.id, cargoTypeId));
+  await db.delete(s.ports).where(eq(s.ports.id, liftPortId));
+  await db.delete(s.containerTypes).where(eq(s.containerTypes.id, liftContainerTypeId));
   await db.delete(s.routes).where(eq(s.routes.id, routeId));
   await db.delete(s.customers).where(eq(s.customers.id, customerId));
   await db.delete(s.drivers).where(eq(s.drivers.id, driverId));
@@ -576,6 +610,97 @@ describe('Q23 field operations replay boundary', () => {
       expectedUpdatedAt: staleExpense.updatedAt.toISOString(),
     });
     assert.equal(staleDelete.status, 409);
+  });
+
+  it('derives lift prices from the trip container tariff and rejects amount or type tampering', async () => {
+    const liftingPayload = {
+      tripId,
+      expenseType: 'LIFTING',
+      buyAmount: 121000,
+      sellAmount: 0,
+      expenseDate: '2026-07-28',
+      invoiceNumber: `LIFT-${suffix}`.slice(0, 50),
+      tripContainerId,
+      portId: liftPortId,
+      containerTypeId: liftContainerTypeId,
+      loadState: 'LOADED',
+    };
+    const tamperedCreate = await jsonRequest('/api/forwarder/me/expenses', {
+      method: 'POST',
+      idempotencyKey: `q23-lift-create-tampered-${suffix}`,
+      body: liftingPayload,
+    });
+    assert.equal(tamperedCreate.status, 422, JSON.stringify(tamperedCreate.body));
+    const forgedContainerType = await jsonRequest('/api/forwarder/me/expenses', {
+      method: 'POST',
+      idempotencyKey: `q23-lift-create-type-tampered-${suffix}`,
+      body: {
+        ...liftingPayload,
+        buyAmount: 120000,
+        containerTypeId: liftContainerTypeId + 1_000_000,
+      },
+    });
+    assert.equal(forgedContainerType.status, 422, JSON.stringify(forgedContainerType.body));
+
+    const created = await jsonRequest('/api/forwarder/me/expenses', {
+      method: 'POST',
+      idempotencyKey: `q23-lift-create-${suffix}`,
+      body: { ...liftingPayload, buyAmount: 120000 },
+    });
+    assert.equal(created.status, 201, JSON.stringify(created.body));
+    const expenseId = Number(created.body.id);
+    const [storedCreate] = await db.select({
+      buyAmount: s.tripExpenses.buyAmount,
+      liftPricingId: s.tripExpenses.liftPricingId,
+      liftPricingSnapshot: s.tripExpenses.liftPricingSnapshot,
+      updatedAt: s.tripExpenses.updatedAt,
+    }).from(s.tripExpenses).where(eq(s.tripExpenses.id, expenseId)).limit(1);
+    assert.equal(Number(storedCreate.buyAmount), 120000);
+    assert.ok(storedCreate.liftPricingId);
+    assert.deepEqual(storedCreate.liftPricingSnapshot, {
+      portId: liftPortId,
+      containerTypeId: liftContainerTypeId,
+      direction: 'LIFT_UP',
+      loadState: 'LOADED',
+      expenseDate: '2026-07-28',
+      effectiveDate: '2026-01-01',
+      unitPrice: 120000,
+    });
+
+    const tamperedPatch = await jsonRequest(`/api/forwarder/me/expenses/${expenseId}`, {
+      method: 'PATCH',
+      idempotencyKey: `q23-lift-patch-tampered-${suffix}`,
+      expectedUpdatedAt: storedCreate.updatedAt.toISOString(),
+      body: { ...liftingPayload, tripId: undefined, buyAmount: 130000 },
+    });
+    assert.equal(tamperedPatch.status, 422, JSON.stringify(tamperedPatch.body));
+
+    const lowered = await jsonRequest(`/api/forwarder/me/expenses/${expenseId}`, {
+      method: 'PATCH',
+      idempotencyKey: `q23-lift-patch-${suffix}`,
+      expectedUpdatedAt: storedCreate.updatedAt.toISOString(),
+      body: {
+        expenseType: 'LOWERING',
+        buyAmount: 140000,
+        expenseDate: '2026-07-28',
+        tripContainerId,
+        portId: liftPortId,
+        containerTypeId: liftContainerTypeId,
+        loadState: 'LOADED',
+      },
+    });
+    assert.equal(lowered.status, 200, JSON.stringify(lowered.body));
+    const [storedPatch] = await db.select({
+      expenseType: s.tripExpenses.expenseType,
+      buyAmount: s.tripExpenses.buyAmount,
+      liftPricingSnapshot: s.tripExpenses.liftPricingSnapshot,
+    }).from(s.tripExpenses).where(eq(s.tripExpenses.id, expenseId)).limit(1);
+    assert.equal(storedPatch.expenseType, 'LOWERING');
+    assert.equal(Number(storedPatch.buyAmount), 140000);
+    assert.equal(storedPatch.liftPricingSnapshot?.direction, 'LIFT_DOWN');
+    assert.equal(storedPatch.liftPricingSnapshot?.unitPrice, 140000);
+
+    await db.delete(s.tripExpenses).where(eq(s.tripExpenses.id, expenseId));
   });
 
   it('replays forwarder expense completion and expense photo create/delete flows', async () => {

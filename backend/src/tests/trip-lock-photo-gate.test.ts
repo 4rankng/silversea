@@ -33,6 +33,8 @@ const createdUserIds: number[] = [];
 const createdCustomerIds: number[] = [];
 const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
+const createdShipmentIds: number[] = [];
+const createdFulfillmentIds: number[] = [];
 
 after(async () => {
   // Ledger rows for a trip are keyed by txnId=tripId (TRIP_REVENUE etc.).
@@ -41,12 +43,26 @@ after(async () => {
     await db.delete(s.ledger).where(inArray(s.ledger.txnId, createdTripIds));
     await db.delete(s.profitabilitySnapshots).where(inArray(s.profitabilitySnapshots.tripId, createdTripIds));
     await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.tripId, createdTripIds));
+    const milestones = await db.select({ id: s.shipmentMilestones.id })
+      .from(s.shipmentMilestones)
+      .where(inArray(s.shipmentMilestones.tripId, createdTripIds));
+    if (milestones.length > 0) {
+      await db.delete(s.customerVisibleEvents)
+        .where(inArray(s.customerVisibleEvents.milestoneId, milestones.map((row) => row.id)));
+    }
+    await db.delete(s.shipmentMilestones).where(inArray(s.shipmentMilestones.tripId, createdTripIds));
   }
   if (createdPhotoIds.length > 0) {
     await db.delete(s.tripPhotos).where(inArray(s.tripPhotos.id, createdPhotoIds));
   }
   if (createdTripIds.length > 0) {
     await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
+  }
+  if (createdFulfillmentIds.length > 0) {
+    await db.delete(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.id, createdFulfillmentIds));
+  }
+  if (createdShipmentIds.length > 0) {
+    await db.delete(s.shipments).where(inArray(s.shipments.id, createdShipmentIds));
   }
   if (createdCargoTypeIds.length > 0) {
     await db.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, createdCargoTypeIds));
@@ -79,8 +95,8 @@ async function setupTrip(opts: SetupOptions = {}) {
   const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const actors = await db.insert(s.users).values([
     { username: `photo-admin-${suffix}`.slice(0, 50), passwordHash: 'x', fullName: `PhotoGate admin ${suffix}`, role: 'ADMIN', status: 'ACTIVE' },
-    { username: `photo-maker-${suffix}`.slice(0, 50), passwordHash: 'x', fullName: `PhotoGate maker ${suffix}`, role: Role.MANAGER, status: 'ACTIVE' },
-    { username: `photo-checker-${suffix}`.slice(0, 50), passwordHash: 'x', fullName: `PhotoGate checker ${suffix}`, role: Role.ACCOUNTANT, status: 'ACTIVE' },
+    { username: `photo-maker-${suffix}`.slice(0, 50), passwordHash: 'x', fullName: `PhotoGate maker ${suffix}`, role: Role.ACCOUNTANT, status: 'ACTIVE' },
+    { username: `photo-checker-${suffix}`.slice(0, 50), passwordHash: 'x', fullName: `PhotoGate checker ${suffix}`, role: Role.MANAGER, status: 'ACTIVE' },
     { username: `photo-approver-${suffix}`.slice(0, 50), passwordHash: 'x', fullName: `PhotoGate approver ${suffix}`, role: 'ADMIN', status: 'ACTIVE' },
   ]).returning();
   const [admin, maker, checker, approver] = actors;
@@ -112,8 +128,54 @@ async function setupTrip(opts: SetupOptions = {}) {
     podRecoveredBy: admin.id,
   }).returning();
   createdTripIds.push(trip.id);
+  await attachCloseReadiness(trip.id, trip.version, customer.id, maker.id, checker.id);
 
   return { admin, maker, checker, approver, customer, route, cargoType, trip };
+}
+
+async function attachCloseReadiness(
+  tripId: number,
+  tripVersion: number,
+  customerId: number,
+  submittedBy: number,
+  reviewedBy: number,
+) {
+  const [shipment] = await db.insert(s.shipments).values({
+    customerId,
+    status: 'IN_TRANSIT',
+    cargoMode: 'LCL',
+  }).returning();
+  createdShipmentIds.push(shipment.id);
+  const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+    shipmentId: shipment.id,
+    fulfillmentType: 'LCL_SHIPMENT',
+    cargoMode: 'LCL',
+    sourceShipmentVersion: shipment.version,
+    siteSnapshot: {},
+  }).returning();
+  createdFulfillmentIds.push(fulfillment.id);
+  await db.update(s.trips).set({
+    shipmentId: shipment.id,
+    fulfillmentId: fulfillment.id,
+  }).where(eq(s.trips.id, tripId));
+  await db.insert(s.tripPodSubmissions).values({
+    tripId,
+    fulfillmentId: fulfillment.id,
+    submissionVersion: 1,
+    sourceTripVersion: tripVersion,
+    status: 'ACCEPTED',
+    submittedBy,
+    submittedAt: new Date(),
+    reviewedBy,
+    reviewedAt: new Date(),
+  });
+  await db.insert(s.tripExpenseCompletionScopes).values({
+    tripId,
+    tripContainerId: null,
+    status: 'COMPLETED',
+    completedBy: submittedBy,
+    completedAt: new Date(),
+  });
 }
 
 async function insertPhoto(tripId: number, uploadedBy: number, type: 'CONTAINER' | 'SEAL' | 'OTHER') {
@@ -148,13 +210,13 @@ async function completeGoverned(
     tripId: trip.id,
     reason: 'Hoàn thành chuyến (photo gate test)',
     makerId: maker.id,
-    makerRole: Role.MANAGER,
+    makerRole: Role.ACCOUNTANT,
     expectedTripVersion: trip.version,
   });
   const checked = await checkGovernanceAction({
     actionId: action.id,
     checkerId: checker.id,
-    checkerRole: Role.ACCOUNTANT,
+    checkerRole: Role.MANAGER,
     expectedVersion: action.version,
   });
   return approveGovernanceAction({
@@ -209,6 +271,7 @@ describe('completion photo-evidence gate', () => {
       // podRecoveredAt deliberately omitted.
     }).returning();
     createdTripIds.push(noPodTrip.id);
+    await attachCloseReadiness(noPodTrip.id, noPodTrip.version, customer.id, maker.id, checker.id);
     await insertPhoto(noPodTrip.id, admin.id, 'OTHER');
 
     await assert.rejects(

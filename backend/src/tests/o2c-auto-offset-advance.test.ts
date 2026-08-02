@@ -1,9 +1,13 @@
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { db, client } from '../db';
 import * as s from '../db/schema';
-import { autoOffsetExpenseApproval, getOutstandingAdvanceBalance } from '../services/advance.service';
+import {
+  autoOffsetExpenseApproval,
+  getOutstandingAdvanceBalance,
+  getOutstandingAdvanceBalances,
+} from '../services/advance.service';
 import { propagateExpenseApproval } from '../services/source-change.service';
 
 /**
@@ -28,9 +32,9 @@ describe('O2C auto advance-offset on chi hộ approval', () => {
   let accountantId: number;
   let tripId: number;
 
-  async function insertApprovedAdvance(amount: number, approvedAt: Date) {
+  async function insertApprovedAdvance(amount: number, approvedAt: Date, requesterId = forwarderId) {
     const [request] = await db.insert(s.advanceRequests).values({
-      requesterId: forwarderId,
+      requesterId,
       amount: String(amount),
       reason: 'Test tự cấn trừ',
       status: 'APPROVED',
@@ -93,15 +97,22 @@ describe('O2C auto advance-offset on chi hộ approval', () => {
   });
 
   after(async () => {
+    if (ids.expenses.length) {
+      const linkedSettlements = await db.select({ settlementId: s.settlementExpenses.settlementId })
+        .from(s.settlementExpenses)
+        .where(inArray(s.settlementExpenses.tripExpenseId, ids.expenses));
+      ids.settlements.push(...linkedSettlements.map((row) => row.settlementId));
+    }
+    const settlementIds = [...new Set(ids.settlements)];
     // Clean settlement links first (FKs), then ledger, then parents.
-    if (ids.settlements.length) {
-      await db.delete(s.advanceSettlementRequests).where(inArray(s.advanceSettlementRequests.settlementId, ids.settlements));
-      await db.delete(s.settlementExpenses).where(inArray(s.settlementExpenses.settlementId, ids.settlements));
+    if (settlementIds.length) {
+      await db.delete(s.advanceSettlementRequests).where(inArray(s.advanceSettlementRequests.settlementId, settlementIds));
+      await db.delete(s.settlementExpenses).where(inArray(s.settlementExpenses.settlementId, settlementIds));
     }
     if (ids.expenses.length) await db.delete(s.settlementExpenses).where(inArray(s.settlementExpenses.tripExpenseId, ids.expenses));
-    if (ids.settlements.length) {
-      await db.delete(s.ledger).where(inArray(s.ledger.txnId, ids.settlements));
-      await db.delete(s.advanceSettlements).where(inArray(s.advanceSettlements.id, ids.settlements));
+    if (settlementIds.length) {
+      await db.delete(s.ledger).where(inArray(s.ledger.txnId, settlementIds));
+      await db.delete(s.advanceSettlements).where(inArray(s.advanceSettlements.id, settlementIds));
     }
     if (ids.requests.length) await db.delete(s.advanceRequests).where(inArray(s.advanceRequests.id, ids.requests));
     if (ids.expenses.length) await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.id, ids.expenses));
@@ -135,16 +146,81 @@ describe('O2C auto advance-offset on chi hộ approval', () => {
     assert.equal(settlement?.status, 'APPROVED');
     assert.equal(Number(settlement?.totalExpenseAmount), 150_000);
 
-    // FIFO: only the oldest 200k advance was consumed (covered the 150k expense),
-    // with a 50k refund (advance surplus the forwarder returns).
-    const linkedRequests = await db.select({ advanceRequestId: s.advanceSettlementRequests.advanceRequestId })
+    // FIFO: only 150k of the oldest 200k advance is allocated. The residual
+    // remains available; no cash refund exists without a separate return flow.
+    const linkedRequests = await db.select({
+      advanceRequestId: s.advanceSettlementRequests.advanceRequestId,
+      allocatedAmount: s.advanceSettlementRequests.allocatedAmount,
+    })
       .from(s.advanceSettlementRequests).where(eq(s.advanceSettlementRequests.settlementId, link.settlementId));
     assert.equal(linkedRequests.length, 1, 'FIFO should consume exactly the oldest advance');
+    assert.equal(Number(linkedRequests[0].allocatedAmount), 150_000);
+    assert.equal(Number(settlement?.refundAmount), 0, 'auto-offset must not invent a cash refund');
 
-    // Outstanding balance dropped by the offset (200k consumed), and the
-    // remaining 500k advance is still open.
+    const [posting] = await db.select({ debit: s.ledger.debit })
+      .from(s.ledger)
+      .where(and(
+        eq(s.ledger.txnType, 'FORWARDER_SETTLEMENT'),
+        eq(s.ledger.txnId, link.settlementId),
+      ))
+      .limit(1);
+    assert.equal(Number(posting?.debit), 150_000, 'ledger debit must equal the approved expense');
+
+    // Outstanding balance drops by exactly the approved expense: 50k remains
+    // on the oldest advance and the newer 500k remains untouched.
     const after = await getOutstandingAdvanceBalance(forwarderId);
-    assert.equal(after, 500_000);
+    assert.equal(after, 550_000);
+    const breakdown = await getOutstandingAdvanceBalances();
+    assert.equal(
+      breakdown.items.find((item) => item.forwarderId === forwarderId)?.outstanding,
+      550_000,
+    );
+  });
+
+  test('multiple approved expenses consume a single advance incrementally', async () => {
+    const [isolatedForwarder] = await db.insert(s.users).values({
+      username: `o2c-partial-${Date.now()}`,
+      passwordHash: 'x',
+      fullName: 'Ops tạm ứng một phần',
+      role: 'FORWARDER',
+    }).returning();
+    ids.users.push(isolatedForwarder.id);
+    await insertApprovedAdvance(200_000, new Date('2026-07-01T01:00:00Z'), isolatedForwarder.id);
+    const firstExpense = await insertExpense({
+      buyAmount: 150_000,
+      approvalStatus: 'APPROVED',
+      forwarderId: isolatedForwarder.id,
+    });
+    const secondExpense = await insertExpense({
+      buyAmount: 30_000,
+      approvalStatus: 'APPROVED',
+      forwarderId: isolatedForwarder.id,
+    });
+
+    await db.transaction(async (tx) => { await autoOffsetExpenseApproval(tx, firstExpense.id); });
+    assert.equal(await getOutstandingAdvanceBalance(isolatedForwarder.id), 50_000);
+
+    await db.transaction(async (tx) => { await autoOffsetExpenseApproval(tx, secondExpense.id); });
+    assert.equal(await getOutstandingAdvanceBalance(isolatedForwarder.id), 20_000);
+
+    const links = await db.select({ settlementId: s.settlementExpenses.settlementId })
+      .from(s.settlementExpenses)
+      .where(inArray(s.settlementExpenses.tripExpenseId, [firstExpense.id, secondExpense.id]));
+    ids.settlements.push(...links.map((row) => row.settlementId));
+    assert.equal(links.length, 2);
+
+    const settlements = await db.select({ refundAmount: s.advanceSettlements.refundAmount })
+      .from(s.advanceSettlements)
+      .where(inArray(s.advanceSettlements.id, links.map((row) => row.settlementId)));
+    assert.deepEqual(settlements.map((row) => Number(row.refundAmount)), [0, 0]);
+
+    const allocations = await db.select({ allocatedAmount: s.advanceSettlementRequests.allocatedAmount })
+      .from(s.advanceSettlementRequests)
+      .where(inArray(s.advanceSettlementRequests.settlementId, links.map((row) => row.settlementId)));
+    assert.equal(
+      allocations.reduce((sum, allocation) => sum + Number(allocation.allocatedAmount), 0),
+      180_000,
+    );
   });
 
   test('double-post guard: running the offset twice does not create a second settlement', async () => {
@@ -159,6 +235,85 @@ describe('O2C auto advance-offset on chi hộ approval', () => {
       .from(s.settlementExpenses).where(eq(s.settlementExpenses.tripExpenseId, expense.id));
     assert.equal(links.length, 1, 'exactly one settlement link — no double-post');
     ids.settlements.push(links[0].settlementId);
+  });
+
+  test('concurrent approval replays create exactly one allocation and one ledger posting', async () => {
+    const [isolatedForwarder] = await db.insert(s.users).values({
+      username: `o2c-concurrent-${Date.now()}`,
+      passwordHash: 'x',
+      fullName: 'Ops tạm ứng đồng thời',
+      role: 'FORWARDER',
+    }).returning();
+    ids.users.push(isolatedForwarder.id);
+    await insertApprovedAdvance(300_000, new Date('2026-07-02T01:00:00Z'), isolatedForwarder.id);
+    const expense = await insertExpense({
+      buyAmount: 100_000,
+      approvalStatus: 'APPROVED',
+      forwarderId: isolatedForwarder.id,
+    });
+
+    const results = await Promise.allSettled([
+      db.transaction(async (tx) => { await autoOffsetExpenseApproval(tx, expense.id); }),
+      db.transaction(async (tx) => { await autoOffsetExpenseApproval(tx, expense.id); }),
+    ]);
+    assert.deepEqual(results.map((result) => result.status), ['fulfilled', 'fulfilled']);
+
+    const links = await db.select({ settlementId: s.settlementExpenses.settlementId })
+      .from(s.settlementExpenses)
+      .where(eq(s.settlementExpenses.tripExpenseId, expense.id));
+    assert.equal(links.length, 1, 'exactly one allocation link may exist for the expense');
+    ids.settlements.push(...links.map((row) => row.settlementId));
+
+    const [settlement] = await db.select({ autoOffsetExpenseId: s.advanceSettlements.autoOffsetExpenseId })
+      .from(s.advanceSettlements)
+      .where(eq(s.advanceSettlements.id, links[0].settlementId));
+    assert.equal(settlement?.autoOffsetExpenseId, expense.id);
+
+    const postings = await db.select({ id: s.ledger.id })
+      .from(s.ledger)
+      .where(and(
+        eq(s.ledger.txnType, 'FORWARDER_SETTLEMENT'),
+        inArray(s.ledger.txnId, links.map((row) => row.settlementId)),
+      ));
+    assert.equal(postings.length, 1, 'exactly one financial posting may exist for the expense');
+  });
+
+  test('database uniqueness rejects a second automatic settlement authority for one expense', async () => {
+    const [isolatedForwarder] = await db.insert(s.users).values({
+      username: `o2c-db-unique-${Date.now()}`,
+      passwordHash: 'x',
+      fullName: 'Ops khóa DB',
+      role: 'FORWARDER',
+    }).returning();
+    ids.users.push(isolatedForwarder.id);
+    await insertApprovedAdvance(300_000, new Date('2026-07-02T02:00:00Z'), isolatedForwarder.id);
+    const expense = await insertExpense({
+      buyAmount: 100_000,
+      approvalStatus: 'APPROVED',
+      forwarderId: isolatedForwarder.id,
+    });
+
+    await db.transaction(async (tx) => { await autoOffsetExpenseApproval(tx, expense.id); });
+    const [existing] = await db.select({ settlementId: s.settlementExpenses.settlementId })
+      .from(s.settlementExpenses)
+      .where(eq(s.settlementExpenses.tripExpenseId, expense.id));
+    ids.settlements.push(existing.settlementId);
+
+    await assert.rejects(
+      db.insert(s.advanceSettlements).values({
+        code: `AUTO-DUP-${Date.now()}`.slice(0, 20),
+        forwarderId: isolatedForwarder.id,
+        totalExpenseAmount: '100000',
+        refundAmount: '0',
+        status: 'APPROVED',
+        autoOffsetExpenseId: expense.id,
+      }),
+      (error: unknown) => {
+        const cause = (error as { cause?: { code?: string } }).cause;
+        assert.equal(cause?.code, '23505');
+        return true;
+      },
+    );
   });
 
   test('skip COMPANY_DIRECT expenses (no forwarder fronted the money)', async () => {

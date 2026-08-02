@@ -7,7 +7,6 @@ import {
   DriverProgressEventType,
   TripPodFileType,
   TripStatus,
-  TxnType,
 } from '@tingting/shared';
 import {
   DURABLE_EFFECT_KIND,
@@ -154,6 +153,12 @@ async function createOwnedFulfillmentTrip(driverId: number) {
     carrierType: 'OWN',
   }).returning();
   createdTripIds.push(trip.id);
+  await db.insert(s.tripExpenseCompletionScopes).values({
+    tripId: trip.id,
+    tripContainerId: null,
+    status: 'COMPLETED',
+    completedAt: new Date(),
+  });
 
   return { customer, shipment, fulfillment, trip };
 }

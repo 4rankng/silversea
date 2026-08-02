@@ -17,6 +17,11 @@ import {
   requestTripFinancialChange,
   requestTripReopen,
 } from '../services/adjustment-governance.service';
+import {
+  attachAcceptedTripCloseEvidence,
+  cleanupTripCloseMilestones,
+  cleanupTripCloseShipments,
+} from './helpers/o2c-close-fixture';
 
 const createdTripIds: number[] = [];
 const createdCustomerIds: number[] = [];
@@ -24,6 +29,7 @@ const createdSupplierIds: number[] = [];
 const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
 const createdUserIds: number[] = [];
+const createdShipmentIds: number[] = [];
 
 after(async () => {
   if (createdTripIds.length > 0) {
@@ -32,8 +38,10 @@ after(async () => {
     await db.delete(s.profitabilitySnapshots).where(inArray(s.profitabilitySnapshots.tripId, createdTripIds));
     await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.tripId, createdTripIds));
     await db.delete(s.tripPhotos).where(inArray(s.tripPhotos.tripId, createdTripIds));
+    await cleanupTripCloseMilestones(createdTripIds);
     await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
   }
+  await cleanupTripCloseShipments(createdShipmentIds);
   if (createdUserIds.length > 0) {
     await db.delete(s.notifications).where(inArray(s.notifications.userId, createdUserIds));
     await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
@@ -112,17 +120,28 @@ async function completeTripGoverned(tripId: number, expectedVersion: number) {
   ]).returning({ id: s.users.id });
   createdUserIds.push(...actors.map((actor) => actor.id));
 
+  const [trip] = await db.select({ customerId: s.trips.customerId })
+    .from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+  const closeEvidence = await attachAcceptedTripCloseEvidence({
+    tripId,
+    tripVersion: expectedVersion,
+    customerId: trip.customerId,
+    submittedBy: actors[0]!.id,
+    reviewedBy: actors[1]!.id,
+  });
+  createdShipmentIds.push(closeEvidence.shipmentId);
+
   const action = await requestTripFinancialClose({
     tripId,
     reason: 'Hoàn thành chuyến và ghi nhận công nợ',
-    makerId: actors[0]!.id,
-    makerRole: Role.MANAGER,
+    makerId: actors[1]!.id,
+    makerRole: Role.ACCOUNTANT,
     expectedTripVersion: expectedVersion,
   });
   const checked = await checkGovernanceAction({
     actionId: action.id,
-    checkerId: actors[1]!.id,
-    checkerRole: Role.ACCOUNTANT,
+    checkerId: actors[0]!.id,
+    checkerRole: Role.MANAGER,
     expectedVersion: action.version,
   });
   await approveGovernanceAction({
@@ -557,40 +576,39 @@ describe('trip completion ledger posting', () => {
     assert.equal(customerRows.at(-1)?.balance, '1500000');
   });
 
-  test('changing a completed trip customer reverses the old receivable and posts it to the new customer', async () => {
+  test('rejects changing the customer directly when a completed trip is shipment-linked', async () => {
     const { trip, customer: oldCustomer } = await createInTransitTrip({ revenue: 800_000 });
     const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const [newCustomer] = await db.insert(s.customers).values({ name: `Replacement customer ${suffix}` }).returning();
     createdCustomerIds.push(newCustomer.id);
 
     const completed = await completeTripGoverned(trip.id, trip.version);
-    await governedFinancialChange(trip.id, completed.version, {
-      legs: [],
-      fuelMode: FuelMode.AUTO,
-      fuelSupplementLiters: 0,
-      tollsDiscount: 0,
-      tollsAddition: 0,
-      tollsStations: 0,
-      hasReturnCargo: false,
-      customerId: newCustomer.id,
-      userId: 1,
-      userRole: Role.MANAGER,
-    });
+    await assert.rejects(
+      governedFinancialChange(trip.id, completed.version, {
+        legs: [],
+        fuelMode: FuelMode.AUTO,
+        fuelSupplementLiters: 0,
+        tollsDiscount: 0,
+        tollsAddition: 0,
+        tollsStations: 0,
+        hasReturnCargo: false,
+        customerId: newCustomer.id,
+        userId: 1,
+        userRole: Role.MANAGER,
+      }),
+      /lô hàng nguồn/,
+    );
 
     const [updated] = await db.select().from(s.trips)
       .where(eq(s.trips.id, trip.id)).limit(1);
-    assert.equal(updated.customerId, newCustomer.id);
+    assert.equal(updated.customerId, oldCustomer.id);
     const oldRows = await db.select({ balance: s.ledger.balance }).from(s.ledger)
       .where(and(eq(s.ledger.entityType, 'CUSTOMER'), eq(s.ledger.entityId, oldCustomer.id)))
       .orderBy(s.ledger.id);
-    const newRows = await db.select({ balance: s.ledger.balance }).from(s.ledger)
-      .where(and(eq(s.ledger.entityType, 'CUSTOMER'), eq(s.ledger.entityId, newCustomer.id)))
-      .orderBy(s.ledger.id);
-    assert.equal(oldRows.at(-1)?.balance, '0');
-    assert.equal(newRows.at(-1)?.balance, '800000');
+    assert.equal(oldRows.at(-1)?.balance, '800000');
   });
 
-  test('rejects changing a completed trip customer after payment has been recorded', async () => {
+  test('shipment customer remains authoritative even after payment has been recorded', async () => {
     const { trip, customer } = await createInTransitTrip({ revenue: 800_000 });
     const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const [newCustomer] = await db.insert(s.customers).values({ name: `Paid replacement customer ${suffix}` }).returning();
@@ -648,7 +666,7 @@ describe('trip completion ledger posting', () => {
         approverRole: Role.ADMIN,
         expectedVersion: checked.version,
       }),
-      /đã phát sinh thanh toán/,
+      /lô hàng nguồn/,
     );
   });
 

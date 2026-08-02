@@ -28,6 +28,8 @@ export {
   batchUpsertTripContainers,
 } from './forwarder-container.service';
 import { SnapshotServices } from './snapshot-services';
+import { recomputeShipmentCompletion } from './shipment.service';
+import { lockTripCloseAggregate } from './trip-close-readiness.service';
 
 /**
  * Either the singleton db client or an in-flight transaction client. Both
@@ -35,6 +37,7 @@ import { SnapshotServices } from './snapshot-services';
  * expense helpers accept either and route through whichever the caller holds.
  */
 type DbOrTx = typeof db | Tx;
+type LiftPricingSnapshot = NonNullable<typeof s.tripExpenses.$inferInsert.liftPricingSnapshot>;
 
 type TripExpenseRequiredFieldState = {
   expenseType: string;
@@ -95,11 +98,18 @@ export async function setTripExpenseCompletion(
   transaction?: Tx,
 ) {
   const execute = async (tx: Tx) => {
-    const scopeKey = tripContainerId ?? -tripId;
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);
-    const [trip] = await tx.select({ status: s.trips.status }).from(s.trips)
+    const [trip] = await tx.select({
+      status: s.trips.status,
+      shipmentId: s.trips.shipmentId,
+    }).from(s.trips)
       .where(eq(s.trips.id, tripId)).limit(1);
     if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
+    // Keep the same aggregate lock order as shipment recomputation:
+    // shipment -> expense scope. This prevents a scope update racing an e-POD
+    // event from deadlocking with the aggregate readiness calculation.
+    await lockTripCloseAggregate(tx, tripId);
+    const scopeKey = tripContainerId ?? -tripId;
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);
     if (trip.status === 'COMPLETED' || trip.status === 'CANCELED') {
       throw new ApiError(409, 'Không thể cập nhật kê khai của chuyến đã hoàn thành hoặc đã hủy');
     }
@@ -141,6 +151,9 @@ export async function setTripExpenseCompletion(
     if (existing) {
       const [updated] = await tx.update(s.tripExpenseCompletionScopes)
         .set(values).where(eq(s.tripExpenseCompletionScopes.id, existing.id)).returning();
+      if (trip.shipmentId != null) {
+        await recomputeShipmentCompletion(trip.shipmentId, { changedBy: actorId }, tx);
+      }
       return updated;
     }
     const [inserted] = await tx.insert(s.tripExpenseCompletionScopes).values({
@@ -148,6 +161,9 @@ export async function setTripExpenseCompletion(
       tripContainerId,
       ...values,
     }).returning();
+    if (trip.shipmentId != null) {
+      await recomputeShipmentCompletion(trip.shipmentId, { changedBy: actorId }, tx);
+    }
     return inserted;
   };
   return transaction ? execute(transaction) : db.transaction(execute);
@@ -236,6 +252,8 @@ export async function createTripExpense(
     /** B5: authoritative container FK. When set, the loose containerNumber is
      *  mirrored from this row so settlement grouping never drifts. */
     tripContainerId?: number | null;
+    liftPricingId?: number | null;
+    liftPricingSnapshot?: LiftPricingSnapshot | null;
     note: string | null;
     noInvoiceEvidenceTypes?: string[] | null;
   },
@@ -310,6 +328,8 @@ export async function createTripExpense(
     declarationNumber: data.declarationNumber ?? null,
     containerNumber: containerLabel,
     tripContainerId,
+    liftPricingId: data.liftPricingId ?? null,
+    liftPricingSnapshot: data.liftPricingSnapshot ?? null,
     approvalStatus,
     note: data.note,
     noInvoiceEvidenceTypes: data.noInvoiceEvidenceTypes ?? [],
@@ -346,6 +366,8 @@ export async function updateTripExpense(
     containerNumber?: string | null;
     /** B5: authoritative container FK; validated against the expense's trip. */
     tripContainerId?: number | null;
+    liftPricingId?: number | null;
+    liftPricingSnapshot?: LiftPricingSnapshot | null;
     note?: string | null;
     noInvoiceEvidenceTypes?: string[] | null;
   },
