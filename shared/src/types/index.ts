@@ -540,6 +540,8 @@ export interface Supplier {
   isFuelSupplier: boolean;
   types?: SupplierType[] | null;
   primaryType?: SupplierType | null;
+  chiHoDueDays?: number | null;
+  cuocDueDays?: number | null;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;

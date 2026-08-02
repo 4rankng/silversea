@@ -978,6 +978,10 @@ export const supplierSchema = z.object({
   // the public boundary so a typo cannot silently remove a requested type.
   types: z.array(supplierTypeSchema).optional().nullable(),
   primaryType: supplierTypeSchema.optional().nullable(),
+  // O2C rev1 §B0: dual payment terms. Chi-hộ disbursements vs freight/cước.
+  // 0–365 days, nullable (NULL = unset → ledger paymentTermDaysApplied null).
+  chiHoDueDays: z.number().int().min(0).max(365).optional().nullable(),
+  cuocDueDays: z.number().int().min(0).max(365).optional().nullable(),
 });
 
 export const expenseCategorySchema = z.object({
