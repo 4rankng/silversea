@@ -41,6 +41,8 @@ function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, customers }
   const [linkedCustomerId, setLinkedCustomerId] = useState<number | null>(item?.linkedCustomerId ?? null);
   const [types, setTypes] = useState<string[]>(item?.types ?? []);
   const [primaryType, setPrimaryType] = useState<string>(item?.primaryType ?? '');
+  const [chiHoDueDays, setChiHoDueDays] = useState<string>(item?.chiHoDueDays != null ? String(item.chiHoDueDays) : '');
+  const [cuocDueDays, setCuocDueDays] = useState<string>(item?.cuocDueDays != null ? String(item.cuocDueDays) : '');
 
   useEffect(() => {
     if (isOpen) {
@@ -53,6 +55,8 @@ function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, customers }
       setLinkedCustomerId(item?.linkedCustomerId ?? null);
       setTypes(item?.types ?? []);
       setPrimaryType(item?.primaryType ?? '');
+      setChiHoDueDays(item?.chiHoDueDays != null ? String(item.chiHoDueDays) : '');
+      setCuocDueDays(item?.cuocDueDays != null ? String(item.cuocDueDays) : '');
     }
     // Reset form fields only when the modal opens or switches item; field-level
     // deps intentionally omitted to avoid clobbering in-progress edits.
@@ -71,6 +75,8 @@ function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, customers }
       linkedCustomerId: linkedCustomerId ?? null,
       types,
       primaryType: primaryType || null,
+      chiHoDueDays: chiHoDueDays.trim() === '' ? null : Number(chiHoDueDays),
+      cuocDueDays: cuocDueDays.trim() === '' ? null : Number(cuocDueDays),
     });
   };
 
@@ -135,6 +141,34 @@ function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, customers }
         <div className="field">
           <label htmlFor="supp-note" style={labelStyle}>Ghi chú</label>
           <input id="supp-note" className="input" value={note} onChange={e => setNote(e.target.value)} placeholder="Ghi chú thêm…" />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="field">
+            <label htmlFor="supp-chiho-due" style={labelStyle}>Hạn thanh toán Chi hộ (ngày)</label>
+            <input
+              id="supp-chiho-due"
+              className="input"
+              type="number"
+              min={0}
+              max={365}
+              value={chiHoDueDays}
+              onChange={e => setChiHoDueDays(e.target.value)}
+              placeholder="15"
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="supp-cuoc-due" style={labelStyle}>Hạn thanh toán Cước (ngày)</label>
+            <input
+              id="supp-cuoc-due"
+              className="input"
+              type="number"
+              min={0}
+              max={365}
+              value={cuocDueDays}
+              onChange={e => setCuocDueDays(e.target.value)}
+              placeholder="30"
+            />
+          </div>
         </div>
         <div className="field">
           <label htmlFor="supp-linked-customer" style={labelStyle}>Khách hàng liên quan</label>

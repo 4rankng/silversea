@@ -328,6 +328,7 @@ describe('trip pod review workflow', () => {
       submissionId: submitted.id,
       expectedVersion: submitted.version,
       resolution: 'ACCEPT',
+      podRecovered: true,
       idempotencyKey: `phase5-review-approve-${suffix}`,
       actor: actorFromUser(clerkUser),
     });
@@ -435,6 +436,7 @@ describe('trip pod review workflow', () => {
       submissionId: submitted.id,
       expectedVersion: submitted.version,
       resolution: 'ACCEPT',
+      podRecovered: true,
       idempotencyKey: `phase5-review-cancel-${suffix}`,
       actor: actorFromUser(managerUser),
     });
@@ -534,6 +536,7 @@ describe('trip pod review workflow', () => {
         submissionId: submitted.id,
         expectedVersion: submitted.version,
         resolution: 'ACCEPT',
+      podRecovered: true,
         idempotencyKey: `phase5-review-race-${suffix}`,
         actor: actorFromUser(managerUser),
       }),

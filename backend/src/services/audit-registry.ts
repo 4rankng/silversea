@@ -5,8 +5,8 @@
  * Two registration modes:
  *   1. Exact:  registerAuditEvent('POST', '/api/trips', TRIP_CREATED)
  *              → matches only POST /api/trips
- *   2. Suffix: registerAuditEvent('POST', '/api/trips/', '/lock', TRIP_LOCKED)
- *              → matches POST /api/trips/:id/lock (any sub-path ending in /lock)
+ *   2. Suffix: registerAuditEvent('POST', '/api/trips/', '/complete', TRIP_COMPLETED)
+ *              → matches POST /api/trips/:id/complete (any sub-path ending in /complete)
  *
  * Falls back to generic ENTITY_CREATED/UPDATED/DELETED if no match.
  */
@@ -42,7 +42,7 @@ export function registerAuditEvent(
   event?: AuditEventType,
 ): void {
   if (event !== undefined) {
-    // Suffix mode: registerAuditEvent('POST', '/api/trips/', '/lock', TRIP_LOCKED)
+    // Suffix mode: registerAuditEvent('POST', '/api/trips/', '/complete', TRIP_COMPLETED)
     suffixRegistry.push({
       event: event,
       prefix: `${method.toUpperCase()} ${pathOrPrefix}`,

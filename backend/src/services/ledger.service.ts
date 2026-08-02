@@ -5,8 +5,31 @@ import { TxnType } from '@tingting/shared';
 import type { Tx } from './trip-shared';
 import {
   resolveCustomerPaymentDueDate,
+  resolveSupplierPaymentDueDate,
   type PaymentDatePolicy,
 } from './business-calendar.service';
+
+/**
+ * O2C rev1 §B0: build the `dueDate*` spread shape for a supplier posting.
+ * Returns `null` when the supplier has no term set for `kind` (the caller
+ * spreads nothing and `paymentTermDaysApplied` stays null). Mirrors the
+ * customer `dueDateFields` shape so `postEntry` consumes both uniformly.
+ */
+async function buildSupplierDueDateFields(
+  tx: Tx,
+  supplierId: number,
+  kind: 'CHI_HO' | 'CUOC',
+  basisDate: string,
+) {
+  const snapshot = await resolveSupplierPaymentDueDate(tx, supplierId, kind, basisDate);
+  if (!snapshot) return null;
+  return {
+    originalDueDate: snapshot.originalDate,
+    processingDueDate: snapshot.processingDate,
+    paymentTermDaysApplied: snapshot.paymentTermDays,
+    paymentDatePolicyApplied: snapshot.policy,
+  } as const;
+}
 
 /** Common trip shape for ledger completion/reversal operations */
 interface TripLedgerParams {
@@ -260,6 +283,17 @@ export class LedgerService {
       paymentDatePolicyApplied: dueDateSnapshot.policy,
     } as const;
 
+    // O2C rev1 §B0: resolve supplier payment terms per kind. Fuel-supplier
+    // payables (FUEL_EXPENSE) use chi-hộ terms; external-carrier payables
+    // (EXTERNAL_CARRIER_COST) use cước terms. Both null when the supplier has
+    // no term set → ledger leaves paymentTermDaysApplied null (feature opt-in).
+    const fuelSupplierDueDateFields = trip.fuelSupplierId
+      ? await buildSupplierDueDateFields(tx, trip.fuelSupplierId, 'CHI_HO', basisDate)
+      : null;
+    const carrierSupplierDueDateFields = (carrierType === 'EXTERNAL' && resolveExternalCarrierId(trip))
+      ? await buildSupplierDueDateFields(tx, resolveExternalCarrierId(trip)!, 'CUOC', basisDate)
+      : null;
+
     // ── 2. Customer freight revenue (always incl-VAT, unchanged) ──
     // Skip zero-value entries to avoid polluting ledger with meaningless rows.
     if (revenue > 0) {
@@ -301,6 +335,7 @@ export class LedgerService {
         debit: 0,
         credit: fuelCost,
         note: label ? `Chi phí dầu chuyến ${label}` : 'Chi phí dầu chuyến',
+        ...(fuelSupplierDueDateFields ?? {}),
         financialPostingId: opts?.financialPostingId ?? null,
       });
     }
@@ -316,6 +351,7 @@ export class LedgerService {
         debit: 0,
         credit: Number(trip.externalFreightCost),  // credit → negative balance = we owe them
         note: label ? `Cước thuê ngoài chuyến ${label}` : 'Cước thuê ngoài',
+        ...(carrierSupplierDueDateFields ?? {}),
         financialPostingId: opts?.financialPostingId ?? null,
       });
     }

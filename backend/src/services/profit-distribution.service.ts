@@ -370,7 +370,11 @@ async function computeDistributionSnapshot(
     financialPostingId: s.tripFinancialPostings.id,
     financialPostingVersion: s.tripFinancialPostings.version,
     truckId: s.trips.truckId,
-    grossProfit: s.trips.grossProfit,
+    // O2C H4: read the completion-time snapshot, not the mutable live value.
+    // Falls back to grossProfit for trips completed before the snapshot column
+    // existed (coalesce at the application layer below).
+    grossProfit: s.trips.pnlSnapshotGrossProfit,
+    liveGrossProfit: s.trips.grossProfit,
     completedAt: s.trips.completedAt,
   }).from(s.trips)
     .leftJoin(s.tripFinancialPostings, and(
@@ -392,7 +396,8 @@ async function computeDistributionSnapshot(
   for (const t of trips) {
     if (t.truckId == null) continue; // trips without a truck cannot be attributed
     tripCount++;
-    const profit = parseFloat(t.grossProfit || '0');
+    // O2C H4: prefer the frozen snapshot; fall back to live for legacy rows.
+    const profit = parseFloat(t.grossProfit ?? t.liveGrossProfit ?? '0');
     profitByTruck.set(t.truckId, (profitByTruck.get(t.truckId) ?? 0) + profit);
   }
 

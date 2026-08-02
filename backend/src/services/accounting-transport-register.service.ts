@@ -92,7 +92,12 @@ function conditionsFor(input: AccountingTransportRegisterQuery): SQL[] {
   ];
   if (input.customerId != null) conditions.push(eq(s.trips.customerId, input.customerId));
   // External carrier is now a soft pointer (external_entity_id for CUSTOMER-typed).
-  if (input.carrierId != null) conditions.push(eq(s.trips.externalEntityId, input.carrierId));
+  // O2C H3: constrain to CUSTOMER type so a SUPPLIER-typed entity sharing the
+  // same id can't produce a false match.
+  if (input.carrierId != null) {
+    conditions.push(eq(s.trips.externalEntityId, input.carrierId));
+    conditions.push(eq(s.trips.externalEntityType, 'CUSTOMER'));
+  }
   if (input.ownership != null) conditions.push(eq(s.trips.carrierType, input.ownership));
   if (input.readiness === 'READY') conditions.push(isNotNull(s.profitabilitySnapshots.id));
   if (input.readiness === 'MISSING_PROFITABILITY_SNAPSHOT') conditions.push(isNull(s.profitabilitySnapshots.id));
@@ -178,7 +183,7 @@ export async function listAccountingTransportRows(
     ))
     .leftJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
     .leftJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
-    .leftJoin(carrier, eq(carrier.id, s.trips.externalEntityId))
+    .leftJoin(carrier, and(eq(carrier.id, s.trips.externalEntityId), eq(s.trips.externalEntityType, 'CUSTOMER')))
     .leftJoin(containerProjection, eq(containerProjection.tripId, s.trips.id))
     .leftJoin(
       carrierPayableProjection,
@@ -202,7 +207,7 @@ export async function listAccountingTransportRows(
     ))
     .leftJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
     .leftJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
-    .leftJoin(carrier, eq(carrier.id, s.trips.externalEntityId))
+    .leftJoin(carrier, and(eq(carrier.id, s.trips.externalEntityId), eq(s.trips.externalEntityType, 'CUSTOMER')))
     .leftJoin(containerProjection, eq(containerProjection.tripId, s.trips.id))
     .leftJoin(
       carrierPayableProjection,

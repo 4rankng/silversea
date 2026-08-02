@@ -153,6 +153,48 @@ export async function resolveCustomerPaymentDueDate(
   };
 }
 
+/**
+ * O2C rev1 §B0: resolve a supplier's payment due date for ONE financial
+ * obligation. Suppliers carry two distinct debt milestones (`chiHoDueDays`
+ * for chi-hộ disbursements, `cuocDueDays` for freight/cước) — the caller
+ * selects which via `kind`. Unlike customers, suppliers have no
+ * `paymentDatePolicy` column; we default to CALENDAR_DAY (no business-day
+ * rolling) to keep supplier due dates predictable.
+ *
+ * Returns `paymentTermDays: null` when the supplier field is unset, so the
+ * ledger can leave `paymentTermDaysApplied` null and aging falls back to its
+ * global default — feature is opt-in per supplier per kind.
+ */
+export async function resolveSupplierPaymentDueDate(
+  tx: Tx,
+  supplierId: number,
+  kind: 'CHI_HO' | 'CUOC',
+  basisDate: string,
+): Promise<PaymentDueDateSnapshot | null> {
+  parseIsoDate(basisDate);
+  const [supplier] = await tx.select({
+    chiHoDueDays: s.suppliers.chiHoDueDays,
+    cuocDueDays: s.suppliers.cuocDueDays,
+  })
+    .from(s.suppliers)
+    .where(eq(s.suppliers.id, supplierId))
+    .limit(1);
+  if (!supplier) {
+    throw new Error(`Không tìm thấy nhà cung cấp #${supplierId} để chốt hạn thanh toán`);
+  }
+
+  const paymentTermDays = kind === 'CHI_HO' ? supplier.chiHoDueDays : supplier.cuocDueDays;
+  if (paymentTermDays == null) {
+    return null;  // unset → ledger leaves paymentTermDaysApplied null
+  }
+  const policy: PaymentDatePolicy = 'CALENDAR_DAY';
+  const originalDate = addCalendarDays(basisDate, paymentTermDays);
+  return {
+    ...resolveBusinessDate(originalDate, policy),
+    paymentTermDays,
+  };
+}
+
 export function calendarDaysOverdue(processingDate: string, asOf: Date = new Date()): number {
   const due = parseIsoDate(processingDate).getTime();
   const asOfDate = Date.UTC(asOf.getUTCFullYear(), asOf.getUTCMonth(), asOf.getUTCDate());

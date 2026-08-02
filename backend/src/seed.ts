@@ -112,11 +112,11 @@ async function seed() {
   }
 
   const supplierSeeds = [
-    { name: 'Petrolimex', contactPerson: 'Nguyễn Văn Hải', phone: '0901234567', taxCode: '0100100746', note: 'Nhà cung cấp xăng dầu chính', isFuelSupplier: true },
-    { name: 'PV Oil', contactPerson: 'Trần Thị Thảo', phone: '0907654321', taxCode: '0102716892', note: 'Nhà cung cấp xăng dầu dự phòng', isFuelSupplier: true },
-    { name: 'Gara Thành Đông', contactPerson: 'Lê Văn Đông', phone: '0912345678', taxCode: '0304567890', note: 'Xưởng sửa chữa xe chính', isFuelSupplier: false },
-    { name: 'Trạm Đăng kiểm 15-01S', contactPerson: 'Nguyễn Văn Đăng', phone: '02253888888', taxCode: '0304123456', note: 'Trung tâm đăng kiểm Hải Phòng', isFuelSupplier: false },
-    { name: 'Bảo hiểm Bảo Việt', contactPerson: 'Phạm Minh Việt', phone: '1900558899', taxCode: '0100111307', note: 'Công ty bảo hiểm', isFuelSupplier: false },
+    { name: 'Petrolimex', contactPerson: 'Nguyễn Văn Hải', phone: '0901234567', taxCode: '0100100746', note: 'Nhà cung cấp xăng dầu chính', isFuelSupplier: true, chiHoDueDays: 15, cuocDueDays: 30 },
+    { name: 'PV Oil', contactPerson: 'Trần Thị Thảo', phone: '0907654321', taxCode: '0102716892', note: 'Nhà cung cấp xăng dầu dự phòng', isFuelSupplier: true, chiHoDueDays: 15, cuocDueDays: 30 },
+    { name: 'Gara Thành Đông', contactPerson: 'Lê Văn Đông', phone: '0912345678', taxCode: '0304567890', note: 'Xưởng sửa chữa xe chính', isFuelSupplier: false, chiHoDueDays: 15 },
+    { name: 'Trạm Đăng kiểm 15-01S', contactPerson: 'Nguyễn Văn Đăng', phone: '02253888888', taxCode: '0304123456', note: 'Trung tâm đăng kiểm Hải Phòng', isFuelSupplier: false, chiHoDueDays: 15 },
+    { name: 'Bảo hiểm Bảo Việt', contactPerson: 'Phạm Minh Việt', phone: '1900558899', taxCode: '0100111307', note: 'Công ty bảo hiểm', isFuelSupplier: false, chiHoDueDays: 15 },
   ];
 
   const existingSuppliers = await db.select({ name: schema.suppliers.name }).from(schema.suppliers);

@@ -429,7 +429,9 @@ describe('Q18 bounded adjustment governance', () => {
     assert.equal(reopened.version, trip.version + 1);
   });
 
-  it('refuses reopen after accounting posting, debit-note issue, or payment allocation', async () => {
+  it('O2C C2: reopen IS allowed for completion postings (reversed); blocked on debit-note/payment', async () => {
+    // O2C: a TRIP_REVENUE ledger entry from completion is now reversible —
+    // reopen is ALLOWED (the governed reopen reverses it). Formerly blocked.
     const posted = await createTrip('COMPLETED');
     await db.insert(s.ledger).values({
       txnType: 'TRIP_REVENUE',
@@ -441,18 +443,17 @@ describe('Q18 bounded adjustment governance', () => {
       balance: '1000000',
       note: 'Posted trip authority',
     });
-    await expectApiError(
-      requestTripReopen({
-        tripId: posted.trip.id,
-        reason: 'Must not reopen posted accounting',
-        makerId: actors[1]!.id,
-        makerRole: Role.MANAGER,
-        expectedTripVersion: posted.trip.version,
-      }),
-      409,
-      /đã hạch toán|đã phát hành|đã thanh toán/,
-    );
+    // This should now SUCCEED at request time (no longer blocked on ledger).
+    const reopenAction = await requestTripReopen({
+      tripId: posted.trip.id,
+      reason: 'Reopen after completion — entries will be reversed',
+      makerId: actors[1]!.id,
+      makerRole: Role.MANAGER,
+      expectedTripVersion: posted.trip.version,
+    });
+    assert.ok(reopenAction.id, 'reopen request accepted for posted-completion trip');
 
+    // Debit-note issue still blocks (can't cleanly reverse a sent document).
     const issued = await createTrip('COMPLETED');
     const [document] = await db.insert(s.billingDocuments).values({
       type: 'DEBIT_NOTE',
@@ -511,7 +512,7 @@ describe('Q18 bounded adjustment governance', () => {
     assert.equal(unchanged.version, posted.trip.version);
   });
 
-  it('rechecks posting authority atomically when a reopen reaches approval', async () => {
+  it('O2C C2: reopen succeeds and reverses completion postings at approval', async () => {
     const { trip, customer } = await createTrip('COMPLETED');
     const action = await requestTripReopen({
       tripId: trip.id,
@@ -536,23 +537,19 @@ describe('Q18 bounded adjustment governance', () => {
       balance: '1000000',
       note: 'Posted after request',
     });
-    await expectApiError(
-      approveGovernanceAction({
-        actionId: action.id,
-        approverId: actors[2]!.id,
-        approverRole: Role.ADMIN,
-        expectedVersion: checked.version,
-      }),
-      409,
-      /đã hạch toán/,
-    );
-    const [unchangedTrip] = await db.select().from(s.trips)
+    // O2C C2: reopen now SUCCEEDS — the completion postings are reversed
+    // inside the approval transaction (formerly blocked with "đã hạch toán").
+    const approved = await approveGovernanceAction({
+      actionId: action.id,
+      approverId: actors[2]!.id,
+      approverRole: Role.ADMIN,
+      expectedVersion: checked.version,
+    });
+    assert.ok(approved, 'reopen approved');
+    const [reopenedTrip] = await db.select().from(s.trips)
       .where(eq(s.trips.id, trip.id));
-    const [pendingAction] = await db.select().from(s.governanceActions)
-      .where(eq(s.governanceActions.id, action.id));
-    assert.equal(unchangedTrip.status, 'COMPLETED');
-    assert.equal(unchangedTrip.version, trip.version);
-    assert.equal(pendingAction.status, 'PENDING_APPROVAL');
+    assert.equal(reopenedTrip.status, 'IN_TRANSIT');
+    assert.equal(reopenedTrip.completedAt, null);
   });
 
   it('serializes concurrent debit-note issue and reopen approval so exactly one wins', async () => {

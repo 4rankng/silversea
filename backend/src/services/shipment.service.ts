@@ -1055,12 +1055,26 @@ export async function reviewTripPodSubmission(args: {
   rejectionReason?: string | null;
   idempotencyKey: string;
   actor: AuthUser;
+  // O2C C1: the PRD says the accountant ticks "Đã thu hồi chứng từ gốc (POD)"
+  // on the same screen as e-POD acceptance. This flag sets podRecoveredAt
+  // inside the transaction, immediately before the completion transition,
+  // so the POD-recovery gate passes without a separate API call.
+  podRecovered?: boolean;
 }) {
   if (!isPodReviewWriter(args.actor)) {
     throw new ApiError(403, 'Bạn không có quyền duyệt e-POD.');
   }
   if (args.resolution === 'REJECT' && !args.rejectionReason?.trim()) {
     throw new ApiError(400, 'Cần nhập lý do từ chối e-POD.');
+  }
+  // O2C C1: if accepting and the trip doesn't yet have podRecoveredAt, the
+  // caller MUST pass podRecovered=true to confirm paper POD is in hand. This
+  // matches the PRD's "Kế toán/CUS đã tích chọn 'Đã thu hồi chứng từ gốc'".
+  if (args.resolution === 'ACCEPT' && !args.podRecovered) {
+    throw new ApiError(
+      400,
+      'Vui lòng xác nhận đã thu hồi chứng từ gốc (POD) trước khi duyệt e-POD.',
+    );
   }
 
   const normalizedReason = args.rejectionReason?.trim() || null;
@@ -1155,6 +1169,15 @@ export async function reviewTripPodSubmission(args: {
       }
 
       if (args.resolution === 'ACCEPT') {
+        // O2C C1: set podRecoveredAt inside the same tx so the POD-recovery
+        // gate in transitionTripStatus passes. Only set if not already set
+        // (idempotent — a prior /pod-recovered call may have done it).
+        if (row.trip.podRecoveredAt == null) {
+          await tx.update(s.trips).set({
+            podRecoveredAt: new Date(),
+            podRecoveredBy: args.actor.userId,
+          }).where(eq(s.trips.id, row.trip.id));
+        }
         await transitionTripStatus(
           row.trip.id,
           TripStatus.COMPLETED,

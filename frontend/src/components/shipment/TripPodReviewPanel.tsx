@@ -104,6 +104,14 @@ export function TripPodReviewPanel({
       : null;
     if (resolution === 'REJECT' && !rejectionReason) return;
 
+    // O2C C1: on ACCEPT, confirm the accountant has the paper POD in hand.
+    // The backend requires this flag before it will complete the trip.
+    let podRecovered = false;
+    if (resolution === 'ACCEPT') {
+      podRecovered = window.confirm('Xác nhận đã thu hồi chứng từ gốc (POD mộc đỏ)? Tiếp tục hoàn thành chuyến đi.');
+      if (!podRecovered) return;
+    }
+
     setPendingKey(`review-${submission.id}-${resolution}`);
     setError(null);
     try {
@@ -114,6 +122,7 @@ export function TripPodReviewPanel({
           expectedVersion: submission.version,
           resolution,
           rejectionReason,
+          podRecovered,
         },
         crypto.randomUUID(),
       );

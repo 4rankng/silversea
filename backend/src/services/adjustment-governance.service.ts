@@ -64,18 +64,13 @@ async function assertTripCanBeReopened(
   tx: Tx,
   tripId: number,
 ): Promise<void> {
-  const [posted] = await tx.select({ id: s.ledger.id }).from(s.ledger)
-    .where(and(
-      eq(s.ledger.txnType, TxnType.TRIP_REVENUE),
-      eq(s.ledger.txnId, tripId),
-    ))
-    .limit(1);
-  if (posted) {
-    throw new ApiError(
-      409,
-      'Chuyến đã hạch toán; chỉ được lập điều chỉnh bổ sung, không thể mở lại',
-    );
-  }
+  // O2C C2: under the old LOCKED model, this blocked on any TRIP_REVENUE
+  // ledger row (LOCKED carried no postings). Under the single-terminal model,
+  // completion ALWAYS posts TRIP_REVENUE — so the old block made reopen
+  // unreachable. Now we allow reopen: the canonical completion postings get
+  // reversed inside the reopen transaction. We still block on downstream
+  // constraints (debit notes, payment allocations) that can't be cleanly
+  // reversed.
 
   const [issued] = await tx.select({ id: s.billingDocuments.id })
     .from(s.billingDocumentLines)
@@ -278,6 +273,18 @@ export async function requestTripFinancialClose(input: {
     }
     if (trip.status !== TripStatus.IN_TRANSIT) {
       throw new ApiError(409, 'Chỉ có thể đề nghị hoàn thành chuyến đi đang chạy');
+    }
+    // O2C M4: fail-fast on missing photos at request time, not at approval
+    // time (so maker/checker/approver don't waste cycles on a trip that will
+    // 422 on the photo gate). The governed close bypasses confirmZeroRevenue
+    // (governance reviewed it) but NOT the photo gate (physical evidence).
+    const photos = await tx.select({ type: s.tripPhotos.type })
+      .from(s.tripPhotos).where(eq(s.tripPhotos.tripId, trip.id));
+    if (photos.length === 0) {
+      throw new ApiError(
+        422,
+        'Chưa có ảnh bằng chứng. Vui lòng tải lên ít nhất 1 ảnh trước khi đề nghị hoàn thành.',
+      );
     }
     await assertNoPendingTripGovernanceAction(
       tx,
@@ -733,12 +740,56 @@ async function applyTripGovernanceAction(
       throw new ApiError(409, 'Chuyến đi không còn ở trạng thái đã chốt');
     }
     await assertTripCanBeReopened(tx, trip.id);
+
+    // O2C C2: reverse the canonical completion ledger entries so the reopen
+    // is balanced. Mirrors the CANCELED-completed-trip reversal in
+    // trip-status-machine.service.ts. Also retire the active financial posting
+    // and clear completedAt so the trip is cleanly back to IN_TRANSIT.
+    const ancillaryFees = await tx.select().from(s.tripExpenses)
+      .where(eq(s.tripExpenses.tripId, trip.id));
+    const activePosting = await getActiveFinancialPosting(tx, trip.id);
+    if (activePosting) {
+      await LedgerService.postTripCompletionReverse(tx, {
+        id: trip.id,
+        tripCode: trip.tripCode,
+        customerId: trip.customerId,
+        driverId: trip.driverId ?? null,
+        revenue: trip.revenue,
+        driverSalary: trip.driverSalary,
+        carrierType: trip.carrierType ?? 'OWN',
+        externalEntityId: trip.externalEntityId ?? null,
+        externalEntityType: trip.externalEntityType ?? null,
+        externalFreightCost: trip.externalFreightCost ?? null,
+        fuelSupplierId: trip.fuelSupplierId ?? null,
+        totalFuelCost: trip.totalFuelCost,
+        ancillaryFees: ancillaryFees.map(fee => ({
+          id: fee.id,
+          buyAmount: fee.buyAmount,
+          sellAmount: fee.sellAmount,
+          settlementMethod: fee.settlementMethod,
+          supplierId: fee.supplierId ?? null,
+          forwarderId: fee.forwarderId ?? null,
+          approvalStatus: fee.approvalStatus,
+        })),
+      }, { strict: false, financialPostingId: activePosting.id });
+      // Retire the active posting (mirrors createFinancialPosting's supersession).
+      // A new posting is created when the trip is re-completed.
+      await tx.update(s.tripFinancialPostings)
+        .set({ status: 'REVERSED' })
+        .where(and(
+          eq(s.tripFinancialPostings.id, activePosting.id),
+          eq(s.tripFinancialPostings.status, 'ACTIVE'),
+        ));
+    }
   }
 
   const [versionedTrip] = await tx.update(s.trips).set({
     // O2C: reopening a completed trip sends it back to IN_TRANSIT so it can be
-    // re-completed (re-running the gates) once corrected. Formerly LOCKED→COMPLETED.
-    ...(kind === 'TRIP_REOPEN' ? { status: 'IN_TRANSIT' as const } : {}),
+    // re-completed (re-running the gates) once corrected.
+    ...(kind === 'TRIP_REOPEN' ? {
+      status: 'IN_TRANSIT' as const,
+      completedAt: null,
+    } : {}),
     version: sql`${s.trips.version} + 1`,
     updatedAt: new Date(),
   }).where(and(

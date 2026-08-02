@@ -176,6 +176,8 @@ const reviewTripPodSchema = z.object({
   expectedVersion: z.number().int().positive(),
   resolution: z.enum(['ACCEPT', 'REJECT']),
   rejectionReason: z.string().trim().max(2_000).optional().nullable(),
+  // O2C C1: required when ACCEPT — confirms the accountant has the paper POD.
+  podRecovered: z.boolean().optional(),
 });
 
 const router = Router();
@@ -705,6 +707,7 @@ router.post(
       rejectionReason: parsed.data.rejectionReason ?? null,
       idempotencyKey,
       actor,
+      podRecovered: parsed.data.podRecovered ?? false,
     });
     res.locals.auditEntityId = reviewed.shipment.id;
     res.locals.auditEntityKey = reviewed.shipment.shipmentCode ?? "Lô hàng chưa có mã";

@@ -82,10 +82,18 @@ export class ArSnapshotService {
    */
   static async captureSnapshot(tripId: number, tx: DbOrTx): Promise<void> {
     const hash = await computeCostHash(tripId, tx);
+    // O2C H4: freeze grossProfit at completion so P&L reports read a stable
+    // value even if costs are edited afterwards. The mutable `grossProfit`
+    // column is the live figure; `pnlSnapshotGrossProfit` is the period-frozen
+    // figure that pnl.service / profit-distribution read.
+    const [trip] = await tx.select({
+      grossProfit: s.trips.grossProfit,
+    }).from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
     await tx.update(s.trips).set({
       arCostHash: hash,
       arSnapshotDirty: false,
       arSnapshotChangedAt: new Date(),
+      pnlSnapshotGrossProfit: trip?.grossProfit ?? null,
     }).where(eq(s.trips.id, tripId));
   }
 

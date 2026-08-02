@@ -220,6 +220,10 @@ function hasMaterialSupplierRelationChange(data: Partial<SupplierPayload>): bool
     'types',
     'primaryType',
     'isFuelSupplier',
+    // O2C rev1 §B0: dual payment terms directly set supplier AP due dates —
+    // money-relevant, must go through governance approval.
+    'chiHoDueDays',
+    'cuocDueDays',
   ].some((field) => field in data);
 }
 

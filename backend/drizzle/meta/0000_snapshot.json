@@ -1,5 +1,5 @@
 {
-  "id": "6df662d1-7482-4d27-aa57-788d0da9e936",
+  "id": "aade1a43-e8e6-49a0-8f37-a752977fb776",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -15100,6 +15100,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "chi_ho_due_days": {
+          "name": "chi_ho_due_days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cuoc_due_days": {
+          "name": "cuoc_due_days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -19051,6 +19063,12 @@
         "ar_snapshot_changed_at": {
           "name": "ar_snapshot_changed_at",
           "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pnl_snapshot_gross_profit": {
+          "name": "pnl_snapshot_gross_profit",
+          "type": "numeric(15, 0)",
           "primaryKey": false,
           "notNull": false
         },

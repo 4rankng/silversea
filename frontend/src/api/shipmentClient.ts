@@ -338,6 +338,8 @@ export interface ReviewShipmentPodRequest {
   expectedVersion: number;
   resolution: 'ACCEPT' | 'REJECT';
   rejectionReason?: string | null;
+  /** O2C C1: required when ACCEPT — confirms paper POD is in hand. */
+  podRecovered?: boolean;
 }
 
 export interface ReviewShipmentPodResponse {

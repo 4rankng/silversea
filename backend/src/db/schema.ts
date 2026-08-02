@@ -215,6 +215,11 @@ export const suppliers = pgTable('suppliers', {
   // existing reads keep working unchanged.
   types: text('types').array(),
   primaryType: varchar('primary_type', { length: 30 }),
+  // O2C rev1 §B0: a real NCC has two distinct debt milestones — chi-hộ
+  // disbursements and freight/cước. Both nullable: NULL = unset (the ledger
+  // post leaves paymentTermDaysApplied null and aging falls back to default).
+  chiHoDueDays: integer('chi_ho_due_days'),
+  cuocDueDays: integer('cuoc_due_days'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
@@ -720,6 +725,12 @@ export const trips = pgTable('trips', {
   arCostHash: varchar('ar_cost_hash', { length: 64 }),
   arSnapshotDirty: boolean('ar_snapshot_dirty').notNull().default(false),
   arSnapshotChangedAt: timestamp('ar_snapshot_changed_at', { withTimezone: true }),
+  // O2C H4: P&L snapshot of grossProfit captured at completion. The mutable
+  // `grossProfit` column can drift if costs are edited post-completion; P&L
+  // reports (pnl.service, profit-distribution, fuel-variance) read this frozen
+  // snapshot so a closed period's totals don't silently change. NULL for
+  // in-progress trips; set by captureSnapshot at IN_TRANSIT → COMPLETED.
+  pnlSnapshotGrossProfit: numeric('pnl_snapshot_gross_profit', { precision: 15, scale: 0 }),
   // O2C field ops hand-off timestamps (Phase 4): Ops paper-order collected +
   // Driver order-accepted. Nullable; populated by the FORWARDER/DRIVER endpoints.
   paperOrderCollectedAt: timestamp('paper_order_collected_at', { withTimezone: true }),
