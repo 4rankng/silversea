@@ -1,5 +1,5 @@
 {
-  "id": "37b9ceaf-6b38-478b-8440-9b74846a7997",
+  "id": "6df662d1-7482-4d27-aa57-788d0da9e936",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -3787,6 +3787,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "freight_payment_term_days": {
+          "name": "freight_payment_term_days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "agency_fee_payment_term_days": {
+          "name": "agency_fee_payment_term_days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "payment_date_policy": {
           "name": "payment_date_policy",
           "type": "varchar(30)",
@@ -7327,6 +7339,127 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.fuel_surcharge_configs": {
+      "name": "fuel_surcharge_configs",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "customer_id": {
+          "name": "customer_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "share_rate": {
+          "name": "share_rate",
+          "type": "numeric(5, 4)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "base_fuel_price": {
+          "name": "base_fuel_price",
+          "type": "numeric(10, 0)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "effective_date": {
+          "name": "effective_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "fuel_surcharge_customer_active_uniq": {
+          "name": "fuel_surcharge_customer_active_uniq",
+          "columns": [
+            {
+              "expression": "customer_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"fuel_surcharge_configs\".\"deleted_at\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "fuel_surcharge_configs_customer_id_customers_id_fk": {
+          "name": "fuel_surcharge_configs_customer_id_customers_id_fk",
+          "tableFrom": "fuel_surcharge_configs",
+          "tableTo": "customers",
+          "columnsFrom": [
+            "customer_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "fuel_surcharge_configs_created_by_users_id_fk": {
+          "name": "fuel_surcharge_configs_created_by_users_id_fk",
+          "tableFrom": "fuel_surcharge_configs",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.governance_actions": {
       "name": "governance_actions",
       "schema": "",
@@ -8405,6 +8538,14 @@
           "primaryKey": false,
           "notNull": true
         },
+        "cargo_state": {
+          "name": "cargo_state",
+          "type": "lift_cargo_state",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'LOADED'"
+        },
         "unit_price": {
           "name": "unit_price",
           "type": "numeric(15, 0)",
@@ -8452,8 +8593,8 @@
         }
       },
       "indexes": {
-        "lift_pricing_port_type_dir_date_idx": {
-          "name": "lift_pricing_port_type_dir_date_idx",
+        "lift_pricing_port_type_state_dir_date_idx": {
+          "name": "lift_pricing_port_type_state_dir_date_idx",
           "columns": [
             {
               "expression": "port_id",
@@ -8463,6 +8604,12 @@
             },
             {
               "expression": "container_type_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "cargo_state",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -18722,6 +18869,12 @@
           "notNull": false,
           "default": "'0'"
         },
+        "storage_fee_revenue": {
+          "name": "storage_fee_revenue",
+          "type": "numeric(15, 0)",
+          "primaryKey": false,
+          "notNull": false
+        },
         "gross_profit": {
           "name": "gross_profit",
           "type": "numeric(15, 0)",
@@ -20643,6 +20796,14 @@
         "SEEN",
         "ACCEPTED",
         "REJECTED"
+      ]
+    },
+    "public.lift_cargo_state": {
+      "name": "lift_cargo_state",
+      "schema": "public",
+      "values": [
+        "EMPTY",
+        "LOADED"
       ]
     },
     "public.lift_direction": {

@@ -15,6 +15,7 @@ CREATE TYPE "public"."email_status" AS ENUM('PENDING', 'SENT', 'FAILED', 'OPENED
 CREATE TYPE "public"."fuel_mode" AS ENUM('AUTO', 'FLAT_RATE');--> statement-breakpoint
 CREATE TYPE "public"."fulfillment_cancellation_disposition" AS ENUM('REPLACED', 'NOT_REQUIRED');--> statement-breakpoint
 CREATE TYPE "public"."handoff_status" AS ENUM('UNSEEN', 'SEEN', 'ACCEPTED', 'REJECTED');--> statement-breakpoint
+CREATE TYPE "public"."lift_cargo_state" AS ENUM('EMPTY', 'LOADED');--> statement-breakpoint
 CREATE TYPE "public"."lift_direction" AS ENUM('LIFT_UP', 'LIFT_DOWN');--> statement-breakpoint
 CREATE TYPE "public"."loading_type" AS ENUM('HANG', 'VO');--> statement-breakpoint
 CREATE TYPE "public"."master_import_row_classification" AS ENUM('ACCEPTED', 'BLOCKED', 'TEMPLATE', 'EXAMPLE');--> statement-breakpoint
@@ -468,6 +469,8 @@ CREATE TABLE "customers" (
 	"credit_limit" numeric(15, 0),
 	"credit_warning_threshold" numeric(3, 2),
 	"payment_term_days" integer,
+	"freight_payment_term_days" integer,
+	"agency_fee_payment_term_days" integer,
 	"payment_date_policy" varchar(30) DEFAULT 'NEXT_BUSINESS_DAY' NOT NULL,
 	"status" "customer_status" DEFAULT 'ACTIVE',
 	"is_carrier" boolean DEFAULT false NOT NULL,
@@ -828,6 +831,19 @@ CREATE TABLE "fuel_recon_explanations" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "fuel_surcharge_configs" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"customer_id" integer NOT NULL,
+	"share_rate" numeric(5, 4) DEFAULT '0' NOT NULL,
+	"base_fuel_price" numeric(10, 0) NOT NULL,
+	"effective_date" date DEFAULT now() NOT NULL,
+	"note" text,
+	"created_by" integer,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	"deleted_at" timestamp
+);
+--> statement-breakpoint
 CREATE TABLE "governance_actions" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"subject_type" varchar(30) NOT NULL,
@@ -936,6 +952,7 @@ CREATE TABLE "lift_pricing" (
 	"port_id" integer NOT NULL,
 	"container_type_id" integer NOT NULL,
 	"direction" "lift_direction" NOT NULL,
+	"cargo_state" "lift_cargo_state" DEFAULT 'LOADED' NOT NULL,
 	"unit_price" numeric(15, 0) NOT NULL,
 	"effective_date" date DEFAULT now() NOT NULL,
 	"note" text,
@@ -2004,6 +2021,7 @@ CREATE TABLE "trips" (
 	"revenue_combine" numeric(15, 0) DEFAULT '0',
 	"two_point_delivery_bonus" numeric(15, 0) DEFAULT '0',
 	"vehicle_shift_allowance" numeric(15, 0) DEFAULT '0',
+	"storage_fee_revenue" numeric(15, 0),
 	"gross_profit" numeric(15, 0),
 	"revenue_original" numeric(15, 0),
 	"revenue_overridden_by" integer,
@@ -2271,6 +2289,8 @@ ALTER TABLE "fuel_period_adjustments" ADD CONSTRAINT "fuel_period_adjustments_so
 ALTER TABLE "fuel_price_history" ADD CONSTRAINT "fuel_price_history_changed_by_users_id_fk" FOREIGN KEY ("changed_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "fuel_recon_explanations" ADD CONSTRAINT "fuel_recon_explanations_supplier_id_suppliers_id_fk" FOREIGN KEY ("supplier_id") REFERENCES "public"."suppliers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "fuel_recon_explanations" ADD CONSTRAINT "fuel_recon_explanations_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "fuel_surcharge_configs" ADD CONSTRAINT "fuel_surcharge_configs_customer_id_customers_id_fk" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "fuel_surcharge_configs" ADD CONSTRAINT "fuel_surcharge_configs_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "governance_actions" ADD CONSTRAINT "governance_actions_original_period_lock_id_period_locks_id_fk" FOREIGN KEY ("original_period_lock_id") REFERENCES "public"."period_locks"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "governance_actions" ADD CONSTRAINT "governance_actions_maker_id_users_id_fk" FOREIGN KEY ("maker_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "governance_actions" ADD CONSTRAINT "governance_actions_checker_id_users_id_fk" FOREIGN KEY ("checker_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -2531,6 +2551,7 @@ CREATE INDEX "fuel_period_adjustments_source_idx" ON "fuel_period_adjustments" U
 CREATE INDEX "fuel_period_adjustments_target_idx" ON "fuel_period_adjustments" USING btree ("target_period","created_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "fuel_recon_explanations_supplier_period_uniq" ON "fuel_recon_explanations" USING btree ("supplier_id","period_from","period_to");--> statement-breakpoint
 CREATE INDEX "fuel_recon_explanations_supplier_idx" ON "fuel_recon_explanations" USING btree ("supplier_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "fuel_surcharge_customer_active_uniq" ON "fuel_surcharge_configs" USING btree ("customer_id") WHERE "fuel_surcharge_configs"."deleted_at" is null;--> statement-breakpoint
 CREATE INDEX "governance_actions_subject_idx" ON "governance_actions" USING btree ("subject_type","subject_id","created_at");--> statement-breakpoint
 CREATE INDEX "governance_actions_subject_key_idx" ON "governance_actions" USING btree ("subject_type","subject_key","created_at");--> statement-breakpoint
 CREATE INDEX "governance_actions_status_idx" ON "governance_actions" USING btree ("status","created_at");--> statement-breakpoint
@@ -2544,7 +2565,7 @@ CREATE INDEX "ledger_entity_entity_id_idx" ON "ledger" USING btree ("entity_type
 CREATE INDEX "ledger_entity_txn_timestamp_idx" ON "ledger" USING btree ("entity_type","txn_type","timestamp");--> statement-breakpoint
 CREATE INDEX "ledger_financial_posting_idx" ON "ledger" USING btree ("financial_posting_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "ledger_forwarder_settlement_once_idx" ON "ledger" USING btree ("txn_type","txn_id","entity_type","entity_id") WHERE "ledger"."txn_type" = 'FORWARDER_SETTLEMENT';--> statement-breakpoint
-CREATE INDEX "lift_pricing_port_type_dir_date_idx" ON "lift_pricing" USING btree ("port_id","container_type_id","direction","effective_date");--> statement-breakpoint
+CREATE INDEX "lift_pricing_port_type_state_dir_date_idx" ON "lift_pricing" USING btree ("port_id","container_type_id","cargo_state","direction","effective_date");--> statement-breakpoint
 CREATE UNIQUE INDEX "master_import_batches_hash_parser_uniq_idx" ON "master_import_batches" USING btree ("source_file_hash","parser_version");--> statement-breakpoint
 CREATE UNIQUE INDEX "master_import_rows_batch_sheet_row_uniq_idx" ON "master_import_row_results" USING btree ("batch_id","sheet_name","row_number");--> statement-breakpoint
 CREATE INDEX "master_import_rows_batch_class_idx" ON "master_import_row_results" USING btree ("batch_id","classification");--> statement-breakpoint

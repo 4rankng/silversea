@@ -60,6 +60,10 @@ export const onboardingTaskStatusEnum = pgEnum('onboarding_task_status', ['pendi
 // ─── Wave 1: Pricing & Fuel enums ───────────────────────────────────────────
 // Direction of a lift (nâng/hạ) container movement at a port/yard.
 export const liftDirectionEnum = pgEnum('lift_direction', ['LIFT_UP', 'LIFT_DOWN']);
+// O2C B3: cargo state for the lift-pricing matrix. The customer's port-fee
+// schedule (THÔNG TIN CẢNG BÃI) prices lifts differently for empty vs loaded
+// containers (Container Rỗng vs Container Hàng).
+export const liftCargoStateEnum = pgEnum('lift_cargo_state', ['EMPTY', 'LOADED']);
 // Type of ancillary (non-transport) revenue. PRD M2.5 §1 proposes this set;
 // additional types can be added via ALTER TYPE ADD VALUE if the customer
 // confirms more.
@@ -280,6 +284,13 @@ export const customers = pgTable('customers', {
   // Wave 3: payment-term days for this customer (e.g. 30 = net 30). Used by
   // M5.1 to compute overdue-days. NULL = use the global default.
   paymentTermDays: integer('payment_term_days'),
+  // O2C G1: dual payment terms — the customer's HĐVC specifies two independent
+  // due-date windows. HẠN TT CƯỚC (freight) and HẠN TT CHI HỘ (agency/chi hộ
+  // fees) have different term lengths (e.g. Long Minh: freight=15d, chi hộ=25d).
+  // The aging report and debit-note due-date computation key off the matching
+  // term per line type. NULL = fall back to paymentTermDays.
+  freightPaymentTermDays: integer('freight_payment_term_days'),
+  agencyFeePaymentTermDays: integer('agency_fee_payment_term_days'),
   // Q19: contract-level override. The default rolls a due/processing date that
   // lands on a weekend or configured holiday to the next business day.
   paymentDatePolicy: varchar('payment_date_policy', { length: 30 })
@@ -473,14 +484,19 @@ export const weightPricingTiers = pgTable('weight_pricing_tiers', {
   index('weight_pricing_tiers_route_cargo_date_idx').on(table.routeId, table.cargoTypeId, table.effectiveDate),
 ]);
 
-// M2.4: lift/up-down (nâng/hạ) price catalog. Port × containerType ×
-// direction × effectiveDate → unitPrice. The forwarder expense-entry flow
-// (future item) suggests the price and shows suggested/actual/delta.
+// M2.4 + O2C B3: lift/up-down (nâng/hạ) price catalog. Port × containerType ×
+// direction × cargoState × effectiveDate → unitPrice. The customer's port-fee
+// schedule prices empty vs loaded containers differently. The forwarder
+// expense-entry flow suggests the price and shows suggested/actual/delta.
 export const liftPricing = pgTable('lift_pricing', {
   id: serial('id').primaryKey(),
   portId: integer('port_id').references(() => ports.id).notNull(),
   containerTypeId: integer('container_type_id').references(() => containerTypes.id).notNull(),
   direction: liftDirectionEnum('direction').notNull(),
+  // O2C B3: EMPTY (Container Rỗng) vs LOADED (Container Hàng) — the port-fee
+  // matrix has separate columns for each. Defaults LOADED so existing rows
+  // (pre-O2C) are treated as loaded (the more common case).
+  cargoState: liftCargoStateEnum('cargo_state').notNull().default('LOADED'),
   unitPrice: numeric('unit_price', { precision: 15, scale: 0 }).notNull(),
   effectiveDate: date('effective_date').notNull().defaultNow(),
   note: text('note'),
@@ -489,7 +505,7 @@ export const liftPricing = pgTable('lift_pricing', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
 }, (table) => [
-  index('lift_pricing_port_type_dir_date_idx').on(table.portId, table.containerTypeId, table.direction, table.effectiveDate),
+  index('lift_pricing_port_type_state_dir_date_idx').on(table.portId, table.containerTypeId, table.cargoState, table.direction, table.effectiveDate),
 ]);
 
 // M2.5: ancillary (non-transport) revenue. Each entry is recorded exactly
@@ -514,6 +530,31 @@ export const ancillaryRevenue = pgTable('ancillary_revenue', {
   index('ancillary_revenue_customer_date_idx').on(table.customerId, table.date),
   index('ancillary_revenue_shipment_idx').on(table.shipmentId),
   index('ancillary_revenue_trip_idx').on(table.tripId),
+]);
+
+// O2C B1: fuel-surcharge (phụ phí xăng dầu) configuration. The customer's
+// pricing template (MẪU BÁO GIÁ) computes: phụ phí = (giá dầu hiện tại − giá dầu
+// gốc) × định mức lít/km × số km × tỷ lệ chia sẻ % (per customer). This table
+// stores the per-customer share rate + the global base/current fuel prices live
+// in app_settings (fuelPriceApplied). Each row defines how much of the fuel
+// surcharge a customer bears (e.g. Long Minh 2%, ASKEY 4%, Sunrise 2.5%).
+export const fuelSurchargeConfigs = pgTable('fuel_surcharge_configs', {
+  id: serial('id').primaryKey(),
+  customerId: integer('customer_id').references(() => customers.id).notNull(),
+  // Tỷ lệ chia sẻ % (e.g. 0.02 = 2%). The customer's share of the fuel-cost
+  // delta. NULL or 0 = customer pays no surcharge.
+  shareRate: numeric('share_rate', { precision: 5, scale: 4 }).notNull().default('0'),
+  // Base fuel price (giá dầu gốc) locked at contract signing. The surcharge
+  // formula compares the current fuel price against this baseline.
+  baseFuelPrice: numeric('base_fuel_price', { precision: 10, scale: 0 }).notNull(),
+  effectiveDate: date('effective_date').notNull().defaultNow(),
+  note: text('note'),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),
+}, (table) => [
+  uniqueIndex('fuel_surcharge_customer_active_uniq').on(table.customerId).where(sql`${table.deletedAt} is null`),
 ]);
 
 // M12.1: per-route / per-truck fuel norms. Replaces the singleton fuel_config
@@ -611,6 +652,10 @@ export const trips = pgTable('trips', {
   revenueCombine: numeric('revenue_combine', { precision: 15, scale: 0 }).default('0'),
   twoPointDeliveryBonus: numeric('two_point_delivery_bonus', { precision: 15, scale: 0 }).default('0'),
   vehicleShiftAllowance: numeric('vehicle_shift_allowance', { precision: 15, scale: 0 }).default('0'),
+  // O2C C1: storage/demurrage fee (lưu ca xe). HĐVC §3.5: 1.000.000đ/cont/ngày
+  // after 8h free time. Recorded as a revenue line per trip when applicable.
+  // NULL = not assessed; the accountant enters it based on actual detention.
+  storageFeeRevenue: numeric('storage_fee_revenue', { precision: 15, scale: 0 }),
   grossProfit: numeric('gross_profit', { precision: 15, scale: 0 }),
   revenueOriginal: numeric('revenue_original', { precision: 15, scale: 0 }),
   revenueOverriddenBy: integer('revenue_overridden_by'),

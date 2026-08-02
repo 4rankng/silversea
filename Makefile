@@ -38,7 +38,7 @@ infra: ## Start only db and redis (+ adminer)
 DB_CONTAINER := silversea-db
 DB_NAME      := silversea
 DB_USER      := postgres
-MIGRATION_SQL := backend/drizzle/0000_black_kingpin.sql
+MIGRATION_SQL := $(shell ls backend/drizzle/0000_*.sql 2>/dev/null | head -1)
 
 migrate: ## Run database migrations (drizzle-kit)
 	cd backend && npx drizzle-kit migrate
