@@ -2,7 +2,7 @@
  * P0.4 — Model-tier spike (documented + evaluated).
  *
  * SPIKE RESULT (2026-07-13):
- *   Production metrics (pulled from nepo.tingting.vip) show all three MiniMax
+ *   Production metrics (pulled from the production deployment) show all three MiniMax
  *   models in rotation average ~15s LLM time per call:
  *     - MiniMax-M2.1-highspeed: avg 14.6s (21 turns, 9 errors)
  *     - MiniMax-M2.5-highspeed: avg 15.9s (8 turns, 4 errors)

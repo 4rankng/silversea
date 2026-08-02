@@ -45,7 +45,7 @@ services:
       - NODE_ENV=production
       - PORT=3090
       - UPLOAD_DIR=/app/backend/uploads
-      - CORS_ORIGIN=https://nepo.tingting.vip
+      - CORS_ORIGIN=https://vantai.tingting.vip
     expose:
       - "3090"
     ports:

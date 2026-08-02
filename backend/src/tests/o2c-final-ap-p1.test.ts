@@ -1,5 +1,6 @@
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { setTimeout as delay } from 'node:timers/promises';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { FuelMode, Role, TripStatus, TxnType } from '@tingting/shared';
 
@@ -333,6 +334,38 @@ async function prepareTripFinancialChange(tripId: number, expectedVersion: numbe
   };
 }
 
+function trackSettlement<T>(promise: Promise<T>) {
+  let settled = false;
+  const wrapped = promise.finally(() => {
+    settled = true;
+  });
+  return {
+    promise: wrapped,
+    isSettled: () => settled,
+  };
+}
+
+async function assertRemainsPending<T>(
+  label: string,
+  tracked: { promise: Promise<T>; isSettled: () => boolean },
+  timeoutMs = 100,
+) {
+  const outcome = await Promise.race([
+    tracked.promise.then(() => 'settled' as const, () => 'settled' as const),
+    delay(timeoutMs, 'timeout' as const),
+  ]);
+  assert.equal(
+    outcome,
+    'timeout',
+    `${label} settled before the trip financial authority lock was released`,
+  );
+  assert.equal(
+    tracked.isSettled(),
+    false,
+    `${label} unexpectedly settled while the trip financial authority lock was still held`,
+  );
+}
+
 describe('O2C final AP P1 fixes', () => {
   test('external-trip AP hash includes fuel and approved supplier payables', async () => {
     const { trip, expense } = await createTripFixture({
@@ -430,22 +463,25 @@ describe('O2C final AP P1 fixes', () => {
     });
     await holderReadyPromise;
 
-    const correctionPromise = approveGovernanceAction({
-      actionId: financialChange.checkedActionId,
-      approverId: financialChange.approverId,
-      approverRole: Role.ADMIN,
-      expectedVersion: financialChange.checkedVersion,
-    });
-    await new Promise((resolve) => setTimeout(resolve, 25));
-    const approvalPromise = approveGovernanceAction({
+    const approvalAttempt = trackSettlement(approveGovernanceAction({
       actionId: expenseApproval.checkedActionId,
       approverId: expenseApproval.approverId,
       approverRole: Role.ADMIN,
       expectedVersion: expenseApproval.checkedVersion,
-    });
+    }));
+    await assertRemainsPending('late approval', approvalAttempt);
+
+    const correctionAttempt = trackSettlement(approveGovernanceAction({
+      actionId: financialChange.checkedActionId,
+      approverId: financialChange.approverId,
+      approverRole: Role.ADMIN,
+      expectedVersion: financialChange.checkedVersion,
+    }));
+    await assertRemainsPending('completed-trip financial correction', correctionAttempt);
+
     releaseLock();
     await lockHolder;
-    await Promise.all([correctionPromise, approvalPromise]);
+    await Promise.all([approvalAttempt.promise, correctionAttempt.promise]);
 
     const [activePosting] = await db.select({
       id: s.tripFinancialPostings.id,
