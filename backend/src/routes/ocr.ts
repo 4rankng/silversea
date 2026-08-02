@@ -33,12 +33,24 @@ import {
   releaseStorageCleanupGuard,
   type StorageCleanupGuardLease,
 } from '../services/durable-effect.service';
+import { getOcrSettings, ocrHasAvailableKey } from '../services/ocr-settings.service';
+import { OCR_DISABLED_ERROR } from '../services/ocr.service';
 
 // auth + Casbin ('ocr') applied at mount point in index.ts. Both routes below
 // inherit casbinAuthz('ocr') from that single mount — no per-route policy.
 const router = Router();
 const OCR_PUMP_ENDPOINT = 'ocr.pump';
 let extractPumpReadingHandler = extractPumpReading;
+
+async function assertOcrRecognitionEnabled(): Promise<void> {
+  const settings = await getOcrSettings();
+  if (!settings.enabled) {
+    throw new ApiError(503, OCR_DISABLED_ERROR);
+  }
+  if (!ocrHasAvailableKey(settings)) {
+    throw new ApiError(503, 'OCR chưa cấu hình API key khả dụng.');
+  }
+}
 
 function withMaterialWriteAuditContext<T>(
   req: Request,
@@ -262,7 +274,6 @@ router.post('/', upload.single('file'), asyncHandler(async (req: Request, res: R
   if (!idempotencyKey) {
     throw new ApiError(400, 'Idempotency-Key là bắt buộc khi xử lý ảnh OCR.');
   }
-
   // container_id only makes sense with a trip to link it to.
   if (containerId !== null && tripId === null) {
     throw new ApiError(400, 'container_id yêu cầu trip_id');
@@ -304,6 +315,7 @@ router.post('/', upload.single('file'), asyncHandler(async (req: Request, res: R
       createdBy: user.userId,
       entityType: tripId === null ? 'OCR_PREVIEW' : 'TRIP_PHOTO',
       create: async (tx) => {
+        await assertOcrRecognitionEnabled();
         let photoUrl: string | undefined;
         let storageKey: string | undefined;
         let ocrBuffer = file.buffer;
@@ -389,6 +401,7 @@ router.post('/pump', upload.single('file'), asyncHandler(async (req: Request, re
     createdBy: getUser(req).userId,
     responseStatusCode: 200,
     create: async () => {
+      await assertOcrRecognitionEnabled();
       const result = await extractPumpReadingHandler(file.buffer, mimeType);
       return {
         ok: result.success,

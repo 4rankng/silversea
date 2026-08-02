@@ -28,9 +28,12 @@ import {
 } from './billingDocument.service';
 import {
   resolveCustomerPaymentDueDate,
+  resolveSupplierPaymentDueDate,
   type PaymentDatePolicy,
 } from './business-calendar.service';
+import { getActiveFinancialPosting } from './financial-posting.service';
 import { persistNotificationInTx } from './notification.service';
+import { SnapshotServices } from './snapshot-services';
 
 type DraftDocumentRow = typeof s.billingDocuments.$inferSelect;
 
@@ -597,6 +600,101 @@ async function appendLateApprovedServiceFeeTx(tx: Tx, expenseId: number): Promis
   });
 }
 
+async function appendLateApprovedVendorExpenseTx(tx: Tx, expenseId: number): Promise<void> {
+  const [expense] = await tx.select({
+    expenseId: s.tripExpenses.id,
+    tripId: s.tripExpenses.tripId,
+    supplierId: s.tripExpenses.supplierId,
+    buyAmount: s.tripExpenses.buyAmount,
+    settlementMethod: s.tripExpenses.settlementMethod,
+    approvalStatus: s.tripExpenses.approvalStatus,
+    tripCode: s.trips.tripCode,
+    tripStatus: s.trips.status,
+    departureDate: s.trips.departureDate,
+  })
+    .from(s.tripExpenses)
+    .innerJoin(s.trips, eq(s.tripExpenses.tripId, s.trips.id))
+    .where(eq(s.tripExpenses.id, expenseId))
+    .limit(1);
+  if (
+    !expense
+    || expense.tripStatus !== 'COMPLETED'
+    || expense.approvalStatus !== 'APPROVED'
+    || expense.supplierId == null
+    || expense.settlementMethod !== 'COMPANY_DIRECT'
+    || Number(expense.buyAmount ?? 0) <= 0
+  ) {
+    return;
+  }
+  if (!expense.departureDate) {
+    throw new ApiError(400, 'Ngày khởi hành là bắt buộc trước khi ghi nhận công nợ NCC cho chi phí đã duyệt');
+  }
+
+  const existingRows = await tx.select({
+    id: s.ledger.id,
+    debit: s.ledger.debit,
+    credit: s.ledger.credit,
+    originalDueDate: s.ledger.originalDueDate,
+    processingDueDate: s.ledger.processingDueDate,
+    paymentTermDaysApplied: s.ledger.paymentTermDaysApplied,
+    paymentDatePolicyApplied: s.ledger.paymentDatePolicyApplied,
+  })
+    .from(s.ledger)
+    .where(and(
+      eq(s.ledger.entityType, 'VENDOR'),
+      eq(s.ledger.entityId, expense.supplierId),
+      eq(s.ledger.txnId, expenseId),
+      or(
+        eq(s.ledger.txnType, TxnType.VENDOR_EXPENSE),
+        eq(s.ledger.txnType, TxnType.ADJUSTMENT),
+      ),
+    ));
+  const posted = existingRows.reduce((sum, row) => sum + Number(row.credit) - Number(row.debit), 0);
+  const delta = round2dp(Number(expense.buyAmount ?? 0) - posted);
+  if (delta === 0) return;
+
+  const basisDate = String(expense.departureDate).slice(0, 10);
+  const existingAuthority = [...existingRows]
+    .sort((left, right) => right.id - left.id)
+    .find((row) => row.originalDueDate && row.processingDueDate);
+  const resolvedAuthority = existingAuthority
+    ? null
+    : await resolveSupplierPaymentDueDate(tx, expense.supplierId, 'CHI_HO', basisDate);
+  const dueDateFields = existingAuthority
+    ? {
+        originalDueDate: existingAuthority.originalDueDate,
+        processingDueDate: existingAuthority.processingDueDate,
+        paymentTermDaysApplied: existingAuthority.paymentTermDaysApplied,
+        paymentDatePolicyApplied:
+          existingAuthority.paymentDatePolicyApplied as PaymentDatePolicy | null,
+      }
+    : (
+        resolvedAuthority
+          ? {
+              originalDueDate: resolvedAuthority.originalDate,
+              processingDueDate: resolvedAuthority.processingDate,
+              paymentTermDaysApplied: resolvedAuthority.paymentTermDays,
+              paymentDatePolicyApplied: resolvedAuthority.policy,
+            }
+          : {}
+      );
+  const activeFinancialPosting = await getActiveFinancialPosting(tx, expense.tripId);
+
+  await LedgerService.postEntry(tx, {
+    txnType: existingRows.length === 0 ? TxnType.VENDOR_EXPENSE : TxnType.ADJUSTMENT,
+    txnId: expense.expenseId,
+    entityType: 'VENDOR',
+    entityId: expense.supplierId,
+    debit: delta < 0 ? Math.abs(delta) : 0,
+    credit: delta > 0 ? delta : 0,
+    note: existingRows.length === 0
+      ? `Chi hộ NCC chuyến ${expense.tripCode ?? ''}`.trim()
+      : `Điều chỉnh chi hộ NCC chuyến ${expense.tripCode ?? ''}`.trim(),
+    ...dueDateFields,
+    financialPostingId: activeFinancialPosting?.id ?? null,
+  });
+}
+
 export async function propagateTripFinancialSourceChange(tx: Tx, input: {
   tripId: number;
 }): Promise<void> {
@@ -615,7 +713,19 @@ export async function propagateTripFinancialSourceChange(tx: Tx, input: {
 export async function propagateExpenseApproval(tx: Tx, input: {
   expenseId: number;
 }): Promise<void> {
+  const [expense] = await tx.select({
+    tripId: s.tripExpenses.tripId,
+    tripStatus: s.trips.status,
+  })
+    .from(s.tripExpenses)
+    .innerJoin(s.trips, eq(s.tripExpenses.tripId, s.trips.id))
+    .where(eq(s.tripExpenses.id, input.expenseId))
+    .limit(1);
   await appendLateApprovedServiceFeeTx(tx, input.expenseId);
+  await appendLateApprovedVendorExpenseTx(tx, input.expenseId);
+  if (expense?.tripStatus === 'COMPLETED') {
+    await SnapshotServices.markBothDirty(expense.tripId, tx);
+  }
   const desired = await buildExpenseDraftLineTx(tx, input.expenseId);
   await syncSourceAcrossDraftDocumentsTx(tx, 'EXPENSE', input.expenseId, desired);
   const issuedDocumentIds = await collectIssuedDocumentIdsForSourceTx(tx, 'EXPENSE', input.expenseId);

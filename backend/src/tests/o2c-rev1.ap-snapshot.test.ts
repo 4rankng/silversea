@@ -1,11 +1,16 @@
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eq, inArray, sql } from 'drizzle-orm';
-import { Role, TripStatus } from '@tingting/shared';
+import { FuelMode, Role, TripStatus, TxnType } from '@tingting/shared';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
-import { approveGovernanceAction, checkGovernanceAction, requestTripFinancialClose } from '../services/adjustment-governance.service';
+import {
+  approveGovernanceAction,
+  checkGovernanceAction,
+  requestTripFinancialChange,
+  requestTripFinancialClose,
+} from '../services/adjustment-governance.service';
 import { ApSnapshotService } from '../services/ap-snapshot.service';
 import { SnapshotServices } from '../services/snapshot-services';
 import { disconnectRedis } from '../lib/redis';
@@ -174,6 +179,19 @@ describe('O2C rev1 Phase 4 — AP snapshot dirtying', () => {
     }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
     assert.equal(updated?.arSnapshotDirty, true);
     assert.equal(updated?.apSnapshotDirty, false);
+
+    const ledgerRows = await db.select().from(s.ledger)
+      .where(eq(s.ledger.txnId, trip.id));
+    assert.equal(
+      ledgerRows.filter((row) => row.txnType === TxnType.TRIP_REVENUE).length,
+      1,
+      'dirtying snapshots alone must not repost revenue',
+    );
+    assert.equal(
+      ledgerRows.filter((row) => row.txnType === TxnType.UNLOCK_REVERSAL).length,
+      0,
+      'internal-only completed edits should mark AR dirty without emitting reversals',
+    );
   });
 
   test('supplier-tagged but non-payable fees do not dirty AP when they change', async () => {
@@ -245,6 +263,79 @@ describe('O2C rev1 Phase 4 — AP snapshot dirtying', () => {
     const [updated] = await db.select({ apSnapshotDirty: s.trips.apSnapshotDirty })
       .from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
     assert.equal(updated?.apSnapshotDirty, true);
+  });
+
+  test('a governed completed-trip correction reconciles the dirty fuel surcharge and reposts AR', async () => {
+    const { trip } = await createTripFixture();
+    const historicalComputedAt = new Date(0).toISOString();
+    await db.update(s.trips).set({
+      fuelSurchargeAmount: '321000',
+      fuelSurchargeSnapshot: {
+        currentFuelPrice: 25000,
+        baseFuelPrice: 20000,
+        quotaLiters: 128.4,
+        customerSharePct: 50,
+        customerId: trip.customerId,
+        computedAt: historicalComputedAt,
+      },
+    }).where(eq(s.trips.id, trip.id));
+    const completed = await completeTripGoverned(trip.id, trip.version);
+    await db.update(s.trips).set({ fuelSurchargeSnapshotDirty: true })
+      .where(eq(s.trips.id, trip.id));
+
+    const actorSuffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const actors = await db.insert(s.users).values([
+      { username: `ap-edit-maker-${actorSuffix}`, passwordHash: 'x', role: Role.MANAGER },
+      { username: `ap-edit-checker-${actorSuffix}`, passwordHash: 'x', role: Role.ACCOUNTANT },
+      { username: `ap-edit-approver-${actorSuffix}`, passwordHash: 'x', role: Role.ADMIN },
+    ]).returning({ id: s.users.id });
+    createdUserIds.push(...actors.map((actor) => actor.id));
+
+    const action = await requestTripFinancialChange({
+      tripId: trip.id,
+      reason: 'Đối soát lại phụ phí nhiên liệu đã thay đổi',
+      figures: {
+        legs: [],
+        fuelMode: FuelMode.AUTO,
+        fuelSupplementLiters: 0,
+        tollsDiscount: 0,
+        tollsAddition: 0,
+        tollsStations: 0,
+        hasReturnCargo: false,
+        revenue: 2_100_000,
+      },
+      makerId: actors[0]!.id,
+      makerRole: Role.MANAGER,
+      expectedTripVersion: completed.version,
+    });
+    const checked = await checkGovernanceAction({
+      actionId: action.id,
+      checkerId: actors[1]!.id,
+      checkerRole: Role.ACCOUNTANT,
+      expectedVersion: action.version,
+    });
+    await approveGovernanceAction({
+      actionId: action.id,
+      approverId: actors[2]!.id,
+      approverRole: Role.ADMIN,
+      expectedVersion: checked.version,
+    });
+
+    const [updated] = await db.select({
+      fuelSurchargeAmount: s.trips.fuelSurchargeAmount,
+      fuelSurchargeSnapshot: s.trips.fuelSurchargeSnapshot,
+      fuelSurchargeSnapshotDirty: s.trips.fuelSurchargeSnapshotDirty,
+      arSnapshotDirty: s.trips.arSnapshotDirty,
+      apSnapshotDirty: s.trips.apSnapshotDirty,
+    }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+    // This fixture has no configured customer share, so the governed correction
+    // recomputes to zero. The prior 321,000 remains auditable in the reversal
+    // ledger entry while the fresh posting carries the reconciled amount.
+    assert.equal(updated?.fuelSurchargeAmount, '0');
+    assert.notEqual(updated?.fuelSurchargeSnapshot?.computedAt, historicalComputedAt);
+    assert.equal(updated?.fuelSurchargeSnapshotDirty, false);
+    assert.equal(updated?.arSnapshotDirty, true);
+    assert.equal(updated?.apSnapshotDirty, false);
   });
 
   test('a real PostgreSQL statement failure during AP capture degrades without aborting completion', async () => {

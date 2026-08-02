@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import { db } from '../db';
 import { notifications } from '../db/schema';
-import { eq, and, desc, count, inArray, isNull } from 'drizzle-orm';
+import { eq, and, desc, count, inArray, isNull, sql } from 'drizzle-orm';
 import * as s from '../db/schema';
 import { NotificationType, FINANCIAL_ROLES, PUSH_RULES, Role, isFinancialRole } from '@tingting/shared';
 import * as pushService from './push.service';
@@ -123,19 +123,32 @@ async function generateNotification(
   const targets = await resolveTargets(payload, client);
   if (targets.length === 0) return;
 
-  const rows = targets.map(t => ({
-    userId: t.userId,
-    type: payload.type as (typeof notifications.type.enumValues)[number],
-    title: payload.title,
-    message: payload.message,
-    relatedEntityType: payload.relatedEntityType ?? null,
-    relatedEntityId: payload.relatedEntityId ?? null,
-    isRead: false,
-  }));
-  for (let index = 0; index < rows.length; index += NOTIFICATION_INSERT_BATCH_SIZE) {
-    await client.insert(notifications).values(
-      rows.slice(index, index + NOTIFICATION_INSERT_BATCH_SIZE),
-    );
+  const targetIds = targets.map((target) => target.userId);
+  for (let index = 0; index < targetIds.length; index += NOTIFICATION_INSERT_BATCH_SIZE) {
+    const batchIds = targetIds.slice(index, index + NOTIFICATION_INSERT_BATCH_SIZE);
+    await client.execute(sql`
+      insert into "notifications" (
+        "user_id",
+        "type",
+        "title",
+        "message",
+        "related_entity_type",
+        "related_entity_id",
+        "is_read"
+      )
+      select
+        ${s.users.id},
+        ${payload.type}::notification_type,
+        ${payload.title},
+        ${payload.message},
+        ${payload.relatedEntityType ?? null},
+        ${payload.relatedEntityId ?? null},
+        false
+      from "users"
+      where ${inArray(s.users.id, batchIds)}
+        and ${eq(s.users.status, 'ACTIVE')}
+        and ${isNull(s.users.deletedAt)}
+    `);
   }
 
   // High-value push whitelist: only listed event types wake a device, and

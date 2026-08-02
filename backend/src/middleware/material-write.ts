@@ -98,6 +98,7 @@ const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   { method: 'PUT', endpoint: 'admin.app-settings.update', pattern: /^\/api\/admin\/app-settings$/ },
   { method: 'PUT', endpoint: 'admin.gps-settings.update', pattern: /^\/api\/admin\/gps-settings$/ },
   { method: 'PUT', endpoint: 'admin.llm-settings.update', pattern: /^\/api\/admin\/llm-settings$/ },
+  { method: 'PUT', endpoint: 'admin.ocr-settings.update', pattern: /^\/api\/admin\/ocr-settings$/ },
   { method: 'POST', endpoint: 'expenses.governed-create', pattern: /^\/api\/expenses$/ },
   { method: 'PUT', endpoint: 'expenses.governed-update', pattern: /^\/api\/expenses\/[^/]+$/ },
   { method: 'PUT', endpoint: 'expenses.update', pattern: /^\/api\/expenses\/[^/]+$/ },

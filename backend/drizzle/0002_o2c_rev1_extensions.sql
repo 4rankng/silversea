@@ -4,9 +4,23 @@ ALTER TABLE "suppliers" ADD COLUMN IF NOT EXISTS "cuoc_due_days" integer;--> sta
 ALTER TABLE "customers" ADD COLUMN "fuel_surcharge_share_pct" numeric(5, 2);--> statement-breakpoint
 ALTER TABLE "fuel_config" ADD COLUMN "base_unit_price" numeric(10, 0);--> statement-breakpoint
 ALTER TABLE "lift_pricing" ADD COLUMN "load_state" "load_state" DEFAULT 'LOADED' NOT NULL;--> statement-breakpoint
-UPDATE "lift_pricing"
-SET "load_state" = "cargo_state"::text::"load_state"
-WHERE "cargo_state" IS NOT NULL;--> statement-breakpoint
+DO $$
+BEGIN
+  -- Some long-lived installations predate cargo_state. Drizzle's current
+  -- squashed baseline contains it, so a plain UPDATE only proves fresh-schema
+  -- migration and breaks upgrades from those deployed baselines.
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'lift_pricing'
+      AND column_name = 'cargo_state'
+  ) THEN
+    EXECUTE 'UPDATE "lift_pricing"
+      SET "load_state" = "cargo_state"::text::"load_state"
+      WHERE "cargo_state" IS NOT NULL';
+  END IF;
+END $$;--> statement-breakpoint
 ALTER TABLE "trips" ADD COLUMN "fuel_surcharge_amount" numeric(15, 0) DEFAULT '0' NOT NULL;--> statement-breakpoint
 ALTER TABLE "trips" ADD COLUMN "fuel_surcharge_snapshot" jsonb;--> statement-breakpoint
 ALTER TABLE "trips" ADD COLUMN "fuel_surcharge_snapshot_dirty" boolean DEFAULT false NOT NULL;--> statement-breakpoint

@@ -434,7 +434,7 @@ export async function createTrip(data: {
     // inline lookup. When source is FUEL_NORMS, the per-route/per-truck
     // values are used. The fuel unit price still comes from fuel_config
     // (it's a global price, not per-route) — this matches the existing model.
-    const [fuelCfgForPrice] = await db.select().from(s.fuelConfig).where(isNull(s.fuelConfig.deletedAt)).limit(1);
+    const [fuelCfgForPrice] = await tx.select().from(s.fuelConfig).where(isNull(s.fuelConfig.deletedAt)).limit(1);
     const fuelPriceApplied = fuelCfgForPrice ? Number(fuelCfgForPrice.unitPrice) : 0;
     const fuelLoadedNormApplied = fuelNorm.loadedLitersPer100Km;
     const fuelEmptyNormApplied = fuelNorm.emptyLitersPer100Km;
@@ -442,6 +442,53 @@ export async function createTrip(data: {
     const fuelSupplementNormApplied = fuelNorm.supplementLiters;
     const tollPerStationApplied = roadCfg ? Number(roadCfg.tollPerStation) : 0;
     const returnCargoBonusApplied = roadCfg ? Number(roadCfg.returnCargoBonus) : 0;
+
+    // Rev1 §B1 requires the surcharge as soon as the shipment/trip is created.
+    // At this point there are no persisted trip legs yet, so use the route's
+    // canonical default legs (or its single distance as a loaded-leg fallback)
+    // with the same shared fuel calculation used by later actuals. A subsequent
+    // figures update replaces this estimate with the actual leg snapshot.
+    const initialFuelLegs = route.defaultLegs?.length
+      ? route.defaultLegs.map((leg, index) => ({
+          sequence: index + 1,
+          km: leg.km,
+          loadingType: leg.loadingType,
+        }))
+      : route.distanceKm && route.distanceKm > 0
+        ? [{ sequence: 1, km: route.distanceKm, loadingType: 'HANG' as const }]
+        : [];
+    const initialFuelTotals = computeTripTotals({
+      legs: initialFuelLegs,
+      fuelMode: data.fuelMode ?? FuelMode.AUTO,
+      fuelLitersOverride: null,
+      fuelSupplementLiters: 0,
+      fuelLoadedNorm: fuelLoadedNormApplied,
+      fuelEmptyNorm: fuelEmptyNormApplied,
+      fuelPerTripSupplement: fuelSupplementNormApplied,
+      fuelUnitPrice: fuelPriceApplied,
+      fuelActualUnitPrice: data.fuelActualUnitPrice ?? null,
+      isMountainRoute: !!route.isMountain,
+      mountainFixedAllowance: fuelFixedAllowanceApplied > 0 ? fuelFixedAllowanceApplied : null,
+      roadAllowanceBase,
+      tollsDiscount: 0,
+      tollsAddition: 0,
+      tollsStations: route.tollsStations ?? 0,
+      tollPerStation: tollPerStationApplied,
+      hasReturnCargo: false,
+      returnCargoBonus: returnCargoBonusApplied,
+      revenue,
+      driverSalary: 0,
+      twoPointDeliveryBonus: 0,
+      vehicleShiftAllowance: 0,
+      vatRate: data.vatRate ?? 0,
+      carrierType: data.carrierType ?? 'OWN',
+      externalFreightCost: data.externalFreightCost ?? 0,
+    });
+    const initialFuelSurcharge = await resolveFuelSurcharge({
+      customerId: data.customerId,
+      fuelLiters: initialFuelTotals.totalFuelLiters,
+      date: new Date(`${data.departureDate}T00:00:00.000Z`),
+    });
 
     // 3. Atomic tripCode generation
     const tripCode = await generateTripCode(tx, data.departureDate);
@@ -501,6 +548,9 @@ export async function createTrip(data: {
       fuelSupplementNormApplied: String(fuelSupplementNormApplied),
       tollPerStationApplied: String(tollPerStationApplied),
       returnCargoBonusApplied: String(returnCargoBonusApplied),
+      fuelSurchargeAmount: String(initialFuelSurcharge.amount),
+      fuelSurchargeSnapshot: initialFuelSurcharge.snapshot as unknown as Record<string, unknown>,
+      fuelSurchargeSnapshotDirty: false,
 
       // External fields
       vatRate: data.vatRate !== undefined ? String(data.vatRate) : '0.000',
@@ -1027,24 +1077,20 @@ export async function updateTripFigures(
     };
 
     const totals = computeTripTotals(totalsInput);
-    // A completed trip's surcharge is an accounting snapshot. Ordinary governed
-    // edits may change litres/customer, but must leave the historical amount and
-    // provenance untouched; the dedicated audited recapture flow is the only
-    // operation that re-resolves live fuel/customer configuration.
-    const fuelSurcharge = tripStatus === TripStatus.COMPLETED
-      ? {
-          amount: Number(trip.fuelSurchargeAmount ?? 0),
-          snapshot: trip.fuelSurchargeSnapshot,
-          dirty: trip.fuelSurchargeSnapshotDirty,
-        }
-      : {
-          ...(await resolveFuelSurcharge({
-            customerId: data.customerId ?? trip.customerId,
-            fuelLiters: totals.totalFuelLiters,
-            date: new Date(`${data.departureDate ?? trip.departureDate}T00:00:00.000Z`),
-          })),
-          dirty: false,
-        };
+    // updateTripFigures is the canonical calculation path. On COMPLETED trips
+    // it is reachable only from an independently checked and approved financial
+    // correction, so this is also the safe authority for reconciling a dirty
+    // surcharge. The old amount is reversed below and the new amount is reposted
+    // under a fresh financial posting; the unaudited recapture endpoint never
+    // changes money.
+    const fuelSurcharge = {
+      ...(await resolveFuelSurcharge({
+        customerId: data.customerId ?? trip.customerId,
+        fuelLiters: totals.totalFuelLiters,
+        date: new Date(`${data.departureDate ?? trip.departureDate}T00:00:00.000Z`),
+      })),
+      dirty: false,
+    };
 
     // B3 / D4: pin the fuel component of committed legacy trips to stored
     // totals. computeTripTotals ran with the 0 sentinel price for these trips

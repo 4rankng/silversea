@@ -134,6 +134,11 @@ function renderPage() {
 
 describe('AppSettingsConfigPage', () => {
   beforeEach(() => {
+    mocks.appSettings.data.botEnabled = true;
+    mocks.appSettings.data.gpsEnabled = false;
+    mocks.ocrSettings.data.enabled = true;
+    mocks.ocrSettings.data.openrouterKeySet = true;
+    mocks.ocrSettings.data.geminiKeySet = false;
     mocks.saveAppSettings.mockReset().mockResolvedValue({
       botEnabled: true,
       gpsEnabled: false,
@@ -268,6 +273,34 @@ describe('AppSettingsConfigPage', () => {
     expect(mocks.saveLlmSettings).not.toHaveBeenCalled();
   });
 
+  it('stores a new chatbot provider key before enabling the chatbot', async () => {
+    mocks.appSettings.data.botEnabled = false;
+    renderPage();
+
+    fireEvent.click(screen.getByRole('radio', { name: /OpenRouter/ }));
+    fireEvent.change(screen.getByLabelText('OpenRouter API key'), {
+      target: { value: '  chatbot-openrouter-new  ' },
+    });
+    fireEvent.click(screen.getByRole('switch', { name: /Sử dụng trợ lý ảo/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu cài đặt trợ lý' }));
+
+    await waitFor(() => {
+      expect(mocks.saveLlmSettings).toHaveBeenCalledWith({
+        provider: 'openrouter',
+        openrouterApiKey: 'chatbot-openrouter-new',
+      });
+      expect(mocks.saveAppSettings).toHaveBeenCalledWith({
+        botEnabled: true,
+        gpsEnabled: false,
+        creditWarningThresholdDefault: 0.8,
+        creditTierOneAmountCap: 1000000,
+        salaryPayrollBusinessUnitId: null,
+      });
+    });
+    expect(mocks.saveLlmSettings.mock.invocationCallOrder[0])
+      .toBeLessThan(mocks.saveAppSettings.mock.invocationCallOrder[0]);
+  });
+
   it('saves the OCR toggle and replacement key through the independent OCR contract', async () => {
     renderPage();
 
@@ -284,5 +317,15 @@ describe('AppSettingsConfigPage', () => {
       });
     });
     expect(screen.getByRole('status').textContent).toContain('Đã lưu cài đặt nhận dạng OCR');
+  });
+
+  it('does not allow OCR to be enabled until at least one OCR key is available', () => {
+    mocks.ocrSettings.data.enabled = false;
+    mocks.ocrSettings.data.openrouterKeySet = false;
+    mocks.ocrSettings.data.geminiKeySet = false;
+    renderPage();
+
+    fireEvent.click(screen.getByRole('switch', { name: /Sử dụng OCR/ }));
+    expect((screen.getByRole('button', { name: 'Lưu cài đặt OCR' }) as HTMLButtonElement).disabled).toBe(true);
   });
 });

@@ -35,24 +35,12 @@ async function computeApHash(tripId: number, tx: DbOrTx): Promise<string> {
     fuelSupplierId: s.trips.fuelSupplierId,
     totalFuelCost: s.trips.totalFuelCost,
     externalEntityId: s.trips.externalEntityId,
+    externalEntityType: s.trips.externalEntityType,
     externalFreightCost: s.trips.externalFreightCost,
   }).from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
 
   if (!trip) {
     throw new Error(`Không tìm thấy chuyến ${tripId} để chụp AP snapshot`);
-  }
-
-  if ((trip.carrierType ?? 'OWN') === 'EXTERNAL') {
-    const payload = {
-      carrierType: 'EXTERNAL',
-      externalEntityId: trip.externalEntityId && Number(trip.externalFreightCost ?? 0) > 0
-        ? trip.externalEntityId
-        : null,
-      externalFreightCost: trip.externalEntityId && Number(trip.externalFreightCost ?? 0) > 0
-        ? round2dp(Number(trip.externalFreightCost ?? 0))
-        : null,
-    };
-    return createHash('sha256').update(JSON.stringify(payload)).digest('hex');
   }
 
   const expenses = await tx.select({
@@ -64,9 +52,19 @@ async function computeApHash(tripId: number, tx: DbOrTx): Promise<string> {
   }).from(s.tripExpenses).where(eq(s.tripExpenses.tripId, tripId));
 
   const supplierExpenses = collectApPayableExpenses(expenses);
+  const includeExternalCarrierPayable = (trip.carrierType ?? 'OWN') === 'EXTERNAL'
+    && trip.externalEntityType === 'CUSTOMER'
+    && trip.externalEntityId != null
+    && Number(trip.externalFreightCost ?? 0) > 0;
 
   const payload = {
-    carrierType: 'OWN',
+    carrierType: trip.carrierType ?? 'OWN',
+    externalEntityId: includeExternalCarrierPayable
+      ? trip.externalEntityId
+      : null,
+    externalFreightCost: includeExternalCarrierPayable
+      ? round2dp(Number(trip.externalFreightCost ?? 0))
+      : null,
     fuelSupplierId: trip.fuelSupplierId && Number(trip.totalFuelCost ?? 0) > 0
       ? trip.fuelSupplierId
       : null,

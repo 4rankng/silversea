@@ -35,6 +35,7 @@ import { useLlmSettings, useSaveLlmSettings } from '../../hooks/useLlmSettings';
 import { useOcrSettings, useSaveOcrSettings } from '../../hooks/useOcrSettings';
 import { usePageAnimations } from '../../hooks/animations';
 import { userClient } from '../../api/userClient';
+import { qk } from '../../api/keys';
 import { isGovernancePendingResponse } from '../../lib/governance';
 import './config-page.css';
 
@@ -173,7 +174,7 @@ export default function AppSettingsConfigPage() {
   const [creditWarningPercent, setCreditWarningPercent] = useState('80');
   const [creditTierOneCap, setCreditTierOneCap] = useState('0');
   const businessUnits = useQuery({
-    queryKey: ['business-units', 'app-settings'],
+    queryKey: qk.appSettings.businessUnits,
     queryFn: () => userClient.getBusinessUnits(),
   });
   const [provider, setProvider] = useState<LlmProvider>('minimax');
@@ -661,7 +662,7 @@ export default function AppSettingsConfigPage() {
             />
           </div>
           <p className="cfg-field-hint cfg-ocr-provider-note">
-            OCR ưu tiên OpenRouter và tự động chuyển sang Gemini khi nhà cung cấp chính không phản hồi.
+            OCR ưu tiên OpenRouter và tự động chuyển sang Gemini khi nhà cung cấp chính gặp lỗi.
           </p>
           <div className="cfg-form-actions">
             <button

@@ -755,6 +755,7 @@ async function applyTripGovernanceAction(
         customerId: trip.customerId,
         driverId: trip.driverId ?? null,
         revenue: trip.revenue,
+        fuelSurchargeAmount: trip.fuelSurchargeAmount,
         driverSalary: trip.driverSalary,
         carrierType: trip.carrierType ?? 'OWN',
         externalEntityId: trip.externalEntityId ?? null,

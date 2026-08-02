@@ -5,7 +5,7 @@ import { FuelMode, LoadingType, TxnType } from '@tingting/shared';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
-import { updateTripFigures } from '../services/trip-mutations.service';
+import { createTrip, updateTripFigures } from '../services/trip-mutations.service';
 import { buildTripRenderData, documentLedgerAdjustment } from '../services/billingDocument.service';
 import { resolveFuelSurcharge } from '../services/pricing.service';
 import { customerTripReceivableAmount, LedgerService } from '../services/ledger.service';
@@ -59,6 +59,7 @@ async function mkCustomer() {
 async function mkRoute() {
   const [route] = await db.insert(s.routes).values({
     name: `Fuel surcharge route ${suffix}-${createdRouteIds.length}`,
+    defaultLegs: [{ origin: 'HP', destination: 'HN', km: 100, loadingType: 'HANG' }],
   }).returning();
   createdRouteIds.push(route.id);
   return route;
@@ -190,6 +191,30 @@ describe('Phase 3 fuel surcharge', () => {
       note: updated.notes,
     });
     assert.equal(renderData.fuelSurchargeAmount, 250000);
+  });
+
+  test('createTrip snapshots the automatic surcharge from the route fuel quota', async () => {
+    const customer = await mkCustomer();
+    const route = await mkRoute();
+
+    const created = await createTrip({
+      customerId: customer.id,
+      routeId: route.id,
+      departureDate: '2026-08-02',
+      fuelMode: FuelMode.AUTO,
+    });
+    createdTripIds.push(created.id);
+
+    assert.equal(created.fuelSurchargeAmount, '250000');
+    assert.equal(created.fuelSurchargeSnapshotDirty, false);
+    assert.deepEqual(created.fuelSurchargeSnapshot, {
+      currentFuelPrice: 25000,
+      baseFuelPrice: 20000,
+      quotaLiters: 100,
+      customerSharePct: 50,
+      customerId: customer.id,
+      computedAt: created.fuelSurchargeSnapshot?.computedAt,
+    });
   });
 
   test('customer AR, debit-note authority, and reversal reconcile revenue plus incl-VAT surcharge exactly', async () => {

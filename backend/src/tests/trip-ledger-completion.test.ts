@@ -56,6 +56,7 @@ after(async () => {
 async function createInTransitTrip(values?: {
   revenue?: number;
   totalFuelCost?: number;
+  fuelSurchargeAmount?: number;
 }) {
   const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const [customer] = await db.insert(s.customers).values({ name: `Ledger customer ${suffix}` }).returning();
@@ -75,6 +76,7 @@ async function createInTransitTrip(values?: {
     status: TripStatus.IN_TRANSIT,
     departureDate: '2026-06-20',
     revenue: String(values?.revenue ?? 1_200_000),
+    fuelSurchargeAmount: String(values?.fuelSurchargeAmount ?? 0),
     totalFuelCost: String(values?.totalFuelCost ?? 300_000),
     fuelSupplierId: supplier.id,
     carrierType: 'OWN',
@@ -226,8 +228,10 @@ describe('trip completion ledger posting', () => {
     ));
   });
 
-  test('a posted completed trip cannot be reopened and its ledger stays intact', async () => {
-    const { trip } = await createInTransitTrip();
+  test('a posted completed trip can be reopened through governance and its ledger is reversed', async () => {
+    const { trip, customer, supplier } = await createInTransitTrip({
+      fuelSurchargeAmount: 250_000,
+    });
     const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const actors = await db.insert(s.users).values([
       { username: `reopen-maker-${suffix}`, passwordHash: 'x', role: Role.MANAGER },
@@ -259,23 +263,55 @@ describe('trip completion ledger posting', () => {
     );
     const [completed] = await db.select({ version: s.trips.version })
       .from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
-    await assert.rejects(
-      requestTripReopen({
-        tripId: trip.id,
-        reason: 'Sửa chứng từ trước phát hành',
-        makerId: actors[0]!.id,
-        makerRole: Role.MANAGER,
-        expectedTripVersion: completed.version,
-      }),
-      /đã hạch toán/,
-    );
+    const action = await requestTripReopen({
+      tripId: trip.id,
+      reason: 'Sửa chứng từ trước phát hành',
+      makerId: actors[0]!.id,
+      makerRole: Role.MANAGER,
+      expectedTripVersion: completed!.version,
+    });
+    const checked = await checkGovernanceAction({
+      actionId: action.id,
+      checkerId: actors[1]!.id,
+      checkerRole: Role.MANAGER,
+      expectedVersion: action.version,
+    });
+    await approveGovernanceAction({
+      actionId: action.id,
+      approverId: actors[2]!.id,
+      approverRole: Role.ADMIN,
+      expectedVersion: checked.version,
+    });
 
     const rows = await ledgerRowsForTrip(trip.id);
     assert.equal(rows.filter(r => r.txnType === TxnType.TRIP_REVENUE).length, 1);
     assert.equal(rows.filter(r => r.txnType === TxnType.FUEL_EXPENSE).length, 1);
-    assert.equal(rows.filter(r => r.txnType === TxnType.UNLOCK_REVERSAL).length, 0);
-    const [unchanged] = await db.select().from(s.trips).where(eq(s.trips.id, trip.id));
-    assert.equal(unchanged.status, TripStatus.COMPLETED);
+    assert.equal(rows.filter(r => r.txnType === TxnType.UNLOCK_REVERSAL).length, 2);
+    assert.ok(rows.some((row) =>
+      row.txnType === TxnType.UNLOCK_REVERSAL
+      && row.entityType === 'CUSTOMER'
+      && row.entityId === customer.id
+      && row.credit === '1450000'
+    ));
+    const [reopened] = await db.select().from(s.trips).where(eq(s.trips.id, trip.id));
+    assert.equal(reopened.status, TripStatus.IN_TRANSIT);
+
+    const customerRows = await db.select({ balance: s.ledger.balance }).from(s.ledger)
+      .where(and(eq(s.ledger.entityType, 'CUSTOMER'), eq(s.ledger.entityId, customer.id)))
+      .orderBy(s.ledger.id);
+    const supplierRows = await db.select({ balance: s.ledger.balance }).from(s.ledger)
+      .where(and(eq(s.ledger.entityType, 'VENDOR'), eq(s.ledger.entityId, supplier.id)))
+      .orderBy(s.ledger.id);
+    assert.equal(customerRows.at(-1)?.balance, '0');
+    assert.equal(supplierRows.at(-1)?.balance, '0');
+
+    const activePostings = await db.select({ id: s.tripFinancialPostings.id })
+      .from(s.tripFinancialPostings)
+      .where(and(
+        eq(s.tripFinancialPostings.tripId, trip.id),
+        eq(s.tripFinancialPostings.status, 'ACTIVE'),
+      ));
+    assert.equal(activePostings.length, 0);
   });
 
   test('canceling a completed trip reverses its completed-trip ledger entries', async () => {

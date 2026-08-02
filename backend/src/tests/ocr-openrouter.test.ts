@@ -17,6 +17,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { callOpenRouterVision, extractContainerAndSeal } from '../services/ocr.service';
 import { config } from '../config';
+import type { OcrSettings } from '../services/ocr-settings.service';
 
 const originalFetch = globalThis.fetch;
 
@@ -35,6 +36,11 @@ const IMG = Buffer.from(
 
 // Valid ISO 6346 container number (check digit 5) — autoCorrect keeps it as-is.
 const VALID_CONTAINER = 'ALLU5216535';
+const TEST_SETTINGS: OcrSettings = {
+  enabled: true,
+  openrouterKey: 'test-or-key',
+  geminiKey: 'test-gemini-key',
+};
 
 /** Minimal Response stand-in for the mocked global fetch. */
 function res(body: unknown, status = 200): Response {
@@ -58,7 +64,7 @@ describe('OCR: OpenRouter (Qwen3-VL) migration', () => {
       return res(orBody(JSON.stringify({ container_numbers: [VALID_CONTAINER] })));
     }) as unknown as typeof globalThis.fetch;
     try {
-      const r = await callOpenRouterVision('prompt', IMG, 'image/jpeg');
+      const r = await callOpenRouterVision('prompt', IMG, 'image/jpeg', TEST_SETTINGS);
       assert.equal(r.success, true);
       assert.equal(r.provider, 'openrouter');
       assert.equal(r.model, 'qwen/qwen3-vl-32b-instruct');
@@ -73,7 +79,7 @@ describe('OCR: OpenRouter (Qwen3-VL) migration', () => {
       return res(orBody(`<think>reasoning about the image...</think>{"container_numbers":["${VALID_CONTAINER}"]}`));
     }) as unknown as typeof globalThis.fetch;
     try {
-      const r = await callOpenRouterVision('prompt', IMG, 'image/jpeg');
+      const r = await callOpenRouterVision('prompt', IMG, 'image/jpeg', TEST_SETTINGS);
       assert.equal(r.success, true);
       assert.equal(r.text!.includes('<think>'), false);
       assert.deepEqual(JSON.parse(r.text!), { container_numbers: [VALID_CONTAINER] });
@@ -86,7 +92,7 @@ describe('OCR: OpenRouter (Qwen3-VL) migration', () => {
     globalThis.fetch = (async () =>
       res(orBody([{ type: 'text', text: `{"container_numbers":["${VALID_CONTAINER}"]}` }]))) as unknown as typeof globalThis.fetch;
     try {
-      const r = await callOpenRouterVision('prompt', IMG, 'image/jpeg');
+      const r = await callOpenRouterVision('prompt', IMG, 'image/jpeg', TEST_SETTINGS);
       assert.equal(r.success, true);
       assert.deepEqual(JSON.parse(r.text!), { container_numbers: [VALID_CONTAINER] });
     } finally {
@@ -97,7 +103,7 @@ describe('OCR: OpenRouter (Qwen3-VL) migration', () => {
   test('callOpenRouterVision: HTTP 429 → failure "HTTP 429", no throw', async () => {
     globalThis.fetch = (async () => res({ error: 'rate limited' }, 429)) as unknown as typeof globalThis.fetch;
     try {
-      const r = await callOpenRouterVision('prompt', IMG, 'image/jpeg');
+      const r = await callOpenRouterVision('prompt', IMG, 'image/jpeg', TEST_SETTINGS);
       assert.equal(r.success, false);
       assert.equal(r.provider, 'openrouter');
       assert.equal(r.error, 'HTTP 429');
@@ -112,7 +118,10 @@ describe('OCR: OpenRouter (Qwen3-VL) migration', () => {
     config.openrouterApiKey = '';
     globalThis.fetch = (async () => { calls++; return res(orBody('{}')); }) as unknown as typeof globalThis.fetch;
     try {
-      const r = await callOpenRouterVision('prompt', IMG, 'image/jpeg');
+      const r = await callOpenRouterVision('prompt', IMG, 'image/jpeg', {
+        ...TEST_SETTINGS,
+        openrouterKey: '',
+      });
       assert.equal(r.success, false);
       assert.equal(r.provider, 'openrouter');
       assert.match(r.error!, /OPENROUTER_API_KEY/);
@@ -136,7 +145,7 @@ describe('OCR: OpenRouter (Qwen3-VL) migration', () => {
       return res(geminiBody(JSON.stringify({ container_numbers: ['TEMU0000000'] })));
     }) as unknown as typeof globalThis.fetch;
     try {
-      const r = await extractContainerAndSeal(IMG, 'CONTAINER', 'image/jpeg');
+      const r = await extractContainerAndSeal(IMG, 'CONTAINER', 'image/jpeg', TEST_SETTINGS);
       assert.equal(r.success, true);
       assert.equal(r.provider, 'openrouter');
       assert.deepEqual(r.containerNumbers, [VALID_CONTAINER]);
@@ -156,7 +165,7 @@ describe('OCR: OpenRouter (Qwen3-VL) migration', () => {
       return res(geminiBody(JSON.stringify({ container_numbers: [VALID_CONTAINER] })));
     }) as unknown as typeof globalThis.fetch;
     try {
-      const r = await extractContainerAndSeal(IMG, 'CONTAINER', 'image/jpeg');
+      const r = await extractContainerAndSeal(IMG, 'CONTAINER', 'image/jpeg', TEST_SETTINGS);
       assert.equal(r.success, true);
       assert.equal(r.provider, 'gemini');
       assert.deepEqual(r.containerNumbers, [VALID_CONTAINER]);
@@ -170,7 +179,7 @@ describe('OCR: OpenRouter (Qwen3-VL) migration', () => {
   test('extractContainerAndSeal: SEAL path returns the seal via OpenRouter', async () => {
     globalThis.fetch = (async () => res(orBody(JSON.stringify({ seal_number: 'VN123456' })))) as unknown as typeof globalThis.fetch;
     try {
-      const r = await extractContainerAndSeal(IMG, 'SEAL', 'image/jpeg');
+      const r = await extractContainerAndSeal(IMG, 'SEAL', 'image/jpeg', TEST_SETTINGS);
       assert.equal(r.success, true);
       assert.equal(r.provider, 'openrouter');
       assert.equal(r.sealNumber, 'VN123456');
@@ -191,7 +200,7 @@ describe('OCR: OpenRouter (Qwen3-VL) migration', () => {
       return res(geminiBody(JSON.stringify({ container_numbers: ['TEMU0000000'] })));
     }) as unknown as typeof globalThis.fetch;
     try {
-      const r = await extractContainerAndSeal(IMG, 'CONTAINER', 'image/jpeg');
+      const r = await extractContainerAndSeal(IMG, 'CONTAINER', 'image/jpeg', TEST_SETTINGS);
       assert.equal(r.success, true);
       assert.equal(r.provider, 'openrouter');
       assert.deepEqual(r.containerNumbers, [VALID_CONTAINER]);
@@ -208,7 +217,11 @@ describe('OCR: OpenRouter (Qwen3-VL) migration', () => {
     config.geminiApiKey = '';
     globalThis.fetch = (async () => { calls++; return res({}); }) as unknown as typeof globalThis.fetch;
     try {
-      const r = await extractContainerAndSeal(IMG, 'CONTAINER', 'image/jpeg');
+      const r = await extractContainerAndSeal(IMG, 'CONTAINER', 'image/jpeg', {
+        enabled: true,
+        openrouterKey: '',
+        geminiKey: '',
+      });
       assert.equal(r.success, false);
       assert.equal(r.provider, null);
       assert.match(r.error!, /chưa cấu hình/);

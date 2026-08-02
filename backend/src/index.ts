@@ -41,6 +41,7 @@ import forwarderAdminRoutes from './routes/forwarder-admin';
 import adminGpsRoutes from './routes/admin-gps';
 import gpsSettingsRoutes from './routes/gps-settings';
 import llmSettingsRoutes from './routes/llm-settings';
+import ocrSettingsRoutes from './routes/ocr-settings';
 import { appSettingsRouter } from './routes/app-settings';
 import faqAdminRoutes from './routes/faq-admin';
 import { uploadRouter, photosRouter } from './routes/upload';
@@ -186,6 +187,7 @@ app.use('/api/admin/gps-settings', authMiddleware, requireRoles(Role.ADMIN), gps
 // ADMIN wildcard (`p, ADMIN, *, *`) matches; requireRoles(Role.ADMIN) is the
 // belt-and-suspenders gate. MUST mount before the catch-all /api.
 app.use('/api/admin/llm-settings', authMiddleware, casbinAuthz('llm-settings'), requireRoles(Role.ADMIN), llmSettingsRoutes);
+app.use('/api/admin/ocr-settings', authMiddleware, casbinAuthz('ocr-settings'), requireRoles(Role.ADMIN), ocrSettingsRoutes);
 app.use('/api/admin/app-settings', authMiddleware, casbinAuthz('config'), appSettingsRouter);
 // Admin FAQ knowledge base management (create/update/delete + auto-embed).
 // ADMIN-only: same gate pattern as llm-settings — the `faq-admin` Casbin

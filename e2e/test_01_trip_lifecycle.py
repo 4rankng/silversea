@@ -39,8 +39,24 @@ def test_trips(ctx: NepoTestContext, results: TestResults):
                 return items[0]
         return None
 
-    customer = first_item(cust_data)
-    route = first_item(route_data)
+    def all_items(data):
+        if isinstance(data, list):
+            return data
+        if isinstance(data, dict):
+            items = data.get('items', data.get('data', []))
+            return items if isinstance(items, list) else []
+        return []
+
+    customer_items = all_items(cust_data)
+    route_items = all_items(route_data)
+    customer = next(
+        (item for item in customer_items if float(item.get('fuelSurchargeSharePct') or 0) > 0),
+        first_item(cust_data),
+    )
+    route = next(
+        (item for item in route_items if item.get('defaultLegs') or float(item.get('distanceKm') or 0) > 0),
+        first_item(route_data),
+    )
     truck = first_item(truck_data)
     driver = first_item(driver_data)
     cargo = first_item(cargo_data)
@@ -73,6 +89,27 @@ def test_trips(ctx: NepoTestContext, results: TestResults):
         trip_id = resp.get('data', {}).get('id') or get_first_trip_id(api)
         if not trip_id:
             return
+
+    # ── TC-0101B: O2C rev1 fuel surcharge is already snapshotted at create ──
+    created_trip = resp.get('data', {})
+    surcharge_snapshot = created_trip.get('fuelSurchargeSnapshot')
+    if not isinstance(surcharge_snapshot, dict):
+        results.fail('TC-0101B', 'Fuel surcharge at trip creation', 'Missing fuelSurchargeSnapshot in create response')
+    else:
+        current = float(surcharge_snapshot.get('currentFuelPrice') or 0)
+        base = float(surcharge_snapshot.get('baseFuelPrice') or 0)
+        liters = float(surcharge_snapshot.get('quotaLiters') or 0)
+        share = float(surcharge_snapshot.get('customerSharePct') or 0)
+        expected = int(max(0, current - base) * liters * (share / 100) + 0.5)
+        actual = int(float(created_trip.get('fuelSurchargeAmount') or 0))
+        if actual == expected:
+            results.pass_('TC-0101B', f'Fuel surcharge snapshotted at create ({actual:,} VND)')
+        else:
+            results.fail(
+                'TC-0101B',
+                'Fuel surcharge at trip creation',
+                f'expected={expected}, actual={actual}, snapshot={surcharge_snapshot}',
+            )
 
     # ── TC-0102: View trip detail page ──
     page = ctx.new_page()

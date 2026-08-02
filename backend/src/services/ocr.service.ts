@@ -26,10 +26,12 @@
  * check-digit mismatches as a warning. Numbers are never auto-committed here.
  */
 import sharp from 'sharp';
-import { config } from '../config';
 import { validateCheckDigit, suggestCorrections } from '@tingting/shared';
+import { getOcrSettings, ocrHasAvailableKey, type OcrSettings } from './ocr-settings.service';
 
 const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta';
+export const OCR_DISABLED_ERROR = 'OCR đang tắt trong cấu hình hệ thống.';
+const OCR_MISSING_KEY_ERROR = 'OCR chưa cấu hình (thiếu OPENROUTER_API_KEY / GEMINI_API_KEY)';
 
 /**
  * Hard-coded model fallback chain — tries each in order until one succeeds.
@@ -49,7 +51,7 @@ const CONTAINER_RE_G = /[A-Z]{4}\d{7}/g;
 // OpenRouter (Qwen3-VL) — endpoint + model are hardcoded constants, NOT env
 // vars. The base URL is a fixed OpenAI-compatible endpoint and the model is a
 // pinned slug that should not drift per environment; only the API key
-// (config.openrouterApiKey) is env-driven. Mirrors the MiniMax LLM pattern
+// (resolved via OCR settings) is runtime-configurable. Mirrors the MiniMax LLM pattern
 // (services/llm/models.ts: MODEL_FAST / MINIMAX_BASE_URL) — change in code.
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 const OPENROUTER_MODEL = 'qwen/qwen3-vl-32b-instruct';
@@ -146,6 +148,10 @@ interface OpenRouterMessage { content?: unknown }
 interface OpenRouterChoice { message?: OpenRouterMessage }
 interface OpenRouterResponse { choices?: OpenRouterChoice[]; model?: string }
 
+async function resolveRuntimeSettings(settings?: OcrSettings): Promise<OcrSettings> {
+  return settings ?? getOcrSettings();
+}
+
 /**
  * Call Gemini with an image + prompt. Iterates the hard-coded model chain,
  * returning on the first success. Empty key → friendly error (no 500).
@@ -155,8 +161,20 @@ export async function callGeminiVision(
   imageBuffer: Buffer,
   mimeType: string,
   responseSchema?: Record<string, unknown>,
+  settings?: OcrSettings,
 ): Promise<GeminiVisionResult> {
-  if (!config.geminiApiKey) {
+  const runtimeSettings = await resolveRuntimeSettings(settings);
+  if (!runtimeSettings.enabled) {
+    return {
+      success: false,
+      text: null,
+      error: OCR_DISABLED_ERROR,
+      provider: 'gemini',
+      model: null,
+      fallbackUsed: false,
+    };
+  }
+  if (!runtimeSettings.geminiKey) {
     return {
       success: false,
       text: null,
@@ -190,7 +208,7 @@ export async function callGeminiVision(
   let lastError: string | null = null;
 
   for (const model of GEMINI_MODELS) {
-    const url = `${GEMINI_ENDPOINT}/models/${model}:generateContent?key=${config.geminiApiKey}`;
+    const url = `${GEMINI_ENDPOINT}/models/${model}:generateContent?key=${runtimeSettings.geminiKey}`;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), VISION_TIMEOUT_MS);
 
@@ -292,8 +310,19 @@ export async function callOpenRouterVision(
   prompt: string,
   imageBuffer: Buffer,
   mimeType: string,
+  settings?: OcrSettings,
 ): Promise<VisionResult> {
-  if (!config.openrouterApiKey) {
+  const runtimeSettings = await resolveRuntimeSettings(settings);
+  if (!runtimeSettings.enabled) {
+    return {
+      success: false,
+      text: null,
+      error: OCR_DISABLED_ERROR,
+      provider: 'openrouter',
+      model: null,
+    };
+  }
+  if (!runtimeSettings.openrouterKey) {
     return {
       success: false,
       text: null,
@@ -328,7 +357,7 @@ export async function callOpenRouterVision(
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${config.openrouterApiKey}`,
+        Authorization: `Bearer ${runtimeSettings.openrouterKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
@@ -479,14 +508,14 @@ export interface ExtractResult {
 }
 
 /**
- * Ordered OCR providers, each enabled by its API key being non-empty.
+ * Ordered OCR providers, derived from the resolved OCR settings.
  * OpenRouter (Qwen3-VL) is tried first whenever its key is set; Gemini is the
- * fallback. No enable booleans — key presence is the switch.
+ * fallback.
  */
-function orderedProviders(): VisionProvider[] {
+function orderedProviders(settings: OcrSettings): VisionProvider[] {
   const list: VisionProvider[] = [];
-  if (config.openrouterApiKey) list.push('openrouter');
-  if (config.geminiApiKey) list.push('gemini');
+  if (settings.openrouterKey) list.push('openrouter');
+  if (settings.geminiKey) list.push('gemini');
   return list;
 }
 
@@ -501,9 +530,10 @@ async function callProvider(
   responseSchema: Record<string, unknown> | undefined,
   imageBuffer: Buffer,
   mimeType: string,
+  settings: OcrSettings,
 ): Promise<VisionResult> {
-  if (name === 'openrouter') return callOpenRouterVision(prompt, imageBuffer, mimeType);
-  return callGeminiVision(prompt, imageBuffer, mimeType, responseSchema);
+  if (name === 'openrouter') return callOpenRouterVision(prompt, imageBuffer, mimeType, settings);
+  return callGeminiVision(prompt, imageBuffer, mimeType, responseSchema, settings);
 }
 
 /**
@@ -520,7 +550,9 @@ export async function extractContainerAndSeal(
   imageBuffer: Buffer,
   type: 'CONTAINER' | 'SEAL' = 'CONTAINER',
   mimeType = 'image/jpeg',
+  settingsArg?: OcrSettings,
 ): Promise<ExtractResult> {
+  const settings = await resolveRuntimeSettings(settingsArg);
   let buffer = imageBuffer;
   let mime = mimeType;
   try {
@@ -534,14 +566,26 @@ export async function extractContainerAndSeal(
   const prompt = type === 'SEAL' ? SEAL_PROMPT : MULTI_CONTAINER_PROMPT;
   const schema = type === 'SEAL' ? SEAL_SCHEMA : CONTAINER_SCHEMA;
 
-  const providers = orderedProviders();
-  if (providers.length === 0) {
+  if (!settings.enabled) {
     return {
       success: false,
       containerNumbers: [],
       sealNumber: null,
       checkDigitWarnings: [],
-      error: 'OCR chưa cấu hình (thiếu OPENROUTER_API_KEY / GEMINI_API_KEY)',
+      error: OCR_DISABLED_ERROR,
+      provider: null,
+      model: null,
+    };
+  }
+
+  const providers = orderedProviders(settings);
+  if (!ocrHasAvailableKey(settings) || providers.length === 0) {
+    return {
+      success: false,
+      containerNumbers: [],
+      sealNumber: null,
+      checkDigitWarnings: [],
+      error: OCR_MISSING_KEY_ERROR,
       provider: null,
       model: null,
     };
@@ -555,7 +599,7 @@ export async function extractContainerAndSeal(
   let lastError: string | null = null;
 
   for (const name of providers) {
-    const result = await callProvider(name, prompt, schema, buffer, mime);
+    const result = await callProvider(name, prompt, schema, buffer, mime, settings);
 
     if (!result.success || !result.text) {
       lastProvider = name;
@@ -692,7 +736,9 @@ export function crossCheckPumpReading(
 export async function extractPumpReading(
   imageBuffer: Buffer,
   mimeType = 'image/jpeg',
+  settingsArg?: OcrSettings,
 ): Promise<PumpReading> {
+  const settings = await resolveRuntimeSettings(settingsArg);
   let buffer = imageBuffer;
   let mime = mimeType;
   try {
@@ -703,12 +749,21 @@ export async function extractPumpReading(
     // keep raw image if preprocessing fails
   }
 
-  const providers = orderedProviders();
-  if (providers.length === 0) {
+  if (!settings.enabled) {
     return {
       success: false, litres: null, unitPrice: null, total: null,
       mismatch: false, computedTotal: null,
-      error: 'OCR chưa cấu hình (thiếu OPENROUTER_API_KEY / GEMINI_API_KEY)',
+      error: OCR_DISABLED_ERROR,
+      provider: null, model: null,
+    };
+  }
+
+  const providers = orderedProviders(settings);
+  if (!ocrHasAvailableKey(settings) || providers.length === 0) {
+    return {
+      success: false, litres: null, unitPrice: null, total: null,
+      mismatch: false, computedTotal: null,
+      error: OCR_MISSING_KEY_ERROR,
       provider: null, model: null,
     };
   }
@@ -718,7 +773,7 @@ export async function extractPumpReading(
   let lastError: string | null = null;
 
   for (const name of providers) {
-    const result = await callProvider(name, PUMP_PROMPT, PUMP_SCHEMA, buffer, mime);
+    const result = await callProvider(name, PUMP_PROMPT, PUMP_SCHEMA, buffer, mime, settings);
     lastProvider = name;
     lastModel = result.model;
 

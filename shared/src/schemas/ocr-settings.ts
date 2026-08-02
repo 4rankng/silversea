@@ -1,19 +1,19 @@
 import { z } from 'zod';
 
 /**
- * ADMIN-only OCR runtime settings.
+ * ADMIN-only OCR settings.
  *
- * Provider keys are write-only: GET returns only masked previews plus whether
- * each provider is configured.
+ * OCR enablement is independent from chatbot LLM settings. Provider keys are
+ * write-only: GET returns only masked previews and whether each key exists.
+ * Omitting or sending a blank key on PUT preserves the current value; explicit
+ * clear flags wipe a key.
  */
 export const ocrSettingsUpdateSchema = z.object({
   enabled: z.boolean(),
-  openrouterApiKey: z.string()
-    .refine((value) => value.trim().length > 0, 'OpenRouter API key không được để trống')
-    .optional(),
-  geminiApiKey: z.string()
-    .refine((value) => value.trim().length > 0, 'Gemini API key không được để trống')
-    .optional(),
+  openrouterApiKey: z.string().max(2048, 'OpenRouter API key quá dài').optional(),
+  geminiApiKey: z.string().max(2048, 'Gemini API key quá dài').optional(),
+  clearOpenRouterKey: z.boolean().optional(),
+  clearGeminiKey: z.boolean().optional(),
 });
 
 export type OcrSettingsUpdate = z.infer<typeof ocrSettingsUpdateSchema>;
@@ -21,9 +21,10 @@ export type OcrSettingsUpdate = z.infer<typeof ocrSettingsUpdateSchema>;
 export interface OcrSettingsResponse {
   enabled: boolean;
   openrouterKeySet: boolean;
-  openrouterKeyMasked: string;
   geminiKeySet: boolean;
+  openrouterKeyMasked: string;
   geminiKeyMasked: string;
+  /** Optimistic-concurrency token remembered by the API client. */
   updatedAt: string | null;
 }
 
