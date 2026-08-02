@@ -153,6 +153,9 @@ before(async () => {
 });
 
 after(async () => {
+  if (createdUserIds.length > 0) {
+    await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.createdBy, createdUserIds));
+  }
   if (createdAuditLogIds.length > 0) {
     await db.delete(s.auditLogs).where(inArray(s.auditLogs.id, createdAuditLogIds));
   }
@@ -207,16 +210,39 @@ describe('financial snapshot routes', () => {
       headers: {
         Authorization: `Bearer ${accountantToken}`,
         'Content-Type': 'application/json',
+        'Idempotency-Key': `ap-recapture-${trip.id}`,
       },
     });
     assert.equal(recaptureRes.status, 200);
+    const recaptureData = await recaptureRes.json() as { replayed: boolean };
+    assert.equal(recaptureData.replayed, false);
 
     const [updated] = await db.select({
       apCostHash: s.trips.apCostHash,
       apSnapshotDirty: s.trips.apSnapshotDirty,
+      apSnapshotChangedAt: s.trips.apSnapshotChangedAt,
     }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
     assert.ok(updated?.apCostHash, 'recapture should persist an AP hash');
     assert.equal(updated?.apSnapshotDirty, false);
+
+    const replayRes = await fetch(`${baseUrl}/api/finance/snapshots/ap/${trip.id}/recapture`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accountantToken}`,
+        'Idempotency-Key': `ap-recapture-${trip.id}`,
+      },
+    });
+    assert.equal(replayRes.status, 200);
+    const replayData = await replayRes.json() as { replayed: boolean };
+    assert.equal(replayData.replayed, true);
+    const [replayedTrip] = await db.select({
+      apSnapshotChangedAt: s.trips.apSnapshotChangedAt,
+    }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+    assert.equal(
+      replayedTrip?.apSnapshotChangedAt?.toISOString(),
+      updated?.apSnapshotChangedAt?.toISOString(),
+      'replay must not recapture the snapshot a second time',
+    );
 
     const auditPath = `/api/finance/snapshots/ap/${trip.id}/recapture`;
     const auditRow = await waitForAudit(auditPath);
@@ -228,7 +254,10 @@ describe('financial snapshot routes', () => {
   test('AP recapture rejects missing and non-completed trips with domain status codes', async () => {
     const missingRes = await fetch(`${baseUrl}/api/finance/snapshots/ap/2147483647/recapture`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${accountantToken}` },
+      headers: {
+        Authorization: `Bearer ${accountantToken}`,
+        'Idempotency-Key': 'ap-recapture-missing',
+      },
     });
     assert.equal(missingRes.status, 404);
 
@@ -236,7 +265,10 @@ describe('financial snapshot routes', () => {
     await db.update(s.trips).set({ status: 'IN_TRANSIT' }).where(eq(s.trips.id, trip.id));
     const invalidLifecycleRes = await fetch(`${baseUrl}/api/finance/snapshots/ap/${trip.id}/recapture`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${accountantToken}` },
+      headers: {
+        Authorization: `Bearer ${accountantToken}`,
+        'Idempotency-Key': `ap-recapture-invalid-${trip.id}`,
+      },
     });
     assert.equal(invalidLifecycleRes.status, 409);
   });
@@ -266,7 +298,10 @@ describe('financial snapshot routes', () => {
     const path = `/api/finance/snapshots/fuel-surcharge/${trip.id}/recapture`;
     const recaptureRes = await fetch(`${baseUrl}${path}`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${accountantToken}` },
+      headers: {
+        Authorization: `Bearer ${accountantToken}`,
+        'Idempotency-Key': `fuel-recapture-${trip.id}`,
+      },
     });
     assert.equal(recaptureRes.status, 200);
     const [updated] = await db.select({
@@ -300,7 +335,13 @@ describe('financial snapshot routes', () => {
 
     const recaptureRes = await fetch(
       `${baseUrl}/api/finance/snapshots/fuel-surcharge/${trip.id}/recapture`,
-      { method: 'POST', headers: { Authorization: `Bearer ${accountantToken}` } },
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accountantToken}`,
+          'Idempotency-Key': `fuel-recapture-changed-${trip.id}`,
+        },
+      },
     );
     assert.equal(recaptureRes.status, 409);
     const [unchanged] = await db.select({

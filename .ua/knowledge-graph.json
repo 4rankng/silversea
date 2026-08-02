@@ -45,7 +45,7 @@
     ],
     "description": "TingTing — Vietnamese trucking logistics platform for the SilverSea customer. A pnpm monorepo: Express 5 / Drizzle ORM / PostgreSQL / Casbin backend, React / Vite / TanStack frontend, and a shared TypeScript contracts package (schemas, constants, financial calculations).",
     "analyzedAt": "2026-08-01T12:52:28.267Z",
-    "gitCommitHash": "a609ca5b67d3c7115a5459667019ad7b3b99d1c0"
+    "gitCommitHash": "340ab9160cfde30f9330927e57ce1aba94663120"
   },
   "nodes": [
     {
@@ -4968,21 +4968,6 @@
       "complexity": "simple"
     },
     {
-      "id": "config:deploy/docker-compose.prod.yml",
-      "type": "config",
-      "name": "deploy/docker-compose.prod.yml",
-      "filePath": "deploy/docker-compose.prod.yml",
-      "summary": "Production Docker Compose stack (named nepocorp) wiring together pgvector/pg16 Postgres, redis with LRU+appendonly, the @tingting/backend image on 3090 (with env-injected DATABASE_URL/REDIS_URL/CORS), the frontend image on 3000, and an opt-in adminer; all ports bound to 127.0.0.1 with host bind-mounted data volumes at /opt/nepocorp/data.",
-      "tags": [
-        "orchestration",
-        "infrastructure",
-        "deployment",
-        "configuration"
-      ],
-      "complexity": "moderate",
-      "languageNotes": "Backend CORS_ORIGIN points at nepo.tingting.vip; same compose file is reused by the root Makefile demo-deploy flow for vantai.tingting.vip via SSH."
-    },
-    {
       "id": "file:deploy/seed-vantai.sql",
       "type": "file",
       "name": "seed-vantai.sql",
@@ -5010,21 +4995,6 @@
         "demo"
       ],
       "complexity": "complex"
-    },
-    {
-      "id": "file:deploy/setup-server.sh",
-      "type": "file",
-      "name": "setup-server.sh",
-      "filePath": "deploy/setup-server.sh",
-      "summary": "One-time DigitalOcean droplet bootstrap script for nepo.tingting.vip: updates apt, installs Docker/Nginx/Certbot, configures the UFW firewall (SSH+Nginx Full only), creates /opt/nepocorp data directories, generates JWT_SECRET/DB_PASSWORD into /opt/nepocorp/deploy/.env, and writes an Nginx server block reverse-proxying /api and /socket.io to backend:3090 and / to frontend:3000.",
-      "tags": [
-        "infrastructure",
-        "deployment",
-        "script",
-        "shell"
-      ],
-      "complexity": "complex",
-      "languageNotes": "Streamed over SSH (ssh root@host 'bash -s' < setup-server.sh); nginx /socket.io/ block includes WebSocket upgrade headers and a 300s read timeout for multi-tool assistant turns."
     },
     {
       "id": "document:docs/journals/2026-07-24_20-30_gps-geotag-foundation-shipped-inert.md",
@@ -59532,6 +59502,21 @@
       ],
       "complexity": "moderate",
       "languageNotes": "Combines z.object().strict(), discriminated unions, coerce.number transforms, and refine() cross-field validators; money values are string-encoded decimals matched by regex rather than floats."
+    },
+    {
+      "id": "config:deploy/docker-compose.prod.yml",
+      "type": "config",
+      "name": "deploy/docker-compose.prod.yml",
+      "filePath": "deploy/docker-compose.prod.yml",
+      "summary": "Production Docker Compose stack (named nepocorp) wiring together pgvector/pg16 Postgres, redis with allkeys-lru + appendonly, the ghcr.io/4rankng/transting-backend image on 3090 (env-injected DATABASE_URL/REDIS_URL/CORS_ORIGIN), the transting-frontend image on 3000, and an opt-in adminer; all ports bound to 127.0.0.1 with host bind-mounted data volumes at /opt/nepocorp/data.",
+      "tags": [
+        "orchestration",
+        "infrastructure",
+        "deployment",
+        "configuration"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "Backend CORS_ORIGIN points at https://vantai.tingting.vip. Backend/frontend images are pulled from ghcr.io/4rankng/transting-{backend,frontend}:latest. Compose project name is 'nepocorp' (legacy local naming) while the public CORS host is vantai.tingting.vip."
     }
   ],
   "edges": [
@@ -60528,20 +60513,6 @@
       "type": "deploys",
       "direction": "forward",
       "weight": 0.7
-    },
-    {
-      "source": "file:deploy/setup-server.sh",
-      "target": "config:deploy/docker-compose.prod.yml",
-      "type": "configures",
-      "direction": "forward",
-      "weight": 0.6
-    },
-    {
-      "source": "file:deploy/setup-server.sh",
-      "target": "config:backend/.env.example",
-      "type": "related",
-      "direction": "forward",
-      "weight": 0.5
     },
     {
       "source": "document:docs/regression-testing/README.md",
@@ -121281,7 +121252,6 @@
         "config:deploy/docker-compose.prod.yml",
         "file:deploy/seed-vantai.sql",
         "file:deploy/seed-vantai-6months.sql",
-        "file:deploy/setup-server.sh",
         "config:frontend/.env.example",
         "service:frontend/Dockerfile.dockerignore",
         "service:frontend/Makefile",

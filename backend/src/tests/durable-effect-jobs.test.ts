@@ -23,9 +23,6 @@ import { storageService } from '../services/storage.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const scopePrefix = `durable-effect-${suffix}`;
-const migrationUrl = new URL('../../drizzle/0157_durable_effect_jobs.sql', import.meta.url);
-const createdAuditLogIds: number[] = [];
-const createdBackfillJobIds: number[] = [];
 const createdBillingDocumentIds: number[] = [];
 const createdCustomerIds: number[] = [];
 let originalCompanyLogoSetting: string | null = null;
@@ -390,7 +387,7 @@ describe('durable effect jobs foundation', () => {
     assert.equal(issuedDocument?.legalInvoiceRef?.providerReference, 'INV-TEST-001');
   });
 
-  test('unknown kind or version becomes DEAD and migration backfills legacy cleanup audits', async () => {
+  test('unknown kind or version becomes DEAD, while the squashed baseline keeps the durable-effect schema and 0003 only drops agent metrics', async () => {
     const [unknown] = await db.insert(s.durableEffectJobs).values({
       kind: 'BOGUS_KIND',
       payloadVersion: 9,
@@ -410,51 +407,22 @@ describe('durable effect jobs foundation', () => {
     assert.equal(deadJob?.status, DURABLE_EFFECT_STATUS.DEAD);
     assert.match(deadJob?.lastError ?? '', /unsupported durable effect kind\/version/i);
 
-    const [auditRow] = await db.insert(s.auditLogs).values({
-      actorName: 'durable effect test',
-      message: 'legacy cleanup pending',
-      entityType: 'TEST_UPLOAD',
-      entityId: 99,
-      payload: {
-        event: 'STORAGE_CLEANUP_PENDING',
-        cleanupPending: true,
-        storageKey: `${scopePrefix}/legacy/backfill.txt`,
-      },
-    }).returning({ id: s.auditLogs.id });
-    createdAuditLogIds.push(auditRow!.id);
+    const baseline = await readFile(new URL('../../drizzle/0000_third_wrecking_crew.sql', import.meta.url), 'utf8');
+    const metricsDrop = await readFile(new URL('../../drizzle/0003_drop_agent_turn_metrics.sql', import.meta.url), 'utf8');
 
-    await runMigrationBackfillStatement();
-
-    const [backfilled] = await db.select().from(s.durableEffectJobs)
-      .where(and(
-        eq(s.durableEffectJobs.kind, DURABLE_EFFECT_KIND.STORAGE_DELETE),
-        eq(s.durableEffectJobs.dedupeKey, `legacy-cleanup-audit:${auditRow!.id}`),
-      ))
-      .limit(1);
-    assert.ok(backfilled, 'migration backfill should create a runnable job');
-    createdBackfillJobIds.push(backfilled!.id);
-    assert.equal(backfilled!.status, DURABLE_EFFECT_STATUS.PENDING);
-    assert.deepEqual(backfilled!.payload, {
-      storageKey: `${scopePrefix}/legacy/backfill.txt`,
-      mode: STORAGE_DELETE_MODE.ORPHAN_GUARD,
-      entityType: 'TEST_UPLOAD',
-      entityId: 99,
-    });
+    assert.match(baseline, /CREATE TABLE "durable_effect_jobs" \(/);
+    assert.match(baseline, /CREATE UNIQUE INDEX "durable_effect_jobs_kind_dedupe_uniq_idx"/);
+    assert.match(baseline, /CREATE INDEX "durable_effect_jobs_due_idx"/);
+    assert.match(baseline, /CREATE INDEX "durable_effect_jobs_lease_idx"/);
+    assert.match(metricsDrop, /^DROP TABLE "agent_turn_metrics" CASCADE;$/m);
+    assert.doesNotMatch(metricsDrop, /durable_effect_jobs/i);
   });
 });
 
 after(async () => {
   await restoreCompanyLogoSetting();
-  if (createdBackfillJobIds.length > 0) {
-    await db.delete(s.durableEffectJobs)
-      .where(sql`${s.durableEffectJobs.id} in (${sql.join(createdBackfillJobIds.map((id) => sql`${id}`), sql`, `)})`);
-  }
   await db.delete(s.durableEffectJobs)
     .where(sql`${s.durableEffectJobs.dedupeKey} like ${`${scopePrefix}%`}`);
-  if (createdAuditLogIds.length > 0) {
-    await db.delete(s.auditLogs)
-      .where(sql`${s.auditLogs.id} in (${sql.join(createdAuditLogIds.map((id) => sql`${id}`), sql`, `)})`);
-  }
   if (createdBillingDocumentIds.length > 0) {
     await db.delete(s.billingDocuments)
       .where(sql`${s.billingDocuments.id} in (${sql.join(createdBillingDocumentIds.map((id) => sql`${id}`), sql`, `)})`);
@@ -499,17 +467,6 @@ async function restoreCompanyLogoSetting(): Promise<void> {
     return;
   }
   await db.delete(s.appSettings).where(eq(s.appSettings.key, 'company.logo_storage_key'));
-}
-
-async function runMigrationBackfillStatement(): Promise<void> {
-  const migrationSql = await readFile(migrationUrl, 'utf8');
-  const backfillStatement = migrationSql
-    .split('--> statement-breakpoint')
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .at(-1);
-  assert.ok(backfillStatement, 'expected backfill statement in migration file');
-  await client.unsafe(backfillStatement);
 }
 
 async function cleanupScopeJobs(): Promise<void> {

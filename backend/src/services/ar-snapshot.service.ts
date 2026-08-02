@@ -139,9 +139,14 @@ export class ArSnapshotService {
    * Re-capture the snapshot after the accountant has reconciled. Flips dirty
    * back to false against the now-current cost payload.
    */
-  static async recapture(tripId: number): Promise<void> {
-    await db.transaction(async (tx) => {
+  static async recapture(tripId: number, transaction?: Tx): Promise<void> {
+    const execute = async (tx: Tx) => {
       await this.captureSnapshot(tripId, tx);
-    });
+    };
+    if (transaction) {
+      await execute(transaction);
+      return;
+    }
+    await db.transaction(execute);
   }
 }

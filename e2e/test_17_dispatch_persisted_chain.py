@@ -21,7 +21,8 @@ from helpers import *  # noqa: E402,F403
 
 
 TITLE = "17-dispatch-persisted-chain"
-BOOKING_PREFIX = f"E2E-LM-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+RUN_SUFFIX = uuid.uuid4().hex[:8].upper()
+BOOKING_PREFIX = f"E2E-LM-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{RUN_SUFFIX}"
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PDF_BYTES = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n"
 
@@ -102,15 +103,17 @@ def login_api(role_key: str) -> ApiClient:
     return api
 
 
-def bootstrap_master_data_fixture(truck_id: int) -> None:
-    trailer_plate = f"LM-TR-{BOOKING_PREFIX[-6:]}"
+def bootstrap_master_data_fixture(driver_id: int) -> tuple[int, str, str]:
+    truck_plate = f"E2E-{RUN_SUFFIX}"
+    trailer_plate = f"E2E-TR-{RUN_SUFFIX}"
     script = r"""
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 import { db } from './src/db';
 import * as s from './src/db/schema';
 import { seedCustomers } from './src/seed/seed-customers';
 
-const truckId = __TRUCK_ID__;
+const driverId = __DRIVER_ID__;
+const truckPlate = __TRUCK_PLATE__;
 const trailerPlate = __TRAILER_PLATE__;
 const now = new Date();
 
@@ -278,25 +281,51 @@ if (trailerExisting) {
   trailerId = createdTrailer.id;
 }
 
-const [truckExisting] = await db.select({ id: s.trucks.id })
-  .from(s.trucks)
-  .where(and(isNull(s.trucks.deletedAt), eq(s.trucks.id, truckId)))
+const [driverExisting] = await db.select({ id: s.drivers.id })
+  .from(s.drivers)
+  .where(and(isNull(s.drivers.deletedAt), eq(s.drivers.id, driverId)))
   .limit(1);
-if (!truckExisting) throw new Error(`Truck ${truckId} missing`);
-await db.update(s.trucks)
-  .set({
-    currentTrailerId: trailerId,
-    trailerPlateNumber: trailerPlate,
-    trailerType: '40FT',
-    status: 'ACTIVE',
-    updatedAt: now,
-  })
-  .where(eq(s.trucks.id, truckId));
+if (!driverExisting) throw new Error(`Driver ${driverId} missing`);
+
+const [createdTruck] = await db.insert(s.trucks).values({
+  licensePlate: truckPlate,
+  currentTrailerId: trailerId,
+  trailerPlateNumber: trailerPlate,
+  trailerType: '40FT',
+  status: 'ACTIVE',
+  updatedAt: now,
+}).returning({ id: s.trucks.id });
+if (!createdTruck) throw new Error('Failed to create isolated E2E truck');
+
+await db.update(s.drivers)
+  .set({ assignedTruckId: createdTruck.id, updatedAt: now })
+  .where(eq(s.drivers.id, driverId));
+
+const [latestActiveTrip] = await db.select({ plannedEndAt: s.trips.plannedEndAt })
+  .from(s.trips)
+  .where(and(
+    eq(s.trips.driverId, driverId),
+    isNull(s.trips.deletedAt),
+    inArray(s.trips.status, ['CREATED', 'IN_TRANSIT']),
+    isNotNull(s.trips.plannedEndAt),
+  ))
+  .orderBy(desc(s.trips.plannedEndAt))
+  .limit(1);
+const nextHour = new Date(now);
+nextHour.setMinutes(0, 0, 0);
+nextHour.setHours(nextHour.getHours() + 1);
+const latestEnd = latestActiveTrip?.plannedEndAt?.getTime() ?? 0;
+// Keep a full-day safety gap because the local PostgreSQL column is timestamp
+// without time zone while the API contract requires an explicit offset.
+const plannedStartAt = new Date(Math.max(nextHour.getTime(), latestEnd + 24 * 60 * 60 * 1000));
+const plannedEndAt = new Date(plannedStartAt.getTime() + 2 * 60 * 60 * 1000);
 
 console.log(JSON.stringify({
   customerId,
-  truckId,
+  truckId: createdTruck.id,
   trailerId,
+  plannedStartAt: plannedStartAt.toISOString(),
+  plannedEndAt: plannedEndAt.toISOString(),
   factoryId: factoryExisting?.id ?? null,
   warehouseId: warehouseExisting?.id ?? null,
 }));
@@ -311,7 +340,8 @@ main().then(() => {
 """
     bootstrap_script = (
         script
-        .replace("__TRUCK_ID__", str(truck_id))
+        .replace("__DRIVER_ID__", str(driver_id))
+        .replace("__TRUCK_PLATE__", json.dumps(truck_plate))
         .replace("__TRAILER_PLATE__", json.dumps(trailer_plate))
     )
     result = subprocess.run(
@@ -331,14 +361,32 @@ main().then(() => {
             f"stdout:\n{result.stdout}\n"
             f"stderr:\n{result.stderr}"
         )
-    print(f"🧱 Bootstrapped Long Minh master data fixture for truck #{truck_id}")
+    for line in reversed(result.stdout.splitlines()):
+        try:
+            fixture = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if (
+            isinstance(fixture, dict)
+            and isinstance(fixture.get("truckId"), int)
+            and isinstance(fixture.get("plannedStartAt"), str)
+            and isinstance(fixture.get("plannedEndAt"), str)
+        ):
+            truck_id = fixture["truckId"]
+            print(
+                f"🧱 Bootstrapped isolated Long Minh fixture with truck #{truck_id} "
+                f"for {fixture['plannedStartAt']} → {fixture['plannedEndAt']}"
+            )
+            return truck_id, fixture["plannedStartAt"], fixture["plannedEndAt"]
+    raise RuntimeError(f"master data bootstrap did not return dispatch fixture data:\n{result.stdout}")
 
 
-def ensure_master_data_loaded(admin_api: ApiClient, truck_id: int) -> None:
-    bootstrap_master_data_fixture(truck_id)
+def ensure_master_data_loaded(admin_api: ApiClient, driver_id: int) -> tuple[int, str, str]:
+    truck_id, planned_start_at, planned_end_at = bootstrap_master_data_fixture(driver_id)
     customers = first_items(get_with_query(admin_api, "/api/customers", {"search": "Long Minh", "page": 1, "pageSize": 25}))
     if not customers:
         raise RuntimeError("Long Minh customer missing after bootstrap")
+    return truck_id, planned_start_at, planned_end_at
 
 
 def request_binary(api: ApiClient, path: str, *, headers: dict[str, str] | None = None) -> tuple[int, dict[str, str], bytes]:
@@ -447,8 +495,7 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
         results.fail("TC-1706", "Driver profile exposes assigned truck", str(driver_me_body))
         return
     driver_record_id = driver_profile["id"]
-    truck_id = driver_profile["assignedTruckId"]
-    ensure_master_data_loaded(admin_api, truck_id)
+    truck_id, planned_start_at, planned_end_at = ensure_master_data_loaded(admin_api, driver_record_id)
     # Scope bootstrap invalidates the clerk's prior token by design.
     clerk_api = login_api("clerk")
 
@@ -563,8 +610,8 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
         {
             "fulfillmentId": 1,
             "expectedVersion": 1,
-            "plannedStartAt": iso_at(1),
-            "plannedEndAt": iso_at(3),
+            "plannedStartAt": planned_start_at,
+            "plannedEndAt": planned_end_at,
             "endTimeConfirmed": True,
             "carrierType": "OWN",
             "truckId": truck_id,
@@ -605,7 +652,7 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
         manager_api,
         "POST",
         f"/api/shipments/{shipment_id}/pod-reviews/1/review",
-        {"expectedVersion": 1, "resolution": "ACCEPT"},
+        {"expectedVersion": 1, "resolution": "ACCEPT", "podRecovered": True},
         headers={"Idempotency-Key": f"{BOOKING_PREFIX}-manager-review-forbidden"},
     )
     assert_ok(
@@ -642,8 +689,8 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
         {
             "fulfillmentId": fulfillment_id,
             "expectedVersion": fulfillment_version,
-            "plannedStartAt": iso_at(1),
-            "plannedEndAt": iso_at(3),
+            "plannedStartAt": planned_start_at,
+            "plannedEndAt": planned_end_at,
             "endTimeConfirmed": True,
             "carrierType": "OWN",
             "truckId": truck_id,
@@ -773,13 +820,13 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
         {"expectedVersion": trip_version},
         headers={"Idempotency-Key": f"{BOOKING_PREFIX}-complete"},
     )
-    if complete_status not in (200, 201):
-        results.fail("TC-1718", "Driver completes the trip", api_failure_detail(complete_body))
-        return
-    if complete_body.get("status") != "COMPLETED":
-        results.fail("TC-1718", "Completed trip status", str(complete_body))
-        return
-    results.pass_("TC-1718", "Driver completes the trip", f"trip#{trip_id} status={complete_body['status']}")
+    assert_ok(
+        results,
+        "TC-1718",
+        "Driver cannot bypass e-POD review to complete the trip",
+        complete_status == 409 and "duyệt e-POD" in api_failure_detail(complete_body),
+        api_failure_detail(complete_body),
+    )
 
     driver_forbidden_export_status, driver_forbidden_export_body = request_json(
         driver_api,
@@ -806,7 +853,7 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
         clerk_api,
         "POST",
         f"/api/shipments/{shipment_id}/pod-reviews/{submission_id}/review",
-        {"expectedVersion": submission_version, "resolution": "ACCEPT"},
+        {"expectedVersion": submission_version, "resolution": "ACCEPT", "podRecovered": True},
         headers={"Idempotency-Key": f"{BOOKING_PREFIX}-review"},
     )
     if review_status not in (200, 201):
@@ -821,7 +868,7 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
         manager_api,
         "POST",
         f"/api/shipments/{shipment_id}/pod-reviews/{submission_id}/review",
-        {"expectedVersion": submission_version, "resolution": "ACCEPT"},
+        {"expectedVersion": submission_version, "resolution": "ACCEPT", "podRecovered": True},
         headers={"Idempotency-Key": f"{BOOKING_PREFIX}-manager-replay"},
     )
     assert_ok(

@@ -53,6 +53,10 @@ let tripId: number;
 let allTrucks: typeof s.trucks.$inferSelect[];
 let allDrivers: typeof s.drivers.$inferSelect[];
 
+const loginUsername = `comprehensive-login-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+const loginPassword = 'Comprehensive123!';
+let loginUserId: number;
+
 before(async () => {
   await initAuditService();
   await initEnforcer();
@@ -151,12 +155,26 @@ before(async () => {
   managerToken = jwt.sign({ userId: mgrUser.id, username: mgrUser.username, role: Role.MANAGER }, config.jwtSecret);
   accountantToken = jwt.sign({ userId: acctUser.id, username: acctUser.username, role: Role.ACCOUNTANT }, config.jwtSecret);
   driverToken = jwt.sign({ userId: drvUser.id, username: drvUser.username, role: Role.DRIVER }, config.jwtSecret);
+
+  const [loginUser] = await db.insert(s.users).values({
+    username: loginUsername,
+    email: `${loginUsername}@nepo.vn`,
+    phone: `09${Math.floor(10000000 + Math.random() * 90000000)}`,
+    passwordHash: await bcrypt.hash(loginPassword, 10),
+    role: Role.ADMIN,
+    status: 'ACTIVE',
+  }).returning({ id: s.users.id });
+  loginUserId = loginUser.id;
 });
 
 after(async () => {
+  server.closeAllConnections();
   await new Promise<void>((resolve) => server.close(() => resolve()));
-  await client.end();
+  if (loginUserId) {
+    await db.delete(s.users).where(eq(s.users.id, loginUserId));
+  }
   await disconnectRedis();
+  await client.end();
 });
 
 interface TestFetchOptions {
@@ -189,10 +207,11 @@ test('E2E — Auth flow (Login, Me, User List, Create, Delete)', async () => {
   // Test 1.1: Authentication credentials validation
   const loginRes = await testFetch('/api/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ identifier: 'admin', password: 'admin123' })
+    body: JSON.stringify({ identifier: loginUsername, password: loginPassword })
   });
   assert.strictEqual(loginRes.status, 200);
   assert.ok(loginRes.data.token);
+  assert.strictEqual(loginRes.data.user.username, loginUsername);
   assert.equal(Object.hasOwn(loginRes.data.user, 'workflowRolloutMode'), false);
 
   // Test 1.2: Authenticated /me profile fetching
@@ -431,11 +450,19 @@ test('E2E — Trip dispatch lifecycle (Create, Reassign, Pre-departure, Dispatch
   assert.strictEqual(dispatchRes.data.status, TripStatus.IN_TRANSIT);
   const dispatchedVersion = dispatchRes.data.version;
 
-  // 5. Upload confirmation photo (mocking photo insertion to bypass photo completion gate)
+  // 5. Seed completion evidence directly in the DB so the governed-close path
+  // stays deterministic even when the trip cargo type requires both container
+  // and seal photos.
   await db.insert(s.tripPhotos).values({
     tripId,
     type: 'CONTAINER',
     storageKey: 'mock-e2e-dispatch-container.jpg',
+    uploadedBy: adminUserId,
+  });
+  await db.insert(s.tripPhotos).values({
+    tripId,
+    type: 'SEAL',
+    storageKey: 'mock-e2e-dispatch-seal.jpg',
     uploadedBy: adminUserId,
   });
 

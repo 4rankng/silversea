@@ -51,6 +51,7 @@ describe('Wave 1 — Pricing & Fuel schema: tables exist', () => {
     assert.ok(names.includes('port_id'));
     assert.ok(names.includes('container_type_id'));
     assert.ok(names.includes('direction'));
+    assert.ok(names.includes('load_state'));
     assert.ok(names.includes('unit_price'));
     assert.ok(names.includes('effective_date'));
   });
@@ -176,12 +177,18 @@ describe('Wave 1 — Pricing & Fuel schema: indexes', () => {
     assert.ok(idx.length > 0, 'index exists');
   });
 
-  test('lift_pricing has port+type+direction+date index', async () => {
-    const idx = await db.execute(sql`
-      SELECT indexname FROM pg_indexes
+  test('lift_pricing has the load-state-aware unique matrix index', async () => {
+    const [index] = await db.execute(sql`
+      SELECT indexdef FROM pg_indexes
       WHERE tablename = 'lift_pricing'
-      AND indexname = 'lift_pricing_port_type_dir_date_idx'
+      AND indexname = 'lift_pricing_port_type_state_dir_date_uniq'
     `);
-    assert.ok(idx.length > 0, 'index exists');
+    assert.ok(index, 'load-state-aware unique index exists');
+    const definition = String((index as { indexdef: string }).indexdef);
+    assert.match(definition, /CREATE UNIQUE INDEX/i);
+    assert.match(
+      definition,
+      /\(port_id, container_type_id, direction, load_state, effective_date\)/i,
+    );
   });
 });

@@ -37,7 +37,7 @@ describe('treasury authority invariants', () => {
 
   it('migration keeps canonical source uniqueness while versioning append-only reversals', async () => {
     const migration = await readFile(
-      new URL('../../drizzle/0169_lively_sabra.sql', import.meta.url),
+      new URL('../../drizzle/0000_third_wrecking_crew.sql', import.meta.url),
       'utf8',
     );
     assert.match(
@@ -54,7 +54,7 @@ describe('treasury authority invariants', () => {
     );
     assert.match(
       migration,
-      /UPDATE "treasury_movements" AS "original"[\s\S]+SET "status" = 'POSTED'[\s\S]+"reversal"\."reversal_of_id" = "original"\."id"/i,
+      /ALTER TABLE "treasury_movements" ADD CONSTRAINT "treasury_movements_reversal_of_id_treasury_movements_id_fk" FOREIGN KEY \("reversal_of_id"\) REFERENCES "public"\."treasury_movements"\("id"\)/i,
     );
   });
 });

@@ -121,8 +121,8 @@ export class ApSnapshotService {
       .orderBy(s.trips.apSnapshotChangedAt);
   }
 
-  static async recapture(tripId: number): Promise<void> {
-    await db.transaction(async (tx) => {
+  static async recapture(tripId: number, transaction?: Tx): Promise<void> {
+    const execute = async (tx: Tx) => {
       await lockTripFinancialAuthority(tx, [tripId]);
       const [trip] = await tx.select({ status: s.trips.status })
         .from(s.trips)
@@ -136,6 +136,11 @@ export class ApSnapshotService {
         throw new ApiError(409, 'Chỉ có thể chụp lại đối soát AP cho chuyến đã hoàn thành');
       }
       await this.captureSnapshot(tripId, tx);
-    });
+    };
+    if (transaction) {
+      await execute(transaction);
+      return;
+    }
+    await db.transaction(execute);
   }
 }

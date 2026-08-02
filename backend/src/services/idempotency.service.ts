@@ -143,6 +143,9 @@ export const IDEMPOTENCY_ENDPOINTS = {
   TRIP_EXPENSE_DELETE: 'trip-expenses.delete',
   EXPENSE_PHOTO_CREATE: 'expenses.photo.create',
   EXPENSE_PHOTO_DELETE: 'expenses.photo.delete',
+  SNAPSHOT_AR_RECAPTURE: 'financial.snapshots.ar.recapture',
+  SNAPSHOT_AP_RECAPTURE: 'financial.snapshots.ap.recapture',
+  SNAPSHOT_FUEL_SURCHARGE_RECAPTURE: 'financial.snapshots.fuel-surcharge.recapture',
 } as const;
 
 /** Stable, sorted-key JSON used as the hash input so key order doesn't matter. */

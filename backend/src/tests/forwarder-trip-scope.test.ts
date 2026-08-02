@@ -104,15 +104,24 @@ after(async () => {
 });
 
 describe('forwarder shipment scope', () => {
-  test('legacy migration fails closed for multiple forwarders and only backfills active shipments', async () => {
+  test('squashed baseline keeps explicit shipment-scope tables and current runtime contract avoids legacy broad backfills', async () => {
     const migration = await readFile(
-      new URL('../../drizzle/0161_forwarder_shipment_scope.sql', import.meta.url),
+      new URL('../../drizzle/0000_third_wrecking_crew.sql', import.meta.url),
       'utf8',
     );
+    const userService = await readFile(
+      new URL('../services/user.service.ts', import.meta.url),
+      'utf8',
+    );
+
+    assert.match(migration, /CREATE TABLE "user_shipment_links" \(/);
+    assert.match(migration, /CREATE UNIQUE INDEX "user_shipment_links_user_shipment_uniq_idx"/);
+    assert.match(migration, /CREATE INDEX "user_shipment_links_user_idx"/);
+    assert.match(migration, /CREATE INDEX "user_shipment_links_shipment_idx"/);
+    assert.doesNotMatch(migration, /active_forwarder_count\s*>\s*1/i);
     assert.doesNotMatch(migration, /CROSS\s+JOIN/i);
-    assert.match(migration, /active_forwarder_count\s*>\s*1/i);
-    assert.match(migration, /RAISE\s+EXCEPTION/i);
-    assert.match(migration, /"status"\s+IN\s+\('DRAFT',\s*'IN_PROGRESS'\)/i);
+    assert.match(userService, /data\.role === Role\.FORWARDER/);
+    assert.match(userService, /\(data\.status \?\? 'ACTIVE'\) !== 'INACTIVE' && shipmentIds\.length === 0/);
   });
 
   test('ACTIVE forwarder accounts require admin-managed shipment assignments', async () => {

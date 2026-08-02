@@ -10,6 +10,7 @@ import {
   approveGovernanceAction,
   requestTripFinancialClose,
 } from '../services/adjustment-governance.service';
+import { disconnectRedis } from '../lib/redis';
 import { checkGovernanceAction } from '../services/governance-transition.service';
 import {
   IDEMPOTENCY_ENDPOINTS,
@@ -81,6 +82,27 @@ async function mkTrip(seed: TripSeed) {
   }).returning();
   createdTripIds.push(trip.id);
   return trip;
+}
+
+async function seedCompletionEvidence(tripId: number, uploadedBy: number) {
+  await db.insert(s.tripPhotos).values([
+    {
+      tripId,
+      type: 'CONTAINER',
+      storageKey: `o01-race-container-${tripId}-${suffix}.jpg`,
+      uploadedBy,
+    },
+    {
+      tripId,
+      type: 'SEAL',
+      storageKey: `o01-race-seal-${tripId}-${suffix}.jpg`,
+      uploadedBy,
+    },
+  ]);
+  await db.update(s.trips).set({
+    podRecoveredAt: new Date(),
+    podRecoveredBy: uploadedBy,
+  }).where(eq(s.trips.id, tripId));
 }
 
 function pairPayload(
@@ -223,6 +245,7 @@ after(async () => {
       eq(s.notifications.relatedEntityType, 'trips'),
       inArray(s.notifications.relatedEntityId, createdTripIds),
     ));
+    await db.delete(s.tripPhotos).where(inArray(s.tripPhotos.tripId, createdTripIds));
     await db.delete(s.driverWorkDays).where(inArray(s.driverWorkDays.tripId, createdTripIds));
     await db.delete(s.ledger).where(inArray(s.ledger.txnId, createdTripIds));
     await db.delete(s.governanceActions).where(and(
@@ -258,6 +281,7 @@ after(async () => {
   if (createdUserIds.length > 0) {
     await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
   }
+  await disconnectRedis();
   await client.end();
 });
 
@@ -389,6 +413,7 @@ describe('O01 persisted trip-pair concurrency', () => {
       canonicalOrigin: 'Bình Dương',
       canonicalDestination: 'Cát Lái',
     });
+    await seedCompletionEvidence(first.id, actors[0]!.id);
     const requested = await requestTripFinancialClose({
       tripId: first.id,
       reason: 'Xác nhận hoàn thành chuyến trong kiểm thử tranh chấp ghép chuyến',

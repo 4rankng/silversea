@@ -8,9 +8,11 @@ from helpers import *
 
 
 def _login_customer(page):
+    ensure_customer_test_account()
+    account = DEMO_ACCOUNTS['customer']
     page.goto(BASE_URL)
-    page.fill('#username-input', 'customer')
-    page.fill('#password-input', 'Abc123')
+    page.fill('#username-input', account['identifier'])
+    page.fill('#password-input', account['password'])
     page.click('button[type="submit"]')
     page.wait_for_url('**/portal/shipments', timeout=8_000)
     page.wait_for_selector('h1')
@@ -24,11 +26,12 @@ def _no_horizontal_overflow(page):
 
 def test_customer_portal(ctx: NepoTestContext, results: TestResults):
     customer_api = ApiClient()
-    login = customer_api.login('customer', 'Abc123')
+    login = ensure_customer_test_account()
+    customer_api.token = login.get('token')
     if login.get('user', {}).get('role') == 'CUSTOMER':
-        results.pass_('TC-1501', 'CUSTOMER demo account authenticates with CUSTOMER role')
+        results.pass_('TC-1501', 'Dedicated CUSTOMER fixture authenticates with CUSTOMER role')
     else:
-        results.fail('TC-1501', 'CUSTOMER demo account', str(login.get('error', login)))
+        results.fail('TC-1501', 'Dedicated CUSTOMER fixture', str(login.get('error', login)))
 
     shipments = customer_api.get('/api/portal/shipments?limit=100')
     if shipments.get('status') == 200:

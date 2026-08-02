@@ -241,6 +241,10 @@ after(async () => {
     await db.delete(s.ledger).where(inArray(s.ledger.txnId, tripIds));
     await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.tripId, tripIds));
     await db.delete(s.tripLegs).where(inArray(s.tripLegs.tripId, tripIds));
+    // createInTransitTrip inserts a trip_photos row per trip; trips.id has a
+    // RESTRICT FK from trip_photos.trip_id, so these must be removed before the
+    // `DELETE trips` below or the teardown fails with a FK violation.
+    await db.delete(s.tripPhotos).where(inArray(s.tripPhotos.tripId, tripIds));
     if (tripExpenseIds.length > 0) {
       await db.delete(s.governanceActions)
         .where(inArray(s.governanceActions.subjectId, tripExpenseIds));

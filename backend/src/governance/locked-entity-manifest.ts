@@ -496,9 +496,11 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
     ),
     directMutationProof: proof(
       'tests/trip-ledger-completion.test.ts',
-      'a posted completed trip cannot be reopened and its ledger stays intact',
+      'a posted completed trip can be reopened through governance and its ledger is reversed',
       'assert.rejects',
-      'TripStatus.COMPLETED',
+      'requestTripReopen',
+      'approveGovernanceAction',
+      'TripStatus.IN_TRANSIT',
       'ledgerRowsForTrip',
     ),
     governedActions: [tripArAdjustment, tripFinancialChange, tripReopen],

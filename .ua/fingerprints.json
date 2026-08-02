@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "a609ca5b67d3c7115a5459667019ad7b3b99d1c0",
-  "generatedAt": "2026-08-01T12:52:50.395Z",
+  "gitCommitHash": "340ab9160cfde30f9330927e57ce1aba94663120",
+  "generatedAt": "2026-08-02T06:44:25.932Z",
   "files": {
     ".codex/context-manifest.json": {
       "filePath": ".codex/context-manifest.json",
@@ -59373,7 +59373,7 @@
     },
     "deploy/docker-compose.prod.yml": {
       "filePath": "deploy/docker-compose.prod.yml",
-      "contentHash": "6a5d1491fde2037e0c39599594974159c318b68ae06dcf4632b7c4a89174be4d",
+      "contentHash": "77fafdae9605bdae062b5f54739dee24408a83085f2d82676961dd274a63166c",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -59449,16 +59449,6 @@
       "imports": [],
       "exports": [],
       "totalLines": 450,
-      "hasStructuralAnalysis": true
-    },
-    "deploy/setup-server.sh": {
-      "filePath": "deploy/setup-server.sh",
-      "contentHash": "95a174c832fd636c84c2c868ce5fad98dcabea2b7253b2da19ffb6795c65ff24",
-      "functions": [],
-      "classes": [],
-      "imports": [],
-      "exports": [],
-      "totalLines": 163,
       "hasStructuralAnalysis": true
     },
     "deploy/vantai/Makefile": {

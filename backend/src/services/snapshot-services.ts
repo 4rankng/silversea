@@ -69,8 +69,8 @@ export class SnapshotServices {
       .orderBy(s.trips.updatedAt);
   }
 
-  static async recaptureFuelSurcharge(tripId: number): Promise<void> {
-    await db.transaction(async (tx) => {
+  static async recaptureFuelSurcharge(tripId: number, transaction?: Tx): Promise<void> {
+    const execute = async (tx: Tx) => {
       await lockTripFinancialAuthority(tx, [tripId]);
       const [trip] = await tx.select({
         status: s.trips.status,
@@ -124,6 +124,11 @@ export class SnapshotServices {
         fuelSurchargeSnapshotDirty: false,
         updatedAt: new Date(),
       }).where(eq(s.trips.id, tripId));
-    });
+    };
+    if (transaction) {
+      await execute(transaction);
+      return;
+    }
+    await db.transaction(execute);
   }
 }

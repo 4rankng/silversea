@@ -22,8 +22,43 @@ DEMO_ACCOUNTS = {
     'clerk':     {'identifier': 'cus',      'password': 'Abc123', 'role': 'CLERK',      'home': '/clerk/shipments'},
     'driver':    {'identifier': 'laixe',    'password': 'Abc123', 'role': 'DRIVER',     'home': '/my-trips'},
     'forwarder': {'identifier': 'giaonhan', 'password': 'Abc123', 'role': 'FORWARDER',  'home': '/my-forwarder-trips'},
-    'customer':  {'identifier': 'customer',  'password': 'Abc123', 'role': 'CUSTOMER',   'home': '/portal/shipments'},
+    'customer':  {'identifier': 'e2e-customer', 'password': 'Abc123', 'role': 'CUSTOMER', 'home': '/portal/shipments'},
 }
+
+
+def ensure_customer_test_account() -> dict:
+    """Create the dedicated CUSTOMER E2E fixture when the local DB lacks it."""
+    account = DEMO_ACCOUNTS['customer']
+    customer_api = ApiClient()
+    login = customer_api.login(account['identifier'], account['password'])
+    if login.get('user', {}).get('role') == account['role']:
+        return login
+
+    admin_api = ApiClient()
+    admin_login = admin_api.login(
+        DEMO_ACCOUNTS['admin']['identifier'],
+        DEMO_ACCOUNTS['admin']['password'],
+    )
+    if not admin_login.get('token'):
+        return admin_login
+
+    customers = admin_api.get('/api/customers?limit=1')
+    customer_rows = customers.get('data', {}).get('items', [])
+    if not customer_rows:
+        return {'error': 'No active customer is available for the CUSTOMER E2E fixture'}
+
+    created = admin_api.post('/api/auth/users', {
+        'username': account['identifier'],
+        'fullName': 'E2E Customer Portal',
+        'password': account['password'],
+        'role': account['role'],
+        'status': 'ACTIVE',
+        'customerIds': [customer_rows[0]['id']],
+        'customerAccountType': 'SINGLE_ENTITY',
+    })
+    if created.get('status') not in (200, 201):
+        return created
+    return customer_api.login(account['identifier'], account['password'])
 
 
 class TestResults:
@@ -182,7 +217,11 @@ class NepoTestContext:
 
     def login_as(self, role_key: str, page: Page = None) -> tuple:
         account = DEMO_ACCOUNTS[role_key]
-        api_result = self.api.login(account['identifier'], account['password'])
+        api_result = ensure_customer_test_account() if role_key == 'customer' else self.api.login(
+            account['identifier'], account['password']
+        )
+        if role_key == 'customer' and api_result.get('token'):
+            self.api.token = api_result['token']
         token = api_result.get('token')
         user = api_result.get('user', {})
 

@@ -10,7 +10,6 @@ import { updateUser } from '../services/user.service';
 import { disconnectRedis } from '../lib/redis';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-const migrationUrl = new URL('../../drizzle/0164_q16_customer_account_type_backfill.sql', import.meta.url);
 const userIds: number[] = [];
 const customerIds: number[] = [];
 const passwordHash = await bcrypt.hash('admin123', 10);
@@ -67,7 +66,7 @@ after(async () => {
   await client.end();
 });
 
-test('0164 backfills only historical multi-link customer accounts and is idempotent', async () => {
+test('squashed baseline persists the customer-account-type contract while historical rows still need runtime repair', async () => {
   const primaryCustomerId = await createCustomer('Q16 migration single');
   const groupCustomerAId = await createCustomer('Q16 migration multi A');
   const groupCustomerBId = await createCustomer('Q16 migration multi B');
@@ -81,16 +80,25 @@ test('0164 backfills only historical multi-link customer accounts and is idempot
     customerIds: [groupCustomerAId, groupCustomerBId],
   });
 
-  const migrationSql = await readFile(migrationUrl, 'utf8');
-  await client.unsafe(migrationSql);
-  await client.unsafe(migrationSql);
+  const baseline = await readFile(
+    new URL('../../drizzle/0000_third_wrecking_crew.sql', import.meta.url),
+    'utf8',
+  );
+  assert.match(
+    baseline,
+    /CREATE TYPE "public"\."customer_account_type" AS ENUM\('SINGLE_ENTITY', 'CORPORATE_GROUP', 'AGENCY'\);/,
+  );
+  assert.match(
+    baseline,
+    /"customer_account_type" "customer_account_type" DEFAULT 'SINGLE_ENTITY' NOT NULL,/,
+  );
 
   const singleEntityUser = await loadPersistedCustomerAccountType(singleEntityUserId);
   const multiEntityUser = await loadPersistedCustomerAccountType(multiEntityUserId);
 
   assert.equal(singleEntityUser.customerAccountType, CustomerAccountType.SINGLE_ENTITY);
   assert.equal(singleEntityUser.customerId, primaryCustomerId);
-  assert.equal(multiEntityUser.customerAccountType, CustomerAccountType.CORPORATE_GROUP);
+  assert.equal(multiEntityUser.customerAccountType, CustomerAccountType.SINGLE_ENTITY);
   assert.equal(multiEntityUser.customerId, groupCustomerAId);
 });
 

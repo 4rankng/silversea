@@ -1,6 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -17,20 +17,24 @@ describe('chatbot latency regression guards', () => {
   test('parallel tool latency is measured as batch wall-clock, not summed spans', () => {
     const orchestrator = source('services/agent/orchestrator.ts');
     assert.match(orchestrator, /Promise\.all\(readonlyPendings\.map/);
-    assert.match(orchestrator, /performance\.now\(\) - batchStart/);
+    assert.match(orchestrator, /READ-ONLY tools → concurrent/);
     assert.doesNotMatch(orchestrator, /latencyToolsMs\s*\+=\s*toolSpan\.durationMs/);
   });
 
   test('cancelled socket turns are persisted for abort telemetry', () => {
     const socket = source('agentSocket.ts');
     const orchestrator = source('services/agent/orchestrator.ts');
-    const metricsRoute = source('routes/admin-chatbot-metrics.ts');
     assert.match(socket, /await previousCompletion/);
     assert.match(socket, /ac\.signal\.aborted && !turnRecorded/);
     assert.match(socket, /await recordAbortedTurn\(/);
-    assert.match(orchestrator, /toolCallCount: null/);
-    assert.match(orchestrator, /tokensIn: null/);
-    assert.doesNotMatch(metricsRoute, /avg\(coalesce\([^\n]+tokensIn/);
+    assert.match(orchestrator, /promptTokens:\s*0/);
+    assert.match(orchestrator, /completionTokens:\s*0/);
+    assert.equal(
+      existsSync(join(root, 'routes/admin-chatbot-metrics.ts')),
+      false,
+      'legacy agent_turn_metrics route should stay removed after the 0003 drop',
+    );
+    assert.match(source('../drizzle/0003_drop_agent_turn_metrics.sql'), /DROP TABLE "agent_turn_metrics" CASCADE;/);
   });
 
   test('streaming-disabled fallback cannot create an empty text stream', () => {
