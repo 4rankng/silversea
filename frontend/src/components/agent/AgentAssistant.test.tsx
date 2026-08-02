@@ -34,10 +34,6 @@ vi.mock('../../context/AgentDirectiveContext', () => ({
   useAgentDirectives: () => ({ send: vi.fn() }),
 }));
 
-vi.mock('../../context/TourControllerContext', () => ({
-  useTourController: () => ({ start: vi.fn(), cancel: vi.fn() }),
-}));
-
 vi.mock('../UI', () => ({
   Drawer: ({ isOpen, children }: { isOpen: boolean; children: React.ReactNode }) => (
     isOpen ? <div>{children}</div> : null
@@ -56,10 +52,6 @@ vi.mock('./InsightCard', () => ({
     card: { title: string };
     rootRef?: React.Ref<HTMLDivElement>;
   }) => <div ref={rootRef}>{card.title}</div>,
-}));
-
-vi.mock('./TutorialCard', () => ({
-  TutorialCard: () => null,
 }));
 
 describe('AgentAssistant scrolling', () => {

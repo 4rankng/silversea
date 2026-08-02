@@ -3,7 +3,6 @@
 
 from datetime import datetime, timedelta
 from pathlib import Path
-import re
 import os
 import sys
 
@@ -78,13 +77,13 @@ def proxy_api_for_page(page: Page):
 
 
 def dismiss_onboarding_checklist(page: Page):
-    """Keep first-run guidance from covering the role's primary action."""
-    dismiss_button = page.get_by_role("button", name=re.compile(r"Để sau$"))
-    if dismiss_button.count() > 0 and dismiss_button.first.is_visible():
-        dismiss_button.first.click()
-        page.get_by_role("dialog", name=re.compile(r"Bắt đầu sử dụng")).wait_for(
-            state="hidden", timeout=5000
-        )
+    """No-op retained for backward call-site compatibility.
+
+    The first-run onboarding checklist panel was removed; this helper is kept
+    so existing call sites remain valid. It never finds a dismiss button and
+    therefore does nothing.
+    """
+    _ = page  # touch the arg so the signature stays stable for callers
 
 
 def prepare_dispatch_issue(page: Page):

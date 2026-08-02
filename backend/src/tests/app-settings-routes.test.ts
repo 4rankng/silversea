@@ -275,7 +275,6 @@ describe('app-settings route authorization', () => {
     assert.equal(read.status, 200);
     const proposed = {
       botEnabled: Boolean(read.body.botEnabled),
-      tutorialEnabled: Boolean(read.body.tutorialEnabled),
       gpsEnabled: Boolean(read.body.gpsEnabled),
       creditWarningThresholdDefault: Number(read.body.creditWarningThresholdDefault ?? cachedBefore.creditWarningThresholdDefault),
       creditTierOneAmountCap: Number(read.body.creditTierOneAmountCap ?? cachedBefore.creditTierOneAmountCap),

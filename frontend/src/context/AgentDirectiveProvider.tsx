@@ -157,9 +157,8 @@ export function AgentDirectiveProvider({ children }: { children: ReactNode }) {
 }
 
 /** Poll highlightElement until the target mounts (or 1.8s elapses), resolving
- *  true on first hit / false on timeout. Promise-returning sibling of the old
- *  fire-and-forget retry: `send` discards the promise (stays sync); `sendAndWait`
- *  awaits it to learn whether the spotlight landed (graceful degradation). */
+ *  true on first hit / false on timeout. `send` discards the promise (stays
+ *  synchronous for the chat ack contract). */
 function highlightWhenReady(targetId: string, durationMs?: number): Promise<boolean> {
   return new Promise((resolve) => {
     const startedAt = performance.now();

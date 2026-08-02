@@ -1132,7 +1132,6 @@ function isInternalContractLeak(text: string): boolean {
     'widget',
     'tool',
     'insight_card',
-    'start_tour',
   ].some((needle) => normalized.includes(needle));
 }
 
@@ -1228,8 +1227,6 @@ const RESPONSE_TYPE_ALIASES: Record<string, string> = {
   answer: 'text',
   reply: 'text',
   prose: 'text',
-  tour: 'start_tour',
-  starttour: 'start_tour',
   navigate: 'directive',
   action: 'directive',
 };
@@ -1276,10 +1273,9 @@ export function sanitizeAgentJson(raw: unknown): unknown {
   if (obj.type === 'directive' && obj.directive && typeof obj.directive === 'object') {
     obj.directive = sanitizeDirective(obj.directive);
   }
-  // text, insight_card, and tutorial may carry top-level `actions`; normalize
-  // action chips for all three. text/tutorial have no `widgets`, so the widget
-  // block below is a no-op for them.
-  if (obj.type === 'text' || obj.type === 'insight_card' || obj.type === 'tutorial') {
+  // text and insight_card may carry top-level `actions`; normalize action chips
+  // for both. text has no `widgets`, so the widget block below is a no-op for it.
+  if (obj.type === 'text' || obj.type === 'insight_card') {
     if (obj.type === 'insight_card' && typeof obj.title !== 'string') {
       obj.title = typeof obj.summary === 'string' ? obj.summary.slice(0, 80) : 'Tóm tắt';
     }
