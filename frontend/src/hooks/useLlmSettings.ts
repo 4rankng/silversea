@@ -2,7 +2,7 @@
 //
 // `useLlmSettings()` loads the singleton; `useSaveLlmSettings()` invalidates
 // the cache on success so a freshly-saved provider/key is reflected on
-// re-render. See useChatbotMetrics.ts for the same useQuery + qk pattern.
+// re-render.
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { llmSettingsClient } from '../api/llmSettingsClient';
 import { qk } from '../api/keys';

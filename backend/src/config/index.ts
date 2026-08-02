@@ -133,8 +133,6 @@ const configSchema = z.object({
   // P5 Governance: per-user chat rate limit (messages per minute). Prevents
   // abuse/cost runaway. 0 = disabled.
   agentRateLimitPerMin: z.number().int().nonnegative().default(20),
-  // P5 Governance: agent_messages retention in days. 0 = keep forever.
-  agentMessageRetentionDays: z.number().int().nonnegative().default(180),
   // Wave 2 M3.3: Email service. The Resend API key is managed by ADMIN in
   // app_settings; sender identity remains deployment configuration.
   emailFromAddress: z.string().default('noreply@tingting.vn'),
@@ -175,7 +173,6 @@ const raw = {
   agentStreamingEnabled: parseFlag(process.env.AGENT_STREAMING_ENABLED, false),
   agentFailover: parseFlag(process.env.AGENT_FAILOVER, true),
   agentRateLimitPerMin: Number(process.env.AGENT_RATE_LIMIT_PER_MIN) || 20,
-  agentMessageRetentionDays: Number(process.env.AGENT_MESSAGE_RETENTION_DAYS) || 180,
 };
 
 // Provide dev-only defaults for values not marked as required in production
@@ -213,7 +210,6 @@ const withDefaults = {
   agentStreamingEnabled: raw.agentStreamingEnabled,
   agentFailover: raw.agentFailover,
   agentRateLimitPerMin: raw.agentRateLimitPerMin,
-  agentMessageRetentionDays: raw.agentMessageRetentionDays,
   emailFromAddress: process.env.EMAIL_FROM_ADDRESS || 'noreply@tingting.vn',
   emailFromName: process.env.EMAIL_FROM_NAME || 'TingTing Logistics',
 };
@@ -265,5 +261,4 @@ export const config = result.success ? result.data : configSchema.parse({
   agentIntentRouter: true,
   agentFailover: true,
   agentRateLimitPerMin: 20,
-  agentMessageRetentionDays: 180,
 });

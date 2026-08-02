@@ -90,9 +90,11 @@ type _CatalogAgentKeys = {
 }[keyof typeof PAGE_CATALOG];
 type _TupleExtra = Exclude<_CatalogAgentKeys, AgentRouteKey>; // catalog agent key not listed in the tuple
 type _TupleMissing = Exclude<AgentRouteKey, _CatalogAgentKeys>; // tuple key with no catalog `agent` data
-const _agentKeysInSync: (_TupleExtra extends never ? true : _TupleExtra) &
-  (_TupleMissing extends never ? true : _TupleMissing) = true;
-void _agentKeysInSync;
+type _AssertRouteCatalogSync<T extends true> = T;
+type _AgentKeysInSync = _AssertRouteCatalogSync<
+  [_TupleExtra, _TupleMissing] extends [never, never] ? true : false
+>;
+void (0 as unknown as _AgentKeysInSync);
 
 // ─── Openable component ids (modal/drawer/form targets) ─────────────────────
 // Advisory closed set of componentIds pages MAY register via `useAgentOpenable`.
@@ -375,10 +377,10 @@ export const agentEventSchema = z.discriminatedUnion('type', [
     response: agentResponseSchema,
     /** Set on the first turn — the id of the conversation that was created/used. */
     conversationId: z.string().optional(),
-    /** Assistant message id, used by the browser to report true wait time. */
+    /** Correlates the streamed bubble to the persisted assistant row. */
     messageId: z.number().int().positive().optional(),
     /** True when the answer came from the FAQ fast lane (zero LLM calls). Lets
-     *  the frontend tag the bubble + the backend skip agent_turn_metrics. */
+     *  the frontend tag the bubble. */
     fastLane: z.boolean().optional(),
   }),
   z.object({

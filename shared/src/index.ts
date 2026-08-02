@@ -220,8 +220,16 @@ export type {
   LlmSettingsResponse,
   LlmSettingsUpdate,
 } from './schemas/llm-settings';
-export { OCR_SETTINGS_PATHS, ocrSettingsUpdateSchema } from './schemas/ocr-settings';
-export type { OcrSettingsResponse, OcrSettingsUpdate } from './schemas/ocr-settings';
+
+// ─── Admin OCR settings (independent OCR enablement + provider keys) ───────
+export {
+  OCR_SETTINGS_PATHS,
+  ocrSettingsUpdateSchema,
+} from './schemas/ocr-settings';
+export type {
+  OcrSettingsResponse,
+  OcrSettingsUpdate,
+} from './schemas/ocr-settings';
 
 // ─── Admin Bách Khoa GPS credentials ────────────────────────────────────────
 export { GPS_SETTINGS_PATHS, gpsSettingsUpdateSchema } from './schemas/gps-settings';

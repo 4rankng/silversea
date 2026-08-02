@@ -1,6 +1,6 @@
 // Typed API client for the ADMIN FAQ knowledge base endpoints. The path is the
 // absolute `/admin/faq-entries` mount (NOT under the /api/config catch-all) —
-// same pattern as llmSettingsClient and chatbotMetricsClient.
+// same pattern as llmSettingsClient.
 //
 // Responses never include the `embedding` vector column; embedding status is
 // surfaced via `FaqEntryMutationResponse.embeddingStatus` on create/update.

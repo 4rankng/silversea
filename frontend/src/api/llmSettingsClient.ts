@@ -1,6 +1,6 @@
 // Typed API client for the ADMIN LLM provider settings endpoints (MiniMax /
 // OpenRouter selection + API keys). The path is the absolute `/admin/llm-settings`
-// mount (NOT under the /api/config catch-all), mirroring chatbotMetricsClient.
+// mount (NOT under the /api/config catch-all).
 //
 // Security: the GET response NEVER contains plaintext keys — only a masked
 // preview + a `*KeySet` boolean. The PUT omits a key field to leave the stored

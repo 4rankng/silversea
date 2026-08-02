@@ -26,7 +26,6 @@ import {
   Shield,
   Phone,
   ClipboardCheck,
-  Activity,
   SlidersHorizontal,
   Landmark,
   Calculator,
@@ -106,7 +105,6 @@ export function getNavItems(
         ] : []),
         ...(role === 'ADMIN' ? [
           { key: 'app-settings', label: 'Cài đặt ứng dụng', path: '/config/app-settings', icon: SlidersHorizontal, section: 'system' as const },
-          { key: 'chatbot-monitoring', label: 'Giám sát Chatbot', path: routes.chatbotMonitoring, icon: Activity, section: 'system' as const },
         ] : []),
         ...(role === 'ADMIN' || role === 'MANAGER' || role === 'ACCOUNTANT' ? [
           { key: 'audit-logs', label: 'Nhật ký người dùng', path: routes.auditLogs, icon: ScrollText, section: 'system' as const },

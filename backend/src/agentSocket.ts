@@ -17,12 +17,9 @@ import { Server, type Namespace, type Socket } from 'socket.io';
 import { performance } from 'node:perf_hooks';
 import { randomUUID } from 'crypto';
 import jwt from 'jsonwebtoken';
-import { and, eq } from 'drizzle-orm';
 import { config } from './config';
 import { getAppSettings, onAppSettingsChanged } from './services/app-settings.service';
 import { Role, agentActionResultSchema, type AgentActionResult, type AgentEvent, type AgentResponse } from '@tingting/shared';
-import { db } from './db';
-import * as schema from './db/schema';
 import type { AuthUser } from './middleware/auth';
 import { isTokenBlacklisted } from './lib/redis';
 import { runAgent, recordAbortedTurn, recordFaqTurn, recordNavTurn, recordSummaryTurn, recordLookupTurn } from './services/agent/orchestrator';
@@ -43,11 +40,6 @@ interface ChatInput {
   conversationId?: string;
   /** The SPA route the user is on when they ask — gives the LLM page context. */
   currentRouteKey?: string;
-}
-
-interface ClientTimingInput {
-  messageId?: number;
-  elapsedMs?: number;
 }
 
 // ── Per-session memory ─────────────────────────────────────────────────────
@@ -187,24 +179,6 @@ function registerHandlers(agentNs: Namespace): void {
       if (resolve) {
         pendingAcks.delete(parsed.data.actionId);
         resolve(parsed.data);
-      }
-    });
-
-    socket.on('agent:client_timing', async (raw: ClientTimingInput | null | undefined) => {
-      const messageId = Number(raw?.messageId);
-      const elapsedMs = Number(raw?.elapsedMs);
-      if (!Number.isInteger(messageId) || messageId <= 0) return;
-      if (!Number.isFinite(elapsedMs) || elapsedMs < 0 || elapsedMs > 10 * 60_000) return;
-      try {
-        await db
-          .update(schema.agentTurnMetrics)
-          .set({ latencyClientWaitMs: Math.round(elapsedMs) })
-          .where(and(
-            eq(schema.agentTurnMetrics.messageId, messageId),
-            eq(schema.agentTurnMetrics.userId, user.userId),
-          ));
-      } catch (err) {
-        console.warn('[agent-socket] client timing update failed', err);
       }
     });
 
@@ -390,9 +364,6 @@ function registerHandlers(agentNs: Namespace): void {
                   response: financial.response,
                   conversationId: input?.conversationId,
                   lookupMs: financial.lookupMs,
-                  model: 'financial-overview-lane',
-                  intentBucket: 'financial',
-                  toolCallCount: financial.toolCallCount,
                   toolTrace: financial.toolTrace,
                 });
                 if (ac.signal.aborted) return;
@@ -428,9 +399,6 @@ function registerHandlers(agentNs: Namespace): void {
                 response: report.response,
                 conversationId: input?.conversationId,
                 lookupMs: report.lookupMs,
-                model: 'deterministic-report-lane',
-                intentBucket: 'report',
-                toolCallCount: report.toolCallCount,
                 toolTrace: report.toolTrace,
               });
               if (ac.signal.aborted) return;
@@ -450,12 +418,12 @@ function registerHandlers(agentNs: Namespace): void {
 
           // Lane 2: Single-tool lookup
           if (decision.lane === 'lookup' && decision.lookupQuery && !ac.signal.aborted) {
-            const { response: lookupResponse, lookupMs: lkMs, toolCallCount } = await runLookup(decision.lookupQuery, ctx.role);
+            const { response: lookupResponse, lookupMs: lkMs } = await runLookup(decision.lookupQuery, ctx.role);
             if (!ac.signal.aborted) {
               turnRecorded = true;
               const { conversationId: lkConvId, messageId: lkMsgId } = await recordLookupTurn({
                 ctx, userMessage: message, response: lookupResponse,
-                conversationId: input?.conversationId, lookupMs: lkMs, toolCallCount,
+                conversationId: input?.conversationId, lookupMs: lkMs,
               });
               if (ac.signal.aborted) return;
               sessionHistory.push({ role: 'user', content: message });

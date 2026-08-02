@@ -29,7 +29,6 @@ describe('P1 Intent Router — Lane 0 navigation (positive cases)', () => {
     { msg: 'mở trang công nợ', expectedRouteKey: 'debt', desc: 'VN diacritic: mở trang công nợ → debt' },
     { msg: 'mở trang lốp', expectedRouteKey: 'fleetTires', desc: 'alias match: mở trang lốp → fleetTires' },
     { msg: 'mo trang cong no', expectedRouteKey: 'debt', desc: 'VN no-tone: mo trang cong no → debt' },
-    { msg: 'mở trang giám sát chatbot', expectedRouteKey: 'chatbotMonitoring', desc: 'alias: giám sát chatbot' },
     { msg: 'mo trang cong no phai thu', expectedRouteKey: 'debt', desc: 'no-tone receivables (full title)' },
     { msg: 'mở trang giấy báo nợ', expectedRouteKey: 'configDebitNoteTemplates', desc: 'alias: giấy báo nợ' },
     { msg: 'vào trang lương', expectedRouteKey: 'salary', desc: 'verb vào + title lương' },
@@ -152,7 +151,6 @@ describe('P1 Intent Router — misroute gate (≤10%)', () => {
     const allMsgs = [
       // nav positives
       'mở trang công nợ', 'mở trang lốp', 'mo trang cong no',
-      'mở trang giám sát chatbot', 'mo trang bao cao con gno',
       'mở trang giấy báo nợ', 'vào trang lương', 'mở trang lương',
       'mở dashboard', 'open dashboard', 'mo trang khoan no phai thu',
       'mở trang kỷ luật', 'mở trang người dùng', 'mở trang khách hàng',

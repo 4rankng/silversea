@@ -345,19 +345,6 @@ export const qk = {
       ['audit-logs', pageSize, filter, search] as const,
   },
 
-  /* ── Chatbot (agent) performance monitoring ─────────────────────────── */
-
-  chatbotMetrics: {
-    /** Broad prefix — matches every chatbot-metrics query. */
-    all: ['chatbotMetrics'] as const,
-    summary: (range: string) => ['chatbotMetrics', 'summary', range] as const,
-    latency: (range: string) => ['chatbotMetrics', 'latency', range] as const,
-    tools: (range: string) => ['chatbotMetrics', 'tools', range] as const,
-    timeseries: (range: string) => ['chatbotMetrics', 'timeseries', range] as const,
-    recent: (range: string, sort: string, limit: number) =>
-      ['chatbotMetrics', 'recent', range, sort, limit] as const,
-  },
-
   /* ── Admin LLM provider settings (MiniMax / OpenRouter) ─────────────── */
 
   llmSettings: {
@@ -376,6 +363,7 @@ export const qk = {
   appSettings: {
     general: ['app-settings'] as const,
     email: ['email-settings'] as const,
+    businessUnits: ['app-settings', 'business-units'] as const,
   },
 
   creditOverrides: {

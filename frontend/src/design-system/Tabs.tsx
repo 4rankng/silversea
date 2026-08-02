@@ -6,7 +6,6 @@ import './Tabs.css';
  * so it cannot collide with anything). Replaces the hand-rolled
  * `role="tablist" + role="tab"` markup inlined in 5+ pages:
  *   - PayableListPage.tsx (category chips)
- *   - chatbot-monitoring-summary.tsx / -details.tsx (segmented ranges)
  *   - components/debt/PeriodFilter.tsx (month vs range mode)
  *   - DebtDetailPage.tsx (workspace tabs — owned by sibling plan, migrate later)
  *

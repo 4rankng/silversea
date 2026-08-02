@@ -47,7 +47,6 @@ export const routes = {
   salary: PAGE_CATALOG.salary.path,
   users: PAGE_CATALOG.users.path,
   auditLogs: PAGE_CATALOG.auditLogs.path,
-  chatbotMonitoring: PAGE_CATALOG.chatbotMonitoring.path,
   customers: PAGE_CATALOG.customers.path,
   suppliers: PAGE_CATALOG.suppliers.path,
   // Wave 0: shipment (lô hàng) — minimal read-only list + detail.
@@ -176,7 +175,6 @@ const titleRules: TitleRule[] = [
   { test: p => p.startsWith(routes.config), title: 'Cấu hình' },
   { test: p => p === routes.users, title: PAGE_CATALOG.users.title },
   { test: p => p === routes.auditLogs, title: PAGE_CATALOG.auditLogs.title },
-  { test: p => p === routes.chatbotMonitoring, title: PAGE_CATALOG.chatbotMonitoring.title },
   { test: p => /^\/portal\/shipments\/\d+$/.test(p), title: 'Chi tiết lô hàng' },
   { test: p => p.startsWith(routes.portalShipments), title: 'Lô hàng của tôi' },
   { test: p => p.startsWith(routes.portalDebitNotes), title: 'Giấy báo nợ' },

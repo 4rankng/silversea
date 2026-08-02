@@ -2313,62 +2313,6 @@ export const agentMessages = pgTable('agent_messages', {
   index('agent_messages_conversation_idx').on(table.conversationId),
 ]);
 
-// Per-turn performance metrics. One row per assistant agent_messages turn
-// (messageId is both PK and FK → 1:1). Used by the chatbot performance
-// monitoring dashboard.
-//
-// DUAL-LATENCY + ACK-EXCLUSION INVARIANT (read before touching timings):
-//   - latency_total_ms       = LLM + tools + final (EXCLUDES ack waits).
-//   - latency_user_perceived_ms = total + ack + persist (server-side fallback).
-//   - latency_client_wait_ms = browser send -> assistant response shown.
-//   - latency_ack_ms         : the ack/emit wait, tracked separately.
-//   - latency_tools_ms       : MUST NOT include the ack wait at the mid-loop
-//                              instrumentation site — subtract the ack wait
-//                              there before persisting.
-export const agentTurnMetrics = pgTable('agent_turn_metrics', {
-  messageId: integer('message_id').primaryKey().references(() => agentMessages.id),
-  traceId: text('trace_id'),
-  userId: integer('user_id').references(() => users.id),
-  role: text('role'),
-  conversationId: integer('conversation_id').references(() => agentConversations.id),
-  model: text('model'),
-  latencyUserPerceivedMs: integer('latency_user_perceived_ms'),
-  latencyClientWaitMs: integer('latency_client_wait_ms'),
-  latencyTotalMs: integer('latency_total_ms'),
-  latencyLlmMs: integer('latency_llm_ms'),
-  latencyToolsMs: integer('latency_tools_ms'),
-  latencyFinalMs: integer('latency_final_ms'),
-  latencyAckMs: integer('latency_ack_ms'),
-  latencyPersistMs: integer('latency_persist_ms'),
-  // P0 instrumentation: time-to-first-token (ms from turn start to first
-  // streamed TEXT delta OR first tool result, whichever is earlier). Null when
-  // the turn produced neither (immediate error / FAQ fast lane). The lever for
-  // perceived-latency work — see docs/plans/2026-07-13-fast-response-chatbot-lanes.
-  latencyFirstTokenMs: integer('latency_first_token_ms'),
-  reactIterations: integer('react_iterations'),
-  toolCallCount: integer('tool_call_count').default(0),
-  fallbackUsed: boolean('fallback_used').default(false),
-  aborted: boolean('aborted').default(false),
-  // A4: navigate-compliance telemetry. navigateDirectiveEmitted = a navigate/
-  // focus directive was emitted this turn (model or guardrail); guardrailFired
-  // = the A3 guardrail synthesized the navigate because the model wrote a path
-  // in prose instead of calling ui.navigate.
-  navigateDirectiveEmitted: boolean('navigate_directive_emitted').default(false),
-  guardrailFired: boolean('guardrail_fired').default(false),
-  errorKind: text('error_kind'),
-  // P0 instrumentation: which execution lane handled the turn ('faq' | 'nav' |
-  // 'lookup' | 'summary' | 'react_fallback' | 'unknown'). Lets the dashboard
-  // show intent distribution and measure the route-before-reasoning collapse.
-  intentBucket: text('intent_bucket'),
-  tokensIn: integer('tokens_in').default(0),
-  tokensOut: integer('tokens_out').default(0),
-  estimatedCostVnd: integer('estimated_cost_vnd'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-}, (table) => [
-  index('agent_turn_metrics_created_at_idx').on(table.createdAt),
-  index('agent_turn_metrics_conversation_id_idx').on(table.conversationId),
-]);
-
 // ─── FAQ knowledge base (chatbot pre-LLM fast lane) ─────────────────────────
 // Seeded domain Q&A answered with ZERO LLM calls via a 4-stage cascade matcher
 // (exact → rule → cosine similarity via pgvector → score/margin gate). The

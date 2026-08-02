@@ -105,7 +105,6 @@ const ForwarderExpenseTypesConfigPage = lazy(() => import('./pages/config/Forwar
 const TirePositionsConfigPage = lazy(() => import('./pages/config/TirePositionsConfigPage'));
 const DebitNoteTemplatesConfigPage = lazy(() => import('./pages/config/DebitNoteTemplatesConfigPage'));
 const DebitNoteTemplateEditorPage = lazy(() => import('./pages/config/DebitNoteTemplateEditorPage'));
-const ChatbotMonitoringPage = lazy(() => import('./pages/ChatbotMonitoringPage'));
 
 function PageLoader() {
   return (
@@ -290,7 +289,6 @@ export function AppRoutes() {
           <Route path="/credit-overrides" element={officeStaffOnly(page(<CreditOverrideQueuePage />))} />
           <Route path="/governance-actions" element={officeStaffOnly(page(<GovernanceActionsPage />))} />
           <Route path="/users" element={officeStaffOnly(page(<UsersPage />))} />
-          <Route path="/chatbot-monitoring" element={strictAdminOnly(page(<ChatbotMonitoringPage />))} />
           <Route path="/audit-logs" element={officeStaffOnly(page(<AuditLogPage />))} />
           <Route path="/audit-log" element={<Navigate to="/audit-logs" replace />} />
           <Route path="/admin/audit-logs" element={<Navigate to="/audit-logs" replace />} />

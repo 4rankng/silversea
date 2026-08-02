@@ -29,7 +29,6 @@ export const PRESERVED_TABLES = [
   'push_subscriptions',
   'agent_conversations',
   'agent_messages',
-  'agent_turn_metrics',
   'faq_entries',
   'knowledge_chunks',
   'idempotency_keys',

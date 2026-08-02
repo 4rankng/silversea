@@ -61,68 +61,6 @@ import { ToolError } from './tool.types';
 import { withSpan, withRootSpan, type SpanAttrs } from './telemetry.js';
 import logger from '../../lib/logger.js';
 
-// ── Latency computation (pure, unit-tested) ─────────────────────────────────
-// LATENCY CONTRACT — read before editing the metrics row:
-//   latency_total_ms          = LLM + tools + final            (EXCLUDES ack + persist)
-//   latency_user_perceived_ms = server-side wait fallback = root durationMs
-//   latency_ack_ms / latency_persist_ms : tracked in their own columns
-// All durations come from performance.now() (via withSpan.durationMs or a local
-// timer), NEVER from the OTel span duration. See telemetry.ts LATENCY CONTRACT.
-export interface MetricsAccumulator {
-  latencyLlmMs: number;
-  latencyToolsMs: number;
-  latencyFinalMs: number;
-  latencyAckMs: number;
-  latencyPersistMs: number;
-  /** P0 — time-to-first-token (ms from turn start to first streamed delta or
-   *  first tool result). Stamped once; null when the turn streamed nothing and
-   *  ran no tools. Persisted to latency_first_token_ms. */
-  latencyFirstTokenMs: number | undefined;
-  reactIterations: number;
-  toolCallCount: number;
-  fallbackUsed: boolean;
-  aborted: boolean;
-  errorKind: string | undefined;
-  /** P0 — which execution lane handled the turn. Today only 'react_fallback'
-   *  (this orchestrator) and 'faq' (set in agentSocket before calling runAgent
-   *  is skipped). P1 will add 'nav'/'lookup'. Persisted to intent_bucket. */
-  intentBucket: string | undefined;
-  /** True iff a navigate/focus directive was emitted this turn (mid-loop tool,
-   *  terminal answer, or guardrail-synthesized). Powers the dashboard's
-   *  navigate-compliance KPI (A4) and gates the A3 guardrail. */
-  navigateDirectiveEmitted: boolean;
-  /** True iff the A3 guardrail converted a prose-with-path answer into a
-   *  navigate directive (the model failed to call ui.navigate on its own). */
-  guardrailFired: boolean;
-  /** True iff Case 1 short-circuited produceFinalAnswer — the ReAct loop's
-   *  terminal assistant message already held valid structured JSON, so NO
-   *  separate json_object call was made. Measures the double-call collapse:
-   *  high = the model reliably emits in-loop JSON; low = Case 3 (structured
-   *  retry) fires often and the collapse isn't helping. In-memory only —
-   *  persisted indirectly via latencyFinalMs === 0. */
-  finalAvoided: boolean;
-}
-
-export interface LatencyBreakdown {
-  latencyTotalMs: number;
-  latencyUserPerceivedMs: number;
-  latencyAckMs: number;
-  latencyPersistMs: number;
-}
-
-export function computeLatencies(
-  acc: Pick<MetricsAccumulator, 'latencyLlmMs' | 'latencyToolsMs' | 'latencyFinalMs' | 'latencyAckMs' | 'latencyPersistMs'>,
-  rootDurationMs: number,
-): LatencyBreakdown {
-  // invariant: user_perceived = total + ack + persist (+overhead)
-  return {
-    latencyTotalMs: acc.latencyLlmMs + acc.latencyToolsMs + acc.latencyFinalMs,
-    latencyUserPerceivedMs: rootDurationMs,
-    latencyAckMs: acc.latencyAckMs,
-    latencyPersistMs: acc.latencyPersistMs,
-  };
-}
-
 // System-prompt construction + structured-response contract live in
 // system-prompt.ts so they can be unit-tested in isolation and extended without
 // touching the ReAct loop. See docs/context-engineering/playbook.md §Instructions.
@@ -245,37 +183,13 @@ export async function runAgent(opts: {
   // the final AgentResponse for doc-RAG provenance.
   const collectedCitations: AgentCitation[] = [];
 
-  // ── Metrics accumulator ────────────────────────────────────────────────
-  // Every persisted assistant turn writes exactly one metrics row. Latency
-  // numbers come ONLY from performance.now() (via withSpan.durationMs or a
-  // local timer) — NEVER the OTel span duration. See telemetry.ts LATENCY CONTRACT.
-  const metrics: MetricsAccumulator = {
-    latencyLlmMs: 0,
-    latencyToolsMs: 0,
-    latencyFinalMs: 0,
-    latencyAckMs: 0,
-    latencyPersistMs: 0,
-    latencyFirstTokenMs: undefined,
-    reactIterations: 0,
-    toolCallCount: 0,
-    fallbackUsed: false,
-    aborted: false,
-    errorKind: undefined,
-    intentBucket: 'react_fallback',
-    navigateDirectiveEmitted: false,
-    guardrailFired: false,
-    finalAvoided: false,
-  };
+  // Behavioral state for the A3 prose-with-path guardrail. The only metric flag
+  // that drives logic (not just telemetry): prevents double-navigating when a
+  // directive was already emitted this turn.
+  let navigateDirectiveEmitted = false;
 
-  // P0 — turn start anchor for time-to-first-token. Captured once, before the
-  // ReAct loop begins. Both stamp sites (first streamed delta, first tool
-  // result) guard on `latencyFirstTokenMs === undefined` so only the EARLIEST
-  // signal wins. performance.now() matches the LATENCY CONTRACT (telemetry.ts).
-  const turnStart = performance.now();
-
-  // Hoisted out of the root-span body so the metrics row can be written AFTER
-  // the span resolves: rootDurationMs + traceId come from withRootSpan's RETURN,
-  // so referencing them inside the callback is a TDZ. Mutated inside the span.
+  // Hoisted out of the root-span body so it can be referenced after the span
+  // resolves. Mutated inside the span.
   const totalUsage = { promptTokens: 0, completionTokens: 0 };
   let conversationId: string | undefined;
   let assistantMessageId: number | undefined;
@@ -289,7 +203,7 @@ export async function runAgent(opts: {
     // metrics DB row, not on the trace.
   };
 
-  const { result: runResult, durationMs: rootDurationMs, traceId } = await withRootSpan(
+  const { result: runResult } = await withRootSpan(
     'agent.turn',
     rootAttrs,
     async () => {
@@ -326,7 +240,6 @@ export async function runAgent(opts: {
               completionTokens: totalUsage.completionTokens,
             }),
           );
-          metrics.latencyPersistMs += persistSpan.durationMs;
           conversationId = persistSpan.result.conversationId;
           assistantMessageId = persistSpan.result.messageId;
         } catch (e) {
@@ -346,7 +259,6 @@ export async function runAgent(opts: {
       };
 
       for (let i = 0; i < iterationBudget; i++) {
-        metrics.reactIterations = i + 1;
         // Stop spending tokens the moment the client disconnects. PRE-PERSIST
         // abort → no row (1:1 invariant: no messageId exists).
         if (opts.signal?.aborted) {
@@ -354,9 +266,6 @@ export async function runAgent(opts: {
         }
 
         let result;
-        // Local timer around the await because withSpan re-throws on failure
-        // (so durationMs is unobtainable from its return on the error path).
-        const llmStart = performance.now();
         // ── Streaming peek-then-commit (Phase 2) ─────────────────────────────
         // The loop call streams tokens. We EAGERLY emit TEXT_MESSAGE_* for prose
         // deltas, but BUFFER a small prefix first to detect structured output:
@@ -392,12 +301,6 @@ export async function runAgent(opts: {
               textEmitted = true;
             }
             if (probeBuf) {
-              // P0 — first visible token to the client. Stamp once (the earliest
-              // signal wins; a tool result could have landed earlier in a prior
-              // iteration but this is the first *streamed* content).
-              if (metrics.latencyFirstTokenMs === undefined) {
-                metrics.latencyFirstTokenMs = performance.now() - turnStart;
-              }
               emit({ type: 'TEXT_MESSAGE_CONTENT', messageId: streamMessageId, delta: probeBuf });
             }
             probeBuf = '';
@@ -418,13 +321,9 @@ export async function runAgent(opts: {
                   )
                 : callMiniMax({ messages: trimToolHistory(messages), tools: miniMaxTools, signal }),
           );
-          metrics.latencyLlmMs += wrapped.durationMs;
           result = wrapped.result;
         } catch (e) {
-          // Record llm latency on the throwing path via our own timer, then
-          // re-throw to the caller (socket layer) — pre-persist, no row.
-          metrics.latencyLlmMs += performance.now() - llmStart;
-          if (e instanceof MiniMaxError) metrics.errorKind = e.code;
+          // Re-throw to the caller (socket layer) — pre-persist, no row.
           throw e;
         }
         addUsage(result.usage);
@@ -497,12 +396,6 @@ export async function runAgent(opts: {
           status: 'pending' as const,
         }));
         // tool_start events fire in original order (the UI shows them sequentially).
-        // P0 — the first TOOL_CALL_START is the user's first sign of progress on a
-        // tool turn (these turns stream no prose). Stamp TTFT once; if an earlier
-        // iteration already streamed text, that stamp already won.
-        if (metrics.latencyFirstTokenMs === undefined && pendings.length > 0) {
-          metrics.latencyFirstTokenMs = performance.now() - turnStart;
-        }
         for (const p of pendings) emit({ type: 'TOOL_CALL_START', toolName: p.call.name, args: p.parsedArgs });
 
         // Execute ONE tool. Spans retain per-call tracing; wall-clock metrics
@@ -534,7 +427,6 @@ export async function runAgent(opts: {
               ? readonlyToolCacheKey(p.call.name, p.parsedArgs)
               : undefined;
             if (cacheKey) readonlyToolCache.delete(cacheKey);
-            metrics.errorKind = 'tool';
             p.errorMsg = formatToolError(e);
             p.errorLabel = formatToolErrorLabel(e, p.call.name);
             p.status = 'error';
@@ -543,13 +435,10 @@ export async function runAgent(opts: {
 
         let terminalDirectiveResponse: AgentResponse | undefined;
 
-        // 1) READ-ONLY tools → concurrent. Count batch wall-clock once; summing
-        // overlapping tool spans would inflate the user-facing pipeline time.
+        // 1) READ-ONLY tools → concurrent.
         const readonlyPendings = pendings.filter((p) => p.tool?.readonly === true);
         if (readonlyPendings.length > 0) {
-          const batchStart = performance.now();
           await Promise.all(readonlyPendings.map((p) => runExecute(p)));
-          metrics.latencyToolsMs += performance.now() - batchStart;
         }
 
         // 2) Side-effecting tools (ui.* + un-flagged) → serial, in original
@@ -557,9 +446,7 @@ export async function runAgent(opts: {
         for (const p of pendings) {
           if (p.tool?.readonly === true) continue; // already ran concurrently
           if (!p.tool) { p.status = 'missing'; continue; }
-          const toolStart = performance.now();
           await runExecute(p);
-          metrics.latencyToolsMs += performance.now() - toolStart;
           if (p.status !== 'ok' || !p.result) continue;
           // ui.* tools produce a directive — move the UI immediately. For
           // navigate/focus we request an ack so the LLM learns whether the page
@@ -575,14 +462,13 @@ export async function runAgent(opts: {
                 !opts.signal?.aborted
               ) {
                 const actionId = randomUUID();
-                metrics.navigateDirectiveEmitted = true;
+                navigateDirectiveEmitted = true;
                 emit({ type: 'DIRECTIVE', directive: d, actionId, requiresAck: true });
                 const ackSpan = await withSpan(
                   'agent.socket.ack_wait',
                   { directive_kind: d.kind },
                   async () => opts.awaitAck!(actionId),
                 );
-                metrics.latencyAckMs += ackSpan.durationMs;
                 const ack = ackSpan.result;
                 if (opts.signal?.aborted) {
                   // PRE-PERSIST abort → no row.
@@ -605,10 +491,10 @@ export async function runAgent(opts: {
           }
         }
 
-        // 3) Re-serialize in ORIGINAL call order: tool_result events, the tool
-        // messages fed back to the model, the trace, and toolCallCount. Replies
-        // in the order the model requested keep the tool-calling protocol
-        // well-formed; missing tools are not counted (they never reached execute).
+        // 3) Re-serialize in ORIGINAL call order: tool_result events and the
+        // tool messages fed back to the model. Replies in the order the model
+        // requested keep the tool-calling protocol well-formed; missing tools
+        // are not counted (they never reached execute).
         for (const p of pendings) {
           if (p.status === 'missing') {
             const msg = `Công cụ không tồn tại: ${p.call.name}`;
@@ -617,7 +503,6 @@ export async function runAgent(opts: {
             toolTrace.push({ toolName: p.call.name, ok: false, error: msg });
             continue;
           }
-          metrics.toolCallCount += 1;
           if (p.status === 'error') {
             emit({ type: 'TOOL_CALL_END', toolName: p.call.name, toolCallId: p.call.id, ok: false, label: p.errorLabel ?? 'Công cụ cần tham số khác' });
             messages.push({ role: 'tool', tool_call_id: p.call.id, name: p.call.name, content: `Lỗi: ${p.errorMsg}` });
@@ -693,7 +578,6 @@ export async function runAgent(opts: {
         // produceFinalAnswer (Case 3 below) is now only the genuine fallback for
         // analytical turns where the loop output is NOT valid structured JSON.
         response = terminalStructured;
-        metrics.finalAvoided = true;
       } else {
         // Case 3 — analytical turn (a data tool ran) but the loop's terminal
         // output was NOT valid structured JSON. produceFinalAnswer re-tries with
@@ -701,21 +585,11 @@ export async function runAgent(opts: {
         const finalSpan = await withSpan('agent.final_answer', undefined, async () =>
           produceFinalAnswer(trimToolHistory(messages), signal, emit),
         );
-        metrics.latencyFinalMs += finalSpan.durationMs;
         finalUsage = finalSpan.result.usage;
         fallbackUsed = finalSpan.result.fallbackUsed;
         fallbackReason = finalSpan.result.fallbackReason;
         response = finalSpan.result.response;
       }
-      metrics.fallbackUsed = fallbackUsed;
-      // P0b — record WHY the final answer fell back (prefixed final_*), so the
-      // dashboard can split fallback cause from ReAct-loop errors. Guard on
-      // `!metrics.errorKind`: a turn that had a mid-loop TOOL failure AND then
-      // fell back keeps the 'tool' error (counted in errorRate — the actionable
-      // signal). The fallback itself is still captured by fallbackUsed →
-      // fallbackRate; we only stamp a final_ reason when there's no competing
-      // mid-loop error, so errorRate never silently drops a real tool error.
-      if (!metrics.errorKind && fallbackUsed && fallbackReason) metrics.errorKind = fallbackReason;
       addUsage(finalUsage);
 
       // A streamed terminal answer is user-visible before the structured pass
@@ -738,13 +612,12 @@ export async function runAgent(opts: {
       if (
         config.agentNavigateGuardrail &&
         response.type === 'text' &&
-        !metrics.navigateDirectiveEmitted &&
+        !navigateDirectiveEmitted &&
         !opts.signal?.aborted
       ) {
         const synthesized = synthesizeNavigateFromProse(response.content, ctx.currentRouteKey);
         if (synthesized) {
-          metrics.guardrailFired = true;
-          metrics.navigateDirectiveEmitted = true;
+          navigateDirectiveEmitted = true;
           response = { type: 'directive', directive: synthesized };
         }
       }
@@ -766,7 +639,7 @@ export async function runAgent(opts: {
         response.type === 'directive' &&
         (ACKED_DIRECTIVE_KINDS as readonly string[]).includes(response.directive.kind)
       ) {
-        metrics.navigateDirectiveEmitted = true;
+        navigateDirectiveEmitted = true;
       }
 
       // Terminal directive ack: if the model's FINAL answer is itself a
@@ -787,7 +660,6 @@ export async function runAgent(opts: {
           { directive_kind: response.directive.kind },
           async () => opts.awaitAck!(actionId),
         );
-        metrics.latencyAckMs += ackSpan.durationMs;
         const ack = ackSpan.result;
         response = directiveAckText(
           response.directive as Extract<AgentDirective, { kind: 'navigate' | 'focus' }>,
@@ -806,52 +678,6 @@ export async function runAgent(opts: {
       return persistResponse(response);
     },
   );
-
-  // ── Metrics row (100% write, sampler-independent) ──────────────────────
-  // Written AFTER the root span resolves: rootDurationMs (total user-perceived
-  // latency incl. ack + persist) and traceId come from withRootSpan's RETURN, so
-  // referencing them inside the span body is a TDZ. Always write when we have a
-  // messageId; turns that aborted BEFORE persistTurn have none → no row (1:1
-  // invariant). The dashboard abort KPI is labelled "tỷ lệ huỷ khi lưu".
-  if (assistantMessageId !== undefined) {
-    const lat = computeLatencies(metrics, rootDurationMs);
-    try {
-      await db.insert(schema.agentTurnMetrics).values({
-        messageId: assistantMessageId,
-        traceId,
-        userId: ctx.userId,
-        role: ctx.role,
-        conversationId: conversationId !== undefined ? Number(conversationId) : undefined,
-        model: MODEL_FAST,
-        latencyUserPerceivedMs: Math.round(lat.latencyUserPerceivedMs),
-        latencyTotalMs: Math.round(lat.latencyTotalMs),
-        latencyLlmMs: Math.round(metrics.latencyLlmMs),
-        latencyToolsMs: Math.round(metrics.latencyToolsMs),
-        latencyFinalMs: Math.round(metrics.latencyFinalMs),
-        latencyAckMs: Math.round(metrics.latencyAckMs),
-        latencyPersistMs: Math.round(metrics.latencyPersistMs),
-        latencyFirstTokenMs: metrics.latencyFirstTokenMs !== undefined
-          ? Math.round(metrics.latencyFirstTokenMs)
-          : undefined,
-        reactIterations: metrics.reactIterations,
-        toolCallCount: metrics.toolCallCount,
-        fallbackUsed: metrics.fallbackUsed,
-        aborted: metrics.aborted,
-        navigateDirectiveEmitted: metrics.navigateDirectiveEmitted,
-        guardrailFired: metrics.guardrailFired,
-        errorKind: metrics.errorKind,
-        intentBucket: metrics.intentBucket,
-        tokensIn: totalUsage.promptTokens,
-        tokensOut: totalUsage.completionTokens,
-      });
-    } catch (err) {
-      // Never crash the chat over telemetry. Log and move on.
-      logger.warn(
-        { traceId, messageId: assistantMessageId, err },
-        'agent_turn_metrics insert failed',
-      );
-    }
-  }
 
   return { ...runResult, assistantMessageId };
 }
@@ -1617,7 +1443,6 @@ export function trimToolHistory(messages: MiniMaxMessage[]): MiniMaxMessage[] {
 
 // ── Persistence ────────────────────────────────────────────────────────────
 // Returns BOTH the conversationId AND the newly inserted assistant messageId.
-// The messageId is the PK of the agent_turn_metrics row written by runAgent.
 async function persistTurn(opts: {
   ctx: AgentContext;
   userMessage: string;
@@ -1690,12 +1515,8 @@ async function persistTurn(opts: {
 }
 
 /**
- * P0 instrumentation — persist a FAQ fast-lane turn so FAQ hits are visible on
- * the dashboard. Before this, the FAQ lane returned early in agentSocket and
- * wrote NO metrics row, so FAQ hit-rate was unmeasurable (every recorded turn
- * had react_iterations >= 1 by construction). This reuses persistTurn for the
- * conversation/message rows, then writes a metrics row tagged
- * intentBucket='faq' with the measured lookup latency. Resilient: a failure
+ * Persist a FAQ fast-lane turn so FAQ hits appear in the conversation history.
+ * Reuses persistTurn for the conversation/message rows. Resilient: a failure
  * logs and never breaks chat (the answer was already emitted to the client).
  *
  * Returns the conversationId (so agentSocket can fold it into the done event)
@@ -1719,43 +1540,19 @@ export async function recordFaqTurn(opts: {
       promptTokens: 0,
       completionTokens: 0,
     });
-    if (messageId !== undefined) {
-      await db.insert(schema.agentTurnMetrics).values({
-        messageId,
-        userId: opts.ctx.userId,
-        role: opts.ctx.role,
-        conversationId: conversationId !== undefined ? Number(conversationId) : undefined,
-        model: 'faq-fast-lane',
-        // A FAQ turn has no LLM/tools/final/ack: the only latency is the lookup
-        // (embed + pgvector cosine). Record it as both the total and the
-        // first-token time so the dashboard sees FAQ turns as the fast floor.
-        latencyUserPerceivedMs: Math.round(opts.lookupMs),
-        latencyTotalMs: Math.round(opts.lookupMs),
-        latencyFirstTokenMs: Math.round(opts.lookupMs),
-        reactIterations: 0,
-        toolCallCount: 0,
-        fallbackUsed: false,
-        aborted: false,
-        navigateDirectiveEmitted: false,
-        guardrailFired: false,
-        intentBucket: 'faq',
-        tokensIn: 0,
-        tokensOut: 0,
-      });
-    }
     return { conversationId, messageId };
   } catch (err) {
     // Never crash chat over telemetry. The answer was already sent to the client.
-    logger.warn({ err }, 'recordFaqTurn metrics insert failed');
+    logger.warn({ err }, 'recordFaqTurn persist failed');
     return { conversationId: undefined, messageId: undefined };
   }
 }
 
 /**
- * P1 instrumentation — persist a Lane 0 navigation turn (deterministic, 0 LLM
- * calls). Mirrors recordFaqTurn but tags intentBucket='nav' and stores the
- * directive response. The ack wait (if any) is NOT included in lookupMs — the
- * caller measures only the router + emit time, since the ack is user-paced.
+ * Persist a Lane 0 navigation turn (deterministic, 0 LLM calls). Mirrors
+ * recordFaqTurn and stores the directive response. The ack wait (if any) is
+ * NOT included in lookupMs — the caller measures only the router + emit time,
+ * since the ack is user-paced.
  */
 export async function recordNavTurn(opts: {
   ctx: AgentContext;
@@ -1776,39 +1573,16 @@ export async function recordNavTurn(opts: {
       promptTokens: 0,
       completionTokens: 0,
     });
-    if (messageId !== undefined) {
-      await db.insert(schema.agentTurnMetrics).values({
-        messageId,
-        userId: opts.ctx.userId,
-        role: opts.ctx.role,
-        conversationId: conversationId !== undefined ? Number(conversationId) : undefined,
-        model: 'intent-router',
-        latencyUserPerceivedMs: Math.round(opts.lookupMs),
-        latencyTotalMs: Math.round(opts.lookupMs),
-        latencyFirstTokenMs: Math.round(opts.lookupMs),
-        reactIterations: 0,
-        toolCallCount: 0,
-        fallbackUsed: false,
-        aborted: false,
-        // A navigate directive was emitted — track it for the navigate KPI.
-        navigateDirectiveEmitted: true,
-        guardrailFired: false,
-        intentBucket: 'nav',
-        tokensIn: 0,
-        tokensOut: 0,
-      });
-    }
     return { conversationId, messageId };
   } catch (err) {
-    logger.warn({ err }, 'recordNavTurn metrics insert failed');
+    logger.warn({ err }, 'recordNavTurn persist failed');
     return { conversationId: undefined, messageId: undefined };
   }
 }
 
 /**
- * P3 instrumentation — persist a Lane 3 summary turn (daily-work assistant,
- * 0 LLM calls). Mirrors recordNavTurn but tags intentBucket='summary' and
- * stores the insight_card response from getDashboardStats().
+ * Persist a Lane 3 summary turn (daily-work assistant, 0 LLM calls). Mirrors
+ * recordNavTurn and stores the insight_card response from getDashboardStats().
  */
 export async function recordSummaryTurn(opts: {
   ctx: AgentContext;
@@ -1816,10 +1590,6 @@ export async function recordSummaryTurn(opts: {
   response: AgentResponse;
   conversationId?: string;
   lookupMs: number;
-  /** Deterministic summary variants can identify their own lane in metrics. */
-  model?: string;
-  intentBucket?: string;
-  toolCallCount?: number;
   toolTrace?: unknown[];
 }): Promise<{ conversationId: string | undefined; messageId: number | undefined }> {
   try {
@@ -1832,37 +1602,15 @@ export async function recordSummaryTurn(opts: {
       promptTokens: 0,
       completionTokens: 0,
     });
-    if (messageId !== undefined) {
-      await db.insert(schema.agentTurnMetrics).values({
-        messageId,
-        userId: opts.ctx.userId,
-        role: opts.ctx.role,
-        conversationId: conversationId !== undefined ? Number(conversationId) : undefined,
-        model: opts.model ?? 'summary-lane',
-        latencyUserPerceivedMs: Math.round(opts.lookupMs),
-        latencyTotalMs: Math.round(opts.lookupMs),
-        latencyFirstTokenMs: Math.round(opts.lookupMs),
-        reactIterations: 0,
-        toolCallCount: opts.toolCallCount ?? 0,
-        fallbackUsed: false,
-        aborted: false,
-        navigateDirectiveEmitted: false,
-        guardrailFired: false,
-        intentBucket: opts.intentBucket ?? 'summary',
-        tokensIn: 0,
-        tokensOut: 0,
-      });
-    }
     return { conversationId, messageId };
   } catch (err) {
-    logger.warn({ err }, 'recordSummaryTurn metrics insert failed');
+    logger.warn({ err }, 'recordSummaryTurn persist failed');
     return { conversationId: undefined, messageId: undefined };
   }
 }
 
 /**
- * P1 Lane 2 instrumentation — persist a lookup turn (single-tool search, 0 LLM
- * in v1). Tags intentBucket='lookup', toolCallCount=1.
+ * Persist a Lane 2 lookup turn (single-tool search, 0 LLM in v1).
  */
 export async function recordLookupTurn(opts: {
   ctx: AgentContext;
@@ -1870,7 +1618,6 @@ export async function recordLookupTurn(opts: {
   response: AgentResponse;
   conversationId?: string;
   lookupMs: number;
-  toolCallCount: number;
 }): Promise<{ conversationId: string | undefined; messageId: number | undefined }> {
   try {
     const { conversationId, messageId } = await persistTurn({
@@ -1882,30 +1629,9 @@ export async function recordLookupTurn(opts: {
       promptTokens: 0,
       completionTokens: 0,
     });
-    if (messageId !== undefined) {
-      await db.insert(schema.agentTurnMetrics).values({
-        messageId,
-        userId: opts.ctx.userId,
-        role: opts.ctx.role,
-        conversationId: conversationId !== undefined ? Number(conversationId) : undefined,
-        model: 'lookup-lane',
-        latencyUserPerceivedMs: Math.round(opts.lookupMs),
-        latencyTotalMs: Math.round(opts.lookupMs),
-        latencyFirstTokenMs: Math.round(opts.lookupMs),
-        reactIterations: 0,
-        toolCallCount: opts.toolCallCount,
-        fallbackUsed: false,
-        aborted: false,
-        navigateDirectiveEmitted: false,
-        guardrailFired: false,
-        intentBucket: 'lookup',
-        tokensIn: 0,
-        tokensOut: 0,
-      });
-    }
     return { conversationId, messageId };
   } catch (err) {
-    logger.warn({ err }, 'recordLookupTurn metrics insert failed');
+    logger.warn({ err }, 'recordLookupTurn persist failed');
     return { conversationId: undefined, messageId: undefined };
   }
 }
@@ -1928,27 +1654,9 @@ export async function recordAbortedTurn(opts: {
       promptTokens: 0,
       completionTokens: 0,
     });
-    if (messageId !== undefined) {
-      await db.insert(schema.agentTurnMetrics).values({
-        messageId,
-        userId: opts.ctx.userId,
-        role: opts.ctx.role,
-        conversationId: conversationId !== undefined ? Number(conversationId) : undefined,
-        model: 'cancelled-turn',
-        latencyUserPerceivedMs: Math.round(opts.elapsedMs),
-        toolCallCount: null,
-        fallbackUsed: false,
-        aborted: true,
-        navigateDirectiveEmitted: false,
-        guardrailFired: false,
-        intentBucket: 'aborted',
-        tokensIn: null,
-        tokensOut: null,
-      });
-    }
     return { conversationId, messageId };
   } catch (err) {
-    logger.warn({ err }, 'recordAbortedTurn metrics insert failed');
+    logger.warn({ err }, 'recordAbortedTurn persist failed');
     return { conversationId: undefined, messageId: undefined };
   }
 }

@@ -1,18 +1,12 @@
 /**
  * withSpan — agent instrumentation helper.
  *
- * ---------------------------------------------------------------------------
- * LATENCY CONTRACT (read before editing):
- *
- * Latency columns in agent_turn_metrics are sourced ONLY from `durationMs`,
- * which this helper measures with `performance.now()`. NEVER read
- * `span.duration()` or spanContext timing for metrics, and NEVER write the
- * metrics row from a SpanProcessor.onEnd callback. OTel samples at span
- * CREATION, so a sampled-out span becomes a NonRecordingSpan whose onEnd
- * never fires — relying on it would silently zero out latency rows.
- * performance.now() is unaffected by sampling, so durationMs is always
- * accurate even when the sampler is ALWAYS_OFF.
- * ---------------------------------------------------------------------------
+ * `durationMs` is measured with `performance.now()` and is sampler-safe: OTel
+ * samples at span CREATION, so a sampled-out span becomes a NonRecordingSpan
+ * whose onEnd never fires. performance.now() is unaffected by sampling, so
+ * durationMs is always accurate even when the sampler is ALWAYS_OFF. Use
+ * `durationMs` (never `span.duration()`) wherever a wall-clock measurement is
+ * needed.
  *
  * No SpanProcessor is imported here, and span.duration() is never called.
  */

@@ -45,7 +45,6 @@ describe('titleForPath (catalog-sourced, parity with pre-refactor behavior)', ()
     '/config/salary-periods': 'Cấu hình',
     '/users': 'Người dùng',
     '/audit-logs': 'Nhật ký người dùng',
-    '/chatbot-monitoring': 'Giám sát Chatbot',
     '/portal/shipments': 'Lô hàng của tôi',
     '/portal/shipments/9': 'Chi tiết lô hàng',
     '/portal/debit-notes': 'Giấy báo nợ',
@@ -108,7 +107,7 @@ describe('agent route-key set parity (catalog ↔ AGENT_ROUTE_KEYS)', () => {
     }
   });
 
-  it('agent set includes all 38 navigable office destinations', () => {
-    expect(AGENT_ROUTE_KEYS).toHaveLength(38);
+  it('agent set includes all 37 navigable office destinations', () => {
+    expect(AGENT_ROUTE_KEYS).toHaveLength(37);
   });
 });

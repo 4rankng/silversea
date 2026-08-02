@@ -131,12 +131,6 @@ export function sendActionResult(r: AgentActionResult): void {
   if (socket && socket.connected) socket.emit('agent:action_result', r);
 }
 
-/** Report the browser-observed wait time for one completed assistant turn. */
-export function sendClientTiming(input: { messageId: number; elapsedMs: number }): void {
-  const socket = cached?.socket;
-  if (socket && socket.connected) socket.emit('agent:client_timing', input);
-}
-
 /**
  * Stream an assistant turn. Calls `onEvent` for each validated frame and
  * resolves on the terminal `done`/`error` frame (or on caller abort /

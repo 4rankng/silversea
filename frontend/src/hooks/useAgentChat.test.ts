@@ -10,7 +10,6 @@ vi.mock('../api/agentClient', () => ({
   agentClient: { getConversation: vi.fn() },
   streamAgentChat: mocks.streamAgentChat,
   sendActionResult: vi.fn(),
-  sendClientTiming: vi.fn(),
   loadSavedConversationId: vi.fn(() => null),
   persistConversationId: vi.fn(),
 }));

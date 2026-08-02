@@ -14,7 +14,7 @@ describe('getNavItems', () => {
       ['Duyệt vượt hạn mức', '/credit-overrides'], ['Trung tâm phê duyệt', '/governance-actions'],
       ['Khách hàng', '/customers'], ['Nhà cung cấp', '/suppliers'], ['Tuyến đường', '/config/routes'],
       ['Người dùng', '/users'], ['Cài đặt ứng dụng', '/config/app-settings'],
-      ['Giám sát Chatbot', '/chatbot-monitoring'], ['Nhật ký người dùng', '/audit-logs'], ['Cấu hình', '/config'],
+      ['Nhật ký người dùng', '/audit-logs'], ['Cấu hình', '/config'],
     ]],
     [Role.MANAGER, [
       ['Tổng quan', '/dashboard'], ['Đội xe', '/fleet'], ['Phân xe', '/dispatch'],

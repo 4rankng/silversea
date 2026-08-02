@@ -21,6 +21,10 @@ export * from './agent';
 // and the frontend config page.
 export * from './llm-settings';
 
+// Admin OCR settings (independent enable switch + OpenRouter/Gemini API keys).
+// Used by the ADMIN-only settings route and the frontend config page.
+export * from './ocr-settings';
+
 // Admin FAQ knowledge base management — create/update/delete entries with
 // automatic embedding regeneration on save. Backs the chatbot fast lane.
 export * from './faq';

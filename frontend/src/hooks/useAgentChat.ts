@@ -15,7 +15,6 @@ import {
   agentClient,
   streamAgentChat,
   sendActionResult,
-  sendClientTiming,
   loadSavedConversationId,
   persistConversationId,
 } from '../api/agentClient';
@@ -72,7 +71,6 @@ export function useAgentChat(opts: UseAgentChatOptions = {}): UseAgentChat {
   directiveRef.current = opts.onDirective;
   const abortRef = useRef<AbortController | null>(null);
   const pendingPageDirectiveRef = useRef<AgentDirective | null>(null);
-  const turnStartedAtRef = useRef<number | null>(null);
   // State updates are asynchronous, so retain the complete stream in a ref for
   // the terminal event. This lets us prevent a degraded summary from erasing
   // the detailed answer the user has already seen.
@@ -172,15 +170,6 @@ export function useAgentChat(opts: UseAgentChatOptions = {}): UseAgentChat {
         setStreamingMessage(null);
         if (event.conversationId) setConversationId(event.conversationId);
         const response = preserveDetailedStream(event.response as AgentResponse, streamedContent);
-        const reportClientWait = () => {
-          const startedAt = turnStartedAtRef.current;
-          turnStartedAtRef.current = null;
-          if (!startedAt || !event.messageId) return;
-          sendClientTiming({
-            messageId: event.messageId,
-            elapsedMs: performance.now() - startedAt,
-          });
-        };
         if (response.type === 'directive') {
           pendingPageDirectiveRef.current = null;
           // A pure-navigation answer: still surface a short confirmation bubble.
@@ -189,7 +178,6 @@ export function useAgentChat(opts: UseAgentChatOptions = {}): UseAgentChat {
             { id: uid(), role: 'assistant', content: 'Đã mở trang cho bạn.', response, createdAt: new Date().toISOString() },
           ]);
           requestAnimationFrame(() => {
-            reportClientWait();
             window.setTimeout(() => {
               directiveRef.current?.(response.directive);
             }, 0);
@@ -199,7 +187,6 @@ export function useAgentChat(opts: UseAgentChatOptions = {}): UseAgentChat {
             ...prev,
             { id: uid(), role: 'assistant', response, createdAt: new Date().toISOString() },
           ]);
-          requestAnimationFrame(reportClientWait);
           {
             const pending = pendingPageDirectiveRef.current;
             pendingPageDirectiveRef.current = null;
@@ -215,7 +202,6 @@ export function useAgentChat(opts: UseAgentChatOptions = {}): UseAgentChat {
         break;
       }
       case 'RUN_ERROR':
-        turnStartedAtRef.current = null;
         pendingPageDirectiveRef.current = null;
         setActiveTool(null);
         setIsThinking(false);
@@ -229,7 +215,6 @@ export function useAgentChat(opts: UseAgentChatOptions = {}): UseAgentChat {
 
   const send = useCallback(
     async (message: string, currentRouteKey?: string) => {
-      turnStartedAtRef.current = performance.now();
       setError(null);
       setIsThinking(true);
       setReceived(false);
@@ -263,7 +248,6 @@ export function useAgentChat(opts: UseAgentChatOptions = {}): UseAgentChat {
         }
       } catch (e) {
         if ((e as Error).name === 'AbortError') return;
-        turnStartedAtRef.current = null;
         setIsThinking(false);
         setActiveTool(null);
         setError(e instanceof Error ? e.message : 'Lỗi không xác định');
@@ -274,7 +258,6 @@ export function useAgentChat(opts: UseAgentChatOptions = {}): UseAgentChat {
 
   const reset = useCallback(() => {
     abortRef.current?.abort();
-    turnStartedAtRef.current = null;
     pendingPageDirectiveRef.current = null;
     streamedContentRef.current = null;
     setMessages([]);
