@@ -43,7 +43,7 @@ export interface AddMilestoneInput {
 
 /**
  * Map a trip status transition to a milestone type. Returns null when the
- * status doesn't map to a shipment milestone (e.g. CANCELED, LOCKED).
+ * status doesn't map to a shipment milestone (e.g. CANCELED).
  */
 export function tripStatusToMilestoneType(
   _oldStatus: TripStatus | null,
@@ -53,7 +53,7 @@ export function tripStatusToMilestoneType(
     case TripStatus.CREATED: return 'BOOKING_RECEIVED';
     case TripStatus.IN_TRANSIT: return 'IN_TRANSIT';
     case TripStatus.COMPLETED: return 'DELIVERED';
-    default: return null; // LOCKED, CANCELED → no milestone
+    default: return null; // CANCELED → no milestone
   }
 }
 

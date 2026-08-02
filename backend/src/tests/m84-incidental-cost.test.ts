@@ -10,7 +10,7 @@
  *   - same key + different body → 409.
  *   - ownership: recording on another driver's trip → 403.
  *   - missing trip → 404.
- *   - LOCKED trip → 409 (costs affect financials).
+ *   - O2C: COMPLETED trip allows costs (no hard-freeze; AR snapshot tracks drift).
  *   - list returns costs newest-first.
  */
 import { after, describe, test } from 'node:test';
@@ -56,7 +56,7 @@ async function mkCatalogs() {
 }
 
 let tripCounter = 0;
-async function mkTrip(driverId: number, customerId: number, routeId: number, cargoTypeId: number, opts: { status?: 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | 'LOCKED' | 'CANCELED' } = {}) {
+async function mkTrip(driverId: number, customerId: number, routeId: number, cargoTypeId: number, opts: { status?: 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELED' } = {}) {
   tripCounter += 1;
   const [trip] = await db.insert(s.trips).values({
     tripCode: `M84IC-${suffix}-${tripCounter}`.slice(0, 50),
@@ -132,12 +132,16 @@ describe('M8.4 slice 3 — driver incidental costs', () => {
       { costType: DriverIncidentalCostType.OTHER, amount: 10000, occurredAt: TODAY }, user.id, undefined), 404);
   });
 
-  test('LOCKED trip → 409 (costs affect financials)', async () => {
+  test('O2C: COMPLETED trip allows incidental costs (no hard-freeze; AR snapshot tracks drift)', async () => {
     const { user, driver } = await mkUserAndDriver();
     const cat = await mkCatalogs();
-    const trip = await mkTrip(driver.id, cat.customer.id, cat.route.id, cat.cargoType.id, { status: 'LOCKED' });
-    await assertStatus(() => recordIncidentalCost(trip.id, driver.id,
-      { costType: DriverIncidentalCostType.FUEL, amount: 300000, occurredAt: TODAY }, user.id, `locked-${suffix}-${trip.id}`), 409);
+    const trip = await mkTrip(driver.id, cat.customer.id, cat.route.id, cat.cargoType.id, { status: 'COMPLETED' });
+    // O2C: costs stay editable after COMPLETED. Formerly rejected with 409;
+    // now allowed (the AR dirty-flag surfaces the change to reconciliation).
+    const result = await recordIncidentalCost(trip.id, driver.id,
+      { costType: DriverIncidentalCostType.FUEL, amount: 300000, occurredAt: TODAY }, user.id, `completed-${suffix}-${trip.id}`);
+    assert.ok(result.cost, 'incidental cost recorded on a completed trip');
+    createdCostIds.push(result.cost.id);
   });
 
   test('list returns costs newest-first', async () => {

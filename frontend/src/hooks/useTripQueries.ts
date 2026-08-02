@@ -104,7 +104,7 @@ export function useTripCosts(month: number, year: number) {
     enabled: !!salaryPeriodQuery.data,
     queryFn: async () => {
       const res = await tripClient.listTrips({
-        status: 'LOCKED',
+        status: 'COMPLETED',
         limit: 100,
         dateFrom: salaryPeriodQuery.data!.start,
         dateTo: salaryPeriodQuery.data!.end,

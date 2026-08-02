@@ -67,7 +67,7 @@ async function mkTrip(
   customerId: number,
   routeId: number,
   cargoTypeId: number,
-  opts: { status?: 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | 'LOCKED' | 'CANCELED'; departureDate?: string } = {},
+  opts: { status?: 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELED'; departureDate?: string } = {},
 ) {
   tripCounter += 1;
   const [trip] = await db.insert(s.trips).values({

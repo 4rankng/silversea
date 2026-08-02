@@ -16,7 +16,7 @@ describe('trip copy field contract', () => {
       id: 10,
       tripCode: 'TRP-202607-0010',
       version: 8,
-      status: TripStatus.LOCKED,
+      status: TripStatus.COMPLETED,
       completedAt: new Date('2026-07-20T08:00:00Z'),
       createdBy: 3,
       createdAt: new Date('2026-07-01T00:00:00Z'),

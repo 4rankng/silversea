@@ -31,7 +31,7 @@ export function groupFinanceTripDetails(
     }
   } else {
     for (const trip of trips) {
-      if (trip.status !== TripStatus.COMPLETED && trip.status !== TripStatus.LOCKED) continue;
+      if (trip.status !== TripStatus.COMPLETED) continue;
       const truckId = financeVehicleBucketId(trip);
       const details = grouped.get(truckId) ?? [];
       details.push(toFinanceTripDetail(trip));

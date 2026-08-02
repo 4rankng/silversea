@@ -92,7 +92,7 @@ async function selectBackfillTripIds(input: {
     ? input.tripIds.filter((n): n is number => Number.isInteger(n) && n > 0).slice(0, 200)
     : [];
 
-  const conds = [inArray(schema.trips.status, ['COMPLETED', 'LOCKED'])];
+  const conds = [eq(schema.trips.status, 'COMPLETED')];
   if (ids.length) {
     conds.push(inArray(schema.trips.id, ids));
   } else if (input.dateFrom && input.dateTo) {
@@ -334,13 +334,13 @@ export function createAdminGpsRouter(deps: AdminGpsDeps = defaultDeps) {
 
 /**
  * POST /api/admin/gps/backfill
- * Derive real GPS routes for historical COMPLETED/LOCKED trips. Iterates
+ * Derive real GPS routes for historical COMPLETED trips. Iterates
  * SEQUENTIALLY (one provider window per trip — don't hammer Bách Khoa), each
  * trip isolated so one failure can't abort the run.
  *
  * Body: { dateFrom?, dateTo?, tripIds?: number[] }
  *   - tripIds given  → only those trips (any status except CANCELED is attempted)
- *   - else           → all COMPLETED/LOCKED trips with departureDate in [dateFrom, dateTo]
+ *   - else           → all COMPLETED trips with departureDate in [dateFrom, dateTo]
  */
   router.post('/backfill', asyncHandler(async (req: Request, res: Response) => {
     const idempotencyKey = requireGpsCommandKey(req);

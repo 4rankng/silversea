@@ -2,17 +2,21 @@ export enum TripStatus {
   CREATED = 'CREATED',
   IN_TRANSIT = 'IN_TRANSIT',
   COMPLETED = 'COMPLETED',
-  LOCKED = 'LOCKED',
   CANCELED = 'CANCELED',
 }
 
 /** Trip statuses whose revenue/AP has posted to the ledger → billable on debt notices
- *  (giấy báo nợ) and carrier payment statements. Revenue posts at COMPLETED
- *  (postTripLock fires on IN_TRANSIT→COMPLETED); LOCKED is a frozen-figures superset of
- *  COMPLETED. CREATED / IN_TRANSIT / CANCELED have no posted AR and are excluded.
- *  NOTE: P&L (pnl.service) and profit distribution remain LOCKED-only by spec — a
- *  distinct concept (grossProfit is finalized at lock) — and must NOT use this set. */
-export const BILLABLE_TRIP_STATUSES = [TripStatus.COMPLETED, TripStatus.LOCKED] as const;
+ *  (giấy báo nợ) and carrier payment statements.
+ *
+ *  `COMPLETED` is the single terminal / posting state (O2C reconciliation, 01/08/2026 —
+ *  `docs/prd/O2C dev.md`). Revenue/AP posts via `postTripCompletion` on the
+ *  `IN_TRANSIT → COMPLETED` transition, carrying the migrated photo / zero-revenue /
+ *  e-POD gates. The former `LOCKED` milestone has been dropped: costs stay editable
+ *  after completion (no hard-freeze); an AR snapshot + dirty-flag on `trips` surfaces
+ *  post-completion edits to the accountant reconciliation view instead.
+ *
+ *  CREATED / IN_TRANSIT / CANCELED have no posted AR and are excluded. */
+export const BILLABLE_TRIP_STATUSES = [TripStatus.COMPLETED] as const;
 
 /**
  * Shipment (lô hàng) lifecycle. Mirrors `shipment_status` in
@@ -277,7 +281,6 @@ export const TRIP_STATUS_LABELS: Record<TripStatus, string> = {
   [TripStatus.CREATED]: 'Mới tạo',
   [TripStatus.IN_TRANSIT]: 'Đang chạy',
   [TripStatus.COMPLETED]: 'Hoàn thành',
-  [TripStatus.LOCKED]: 'Đã khóa',
   [TripStatus.CANCELED]: 'Đã hủy',
 };
 
@@ -286,7 +289,6 @@ export const TRIP_STATUS_COLORS: Record<TripStatus, string> = {
   [TripStatus.CREATED]: '#6B7280',     // slate gray — mới tạo
   [TripStatus.IN_TRANSIT]: '#3B82F6',  // blue — đang chạy
   [TripStatus.COMPLETED]: '#10B981',   // emerald green — hoàn thành
-  [TripStatus.LOCKED]: '#1E293B',      // dark slate — đã khóa
   [TripStatus.CANCELED]: '#EF4444',    // red — đã hủy
 };
 
@@ -487,8 +489,6 @@ export enum NotificationType {
   TRIP_DISPATCHED = 'TRIP_DISPATCHED',
   TRIP_IN_TRANSIT = 'TRIP_IN_TRANSIT',
   TRIP_COMPLETED = 'TRIP_COMPLETED',
-  TRIP_LOCKED = 'TRIP_LOCKED',
-  TRIP_UNLOCKED = 'TRIP_UNLOCKED',
   TRIP_CANCELED = 'TRIP_CANCELED',
   PAYMENT_RECEIVED = 'PAYMENT_RECEIVED',
   PENALTY_CREATED = 'PENALTY_CREATED',
@@ -505,8 +505,6 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   [NotificationType.TRIP_DISPATCHED]: 'Chuyến đã điều phối',
   [NotificationType.TRIP_IN_TRANSIT]: 'Chuyến đang chạy',
   [NotificationType.TRIP_COMPLETED]: 'Chuyến hoàn thành',
-  [NotificationType.TRIP_LOCKED]: 'Chuyến đã khóa',
-  [NotificationType.TRIP_UNLOCKED]: 'Chuyến đã mở khóa',
   [NotificationType.TRIP_CANCELED]: 'Chuyến đã hủy',
   [NotificationType.PAYMENT_RECEIVED]: 'Thanh toán nhận được',
   [NotificationType.PENALTY_CREATED]: 'Phạt mới',
@@ -523,8 +521,14 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
  * and the role audience each pushes to. Everything else stays in-app only
  * (still recorded in the notification drawer) so low-signal events don't spam
  * every role. Absent types => no push. This is the single knob to tune.
+ *
+ * Audiences (per `docs/prd/O2C dev.md` push MVP — scoped to Driver + Điều vận):
+ *  - 'driver'      → DRIVER role only.
+ *  - 'dispatcher'  → Điều vận authority (MANAGER/ADMIN in the dispatcher seat).
+ *  - 'financial'   → ACCOUNTANT + MANAGER/ADMIN (financial office action).
+ *  - 'all'         → every role (avoid; the PRD narrows this to truly universal events).
  */
-export type PushAudience = 'driver' | 'financial' | 'all';
+export type PushAudience = 'driver' | 'dispatcher' | 'financial' | 'all';
 export const PUSH_RULES: Partial<Record<NotificationType, PushAudience>> = {
   // Driver must act now:
   [NotificationType.TRIP_DISPATCHED]: 'driver',
@@ -533,8 +537,9 @@ export const PUSH_RULES: Partial<Record<NotificationType, PushAudience>> = {
   [NotificationType.PENALTY_CANCELED]: 'driver',
   // Office action needed:
   [NotificationType.PAYMENT_RECEIVED]: 'financial',
-  [NotificationType.TRIP_UNLOCKED]: 'financial',
-  [NotificationType.ADVANCE_SETTLEMENT_APPROVED]: 'all',
+  // PRD push MVP: settlement-approved is Driver + Điều vận only. Previously
+  // pushed to every role ('all'), which violated the MVP scope.
+  [NotificationType.ADVANCE_SETTLEMENT_APPROVED]: 'driver',
 };
 
 export * from './api-paths';

@@ -98,7 +98,7 @@ export async function assertForwarderMutableTripScope(
   if (!assignment) throw new ApiError(404, 'Không tìm thấy chuyến đi');
 
   if (
-    trip.tripStatus === 'LOCKED'
+    trip.tripStatus === 'COMPLETED'
     || trip.tripStatus === 'CANCELED'
     || (trip.shipmentStatus !== 'DRAFT' && trip.shipmentStatus !== 'IN_PROGRESS')
   ) {
@@ -113,7 +113,7 @@ export async function getForwarderTrips(
 ) {
   const conditions = [isNull(s.trips.deletedAt), withinForwarderScope(forwarderId)];
   if (status) {
-    conditions.push(eq(s.trips.status, status as 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | 'LOCKED' | 'CANCELED'));
+    conditions.push(eq(s.trips.status, status as 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELED'));
   }
   if (filters?.search) {
     const term = `%${filters.search.replace(/[\\%_]/g, (m) => `\\${m}`)}%`;

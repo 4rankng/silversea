@@ -66,7 +66,7 @@ async function api(
   };
 }
 
-async function createTripFixture(status: 'LOCKED' | 'COMPLETED' = 'LOCKED', revenue = 1_000_000) {
+async function createTripFixture(status: 'COMPLETED' = 'COMPLETED', revenue = 1_000_000) {
   const [customer] = await db.insert(s.customers).values({
     name: `Q15 debit customer ${suffix}-${customerIds.length}`,
   }).returning();
@@ -147,7 +147,7 @@ async function createTripFixture(status: 'LOCKED' | 'COMPLETED' = 'LOCKED', reve
 }
 
 async function createDraftDocumentFromSources(tripRevenue = 1_000_000) {
-  const { customer, trip } = await createTripFixture('LOCKED', tripRevenue);
+  const { customer, trip } = await createTripFixture('COMPLETED', tripRevenue);
   const generated = await generateDraft({
     type: 'DEBIT_NOTE',
     entityType: 'CUSTOMER',

@@ -19,13 +19,13 @@ export interface LegacyTripSalaryRepair {
 
 /**
  * Recognize only salaries that exactly match the retired calendar-workday
- * formula. This deliberately leaves manual overrides and locked trips alone.
+ * formula. This deliberately leaves manual overrides and completed trips alone.
  */
 export function identifyLegacyTripSalary(
   input: LegacyTripSalaryCandidateInput,
 ): LegacyTripSalaryRepair | null {
   if (input.carrierType !== 'OWN') return null;
-  if (input.status === 'LOCKED' || input.status === 'CANCELED') return null;
+  if (input.status === 'COMPLETED' || input.status === 'CANCELED') return null;
   if (!input.departureDate || input.baseSalary <= 0 || input.tripWageDays <= 0) return null;
 
   const departure = input.departureDate instanceof Date

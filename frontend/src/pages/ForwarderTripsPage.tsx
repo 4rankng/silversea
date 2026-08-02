@@ -32,7 +32,6 @@ type StatusFilter = '' | TripStatus;
 const FORWARDER_STATUS_COLORS: Record<TripStatus, string> = {
   ...TRIP_STATUS_COLORS,
   [TripStatus.CREATED]: '#0284C7',
-  [TripStatus.LOCKED]: '#7C3AED',
 };
 
 /** Build the className suffix for a row from its derived statusColor. */

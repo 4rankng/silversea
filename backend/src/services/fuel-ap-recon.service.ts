@@ -18,7 +18,7 @@
  */
 import { db } from '../db';
 import * as s from '../db/schema';
-import { and, eq, gte, inArray, isNull, lte, or, sql } from 'drizzle-orm';
+import { and, eq, gte, isNull, lte, or, sql } from 'drizzle-orm';
 import { TripStatus } from '@tingting/shared';
 import { tripCompletionBusinessDateSql } from './reporting-shared';
 import { listFuelInvoices } from './fuel-invoice.service';
@@ -100,7 +100,7 @@ export async function getFuelApReconciliation(input: FuelApReconInput): Promise<
     .where(and(
       sql`${s.trips.fuelSupplierId} IS NOT NULL`,
       sql`${s.trips.completedAt} is not null`,
-      inArray(s.trips.status, [TripStatus.COMPLETED, TripStatus.LOCKED]),
+      eq(s.trips.status, TripStatus.COMPLETED),
       gte(completionBusinessDate, input.from),
       lte(completionBusinessDate, input.to),
       isNull(s.trips.deletedAt),

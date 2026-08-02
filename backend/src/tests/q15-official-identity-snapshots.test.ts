@@ -23,9 +23,14 @@ const customerIds: number[] = [];
 const routeIds: number[] = [];
 const cargoTypeIds: number[] = [];
 const tripIds: number[] = [];
+const shipmentIds: number[] = [];
+const fulfillmentIds: number[] = [];
+const podSubmissionIds: number[] = [];
+const postingIds: number[] = [];
 const documentIds: number[] = [];
 const sourceLockDocIds: number[] = [];
 const templateIds: number[] = [];
+let actorId = 1;
 let originalCompanyRows: Array<typeof s.appSettings.$inferSelect> = [];
 
 type CompanySeed = Record<Exclude<CompanyInfoField, 'logoStorageKey'>, string> & {
@@ -118,18 +123,66 @@ async function createTripFixture(
   }).returning();
   cargoTypeIds.push(cargoType.id);
 
+  // O2C: a trip is billable for debit notes only when COMPLETED with a
+  // shipment fulfillment + accepted e-POD. Seed that authority so the draft
+  // surfaces this trip's freight line.
+  const [shipment] = await db.insert(s.shipments).values({
+    shipmentCode: `Q15-OFF-SHP-${suffix}-${shipmentIds.length}`.slice(0, 50),
+    customerId,
+    routeId: route.id,
+    cargoTypeId: cargoType.id,
+    status: 'DRAFT',
+    cargoMode: 'LCL',
+  }).returning();
+  shipmentIds.push(shipment.id);
+  const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+    shipmentId: shipment.id,
+    fulfillmentType: 'LCL_SHIPMENT',
+    cargoMode: 'LCL',
+    sourceShipmentVersion: shipment.version,
+    siteSnapshot: {},
+  }).returning();
+  fulfillmentIds.push(fulfillment.id);
+
   const [trip] = await db.insert(s.trips).values({
     tripCode: `Q15-OFF-${suffix}-${tripIds.length}`.slice(0, 50),
     customerId,
     routeId: route.id,
     cargoTypeId: cargoType.id,
+    shipmentId: shipment.id,
+    fulfillmentId: fulfillment.id,
     departureDate: opts.departureDate,
     completedAt: new Date(opts.completedAt),
-    status: 'LOCKED',
+    status: 'COMPLETED',
     revenue: String(opts.revenue),
     carrierType: 'OWN',
   }).returning();
   tripIds.push(trip.id);
+
+  const [posting] = await db.insert(s.tripFinancialPostings).values({
+    tripId: trip.id,
+    version: 1,
+    tripVersion: trip.version,
+    status: 'ACTIVE',
+    reason: 'COMPLETION',
+    effectiveAt: new Date(opts.completedAt),
+  }).returning();
+  postingIds.push(posting.id);
+
+  const [submission] = await db.insert(s.tripPodSubmissions).values({
+    tripId: trip.id,
+    fulfillmentId: fulfillment.id,
+    submissionVersion: 1,
+    sourceTripVersion: trip.version,
+    status: 'ACCEPTED',
+    submittedBy: actorId,
+    submittedAt: new Date(opts.completedAt),
+    reviewedBy: actorId,
+    reviewedAt: new Date(opts.completedAt),
+    rejectionReason: null,
+  }).returning();
+  podSubmissionIds.push(submission.id);
+
   return trip;
 }
 
@@ -191,8 +244,20 @@ after(async () => {
   if (templateIds.length > 0) {
     await db.delete(s.debitNoteTemplates).where(inArray(s.debitNoteTemplates.id, templateIds));
   }
+  if (podSubmissionIds.length > 0) {
+    await db.delete(s.tripPodSubmissions).where(inArray(s.tripPodSubmissions.id, podSubmissionIds));
+  }
+  if (postingIds.length > 0) {
+    await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.id, postingIds));
+  }
   if (tripIds.length > 0) {
     await db.delete(s.trips).where(inArray(s.trips.id, tripIds));
+  }
+  if (fulfillmentIds.length > 0) {
+    await db.delete(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.id, fulfillmentIds));
+  }
+  if (shipmentIds.length > 0) {
+    await db.delete(s.shipments).where(inArray(s.shipments.id, shipmentIds));
   }
   if (cargoTypeIds.length > 0) {
     await db.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, cargoTypeIds));

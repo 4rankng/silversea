@@ -984,7 +984,7 @@ export async function recomputeShipmentCompletion(
 
     const allCompletedOrLocked = requiredFulfillments.every((row) => {
       const trip = tripsByFulfillment.get(row.id)?.[0];
-      return trip != null && (trip.status === 'COMPLETED' || trip.status === 'LOCKED');
+      return trip != null && trip.status === 'COMPLETED';
     });
     if (!allCompletedOrLocked) {
       return regressShipmentToInProgress(tx, shipment, {
@@ -1006,11 +1006,15 @@ export async function recomputeShipmentCompletion(
       );
     }
 
-    const allLockedAndAccepted = requiredFulfillments.every((row) => {
+    // O2C: shipment closes when every active trip is COMPLETED + e-POD accepted
+    // + POD recovered (physical paper). Formerly gated on LOCKED.
+    const allCompletedAndAccepted = requiredFulfillments.every((row) => {
       const trip = tripsByFulfillment.get(row.id)?.[0];
-      return trip != null && trip.status === 'LOCKED' && acceptedTripIds.has(trip.id);
+      return trip != null && trip.status === 'COMPLETED'
+        && acceptedTripIds.has(trip.id)
+        && trip.podRecoveredAt != null;
     });
-    if (!allLockedAndAccepted) {
+    if (!allCompletedAndAccepted) {
       return nextShipment;
     }
 
@@ -1030,7 +1034,7 @@ export async function recomputeShipmentCompletion(
         shipmentId,
         'CLOSED',
         {
-          reason: 'Tự động chốt khi tất cả tác vụ bắt buộc đã khóa và e-POD đã được duyệt.',
+          reason: 'Tự động chốt khi tất cả tác vụ bắt buộc đã hoàn thành, thu hồi POD gốc và e-POD đã được duyệt.',
           changedBy: options.changedBy ?? null,
         },
         tx,
@@ -1120,8 +1124,8 @@ export async function reviewTripPodSubmission(args: {
       if (row.submission.status !== TripPodStatus.SUBMITTED) {
         throw new ApiError(409, 'e-POD này đã được người khác xử lý.');
       }
-      if (row.trip.status !== 'COMPLETED') {
-        throw new ApiError(409, 'Chỉ có thể duyệt e-POD của chuyến đã hoàn thành.');
+      if (row.trip.status !== 'IN_TRANSIT') {
+        throw new ApiError(409, 'Chỉ có thể duyệt e-POD của chuyến đang chạy.');
       }
 
       const files = await tx.select({
@@ -1153,7 +1157,7 @@ export async function reviewTripPodSubmission(args: {
       if (args.resolution === 'ACCEPT') {
         await transitionTripStatus(
           row.trip.id,
-          TripStatus.LOCKED,
+          TripStatus.COMPLETED,
           args.actor.userId,
           args.actor.role,
           true,
@@ -1169,9 +1173,9 @@ export async function reviewTripPodSubmission(args: {
         await recomputeShipmentCompletion(args.shipmentId, { changedBy: args.actor.userId }, tx);
         if (row.trip.driverId != null) {
           pushPayload = {
-            type: NotificationType.TRIP_LOCKED,
+            type: NotificationType.TRIP_COMPLETED,
             title: 'e-POD đã được duyệt',
-            message: `Chuyến ${row.trip.tripCode ?? 'chưa có mã'} đã được duyệt e-POD và khóa số liệu.`,
+            message: `Chuyến ${row.trip.tripCode ?? 'chưa có mã'} đã được duyệt e-POD và hoàn thành.`,
             relatedEntityType: 'shipment_fulfillments',
             relatedEntityId: row.fulfillment.id,
             targetDriverId: row.trip.driverId,
@@ -1284,9 +1288,6 @@ export async function cancelShipmentFulfillment(args: {
       }
 
       const linkedTrip = liveTrips[0] ?? null;
-      if (linkedTrip?.status === TripStatus.LOCKED) {
-        throw new ApiError(409, 'Không thể hủy tác vụ đã có chuyến được khóa số liệu.');
-      }
       if (linkedTrip?.status === TripStatus.COMPLETED) {
         throw new ApiError(409, 'Chuyến đã hoàn thành. Vui lòng xử lý luồng hủy chuyến trước khi hủy tác vụ.');
       }

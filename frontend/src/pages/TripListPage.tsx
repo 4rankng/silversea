@@ -127,7 +127,6 @@ export default function TripListPage() {
       [TripStatus.CREATED]: raw[TripStatus.CREATED] ?? 0,
       [TripStatus.IN_TRANSIT]: raw[TripStatus.IN_TRANSIT] ?? 0,
       [TripStatus.COMPLETED]: raw[TripStatus.COMPLETED] ?? 0,
-      [TripStatus.LOCKED]: raw[TripStatus.LOCKED] ?? 0,
       [TripStatus.CANCELED]: raw[TripStatus.CANCELED] ?? 0,
     };
   }, [summary]);

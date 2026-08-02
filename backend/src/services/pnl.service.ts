@@ -42,8 +42,11 @@ export async function getPnlReport(month: number, year: number) {
         gte(completionBusinessDate, tripStart),
       );
 
-    // P&L includes only trips whose revenue has posted to the ledger. Draft,
-    // in-transit, and canceled trips are not yet reportable.
+    // P&L includes only completed trips whose revenue has posted to the ledger.
+    // COMPLETED is the single terminal/posting state (O2C reconciliation,
+    // 01/08/2026). Draft, in-transit, and canceled trips are not yet reportable.
+    // Costs stay editable after completion; grossProfit here reads the stored
+    // value — it is "finalized" as a snapshot at completion, not immutable.
     const monthTrips = await db.select({
       ...getTableColumns(s.trips),
       financialPostingId: s.tripFinancialPostings.id,
@@ -54,7 +57,7 @@ export async function getPnlReport(month: number, year: number) {
         eq(s.tripFinancialPostings.status, 'ACTIVE'),
       )).where(
       and(
-        inArray(s.trips.status, [TripStatus.COMPLETED, TripStatus.LOCKED]),
+        inArray(s.trips.status, [TripStatus.COMPLETED]),
         isNull(s.trips.deletedAt),
         dateFilter,
       ),
@@ -369,7 +372,8 @@ export async function getFuelVarianceReport(month: number, year: number) {
       routeId: s.trips.routeId,
     }).from(s.trips).where(
       and(
-        eq(s.trips.status, TripStatus.LOCKED),
+        // O2C: COMPLETED is the single posting state; grossProfit finalizes here.
+        eq(s.trips.status, TripStatus.COMPLETED),
         isNull(s.trips.deletedAt),
         sql`${s.trips.completedAt} is not null`,
         gte(completionBusinessDate, tripStart),

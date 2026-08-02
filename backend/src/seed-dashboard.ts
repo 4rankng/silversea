@@ -77,7 +77,7 @@ async function seedConfig() {
 // ─── Trip data ──────────────────────────────────────────────────────────────
 
 interface TripSeed {
-  status: 'LOCKED' | 'COMPLETED' | 'IN_TRANSIT' | 'CREATED';
+  status: 'COMPLETED' | 'IN_TRANSIT' | 'CREATED';
   departureDate: string;
   customerId: number;
   truckId: number;
@@ -96,9 +96,9 @@ interface TripSeed {
 // Use existing customer/route/truck/driver IDs from the DB
 const tripDefs: TripSeed[] = [
   // ─── June 2026 (current period: May 25 → Jun 24) ───────────────────────
-  // 8 LOCKED trips for good KPI numbers
+  // 8 COMPLETED trips for good KPI numbers
   {
-    status: 'LOCKED', departureDate: '2026-06-01',
+    status: 'COMPLETED', departureDate: '2026-06-01',
     customerId: 1, truckId: 1, driverId: 4, routeId: 1,
     revenue: 18_500_000, totalCost: 7_820_000, driverSalary: 850_000,
     totalFuelCost: 4_200_000, totalRoadAllowance: 2_770_000, fuelLiters: 152,
@@ -107,7 +107,7 @@ const tripDefs: TripSeed[] = [
     ],
   },
   {
-    status: 'LOCKED', departureDate: '2026-06-02',
+    status: 'COMPLETED', departureDate: '2026-06-02',
     customerId: 2, truckId: 2, driverId: 3, routeId: 2,
     revenue: 15_200_000, totalCost: 6_450_000, driverSalary: 750_000,
     totalFuelCost: 3_800_000, totalRoadAllowance: 1_900_000, fuelLiters: 138,
@@ -116,7 +116,7 @@ const tripDefs: TripSeed[] = [
     ],
   },
   {
-    status: 'LOCKED', departureDate: '2026-06-03',
+    status: 'COMPLETED', departureDate: '2026-06-03',
     customerId: 4, truckId: 3, driverId: 2, routeId: 10,
     revenue: 8_400_000, totalCost: 3_100_000, driverSalary: 400_000,
     totalFuelCost: 1_800_000, totalRoadAllowance: 900_000, fuelLiters: 65,
@@ -125,7 +125,7 @@ const tripDefs: TripSeed[] = [
     ],
   },
   {
-    status: 'LOCKED', departureDate: '2026-06-05',
+    status: 'COMPLETED', departureDate: '2026-06-05',
     customerId: 3, truckId: 4, driverId: 1, routeId: 3,
     revenue: 14_800_000, totalCost: 6_900_000, driverSalary: 700_000,
     totalFuelCost: 3_900_000, totalRoadAllowance: 2_300_000, fuelLiters: 141,
@@ -134,7 +134,7 @@ const tripDefs: TripSeed[] = [
     ],
   },
   {
-    status: 'LOCKED', departureDate: '2026-06-08',
+    status: 'COMPLETED', departureDate: '2026-06-08',
     customerId: 6, truckId: 1, driverId: 4, routeId: 6,
     revenue: 16_200_000, totalCost: 7_100_000, driverSalary: 800_000,
     totalFuelCost: 3_600_000, totalRoadAllowance: 2_700_000, fuelLiters: 130,
@@ -143,7 +143,7 @@ const tripDefs: TripSeed[] = [
     ],
   },
   {
-    status: 'LOCKED', departureDate: '2026-06-10',
+    status: 'COMPLETED', departureDate: '2026-06-10',
     customerId: 5, truckId: 2, driverId: 3, routeId: 4,
     revenue: 19_000_000, totalCost: 8_500_000, driverSalary: 900_000,
     totalFuelCost: 4_600_000, totalRoadAllowance: 3_000_000, fuelLiters: 166,
@@ -152,7 +152,7 @@ const tripDefs: TripSeed[] = [
     ],
   },
   {
-    status: 'LOCKED', departureDate: '2026-06-12',
+    status: 'COMPLETED', departureDate: '2026-06-12',
     customerId: 8, truckId: 3, driverId: 2, routeId: 8,
     revenue: 13_600_000, totalCost: 6_200_000, driverSalary: 750_000,
     totalFuelCost: 3_400_000, totalRoadAllowance: 2_050_000, fuelLiters: 123,
@@ -161,7 +161,7 @@ const tripDefs: TripSeed[] = [
     ],
   },
   {
-    status: 'LOCKED', departureDate: '2026-06-15',
+    status: 'COMPLETED', departureDate: '2026-06-15',
     customerId: 1, truckId: 4, driverId: 1, routeId: 9,
     revenue: 10_200_000, totalCost: 4_400_000, driverSalary: 500_000,
     totalFuelCost: 2_600_000, totalRoadAllowance: 1_300_000, fuelLiters: 94,
@@ -305,7 +305,7 @@ function generateMonthTrips(
     const day = Math.min(i * 3 + 1, 22);
 
     return {
-      status: 'LOCKED' as const,
+      status: 'COMPLETED' as const,
       departureDate: dateStr(year, month, day),
       customerId: custId,
       truckId,
@@ -392,8 +392,8 @@ async function seedTrips() {
       });
     }
 
-    // Insert TRIP_REVENUE ledger entry for LOCKED trips
-    if (def.status === 'LOCKED' && def.revenue > 0) {
+    // Insert TRIP_REVENUE ledger entry for COMPLETED trips
+    if (def.status === 'COMPLETED' && def.revenue > 0) {
       await insertLedgerEntry(def.customerId, def.revenue, trip.id, def.departureDate);
     }
 
@@ -600,9 +600,9 @@ async function main() {
 
   const totalRevenue = await db.select({
     total: sql<string>`coalesce(sum(revenue::numeric), 0)`,
-  }).from(s.trips).where(sql`${s.trips.status} = 'LOCKED' AND ${s.trips.deletedAt} IS NULL`);
+  }).from(s.trips).where(sql`${s.trips.status} = 'COMPLETED' AND ${s.trips.deletedAt} IS NULL`);
 
-  console.log(`  💰 Total LOCKED revenue: ${parseFloat(totalRevenue[0].total).toLocaleString('vi-VN')} VND`);
+  console.log(`  💰 Total COMPLETED revenue: ${parseFloat(totalRevenue[0].total).toLocaleString('vi-VN')} VND`);
 
   console.log('\n✅ Dashboard seed complete!');
   process.exit(0);

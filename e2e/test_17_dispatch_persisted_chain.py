@@ -812,8 +812,8 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
     if review_status not in (200, 201):
         results.fail("TC-1720", "Clerk accepts the e-POD", api_failure_detail(review_body))
         return
-    if review_body.get("tripStatus") != "LOCKED" or review_body.get("shipment", {}).get("status") != "CLOSED":
-        results.fail("TC-1720", "Lock/close after e-POD acceptance", str(review_body))
+    if review_body.get("tripStatus") != "COMPLETED" or review_body.get("shipment", {}).get("status") != "CLOSED":
+        results.fail("TC-1720", "Complete/close after e-POD acceptance", str(review_body))
         return
     results.pass_("TC-1720", "Clerk accepts the e-POD", f"trip={review_body.get('tripStatus')} shipment={review_body.get('shipment', {}).get('status')}")
 

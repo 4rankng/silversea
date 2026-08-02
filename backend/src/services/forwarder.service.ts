@@ -27,6 +27,7 @@ export {
   batchUpsertContainerSeals,
   batchUpsertTripContainers,
 } from './forwarder-container.service';
+import { ArSnapshotService } from './ar-snapshot.service';
 
 /**
  * Either the singleton db client or an in-flight transaction client. Both
@@ -99,8 +100,8 @@ export async function setTripExpenseCompletion(
     const [trip] = await tx.select({ status: s.trips.status }).from(s.trips)
       .where(eq(s.trips.id, tripId)).limit(1);
     if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
-    if (trip.status === 'LOCKED' || trip.status === 'CANCELED') {
-      throw new ApiError(409, 'Không thể cập nhật kê khai của chuyến đã khóa hoặc đã hủy');
+    if (trip.status === 'COMPLETED' || trip.status === 'CANCELED') {
+      throw new ApiError(409, 'Không thể cập nhật kê khai của chuyến đã hoàn thành hoặc đã hủy');
     }
     if (tripContainerId != null) {
       const [container] = await tx.select({ tripId: s.tripContainers.tripId })
@@ -239,12 +240,14 @@ export async function createTripExpense(
     noInvoiceEvidenceTypes?: string[] | null;
   },
 ) {
-  // Spec §4.9: locked trips are immutable — reject expense creation on LOCKED trips.
+  // O2C: costs stay editable after COMPLETED (no hard-freeze). CANCELED trips
+  // remain immutable. A cost edit on a completed trip flips ar_snapshot_dirty so
+  // the accountant reconciliation view surfaces it.
   const [trip] = await txOrDb.select({ status: s.trips.status })
     .from(s.trips).where(eq(s.trips.id, data.tripId)).limit(1);
   if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
-  if (trip.status === 'LOCKED' || trip.status === 'CANCELED') {
-    throw new ApiError(409, 'Không thể thêm chi phí cho chuyến đã chốt hoặc đã hủy');
+  if (trip.status === 'CANCELED') {
+    throw new ApiError(409, 'Không thể thêm chi phí cho chuyến đã hủy');
   }
 
   // B5: resolve an authoritative container FK when provided. The container must
@@ -319,6 +322,11 @@ export async function createTripExpense(
   if (data.forwarderId != null) {
     await resetExpenseScope(txOrDb, data.tripId, tripContainerId);
   }
+  // O2C: a cost edit on a completed trip flips ar_snapshot_dirty so the
+  // accountant reconciliation view surfaces it. No-op for non-completed trips.
+  if (trip.status === 'COMPLETED') {
+    await ArSnapshotService.markDirty(data.tripId, txOrDb);
+  }
   return inserted;
 }
 
@@ -346,7 +354,7 @@ export async function updateTripExpense(
   await txOrDb.execute(sql`SELECT pg_advisory_xact_lock(6102, ${id})`);
   // Fetch existing to check forwarderId — if forwarder-owned and sellAmount
   // is being updated, re-pend for manager review.
-  // Also check parent trip status (spec §4.9: locked trips are immutable).
+  // Also check parent trip status (spec §4.9: completed trips are immutable).
   const [existing] = await txOrDb
     .select({
       forwarderId: s.tripExpenses.forwarderId,
@@ -387,11 +395,12 @@ export async function updateTripExpense(
     await txOrDb.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);
   }
 
-  // Guard: reject edits on expenses belonging to LOCKED trips
+  // O2C: costs stay editable after COMPLETED (no hard-freeze); only CANCELED
+  // trips reject edits. A cost edit on a completed trip flips ar_snapshot_dirty.
   const [trip] = await txOrDb.select({ status: s.trips.status })
     .from(s.trips).where(eq(s.trips.id, existing.tripId)).limit(1);
-  if (trip?.status === 'LOCKED' || trip?.status === 'CANCELED') {
-    throw new ApiError(409, 'Không thể sửa chi phí của chuyến đã chốt hoặc đã hủy');
+  if (trip?.status === 'CANCELED') {
+    throw new ApiError(409, 'Không thể sửa chi phí của chuyến đã hủy');
   }
 
   const requiredFieldError = getTripExpenseRequiredFieldError({
@@ -466,6 +475,10 @@ export async function updateTripExpense(
   await resetExpenseScope(txOrDb, existing.tripId, existing.tripContainerId);
   if (patch.tripContainerId !== undefined && patch.tripContainerId !== existing.tripContainerId) {
     await resetExpenseScope(txOrDb, existing.tripId, patch.tripContainerId);
+  }
+  // O2C: a cost edit on a completed trip flips ar_snapshot_dirty.
+  if (trip?.status === 'COMPLETED') {
+    await ArSnapshotService.markDirty(existing.tripId, txOrDb);
   }
   return updated;
 }
@@ -593,8 +606,10 @@ export async function deleteTripExpense(expenseId: number, forwarderId: number) 
     await tx.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);
     const [trip] = await tx.select({ status: s.trips.status }).from(s.trips)
       .where(eq(s.trips.id, existing.tripId)).limit(1);
-    if (trip?.status === 'LOCKED' || trip?.status === 'CANCELED') {
-      throw new ApiError(409, 'Không thể xóa chi phí của chuyến đã chốt hoặc đã hủy');
+    // O2C: CANCELED trips are immutable; COMPLETED trips allow cost edits
+    // (deletion flips ar_snapshot_dirty — the reconciliation view surfaces it).
+    if (trip?.status === 'CANCELED') {
+      throw new ApiError(409, 'Không thể xóa chi phí của chuyến đã hủy');
     }
     const [activeLink] = await tx.select({ id: s.settlementExpenses.id })
       .from(s.settlementExpenses)
@@ -606,6 +621,9 @@ export async function deleteTripExpense(expenseId: number, forwarderId: number) 
     if (activeLink) throw new ApiError(409, 'Chi phí đã gửi kế toán, không thể xóa');
     await tx.delete(s.tripExpenses).where(eq(s.tripExpenses.id, expenseId));
     await resetExpenseScope(tx, existing.tripId, existing.tripContainerId);
+    if (trip?.status === 'COMPLETED') {
+      await ArSnapshotService.markDirty(existing.tripId, tx);
+    }
     return 'DELETED';
   });
 }
@@ -642,7 +660,7 @@ export async function deleteTripExpenseInTx(
   await tx.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);
   const [trip] = await tx.select({ status: s.trips.status }).from(s.trips)
     .where(eq(s.trips.id, existing.tripId)).limit(1);
-  if (trip?.status === 'LOCKED' || trip?.status === 'CANCELED') {
+  if (trip?.status === 'COMPLETED' || trip?.status === 'CANCELED') {
     throw new ApiError(409, 'Không thể xóa chi phí của chuyến đã chốt hoặc đã hủy');
   }
   const [activeLink] = await tx.select({ id: s.settlementExpenses.id })
@@ -679,7 +697,7 @@ export async function getTripExpenseAuditInfo(expenseId: number, executor: DbOrT
 
 /**
  * Hard-delete a trip expense with business guards:
- * - Trip must not be LOCKED
+ * - Trip must not be COMPLETED
  * - Expense must not be linked to any settlement
  * Must be called from the trips route (not the forwarder portal).
  */
@@ -706,11 +724,11 @@ export async function deleteTripExpenseGuarded(
     }
     const scopeKey = expense.tripContainerId ?? -expense.tripId;
     await tx.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);
-    // Guard: trip must not be locked
+    // Guard: trip must not be completed
     const [trip] = await tx.select({ status: s.trips.status })
       .from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
     if (!trip) return { error: 'Không tìm thấy chuyến xe', status: 404 };
-    if (trip.status === 'LOCKED') return { error: 'Không thể xóa chi phí trên chuyến đã khóa', status: 400 };
+    if (trip.status === 'COMPLETED') return { error: 'Không thể xóa chi phí trên chuyến đã hoàn thành', status: 400 };
     // Keep historical settlement snapshots referentially intact, including
     // rejected submissions. Corrections can be edited and resubmitted instead.
     const [link] = await tx.select({ id: s.settlementExpenses.id })

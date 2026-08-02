@@ -329,9 +329,11 @@ router.post(
 
     if (!replayed && result.actionKind === 'TRIP_REOPEN') {
       emitNotification({
-        type: NotificationType.TRIP_UNLOCKED,
-        title: 'Chuyến đã mở khóa',
-        message: 'Yêu cầu mở khóa chuyến đã được phê duyệt',
+        // O2C: TRIP_UNLOCKED notification removed (lock transition gone). The
+        // governed reopen of a completed trip is announced as a system event.
+        type: NotificationType.SYSTEM_ANNOUNCEMENT,
+        title: 'Chuyến đã mở lại',
+        message: 'Yêu cầu mở lại chuyến đã hoàn thành đã được phê duyệt',
         relatedEntityType: 'trips',
         relatedEntityId: result.subjectId ?? undefined,
       });

@@ -171,8 +171,8 @@ function assertPairableTrips(first: TripRowForPairing, second: TripRowForPairing
   if (first.status === TripStatus.CANCELED || second.status === TripStatus.CANCELED) {
     throw new ApiError(409, 'Không thể ghép chuyến đã hủy');
   }
-  if (first.status === TripStatus.LOCKED || second.status === TripStatus.LOCKED) {
-    throw new ApiError(409, 'Không thể ghép chuyến đã khóa');
+  if (first.status === TripStatus.COMPLETED || second.status === TripStatus.COMPLETED) {
+    throw new ApiError(409, 'Không thể ghép chuyến đã hoàn thành');
   }
   if (second.status === TripStatus.COMPLETED) {
     throw new ApiError(409, 'Chuyến thứ hai đã hoàn thành nên không thể ghép tiếp');

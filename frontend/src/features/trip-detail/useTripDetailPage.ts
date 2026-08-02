@@ -12,7 +12,7 @@ import {
 import { useCatalogs } from '../../hooks/useCatalogs';
 import { TripStatus, Role } from '@tingting/shared';
 import { useConfirm } from '../../components/UI';
-import { onboardingEvents } from '../../lib/onboardingEvents';
+
 import { useToast } from '../../components/shared/Toast';
 import type { TripDetailPageData, TripDerivedData, TripPermissions, TripUIState } from './types';
 
@@ -186,8 +186,9 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
     // Financial-figures edits on IN_TRANSIT + COMPLETED are ACCOUNTANT's job
     // (CONTEXT.md Phase 3 + Phase 4: "Accountant finalizes these numbers and
     // moves it to Hoàn thành"). The backend has always allowed it (RBAC
-    // `trips:write` for ACCOUNTANT + `updateTripFigures` only blocks LOCKED/
-    // CANCELED). The fix below closes the frontend gap surfaced by the bug
+    // `trips:write` for ACCOUNTANT + `updateTripFigures` only blocks
+    // COMPLETED/CANCELED for structural fields; financial figures stay
+    // editable). The fix below closes the frontend gap surfaced by the bug
     // report "những chuyến ghi hoàn thành này kế toán là không nhập được số
     // liệu" — accountants previously had no entry point to the edit form on
     // completed trips, so road money / ticket / fuel fields looked uneditable.
@@ -196,16 +197,17 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
       canEdit: (s === TripStatus.CREATED || s === TripStatus.COMPLETED) && isManagerOrAdmin,
       canEditActuals: (s === TripStatus.IN_TRANSIT || s === TripStatus.COMPLETED)
         && (isManagerOrAdmin || isAccountant),
-      canCancel: s !== TripStatus.LOCKED && s !== TripStatus.CANCELED && isManagerOrAdmin,
+      // O2C: COMPLETED is terminal. Cancellation of a completed trip goes
+      // through the governed reopen/cancel flow (canAdjust), not a direct cancel.
+      canCancel: s !== TripStatus.COMPLETED && s !== TripStatus.CANCELED && isManagerOrAdmin,
       canDispatch: s === TripStatus.CREATED && isManagerOrAdmin,
       canComplete: s === TripStatus.IN_TRANSIT && isManagerOrAdmin,
-      canLock: s === TripStatus.COMPLETED && isManagerOrAdmin,
       canReassign: s === TripStatus.CREATED && isManagerOrAdmin,
-      canAdjust: s === TripStatus.LOCKED && isManagerOrAdmin,
-      canUnlock: s === TripStatus.LOCKED && isManagerOrAdmin,
+      // Adjustment/governed reopen available on a completed trip (manager/admin).
+      canAdjust: s === TripStatus.COMPLETED && isManagerOrAdmin,
       canChangeDate: s !== TripStatus.CANCELED && isManagerOrAdmin,
       needsPhotos: !trip?.photoUrls || trip.photoUrls.length === 0,
-      readOnly: s === 'LOCKED' || s === 'CANCELED',
+      readOnly: s === 'CANCELED',
     };
   }, [user, trip]);
 
@@ -236,61 +238,6 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
       } else {
         setActionError('Có lỗi xảy ra. Vui lòng thử lại.');
       }
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleLockClick = async (confirmNoPhoto: boolean = false) => {
-    if (!trip) return;
-    setActionLoading(true);
-    setActionError('');
-    try {
-      await api.post(`/trips/${trip.id}/lock`, { confirmNoPhoto });
-      // Onboarding product event: a real trip was locked. The lock-trip tour
-      // and the ACCOUNTANT checklist's "lock first trip" item wait on this.
-      onboardingEvents.emit('trip.locked', { tripId: trip.id });
-      await refetchTrip();
-    } catch (err: unknown) {
-      if (err instanceof ApiError && err.status === 422) {
-        const confirmed = await confirm(
-          'Doanh thu chuyến đi này bằng 0 đ. Bạn có chắc chắn muốn khóa chuyến với doanh thu bằng 0?'
-        );
-        if (confirmed) {
-          setActionLoading(true);
-          try {
-            await api.post(`/trips/${trip.id}/lock`, { confirmZeroRevenue: true, confirmNoPhoto });
-            onboardingEvents.emit('trip.locked', { tripId: trip.id });
-            await refetchTrip();
-          } catch (retryErr: unknown) {
-            setActionError((retryErr as Error).message || 'Lỗi khi khóa chuyến đi.');
-          } finally {
-            setActionLoading(false);
-          }
-        }
-      } else if (err instanceof ApiError) {
-        setActionError(err.message);
-      } else {
-        setActionError((err as Error).message || 'Có lỗi xảy ra khi khóa chuyến đi.');
-      }
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleUnlock = async () => {
-    if (!trip) return;
-    const confirmed = await confirm(
-      'Mở khóa chuyến này sẽ hoàn tác các bút toán tài chính đã ghi nhận. Tiếp tục?'
-    );
-    if (!confirmed) return;
-    setActionLoading(true);
-    setActionError('');
-    try {
-      await api.post(`/trips/${trip.id}/unlock`, {});
-      await refetchTrip();
-    } catch (err: unknown) {
-      setActionError((err as Error).message || 'Lỗi khi mở khóa chuyến đi.');
     } finally {
       setActionLoading(false);
     }
@@ -399,8 +346,6 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
     confirm,
     confirmDialog,
     handleAction,
-    handleLockClick,
-    handleUnlock,
     handleChangeDepartureDate,
     openReassign,
     handleReassign,

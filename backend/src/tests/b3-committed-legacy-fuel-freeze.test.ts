@@ -68,8 +68,8 @@ describe('applyCommittedLegacyFuelFreeze', () => {
     assert.strictEqual(out.grossProfit, 5_000_000 - STORED_COST);
   });
 
-  test('IN_TRANSIT and LOCKED legacy trips are also frozen', () => {
-    for (const status of [TripStatus.IN_TRANSIT, TripStatus.LOCKED]) {
+  test('IN_TRANSIT and COMPLETED legacy trips are also frozen', () => {
+    for (const status of [TripStatus.IN_TRANSIT, TripStatus.COMPLETED]) {
       const out = applyCommittedLegacyFuelFreeze(legacyTrip(status), {
         totalFuelCost: 0, totalCost: 100, grossProfit: 200, totalFuelLiters: 0,
       });

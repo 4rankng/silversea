@@ -14,7 +14,7 @@
  *   - ownership: a driver recording progress on another driver's trip → 403.
  *   - missing trip → 404.
  *   - list returns events oldest-first (timeline order).
- *   - LOCKED trip still accepts progress (event is a log, not a state mutation).
+ *   - COMPLETED trip still accepts progress (event is a log, not a state mutation).
  */
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -66,7 +66,7 @@ async function mkCatalogs() {
 }
 
 let tripCounter = 0;
-async function mkTrip(driverId: number, customerId: number, routeId: number, cargoTypeId: number, opts: { status?: 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | 'LOCKED' | 'CANCELED' } = {}) {
+async function mkTrip(driverId: number, customerId: number, routeId: number, cargoTypeId: number, opts: { status?: 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELED' } = {}) {
   tripCounter += 1;
   const [trip] = await db.insert(s.trips).values({
     tripCode: `M84-${suffix}-${tripCounter}`.slice(0, 50),
@@ -232,15 +232,15 @@ describe('M8.4 — driver progress events', () => {
     assert.equal(items[1].id, later.event.id);
   });
 
-  test('LOCKED trip still accepts progress (event is a log, not a state mutation)', async () => {
+  test('COMPLETED trip still accepts progress (event is a log, not a state mutation)', async () => {
     const { user, driver } = await mkUserAndDriver();
     const cat = await mkCatalogs();
-    const trip = await mkTrip(driver.id, cat.customer.id, cat.route.id, cat.cargoType.id, { status: 'LOCKED' });
+    const trip = await mkTrip(driver.id, cat.customer.id, cat.route.id, cat.cargoType.id, { status: 'COMPLETED' });
 
     const { event, replayed } = await recordDriverProgress(trip.id, driver.id,
-      { eventType: DriverProgressEventType.NOTE, occurredAt: NOW_ISO, note: 'ghi chú sau chốt' }, user.id, `locked-${suffix}-${trip.id}`);
+      { eventType: DriverProgressEventType.NOTE, occurredAt: NOW_ISO, note: 'ghi chú sau chốt' }, user.id, `completed-${suffix}-${trip.id}`);
     createdEventIds.push(event.id);
-    assert.equal(replayed, false, 'LOCKED trip accepts a new progress event');
+    assert.equal(replayed, false, 'COMPLETED trip accepts a new progress event');
   });
 
   test('pool-sized unique keyed progress writes all complete without nested-connection starvation', async () => {

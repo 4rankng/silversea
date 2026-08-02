@@ -85,7 +85,7 @@ before(async () => {
     .from(s.trips)
     .where(and(
       isNull(s.trips.deletedAt),
-      inArray(s.trips.status, [TripStatus.COMPLETED, TripStatus.LOCKED]),
+      inArray(s.trips.status, [TripStatus.COMPLETED]),
       sql`coalesce(${s.trips.carrierType}, 'OWN') = 'OWN'`,
       sql`${s.trips.truckId} IS NOT NULL`,
       sql`coalesce(${s.trips.revenue}, '0')::numeric > 0`,
@@ -262,7 +262,7 @@ describe('A8 — P&L invariants (integration, dev DB)', () => {
           customerId,
           routeId,
           cargoTypeId,
-          status: TripStatus.LOCKED,
+          status: TripStatus.COMPLETED,
           departureDate: '2098-07-11',
           completedAt: new Date('2098-07-11T05:00:00.000Z'),
           vatRate: '0.080',
@@ -302,7 +302,7 @@ describe('A8 — P&L invariants (integration, dev DB)', () => {
       await cacheInvalidate(`reports:pnl:${testMonth}:${testYear}`);
       const fixtureReport = await getPnlReport(testMonth, testYear) as PnlReport & { tripCount: number };
 
-      assert.equal(fixtureReport.tripCount, 2, 'only COMPLETED and LOCKED trips belong in P&L');
+      assert.equal(fixtureReport.tripCount, 2, 'only COMPLETED trips belong in P&L');
       assert.equal(fixtureReport.totalRevenue, 11_500_000, 'period revenue includes own revenue plus external margin');
       assert.equal(fixtureReport.grossProfit, 9_500_000, 'period gross profit includes external margin exactly once');
       assert.equal(

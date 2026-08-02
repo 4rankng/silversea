@@ -27,6 +27,11 @@ export interface NotificationPayload {
 
 // ─── Core CRUD ─────────────────────────────────────────────────────────────
 
+/** O2C push MVP: "dispatcher" audience = Điều vận authority (MANAGER/ADMIN). */
+function isDispatcherRole(role: string): boolean {
+  return role === Role.MANAGER || role === Role.ADMIN;
+}
+
 export async function getNotifications(userId: number, page = 1, limit = 20) {
   const offset = (page - 1) * limit;
   const [items, [{ total }]] = await Promise.all([
@@ -102,6 +107,7 @@ export async function sendNotificationPush(payload: NotificationPayload): Promis
   const pushable = targets.filter((target) =>
     audience === 'all'
     || (audience === 'driver' && target.role === Role.DRIVER)
+    || (audience === 'dispatcher' && isDispatcherRole(target.role))
     || (audience === 'financial' && isFinancialRole(target.role))
   );
   await Promise.allSettled(pushable.map((target) =>
@@ -140,6 +146,7 @@ async function generateNotification(
     const pushable = targets.filter(t =>
       audience === 'all' ||
       (audience === 'driver' && t.role === Role.DRIVER) ||
+      (audience === 'dispatcher' && isDispatcherRole(t.role)) ||
       (audience === 'financial' && isFinancialRole(t.role)),
     );
     await Promise.allSettled(pushable.map(t =>

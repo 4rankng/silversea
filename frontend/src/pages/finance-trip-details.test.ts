@@ -67,10 +67,9 @@ describe('groupFinanceTripDetails', () => {
       trip({ id: 1, status: TripStatus.CREATED }),
       trip({ id: 2, status: TripStatus.IN_TRANSIT }),
       trip({ id: 3, status: TripStatus.COMPLETED }),
-      trip({ id: 4, status: TripStatus.LOCKED }),
     ]);
 
-    expect(grouped.get(7)?.map(detail => detail.id)).toEqual([3, 4]);
+    expect(grouped.get(7)?.map(detail => detail.id)).toEqual([3]);
   });
 
   it('uses the report snapshot so expanded rows reconcile with the summary', () => {

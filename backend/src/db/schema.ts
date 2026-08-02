@@ -20,7 +20,7 @@ const vector1536Builder = customType<{ data: string; driverData: string }>({
 export const vectorColumn1536 = vector1536Builder;
 
 // Enums
-export const tripStatusEnum = pgEnum('trip_status', ['CREATED', 'IN_TRANSIT', 'COMPLETED', 'LOCKED', 'CANCELED']);
+export const tripStatusEnum = pgEnum('trip_status', ['CREATED', 'IN_TRANSIT', 'COMPLETED', 'CANCELED']);
 export const fuelModeEnum = pgEnum('fuel_mode', ['AUTO', 'FLAT_RATE']);
 export const loadingTypeEnum = pgEnum('loading_type', ['HANG', 'VO']);
 export const roleEnum = pgEnum('role', ['ADMIN', 'MANAGER', 'ACCOUNTANT', 'DRIVER', 'FORWARDER', 'CUSTOMER', 'CLERK']);
@@ -43,7 +43,7 @@ export const creditOverrideScopeEnum = pgEnum('credit_override_scope', ['SHIPMEN
 export const creditOverrideTierEnum = pgEnum('credit_override_tier', ['FINANCE_TIER_1', 'DIRECTOR']);
 export const notificationTypeEnum = pgEnum('notification_type', [
   'TRIP_CREATED', 'TRIP_DISPATCHED', 'TRIP_IN_TRANSIT', 'TRIP_COMPLETED',
-  'TRIP_LOCKED', 'TRIP_UNLOCKED', 'TRIP_CANCELED', 'PAYMENT_RECEIVED', 'PENALTY_CREATED',
+  'TRIP_CANCELED', 'PAYMENT_RECEIVED', 'PENALTY_CREATED',
   'PENALTY_CANCELED', 'OVERDUE_PAYMENT', 'SALARY_PERIOD_CLOSING', 'SYSTEM_ANNOUNCEMENT',
   'ADVANCE_SETTLEMENT_APPROVED', 'SHIPMENT_HANDOFF',
 ]);
@@ -635,8 +635,16 @@ export const trips = pgTable('trips', {
   fuelSupplierId: integer('fuel_supplier_id').references(() => suppliers.id),
   vatRate: numeric('vat_rate', { precision: 5, scale: 3 }).notNull().default('0.000'),
   carrierType: varchar('carrier_type', { length: 20 }).notNull().default('OWN'),
-  // D-E decision: external carrier references customers table, NOT suppliers
-  externalCarrierId: integer('external_carrier_id').references(() => customers.id),
+  // O2C reconciliation (01/08/2026, docs/prd/O2C dev.md): the external carrier
+  // (Xe ngoài / subcontractor) may be a customer (AR-side) or a supplier
+  // (AP-side). We replaced the locked `external_carrier_id → customers.id` FK
+  // with two **plain nullable columns and NO DB FK** — a soft pointer resolved
+  // by the app-layer `resolveExternalCarrier(trip)` helper (per the project's
+  // "readable/maintainable tables over FK rigor" convention). Both null for
+  // OWN trips (the majority); populated only when carrier_type = EXTERNAL.
+  // A CHECK constraint (trips_carrier_type_check) guards the canonical set.
+  externalEntityId: integer('external_entity_id'),
+  externalEntityType: varchar('external_entity_type', { length: 20 }),
   externalFreightCost: numeric('external_freight_cost', { precision: 15, scale: 0 }),
   externalPlateNumber: varchar('external_plate_number', { length: 20 }),
   externalDriverName: varchar('external_driver_name', { length: 100 }),
@@ -651,11 +659,32 @@ export const trips = pgTable('trips', {
   fulfillmentId: integer('fulfillment_id'),
   sourceShipmentVersion: integer('source_shipment_version'),
   completedAt: timestamp('completed_at'),
+  // O2C POD-recovery gate (docs/prd/O2C dev.md). Distinct from digital e-POD
+  // acceptance (TripPodStatus.ACCEPTED): this records "Đã thu hồi chứng từ gốc
+  // (POD mộc đỏ)" — the physical paper return. The IN_TRANSIT → COMPLETED
+  // transition throws if null; shipment closure requires it set.
+  podRecoveredAt: timestamp('pod_recovered_at', { withTimezone: true }),
+  podRecoveredBy: integer('pod_recovered_by'),
+  // O2C AR snapshot + dirty-flag. Costs remain editable after COMPLETED (no
+  // hard-freeze). On completion `captureSnapshot` stores the canonical cost
+  // hash and sets ar_snapshot_dirty = false; any later cost edit recomputes the
+  // hash and flips ar_snapshot_dirty = true so the accountant reconciliation
+  // view surfaces it. The canonical AR total for downstream is `trips.revenue`
+  // (incl-VAT); billing_documents.totalInclVat is populated from it at debit-
+  // note generation time.
+  arCostHash: varchar('ar_cost_hash', { length: 64 }),
+  arSnapshotDirty: boolean('ar_snapshot_dirty').notNull().default(false),
+  arSnapshotChangedAt: timestamp('ar_snapshot_changed_at', { withTimezone: true }),
+  // O2C field ops hand-off timestamps (Phase 4): Ops paper-order collected +
+  // Driver order-accepted. Nullable; populated by the FORWARDER/DRIVER endpoints.
+  paperOrderCollectedAt: timestamp('paper_order_collected_at', { withTimezone: true }),
+  driverOrderAcceptedAt: timestamp('driver_order_accepted_at', { withTimezone: true }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
 }, (table) => [
   index('trips_trailer_id_idx').on(table.trailerId),
+  check('trips_carrier_type_check', sql`${table.carrierType} IN ('OWN', 'EXTERNAL')`),
   // Trip list and report queries filter heavily on status and date
   index('trips_status_idx').on(table.status),
   index('trips_departure_date_idx').on(table.departureDate),
@@ -1670,6 +1699,12 @@ export const tripExpenses = pgTable('trip_expenses', {
   // containerNumber still present) instead of orphaning or failing the delete.
   tripContainerId: integer('trip_container_id').references(() => tripContainers.id, { onDelete: 'set null' }),
   approvalStatus: varchar('approval_status', { length: 20 }).notNull().default('APPROVED'),
+  // O2C: real approval timestamp. Unlike approvalStatus (which defaults to
+  // 'APPROVED' for legacy rows), this is NULL until a real accountant approval
+  // action — the signal the delete-authorization matrix keys off. Added
+  // (260801-2200) so the accountant-approved undeletable exception is accurate.
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
+  approvedBy: integer('approved_by').references(() => users.id),
   note: text('note'),
   noInvoiceEvidenceTypes: jsonb('no_invoice_evidence_types').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
   noInvoicePolicySnapshot: jsonb('no_invoice_policy_snapshot').$type<Record<string, unknown>>(),
@@ -3758,8 +3793,8 @@ export const driverProgressEvents = pgTable('driver_progress_events', {
 // salary/settlement reconciliation. Idempotent create (reuses
 // `idempotency_keys`) so the offline-queue replay doesn't duplicate.
 //
-// LOCKED trips reject new incidental costs — unlike progress events (which
-// are append-only audit logs), costs affect financials, so lock = immutable.
+// COMPLETED trips reject new incidental costs — unlike progress events (which
+// are append-only audit logs), costs affect financials, so completion = immutable.
 export const driverIncidentalCostTypeEnum = pgEnum('driver_incidental_cost_type', [
   'PER_DIEM', 'LIFT_FEE', 'PARKING', 'TOLL', 'FUEL', 'OTHER',
 ]);
@@ -3782,3 +3817,24 @@ export const driverIncidentalCosts = pgTable('driver_incidental_costs', {
   index('driver_incidental_costs_trip_idx').on(table.tripId, table.occurredAt),
   index('driver_incidental_costs_driver_idx').on(table.driverId),
 ]);
+
+// ─── O2C delete-requests queue (260801-2200) ────────────────────────────────
+// When a row is out-of-session (beyond the idle window) and not approved, the
+// actor cannot delete it directly — they file a delete request that an Admin/
+// MANAGER reviews. Approving executes the delete in a transaction.
+export const deleteRequestStatusEnum = pgEnum('delete_request_status', ['PENDING', 'APPROVED', 'REJECTED']);
+export const deleteRequests = pgTable('delete_requests', {
+  id: serial('id').primaryKey(),
+  entityType: varchar('entity_type', { length: 50 }).notNull(),
+  entityId: integer('entity_id').notNull(),
+  requestedBy: integer('requested_by').references(() => users.id).notNull(),
+  reason: text('reason'),
+  status: deleteRequestStatusEnum('status').notNull().default('PENDING'),
+  reviewedBy: integer('reviewed_by').references(() => users.id),
+  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('delete_requests_status_idx').on(table.status),
+]);
+

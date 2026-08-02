@@ -3,6 +3,7 @@ import { after, before, describe, it } from 'node:test';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import {
   createAdjustmentSchema,
+  FuelMode,
   tripReopenRequestSchema,
   Role,
   TripStatus,
@@ -16,7 +17,7 @@ import {
   requestTripArAdjustment,
   requestTripReopen,
 } from '../services/adjustment-governance.service';
-import { transitionTripStatus } from '../services/trip-status-machine.service';
+import { updateTripFigures } from '../services/trip-mutations.service';
 import {
   createTripExpense,
   deleteTripExpenseGuarded,
@@ -92,7 +93,7 @@ after(async () => {
   await client.end();
 });
 
-async function createTrip(status: 'COMPLETED' | 'LOCKED' = 'COMPLETED') {
+async function createTrip(status: 'COMPLETED' = 'COMPLETED') {
   const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const [customer] = await db.insert(s.customers)
     .values({ name: `Q18 customer ${suffix}` }).returning();
@@ -132,7 +133,7 @@ async function expectApiError(
 
 describe('Q18 bounded adjustment governance', () => {
   it('requires the source version at both public adjustment boundaries', async () => {
-    const { trip } = await createTrip('LOCKED');
+    const { trip } = await createTrip('COMPLETED');
     assert.equal(createAdjustmentSchema.safeParse({
       tripId: trip.id,
       amount: 100,
@@ -369,13 +370,30 @@ describe('Q18 bounded adjustment governance', () => {
     assert.equal(posted.length, 1);
   });
 
-  it('blocks direct unlock and applies exceptional reopen only after approval', async () => {
-    const { trip } = await createTrip('LOCKED');
+  it('blocks direct reopen and applies exceptional reopen only after approval', async () => {
+    const { trip } = await createTrip('COMPLETED');
+    // O2C: COMPLETED is terminal. A direct financial mutation on a completed
+    // trip is blocked (it must go through the governed correction flow), and
+    // reopening must go through the governed TRIP_REOPEN workflow, which sends
+    // the trip COMPLETED → IN_TRANSIT once approved.
     await expectApiError(
-      transitionTripStatus(trip.id, TripStatus.COMPLETED, actors[1]!.id, Role.MANAGER),
+      updateTripFigures(trip.id, {
+        legs: [],
+        fuelMode: FuelMode.AUTO,
+        fuelSupplementLiters: 0,
+        tollsDiscount: 0,
+        tollsAddition: 0,
+        tollsStations: 0,
+        hasReturnCargo: false,
+        revenue: 9_000_000,
+        expectedVersion: trip.version,
+        userId: actors[1]!.id,
+        userRole: Role.MANAGER,
+      }),
       409,
-      /chỉ được mở lại bằng yêu cầu/,
+      /chỉ được thay đổi sau khi kiểm tra và phê duyệt/,
     );
+    // Direct reopen by an unauthorized role is blocked at the RBAC boundary.
     await expectApiError(
       requestTripReopen({
         tripId: trip.id,
@@ -407,12 +425,12 @@ describe('Q18 bounded adjustment governance', () => {
       expectedVersion: checked.version,
     });
     const [reopened] = await db.select().from(s.trips).where(eq(s.trips.id, trip.id));
-    assert.equal(reopened.status, 'COMPLETED');
+    assert.equal(reopened.status, 'IN_TRANSIT');
     assert.equal(reopened.version, trip.version + 1);
   });
 
   it('refuses reopen after accounting posting, debit-note issue, or payment allocation', async () => {
-    const posted = await createTrip('LOCKED');
+    const posted = await createTrip('COMPLETED');
     await db.insert(s.ledger).values({
       txnType: 'TRIP_REVENUE',
       txnId: posted.trip.id,
@@ -435,7 +453,7 @@ describe('Q18 bounded adjustment governance', () => {
       /đã hạch toán|đã phát hành|đã thanh toán/,
     );
 
-    const issued = await createTrip('LOCKED');
+    const issued = await createTrip('COMPLETED');
     const [document] = await db.insert(s.billingDocuments).values({
       type: 'DEBIT_NOTE',
       entityType: 'CUSTOMER',
@@ -466,7 +484,7 @@ describe('Q18 bounded adjustment governance', () => {
       /đã hạch toán|đã phát hành|đã thanh toán/,
     );
 
-    const paid = await createTrip('LOCKED');
+    const paid = await createTrip('COMPLETED');
     await db.insert(s.paymentAllocations).values({
       receiptId: `Q18-${paid.trip.id}`,
       customerId: paid.customer.id,
@@ -489,12 +507,12 @@ describe('Q18 bounded adjustment governance', () => {
 
     const [unchanged] = await db.select().from(s.trips)
       .where(eq(s.trips.id, posted.trip.id));
-    assert.equal(unchanged.status, 'LOCKED');
+    assert.equal(unchanged.status, 'COMPLETED');
     assert.equal(unchanged.version, posted.trip.version);
   });
 
   it('rechecks posting authority atomically when a reopen reaches approval', async () => {
-    const { trip, customer } = await createTrip('LOCKED');
+    const { trip, customer } = await createTrip('COMPLETED');
     const action = await requestTripReopen({
       tripId: trip.id,
       reason: 'Pre-posting correction',
@@ -532,13 +550,13 @@ describe('Q18 bounded adjustment governance', () => {
       .where(eq(s.trips.id, trip.id));
     const [pendingAction] = await db.select().from(s.governanceActions)
       .where(eq(s.governanceActions.id, action.id));
-    assert.equal(unchangedTrip.status, 'LOCKED');
+    assert.equal(unchangedTrip.status, 'COMPLETED');
     assert.equal(unchangedTrip.version, trip.version);
     assert.equal(pendingAction.status, 'PENDING_APPROVAL');
   });
 
   it('serializes concurrent debit-note issue and reopen approval so exactly one wins', async () => {
-    const { trip, customer } = await createTrip('LOCKED');
+    const { trip, customer } = await createTrip('COMPLETED');
     const action = await requestTripReopen({
       tripId: trip.id,
       reason: 'Concurrent issue/reopen authority',
@@ -633,12 +651,12 @@ describe('Q18 bounded adjustment governance', () => {
       },
       reopenWon
         ? {
-            tripStatus: 'COMPLETED',
+            tripStatus: 'IN_TRANSIT',
             documentStatus: 'DRAFT',
             actionStatus: 'APPROVED',
           }
         : {
-            tripStatus: 'LOCKED',
+            tripStatus: 'COMPLETED',
             documentStatus: 'SENT',
             actionStatus: 'PENDING_APPROVAL',
           },
@@ -646,7 +664,7 @@ describe('Q18 bounded adjustment governance', () => {
   });
 
   it('serializes source-line replacement with issuance and never sends stale unvalidated lines', async () => {
-    const { trip, customer } = await createTrip('LOCKED');
+    const { trip, customer } = await createTrip('COMPLETED');
     const [replacementTrip] = await db.insert(s.trips).values({
       tripCode: `Q18-REPLACEMENT-${Date.now()}`.slice(0, 50),
       customerId: customer.id,
@@ -746,7 +764,7 @@ describe('Q18 bounded adjustment governance', () => {
     assert.equal(savedLines.length, 1);
     if (savedDocument.debitNoteStatus === 'SENT') {
       assert.equal(savedLines[0]!.sourceId, trip.id);
-      assert.equal(trip.status, 'LOCKED');
+      assert.equal(trip.status, 'COMPLETED');
     } else {
       assert.equal(savedDocument.debitNoteStatus, 'DRAFT');
       assert.equal(savedLines[0]!.sourceId, replacementTrip.id);

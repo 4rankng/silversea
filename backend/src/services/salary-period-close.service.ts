@@ -388,7 +388,7 @@ async function buildSalaryPeriodReadinessSummary(
       .where(and(
         inArray(s.trips.driverId, driverIds),
         isNull(s.trips.deletedAt),
-        inArray(s.trips.status, [TripStatus.COMPLETED, TripStatus.LOCKED]),
+        eq(s.trips.status, TripStatus.COMPLETED),
         sql`${s.trips.completedAt} is not null`,
       )),
     loadApprovedExclusionMap(tx, period),

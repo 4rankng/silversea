@@ -35,6 +35,9 @@ const REVIEWED_NON_MATERIAL_MUTATIONS = new Map<string, string>([
   ['onboarding.ts|PUT|/progress/:tourId', 'Replaceable per-user tutorial progress; no operational business entity mutation.'],
   ['onboarding.ts|PUT|/tasks/:taskId', 'Replaceable per-user tutorial checklist state; no operational business entity mutation.'],
   ['onboarding.ts|POST|/events', 'Append-only product analytics telemetry; no operational business entity mutation.'],
+  ['trips.ts|POST|/:id/pod-recovered', 'O2C POD-recovery flag setter (accountant/CUS); no direct financial mutation — the completion transition that consumes it runs its own durable boundary.'],
+  ['trips.ts|POST|/:id/paper-order-collected', 'O2C field-ops hand-off timestamp (Ops); operational marker, no financial mutation.'],
+  ['trips.ts|POST|/:id/driver-order-accepted', 'O2C field-ops hand-off timestamp (Driver); operational marker, no financial mutation.'],
 ]);
 
 const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {

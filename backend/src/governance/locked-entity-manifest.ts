@@ -115,11 +115,11 @@ const tripReopen = action(
   ),
   proof(
     'tests/q18-adjustment-governance.test.ts',
-    'blocks direct unlock and applies exceptional reopen only after approval',
+    'blocks direct reopen and applies exceptional reopen only after approval',
     'requestTripReopen',
     'checkGovernanceAction',
     'approveGovernanceAction',
-    "assert.equal(reopened.status, 'COMPLETED')",
+    "assert.equal(reopened.status, 'IN_TRANSIT')",
   ),
 );
 
@@ -483,20 +483,22 @@ const advanceRequestRejection = action(
 export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
   {
     entity: 'TRIP',
-    terminalStates: ['LOCKED'],
-    stateAuthority: source('db/schema.ts', 'tripStatusEnum', "'LOCKED'"),
+    // O2C reconciliation (01/08/2026): LOCKED dropped — COMPLETED is the single
+    // terminal/posting state. CANCELED remains a terminal sink.
+    terminalStates: ['COMPLETED', 'CANCELED'],
+    stateAuthority: source('db/schema.ts', 'tripStatusEnum', "'COMPLETED'", "'CANCELED'"),
     directMutationBoundary: source(
       'services/trip-mutations.service.ts',
       'updateTripFigures',
-      'TripStatus.LOCKED',
+      'TripStatus.COMPLETED',
       'throw new ApiError',
       'không thể sửa',
     ),
     directMutationProof: proof(
       'tests/trip-ledger-completion.test.ts',
-      'a posted locked trip cannot be reopened and its ledger stays intact',
+      'a posted completed trip cannot be reopened and its ledger stays intact',
       'assert.rejects',
-      'TripStatus.LOCKED',
+      'TripStatus.COMPLETED',
       'ledgerRowsForTrip',
     ),
     governedActions: [tripArAdjustment, tripFinancialChange, tripReopen],

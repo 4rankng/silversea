@@ -84,7 +84,8 @@ type LiveTripRow = Pick<
   | 'trailerId'
   | 'plannedStartAt'
   | 'plannedEndAt'
-  | 'externalCarrierId'
+  | 'externalEntityId'
+  | 'externalEntityType'
   | 'externalPlateNumber'
   | 'externalDriverName'
   | 'externalDriverPhone'
@@ -262,7 +263,7 @@ function dispatchAssignmentChanged(
     || trip.truckId !== next.truckId
     || trip.trailerId !== next.trailerId
     || trip.driverId !== next.driverId
-    || trip.externalCarrierId !== next.externalCarrierId
+    || trip.externalEntityId !== next.externalCarrierId
     || trip.externalPlateNumber !== next.externalPlateNumber
     || trip.externalDriverName !== next.externalDriverName
     || trip.externalDriverPhone !== next.externalDriverPhone;
@@ -553,7 +554,8 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
       trailerId: s.trips.trailerId,
       plannedStartAt: s.trips.plannedStartAt,
       plannedEndAt: s.trips.plannedEndAt,
-      externalCarrierId: s.trips.externalCarrierId,
+      externalEntityId: s.trips.externalEntityId,
+      externalEntityType: s.trips.externalEntityType,
       externalPlateNumber: s.trips.externalPlateNumber,
       externalDriverName: s.trips.externalDriverName,
       externalDriverPhone: s.trips.externalDriverPhone,
@@ -600,7 +602,7 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
     const truckIds = rows.map((row) => row.truckId).filter((id): id is number => id != null);
     const driverIds = rows.map((row) => row.driverId).filter((id): id is number => id != null);
     const trailerIds = rows.map((row) => row.trailerId).filter((id): id is number => id != null);
-    const carrierIds = rows.map((row) => row.externalCarrierId).filter((id): id is number => id != null);
+    const carrierIds = rows.map((row) => row.externalEntityId).filter((id): id is number => id != null);
     const portIds = rows.flatMap((row) => [row.pickupPortId, row.dropoffPortId]).filter((id): id is number => id != null);
     const [trucks, drivers, trailers, carriers, ports] = await Promise.all([
       truckIds.length === 0 ? [] : tx.select({ id: s.trucks.id, licensePlate: s.trucks.licensePlate }).from(s.trucks).where(inArray(s.trucks.id, [...new Set(truckIds)])),
@@ -707,8 +709,8 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
             trailerPlate: row.trailerId ? trailersById.get(row.trailerId)?.licensePlate ?? null : null,
             driverId: row.driverId,
             driverName: row.driverId ? driversById.get(row.driverId)?.name ?? null : null,
-            externalCarrierId: row.externalCarrierId,
-            externalCarrierName: row.externalCarrierId ? carriersById.get(row.externalCarrierId)?.name ?? null : null,
+            externalCarrierId: row.externalEntityId,
+            externalCarrierName: row.externalEntityId ? carriersById.get(row.externalEntityId)?.name ?? null : null,
             externalPlateNumber: row.externalPlateNumber,
             externalDriverName: row.externalDriverName,
             externalDriverPhone: input.actor.role === Role.ACCOUNTANT ? null : row.externalDriverPhone,
@@ -851,7 +853,8 @@ async function loadLiveTripForFulfillment(tx: Tx, fulfillmentId: number): Promis
     trailerId: s.trips.trailerId,
     plannedStartAt: s.trips.plannedStartAt,
     plannedEndAt: s.trips.plannedEndAt,
-    externalCarrierId: s.trips.externalCarrierId,
+    externalEntityId: s.trips.externalEntityId,
+    externalEntityType: s.trips.externalEntityType,
     externalPlateNumber: s.trips.externalPlateNumber,
     externalDriverName: s.trips.externalDriverName,
     externalDriverPhone: s.trips.externalDriverPhone,
@@ -1196,7 +1199,8 @@ async function issueOrderCreateOrUpdate(
       trailerId,
       driverId,
       carrierType: input.carrierType,
-      externalCarrierId,
+      externalEntityId: externalCarrierId,
+      externalEntityType: externalCarrierId != null ? 'CUSTOMER' : null,
       externalPlateNumber,
       externalDriverName,
       externalDriverPhone,
@@ -1217,7 +1221,8 @@ async function issueOrderCreateOrUpdate(
       trailerId: s.trips.trailerId,
       plannedStartAt: s.trips.plannedStartAt,
       plannedEndAt: s.trips.plannedEndAt,
-      externalCarrierId: s.trips.externalCarrierId,
+      externalEntityId: s.trips.externalEntityId,
+      externalEntityType: s.trips.externalEntityType,
       externalPlateNumber: s.trips.externalPlateNumber,
       externalDriverName: s.trips.externalDriverName,
       externalDriverPhone: s.trips.externalDriverPhone,
@@ -1241,7 +1246,8 @@ async function issueOrderCreateOrUpdate(
       trailerId,
       driverId,
       carrierType: input.carrierType,
-      externalCarrierId,
+      externalEntityId: externalCarrierId,
+      externalEntityType: externalCarrierId != null ? 'CUSTOMER' : null,
       externalPlateNumber,
       externalDriverName,
       externalDriverPhone,
@@ -1263,7 +1269,8 @@ async function issueOrderCreateOrUpdate(
       trailerId: s.trips.trailerId,
       plannedStartAt: s.trips.plannedStartAt,
       plannedEndAt: s.trips.plannedEndAt,
-      externalCarrierId: s.trips.externalCarrierId,
+      externalEntityId: s.trips.externalEntityId,
+      externalEntityType: s.trips.externalEntityType,
       externalPlateNumber: s.trips.externalPlateNumber,
       externalDriverName: s.trips.externalDriverName,
       externalDriverPhone: s.trips.externalDriverPhone,
@@ -1359,7 +1366,7 @@ export async function issueFulfillmentDispatchOrder(input: IssueFulfillmentDispa
       truckId: outcome.result.trip.truckId,
       trailerId: outcome.result.trip.trailerId,
       driverId: outcome.result.trip.driverId,
-      externalCarrierId: outcome.result.trip.externalCarrierId,
+      externalCarrierId: outcome.result.trip.externalEntityId,
       externalPlateNumber: outcome.result.trip.externalPlateNumber,
       externalDriverName: outcome.result.trip.externalDriverName,
       externalDriverPhone: outcome.result.trip.externalDriverPhone,

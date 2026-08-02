@@ -107,7 +107,7 @@ async function createBillableDebitDocumentInput(
     fulfillmentId: fulfillment.id,
     departureDate: '2026-07-15',
     completedAt,
-    status: 'LOCKED',
+    status: 'COMPLETED',
     revenue: String(amount),
     carrierType: 'OWN',
   }).returning();

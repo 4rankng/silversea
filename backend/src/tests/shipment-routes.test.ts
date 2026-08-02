@@ -1823,7 +1823,7 @@ describe('POST /:id/dispatch', () => {
 
     const linked = await db.select()
       .from(s.trips)
-      .where(inArray(s.trips.status, ['CREATED', 'IN_TRANSIT', 'COMPLETED', 'LOCKED']));
+      .where(inArray(s.trips.status, ['CREATED', 'IN_TRANSIT', 'COMPLETED']));
     const live = linked.filter((t) => t.fulfillmentId === accepted.fulfillmentId);
     assert.equal(live.length, 1, 'exactly one live trip linked to the fulfillment');
     if (live[0]) createdTripIds.push(live[0].id);

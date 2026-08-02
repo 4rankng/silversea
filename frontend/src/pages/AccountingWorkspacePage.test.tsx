@@ -57,7 +57,7 @@ describe('AccountingWorkspacePage', () => {
             readiness: {
               status: 'READY', acceptedPodSubmissionId: 11, acceptedPodVersion: 2,
               acceptedPodAt: '2026-08-01T00:00:00.000Z', profitabilitySnapshotId: 17,
-              evidence: ['LOCKED_TRIP', 'ACCEPTED_EPOD'],
+              evidence: ['COMPLETED_TRIP', 'ACCEPTED_EPOD'],
             },
           }],
         });

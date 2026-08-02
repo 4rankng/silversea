@@ -40,7 +40,9 @@ export interface TripRowActions {
 }
 
 function isQuickEditable(trip: TripDetail): boolean {
-  return trip.status !== TripStatus.LOCKED && trip.status !== TripStatus.CANCELED;
+  // O2C: costs stay editable after COMPLETED (no hard-freeze). Only CANCELED
+  // trips are non-editable. (The backend marks the AR snapshot dirty on edit.)
+  return trip.status !== TripStatus.CANCELED;
 }
 
 function moneyCell(value: number, extraClass = '') {

@@ -17,7 +17,7 @@ import {
   getActiveFinancialPosting,
 } from './financial-posting.service';
 import { captureProfitabilityAttributionSnapshot } from './profitability.service';
-import { getDriverCompletionEvidenceStatus } from './trip-pod.service';
+import { ArSnapshotService } from './ar-snapshot.service';
 
 export async function transitionTripStatus(
   tripId: number,
@@ -47,23 +47,24 @@ export async function transitionTripStatus(
     }
 
     const currentStatus = trip.status as TripStatus;
-    const isDriverOwnedFulfillmentCompletion = (
-      targetStatus === TripStatus.COMPLETED
-      && currentStatus === TripStatus.IN_TRANSIT
-      && userRole === Role.DRIVER
-      && trip.fulfillmentId != null
-      && options?.governanceActionId == null
-    );
+    // O2C reconciliation: the permissive driver-Hoàn thành path is removed
+    // (docs/prd/O2C dev.md — POD gate before Completed). The sole completion
+    // route is the e-POD acceptance path (shipment.service), which carries
+    // podApprovalContext. A governed close request also targets COMPLETED
+    // via governanceActionId.
+    const isPodApprovedCompletion = options?.podApprovalContext != null;
     if (currentStatus === targetStatus) {
       if (targetStatus === TripStatus.CANCELED) {
         throw new ApiError(409, 'Chuyến đi đã bị hủy');
       }
       return trip; // Idempotent short-circuit
     }
+    // Completion via a governed close request (not the e-POD path) needs the
+    // persisted maker-checker-approver authorization. The e-POD acceptance path
+    // is its own authorization (the accountant/CUS reviewed and accepted the
+    // digital proof) and carries podApprovalContext instead.
     if (
-      (targetStatus === TripStatus.COMPLETED
-        && currentStatus !== TripStatus.LOCKED
-        && !isDriverOwnedFulfillmentCompletion)
+      (targetStatus === TripStatus.COMPLETED && !isPodApprovedCompletion)
       || (targetStatus === TripStatus.CANCELED && options?.governanceActionId != null)
     ) {
       assertActiveApprovalApplication(tx, options?.governanceActionId);
@@ -122,80 +123,77 @@ export async function transitionTripStatus(
           `Xe đang chạy chuyến ${busyLabel}. Vui lòng hoàn thành chuyến đó trước.`,
         );
       }
-    } else if (targetStatus === TripStatus.COMPLETED && currentStatus === TripStatus.LOCKED) {
-      // Q18: a locked trip cannot be reopened by a direct lifecycle edit.
-      // The bounded governance service records the reason and requires a
-      // distinct maker, checker and approver before it applies this status.
-      throw new ApiError(
-        409,
-        'Chuyến đã chốt chỉ được mở lại bằng yêu cầu có kiểm tra và phê duyệt',
-      );
     } else if (targetStatus === TripStatus.COMPLETED) {
-      if (isDriverOwnedFulfillmentCompletion) {
-        const evidenceStatus = await getDriverCompletionEvidenceStatus(trip.id, tx);
-        if (!evidenceStatus.ready) {
-          throw new ApiError(409, `Chưa thể hoàn thành chuyến. Còn thiếu: ${evidenceStatus.missing.join(', ')}.`);
-        }
-      } else {
-        if (userRole !== Role.ADMIN && userRole !== Role.MANAGER) {
-          throw new ApiError(403, 'Chỉ Quản lý hoặc Quản trị viên mới có quyền hoàn thành chuyến đi');
-        }
-        if (currentStatus !== TripStatus.IN_TRANSIT) {
-          throw new ApiError(409, 'Chỉ có thể hoàn thành chuyến đi đang chạy');
-        }
-        if (!governanceAuthorized) {
-          throw new ApiError(409, 'Thiếu yêu cầu quản trị đã được phê duyệt');
-        }
-      }
-      // B2: completion is permissive — a trip may be marked "Hoàn thành"
-      // without photos, and photo evidence (CONTAINER/SEAL) can be added or
-      // edited afterwards ("allow to complete, user can edit later"). The
-      // previous ≥1-photo / cargo-type CONTAINER+SEAL gate is removed; the
-      // explicit POST /trips/:id/complete endpoint is the permissive path.
-      // Falls through to the generic status update below.
-    } else if (targetStatus === TripStatus.LOCKED) {
-      const podApprovedLock = options?.podApprovalContext != null;
-      const canLockTrip = userRole === Role.ADMIN
-        || userRole === Role.MANAGER
-        || (podApprovedLock && userRole === Role.CLERK);
-      if (!canLockTrip) {
+      // ─── Gates migrated one hop earlier from the former COMPLETED → LOCKED
+      // branch (O2C reconciliation, docs/prd/O2C dev.md, 01/08/2026). The
+      // permissive driver-Hoàn thành path is removed — the sole completion
+      // routes are: (a) e-POD acceptance (accountant/CUS, carries
+      // podApprovalContext) and (b) a governed close request (governanceActionId).
+      // Q18: a completed trip is terminal; it cannot be re-completed directly.
+      if (currentStatus === TripStatus.COMPLETED) {
         throw new ApiError(
-          403,
-          'Chỉ Quản lý hoặc Quản trị viên mới có quyền chốt khóa chuyến đi',
+          409,
+          'Chuyến đã chốt chỉ được mở lại bằng yêu cầu có kiểm tra và phê duyệt',
         );
       }
-      // Inline lock procedure to avoid nested transaction
-      if (currentStatus !== TripStatus.COMPLETED) {
-        throw new ApiError(409, 'Chỉ có thể chốt chuyến đi khi ở trạng thái Hoàn thành');
+      if (currentStatus !== TripStatus.IN_TRANSIT) {
+        throw new ApiError(409, 'Chỉ có thể hoàn thành chuyến đi đang chạy');
+      }
+      // RBAC: ADMIN/MANAGER always; CLERK only via the e-POD acceptance path
+      // (podApprovalContext present — the accountant/CUS reviewed digital proof).
+      const canComplete = userRole === Role.ADMIN
+        || userRole === Role.MANAGER
+        || (isPodApprovedCompletion && userRole === Role.CLERK);
+      if (!canComplete) {
+        throw new ApiError(
+          403,
+          'Chỉ Quản lý hoặc Quản trị viên mới có quyền hoàn thành chuyến đi',
+        );
+      }
+      // A governed close (not the e-POD path) must carry an active approval.
+      if (!isPodApprovedCompletion && !governanceAuthorized) {
+        throw new ApiError(409, 'Thiếu yêu cầu quản trị đã được phê duyệt');
       }
 
-      if (podApprovedLock) {
+      // e-POD acceptance binding: verify the accepted submission belongs to
+      // this trip. (The governed-close path has no podApprovalContext.)
+      if (isPodApprovedCompletion) {
         const [submission] = await tx.select({
           id: s.tripPodSubmissions.id,
         }).from(s.tripPodSubmissions)
           .where(and(
-            eq(s.tripPodSubmissions.id, options.podApprovalContext!.submissionId),
+            eq(s.tripPodSubmissions.id, options!.podApprovalContext!.submissionId),
             eq(s.tripPodSubmissions.tripId, tripId),
             eq(s.tripPodSubmissions.status, 'ACCEPTED'),
           ))
           .limit(1);
         if (!submission) {
-          throw new ApiError(409, 'e-POD đã duyệt không còn hợp lệ để khóa chuyến.');
+          throw new ApiError(409, 'e-POD đã duyệt không còn hợp lệ để hoàn thành chuyến.');
         }
       }
 
-      if (!podApprovedLock) {
-        // Soft guard on zero-revenue
-        const revenue = Number(trip.revenue || 0);
-        if (revenue === 0 && !confirmZeroRevenue) {
-          throw new ApiError(422, 'Doanh thu bằng 0. Vui lòng xác nhận.');
-        }
+      // POD-recovery gate (O2C): physical paper return ("Đã thu hồi chứng từ
+      // gốc / POD mộc đỏ") must be recorded before completion. Distinct from
+      // digital e-POD acceptance. A governed close also requires it — the
+      // accountant must have the paper in hand before posting revenue.
+      if (trip.podRecoveredAt == null) {
+        throw new ApiError(
+          409,
+          'Chưa thu hồi POD gốc (chứng từ mộc đỏ). Vui lòng đánh dấu đã thu hồi trước khi hoàn thành.',
+        );
+      }
 
-        // Photo evidence gate (Bug 2): require at least 1 photo baseline, and
-        // when the trip's cargo type opts into requires_photos, additionally
-        // require ≥1 CONTAINER and ≥1 SEAL photo. confirmNoPhoto lets the user
-        // override (e.g. legacy trips with no photo evidence). Completion stays
-        // permissive (B2) — the gate lives only on the LOCK transition.
+      // Soft guard on zero-revenue (confirmZeroRevenue override still allowed).
+      const revenue = Number(trip.revenue || 0);
+      if (revenue === 0 && !confirmZeroRevenue) {
+        throw new ApiError(422, 'Doanh thu bằng 0. Vui lòng xác nhận.');
+      }
+
+      // Photo evidence gate: require at least 1 photo baseline, and when the
+      // trip's cargo type opts into requires_photos, additionally require
+      // ≥1 CONTAINER and ≥1 SEAL photo. confirmNoPhoto lets the user override
+      // (e.g. legacy trips with no photo evidence).
+      if (!confirmNoPhoto) {
         const photos = await tx.select({ type: s.tripPhotos.type })
           .from(s.tripPhotos).where(eq(s.tripPhotos.tripId, tripId));
         const anyCount = photos.length;
@@ -210,43 +208,21 @@ export async function transitionTripStatus(
             .limit(1))[0] ?? null;
         const requiresPhotos = cargo?.requiresPhotos === true; // null/false → baseline only
 
-        if (!confirmNoPhoto) {
-          if (anyCount < 1) {
-            throw new ApiError(422, 'Chưa có ảnh bằng chứng. Vui lòng tải lên ít nhất 1 ảnh hoặc xác nhận chốt không ảnh.');
-          }
-          if (requiresPhotos && (containerCount < 1 || sealCount < 1)) {
-            throw new ApiError(422, 'Loại hàng yêu cầu ảnh: phải có ít nhất 1 ảnh CONTAINER và 1 ảnh SEAL (hoặc xác nhận chốt không ảnh).');
-          }
+        if (anyCount < 1) {
+          throw new ApiError(422, 'Chưa có ảnh bằng chứng. Vui lòng tải lên ít nhất 1 ảnh hoặc xác nhận hoàn thành không ảnh.');
+        }
+        if (requiresPhotos && (containerCount < 1 || sealCount < 1)) {
+          throw new ApiError(422, 'Loại hàng yêu cầu ảnh: phải có ít nhất 1 ảnh CONTAINER và 1 ảnh SEAL (hoặc xác nhận hoàn thành không ảnh).');
         }
       }
-
-      // Conditional guard status update
-      const [lockedTrip] = await tx.update(s.trips).set({
-        status: TripStatus.LOCKED,
-        version: sql`${s.trips.version} + 1`,
-        updatedAt: new Date(),
-      }).where(and(eq(s.trips.id, tripId), eq(s.trips.status, TripStatus.COMPLETED))).returning();
-
-      if (!lockedTrip) {
-        throw new ApiError(409, 'Chuyến đi không thể chốt hoặc đã bị thay đổi. Vui lòng tải lại.');
-      }
-
-      // Audit row is written by the auditLogMiddleware for the POST /lock
-      // endpoint as "Quản lý <actor> khóa chuyến <tripCode>". We intentionally
-      // skip a service-level write here to avoid a duplicate row, and to keep
-      // a single source of truth for audit message phrasing (no enum leakage,
-      // always Subject + Verb).
-
-      return lockedTrip;
+      // Falls through to the generic status update below; the financial posting
+      // + postTripCompletion + captureSnapshot fire in the post-update block.
     } else if (targetStatus === TripStatus.CANCELED) {
       if (userRole !== Role.ADMIN && userRole !== Role.MANAGER) {
         throw new ApiError(
           403,
           'Chỉ Quản lý hoặc Quản trị viên mới có quyền hủy chuyến đi',
         );
-      }
-      if (currentStatus === TripStatus.LOCKED) {
-        throw new ApiError(409, 'Không thể hủy chuyến đi đã chốt');
       }
       if (currentStatus === TripStatus.COMPLETED) {
         if (!governanceAuthorized) {
@@ -308,7 +284,7 @@ export async function transitionTripStatus(
         if (!activePosting) {
           throw new ApiError(409, 'Chuyến chưa có phiên bản hạch toán đang hiệu lực');
         }
-        await LedgerService.postTripUnlock(tx, {
+        await LedgerService.postTripCompletionReverse(tx, {
           id: trip.id,
           tripCode: trip.tripCode,
           customerId: trip.customerId,
@@ -316,7 +292,8 @@ export async function transitionTripStatus(
           revenue: trip.revenue,
           driverSalary: trip.driverSalary,
           carrierType: trip.carrierType ?? 'OWN',
-          externalCarrierId: trip.externalCarrierId ?? null,
+          externalEntityId: trip.externalEntityId ?? null,
+          externalEntityType: trip.externalEntityType ?? null,
           externalFreightCost: trip.externalFreightCost ?? null,
           fuelSupplierId: trip.fuelSupplierId ?? null,
           totalFuelCost: trip.totalFuelCost,
@@ -386,7 +363,7 @@ export async function transitionTripStatus(
         effectiveAt: updated.completedAt ?? new Date(),
       });
 
-      await LedgerService.postTripLock(tx, {
+      await LedgerService.postTripCompletion(tx, {
         id: updated.id,
         tripCode: updated.tripCode,
         customerId: updated.customerId,
@@ -394,7 +371,8 @@ export async function transitionTripStatus(
         revenue: updated.revenue,
         driverSalary: updated.driverSalary,
         carrierType: updated.carrierType ?? 'OWN',
-        externalCarrierId: updated.externalCarrierId ?? null,
+        externalEntityId: updated.externalEntityId ?? null,
+        externalEntityType: updated.externalEntityType ?? null,
         externalFreightCost: updated.externalFreightCost ?? null,
         fuelSupplierId: updated.fuelSupplierId ?? null,
         totalFuelCost: updated.totalFuelCost,
@@ -408,6 +386,10 @@ export async function transitionTripStatus(
           approvalStatus: fee.approvalStatus,
         })),
       }, { financialPostingId: posting?.id });
+
+      // O2C AR snapshot: capture the canonical cost hash so post-completion cost
+      // edits flip ar_snapshot_dirty for the accountant reconciliation view.
+      await ArSnapshotService.captureSnapshot(updated.id, tx);
 
       if (posting) {
         await captureProfitabilityAttributionSnapshot(tx, updated.id, posting.id);

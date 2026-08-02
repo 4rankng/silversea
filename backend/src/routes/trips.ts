@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { eq } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { TripStatus, NotificationType, Role, createTripSchema, createTripPairSchema, updateTripFiguresSchema, bulkUpdateTripFiguresSchema, createAdjustmentSchema, tripReopenRequestSchema, tripContainerBatchSchema, tripExpenseSchema, tripExpensePatchSchema, upsertTripInstructionsSchema } from '@tingting/shared';
 import * as tripService from '../services/trip.service';
@@ -47,7 +47,6 @@ registerAuditEvent('PUT', '/api/trips/', '/actuals', AuditEvent.TRIP_UPDATED_ACT
 registerAuditEvent('POST', '/api/trips/bulk-figures', AuditEvent.ENTITY_UPDATED);
 registerAuditEvent('POST', '/api/trips/', '/dispatch', AuditEvent.TRIP_DISPATCHED);
 registerAuditEvent('POST', '/api/trips/', '/complete', AuditEvent.TRIP_COMPLETED);
-registerAuditEvent('POST', '/api/trips/', '/lock', AuditEvent.TRIP_LOCKED);
 registerAuditEvent('POST', '/api/trips/', '/cancel', AuditEvent.TRIP_CANCELED);
 registerAuditEvent('POST', '/api/trips/', '/adjustment', AuditEvent.ADJUSTMENT_CREATED);
 registerAuditEvent('POST', '/api/trips/', '/approve', AuditEvent.ENTITY_UPDATED);
@@ -195,7 +194,6 @@ router.get('/stats', asyncHandler(async (req: Request, res: Response) => {
     created: summary.statusCounts[TripStatus.CREATED],
     inTransit: summary.statusCounts[TripStatus.IN_TRANSIT],
     completed: summary.statusCounts[TripStatus.COMPLETED],
-    locked: summary.statusCounts[TripStatus.LOCKED],
     canceled: summary.statusCounts[TripStatus.CANCELED],
     totalRevenue: summary.totalRevenue,
     totalKm: summary.totalKm,
@@ -487,36 +485,6 @@ router.post('/:id/complete', asyncHandler(async (req: Request, res: Response) =>
     .json(idempotencyKey ? { ...action, replayed } : action);
 }));
 
-// Lock trip
-router.post('/:id/lock', asyncHandler(async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id as string);
-  const confirmZeroRevenue = req.body.confirmZeroRevenue === true;
-  const confirmNoPhoto = req.body.confirmNoPhoto === true;
-  const idempotencyKey = getRequestIdempotencyKey(req);
-  const outcome = await transitionTripWriteCommand({
-    tripId: id,
-    targetStatus: TripStatus.LOCKED,
-    actor: getUser(req),
-    idempotencyKey,
-    expectedVersion: getExpectedVersion(req.body),
-    confirmZeroRevenue,
-    confirmNoPhoto,
-  });
-  if (!outcome.replayed) {
-    await invalidateReportCaches(true);
-    emitNotification({
-      type: NotificationType.TRIP_LOCKED,
-      title: 'Chuyến đã khóa',
-      message: `Chuyến ${outcome.trip.tripCode} đã được khóa`,
-      relatedEntityType: 'trips',
-      relatedEntityId: id,
-    });
-  }
-  res.json(idempotencyKey
-    ? { ...outcome.trip, replayed: outcome.replayed }
-    : outcome.trip);
-}));
-
 // Cancel trip
 router.post('/:id/cancel', asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
@@ -592,6 +560,49 @@ router.post('/:id/cancel', asyncHandler(async (req: Request, res: Response) => {
     : outcome.trip);
 }));
 
+// ─── O2C POD-recovery gate (260801-2200 phase-03) ────────────────────────────
+// Records physical paper return ("Đã thu hồi chứng từ gốc / POD mộc đỏ").
+// Distinct from digital e-POD acceptance. The IN_TRANSIT → COMPLETED transition
+// throws if this is null; only ACCOUNTANT or CLERK may set it.
+router.post('/:id/pod-recovered', requireRoles(Role.ACCOUNTANT, Role.CLERK), asyncHandler(async (req: Request, res: Response) => {
+  const id = parseInt(req.params.id as string);
+  const expectedVersion = getExpectedVersion(req.body);
+  const user = getUser(req);
+  const [updated] = await db.update(s.trips).set({
+    podRecoveredAt: new Date(),
+    podRecoveredBy: user.userId,
+    version: sql`${s.trips.version} + 1`,
+    updatedAt: new Date(),
+  }).where(and(
+    eq(s.trips.id, id),
+    ...(expectedVersion !== undefined ? [eq(s.trips.version, expectedVersion)] : []),
+  )).returning();
+  if (!updated) throw new ApiError(409, 'Chuyến đi đã bị thay đổi. Vui lòng tải lại.');
+  res.json(updated);
+}));
+
+// ─── O2C field-ops hand-off timestamps (phase-04) ────────────────────────────
+// Ops (FORWARDER) records the paper-order hand-off; Driver confirms order receipt.
+router.post('/:id/paper-order-collected', requireRoles(Role.FORWARDER), asyncHandler(async (req: Request, res: Response) => {
+  const id = parseInt(req.params.id as string);
+  const [updated] = await db.update(s.trips).set({
+    paperOrderCollectedAt: new Date(),
+    updatedAt: new Date(),
+  }).where(eq(s.trips.id, id)).returning();
+  if (!updated) throw new ApiError(404, 'Không tìm thấy chuyến đi');
+  res.json({ tripId: updated.id, paperOrderCollectedAt: updated.paperOrderCollectedAt });
+}));
+
+router.post('/:id/driver-order-accepted', requireRoles(Role.DRIVER), asyncHandler(async (req: Request, res: Response) => {
+  const id = parseInt(req.params.id as string);
+  const [updated] = await db.update(s.trips).set({
+    driverOrderAcceptedAt: new Date(),
+    updatedAt: new Date(),
+  }).where(eq(s.trips.id, id)).returning();
+  if (!updated) throw new ApiError(404, 'Không tìm thấy chuyến đi');
+  res.json({ tripId: updated.id, driverOrderAcceptedAt: updated.driverOrderAcceptedAt });
+}));
+
 // Reassign truck/driver (only for CREATED trips)
 router.patch('/:id/reassign', asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
@@ -621,7 +632,7 @@ router.patch('/:id/reassign', asyncHandler(async (req: Request, res: Response) =
   res.json(idempotencyKey ? { ...trip, replayed } : trip);
 }));
 
-// Submit an exceptional reopen request. The trip remains LOCKED until a
+// Submit an exceptional reopen request. The trip remains COMPLETED until a
 // distinct checker and approver complete the governance action.
 router.post('/:id/unlock', asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);

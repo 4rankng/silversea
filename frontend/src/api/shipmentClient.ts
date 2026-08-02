@@ -193,7 +193,7 @@ export interface ShipmentPodReviewItem {
   required: boolean;
   tripId: number | null;
   tripCode: string | null;
-  tripStatus: ShipmentStatus | 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | 'LOCKED' | 'CANCELED' | null;
+  tripStatus: ShipmentStatus | 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELED' | null;
   tripVersion: number | null;
   driverName: string | null;
   currentSubmission: ShipmentPodSubmission | null;
@@ -345,7 +345,7 @@ export interface ReviewShipmentPodResponse {
   submissionId: number;
   submissionStatus: TripPodStatus;
   tripId: number;
-  tripStatus: 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | 'LOCKED' | 'CANCELED';
+  tripStatus: 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELED';
   shipmentVersion: number;
   replayed: boolean;
 }

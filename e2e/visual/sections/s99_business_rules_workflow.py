@@ -244,9 +244,9 @@ def tc_q17_clerk_scope(ctx: VisualTestContext):
 # ─── Q18: Editing approved/locked data → adjustment note ────────────────
 
 @tc("TC-Q18-LOCKED-EDIT", roles=["ACCOUNTANT"], url="/audit-logs",
-    title="WF Q18 — Audit log is the locked-edit trail")
+    title="WF Q18 — Audit log is the completed-edit trail")
 def tc_q18_locked_edit(ctx: VisualTestContext):
-    """Q18 (accepted): approved/locked data cannot be edited in place —
+    """Q18 (accepted): approved/completed data cannot be edited in place —
     only adjustment notes or undo, with reason, before/after, actor,
     approver. The audit log is the trail."""
     ctx.login("ACCOUNTANT")

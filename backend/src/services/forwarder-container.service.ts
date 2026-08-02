@@ -126,8 +126,8 @@ export async function updateTripContainerInClient(
 
   const [trip] = await client.select({ status: s.trips.status })
     .from(s.trips).where(eq(s.trips.id, row.tripId)).limit(1);
-  if (trip?.status === 'LOCKED') {
-    throw new ApiError(409, 'Không thể sửa số cont của chuyến đã chốt');
+  if (trip?.status === 'COMPLETED') {
+    throw new ApiError(409, 'Không thể sửa số cont của chuyến đã hoàn thành');
   }
 
   const set: Record<string, unknown> = { updatedAt: new Date() };
@@ -290,8 +290,8 @@ export async function batchUpsertContainerSeals(
       .limit(1);
     if (!row) throw new ApiError(404, 'Không tìm thấy số cont');
     assertExpectedUpdatedAt(row.containerUpdatedAt, options.expectedUpdatedAt);
-    if (row.tripStatus === 'LOCKED') {
-      throw new ApiError(409, 'Không thể sửa seal của cont trong chuyến đã chốt');
+    if (row.tripStatus === 'COMPLETED') {
+      throw new ApiError(409, 'Không thể sửa seal của cont trong chuyến đã hoàn thành');
     }
 
     const existing = await tx.select({ id: s.tripContainerSeals.id })

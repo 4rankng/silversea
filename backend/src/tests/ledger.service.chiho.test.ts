@@ -55,6 +55,7 @@ after(async () => {
     cleanupStep = 'trips';
     await db.delete(s.profitabilitySnapshots).where(inArray(s.profitabilitySnapshots.tripId, createdTripIds));
     await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.tripId, createdTripIds));
+    await db.delete(s.tripPhotos).where(inArray(s.tripPhotos.tripId, createdTripIds));
     await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
   }
   const allUserIds = [...createdForwarderIds, ...createdGovernanceUserIds];
@@ -209,8 +210,19 @@ async function createInTransitTripWithFees(
     departureDate: '2026-06-20',
     revenue: String(values.revenue),
     carrierType: 'OWN',
+    // O2C POD-recovery gate: must be recorded before the governed completion.
+    podRecoveredAt: new Date(),
+    podRecoveredBy: 1,
   }).returning();
   createdTripIds.push(trip.id);
+  // O2C: the photo-evidence gate fires on IN_TRANSIT → COMPLETED. Seed one
+  // photo so the governed close passes the baseline gate.
+  await db.insert(s.tripPhotos).values({
+    tripId: trip.id,
+    type: 'OTHER',
+    storageKey: `test-photos/ch-${trip.id}-${suffix}.jpg`,
+    uploadedBy: 1,
+  });
 
   const expenseRows: Array<typeof s.tripExpenses.$inferSelect> = [];
   for (const fee of fees) {
@@ -365,7 +377,7 @@ describe('chi hộ (service-fee) sell-side AR ledger posting', () => {
 
     // COMPLETED posts TRIP_REVENUE + 2 SERVICE_FEE debits to the customer.
     const completed = await completeTripGoverned(trip.id, trip.version);
-    // COMPLETED → CANCELED is the transition that invokes postTripUnlock,
+    // COMPLETED → CANCELED is the transition that invokes postTripCompletionReverse,
     // which posts UNLOCK_REVERSAL rows for revenue + every sell fee.
     await approveCompletedCancellation(trip.id, completed.version);
 
@@ -429,8 +441,8 @@ describe('chi hộ (service-fee) sell-side AR ledger posting', () => {
     assert.equal(feeLedgerRows[0].credit, '0');
   });
 
-  test('non-strict postTripLock also posts a null-counterparty fee to customer AR', async () => {
-    // Build a minimal IN_TRANSIT trip (no driver — postTripLock does not require
+  test('non-strict postTripCompletion also posts a null-counterparty fee to customer AR', async () => {
+    // Build a minimal IN_TRANSIT trip (no driver — postTripCompletion does not require
     // one) so the only entries are TRIP_REVENUE + the (skipped) fee.
     const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const [customer] = await db.insert(s.customers)
@@ -467,7 +479,7 @@ describe('chi hộ (service-fee) sell-side AR ledger posting', () => {
     // Commit the transaction so we can query the ledger afterward; the after()
     // hook deletes ledger rows by txnId (tripId + feeId) so cleanup is covered.
     const skipped = await db.transaction(async (tx) => {
-      return LedgerService.postTripLock(
+      return LedgerService.postTripCompletion(
         tx,
         {
           id: trip.id,

@@ -152,7 +152,7 @@ describe('Q19 business calendar', () => {
       }).returning({ id: s.trips.id });
       tripId = trip.id;
       await db.transaction(async (tx) => {
-        await LedgerService.postTripLock(tx, {
+        await LedgerService.postTripCompletion(tx, {
           id: tripId!,
           customerId: customerId!,
           driverId: null,

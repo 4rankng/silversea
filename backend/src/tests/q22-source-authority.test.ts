@@ -154,7 +154,7 @@ after(async () => {
 });
 
 async function createTripFixture(
-  status: 'CREATED' | 'COMPLETED' | 'LOCKED',
+  status: 'CREATED' | 'COMPLETED',
   revenue: number,
   dates: { departureDate?: string; completedAt?: Date } = {},
 ) {
@@ -563,7 +563,7 @@ describe('Q22 source authority propagation', () => {
   });
 
   test('uses completion date for freight and expense date for service-fee periods', async () => {
-    const { customer, trip } = await createTripFixture('LOCKED', 1_000_000, {
+    const { customer, trip } = await createTripFixture('COMPLETED', 1_000_000, {
       departureDate: '2026-07-31',
       completedAt: new Date('2026-08-02T09:00:00Z'),
     });
@@ -656,7 +656,7 @@ describe('Q22 source authority propagation', () => {
   });
 
   test('recomputes draft debit-note lines from the latest trip source', async () => {
-    const { customer, trip } = await createTripFixture('LOCKED', 1_000_000);
+    const { customer, trip } = await createTripFixture('COMPLETED', 1_000_000);
     const document = await createDraftDebitNote(customer.id, actors[0]!.id);
     const before = await getDocument(document.id!);
     const beforeLine = requireTripLine(before);
@@ -685,7 +685,7 @@ describe('Q22 source authority propagation', () => {
   });
 
   test('treats only approved expenses as authoritative for debit-note and disbursement reads', async () => {
-    const { customer, trip } = await createTripFixture('LOCKED', 1_000_000);
+    const { customer, trip } = await createTripFixture('COMPLETED', 1_000_000);
     const [expenseType] = await db.insert(s.forwarderExpenseTypes).values({
       code: `Q22-AUTH-${trip.id}`,
       name: `Q22 authority fee ${trip.id}`,
@@ -765,7 +765,7 @@ describe('Q22 source authority propagation', () => {
   });
 
   test('keeps issued debit notes immutable and routes source drift through governance adjustments', async () => {
-    const { customer, trip } = await createTripFixture('LOCKED', 1_000_000);
+    const { customer, trip } = await createTripFixture('COMPLETED', 1_000_000);
     const document = await createDraftDebitNote(customer.id, actors[0]!.id);
     await transitionDebitNoteStatus({
       documentId: document.id!,
@@ -862,7 +862,7 @@ describe('Q22 source authority propagation', () => {
   });
 
   test('routes trip-targeted receipts onto the issued debit note authority', async () => {
-    const { customer, trip } = await createTripFixture('LOCKED', 1_000_000);
+    const { customer, trip } = await createTripFixture('COMPLETED', 1_000_000);
     const document = await createDraftDebitNote(customer.id, actors[0]!.id);
     await transitionDebitNoteStatus({
       documentId: document.id!,
@@ -904,7 +904,7 @@ describe('Q22 source authority propagation', () => {
   });
 
   test('waits on the shared trip authority lock before sending a debit note', async () => {
-    const { customer, trip } = await createTripFixture('LOCKED', 1_000_000);
+    const { customer, trip } = await createTripFixture('COMPLETED', 1_000_000);
     const document = await createDraftDebitNote(customer.id, actors[0]!.id);
 
     let releaseAuthority!: () => void;
@@ -919,7 +919,7 @@ describe('Q22 source authority propagation', () => {
     const blocker = db.transaction(async (tx) => {
       await lockTripFinancialAuthority(tx, [trip.id]);
       await tx.update(s.trips).set({
-        status: 'LOCKED',
+        status: 'COMPLETED',
         revenue: '1500000',
         version: trip.version + 1,
         updatedAt: new Date(Date.now() + 3_000),
@@ -955,7 +955,7 @@ describe('Q22 source authority propagation', () => {
   });
 
   test('all receivable consumers stay on issued-note authority after issue and move only through approved adjustment history', async () => {
-    const { customer, trip } = await createTripFixture('LOCKED', 1_000_000, {
+    const { customer, trip } = await createTripFixture('COMPLETED', 1_000_000, {
       departureDate: '2026-05-15',
       completedAt: new Date('2026-05-20T10:00:00Z'),
     });
@@ -1015,7 +1015,7 @@ describe('Q22 source authority propagation', () => {
   });
 
   test('post-issue allocation and refund races leave one winner and immutable receipt-allocation history', async () => {
-    const { customer, trip } = await createTripFixture('LOCKED', 1_000_000);
+    const { customer, trip } = await createTripFixture('COMPLETED', 1_000_000);
     const document = await createDraftDebitNote(customer.id, actors[0]!.id);
     await transitionDebitNoteStatus({
       documentId: document.id!,

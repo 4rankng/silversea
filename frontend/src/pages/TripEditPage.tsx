@@ -130,11 +130,13 @@ export default function TripEditPage() {
   };
 
   // Bounce the user off the edit page if the trip can't actually be edited
-  // (LOCKED or CANCELED). Without this guard the form lets you fill in
-  // everything and only fails at submit time with "Chuyến đi đã chốt hoặc đã
-  // hủy, không thể sửa" — confusing because the page looked editable.
+  // (CANCELED). Note: in the new model COMPLETED is the terminal posting state
+  // but costs/figures stay editable via the actuals endpoint (with a dirty-flag
+  // governance reason), so completed trips are intentionally allowed through.
+  // Without this guard the form lets you fill in everything and only fails at
+  // submit time — confusing because the page looked editable.
   useEffect(() => {
-    if (trip && (trip.status === TripStatus.LOCKED || trip.status === TripStatus.CANCELED)) {
+    if (trip && trip.status === TripStatus.CANCELED) {
       navigate(`/trips/${trip.id}`, { replace: true });
     }
   }, [trip, navigate]);
@@ -149,7 +151,7 @@ export default function TripEditPage() {
   }
 
   if (!trip) return null;
-  if (trip.status === TripStatus.LOCKED || trip.status === TripStatus.CANCELED) {
+  if (trip.status === TripStatus.CANCELED) {
     // useEffect above will redirect; render nothing in the meantime to avoid a flash.
     return null;
   }

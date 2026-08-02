@@ -87,7 +87,7 @@ async function createTripFixture(input: {
   customerId: number;
   routeId: number;
   cargoTypeId: number;
-  tripStatus: 'LOCKED' | 'COMPLETED';
+  tripStatus: 'COMPLETED';
   podStatus: 'ACCEPTED' | 'SUBMITTED';
   withFulfillment?: boolean;
   tradeDirection?: 'IMPORT' | 'EXPORT';
@@ -193,13 +193,13 @@ function toSaveInput(draft: Awaited<ReturnType<typeof generateDraft>>): SaveBill
   };
 }
 
-test('generateDraft only includes Long Minh trips that are LOCKED and e-POD accepted, with blocked summary', async () => {
+test('generateDraft only includes Long Minh trips that are COMPLETED and e-POD accepted, with blocked summary', async () => {
   const { customer, route, cargoType } = await createBaseCustomerScope('draft');
   const eligibleTrip = await createTripFixture({
     customerId: customer.id,
     routeId: route.id,
     cargoTypeId: cargoType.id,
-    tripStatus: 'LOCKED',
+    tripStatus: 'COMPLETED',
     podStatus: 'ACCEPTED',
     tripCode: `LM-OK-${Date.now()}`.slice(0, 50),
   });
@@ -207,17 +207,20 @@ test('generateDraft only includes Long Minh trips that are LOCKED and e-POD acce
     customerId: customer.id,
     routeId: route.id,
     cargoTypeId: cargoType.id,
-    tripStatus: 'LOCKED',
+    tripStatus: 'COMPLETED',
     podStatus: 'SUBMITTED',
     tripCode: `LM-POD-${Date.now()}`.slice(0, 50),
   });
+  // O2C: COMPLETED is the single billable state. A COMPLETED trip with no
+  // fulfillment linkage has no e-POD authority and stays blocked.
   await createTripFixture({
     customerId: customer.id,
     routeId: route.id,
     cargoTypeId: cargoType.id,
     tripStatus: 'COMPLETED',
     podStatus: 'ACCEPTED',
-    tripCode: `LM-LOCK-${Date.now()}`.slice(0, 50),
+    withFulfillment: false,
+    tripCode: `LM-NOFUL-${Date.now()}`.slice(0, 50),
   });
 
   const draft = await generateDraft({
@@ -234,7 +237,7 @@ test('generateDraft only includes Long Minh trips that are LOCKED and e-POD acce
   assert.equal(draft.lines[0]?.sourceId, eligibleTrip.id);
   assert.equal(draft.lines[0]?.renderData?.factoryName, 'Nhà máy Long Minh');
   assert.equal(draft.lines[0]?.renderData?.declarationNumber, `TK-${eligibleTrip.tripCode}`);
-  assert.ok(draft.eligibilitySummary?.blockedTrips.some((trip) => trip.reason.includes('LOCKED')));
+  assert.ok(draft.eligibilitySummary?.blockedTrips.some((trip) => /e-POD|chưa gắn fulfillment/i.test(trip.reason)));
   assert.ok(draft.eligibilitySummary?.blockedTrips.some((trip) => trip.reason.includes('đang chờ duyệt')));
 });
 
@@ -244,7 +247,7 @@ test('saveDocument rejects when a drafted Long Minh trip loses accepted e-POD el
     customerId: customer.id,
     routeId: route.id,
     cargoTypeId: cargoType.id,
-    tripStatus: 'LOCKED',
+    tripStatus: 'COMPLETED',
     podStatus: 'ACCEPTED',
     tripCode: `LM-SAVE-${Date.now()}`.slice(0, 50),
   });

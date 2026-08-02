@@ -1105,7 +1105,7 @@ export async function approveAdvanceSettlement(
     // If the trip was already completed, post the accepted service fee now.
     // Existing rows are never mutated; corrections become ADJUSTMENT entries.
     for (const link of links) {
-      if (link.tripStatus !== 'COMPLETED' && link.tripStatus !== 'LOCKED') continue;
+      if (link.tripStatus !== 'COMPLETED') continue;
       const adjustedSnapshot = link.adjustedSnapshot as Record<string, unknown>;
       const currentSell = Number(adjustedSnapshot.sellAmount ?? link.sellAmount);
       const existingRows = await tx.select({
@@ -1260,8 +1260,8 @@ export async function adjustSettlementExpense(
 
     const [trip] = await tx.select({ status: s.trips.status }).from(s.trips)
       .where(eq(s.trips.id, linked.tripId)).limit(1);
-    if (!isApprovedCorrection && (trip?.status === 'LOCKED' || trip?.status === 'CANCELED')) {
-      throw new AdvanceError(409, 'Không thể sửa chi phí của chuyến đã khóa hoặc đã hủy');
+    if (!isApprovedCorrection && (trip?.status === 'COMPLETED' || trip?.status === 'CANCELED')) {
+      throw new AdvanceError(409, 'Không thể sửa chi phí của chuyến đã hoàn thành hoặc đã hủy');
     }
 
     const currentSnapshot: Record<string, unknown> = {
@@ -1609,7 +1609,7 @@ async function applyApprovedSettlementCorrection(
 
   if (
     newSellAmount !== oldSellAmount
-    && (linked.tripStatus === 'COMPLETED' || linked.tripStatus === 'LOCKED')
+    && linked.tripStatus === 'COMPLETED'
   ) {
     const existingRows = await tx.select({
       id: s.ledger.id,

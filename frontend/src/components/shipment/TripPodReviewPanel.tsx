@@ -197,7 +197,6 @@ export function TripPodReviewPanel({
             const unresolvedCancellation = item.canceledAt && !item.cancellationDisposition;
             const canCancelFulfillment = canResolveCancellation
               && item.cancellationDisposition == null
-              && item.tripStatus !== 'LOCKED'
               && item.tripStatus !== 'COMPLETED';
             return (
               <article key={item.fulfillmentId} className="shipment-pod-review__item">

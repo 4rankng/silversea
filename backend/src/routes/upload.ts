@@ -587,8 +587,8 @@ uploadRouter.post('/trips/:tripId/photos/:type/delete', asyncHandler(async (req:
         .where(eq(s.trips.id, tripId))
         .limit(1);
       if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
-      if (trip.status === 'LOCKED') {
-        throw new ApiError(409, 'Không thể xóa ảnh của chuyến đã chốt');
+      if (trip.status === 'COMPLETED') {
+        throw new ApiError(409, 'Không thể xóa ảnh của chuyến đã hoàn thành');
       }
 
       if (containerId !== undefined) {

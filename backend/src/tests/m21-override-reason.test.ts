@@ -7,7 +7,7 @@
  *     → 400 rejection.
  *   - Override on a MANUAL trip without a reason → allowed (no auto price
  *     to deviate from).
- *   - Locked trips cannot be updated at all (existing behavior).
+ *   - Completed trips cannot be updated without governance (existing behavior).
  */
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -157,17 +157,19 @@ describe('M2.1 — pricing override reason', () => {
     assert.ok(updated.id, 'update succeeded without reason');
   });
 
-  test('LOCKED trip cannot be updated at all', async () => {
+  test('COMPLETED trip cannot be updated without governance', async () => {
     const customer = await mkCustomer();
     const cat = await mkCatalogs();
-    const trip = await mkTrip({ customerId: customer.id, routeId: cat.route.id, cargoTypeId: cat.cargoType.id, pricingSource: 'TABLE', status: TripStatus.LOCKED });
+    const trip = await mkTrip({ customerId: customer.id, routeId: cat.route.id, cargoTypeId: cat.cargoType.id, pricingSource: 'TABLE', status: TripStatus.COMPLETED });
 
+    // O2C: a completed trip's financials may only change through the governed
+    // correction flow. A direct edit is rejected with 409.
     await assert.rejects(
       () => updateTripFigures(trip.id, baseUpdate(trip.id, trip.version, {
         revenue: 999_999,
         revenueOverrideReason: 'should not reach',
       })),
-      (err: unknown) => err instanceof ApiError && err.statusCode === 400,
+      (err: unknown) => err instanceof ApiError && err.statusCode === 409,
     );
   });
 });

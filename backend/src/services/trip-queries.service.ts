@@ -236,7 +236,10 @@ export async function getTrips(filters: TripListFilters) {
     vehicleShiftAllowance: s.trips.vehicleShiftAllowance,
     tollCost: s.trips.tollCost,
     tollsDiscount: s.trips.tollsDiscount, tollsAddition: s.trips.tollsAddition, tollsStations: s.trips.tollsStations,
-    carrierType: s.trips.carrierType, externalCarrierId: s.trips.externalCarrierId,
+    carrierType: s.trips.carrierType,
+    // O2C: DB column renamed to external_entity_id (soft pointer), but the API
+    // response keeps the externalCarrierId contract name for frontend compat.
+    externalCarrierId: s.trips.externalEntityId,
     externalFreightCost: s.trips.externalFreightCost,
     externalPlateNumber: s.trips.externalPlateNumber, externalDriverName: s.trips.externalDriverName,
     createdAt: s.trips.createdAt, updatedAt: s.trips.updatedAt,
@@ -346,7 +349,6 @@ export async function getTripsSummary(dateFrom?: string, dateTo?: string): Promi
     created: sql<number>`count(*) filter (where ${s.trips.status} = 'CREATED')`,
     inTransit: sql<number>`count(*) filter (where ${s.trips.status} = 'IN_TRANSIT')`,
     completed: sql<number>`count(*) filter (where ${s.trips.status} = 'COMPLETED')`,
-    locked: sql<number>`count(*) filter (where ${s.trips.status} = 'LOCKED')`,
     canceled: sql<number>`count(*) filter (where ${s.trips.status} = 'CANCELED')`,
     totalKm: sql<number>`coalesce(sum(coalesce((SELECT sum(${s.tripLegs.km}) FROM ${s.tripLegs} WHERE ${s.tripLegs.tripId} = ${s.trips.id}), ${s.routes.distanceKm})), 0)`,
     totalFuel: sql<number>`coalesce(sum(${s.trips.fuelLiters}), 0)`,
@@ -366,7 +368,6 @@ export async function getTripsSummary(dateFrom?: string, dateTo?: string): Promi
     [TripStatus.CREATED]: Number(agg?.created ?? 0),
     [TripStatus.IN_TRANSIT]: Number(agg?.inTransit ?? 0),
     [TripStatus.COMPLETED]: Number(agg?.completed ?? 0),
-    [TripStatus.LOCKED]: Number(agg?.locked ?? 0),
     [TripStatus.CANCELED]: Number(agg?.canceled ?? 0),
   };
 
@@ -444,7 +445,7 @@ export async function getTripById(id: number) {
     fuelFixedAllowanceApplied: s.trips.fuelFixedAllowanceApplied,
     fuelSupplementNormApplied: s.trips.fuelSupplementNormApplied,
     vatRate: s.trips.vatRate,
-    carrierType: s.trips.carrierType, externalCarrierId: s.trips.externalCarrierId,
+    carrierType: s.trips.carrierType, externalEntityId: s.trips.externalEntityId,
     externalFreightCost: s.trips.externalFreightCost,
     externalPlateNumber: s.trips.externalPlateNumber,
     externalDriverName: s.trips.externalDriverName,

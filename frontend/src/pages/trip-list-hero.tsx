@@ -51,7 +51,6 @@ export function TripListHero({ todayLabel, statusCounts, summary, quickEdit, tog
                 <div className="bb-seg bb-huy"  style={{ width: `${breakdownPct.huy}%` }} />
               </div>
               <div className="breakdown-legend">
-                <span className="legend-item"><span className="legend-dot bb-chot" />Đã khóa {statusCounts[TripStatus.LOCKED]}</span>
                 <span className="legend-item"><span className="legend-dot bb-htth" />Hoàn thành {statusCounts[TripStatus.COMPLETED]}</span>
                 <span className="legend-item"><span className="legend-dot bb-dang" />Đang chạy {statusCounts[TripStatus.IN_TRANSIT]}</span>
                 <span className="legend-item"><span className="legend-dot bb-moi"  />Mới tạo {statusCounts[TripStatus.CREATED]}</span>

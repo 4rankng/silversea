@@ -9,7 +9,6 @@ export interface StatusCounts {
   [TripStatus.CREATED]: number;
   [TripStatus.IN_TRANSIT]: number;
   [TripStatus.COMPLETED]: number;
-  [TripStatus.LOCKED]: number;
   [TripStatus.CANCELED]: number;
 }
 
@@ -39,7 +38,6 @@ const STATUS_TABS: Array<{ key: '' | TripStatus; label: string }> = [
   { key: TripStatus.CREATED, label: 'Mới tạo' },
   { key: TripStatus.IN_TRANSIT, label: 'Đang chạy' },
   { key: TripStatus.COMPLETED, label: 'Hoàn thành' },
-  { key: TripStatus.LOCKED, label: 'Đã khóa' },
   { key: TripStatus.CANCELED, label: 'Đã hủy' },
 ];
 
@@ -135,7 +133,10 @@ export function breakdownPctFromCounts(statusCounts: StatusCounts) {
   const total = statusCounts.all || 0;
   if (total === 0) return { chot: 0, htth: 0, dang: 0, moi: 0, huy: 0 };
   return {
-    chot: (statusCounts[TripStatus.LOCKED] / total) * 100,
+    // "chot" (LOCKED) is gone — COMPLETED is now the terminal state. Kept as 0
+    // so the breakdown-bar segment simply renders empty; the type still flows
+    // through the hero legend consumer.
+    chot: 0,
     htth: (statusCounts[TripStatus.COMPLETED] / total) * 100,
     dang: (statusCounts[TripStatus.IN_TRANSIT] / total) * 100,
     moi: (statusCounts[TripStatus.CREATED] / total) * 100,
@@ -150,7 +151,6 @@ export function defaultStatusCounts(): StatusCounts {
     [TripStatus.CREATED]: 0,
     [TripStatus.IN_TRANSIT]: 0,
     [TripStatus.COMPLETED]: 0,
-    [TripStatus.LOCKED]: 0,
     [TripStatus.CANCELED]: 0,
   };
 }

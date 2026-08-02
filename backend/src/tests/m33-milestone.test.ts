@@ -93,9 +93,6 @@ describe('M3.3 — tripStatusToMilestoneType', () => {
   test('COMPLETED → DELIVERED', () => {
     assert.equal(tripStatusToMilestoneType(TripStatus.IN_TRANSIT, TripStatus.COMPLETED), 'DELIVERED');
   });
-  test('LOCKED → null', () => {
-    assert.equal(tripStatusToMilestoneType(TripStatus.COMPLETED, TripStatus.LOCKED), null);
-  });
   test('CANCELED → null', () => {
     assert.equal(tripStatusToMilestoneType(TripStatus.CREATED, TripStatus.CANCELED), null);
   });
@@ -127,12 +124,15 @@ describe('M3.3 — deriveMilestoneFromTripStatus', () => {
     assert.equal(milestones.length, 1, 'only one milestone');
   });
 
-  test('does nothing for LOCKED status', async () => {
+  test('does nothing for a transition to a non-milestone status (CANCELED)', async () => {
     const customer = await mkCustomer();
     const shipment = await mkShipment(customer.id);
     const trip = await mkTrip();
 
-    await deriveMilestoneFromTripStatus(shipment.id, trip.id, TripStatus.COMPLETED, TripStatus.LOCKED, 1);
+    // O2C: the former LOCKED hop (which mapped to no milestone) is gone.
+    // CANCELED is now the only status that maps to no milestone; deriving for
+    // it must create nothing.
+    await deriveMilestoneFromTripStatus(shipment.id, trip.id, TripStatus.IN_TRANSIT, TripStatus.CANCELED, 1);
 
     const milestones = await listMilestones(shipment.id);
     assert.equal(milestones.length, 0);

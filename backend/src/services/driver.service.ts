@@ -177,7 +177,7 @@ export interface DriverTripSummary {
   fulfillmentId: number | null;
   tripCode: string | null;
   departureDate: string;
-  status: 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | 'LOCKED' | 'CANCELED';
+  status: 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELED';
   fuelLiters: string | null;
   totalRoadAllowance: string | null;
   driverSalary: string | null;
@@ -825,8 +825,11 @@ async function loadDriverProgressEventTx(tx: Tx, id: number): Promise<DriverProg
 async function assertTripAcceptsIncidentalCostTx(tx: Tx, tripId: number): Promise<void> {
   const [trip] = await tx.select({ status: s.trips.status })
     .from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
-  if (trip?.status === 'LOCKED') {
-    throw new ApiError(409, 'Không thể thêm chi phí cho chuyến đã chốt');
+  // O2C: costs stay editable after COMPLETED (no hard-freeze). Only CANCELED
+  // trips reject new incidental costs. A cost on a completed trip flips
+  // ar_snapshot_dirty via the caller.
+  if (trip?.status === 'CANCELED') {
+    throw new ApiError(409, 'Không thể thêm chi phí cho chuyến đã hủy');
   }
 }
 
@@ -962,8 +965,8 @@ export async function listDriverFulfillmentProgress(
 // (reuses `runIdempotent` + `idempotency_keys` from M10.1) so the offline-
 // queue replay doesn't duplicate (PRD M08-04-03).
 //
-// LOCKED trips reject new incidental costs — unlike progress events (append-
-// only audit logs), costs affect financials, so lock = immutable.
+// COMPLETED trips reject new incidental costs — unlike progress events (append-
+// only audit logs), costs affect financials, so completion = immutable.
 
 export interface DriverIncidentalCost {
   id: number;
@@ -980,7 +983,7 @@ export interface DriverIncidentalCost {
 /**
  * Record a driver incidental cost. Server-side idempotent: same key + same
  * body → 201 first / 200 replay (no duplicate); same key + different body →
- * 409 (Q23). LOCKED trips reject (409) — costs affect financials.
+ * 409 (Q23). COMPLETED trips reject (409) — costs affect financials.
  */
 export async function recordIncidentalCost(
   tripId: number,
@@ -1085,19 +1088,15 @@ export async function completeOwnedFulfillmentTrip(args: {
       if (!evidenceStatus.ready) {
         throw new ApiError(409, `Chưa thể hoàn thành chuyến. Còn thiếu: ${evidenceStatus.missing.join(', ')}.`);
       }
-      const updatedTrip = await transitionTripStatus(
-        ownedTrip.tripId,
-        TripStatus.COMPLETED,
-        args.actorUserId,
-        Role.DRIVER,
-        false,
-        false,
-        {
-          expectedVersion: args.expectedVersion,
-          transaction: tx,
-        },
+      // O2C reconciliation (01/08/2026): the permissive driver-owned completion
+      // is removed — the PRD's POD gate requires accountant/CUS e-POD acceptance
+      // before completion. The driver submits evidence; the e-POD ACCEPT path
+      // (shipment.service.reviewTripPodSubmission) drives IN_TRANSIT → COMPLETED.
+      // This endpoint now rejects with a clear pointer to the e-POD flow.
+      throw new ApiError(
+        409,
+        'Chuyến đi hiện do kế toán/CUS duyệt e-POD để hoàn thành. Vui lòng gửi e-POD và đợi duyệt.',
       );
-      return buildDriverFulfillmentCompletionResultTx(tx, updatedTrip.id, args.driverId);
     },
     load: async (entityId, tx) => buildDriverFulfillmentCompletionResultTx(tx, entityId, args.driverId),
     getEntityId: (value) => value.tripId,

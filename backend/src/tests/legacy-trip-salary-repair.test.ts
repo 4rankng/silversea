@@ -6,8 +6,10 @@ const JULY_2026_OLD_VALUE = 370_370;
 
 describe('identifyLegacyTripSalary', () => {
   it('recognizes the July 2026 calendar-divisor salary and returns the fixed-26 correction', () => {
+    // O2C: COMPLETED is terminal, so salary repair only applies to a running
+    // (IN_TRANSIT) trip whose stored salary used the legacy calendar divisor.
     assert.deepEqual(identifyLegacyTripSalary({
-      status: 'COMPLETED',
+      status: 'IN_TRANSIT',
       carrierType: 'OWN',
       departureDate: '2026-07-10',
       baseSalary: 10_000_000,
@@ -23,7 +25,7 @@ describe('identifyLegacyTripSalary', () => {
 
   it('does not touch a manual override', () => {
     assert.equal(identifyLegacyTripSalary({
-      status: 'COMPLETED',
+      status: 'IN_TRANSIT',
       carrierType: 'OWN',
       departureDate: '2026-07-10',
       baseSalary: 10_000_000,
@@ -32,9 +34,9 @@ describe('identifyLegacyTripSalary', () => {
     }), null);
   });
 
-  it('does not touch locked, canceled, or external trips', () => {
+  it('does not touch completed, canceled, or external trips', () => {
     for (const input of [
-      { status: 'LOCKED', carrierType: 'OWN' },
+      { status: 'COMPLETED', carrierType: 'OWN' },
       { status: 'CANCELED', carrierType: 'OWN' },
       { status: 'COMPLETED', carrierType: 'EXTERNAL' },
     ]) {

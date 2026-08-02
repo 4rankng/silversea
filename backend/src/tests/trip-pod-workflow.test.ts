@@ -187,7 +187,7 @@ async function createShipmentFixture(args: {
   };
 }
 
-async function createCompletedTrip(args: {
+async function createFulfillmentTrip(args: {
   tag: string;
   shipmentId: number;
   fulfillmentId: number;
@@ -205,12 +205,18 @@ async function createCompletedTrip(args: {
     shipmentId: args.shipmentId,
     fulfillmentId: args.fulfillmentId,
     driverId: args.driverId,
-    status: args.status ?? TripStatus.COMPLETED,
+    // O2C: e-POD acceptance now drives IN_TRANSIT → COMPLETED (the former
+    // COMPLETED → LOCKED hop is gone). Trips that will be reviewed start as
+    // IN_TRANSIT with podRecoveredAt set so the POD-recovery + e-POD completion
+    // path can fire.
+    status: args.status ?? TripStatus.IN_TRANSIT,
     departureDate: '2026-08-01',
     revenue: '1800000',
     driverSalary: '250000',
     totalFuelCost: '0',
     carrierType: 'OWN',
+    podRecoveredAt: new Date(),
+    podRecoveredBy: args.driverId,
   }).returning();
   createdTripIds.push(trip.id);
   return trip;
@@ -290,7 +296,7 @@ async function createSubmittedPod(args: {
 }
 
 describe('trip pod review workflow', () => {
-  test('scoped clerk approval locks the trip and closes the shipment when the required fulfillment is satisfied', async () => {
+  test('scoped clerk approval completes the trip and closes the shipment when the required fulfillment is satisfied', async () => {
     const clerkUser = await createUser(Role.CLERK, 'approve');
     const businessUnit = await createBusinessUnit('approve');
     const { user: driverUser, driver } = await createDriverPrincipal('approve');
@@ -301,7 +307,7 @@ describe('trip pod review workflow', () => {
       fulfillmentCount: 1,
     });
     await assignClerkScope(clerkUser.id, fixture.customer.id, businessUnit.id);
-    const trip = await createCompletedTrip({
+    const trip = await createFulfillmentTrip({
       tag: 'approve',
       shipmentId: fixture.shipment.id,
       fulfillmentId: fixture.fulfillments[0]!.id,
@@ -328,29 +334,29 @@ describe('trip pod review workflow', () => {
 
     assert.equal(reviewed.replayed, false);
     assert.equal(reviewed.submissionStatus, TripPodStatus.ACCEPTED);
-    assert.equal(reviewed.tripStatus, TripStatus.LOCKED);
+    assert.equal(reviewed.tripStatus, TripStatus.COMPLETED);
     assert.equal(reviewed.shipment.status, 'CLOSED');
 
     const detail = await getShipmentDetail(fixture.shipment.id, actorFromUser(clerkUser));
     assert.equal(detail.podReviews.length, 1);
     assert.equal(detail.podReviews[0]?.currentSubmission?.status, TripPodStatus.ACCEPTED);
-    assert.equal(detail.podReviews[0]?.tripStatus, TripStatus.LOCKED);
+    assert.equal(detail.podReviews[0]?.tripStatus, TripStatus.COMPLETED);
 
     const notificationRows = await db.select({
       userId: s.notifications.userId,
       relatedEntityType: s.notifications.relatedEntityType,
       relatedEntityId: s.notifications.relatedEntityId,
     }).from(s.notifications).where(and(
-      eq(s.notifications.type, 'TRIP_LOCKED'),
+      eq(s.notifications.type, 'TRIP_COMPLETED'),
       eq(s.notifications.relatedEntityType, 'shipment_fulfillments'),
       eq(s.notifications.relatedEntityId, fixture.fulfillments[0]!.id),
     ));
     assert.deepEqual(notificationRows.map((row) => row.userId), [driverUser.id]);
     assert.equal(
       notificationUrlForRole({
-        type: NotificationType.TRIP_LOCKED,
+        type: NotificationType.TRIP_COMPLETED,
         title: 'POD đã được duyệt',
-        message: 'Tài xế có thể xem lại chuyến đã khóa.',
+        message: 'Tài xế có thể xem lại chuyến đã hoàn thành.',
         relatedEntityType: 'shipment_fulfillments',
         relatedEntityId: fixture.fulfillments[0]!.id,
         targetDriverId: driver.id,
@@ -368,7 +374,7 @@ describe('trip pod review workflow', () => {
       fulfillmentCount: 1,
     });
 
-    const originalTrip = await createCompletedTrip({
+    const originalTrip = await createFulfillmentTrip({
       tag: 'replacement-trip-original',
       shipmentId: fixture.shipment.id,
       fulfillmentId: fixture.fulfillments[0]!.id,
@@ -407,7 +413,7 @@ describe('trip pod review workflow', () => {
       containerCount: 2,
       fulfillmentCount: 2,
     });
-    const trip = await createCompletedTrip({
+    const trip = await createFulfillmentTrip({
       tag: 'cancel',
       shipmentId: fixture.shipment.id,
       fulfillmentId: fixture.fulfillments[0]!.id,
@@ -463,7 +469,7 @@ describe('trip pod review workflow', () => {
       fulfillmentCount: 1,
     });
 
-    await createCompletedTrip({
+    await createFulfillmentTrip({
       tag: 'cancel-completed',
       shipmentId: fixture.shipment.id,
       fulfillmentId: fixture.fulfillments[0]!.id,
@@ -471,6 +477,7 @@ describe('trip pod review workflow', () => {
       routeId: fixture.route.id,
       cargoTypeId: fixture.cargoType.id,
       driverId: driver.id,
+      status: TripStatus.COMPLETED,
     });
 
     await assert.rejects(
@@ -497,7 +504,7 @@ describe('trip pod review workflow', () => {
       cargoMode: 'LCL',
       fulfillmentCount: 1,
     });
-    const trip = await createCompletedTrip({
+    const trip = await createFulfillmentTrip({
       tag: 'approve-cancel-race',
       shipmentId: fixture.shipment.id,
       fulfillmentId: fixture.fulfillments[0]!.id,
@@ -506,6 +513,13 @@ describe('trip pod review workflow', () => {
       cargoTypeId: fixture.cargoType.id,
       driverId: driver.id,
     });
+    // O2C: e-POD acceptance now drives IN_TRANSIT → COMPLETED and requires
+    // podRecoveredAt. Dispatch the trip and mark POD recovered first.
+    await db.update(s.trips).set({
+      status: TripStatus.IN_TRANSIT,
+      podRecoveredAt: new Date(),
+      podRecoveredBy: managerUser.id,
+    }).where(eq(s.trips.id, trip.id));
     const submitted = await createSubmittedPod({
       tag: 'approve-cancel-race',
       driverId: driver.id,
@@ -589,7 +603,7 @@ describe('trip pod review workflow', () => {
       cargoMode: 'LCL',
       fulfillmentCount: 1,
     });
-    const trip = await createCompletedTrip({
+    const trip = await createFulfillmentTrip({
       tag: 'progress',
       shipmentId: fixture.shipment.id,
       fulfillmentId: fixture.fulfillments[0]!.id,
@@ -638,6 +652,27 @@ after(async () => {
       await db.delete(s.driverProgressEvents).where(inArray(s.driverProgressEvents.id, createdProgressEventIds));
     }
     if (createdTripIds.length > 0) {
+      // O2C: completing a trip via e-POD now posts ledger/financial rows +
+      // derived milestones; clear them (and their visible-event dependents)
+      // before deleting the trips. Order matters: ledger rows reference the
+      // financial postings (via financial_posting_id), so clear ledger first.
+      const milestoneRows = await db.select({ id: s.shipmentMilestones.id })
+        .from(s.shipmentMilestones)
+        .where(inArray(s.shipmentMilestones.tripId, createdTripIds));
+      if (milestoneRows.length > 0) {
+        await db.delete(s.customerVisibleEvents).where(inArray(s.customerVisibleEvents.milestoneId, milestoneRows.map((m) => m.id)));
+      }
+      await db.delete(s.shipmentMilestones).where(inArray(s.shipmentMilestones.tripId, createdTripIds));
+      await db.delete(s.profitabilitySnapshots).where(inArray(s.profitabilitySnapshots.tripId, createdTripIds));
+      const postingRows = await db.select({ id: s.tripFinancialPostings.id })
+        .from(s.tripFinancialPostings)
+        .where(inArray(s.tripFinancialPostings.tripId, createdTripIds));
+      if (postingRows.length > 0) {
+        await db.delete(s.ledger).where(inArray(s.ledger.financialPostingId, postingRows.map((p) => p.id)));
+      }
+      await db.delete(s.ledger).where(inArray(s.ledger.txnId, createdTripIds));
+      await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.tripId, createdTripIds));
+      await db.delete(s.governanceActions).where(inArray(s.governanceActions.subjectId, createdTripIds));
       await db.delete(s.tripContainers).where(inArray(s.tripContainers.tripId, createdTripIds));
       await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
     }

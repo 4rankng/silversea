@@ -439,7 +439,7 @@ router.get('/trips/:tripId/progress', asyncHandler(async (req: Request, res: Res
 
 // M8.4 slice 3 — driver incidental costs (per-diem, lift fee, parking, toll,
 // fuel, other). Idempotent create (Idempotency-Key header) so the offline-
-// queue replay doesn't duplicate. LOCKED trips reject (costs affect financials).
+// queue replay doesn't duplicate. COMPLETED trips reject (costs affect financials).
 router.post('/trips/:tripId/incidental-costs', asyncHandler(async (req: Request, res: Response) => {
   const tripId = parseInt(req.params.tripId as string, 10);
   if (!Number.isInteger(tripId) || tripId <= 0) throw new ApiError(400, 'ID chuyến đi không hợp lệ');
@@ -572,7 +572,7 @@ router.post('/trips/:tripId/containers', asyncHandler(async (req: Request, res: 
 
 // PATCH one of the driver's own containers (Sửa / change number / change seal /
 // change type). Ownership is enforced via getDriverTripDetail. The trip must
-// not be LOCKED — updateTripContainer enforces that.
+// not be COMPLETED — updateTripContainer enforces that.
 router.patch('/trips/:tripId/containers/:containerId', asyncHandler(async (req: Request, res: Response) => {
   const driver = await getDriverByUserId(getUser(req).userId);
   const tripId = parseInt(req.params.tripId as string, 10);
@@ -621,7 +621,7 @@ router.patch('/trips/:tripId/containers/:containerId', asyncHandler(async (req: 
 
 // Phase 2: full reconcile of one container's seals. Driver UI sends the
 // desired full list; backend matches by id (insert new, update existing,
-// delete the rest). Refuses on a LOCKED trip — same guard as PATCH above.
+// delete the rest). Refuses on a COMPLETED trip — same guard as PATCH above.
 router.put('/trips/:tripId/containers/:containerId/seals', asyncHandler(async (req: Request, res: Response) => {
   const driver = await getDriverByUserId(getUser(req).userId);
   const tripId = parseInt(req.params.tripId as string, 10);
@@ -666,7 +666,7 @@ router.put('/trips/:tripId/containers/:containerId/seals', asyncHandler(async (r
 // Remove all photos of one type (CONTAINER | SEAL) for the driver's own trip —
 // the Sửa flow's "remove photo" affordance. Ownership is enforced via
 // getDriverTripDetail (same IDOR-safe pattern as the PATCH route above): a
-// driver can only touch photos of trips they own. The trip must not be LOCKED,
+// driver can only touch photos of trips they own. The trip must not be COMPLETED,
 // mirroring updateTripContainer's guard — a settled trip's evidence is
 // immutable. Casbin maps DELETE → a distinct `delete` action, granted to DRIVER
 // on driver_portal in policy.csv (separate from `write` so destructive ops are
@@ -682,8 +682,8 @@ router.delete('/trips/:tripId/photos/:type', asyncHandler(async (req: Request, r
     return res.status(400).json({ error: 'Loại ảnh không hợp lệ (container hoặc seal)' });
   }
 
-  if (trip.status === 'LOCKED') {
-    throw new ApiError(409, 'Không thể xóa ảnh của chuyến đã chốt');
+  if (trip.status === 'COMPLETED') {
+    throw new ApiError(409, 'Không thể xóa ảnh của chuyến đã hoàn thành');
   }
 
   // Phase 2: optional container_id scopes the delete to one container's

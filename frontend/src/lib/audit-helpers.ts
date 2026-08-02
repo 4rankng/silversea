@@ -12,7 +12,6 @@ export const ACTION_LABELS: Record<string, string> = {
   TRIP_UPDATED_PRE_DEPARTURE: 'Cập nhật trước KH',
   TRIP_UPDATED_ACTUALS: 'Cập nhật thực tế',
   TRIP_COMPLETED: 'Hoàn thành',
-  TRIP_LOCKED: 'Khóa chuyến',
   TRIP_CANCELED: 'Hủy chuyến',
   // Financial
   PAYMENT_RECEIVED: 'Thanh toán',

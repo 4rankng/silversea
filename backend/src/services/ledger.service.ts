@@ -8,7 +8,7 @@ import {
   type PaymentDatePolicy,
 } from './business-calendar.service';
 
-/** Common trip shape for ledger lock/unlock operations */
+/** Common trip shape for ledger completion/reversal operations */
 interface TripLedgerParams {
   id: number;
   customerId: number;
@@ -18,7 +18,11 @@ interface TripLedgerParams {
   revenue: string | null;
   driverSalary: string | null;
   carrierType?: string;
-  externalCarrierId?: number | null;
+  // O2C: polymorphic external-carrier soft pointer (external_entity_id +
+  // external_entity_type on trips). Resolved to the CARRIER ledger entity by
+  // resolveExternalCarrierId() below. Null for OWN trips.
+  externalEntityId?: number | null;
+  externalEntityType?: string | null;
   externalFreightCost?: string | null;
   fuelSupplierId?: number | null;
   totalFuelCost?: string | null;
@@ -31,6 +35,20 @@ interface TripLedgerParams {
     forwarderId: number | null;
     approvalStatus: string;
   }>;
+}
+
+/**
+ * Resolve the polymorphic external-carrier soft pointer to the CARRIER ledger
+ * entity id. Today only CUSTOMER-typed external entities post to the (AR-side)
+ * CARRIER ledger; SUPPLIER-typed external carriers have no carrier ledger row
+ * yet and return null (future AP-side handling). This is the app-layer
+ * resolution of the `trips.external_entity_*` soft columns — see O2C dev.md.
+ */
+function resolveExternalCarrierId(trip: TripLedgerParams): number | null {
+  if ((trip.carrierType ?? 'OWN') !== 'EXTERNAL') return null;
+  if (trip.externalEntityType === 'CUSTOMER') return trip.externalEntityId ?? null;
+  // SUPPLIER external carriers are AP-side — no CARRIER ledger entity today.
+  return null;
 }
 
 export interface LedgerPostRequest {
@@ -89,8 +107,8 @@ export class LedgerService {
   }
 
   /**
-   * Collect all ledger entities involved in a trip lock/unlock.
-   * Shared between postTripLock and postTripUnlock to avoid duplication.
+   * Collect all ledger entities involved in a trip completion/reversal.
+   * Shared between postTripCompletion and postTripCompletionReverse to avoid duplication.
    */
   private static collectTripEntities(
     trip: TripLedgerParams
@@ -100,8 +118,11 @@ export class LedgerService {
 
     entities.push({ entityType: 'CUSTOMER', entityId: trip.customerId });
 
-    if (carrierType === 'EXTERNAL' && trip.externalCarrierId) {
-      entities.push({ entityType: 'CARRIER', entityId: trip.externalCarrierId });
+    if (carrierType === 'EXTERNAL') {
+      const carrierId = resolveExternalCarrierId(trip);
+      if (carrierId) {
+        entities.push({ entityType: 'CARRIER', entityId: carrierId });
+      }
     }
 
     if (carrierType === 'OWN' && trip.driverId) {
@@ -180,13 +201,14 @@ export class LedgerService {
   }
 
   /**
-   * Seam to handle financial ledger posting when a trip is locked.
-   * Isolates financial calculations and notes from the trip lifecycle machine.
+   * Seam to handle financial ledger posting when a trip completes (formerly
+   * `postTripLock` — renamed when LOCKED was dropped, O2C 01/08/2026). Isolates
+   * financial calculations and notes from the trip lifecycle machine.
    *
    * Returns the ids of ancillary fees that were skipped (non-strict mode only);
    * in strict mode (default) a bad fee throws before any posting occurs.
    */
-  static async postTripLock(
+  static async postTripCompletion(
     tx: Tx,
     trip: TripLedgerParams,
     opts?: { strict?: boolean; financialPostingId?: number | null },
@@ -284,12 +306,13 @@ export class LedgerService {
     }
 
     // ── 4. EXTERNAL: carrier payable on its isolated CARRIER ledger ──
-    if (carrierType === 'EXTERNAL' && trip.externalCarrierId && Number(trip.externalFreightCost || 0) > 0) {
+    const externalCarrierEntityId = resolveExternalCarrierId(trip);
+    if (carrierType === 'EXTERNAL' && externalCarrierEntityId && Number(trip.externalFreightCost || 0) > 0) {
       await this.postEntry(tx, {
         txnType: TxnType.EXTERNAL_CARRIER_COST,
         txnId: trip.id,
         entityType: 'CARRIER',
-        entityId: trip.externalCarrierId,
+        entityId: externalCarrierEntityId,
         debit: 0,
         credit: Number(trip.externalFreightCost),  // credit → negative balance = we owe them
         note: label ? `Cước thuê ngoài chuyến ${label}` : 'Cước thuê ngoài',
@@ -322,11 +345,12 @@ export class LedgerService {
   }
 
   /**
-   * Reverse the ledger entries posted during postTripLock().
-   * Posts compensating entries (swap debit↔credit) with UNLOCK_REVERSAL txnType.
-   * The ledger is append-only — this does not modify existing rows.
+   * Reverse the ledger entries posted during postTripCompletion() (formerly
+   * `postTripUnlock`). Posts compensating entries (swap debit↔credit) with
+   * UNLOCK_REVERSAL txnType. The ledger is append-only — this does not modify
+   * existing rows.
    */
-  static async postTripUnlock(
+  static async postTripCompletionReverse(
     tx: Tx,
     trip: TripLedgerParams,
     opts?: { strict?: boolean; financialPostingId?: number | null },
@@ -346,7 +370,7 @@ export class LedgerService {
       ? fees.filter(f => !skippedFeeIds.includes(f.id))
       : fees;
 
-    // ── 1. Collect entities to lock (same as postTripLock) ──
+    // ── 1. Collect entities to lock (same as postTripCompletion) ──
     const tripForLock = skippedFeeIds.length ? { ...trip, ancillaryFees: postableFees } : trip;
     const entitiesToLock = this.collectTripEntities(tripForLock);
     await this.lockEntities(tx, entitiesToLock);
@@ -395,12 +419,13 @@ export class LedgerService {
     }
 
     // ── 4. Reverse EXTERNAL: carrier payable ──
-    if (carrierType === 'EXTERNAL' && trip.externalCarrierId && Number(trip.externalFreightCost || 0) > 0) {
+    const reversalCarrierId = resolveExternalCarrierId(trip);
+    if (carrierType === 'EXTERNAL' && reversalCarrierId && Number(trip.externalFreightCost || 0) > 0) {
       await this.postEntry(tx, {
         txnType: TxnType.UNLOCK_REVERSAL,
         txnId: trip.id,
         entityType: 'CARRIER',
-        entityId: trip.externalCarrierId,
+        entityId: reversalCarrierId,
         debit: Number(trip.externalFreightCost),
         credit: 0,
         note: label ? `Cước thuê ngoài chuyến ${label} (Hoàn tác)` : 'Cước thuê ngoài (Hoàn tác)',
@@ -409,7 +434,7 @@ export class LedgerService {
     }
 
     // ── 5. Reverse ancillary fees — sell side (customer AR for phí chi hộ) ──
-    // Mirrors section 5 of postTripLock: swap debit↔credit so the net customer
+    // Mirrors section 5 of postTripCompletion: swap debit↔credit so the net customer
     // contribution from this trip's sell-side fees returns to zero.
     for (const fee of postableFees) {
       if (fee.approvalStatus !== 'APPROVED') continue;

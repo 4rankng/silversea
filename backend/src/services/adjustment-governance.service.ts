@@ -204,7 +204,7 @@ export async function requestTripReopen(input: {
     const [trip] = await tx.select().from(s.trips)
       .where(eq(s.trips.id, input.tripId)).limit(1).for('update');
     if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
-    if (trip.status !== 'LOCKED') {
+    if (trip.status !== 'COMPLETED') {
       throw new ApiError(409, 'Chỉ có thể đề nghị mở lại chuyến đã chốt');
     }
     if (trip.version !== input.expectedTripVersion) {
@@ -218,8 +218,8 @@ export async function requestTripReopen(input: {
       actionKind: 'TRIP_REOPEN',
       reason,
       originalVersion: trip.version,
-      beforeSnapshot: { status: 'LOCKED' },
-      afterSnapshot: { status: 'COMPLETED' },
+      beforeSnapshot: { status: 'COMPLETED' },
+      afterSnapshot: { status: 'IN_TRANSIT' },
       deltaSnapshot: null,
       makerId: input.makerId,
       makerRole: input.makerRole,
@@ -547,12 +547,17 @@ async function applyTripGovernanceAction(
 
   let ledgerEntryId: number | null = null;
   if (kind === 'TRIP_FINANCIAL_CLOSE') {
+    // O2C: the photo/zero-revenue gates now fire on IN_TRANSIT → COMPLETED.
+    // A governed close has already been reviewed by a distinct maker, checker,
+    // and approver — that governance authorizes the zero-revenue soft guard
+    // (a financial figure the governance reviewed). The photo-evidence gate
+    // is NOT bypassed: physical evidence is independent of the governance review.
     const completed = await transitionTripStatus(
       trip.id,
       TripStatus.COMPLETED,
       action.approverId!,
       action.approverRole!,
-      false,
+      true,
       false,
       {
         expectedVersion: action.originalVersion,
@@ -724,20 +729,22 @@ async function applyTripGovernanceAction(
     });
     ledgerEntryId = posted.id;
   } else {
-    if (trip.status !== 'LOCKED') {
+    if (trip.status !== 'COMPLETED') {
       throw new ApiError(409, 'Chuyến đi không còn ở trạng thái đã chốt');
     }
     await assertTripCanBeReopened(tx, trip.id);
   }
 
   const [versionedTrip] = await tx.update(s.trips).set({
-    ...(kind === 'TRIP_REOPEN' ? { status: 'COMPLETED' as const } : {}),
+    // O2C: reopening a completed trip sends it back to IN_TRANSIT so it can be
+    // re-completed (re-running the gates) once corrected. Formerly LOCKED→COMPLETED.
+    ...(kind === 'TRIP_REOPEN' ? { status: 'IN_TRANSIT' as const } : {}),
     version: sql`${s.trips.version} + 1`,
     updatedAt: new Date(),
   }).where(and(
     eq(s.trips.id, trip.id),
     eq(s.trips.version, action.originalVersion),
-    ...(kind === 'TRIP_REOPEN' ? [eq(s.trips.status, 'LOCKED')] : []),
+    ...(kind === 'TRIP_REOPEN' ? [eq(s.trips.status, 'COMPLETED')] : []),
   )).returning({ id: s.trips.id });
   if (!versionedTrip) {
     throw new ApiError(409, 'Dữ liệu gốc đã thay đổi; yêu cầu này không thể áp dụng');

@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  ArrowLeft, Play, Pencil, Check, Lock, LockOpen, XCircle, Shuffle, FilePen,
+  ArrowLeft, Play, Pencil, Check, XCircle, Shuffle, FilePen,
   Building2, Loader2, MoreHorizontal,
 } from 'lucide-react';
 import { TRIP_STATUS_LABELS, TripStatus, type TripDetail } from '@tingting/shared';
@@ -15,29 +15,25 @@ interface TripHeaderProps {
   onEdit: () => void;
   onDispatch: () => void;
   onComplete: () => void;
-  onLock: () => void;
   onCancel: () => void;
   onReassign: () => void;
   onAdjust: () => void;
-  onUnlock: () => void;
 }
 
 export function TripHeader({
   trip, permissions, actionLoading,
-  onBack, onEdit, onDispatch, onComplete, onLock, onCancel, onReassign, onAdjust, onUnlock,
+  onBack, onEdit, onDispatch, onComplete, onCancel, onReassign, onAdjust,
 }: TripHeaderProps) {
-  const { canEdit, canEditActuals, canCancel, canDispatch, canComplete, canLock, canReassign, canAdjust, canUnlock, needsPhotos } = permissions;
+  const { canEdit, canEditActuals, canCancel, canDispatch, canComplete, canReassign, canAdjust } = permissions;
   const statusClass = trip.status === TripStatus.IN_TRANSIT
     ? 'in-transit'
     : trip.status === TripStatus.COMPLETED
       ? 'completed'
-      : trip.status === TripStatus.LOCKED
-        ? 'locked'
-        : trip.status === TripStatus.CANCELED
-          ? 'canceled'
-          : 'draft';
+      : trip.status === TripStatus.CANCELED
+        ? 'canceled'
+        : 'draft';
   const statusLabel = TRIP_STATUS_LABELS[trip.status] ?? trip.status;
-  const hasOverflowActions = canReassign || canCancel || canUnlock || canAdjust;
+  const hasOverflowActions = canReassign || canCancel || canAdjust;
 
   return (
     <header className="tc-page-head td-page-head anim d1">
@@ -96,18 +92,6 @@ export function TripHeader({
             <Pencil size={14} />Nhập số liệu
           </button>
         )}
-        {canLock && (
-          <button
-            className="btn btn--primary"
-            data-tour-id="trip-detail-lock"
-            disabled={actionLoading || needsPhotos}
-            title={needsPhotos ? 'Chưa có ảnh chuyến đi. Vui lòng tải lên ít nhất 1 ảnh trước khi khóa.' : undefined}
-            onClick={onLock}
-          >
-            {actionLoading ? <Loader2 size={14} className="spin" /> : <Lock size={14} />}
-            Khóa chuyến
-          </button>
-        )}
         {hasOverflowActions && (
           <details className="header-overflow">
             <summary className="btn btn--ghost" aria-label="Mở các thao tác khác">
@@ -117,12 +101,6 @@ export function TripHeader({
               {canReassign && (
                 <button type="button" role="menuitem" onClick={onReassign}>
                   <Shuffle size={15} />Phân xe lại
-                </button>
-              )}
-              {canUnlock && (
-                <button type="button" role="menuitem" onClick={onUnlock} disabled={actionLoading}>
-                  {actionLoading ? <Loader2 size={14} className="spin" /> : <LockOpen size={15} />}
-                  Mở khóa
                 </button>
               )}
               {canAdjust && (

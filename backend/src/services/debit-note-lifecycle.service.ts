@@ -129,11 +129,11 @@ export async function transitionDebitNoteStatus(input: TransitionInput) {
         .where(inArray(s.trips.id, tripIds));
       if (
         sourceTrips.length !== new Set(tripIds).size
-        || sourceTrips.some(trip => trip.status !== 'LOCKED')
+        || sourceTrips.some(trip => trip.status !== 'COMPLETED')
       ) {
         throw new ApiError(
           409,
-          'Giấy báo nợ chỉ được phát hành khi mọi chuyến nguồn vẫn ở trạng thái đã chốt',
+          'Giấy báo nợ chỉ được phát hành khi mọi chuyến nguồn đã hoàn thành',
         );
       }
     }

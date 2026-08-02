@@ -90,14 +90,12 @@ export default function TripDetailPage() {
           setGovernanceReason('');
           setGovernanceIntent('complete');
         }}
-        onLock={page.handleLockClick}
         onCancel={() => {
           setGovernanceReason('');
           setGovernanceIntent('cancel');
         }}
         onReassign={page.openReassign}
         onAdjust={page.openAdjust}
-        onUnlock={page.handleUnlock}
       />
 
       <Modal

@@ -119,7 +119,7 @@ async function mkBillableTrip(params: {
     fulfillmentId: fulfillment.id,
     departureDate: params.departureDate,
     completedAt,
-    status: 'LOCKED',
+    status: 'COMPLETED',
     revenue: String(params.revenue ?? 1_000_000),
     carrierType: 'OWN',
   }).returning();

@@ -584,7 +584,7 @@ describe('Phase 4 driver fulfillment execution', () => {
     }), /không hợp lệ|không khớp định dạng/i);
   });
 
-  test('valid owned fulfillment completes once and posts one financial version', async () => {
+  test('O2C: driver-owned completion is removed — the e-POD acceptance path owns completion', async () => {
     const actor = await createDriverPrincipal('valid');
     const { fulfillment, trip } = await createOwnedFulfillmentTrip(actor.driver.id);
 
@@ -613,41 +613,25 @@ describe('Phase 4 driver fulfillment execution', () => {
       prefix: 'valid',
     });
 
+    // O2C: the permissive driver completion is removed. The driver endpoint now
+    // rejects, pointing to the e-POD acceptance flow (accountant/CUS completes).
     const completeKey = `complete-valid-${suffix}`;
     usedIdempotencyKeys.push(completeKey);
-    const firstCompletion = await completeOwnedFulfillmentTrip({
-      fulfillmentId: fulfillment.id,
-      driverId: actor.driver.id,
-      actorUserId: actor.user.id,
-      expectedVersion: trip.version,
-      idempotencyKey: completeKey,
-    });
-    assert.equal(firstCompletion.replayed, false);
-    assert.equal(firstCompletion.trip.status, 'COMPLETED');
-
-    const replayCompletion = await completeOwnedFulfillmentTrip({
-      fulfillmentId: fulfillment.id,
-      driverId: actor.driver.id,
-      actorUserId: actor.user.id,
-      expectedVersion: trip.version,
-      idempotencyKey: completeKey,
-    });
-    assert.equal(replayCompletion.replayed, true);
-    assert.equal(replayCompletion.trip.tripId, firstCompletion.trip.tripId);
-
-    const [{ postingCount }] = await db.select({
-      postingCount: sql<number>`count(*)::int`,
-    }).from(s.tripFinancialPostings)
-      .where(eq(s.tripFinancialPostings.tripId, trip.id));
-    assert.equal(Number(postingCount ?? 0), 1);
-
-    const revenueRows = await db.select({ id: s.ledger.id })
-      .from(s.ledger)
-      .where(and(
-        eq(s.ledger.txnId, trip.id),
-        eq(s.ledger.txnType, TxnType.TRIP_REVENUE),
-      ));
-    assert.equal(revenueRows.length, 1);
+    await assert.rejects(
+      completeOwnedFulfillmentTrip({
+        fulfillmentId: fulfillment.id,
+        driverId: actor.driver.id,
+        actorUserId: actor.user.id,
+        expectedVersion: trip.version,
+        idempotencyKey: completeKey,
+      }),
+      (err: Error) => {
+        // The idempotency layer may wrap the 409; assert on the message which
+        // points the driver to the e-POD acceptance flow.
+        assert.match(err.message, /duyệt e-POD/);
+        return true;
+      },
+    );
   });
 });
 

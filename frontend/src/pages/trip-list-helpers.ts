@@ -43,7 +43,8 @@ export function quickDraftFromTrip(trip: TripDetail): TripQuickEditDraft {
 }
 
 export function isEditableInQuickMode(trip: TripDetail): boolean {
-  return trip.status !== TripStatus.LOCKED && trip.status !== TripStatus.CANCELED;
+  // O2C: costs stay editable after COMPLETED; only CANCELED is non-editable.
+  return trip.status !== TripStatus.CANCELED;
 }
 
 export function draftChanged(trip: TripDetail, draft?: TripQuickEditDraft): boolean {

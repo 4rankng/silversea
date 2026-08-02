@@ -47,7 +47,7 @@ async function mkCargoType() {
 async function mkTrip(input: {
   departureDate: string;
   completedAt: Date | null;
-  status?: 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | 'LOCKED';
+  status?: 'CREATED' | 'IN_TRANSIT' | 'COMPLETED';
 }) {
   const customer = await mkCustomer();
   const route = await mkRoute();

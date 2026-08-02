@@ -26,7 +26,7 @@ import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useAuth } from '../hooks/useAuth';
 import { useDriverEvidenceStatus, useDriverTaskDetail, useDriverTaskProgress } from '../hooks/useDriverQueries';
 import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } from '../api/driverClient';
-import { formatCurrency, formatDate } from '../lib/format';
+import { formatCurrency } from '../lib/format';
 import { useOnline } from '../hooks/useOnline';
 import {
   buildOfflineCommandKey,
@@ -98,8 +98,6 @@ function tripStatusVariant(status: TripStatus): 'neutral' | 'info' | 'warn' | 's
       return 'info';
     case 'COMPLETED':
       return 'success';
-    case 'LOCKED':
-      return 'neutral';
     case 'CANCELED':
       return 'danger';
     default:

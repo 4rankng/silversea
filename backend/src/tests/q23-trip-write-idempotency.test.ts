@@ -334,7 +334,7 @@ describe('Q23 trip write contracts', () => {
   });
 
   test('rolls back the key when the lifecycle command fails', async () => {
-    const { trip, user } = await fixtureTrip(TripStatus.LOCKED);
+    const { trip, user } = await fixtureTrip(TripStatus.COMPLETED);
     const key = `q23-rollback-${trip.id}`;
     keys.push(key);
     const actor = { userId: user.id, role: Role.MANAGER };
@@ -345,7 +345,9 @@ describe('Q23 trip write contracts', () => {
       idempotencyKey: key,
     });
 
-    await assert.rejects(command(), /Không thể hủy chuyến đi đã chốt/);
+    // O2C: a completed trip is terminal; canceling it requires the governed
+    // request path, so a direct cancel is rejected.
+    await assert.rejects(command(), /Thiếu yêu cầu quản trị đã được phê duyệt|chỉ được.*yêu cầu/i);
     const [recordAfterFailure] = await db.select().from(s.idempotencyKeys)
       .where(eq(s.idempotencyKeys.idempotencyKey, key));
     assert.equal(recordAfterFailure, undefined);

@@ -6,7 +6,7 @@
 
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq, and, isNull, sql, gte, desc, inArray } from 'drizzle-orm';
+import { eq, and, isNull, sql, gte, desc } from 'drizzle-orm';
 import { TripStatus, parseThreshold, type DashboardDecisionItem } from '@tingting/shared';
 import { getCustomerAgingList, getReceivablesSummary, getTopOverdueCustomer, CURRENT_AGING_RANGE } from './aging.service';
 import { cacheGet } from '../lib/redis';
@@ -54,9 +54,9 @@ export async function getDashboardStats(options: { includeExecutive?: boolean } 
       fuelCheckRows,
     ] = await Promise.all([
       db.select({
-        tripCount: sql<number>`count(*) filter (where ${s.trips.status} in ('COMPLETED', 'LOCKED'))`,
+        tripCount: sql<number>`count(*) filter (where ${s.trips.status} = 'COMPLETED')`,
         completedTrips: sql<number>`count(*) filter (where ${s.trips.status} = 'COMPLETED')`,
-        lockedTrips: sql<number>`count(*) filter (where ${s.trips.status} = 'LOCKED')`,
+        lockedTrips: sql<number>`0`,
       }).from(s.trips).where(officialTripPeriod),
       db.select({ count: sql<number>`count(*)` }).from(s.drivers).where(isNull(s.drivers.deletedAt)),
       db.select({
@@ -80,7 +80,7 @@ export async function getDashboardStats(options: { includeExecutive?: boolean } 
       )),
       db.select({ count: sql<number>`count(*)` }).from(s.trips).where(and(
         officialTripPeriod,
-        inArray(s.trips.status, [TripStatus.COMPLETED, TripStatus.LOCKED]),
+        eq(s.trips.status, TripStatus.COMPLETED),
         sql`(
           coalesce(${s.trips.revenue}, 0) <= 0
           OR coalesce(${s.trips.fuelLiters}, 0) <= 0
@@ -109,7 +109,7 @@ export async function getDashboardStats(options: { includeExecutive?: boolean } 
         .leftJoin(s.tripLegs, eq(s.tripLegs.tripId, s.trips.id))
         .where(and(
           officialTripPeriod,
-          inArray(s.trips.status, [TripStatus.COMPLETED, TripStatus.LOCKED]),
+          eq(s.trips.status, TripStatus.COMPLETED),
         ))
         .groupBy(s.trips.id),
     ]);

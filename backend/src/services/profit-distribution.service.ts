@@ -4,7 +4,7 @@
  * Quarterly profit distribution to cap-table partners, distribution preview,
  * cap-table history, and distribution records.
  *
- * F3 (per-vehicle): each truck distributes its quarter profit (Σ of its LOCKED
+ * F3 (per-vehicle): each truck distributes its quarter profit (Σ of its COMPLETED
  * trips' grossProfit) across THAT truck's active owners (from `truck_cap_table`).
  * The entity view is derived — group rows by partner_name, Σ amount. Trucks
  * with profit but no configured owners are held aside as `undistributedProfit`.
@@ -354,8 +354,8 @@ export function distributeTruckProfit(
  * Compute a per-vehicle profit distribution plan for a quarter.
  * Shared by both distributeProfit (persists) and previewDistribution (returns only).
  *
- * D5 — reads `trips.grossProfit` for LOCKED trips only; never recomputes a
- * locked trip's totals. Per-vehicle grouping changes only attribution.
+ * D5 — reads `trips.grossProfit` for COMPLETED trips only; never recomputes a
+ * completed trip's totals. Per-vehicle grouping changes only attribution.
  */
 async function computeDistributionSnapshot(
   executor: DistributionQueryExecutor,
@@ -378,7 +378,7 @@ async function computeDistributionSnapshot(
       eq(s.tripFinancialPostings.status, 'ACTIVE'),
     )).where(
     and(
-      eq(s.trips.status, TripStatus.LOCKED),
+      eq(s.trips.status, TripStatus.COMPLETED),
       isNull(s.trips.deletedAt),
       sql`${s.trips.completedAt} is not null`,
       gte(completionBusinessDate, qStart),
@@ -386,7 +386,7 @@ async function computeDistributionSnapshot(
     ),
   );
 
-  // Σ LOCKED grossProfit per truck (D5 — read stored value, never recompute).
+  // Σ COMPLETED grossProfit per truck (D5 — read stored value, never recompute).
   const profitByTruck = new Map<number, number>();
   let tripCount = 0;
   for (const t of trips) {

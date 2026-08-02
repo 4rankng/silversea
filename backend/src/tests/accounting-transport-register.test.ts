@@ -82,10 +82,11 @@ async function createLockedTrip(input: {
     sourceShipmentVersion: shipment.version,
     truckId: input.carrierType === 'OWN' ? truckId : null,
     carrierType: input.carrierType,
-    externalCarrierId: input.carrierType === 'EXTERNAL' ? carrierId : null,
+    externalEntityId: input.carrierType === 'EXTERNAL' ? carrierId : null,
+    externalEntityType: input.carrierType === 'EXTERNAL' ? 'CUSTOMER' : null,
     externalPlateNumber: input.carrierType === 'EXTERNAL' ? '15H-123.45' : null,
     externalFreightCost: input.carrierType === 'EXTERNAL' ? '430000' : null,
-    status: 'LOCKED',
+    status: 'COMPLETED',
     departureDate: '2042-01-18',
     completedAt: input.completedAt,
     revenue: '1000000',
@@ -253,7 +254,7 @@ after(async () => {
 });
 
 describe('accounting transport register service', () => {
-  test('returns locked accepted trips in deterministic completion/id order with posting provenance', async () => {
+  test('returns completed accepted trips in deterministic completion/id order with posting provenance', async () => {
     const result = await listAccountingTransportRows({
       from: '2042-01-01',
       to: '2042-01-31',
@@ -272,7 +273,7 @@ describe('accounting transport register service', () => {
     assert.equal(ready.readiness.status, 'READY');
     assert.deepEqual(ready.readiness.evidence, [
       'ACTIVE_FINANCIAL_POSTING',
-      'LOCKED_TRIP',
+      'COMPLETED_TRIP',
       'ACCEPTED_EPOD',
       'PROFITABILITY_SNAPSHOT',
     ]);

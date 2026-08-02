@@ -31,6 +31,7 @@ after(async () => {
     await db.delete(s.ledger).where(inArray(s.ledger.txnId, createdTripIds));
     await db.delete(s.profitabilitySnapshots).where(inArray(s.profitabilitySnapshots.tripId, createdTripIds));
     await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.tripId, createdTripIds));
+    await db.delete(s.tripPhotos).where(inArray(s.tripPhotos.tripId, createdTripIds));
     await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
   }
   if (createdUserIds.length > 0) {
@@ -77,8 +78,20 @@ async function createInTransitTrip(values?: {
     totalFuelCost: String(values?.totalFuelCost ?? 300_000),
     fuelSupplierId: supplier.id,
     carrierType: 'OWN',
+    // O2C POD-recovery gate: mark POD recovered so the governed close path
+    // can drive IN_TRANSIT → COMPLETED (no separate LOCK milestone now).
+    podRecoveredAt: new Date(),
   }).returning();
   createdTripIds.push(trip.id);
+  // O2C: the photo-evidence gate now fires on IN_TRANSIT → COMPLETED. Seed one
+  // photo so the governed close (which passes confirmNoPhoto=false) passes the
+  // baseline gate; these tests are about ledger mechanics, not photo evidence.
+  await db.insert(s.tripPhotos).values({
+    tripId: trip.id,
+    type: 'OTHER',
+    storageKey: `test-photos/tlc-${trip.id}-${suffix}.jpg`,
+    uploadedBy: 1,
+  });
   return { trip, customer, supplier };
 }
 
@@ -213,35 +226,38 @@ describe('trip completion ledger posting', () => {
     ));
   });
 
-  test('locking a completed trip does not duplicate ledger entries', async () => {
-    const { trip } = await createInTransitTrip();
-
-    await completeTripGoverned(trip.id, trip.version);
-    await transitionTripStatus(trip.id, TripStatus.LOCKED, 1, Role.MANAGER, false, true);
-
-    const rows = await ledgerRowsForTrip(trip.id);
-    assert.equal(rows.filter(r => r.txnType === TxnType.TRIP_REVENUE).length, 1);
-    assert.equal(rows.filter(r => r.txnType === TxnType.FUEL_EXPENSE).length, 1);
-    assert.equal(rows.filter(r => r.txnType === TxnType.UNLOCK_REVERSAL).length, 0);
-  });
-
-  test('a posted locked trip cannot be reopened and its ledger stays intact', async () => {
+  test('a posted completed trip cannot be reopened and its ledger stays intact', async () => {
     const { trip } = await createInTransitTrip();
     const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const actors = await db.insert(s.users).values([
-      { username: `unlock-maker-${suffix}`, passwordHash: 'x', role: Role.MANAGER },
-      { username: `unlock-checker-${suffix}`, passwordHash: 'x', role: Role.MANAGER },
-      { username: `unlock-approver-${suffix}`, passwordHash: 'x', role: Role.ADMIN },
+      { username: `reopen-maker-${suffix}`, passwordHash: 'x', role: Role.MANAGER },
+      { username: `reopen-checker-${suffix}`, passwordHash: 'x', role: Role.MANAGER },
+      { username: `reopen-approver-${suffix}`, passwordHash: 'x', role: Role.ADMIN },
     ]).returning({ id: s.users.id });
     createdUserIds.push(...actors.map((actor) => actor.id));
 
     await completeTripGoverned(trip.id, trip.version);
-    await transitionTripStatus(trip.id, TripStatus.LOCKED, 1, Role.MANAGER, false, true);
+    // O2C: COMPLETED is terminal. A direct financial edit on a completed trip
+    // is blocked (it must go through the governed correction flow), and the
+    // governed TRIP_REOPEN workflow itself refuses trips whose revenue has
+    // posted to the ledger.
     await assert.rejects(
-      transitionTripStatus(trip.id, TripStatus.COMPLETED, actors[0]!.id, Role.MANAGER),
-      /kiểm tra và phê duyệt/,
+      updateTripFigures(trip.id, {
+        legs: [],
+        fuelMode: FuelMode.AUTO,
+        fuelSupplementLiters: 0,
+        tollsDiscount: 0,
+        tollsAddition: 0,
+        tollsStations: 0,
+        hasReturnCargo: false,
+        revenue: 9_000_000,
+        expectedVersion: trip.version + 1,
+        userId: actors[0]!.id,
+        userRole: Role.MANAGER,
+      }),
+      /chỉ được thay đổi sau khi kiểm tra và phê duyệt/,
     );
-    const [locked] = await db.select({ version: s.trips.version })
+    const [completed] = await db.select({ version: s.trips.version })
       .from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
     await assert.rejects(
       requestTripReopen({
@@ -249,7 +265,7 @@ describe('trip completion ledger posting', () => {
         reason: 'Sửa chứng từ trước phát hành',
         makerId: actors[0]!.id,
         makerRole: Role.MANAGER,
-        expectedTripVersion: locked.version,
+        expectedTripVersion: completed.version,
       }),
       /đã hạch toán/,
     );
@@ -259,7 +275,7 @@ describe('trip completion ledger posting', () => {
     assert.equal(rows.filter(r => r.txnType === TxnType.FUEL_EXPENSE).length, 1);
     assert.equal(rows.filter(r => r.txnType === TxnType.UNLOCK_REVERSAL).length, 0);
     const [unchanged] = await db.select().from(s.trips).where(eq(s.trips.id, trip.id));
-    assert.equal(unchanged.status, TripStatus.LOCKED);
+    assert.equal(unchanged.status, TripStatus.COMPLETED);
   });
 
   test('canceling a completed trip reverses its completed-trip ledger entries', async () => {
@@ -624,8 +640,10 @@ describe('trip completion ledger posting', () => {
       externalDriverPhone: '0999999999',
     });
 
+    // O2C: trips.externalCarrierId renamed to externalEntityId (+ externalEntityType).
     assert.equal(updated.carrierType, 'EXTERNAL');
-    assert.equal(updated.externalCarrierId, customer.id);
+    assert.equal(updated.externalEntityId, customer.id);
+    assert.equal(updated.externalEntityType, 'CUSTOMER');
     assert.equal(updated.externalFreightCost, '600000');
     assert.equal(updated.externalPlateNumber, '29A-99999');
     assert.equal(updated.externalDriverName, 'Driver X');

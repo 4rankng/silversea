@@ -134,7 +134,7 @@ async function createTripFixture(options: {
     fulfillmentId: fulfillment.id,
     departureDate: options.departureDate,
     completedAt: options.completedAt,
-    status: 'LOCKED',
+    status: 'COMPLETED',
     revenue: String(options.revenue),
     carrierType: 'OWN',
   }).returning();

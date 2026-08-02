@@ -539,7 +539,7 @@ async function appendLateApprovedServiceFeeTx(tx: Tx, expenseId: number): Promis
     .limit(1);
   if (
     !expense
-    || (expense.tripStatus !== 'COMPLETED' && expense.tripStatus !== 'LOCKED')
+    || expense.tripStatus !== 'COMPLETED'
     || Number(expense.sellAmount ?? 0) <= 0
   ) {
     return;

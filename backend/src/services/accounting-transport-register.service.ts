@@ -83,14 +83,16 @@ export function buildAccountingTransportFilterFingerprint(
 function conditionsFor(input: AccountingTransportRegisterQuery): SQL[] {
   const conditions: SQL[] = [
     eq(s.tripFinancialPostings.status, 'ACTIVE'),
-    eq(s.trips.status, 'LOCKED'),
+    // O2C: COMPLETED is the single posting state (formerly filtered on LOCKED).
+    eq(s.trips.status, 'COMPLETED'),
     eq(s.tripPodSubmissions.status, 'ACCEPTED'),
     isNull(s.trips.deletedAt),
     gte(completionBusinessDate, input.from),
     lte(completionBusinessDate, input.to),
   ];
   if (input.customerId != null) conditions.push(eq(s.trips.customerId, input.customerId));
-  if (input.carrierId != null) conditions.push(eq(s.trips.externalCarrierId, input.carrierId));
+  // External carrier is now a soft pointer (external_entity_id for CUSTOMER-typed).
+  if (input.carrierId != null) conditions.push(eq(s.trips.externalEntityId, input.carrierId));
   if (input.ownership != null) conditions.push(eq(s.trips.carrierType, input.ownership));
   if (input.readiness === 'READY') conditions.push(isNotNull(s.profitabilitySnapshots.id));
   if (input.readiness === 'MISSING_PROFITABILITY_SNAPSHOT') conditions.push(isNull(s.profitabilitySnapshots.id));
@@ -176,7 +178,7 @@ export async function listAccountingTransportRows(
     ))
     .leftJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
     .leftJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
-    .leftJoin(carrier, eq(carrier.id, s.trips.externalCarrierId))
+    .leftJoin(carrier, eq(carrier.id, s.trips.externalEntityId))
     .leftJoin(containerProjection, eq(containerProjection.tripId, s.trips.id))
     .leftJoin(
       carrierPayableProjection,
@@ -200,7 +202,7 @@ export async function listAccountingTransportRows(
     ))
     .leftJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
     .leftJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
-    .leftJoin(carrier, eq(carrier.id, s.trips.externalCarrierId))
+    .leftJoin(carrier, eq(carrier.id, s.trips.externalEntityId))
     .leftJoin(containerProjection, eq(containerProjection.tripId, s.trips.id))
     .leftJoin(
       carrierPayableProjection,
@@ -244,7 +246,7 @@ export async function listAccountingTransportRows(
         profitabilitySnapshotId: row.profitabilitySnapshotId ?? null,
         evidence: [
           'ACTIVE_FINANCIAL_POSTING',
-          'LOCKED_TRIP',
+          'COMPLETED_TRIP',
           'ACCEPTED_EPOD',
           ...(readiness === 'READY' ? ['PROFITABILITY_SNAPSHOT'] : []),
         ],

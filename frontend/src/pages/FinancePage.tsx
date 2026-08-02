@@ -142,9 +142,9 @@ export default function FinancePage() {
           <div className="pnl-kpi__label">Biên lợi nhuận gộp</div>
           <div className="pnl-kpi__value"><span ref={(el) => { kpiRefs.current.margin = el; }}>{marginPct(grossProfit, totalRevenue)}</span><span className="pnl-kpi__unit">%</span></div>
           <div className="pnl-kpi__delta pnl-kpi__delta--neutral"
-            title="Chốt sổ: chuyến đã chuyển trạng thái 'Đã khóa' trong kỳ — doanh thu và chi phí được ghi nhận vào sổ kế toán"
+            title="Chốt sổ: chuyến đã chuyển trạng thái 'Hoàn thành' trong kỳ — doanh thu và chi phí được ghi nhận vào sổ kế toán"
           >
-            {report?.tripCount ?? '—'} chuyến đã khóa
+            {report?.tripCount ?? '—'} chuyến đã hoàn thành
           </div>
           <AssetIcon name="gross-margin" size={54} className="pnl-kpi__asset" />
         </div>

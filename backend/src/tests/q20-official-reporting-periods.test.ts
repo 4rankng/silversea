@@ -109,7 +109,7 @@ async function mkTrip(input: {
   truckId: number | null;
   departureDate: string;
   completedAt: Date | null;
-  status: 'IN_TRANSIT' | 'COMPLETED' | 'LOCKED';
+  status: 'IN_TRANSIT' | 'COMPLETED';
   revenue?: string;
   grossProfit?: string;
   totalCost?: string;
@@ -230,12 +230,12 @@ describe('Q20 official reporting period attribution', () => {
     await mkTruckCap(truck.id, addDays(boundaryStart, -15));
 
     const crossPeriodTrip = await mkTrip({
-      label: 'cross-lock',
+      label: 'cross-complete',
       supplierId: supplier.id,
       truckId: truck.id,
       departureDate: addDays(boundaryStart, -1),
       completedAt: atBusinessNoon(boundaryStart),
-      status: 'LOCKED',
+      status: 'COMPLETED',
       revenue: '3100000',
       grossProfit: '1200000',
       totalCost: '1900000',
@@ -290,7 +290,9 @@ describe('Q20 official reporting period attribution', () => {
     );
 
     assert.equal(dashboardAfter.tripCount, dashboardBefore.tripCount + 1, 'dashboard official trip count should increase only for the completed cross-period trip');
-    assert.equal(dashboardAfter.lockedTrips, dashboardBefore.lockedTrips + 1, 'dashboard locked-trip count should follow completion-period attribution');
+    // O2C: lockedTrips is vestigial (LOCKED dropped) and always returns 0.
+    // The meaningful terminal-count assertion is tripCount above (counts COMPLETED).
+    assert.equal(dashboardAfter.lockedTrips, 0, 'dashboard lockedTrips is vestigial under the single-terminal-state model');
     assert.equal(dashboardAfter.inTransitTrips, dashboardBefore.inTransitTrips + 1, 'in-transit trips remain operationally visible but stay outside official trip totals');
 
     assert.equal(

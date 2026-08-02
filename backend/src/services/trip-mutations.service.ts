@@ -88,7 +88,7 @@ type FuelTotals = Pick<ComputeTripTotalsOutput, 'totalFuelCost' | 'totalCost' | 
  * read LIVE fuel config on update, which recosts stored totals against today's
  * price the moment the price moves — a silent retroactive P&L rewrite.
  *
- * For committed trips (IN_TRANSIT / COMPLETED / LOCKED) with missing fuel
+ * For committed trips (IN_TRANSIT / COMPLETED) with missing fuel
  * snapshots, `updateTripFigures` now skips the live fallback, so
  * `computeTripTotals` runs with the 0 sentinel price and its fuel outputs are
  * ~0. This helper restores the stored cost, propagates the delta to totalCost
@@ -109,8 +109,7 @@ export function applyCommittedLegacyFuelFreeze(
   computed: FuelTotals,
 ): FuelTotals {
   const isCommitted = trip.status === TripStatus.IN_TRANSIT
-    || trip.status === TripStatus.COMPLETED
-    || trip.status === TripStatus.LOCKED;
+    || trip.status === TripStatus.COMPLETED;
   const snapshotMissing = trip.fuelPriceApplied === 0
     && trip.fuelLoadedNormApplied === 0
     && trip.fuelEmptyNormApplied === 0;
@@ -505,7 +504,8 @@ export async function createTrip(data: {
       // External fields
       vatRate: data.vatRate !== undefined ? String(data.vatRate) : '0.000',
       carrierType: data.carrierType ?? 'OWN',
-      externalCarrierId: data.externalCarrierId ?? null,
+      externalEntityId: data.externalCarrierId ?? null,
+      externalEntityType: data.externalCarrierId != null ? 'CUSTOMER' : null,
       externalFreightCost: data.externalFreightCost !== undefined && data.externalFreightCost !== null ? String(data.externalFreightCost) : null,
       externalPlateNumber: data.externalPlateNumber ?? null,
       externalDriverName: data.externalDriverName ?? null,
@@ -726,16 +726,17 @@ export async function updateTripFigures(
       .limit(1)
       .for('update');
     if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
-    if (trip.status === TripStatus.LOCKED || trip.status === TripStatus.CANCELED) {
-      throw new ApiError(400, 'Chuyến đi đã chốt hoặc đã hủy, không thể sửa');
+    // O2C: costs stay editable after COMPLETED (no hard-freeze). A financial
+    // edit on a completed trip requires a governed correction (the caller has
+    // already established governanceAuthorized via the adjustment flow).
+    if (trip.status === TripStatus.CANCELED) {
+      throw new ApiError(400, 'Chuyến đi đã hủy, không thể sửa');
     }
-    if (trip.status === TripStatus.COMPLETED) {
-      if (!governanceAuthorized) {
-        throw new ApiError(
-          409,
-          'Số liệu tài chính của chuyến đã hoàn thành chỉ được thay đổi sau khi kiểm tra và phê duyệt',
-        );
-      }
+    if (trip.status === TripStatus.COMPLETED && !governanceAuthorized) {
+      throw new ApiError(
+        409,
+        'Số liệu tài chính của chuyến đã hoàn thành chỉ được thay đổi sau khi kiểm tra và phê duyệt',
+      );
     }
 
 
@@ -845,19 +846,18 @@ export async function updateTripFigures(
     // If snapshotted fuel rates are all zero, the trip predates fuel config.
     // B3 / D4: for trips NOT yet financially committed we still re-fetch LIVE
     // fuel config so in-progress trips compute against today's rates. For
-    // COMMITTED trips (IN_TRANSIT / COMPLETED / LOCKED) we deliberately do NOT
+    // COMMITTED trips (IN_TRANSIT / COMPLETED) we deliberately do NOT
     // read live — the price they were costed at cannot be reconstructed
     // (fuel_price_history predates them; qa/feedback-repro-log.md §3/§7), so a
     // live read would recost stored totals the moment the price moves
-    // (Principle 4 / LOCKED-invariant). The fuel component is instead pinned
+    // (Principle 4 / COMPLETED-invariant). The fuel component is instead pinned
     // to stored totals after computeTripTotals (see applyCommittedLegacyFuelFreeze).
     // `trip.status` is drizzle-inferred as a narrow literal union that omits
-    // LOCKED/CANCELED (and includes null); normalise to the full enum so the
-    // committed-state checks type-check — LOCKED/CANCELED do occur at runtime.
+    // CANCELED (and includes null); normalise to the full enum so the
+    // committed-state checks type-check — CANCELED does occur at runtime.
     const tripStatus: TripStatus = (trip.status ?? TripStatus.CREATED) as TripStatus;
     const isCommittedTrip = tripStatus === TripStatus.IN_TRANSIT
-      || tripStatus === TripStatus.COMPLETED
-      || tripStatus === TripStatus.LOCKED;
+      || tripStatus === TripStatus.COMPLETED;
     if (!isCommittedTrip
         && fuelPriceApplied === 0 && fuelLoadedNormApplied === 0 && fuelEmptyNormApplied === 0) {
       const [liveFuelCfg] = await tx.select().from(s.fuelConfig).where(isNull(s.fuelConfig.deletedAt)).limit(1);
@@ -1097,7 +1097,8 @@ export async function updateTripFigures(
       revenueOverrideReason,
       notes: data.notes ?? null,
       carrierType: data.carrierType !== undefined ? data.carrierType : trip.carrierType,
-      externalCarrierId: data.externalCarrierId !== undefined ? data.externalCarrierId : trip.externalCarrierId,
+      externalEntityId: data.externalCarrierId !== undefined ? data.externalCarrierId : trip.externalEntityId,
+      externalEntityType: data.externalCarrierId !== undefined ? (data.externalCarrierId != null ? 'CUSTOMER' : null) : trip.externalEntityType,
       externalFreightCost: data.externalFreightCost !== undefined ? (data.externalFreightCost != null ? String(data.externalFreightCost) : null) : trip.externalFreightCost,
       externalPlateNumber: data.externalPlateNumber !== undefined ? data.externalPlateNumber : trip.externalPlateNumber,
       externalDriverName: data.externalDriverName !== undefined ? data.externalDriverName : trip.externalDriverName,
@@ -1130,7 +1131,7 @@ export async function updateTripFigures(
         approvalStatus: fee.approvalStatus,
       }));
 
-      await LedgerService.postTripUnlock(tx, {
+      await LedgerService.postTripCompletionReverse(tx, {
         id: trip.id,
         tripCode: trip.tripCode,
         customerId: trip.customerId,
@@ -1138,7 +1139,8 @@ export async function updateTripFigures(
         revenue: trip.revenue,
         driverSalary: trip.driverSalary,
         carrierType: trip.carrierType ?? 'OWN',
-        externalCarrierId: trip.externalCarrierId ?? null,
+        externalEntityId: trip.externalEntityId ?? null,
+        externalEntityType: trip.externalEntityType ?? null,
         externalFreightCost: trip.externalFreightCost ?? null,
         fuelSupplierId: trip.fuelSupplierId ?? null,
         totalFuelCost: trip.totalFuelCost,
@@ -1152,7 +1154,7 @@ export async function updateTripFigures(
         governanceActionId,
       });
 
-      await LedgerService.postTripLock(tx, {
+      await LedgerService.postTripCompletion(tx, {
         id: updated.id,
         tripCode: updated.tripCode,
         customerId: updated.customerId,
@@ -1160,7 +1162,8 @@ export async function updateTripFigures(
         revenue: updated.revenue,
         driverSalary: updated.driverSalary,
         carrierType: updated.carrierType ?? 'OWN',
-        externalCarrierId: updated.externalCarrierId ?? null,
+        externalEntityId: updated.externalEntityId ?? null,
+        externalEntityType: updated.externalEntityType ?? null,
         externalFreightCost: updated.externalFreightCost ?? null,
         fuelSupplierId: updated.fuelSupplierId ?? null,
         totalFuelCost: updated.totalFuelCost,
@@ -1223,7 +1226,7 @@ export async function updateDepartureDate(
     if (trip.status === TripStatus.CANCELED) {
       throw new ApiError(400, 'Không thể thay đổi ngày khởi hành của chuyến đã hủy');
     }
-    if (trip.status === TripStatus.LOCKED) {
+    if (trip.status === TripStatus.COMPLETED) {
       throw new ApiError(409, 'Không thể thay đổi ngày khởi hành của chuyến đã chốt');
     }
     if (trip.departureDate === newDepartureDate) return trip; // Idempotent
@@ -1280,7 +1283,8 @@ export async function reassignTrip(
       driverId: carrierType === 'OWN' ? data.driverId! : null,
       trailerId,
       trailerType,
-      externalCarrierId: carrierType === 'EXTERNAL' && data.externalCarrierId ? data.externalCarrierId : null,
+      externalEntityId: carrierType === 'EXTERNAL' && data.externalCarrierId ? data.externalCarrierId : null,
+      externalEntityType: carrierType === 'EXTERNAL' && data.externalCarrierId ? 'CUSTOMER' : null,
       externalPlateNumber: carrierType === 'EXTERNAL' && data.externalPlateNumber ? data.externalPlateNumber : null,
       externalDriverName: carrierType === 'EXTERNAL' && data.externalDriverName ? data.externalDriverName : null,
       externalDriverPhone: carrierType === 'EXTERNAL' && data.externalDriverPhone ? data.externalDriverPhone : null,
@@ -1296,7 +1300,7 @@ export async function reassignTrip(
 
 /**
  * Soft-delete a trip. Only trips in CREATED status can be deleted; any other
- * status (IN_TRANSIT, COMPLETED, LOCKED, CANCELED) returns 409. Per flow 01 §2.6.
+ * status (IN_TRANSIT, COMPLETED, CANCELED) returns 409. Per flow 01 §2.6.
  */
 export async function deleteTrip(
   tripId: number,

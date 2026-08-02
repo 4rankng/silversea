@@ -1155,7 +1155,7 @@ export async function resolveDebitNoteTemplateForDoc(
 
 /**
  * Build AR debit-note lines for a customer + authoritative business-date range.
- * Each LOCKED trip → a FREIGHT line (route + container separate) + its approved
+ * Each COMPLETED trip → a FREIGHT line (route + container separate) + its approved
  * ancillary sell fees (phí nộp hộ) → SERVICE_FEE lines.
  */
 async function buildCustomerDebitLines(customerId: number, from: string, to: string): Promise<DraftBuildResult> {
@@ -1456,7 +1456,7 @@ async function buildCarrierPaymentLines(carrierId: number, from: string, to: str
     externalFreightCost: s.trips.externalFreightCost, routeName: s.routes.name,
   }).from(s.trips).leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
     .where(and(
-      eq(s.trips.externalCarrierId, carrierId),
+      eq(s.trips.externalEntityId, carrierId),
       inArray(s.trips.status, [...BILLABLE_TRIP_STATUSES]),
       isNull(s.trips.deletedAt),
       sql`${s.trips.completedAt} IS NOT NULL`,
@@ -1602,8 +1602,8 @@ function buildTripBlockedReason(
   if (candidate.customerId !== customerId || candidate.shipmentCustomerId !== customerId) {
     return 'Chuyến không thuộc đúng khách hàng của Giấy báo nợ.';
   }
-  if (candidate.status !== 'LOCKED') {
-    return 'Chuyến chưa ở trạng thái LOCKED.';
+  if (candidate.status !== 'COMPLETED') {
+    return 'Chuyến chưa ở trạng thái hoàn thành.';
   }
   if (!latestPod || latestPod.status == null || latestPod.status === 'DRAFT') {
     return 'Chưa có e-POD đã duyệt.';

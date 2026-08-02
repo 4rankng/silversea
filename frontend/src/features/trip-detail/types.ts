@@ -38,16 +38,14 @@ export interface TripPermissions {
    * Manager/admin AND accountant may edit the financial-figures side of a
    * trip on IN_TRANSIT + COMPLETED. Backend contract:
    * `PUT /api/trips/:id/actuals` is open to any role with `trips:write`
-   * and is blocked only when the trip is LOCKED or CANCELED.
+   * and is blocked only when the trip is COMPLETED (terminal) or CANCELED.
    */
   canEditActuals: boolean;
   canCancel: boolean;
   canDispatch: boolean;
   canComplete: boolean;
-  canLock: boolean;
   canReassign: boolean;
   canAdjust: boolean;
-  canUnlock: boolean;
   canChangeDate: boolean;
   needsPhotos: boolean;
   readOnly: boolean;
@@ -94,8 +92,6 @@ export interface TripDetailPageData {
   confirmDialog: ReactNode;
   /** Action handlers — call from UI components. */
   handleAction: (action: string, method: () => Promise<unknown>) => Promise<void>;
-  handleLockClick: () => Promise<void>;
-  handleUnlock: () => Promise<void>;
   handleChangeDepartureDate: (newDate: string) => Promise<void>;
   openReassign: () => void;
   handleReassign: () => Promise<void>;

@@ -116,7 +116,18 @@ async function createInTransitTrip() {
     fuelSupplierId: supplier.id,
     fuelMode: FuelMode.AUTO,
     carrierType: 'OWN',
+    // O2C: the governed-close path requires POD recovery before completion.
+    podRecoveredAt: new Date(),
+    podRecoveredBy: driverUser.id,
   }).returning();
+  // O2C: the photo-evidence gate fires on IN_TRANSIT → COMPLETED. Insert a
+  // baseline photo so the governed close passes the ≥1-photo requirement.
+  await db.insert(s.tripPhotos).values({
+    tripId: trip.id,
+    type: 'OTHER',
+    storageKey: `q15-photo-${trip.id}.jpg`,
+    uploadedBy: driverUser.id,
+  });
   tripIds.push(trip.id);
   return trip;
 }

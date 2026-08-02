@@ -18,7 +18,6 @@ export const STATUS_PILL_CLASS: Record<TripStatus, string> = {
   [TripStatus.CREATED]: 'pill-moi',
   [TripStatus.IN_TRANSIT]: 'pill-dang',
   [TripStatus.COMPLETED]: 'pill-htth',
-  [TripStatus.LOCKED]: 'pill-chot',
   [TripStatus.CANCELED]: 'pill-huy',
 };
 

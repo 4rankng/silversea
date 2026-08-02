@@ -152,5 +152,5 @@ export async function getDashboardWidgets(month?: number, year?: number, skipCac
 
 /** Helper: billable trip statuses as a SQL IN clause. */
 function inArrayStatus() {
-  return sql`${s.trips.status} IN ('COMPLETED', 'LOCKED')`;
+  return sql`${s.trips.status} = 'COMPLETED'`;
 }

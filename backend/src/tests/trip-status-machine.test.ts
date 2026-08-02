@@ -5,6 +5,12 @@
  * as documented in docs/flows/01-TRIP_LIFECYCLE.md, encoded in the
  * transitionTripStatus function in trip-status-machine.service.ts.
  *
+ * O2C reconciliation (01/08/2026): the LOCKED milestone was dropped — COMPLETED
+ * is the single terminal/posting state. The IN_TRANSIT → COMPLETED transition
+ * now carries the migrated photo / zero-revenue / e-POD gates and requires
+ * podRecoveredAt (POD gate). A completed trip reopens COMPLETED → IN_TRANSIT
+ * only via the governed TRIP_REOPEN action.
+ *
  * The actual service function is tightly coupled to the database transaction,
  * so we test the business rules as pure data-driven tests that document the
  * expected behavior. If the service is ever refactored to extract a pure
@@ -17,7 +23,7 @@ import assert from 'node:assert';
 // Which target statuses are valid from each current status?
 // Derived from transitionTripStatus() guard conditions.
 
-type Status = 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | 'LOCKED' | 'CANCELED';
+type Status = 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELED';
 
 interface TransitionRule {
   from: Status;
@@ -30,44 +36,37 @@ interface TransitionRule {
 const TRANSITION_RULES: TransitionRule[] = [
   // IN_TRANSIT target
   { from: 'CREATED', to: 'IN_TRANSIT', allowed: true, roles: ['ADMIN', 'MANAGER'], description: 'Dispatch new trip' },
-  { from: 'COMPLETED', to: 'IN_TRANSIT', allowed: true, roles: ['ADMIN', 'MANAGER'], description: 'Re-dispatch completed trip' },
+  { from: 'COMPLETED', to: 'IN_TRANSIT', allowed: true, roles: ['ADMIN', 'MANAGER'], description: 'Re-dispatch completed trip (direct reopen blocked — uses governed TRIP_REOPEN)' },
   { from: 'IN_TRANSIT', to: 'IN_TRANSIT', allowed: true, roles: [], description: 'Idempotent: same status short-circuit' },
-  { from: 'LOCKED', to: 'IN_TRANSIT', allowed: false, roles: [], description: 'Cannot dispatch a locked trip' },
   { from: 'CANCELED', to: 'IN_TRANSIT', allowed: false, roles: [], description: 'Cannot dispatch a canceled trip' },
 
-  // COMPLETED target (from IN_TRANSIT — normal completion)
-  { from: 'IN_TRANSIT', to: 'COMPLETED', allowed: true, roles: [], description: 'Complete a running trip (permissive — photos optional, B2)' },
-  // Direct LOCKED → COMPLETED is blocked. A separate governed request applies
-  // the exceptional reopen after maker/checker/approver separation.
-  { from: 'LOCKED', to: 'COMPLETED', allowed: false, roles: [], description: 'Direct unlock is blocked; use governed reopen approval' },
+  // COMPLETED target (from IN_TRANSIT — completion now carries the photo /
+  // zero-revenue / e-POD gates and the POD-recovery gate formerly on
+  // COMPLETED → LOCKED). A direct re-complete of COMPLETED is blocked.
+  { from: 'IN_TRANSIT', to: 'COMPLETED', allowed: true, roles: ['ADMIN', 'MANAGER', 'CLERK'], description: 'Complete a running trip (e-POD acceptance path or governed close; gates enforced)' },
+  // Direct COMPLETED → COMPLETED is blocked. A separate governed request applies
+  // the exceptional reopen (COMPLETED → IN_TRANSIT) after maker/checker/approver
+  // separation, after which the trip can be re-completed.
+  { from: 'COMPLETED', to: 'COMPLETED', allowed: false, roles: [], description: 'Direct re-complete is blocked; use governed reopen approval (COMPLETED → IN_TRANSIT)' },
   { from: 'CREATED', to: 'COMPLETED', allowed: false, roles: [], description: 'Cannot complete a trip that was never dispatched' },
-  { from: 'COMPLETED', to: 'COMPLETED', allowed: true, roles: [], description: 'Idempotent: same status short-circuit' },
   { from: 'CANCELED', to: 'COMPLETED', allowed: false, roles: [], description: 'Cannot complete a canceled trip' },
-
-  // LOCKED target
-  { from: 'COMPLETED', to: 'LOCKED', allowed: true, roles: ['ADMIN', 'MANAGER'], description: 'Lock (finalize) a completed trip' },
-  { from: 'CREATED', to: 'LOCKED', allowed: false, roles: [], description: 'Cannot lock a trip that was never dispatched' },
-  { from: 'IN_TRANSIT', to: 'LOCKED', allowed: false, roles: [], description: 'Must complete before locking' },
-  { from: 'LOCKED', to: 'LOCKED', allowed: true, roles: [], description: 'Idempotent: same status short-circuit' },
-  { from: 'CANCELED', to: 'LOCKED', allowed: false, roles: [], description: 'Cannot lock a canceled trip' },
 
   // CREATED target (no transitions lead TO CREATED — only idempotent same-status)
   { from: 'CREATED', to: 'CREATED', allowed: true, roles: [], description: 'Idempotent: same status short-circuit' },
   { from: 'IN_TRANSIT', to: 'CREATED', allowed: false, roles: [], description: 'Cannot revert a dispatched trip to CREATED' },
   { from: 'COMPLETED', to: 'CREATED', allowed: false, roles: [], description: 'Cannot revert a completed trip to CREATED' },
-  { from: 'LOCKED', to: 'CREATED', allowed: false, roles: [], description: 'Cannot revert a locked trip to CREATED' },
   { from: 'CANCELED', to: 'CREATED', allowed: false, roles: [], description: 'Cannot revert a canceled trip to CREATED' },
 
-  // CANCELED target
+  // CANCELED target. A completed trip can be canceled only via a governed
+  // request (TRIP_FINANCIAL_CHANGE / requestCompletedTripCancellation).
   { from: 'CREATED', to: 'CANCELED', allowed: true, roles: ['ADMIN', 'MANAGER'], description: 'Cancel a new trip' },
   { from: 'IN_TRANSIT', to: 'CANCELED', allowed: true, roles: ['ADMIN', 'MANAGER'], description: 'Cancel a running trip' },
-  { from: 'COMPLETED', to: 'CANCELED', allowed: true, roles: ['ADMIN', 'MANAGER'], description: 'Cancel a completed trip' },
-  { from: 'LOCKED', to: 'CANCELED', allowed: false, roles: [], description: 'Cannot cancel a locked trip — must unlock first' },
+  { from: 'COMPLETED', to: 'CANCELED', allowed: true, roles: ['ADMIN', 'MANAGER'], description: 'Cancel a completed trip (governed — requestCompletedTripCancellation)' },
   { from: 'CANCELED', to: 'CANCELED', allowed: true, roles: [], description: 'Idempotent: same status short-circuit' },
 ];
 
 describe('Trip Status Machine — Transition Rules', () => {
-  const ALL_STATUSES: Status[] = ['CREATED', 'IN_TRANSIT', 'COMPLETED', 'LOCKED', 'CANCELED'];
+  const ALL_STATUSES: Status[] = ['CREATED', 'IN_TRANSIT', 'COMPLETED', 'CANCELED'];
 
   test('all from→to combinations are covered', () => {
     // Every combination of (from, to) should appear in the rules
@@ -118,25 +117,25 @@ describe('Trip Status Machine — Role Permission Rules', () => {
     }
   });
 
-  test('LOCK requires ADMIN or MANAGER', () => {
-    const lockRules = TRANSITION_RULES.filter(
-      r => r.to === 'LOCKED' && r.from !== 'LOCKED' && r.allowed
+  test('COMPLETE requires ADMIN or MANAGER (CLERK only via e-POD acceptance path)', () => {
+    const completeRules = TRANSITION_RULES.filter(
+      r => r.to === 'COMPLETED' && r.from !== 'COMPLETED' && r.allowed
     );
-    for (const rule of lockRules) {
+    for (const rule of completeRules) {
       assert.ok(
         rule.roles.includes('ADMIN') && rule.roles.includes('MANAGER'),
-        `${rule.from}→LOCKED should require ADMIN/MANAGER`
+        `${rule.from}→COMPLETED should allow ADMIN/MANAGER`
       );
     }
   });
 
-  test('direct UNLOCK (LOCKED→COMPLETED) is blocked', () => {
-    const unlockRule = TRANSITION_RULES.find(r => r.from === 'LOCKED' && r.to === 'COMPLETED');
-    assert.ok(unlockRule, 'Missing LOCKED→COMPLETED rule');
-    assert.strictEqual(unlockRule.allowed, false);
+  test('direct re-complete (COMPLETED→COMPLETED) is blocked', () => {
+    const reCompleteRule = TRANSITION_RULES.find(r => r.from === 'COMPLETED' && r.to === 'COMPLETED');
+    assert.ok(reCompleteRule, 'Missing COMPLETED→COMPLETED rule');
+    assert.strictEqual(reCompleteRule.allowed, false);
   });
 
-  test('CANCEL requires ADMIN or MANAGER (except LOCKED which is blocked)', () => {
+  test('CANCEL requires ADMIN or MANAGER', () => {
     const cancelRules = TRANSITION_RULES.filter(
       r => r.to === 'CANCELED' && r.from !== 'CANCELED' && r.allowed
     );
@@ -146,13 +145,9 @@ describe('Trip Status Machine — Role Permission Rules', () => {
         `${rule.from}→CANCELED should require ADMIN/MANAGER`
       );
     }
-    // LOCKED→CANCELED is explicitly blocked
-    const lockedCancel = TRANSITION_RULES.find(r => r.from === 'LOCKED' && r.to === 'CANCELED');
-    assert.ok(lockedCancel, 'Missing LOCKED→CANCELED rule');
-    assert.strictEqual(lockedCancel.allowed, false, 'LOCKED→CANCELED must be blocked');
   });
 
-  test('DRIVER role cannot dispatch, lock, unlock, or cancel', () => {
+  test('DRIVER role cannot dispatch, complete, or cancel', () => {
     const privilegedTransitions = TRANSITION_RULES.filter(
       r => r.allowed && r.roles.length > 0 && !r.roles.includes('DRIVER')
     );
@@ -163,7 +158,7 @@ describe('Trip Status Machine — Role Permission Rules', () => {
     }
   });
 
-  test('ACCOUNTANT role cannot dispatch, lock, unlock, or cancel', () => {
+  test('ACCOUNTANT role cannot dispatch, complete, or cancel', () => {
     const privilegedTransitions = TRANSITION_RULES.filter(
       r => r.allowed && r.roles.length > 0 && !r.roles.includes('ACCOUNTANT')
     );
@@ -175,8 +170,8 @@ describe('Trip Status Machine — Role Permission Rules', () => {
 });
 
 describe('Trip Status Machine — Lifecycle Happy Path', () => {
-  test('standard lifecycle: CREATED → IN_TRANSIT → COMPLETED → LOCKED', () => {
-    const path: Status[] = ['CREATED', 'IN_TRANSIT', 'COMPLETED', 'LOCKED'];
+  test('standard lifecycle: CREATED → IN_TRANSIT → COMPLETED', () => {
+    const path: Status[] = ['CREATED', 'IN_TRANSIT', 'COMPLETED'];
     for (let i = 0; i < path.length - 1; i++) {
       const rule = TRANSITION_RULES.find(r => r.from === path[i] && r.to === path[i + 1]);
       assert.ok(rule, `Missing rule for ${path[i]}→${path[i + 1]}`);
@@ -184,12 +179,12 @@ describe('Trip Status Machine — Lifecycle Happy Path', () => {
     }
   });
 
-  test('unlock lifecycle requires the separate governance workflow', () => {
-    const unlock = TRANSITION_RULES.find(r => r.from === 'LOCKED' && r.to === 'COMPLETED');
-    assert.ok(unlock && !unlock.allowed, 'direct LOCKED→COMPLETED must be blocked');
+  test('reopen lifecycle requires the separate governance workflow', () => {
+    const directRecomplete = TRANSITION_RULES.find(r => r.from === 'COMPLETED' && r.to === 'COMPLETED');
+    assert.ok(directRecomplete && !directRecomplete.allowed, 'direct COMPLETED→COMPLETED must be blocked');
 
-    const relock = TRANSITION_RULES.find(r => r.from === 'COMPLETED' && r.to === 'LOCKED');
-    assert.ok(relock && relock.allowed, 'COMPLETED→LOCKED (re-lock) must be allowed');
+    const reopen = TRANSITION_RULES.find(r => r.from === 'COMPLETED' && r.to === 'IN_TRANSIT');
+    assert.ok(reopen && reopen.allowed, 'COMPLETED→IN_TRANSIT (governed reopen) must be allowed');
   });
 
   test('re-dispatch lifecycle: COMPLETED → IN_TRANSIT', () => {

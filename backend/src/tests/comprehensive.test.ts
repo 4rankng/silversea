@@ -439,13 +439,23 @@ test('E2E — Trip dispatch lifecycle (Create, Reassign, Pre-departure, Dispatch
     uploadedBy: adminUserId,
   });
 
+  // 5b. O2C POD-recovery gate: record paper POD recovery before completion
+  // (the governed close path requires podRecoveredAt on the trip).
+  const podRecoveredRes = await testFetch(`/api/trips/${tripId}/pod-recovered`, {
+    method: 'POST',
+    token: accountantToken,
+    headers: { 'Idempotency-Key': `comprehensive-trip-pod-recovered-${tripId}` },
+    body: JSON.stringify({ expectedVersion: dispatchedVersion }),
+  });
+  assert.strictEqual(podRecoveredRes.status, 200);
+
   // 6. Submit actual operational figures (IN_TRANSIT -> COMPLETED)
   const actualsRes = await testFetch(`/api/trips/${tripId}/actuals`, {
     method: 'PUT',
     token: managerToken,
     headers: { 'Idempotency-Key': `comprehensive-trip-actuals-${tripId}` },
     body: JSON.stringify({
-      version: dispatchedVersion,
+      version: podRecoveredRes.data.version,
       fuelMode: FuelMode.AUTO,
       legs: [{ sequence: 1, origin: 'Hà Nội', destination: 'Hải Phòng', km: 120, loadingType: LoadingType.HANG }],
       fuelSupplementLiters: 5, // supplementary liters
@@ -496,28 +506,16 @@ test('E2E — Trip dispatch lifecycle (Create, Reassign, Pre-departure, Dispatch
     .from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
   assert.strictEqual(completedTrip.status, TripStatus.COMPLETED);
 
-  // 7. Lock the trip (immutable ledger generation)
-  const lockRes = await testFetch(`/api/trips/${tripId}/lock`, {
-    method: 'POST',
-    token: managerToken,
-    headers: { 'Idempotency-Key': `comprehensive-trip-lock-${tripId}` },
-    body: JSON.stringify({
-      expectedVersion: completedTrip.version,
-      confirmZeroRevenue: false,
-      confirmNoPhoto: true,
-    })
-  });
-  assert.strictEqual(lockRes.status, 200);
-  assert.strictEqual(lockRes.data.status, TripStatus.LOCKED);
-
-  // 8. Cancel guard assertion (should fail to cancel locked trip)
+  // 7. O2C: the separate /lock milestone is gone — COMPLETED is the single
+  // terminal/posting state. A direct cancel of a COMPLETED trip is funneled
+  // into the governed request path: without a governance reason it is rejected.
   const cancelRes = await testFetch(`/api/trips/${tripId}/cancel`, {
     method: 'POST',
     token: managerToken,
     headers: { 'Idempotency-Key': `comprehensive-trip-cancel-${tripId}` },
-    body: JSON.stringify({ expectedVersion: lockRes.data.version }),
+    body: JSON.stringify({ expectedVersion: completedTrip.version }),
   });
-  assert.strictEqual(cancelRes.status, 409); // Conflict (Matrix block)
+  assert.strictEqual(cancelRes.status, 400); // governed reason required to cancel a completed trip
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
