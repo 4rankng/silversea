@@ -1,9 +1,14 @@
-import { and, eq, isNull, ne, sql } from 'drizzle-orm';
+import { and, eq, isNull, ne } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
+import {
+  lockDriverRowForUpdate,
+  lockUserRowForUpdate,
+} from './application-relationship.service';
+import { lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
 import { runIdempotent } from './idempotency.service';
 
 export const DRIVER_USER_BIND_ENDPOINT = 'config.driver-user-bindings.bind';
@@ -63,11 +68,13 @@ export async function bindDriverUser(input: {
     entityType: 'driver',
     getEntityId: (result) => result.driverId,
     create: async (tx) => {
-      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended('driver-user-binding', 0))`);
+      await lockApplicationOwnedUniquenessSet(tx, [
+        { scope: 'driver-user-binding.driver', parts: [input.driverId] },
+        { scope: 'driver-user-binding.user', parts: [input.userId] },
+      ]);
 
-      const [driver] = await tx.select().from(s.drivers)
-        .where(eq(s.drivers.id, input.driverId)).limit(1).for('update');
-      if (!driver || driver.deletedAt != null) {
+      const driver = await lockDriverRowForUpdate(tx, input.driverId, 'Không tìm thấy hồ sơ tài xế đang sử dụng.');
+      if (driver.deletedAt != null) {
         throw new ApiError(404, 'Không tìm thấy hồ sơ tài xế đang sử dụng.');
       }
       if (driver.status !== 'ACTIVE') {
@@ -77,9 +84,8 @@ export async function bindDriverUser(input: {
         throw new ApiError(409, 'Hồ sơ tài xế đã thay đổi. Vui lòng tải lại trước khi liên kết.');
       }
 
-      const [user] = await tx.select().from(s.users)
-        .where(eq(s.users.id, input.userId)).limit(1).for('update');
-      if (!user || user.deletedAt != null) {
+      const user = await lockUserRowForUpdate(tx, input.userId, 'Không tìm thấy tài khoản đang sử dụng.');
+      if (user.deletedAt != null) {
         throw new ApiError(404, 'Không tìm thấy tài khoản đang sử dụng.');
       }
       if (user.status !== 'ACTIVE') {

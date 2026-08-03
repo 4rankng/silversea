@@ -71,6 +71,8 @@ const REMINDER_RETRY_DELAYS_MS = [
   2 * 60 * 60 * 1000,
   24 * 60 * 60 * 1000,
 ] as const;
+type UserRoleValue = (typeof s.users.role.enumValues)[number];
+type NotificationTypeValue = (typeof s.notifications.type.enumValues)[number];
 
 interface ReminderStageConfig {
   key: string;
@@ -1300,11 +1302,79 @@ function encodeReminderOccurrenceToken(token: string): string {
   ].join('');
 }
 
+function normalizeUserRoles(input: readonly Role[]): UserRoleValue[] {
+  const normalized: UserRoleValue[] = [];
+  const seen = new Set<UserRoleValue>();
+  for (const raw of input) {
+    const value = (() => {
+      switch (raw.trim().toUpperCase()) {
+        case 'ADMIN':
+          return 'ADMIN';
+        case 'MANAGER':
+          return 'MANAGER';
+        case 'ACCOUNTANT':
+          return 'ACCOUNTANT';
+        case 'DRIVER':
+          return 'DRIVER';
+        case 'FORWARDER':
+          return 'FORWARDER';
+        case 'CUSTOMER':
+          return 'CUSTOMER';
+        case 'CLERK':
+          return 'CLERK';
+        case 'DISPATCHER':
+          return 'DISPATCHER';
+        default:
+          return null;
+      }
+    })();
+    if (!value || seen.has(value)) continue;
+    seen.add(value);
+    normalized.push(value);
+  }
+  return normalized;
+}
+
+function normalizeNotificationType(input: NotificationType | string): NotificationTypeValue {
+  switch (input.trim().toUpperCase()) {
+    case 'TRIP_CREATED':
+      return 'TRIP_CREATED';
+    case 'TRIP_DISPATCHED':
+      return 'TRIP_DISPATCHED';
+    case 'TRIP_IN_TRANSIT':
+      return 'TRIP_IN_TRANSIT';
+    case 'TRIP_COMPLETED':
+      return 'TRIP_COMPLETED';
+    case 'TRIP_CANCELED':
+      return 'TRIP_CANCELED';
+    case 'PAYMENT_RECEIVED':
+      return 'PAYMENT_RECEIVED';
+    case 'PENALTY_CREATED':
+      return 'PENALTY_CREATED';
+    case 'PENALTY_CANCELED':
+      return 'PENALTY_CANCELED';
+    case 'OVERDUE_PAYMENT':
+      return 'OVERDUE_PAYMENT';
+    case 'SALARY_PERIOD_CLOSING':
+      return 'SALARY_PERIOD_CLOSING';
+    case 'SYSTEM_ANNOUNCEMENT':
+      return 'SYSTEM_ANNOUNCEMENT';
+    case 'ADVANCE_SETTLEMENT_APPROVED':
+      return 'ADVANCE_SETTLEMENT_APPROVED';
+    case 'SHIPMENT_HANDOFF':
+      return 'SHIPMENT_HANDOFF';
+    default:
+      throw new Error(`Unsupported notification type: ${input}`);
+  }
+}
+
 async function loadUserIdsForRoles(roles: readonly Role[]): Promise<number[]> {
+  const normalizedRoles = normalizeUserRoles(roles);
+  if (normalizedRoles.length === 0) return [];
   const rows = await db.select({ id: s.users.id })
     .from(s.users)
     .where(and(
-      inArray(s.users.role, roles as unknown as (typeof s.users.role.enumValues)[number][]),
+      inArray(s.users.role, normalizedRoles),
       eq(s.users.status, 'ACTIVE'),
       isNull(s.users.deletedAt),
     ));
@@ -1323,6 +1393,7 @@ async function insertNotificationsOnce(input: {
   existingMessageToken?: string;
 }): Promise<number> {
   if (input.targetUserIds.length === 0) return 0;
+  const notificationType = normalizeNotificationType(input.type);
   return db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${input.lockKey}, 0))`);
     const conditions = [
@@ -1348,7 +1419,7 @@ async function insertNotificationsOnce(input: {
 
     await tx.insert(s.notifications).values(missingUserIds.map((userId) => ({
       userId,
-      type: input.type as (typeof s.notifications.type.enumValues)[number],
+      type: notificationType,
       title: input.title,
       message: input.message,
       relatedEntityType: 'customers',

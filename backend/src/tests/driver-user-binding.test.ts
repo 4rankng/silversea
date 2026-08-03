@@ -13,9 +13,10 @@ import { auditLogMiddleware } from '../middleware/audit';
 import driverUserBindingRouter from '../routes/config/driver-user-binding.routes';
 import {
   DRIVER_USER_BIND_ENDPOINT,
+  bindDriverUser,
   driverUserBindingVersion,
 } from '../services/driver-user-binding.service';
-import { createUser } from '../services/user.service';
+import { createUser, deleteUser } from '../services/user.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const userIds: number[] = [];
@@ -235,6 +236,58 @@ describe('driver-user binding command', () => {
     assert.deepEqual(
       usersAfter.sort((a, b) => a.id - b.id),
       usersBefore.sort((a, b) => a.id - b.id),
+    );
+  });
+
+  test('concurrent binding and user deletion cannot leave an active driver bound to a deleted user', async () => {
+    const user = await createUser({
+      username: `binding-race-${suffix}`,
+      password: 'driver-race-password',
+      role: Role.DRIVER,
+    });
+    userIds.push(user.id);
+    const [driver] = await db.insert(s.drivers).values({
+      name: `Tài xế race ${suffix}`,
+      status: 'ACTIVE',
+    }).returning();
+    driverIds.push(driver.id);
+
+    const [driverBefore] = await db.select().from(s.drivers)
+      .where(eq(s.drivers.id, driver.id))
+      .limit(1);
+    const outcomes = await Promise.allSettled([
+      bindDriverUser({
+        driverId: driver.id,
+        userId: user.id,
+        expectedVersion: driverUserBindingVersion(driverBefore!.updatedAt),
+        idempotencyKey: `binding-race-${suffix}`,
+        actor: { userId: adminUserId, role: Role.ADMIN },
+      }),
+      deleteUser(user.id, adminUserId),
+    ]);
+    assert.ok(outcomes.some((result) => result.status === 'fulfilled'));
+
+    const [persistedUser] = await db.select({
+      deletedAt: s.users.deletedAt,
+    }).from(s.users)
+      .where(eq(s.users.id, user.id))
+      .limit(1);
+    const [persistedDriver] = await db.select({
+      userId: s.drivers.userId,
+      status: s.drivers.status,
+      deletedAt: s.drivers.deletedAt,
+    }).from(s.drivers)
+      .where(eq(s.drivers.id, driver.id))
+      .limit(1);
+
+    assert.ok(
+      !(
+        persistedUser?.deletedAt != null
+        && persistedDriver?.userId === user.id
+        && persistedDriver?.deletedAt == null
+        && persistedDriver?.status === 'ACTIVE'
+      ),
+      'deleted user cannot retain an active driver binding',
     );
   });
 });

@@ -9,6 +9,10 @@ import {
   isClerkScopedUser,
   loadClerkShipmentScope,
 } from './clerk-shipment-scope.service';
+import {
+  lockApplicationOwnedUniqueness,
+  lockApplicationOwnedUniquenessSet,
+} from './application-owned-uniqueness.service';
 import type { Tx } from './trip-shared';
 
 export const CUSTOMER_EVENT_TYPES = [
@@ -269,21 +273,8 @@ export async function createCustomerVisibleEvent(
       occurredAt: occurredAt.toISOString(),
       ...(shipment.shipmentCode ? { shipmentCode: shipment.shipmentCode } : {}),
     };
-    const [inserted] = await tx.insert(s.customerVisibleEvents).values({
-      shipmentId: shipment.id,
-      customerId: shipment.customerId,
-      milestoneId: input.milestoneId ?? null,
-      eventKey,
-      contentVersion,
-      eventType: input.eventType,
-      classification: 'CUSTOMER_VISIBLE',
-      contentSnapshot,
-      supersedesEventId: input.supersedesEventId ?? null,
-      createdBy: input.createdBy,
-      occurredAt,
-    }).onConflictDoNothing().returning();
+    await lockApplicationOwnedUniqueness(tx, 'customer-visible-event', [eventKey, contentVersion]);
 
-    if (inserted) return toCustomerEventDto(inserted);
     const [existing] = await tx.select().from(s.customerVisibleEvents)
       .where(and(
         eq(s.customerVisibleEvents.eventKey, eventKey),
@@ -299,6 +290,25 @@ export async function createCustomerVisibleEvent(
     ) {
       return toCustomerEventDto(existing);
     }
+    if (existing) {
+      throw new ApiError(409, 'Khóa sự kiện đã được dùng cho nội dung khác');
+    }
+
+    const [inserted] = await tx.insert(s.customerVisibleEvents).values({
+      shipmentId: shipment.id,
+      customerId: shipment.customerId,
+      milestoneId: input.milestoneId ?? null,
+      eventKey,
+      contentVersion,
+      eventType: input.eventType,
+      classification: 'CUSTOMER_VISIBLE',
+      contentSnapshot,
+      supersedesEventId: input.supersedesEventId ?? null,
+      createdBy: input.createdBy,
+      occurredAt,
+    }).returning();
+
+    if (inserted) return toCustomerEventDto(inserted);
     throw new ApiError(409, 'Khóa sự kiện đã được dùng cho nội dung khác');
   };
   return transaction ? execute(transaction) : db.transaction(execute);
@@ -399,6 +409,17 @@ export async function acknowledgeCustomerVisibleEvent(input: AcknowledgeCustomer
       throw new ApiError(409, 'Sự kiện đã có phiên bản mới. Vui lòng tải lại.');
     }
 
+    await lockApplicationOwnedUniquenessSet(tx, [
+      {
+        scope: 'customer-event-ack-idempotency',
+        parts: [idempotencyKey],
+      },
+      {
+        scope: 'customer-event-ack-actor-kind',
+        parts: [event.id, input.actor.userId, input.kind],
+      },
+    ]);
+
     const [sameKey] = await tx.select().from(s.customerEventAcknowledgements)
       .where(eq(s.customerEventAcknowledgements.idempotencyKey, idempotencyKey))
       .limit(1);
@@ -413,16 +434,6 @@ export async function acknowledgeCustomerVisibleEvent(input: AcknowledgeCustomer
       throw new ApiError(409, 'Khóa chống trùng đã được dùng cho yêu cầu khác');
     }
 
-    const [inserted] = await tx.insert(s.customerEventAcknowledgements).values({
-      eventId: event.id,
-      eventVersion: event.contentVersion,
-      customerId: shipment.customerId,
-      acknowledgedBy: input.actor.userId,
-      kind: input.kind,
-      idempotencyKey,
-    }).onConflictDoNothing().returning();
-    if (inserted) return inserted;
-
     const [existing] = await tx.select().from(s.customerEventAcknowledgements)
       .where(and(
         eq(s.customerEventAcknowledgements.eventId, event.id),
@@ -431,6 +442,17 @@ export async function acknowledgeCustomerVisibleEvent(input: AcknowledgeCustomer
       ))
       .limit(1);
     if (existing && existing.eventVersion === event.contentVersion) return existing;
+    if (existing) throw new ApiError(409, 'Sự kiện đã được xác nhận bằng phiên bản khác');
+
+    const [inserted] = await tx.insert(s.customerEventAcknowledgements).values({
+      eventId: event.id,
+      eventVersion: event.contentVersion,
+      customerId: shipment.customerId,
+      acknowledgedBy: input.actor.userId,
+      kind: input.kind,
+      idempotencyKey,
+    }).returning();
+    if (inserted) return inserted;
     throw new ApiError(409, 'Sự kiện đã được xác nhận bằng phiên bản khác');
   });
 }

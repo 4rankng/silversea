@@ -8,6 +8,12 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
+import {
+  lockActiveCustomerIds,
+  lockDriverRowForUpdate,
+  lockTrailerRow,
+  lockTruckRow,
+} from './application-relationship.service';
 import { storageService } from './storage.service';
 import { runIdempotent } from './idempotency.service';
 import {
@@ -1041,6 +1047,7 @@ async function applyParsedRows(
     const taxCode = parsed.customerTaxCodeByInternalCode.get(payload.customerCode);
     const customer = taxCode ? customerByTax.get(taxCode) : undefined;
     if (!customer) throw new ApiError(409, 'Không tìm thấy khách hàng chuẩn cho điểm vận hành đã phân tích.');
+    await lockActiveCustomerIds(tx, [customer.id], 'Không tìm thấy khách hàng chuẩn cho điểm vận hành đã phân tích.');
     const [existing] = await tx.select().from(s.operationalSites).where(and(
       eq(s.operationalSites.customerId, customer.id),
       eq(s.operationalSites.code, payload.code),
@@ -1121,8 +1128,11 @@ async function applyParsedRows(
     const priorDriverId = persistedSourceRow.naturalKeyHash
       ? priorDriverIdByNaturalKeyHash.get(persistedSourceRow.naturalKeyHash)
       : undefined;
-    const existing = (priorDriverId ? driversById.get(priorDriverId) : undefined)
+    const mappedExisting = (priorDriverId ? driversById.get(priorDriverId) : undefined)
       ?? driversByIdentity.get(identity);
+    const existing = mappedExisting
+      ? await lockDriverRowForUpdate(tx, mappedExisting.id, 'Không tìm thấy tài xế chuẩn cho biển số đã phân tích.')
+      : null;
     if (existing && (existing.deletedAt != null || existing.status !== 'ACTIVE')) {
       throw new ApiError(409, 'Tài xế chuẩn đang ngưng hoạt động; không tự động kích hoạt lại.');
     }
@@ -1150,7 +1160,10 @@ async function applyParsedRows(
     const payload = row.payload as FleetPayload;
     let trailerId: number | null = null;
     if (payload.trailerPlate) {
-      const existingTrailer = trailersByPlate.get(payload.trailerPlate);
+      const mappedTrailer = trailersByPlate.get(payload.trailerPlate);
+      const existingTrailer = mappedTrailer
+        ? await lockTrailerRow(tx, mappedTrailer.id, { mode: 'update', notFoundMessage: 'Không tìm thấy rơ-moóc chuẩn đã phân tích.' })
+        : null;
       if (existingTrailer && (existingTrailer.deletedAt != null || existingTrailer.status !== 'ACTIVE')) {
         throw new ApiError(409, 'Rơ-moóc chuẩn đang ngưng hoạt động; không tự động kích hoạt lại.');
       }
@@ -1162,16 +1175,21 @@ async function applyParsedRows(
       trailerId = trailer.id;
       trailersByPlate.set(payload.trailerPlate, { ...(existingTrailer ?? {}), id: trailer.id, licensePlate: payload.trailerPlate } as typeof s.trailers.$inferSelect);
     }
-    const existingTruck = trucksByPlate.get(payload.plate);
+    const mappedTruck = trucksByPlate.get(payload.plate);
+    const existingTruck = mappedTruck
+      ? await lockTruckRow(tx, mappedTruck.id, { mode: 'update', notFoundMessage: 'Không tìm thấy xe chuẩn đã phân tích.' })
+      : null;
     if (existingTruck && (existingTruck.deletedAt != null || existingTruck.status !== 'ACTIVE')) {
       throw new ApiError(409, 'Xe chuẩn đang ngưng hoạt động; không tự động kích hoạt lại.');
     }
-    const conflictingTrailerOwner = trailerId == null ? undefined : existingTrucks.find((truck) => (
-      truck.currentTrailerId === trailerId
-      && truck.id !== existingTruck?.id
-      && truck.deletedAt == null
-      && truck.status === 'ACTIVE'
-    ));
+    const [conflictingTrailerOwner] = trailerId == null
+      ? []
+      : await tx.select({ id: s.trucks.id }).from(s.trucks).where(and(
+        eq(s.trucks.currentTrailerId, trailerId),
+        existingTruck ? sql`${s.trucks.id} <> ${existingTruck.id}` : sql`true`,
+        isNull(s.trucks.deletedAt),
+        eq(s.trucks.status, 'ACTIVE'),
+      )).limit(1).for('update');
     if (conflictingTrailerOwner) {
       throw new ApiError(409, 'Rơ-moóc đã được gán cho xe khác trong dữ liệu chuẩn.');
     }
@@ -1186,8 +1204,12 @@ async function applyParsedRows(
       : (await tx.insert(s.trucks).values({ licensePlate: payload.plate, ...truckValues, status: 'ACTIVE', deletedAt: null }).returning({ id: s.trucks.id }))[0];
     trucksByPlate.set(payload.plate, { ...(existingTruck ?? {}), ...truckValues, id: truck.id, licensePlate: payload.plate } as typeof s.trucks.$inferSelect);
     if (payload.driverName) {
-      const driver = driversByName.get(normalizeLookup(payload.driverName));
-      if (!driver) throw new ApiError(409, 'Không tìm thấy tài xế chuẩn cho biển số đã phân tích.');
+      const mappedDriver = driversByName.get(normalizeLookup(payload.driverName));
+      if (!mappedDriver) throw new ApiError(409, 'Không tìm thấy tài xế chuẩn cho biển số đã phân tích.');
+      const driver = await lockDriverRowForUpdate(tx, mappedDriver.id, 'Không tìm thấy tài xế chuẩn cho biển số đã phân tích.');
+      if (driver.deletedAt != null || driver.status !== 'ACTIVE') {
+        throw new ApiError(409, 'Tài xế chuẩn đang ngưng hoạt động; không tự động kích hoạt lại.');
+      }
       await tx.update(s.drivers).set({ assignedTruckId: truck.id, updatedAt: new Date() })
         .where(eq(s.drivers.id, driver.id));
     }

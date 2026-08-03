@@ -14,6 +14,7 @@ import { db } from '../db/index.js';
 import * as s from '../db/schema.js';
 import { COMPANY_INFO_SETTING_KEYS } from '../services/company-info.service.js';
 import { customers, companyIdentity } from './data/index.js';
+import { normalizedTextEquals } from './seed-identity.js';
 
 const LONG_MINH_TEMPLATE_NAME = 'MẪU DEBIT LONG MINH';
 const LONG_MINH_DEBIT_TEMPLATE_COLUMNS: DebitNoteTemplateColumn[] = [
@@ -54,25 +55,38 @@ export async function seedCustomers(): Promise<CustomerSeedResult> {
 
   for (const c of customers) {
     const normalized = normTax(c.taxCode);
-    // Upsert partner on normalized_tax_code (unique index).
-    const [partner] = await db.insert(s.partners).values({
+    const partnerValues = {
       normalizedTaxCode: normalized,
       displayTaxCode: c.taxCode.trim(),
       currency: 'VND',
-    }).onConflictDoUpdate({
-      target: s.partners.normalizedTaxCode,
-      set: { displayTaxCode: c.taxCode.trim(), updatedAt: new Date() },
-    }).returning({ id: s.partners.id });
+    } as const;
+    const [existingPartner] = await db.select({ id: s.partners.id })
+      .from(s.partners)
+      .where(normalizedTextEquals(s.partners.normalizedTaxCode, normalized))
+      .limit(1);
+
+    let partnerId: number;
+    if (existingPartner) {
+      await db.update(s.partners)
+        .set({ ...partnerValues, updatedAt: new Date() })
+        .where(sql`${s.partners.id} = ${existingPartner.id}`);
+      partnerId = existingPartner.id;
+    } else {
+      const [createdPartner] = await db.insert(s.partners)
+        .values(partnerValues)
+        .returning({ id: s.partners.id });
+      partnerId = createdPartner!.id;
+    }
 
     // Supplier has no unique constraint besides PK — guard against dupes by
     // looking up (name, partnerId) first, then insert-or-update in JS.
     const existingSupplier = await db.select({ id: s.suppliers.id })
       .from(s.suppliers)
-      .where(sql`lower(btrim(${s.suppliers.name})) = lower(btrim(${c.name})) AND ${s.suppliers.partnerId} = ${partner!.id}`);
+      .where(sql`lower(btrim(${s.suppliers.name})) = lower(btrim(${c.name})) AND ${s.suppliers.partnerId} = ${partnerId}`);
     const supplierRow = {
       name: c.name,
       taxCode: c.taxCode,
-      partnerId: partner!.id,
+      partnerId,
       phone: c.directorPhone || null,
       note: c.email ? `Email: ${c.email}` : null,
       status: 'ACTIVE',
@@ -93,7 +107,7 @@ export async function seedCustomers(): Promise<CustomerSeedResult> {
     const customerValues = {
       name: c.name,
       taxCode: c.taxCode,
-      partnerId: partner!.id,
+      partnerId,
       contactPerson: c.manager || null,
       phone: c.directorPhone || null,
       contactInfo: c.email || null,

@@ -13,6 +13,7 @@ import { sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import * as s from '../db/schema.js';
 import { trucks as truckSeeds, drivers as driverSeeds } from './data/index.js';
+import { normalizedTextEquals } from './seed-identity.js';
 
 export interface FleetSeedResult {
   truckByPlate: Map<string, number>;
@@ -68,14 +69,25 @@ export async function seedFleet(): Promise<FleetSeedResult> {
     if (trailerPlates.has(tp)) continue;
     trailerPlates.add(tp);
     const is40 = tp.includes('RM'); // RM-series romoocs are heavy/40ft-class
-    await db.insert(s.trailers).values({
-      licensePlate: tp,
-      type: is40 ? '40FT' : '20FT',
-      status: 'ACTIVE',
-    }).onConflictDoUpdate({
-      target: s.trailers.licensePlate,
-      set: { status: 'ACTIVE', updatedAt: new Date() },
-    });
+    const [existingTrailer] = await db.select({ id: s.trailers.id })
+      .from(s.trailers)
+      .where(normalizedTextEquals(s.trailers.licensePlate, tp))
+      .limit(1);
+    if (existingTrailer) {
+      await db.update(s.trailers).set({
+        licensePlate: tp,
+        type: is40 ? '40FT' : '20FT',
+        status: 'ACTIVE',
+        deletedAt: null,
+        updatedAt: new Date(),
+      }).where(sql`${s.trailers.id} = ${existingTrailer.id}`);
+    } else {
+      await db.insert(s.trailers).values({
+        licensePlate: tp,
+        type: is40 ? '40FT' : '20FT',
+        status: 'ACTIVE',
+      });
+    }
   }
   console.log(`✅ Trailers seeded! (${trailerPlates.size})`);
 
@@ -85,30 +97,40 @@ export async function seedFleet(): Promise<FleetSeedResult> {
     const driverId = t.driverName ? driverByName.get(normName(t.driverName)) ?? null : null;
     const trailerRow = t.trailerPlate
       ? await db.select({ id: s.trailers.id }).from(s.trailers)
-          .where(sql`upper(${s.trailers.licensePlate}) = ${t.trailerPlate.toUpperCase()}`)
+          .where(normalizedTextEquals(s.trailers.licensePlate, t.trailerPlate.toUpperCase()))
       : [];
     const noteParts = [t.vehicleClass && `Loại hình: ${t.vehicleClass}`].filter(Boolean);
     if (t.maxPayloadKg) noteParts.push(`Tải trọng tối đa: ${t.maxPayloadKg} kg`);
     if (t.preferredRoute) noteParts.push(`Tuyến ưu tiên: ${t.preferredRoute}`);
-    const [row] = await db.insert(s.trucks).values({
-      licensePlate: plate,
-      trailerPlateNumber: t.trailerPlate || null,
-      currentTrailerId: trailerRow[0]?.id ?? null,
-      status: 'ACTIVE',
-    }).onConflictDoUpdate({
-      target: s.trucks.licensePlate,
-      set: {
+    const [existingTruck] = await db.select({ id: s.trucks.id })
+      .from(s.trucks)
+      .where(normalizedTextEquals(s.trucks.licensePlate, plate))
+      .limit(1);
+    let truckId: number;
+    if (existingTruck) {
+      await db.update(s.trucks).set({
+        licensePlate: plate,
         trailerPlateNumber: t.trailerPlate || null,
         currentTrailerId: trailerRow[0]?.id ?? null,
         status: 'ACTIVE',
+        deletedAt: null,
         updatedAt: new Date(),
-      },
-    }).returning({ id: s.trucks.id });
-    truckByPlate.set(plate, row!.id);
+      }).where(sql`${s.trucks.id} = ${existingTruck.id}`);
+      truckId = existingTruck.id;
+    } else {
+      const [createdTruck] = await db.insert(s.trucks).values({
+        licensePlate: plate,
+        trailerPlateNumber: t.trailerPlate || null,
+        currentTrailerId: trailerRow[0]?.id ?? null,
+        status: 'ACTIVE',
+      }).returning({ id: s.trucks.id });
+      truckId = createdTruck!.id;
+    }
+    truckByPlate.set(plate, truckId);
 
     // Link driver to truck if both resolved.
-    if (driverId && row) {
-      await db.update(s.drivers).set({ assignedTruckId: row!.id, updatedAt: new Date() })
+    if (driverId) {
+      await db.update(s.drivers).set({ assignedTruckId: truckId, updatedAt: new Date() })
         .where(sql`${s.drivers.id} = ${driverId}`);
     }
   }

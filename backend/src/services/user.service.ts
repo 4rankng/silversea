@@ -23,6 +23,14 @@ import { eq, isNull, sql, or, and, ne, inArray } from 'drizzle-orm';
 import { CustomerAccountType, Role } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { getEnforcer } from '../casbin/enforcer';
+import {
+  cascadeDeleteUserLinks,
+  lockActiveBusinessUnitIds,
+  lockActiveCustomerIds,
+  lockShipmentRows,
+  lockTruckRow,
+  lockUserRowForUpdate,
+} from './application-relationship.service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -264,33 +272,16 @@ async function loadUsersShipmentIdsMap(
   return map;
 }
 
-async function validateCustomerIds(
-  q: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0],
-  customerIds: number[],
-) {
-  if (customerIds.length === 0) return;
-  const rows = await q.select({ id: customers.id }).from(customers)
-    .where(and(inArray(customers.id, customerIds), isNull(customers.deletedAt)));
-  if (rows.length !== customerIds.length) {
-    throw new ApiError(400, 'Khách hàng liên kết không tồn tại');
-  }
+async function validateCustomerIds(tx: Tx, customerIds: number[]) {
+  await lockActiveCustomerIds(tx, customerIds);
 }
 
-async function validateBusinessUnitIds(
-  q: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0],
-  businessUnitIds: number[],
-) {
-  if (businessUnitIds.length === 0) return;
-  const rows = await q.select({ id: businessUnits.id }).from(businessUnits)
-    .where(and(inArray(businessUnits.id, businessUnitIds), eq(businessUnits.status, 'ACTIVE')))
-    .for('share');
-  if (rows.length !== businessUnitIds.length) {
-    throw new ApiError(400, 'Đơn vị phụ trách liên kết không tồn tại hoặc đã ngưng dùng');
-  }
+async function validateBusinessUnitIds(tx: Tx, businessUnitIds: number[]) {
+  await lockActiveBusinessUnitIds(tx, businessUnitIds);
 }
 
 async function validateShipmentIds(
-  q: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0],
+  tx: Tx,
   shipmentIds: number[],
   options?: {
     businessUnitIds?: number[];
@@ -300,16 +291,7 @@ async function validateShipmentIds(
   if (shipmentIds.length === 0) return;
   const allowExistingTerminalShipmentIds = new Set(options?.allowExistingTerminalShipmentIds ?? []);
   const businessUnitIds = options?.businessUnitIds;
-  const rows = await q.select({
-    id: shipments.id,
-    responsibleUnitId: shipments.responsibleUnitId,
-    status: shipments.status,
-  }).from(shipments)
-    .where(and(inArray(shipments.id, shipmentIds), isNull(shipments.deletedAt)))
-    .for('share');
-  if (rows.length !== shipmentIds.length) {
-    throw new ApiError(400, 'Lô hàng liên kết không tồn tại');
-  }
+  const rows = await lockShipmentRows(tx, shipmentIds);
   const terminalShipment = rows.find(
     (row) => (
       (row.status === 'COMPLETED' || row.status === 'CANCELED')
@@ -326,6 +308,16 @@ async function validateShipmentIds(
     );
   if (businessUnitIds !== undefined && invalid) {
     throw new ApiError(400, 'Lô hàng liên kết phải thuộc một đơn vị phụ trách đã gán cho nhân viên chứng từ');
+  }
+}
+
+async function validateAssignedTruckId(tx: Tx, assignedTruckId: number | null | undefined): Promise<void> {
+  if (assignedTruckId == null) return;
+  const truck = await lockTruckRow(tx, assignedTruckId, {
+    notFoundMessage: 'Xe đầu kéo liên kết không tồn tại hoặc đã ngưng dùng',
+  });
+  if (truck.deletedAt != null || truck.status !== 'ACTIVE') {
+    throw new ApiError(400, 'Xe đầu kéo liên kết không tồn tại hoặc đã ngưng dùng');
   }
 }
 
@@ -827,6 +819,7 @@ export async function updateUserWithTx(id: number, data: {
       .from(drivers).where(and(eq(drivers.userId, id), isNull(drivers.deletedAt))).limit(1);
 
     if (existingDriver) {
+      await validateAssignedTruckId(tx, data.assignedTruckId);
       const driverSet = buildDriverUpdateSet(data);
       if (Object.keys(driverSet).length > 0) {
         await tx.update(drivers).set(driverSet).where(eq(drivers.id, existingDriver.id));
@@ -870,6 +863,10 @@ export async function updateUser(id: number, data: {
 /** Soft-delete a user and its linked driver profile (if any). */
 export async function deleteUserWithTx(id: number, currentUserId: number, tx: Tx) {
   if (id === currentUserId) throw new ApiError(400, 'Không thể xóa tài khoản đang đăng nhập');
+  const existing = await lockUserRowForUpdate(tx, id, 'Không tìm thấy người dùng');
+  if (existing.deletedAt != null) {
+    throw new ApiError(404, 'Không tìm thấy người dùng');
+  }
   const [deleted] = await tx.update(users)
     .set({ deletedAt: sql`now()`, status: 'INACTIVE', updatedAt: sql`now()` })
     .where(and(eq(users.id, id), isNull(users.deletedAt)))
@@ -877,8 +874,7 @@ export async function deleteUserWithTx(id: number, currentUserId: number, tx: Tx
   if (!deleted) throw new ApiError(404, 'Không tìm thấy người dùng');
   await tx.update(drivers).set({ deletedAt: sql`now()`, status: 'INACTIVE' })
     .where(and(eq(drivers.userId, id), isNull(drivers.deletedAt)));
-  await tx.delete(userBusinessUnitLinks).where(eq(userBusinessUnitLinks.userId, id));
-  await tx.delete(userShipmentLinks).where(eq(userShipmentLinks.userId, id));
+  await cascadeDeleteUserLinks(tx, id);
   return deleted;
 }
 

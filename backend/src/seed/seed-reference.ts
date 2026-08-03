@@ -11,6 +11,7 @@ import { sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import * as s from '../db/schema.js';
 import { ports, routes, containerTypes } from './data/index.js';
+import { normalizedTextEquals } from './seed-identity.js';
 
 export interface ReferenceSeedResult {
   portByName: Map<string, number>;
@@ -72,13 +73,24 @@ export async function seedReference(): Promise<ReferenceSeedResult> {
 
   // --- Container types (unique on code) ---
   for (const ct of containerTypes) {
-    const [row] = await tx.insert(s.containerTypes).values({
-      code: ct.code, name: ct.name,
-    }).onConflictDoUpdate({
-      target: s.containerTypes.code,
-      set: { name: ct.name, updatedAt: new Date() },
+    const [existing] = await tx.select({ id: s.containerTypes.id })
+      .from(s.containerTypes)
+      .where(normalizedTextEquals(s.containerTypes.code, ct.code))
+      .limit(1);
+    if (existing) {
+      await tx.update(s.containerTypes).set({
+        name: ct.name,
+        deletedAt: null,
+        updatedAt: new Date(),
+      }).where(sql`${s.containerTypes.id} = ${existing.id}`);
+      containerTypeByCode.set(ct.code, existing.id);
+      continue;
+    }
+    const [created] = await tx.insert(s.containerTypes).values({
+      code: ct.code,
+      name: ct.name,
     }).returning({ id: s.containerTypes.id });
-    containerTypeByCode.set(ct.code, row!.id);
+    containerTypeByCode.set(ct.code, created!.id);
   }
   console.log(`✅ Container types seeded! (${containerTypes.length})`);
 

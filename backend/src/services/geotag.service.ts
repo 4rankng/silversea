@@ -3,6 +3,7 @@ import * as s from '../db/schema';
 import { and, eq } from 'drizzle-orm';
 import { Role, type GeotagInput, type GeotagEntityType, type PhotoGeotag } from '@tingting/shared';
 import { ApiError } from '../errors';
+import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 import type { Tx } from './trip-shared';
 
 /**
@@ -117,46 +118,59 @@ export async function submitGeotag(
   user: AuthUserLike,
   dbOrTx: typeof db | Tx = db,
 ): Promise<PhotoGeotag> {
-  validateGpsFreshness(input.gpsAt);
-  await authorizeGeotag(input.entityType, input.entityId, user, dbOrTx);
+  const execute = async (tx: Tx) => {
+    validateGpsFreshness(input.gpsAt);
+    await authorizeGeotag(input.entityType, input.entityId, user, tx);
+    await lockApplicationOwnedUniqueness(tx, 'photo-geotag', [input.entityType, input.entityId]);
 
-  const gpsAt = input.gpsAt ? new Date(input.gpsAt) : null;
-  const values = {
-    entityType: input.entityType,
-    entityId: input.entityId,
-    lat: input.lat,
-    lng: input.lng,
-    accuracy: input.accuracy ?? null,
-    altitude: input.altitude ?? null,
-    gpsAt,
-    source: input.source,
-    sampleCount: input.sampleCount ?? null,
-    bestAccuracy: input.bestAccuracy ?? null,
-    elapsedMs: input.elapsedMs ?? null,
-    recordedBy: user.userId,
+    const gpsAt = input.gpsAt ? new Date(input.gpsAt) : null;
+    const values = {
+      entityType: input.entityType,
+      entityId: input.entityId,
+      lat: input.lat,
+      lng: input.lng,
+      accuracy: input.accuracy ?? null,
+      altitude: input.altitude ?? null,
+      gpsAt,
+      source: input.source,
+      sampleCount: input.sampleCount ?? null,
+      bestAccuracy: input.bestAccuracy ?? null,
+      elapsedMs: input.elapsedMs ?? null,
+      recordedBy: user.userId,
+    };
+
+    const [existing] = await tx.select({ id: s.photoGeotags.id })
+      .from(s.photoGeotags)
+      .where(and(
+        eq(s.photoGeotags.entityType, input.entityType),
+        eq(s.photoGeotags.entityId, input.entityId),
+      ))
+      .limit(1);
+
+    const [row] = existing
+      ? await tx.update(s.photoGeotags)
+        .set({
+          lat: values.lat,
+          lng: values.lng,
+          accuracy: values.accuracy,
+          altitude: values.altitude,
+          gpsAt: values.gpsAt,
+          source: values.source,
+          sampleCount: values.sampleCount,
+          bestAccuracy: values.bestAccuracy,
+          elapsedMs: values.elapsedMs,
+          recordedBy: values.recordedBy,
+          createdAt: new Date(),
+        })
+        .where(eq(s.photoGeotags.id, existing.id))
+        .returning()
+      : await tx.insert(s.photoGeotags)
+        .values(values)
+        .returning();
+    return toResponse(row);
   };
 
-  // Idempotent upsert: one geotag per entity. On conflict, refresh the fix +
-  // auditor (a resubmit with a newer/better fix is the legitimate update path).
-  const [row] = await dbOrTx.insert(s.photoGeotags).values(values)
-    .onConflictDoUpdate({
-      target: [s.photoGeotags.entityType, s.photoGeotags.entityId],
-      set: {
-        lat: values.lat,
-        lng: values.lng,
-        accuracy: values.accuracy,
-        altitude: values.altitude,
-        gpsAt: values.gpsAt,
-        source: values.source,
-        sampleCount: values.sampleCount,
-        bestAccuracy: values.bestAccuracy,
-        elapsedMs: values.elapsedMs,
-        recordedBy: values.recordedBy,
-        createdAt: new Date(),
-      },
-    })
-    .returning();
-  return toResponse(row);
+  return dbOrTx === db ? db.transaction(execute) : execute(dbOrTx as Tx);
 }
 
 /** Read a geotag, enforcing the same ownership gate as submit. */

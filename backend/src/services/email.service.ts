@@ -19,6 +19,8 @@ import { getEmailSettings } from './email-settings.service';
 const RESEND_API_URL = 'https://api.resend.com/emails';
 const MAX_RETRIES = 3;
 const DEFAULT_EMAIL_PROVIDER_TIMEOUT_MS = 15_000;
+type EmailLogStatus = (typeof s.customerEmailLogs.status.enumValues)[number];
+const DEFAULT_EMAIL_LOG_STATUS: EmailLogStatus = 'PENDING';
 
 export interface SendEmailInput {
   customerId: number;
@@ -64,6 +66,22 @@ export interface DeliverEmailLogInput {
   leaseToken?: string;
 }
 
+function normalizeEmailLogStatus(input: unknown): EmailLogStatus | null {
+  if (typeof input !== 'string') return null;
+  switch (input.trim().toUpperCase()) {
+    case 'PENDING':
+      return 'PENDING';
+    case 'SENT':
+      return 'SENT';
+    case 'FAILED':
+      return 'FAILED';
+    case 'OPENED':
+      return 'OPENED';
+    default:
+      return null;
+  }
+}
+
 export function getEmailProviderTimeoutMs(): number {
   const raw = Number(process.env.EMAIL_PROVIDER_TIMEOUT_MS ?? '');
   return Number.isFinite(raw) && raw > 0
@@ -96,13 +114,14 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
 }
 
 export async function createEmailLog(input: CreateEmailLogInput): Promise<number> {
+  const status = normalizeEmailLogStatus(input.status) ?? DEFAULT_EMAIL_LOG_STATUS;
   const [log] = await db.insert(s.customerEmailLogs).values({
     customerId: input.customerId,
     shipmentId: input.shipmentId ?? null,
     billingDocumentId: input.billingDocumentId ?? null,
     subject: input.subject,
     recipientEmail: input.recipientEmail ?? null,
-    status: input.status ?? 'PENDING',
+    status,
     errorMessage: input.errorMessage ?? null,
     retryCount: input.retryCount ?? 0,
     sentBy: input.sentBy ?? null,

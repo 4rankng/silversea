@@ -5,6 +5,7 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import logger from '../lib/logger';
 import { cacheInvalidate, getRedis } from '../lib/redis';
+import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 import { storageService } from './storage.service';
 import type { Tx } from './trip-shared';
 
@@ -125,6 +126,24 @@ const DEFAULT_RETRY_DELAYS_MS = [
   24 * 60 * 60_000,
 ] as const;
 
+function stableJson(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
+  const entries = Object.entries(value as Record<string, unknown>)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, nested]) => `${JSON.stringify(key)}:${stableJson(nested)}`);
+  return `{${entries.join(',')}}`;
+}
+
+function durableEffectDefinitionMatches(
+  existing: Pick<typeof s.durableEffectJobs.$inferSelect, 'payloadVersion' | 'payload' | 'maxAttempts'>,
+  row: Pick<typeof s.durableEffectJobs.$inferInsert, 'payloadVersion' | 'payload' | 'maxAttempts'>,
+): boolean {
+  return existing.payloadVersion === row.payloadVersion
+    && existing.maxAttempts === row.maxAttempts
+    && stableJson(existing.payload) === stableJson(row.payload);
+}
+
 export async function enqueueDurableEffect(
   tx: Tx,
   input: DurableEffectInput,
@@ -148,9 +167,29 @@ export async function enqueueDurableEffects(
       maxAttempts: resolveMaxAttempts(input),
     };
   });
-  await tx.insert(s.durableEffectJobs).values(rows).onConflictDoNothing({
-    target: [s.durableEffectJobs.kind, s.durableEffectJobs.dedupeKey],
-  });
+  for (const row of rows) {
+    await lockApplicationOwnedUniqueness(tx, 'durable-effect-job', [row.kind, row.dedupeKey]);
+    const [existing] = await tx.select({
+      id: s.durableEffectJobs.id,
+      payloadVersion: s.durableEffectJobs.payloadVersion,
+      payload: s.durableEffectJobs.payload,
+      maxAttempts: s.durableEffectJobs.maxAttempts,
+    }).from(s.durableEffectJobs)
+      .where(and(
+        eq(s.durableEffectJobs.kind, row.kind),
+        eq(s.durableEffectJobs.dedupeKey, row.dedupeKey),
+      ))
+      .limit(1);
+
+    if (!existing) {
+      await tx.insert(s.durableEffectJobs).values(row);
+      continue;
+    }
+
+    if (!durableEffectDefinitionMatches(existing, row)) {
+      throw new Error(`durable effect job already exists with different payload: ${row.kind}:${row.dedupeKey}`);
+    }
+  }
 }
 
 export async function enqueueStorageDelete(
@@ -187,6 +226,11 @@ export async function armStorageCleanupGuard(input: {
   };
 
   const row = await db.transaction(async (tx) => {
+    await lockApplicationOwnedUniqueness(tx, 'durable-effect-job', [
+      DURABLE_EFFECT_KIND.STORAGE_DELETE,
+      input.dedupeKey,
+    ]);
+
     const [existing] = await tx.select().from(s.durableEffectJobs)
       .where(and(
         eq(s.durableEffectJobs.kind, DURABLE_EFFECT_KIND.STORAGE_DELETE),

@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { and, eq, inArray, isNull, lte, or } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
+import { ApiError } from '../errors';
+import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 import type { Tx } from './trip-shared';
 import {
   captureTripGpsTrack,
@@ -22,12 +24,26 @@ export async function enqueueTripGpsCaptureJob(
   tx: Tx,
   input: { governanceActionId: number; tripId: number },
 ): Promise<void> {
+  await lockApplicationOwnedUniqueness(tx, 'trip-gps-capture-job', [input.governanceActionId]);
+
+  const [existing] = await tx.select({
+    id: s.tripGpsCaptureJobs.id,
+    tripId: s.tripGpsCaptureJobs.tripId,
+  }).from(s.tripGpsCaptureJobs)
+    .where(eq(s.tripGpsCaptureJobs.governanceActionId, input.governanceActionId))
+    .limit(1);
+
+  if (existing) {
+    if (existing.tripId !== input.tripId) {
+      throw new ApiError(409, 'Tác vụ GPS của hành động duyệt đã trỏ tới chuyến khác');
+    }
+    return;
+  }
+
   await tx.insert(s.tripGpsCaptureJobs).values({
     governanceActionId: input.governanceActionId,
     tripId: input.tripId,
     status: 'PENDING',
-  }).onConflictDoNothing({
-    target: s.tripGpsCaptureJobs.governanceActionId,
   });
 }
 

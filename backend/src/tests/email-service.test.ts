@@ -12,7 +12,7 @@ import { eq, inArray } from 'drizzle-orm';
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { config } from '../config';
-import { sendEmail, retryEmail, getMaxEmailRetries } from '../services/email.service';
+import { createEmailLog, sendEmail, retryEmail, getMaxEmailRetries } from '../services/email.service';
 import {
   EMAIL_SETTING_KEYS,
   invalidateEmailSettings,
@@ -70,6 +70,20 @@ after(async () => {
 });
 
 describe('M3.3 — sendEmail (dev mode)', () => {
+  test('createEmailLog defaults omitted status to PENDING', async () => {
+    const customer = await mkCustomer();
+    const logId = await createEmailLog({
+      customerId: customer.id,
+      subject: 'Default pending',
+      recipientEmail: 'pending@example.com',
+    });
+    createdLogIds.push(logId);
+
+    const [log] = await db.select().from(s.customerEmailLogs)
+      .where(eq(s.customerEmailLogs.id, logId));
+    assert.equal(log.status, 'PENDING');
+  });
+
   test('creates a SENT log entry in dev mode when no Resend key is configured', async () => {
     const customer = await mkCustomer();
     const result = await sendEmail({

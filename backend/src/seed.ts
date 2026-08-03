@@ -15,12 +15,17 @@ import {
   batchUpsertShipmentContainers,
   attachShipmentDocument,
 } from './services/shipment.service';
+import {
+  normalizeSeedText,
+  normalizedNullableTextEquals,
+  normalizedTextEquals,
+} from './seed/seed-identity';
 import { seedCustomers } from './seed/seed-customers';
 import { seedReference } from './seed/seed-reference';
 import { seedLiftPricing } from './seed/seed-lift-pricing';
 import { seedPricingTables } from './seed/seed-pricing-tables';
 
-async function seed() {
+export async function seed() {
   const passwordHash = await bcrypt.hash('Abc123', 10);
 
   const users = [
@@ -36,8 +41,22 @@ async function seed() {
     { username: 'quyet', email: 'quyet@nepo.vn', phone: '0900000012', passwordHash, role: Role.DRIVER, fullName: 'Lê Văn Quyết' },
   ];
 
+  const existingUsers = await db.select({
+    username: schema.users.username,
+  }).from(schema.users);
+  const existingUsernames = new Set<string>();
+  for (const existingUser of existingUsers) {
+    const key = normalizeSeedText(existingUser.username);
+    if (!key) continue;
+    existingUsernames.add(key);
+  }
+
   for (const user of users) {
-    await db.insert(schema.users).values(user).onConflictDoNothing();
+    const canonicalUser = { ...user, status: 'ACTIVE' as const };
+    if (existingUsernames.has(normalizeSeedText(user.username))) {
+      continue;
+    }
+    await db.insert(schema.users).values(canonicalUser);
   }
 
   console.log('✅ Users seeded!');
@@ -205,8 +224,32 @@ async function seed() {
     { licensePlate: '60C-56789', trailerPlateNumber: '70C-11111', trailerType: '40FT' as const, status: 'MAINTENANCE' as const },
   ];
 
+  const existingTrucks = await db.select({
+    id: schema.trucks.id,
+    licensePlate: schema.trucks.licensePlate,
+    deletedAt: schema.trucks.deletedAt,
+  }).from(schema.trucks);
+  const truckByPlateKey = new Map<string, { id: number; deletedAt: Date | null }>();
+  for (const existingTruck of existingTrucks) {
+    const key = normalizeSeedText(existingTruck.licensePlate);
+    if (!key) continue;
+    const current = truckByPlateKey.get(key);
+    if (!current || (current.deletedAt != null && existingTruck.deletedAt == null)) {
+      truckByPlateKey.set(key, existingTruck);
+    }
+  }
+
   for (const truck of trucks) {
-    await db.insert(schema.trucks).values(truck).onConflictDoNothing();
+    const existingTruck = truckByPlateKey.get(normalizeSeedText(truck.licensePlate));
+    if (existingTruck) {
+      await db.update(schema.trucks).set({
+        ...truck,
+        deletedAt: null,
+        updatedAt: new Date(),
+      }).where(eq(schema.trucks.id, existingTruck.id));
+      continue;
+    }
+    await db.insert(schema.trucks).values(truck);
   }
 
   const seededTrucks = await db.select({ id: schema.trucks.id, licensePlate: schema.trucks.licensePlate })
@@ -377,13 +420,27 @@ async function seed() {
     .from(schema.containerTypes);
   const existingCtCodes = new Set(existingCtTypes.map(c => c.code));
   const newCtTypes = containerTypeSeeds.filter(c => !existingCtCodes.has(c.code));
-  if (newCtTypes.length > 0) {
-    for (const ct of newCtTypes) {
-      await db.insert(schema.containerTypes).values(ct).onConflictDoNothing();
+  let containerTypeUpdates = 0;
+  for (const ct of containerTypeSeeds) {
+    const [existingContainerType] = await db.select({ id: schema.containerTypes.id })
+      .from(schema.containerTypes)
+      .where(normalizedTextEquals(schema.containerTypes.code, ct.code))
+      .limit(1);
+    if (existingContainerType) {
+      await db.update(schema.containerTypes).set({
+        ...ct,
+        deletedAt: null,
+        updatedAt: new Date(),
+      }).where(eq(schema.containerTypes.id, existingContainerType.id));
+      containerTypeUpdates += 1;
+      continue;
     }
-    console.log(`✅ Container types seeded! (${newCtTypes.length} new)`);
+    await db.insert(schema.containerTypes).values(ct);
+  }
+  if (newCtTypes.length > 0) {
+    console.log(`✅ Container types seeded! (${newCtTypes.length} new, ${containerTypeUpdates} refreshed)`);
   } else {
-    console.log('✅ Container types already exist, skipping.');
+    console.log(`✅ Container types already exist, refreshed ${containerTypeUpdates} canonical rows.`);
   }
 
   // ─── Hai Phong ports/yards (Pete's request) ────────────────────────────────
@@ -398,17 +455,52 @@ async function seed() {
     { name: 'Cảng VIP Greenport',                code: 'VIPG', city: 'Hải Phòng', address: 'Đông Hải 2, Hải An, Hải Phòng' },
     { name: 'ICD Hoàng Thành',                   code: 'HTHA', city: 'Hải Phòng', address: 'An Dương, Hải Phòng' },
   ];
-  const existingPorts = await db.select({ code: schema.ports.code })
+  const existingPorts = await db.select({
+    id: schema.ports.id,
+    code: schema.ports.code,
+    name: schema.ports.name,
+    deletedAt: schema.ports.deletedAt,
+  })
     .from(schema.ports);
-  const existingPortCodes = new Set(existingPorts.map(p => p.code));
-  const newPorts = portSeeds.filter(p => !existingPortCodes.has(p.code));
-  if (newPorts.length > 0) {
-    for (const p of newPorts) {
-      await db.insert(schema.ports).values(p).onConflictDoNothing();
+  const portByCodeKey = new Map<string, { id: number; deletedAt: Date | null }>();
+  const portByNameKey = new Map<string, { id: number; deletedAt: Date | null }>();
+  for (const existingPort of existingPorts) {
+    const codeKey = normalizeSeedText(existingPort.code);
+    const nameKey = normalizeSeedText(existingPort.name);
+    if (codeKey) {
+      const current = portByCodeKey.get(codeKey);
+      if (!current || (current.deletedAt != null && existingPort.deletedAt == null)) {
+        portByCodeKey.set(codeKey, existingPort);
+      }
     }
-    console.log(`✅ Hai Phong ports/yards seeded! (${newPorts.length} new)`);
+    if (nameKey) {
+      const current = portByNameKey.get(nameKey);
+      if (!current || (current.deletedAt != null && existingPort.deletedAt == null)) {
+        portByNameKey.set(nameKey, existingPort);
+      }
+    }
+  }
+  let newPorts = 0;
+  let refreshedPorts = 0;
+  for (const port of portSeeds) {
+    const existingPort = portByCodeKey.get(normalizeSeedText(port.code))
+      ?? portByNameKey.get(normalizeSeedText(port.name));
+    if (existingPort) {
+      await db.update(schema.ports).set({
+        ...port,
+        deletedAt: null,
+        updatedAt: new Date(),
+      }).where(eq(schema.ports.id, existingPort.id));
+      refreshedPorts += 1;
+      continue;
+    }
+    await db.insert(schema.ports).values(port);
+    newPorts += 1;
+  }
+  if (newPorts > 0) {
+    console.log(`✅ Hai Phong ports/yards seeded! (${newPorts} new, ${refreshedPorts} refreshed)`);
   } else {
-    console.log('✅ Ports already exist, skipping.');
+    console.log(`✅ Ports already exist, refreshed ${refreshedPorts} canonical rows.`);
   }
 
   // ─── Forwarder expense types (user-configurable) ─────────────────────────
@@ -424,41 +516,40 @@ async function seed() {
     'OTHER',
   ]);
   let fetUpsertCount = 0;
+  const existingForwarderExpenseTypes = await db.select({
+    id: schema.forwarderExpenseTypes.id,
+    code: schema.forwarderExpenseTypes.code,
+  }).from(schema.forwarderExpenseTypes);
+  const forwarderExpenseTypeByCode = new Map(
+    existingForwarderExpenseTypes
+      .filter((row) => row.code)
+      .map((row) => [normalizeSeedText(row.code), row.id] as const),
+  );
   for (const [code, meta] of Object.entries(FORWARDER_EXPENSE_TYPE_DEFAULTS)) {
     const substituteEvidenceAllowed = defaultNoInvoiceCodes.has(code);
-    await db.insert(schema.forwarderExpenseTypes)
-      .values({
-        code,
-        name: meta.name,
-        requiresInvoice: false,
-        substituteEvidenceAllowed,
-        noInvoiceEvidenceTypes: substituteEvidenceAllowed ? [...DEFAULT_NO_INVOICE_EVIDENCE_TYPES] : [],
-        noInvoicePerItemLimit: String(NO_INVOICE_POLICY_DEFAULTS.perItemLimit),
-        noInvoicePerDayLimit: String(NO_INVOICE_POLICY_DEFAULTS.perDayLimit),
-        noInvoiceFinanceLeadItemApprovalLimit: String(NO_INVOICE_POLICY_DEFAULTS.financeLeadItemApprovalLimit),
-        noInvoiceDirectorDayApprovalLimit: String(NO_INVOICE_POLICY_DEFAULTS.directorDayApprovalLimit),
-        noInvoicePolicyVersion: 1,
-        defaultMarkup: meta.defaultMarkup,
-        billingLabel: meta.billingLabel,
-        vatRate: '0.080',
-      })
-      .onConflictDoUpdate({
-        target: schema.forwarderExpenseTypes.code,
-        set: {
-          name: meta.name,
-          requiresInvoice: false,
-          substituteEvidenceAllowed,
-          noInvoiceEvidenceTypes: substituteEvidenceAllowed ? [...DEFAULT_NO_INVOICE_EVIDENCE_TYPES] : [],
-          noInvoicePerItemLimit: String(NO_INVOICE_POLICY_DEFAULTS.perItemLimit),
-          noInvoicePerDayLimit: String(NO_INVOICE_POLICY_DEFAULTS.perDayLimit),
-          noInvoiceFinanceLeadItemApprovalLimit: String(NO_INVOICE_POLICY_DEFAULTS.financeLeadItemApprovalLimit),
-          noInvoiceDirectorDayApprovalLimit: String(NO_INVOICE_POLICY_DEFAULTS.directorDayApprovalLimit),
-          defaultMarkup: meta.defaultMarkup,
-          billingLabel: meta.billingLabel,
-          vatRate: '0.080',
-          updatedAt: new Date(),
-        },
-      });
+    const values = {
+      code,
+      name: meta.name,
+      requiresInvoice: false,
+      substituteEvidenceAllowed,
+      noInvoiceEvidenceTypes: substituteEvidenceAllowed ? [...DEFAULT_NO_INVOICE_EVIDENCE_TYPES] : [],
+      noInvoicePerItemLimit: String(NO_INVOICE_POLICY_DEFAULTS.perItemLimit),
+      noInvoicePerDayLimit: String(NO_INVOICE_POLICY_DEFAULTS.perDayLimit),
+      noInvoiceFinanceLeadItemApprovalLimit: String(NO_INVOICE_POLICY_DEFAULTS.financeLeadItemApprovalLimit),
+      noInvoiceDirectorDayApprovalLimit: String(NO_INVOICE_POLICY_DEFAULTS.directorDayApprovalLimit),
+      noInvoicePolicyVersion: 1,
+      defaultMarkup: meta.defaultMarkup,
+      billingLabel: meta.billingLabel,
+      vatRate: '0.080',
+    } as const;
+    const existingId = forwarderExpenseTypeByCode.get(normalizeSeedText(code));
+    if (existingId != null) {
+      await db.update(schema.forwarderExpenseTypes)
+        .set({ ...values, deletedAt: null, updatedAt: new Date() })
+        .where(eq(schema.forwarderExpenseTypes.id, existingId));
+    } else {
+      await db.insert(schema.forwarderExpenseTypes).values(values);
+    }
     fetUpsertCount++;
   }
   console.log(`✅ Forwarder expense types upserted! (${fetUpsertCount} codes)`);
@@ -502,50 +593,84 @@ async function seed() {
   await seedPricingTables(reference, seededCustomers);
   await seedShipments(passwordHash);
   await seedClerkScope();
-
-  process.exit(0);
 }
 
-async function seedClerkScope(): Promise<void> {
+export async function seedClerkScope(): Promise<void> {
   const [clerk] = await db.select({ id: schema.users.id }).from(schema.users)
     .where(and(eq(schema.users.username, 'cus'), eq(schema.users.role, Role.CLERK), isNull(schema.users.deletedAt)))
     .limit(1);
   if (!clerk) throw new Error('Không tìm thấy tài khoản CUS demo sau khi seed');
 
-  const [unit] = await db.insert(schema.businessUnits).values({
+  const businessUnitValues = {
     code: 'CUS-DEMO',
     name: 'Đơn vị CUS Demo',
     status: 'ACTIVE',
-  }).onConflictDoUpdate({
-    target: schema.businessUnits.code,
-    set: { name: 'Đơn vị CUS Demo', status: 'ACTIVE', updatedAt: new Date() },
-  }).returning({ id: schema.businessUnits.id });
+  } as const;
+  const [existingUnit] = await db.select({ id: schema.businessUnits.id })
+    .from(schema.businessUnits)
+    .where(sql`
+      ${normalizedNullableTextEquals(schema.businessUnits.code, businessUnitValues.code)}
+      or ${normalizedTextEquals(schema.businessUnits.name, businessUnitValues.name)}
+    `)
+    .limit(1);
+  let unitId: number;
+  if (existingUnit) {
+    await db.update(schema.businessUnits).set({
+      ...businessUnitValues,
+      updatedAt: new Date(),
+    }).where(eq(schema.businessUnits.id, existingUnit.id));
+    unitId = existingUnit.id;
+  } else {
+    const [createdUnit] = await db.insert(schema.businessUnits)
+      .values(businessUnitValues)
+      .returning({ id: schema.businessUnits.id });
+    unitId = createdUnit!.id;
+  }
 
-  await db.insert(schema.userBusinessUnitLinks).values({
-    userId: clerk.id,
-    businessUnitId: unit.id,
-  }).onConflictDoNothing({
-    target: [schema.userBusinessUnitLinks.userId, schema.userBusinessUnitLinks.businessUnitId],
-  });
+  const [existingBusinessUnitLink] = await db.select({ id: schema.userBusinessUnitLinks.id })
+    .from(schema.userBusinessUnitLinks)
+    .where(and(
+      eq(schema.userBusinessUnitLinks.userId, clerk.id),
+      eq(schema.userBusinessUnitLinks.businessUnitId, unitId),
+    ))
+    .limit(1);
+  if (existingBusinessUnitLink) {
+    await db.update(schema.userBusinessUnitLinks)
+      .set({ updatedAt: new Date() })
+      .where(eq(schema.userBusinessUnitLinks.id, existingBusinessUnitLink.id));
+  } else {
+    await db.insert(schema.userBusinessUnitLinks).values({
+      userId: clerk.id,
+      businessUnitId: unitId,
+    });
+  }
 
   await db.update(schema.shipments)
-    .set({ responsibleUnitId: unit.id, updatedAt: new Date() })
+    .set({ responsibleUnitId: unitId, updatedAt: new Date() })
     .where(sql`${schema.shipments.bookingRef} in ('SEED-SHIP-1', 'SEED-SHIP-2', 'SEED-SHIP-3')`);
 
   const scopedCustomers = await db.select({ id: schema.customers.id }).from(schema.customers)
     .where(and(isNull(schema.customers.deletedAt), sql`${schema.customers.taxCode} in ('0101234567', '0107654321')`));
   for (const customer of scopedCustomers) {
+    const [existingCustomerLink] = await db.select({ id: schema.userCustomerLinks.id })
+      .from(schema.userCustomerLinks)
+      .where(and(
+        eq(schema.userCustomerLinks.userId, clerk.id),
+        eq(schema.userCustomerLinks.customerId, customer.id),
+      ))
+      .limit(1);
+    if (existingCustomerLink) {
+      await db.update(schema.userCustomerLinks)
+        .set({ updatedAt: new Date() })
+        .where(eq(schema.userCustomerLinks.id, existingCustomerLink.id));
+      continue;
+    }
     await db.insert(schema.userCustomerLinks).values({
       userId: clerk.id,
       customerId: customer.id,
-    }).onConflictDoNothing({
-      target: [schema.userCustomerLinks.userId, schema.userCustomerLinks.customerId],
     });
   }
 
-  if (scopedCustomers[0]) {
-    await db.update(schema.users).set({ customerId: scopedCustomers[0].id }).where(eq(schema.users.id, clerk.id));
-  }
   console.log(`✅ CUS demo scope seeded! (${scopedCustomers.length} customers, 1 business unit)`);
 }
 
@@ -571,25 +696,6 @@ async function seedClerkScope(): Promise<void> {
 // directly without re-running the full `pnpm seed` flow.
 export async function seedShipments(passwordHash: string) {
   console.log('\n📦 Seeding Wave 0 shipments + CUSTOMER demo user...');
-
-  // 1. CUSTOMER demo user — username `customer` / admin123.
-  //    onConflictDoUpdate on the username target so a re-run after a manual
-  //    edit restores the canonical password + role (QA login guarantee).
-  //    The app-level row-scope helper reads `users.customerId` from the JWT,
-  //    so after the sample customers are upserted below we link this login to
-  //    the first stable sample customer for portal QA.
-  await db.insert(schema.users).values({
-    username: 'customer',
-    email: 'customer@nepo.vn',
-    phone: '0900000020',
-    passwordHash,
-    role: Role.CUSTOMER,
-    fullName: 'Khách hàng Demo',
-  }).onConflictDoUpdate({
-    target: schema.users.username,
-    set: { passwordHash, role: Role.CUSTOMER, email: 'customer@nepo.vn', phone: '0900000020', fullName: 'Khách hàng Demo' },
-  });
-  console.log('  ✅ CUSTOMER demo user (customer / Abc123)');
 
   // 2. Two sample customers (operator-side AR customers — distinct from the
   //    CUSTOMER demo user above). Stable tax codes make the seed idempotent.
@@ -620,12 +726,27 @@ export async function seedShipments(passwordHash: string) {
   }
   console.log(`  ✅ Sample customers (${sampleCustomers.length} stable rows)`);
 
-  // 2b. Link the CUSTOMER demo login to the first sample customer so the
-  // customer portal can row-scope to real shipments during local QA.
+  // 2b. Insert the CUSTOMER demo login only when it is missing. Existing rows
+  // are preserved byte-for-byte so restore/bootstrap flows never clobber
+  // operator-managed credentials or row-scope fields.
   const [portalCustomer] = sampleCustomers;
-  await db.update(schema.users)
-    .set({ customerId: portalCustomer.id })
-    .where(eq(schema.users.username, 'customer'));
+  const [existingCustomerUser] = await db.select({ id: schema.users.id })
+    .from(schema.users)
+    .where(normalizedTextEquals(schema.users.username, 'customer'))
+    .limit(1);
+  if (!existingCustomerUser) {
+    await db.insert(schema.users).values({
+      username: 'customer',
+      email: 'customer@nepo.vn',
+      phone: '0900000020',
+      passwordHash,
+      role: Role.CUSTOMER,
+      fullName: 'Khách hàng Demo',
+      status: 'ACTIVE',
+      customerId: portalCustomer.id,
+    });
+  }
+  console.log('  ✅ CUSTOMER demo user (customer / Abc123)');
 
   // 3. Sample shipments — three across NEW / DISPATCHED / PENDING_EXPENSE_APPROVAL.
   //    Sentinels via bookingRef so re-runs do NOT call createShipment twice.
@@ -756,8 +877,12 @@ export async function seedShipments(passwordHash: string) {
 // load. Mirrors the pattern in services/agent/retention-job.ts.
 const isMainModule = import.meta.url === `file://${process.argv[1]}`;
 if (isMainModule) {
-  seed().catch(err => {
-    console.error('Seed failed:', err);
-    process.exit(1);
-  });
+  seed()
+    .then(() => {
+      process.exit(0);
+    })
+    .catch(err => {
+      console.error('Seed failed:', err);
+      process.exit(1);
+    });
 }

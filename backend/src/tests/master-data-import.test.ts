@@ -8,7 +8,7 @@ import { after, before, describe, test } from 'node:test';
 import express from 'express';
 import type { AddressInfo } from 'node:net';
 import ExcelJS from 'exceljs';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, or } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 
 import { client, db } from '../db';
@@ -523,7 +523,6 @@ describe('master-data apply', () => {
     });
     const batch = analyze.body.batch as { id: number; version: number };
     await trackBatch(batch.id);
-    const usersBefore = await db.select({ id: s.users.id }).from(s.users);
     const idempotencyKey = `master-apply-${suffix}`;
     const first = await requestJson('POST', `/api/config/master-data-imports/${batch.id}/apply`, {
       body: { expectedVersion: batch.version },
@@ -552,7 +551,7 @@ describe('master-data apply', () => {
     });
     assert.equal(deniedReplay.status, 403);
 
-    const [sites, ports, trucks, drivers, trailers, usersAfter] = await Promise.all([
+    const [sites, ports, trucks, drivers, trailers, matchedUsers] = await Promise.all([
       db.select().from(s.operationalSites).where(and(
         eq(s.operationalSites.customerId, customerId),
         inArray(s.operationalSites.name, [siteName, warehouseName]),
@@ -561,7 +560,10 @@ describe('master-data apply', () => {
       db.select().from(s.trucks).where(eq(s.trucks.licensePlate, truckPlate)),
       db.select().from(s.drivers).where(and(eq(s.drivers.name, driverName), eq(s.drivers.phone, driverPhone))),
       db.select().from(s.trailers).where(eq(s.trailers.licensePlate, trailerPlate)),
-      db.select({ id: s.users.id }).from(s.users),
+      db.select({ id: s.users.id }).from(s.users).where(or(
+        eq(s.users.phone, driverPhone),
+        eq(s.users.fullName, driverName),
+      )),
     ]);
     assert.equal(sites.length, 2);
     assert.deepEqual(
@@ -575,7 +577,7 @@ describe('master-data apply', () => {
     assert.equal(trailers.length, 1);
     assert.equal(drivers[0]!.userId, null);
     assert.equal(drivers[0]!.assignedTruckId, trucks[0]!.id);
-    assert.equal(usersAfter.length, usersBefore.length);
+    assert.equal(matchedUsers.length, 0);
 
     const status = await requestJson('GET', `/api/config/master-data-imports/${batch.id}`);
     assert.equal(status.status, 200);

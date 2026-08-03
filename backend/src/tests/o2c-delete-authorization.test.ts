@@ -11,11 +11,15 @@
  * Keys off `approvedAt` (the real approval action), NOT `approvalStatus` (which
  * defaults to 'APPROVED' on legacy rows and would make everything undeletable).
  */
-import { test, describe } from 'node:test';
+import { after, test, describe } from 'node:test';
 import assert from 'node:assert';
+import { and, eq } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
+import { client, db } from '../db';
+import * as s from '../db/schema';
 import {
   canDelete,
+  createDeleteRequest,
   DEFAULT_IDLE_WINDOW_MS,
   type DeletableRow,
   type DeleteActor,
@@ -31,6 +35,8 @@ function deniedReason(o: DeleteOutcome): string {
 const NOW = new Date('2026-08-01T12:00:00Z');
 const IN_SESSION_AGO = new Date(NOW.getTime() - 30 * 60 * 1000); // 30 min ago
 const OUT_OF_SESSION_AGO = new Date(NOW.getTime() - DEFAULT_IDLE_WINDOW_MS - 60 * 1000); // 4h+1m ago
+const queueEntityType = `delete-auth-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+let queueRequesterId = 0;
 
 function row(overrides: Partial<DeletableRow> = {}): DeletableRow {
   return {
@@ -93,4 +99,50 @@ describe('canDelete — O2C delete-authorization matrix', () => {
     assert.equal(outcome.allowed, false);
     assert.equal(deniedReason(outcome), 'not_owner');
   });
+});
+
+describe('delete-request queue', () => {
+  test('deduplicates repeated pending requests from the same requester for the same entity', async () => {
+    if (queueRequesterId === 0) {
+      const [user] = await db.insert(s.users).values({
+        username: `delete-auth-requester-${Date.now()}`,
+        passwordHash: 'x',
+        role: Role.MANAGER,
+        status: 'ACTIVE',
+      }).returning({ id: s.users.id });
+      queueRequesterId = user.id;
+    }
+    await createDeleteRequest({
+      entityType: queueEntityType,
+      entityId: 501,
+      requestedBy: queueRequesterId,
+      reason: 'first request',
+    });
+    await createDeleteRequest({
+      entityType: queueEntityType,
+      entityId: 501,
+      requestedBy: queueRequesterId,
+      reason: 'duplicate request',
+    });
+
+    const rows = await db.select({
+      id: s.deleteRequests.id,
+      reason: s.deleteRequests.reason,
+    }).from(s.deleteRequests)
+      .where(and(
+        eq(s.deleteRequests.entityType, queueEntityType),
+        eq(s.deleteRequests.entityId, 501),
+        eq(s.deleteRequests.requestedBy, queueRequesterId),
+      ));
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0]?.reason, 'first request');
+  });
+});
+
+after(async () => {
+  await db.delete(s.deleteRequests).where(eq(s.deleteRequests.entityType, queueEntityType));
+  if (queueRequesterId !== 0) {
+    await db.delete(s.users).where(eq(s.users.id, queueRequesterId));
+  }
+  await client.end();
 });

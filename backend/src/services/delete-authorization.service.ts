@@ -16,6 +16,7 @@ import { eq, and, desc } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
+import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 
 /** Default idle window (4h). Overridable via app_settings in a future follow-up. */
 export const DEFAULT_IDLE_WINDOW_MS = 4 * 60 * 60 * 1000;
@@ -96,6 +97,17 @@ export function requireCanDelete(
   }
 }
 
+export async function lockDeleteEntityScope(
+  tx: Tx,
+  entityType: string,
+  entityId: number,
+): Promise<void> {
+  if (!entityType.trim() || !Number.isInteger(entityId) || entityId < 1) {
+    throw new ApiError(400, 'Yêu cầu xóa không hợp lệ.');
+  }
+  await lockApplicationOwnedUniqueness(tx, 'delete-authorization.entity', [entityType, entityId]);
+}
+
 // ─── Delete-request queue ────────────────────────────────────────────────────
 
 export async function createDeleteRequest(args: {
@@ -106,6 +118,17 @@ export async function createDeleteRequest(args: {
   transaction?: Tx;
 }): Promise<void> {
   const insert = async (tx: Tx) => {
+    await lockDeleteEntityScope(tx, args.entityType, args.entityId);
+    const [existing] = await tx.select({ id: s.deleteRequests.id }).from(s.deleteRequests)
+      .where(and(
+        eq(s.deleteRequests.entityType, args.entityType),
+        eq(s.deleteRequests.entityId, args.entityId),
+        eq(s.deleteRequests.requestedBy, args.requestedBy),
+        eq(s.deleteRequests.status, 'PENDING'),
+      ))
+      .limit(1)
+      .for('update');
+    if (existing) return;
     await tx.insert(s.deleteRequests).values({
       entityType: args.entityType,
       entityId: args.entityId,
@@ -141,6 +164,7 @@ export async function reviewDeleteRequest(args: {
     if (!req) {
       throw new ApiError(404, 'Không tìm thấy yêu cầu xóa hoặc đã được xử lý.');
     }
+    await lockDeleteEntityScope(tx, req.entityType, req.entityId);
     await tx.update(s.deleteRequests).set({
       status: args.approved ? 'APPROVED' : 'REJECTED',
       reviewedBy: args.reviewerId,

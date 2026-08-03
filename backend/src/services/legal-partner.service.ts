@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 
 import { db } from '../db';
 import * as s from '../db/schema';
+import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 
 const DEFAULT_PARTNER_CURRENCY = 'VND' as const;
 
@@ -23,23 +24,40 @@ export async function upsertPartnerFromTaxCode(
 ): Promise<number | null> {
   const normalizedTaxCode = normalizeTaxCode(taxCode);
   if (!normalizedTaxCode) return null;
+  const displayCode = displayTaxCode(taxCode);
 
-  const [partner] = await db.insert(s.partners)
-    .values({
-      normalizedTaxCode,
-      displayTaxCode: displayTaxCode(taxCode),
-      currency: DEFAULT_PARTNER_CURRENCY,
-    })
-    .onConflictDoUpdate({
-      target: s.partners.normalizedTaxCode,
-      set: {
-        displayTaxCode: displayTaxCode(taxCode),
-        updatedAt: new Date(),
-      },
-    })
-    .returning({ id: s.partners.id });
+  return db.transaction(async (tx) => {
+    await lockApplicationOwnedUniqueness(tx, 'partner-normalized-tax-code', [normalizedTaxCode]);
 
-  return partner.id;
+    const [existing] = await tx.select({
+      id: s.partners.id,
+      displayTaxCode: s.partners.displayTaxCode,
+    }).from(s.partners)
+      .where(eq(s.partners.normalizedTaxCode, normalizedTaxCode))
+      .limit(1);
+
+    if (existing) {
+      if (existing.displayTaxCode !== displayCode) {
+        await tx.update(s.partners)
+          .set({
+            displayTaxCode: displayCode,
+            updatedAt: new Date(),
+          })
+          .where(eq(s.partners.id, existing.id));
+      }
+      return existing.id;
+    }
+
+    const [partner] = await tx.insert(s.partners)
+      .values({
+        normalizedTaxCode,
+        displayTaxCode: displayCode,
+        currency: DEFAULT_PARTNER_CURRENCY,
+      })
+      .returning({ id: s.partners.id });
+
+    return partner.id;
+  });
 }
 
 export async function syncCustomerPartner(customer: {

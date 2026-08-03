@@ -12,7 +12,7 @@
  */
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq, isNull, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { SUPPLIER_TYPES, SupplierType } from '@tingting/shared';
 
 export { SUPPLIER_TYPES, SupplierType } from '@tingting/shared';
@@ -110,7 +110,10 @@ export async function classifySuppliersByName(
     // stable names; for fuzzier matching the caller can pre-resolve IDs.
     const rows = await db.select({ id: s.suppliers.id, types: s.suppliers.types })
       .from(s.suppliers)
-      .where(eq(s.suppliers.name, a.namePattern));
+      .where(and(
+        eq(s.suppliers.name, a.namePattern),
+        isNull(s.suppliers.deletedAt),
+      ));
     for (const row of rows) {
       const current = normalizeSupplierTypes(row.types);
       // Skip if the assignment matches what's already there.

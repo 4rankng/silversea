@@ -1,1 +1,0 @@
-ALTER TABLE "trips" ADD COLUMN "toll_deduction" numeric(15, 0) DEFAULT '0' NOT NULL;

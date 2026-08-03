@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "64533966fbfa5c9156e9d36f3dd8c5bdb82ecb97",
-  "generatedAt": "2026-08-02T12:36:19.970Z",
+  "gitCommitHash": "6b522d8bd2e7f639c4e068f59760f6dbe7f98e20",
+  "generatedAt": "2026-08-03T13:16:58.570Z",
   "files": {
     ".codex/context-manifest.json": {
       "filePath": ".codex/context-manifest.json",
@@ -55,27 +55,27 @@
     },
     ".ua/fingerprints.json": {
       "filePath": ".ua/fingerprints.json",
-      "contentHash": "dddd3cf9cb52c67abcbdac73c5464243f496f647836bc96e5f8a08b48c6114ce",
+      "contentHash": "e0552fd3d9c0d61b38272640f0f53dfdb73fd750c1f6fd135b453b600108ad18",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 102489,
+      "totalLines": 100018,
       "hasStructuralAnalysis": true
     },
     ".ua/knowledge-graph.json": {
       "filePath": ".ua/knowledge-graph.json",
-      "contentHash": "48c8f6537c5f23a6bfd2e000e7227b5c76bf4f1f854a1fb262ea902c24ee099d",
+      "contentHash": "7f815520f94273aa623c3114b037486379875bb817521de1f3d094f2072bc53f",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 125104,
+      "totalLines": 130211,
       "hasStructuralAnalysis": true
     },
     ".ua/meta.json": {
       "filePath": ".ua/meta.json",
-      "contentHash": "84fa653eb16b9da02688698ea002bfed5561a6b8dd86ae7453acafe274ed7da5",
+      "contentHash": "f20af4fecdf9313c818c4d16b3c6b0d931f0db6ce59e2adc87f42eb8a64ecef7",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -105,22 +105,22 @@
     },
     "AGENTS.md": {
       "filePath": "AGENTS.md",
-      "contentHash": "1521421b3c634a057f8cc5e8c7f780efdb112d2a3e7295aee7c69f583d1f9ee6",
+      "contentHash": "8b4b4bdb8675cdc9c92fdceb2084237d597300c54590ade0b938d68423db32dc",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 193,
+      "totalLines": 245,
       "hasStructuralAnalysis": true
     },
     "CONTEXT.md": {
       "filePath": "CONTEXT.md",
-      "contentHash": "6d7622f1fdecbdd00fa34d6a3c330382b2291e994615c6e285ff9cf67b5cf532",
+      "contentHash": "7ad13518f3ba5fc4a40e2c8c21c0da49b08c0e192a59dd90c49561fb4aaabcc3",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 120,
+      "totalLines": 123,
       "hasStructuralAnalysis": true
     },
     "HANDOFF.example.md": {
@@ -145,12 +145,12 @@
     },
     "ROADMAP.md": {
       "filePath": "ROADMAP.md",
-      "contentHash": "24efdc24dfb318a4767c1520dcccc62a49a59d0e0b798c98fd40a35fa7b6f23b",
+      "contentHash": "713f97d564260e910ee9d30a5c7dbf1c958674e5a91cdf957b56eaf686b4fbcc",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 777,
+      "totalLines": 784,
       "hasStructuralAnalysis": true
     },
     "backend/.env.example": {
@@ -612,12 +612,12 @@
     },
     "backend/src/casbin/policy.csv": {
       "filePath": "backend/src/casbin/policy.csv",
-      "contentHash": "22de8044b22bdd60364e0d6ad7e1810efe0d8dbb0cdfa48ad28f2019570f5f0d",
+      "contentHash": "014959f8ff8c869c3a609ad803d2b22ce791df66bf44c5f301cdb20ef92eaa28",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 115,
+      "totalLines": 120,
       "hasStructuralAnalysis": false
     },
     "backend/src/config/index.ts": {
@@ -786,8 +786,17 @@
     },
     "backend/src/db/schema.ts": {
       "filePath": "backend/src/db/schema.ts",
-      "contentHash": "689a466ddbd6bceed3ccc8c9edfda80e79d777c17a439b18298f399cae1bd949",
-      "functions": [],
+      "contentHash": "1477b41debf7f2c95994faaadc8a8642cb4b273f0c2412fc4ce407d701adb170",
+      "functions": [
+        {
+          "name": "applicationEnum",
+          "params": [
+            "values"
+          ],
+          "exported": false,
+          "lineCount": 5
+        }
+      ],
       "classes": [],
       "imports": [
         {
@@ -803,15 +812,10 @@
             "jsonb",
             "numeric",
             "date",
-            "pgEnum",
-            "uniqueIndex",
             "index",
-            "check",
             "doublePrecision",
             "smallint",
-            "customType",
-            "AnyPgColumn",
-            "foreignKey"
+            "customType"
           ]
         },
         {
@@ -885,6 +889,8 @@
         "billingDocuments",
         "periodLocks",
         "governanceActions",
+        "financialReportingPolicyVersions",
+        "truckFinancialProfileVersions",
         "billingDocumentSourcePeriodLocks",
         "billingDocumentTripClaims",
         "billingDocumentLines",
@@ -992,7 +998,7 @@
         "deleteRequestStatusEnum",
         "deleteRequests"
       ],
-      "totalLines": 3792,
+      "totalLines": 3298,
       "hasStructuralAnalysis": true
     },
     "backend/src/errors.ts": {
@@ -2047,7 +2053,7 @@
     },
     "backend/src/middleware/casbin.ts": {
       "filePath": "backend/src/middleware/casbin.ts",
-      "contentHash": "9736dd11f03535a1f7df94606bf9c1eb2419768fe68603b073cb1ade90e6669d",
+      "contentHash": "9c05a5a23e5192499a50aef7baf9b9f0c3a8a2a07bc2e1b9b57d1cfa0e70272e",
       "functions": [
         {
           "name": "requireRoles",
@@ -2069,7 +2075,7 @@
           "name": "tripRouteAuthz",
           "params": [],
           "exported": true,
-          "lineCount": 13
+          "lineCount": 16
         }
       ],
       "classes": [],
@@ -2100,7 +2106,7 @@
         "casbinAuthz",
         "tripRouteAuthz"
       ],
-      "totalLines": 78,
+      "totalLines": 81,
       "hasStructuralAnalysis": true
     },
     "backend/src/middleware/errorHandler.ts": {
@@ -2194,7 +2200,7 @@
     },
     "backend/src/middleware/material-write.ts": {
       "filePath": "backend/src/middleware/material-write.ts",
-      "contentHash": "bb00602fe1501b58db7321ea1d91b0e5e9342e0d5d251c3a3a1f99b94d23c625",
+      "contentHash": "b4635680745a93d6f5358e37e85ca73541776ed0a6992b63ec3d47587d944493",
       "functions": [
         {
           "name": "escapeRegexPath",
@@ -2269,7 +2275,7 @@
         "matchDeclaredMaterialWrite",
         "getMaterialWriteContext"
       ],
-      "totalLines": 321,
+      "totalLines": 322,
       "hasStructuralAnalysis": true
     },
     "backend/src/reset-seed.ts": {
@@ -2518,7 +2524,7 @@
     },
     "backend/src/routes/app-settings.ts": {
       "filePath": "backend/src/routes/app-settings.ts",
-      "contentHash": "e623acf54515c4a62973930dd4051b9f7028a919969c81c25e3536880376afd9",
+      "contentHash": "7525b3ce69f9d2974f5ec8f333d3e7e70b82d74bc1d905d1eace8e9b7fac602f",
       "functions": [
         {
           "name": "hasDirectAppSettingsChange",
@@ -2628,6 +2634,15 @@
           ]
         },
         {
+          "source": "@tingting/shared/src/schemas/financial-reporting-policy",
+          "specifiers": [
+            "financialReportingPolicyRequestSchema",
+            "truckFinancialProfileRequestSchema",
+            "FinancialReportingPolicyState",
+            "TruckFinancialProfileState"
+          ]
+        },
+        {
           "source": "../middleware/asyncHandler",
           "specifiers": [
             "asyncHandler"
@@ -2690,12 +2705,21 @@
             "resolveIdempotencyKey",
             "runIdempotent"
           ]
+        },
+        {
+          "source": "../services/financial-reporting-policy.service",
+          "specifiers": [
+            "getFinancialReportingPolicyState",
+            "getTruckFinancialProfileState",
+            "requestFinancialReportingPolicyVersion",
+            "requestTruckFinancialProfileVersion"
+          ]
         }
       ],
       "exports": [
         "appSettingsRouter"
       ],
-      "totalLines": 216,
+      "totalLines": 309,
       "hasStructuralAnalysis": true
     },
     "backend/src/routes/auth.ts": {
@@ -2942,7 +2966,7 @@
     },
     "backend/src/routes/config.ts": {
       "filePath": "backend/src/routes/config.ts",
-      "contentHash": "c42ca6a0a5f7212bcbf8d62f478741282e73ee2eee1a6f6211cae48bab07eaf2",
+      "contentHash": "dfc3c675b28044840ef7f1bc666414abe92ad77104d9fc223c4f52b5e0445979",
       "functions": [
         {
           "name": "hasMaterialCustomerConfigChange",
@@ -3236,6 +3260,24 @@
           ],
           "exported": false,
           "lineCount": 13
+        },
+        {
+          "name": "clerkBootstrap",
+          "params": [
+            "data",
+            "userId"
+          ],
+          "exported": false,
+          "lineCount": 18
+        },
+        {
+          "name": "validatePricingSelector",
+          "params": [
+            "data"
+          ],
+          "returnType": "T",
+          "exported": false,
+          "lineCount": 6
         }
       ],
       "classes": [],
@@ -3472,6 +3514,12 @@
           ]
         },
         {
+          "source": "../services/clerk-shipment-scope.service",
+          "specifiers": [
+            "loadClerkShipmentScope"
+          ]
+        },
+        {
           "source": "../services/reporting.service",
           "specifiers": [
             "getPenaltyStats"
@@ -3520,7 +3568,7 @@
         "salaryPeriodsAdminRouter",
         "auditLogRouter"
       ],
-      "totalLines": 2017,
+      "totalLines": 2061,
       "hasStructuralAnalysis": true
     },
     "backend/src/routes/config/debit-note-templates.routes.ts": {
@@ -3931,7 +3979,7 @@
     },
     "backend/src/routes/driver.ts": {
       "filePath": "backend/src/routes/driver.ts",
-      "contentHash": "1b3c70366ee8995812f87e657c2605c80572856daa9f753ee3aff2be0853c44c",
+      "contentHash": "5ad52e4017294b9c7e90c829e1769a667d168d44d6cbf343ab94b97e03b5967d",
       "functions": [
         {
           "name": "withMaterialWriteAuditContext",
@@ -4050,6 +4098,7 @@
             "listDriverFulfillmentProgress",
             "recordDriverProgress",
             "recordDriverFulfillmentProgress",
+            "syncDriverFulfillmentStartSideEffects",
             "listDriverProgress",
             "recordIncidentalCost",
             "listIncidentalCosts",
@@ -4087,6 +4136,7 @@
           "specifiers": [
             "driverIncidentalCostSchema",
             "driverProgressSchema",
+            "DriverProgressEventType",
             "TripPodFileType",
             "tripContainerPatchSchema",
             "tripContainerSchema",
@@ -4158,7 +4208,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 730,
+      "totalLines": 739,
       "hasStructuralAnalysis": true
     },
     "backend/src/routes/expense.ts": {
@@ -4945,7 +4995,7 @@
     },
     "backend/src/routes/financial/governance-actions.routes.ts": {
       "filePath": "backend/src/routes/financial/governance-actions.routes.ts",
-      "contentHash": "9afc78ed5501c199e53f3d9bd05b7c4f7ceadd530799b163b04dadc25fdc4acc",
+      "contentHash": "d8c0a7f05e0283efce9aa2f55613092b37af3eb6a6d66ccc05b301b53d5c4ba8",
       "functions": [],
       "classes": [],
       "imports": [
@@ -4965,6 +5015,7 @@
         {
           "source": "@tingting/shared",
           "specifiers": [
+            "governanceActionVersionSchema",
             "governanceActionDecisionSchema",
             "governanceActionListQuerySchema",
             "Role"
@@ -4992,10 +5043,17 @@
           "source": "../../services/governance-transition.service",
           "specifiers": [
             "cancelGovernanceAction",
+            "checkGovernanceAction",
             "getGovernanceAction",
             "listGovernanceActions",
             "rejectGovernanceAction",
             "returnGovernanceActionForEvidence"
+          ]
+        },
+        {
+          "source": "../../services/adjustment-governance.service",
+          "specifiers": [
+            "approveGovernanceAction"
           ]
         },
         {
@@ -5019,12 +5077,12 @@
         }
       ],
       "exports": [],
-      "totalLines": 138,
+      "totalLines": 195,
       "hasStructuralAnalysis": true
     },
     "backend/src/routes/financial/index.ts": {
       "filePath": "backend/src/routes/financial/index.ts",
-      "contentHash": "0d5523609f8be785d727dc6d18afbda5f4d78200fe6050a98de3d0a1e5a8cbf2",
+      "contentHash": "2b36036724db0e5ea9c25e1b8df760c21d4fc57a2342822d15676826b071ede2",
       "functions": [],
       "classes": [],
       "imports": [
@@ -5114,7 +5172,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 67,
+      "totalLines": 72,
       "hasStructuralAnalysis": true
     },
     "backend/src/routes/financial/ledger.routes.ts": {
@@ -7453,7 +7511,7 @@
     },
     "backend/src/routes/shipments.ts": {
       "filePath": "backend/src/routes/shipments.ts",
-      "contentHash": "8f6da3568d57ee3ffa8240a4d654f88ddc145413ce3cadb573a51506f02f8ea5",
+      "contentHash": "72512d4b633336a1ef91c2ca11e07b88bbc990fae0890fe079a98d31a62463d3",
       "functions": [
         {
           "name": "runShipmentWrite",
@@ -7464,7 +7522,7 @@
             "create"
           ],
           "exported": false,
-          "lineCount": 17
+          "lineCount": 18
         },
         {
           "name": "sendShipmentWrite",
@@ -7534,6 +7592,7 @@
           "specifiers": [
             "createShipment",
             "cancelShipmentFulfillment",
+            "completeShipmentDirect",
             "createShipmentIdempotent",
             "downloadShipmentPodFile",
             "getShipment",
@@ -7643,6 +7702,7 @@
           "specifiers": [
             "createHandoff",
             "getActiveHandoffForShipment",
+            "getLatestHandoffForShipment",
             "markSeen",
             "resolveHandoff"
           ]
@@ -7665,6 +7725,12 @@
           ]
         },
         {
+          "source": "../services/pricing.service",
+          "specifiers": [
+            "resolveShipmentPricingProjection"
+          ]
+        },
+        {
           "source": "../services/statement.service",
           "specifiers": [
             "attachmentDisposition"
@@ -7672,7 +7738,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 1029,
+      "totalLines": 1130,
       "hasStructuralAnalysis": true
     },
     "backend/src/routes/trips.ts": {
@@ -8754,13 +8820,13 @@
     },
     "backend/src/seed.ts": {
       "filePath": "backend/src/seed.ts",
-      "contentHash": "92442596c6c500c4c3050d64b4fee65a12254a8c5280084f33b5cc15124506dc",
+      "contentHash": "b7812417da7392d1b25f4a2df3fb49a226ac05401052b5a0d7b82db0f28b7e0d",
       "functions": [
         {
           "name": "seed",
           "params": [],
           "exported": false,
-          "lineCount": 484
+          "lineCount": 485
         },
         {
           "name": "seedClerkScope",
@@ -8850,12 +8916,18 @@
           "specifiers": [
             "seedLiftPricing"
           ]
+        },
+        {
+          "source": "./seed/seed-pricing-tables",
+          "specifiers": [
+            "seedPricingTables"
+          ]
         }
       ],
       "exports": [
         "seedShipments"
       ],
-      "totalLines": 762,
+      "totalLines": 764,
       "hasStructuralAnalysis": true
     },
     "backend/src/seed/data/customers.ts": {
@@ -9348,7 +9420,7 @@
     },
     "backend/src/services/adjustment-governance.service.ts": {
       "filePath": "backend/src/services/adjustment-governance.service.ts",
-      "contentHash": "e325754ea237605b8a23dc650f7a22d571de70d29f635b2c48cba84120c1ece3",
+      "contentHash": "53dc1d39d5b609b7f52862650d149e960bb704a7d446b0bef3f579cdc6d9596e",
       "functions": [
         {
           "name": "requireReason",
@@ -9454,7 +9526,7 @@
             "action"
           ],
           "exported": false,
-          "lineCount": 289
+          "lineCount": 290
         },
         {
           "name": "listTripGovernanceActions",
@@ -9663,7 +9735,7 @@
         "approveGovernanceAction",
         "listTripGovernanceActions"
       ],
-      "totalLines": 825,
+      "totalLines": 826,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/advance.service.ts": {
@@ -14232,8 +14304,31 @@
     },
     "backend/src/services/attendance.service.ts": {
       "filePath": "backend/src/services/attendance.service.ts",
-      "contentHash": "e8975588b00de2cc5016d252921fb7f76a7511e555a20714163a96c0d902defe",
+      "contentHash": "12c6e5f03250d275b2c61cd01e8478bdedc87b74d8a7d51cf3a0bfdc77d969c4",
       "functions": [
+        {
+          "name": "lockDriverWorkDay",
+          "params": [
+            "tx",
+            "driverId",
+            "date"
+          ],
+          "returnType": "Promise<void>",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "lockSalaryConfirmation",
+          "params": [
+            "tx",
+            "driverId",
+            "year",
+            "month"
+          ],
+          "returnType": "Promise<void>",
+          "exported": false,
+          "lineCount": 3
+        },
         {
           "name": "parseIsoDate",
           "params": [
@@ -14284,7 +14379,7 @@
             "createdBy"
           ],
           "exported": true,
-          "lineCount": 27
+          "lineCount": 34
         },
         {
           "name": "deleteWorkDay",
@@ -14304,7 +14399,7 @@
             "transaction"
           ],
           "exported": true,
-          "lineCount": 65
+          "lineCount": 68
         },
         {
           "name": "syncTripWorkDays",
@@ -14317,7 +14412,7 @@
             "executor"
           ],
           "exported": true,
-          "lineCount": 32
+          "lineCount": 54
         },
         {
           "name": "removeTripWorkDays",
@@ -14383,7 +14478,7 @@
             "transaction"
           ],
           "exported": true,
-          "lineCount": 43
+          "lineCount": 55
         },
         {
           "name": "unconfirmSalary",
@@ -14434,6 +14529,12 @@
           "specifiers": [
             "ApiError"
           ]
+        },
+        {
+          "source": "./application-owned-uniqueness.service",
+          "specifiers": [
+            "lockApplicationOwnedUniqueness"
+          ]
         }
       ],
       "exports": [
@@ -14451,7 +14552,7 @@
         "confirmSalary",
         "unconfirmSalary"
       ],
-      "totalLines": 561,
+      "totalLines": 614,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/audit-query.service.ts": {
@@ -17182,7 +17283,7 @@
     },
     "backend/src/services/config.service.ts": {
       "filePath": "backend/src/services/config.service.ts",
-      "contentHash": "6e18d28175b8af3b4cbe26e8836f34e63c1368ea34b0e170a5343b97c5085be5",
+      "contentHash": "4d9d89b987dbc5378698323120af8c54916874065263d6da222aece999b7952d",
       "functions": [
         {
           "name": "getBootstrapData",
@@ -17195,10 +17296,11 @@
           "params": [
             "customerId",
             "routeId",
-            "date"
+            "date",
+            "selector"
           ],
           "exported": true,
-          "lineCount": 14
+          "lineCount": 16
         },
         {
           "name": "getFuelConfig",
@@ -17348,6 +17450,12 @@
           "specifiers": [
             "buildNoInvoicePolicySnapshot"
           ]
+        },
+        {
+          "source": "./pricing.service",
+          "specifiers": [
+            "resolveTableFreightPrice"
+          ]
         }
       ],
       "exports": [
@@ -17364,7 +17472,7 @@
         "mirrorSupplierLink",
         "syncTrailerFields"
       ],
-      "totalLines": 324,
+      "totalLines": 327,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/credit-limit.service.ts": {
@@ -18943,7 +19051,7 @@
     },
     "backend/src/services/dispatch-handoff.service.ts": {
       "filePath": "backend/src/services/dispatch-handoff.service.ts",
-      "contentHash": "b0bf2bd218919cd03c737fcd84eb0f2fd1f5aed31710db090f523fdced444065",
+      "contentHash": "36ccd738020cac9c290e7b4ad9ebd138f538aa6a5a99c9384d9e92bf6b0cf6c7",
       "functions": [
         {
           "name": "createHandoff",
@@ -18990,6 +19098,14 @@
           ],
           "exported": true,
           "lineCount": 9
+        },
+        {
+          "name": "getLatestHandoffForShipment",
+          "params": [
+            "shipmentId"
+          ],
+          "exported": true,
+          "lineCount": 7
         },
         {
           "name": "listHandoffs",
@@ -19066,14 +19182,15 @@
         "resolveHandoff",
         "checkVersionConflict",
         "getActiveHandoffForShipment",
+        "getLatestHandoffForShipment",
         "listHandoffs"
       ],
-      "totalLines": 273,
+      "totalLines": 282,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/dispatch-planning.service.ts": {
       "filePath": "backend/src/services/dispatch-planning.service.ts",
-      "contentHash": "bb81105e4ecf894c0b011bfb50780f6845cb114e795260a83c80e6ee37bfecee",
+      "contentHash": "ff666c431e0df3e21823c65e112df23277657e8f1180da5a67d6b08aa9bff500",
       "functions": [
         {
           "name": "assertDispatchReadActor",
@@ -19406,7 +19523,7 @@
             "actorId"
           ],
           "exported": false,
-          "lineCount": 51
+          "lineCount": 55
         },
         {
           "name": "assertResourceAvailability",
@@ -19425,7 +19542,7 @@
           ],
           "returnType": "Promise<IssueOrderMutationResult>",
           "exported": false,
-          "lineCount": 356
+          "lineCount": 357
         },
         {
           "name": "issueFulfillmentDispatchOrder",
@@ -19433,7 +19550,7 @@
             "input"
           ],
           "exported": true,
-          "lineCount": 65
+          "lineCount": 66
         }
       ],
       "classes": [],
@@ -19544,7 +19661,7 @@
         "acceptDispatchHandoff",
         "issueFulfillmentDispatchOrder"
       ],
-      "totalLines": 1580,
+      "totalLines": 1587,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/driver-user-binding.service.ts": {
@@ -19652,7 +19769,7 @@
     },
     "backend/src/services/driver.service.ts": {
       "filePath": "backend/src/services/driver.service.ts",
-      "contentHash": "d4cbe1ccd157c16798bd0e0e71e40099ba28be89a4c8d4a2cb3e59914012f4d8",
+      "contentHash": "49975b7a5f4de534593ebab4592f54fb28e0567185ab3174be603bb4b11f409d",
       "functions": [
         {
           "name": "getDriverByUserId",
@@ -19686,7 +19803,7 @@
             "driverId"
           ],
           "exported": true,
-          "lineCount": 39
+          "lineCount": 51
         },
         {
           "name": "loadDriverTripContainers",
@@ -19885,7 +20002,17 @@
           ],
           "returnType": "Promise<{ event: DriverProgressEvent; replayed: boolean }>",
           "exported": true,
-          "lineCount": 71
+          "lineCount": 77
+        },
+        {
+          "name": "syncDriverFulfillmentStartSideEffects",
+          "params": [
+            "args",
+            "invalidateReports"
+          ],
+          "returnType": "Promise<void>",
+          "exported": true,
+          "lineCount": 38
         },
         {
           "name": "listDriverProgress",
@@ -20000,6 +20127,8 @@
             "ne",
             "and",
             "isNull",
+            "isNotNull",
+            "or",
             "desc",
             "asc",
             "gte",
@@ -20080,6 +20209,19 @@
           ]
         },
         {
+          "source": "./trip-attendance-sync.service",
+          "specifiers": [
+            "syncAttendanceAfterStatusChange"
+          ]
+        },
+        {
+          "source": "../lib/redis",
+          "specifiers": [
+            "cacheInvalidate",
+            "cacheInvalidatePattern"
+          ]
+        },
+        {
           "source": "./trip-pod.service",
           "specifiers": [
             "getDriverCompletionEvidenceStatus",
@@ -20105,6 +20247,7 @@
         "getDriverPenalties",
         "recordDriverProgress",
         "recordDriverFulfillmentProgress",
+        "syncDriverFulfillmentStartSideEffects",
         "listDriverProgress",
         "listDriverFulfillmentProgress",
         "recordIncidentalCost",
@@ -20113,7 +20256,7 @@
         "getDriverPayslipPeriods",
         "getCompletionEvidenceStatus"
       ],
-      "totalLines": 1238,
+      "totalLines": 1297,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/durable-effect.service.ts": {
@@ -22994,7 +23137,7 @@
     },
     "backend/src/services/geotag.service.ts": {
       "filePath": "backend/src/services/geotag.service.ts",
-      "contentHash": "3eeb9ef51dee7eb8a5589fac90a4c18334f8009fea7e3e8786d0b5715165cf66",
+      "contentHash": "728f13e9b7e3a98e61bad3d29390c70d8a835efa4cb6164bb6b730b2ed364644",
       "functions": [
         {
           "name": "validateGpsFreshness",
@@ -23036,7 +23179,7 @@
           ],
           "returnType": "Promise<PhotoGeotag>",
           "exported": true,
-          "lineCount": 46
+          "lineCount": 59
         },
         {
           "name": "getGeotag",
@@ -23087,6 +23230,12 @@
           ]
         },
         {
+          "source": "./application-owned-uniqueness.service",
+          "specifiers": [
+            "lockApplicationOwnedUniqueness"
+          ]
+        },
+        {
           "source": "./trip-shared",
           "specifiers": [
             "Tx"
@@ -23101,7 +23250,7 @@
         "submitGeotag",
         "getGeotag"
       ],
-      "totalLines": 175,
+      "totalLines": 189,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/governance-policy.ts": {
@@ -24737,7 +24886,7 @@
     },
     "backend/src/services/idempotency.service.ts": {
       "filePath": "backend/src/services/idempotency.service.ts",
-      "contentHash": "40afd4efbe3e4b0cc2217caec5303181144f0b34b7b769a32f8c58baeea09bd1",
+      "contentHash": "3ba590fd77d6b76853debea857ee4aa787850c88aa6bcb1d34eea16915c2e690",
       "functions": [
         {
           "name": "buildCrudIdempotencyEndpoint",
@@ -24829,7 +24978,7 @@
           ],
           "returnType": "Promise<IdempotentRunResult<T>>",
           "exported": true,
-          "lineCount": 127
+          "lineCount": 131
         }
       ],
       "classes": [],
@@ -24883,7 +25032,7 @@
         "waitForIdempotencyRecord",
         "runIdempotent"
       ],
-      "totalLines": 400,
+      "totalLines": 405,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/invoice-required.service.ts": {
@@ -25165,7 +25314,7 @@
     },
     "backend/src/services/legal-partner.service.ts": {
       "filePath": "backend/src/services/legal-partner.service.ts",
-      "contentHash": "f5e77c98c9a08a512ed81fd648be13507bbef439a7a6fb83d47422b331168012",
+      "contentHash": "0eeabe6f396ba37ef7338521bdda4d192531967cdfbdb45d63411ad47b86337d",
       "functions": [
         {
           "name": "normalizeTaxCode",
@@ -25192,7 +25341,7 @@
           ],
           "returnType": "Promise<number | null>",
           "exported": true,
-          "lineCount": 23
+          "lineCount": 40
         },
         {
           "name": "syncCustomerPartner",
@@ -25230,6 +25379,12 @@
           "specifiers": [
             "* as s"
           ]
+        },
+        {
+          "source": "./application-owned-uniqueness.service",
+          "specifiers": [
+            "lockApplicationOwnedUniqueness"
+          ]
         }
       ],
       "exports": [
@@ -25239,7 +25394,7 @@
         "syncSupplierPartner",
         "PARTNER_DEFAULT_CURRENCY"
       ],
-      "totalLines": 72,
+      "totalLines": 90,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/lib/export-company.ts": {
@@ -26076,7 +26231,7 @@
     },
     "backend/src/services/master-data-import.service.ts": {
       "filePath": "backend/src/services/master-data-import.service.ts",
-      "contentHash": "8dfa5451c9476943b2abf718d34025bd1dba375e75bb3bd241cb017fc034b843",
+      "contentHash": "f8736e390eaa985913649229267f024ccb897bdbca86252262169c3795923d8f",
       "functions": [
         {
           "name": "requireAdmin",
@@ -26241,7 +26396,7 @@
           ],
           "returnType": "void",
           "exported": false,
-          "lineCount": 51
+          "lineCount": 80
         },
         {
           "name": "parsePorts",
@@ -26373,6 +26528,15 @@
           "name": "sourceExpiryDedupeKey",
           "params": [
             "batchId",
+            "sourceFileHash"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "privateSourceStorageKey",
+          "params": [
             "sourceFileHash"
           ],
           "returnType": "string",
@@ -26576,7 +26740,7 @@
         "applyMasterImport",
         "rejectMasterImport"
       ],
-      "totalLines": 1285,
+      "totalLines": 1319,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/metrics/metric-registry.ts": {
@@ -26659,7 +26823,7 @@
     },
     "backend/src/services/milestone.service.ts": {
       "filePath": "backend/src/services/milestone.service.ts",
-      "contentHash": "a3e032e68b21c415a9cb0c7055c3c71c2127cbe2e0f12faec25ae37cbf0a982a",
+      "contentHash": "f096372df57a7cea03b5e0f9f5a85c691426bb8d4d3170d8c1c36a7ad7446694",
       "functions": [
         {
           "name": "tripStatusToMilestoneType",
@@ -26683,7 +26847,7 @@
           ],
           "returnType": "Promise<void>",
           "exported": true,
-          "lineCount": 50
+          "lineCount": 57
         },
         {
           "name": "addManualMilestone",
@@ -26747,6 +26911,12 @@
           ]
         },
         {
+          "source": "./application-owned-uniqueness.service",
+          "specifiers": [
+            "lockApplicationOwnedUniqueness"
+          ]
+        },
+        {
           "source": "./trip-shared",
           "specifiers": [
             "Tx"
@@ -26766,7 +26936,7 @@
         "listMilestones",
         "listMilestonesForShipments"
       ],
-      "totalLines": 169,
+      "totalLines": 177,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/no-invoice-disbursement.service.ts": {
@@ -28956,8 +29126,87 @@
     },
     "backend/src/services/pricing.service.ts": {
       "filePath": "backend/src/services/pricing.service.ts",
-      "contentHash": "67926e689042abaa7fbb7e80cf63aec867b8659d0fcacec267e0ac62f32fcedc",
+      "contentHash": "f0a96a14df4ef45ad5bca4e16bdb0d77f3e71516131f78ab254995e6e53d37dc",
       "functions": [
+        {
+          "name": "todayIsoDate",
+          "params": [],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "formatVnd",
+          "params": [
+            "value"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "missingProjection",
+          "params": [
+            "message"
+          ],
+          "returnType": "ShipmentPricingProjection",
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "authorityProjection",
+          "params": [
+            "message"
+          ],
+          "returnType": "ShipmentPricingProjection",
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "normalizePositiveInteger",
+          "params": [
+            "value"
+          ],
+          "returnType": "number",
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "normalizePositiveNumber",
+          "params": [
+            "value"
+          ],
+          "returnType": "number | null",
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "estimateShipmentFuelSurcharge",
+          "params": [
+            "args"
+          ],
+          "returnType": "Promise<{ liters: number; amount: number } | null>",
+          "exported": false,
+          "lineCount": 79
+        },
+        {
+          "name": "resolveShipmentPricingProjection",
+          "params": [
+            "input"
+          ],
+          "returnType": "Promise<ShipmentPricingProjection>",
+          "exported": true,
+          "lineCount": 131
+        },
+        {
+          "name": "normalizePricingRateKey",
+          "params": [
+            "value"
+          ],
+          "returnType": "string | null",
+          "exported": false,
+          "lineCount": 4
+        },
         {
           "name": "resolveFreightPrice",
           "params": [
@@ -28992,7 +29241,16 @@
           ],
           "returnType": "Promise<ResolvedFreightPrice>",
           "exported": false,
-          "lineCount": 45
+          "lineCount": 71
+        },
+        {
+          "name": "resolveTableFreightPrice",
+          "params": [
+            "input"
+          ],
+          "returnType": "Promise<ResolvedFreightPrice>",
+          "exported": true,
+          "lineCount": 3
         },
         {
           "name": "validateWeightTierOverlap",
@@ -29012,11 +29270,12 @@
             "customerId",
             "routeId",
             "effectiveDate",
+            "selector",
             "excludeId"
           ],
           "returnType": "Promise<OverlapPair[]>",
           "exported": true,
-          "lineCount": 31
+          "lineCount": 39
         },
         {
           "name": "resolveLiftPrice",
@@ -29048,15 +29307,19 @@
             "and",
             "desc",
             "eq",
+            "inArray",
             "isNull",
             "lte",
-            "ne"
+            "ne",
+            "SQL"
           ]
         },
         {
           "source": "@tingting/shared",
           "specifiers": [
-            "computeFuelSurcharge"
+            "computeFuelSurcharge",
+            "computeTripTotals",
+            "FuelMode"
           ]
         },
         {
@@ -29070,16 +29333,24 @@
           "specifiers": [
             "ApiError"
           ]
+        },
+        {
+          "source": "./fuel.service",
+          "specifiers": [
+            "resolveFuelNorm"
+          ]
         }
       ],
       "exports": [
+        "resolveShipmentPricingProjection",
         "resolveFreightPrice",
         "resolveFuelSurcharge",
+        "resolveTableFreightPrice",
         "validateWeightTierOverlap",
         "validatePricingTableOverlap",
         "resolveLiftPrice"
       ],
-      "totalLines": 415,
+      "totalLines": 759,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/profit-distribution.service.ts": {
@@ -29410,7 +29681,7 @@
     },
     "backend/src/services/push.service.ts": {
       "filePath": "backend/src/services/push.service.ts",
-      "contentHash": "712dec2c766f82cb89829f20fd90e3b1efdf44fad8acd6228309b2e0d48f7cc9",
+      "contentHash": "2cee87f44daa6c42cf2787b2b86b34f8f66b603efca97673d9292d6b55ab2e60",
       "functions": [
         {
           "name": "initPushService",
@@ -29425,7 +29696,7 @@
             "sub"
           ],
           "exported": true,
-          "lineCount": 18
+          "lineCount": 33
         },
         {
           "name": "unsubscribe",
@@ -29496,6 +29767,18 @@
           "specifiers": [
             "PushSubscriptionPayload"
           ]
+        },
+        {
+          "source": "./application-owned-uniqueness.service",
+          "specifiers": [
+            "lockApplicationOwnedUniqueness"
+          ]
+        },
+        {
+          "source": "./trip-shared",
+          "specifiers": [
+            "Tx"
+          ]
         }
       ],
       "exports": [
@@ -29504,7 +29787,7 @@
         "unsubscribe",
         "sendToUser"
       ],
-      "totalLines": 125,
+      "totalLines": 142,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/receivable-reminder.service.ts": {
@@ -31966,7 +32249,7 @@
     },
     "backend/src/services/shipment-coordination.service.ts": {
       "filePath": "backend/src/services/shipment-coordination.service.ts",
-      "contentHash": "bfa6709268893b7b42763c5182a8a024c4ff8de499cc1c3f5d033382b1b2e2c1",
+      "contentHash": "66ecb641d726c19a0c720f95cdd1eb1e7a13c9bf68fbbdc293b0f7c482382a6e",
       "functions": [
         {
           "name": "normalizeBoundedText",
@@ -31998,7 +32281,7 @@
           ],
           "returnType": "Promise<ShipmentAccessRow>",
           "exported": true,
-          "lineCount": 42
+          "lineCount": 44
         },
         {
           "name": "toCustomerEventDto",
@@ -32010,6 +32293,40 @@
           "lineCount": 18
         },
         {
+          "name": "isLegacyTripMilestoneEvent",
+          "params": [
+            "row",
+            "title",
+            "status"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "isShipmentStatusEvent",
+          "params": [
+            "row",
+            "shipmentId",
+            "title"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "reconcileHistoricalShipmentMilestoneEvents",
+          "params": [
+            "shipmentId",
+            "rows",
+            "statusHistoryRows",
+            "acknowledgedEventIds"
+          ],
+          "returnType": "CustomerVisibleEventRow[]",
+          "exported": false,
+          "lineCount": 68
+        },
+        {
           "name": "createCustomerVisibleEvent",
           "params": [
             "input",
@@ -32017,7 +32334,7 @@
             "transaction"
           ],
           "exported": true,
-          "lineCount": 71
+          "lineCount": 77
         },
         {
           "name": "loadShipmentForSystemEvent",
@@ -32035,7 +32352,7 @@
             "args"
           ],
           "exported": true,
-          "lineCount": 46
+          "lineCount": 59
         },
         {
           "name": "acknowledgeCustomerVisibleEvent",
@@ -32043,7 +32360,7 @@
             "input"
           ],
           "exported": true,
-          "lineCount": 59
+          "lineCount": 71
         }
       ],
       "classes": [],
@@ -32097,6 +32414,13 @@
           ]
         },
         {
+          "source": "./application-owned-uniqueness.service",
+          "specifiers": [
+            "lockApplicationOwnedUniqueness",
+            "lockApplicationOwnedUniquenessSet"
+          ]
+        },
+        {
           "source": "./trip-shared",
           "specifiers": [
             "Tx"
@@ -32110,7 +32434,7 @@
         "listCustomerVisibleEvents",
         "acknowledgeCustomerVisibleEvent"
       ],
-      "totalLines": 326,
+      "totalLines": 459,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/shipment-edit-boundary.service.ts": {
@@ -32460,7 +32784,7 @@
     },
     "backend/src/services/shipment-intake.service.ts": {
       "filePath": "backend/src/services/shipment-intake.service.ts",
-      "contentHash": "6646d5b9883f3e221b49e26a913ff5a79db3bf6538dcd58bf1529474e4ede1f5",
+      "contentHash": "0c3ac4a74b36650a3ecff6051652ba450aaf62a3988e42add683ea01d02c14e8",
       "functions": [
         {
           "name": "listOperationalSitesForIntake",
@@ -32479,7 +32803,7 @@
           ],
           "returnType": "Promise<void>",
           "exported": false,
-          "lineCount": 34
+          "lineCount": 37
         },
         {
           "name": "assertIntakeReady",
@@ -32566,12 +32890,12 @@
         "listOperationalSitesForIntake",
         "submitShipmentForDispatch"
       ],
-      "totalLines": 233,
+      "totalLines": 236,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/shipment.service.ts": {
       "filePath": "backend/src/services/shipment.service.ts",
-      "contentHash": "6b64955456445ba0d011f3238ee9eb44c968e3eec803fbb0e2fea0be45be6d5e",
+      "contentHash": "736db6976e3c7d2e97299e93c561643db5877bd5a9713eafc06ffd1e46a467c8",
       "functions": [
         {
           "name": "normalizeShipmentStatusValue",
@@ -32581,6 +32905,55 @@
           "returnType": "ShipmentStatus | null",
           "exported": false,
           "lineCount": 3
+        },
+        {
+          "name": "isSyntheticLclFulfillmentScope",
+          "params": [
+            "notes"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "buildCompletedExpenseScopeKeys",
+          "params": [
+            "scopes"
+          ],
+          "returnType": "Set<string>",
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "hasCompletedExpenseScopes",
+          "params": [
+            "tripId",
+            "tripContainers",
+            "completedExpenseScopeKeys"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 16
+        },
+        {
+          "name": "loadTripExpenseScopeState",
+          "params": [
+            "tx",
+            "tripIds"
+          ],
+          "exported": false,
+          "lineCount": 35
+        },
+        {
+          "name": "assertShipmentDirectCloseTripReadiness",
+          "params": [
+            "tx",
+            "tripId",
+            "scopeState"
+          ],
+          "returnType": "Promise<void>",
+          "exported": false,
+          "lineCount": 29
         },
         {
           "name": "normalizeShipmentRow",
@@ -32599,6 +32972,15 @@
           "returnType": "T",
           "exported": false,
           "lineCount": 11
+        },
+        {
+          "name": "extractPricingSelectorFromSnapshot",
+          "params": [
+            "snapshot"
+          ],
+          "returnType": "{\n  containerTypeId: number | null;\n  pricingRateKey: string | null;\n}",
+          "exported": false,
+          "lineCount": 15
         },
         {
           "name": "toNullableFixedDecimal",
@@ -32661,6 +33043,16 @@
           "lineCount": 4
         },
         {
+          "name": "loadShipmentCloseAuthorityContext",
+          "params": [
+            "tx",
+            "shipmentId"
+          ],
+          "returnType": "Promise<ShipmentCloseAuthorityContext>",
+          "exported": false,
+          "lineCount": 14
+        },
+        {
           "name": "listLiveShipmentAuthorityTrips",
           "params": [
             "tx",
@@ -32668,7 +33060,17 @@
           ],
           "returnType": "Promise<ShipmentAuthorityTripRow[]>",
           "exported": false,
-          "lineCount": 27
+          "lineCount": 32
+        },
+        {
+          "name": "listRequiredShipmentAuthorityTrips",
+          "params": [
+            "tx",
+            "requiredFulfillmentIds"
+          ],
+          "returnType": "Promise<ShipmentAuthorityTripRow[]>",
+          "exported": false,
+          "lineCount": 37
         },
         {
           "name": "syncShipmentAuthorityToTrips",
@@ -32678,7 +33080,7 @@
           ],
           "returnType": "Promise<void>",
           "exported": false,
-          "lineCount": 46
+          "lineCount": 47
         },
         {
           "name": "assertLegalTransition",
@@ -32691,6 +33093,20 @@
           "lineCount": 10
         },
         {
+          "name": "createShipmentStatusCustomerVisibleEvent",
+          "params": [
+            "tx",
+            "shipmentId",
+            "statusHistoryId",
+            "targetStatus",
+            "createdBy",
+            "occurredAt"
+          ],
+          "returnType": "Promise<void>",
+          "exported": false,
+          "lineCount": 21
+        },
+        {
           "name": "createShipmentTx",
           "params": [
             "tx",
@@ -32698,7 +33114,7 @@
             "actor"
           ],
           "exported": false,
-          "lineCount": 59
+          "lineCount": 72
         },
         {
           "name": "createShipment",
@@ -32767,7 +33183,7 @@
             "transaction"
           ],
           "exported": true,
-          "lineCount": 52
+          "lineCount": 65
         },
         {
           "name": "isPodReviewWriter",
@@ -32776,7 +33192,46 @@
           ],
           "returnType": "boolean",
           "exported": false,
-          "lineCount": 6
+          "lineCount": 3
+        },
+        {
+          "name": "isRoutineShipmentCloseWriter",
+          "params": [
+            "actor"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "normalizeRoutineShipmentCloseVatRate",
+          "params": [
+            "value"
+          ],
+          "returnType": "number",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "buildShipmentPricingProjection",
+          "params": [
+            "shipment",
+            "containers"
+          ],
+          "returnType": "Promise<ShipmentPricingProjectionView>",
+          "exported": false,
+          "lineCount": 23
+        },
+        {
+          "name": "assertRoutineShipmentCloseCheckerSeparation",
+          "params": [
+            "tx",
+            "tripIds",
+            "completerUserId"
+          ],
+          "returnType": "Promise<void>",
+          "exported": false,
+          "lineCount": 41
         },
         {
           "name": "loadReviewTripPodResult",
@@ -32790,6 +33245,17 @@
           "lineCount": 34
         },
         {
+          "name": "loadShipmentDirectCloseResult",
+          "params": [
+            "tx",
+            "shipmentId",
+            "tripIds"
+          ],
+          "returnType": "Promise<ShipmentDirectCloseResult>",
+          "exported": false,
+          "lineCount": 38
+        },
+        {
           "name": "recomputeShipmentCompletion",
           "params": [
             "shipmentId",
@@ -32797,7 +33263,7 @@
             "transaction"
           ],
           "exported": true,
-          "lineCount": 221
+          "lineCount": 187
         },
         {
           "name": "reviewTripPodSubmission",
@@ -32806,6 +33272,15 @@
           ],
           "exported": true,
           "lineCount": 177
+        },
+        {
+          "name": "completeShipmentDirect",
+          "params": [
+            "args"
+          ],
+          "returnType": "Promise<ShipmentDirectCloseResult & { replayed: boolean }>",
+          "exported": true,
+          "lineCount": 164
         },
         {
           "name": "cancelShipmentFulfillment",
@@ -32900,7 +33375,7 @@
           ],
           "returnType": "Promise<ShipmentDetail>",
           "exported": true,
-          "lineCount": 42
+          "lineCount": 45
         },
         {
           "name": "downloadShipmentPodFile",
@@ -33096,7 +33571,8 @@
         {
           "source": "./pricing.service",
           "specifiers": [
-            "resolveFreightPrice"
+            "resolveFreightPrice",
+            "resolveShipmentPricingProjection"
           ]
         },
         {
@@ -33156,7 +33632,8 @@
         {
           "source": "./shipment-coordination.service",
           "specifiers": [
-            "assertActorCanAccessShipment"
+            "assertActorCanAccessShipment",
+            "createCustomerVisibleEvent"
           ]
         }
       ],
@@ -33171,6 +33648,7 @@
         "transitionShipmentStatus",
         "recomputeShipmentCompletion",
         "reviewTripPodSubmission",
+        "completeShipmentDirect",
         "cancelShipmentFulfillment",
         "softDeleteShipment",
         "snapshotContainersIntoTrip",
@@ -33189,7 +33667,7 @@
         "replaceShipmentDocument",
         "reviewShipmentChangeRequest"
       ],
-      "totalLines": 2344,
+      "totalLines": 2868,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/snapshot-services.ts": {
@@ -33276,7 +33754,7 @@
     },
     "backend/src/services/source-change.service.ts": {
       "filePath": "backend/src/services/source-change.service.ts",
-      "contentHash": "c5d42639383b655338869562e08e3e8c564154a07e6da737fd24c0cd6eb7cae9",
+      "contentHash": "de2c8bb575de51c2fa03e3d9fd56192e4013cd4bfa06ec043289a4f6ef01b45d",
       "functions": [
         {
           "name": "isBillableTripStatus",
@@ -34994,7 +35472,7 @@
     },
     "backend/src/services/trip-gps-capture-job.service.ts": {
       "filePath": "backend/src/services/trip-gps-capture-job.service.ts",
-      "contentHash": "0e52f9d8b5353b635a2f90f6a77677c7f613bfcc474251478a4ece42040b6506",
+      "contentHash": "6faeb120dc8869f307a88c7f850a6479f07f4c77edd70c3a7f34f5b4eb1021d6",
       "functions": [
         {
           "name": "enqueueTripGpsCaptureJob",
@@ -35004,7 +35482,7 @@
           ],
           "returnType": "Promise<void>",
           "exported": true,
-          "lineCount": 12
+          "lineCount": 26
         },
         {
           "name": "retryAt",
@@ -35081,6 +35559,18 @@
           ]
         },
         {
+          "source": "../errors",
+          "specifiers": [
+            "ApiError"
+          ]
+        },
+        {
+          "source": "./application-owned-uniqueness.service",
+          "specifiers": [
+            "lockApplicationOwnedUniqueness"
+          ]
+        },
+        {
           "source": "./trip-shared",
           "specifiers": [
             "Tx"
@@ -35100,12 +35590,12 @@
         "processTripGpsCaptureJobForAction",
         "processPendingTripGpsCaptureJobs"
       ],
-      "totalLines": 166,
+      "totalLines": 182,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/trip-instructions.service.ts": {
       "filePath": "backend/src/services/trip-instructions.service.ts",
-      "contentHash": "af73a6a7c3460dfd9ec63ab68332679f499967bf05a7f3de02b99c9e6d903db4",
+      "contentHash": "a72f2db22a17f0c2aca5483af940f7ed9564de96b98cad25510b6cfaeedbfb9c",
       "functions": [
         {
           "name": "getTripInstructions",
@@ -35126,7 +35616,7 @@
           ],
           "returnType": "Promise<TripInstructionRow>",
           "exported": true,
-          "lineCount": 45
+          "lineCount": 53
         }
       ],
       "classes": [],
@@ -35157,6 +35647,12 @@
           ]
         },
         {
+          "source": "./application-owned-uniqueness.service",
+          "specifiers": [
+            "lockApplicationOwnedUniqueness"
+          ]
+        },
+        {
           "source": "./trip-shared",
           "specifiers": [
             "Tx"
@@ -35167,12 +35663,12 @@
         "getTripInstructions",
         "upsertTripInstructions"
       ],
-      "totalLines": 98,
+      "totalLines": 107,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/trip-mutations.service.ts": {
       "filePath": "backend/src/services/trip-mutations.service.ts",
-      "contentHash": "36f73c915d573bf2958fdbd0c41706f648f062caa203b57807014eae57e3b3fe",
+      "contentHash": "559b6aef3dacb2b1f6f9a6177af6f24f8dc3504bb0a6aa8186f0eebecf112e5f",
       "functions": [
         {
           "name": "isUniqueViolation",
@@ -35272,7 +35768,7 @@
             "transaction"
           ],
           "exported": true,
-          "lineCount": 361
+          "lineCount": 364
         },
         {
           "name": "copyTrip",
@@ -35479,7 +35975,7 @@
         "reassignTrip",
         "deleteTrip"
       ],
-      "totalLines": 1409,
+      "totalLines": 1412,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/trip-pairing.service.ts": {
@@ -35852,7 +36348,7 @@
     },
     "backend/src/services/trip-pod.service.ts": {
       "filePath": "backend/src/services/trip-pod.service.ts",
-      "contentHash": "20caf056cb7e8b3369d71027896d1e2b29cc8e3699e8741f0029b9989cf400d3",
+      "contentHash": "c67837c93c6b401b91bb2b7ff19930f186a1150590d221855352bca23d7a0fd6",
       "functions": [
         {
           "name": "hashBuffer",
@@ -35985,7 +36481,7 @@
           ],
           "returnType": "Promise<OwnedFulfillmentTrip>",
           "exported": true,
-          "lineCount": 36
+          "lineCount": 37
         },
         {
           "name": "listOrderedMilestoneTypesTx",
@@ -36210,7 +36706,7 @@
         "projectSiteSnapshot",
         "listOrderedMilestoneTypesTx"
       ],
-      "totalLines": 956,
+      "totalLines": 957,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/trip-queries.service.ts": {
@@ -36447,7 +36943,7 @@
     },
     "backend/src/services/trip-status-machine.service.ts": {
       "filePath": "backend/src/services/trip-status-machine.service.ts",
-      "contentHash": "d370ae2efe1bb1a74b7c3e64ca42a193804f95075dce102c1e2b3263f929b012",
+      "contentHash": "74c5065699549d57cc24d5c2ca8ff6115d2e0167785fb057574ec6fbad937a78",
       "functions": [
         {
           "name": "transitionTripStatus",
@@ -36461,7 +36957,7 @@
             "options"
           ],
           "exported": true,
-          "lineCount": 380
+          "lineCount": 415
         }
       ],
       "classes": [],
@@ -36571,7 +37067,7 @@
       "exports": [
         "transitionTripStatus"
       ],
-      "totalLines": 404,
+      "totalLines": 439,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/trip.service.ts": {
@@ -36586,7 +37082,7 @@
     },
     "backend/src/services/user.service.ts": {
       "filePath": "backend/src/services/user.service.ts",
-      "contentHash": "6e09d4542787425f5cd187fac46c373364aadfddf771eac736fb2afc59f44337",
+      "contentHash": "8ffb7e0c867dd78c3bbcf8e5bee967958f2a564378ba809dbdae79b9f628e499",
       "functions": [
         {
           "name": "driverJoin",
@@ -36758,10 +37254,10 @@
           "params": [
             "q",
             "shipmentIds",
-            "businessUnitIds"
+            "options"
           ],
           "exported": false,
-          "lineCount": 31
+          "lineCount": 39
         },
         {
           "name": "syncCustomerLinks",
@@ -36874,7 +37370,7 @@
             "tx"
           ],
           "exported": true,
-          "lineCount": 227
+          "lineCount": 231
         },
         {
           "name": "updateUser",
@@ -37097,7 +37593,7 @@
         "updateBusinessUnitWithTx",
         "updateBusinessUnit"
       ],
-      "totalLines": 1093,
+      "totalLines": 1105,
       "hasStructuralAnalysis": true
     },
     "backend/src/tests/accounting-transport-register.test.ts": {
@@ -37829,7 +38325,7 @@
     },
     "backend/src/tests/app-settings-routes.test.ts": {
       "filePath": "backend/src/tests/app-settings-routes.test.ts",
-      "contentHash": "d6f019d03c6aa3a322f4ba00fd1598363ec287734a7d263d546949f81c13efad",
+      "contentHash": "0aa4573feea7008d5b38a3f6416ff185eacee09e95e428d10e7b696929f479a3",
       "functions": [
         {
           "name": "mkUser",
@@ -37847,6 +38343,12 @@
           ],
           "exported": false,
           "lineCount": 15
+        },
+        {
+          "name": "mkTruck",
+          "params": [],
+          "exported": false,
+          "lineCount": 9
         },
         {
           "name": "sign",
@@ -37999,6 +38501,12 @@
           ]
         },
         {
+          "source": "../services/financial-reporting-policy.service",
+          "specifiers": [
+            "currentVietnamMonthStart"
+          ]
+        },
+        {
           "source": "../routes/app-settings",
           "specifiers": [
             "appSettingsRouter"
@@ -38006,7 +38514,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 363,
+      "totalLines": 541,
       "hasStructuralAnalysis": true
     },
     "backend/src/tests/audit-enrichment-scheduling.test.ts": {
@@ -40525,7 +41033,7 @@
     },
     "backend/src/tests/driver-fulfillment-progress.test.ts": {
       "filePath": "backend/src/tests/driver-fulfillment-progress.test.ts",
-      "contentHash": "88806f3fb1077511845c0d5ef6d0e02304a078ced0f0f5705ff80a11da9fa9c6",
+      "contentHash": "b913021dd2582e476c54985477f51eb3680279546dd48357b4b0d409c31aea61",
       "functions": [
         {
           "name": "samplePdfBuffer",
@@ -40568,10 +41076,11 @@
         {
           "name": "createOwnedFulfillmentTrip",
           "params": [
-            "driverId"
+            "driverId",
+            "tripStatus"
           ],
           "exported": false,
-          "lineCount": 71
+          "lineCount": 74
         },
         {
           "name": "rememberPodFileStorageKeys",
@@ -40620,6 +41129,7 @@
           "specifiers": [
             "DRIVER_FULFILLMENT_PROGRESS_SEQUENCE",
             "DriverProgressEventType",
+            "Role",
             "TripPodFileType",
             "TripStatus"
           ]
@@ -40656,7 +41166,9 @@
             "completeOwnedFulfillmentTrip",
             "getCompletionEvidenceStatus",
             "getDriverFulfillmentDetail",
-            "recordDriverFulfillmentProgress"
+            "getDriverTrips",
+            "recordDriverFulfillmentProgress",
+            "syncDriverFulfillmentStartSideEffects"
           ]
         },
         {
@@ -40672,10 +41184,16 @@
           "specifiers": [
             "storageService"
           ]
+        },
+        {
+          "source": "../services/trip-status-machine.service",
+          "specifiers": [
+            "transitionTripStatus"
+          ]
         }
       ],
       "exports": [],
-      "totalLines": 705,
+      "totalLines": 806,
       "hasStructuralAnalysis": true
     },
     "backend/src/tests/driver-user-binding.test.ts": {
@@ -41783,7 +42301,7 @@
     },
     "backend/src/tests/forwarder-trip-scope.test.ts": {
       "filePath": "backend/src/tests/forwarder-trip-scope.test.ts",
-      "contentHash": "0eaaf168daf88c8e4a43518650fa1baac97b8b21c2aaa8cd40fdd19cb5c10440",
+      "contentHash": "9364ce94a74f3dc59c357c622979500042c4fd3a823e724f65f1fe5ed22c9087",
       "functions": [],
       "classes": [],
       "imports": [
@@ -41853,7 +42371,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 319,
+      "totalLines": 346,
       "hasStructuralAnalysis": true
     },
     "backend/src/tests/fuel-service.test.ts": {
@@ -42768,7 +43286,7 @@
     },
     "backend/src/tests/m103-handoff-service.test.ts": {
       "filePath": "backend/src/tests/m103-handoff-service.test.ts",
-      "contentHash": "cc6f6dad24e9f4e7273ea36a40a595f8b5a0612d367729824a7f948e2850a27c",
+      "contentHash": "391b92e2ef9d6c76cee4065d4692dd2a803a9e7eec77a43750fdcee59e0a9bd7",
       "functions": [
         {
           "name": "mkUser",
@@ -42832,6 +43350,7 @@
             "resolveHandoff",
             "checkVersionConflict",
             "getActiveHandoffForShipment",
+            "getLatestHandoffForShipment",
             "listHandoffs"
           ]
         },
@@ -42843,7 +43362,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 241,
+      "totalLines": 253,
       "hasStructuralAnalysis": true
     },
     "backend/src/tests/m114-payment-term.test.ts": {
@@ -43221,7 +43740,7 @@
     },
     "backend/src/tests/m33-milestone.test.ts": {
       "filePath": "backend/src/tests/m33-milestone.test.ts",
-      "contentHash": "38b90973899590931c2c56074c0f66851d4e6f71e43eb58f9eb3aa776917f379",
+      "contentHash": "6d9ecb02fb371f95fa633ddabc36c91a41ebb1409369054085538ce51716b5e6",
       "functions": [
         {
           "name": "mkCustomer",
@@ -43238,10 +43757,18 @@
           "lineCount": 5
         },
         {
+          "name": "mkOfficeUser",
+          "params": [
+            "role"
+          ],
+          "exported": false,
+          "lineCount": 10
+        },
+        {
           "name": "mkTrip",
           "params": [],
           "exported": false,
-          "lineCount": 13
+          "lineCount": 15
         }
       ],
       "classes": [],
@@ -43270,6 +43797,7 @@
         {
           "source": "@tingting/shared",
           "specifiers": [
+            "Role",
             "TripStatus"
           ]
         },
@@ -43289,7 +43817,8 @@
         {
           "source": "../services/shipment.service",
           "specifiers": [
-            "createShipment"
+            "createShipment",
+            "transitionShipmentStatus"
           ]
         },
         {
@@ -43304,7 +43833,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 214,
+      "totalLines": 350,
       "hasStructuralAnalysis": true
     },
     "backend/src/tests/m34-delivery-confirm.test.ts": {
@@ -46026,7 +46555,7 @@
     },
     "backend/src/tests/master-data-import.test.ts": {
       "filePath": "backend/src/tests/master-data-import.test.ts",
-      "contentHash": "eede6e6af59c105fef3cc669fbc10fe0cdaf3385cd91f1e841c1c3d9d2df2f64",
+      "contentHash": "f02a36ccaaf49c7bebd7dfc0198e0d7993379d002c61fec89688273b912e7627",
       "functions": [
         {
           "name": "setRow",
@@ -46081,6 +46610,12 @@
           "source": "node:assert/strict",
           "specifiers": [
             "assert"
+          ]
+        },
+        {
+          "source": "node:crypto",
+          "specifiers": [
+            "createHash"
           ]
         },
         {
@@ -46196,6 +46731,7 @@
         {
           "source": "../services/master-data-import.service",
           "specifiers": [
+            "MASTER_IMPORT_PARSER_VERSION",
             "MASTER_IMPORT_SOURCE_RETENTION_MS"
           ]
         },
@@ -46207,12 +46743,12 @@
         }
       ],
       "exports": [],
-      "totalLines": 697,
+      "totalLines": 800,
       "hasStructuralAnalysis": true
     },
     "backend/src/tests/material-write-registry-exhaustive.test.ts": {
       "filePath": "backend/src/tests/material-write-registry-exhaustive.test.ts",
-      "contentHash": "8f9b5cec200cc079c07a78c5f9acd19e3e5a79c47fcb58c5872d085a593b5307",
+      "contentHash": "9e68fcb0dfa4221f57e5d3012294a6b17f947144df7a563179765b8cd5d729f2",
       "functions": [
         {
           "name": "walkTsFiles",
@@ -46395,7 +46931,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 648,
+      "totalLines": 653,
       "hasStructuralAnalysis": true
     },
     "backend/src/tests/metric-registry.test.ts": {
@@ -47429,7 +47965,7 @@
     },
     "backend/src/tests/o2c-rev1.migration-safety.test.ts": {
       "filePath": "backend/src/tests/o2c-rev1.migration-safety.test.ts",
-      "contentHash": "42a2ceb3f270a56a364f5d6222e88974f19176d3b54a6fce3abd407017abe670",
+      "contentHash": "97ce7ecc46b67f1d1f916c50b2755191249636d7735ee4f1bdcc4eb2625ad0d0",
       "functions": [],
       "classes": [],
       "imports": [
@@ -47454,7 +47990,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 59,
+      "totalLines": 60,
       "hasStructuralAnalysis": true
     },
     "backend/src/tests/o2c-rev1.ncc-dual-terms.test.ts": {
@@ -47716,16 +48252,40 @@
     },
     "backend/src/tests/o2c-trip-close-readiness.test.ts": {
       "filePath": "backend/src/tests/o2c-trip-close-readiness.test.ts",
-      "contentHash": "0269b8668d234e5d7026244eac052449d0f7eeaa6138ef52219c57fc5b84895d",
+      "contentHash": "e968ceed9e8b687bf195b227a2cb7c62707b872b14c3b39120af97cf78064c17",
       "functions": [
         {
           "name": "replacePod",
           "params": [
             "status",
-            "version"
+            "version",
+            "reviewedBy"
           ],
           "exported": false,
-          "lineCount": 18
+          "lineCount": 22
+        },
+        {
+          "name": "prepareReadyForDirectClose",
+          "params": [],
+          "exported": false,
+          "lineCount": 56
+        },
+        {
+          "name": "createExpenseScopeRecomputeFixture",
+          "params": [
+            "args"
+          ],
+          "exported": false,
+          "lineCount": 110
+        },
+        {
+          "name": "prepareFixtureForDirectClose",
+          "params": [
+            "shipmentIdForFixture",
+            "tripIdForFixture"
+          ],
+          "exported": false,
+          "lineCount": 21
         }
       ],
       "classes": [],
@@ -47749,7 +48309,14 @@
           "source": "drizzle-orm",
           "specifiers": [
             "eq",
+            "inArray",
             "sql"
+          ]
+        },
+        {
+          "source": "@tingting/shared",
+          "specifiers": [
+            "Role"
           ]
         },
         {
@@ -47773,6 +48340,19 @@
           ]
         },
         {
+          "source": "../services/shipment.service",
+          "specifiers": [
+            "completeShipmentDirect",
+            "recomputeShipmentCompletion"
+          ]
+        },
+        {
+          "source": "../services/snapshot-services",
+          "specifiers": [
+            "SnapshotServices"
+          ]
+        },
+        {
           "source": "../services/forwarder.service",
           "specifiers": [
             "setTripExpenseCompletion"
@@ -47786,12 +48366,12 @@
         }
       ],
       "exports": [],
-      "totalLines": 193,
+      "totalLines": 883,
       "hasStructuralAnalysis": true
     },
     "backend/src/tests/o2c-trip-route-authz.test.ts": {
       "filePath": "backend/src/tests/o2c-trip-route-authz.test.ts",
-      "contentHash": "4527f3a5500840d301fa43bb8ba93ae2d333e529a9359cb98e19d57550cf8fda",
+      "contentHash": "86ecc2869464ecb9923cac8e6276806eba398caf01299bf09e5d5214252e576c",
       "functions": [
         {
           "name": "request",
@@ -47859,7 +48439,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 71,
+      "totalLines": 75,
       "hasStructuralAnalysis": true
     },
     "backend/src/tests/ocr-openrouter.test.ts": {
@@ -48551,7 +49131,7 @@
     },
     "backend/src/tests/pricing-service.test.ts": {
       "filePath": "backend/src/tests/pricing-service.test.ts",
-      "contentHash": "d0c267c6412bc33ff238794dde8fd399478c0bb82b8e0b1d8db9afbfa1a59465",
+      "contentHash": "f228d0efe7550e411bbb9c3cb86eee50a9d276195622c89fb8b57488de0aa633",
       "functions": [
         {
           "name": "mkCustomer",
@@ -48592,10 +49172,11 @@
             "customerId",
             "routeId",
             "price",
-            "effectiveDate"
+            "effectiveDate",
+            "selector"
           ],
           "exported": false,
-          "lineCount": 7
+          "lineCount": 13
         }
       ],
       "classes": [],
@@ -48650,7 +49231,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 482,
+      "totalLines": 507,
       "hasStructuralAnalysis": true
     },
     "backend/src/tests/profitability-attribution.test.ts": {
@@ -50055,13 +50636,30 @@
     },
     "backend/src/tests/q12-q13-no-invoice-boundary-routes.test.ts": {
       "filePath": "backend/src/tests/q12-q13-no-invoice-boundary-routes.test.ts",
-      "contentHash": "dcb247986b3049b7647d057bf403813bff1b41a3c2298465e50a02ce97d185b7",
+      "contentHash": "a9ffe93fe0a9b72abfa9e93d9b65b33e8aeda546d77cd64466ed659a38dc02cf",
       "functions": [
         {
           "name": "mkUser",
           "params": [
             "username",
             "role"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "mkCustomer",
+          "params": [
+            "name"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "mkBusinessUnit",
+          "params": [
+            "code",
+            "name"
           ],
           "exported": false,
           "lineCount": 9
@@ -50200,6 +50798,7 @@
         {
           "source": "../lib/redis",
           "specifiers": [
+            "cacheInvalidate",
             "disconnectRedis"
           ]
         },
@@ -50224,7 +50823,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 285,
+      "totalLines": 359,
       "hasStructuralAnalysis": true
     },
     "backend/src/tests/q13-no-invoice-concurrency.test.ts": {
@@ -56856,7 +57455,7 @@
     },
     "backend/src/tests/shipment-coordination.service.test.ts": {
       "filePath": "backend/src/tests/shipment-coordination.service.test.ts",
-      "contentHash": "97f2857d00b122efa758262362b331d7e5e1c7c91b23ee172e091f74c0da9337",
+      "contentHash": "5fe00c96640c0dd92ce42447f08d57f4620a890117ca767b8bcf8774cd810751",
       "functions": [],
       "classes": [],
       "imports": [
@@ -56915,7 +57514,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 86,
+      "totalLines": 347,
       "hasStructuralAnalysis": true
     },
     "backend/src/tests/shipment-fulfillment-schema.test.ts": {
@@ -57376,7 +57975,7 @@
     },
     "backend/src/tests/shipment-rbac.test.ts": {
       "filePath": "backend/src/tests/shipment-rbac.test.ts",
-      "contentHash": "51fe57bdb3ed4d9612e8b2d5534cb0730f3e37091c8514f6c2c3b8d5b6c6e82e",
+      "contentHash": "8fe316d4f40ce41a28a0dd87da1f09b4182998e501ec2cc1175c74b65ceaacff",
       "functions": [
         {
           "name": "enforcer",
@@ -57426,7 +58025,7 @@
     },
     "backend/src/tests/shipment-routes.test.ts": {
       "filePath": "backend/src/tests/shipment-routes.test.ts",
-      "contentHash": "7f9bb9be49ebb5d1f37f824a61a23d16244fecbebb3f5d7b227555888179235a",
+      "contentHash": "b25314b35dd715ea860a1d1a61f375acfeda736d681fc358b7e77ca046b6800f",
       "functions": [
         {
           "name": "mkUser",
@@ -57528,6 +58127,12 @@
           ],
           "exported": false,
           "lineCount": 40
+        },
+        {
+          "name": "createReadyDirectCloseFixture",
+          "params": [],
+          "exported": false,
+          "lineCount": 80
         }
       ],
       "classes": [],
@@ -57666,6 +58271,12 @@
           ]
         },
         {
+          "source": "../middleware/audit",
+          "specifiers": [
+            "auditLogMiddleware"
+          ]
+        },
+        {
           "source": "../middleware/casbin",
           "specifiers": [
             "casbinAuthz"
@@ -57679,7 +58290,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 2095,
+      "totalLines": 2280,
       "hasStructuralAnalysis": true
     },
     "backend/src/tests/shipment-service.test.ts": {
@@ -58623,7 +59234,7 @@
     },
     "backend/src/tests/trip-pod-workflow.test.ts": {
       "filePath": "backend/src/tests/trip-pod-workflow.test.ts",
-      "contentHash": "e12b57c5521b21273312014a76c612fc84fdac4d973b43ce21bbe67a3b4a91c8",
+      "contentHash": "ebb0c7e4c923a3bc84635d6a934526e37eab3873afc3e0ac78c5bc59e38617e8",
       "functions": [
         {
           "name": "samplePdfBuffer",
@@ -58822,7 +59433,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 739,
+      "totalLines": 812,
       "hasStructuralAnalysis": true
     },
     "backend/src/tests/trip-shipment.test.ts": {
@@ -59737,12 +60348,12 @@
     },
     "docs/prd/quytrinh-o2c-qa-test-plan.md": {
       "filePath": "docs/prd/quytrinh-o2c-qa-test-plan.md",
-      "contentHash": "af661822f28bd03f2ced700a4fcf714432be54471fbf4b04addaa94cb59e741c",
+      "contentHash": "637a591011785853f16d9d0a6a5992aa70a156f0520a73a9713ce34dd6f8d09f",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 447,
+      "totalLines": 562,
       "hasStructuralAnalysis": true
     },
     "docs/prd/sidebar-organization-by-role.txt": {
@@ -59753,66 +60364,6 @@
       "imports": [],
       "exports": [],
       "totalLines": 311,
-      "hasStructuralAnalysis": false
-    },
-    "docs/quytrinh/BIẾU MẪU BÁO CÁO/29.7 - DATA PM.xlsx": {
-      "filePath": "docs/quytrinh/BIẾU MẪU BÁO CÁO/29.7 - DATA PM.xlsx",
-      "contentHash": "b0d91a45c97003484a429f5cae3b8754098eadc78c6463b47b1d0c014feac117",
-      "functions": [],
-      "classes": [],
-      "imports": [],
-      "exports": [],
-      "totalLines": 3295,
-      "hasStructuralAnalysis": false
-    },
-    "docs/quytrinh/BIẾU MẪU BÁO CÁO/29.7 - DEMO KẾ TOÁN.xlsx": {
-      "filePath": "docs/quytrinh/BIẾU MẪU BÁO CÁO/29.7 - DEMO KẾ TOÁN.xlsx",
-      "contentHash": "fab6d34ef3980ec2486877b7ce22b65efa252aa958b5dbb0a01ad76b52f3685e",
-      "functions": [],
-      "classes": [],
-      "imports": [],
-      "exports": [],
-      "totalLines": 2754,
-      "hasStructuralAnalysis": false
-    },
-    "docs/quytrinh/BIẾU MẪU BÁO CÁO/BẢNG DEMO PHẦN MỀM 2026- CUS- ĐIỀU XE.xlsx": {
-      "filePath": "docs/quytrinh/BIẾU MẪU BÁO CÁO/BẢNG DEMO PHẦN MỀM 2026- CUS- ĐIỀU XE.xlsx",
-      "contentHash": "a58618d43427bc273fc7ddc2227fda21cbe15995f100696a55b20933bf8120e1",
-      "functions": [],
-      "classes": [],
-      "imports": [],
-      "exports": [],
-      "totalLines": 480,
-      "hasStructuralAnalysis": false
-    },
-    "docs/quytrinh/BIẾU MẪU BÁO CÁO/FILE HỢP ĐỒNG MẪU UP PM/2026 - HĐVC SS - MẪU VỚI VENDOR.docx": {
-      "filePath": "docs/quytrinh/BIẾU MẪU BÁO CÁO/FILE HỢP ĐỒNG MẪU UP PM/2026 - HĐVC SS - MẪU VỚI VENDOR.docx",
-      "contentHash": "84f073adb698b4393ab49605fcaca860d0c0fc1908aa84a2888af1300c2eae53",
-      "functions": [],
-      "classes": [],
-      "imports": [],
-      "exports": [],
-      "totalLines": 89,
-      "hasStructuralAnalysis": false
-    },
-    "docs/quytrinh/BIẾU MẪU BÁO CÁO/FILE HỢP ĐỒNG MẪU UP PM/2026. HĐVC SS - NCC (SONG NGỮ).docx": {
-      "filePath": "docs/quytrinh/BIẾU MẪU BÁO CÁO/FILE HỢP ĐỒNG MẪU UP PM/2026. HĐVC SS - NCC (SONG NGỮ).docx",
-      "contentHash": "3b442bf7491d85a8c599ab8a6ab05eb87353f76fb053970d6567d81d95208ba2",
-      "functions": [],
-      "classes": [],
-      "imports": [],
-      "exports": [],
-      "totalLines": 155,
-      "hasStructuralAnalysis": false
-    },
-    "docs/quytrinh/BIẾU MẪU BÁO CÁO/FILE HỢP ĐỒNG MẪU UP PM/2026. HĐVC SS - NCC.docx": {
-      "filePath": "docs/quytrinh/BIẾU MẪU BÁO CÁO/FILE HỢP ĐỒNG MẪU UP PM/2026. HĐVC SS - NCC.docx",
-      "contentHash": "33ebff43c656f63d8b1ca450aaf002d8a30c56111757566dc011b55f0179891d",
-      "functions": [],
-      "classes": [],
-      "imports": [],
-      "exports": [],
-      "totalLines": 136,
       "hasStructuralAnalysis": false
     },
     "docs/quytrinh/CAU-HOI-LAM-RO-QUY-TRINH-O2C.md": {
@@ -59987,12 +60538,12 @@
     },
     "docs/regression-testing/README.md": {
       "filePath": "docs/regression-testing/README.md",
-      "contentHash": "07fd683a506aacb0985760b2eec9b0e6cd09a94ebca094563f2a54f4feebaa2e",
+      "contentHash": "8466519eca0aceccd279d4737877d274097fe61a58fcbf68cb6d765a25e34247",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 255,
+      "totalLines": 260,
       "hasStructuralAnalysis": true
     },
     "eslint.config.mjs": {
@@ -60901,7 +61452,7 @@
     },
     "frontend/src/api/appSettingsClient.ts": {
       "filePath": "frontend/src/api/appSettingsClient.ts",
-      "contentHash": "8260dd6266ff6b28784858d3a96080e60beb442b7b2832027c7d00e2a8c9613f",
+      "contentHash": "4303507575a67e180b9442e2f6529128778fe5b83ff953aaad0dfb73569e1992",
       "functions": [],
       "classes": [],
       "imports": [
@@ -60925,12 +61476,27 @@
             "EmailSettingsResponse",
             "EmailSettingsUpdate"
           ]
+        },
+        {
+          "source": "@tingting/shared/src/schemas/financial-reporting-policy",
+          "specifiers": [
+            "FinancialReportingPolicyRequest",
+            "FinancialReportingPolicyState",
+            "TruckFinancialProfileRequest",
+            "TruckFinancialProfileState"
+          ]
+        },
+        {
+          "source": "../lib/http/query",
+          "specifiers": [
+            "toQuery"
+          ]
         }
       ],
       "exports": [
         "appSettingsClient"
       ],
-      "totalLines": 21,
+      "totalLines": 40,
       "hasStructuralAnalysis": true
     },
     "frontend/src/api/configClient.ts": {
@@ -61148,7 +61714,7 @@
     },
     "frontend/src/api/dispatchPlanningClient.ts": {
       "filePath": "frontend/src/api/dispatchPlanningClient.ts",
-      "contentHash": "1cb70e692365fada56219ae2bb07bab55072903f56f144fd723b004e6850e4ac",
+      "contentHash": "816d1e3967fc69c8d4a7a5fc6fae00a12ccec7e9329a51da55fceb6c83e026a2",
       "functions": [
         {
           "name": "queryString",
@@ -61208,7 +61774,7 @@
             "body"
           ],
           "exported": true,
-          "lineCount": 11
+          "lineCount": 12
         }
       ],
       "classes": [],
@@ -61234,7 +61800,7 @@
         "resolveDispatchHandoff",
         "issueDispatchOrder"
       ],
-      "totalLines": 129,
+      "totalLines": 130,
       "hasStructuralAnalysis": true
     },
     "frontend/src/api/driverClient.test.ts": {
@@ -61816,7 +62382,7 @@
     },
     "frontend/src/api/shipmentClient.ts": {
       "filePath": "frontend/src/api/shipmentClient.ts",
-      "contentHash": "0be136df906d74a3a79a8128a7095b5a4ba566acc52ddef9255d855199285d17",
+      "contentHash": "7f9143f4057a2058277b2bd4b0a472169ec8d0dbebb7e2da0a1f07efd5d2f81e",
       "functions": [
         {
           "name": "quickCreateShipment",
@@ -61827,6 +62393,15 @@
           "returnType": "Promise<Shipment>",
           "exported": true,
           "lineCount": 8
+        },
+        {
+          "name": "getShipmentPricingPreview",
+          "params": [
+            "body"
+          ],
+          "returnType": "Promise<ShipmentPricingProjection>",
+          "exported": true,
+          "lineCount": 5
         },
         {
           "name": "getShipmentDetail",
@@ -61875,6 +62450,15 @@
           ],
           "exported": true,
           "lineCount": 11
+        },
+        {
+          "name": "getShipmentDispatchHandoff",
+          "params": [
+            "id"
+          ],
+          "returnType": "Promise<ShipmentDispatchHandoff | null>",
+          "exported": true,
+          "lineCount": 3
         },
         {
           "name": "addShipmentDocument",
@@ -61942,6 +62526,17 @@
           "lineCount": 12
         },
         {
+          "name": "completeShipment",
+          "params": [
+            "shipmentId",
+            "body",
+            "idempotencyKey"
+          ],
+          "returnType": "Promise<CompleteShipmentResponse>",
+          "exported": true,
+          "lineCount": 11
+        },
+        {
           "name": "cancelShipmentFulfillment",
           "params": [
             "shipmentId",
@@ -62002,23 +62597,26 @@
       ],
       "exports": [
         "quickCreateShipment",
+        "getShipmentPricingPreview",
         "getShipmentDetail",
         "updateShipment",
         "saveShipmentContainers",
         "listOperationalSites",
         "submitShipmentForDispatch",
+        "getShipmentDispatchHandoff",
         "addShipmentDocument",
         "replaceShipmentDocument",
         "createShipmentDeclaration",
         "updateShipmentDeclaration",
         "reviewShipmentChangeRequest",
         "reviewShipmentPod",
+        "completeShipment",
         "cancelShipmentFulfillment",
         "downloadShipmentPodFile",
         "listShipments",
         "dispatchShipment"
       ],
-      "totalLines": 547,
+      "totalLines": 624,
       "hasStructuralAnalysis": true
     },
     "frontend/src/api/systemClient.ts": {
@@ -66393,7 +66991,7 @@
     },
     "frontend/src/components/shipment/TripPodReviewPanel.test.tsx": {
       "filePath": "frontend/src/components/shipment/TripPodReviewPanel.test.tsx",
-      "contentHash": "4ecb753e54271576ede2a0505c9500414797f4ee42b50a1f3ce06960176da832",
+      "contentHash": "854dd0c4d78fe4dc11166968d2af09d7c3bc060cb0b9a269e12175c43aa08866",
       "functions": [
         {
           "name": "makeItem",
@@ -66441,12 +67039,12 @@
         }
       ],
       "exports": [],
-      "totalLines": 156,
+      "totalLines": 258,
       "hasStructuralAnalysis": true
     },
     "frontend/src/components/shipment/TripPodReviewPanel.tsx": {
       "filePath": "frontend/src/components/shipment/TripPodReviewPanel.tsx",
-      "contentHash": "eda2908beff21d35b113ba15e0986d544c92a39167daf2e572a98bd9b653a46f",
+      "contentHash": "e68d60630a8bbcd6f1517d4558d662df156efe7f87996a56615127653b94d068",
       "functions": [
         {
           "name": "formatDateTime",
@@ -66487,10 +67085,10 @@
         {
           "name": "TripPodReviewPanel",
           "params": [
-            "{\n  shipmentId,\n  items,\n  canReview,\n  canResolveCancellation,\n  onChanged,\n}"
+            "{\n  shipmentId,\n  shipmentVersion,\n  shipmentStatus,\n  items,\n  canReview,\n  canComplete,\n  canResolveCancellation,\n  onChanged,\n}"
           ],
           "exported": true,
-          "lineCount": 365
+          "lineCount": 515
         }
       ],
       "classes": [],
@@ -66498,6 +67096,7 @@
         {
           "source": "react",
           "specifiers": [
+            "useRef",
             "useState"
           ]
         },
@@ -66524,6 +67123,7 @@
           "specifiers": [
             "downloadShipmentPodFile",
             "cancelShipmentFulfillment",
+            "completeShipment",
             "reviewShipmentPod",
             "ShipmentPodReviewFile",
             "ShipmentPodReviewItem"
@@ -66539,7 +67139,7 @@
       "exports": [
         "TripPodReviewPanel"
       ],
-      "totalLines": 438,
+      "totalLines": 592,
       "hasStructuralAnalysis": true
     },
     "frontend/src/components/trip/ActionBar.css": {
@@ -69797,8 +70397,17 @@
     },
     "frontend/src/design-system/forms/SelectField.tsx": {
       "filePath": "frontend/src/design-system/forms/SelectField.tsx",
-      "contentHash": "4787f8d8dbbde10e359798019475573861e0990e455f8ec4fca64e073a498884",
+      "contentHash": "50f1bbe0f677fe7ea71b51d13ea0e6a7ce4793a73e863eae956fff170d11ad78",
       "functions": [
+        {
+          "name": "childrenToText",
+          "params": [
+            "children"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 10
+        },
         {
           "name": "SelectField",
           "params": [
@@ -69844,7 +70453,7 @@
       "exports": [
         "SelectField"
       ],
-      "totalLines": 134,
+      "totalLines": 152,
       "hasStructuralAnalysis": true
     },
     "frontend/src/design-system/forms/TextField.css": {
@@ -74116,7 +74725,7 @@
     },
     "frontend/src/features/trip-detail/components/BasicInfoCard.tsx": {
       "filePath": "frontend/src/features/trip-detail/components/BasicInfoCard.tsx",
-      "contentHash": "2db71af0725cb9262d1176f21606e009312e4d345de429c757f2bcbad0e4d41e",
+      "contentHash": "a00b218adefae712b04116ec57cd6ed68397efaf930e032d5b35535e3820ded6",
       "functions": [
         {
           "name": "BasicInfoCard",
@@ -74124,7 +74733,7 @@
             "{ trip }"
           ],
           "exported": true,
-          "lineCount": 41
+          "lineCount": 60
         }
       ],
       "classes": [],
@@ -74133,6 +74742,12 @@
           "source": "react",
           "specifiers": [
             "React"
+          ]
+        },
+        {
+          "source": "@tanstack/react-query",
+          "specifiers": [
+            "useQuery"
           ]
         },
         {
@@ -74157,25 +74772,62 @@
           "specifiers": [
             "TripDetail"
           ]
+        },
+        {
+          "source": "../../../lib/api",
+          "specifiers": [
+            "api"
+          ]
+        },
+        {
+          "source": "../../../api/keys",
+          "specifiers": [
+            "qk"
+          ]
+        },
+        {
+          "source": "./ContainersCard",
+          "specifiers": [
+            "isSyntheticLclContainer",
+            "ContainersResponse"
+          ]
         }
       ],
       "exports": [
         "BasicInfoCard"
       ],
-      "totalLines": 51,
+      "totalLines": 87,
       "hasStructuralAnalysis": true
     },
     "frontend/src/features/trip-detail/components/ContainersCard.tsx": {
       "filePath": "frontend/src/features/trip-detail/components/ContainersCard.tsx",
-      "contentHash": "8be40e72e1f71cfdc6c5e05c9eef7ee59fdc0ae90497269912f803dc55d819db",
+      "contentHash": "cf0631ea0fd3609fd632821a3f7332ea2412e149c44068fbc2a8e9baaead1a5a",
       "functions": [
+        {
+          "name": "isSyntheticLclContainer",
+          "params": [
+            "container"
+          ],
+          "returnType": "boolean",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "containerSubtitle",
+          "params": [
+            "items"
+          ],
+          "returnType": "string | null",
+          "exported": false,
+          "lineCount": 9
+        },
         {
           "name": "ContainersCard",
           "params": [
             "{ tripId }"
           ],
           "exported": true,
-          "lineCount": 126
+          "lineCount": 132
         },
         {
           "name": "PhotoGallery",
@@ -74240,9 +74892,10 @@
         }
       ],
       "exports": [
+        "isSyntheticLclContainer",
         "ContainersCard"
       ],
-      "totalLines": 234,
+      "totalLines": 258,
       "hasStructuralAnalysis": true
     },
     "frontend/src/features/trip-detail/components/ExternalCarrierCard.tsx": {
@@ -76008,7 +76661,7 @@
     },
     "frontend/src/features/users/hooks/useUserMutations.ts": {
       "filePath": "frontend/src/features/users/hooks/useUserMutations.ts",
-      "contentHash": "17c932923c9cbc7932ab3c373f1c0ef88bd4d031cf5c01308ecaa505d9156fa1",
+      "contentHash": "1a770e42115d3324fa35545f0ec3514a2e2973ba940c403c9c72a40acffbc878",
       "functions": [
         {
           "name": "driverPayload",
@@ -76032,7 +76685,15 @@
             "data"
           ],
           "exported": false,
-          "lineCount": 7
+          "lineCount": 6
+        },
+        {
+          "name": "shipmentScopePayload",
+          "params": [
+            "data"
+          ],
+          "exported": false,
+          "lineCount": 6
         },
         {
           "name": "useUserMutations",
@@ -76040,7 +76701,7 @@
             "refetch"
           ],
           "exported": true,
-          "lineCount": 91
+          "lineCount": 93
         }
       ],
       "classes": [],
@@ -76087,7 +76748,7 @@
       "exports": [
         "useUserMutations"
       ],
-      "totalLines": 124,
+      "totalLines": 132,
       "hasStructuralAnalysis": true
     },
     "frontend/src/features/users/users.css": {
@@ -76460,7 +77121,7 @@
     },
     "frontend/src/hooks/use-trip-form-submit.ts": {
       "filePath": "frontend/src/hooks/use-trip-form-submit.ts",
-      "contentHash": "dbf644041a08b79ba3ba57424f523d58707831f281d4277a4533ba07c9555734",
+      "contentHash": "c5297eb620a025667a0a14e4fba8346a3db96a31f8b026ed35b45f25277d33ac",
       "functions": [
         {
           "name": "moneyOrZero",
@@ -76812,7 +77473,7 @@
     },
     "frontend/src/hooks/useAppSettings.ts": {
       "filePath": "frontend/src/hooks/useAppSettings.ts",
-      "contentHash": "6d9f8c4ebd759eb2d94dc8f3a2cd951d25abe8fe681111d2d60196053fa1ef5b",
+      "contentHash": "145b174b9d968d537d348fcdb49c8145770537bebe4a1115e0c9d8b4a8fc98fd",
       "functions": [
         {
           "name": "useAppSettings",
@@ -76837,6 +77498,40 @@
           "params": [],
           "exported": true,
           "lineCount": 9
+        },
+        {
+          "name": "truckFinancialProfilesQueryKey",
+          "params": [
+            "truckId"
+          ],
+          "exported": false,
+          "lineCount": 2
+        },
+        {
+          "name": "useFinancialReportingPolicy",
+          "params": [],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "useRequestFinancialReportingPolicy",
+          "params": [],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "useTruckFinancialProfiles",
+          "params": [
+            "truckId"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "useRequestTruckFinancialProfile",
+          "params": [],
+          "exported": true,
+          "lineCount": 10
         }
       ],
       "classes": [],
@@ -76857,6 +77552,13 @@
           ]
         },
         {
+          "source": "@tingting/shared/src/schemas/financial-reporting-policy",
+          "specifiers": [
+            "FinancialReportingPolicyRequest",
+            "TruckFinancialProfileRequest"
+          ]
+        },
+        {
           "source": "../api/appSettingsClient",
           "specifiers": [
             "appSettingsClient"
@@ -76873,9 +77575,13 @@
         "useAppSettings",
         "useSaveAppSettings",
         "useEmailSettings",
-        "useSaveEmailSettings"
+        "useSaveEmailSettings",
+        "useFinancialReportingPolicy",
+        "useRequestFinancialReportingPolicy",
+        "useTruckFinancialProfiles",
+        "useRequestTruckFinancialProfile"
       ],
-      "totalLines": 46,
+      "totalLines": 95,
       "hasStructuralAnalysis": true
     },
     "frontend/src/hooks/useAuditLogs.ts": {
@@ -85251,7 +85957,7 @@
     },
     "frontend/src/pages/DispatchPage.test.tsx": {
       "filePath": "frontend/src/pages/DispatchPage.test.tsx",
-      "contentHash": "81377a073754a8f66ca0e646d40ee2f32df2390cf3be75874233eddf796ba6e1",
+      "contentHash": "509e158a0b6f9d5552c70ec1ce65ecd5dadfc85cb5ebca6076df096c00484254",
       "functions": [
         {
           "name": "makeTask",
@@ -85370,7 +86076,7 @@
     },
     "frontend/src/pages/DispatchPage.tsx": {
       "filePath": "frontend/src/pages/DispatchPage.tsx",
-      "contentHash": "9f8933fc2c405cf913eabe72e85e45c7b3cda6389b50aa731c33968e53545e24",
+      "contentHash": "544ad0b4773a864ac363a9b44424a32f41e8436d63e02c5e6dcc6ad22219aa32",
       "functions": [
         {
           "name": "emptyResourceSearch",
@@ -85406,6 +86112,15 @@
           "lineCount": 10
         },
         {
+          "name": "suggestedPricingRateKey",
+          "params": [
+            "item"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
           "name": "normalizeFleet",
           "params": [
             "resources"
@@ -85435,7 +86150,7 @@
           "name": "DispatchPage",
           "params": [],
           "exported": true,
-          "lineCount": 643
+          "lineCount": 665
         }
       ],
       "classes": [],
@@ -85502,7 +86217,7 @@
       "exports": [
         "DispatchPage"
       ],
-      "totalLines": 762,
+      "totalLines": 796,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/DriverEarningsPage.css": {
@@ -85692,12 +86407,12 @@
     },
     "frontend/src/pages/DriverTripDetailPage.css": {
       "filePath": "frontend/src/pages/DriverTripDetailPage.css",
-      "contentHash": "440c52230eac6a1efb061d29a1576dabe9b02ce44fcf7a58a5093cc583e4a8f2",
+      "contentHash": "77197e2869d2a84cf2052b6dac5e28253fc228f8f9f0936f0eef74e3340a6b7a",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 428,
+      "totalLines": 440,
       "hasStructuralAnalysis": false
     },
     "frontend/src/pages/DriverTripDetailPage.test.tsx": {
@@ -85766,7 +86481,7 @@
     },
     "frontend/src/pages/DriverTripDetailPage.tsx": {
       "filePath": "frontend/src/pages/DriverTripDetailPage.tsx",
-      "contentHash": "5a0a4448dc9aad4a8dfdf0274e956e102791ceb1384c562f078c57d069d33701",
+      "contentHash": "18272f57ed9af2f1a9911c7978b3373f5b06c178d55f368c2513305743413092",
       "functions": [
         {
           "name": "tripStatusVariant",
@@ -85794,6 +86509,15 @@
           "returnType": "string",
           "exported": false,
           "lineCount": 3
+        },
+        {
+          "name": "classifyCommandError",
+          "params": [
+            "error"
+          ],
+          "returnType": "OfflineCommandSendResult",
+          "exported": false,
+          "lineCount": 7
         },
         {
           "name": "getLatestMilestoneEvent",
@@ -85880,7 +86604,7 @@
           "name": "DriverTripDetailPage",
           "params": [],
           "exported": true,
-          "lineCount": 509
+          "lineCount": 500
         }
       ],
       "classes": [],
@@ -85982,6 +86706,12 @@
           ]
         },
         {
+          "source": "../lib/api",
+          "specifiers": [
+            "ApiError"
+          ]
+        },
+        {
           "source": "../lib/format",
           "specifiers": [
             "formatCurrency"
@@ -86016,7 +86746,7 @@
       "exports": [
         "DriverTripDetailPage"
       ],
-      "totalLines": 721,
+      "totalLines": 735,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/DriverTripsPage.css": {
@@ -87207,17 +87937,17 @@
     },
     "frontend/src/pages/ForwarderTripDetailPage.css": {
       "filePath": "frontend/src/pages/ForwarderTripDetailPage.css",
-      "contentHash": "2122d6af07d58221541cf82d00db499e79f7e338bb61188ca3d7ea021718356c",
+      "contentHash": "4fc7f3f825f4bb9b70ceb4c2cf4096c8dc25948b469921cf79a06e2269ce1421",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 125,
+      "totalLines": 130,
       "hasStructuralAnalysis": false
     },
     "frontend/src/pages/ForwarderTripDetailPage.test.tsx": {
       "filePath": "frontend/src/pages/ForwarderTripDetailPage.test.tsx",
-      "contentHash": "c6ad1fdbc0723123442734ef88b703f5b3cef2eeaaac7b08c1a30ece2f43f95a",
+      "contentHash": "c64b29dcb608d95565a69dbe6b72ade24b453ca5474eabe47bccfccd16268c6e",
       "functions": [
         {
           "name": "renderPage",
@@ -87270,12 +88000,12 @@
         }
       ],
       "exports": [],
-      "totalLines": 305,
+      "totalLines": 309,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/ForwarderTripDetailPage.tsx": {
       "filePath": "frontend/src/pages/ForwarderTripDetailPage.tsx",
-      "contentHash": "59990969d6e74d5555a29299fd00c7a3a9664e1f0f6a7826cdea407cd9f1c924",
+      "contentHash": "68368c78ac7cacf22feb18de7c15bc69d70048dfdc57711b1b8379e199af9873",
       "functions": [
         {
           "name": "tripStatusVariant",
@@ -87313,7 +88043,7 @@
           "name": "ForwarderTripDetailPage",
           "params": [],
           "exported": true,
-          "lineCount": 890
+          "lineCount": 894
         }
       ],
       "classes": [],
@@ -87474,6 +88204,10 @@
             "ForwarderExpenseRow",
             "ForwarderTripError",
             "ForwarderTripLoading",
+            "FORWARDER_LCL_SCOPE_LABEL",
+            "getForwarderContainerDisplayLabel",
+            "getForwarderContainerScopeLabel",
+            "isSyntheticLclContainer",
             "ForwarderContainer"
           ]
         },
@@ -87485,7 +88219,7 @@
       "exports": [
         "ForwarderTripDetailPage"
       ],
-      "totalLines": 975,
+      "totalLines": 989,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/ForwarderTripsPage.css": {
@@ -89021,17 +89755,17 @@
     },
     "frontend/src/pages/SettlementPrintPage.css": {
       "filePath": "frontend/src/pages/SettlementPrintPage.css",
-      "contentHash": "c54f8a2a92604942139d745573fe8a0f30013f2fe3d10837c69c2f8c6c2852d8",
+      "contentHash": "d4590c9ead996cd43540bcc234ddb097bc19d0ac12fd03a00efb61881dcf12cb",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 490,
+      "totalLines": 498,
       "hasStructuralAnalysis": false
     },
     "frontend/src/pages/SettlementPrintPage.tsx": {
       "filePath": "frontend/src/pages/SettlementPrintPage.tsx",
-      "contentHash": "d9fd51a91219452bbad29302aa34cee4f1880bda25c0089a3701576940512e96",
+      "contentHash": "5f6d28df88795604bb43838ba73807c79c621ad504e6ab8b8b2affb31be56b90",
       "functions": [
         {
           "name": "settlementStatusVariant",
@@ -89060,6 +89794,16 @@
           "lineCount": 19
         },
         {
+          "name": "settlementBalanceSummary",
+          "params": [
+            "totalAdvance",
+            "totalExpense",
+            "refund"
+          ],
+          "exported": true,
+          "lineCount": 15
+        },
+        {
           "name": "buildPrintRows",
           "params": [
             "expenses"
@@ -89071,7 +89815,7 @@
           "name": "SettlementPrintPage",
           "params": [],
           "exported": true,
-          "lineCount": 485
+          "lineCount": 489
         }
       ],
       "classes": [],
@@ -89168,24 +89912,25 @@
       ],
       "exports": [
         "settlementReviewPermissions",
+        "settlementBalanceSummary",
         "SettlementPrintPage"
       ],
-      "totalLines": 652,
+      "totalLines": 672,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/ShipmentDetailPage.css": {
       "filePath": "frontend/src/pages/ShipmentDetailPage.css",
-      "contentHash": "cc93039ad2e3e32bbeec905103dc837c7e71fd0d484f3dfc029cf0833167a21f",
+      "contentHash": "e03192ffdcbe685fee61018284291fd9d5ae94714b9602f9d9c5e403971a2ee9",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 540,
+      "totalLines": 658,
       "hasStructuralAnalysis": false
     },
     "frontend/src/pages/ShipmentDetailPage.tsx": {
       "filePath": "frontend/src/pages/ShipmentDetailPage.tsx",
-      "contentHash": "ac87018e48572328c0d7be199a793bcdd6e3e7e69f54a9fb4aa0be56decabdb4",
+      "contentHash": "a5229495b99b836750a9a724cad10933ee033ebf195771b128e6eaaf82065c97",
       "functions": [
         {
           "name": "formatDate",
@@ -89206,10 +89951,19 @@
           "lineCount": 6
         },
         {
+          "name": "formatVnd",
+          "params": [
+            "value"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 4
+        },
+        {
           "name": "ShipmentDetailPage",
           "params": [],
           "exported": true,
-          "lineCount": 257
+          "lineCount": 274
         }
       ],
       "classes": [],
@@ -89321,22 +90075,22 @@
       "exports": [
         "ShipmentDetailPage"
       ],
-      "totalLines": 378,
+      "totalLines": 400,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/ShipmentsPage.css": {
       "filePath": "frontend/src/pages/ShipmentsPage.css",
-      "contentHash": "2bedb5bb1d99dd40035faafae133b6462af841023c187112d3822782b08ec164",
+      "contentHash": "14570a2fa957fd559192d949ee75240a8cf8be9f20c4aa0b8e88633188310891",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 704,
+      "totalLines": 729,
       "hasStructuralAnalysis": false
     },
     "frontend/src/pages/ShipmentsPage.test.tsx": {
       "filePath": "frontend/src/pages/ShipmentsPage.test.tsx",
-      "contentHash": "818bf022516c4d5c54c464b177e12b2e3f53172fa17b0b6c28446fe23c948734",
+      "contentHash": "a05cadbda8252c987f11bb60e0e90ce3c6a7b1b21eaee53a5057866386326c8e",
       "functions": [
         {
           "name": "renderAt",
@@ -89426,12 +90180,12 @@
         }
       ],
       "exports": [],
-      "totalLines": 334,
+      "totalLines": 372,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/ShipmentsPage.tsx": {
       "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "contentHash": "7dec9658cca68a6d1352f87c81e53ce6fb04c8e5ba3aae1c8a38255265aee260",
+      "contentHash": "56d02863899057cedeff3a10171f97d8d898f10d65b3a7ee7a098d37e324869c",
       "functions": [
         {
           "name": "formatRoute",
@@ -89500,7 +90254,7 @@
           "name": "ShipmentsPage",
           "params": [],
           "exported": true,
-          "lineCount": 394
+          "lineCount": 408
         }
       ],
       "classes": [],
@@ -89609,7 +90363,7 @@
       "exports": [
         "ShipmentsPage"
       ],
-      "totalLines": 545,
+      "totalLines": 559,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/SupplierListPage.css": {
@@ -91227,7 +91981,7 @@
     },
     "frontend/src/pages/clerk/ClerkShipmentCreatePage.tsx": {
       "filePath": "frontend/src/pages/clerk/ClerkShipmentCreatePage.tsx",
-      "contentHash": "9c91a819287325c5055fa142807439a43047044f8ab5e82e8fab2a694ef778a5",
+      "contentHash": "8f8271019db72b6248fbf4aa01156cbd28e52c0f1e88fb92cc61080acaa464c9",
       "functions": [
         {
           "name": "newContainer",
@@ -91244,6 +91998,15 @@
           "lineCount": 3
         },
         {
+          "name": "formatVnd",
+          "params": [
+            "value"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 4
+        },
+        {
           "name": "SearchableField",
           "params": [
             "{\n  id,\n  label,\n  value,\n  onChange,\n  options,\n  placeholder,\n  disabled,\n  required,\n}"
@@ -91255,7 +92018,7 @@
           "name": "ClerkShipmentCreatePage",
           "params": [],
           "exported": true,
-          "lineCount": 257
+          "lineCount": 415
         }
       ],
       "classes": [],
@@ -91306,10 +92069,12 @@
           "specifiers": [
             "listOperationalSites",
             "createShipmentDeclaration",
+            "getShipmentPricingPreview",
             "quickCreateShipment",
             "saveShipmentContainers",
             "submitShipmentForDispatch",
-            "OperationalSite"
+            "OperationalSite",
+            "ShipmentPricingProjection"
           ]
         },
         {
@@ -91328,12 +92093,12 @@
       "exports": [
         "ClerkShipmentCreatePage"
       ],
-      "totalLines": 369,
+      "totalLines": 535,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/clerk/ClerkShipmentDocsPage.test.tsx": {
       "filePath": "frontend/src/pages/clerk/ClerkShipmentDocsPage.test.tsx",
-      "contentHash": "3932972429e14e54ad9d2cba015748a58a750d3f0e01824566edc7fe51e7a349",
+      "contentHash": "374eb905731efe2a572e0ea926aaeff8fe4c31e3d392c6052fefa62e0e646c10",
       "functions": [
         {
           "name": "makeDetail",
@@ -91427,12 +92192,12 @@
         }
       ],
       "exports": [],
-      "totalLines": 807,
+      "totalLines": 876,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/clerk/ClerkShipmentDocsPage.tsx": {
       "filePath": "frontend/src/pages/clerk/ClerkShipmentDocsPage.tsx",
-      "contentHash": "aa95ea2ea37ab705d2ceabcd7e78a51c79a6b44deba2f88ce8ea26bb4adbbe61",
+      "contentHash": "83cd3b8e0fcf49fbb4f2ac9dea24e3ae93724e2d889996494406df9d14b7e098",
       "functions": [
         {
           "name": "toRow",
@@ -91464,7 +92229,7 @@
           "name": "ClerkShipmentDocsPage",
           "params": [],
           "exported": true,
-          "lineCount": 1024
+          "lineCount": 1049
         },
         {
           "name": "SectionCard",
@@ -91490,6 +92255,7 @@
           "specifiers": [
             "useEffect",
             "useMemo",
+            "useRef",
             "useState"
           ]
         },
@@ -91557,6 +92323,7 @@
           "specifiers": [
             "addShipmentDocument",
             "createShipmentDeclaration",
+            "getShipmentDispatchHandoff",
             "getShipmentDetail",
             "listOperationalSites",
             "replaceShipmentDocument",
@@ -91570,6 +92337,7 @@
             "ShipmentDetail",
             "ShipmentContainer",
             "ShipmentDocument",
+            "ShipmentDispatchHandoff",
             "OperationalSite"
           ]
         },
@@ -91584,7 +92352,7 @@
       "exports": [
         "ClerkShipmentDocsPage"
       ],
-      "totalLines": 1296,
+      "totalLines": 1323,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/config/AncillaryRevenueConfigPage.tsx": {
@@ -91653,7 +92421,7 @@
     },
     "frontend/src/pages/config/AppSettingsConfigPage.test.tsx": {
       "filePath": "frontend/src/pages/config/AppSettingsConfigPage.test.tsx",
-      "contentHash": "5206508edd80c4cffd4ed4c05e7f8f5d4ecbd95b2194112c9479543591988bfa",
+      "contentHash": "dd104f09e723c6fdcfba7de21d677cd75a5100bb48a7b676ccd0289eb6d5c788",
       "functions": [
         {
           "name": "queryResult",
@@ -91719,6 +92487,13 @@
           ]
         },
         {
+          "source": "@tingting/shared/src/schemas/financial-reporting-policy",
+          "specifiers": [
+            "FinancialReportingPolicyState",
+            "TruckFinancialProfileState"
+          ]
+        },
+        {
           "source": "./AppSettingsConfigPage",
           "specifiers": [
             "AppSettingsConfigPage"
@@ -91726,12 +92501,12 @@
         }
       ],
       "exports": [],
-      "totalLines": 332,
+      "totalLines": 473,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/config/AppSettingsConfigPage.tsx": {
       "filePath": "frontend/src/pages/config/AppSettingsConfigPage.tsx",
-      "contentHash": "7262ec527f8993f20a2796ba227eb57082b5ed9b2e3378caf1af5904ac8fa358",
+      "contentHash": "61f8dbf4c3cd546ef8894d693e24da42800a0eb90c95bbaee602cf9ab89e7d43",
       "functions": [
         {
           "name": "FeatureSwitch",
@@ -91768,10 +92543,69 @@
           "lineCount": 47
         },
         {
+          "name": "formatViDate",
+          "params": [
+            "value"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "formatViMonth",
+          "params": [
+            "value"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "formatFullVnd",
+          "params": [
+            "value"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "ratioToPercentInput",
+          "params": [
+            "value"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "percentInputToNumber",
+          "params": [
+            "value"
+          ],
+          "returnType": "number | null",
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "FinanceLoadingBlock",
+          "params": [],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "FinanceVersionList",
+          "params": [
+            "{\n  title,\n  emptyMessage,\n  rows,\n  renderMeta,\n}"
+          ],
+          "exported": false,
+          "lineCount": 52
+        },
+        {
           "name": "AppSettingsConfigPage",
           "params": [],
           "exported": true,
-          "lineCount": 689
+          "lineCount": 1204
         }
       ],
       "classes": [],
@@ -91843,8 +92677,12 @@
           "specifiers": [
             "useAppSettings",
             "useEmailSettings",
+            "useFinancialReportingPolicy",
+            "useRequestFinancialReportingPolicy",
+            "useRequestTruckFinancialProfile",
             "useSaveAppSettings",
-            "useSaveEmailSettings"
+            "useSaveEmailSettings",
+            "useTruckFinancialProfiles"
           ]
         },
         {
@@ -91900,7 +92738,7 @@
       "exports": [
         "AppSettingsConfigPage"
       ],
-      "totalLines": 840,
+      "totalLines": 1452,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/config/BusinessCalendarConfigPage.tsx": {
@@ -93465,21 +94303,21 @@
     },
     "frontend/src/pages/config/PricingTablesConfigPage.tsx": {
       "filePath": "frontend/src/pages/config/PricingTablesConfigPage.tsx",
-      "contentHash": "fed2877ba9a80bc9c1690546542cfded0fbb9f52c3077217721a268dd7cebd98",
+      "contentHash": "e32c9da1731e775fab225e31f20b23d36df52915face79b108352c552c2fb108",
       "functions": [
         {
           "name": "PricingForm",
           "params": [
-            "{ saving, item, onsave, oncancel, customers, routes }"
+            "{ saving, item, onsave, oncancel, customers, routes, containerTypes }"
           ],
           "exported": false,
-          "lineCount": 32
+          "lineCount": 49
         },
         {
           "name": "PricingTablesConfigPage",
           "params": [],
           "exported": true,
-          "lineCount": 35
+          "lineCount": 39
         }
       ],
       "classes": [],
@@ -93531,6 +94369,7 @@
           "source": "../../hooks/useCatalogQueries",
           "specifiers": [
             "useAllCustomers",
+            "useContainerTypes",
             "useRoutesDropdown"
           ]
         },
@@ -93539,14 +94378,15 @@
           "specifiers": [
             "PricingTable",
             "Customer",
-            "RouteType"
+            "RouteType",
+            "ContainerType"
           ]
         }
       ],
       "exports": [
         "PricingTablesConfigPage"
       ],
-      "totalLines": 79,
+      "totalLines": 100,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/config/RoadAllowancesConfigPage.tsx": {
@@ -94389,12 +95229,12 @@
     },
     "frontend/src/pages/config/config-page.css": {
       "filePath": "frontend/src/pages/config/config-page.css",
-      "contentHash": "d3bb3255b4eb979a9b628da6d9bf08af847e32c2b0aa55f4f3ff7b2d0cb4f59a",
+      "contentHash": "769dff7e581daf55f008d4f8aee2e96ccf7624b2d835543291c9569b2d0f50fc",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 1001,
+      "totalLines": 1196,
       "hasStructuralAnalysis": false
     },
     "frontend/src/pages/config/debit-note-template-columns.tsx": {
@@ -95718,8 +96558,35 @@
     },
     "frontend/src/pages/forwarder-trip-detail-sections.tsx": {
       "filePath": "frontend/src/pages/forwarder-trip-detail-sections.tsx",
-      "contentHash": "8a270bd1265b6b1b8a6b2b47c4dcf3c1dcdd61cce2cd8efc494c022fa5c6f458",
+      "contentHash": "ea3b76f649a5d0806c32719f82c90720eeb33dfbf4c06c765bb1248b57653cfe",
       "functions": [
+        {
+          "name": "isSyntheticLclContainer",
+          "params": [
+            "container"
+          ],
+          "returnType": "boolean",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "getForwarderContainerDisplayLabel",
+          "params": [
+            "container"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "getForwarderContainerScopeLabel",
+          "params": [
+            "container"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 5
+        },
         {
           "name": "ForwarderTripLoading",
           "params": [],
@@ -95740,7 +96607,7 @@
             "{ containers, show: showContainerForm, setShow: setShowContainerForm, form: containerForm, setForm: setContainerForm, onAdd: handleAddContainer, pending, selectedContainerId, onSelectContainer }"
           ],
           "exported": true,
-          "lineCount": 98
+          "lineCount": 107
         },
         {
           "name": "ForwarderExpenseRow",
@@ -95793,12 +96660,17 @@
         }
       ],
       "exports": [
+        "FORWARDER_LCL_SCOPE_LABEL",
+        "SYNTHETIC_LCL_CONTAINER_NOTE_PREFIX",
+        "isSyntheticLclContainer",
+        "getForwarderContainerDisplayLabel",
+        "getForwarderContainerScopeLabel",
         "ForwarderTripLoading",
         "ForwarderTripError",
         "ForwarderContainersSection",
         "ForwarderExpenseRow"
       ],
-      "totalLines": 236,
+      "totalLines": 267,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/ledger-mobile-cards.test.tsx": {
@@ -97314,7 +98186,7 @@
     },
     "frontend/src/pages/settlement-review-policy.test.ts": {
       "filePath": "frontend/src/pages/settlement-review-policy.test.ts",
-      "contentHash": "50bf3ebd0806af0287d29907d4d77190683196ef0e5f2de8efb032f780e361ac",
+      "contentHash": "cfe11a420ac64522f7bc5853c2cb5d950f65471f0dd171e0e22d02cfdcd2de30",
       "functions": [],
       "classes": [],
       "imports": [
@@ -97335,12 +98207,13 @@
         {
           "source": "./SettlementPrintPage",
           "specifiers": [
+            "settlementBalanceSummary",
             "settlementReviewPermissions"
           ]
         }
       ],
       "exports": [],
-      "totalLines": 63,
+      "totalLines": 74,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/trip-detail/bento-cards.css": {
@@ -99637,7 +100510,7 @@
     },
     "shared/src/schemas/index.ts": {
       "filePath": "shared/src/schemas/index.ts",
-      "contentHash": "1b6022d74b8bf7ecd3861602c1a69cb39875f4d49b890e6429b18fdf19d78ec1",
+      "contentHash": "22e3b77dea1899ea2a18120b1f046bbff135f8f7cac6a7602416eaf6e6c41062",
       "functions": [
         {
           "name": "fixedScaleDecimal",
@@ -99798,7 +100671,7 @@
         "bachKhoaResponseSchema",
         "parseBachKhoaResponse"
       ],
-      "totalLines": 1660,
+      "totalLines": 1666,
       "hasStructuralAnalysis": true
     },
     "shared/src/schemas/llm-settings.ts": {
@@ -99913,7 +100786,7 @@
     },
     "shared/src/types/index.ts": {
       "filePath": "shared/src/types/index.ts",
-      "contentHash": "df9f357cbdd5e0a83cc36c3bd42528dacd59fb29b51b636356fe1c63fb9a03e7",
+      "contentHash": "0619f0ff53d1f0d61c66dba6abc5553d2820aae2bc500543baf41cdc9fda9e8d",
       "functions": [
         {
           "name": "parseThreshold",
@@ -99957,7 +100830,7 @@
       "exports": [
         "parseThreshold"
       ],
-      "totalLines": 1940,
+      "totalLines": 2016,
       "hasStructuralAnalysis": true
     },
     "shared/test-zod-null.ts": {

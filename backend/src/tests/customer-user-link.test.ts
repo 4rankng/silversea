@@ -11,6 +11,7 @@ import * as s from '../db/schema';
 import {
   authenticate,
   createUser,
+  deleteUser,
   listUsers,
   updateBusinessUnit,
   updateUser,
@@ -623,6 +624,69 @@ describe('customer account linkage', () => {
       updateUser(customerUserId, { customerIds: [] }),
       /ACTIVE phải có ít nhất một khách hàng liên kết/,
     );
+  });
+
+  test('soft-deleting a scoped user removes persisted customer-link rows', async () => {
+    const user = await createUser({
+      username: `customer-delete-links-${suffix}`,
+      password: 'admin123',
+      role: Role.CUSTOMER,
+      customerIds: [customerId],
+    });
+
+    try {
+      await deleteUser(user.id, user.id + 9_000_000);
+      const [deleted] = await db.select({ deletedAt: s.users.deletedAt })
+        .from(s.users)
+        .where(eq(s.users.id, user.id))
+        .limit(1);
+      assert.ok(deleted?.deletedAt, 'user is soft-deleted');
+
+      const links = await db.select({ customerId: s.userCustomerLinks.customerId })
+        .from(s.userCustomerLinks)
+        .where(eq(s.userCustomerLinks.userId, user.id));
+      assert.deepEqual(links, []);
+    } finally {
+      await db.delete(s.users).where(eq(s.users.id, user.id));
+    }
+  });
+
+  test('concurrent delete and scope change cannot leave stale customer-link rows', async () => {
+    const user = await createUser({
+      username: `customer-delete-race-${suffix}`,
+      password: 'admin123',
+      role: Role.CUSTOMER,
+      customerIds: [customerId],
+    });
+
+    try {
+      await Promise.allSettled([
+        updateUser(user.id, { customerIds: [secondaryCustomerId] }),
+        deleteUser(user.id, user.id + 9_100_000),
+      ]);
+
+      const [persisted] = await db.select({
+        deletedAt: s.users.deletedAt,
+        customerId: s.users.customerId,
+      }).from(s.users)
+        .where(eq(s.users.id, user.id))
+        .limit(1);
+      const links = await db.select({ customerId: s.userCustomerLinks.customerId })
+        .from(s.userCustomerLinks)
+        .where(eq(s.userCustomerLinks.userId, user.id));
+
+      if (persisted?.deletedAt != null) {
+        assert.equal(links.length, 0, 'soft-deleted user must not retain link rows');
+      } else {
+        assert.deepEqual(
+          links.map((row) => row.customerId).sort((left, right) => left - right),
+          persisted?.customerId == null ? [] : [persisted.customerId],
+        );
+      }
+    } finally {
+      await db.delete(s.userCustomerLinks).where(eq(s.userCustomerLinks.userId, user.id));
+      await db.delete(s.users).where(eq(s.users.id, user.id));
+    }
   });
 
   test('concurrent role and customer-link changes cannot leave an invalid combination', async () => {

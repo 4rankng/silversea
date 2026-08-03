@@ -4,7 +4,11 @@ import { eq } from 'drizzle-orm';
 import { db, client } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
-import { assertTireSerialAvailable, tireSerialConflictMessage } from '../services/tire.service';
+import {
+  assertTireSerialAvailable,
+  installTire,
+  tireSerialConflictMessage,
+} from '../services/tire.service';
 
 const createdIds: number[] = [];
 
@@ -48,5 +52,16 @@ describe('tire serial availability', () => {
     );
 
     await assert.doesNotReject(() => assertTireSerialAvailable(serial, created.id));
+  });
+
+  test('rejects installing onto a missing trailer target', async () => {
+    const serial = `TIRE-INSTALL-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const [created] = await db.insert(s.tires).values({ serial, status: 'IN_STOCK' }).returning();
+    createdIds.push(created.id);
+
+    await assert.rejects(
+      () => installTire(created.id, { trailerId: 2_147_483_647, position: 'P1' }, created.updatedAt),
+      (err: unknown) => err instanceof Error && /Không tìm thấy rơ-moóc/.test(err.message),
+    );
   });
 });

@@ -6,6 +6,7 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { eq, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
+import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 import type { Tx } from './trip-shared';
 
 export interface UpsertTripInstructionsInput {
@@ -67,25 +68,33 @@ export async function upsertTripInstructions(
       throw new ApiError(409, 'Dữ liệu đã bị thay đổi bởi người khác. Vui lòng tải lại trang.');
     }
 
-    const [row] = await tx.insert(s.tripInstructions)
-      .values({
-        tripId,
-        contactName: input.contactName ?? null,
-        contactPhone: input.contactPhone ?? null,
-        notes: input.notes ?? null,
-        updatedBy: userId,
-      })
-      .onConflictDoUpdate({
-        target: s.tripInstructions.tripId,
-        set: {
+    await lockApplicationOwnedUniqueness(tx, 'trip-instructions', [tripId]);
+
+    const [existing] = await tx.select({ id: s.tripInstructions.id })
+      .from(s.tripInstructions)
+      .where(eq(s.tripInstructions.tripId, tripId))
+      .limit(1);
+
+    const [row] = existing
+      ? await tx.update(s.tripInstructions)
+        .set({
           contactName: input.contactName ?? null,
           contactPhone: input.contactPhone ?? null,
           notes: input.notes ?? null,
           updatedBy: userId,
           updatedAt: new Date(),
-        },
-      })
-      .returning(instructionSelect);
+        })
+        .where(eq(s.tripInstructions.id, existing.id))
+        .returning(instructionSelect)
+      : await tx.insert(s.tripInstructions)
+        .values({
+          tripId,
+          contactName: input.contactName ?? null,
+          contactPhone: input.contactPhone ?? null,
+          notes: input.notes ?? null,
+          updatedBy: userId,
+        })
+        .returning(instructionSelect);
 
     await tx.update(s.trips).set({
       version: sql`${s.trips.version} + 1`,

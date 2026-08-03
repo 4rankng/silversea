@@ -4,6 +4,8 @@ import { pushSubscriptions } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { config } from '../config';
 import type { PushSubscriptionPayload } from '@tingting/shared';
+import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
+import type { Tx } from './trip-shared';
 
 // Push is best-effort: it must NEVER throw into the notification bus, and a
 // single dead endpoint must never abort delivery to the rest. See payroll's
@@ -29,22 +31,37 @@ export function initPushService() {
 
 /** Store/refresh a browser subscription for a user (upsert on user+endpoint). */
 export async function subscribe(userId: number, sub: PushSubscriptionPayload) {
-  await db.insert(pushSubscriptions)
-    .values({
-      userId,
-      endpoint: sub.endpoint,
-      keysP256dh: sub.keys.p256dh,
-      keysAuth: sub.keys.auth,
-      deviceType: sub.deviceType ?? 'web',
-    })
-    .onConflictDoUpdate({
-      target: [pushSubscriptions.userId, pushSubscriptions.endpoint],
-      set: {
+  await db.transaction(async (tx: Tx) => {
+    await lockApplicationOwnedUniqueness(tx, 'push-subscription', [userId, sub.endpoint]);
+
+    const [existing] = await tx.select({ id: pushSubscriptions.id })
+      .from(pushSubscriptions)
+      .where(and(
+        eq(pushSubscriptions.userId, userId),
+        eq(pushSubscriptions.endpoint, sub.endpoint),
+      ))
+      .limit(1);
+
+    if (existing) {
+      await tx.update(pushSubscriptions)
+        .set({
+          keysP256dh: sub.keys.p256dh,
+          keysAuth: sub.keys.auth,
+          deviceType: sub.deviceType ?? 'web',
+        })
+        .where(eq(pushSubscriptions.id, existing.id));
+      return;
+    }
+
+    await tx.insert(pushSubscriptions)
+      .values({
+        userId,
+        endpoint: sub.endpoint,
         keysP256dh: sub.keys.p256dh,
         keysAuth: sub.keys.auth,
         deviceType: sub.deviceType ?? 'web',
-      },
-    });
+      });
+  });
 }
 
 /**

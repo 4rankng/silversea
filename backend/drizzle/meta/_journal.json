@@ -5,78 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1785640132621,
-      "tag": "0000_third_wrecking_crew",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1785643159380,
-      "tag": "0001_drop_onboarding_tables",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1785646041170,
-      "tag": "0002_o2c_rev1_extensions",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1785648342101,
-      "tag": "0003_drop_agent_turn_metrics",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1785661186114,
-      "tag": "0004_o2c_toll_deduction",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1785664747396,
-      "tag": "0005_sloppy_hulk",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1785670800000,
-      "tag": "0006_lift_pricing_snapshot",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1785670801000,
-      "tag": "0007_o2c_advance_partial_allocation",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "7",
-      "when": 1785670802000,
-      "tag": "0008_o2c_active_shipment_backfill",
-      "breakpoints": true
-    },
-    {
-      "idx": 9,
-      "version": "7",
-      "when": 1785683597526,
-      "tag": "0009_o2c_pricing_container_tier",
-      "breakpoints": true
-    },
-    {
-      "idx": 10,
-      "version": "7",
-      "when": 1785761985424,
-      "tag": "0010_lively_rattler",
+      "when": 1785763872421,
+      "tag": "0000_flexible-baseline",
       "breakpoints": true
     }
   ]

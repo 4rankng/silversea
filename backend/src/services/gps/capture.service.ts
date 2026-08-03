@@ -34,6 +34,8 @@ import * as schema from '../../db/schema';
 import { resolveCarId, getJourneyRange, getStopDetail } from './reports';
 import { cleanPlaceName, sliceLegByPlaces, dedupPoints, encodePolyline, decodePolyline, trailDistanceKm, haversineKm, tripWindowBoundsMs, filterToWindow, type LngLat } from './route-capture';
 import { geocodePlace } from '../map4d';
+import { lockApplicationOwnedUniqueness } from '../application-owned-uniqueness.service';
+import { and } from 'drizzle-orm';
 
 const MATCH_TOL_KM = 5;
 const DETOUR_MAX = 2.2;
@@ -107,18 +109,44 @@ export async function deriveRoutesForTrip(
     const straightKm = haversineKm(dp[0], dp[dp.length - 1]);
     if (straightKm < 0.5 || candKm / straightKm > DETOUR_MAX) continue;
     const poly = encodePolyline(dp);
-    await db.insert(schema.routePolylines).values({
-      originCleaned: o, destinationCleaned: d, encodedPolyline: poly, pointCount: dp.length,
-      distanceKm: candKm.toFixed(2), sourceTripId: tripId, routeId,
-    }).onConflictDoUpdate({
-      target: [schema.routePolylines.originCleaned, schema.routePolylines.destinationCleaned],
-      set: { encodedPolyline: poly, pointCount: dp.length, distanceKm: candKm.toFixed(2), sourceTripId: tripId, routeId, derivedAt: new Date() },
+    await db.transaction(async (tx) => {
+      await lockApplicationOwnedUniqueness(tx, 'route-polyline', [o, d]);
+
+      const [existing] = await tx.select({ id: schema.routePolylines.id })
+        .from(schema.routePolylines)
+        .where(and(
+          eq(schema.routePolylines.originCleaned, o),
+          eq(schema.routePolylines.destinationCleaned, d),
+        ))
+        .limit(1);
+
+      if (existing) {
+        await tx.update(schema.routePolylines).set({
+          encodedPolyline: poly,
+          pointCount: dp.length,
+          distanceKm: candKm.toFixed(2),
+          sourceTripId: tripId,
+          routeId,
+          derivedAt: new Date(),
+        }).where(eq(schema.routePolylines.id, existing.id));
+      } else {
+        await tx.insert(schema.routePolylines).values({
+          originCleaned: o,
+          destinationCleaned: d,
+          encodedPolyline: poly,
+          pointCount: dp.length,
+          distanceKm: candKm.toFixed(2),
+          sourceTripId: tripId,
+          routeId,
+        });
+      }
+
+      // Backfill driven distance ONLY for legs missing it (km=0/null). Never
+      // overwrite an existing km — that could shift completed-trip fuel/cost math.
+      if (!leg.km) {
+        await tx.update(schema.tripLegs).set({ km: Math.round(candKm) }).where(eq(schema.tripLegs.id, leg.id));
+      }
     });
-    // Backfill driven distance ONLY for legs missing it (km=0/null). Never
-    // overwrite an existing km — that could shift completed-trip fuel/cost math.
-    if (!leg.km) {
-      await db.update(schema.tripLegs).set({ km: Math.round(candKm) }).where(eq(schema.tripLegs.id, leg.id));
-    }
     legsDerived++;
   }
   return { legsDerived, legsTotal: legs.length };
@@ -198,37 +226,47 @@ export async function captureTripGpsTrack(tripId: number): Promise<CaptureResult
 
     // Persist trail + stops. status/segmentMatched are finalised by Phase 2
     // (deriveRoutesForStoredTrip); until then 'ok' = trail stored.
-    await db.insert(schema.tripGpsTracks).values({
-      tripId,
-      routeId: trip.routeId,
-      truckId: trip.truckId,
-      carId,
-      licensePlate: trip.plate,
-      encodedPolyline: fullPoly,
-      pointCount: pts.length,
-      distanceKm: fullKm.toFixed(2),
-      stops: sigStops.length ? sigStops : null,
-      startedAt,
-      endedAt,
-      status: 'ok',
-      segmentMatched: false,
-    }).onConflictDoUpdate({
-      target: schema.tripGpsTracks.tripId,
-      set: {
-        routeId: trip.routeId,
-        truckId: trip.truckId,
-        carId,
-        licensePlate: trip.plate,
-        encodedPolyline: fullPoly,
-        pointCount: pts.length,
-        distanceKm: fullKm.toFixed(2),
-        stops: sigStops.length ? sigStops : null,
-        startedAt,
-        endedAt,
-        status: 'ok',
-        segmentMatched: false,
-        capturedAt: new Date(),
-      },
+    await db.transaction(async (tx) => {
+      await lockApplicationOwnedUniqueness(tx, 'trip-gps-track', [tripId]);
+
+      const [existing] = await tx.select({ id: schema.tripGpsTracks.id })
+        .from(schema.tripGpsTracks)
+        .where(eq(schema.tripGpsTracks.tripId, tripId))
+        .limit(1);
+
+      if (existing) {
+        await tx.update(schema.tripGpsTracks).set({
+          routeId: trip.routeId,
+          truckId: trip.truckId,
+          carId,
+          licensePlate: trip.plate,
+          encodedPolyline: fullPoly,
+          pointCount: pts.length,
+          distanceKm: fullKm.toFixed(2),
+          stops: sigStops.length ? sigStops : null,
+          startedAt,
+          endedAt,
+          status: 'ok',
+          segmentMatched: false,
+          capturedAt: new Date(),
+        }).where(eq(schema.tripGpsTracks.id, existing.id));
+      } else {
+        await tx.insert(schema.tripGpsTracks).values({
+          tripId,
+          routeId: trip.routeId,
+          truckId: trip.truckId,
+          carId,
+          licensePlate: trip.plate,
+          encodedPolyline: fullPoly,
+          pointCount: pts.length,
+          distanceKm: fullKm.toFixed(2),
+          stops: sigStops.length ? sigStops : null,
+          startedAt,
+          endedAt,
+          status: 'ok',
+          segmentMatched: false,
+        });
+      }
     });
     console.log('[gps] trail stored for trip', tripId, `(${pts.length} pts, ${fullKm} km) — derivation queued`);
     return { tripId, status: 'ok', pointCount: pts.length, legsDerived: 0, legsTotal: legs.length };

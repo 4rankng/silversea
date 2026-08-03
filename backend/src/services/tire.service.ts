@@ -3,6 +3,10 @@ import * as s from '../db/schema';
 import { eq, and, isNull, ne, sql } from 'drizzle-orm';
 import { TIRE_STATUS_LABELS, type TireStatus } from '@tingting/shared';
 import { ApiError } from '../errors';
+import {
+  lockTrailerRow,
+  lockTruckRow,
+} from './application-relationship.service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -190,17 +194,13 @@ export async function installTireInTx(
   }
 
   if (truckId != null) {
-    const [truck] = await tx.select({ id: s.trucks.id })
-      .from(s.trucks)
-      .where(and(eq(s.trucks.id, truckId), isNull(s.trucks.deletedAt)))
-      .limit(1);
-    if (!truck) throw new HttpError(404, 'Không tìm thấy xe đầu kéo');
+    const truck = await lockTruckRow(tx, truckId);
+    if (truck.deletedAt != null) throw new HttpError(404, 'Không tìm thấy xe đầu kéo');
+    if (truck.status !== 'ACTIVE') throw new HttpError(409, 'Xe đầu kéo đang ngưng hoạt động');
   } else if (trailerId != null) {
-    const [trailer] = await tx.select({ id: s.trailers.id })
-      .from(s.trailers)
-      .where(and(eq(s.trailers.id, trailerId), isNull(s.trailers.deletedAt)))
-      .limit(1);
-    if (!trailer) throw new HttpError(404, 'Không tìm thấy rơ-moóc');
+    const trailer = await lockTrailerRow(tx, trailerId);
+    if (trailer.deletedAt != null) throw new HttpError(404, 'Không tìm thấy rơ-moóc');
+    if (trailer.status !== 'ACTIVE') throw new HttpError(409, 'Rơ-moóc đang ngưng hoạt động');
   }
 
   const [existing] = await tx.select().from(s.tires)
@@ -264,17 +264,13 @@ export async function transferTireInTx(
   }
 
   if (truckId != null) {
-    const [truck] = await tx.select({ id: s.trucks.id })
-      .from(s.trucks)
-      .where(and(eq(s.trucks.id, truckId), isNull(s.trucks.deletedAt)))
-      .limit(1);
-    if (!truck) throw new HttpError(404, 'Không tìm thấy xe đầu kéo');
+    const truck = await lockTruckRow(tx, truckId);
+    if (truck.deletedAt != null) throw new HttpError(404, 'Không tìm thấy xe đầu kéo');
+    if (truck.status !== 'ACTIVE') throw new HttpError(409, 'Xe đầu kéo đang ngưng hoạt động');
   } else if (trailerId != null) {
-    const [trailer] = await tx.select({ id: s.trailers.id })
-      .from(s.trailers)
-      .where(and(eq(s.trailers.id, trailerId), isNull(s.trailers.deletedAt)))
-      .limit(1);
-    if (!trailer) throw new HttpError(404, 'Không tìm thấy rơ-moóc');
+    const trailer = await lockTrailerRow(tx, trailerId);
+    if (trailer.deletedAt != null) throw new HttpError(404, 'Không tìm thấy rơ-moóc');
+    if (trailer.status !== 'ACTIVE') throw new HttpError(409, 'Rơ-moóc đang ngưng hoạt động');
   }
 
   const [existing] = await tx.select().from(s.tires)

@@ -112,9 +112,42 @@ const CUSTOMER_VISIBLE_SHIPMENT_STATUS_COPY: Partial<Record<ShipmentStatus, {
 };
 
 const SYNTHETIC_LCL_FULFILLMENT_SCOPE_PREFIX = '__fulfillment_lcl:';
+type ShipmentDocumentTypeValue = (typeof s.shipmentDocuments.type.enumValues)[number];
+type ShipmentDeclarationScopeValue = (typeof s.shipmentDeclarations.scope.enumValues)[number];
+const DEFAULT_SHIPMENT_DECLARATION_SCOPE: ShipmentDeclarationScopeValue = 'SINGLE';
 
 function normalizeShipmentStatusValue(status: string | null | undefined): ShipmentStatus | null {
   return canonicalShipmentStatus(status);
+}
+
+function normalizeShipmentDocumentType(input: unknown): ShipmentDocumentTypeValue | null {
+  if (typeof input !== 'string') return null;
+  switch (input.trim().toUpperCase()) {
+    case 'BOOKING':
+      return 'BOOKING';
+    case 'BL':
+      return 'BL';
+    case 'DO':
+      return 'DO';
+    case 'DECLARATION':
+      return 'DECLARATION';
+    case 'OTHER':
+      return 'OTHER';
+    default:
+      return null;
+  }
+}
+
+function normalizeShipmentDeclarationScope(input: unknown): ShipmentDeclarationScopeValue | null {
+  if (typeof input !== 'string') return null;
+  switch (input.trim().toUpperCase()) {
+    case 'SINGLE':
+      return 'SINGLE';
+    case 'SHARED':
+      return 'SHARED';
+    default:
+      return null;
+  }
 }
 
 function isSyntheticLclFulfillmentScope(notes: string | null | undefined): boolean {
@@ -2532,6 +2565,8 @@ export async function attachShipmentDocument(
   transaction?: Tx,
 ) {
   const execute = async (tx: Tx) => {
+    const documentType = normalizeShipmentDocumentType(input.type);
+    if (!documentType) throw new ApiError(400, 'Loại chứng từ không hợp lệ');
     const [existing] = await tx.select()
       .from(s.shipments)
       .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
@@ -2544,7 +2579,7 @@ export async function attachShipmentDocument(
 
     const [doc] = await tx.insert(s.shipmentDocuments).values({
       shipmentId,
-      type: input.type,
+      type: documentType,
       storageKey: input.storageKey,
       uploadedBy: input.uploadedBy ?? null,
     }).returning();
@@ -2560,6 +2595,7 @@ export async function upsertShipmentDeclaration(
   transaction?: Tx,
 ) {
   const execute = async (tx: Tx) => {
+    const scope = normalizeShipmentDeclarationScope(input.scope) ?? DEFAULT_SHIPMENT_DECLARATION_SCOPE;
     const issuedAt = input.issuedAt ? new Date(input.issuedAt) : null;
     const [existingShipment] = await tx.select()
       .from(s.shipments)
@@ -2576,7 +2612,7 @@ export async function upsertShipmentDeclaration(
       const [updated] = await tx.update(s.shipmentDeclarations).set({
         declarationNumber: input.declarationNumber ?? null,
         issuedAt,
-        scope: input.scope ?? 'SINGLE',
+        scope,
         note: input.note ?? null,
         updatedAt: new Date(),
       })
@@ -2593,7 +2629,7 @@ export async function upsertShipmentDeclaration(
       shipmentId,
       declarationNumber: input.declarationNumber ?? null,
       issuedAt,
-      scope: input.scope ?? 'SINGLE',
+      scope,
       note: input.note ?? null,
       createdBy: input.updatedBy ?? null,
     }).returning();

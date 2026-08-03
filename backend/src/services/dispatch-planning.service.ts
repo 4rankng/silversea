@@ -101,6 +101,7 @@ type LiveTripRow = Pick<
 type DispatchHandoffStatus = typeof s.dispatchHandoffs.status.enumValues[number];
 type DispatchQueueStatus = 'READY' | 'DISPATCHED';
 type DispatchFleetResource = ListDispatchFleetInput['resource'];
+const DEFAULT_DISPATCH_HANDOFF_STATUSES: readonly DispatchHandoffStatus[] = ['UNSEEN', 'SEEN'];
 
 type DispatchCursorScope = 'dispatch-handoffs' | 'dispatch-queue';
 
@@ -116,6 +117,34 @@ interface DispatchFleetCursorPayload {
   resource: DispatchFleetResource;
   sortKey: string;
   id: number;
+}
+
+function normalizeDispatchHandoffStatuses(
+  input: readonly string[] | null | undefined,
+): DispatchHandoffStatus[] {
+  if (!input?.length) return [...DEFAULT_DISPATCH_HANDOFF_STATUSES];
+  const normalized: DispatchHandoffStatus[] = [];
+  const seen = new Set<DispatchHandoffStatus>();
+  for (const raw of input) {
+    const value = (() => {
+      switch (raw.trim().toUpperCase()) {
+        case 'UNSEEN':
+          return 'UNSEEN';
+        case 'SEEN':
+          return 'SEEN';
+        case 'ACCEPTED':
+          return 'ACCEPTED';
+        case 'REJECTED':
+          return 'REJECTED';
+        default:
+          return null;
+      }
+    })();
+    if (!value || seen.has(value)) continue;
+    seen.add(value);
+    normalized.push(value);
+  }
+  return normalized.length > 0 ? normalized : [...DEFAULT_DISPATCH_HANDOFF_STATUSES];
 }
 
 interface IssueOrderMutationResult {
@@ -438,7 +467,7 @@ export async function listDispatchHandoffs(input: ListDispatchHandoffsInput) {
   const accountantCustomerIds = requireAccountantDispatchScope(input.actor);
   const cursor = parseCursor(input.cursor, 'dispatch-handoffs');
   const limit = normalizeLimit(input.limit, 50);
-  const statuses: DispatchHandoffStatus[] = input.status?.length ? input.status : ['UNSEEN', 'SEEN'];
+  const statuses = normalizeDispatchHandoffStatuses(input.status);
   const qPattern = buildPattern(input.q);
   const date = normalizeDate(input.date);
 

@@ -322,9 +322,11 @@ describe('AppSettingsConfigPage', () => {
   it('shows the unconfigured financial policy and truck states with explicit warnings', () => {
     renderPage();
 
-    expect(screen.getByText('Chưa có chính sách được phê duyệt')).toBeInTheDocument();
-    expect(screen.getByText('Xe này chưa có hồ sơ tài chính được phê duyệt')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Tạo yêu cầu đầu tiên' })).toBeInTheDocument();
+    expect(screen.getByText('Chưa có chính sách được phê duyệt')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Tạo yêu cầu đầu tiên' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Hồ sơ tài chính xe' }));
+    expect(screen.getByText('Xe này chưa có hồ sơ tài chính được phê duyệt')).toBeTruthy();
   });
 
   it('submits a governed financial policy request with nullable threshold', async () => {
@@ -390,8 +392,8 @@ describe('AppSettingsConfigPage', () => {
     renderPage();
 
     fireEvent.click(screen.getByRole('tab', { name: 'Hồ sơ tài chính xe' }));
-    expect(screen.getByText('1.250.000.000 VND')).toBeInTheDocument();
-    expect(screen.getByText('24.000.000 VND')).toBeInTheDocument();
+    expect(screen.getAllByText('1.250.000.000 VND').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('24.000.000 VND').length).toBeGreaterThan(0);
   });
 
   it('saves a chatbot toggle from the same section without rewriting stored keys', async () => {

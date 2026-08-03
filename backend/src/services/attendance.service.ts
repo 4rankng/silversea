@@ -3,9 +3,18 @@ import * as s from '../db/schema';
 import { eq, and, gte, lte, sql, isNull, ne } from 'drizzle-orm';
 import { resolveSalaryPeriodDateRange } from './salary-period.service';
 import { ApiError } from '../errors';
+import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type DbLike = Tx | typeof db;
+
+async function lockDriverWorkDay(tx: Tx, driverId: number, date: string): Promise<void> {
+  await lockApplicationOwnedUniqueness(tx, 'driver-work-day', [driverId, date]);
+}
+
+async function lockSalaryConfirmation(tx: Tx, driverId: number, year: number, month: number): Promise<void> {
+  await lockApplicationOwnedUniqueness(tx, 'salary-confirmation', [driverId, year, month]);
+}
 
 function parseIsoDate(date: string): Date {
   const parsed = new Date(`${date}T00:00:00.000Z`);
@@ -51,8 +60,8 @@ export async function getWorkDays(
 
 /**
  * Upsert a single work day status for a driver.
- * Uses onConflictDoUpdate for atomicity — avoids the race condition
- * of the previous select-then-insert-or-update pattern.
+ * A transaction-scoped advisory lock owns the (driver,date) uniqueness path so
+ * concurrent callers deterministically select, then update or insert.
  */
 export async function upsertWorkDay(
   driverId: number,
@@ -61,25 +70,32 @@ export async function upsertWorkDay(
   note: string | null,
   createdBy: number,
 ) {
-  // Preserve existing tripId atomically in the SET clause (avoids TOCTOU race).
-  // Drizzle's onConflictDoUpdate SET references the existing row's column value,
-  // so just referencing the column preserves whatever is already stored.
-  // For TRIP_DAY: keep existing tripId. For other statuses: clear it.
-  const [result] = await db.insert(s.driverWorkDays)
-    .values({ driverId, date, status, note, createdBy, tripId: null })
-    .onConflictDoUpdate({
-      target: [s.driverWorkDays.driverId, s.driverWorkDays.date],
-      set: {
-        status,
-        note,
-        tripId: status === 'TRIP_DAY'
-          ? sql`${s.driverWorkDays.tripId}`
-          : null,
-        updatedAt: new Date(),
-      },
-    })
-    .returning();
-  return result;
+  return db.transaction(async (tx) => {
+    await lockDriverWorkDay(tx, driverId, date);
+
+    const [existing] = await tx.select()
+      .from(s.driverWorkDays)
+      .where(and(
+        eq(s.driverWorkDays.driverId, driverId),
+        eq(s.driverWorkDays.date, date),
+      ))
+      .limit(1);
+
+    const [result] = existing
+      ? await tx.update(s.driverWorkDays)
+        .set({
+          status,
+          note,
+          tripId: status === 'TRIP_DAY' ? existing.tripId : null,
+          updatedAt: new Date(),
+        })
+        .where(eq(s.driverWorkDays.id, existing.id))
+        .returning()
+      : await tx.insert(s.driverWorkDays)
+        .values({ driverId, date, status, note, createdBy, tripId: null })
+        .returning();
+    return result;
+  });
 }
 
 /**
@@ -105,26 +121,23 @@ export async function batchUpsertWorkDays(
   const execute = async (tx: Tx) => {
     const results = [];
     for (const item of items) {
+      await lockDriverWorkDay(tx, driverId, item.date);
+      const [existing] = await tx.select().from(s.driverWorkDays)
+        .where(and(eq(s.driverWorkDays.driverId, driverId), eq(s.driverWorkDays.date, item.date)))
+        .limit(1);
       if (item.status === null) {
         // Delete/clear the work day
-        const existing = await tx.select().from(s.driverWorkDays)
-          .where(and(eq(s.driverWorkDays.driverId, driverId), eq(s.driverWorkDays.date, item.date)))
-          .limit(1);
-        if (existing[0]) {
+        if (existing) {
           // Reject deletion of trip-linked TRIP_DAY records
-          if (existing[0].tripId) {
+          if (existing.tripId) {
             results.push({ date: item.date, action: 'rejected', reason: 'TRIP_DAY locked (trip-linked)' });
             continue;
           }
-          await tx.delete(s.driverWorkDays).where(eq(s.driverWorkDays.id, existing[0].id));
+          await tx.delete(s.driverWorkDays).where(eq(s.driverWorkDays.id, existing.id));
         }
         results.push({ date: item.date, action: 'deleted' });
       } else {
         // Upsert the work day
-        const [existing] = await tx.select({ tripId: s.driverWorkDays.tripId, id: s.driverWorkDays.id })
-          .from(s.driverWorkDays)
-          .where(and(eq(s.driverWorkDays.driverId, driverId), eq(s.driverWorkDays.date, item.date)))
-          .limit(1);
         if (item.status === 'PERSONAL_LEAVE' && !(item.note ?? '').trim()) {
           results.push({ date: item.date, action: 'rejected', reason: 'PERSONAL_LEAVE requires note' });
           continue;
@@ -144,13 +157,19 @@ export async function batchUpsertWorkDays(
           results.push({ date: item.date, action: 'rejected', reason: 'TRIP_DAY locked (trip-linked)' });
           continue;
         }
-        const [result] = await tx.insert(s.driverWorkDays)
-          .values({ driverId, date: item.date, status: item.status, note: item.note ?? null, createdBy, tripId: null })
-          .onConflictDoUpdate({
-            target: [s.driverWorkDays.driverId, s.driverWorkDays.date],
-            set: { status: item.status, note: item.note ?? null, tripId: null, updatedAt: new Date() },
-          })
-          .returning();
+        const [result] = existing
+          ? await tx.update(s.driverWorkDays)
+            .set({
+              status: item.status,
+              note: item.note ?? null,
+              tripId: null,
+              updatedAt: new Date(),
+            })
+            .where(eq(s.driverWorkDays.id, existing.id))
+            .returning()
+          : await tx.insert(s.driverWorkDays)
+            .values({ driverId, date: item.date, status: item.status, note: item.note ?? null, createdBy, tripId: null })
+            .returning();
         results.push({ date: item.date, action: 'upserted', result });
       }
     }
@@ -187,16 +206,38 @@ export async function syncTripWorkDays(
     cur.setUTCDate(cur.getUTCDate() + 1);
   }
 
-  // Upsert each date as TRIP_DAY (overrides WEEKLY_OFF if trip is running)
-  // Single INSERT with onConflictDoUpdate handles both new and existing rows
-  for (const date of dates) {
-    await executor.insert(s.driverWorkDays)
-      .values({ driverId, date, status: 'TRIP_DAY', tripId, note: null, createdBy: createdBy ?? null })
-      .onConflictDoUpdate({
-        target: [s.driverWorkDays.driverId, s.driverWorkDays.date],
-        set: { status: 'TRIP_DAY', tripId, updatedAt: new Date() },
-      });
+  const execute = async (tx: Tx) => {
+    for (const date of dates) {
+      await lockDriverWorkDay(tx, driverId, date);
+      const [existing] = await tx.select({ id: s.driverWorkDays.id })
+        .from(s.driverWorkDays)
+        .where(and(
+          eq(s.driverWorkDays.driverId, driverId),
+          eq(s.driverWorkDays.date, date),
+        ))
+        .limit(1);
+
+      if (existing) {
+        await tx.update(s.driverWorkDays)
+          .set({
+            status: 'TRIP_DAY',
+            tripId,
+            updatedAt: new Date(),
+          })
+          .where(eq(s.driverWorkDays.id, existing.id));
+        continue;
+      }
+
+      await tx.insert(s.driverWorkDays)
+        .values({ driverId, date, status: 'TRIP_DAY', tripId, note: null, createdBy: createdBy ?? null });
+    }
+  };
+
+  if (executor === db) {
+    await db.transaction(execute);
+    return;
   }
+  await execute(executor as Tx);
 }
 
 /**
@@ -475,41 +516,53 @@ export async function confirmSalary(
   userId: number,
   transaction?: Tx,
 ) {
-  const execute = async (executor: DbLike) => {
-    const [driver] = await executor.select({ id: s.drivers.id })
+  const execute = async (tx: Tx) => {
+    const [driver] = await tx.select({ id: s.drivers.id })
       .from(s.drivers)
       .where(and(eq(s.drivers.id, driverId), isNull(s.drivers.deletedAt)))
       .limit(1);
     if (!driver) throw new ApiError(404, 'Không tìm thấy lái xe');
 
     const now = new Date();
-    const [confirmation] = await executor.insert(s.salaryConfirmations)
-      .values({
-        driverId,
-        year,
-        month,
-        status: 'CONFIRMED',
-        confirmedBy: userId,
-        confirmedAt: now,
-      })
-      .onConflictDoUpdate({
-        target: [s.salaryConfirmations.driverId, s.salaryConfirmations.year, s.salaryConfirmations.month],
-        set: {
+    await lockSalaryConfirmation(tx, driverId, year, month);
+
+    const [existing] = await tx.select({ id: s.salaryConfirmations.id })
+      .from(s.salaryConfirmations)
+      .where(and(
+        eq(s.salaryConfirmations.driverId, driverId),
+        eq(s.salaryConfirmations.year, year),
+        eq(s.salaryConfirmations.month, month),
+      ))
+      .limit(1);
+
+    const [confirmation] = existing
+      ? await tx.update(s.salaryConfirmations)
+        .set({
           status: 'CONFIRMED',
           confirmedBy: userId,
           confirmedAt: now,
           updatedAt: now,
-        },
-      })
-      .returning();
+        })
+        .where(eq(s.salaryConfirmations.id, existing.id))
+        .returning()
+      : await tx.insert(s.salaryConfirmations)
+        .values({
+          driverId,
+          year,
+          month,
+          status: 'CONFIRMED',
+          confirmedBy: userId,
+          confirmedAt: now,
+        })
+        .returning();
 
-    const salary = await computeSalary(driverId, year, month, undefined, executor);
+    const salary = await computeSalary(driverId, year, month, undefined, tx);
     return { confirmation, salary };
   };
   if (transaction) {
     return execute(transaction);
   }
-  return db.transaction((tx) => execute(tx));
+  return db.transaction(execute);
 }
 
 /**

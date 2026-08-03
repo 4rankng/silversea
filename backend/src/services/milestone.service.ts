@@ -22,6 +22,7 @@ import * as s from '../db/schema';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { TripStatus } from '@tingting/shared';
+import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 import type { Tx } from './trip-shared';
 import { createCustomerVisibleEvent } from './shipment-coordination.service';
 
@@ -77,23 +78,29 @@ export async function deriveMilestoneFromTripStatus(
 
   const execute = async (tx: Tx) => {
     const occurredAt = new Date();
-    const [inserted] = await tx.insert(s.shipmentMilestones).values({
-      shipmentId,
-      type: milestoneType,
-      tripId,
-      changedBy: actorUserId ?? null,
-      occurredAt,
-    }).onConflictDoNothing().returning();
+    await lockApplicationOwnedUniqueness(tx, 'shipment-milestone', [shipmentId, tripId, milestoneType]);
 
-    if (milestoneType !== 'BOOKING_RECEIVED' || actorUserId == null) return;
-
-    const milestone = inserted ?? (await tx.select().from(s.shipmentMilestones)
+    const [existing] = await tx.select().from(s.shipmentMilestones)
       .where(and(
         eq(s.shipmentMilestones.shipmentId, shipmentId),
         eq(s.shipmentMilestones.type, milestoneType),
         eq(s.shipmentMilestones.tripId, tripId),
       ))
-      .limit(1))[0];
+      .limit(1);
+
+    const [inserted] = existing
+      ? [existing]
+      : await tx.insert(s.shipmentMilestones).values({
+        shipmentId,
+        type: milestoneType,
+        tripId,
+        changedBy: actorUserId ?? null,
+        occurredAt,
+      }).returning();
+
+    if (milestoneType !== 'BOOKING_RECEIVED' || actorUserId == null) return;
+
+    const milestone = inserted;
     if (!milestone) return;
     const [shipment] = await tx.select({
       createdAt: s.shipments.createdAt,

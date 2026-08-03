@@ -279,6 +279,16 @@ export async function mirrorCustomerLink(
     .where(staleCond);
 
   if (newSupplierId != null) {
+    const [supplier] = await db.select({
+      id: s.suppliers.id,
+      status: s.suppliers.status,
+      deletedAt: s.suppliers.deletedAt,
+    }).from(s.suppliers)
+      .where(eq(s.suppliers.id, newSupplierId))
+      .limit(1);
+    if (!supplier || supplier.deletedAt != null || supplier.status !== 'ACTIVE') {
+      throw new ApiError(400, 'Nhà cung cấp liên kết không tồn tại hoặc đã ngưng dùng');
+    }
     await db.update(s.suppliers)
       .set({ linkedCustomerId: customerId, updatedAt: new Date() })
       .where(eq(s.suppliers.id, newSupplierId));
@@ -303,6 +313,15 @@ export async function mirrorSupplierLink(
     .where(staleCond);
 
   if (newCustomerId != null) {
+    const [customer] = await db.select({
+      id: s.customers.id,
+      deletedAt: s.customers.deletedAt,
+    }).from(s.customers)
+      .where(eq(s.customers.id, newCustomerId))
+      .limit(1);
+    if (!customer || customer.deletedAt != null) {
+      throw new ApiError(400, 'Khách hàng liên kết không tồn tại');
+    }
     await db.update(s.customers)
       .set({ linkedSupplierId: supplierId, updatedAt: new Date() })
       .where(eq(s.customers.id, newCustomerId));
@@ -314,11 +333,12 @@ export async function syncTrailerFields(data: Record<string, unknown>): Promise<
   const trailerId = data.currentTrailerId;
   if (trailerId != null && trailerId !== '') {
     const [trailer] = await db.select().from(s.trailers)
-      .where(and(eq(s.trailers.id, Number(trailerId)), isNull(s.trailers.deletedAt)))
+      .where(eq(s.trailers.id, Number(trailerId)))
       .limit(1);
-    if (trailer) {
-      return { ...data, trailerPlateNumber: trailer.licensePlate, trailerType: trailer.type };
+    if (!trailer || trailer.deletedAt != null || trailer.status !== 'ACTIVE') {
+      throw new ApiError(400, 'Rơ-moóc liên kết không tồn tại hoặc đã ngưng dùng');
     }
+    return { ...data, trailerPlateNumber: trailer.licensePlate, trailerType: trailer.type };
   } else if (trailerId === null || trailerId === '') {
     return { ...data, trailerPlateNumber: null, trailerType: null };
   }
