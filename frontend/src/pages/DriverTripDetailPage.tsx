@@ -26,6 +26,7 @@ import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useAuth } from '../hooks/useAuth';
 import { useDriverEvidenceStatus, useDriverTaskDetail, useDriverTaskProgress } from '../hooks/useDriverQueries';
 import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } from '../api/driverClient';
+import { ApiError } from '../lib/api';
 import { formatCurrency } from '../lib/format';
 import { useOnline } from '../hooks/useOnline';
 import {
@@ -120,6 +121,28 @@ function formatDateTime(value: string | null | undefined): string {
 
 function valueOrDash(value: string | null | undefined): string {
   return value && value.trim().length > 0 ? value : '—';
+}
+
+/**
+ * Classify a command send error for the offline queue.
+ *
+ * A 409 (version mismatch, sequencing violation, or a domain conflict such as
+ * "vehicle already on another trip") or 428 (precondition required) is a
+ * terminal *conflict* — the queue must stop retrying and surface the server's
+ * Vietnamese message so the driver understands the blocker. Any other failure
+ * (network blip, 5xx, auth) is treated as a retryable *network* error.
+ *
+ * NOTE: we inspect `ApiError.status`, never the message. The message is a
+ * Vietnamese human-readable string and never contains the HTTP status code, so
+ * a regex on `error.message` would silently misclassify every API error as a
+ * network failure and trap the command in an infinite auto-retry loop.
+ */
+function classifyCommandError(error: unknown): OfflineCommandSendResult {
+  if (error instanceof ApiError && (error.status === 409 || error.status === 428)) {
+    return { ok: false, kind: 'conflict', message: error.message };
+  }
+  const message = error instanceof Error ? error.message : 'Không thể đồng bộ lệnh.';
+  return { ok: false, kind: 'network', message };
 }
 
 function getLatestMilestoneEvent(
@@ -258,14 +281,7 @@ export default function DriverTripDetailPage() {
         }, command.id);
         return { ok: true };
       } catch (error) {
-        if (error instanceof Error && /409|428/.test(error.message)) {
-          return { ok: false, kind: 'conflict', message: error.message };
-        }
-        return {
-          ok: false,
-          kind: 'network',
-          message: error instanceof Error ? error.message : 'Không thể đồng bộ mốc tiến độ.',
-        };
+        return classifyCommandError(error);
       }
     }
 
@@ -279,14 +295,7 @@ export default function DriverTripDetailPage() {
         );
         return { ok: true };
       } catch (error) {
-        if (error instanceof Error && /409|428/.test(error.message)) {
-          return { ok: false, kind: 'conflict', message: error.message };
-        }
-        return {
-          ok: false,
-          kind: 'network',
-          message: error instanceof Error ? error.message : 'Không thể gửi e-POD.',
-        };
+        return classifyCommandError(error);
       }
     }
 
@@ -299,14 +308,7 @@ export default function DriverTripDetailPage() {
         );
         return { ok: true };
       } catch (error) {
-        if (error instanceof Error && /409|428/.test(error.message)) {
-          return { ok: false, kind: 'conflict', message: error.message };
-        }
-        return {
-          ok: false,
-          kind: 'network',
-          message: error instanceof Error ? error.message : 'Không thể hoàn thành chuyến.',
-        };
+        return classifyCommandError(error);
       }
     }
 
@@ -323,10 +325,19 @@ export default function DriverTripDetailPage() {
     } else if (result.failed > 0) {
       toast({ kind: 'info', message: 'Đã lưu ngoại tuyến. Hệ thống sẽ tự gửi lại khi có mạng.' });
     } else if (result.conflicts > 0) {
-      toast({ kind: 'error', message: 'Dữ liệu đã đổi trên hệ thống. Vui lòng tải lại chuyến.' });
+      // Surface the server's actual conflict reason (e.g. "Xe đang chạy chuyến
+      // TRP-…") instead of a generic reload prompt, so the driver understands
+      // the blocker. Fall back to the generic message if no reason is present.
+      const conflictReason = commands
+        .find((command) => command.status === 'CONFLICT' && command.lastError)
+        ?.lastError;
+      toast({
+        kind: 'error',
+        message: conflictReason ?? 'Dữ liệu đã đổi trên hệ thống. Vui lòng tải lại chuyến.',
+      });
     }
     return result;
-  }, [drain, refreshAll, sendQueuedCommand, toast]);
+  }, [commands, drain, refreshAll, sendQueuedCommand, toast]);
 
   useEffect(() => {
     if (!online || tripCommands.length === 0) return;
@@ -625,6 +636,9 @@ export default function DriverTripDetailPage() {
                 </div>
                 <strong className="driver-task-step__title">{milestone.title}</strong>
                 <p className="driver-task-step__help">{milestone.help}</p>
+                {state === 'conflict' && command?.lastError ? (
+                  <p className="driver-task-step__conflict">{command.lastError}</p>
+                ) : null}
                 <div className="driver-task-step__foot">
                   <span>{event ? formatDateTime(event.occurredAt) : 'Chưa ghi nhận'}</span>
                   {state === 'available' && <span>Nhấn để xác nhận</span>}

@@ -575,7 +575,11 @@ export default function DispatchPage() {
         <section className={`dispatch-pane dispatch-pane--tasks ${mobilePane === 'TASKS' ? 'is-mobile-active' : ''}`} aria-label="Danh sách tác vụ">
           <div className="dispatch-pane__head">
             <strong>Tác vụ chờ điều phối</strong>
-            <span>{taskCountLoaded}/{TASK_PAGE_LIMIT} đang tải · {taskTotals.handoffs + taskTotals.queue} tổng</span>
+            <span>
+              {taskTotals.handoffs + taskTotals.queue > TASK_PAGE_LIMIT
+                ? `Hiển thị ${taskCountLoaded} / ${TASK_PAGE_LIMIT} mỗi trang · ${taskTotals.handoffs + taskTotals.queue} tổng`
+                : `${taskTotals.handoffs + taskTotals.queue} tác vụ đang chờ`}
+            </span>
           </div>
           <div className="dispatch-pane__scroll">
             {loading ? <div className="dispatch-loading">Đang tải…</div> : handoffs.length === 0 && items.length === 0 ? <EmptyState title="Không có tác vụ chờ điều phối" description="Các lô hợp lệ từ CUS sẽ xuất hiện tại đây." /> : <>

@@ -261,6 +261,18 @@
   color: var(--ink-3);
 }
 
+.driver-task-step__conflict {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.18);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--danger, #b91c1c);
+  font-weight: 500;
+}
+
 .driver-task-step__foot {
   color: var(--ink-3);
 }

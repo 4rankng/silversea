@@ -275,7 +275,7 @@ describe('DispatchPage fulfillment workbench', () => {
   it('renders bounded panes, accepts handoff, and keeps the fleet visible', async () => {
     render(<DispatchPage />);
     expect((await screen.findAllByText('MSCU6639870')).length).toBeGreaterThan(0);
-    expect(screen.getByText('2/50 đang tải · 2 tổng')).toBeTruthy();
+    expect(screen.getByText('2 tác vụ đang chờ')).toBeTruthy();
     expect(screen.getAllByText('51D-12345').length).toBeGreaterThan(0);
     expect(screen.getByText('Thông tin tác vụ')).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Phương tiện và lịch chạy' })).toBeTruthy();
@@ -487,7 +487,7 @@ describe('DispatchPage fulfillment workbench', () => {
 
     render(<DispatchPage />);
     expect((await screen.findAllByText('TASK-1')).length).toBeGreaterThan(0);
-    expect(screen.getByText('50/50 đang tải · 51 tổng')).toBeTruthy();
+    expect(screen.getByText('Hiển thị 50 / 50 mỗi trang · 51 tổng')).toBeTruthy();
     expect(screen.getByText('Đã phát hành')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Trang sau' }));
