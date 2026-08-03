@@ -7,6 +7,12 @@ import {
   type EmailSettingsResponse,
   type AppSettings,
 } from '@tingting/shared';
+import {
+  financialReportingPolicyRequestSchema,
+  truckFinancialProfileRequestSchema,
+  type FinancialReportingPolicyState,
+  type TruckFinancialProfileState,
+} from '@tingting/shared/src/schemas/financial-reporting-policy';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { requireRoles } from '../middleware/casbin';
 import { db } from '../db';
@@ -31,11 +37,19 @@ import {
 } from '../services/price-config-governance.service';
 import { ApiError } from '../errors';
 import { resolveIdempotencyKey, runIdempotent } from '../services/idempotency.service';
+import {
+  getFinancialReportingPolicyState,
+  getTruckFinancialProfileState,
+  requestFinancialReportingPolicyVersion,
+  requestTruckFinancialProfileVersion,
+} from '../services/financial-reporting-policy.service';
 
 export const appSettingsRouter = Router();
 const APP_SETTINGS_COMMANDS = {
   GENERAL_UPDATE: 'admin.app-settings.update',
   EMAIL_UPDATE: 'admin.app-settings.email.update',
+  FINANCIAL_POLICY_REQUEST: 'admin.financial-reporting-policy.request',
+  TRUCK_PROFILE_REQUEST: 'admin.truck-financial-profile.request',
 } as const;
 
 function hasDirectAppSettingsChange(previous: AppSettings, next: AppSettings): boolean {
@@ -211,5 +225,84 @@ appSettingsRouter.put(
     }
     const status = materialChange ? (replayed ? 200 : 201) : 200;
     res.status(status).json({ ...result, replayed });
+  }),
+);
+
+appSettingsRouter.get(
+  '/financial-reporting/policy',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT),
+  asyncHandler(async (_req, res) => {
+    const state: FinancialReportingPolicyState = await getFinancialReportingPolicyState();
+    res.json(state);
+  }),
+);
+
+appSettingsRouter.post(
+  '/financial-reporting/policy/requests',
+  requireRoles(Role.ADMIN),
+  asyncHandler(async (req, res) => {
+    const body = financialReportingPolicyRequestSchema.parse(req.body);
+    const idempotencyKey = requireIdempotencyKey(
+      'Idempotency-Key là bắt buộc khi gửi yêu cầu chính sách báo cáo.',
+      req,
+    );
+    const { result, replayed } = await runIdempotent({
+      endpoint: APP_SETTINGS_COMMANDS.FINANCIAL_POLICY_REQUEST,
+      idempotencyKey,
+      payload: { body },
+      createdBy: req.user?.userId ?? null,
+      entityType: 'financial-reporting-policy',
+      responseStatusCode: 201,
+      create: async (tx) => requestFinancialReportingPolicyVersion({
+        body,
+        actorId: req.user?.userId ?? 0,
+        actorRole: req.user?.role ?? Role.ADMIN,
+        transaction: tx,
+      }),
+    });
+    res.status(replayed ? 200 : 201).json({ ...result, replayed });
+  }),
+);
+
+appSettingsRouter.get(
+  '/financial-reporting/truck-profiles',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT),
+  asyncHandler(async (req, res) => {
+    const rawTruckId = req.query.truckId;
+    const truckId = typeof rawTruckId === 'string' && rawTruckId.trim() !== ''
+      ? Number(rawTruckId)
+      : null;
+    if (truckId != null && (!Number.isInteger(truckId) || truckId <= 0)) {
+      throw new ApiError(400, 'Xe đầu kéo không hợp lệ.');
+    }
+    const state: TruckFinancialProfileState = await getTruckFinancialProfileState(truckId);
+    res.json(state);
+  }),
+);
+
+appSettingsRouter.post(
+  '/financial-reporting/truck-profiles/requests',
+  requireRoles(Role.ADMIN),
+  asyncHandler(async (req, res) => {
+    const body = truckFinancialProfileRequestSchema.parse(req.body);
+    const idempotencyKey = requireIdempotencyKey(
+      'Idempotency-Key là bắt buộc khi gửi hồ sơ tài chính xe.',
+      req,
+    );
+    const { result, replayed } = await runIdempotent({
+      endpoint: APP_SETTINGS_COMMANDS.TRUCK_PROFILE_REQUEST,
+      idempotencyKey,
+      payload: { body },
+      createdBy: req.user?.userId ?? null,
+      entityType: 'truck-financial-profile',
+      responseStatusCode: 201,
+      create: async (tx) => requestTruckFinancialProfileVersion({
+        body,
+        actorId: req.user?.userId ?? 0,
+        actorRole: req.user?.role ?? Role.ADMIN,
+        transaction: tx,
+      }),
+    });
+    res.status(replayed ? 200 : 201).json({ ...result, replayed });
   }),
 );

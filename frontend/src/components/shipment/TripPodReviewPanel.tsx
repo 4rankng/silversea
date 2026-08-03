@@ -115,11 +115,11 @@ export function TripPodReviewPanel({
       : null;
     if (resolution === 'REJECT' && !rejectionReason) return;
 
-    // O2C C1: on ACCEPT, confirm the accountant has the paper POD in hand.
-    // The backend requires this flag before it will complete the trip.
+    // O2C C1: on ACCEPT, confirm the office checker has the paper POD in hand.
+    // The backend requires this flag before the shipment can move to finance completion.
     let podRecovered = false;
     if (resolution === 'ACCEPT') {
-      podRecovered = window.confirm('Xác nhận đã thu hồi chứng từ gốc (POD mộc đỏ)? Tiếp tục hoàn thành chuyến đi.');
+      podRecovered = window.confirm('Xác nhận CUS/CLERK đã thu hồi chứng từ gốc (POD mộc đỏ)?');
       if (!podRecovered) return;
     }
 
@@ -420,8 +420,8 @@ export function TripPodReviewPanel({
       {canComplete && shipmentStatus === 'PENDING_EXPENSE_APPROVAL' && (
         <div className="shipment-pod-review__completion">
           <div className="shipment-pod-review__completion-copy">
-            <strong>Hoàn thành lô hàng và chuyển số liệu sang công nợ</strong>
-            <span>Hệ thống sẽ kiểm tra e-POD hiện tại, POD giấy, mọi phạm vi chi phí và ảnh bắt buộc trước khi ghi nhận.</span>
+            <strong>Kế toán hoàn thành lô hàng và chuyển số liệu sang công nợ</strong>
+            <span>Hệ thống sẽ yêu cầu hồ sơ đã được CUS/CLERK kiểm tra, khác tài khoản Kế toán hoàn thành, rồi mới ghi nhận công nợ.</span>
           </div>
           <label className="shipment-pod-review__vat-field">
             <span>Thuế VAT khi hoàn thành</span>

@@ -3,14 +3,51 @@ import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type {
+  FinancialReportingPolicyState,
+  TruckFinancialProfileState,
+} from '@tingting/shared/src/schemas/financial-reporting-policy';
 
 const mocks = vi.hoisted(() => ({
   saveAppSettings: vi.fn(),
+  requestFinancialPolicy: vi.fn(),
+  requestTruckProfile: vi.fn(),
   saveLlmSettings: vi.fn(),
   saveOcrSettings: vi.fn(),
   saveEmail: vi.fn(),
   confirm: vi.fn(),
   emailSettings: vi.fn(),
+  financialPolicy: {
+    data: {
+      status: 'UNCONFIGURED',
+      currentVietnamMonthStart: '2026-08-01',
+      publicVersion: null,
+      currentPolicy: null,
+      futurePolicies: [],
+      history: [],
+      pendingRequest: null,
+    } as FinancialReportingPolicyState,
+    isLoading: false,
+    isError: false,
+    error: null,
+  },
+  truckProfiles: {
+    data: {
+      selectedTruckId: 7,
+      selectedTruckLabel: '51H-001.23',
+      status: 'UNCONFIGURED',
+      currentVietnamMonthStart: '2026-08-01',
+      publicVersion: null,
+      trucks: [{ id: 7, label: '51H-001.23', status: 'ACTIVE' }],
+      currentProfile: null,
+      futureProfiles: [],
+      history: [],
+      pendingRequest: null,
+    } as TruckFinancialProfileState,
+    isLoading: false,
+    isError: false,
+    error: null,
+  },
   appSettings: {
     data: {
       botEnabled: true,
@@ -94,6 +131,10 @@ vi.mock('../../hooks/useAppSettings', () => ({
   useSaveAppSettings: () => mutationResult(mocks.saveAppSettings),
   useEmailSettings: () => mocks.emailSettings(),
   useSaveEmailSettings: () => mutationResult(mocks.saveEmail),
+  useFinancialReportingPolicy: () => mocks.financialPolicy,
+  useRequestFinancialReportingPolicy: () => mutationResult(mocks.requestFinancialPolicy),
+  useTruckFinancialProfiles: () => mocks.truckProfiles,
+  useRequestTruckFinancialProfile: () => mutationResult(mocks.requestTruckProfile),
 }));
 
 vi.mock('../../hooks/useLlmSettings', () => ({
@@ -134,6 +175,27 @@ function renderPage() {
 
 describe('AppSettingsConfigPage', () => {
   beforeEach(() => {
+    mocks.financialPolicy.data = {
+      status: 'UNCONFIGURED',
+      currentVietnamMonthStart: '2026-08-01',
+      publicVersion: null,
+      currentPolicy: null,
+      futurePolicies: [],
+      history: [],
+      pendingRequest: null,
+    };
+    mocks.truckProfiles.data = {
+      selectedTruckId: 7,
+      selectedTruckLabel: '51H-001.23',
+      status: 'UNCONFIGURED',
+      currentVietnamMonthStart: '2026-08-01',
+      publicVersion: null,
+      trucks: [{ id: 7, label: '51H-001.23', status: 'ACTIVE' }],
+      currentProfile: null,
+      futureProfiles: [],
+      history: [],
+      pendingRequest: null,
+    };
     mocks.appSettings.data.botEnabled = true;
     mocks.appSettings.data.gpsEnabled = false;
     mocks.ocrSettings.data.enabled = true;
@@ -146,6 +208,8 @@ describe('AppSettingsConfigPage', () => {
       creditTierOneAmountCap: 1500000,
       salaryPayrollBusinessUnitId: null,
     });
+    mocks.requestFinancialPolicy.mockReset().mockResolvedValue({ status: 'PENDING_CHECK' });
+    mocks.requestTruckProfile.mockReset().mockResolvedValue({ status: 'PENDING_CHECK' });
     mocks.saveLlmSettings.mockReset().mockResolvedValue(mocks.llmSettings.data);
     mocks.saveOcrSettings.mockReset().mockResolvedValue(mocks.ocrSettings.data);
     mocks.saveEmail.mockReset().mockResolvedValue({
@@ -253,6 +317,81 @@ describe('AppSettingsConfigPage', () => {
     expect(ocrSection.textContent).toContain('OpenRouter API key cho OCR');
     expect(ocrSection.textContent).toContain('Gemini API key dự phòng');
     expect(ocrSection.textContent).toContain('không dùng chung với chatbot');
+  });
+
+  it('shows the unconfigured financial policy and truck states with explicit warnings', () => {
+    renderPage();
+
+    expect(screen.getByText('Chưa có chính sách được phê duyệt')).toBeInTheDocument();
+    expect(screen.getByText('Xe này chưa có hồ sơ tài chính được phê duyệt')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tạo yêu cầu đầu tiên' })).toBeInTheDocument();
+  });
+
+  it('submits a governed financial policy request with nullable threshold', async () => {
+    renderPage();
+
+    fireEvent.change(screen.getByLabelText('Tháng hiệu lực'), {
+      target: { value: '2026-08-01' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo yêu cầu đầu tiên' }));
+
+    await waitFor(() => {
+      expect(mocks.confirm).toHaveBeenCalled();
+      expect(mocks.requestFinancialPolicy).toHaveBeenCalledWith({
+        expectedPublicVersion: null,
+        effectiveFrom: '2026-08-01',
+        lowMarginThresholdPercent: null,
+      });
+    });
+    expect(screen.getByRole('status').textContent).toContain('Đã gửi yêu cầu. Cấu hình hiện tại chưa thay đổi.');
+  });
+
+  it('renders approved and future truck financial profile history with full VND digits', () => {
+    mocks.truckProfiles.data = {
+      ...mocks.truckProfiles.data,
+      status: 'CONFIGURED',
+      publicVersion: '2026-08-03T12:00:00.000Z',
+      currentProfile: {
+        id: 11,
+        version: 11,
+        truckId: 7,
+        truckLabel: '51H-001.23',
+        effectiveFrom: '2026-08-01',
+        acquisitionCost: '1250000000',
+        residualValue: '150000000',
+        inServiceDate: '2024-03-15',
+        usefulLifeMonths: 84,
+        monthlyFixedCost: '24000000',
+        createdByName: 'Quản trị',
+        createdAt: '2026-08-03T12:00:00.000Z',
+        source: 'APPROVED_GOVERNANCE',
+      },
+      futureProfiles: [],
+      history: [
+        {
+          id: 11,
+          version: 11,
+          truckId: 7,
+          truckLabel: '51H-001.23',
+          effectiveFrom: '2026-08-01',
+          acquisitionCost: '1250000000',
+          residualValue: '150000000',
+          inServiceDate: '2024-03-15',
+          usefulLifeMonths: 84,
+          monthlyFixedCost: '24000000',
+          createdByName: 'Quản trị',
+          createdAt: '2026-08-03T12:00:00.000Z',
+          source: 'APPROVED_GOVERNANCE',
+        },
+      ],
+      pendingRequest: null,
+    };
+
+    renderPage();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Hồ sơ tài chính xe' }));
+    expect(screen.getByText('1.250.000.000 VND')).toBeInTheDocument();
+    expect(screen.getByText('24.000.000 VND')).toBeInTheDocument();
   });
 
   it('saves a chatbot toggle from the same section without rewriting stored keys', async () => {

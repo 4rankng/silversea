@@ -1231,6 +1231,91 @@ export const governanceActions = pgTable('governance_actions', {
   ),
 ]);
 
+export const financialReportingPolicyVersions = pgTable('financial_reporting_policy_versions', {
+  id: serial('id').primaryKey(),
+  effectiveFrom: date('effective_from').notNull(),
+  depreciationMethod: varchar('depreciation_method', { length: 30 }).notNull(),
+  allocationBasis: varchar('allocation_basis', { length: 50 }).notNull(),
+  lowMarginThresholdRatio: numeric('low_margin_threshold_ratio', { precision: 5, scale: 4 }),
+  governanceActionId: integer('governance_action_id')
+    .references(() => governanceActions.id)
+    .notNull(),
+  createdBy: integer('created_by')
+    .references(() => users.id)
+    .notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('financial_reporting_policy_versions_effective_from_uniq')
+    .on(table.effectiveFrom),
+  uniqueIndex('financial_reporting_policy_versions_governance_action_uniq')
+    .on(table.governanceActionId),
+  index('financial_reporting_policy_versions_effective_lookup_idx')
+    .on(table.effectiveFrom, table.createdAt),
+  check(
+    'financial_reporting_policy_versions_month_start_check',
+    sql`extract(day from ${table.effectiveFrom}) = 1`,
+  ),
+  check(
+    'financial_reporting_policy_versions_depreciation_method_check',
+    sql`${table.depreciationMethod} = 'STRAIGHT_LINE'`,
+  ),
+  check(
+    'financial_reporting_policy_versions_allocation_basis_check',
+    sql`${table.allocationBasis} = 'COMPLETED_TRIP_REVENUE_SHARE'`,
+  ),
+  check(
+    'financial_reporting_policy_versions_low_margin_threshold_check',
+    sql`${table.lowMarginThresholdRatio} is null or (${table.lowMarginThresholdRatio} >= 0 and ${table.lowMarginThresholdRatio} <= 1)`,
+  ),
+]);
+
+export const truckFinancialProfileVersions = pgTable('truck_financial_profile_versions', {
+  id: serial('id').primaryKey(),
+  truckId: integer('truck_id')
+    .references(() => trucks.id)
+    .notNull(),
+  effectiveFrom: date('effective_from').notNull(),
+  acquisitionCost: numeric('acquisition_cost', { precision: 15, scale: 0 }).notNull(),
+  residualValue: numeric('residual_value', { precision: 15, scale: 0 }).notNull(),
+  inServiceDate: date('in_service_date').notNull(),
+  usefulLifeMonths: integer('useful_life_months').notNull(),
+  monthlyFixedCost: numeric('monthly_fixed_cost', { precision: 15, scale: 0 }).notNull(),
+  governanceActionId: integer('governance_action_id')
+    .references(() => governanceActions.id)
+    .notNull(),
+  createdBy: integer('created_by')
+    .references(() => users.id)
+    .notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('truck_financial_profile_versions_truck_month_uniq')
+    .on(table.truckId, table.effectiveFrom),
+  uniqueIndex('truck_financial_profile_versions_governance_action_uniq')
+    .on(table.governanceActionId),
+  index('truck_financial_profile_versions_lookup_idx')
+    .on(table.truckId, table.effectiveFrom, table.createdAt),
+  check(
+    'truck_financial_profile_versions_month_start_check',
+    sql`extract(day from ${table.effectiveFrom}) = 1`,
+  ),
+  check(
+    'truck_financial_profile_versions_acquisition_cost_check',
+    sql`${table.acquisitionCost} >= 0`,
+  ),
+  check(
+    'truck_financial_profile_versions_residual_value_check',
+    sql`${table.residualValue} >= 0 and ${table.residualValue} <= ${table.acquisitionCost}`,
+  ),
+  check(
+    'truck_financial_profile_versions_useful_life_check',
+    sql`${table.usefulLifeMonths} > 0`,
+  ),
+  check(
+    'truck_financial_profile_versions_monthly_fixed_cost_check',
+    sql`${table.monthlyFixedCost} >= 0`,
+  ),
+]);
+
 // Q21: late debit-note adjustments keep an internal link to the original
 // locked periods they are correcting. A single adjustment document may point
 // back to multiple locked periods when approved source lines come in late.

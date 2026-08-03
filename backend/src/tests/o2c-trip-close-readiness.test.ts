@@ -29,6 +29,7 @@ before(async () => {
   const users = await db.insert(s.users).values([
     { username: `close-driver-${suffix}`.slice(0, 50), passwordHash: 'x', fullName: 'Close Driver', role: 'DRIVER', status: 'ACTIVE' },
     { username: `close-reviewer-${suffix}`.slice(0, 50), passwordHash: 'x', fullName: 'Close Reviewer', role: 'ACCOUNTANT', status: 'ACTIVE' },
+    { username: `close-checker-${suffix}`.slice(0, 50), passwordHash: 'x', fullName: 'Close Checker', role: 'CLERK', status: 'ACTIVE' },
   ]).returning();
   userIds = users.map((user) => user.id);
   const [customer] = await db.insert(s.customers).values({ name: `Close readiness ${suffix}` }).returning();
@@ -116,7 +117,11 @@ after(async () => {
   await client.end();
 });
 
-async function replacePod(status: 'DRAFT' | 'SUBMITTED' | 'ACCEPTED' | 'REJECTED', version = 1) {
+async function replacePod(
+  status: 'DRAFT' | 'SUBMITTED' | 'ACCEPTED' | 'REJECTED',
+  version = 1,
+  reviewedBy = userIds[2] ?? null,
+) {
   await db.delete(s.tripPodSubmissions).where(eq(s.tripPodSubmissions.tripId, tripId));
   const submitted = status !== 'DRAFT';
   const reviewed = status === 'ACCEPTED' || status === 'REJECTED';
@@ -128,7 +133,7 @@ async function replacePod(status: 'DRAFT' | 'SUBMITTED' | 'ACCEPTED' | 'REJECTED
     status,
     submittedBy: submitted ? userIds[0] : null,
     submittedAt: submitted ? new Date() : null,
-    reviewedBy: reviewed ? userIds[1] : null,
+    reviewedBy: reviewed ? reviewedBy : null,
     reviewedAt: reviewed ? new Date() : null,
     rejectionReason: status === 'REJECTED' ? 'Thiếu chứng từ' : null,
   }).returning();
@@ -558,6 +563,26 @@ describe('O2C trip close readiness authority', () => {
       idempotencyKey: `oversized-trips-${Date.now()}`,
       actor,
     }), /không được vượt quá 100/);
+  });
+
+  test('direct shipment close rejects the same account that checked the POD dossier', async () => {
+    await prepareReadyForDirectClose();
+    await replacePod('ACCEPTED', 1, userIds[1]);
+
+    await assert.rejects(() => completeShipmentDirect({
+      shipmentId,
+      expectedVersion: 1,
+      vatRate: 0.08,
+      trips: [{ tripId, expectedVersion: 1 }],
+      idempotencyKey: `same-account-close-${Date.now()}`,
+      actor: {
+        userId: userIds[1],
+        username: 'close-reviewer',
+        email: null,
+        fullName: 'Close Reviewer',
+        role: Role.ACCOUNTANT,
+      },
+    }), /khác tài khoản CUS\/CLERK/);
   });
 
   test('direct multi-trip close rolls back every posting when strict AP capture fails', async () => {

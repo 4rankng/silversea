@@ -6,10 +6,12 @@ import { tripClient, type CatalogData } from '../../api/tripClient';
 import {
   listOperationalSites,
   createShipmentDeclaration,
+  getShipmentPricingPreview,
   quickCreateShipment,
   saveShipmentContainers,
   submitShipmentForDispatch,
   type OperationalSite,
+  type ShipmentPricingProjection,
 } from '../../api/shipmentClient';
 import { localDateTimeToIso } from '../../lib/shipment-operations';
 import { OperationalSiteDetailsDialog } from '../../components/shipment/OperationalSiteDetailsDialog';
@@ -20,6 +22,7 @@ type SaveIntent = 'DRAFT' | 'SUBMIT';
 interface FormState {
   customerId: string;
   routeId: string;
+  cargoTypeId: string;
   bookingRef: string;
   blNumber: string;
   declarationNumber: string;
@@ -49,7 +52,7 @@ interface ContainerRow {
 }
 
 const EMPTY_FORM: FormState = {
-  customerId: '', routeId: '', bookingRef: '', blNumber: '', declarationNumber: '',
+  customerId: '', routeId: '', cargoTypeId: '', bookingRef: '', blNumber: '', declarationNumber: '',
   tradeDirection: '', cargoMode: 'FCL', operationalSiteId: '', pickupWarehouseSiteId: '',
   customsCutoffAt: '', closingAt: '', plannedReturnAt: '', expectedDeliveryDate: '', cargoWeightKg: '',
   cargoVolumeCbm: '', packageCount: '', packageType: '', operationalNotes: '',
@@ -61,6 +64,11 @@ function newContainer(): ContainerRow {
 
 function uuidv4(): string {
   return crypto.randomUUID();
+}
+
+function formatVnd(value: number | null | undefined): string {
+  if (value == null) return '—';
+  return `${Math.round(value).toLocaleString('vi-VN')} ₫`;
 }
 
 const sectionStyle: React.CSSProperties = {
@@ -121,6 +129,9 @@ export default function ClerkShipmentCreatePage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [saving, setSaving] = useState<SaveIntent | null>(null);
   const [detailSite, setDetailSite] = useState<OperationalSite | null>(null);
+  const [pricingProjection, setPricingProjection] = useState<ShipmentPricingProjection | null>(null);
+  const [pricingLoading, setPricingLoading] = useState(false);
+  const [pricingError, setPricingError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -141,6 +152,66 @@ export default function ClerkShipmentCreatePage() {
       .finally(() => { if (!cancelled) setSitesLoading(false); });
     return () => { cancelled = true; };
   }, [form.customerId]);
+
+  useEffect(() => {
+    if (!form.customerId || !form.routeId) {
+      setPricingProjection(null);
+      setPricingError(null);
+      setPricingLoading(false);
+      return;
+    }
+    const populatedContainers = containers.filter((row) => (
+      row.containerNumber
+      || row.containerTypeId
+      || row.shippingLineName
+      || row.pickupPortId
+      || row.dropoffPortId
+      || row.cargoWeightKg
+    ));
+    const containerCount = form.cargoMode === 'FCL'
+      ? Math.max(1, populatedContainers.length)
+      : null;
+    let cancelled = false;
+    setPricingLoading(true);
+    setPricingError(null);
+    getShipmentPricingPreview({
+      customerId: Number(form.customerId),
+      routeId: Number(form.routeId),
+      cargoMode: form.cargoMode,
+      cargoTypeId: form.cargoTypeId ? Number(form.cargoTypeId) : null,
+      expectedDeliveryDate: form.expectedDeliveryDate || null,
+      cargoWeightKg: form.cargoMode === 'LCL' ? form.cargoWeightKg || null : null,
+      containerCount,
+      containerTypeIds: form.cargoMode === 'FCL'
+        ? populatedContainers
+          .map((row) => Number(row.containerTypeId))
+          .filter((value) => Number.isInteger(value) && value > 0)
+        : [],
+    })
+      .then((value) => {
+        if (!cancelled) setPricingProjection(value);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setPricingProjection(null);
+          setPricingError(error instanceof Error && error.message.trim()
+            ? error.message
+            : 'Không thể tính cước dự kiến.');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setPricingLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [
+    form.customerId,
+    form.routeId,
+    form.cargoMode,
+    form.cargoTypeId,
+    form.expectedDeliveryDate,
+    form.cargoWeightKg,
+    containers,
+  ]);
 
   const operationalSites = useMemo(() => sites.filter((site) => site.siteType === 'FACTORY'), [sites]);
   const warehouseSites = useMemo(() => sites.filter((site) => site.siteType === 'WAREHOUSE'), [sites]);
@@ -182,6 +253,7 @@ export default function ClerkShipmentCreatePage() {
     if (intent === 'DRAFT') return null;
     if (!form.bookingRef && !form.blNumber) return 'Vui lòng nhập Số Bill hoặc Số Booking';
     if (!form.routeId) return 'Vui lòng chọn tuyến đường';
+    if (form.cargoMode === 'LCL' && !form.cargoTypeId) return 'Vui lòng chọn loại hàng để tính cước lô hàng lẻ';
     // FCL requires a delivery factory; LCL does not (delivery goes to warehouse pickup).
     if (form.cargoMode === 'FCL' && !form.operationalSiteId) {
       return 'Vui lòng chọn nhà máy';
@@ -205,6 +277,7 @@ export default function ClerkShipmentCreatePage() {
       const shipment = await quickCreateShipment({
         customerId: Number(form.customerId),
         routeId: form.routeId ? Number(form.routeId) : null,
+        cargoTypeId: form.cargoTypeId ? Number(form.cargoTypeId) : null,
         bookingRef: form.bookingRef || null,
         blNumber: form.blNumber || null,
         tradeDirection: form.tradeDirection || null,
@@ -294,6 +367,15 @@ export default function ClerkShipmentCreatePage() {
               placeholder="Chọn tuyến đường"
               disabled={Boolean(saving)}
             />
+            <SearchableField
+              id="shipment-cargo-type"
+              label="Loại hàng"
+              value={form.cargoTypeId}
+              onChange={(value) => update('cargoTypeId', value)}
+              options={(catalogs.cargoTypes ?? []).map((item) => ({ value: String(item.id), label: item.name }))}
+              placeholder="Chọn loại hàng"
+              disabled={Boolean(saving)}
+            />
             <TextField label="Số booking" value={form.bookingRef} onChange={(event) => update('bookingRef', event.target.value)} maxLength={100} disabled={Boolean(saving)} />
             <TextField label="Số vận đơn (B/L)" value={form.blNumber} onChange={(event) => update('blNumber', event.target.value)} maxLength={100} disabled={Boolean(saving)} />
             <TextField label="Số tờ khai" value={form.declarationNumber} onChange={(event) => update('declarationNumber', event.target.value)} maxLength={100} disabled={Boolean(saving)} />
@@ -359,6 +441,85 @@ export default function ClerkShipmentCreatePage() {
             <TextField label="Ngày giao dự kiến" type="date" value={form.expectedDeliveryDate} onChange={(event) => update('expectedDeliveryDate', event.target.value)} disabled={Boolean(saving)} />
           </div>
           <label style={{ display: 'grid', gap: 8, fontSize: 14, fontWeight: 600 }}>Ghi chú điều xe<textarea value={form.operationalNotes} onChange={(event) => update('operationalNotes', event.target.value)} rows={4} maxLength={2000} disabled={Boolean(saving)} style={{ width: '100%', minHeight: 96, resize: 'vertical', border: '1px solid var(--border-2)', borderRadius: 8, padding: 12, color: 'var(--fg-1)', background: 'var(--surface-1)', font: 'inherit' }} /></label>
+        </section>
+
+        <section style={sectionStyle}>
+          <h2 style={{ fontSize: 17, margin: 0 }}>Cước dự kiến theo cấu hình</h2>
+          <div
+            style={{
+              border: '1px solid var(--border-2)',
+              borderRadius: 10,
+              padding: 16,
+              background: 'var(--surface-1)',
+              display: 'grid',
+              gap: 12,
+            }}
+          >
+            {pricingLoading && (
+              <p style={{ margin: 0, color: 'var(--fg-3)' }}>Đang tính cước và phụ phí nhiên liệu dự kiến…</p>
+            )}
+            {!pricingLoading && pricingError && (
+              <p role="alert" style={{ margin: 0, color: 'var(--danger)' }}>{pricingError}</p>
+            )}
+            {!pricingLoading && !pricingError && pricingProjection && (
+              <>
+                <p
+                  style={{
+                    margin: 0,
+                    color: pricingProjection.readiness === 'READY' ? 'var(--fg-2)' : 'var(--warn, #b45309)',
+                  }}
+                >
+                  {pricingProjection.message}
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: 12 }}>
+                  <div style={{ border: '1px solid var(--border-2)', borderRadius: 8, padding: 12 }}>
+                    <div style={{ fontSize: 13, color: 'var(--fg-3)', marginBottom: 4 }}>Cước vận chuyển dự kiến</div>
+                    <strong style={{ fontSize: 20 }}>{formatVnd(pricingProjection.freightPrice)}</strong>
+                    <div style={{ marginTop: 6, fontSize: 13, color: 'var(--fg-3)' }}>
+                      {pricingProjection.freightFormula ?? 'Chưa đủ dữ liệu để tính.'}
+                    </div>
+                  </div>
+                  <div style={{ border: '1px solid var(--border-2)', borderRadius: 8, padding: 12 }}>
+                    <div style={{ fontSize: 13, color: 'var(--fg-3)', marginBottom: 4 }}>Phụ phí nhiên liệu dự kiến</div>
+                    <strong style={{ fontSize: 20 }}>{formatVnd(pricingProjection.expectedFuelSurcharge)}</strong>
+                    <div style={{ marginTop: 6, fontSize: 13, color: 'var(--fg-3)' }}>
+                      {pricingProjection.expectedFuelLiters != null
+                        ? `${pricingProjection.expectedFuelLiters.toLocaleString('vi-VN')} lít định mức cho lô hàng này.`
+                        : 'Chưa đủ dữ liệu định mức để tính.'}
+                    </div>
+                  </div>
+                </div>
+                {pricingProjection.breakdown.length > 0 && (
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    {pricingProjection.breakdown.map((line) => (
+                      <div
+                        key={`${line.label}-${line.quantity}`}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          gap: 12,
+                          flexWrap: 'wrap',
+                          borderTop: '1px solid var(--border-2)',
+                          paddingTop: 8,
+                        }}
+                      >
+                        <div>
+                          <strong>{line.label}</strong>
+                          <div style={{ fontSize: 13, color: 'var(--fg-3)' }}>{line.formula}</div>
+                        </div>
+                        <strong>{formatVnd(line.amount)}</strong>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+            {!pricingLoading && !pricingError && !pricingProjection && (
+              <p style={{ margin: 0, color: 'var(--fg-3)' }}>
+                Chọn khách hàng, tuyến đường và thông tin hàng hóa để xem cước dự kiến.
+              </p>
+            )}
+          </div>
         </section>
 
         {submitError && <div role="alert" style={{ color: 'var(--danger)', background: 'var(--danger-bg, rgba(220,38,38,.08))', padding: '12px 16px', borderRadius: 8 }}>{submitError}</div>}

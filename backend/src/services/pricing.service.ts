@@ -24,10 +24,11 @@
 
 import { db } from '../db';
 import * as s from '../db/schema';
-import { and, desc, eq, isNull, lte, ne, type SQL } from 'drizzle-orm';
-import { computeFuelSurcharge } from '@tingting/shared';
+import { and, desc, eq, inArray, isNull, lte, ne, type SQL } from 'drizzle-orm';
+import { computeFuelSurcharge, computeTripTotals, FuelMode } from '@tingting/shared';
 import type { FuelSurchargeSnapshot } from '@tingting/shared';
 import { ApiError } from '../errors';
+import { resolveFuelNorm } from './fuel.service';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -58,6 +59,301 @@ export interface ResolvedFreightPrice {
   formula: string;
   /** Snapshot of the resolved pricing data for persistence on the trip. */
   snapshot: Record<string, unknown>;
+}
+
+export type ShipmentPricingProjectionReadiness =
+  | 'READY'
+  | 'MISSING_INPUT'
+  | 'MISSING_AUTHORITY';
+
+export interface ShipmentPricingBreakdownLine {
+  label: string;
+  quantity: number;
+  amount: number;
+  formula: string;
+}
+
+export interface ShipmentPricingProjection {
+  readiness: ShipmentPricingProjectionReadiness;
+  message: string;
+  freightPrice: number | null;
+  freightSource: ResolvedFreightPrice['source'] | null;
+  freightFormula: string | null;
+  expectedFuelSurcharge: number | null;
+  expectedFuelLiters: number | null;
+  estimationDate: string | null;
+  breakdown: ShipmentPricingBreakdownLine[];
+}
+
+export interface ResolveShipmentPricingProjectionInput {
+  customerId: number;
+  routeId?: number | null;
+  cargoMode?: 'FCL' | 'LCL' | null;
+  cargoTypeId?: number | null;
+  date?: string | null;
+  cargoWeightKg?: number | string | null;
+  containerCount?: number | null;
+  containerTypeIds?: Array<number | null | undefined>;
+}
+
+function todayIsoDate(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function formatVnd(value: number): string {
+  return `${Math.round(value).toLocaleString('vi-VN')} ₫`;
+}
+
+function missingProjection(message: string): ShipmentPricingProjection {
+  return {
+    readiness: 'MISSING_INPUT',
+    message,
+    freightPrice: null,
+    freightSource: null,
+    freightFormula: null,
+    expectedFuelSurcharge: null,
+    expectedFuelLiters: null,
+    estimationDate: null,
+    breakdown: [],
+  };
+}
+
+function authorityProjection(message: string): ShipmentPricingProjection {
+  return {
+    readiness: 'MISSING_AUTHORITY',
+    message,
+    freightPrice: null,
+    freightSource: null,
+    freightFormula: null,
+    expectedFuelSurcharge: null,
+    expectedFuelLiters: null,
+    estimationDate: null,
+    breakdown: [],
+  };
+}
+
+function normalizePositiveInteger(value: number | null | undefined): number {
+  if (value == null || !Number.isInteger(value) || value <= 0) return 0;
+  return value;
+}
+
+function normalizePositiveNumber(value: number | string | null | undefined): number | null {
+  if (value == null || value === '') return null;
+  const normalized = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(normalized) || normalized <= 0) return null;
+  return normalized;
+}
+
+async function estimateShipmentFuelSurcharge(args: {
+  customerId: number;
+  routeId: number;
+  date: string;
+  fulfillmentCount: number;
+}): Promise<{ liters: number; amount: number } | null> {
+  const [route] = await db.select({
+    distanceKm: s.routes.distanceKm,
+    defaultLegs: s.routes.defaultLegs,
+    isMountain: s.routes.isMountain,
+    fixedFuelAllowance: s.routes.fixedFuelAllowance,
+  }).from(s.routes)
+    .where(eq(s.routes.id, args.routeId))
+    .limit(1);
+  if (!route) {
+    throw new ApiError(400, 'Tuyến đường không tồn tại');
+  }
+
+  const legs = route.defaultLegs?.length
+    ? route.defaultLegs.map((leg, index) => ({
+        sequence: index + 1,
+        km: leg.km,
+        loadingType: leg.loadingType,
+      }))
+    : route.distanceKm && route.distanceKm > 0
+      ? [{ sequence: 1, km: route.distanceKm, loadingType: 'HANG' as const }]
+      : [];
+  if (legs.length === 0) return null;
+
+  const fuelNorm = await resolveFuelNorm({
+    routeId: args.routeId,
+    date: args.date,
+  });
+  if (fuelNorm.source === 'NONE') return null;
+
+  const totals = computeTripTotals({
+    legs,
+    fuelMode: FuelMode.AUTO,
+    fuelLitersOverride: null,
+    fuelSupplementLiters: 0,
+    fuelLoadedNorm: fuelNorm.loadedLitersPer100Km,
+    fuelEmptyNorm: fuelNorm.emptyLitersPer100Km,
+    fuelPerTripSupplement: fuelNorm.supplementLiters,
+    fuelUnitPrice: 0,
+    fuelActualUnitPrice: null,
+    isMountainRoute: route.isMountain === true,
+    mountainFixedAllowance: route.fixedFuelAllowance != null
+      ? Number(route.fixedFuelAllowance)
+      : null,
+    roadAllowanceBase: 0,
+    tollsDiscount: 0,
+    tollsAddition: 0,
+    tollsStations: 0,
+    tollPerStation: 0,
+    hasReturnCargo: false,
+    returnCargoBonus: 0,
+    revenue: 0,
+    driverSalary: 0,
+    twoPointDeliveryBonus: 0,
+    vehicleShiftAllowance: 0,
+    vatRate: 0,
+    carrierType: 'OWN',
+    externalFreightCost: 0,
+  });
+  const totalFuelLiters = Math.round(
+    Math.max(0, totals.totalFuelLiters) * Math.max(1, args.fulfillmentCount),
+  );
+  if (totalFuelLiters <= 0) return null;
+
+  const surcharge = await resolveFuelSurcharge({
+    customerId: args.customerId,
+    fuelLiters: totalFuelLiters,
+    date: new Date(`${args.date}T00:00:00.000Z`),
+  });
+  return {
+    liters: totalFuelLiters,
+    amount: surcharge.amount,
+  };
+}
+
+export async function resolveShipmentPricingProjection(
+  input: ResolveShipmentPricingProjectionInput,
+): Promise<ShipmentPricingProjection> {
+  if (input.routeId == null) {
+    return missingProjection('Chọn tuyến đường để xem cước và phụ phí nhiên liệu dự kiến.');
+  }
+  if (input.cargoMode == null) {
+    return missingProjection('Chọn loại lô hàng để xem đơn giá dự kiến.');
+  }
+
+  const estimationDate = input.date?.trim() || todayIsoDate();
+  const breakdown: ShipmentPricingBreakdownLine[] = [];
+  let freightPrice = 0;
+  let freightSource: ResolvedFreightPrice['source'] | null = null;
+  let freightFormula: string | null = null;
+  let fulfillmentCount = 0;
+
+  if (input.cargoMode === 'FCL') {
+    const explicitContainerCount = normalizePositiveInteger(input.containerCount);
+    const validTypeIds = (input.containerTypeIds ?? [])
+      .filter((value): value is number => typeof value === 'number' && Number.isInteger(value) && value > 0);
+    const totalContainerCount = Math.max(explicitContainerCount, validTypeIds.length);
+    if (totalContainerCount <= 0) {
+      return missingProjection('Thêm ít nhất một container để xem cước dự kiến.');
+    }
+
+    const groupedCounts = new Map<number | null, number>();
+    for (const typeId of validTypeIds) {
+      groupedCounts.set(typeId, (groupedCounts.get(typeId) ?? 0) + 1);
+    }
+    const unspecifiedCount = totalContainerCount - validTypeIds.length;
+    if (unspecifiedCount > 0) {
+      groupedCounts.set(null, (groupedCounts.get(null) ?? 0) + unspecifiedCount);
+    }
+
+    const namedContainerTypes = validTypeIds.length > 0
+      ? await db.select({
+        id: s.containerTypes.id,
+        code: s.containerTypes.code,
+        name: s.containerTypes.name,
+      }).from(s.containerTypes)
+        .where(and(
+          isNull(s.containerTypes.deletedAt),
+          inArray(s.containerTypes.id, validTypeIds),
+        ))
+      : [];
+    const containerTypeById = new Map(
+      namedContainerTypes.map((row) => [row.id, row]),
+    );
+
+    for (const [containerTypeId, quantity] of groupedCounts.entries()) {
+      const resolved = await resolveTableFreightPrice({
+        customerId: input.customerId,
+        routeId: input.routeId,
+        date: estimationDate,
+        containerTypeId,
+        containerCount: quantity,
+      });
+      if (resolved.source === 'MANUAL') {
+        return authorityProjection(
+          containerTypeId == null
+            ? 'Chưa có bảng giá cước tổng quát cho tuyến này.'
+            : 'Chưa có bảng giá cước cho loại container đã chọn trên tuyến này.',
+        );
+      }
+      const containerType = containerTypeId != null ? containerTypeById.get(containerTypeId) : null;
+      breakdown.push({
+        label: containerType != null
+          ? `${containerType.code} - ${containerType.name}`
+          : 'Container chưa chọn loại',
+        quantity,
+        amount: resolved.price,
+        formula: resolved.formula,
+      });
+      freightPrice += resolved.price;
+      freightSource = freightSource ?? resolved.source;
+      fulfillmentCount += quantity;
+    }
+    freightFormula = breakdown.map((item) => item.formula).join(' + ');
+  } else {
+    const cargoWeightKg = normalizePositiveNumber(input.cargoWeightKg);
+    if (input.cargoTypeId == null) {
+      return missingProjection('Chọn loại hàng để xem cước LCL dự kiến.');
+    }
+    if (cargoWeightKg == null) {
+      return missingProjection('Nhập trọng lượng thực tế để xem cước LCL dự kiến.');
+    }
+    const resolved = await resolveFreightPrice({
+      customerId: input.customerId,
+      routeId: input.routeId,
+      cargoTypeId: input.cargoTypeId,
+      weightKg: cargoWeightKg,
+      date: estimationDate,
+    });
+    if (resolved.source === 'MANUAL') {
+      return authorityProjection('Chưa có bảng giá theo trọng lượng cho tuyến và loại hàng này.');
+    }
+    freightPrice = resolved.price;
+    freightSource = resolved.source;
+    freightFormula = resolved.formula;
+    fulfillmentCount = 1;
+    breakdown.push({
+      label: 'Lô hàng lẻ',
+      quantity: 1,
+      amount: resolved.price,
+      formula: resolved.formula,
+    });
+  }
+
+  const fuelEstimate = await estimateShipmentFuelSurcharge({
+    customerId: input.customerId,
+    routeId: input.routeId,
+    date: estimationDate,
+    fulfillmentCount,
+  });
+  if (fuelEstimate == null) {
+    return authorityProjection('Tuyến đường chưa đủ định mức hoặc quãng đường mặc định để ước tính phụ phí nhiên liệu.');
+  }
+
+  return {
+    readiness: 'READY',
+    message: `Cước dự kiến ${formatVnd(freightPrice)} và phụ phí nhiên liệu dự kiến ${formatVnd(fuelEstimate.amount)} được tính theo cấu hình hiện hành.`,
+    freightPrice,
+    freightSource,
+    freightFormula,
+    expectedFuelSurcharge: fuelEstimate.amount,
+    expectedFuelLiters: fuelEstimate.liters,
+    estimationDate,
+    breakdown,
+  };
 }
 
 export interface OverlapPair {

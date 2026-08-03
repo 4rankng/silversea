@@ -23,6 +23,7 @@ import {
   invalidateEmailSettings,
   saveEmailSettings,
 } from '../services/email-settings.service';
+import { currentVietnamMonthStart } from '../services/financial-reporting-policy.service';
 import { appSettingsRouter } from '../routes/app-settings';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -30,6 +31,7 @@ const createdUserIds: number[] = [];
 const createdGovernanceActionIds: number[] = [];
 const createdBusinessUnitIds: number[] = [];
 const createdDriverIds: number[] = [];
+const createdTruckIds: number[] = [];
 let server: http.Server;
 let baseUrl: string;
 let originalSettings: Awaited<ReturnType<typeof getAppSettings>>;
@@ -62,6 +64,16 @@ async function mkLinkedActiveDriver(businessUnitId: number) {
     businessUnitId,
   });
   return { user, driver };
+}
+
+async function mkTruck() {
+  const token = suffix.replace(/[^a-z0-9]/gi, '').slice(-10);
+  const [truck] = await db.insert(s.trucks).values({
+    licensePlate: `P2${createdTruckIds.length + 1}${token}`.slice(0, 20),
+    status: 'ACTIVE',
+  }).returning();
+  createdTruckIds.push(truck.id);
+  return truck;
 }
 
 function sign(user: { id: number; username: string | null; role: Role | string }) {
@@ -130,7 +142,16 @@ after(async () => {
     } finally {
       try {
         if (createdGovernanceActionIds.length > 0) {
+          await db.delete(s.truckFinancialProfileVersions)
+            .where(inArray(s.truckFinancialProfileVersions.governanceActionId, createdGovernanceActionIds));
+          await db.delete(s.financialReportingPolicyVersions)
+            .where(inArray(s.financialReportingPolicyVersions.governanceActionId, createdGovernanceActionIds));
+        }
+        if (createdGovernanceActionIds.length > 0) {
           await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, createdGovernanceActionIds));
+        }
+        if (createdTruckIds.length > 0) {
+          await db.delete(s.trucks).where(inArray(s.trucks.id, createdTruckIds));
         }
         if (createdBusinessUnitIds.length > 0) {
           await db.delete(s.userBusinessUnitLinks)
@@ -358,5 +379,162 @@ describe('app-settings route authorization', () => {
     assert.equal(write.status, 200);
     assert.deepEqual(Object.keys(write.body).sort(), ['replayed', 'resendKeyMasked', 'resendKeySet', 'updatedAt']);
     assert.equal('resendApiKey' in write.body, false);
+  });
+
+  test('manager and accountant can read financial reporting routes but cannot request changes', async () => {
+    const truck = await mkTruck();
+
+    for (const token of [managerToken, accountantToken]) {
+      const policyRead = await request('/financial-reporting/policy', { token });
+      assert.equal(policyRead.status, 200);
+      assert.equal(typeof policyRead.body.currentVietnamMonthStart, 'string');
+
+      const truckRead = await request(`/financial-reporting/truck-profiles?truckId=${truck.id}`, { token });
+      assert.equal(truckRead.status, 200);
+      assert.equal(truckRead.body.selectedTruckId, truck.id);
+    }
+
+    const deniedPolicyWrite = await request('/financial-reporting/policy/requests', {
+      method: 'POST',
+      token: managerToken,
+      idempotencyKey: `finance-policy-denied-${suffix}`,
+      body: {
+        expectedPublicVersion: null,
+        effectiveFrom: '2099-12-01',
+        lowMarginThresholdPercent: 12.5,
+      },
+    });
+    assert.equal(deniedPolicyWrite.status, 403);
+
+    const deniedTruckWrite = await request('/financial-reporting/truck-profiles/requests', {
+      method: 'POST',
+      token: accountantToken,
+      idempotencyKey: `finance-truck-denied-${suffix}`,
+      body: {
+        expectedPublicVersion: null,
+        truckId: truck.id,
+        effectiveFrom: currentVietnamMonthStart(),
+        acquisitionCost: '900000000',
+        residualValue: '100000000',
+        inServiceDate: '2024-01-15',
+        usefulLifeMonths: 72,
+        monthlyFixedCost: '18000000',
+      },
+    });
+    assert.equal(deniedTruckWrite.status, 403);
+  });
+
+  test('policy request persists as governance and appears in future approved history after approval', async () => {
+    const effectiveFrom = '2099-12-01';
+
+    const requested = await request('/financial-reporting/policy/requests', {
+      method: 'POST',
+      token: adminToken,
+      idempotencyKey: `finance-policy-${suffix}`,
+      body: {
+        expectedPublicVersion: null,
+        effectiveFrom,
+        lowMarginThresholdPercent: 14.5,
+      },
+    });
+    assert.equal(requested.status, 201);
+    assert.equal(requested.body.status, 'PENDING_CHECK');
+    createdGovernanceActionIds.push(Number(requested.body.id));
+
+    const pendingState = await request('/financial-reporting/policy', { token: adminToken });
+    assert.equal(pendingState.status, 200);
+    assert.equal(pendingState.body.pendingRequest?.effectiveFrom, effectiveFrom);
+
+    const checked = await checkGovernanceAction({
+      actionId: Number(requested.body.id),
+      checkerId: createdUserIds[2]!,
+      checkerRole: Role.ACCOUNTANT,
+      expectedVersion: Number(requested.body.version),
+    });
+    await approveGovernanceAction({
+      actionId: Number(requested.body.id),
+      approverId: createdUserIds[1]!,
+      approverRole: Role.MANAGER,
+      expectedVersion: checked.version,
+    });
+
+    const approvedState = await request('/financial-reporting/policy', { token: adminToken });
+    assert.equal(approvedState.status, 200);
+    const futurePolicy = approvedState.body.futurePolicies.find(
+      (row: { effectiveFrom: string }) => row.effectiveFrom === effectiveFrom,
+    );
+    assert.ok(futurePolicy);
+    assert.equal(futurePolicy.lowMarginThresholdPercent, 14.5);
+    assert.equal(approvedState.body.pendingRequest, null);
+  });
+
+  test('truck financial profile requests lock duplicate submissions and expose the approved current profile', async () => {
+    const truck = await mkTruck();
+    const effectiveFrom = currentVietnamMonthStart();
+
+    const initial = await request(`/financial-reporting/truck-profiles?truckId=${truck.id}`, {
+      token: adminToken,
+    });
+    assert.equal(initial.status, 200);
+    assert.equal(initial.body.status, 'UNCONFIGURED');
+    assert.equal(initial.body.selectedTruckId, truck.id);
+
+    const requested = await request('/financial-reporting/truck-profiles/requests', {
+      method: 'POST',
+      token: adminToken,
+      idempotencyKey: `finance-truck-${suffix}`,
+      body: {
+        expectedPublicVersion: null,
+        truckId: truck.id,
+        effectiveFrom,
+        acquisitionCost: '1250000000',
+        residualValue: '150000000',
+        inServiceDate: '2024-03-15',
+        usefulLifeMonths: 84,
+        monthlyFixedCost: '24000000',
+      },
+    });
+    assert.equal(requested.status, 201);
+    assert.equal(requested.body.status, 'PENDING_CHECK');
+    createdGovernanceActionIds.push(Number(requested.body.id));
+
+    const duplicate = await request('/financial-reporting/truck-profiles/requests', {
+      method: 'POST',
+      token: adminToken,
+      idempotencyKey: `finance-truck-duplicate-${suffix}`,
+      body: {
+        expectedPublicVersion: null,
+        truckId: truck.id,
+        effectiveFrom,
+        acquisitionCost: '1250000000',
+        residualValue: '150000000',
+        inServiceDate: '2024-03-15',
+        usefulLifeMonths: 84,
+        monthlyFixedCost: '24000000',
+      },
+    });
+    assert.equal(duplicate.status, 409);
+
+    const checked = await checkGovernanceAction({
+      actionId: Number(requested.body.id),
+      checkerId: createdUserIds[2]!,
+      checkerRole: Role.ACCOUNTANT,
+      expectedVersion: Number(requested.body.version),
+    });
+    await approveGovernanceAction({
+      actionId: Number(requested.body.id),
+      approverId: createdUserIds[1]!,
+      approverRole: Role.MANAGER,
+      expectedVersion: checked.version,
+    });
+
+    const approved = await request(`/financial-reporting/truck-profiles?truckId=${truck.id}`, {
+      token: adminToken,
+    });
+    assert.equal(approved.status, 200);
+    assert.equal(approved.body.status, 'CONFIGURED');
+    assert.equal(approved.body.currentProfile?.truckId, truck.id);
+    assert.equal(approved.body.currentProfile?.monthlyFixedCost, '24000000');
+    assert.equal(approved.body.pendingRequest, null);
   });
 });

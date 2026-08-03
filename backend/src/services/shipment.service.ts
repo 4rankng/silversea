@@ -37,7 +37,7 @@ import {
   updateShipmentSchema,
   validateContainerNumber,
 } from '@tingting/shared';
-import { resolveFreightPrice } from './pricing.service';
+import { resolveFreightPrice, resolveShipmentPricingProjection } from './pricing.service';
 import { persistNotificationInTx, sendNotificationPush, type NotificationPayload } from './notification.service';
 import type { AuthUser } from '../middleware/auth';
 import {
@@ -1123,14 +1123,11 @@ export async function transitionShipmentStatus(
 }
 
 function isPodReviewWriter(actor: AuthUser): boolean {
-  return actor.role === Role.ADMIN
-    || actor.role === Role.MANAGER
-    || actor.role === Role.ACCOUNTANT
-    || actor.role === Role.CLERK;
+  return actor.role === Role.CLERK;
 }
 
 function isRoutineShipmentCloseWriter(actor: AuthUser): boolean {
-  return actor.role === Role.ACCOUNTANT || actor.role === Role.CLERK;
+  return actor.role === Role.ACCOUNTANT;
 }
 
 const ROUTINE_SHIPMENT_CLOSE_VAT_RATES = new Set<number>([0, 0.05, 0.08, 0.10]);
@@ -1153,6 +1150,74 @@ type ShipmentDirectCloseResult = {
   completedTripIds: number[];
   vatRate: number;
 };
+
+type ShipmentPricingProjectionView = Awaited<ReturnType<typeof resolveShipmentPricingProjection>>;
+
+async function buildShipmentPricingProjection(
+  shipment: Pick<
+    typeof s.shipments.$inferSelect,
+    'customerId'
+    | 'routeId'
+    | 'cargoTypeId'
+    | 'cargoMode'
+    | 'expectedDeliveryDate'
+    | 'cargoWeightKg'
+  >,
+  containers: ReadonlyArray<Pick<typeof s.shipmentContainers.$inferSelect, 'containerTypeId'>>,
+): Promise<ShipmentPricingProjectionView> {
+  return resolveShipmentPricingProjection({
+    customerId: shipment.customerId,
+    routeId: shipment.routeId,
+    cargoMode: shipment.cargoMode,
+    cargoTypeId: shipment.cargoTypeId,
+    date: shipment.expectedDeliveryDate,
+    cargoWeightKg: shipment.cargoWeightKg,
+    containerCount: containers.length,
+    containerTypeIds: containers.map((container) => container.containerTypeId),
+  });
+}
+
+async function assertRoutineShipmentCloseCheckerSeparation(
+  tx: Tx,
+  tripIds: number[],
+  completerUserId: number,
+): Promise<void> {
+  const acceptedRows = await tx.select({
+    tripId: s.tripPodSubmissions.tripId,
+    reviewedBy: s.tripPodSubmissions.reviewedBy,
+    reviewerRole: s.users.role,
+  }).from(s.tripPodSubmissions)
+    .leftJoin(s.users, eq(s.users.id, s.tripPodSubmissions.reviewedBy))
+    .where(and(
+      inArray(s.tripPodSubmissions.tripId, tripIds),
+      eq(s.tripPodSubmissions.status, TripPodStatus.ACCEPTED),
+    ))
+    .orderBy(desc(s.tripPodSubmissions.tripId), desc(s.tripPodSubmissions.submissionVersion), desc(s.tripPodSubmissions.id))
+    .for('update');
+
+  const latestAcceptedByTrip = new Map<number, { reviewedBy: number | null; reviewerRole: string | null }>();
+  for (const row of acceptedRows) {
+    if (!latestAcceptedByTrip.has(row.tripId)) {
+      latestAcceptedByTrip.set(row.tripId, {
+        reviewedBy: row.reviewedBy,
+        reviewerRole: row.reviewerRole,
+      });
+    }
+  }
+
+  for (const tripId of tripIds) {
+    const checker = latestAcceptedByTrip.get(tripId);
+    if (checker?.reviewedBy == null) {
+      throw new ApiError(409, 'Chuyến chưa có người CUS/CLERK kiểm tra POD và hồ sơ chi phí.');
+    }
+    if (checker.reviewerRole !== Role.CLERK) {
+      throw new ApiError(409, 'Người kiểm tra POD và hồ sơ chi phí phải là CUS/CLERK.');
+    }
+    if (checker.reviewedBy === completerUserId) {
+      throw new ApiError(409, 'Tài khoản Kế toán hoàn thành phải khác tài khoản CUS/CLERK đã kiểm tra hồ sơ.');
+    }
+  }
+}
 
 async function loadReviewTripPodResult(
   tx: Tx,
@@ -1431,7 +1496,7 @@ export async function reviewTripPodSubmission(args: {
   podRecovered?: boolean;
 }) {
   if (!isPodReviewWriter(args.actor)) {
-    throw new ApiError(403, 'Bạn không có quyền duyệt e-POD.');
+    throw new ApiError(403, 'Chỉ CUS/CLERK mới được kiểm tra e-POD và hồ sơ chi phí.');
   }
   if (args.resolution === 'REJECT' && !args.rejectionReason?.trim()) {
     throw new ApiError(400, 'Cần nhập lý do từ chối e-POD.');
@@ -1605,7 +1670,7 @@ export async function completeShipmentDirect(args: {
   actor: AuthUser;
 }): Promise<ShipmentDirectCloseResult & { replayed: boolean }> {
   if (!isRoutineShipmentCloseWriter(args.actor)) {
-    throw new ApiError(403, 'Chỉ Kế toán hoặc CUS mới có quyền chốt trực tiếp lô hàng.');
+    throw new ApiError(403, 'Chỉ Kế toán mới được hoàn thành trực tiếp lô hàng.');
   }
   const vatRate = normalizeRoutineShipmentCloseVatRate(args.vatRate);
   const normalizedTripVersions = [...args.trips]
@@ -1714,6 +1779,11 @@ export async function completeShipmentDirect(args: {
       const scopeState = await loadTripExpenseScopeState(
         tx,
         requiredTrips.map((trip) => trip.id),
+      );
+      await assertRoutineShipmentCloseCheckerSeparation(
+        tx,
+        requiredTrips.map((trip) => trip.id),
+        args.actor.userId,
       );
 
       for (const trip of [...requiredTrips].sort((left, right) => left.id - right.id)) {
@@ -2060,6 +2130,7 @@ export interface ShipmentDetail {
   shipment: Awaited<ReturnType<typeof getShipment>> & {
     customerName: string | null;
     cargoTypeName: string | null;
+    pricingProjection: ShipmentPricingProjectionView;
   };
   containers: Awaited<ReturnType<typeof listShipmentContainers>>;
   documents: Awaited<ReturnType<typeof listShipmentDocuments>>;
@@ -2173,7 +2244,10 @@ export async function getShipmentDetail(id: number, actor?: AuthUser): Promise<S
     listShipmentPodReviewItems(id),
   ]);
   return {
-    shipment: shipmentWithCustomer,
+    shipment: {
+      ...shipmentWithCustomer,
+      pricingProjection: await buildShipmentPricingProjection(shipment, containers),
+    },
     containers,
     documents,
     declarations,

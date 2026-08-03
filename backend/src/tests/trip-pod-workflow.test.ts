@@ -380,6 +380,46 @@ describe('trip pod review workflow', () => {
     );
   });
 
+  test('accountant is denied routine e-POD review for the shipment dossier', async () => {
+    const accountantUser = await createUser(Role.ACCOUNTANT, 'deny-review');
+    const clerkUser = await createUser(Role.CLERK, 'deny-review');
+    const businessUnit = await createBusinessUnit('deny-review');
+    const { user: driverUser, driver } = await createDriverPrincipal('deny-review');
+    const fixture = await createShipmentFixture({
+      tag: 'deny-review',
+      cargoMode: 'LCL',
+      responsibleUnitId: businessUnit.id,
+      fulfillmentCount: 1,
+    });
+    await assignClerkScope(clerkUser.id, fixture.customer.id, businessUnit.id);
+    const trip = await createFulfillmentTrip({
+      tag: 'deny-review',
+      shipmentId: fixture.shipment.id,
+      fulfillmentId: fixture.fulfillments[0]!.id,
+      customerId: fixture.customer.id,
+      routeId: fixture.route.id,
+      cargoTypeId: fixture.cargoType.id,
+      driverId: driver.id,
+    });
+    const submitted = await createSubmittedPod({
+      tag: 'deny-review',
+      driverId: driver.id,
+      driverUserId: driverUser.id,
+      fulfillmentId: fixture.fulfillments[0]!.id,
+      tripVersion: trip.version,
+    });
+
+    await assert.rejects(() => reviewTripPodSubmission({
+      shipmentId: fixture.shipment.id,
+      submissionId: submitted.id,
+      expectedVersion: submitted.version,
+      resolution: 'ACCEPT',
+      podRecovered: true,
+      idempotencyKey: `phase5-review-deny-${suffix}`,
+      actor: actorFromUser(accountantUser),
+    }), /CUS\/CLERK/);
+  });
+
   test('replacement cancellation creates a new fulfillment and cancels the old trip authority', async () => {
     const managerUser = await createUser(Role.MANAGER, 'replacement-trip');
     const { driver } = await createDriverPrincipal('replacement-trip');

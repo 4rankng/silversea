@@ -92,6 +92,7 @@ import {
   listDispatchHandoffs,
   listDispatchQueue,
 } from '../services/dispatch-planning.service';
+import { resolveShipmentPricingProjection } from '../services/pricing.service';
 import { attachmentDisposition } from '../services/statement.service';
 
 // Audit event registrations — matched by the audit middleware on every write.
@@ -204,6 +205,17 @@ const completeShipmentDirectSchema = z.object({
     tripId: z.number().int().positive(),
     expectedVersion: z.number().int().positive(),
   })).min(1).max(100),
+});
+
+const shipmentPricingPreviewSchema = z.object({
+  customerId: z.number().int().positive(),
+  routeId: z.number().int().positive().optional().nullable(),
+  cargoMode: z.enum(['FCL', 'LCL']).optional().nullable(),
+  cargoTypeId: z.number().int().positive().optional().nullable(),
+  expectedDeliveryDate: z.string().trim().optional().nullable(),
+  cargoWeightKg: z.coerce.number().positive().optional().nullable(),
+  containerCount: z.number().int().positive().optional().nullable(),
+  containerTypeIds: z.array(z.number().int().positive()).optional(),
 });
 
 const router = Router();
@@ -474,6 +486,25 @@ router.get(
   }),
 );
 
+router.post(
+  '/pricing-preview',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CLERK),
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = shipmentPricingPreviewSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    res.json(await resolveShipmentPricingProjection({
+      customerId: parsed.data.customerId,
+      routeId: parsed.data.routeId,
+      cargoMode: parsed.data.cargoMode,
+      cargoTypeId: parsed.data.cargoTypeId,
+      date: parsed.data.expectedDeliveryDate,
+      cargoWeightKg: parsed.data.cargoWeightKg,
+      containerCount: parsed.data.containerCount,
+      containerTypeIds: parsed.data.containerTypeIds,
+    }));
+  }),
+);
+
 // ─── POST / — create draft shipment ────────────────────────────────────────
 router.post(
   '/',
@@ -562,9 +593,22 @@ router.post(
       idempotencyKey,
       getUser(req),
     );
+    const pricingProjection = await resolveShipmentPricingProjection({
+      customerId: shipment.customerId,
+      routeId: shipment.routeId,
+      cargoMode: shipment.cargoMode,
+      cargoTypeId: shipment.cargoTypeId,
+      date: shipment.expectedDeliveryDate,
+      cargoWeightKg: shipment.cargoWeightKg,
+      containerCount: 0,
+      containerTypeIds: [],
+    });
     res.locals.auditEntityId = shipment.id;
     res.locals.auditEntityKey = shipment.shipmentCode ?? "Lô hàng chưa có mã";
-    res.status(replayed ? 200 : 201).json(shipment);
+    res.status(replayed ? 200 : 201).json({
+      ...shipment,
+      pricingProjection,
+    });
   }),
 );
 
@@ -720,7 +764,7 @@ router.post(
 
 router.post(
   '/:id/pod-reviews/:submissionId/review',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CLERK),
+  requireRoles(Role.CLERK),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
@@ -751,7 +795,7 @@ router.post(
 
 router.post(
   '/:id/complete',
-  requireRoles(Role.ACCOUNTANT, Role.CLERK),
+  requireRoles(Role.ACCOUNTANT),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;

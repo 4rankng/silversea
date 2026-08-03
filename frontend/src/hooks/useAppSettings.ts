@@ -1,5 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { AppSettings, EmailSettingsUpdate } from '@tingting/shared';
+import type {
+  AppSettings,
+  EmailSettingsUpdate,
+} from '@tingting/shared';
+import type {
+  FinancialReportingPolicyRequest,
+  TruckFinancialProfileRequest,
+} from '@tingting/shared/src/schemas/financial-reporting-policy';
 import { appSettingsClient } from '../api/appSettingsClient';
 import { qk } from '../api/keys';
 
@@ -40,6 +47,48 @@ export function useSaveEmailSettings() {
     mutationFn: (settings: EmailSettingsUpdate) => appSettingsClient.saveEmailSettings(settings),
     onSuccess: (settings) => {
       queryClient.setQueryData(qk.appSettings.email, settings);
+    },
+  });
+}
+
+const financialReportingPolicyQueryKey = ['app-settings', 'financial-reporting-policy'] as const;
+const truckFinancialProfilesQueryKey = (truckId: number | null) =>
+  ['app-settings', 'truck-financial-profiles', truckId ?? 'auto'] as const;
+
+export function useFinancialReportingPolicy() {
+  return useQuery({
+    queryKey: financialReportingPolicyQueryKey,
+    queryFn: () => appSettingsClient.getFinancialReportingPolicy(),
+    staleTime: 30_000,
+  });
+}
+
+export function useRequestFinancialReportingPolicy() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: FinancialReportingPolicyRequest) =>
+      appSettingsClient.requestFinancialReportingPolicy(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: financialReportingPolicyQueryKey });
+    },
+  });
+}
+
+export function useTruckFinancialProfiles(truckId: number | null) {
+  return useQuery({
+    queryKey: truckFinancialProfilesQueryKey(truckId),
+    queryFn: () => appSettingsClient.getTruckFinancialProfiles(truckId),
+    staleTime: 30_000,
+  });
+}
+
+export function useRequestTruckFinancialProfile() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: TruckFinancialProfileRequest) =>
+      appSettingsClient.requestTruckFinancialProfile(payload),
+    onSuccess: (_result, payload) => {
+      queryClient.invalidateQueries({ queryKey: truckFinancialProfilesQueryKey(payload.truckId) });
     },
   });
 }

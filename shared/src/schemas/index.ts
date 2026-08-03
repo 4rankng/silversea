@@ -15,6 +15,7 @@ import {
 // response / message / live-event schemas. Self-contained module kept separate
 // from the entity-CRUD schemas below. See ./agent.ts for the design notes.
 export * from './agent';
+export * from './financial-reporting-policy';
 
 // Admin LLM provider settings (MiniMax / OpenRouter selection + API keys).
 // Zod update schema + response interface; used by the ADMIN-only settings route

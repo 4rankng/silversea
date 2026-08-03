@@ -27,8 +27,12 @@ import { formatCurrency } from '../../lib/format';
 import {
   useAppSettings,
   useEmailSettings,
+  useFinancialReportingPolicy,
+  useRequestFinancialReportingPolicy,
+  useRequestTruckFinancialProfile,
   useSaveAppSettings,
   useSaveEmailSettings,
+  useTruckFinancialProfiles,
 } from '../../hooks/useAppSettings';
 import { useGpsSettings, useSaveGpsSettings } from '../../hooks/useGpsSettings';
 import { useLlmSettings, useSaveLlmSettings } from '../../hooks/useLlmSettings';
@@ -147,6 +151,99 @@ function SecretField({
   );
 }
 
+type FinanceTab = 'policy' | 'truck';
+
+function formatViDate(value: string): string {
+  const parsed = new Date(`${value}T00:00:00`);
+  return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(parsed);
+}
+
+function formatViMonth(value: string): string {
+  return value.slice(5, 7) + '/' + value.slice(0, 4);
+}
+
+function formatFullVnd(value: string): string {
+  return new Intl.NumberFormat('vi-VN').format(Number(value || 0));
+}
+
+function ratioToPercentInput(value: number | null): string {
+  if (value == null) return '';
+  return String(Math.round(value * 10000) / 100);
+}
+
+function percentInputToNumber(value: string): number | null {
+  if (value.trim() === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function FinanceLoadingBlock() {
+  return (
+    <div className="cfg-finance-skeleton" aria-hidden="true">
+      <span />
+      <span />
+      <span />
+    </div>
+  );
+}
+
+function FinanceVersionList({
+  title,
+  emptyMessage,
+  rows,
+  renderMeta,
+}: {
+  title: string;
+  emptyMessage: string;
+  rows: Array<{
+    id: number;
+    effectiveFrom: string;
+    version: number;
+    createdAt: string;
+    createdByName: string;
+  }>;
+  renderMeta: (row: {
+    id: number;
+    effectiveFrom: string;
+    version: number;
+    createdAt: string;
+    createdByName: string;
+  }) => ReactNode;
+}) {
+  return (
+    <div className="cfg-finance-history" role="region" aria-label={title}>
+      <div className="cfg-section__heading-row">
+        <h3 className="cfg-section__heading">{title}</h3>
+      </div>
+      {rows.length === 0 ? (
+        <p className="cfg-field-hint">{emptyMessage}</p>
+      ) : (
+        <ul className="cfg-finance-history__list">
+          {rows.map((row) => (
+            <li key={row.id} className="cfg-finance-history__item">
+              <div className="cfg-finance-history__headline">
+                <strong>{formatViMonth(row.effectiveFrom)}</strong>
+                <span>Phiên bản {row.version}</span>
+              </div>
+              <div className="cfg-finance-history__meta">
+                {renderMeta(row)}
+              </div>
+              <div className="cfg-finance-history__foot">
+                <span>{row.createdByName}</span>
+                <span>{new Date(row.createdAt).toLocaleString('vi-VN')}</span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 /** ADMIN home for global switches and external-service credentials. */
 export default function AppSettingsConfigPage() {
   const { rootRef: pageRef } = usePageAnimations({ ready: true, selectors: ['.panel'] });
@@ -156,6 +253,8 @@ export default function AppSettingsConfigPage() {
   const saveAppSettings = useSaveAppSettings();
   const emailSettings = useEmailSettings();
   const saveEmailSettings = useSaveEmailSettings();
+  const financialPolicy = useFinancialReportingPolicy();
+  const requestFinancialPolicy = useRequestFinancialReportingPolicy();
   const llmSettings = useLlmSettings();
   const saveLlmSettings = useSaveLlmSettings();
   const ocrSettings = useOcrSettings();
@@ -163,6 +262,7 @@ export default function AppSettingsConfigPage() {
   const gpsSettings = useGpsSettings();
   const saveGpsSettings = useSaveGpsSettings();
   const { confirm, dialog: confirmDialog } = useConfirm();
+  const [activeFinanceTab, setActiveFinanceTab] = useState<FinanceTab>('policy');
 
   const [features, setFeatures] = useState<AppSettings>({
     botEnabled: false,
@@ -191,6 +291,21 @@ export default function AppSettingsConfigPage() {
   const [ocrMessage, setOcrMessage] = useState<string | null>(null);
   const [emailMessage, setEmailMessage] = useState<string | null>(null);
   const [gpsMessage, setGpsMessage] = useState<string | null>(null);
+  const [policyEffectiveFrom, setPolicyEffectiveFrom] = useState('');
+  const [policyThresholdPercent, setPolicyThresholdPercent] = useState('');
+  const [policyMessage, setPolicyMessage] = useState<string | null>(null);
+  const [policyError, setPolicyError] = useState<string | null>(null);
+  const [selectedTruckId, setSelectedTruckId] = useState<number | null>(null);
+  const truckProfiles = useTruckFinancialProfiles(selectedTruckId);
+  const requestTruckProfile = useRequestTruckFinancialProfile();
+  const [truckEffectiveFrom, setTruckEffectiveFrom] = useState('');
+  const [truckAcquisitionCost, setTruckAcquisitionCost] = useState('');
+  const [truckResidualValue, setTruckResidualValue] = useState('');
+  const [truckInServiceDate, setTruckInServiceDate] = useState('');
+  const [truckUsefulLifeMonths, setTruckUsefulLifeMonths] = useState('');
+  const [truckMonthlyFixedCost, setTruckMonthlyFixedCost] = useState('');
+  const [truckMessage, setTruckMessage] = useState<string | null>(null);
+  const [truckError, setTruckError] = useState<string | null>(null);
 
   useEffect(() => {
     if (appSettings.data) {
@@ -211,6 +326,31 @@ export default function AppSettingsConfigPage() {
   useEffect(() => {
     if (gpsSettings.data) setGpsUsername(gpsSettings.data.username);
   }, [gpsSettings.data]);
+
+  useEffect(() => {
+    if (!financialPolicy.data) return;
+    setPolicyEffectiveFrom(financialPolicy.data.currentVietnamMonthStart);
+    setPolicyThresholdPercent(
+      ratioToPercentInput(financialPolicy.data.currentPolicy?.lowMarginThresholdRatio ?? null),
+    );
+  }, [financialPolicy.data]);
+
+  useEffect(() => {
+    if (selectedTruckId == null && truckProfiles.data?.selectedTruckId != null) {
+      setSelectedTruckId(truckProfiles.data.selectedTruckId);
+    }
+  }, [selectedTruckId, truckProfiles.data?.selectedTruckId]);
+
+  useEffect(() => {
+    if (!truckProfiles.data) return;
+    const current = truckProfiles.data.currentProfile;
+    setTruckEffectiveFrom(truckProfiles.data.currentVietnamMonthStart);
+    setTruckAcquisitionCost(current?.acquisitionCost ?? '');
+    setTruckResidualValue(current?.residualValue ?? '');
+    setTruckInServiceDate(current?.inServiceDate ?? '');
+    setTruckUsefulLifeMonths(current?.usefulLifeMonths != null ? String(current.usefulLifeMonths) : '');
+    setTruckMonthlyFixedCost(current?.monthlyFixedCost ?? '');
+  }, [truckProfiles.data]);
 
   const updateFeature = (key: keyof AppSettings) => {
     setFeatures((current) => ({ ...current, [key]: !current[key] }));
@@ -299,6 +439,75 @@ export default function AppSettingsConfigPage() {
       setEmailMessage('Đã lưu Resend API key.');
     } catch {
       setEmailMessage(null);
+    }
+  };
+
+  const requestPolicy = async () => {
+    setPolicyError(null);
+    setPolicyMessage(null);
+    if (!financialPolicy.data) return;
+    if (!policyEffectiveFrom) {
+      setPolicyError('Chọn tháng hiện tại hoặc một tháng trong tương lai. Không thể áp dụng ngược cho kỳ đã đóng.');
+      return;
+    }
+    const lowMarginThresholdPercent = percentInputToNumber(policyThresholdPercent);
+    if (policyThresholdPercent.trim() !== '' && lowMarginThresholdPercent == null) {
+      setPolicyError('Ngưỡng cảnh báo phải là số từ 0% đến 100%.');
+      return;
+    }
+    const confirmed = await confirm(
+      `Gửi yêu cầu chính sách báo cáo hiệu lực từ ${formatViMonth(policyEffectiveFrom)}${lowMarginThresholdPercent == null ? ' và giữ trạng thái chưa cấu hình cảnh báo biên lợi nhuận?' : ` với ngưỡng cảnh báo biên lợi nhuận ${lowMarginThresholdPercent}%?`}`,
+      { confirmLabel: 'Gửi yêu cầu', variant: 'primary' },
+    );
+    if (!confirmed) return;
+    try {
+      await requestFinancialPolicy.mutateAsync({
+        expectedPublicVersion: financialPolicy.data.publicVersion,
+        effectiveFrom: policyEffectiveFrom,
+        lowMarginThresholdPercent,
+      });
+      setPolicyMessage('Đã gửi yêu cầu. Cấu hình hiện tại chưa thay đổi.');
+    } catch (error) {
+      setPolicyError(error instanceof Error ? error.message : 'Không thể gửi yêu cầu chính sách.');
+    }
+  };
+
+  const requestTruckFinancialProfileVersion = async () => {
+    setTruckError(null);
+    setTruckMessage(null);
+    if (!truckProfiles.data?.selectedTruckId) {
+      setTruckError('Chọn xe đầu kéo trước khi tạo hồ sơ tài chính.');
+      return;
+    }
+    if (!truckEffectiveFrom || !truckInServiceDate) {
+      setTruckError('Tháng hiệu lực và ngày đưa vào sử dụng là bắt buộc.');
+      return;
+    }
+    const usefulLifeMonths = Number(truckUsefulLifeMonths);
+    if (!Number.isInteger(usefulLifeMonths) || usefulLifeMonths <= 0) {
+      setTruckError('Thời gian sử dụng phải là số nguyên lớn hơn 0.');
+      return;
+    }
+    const payload = {
+      expectedPublicVersion: truckProfiles.data.publicVersion,
+      truckId: truckProfiles.data.selectedTruckId,
+      effectiveFrom: truckEffectiveFrom,
+      acquisitionCost: truckAcquisitionCost,
+      residualValue: truckResidualValue,
+      inServiceDate: truckInServiceDate,
+      usefulLifeMonths,
+      monthlyFixedCost: truckMonthlyFixedCost,
+    } as const;
+    const confirmed = await confirm(
+      `Gửi hồ sơ tài chính cho xe ${truckProfiles.data.selectedTruckLabel} hiệu lực từ ${formatViMonth(truckEffectiveFrom)}?`,
+      { confirmLabel: 'Gửi yêu cầu', variant: 'primary' },
+    );
+    if (!confirmed) return;
+    try {
+      await requestTruckProfile.mutateAsync(payload);
+      setTruckMessage('Đã gửi yêu cầu. Cấu hình hiện tại chưa thay đổi.');
+    } catch (error) {
+      setTruckError(error instanceof Error ? error.message : 'Không thể gửi hồ sơ tài chính xe.');
     }
   };
 
@@ -392,17 +601,420 @@ export default function AppSettingsConfigPage() {
   const creditTierCapValid = Number.isFinite(Number(creditTierOneCap))
     && Number(creditTierOneCap) >= 0
     && Number.isInteger(Number(creditTierOneCap));
+  const financeState = activeFinanceTab === 'policy' ? financialPolicy.data : truckProfiles.data;
+  const financePendingRequest = financeState?.pendingRequest ?? null;
+  const policySubmitLabel = financialPolicy.data?.status === 'UNCONFIGURED'
+    ? 'Tạo yêu cầu đầu tiên'
+    : 'Gửi yêu cầu phê duyệt';
+  const truckSubmitLabel = truckProfiles.data?.status === 'UNCONFIGURED'
+    ? 'Tạo hồ sơ cho xe'
+    : 'Gửi yêu cầu phê duyệt';
+
+  const handleTruckSelectionChange = async (nextTruckId: number) => {
+    const truckDraftDirty = Boolean(
+      truckProfiles.data
+      && (
+        truckEffectiveFrom !== truckProfiles.data.currentVietnamMonthStart
+        || truckAcquisitionCost !== (truckProfiles.data.currentProfile?.acquisitionCost ?? '')
+        || truckResidualValue !== (truckProfiles.data.currentProfile?.residualValue ?? '')
+        || truckInServiceDate !== (truckProfiles.data.currentProfile?.inServiceDate ?? '')
+        || truckUsefulLifeMonths !== (truckProfiles.data.currentProfile?.usefulLifeMonths != null ? String(truckProfiles.data.currentProfile.usefulLifeMonths) : '')
+        || truckMonthlyFixedCost !== (truckProfiles.data.currentProfile?.monthlyFixedCost ?? '')
+      )
+    );
+    if (truckDraftDirty) {
+      const confirmed = await confirm(
+        'Đổi xe đầu kéo sẽ bỏ bản nháp chưa gửi. Tiếp tục?',
+        { confirmLabel: 'Đổi xe', variant: 'warning' },
+      );
+      if (!confirmed) return;
+    }
+    setTruckError(null);
+    setTruckMessage(null);
+    setSelectedTruckId(nextTruckId);
+  };
 
   return (
     <div ref={pageRef} className="cfg-page cfg-page--app-settings">
       <PageHeader
-        title="Cài đặt ứng dụng"
-        description="Quản lý tính năng và kết nối dùng chung trên toàn hệ thống · chỉ Quản trị viên"
+        title="Chính sách tài chính"
+        description="Thiết lập chính sách báo cáo và hồ sơ tài chính xe theo tháng hiệu lực. Bản đã duyệt không thể sửa."
         onBack={() => navigate('/config')}
         iconName="app-settings"
       />
 
+      <div className={`cfg-finance-strip ${financePendingRequest ? 'is-warning' : 'is-neutral'}`}>
+        <div>
+          <strong>Kỳ mở theo giờ Việt Nam:</strong>{' '}
+          {financeState?.currentVietnamMonthStart ? `tháng ${formatViMonth(financeState.currentVietnamMonthStart)}` : 'đang tải…'}
+        </div>
+        {financePendingRequest ? (
+          <div className="cfg-finance-strip__meta">
+            <span>Đang chờ kiểm tra và phê duyệt cho {formatViMonth(financePendingRequest.effectiveFrom)}</span>
+            <span>{financePendingRequest.requestedByName}</span>
+            <a href={financePendingRequest.queuePath}>Xem yêu cầu chờ phê duyệt</a>
+          </div>
+        ) : (
+          <div className="cfg-finance-strip__meta">
+            <span>Chỉ được áp dụng từ tháng hiện tại hoặc một tháng trong tương lai.</span>
+            <span>Không thể áp dụng ngược cho kỳ đã đóng.</span>
+          </div>
+        )}
+      </div>
+
       <div className="cfg-app-settings-stack">
+        <Panel
+          title="Thiết lập chính sách tài chính"
+          subtitle="Tạo phiên bản mới theo tháng hiệu lực, không sửa trực tiếp bản đã duyệt"
+          action={<ShieldCheck size={18} className="cfg-panel-action-icon" />}
+        >
+          <div className="cfg-finance-tabs" role="tablist" aria-label="Nhóm chính sách tài chính">
+            <button
+              type="button"
+              className={`cfg-finance-tab ${activeFinanceTab === 'policy' ? 'is-active' : ''}`}
+              onClick={() => setActiveFinanceTab('policy')}
+              role="tab"
+              aria-selected={activeFinanceTab === 'policy'}
+            >
+              Chính sách báo cáo
+            </button>
+            <button
+              type="button"
+              className={`cfg-finance-tab ${activeFinanceTab === 'truck' ? 'is-active' : ''}`}
+              onClick={() => setActiveFinanceTab('truck')}
+              role="tab"
+              aria-selected={activeFinanceTab === 'truck'}
+            >
+              Hồ sơ tài chính xe
+            </button>
+          </div>
+
+          {activeFinanceTab === 'policy' ? (
+            financialPolicy.isLoading ? (
+              <FinanceLoadingBlock />
+            ) : financialPolicy.error ? (
+              <div className="cfg-form-error" role="alert">
+                {financialPolicy.error instanceof Error
+                  ? financialPolicy.error.message
+                  : 'Không tải được chính sách. Kiểm tra kết nối và thử lại.'}
+              </div>
+            ) : (
+              <div className="cfg-finance-workspace">
+                <div className="cfg-finance-summary">
+                  <div className="cfg-finance-summary__section">
+                    <h3 className="cfg-section__heading">Trạng thái hiện tại</h3>
+                    {financialPolicy.data?.status === 'UNCONFIGURED' ? (
+                      <div className="cfg-finance-note cfg-finance-note--warning">
+                        <strong>Chưa có chính sách được phê duyệt</strong>
+                        <p>Báo cáo hiện giữ nguyên số liệu đã ghi sổ và hiển thị trạng thái chưa cấu hình.</p>
+                      </div>
+                    ) : (
+                      <dl className="cfg-finance-summary__grid">
+                        <div>
+                          <dt>Hiệu lực từ</dt>
+                          <dd>{financialPolicy.data?.currentPolicy ? formatViDate(financialPolicy.data.currentPolicy.effectiveFrom) : 'Chưa cấu hình'}</dd>
+                        </div>
+                        <div>
+                          <dt>Phiên bản</dt>
+                          <dd>{financialPolicy.data?.currentPolicy?.version ?? 'Chưa cấu hình'}</dd>
+                        </div>
+                        <div>
+                          <dt>Khấu hao</dt>
+                          <dd>{financialPolicy.data?.currentPolicy?.depreciationMethodLabel ?? 'Đường thẳng'}</dd>
+                        </div>
+                        <div>
+                          <dt>Phân bổ</dt>
+                          <dd>{financialPolicy.data?.currentPolicy?.allocationBasisLabel ?? 'Tỷ trọng doanh thu chuyến hoàn thành'}</dd>
+                        </div>
+                        <div>
+                          <dt>Ngưỡng cảnh báo biên lợi nhuận</dt>
+                          <dd>
+                            {financialPolicy.data?.currentPolicy?.lowMarginThresholdPercent == null
+                              ? 'Chưa cấu hình cảnh báo biên lợi nhuận'
+                              : `${financialPolicy.data.currentPolicy.lowMarginThresholdPercent}%`}
+                          </dd>
+                        </div>
+                      </dl>
+                    )}
+                  </div>
+
+                  <FinanceVersionList
+                    title="Lịch sử đã duyệt"
+                    emptyMessage="Chưa có lịch sử phiên bản."
+                    rows={financialPolicy.data?.history ?? []}
+                    renderMeta={(row) => {
+                      const current = financialPolicy.data?.history.find((item) => item.id === row.id);
+                      return (
+                        <>
+                          <span>{current?.depreciationMethodLabel}</span>
+                          <span>{current?.allocationBasisLabel}</span>
+                          <span>
+                            {current?.lowMarginThresholdPercent == null
+                              ? 'Chưa cấu hình cảnh báo biên lợi nhuận'
+                              : `${current.lowMarginThresholdPercent}%`}
+                          </span>
+                        </>
+                      );
+                    }}
+                  />
+                </div>
+
+                <div className="cfg-finance-form">
+                  <div className="cfg-section__heading-row">
+                    <h3 className="cfg-section__heading">Tạo phiên bản mới</h3>
+                  </div>
+                  <div className="field">
+                    <label htmlFor="financial-policy-effective-from">Tháng hiệu lực</label>
+                    <input
+                      id="financial-policy-effective-from"
+                      className="input"
+                      type="date"
+                      value={policyEffectiveFrom}
+                      onChange={(event) => setPolicyEffectiveFrom(event.target.value)}
+                      min={financialPolicy.data?.currentVietnamMonthStart}
+                      disabled={requestFinancialPolicy.isPending}
+                    />
+                    <p className="cfg-field-hint">
+                      Chọn tháng hiện tại hoặc một tháng trong tương lai. Không thể áp dụng ngược cho kỳ đã đóng.
+                    </p>
+                  </div>
+                  <div className="field">
+                    <label htmlFor="financial-policy-threshold-percent">Ngưỡng cảnh báo biên lợi nhuận (%)</label>
+                    <input
+                      id="financial-policy-threshold-percent"
+                      className="input"
+                      type="number"
+                      inputMode="decimal"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={policyThresholdPercent}
+                      onChange={(event) => setPolicyThresholdPercent(event.target.value)}
+                      disabled={requestFinancialPolicy.isPending}
+                    />
+                    <p className="cfg-field-hint">
+                      Để trống nếu chưa cấu hình cảnh báo biên lợi nhuận.
+                    </p>
+                  </div>
+                  <div className="cfg-finance-static-list">
+                    <div>
+                      <span>Khấu hao</span>
+                      <strong>Đường thẳng</strong>
+                    </div>
+                    <div>
+                      <span>Phân bổ</span>
+                      <strong>Tỷ trọng doanh thu chuyến hoàn thành</strong>
+                    </div>
+                  </div>
+                  <div className="cfg-form-actions">
+                    <button
+                      className="btn btn--primary"
+                      disabled={requestFinancialPolicy.isPending || !financialPolicy.data}
+                      onClick={() => { void requestPolicy(); }}
+                    >
+                      {requestFinancialPolicy.isPending ? <Loader2 size={15} className="spin" /> : <Save size={15} />}
+                      {requestFinancialPolicy.isPending ? 'Đang gửi…' : policySubmitLabel}
+                    </button>
+                    {policyMessage && <span className="cfg-form-success" role="status">{policyMessage}</span>}
+                    {policyError && <span className="cfg-form-error" role="alert">{policyError}</span>}
+                    {requestFinancialPolicy.error && !policyError && (
+                      <span className="cfg-form-error" role="alert">
+                        {requestFinancialPolicy.error instanceof Error
+                          ? requestFinancialPolicy.error.message
+                          : 'Không thể gửi yêu cầu chính sách.'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          ) : truckProfiles.isLoading ? (
+            <FinanceLoadingBlock />
+          ) : truckProfiles.error ? (
+            <div className="cfg-form-error" role="alert">
+              {truckProfiles.error instanceof Error
+                ? truckProfiles.error.message
+                : 'Không tải được hồ sơ tài chính xe. Kiểm tra kết nối và thử lại.'}
+            </div>
+          ) : (
+            <div className="cfg-finance-workspace">
+              <div className="cfg-finance-summary">
+                <div className="cfg-finance-summary__section">
+                  <div className="field">
+                    <label htmlFor="truck-financial-profile-truck">Xe đầu kéo</label>
+                    <select
+                      id="truck-financial-profile-truck"
+                      className="input"
+                      value={truckProfiles.data?.selectedTruckId ?? ''}
+                      onChange={(event) => {
+                        const nextTruckId = Number(event.target.value);
+                        if (Number.isInteger(nextTruckId) && nextTruckId > 0) {
+                          void handleTruckSelectionChange(nextTruckId);
+                        }
+                      }}
+                      disabled={(truckProfiles.data?.trucks.length ?? 0) === 0}
+                    >
+                      {(truckProfiles.data?.trucks ?? []).map((truck) => (
+                        <option key={truck.id} value={truck.id}>{truck.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {truckProfiles.data?.status === 'UNCONFIGURED' ? (
+                    <div className="cfg-finance-note cfg-finance-note--warning">
+                      <strong>Xe này chưa có hồ sơ tài chính được phê duyệt</strong>
+                      <p>Khấu hao và chi phí cố định theo tháng sẽ tiếp tục hiển thị chưa phân bổ.</p>
+                    </div>
+                  ) : (
+                    <dl className="cfg-finance-summary__grid">
+                      <div>
+                        <dt>Hiệu lực từ</dt>
+                        <dd>{truckProfiles.data?.currentProfile ? formatViDate(truckProfiles.data.currentProfile.effectiveFrom) : 'Chưa cấu hình'}</dd>
+                      </div>
+                      <div>
+                        <dt>Phiên bản</dt>
+                        <dd>{truckProfiles.data?.currentProfile?.version ?? 'Chưa cấu hình'}</dd>
+                      </div>
+                      <div>
+                        <dt>Nguyên giá</dt>
+                        <dd>{truckProfiles.data?.currentProfile ? formatFullVnd(truckProfiles.data.currentProfile.acquisitionCost) : '0'} VND</dd>
+                      </div>
+                      <div>
+                        <dt>Giá trị thu hồi</dt>
+                        <dd>{truckProfiles.data?.currentProfile ? formatFullVnd(truckProfiles.data.currentProfile.residualValue) : '0'} VND</dd>
+                      </div>
+                      <div>
+                        <dt>Ngày đưa vào sử dụng</dt>
+                        <dd>{truckProfiles.data?.currentProfile ? formatViDate(truckProfiles.data.currentProfile.inServiceDate) : 'Chưa cấu hình'}</dd>
+                      </div>
+                      <div>
+                        <dt>Thời gian sử dụng</dt>
+                        <dd>{truckProfiles.data?.currentProfile?.usefulLifeMonths ?? '0'} tháng</dd>
+                      </div>
+                      <div>
+                        <dt>Chi phí cố định mỗi tháng</dt>
+                        <dd>{truckProfiles.data?.currentProfile ? formatFullVnd(truckProfiles.data.currentProfile.monthlyFixedCost) : '0'} VND</dd>
+                      </div>
+                    </dl>
+                  )}
+                </div>
+
+                <FinanceVersionList
+                  title="Lịch sử theo xe"
+                  emptyMessage="Chưa có lịch sử hồ sơ tài chính cho xe này."
+                  rows={truckProfiles.data?.history ?? []}
+                  renderMeta={(row) => {
+                    const current = truckProfiles.data?.history.find((item) => item.id === row.id);
+                    return (
+                      <>
+                        <span>Nguyên giá {current ? formatFullVnd(current.acquisitionCost) : '0'} VND</span>
+                        <span>Giá trị thu hồi {current ? formatFullVnd(current.residualValue) : '0'} VND</span>
+                        <span>Chi phí cố định {current ? formatFullVnd(current.monthlyFixedCost) : '0'} VND</span>
+                      </>
+                    );
+                  }}
+                />
+              </div>
+
+              <div className="cfg-finance-form">
+                <div className="cfg-section__heading-row">
+                  <h3 className="cfg-section__heading">Tạo hồ sơ theo tháng</h3>
+                </div>
+                <div className="cfg-finance-form__grid">
+                  <div className="field">
+                    <label htmlFor="truck-effective-from">Tháng hiệu lực</label>
+                    <input
+                      id="truck-effective-from"
+                      className="input"
+                      type="date"
+                      value={truckEffectiveFrom}
+                      min={truckProfiles.data?.currentVietnamMonthStart}
+                      onChange={(event) => setTruckEffectiveFrom(event.target.value)}
+                      disabled={requestTruckProfile.isPending}
+                    />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="truck-in-service-date">Ngày đưa vào sử dụng</label>
+                    <input
+                      id="truck-in-service-date"
+                      className="input"
+                      type="date"
+                      value={truckInServiceDate}
+                      onChange={(event) => setTruckInServiceDate(event.target.value)}
+                      disabled={requestTruckProfile.isPending}
+                    />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="truck-acquisition-cost">Nguyên giá (VND)</label>
+                    <input
+                      id="truck-acquisition-cost"
+                      className="input"
+                      inputMode="numeric"
+                      value={truckAcquisitionCost}
+                      onChange={(event) => setTruckAcquisitionCost(event.target.value)}
+                      disabled={requestTruckProfile.isPending}
+                    />
+                    <p className="cfg-field-hint">{truckAcquisitionCost ? `${formatFullVnd(truckAcquisitionCost)} VND` : 'Nhập đầy đủ số tiền VND'}</p>
+                  </div>
+                  <div className="field">
+                    <label htmlFor="truck-residual-value">Giá trị thu hồi (VND)</label>
+                    <input
+                      id="truck-residual-value"
+                      className="input"
+                      inputMode="numeric"
+                      value={truckResidualValue}
+                      onChange={(event) => setTruckResidualValue(event.target.value)}
+                      disabled={requestTruckProfile.isPending}
+                    />
+                    <p className="cfg-field-hint">{truckResidualValue ? `${formatFullVnd(truckResidualValue)} VND` : 'Nhập đầy đủ số tiền VND'}</p>
+                  </div>
+                  <div className="field">
+                    <label htmlFor="truck-useful-life-months">Thời gian sử dụng (tháng)</label>
+                    <input
+                      id="truck-useful-life-months"
+                      className="input"
+                      inputMode="numeric"
+                      value={truckUsefulLifeMonths}
+                      onChange={(event) => setTruckUsefulLifeMonths(event.target.value)}
+                      disabled={requestTruckProfile.isPending}
+                    />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="truck-monthly-fixed-cost">Chi phí cố định mỗi tháng (VND)</label>
+                    <input
+                      id="truck-monthly-fixed-cost"
+                      className="input"
+                      inputMode="numeric"
+                      value={truckMonthlyFixedCost}
+                      onChange={(event) => setTruckMonthlyFixedCost(event.target.value)}
+                      disabled={requestTruckProfile.isPending}
+                    />
+                    <p className="cfg-field-hint">{truckMonthlyFixedCost ? `${formatFullVnd(truckMonthlyFixedCost)} VND` : 'Nhập đầy đủ số tiền VND'}</p>
+                  </div>
+                </div>
+                <div className="cfg-form-actions">
+                  <button
+                    className="btn btn--primary"
+                    disabled={requestTruckProfile.isPending || truckProfiles.data?.selectedTruckId == null}
+                    onClick={() => { void requestTruckFinancialProfileVersion(); }}
+                  >
+                    {requestTruckProfile.isPending ? <Loader2 size={15} className="spin" /> : <Save size={15} />}
+                    {requestTruckProfile.isPending ? 'Đang gửi…' : truckSubmitLabel}
+                  </button>
+                  {truckMessage && <span className="cfg-form-success" role="status">{truckMessage}</span>}
+                  {truckError && <span className="cfg-form-error" role="alert">{truckError}</span>}
+                  {requestTruckProfile.error && !truckError && (
+                    <span className="cfg-form-error" role="alert">
+                      {requestTruckProfile.error instanceof Error
+                        ? requestTruckProfile.error.message
+                        : 'Không thể gửi hồ sơ tài chính xe.'}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </Panel>
+
         <Panel
           title="Chính sách vận hành"
           subtitle="Các ngưỡng và phạm vi áp dụng dùng chung trên toàn hệ thống"

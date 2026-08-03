@@ -242,6 +242,78 @@ export interface AppSetting {
   updatedAt: string;
 }
 
+export type FinancialReportingSource = 'APPROVED_GOVERNANCE' | 'UNCONFIGURED';
+export type FinancialReportingApprovalStatus =
+  | 'PENDING_CHECK'
+  | 'PENDING_APPROVAL'
+  | 'RETURNED_FOR_EVIDENCE';
+
+export interface FinancialReportingPendingRequest {
+  status: FinancialReportingApprovalStatus;
+  requestedAt: string;
+  requestedByName: string;
+  effectiveFrom: string;
+  queuePath: string;
+}
+
+export interface FinancialReportingPolicyVersion {
+  id: number;
+  version: number;
+  effectiveFrom: string;
+  lowMarginThresholdRatio: number | null;
+  lowMarginThresholdPercent: number | null;
+  depreciationMethodLabel: 'Đường thẳng';
+  allocationBasisLabel: 'Tỷ trọng doanh thu chuyến hoàn thành';
+  createdByName: string;
+  createdAt: string;
+  source: FinancialReportingSource;
+}
+
+export interface FinancialReportingPolicyState {
+  status: 'UNCONFIGURED' | 'CONFIGURED';
+  currentVietnamMonthStart: string;
+  publicVersion: string | null;
+  currentPolicy: FinancialReportingPolicyVersion | null;
+  futurePolicies: FinancialReportingPolicyVersion[];
+  history: FinancialReportingPolicyVersion[];
+  pendingRequest: FinancialReportingPendingRequest | null;
+}
+
+export interface TruckFinancialProfileVersion {
+  id: number;
+  version: number;
+  truckId: number;
+  truckLabel: string;
+  effectiveFrom: string;
+  acquisitionCost: string;
+  residualValue: string;
+  inServiceDate: string;
+  usefulLifeMonths: number;
+  monthlyFixedCost: string;
+  createdByName: string;
+  createdAt: string;
+  source: FinancialReportingSource;
+}
+
+export interface TruckFinancialProfileTruckOption {
+  id: number;
+  label: string;
+  status: string;
+}
+
+export interface TruckFinancialProfileState {
+  selectedTruckId: number | null;
+  selectedTruckLabel: string | null;
+  status: 'UNCONFIGURED' | 'CONFIGURED' | 'NO_TRUCK_SELECTED';
+  currentVietnamMonthStart: string;
+  publicVersion: string | null;
+  trucks: TruckFinancialProfileTruckOption[];
+  currentProfile: TruckFinancialProfileVersion | null;
+  futureProfiles: TruckFinancialProfileVersion[];
+  history: TruckFinancialProfileVersion[];
+  pendingRequest: FinancialReportingPendingRequest | null;
+}
+
 export interface CompanyInfo {
   name: string;
   address: string;

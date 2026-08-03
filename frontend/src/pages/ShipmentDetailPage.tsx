@@ -118,15 +118,20 @@ function formatDateTime(iso: string | null | undefined): string {
   return d.toLocaleString('vi-VN');
 }
 
+function formatVnd(value: number | null | undefined): string {
+  if (value == null) return '—';
+  return `${Math.round(value).toLocaleString('vi-VN')} ₫`;
+}
+
 export default function ShipmentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
   const shipmentId = Number(id);
   const canOperate = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.CLERK;
-  const canReviewPod = canOperate || user?.role === Role.ACCOUNTANT;
-  const canCompleteShipment = user?.role === Role.ACCOUNTANT || user?.role === Role.CLERK;
-  const canSeePodReview = canReviewPod;
+  const canReviewPod = user?.role === Role.CLERK;
+  const canCompleteShipment = user?.role === Role.ACCOUNTANT;
+  const canSeePodReview = canReviewPod || canCompleteShipment || user?.role === Role.ADMIN || user?.role === Role.MANAGER;
   const canResolveCancellation = user?.role === Role.ADMIN || user?.role === Role.MANAGER;
   const coordinationActive = Boolean(user?.capabilities?.includes('shipments.read'));
   const canWriteCoordination = coordinationActive
@@ -254,8 +259,21 @@ export default function ShipmentDetailPage() {
                 <div><dt>Kiện hàng</dt><dd>{shipment.packageCount != null ? `${shipment.packageCount}${shipment.packageType ? ` ${shipment.packageType}` : ' kiện'}` : '—'}</dd></div>
               </>
             )}
+            <div><dt>Cước dự kiến</dt><dd>{formatVnd(shipment.pricingProjection?.freightPrice)}</dd></div>
+            <div><dt>Phụ phí nhiên liệu dự kiến</dt><dd>{formatVnd(shipment.pricingProjection?.expectedFuelSurcharge)}</dd></div>
             <div className="shipment-detail__field--wide"><dt>Ghi chú vận hành</dt><dd>{shipment.operationalNotes ?? '—'}</dd></div>
           </dl>
+          <div style={{ marginTop: 16, borderTop: '1px solid var(--border-2)', paddingTop: 16, display: 'grid', gap: 8 }}>
+            <strong style={{ fontSize: 14 }}>Ghi nhận giá theo cấu hình hiện hành</strong>
+            <p style={{ margin: 0, color: shipment.pricingProjection?.readiness === 'READY' ? 'var(--fg-2)' : 'var(--warn, #b45309)' }}>
+              {shipment.pricingProjection?.message ?? 'Chưa có dữ liệu giá dự kiến.'}
+            </p>
+            {shipment.pricingProjection?.freightFormula && (
+              <p style={{ margin: 0, color: 'var(--fg-3)', fontSize: 13 }}>
+                Công thức cước: {shipment.pricingProjection.freightFormula}
+              </p>
+            )}
+          </div>
         </section>
 
         {canSeePodReview && (

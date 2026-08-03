@@ -13,6 +13,25 @@ import {
 } from '@tingting/shared';
 import { api } from '../lib/api';
 
+export interface ShipmentPricingBreakdownLine {
+  label: string;
+  quantity: number;
+  amount: number;
+  formula: string;
+}
+
+export interface ShipmentPricingProjection {
+  readiness: 'READY' | 'MISSING_INPUT' | 'MISSING_AUTHORITY';
+  message: string;
+  freightPrice: number | null;
+  freightSource: 'TIER' | 'TABLE' | 'MANUAL' | null;
+  freightFormula: string | null;
+  expectedFuelSurcharge: number | null;
+  expectedFuelLiters: number | null;
+  estimationDate: string | null;
+  breakdown: ShipmentPricingBreakdownLine[];
+}
+
 /** Row shape returned by `/api/shipments/quick` and `/api/shipments/:id`. */
 export interface Shipment {
   id: number;
@@ -47,6 +66,7 @@ export interface Shipment {
   updatedBy: number | null;
   createdAt: string;
   updatedAt: string;
+  pricingProjection?: ShipmentPricingProjection | null;
 }
 
 export interface ShipmentDispatchHandoff {
@@ -59,6 +79,7 @@ export interface ShipmentDispatchHandoff {
 export interface QuickCreateShipmentRequest {
   customerId: number;
   routeId?: number | null;
+  cargoTypeId?: number | null;
   responsibleUnitId?: number | null;
   bookingRef?: string | null;
   blNumber?: string | null;
@@ -83,6 +104,17 @@ export interface QuickCreateShipmentRequest {
   operationalNotes?: string | null;
 }
 
+export interface ShipmentPricingPreviewRequest {
+  customerId: number;
+  routeId?: number | null;
+  cargoMode?: 'FCL' | 'LCL' | null;
+  cargoTypeId?: number | null;
+  expectedDeliveryDate?: string | null;
+  cargoWeightKg?: string | number | null;
+  containerCount?: number | null;
+  containerTypeIds?: number[];
+}
+
 /**
  * Quick-create a shipment (M10.1). The `idempotencyKey` is sent in the
  * `Idempotency-Key` header so a flaky-network resubmit returns the original
@@ -101,6 +133,12 @@ export async function quickCreateShipment(
   return api.post<Shipment>('/shipments/quick', body, {
     headers: { 'Idempotency-Key': idempotencyKey },
   });
+}
+
+export async function getShipmentPricingPreview(
+  body: ShipmentPricingPreviewRequest,
+): Promise<ShipmentPricingProjection> {
+  return api.post<ShipmentPricingProjection>('/shipments/pricing-preview', body);
 }
 
 // ─── M10.2 slice 3 — clerk doc-entry surface ────────────────────────────────

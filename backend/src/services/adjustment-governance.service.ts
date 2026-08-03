@@ -572,6 +572,7 @@ async function applyTripGovernanceAction(
         expectedVersion: action.originalVersion,
         transaction: tx,
         governanceActionId: action.id,
+        strictApSnapshot: true,
       },
     );
     if (completed.driverId && completed.departureDate) {
