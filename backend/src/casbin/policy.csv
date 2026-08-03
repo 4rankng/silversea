@@ -3,6 +3,8 @@ p, ADMIN, audit_logs, read
 p, MANAGER, trips, read
 p, MANAGER, trips, write
 p, MANAGER, trips, delete
+p, DISPATCHER, trips, read
+p, DISPATCHER, trips, write
 p, MANAGER, config, read
 p, MANAGER, config, write
 p, MANAGER, config, delete

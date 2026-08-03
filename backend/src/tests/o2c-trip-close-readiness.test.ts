@@ -580,4 +580,61 @@ describe('O2C trip close readiness authority', () => {
     assert.ok(trip.arCostHash);
     assert.equal(trip.arSnapshotDirty, false);
   });
+
+  // P2-001 regression: a PENDING_EXPENSE_APPROVAL shipment whose trip has no
+  // CONTAINER/SEAL photo evidence must still be closable when the actor passes
+  // confirmNoPhoto=true (mirrors the per-trip override). Without the fix, the
+  // routine close hardcoded confirmNoPhoto=false and could never complete a
+  // photo-less trip even though PRD Bước 5 only requires e-POD + POD paper +
+  // expense scope + VAT.
+  test('direct close blocks on missing photo evidence unless confirmNoPhoto is set', async () => {
+    await prepareReadyForDirectClose();
+    // Strip every trip photo so the photo-evidence gate is the only blocker.
+    await db.delete(s.tripPhotos).where(eq(s.tripPhotos.tripId, tripId));
+    const [shipment] = await db.select({ version: s.shipments.version })
+      .from(s.shipments)
+      .where(eq(s.shipments.id, shipmentId))
+      .limit(1);
+
+    const actor = {
+      userId: userIds[1],
+      username: 'close-reviewer',
+      email: null,
+      fullName: 'Close Reviewer',
+      role: Role.ACCOUNTANT,
+    };
+
+    // Without override: blocked by the photo-evidence gate.
+    await assert.rejects(() => completeShipmentDirect({
+      shipmentId,
+      expectedVersion: shipment.version,
+      vatRate: 0.1,
+      confirmNoPhoto: false,
+      trips: [{ tripId, expectedVersion: 1 }],
+      idempotencyKey: `no-photo-blocked-${Date.now()}`,
+      actor,
+    }), /Chưa có ảnh bằng chứng/);
+
+    const [stillInTransit] = await db.select({ status: s.trips.status })
+      .from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+    assert.equal(stillInTransit.status, 'IN_TRANSIT');
+
+    // With override: completes exactly once.
+    const result = await completeShipmentDirect({
+      shipmentId,
+      expectedVersion: shipment.version,
+      vatRate: 0.1,
+      confirmNoPhoto: true,
+      trips: [{ tripId, expectedVersion: 1 }],
+      idempotencyKey: `no-photo-override-${Date.now()}`,
+      actor,
+    });
+    assert.deepEqual(result.completedTripIds, [tripId]);
+    assert.equal(result.vatRate, 0.1);
+
+    const [completed] = await db.select({ status: s.trips.status, vatRate: s.trips.vatRate })
+      .from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+    assert.equal(completed.status, 'COMPLETED');
+    assert.equal(completed.vatRate, '0.100');
+  });
 });

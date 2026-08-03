@@ -5,6 +5,7 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 import {
   DRIVER_FULFILLMENT_PROGRESS_SEQUENCE,
   DriverProgressEventType,
+  Role,
   TripPodFileType,
   TripStatus,
 } from '@tingting/shared';
@@ -21,6 +22,7 @@ import {
   getCompletionEvidenceStatus,
   getDriverFulfillmentDetail,
   recordDriverFulfillmentProgress,
+  syncDriverFulfillmentStartSideEffects,
 } from '../services/driver.service';
 import {
   attachPodFile,
@@ -28,6 +30,7 @@ import {
   submitPod,
 } from '../services/trip-pod.service';
 import { storageService } from '../services/storage.service';
+import { transitionTripStatus } from '../services/trip-status-machine.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const originalStorageUpload = storageService.upload.bind(storageService);
@@ -91,7 +94,10 @@ async function createDriverPrincipal(tag: string) {
   return { user, driver };
 }
 
-async function createOwnedFulfillmentTrip(driverId: number) {
+async function createOwnedFulfillmentTrip(
+  driverId: number,
+  tripStatus: TripStatus = TripStatus.IN_TRANSIT,
+) {
   const [customer] = await db.insert(s.customers).values({
     name: `Phase4 customer ${suffix}-${createdCustomerIds.length + 1}`,
   }).returning();
@@ -145,7 +151,7 @@ async function createOwnedFulfillmentTrip(driverId: number) {
     shipmentId: shipment.id,
     fulfillmentId: fulfillment.id,
     driverId,
-    status: 'IN_TRANSIT',
+    status: tripStatus,
     departureDate: '2026-08-01',
     revenue: '1800000',
     driverSalary: '250000',
@@ -323,6 +329,73 @@ describe('Phase 4 driver fulfillment execution', () => {
       .from(s.driverProgressEvents)
       .where(eq(s.driverProgressEvents.tripId, trip.id));
     assert.equal(Number(total ?? 0), 1);
+  });
+
+  test('receiving an assigned order starts the driver-owned fulfillment', async () => {
+    const actor = await createDriverPrincipal('starts-owned-trip');
+    const { fulfillment, trip } = await createOwnedFulfillmentTrip(
+      actor.driver.id,
+      TripStatus.CREATED,
+    );
+    const idempotencyKey = `start-owned-trip-${suffix}`;
+    usedIdempotencyKeys.push(idempotencyKey);
+
+    const result = await recordDriverFulfillmentProgress({
+      fulfillmentId: fulfillment.id,
+      driverId: actor.driver.id,
+      recordedBy: actor.user.id,
+      idempotencyKey,
+      input: {
+        eventType: DriverProgressEventType.ORDER_RECEIVED,
+        occurredAt: '2026-08-01T08:05:00.000Z',
+        expectedVersion: trip.version,
+      },
+    });
+    createdProgressEventIds.push(result.event.id);
+    await syncDriverFulfillmentStartSideEffects({
+      fulfillmentId: fulfillment.id,
+      driverId: actor.driver.id,
+      recordedBy: actor.user.id,
+    }, async () => {});
+
+    const [startedTrip] = await db.select({ status: s.trips.status })
+      .from(s.trips)
+      .where(eq(s.trips.id, trip.id))
+      .limit(1);
+    assert.equal(startedTrip?.status, TripStatus.IN_TRANSIT);
+
+    const [tripDay] = await db.select({ status: s.driverWorkDays.status })
+      .from(s.driverWorkDays)
+      .where(and(
+        eq(s.driverWorkDays.driverId, actor.driver.id),
+        eq(s.driverWorkDays.tripId, trip.id),
+      ))
+      .limit(1);
+    assert.equal(tripDay?.status, 'TRIP_DAY');
+  });
+
+  test('driver-owned start capability cannot reopen a completed trip', async () => {
+    const actor = await createDriverPrincipal('cannot-reopen');
+    const { fulfillment, trip } = await createOwnedFulfillmentTrip(
+      actor.driver.id,
+      TripStatus.COMPLETED,
+    );
+
+    await assertApiError(403, () => transitionTripStatus(
+      trip.id,
+      TripStatus.IN_TRANSIT,
+      actor.user.id,
+      Role.DRIVER,
+      false,
+      false,
+      {
+        expectedVersion: trip.version,
+        driverOwnedFulfillmentStart: {
+          driverId: actor.driver.id,
+          fulfillmentId: fulfillment.id,
+        },
+      },
+    ));
   });
 
   test('generic trip photos and incomplete POD do not satisfy completion readiness', async () => {
@@ -674,6 +747,7 @@ after(async () => {
       await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.tripId, createdTripIds));
       await db.delete(s.tripPhotos).where(inArray(s.tripPhotos.tripId, createdTripIds));
       await db.delete(s.tripContainers).where(inArray(s.tripContainers.tripId, createdTripIds));
+      await db.delete(s.driverWorkDays).where(inArray(s.driverWorkDays.tripId, createdTripIds));
       await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
     }
     if (createdFulfillmentIds.length > 0) {

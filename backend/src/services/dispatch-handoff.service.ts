@@ -257,6 +257,15 @@ export async function getActiveHandoffForShipment(shipmentId: number) {
   return row ?? null;
 }
 
+/** Get the most recent handoff for shipment-facing lifecycle presentation. */
+export async function getLatestHandoffForShipment(shipmentId: number) {
+  const [row] = await db.select().from(s.dispatchHandoffs)
+    .where(eq(s.dispatchHandoffs.shipmentId, shipmentId))
+    .orderBy(desc(s.dispatchHandoffs.dispatchedAt), desc(s.dispatchHandoffs.id))
+    .limit(1);
+  return row ?? null;
+}
+
 /** List handoffs, optionally filtered by handler or status. */
 export async function listHandoffs(opts: {
   handlerId?: number;

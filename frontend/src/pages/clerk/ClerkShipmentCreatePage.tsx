@@ -182,7 +182,10 @@ export default function ClerkShipmentCreatePage() {
     if (intent === 'DRAFT') return null;
     if (!form.bookingRef && !form.blNumber) return 'Vui lòng nhập Số Bill hoặc Số Booking';
     if (!form.routeId) return 'Vui lòng chọn tuyến đường';
-    if (!form.operationalSiteId) return 'Vui lòng chọn nhà máy';
+    // FCL requires a delivery factory; LCL does not (delivery goes to warehouse pickup).
+    if (form.cargoMode === 'FCL' && !form.operationalSiteId) {
+      return 'Vui lòng chọn nhà máy';
+    }
     if (form.cargoMode === 'FCL') {
       const incomplete = containers.some((row) => !row.containerNumber || !row.containerTypeId || !row.shippingLineName || !row.pickupPortId || !row.dropoffPortId);
       if (incomplete) return 'Vui lòng nhập đủ số container, loại container, hãng tàu, cảng nâng và cảng hạ';

@@ -18,6 +18,7 @@ import {
   listDriverFulfillmentProgress,
   recordDriverProgress,
   recordDriverFulfillmentProgress,
+  syncDriverFulfillmentStartSideEffects,
   listDriverProgress,
   recordIncidentalCost,
   listIncidentalCosts,
@@ -41,6 +42,7 @@ import type { TripPhotoType } from './upload';
 import {
   driverIncidentalCostSchema,
   driverProgressSchema,
+  DriverProgressEventType,
   TripPodFileType,
   tripContainerPatchSchema,
   tripContainerSchema,
@@ -247,6 +249,13 @@ router.post('/fulfillments/:fulfillmentId/progress', asyncHandler(async (req: Re
       idempotencyKey,
     }),
   );
+  if (!outcome.replayed && parsed.data.eventType === DriverProgressEventType.ORDER_RECEIVED) {
+    await syncDriverFulfillmentStartSideEffects({
+      fulfillmentId,
+      driverId: driver.id,
+      recordedBy: getUser(req).userId,
+    });
+  }
   res.status(outcome.replayed ? 200 : 201).json(outcome.event);
 }));
 

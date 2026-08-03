@@ -35,6 +35,10 @@ export async function transitionTripStatus(
     routineShipmentClose?: boolean;
     vatRateOverride?: number;
     strictApSnapshot?: boolean;
+    driverOwnedFulfillmentStart?: {
+      driverId: number;
+      fulfillmentId: number;
+    };
   },
   ) {
   // Audit rows for status transitions are produced by the auditLogMiddleware
@@ -80,10 +84,17 @@ export async function transitionTripStatus(
 
     // Verify role permissions and transition matrix
     if (targetStatus === TripStatus.IN_TRANSIT) {
-      // Per docs/flows/01-TRIP_LIFECYCLE.md §2.3, only ADMIN/MANAGER can
-      // dispatch — ACCOUNTANT's trip-write permission is for financial
-      // fields only and shouldn't move the lifecycle forward.
-      if (userRole !== Role.ADMIN && userRole !== Role.MANAGER) {
+      // Per docs/flows/01-TRIP_LIFECYCLE.md §2.3, ADMIN/MANAGER can dispatch.
+      // A DRIVER may start only through the already ownership-checked,
+      // fulfillment-scoped acknowledgement path. ACCOUNTANT's trip-write
+      // permission is for financial fields only.
+      const driverStart = options?.driverOwnedFulfillmentStart;
+      const canStartOwnedFulfillment = userRole === Role.DRIVER
+        && currentStatus === TripStatus.CREATED
+        && driverStart != null
+        && trip.driverId === driverStart.driverId
+        && trip.fulfillmentId === driverStart.fulfillmentId;
+      if (userRole !== Role.ADMIN && userRole !== Role.MANAGER && !canStartOwnedFulfillment) {
         throw new ApiError(
           403,
           'Chỉ Quản lý hoặc Quản trị viên mới có quyền xuất phát chuyến đi',
@@ -403,7 +414,7 @@ export async function transitionTripStatus(
           .where(eq(s.shipmentFulfillments.id, updated.fulfillmentId))
           .limit(1);
         if (fulfillment) {
-          const { recomputeShipmentCompletion } = await import('./shipment.service');
+          const { recomputeShipmentCompletion } = await import('./shipment.service.js');
           await recomputeShipmentCompletion(fulfillment.shipmentId, { changedBy: userId }, tx);
         }
       }

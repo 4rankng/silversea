@@ -19,6 +19,7 @@ import {
   resolveHandoff,
   checkVersionConflict,
   getActiveHandoffForShipment,
+  getLatestHandoffForShipment,
   listHandoffs,
 } from '../services/dispatch-handoff.service';
 import { initNotificationService } from '../services/notification.service';
@@ -225,6 +226,17 @@ describe('M10.3 — getActiveHandoffForShipment + listHandoffs', () => {
     await resolveHandoff(h.id, 'ACCEPTED', clerkUserId, h.version);
     const active = await getActiveHandoffForShipment(ship.id);
     assert.equal(active, null);
+  });
+
+  test('getLatestHandoffForShipment preserves the accepted lifecycle state', async () => {
+    const ship = await mkShipment();
+    const handoff = await createHandoff({ shipmentId: ship.id, createdBy: clerkUserId });
+    createdHandoffIds.push(handoff.id);
+    const accepted = await resolveHandoff(handoff.id, 'ACCEPTED', clerkUserId, handoff.version);
+
+    const latest = await getLatestHandoffForShipment(ship.id);
+    assert.equal(latest?.id, accepted.id);
+    assert.equal(latest?.status, 'ACCEPTED');
   });
 
   test('listHandoffs filters by status', async () => {

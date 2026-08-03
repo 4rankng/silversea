@@ -7,20 +7,20 @@
 
 ## 1. Kết luận sẵn sàng về tài khoản
 
-Danh sách staging hiện được khai báo có sáu tài khoản dưới đây. Hai vai trò bắt buộc để bắt đầu luồng O2C là **CUS** và **Điều phối** chưa có tài khoản staging được khai báo. Vì vậy, khách hàng chưa nên bắt đầu tạo dữ liệu cho đến khi hai tài khoản đúng vai trò này được cấp và đăng nhập thành công.
+Tám tài khoản staging dưới đây đã được cấp đúng vai trò và đăng nhập thành công (xác nhận 2026-08-03). Toàn bộ vai trò O2C đã sẵn sàng; không còn case nào bị BLOCKED vì thiếu tài khoản.
 
 | Tài khoản staging | Vai trò | Việc thực hiện trong đợt test | Trạng thái dùng cho O2C |
 | --- | --- | --- | --- |
 | `admin` | ADMIN | Hỗ trợ kỹ thuật hoặc xử lý ngoại lệ được phê duyệt; không nằm trong bước chốt O2C chuẩn | Không dùng để thay vai trò nghiệp vụ |
 | `giamdoc` | MANAGER | Xem đối soát P&L và hỗ trợ xử lý ngoại lệ được phê duyệt | Không cần cho bước chốt O2C chuẩn |
 | `ketoan` | ACCOUNTANT | Duyệt chi phí, e-POD/POD giấy, chọn VAT, bấm Hoàn thành, tạo Debit Note, kiểm tra AR/AP/P&L | Có |
+| `cus` | CLERK / CUS | Tạo FCL/LCL và gửi sang Điều phối | Có |
+| `dieuvan` | DISPATCHER | Tiếp nhận, gán xe/tài xế và phát lệnh | Có |
 | `giaonhan` | FORWARDER / Ops | Khai báo phí nâng/hạ và các phạm vi chi phí | Có |
-| `laixe` | DRIVER | Nhận lệnh, cập nhật mốc chuyến, chi phí, ảnh và e-POD | Có |
-| `khachhang` | CUSTOMER | Chỉ xác nhận dữ liệu của khách hàng trên cổng khách hàng | Có, bước xác nhận cuối |
-| **Cần cấp** | **CLERK / CUS** | Tạo FCL/LCL và gửi sang Điều phối | **BLOCKED nếu chưa có** |
-| **Cần cấp** | **DISPATCHER** | Tiếp nhận, gán xe/tài xế và phát lệnh | **BLOCKED nếu chưa có** |
+| `laixe`, `thu`, `quyet`, `pho` | DRIVER | Nhận lệnh, cập nhật mốc chuyến, chi phí, ảnh và e-POD | Có (mỗi tài xế gán 1 xe) |
+| `customer` | CUSTOMER | Chỉ xác nhận dữ liệu của khách hàng trên cổng khách hàng | Có, bước xác nhận cuối |
 
-Yêu cầu chủ staging cấp hai tài khoản còn thiếu với đúng role (có thể dùng tên khác `cus`/`dieuvan`). Không dùng `admin` để giả lập CUS, Điều phối, Ops, Driver hoặc Customer. Nếu một tài khoản đăng nhập được nhưng không thấy đúng màn hình/hành động của role, ghi **BLOCKED** và dừng tại bước đó.
+Không dùng `admin` để giả lập CUS, Điều phối, Ops, Driver hoặc Customer. Nếu một tài khoản đăng nhập được nhưng không thấy đúng màn hình/hành động của role, ghi **BLOCKED** và dừng tại bước đó.
 
 ## 2. Chuẩn bị trước khi bắt đầu
 
@@ -44,7 +44,7 @@ Yêu cầu chủ staging cấp hai tài khoản còn thiếu với đúng role (
 | 4 | `giaonhan` | Nhập phí nâng/hạ, chi phí có/không hóa đơn, hoàn tất từng phạm vi chi phí | Accountant và Driver |
 | 5 | `ketoan` hoặc CUS | Duyệt chi phí, kiểm e-POD/POD giấy, chọn VAT và bấm Hoàn thành | Accountant |
 | 6 | `ketoan` → `giamdoc` | Tạo/xuất Debit Note; đối chiếu AR, AP và P&L | Customer |
-| 7 | `khachhang` | Xác nhận chỉ thấy đúng dữ liệu của khách hàng test và chứng từ liên quan | Người điều phối đợt test |
+| 7 | `customer` | Xác nhận chỉ thấy đúng dữ liệu của khách hàng test và chứng từ liên quan | Người điều phối đợt test |
 
 ## 4. Các bước thao tác chi tiết
 
@@ -95,7 +95,7 @@ Yêu cầu chủ staging cấp hai tài khoản còn thiếu với đúng role (
 1. `ketoan` mở **Công nợ phải thu** (`/debt`), chọn đúng khách hàng/kỳ có lô đã hoàn thành, tạo và lưu Debit Note, sau đó xuất XLSX.
 2. Kiểm tra file có các cột đã cấu hình theo template (mặc định: ngày đi, mã chứng từ, diễn giải, đơn vị, số cont, thành tiền). Các biến `billNumber` (Booking/BL), `tripCode` (mã chuyến), `freightAmount`/`totalAmount` (doanh thu/tổng) có sẵn để bật thêm nếu template yêu cầu. Lưu ý: hiện không có biến riêng cho `VAT`/`tổng sau VAT` — nếu cần tách VAT, báo BLOCKED để cấu hình template riêng trước đợt test.
 3. `ketoan` và `giamdoc` mở `/debt`, `/payables`, `/finance`; đối chiếu doanh thu, VAT, AR, chi phí, AP và lợi nhuận. Xe nhà và xe ngoài phải được phân biệt đúng.
-4. `khachhang` đăng nhập cổng khách hàng, xác nhận chỉ xem được dữ liệu của khách hàng test và có thể nhận biết lô/chứng từ của mã đợt chạy.
+4. `customer` đăng nhập cổng khách hàng, xác nhận chỉ xem được dữ liệu của khách hàng test và có thể nhận biết lô/chứng từ của mã đợt chạy.
 
 ## 5. Điều kiện PASS, FAIL và BLOCKED
 

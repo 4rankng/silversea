@@ -90,6 +90,7 @@ import { asyncHandler } from '../middleware/asyncHandler';
 import { getUser } from '../middleware/auth';
 import { parsePagination } from './utils/pagination';
 import { queryAuditLogs } from '../services/audit-query.service';
+import { loadClerkShipmentScope } from '../services/clerk-shipment-scope.service';
 import { getPenaltyStats } from '../services/reporting.service';
 import { normalizeSupplierTypeSelection } from '../services/supplier-types.service';
 import { normalizeTaxCode } from '../services/legal-partner.service';
@@ -934,6 +935,25 @@ function portalBootstrap(data: Awaited<ReturnType<typeof getBootstrapData>>) {
   };
 }
 
+async function clerkBootstrap(
+  data: Awaited<ReturnType<typeof getBootstrapData>>,
+  userId: number,
+) {
+  const scope = await loadClerkShipmentScope(userId);
+  if (scope.businessUnitIds.length === 0 || scope.customerIds.length === 0) {
+    return {
+      ...data,
+      customers: [],
+      businessUnits: [],
+    };
+  }
+  return {
+    ...data,
+    customers: data.customers.filter((customer) => scope.customerIds.includes(customer.id)),
+    businessUnits: (data.businessUnits ?? []).filter((unit) => scope.businessUnitIds.includes(unit.id)),
+  };
+}
+
 export const catalogBootstrapRouter = Router();
 
 router.use('/config/master-data-imports', masterDataImportRouter);
@@ -941,9 +961,13 @@ router.use('/config/driver-user-bindings', driverUserBindingRouter);
 
 catalogBootstrapRouter.get('/catalogs/bootstrap', asyncHandler(async (req: Request, res: Response) => {
   const data = await getBootstrapData();
-  const role = getUser(req).role;
+  const actor = getUser(req);
+  const role = actor.role;
   if (role === Role.DRIVER || role === Role.FORWARDER) {
     return res.json(portalBootstrap(data));
+  }
+  if (role === Role.CLERK) {
+    return res.json(await clerkBootstrap(data, actor.userId));
   }
   res.json(data);
 }));

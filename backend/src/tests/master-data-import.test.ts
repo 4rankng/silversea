@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -21,7 +22,10 @@ import {
   DURABLE_EFFECT_STATUS,
   processDurableEffectJob,
 } from '../services/durable-effect.service';
-import { MASTER_IMPORT_SOURCE_RETENTION_MS } from '../services/master-data-import.service';
+import {
+  MASTER_IMPORT_PARSER_VERSION,
+  MASTER_IMPORT_SOURCE_RETENTION_MS,
+} from '../services/master-data-import.service';
 import { storageService } from '../services/storage.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -29,6 +33,7 @@ const taxCode = `99${String(Date.now()).slice(-8)}`;
 const customerCode = `TEST ${suffix}`;
 const customerName = `Khách hàng import ${suffix}`;
 const siteName = `Nhà máy import ${suffix}`;
+const warehouseName = `Kho import ${suffix}`;
 const portName = `Cảng import ${suffix}`;
 const driverName = `Tài xế import ${suffix}`;
 const driverPhone = `09${String(Date.now()).slice(-8)}`;
@@ -160,6 +165,10 @@ before(async () => {
     const approved = workbook.addWorksheet('ÁNH XẠ KHÁCH HÀNG');
     setRow(approved, 1, ['MÃ NỘI BỘ', 'MST', 'TÊN KHÁCH HÀNG']);
     setRow(approved, 2, [customerCode, taxCode, customerName]);
+    const sites = workbook.getWorksheet('NHÀ MÁY')!;
+    sites.getCell('H2').value = 'LOẠI ĐIỂM';
+    sites.getCell('H3').value = 'NHÀ MÁY';
+    setRow(sites, 4, [2, customerCode, warehouseName, 'Địa chỉ kho thử nghiệm', '', 'Liên hệ bảo vệ trước khi vào', '', 'KHO']);
     setRow(workbook.getWorksheet('LOẠI HÌNH XE')!, 5, ['', '', '', '', '']);
   });
   const users = await db.insert(s.users).values([
@@ -252,9 +261,14 @@ describe('master-data workbook analysis', () => {
     assert.equal(first.status, 201);
     const firstBatch = first.body.batch as { id: number; rows: Array<Record<string, unknown>> };
     await trackBatch(firstBatch.id);
-    const [persistedBatch] = await db.select({ key: s.masterImportBatches.privateStorageKey })
+    const [persistedBatch] = await db.select({
+      key: s.masterImportBatches.privateStorageKey,
+      parserVersion: s.masterImportBatches.parserVersion,
+    })
       .from(s.masterImportBatches).where(eq(s.masterImportBatches.id, firstBatch.id)).limit(1);
     assert.ok(persistedBatch?.key);
+    assert.equal(persistedBatch!.parserVersion, MASTER_IMPORT_PARSER_VERSION);
+    assert.match(persistedBatch!.key!, new RegExp(`^master-imports/${MASTER_IMPORT_PARSER_VERSION}/`));
     assert.equal(await storageService.exists(persistedBatch!.key!), true);
     assert.equal('privateStorageKey' in (first.body.batch as Record<string, unknown>), false);
 
@@ -279,6 +293,33 @@ describe('master-data workbook analysis', () => {
       && row.classification === 'BLOCKED'));
     assert.ok(firstBatch.rows.some((row) => row.classification === 'TEMPLATE'));
     assert.ok(firstBatch.rows.some((row) => row.classification === 'EXAMPLE'));
+  });
+
+  test('isolates the current parser source from cleanup of the legacy shared key', async () => {
+    const source = await reviseFixture((workbook) => {
+      workbook.getWorksheet('MẪU BÁO GIÁ')!.getCell('A9').value = `parser-isolation-${suffix}`;
+    });
+    const sourceHash = createHash('sha256').update(source).digest('hex');
+    const legacyStorageKey = `master-imports/${sourceHash}.xlsx`;
+    await storageService.upload(source, legacyStorageKey);
+
+    const analyzed = await requestJson('POST', '/api/config/master-data-imports/analyze', {
+      file: source,
+      filename: 'parser-isolation.xlsx',
+    });
+    assert.equal(analyzed.status, 201);
+    const batch = analyzed.body.batch as { id: number };
+    await trackBatch(batch.id);
+    const [persisted] = await db.select({
+      key: s.masterImportBatches.privateStorageKey,
+      parserVersion: s.masterImportBatches.parserVersion,
+    }).from(s.masterImportBatches).where(eq(s.masterImportBatches.id, batch.id)).limit(1);
+    assert.equal(persisted!.parserVersion, MASTER_IMPORT_PARSER_VERSION);
+    assert.equal(persisted!.key, `master-imports/${MASTER_IMPORT_PARSER_VERSION}/${sourceHash}.xlsx`);
+
+    await storageService.delete(legacyStorageKey);
+    assert.equal(await storageService.exists(legacyStorageKey), false);
+    assert.equal(await storageService.exists(persisted!.key!), true);
   });
 
   test('expires an abandoned private source durably and restores it only on an authorized same-hash upload', async () => {
@@ -349,6 +390,25 @@ describe('master-data workbook analysis', () => {
       && row.classification === 'BLOCKED'
       && row.reasonCode === 'FORMULA_NOT_ALLOWED'));
     assert.equal(JSON.stringify(batch.rows).includes('Nội dung không được tin cậy'), false);
+  });
+
+  test('blocks an explicitly unsupported operational-site type instead of silently importing it as a factory', async () => {
+    const invalidTypeWorkbook = await reviseFixture((workbook) => {
+      const sites = workbook.getWorksheet('NHÀ MÁY')!;
+      sites.getCell('H2').value = 'LOẠI ĐIỂM';
+      sites.getCell('H3').value = 'BÃI TRUNG CHUYỂN';
+    });
+    const response = await requestJson('POST', '/api/config/master-data-imports/analyze', {
+      file: invalidTypeWorkbook,
+      filename: 'invalid-site-type.xlsx',
+    });
+    assert.equal(response.status, 201);
+    const batch = response.body.batch as { id: number; rows: Array<Record<string, unknown>> };
+    await trackBatch(batch.id);
+    assert.ok(batch.rows.some((row) => row.sheetName === 'NHÀ MÁY'
+      && row.rowNumber === 3
+      && row.classification === 'BLOCKED'
+      && row.reasonCode === 'INVALID_OPERATIONAL_SITE_TYPE'));
   });
 
   test('blocks every fleet row when a driver or trailer is assigned more than once', async () => {
@@ -472,7 +532,7 @@ describe('master-data apply', () => {
     assert.equal(first.status, 200);
     assert.equal(first.body.replayed, false);
     assert.deepEqual(first.body.appliedCounts, {
-      operational_site: 1,
+      operational_site: 2,
       port: 1,
       driver: 1,
       fleet: 1,
@@ -493,14 +553,22 @@ describe('master-data apply', () => {
     assert.equal(deniedReplay.status, 403);
 
     const [sites, ports, trucks, drivers, trailers, usersAfter] = await Promise.all([
-      db.select().from(s.operationalSites).where(and(eq(s.operationalSites.customerId, customerId), eq(s.operationalSites.name, siteName))),
+      db.select().from(s.operationalSites).where(and(
+        eq(s.operationalSites.customerId, customerId),
+        inArray(s.operationalSites.name, [siteName, warehouseName]),
+      )),
       db.select().from(s.ports).where(eq(s.ports.name, portName)),
       db.select().from(s.trucks).where(eq(s.trucks.licensePlate, truckPlate)),
       db.select().from(s.drivers).where(and(eq(s.drivers.name, driverName), eq(s.drivers.phone, driverPhone))),
       db.select().from(s.trailers).where(eq(s.trailers.licensePlate, trailerPlate)),
       db.select({ id: s.users.id }).from(s.users),
     ]);
-    assert.equal(sites.length, 1);
+    assert.equal(sites.length, 2);
+    assert.deepEqual(
+      sites.map((site) => [site.name, site.siteType]).sort((left, right) => left[0]!.localeCompare(right[0]!)),
+      [[siteName, 'FACTORY'], [warehouseName, 'WAREHOUSE']]
+        .sort((left, right) => left[0]!.localeCompare(right[0]!)),
+    );
     assert.equal(ports.length, 1);
     assert.equal(trucks.length, 1);
     assert.equal(drivers.length, 1);
@@ -547,7 +615,10 @@ describe('master-data apply', () => {
     assert.equal(revisedApply.status, 200);
 
     const [siteCount, portCount, truckCount, driverCount, trailerCount] = await Promise.all([
-      db.select({ id: s.operationalSites.id }).from(s.operationalSites).where(and(eq(s.operationalSites.customerId, customerId), eq(s.operationalSites.name, siteName))),
+      db.select({ id: s.operationalSites.id }).from(s.operationalSites).where(and(
+        eq(s.operationalSites.customerId, customerId),
+        inArray(s.operationalSites.name, [siteName, warehouseName]),
+      )),
       db.select({ id: s.ports.id }).from(s.ports).where(eq(s.ports.name, portName)),
       db.select({ id: s.trucks.id }).from(s.trucks).where(eq(s.trucks.licensePlate, truckPlate)),
       db.select({ id: s.drivers.id }).from(s.drivers).where(and(eq(s.drivers.name, driverName), eq(s.drivers.phone, driverPhone))),
@@ -555,7 +626,7 @@ describe('master-data apply', () => {
     ]);
     assert.deepEqual(
       [siteCount.length, portCount.length, truckCount.length, driverCount.length, trailerCount.length],
-      [1, 1, 1, 1, 1],
+      [2, 1, 1, 1, 1],
     );
 
     await db.update(s.trucks).set({ status: 'INACTIVE' }).where(eq(s.trucks.licensePlate, truckPlate));
@@ -641,6 +712,35 @@ describe('master-data apply', () => {
     assert.equal(succeeded.status, DURABLE_EFFECT_STATUS.SUCCEEDED);
     assert.equal(await storageService.exists(sourceBeforeApply!.key!), false);
   });
+
+  test('applies a legacy A:G site sheet as a factory', async () => {
+    await db.update(s.trucks).set({ status: 'ACTIVE' }).where(eq(s.trucks.licensePlate, truckPlate));
+    const workbook = new ExcelJS.Workbook();
+    await (workbook.xlsx.load as (data: unknown) => Promise<unknown>)(applyFixtureBuffer);
+    const sites = workbook.getWorksheet('NHÀ MÁY')!;
+    sites.getCell('H2').value = null;
+    sites.getCell('H3').value = null;
+    setRow(sites, 4, ['', '', '', '', '', '', '', '']);
+    workbook.getWorksheet('MẪU BÁO GIÁ')!.getCell('A7').value = `legacy-sites-${suffix}`;
+    const source = Buffer.from(await workbook.xlsx.writeBuffer());
+    const analyzed = await requestJson('POST', '/api/config/master-data-imports/analyze', {
+      file: source,
+      filename: 'legacy-sites.xlsx',
+    });
+    assert.equal(analyzed.status, 201);
+    const batch = analyzed.body.batch as { id: number; version: number };
+    await trackBatch(batch.id);
+    const applied = await requestJson('POST', `/api/config/master-data-imports/${batch.id}/apply`, {
+      body: { expectedVersion: batch.version },
+      idempotencyKey: `master-legacy-sites-${suffix}`,
+    });
+    assert.equal(applied.status, 200);
+    const [site] = await db.select({ siteType: s.operationalSites.siteType })
+      .from(s.operationalSites)
+      .where(and(eq(s.operationalSites.customerId, customerId), eq(s.operationalSites.name, siteName)))
+      .limit(1);
+    assert.equal(site!.siteType, 'FACTORY');
+  });
 });
 
 after(async () => {
@@ -654,7 +754,10 @@ after(async () => {
   if (trucks.length > 0) await db.delete(s.trucks).where(inArray(s.trucks.id, trucks.map((row) => row.id)));
   const trailers = await db.select({ id: s.trailers.id }).from(s.trailers).where(eq(s.trailers.licensePlate, trailerPlate));
   if (trailers.length > 0) await db.delete(s.trailers).where(inArray(s.trailers.id, trailers.map((row) => row.id)));
-  await db.delete(s.operationalSites).where(and(eq(s.operationalSites.customerId, customerId), eq(s.operationalSites.name, siteName)));
+  await db.delete(s.operationalSites).where(and(
+    eq(s.operationalSites.customerId, customerId),
+    inArray(s.operationalSites.name, [siteName, warehouseName]),
+  ));
   await db.delete(s.ports).where(eq(s.ports.name, portName));
 
   if (batchIds.length > 0) {

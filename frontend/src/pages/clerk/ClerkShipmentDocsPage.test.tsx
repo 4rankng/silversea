@@ -18,6 +18,7 @@ const {
   currentUserState,
   submitForDispatchMock,
   getBootstrapMock,
+  getDispatchHandoffMock,
   getDetailMock,
   listOperationalSitesMock,
   replaceDocumentMock,
@@ -32,6 +33,7 @@ const {
   currentUserState: { role: 'CLERK', businessUnitIds: [11, 12] as number[] },
   submitForDispatchMock: vi.fn(),
   getBootstrapMock: vi.fn(),
+  getDispatchHandoffMock: vi.fn(),
   getDetailMock: vi.fn(),
   listOperationalSitesMock: vi.fn(),
   replaceDocumentMock: vi.fn(),
@@ -45,6 +47,7 @@ vi.mock('../../api/shipmentClient', () => ({
   addShipmentDocument: addDocumentMock,
   createShipmentDeclaration: createDeclarationMock,
   submitShipmentForDispatch: submitForDispatchMock,
+  getShipmentDispatchHandoff: getDispatchHandoffMock,
   getShipmentDetail: getDetailMock,
   listOperationalSites: listOperationalSitesMock,
   replaceShipmentDocument: replaceDocumentMock,
@@ -157,6 +160,7 @@ describe('ClerkShipmentDocsPage', () => {
     createDeclarationMock.mockReset();
     submitForDispatchMock.mockReset();
     getBootstrapMock.mockReset();
+    getDispatchHandoffMock.mockReset();
     getDetailMock.mockReset();
     listOperationalSitesMock.mockReset();
     replaceDocumentMock.mockReset();
@@ -177,6 +181,7 @@ describe('ClerkShipmentDocsPage', () => {
       ],
     });
     getDetailMock.mockResolvedValue(makeDetail());
+    getDispatchHandoffMock.mockResolvedValue(null);
     listOperationalSitesMock.mockResolvedValue([]);
   });
 
@@ -336,6 +341,70 @@ describe('ClerkShipmentDocsPage', () => {
       { expectedVersion: 3 },
       expect.any(String),
     ));
+  });
+
+  it('shows a submitted NEW shipment as awaiting dispatch and prevents duplicate handoff submission', async () => {
+    getDispatchHandoffMock.mockResolvedValue({
+      id: 401,
+      shipmentId: 42,
+      status: 'UNSEEN',
+    });
+
+    renderAt();
+
+    expect(await screen.findByText(/Trạng thái: Đã gửi điều phối/)).toBeTruthy();
+    expect(screen.getByText('Lô hàng đang chờ Điều vận tiếp nhận. Bạn vẫn có thể bổ sung thông tin và chứng từ trong thời gian chờ.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Gửi sang điều phối' })).toBeNull();
+  });
+
+  it('allows a rejected handoff to be submitted again', async () => {
+    getDispatchHandoffMock.mockResolvedValue({
+      id: 401,
+      shipmentId: 42,
+      status: 'REJECTED',
+    });
+
+    renderAt();
+
+    expect(await screen.findByText(/Trạng thái: Bản nháp/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Gửi sang điều phối' })).toBeTruthy();
+  });
+
+  it('keeps a successful submission visible when the follow-up reload fails', async () => {
+    getDetailMock
+      .mockResolvedValueOnce(makeDetail({
+        shipment: {
+          blNumber: 'BL-FCL',
+          routeId: 15,
+          operationalSiteId: 81,
+        },
+        containers: [{
+          id: 100,
+          shipmentId: 42,
+          containerTypeId: 1,
+          containerNumber: 'MSKU1234565',
+          sealNumber: null,
+          cargoWeightKg: null,
+          shippingLineName: 'Maersk',
+          pickupPortId: 1,
+          dropoffPortId: 1,
+          notes: null,
+        }],
+      }))
+      .mockRejectedValueOnce(new Error('refresh failed'));
+    listOperationalSitesMock.mockResolvedValue([{ id: 81, name: 'Nhà máy A', siteType: 'FACTORY' }]);
+    submitForDispatchMock.mockResolvedValue({
+      shipment: { ...makeDetail().shipment, version: 4 },
+      handoff: { id: 401, shipmentId: 42, status: 'UNSEEN' },
+      replayed: false,
+    });
+
+    renderAt();
+    fireEvent.click(await screen.findByRole('button', { name: 'Gửi sang điều phối' }));
+
+    expect(await screen.findByText(/Đã gửi lô hàng sang bảng điều phối\. Dữ liệu mới nhất/)).toBeTruthy();
+    expect(screen.getByText(/Trạng thái: Đã gửi điều phối/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Gửi sang điều phối' })).toBeNull();
   });
 
   it('sends expectedVersion for container saves and reuses the refreshed version on the next shipment save', async () => {

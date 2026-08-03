@@ -49,6 +49,12 @@ export interface Shipment {
   updatedAt: string;
 }
 
+export interface ShipmentDispatchHandoff {
+  id: number;
+  shipmentId: number;
+  status: 'UNSEEN' | 'SEEN' | 'ACCEPTED' | 'REJECTED';
+}
+
 /** Body for `POST /api/shipments/quick` — matches `quickCreateShipmentSchema`. */
 export interface QuickCreateShipmentRequest {
   customerId: number;
@@ -456,11 +462,15 @@ export async function submitShipmentForDispatch(
   body: { expectedVersion: number; priority?: 'NORMAL' | 'URGENT'; operationalNote?: string | null },
   idempotencyKey: string,
 ) {
-  return api.post<{ shipment: Shipment; handoff: { id: number; status: 'UNSEEN' }; replayed: boolean }>(
+  return api.post<{ shipment: Shipment; handoff: ShipmentDispatchHandoff; replayed: boolean }>(
     `/shipments/${id}/submit-for-dispatch`,
     body,
     { headers: { 'Idempotency-Key': idempotencyKey } },
   );
+}
+
+export async function getShipmentDispatchHandoff(id: number): Promise<ShipmentDispatchHandoff | null> {
+  return api.get<ShipmentDispatchHandoff | null>(`/shipments/${id}/dispatch-handoff`);
 }
 
 export async function addShipmentDocument(

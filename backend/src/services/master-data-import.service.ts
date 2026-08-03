@@ -21,7 +21,7 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Classification = typeof s.masterImportRowClassificationEnum.enumValues[number];
 
 export const MASTER_IMPORT_MAX_BYTES = 15 * 1024 * 1024;
-export const MASTER_IMPORT_PARSER_VERSION = 'silversea-master-v1';
+export const MASTER_IMPORT_PARSER_VERSION = 'silversea-master-v2';
 export const MASTER_IMPORT_APPLY_ENDPOINT = 'master-data-import.apply';
 export const MASTER_IMPORT_REJECT_ENDPOINT = 'master-data-import.reject';
 export const MASTER_IMPORT_XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -44,6 +44,7 @@ interface SitePayload {
   customerCode: string;
   code: string;
   name: string;
+  siteType: 'FACTORY' | 'WAREHOUSE';
   address: string;
   googleMapsUrl: string | null;
   contactName: string | null;
@@ -353,10 +354,18 @@ function parseTemplateSheet(
 function parseSites(workbook: ExcelJS.Workbook, rows: ParsedRow[]): void {
   const sheet = workbook.getWorksheet('NHÀ MÁY');
   if (!sheet) return;
-  const last = lastRelevantRow(sheet, 3, [2, 3, 4, 5, 6, 7]);
+  const siteTypeHeader = normalizeLookup(cellValue(sheet.getCell(2, 8)).text);
+  const hasSiteTypeColumn = siteTypeHeader === 'SITE TYPE'
+    || siteTypeHeader.includes('LOAI DIEM');
+  const relevantColumns = hasSiteTypeColumn ? [2, 3, 4, 5, 6, 7, 8] : [2, 3, 4, 5, 6, 7];
+  const last = lastRelevantRow(sheet, 3, relevantColumns);
   for (let rowNumber = 3; rowNumber <= last; rowNumber += 1) {
-    const { values, hasFormula } = cellsForRow(sheet, rowNumber, [1, 2, 3, 4, 5, 6, 7]);
-    const [sequence, customerCode, name, address, billingText, strictRules, mapsUrl] = values;
+    const { values, hasFormula } = cellsForRow(
+      sheet,
+      rowNumber,
+      hasSiteTypeColumn ? [1, 2, 3, 4, 5, 6, 7, 8] : [1, 2, 3, 4, 5, 6, 7],
+    );
+    const [sequence, customerCode, name, address, billingText, strictRules, mapsUrl, rawSiteType = ''] = values;
     if (!values.some(Boolean)) {
       rows.push(templateRow(sheet.name, rowNumber, 'operational_site'));
       continue;
@@ -374,12 +383,33 @@ function parseSites(workbook: ExcelJS.Workbook, rows: ParsedRow[]): void {
       rows.push(blockedRow(sheet.name, rowNumber, 'operational_site', 'FIELD_TOO_LONG', 'Một hoặc nhiều trường vượt quá độ dài cho phép.'));
       continue;
     }
+    const normalizedSiteType = normalizeLookup(rawSiteType);
+    const siteType = normalizedSiteType === ''
+      || normalizedSiteType === 'FACTORY'
+      || normalizedSiteType === 'NHA MAY'
+      ? 'FACTORY'
+      : normalizedSiteType === 'WAREHOUSE'
+        || normalizedSiteType === 'KHO'
+        || normalizedSiteType === 'KHO HANG'
+        ? 'WAREHOUSE'
+        : null;
+    if (!siteType) {
+      rows.push(blockedRow(
+        sheet.name,
+        rowNumber,
+        'operational_site',
+        'INVALID_OPERATIONAL_SITE_TYPE',
+        'Loại điểm vận hành phải là Nhà máy hoặc Kho.',
+      ));
+      continue;
+    }
     const code = `SITE-${normalizeLookup(customerCode).replace(/[^A-Z0-9]+/g, '-').slice(0, 48)}-${normalizeIdentifier(sequence).slice(0, 20)}`;
     const payload: SitePayload = {
       kind: 'operational_site',
       customerCode: normalizeLookup(customerCode),
       code,
       name,
+      siteType,
       address,
       googleMapsUrl: /^https?:\/\//i.test(mapsUrl) ? mapsUrl : null,
       contactName: extractLabeledValue(address, ['người liên hệ', 'liên hệ', 'contact', 'pic'], 120),
@@ -826,6 +856,10 @@ function sourceExpiryDedupeKey(batchId: number, sourceFileHash: string): string 
   return `master-import-source-expiry:${batchId}:${sourceFileHash}`;
 }
 
+function privateSourceStorageKey(sourceFileHash: string): string {
+  return `master-imports/${MASTER_IMPORT_PARSER_VERSION}/${sourceFileHash}.xlsx`;
+}
+
 async function schedulePrivateBatchSourceExpiry(
   tx: Tx,
   batch: Pick<typeof s.masterImportBatches.$inferSelect, 'id' | 'sourceFileHash'>,
@@ -885,7 +919,7 @@ async function replayExistingAnalysis(
       .where(eq(s.masterImportBatches.id, batchId)).limit(1).for('update');
     if (!batch) throw new ApiError(404, 'Không tìm thấy lô nhập Master Data.');
     if (batch.status === 'ANALYZED') {
-      const privateStorageKey = batch.privateStorageKey ?? `master-imports/${sourceFileHash}.xlsx`;
+      const privateStorageKey = batch.privateStorageKey ?? privateSourceStorageKey(sourceFileHash);
       if (!await storageService.exists(privateStorageKey)) {
         await storageService.upload(file.buffer, privateStorageKey);
         await tx.update(s.masterImportBatches).set({ privateStorageKey })
@@ -913,7 +947,7 @@ export async function analyzeMasterWorkbook(
     return replayExistingAnalysis(existing.id, sourceFileHash, file);
   }
   const parsed = await parseWorkbook(file.buffer);
-  const privateStorageKey = `master-imports/${sourceFileHash}.xlsx`;
+  const privateStorageKey = privateSourceStorageKey(sourceFileHash);
   await storageService.upload(file.buffer, privateStorageKey);
 
   try {
@@ -1019,7 +1053,7 @@ async function applyParsedRows(
       customerId: customer.id,
       code: payload.code,
       name: payload.name,
-      siteType: 'FACTORY' as const,
+      siteType: payload.siteType,
       address: payload.address,
       googleMapsUrl: payload.googleMapsUrl,
       contactName: payload.contactName,

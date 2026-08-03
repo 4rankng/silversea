@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, Save, Send, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
 import { SearchableSelect, TextField, SelectField } from '../../design-system';
@@ -10,6 +10,7 @@ import { tripClient } from '../../api/tripClient';
 import {
   addShipmentDocument,
   createShipmentDeclaration,
+  getShipmentDispatchHandoff,
   getShipmentDetail,
   listOperationalSites,
   replaceShipmentDocument,
@@ -23,6 +24,7 @@ import {
   type ShipmentDetail,
   type ShipmentContainer,
   type ShipmentDocument,
+  type ShipmentDispatchHandoff,
   type OperationalSite,
 } from '../../api/shipmentClient';
 import {
@@ -154,6 +156,7 @@ export default function ClerkShipmentDocsPage() {
   const { confirm, dialog } = useConfirm();
 
   const [detail, setDetail] = useState<ShipmentDetail | null>(null);
+  const [dispatchHandoff, setDispatchHandoff] = useState<ShipmentDispatchHandoff | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -201,6 +204,7 @@ export default function ClerkShipmentDocsPage() {
   const [savingDeclaration, setSavingDeclaration] = useState(false);
   const [reviewingRequestId, setReviewingRequestId] = useState<number | null>(null);
   const [dispatching, setDispatching] = useState(false);
+  const dispatchIdempotencyKey = useRef(crypto.randomUUID());
   const [dispatchMsg, setDispatchMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [shipmentMsg, setShipmentMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [containerMsg, setContainerMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
@@ -217,12 +221,14 @@ export default function ClerkShipmentDocsPage() {
   }, [detail?.shipment.responsibleUnitId, user?.businessUnitIds]);
 
   async function loadPageData(currentShipmentId: number) {
-    const [loadedDetail, bootstrap] = await Promise.all([
+    const [loadedDetail, bootstrap, loadedHandoff] = await Promise.all([
       getShipmentDetail(currentShipmentId),
       tripClient.getBootstrap(),
+      getShipmentDispatchHandoff(currentShipmentId),
     ]);
     const sites = await listOperationalSites(loadedDetail.shipment.customerId);
     setDetail(loadedDetail);
+    setDispatchHandoff(loadedHandoff);
     setVersion(loadedDetail.shipment.version);
     setRows(loadedDetail.containers.map(toRow));
     setContainerTypes(bootstrap.containerTypes);
@@ -546,13 +552,25 @@ export default function ClerkShipmentDocsPage() {
       const result = await submitShipmentForDispatch(
         shipmentId,
         { expectedVersion: version },
-        crypto.randomUUID(),
+        dispatchIdempotencyKey.current,
       );
-      await reloadCurrentDetail();
+      setDispatchHandoff(result.handoff);
+      setVersion(result.shipment.version);
+      setDetail((current) => current
+        ? { ...current, shipment: { ...current.shipment, ...result.shipment } }
+        : current);
       setDispatchMsg({
         kind: 'ok',
         text: result.replayed ? 'Lô hàng đã có trong bảng điều phối.' : 'Đã gửi lô hàng sang bảng điều phối.',
       });
+      try {
+        await reloadCurrentDetail();
+      } catch {
+        setDispatchMsg({
+          kind: 'ok',
+          text: 'Đã gửi lô hàng sang bảng điều phối. Dữ liệu mới nhất sẽ được tải lại khi bạn mở lại trang.',
+        });
+      }
     } catch (err) {
       setDispatchMsg({
         kind: 'err',
@@ -575,8 +593,10 @@ export default function ClerkShipmentDocsPage() {
   }
   if (!detail) return null;
 
-  const isDraft = detail.shipment.status === ShipmentStatus.NEW;
-  const isPostDispatch = !isDraft;
+  const hasSubmittedHandoff = dispatchHandoff != null && dispatchHandoff.status !== 'REJECTED';
+  const isDraft = detail.shipment.status === ShipmentStatus.NEW && !hasSubmittedHandoff;
+  const isAwaitingDispatch = detail.shipment.status === ShipmentStatus.NEW && hasSubmittedHandoff;
+  const isPostDispatch = detail.shipment.status !== ShipmentStatus.NEW;
   return (
     <div style={{ padding: 16, maxWidth: 960, margin: '0 auto', minWidth: 0 }}>
       <button
@@ -593,7 +613,7 @@ export default function ClerkShipmentDocsPage() {
       </h1>
       <p style={{ color: 'var(--fg-3)', fontSize: 14, marginBottom: 16 }}>
         Khách hàng: {detail.shipment.customerName?.trim() || 'Chưa có tên khách hàng'}
-        {' · '}Trạng thái: {isDraft ? 'Bản nháp' : detail.shipment.status}
+        {' · '}Trạng thái: {isDraft ? 'Bản nháp' : isAwaitingDispatch ? 'Đã gửi điều phối' : detail.shipment.status}
       </p>
 
       <div style={readiness.ready ? readinessOkStyle : readinessWarnStyle}>
@@ -603,6 +623,14 @@ export default function ClerkShipmentDocsPage() {
           <><AlertTriangle size={16} /> Còn thiếu: {readiness.missing.join(', ')}</>
         )}
       </div>
+
+      {dispatchMsg && <MsgLine msg={dispatchMsg} />}
+
+      {isAwaitingDispatch && (
+        <div style={infoBannerStyle}>
+          Lô hàng đang chờ Điều vận tiếp nhận. Bạn vẫn có thể bổ sung thông tin và chứng từ trong thời gian chờ.
+        </div>
+      )}
 
       {isPostDispatch && (
         <div style={infoBannerStyle}>
@@ -961,7 +989,6 @@ export default function ClerkShipmentDocsPage() {
           <p style={mutedTextStyle}>
             Sau khi bàn giao, Điều vận sẽ tiếp nhận từng công-te-nơ FCL hoặc lô LCL và gán nhà xe, xe, biển số cùng lái xe.
           </p>
-          {dispatchMsg && <MsgLine msg={dispatchMsg} />}
           <button
             type="button"
             onClick={() => { void handleSubmitForDispatch(); }}

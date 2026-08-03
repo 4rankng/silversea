@@ -1441,6 +1441,7 @@ export async function completeShipmentDirect(args: {
   vatRate: number;
   trips: ShipmentDirectCloseTripVersionInput[];
   confirmZeroRevenue?: boolean;
+  confirmNoPhoto?: boolean;
   idempotencyKey: string;
   actor: AuthUser;
 }): Promise<ShipmentDirectCloseResult & { replayed: boolean }> {
@@ -1563,7 +1564,7 @@ export async function completeShipmentDirect(args: {
           args.actor.userId,
           args.actor.role,
           args.confirmZeroRevenue === true,
-          false,
+          args.confirmNoPhoto === true,
           {
             expectedVersion: trip.version,
             transaction: tx,

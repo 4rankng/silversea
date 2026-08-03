@@ -23,6 +23,8 @@ import { storageService } from './storage.service';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import type { Tx } from './trip-shared';
 import { transitionTripStatus } from './trip-status-machine.service';
+import { syncAttendanceAfterStatusChange } from './trip-attendance-sync.service';
+import { cacheInvalidate, cacheInvalidatePattern } from '../lib/redis';
 import {
   getDriverCompletionEvidenceStatus,
   listOrderedMilestoneTypesTx,
@@ -946,9 +948,15 @@ export async function recordDriverFulfillmentProgress(args: {
           {
             expectedVersion: ownedTrip.tripVersion,
             transaction: tx,
+            // Ownership was verified and locked above. Receiving the assigned
+            // order is the driver's explicit start action for this fulfillment.
+            driverOwnedFulfillmentStart: {
+              driverId: args.driverId,
+              fulfillmentId: args.fulfillmentId,
+            },
           },
         );
-        const { recomputeShipmentCompletion } = await import('./shipment.service');
+        const { recomputeShipmentCompletion } = await import('./shipment.service.js');
         await recomputeShipmentCompletion(ownedTrip.shipmentId, { changedBy: args.recordedBy }, tx);
       }
       return event;
@@ -956,6 +964,45 @@ export async function recordDriverFulfillmentProgress(args: {
     load: async (id, tx) => loadDriverProgressEventTx(tx, id),
   });
   return { event: result, replayed };
+}
+
+export async function syncDriverFulfillmentStartSideEffects(
+  args: {
+    fulfillmentId: number;
+    driverId: number;
+    recordedBy: number;
+  },
+  invalidateReports: () => Promise<void> = async () => {
+    await Promise.all([
+      cacheInvalidate('reports:dashboard'),
+      cacheInvalidate('reports:dashboard:executive'),
+      cacheInvalidatePattern('reports:entity-results:*'),
+      cacheInvalidatePattern('reports:fuel-variance:*'),
+    ]).catch(() => {});
+  },
+): Promise<void> {
+    const [startedTrip] = await db.select({
+      id: s.trips.id,
+      driverId: s.trips.driverId,
+      departureDate: s.trips.departureDate,
+      status: s.trips.status,
+    }).from(s.trips)
+      .where(and(
+        eq(s.trips.fulfillmentId, args.fulfillmentId),
+        eq(s.trips.driverId, args.driverId),
+        isNull(s.trips.deletedAt),
+      ))
+      .limit(1);
+    if (!startedTrip || startedTrip.status !== TripStatus.IN_TRANSIT) return;
+    await syncAttendanceAfterStatusChange(
+      startedTrip.id,
+      TripStatus.IN_TRANSIT,
+      startedTrip.driverId,
+      startedTrip.departureDate,
+      null,
+      args.recordedBy,
+    );
+    await invalidateReports();
 }
 
 /** List a trip's progress events, oldest-first (timeline order). */
@@ -1122,7 +1169,7 @@ export async function completeOwnedFulfillmentTrip(args: {
       // accounting review. It never posts revenue or changes the trip to the
       // financial COMPLETED state; Q15 reserves that transition for the
       // independently approved close action.
-      const { recomputeShipmentCompletion } = await import('./shipment.service');
+      const { recomputeShipmentCompletion } = await import('./shipment.service.js');
       await recomputeShipmentCompletion(ownedTrip.shipmentId, { changedBy: args.actorUserId }, tx);
       return buildDriverFulfillmentCompletionResultTx(tx, ownedTrip.tripId, args.driverId);
     },

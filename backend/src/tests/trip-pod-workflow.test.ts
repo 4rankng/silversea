@@ -564,11 +564,44 @@ describe('trip pod review workflow', () => {
       }),
     ]);
 
-    assert.equal(approval.status, 'fulfilled');
-    assert.equal(cancellation.status, 'rejected');
-    assert.ok(cancellation.status === 'rejected'
-      && cancellation.reason instanceof ApiError
-      && cancellation.reason.statusCode === 409);
+    const fulfilledCount = [approval, cancellation].filter((result) => result.status === 'fulfilled').length;
+    assert.equal(fulfilledCount, 1);
+
+    const rejected = approval.status === 'rejected' ? approval : cancellation;
+    assert.equal(rejected.status, 'rejected');
+    assert.ok(rejected.reason instanceof ApiError);
+    assert.equal(rejected.reason.statusCode, 409);
+
+    const [submissionAfter] = await db.select({ status: s.tripPodSubmissions.status })
+      .from(s.tripPodSubmissions)
+      .where(eq(s.tripPodSubmissions.id, submitted.id))
+      .limit(1);
+    const [tripAfter] = await db.select({ status: s.trips.status })
+      .from(s.trips)
+      .where(eq(s.trips.id, trip.id))
+      .limit(1);
+    const [fulfillmentAfter] = await db.select({
+      cancellationDisposition: s.shipmentFulfillments.cancellationDisposition,
+      replacementFulfillmentId: s.shipmentFulfillments.replacementFulfillmentId,
+    })
+      .from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.id, fixture.fulfillments[0]!.id))
+      .limit(1);
+
+    if (approval.status === 'fulfilled') {
+      assert.equal(cancellation.status, 'rejected');
+      assert.equal(approval.value.submissionStatus, TripPodStatus.ACCEPTED);
+      assert.equal(submissionAfter?.status, TripPodStatus.ACCEPTED);
+      assert.equal(tripAfter?.status, TripStatus.IN_TRANSIT);
+      assert.equal(fulfillmentAfter?.cancellationDisposition, null);
+      assert.equal(fulfillmentAfter?.replacementFulfillmentId, null);
+    } else {
+      assert.equal(cancellation.status, 'fulfilled');
+      assert.equal(submissionAfter?.status, TripPodStatus.SUBMITTED);
+      assert.equal(tripAfter?.status, TripStatus.CANCELED);
+      assert.equal(fulfillmentAfter?.cancellationDisposition, 'REPLACED');
+      assert.ok(fulfillmentAfter?.replacementFulfillmentId != null);
+    }
   });
 
   test('switching FCL to LCL clears stranded containers when no fulfillment exists', async () => {

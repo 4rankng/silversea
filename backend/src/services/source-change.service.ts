@@ -730,7 +730,7 @@ export async function propagateExpenseApproval(tx: Tx, input: {
   // advance.service ↔ source-change.service module cycle; the function is
   // internally guarded against double-posting (manual batch flow uses the same
   // hook) and skips non-FORWARDER_ADVANCE / driver expenses.
-  const { autoOffsetExpenseApproval } = await import('./advance.service');
+  const { autoOffsetExpenseApproval } = await import('./advance.service.js');
   await autoOffsetExpenseApproval(tx, input.expenseId);
   const desired = await buildExpenseDraftLineTx(tx, input.expenseId);
   await syncSourceAcrossDraftDocumentsTx(tx, 'EXPENSE', input.expenseId, desired);

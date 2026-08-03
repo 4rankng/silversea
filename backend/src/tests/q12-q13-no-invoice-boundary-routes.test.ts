@@ -19,7 +19,7 @@ import * as s from '../db/schema';
 import { authMiddleware } from '../middleware/auth';
 import { casbinAuthz } from '../middleware/casbin';
 import { globalErrorHandler } from '../middleware/errorHandler';
-import { disconnectRedis } from '../lib/redis';
+import { cacheInvalidate, disconnectRedis } from '../lib/redis';
 import configRoutes, { catalogBootstrapRouter } from '../routes/config';
 import forwarderRoutes from '../routes/forwarder';
 import financialRoutes from '../routes/financial';
@@ -28,12 +28,15 @@ const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdUserIds: number[] = [];
 const createdExpenseTypeIds: number[] = [];
 const createdGovernanceActionIds: number[] = [];
+const createdCustomerIds: number[] = [];
+const createdBusinessUnitIds: number[] = [];
 let server: http.Server;
 let baseUrl: string;
 let adminToken: string;
 let accountantToken: string;
 let managerToken: string;
 let forwarderToken: string;
+let clerkToken: string;
 
 type BoundarySnapshot = {
   defaultCategoryAliases: string[];
@@ -56,6 +59,22 @@ async function mkUser(username: string, role: Role) {
   }).returning();
   createdUserIds.push(user.id);
   return user;
+}
+
+async function mkCustomer(name: string) {
+  const [customer] = await db.insert(s.customers).values({ name }).returning();
+  createdCustomerIds.push(customer.id);
+  return customer;
+}
+
+async function mkBusinessUnit(code: string, name: string) {
+  const [businessUnit] = await db.insert(s.businessUnits).values({
+    code,
+    name,
+    status: 'ACTIVE',
+  }).returning();
+  createdBusinessUnitIds.push(businessUnit.id);
+  return businessUnit;
 }
 
 function sign(user: { id: number; username: string | null; role: Role | string }) {
@@ -107,11 +126,12 @@ async function approvePendingAction(action: { id: number; version: number }) {
 
 before(async () => {
   await initEnforcer();
+  await cacheInvalidate('catalogs:bootstrap');
 
   const app = express();
   app.use(express.json());
   app.use('/api/forwarder/me', authMiddleware, casbinAuthz('forwarder_portal'), forwarderRoutes);
-  app.use('/api', authMiddleware, casbinAuthz('config'), catalogBootstrapRouter);
+  app.use('/api', authMiddleware, catalogBootstrapRouter);
   app.use('/api', authMiddleware, casbinAuthz('config'), configRoutes);
   app.use('/api', authMiddleware, casbinAuthz('financial'), financialRoutes);
   app.use(globalErrorHandler);
@@ -128,6 +148,28 @@ before(async () => {
   accountantToken = sign(await mkUser(`q12q13-accountant-${suffix}`, Role.ACCOUNTANT));
   managerToken = sign(await mkUser(`q12q13-manager-${suffix}`, Role.MANAGER));
   forwarderToken = sign(await mkUser(`q12q13-forwarder-${suffix}`, Role.FORWARDER));
+
+  const clerk = await mkUser(`q12q13-clerk-${suffix}`, Role.CLERK);
+  clerkToken = sign(clerk);
+  const scopedCustomer = await mkCustomer(`Q12Q13 scoped customer ${suffix}`);
+  const hiddenCustomer = await mkCustomer(`Q12Q13 hidden customer ${suffix}`);
+  const scopedBusinessUnit = await mkBusinessUnit(`Q12SC-${suffix.slice(-4)}`, `Q12 scoped unit ${suffix}`);
+  const hiddenBusinessUnit = await mkBusinessUnit(`Q12HD-${suffix.slice(-4)}`, `Q12 hidden unit ${suffix}`);
+  await db.insert(s.userCustomerLinks).values({ userId: clerk.id, customerId: scopedCustomer.id });
+  await db.insert(s.userBusinessUnitLinks).values({ userId: clerk.id, businessUnitId: scopedBusinessUnit.id });
+  clerkToken = jwt.sign(
+    {
+      userId: clerk.id,
+      username: clerk.username ?? `user-${clerk.id}`,
+      role: Role.CLERK,
+      customerId: scopedCustomer.id,
+      customerIds: [scopedCustomer.id],
+    },
+    config.jwtSecret,
+  );
+  assert.ok(hiddenCustomer.id > 0);
+  assert.ok(hiddenBusinessUnit.id > 0);
+  await cacheInvalidate('catalogs:bootstrap');
 });
 
 after(async () => {
@@ -147,8 +189,19 @@ after(async () => {
       await db.delete(s.forwarderExpenseTypes).where(inArray(s.forwarderExpenseTypes.id, createdExpenseTypeIds));
     }
     if (createdUserIds.length > 0) {
+      await db.delete(s.userBusinessUnitLinks).where(inArray(s.userBusinessUnitLinks.userId, createdUserIds));
+      await db.delete(s.userCustomerLinks).where(inArray(s.userCustomerLinks.userId, createdUserIds));
+    }
+    if (createdBusinessUnitIds.length > 0) {
+      await db.delete(s.businessUnits).where(inArray(s.businessUnits.id, createdBusinessUnitIds));
+    }
+    if (createdCustomerIds.length > 0) {
+      await db.delete(s.customers).where(inArray(s.customers.id, createdCustomerIds));
+    }
+    if (createdUserIds.length > 0) {
       await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
     }
+    await cacheInvalidate('catalogs:bootstrap');
   } finally {
     await disconnectRedis();
     await client.end();
@@ -171,6 +224,27 @@ describe('Q12/Q13 no-invoice route boundaries', () => {
       assert.deepEqual(snapshot.defaultCategoryAliases, [...NO_INVOICE_DEFAULT_CATEGORY_ALIASES[code]]);
       assert.equal(snapshot.requiredScope, NO_INVOICE_REQUIRED_SCOPE);
     }
+  });
+
+  test('clerk bootstrap only exposes assigned customers and business units', async () => {
+    const response = await request('/api/catalogs/bootstrap', { token: clerkToken });
+    assert.equal(response.status, 200);
+
+    const customerNames = new Set((response.body.customers as Array<{ name: string }>).map((item) => item.name));
+    const businessUnitNames = new Set((response.body.businessUnits as Array<{ name: string }>).map((item) => item.name));
+
+    assert.ok(customerNames.has(`Q12Q13 scoped customer ${suffix}`));
+    assert.ok(!customerNames.has(`Q12Q13 hidden customer ${suffix}`));
+    assert.ok(businessUnitNames.has(`Q12 scoped unit ${suffix}`));
+    assert.ok(!businessUnitNames.has(`Q12 hidden unit ${suffix}`));
+  });
+
+  test('clerk bootstrap returns empty scoped lists when no customer or unit is assigned', async () => {
+    const unassignedClerkToken = sign(await mkUser(`q12q13-clerk-empty-${suffix}`, Role.CLERK));
+    const response = await request('/api/catalogs/bootstrap', { token: unassignedClerkToken });
+    assert.equal(response.status, 200);
+    assert.deepEqual(response.body.customers, []);
+    assert.deepEqual(response.body.businessUnits, []);
   });
 
   test('config CRUD persists policy-configurable approval titles and only bumps version on policy change', async () => {

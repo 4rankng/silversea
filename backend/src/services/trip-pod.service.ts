@@ -750,7 +750,7 @@ export async function submitPod(args: {
       }).where(eq(s.tripPodSubmissions.id, submission.id))
         .returning({ id: s.tripPodSubmissions.id });
 
-      const { recomputeShipmentCompletion } = await import('./shipment.service');
+      const { recomputeShipmentCompletion } = await import('./shipment.service.js');
       await recomputeShipmentCompletion(ownedTrip.shipmentId, { changedBy: args.actorUserId }, tx);
 
       return buildSubmissionViewTx(tx, {

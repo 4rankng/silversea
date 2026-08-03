@@ -80,6 +80,7 @@ import {
 import {
   createHandoff,
   getActiveHandoffForShipment,
+  getLatestHandoffForShipment,
   markSeen,
   resolveHandoff,
 } from '../services/dispatch-handoff.service';
@@ -192,6 +193,13 @@ const completeShipmentDirectSchema = z.object({
     z.literal(0.1),
   ]),
   confirmZeroRevenue: z.boolean().optional(),
+  // Allow the routine close to override the trip photo-evidence gate for trips
+  // that legitimately have no CONTAINER/SEAL photo yet (mirrors the per-trip
+  // `confirmNoPhoto` override in transitionTripStatus). Without this, a
+  // PENDING_EXPENSE_APPROVAL shipment whose trips have no photos could never be
+  // closed directly, even though PRD Bước 5 only requires e-POD + POD paper +
+  // expense scope + VAT.
+  confirmNoPhoto: z.boolean().optional(),
   trips: z.array(z.object({
     tripId: z.number().int().positive(),
     expectedVersion: z.number().int().positive(),
@@ -395,7 +403,7 @@ router.get('/:id/dispatch-handoff', asyncHandler(async (req: Request, res: Respo
   const shipmentId = parseId(req, res);
   if (shipmentId === null) return;
   await getShipmentDetail(shipmentId, getUser(req));
-  res.json(await getActiveHandoffForShipment(shipmentId));
+  res.json(await getLatestHandoffForShipment(shipmentId));
 }));
 
 router.post(
@@ -760,6 +768,7 @@ router.post(
       vatRate: parsed.data.vatRate,
       trips: parsed.data.trips,
       confirmZeroRevenue: parsed.data.confirmZeroRevenue === true,
+      confirmNoPhoto: parsed.data.confirmNoPhoto === true,
       idempotencyKey,
       actor,
     });
