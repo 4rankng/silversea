@@ -5,6 +5,7 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from './idempotency.service';
+import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type FulfillmentRow = typeof s.shipmentFulfillments.$inferSelect;
@@ -189,6 +190,11 @@ export async function ensureShipmentFulfillmentsInTx(
   }
 
   await assertDecompositionActor(input.actorId, tx);
+  await lockApplicationOwnedUniqueness(
+    tx,
+    'shipment-fulfillments:active-shipment',
+    [input.shipmentId],
+  );
   const [shipment] = await tx.select().from(s.shipments)
     .where(and(eq(s.shipments.id, input.shipmentId), isNull(s.shipments.deletedAt)))
     .for('update')
@@ -246,8 +252,8 @@ export async function ensureShipmentFulfillmentsInTx(
 
 /**
  * Deterministically decompose a shipment into its independently dispatchable
- * units. The shipment row lock serializes different idempotency keys while the
- * database uniqueness constraints remain the final duplicate guard.
+ * units. Application-owned advisory locking serializes different idempotency
+ * keys before the canonical active-row lookup.
  */
 export async function createShipmentFulfillments(input: CreateShipmentFulfillmentsInput) {
   validateCommand(input);

@@ -105,6 +105,10 @@ import {
   DURABLE_EFFECT_KIND,
   type DurableEffectInput,
 } from '../services/durable-effect.service';
+import {
+  lockApplicationOwnedUniqueness,
+  lockApplicationOwnedUniquenessSet,
+} from '../services/application-owned-uniqueness.service';
 
 type SupplierPayload = output<typeof supplierSchema>;
 type RoutePayload = Partial<output<typeof routeSchema>>;
@@ -116,6 +120,101 @@ type NoInvoiceApprovalTitle = typeof NO_INVOICE_APPROVAL_TITLES[number];
 type CrudTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type CustomerMutationPayload = Partial<output<typeof customerUpdateSchema>>;
 type RoadConfigGovernedPayload = output<typeof roadConfigGovernanceSchema>;
+
+function normalizeCatalogKey(value: unknown): string {
+  return String(value ?? '').trim().replace(/\s+/g, ' ').toLocaleUpperCase('vi-VN');
+}
+
+async function lockCatalogRelationship(
+  tx: CrudTx,
+  resource: string,
+  id: number | null | undefined,
+): Promise<void> {
+  if (id == null) return;
+  if (!Number.isInteger(id) || id < 1) throw new ApiError(400, 'ID liên kết không hợp lệ');
+  await lockApplicationOwnedUniqueness(tx, `relationship.${resource}`, [id]);
+}
+
+async function requireActiveCatalogRow(
+  tx: CrudTx,
+  resource: string,
+  table: typeof s.customers | typeof s.routes | typeof s.cargoTypes | typeof s.trucks
+    | typeof s.trailers | typeof s.suppliers | typeof s.containerTypes | typeof s.ports,
+  id: number | null | undefined,
+  message: string,
+): Promise<void> {
+  if (id == null) return;
+  await lockCatalogRelationship(tx, resource, id);
+  const [row] = await tx.select({ id: table.id }).from(table)
+    .where(and(eq(table.id, id), isNull(table.deletedAt)))
+    .limit(1)
+    .for('share');
+  if (!row) throw new ApiError(400, message);
+}
+
+async function requireExistingRow(
+  tx: CrudTx,
+  resource: string,
+  table: typeof s.shipments | typeof s.trips,
+  id: number | null | undefined,
+  message: string,
+): Promise<void> {
+  if (id == null) return;
+  await lockCatalogRelationship(tx, resource, id);
+  const [row] = await tx.select({ id: table.id }).from(table)
+    .where(and(eq(table.id, id), isNull(table.deletedAt)))
+    .limit(1)
+    .for('share');
+  if (!row) throw new ApiError(400, message);
+}
+
+async function assertUniqueCatalogString(args: {
+  tx: CrudTx;
+  scope: string;
+  value: unknown;
+  id?: number;
+  table: typeof s.trucks | typeof s.trailers | typeof s.tires | typeof s.tirePositions
+    | typeof s.containerTypes | typeof s.ports | typeof s.forwarderExpenseTypes;
+  column: typeof s.trucks.licensePlate | typeof s.trailers.licensePlate | typeof s.tires.serial
+    | typeof s.tirePositions.name | typeof s.containerTypes.code | typeof s.ports.code
+    | typeof s.forwarderExpenseTypes.code;
+  message: string;
+}): Promise<void> {
+  const key = normalizeCatalogKey(args.value);
+  if (!key) return;
+  await lockApplicationOwnedUniqueness(args.tx, `catalog.${args.scope}`, [key]);
+  const conditions = [
+    sql`upper(regexp_replace(btrim(${args.column}), '\\s+', ' ', 'g')) = ${key}`,
+    isNull(args.table.deletedAt),
+  ];
+  if (args.id != null) conditions.push(ne(args.table.id, args.id));
+  const [duplicate] = await args.tx.select({ id: args.table.id }).from(args.table)
+    .where(and(...conditions))
+    .limit(1);
+  if (duplicate) throw new ApiError(409, args.message);
+}
+
+async function lockCatalogDelete(tx: CrudTx, resource: string, id: number): Promise<void> {
+  await lockCatalogRelationship(tx, resource, id);
+}
+
+async function lockCustomerMutationKeys(
+  tx: CrudTx,
+  data: CustomerMutationPayload,
+  id?: number,
+): Promise<void> {
+  const [current] = id == null
+    ? [undefined]
+    : await tx.select({ name: s.customers.name, taxCode: s.customers.taxCode })
+      .from(s.customers).where(eq(s.customers.id, id)).limit(1);
+  const name = String(data.name ?? current?.name ?? '').trim().replace(/\s+/g, ' ').toLocaleLowerCase('vi-VN');
+  const taxCode = normalizeTaxCode(data.taxCode ?? current?.taxCode);
+  const claims = [
+    ...(name ? [{ scope: 'catalog.customer.name-tax-code', parts: [name, taxCode] }] : []),
+    ...(taxCode ? [{ scope: 'catalog.customer.tax-code', parts: [taxCode] }] : []),
+  ];
+  if (claims.length > 0) await lockApplicationOwnedUniquenessSet(tx, claims);
+}
 
 const roadConfigGovernanceSchema = z.object({
   tollPerStation: z.coerce.number().finite().min(0),
@@ -635,21 +734,25 @@ async function upsertPartnerInTransaction(
 ): Promise<number | null> {
   const normalizedTaxCode = normalizeTaxCode(taxCode);
   if (!normalizedTaxCode) return null;
-  const [partner] = await tx.insert(s.partners)
-    .values({
-      normalizedTaxCode,
+  await lockApplicationOwnedUniqueness(tx, 'partners.normalized-tax-code', [normalizedTaxCode]);
+  const [existing] = await tx.select({ id: s.partners.id })
+    .from(s.partners)
+    .where(eq(s.partners.normalizedTaxCode, normalizedTaxCode))
+    .limit(1)
+    .for('update');
+  if (existing) {
+    await tx.update(s.partners).set({
       displayTaxCode: displayTaxCode(taxCode),
-      currency: 'VND',
-    })
-    .onConflictDoUpdate({
-      target: s.partners.normalizedTaxCode,
-      set: {
-        displayTaxCode: displayTaxCode(taxCode),
-        updatedAt: new Date(),
-      },
-    })
-    .returning({ id: s.partners.id });
-  return partner.id;
+      updatedAt: new Date(),
+    }).where(eq(s.partners.id, existing.id));
+    return existing.id;
+  }
+  const [created] = await tx.insert(s.partners).values({
+    normalizedTaxCode,
+    displayTaxCode: displayTaxCode(taxCode),
+    currency: 'VND',
+  }).returning({ id: s.partners.id });
+  return created.id;
 }
 
 async function syncCustomerRelationsHook(
@@ -1019,7 +1122,8 @@ router.use('/customers', createCrudRouter(s.customers, customerSchema, {
     shouldGovernUpdate: (_id, data) => hasMaterialCustomerConfigChange(data as CustomerMutationPayload),
     shouldGovernDelete: () => true,
   },
-  beforeCreate: async (data) => {
+  beforeCreate: async (data, _req, tx) => {
+    await lockCustomerMutationKeys(tx, data);
     await validateCustomerUniqueness(data);
     return data;
   },
@@ -1033,6 +1137,7 @@ router.use('/customers', createCrudRouter(s.customers, customerSchema, {
         throw new ApiError(400, 'PER_BATCH chỉ được giữ nguyên cho dữ liệu lịch sử');
       }
     }
+    await lockCustomerMutationKeys(tx, data, id);
     await validateCustomerUniqueness(data, id);
     return data;
   },
@@ -1045,6 +1150,7 @@ router.use('/customers', createCrudRouter(s.customers, customerSchema, {
       await markCompletedFuelSurchargeTripsDirty(tx, { customerId: item.id });
     }
   },
+  beforeDelete: (id, _req, tx) => lockCatalogDelete(tx, 'customer', id),
 }));
 router.use(
   '/business-calendar',
@@ -1057,21 +1163,61 @@ router.use(
     governance: {
       reasonLabel: 'lịch làm việc ảnh hưởng ngày công và kỳ lương',
     },
+    beforeCreate: async (data, _req, tx) => {
+      await lockApplicationOwnedUniqueness(tx, 'catalog.business-calendar.date', [data.calendarDate]);
+      const [duplicate] = await tx.select({ id: s.businessCalendarDays.id })
+        .from(s.businessCalendarDays)
+        .where(eq(s.businessCalendarDays.calendarDate, data.calendarDate))
+        .limit(1);
+      if (duplicate) throw new ApiError(409, 'Ngày làm việc đã được cấu hình');
+      return data;
+    },
+    beforeUpdate: async (id, data, _req, tx) => {
+      if (data.calendarDate !== undefined) {
+        await lockApplicationOwnedUniqueness(tx, 'catalog.business-calendar.date', [data.calendarDate]);
+        const [duplicate] = await tx.select({ id: s.businessCalendarDays.id })
+          .from(s.businessCalendarDays)
+          .where(and(eq(s.businessCalendarDays.calendarDate, data.calendarDate), ne(s.businessCalendarDays.id, id)))
+          .limit(1);
+        if (duplicate) throw new ApiError(409, 'Ngày làm việc đã được cấu hình');
+      }
+      return data;
+    },
   }),
 );
 router.use('/trucks', createCrudRouter(s.trucks, truckSchema, {
   searchableField: 'licensePlate',
-  beforeCreate: async (data, _req) => {
+  beforeCreate: async (data, _req, tx) => {
+    await assertUniqueCatalogString({ tx, scope: 'truck.license-plate', value: data.licensePlate, table: s.trucks, column: s.trucks.licensePlate, message: 'Biển số xe đầu kéo đã tồn tại' });
+    await requireActiveCatalogRow(tx, 'trailer', s.trailers, data.currentTrailerId, 'Rơ-moóc liên kết không tồn tại hoặc đã ngưng dùng');
     return syncTrailerFields(data);
   },
-  beforeUpdate: async (_id, data, _req) => {
+  beforeUpdate: async (id, data, _req, tx) => {
+    if (data.licensePlate !== undefined) {
+      await assertUniqueCatalogString({ tx, scope: 'truck.license-plate', value: data.licensePlate, id, table: s.trucks, column: s.trucks.licensePlate, message: 'Biển số xe đầu kéo đã tồn tại' });
+    }
     if (data.currentTrailerId !== undefined) {
+      await requireActiveCatalogRow(tx, 'trailer', s.trailers, data.currentTrailerId, 'Rơ-moóc liên kết không tồn tại hoặc đã ngưng dùng');
       return syncTrailerFields(data);
     }
     return data;
   },
+  beforeDelete: (id, _req, tx) => lockCatalogDelete(tx, 'truck', id),
 }));
-router.use('/trailers', createCrudRouter(s.trailers, trailerSchema, { searchableField: 'licensePlate' }));
+router.use('/trailers', createCrudRouter(s.trailers, trailerSchema, {
+  searchableField: 'licensePlate',
+  beforeCreate: async (data, _req, tx) => {
+    await assertUniqueCatalogString({ tx, scope: 'trailer.license-plate', value: data.licensePlate, table: s.trailers, column: s.trailers.licensePlate, message: 'Biển số rơ-moóc đã tồn tại' });
+    return data;
+  },
+  beforeUpdate: async (id, data, _req, tx) => {
+    if (data.licensePlate !== undefined) {
+      await assertUniqueCatalogString({ tx, scope: 'trailer.license-plate', value: data.licensePlate, id, table: s.trailers, column: s.trailers.licensePlate, message: 'Biển số rơ-moóc đã tồn tại' });
+    }
+    return data;
+  },
+  beforeDelete: (id, _req, tx) => lockCatalogDelete(tx, 'trailer', id),
+}));
 router.use('/routes', createCrudRouter(s.routes, routeSchema, {
   searchableField: 'name',
   governance: {
@@ -1080,11 +1226,40 @@ router.use('/routes', createCrudRouter(s.routes, routeSchema, {
     shouldGovernUpdate: (_id, data) => hasMaterialRouteConfigChange(data as RoutePayload),
     shouldGovernDelete: () => true,
   },
+  beforeDelete: (id, _req, tx) => lockCatalogDelete(tx, 'route', id),
 }));
-router.use('/cargo-types', createCrudRouter(s.cargoTypes, cargoTypeSchema));
-router.use('/container-types', createCrudRouter(s.containerTypes, containerTypeSchema, { searchableField: 'name' }));
+router.use('/cargo-types', createCrudRouter(s.cargoTypes, cargoTypeSchema, {
+  beforeDelete: (id, _req, tx) => lockCatalogDelete(tx, 'cargo-type', id),
+}));
+router.use('/container-types', createCrudRouter(s.containerTypes, containerTypeSchema, {
+  searchableField: 'name',
+  beforeCreate: async (data, _req, tx) => {
+    await assertUniqueCatalogString({ tx, scope: 'container-type.code', value: data.code, table: s.containerTypes, column: s.containerTypes.code, message: 'Mã loại container đã tồn tại' });
+    return data;
+  },
+  beforeUpdate: async (id, data, _req, tx) => {
+    if (data.code !== undefined) {
+      await assertUniqueCatalogString({ tx, scope: 'container-type.code', value: data.code, id, table: s.containerTypes, column: s.containerTypes.code, message: 'Mã loại container đã tồn tại' });
+    }
+    return data;
+  },
+  beforeDelete: (id, _req, tx) => lockCatalogDelete(tx, 'container-type', id),
+}));
 router.use('/seal-types', createCrudRouter(s.sealTypes, sealTypeSchema, { searchableField: 'name' }));
-router.use('/ports', createCrudRouter(s.ports, portSchema, { searchableField: 'name' }));
+router.use('/ports', createCrudRouter(s.ports, portSchema, {
+  searchableField: 'name',
+  beforeCreate: async (data, _req, tx) => {
+    await assertUniqueCatalogString({ tx, scope: 'port.code', value: data.code, table: s.ports, column: s.ports.code, message: 'Mã cảng đã tồn tại' });
+    return data;
+  },
+  beforeUpdate: async (id, data, _req, tx) => {
+    if (data.code !== undefined) {
+      await assertUniqueCatalogString({ tx, scope: 'port.code', value: data.code, id, table: s.ports, column: s.ports.code, message: 'Mã cảng đã tồn tại' });
+    }
+    return data;
+  },
+  beforeDelete: (id, _req, tx) => lockCatalogDelete(tx, 'port', id),
+}));
 router.use('/forwarder-expense-types', createCrudRouter(s.forwarderExpenseTypes, forwarderExpenseTypeSchema, {
   searchableField: 'name',
   governance: {
@@ -1093,17 +1268,87 @@ router.use('/forwarder-expense-types', createCrudRouter(s.forwarderExpenseTypes,
     shouldGovernUpdate: (_id, data) => hasMaterialForwarderExpenseTypeChange(data),
     shouldGovernDelete: () => true,
   },
-  beforeCreate: async (data, _req, tx) => withForwarderExpenseTypePolicyVersion(null, data, tx),
-  beforeUpdate: async (id, data, _req, tx) => withForwarderExpenseTypePolicyVersion(id, data, tx),
+  beforeCreate: async (data, _req, tx) => {
+    await assertUniqueCatalogString({ tx, scope: 'forwarder-expense-type.code', value: data.code, table: s.forwarderExpenseTypes, column: s.forwarderExpenseTypes.code, message: 'Mã loại chi phí giao nhận đã tồn tại' });
+    return withForwarderExpenseTypePolicyVersion(null, data, tx);
+  },
+  beforeUpdate: async (id, data, _req, tx) => {
+    if (data.code !== undefined) {
+      await assertUniqueCatalogString({ tx, scope: 'forwarder-expense-type.code', value: data.code, id, table: s.forwarderExpenseTypes, column: s.forwarderExpenseTypes.code, message: 'Mã loại chi phí giao nhận đã tồn tại' });
+    }
+    return withForwarderExpenseTypePolicyVersion(id, data, tx);
+  },
 }));
 router.use('/pricing-tables', createCrudRouter(s.pricingTables, pricingTableSchema, {
-  beforeCreate: (data) => validatePricingSelector(data),
-  beforeUpdate: (_id, data) => validatePricingSelector(data),
+  beforeCreate: async (data, _req, tx) => {
+    validatePricingSelector(data);
+    await requireActiveCatalogRow(tx, 'customer', s.customers, data.customerId, 'Khách hàng không tồn tại hoặc đã ngưng dùng');
+    await requireActiveCatalogRow(tx, 'route', s.routes, data.routeId, 'Tuyến đường không tồn tại hoặc đã ngưng dùng');
+    await requireActiveCatalogRow(tx, 'container-type', s.containerTypes, data.containerTypeId, 'Loại container không tồn tại hoặc đã ngưng dùng');
+    await lockApplicationOwnedUniqueness(tx, 'catalog.pricing-table.selector', [
+      data.customerId, data.routeId, data.containerTypeId ?? null,
+      normalizeCatalogKey(data.rateKey), data.effectiveDate,
+    ]);
+    const [duplicate] = await tx.select({ id: s.pricingTables.id }).from(s.pricingTables)
+      .where(and(
+        eq(s.pricingTables.customerId, data.customerId),
+        eq(s.pricingTables.routeId, data.routeId),
+        data.containerTypeId == null ? isNull(s.pricingTables.containerTypeId) : eq(s.pricingTables.containerTypeId, data.containerTypeId),
+        data.rateKey == null ? isNull(s.pricingTables.rateKey) : eq(s.pricingTables.rateKey, data.rateKey),
+        eq(s.pricingTables.effectiveDate, data.effectiveDate),
+        isNull(s.pricingTables.deletedAt),
+      )).limit(1);
+    if (duplicate) throw new ApiError(409, 'Bảng giá cho phạm vi và ngày hiệu lực này đã tồn tại');
+    return data;
+  },
+  beforeUpdate: async (id, data, _req, tx) => {
+    const [current] = await tx.select().from(s.pricingTables).where(eq(s.pricingTables.id, id)).limit(1);
+    if (!current) throw new ApiError(404, 'Không tìm thấy bảng giá');
+    const final = validatePricingSelector({ ...current, ...data });
+    await requireActiveCatalogRow(tx, 'customer', s.customers, final.customerId, 'Khách hàng không tồn tại hoặc đã ngưng dùng');
+    await requireActiveCatalogRow(tx, 'route', s.routes, final.routeId, 'Tuyến đường không tồn tại hoặc đã ngưng dùng');
+    await requireActiveCatalogRow(tx, 'container-type', s.containerTypes, final.containerTypeId, 'Loại container không tồn tại hoặc đã ngưng dùng');
+    await lockApplicationOwnedUniqueness(tx, 'catalog.pricing-table.selector', [
+      final.customerId, final.routeId, final.containerTypeId ?? null,
+      normalizeCatalogKey(final.rateKey), final.effectiveDate,
+    ]);
+    const [duplicate] = await tx.select({ id: s.pricingTables.id }).from(s.pricingTables)
+      .where(and(
+        eq(s.pricingTables.customerId, final.customerId), eq(s.pricingTables.routeId, final.routeId),
+        final.containerTypeId == null ? isNull(s.pricingTables.containerTypeId) : eq(s.pricingTables.containerTypeId, final.containerTypeId),
+        final.rateKey == null ? isNull(s.pricingTables.rateKey) : eq(s.pricingTables.rateKey, final.rateKey),
+        eq(s.pricingTables.effectiveDate, final.effectiveDate), isNull(s.pricingTables.deletedAt),
+        ne(s.pricingTables.id, id),
+      )).limit(1);
+    if (duplicate) throw new ApiError(409, 'Bảng giá cho phạm vi và ngày hiệu lực này đã tồn tại');
+    return data;
+  },
   governance: {
     reasonLabel: 'bảng giá cước',
   },
 }));
 router.use('/road-allowances', createCrudRouter(s.roadAllowances, roadAllowanceSchema, {
+  beforeCreate: async (data, _req, tx) => {
+    await requireActiveCatalogRow(tx, 'route', s.routes, data.routeId, 'Tuyến đường không tồn tại hoặc đã ngưng dùng');
+    await lockApplicationOwnedUniqueness(tx, 'catalog.road-allowance.route-type', [data.routeId, data.trailerType]);
+    const [duplicate] = await tx.select({ id: s.roadAllowances.id }).from(s.roadAllowances)
+      .where(and(eq(s.roadAllowances.routeId, data.routeId), eq(s.roadAllowances.trailerType, data.trailerType), isNull(s.roadAllowances.deletedAt)))
+      .limit(1);
+    if (duplicate) throw new ApiError(409, 'Phụ cấp cho tuyến và loại rơ-moóc này đã tồn tại');
+    return data;
+  },
+  beforeUpdate: async (id, data, _req, tx) => {
+    const [current] = await tx.select().from(s.roadAllowances).where(eq(s.roadAllowances.id, id)).limit(1);
+    if (!current) throw new ApiError(404, 'Không tìm thấy phụ cấp đường');
+    const final = { ...current, ...data };
+    await requireActiveCatalogRow(tx, 'route', s.routes, final.routeId, 'Tuyến đường không tồn tại hoặc đã ngưng dùng');
+    await lockApplicationOwnedUniqueness(tx, 'catalog.road-allowance.route-type', [final.routeId, final.trailerType]);
+    const [duplicate] = await tx.select({ id: s.roadAllowances.id }).from(s.roadAllowances)
+      .where(and(eq(s.roadAllowances.routeId, final.routeId), eq(s.roadAllowances.trailerType, final.trailerType), isNull(s.roadAllowances.deletedAt), ne(s.roadAllowances.id, id)))
+      .limit(1);
+    if (duplicate) throw new ApiError(409, 'Phụ cấp cho tuyến và loại rơ-moóc này đã tồn tại');
+    return data;
+  },
   governance: {
     reasonLabel: 'phụ cấp đường',
   },
@@ -1112,16 +1357,65 @@ router.use('/road-allowances', createCrudRouter(s.roadAllowances, roadAllowanceS
 // Wave 1: pricing & fuel catalog CRUD routes. All behind the existing
 // config RBAC (office staff: ADMIN/MANAGER/ACCOUNTANT).
 router.use('/fuel-norms', createCrudRouter(s.fuelNorms, fuelNormSchema, {
+  beforeCreate: async (data, _req, tx) => {
+    await requireActiveCatalogRow(tx, 'route', s.routes, data.routeId, 'Tuyến đường không tồn tại hoặc đã ngưng dùng');
+    await requireActiveCatalogRow(tx, 'truck', s.trucks, data.truckId, 'Xe đầu kéo không tồn tại hoặc đã ngưng dùng');
+    return data;
+  },
+  beforeUpdate: async (_id, data, _req, tx) => {
+    if (data.routeId !== undefined) await requireActiveCatalogRow(tx, 'route', s.routes, data.routeId, 'Tuyến đường không tồn tại hoặc đã ngưng dùng');
+    if (data.truckId !== undefined) await requireActiveCatalogRow(tx, 'truck', s.trucks, data.truckId, 'Xe đầu kéo không tồn tại hoặc đã ngưng dùng');
+    return data;
+  },
   governance: {
     reasonLabel: 'định mức nhiên liệu',
   },
 }));
 router.use('/weight-pricing-tiers', createCrudRouter(s.weightPricingTiers, weightPricingTierSchema, {
+  beforeCreate: async (data, _req, tx) => {
+    await requireActiveCatalogRow(tx, 'route', s.routes, data.routeId, 'Tuyến đường không tồn tại hoặc đã ngưng dùng');
+    await requireActiveCatalogRow(tx, 'cargo-type', s.cargoTypes, data.cargoTypeId, 'Loại hàng không tồn tại hoặc đã ngưng dùng');
+    return data;
+  },
+  beforeUpdate: async (_id, data, _req, tx) => {
+    if (data.routeId !== undefined) await requireActiveCatalogRow(tx, 'route', s.routes, data.routeId, 'Tuyến đường không tồn tại hoặc đã ngưng dùng');
+    if (data.cargoTypeId !== undefined) await requireActiveCatalogRow(tx, 'cargo-type', s.cargoTypes, data.cargoTypeId, 'Loại hàng không tồn tại hoặc đã ngưng dùng');
+    return data;
+  },
   governance: {
     reasonLabel: 'bậc giá theo trọng lượng',
   },
 }));
 router.use('/lift-pricing', createCrudRouter(s.liftPricing, liftPricingSchema, {
+  beforeCreate: async (data, _req, tx) => {
+    await requireActiveCatalogRow(tx, 'port', s.ports, data.portId, 'Cảng không tồn tại hoặc đã ngưng dùng');
+    await requireActiveCatalogRow(tx, 'container-type', s.containerTypes, data.containerTypeId, 'Loại container không tồn tại hoặc đã ngưng dùng');
+    await lockApplicationOwnedUniqueness(tx, 'catalog.lift-pricing.selector', [data.portId, data.containerTypeId, data.direction, data.loadState, data.effectiveDate]);
+    const [duplicate] = await tx.select({ id: s.liftPricing.id }).from(s.liftPricing)
+      .where(and(
+        eq(s.liftPricing.portId, data.portId), eq(s.liftPricing.containerTypeId, data.containerTypeId),
+        eq(s.liftPricing.direction, data.direction), eq(s.liftPricing.loadState, data.loadState),
+        eq(s.liftPricing.effectiveDate, data.effectiveDate), isNull(s.liftPricing.deletedAt),
+      )).limit(1);
+    if (duplicate) throw new ApiError(409, 'Giá nâng hạ cho phạm vi và ngày hiệu lực này đã tồn tại');
+    return data;
+  },
+  beforeUpdate: async (id, data, _req, tx) => {
+    const [current] = await tx.select().from(s.liftPricing).where(eq(s.liftPricing.id, id)).limit(1);
+    if (!current) throw new ApiError(404, 'Không tìm thấy giá nâng hạ');
+    const final = { ...current, ...data };
+    await requireActiveCatalogRow(tx, 'port', s.ports, final.portId, 'Cảng không tồn tại hoặc đã ngưng dùng');
+    await requireActiveCatalogRow(tx, 'container-type', s.containerTypes, final.containerTypeId, 'Loại container không tồn tại hoặc đã ngưng dùng');
+    await lockApplicationOwnedUniqueness(tx, 'catalog.lift-pricing.selector', [final.portId, final.containerTypeId, final.direction, final.loadState, final.effectiveDate]);
+    const [duplicate] = await tx.select({ id: s.liftPricing.id }).from(s.liftPricing)
+      .where(and(
+        eq(s.liftPricing.portId, final.portId), eq(s.liftPricing.containerTypeId, final.containerTypeId),
+        eq(s.liftPricing.direction, final.direction), eq(s.liftPricing.loadState, final.loadState),
+        eq(s.liftPricing.effectiveDate, final.effectiveDate), isNull(s.liftPricing.deletedAt), ne(s.liftPricing.id, id),
+      )).limit(1);
+    if (duplicate) throw new ApiError(409, 'Giá nâng hạ cho phạm vi và ngày hiệu lực này đã tồn tại');
+    return data;
+  },
   governance: {
     reasonLabel: 'giá nâng hạ',
   },
@@ -1134,16 +1428,22 @@ const ancillaryRevenueRouter = createCrudRouter(s.ancillaryRevenue, ancillaryRev
   governance: {
     reasonLabel: 'doanh thu bổ sung',
   },
-  beforeCreate: (data) => {
+  beforeCreate: async (data, _req, tx) => {
     if (Number(data.amount) < 0 && (!data.note || !String(data.note).trim())) {
       throw new ApiError(400, 'Lý do hoàn tiền là bắt buộc khi số tiền âm');
     }
+    await requireActiveCatalogRow(tx, 'customer', s.customers, data.customerId, 'Khách hàng không tồn tại hoặc đã ngưng dùng');
+    await requireExistingRow(tx, 'shipment', s.shipments, data.shipmentId, 'Lô hàng liên kết không tồn tại');
+    await requireExistingRow(tx, 'trip', s.trips, data.tripId, 'Chuyến xe liên kết không tồn tại');
     return data;
   },
-  beforeUpdate: (_id, data) => {
+  beforeUpdate: async (_id, data, _req, tx) => {
     if (data.amount !== undefined && Number(data.amount) < 0 && (!data.note || !String(data.note).trim())) {
       throw new ApiError(400, 'Lý do hoàn tiền là bắt buộc khi số tiền âm');
     }
+    if (data.customerId !== undefined) await requireActiveCatalogRow(tx, 'customer', s.customers, data.customerId, 'Khách hàng không tồn tại hoặc đã ngưng dùng');
+    if (data.shipmentId !== undefined) await requireExistingRow(tx, 'shipment', s.shipments, data.shipmentId, 'Lô hàng liên kết không tồn tại');
+    if (data.tripId !== undefined) await requireExistingRow(tx, 'trip', s.trips, data.tripId, 'Chuyến xe liên kết không tồn tại');
     return data;
   },
 });
@@ -1210,6 +1510,7 @@ router.use('/suppliers', createCrudRouter(s.suppliers, supplierSchema, {
       .set({ linkedSupplierId: null, updatedAt: new Date() })
       .where(eq(s.customers.linkedSupplierId, id));
   },
+  beforeDelete: (id, _req, tx) => lockCatalogDelete(tx, 'supplier', id),
 }));
 router.use('/expense-categories', createCrudRouter(s.expenseCategories, expenseCategorySchema, {
   searchableField: 'name',
@@ -1219,11 +1520,24 @@ router.use('/expense-categories', createCrudRouter(s.expenseCategories, expenseC
     shouldGovernUpdate: () => true,
     shouldGovernDelete: () => true,
   },
+  beforeDelete: (id, _req, tx) => lockCatalogDelete(tx, 'expense-category', id),
 }));
 // Debit-note templates — dedicated transactional router (NOT crud-factory) so the
 // single-default invariant is enforced atomically. See the route file's header.
 router.use('/debit-note-templates', debitNoteTemplatesRouter);
-router.use('/tire-positions', createCrudRouter(s.tirePositions, tirePositionSchema, { searchableField: 'name' }));
+router.use('/tire-positions', createCrudRouter(s.tirePositions, tirePositionSchema, {
+  searchableField: 'name',
+  beforeCreate: async (data, _req, tx) => {
+    await assertUniqueCatalogString({ tx, scope: 'tire-position.name', value: data.name, table: s.tirePositions, column: s.tirePositions.name, message: 'Vị trí lốp đã tồn tại' });
+    return data;
+  },
+  beforeUpdate: async (id, data, _req, tx) => {
+    if (data.name !== undefined) {
+      await assertUniqueCatalogString({ tx, scope: 'tire-position.name', value: data.name, id, table: s.tirePositions, column: s.tirePositions.name, message: 'Vị trí lốp đã tồn tại' });
+    }
+    return data;
+  },
+}));
 
 // Drivers — special handling (includes user_id, no delete per spec §4.2)
 router.use('/drivers', createCrudRouter(s.drivers, driverSchema, {
@@ -1247,17 +1561,27 @@ router.use('/fleet/tires', createCrudRouter(s.tires, tireSchema, {
   // A tire mounts on a truck OR a trailer — never both. installTireSchema
   // already enforces this on the lifecycle endpoint; mirror it on generic CRUD
   // create/update so a row can't be saved mounted on two vehicles at once.
-  beforeCreate: async (data) => {
+  beforeCreate: async (data, _req, tx) => {
     if (data.truckId && data.trailerId) {
       throw new ApiError(400, 'Lốp chỉ lắp trên xe đầu kéo hoặc rơ-moóc, không cả hai');
     }
+    await assertUniqueCatalogString({ tx, scope: 'tire.serial', value: data.serial, table: s.tires, column: s.tires.serial, message: 'Số sê-ri lốp đã tồn tại' });
+    await requireActiveCatalogRow(tx, 'truck', s.trucks, data.truckId, 'Xe đầu kéo không tồn tại hoặc đã ngưng dùng');
+    await requireActiveCatalogRow(tx, 'trailer', s.trailers, data.trailerId, 'Rơ-moóc không tồn tại hoặc đã ngưng dùng');
+    await requireActiveCatalogRow(tx, 'supplier', s.suppliers, data.supplierId, 'Nhà cung cấp không tồn tại hoặc đã ngưng dùng');
     await assertTireSerialAvailable(data.serial);
     return data;
   },
-  beforeUpdate: async (id, data) => {
+  beforeUpdate: async (id, data, _req, tx) => {
     if (data.truckId && data.trailerId) {
       throw new ApiError(400, 'Lốp chỉ lắp trên xe đầu kéo hoặc rơ-moóc, không cả hai');
     }
+    if (data.serial !== undefined) {
+      await assertUniqueCatalogString({ tx, scope: 'tire.serial', value: data.serial, id, table: s.tires, column: s.tires.serial, message: 'Số sê-ri lốp đã tồn tại' });
+    }
+    if (data.truckId !== undefined) await requireActiveCatalogRow(tx, 'truck', s.trucks, data.truckId, 'Xe đầu kéo không tồn tại hoặc đã ngưng dùng');
+    if (data.trailerId !== undefined) await requireActiveCatalogRow(tx, 'trailer', s.trailers, data.trailerId, 'Rơ-moóc không tồn tại hoặc đã ngưng dùng');
+    if (data.supplierId !== undefined) await requireActiveCatalogRow(tx, 'supplier', s.suppliers, data.supplierId, 'Nhà cung cấp không tồn tại hoặc đã ngưng dùng');
     await assertTireSerialAvailable(data.serial, id);
     return data;
   },

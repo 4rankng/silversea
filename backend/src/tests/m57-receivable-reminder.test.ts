@@ -92,19 +92,21 @@ async function mkUser(
 }
 
 async function mkCalendarDay(calendarDate: string, isWorkingDay: boolean, name = 'M57 holiday') {
-  const [existing] = await db.select({ name: s.businessCalendarDays.name })
+  const [existing] = await db.select({ id: s.businessCalendarDays.id, name: s.businessCalendarDays.name })
     .from(s.businessCalendarDays)
     .where(eq(s.businessCalendarDays.calendarDate, calendarDate))
     .limit(1);
   if (existing && !String(existing.name ?? '').startsWith('M57')) {
     throw new Error(`Refusing to replace non-test business calendar day ${calendarDate}`);
   }
-  await db.insert(s.businessCalendarDays)
-    .values({ calendarDate, isWorkingDay, name })
-    .onConflictDoUpdate({
-      target: s.businessCalendarDays.calendarDate,
-      set: { isWorkingDay, name },
-    });
+  if (existing) {
+    await db.update(s.businessCalendarDays)
+      .set({ isWorkingDay, name })
+      .where(eq(s.businessCalendarDays.id, existing.id));
+  } else {
+    await db.insert(s.businessCalendarDays)
+      .values({ calendarDate, isWorkingDay, name });
+  }
   createdCalendarDates.add(calendarDate);
 }
 

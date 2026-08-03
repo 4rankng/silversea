@@ -44,7 +44,9 @@ const CUSTOMER_USERNAME = 'customer';
 // seed run's rows are preserved.
 const preExistingShipmentIds = new Set<number>();
 const preExistingCustomerIds = new Set<number>();
-const preExistingCustomerUserId: { value: number | null } = { value: null };
+const preExistingCustomerUser: {
+  value: Pick<typeof s.users.$inferSelect, 'id' | 'email'> | null;
+} = { value: null };
 
 async function findSeedShipments(): Promise<{ id: number; bookingRef: string | null }[]> {
   return await db.select({ id: s.shipments.id, bookingRef: s.shipments.bookingRef })
@@ -62,10 +64,10 @@ before(async () => {
   // Snapshot existing seed rows so cleanup can avoid touching them.
   for (const sh of await findSeedShipments()) preExistingShipmentIds.add(sh.id);
   for (const c of await findSampleCustomers()) preExistingCustomerIds.add(c.id);
-  const [existingUser] = await db.select({ id: s.users.id })
+  const [existingUser] = await db.select({ id: s.users.id, email: s.users.email })
     .from(s.users)
     .where(eq(s.users.username, CUSTOMER_USERNAME));
-  preExistingCustomerUserId.value = existingUser?.id ?? null;
+  preExistingCustomerUser.value = existingUser ?? null;
 
   // Seed ONCE up-front so every test shares known setup. This decouples the
   // tests from `node --test`'s sequential ordering (which is not guaranteed
@@ -106,7 +108,7 @@ after(async () => {
 
   // CUSTOMER demo user — delete only if THIS test created it (i.e. it did
   // not pre-exist from `pnpm seed`).
-  if (preExistingCustomerUserId.value === null) {
+  if (preExistingCustomerUser.value === null) {
     try {
       await db.delete(s.users).where(eq(s.users.username, CUSTOMER_USERNAME));
     } catch (err) {
@@ -124,7 +126,11 @@ describe('seedShipments — Wave 0 shipment + CUSTOMER seed', () => {
     const [u] = await db.select().from(s.users).where(eq(s.users.username, CUSTOMER_USERNAME));
     assert.ok(u, 'CUSTOMER demo user exists');
     assert.equal(u.role, 'CUSTOMER');
-    assert.equal(u.email, 'customer@nepo.vn');
+    assert.equal(
+      u.email,
+      preExistingCustomerUser.value?.email ?? 'customer@nepo.vn',
+      'seeding preserves an existing account email and only supplies the canonical email for a new account',
+    );
     assert.ok(u.customerId, 'CUSTOMER demo user is linked to an AR customer for portal row scope');
   });
 
@@ -177,14 +183,14 @@ describe('seedShipments — Wave 0 shipment + CUSTOMER seed', () => {
     // Status history: creation row + transitions.
     // SEED-SHIP-1 (NEW): 1 row (creation).
     // SEED-SHIP-2 (DISPATCHED): 2 rows (creation + NEW→DISPATCHED).
-    // SEED-SHIP-3 (PENDING_EXPENSE_APPROVAL): 3 rows (creation + NEW→DISPATCHED + DISPATCHED→PENDING_EXPENSE_APPROVAL).
+    // SEED-SHIP-3 (PENDING_EXPENSE_APPROVAL): 4 rows (creation + the three legal transitions).
     const history = await db.select()
       .from(s.shipmentStatusHistory)
       .where(inArray(s.shipmentStatusHistory.shipmentId, ids));
     const countFor = (ref: string) => history.filter((h) => h.shipmentId === idByRef.get(ref)).length;
     assert.equal(countFor('SEED-SHIP-1'), 1, 'SEED-SHIP-1 has 1 history row (creation)');
     assert.equal(countFor('SEED-SHIP-2'), 2, 'SEED-SHIP-2 has 2 history rows');
-    assert.equal(countFor('SEED-SHIP-3'), 3, 'SEED-SHIP-3 has 3 history rows');
+    assert.equal(countFor('SEED-SHIP-3'), 4, 'SEED-SHIP-3 has 4 history rows');
   });
 
   test('is idempotent — running twice produces the same row counts', async () => {

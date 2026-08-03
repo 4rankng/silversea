@@ -1218,9 +1218,7 @@ async function assertRoutineShipmentCloseCheckerSeparation(
   const acceptedRows = await tx.select({
     tripId: s.tripPodSubmissions.tripId,
     reviewedBy: s.tripPodSubmissions.reviewedBy,
-    reviewerRole: s.users.role,
   }).from(s.tripPodSubmissions)
-    .leftJoin(s.users, eq(s.users.id, s.tripPodSubmissions.reviewedBy))
     .where(and(
       inArray(s.tripPodSubmissions.tripId, tripIds),
       eq(s.tripPodSubmissions.status, TripPodStatus.ACCEPTED),
@@ -1228,12 +1226,20 @@ async function assertRoutineShipmentCloseCheckerSeparation(
     .orderBy(desc(s.tripPodSubmissions.tripId), desc(s.tripPodSubmissions.submissionVersion), desc(s.tripPodSubmissions.id))
     .for('update');
 
+  const reviewerIds = [...new Set(acceptedRows.flatMap((row) => row.reviewedBy == null ? [] : [row.reviewedBy]))];
+  const reviewerRoles = reviewerIds.length === 0
+    ? new Map<number, string>()
+    : new Map((await tx.select({ id: s.users.id, role: s.users.role })
+      .from(s.users)
+      .where(inArray(s.users.id, reviewerIds)))
+      .map((row) => [row.id, row.role]));
+
   const latestAcceptedByTrip = new Map<number, { reviewedBy: number | null; reviewerRole: string | null }>();
   for (const row of acceptedRows) {
     if (!latestAcceptedByTrip.has(row.tripId)) {
       latestAcceptedByTrip.set(row.tripId, {
         reviewedBy: row.reviewedBy,
-        reviewerRole: row.reviewerRole,
+        reviewerRole: row.reviewedBy == null ? null : reviewerRoles.get(row.reviewedBy) ?? null,
       });
     }
   }

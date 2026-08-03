@@ -1,6 +1,6 @@
 import {
   pgTable, serial, varchar, text, integer, boolean, timestamp,
-  jsonb, numeric, date, index, doublePrecision, smallint,
+  jsonb, numeric, date, uniqueIndex, index, doublePrecision, smallint,
   customType,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
@@ -94,9 +94,9 @@ export const emailStatusEnum = applicationEnum([
 
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
-  username: varchar('username', { length: 100 }),
-  email: varchar('email', { length: 255 }),
-  phone: varchar('phone', { length: 20 }),
+  username: varchar('username', { length: 100 }).unique(),
+  email: varchar('email', { length: 255 }).unique(),
+  phone: varchar('phone', { length: 20 }).unique(),
   // Human-readable full name (e.g. "Lê Văn Tài"). Used as the actor label in
   // audit log messages so users see "Quản lý Lê Văn Tài khóa chuyến" instead
   // of the email "Quản lý giamdoc@nepo.vn khóa chuyến #76".
@@ -126,7 +126,7 @@ export const users = pgTable('users', {
 
 export const trucks = pgTable('trucks', {
   id: serial('id').primaryKey(),
-  licensePlate: varchar('license_plate', { length: 20 }).notNull(),
+  licensePlate: varchar('license_plate', { length: 20 }).unique().notNull(),
   trailerPlateNumber: varchar('trailer_plate_number', { length: 20 }),
   trailerType: trailerTypeEnum('trailer_type'),
   currentTrailerId: integer('current_trailer_id'),
@@ -145,7 +145,7 @@ export const trucks = pgTable('trucks', {
 
 export const trailers = pgTable('trailers', {
   id: serial('id').primaryKey(),
-  licensePlate: varchar('license_plate', { length: 20 }).notNull(),
+  licensePlate: varchar('license_plate', { length: 20 }).notNull().unique(),
   type: trailerTypeEnum('type').notNull(),
   status: trailerStatusEnum('status').default('ACTIVE').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -223,7 +223,7 @@ export const suppliers = pgTable('suppliers', {
 // instead of baking extra lifecycle states into a database enum.
 export const tires = pgTable('tires', {
   id: serial('id').primaryKey(),
-  serial: varchar('serial', { length: 64 }).notNull(),
+  serial: varchar('serial', { length: 64 }).notNull().unique(),
   truckId: integer('truck_id'),
   // A tire mounts on a truck OR a trailer; both nullable for a spare in stock.
   // onDelete:'set null' mirrors migration 0070 (a deleted rơ-moóc unlinks its
@@ -251,7 +251,7 @@ export const tires = pgTable('tires', {
 
 export const tirePositions = pgTable('tire_positions', {
   id: serial('id').primaryKey(),
-  name: varchar('name', { length: 64 }).notNull(),
+  name: varchar('name', { length: 64 }).notNull().unique(),
   sortOrder: integer('sort_order').default(0).notNull(),
   status: varchar('status', { length: 20 }).notNull().default('ACTIVE'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -340,7 +340,7 @@ export const userCustomerLinks = pgTable('user_customer_links', {
 
 export const businessUnits = pgTable('business_units', {
   id: serial('id').primaryKey(),
-  code: varchar('code', { length: 50 }),
+  code: varchar('code', { length: 50 }).unique(),
   name: varchar('name', { length: 255 }).notNull(),
   status: varchar('status', { length: 20 }).notNull().default('ACTIVE'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -595,7 +595,7 @@ export const penaltyReasons = pgTable('penalty_reasons', {
 
 export const trips = pgTable('trips', {
   id: serial('id').primaryKey(),
-  tripCode: varchar('trip_code', { length: 50 }),
+  tripCode: varchar('trip_code', { length: 50 }).unique(),
   version: integer('version').default(1).notNull(),
   createdBy: integer('created_by'),
   customerId: integer('customer_id').notNull(),
@@ -1450,7 +1450,7 @@ export const expensePhotos = pgTable('expense_photos', {
 
 export const containerTypes = pgTable('container_types', {
   id: serial('id').primaryKey(),
-  code: varchar('code', { length: 20 }).notNull(), // e.g. "20DC", "40HC"
+  code: varchar('code', { length: 20 }).notNull().unique(), // e.g. "20DC", "40HC"
   name: varchar('name', { length: 50 }).notNull(),          // e.g. "20'DC", "40'HC"
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -1470,7 +1470,7 @@ export const sealTypes = pgTable('seal_types', {
 export const ports = pgTable('ports', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),   // e.g. "Cảng Hải Phòng"
-  code: varchar('code', { length: 20 }),     // e.g. "HPH"
+  code: varchar('code', { length: 20 }).unique(),     // e.g. "HPH"
   address: text('address'),
   city: varchar('city', { length: 100 }).default('Hải Phòng'),
   notes: text('notes'),
@@ -1481,7 +1481,7 @@ export const ports = pgTable('ports', {
 
 export const forwarderExpenseTypes = pgTable('forwarder_expense_types', {
   id: serial('id').primaryKey(),
-  code: varchar('code', { length: 50 }).notNull(),
+  code: varchar('code', { length: 50 }).notNull().unique(),
   name: varchar('name', { length: 100 }).notNull(),
   status: varchar('status', { length: 20 }).notNull().default('ACTIVE'),
   // Wave 2 M3.7: when true, trip expenses of this type MUST have an invoice
@@ -2373,7 +2373,7 @@ export const shipments = pgTable('shipments', {
   // `{customerCode}-{YYMMDD}-{NNN}`); the gen logic ships with the service in
   // a later Wave 0 checkbox. Nullable here so draft rows can exist before code
   // assignment.
-  shipmentCode: varchar('shipment_code', { length: 50 }),
+  shipmentCode: varchar('shipment_code', { length: 50 }).unique(),
   // Optimistic locking, mirroring trips.
   version: integer('version').default(1).notNull(),
   customerId: integer('customer_id').notNull(),

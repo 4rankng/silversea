@@ -9,7 +9,7 @@
  *     current version snapshot for conflict detection.
  *   - markSeen: transitions UNSEEN → SEEN (dispatcher opened it).
  *   - resolveHandoff: transitions to ACCEPTED or REJECTED with a
- *     reason. One active handoff per shipment (UNSEEN/SEEN unique index).
+ *     reason. One active handoff per shipment (UNSEEN/SEEN application guard).
  *   - Version-conflict detection: checkVersionConflict compares the
  *     handoff's snapshot version against the shipment's current version.
  *     If they diverge, the caller should warn the dispatcher
@@ -25,6 +25,7 @@ import { emitNotification } from './notification.service';
 import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
 import { assertActorCanAccessShipment } from './shipment-coordination.service';
+import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 
 export type HandoffStatus = 'UNSEEN' | 'SEEN' | 'ACCEPTED' | 'REJECTED';
 
@@ -47,14 +48,19 @@ export interface HandoffVersionCheck {
 
 /**
  * Create a new dispatch handoff for a shipment. The shipment must not
- * already have an active (UNSEEN/SEEN) handoff — enforced by the partial
- * unique index.
+ * already have an active (UNSEEN/SEEN) handoff — enforced by an
+ * application-owned lock and canonical lookup.
  */
 export async function createHandoff(input: CreateHandoffInput) {
   const execute = async (tx: Tx) => {
     if (input.actor) {
       await assertActorCanAccessShipment(tx, input.shipmentId, input.actor, { write: true });
     }
+    await lockApplicationOwnedUniqueness(
+      tx,
+      'dispatch-handoff:active-shipment',
+      [input.shipmentId],
+    );
     // Locking the shipment makes the version snapshot and handoff insert one
     // authoritative operation.
     const [shipment] = await tx.select({ id: s.shipments.id, version: s.shipments.version, shipmentCode: s.shipments.shipmentCode })
@@ -63,6 +69,17 @@ export async function createHandoff(input: CreateHandoffInput) {
       .limit(1)
       .for('update');
     if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
+
+    const [active] = await tx.select({ id: s.dispatchHandoffs.id })
+      .from(s.dispatchHandoffs)
+      .where(and(
+        eq(s.dispatchHandoffs.shipmentId, input.shipmentId),
+        sql`${s.dispatchHandoffs.status} IN ('UNSEEN', 'SEEN')`,
+      ))
+      .limit(1);
+    if (active) {
+      throw new ApiError(409, 'Lô hàng đã có lệnh điều vận đang xử lý. Vui lòng tải lại.');
+    }
 
     const [handoff] = await tx.insert(s.dispatchHandoffs).values({
       shipmentId: input.shipmentId,
@@ -170,6 +187,11 @@ export async function resolveHandoff(
     const now = new Date();
     let supersedesHandoffId: number | null = null;
     if (resolution === 'ACCEPTED') {
+      await lockApplicationOwnedUniqueness(
+        tx,
+        'dispatch-handoff:accepted-shipment',
+        [existing.shipmentId],
+      );
       const [previousAccepted] = await tx.select().from(s.dispatchHandoffs)
         .where(and(
           eq(s.dispatchHandoffs.shipmentId, existing.shipmentId),

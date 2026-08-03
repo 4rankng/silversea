@@ -785,6 +785,36 @@ describe('Q15 governed material config resources', { concurrency: false }, () =>
     },
   ];
 
+  it('serializes duplicate governed requests even with different idempotency keys', async () => {
+    const payload = {
+      customerId,
+      routeId,
+      price: 2_345_678,
+      effectiveDate: '2098-12-01',
+    };
+    const [left, right] = await Promise.all([
+      api('POST', '/api/pricing-tables', {
+        body: payload,
+        idempotencyKey: `q15-app-authority-left-${suffix}`,
+      }),
+      api('POST', '/api/pricing-tables', {
+        body: payload,
+        idempotencyKey: `q15-app-authority-right-${suffix}`,
+      }),
+    ]);
+    assert.deepEqual([left.status, right.status].sort(), [201, 409]);
+    const winner = left.status === 201 ? left : right;
+    expectPendingAction(winner, 'duplicate governed request winner');
+
+    const activeRows = await db.select({ id: s.governanceActions.id })
+      .from(s.governanceActions)
+      .where(and(
+        eq(s.governanceActions.subjectKey, winner.body.subjectKey as string),
+        eq(s.governanceActions.status, 'PENDING_CHECK'),
+      ));
+    assert.equal(activeRows.length, 1);
+  });
+
   it('submits all financially material generated config resources for maker/checker/approver review before any DB effect', async () => {
     for (const resource of materialCases) {
       const create = await api('POST', resource.endpoint, { body: resource.createPayload() });

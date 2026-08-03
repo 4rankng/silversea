@@ -17,6 +17,7 @@ import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import { getFuelApReconciliation } from './fuel-ap-recon.service';
 import { assertFuelPeriodCanAbsorbLateApproval } from './period-lock.service';
+import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 
 /** True when an expense's expenseType indicates fuel (case-insensitive 'fuel'). */
 export function isFuelExpenseType(expenseType: string): boolean {
@@ -70,8 +71,8 @@ export async function hasFuelReconExplanation(
 
 /**
  * Record (or update) an explanation for a supplier's recon period.
- * Idempotent on (supplierId, periodFrom, periodTo) via the unique index —
- * a second call upserts the text + resolved variance.
+ * Idempotent on (supplierId, periodFrom, periodTo) through an application lock
+ * and canonical lookup. A second call updates the existing explanation.
  */
 export async function recordFuelReconExplanation(input: {
   supplierId: number;
@@ -85,41 +86,45 @@ export async function recordFuelReconExplanation(input: {
   if (!input.explanationText?.trim()) {
     throw new ApiError(400, 'Nội dung giải trình không được để trống');
   }
-  // Find existing row first so we can update in place rather than relying
-  // on a thrown unique constraint (which would surface as a 500 to the
-  // caller). Single round-trip in the common (no-prior-row) case.
-  const [existing] = await db.select({ id: s.fuelReconExplanations.id })
-    .from(s.fuelReconExplanations)
-    .where(and(
-      eq(s.fuelReconExplanations.supplierId, input.supplierId),
-      eq(s.fuelReconExplanations.periodFrom, input.periodFrom),
-      eq(s.fuelReconExplanations.periodTo, input.periodTo),
-    ))
-    .limit(1);
+  return db.transaction(async (tx) => {
+    await lockApplicationOwnedUniqueness(
+      tx,
+      'fuel-recon-explanation',
+      [input.supplierId, input.periodFrom, input.periodTo],
+    );
+    const [existing] = await tx.select({ id: s.fuelReconExplanations.id })
+      .from(s.fuelReconExplanations)
+      .where(and(
+        eq(s.fuelReconExplanations.supplierId, input.supplierId),
+        eq(s.fuelReconExplanations.periodFrom, input.periodFrom),
+        eq(s.fuelReconExplanations.periodTo, input.periodTo),
+      ))
+      .limit(1);
 
-  if (existing) {
-    const [updated] = await db.update(s.fuelReconExplanations)
-      .set({
-        explanationText: input.explanationText,
-        resolvedVariance: String(input.resolvedVariance),
-        note: input.note ?? null,
-        updatedAt: new Date(),
-      })
-      .where(eq(s.fuelReconExplanations.id, existing.id))
-      .returning();
-    return updated;
-  }
+    if (existing) {
+      const [updated] = await tx.update(s.fuelReconExplanations)
+        .set({
+          explanationText: input.explanationText.trim(),
+          resolvedVariance: String(input.resolvedVariance),
+          note: input.note ?? null,
+          updatedAt: new Date(),
+        })
+        .where(eq(s.fuelReconExplanations.id, existing.id))
+        .returning();
+      return updated;
+    }
 
-  const [row] = await db.insert(s.fuelReconExplanations).values({
-    supplierId: input.supplierId,
-    periodFrom: input.periodFrom,
-    periodTo: input.periodTo,
-    explanationText: input.explanationText,
-    resolvedVariance: String(input.resolvedVariance),
-    createdBy: input.createdBy ?? null,
-    note: input.note ?? null,
-  }).returning();
-  return row;
+    const [row] = await tx.insert(s.fuelReconExplanations).values({
+      supplierId: input.supplierId,
+      periodFrom: input.periodFrom,
+      periodTo: input.periodTo,
+      explanationText: input.explanationText.trim(),
+      resolvedVariance: String(input.resolvedVariance),
+      createdBy: input.createdBy ?? null,
+      note: input.note ?? null,
+    }).returning();
+    return row;
+  });
 }
 
 /** List explanations, optionally filtered by supplier and/or period range. */

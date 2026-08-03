@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS "vector";--> statement-breakpoint
+CREATE EXTENSION IF NOT EXISTS "unaccent";--> statement-breakpoint
 CREATE TABLE "advance_requests" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"version" integer DEFAULT 1 NOT NULL,

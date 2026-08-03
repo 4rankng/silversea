@@ -28,6 +28,13 @@ import {
   resolveDebitNotePeriodAuthority,
 } from './period-lock.service';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
+import {
+  checkBillingDocumentOverlap,
+  lockBillingDocumentOverlapAuthority,
+} from './billing-overlap-guard.service';
+import {
+  lockApplicationOwnedUniquenessSet,
+} from './application-owned-uniqueness.service';
 import type {
   BillingDocument,
   BillingDocumentDraft,
@@ -89,15 +96,6 @@ type FrozenDebitNoteTemplateSnapshot = DebitNoteTemplateSnapshot & {
 
 function trimIdentityValue(value: string | null | undefined): string {
   return typeof value === 'string' ? value.trim() : '';
-}
-
-function isConstraintConflict(err: unknown): boolean {
-  if (!err || typeof err !== 'object') return false;
-  const candidate = err as { code?: string; cause?: { code?: string } };
-  return candidate.code === '23505'
-    || candidate.cause?.code === '23505'
-    || candidate.code === '23P01'
-    || candidate.cause?.code === '23P01';
 }
 
 function stripHonorifics(value: string): string {
@@ -258,6 +256,13 @@ async function replaceActiveTripClaims(
   for (const claim of input.desiredClaims) {
     desiredByTripId.set(claim.tripId, claim);
   }
+  await lockApplicationOwnedUniquenessSet(
+    tx,
+    [...desiredByTripId.keys()].map((tripId) => ({
+      scope: 'billing-document-trip-claim',
+      parts: [tripId],
+    })),
+  );
 
   const currentClaims = await tx.select({
     id: s.billingDocumentTripClaims.id,
@@ -342,24 +347,7 @@ async function replaceActiveTripClaims(
     }));
   if (insertRows.length === 0) return;
 
-  try {
-    await tx.insert(s.billingDocumentTripClaims).values(insertRows);
-  } catch (err) {
-    if (!isConstraintConflict(err)) throw err;
-    const freshConflict = await loadConflictingTripClaim(tx, {
-      tripIds: insertRows.map((row) => row.tripId),
-      rangeFrom: input.rangeFrom,
-      rangeTo: input.rangeTo,
-      documentId: input.documentId,
-    });
-    if (freshConflict) {
-      throw new ApiError(
-        409,
-        `Chuyến ${freshConflict.tripCode ?? 'chưa có mã'} đã thuộc một giấy báo nợ trong kỳ bị chồng lấn.`,
-      );
-    }
-    throw new ApiError(409, 'Nguồn chuyến vừa bị tài liệu khác nhận trước. Vui lòng tải lại và thử lại.');
-  }
+  await tx.insert(s.billingDocumentTripClaims).values(insertRows);
 }
 
 export function assertDraftDocumentLinesEditable(status: string | null): void {
@@ -516,6 +504,13 @@ export async function assertRecoverableSourcesClaimable(
   if (new Set(expenseIds).size !== expenseIds.length) {
     throw new ApiError(409, 'Một chi phí thu hộ chỉ được xuất hiện một lần trên Giấy báo nợ.');
   }
+  await lockApplicationOwnedUniquenessSet(
+    tx,
+    expenseIds.map((expenseId) => ({
+      scope: 'billing-document-recoverable-claim',
+      parts: [expenseId],
+    })),
+  );
 
   const expenses = await tx.select({
     id: s.tripExpenses.id,
@@ -2032,6 +2027,7 @@ export async function saveDocument(
   const execute = async (tx: Tx) => {
     if (input.type === 'DEBIT_NOTE' && input.entityType === 'CUSTOMER') {
       await LedgerService.lockEntity(tx, 'CUSTOMER', input.entityId);
+      await lockBillingDocumentOverlapAuthority(tx, input);
       const authority = await resolveDebitNotePeriodAuthority(tx, input.entityId, input.rangeFrom, input.rangeTo);
       await assertDebitNotePeriodWritable(tx, authority);
       const sourceLockIds = await resolveBillingDocumentSourcePeriodLocks(
@@ -2050,6 +2046,21 @@ export async function saveDocument(
         eq(s.billingDocuments.rangeTo, input.rangeTo),
         isNull(s.billingDocuments.deletedAt),
       )).limit(1).for('update');
+
+      const overlap = await checkBillingDocumentOverlap({
+        type: input.type,
+        entityType: input.entityType,
+        entityId: input.entityId,
+        rangeFrom: input.rangeFrom,
+        rangeTo: input.rangeTo,
+        excludeId: existing?.id,
+      }, tx);
+      if (overlap.hasOverlap) {
+        throw new ApiError(
+          409,
+          'Kỳ giấy báo nợ bị chồng lấn với tài liệu đang hoạt động. Vui lòng điều chỉnh kỳ hoặc hủy tài liệu cũ.',
+        );
+      }
 
       if (existing) {
         const currentTripIds = await persistedClaimTripIds(tx, existing.id);
@@ -2291,6 +2302,7 @@ export async function updateDocument(
   const execute = async (tx: Tx) => {
     if (input.type === 'DEBIT_NOTE' && input.entityType === 'CUSTOMER') {
       await LedgerService.lockEntity(tx, 'CUSTOMER', input.entityId);
+      await lockBillingDocumentOverlapAuthority(tx, input);
       const authority = await resolveDebitNotePeriodAuthority(tx, input.entityId, input.rangeFrom, input.rangeTo);
       await assertDebitNotePeriodWritable(tx, authority);
     }
@@ -2301,6 +2313,22 @@ export async function updateDocument(
     if (!current) throw new ApiError(404, 'Không tìm thấy tài liệu');
     if (current.type !== input.type || current.entityType !== input.entityType || current.entityId !== input.entityId) {
       throw new ApiError(400, 'Không thể đổi khách hàng hoặc loại của tài liệu đã lưu');
+    }
+    if (input.type === 'DEBIT_NOTE' && input.entityType === 'CUSTOMER') {
+      const overlap = await checkBillingDocumentOverlap({
+        type: input.type,
+        entityType: input.entityType,
+        entityId: input.entityId,
+        rangeFrom: input.rangeFrom,
+        rangeTo: input.rangeTo,
+        excludeId: id,
+      }, tx);
+      if (overlap.hasOverlap) {
+        throw new ApiError(
+          409,
+          'Kỳ giấy báo nợ bị chồng lấn với tài liệu đang hoạt động. Vui lòng điều chỉnh kỳ hoặc hủy tài liệu cũ.',
+        );
+      }
     }
     const currentTripIds = await persistedClaimTripIds(tx, id);
     const initialTripIds = [...new Set([

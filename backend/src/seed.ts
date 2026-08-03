@@ -861,8 +861,9 @@ export async function seedShipments(passwordHash: string) {
     if (s.advanceTo === 'DISPATCHED') {
       await transitionShipmentStatus(shipment.id, 'DISPATCHED', { reason: 'Điều vận (seed)' });
     } else if (s.advanceTo === 'PENDING_EXPENSE_APPROVAL') {
-      // Two legal edges required: NEW → DISPATCHED → PENDING_EXPENSE_APPROVAL.
+      // Follow the current PRD lifecycle through every legal edge.
       await transitionShipmentStatus(shipment.id, 'DISPATCHED', { reason: 'Điều vận (seed)' });
+      await transitionShipmentStatus(shipment.id, 'IN_TRANSIT', { reason: 'Đang vận chuyển (seed)' });
       await transitionShipmentStatus(shipment.id, 'PENDING_EXPENSE_APPROVAL', { reason: 'Giao hàng (seed)' });
     }
     createdCount++;

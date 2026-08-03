@@ -31,6 +31,10 @@ import {
   lockTruckRow,
   lockUserRowForUpdate,
 } from './application-relationship.service';
+import {
+  lockApplicationOwnedUniquenessSet,
+  type ApplicationOwnedUniquenessLock,
+} from './application-owned-uniqueness.service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -142,10 +146,71 @@ function driverBusinessUnitIds(
   return role === Role.CLERK || role === Role.DRIVER ? businessUnitIds : [];
 }
 
-function isUniqueViolation(err: unknown): boolean {
-  if (!err || typeof err !== 'object') return false;
-  const candidate = err as { code?: string; cause?: { code?: string } };
-  return candidate.code === '23505' || candidate.cause?.code === '23505';
+function canonicalIdentity(value: string | null | undefined): string | null {
+  const normalized = value?.trim().toLowerCase();
+  return normalized ? normalized : null;
+}
+
+type UserIdentity = Pick<typeof users.$inferSelect, 'username' | 'email' | 'phone'>;
+
+function userIdentityLocks(identity: UserIdentity): ApplicationOwnedUniquenessLock[] {
+  return (['username', 'email', 'phone'] as const).flatMap((field) => {
+    const value = canonicalIdentity(identity[field]);
+    return value ? [{ scope: `users.${field}`, parts: [value] }] : [];
+  });
+}
+
+async function assertUserIdentityAvailable(
+  tx: Tx,
+  next: UserIdentity,
+  options: { previous?: UserIdentity; excludeUserId?: number } = {},
+): Promise<void> {
+  await lockApplicationOwnedUniquenessSet(tx, [
+    ...userIdentityLocks(options.previous ?? { username: null, email: null, phone: null }),
+    ...userIdentityLocks(next),
+  ]);
+  const clauses = (['username', 'email', 'phone'] as const).flatMap((field) => {
+    const value = canonicalIdentity(next[field]);
+    return value ? [sql`lower(btrim(${users[field]})) = ${value}`] : [];
+  });
+  if (clauses.length === 0) return;
+  const where = options.excludeUserId == null
+    ? or(...clauses)
+    : and(ne(users.id, options.excludeUserId), or(...clauses));
+  const [conflict] = await tx.select({ id: users.id }).from(users).where(where).limit(1);
+  if (conflict) throw new ApiError(409, 'Tên đăng nhập, email hoặc số điện thoại đã tồn tại');
+}
+
+type BusinessUnitIdentity = Pick<typeof businessUnits.$inferSelect, 'code' | 'name'>;
+
+function businessUnitIdentityLocks(identity: BusinessUnitIdentity): ApplicationOwnedUniquenessLock[] {
+  return (['code', 'name'] as const).flatMap((field) => {
+    const value = canonicalIdentity(identity[field]);
+    return value ? [{ scope: `business_units.${field}`, parts: [value] }] : [];
+  });
+}
+
+async function assertBusinessUnitIdentityAvailable(
+  tx: Tx,
+  next: BusinessUnitIdentity,
+  options: { previous?: BusinessUnitIdentity; excludeId?: number } = {},
+): Promise<void> {
+  await lockApplicationOwnedUniquenessSet(tx, [
+    ...businessUnitIdentityLocks(options.previous ?? { code: null, name: '' }),
+    ...businessUnitIdentityLocks(next),
+  ]);
+  const code = canonicalIdentity(next.code);
+  const name = canonicalIdentity(next.name);
+  const identityClause = or(
+    ...(code ? [sql`lower(btrim(${businessUnits.code})) = ${code}`] : []),
+    ...(name ? [sql`lower(btrim(${businessUnits.name})) = ${name}`] : []),
+  );
+  if (!identityClause) return;
+  const where = options.excludeId == null
+    ? identityClause
+    : and(ne(businessUnits.id, options.excludeId), identityClause);
+  const [conflict] = await tx.select({ id: businessUnits.id }).from(businessUnits).where(where).limit(1);
+  if (conflict) throw new ApiError(409, 'Mã hoặc tên đơn vị phụ trách đã tồn tại');
 }
 
 async function loadCustomerIds(
@@ -530,10 +595,14 @@ export async function createUserWithTx(tx: Tx, data: {
   } else if (businessUnitIds.length > 0 || shipmentIds.length > 0) {
     throw new ApiError(400, 'Vai trò này không được liên kết đơn vị phụ trách hoặc lô hàng');
   }
+  const identity = {
+    username: data.username?.trim() || null,
+    email: data.email?.trim() || null,
+    phone: data.phone?.trim() || null,
+  };
+  await assertUserIdentityAvailable(tx, identity);
   const [created] = await tx.insert(users).values({
-    username: data.username || null,
-    email: data.email || null,
-    phone: data.phone || null,
+    ...identity,
     fullName: data.fullName || null,
     passwordHash,
     role: data.role as (typeof users.role.enumValues)[number],
@@ -632,6 +701,9 @@ export async function updateUserWithTx(id: number, data: {
     customerId: users.customerId,
     customerAccountType: users.customerAccountType,
     status: users.status,
+    username: users.username,
+    email: users.email,
+    phone: users.phone,
   }).from(users)
     .where(and(eq(users.id, id), isNull(users.deletedAt))).limit(1).for('update');
   if (!existing) throw new ApiError(404, 'Không tìm thấy người dùng');
@@ -804,6 +876,15 @@ export async function updateUserWithTx(id: number, data: {
   updates.customerId = effectiveRole === Role.CUSTOMER || effectiveRole === Role.CLERK ? nextCustomerIds[0] ?? null : null;
   updates.customerAccountType = effectiveCustomerAccountType;
 
+  await assertUserIdentityAvailable(tx, {
+    username: data.username !== undefined ? data.username : existing.username,
+    email: data.email !== undefined ? data.email || null : existing.email,
+    phone: data.phone !== undefined ? data.phone || null : existing.phone,
+  }, {
+    previous: existing,
+    excludeUserId: id,
+  });
+
   const [updated] = await tx.update(users).set(updates)
     .where(eq(users.id, id)).returning(USER_FIELDS);
   await syncCustomerLinks(tx, id, nextCustomerIds);
@@ -913,6 +994,23 @@ export async function updateProfileWithTx(
   data: { username?: string; fullName?: string; email?: string; phone?: string },
   tx: Tx,
 ) {
+  const [existing] = await tx.select({
+    id: users.id,
+    username: users.username,
+    email: users.email,
+    phone: users.phone,
+  }).from(users).where(eq(users.id, userId)).limit(1).for('update');
+  if (!existing) throw new ApiError(404, 'Không tìm thấy người dùng');
+
+  await assertUserIdentityAvailable(tx, {
+    username: data.username !== undefined ? data.username : existing.username,
+    email: data.email !== undefined ? data.email || null : existing.email,
+    phone: data.phone !== undefined ? data.phone || null : existing.phone,
+  }, {
+    previous: existing,
+    excludeUserId: userId,
+  });
+
   const updates: Record<string, unknown> = { updatedAt: sql`now()` };
 
   if (data.username !== undefined) updates.username = data.username;
@@ -1011,19 +1109,13 @@ export async function createBusinessUnitWithTx(
   data: { code?: string | null; name: string; status?: string },
   tx: Tx,
 ) {
-  try {
-    const [created] = await tx.insert(businessUnits).values({
-      code: data.code?.trim() || null,
-      name: data.name.trim(),
-      status: data.status ?? 'ACTIVE',
-    }).returning();
-    return created;
-  } catch (err) {
-    if (isUniqueViolation(err)) {
-      throw new ApiError(409, 'Mã hoặc tên đơn vị phụ trách đã tồn tại');
-    }
-    throw err;
-  }
+  const identity = { code: data.code?.trim() || null, name: data.name.trim() };
+  await assertBusinessUnitIdentityAvailable(tx, identity);
+  const [created] = await tx.insert(businessUnits).values({
+    ...identity,
+    status: data.status ?? 'ACTIVE',
+  }).returning();
+  return created;
 }
 
 export async function createBusinessUnit(data: { code?: string | null; name: string; status?: string }) {
@@ -1035,15 +1127,14 @@ export async function updateBusinessUnitWithTx(
   data: { code?: string | null; name?: string; status?: string },
   tx: Tx,
 ) {
-  try {
-    const [existing] = await tx.select()
-      .from(businessUnits)
-      .where(eq(businessUnits.id, id))
-      .for('update')
-      .limit(1);
-    if (!existing) throw new ApiError(404, 'Không tìm thấy đơn vị phụ trách');
+  const [existing] = await tx.select()
+    .from(businessUnits)
+    .where(eq(businessUnits.id, id))
+    .for('update')
+    .limit(1);
+  if (!existing) throw new ApiError(404, 'Không tìm thấy đơn vị phụ trách');
 
-    if (data.status === 'INACTIVE' && existing.status !== 'INACTIVE') {
+  if (data.status === 'INACTIVE' && existing.status !== 'INACTIVE') {
       const affectedClerks = await tx.select({ userId: users.id })
         .from(userBusinessUnitLinks)
         .innerJoin(users, eq(userBusinessUnitLinks.userId, users.id))
@@ -1074,22 +1165,25 @@ export async function updateBusinessUnitWithTx(
           );
         }
       }
-    }
-
-    const updates: Record<string, unknown> = { updatedAt: sql`now()` };
-    if (data.code !== undefined) updates.code = data.code?.trim() || null;
-    if (data.name !== undefined) updates.name = data.name.trim();
-    if (data.status !== undefined) updates.status = data.status;
-    const [updated] = await tx.update(businessUnits).set(updates)
-      .where(eq(businessUnits.id, id))
-      .returning();
-    return updated;
-  } catch (err) {
-    if (isUniqueViolation(err)) {
-      throw new ApiError(409, 'Mã hoặc tên đơn vị phụ trách đã tồn tại');
-    }
-    throw err;
   }
+
+  const nextIdentity = {
+    code: data.code !== undefined ? data.code?.trim() || null : existing.code,
+    name: data.name !== undefined ? data.name.trim() : existing.name,
+  };
+  await assertBusinessUnitIdentityAvailable(tx, nextIdentity, {
+    previous: existing,
+    excludeId: id,
+  });
+
+  const updates: Record<string, unknown> = { updatedAt: sql`now()` };
+  if (data.code !== undefined) updates.code = nextIdentity.code;
+  if (data.name !== undefined) updates.name = nextIdentity.name;
+  if (data.status !== undefined) updates.status = data.status;
+  const [updated] = await tx.update(businessUnits).set(updates)
+    .where(eq(businessUnits.id, id))
+    .returning();
+  return updated;
 }
 
 export async function updateBusinessUnit(

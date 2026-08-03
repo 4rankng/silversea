@@ -15,16 +15,7 @@ import { propagateTripFinancialSourceChange } from './source-change.service';
 import { createFinancialPosting, getActiveFinancialPosting } from './financial-posting.service';
 import { captureProfitabilityAttributionSnapshot } from './profitability.service';
 import { SnapshotServices } from './snapshot-services';
-
-// Postgres unique-violation detector — 23505 is the SQLSTATE for any unique
-// constraint violation. Drizzle wraps the underlying postgres-js error, so the
-// code may live on either `err.code` (postgres-js direct) or `err.cause.code`
-// (Drizzle-wrapped). Mirrors `shipment.service.ts`'s helper.
-function isUniqueViolation(err: unknown): boolean {
-  if (!err || typeof err !== 'object') return false;
-  const e = err as { code?: string; cause?: { code?: string } };
-  return e.code === '23505' || e.cause?.code === '23505';
-}
+import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 
 /**
  * M2.3: Build the full visible pricing formula: freight + VAT.
@@ -258,13 +249,19 @@ async function generateTripCode(tx: Tx, departureDateValue: string): Promise<str
   const month = String(departureDate.getMonth() + 1).padStart(2, '0');
   const yearMonth = `${year}${month}`;
 
-  const [counterRow] = await tx.insert(s.tripCodeCounters)
-    .values({ yearMonth, counter: 1 })
-    .onConflictDoUpdate({
-      target: s.tripCodeCounters.yearMonth,
-      set: { counter: sql`${s.tripCodeCounters.counter} + 1` },
-    })
-    .returning();
+  await lockApplicationOwnedUniqueness(tx, 'trip-code-counter:year-month', [yearMonth]);
+  const counterRows = await tx.select().from(s.tripCodeCounters)
+    .where(eq(s.tripCodeCounters.yearMonth, yearMonth))
+    .for('update');
+  if (counterRows.length > 1) {
+    throw new ApiError(409, `Bộ đếm mã chuyến tháng ${yearMonth} bị trùng. Vui lòng kiểm tra dữ liệu.`);
+  }
+  const [counterRow] = counterRows.length === 0
+    ? await tx.insert(s.tripCodeCounters).values({ yearMonth, counter: 1 }).returning()
+    : await tx.update(s.tripCodeCounters)
+      .set({ counter: sql`${s.tripCodeCounters.counter} + 1` })
+      .where(eq(s.tripCodeCounters.yearMonth, yearMonth))
+      .returning();
 
   return `TRP-${yearMonth}-${String(counterRow.counter).padStart(4, '0')}`;
 }
@@ -312,6 +309,11 @@ export async function createTrip(data: {
     //    remains the dispatch endpoint's responsibility. This keeps the two
     //    flows orthogonal: trip-create LINKS, dispatch ADVANCES.
     if (data.shipmentId != null) {
+      await lockApplicationOwnedUniqueness(
+        tx,
+        'trips:live-shipment-unassigned',
+        [data.shipmentId],
+      );
       const [shipment] = await tx.select({
         id: s.shipments.id,
         status: s.shipments.status,
@@ -362,6 +364,22 @@ export async function createTrip(data: {
       } else {
         authoritativeCargoTypeId = shipment.cargoTypeId ?? data.cargoTypeId ?? null;
         sourceShipmentVersion = shipment.version;
+      }
+
+      const [existingLiveTrip] = await tx.select({ id: s.trips.id })
+        .from(s.trips)
+        .where(and(
+          eq(s.trips.shipmentId, shipment.id),
+          isNull(s.trips.fulfillmentId),
+          isNull(s.trips.deletedAt),
+          sql`${s.trips.status} <> 'CANCELED'`,
+        ))
+        .limit(1);
+      if (existingLiveTrip) {
+        throw new ApiError(
+          409,
+          'Lô hàng đã được gắn vào một chuyến khác. Vui lòng tải lại.',
+        );
       }
     }
 
@@ -499,9 +517,8 @@ export async function createTrip(data: {
 
     // 4. Create trip with snapshotted rates. The trip is inserted with
     //    shipmentId = NULL even when one was provided — the link is set in a
-    //    guarded UPDATE below (see step 4b) so a concurrent createTrip
-    //    against the same shipment surfaces as a clean 409 with a domain
-    //    message rather than a generic 23505.
+    //    guarded UPDATE below (see step 4b). The application-owned shipment
+    //    lock and canonical lookup above ensure only one live link is created.
     const [trip] = await tx.insert(s.trips).values({
       tripCode,
       version: 1,
@@ -593,33 +610,13 @@ export async function createTrip(data: {
       const { snapshotContainersIntoTrip } = await import('./shipment.service.js');
       await snapshotContainersIntoTrip(data.shipmentId, trip.id, data.createdBy ?? null, tx);
 
-      // 4b. Link the trip to the shipment via UPDATE so a concurrent
-      //     createTrip against the same shipment surfaces as a clean domain
-      //     409 (not a generic 23505 "Dữ liệu đã tồn tại"). The partial
-      //     unique index `trips_shipment_id_live_uniq` is the concurrency
-      //     guard. On conflict the whole transaction rolls back (including
-      //     the trip insert + snapshot), so no orphan trip persists — the
-      //     loser just gets a clear 409 and can refresh to see the winner's
-      //     trip.
-      try {
-        const [linked] = await tx.update(s.trips)
-          .set({ shipmentId: data.shipmentId })
-          .where(eq(s.trips.id, trip.id))
-          .returning();
-        // Refresh the local trip object so callers see the post-link state.
-        if (linked) {
-          // Object.assign preserves the identity consumers may already hold
-          // while picking up the new shipmentId.
-          Object.assign(trip, linked);
-        }
-      } catch (err) {
-        if (isUniqueViolation(err)) {
-          throw new ApiError(
-            409,
-            'Lô hàng đã được gắn vào một chuyến khác. Vui lòng tải lại.',
-          );
-        }
-        throw err;
+      // 4b. Link only after the trip and container snapshot are complete.
+      const [linked] = await tx.update(s.trips)
+        .set({ shipmentId: data.shipmentId })
+        .where(eq(s.trips.id, trip.id))
+        .returning();
+      if (linked) {
+        Object.assign(trip, linked);
       }
     }
 

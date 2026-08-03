@@ -18,9 +18,10 @@
 import { createHash } from 'node:crypto';
 import { db } from '../db';
 import * as s from '../db/schema';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { persistMaterialWriteSuccessAuditInTransaction } from './audit.service';
+import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type TransactionOptions = NonNullable<Parameters<typeof db.transaction>[1]>;
@@ -269,7 +270,8 @@ export async function waitForIdempotencyRecord(
  * Concurrent first calls are serialized with a transaction-scoped PostgreSQL
  * advisory lock derived from `(endpoint, idempotencyKey)`. The second caller
  * waits, then sees the committed key and replays the original entity without
- * entering `create`. The unique index remains a database-level safety net.
+ * entering `create`. The application lock and canonical lookup are the sole
+ * uniqueness authority; the database intentionally has no unique constraint.
  */
 export async function runIdempotent<T>(args: {
   endpoint: string;
@@ -309,14 +311,15 @@ export async function runIdempotent<T>(args: {
   }
 
   const payloadHash = hashPayload(payload);
-  const lockKey = `${endpoint}\u001f${idempotencyKey}`;
   const persistedStatusCode = responseStatusCode ?? 200;
 
   let createdResult: T | undefined;
   try {
     return await db.transaction(async (tx) => {
-      await tx.execute(
-        sql`select pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`,
+      await lockApplicationOwnedUniqueness(
+        tx,
+        'idempotency-key',
+        [endpoint, idempotencyKey],
       );
 
       const [existing] = await tx.select().from(s.idempotencyKeys)

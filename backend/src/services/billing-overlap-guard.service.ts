@@ -1,8 +1,8 @@
 // Billing Document Re-issue Guard — Wave 2 M3.5.
 //
 // Prevents double-issuing debit notes with overlapping date ranges for the
-// same customer. The existing unique index prevents EXACT duplicates (same
-// rangeFrom + rangeTo); this guard also catches OVERLAPPING ranges
+// same customer. Application-owned locking prevents both exact duplicates and
+// overlapping ranges
 // (range1.from < range2.to AND range2.from < range1.to).
 //
 // Usage: call checkOverlap before creating a new billing document. If the
@@ -12,7 +12,9 @@
 
 import { db } from '../db';
 import * as s from '../db/schema';
-import { and, eq, isNull, ne, sql } from 'drizzle-orm';
+import { and, eq, isNull, ne, or, sql } from 'drizzle-orm';
+import type { Tx } from './trip-shared';
+import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 
 export interface OverlapResult {
   hasOverlap: boolean;
@@ -24,6 +26,26 @@ export interface OverlapResult {
   }>;
 }
 
+export type BillingDocumentOverlapParams = {
+  type: string;
+  entityType: string;
+  entityId: number;
+  rangeFrom: string;
+  rangeTo: string;
+  excludeId?: number;
+};
+
+export async function lockBillingDocumentOverlapAuthority(
+  tx: Tx,
+  params: Pick<BillingDocumentOverlapParams, 'type' | 'entityType' | 'entityId'>,
+): Promise<void> {
+  await lockApplicationOwnedUniqueness(
+    tx,
+    'billing-document-overlap',
+    [params.type, params.entityType, params.entityId],
+  );
+}
+
 /**
  * Check whether a new billing document with the given (type, entityType,
  * entityId, rangeFrom, rangeTo) would overlap an existing active (non-deleted)
@@ -33,14 +55,10 @@ export interface OverlapResult {
  * @param excludeId When editing an existing document, pass its id to exclude
  *                  it from the overlap check.
  */
-export async function checkBillingDocumentOverlap(params: {
-  type: string;
-  entityType: string;
-  entityId: number;
-  rangeFrom: string;
-  rangeTo: string;
-  excludeId?: number;
-}): Promise<OverlapResult> {
+export async function checkBillingDocumentOverlap(
+  params: BillingDocumentOverlapParams,
+  executor: typeof db | Tx = db,
+): Promise<OverlapResult> {
   // Date-range overlap: two ranges [A_from, A_to] and [B_from, B_to] overlap
   // iff A_from <= B_to AND B_from <= A_to. We query for existing docs where
   // this condition holds.
@@ -49,6 +67,10 @@ export async function checkBillingDocumentOverlap(params: {
     eq(s.billingDocuments.entityType, params.entityType),
     eq(s.billingDocuments.entityId, params.entityId),
     isNull(s.billingDocuments.deletedAt),
+    or(
+      isNull(s.billingDocuments.debitNoteStatus),
+      ne(s.billingDocuments.debitNoteStatus, 'CANCELED'),
+    ),
     sql`${s.billingDocuments.rangeFrom} <= ${params.rangeTo}`,
     sql`${s.billingDocuments.rangeTo} >= ${params.rangeFrom}`,
   ];
@@ -56,7 +78,7 @@ export async function checkBillingDocumentOverlap(params: {
     conditions.push(ne(s.billingDocuments.id, params.excludeId));
   }
 
-  const overlapping = await db.select({
+  const overlapping = await executor.select({
     id: s.billingDocuments.id,
     rangeFrom: s.billingDocuments.rangeFrom,
     rangeTo: s.billingDocuments.rangeTo,

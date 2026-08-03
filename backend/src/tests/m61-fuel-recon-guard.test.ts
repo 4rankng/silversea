@@ -7,7 +7,7 @@
  */
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
@@ -297,6 +297,43 @@ describe('M6.1 slice 2 — explanation CRUD', () => {
     // Only one row for this period.
     const has = await hasFuelReconExplanation(sup.id, '2026-07-01', '2026-07-31');
     assert.equal(has, true);
+  });
+
+  test('concurrent explanation writes keep one canonical supplier-period row', async () => {
+    const sup = await mkSupplier();
+    const periodFrom = '2026-09-01';
+    const periodTo = '2026-09-30';
+    const [first, second] = await Promise.all([
+      recordFuelReconExplanation({
+        supplierId: sup.id,
+        periodFrom,
+        periodTo,
+        explanationText: 'first concurrent explanation',
+        resolvedVariance: 100_000,
+      }),
+      recordFuelReconExplanation({
+        supplierId: sup.id,
+        periodFrom,
+        periodTo,
+        explanationText: 'second concurrent explanation',
+        resolvedVariance: 200_000,
+      }),
+    ]);
+    createdExplanationIds.push(first.id, second.id);
+    assert.equal(first.id, second.id);
+
+    const rows = await db.select()
+      .from(s.fuelReconExplanations)
+      .where(and(
+        eq(s.fuelReconExplanations.supplierId, sup.id),
+        eq(s.fuelReconExplanations.periodFrom, periodFrom),
+        eq(s.fuelReconExplanations.periodTo, periodTo),
+      ));
+    assert.equal(rows.length, 1);
+    assert.ok([
+      'first concurrent explanation',
+      'second concurrent explanation',
+    ].includes(rows[0]!.explanationText));
   });
 
   test('recordFuelReconExplanation rejects empty text', async () => {

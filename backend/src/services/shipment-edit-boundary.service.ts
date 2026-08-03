@@ -1,8 +1,10 @@
 import { NotificationType, Role } from '@tingting/shared';
+import { and, eq } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import * as s from '../db/schema';
 import { persistNotificationInTx } from './notification.service';
 import type { Tx } from './trip-shared';
+import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 
 type ShipmentRow = typeof s.shipments.$inferSelect;
 type ShipmentContainerRow = typeof s.shipmentContainers.$inferSelect;
@@ -277,15 +279,6 @@ export function classifyClerkContainerChange(
   };
 }
 
-function mapUniqueViolation(err: unknown): ApiError | null {
-  if (!err || typeof err !== 'object') return null;
-  const candidate = err as { code?: string; cause?: { code?: string } };
-  if (candidate.code === '23505' || candidate.cause?.code === '23505') {
-    return new ApiError(409, 'Lô hàng đã có yêu cầu thay đổi mới hơn. Vui lòng tải lại.');
-  }
-  return null;
-}
-
 export async function createShipmentChangeRequest(
   tx: Tx,
   input: {
@@ -297,29 +290,38 @@ export async function createShipmentChangeRequest(
     afterSnapshot: unknown;
   },
 ): Promise<number> {
-  try {
-    const [row] = await tx.insert(s.shipmentChangeRequests).values({
-      shipmentId: input.shipment.id,
-      sourceVersion: input.sourceVersion,
-      requestKind: input.requestKind,
-      requestedBy: input.requestedBy,
-      beforeSnapshot: input.beforeSnapshot,
-      afterSnapshot: input.afterSnapshot,
-    }).returning({ id: s.shipmentChangeRequests.id });
-    await persistNotificationInTx(tx, {
-      type: NotificationType.SHIPMENT_HANDOFF,
-      title: 'Có yêu cầu thay đổi kế hoạch lô hàng',
-      message: `Lô ${input.shipment.shipmentCode ?? 'chưa có mã'} có thay đổi cần điều vận xem lại`,
-      relatedEntityType: 'shipments',
-      relatedEntityId: input.shipment.id,
-      targetRoles: [Role.ADMIN, Role.MANAGER],
-    });
-    return row.id;
-  } catch (err) {
-    const conflict = mapUniqueViolation(err);
-    if (conflict) throw conflict;
-    throw err;
+  await lockApplicationOwnedUniqueness(
+    tx,
+    'shipment-change-request:source-version',
+    [input.shipment.id, input.sourceVersion],
+  );
+  const [existing] = await tx.select({ id: s.shipmentChangeRequests.id })
+    .from(s.shipmentChangeRequests)
+    .where(and(
+      eq(s.shipmentChangeRequests.shipmentId, input.shipment.id),
+      eq(s.shipmentChangeRequests.sourceVersion, input.sourceVersion),
+    ))
+    .limit(1);
+  if (existing) {
+    throw new ApiError(409, 'Lô hàng đã có yêu cầu thay đổi mới hơn. Vui lòng tải lại.');
   }
+  const [row] = await tx.insert(s.shipmentChangeRequests).values({
+    shipmentId: input.shipment.id,
+    sourceVersion: input.sourceVersion,
+    requestKind: input.requestKind,
+    requestedBy: input.requestedBy,
+    beforeSnapshot: input.beforeSnapshot,
+    afterSnapshot: input.afterSnapshot,
+  }).returning({ id: s.shipmentChangeRequests.id });
+  await persistNotificationInTx(tx, {
+    type: NotificationType.SHIPMENT_HANDOFF,
+    title: 'Có yêu cầu thay đổi kế hoạch lô hàng',
+    message: `Lô ${input.shipment.shipmentCode ?? 'chưa có mã'} có thay đổi cần điều vận xem lại`,
+    relatedEntityType: 'shipments',
+    relatedEntityId: input.shipment.id,
+    targetRoles: [Role.ADMIN, Role.MANAGER],
+  });
+  return row.id;
 }
 
 export async function persistChangeRequestDecisionNotification(tx: Tx, input: {

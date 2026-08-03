@@ -7,7 +7,10 @@ import { inArray } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
-import { checkBillingDocumentOverlap } from '../services/billing-overlap-guard.service';
+import {
+  checkBillingDocumentOverlap,
+  lockBillingDocumentOverlapAuthority,
+} from '../services/billing-overlap-guard.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdDocIds: number[] = [];
@@ -130,5 +133,35 @@ describe('M3.5 — checkBillingDocumentOverlap', () => {
       rangeFrom: '2026-07-05', rangeTo: '2026-07-10',
     });
     assert.equal(result.hasOverlap, true);
+  });
+
+  test('application authority serializes concurrent overlapping creates', async () => {
+    const customer = await mkCustomer();
+    const createIfAvailable = () => db.transaction(async (tx) => {
+      const params = {
+        type: 'DEBIT_NOTE',
+        entityType: 'CUSTOMER',
+        entityId: customer.id,
+        rangeFrom: '2026-09-01',
+        rangeTo: '2026-09-30',
+      };
+      await lockBillingDocumentOverlapAuthority(tx, params);
+      const overlap = await checkBillingDocumentOverlap(params, tx);
+      if (overlap.hasOverlap) return null;
+      const [doc] = await tx.insert(s.billingDocuments).values({
+        ...params,
+        entityName: `M35 customer ${suffix}`,
+        totalInclVat: '1000000',
+      }).returning();
+      createdDocIds.push(doc.id);
+      return doc.id;
+    });
+
+    const results = await Promise.all([createIfAvailable(), createIfAvailable()]);
+    assert.equal(results.filter((id) => id != null).length, 1);
+    const rows = await db.select({ id: s.billingDocuments.id })
+      .from(s.billingDocuments)
+      .where(inArray(s.billingDocuments.id, createdDocIds));
+    assert.equal(rows.filter((row) => results.includes(row.id)).length, 1);
   });
 });

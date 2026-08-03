@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { Request } from 'express';
-import { and, eq, getTableName, isNull } from 'drizzle-orm';
+import { and, eq, getTableName, inArray, isNull, ne, type SQL } from 'drizzle-orm';
 import type { AnyPgTable, PgColumn, PgTable } from 'drizzle-orm/pg-core';
 import { Role } from '@tingting/shared';
 import { db } from '../db';
@@ -13,6 +13,7 @@ import {
   type DurableEffectInput,
 } from './durable-effect.service';
 import type { Tx } from './trip-shared';
+import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 
 type MutationKind = 'CREATE' | 'UPDATE' | 'DELETE';
 type CrudRow = Record<string, unknown> & { id?: number; updatedAt?: Date | null; deletedAt?: Date | null };
@@ -249,8 +250,78 @@ async function insertGovernanceAction(
   tx: Tx,
   values: Omit<typeof s.governanceActions.$inferInsert, 'id' | 'status' | 'version' | 'createdAt' | 'updatedAt'>,
 ) {
+  const identity = values.subjectKey ?? values.subjectId;
+  if (identity != null) {
+    await lockApplicationOwnedUniqueness(
+      tx,
+      'active-governance-action',
+      [values.subjectType, values.actionKind, values.originalVersion, identity],
+    );
+    const identityCondition = values.subjectKey != null
+      ? eq(s.governanceActions.subjectKey, values.subjectKey)
+      : eq(s.governanceActions.subjectId, values.subjectId as number);
+    const [existing] = await tx.select({ id: s.governanceActions.id })
+      .from(s.governanceActions)
+      .where(and(
+        eq(s.governanceActions.subjectType, values.subjectType),
+        eq(s.governanceActions.actionKind, values.actionKind),
+        eq(s.governanceActions.originalVersion, values.originalVersion),
+        identityCondition,
+        inArray(s.governanceActions.status, [
+          'PENDING_CHECK',
+          'PENDING_APPROVAL',
+          'RETURNED_FOR_EVIDENCE',
+        ]),
+      ))
+      .limit(1);
+    if (existing) {
+      throw new ApiError(409, 'Đã có yêu cầu quản trị đang xử lý cho cấu hình này');
+    }
+  }
   const [action] = await tx.insert(s.governanceActions).values(values).returning();
   return action;
+}
+
+function canonicalPayloadConditions(
+  definition: GovernedCrudDefinition,
+  payload: CrudData,
+): SQL[] {
+  const tableColumns = definition.table as unknown as Record<string, PgColumn>;
+  const conditions: SQL[] = [];
+  for (const [key, value] of Object.entries(payload)) {
+    if (key === 'id' || key === 'createdAt' || key === 'updatedAt' || key === 'deletedAt') {
+      continue;
+    }
+    const targetColumn = tableColumns[key];
+    if (!targetColumn || value === undefined || (typeof value === 'object' && value !== null && !(value instanceof Date))) {
+      continue;
+    }
+    conditions.push(value === null ? isNull(targetColumn) : eq(targetColumn, value));
+  }
+  if ('deletedAt' in definition.table && definition.deleteMode === 'soft') {
+    conditions.push(isNull(column(definition.table, 'deletedAt')));
+  }
+  return conditions;
+}
+
+async function assertCanonicalConfigAvailable(
+  tx: Tx,
+  definition: GovernedCrudDefinition,
+  payload: CrudData,
+  excludeId?: number,
+): Promise<void> {
+  const conditions = canonicalPayloadConditions(definition, payload);
+  if (excludeId != null) {
+    conditions.push(ne(column(definition.table, 'id'), excludeId));
+  }
+  if (conditions.length === 0) return;
+  const [existing] = await tx.select({ id: column(definition.table, 'id') })
+    .from(definition.table)
+    .where(and(...conditions))
+    .limit(1);
+  if (existing) {
+    throw new ApiError(409, 'Cấu hình đã tồn tại');
+  }
 }
 
 export function registerGovernedCrudResource(
@@ -505,23 +576,16 @@ async function applyGovernedCreate(
   if (!after.data) {
     throw new ApiError(409, 'Yêu cầu tạo cấu hình thiếu dữ liệu áp dụng');
   }
+  await lockApplicationOwnedUniqueness(tx, 'governed-config-resource', [definition.resource]);
   const req = syntheticApprovalRequest(action);
   const payload = definition.beforeCreate
     ? await definition.beforeCreate(after.data, req, tx)
     : after.data;
+  await assertCanonicalConfigAvailable(tx, definition, payload);
   let created: CrudRow;
-  try {
-    [created] = await tx.insert(definition.table)
-      .values(payload)
-      .returning();
-  } catch (error) {
-    const normalized = error as { code?: string; cause?: { code?: string; detail?: string }; detail?: string };
-    const code = normalized.code ?? normalized.cause?.code;
-    if (code === '23505') {
-      throw new ApiError(409, 'Cấu hình đã tồn tại');
-    }
-    throw error;
-  }
+  [created] = await tx.insert(definition.table)
+    .values(payload)
+    .returning();
   if (!created || typeof created.id !== 'number') {
     throw new ApiError(409, 'Không thể tạo cấu hình');
   }
@@ -567,6 +631,7 @@ async function applyGovernedUpdate(
   if (!after.data || Object.keys(after.data).length === 0) {
     throw new ApiError(409, 'Yêu cầu cập nhật cấu hình thiếu dữ liệu áp dụng');
   }
+  await lockApplicationOwnedUniqueness(tx, 'governed-config-resource', [definition.resource]);
   const row = await lockResourceRow(tx, definition, action.subjectId);
   const currentSnapshot = snapshotEnvelope(definition.resource, row);
   const currentUpdatedAt = assertGovernedUpdatedAt(row, definition.resource);
@@ -585,23 +650,18 @@ async function applyGovernedUpdate(
     throw new ApiError(409, 'Yêu cầu cập nhật cấu hình thiếu dữ liệu áp dụng');
   }
   const nextUpdatedAt = new Date(Math.max(Date.now(), currentUpdatedAt.getTime() + 1));
+  await assertCanonicalConfigAvailable(tx, definition, {
+    ...row,
+    ...patch,
+  }, action.subjectId);
   let updated: CrudRow;
-  try {
-    [updated] = await tx.update(definition.table)
-      .set({
-        ...patch,
-        updatedAt: nextUpdatedAt,
-      })
-      .where(eq(column(definition.table, 'id'), action.subjectId))
-      .returning();
-  } catch (error) {
-    const normalized = error as { code?: string; cause?: { code?: string; detail?: string }; detail?: string };
-    const code = normalized.code ?? normalized.cause?.code;
-    if (code === '23505') {
-      throw new ApiError(409, 'Cấu hình đã tồn tại');
-    }
-    throw error;
-  }
+  [updated] = await tx.update(definition.table)
+    .set({
+      ...patch,
+      updatedAt: nextUpdatedAt,
+    })
+    .where(eq(column(definition.table, 'id'), action.subjectId))
+    .returning();
   if (!updated) throw new ApiError(404, 'Không tìm thấy cấu hình');
   if (definition.afterUpdate) {
     await definition.afterUpdate(updated, patch, req, tx);
