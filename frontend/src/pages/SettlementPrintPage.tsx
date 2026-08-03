@@ -112,6 +112,22 @@ export function settlementReviewPermissions(input: {
   };
 }
 
+export function settlementBalanceSummary(
+  totalAdvance: number,
+  totalExpense: number,
+  refund: number,
+) {
+  const balance = totalAdvance - totalExpense - refund;
+  return {
+    balance,
+    label: balance === 0
+      ? 'Chênh lệch sau quyết toán'
+      : balance > 0
+        ? 'Còn dư chưa hoàn'
+        : 'Thiếu phải bổ sung',
+  };
+}
+
 // ─── Build table rows grouped by date → container ───
 function buildPrintRows(expenses: LinkedExpense[]) {
   const grouped = new Map<string, Map<string, LinkedExpense[]>>();
@@ -250,7 +266,7 @@ export default function SettlementPrintPage() {
   const totalAdvance = requests.reduce((sum, r) => sum + Number(r.amount), 0);
   const totalExpense = expenses.reduce((sum, e) => sum + Number(e.buyAmount), 0);
   const refund = Number(s.refundAmount || 0);
-  const balance = totalAdvance - totalExpense - refund;
+  const { balance, label: balanceLabel } = settlementBalanceSummary(totalAdvance, totalExpense, refund);
 
   const rows = buildPrintRows(expenses);
   const totalFromRows = rows.reduce((sum, r) => sum + Number(r.amount || 0), 0);
@@ -541,10 +557,14 @@ export default function SettlementPrintPage() {
             <div className="settlement-detail__summary-label">Tổng chi phí</div>
             <div className="settlement-detail__summary-value">{formatCurrency(totalExpense)}</div>
           </div>
-          <div className="settlement-detail__summary-card settlement-detail__summary-card--balance">
-            <div className="settlement-detail__summary-label">
-              {balance >= 0 ? 'Còn dư (phải hoàn)' : 'Thiếu (phải bổ sung)'}
+          {refund > 0 ? (
+            <div className="settlement-detail__summary-card settlement-detail__summary-card--refund">
+              <div className="settlement-detail__summary-label">Tiền đã hoàn lại</div>
+              <div className="settlement-detail__summary-value settlement-detail__summary-value--positive">{formatCurrency(refund)}</div>
             </div>
+          ) : null}
+          <div className="settlement-detail__summary-card settlement-detail__summary-card--balance">
+            <div className="settlement-detail__summary-label">{balanceLabel}</div>
             <div className={`settlement-detail__summary-value ${balance >= 0 ? 'settlement-detail__summary-value--positive' : 'settlement-detail__summary-value--negative'}`}>
               {formatCurrency(Math.abs(balance))}
             </div>

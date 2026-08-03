@@ -24,7 +24,17 @@ import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { getLocationPermissionIssue, type GeolocationError } from '../lib/gps/geolocation';
-import { ForwarderContainersSection, ForwarderExpenseRow, ForwarderTripError, ForwarderTripLoading, type ForwarderContainer } from './forwarder-trip-detail-sections';
+import {
+  ForwarderContainersSection,
+  ForwarderExpenseRow,
+  ForwarderTripError,
+  ForwarderTripLoading,
+  FORWARDER_LCL_SCOPE_LABEL,
+  getForwarderContainerDisplayLabel,
+  getForwarderContainerScopeLabel,
+  isSyntheticLclContainer,
+  type ForwarderContainer,
+} from './forwarder-trip-detail-sections';
 import './ForwarderTripDetailPage.css';
 
 function tripStatusVariant(status: TripStatus): 'neutral' | 'info' | 'warn' | 'success' | 'danger' {
@@ -386,6 +396,7 @@ export default function ForwarderTripDetailPage() {
     ? Number(expenseForm.buyAmount) - suggestedLiftPrice
     : 0;
   const selectedExpenseContainer = containers.find(c => String(c.id) === expenseForm.tripContainerId);
+  const selectedExpenseContainerIsSyntheticLcl = selectedExpenseContainer ? isSyntheticLclContainer(selectedExpenseContainer) : false;
   const selectedExpenseTypeConfig = forwarderExpenseTypeOptions.find(type => type.code === expenseForm.expenseType);
   const noInvoiceAllowed = !selectedExpenseTypeConfig?.requiresInvoice && selectedExpenseTypeConfig?.substituteEvidenceAllowed !== false;
   const allowedEvidenceTypes = selectedExpenseTypeConfig?.noInvoiceEvidenceTypes?.length
@@ -439,7 +450,7 @@ export default function ForwarderTripDetailPage() {
     ...containers.map(container => ({
       key: String(container.id),
       tripContainerId: container.id as number | null,
-      label: `Container ${container.containerNumber}`,
+      label: getForwarderContainerScopeLabel(container),
       expenses: expenses.filter(exp => exp.tripContainerId === container.id),
     })),
     ...(generalExpenses.length > 0 || completionScopes.some(scope => scope.tripContainerId == null)
@@ -690,7 +701,7 @@ export default function ForwarderTripDetailPage() {
                 </div>
               )}
 
-              {containers.length === 1 && selectedExpenseContainer && (
+              {containers.length === 1 && selectedExpenseContainer && !selectedExpenseContainerIsSyntheticLcl && (
                 <FormGroup label="Container áp dụng">
                   <div
                     className="input"
@@ -703,7 +714,7 @@ export default function ForwarderTripDetailPage() {
                       borderColor: 'rgba(0, 107, 63, 0.22)',
                     }}
                   >
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{selectedExpenseContainer.containerNumber}</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{getForwarderContainerDisplayLabel(selectedExpenseContainer)}</span>
                     {selectedExpenseContainer.sealNumber && (
                       <span style={{ color: 'var(--fg-3)', fontSize: 12 }}>Seal {selectedExpenseContainer.sealNumber}</span>
                     )}
@@ -728,12 +739,15 @@ export default function ForwarderTripDetailPage() {
                     <option value="">Chi phí chung của chuyến</option>
                     {containers.map(c => (
                       <option key={c.id} value={String(c.id)}>
-                        {c.containerNumber}{c.sealNumber ? ` · Seal ${c.sealNumber}` : ''}
+                        {getForwarderContainerDisplayLabel(c)}
+                        {!isSyntheticLclContainer(c) && c.sealNumber ? ` · Seal ${c.sealNumber}` : ''}
                       </option>
                     ))}
                   </select>
                   <span style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--fg-3)', display: 'block', marginTop: 4 }}>
-                    Chọn container từ danh sách đã nhập, không cần gõ lại số container.
+                    {containers.some((container) => isSyntheticLclContainer(container))
+                      ? `Chọn ${FORWARDER_LCL_SCOPE_LABEL.toLowerCase()} hoặc container từ danh sách đã nhập, không cần gõ lại.`
+                      : 'Chọn container từ danh sách đã nhập, không cần gõ lại số container.'}
                   </span>
                 </FormGroup>
               )}

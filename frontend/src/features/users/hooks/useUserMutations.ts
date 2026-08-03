@@ -26,6 +26,12 @@ function clerkScopePayload(data: CreateData | EditData) {
   if (data.role !== Role.CLERK) return {};
   return {
     businessUnitIds: [...new Set(data.businessUnitIds ?? [])].filter((id) => id > 0),
+  };
+}
+
+function shipmentScopePayload(data: CreateData | EditData) {
+  if (data.role !== Role.CLERK && data.role !== Role.FORWARDER) return {};
+  return {
     shipmentIds: [...new Set(data.shipmentIds ?? [])].filter((id) => id > 0),
   };
 }
@@ -55,6 +61,7 @@ export function useUserMutations(refetch: () => void) {
         ...driverPayload(data),
         ...customerScopePayload(data),
         ...clerkScopePayload(data),
+        ...shipmentScopePayload(data),
       });
       refetch();
       showToast({ kind: 'success', message: 'Tạo tài khoản thành công' });
@@ -81,6 +88,7 @@ export function useUserMutations(refetch: () => void) {
         ...driverPayload(data),
         ...customerScopePayload(data),
         ...clerkScopePayload(data),
+        ...shipmentScopePayload(data),
       };
       if (data.password) body.password = data.password;
       await userClient.updateUser(id, body);

@@ -8,7 +8,10 @@ import {
   lockTripCloseAggregate,
   requireTripCloseReadiness,
 } from '../services/trip-close-readiness.service';
-import { completeShipmentDirect } from '../services/shipment.service';
+import {
+  completeShipmentDirect,
+  recomputeShipmentCompletion,
+} from '../services/shipment.service';
 import { SnapshotServices } from '../services/snapshot-services';
 import { setTripExpenseCompletion } from '../services/forwarder.service';
 import { requestTripFinancialClose } from '../services/adjustment-governance.service';
@@ -74,6 +77,7 @@ before(async () => {
 });
 
 after(async () => {
+  await db.delete(s.customerVisibleEvents).where(eq(s.customerVisibleEvents.shipmentId, shipmentId));
   const postingRows = await db.select({ id: s.tripFinancialPostings.id })
     .from(s.tripFinancialPostings)
     .where(eq(s.tripFinancialPostings.tripId, tripId));
@@ -132,6 +136,7 @@ async function replacePod(status: 'DRAFT' | 'SUBMITTED' | 'ACCEPTED' | 'REJECTED
 }
 
 async function prepareReadyForDirectClose() {
+  await db.delete(s.customerVisibleEvents).where(eq(s.customerVisibleEvents.shipmentId, shipmentId));
   await db.delete(s.governanceActions).where(eq(s.governanceActions.subjectId, tripId));
   await db.delete(s.tripPhotos).where(eq(s.tripPhotos.tripId, tripId));
   await db.delete(s.tripExpenseCompletionScopes).where(eq(s.tripExpenseCompletionScopes.tripId, tripId));
@@ -187,6 +192,93 @@ async function prepareReadyForDirectClose() {
   ]);
 }
 
+async function createExpenseScopeRecomputeFixture(args: {
+  cargoMode: 'LCL' | 'FCL';
+  submissionStatus: 'SUBMITTED' | 'ACCEPTED';
+}) {
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const [shipment] = await db.insert(s.shipments).values({
+    shipmentCode: `SCOPE-${args.cargoMode}-${suffix}`.slice(0, 50),
+    customerId,
+    status: 'IN_TRANSIT',
+    cargoMode: args.cargoMode,
+    createdBy: userIds[1],
+  }).returning();
+  let shipmentContainerId: number | null = null;
+  if (args.cargoMode === 'FCL') {
+    const [shipmentContainer] = await db.insert(s.shipmentContainers).values({
+      shipmentId: shipment.id,
+      containerNumber: `TC${String(Date.now()).slice(-8)}`.slice(0, 20),
+      createdBy: userIds[1],
+    }).returning();
+    shipmentContainerId = shipmentContainer.id;
+  }
+  const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+    shipmentId: shipment.id,
+    fulfillmentType: args.cargoMode === 'LCL' ? 'LCL_SHIPMENT' : 'FCL_CONTAINER',
+    cargoMode: args.cargoMode,
+    shipmentContainerId,
+    sourceShipmentVersion: shipment.version,
+    siteSnapshot: {},
+    createdBy: userIds[1],
+  }).returning();
+  const [trip] = await db.insert(s.trips).values({
+    tripCode: `SCOPE-TRIP-${args.cargoMode}-${suffix}`.slice(0, 50),
+    customerId,
+    routeId,
+    departureDate: '2026-08-03',
+    shipmentId: shipment.id,
+    fulfillmentId: fulfillment.id,
+    status: 'IN_TRANSIT',
+    carrierType: args.cargoMode === 'LCL' ? 'EXTERNAL' : 'OWN',
+  }).returning();
+  const [container] = await db.insert(s.tripContainers).values({
+    tripId: trip.id,
+    sourceShipmentId: shipment.id,
+    sourceShipmentContainerId: shipmentContainerId,
+    sourceShipmentVersion: shipment.version,
+    containerNumber: args.cargoMode === 'FCL' ? `TRIP${String(Date.now()).slice(-8)}`.slice(0, 20) : null,
+    notes: args.cargoMode === 'LCL'
+      ? `__fulfillment_lcl:${fulfillment.id}`
+      : `__fulfillment_snapshot:${fulfillment.id}`,
+    createdBy: userIds[1],
+  }).returning();
+  await db.insert(s.tripPodSubmissions).values({
+    tripId: trip.id,
+    fulfillmentId: fulfillment.id,
+    submissionVersion: 1,
+    sourceTripVersion: 1,
+    status: args.submissionStatus,
+    submittedBy: userIds[0],
+    submittedAt: new Date(),
+    reviewedBy: args.submissionStatus === 'ACCEPTED' ? userIds[1] : null,
+    reviewedAt: args.submissionStatus === 'ACCEPTED' ? new Date() : null,
+  });
+  await db.insert(s.tripExpenseCompletionScopes).values({
+    tripId: trip.id,
+    tripContainerId: container.id,
+    status: 'COMPLETED',
+    completedBy: userIds[1],
+    completedAt: new Date(),
+  });
+
+  const cleanup = async () => {
+    await db.delete(s.customerVisibleEvents).where(eq(s.customerVisibleEvents.shipmentId, shipment.id));
+    await db.delete(s.tripPodSubmissions).where(eq(s.tripPodSubmissions.tripId, trip.id));
+    await db.delete(s.tripExpenseCompletionScopes).where(eq(s.tripExpenseCompletionScopes.tripId, trip.id));
+    await db.delete(s.tripContainers).where(eq(s.tripContainers.tripId, trip.id));
+    await db.delete(s.trips).where(eq(s.trips.id, trip.id));
+    await db.delete(s.shipmentStatusHistory).where(eq(s.shipmentStatusHistory.shipmentId, shipment.id));
+    await db.delete(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fulfillment.id));
+    if (shipmentContainerId != null) {
+      await db.delete(s.shipmentContainers).where(eq(s.shipmentContainers.id, shipmentContainerId));
+    }
+    await db.delete(s.shipments).where(eq(s.shipments.id, shipment.id));
+  };
+
+  return { shipment, trip, cleanup };
+}
+
 describe('O2C trip close readiness authority', () => {
   test('rejects no e-POD and every non-accepted current e-POD state', async () => {
     await assert.rejects(() => db.transaction((tx) => requireTripCloseReadiness(tx, tripId)), /e-POD hiện tại chưa được duyệt/);
@@ -234,6 +326,40 @@ describe('O2C trip close readiness authority', () => {
       rejectionReason: 'Phiên mới bị từ chối',
     });
     await assert.rejects(() => db.transaction((tx) => requireTripCloseReadiness(tx, tripId)), /e-POD hiện tại chưa được duyệt/);
+  });
+
+  test('synthetic LCL scope completion moves submitted or accepted e-POD trips to pending approval without a hidden general scope', async () => {
+    for (const submissionStatus of ['SUBMITTED', 'ACCEPTED'] as const) {
+      const fixture = await createExpenseScopeRecomputeFixture({ cargoMode: 'LCL', submissionStatus });
+      try {
+        const recomputed = await recomputeShipmentCompletion(fixture.shipment.id, { changedBy: userIds[1] });
+        assert.equal(recomputed.status, 'PENDING_EXPENSE_APPROVAL');
+        const [persisted] = await db.select({ status: s.shipments.status })
+          .from(s.shipments)
+          .where(eq(s.shipments.id, fixture.shipment.id))
+          .limit(1);
+        assert.equal(persisted?.status, 'PENDING_EXPENSE_APPROVAL');
+      } finally {
+        await fixture.cleanup();
+      }
+    }
+  });
+
+  test('FCL snapshot fulfillments still require the general scope before pending approval', async () => {
+    for (const submissionStatus of ['SUBMITTED', 'ACCEPTED'] as const) {
+      const fixture = await createExpenseScopeRecomputeFixture({ cargoMode: 'FCL', submissionStatus });
+      try {
+        const recomputed = await recomputeShipmentCompletion(fixture.shipment.id, { changedBy: userIds[1] });
+        assert.equal(recomputed.status, 'IN_TRANSIT');
+        const [persisted] = await db.select({ status: s.shipments.status })
+          .from(s.shipments)
+          .where(eq(s.shipments.id, fixture.shipment.id))
+          .limit(1);
+        assert.equal(persisted?.status, 'IN_TRANSIT');
+      } finally {
+        await fixture.cleanup();
+      }
+    }
   });
 
   test('scope completion racing a close request settles without a lock-order deadlock', async () => {
@@ -558,6 +684,17 @@ describe('O2C trip close readiness authority', () => {
     assert.equal(second.replayed, true);
     assert.deepEqual(second.completedTripIds, [tripId]);
     assert.equal(second.vatRate, 0.08);
+
+    const deliveredEvents = await db.select({
+      id: s.customerVisibleEvents.id,
+      title: s.customerVisibleEvents.contentSnapshot,
+    })
+      .from(s.customerVisibleEvents)
+      .where(eq(s.customerVisibleEvents.shipmentId, shipmentId));
+    assert.equal(
+      deliveredEvents.filter((event) => event.title.title === 'Đã giao hàng').length,
+      1,
+    );
 
     const [governanceCount] = await db.select({ count: sql<number>`count(*)::int` })
       .from(s.governanceActions)

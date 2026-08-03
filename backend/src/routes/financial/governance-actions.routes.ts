@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import {
+  governanceActionVersionSchema,
   governanceActionDecisionSchema,
   governanceActionListQuerySchema,
   Role,
@@ -57,7 +58,7 @@ router.post(
   requireRoles(...FINANCIAL_VIEWERS),
   asyncHandler(async (req: Request, res: Response) => {
     const actor = getUser(req);
-    const input = governanceActionDecisionSchema.parse(req.body);
+    const input = governanceActionVersionSchema.parse(req.body);
     const actionId = parseActionId(req.params.id);
     const idempotencyKey = getRequestIdempotencyKey(req);
     const { result, replayed } = await runIdempotent({
@@ -84,7 +85,7 @@ router.post(
   requireRoles(...FINANCIAL_VIEWERS),
   asyncHandler(async (req: Request, res: Response) => {
     const actor = getUser(req);
-    const input = governanceActionDecisionSchema.parse(req.body);
+    const input = governanceActionVersionSchema.parse(req.body);
     const actionId = parseActionId(req.params.id);
     const idempotencyKey = getRequestIdempotencyKey(req);
     const { result, replayed } = await runIdempotent({

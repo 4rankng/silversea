@@ -14,7 +14,10 @@ import { TripStatus } from '@tingting/shared';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
-import { createShipment } from '../services/shipment.service';
+import {
+  createShipment,
+  transitionShipmentStatus,
+} from '../services/shipment.service';
 import {
   tripStatusToMilestoneType,
   deriveMilestoneFromTripStatus,
@@ -28,6 +31,8 @@ const createdMilestoneIds: number[] = [];
 const createdShipmentIds: number[] = [];
 const createdCustomerIds: number[] = [];
 const createdTripIds: number[] = [];
+const createdRouteIds: number[] = [];
+const createdCargoTypeIds: number[] = [];
 
 async function mkCustomer() {
   const [c] = await db.insert(s.customers)
@@ -46,8 +51,10 @@ async function mkShipment(customerId: number) {
 async function mkTrip() {
   // Minimal trip row for milestone linking.
   const customer = await mkCustomer();
-  const [route] = await db.insert(s.routes).values({ name: `M33 route ${suffix}` }).returning();
-  const [cargo] = await db.insert(s.cargoTypes).values({ name: `M33 cargo ${suffix}` }).returning();
+  const [route] = await db.insert(s.routes).values({ name: `M33 route ${suffix}-${createdRouteIds.length}` }).returning();
+  createdRouteIds.push(route.id);
+  const [cargo] = await db.insert(s.cargoTypes).values({ name: `M33 cargo ${suffix}-${createdCargoTypeIds.length}` }).returning();
+  createdCargoTypeIds.push(cargo.id);
   const [trip] = await db.insert(s.trips).values({
     tripCode: `M33-${suffix}-${createdTripIds.length}`.slice(0, 50),
     customerId: customer.id, routeId: route.id, cargoTypeId: cargo.id,
@@ -73,6 +80,12 @@ after(async () => {
     }
     if (createdTripIds.length > 0) {
       await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
+    }
+    if (createdRouteIds.length > 0) {
+      await db.delete(s.routes).where(inArray(s.routes.id, createdRouteIds));
+    }
+    if (createdCargoTypeIds.length > 0) {
+      await db.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, createdCargoTypeIds));
     }
     if (createdCustomerIds.length > 0) {
       await db.delete(s.customers).where(inArray(s.customers.id, createdCustomerIds));
@@ -136,6 +149,107 @@ describe('M3.3 — deriveMilestoneFromTripStatus', () => {
 
     const milestones = await listMilestones(shipment.id);
     assert.equal(milestones.length, 0);
+  });
+
+  test('keeps per-trip IN_TRANSIT milestones but creates one shipment-scoped portal event', async () => {
+    const customer = await mkCustomer();
+    const shipment = await mkShipment(customer.id);
+    const tripA = await mkTrip();
+    const tripB = await mkTrip();
+
+    await deriveMilestoneFromTripStatus(shipment.id, tripA.id, TripStatus.CREATED, TripStatus.IN_TRANSIT, 1);
+    await deriveMilestoneFromTripStatus(shipment.id, tripB.id, TripStatus.CREATED, TripStatus.IN_TRANSIT, 1);
+
+    const milestones = await listMilestones(shipment.id);
+    assert.equal(milestones.filter((milestone) => milestone.type === 'IN_TRANSIT').length, 2);
+
+    const beforeTransition = await db.select().from(s.customerVisibleEvents)
+      .where(eq(s.customerVisibleEvents.shipmentId, shipment.id));
+    assert.equal(beforeTransition.length, 0);
+
+    await transitionShipmentStatus(shipment.id, 'DISPATCHED', { changedBy: 1 });
+    await transitionShipmentStatus(shipment.id, 'IN_TRANSIT', { changedBy: 1 });
+    await transitionShipmentStatus(shipment.id, 'IN_TRANSIT', { changedBy: 1 });
+
+    const afterTransition = await db.select().from(s.customerVisibleEvents)
+      .where(eq(s.customerVisibleEvents.shipmentId, shipment.id));
+    assert.equal(afterTransition.length, 1);
+    assert.equal(afterTransition[0]?.contentSnapshot.title, 'Đang vận chuyển');
+  });
+
+  test('creates one shipment-scoped booking-received portal event across multiple trip creations', async () => {
+    const customer = await mkCustomer();
+    const shipment = await mkShipment(customer.id);
+    const tripA = await mkTrip();
+    const tripB = await mkTrip();
+
+    await deriveMilestoneFromTripStatus(shipment.id, tripA.id, null, TripStatus.CREATED, 1);
+    await deriveMilestoneFromTripStatus(shipment.id, tripB.id, null, TripStatus.CREATED, 1);
+
+    const bookingEvents = (await db.select().from(s.customerVisibleEvents)
+      .where(eq(s.customerVisibleEvents.shipmentId, shipment.id)))
+      .filter((event) => event.contentSnapshot.title === 'Đã tiếp nhận booking');
+    assert.equal(bookingEvents.length, 1);
+    assert.equal(bookingEvents[0]?.eventKey, `shipment:${shipment.id}:booking-received`);
+  });
+
+  test('re-entering IN_TRANSIT after a dispatch regression writes a second customer-visible event', async () => {
+    const customer = await mkCustomer();
+    const shipment = await mkShipment(customer.id);
+
+    await transitionShipmentStatus(shipment.id, 'DISPATCHED', { changedBy: 1 });
+    await transitionShipmentStatus(shipment.id, 'IN_TRANSIT', { changedBy: 1 });
+    await transitionShipmentStatus(shipment.id, 'DISPATCHED', { changedBy: 1 });
+    await transitionShipmentStatus(shipment.id, 'IN_TRANSIT', { changedBy: 1 });
+
+    const inTransitEvents = (await db.select().from(s.customerVisibleEvents)
+      .where(eq(s.customerVisibleEvents.shipmentId, shipment.id)))
+      .filter((event) => event.contentSnapshot.title === 'Đang vận chuyển');
+    assert.equal(inTransitEvents.length, 2);
+    assert.notEqual(inTransitEvents[0]?.eventKey, inTransitEvents[1]?.eventKey);
+  });
+
+  test('does not emit delivered portal event on first completed trip; shipment COMPLETED emits exactly one', async () => {
+    const customer = await mkCustomer();
+    const shipment = await mkShipment(customer.id);
+    const tripA = await mkTrip();
+    const tripB = await mkTrip();
+
+    await transitionShipmentStatus(shipment.id, 'DISPATCHED', { changedBy: 1 });
+    await transitionShipmentStatus(shipment.id, 'IN_TRANSIT', { changedBy: 1 });
+
+    await deriveMilestoneFromTripStatus(shipment.id, tripA.id, TripStatus.IN_TRANSIT, TripStatus.COMPLETED, 1);
+
+    const afterFirstTrip = await db.select().from(s.customerVisibleEvents)
+      .where(eq(s.customerVisibleEvents.shipmentId, shipment.id));
+    assert.equal(afterFirstTrip.filter((event) => event.contentSnapshot.title === 'Đã giao hàng').length, 0);
+
+    await deriveMilestoneFromTripStatus(shipment.id, tripB.id, TripStatus.IN_TRANSIT, TripStatus.COMPLETED, 1);
+    await transitionShipmentStatus(shipment.id, 'PENDING_EXPENSE_APPROVAL', { changedBy: 1 });
+    await transitionShipmentStatus(shipment.id, 'COMPLETED', { changedBy: 1 });
+    await transitionShipmentStatus(shipment.id, 'COMPLETED', { changedBy: 1 });
+
+    const deliveredMilestones = (await listMilestones(shipment.id))
+      .filter((milestone) => milestone.type === 'DELIVERED');
+    assert.equal(deliveredMilestones.length, 2);
+
+    const deliveredEvents = (await db.select().from(s.customerVisibleEvents)
+      .where(eq(s.customerVisibleEvents.shipmentId, shipment.id)))
+      .filter((event) => event.contentSnapshot.title === 'Đã giao hàng');
+    assert.equal(deliveredEvents.length, 1);
+    assert.equal(deliveredEvents[0]?.contentSnapshot.title, 'Đã giao hàng');
+  });
+
+  test('does not fabricate a customer-visible event creator when shipment transition has no actor', async () => {
+    const customer = await mkCustomer();
+    const shipment = await mkShipment(customer.id);
+
+    await transitionShipmentStatus(shipment.id, 'DISPATCHED');
+    await transitionShipmentStatus(shipment.id, 'IN_TRANSIT');
+
+    const portalEvents = await db.select().from(s.customerVisibleEvents)
+      .where(eq(s.customerVisibleEvents.shipmentId, shipment.id));
+    assert.equal(portalEvents.length, 0);
   });
 });
 

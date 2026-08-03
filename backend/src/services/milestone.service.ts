@@ -77,7 +77,6 @@ export async function deriveMilestoneFromTripStatus(
 
   const execute = async (tx: Tx) => {
     const occurredAt = new Date();
-
     const [inserted] = await tx.insert(s.shipmentMilestones).values({
       shipmentId,
       type: milestoneType,
@@ -85,6 +84,9 @@ export async function deriveMilestoneFromTripStatus(
       changedBy: actorUserId ?? null,
       occurredAt,
     }).onConflictDoNothing().returning();
+
+    if (milestoneType !== 'BOOKING_RECEIVED' || actorUserId == null) return;
+
     const milestone = inserted ?? (await tx.select().from(s.shipmentMilestones)
       .where(and(
         eq(s.shipmentMilestones.shipmentId, shipmentId),
@@ -92,22 +94,21 @@ export async function deriveMilestoneFromTripStatus(
         eq(s.shipmentMilestones.tripId, tripId),
       ))
       .limit(1))[0];
-    if (!milestone || actorUserId == null) return;
+    if (!milestone) return;
+    const [shipment] = await tx.select({
+      createdAt: s.shipments.createdAt,
+    }).from(s.shipments)
+      .where(eq(s.shipments.id, shipmentId))
+      .limit(1);
+    if (!shipment) return;
 
-    const visibleCopy = {
-      BOOKING_RECEIVED: { title: 'Đã tiếp nhận booking', message: 'Thông tin booking của lô hàng đã được tiếp nhận.' },
-      IN_TRANSIT: { title: 'Đang vận chuyển', message: 'Lô hàng đang được vận chuyển.' },
-      DELIVERED: { title: 'Đã giao hàng', message: 'Lô hàng đã được giao.' },
-    } as const;
-    const copy = visibleCopy[milestoneType as keyof typeof visibleCopy];
-    if (!copy) return;
     await createCustomerVisibleEvent({
       shipmentId,
-      eventKey: `trip:${tripId}:milestone:${milestoneType}`,
+      eventKey: `shipment:${shipmentId}:booking-received`,
       eventType: 'MILESTONE',
-      title: copy.title,
-      message: copy.message,
-      occurredAt: milestone.occurredAt,
+      title: 'Đã tiếp nhận booking',
+      message: 'Thông tin booking của lô hàng đã được tiếp nhận.',
+      occurredAt: shipment.createdAt,
       milestoneId: milestone.id,
       createdBy: actorUserId,
     }, undefined, tx);

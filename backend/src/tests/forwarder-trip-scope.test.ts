@@ -171,6 +171,33 @@ describe('forwarder shipment scope', () => {
     assert.deepEqual(updated.shipmentIds, [shipmentB]);
   });
 
+  test('forwarder updates preserve existing terminal shipment links but reject newly added terminal shipments', async () => {
+    await db.delete(s.userShipmentLinks).where(inArray(s.userShipmentLinks.userId, [forwarderA, forwarderB]));
+    await db.insert(s.userShipmentLinks).values([
+      { userId: forwarderA, shipmentId: shipmentA },
+      { userId: forwarderB, shipmentId: shipmentB },
+    ]);
+
+    try {
+      await db.update(s.shipments).set({ status: 'COMPLETED' }).where(eq(s.shipments.id, shipmentA));
+      const preserved = await updateUser(forwarderA, { shipmentIds: [shipmentA, shipmentB] });
+      assert.deepEqual(preserved.shipmentIds, [shipmentA, shipmentB]);
+
+      await db.update(s.shipments).set({ status: 'CANCELED' }).where(eq(s.shipments.id, shipmentA));
+      await assert.rejects(
+        () => updateUser(forwarderB, { shipmentIds: [shipmentA, shipmentB] }),
+        /chưa kết thúc/,
+      );
+    } finally {
+      await db.update(s.shipments).set({ status: 'NEW' }).where(eq(s.shipments.id, shipmentA));
+      await db.delete(s.userShipmentLinks).where(inArray(s.userShipmentLinks.userId, [forwarderA, forwarderB]));
+      await db.insert(s.userShipmentLinks).values([
+        { userId: forwarderA, shipmentId: shipmentA },
+        { userId: forwarderB, shipmentId: shipmentB },
+      ]);
+    }
+  });
+
   test('list, detail, and mutation guard deny an out-of-scope trip', async () => {
     const listA = await getForwarderTrips(forwarderA);
     assert.ok(listA.some((trip) => trip.id === tripA));

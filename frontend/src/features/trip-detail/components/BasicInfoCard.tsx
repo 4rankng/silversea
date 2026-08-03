@@ -1,14 +1,50 @@
 import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Truck, User, Calendar, Package, Hash, CheckCircle } from 'lucide-react';
 import { fmtDate } from '../formatters';
 import type { TripDetail } from '@tingting/shared';
+import { api } from '../../../lib/api';
+import { qk } from '../../../api/keys';
+import {
+  isSyntheticLclContainer,
+  type ContainersResponse,
+} from './ContainersCard';
 
 interface BasicInfoCardProps {
   trip: TripDetail;
 }
 
+interface BasicInfoRow {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  mono?: boolean;
+  isDate?: boolean;
+  muted?: boolean;
+  full?: boolean;
+}
+
 export function BasicInfoCard({ trip }: BasicInfoCardProps) {
-  const rows = [
+  const { data: containerData, isLoading: containersLoading } = useQuery<ContainersResponse>({
+    queryKey: qk.tripForm.tripContainers(trip.id),
+    queryFn: () => api.get(`/trips/${trip.id}/containers`),
+    enabled: !!trip.id,
+  });
+  const containerItems = containerData?.items ?? [];
+  const realContainerCount = containerItems.filter((container) => !isSyntheticLclContainer(container)).length;
+  const isSyntheticLclTrip = containerItems.length > 0 && realContainerCount === 0
+    && containerItems.some(isSyntheticLclContainer);
+  const containerRow: BasicInfoRow = isSyntheticLclTrip
+    ? { icon: <Package size={17} />, label: 'Hình thức hàng', value: 'Lô hàng lẻ' }
+    : {
+        icon: <Package size={17} />,
+        label: 'Số container',
+        value: containersLoading
+          ? '—'
+          : String(realContainerCount || trip.containerCount || 0),
+        mono: true,
+      };
+  const rows: BasicInfoRow[] = [
     { icon: <Truck size={17} />, label: 'Xe đầu kéo', value: trip.truck?.licensePlate ?? '—', mono: true },
     { icon: <User size={17} />, label: 'Lái xe', value: trip.driver?.name ?? '—' },
     {
@@ -21,7 +57,7 @@ export function BasicInfoCard({ trip }: BasicInfoCardProps) {
       value: trip.trailer ? `${trip.trailer.licensePlate} · ${trip.trailer.type || (trip.trailerType ?? '—')}` : (trip.trailerType ?? '—'),
       mono: true,
     },
-    { icon: <Package size={17} />, label: 'Số container', value: String(trip.containerCount ?? 1), mono: true },
+    containerRow,
     { icon: <Calendar size={17} />, label: 'Ngày khởi hành', value: fmtDate(trip.departureDate), mono: true, isDate: true },
     { icon: <CheckCircle size={17} />, label: 'Ngày hoàn thành', value: trip.completedAt ? fmtDate(trip.completedAt) : '—', mono: true },
     { icon: <Hash size={17} />, label: 'Mã tham chiếu', value: trip.customerReference ?? 'Chưa có', muted: !trip.customerReference, full: true },

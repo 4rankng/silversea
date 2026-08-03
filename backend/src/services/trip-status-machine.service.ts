@@ -84,7 +84,7 @@ export async function transitionTripStatus(
 
     // Verify role permissions and transition matrix
     if (targetStatus === TripStatus.IN_TRANSIT) {
-      // Per docs/flows/01-TRIP_LIFECYCLE.md §2.3, ADMIN/MANAGER can dispatch.
+      // Per docs/flows/01-TRIP_LIFECYCLE.md §2.3, ADMIN/MANAGER/DISPATCHER can dispatch.
       // A DRIVER may start only through the already ownership-checked,
       // fulfillment-scoped acknowledgement path. ACCOUNTANT's trip-write
       // permission is for financial fields only.
@@ -94,10 +94,15 @@ export async function transitionTripStatus(
         && driverStart != null
         && trip.driverId === driverStart.driverId
         && trip.fulfillmentId === driverStart.fulfillmentId;
-      if (userRole !== Role.ADMIN && userRole !== Role.MANAGER && !canStartOwnedFulfillment) {
+      if (
+        userRole !== Role.ADMIN
+        && userRole !== Role.MANAGER
+        && userRole !== Role.DISPATCHER
+        && !canStartOwnedFulfillment
+      ) {
         throw new ApiError(
           403,
-          'Chỉ Quản lý hoặc Quản trị viên mới có quyền xuất phát chuyến đi',
+          'Chỉ Quản lý, Điều phối hoặc Quản trị viên mới có quyền xuất phát chuyến đi',
         );
       }
       if (currentStatus !== TripStatus.CREATED && currentStatus !== TripStatus.COMPLETED) {

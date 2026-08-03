@@ -212,6 +212,14 @@
   grid-column: 1 / -1;
 }
 
+.settlement-detail__summary-card--refund {
+  --stat-rail: var(--success);
+}
+
+.settlement-detail__summary-card--refund + .settlement-detail__summary-card--balance {
+  grid-column: auto;
+}
+
 .settlement-detail__summary-label {
   font-size: var(--fs-xs);
   color: var(--ink-3);

@@ -292,9 +292,14 @@ async function validateBusinessUnitIds(
 async function validateShipmentIds(
   q: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0],
   shipmentIds: number[],
-  businessUnitIds?: number[],
+  options?: {
+    businessUnitIds?: number[];
+    allowExistingTerminalShipmentIds?: readonly number[];
+  },
 ) {
   if (shipmentIds.length === 0) return;
+  const allowExistingTerminalShipmentIds = new Set(options?.allowExistingTerminalShipmentIds ?? []);
+  const businessUnitIds = options?.businessUnitIds;
   const rows = await q.select({
     id: shipments.id,
     responsibleUnitId: shipments.responsibleUnitId,
@@ -306,7 +311,10 @@ async function validateShipmentIds(
     throw new ApiError(400, 'Lô hàng liên kết không tồn tại');
   }
   const terminalShipment = rows.find(
-    (row) => row.status === 'COMPLETED' || row.status === 'CANCELED',
+    (row) => (
+      (row.status === 'COMPLETED' || row.status === 'CANCELED')
+      && !allowExistingTerminalShipmentIds.has(row.id)
+    ),
   );
   if (terminalShipment) {
     throw new ApiError(400, 'Chỉ được gán lô hàng chưa kết thúc');
@@ -496,7 +504,7 @@ export async function createUserWithTx(tx: Tx, data: {
     }
     await validateCustomerIds(tx, customerIds);
     await validateBusinessUnitIds(tx, businessUnitIds);
-    await validateShipmentIds(tx, shipmentIds, businessUnitIds);
+    await validateShipmentIds(tx, shipmentIds, { businessUnitIds });
     if ((data.status ?? 'ACTIVE') !== 'INACTIVE') {
       assertActiveClerkScope(businessUnitIds, customerIds, shipmentIds);
     }
@@ -751,7 +759,11 @@ export async function updateUserWithTx(id: number, data: {
       }
       if (explicitShipmentUpdate) {
         nextShipmentIds = [...new Set((data.shipmentIds ?? []).filter((value): value is number => Number.isInteger(value) && value > 0))].sort((a, b) => a - b);
-        await validateShipmentIds(tx, nextShipmentIds);
+        // Preserve historical trip visibility on already-linked terminal shipments;
+        // only newly added assignments must still be open.
+        await validateShipmentIds(tx, nextShipmentIds, {
+          allowExistingTerminalShipmentIds: existingShipmentIds,
+        });
       }
       if (effectiveStatus !== 'INACTIVE' && nextShipmentIds.length === 0) {
         throw new ApiError(400, 'Tài khoản giao nhận ACTIVE phải có ít nhất một lô hàng được giao');
@@ -771,7 +783,7 @@ export async function updateUserWithTx(id: number, data: {
     if (explicitShipmentUpdate) {
       nextShipmentIds = [...new Set((data.shipmentIds ?? []).filter((value): value is number => Number.isInteger(value) && value > 0))].sort((a, b) => a - b);
     }
-    await validateShipmentIds(tx, nextShipmentIds, nextBusinessUnitIds);
+    await validateShipmentIds(tx, nextShipmentIds, { businessUnitIds: nextBusinessUnitIds });
     const existingActiveLegacyClerk = existing.role === Role.CLERK
       && existing.status !== 'INACTIVE'
       && !hasActiveClerkScope(existingBusinessUnitIds, existingCustomerIds, existingShipmentIds);

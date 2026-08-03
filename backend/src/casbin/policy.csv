@@ -97,6 +97,8 @@ p, MANAGER, shipment_fulfillments, read
 p, MANAGER, shipment_fulfillments, write
 p, CLERK, shipment_fulfillments, read
 p, ACCOUNTANT, shipment_fulfillments, read
+p, DISPATCHER, shipment_fulfillments, read
+p, DISPATCHER, shipment_fulfillments, write
 p, MANAGER, epod_review, read
 p, MANAGER, epod_review, write
 p, CLERK, epod_review, read

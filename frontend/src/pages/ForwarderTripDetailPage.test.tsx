@@ -128,30 +128,34 @@ vi.mock('../components/trip/TripLegsPanel', () => ({
   default: () => null,
 }));
 
-vi.mock('./forwarder-trip-detail-sections', () => ({
-  ForwarderTripLoading: () => <div>loading</div>,
-  ForwarderTripError: () => <div>error</div>,
-  ForwarderContainersSection: () => null,
-  ForwarderExpenseRow: ({
-    exp,
-    uploadingExpenseId,
-    onUpload,
-  }: {
-    exp: { id: number };
-    uploadingExpenseId: number | null;
-    onUpload: (expenseId: number, file: File) => void;
-  }) => {
-    renderHistory.push(uploadingExpenseId);
-    return (
-      <div>
-        <button type="button" onClick={() => onUpload(exp.id, new File(['photo'], 'proof.jpg', { type: 'image/jpeg' }))}>
-          Tải ảnh chứng từ
-        </button>
-        <span>{uploadingExpenseId === exp.id ? 'Đang tải ảnh' : 'Sẵn sàng'}</span>
-      </div>
-    );
-  },
-}));
+vi.mock('./forwarder-trip-detail-sections', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./forwarder-trip-detail-sections')>();
+  return {
+    ...actual,
+    ForwarderTripLoading: () => <div>loading</div>,
+    ForwarderTripError: () => <div>error</div>,
+    ForwarderContainersSection: () => null,
+    ForwarderExpenseRow: ({
+      exp,
+      uploadingExpenseId,
+      onUpload,
+    }: {
+      exp: { id: number };
+      uploadingExpenseId: number | null;
+      onUpload: (expenseId: number, file: File) => void;
+    }) => {
+      renderHistory.push(uploadingExpenseId);
+      return (
+        <div>
+          <button type="button" onClick={() => onUpload(exp.id, new File(['photo'], 'proof.jpg', { type: 'image/jpeg' }))}>
+            Tải ảnh chứng từ
+          </button>
+          <span>{uploadingExpenseId === exp.id ? 'Đang tải ảnh' : 'Sẵn sàng'}</span>
+        </div>
+      );
+    },
+  };
+});
 
 import ForwarderTripDetailPage from './ForwarderTripDetailPage';
 

@@ -90,16 +90,19 @@ async function assertReferenceIsActive(
     .where(and(eq(s.routes.id, shipment.routeId), isNull(s.routes.deletedAt))).limit(1);
   if (!route) throw new ApiError(409, 'Tuyến đường không còn hiệu lực.');
 
-  if (shipment.operationalSiteId == null) throw new ApiError(409, 'Vui lòng chọn nhà máy.');
-  const [factory] = await tx.select({ id: s.operationalSites.id }).from(s.operationalSites)
-    .where(and(
-      eq(s.operationalSites.id, shipment.operationalSiteId),
-      eq(s.operationalSites.customerId, shipment.customerId),
-      eq(s.operationalSites.siteType, 'FACTORY'),
-      eq(s.operationalSites.isActive, true),
-      isNull(s.operationalSites.deletedAt),
-    )).limit(1);
-  if (!factory) throw new ApiError(409, 'Nhà máy không còn hiệu lực hoặc không thuộc khách hàng.');
+  // FCL requires a delivery factory; LCL delivers to a warehouse pickup, not a factory.
+  if (shipment.cargoMode === 'FCL') {
+    if (shipment.operationalSiteId == null) throw new ApiError(409, 'Vui lòng chọn nhà máy.');
+    const [factory] = await tx.select({ id: s.operationalSites.id }).from(s.operationalSites)
+      .where(and(
+        eq(s.operationalSites.id, shipment.operationalSiteId),
+        eq(s.operationalSites.customerId, shipment.customerId),
+        eq(s.operationalSites.siteType, 'FACTORY'),
+        eq(s.operationalSites.isActive, true),
+        isNull(s.operationalSites.deletedAt),
+      )).limit(1);
+    if (!factory) throw new ApiError(409, 'Nhà máy không còn hiệu lực hoặc không thuộc khách hàng.');
+  }
   if (shipment.cargoMode === 'LCL') {
     if (shipment.pickupWarehouseSiteId == null) throw new ApiError(409, 'Vui lòng chọn kho lấy hàng.');
     const [warehouse] = await tx.select({ id: s.operationalSites.id }).from(s.operationalSites)

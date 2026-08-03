@@ -118,6 +118,11 @@
 .fwd-expense-group__empty { padding: 12px 20px; }
 .fwd-expense-action { min-width: 44px; min-height: 44px; display: inline-grid; place-items: center; }
 
+.fwd-cont-row:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
+}
+
 @media (max-width: 560px) {
   .fwd-expense-group__header { align-items: flex-start; }
   .fwd-expense-group__header .btn { min-height: 44px; }

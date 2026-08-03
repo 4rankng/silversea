@@ -13,6 +13,28 @@ export interface ForwarderContainer {
   notes?: string | null;
 }
 
+export const FORWARDER_LCL_SCOPE_LABEL = 'Lô hàng lẻ';
+export const SYNTHETIC_LCL_CONTAINER_NOTE_PREFIX = '__fulfillment_lcl:';
+
+export function isSyntheticLclContainer(container: Pick<ForwarderContainer, 'containerNumber' | 'notes'>): boolean {
+  const containerNumber = container.containerNumber?.trim() ?? '';
+  const notes = container.notes?.trim() ?? '';
+  return containerNumber.length === 0 && notes.startsWith(SYNTHETIC_LCL_CONTAINER_NOTE_PREFIX);
+}
+
+export function getForwarderContainerDisplayLabel(container: Pick<ForwarderContainer, 'containerNumber' | 'notes'>): string {
+  const containerNumber = container.containerNumber?.trim();
+  if (containerNumber) return containerNumber;
+  if (isSyntheticLclContainer(container)) return FORWARDER_LCL_SCOPE_LABEL;
+  return 'Container chưa có số';
+}
+
+export function getForwarderContainerScopeLabel(container: Pick<ForwarderContainer, 'containerNumber' | 'notes'>): string {
+  if (isSyntheticLclContainer(container)) return FORWARDER_LCL_SCOPE_LABEL;
+  const containerNumber = container.containerNumber?.trim();
+  return containerNumber ? `Container ${containerNumber}` : 'Container chưa có số';
+}
+
 export function ForwarderTripLoading() {
   return <div style={{ padding: 32, textAlign: 'center', color: 'var(--fg-3)' }}>
     <Loader2 size={24} className="spin" style={{ display: 'inline-block' }} /><p style={{ marginTop: 12 }}>Đang tải…</p>
@@ -28,11 +50,14 @@ export function ForwarderTripError({ queryError, onBack }: { queryError: boolean
 type ContainerForm = { containerNumber: string; sealNumber: string; notes: string };
 interface ContainerSectionProps { containers: ForwarderContainer[]; show: boolean; setShow: (show: boolean) => void; form: ContainerForm; setForm: React.Dispatch<React.SetStateAction<ContainerForm>>; onAdd: () => void; pending: boolean; selectedContainerId: string; onSelectContainer: (id: string) => void }
 export function ForwarderContainersSection({ containers, show: showContainerForm, setShow: setShowContainerForm, form: containerForm, setForm: setContainerForm, onAdd: handleAddContainer, pending, selectedContainerId, onSelectContainer }: ContainerSectionProps) {
+ const visibleContainers = containers.filter((container) => !isSyntheticLclContainer(container));
+ const hasSyntheticLclScope = containers.some(isSyntheticLclContainer);
+ if (hasSyntheticLclScope && visibleContainers.length === 0) return null;
  return <>
         <div className="panel panel--solid" style={{ marginBottom: 16 }}>
           <div style={{ padding: '8px 20px', borderBottom: '1px solid var(--border-1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 12, lineHeight: 1.35, fontWeight: 600, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              Số Container / Seal ({containers.length})
+              Số Container / Seal ({visibleContainers.length})
             </span>
             <button
               className="btn btn--secondary btn--sm"
@@ -83,23 +108,29 @@ export function ForwarderContainersSection({ containers, show: showContainerForm
             </div>
           )}
 
-          {containers.length === 0 ? (
+          {visibleContainers.length === 0 ? (
             <div style={{ padding: '16px 20px', color: 'var(--fg-3)', fontSize: 13, textAlign: 'center' }}>
               Chưa có số container/seal nào
             </div>
           ) : (
             <div style={{ padding: '4px 0' }}>
-              {containers.map((c) => {
+              {visibleContainers.map((c) => {
                 const isActive = selectedContainerId === String(c.id);
                 return (
-                <div
+                <button
+                  type="button"
                   key={c.id}
                   className={isActive ? 'fwd-cont-row fwd-cont-row--active' : 'fwd-cont-row'}
+                  aria-pressed={isActive}
+                  aria-label={`Chọn ${getForwarderContainerScopeLabel(c)} cho chi phí`}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 12,
                     padding: '10px 20px', borderBottom: '1px solid var(--border-1)',
                     cursor: 'pointer',
-                    background: isActive ? 'var(--brand-subtle, rgba(0,177,79,0.08))' : undefined,
+                    width: '100%', minHeight: 44, borderTop: 0, borderLeft: 0, borderRight: 0,
+                    appearance: 'none', borderRadius: 0,
+                    color: 'inherit', font: 'inherit', textAlign: 'left',
+                    background: isActive ? 'var(--brand-subtle, rgba(0,177,79,0.08))' : 'transparent',
                     boxShadow: isActive ? 'inset 3px 0 0 var(--brand)' : undefined,
                   }}
                   onClick={() => onSelectContainer(String(c.id))}
@@ -107,7 +138,7 @@ export function ForwarderContainersSection({ containers, show: showContainerForm
                 >
                   <Package size={14} style={{ color: 'var(--brand)', flexShrink: 0 }} />
                   <div style={{ flex: 1 }}>
-                    <span style={{ fontWeight: 600, fontSize: 13, fontFamily: 'var(--font-mono)' }}>{c.containerNumber}</span>
+                    <span style={{ fontWeight: 600, fontSize: 13, fontFamily: 'var(--font-mono)' }}>{getForwarderContainerDisplayLabel(c)}</span>
                     {c.sealNumber && (
                       <span style={{ color: 'var(--fg-3)', fontSize: 12, marginLeft: 12 }}>
                         Seal: <span style={{ fontFamily: 'var(--font-mono)' }}>{c.sealNumber}</span>
@@ -117,7 +148,7 @@ export function ForwarderContainersSection({ containers, show: showContainerForm
                   {c.notes && (
                     <span style={{ fontSize: 12, color: 'var(--fg-3)' }}>{c.notes}</span>
                   )}
-                </div>
+                </button>
                 );
               })}
             </div>

@@ -8,7 +8,7 @@ import { PhotoViewer } from '../../../components/PhotoViewer';
 import '../../../components/PhotoViewer.css';
 
 /** Shape returned by GET /api/trips/:id/containers (listTripContainers). */
-interface ServerContainer {
+export interface ServerContainer {
   id: number;
   containerNumber: string | null;
   sealNumber: string | null;
@@ -18,7 +18,7 @@ interface ServerContainer {
   notes: string | null;
 }
 
-interface ContainersResponse {
+export interface ContainersResponse {
   items: ServerContainer[];
   /** Trip-level latest cont/seal photo storage keys (trip_photos). Back-compat. */
   contPhotoKey?: string | null;
@@ -31,6 +31,24 @@ interface ContainersResponse {
 
 interface Props {
   tripId: number;
+}
+
+const SYNTHETIC_LCL_CONTAINER_NOTE_PREFIX = '__fulfillment_lcl:';
+const LCL_SCOPE_LABEL = 'Lô hàng lẻ';
+
+export function isSyntheticLclContainer(container: ServerContainer): boolean {
+  return !container.containerNumber?.trim()
+    && (container.notes?.startsWith(SYNTHETIC_LCL_CONTAINER_NOTE_PREFIX) ?? false);
+}
+
+function containerSubtitle(items: ServerContainer[]): string | null {
+  if (items.length === 0) return null;
+  const lclCount = items.filter(isSyntheticLclContainer).length;
+  const containerCount = items.length - lclCount;
+  const parts: string[] = [];
+  if (containerCount > 0) parts.push(`${containerCount} cont`);
+  if (lclCount > 0) parts.push(`${lclCount} lô`);
+  return parts.join(' · ') || null;
 }
 
 /**
@@ -54,6 +72,8 @@ export function ContainersCard({ tripId }: Props) {
   const [broken, setBroken] = useState<Set<string>>(new Set());
 
   const items = data?.items ?? [];
+  const isSyntheticLclOnly = items.length > 0 && items.every(isSyntheticLclContainer);
+  const subtitle = containerSubtitle(items);
   // Prefer the new plural arrays; fall back to singular for older clients.
   const contKeys = data?.contPhotoKeys ?? (data?.contPhotoKey ? [data.contPhotoKey] : []);
   const sealKeys = data?.sealPhotoKeys ?? (data?.sealPhotoKey ? [data.sealPhotoKey] : []);
@@ -73,10 +93,10 @@ export function ContainersCard({ tripId }: Props) {
       <div className="card-head">
         <h2>
           <span className="hicon"><Package size={15} /></span>
-          Container &amp; Seal
-          {items.length > 0 && (
+          {isSyntheticLclOnly ? 'Thông tin hàng lẻ' : 'Container & Seal'}
+          {subtitle && !isSyntheticLclOnly && (
             <span className="sub" style={{ margin: 0, marginLeft: 4, fontSize: 13, fontWeight: 500, color: 'var(--ink-3)' }}>
-              • {items.length} cont
+              • {subtitle}
             </span>
           )}
         </h2>
@@ -120,31 +140,35 @@ export function ContainersCard({ tripId }: Props) {
               <div className="containers-list">
                 {items.map((c, idx) => (
                   <div key={c.id} className="container-row">
-                    <div className="container-no">{idx + 1}</div>
+                    {!isSyntheticLclContainer(c) ? <div className="container-no">{idx + 1}</div> : null}
                     <div className="container-fields">
                       <div className="cf">
-                        <span className="cf-label">Số container</span>
-                        <span className="cf-value mono">{c.containerNumber || '—'}</span>
+                        <span className="cf-label">{isSyntheticLclContainer(c) ? 'Phạm vi' : 'Số container'}</span>
+                        <span className="cf-value mono">{isSyntheticLclContainer(c) ? LCL_SCOPE_LABEL : c.containerNumber || '—'}</span>
                       </div>
-                      <div className="cf">
-                        <span className="cf-label">Số seal</span>
-                        <span className="cf-value mono">{c.sealNumber || '—'}</span>
-                      </div>
-                      <div className="cf">
-                        <span className="cf-label">Loại cont</span>
-                        <span className="cf-value">
-                          {c.containerTypeName
-                            ? `${c.containerTypeName}${c.containerTypeCode ? ` (${c.containerTypeCode})` : ''}`
-                            : '—'}
-                        </span>
-                      </div>
-                      <div className="cf">
-                        <span className="cf-label">Trọng lượng</span>
-                        <span className="cf-value mono">
-                          {c.cargoWeightKg ? `${Number(c.cargoWeightKg).toLocaleString('vi-VN')} kg` : '—'}
-                        </span>
-                      </div>
-                      {c.notes && (
+                      {!isSyntheticLclContainer(c) ? (
+                        <>
+                          <div className="cf">
+                            <span className="cf-label">Số seal</span>
+                            <span className="cf-value mono">{c.sealNumber || '—'}</span>
+                          </div>
+                          <div className="cf">
+                            <span className="cf-label">Loại cont</span>
+                            <span className="cf-value">
+                              {c.containerTypeName
+                                ? `${c.containerTypeName}${c.containerTypeCode ? ` (${c.containerTypeCode})` : ''}`
+                                : '—'}
+                            </span>
+                          </div>
+                          <div className="cf">
+                            <span className="cf-label">Trọng lượng</span>
+                            <span className="cf-value mono">
+                              {c.cargoWeightKg ? `${Number(c.cargoWeightKg).toLocaleString('vi-VN')} kg` : '—'}
+                            </span>
+                          </div>
+                        </>
+                      ) : null}
+                      {c.notes && !isSyntheticLclContainer(c) && (
                         <div className="cf cf--full">
                           <span className="cf-label">Ghi chú</span>
                           <span className="cf-value">{c.notes}</span>

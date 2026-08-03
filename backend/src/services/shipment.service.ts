@@ -61,7 +61,10 @@ import {
   type ShipmentPodReviewItemView,
 } from './trip-pod.service';
 import { transitionTripStatus } from './trip-status-machine.service';
-import { assertActorCanAccessShipment } from './shipment-coordination.service';
+import {
+  assertActorCanAccessShipment,
+  createCustomerVisibleEvent,
+} from './shipment-coordination.service';
 import { requireTripCloseReadiness } from './trip-close-readiness.service';
 
 // ─── Status machine ─────────────────────────────────────────────────────────
@@ -95,8 +98,28 @@ export type ShipmentStatus =
   | 'COMPLETED'
   | 'CANCELED';
 
+const CUSTOMER_VISIBLE_SHIPMENT_STATUS_COPY: Partial<Record<ShipmentStatus, {
+  title: string;
+  message: string;
+}>> = {
+  IN_TRANSIT: {
+    title: 'Đang vận chuyển',
+    message: 'Lô hàng đang được vận chuyển.',
+  },
+  COMPLETED: {
+    title: 'Đã giao hàng',
+    message: 'Lô hàng đã được giao.',
+  },
+};
+
+const SYNTHETIC_LCL_FULFILLMENT_SCOPE_PREFIX = '__fulfillment_lcl:';
+
 function normalizeShipmentStatusValue(status: string | null | undefined): ShipmentStatus | null {
   return canonicalShipmentStatus(status);
+}
+
+function isSyntheticLclFulfillmentScope(notes: string | null | undefined): boolean {
+  return typeof notes === 'string' && notes.startsWith(SYNTHETIC_LCL_FULFILLMENT_SCOPE_PREFIX);
 }
 
 function normalizeShipmentRow<T extends { status: string | null }>(shipment: T): T {
@@ -512,6 +535,28 @@ function assertLegalTransition(from: ShipmentStatus, to: ShipmentStatus): void {
   }
 }
 
+async function createShipmentStatusCustomerVisibleEvent(
+  tx: Tx,
+  shipmentId: number,
+  statusHistoryId: number,
+  targetStatus: ShipmentStatus,
+  createdBy: number,
+  occurredAt: Date,
+): Promise<void> {
+  const copy = CUSTOMER_VISIBLE_SHIPMENT_STATUS_COPY[targetStatus];
+  if (!copy) return;
+
+  await createCustomerVisibleEvent({
+    shipmentId,
+    eventKey: `shipment:${shipmentId}:status-history:${statusHistoryId}`,
+    eventType: 'MILESTONE',
+    title: copy.title,
+    message: copy.message,
+    occurredAt,
+    createdBy,
+  }, undefined, tx);
+}
+
 // ─── Create ─────────────────────────────────────────────────────────────────
 
 async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: AuthUser) {
@@ -917,12 +962,13 @@ export async function transitionShipmentStatus(
     if (currentStatus === targetStatus) return shipment;
 
     assertLegalTransition(currentStatus, targetStatus);
+    const transitionedAt = new Date();
 
     // Conditional update guards against concurrent transition races.
     const [updated] = await tx.update(s.shipments).set({
       status: targetStatus,
       version: sql`${s.shipments.version} + 1`,
-      updatedAt: new Date(),
+      updatedAt: transitionedAt,
     })
       .where(and(eq(s.shipments.id, shipmentId), eq(s.shipments.status, currentStatus)))
       .returning();
@@ -934,13 +980,25 @@ export async function transitionShipmentStatus(
       );
     }
 
-    await tx.insert(s.shipmentStatusHistory).values({
+    const [historyRow] = await tx.insert(s.shipmentStatusHistory).values({
       shipmentId,
       fromStatus: currentStatus,
       toStatus: targetStatus,
       reason: options.reason ?? null,
       changedBy: options.changedBy ?? null,
-    });
+      changedAt: transitionedAt,
+    }).returning({ id: s.shipmentStatusHistory.id });
+    const eventActorId = options.changedBy ?? null;
+    if (eventActorId != null && historyRow) {
+      await createShipmentStatusCustomerVisibleEvent(
+        tx,
+        shipmentId,
+        historyRow.id,
+        targetStatus,
+        eventActorId,
+        transitionedAt,
+      );
+    }
 
     return updated;
   };
@@ -1130,7 +1188,11 @@ export async function recomputeShipmentCompletion(
     const [tripContainerRows, expenseScopeRows] = tripIds.length === 0
       ? [[], []] as const
       : await Promise.all([
-        tx.select({ tripId: s.tripContainers.tripId, id: s.tripContainers.id })
+        tx.select({
+          tripId: s.tripContainers.tripId,
+          id: s.tripContainers.id,
+          notes: s.tripContainers.notes,
+        })
           .from(s.tripContainers)
           .where(inArray(s.tripContainers.tripId, tripIds))
           .for('update'),
@@ -1142,23 +1204,33 @@ export async function recomputeShipmentCompletion(
           .where(inArray(s.tripExpenseCompletionScopes.tripId, tripIds))
           .for('update'),
       ]);
-    const containerIdsByTrip = new Map<number, number[]>();
+    const containersByTrip = new Map<number, { id: number; notes: string | null }[]>();
     for (const container of tripContainerRows) {
-      const current = containerIdsByTrip.get(container.tripId) ?? [];
-      current.push(container.id);
-      containerIdsByTrip.set(container.tripId, current);
+      const current = containersByTrip.get(container.tripId) ?? [];
+      current.push({ id: container.id, notes: container.notes });
+      containersByTrip.set(container.tripId, current);
     }
     const completedExpenseScopeKeys = new Set(
       expenseScopeRows
         .filter((scope) => scope.status === 'COMPLETED')
         .map((scope) => `${scope.tripId}:${scope.tripContainerId ?? 'general'}`),
     );
-    const hasCompletedExpenseScopes = (tripId: number) => (
-      completedExpenseScopeKeys.has(`${tripId}:general`)
-      && (containerIdsByTrip.get(tripId) ?? []).every((containerId) => (
-        completedExpenseScopeKeys.has(`${tripId}:${containerId}`)
-      ))
-    );
+    const hasCompletedExpenseScopes = (tripId: number) => {
+      const tripContainers = containersByTrip.get(tripId) ?? [];
+      // LCL fulfillments dispatch one synthetic trip_container row that is the
+      // only Ops scope shown in the forwarder UI. Requiring a hidden general
+      // scope here made PENDING_EXPENSE_APPROVAL unreachable for that model.
+      if (
+        tripContainers.length === 1
+        && isSyntheticLclFulfillmentScope(tripContainers[0]?.notes)
+      ) {
+        return completedExpenseScopeKeys.has(`${tripId}:${tripContainers[0]!.id}`);
+      }
+      return completedExpenseScopeKeys.has(`${tripId}:general`)
+        && tripContainers.every((container) => (
+          completedExpenseScopeKeys.has(`${tripId}:${container.id}`)
+        ));
+    };
 
     const allRequiredTripsPresent = requiredFulfillments.every((row) => {
       const linkedTrips = tripsByFulfillment.get(row.id) ?? [];

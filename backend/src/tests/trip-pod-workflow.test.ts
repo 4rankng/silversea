@@ -199,7 +199,7 @@ async function createFulfillmentTrip(args: {
   status?: typeof s.trips.$inferSelect.status;
 }) {
   const [trip] = await db.insert(s.trips).values({
-    tripCode: `P5-${args.tag}-${createdTripIds.length + 1}`.slice(0, 50),
+    tripCode: `P5-${args.tag}-${suffix}-${createdTripIds.length + 1}`.slice(0, 50),
     customerId: args.customerId,
     routeId: args.routeId,
     cargoTypeId: args.cargoTypeId,
