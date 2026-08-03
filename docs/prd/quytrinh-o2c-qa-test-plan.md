@@ -39,7 +39,7 @@
 | `DISPATCHED` / Đã điều xe | Lệnh điều xe đã phát hành |
 | `IN_TRANSIT` / Đang chạy | Driver đã nhận lệnh gốc và trip được kích hoạt |
 | `PENDING_EXPENSE_APPROVAL` / Chờ duyệt phí | Vận hành đã bàn giao, mọi expense scope đã kê xong |
-| `COMPLETED` / Hoàn thành | Đã qua e-POD/POD, chi phí và chuỗi chốt ba người |
+| `COMPLETED` / Hoàn thành | Đã qua e-POD/POD, chi phí và thao tác chốt trực tiếp của Kế toán hoặc CUS |
 | `CANCELED` / Đã hủy | Nhánh kết thúc ngoại lệ có phê duyệt/hoàn tác khi cần; không nằm trong năm trạng thái tiến chuẩn |
 | BLOCKED | Không thể kiểm thử vì điều kiện ngoài quyền của QA |
 
@@ -126,13 +126,14 @@ Tạo `RUN_ID = MAN-O2C-<YYYYMMDD-HHMMSS>-<initials>` và dùng RUN_ID trong Boo
 | Lô FCL chính | Booking `BK-<RUN_ID>-FCL`; BL `BL-<RUN_ID>-FCL`; 2 container khác nhau; dùng Xe nhà |
 | Lô LCL đối chứng | Booking `BK-<RUN_ID>-LCL`; BL `BL-<RUN_ID>-LCL`; có bao bì, số lượng, kg, CBM; dùng Xe ngoài |
 | Container/Seal | `CONT-<RUN_ID>-01/02`; `SEAL-<RUN_ID>-01/02` |
-| e-POD | `yard-drop-<RUN_ID>.jpg`; `signed-delivery-<RUN_ID>.pdf` |
+| e-POD FCL | `yard-drop-<RUN_ID>-fcl-01.jpg`; `signed-delivery-<RUN_ID>-fcl-01.pdf`; `yard-drop-<RUN_ID>-fcl-02.jpg`; `signed-delivery-<RUN_ID>-fcl-02.pdf` |
+| e-POD LCL | `yard-drop-<RUN_ID>-lcl-01.jpg`; `signed-delivery-<RUN_ID>-lcl-01.pdf` |
 | Ảnh vận hành | `fuel-<RUN_ID>.jpg`; `container-<RUN_ID>.jpg`; `seal-<RUN_ID>.jpg` |
 | Tạm ứng | Một khoản đã duyệt **lớn hơn** khoản phí sẽ duyệt để kiểm tra số dư còn lại |
 | Giá nâng/hạ | Ghi trước Cảng/Bãi, loại container, `Hàng/Rỗng`, chiều `Nâng/Hạ`, ngày hiệu lực và đơn giá master |
 | Cặp kẹp hàng | Hai trip Xe nhà cùng xe + cùng driver, thời gian không chồng lấn, đủ điều kiện chạy hai chiều |
 
-Ghi các ID/phiên bản ngay khi hệ thống sinh: `shipmentId`, `fulfillmentId`, `tripId`, `podSubmissionId`, `podSubmissionVersion`, `governanceActionId`, `governanceActionVersion`, `billingDocumentId` và trạng thái trước/sau mỗi thao tác. Nếu UI không hiển thị ID/version, ghi URL và mã nghiệp vụ nhìn thấy; không dùng DevTools/API để tự bù hành vi UI.
+Ghi các ID/phiên bản ngay khi hệ thống sinh: `shipmentId`, `fulfillmentId`, `tripId`, `podSubmissionId`, `podSubmissionVersion`, `billingDocumentId` và trạng thái trước/sau mỗi thao tác. Chỉ ghi `governanceActionId`/`governanceActionVersion` khi kiểm thử workflow ngoại lệ được phê duyệt, không dùng cho close O2C chuẩn. Nếu UI không hiển thị ID/version, ghi URL và mã nghiệp vụ nhìn thấy; không dùng DevTools/API để tự bù hành vi UI.
 
 ## 5. Dẫn đường UI hiện hành
 
@@ -319,10 +320,10 @@ Lưu artifact theo mẫu `qa/<YYYY-MM-DD>_o2c-manual_<case-id>.<ext>`, ví dụ 
 | --- | --- |
 | Vai trò | Driver |
 | Tiền điều kiện | Trip đang `IN_TRANSIT`, đã hoàn tất milestone vận hành |
-| Hành động | 1. Mở `e-POD bắt buộc`. 2. Chỉ tải `Phiếu bãi / phiếu hạ`, thử bấm `Gửi e-POD` và xác nhận bị chặn vì thiếu hồ sơ. 3. Tải thêm `Biên bản giao nhận có ký nhận`; vé cầu đường là tùy chọn. 4. Bấm `Gửi e-POD`. 5. Ghi submission ID/version/status và mở `/shipments/:id` để xác nhận đúng trip/fulfillment. |
-| PRD kỳ vọng | Hai slot bắt buộc là `Phiếu bãi / phiếu hạ` và `Biên bản giao nhận có ký nhận`; thiếu một slot không gửi được; đủ hai slot thì trạng thái `SUBMITTED/Đã gửi duyệt`; e-POD neo đúng trip, fulfillment và phiên bản hiện tại |
-| FAIL nếu | Thiếu một file vẫn gửi được; sai loại file; submission gắn sai trip; không có version/history; submit tự duyệt hoặc tự hoàn thành trip |
-| Bằng chứng | Ảnh chặn khi thiếu file; ảnh hai slot; ảnh status/version và binding ở shipment detail |
+| Hành động | 1. Lặp lại cho từng fulfillment FCL và trip LCL. Mở `e-POD bắt buộc`. 2. Chỉ tải `Phiếu bãi / phiếu hạ`, thử bấm `Gửi e-POD` và xác nhận bị chặn vì thiếu hồ sơ. 3. Tải thêm `Biên bản giao nhận có ký nhận`; vé cầu đường là tùy chọn. 4. Bấm `Gửi e-POD`. 5. Ghi submission ID/version/status và mở `/shipments/:id` để xác nhận đúng trip/fulfillment. |
+| PRD kỳ vọng | Mỗi fulfillment/trip có hai slot bắt buộc là `Phiếu bãi / phiếu hạ` và `Biên bản giao nhận có ký nhận`; thiếu một slot không gửi được; đủ hai slot thì trạng thái `SUBMITTED/Đã gửi duyệt`; e-POD neo đúng trip, fulfillment và phiên bản hiện tại |
+| FAIL nếu | Bất kỳ fulfillment/trip nào thiếu một file vẫn gửi được; sai loại file; submission gắn sai trip; không có version/history; submit tự duyệt hoặc tự hoàn thành trip |
+| Bằng chứng | Ảnh chặn khi thiếu file, hai slot, status/version và binding ở shipment detail cho từng fulfillment/trip |
 | Phụ thuộc | TC-MO2C-05 |
 
 ### TC-MO2C-08 — Ops nâng/hạ, hóa đơn/thay thế, offset tạm ứng, chia scope
@@ -331,7 +332,7 @@ Lưu artifact theo mẫu `qa/<YYYY-MM-DD>_o2c-manual_<case-id>.<ext>`, ví dụ 
 | --- | --- |
 | Vai trò | Ops / Forwarder |
 | Tiền điều kiện | Có trip có container; route `/my-forwarder-trips`; có bảng giá nâng/hạ |
-| Hành động | 1. Đăng nhập `giaonhan`, mở `/my-forwarder-trips`, chọn trip FCL và `Chi phí phát sinh` → `Thêm`. 2. Chọn đúng Cảng/Bãi + loại container + `Hàng/Rỗng` + chiều `Nâng/Hạ` + ngày hiệu lực; so đơn giá read-only với master đã ghi ở Mục 4.3. 3. Tạo một khoản CÓ hóa đơn và tải hóa đơn. 4. Tạo một khoản KHÔNG hóa đơn, nhập số tiền/ngày/người nhận/lý do và ít nhất một chứng từ thay thế hợp lệ. 5. Tạo scope chung và scope riêng cho từng container; lần lượt bấm `Đã kê xong`. 6. Trước khi duyệt, ghi số dư tạm ứng đã duyệt lớn hơn khoản chi. 7. Đăng nhập `ketoan`, duyệt khoản chi; đối chiếu bút toán cấn trừ bằng đúng khoản được duyệt và số dư tạm ứng còn lại. 8. Xác nhận mọi scope hoàn tất rồi Driver bấm `Gửi chờ duyệt phí`. |
+| Hành động | 1. Đăng nhập `giaonhan`, mở `/my-forwarder-trips`, chọn trip FCL và `Chi phí phát sinh` → `Thêm`. 2. Chọn đúng Cảng/Bãi + loại container + `Hàng/Rỗng` + chiều `Nâng/Hạ` + ngày hiệu lực; so đơn giá read-only với master đã ghi ở Mục 4.3. 3. Tạo một khoản CÓ hóa đơn và tải hóa đơn. 4. Tạo một khoản KHÔNG hóa đơn, nhập số tiền/ngày/người nhận/lý do và ít nhất một chứng từ thay thế hợp lệ. 5. Tạo scope chung và scope riêng cho từng container; lần lượt bấm `Đã kê xong`. 6. Trước khi duyệt, ghi số dư tạm ứng đã duyệt lớn hơn khoản chi. 7. Đăng nhập `ketoan`, duyệt khoản chi; đối chiếu bút toán cấn trừ bằng đúng khoản được duyệt và số dư tạm ứng còn lại. 8. Khi mọi scope hoàn tất, ghi hành động bàn giao do UI hiện hành cung cấp (nếu có) hoặc ghi rõ nếu trạng thái tự chuyển; xác nhận shipment chỉ sang `PENDING_EXPENSE_APPROVAL/Chờ duyệt phí` sau khi đủ scope. |
 | PRD kỳ vọng | Giá nâng/hạ tự áp theo đủ khóa master và không gõ tay; chứng từ CÓ/KHÔNG hóa đơn tách đúng; mọi scope độc lập; duyệt phí tự cấn trừ đúng số tiền, không vượt số dư, giữ residual chính xác; đủ scope mới sang `PENDING_EXPENSE_APPROVAL/Chờ duyệt phí` |
 | FAIL nếu | Giá cho nhập tay/sai khóa/sai ngày; thiếu bằng chứng vẫn lưu; scope trộn hoặc bỏ sót; cấn trừ sai/overdraw; thiếu scope vẫn gửi; trạng thái cuối sai |
 | BLOCKED nếu | Thiếu bảng giá nâng/hạ hoặc chưa có quyền vào màn Ops |
@@ -354,11 +355,11 @@ Lưu artifact theo mẫu `qa/<YYYY-MM-DD>_o2c-manual_<case-id>.<ext>`, ví dụ 
 
 | Trường | Nội dung |
 | --- | --- |
-| Vai trò | Maker trong chuỗi đóng; dùng `cus` hoặc `ketoan` |
+| Vai trò | Kế toán hoặc CUS |
 | Tiền điều kiện | Shipment `PENDING_EXPENSE_APPROVAL`; e-POD mới ở `SUBMITTED`; chưa xác nhận POD giấy |
-| Hành động | 1. Mở shipment và ghi trạng thái/version. 2. Thử tạo/gửi yêu cầu hoàn thành khi e-POD chưa `ACCEPTED`. 3. Nếu UI cho đi tiếp, tiếp tục bỏ chọn `Đã thu hồi chứng từ gốc` và thử xác nhận. 4. Refresh và ghi trạng thái sau thử nghiệm. |
-| PRD kỳ vọng | Hệ thống chặn trước khi tạo/duyệt close và nêu đúng điều kiện thiếu; shipment vẫn `PENDING_EXPENSE_APPROVAL`; không phát sinh snapshot/ledger/Debit Note |
-| FAIL nếu | Tạo được yêu cầu hợp lệ hoặc chuyển `COMPLETED`; sinh AR/AP/P&L; hoặc chặn nhưng đã ghi dữ liệu tài chính một phần |
+| Hành động | 1. Mở shipment và ghi trạng thái/version. 2. Dùng `ketoan` hoặc `cus` thử bấm `Hoàn thành` trực tiếp khi e-POD chưa `ACCEPTED`. 3. Nếu UI cho đi tiếp, tiếp tục bỏ chọn `Đã thu hồi chứng từ gốc` và thử xác nhận. 4. Refresh và ghi trạng thái sau thử nghiệm. |
+| PRD kỳ vọng | Hệ thống chặn thao tác hoàn thành trực tiếp và nêu đúng điều kiện thiếu; shipment vẫn `PENDING_EXPENSE_APPROVAL`; không phát sinh snapshot/ledger/Debit Note |
+| FAIL nếu | Chuyển `COMPLETED`; sinh AR/AP/P&L; hoặc chặn nhưng đã ghi dữ liệu tài chính một phần |
 | Bằng chứng | Ảnh thông báo chặn; trạng thái/version trước-sau; ảnh AR/AP không có run ID |
 | Phụ thuộc | TC-MO2C-07, TC-MO2C-08 |
 
@@ -374,16 +375,16 @@ Lưu artifact theo mẫu `qa/<YYYY-MM-DD>_o2c-manual_<case-id>.<ext>`, ví dụ 
 | Bằng chứng | Ảnh file review; hộp thoại POD giấy; status/reviewer/version; ảnh stale/replay bị chặn; lịch sử bản bị từ chối |
 | Phụ thuộc | TC-MO2C-10 |
 
-### TC-MO2C-12 — Ba người chốt: CUS/Ketoan/Manager hoặc Ketoan/Manager/Admin
+### TC-MO2C-12 — Kế toán/CUS chốt trực tiếp
 
 | Trường | Nội dung |
 | --- | --- |
-| Vai trò | CUS, Kế toán, Giám đốc hoặc Admin |
+| Vai trò | Kế toán hoặc CUS |
 | Tiền điều kiện | POD hợp lệ, e-POD hợp lệ, expense scope đủ, mọi file bắt buộc đã có |
-| Hành động | 1. Xác nhận lại trip đang `IN_TRANSIT`, shipment `PENDING_EXPENSE_APPROVAL`, current e-POD `ACCEPTED`, POD giấy đã xác nhận, mọi scope hoàn tất, ảnh container + seal hiện diện. 2. Chọn một chuỗi: `cus` maker → `ketoan` checker → `giamdoc`/`admin` approver; hoặc `ketoan` maker → `giamdoc` checker → `admin` approver. 3. Maker tạo yêu cầu trong `/governance-actions`, ghi lý do, expected version và binding tới đúng current POD. 4. Dùng chính maker thử tự check/approve và xác nhận bị chặn. 5. Logout; checker kiểm tra và duyệt. 6. Logout; approver kiểm tra và chốt. 7. Ghi action ID/version, actor IDs, trạng thái trước/sau và refresh tất cả màn. |
-| PRD kỳ vọng | Ba người có ID độc lập; maker không tự check/approve; mọi lần ghi dùng current version; close chỉ thành công khi mọi gate đúng; trip và shipment chuyển `COMPLETED` đúng một lần; audit và posting tài chính chỉ sinh một lần |
-| FAIL nếu | Ít hơn ba actor; tự duyệt; binding sai/stale; thiếu ảnh/scope/POD vẫn hoàn thành; double posting; trip hoặc shipment sai trạng thái |
-| Bằng chứng | Ảnh từng actor/action; close readiness; action versions; POD binding; trạng thái `COMPLETED`; ledger/posting ID |
+| Hành động | 1. Xác nhận lại trip đang `IN_TRANSIT`, shipment `PENDING_EXPENSE_APPROVAL`, current e-POD `ACCEPTED`, POD giấy đã xác nhận, mọi scope hoàn tất, ảnh container + seal hiện diện. 2. Đăng nhập `ketoan` hoặc `cus`, chọn VAT và bấm `Hoàn thành` trực tiếp trên lô. 3. Refresh mọi màn liên quan và ghi người thao tác, thời điểm, VAT, shipment/trip ID cùng trạng thái trước/sau. 4. Kiểm tra chỉ một lần chuyển `COMPLETED` và chỉ một snapshot/ledger/posting tài chính được tạo. |
+| PRD kỳ vọng | Kế toán hoặc CUS được chốt trực tiếp khi mọi gate đúng; không cần yêu cầu ở `/governance-actions`, Giám đốc hoặc Admin; trip và shipment chuyển `COMPLETED` đúng một lần; audit và posting tài chính chỉ sinh một lần |
+| FAIL nếu | Bắt buộc chuỗi phê duyệt ba người hoặc `/governance-actions`; Kế toán/CUS không có action; thiếu ảnh/scope/POD vẫn hoàn thành; double posting; trip hoặc shipment sai trạng thái |
+| Bằng chứng | Ảnh điều kiện close; actor/thời điểm/VAT; trạng thái `COMPLETED`; shipment/trip ID; snapshot/ledger/posting ID |
 | Phụ thuộc | TC-MO2C-11 |
 
 ### TC-MO2C-13 — Debit Note export

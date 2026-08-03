@@ -4,6 +4,28 @@ This repo is the TingTing Vietnamese trucking logistics platform deployed for th
 Every coding agent (Claude Code, Codex, Cursor, etc.) working here **must** follow the closed-loop
 SDLC below. There are no exceptions for "small" or "quick" changes.
 
+## Skill selection (mandatory)
+
+Before attempting any task, inspect the available skill descriptions and select
+the smallest relevant skill or skill sequence for the request. Read each
+selected `SKILL.md` completely before taking task actions, announce the selected
+skill(s) and why they apply, and follow their instructions together with this
+project contract. If no specialized skill matches, state that briefly and
+continue with the repository workflow rather than forcing an unrelated skill.
+
+For PostgreSQL or Drizzle ORM work, use the globally installed
+`postgres-drizzle` skill and match this repository's installed Drizzle version
+and existing patterns before writing schema, query, transaction, or migration
+code. When a migration requires a data backfill, constraint tightening,
+deployment ordering, or rollback planning, also use `drizzle-safe-migrations`;
+replace its generic package-manager examples with this repository's documented
+pnpm commands and migration conventions.
+
+For accessibility audits, use `wcag-accessibility-audit` together with the
+applicable browser/UI testing skill. Treat WCAG 2.2 Level AA as the default
+audit target unless the accepted scope specifies otherwise, and retain the
+project's required real-role, desktop, tablet, and mobile evidence.
+
 ## Development context loading (mandatory)
 
 `AGENTS.md` defines **how to work**. [`CONTEXT.md`](CONTEXT.md) defines **what to
