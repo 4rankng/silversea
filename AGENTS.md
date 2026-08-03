@@ -4,6 +4,36 @@ This repo is the TingTing Vietnamese trucking logistics platform deployed for th
 Every coding agent (Claude Code, Codex, Cursor, etc.) working here **must** follow the closed-loop
 SDLC below. There are no exceptions for "small" or "quick" changes.
 
+## Git workflow: trunk-based on `main` only (mandatory)
+
+This repo follows strict trunk-based development. **All work happens directly on
+the `main` branch.** No exceptions for "exploratory", "isolated", "parallel", or
+"safer" work — the closed-loop SDLC below is the safety model, not branches.
+
+- **Do not create branches.** Never run `git checkout -b`, `git switch -c`,
+  `git branch <name>`, or `git worktree add`. Do not let a skill or subagent do
+  it either.
+- **Do not create worktrees.** There is exactly one worktree — the main checkout
+  at the repo root. Do not add linked worktrees under `/tmp`, `~`, or anywhere
+  else.
+- **Commit directly to `main`.** Implement → run the QA gates → commit on `main`.
+  If `main` is the current default branch and your tooling refuses to commit to
+  it, commit anyway with `git commit` (the project explicitly authorizes this)
+  rather than spinning up a branch to work around it.
+- **Do not open feature, release, or hotfix branches**, and do not open PRs
+  against yourself. Code review happens through the fix-loop rules and the
+  `code-reviewer` / `verifier` agents, not through branch-based pull requests.
+- **If a branch or worktree already exists from prior work**, do not build on it.
+  Surface it to the user and ask before merging it back to `main` or deleting it
+  — unmerged branches can carry work that is not on `main`.
+- **Remotes stay untouched unless asked.** Do not push, force-push, or delete
+  remote branches without an explicit user instruction.
+
+This rule exists because parallel branches in this repo have historically
+diverged by dozens of commits with conflicting migration histories, making
+merges destructive and lossy. One branch, linear history, verified by the loop
+below.
+
 ## Skill selection (mandatory)
 
 Before attempting any task, inspect the available skill descriptions and select
