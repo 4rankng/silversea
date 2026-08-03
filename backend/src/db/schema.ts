@@ -406,12 +406,26 @@ export const pricingTables = pgTable('pricing_tables', {
   customerId: integer('customer_id').references(() => customers.id).notNull(),
   routeId: integer('route_id').references(() => routes.id).notNull(),
   price: numeric('price', { precision: 15, scale: 0 }).notNull(),
+  containerTypeId: integer('container_type_id').references(() => containerTypes.id),
+  rateKey: varchar('rate_key', { length: 32 }),
   effectiveDate: date('effective_date').notNull().defaultNow(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
 }, (table) => [
-  uniqueIndex('pricing_tables_customer_route_date_idx').on(table.customerId, table.routeId, table.effectiveDate),
+  uniqueIndex('pricing_tables_general_date_idx')
+    .on(table.customerId, table.routeId, table.effectiveDate)
+    .where(sql`${table.containerTypeId} is null and ${table.rateKey} is null`),
+  uniqueIndex('pricing_tables_container_date_idx')
+    .on(table.customerId, table.routeId, table.containerTypeId, table.effectiveDate)
+    .where(sql`${table.containerTypeId} is not null and ${table.rateKey} is null`),
+  uniqueIndex('pricing_tables_rate_key_date_idx')
+    .on(table.customerId, table.routeId, table.rateKey, table.effectiveDate)
+    .where(sql`${table.containerTypeId} is null and ${table.rateKey} is not null`),
+  check(
+    'pricing_tables_single_selector_check',
+    sql`${table.containerTypeId} is null or ${table.rateKey} is null`,
+  ),
 ]);
 
 export const roadAllowances = pgTable('road_allowances', {

@@ -9,6 +9,7 @@ import { cacheGet, cacheInvalidate } from '../lib/redis';
 import { ApiError } from '../errors';
 import { normalizeTaxCode } from './legal-partner.service';
 import { buildNoInvoicePolicySnapshot } from './no-invoice-disbursement.service';
+import { resolveTableFreightPrice } from './pricing.service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -82,19 +83,21 @@ export async function getBootstrapData() {
  * Look up the effective price for a customer + route combo as of a given date.
  * Picks the most recent pricing table entry on or before the date.
  */
-export async function getPricing(customerId: number, routeId: number, date: string) {
-  const [pricing] = await db.select()
-    .from(s.pricingTables)
-    .where(and(
-      eq(s.pricingTables.customerId, customerId),
-      eq(s.pricingTables.routeId, routeId),
-      lte(s.pricingTables.effectiveDate, date),
-      isNull(s.pricingTables.deletedAt)
-    ))
-    .orderBy(desc(s.pricingTables.effectiveDate))
-    .limit(1);
-
-  return { price: pricing ? Number(pricing.price) : null };
+export async function getPricing(
+  customerId: number,
+  routeId: number,
+  date: string,
+  selector?: { containerTypeId?: number | null; pricingRateKey?: string | null },
+) {
+  const resolved = await resolveTableFreightPrice({
+    customerId,
+    routeId,
+    date,
+    containerCount: 1,
+    containerTypeId: selector?.containerTypeId ?? null,
+    pricingRateKey: selector?.pricingRateKey ?? null,
+  });
+  return { price: resolved.source === 'TABLE' ? resolved.unitPrice : null };
 }
 
 export async function getFuelConfig(): Promise<typeof s.fuelConfig.$inferSelect | null> {

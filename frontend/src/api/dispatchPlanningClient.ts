@@ -118,6 +118,7 @@ export function resolveDispatchHandoff(item: DispatchHandoffItem, resolution: 'S
 export function issueDispatchOrder(item: DispatchQueueItem, body: {
   plannedStartAt: string; plannedEndAt: string; endTimeConfirmed: boolean;
   carrierType: 'OWN' | 'EXTERNAL'; truckId?: number | null; driverId?: number | null; trailerId?: number | null;
+  pricingRateKey?: string | null;
   externalCarrierId?: number | null; externalPlateNumber?: string | null; externalDriverName?: string | null; externalDriverPhone?: string | null;
 }) {
   return api.post<{ fulfillmentId: number; version: number; trip: { id: number; tripCode: string; status: 'CREATED' }; notification: { deliveredInApp: true; pushAttempted: boolean }; replayed: boolean }>(

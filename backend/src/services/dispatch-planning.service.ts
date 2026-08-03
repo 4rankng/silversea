@@ -64,6 +64,7 @@ export interface IssueFulfillmentDispatchOrderInput {
   driverId?: number | null;
   trailerId?: number | null;
   containerTypeId?: number | null;
+  pricingRateKey?: string | null;
   externalCarrierId?: number | null;
   externalPlateNumber?: string | null;
   externalDriverName?: string | null;
@@ -1367,6 +1368,7 @@ async function issueOrderCreateOrUpdate(
       customerReference: shipment.bookingRef ?? shipment.blNumber ?? undefined,
       containerCount: 1,
       containerTypeId,
+      pricingRateKey: input.pricingRateKey ?? null,
       fuelMode: input.fuelMode,
       createdBy: input.actor.userId,
       carrierType: input.carrierType,
@@ -1530,6 +1532,7 @@ export async function issueFulfillmentDispatchOrder(input: IssueFulfillmentDispa
       driverId: input.driverId ?? null,
       trailerId: input.trailerId ?? null,
       containerTypeId: input.containerTypeId ?? null,
+      pricingRateKey: input.pricingRateKey ?? null,
       externalCarrierId: input.externalCarrierId ?? null,
       externalPlateNumber: input.externalPlateNumber ?? null,
       externalDriverName: input.externalDriverName ?? null,

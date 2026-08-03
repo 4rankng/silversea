@@ -192,6 +192,9 @@ export interface PricingTable {
   customerId: number;
   routeId: number;
   price: string;
+  containerTypeId: number | null;
+  rateKey: string | null;
+  effectiveDate: string;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
@@ -978,6 +981,7 @@ export interface CreateTripRequest {
   customerReference?: string;
   containerCount?: number;
   containerTypeId: number;
+  pricingRateKey?: string | null;
   creditApprovalRequestId?: number | null;
   fuelMode?: FuelMode;
   fuelSupplierId?: number | null;

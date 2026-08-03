@@ -46,6 +46,7 @@ describe('O2C rev1 upgrade migration safety', () => {
       '0006_lift_pricing_snapshot',
       '0007_o2c_advance_partial_allocation',
       '0008_o2c_active_shipment_backfill',
+      '0009_o2c_pricing_container_tier',
     ]);
     assert.match(lifecycle, /CREATE TYPE "public"\."shipment_status" AS ENUM\('NEW', 'DISPATCHED', 'IN_TRANSIT', 'PENDING_EXPENSE_APPROVAL', 'COMPLETED', 'CANCELED'\)/);
     assert.match(liftSnapshot, /ADD COLUMN "lift_pricing_snapshot" jsonb/);

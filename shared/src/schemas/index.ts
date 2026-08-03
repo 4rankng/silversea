@@ -135,6 +135,7 @@ export const createTripSchema = z.object({
   customerReference: z.string().optional(),
   containerCount: z.coerce.number().int().min(1).max(10).optional(),
   containerTypeId: z.coerce.number().int().positive({ message: 'Loại container là bắt buộc' }),
+  pricingRateKey: z.string().trim().max(32).optional().nullable().transform(v => (v == null || v === '' ? null : v.toUpperCase())),
   // Wave 0: optional link to the shipment (lô hàng) this trip fulfills.
   // Required only when the backend feature flag SHIPMENT_FIRST_CREATE is ON;
   // the flag-conditional check lives in the route handler (the shared schema
@@ -810,6 +811,9 @@ export const pricingTableSchema = z.object({
   customerId: z.coerce.number().int().positive(),
   routeId: z.coerce.number().int().positive(),
   price: positiveNumeric,
+  containerTypeId: z.coerce.number().int().positive().optional().nullable(),
+  rateKey: z.string().trim().max(32).optional().nullable().transform(v => (v == null || v === '' ? null : v.toUpperCase())),
+  effectiveDate: z.string().min(1).default(() => new Date().toISOString().slice(0, 10)),
 });
 
 export const roadAllowanceSchema = z.object({
@@ -1424,6 +1428,7 @@ export const dispatchShipmentSchema = z.object({
   routeId: z.coerce.number().int().positive('Tuyến đường là bắt buộc khi điều vận'),
   cargoTypeId: z.coerce.number().int().positive('Loại hàng là bắt buộc khi điều vận'),
   containerTypeId: z.coerce.number().int().positive('Loại container là bắt buộc khi điều vận'),
+  pricingRateKey: z.string().trim().max(32).optional().nullable().transform(v => (v == null || v === '' ? null : v.toUpperCase())),
   truckId: z.coerce.number().int().positive().optional().nullable(),
   driverId: z.coerce.number().int().positive().optional().nullable(),
   departureDate: z.string().min(1, 'Ngày khởi hành là bắt buộc'),

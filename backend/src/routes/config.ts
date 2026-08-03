@@ -953,18 +953,36 @@ catalogBootstrapRouter.get('/catalogs/bootstrap', asyncHandler(async (req: Reque
 router.get('/pricing', asyncHandler(async (req: Request, res: Response) => {
   const customerId = parseInt(req.query.customerId as string, 10);
   const routeId = parseInt(req.query.routeId as string, 10);
+  const containerTypeIdRaw = req.query.containerTypeId as string | undefined;
+  const containerTypeId = containerTypeIdRaw ? parseInt(containerTypeIdRaw, 10) : null;
+  const pricingRateKey = typeof req.query.pricingRateKey === 'string'
+    ? req.query.pricingRateKey.trim() || null
+    : null;
   const date = (req.query.date as string) || new Date().toISOString().split('T')[0];
 
   if (isNaN(customerId) || isNaN(routeId)) {
     return res.status(400).json({ error: 'customerId và routeId là bắt buộc' });
   }
+  if (containerTypeIdRaw && (containerTypeId == null || Number.isNaN(containerTypeId))) {
+    return res.status(400).json({ error: 'containerTypeId không hợp lệ' });
+  }
 
-  const pricing = await getPricing(customerId, routeId, date);
+  const pricing = await getPricing(customerId, routeId, date, {
+    containerTypeId,
+    pricingRateKey,
+  });
   // Preserve the legacy {price: number} shape for HTTP callers; null (no row)
   // surfaces as 0 here. Only the in-process agent tool sees null (so it can
   // distinguish "no pricing table" from a real 0-VND price).
   res.json({ price: pricing.price ?? 0 });
 }));
+
+function validatePricingSelector<T extends { containerTypeId?: number | null; rateKey?: string | null }>(data: T): T {
+  if (data.containerTypeId != null && data.rateKey != null) {
+    throw new ApiError(400, 'Chỉ được chọn một trong hai: loại container hoặc mã lớp giá');
+  }
+  return data;
+}
 
 // ─── CRUD routes ─────────────────────────────────────────────────────────────
 
@@ -1055,6 +1073,8 @@ router.use('/forwarder-expense-types', createCrudRouter(s.forwarderExpenseTypes,
   beforeUpdate: async (id, data, _req, tx) => withForwarderExpenseTypePolicyVersion(id, data, tx),
 }));
 router.use('/pricing-tables', createCrudRouter(s.pricingTables, pricingTableSchema, {
+  beforeCreate: (data) => validatePricingSelector(data),
+  beforeUpdate: (_id, data) => validatePricingSelector(data),
   governance: {
     reasonLabel: 'bảng giá cước',
   },

@@ -279,6 +279,7 @@ export async function createTrip(data: {
   customerReference?: string;
   containerCount?: number;
   containerTypeId?: number | null;
+  pricingRateKey?: string | null;
   fuelMode?: FuelMode;
   createdBy?: number;
   vatRate?: number;
@@ -375,6 +376,8 @@ export async function createTrip(data: {
       cargoTypeId: authoritativeCargoTypeId,
       date: data.departureDate,
       containerCount,
+      containerTypeId: data.containerTypeId ?? null,
+      pricingRateKey: data.pricingRateKey ?? null,
     });
 
     const revenue = freightPrice.price;

@@ -228,6 +228,22 @@ type ShipmentAuthorityTripRow = Pick<
   | 'revenueEmptyReturn'
 >;
 
+function extractPricingSelectorFromSnapshot(snapshot: unknown): {
+  containerTypeId: number | null;
+  pricingRateKey: string | null;
+} {
+  if (!snapshot || typeof snapshot !== 'object') {
+    return { containerTypeId: null, pricingRateKey: null };
+  }
+  const record = snapshot as Record<string, unknown>;
+  const rawContainerTypeId = record.matchedContainerTypeId ?? record.requestedContainerTypeId;
+  const rawRateKey = record.matchedRateKey ?? record.requestedRateKey;
+  return {
+    containerTypeId: typeof rawContainerTypeId === 'number' ? rawContainerTypeId : null,
+    pricingRateKey: typeof rawRateKey === 'string' && rawRateKey.trim().length > 0 ? rawRateKey : null,
+  };
+}
+
 export interface ShipmentContainerMutationResult {
   items: Awaited<ReturnType<typeof listShipmentContainers>>;
   upsertedIds: number[];
@@ -394,6 +410,7 @@ async function syncShipmentAuthorityToTrips(
       cargoTypeId: authoritativeCargoTypeId,
       date: trip.departureDate,
       containerCount: trip.containerCount ?? 1,
+      ...extractPricingSelectorFromSnapshot(trip.pricingSnapshot),
     });
     const revenue = freightPrice.price;
     const vatRate = Number(trip.vatRate ?? 0);

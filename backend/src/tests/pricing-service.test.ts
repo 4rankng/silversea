@@ -55,9 +55,15 @@ async function mkTier(routeId: number, cargoTypeId: number, minKg: string, maxKg
   return t;
 }
 
-async function mkPricingTable(customerId: number, routeId: number, price: string, effectiveDate = '2026-01-01') {
+async function mkPricingTable(
+  customerId: number,
+  routeId: number,
+  price: string,
+  effectiveDate = '2026-01-01',
+  selector: { rateKey?: string | null; containerTypeId?: number | null } = {},
+) {
   const [p] = await db.insert(s.pricingTables)
-    .values({ customerId, routeId, price, effectiveDate })
+    .values({ customerId, routeId, price, effectiveDate, ...selector })
     .returning();
   createdPricingTableIds.push(p.id);
   return p;
@@ -206,6 +212,24 @@ describe('resolveFreightPrice — TABLE (fixed-price cargo)', () => {
     });
     assert.equal(result.unitPrice, 4_000_000);
   });
+
+  test('uses an exact rate class ahead of a legacy general rate and snapshots it', async () => {
+    const customer = await mkCustomer();
+    const route = await mkRoute();
+    const cargo = await mkCargoType(false);
+    await mkPricingTable(customer.id, route.id, '3000000');
+    const specific = await mkPricingTable(customer.id, route.id, '4100000', '2026-01-01', { rateKey: 'CONT40' });
+
+    const result = await resolveFreightPrice({
+      customerId: customer.id, routeId: route.id, cargoTypeId: cargo.id,
+      pricingRateKey: 'cont40', date: '2026-07-01',
+    });
+
+    assert.equal(result.source, 'TABLE');
+    assert.equal(result.unitPrice, 4_100_000);
+    assert.equal(result.snapshot.pricingTableId, specific.id);
+    assert.equal(result.snapshot.matchedRateKey, 'CONT40');
+  });
 });
 
 // ─── Overlap validators ────────────────────────────────────────────────────
@@ -346,8 +370,9 @@ describe('M2.2 — weight-tier boundary + gap + multi-date', () => {
 
 describe('validatePricingTableOverlap', () => {
   test('DB unique index prevents duplicate effectiveDate — insert throws', async () => {
-    // The existing unique index `pricing_tables_customer_route_date_idx` on
-    // (customerId, routeId, effectiveDate) means duplicates are DB-enforced.
+    // The general-row unique index on (customerId, routeId, effectiveDate)
+    // means duplicates are DB-enforced while each explicit rate class has its
+    // own independent effective-date series.
     // The validator is a softer "check before submit" helper; the DB is the
     // hard guarantee. Verify the DB catches it.
     const customer = await mkCustomer();

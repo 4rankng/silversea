@@ -24,7 +24,7 @@
 
 import { db } from '../db';
 import * as s from '../db/schema';
-import { and, desc, eq, isNull, lte, ne } from 'drizzle-orm';
+import { and, desc, eq, isNull, lte, ne, type SQL } from 'drizzle-orm';
 import { computeFuelSurcharge } from '@tingting/shared';
 import type { FuelSurchargeSnapshot } from '@tingting/shared';
 import { ApiError } from '../errors';
@@ -41,6 +41,10 @@ export interface ResolveFreightPriceInput {
   date: string;
   /** Optional container count for TABLE pricing (revenue = price × count). */
   containerCount?: number;
+  /** Exact container type selector for FCL rows. */
+  containerTypeId?: number | null;
+  /** Explicit price-class selector for truck/LCL rows (e.g. CONT20, 1.25T). */
+  pricingRateKey?: string | null;
 }
 
 export interface ResolvedFreightPrice {
@@ -60,6 +64,11 @@ export interface OverlapPair {
   id1: number;
   id2: number;
   detail: string;
+}
+
+function normalizePricingRateKey(value: string | null | undefined): string | null {
+  const normalized = String(value ?? '').trim().toUpperCase();
+  return normalized.length > 0 ? normalized : null;
 }
 
 // ─── resolveFreightPrice ────────────────────────────────────────────────────
@@ -234,16 +243,27 @@ async function resolveTierPrice(
 async function resolveTablePrice(
   input: ResolveFreightPriceInput & { cargoTypeId: number },
 ): Promise<ResolvedFreightPrice> {
-  const [pricing] = await db.select()
+  const requestedRateKey = normalizePricingRateKey(input.pricingRateKey);
+  const baseConditions = [
+    eq(s.pricingTables.customerId, input.customerId),
+    eq(s.pricingTables.routeId, input.routeId),
+    lte(s.pricingTables.effectiveDate, input.date),
+    isNull(s.pricingTables.deletedAt),
+  ];
+  const findLatest = (selector: SQL) => db.select()
     .from(s.pricingTables)
-    .where(and(
-      eq(s.pricingTables.customerId, input.customerId),
-      eq(s.pricingTables.routeId, input.routeId),
-      lte(s.pricingTables.effectiveDate, input.date),
-      isNull(s.pricingTables.deletedAt),
-    ))
-    .orderBy(desc(s.pricingTables.effectiveDate))
-    .limit(1);
+    .where(and(...baseConditions, selector))
+    .orderBy(desc(s.pricingTables.effectiveDate), desc(s.pricingTables.id));
+  const [containerRate] = input.containerTypeId != null
+    ? await findLatest(eq(s.pricingTables.containerTypeId, input.containerTypeId)).limit(1)
+    : [];
+  const [rateClass] = containerRate || requestedRateKey == null
+    ? []
+    : await findLatest(eq(s.pricingTables.rateKey, requestedRateKey)).limit(1);
+  const [generalRate] = containerRate || rateClass
+    ? []
+    : await findLatest(and(isNull(s.pricingTables.containerTypeId), isNull(s.pricingTables.rateKey))!).limit(1);
+  const pricing = containerRate ?? rateClass ?? generalRate;
 
   if (!pricing) {
     return {
@@ -255,6 +275,8 @@ async function resolveTablePrice(
         reason: 'NO_PRICING_TABLE',
         customerId: input.customerId,
         routeId: input.routeId,
+        requestedContainerTypeId: input.containerTypeId ?? null,
+        requestedRateKey,
       },
     };
   }
@@ -262,19 +284,37 @@ async function resolveTablePrice(
   const unitPrice = Number(pricing.price);
   const containerCount = input.containerCount ?? 1;
   const totalPrice = unitPrice * containerCount;
+  const matchedRateKey = normalizePricingRateKey(pricing.rateKey);
+  const selectorLabel = matchedRateKey
+    ? `nhóm giá ${matchedRateKey}`
+    : pricing.containerTypeId != null
+      ? 'container'
+      : 'container';
+  const countLabel = selectorLabel === 'container'
+    ? `${containerCount} container`
+    : `${containerCount} ${selectorLabel}`;
 
   return {
     source: 'TABLE',
     price: totalPrice,
     unitPrice,
-    formula: `${containerCount} container × ${unitPrice.toLocaleString('vi-VN')} ₫ = ${totalPrice.toLocaleString('vi-VN')} ₫`,
+    formula: `${countLabel} × ${unitPrice.toLocaleString('vi-VN')} ₫ = ${totalPrice.toLocaleString('vi-VN')} ₫`,
     snapshot: {
       pricingTableId: pricing.id,
       unitPrice: pricing.price,
       containerCount,
       effectiveDate: pricing.effectiveDate,
+      requestedContainerTypeId: input.containerTypeId ?? null,
+      requestedRateKey,
+      matchedContainerTypeId: pricing.containerTypeId ?? null,
+      matchedRateKey,
     },
   };
+}
+
+/** Resolve the fixed-price table without requiring a cargo-type decision. */
+export async function resolveTableFreightPrice(input: Omit<ResolveFreightPriceInput, 'cargoTypeId'>): Promise<ResolvedFreightPrice> {
+  return resolveTablePrice({ ...input, cargoTypeId: 0 });
 }
 
 // ─── Overlap validators ─────────────────────────────────────────────────────
@@ -334,14 +374,22 @@ export async function validatePricingTableOverlap(
   customerId: number,
   routeId: number,
   effectiveDate: string,
+  selector?: { containerTypeId?: number | null; rateKey?: string | null },
   excludeId?: number,
 ): Promise<OverlapPair[]> {
+  const normalizedRateKey = normalizePricingRateKey(selector?.rateKey);
   const rows = await db.select()
     .from(s.pricingTables)
     .where(and(
       eq(s.pricingTables.customerId, customerId),
       eq(s.pricingTables.routeId, routeId),
       eq(s.pricingTables.effectiveDate, effectiveDate),
+      selector?.containerTypeId != null
+        ? eq(s.pricingTables.containerTypeId, selector.containerTypeId)
+        : isNull(s.pricingTables.containerTypeId),
+      normalizedRateKey != null
+        ? eq(s.pricingTables.rateKey, normalizedRateKey)
+        : isNull(s.pricingTables.rateKey),
       isNull(s.pricingTables.deletedAt),
       ...(excludeId != null ? [ne(s.pricingTables.id, excludeId)] : []),
     ));
@@ -355,7 +403,7 @@ export async function validatePricingTableOverlap(
       overlaps.push({
         id1: rows[i].id,
         id2: rows[j].id,
-        detail: `Cùng ngày hiệu lực ${effectiveDate}`,
+        detail: `Cùng ngày hiệu lực ${effectiveDate}${selector?.containerTypeId != null ? ` cho loại container ${selector.containerTypeId}` : normalizedRateKey != null ? ` cho mã lớp giá ${normalizedRateKey}` : ''}`,
       });
     }
   }

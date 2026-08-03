@@ -1,0 +1,8 @@
+DROP INDEX "pricing_tables_customer_route_date_idx";--> statement-breakpoint
+ALTER TABLE "pricing_tables" ADD COLUMN "container_type_id" integer;--> statement-breakpoint
+ALTER TABLE "pricing_tables" ADD COLUMN "rate_key" varchar(32);--> statement-breakpoint
+ALTER TABLE "pricing_tables" ADD CONSTRAINT "pricing_tables_container_type_id_container_types_id_fk" FOREIGN KEY ("container_type_id") REFERENCES "public"."container_types"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "pricing_tables_general_date_idx" ON "pricing_tables" USING btree ("customer_id","route_id","effective_date") WHERE "pricing_tables"."container_type_id" is null and "pricing_tables"."rate_key" is null;--> statement-breakpoint
+CREATE UNIQUE INDEX "pricing_tables_container_date_idx" ON "pricing_tables" USING btree ("customer_id","route_id","container_type_id","effective_date") WHERE "pricing_tables"."container_type_id" is not null and "pricing_tables"."rate_key" is null;--> statement-breakpoint
+CREATE UNIQUE INDEX "pricing_tables_rate_key_date_idx" ON "pricing_tables" USING btree ("customer_id","route_id","rate_key","effective_date") WHERE "pricing_tables"."container_type_id" is null and "pricing_tables"."rate_key" is not null;--> statement-breakpoint
+ALTER TABLE "pricing_tables" ADD CONSTRAINT "pricing_tables_single_selector_check" CHECK ("pricing_tables"."container_type_id" is null or "pricing_tables"."rate_key" is null);

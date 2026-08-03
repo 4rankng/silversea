@@ -25,6 +25,7 @@ interface AssignmentForm {
   truckId: string;
   driverId: string;
   trailerId: string;
+  pricingRateKey: string;
   externalCarrierId: string;
   externalPlateNumber: string;
   externalDriverName: string;
@@ -59,6 +60,7 @@ const EMPTY_ASSIGNMENT: AssignmentForm = {
   truckId: '',
   driverId: '',
   trailerId: '',
+  pricingRateKey: '',
   externalCarrierId: '',
   externalPlateNumber: '',
   externalDriverName: '',
@@ -87,6 +89,16 @@ function computePlannedEndAt(plannedStartAt: string, serviceDurationMinutes: num
     return '';
   }
 }
+
+function suggestedPricingRateKey(item: DispatchQueueItem): string {
+  if (item.cargoMode !== 'FCL') return '';
+  const label = item.unitSummary.containerTypeLabel?.toUpperCase() ?? '';
+  if (label.startsWith('20')) return 'CONT20';
+  if (label.startsWith('40')) return 'CONT40';
+  return '';
+}
+
+const PRICING_RATE_KEYS = ['CONT20', 'CONT40', '1.25T', '2.5T', '3.5T', '5T', '8T', '10T', '15T'];
 
 function normalizeFleet(resources: DispatchFleet | null): DispatchFleet | null {
   if (!resources) return null;
@@ -253,6 +265,7 @@ export default function DispatchPage() {
       truckId: selected.dispatch?.truckId ? String(selected.dispatch.truckId) : '',
       driverId: selected.dispatch?.driverId ? String(selected.dispatch.driverId) : '',
       trailerId: selected.dispatch?.trailerId ? String(selected.dispatch.trailerId) : '',
+      pricingRateKey: suggestedPricingRateKey(selected),
       externalCarrierId: selected.dispatch?.externalCarrierId ? String(selected.dispatch.externalCarrierId) : '',
       externalPlateNumber: selected.dispatch?.externalPlateNumber ?? '',
       externalDriverName: selected.dispatch?.externalDriverName ?? '',
@@ -485,6 +498,7 @@ export default function DispatchPage() {
         truckId: assignment.carrierType === 'OWN' ? Number(assignment.truckId) : null,
         driverId: assignment.carrierType === 'OWN' ? Number(assignment.driverId) : null,
         trailerId: assignment.carrierType === 'OWN' && assignment.trailerId ? Number(assignment.trailerId) : null,
+        pricingRateKey: assignment.pricingRateKey || null,
         externalCarrierId: assignment.carrierType === 'EXTERNAL' ? Number(assignment.externalCarrierId) : null,
         externalPlateNumber: assignment.carrierType === 'EXTERNAL' ? assignment.externalPlateNumber : null,
         externalDriverName: assignment.carrierType === 'EXTERNAL' ? assignment.externalDriverName : null,
@@ -744,6 +758,10 @@ export default function DispatchPage() {
                   </>}
                 </div>
                 <div className="dispatch-assignment__schedule">
+                  <SelectField label="Lớp giá cước" value={assignment.pricingRateKey} onChange={(event) => update('pricingRateKey', event.target.value)} disabled={issuing} helpText={selected.cargoMode === 'FCL' ? 'Gợi ý theo cỡ container; chỉ đổi khi hợp đồng đã quy định.' : 'Chọn đúng hạng xe theo hợp đồng trước khi phát hành lệnh.'}>
+                    <option value="">— Nhập giá thủ công nếu chưa có lớp giá —</option>
+                    {PRICING_RATE_KEYS.map((key) => <option key={key} value={key}>{key}</option>)}
+                  </SelectField>
                   <TextField label="Ngày giờ chạy" type="datetime-local" value={assignment.plannedStartAt} onChange={(event) => update('plannedStartAt', event.target.value)} disabled={issuing} />
                   <TextField label="Kết thúc dự kiến" type="datetime-local" value={assignment.plannedEndAt} onChange={(event) => update('plannedEndAt', event.target.value)} disabled={issuing || selected.route.serviceDurationMinutes != null} />
                 </div>

@@ -18,6 +18,7 @@ import {
 import { seedCustomers } from './seed/seed-customers';
 import { seedReference } from './seed/seed-reference';
 import { seedLiftPricing } from './seed/seed-lift-pricing';
+import { seedPricingTables } from './seed/seed-pricing-tables';
 
 async function seed() {
   const passwordHash = await bcrypt.hash('Abc123', 10);
@@ -497,7 +498,8 @@ async function seed() {
   // approved Silver Sea identity is the final configured export identity.
   const reference = await seedReference();
   await seedLiftPricing(reference);
-  await seedCustomers();
+  const seededCustomers = await seedCustomers();
+  await seedPricingTables(reference, seededCustomers);
   await seedShipments(passwordHash);
   await seedClerkScope();
 
