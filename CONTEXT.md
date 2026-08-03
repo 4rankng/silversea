@@ -29,6 +29,9 @@ describe intent, while code and green QA establish implemented behavior.
   clients, and frontend tests.
 - `e2e/`: authenticated product-flow checks.
 - `docs/prd/`: SilverSea source documents and decision/status index.
+  - `docs/prd/silversea-google-drive.md`: where the customer's shared Google
+    Drive lives and how to read it **without auth** (public export endpoints).
+    Check here before reaching for `gws`/OAuth/Drive-API skills.
 - `plans/`: durable implementation plans. A plan is not proof of completion.
 - `qa/`: required evidence for every verification run.
 - `deploy/` and package Makefiles: deployment mechanics.

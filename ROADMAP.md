@@ -4,6 +4,13 @@
 > Source PRD: `docs/prd/Module1.docx` … `Module12.docx` (Vietnamese, 12 modules).
 > Detailed wave plans: `plans/silversea-prd-roadmap/phase-01..05-*.md`.
 
+> **Current authority update (2026-08-03):** runtime coverage and remaining work
+> are reconciled in
+> [`docs/prd/overall-business-workflow-alignment.md`](docs/prd/overall-business-workflow-alignment.md).
+> Its 27-row evidence matrix supersedes stale module-gap summaries below for
+> implementation decisions. All work follows the trunk-only `main` workflow in
+> `AGENTS.md`.
+
 ---
 
 ## ⚡ How to start (for the next agent)
@@ -16,8 +23,8 @@
    schemas, routes, file list, and PRD acceptance-code traceability.
 4. **Before writing code for a wave, confirm its "Open PRD questions"** with the customer.
    The PRD response columns are empty — see "Reality check" below.
-5. **Branch per wave:** `feat/wave-0-foundation`, `feat/wave-1-pricing-fuel`, etc. Do not
-   commit waves directly to `main`.
+5. **Work directly on `main`:** do not create branches or worktrees. Follow the
+   closed-loop QA and review contract in `AGENTS.md` before committing.
 6. **Stack:** Express 5 + Drizzle/Postgres + React/Vite monorepo. Ports: frontend 7174,
    backend 3001, postgres 5441, redis 6391, adminer 8083. Start everything with `make dev`.
 7. **Conventions:** Vietnamese labels/errors throughout (PRD Mxx-HT-01); optimistic locking

@@ -10,6 +10,7 @@
 > - `docs/prd/business-logic-qa-proposals.md` — 23 quy tắc logic nghiệp vụ (Q01–Q23), SilverSea đã chấp thuận toàn bộ đề xuất TingTing ngày 27/07/2026
 > - `docs/prd/O2C Flow.md` và `docs/prd/O2C dev-rev1.md` — quy trình Order-to-Cash end-to-end (quyết định 01/08/2026) → tệp `14-order-to-cash-workflow.md`
 > - `docs/prd/sidebar-organization-by-role.txt` — sắp xếp menu theo 7 vai trò (cập nhật 01/08/2026) → tệp `15-navigation-menu-by-role.md`
+> - `plans/260803-1814-overall-business-workflow/research/source-requirement-index.md` — quy trình tổng thể 27 yêu cầu, kiểm chứng đủ 8 vai trò runtime → tệp `16-overall-business-workflow.md`
 >
 > **Trạng thái PRD.** SilverSea đã chấp thuận Q01–Q23 theo toàn bộ đề xuất
 > TingTing ngày 27/07/2026. Các ca phụ thuộc Q không còn bị chặn về thẩm quyền,
@@ -84,6 +85,8 @@ Mật khẩu cho tất cả: `Abc123`. URL: http://localhost:7174
 | `admin`       | ADMIN       | Tất cả — superuser, dùng khi cần quyền cao nhất                            |
 | `giamdoc`     | MANAGER     | Báo cáo giám đốc, duyệt ngoại lệ, bảng điều hành, công nợ                 |
 | `ketoan`      | ACCOUNTANT  | Kế toán: ghi chi phí, duyệt hoàn ứng, giấy báo nợ, công nợ, lương         |
+| `cus`         | CLERK       | Chứng từ/CUS: tạo lô, kiểm tra POD và hồ sơ chi phí                       |
+| `dieuvan`     | DISPATCHER  | Điều vận: ghép chuyến, phân xe/lái xe và phát lệnh                         |
 | `giaonhan`    | FORWARDER   | Cổng nhân viên hiện trường: tạm ứng, khoản chi hộ, tải ảnh chứng từ       |
 | `laixe`       | DRIVER      | Cổng lái xe: nhận lệnh, cập nhật tiến độ, công tác phí, phiếu lương      |
 | `thu`, `pho`, `quyet` | DRIVER | Lái xe dự phòng (dùng khi cần nhiều lái xe cho test multi-driver)         |
@@ -121,7 +124,7 @@ Mật khẩu cho tất cả: `Abc123`. URL: http://localhost:7174
 | Thông tin công ty | `/config/company-info` | admin / giamdoc / ketoan |
 | M12 Nhiên liệu & số hóa chứng từ dầu | `/config/fuel-norms`, `/config/fuel`, `/trips/:id` (ảnh cột bơm), `/payables` (hóa đơn dầu) | ketoan / admin / laixe |
 | O2C Quy trình end-to-end | `/shipments`, `/dispatch`, `/trips`, `/expenses`, `/debt`, `/payables`, `/finance` | admin / ketoan / clerk / giaonhan / laixe |
-| Điều hướng & menu theo vai trò | `/dashboard`, `/accounting`, `/my-trips`, `/my-forwarder-trips`, `/portal/shipments`, `/finance/treasury`, `/credit-overrides`, `/governance-actions`, `/chatbot-monitoring`, `/recoverable-costs`, `/portal/statement` | tất cả 7 vai trò |
+| Điều hướng & menu theo vai trò | `/dashboard`, `/accounting`, `/dispatch`, `/shipments`, `/my-trips`, `/my-forwarder-trips`, `/portal/shipments`, `/finance/treasury`, `/credit-overrides`, `/governance-actions`, `/chatbot-monitoring`, `/recoverable-costs`, `/portal/statement` | tất cả 8 vai trò |
 
 > **Cổng khách hàng** (`/portal/...`) và **cổng nhân viên** (`/my-...`) dùng role-specific layout. Để
 > thử, đăng nhập bằng đúng role (customer / laixe / giaonhan) — guard sẽ tự chuyển hướng.
@@ -148,7 +151,8 @@ docs/regression-testing/
 ├── 12-module-12-fuel.md               ← M12: Nhiên liệu & số hóa chứng từ dầu
 ├── 13-customer-service-finance-visual-workflow.md ← Visual QA Booking → CUS → tài chính
 ├── 14-order-to-cash-workflow.md       ← O2C: Quy trình end-to-end (Bước 0-4 + đối chiếu liên phân hệ)
-└── 15-navigation-menu-by-role.md      ← Điều hướng & menu theo 7 vai trò (RBAC navigation)
+├── 15-navigation-menu-by-role.md      ← Bộ điều hướng 7 vai trò lịch sử; dùng tệp 16 để bổ sung DISPATCHER và đủ 8 vai trò
+└── 16-overall-business-workflow.md    ← Quy trình tổng thể: 27 yêu cầu × 8 vai trò × tài chính/QA khép kín
 ```
 
 ### 4.1. Ma trận phân hệ ↔ ca kiểm thử
@@ -170,7 +174,8 @@ docs/regression-testing/
 | `12-module-12-fuel.md`       | 3 nhóm (12.1–12.3) | ~15           | M12-HT-01..M12-HT-10              |
 | `13-customer-service-finance-visual-workflow.md` | Luồng xuyên phân hệ | 50 ca visual bổ sung | Role × route × viewport + đối chiếu tài chính |
 | `14-order-to-cash-workflow.md` | Luồng O2C (Bước 0-4) | ~38 ca | O2C-HT-01..O2C-HT-10 |
-| `15-navigation-menu-by-role.md` | 7 vai trò × menu/navigation | ~30 ca | NAV-HT-01..NAV-HT-10 |
+| `15-navigation-menu-by-role.md` | 7 vai trò lịch sử; được tệp 16 mở rộng thành 8 | ~30 ca | NAV-HT-01..NAV-HT-10 |
+| `16-overall-business-workflow.md` | 27 yêu cầu tổng thể + ca xuyên phân hệ | 27 ca chính + 8 ca kiểm soát | OVR-001..OVR-027 + TC-WB-901..908 |
 | **Tổng PRD + visual workflow** | | **~470 + 50 ca bổ sung** | |
 
 > Con số "~400" phản ánh độ phủ đậm đặc mà PRD yêu cầu: mỗi nhóm chức năng cần ≥5 ca (luồng thường,
@@ -209,7 +214,7 @@ Module 3 (CUS) thêm 2 nhóm:
 
 ### 6.1. Trước mỗi release (smoke)
 
-1. Đăng nhập lần lượt bằng 7 vai trò (admin, giamdoc, ketoan, giaonhan, laixe, customer, clerk) và xác nhận **trang bắt đầu đúng theo PRD sidebar** (xem `15-navigation-menu-by-role.md` §9): admin/giamdoc → `/dashboard`, ketoan → `/accounting`, laixe → `/my-trips`, giaonhan → `/my-forwarder-trips`, clerk → `/shipments`, customer → `/portal/shipments`.
+1. Đăng nhập lần lượt bằng 8 vai trò (admin, giamdoc, ketoan, cus, dieuvan, giaonhan, laixe, customer) và xác nhận **trang bắt đầu đúng theo PRD sidebar** (xem `15-navigation-menu-by-role.md` §9): admin/giamdoc → `/dashboard`, ketoan → `/accounting`, cus → `/shipments`, dieuvan → `/dispatch`, laixe → `/my-trips`, giaonhan → `/my-forwarder-trips`, customer → `/portal/shipments`.
 2. Mở màn hình nhà của mỗi vai trò — phải load không lỗi, nhóm quan trọng nhất mở sẵn.
 3. Mở `/dashboard` với admin — phải hiển thị 4 chỉ số chính.
 4. Mở `/finance` với giamdoc — phải hiển thị báo cáo lãi lỗ kỳ hiện tại.
@@ -235,7 +240,7 @@ Module 3 (CUS) thêm 2 nhóm:
 
 - **Mã ca:** `TC-<Phân hệ>-<Nhóm>-<STT>` — ví dụ `TC-M01-03-02` = ca thứ 2 trong nhóm 1.3 của M01.
 - **Mã PRD:** `M0X-0Y-ZZ` như đã quy ước trong PRD (sẽ được dẫn chiếu trong cột "Mã PRD").
-- **Vai trò:** dùng mã ENUM (`ADMIN`, `MANAGER`, `ACCOUNTANT`, `DRIVER`, `FORWARDER`, `CUSTOMER`, `CLERK`).
+- **Vai trò:** dùng mã ENUM (`ADMIN`, `MANAGER`, `ACCOUNTANT`, `CLERK`, `DISPATCHER`, `DRIVER`, `FORWARDER`, `CUSTOMER`).
 - **Ngôn ngữ:** mô tả ca kiểm thử bằng tiếng Việt để QA dễ đọc; tên field kỹ thuật giữ tiếng Anh khi cần.
 - **Mỗi ca phải có ≤6 bước** để dễ theo dõi; tách thành nhiều ca nếu phức tạp.
 - **Kết quả mong đợi phải quan sát được trên UI** (văn bản, số liệu, màu trạng thái, toast, dialog).
