@@ -48,6 +48,7 @@ import configRoutes from '../routes/config';
 import financialRoutes from '../routes/financial';
 import salaryRoutes from '../routes/salary';
 import { authMiddleware } from '../middleware/auth';
+import { auditLogMiddleware } from '../middleware/audit';
 import { casbinAuthz } from '../middleware/casbin';
 import { globalErrorHandler } from '../middleware/errorHandler';
 
@@ -84,6 +85,7 @@ let adminUserId: number;
 let managerUserId: number;
 let accountantUserId: number;
 let clerkUserId: number;
+let driverUserId: number;
 let clerkBusinessUnitId: number;
 let secondaryClerkBusinessUnitId: number;
 
@@ -229,7 +231,7 @@ before(async () => {
 
   const app = express();
   app.use(express.json());
-  app.use('/api/shipments', authMiddleware, casbinAuthz('shipments'), shipmentRoutes);
+  app.use('/api/shipments', authMiddleware, auditLogMiddleware, casbinAuthz('shipments'), shipmentRoutes);
   app.use('/api', authMiddleware, casbinAuthz('config'), configRoutes);
   app.use('/api', authMiddleware, casbinAuthz('financial'), financialRoutes);
   app.use('/api/salary', authMiddleware, casbinAuthz('salary'), salaryRoutes);
@@ -264,6 +266,7 @@ before(async () => {
   managerUserId = manager.id;
   accountantUserId = accountant.id;
   clerkUserId = clerk.id;
+  driverUserId = driver.id;
 
   const customerRow = await mkCustomer();
   customerId = customerRow.id;
@@ -309,11 +312,41 @@ after(async () => {
   try {
     await db.transaction(async (tx) => {
       if (createdTripIds.length > 0) {
+        const postingRows = await tx.select({ id: s.tripFinancialPostings.id })
+          .from(s.tripFinancialPostings)
+          .where(inArray(s.tripFinancialPostings.tripId, createdTripIds));
+        const postingIds = postingRows.map((row) => row.id);
+        if (postingIds.length > 0) {
+          await tx.delete(s.ledger).where(inArray(s.ledger.financialPostingId, postingIds));
+          const snapshotRows = await tx.select({ id: s.profitabilitySnapshots.id })
+            .from(s.profitabilitySnapshots)
+            .where(inArray(s.profitabilitySnapshots.tripId, createdTripIds));
+          if (snapshotRows.length > 0) {
+            await tx.delete(s.profitabilitySnapshotDimensions)
+              .where(inArray(s.profitabilitySnapshotDimensions.snapshotId, snapshotRows.map((row) => row.id)));
+          }
+          await tx.delete(s.profitabilitySnapshots)
+            .where(inArray(s.profitabilitySnapshots.tripId, createdTripIds));
+          await tx.delete(s.tripFinancialPostings)
+            .where(inArray(s.tripFinancialPostings.id, postingIds));
+        }
+        const milestoneRows = await tx.select({ id: s.shipmentMilestones.id })
+          .from(s.shipmentMilestones)
+          .where(inArray(s.shipmentMilestones.tripId, createdTripIds));
+        if (milestoneRows.length > 0) {
+          await tx.delete(s.customerVisibleEvents)
+            .where(inArray(s.customerVisibleEvents.milestoneId, milestoneRows.map((row) => row.id)));
+          await tx.delete(s.shipmentMilestones)
+            .where(inArray(s.shipmentMilestones.id, milestoneRows.map((row) => row.id)));
+        }
         await tx.delete(s.notifications).where(and(
           eq(s.notifications.type, 'TRIP_DISPATCHED'),
           eq(s.notifications.relatedEntityType, 'trips'),
           inArray(s.notifications.relatedEntityId, createdTripIds),
         ));
+        await tx.delete(s.tripExpenseCompletionScopes).where(inArray(s.tripExpenseCompletionScopes.tripId, createdTripIds));
+        await tx.delete(s.tripPodSubmissions).where(inArray(s.tripPodSubmissions.tripId, createdTripIds));
+        await tx.delete(s.tripPhotos).where(inArray(s.tripPhotos.tripId, createdTripIds));
         await tx.delete(s.tripContainers).where(inArray(s.tripContainers.tripId, createdTripIds));
         await tx.delete(s.tripLegs).where(inArray(s.tripLegs.tripId, createdTripIds));
         await tx.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
@@ -486,6 +519,87 @@ async function createAcceptedFulfillmentFixture(overrides: {
     fulfillmentId: accepted.data.fulfillments[0]!.id as number,
     fulfillmentVersion: accepted.data.fulfillments[0]!.version as number,
   };
+}
+
+async function createReadyDirectCloseFixture() {
+  const createdShipment = await mkShipmentViaService({
+    routeId,
+    cargoMode: 'LCL',
+  });
+  const [shipment] = await db.update(s.shipments).set({
+    status: ShipmentStatus.PENDING_EXPENSE_APPROVAL,
+    updatedAt: new Date(),
+  }).where(eq(s.shipments.id, createdShipment.id)).returning();
+  const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+    shipmentId: shipment.id,
+    fulfillmentType: 'LCL_SHIPMENT',
+    cargoMode: 'LCL',
+    sourceShipmentVersion: shipment.version,
+    siteSnapshot: {},
+    createdBy: accountantUserId,
+  }).returning();
+  const [trip] = await db.insert(s.trips).values({
+    tripCode: `SR-CLOSE-${suffix}-${createdTripIds.length}`.slice(0, 50),
+    customerId,
+    routeId,
+    departureDate: '2026-08-03',
+    shipmentId: shipment.id,
+    fulfillmentId: fulfillment.id,
+    status: 'IN_TRANSIT',
+    carrierType: 'OWN',
+    revenue: '40000000',
+    revenueOriginal: '40000000',
+    revenueEmptyReturn: '40000000',
+    podRecoveredAt: new Date(),
+    podRecoveredBy: accountantUserId,
+  }).returning();
+  createdTripIds.push(trip.id);
+  const [tripContainer] = await db.insert(s.tripContainers).values({
+    tripId: trip.id,
+    containerNumber: `TCLU${String(Date.now()).slice(-7)}1`,
+  }).returning();
+  await db.insert(s.tripPodSubmissions).values({
+    tripId: trip.id,
+    fulfillmentId: fulfillment.id,
+    submissionVersion: 1,
+    sourceTripVersion: trip.version,
+    status: 'ACCEPTED',
+    submittedBy: driverUserId,
+    submittedAt: new Date(),
+    reviewedBy: accountantUserId,
+    reviewedAt: new Date(),
+  });
+  await db.insert(s.tripExpenseCompletionScopes).values([
+    {
+      tripId: trip.id,
+      tripContainerId: null,
+      status: 'COMPLETED',
+      completedBy: accountantUserId,
+      completedAt: new Date(),
+    },
+    {
+      tripId: trip.id,
+      tripContainerId: tripContainer.id,
+      status: 'COMPLETED',
+      completedBy: accountantUserId,
+      completedAt: new Date(),
+    },
+  ]);
+  await db.insert(s.tripPhotos).values([
+    {
+      tripId: trip.id,
+      type: 'CONTAINER',
+      storageKey: `shipment-routes-close-container-${trip.id}.jpg`,
+      uploadedBy: driverUserId,
+    },
+    {
+      tripId: trip.id,
+      type: 'SEAL',
+      storageKey: `shipment-routes-close-seal-${trip.id}.jpg`,
+      uploadedBy: driverUserId,
+    },
+  ]);
+  return { shipment, trip };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1827,6 +1941,75 @@ describe('POST /:id/dispatch', () => {
     const live = linked.filter((t) => t.fulfillmentId === accepted.fulfillmentId);
     assert.equal(live.length, 1, 'exactly one live trip linked to the fulfillment');
     if (live[0]) createdTripIds.push(live[0].id);
+  });
+});
+
+describe('POST /:id/complete', () => {
+  test('ACCOUNTANT and CLERK reach validation while ADMIN and MANAGER are denied', async () => {
+    const { shipment, trip } = await createReadyDirectCloseFixture();
+    const body = {
+      expectedVersion: shipment.version,
+      vatRate: 0.08,
+      trips: [{ tripId: trip.id, expectedVersion: trip.version }],
+    };
+
+    const accountant = await testFetch(`/${shipment.id}/complete`, {
+      method: 'POST',
+      token: accountantToken,
+      body,
+      idempotencyKey: ' ',
+    });
+    assert.equal(accountant.status, 400);
+    assert.match(accountant.data.error, /Idempotency-Key/i);
+
+    const clerk = await testFetch(`/${shipment.id}/complete`, {
+      method: 'POST',
+      token: clerkToken,
+      body,
+      idempotencyKey: ' ',
+    });
+    assert.equal(clerk.status, 400);
+    assert.match(clerk.data.error, /Idempotency-Key/i);
+
+    const manager = await testFetch(`/${shipment.id}/complete`, {
+      method: 'POST',
+      token: managerToken,
+      body,
+    });
+    assert.equal(manager.status, 403);
+
+    const admin = await testFetch(`/${shipment.id}/complete`, {
+      method: 'POST',
+      token: adminToken,
+      body,
+    });
+    assert.equal(admin.status, 403);
+  });
+
+  test('persists the shipment natural key in the transactional success audit', async () => {
+    const { shipment, trip } = await createReadyDirectCloseFixture();
+    const response = await testFetch(`/${shipment.id}/complete`, {
+      method: 'POST',
+      token: accountantToken,
+      body: {
+        expectedVersion: shipment.version,
+        vatRate: 0.08,
+        confirmZeroRevenue: false,
+        trips: [{ tripId: trip.id, expectedVersion: trip.version }],
+      },
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(Object.keys(response.data.shipment).sort(), ['id', 'shipmentCode', 'status', 'version']);
+    assert.equal(response.data.shipment.shipmentCode, shipment.shipmentCode);
+
+    const audits = await db.select({ message: s.auditLogs.message })
+      .from(s.auditLogs)
+      .where(and(
+        eq(s.auditLogs.userId, accountantUserId),
+        eq(s.auditLogs.entityId, shipment.id),
+      ));
+    const completionAudit = audits.find((row) => row.message.includes(shipment.shipmentCode ?? ''));
+    assert.ok(completionAudit, 'durable completion audit records the shipment natural key');
   });
 });
 

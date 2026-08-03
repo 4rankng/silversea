@@ -129,6 +129,10 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     serviceFile: path.resolve(process.cwd(), 'src/services/shipment.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_POD_REVIEW',
   }],
+  ['shipments.ts|POST|/:id/complete', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/shipment.service.ts'),
+    marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_COMPLETE',
+  }],
   ['shipments.ts|POST|/:id/fulfillments/:fulfillmentId/cancellation-disposition', {
     serviceFile: path.resolve(process.cwd(), 'src/services/shipment.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENT_CANCEL',
@@ -627,6 +631,7 @@ describe('material-write registry coverage', () => {
       ['PUT', '/api/ancillary-revenue/3', 'config.ancillary_revenue.update'],
       ['DELETE', '/api/ancillary-revenue/3', 'config.ancillary_revenue.delete'],
       ['POST', '/api/finance/fuel-invoices/123/corrections', 'fuel-invoices.correction.create'],
+      ['POST', '/api/shipments/123/complete', IDEMPOTENCY_ENDPOINTS.SHIPMENT_COMPLETE],
     ] as const;
 
     for (const [method, routePath, endpoint] of cases) {

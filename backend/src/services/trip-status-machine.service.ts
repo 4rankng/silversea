@@ -32,6 +32,9 @@ export async function transitionTripStatus(
     expectedVersion?: number;
     transaction?: Tx;
     governanceActionId?: number;
+    routineShipmentClose?: boolean;
+    vatRateOverride?: number;
+    strictApSnapshot?: boolean;
   },
   ) {
   // Audit rows for status transitions are produced by the auditLogMiddleware
@@ -49,8 +52,9 @@ export async function transitionTripStatus(
     }
 
     const currentStatus = trip.status as TripStatus;
-    // O2C/Q15: completing a trip is a governed maker-checker action. Accepting
-    // e-POD is necessary evidence, but is never an alternate completion path.
+    // O2C/Q15: governing completion stays separate from the routine
+    // Accountant/CUS close path. Accepting e-POD is necessary evidence, but
+    // is never an alternate completion path.
     if (currentStatus === targetStatus) {
       if (targetStatus === TripStatus.CANCELED) {
         throw new ApiError(409, 'Chuyến đi đã bị hủy');
@@ -58,7 +62,7 @@ export async function transitionTripStatus(
       return trip; // Idempotent short-circuit
     }
     if (
-      targetStatus === TripStatus.COMPLETED
+      (targetStatus === TripStatus.COMPLETED && options?.routineShipmentClose !== true)
       || (targetStatus === TripStatus.CANCELED && options?.governanceActionId != null)
     ) {
       assertActiveApprovalApplication(tx, options?.governanceActionId);
@@ -118,8 +122,10 @@ export async function transitionTripStatus(
         );
       }
     } else if (targetStatus === TripStatus.COMPLETED) {
-      // O2C completion gates. There is no later LOCKED state: completion is
-      // terminal and requires both approved evidence and governed approval.
+      const routineShipmentClose = options?.routineShipmentClose === true;
+      // O2C completion is terminal. Routine shipment close uses approved
+      // evidence plus the Kế toán/CUS authority; exception paths keep the
+      // existing governed approval requirement.
       // Q18: a completed trip is terminal; it cannot be re-completed directly.
       if (currentStatus === TripStatus.COMPLETED) {
         throw new ApiError(
@@ -130,15 +136,18 @@ export async function transitionTripStatus(
       if (currentStatus !== TripStatus.IN_TRANSIT) {
         throw new ApiError(409, 'Chỉ có thể hoàn thành chuyến đi đang chạy');
       }
-      const canComplete = userRole === Role.ADMIN
-        || userRole === Role.MANAGER;
+      const canComplete = routineShipmentClose
+        ? userRole === Role.ACCOUNTANT || userRole === Role.CLERK
+        : userRole === Role.ADMIN || userRole === Role.MANAGER;
       if (!canComplete) {
         throw new ApiError(
           403,
-          'Chỉ Quản lý hoặc Quản trị viên mới có quyền hoàn thành chuyến đi',
+          routineShipmentClose
+            ? 'Chỉ Kế toán hoặc CUS mới có quyền chốt trực tiếp lô hàng.'
+            : 'Chỉ Quản lý hoặc Quản trị viên mới có quyền hoàn thành chuyến đi',
         );
       }
-      if (!governanceAuthorized) {
+      if (!routineShipmentClose && !governanceAuthorized) {
         throw new ApiError(409, 'Thiếu yêu cầu quản trị đã được phê duyệt');
       }
 
@@ -304,7 +313,14 @@ export async function transitionTripStatus(
     const [updated] = await tx.update(s.trips).set({
       status: targetStatus,
       version: sql`${s.trips.version} + 1`,
-      ...(targetStatus === TripStatus.COMPLETED ? { completedAt: new Date() } : {}),
+      ...(targetStatus === TripStatus.COMPLETED
+        ? {
+            completedAt: new Date(),
+            ...(options?.vatRateOverride !== undefined
+              ? { vatRate: String(options.vatRateOverride) }
+              : {}),
+          }
+        : {}),
       updatedAt: new Date(),
     }).where(and(eq(s.trips.id, tripId), eq(s.trips.status, currentStatus))).returning();
 
@@ -363,7 +379,10 @@ export async function transitionTripStatus(
       // O2C AR snapshot: capture the canonical cost hash so post-completion cost
       // edits flip ar_snapshot_dirty for the accountant reconciliation view.
       await ArSnapshotService.captureSnapshot(updated.id, tx);
-      await SnapshotServices.captureApWithDegradation(updated.id, tx);
+      const apCaptured = await SnapshotServices.captureApWithDegradation(updated.id, tx);
+      if (!apCaptured && options?.strictApSnapshot === true) {
+        throw new ApiError(500, 'Không thể ghi nhận AP cho chuyến đi. Vui lòng thử lại.');
+      }
 
       if (posting) {
         await captureProfitabilityAttributionSnapshot(tx, updated.id, posting.id);

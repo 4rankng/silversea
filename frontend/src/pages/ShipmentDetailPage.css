@@ -23,13 +23,14 @@
 
 .shipment-detail__grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
+  min-width: 0;
 }
 
 @media (min-width: 900px) {
   .shipment-detail__grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .shipment-detail__header {
     grid-column: 1 / -1;
@@ -37,6 +38,7 @@
 }
 
 .shipment-detail__card {
+  min-width: 0;
   background: var(--bg-1, #fff);
   border: 1px solid var(--border-2, #e5e7eb);
   border-radius: 10px;
@@ -120,6 +122,7 @@
 
 .shipment-detail__table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 13px;
 }
@@ -129,6 +132,7 @@
   text-align: left;
   padding: 8px 10px;
   border-bottom: 1px solid var(--border-2, #e5e7eb);
+  overflow-wrap: anywhere;
 }
 
 .shipment-detail__table th {
@@ -245,6 +249,7 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+  grid-column: 1 / -1;
 }
 
 .shipment-pod-review__head {
@@ -424,6 +429,98 @@
   color: #166534;
 }
 
+.shipment-pod-review__completion {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(170px, 220px) auto;
+  align-items: end;
+  gap: 14px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-2, #e5e7eb);
+}
+
+.shipment-pod-review__completion > * {
+  min-width: 0;
+}
+
+.shipment-pod-review__completion-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.shipment-pod-review__completion-copy strong,
+.shipment-pod-review__vat-field > span {
+  color: var(--fg-1);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.shipment-pod-review__completion-copy span,
+.shipment-pod-review__complete-confirmation {
+  color: var(--fg-3);
+  font-size: 13px;
+}
+
+.shipment-pod-review__vat-field {
+  display: grid;
+  gap: 6px;
+}
+
+.shipment-pod-review__vat-field select {
+  min-height: 44px;
+  width: 100%;
+  border: 1px solid var(--border-2, #e5e7eb);
+  border-radius: 8px;
+  background: var(--bg-1, #fff);
+  color: var(--fg-1);
+  padding: 0 36px 0 12px;
+  font: inherit;
+}
+
+.shipment-pod-review__vat-field select:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.shipment-pod-review__complete-button {
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.shipment-pod-review__complete-confirmation {
+  display: grid;
+  gap: 10px;
+}
+
+.shipment-pod-review__complete-confirmation p {
+  margin: 0;
+}
+
+.shipment-pod-review__zero-revenue-confirmation {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #92400e;
+  line-height: 1.45;
+  cursor: pointer;
+}
+
+.shipment-pod-review__zero-revenue-confirmation input {
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  flex: 0 0 auto;
+  accent-color: var(--brand);
+}
+
+.shipment-pod-review__zero-revenue-confirmation:focus-within {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
 .shipment-pod-review__cancel-form {
   display: grid;
   gap: 14px;
@@ -535,5 +632,26 @@
   .shipment-pod-review__actions > * {
     width: 100%;
     justify-content: center;
+  }
+
+  .shipment-pod-review__completion {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .shipment-pod-review__complete-button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 960px) {
+  .shipment-pod-review__completion {
+    grid-template-columns: minmax(0, 1fr) minmax(170px, 220px);
+  }
+
+  .shipment-pod-review__complete-button {
+    grid-column: 1 / -1;
+    justify-self: end;
   }
 }

@@ -352,6 +352,23 @@ export interface ReviewShipmentPodResponse {
   replayed: boolean;
 }
 
+export interface CompleteShipmentRequest {
+  expectedVersion: number;
+  vatRate: 0 | 0.05 | 0.08 | 0.1;
+  confirmZeroRevenue: boolean;
+  trips: Array<{
+    tripId: number;
+    expectedVersion: number;
+  }>;
+}
+
+export interface CompleteShipmentResponse {
+  shipment: Pick<Shipment, 'id' | 'shipmentCode' | 'status' | 'version'>;
+  completedTripIds: number[];
+  vatRate: CompleteShipmentRequest['vatRate'];
+  replayed: boolean;
+}
+
 export interface CancelShipmentFulfillmentRequest {
   expectedVersion: number;
   disposition: 'REPLACED' | 'NOT_REQUIRED';
@@ -495,6 +512,18 @@ export async function reviewShipmentPod(
 ): Promise<ReviewShipmentPodResponse> {
   return api.post<ReviewShipmentPodResponse>(
     `/shipments/${shipmentId}/pod-reviews/${submissionId}/review`,
+    body,
+    { headers: { 'Idempotency-Key': idempotencyKey } },
+  );
+}
+
+export async function completeShipment(
+  shipmentId: number,
+  body: CompleteShipmentRequest,
+  idempotencyKey: string,
+): Promise<CompleteShipmentResponse> {
+  return api.post<CompleteShipmentResponse>(
+    `/shipments/${shipmentId}/complete`,
     body,
     { headers: { 'Idempotency-Key': idempotencyKey } },
   );

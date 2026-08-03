@@ -7,7 +7,7 @@
 //     so the role matrix is enforced before any handler runs:
 //       ADMIN    → wildcard (everything)
 //       MANAGER  → shipments read|write|delete  (added in this slice)
-//       ACCOUNTANT → shipments read              (added in this slice)
+//       ACCOUNTANT → shipments read|write for O2C review/close flows
 //       CLERK    → shipments read|write          (existing Wave 0 rows)
 //       CUSTOMER / DRIVER / FORWARDER → denied at the mount
 //
@@ -40,6 +40,7 @@ import {
 import {
   createShipment,
   cancelShipmentFulfillment,
+  completeShipmentDirect,
   createShipmentIdempotent,
   downloadShipmentPodFile,
   getShipment,
@@ -104,6 +105,7 @@ registerAuditEvent('POST', '/api/shipments/', '/quick', AuditEvent.SHIPMENT_CREA
 registerAuditEvent('POST', '/api/shipments/', '/dispatch', AuditEvent.SHIPMENT_DISPATCHED);
 registerAuditEvent('POST', '/api/shipments/', '/submit-for-dispatch', AuditEvent.SHIPMENT_DISPATCHED);
 registerAuditEvent('POST', '/api/shipments/', '/transition', AuditEvent.SHIPMENT_STATUS_CHANGED);
+registerAuditEvent('POST', '/api/shipments/', '/complete', AuditEvent.SHIPMENT_STATUS_CHANGED);
 registerAuditEvent('POST', '/api/shipments/', '/documents', AuditEvent.SHIPMENT_DOCUMENT_UPLOADED);
 registerAuditEvent('POST', '/api/shipments/', '/documents/', AuditEvent.SHIPMENT_DOCUMENT_UPLOADED);
 registerAuditEvent('POST', '/api/shipments/', '/declarations', AuditEvent.SHIPMENT_UPDATED);
@@ -181,6 +183,21 @@ const reviewTripPodSchema = z.object({
   podRecovered: z.boolean().optional(),
 });
 
+const completeShipmentDirectSchema = z.object({
+  expectedVersion: z.number().int().positive(),
+  vatRate: z.union([
+    z.literal(0),
+    z.literal(0.05),
+    z.literal(0.08),
+    z.literal(0.1),
+  ]),
+  confirmZeroRevenue: z.boolean().optional(),
+  trips: z.array(z.object({
+    tripId: z.number().int().positive(),
+    expectedVersion: z.number().int().positive(),
+  })).min(1).max(100),
+});
+
 const router = Router();
 
 interface ShipmentWriteEnvelope<T> {
@@ -205,6 +222,7 @@ async function runShipmentWrite<T>(
     create,
     entityType: 'shipment-write',
     getEntityId: (result) => result.auditEntityId,
+    getEntityKey: (result) => result.auditEntityKey,
   });
 }
 
@@ -488,10 +506,10 @@ router.post(
 // client lib prefers the body channel). A replay with a differing payload
 // is rejected 409 — never silently overwritten.
 //
-// RBAC: same mount-level `casbinAuthz('shipments')` applies (CLERK has
-// shipments read|write; ACCOUNTANT has read only → 403; CUSTOMER/DRIVER/
-// FORWARDER denied at the mount). The explicit `requireRoles` guard is
-// belt-and-suspenders, mirroring `POST /`.
+// RBAC: same mount-level `casbinAuthz('shipments')` applies. The explicit
+// `requireRoles` guard keeps quick-create limited to ADMIN/MANAGER/CLERK even
+// though ACCOUNTANT has shipment write permission for the direct-close flow.
+// CUSTOMER/DRIVER/FORWARDER remain denied at the mount.
 router.post(
   '/quick',
   requireRoles(Role.ADMIN, Role.MANAGER, Role.CLERK),
@@ -720,6 +738,34 @@ router.post(
     res.locals.auditEntityId = reviewed.shipment.id;
     res.locals.auditEntityKey = reviewed.shipment.shipmentCode ?? "Lô hàng chưa có mã";
     res.json(reviewed);
+  }),
+);
+
+router.post(
+  '/:id/complete',
+  requireRoles(Role.ACCOUNTANT, Role.CLERK),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const parsed = completeShipmentDirectSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const actor = getUser(req);
+    const idempotencyKey = requireShipmentIdempotencyKey(
+      req,
+      'Idempotency-Key là bắt buộc khi chốt trực tiếp lô hàng.',
+    );
+    const completed = await completeShipmentDirect({
+      shipmentId,
+      expectedVersion: parsed.data.expectedVersion,
+      vatRate: parsed.data.vatRate,
+      trips: parsed.data.trips,
+      confirmZeroRevenue: parsed.data.confirmZeroRevenue === true,
+      idempotencyKey,
+      actor,
+    });
+    res.locals.auditEntityId = completed.shipment.id;
+    res.locals.auditEntityKey = completed.shipment.shipmentCode ?? 'Lô hàng chưa có mã';
+    res.json(completed);
   }),
 );
 

@@ -125,6 +125,7 @@ export default function ShipmentDetailPage() {
   const shipmentId = Number(id);
   const canOperate = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.CLERK;
   const canReviewPod = canOperate || user?.role === Role.ACCOUNTANT;
+  const canCompleteShipment = user?.role === Role.ACCOUNTANT || user?.role === Role.CLERK;
   const canSeePodReview = canReviewPod;
   const canResolveCancellation = user?.role === Role.ADMIN || user?.role === Role.MANAGER;
   const coordinationActive = Boolean(user?.capabilities?.includes('shipments.read'));
@@ -260,8 +261,11 @@ export default function ShipmentDetailPage() {
         {canSeePodReview && (
           <TripPodReviewPanel
             shipmentId={shipment.id}
+            shipmentVersion={shipment.version}
+            shipmentStatus={shipment.status}
             items={podReviews}
             canReview={canReviewPod}
+            canComplete={canCompleteShipment}
             canResolveCancellation={canResolveCancellation}
             onChanged={fetchDetail}
           />

@@ -125,7 +125,7 @@ def login_api(role_key: str) -> ApiClient:
     return api
 
 
-def bootstrap_master_data_fixture(driver_id: int) -> tuple[int, str, str]:
+def bootstrap_master_data_fixture(driver_id: int) -> tuple[int, str, str, str]:
     global _ACTIVE_FLEET_FIXTURE
     truck_plate = f"E2E-{RUN_SUFFIX}"
     trailer_plate = f"E2E-TR-{RUN_SUFFIX}"
@@ -138,6 +138,7 @@ import { seedCustomers } from './src/seed/seed-customers';
 const driverId = __DRIVER_ID__;
 const truckPlate = __TRUCK_PLATE__;
 const trailerPlate = __TRAILER_PLATE__;
+const pricingRateKey = `LCL-${truckPlate}`;
 const now = new Date();
 
 async function main() {
@@ -195,12 +196,15 @@ const routeValues = {
   fixedFuelAllowance: null,
   updatedAt: now,
 };
+let routeId;
 if (routeExisting) {
+  routeId = routeExisting.id;
   await db.update(s.routes)
     .set(routeValues)
     .where(eq(s.routes.id, routeExisting.id));
 } else {
-  await db.insert(s.routes).values(routeValues);
+  const [createdRoute] = await db.insert(s.routes).values(routeValues).returning({ id: s.routes.id });
+  routeId = createdRoute.id;
 }
 
 const [cargoTypeExisting] = await db.select({ id: s.cargoTypes.id })
@@ -218,6 +222,14 @@ if (!cargoTypeExisting) {
     updatedAt: now,
   });
 }
+
+const [pricing] = await db.insert(s.pricingTables).values({
+  customerId,
+  routeId,
+  price: '4500000',
+  rateKey: pricingRateKey,
+  effectiveDate: now.toISOString().slice(0, 10),
+}).returning({ id: s.pricingTables.id });
 
 const [factoryExisting] = await db.select({ id: s.operationalSites.id })
   .from(s.operationalSites)
@@ -352,6 +364,8 @@ console.log(JSON.stringify({
   originalAssignedTruckId: driverExisting.assignedTruckId,
   truckId: createdTruck.id,
   trailerId,
+  pricingTableId: pricing.id,
+  pricingRateKey,
   plannedStartAt: plannedStartAt.toISOString(),
   plannedEndAt: plannedEndAt.toISOString(),
   factoryId: factoryExisting?.id ?? null,
@@ -406,12 +420,13 @@ main().then(() => {
                 "originalAssignedTruckId": fixture.get("originalAssignedTruckId"),
                 "truckId": truck_id,
                 "trailerId": fixture["trailerId"],
+                "pricingTableId": fixture["pricingTableId"],
             }
             print(
                 f"🧱 Bootstrapped isolated Long Minh fixture with truck #{truck_id} "
                 f"for {fixture['plannedStartAt']} → {fixture['plannedEndAt']}"
             )
-            return truck_id, fixture["plannedStartAt"], fixture["plannedEndAt"]
+            return truck_id, fixture["plannedStartAt"], fixture["plannedEndAt"], fixture["pricingRateKey"]
     raise RuntimeError(f"master data bootstrap did not return dispatch fixture data:\n{result.stdout}")
 
 
@@ -430,6 +445,7 @@ const driverId = __DRIVER_ID__;
 const originalAssignedTruckId = __ORIGINAL_TRUCK_ID__;
 const truckId = __TRUCK_ID__;
 const trailerId = __TRAILER_ID__;
+const pricingTableId = __PRICING_TABLE_ID__;
 const now = new Date();
 
 async function main() {
@@ -442,6 +458,7 @@ async function main() {
   await db.update(s.trailers)
     .set({ status: 'INACTIVE', deletedAt: now, updatedAt: now })
     .where(eq(s.trailers.id, trailerId));
+  await db.delete(s.pricingTables).where(eq(s.pricingTables.id, pricingTableId));
 }
 
 main().then(() => process.exit(0)).catch((error) => {
@@ -455,6 +472,7 @@ main().then(() => process.exit(0)).catch((error) => {
         .replace("__ORIGINAL_TRUCK_ID__", "null" if fixture["originalAssignedTruckId"] is None else str(fixture["originalAssignedTruckId"]))
         .replace("__TRUCK_ID__", str(fixture["truckId"]))
         .replace("__TRAILER_ID__", str(fixture["trailerId"]))
+        .replace("__PRICING_TABLE_ID__", str(fixture["pricingTableId"]))
     )
     result = subprocess.run(
         ["pnpm", "exec", "tsx", "-e", cleanup_script],
@@ -477,12 +495,12 @@ main().then(() => process.exit(0)).catch((error) => {
     _ACTIVE_FLEET_FIXTURE = None
 
 
-def ensure_master_data_loaded(admin_api: ApiClient, driver_id: int) -> tuple[int, str, str]:
-    truck_id, planned_start_at, planned_end_at = bootstrap_master_data_fixture(driver_id)
+def ensure_master_data_loaded(admin_api: ApiClient, driver_id: int) -> tuple[int, str, str, str]:
+    truck_id, planned_start_at, planned_end_at, pricing_rate_key = bootstrap_master_data_fixture(driver_id)
     customers = first_items(get_with_query(admin_api, "/api/customers", {"search": "Long Minh", "page": 1, "pageSize": 25}))
     if not customers:
         raise RuntimeError("Long Minh customer missing after bootstrap")
-    return truck_id, planned_start_at, planned_end_at
+    return truck_id, planned_start_at, planned_end_at, pricing_rate_key
 
 
 def request_binary(api: ApiClient, path: str, *, headers: dict[str, str] | None = None) -> tuple[int, dict[str, str], bytes]:
@@ -592,7 +610,7 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
         results.fail("TC-1706", "Driver profile exposes assigned truck", str(driver_me_body))
         return
     driver_record_id = driver_profile["id"]
-    truck_id, planned_start_at, planned_end_at = ensure_master_data_loaded(admin_api, driver_record_id)
+    truck_id, planned_start_at, planned_end_at, pricing_rate_key = ensure_master_data_loaded(admin_api, driver_record_id)
     # Scope bootstrap invalidates the clerk's prior token by design.
     clerk_api = login_api("clerk")
 
@@ -713,6 +731,7 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
             "carrierType": "OWN",
             "truckId": truck_id,
             "driverId": driver_record_id,
+            "pricingRateKey": pricing_rate_key,
         },
         headers={"Idempotency-Key": f"{BOOKING_PREFIX}-dispatch-forbidden"},
     )
@@ -792,6 +811,7 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
             "carrierType": "OWN",
             "truckId": truck_id,
             "driverId": driver_record_id,
+            "pricingRateKey": pricing_rate_key,
         },
         headers={"Idempotency-Key": f"{BOOKING_PREFIX}-issue"},
     )
@@ -1117,53 +1137,47 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
             return
         results.pass_(f"TC-1722-{index}", f"Office uploads {photo_type.lower()} evidence photo", str(photo_body))
 
+    shipment_version = shipment_payload.get("shipment", {}).get("version")
     close_request_status, close_request_body = request_json(
         accountant_api,
         "POST",
-        f"/api/trips/{trip_id}/complete",
+        f"/api/shipments/{shipment_id}/complete",
         {
-            "expectedVersion": trip_version,
-            "reason": "Hoàn thành vận chuyển và ghi nhận công nợ Long Minh",
+            "expectedVersion": shipment_version,
+            "vatRate": 0.08,
+            "trips": [{"tripId": trip_id, "expectedVersion": trip_version}],
         },
         headers={"Idempotency-Key": f"{BOOKING_PREFIX}-close-request"},
     )
-    if close_request_status != 202:
-        results.fail("TC-1723", "Accountant submits the governed close request", api_failure_detail(close_request_body))
+    if close_request_status != 200:
+        results.fail("TC-1723", "Accountant closes the shipment directly", api_failure_detail(close_request_body))
         return
-    if close_request_body.get("actionKind") != "TRIP_FINANCIAL_CLOSE":
-        results.fail("TC-1723", "Governed close request contract", str(close_request_body))
+    if close_request_body.get("shipment", {}).get("status") != "COMPLETED":
+        results.fail("TC-1723", "Direct close returns completed shipment", str(close_request_body))
         return
-    action_id = close_request_body["id"]
-    action_version = close_request_body["version"]
-    results.pass_("TC-1723", "Accountant submits the governed close request", f"action#{action_id} version={action_version}")
+    if close_request_body.get("completedTripIds") != [trip_id]:
+        results.fail("TC-1723", "Direct close reports the completed trip ids", str(close_request_body))
+        return
+    results.pass_("TC-1723", "Accountant closes the shipment directly", f"shipment#{shipment_id} trip#{trip_id}")
 
-    check_status, check_body = request_json(
-        manager_api,
+    replay_status, replay_body = request_json(
+        accountant_api,
         "POST",
-        f"/api/governance-actions/{action_id}/check",
-        {"expectedVersion": action_version},
-        headers={"Idempotency-Key": f"{BOOKING_PREFIX}-close-check"},
+        f"/api/shipments/{shipment_id}/complete",
+        {
+            "expectedVersion": shipment_version,
+            "vatRate": 0.08,
+            "trips": [{"tripId": trip_id, "expectedVersion": trip_version}],
+        },
+        headers={"Idempotency-Key": f"{BOOKING_PREFIX}-close-request"},
     )
-    if check_status != 200:
-        results.fail("TC-1724", "Manager checks the governed close request", api_failure_detail(check_body))
+    if replay_status != 200:
+        results.fail("TC-1724", "Replay returns the stored direct close result", api_failure_detail(replay_body))
         return
-    action_version = check_body["version"]
-    results.pass_("TC-1724", "Manager checks the governed close request", f"action#{action_id} version={action_version}")
-
-    approve_status, approve_body = request_json(
-        admin_api,
-        "POST",
-        f"/api/governance-actions/{action_id}/approve",
-        {"expectedVersion": action_version},
-        headers={"Idempotency-Key": f"{BOOKING_PREFIX}-close-approve"},
-    )
-    if approve_status != 200:
-        results.fail("TC-1725", "Admin approves the governed close request", api_failure_detail(approve_body))
+    if replay_body.get("replayed") is not True:
+        results.fail("TC-1724", "Replay is marked explicitly", str(replay_body))
         return
-    if approve_body.get("applicationResult", {}).get("status") != "COMPLETED":
-        results.fail("TC-1725", "Governed close applies completion", str(approve_body))
-        return
-    results.pass_("TC-1725", "Admin approves the governed close request", f"trip={approve_body.get('applicationResult', {}).get('status')}")
+    results.pass_("TC-1724", "Replay returns the stored direct close result", f"shipment#{shipment_id}")
 
     generate_status, generate_body = request_json(
         accountant_api,

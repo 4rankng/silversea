@@ -5,16 +5,19 @@ import { TripPodFileType, TripPodStatus } from '@tingting/shared';
 const {
   downloadShipmentPodFileMock,
   cancelShipmentFulfillmentMock,
+  completeShipmentMock,
   reviewShipmentPodMock,
 } = vi.hoisted(() => ({
   downloadShipmentPodFileMock: vi.fn(),
   cancelShipmentFulfillmentMock: vi.fn(),
+  completeShipmentMock: vi.fn(),
   reviewShipmentPodMock: vi.fn(),
 }));
 
 vi.mock('../../api/shipmentClient', () => ({
   downloadShipmentPodFile: downloadShipmentPodFileMock,
   cancelShipmentFulfillment: cancelShipmentFulfillmentMock,
+  completeShipment: completeShipmentMock,
   reviewShipmentPod: reviewShipmentPodMock,
 }));
 
@@ -78,6 +81,7 @@ describe('TripPodReviewPanel', () => {
   beforeEach(() => {
     downloadShipmentPodFileMock.mockReset();
     cancelShipmentFulfillmentMock.mockReset();
+    completeShipmentMock.mockReset();
     reviewShipmentPodMock.mockReset();
     vi.spyOn(window, 'confirm').mockReturnValue(true);
   });
@@ -91,8 +95,11 @@ describe('TripPodReviewPanel', () => {
     render(
       <TripPodReviewPanel
         shipmentId={42}
+        shipmentVersion={7}
+        shipmentStatus="PENDING_EXPENSE_APPROVAL"
         items={[makeItem()]}
         canReview
+        canComplete
         canResolveCancellation={false}
         onChanged={onChanged}
       />,
@@ -124,11 +131,14 @@ describe('TripPodReviewPanel', () => {
     render(
       <TripPodReviewPanel
         shipmentId={42}
+        shipmentVersion={7}
+        shipmentStatus="PENDING_EXPENSE_APPROVAL"
         items={[makeItem({
           currentSubmission: null,
           tripStatus: 'CREATED',
         })]}
         canReview={false}
+        canComplete={false}
         canResolveCancellation
         onChanged={onChanged}
       />,
@@ -151,5 +161,97 @@ describe('TripPodReviewPanel', () => {
       expect.any(String),
     ));
     await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
+  });
+
+  it('completes the shipment directly with VAT and guarded trip versions', async () => {
+    completeShipmentMock.mockResolvedValue({});
+    const onChanged = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <TripPodReviewPanel
+        shipmentId={42}
+        shipmentVersion={7}
+        shipmentStatus="PENDING_EXPENSE_APPROVAL"
+        items={[makeItem({ tripStatus: 'IN_TRANSIT', tripVersion: 3 })]}
+        canReview
+        canComplete
+        canResolveCancellation={false}
+        onChanged={onChanged}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText(/Thuế VAT khi hoàn thành/i), {
+      target: { value: '0.08' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Hoàn thành lô hàng/i }));
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Xác nhận hoàn thành/i }));
+
+    await waitFor(() => expect(completeShipmentMock).toHaveBeenCalledWith(
+      42,
+      {
+        expectedVersion: 7,
+        vatRate: 0.08,
+        confirmZeroRevenue: false,
+        trips: [{ tripId: 77, expectedVersion: 3 }],
+      },
+      expect.any(String),
+    ));
+    await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
+  });
+
+  it('reuses the completion command key when an identical retry follows an uncertain failure', async () => {
+    completeShipmentMock
+      .mockRejectedValueOnce(new Error('Mất kết nối khi chờ phản hồi.'))
+      .mockResolvedValueOnce({});
+    const onChanged = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <TripPodReviewPanel
+        shipmentId={42}
+        shipmentVersion={7}
+        shipmentStatus="PENDING_EXPENSE_APPROVAL"
+        items={[makeItem({ tripStatus: 'IN_TRANSIT', tripVersion: 3 })]}
+        canReview
+        canComplete
+        canResolveCancellation={false}
+        onChanged={onChanged}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText(/Thuế VAT khi hoàn thành/i), {
+      target: { value: '0.08' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Hoàn thành lô hàng/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /doanh thu 0/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Xác nhận hoàn thành/i }));
+
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Mất kết nối'));
+    const firstKey = completeShipmentMock.mock.calls[0]?.[2];
+
+    fireEvent.click(screen.getByRole('button', { name: /Hoàn thành lô hàng/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Xác nhận hoàn thành/i }));
+
+    await waitFor(() => expect(completeShipmentMock).toHaveBeenCalledTimes(2));
+    expect(completeShipmentMock.mock.calls[1]?.[1]).toMatchObject({ confirmZeroRevenue: true });
+    expect(completeShipmentMock.mock.calls[1]?.[2]).toBe(firstKey);
+    await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(2));
+  });
+
+  it('does not expose routine completion to a non-accounting role', () => {
+    render(
+      <TripPodReviewPanel
+        shipmentId={42}
+        shipmentVersion={7}
+        shipmentStatus="PENDING_EXPENSE_APPROVAL"
+        items={[makeItem({ tripStatus: 'IN_TRANSIT' })]}
+        canReview
+        canComplete={false}
+        canResolveCancellation={false}
+        onChanged={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: /Hoàn thành lô hàng/i })).toBeNull();
   });
 });

@@ -86,6 +86,7 @@ p, MANAGER, shipments, read
 p, MANAGER, shipments, write
 p, MANAGER, shipments, delete
 p, ACCOUNTANT, shipments, read
+p, ACCOUNTANT, shipments, write
 p, DISPATCHER, shipments, read
 p, DISPATCHER, shipments, write
 // Dispatch workflow uses separate resources so broad shipment access cannot

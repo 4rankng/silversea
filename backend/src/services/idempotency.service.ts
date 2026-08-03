@@ -73,6 +73,7 @@ export const IDEMPOTENCY_ENDPOINTS = {
   SHIPMENT_SUBMIT_FOR_DISPATCH: 'shipments.submit-for-dispatch',
   SHIPMENT_FULFILLMENT_ASSIGN: 'shipments.fulfillments.assign',
   SHIPMENT_FULFILLMENT_CANCEL: 'shipments.fulfillments.cancel',
+  SHIPMENT_COMPLETE: 'shipments.complete',
   SHIPMENT_DELETE: 'shipments.delete',
   PAYMENTS_RECEIVE: 'payments.receive',
   PAYMENT_REFUNDS_CREATE: 'payment-refunds.create',
@@ -284,6 +285,7 @@ export async function runIdempotent<T>(args: {
   serializeResult?: (result: T) => unknown;
   deserializeResult?: (snapshot: unknown) => T;
   onTransactionRollback?: (error: unknown, created: T | undefined) => Promise<void>;
+  getEntityKey?: (result: T) => string | null | undefined;
 }): Promise<IdempotentRunResult<T>> {
   const {
     endpoint,
@@ -299,6 +301,7 @@ export async function runIdempotent<T>(args: {
     serializeResult,
     deserializeResult,
     onTransactionRollback,
+    getEntityKey,
   } = args;
 
   if (!idempotencyKey) {
@@ -364,6 +367,7 @@ export async function runIdempotent<T>(args: {
       const entityId = getEntityId
         ? (getEntityId(createdResult) ?? null)
         : defaultEntityId(createdResult);
+      const entityKey = getEntityKey?.(createdResult) ?? undefined;
       const responseSnapshot = snapshotJsonValue(
         serializeResult ? serializeResult(createdResult) : createdResult,
       );
@@ -387,6 +391,7 @@ export async function runIdempotent<T>(args: {
         statusCode: persistedStatusCode,
         responseBody,
         entityId,
+        entityKey,
       });
       return { result: createdResult, replayed: false, statusCode: persistedStatusCode };
     }, transactionOptions);

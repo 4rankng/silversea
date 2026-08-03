@@ -188,6 +188,7 @@ const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_CREATE, pattern: /^\/api\/shipments$/ },
   { method: 'PUT', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_UPDATE, pattern: /^\/api\/shipments\/[^/]+$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_TRANSITION, pattern: /^\/api\/shipments\/[^/]+\/transition$/ },
+  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_COMPLETE, pattern: /^\/api\/shipments\/[^/]+\/complete$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DISPATCH, pattern: /^\/api\/shipments\/[^/]+\/dispatch$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_POD_REVIEW, pattern: /^\/api\/shipments\/[^/]+\/pod-reviews\/[^/]+\/review$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENT_CANCEL, pattern: /^\/api\/shipments\/[^/]+\/fulfillments\/[^/]+\/cancellation-disposition$/ },

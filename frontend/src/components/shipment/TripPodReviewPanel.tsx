@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -12,6 +12,7 @@ import { TripPodStatus } from '@tingting/shared';
 import {
   downloadShipmentPodFile,
   cancelShipmentFulfillment,
+  completeShipment,
   reviewShipmentPod,
   type ShipmentPodReviewFile,
   type ShipmentPodReviewItem,
@@ -20,8 +21,11 @@ import { Modal } from '../UI';
 
 export interface TripPodReviewPanelProps {
   shipmentId: number;
+  shipmentVersion: number;
+  shipmentStatus: 'NEW' | 'DISPATCHED' | 'IN_TRANSIT' | 'PENDING_EXPENSE_APPROVAL' | 'COMPLETED' | 'CANCELED';
   items: ShipmentPodReviewItem[];
   canReview: boolean;
+  canComplete: boolean;
   canResolveCancellation: boolean;
   onChanged: () => Promise<void> | void;
 }
@@ -72,13 +76,20 @@ function statusClass(status: TripPodStatus): string {
 
 export function TripPodReviewPanel({
   shipmentId,
+  shipmentVersion,
+  shipmentStatus,
   items,
   canReview,
+  canComplete,
   canResolveCancellation,
   onChanged,
 }: TripPodReviewPanelProps) {
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [vatRate, setVatRate] = useState<'' | '0' | '0.05' | '0.08' | '0.1'>('');
+  const [confirmZeroRevenue, setConfirmZeroRevenue] = useState(false);
+  const [completeOpen, setCompleteOpen] = useState(false);
+  const completionAttemptRef = useRef<{ fingerprint: string; idempotencyKey: string } | null>(null);
   const [cancelDraft, setCancelDraft] = useState<{
     item: ShipmentPodReviewItem;
     disposition: 'REPLACED' | 'NOT_REQUIRED';
@@ -170,6 +181,67 @@ export function TripPodReviewPanel({
       setCancelDraft(null);
     } catch (cancelError) {
       setError(cancelError instanceof Error ? cancelError.message : 'Không thể hủy tác vụ điều phối.');
+    } finally {
+      setPendingKey(null);
+      activeElement?.focus();
+    }
+  }
+
+  function openCompleteModal() {
+    if (!vatRate) {
+      setError('Chọn thuế VAT trước khi hoàn thành lô hàng.');
+      return;
+    }
+    const requiredItems = items.filter((item) => item.required);
+    if (
+      requiredItems.length === 0
+      || requiredItems.some((item) => item.tripId == null || item.tripVersion == null)
+    ) {
+      setError('Chưa đủ chuyến bắt buộc hoặc phiên bản chuyến để hoàn thành lô hàng.');
+      return;
+    }
+    setError(null);
+    setCompleteOpen(true);
+  }
+
+  async function handleCompleteShipment() {
+    if (!vatRate) return;
+    const trips = items
+      .filter((item) => item.required && item.tripId != null && item.tripVersion != null)
+      .map((item) => ({
+        tripId: item.tripId as number,
+        expectedVersion: item.tripVersion as number,
+      }));
+    const body = {
+      expectedVersion: shipmentVersion,
+      vatRate: Number(vatRate) as 0 | 0.05 | 0.08 | 0.1,
+      confirmZeroRevenue,
+      trips,
+    };
+    const fingerprint = JSON.stringify(body);
+    if (completionAttemptRef.current?.fingerprint !== fingerprint) {
+      completionAttemptRef.current = { fingerprint, idempotencyKey: crypto.randomUUID() };
+    }
+    const idempotencyKey = completionAttemptRef.current.idempotencyKey;
+    const activeElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setPendingKey('complete-shipment');
+    setError(null);
+    try {
+      await completeShipment(
+        shipmentId,
+        body,
+        idempotencyKey,
+      );
+      completionAttemptRef.current = null;
+      setConfirmZeroRevenue(false);
+      setCompleteOpen(false);
+      await onChanged();
+    } catch (completeError) {
+      setCompleteOpen(false);
+      setError(completeError instanceof Error ? completeError.message : 'Không thể hoàn thành lô hàng.');
+      // The server may have committed even when the response was interrupted.
+      // Keep the command key for an identical retry and refresh authoritative state.
+      await Promise.resolve(onChanged()).catch(() => undefined);
     } finally {
       setPendingKey(null);
       activeElement?.focus();
@@ -344,6 +416,88 @@ export function TripPodReviewPanel({
           })}
         </div>
       )}
+
+      {canComplete && shipmentStatus === 'PENDING_EXPENSE_APPROVAL' && (
+        <div className="shipment-pod-review__completion">
+          <div className="shipment-pod-review__completion-copy">
+            <strong>Hoàn thành lô hàng và chuyển số liệu sang công nợ</strong>
+            <span>Hệ thống sẽ kiểm tra e-POD hiện tại, POD giấy, mọi phạm vi chi phí và ảnh bắt buộc trước khi ghi nhận.</span>
+          </div>
+          <label className="shipment-pod-review__vat-field">
+            <span>Thuế VAT khi hoàn thành</span>
+            <select
+              value={vatRate}
+              onChange={(event) => {
+                setVatRate(event.target.value as typeof vatRate);
+                setConfirmZeroRevenue(false);
+              }}
+              disabled={pendingKey != null}
+            >
+              <option value="">Chọn mức VAT</option>
+              <option value="0">0%</option>
+              <option value="0.05">5%</option>
+              <option value="0.08">8%</option>
+              <option value="0.1">10%</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            className="btn btn--primary shipment-pod-review__complete-button"
+            onClick={openCompleteModal}
+            disabled={pendingKey != null}
+          >
+            {pendingKey === 'complete-shipment' ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
+            Hoàn thành lô hàng
+          </button>
+        </div>
+      )}
+
+      <Modal
+        isOpen={completeOpen}
+        title="Xác nhận hoàn thành lô hàng"
+        onClose={() => pendingKey == null && setCompleteOpen(false)}
+        maxWidth={520}
+        footer={(
+          <>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() => setCompleteOpen(false)}
+              disabled={pendingKey != null}
+            >
+              Quay lại kiểm tra
+            </button>
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={() => void handleCompleteShipment()}
+              disabled={pendingKey != null}
+            >
+              {pendingKey === 'complete-shipment' ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
+              Xác nhận hoàn thành
+            </button>
+          </>
+        )}
+      >
+        <div className="shipment-pod-review__complete-confirmation">
+          <p>
+            Lô hàng sẽ chuyển sang <strong>Hoàn thành</strong> với VAT {vatRate ? `${Number(vatRate) * 100}%` : '—'}.
+          </p>
+          <p>Thao tác này tạo đúng một phiên bản hạch toán và bản chụp công nợ phải thu, công nợ phải trả và lãi lỗ cho các chuyến đủ điều kiện.</p>
+          <label className="shipment-pod-review__zero-revenue-confirmation">
+            <input
+              type="checkbox"
+              checked={confirmZeroRevenue}
+              onChange={(event) => setConfirmZeroRevenue(event.target.checked)}
+              disabled={pendingKey != null}
+            />
+            <span>
+              Tôi xác nhận vẫn hoàn thành nếu có chuyến có doanh thu 0&nbsp;₫.
+              Chỉ chọn khi đã kiểm tra và chấp nhận trường hợp này.
+            </span>
+          </label>
+        </div>
+      </Modal>
 
       <Modal
         isOpen={cancelDraft != null}

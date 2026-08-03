@@ -62,6 +62,7 @@ import {
 } from './trip-pod.service';
 import { transitionTripStatus } from './trip-status-machine.service';
 import { assertActorCanAccessShipment } from './shipment-coordination.service';
+import { requireTripCloseReadiness } from './trip-close-readiness.service';
 
 // ─── Status machine ─────────────────────────────────────────────────────────
 //
@@ -211,6 +212,7 @@ export type ShipmentUpdateResult = typeof s.shipments.$inferSelect & {
 type ShipmentAuthorityTripRow = Pick<
   typeof s.trips.$inferSelect,
   'id'
+  | 'fulfillmentId'
   | 'version'
   | 'shipmentId'
   | 'customerId'
@@ -226,7 +228,15 @@ type ShipmentAuthorityTripRow = Pick<
   | 'revenue'
   | 'revenueOriginal'
   | 'revenueEmptyReturn'
+  | 'podRecoveredAt'
 >;
+
+type ShipmentFulfillmentRow = typeof s.shipmentFulfillments.$inferSelect;
+
+type ShipmentCloseAuthorityContext = {
+  fulfillmentRows: ShipmentFulfillmentRow[];
+  requiredFulfillments: ShipmentFulfillmentRow[];
+};
 
 function extractPricingSelectorFromSnapshot(snapshot: unknown): {
   containerTypeId: number | null;
@@ -357,9 +367,28 @@ function buildFullPricingFormula(freightFormula: string, freightPrice: number, v
   return `${freightFormula} = ${freightPrice.toLocaleString('vi-VN')}đ; VAT ${vatPct}%`;
 }
 
-async function listLiveShipmentAuthorityTrips(tx: Tx, shipmentId: number): Promise<ShipmentAuthorityTripRow[]> {
+async function loadShipmentCloseAuthorityContext(tx: Tx, shipmentId: number): Promise<ShipmentCloseAuthorityContext> {
+  const fulfillmentRows = await tx.select().from(s.shipmentFulfillments)
+    .where(eq(s.shipmentFulfillments.shipmentId, shipmentId))
+    .orderBy(asc(s.shipmentFulfillments.id))
+    .for('update');
+  const fulfillmentById = new Map(fulfillmentRows.map((row) => [row.id, row]));
+  const requiredFulfillments = fulfillmentRows.filter((row) => isFulfillmentRequired(
+    row,
+    row.replacementFulfillmentId != null
+      ? fulfillmentById.get(row.replacementFulfillmentId) ?? null
+      : null,
+  ));
+  return { fulfillmentRows, requiredFulfillments };
+}
+
+async function listLiveShipmentAuthorityTrips(
+  tx: Tx,
+  shipmentId: number,
+): Promise<ShipmentAuthorityTripRow[]> {
   return tx.select({
     id: s.trips.id,
+    fulfillmentId: s.trips.fulfillmentId,
     version: s.trips.version,
     shipmentId: s.trips.shipmentId,
     customerId: s.trips.customerId,
@@ -375,13 +404,52 @@ async function listLiveShipmentAuthorityTrips(tx: Tx, shipmentId: number): Promi
     revenue: s.trips.revenue,
     revenueOriginal: s.trips.revenueOriginal,
     revenueEmptyReturn: s.trips.revenueEmptyReturn,
-  })
-    .from(s.trips)
+    podRecoveredAt: s.trips.podRecoveredAt,
+  }).from(s.trips)
     .where(and(
       eq(s.trips.shipmentId, shipmentId),
       sql`${s.trips.status} <> 'CANCELED'`,
       isNull(s.trips.deletedAt),
     ))
+    .orderBy(asc(s.trips.id))
+    .for('update');
+}
+
+async function listRequiredShipmentAuthorityTrips(
+  tx: Tx,
+  requiredFulfillmentIds: number[],
+): Promise<ShipmentAuthorityTripRow[]> {
+  if (requiredFulfillmentIds.length === 0) {
+    return [];
+  }
+
+  return tx.select({
+    id: s.trips.id,
+    fulfillmentId: s.trips.fulfillmentId,
+    version: s.trips.version,
+    shipmentId: s.trips.shipmentId,
+    customerId: s.trips.customerId,
+    routeId: s.trips.routeId,
+    cargoTypeId: s.trips.cargoTypeId,
+    departureDate: s.trips.departureDate,
+    containerCount: s.trips.containerCount,
+    vatRate: s.trips.vatRate,
+    status: s.trips.status,
+    pricingSource: s.trips.pricingSource,
+    pricingFormula: s.trips.pricingFormula,
+    pricingSnapshot: s.trips.pricingSnapshot,
+    revenue: s.trips.revenue,
+    revenueOriginal: s.trips.revenueOriginal,
+    revenueEmptyReturn: s.trips.revenueEmptyReturn,
+    podRecoveredAt: s.trips.podRecoveredAt,
+  })
+    .from(s.trips)
+    .where(and(
+      inArray(s.trips.fulfillmentId, requiredFulfillmentIds),
+      sql`${s.trips.status} <> 'CANCELED'`,
+      isNull(s.trips.deletedAt),
+    ))
+    .orderBy(asc(s.trips.id))
     .for('update');
 }
 
@@ -886,6 +954,31 @@ function isPodReviewWriter(actor: AuthUser): boolean {
     || actor.role === Role.CLERK;
 }
 
+function isRoutineShipmentCloseWriter(actor: AuthUser): boolean {
+  return actor.role === Role.ACCOUNTANT || actor.role === Role.CLERK;
+}
+
+const ROUTINE_SHIPMENT_CLOSE_VAT_RATES = new Set<number>([0, 0.05, 0.08, 0.10]);
+
+function normalizeRoutineShipmentCloseVatRate(value: number): number {
+  const rounded = Math.round(value * 100) / 100;
+  if (!ROUTINE_SHIPMENT_CLOSE_VAT_RATES.has(rounded)) {
+    throw new ApiError(400, 'Thuế suất VAT chỉ được chọn 0%, 5%, 8% hoặc 10%.');
+  }
+  return rounded;
+}
+
+type ShipmentDirectCloseTripVersionInput = {
+  tripId: number;
+  expectedVersion: number;
+};
+
+type ShipmentDirectCloseResult = {
+  shipment: Pick<typeof s.shipments.$inferSelect, 'id' | 'shipmentCode' | 'status' | 'version'>;
+  completedTripIds: number[];
+  vatRate: number;
+};
+
 async function loadReviewTripPodResult(
   tx: Tx,
   shipmentId: number,
@@ -921,6 +1014,45 @@ async function loadReviewTripPodResult(
   };
 }
 
+async function loadShipmentDirectCloseResult(
+  tx: Tx,
+  shipmentId: number,
+  tripIds?: number[],
+): Promise<ShipmentDirectCloseResult> {
+  const [shipment] = await tx.select({
+    id: s.shipments.id,
+    shipmentCode: s.shipments.shipmentCode,
+    status: s.shipments.status,
+    version: s.shipments.version,
+  }).from(s.shipments)
+    .where(and(
+      eq(s.shipments.id, shipmentId),
+      isNull(s.shipments.deletedAt),
+    ))
+    .limit(1);
+  if (!shipment) {
+    throw new ApiError(404, 'Không tìm thấy lô hàng.');
+  }
+
+  const trips = await tx.select({
+    id: s.trips.id,
+    vatRate: s.trips.vatRate,
+  }).from(s.trips)
+    .where(and(
+      eq(s.trips.shipmentId, shipmentId),
+      isNull(s.trips.deletedAt),
+      eq(s.trips.status, TripStatus.COMPLETED),
+      ...(tripIds && tripIds.length > 0 ? [inArray(s.trips.id, tripIds)] : []),
+    ))
+    .orderBy(asc(s.trips.id));
+
+  return {
+    shipment: normalizeShipmentRow(shipment),
+    completedTripIds: trips.map((trip) => trip.id),
+    vatRate: trips.length > 0 ? Number(trips[0]?.vatRate ?? 0) : 0,
+  };
+}
+
 export async function recomputeShipmentCompletion(
   shipmentId: number,
   options: { changedBy?: number | null } = {},
@@ -939,21 +1071,10 @@ export async function recomputeShipmentCompletion(
       return shipment;
     }
 
-    const fulfillmentRows = await tx.select().from(s.shipmentFulfillments)
-      .where(eq(s.shipmentFulfillments.shipmentId, shipmentId))
-      .orderBy(asc(s.shipmentFulfillments.id))
-      .for('update');
+    const { fulfillmentRows, requiredFulfillments } = await loadShipmentCloseAuthorityContext(tx, shipmentId);
     if (fulfillmentRows.length === 0) {
       return shipment;
     }
-
-    const fulfillmentById = new Map(fulfillmentRows.map((row) => [row.id, row]));
-    const requiredFulfillments = fulfillmentRows.filter((row) => isFulfillmentRequired(
-      row,
-      row.replacementFulfillmentId != null
-        ? fulfillmentById.get(row.replacementFulfillmentId) ?? null
-        : null,
-    ));
     if (requiredFulfillments.length === 0) return currentShipmentStatus === 'DISPATCHED'
       ? shipment
       : transitionShipmentStatus(
@@ -967,14 +1088,7 @@ export async function recomputeShipmentCompletion(
       );
 
     const requiredFulfillmentIds = requiredFulfillments.map((row) => row.id);
-    const trips = await tx.select().from(s.trips)
-      .where(and(
-        inArray(s.trips.fulfillmentId, requiredFulfillmentIds),
-        ne(s.trips.status, TripStatus.CANCELED),
-        isNull(s.trips.deletedAt),
-      ))
-      .orderBy(asc(s.trips.id))
-      .for('update');
+    const trips = await listRequiredShipmentAuthorityTrips(tx, requiredFulfillmentIds);
     const tripsByFulfillment = new Map<number, typeof trips>();
     for (const trip of trips) {
       const fulfillmentId = trip.fulfillmentId;
@@ -1275,9 +1389,9 @@ export async function reviewTripPodSubmission(args: {
           }).where(eq(s.trips.id, row.trip.id));
         }
         // Accepting e-POD and confirming the original paper POD makes the
-        // shipment ready for completion, but does not complete it. Q15 keeps
-        // the separate maker/checker approval as the only financial posting
-        // authority.
+        // shipment ready for completion, but does not complete it. Financial
+        // posting can then happen either through the routine Accountant/CUS
+        // close path or the separate governed exception path.
         await recomputeShipmentCompletion(args.shipmentId, { changedBy: args.actor.userId }, tx);
         if (row.trip.driverId != null) {
           pushPayload = {
@@ -1314,6 +1428,160 @@ export async function reviewTripPodSubmission(args: {
       console.error('POD review push delivery failed:', error);
     });
   }
+
+  return {
+    ...outcome.result,
+    replayed: outcome.replayed,
+  };
+}
+
+export async function completeShipmentDirect(args: {
+  shipmentId: number;
+  expectedVersion: number;
+  vatRate: number;
+  trips: ShipmentDirectCloseTripVersionInput[];
+  confirmZeroRevenue?: boolean;
+  idempotencyKey: string;
+  actor: AuthUser;
+}): Promise<ShipmentDirectCloseResult & { replayed: boolean }> {
+  if (!isRoutineShipmentCloseWriter(args.actor)) {
+    throw new ApiError(403, 'Chỉ Kế toán hoặc CUS mới có quyền chốt trực tiếp lô hàng.');
+  }
+  const vatRate = normalizeRoutineShipmentCloseVatRate(args.vatRate);
+  const normalizedTripVersions = [...args.trips]
+    .map((item) => ({
+      tripId: item.tripId,
+      expectedVersion: item.expectedVersion,
+    }))
+    .sort((left, right) => left.tripId - right.tripId);
+  if (normalizedTripVersions.length === 0) {
+    throw new ApiError(400, 'Danh sách phiên bản chuyến đi là bắt buộc.');
+  }
+  const maxTripVersions = 100;
+  if (normalizedTripVersions.length > maxTripVersions) {
+    throw new ApiError(400, `Danh sách phiên bản chuyến đi không được vượt quá ${maxTripVersions}.`);
+  }
+  const duplicateTripIds = normalizedTripVersions
+    .filter((item, index, all) => index > 0 && item.tripId === all[index - 1]?.tripId)
+    .map((item) => item.tripId);
+  if (duplicateTripIds.length > 0) {
+    throw new ApiError(400, 'Danh sách phiên bản chuyến đi bị trùng.');
+  }
+
+  const outcome = await runIdempotent<ShipmentDirectCloseResult>({
+    endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_COMPLETE,
+    idempotencyKey: args.idempotencyKey,
+    payload: {
+      shipmentId: args.shipmentId,
+      expectedVersion: args.expectedVersion,
+      vatRate,
+      confirmZeroRevenue: args.confirmZeroRevenue === true,
+      trips: normalizedTripVersions,
+    },
+    createdBy: args.actor.userId,
+    entityType: 'shipment',
+    responseStatusCode: 200,
+    getEntityKey: (result) => result.shipment.shipmentCode,
+    load: async (entityId, tx) => {
+      await assertActorCanAccessShipment(tx, args.shipmentId, args.actor, { write: true });
+      return loadShipmentDirectCloseResult(tx, entityId);
+    },
+    create: async (tx) => {
+      await assertActorCanAccessShipment(tx, args.shipmentId, args.actor, { write: true });
+
+      const [shipment] = await tx.select({
+        id: s.shipments.id,
+        version: s.shipments.version,
+        status: s.shipments.status,
+      }).from(s.shipments)
+        .where(and(
+          eq(s.shipments.id, args.shipmentId),
+          isNull(s.shipments.deletedAt),
+        ))
+        .for('update')
+        .limit(1);
+      if (!shipment) {
+        throw new ApiError(404, 'Không tìm thấy lô hàng.');
+      }
+      if (shipment.version !== args.expectedVersion) {
+        throw new ApiError(409, 'Lô hàng đã bị người khác cập nhật. Vui lòng tải lại.');
+      }
+      if (canonicalShipmentStatus(shipment.status) !== 'PENDING_EXPENSE_APPROVAL') {
+        throw new ApiError(409, 'Chỉ có thể chốt trực tiếp lô hàng đang chờ duyệt phí.');
+      }
+
+      const { requiredFulfillments } = await loadShipmentCloseAuthorityContext(tx, shipment.id);
+      if (requiredFulfillments.length === 0) {
+        throw new ApiError(409, 'Lô hàng chưa có tác vụ bắt buộc để chốt.');
+      }
+
+      const expectedTripVersionById = new Map(
+        normalizedTripVersions.map((item) => [item.tripId, item.expectedVersion]),
+      );
+      const requiredTrips = await listRequiredShipmentAuthorityTrips(
+        tx,
+        requiredFulfillments.map((row) => row.id),
+      );
+      const tripsByFulfillment = new Map<number, ShipmentAuthorityTripRow[]>();
+      for (const trip of requiredTrips) {
+        if (trip.fulfillmentId == null) {
+          continue;
+        }
+        const existing = tripsByFulfillment.get(trip.fulfillmentId) ?? [];
+        existing.push(trip);
+        tripsByFulfillment.set(trip.fulfillmentId, existing);
+      }
+      const missingRequiredTripIds = requiredFulfillments
+        .map((row) => row.id)
+        .filter((fulfillmentId) => (tripsByFulfillment.get(fulfillmentId) ?? []).length === 0);
+      if (missingRequiredTripIds.length > 0) {
+        throw new ApiError(409, 'Lô hàng chưa có đủ chuyến hiệu lực để chốt.');
+      }
+      const duplicateRequiredTripIds = requiredFulfillments
+        .map((row) => row.id)
+        .filter((fulfillmentId) => (tripsByFulfillment.get(fulfillmentId) ?? []).length > 1);
+      if (duplicateRequiredTripIds.length > 0) {
+        throw new ApiError(409, 'Lô hàng có nhiều chuyến hiệu lực cho cùng một tác vụ bắt buộc.');
+      }
+
+      if (
+        requiredTrips.length !== normalizedTripVersions.length
+        || requiredTrips.some((trip) => !expectedTripVersionById.has(trip.id))
+      ) {
+        throw new ApiError(409, 'Danh sách chuyến đi của lô hàng đã thay đổi. Vui lòng tải lại.');
+      }
+
+      for (const trip of [...requiredTrips].sort((left, right) => left.id - right.id)) {
+        const expectedTripVersion = expectedTripVersionById.get(trip.id);
+        if (expectedTripVersion == null || trip.version !== expectedTripVersion) {
+          throw new ApiError(409, 'Chuyến đi đã được thay đổi. Vui lòng tải lại.');
+        }
+        await requireTripCloseReadiness(tx, trip.id);
+        await transitionTripStatus(
+          trip.id,
+          TripStatus.COMPLETED,
+          args.actor.userId,
+          args.actor.role,
+          args.confirmZeroRevenue === true,
+          false,
+          {
+            expectedVersion: trip.version,
+            transaction: tx,
+            routineShipmentClose: true,
+            vatRateOverride: vatRate,
+            strictApSnapshot: true,
+          },
+        );
+      }
+
+      return loadShipmentDirectCloseResult(
+        tx,
+        shipment.id,
+        requiredTrips.map((trip) => trip.id),
+      );
+    },
+    getEntityId: (result) => result.shipment.id,
+  });
 
   return {
     ...outcome.result,

@@ -111,8 +111,8 @@ describe('Wave 0 MANAGER/ACCOUNTANT shipments RBAC (route mount surface)', () =>
   test('ACCOUNTANT can read shipments', async () => {
     assert.equal(await (await enforcer()).enforce('ACCOUNTANT', 'shipments', 'read'), true);
   });
-  test('ACCOUNTANT is denied shipments write (read-only)', async () => {
-    assert.equal(await (await enforcer()).enforce('ACCOUNTANT', 'shipments', 'write'), false);
+  test('ACCOUNTANT can write shipments for direct O2C close and related review flows', async () => {
+    assert.equal(await (await enforcer()).enforce('ACCOUNTANT', 'shipments', 'write'), true);
   });
   test('ACCOUNTANT is denied shipments delete', async () => {
     assert.equal(await (await enforcer()).enforce('ACCOUNTANT', 'shipments', 'delete'), false);
