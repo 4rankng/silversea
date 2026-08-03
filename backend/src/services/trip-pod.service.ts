@@ -281,6 +281,7 @@ export async function loadOwnedFulfillmentTrip(
     ))
     .where(and(
       eq(s.shipmentFulfillments.id, fulfillmentId),
+      isNull(s.shipmentFulfillments.canceledAt),
       eq(s.trips.driverId, driverId),
     ))
     .limit(1);

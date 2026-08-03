@@ -21,6 +21,7 @@ import {
   completeOwnedFulfillmentTrip,
   getCompletionEvidenceStatus,
   getDriverFulfillmentDetail,
+  getDriverTrips,
   recordDriverFulfillmentProgress,
   syncDriverFulfillmentStartSideEffects,
 } from '../services/driver.service';
@@ -265,6 +266,32 @@ describe('Phase 4 driver fulfillment execution', () => {
       expectedVersion: trip.version,
       idempotencyKey: `complete-other-${suffix}`,
     }));
+  });
+
+  test('driver trip list excludes canceled trips and canceled fulfillments from actionable work', async () => {
+    const actor = await createDriverPrincipal('list-filters');
+    const active = await createOwnedFulfillmentTrip(actor.driver.id);
+    const canceledTrip = await createOwnedFulfillmentTrip(actor.driver.id, TripStatus.CANCELED);
+    const canceledFulfillment = await createOwnedFulfillmentTrip(actor.driver.id);
+
+    await db.update(s.shipmentFulfillments).set({
+      canceledAt: new Date('2026-08-01T09:00:00.000Z'),
+      canceledBy: actor.user.id,
+      cancellationReason: 'Điều phối hủy tác vụ cũ',
+    }).where(eq(s.shipmentFulfillments.id, canceledFulfillment.fulfillment.id));
+
+    const items = await getDriverTrips(actor.driver.id);
+    assert.deepEqual(items.map((item) => item.id), [active.trip.id]);
+
+    const actionableItems = items.filter((item) => item.fulfillmentId != null);
+    assert.equal(actionableItems.length, 1);
+
+    const detail = await getDriverFulfillmentDetail(actor.driver.id, actionableItems[0]!.fulfillmentId!);
+    assert.equal(detail.fulfillmentId, active.fulfillment.id);
+    assert.equal(detail.tripId, active.trip.id);
+
+    await assertApiError(404, () => getDriverFulfillmentDetail(actor.driver.id, canceledTrip.fulfillment.id));
+    await assertApiError(404, () => getDriverFulfillmentDetail(actor.driver.id, canceledFulfillment.fulfillment.id));
   });
 
   test('milestones are ordered and replay-safe', async () => {

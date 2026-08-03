@@ -126,6 +126,44 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
     );
   });
 
+  it('keeps long milestone text inside the delivery column', async () => {
+    apiGet.mockResolvedValue({
+      items: [{
+        id: 1,
+        shipmentCode: 'SHP-2608-00001',
+        customerId: 7,
+        customerName: 'Công ty TNHH Long Minh',
+        status: ShipmentStatus.PENDING_EXPENSE_APPROVAL,
+        bookingRef: 'BK-1',
+        blNumber: 'BL-1',
+        expectedDeliveryDate: '2026-08-15',
+        pickupLocation: null,
+        deliveryLocation: null,
+        contactName: null,
+        contactPhone: null,
+        version: 1,
+        createdAt: '2026-08-01T00:00:00Z',
+        updatedAt: '2026-08-01T00:00:00Z',
+      }],
+      total: 1,
+      page: 1,
+      limit: 20,
+    });
+
+    renderAt('/shipments');
+    const desktop = desktopSurface();
+    const milestone = await desktop.findByTitle('Giao dự kiến 15/8/2026');
+    expect(milestone.classList.contains('shipments-page__milestone')).toBe(true);
+    expect(within(milestone).getByText('Giao dự kiến')).toBeTruthy();
+    expect(within(milestone).getByText('15/8/2026')).toBeTruthy();
+    expect(shipmentsPageCss).toMatch(
+      /\.shipments-page__td--date\s*\{[\s\S]*?overflow:\s*hidden;/,
+    );
+    expect(shipmentsPageCss).toMatch(
+      /\.shipments-page__milestone-text > span,\s*\.shipments-page__milestone-text > strong\s*\{[\s\S]*?text-overflow:\s*ellipsis;/,
+    );
+  });
+
   it('renders the empty state when the API returns no shipments', async () => {
     apiGet.mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 });
     renderAt('/shipments');

@@ -301,18 +301,20 @@ export default function ClerkShipmentCreatePage() {
               <option value="">— Chọn chiều hàng —</option><option value="IMPORT">Nhập khẩu</option><option value="EXPORT">Xuất khẩu</option>
             </SelectField>
           </div>
-          <div style={gridStyle}>
-            <SearchableField
-              id="shipment-operational-site"
-              label="Nhà máy"
-              value={form.operationalSiteId}
-              onChange={selectOperationalSite}
-              options={operationalSites.map((site) => ({ value: String(site.id), label: site.name, searchText: site.address ?? '' }))}
-              placeholder={sitesLoading ? 'Đang tải…' : 'Chọn nhà máy'}
-              disabled={!form.customerId || sitesLoading || Boolean(saving)}
-            />
-            {form.operationalSiteId && <button type="button" onClick={() => setDetailSite(sites.find((site) => String(site.id) === form.operationalSiteId) ?? null)} style={{ alignSelf: 'end', minHeight: 44, border: '1px solid var(--border-2)', borderRadius: 8, background: 'var(--surface-1)', color: 'var(--fg-1)', fontWeight: 600, cursor: 'pointer' }}><Eye size={17} style={{ verticalAlign: 'middle', marginRight: 7 }} />Xem thông tin nhà máy</button>}
-          </div>
+          {form.cargoMode === 'FCL' && (
+            <div style={gridStyle}>
+              <SearchableField
+                id="shipment-operational-site"
+                label="Nhà máy"
+                value={form.operationalSiteId}
+                onChange={selectOperationalSite}
+                options={operationalSites.map((site) => ({ value: String(site.id), label: site.name, searchText: site.address ?? '' }))}
+                placeholder={sitesLoading ? 'Đang tải…' : 'Chọn nhà máy'}
+                disabled={!form.customerId || sitesLoading || Boolean(saving)}
+              />
+              {form.operationalSiteId && <button type="button" onClick={() => setDetailSite(sites.find((site) => String(site.id) === form.operationalSiteId) ?? null)} style={{ alignSelf: 'end', minHeight: 44, border: '1px solid var(--border-2)', borderRadius: 8, background: 'var(--surface-1)', color: 'var(--fg-1)', fontWeight: 600, cursor: 'pointer' }}><Eye size={17} style={{ verticalAlign: 'middle', marginRight: 7 }} />Xem thông tin nhà máy</button>}
+            </div>
+          )}
         </section>
 
         <section style={sectionStyle}>

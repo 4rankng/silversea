@@ -64,7 +64,7 @@ const handleSubmit = useCallback(
       focusAndScroll("routeId");
       return;
     }
-    if (!s.cargoTypeId) {
+    if (!isEditMode && !s.cargoTypeId) {
       const msg = "Loại hàng là bắt buộc.";
       s.setError(msg);
       showToast({ kind: 'error', message: msg });

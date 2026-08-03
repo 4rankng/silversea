@@ -49,6 +49,10 @@ describe('O2C trip close HTTP authorization', () => {
       nextCalled: true,
       statusCode: 200,
     });
+    assert.deepEqual(await authorize(Role.ACCOUNTANT, 'POST', '/42/complete'), {
+      nextCalled: true,
+      statusCode: 200,
+    });
     assert.deepEqual(await authorize(Role.CLERK, 'PATCH', '/42'), {
       nextCalled: false,
       statusCode: 403,
@@ -59,8 +63,8 @@ describe('O2C trip close HTTP authorization', () => {
     });
   });
 
-  it('keeps Dispatcher, Driver and Ops outside the close-maker boundary', async () => {
-    for (const role of [Role.DISPATCHER, Role.DRIVER, Role.FORWARDER]) {
+  it('keeps non-maker roles outside the close-maker boundary', async () => {
+    for (const role of [Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.DRIVER, Role.FORWARDER]) {
       assert.deepEqual(await authorize(role, 'POST', '/42/complete'), {
         nextCalled: false,
         statusCode: 403,

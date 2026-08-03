@@ -10,7 +10,7 @@
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eq, inArray } from 'drizzle-orm';
-import { TripStatus } from '@tingting/shared';
+import { Role, TripStatus } from '@tingting/shared';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
@@ -33,6 +33,7 @@ const createdCustomerIds: number[] = [];
 const createdTripIds: number[] = [];
 const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
+const createdUserIds: number[] = [];
 
 async function mkCustomer() {
   const [c] = await db.insert(s.customers)
@@ -46,6 +47,17 @@ async function mkShipment(customerId: number) {
   const shipment = await createShipment({ customerId });
   createdShipmentIds.push(shipment.id);
   return shipment;
+}
+
+async function mkOfficeUser(role: Role = Role.ADMIN) {
+  const [user] = await db.insert(s.users).values({
+    username: `m33-user-${suffix}-${createdUserIds.length}`.slice(0, 50),
+    passwordHash: 'x',
+    role,
+    status: 'ACTIVE',
+  }).returning();
+  createdUserIds.push(user.id);
+  return user;
 }
 
 async function mkTrip() {
@@ -89,6 +101,9 @@ after(async () => {
     }
     if (createdCustomerIds.length > 0) {
       await db.delete(s.customers).where(inArray(s.customers.id, createdCustomerIds));
+    }
+    if (createdUserIds.length > 0) {
+      await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
     }
   } catch (err) {
     console.warn('[m33-milestone.test] cleanup partial:', (err as Error).message);
@@ -177,20 +192,27 @@ describe('M3.3 — deriveMilestoneFromTripStatus', () => {
     assert.equal(afterTransition[0]?.contentSnapshot.title, 'Đang vận chuyển');
   });
 
-  test('creates one shipment-scoped booking-received portal event across multiple trip creations', async () => {
+  test('creates one shipment-scoped booking-received portal event on the actual shipment create path', async () => {
     const customer = await mkCustomer();
-    const shipment = await mkShipment(customer.id);
-    const tripA = await mkTrip();
-    const tripB = await mkTrip();
-
-    await deriveMilestoneFromTripStatus(shipment.id, tripA.id, null, TripStatus.CREATED, 1);
-    await deriveMilestoneFromTripStatus(shipment.id, tripB.id, null, TripStatus.CREATED, 1);
+    const creator = await mkOfficeUser();
+    const shipment = await createShipment({
+      customerId: customer.id,
+      createdBy: creator.id,
+    }, {
+      userId: creator.id,
+      username: creator.username,
+      email: null,
+      fullName: creator.fullName,
+      role: creator.role as Role,
+    });
+    createdShipmentIds.push(shipment.id);
 
     const bookingEvents = (await db.select().from(s.customerVisibleEvents)
       .where(eq(s.customerVisibleEvents.shipmentId, shipment.id)))
       .filter((event) => event.contentSnapshot.title === 'Đã tiếp nhận booking');
     assert.equal(bookingEvents.length, 1);
     assert.equal(bookingEvents[0]?.eventKey, `shipment:${shipment.id}:booking-received`);
+    assert.equal(bookingEvents[0]?.createdBy, creator.id);
   });
 
   test('re-entering IN_TRANSIT after a dispatch regression writes a second customer-visible event', async () => {

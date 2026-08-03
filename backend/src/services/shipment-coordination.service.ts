@@ -143,9 +143,13 @@ function toCustomerEventDto(
   };
 }
 
-function isLegacyTripMilestoneEvent(row: CustomerVisibleEventRow, title: string): boolean {
+function isLegacyTripMilestoneEvent(
+  row: CustomerVisibleEventRow,
+  title: string,
+  status: keyof typeof SHIPMENT_STATUS_EVENT_TITLE_BY_STATUS,
+): boolean {
   return row.eventType === 'MILESTONE'
-    && row.eventKey.startsWith(LEGACY_TRIP_MILESTONE_EVENT_PREFIX)
+    && new RegExp(`^${LEGACY_TRIP_MILESTONE_EVENT_PREFIX}\\d+:milestone:${status}$`).test(row.eventKey)
     && row.contentSnapshot.title === title;
 }
 
@@ -163,14 +167,20 @@ function reconcileHistoricalShipmentMilestoneEvents(
   shipmentId: number,
   rows: CustomerVisibleEventRow[],
   statusHistoryRows: Array<Pick<typeof s.shipmentStatusHistory.$inferSelect, 'toStatus' | 'changedAt'>>,
+  acknowledgedEventIds: ReadonlySet<number> = new Set<number>(),
 ): CustomerVisibleEventRow[] {
   if (rows.length < 2 || statusHistoryRows.length === 0) return rows;
 
   const keepIds = new Set(rows.map((row) => row.id));
+  const compareCandidateRows = (left: CustomerVisibleEventRow, right: CustomerVisibleEventRow) => (
+    Number(acknowledgedEventIds.has(right.id)) - Number(acknowledgedEventIds.has(left.id))
+    || right.occurredAt.getTime() - left.occurredAt.getTime()
+    || right.id - left.id
+  );
 
   for (const [status, title] of Object.entries(SHIPMENT_STATUS_EVENT_TITLE_BY_STATUS)) {
     const preferredRows = rows.filter((row) => isShipmentStatusEvent(row, shipmentId, title));
-    const legacyRows = rows.filter((row) => isLegacyTripMilestoneEvent(row, title));
+    const legacyRows = rows.filter((row) => isLegacyTripMilestoneEvent(row, title, status as keyof typeof SHIPMENT_STATUS_EVENT_TITLE_BY_STATUS));
     const candidateRows = [...preferredRows, ...legacyRows];
     const transitions = statusHistoryRows
       .filter((row) => row.toStatus === status)
@@ -189,7 +199,7 @@ function reconcileHistoricalShipmentMilestoneEvents(
           const occurredAt = row.occurredAt.getTime();
           return occurredAt >= windowStart && (windowEnd == null || occurredAt < windowEnd);
         })
-        .sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime() || b.id - a.id);
+        .sort(compareCandidateRows);
       return rowsInWindow[0];
     };
 
@@ -208,7 +218,7 @@ function reconcileHistoricalShipmentMilestoneEvents(
     }
 
     if (chosenIds.size < transitions.length) {
-      for (const row of [...preferredRows, ...legacyRows]) {
+      for (const row of [...preferredRows, ...legacyRows].sort(compareCandidateRows)) {
         if (chosenIds.size >= transitions.length) break;
         if (!chosenIds.has(row.id)) chosenIds.add(row.id);
       }
@@ -321,20 +331,9 @@ export async function listCustomerVisibleEvents(args: {
       ))
       .orderBy(desc(s.customerVisibleEvents.occurredAt), desc(s.customerVisibleEvents.id));
     if (rows.length === 0) return [];
-    const statusHistoryRows = await tx.select({
-      toStatus: s.shipmentStatusHistory.toStatus,
-      changedAt: s.shipmentStatusHistory.changedAt,
-    }).from(s.shipmentStatusHistory)
-      .where(eq(s.shipmentStatusHistory.shipmentId, args.shipmentId))
-      .orderBy(desc(s.shipmentStatusHistory.changedAt), desc(s.shipmentStatusHistory.id));
-    const visibleRows = reconcileHistoricalShipmentMilestoneEvents(
-      args.shipmentId,
-      rows,
-      statusHistoryRows,
-    );
     const acknowledgementConditions = [
-      inArray(s.customerEventAcknowledgements.eventId, visibleRows.map(row => row.id)),
-      eq(s.customerEventAcknowledgements.customerId, visibleRows[0]!.customerId),
+      inArray(s.customerEventAcknowledgements.eventId, rows.map(row => row.id)),
+      eq(s.customerEventAcknowledgements.customerId, rows[0]!.customerId),
       eq(s.customerEventAcknowledgements.kind, 'ACKNOWLEDGED'),
     ];
     if (args.actor.role === Role.CUSTOMER) {
@@ -353,6 +352,19 @@ export async function listCustomerVisibleEvents(args: {
         acknowledgementByEvent.set(acknowledgement.eventId, acknowledgement);
       }
     }
+    const statusHistoryRows = await tx.select({
+      toStatus: s.shipmentStatusHistory.toStatus,
+      changedAt: s.shipmentStatusHistory.changedAt,
+    }).from(s.shipmentStatusHistory)
+      .where(eq(s.shipmentStatusHistory.shipmentId, args.shipmentId))
+      .orderBy(desc(s.shipmentStatusHistory.changedAt), desc(s.shipmentStatusHistory.id));
+    const visibleRows = reconcileHistoricalShipmentMilestoneEvents(
+      args.shipmentId,
+      rows,
+      statusHistoryRows,
+      new Set(acknowledgementByEvent.keys()),
+    );
+    if (visibleRows.length === 0) return [];
     return visibleRows.map((row) => {
       const acknowledgement = acknowledgementByEvent.get(row.id);
       return toCustomerEventDto(

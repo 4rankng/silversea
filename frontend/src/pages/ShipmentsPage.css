@@ -345,13 +345,38 @@
   color: var(--accent-2);
 }
 
-.shipments-page__td--date > span:not(.shipments-page__muted) {
+.shipments-page__td--date {
+  overflow: hidden;
+}
+
+.shipments-page__milestone {
   display: inline-flex;
+  width: 100%;
+  min-width: 0;
   align-items: center;
   gap: 7px;
   font-family: var(--font-mono);
   font-size: var(--fs-xs);
   white-space: nowrap;
+}
+
+.shipments-page__milestone-text {
+  display: block;
+  min-width: 0;
+}
+
+.shipments-page__milestone-text > span,
+.shipments-page__milestone-text > strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shipments-page__milestone-text > strong {
+  margin-top: 2px;
+  color: var(--ink-2);
+  font-weight: var(--fw-medium);
 }
 
 .shipments-page__td--date svg {

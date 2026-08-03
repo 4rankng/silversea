@@ -48,12 +48,17 @@ registerAuditEvent('POST', '/api/finance/snapshots/fuel-surcharge/', '/recapture
 
 const router = Router();
 
+// The payments router owns the specialized governance check/approve commands
+// for direct-money actions (including profit distribution and treasury). Mount
+// it before the generic governance router so those actions use their dedicated
+// transaction and application adapters; generic reject/return/list routes still
+// fall through to governanceActionsRoutes.
+router.use(paymentsRoutes);
 router.use(governanceActionsRoutes);
 router.use(creditOverridesRoutes);
 router.use(fuelInvoicesRoutes);
 router.use(snapshotRoutes);
 router.use(ledgerRoutes);
-router.use(paymentsRoutes);
 router.use(penaltiesRoutes);
 router.use(reportsRoutes);
 router.use(advancesRoutes);

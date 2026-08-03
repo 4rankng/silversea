@@ -1,6 +1,6 @@
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq, ne, and, isNull, desc, asc, gte, lte, sql, inArray } from 'drizzle-orm';
+import { eq, ne, and, isNull, isNotNull, or, desc, asc, gte, lte, sql, inArray } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import {
   computeVehicleAlerts,
@@ -131,10 +131,22 @@ export async function getDriverTrips(driverId: number) {
     truckPlate: s.trucks.licensePlate,
     customerName: s.customers.name,
   }).from(s.trips)
+    .leftJoin(s.shipmentFulfillments, eq(s.trips.fulfillmentId, s.shipmentFulfillments.id))
     .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
     .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
     .leftJoin(s.customers, eq(s.trips.customerId, s.customers.id))
-    .where(and(eq(s.trips.driverId, driverId), isNull(s.trips.deletedAt)))
+    .where(and(
+      eq(s.trips.driverId, driverId),
+      isNull(s.trips.deletedAt),
+      ne(s.trips.status, TripStatus.CANCELED),
+      or(
+        isNull(s.trips.fulfillmentId),
+        and(
+          isNotNull(s.shipmentFulfillments.id),
+          isNull(s.shipmentFulfillments.canceledAt),
+        ),
+      ),
+    ))
     .orderBy(desc(s.trips.departureDate));
 
   if (trips.length === 0) return trips;

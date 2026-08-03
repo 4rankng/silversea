@@ -264,7 +264,31 @@ async function createExpenseScopeRecomputeFixture(args: {
 
   const cleanup = async () => {
     await db.delete(s.customerVisibleEvents).where(eq(s.customerVisibleEvents.shipmentId, shipment.id));
+    const postingRows = await db.select({ id: s.tripFinancialPostings.id })
+      .from(s.tripFinancialPostings)
+      .where(eq(s.tripFinancialPostings.tripId, trip.id));
+    const postingIds = postingRows.map((row) => row.id);
+    if (postingIds.length > 0) {
+      await db.delete(s.ledger).where(inArray(s.ledger.financialPostingId, postingIds));
+      await db.delete(s.profitabilitySnapshotDimensions)
+        .where(sql`${s.profitabilitySnapshotDimensions.snapshotId} in (
+          select ${s.profitabilitySnapshots.id}
+          from ${s.profitabilitySnapshots}
+          where ${s.profitabilitySnapshots.tripId} = ${trip.id}
+        )`);
+      await db.delete(s.profitabilitySnapshots).where(eq(s.profitabilitySnapshots.tripId, trip.id));
+      await db.delete(s.tripFinancialPostings).where(eq(s.tripFinancialPostings.tripId, trip.id));
+    }
+    await db.delete(s.tripPhotos).where(eq(s.tripPhotos.tripId, trip.id));
     await db.delete(s.tripPodSubmissions).where(eq(s.tripPodSubmissions.tripId, trip.id));
+    const milestones = await db.select({ id: s.shipmentMilestones.id })
+      .from(s.shipmentMilestones)
+      .where(eq(s.shipmentMilestones.tripId, trip.id));
+    if (milestones.length > 0) {
+      await db.delete(s.customerVisibleEvents)
+        .where(inArray(s.customerVisibleEvents.milestoneId, milestones.map((row) => row.id)));
+    }
+    await db.delete(s.shipmentMilestones).where(eq(s.shipmentMilestones.tripId, trip.id));
     await db.delete(s.tripExpenseCompletionScopes).where(eq(s.tripExpenseCompletionScopes.tripId, trip.id));
     await db.delete(s.tripContainers).where(eq(s.tripContainers.tripId, trip.id));
     await db.delete(s.trips).where(eq(s.trips.id, trip.id));
@@ -277,6 +301,28 @@ async function createExpenseScopeRecomputeFixture(args: {
   };
 
   return { shipment, trip, cleanup };
+}
+
+async function prepareFixtureForDirectClose(shipmentIdForFixture: number, tripIdForFixture: number) {
+  await db.update(s.shipments).set({
+    status: 'PENDING_EXPENSE_APPROVAL',
+    updatedAt: new Date(),
+  }).where(eq(s.shipments.id, shipmentIdForFixture));
+  await db.update(s.trips).set({
+    status: 'IN_TRANSIT',
+    version: 1,
+    podRecoveredAt: new Date(),
+    podRecoveredBy: userIds[1],
+    completedAt: null,
+    vatRate: '0',
+    revenue: '40000000',
+    revenueOriginal: '40000000',
+    revenueEmptyReturn: '40000000',
+    arCostHash: null,
+    arSnapshotDirty: false,
+    arSnapshotChangedAt: null,
+    pnlSnapshotGrossProfit: null,
+  }).where(eq(s.trips.id, tripIdForFixture));
 }
 
 describe('O2C trip close readiness authority', () => {
@@ -342,6 +388,40 @@ describe('O2C trip close readiness authority', () => {
       } finally {
         await fixture.cleanup();
       }
+    }
+  });
+
+  test('synthetic LCL direct close completes without requiring a hidden general scope', async () => {
+    const fixture = await createExpenseScopeRecomputeFixture({ cargoMode: 'LCL', submissionStatus: 'ACCEPTED' });
+    try {
+      await prepareFixtureForDirectClose(fixture.shipment.id, fixture.trip.id);
+      const result = await completeShipmentDirect({
+        shipmentId: fixture.shipment.id,
+        expectedVersion: fixture.shipment.version,
+        vatRate: 0.1,
+        confirmNoPhoto: true,
+        trips: [{ tripId: fixture.trip.id, expectedVersion: fixture.trip.version }],
+        idempotencyKey: `lcl-direct-close-${Date.now()}`,
+        actor: {
+          userId: userIds[1],
+          username: 'close-reviewer',
+          email: null,
+          fullName: 'Close Reviewer',
+          role: Role.ACCOUNTANT,
+        },
+      });
+
+      assert.equal(result.shipment.status, 'COMPLETED');
+      assert.deepEqual(result.completedTripIds, [fixture.trip.id]);
+
+      const [completedTrip] = await db.select({ status: s.trips.status, vatRate: s.trips.vatRate })
+        .from(s.trips)
+        .where(eq(s.trips.id, fixture.trip.id))
+        .limit(1);
+      assert.equal(completedTrip?.status, 'COMPLETED');
+      assert.equal(completedTrip?.vatRate, '0.100');
+    } finally {
+      await fixture.cleanup();
     }
   });
 

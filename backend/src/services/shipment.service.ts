@@ -65,7 +65,6 @@ import {
   assertActorCanAccessShipment,
   createCustomerVisibleEvent,
 } from './shipment-coordination.service';
-import { requireTripCloseReadiness } from './trip-close-readiness.service';
 
 // ─── Status machine ─────────────────────────────────────────────────────────
 //
@@ -120,6 +119,111 @@ function normalizeShipmentStatusValue(status: string | null | undefined): Shipme
 
 function isSyntheticLclFulfillmentScope(notes: string | null | undefined): boolean {
   return typeof notes === 'string' && notes.startsWith(SYNTHETIC_LCL_FULFILLMENT_SCOPE_PREFIX);
+}
+
+type TripExpenseScopeContainerRow = {
+  tripId: number;
+  id: number;
+  notes: string | null;
+};
+
+type TripExpenseScopeCompletionRow = {
+  tripId: number;
+  tripContainerId: number | null;
+  status: typeof s.tripExpenseCompletionScopes.$inferSelect['status'];
+};
+
+function buildCompletedExpenseScopeKeys(
+  scopes: readonly TripExpenseScopeCompletionRow[],
+): Set<string> {
+  return new Set(
+    scopes
+      .filter((scope) => scope.status === 'COMPLETED')
+      .map((scope) => `${scope.tripId}:${scope.tripContainerId ?? 'general'}`),
+  );
+}
+
+function hasCompletedExpenseScopes(
+  tripId: number,
+  tripContainers: readonly Pick<TripExpenseScopeContainerRow, 'id' | 'notes'>[],
+  completedExpenseScopeKeys: ReadonlySet<string>,
+): boolean {
+  if (
+    tripContainers.length === 1
+    && isSyntheticLclFulfillmentScope(tripContainers[0]?.notes)
+  ) {
+    return completedExpenseScopeKeys.has(`${tripId}:${tripContainers[0]!.id}`);
+  }
+  return completedExpenseScopeKeys.has(`${tripId}:general`)
+    && tripContainers.every((container) => (
+      completedExpenseScopeKeys.has(`${tripId}:${container.id}`)
+    ));
+}
+
+async function loadTripExpenseScopeState(tx: Tx, tripIds: number[]) {
+  if (tripIds.length === 0) {
+    return {
+      completedExpenseScopeKeys: new Set<string>(),
+      containersByTrip: new Map<number, { id: number; notes: string | null }[]>(),
+    };
+  }
+  const [tripContainerRows, expenseScopeRows] = await Promise.all([
+    tx.select({
+      tripId: s.tripContainers.tripId,
+      id: s.tripContainers.id,
+      notes: s.tripContainers.notes,
+    })
+      .from(s.tripContainers)
+      .where(inArray(s.tripContainers.tripId, tripIds))
+      .for('update'),
+    tx.select({
+      tripId: s.tripExpenseCompletionScopes.tripId,
+      tripContainerId: s.tripExpenseCompletionScopes.tripContainerId,
+      status: s.tripExpenseCompletionScopes.status,
+    }).from(s.tripExpenseCompletionScopes)
+      .where(inArray(s.tripExpenseCompletionScopes.tripId, tripIds))
+      .for('update'),
+  ]);
+  const containersByTrip = new Map<number, { id: number; notes: string | null }[]>();
+  for (const container of tripContainerRows) {
+    const current = containersByTrip.get(container.tripId) ?? [];
+    current.push({ id: container.id, notes: container.notes });
+    containersByTrip.set(container.tripId, current);
+  }
+  return {
+    completedExpenseScopeKeys: buildCompletedExpenseScopeKeys(expenseScopeRows),
+    containersByTrip,
+  };
+}
+
+async function assertShipmentDirectCloseTripReadiness(
+  tx: Tx,
+  tripId: number,
+  scopeState?: Awaited<ReturnType<typeof loadTripExpenseScopeState>>,
+): Promise<void> {
+  const [currentPod] = await tx.select({
+    status: s.tripPodSubmissions.status,
+  }).from(s.tripPodSubmissions)
+    .where(eq(s.tripPodSubmissions.tripId, tripId))
+    .orderBy(desc(s.tripPodSubmissions.submissionVersion), desc(s.tripPodSubmissions.id))
+    .limit(1)
+    .for('update');
+  if (!currentPod || currentPod.status !== TripPodStatus.ACCEPTED) {
+    throw new ApiError(409, 'e-POD hiện tại chưa được duyệt. Không thể chốt tài chính chuyến đi.');
+  }
+  const resolvedScopeState = scopeState ?? await loadTripExpenseScopeState(tx, [tripId]);
+  if (
+    !hasCompletedExpenseScopes(
+      tripId,
+      resolvedScopeState.containersByTrip.get(tripId) ?? [],
+      resolvedScopeState.completedExpenseScopeKeys,
+    )
+  ) {
+    throw new ApiError(
+      409,
+      'Ops chưa xác nhận hoàn tất kê khai chi phí chung và toàn bộ container.',
+    );
+  }
 }
 
 function normalizeShipmentRow<T extends { status: string | null }>(shipment: T): T {
@@ -615,6 +719,19 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
     reason: 'Tạo lô hàng',
     changedBy: input.createdBy ?? null,
   });
+
+  const bookingEventCreatorId = input.createdBy ?? actor?.userId ?? null;
+  if (bookingEventCreatorId != null) {
+    await createCustomerVisibleEvent({
+      shipmentId: shipment.id,
+      eventKey: `shipment:${shipment.id}:booking-received`,
+      eventType: 'MILESTONE',
+      title: 'Đã tiếp nhận booking',
+      message: 'Thông tin booking của lô hàng đã được tiếp nhận.',
+      occurredAt: shipment.createdAt,
+      createdBy: bookingEventCreatorId,
+    }, undefined, tx);
+  }
 
   return finalized;
 }
@@ -1185,52 +1302,10 @@ export async function recomputeShipmentCompletion(
     const acceptedTripIds = new Set(acceptedSubmissions.map((row) => row.tripId));
 
     const tripIds = trips.map((trip) => trip.id);
-    const [tripContainerRows, expenseScopeRows] = tripIds.length === 0
-      ? [[], []] as const
-      : await Promise.all([
-        tx.select({
-          tripId: s.tripContainers.tripId,
-          id: s.tripContainers.id,
-          notes: s.tripContainers.notes,
-        })
-          .from(s.tripContainers)
-          .where(inArray(s.tripContainers.tripId, tripIds))
-          .for('update'),
-        tx.select({
-          tripId: s.tripExpenseCompletionScopes.tripId,
-          tripContainerId: s.tripExpenseCompletionScopes.tripContainerId,
-          status: s.tripExpenseCompletionScopes.status,
-        }).from(s.tripExpenseCompletionScopes)
-          .where(inArray(s.tripExpenseCompletionScopes.tripId, tripIds))
-          .for('update'),
-      ]);
-    const containersByTrip = new Map<number, { id: number; notes: string | null }[]>();
-    for (const container of tripContainerRows) {
-      const current = containersByTrip.get(container.tripId) ?? [];
-      current.push({ id: container.id, notes: container.notes });
-      containersByTrip.set(container.tripId, current);
-    }
-    const completedExpenseScopeKeys = new Set(
-      expenseScopeRows
-        .filter((scope) => scope.status === 'COMPLETED')
-        .map((scope) => `${scope.tripId}:${scope.tripContainerId ?? 'general'}`),
-    );
-    const hasCompletedExpenseScopes = (tripId: number) => {
-      const tripContainers = containersByTrip.get(tripId) ?? [];
-      // LCL fulfillments dispatch one synthetic trip_container row that is the
-      // only Ops scope shown in the forwarder UI. Requiring a hidden general
-      // scope here made PENDING_EXPENSE_APPROVAL unreachable for that model.
-      if (
-        tripContainers.length === 1
-        && isSyntheticLclFulfillmentScope(tripContainers[0]?.notes)
-      ) {
-        return completedExpenseScopeKeys.has(`${tripId}:${tripContainers[0]!.id}`);
-      }
-      return completedExpenseScopeKeys.has(`${tripId}:general`)
-        && tripContainers.every((container) => (
-          completedExpenseScopeKeys.has(`${tripId}:${container.id}`)
-        ));
-    };
+    const {
+      completedExpenseScopeKeys,
+      containersByTrip,
+    } = await loadTripExpenseScopeState(tx, tripIds);
 
     const allRequiredTripsPresent = requiredFulfillments.every((row) => {
       const linkedTrips = tripsByFulfillment.get(row.id) ?? [];
@@ -1256,7 +1331,11 @@ export async function recomputeShipmentCompletion(
     });
     const allExpenseScopesComplete = requiredFulfillments.every((row) => {
       const trip = tripsByFulfillment.get(row.id)?.[0];
-      return trip != null && hasCompletedExpenseScopes(trip.id);
+      return trip != null && hasCompletedExpenseScopes(
+        trip.id,
+        containersByTrip.get(trip.id) ?? [],
+        completedExpenseScopeKeys,
+      );
     });
     const anyInTransit = trips.some((trip) => trip.status === TripStatus.IN_TRANSIT);
     const allAwaitingApproval = requiredFulfillments.every((row) => {
@@ -1264,13 +1343,21 @@ export async function recomputeShipmentCompletion(
       const latestSubmissionStatus = trip == null ? null : latestSubmissionByTripId.get(trip.id) ?? null;
       return trip != null
         && latestSubmissionStatus != null
-        && hasCompletedExpenseScopes(trip.id)
+        && hasCompletedExpenseScopes(
+          trip.id,
+          containersByTrip.get(trip.id) ?? [],
+          completedExpenseScopeKeys,
+        )
         && (latestSubmissionStatus === TripPodStatus.SUBMITTED || latestSubmissionStatus === TripPodStatus.ACCEPTED);
     });
     const allCompletedAndAccepted = requiredFulfillments.every((row) => {
       const trip = tripsByFulfillment.get(row.id)?.[0];
       return trip != null && trip.status === 'COMPLETED'
-        && hasCompletedExpenseScopes(trip.id)
+        && hasCompletedExpenseScopes(
+          trip.id,
+          containersByTrip.get(trip.id) ?? [],
+          completedExpenseScopeKeys,
+        )
         && acceptedTripIds.has(trip.id)
         && trip.podRecoveredAt != null;
     });
@@ -1624,12 +1711,17 @@ export async function completeShipmentDirect(args: {
         throw new ApiError(409, 'Danh sách chuyến đi của lô hàng đã thay đổi. Vui lòng tải lại.');
       }
 
+      const scopeState = await loadTripExpenseScopeState(
+        tx,
+        requiredTrips.map((trip) => trip.id),
+      );
+
       for (const trip of [...requiredTrips].sort((left, right) => left.id - right.id)) {
         const expectedTripVersion = expectedTripVersionById.get(trip.id);
         if (expectedTripVersion == null || trip.version !== expectedTripVersion) {
           throw new ApiError(409, 'Chuyến đi đã được thay đổi. Vui lòng tải lại.');
         }
-        await requireTripCloseReadiness(tx, trip.id);
+        await assertShipmentDirectCloseTripReadiness(tx, trip.id, scopeState);
         await transitionTripStatus(
           trip.id,
           TripStatus.COMPLETED,

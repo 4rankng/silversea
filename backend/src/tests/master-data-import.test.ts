@@ -208,7 +208,7 @@ before(async () => {
 describe('master-data workbook analysis', () => {
   test('classifies the source workbook counts without importing blank customer/route templates', async () => {
     const directory = path.dirname(fileURLToPath(import.meta.url));
-    const sourcePath = path.resolve(directory, '../../../docs/quytrinh/BIẾU MẪU BÁO CÁO/29.7 - DATA PM.xlsx');
+    const sourcePath = path.resolve(directory, '../../../docs/quytrinh/File Khách Hàng/29.7 - DATA PM.xlsx');
     const source = await readFile(sourcePath);
     const response = await requestJson('POST', '/api/config/master-data-imports/analyze', {
       file: source,

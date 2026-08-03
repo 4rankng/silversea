@@ -65,12 +65,15 @@ export function casbinAuthz(resource: string) {
 export function tripRouteAuthz() {
   const authorizeTrips = casbinAuthz('trips');
   return (req: Request, res: Response, next: NextFunction) => {
-    const isClerkCloseRequest = req.user?.role === Role.CLERK
-      && req.method === 'POST'
+    const isCloseRequest = req.method === 'POST'
       && /^\/\d+\/complete\/?$/.test(req.path);
-    if (isClerkCloseRequest) {
-      next();
-      return;
+    if (isCloseRequest) {
+      const closeMakerRoles = [Role.ACCOUNTANT, Role.CLERK];
+      if (req.user && closeMakerRoles.includes(req.user.role as Role)) {
+        next();
+        return;
+      }
+      return res.status(403).json({ error: 'Không có quyền truy cập' });
     }
     return authorizeTrips(req, res, next);
   };

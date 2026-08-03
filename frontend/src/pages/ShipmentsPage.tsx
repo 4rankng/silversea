@@ -472,58 +472,72 @@ export default function ShipmentsPage() {
                     <p>{q ? 'Không tìm thấy lô hàng phù hợp' : 'Chưa có lô hàng nào'}</p>
                   </td></tr>
                 )}
-                {!loading && !hasBlockingError && visibleItems.map((s) => (
-                  <ClickableCard
-                    key={s.id}
-                    as="tr"
-                    className="shipments-page__tr"
-                    to={`/shipments/${s.id}`}
-                    ariaLabel={shipmentLabel(s)}
-                  >
-                    <td className="shipments-page__td shipments-page__td--code">
-                      <span className="shipments-page__code">{shipmentLabel(s)}</span>
-                      <span className="shipments-page__sub">{customerLabel(s)}</span>
-                      {s.factoryName && <span className="shipments-page__sub">{s.factoryName}</span>}
-                    </td>
-                    <td className="shipments-page__td shipments-page__td--mono" title={s.blNumber ?? undefined}>
-                      {s.blNumber ?? <span className="shipments-page__muted">—</span>}
-                    </td>
-                    <td className="shipments-page__td shipments-page__td--mono" title={s.bookingRef ?? undefined}>
-                      {s.bookingRef ?? <span className="shipments-page__muted">—</span>}
-                      {cargoModeLabel(s) && <span className="shipments-page__mode">{cargoModeLabel(s)}</span>}
-                    </td>
-                    <td className="shipments-page__td">
-                      {formatRoute(s)
-                        ? (
-                          <span className="shipments-page__route" title={formatRoute(s) ?? undefined}>
-                            <MapPin size={15} aria-hidden="true" />
-                            <span>{s.pickupLocation ?? '—'}</span>
-                            <ArrowRight size={14} aria-hidden="true" />
-                            <span>{s.deliveryLocation ?? '—'}</span>
-                          </span>
-                        )
-                        : <span className="shipments-page__muted">Chưa cập nhật</span>}
-                    </td>
-                    <td className="shipments-page__td shipments-page__td--date">
-                      {nextMilestone(s)
-                        ? (
-                          <span>
-                            <CalendarClock size={15} aria-hidden="true" />
-                            {nextMilestone(s)!.label} {formatMilestoneDate(nextMilestone(s)!.value)}
-                          </span>
-                        )
-                        : <span className="shipments-page__muted">—</span>}
-                    </td>
-                    <td className="shipments-page__td">
-                      <StatusPill variant={STATUS_PILL_VARIANT[s.status]}>
-                        {SHIPMENT_STATUS_LABELS[s.status]}
-                      </StatusPill>
-                    </td>
-                    <td className="shipments-page__td shipments-page__td--chev">
-                      <ChevronRight size={18} aria-hidden="true" />
-                    </td>
-                  </ClickableCard>
-                ))}
+                {!loading && !hasBlockingError && visibleItems.map((s) => {
+                  const milestone = nextMilestone(s);
+                  const milestoneValue = milestone
+                    ? formatMilestoneDate(milestone.value)
+                    : null;
+                  const milestoneLabel = milestone?.label ?? null;
+                  const milestoneText = milestoneLabel && milestoneValue
+                    ? `${milestoneLabel} ${milestoneValue}`
+                    : null;
+
+                  return (
+                    <ClickableCard
+                      key={s.id}
+                      as="tr"
+                      className="shipments-page__tr"
+                      to={`/shipments/${s.id}`}
+                      ariaLabel={shipmentLabel(s)}
+                    >
+                      <td className="shipments-page__td shipments-page__td--code">
+                        <span className="shipments-page__code">{shipmentLabel(s)}</span>
+                        <span className="shipments-page__sub">{customerLabel(s)}</span>
+                        {s.factoryName && <span className="shipments-page__sub">{s.factoryName}</span>}
+                      </td>
+                      <td className="shipments-page__td shipments-page__td--mono" title={s.blNumber ?? undefined}>
+                        {s.blNumber ?? <span className="shipments-page__muted">—</span>}
+                      </td>
+                      <td className="shipments-page__td shipments-page__td--mono" title={s.bookingRef ?? undefined}>
+                        {s.bookingRef ?? <span className="shipments-page__muted">—</span>}
+                        {cargoModeLabel(s) && <span className="shipments-page__mode">{cargoModeLabel(s)}</span>}
+                      </td>
+                      <td className="shipments-page__td">
+                        {formatRoute(s)
+                          ? (
+                            <span className="shipments-page__route" title={formatRoute(s) ?? undefined}>
+                              <MapPin size={15} aria-hidden="true" />
+                              <span>{s.pickupLocation ?? '—'}</span>
+                              <ArrowRight size={14} aria-hidden="true" />
+                              <span>{s.deliveryLocation ?? '—'}</span>
+                            </span>
+                          )
+                          : <span className="shipments-page__muted">Chưa cập nhật</span>}
+                      </td>
+                      <td className="shipments-page__td shipments-page__td--date">
+                        {milestoneText
+                          ? (
+                            <span className="shipments-page__milestone" title={milestoneText}>
+                              <CalendarClock size={15} aria-hidden="true" />
+                              <span className="shipments-page__milestone-text">
+                                <span>{milestoneLabel}</span>
+                                <strong>{milestoneValue}</strong>
+                              </span>
+                            </span>
+                          )
+                          : <span className="shipments-page__muted">—</span>}
+                      </td>
+                      <td className="shipments-page__td">
+                        <StatusPill variant={STATUS_PILL_VARIANT[s.status]}>
+                          {SHIPMENT_STATUS_LABELS[s.status]}
+                        </StatusPill>
+                      </td>
+                      <td className="shipments-page__td shipments-page__td--chev">
+                        <ChevronRight size={18} aria-hidden="true" />
+                      </td>
+                    </ClickableCard>
+                  );
+                })}
               </tbody>
             </table>
           </div>
