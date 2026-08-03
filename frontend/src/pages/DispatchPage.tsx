@@ -670,6 +670,18 @@ export default function DispatchPage() {
                   <DetailLine label="Tuyến" value={selected.route.name} />
                   <DetailLine label="Nhà máy" value={selected.operationalSite.name} />
                   <DetailLine label="Cảng nâng → Cảng hạ" value={[selected.unitSummary.pickupPortName, selected.unitSummary.dropoffPortName].filter(Boolean).join(' → ')} />
+                  {selected.cargoMode === 'FCL' ? (
+                    <DetailLine label="Số container / loại" value={[selected.unitSummary.containerNumber, selected.unitSummary.containerTypeLabel].filter(Boolean).join(' · ') || '—'} />
+                  ) : (
+                    <DetailLine label="Hàng lẻ" value={[
+                      selected.unitSummary.packageCount ? `${selected.unitSummary.packageCount} ${selected.unitSummary.packageType || ''}`.trim() : null,
+                      selected.unitSummary.cargoWeightKg ? `${Number(selected.unitSummary.cargoWeightKg).toLocaleString('vi-VN')} kg` : null,
+                      selected.unitSummary.cargoVolumeCbm ? `${Number(selected.unitSummary.cargoVolumeCbm).toLocaleString('vi-VN')} CBM` : null,
+                    ].filter(Boolean).join(' · ') || '—'} />
+                  )}
+                  {selected.unitSummary.shippingLineName && (
+                    <DetailLine label="Hãng tàu" value={selected.unitSummary.shippingLineName} />
+                  )}
                   <DetailLine label="Trạng thái điều xe" value={selected.taskStatus === 'DISPATCHED' ? selected.dispatch?.tripCode || 'Đã phát hành' : 'Chưa phát hành'} />
                 </div>
                 {(selected.operationalSite.strictRules || selected.shipment.operationalNotes) && (

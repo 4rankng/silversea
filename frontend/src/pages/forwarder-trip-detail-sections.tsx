@@ -145,7 +145,7 @@ export function ForwarderContainersSection({ containers, show: showContainerForm
                       </span>
                     )}
                   </div>
-                  {c.notes && (
+                  {c.notes && !c.notes.startsWith('__') && (
                     <span style={{ fontSize: 12, color: 'var(--fg-3)' }}>{c.notes}</span>
                   )}
                 </button>

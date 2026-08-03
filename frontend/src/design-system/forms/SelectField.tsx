@@ -4,6 +4,24 @@ import { useClickOutside } from '../../hooks/useClickOutside';
 import './TextField.css';
 import './SelectField.css';
 
+/**
+ * Flatten React children (string | number | element | fragment | nested arrays)
+ * into a single display string — mirroring how a native `<option>` renders its
+ * text content. Using `String(children)` directly would comma-join an array of
+ * nodes (e.g. `{code} — {name}` becomes `"20OT, — ,20'OT"`), so we recurse and
+ * concatenate text leaves only.
+ */
+function childrenToText(children: React.ReactNode): string {
+  if (children == null || typeof children === 'boolean') return '';
+  if (typeof children === 'string') return children;
+  if (typeof children === 'number') return String(children);
+  if (Array.isArray(children)) return children.map(childrenToText).join('');
+  if (React.isValidElement(children)) {
+    return childrenToText((children.props as { children?: React.ReactNode }).children);
+  }
+  return '';
+}
+
 export interface SelectFieldProps
   extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'id' | 'className'> {
   label: string;
@@ -42,7 +60,7 @@ export function SelectField({
     if (React.isValidElement(child) && child.type === 'option') {
       const optionProps = child.props as { value?: unknown; children?: React.ReactNode };
       const val = String(optionProps.value ?? '');
-      const lbl = String(optionProps.children ?? '');
+      const lbl = childrenToText(optionProps.children);
       optionsList.push({ value: val, label: lbl });
     }
   });

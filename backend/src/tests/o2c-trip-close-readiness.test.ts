@@ -240,7 +240,7 @@ async function createExpenseScopeRecomputeFixture(args: {
     containerNumber: args.cargoMode === 'FCL' ? `TRIP${String(Date.now()).slice(-8)}`.slice(0, 20) : null,
     notes: args.cargoMode === 'LCL'
       ? `__fulfillment_lcl:${fulfillment.id}`
-      : `__fulfillment_snapshot:${fulfillment.id}`,
+      : null,
     createdBy: userIds[1],
   }).returning();
   await db.insert(s.tripPodSubmissions).values({

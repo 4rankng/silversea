@@ -1102,13 +1102,17 @@ async function replaceTripContainersForFulfillment(
     sourceShipmentId: shipment.id,
     sourceShipmentContainerId: container.id,
     sourceShipmentVersion: shipment.version,
-    containerTypeId: container.containerTypeId,
-    containerNumber: container.containerNumber,
-    sealNumber: container.sealNumber,
-    cargoWeightKg: container.cargoWeightKg,
-    notes: `__fulfillment_snapshot:${fulfillment.id}`,
-    createdBy: actorId,
-  });
+      containerTypeId: container.containerTypeId,
+      containerNumber: container.containerNumber,
+      sealNumber: container.sealNumber,
+      cargoWeightKg: container.cargoWeightKg,
+      // No debug marker here: this note is user-visible in the forwarder UI.
+      // The LCL synthetic scope uses a `__fulfillment_lcl:` prefix that is
+      // functionally read by shipment completion logic; FCL containers need no
+      // such linkage marker, so we leave notes empty for operator use.
+      notes: null,
+      createdBy: actorId,
+    });
 }
 
 async function assertResourceAvailability(

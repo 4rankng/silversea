@@ -1783,7 +1783,9 @@ describe('POST /:id/dispatch', () => {
       .from(s.tripContainers)
       .where(eq(s.tripContainers.tripId, r.data.trip.id));
     assert.equal(tripContainers.length, 1);
-    assert.match(tripContainers[0]!.notes ?? '', /__fulfillment_snapshot:/);
+    // FCL containers no longer carry the legacy `__fulfillment_snapshot:` debug
+    // marker in their user-visible notes field; notes start empty for operators.
+    assert.equal(tripContainers[0]!.notes, null);
   });
 
   test('replays the same fulfillment dispatch idempotency key with the same trip', async () => {
