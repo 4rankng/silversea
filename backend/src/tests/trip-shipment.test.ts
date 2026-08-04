@@ -224,7 +224,10 @@ describe('createTrip with shipmentId', () => {
   test('seeds the shipment cargo from the first linked trip when the shipment has no cargo yet', async () => {
     const customer = await mkCustomer();
     const cat = await mkCatalogs();
-    const shipment = await createShipment({ customerId: customer.id });
+    const shipment = await createShipment({
+      customerId: customer.id,
+      closingAt: '2026-08-04T08:00:00.000Z',
+    });
     createdShipmentIds.push(shipment.id);
 
     const trip = await createTrip({
@@ -272,7 +275,10 @@ describe('createTrip with shipmentId', () => {
   test('allows dispatch planning but rejects trip creation after the shipment is already running', async () => {
     const customer = await mkCustomer();
     const cat = await mkCatalogs();
-    const shipment = await createShipment({ customerId: customer.id });
+    const shipment = await createShipment({
+      customerId: customer.id,
+      closingAt: '2026-08-04T08:00:00.000Z',
+    });
     createdShipmentIds.push(shipment.id);
     // Advance past NEW via the service.
     const { transitionShipmentStatus } = await import('../services/shipment.service');

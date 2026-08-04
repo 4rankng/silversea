@@ -942,6 +942,7 @@ export interface ForwarderTripDetail {
   paperOrderCollectedAt?: string | null;
   paperOrderCollectedBy?: number | null;
   paperOrderCollectedByName?: string | null;
+  accountingLock: ShipmentAccountingLockSummary | null;
   /** Manager-authored contact + delivery guidance. null when no row exists. */
   instructions: TripInstruction | null;
   legs: TripLeg[];
@@ -1083,11 +1084,20 @@ export interface TripDetail extends Trip {
   fuelSupplier?: { id: number; name: string } | null;
   pairing?: TripPairSummary | null;
   instructions?: TripInstruction | null;
+  accountingLock: ShipmentAccountingLockSummary | null;
   /** The vehicle's full real GPS trail (Bách Khoa), captured at completion.
    *  The complete driven path — drawn on the trip map as the real route.
    *  `stops` are the truck's ordered significant stops (real GPS waypoints) so
    *  the map can render numbered markers at every real stop 1..N. */
   gpsTrail?: { encodedPolyline: string; distanceKm: number; pointCount: number; stops: GpsStop[] } | null;
+}
+
+export interface ShipmentAccountingLockSummary {
+  billingDocumentId: number;
+  billingDocumentNumber?: string | null;
+  activatedAt: string;
+  activatedByName?: string | null;
+  reason: string;
 }
 
 export interface CreateTripRequest {

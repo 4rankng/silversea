@@ -20,6 +20,7 @@ import { captureProfitabilityAttributionSnapshot } from './profitability.service
 import { ArSnapshotService } from './ar-snapshot.service';
 import { SnapshotServices } from './snapshot-services';
 import { lockTripCloseAggregate } from './trip-close-readiness.service';
+import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 
 export async function transitionTripStatus(
   tripId: number,
@@ -49,6 +50,10 @@ export async function transitionTripStatus(
     if (targetStatus === TripStatus.COMPLETED) {
       await lockTripCloseAggregate(tx, tripId);
     }
+    // Accounting-lock activation and operational writes share the canonical
+    // shipment -> trip lock order. This prevents a transition racing the
+    // accountant from deadlocking while still guaranteeing one winner.
+    await assertTripShipmentAccountingUnlocked(tx, tripId);
     const [trip] = await tx.select().from(s.trips).where(eq(s.trips.id, tripId)).limit(1).for('update');
     if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
     if (options?.expectedVersion !== undefined && trip.version !== options.expectedVersion) {

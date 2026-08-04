@@ -1,4 +1,4 @@
-import { NotificationType, Role } from '@tingting/shared';
+import { canonicalShipmentStatus, NotificationType, Role } from '@tingting/shared';
 import { and, eq } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import * as s from '../db/schema';
@@ -237,7 +237,8 @@ export function classifyClerkShipmentPatch(
     changedFields.push(field);
     afterSnapshot[field] = normalizedValue as never;
 
-    if (existing.status === 'NEW' || POST_DISPATCH_DIRECT_FIELDS.has(field)) {
+    const status = canonicalShipmentStatus(existing.status);
+    if ((status === 'PENDING_DATE' || status === 'READY_FOR_DISPATCH') || POST_DISPATCH_DIRECT_FIELDS.has(field)) {
       directPatch[field] = normalizedValue as never;
       continue;
     }

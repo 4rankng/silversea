@@ -244,7 +244,7 @@ async function createCompletedTripWithFees(spec: TripSpec) {
     customerId: customer.id,
     routeId: route.id,
     cargoTypeId: cargoType.id,
-    status: 'NEW',
+    status: 'PENDING_EXPENSE_APPROVAL',
     cargoMode: 'LCL',
   }).returning();
   createdShipmentIds.push(shipment.id);
@@ -917,7 +917,7 @@ async function createBillableTrip(ctx: BillableSeedCtx, spec: BillableTripSpec) 
     customerId: ctx.customerId,
     routeId: ctx.routeId,
     cargoTypeId: ctx.cargoTypeId,
-    status: 'NEW',
+    status: 'PENDING_EXPENSE_APPROVAL',
     cargoMode: 'LCL',
   }).returning();
   createdShipmentIds.push(shipment.id);

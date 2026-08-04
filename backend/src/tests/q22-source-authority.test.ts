@@ -297,6 +297,7 @@ async function createShipmentTripAuthorityFixture() {
     customerId: customer.id,
     cargoTypeId: primaryCargo.id,
     createdBy: actors[0]!.id,
+    closingAt: '2026-08-04T08:00:00.000Z',
   });
   shipmentIds.push(shipment.id);
 

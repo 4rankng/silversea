@@ -6,12 +6,14 @@ const baselineUrl = new URL('../../drizzle/0000_flexible-baseline.sql', import.m
 const journalUrl = new URL('../../drizzle/meta/_journal.json', import.meta.url);
 
 describe('O2C clean-baseline safety', () => {
-  test('ships exactly one consolidated migration', async () => {
+  test('preserves the consolidated baseline before ordered additive migrations', async () => {
     const journal = JSON.parse(await readFile(journalUrl, 'utf8')) as {
       entries: Array<{ idx: number; tag: string }>;
     };
     assert.deepEqual(journal.entries.map(({ idx, tag }) => ({ idx, tag })), [
       { idx: 0, tag: '0000_flexible-baseline' },
+      { idx: 1, tag: '0001_backfill_shipment_readiness' },
+      { idx: 2, tag: '0002_carrier_readiness_authorities' },
     ]);
   });
 

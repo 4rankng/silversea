@@ -127,7 +127,7 @@ describe('formatShipmentCode', () => {
 // ─── DB-touching ────────────────────────────────────────────────────────────
 
 describe('createShipment', () => {
-  test('inserts a NEW row with a unique code and initial history row', async () => {
+  test('inserts a PENDING_DATE row with a unique code and initial history row', async () => {
     const customer = await mkCustomer();
     const shipment = await createShipment({
       customerId: customer.id,
@@ -136,7 +136,7 @@ describe('createShipment', () => {
     });
     createdShipmentIds.push(shipment.id);
 
-    assert.equal(shipment.status, 'NEW');
+    assert.equal(shipment.status, 'PENDING_DATE');
     assert.equal(shipment.version, 1);
     assert.ok(shipment.shipmentCode, 'shipmentCode generated');
     assert.match(shipment.shipmentCode!, /^SHP-\d{4}-\d{5}$/);
@@ -147,7 +147,7 @@ describe('createShipment', () => {
       .where(eq(s.shipmentStatusHistory.shipmentId, shipment.id));
     assert.ok(hist, 'history row exists');
     assert.equal(hist.fromStatus, null);
-    assert.equal(hist.toStatus, 'NEW');
+    assert.equal(hist.toStatus, 'PENDING_DATE');
   });
 
   test('codes are unique across two shipments', async () => {
@@ -318,9 +318,9 @@ describe('updateShipment (optimistic lock)', () => {
 });
 
 describe('transitionShipmentStatus', () => {
-  test('NEW → DISPATCHED → IN_TRANSIT → PENDING_EXPENSE_APPROVAL → COMPLETED writes one history row each', async () => {
+  test('READY_FOR_DISPATCH → DISPATCHED → IN_TRANSIT → PENDING_EXPENSE_APPROVAL → COMPLETED writes one history row each', async () => {
     const customer = await mkCustomer();
-    const shipment = await createShipment({ customerId: customer.id });
+    const shipment = await createShipment({ customerId: customer.id, closingAt: '2026-08-05T08:00:00.000Z' });
     createdShipmentIds.push(shipment.id);
 
     const inflight = await transitionShipmentStatus(shipment.id, 'DISPATCHED', {
@@ -344,7 +344,7 @@ describe('transitionShipmentStatus', () => {
     assert.equal(history.length, 5);
     assert.deepEqual(
       history.map((h) => h.toStatus),
-      ['NEW', 'DISPATCHED', 'IN_TRANSIT', 'PENDING_EXPENSE_APPROVAL', 'COMPLETED'],
+      ['READY_FOR_DISPATCH', 'DISPATCHED', 'IN_TRANSIT', 'PENDING_EXPENSE_APPROVAL', 'COMPLETED'],
     );
     assert.equal(history[1].reason, 'Bắt đầu vận chuyển');
   });
@@ -354,8 +354,8 @@ describe('transitionShipmentStatus', () => {
     const shipment = await createShipment({ customerId: customer.id });
     createdShipmentIds.push(shipment.id);
 
-    const result = await transitionShipmentStatus(shipment.id, 'NEW');
-    assert.equal(result.status, 'NEW');
+    const result = await transitionShipmentStatus(shipment.id, 'PENDING_DATE');
+    assert.equal(result.status, 'PENDING_DATE');
 
     // Only the creation history row should exist — no duplicate.
     const history = await db.select().from(s.shipmentStatusHistory)
@@ -368,13 +368,18 @@ describe('transitionShipmentStatus', () => {
     const shipment = await createShipment({ customerId: customer.id });
     createdShipmentIds.push(shipment.id);
 
-    // NEW → PENDING_EXPENSE_APPROVAL is not a legal edge.
+    // PENDING_DATE → PENDING_EXPENSE_APPROVAL is not a legal edge.
     await assert.rejects(
       () => transitionShipmentStatus(shipment.id, 'PENDING_EXPENSE_APPROVAL'),
       (err: unknown) => err instanceof Error && 'statusCode' in err && err.statusCode === 409,
     );
 
     // COMPLETED has no outgoing edges.
+    const ready = await updateShipment(shipment.id, {
+      version: shipment.version,
+      closingAt: '2026-08-05T08:00:00.000Z',
+    });
+    assert.equal(ready.status, 'READY_FOR_DISPATCH');
     await transitionShipmentStatus(shipment.id, 'DISPATCHED');
     await transitionShipmentStatus(shipment.id, 'IN_TRANSIT');
     await transitionShipmentStatus(shipment.id, 'PENDING_EXPENSE_APPROVAL');
@@ -394,7 +399,7 @@ describe('transitionShipmentStatus', () => {
 });
 
 describe('softDeleteShipment', () => {
-  test('removes a NEW shipment by setting deletedAt', async () => {
+  test('removes a PENDING_DATE shipment by setting deletedAt', async () => {
     const customer = await mkCustomer();
     const shipment = await createShipment({ customerId: customer.id });
     createdShipmentIds.push(shipment.id);
@@ -409,7 +414,7 @@ describe('softDeleteShipment', () => {
 
   test('refuses to delete an DISPATCHED shipment with 409', async () => {
     const customer = await mkCustomer();
-    const shipment = await createShipment({ customerId: customer.id });
+    const shipment = await createShipment({ customerId: customer.id, closingAt: '2026-08-05T08:00:00.000Z' });
     createdShipmentIds.push(shipment.id);
 
     const inflight = await transitionShipmentStatus(shipment.id, 'DISPATCHED');

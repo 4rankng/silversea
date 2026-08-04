@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check, Eye, Plus, Send, Trash2 } from 'lucide-react';
 import { EmptyState, SearchableSelect, SelectField, TextField } from '../../design-system';
@@ -6,18 +6,43 @@ import { tripClient, type CatalogData } from '../../api/tripClient';
 import {
   listOperationalSites,
   createShipmentDeclaration,
+  updateShipmentDeclaration,
   getShipmentPricingPreview,
   quickCreateShipment,
   saveShipmentContainers,
   submitShipmentForDispatch,
+  updateShipment,
   type OperationalSite,
   type ShipmentPricingProjection,
 } from '../../api/shipmentClient';
 import { localDateTimeToIso } from '../../lib/shipment-operations';
 import { OperationalSiteDetailsDialog } from '../../components/shipment/OperationalSiteDetailsDialog';
+import {
+  CarrierAllocationDialog,
+} from '../../components/shipment/CarrierAllocationDialog';
+import {
+  CarrierAllocationSummary,
+  carrierOptionKey,
+  type CarrierAllocationDemand,
+  type CarrierAllocationOption,
+  type CarrierAllocationValue,
+  validateCarrierAllocations,
+} from '../../components/shipment/CarrierAllocationSummary';
 
 type CargoMode = 'FCL' | 'LCL';
 type SaveIntent = 'DRAFT' | 'SUBMIT';
+
+interface SaveAttempt {
+  createKey: string;
+  submitKey: string;
+  shipmentId?: number;
+  version?: number;
+  rootSignature?: string;
+  declarationId?: number;
+  declarationSignature?: string;
+  containerSignature?: string;
+  submitSignature?: string;
+}
 
 interface FormState {
   customerId: string;
@@ -66,6 +91,10 @@ function uuidv4(): string {
   return crypto.randomUUID();
 }
 
+function payloadSignature(value: unknown): string {
+  return JSON.stringify(value);
+}
+
 function formatVnd(value: number | null | undefined): string {
   if (value == null) return '—';
   return `${Math.round(value).toLocaleString('vi-VN')} ₫`;
@@ -79,6 +108,35 @@ const sectionStyle: React.CSSProperties = {
 const gridStyle: React.CSSProperties = {
   display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: 16, minWidth: 0,
 };
+
+const OWN_CARRIER_OPTION: CarrierAllocationOption = {
+  key: 'OWN',
+  label: 'Đội xe nội bộ SilverSea',
+  carrierType: 'OWN',
+  externalCarrierId: null,
+  isActive: true,
+};
+
+function inferContainerBucket(label: string | null | undefined): 20 | 40 | null {
+  const normalized = (label ?? '').toUpperCase();
+  if (normalized.includes('20')) return 20;
+  if (normalized.includes('40')) return 40;
+  return null;
+}
+
+function carrierValidationMessage(validation: ReturnType<typeof validateCarrierAllocations>): string | null {
+  return validation.isExact ? null : validation.errors[0] ?? 'Cần gán đúng số lượng nhà xe cho container 20\' và 40\'.';
+}
+
+function toCarrierAllocationPayload(rows: CarrierAllocationValue[]) {
+  return rows.map((row) => ({
+    carrierType: row.carrierType,
+    externalCarrierId: row.externalCarrierId,
+    carrierName: row.carrierLabel,
+    count20: row.count20,
+    count40: row.count40,
+  }));
+}
 
 interface SearchableFieldProps {
   id: string;
@@ -128,10 +186,13 @@ export default function ClerkShipmentCreatePage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [saving, setSaving] = useState<SaveIntent | null>(null);
+  const saveAttemptRef = useRef<SaveAttempt | null>(null);
   const [detailSite, setDetailSite] = useState<OperationalSite | null>(null);
   const [pricingProjection, setPricingProjection] = useState<ShipmentPricingProjection | null>(null);
   const [pricingLoading, setPricingLoading] = useState(false);
   const [pricingError, setPricingError] = useState<string | null>(null);
+  const [carrierAllocations, setCarrierAllocations] = useState<CarrierAllocationValue[]>([]);
+  const [carrierAllocationDialogOpen, setCarrierAllocationDialogOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -215,6 +276,44 @@ export default function ClerkShipmentCreatePage() {
 
   const operationalSites = useMemo(() => sites.filter((site) => site.siteType === 'FACTORY'), [sites]);
   const warehouseSites = useMemo(() => sites.filter((site) => site.siteType === 'WAREHOUSE'), [sites]);
+  const carrierOptions = useMemo(() => {
+    const externalCarriers = catalogs?.externalCarriers ?? [];
+    return [
+      OWN_CARRIER_OPTION,
+      ...externalCarriers.map((carrier) => ({
+        key: carrierOptionKey('EXTERNAL', carrier.id),
+        label: carrier.name,
+        carrierType: 'EXTERNAL' as const,
+        externalCarrierId: carrier.id,
+        isActive: carrier.isActive,
+      })),
+    ];
+  }, [catalogs]);
+  const carrierDemand = useMemo<CarrierAllocationDemand>(() => {
+    const typeLabels = new Map((catalogs?.containerTypes ?? []).map((item) => [String(item.id), `${item.code} ${item.name}`.trim()]));
+    return containers.reduce<CarrierAllocationDemand>((totals, row) => {
+      const bucket = inferContainerBucket(typeLabels.get(row.containerTypeId));
+      if (bucket === 20) totals.count20 += 1;
+      if (bucket === 40) totals.count40 += 1;
+      return totals;
+    }, { count20: 0, count40: 0 });
+  }, [catalogs?.containerTypes, containers]);
+  const carrierAllocationValidation = useMemo(
+    () => validateCarrierAllocations(
+      carrierAllocations.map((row) => ({
+        carrierKey: carrierOptionKey(row.carrierType, row.externalCarrierId),
+        count20: row.count20,
+        count40: row.count40,
+      })),
+      carrierDemand,
+      carrierOptions,
+    ),
+    [carrierAllocations, carrierDemand, carrierOptions],
+  );
+  const carrierAllocationWarning = useMemo(
+    () => ((carrierDemand.count20 + carrierDemand.count40) > 0 ? carrierValidationMessage(carrierAllocationValidation) : null),
+    [carrierAllocationValidation, carrierDemand.count20, carrierDemand.count40],
+  );
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -241,6 +340,7 @@ export default function ClerkShipmentCreatePage() {
     if (hasModeData && !window.confirm(`Chuyển sang ${next} sẽ xóa dữ liệu hàng hóa đã nhập. Tiếp tục?`)) return;
     setForm((current) => ({ ...current, cargoMode: next, cargoVolumeCbm: '', packageCount: '', packageType: '', cargoWeightKg: '' }));
     setContainers([newContainer()]);
+    setCarrierAllocations([]);
   }
 
   function updateContainer(key: string, field: keyof Omit<ContainerRow, 'key'>, value: string) {
@@ -261,6 +361,9 @@ export default function ClerkShipmentCreatePage() {
     if (form.cargoMode === 'FCL') {
       const incomplete = containers.some((row) => !row.containerNumber || !row.containerTypeId || !row.shippingLineName || !row.pickupPortId || !row.dropoffPortId);
       if (incomplete) return 'Vui lòng nhập đủ số container, loại container, hãng tàu, cảng nâng và cảng hạ';
+      if ((carrierDemand.count20 + carrierDemand.count40) > 0 && !carrierAllocationValidation.isExact) {
+        return carrierValidationMessage(carrierAllocationValidation);
+      }
     } else if (!form.pickupWarehouseSiteId || !form.packageType || !form.packageCount || !form.cargoWeightKg || !form.cargoVolumeCbm || !form.expectedDeliveryDate) {
       return 'Vui lòng nhập đủ kho lấy hàng, quy cách, số lượng, trọng lượng, thể tích và ngày giao dự kiến';
     }
@@ -274,7 +377,12 @@ export default function ClerkShipmentCreatePage() {
     setSubmitError(null);
     try {
       const firstContainer = containers[0];
-      const shipment = await quickCreateShipment({
+      const attempt = saveAttemptRef.current ?? {
+        createKey: uuidv4(),
+        submitKey: uuidv4(),
+      };
+      saveAttemptRef.current = attempt;
+      const createPayload = {
         customerId: Number(form.customerId),
         routeId: form.routeId ? Number(form.routeId) : null,
         cargoTypeId: form.cargoTypeId ? Number(form.cargoTypeId) : null,
@@ -295,36 +403,79 @@ export default function ClerkShipmentCreatePage() {
         packageCount: form.cargoMode === 'LCL' && form.packageCount ? Number(form.packageCount) : null,
         packageType: form.cargoMode === 'LCL' ? form.packageType || null : null,
         operationalNotes: [form.declarationNumber ? `Số tờ khai: ${form.declarationNumber}` : '', form.operationalNotes].filter(Boolean).join('\n') || null,
-      }, uuidv4());
+      };
+      const rootSignature = payloadSignature(createPayload);
 
-      let version = shipment.version;
-      if (form.declarationNumber) {
-        await createShipmentDeclaration(shipment.id, {
+      if (attempt.shipmentId == null || attempt.version == null) {
+        const shipment = await quickCreateShipment(createPayload, attempt.createKey);
+        attempt.shipmentId = shipment.id;
+        attempt.version = shipment.version;
+        attempt.rootSignature = rootSignature;
+      } else if (attempt.rootSignature !== rootSignature) {
+        const updated = await updateShipment(attempt.shipmentId, {
+          expectedVersion: attempt.version,
+          ...createPayload,
+        });
+        attempt.version = updated.version;
+        attempt.rootSignature = rootSignature;
+      }
+
+      const shipmentId = attempt.shipmentId;
+      let version = attempt.version;
+
+      const declarationSignature = form.declarationNumber.trim();
+      if (declarationSignature && attempt.declarationSignature !== declarationSignature) {
+        const declarationPayload = {
           declarationNumber: form.declarationNumber,
           scope: 'SINGLE',
-        });
+        } as const;
+        const declaration = attempt.declarationId == null
+          ? await createShipmentDeclaration(shipmentId, declarationPayload)
+          : await updateShipmentDeclaration(shipmentId, attempt.declarationId, declarationPayload);
+        attempt.declarationId = declaration.id;
+        attempt.declarationSignature = declarationSignature;
       }
-      if (form.cargoMode === 'FCL') {
-        const rowsToSave = containers.filter((row) => Object.entries(row).some(([key, value]) => key !== 'key' && value));
-        if (rowsToSave.length > 0) {
-          const result = await saveShipmentContainers(shipment.id, {
+      {
+        const rowsToSave = form.cargoMode === 'FCL'
+          ? containers.filter((row) => Object.entries(row).some(([key, value]) => key !== 'key' && value))
+          : [];
+        const containerPayload = rowsToSave.map((row) => ({
+          containerNumber: row.containerNumber || null,
+          containerTypeId: row.containerTypeId ? Number(row.containerTypeId) : null,
+          shippingLineName: row.shippingLineName || null,
+          pickupPortId: row.pickupPortId ? Number(row.pickupPortId) : null,
+          dropoffPortId: row.dropoffPortId ? Number(row.dropoffPortId) : null,
+          cargoWeightKg: row.cargoWeightKg || null,
+        }));
+        const containerSignature = payloadSignature(containerPayload);
+        const mustReconcileContainers = rowsToSave.length > 0 || attempt.containerSignature != null;
+        if (mustReconcileContainers && attempt.containerSignature !== containerSignature) {
+          const result = await saveShipmentContainers(shipmentId, {
             expectedVersion: version,
-            containers: rowsToSave.map((row) => ({
-              containerNumber: row.containerNumber || null,
-              containerTypeId: row.containerTypeId ? Number(row.containerTypeId) : null,
-              shippingLineName: row.shippingLineName || null,
-              pickupPortId: row.pickupPortId ? Number(row.pickupPortId) : null,
-              dropoffPortId: row.dropoffPortId ? Number(row.dropoffPortId) : null,
-              cargoWeightKg: row.cargoWeightKg || null,
-            })),
+            containers: containerPayload,
           });
           version = result.shipmentVersion;
+          attempt.version = version;
+          attempt.containerSignature = containerSignature;
         }
       }
       if (intent === 'SUBMIT') {
-        await submitShipmentForDispatch(shipment.id, { expectedVersion: version, operationalNote: form.operationalNotes || null }, uuidv4());
+        const submitPayload = {
+          expectedVersion: version,
+          operationalNote: form.operationalNotes || null,
+          ...(form.cargoMode === 'FCL'
+            ? { carrierAllocations: toCarrierAllocationPayload(carrierAllocations) }
+            : {}),
+        };
+        const submitSignature = payloadSignature(submitPayload);
+        if (attempt.submitSignature != null && attempt.submitSignature !== submitSignature) {
+          attempt.submitKey = uuidv4();
+        }
+        attempt.submitSignature = submitSignature;
+        await submitShipmentForDispatch(shipmentId, submitPayload, attempt.submitKey);
       }
-      navigate(`/clerk/shipments/${shipment.id}/docs`);
+      saveAttemptRef.current = null;
+      navigate(`/clerk/shipments/${shipmentId}/docs`);
     } catch (error) {
       setSubmitError(error instanceof Error && error.message.trim() ? error.message : 'Không thể lưu lô hàng. Vui lòng thử lại.');
     } finally {
@@ -406,6 +557,25 @@ export default function ClerkShipmentCreatePage() {
           </SelectField>
           {form.cargoMode === 'FCL' ? (
             <div style={{ display: 'grid', gap: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                <div style={{ display: 'grid', gap: 8, minWidth: 0, flex: '1 1 320px' }}>
+                  <strong style={{ fontSize: 15 }}>Gán nhà xe</strong>
+                  <CarrierAllocationSummary
+                    allocations={carrierAllocations}
+                    demand={carrierDemand}
+                    warning={carrierAllocationWarning}
+                    emptyLabel="Chọn nhà xe cho từng cỡ container 20' và 40'."
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCarrierAllocationDialogOpen(true)}
+                  disabled={Boolean(saving) || ((carrierDemand.count20 + carrierDemand.count40) === 0)}
+                  style={{ minHeight: 44, padding: '0 16px', border: '1px solid var(--border-2)', borderRadius: 10, background: 'var(--surface-1)', color: 'var(--fg-1)', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer' }}
+                >
+                  Gán nhà xe
+                </button>
+              </div>
               {containers.map((row, index) => (
                 <div key={row.key} style={{ border: '1px solid var(--border-2)', borderRadius: 8, padding: 14, display: 'grid', gap: 12, minWidth: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><strong>Container {index + 1}</strong>{containers.length > 1 && <button type="button" aria-label={`Xóa container ${index + 1}`} onClick={() => setContainers((current) => current.filter((item) => item.key !== row.key))} style={{ minWidth: 44, minHeight: 44, border: 0, background: 'none', color: 'var(--danger)', cursor: 'pointer' }}><Trash2 size={18} /></button>}</div>
@@ -529,6 +699,16 @@ export default function ClerkShipmentCreatePage() {
         </div>
       </form>
       <OperationalSiteDetailsDialog site={detailSite} isOpen={Boolean(detailSite)} onClose={() => setDetailSite(null)} />
+      <CarrierAllocationDialog
+        isOpen={carrierAllocationDialogOpen}
+        title="Gán nhà xe"
+        description="Phân bổ đúng số lượng container 20' và 40' theo từng nhà xe trước khi lưu."
+        carrierOptions={carrierOptions}
+        demand={carrierDemand}
+        value={carrierAllocations}
+        onClose={() => setCarrierAllocationDialogOpen(false)}
+        onSave={setCarrierAllocations}
+      />
     </div>
   );
 }

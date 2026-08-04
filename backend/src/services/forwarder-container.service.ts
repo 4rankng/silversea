@@ -3,6 +3,7 @@ import * as s from '../db/schema';
 import type { Tx } from './trip-shared';
 import { eq, and, desc, inArray, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
+import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 
 export type DbOrTx = typeof db | Tx;
 
@@ -43,6 +44,9 @@ export async function createTripContainerInClient(client: DbOrTx, data: {
     notes?: string | null;
   }>;
 }) {
+  if (client !== db) {
+    await assertTripShipmentAccountingUnlocked(client as Tx, data.tripId);
+  }
   const initialSeals = data.seals ?? [];
 
   const [inserted] = await client.insert(s.tripContainers).values({
@@ -89,7 +93,7 @@ export async function createTripContainer(data: {
     notes?: string | null;
   }>;
 }) {
-  return createTripContainerInClient(db, data);
+  return db.transaction((tx) => createTripContainerInClient(tx, data));
 }
 
 export async function updateTripContainerInClient(
@@ -112,6 +116,14 @@ export async function updateTripContainerInClient(
     expectedUpdatedAt?: Date;
   } = {},
 ) {
+  const [reference] = await client.select({ tripId: s.tripContainers.tripId })
+    .from(s.tripContainers)
+    .where(eq(s.tripContainers.id, containerId))
+    .limit(1);
+  if (!reference) throw new ApiError(404, 'Không tìm thấy số cont');
+  if (client !== db) {
+    await assertTripShipmentAccountingUnlocked(client as Tx, reference.tripId);
+  }
   const [row] = await client.select({
     id: s.tripContainers.id,
     tripId: s.tripContainers.tripId,
@@ -289,6 +301,7 @@ export async function batchUpsertContainerSeals(
       .where(eq(s.tripContainers.id, containerId))
       .limit(1);
     if (!row) throw new ApiError(404, 'Không tìm thấy số cont');
+    await assertTripShipmentAccountingUnlocked(tx, row.tripId);
     assertExpectedUpdatedAt(row.containerUpdatedAt, options.expectedUpdatedAt);
     if (row.tripStatus === 'COMPLETED') {
       throw new ApiError(409, 'Không thể sửa seal của cont trong chuyến đã hoàn thành');
@@ -381,6 +394,7 @@ export async function batchUpsertTripContainers(
   transaction?: Tx,
 ) {
   const execute = async (tx: Tx) => {
+    await assertTripShipmentAccountingUnlocked(tx, tripId);
     const [trip] = await tx.select({
       id: s.trips.id,
       version: s.trips.version,

@@ -92,10 +92,11 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
     // lifecycle labels would otherwise collide.
     const tb = toolbar();
     expect(tb.getByText(/Tất cả/)).toBeTruthy();
-    expect(tb.getByText('Mới tạo')).toBeTruthy();
+    expect(tb.getByText('Chờ ngày đóng/trả hàng')).toBeTruthy();
+    expect(tb.getByText('Sẵn sàng điều xe')).toBeTruthy();
     expect(tb.getByText('Đã điều xe')).toBeTruthy();
     expect(tb.getByRole('button', { name: /Tất cả/ }).getAttribute('aria-pressed')).toBe('true');
-    expect(tb.getByRole('button', { name: /^Mới tạo/ }).getAttribute('aria-pressed')).toBe('false');
+    expect(tb.getByRole('button', { name: /^Chờ ngày đóng\/trả hàng/ }).getAttribute('aria-pressed')).toBe('false');
     await waitFor(() => expect(apiGet).toHaveBeenCalled());
   });
 
@@ -204,7 +205,7 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
     expect(desktop.getByText('Công ty CP Vận tải ABC')).toBeTruthy();
     // Status labels render in the row pills. Scoped to the desktop table to
     // avoid colliding with the mobile card pills.
-    expect(desktop.getAllByText('Mới tạo').length).toBeGreaterThanOrEqual(1);
+    expect(desktop.getAllByText('Chờ ngày đóng/trả hàng').length).toBeGreaterThanOrEqual(1);
     expect(desktop.getAllByText('Đã điều xe').length).toBeGreaterThanOrEqual(1);
     expect(desktop.getByText((_, element) => Boolean(
       element?.classList.contains('shipments-page__td--date')

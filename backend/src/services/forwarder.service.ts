@@ -31,6 +31,7 @@ import { SnapshotServices } from './snapshot-services';
 import { recomputeShipmentCompletion } from './shipment.service';
 import { lockTripCloseAggregate } from './trip-close-readiness.service';
 import { lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
+import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 
 /**
  * Either the singleton db client or an in-flight transaction client. Both
@@ -359,6 +360,7 @@ export async function createTripExpense(
     return db.transaction((tx) => createTripExpense(tx, data));
   }
   const tx = txOrDb as Tx;
+  await assertTripShipmentAccountingUnlocked(tx, data.tripId);
   // O2C: costs stay editable after COMPLETED (no hard-freeze). CANCELED trips
   // remain immutable. A cost edit on a completed trip re-evaluates both
   // reconciliation snapshots so AR/AP queues stay honest.
@@ -450,7 +452,10 @@ export async function updateTripExpense(
     note?: string | null;
     noInvoiceEvidenceTypes?: string[] | null;
   },
-) {
+): Promise<typeof s.tripExpenses.$inferSelect | null> {
+  if (txOrDb === db) {
+    return db.transaction((tx) => updateTripExpense(tx, id, patch));
+  }
   await txOrDb.execute(sql`SELECT pg_advisory_xact_lock(6102, ${id})`);
   // Fetch existing to check forwarderId — if forwarder-owned and sellAmount
   // is being updated, re-pend for manager review.
@@ -474,6 +479,7 @@ export async function updateTripExpense(
     .limit(1);
 
   if (!existing) return null;
+  await assertTripShipmentAccountingUnlocked(txOrDb as Tx, existing.tripId);
   if (existing.approvalStatus === 'APPROVED') {
     throw new ApiError(409, 'Chi phí đã duyệt không được sửa trực tiếp; hãy lập yêu cầu điều chỉnh');
   }
@@ -698,6 +704,7 @@ export async function deleteTripExpense(expenseId: number, forwarderId: number) 
       .where(eq(s.tripExpenses.id, expenseId)).limit(1);
     if (!existing) return null;
     if (existing.forwarderId == null || existing.forwarderId !== forwarderId) return 'FORBIDDEN';
+    await assertTripShipmentAccountingUnlocked(tx, existing.tripId);
     await assertForwarderMutableTripScope(existing.tripId, forwarderId, tx);
     if (existing.approvalStatus === 'APPROVED') {
       throw new ApiError(409, 'Chi phí đã duyệt không được xóa trực tiếp; hãy lập yêu cầu điều chỉnh');
@@ -747,6 +754,7 @@ export async function deleteTripExpenseInTx(
     .limit(1);
   if (!existing) return null;
   if (existing.forwarderId == null || existing.forwarderId !== forwarderId) return 'FORBIDDEN';
+  await assertTripShipmentAccountingUnlocked(tx, existing.tripId);
   await assertForwarderMutableTripScope(existing.tripId, forwarderId, tx);
   assertExpenseExpectedUpdatedAt(
     existing.updatedAt,

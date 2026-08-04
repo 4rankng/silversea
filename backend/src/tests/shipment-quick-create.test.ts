@@ -273,7 +273,7 @@ async function trackCreated() {
   /* cleanup is keyed off createdShipmentIds in after() */ }
 
 describe('POST /api/shipments/quick — M10.1 slice 1 quick-create', () => {
-  test('happy path: minimum data set creates a NEW shipment (201)', async () => {
+  test('happy path: minimum data set creates a pending-date shipment (201)', async () => {
     const res = await quickFetch('/quick', {
       method: 'POST',
       token: clerkToken,
@@ -281,7 +281,7 @@ describe('POST /api/shipments/quick — M10.1 slice 1 quick-create', () => {
       body: clerkQuickBody(),
     });
     assert.equal(res.status, 201);
-    assert.equal(res.data.status, 'NEW');
+    assert.equal(res.data.status, 'PENDING_DATE');
     assert.equal(res.data.customerId, customerId);
     assert.ok(res.data.shipmentCode, 'shipmentCode is generated');
     assert.equal(res.data.version, 1);

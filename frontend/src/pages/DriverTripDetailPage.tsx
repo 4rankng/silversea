@@ -39,6 +39,7 @@ import {
   useOfflineCommandQueue,
 } from '../features/driver/useOfflineCommandQueue';
 import { useToast } from '../components/shared/Toast';
+import { AccountingLockBanner } from '../components/shipment/AccountingLockBanner';
 import './DriverTripDetailPage.css';
 
 type MilestoneType =
@@ -604,7 +605,8 @@ export default function DriverTripDetailPage() {
   const siteRules = fulfillment?.siteRules ?? [];
   const completionReady = evidence.data?.ready === true
     && getLatestMilestoneEvent(progress.data, DriverProgressEventType.DELIVERED) != null;
-  const completionBlocked = trip.status !== 'IN_TRANSIT' || !completionReady;
+  const accountingLock = trip.accountingLock ?? null;
+  const completionBlocked = Boolean(accountingLock) || trip.status !== 'IN_TRANSIT' || !completionReady;
   const completionReasons = evidence.data?.missingItems ?? [];
   const paperOrderReady = Boolean(trip.paperOrderCollectedAt && trip.paperOrderCollectedBy);
   const latestFuelEvidence = trip.fuelEvidenceReviews?.[0] ?? null;
@@ -642,6 +644,10 @@ export default function DriverTripDetailPage() {
           </div>
         </section>
       )}
+
+      {accountingLock && <AccountingLockBanner lock={accountingLock} />}
+
+      <fieldset disabled={Boolean(accountingLock)} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
 
       <section className="driver-task-section">
         <div className="driver-task-section__head">
@@ -906,6 +912,7 @@ export default function DriverTripDetailPage() {
           )}
         </div>
       </footer>
+      </fieldset>
     </div>
   );
 }

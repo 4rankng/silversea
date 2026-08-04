@@ -5,7 +5,7 @@ import type { AddressInfo } from 'node:net';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
@@ -39,7 +39,6 @@ let baseUrl = '';
 let adminUserId = 0;
 let managerUserId = 0;
 let accountantUserId = 0;
-let adminToken = '';
 let managerToken = '';
 let accountantToken = '';
 let dispatcherToken = '';
@@ -141,6 +140,8 @@ async function createShipmentFixture(args: {
     cargoWeightKg: args.cargoWeightKg ?? null,
     shipmentCode: `DSP-${suffix}-${createdShipmentIds.length}`,
     bookingRef: `BOOK-${suffix}-${createdShipmentIds.length}`,
+    status: 'READY_FOR_DISPATCH',
+    closingAt: new Date('2026-08-05T08:00:00.000Z'),
     createdBy: args.createdBy,
   }).returning();
   createdShipmentIds.push(shipment.id);
@@ -198,13 +199,23 @@ async function createAcceptedFulfillment(args: {
     ? await createCustomer(`Dispatch customer ${suffix}-${createdCustomerIds.length}`)
     : { id: args.customerId };
   const route = args.routeId == null ? await createRoute() : { id: args.routeId };
-  const { shipment } = await createShipmentFixture({
+  const { shipment, container } = await createShipmentFixture({
     customerId: customer.id,
     routeId: route.id,
     createdBy: adminUserId,
     cargoTypeId: null,
     cargoWeightKg: args.cargoWeightKg,
     containerCargoWeightKg: args.containerCargoWeightKg,
+  });
+  await db.insert(s.shipmentFulfillments).values({
+    shipmentId: shipment.id,
+    fulfillmentType: 'FCL_CONTAINER',
+    cargoMode: 'FCL',
+    shipmentContainerId: container.id,
+    sourceShipmentVersion: shipment.version,
+    siteSnapshot: {},
+    plannedCarrierType: 'OWN',
+    createdBy: adminUserId,
   });
   const handoff = await createHandoff({
     shipmentId: shipment.id,
@@ -263,7 +274,6 @@ before(async () => {
   adminUserId = admin.id;
   managerUserId = manager.id;
   accountantUserId = accountant.id;
-  adminToken = signToken(admin);
   managerToken = signToken(manager);
   accountantToken = signToken(accountant);
   dispatcherToken = signToken(dispatcher);
@@ -306,6 +316,7 @@ after(async () => {
     if (createdTrailerIds.length > 0) await db.delete(s.trailers).where(inArray(s.trailers.id, createdTrailerIds));
     if (createdContainerTypeIds.length > 0) await db.delete(s.containerTypes).where(inArray(s.containerTypes.id, createdContainerTypeIds));
     if (createdRouteIds.length > 0) await db.delete(s.routes).where(inArray(s.routes.id, createdRouteIds));
+    if (createdCustomerIds.length > 0) await db.delete(s.carrierFleetVehicles).where(inArray(s.carrierFleetVehicles.carrierId, createdCustomerIds));
     if (createdCustomerIds.length > 0) await db.delete(s.customers).where(inArray(s.customers.id, createdCustomerIds));
     if (createdUserIds.length > 0) {
       await db.delete(s.auditLogs).where(inArray(s.auditLogs.userId, createdUserIds));
@@ -322,11 +333,21 @@ describe('dispatch fulfillment workflow routes', () => {
   test('dedicated dispatcher can mark handoff seen and accept it into fulfillments', async () => {
     const customer = await createCustomer(`Seen customer ${suffix}-${createdCustomerIds.length}`);
     const route = await createRoute();
-    const { shipment } = await createShipmentFixture({
+    const { shipment, container } = await createShipmentFixture({
       customerId: customer.id,
       routeId: route.id,
       createdBy: adminUserId,
       cargoTypeId: null,
+    });
+    await db.insert(s.shipmentFulfillments).values({
+      shipmentId: shipment.id,
+      fulfillmentType: 'FCL_CONTAINER',
+      cargoMode: 'FCL',
+      shipmentContainerId: container.id,
+      sourceShipmentVersion: shipment.version,
+      siteSnapshot: {},
+      plannedCarrierType: 'OWN',
+      createdBy: adminUserId,
     });
     const handoff = await createHandoff({
       shipmentId: shipment.id,
@@ -480,6 +501,16 @@ describe('dispatch fulfillment workflow routes', () => {
     const accepted = await createAcceptedFulfillment();
     const externalCarrier = await createCustomer(`External carrier ${suffix}-${createdCustomerIds.length}`);
     await db.update(s.customers).set({ isCarrier: true }).where(eq(s.customers.id, externalCarrier.id));
+    const [carrierVehicle] = await db.insert(s.carrierFleetVehicles).values({
+      carrierId: externalCarrier.id,
+      licensePlate: '51H-12345',
+      normalizedPlate: '51H12345',
+      createdBy: adminUserId,
+    }).returning();
+    await db.update(s.shipmentFulfillments).set({
+      plannedCarrierType: 'EXTERNAL',
+      plannedExternalCarrierId: externalCarrier.id,
+    }).where(eq(s.shipmentFulfillments.id, accepted.fulfillmentId));
 
     const dispatch = await apiFetch<{
       notification: { deliveredInApp: boolean; pushAttempted: boolean };
@@ -495,7 +526,7 @@ describe('dispatch fulfillment workflow routes', () => {
         endTimeConfirmed: true,
         carrierType: 'EXTERNAL',
         externalCarrierId: externalCarrier.id,
-        externalPlateNumber: '51H-12345',
+        externalCarrierVehicleId: carrierVehicle.id,
         externalDriverName: 'Tài xế ngoài',
       },
     });
@@ -1254,6 +1285,8 @@ describe('dispatch fulfillment workflow routes', () => {
       cargoMode: 'FCL',
       shipmentCode: `DSP-PERF-${suffix}-${index}`,
       bookingRef: `PERF-BOOK-${suffix}-${index}`,
+      status: 'READY_FOR_DISPATCH',
+      closingAt: new Date('2026-08-05T08:00:00.000Z'),
       createdBy: adminUserId,
     }));
     const shipments = await db.insert(s.shipments).values(shipmentValues).returning({
@@ -1282,6 +1315,7 @@ describe('dispatch fulfillment workflow routes', () => {
       shipmentContainerId: containerByShipmentId.get(shipment.id) ?? null,
       sourceShipmentVersion: shipment.version,
       siteSnapshot: {},
+      plannedCarrierType: 'OWN',
       createdBy: adminUserId,
     }));
     await db.insert(s.shipmentFulfillments).values(fulfillmentValues);

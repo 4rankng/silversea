@@ -1,0 +1,49 @@
+.carrier-allocation-summary {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.carrier-allocation-summary__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.carrier-allocation-summary__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-2);
+  border-radius: 999px;
+  background: var(--surface-2, #f8fafc);
+  color: var(--fg-1);
+  font-size: 13px;
+  line-height: 1.4;
+  min-width: 0;
+}
+
+.carrier-allocation-summary__chip strong,
+.carrier-allocation-summary__chip span {
+  overflow-wrap: anywhere;
+}
+
+.carrier-allocation-summary__empty,
+.carrier-allocation-summary__progress,
+.carrier-allocation-summary__warning {
+  margin: 0;
+  font-size: 13px;
+}
+
+.carrier-allocation-summary__empty,
+.carrier-allocation-summary__progress {
+  color: var(--fg-3);
+}
+
+.carrier-allocation-summary__progress.is-warning,
+.carrier-allocation-summary__warning {
+  color: var(--warning, #b45309);
+}

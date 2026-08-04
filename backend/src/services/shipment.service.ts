@@ -65,13 +65,19 @@ import {
   assertActorCanAccessShipment,
   createCustomerVisibleEvent,
 } from './shipment-coordination.service';
+import {
+  assertShipmentAccountingUnlocked,
+  getShipmentAccountingLock,
+} from './shipment-accounting-lock.service';
 
 // ─── Status machine ─────────────────────────────────────────────────────────
 //
 // Mirrors the lifecycle implied by the `shipment_status` enum + phase-01
 // "booking → documents → dispatch → delivery → debit-note":
 //
-//   NEW ──► DISPATCHED ──► IN_TRANSIT ──► PENDING_EXPENSE_APPROVAL ──► COMPLETED
+//   PENDING_DATE ──► READY_FOR_DISPATCH ──► DISPATCHED ──► IN_TRANSIT
+//                                                    ──► PENDING_EXPENSE_APPROVAL
+//                                                    ──► COMPLETED
 //                            ▲                    │
 //                            └────────────────────┘
 //                                               └──► CANCELED
@@ -81,7 +87,9 @@ import {
 // shipment back out of pending approval). COMPLETED and CANCELED remain
 // terminal.
 const LEGAL_TRANSITIONS: Record<string, readonly string[]> = {
-  NEW: ['DISPATCHED', 'CANCELED'],
+  NEW: ['READY_FOR_DISPATCH', 'CANCELED'],
+  PENDING_DATE: ['READY_FOR_DISPATCH', 'CANCELED'],
+  READY_FOR_DISPATCH: ['DISPATCHED', 'CANCELED'],
   DISPATCHED: ['IN_TRANSIT', 'CANCELED'],
   IN_TRANSIT: ['DISPATCHED', 'PENDING_EXPENSE_APPROVAL', 'CANCELED'],
   PENDING_EXPENSE_APPROVAL: ['DISPATCHED', 'IN_TRANSIT', 'COMPLETED', 'CANCELED'],
@@ -91,6 +99,8 @@ const LEGAL_TRANSITIONS: Record<string, readonly string[]> = {
 
 export type ShipmentStatus =
   | 'NEW'
+  | 'PENDING_DATE'
+  | 'READY_FOR_DISPATCH'
   | 'DISPATCHED'
   | 'IN_TRANSIT'
   | 'PENDING_EXPENSE_APPROVAL'
@@ -118,6 +128,38 @@ const DEFAULT_SHIPMENT_DECLARATION_SCOPE: ShipmentDeclarationScopeValue = 'SINGL
 
 function normalizeShipmentStatusValue(status: string | null | undefined): ShipmentStatus | null {
   return canonicalShipmentStatus(status);
+}
+
+function hasDispatchDate(shipment: Pick<typeof s.shipments.$inferSelect, 'closingAt' | 'plannedReturnAt'>): boolean {
+  return shipment.closingAt != null || shipment.plannedReturnAt != null;
+}
+
+function isDirectlyEditableIntakeStatus(status: string | null | undefined): boolean {
+  const canonical = canonicalShipmentStatus(status);
+  return canonical === 'PENDING_DATE' || canonical === 'READY_FOR_DISPATCH';
+}
+
+async function ensureReadyShipmentHandoff(
+  tx: Tx,
+  shipment: Pick<typeof s.shipments.$inferSelect, 'id' | 'version' | 'closingAt' | 'plannedReturnAt'>,
+  createdBy: number | null,
+) {
+  if (!hasDispatchDate(shipment)) return;
+  const [existing] = await tx.select({ id: s.dispatchHandoffs.id })
+    .from(s.dispatchHandoffs)
+    .where(and(
+      eq(s.dispatchHandoffs.shipmentId, shipment.id),
+      sql`${s.dispatchHandoffs.status} <> 'REJECTED'`,
+    ))
+    .orderBy(desc(s.dispatchHandoffs.id))
+    .limit(1);
+  if (existing) return;
+  await tx.insert(s.dispatchHandoffs).values({
+    shipmentId: shipment.id,
+    handoffVersion: shipment.version,
+    createdBy,
+    status: 'UNSEEN',
+  });
 }
 
 function normalizeShipmentDocumentType(input: unknown): ShipmentDocumentTypeValue | null {
@@ -704,7 +746,13 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
     responsibleUnitId = resolveClerkResponsibleUnitId(scope, input.responsibleUnitId);
   }
 
-  // 1. Insert the shipment row (NEW default, version 1).
+  const closingAt = toNullableTimestamp(input.closingAt, 'Giờ closing');
+  const plannedReturnAt = toNullableTimestamp(input.plannedReturnAt, 'Ngày trả rỗng kế hoạch');
+  const initialStatus: ShipmentStatus = closingAt != null || plannedReturnAt != null
+    ? 'READY_FOR_DISPATCH'
+    : 'PENDING_DATE';
+
+  // 1. Insert the shipment row with date-derived readiness.
   const [shipment] = await tx.insert(s.shipments).values({
     customerId: input.customerId,
     routeId: input.routeId ?? null,
@@ -720,8 +768,8 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
     shippingLineName: input.shippingLineName ?? null,
     expectedDeliveryDate: input.expectedDeliveryDate ?? null,
     customsCutoffAt: toNullableTimestamp(input.customsCutoffAt, 'Hạn hải quan'),
-    closingAt: toNullableTimestamp(input.closingAt, 'Giờ closing'),
-    plannedReturnAt: toNullableTimestamp(input.plannedReturnAt, 'Ngày trả rỗng kế hoạch'),
+    closingAt,
+    plannedReturnAt,
     cargoWeightKg: toNullableFixedDecimal(input.cargoWeightKg, 8, 2, 'Trọng lượng'),
     cargoVolumeCbm: toNullableFixedDecimal(input.cargoVolumeCbm, 7, 3, 'Thể tích'),
     packageCount: input.packageCount ?? null,
@@ -733,7 +781,7 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
     contactPhone: input.contactPhone ?? null,
     createdBy: input.createdBy ?? null,
     updatedBy: input.createdBy ?? null,
-    status: 'NEW',
+    status: initialStatus,
     version: 1,
   }).returning();
 
@@ -748,7 +796,7 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
   await tx.insert(s.shipmentStatusHistory).values({
     shipmentId: shipment.id,
     fromStatus: null,
-    toStatus: 'NEW',
+    toStatus: initialStatus,
     reason: 'Tạo lô hàng',
     changedBy: input.createdBy ?? null,
   });
@@ -764,6 +812,10 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
       occurredAt: shipment.createdAt,
       createdBy: bookingEventCreatorId,
     }, undefined, tx);
+  }
+
+  if (initialStatus === 'READY_FOR_DISPATCH') {
+    await ensureReadyShipmentHandoff(tx, finalized, input.createdBy ?? actor?.userId ?? null);
   }
 
   return finalized;
@@ -819,7 +871,9 @@ export async function listShipments(options: ListShipmentsOptions = {}) {
     conditions.push(eq(s.shipments.customerId, options.customerId));
   }
   if (options.status != null) {
-    conditions.push(eq(s.shipments.status, options.status));
+    conditions.push(options.status === 'NEW'
+      ? inArray(s.shipments.status, ['NEW', 'PENDING_DATE', 'READY_FOR_DISPATCH'])
+      : eq(s.shipments.status, options.status));
   }
   const searchPredicate = buildShipmentSearchPredicate(options.q);
   if (searchPredicate) {
@@ -859,7 +913,9 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     conditions.push(eq(s.shipments.customerId, options.customerId));
   }
   if (options.status != null) {
-    conditions.push(eq(s.shipments.status, options.status));
+    conditions.push(options.status === 'NEW'
+      ? inArray(s.shipments.status, ['NEW', 'PENDING_DATE', 'READY_FOR_DISPATCH'])
+      : eq(s.shipments.status, options.status));
   }
   const searchPredicate = buildShipmentSearchPredicate(options.q);
   if (searchPredicate) {
@@ -908,6 +964,7 @@ export async function updateShipment(
       .for('update') // pessimistic row lock so the version bump is race-free
       .limit(1);
     if (!existing) throw new ApiError(404, 'Không tìm thấy lô hàng');
+    await assertShipmentAccountingUnlocked(tx, id);
 
     let clerkScope = null;
     if (actor && isClerkScopedUser(actor)) {
@@ -976,7 +1033,7 @@ export async function updateShipment(
       (field) => field === 'customerId' || field === 'cargoTypeId',
     );
 
-    if (shipmentAuthorityChanged && canonicalShipmentStatus(existing.status) !== 'NEW') {
+    if (shipmentAuthorityChanged && !isDirectlyEditableIntakeStatus(existing.status)) {
       const requesterId = actor?.userId ?? input.updatedBy ?? existing.updatedBy ?? existing.createdBy;
       if (requesterId == null) {
         throw new ApiError(400, 'Thiếu người gửi yêu cầu thay đổi lô hàng.');
@@ -1027,6 +1084,18 @@ export async function updateShipment(
       }
     }
 
+    const nextClosingAt = input.closingAt !== undefined
+      ? toNullableTimestamp(input.closingAt, 'Giờ closing')
+      : existing.closingAt;
+    const nextPlannedReturnAt = input.plannedReturnAt !== undefined
+      ? toNullableTimestamp(input.plannedReturnAt, 'Ngày trả rỗng kế hoạch')
+      : existing.plannedReturnAt;
+    const currentCanonicalStatus = canonicalShipmentStatus(existing.status);
+    if (currentCanonicalStatus === 'READY_FOR_DISPATCH' && nextClosingAt == null && nextPlannedReturnAt == null) {
+      throw new ApiError(409, 'Lô hàng đã sẵn sàng điều xe nên phải giữ ít nhất một ngày đóng hoặc trả hàng.');
+    }
+    const becomesReady = currentCanonicalStatus === 'PENDING_DATE'
+      && (nextClosingAt != null || nextPlannedReturnAt != null);
     const nextVersion = existing.version + 1;
     const [updated] = await tx.update(s.shipments).set({
       version: nextVersion,
@@ -1046,8 +1115,9 @@ export async function updateShipment(
         ? { expectedDeliveryDate: input.expectedDeliveryDate }
         : {}),
       ...(input.customsCutoffAt !== undefined ? { customsCutoffAt: toNullableTimestamp(input.customsCutoffAt, 'Hạn hải quan') } : {}),
-      ...(input.closingAt !== undefined ? { closingAt: toNullableTimestamp(input.closingAt, 'Giờ closing') } : {}),
-      ...(input.plannedReturnAt !== undefined ? { plannedReturnAt: toNullableTimestamp(input.plannedReturnAt, 'Ngày trả rỗng kế hoạch') } : {}),
+      ...(input.closingAt !== undefined ? { closingAt: nextClosingAt } : {}),
+      ...(input.plannedReturnAt !== undefined ? { plannedReturnAt: nextPlannedReturnAt } : {}),
+      ...(becomesReady ? { status: 'READY_FOR_DISPATCH' as const } : {}),
       ...(input.cargoWeightKg !== undefined ? { cargoWeightKg: toNullableFixedDecimal(input.cargoWeightKg, 8, 2, 'Trọng lượng') } : {}),
       ...(input.cargoVolumeCbm !== undefined ? { cargoVolumeCbm: toNullableFixedDecimal(input.cargoVolumeCbm, 7, 3, 'Thể tích') } : {}),
       ...(input.packageCount !== undefined ? { packageCount: input.packageCount } : {}),
@@ -1065,7 +1135,17 @@ export async function updateShipment(
       updatedAt: new Date(),
     }).where(eq(s.shipments.id, id)).returning();
 
-    if (shipmentAuthorityChanged && canonicalShipmentStatus(updated.status) === 'NEW') {
+    if (becomesReady) {
+      await tx.insert(s.shipmentStatusHistory).values({
+        shipmentId: id,
+        fromStatus: existing.status ?? 'PENDING_DATE',
+        toStatus: 'READY_FOR_DISPATCH',
+        reason: 'Đã bổ sung ngày đóng/trả hàng và sẵn sàng điều xe.',
+        changedBy: input.updatedBy ?? actor?.userId ?? null,
+      });
+      await ensureReadyShipmentHandoff(tx, updated, input.updatedBy ?? actor?.userId ?? null);
+    }
+    if (shipmentAuthorityChanged && isDirectlyEditableIntakeStatus(updated.status)) {
       await syncShipmentAuthorityToTrips(tx, updated);
     }
 
@@ -1101,6 +1181,7 @@ export async function transitionShipmentStatus(
       .for('update')
       .limit(1);
     if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
+    await assertShipmentAccountingUnlocked(tx, shipmentId);
 
     const currentStatus = canonicalShipmentStatus(shipment.status);
     if (!currentStatus) {
@@ -1111,6 +1192,10 @@ export async function transitionShipmentStatus(
     // duplicate history row (mirrors trip-status-machine's short-circuit).
     if (currentStatus === targetStatus) return shipment;
 
+    if (targetStatus === 'READY_FOR_DISPATCH' && !hasDispatchDate(shipment)) {
+      throw new ApiError(409, 'Cần nhập ngày đóng hoặc trả hàng trước khi sẵn sàng điều xe.');
+    }
+
     assertLegalTransition(currentStatus, targetStatus);
     const transitionedAt = new Date();
 
@@ -1120,7 +1205,7 @@ export async function transitionShipmentStatus(
       version: sql`${s.shipments.version} + 1`,
       updatedAt: transitionedAt,
     })
-      .where(and(eq(s.shipments.id, shipmentId), eq(s.shipments.status, currentStatus)))
+      .where(and(eq(s.shipments.id, shipmentId), eq(s.shipments.status, shipment.status ?? currentStatus)))
       .returning();
 
     if (!updated) {
@@ -1132,7 +1217,7 @@ export async function transitionShipmentStatus(
 
     const [historyRow] = await tx.insert(s.shipmentStatusHistory).values({
       shipmentId,
-      fromStatus: currentStatus,
+      fromStatus: shipment.status ?? currentStatus,
       toStatus: targetStatus,
       reason: options.reason ?? null,
       changedBy: options.changedBy ?? null,
@@ -1148,6 +1233,9 @@ export async function transitionShipmentStatus(
         eventActorId,
         transitionedAt,
       );
+    }
+    if (targetStatus === 'READY_FOR_DISPATCH') {
+      await ensureReadyShipmentHandoff(tx, updated, eventActorId);
     }
 
     return updated;
@@ -1354,9 +1442,15 @@ export async function recomputeShipmentCompletion(
     if (fulfillmentRows.length === 0) {
       return shipment;
     }
-    if (requiredFulfillments.length === 0) return currentShipmentStatus === 'DISPATCHED'
-      ? shipment
-      : transitionShipmentStatus(
+    if (requiredFulfillments.length === 0) {
+      if (
+        currentShipmentStatus === 'PENDING_DATE'
+        || currentShipmentStatus === 'READY_FOR_DISPATCH'
+        || currentShipmentStatus === 'DISPATCHED'
+      ) {
+        return shipment;
+      }
+      return transitionShipmentStatus(
         shipmentId,
         'DISPATCHED',
         {
@@ -1365,6 +1459,7 @@ export async function recomputeShipmentCompletion(
         },
         tx,
       );
+    }
 
     const requiredFulfillmentIds = requiredFulfillments.map((row) => row.id);
     const trips = await listRequiredShipmentAuthorityTrips(tx, requiredFulfillmentIds);
@@ -1416,9 +1511,14 @@ export async function recomputeShipmentCompletion(
       return linkedTrips.length === 1;
     });
     if (!allRequiredTripsPresent) {
-      return currentShipmentStatus === 'DISPATCHED'
-        ? shipment
-        : transitionShipmentStatus(
+      if (
+        currentShipmentStatus === 'PENDING_DATE'
+        || currentShipmentStatus === 'READY_FOR_DISPATCH'
+        || currentShipmentStatus === 'DISPATCHED'
+      ) {
+        return shipment;
+      }
+      return transitionShipmentStatus(
           shipmentId,
           'DISPATCHED',
           {
@@ -1486,7 +1586,7 @@ export async function recomputeShipmentCompletion(
     // submitted. Each intermediate transition is auditable in status history.
     let current: ShipmentStatus = currentShipmentStatus as ShipmentStatus;
     let currentRow = shipment;
-    if (current === 'NEW') {
+    if (current === 'READY_FOR_DISPATCH') {
       currentRow = await transitionShipmentStatus(shipmentId, 'DISPATCHED', {
         reason: 'Khôi phục trạng thái Đã điều xe trước khi ghi nhận kết quả vận hành.',
         changedBy: options.changedBy ?? null,
@@ -1572,6 +1672,7 @@ export async function reviewTripPodSubmission(args: {
     },
     create: async (tx) => {
       await assertActorCanAccessShipment(tx, args.shipmentId, args.actor, { write: true });
+      await assertShipmentAccountingUnlocked(tx, args.shipmentId);
 
       // Cancellation, POD review, and aggregate recomputation all serialize on
       // the shipment first. Keeping this shared lock order prevents a review
@@ -1752,6 +1853,7 @@ export async function completeShipmentDirect(args: {
     },
     create: async (tx) => {
       await assertActorCanAccessShipment(tx, args.shipmentId, args.actor, { write: true });
+      await assertShipmentAccountingUnlocked(tx, args.shipmentId);
 
       const [shipment] = await tx.select({
         id: s.shipments.id,
@@ -1895,6 +1997,7 @@ export async function cancelShipmentFulfillment(args: {
     responseStatusCode: 200,
     create: async (tx) => {
       await assertActorCanAccessShipment(tx, args.shipmentId, args.actor, { write: true });
+      await assertShipmentAccountingUnlocked(tx, args.shipmentId);
       const [shipment] = await tx.select().from(s.shipments)
         .where(and(
           eq(s.shipments.id, args.shipmentId),
@@ -2031,7 +2134,7 @@ export async function cancelShipmentFulfillment(args: {
 
 // ─── Soft delete ────────────────────────────────────────────────────────────
 //
-// Only NEW or CANCELED shipments may be tombstoned — once work has started
+// Only date-pending or CANCELED shipments may be tombstoned — once work has started
 // (DISPATCHED / IN_TRANSIT / PENDING_EXPENSE_APPROVAL / COMPLETED), the audit trail and linked trips must be
 // preserved. Callers should prefer CANCELED for an in-flight cancellation;
 // soft-delete is the "remove a mistakenly-created draft" path.
@@ -2047,6 +2150,7 @@ export async function softDeleteShipment(
       .for('update')
       .limit(1);
     if (!existing) throw new ApiError(404, 'Không tìm thấy lô hàng');
+    await assertShipmentAccountingUnlocked(tx, shipmentId);
 
     if (existing.version !== options.version) {
       throw new ApiError(
@@ -2056,7 +2160,7 @@ export async function softDeleteShipment(
     }
 
     const currentStatus = canonicalShipmentStatus(existing.status);
-    if (currentStatus !== 'NEW' && currentStatus !== 'CANCELED') {
+    if (currentStatus !== 'PENDING_DATE' && currentStatus !== 'CANCELED') {
       throw new ApiError(
         409,
         'Chỉ có thể xóa lô hàng ở trạng thái Mới tạo hoặc Đã hủy.',
@@ -2177,6 +2281,31 @@ export interface ShipmentDetail {
   statusHistory: Awaited<ReturnType<typeof listShipmentStatusHistory>>;
   pendingChangeRequests: Awaited<ReturnType<typeof listPendingShipmentChangeRequests>>;
   podReviews: ShipmentPodReviewItemView[];
+  carrierAssignments: Awaited<ReturnType<typeof listShipmentCarrierAssignments>>;
+  accountingLock: Awaited<ReturnType<typeof getShipmentAccountingLock>>;
+}
+
+export async function listShipmentCarrierAssignments(shipmentId: number, tx?: Tx) {
+  const executor = tx ?? db;
+  return executor.select({
+    fulfillmentId: s.shipmentFulfillments.id,
+    fulfillmentVersion: s.shipmentFulfillments.version,
+    shipmentContainerId: s.shipmentFulfillments.shipmentContainerId,
+    containerTypeCode: s.containerTypes.code,
+    containerTypeName: s.containerTypes.name,
+    carrierType: s.shipmentFulfillments.plannedCarrierType,
+    externalCarrierId: s.shipmentFulfillments.plannedExternalCarrierId,
+    externalCarrierName: s.customers.name,
+  })
+    .from(s.shipmentFulfillments)
+    .leftJoin(s.shipmentContainers, eq(s.shipmentContainers.id, s.shipmentFulfillments.shipmentContainerId))
+    .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
+    .leftJoin(s.customers, eq(s.customers.id, s.shipmentFulfillments.plannedExternalCarrierId))
+    .where(and(
+      eq(s.shipmentFulfillments.shipmentId, shipmentId),
+      isNull(s.shipmentFulfillments.canceledAt),
+    ))
+    .orderBy(asc(s.shipmentFulfillments.id));
 }
 
 export interface ReviewTripPodResult {
@@ -2274,13 +2403,15 @@ export async function getShipmentDetail(id: number, actor?: AuthUser): Promise<S
     customerName: joined?.customerName ?? null,
     cargoTypeName: joined?.cargoTypeName ?? null,
   };
-  const [containers, documents, declarations, statusHistory, pendingChangeRequests, podReviews] = await Promise.all([
+  const [containers, documents, declarations, statusHistory, pendingChangeRequests, podReviews, carrierAssignments, accountingLock] = await Promise.all([
     listShipmentContainers(id),
     listShipmentDocuments(id),
     listShipmentDeclarations(id),
     listShipmentStatusHistory(id),
     listPendingShipmentChangeRequests(id),
     listShipmentPodReviewItems(id),
+    listShipmentCarrierAssignments(id),
+    getShipmentAccountingLock(id),
   ]);
   return {
     shipment: {
@@ -2293,6 +2424,8 @@ export async function getShipmentDetail(id: number, actor?: AuthUser): Promise<S
     statusHistory,
     pendingChangeRequests,
     podReviews,
+    carrierAssignments,
+    accountingLock,
   };
 }
 
@@ -2362,6 +2495,44 @@ async function reconcileShipmentContainersInTx(
     items: await listShipmentContainers(shipmentId, tx),
     upsertedIds: upserted.map((row) => row.id),
   };
+}
+
+async function reconcileShipmentContainersWithFulfillmentGuard(
+  tx: Tx,
+  shipmentId: number,
+  userId: number | null,
+  containers: ShipmentContainerInput[],
+) {
+  const activeFulfillments = await tx.select({
+    id: s.shipmentFulfillments.id,
+    tripId: s.trips.id,
+  })
+    .from(s.shipmentFulfillments)
+    .leftJoin(s.trips, and(
+      eq(s.trips.fulfillmentId, s.shipmentFulfillments.id),
+      isNull(s.trips.deletedAt),
+      ne(s.trips.status, 'CANCELED'),
+    ))
+    .where(and(
+      eq(s.shipmentFulfillments.shipmentId, shipmentId),
+      isNull(s.shipmentFulfillments.canceledAt),
+    ));
+
+  if (activeFulfillments.some((fulfillment) => fulfillment.tripId != null)) {
+    throw new ApiError(409, 'Không thể thay đổi container sau khi đã phát hành lệnh điều xe. Hãy hủy hoặc thay thế lệnh theo quy trình điều vận.');
+  }
+  if (activeFulfillments.length > 0) {
+    await tx.update(s.shipmentFulfillments).set({
+      canceledAt: new Date(),
+      canceledBy: userId,
+      cancellationReason: 'Container của lô hàng đã được cập nhật; cần gán lại nhà xe.',
+      cancellationDisposition: 'REPLACED',
+      version: sql`${s.shipmentFulfillments.version} + 1`,
+      updatedAt: new Date(),
+    }).where(inArray(s.shipmentFulfillments.id, activeFulfillments.map((fulfillment) => fulfillment.id)));
+  }
+
+  return reconcileShipmentContainersInTx(tx, shipmentId, userId, containers);
 }
 
 function parsePlanUpdateSnapshot(snapshot: unknown): UpdateShipmentInput {
@@ -2475,6 +2646,7 @@ export async function batchUpsertShipmentContainers(
       .for('update')
       .limit(1);
     if (!existing) throw new ApiError(404, 'Không tìm thấy lô hàng');
+    await assertShipmentAccountingUnlocked(tx, shipmentId);
     if (expectedVersion != null && existing.version !== expectedVersion) {
       throw new ApiError(409, 'Lô hàng đã bị người khác cập nhật. Vui lòng tải lại.');
     }
@@ -2498,7 +2670,7 @@ export async function batchUpsertShipmentContainers(
       .from(s.shipmentContainers)
       .where(eq(s.shipmentContainers.shipmentId, shipmentId));
 
-    if (actor && isClerkScopedUser(actor) && canonicalShipmentStatus(existing.status) !== 'NEW') {
+    if (actor && isClerkScopedUser(actor) && !isDirectlyEditableIntakeStatus(existing.status)) {
       const classification = classifyClerkContainerChange(current, containers);
       if (classification.mode === 'NOOP') {
         return {
@@ -2528,7 +2700,13 @@ export async function batchUpsertShipmentContainers(
         message: 'Đã ghi nhận thay đổi công-te-nơ.',
       };
     }
-    const reconciled = await reconcileShipmentContainersInTx(tx, shipmentId, userId, containers);
+
+    const reconciled = await reconcileShipmentContainersWithFulfillmentGuard(
+      tx,
+      shipmentId,
+      userId,
+      containers,
+    );
 
     // Bump the shipment's version so any open editor is told to reload — the
     // container set is part of the shipment's editable surface.
@@ -2578,6 +2756,7 @@ export async function attachShipmentDocument(
       .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
       .limit(1);
     if (!existing) throw new ApiError(404, 'Không tìm thấy lô hàng');
+    await assertShipmentAccountingUnlocked(tx, shipmentId);
     if (actor && isClerkScopedUser(actor)) {
       const scope = await loadClerkShipmentScope(actor.userId, tx);
       assertClerkCanAccessShipment(scope, existing);
@@ -2609,6 +2788,7 @@ export async function upsertShipmentDeclaration(
       .for('update')
       .limit(1);
     if (!existingShipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
+    await assertShipmentAccountingUnlocked(tx, shipmentId);
     if (actor && isClerkScopedUser(actor)) {
       const scope = await loadClerkShipmentScope(actor.userId, tx);
       assertClerkCanAccessShipment(scope, existingShipment);
@@ -2743,6 +2923,7 @@ export async function replaceShipmentDocument(
       .for('update')
       .limit(1);
     if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
+    await assertShipmentAccountingUnlocked(tx, shipmentId);
     if (shipment.version !== newDocData.expectedVersion) {
       throw new ApiError(409, 'Lô hàng đã bị người khác cập nhật. Vui lòng tải lại.');
     }
@@ -2820,6 +3001,7 @@ export async function reviewShipmentChangeRequest(
       .for('update')
       .limit(1);
     if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
+    await assertShipmentAccountingUnlocked(tx, shipmentId);
     let reviewedShipment = shipment;
     if (resolution === 'APPLIED') {
       if (shipment.version !== request.sourceVersion) {
@@ -2859,13 +3041,18 @@ export async function reviewShipmentChangeRequest(
           .where(eq(s.shipments.id, shipmentId))
           .returning();
         reviewedShipment = updated;
-        if (canonicalShipmentStatus(reviewedShipment.status) === 'NEW') {
+        if (isDirectlyEditableIntakeStatus(reviewedShipment.status)) {
           await syncShipmentAuthorityToTrips(tx, reviewedShipment);
         }
       } else {
         const containers = parseContainerChangeSnapshot(request.afterSnapshot);
         assertContainerSetValid(containers);
-        await reconcileShipmentContainersInTx(tx, shipmentId, actor.userId, containers);
+        await reconcileShipmentContainersWithFulfillmentGuard(
+          tx,
+          shipmentId,
+          actor.userId,
+          containers,
+        );
         const [updated] = await tx.update(s.shipments).set({
           version: shipment.version + 1,
           updatedBy: actor.userId,

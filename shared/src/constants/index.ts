@@ -23,17 +23,19 @@ export const BILLABLE_TRIP_STATUSES = [TripStatus.COMPLETED] as const;
  * `backend/src/db/schema.ts` and the legal edges in
  * `shipment.service.ts`'s `LEGAL_TRANSITIONS`:
  *
- *   NEW ──► DISPATCHED ──► IN_TRANSIT ──► PENDING_EXPENSE_APPROVAL ──► COMPLETED
- *                              ▲                  │
- *                              └──────────────────┘
- *                                                └──► CANCELED
+ *   PENDING_DATE ──► READY_FOR_DISPATCH ──► DISPATCHED ──► IN_TRANSIT
+ *                                                       ──► PENDING_EXPENSE_APPROVAL
+ *                                                       ──► COMPLETED
  *
  * The PRD requires one canonical shipment status field with five operational
- * stages plus cancellation. Costs remain editable after COMPLETED; hard lock
- * is intentionally out of scope until the customer explicitly asks for it.
+ * stages plus cancellation. Accounting lock is an orthogonal aggregate and
+ * never becomes a seventh shipment status.
  */
 export enum ShipmentStatus {
+  /** Temporary read compatibility for rows created before the 2026 workflow. */
   NEW = 'NEW',
+  PENDING_DATE = 'PENDING_DATE',
+  READY_FOR_DISPATCH = 'READY_FOR_DISPATCH',
   DISPATCHED = 'DISPATCHED',
   IN_TRANSIT = 'IN_TRANSIT',
   PENDING_EXPENSE_APPROVAL = 'PENDING_EXPENSE_APPROVAL',
@@ -151,7 +153,9 @@ export const DRIVER_INCIDENTAL_COST_LABELS: Record<DriverIncidentalCostType, str
 
 /** Vietnamese labels for shipment statuses (PRD Mxx-HT-01). */
 export const SHIPMENT_STATUS_LABELS: Record<ShipmentStatus, string> = {
-  [ShipmentStatus.NEW]: 'Mới tạo',
+  [ShipmentStatus.NEW]: 'Chờ bổ sung ngày',
+  [ShipmentStatus.PENDING_DATE]: 'Chờ ngày đóng/trả hàng',
+  [ShipmentStatus.READY_FOR_DISPATCH]: 'Sẵn sàng điều xe',
   [ShipmentStatus.DISPATCHED]: 'Đã điều xe',
   [ShipmentStatus.IN_TRANSIT]: 'Đang chạy',
   [ShipmentStatus.PENDING_EXPENSE_APPROVAL]: 'Chờ duyệt phí',
@@ -163,7 +167,11 @@ export function canonicalShipmentStatus(status: ShipmentStatus | string | null |
   switch (status) {
     case ShipmentStatus.NEW:
     case 'DRAFT':
-      return ShipmentStatus.NEW;
+      return ShipmentStatus.PENDING_DATE;
+    case ShipmentStatus.PENDING_DATE:
+      return ShipmentStatus.PENDING_DATE;
+    case ShipmentStatus.READY_FOR_DISPATCH:
+      return ShipmentStatus.READY_FOR_DISPATCH;
     case ShipmentStatus.DISPATCHED:
     case 'IN_PROGRESS':
       return ShipmentStatus.DISPATCHED;

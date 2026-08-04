@@ -36,6 +36,9 @@ import {
   shipmentContainerBatchSchema,
   quickCreateShipmentSchema,
   submitShipmentForDispatchSchema,
+  shipmentAccountingLockSchema,
+  carrierFleetVehicleSchema,
+  assignShipmentCarriersSchema,
 } from '@tingting/shared';
 import {
   createShipment,
@@ -79,12 +82,11 @@ import {
 } from '../services/shipment-coordination.service';
 import {
   createHandoff,
-  getActiveHandoffForShipment,
   getLatestHandoffForShipment,
   markSeen,
   resolveHandoff,
 } from '../services/dispatch-handoff.service';
-import { listOperationalSitesForIntake, submitShipmentForDispatch } from '../services/shipment-intake.service';
+import { assignShipmentCarriers, listOperationalSitesForIntake, submitShipmentForDispatch } from '../services/shipment-intake.service';
 import {
   acceptDispatchHandoff,
   issueFulfillmentDispatchOrder,
@@ -94,6 +96,12 @@ import {
 } from '../services/dispatch-planning.service';
 import { resolveShipmentPricingProjection } from '../services/pricing.service';
 import { attachmentDisposition } from '../services/statement.service';
+import { activateShipmentAccountingLock } from '../services/shipment-accounting-lock.service';
+import {
+  createCarrierFleetVehicle,
+  listCarrierFleetVehicles,
+  updateCarrierFleetVehicle,
+} from '../services/carrier-fleet-vehicle.service';
 
 // Audit event registrations — matched by the audit middleware on every write.
 // Suffix-mode registrations (prefix + suffix) cover all /:id sub-paths. The
@@ -106,6 +114,8 @@ registerAuditEvent('POST', '/api/shipments', AuditEvent.SHIPMENT_CREATED);
 registerAuditEvent('POST', '/api/shipments/', '/quick', AuditEvent.SHIPMENT_CREATED);
 registerAuditEvent('POST', '/api/shipments/', '/dispatch', AuditEvent.SHIPMENT_DISPATCHED);
 registerAuditEvent('POST', '/api/shipments/', '/submit-for-dispatch', AuditEvent.SHIPMENT_DISPATCHED);
+registerAuditEvent('POST', '/api/shipments/', '/carrier-allocations', AuditEvent.SHIPMENT_UPDATED);
+registerAuditEvent('POST', '/api/shipments/', '/accounting-lock', AuditEvent.SHIPMENT_UPDATED);
 registerAuditEvent('POST', '/api/shipments/', '/transition', AuditEvent.SHIPMENT_STATUS_CHANGED);
 registerAuditEvent('POST', '/api/shipments/', '/complete', AuditEvent.SHIPMENT_STATUS_CHANGED);
 registerAuditEvent('POST', '/api/shipments/', '/documents', AuditEvent.SHIPMENT_DOCUMENT_UPLOADED);
@@ -172,10 +182,18 @@ const fulfillmentDispatchSchema = z.object({
   containerTypeId: z.number().int().positive().optional().nullable(),
   pricingRateKey: z.string().trim().max(32).optional().nullable(),
   externalCarrierId: z.number().int().positive().optional().nullable(),
+  externalCarrierVehicleId: z.number().int().positive().optional().nullable(),
   externalPlateNumber: z.string().trim().max(20).optional().nullable(),
   externalDriverName: z.string().trim().max(100).optional().nullable(),
   externalDriverPhone: z.string().trim().max(20).optional().nullable(),
 });
+
+const updateCarrierFleetVehicleSchema = carrierFleetVehicleSchema
+  .pick({ licensePlate: true, isActive: true })
+  .partial()
+  .refine((value) => value.licensePlate !== undefined || value.isActive !== undefined, {
+    message: 'Cần có ít nhất một nội dung thay đổi.',
+  });
 
 const reviewTripPodSchema = z.object({
   expectedVersion: z.number().int().positive(),
@@ -351,16 +369,83 @@ router.get(
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.ACCOUNTANT),
   asyncHandler(async (req: Request, res: Response) => {
     const resource = typeof req.query.resource === 'string' ? req.query.resource.trim() : '';
-    if (resource !== 'TRUCK' && resource !== 'DRIVER' && resource !== 'EXTERNAL_CARRIER') {
-      throw new ApiError(400, 'resource phải là TRUCK, DRIVER hoặc EXTERNAL_CARRIER.');
+    if (resource !== 'TRUCK' && resource !== 'DRIVER' && resource !== 'EXTERNAL_CARRIER' && resource !== 'EXTERNAL_VEHICLE') {
+      throw new ApiError(400, 'resource không hợp lệ.');
     }
     res.json(await listDispatchFleet({
       actor: getUser(req),
       resource,
+      carrierId: typeof req.query.carrierId === 'string' ? Number(req.query.carrierId) : undefined,
       cursor: typeof req.query.cursor === 'string' ? req.query.cursor : undefined,
       limit: typeof req.query.limit === 'string' ? Number(req.query.limit) : undefined,
       q: typeof req.query.q === 'string' ? req.query.q : undefined,
     }));
+  }),
+);
+
+router.get(
+  '/carrier-fleet-vehicles',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.CLERK),
+  asyncHandler(async (req: Request, res: Response) => {
+    const carrierId = Number(req.query.carrierId);
+    if (!Number.isInteger(carrierId) || carrierId <= 0) throw new ApiError(400, 'carrierId không hợp lệ.');
+    res.json({ items: await listCarrierFleetVehicles(carrierId) });
+  }),
+);
+
+router.post(
+  '/carrier-fleet-vehicles',
+  requireRoles(Role.ADMIN, Role.MANAGER),
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = carrierFleetVehicleSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const user = getUser(req);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.CARRIER_FLEET_VEHICLE_CREATE,
+      { data: parsed.data },
+      async (tx) => {
+        const vehicle = await createCarrierFleetVehicle({ ...parsed.data, actorUserId: user.userId }, tx);
+        return {
+          body: vehicle,
+          status: 201,
+          auditEntityId: vehicle.id,
+          auditEntityKey: vehicle.licensePlate,
+        };
+      },
+    );
+    sendShipmentWrite(res, result);
+  }),
+);
+
+router.patch(
+  '/carrier-fleet-vehicles/:vehicleId',
+  requireRoles(Role.ADMIN, Role.MANAGER),
+  asyncHandler(async (req: Request, res: Response) => {
+    const vehicleId = Number(req.params.vehicleId);
+    if (!Number.isInteger(vehicleId) || vehicleId <= 0) throw new ApiError(400, 'vehicleId không hợp lệ.');
+    const parsed = updateCarrierFleetVehicleSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const user = getUser(req);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.CARRIER_FLEET_VEHICLE_UPDATE,
+      { vehicleId, data: parsed.data },
+      async (tx) => {
+        const vehicle = await updateCarrierFleetVehicle(
+          vehicleId,
+          { ...parsed.data, actorUserId: user.userId },
+          tx,
+        );
+        return {
+          body: vehicle,
+          status: 200,
+          auditEntityId: vehicle.id,
+          auditEntityKey: vehicle.licensePlate,
+        };
+      },
+    );
+    sendShipmentWrite(res, result);
   }),
 );
 
@@ -387,8 +472,71 @@ router.post(
       priority: parsed.data.priority,
       vehicleNeededBy: parsed.data.vehicleNeededBy ? new Date(parsed.data.vehicleNeededBy) : null,
       operationalNote: parsed.data.operationalNote,
+      carrierAllocations: parsed.data.carrierAllocations,
     });
     res.json({ ...outcome.result, replayed: outcome.replayed });
+  }),
+);
+
+router.post(
+  '/:id/carrier-allocations',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CLERK),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const parsed = assignShipmentCarriersSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.SHIPMENT_CARRIER_ALLOCATIONS_ASSIGN,
+      { shipmentId, data: parsed.data },
+      async (tx) => {
+        const assigned = await assignShipmentCarriers({
+          shipmentId,
+          expectedVersion: parsed.data.expectedVersion,
+          carrierAllocations: parsed.data.carrierAllocations,
+          actor: getUser(req),
+          transaction: tx,
+        });
+        return {
+          body: assigned,
+          status: 200,
+          auditEntityId: shipmentId,
+          auditEntityKey: assigned.shipment.shipmentCode ?? 'Lô hàng chưa có mã',
+        };
+      },
+    );
+    sendShipmentWrite(res, result);
+  }),
+);
+
+router.post(
+  '/:id/accounting-lock',
+  requireRoles(Role.ACCOUNTANT),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const parsed = shipmentAccountingLockSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.SHIPMENT_ACCOUNTING_LOCK_ACTIVATE,
+      { shipmentId, data: parsed.data },
+      async (tx) => {
+        const outcome = await activateShipmentAccountingLock({
+          shipmentId,
+          input: parsed.data,
+          actor: getUser(req),
+          transaction: tx,
+        });
+        return {
+          body: outcome,
+          status: outcome.replayed ? 200 : 201,
+          auditEntityId: shipmentId,
+        };
+      },
+    );
+    sendShipmentWrite(res, result);
   }),
 );
 
@@ -750,6 +898,7 @@ router.post(
       containerTypeId: parsed.data.containerTypeId ?? null,
       pricingRateKey: parsed.data.pricingRateKey ?? null,
       externalCarrierId: parsed.data.externalCarrierId ?? null,
+      externalCarrierVehicleId: parsed.data.externalCarrierVehicleId ?? null,
       externalPlateNumber: parsed.data.externalPlateNumber ?? null,
       externalDriverName: parsed.data.externalDriverName ?? null,
       externalDriverPhone: parsed.data.externalDriverPhone ?? null,

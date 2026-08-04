@@ -20,6 +20,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { forwarderClient } from '../api/forwarderClient';
 import { geotagClient } from '../api/geotagClient';
 import { useToast } from '../components/shared/Toast';
+import { AccountingLockBanner } from '../components/shipment/AccountingLockBanner';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useGeolocation } from '../hooks/useGeolocation';
@@ -513,6 +514,10 @@ export default function ForwarderTripDetailPage() {
           )}
         </div>
       </div>
+
+      {trip.accountingLock && <AccountingLockBanner lock={trip.accountingLock} />}
+
+      <fieldset disabled={Boolean(trip.accountingLock)} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
 
       {/* Trip Info Card */}
       <div className="panel" style={{ marginBottom: 16 }}>
@@ -1036,6 +1041,7 @@ export default function ForwarderTripDetailPage() {
           </div>
         </div>
       )}
+      </fieldset>
     </div>
   );
 }

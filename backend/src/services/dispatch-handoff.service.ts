@@ -26,6 +26,7 @@ import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
 import { assertActorCanAccessShipment } from './shipment-coordination.service';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
+import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 
 export type HandoffStatus = 'UNSEEN' | 'SEEN' | 'ACCEPTED' | 'REJECTED';
 
@@ -56,6 +57,7 @@ export async function createHandoff(input: CreateHandoffInput) {
     if (input.actor) {
       await assertActorCanAccessShipment(tx, input.shipmentId, input.actor, { write: true });
     }
+    await assertShipmentAccountingUnlocked(tx, input.shipmentId);
     await lockApplicationOwnedUniqueness(
       tx,
       'dispatch-handoff:active-shipment',
@@ -119,6 +121,14 @@ export async function markSeen(
   options: { actorId?: number; expectedVersion?: number; expectedShipmentId?: number; transaction?: Tx } = {},
 ) {
   const execute = async (tx: Tx) => {
+    const [target] = await tx.select({ shipmentId: s.dispatchHandoffs.shipmentId })
+      .from(s.dispatchHandoffs)
+      .where(eq(s.dispatchHandoffs.id, handoffId))
+      .limit(1);
+    if (!target || (options.expectedShipmentId != null && target.shipmentId !== options.expectedShipmentId)) {
+      throw new ApiError(404, 'Không tìm thấy lệnh điều vận');
+    }
+    await assertShipmentAccountingUnlocked(tx, target.shipmentId);
     const [existing] = await tx.select().from(s.dispatchHandoffs)
       .where(eq(s.dispatchHandoffs.id, handoffId)).limit(1).for('update');
     if (!existing || (options.expectedShipmentId != null && existing.shipmentId !== options.expectedShipmentId)) {
@@ -165,6 +175,14 @@ export async function resolveHandoff(
   options: { rejectReason?: string | null; expectedShipmentId?: number; transaction?: Tx } = {},
 ) {
   const execute = async (tx: Tx) => {
+    const [target] = await tx.select({ shipmentId: s.dispatchHandoffs.shipmentId })
+      .from(s.dispatchHandoffs)
+      .where(eq(s.dispatchHandoffs.id, handoffId))
+      .limit(1);
+    if (!target || (options.expectedShipmentId != null && target.shipmentId !== options.expectedShipmentId)) {
+      throw new ApiError(404, 'Không tìm thấy lệnh điều vận');
+    }
+    await assertShipmentAccountingUnlocked(tx, target.shipmentId);
     const [existing] = await tx.select().from(s.dispatchHandoffs)
       .where(eq(s.dispatchHandoffs.id, handoffId)).limit(1).for('update');
     if (!existing || (options.expectedShipmentId != null && existing.shipmentId !== options.expectedShipmentId)) {

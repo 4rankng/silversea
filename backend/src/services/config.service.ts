@@ -62,6 +62,9 @@ export async function getBootstrapData() {
 
     return {
       customers: customersList.filter(c => c.status === 'ACTIVE'),
+      externalCarriers: customersList
+        .filter((customer) => customer.status === 'ACTIVE' && customer.isCarrier)
+        .map((customer) => ({ id: customer.id, name: customer.name, isActive: true })),
       trucks: trucksList.filter(t => t.status === 'ACTIVE'),
       drivers: driversList.filter(d => d.status === 'ACTIVE'),
       routes: routesList,

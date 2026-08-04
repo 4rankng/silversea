@@ -11,6 +11,7 @@ import { resolveRoute } from './gps/route-capture';
 import { fetchRouteMap } from './gps/route-lookup';
 import { resolveLegCoords } from './maps.service';
 import { loadTripPairingSummaries } from './trip-pairs.service';
+import { getShipmentAccountingLockSummary } from './shipment-accounting-lock.service';
 
 // ─── Query helpers ─────────────────────────────────────────────────────────
 
@@ -207,6 +208,7 @@ export async function getTrips(filters: TripListFilters) {
   const items = await TRIP_RELATION_JOINS(db.select({
     id: s.trips.id, tripCode: s.trips.tripCode, version: s.trips.version,
     customerId: s.trips.customerId, customerReference: s.trips.customerReference,
+    shipmentId: s.trips.shipmentId,
     truckId: s.trips.truckId, driverId: s.trips.driverId, routeId: s.trips.routeId,
     cargoTypeId: s.trips.cargoTypeId, containerCount: s.trips.containerCount,
     status: s.trips.status, departureDate: s.trips.departureDate,
@@ -409,6 +411,7 @@ export async function getTripsSummary(dateFrom?: string, dateTo?: string): Promi
 export async function getTripById(id: number) {
   const [trip] = await TRIP_RELATION_JOINS(db.select({
     id: s.trips.id, tripCode: s.trips.tripCode, version: s.trips.version,
+    shipmentId: s.trips.shipmentId,
     customerId: s.trips.customerId, customerReference: s.trips.customerReference,
     truckId: s.trips.truckId, driverId: s.trips.driverId, routeId: s.trips.routeId,
     cargoTypeId: s.trips.cargoTypeId, containerCount: s.trips.containerCount,
@@ -459,7 +462,7 @@ export async function getTripById(id: number) {
 
   if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
 
-  const [legs, photos, instructions, gpsTrackRow] = await Promise.all([
+  const [legs, photos, instructions, gpsTrackRow, accountingLock] = await Promise.all([
     db.select().from(s.tripLegs).where(eq(s.tripLegs.tripId, id)).orderBy(s.tripLegs.sequence),
     // Only general (`OTHER`) photos belong in the trip-level `photoUrls`.
     // CONTAINER/SEAL photos are surfaced separately by the "Container & Seal"
@@ -479,6 +482,7 @@ export async function getTripById(id: number) {
       pointCount: s.tripGpsTracks.pointCount,
       stops: s.tripGpsTracks.stops,
     }).from(s.tripGpsTracks).where(eq(s.tripGpsTracks.tripId, id)).limit(1),
+    trip.shipmentId == null ? Promise.resolve(null) : getShipmentAccountingLockSummary(trip.shipmentId),
   ]);
 
   // Routes (bidirectional: A→B also covers B→A reversed) for each leg.
@@ -516,5 +520,6 @@ export async function getTripById(id: number) {
     }),
     instructions,
     gpsTrail,
+    accountingLock,
   };
 }

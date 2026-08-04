@@ -20,6 +20,9 @@ export default tseslint.config(
       'plans/**',
       'memory/**',
       '.claude/**',
+      // Understand-Anything knowledge graph + transient .trash-* snapshots
+      // are gitignored plugin output, not lintable source.
+      '.ua/**',
       // Tooling & deployment scripts
       'deploy/**',
       'e2e/**',

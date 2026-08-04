@@ -28,9 +28,16 @@ async function loadAllShipmentScopeOptions() {
     items.push(...response.items);
     page += 1;
   } while (items.length < total);
+  const activeShipmentStatuses = new Set<ShipmentStatus>([
+    ShipmentStatus.NEW,
+    ShipmentStatus.PENDING_DATE,
+    ShipmentStatus.READY_FOR_DISPATCH,
+    ShipmentStatus.DISPATCHED,
+    ShipmentStatus.IN_TRANSIT,
+  ]);
   return {
     items: items.filter(
-      (shipment) => shipment.status === ShipmentStatus.NEW || shipment.status === ShipmentStatus.DISPATCHED || shipment.status === ShipmentStatus.IN_TRANSIT,
+      (shipment) => activeShipmentStatuses.has(shipment.status),
     ),
   };
 }

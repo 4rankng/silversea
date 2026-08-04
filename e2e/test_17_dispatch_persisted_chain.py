@@ -711,12 +711,35 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
         results.fail("TC-1707", "Clerk creates a new shipment", api_failure_detail(create_body))
         return
     shipment = create_body
-    if shipment.get("status") != "NEW":
+    if shipment.get("status") != "PENDING_DATE":
         results.fail("TC-1707", "New shipment status", str(shipment))
         return
     shipment_id = shipment["id"]
     shipment_version = shipment["version"]
     results.pass_("TC-1707", "Clerk creates a new shipment", f"shipment#{shipment_id} version={shipment_version}")
+
+    readiness_status, readiness_body = request_json(
+        clerk_api,
+        "PUT",
+        f"/api/shipments/{shipment_id}",
+        {
+            "expectedVersion": shipment_version,
+            "closingAt": planned_start_at,
+        },
+        headers={"Idempotency-Key": f"{BOOKING_PREFIX}-set-closing-at"},
+    )
+    if readiness_status != 200:
+        results.fail("TC-1707B", "Clerk enters the closing time", api_failure_detail(readiness_body))
+        return
+    shipment_version = readiness_body["version"]
+    if readiness_body.get("status") != "READY_FOR_DISPATCH":
+        results.fail("TC-1707B", "Shipment becomes ready for dispatch", str(readiness_body))
+        return
+    results.pass_(
+        "TC-1707B",
+        "Closing time makes the shipment ready for dispatch",
+        f"shipment#{shipment_id} version={shipment_version}",
+    )
 
     forbidden_dispatch_status, forbidden_dispatch_body = request_json(
         clerk_api,

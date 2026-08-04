@@ -35,6 +35,7 @@ import {
   STORAGE_DELETE_MODE,
   type StorageCleanupGuardLease,
 } from '../services/durable-effect.service';
+import { assertTripShipmentAccountingUnlocked } from '../services/shipment-accounting-lock.service';
 
 // Maximum dimension for server-side downscale
 const MAX_IMAGE_DIMENSION = 2048;
@@ -197,6 +198,10 @@ export async function insertTripPhotoRecord(
     containerId?: number | null;
   },
 ): Promise<number> {
+  if (executor === db) {
+    return db.transaction((tx) => insertTripPhotoRecord(tx, input));
+  }
+  await assertTripShipmentAccountingUnlocked(executor as UploadTx, input.tripId);
   const existing = await findTripPhotoByStorageKey(executor, input.storageKey);
   if (existing) return existing.id;
   const [created] = await executor.insert(s.tripPhotos).values({
@@ -303,6 +308,7 @@ export async function deleteTripPhotosByType(
   containerId?: number,
 ): Promise<number> {
   return db.transaction(async (tx) => {
+    await assertTripShipmentAccountingUnlocked(tx, tripId);
     const conditions = [eq(s.tripPhotos.tripId, tripId), eq(s.tripPhotos.type, type)];
     if (containerId !== undefined) {
       conditions.push(eq(s.tripPhotos.tripContainerId, containerId));
@@ -340,6 +346,7 @@ export async function deleteTripPhotoByStorageKey(
   };
 
   const row = await db.transaction(async (tx) => {
+    await assertTripShipmentAccountingUnlocked(tx, tripId);
     let [locked] = await tx.select({
       id: s.tripPhotos.id,
       storageKey: s.tripPhotos.storageKey,

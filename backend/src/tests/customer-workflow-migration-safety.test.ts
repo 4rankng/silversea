@@ -129,19 +129,17 @@ describe('customer workflow migration safety', () => {
     assert.equal(manualRows.length, 2, 'manual milestones must stay append-only when tripId is null');
   });
 
-  it('keeps the O2C uniqueness fence in the single clean baseline', async () => {
+  it('keeps the O2C baseline fence and orders additive readiness migrations', async () => {
     const { readFile } = await import('node:fs/promises');
     const migrationSql = await readFile(new URL('../../drizzle/0000_flexible-baseline.sql', import.meta.url), 'utf8');
     const journal = JSON.parse(await readFile(new URL('../../drizzle/meta/_journal.json', import.meta.url), 'utf8')) as {
       entries: Array<{ idx: number; version: string; when: number; tag: string; breakpoints: boolean }>;
     };
-    assert.deepEqual(journal.entries, [{
-      idx: 0,
-      version: '7',
-      when: journal.entries[0]?.when,
-      tag: '0000_flexible-baseline',
-      breakpoints: true,
-    }]);
+    assert.deepEqual(journal.entries.map(({ idx, tag }) => ({ idx, tag })), [
+      { idx: 0, tag: '0000_flexible-baseline' },
+      { idx: 1, tag: '0001_backfill_shipment_readiness' },
+      { idx: 2, tag: '0002_carrier_readiness_authorities' },
+    ]);
     assert.match(migrationSql, /CREATE UNIQUE INDEX "lift_pricing_port_type_state_dir_date_uniq"/);
     assert.doesNotMatch(migrationSql, /FOREIGN KEY|\bCHECK\s*\(/i);
   });

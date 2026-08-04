@@ -1459,11 +1459,56 @@ export const decomposeShipmentFulfillmentsSchema = z.object({
   expectedVersion: z.coerce.number().int().positive(),
 });
 
+export const shipmentCarrierAllocationSchema = z.object({
+  carrierType: z.enum(['OWN', 'EXTERNAL']),
+  externalCarrierId: z.coerce.number().int().positive().optional().nullable(),
+  count20: z.coerce.number().int().min(0).max(200).default(0),
+  count40: z.coerce.number().int().min(0).max(200).default(0),
+}).superRefine((row, ctx) => {
+  if (row.count20 + row.count40 < 1) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Mỗi nhà xe phải được gán ít nhất một container' });
+  }
+  if (row.carrierType === 'OWN' && row.externalCarrierId != null) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Xe SilverSea không dùng mã nhà xe ngoài', path: ['externalCarrierId'] });
+  }
+  if (row.carrierType === 'EXTERNAL' && row.externalCarrierId == null) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Nhà xe ngoài là bắt buộc', path: ['externalCarrierId'] });
+  }
+});
+
+function rejectDuplicateCarrierAllocations(
+  input: { carrierAllocations: Array<z.infer<typeof shipmentCarrierAllocationSchema>> },
+  ctx: z.RefinementCtx,
+) {
+  const keys = input.carrierAllocations.map((row) => row.carrierType === 'OWN' ? 'OWN' : `EXTERNAL:${row.externalCarrierId}`);
+  if (new Set(keys).size !== keys.length) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Mỗi nhà xe chỉ được xuất hiện một lần', path: ['carrierAllocations'] });
+  }
+}
+
+export const assignShipmentCarriersSchema = z.object({
+  expectedVersion: z.coerce.number().int().positive(),
+  carrierAllocations: z.array(shipmentCarrierAllocationSchema).max(50),
+}).superRefine(rejectDuplicateCarrierAllocations);
+
 export const submitShipmentForDispatchSchema = z.object({
   expectedVersion: z.coerce.number().int().positive(),
   priority: z.enum(['NORMAL', 'URGENT']).optional(),
   vehicleNeededBy: shipmentTimestamp.optional().nullable(),
   operationalNote: z.string().trim().max(2000).optional().nullable(),
+  carrierAllocations: z.array(shipmentCarrierAllocationSchema).max(50).optional().default([]),
+}).superRefine(rejectDuplicateCarrierAllocations);
+
+export const carrierFleetVehicleSchema = z.object({
+  carrierId: z.coerce.number().int().positive('Nhà xe là bắt buộc'),
+  licensePlate: z.string().trim().min(1, 'Biển số xe là bắt buộc').max(20),
+  isActive: z.boolean().optional().default(true),
+});
+
+export const shipmentAccountingLockSchema = z.object({
+  expectedVersion: z.coerce.number().int().positive(),
+  billingDocumentId: z.coerce.number().int().positive('Debit Note là bắt buộc'),
+  reason: z.string().trim().min(1, 'Lý do khóa lô là bắt buộc').max(2000),
 });
 
 export const cancelShipmentFulfillmentSchema = z.object({
@@ -1500,6 +1545,9 @@ export type DispatchShipmentInput = z.infer<typeof dispatchShipmentSchema>;
 export type OperationalSiteInput = z.infer<typeof operationalSiteSchema>;
 export type DecomposeShipmentFulfillmentsInput = z.infer<typeof decomposeShipmentFulfillmentsSchema>;
 export type SubmitShipmentForDispatchInput = z.infer<typeof submitShipmentForDispatchSchema>;
+export type AssignShipmentCarriersInput = z.infer<typeof assignShipmentCarriersSchema>;
+export type CarrierFleetVehicleInput = z.infer<typeof carrierFleetVehicleSchema>;
+export type ShipmentAccountingLockInput = z.infer<typeof shipmentAccountingLockSchema>;
 export type CancelShipmentFulfillmentInput = z.infer<typeof cancelShipmentFulfillmentSchema>;
 export type TripPodFileMetadataInput = z.infer<typeof tripPodFileMetadataSchema>;
 

@@ -8,6 +8,20 @@
       "when": 1785765764798,
       "tag": "0000_flexible-baseline",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785825326642,
+      "tag": "0001_backfill_shipment_readiness",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785825386938,
+      "tag": "0002_carrier_readiness_authorities",
+      "breakpoints": true
     }
   ]
 }

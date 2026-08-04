@@ -22,6 +22,7 @@ import { listTripContainers, listTripPhotoKeys } from './forwarder.service';
 import { getTripInstructions } from './trip-instructions.service';
 import { storageService } from './storage.service';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
+import { assertTripShipmentAccountingUnlocked, getShipmentAccountingLockSummary } from './shipment-accounting-lock.service';
 import type { Tx } from './trip-shared';
 import { transitionTripStatus } from './trip-status-machine.service';
 import { syncAttendanceAfterStatusChange } from './trip-attendance-sync.service';
@@ -121,6 +122,7 @@ async function existingStorageKeys(keys: string[]): Promise<string[]> {
 export async function getDriverTrips(driverId: number) {
   const trips = await db.select({
     id: s.trips.id,
+    shipmentId: s.trips.shipmentId,
     fulfillmentId: s.trips.fulfillmentId,
     tripCode: s.trips.tripCode,
     departureDate: s.trips.departureDate,
@@ -435,6 +437,7 @@ export async function getDriverTripDetail(driverId: number, tripId: number) {
   const paperCollector = aliasedTable(s.users, 'driver_trip_paper_collector');
   const [trip] = await db.select({
     id: s.trips.id,
+    shipmentId: s.trips.shipmentId,
     tripCode: s.trips.tripCode,
     departureDate: s.trips.departureDate,
     status: s.trips.status,
@@ -482,11 +485,12 @@ export async function getDriverTripDetail(driverId: number, tripId: number) {
   // list (newest first) so the driver UI can surface every captured photo,
   // not just the latest. Singular fields kept for back-compat with the
   // existing driver app build; contPhotoKeys[0] === contPhotoKey.
-  const [contPhotoKeysRaw, sealPhotoKeysRaw, instructions, fuelEvidenceReviews] = await Promise.all([
+  const [contPhotoKeysRaw, sealPhotoKeysRaw, instructions, fuelEvidenceReviews, accountingLock] = await Promise.all([
     listTripPhotoKeys(tripId, 'CONTAINER'),
     listTripPhotoKeys(tripId, 'SEAL'),
     getTripInstructions(tripId),
     listFuelEvidenceReviewsForTrip(tripId),
+    trip.shipmentId == null ? Promise.resolve(null) : getShipmentAccountingLockSummary(trip.shipmentId),
   ]);
   const [contPhotoKeys, sealPhotoKeys] = await Promise.all([
     existingStorageKeys(contPhotoKeysRaw),
@@ -505,6 +509,7 @@ export async function getDriverTripDetail(driverId: number, tripId: number) {
     sealPhotoKeys,
     instructions,
     fuelEvidenceReviews,
+    accountingLock,
   };
 }
 
@@ -835,6 +840,7 @@ async function insertDriverProgressEventTx(
   input: { eventType: DriverProgressEventType; occurredAt: string; note?: string },
   recordedBy: number,
 ): Promise<DriverProgressEvent> {
+  await assertTripShipmentAccountingUnlocked(tx, tripId);
   const [row] = await tx.insert(s.driverProgressEvents).values({
     tripId,
     driverId,
@@ -854,6 +860,7 @@ async function loadDriverProgressEventTx(tx: Tx, id: number): Promise<DriverProg
 }
 
 async function assertTripAcceptsIncidentalCostTx(tx: Tx, tripId: number): Promise<void> {
+  await assertTripShipmentAccountingUnlocked(tx, tripId);
   const [trip] = await tx.select({ status: s.trips.status })
     .from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
   // O2C: costs stay editable after COMPLETED (no hard-freeze). Only CANCELED
@@ -1193,6 +1200,7 @@ export async function completeOwnedFulfillmentTrip(args: {
         .where(eq(s.shipmentFulfillments.id, args.fulfillmentId))
         .for('update');
       const ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { forUpdate: true });
+      await assertTripShipmentAccountingUnlocked(tx, ownedTrip.tripId);
       if (ownedTrip.tripVersion !== args.expectedVersion) {
         throw new ApiError(409, 'Tác vụ đã thay đổi. Vui lòng tải lại.');
       }

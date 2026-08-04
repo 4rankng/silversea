@@ -759,6 +759,7 @@ export async function seedShipments(passwordHash: string) {
     deliveryLocation: string;
     contactName: string;
     contactPhone: string;
+    closingAt?: string;
     advanceTo?: 'DISPATCHED' | 'PENDING_EXPENSE_APPROVAL';
     containers?: Array<{ containerNumber: string; sealNumber: string; cargoWeightKg: number }>;
     document?: { type: 'BOOKING' | 'BL' | 'DO' | 'DECLARATION' | 'OTHER'; storageKey: string };
@@ -787,6 +788,7 @@ export async function seedShipments(passwordHash: string) {
       deliveryLocation: 'ICD Hà Nội',
       contactName: 'Trịnh Văn Hà',
       contactPhone: '02438888888',
+      closingAt: '2026-08-09T08:00:00.000Z',
       advanceTo: 'DISPATCHED',
       containers: [
         { containerNumber: 'MSKU1234565', sealNumber: 'SEED-SEAL-001', cargoWeightKg: 18500 },
@@ -802,6 +804,7 @@ export async function seedShipments(passwordHash: string) {
       deliveryLocation: 'Kho Biển Bạc',
       contactName: 'Phạm Thị Biển',
       contactPhone: '02253555555',
+      closingAt: '2026-07-29T08:00:00.000Z',
       advanceTo: 'PENDING_EXPENSE_APPROVAL',
       containers: [
         { containerNumber: 'OOLU8312661', sealNumber: 'SEED-SEAL-003', cargoWeightKg: 17800 },
@@ -834,6 +837,7 @@ export async function seedShipments(passwordHash: string) {
       deliveryLocation: s.deliveryLocation,
       contactName: s.contactName,
       contactPhone: s.contactPhone,
+      closingAt: s.closingAt,
     });
 
     // Children + status transition attach ONLY on first creation.

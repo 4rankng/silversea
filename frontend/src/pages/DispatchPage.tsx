@@ -3,18 +3,23 @@ import { AlertTriangle, CheckCircle2, RefreshCw, Search, Send, Truck } from 'luc
 import { EmptyState, SearchableSelect, SelectField, TextField } from '../design-system';
 import {
   getDispatchFleet,
+  createCarrierFleetVehicle,
   issueDispatchOrder,
   listDispatchFleetResources,
   listDispatchHandoffs,
   listDispatchQueue,
+  listCarrierFleetVehicles,
   resolveDispatchHandoff,
+  updateCarrierFleetVehicle,
   type DispatchDriver,
-  type DispatchExternalCarrier,
+  type DispatchCarrierVehicle,
   type DispatchFleet,
   type DispatchHandoffItem,
   type DispatchQueueItem,
   type DispatchTruck,
 } from '../api/dispatchPlanningClient';
+import { useAuth } from '../hooks/useAuth';
+import { Role } from '@tingting/shared';
 import { formatVietnamDateTimeInput, localDateTimeToIso } from '../lib/shipment-operations';
 import './DispatchPage.css';
 
@@ -27,6 +32,7 @@ interface AssignmentForm {
   trailerId: string;
   pricingRateKey: string;
   externalCarrierId: string;
+  externalVehicleId: string;
   externalPlateNumber: string;
   externalDriverName: string;
   externalDriverPhone: string;
@@ -62,6 +68,7 @@ const EMPTY_ASSIGNMENT: AssignmentForm = {
   trailerId: '',
   pricingRateKey: '',
   externalCarrierId: '',
+  externalVehicleId: '',
   externalPlateNumber: '',
   externalDriverName: '',
   externalDriverPhone: '',
@@ -128,7 +135,29 @@ function isFleetAccessDenied(reason: unknown) {
   return /không được xem đội xe điều phối|không có quyền xem bảng điều phối|403/i.test(message);
 }
 
+function resolvePlannedCarrier(item: DispatchQueueItem | null) {
+  if (!item) return null;
+  if (item.plannedCarrier) return item.plannedCarrier;
+  if (item.dispatch?.carrierType === 'EXTERNAL') {
+    return {
+      carrierType: 'EXTERNAL' as const,
+      externalCarrierId: item.dispatch.externalCarrierId ?? null,
+      carrierName: item.dispatch.externalCarrierName ?? null,
+      vehiclePlate: item.dispatch.externalPlateNumber ?? null,
+    };
+  }
+  if (item.dispatch?.carrierType === 'OWN') {
+    return {
+      carrierType: 'OWN' as const,
+      externalCarrierId: null,
+      carrierName: 'Đội xe nội bộ SilverSea',
+    };
+  }
+  return null;
+}
+
 export default function DispatchPage() {
+  const { user } = useAuth();
   const [items, setItems] = useState<DispatchQueueItem[]>([]);
   const [fleet, setFleet] = useState<DispatchFleet | null>(null);
   const [handoffs, setHandoffs] = useState<DispatchHandoffItem[]>([]);
@@ -149,12 +178,32 @@ export default function DispatchPage() {
   const [nextTaskCursor, setNextTaskCursor] = useState<TaskCursorState | null>(null);
   const [truckSearch, setTruckSearch] = useState<ResourceSearchState<DispatchTruck>>(emptyResourceSearch);
   const [driverSearch, setDriverSearch] = useState<ResourceSearchState<DispatchDriver>>(emptyResourceSearch);
-  const [carrierSearch, setCarrierSearch] = useState<ResourceSearchState<DispatchExternalCarrier>>(emptyResourceSearch);
+  const [externalVehicleSearch, setExternalVehicleSearch] = useState<ResourceSearchState<DispatchCarrierVehicle>>(emptyResourceSearch);
+  const [externalVehicleLoading, setExternalVehicleLoading] = useState(false);
+  const [managedCarrierId, setManagedCarrierId] = useState('');
+  const [managedPlate, setManagedPlate] = useState('');
+  const [managedVehicles, setManagedVehicles] = useState<DispatchCarrierVehicle[]>([]);
+  const [managingVehicle, setManagingVehicle] = useState(false);
   const loadRequestIdRef = useRef(0);
-  const resourceSearchRequestIds = useRef({ TRUCK: 0, DRIVER: 0, EXTERNAL_CARRIER: 0 });
+  const resourceSearchRequestIds = useRef({ TRUCK: 0, DRIVER: 0, EXTERNAL_VEHICLE: 0 });
 
   const currentTaskCursor = taskCursorStack[taskPageIndex] ?? INITIAL_TASK_CURSOR;
   const selected = useMemo(() => items.find((item) => item.fulfillmentId === selectedId) ?? null, [items, selectedId]);
+  const plannedCarrier = useMemo(() => resolvePlannedCarrier(selected), [selected]);
+  const effectiveCarrier = useMemo(() => {
+    if (plannedCarrier) return plannedCarrier;
+    if (selected?.cargoMode !== 'LCL') return null;
+    const selectedLclCarrier = fleet?.externalCarriers.items.find((carrier) => String(carrier.id) === assignment.externalCarrierId);
+    return {
+      carrierType: assignment.carrierType,
+      externalCarrierId: assignment.carrierType === 'EXTERNAL' && assignment.externalCarrierId
+        ? Number(assignment.externalCarrierId)
+        : null,
+      carrierName: assignment.carrierType === 'OWN'
+        ? 'Đội xe nội bộ SilverSea'
+        : selectedLclCarrier?.name ?? null,
+    };
+  }, [assignment.carrierType, assignment.externalCarrierId, fleet?.externalCarriers.items, plannedCarrier, selected?.cargoMode]);
   const taskCountLoaded = handoffs.length + items.length;
   const selectedTruck = selected?.dispatch?.truckId && selected.dispatch.truckPlate
     ? {
@@ -180,14 +229,58 @@ export default function DispatchPage() {
       userId: selected.dispatch.driverId,
     } satisfies DispatchDriver
     : null;
-  const selectedCarrier = selected?.dispatch?.externalCarrierId && selected.dispatch.externalCarrierName
-    ? { id: selected.dispatch.externalCarrierId, name: selected.dispatch.externalCarrierName } satisfies DispatchExternalCarrier
+  const selectedExternalVehicle = selected?.dispatch?.externalPlateNumber
+    ? {
+      id: -selected.fulfillmentId,
+      carrierId: effectiveCarrier?.externalCarrierId ?? selected.dispatch?.externalCarrierId ?? 0,
+      licensePlate: selected.dispatch.externalPlateNumber,
+      isActive: true,
+    } satisfies DispatchCarrierVehicle
     : null;
   const truckChoices = mergeById(fleet?.trucks.items ?? [], truckSearch.items, selectedTruck ? [selectedTruck] : []);
   const driverChoices = mergeById(fleet?.drivers.items ?? [], driverSearch.items, selectedDriver ? [selectedDriver] : []);
-  const carrierChoices = mergeById(fleet?.externalCarriers.items ?? [], carrierSearch.items, selectedCarrier ? [selectedCarrier] : []);
+  const externalVehicleChoices = mergeById(externalVehicleSearch.items, selectedExternalVehicle ? [selectedExternalVehicle] : []);
   const activeTrucks = truckChoices.filter((truck) => truck.status === 'ACTIVE');
   const eligibleDrivers = driverChoices.filter((driver) => driver.status === 'ACTIVE' && driver.userId != null);
+  const activeExternalVehicles = externalVehicleChoices.filter((vehicle) => vehicle.isActive);
+  const canManageCarrierVehicles = user?.role === Role.ADMIN || user?.role === Role.MANAGER;
+
+  const refreshManagedVehicles = useCallback(async (carrierId: string) => {
+    if (!carrierId) {
+      setManagedVehicles([]);
+      return;
+    }
+    const response = await listCarrierFleetVehicles(Number(carrierId));
+    setManagedVehicles(response.items);
+  }, []);
+
+  async function addManagedVehicle() {
+    if (!managedCarrierId || !managedPlate.trim()) return;
+    setManagingVehicle(true);
+    setError(null);
+    try {
+      await createCarrierFleetVehicle({ carrierId: Number(managedCarrierId), licensePlate: managedPlate.trim() });
+      setManagedPlate('');
+      await refreshManagedVehicles(managedCarrierId);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Không thể thêm xe nhà xe.');
+    } finally {
+      setManagingVehicle(false);
+    }
+  }
+
+  async function toggleManagedVehicle(vehicle: DispatchCarrierVehicle) {
+    setManagingVehicle(true);
+    setError(null);
+    try {
+      await updateCarrierFleetVehicle(vehicle.id, { isActive: !vehicle.isActive });
+      await refreshManagedVehicles(managedCarrierId);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Không thể cập nhật xe nhà xe.');
+    } finally {
+      setManagingVehicle(false);
+    }
+  }
   const load = useCallback(async (cursorState: TaskCursorState) => {
     const requestId = ++loadRequestIdRef.current;
     setLoading(true);
@@ -261,12 +354,13 @@ export default function DispatchPage() {
     }
     setAssignment({
       ...EMPTY_ASSIGNMENT,
-      carrierType: selected.dispatch?.carrierType ?? 'OWN',
+      carrierType: plannedCarrier?.carrierType ?? selected.dispatch?.carrierType ?? 'OWN',
       truckId: selected.dispatch?.truckId ? String(selected.dispatch.truckId) : '',
       driverId: selected.dispatch?.driverId ? String(selected.dispatch.driverId) : '',
       trailerId: selected.dispatch?.trailerId ? String(selected.dispatch.trailerId) : '',
       pricingRateKey: suggestedPricingRateKey(selected),
-      externalCarrierId: selected.dispatch?.externalCarrierId ? String(selected.dispatch.externalCarrierId) : '',
+      externalCarrierId: plannedCarrier?.externalCarrierId ? String(plannedCarrier.externalCarrierId) : '',
+      externalVehicleId: selected.dispatch?.externalPlateNumber ? String(-selected.fulfillmentId) : '',
       externalPlateNumber: selected.dispatch?.externalPlateNumber ?? '',
       externalDriverName: selected.dispatch?.externalDriverName ?? '',
       externalDriverPhone: selected.dispatch?.externalDriverPhone ?? '',
@@ -274,7 +368,7 @@ export default function DispatchPage() {
       plannedEndAt: formatVietnamDateTimeInput(selected.dispatch?.plannedEndAt ?? null),
       endTimeConfirmed: selected.route.serviceDurationMinutes == null && Boolean(selected.dispatch?.plannedEndAt),
     });
-  }, [selected]);
+  }, [plannedCarrier, selected]);
 
   useEffect(() => {
     if (!selected || selected.route.serviceDurationMinutes == null || !assignment.plannedStartAt) return;
@@ -325,22 +419,45 @@ export default function DispatchPage() {
     }
   }, []);
 
-  const searchCarriers = useCallback(async (q: string) => {
-    const requestId = ++resourceSearchRequestIds.current.EXTERNAL_CARRIER;
-    if (!q) {
-      setCarrierSearch(emptyResourceSearch());
+  const searchExternalVehicles = useCallback(async (q: string) => {
+    const carrierId = effectiveCarrier?.carrierType === 'EXTERNAL' ? effectiveCarrier.externalCarrierId : null;
+    const requestId = ++resourceSearchRequestIds.current.EXTERNAL_VEHICLE;
+    if (!carrierId) {
+      setExternalVehicleSearch(emptyResourceSearch());
       return;
     }
-    try {
-      const result = await listDispatchFleetResources('EXTERNAL_CARRIER', { q, limit: 25 });
-      if (requestId !== resourceSearchRequestIds.current.EXTERNAL_CARRIER) return;
-      setCarrierSearch({ query: q, items: result.items, nextCursor: result.nextCursor, loadingMore: false });
-    } catch (reason) {
-      if (requestId !== resourceSearchRequestIds.current.EXTERNAL_CARRIER) return;
-      setCarrierSearch(emptyResourceSearch());
-      setError(reason instanceof Error ? reason.message : 'Không thể tìm tài nguyên điều phối');
+    if (!q) {
+      setExternalVehicleLoading(true);
+      try {
+        const result = await listDispatchFleetResources('EXTERNAL_VEHICLE', { carrierId, limit: 25 });
+        if (requestId !== resourceSearchRequestIds.current.EXTERNAL_VEHICLE) return;
+        setExternalVehicleSearch({ query: '', items: result.items, nextCursor: result.nextCursor, loadingMore: false });
+      } catch (reason) {
+        if (requestId !== resourceSearchRequestIds.current.EXTERNAL_VEHICLE) return;
+        setExternalVehicleSearch(emptyResourceSearch());
+        setError(reason instanceof Error ? reason.message : 'Không thể tải xe của nhà xe đã gán');
+      } finally {
+        if (requestId === resourceSearchRequestIds.current.EXTERNAL_VEHICLE) {
+          setExternalVehicleLoading(false);
+        }
+      }
+      return;
     }
-  }, []);
+    setExternalVehicleLoading(true);
+    try {
+      const result = await listDispatchFleetResources('EXTERNAL_VEHICLE', { carrierId, q, limit: 25 });
+      if (requestId !== resourceSearchRequestIds.current.EXTERNAL_VEHICLE) return;
+      setExternalVehicleSearch({ query: q, items: result.items, nextCursor: result.nextCursor, loadingMore: false });
+    } catch (reason) {
+      if (requestId !== resourceSearchRequestIds.current.EXTERNAL_VEHICLE) return;
+      setExternalVehicleSearch(emptyResourceSearch());
+      setError(reason instanceof Error ? reason.message : 'Không thể tìm xe của nhà xe đã gán');
+    } finally {
+      if (requestId === resourceSearchRequestIds.current.EXTERNAL_VEHICLE) {
+        setExternalVehicleLoading(false);
+      }
+    }
+  }, [effectiveCarrier]);
 
   const loadMoreTrucks = useCallback(async () => {
     const searchPage = truckSearch.query !== '';
@@ -394,31 +511,33 @@ export default function DispatchPage() {
     }
   }, [driverSearch, fleet?.drivers.nextCursor]);
 
-  const loadMoreCarriers = useCallback(async () => {
-    const searchPage = carrierSearch.query !== '';
-    const cursor = searchPage ? carrierSearch.nextCursor : fleet?.externalCarriers.nextCursor;
-    if (!cursor) return;
-    const requestId = ++resourceSearchRequestIds.current.EXTERNAL_CARRIER;
-    setCarrierSearch((current) => ({ ...current, loadingMore: true }));
+  const loadMoreExternalVehicles = useCallback(async () => {
+    const carrierId = effectiveCarrier?.carrierType === 'EXTERNAL' ? effectiveCarrier.externalCarrierId : null;
+    const searchPage = externalVehicleSearch.query !== '';
+    const cursor = externalVehicleSearch.nextCursor;
+    if (!carrierId || !cursor) return;
+    const requestId = ++resourceSearchRequestIds.current.EXTERNAL_VEHICLE;
+    setExternalVehicleSearch((current) => ({ ...current, loadingMore: true }));
     try {
-      const result = await listDispatchFleetResources('EXTERNAL_CARRIER', {
+      const result = await listDispatchFleetResources('EXTERNAL_VEHICLE', {
+        carrierId,
         cursor,
-        limit: searchPage ? 25 : FLEET_PAGE_LIMIT,
-        q: searchPage ? carrierSearch.query : undefined,
+        limit: 25,
+        q: searchPage ? externalVehicleSearch.query : undefined,
       });
-      if (requestId !== resourceSearchRequestIds.current.EXTERNAL_CARRIER) return;
-      if (searchPage) {
-        setCarrierSearch((current) => ({ ...current, items: mergeById(current.items, result.items), nextCursor: result.nextCursor, loadingMore: false }));
-      } else {
-        setFleet((current) => current ? { ...current, externalCarriers: { ...result, items: mergeById(current.externalCarriers.items, result.items) } } : current);
-        setCarrierSearch((current) => ({ ...current, loadingMore: false }));
-      }
+      if (requestId !== resourceSearchRequestIds.current.EXTERNAL_VEHICLE) return;
+      setExternalVehicleSearch((current) => ({
+        ...current,
+        items: mergeById(current.items, result.items),
+        nextCursor: result.nextCursor,
+        loadingMore: false,
+      }));
     } catch (reason) {
-      if (requestId !== resourceSearchRequestIds.current.EXTERNAL_CARRIER) return;
-      setCarrierSearch((current) => ({ ...current, loadingMore: false }));
-      setError(reason instanceof Error ? reason.message : 'Không thể tải thêm nhà xe');
+      if (requestId !== resourceSearchRequestIds.current.EXTERNAL_VEHICLE) return;
+      setExternalVehicleSearch((current) => ({ ...current, loadingMore: false }));
+      setError(reason instanceof Error ? reason.message : 'Không thể tải thêm xe của nhà xe đã gán');
     }
-  }, [carrierSearch, fleet?.externalCarriers.nextCursor]);
+  }, [effectiveCarrier, externalVehicleSearch]);
 
   function rememberTruck(truck: DispatchTruck | undefined) {
     if (!truck) return;
@@ -436,13 +555,14 @@ export default function DispatchPage() {
     } : current);
   }
 
-  function rememberCarrier(carrier: DispatchExternalCarrier | undefined) {
-    if (!carrier) return;
-    setFleet((current) => current ? {
-      ...current,
-      externalCarriers: { ...current.externalCarriers, items: mergeById(current.externalCarriers.items, [carrier]) },
-    } : current);
-  }
+  useEffect(() => {
+    if (effectiveCarrier?.carrierType !== 'EXTERNAL' || !effectiveCarrier.externalCarrierId) {
+      setExternalVehicleSearch(emptyResourceSearch());
+      setExternalVehicleLoading(false);
+      return;
+    }
+    void searchExternalVehicles('');
+  }, [effectiveCarrier, searchExternalVehicles]);
 
   function goToNextTaskPage() {
     if (!nextTaskCursor) return;
@@ -461,28 +581,52 @@ export default function DispatchPage() {
     setMobilePane('TASKS');
   }
 
+  const plannedCarrierLabel = effectiveCarrier?.carrierName?.trim()
+    || (effectiveCarrier?.carrierType === 'OWN' ? 'Đội xe nội bộ SilverSea' : null)
+    || (selected?.cargoMode === 'LCL' ? 'Chọn nhà xe khi điều xe' : 'Chưa có nhà xe đã gán');
+  const derivedEndAt = selected?.route.serviceDurationMinutes == null
+    ? assignment.plannedEndAt
+    : computePlannedEndAt(assignment.plannedStartAt, selected.route.serviceDurationMinutes);
+  const issueBlockedReason = (() => {
+    if (!selected) return 'Chọn một tác vụ để phát hành lệnh điều xe.';
+    if (selected.accountingLock) {
+      return `Kế toán đã khóa tác vụ này${selected.accountingLock.activatedByName ? ` (${selected.accountingLock.activatedByName})` : ''}: ${selected.accountingLock.reason}`;
+    }
+    if (!effectiveCarrier) return 'Tác vụ này chưa được gán nhà xe từ hồ sơ lô hàng.';
+    if (!assignment.plannedStartAt || !derivedEndAt) return 'Nhập giờ bắt đầu và giờ kết thúc dự kiến trước khi phát hành.';
+    if (selected.route.serviceDurationMinutes == null && !assignment.endTimeConfirmed) {
+      return 'Tuyến chưa có thời lượng chuẩn; cần xác nhận giờ kết thúc đã nhập.';
+    }
+    if (effectiveCarrier.carrierType === 'OWN') {
+      if (fleetAccessDenied) return 'Tài khoản hiện tại không có quyền xem đội xe nội bộ để phát hành lệnh.';
+      if (!assignment.truckId || !assignment.driverId) return 'Chọn đủ xe và lái xe nội bộ trước khi phát hành.';
+      return null;
+    }
+    if (!effectiveCarrier.externalCarrierId) return 'Chọn nhà xe đối tác trước khi phát hành.';
+    if (selected.cargoMode === 'LCL') {
+      if (!assignment.externalPlateNumber.trim()) return 'Nhập biển số xe của nhà xe trước khi phát hành.';
+      if (!assignment.externalDriverName.trim()) return 'Nhập tên lái xe của nhà xe trước khi phát hành.';
+      return null;
+    }
+    if (externalVehicleLoading) return 'Đang tải danh sách xe của nhà xe đã gán.';
+    if (!assignment.externalVehicleId) {
+      if (activeExternalVehicles.length === 0 && !externalVehicleSearch.nextCursor) {
+        return `Nhà xe ${plannedCarrierLabel} chưa có xe khả dụng để chọn.`;
+      }
+      return 'Chọn xe của nhà xe đã gán trước khi phát hành.';
+    }
+    if (!assignment.externalDriverName.trim()) return 'Nhập tên lái xe của nhà xe trước khi phát hành.';
+    return null;
+  })();
+
   async function issue() {
     if (!selected) return;
-    const derivedEndAt = selected.route.serviceDurationMinutes == null
-      ? assignment.plannedEndAt
-      : computePlannedEndAt(assignment.plannedStartAt, selected.route.serviceDurationMinutes);
-    if (!assignment.plannedStartAt || !derivedEndAt) {
-      setError('Vui lòng nhập giờ bắt đầu và giờ kết thúc dự kiến');
+    if (!effectiveCarrier) {
+      setError('Tác vụ này chưa được gán nhà xe từ hồ sơ lô hàng.');
       return;
     }
-    if (assignment.carrierType === 'OWN' && (!assignment.truckId || !assignment.driverId)) {
-      setError('Vui lòng chọn rõ xe và lái xe');
-      return;
-    }
-    if (
-      assignment.carrierType === 'EXTERNAL'
-      && (!assignment.externalCarrierId || !assignment.externalPlateNumber || !assignment.externalDriverName)
-    ) {
-      setError('Vui lòng chọn nhà xe và nhập biển số, tên lái xe');
-      return;
-    }
-    if (selected.route.serviceDurationMinutes == null && !assignment.endTimeConfirmed) {
-      setError('Tuyến chưa có thời lượng chuẩn; cần xác nhận giờ kết thúc đã nhập');
+    if (issueBlockedReason) {
+      setError(issueBlockedReason);
       return;
     }
 
@@ -494,15 +638,18 @@ export default function DispatchPage() {
         plannedStartAt: localDateTimeToIso(assignment.plannedStartAt)!,
         plannedEndAt: localDateTimeToIso(derivedEndAt)!,
         endTimeConfirmed: selected.route.serviceDurationMinutes == null ? assignment.endTimeConfirmed : false,
-        carrierType: assignment.carrierType,
-        truckId: assignment.carrierType === 'OWN' ? Number(assignment.truckId) : null,
-        driverId: assignment.carrierType === 'OWN' ? Number(assignment.driverId) : null,
-        trailerId: assignment.carrierType === 'OWN' && assignment.trailerId ? Number(assignment.trailerId) : null,
+        carrierType: effectiveCarrier.carrierType,
+        truckId: effectiveCarrier.carrierType === 'OWN' ? Number(assignment.truckId) : null,
+        driverId: effectiveCarrier.carrierType === 'OWN' ? Number(assignment.driverId) : null,
+        trailerId: effectiveCarrier.carrierType === 'OWN' && assignment.trailerId ? Number(assignment.trailerId) : null,
         pricingRateKey: assignment.pricingRateKey || null,
-        externalCarrierId: assignment.carrierType === 'EXTERNAL' ? Number(assignment.externalCarrierId) : null,
-        externalPlateNumber: assignment.carrierType === 'EXTERNAL' ? assignment.externalPlateNumber : null,
-        externalDriverName: assignment.carrierType === 'EXTERNAL' ? assignment.externalDriverName : null,
-        externalDriverPhone: assignment.carrierType === 'EXTERNAL' ? assignment.externalDriverPhone || null : null,
+        externalCarrierId: effectiveCarrier.carrierType === 'EXTERNAL' ? effectiveCarrier.externalCarrierId : null,
+        externalCarrierVehicleId: effectiveCarrier.carrierType === 'EXTERNAL' && Number(assignment.externalVehicleId) > 0
+          ? Number(assignment.externalVehicleId)
+          : null,
+        externalPlateNumber: effectiveCarrier.carrierType === 'EXTERNAL' ? assignment.externalPlateNumber : null,
+        externalDriverName: effectiveCarrier.carrierType === 'EXTERNAL' ? assignment.externalDriverName.trim() : null,
+        externalDriverPhone: effectiveCarrier.carrierType === 'EXTERNAL' ? assignment.externalDriverPhone.trim() || null : null,
       });
       setSuccess(`Đã phát hành lệnh ${result.trip.tripCode} và gửi thông báo trong ứng dụng.`);
       await load(currentTaskCursor);
@@ -651,6 +798,44 @@ export default function DispatchPage() {
                 {truckSearch.loadingMore ? 'Đang tải…' : 'Tải thêm xe'}
               </button>
             ) : null}
+            {canManageCarrierVehicles && (
+              <div className="dispatch-assignment__carrier-context" style={{ margin: 12 }}>
+                <strong>Danh mục xe nhà xe</strong>
+                <SelectField
+                  label="Nhà xe đối tác"
+                  value={managedCarrierId}
+                  onChange={(event) => {
+                    const carrierId = event.target.value;
+                    setManagedCarrierId(carrierId);
+                    void refreshManagedVehicles(carrierId);
+                  }}
+                  disabled={managingVehicle}
+                >
+                  <option value="">— Chọn nhà xe —</option>
+                  {(fleet?.externalCarriers.items ?? []).map((carrier) => (
+                    <option key={carrier.id} value={carrier.id}>{carrier.name}</option>
+                  ))}
+                </SelectField>
+                <TextField
+                  label="Biển số xe mới"
+                  value={managedPlate}
+                  onChange={(event) => setManagedPlate(event.target.value)}
+                  disabled={managingVehicle || !managedCarrierId}
+                />
+                <button type="button" onClick={() => void addManagedVehicle()} disabled={managingVehicle || !managedCarrierId || !managedPlate.trim()}>
+                  Thêm xe
+                </button>
+                {managedVehicles.map((vehicle) => (
+                  <div key={vehicle.id} className="dispatch-fleet-row">
+                    <Truck size={18} />
+                    <div><strong>{vehicle.licensePlate}</strong><small>{vehicle.isActive ? 'Đang hoạt động' : 'Tạm ngưng'}</small></div>
+                    <button type="button" onClick={() => void toggleManagedVehicle(vehicle)} disabled={managingVehicle}>
+                      {vehicle.isActive ? 'Tạm ngưng' : 'Kích hoạt'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
 
@@ -682,6 +867,7 @@ export default function DispatchPage() {
                   {selected.unitSummary.shippingLineName && (
                     <DetailLine label="Hãng tàu" value={selected.unitSummary.shippingLineName} />
                   )}
+                  <DetailLine label="Nhà xe đã gán" value={plannedCarrierLabel} />
                   <DetailLine label="Trạng thái điều xe" value={selected.taskStatus === 'DISPATCHED' ? selected.dispatch?.tripCode || 'Đã phát hành' : 'Chưa phát hành'} />
                 </div>
                 {(selected.operationalSite.strictRules || selected.shipment.operationalNotes) && (
@@ -697,12 +883,50 @@ export default function DispatchPage() {
                   <span>Phân xe</span>
                   <h2>Phương tiện và lịch chạy</h2>
                 </div>
+                <div className="dispatch-assignment__carrier-context">
+                  <span>{selected.cargoMode === 'FCL' ? 'Nhà xe đã gán' : 'Nhà xe điều phối'}</span>
+                  <strong>{plannedCarrierLabel}</strong>
+                  {plannedCarrier?.carrierType === 'EXTERNAL' && plannedCarrier.vehiclePlate ? (
+                    <small>Xe đã gán trước đó: {plannedCarrier.vehiclePlate}</small>
+                  ) : null}
+                </div>
                 <div className="dispatch-assignment__fields">
-                  <SelectField className="dispatch-assignment__carrier-type" label="Hình thức nhà xe" value={assignment.carrierType} onChange={(event) => update('carrierType', event.target.value as AssignmentForm['carrierType'])} disabled={issuing}>
-                    <option value="OWN">Đội xe nội bộ</option>
-                    <option value="EXTERNAL">Nhà xe đối tác</option>
-                  </SelectField>
-                  {assignment.carrierType === 'OWN' ? <>
+                  {selected.cargoMode === 'LCL' ? <>
+                    <SelectField
+                      label="Loại nhà xe"
+                      value={assignment.carrierType}
+                      onChange={(event) => setAssignment((current) => ({
+                        ...current,
+                        carrierType: event.target.value as AssignmentForm['carrierType'],
+                        externalCarrierId: '',
+                        externalVehicleId: '',
+                        externalPlateNumber: '',
+                      }))}
+                      disabled={issuing}
+                    >
+                      <option value="OWN">Đội xe nội bộ SilverSea</option>
+                      <option value="EXTERNAL">Nhà xe đối tác</option>
+                    </SelectField>
+                    {assignment.carrierType === 'EXTERNAL' ? (
+                      <SelectField
+                        label="Nhà xe đối tác"
+                        value={assignment.externalCarrierId}
+                        onChange={(event) => setAssignment((current) => ({
+                          ...current,
+                          externalCarrierId: event.target.value,
+                          externalVehicleId: '',
+                          externalPlateNumber: '',
+                        }))}
+                        disabled={issuing}
+                      >
+                        <option value="">— Chọn nhà xe —</option>
+                        {(fleet?.externalCarriers.items ?? []).filter((carrier) => carrier.isActive !== false).map((carrier) => (
+                          <option key={carrier.id} value={carrier.id}>{carrier.name}</option>
+                        ))}
+                      </SelectField>
+                    ) : null}
+                  </> : null}
+                  {effectiveCarrier?.carrierType === 'OWN' ? <>
                     <div className="ds-field">
                       <label htmlFor="dispatch-truck" className="ds-field__label">Biển số xe</label>
                       <SearchableSelect
@@ -748,30 +972,48 @@ export default function DispatchPage() {
                       />
                     </div>
                     <TextField className="dispatch-assignment__full" label="Rơ-moóc" value={truckChoices.find((truck) => String(truck.currentTrailerId) === assignment.trailerId)?.currentTrailerPlate ?? ''} disabled helpText="Tự điền theo xe; hệ thống kiểm tra lại khi phát lệnh." />
-                  </> : <>
+                  </> : effectiveCarrier?.carrierType === 'EXTERNAL' ? <>
                     <div className="ds-field dispatch-assignment__full">
-                      <label htmlFor="dispatch-carrier" className="ds-field__label">Nhà xe</label>
+                      <label htmlFor="dispatch-external-vehicle" className="ds-field__label">Xe của nhà xe</label>
                       <SearchableSelect
-                        id="dispatch-carrier"
-                        value={assignment.externalCarrierId}
-                        onChange={(externalCarrierId) => {
-                          rememberCarrier(carrierChoices.find((carrier) => String(carrier.id) === externalCarrierId));
-                          update('externalCarrierId', externalCarrierId);
+                        id="dispatch-external-vehicle"
+                        value={assignment.externalVehicleId}
+                        onChange={(externalVehicleId) => {
+                          const vehicle = externalVehicleChoices.find((item) => String(item.id) === externalVehicleId);
+                          setAssignment((current) => ({
+                            ...current,
+                            externalVehicleId,
+                            externalPlateNumber: vehicle?.licensePlate ?? '',
+                          }));
                         }}
-                        options={carrierChoices.map((carrier) => ({ value: String(carrier.id), label: carrier.name }))}
-                        onSearchChange={searchCarriers}
-                        hasMore={Boolean(carrierSearch.query ? carrierSearch.nextCursor : fleet?.externalCarriers.nextCursor)}
-                        loadingMore={carrierSearch.loadingMore}
-                        onLoadMore={() => void loadMoreCarriers()}
-                        placeholder="— Chọn nhà xe —"
-                        searchPlaceholder="Tìm tên nhà xe"
-                        disabled={issuing}
+                        options={activeExternalVehicles.map((vehicle) => ({ value: String(vehicle.id), label: vehicle.licensePlate }))}
+                        onSearchChange={searchExternalVehicles}
+                        hasMore={Boolean(externalVehicleSearch.nextCursor)}
+                        loadingMore={externalVehicleSearch.loadingMore}
+                        onLoadMore={() => void loadMoreExternalVehicles()}
+                        placeholder="— Chọn xe của nhà xe —"
+                        searchPlaceholder="Tìm biển số xe của nhà xe"
+                        disabled={issuing || !effectiveCarrier.externalCarrierId}
                       />
                     </div>
-                    <TextField label="Biển số xe" value={assignment.externalPlateNumber} onChange={(event) => update('externalPlateNumber', event.target.value.toUpperCase())} disabled={issuing} />
+                    <TextField
+                      label={selected.cargoMode === 'FCL' ? 'Biển số đã chọn' : 'Biển số xe'}
+                      value={assignment.externalPlateNumber}
+                      onChange={selected.cargoMode === 'LCL' ? (event) => update('externalPlateNumber', event.target.value) : undefined}
+                      disabled={issuing || selected.cargoMode === 'FCL'}
+                    />
                     <TextField label="Tên lái xe" value={assignment.externalDriverName} onChange={(event) => update('externalDriverName', event.target.value)} disabled={issuing} />
                     <TextField className="dispatch-assignment__full" label="Số điện thoại lái xe" value={assignment.externalDriverPhone} onChange={(event) => update('externalDriverPhone', event.target.value)} disabled={issuing} />
-                  </>}
+                    {!externalVehicleLoading && activeExternalVehicles.length === 0 && !externalVehicleSearch.nextCursor ? (
+                      <p className="dispatch-assignment__hint">
+                        {selected.cargoMode === 'LCL'
+                          ? 'Nhà xe chưa có xe trong danh mục; có thể nhập biển số thủ công.'
+                          : 'Nhà xe đã gán chưa có xe hoạt động nào trong danh mục điều phối.'}
+                      </p>
+                    ) : null}
+                  </> : (
+                    <p className="dispatch-assignment__hint">Tác vụ này chưa được CUS gán nhà xe nên chưa thể phát hành lệnh điều xe.</p>
+                  )}
                 </div>
                 <div className="dispatch-assignment__schedule">
                   <SelectField label="Lớp giá cước" value={assignment.pricingRateKey} onChange={(event) => update('pricingRateKey', event.target.value)} disabled={issuing} helpText={selected.cargoMode === 'FCL' ? 'Gợi ý theo cỡ container; chỉ đổi khi hợp đồng đã quy định.' : 'Chọn đúng hạng xe theo hợp đồng trước khi phát hành lệnh.'}>
@@ -782,7 +1024,8 @@ export default function DispatchPage() {
                   <TextField label="Kết thúc dự kiến" type="datetime-local" value={assignment.plannedEndAt} onChange={(event) => update('plannedEndAt', event.target.value)} disabled={issuing || selected.route.serviceDurationMinutes != null} />
                 </div>
                 {selected.route.serviceDurationMinutes == null && <label className="dispatch-confirm"><input type="checkbox" checked={assignment.endTimeConfirmed} onChange={(event) => update('endTimeConfirmed', event.target.checked)} />Tôi xác nhận giờ kết thúc vì tuyến chưa có thời lượng chuẩn.</label>}
-                <button type="button" onClick={() => void issue()} disabled={issuing} className="dispatch-issue">
+                {issueBlockedReason ? <p className="dispatch-assignment__hint dispatch-assignment__hint--danger">{issueBlockedReason}</p> : null}
+                <button type="button" onClick={() => void issue()} disabled={issuing || issueBlockedReason != null} className="dispatch-issue">
                   <Send size={18} />{issuing ? 'Đang phát hành…' : 'Phát hành lệnh điều xe'}
                 </button>
               </div>

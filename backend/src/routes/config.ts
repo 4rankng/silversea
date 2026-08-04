@@ -1028,6 +1028,7 @@ function portalBootstrap(data: Awaited<ReturnType<typeof getBootstrapData>>) {
   return {
     ...data,
     customers: [],
+    externalCarriers: [],
     trucks: [],
     drivers: [],
     routes: [],

@@ -14,6 +14,7 @@ import type {
   GovernanceActionRow,
   GovernanceApplyResult,
 } from './governance-transition.service';
+import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 
 export type ApprovableTable = 'trip_expenses' | 'debt_offsets';
 export type ApprovalTransition = 'APPROVED' | 'REJECTED';
@@ -64,6 +65,14 @@ export async function transitionApproval(
   // the hole for both tables. See qa/2026-07-27_m12-02_session-report.md
   // defect D1 and qa/2026-07-27_m12-ht_session-report.md HT04-001.
   const table = APPROVABLE_TABLES[opts.table];
+  if (opts.table === 'trip_expenses') {
+    const [expenseReference] = await tx.select({ tripId: s.tripExpenses.tripId })
+      .from(s.tripExpenses)
+      .where(eq(s.tripExpenses.id, opts.id))
+      .limit(1);
+    if (!expenseReference) throw new ApiError(404, 'Không tìm thấy bản ghi');
+    await assertTripShipmentAccountingUnlocked(tx, expenseReference.tripId);
+  }
   const [record] = opts.table === 'debt_offsets'
     ? await tx
       .select({

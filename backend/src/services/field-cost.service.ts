@@ -9,6 +9,7 @@ import { eq } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { SnapshotServices } from './snapshot-services';
 import type { Tx } from './trip-shared';
+import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 
 /** Fields a FORWARDER is allowed to see on a field-cost response. */
 export interface FieldCostResponse {
@@ -38,6 +39,7 @@ export async function recordFieldCost(args: {
   note?: string | null;
 }): Promise<FieldCostResponse> {
   return db.transaction(async (tx) => {
+    await assertTripShipmentAccountingUnlocked(tx, args.tripId);
     const [trip] = await tx.select({
       id: s.trips.id,
       status: s.trips.status,

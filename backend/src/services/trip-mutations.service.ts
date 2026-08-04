@@ -16,6 +16,7 @@ import { createFinancialPosting, getActiveFinancialPosting } from './financial-p
 import { captureProfitabilityAttributionSnapshot } from './profitability.service';
 import { SnapshotServices } from './snapshot-services';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
+import { assertShipmentAccountingUnlocked, assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 
 /**
  * M2.3: Build the full visible pricing formula: freight + VAT.
@@ -309,6 +310,7 @@ export async function createTrip(data: {
     //    remains the dispatch endpoint's responsibility. This keeps the two
     //    flows orthogonal: trip-create LINKS, dispatch ADVANCES.
     if (data.shipmentId != null) {
+      await assertShipmentAccountingUnlocked(tx, data.shipmentId);
       await lockApplicationOwnedUniqueness(
         tx,
         'trips:live-shipment-unassigned',
@@ -329,7 +331,10 @@ export async function createTrip(data: {
         throw new ApiError(404, 'Không tìm thấy lô hàng');
       }
       const shipmentStatus = canonicalShipmentStatus(shipment.status);
-      if (shipmentStatus !== 'NEW' && shipmentStatus !== 'DISPATCHED') {
+      // Keep internal/legacy trip-link commands tolerant during the readiness
+      // cutover. Dispatch visibility and fulfillment order issuance still
+      // require READY_FOR_DISPATCH at their own authoritative boundaries.
+      if (shipmentStatus !== 'PENDING_DATE' && shipmentStatus !== 'READY_FOR_DISPATCH' && shipmentStatus !== 'DISPATCHED') {
         throw new ApiError(
           409,
           `Không thể gắn lô hàng ở trạng thái "${shipmentStatus ?? shipment.status}".`,
@@ -635,6 +640,7 @@ export async function createTrip(data: {
 
 export async function copyTrip(sourceTripId: number, createdBy: number, transaction?: Tx) {
   const execute = async (tx: Tx) => {
+    await assertTripShipmentAccountingUnlocked(tx, sourceTripId);
     const [source] = await tx.select()
       .from(s.trips)
       .where(and(eq(s.trips.id, sourceTripId), isNull(s.trips.deletedAt)))
@@ -755,6 +761,7 @@ export async function updateTripFigures(
   }));
 
   const execute = async (tx: Tx) => {
+    await assertTripShipmentAccountingUnlocked(tx, tripId);
     let governanceAuthorized = false;
     if (governanceActionId != null) {
       assertActiveApprovalApplication(tx, governanceActionId);
@@ -1300,6 +1307,7 @@ export async function updateDepartureDate(
   }
 
   const execute = async (tx: Tx) => {
+    await assertTripShipmentAccountingUnlocked(tx, tripId);
     const [trip] = await tx.select().from(s.trips).where(eq(s.trips.id, tripId)).limit(1).for('update');
     if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
     if (expectedVersion !== undefined && trip.version !== expectedVersion) {
@@ -1332,6 +1340,7 @@ export async function reassignTrip(
   transaction?: Tx,
 ) {
   const execute = async (tx: Tx) => {
+    await assertTripShipmentAccountingUnlocked(tx, tripId);
     const [trip] = await tx.select().from(s.trips).where(eq(s.trips.id, tripId)).limit(1).for('update');
     if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
     if (data.expectedVersion !== undefined && trip.version !== data.expectedVersion) {
@@ -1390,6 +1399,7 @@ export async function deleteTrip(
   transaction?: Tx,
 ): Promise<void> {
   const execute = async (tx: Tx) => {
+    await assertTripShipmentAccountingUnlocked(tx, tripId);
     const [trip] = await tx.select({ id: s.trips.id, status: s.trips.status, version: s.trips.version, deletedAt: s.trips.deletedAt })
       .from(s.trips)
       .where(eq(s.trips.id, tripId)).limit(1).for('update');

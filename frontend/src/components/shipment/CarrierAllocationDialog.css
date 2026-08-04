@@ -1,0 +1,116 @@
+.carrier-allocation-dialog {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.carrier-allocation-dialog__description {
+  margin: 0;
+  color: var(--fg-2);
+  line-height: 1.55;
+}
+
+.carrier-allocation-dialog__progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  color: var(--fg-3);
+  font-size: 13px;
+}
+
+.carrier-allocation-dialog__rows {
+  display: grid;
+  gap: 12px;
+}
+
+.carrier-allocation-dialog__row {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border-2);
+  border-radius: 12px;
+  background: var(--surface-1, #fff);
+}
+
+.carrier-allocation-dialog__row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.carrier-allocation-dialog__remove {
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--danger, #b91c1c);
+  cursor: pointer;
+}
+
+.carrier-allocation-dialog__fields {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1.5fr) repeat(2, minmax(120px, 0.65fr));
+}
+
+.carrier-allocation-dialog__field {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.carrier-allocation-dialog__add {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px dashed var(--border-2);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--brand);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.carrier-allocation-dialog__errors {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--danger, #b91c1c);
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.carrier-allocation-dialog__footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 12px;
+  background: linear-gradient(180deg, rgba(255,255,255,0), var(--surface-1, #fff) 24px);
+}
+
+.carrier-allocation-dialog.is-mobile .carrier-allocation-dialog__row {
+  padding: 16px;
+}
+
+.carrier-allocation-dialog.is-mobile .carrier-allocation-dialog__fields {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.carrier-allocation-dialog.is-mobile .carrier-allocation-dialog__footer {
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+
+@media (max-width: 1024px) {
+  .carrier-allocation-dialog__fields {
+    grid-template-columns: minmax(0, 1fr) repeat(2, minmax(110px, 0.65fr));
+  }
+}

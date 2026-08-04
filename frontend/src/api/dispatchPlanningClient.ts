@@ -26,6 +26,30 @@ export interface DispatchDriver {
 export interface DispatchExternalCarrier {
   id: number;
   name: string;
+  isActive?: boolean;
+}
+
+export interface DispatchCarrierVehicle {
+  id: number;
+  carrierId: number;
+  licensePlate: string;
+  isActive: boolean;
+}
+
+export interface DispatchAccountingLock {
+  billingDocumentId: number;
+  billingDocumentNumber?: string | null;
+  activatedAt: string;
+  activatedByName?: string | null;
+  reason: string;
+}
+
+export interface DispatchPlannedCarrier {
+  carrierType: 'OWN' | 'EXTERNAL';
+  externalCarrierId: number | null;
+  carrierName: string | null;
+  vehicleId?: number | null;
+  vehiclePlate?: string | null;
 }
 
 export interface DispatchQueueItem {
@@ -46,6 +70,8 @@ export interface DispatchQueueItem {
   pickupWarehouse: { id: number | null; name: string | null; address: string | null; googleMapsUrl: string | null; strictRules: string | null };
   shipment: { code: string | null; bookingRef: string | null; blNumber: string | null; declarationNumbers: string[]; closingAt: string | null; plannedReturnAt: string | null; customsCutoffAt: string | null; operationalNotes: string | null };
   unitSummary: { label: string; containerNumber: string | null; containerTypeLabel: string | null; shippingLineName: string | null; pickupPortName: string | null; dropoffPortName: string | null; packageType: string | null; packageCount: number | null; cargoWeightKg: string | null; cargoVolumeCbm: string | null };
+  plannedCarrier?: DispatchPlannedCarrier | null;
+  accountingLock?: DispatchAccountingLock | null;
   dispatch: { tripId: number; tripVersion: number | null; tripCode: string | null; tripStatus: string | null; plannedStartAt: string | null; plannedEndAt: string | null; carrierType: 'OWN' | 'EXTERNAL' | null; truckId: number | null; truckPlate: string | null; trailerId: number | null; trailerPlate: string | null; driverId: number | null; driverName: string | null; externalCarrierId: number | null; externalCarrierName: string | null; externalPlateNumber: string | null; externalDriverName: string | null; externalDriverPhone: string | null } | null;
 }
 
@@ -89,8 +115,20 @@ type DispatchResourceItem<R extends DispatchResource> = R extends 'TRUCK'
     ? DispatchDriver
     : DispatchExternalCarrier;
 
-export function listDispatchFleetResources<R extends DispatchResource>(resource: R, filters: { cursor?: string | null; limit?: number; q?: string } = {}) {
-  return api.get<CursorPaginatedResponse<DispatchResourceItem<R>>>(`/shipments/dispatch-fleet?${queryString({ resource, ...filters })}`);
+export type DispatchFleetResource = DispatchResource | 'EXTERNAL_VEHICLE';
+type DispatchFleetResourceItem<R extends DispatchFleetResource> = R extends 'TRUCK'
+  ? DispatchTruck
+  : R extends 'DRIVER'
+    ? DispatchDriver
+    : R extends 'EXTERNAL_CARRIER'
+      ? DispatchExternalCarrier
+      : DispatchCarrierVehicle;
+
+export function listDispatchFleetResources<R extends DispatchFleetResource>(
+  resource: R,
+  filters: { cursor?: string | null; limit?: number; q?: string; carrierId?: number | null } = {},
+) {
+  return api.get<CursorPaginatedResponse<DispatchFleetResourceItem<R>>>(`/shipments/dispatch-fleet?${queryString({ resource, ...filters })}`);
 }
 
 export async function getDispatchFleet(filters: { limit?: number } = {}): Promise<DispatchFleet> {
@@ -107,6 +145,22 @@ export function listDispatchHandoffs(filters: { cursor?: string | null; limit?: 
   return api.get<CursorPaginatedResponse<DispatchHandoffItem> & { unseenCount: number; seenCount: number }>(`/shipments/dispatch-handoffs?${queryString(filters)}`);
 }
 
+export function listCarrierFleetVehicles(carrierId: number) {
+  return api.get<{ items: DispatchCarrierVehicle[] }>(`/shipments/carrier-fleet-vehicles?carrierId=${carrierId}`);
+}
+
+export function createCarrierFleetVehicle(body: { carrierId: number; licensePlate: string }) {
+  return api.post<DispatchCarrierVehicle>('/shipments/carrier-fleet-vehicles', body, {
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
+  });
+}
+
+export function updateCarrierFleetVehicle(vehicleId: number, body: { isActive: boolean }) {
+  return api.patch<DispatchCarrierVehicle>(`/shipments/carrier-fleet-vehicles/${vehicleId}`, body, {
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
+  });
+}
+
 export function resolveDispatchHandoff(item: DispatchHandoffItem, resolution: 'SEEN' | 'ACCEPTED' | 'REJECTED') {
   return api.post<{ handoff: { id: number; status: string; version: number }; fulfillments?: DispatchQueueItem[]; replayed?: boolean }>(
     `/shipments/${item.shipmentId}/dispatch-handoffs/${item.handoffId}/resolve`,
@@ -119,7 +173,7 @@ export function issueDispatchOrder(item: DispatchQueueItem, body: {
   plannedStartAt: string; plannedEndAt: string; endTimeConfirmed: boolean;
   carrierType: 'OWN' | 'EXTERNAL'; truckId?: number | null; driverId?: number | null; trailerId?: number | null;
   pricingRateKey?: string | null;
-  externalCarrierId?: number | null; externalPlateNumber?: string | null; externalDriverName?: string | null; externalDriverPhone?: string | null;
+  externalCarrierId?: number | null; externalCarrierVehicleId?: number | null; externalPlateNumber?: string | null; externalDriverName?: string | null; externalDriverPhone?: string | null;
 }) {
   return api.post<{ fulfillmentId: number; version: number; trip: { id: number; tripCode: string; status: 'CREATED' }; notification: { deliveredInApp: true; pushAttempted: boolean }; replayed: boolean }>(
     `/shipments/${item.shipmentId}/dispatch`,

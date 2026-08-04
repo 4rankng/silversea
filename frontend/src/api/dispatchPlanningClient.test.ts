@@ -48,6 +48,24 @@ describe('dispatch planning flat cursor contracts', () => {
     });
   });
 
+  it('passes carrier filters through unchanged for assigned external vehicle searches', async () => {
+    await listDispatchFleetResources('EXTERNAL_VEHICLE', {
+      q: '51C-99887',
+      limit: 25,
+      carrierId: 91,
+    });
+
+    const [path] = getMock.mock.calls[0] as [string];
+    const query = new URLSearchParams(path.split('?')[1]);
+    expect(path.split('?')[0]).toBe('/shipments/dispatch-fleet');
+    expect(Object.fromEntries(query)).toEqual({
+      resource: 'EXTERNAL_VEHICLE',
+      q: '51C-99887',
+      limit: '25',
+      carrierId: '91',
+    });
+  });
+
   it('loads independent first pages for all three assignment resources', async () => {
     getMock
       .mockResolvedValueOnce({ items: [{ id: 1 }], total: 101, limit: 100, nextCursor: 'truck-next' })

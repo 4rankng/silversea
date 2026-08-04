@@ -707,6 +707,7 @@ export const trips = pgTable('trips', {
   externalEntityType: varchar('external_entity_type', { length: 20 }),
   externalFreightCost: numeric('external_freight_cost', { precision: 15, scale: 0 }),
   externalPlateNumber: varchar('external_plate_number', { length: 20 }),
+  externalCarrierVehicleId: integer('external_carrier_vehicle_id'),
   externalDriverName: varchar('external_driver_name', { length: 100 }),
   externalDriverPhone: varchar('external_driver_phone', { length: 20 }),
   // Wave 0: optional link to the shipment (lô hàng) this trip fulfills. Nullable
@@ -765,6 +766,7 @@ export const trips = pgTable('trips', {
   // Wave 0: look up a shipment's trips.
   index('trips_shipment_id_idx').on(table.shipmentId),
   index('trips_fulfillment_id_idx').on(table.fulfillmentId),
+  index('trips_external_carrier_vehicle_idx').on(table.externalCarrierVehicleId),
   uniqueIndex('trips_id_fulfillment_uniq_idx').on(table.id, table.fulfillmentId),
   // A fulfillment is the independently dispatchable authority. Multiple live
   // trips may belong to one shipment only when they reference distinct
@@ -2305,7 +2307,8 @@ export const schedulerRunLogs = pgTable('scheduler_run_logs', {
 // Scope of this Wave 0 schema slice: tables + FK + migration only. The
 // service, router, RBAC, and frontend are subsequent Wave 0 checkboxes.
 export const shipmentStatusEnum = applicationEnum([
-  'NEW', 'DISPATCHED', 'IN_TRANSIT', 'PENDING_EXPENSE_APPROVAL', 'COMPLETED', 'CANCELED',
+  'NEW', 'PENDING_DATE', 'READY_FOR_DISPATCH', 'DISPATCHED', 'IN_TRANSIT',
+  'PENDING_EXPENSE_APPROVAL', 'COMPLETED', 'CANCELED',
 ]);
 
 export const shipmentDocumentTypeEnum = applicationEnum([
@@ -2437,7 +2440,7 @@ export const shipments = pgTable('shipments', {
   cargoTypeId: integer('cargo_type_id'),
   responsibleUnitId: integer('responsible_unit_id')
     ,
-  status: shipmentStatusEnum('status').default('NEW'),
+  status: shipmentStatusEnum('status').default('PENDING_DATE'),
   bookingRef: varchar('booking_ref', { length: 100 }),
   blNumber: varchar('bl_number', { length: 100 }),
   tradeDirection: shipmentTradeDirectionEnum('trade_direction'),
@@ -2575,6 +2578,8 @@ export const shipmentFulfillments = pgTable('shipment_fulfillments', {
     ,
   sourceShipmentVersion: integer('source_shipment_version').notNull(),
   siteSnapshot: jsonb('site_snapshot').$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+  plannedCarrierType: varchar('planned_carrier_type', { length: 20 }),
+  plannedExternalCarrierId: integer('planned_external_carrier_id'),
   version: integer('version').notNull().default(1),
   canceledAt: timestamp('canceled_at', { withTimezone: true }),
   canceledBy: integer('canceled_by'),
@@ -2590,6 +2595,7 @@ export const shipmentFulfillments = pgTable('shipment_fulfillments', {
 }, (table) => [
   uniqueIndex('shipment_fulfillments_shipment_id_id_uniq_idx').on(table.shipmentId, table.id),
   index('shipment_fulfillments_shipment_idx').on(table.shipmentId),
+  index('shipment_fulfillments_planned_external_carrier_idx').on(table.plannedExternalCarrierId),
   uniqueIndex('shipment_fulfillments_active_container_uniq_idx')
     .on(table.shipmentContainerId)
     .where(sql`${table.shipmentContainerId} is not null and ${table.canceledAt} is null`),
@@ -2599,6 +2605,52 @@ export const shipmentFulfillments = pgTable('shipment_fulfillments', {
   uniqueIndex('shipment_fulfillments_replacement_uniq_idx')
     .on(table.replacementFulfillmentId)
     .where(sql`${table.replacementFulfillmentId} is not null`),
+]);
+
+// External partner vehicles are deliberately separate from `trucks`: the
+// latter is SilverSea's owned fleet and feeds maintenance, depreciation and
+// fixed-cost allocation. Trips retain the selected plate snapshot even when a
+// carrier later edits this catalog row.
+export const carrierFleetVehicles = pgTable('carrier_fleet_vehicles', {
+  id: serial('id').primaryKey(),
+  carrierId: integer('carrier_id').notNull(),
+  licensePlate: varchar('license_plate', { length: 20 }).notNull(),
+  normalizedPlate: varchar('normalized_plate', { length: 20 }).notNull(),
+  isActive: boolean('is_active').notNull().default(true),
+  createdBy: integer('created_by'),
+  updatedBy: integer('updated_by'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+}, (table) => [
+  uniqueIndex('carrier_fleet_vehicles_carrier_plate_uniq_idx')
+    .on(table.carrierId, table.normalizedPlate)
+    .where(sql`${table.deletedAt} is null`),
+  index('carrier_fleet_vehicles_carrier_active_idx')
+    .on(table.carrierId, table.isActive),
+]);
+
+// Accounting lock is orthogonal to ShipmentStatus. It freezes the shipment's
+// operational source graph after an issued Debit Note closes the debt cycle.
+// Corrections use financial adjustment/reversal authorities, never a seventh
+// O2C status.
+export const shipmentAccountingLocks = pgTable('shipment_accounting_locks', {
+  id: serial('id').primaryKey(),
+  shipmentId: integer('shipment_id').notNull(),
+  billingDocumentId: integer('billing_document_id').notNull(),
+  billingDocumentVersion: integer('billing_document_version').notNull(),
+  billingPeriodSnapshot: jsonb('billing_period_snapshot').$type<{
+    rangeFrom: string;
+    rangeTo: string;
+    issuedAt: string;
+  }>().notNull(),
+  shipmentVersionAtLock: integer('shipment_version_at_lock').notNull(),
+  reason: text('reason').notNull(),
+  activatedBy: integer('activated_by').notNull(),
+  activatedAt: timestamp('activated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('shipment_accounting_locks_shipment_uniq_idx').on(table.shipmentId),
+  index('shipment_accounting_locks_document_idx').on(table.billingDocumentId),
 ]);
 
 // Immutable, versioned proof-of-delivery submissions. Generic trip photos do

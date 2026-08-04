@@ -22,8 +22,8 @@
       "tanstack-query"
     ],
     "description": "TingTing Vietnamese trucking logistics platform — Silversea customer deployment. pnpm monorepo: backend (Express + Drizzle ORM + Casbin RBAC + WebSocket), frontend (React + Vite), shared (cross-package TS contracts), e2e (Playwright).",
-    "analyzedAt": "2026-08-03T13:16:25.296Z",
-    "gitCommitHash": "6b522d8bd2e7f639c4e068f59760f6dbe7f98e20"
+    "analyzedAt": "2026-08-04T08:44:26.000Z",
+    "gitCommitHash": "5281af39be8ac23f698cfcdacce8502f8bb425d5"
   },
   "nodes": [
     {

@@ -29,6 +29,7 @@ import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from './idempotency.service';
 import { storageService } from './storage.service';
 import type { Tx } from './trip-shared';
 import { isFulfillmentRequired } from './shipment-fulfillment.service';
+import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 
 const MAX_POD_IMAGE_DIMENSION = 2048;
 const PDF_MIME_TYPE = 'application/pdf';
@@ -534,7 +535,9 @@ export async function createPodSubmission(args: {
     entityType: 'trip_pod_submission',
     responseStatusCode: 201,
     create: async (tx) => {
-      const ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { forUpdate: true });
+      let ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId);
+      await assertTripShipmentAccountingUnlocked(tx, ownedTrip.tripId);
+      ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { forUpdate: true });
       if (ownedTrip.tripVersion !== args.expectedVersion) {
         throw new ApiError(409, 'Chuyến đi đã thay đổi. Vui lòng tải lại tác vụ.');
       }
@@ -608,7 +611,9 @@ export async function attachPodFile(args: {
     entityType: 'trip_pod_submission',
     responseStatusCode: 200,
     create: async (tx) => {
-      const ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { forUpdate: true });
+      let ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId);
+      await assertTripShipmentAccountingUnlocked(tx, ownedTrip.tripId);
+      ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { forUpdate: true });
       const submission = await loadSubmissionTx(tx, {
         tripId: ownedTrip.tripId,
         submissionId: args.submissionId,
@@ -722,7 +727,9 @@ export async function submitPod(args: {
     entityType: 'trip_pod_submission',
     responseStatusCode: 200,
     create: async (tx) => {
-      const ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { forUpdate: true });
+      let ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId);
+      await assertTripShipmentAccountingUnlocked(tx, ownedTrip.tripId);
+      ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { forUpdate: true });
       const submission = await loadSubmissionTx(tx, {
         tripId: ownedTrip.tripId,
         submissionId: args.submissionId,

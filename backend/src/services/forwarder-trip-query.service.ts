@@ -5,6 +5,7 @@ import { getTripInstructions } from './trip-instructions.service';
 import type { Tx } from './trip-shared';
 import { ApiError } from '../errors';
 import { listFuelEvidenceReviewsForTrip } from './fuel-evidence-review.service';
+import { getShipmentAccountingLockSummary } from './shipment-accounting-lock.service';
 
 /**
  * Derived payment/approval status for a forwarder trip row, used for row
@@ -317,9 +318,10 @@ export async function getForwarderTripDetail(tripId: number, forwarderId: number
     .where(eq(s.tripExpenses.tripId, tripId))
     .orderBy(desc(s.tripExpenses.createdAt));
 
-  const [instructions, fuelEvidenceReviews] = await Promise.all([
+  const [instructions, fuelEvidenceReviews, accountingLock] = await Promise.all([
     getTripInstructions(tripId),
     listFuelEvidenceReviewsForTrip(tripId),
+    trip.shipmentId == null ? Promise.resolve(null) : getShipmentAccountingLockSummary(trip.shipmentId),
   ]);
 
   const storedScopes = await db.select({
@@ -357,5 +359,5 @@ export async function getForwarderTripDetail(tripId: number, forwarderId: number
     total: containers.length,
   };
 
-  return { ...trip, legs, containers, expenses, completionScopes, completionProgress, instructions, fuelEvidenceReviews };
+  return { ...trip, legs, containers, expenses, completionScopes, completionProgress, instructions, fuelEvidenceReviews, accountingLock };
 }

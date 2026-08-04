@@ -6,6 +6,7 @@ import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from './idempotency.service';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
+import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type FulfillmentRow = typeof s.shipmentFulfillments.$inferSelect;
@@ -18,6 +19,8 @@ export interface ShipmentFulfillmentDto {
   shipmentContainerId: number | null;
   sourceShipmentVersion: number;
   siteSnapshot: Record<string, unknown>;
+  plannedCarrierType: 'OWN' | 'EXTERNAL' | null;
+  plannedExternalCarrierId: number | null;
   version: number;
   canceledAt: string | null;
   cancellationDisposition: 'REPLACED' | 'NOT_REQUIRED' | null;
@@ -36,6 +39,7 @@ export interface EnsureShipmentFulfillmentsInTxInput {
   shipmentId: number;
   actorId: number;
   expectedVersion?: number;
+  allowClerkIntake?: boolean;
 }
 
 function publicSiteSnapshot(snapshot: Record<string, unknown>): Record<string, unknown> {
@@ -70,6 +74,8 @@ function toDto(row: FulfillmentRow): ShipmentFulfillmentDto {
     // Safe by default: contacts and billing identity remain in the immutable
     // row and require a later role-specific order/accounting projection.
     siteSnapshot: publicSiteSnapshot(row.siteSnapshot),
+    plannedCarrierType: row.plannedCarrierType as 'OWN' | 'EXTERNAL' | null,
+    plannedExternalCarrierId: row.plannedExternalCarrierId,
     version: row.version,
     canceledAt: row.canceledAt?.toISOString() ?? null,
     cancellationDisposition: row.cancellationDisposition,
@@ -189,7 +195,9 @@ export async function ensureShipmentFulfillmentsInTx(
     throw new ApiError(400, 'expectedVersion không hợp lệ.');
   }
 
-  await assertDecompositionActor(input.actorId, tx);
+  if (!input.allowClerkIntake) {
+    await assertDecompositionActor(input.actorId, tx);
+  }
   await lockApplicationOwnedUniqueness(
     tx,
     'shipment-fulfillments:active-shipment',
@@ -200,6 +208,7 @@ export async function ensureShipmentFulfillmentsInTx(
     .for('update')
     .limit(1);
   if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng.');
+  await assertShipmentAccountingUnlocked(tx, shipment.id);
   if (input.expectedVersion != null && shipment.version !== input.expectedVersion) {
     throw new ApiError(409, 'Lô hàng đã thay đổi. Vui lòng tải lại.');
   }
@@ -305,8 +314,12 @@ export async function assertFulfillmentReadyForDispatch(
     .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
     .limit(1);
   if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng.');
-  if (shipment.status === 'COMPLETED' || shipment.status === 'CANCELED') {
-    throw new ApiError(409, 'Lô hàng đã kết thúc và không thể điều xe.');
+  const shipmentStatus = canonicalShipmentStatus(shipment.status);
+  if (shipmentStatus !== 'READY_FOR_DISPATCH' && shipmentStatus !== 'DISPATCHED') {
+    throw new ApiError(409, 'Lô hàng chưa sẵn sàng điều xe.');
+  }
+  if (!row.plannedCarrierType) {
+    throw new ApiError(409, 'Tác vụ chưa được CUS gán nhà xe.');
   }
   return row;
 }

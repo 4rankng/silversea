@@ -5,7 +5,7 @@ import { SearchableSelect, TextField, SelectField } from '../../design-system';
 import { useConfirm } from '../../components/UI';
 import { OperationalSiteDetailsDialog } from '../../components/shipment/OperationalSiteDetailsDialog';
 import { useAuth } from '../../hooks/useAuth';
-import { Role, ShipmentStatus } from '@tingting/shared';
+import { Role, SHIPMENT_STATUS_LABELS, ShipmentStatus } from '@tingting/shared';
 import { tripClient } from '../../api/tripClient';
 import {
   addShipmentDocument,
@@ -15,6 +15,7 @@ import {
   listOperationalSites,
   replaceShipmentDocument,
   reviewShipmentChangeRequest,
+  saveShipmentCarrierAllocations,
   updateShipment,
   updateShipmentDeclaration,
   saveShipmentContainers,
@@ -31,6 +32,15 @@ import {
   formatVietnamDateTimeInput,
   localDateTimeToIso,
 } from '../../lib/shipment-operations';
+import { CarrierAllocationDialog } from '../../components/shipment/CarrierAllocationDialog';
+import {
+  CarrierAllocationSummary,
+  carrierOptionKey,
+  type CarrierAllocationDemand,
+  type CarrierAllocationOption,
+  type CarrierAllocationValue,
+  validateCarrierAllocations,
+} from '../../components/shipment/CarrierAllocationSummary';
 
 interface ClerkContainerTypeOption {
   id: number;
@@ -118,6 +128,61 @@ const EMPTY_DECLARATION_FORM = {
   note: '',
 };
 
+const OWN_CARRIER_OPTION: CarrierAllocationOption = {
+  key: 'OWN',
+  label: 'Đội xe nội bộ SilverSea',
+  carrierType: 'OWN',
+  externalCarrierId: null,
+  isActive: true,
+};
+
+function inferContainerBucket(label: string | null | undefined): 20 | 40 | null {
+  const normalized = (label ?? '').toUpperCase();
+  if (normalized.includes('20')) return 20;
+  if (normalized.includes('40')) return 40;
+  return null;
+}
+
+function carrierValidationMessage(validation: ReturnType<typeof validateCarrierAllocations>): string | null {
+  return validation.isExact ? null : validation.errors[0] ?? 'Cần gán đúng số lượng nhà xe cho container 20\' và 40\'.';
+}
+
+function toCarrierAllocationPayload(rows: CarrierAllocationValue[]) {
+  return rows.map((row) => ({
+    carrierType: row.carrierType,
+    externalCarrierId: row.externalCarrierId,
+    carrierName: row.carrierLabel,
+    count20: row.count20,
+    count40: row.count40,
+  }));
+}
+
+function allocationsFromDetail(detail: ShipmentDetail): CarrierAllocationValue[] {
+  const grouped = new Map<string, CarrierAllocationValue>();
+  const containerById = new Map(detail.containers.map((container) => [container.id, container]));
+  for (const assignment of detail.carrierAssignments) {
+    if (!assignment.carrierType || assignment.shipmentContainerId == null) continue;
+    const container = containerById.get(assignment.shipmentContainerId);
+    if (!container) continue;
+    const bucket = inferContainerBucket(`${assignment.containerTypeCode ?? ''} ${assignment.containerTypeName ?? ''}`.trim());
+    if (!bucket) continue;
+    const key = carrierOptionKey(assignment.carrierType, assignment.externalCarrierId);
+    const current = grouped.get(key) ?? {
+      carrierType: assignment.carrierType,
+      externalCarrierId: assignment.externalCarrierId,
+      carrierLabel: assignment.carrierType === 'OWN'
+        ? OWN_CARRIER_OPTION.label
+        : assignment.externalCarrierName ?? 'Nhà xe chưa xác định',
+      count20: 0,
+      count40: 0,
+    };
+    if (bucket === 20) current.count20 += 1;
+    if (bucket === 40) current.count40 += 1;
+    grouped.set(key, current);
+  }
+  return [...grouped.values()];
+}
+
 function toDateTimeInput(value: string | null | undefined): string {
   return formatVietnamDateTimeInput(value);
 }
@@ -194,12 +259,16 @@ export default function ClerkShipmentDocsPage() {
   const [version, setVersion] = useState(1);
   const [businessUnitNames, setBusinessUnitNames] = useState<Map<number, string>>(new Map());
   const [rows, setRows] = useState<ContainerRow[]>([]);
+  const [carrierAllocations, setCarrierAllocations] = useState<CarrierAllocationValue[]>([]);
+  const [carrierOptions, setCarrierOptions] = useState<CarrierAllocationOption[]>([OWN_CARRIER_OPTION]);
+  const [carrierAllocationDialogOpen, setCarrierAllocationDialogOpen] = useState(false);
   const [documentForm, setDocumentForm] = useState(EMPTY_DOC_FORM);
   const [replaceDocumentTarget, setReplaceDocumentTarget] = useState<ShipmentDocument | null>(null);
   const [declarationForm, setDeclarationForm] = useState(EMPTY_DECLARATION_FORM);
 
   const [savingShipment, setSavingShipment] = useState(false);
   const [savingContainers, setSavingContainers] = useState(false);
+  const [savingCarrierAllocations, setSavingCarrierAllocations] = useState(false);
   const [savingDocument, setSavingDocument] = useState(false);
   const [savingDeclaration, setSavingDeclaration] = useState(false);
   const [reviewingRequestId, setReviewingRequestId] = useState<number | null>(null);
@@ -219,6 +288,45 @@ export default function ClerkShipmentDocsPage() {
     if (detail?.shipment.responsibleUnitId != null) ids.add(detail.shipment.responsibleUnitId);
     return [...ids];
   }, [detail?.shipment.responsibleUnitId, user?.businessUnitIds]);
+  const carrierDemand = useMemo<CarrierAllocationDemand>(() => {
+    const typeLabels = new Map(containerTypes.map((item) => [String(item.id), `${item.code} ${item.name}`.trim()]));
+    return rows.reduce<CarrierAllocationDemand>((totals, row) => {
+      const bucket = inferContainerBucket(typeLabels.get(row.containerTypeId));
+      if (bucket === 20) totals.count20 += 1;
+      if (bucket === 40) totals.count40 += 1;
+      return totals;
+    }, { count20: 0, count40: 0 });
+  }, [containerTypes, rows]);
+  const normalizedCarrierOptions = useMemo(() => {
+    if (carrierOptions.length > 1) return carrierOptions;
+    if (carrierAllocations.length === 0) return carrierOptions;
+    return [
+      OWN_CARRIER_OPTION,
+      ...carrierAllocations.map((row) => ({
+        key: carrierOptionKey(row.carrierType, row.externalCarrierId),
+        label: row.carrierLabel,
+        carrierType: row.carrierType,
+        externalCarrierId: row.externalCarrierId,
+        isActive: true,
+      })),
+    ];
+  }, [carrierAllocations, carrierOptions]);
+  const carrierAllocationValidation = useMemo(
+    () => validateCarrierAllocations(
+      carrierAllocations.map((row) => ({
+        carrierKey: carrierOptionKey(row.carrierType, row.externalCarrierId),
+        count20: row.count20,
+        count40: row.count40,
+      })),
+      carrierDemand,
+      normalizedCarrierOptions,
+    ),
+    [carrierAllocations, carrierDemand, normalizedCarrierOptions],
+  );
+  const carrierAllocationWarning = useMemo(
+    () => ((carrierDemand.count20 + carrierDemand.count40) > 0 ? carrierValidationMessage(carrierAllocationValidation) : null),
+    [carrierAllocationValidation, carrierDemand.count20, carrierDemand.count40],
+  );
 
   async function loadPageData(currentShipmentId: number) {
     const [loadedDetail, bootstrap, loadedHandoff] = await Promise.all([
@@ -231,10 +339,22 @@ export default function ClerkShipmentDocsPage() {
     setDispatchHandoff(loadedHandoff);
     setVersion(loadedDetail.shipment.version);
     setRows(loadedDetail.containers.map(toRow));
+    setCarrierAllocations(allocationsFromDetail(loadedDetail));
     setContainerTypes(bootstrap.containerTypes);
     setPortOptions((bootstrap.ports ?? []).map((port) => ({ id: port.id, label: port.name })));
     setRouteOptions(bootstrap.routes.map((route) => ({ id: route.id, label: route.name })));
     setBusinessUnitNames(new Map((bootstrap.businessUnits ?? []).map((unit) => [unit.id, unit.name])));
+    const externalCarriers = bootstrap.externalCarriers ?? [];
+    setCarrierOptions([
+      OWN_CARRIER_OPTION,
+      ...externalCarriers.map((carrier) => ({
+        key: carrierOptionKey('EXTERNAL', carrier.id),
+        label: carrier.name,
+        carrierType: 'EXTERNAL' as const,
+        externalCarrierId: carrier.id,
+        isActive: carrier.isActive,
+      })),
+    ]);
     setOperationalSites(sites);
     setShipmentForm({
       routeId: loadedDetail.shipment.routeId != null ? String(loadedDetail.shipment.routeId) : '',
@@ -344,6 +464,9 @@ export default function ClerkShipmentDocsPage() {
       }
       return { ...current, cargoMode: nextMode };
     });
+    if (nextMode !== 'FCL') {
+      setCarrierAllocations([]);
+    }
     setShipmentMsg(null);
   }
 
@@ -424,7 +547,15 @@ export default function ClerkShipmentDocsPage() {
           dropoffPortId: r.dropoffPortId ? Number(r.dropoffPortId) : null,
         })),
       });
-      setVersion(res.shipmentVersion);
+      let nextVersion = res.shipmentVersion;
+      if (shipmentForm.cargoMode === 'FCL' && (carrierDemand.count20 + carrierDemand.count40) > 0) {
+        const allocationResult = await saveShipmentCarrierAllocations(shipmentId, {
+          expectedVersion: nextVersion,
+          carrierAllocations: toCarrierAllocationPayload(carrierAllocations),
+        });
+        nextVersion = allocationResult.shipment.version;
+      }
+      setVersion(nextVersion);
       await reloadCurrentDetail();
       setContainerMsg({
         kind: 'ok',
@@ -437,6 +568,40 @@ export default function ClerkShipmentDocsPage() {
       setContainerMsg({ kind: 'err', text: msg });
     } finally {
       setSavingContainers(false);
+    }
+  }
+
+  async function handleSaveCarrierAllocations(nextAllocations: CarrierAllocationValue[]) {
+    const previousAllocations = carrierAllocations;
+    setCarrierAllocations(nextAllocations);
+    if (
+      shipmentForm.cargoMode !== 'FCL'
+      || (carrierDemand.count20 + carrierDemand.count40) === 0
+      || displayStatus !== ShipmentStatus.READY_FOR_DISPATCH
+    ) {
+      return;
+    }
+
+    setSavingCarrierAllocations(true);
+    setContainerMsg(null);
+    try {
+      const result = await saveShipmentCarrierAllocations(shipmentId, {
+        expectedVersion: version,
+        carrierAllocations: toCarrierAllocationPayload(nextAllocations),
+      });
+      setVersion(result.shipment.version);
+      await reloadCurrentDetail();
+      setContainerMsg({ kind: 'ok', text: 'Đã cập nhật gán nhà xe cho lô hàng.' });
+    } catch (err) {
+      setCarrierAllocations(previousAllocations);
+      setContainerMsg({
+        kind: 'err',
+        text: err instanceof Error && err.message.trim()
+          ? err.message
+          : 'Không thể cập nhật gán nhà xe.',
+      });
+    } finally {
+      setSavingCarrierAllocations(false);
     }
   }
 
@@ -540,6 +705,13 @@ export default function ClerkShipmentDocsPage() {
       setDispatchMsg({ kind: 'err', text: `Còn thiếu: ${readiness.missing.join(', ')}.` });
       return;
     }
+    if (shipmentForm.cargoMode === 'FCL' && (carrierDemand.count20 + carrierDemand.count40) > 0 && !carrierAllocationValidation.isExact) {
+      setDispatchMsg({
+        kind: 'err',
+        text: carrierValidationMessage(carrierAllocationValidation) ?? 'Cần gán nhà xe đầy đủ trước khi gửi sang điều phối.',
+      });
+      return;
+    }
     const ok = await confirm('Gửi lô hàng sang bảng điều phối?', {
       variant: 'primary',
       confirmLabel: 'Gửi sang điều phối',
@@ -551,7 +723,12 @@ export default function ClerkShipmentDocsPage() {
     try {
       const result = await submitShipmentForDispatch(
         shipmentId,
-        { expectedVersion: version },
+        {
+          expectedVersion: version,
+          ...(shipmentForm.cargoMode === 'FCL' && (carrierDemand.count20 + carrierDemand.count40) > 0
+            ? { carrierAllocations: toCarrierAllocationPayload(carrierAllocations) }
+            : {}),
+        },
         dispatchIdempotencyKey.current,
       );
       setDispatchHandoff(result.handoff);
@@ -594,9 +771,16 @@ export default function ClerkShipmentDocsPage() {
   if (!detail) return null;
 
   const hasSubmittedHandoff = dispatchHandoff != null && dispatchHandoff.status !== 'REJECTED';
-  const isDraft = detail.shipment.status === ShipmentStatus.NEW && !hasSubmittedHandoff;
-  const isAwaitingDispatch = detail.shipment.status === ShipmentStatus.NEW && hasSubmittedHandoff;
-  const isPostDispatch = detail.shipment.status !== ShipmentStatus.NEW;
+  const displayStatus = detail.shipment.status === ShipmentStatus.NEW
+    ? (hasSubmittedHandoff ? ShipmentStatus.READY_FOR_DISPATCH : ShipmentStatus.PENDING_DATE)
+    : detail.shipment.status;
+  const isDraft = displayStatus === ShipmentStatus.PENDING_DATE;
+  const isAwaitingDispatch = displayStatus === ShipmentStatus.READY_FOR_DISPATCH;
+  const isPostDispatch = ![ShipmentStatus.PENDING_DATE, ShipmentStatus.READY_FOR_DISPATCH].includes(displayStatus);
+  const accountingLock = detail.accountingLock ?? null;
+  const lockReason = accountingLock
+    ? `Đã khóa bởi Kế toán${accountingLock.activatedByName ? ` ${accountingLock.activatedByName}` : ''}${accountingLock.activatedAt ? ` lúc ${new Date(accountingLock.activatedAt).toLocaleString('vi-VN')}` : ''}. ${accountingLock.reason}`
+    : null;
   return (
     <div style={{ padding: 16, maxWidth: 960, margin: '0 auto', minWidth: 0 }}>
       <button
@@ -613,7 +797,7 @@ export default function ClerkShipmentDocsPage() {
       </h1>
       <p style={{ color: 'var(--fg-3)', fontSize: 14, marginBottom: 16 }}>
         Khách hàng: {detail.shipment.customerName?.trim() || 'Chưa có tên khách hàng'}
-        {' · '}Trạng thái: {isDraft ? 'Bản nháp' : isAwaitingDispatch ? 'Đã gửi điều phối' : detail.shipment.status}
+        {' · '}Trạng thái: {SHIPMENT_STATUS_LABELS[displayStatus]}
       </p>
 
       <div style={readiness.ready ? readinessOkStyle : readinessWarnStyle}>
@@ -625,6 +809,12 @@ export default function ClerkShipmentDocsPage() {
       </div>
 
       {dispatchMsg && <MsgLine msg={dispatchMsg} />}
+
+      {lockReason && (
+        <div style={{ ...readinessWarnStyle, borderColor: 'var(--danger, #b91c1c)', color: 'var(--danger, #b91c1c)' }}>
+          <AlertTriangle size={16} /> {lockReason}
+        </div>
+      )}
 
       {isAwaitingDispatch && (
         <div style={infoBannerStyle}>
@@ -894,14 +1084,34 @@ export default function ClerkShipmentDocsPage() {
             style={textareaStyle}
           />
         </label>
-        <button type="button" onClick={handleSaveShipment} disabled={savingShipment} style={primaryBtnStyle}>
+        <button type="button" onClick={handleSaveShipment} disabled={savingShipment || Boolean(accountingLock)} style={primaryBtnStyle}>
           <Save size={16} /> {savingShipment ? 'Đang lưu…' : (isPostDispatch ? 'Lưu hoặc gửi yêu cầu' : 'Lưu hồ sơ lô hàng')}
         </button>
+        {lockReason && <p style={{ ...mutedTextStyle, color: 'var(--danger, #b91c1c)' }}>{lockReason}</p>}
         {shipmentMsg && <MsgLine msg={shipmentMsg} />}
       </SectionCard>
 
       {shipmentForm.cargoMode !== 'LCL' && (
       <SectionCard title={`Công-te-nơ (${rows.length})`}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <div style={{ display: 'grid', gap: 8, minWidth: 0, flex: '1 1 320px' }}>
+            <strong style={{ fontSize: 15 }}>Gán nhà xe</strong>
+            <CarrierAllocationSummary
+              allocations={carrierAllocations}
+              demand={carrierDemand}
+              warning={carrierAllocationWarning}
+              emptyLabel="Chọn nhà xe cho từng cỡ container 20' và 40'."
+            />
+          </div>
+            <button
+              type="button"
+              onClick={() => setCarrierAllocationDialogOpen(true)}
+              disabled={savingContainers || savingCarrierAllocations || Boolean(accountingLock) || ((carrierDemand.count20 + carrierDemand.count40) === 0)}
+              style={secondaryBtnStyle}
+            >
+            Gán nhà xe
+          </button>
+        </div>
         {rows.length === 0 && (
           <p style={{ color: 'var(--fg-3)', fontSize: 14, margin: '8px 0' }}>
             Chưa có công-te-nơ. {isDraft ? 'Thêm ít nhất một trước khi điều vận.' : 'Thay đổi công-te-nơ sau điều vận sẽ tạo yêu cầu xem xét.'}
@@ -967,19 +1177,20 @@ export default function ClerkShipmentDocsPage() {
               options={portOptions.map((port) => ({ value: String(port.id), label: port.label }))}
               placeholder="Chọn cảng hạ"
             />
-            <button type="button" onClick={() => removeRow(idx)} style={dangerBtnStyle} aria-label="Xóa công-te-nơ">
+            <button type="button" onClick={() => removeRow(idx)} disabled={Boolean(accountingLock)} style={dangerBtnStyle} aria-label="Xóa công-te-nơ">
               <Trash2 size={16} /> Xóa
             </button>
           </div>
         ))}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button type="button" onClick={addRow} style={secondaryBtnStyle}>
+          <button type="button" onClick={addRow} disabled={Boolean(accountingLock)} style={secondaryBtnStyle}>
             <Plus size={16} /> Thêm công-te-nơ
           </button>
-          <button type="button" onClick={handleSaveContainers} disabled={savingContainers} style={primaryBtnStyle}>
+          <button type="button" onClick={handleSaveContainers} disabled={savingContainers || Boolean(accountingLock)} style={primaryBtnStyle}>
             <Save size={16} /> {savingContainers ? 'Đang lưu…' : (isPostDispatch ? 'Lưu hoặc gửi yêu cầu cont' : 'Lưu công-te-nơ')}
           </button>
         </div>
+        {lockReason && <p style={{ ...mutedTextStyle, color: 'var(--danger, #b91c1c)' }}>{lockReason}</p>}
         {containerMsg && <MsgLine msg={containerMsg} />}
       </SectionCard>
       )}
@@ -992,12 +1203,13 @@ export default function ClerkShipmentDocsPage() {
           <button
             type="button"
             onClick={() => { void handleSubmitForDispatch(); }}
-            disabled={dispatching || !readiness.ready}
+            disabled={dispatching || !readiness.ready || Boolean(accountingLock)}
             style={{ ...primaryBtnStyle, background: 'var(--accent, #2563eb)' }}
           >
             {dispatching ? <Loader2 size={16} className="spin" /> : <Send size={16} />}
             {dispatching ? 'Đang gửi…' : 'Gửi sang điều phối'}
           </button>
+          {lockReason && <p style={{ ...mutedTextStyle, color: 'var(--danger, #b91c1c)' }}>{lockReason}</p>}
         </SectionCard>
       )}
 
@@ -1015,6 +1227,7 @@ export default function ClerkShipmentDocsPage() {
                 <button
                   type="button"
                   style={secondaryBtnStyle}
+                  disabled={Boolean(accountingLock)}
                   onClick={() => setDeclarationForm({
                     id: declaration.id,
                     declarationNumber: declaration.declarationNumber ?? '',
@@ -1033,20 +1246,20 @@ export default function ClerkShipmentDocsPage() {
           label="Số tờ khai"
           value={declarationForm.declarationNumber}
           onChange={(event) => setDeclarationForm((current) => ({ ...current, declarationNumber: event.target.value }))}
-          disabled={savingDeclaration}
+          disabled={savingDeclaration || Boolean(accountingLock)}
         />
         <TextField
           label="Ngày giờ phát hành"
           type="datetime-local"
           value={declarationForm.issuedAt}
           onChange={(event) => setDeclarationForm((current) => ({ ...current, issuedAt: event.target.value }))}
-          disabled={savingDeclaration}
+          disabled={savingDeclaration || Boolean(accountingLock)}
         />
         <SelectField
           label="Phạm vi tờ khai"
           value={declarationForm.scope}
           onChange={(event) => setDeclarationForm((current) => ({ ...current, scope: (event.target as HTMLSelectElement).value as 'SINGLE' | 'SHARED' }))}
-          disabled={savingDeclaration}
+          disabled={savingDeclaration || Boolean(accountingLock)}
         >
           <option value="SINGLE">Riêng lẻ</option>
           <option value="SHARED">Dùng chung</option>
@@ -1057,20 +1270,21 @@ export default function ClerkShipmentDocsPage() {
             value={declarationForm.note}
             onChange={(event) => setDeclarationForm((current) => ({ ...current, note: event.target.value }))}
             rows={3}
-            disabled={savingDeclaration}
+            disabled={savingDeclaration || Boolean(accountingLock)}
             style={textareaStyle}
           />
         </label>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button type="button" onClick={handleSaveDeclaration} disabled={savingDeclaration} style={primaryBtnStyle}>
+          <button type="button" onClick={handleSaveDeclaration} disabled={savingDeclaration || Boolean(accountingLock)} style={primaryBtnStyle}>
             <Save size={16} /> {savingDeclaration ? 'Đang lưu…' : (declarationForm.id != null ? 'Cập nhật tờ khai' : 'Thêm tờ khai')}
           </button>
           {declarationForm.id != null && (
-            <button type="button" onClick={() => setDeclarationForm(EMPTY_DECLARATION_FORM)} style={secondaryBtnStyle}>
+            <button type="button" onClick={() => setDeclarationForm(EMPTY_DECLARATION_FORM)} disabled={Boolean(accountingLock)} style={secondaryBtnStyle}>
               Hủy sửa
             </button>
           )}
         </div>
+        {lockReason && <p style={{ ...mutedTextStyle, color: 'var(--danger, #b91c1c)' }}>{lockReason}</p>}
         {declarationMsg && <MsgLine msg={declarationMsg} />}
       </SectionCard>
 
@@ -1086,6 +1300,7 @@ export default function ClerkShipmentDocsPage() {
                 <button
                   type="button"
                   style={secondaryBtnStyle}
+                  disabled={Boolean(accountingLock)}
                   onClick={() => {
                     setReplaceDocumentTarget(document);
                     setDocumentForm({
@@ -1106,7 +1321,7 @@ export default function ClerkShipmentDocsPage() {
             label="Loại tài liệu"
             value={documentForm.type}
             onChange={(event) => setDocumentForm((current) => ({ ...current, type: (event.target as HTMLSelectElement).value as typeof EMPTY_DOC_FORM.type }))}
-            disabled={savingDocument}
+            disabled={savingDocument || Boolean(accountingLock)}
           >
             <option value="BOOKING">BOOKING</option>
             <option value="BL">BL</option>
@@ -1121,17 +1336,17 @@ export default function ClerkShipmentDocsPage() {
             : 'Đường dẫn lưu trữ tài liệu'}
           value={documentForm.storageKey}
           onChange={(event) => setDocumentForm((current) => ({ ...current, storageKey: event.target.value }))}
-          disabled={savingDocument}
+          disabled={savingDocument || Boolean(accountingLock)}
         />
         <TextField
           label="Ngày hết hạn (nếu có)"
           type="date"
           value={documentForm.expiresAt}
           onChange={(event) => setDocumentForm((current) => ({ ...current, expiresAt: event.target.value }))}
-          disabled={savingDocument}
+          disabled={savingDocument || Boolean(accountingLock)}
         />
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button type="button" onClick={handleSaveDocument} disabled={savingDocument} style={primaryBtnStyle}>
+          <button type="button" onClick={handleSaveDocument} disabled={savingDocument || Boolean(accountingLock)} style={primaryBtnStyle}>
             <Save size={16} /> {savingDocument ? 'Đang lưu…' : (replaceDocumentTarget ? 'Thay thế tài liệu' : 'Thêm tài liệu')}
           </button>
           {replaceDocumentTarget && (
@@ -1141,12 +1356,14 @@ export default function ClerkShipmentDocsPage() {
                 setReplaceDocumentTarget(null);
                 setDocumentForm(EMPTY_DOC_FORM);
               }}
+              disabled={Boolean(accountingLock)}
               style={secondaryBtnStyle}
             >
               Hủy thay thế
             </button>
           )}
         </div>
+        {lockReason && <p style={{ ...mutedTextStyle, color: 'var(--danger, #b91c1c)' }}>{lockReason}</p>}
         {documentMsg && <MsgLine msg={documentMsg} />}
       </SectionCard>
 
@@ -1193,6 +1410,16 @@ export default function ClerkShipmentDocsPage() {
       </SectionCard>
 
       {dialog}
+      <CarrierAllocationDialog
+        isOpen={carrierAllocationDialogOpen}
+        title="Gán nhà xe"
+        description="Phân bổ đúng số lượng container 20' và 40' theo từng nhà xe trước khi lưu."
+        carrierOptions={normalizedCarrierOptions}
+        demand={carrierDemand}
+        value={carrierAllocations}
+        onClose={() => setCarrierAllocationDialogOpen(false)}
+        onSave={(rows) => { void handleSaveCarrierAllocations(rows); }}
+      />
       <OperationalSiteDetailsDialog site={detailSite} isOpen={Boolean(detailSite)} onClose={() => setDetailSite(null)} />
     </div>
   );

@@ -12,6 +12,7 @@ import { assertActorCanAccessShipment } from './shipment-coordination.service';
 import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
 import { transitionShipmentStatus } from './shipment.service';
 import { createTrip } from './trip-mutations.service';
+import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type DispatchActor = AuthUser & { role: Role.ADMIN | Role.MANAGER | Role.DISPATCHER };
@@ -38,7 +39,8 @@ export interface ListDispatchQueueInput {
 
 export interface ListDispatchFleetInput {
   actor: AuthUser;
-  resource: 'TRUCK' | 'DRIVER' | 'EXTERNAL_CARRIER';
+  resource: 'TRUCK' | 'DRIVER' | 'EXTERNAL_CARRIER' | 'EXTERNAL_VEHICLE';
+  carrierId?: number;
   cursor?: string | null;
   limit?: number;
   q?: string;
@@ -66,6 +68,7 @@ export interface IssueFulfillmentDispatchOrderInput {
   containerTypeId?: number | null;
   pricingRateKey?: string | null;
   externalCarrierId?: number | null;
+  externalCarrierVehicleId?: number | null;
   externalPlateNumber?: string | null;
   externalDriverName?: string | null;
   externalDriverPhone?: string | null;
@@ -504,6 +507,7 @@ export async function listDispatchHandoffs(input: ListDispatchHandoffsInput) {
       .leftJoin(s.routes, eq(s.shipments.routeId, s.routes.id))
       .where(and(
         inArray(s.dispatchHandoffs.status, statuses),
+        eq(s.shipments.status, 'READY_FOR_DISPATCH'),
         accountantCustomerIds ? inArray(s.shipments.customerId, accountantCustomerIds) : undefined,
         cursor ? lt(s.dispatchHandoffs.id, cursor) : undefined,
         input.urgency ? eq(s.dispatchHandoffs.priority, input.urgency) : undefined,
@@ -545,6 +549,7 @@ export async function listDispatchHandoffs(input: ListDispatchHandoffsInput) {
       .innerJoin(s.shipments, eq(s.dispatchHandoffs.shipmentId, s.shipments.id))
       .innerJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
       .where(and(
+        eq(s.shipments.status, 'READY_FOR_DISPATCH'),
         accountantCustomerIds ? inArray(s.shipments.customerId, accountantCustomerIds) : undefined,
         input.urgency ? eq(s.dispatchHandoffs.priority, input.urgency) : undefined,
         date ? eq(sql`date(${s.dispatchHandoffs.vehicleNeededBy})`, date) : undefined,
@@ -643,6 +648,8 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
       fulfillmentId: s.shipmentFulfillments.id,
       fulfillmentVersion: s.shipmentFulfillments.version,
       fulfillmentType: s.shipmentFulfillments.fulfillmentType,
+      plannedCarrierType: s.shipmentFulfillments.plannedCarrierType,
+      plannedExternalCarrierId: s.shipmentFulfillments.plannedExternalCarrierId,
       cargoMode: s.shipmentFulfillments.cargoMode,
       shipmentContainerId: s.shipmentFulfillments.shipmentContainerId,
       siteSnapshot: s.shipmentFulfillments.siteSnapshot,
@@ -706,10 +713,12 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
       ))
       .where(and(
         isNull(s.shipmentFulfillments.canceledAt),
+        isNotNull(s.dispatchHandoffs.id),
+        inArray(s.shipments.status, ['READY_FOR_DISPATCH', 'DISPATCHED']),
         accountantCustomerIds ? inArray(s.shipments.customerId, accountantCustomerIds) : undefined,
         cursor ? lt(s.shipmentFulfillments.id, cursor) : undefined,
         input.urgency ? eq(s.dispatchHandoffs.priority, input.urgency) : undefined,
-        date ? eq(sql`date(coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}, ${s.shipments.customsCutoffAt}))`, date) : undefined,
+        date ? eq(sql`date(coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}))`, date) : undefined,
         qPattern ? or(
           ilike(s.customers.name, qPattern),
           ilike(s.shipments.shipmentCode, qPattern),
@@ -731,7 +740,7 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
     const truckIds = rows.map((row) => row.truckId).filter((id): id is number => id != null);
     const driverIds = rows.map((row) => row.driverId).filter((id): id is number => id != null);
     const trailerIds = rows.map((row) => row.trailerId).filter((id): id is number => id != null);
-    const carrierIds = rows.map((row) => row.externalEntityId).filter((id): id is number => id != null);
+    const carrierIds = rows.flatMap((row) => [row.externalEntityId, row.plannedExternalCarrierId]).filter((id): id is number => id != null);
     const portIds = rows.flatMap((row) => [row.pickupPortId, row.dropoffPortId]).filter((id): id is number => id != null);
     const [trucks, drivers, trailers, carriers, ports] = await Promise.all([
       truckIds.length === 0 ? [] : tx.select({ id: s.trucks.id, licensePlate: s.trucks.licensePlate }).from(s.trucks).where(inArray(s.trucks.id, [...new Set(truckIds)])),
@@ -764,9 +773,11 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
       ))
       .where(and(
         isNull(s.shipmentFulfillments.canceledAt),
+        isNotNull(s.dispatchHandoffs.id),
+        inArray(s.shipments.status, ['READY_FOR_DISPATCH', 'DISPATCHED']),
         accountantCustomerIds ? inArray(s.shipments.customerId, accountantCustomerIds) : undefined,
         input.urgency ? eq(s.dispatchHandoffs.priority, input.urgency) : undefined,
-        date ? eq(sql`date(coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}, ${s.shipments.customsCutoffAt}))`, date) : undefined,
+        date ? eq(sql`date(coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}))`, date) : undefined,
         qPattern ? or(
           ilike(s.customers.name, qPattern),
           ilike(s.shipments.shipmentCode, qPattern),
@@ -827,6 +838,15 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
             packageCount: row.packageCount,
             cargoWeightKg: row.cargoWeightKg,
             cargoVolumeCbm: row.cargoVolumeCbm,
+          },
+          plannedCarrier: row.plannedCarrierType == null ? null : {
+            carrierType: row.plannedCarrierType,
+            externalCarrierId: row.plannedExternalCarrierId,
+            carrierName: row.plannedCarrierType === 'OWN'
+              ? 'SilverSea'
+              : row.plannedExternalCarrierId
+                ? carriersById.get(row.plannedExternalCarrierId)?.name ?? null
+                : null,
           },
           dispatch: row.tripId ? {
             tripId: row.tripId,
@@ -995,6 +1015,60 @@ export async function listDispatchFleet(input: ListDispatchFleetInput) {
       };
     }
 
+    if (input.resource === 'EXTERNAL_VEHICLE') {
+      if (!Number.isInteger(input.carrierId) || (input.carrierId ?? 0) < 1) {
+        throw new ApiError(400, 'carrierId là bắt buộc khi tải xe của nhà xe.');
+      }
+      const carrierId = input.carrierId as number;
+      const [carrier] = await tx.select({ id: s.customers.id })
+        .from(s.customers)
+        .where(and(
+          eq(s.customers.id, carrierId),
+          eq(s.customers.isCarrier, true),
+          eq(s.customers.status, 'ACTIVE'),
+          isNull(s.customers.deletedAt),
+        ))
+        .limit(1);
+      if (!carrier) throw new ApiError(404, 'Không tìm thấy nhà xe hoạt động.');
+      const vehicleWhere = and(
+        eq(s.carrierFleetVehicles.carrierId, carrierId),
+        eq(s.carrierFleetVehicles.isActive, true),
+        isNull(s.carrierFleetVehicles.deletedAt),
+        qPattern ? unaccentedIlike(s.carrierFleetVehicles.licensePlate, qPattern) : undefined,
+        cursor ? or(
+          gt(s.carrierFleetVehicles.licensePlate, cursor.sortKey),
+          and(eq(s.carrierFleetVehicles.licensePlate, cursor.sortKey), gt(s.carrierFleetVehicles.id, cursor.id)),
+        ) : undefined,
+      );
+      const vehicleCountWhere = and(
+        eq(s.carrierFleetVehicles.carrierId, carrierId),
+        eq(s.carrierFleetVehicles.isActive, true),
+        isNull(s.carrierFleetVehicles.deletedAt),
+        qPattern ? unaccentedIlike(s.carrierFleetVehicles.licensePlate, qPattern) : undefined,
+      );
+      const [totals, rows] = await Promise.all([
+        tx.select({ value: count() }).from(s.carrierFleetVehicles).where(vehicleCountWhere),
+        tx.select({
+          id: s.carrierFleetVehicles.id,
+          carrierId: s.carrierFleetVehicles.carrierId,
+          licensePlate: s.carrierFleetVehicles.licensePlate,
+          isActive: s.carrierFleetVehicles.isActive,
+        }).from(s.carrierFleetVehicles)
+          .where(vehicleWhere)
+          .orderBy(asc(s.carrierFleetVehicles.licensePlate), asc(s.carrierFleetVehicles.id))
+          .limit(limit + 1),
+      ]);
+      const pageRows = rows.slice(0, limit);
+      return {
+        items: pageRows,
+        total: Number(totals[0]?.value ?? 0),
+        limit,
+        nextCursor: rows.length > limit
+          ? encodeFleetCursor('EXTERNAL_VEHICLE', pageRows.at(-1)!.licensePlate, pageRows.at(-1)!.id)
+          : null,
+      };
+    }
+
     const externalCarrierWhere = and(
       eq(s.customers.isCarrier, true),
       isNull(s.customers.deletedAt),
@@ -1036,6 +1110,7 @@ export async function acceptDispatchHandoff(input: AcceptDispatchHandoffInput) {
   assertDispatchActor(input.actor);
   const outcome = await db.transaction(async (tx) => {
     await assertActorCanAccessShipment(tx, input.shipmentId, input.actor, { write: true });
+    await assertShipmentAccountingUnlocked(tx, input.shipmentId);
     const handoff = await resolveHandoff(
       input.handoffId,
       'ACCEPTED',
@@ -1047,6 +1122,9 @@ export async function acceptDispatchHandoff(input: AcceptDispatchHandoffInput) {
       shipmentId: input.shipmentId,
       actorId: input.actor.userId,
     });
+    if (fulfillments.some((row) => row.cargoMode === 'FCL' && row.plannedCarrierType == null)) {
+      throw new ApiError(409, 'CUS chưa gán đủ nhà xe cho các container.');
+    }
     return { handoff, fulfillments };
   });
   return {
@@ -1194,13 +1272,15 @@ async function issueOrderCreateOrUpdate(
   input: IssueFulfillmentDispatchOrderInput,
 ): Promise<IssueOrderMutationResult> {
   await assertActorCanAccessShipment(tx, input.shipmentId, input.actor, { write: true });
+  await assertShipmentAccountingUnlocked(tx, input.shipmentId);
   const [shipment] = await tx.select().from(s.shipments)
     .where(and(eq(s.shipments.id, input.shipmentId), isNull(s.shipments.deletedAt)))
     .limit(1)
     .for('update');
   if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng.');
-  if (shipment.status === 'CANCELED' || shipment.status === 'COMPLETED') {
-    throw new ApiError(409, 'Lô hàng đã kết thúc và không thể điều xe.');
+  const shipmentStatus = canonicalShipmentStatus(shipment.status);
+  if (shipmentStatus !== 'READY_FOR_DISPATCH' && shipmentStatus !== 'DISPATCHED') {
+    throw new ApiError(409, 'Lô hàng chưa sẵn sàng điều xe hoặc đã kết thúc.');
   }
   const [route] = shipment.routeId == null
     ? []
@@ -1219,6 +1299,15 @@ async function issueOrderCreateOrUpdate(
   if (fulfillment.canceledAt) throw new ApiError(409, 'Tác vụ đã bị hủy.');
   if (fulfillment.version !== input.expectedVersion) {
     throw new ApiError(409, 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.');
+  }
+  const requiresPlannedCarrier = fulfillment.cargoMode === 'FCL';
+  if (requiresPlannedCarrier) {
+    if (fulfillment.plannedCarrierType !== 'OWN' && fulfillment.plannedCarrierType !== 'EXTERNAL') {
+      throw new ApiError(409, 'CUS chưa gán nhà xe cho tác vụ này.');
+    }
+    if (input.carrierType !== fulfillment.plannedCarrierType) {
+      throw new ApiError(409, 'Không thể đổi nhà xe đã được CUS gán tại bước điều xe.');
+    }
   }
 
   const plannedStartAt = parseIsoWithZone(input.plannedStartAt, 'Giờ chạy');
@@ -1242,6 +1331,7 @@ async function issueOrderCreateOrUpdate(
   let externalPlateNumber: string | null = null;
   let externalDriverName: string | null = null;
   let externalDriverPhone: string | null = null;
+  let externalCarrierVehicleId: number | null = null;
   let containerTypeId: number | null = input.containerTypeId ?? null;
   let driverUserId: number | null = null;
   let cargoWeightKg: string | null = shipment.cargoWeightKg ?? null;
@@ -1335,17 +1425,39 @@ async function issueOrderCreateOrUpdate(
     trailerId = trailer.id;
     driverId = driver.id;
   } else {
-    externalCarrierId = input.externalCarrierId ?? null;
-    if (externalCarrierId == null) throw new ApiError(400, 'Điều xe ngoài phải chọn nhà xe.');
+    externalCarrierId = requiresPlannedCarrier
+      ? fulfillment.plannedExternalCarrierId
+      : (input.externalCarrierId ?? null);
+    if (externalCarrierId == null) throw new ApiError(409, 'Tác vụ chưa có nhà xe ngoài hợp lệ.');
     const [carrier] = await tx.select({
       id: s.customers.id,
       isCarrier: s.customers.isCarrier,
+      status: s.customers.status,
       deletedAt: s.customers.deletedAt,
     }).from(s.customers).where(eq(s.customers.id, externalCarrierId)).limit(1);
-    if (!carrier || carrier.deletedAt || !carrier.isCarrier) {
+    if (!carrier || carrier.deletedAt || carrier.status !== 'ACTIVE' || !carrier.isCarrier) {
       throw new ApiError(409, 'Nhà xe ngoài không còn hiệu lực.');
     }
-    externalPlateNumber = trimBounded(input.externalPlateNumber, 'Biển số ngoài', 20);
+    externalCarrierVehicleId = input.externalCarrierVehicleId ?? null;
+    if (requiresPlannedCarrier && externalCarrierVehicleId == null) {
+      throw new ApiError(400, 'Vui lòng chọn xe của nhà xe.');
+    }
+    const [carrierVehicle] = externalCarrierVehicleId == null
+      ? []
+      : await tx.select().from(s.carrierFleetVehicles)
+        .where(and(
+          eq(s.carrierFleetVehicles.id, externalCarrierVehicleId),
+          eq(s.carrierFleetVehicles.carrierId, externalCarrierId),
+          eq(s.carrierFleetVehicles.isActive, true),
+          isNull(s.carrierFleetVehicles.deletedAt),
+        ))
+        .limit(1)
+        .for('update');
+    if (externalCarrierVehicleId != null && !carrierVehicle) {
+      throw new ApiError(409, 'Xe không thuộc nhà xe đã gán hoặc không còn hoạt động.');
+    }
+    externalPlateNumber = carrierVehicle?.licensePlate
+      ?? trimBounded(input.externalPlateNumber, 'Biển số xe ngoài', 20);
     externalDriverName = trimBounded(input.externalDriverName, 'Tên tài xế ngoài', 100);
     externalDriverPhone = trimBounded(input.externalDriverPhone, 'Số điện thoại tài xế ngoài', 20);
     if (!externalPlateNumber || !externalDriverName) {
@@ -1425,6 +1537,7 @@ async function issueOrderCreateOrUpdate(
       externalPlateNumber,
       externalDriverName,
       externalDriverPhone,
+      externalCarrierVehicleId,
       cargoWeightKg,
       vehicleCapacityKg,
       version: sql`${s.trips.version} + 1`,
@@ -1472,6 +1585,7 @@ async function issueOrderCreateOrUpdate(
       externalPlateNumber,
       externalDriverName,
       externalDriverPhone,
+      externalCarrierVehicleId,
       sourceShipmentVersion: shipment.version,
       cargoWeightKg,
       vehicleCapacityKg,
@@ -1528,7 +1642,7 @@ async function issueOrderCreateOrUpdate(
     updatedAt: new Date(),
   }).where(eq(s.shipmentFulfillments.id, fulfillment.id)).returning();
 
-  if (canonicalShipmentStatus(shipment.status) === 'NEW') {
+  if (canonicalShipmentStatus(shipment.status) === 'READY_FOR_DISPATCH') {
     await transitionShipmentStatus(
       shipment.id,
       'DISPATCHED',
@@ -1567,6 +1681,7 @@ export async function issueFulfillmentDispatchOrder(input: IssueFulfillmentDispa
       containerTypeId: input.containerTypeId ?? null,
       pricingRateKey: input.pricingRateKey ?? null,
       externalCarrierId: input.externalCarrierId ?? null,
+      externalCarrierVehicleId: input.externalCarrierVehicleId ?? null,
       externalPlateNumber: input.externalPlateNumber ?? null,
       externalDriverName: input.externalDriverName ?? null,
       externalDriverPhone: input.externalDriverPhone ?? null,

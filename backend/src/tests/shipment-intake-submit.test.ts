@@ -1,6 +1,6 @@
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { and, eq, inArray } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 
 import { client, db } from '../db';
@@ -9,6 +9,7 @@ import { ApiError } from '../errors';
 import { disconnectRedis } from '../lib/redis';
 import type { AuthUser } from '../middleware/auth';
 import {
+  assignShipmentCarriers,
   listOperationalSitesForIntake,
   submitShipmentForDispatch,
 } from '../services/shipment-intake.service';
@@ -73,8 +74,8 @@ async function references() {
   }).returning();
   siteIds.push(site.id, warehouse.id);
   const [containerType] = await db.insert(s.containerTypes).values({
-    code: `T${containerTypeIds.length}${suffix.slice(-6)}`.slice(0, 20),
-    name: `Container type ${suffix}-${containerTypeIds.length}`,
+    code: `20GP${containerTypeIds.length}${suffix.slice(-6)}`.slice(0, 20),
+    name: `Container 20 feet ${suffix}-${containerTypeIds.length}`,
   }).returning();
   containerTypeIds.push(containerType.id);
   return { customer, route, ports, site, warehouse, containerType };
@@ -97,6 +98,55 @@ describe('shipment intake submission', () => {
     assert.equal('googleMapsUrl' in factory, false);
   });
 
+  test('reassigns exact per-container carriers while ready and before any order is issued', async () => {
+    const admin = await actor(Role.ADMIN);
+    const ref = await references();
+    const [carrier] = await db.insert(s.customers).values({
+      name: `Carrier ${suffix}-${customerIds.length}`,
+      isCarrier: true,
+      status: 'ACTIVE',
+    }).returning();
+    customerIds.push(carrier.id);
+    const [shipment] = await db.insert(s.shipments).values({
+      customerId: ref.customer.id,
+      routeId: ref.route.id,
+      cargoMode: 'FCL',
+      shipmentCode: `INTAKE-ASSIGN-${suffix}`,
+      status: 'READY_FOR_DISPATCH',
+      closingAt: new Date('2026-08-05T08:00:00.000Z'),
+      createdBy: admin.userId,
+    }).returning();
+    shipmentIds.push(shipment.id);
+    await db.insert(s.shipmentContainers).values({
+      shipmentId: shipment.id,
+      containerTypeId: ref.containerType.id,
+      containerNumber: 'MSCU6639872',
+      createdBy: admin.userId,
+    });
+
+    const owned = await assignShipmentCarriers({
+      shipmentId: shipment.id,
+      expectedVersion: shipment.version,
+      actor: admin,
+      carrierAllocations: [{ carrierType: 'OWN', count20: 1, count40: 0 }],
+    });
+    assert.equal(owned.assignments[0]?.plannedCarrierType, 'OWN');
+
+    const external = await assignShipmentCarriers({
+      shipmentId: shipment.id,
+      expectedVersion: owned.shipment.version,
+      actor: admin,
+      carrierAllocations: [{
+        carrierType: 'EXTERNAL',
+        externalCarrierId: carrier.id,
+        count20: 1,
+        count40: 0,
+      }],
+    });
+    assert.equal(external.assignments[0]?.plannedCarrierType, 'EXTERNAL');
+    assert.equal(external.assignments[0]?.plannedExternalCarrierId, carrier.id);
+  });
+
   test('atomically moves a complete FCL draft to the dispatch queue and replays once', async () => {
     const admin = await actor(Role.ADMIN);
     const ref = await references();
@@ -107,6 +157,8 @@ describe('shipment intake submission', () => {
       bookingRef: `BOOK-${suffix}`,
       operationalSiteId: ref.site.id,
       shipmentCode: `INTAKE-FCL-${suffix}`,
+      status: 'READY_FOR_DISPATCH',
+      closingAt: new Date('2026-08-05T08:00:00.000Z'),
       createdBy: admin.userId,
     }).returning();
     shipmentIds.push(shipment.id);
@@ -127,6 +179,7 @@ describe('shipment intake submission', () => {
       idempotencyKey: key,
       actor: admin,
       priority: 'URGENT' as const,
+      carrierAllocations: [{ carrierType: 'OWN' as const, count20: 1, count40: 0 }],
     };
 
     const [left, right] = await Promise.all([
@@ -134,7 +187,7 @@ describe('shipment intake submission', () => {
       submitShipmentForDispatch(command),
     ]);
     assert.deepEqual([left.replayed, right.replayed].sort(), [false, true]);
-    assert.equal(left.result.shipment.status, 'NEW');
+    assert.equal(left.result.shipment.status, 'READY_FOR_DISPATCH');
     assert.equal(left.result.handoff.status, 'UNSEEN');
     assert.equal(left.result.handoff.handoffVersion, shipment.version + 1);
     const handoffs = await db.select().from(s.dispatchHandoffs)
@@ -167,7 +220,7 @@ describe('shipment intake submission', () => {
       (error: unknown) => error instanceof ApiError && error.statusCode === 409,
     );
     const [unchanged] = await db.select().from(s.shipments).where(eq(s.shipments.id, shipment.id));
-    assert.equal(unchanged.status, 'NEW');
+    assert.equal(unchanged.status, 'PENDING_DATE');
     assert.equal(unchanged.version, shipment.version);
     const handoffs = await db.select().from(s.dispatchHandoffs)
       .where(eq(s.dispatchHandoffs.shipmentId, shipment.id));
@@ -190,6 +243,8 @@ describe('shipment intake submission', () => {
       cargoVolumeCbm: '8.5',
       expectedDeliveryDate: '2026-08-03',
       shipmentCode: `INTAKE-LCL-POSITIVE-${suffix}`,
+      status: 'READY_FOR_DISPATCH',
+      closingAt: new Date('2026-08-05T08:00:00.000Z'),
       createdBy: admin.userId,
     }).returning();
     shipmentIds.push(shipment.id);
@@ -201,7 +256,7 @@ describe('shipment intake submission', () => {
       idempotencyKey: key,
       actor: admin,
     });
-    assert.equal(result.result.shipment.status, 'NEW');
+    assert.equal(result.result.shipment.status, 'READY_FOR_DISPATCH');
     const handoffs = await db.select().from(s.dispatchHandoffs)
       .where(eq(s.dispatchHandoffs.shipmentId, shipment.id));
     assert.equal(handoffs.length, 1);
@@ -244,14 +299,19 @@ describe('shipment intake submission', () => {
       );
     }
     const [unchanged] = await db.select().from(s.shipments).where(eq(s.shipments.id, shipment.id));
-    assert.equal(unchanged.status, 'NEW');
+    assert.equal(unchanged.status, 'PENDING_DATE');
   });
 });
 
 after(async () => {
   try {
     if (idempotencyKeys.length) await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.idempotencyKey, idempotencyKeys));
-    if (shipmentIds.length) await db.delete(s.shipments).where(inArray(s.shipments.id, shipmentIds));
+    if (shipmentIds.length) {
+      await db.delete(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.shipmentId, shipmentIds));
+      await db.delete(s.dispatchHandoffs).where(inArray(s.dispatchHandoffs.shipmentId, shipmentIds));
+      await db.delete(s.shipmentContainers).where(inArray(s.shipmentContainers.shipmentId, shipmentIds));
+      await db.delete(s.shipments).where(inArray(s.shipments.id, shipmentIds));
+    }
     if (siteIds.length) await db.delete(s.operationalSites).where(inArray(s.operationalSites.id, siteIds));
     if (containerTypeIds.length) await db.delete(s.containerTypes).where(inArray(s.containerTypes.id, containerTypeIds));
     if (portIds.length) await db.delete(s.ports).where(inArray(s.ports.id, portIds));

@@ -21,6 +21,10 @@ vi.mock('../api/dispatchPlanningClient', () => ({
   issueDispatchOrder: mocks.issue,
 }));
 
+vi.mock('../hooks/useAuth', () => ({
+  useAuth: () => ({ user: { role: 'DISPATCHER' } }),
+}));
+
 import DispatchPage from './DispatchPage';
 import type { DispatchHandoffItem, DispatchQueueItem } from '../api/dispatchPlanningClient';
 
@@ -107,6 +111,14 @@ function makeBaseTask(): DispatchQueueItem {
       cargoWeightKg: '12000',
       cargoVolumeCbm: null,
     },
+    plannedCarrier: {
+      carrierType: 'OWN',
+      externalCarrierId: null,
+      carrierName: 'Đội xe nội bộ SilverSea',
+      vehicleId: null,
+      vehiclePlate: null,
+    },
+    accountingLock: null,
     dispatch: {
       tripId: 100,
       tripVersion: 1,
@@ -382,8 +394,8 @@ describe('DispatchPage fulfillment workbench', () => {
     expect(screen.queryByRole('button', { name: 'Tải thêm xe' })).toBeNull();
   });
 
-  it('uses independent server searches for drivers and external carriers', async () => {
-    render(<DispatchPage />);
+  it('uses independent server searches for drivers and inherited external vehicles', async () => {
+    const ownRender = render(<DispatchPage />);
     await screen.findByRole('tab', { name: 'Đội xe (1)' });
 
     fireEvent.click(fieldTriggerFor('Lái xe'));
@@ -395,16 +407,64 @@ describe('DispatchPage fulfillment workbench', () => {
       limit: 25,
     }));
 
-    fireEvent.click(fieldTriggerFor('Lái xe'));
-    await choose('Hình thức nhà xe', 'Nhà xe đối tác');
-    fireEvent.click(fieldTriggerFor('Nhà xe'));
-    fireEvent.change(screen.getByRole('combobox', { name: 'Tìm tên nhà xe' }), {
+    ownRender.unmount();
+    mocks.fleetResource.mockReset();
+    mocks.queue.mockResolvedValue({
+      items: [makeTask({
+        plannedCarrier: {
+          carrierType: 'EXTERNAL',
+          externalCarrierId: 81,
+          carrierName: 'Nhà xe A',
+          vehicleId: null,
+          vehiclePlate: null,
+        },
+        dispatch: null,
+      })],
+      limit: 50, nextCursor: null, total: 1, readyCount: 1, dispatchedCount: 0,
+    });
+    mocks.fleetResource
+      .mockResolvedValueOnce({
+        items: [{ id: 910, carrierId: 81, licensePlate: '51H-99887', isActive: true }],
+        total: 1,
+        limit: 25,
+        nextCursor: null,
+      })
+      .mockResolvedValueOnce({
+        items: [{ id: 912, carrierId: 81, licensePlate: '51H-77665', isActive: true }],
+        total: 2,
+        limit: 25,
+        nextCursor: null,
+      });
+
+    render(<DispatchPage />);
+    await screen.findByRole('tab', { name: 'Đội xe (1)' });
+
+    expect(screen.getAllByText('Nhà xe đã gán').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Nhà xe A').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('Hình thức nhà xe')).toBeNull();
+    expect(screen.queryByText('Nhà xe đối tác')).toBeNull();
+
+    fireEvent.click(fieldTriggerFor('Xe của nhà xe'));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Tìm biển số xe của nhà xe' }), {
       target: { value: 'Đối tác ngoài trang' },
     });
-    await waitFor(() => expect(mocks.fleetResource).toHaveBeenCalledWith('EXTERNAL_CARRIER', {
+    await waitFor(() => expect(mocks.fleetResource).toHaveBeenCalledWith('EXTERNAL_VEHICLE', {
+      carrierId: 81,
       q: 'Đối tác ngoài trang',
       limit: 25,
     }));
+  });
+
+  it('blocks issue when the task has not been assigned a carrier yet', async () => {
+    mocks.queue.mockResolvedValue({
+      items: [makeTask({ plannedCarrier: null, dispatch: null })],
+      limit: 50, nextCursor: null, total: 1, readyCount: 1, dispatchedCount: 0,
+    });
+
+    render(<DispatchPage />);
+
+    expect(await screen.findByText(/chưa được CUS gán nhà xe/i)).toBeTruthy();
+    expect((screen.getByRole('button', { name: /Phát hành lệnh điều xe/ }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('auto-derives planned end time from route duration and submits without explicit confirmation', async () => {

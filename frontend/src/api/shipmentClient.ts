@@ -10,6 +10,7 @@ import {
   ShipmentStatus,
   TripPodFileType,
   TripPodStatus,
+  type ShipmentAccountingLockSummary,
 } from '@tingting/shared';
 import { api } from '../lib/api';
 
@@ -31,6 +32,16 @@ export interface ShipmentPricingProjection {
   estimationDate: string | null;
   breakdown: ShipmentPricingBreakdownLine[];
 }
+
+export interface ShipmentCarrierAllocationGroup {
+  carrierType: 'OWN' | 'EXTERNAL';
+  externalCarrierId: number | null;
+  carrierName?: string | null;
+  count20: number;
+  count40: number;
+}
+
+export type ShipmentAccountingLock = ShipmentAccountingLockSummary;
 
 /** Row shape returned by `/api/shipments/quick` and `/api/shipments/:id`. */
 export interface Shipment {
@@ -67,6 +78,8 @@ export interface Shipment {
   createdAt: string;
   updatedAt: string;
   pricingProjection?: ShipmentPricingProjection | null;
+  carrierAllocationSummary?: ShipmentCarrierAllocationGroup[] | null;
+  accountingLock?: ShipmentAccountingLock | null;
 }
 
 export interface ShipmentDispatchHandoff {
@@ -154,12 +167,18 @@ export interface ShipmentContainer {
   id: number;
   shipmentId: number;
   containerTypeId: number | null;
+  containerTypeCode?: string | null;
+  containerTypeName?: string | null;
   containerNumber: string | null;
   sealNumber: string | null;
   cargoWeightKg: string | null;
   shippingLineName?: string | null;
   pickupPortId?: number | null;
   dropoffPortId?: number | null;
+  plannedCarrierType?: 'OWN' | 'EXTERNAL' | null;
+  plannedExternalCarrierId?: number | null;
+  plannedCarrierName?: string | null;
+  plannedVehiclePlate?: string | null;
   notes: string | null;
 }
 
@@ -189,6 +208,17 @@ export interface ShipmentDetail {
   statusHistory: ShipmentStatusHistoryEntry[];
   pendingChangeRequests: ShipmentChangeRequest[];
   podReviews: ShipmentPodReviewItem[];
+  carrierAssignments: Array<{
+    fulfillmentId: number;
+    fulfillmentVersion: number;
+    shipmentContainerId: number | null;
+    containerTypeCode: string | null;
+    containerTypeName: string | null;
+    carrierType: 'OWN' | 'EXTERNAL' | null;
+    externalCarrierId: number | null;
+    externalCarrierName: string | null;
+  }>;
+  accountingLock: ShipmentAccountingLock | null;
 }
 
 export interface ShipmentPodReviewFile {
@@ -276,6 +306,7 @@ export interface UpdateShipmentRequest {
 /** Body for `PUT /api/shipments/:id/containers` (full reconcile). */
 export interface ShipmentContainerBatch {
   expectedVersion: number;
+  carrierAllocations?: ShipmentCarrierAllocationGroup[];
   containers: Array<{
     id?: number;
     containerTypeId?: number | null;
@@ -298,6 +329,19 @@ export interface ShipmentContainerBatchResponse {
   changeRequestId: number | null;
   message?: string;
   notificationDelivered?: boolean;
+}
+
+export interface ShipmentCarrierAllocationAssignment {
+  fulfillmentId: number;
+  shipmentContainerId: number | null;
+  plannedCarrierType: 'OWN' | 'EXTERNAL' | null;
+  plannedExternalCarrierId: number | null;
+  version: number;
+}
+
+export interface ShipmentCarrierAllocationResponse {
+  shipment: Shipment;
+  assignments: ShipmentCarrierAllocationAssignment[];
 }
 
 export interface ShipmentUpdateResponse extends Shipment {
@@ -488,6 +532,27 @@ export async function saveShipmentContainers(
   return api.put<ShipmentContainerBatchResponse>(`/shipments/${id}/containers`, body);
 }
 
+export async function saveShipmentCarrierAllocations(
+  id: number,
+  body: { expectedVersion: number; carrierAllocations: ShipmentCarrierAllocationGroup[] },
+): Promise<ShipmentCarrierAllocationResponse> {
+  return api.post<ShipmentCarrierAllocationResponse>(`/shipments/${id}/carrier-allocations`, body, {
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
+  });
+}
+
+export async function activateShipmentAccountingLock(
+  id: number,
+  body: { expectedVersion: number; billingDocumentId: number; reason: string },
+) {
+  const idempotencyKey = crypto.randomUUID();
+  return api.post<{ lock: ShipmentAccountingLock; replayed: boolean }>(
+    `/shipments/${id}/accounting-lock`,
+    { ...body, idempotencyKey },
+    { headers: { 'Idempotency-Key': idempotencyKey } },
+  );
+}
+
 export async function listOperationalSites(customerId: number): Promise<OperationalSite[]> {
   const response = await api.get<{ items: OperationalSite[] }>(
     `/shipments/operational-sites?customerId=${encodeURIComponent(customerId)}`,
@@ -497,7 +562,12 @@ export async function listOperationalSites(customerId: number): Promise<Operatio
 
 export async function submitShipmentForDispatch(
   id: number,
-  body: { expectedVersion: number; priority?: 'NORMAL' | 'URGENT'; operationalNote?: string | null },
+  body: {
+    expectedVersion: number;
+    priority?: 'NORMAL' | 'URGENT';
+    operationalNote?: string | null;
+    carrierAllocations?: ShipmentCarrierAllocationGroup[];
+  },
   idempotencyKey: string,
 ) {
   return api.post<{ shipment: Shipment; handoff: ShipmentDispatchHandoff; replayed: boolean }>(

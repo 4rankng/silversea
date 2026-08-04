@@ -6,6 +6,7 @@ import {
   TripPodFileType,
   TripPodStatus,
   type TripStatus,
+  type ShipmentAccountingLockSummary,
   type VehicleAlert,
 } from '@tingting/shared';
 import { fileCommandFingerprint } from '../lib/api';
@@ -152,6 +153,7 @@ export interface DriverTaskDetail {
   paperOrderCollectedAt?: string | null;
   paperOrderCollectedBy?: number | null;
   paperOrderCollectedByName?: string | null;
+  accountingLock: ShipmentAccountingLockSummary | null;
   instructions?: {
     contactName: string | null;
     contactPhone: string | null;

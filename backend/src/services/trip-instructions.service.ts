@@ -8,6 +8,7 @@ import { eq, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 import type { Tx } from './trip-shared';
+import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 
 export interface UpsertTripInstructionsInput {
   expectedVersion?: number;
@@ -58,6 +59,7 @@ export async function upsertTripInstructions(
   transaction?: Tx,
 ): Promise<TripInstructionRow> {
   const execute = async (tx: Tx) => {
+    await assertTripShipmentAccountingUnlocked(tx, tripId);
     const [trip] = await tx.select({
       id: s.trips.id,
       version: s.trips.version,

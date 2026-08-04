@@ -44,7 +44,10 @@ async function mkCustomer() {
 }
 
 async function mkShipment(customerId: number) {
-  const shipment = await createShipment({ customerId });
+  const shipment = await createShipment({
+    customerId,
+    closingAt: '2026-08-04T08:00:00.000Z',
+  });
   createdShipmentIds.push(shipment.id);
   return shipment;
 }

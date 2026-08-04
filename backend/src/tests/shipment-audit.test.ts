@@ -36,8 +36,6 @@ import { Role, ShipmentStatus, ShipmentDocumentType } from '@tingting/shared';
 import { config } from '../config';
 import { initEnforcer } from '../casbin/enforcer';
 import { initAuditService } from '../services/audit.service';
-import { createHandoff } from '../services/dispatch-handoff.service';
-
 import shipmentRoutes from '../routes/shipments';
 import { authMiddleware } from '../middleware/auth';
 import { casbinAuthz } from '../middleware/casbin';
@@ -104,7 +102,7 @@ async function mkCatalogs() {
   const [cargoType] = await db.insert(s.cargoTypes)
     .values({ name: `ShipmentAudit cargo ${suffix}` }).returning();
   createdCargoTypeIds.push(cargoType.id);
-  const shortCode = `SA${Math.random().toString(16).slice(2, 8)}`;
+  const shortCode = `40HC${Math.random().toString(16).slice(2, 8)}`;
   const [containerType] = await db.insert(s.containerTypes)
     .values({ code: shortCode, name: `ShipmentAudit ct ${suffix}` }).returning();
   createdContainerTypeIds.push(containerType.id);
@@ -297,14 +295,20 @@ async function createOwnedResources() {
 }
 
 async function createAcceptedFulfillment() {
-  const shipment = await mkShipmentViaService({ routeId, cargoMode: 'FCL', cargoTypeId });
+  const shipment = await mkShipmentViaService({
+    routeId,
+    cargoMode: 'FCL',
+    cargoTypeId,
+    closingAt: '2026-08-04T08:00:00.000Z',
+  });
   const { batchUpsertShipmentContainers } = await import('../services/shipment.service');
   await batchUpsertShipmentContainers(shipment.id, null, [
     { containerTypeId, containerNumber: 'MSKU1234565' },
   ]);
-  const handoff = await createHandoff({
+  const { assignShipmentCarriers } = await import('../services/shipment-intake.service');
+  await assignShipmentCarriers({
     shipmentId: shipment.id,
-    createdBy: adminUserId,
+    expectedVersion: shipment.version + 1,
     actor: {
       userId: adminUserId,
       username: `sa-admin-${suffix}`,
@@ -312,7 +316,11 @@ async function createAcceptedFulfillment() {
       fullName: null,
       role: Role.ADMIN,
     },
+    carrierAllocations: [{ carrierType: 'OWN', count20: 0, count40: 1 }],
   });
+  const { getActiveHandoffForShipment } = await import('../services/dispatch-handoff.service');
+  const handoff = await getActiveHandoffForShipment(shipment.id);
+  assert.ok(handoff);
   const accepted = await testFetch(`/${shipment.id}/dispatch-handoffs/${handoff.id}/resolve`, {
     method: 'POST',
     token: managerToken,
@@ -403,7 +411,7 @@ describe('Audit-log every shipment write', () => {
   });
 
   test('POST /:id/transition → SHIPMENT_STATUS_CHANGED', async () => {
-    const shipment = await mkShipmentViaService();
+    const shipment = await mkShipmentViaService({ closingAt: '2026-08-04T08:00:00.000Z' });
     const r = await testFetch(`/${shipment.id}/transition`, {
       method: 'POST', token: adminToken,
       body: { status: ShipmentStatus.DISPATCHED, reason: 'audit test' },

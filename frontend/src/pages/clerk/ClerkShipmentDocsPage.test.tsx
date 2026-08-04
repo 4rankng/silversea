@@ -23,6 +23,7 @@ const {
   listOperationalSitesMock,
   replaceDocumentMock,
   reviewChangeRequestMock,
+  saveCarrierAllocationsMock,
   saveContainersMock,
   updateDeclarationMock,
   updateShipmentMock,
@@ -38,6 +39,7 @@ const {
   listOperationalSitesMock: vi.fn(),
   replaceDocumentMock: vi.fn(),
   reviewChangeRequestMock: vi.fn(),
+  saveCarrierAllocationsMock: vi.fn(),
   saveContainersMock: vi.fn(),
   updateDeclarationMock: vi.fn(),
   updateShipmentMock: vi.fn(),
@@ -52,6 +54,7 @@ vi.mock('../../api/shipmentClient', () => ({
   listOperationalSites: listOperationalSitesMock,
   replaceShipmentDocument: replaceDocumentMock,
   reviewShipmentChangeRequest: reviewChangeRequestMock,
+  saveShipmentCarrierAllocations: saveCarrierAllocationsMock,
   saveShipmentContainers: saveContainersMock,
   updateShipment: updateShipmentMock,
   updateShipmentDeclaration: updateDeclarationMock,
@@ -64,6 +67,7 @@ vi.mock('../../api/tripClient', () => ({
 vi.mock('../../components/UI', () => ({
   useConfirm: () => ({ confirm: confirmMock, dialog: null }),
   Modal: ({ isOpen, children }: { isOpen: boolean; children: React.ReactNode }) => isOpen ? <div role="dialog">{children}</div> : null,
+  Drawer: ({ isOpen, children }: { isOpen: boolean; children: React.ReactNode }) => isOpen ? <div className="drawer">{children}</div> : null,
 }));
 
 vi.mock('../../hooks/useAuth', () => ({
@@ -99,6 +103,8 @@ function makeDetail(overrides: Omit<Partial<ShipmentDetail>, 'shipment'> & {
     statusHistory: overrides.statusHistory ?? detail.statusHistory,
     pendingChangeRequests: overrides.pendingChangeRequests ?? detail.pendingChangeRequests,
     podReviews: overrides.podReviews ?? detail.podReviews,
+    carrierAssignments: overrides.carrierAssignments ?? detail.carrierAssignments,
+    accountingLock: overrides.accountingLock ?? detail.accountingLock,
   };
 }
 
@@ -131,6 +137,8 @@ function baseDetail(): ShipmentDetail {
     statusHistory: [],
     pendingChangeRequests: [] as ShipmentChangeRequest[],
     podReviews: [],
+    carrierAssignments: [],
+    accountingLock: null,
   };
 }
 
@@ -165,6 +173,7 @@ describe('ClerkShipmentDocsPage', () => {
     listOperationalSitesMock.mockReset();
     replaceDocumentMock.mockReset();
     reviewChangeRequestMock.mockReset();
+    saveCarrierAllocationsMock.mockReset();
     saveContainersMock.mockReset();
     updateDeclarationMock.mockReset();
     updateShipmentMock.mockReset();
@@ -183,6 +192,10 @@ describe('ClerkShipmentDocsPage', () => {
     getDetailMock.mockResolvedValue(makeDetail());
     getDispatchHandoffMock.mockResolvedValue(null);
     listOperationalSitesMock.mockResolvedValue([]);
+    saveCarrierAllocationsMock.mockResolvedValue({
+      shipment: { ...makeDetail().shipment, version: 4 },
+      assignments: [],
+    });
   });
 
   it('shows the readiness warning when BL and containers are missing', async () => {
@@ -352,7 +365,7 @@ describe('ClerkShipmentDocsPage', () => {
 
     renderAt();
 
-    expect(await screen.findByText(/Trạng thái: Đã gửi điều phối/)).toBeTruthy();
+    expect(await screen.findByText(/Trạng thái: Sẵn sàng điều xe/)).toBeTruthy();
     expect(screen.getByText('Lô hàng đang chờ Điều vận tiếp nhận. Bạn vẫn có thể bổ sung thông tin và chứng từ trong thời gian chờ.')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Gửi sang điều phối' })).toBeNull();
   });
@@ -366,7 +379,7 @@ describe('ClerkShipmentDocsPage', () => {
 
     renderAt();
 
-    expect(await screen.findByText(/Trạng thái: Bản nháp/)).toBeTruthy();
+    expect(await screen.findByText(/Trạng thái: Chờ ngày đóng\/trả hàng/)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Gửi sang điều phối' })).toBeTruthy();
   });
 
@@ -390,6 +403,16 @@ describe('ClerkShipmentDocsPage', () => {
           dropoffPortId: 1,
           notes: null,
         }],
+        carrierAssignments: [{
+          fulfillmentId: 501,
+          fulfillmentVersion: 1,
+          shipmentContainerId: 100,
+          containerTypeCode: '20DC',
+          containerTypeName: "20'DC",
+          carrierType: 'OWN',
+          externalCarrierId: null,
+          externalCarrierName: null,
+        }],
       }))
       .mockRejectedValueOnce(new Error('refresh failed'));
     listOperationalSitesMock.mockResolvedValue([{ id: 81, name: 'Nhà máy A', siteType: 'FACTORY' }]);
@@ -403,8 +426,50 @@ describe('ClerkShipmentDocsPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Gửi sang điều phối' }));
 
     expect(await screen.findByText(/Đã gửi lô hàng sang bảng điều phối\. Dữ liệu mới nhất/)).toBeTruthy();
-    expect(screen.getByText(/Trạng thái: Đã gửi điều phối/)).toBeTruthy();
+    expect(screen.getByText(/Trạng thái: Sẵn sàng điều xe/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Gửi sang điều phối' })).toBeNull();
+  });
+
+  it('uses the dedicated carrier-allocation endpoint while awaiting dispatch', async () => {
+    getDetailMock.mockResolvedValue(makeDetail({
+      shipment: { status: ShipmentStatus.NEW },
+      containers: [{
+        id: 100,
+        shipmentId: 42,
+        containerTypeId: 1,
+        containerNumber: 'MSKU1234565',
+        sealNumber: null,
+        cargoWeightKg: null,
+        shippingLineName: 'Maersk',
+        pickupPortId: 1,
+        dropoffPortId: 1,
+        notes: null,
+      }],
+    }));
+    getDispatchHandoffMock.mockResolvedValue({
+      id: 401,
+      shipmentId: 42,
+      status: 'SEEN',
+    });
+
+    renderAt();
+    fireEvent.click(await screen.findByRole('button', { name: 'Gán nhà xe' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Nhà xe' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Đội xe nội bộ SilverSea' }));
+    fireEvent.change(screen.getByLabelText("20'"), { target: { value: '1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu phân bổ' }));
+
+    await waitFor(() => expect(saveCarrierAllocationsMock).toHaveBeenCalledWith(42, {
+      expectedVersion: 3,
+      carrierAllocations: [{
+        carrierType: 'OWN',
+        externalCarrierId: null,
+        carrierName: 'Đội xe nội bộ SilverSea',
+        count20: 1,
+        count40: 0,
+      }],
+    }));
+    expect(saveContainersMock).not.toHaveBeenCalled();
   });
 
   it('sends expectedVersion for container saves and reuses the refreshed version on the next shipment save', async () => {

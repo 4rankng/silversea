@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { canonicalShipmentStatus, Role } from '@tingting/shared';
 
 import { db } from '../db';
@@ -8,6 +8,8 @@ import type { AuthUser } from '../middleware/auth';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from './idempotency.service';
 import { assertActorCanAccessShipment } from './shipment-coordination.service';
 import { loadClerkShipmentScope } from './clerk-shipment-scope.service';
+import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
+import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -19,6 +21,132 @@ export interface SubmitShipmentForDispatchInput {
   priority?: 'NORMAL' | 'URGENT';
   vehicleNeededBy?: Date | null;
   operationalNote?: string | null;
+  carrierAllocations?: Array<{
+    carrierType: 'OWN' | 'EXTERNAL';
+    externalCarrierId?: number | null;
+    count20: number;
+    count40: number;
+  }>;
+}
+
+export interface AssignShipmentCarriersCommand {
+  shipmentId: number;
+  expectedVersion: number;
+  actor: AuthUser;
+  carrierAllocations: NonNullable<SubmitShipmentForDispatchInput['carrierAllocations']>;
+  transaction?: Tx;
+}
+
+function containerSizeBucket(code: string, name: string): 20 | 40 | null {
+  const normalized = `${code} ${name}`.trim().toUpperCase();
+  if (/^20(?:\D|$)/.test(normalized)) return 20;
+  if (/^40(?:\D|$)/.test(normalized)) return 40;
+  return null;
+}
+
+async function persistCarrierAllocations(
+  tx: Tx,
+  shipment: typeof s.shipments.$inferSelect,
+  actorId: number,
+  allocations: NonNullable<SubmitShipmentForDispatchInput['carrierAllocations']>,
+) {
+  const fulfillmentRows = await ensureShipmentFulfillmentsInTx(tx, {
+    shipmentId: shipment.id,
+    actorId,
+    allowClerkIntake: true,
+  });
+  if (shipment.cargoMode === 'LCL') {
+    if (allocations.length > 0) {
+      throw new ApiError(409, 'Gán nhà xe theo số lượng 20/40 chỉ áp dụng cho lô FCL.');
+    }
+    return fulfillmentRows;
+  }
+
+  const duplicateKeys = allocations.map((row) => row.carrierType === 'OWN'
+    ? 'OWN'
+    : `EXTERNAL:${row.externalCarrierId ?? ''}`);
+  if (new Set(duplicateKeys).size !== duplicateKeys.length) {
+    throw new ApiError(409, 'Mỗi nhà xe chỉ được xuất hiện một lần.');
+  }
+  const externalCarrierIds = allocations
+    .filter((row) => row.carrierType === 'EXTERNAL')
+    .map((row) => row.externalCarrierId)
+    .filter((id): id is number => id != null);
+  if (externalCarrierIds.length > 0) {
+    const activeCarriers = await tx.select({ id: s.customers.id }).from(s.customers)
+      .where(and(
+        inArray(s.customers.id, externalCarrierIds),
+        eq(s.customers.isCarrier, true),
+        eq(s.customers.status, 'ACTIVE'),
+        isNull(s.customers.deletedAt),
+      ));
+    if (new Set(activeCarriers.map((row) => row.id)).size !== new Set(externalCarrierIds).size) {
+      throw new ApiError(409, 'Nhà xe không còn hoạt động hoặc không hợp lệ.');
+    }
+  }
+
+  const containerRows = await tx.select({
+    id: s.shipmentContainers.id,
+    typeCode: s.containerTypes.code,
+    typeName: s.containerTypes.name,
+  }).from(s.shipmentContainers)
+    .innerJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
+    .where(and(
+      eq(s.shipmentContainers.shipmentId, shipment.id),
+      isNull(s.containerTypes.deletedAt),
+    ))
+    .orderBy(asc(s.shipmentContainers.id));
+  const bucket20: number[] = [];
+  const bucket40: number[] = [];
+  for (const container of containerRows) {
+    const bucket = containerSizeBucket(container.typeCode, container.typeName);
+    if (bucket === 20) bucket20.push(container.id);
+    else if (bucket === 40) bucket40.push(container.id);
+    else throw new ApiError(409, `Loại container ${container.typeName} chưa được hỗ trợ gán nhà xe 20/40.`);
+  }
+  const total20 = allocations.reduce((sum, row) => sum + row.count20, 0);
+  const total40 = allocations.reduce((sum, row) => sum + row.count40, 0);
+  if (total20 !== bucket20.length || total40 !== bucket40.length) {
+    throw new ApiError(
+      409,
+      `Phân bổ nhà xe chưa khớp: 20' ${total20}/${bucket20.length}, 40' ${total40}/${bucket40.length}.`,
+    );
+  }
+
+  const assignmentByContainer = new Map<number, { carrierType: 'OWN' | 'EXTERNAL'; externalCarrierId: number | null }>();
+  let index20 = 0;
+  let index40 = 0;
+  for (const allocation of allocations) {
+    if (allocation.count20 < 0 || allocation.count40 < 0 || !Number.isInteger(allocation.count20) || !Number.isInteger(allocation.count40)) {
+      throw new ApiError(400, 'Số lượng container phân bổ phải là số nguyên không âm.');
+    }
+    const carrier = {
+      carrierType: allocation.carrierType,
+      externalCarrierId: allocation.carrierType === 'EXTERNAL' ? allocation.externalCarrierId ?? null : null,
+    };
+    for (let count = 0; count < allocation.count20; count += 1) {
+      assignmentByContainer.set(bucket20[index20++]!, carrier);
+    }
+    for (let count = 0; count < allocation.count40; count += 1) {
+      assignmentByContainer.set(bucket40[index40++]!, carrier);
+    }
+  }
+  if (assignmentByContainer.size !== containerRows.length) {
+    throw new ApiError(409, 'Mỗi container phải được gán đúng một nhà xe.');
+  }
+
+  for (const fulfillment of fulfillmentRows) {
+    if (fulfillment.shipmentContainerId == null) continue;
+    const assignment = assignmentByContainer.get(fulfillment.shipmentContainerId);
+    if (!assignment) throw new ApiError(409, 'Không tìm thấy phân bổ nhà xe cho container.');
+    await tx.update(s.shipmentFulfillments).set({
+      plannedCarrierType: assignment.carrierType,
+      plannedExternalCarrierId: assignment.externalCarrierId,
+      version: sql`${s.shipmentFulfillments.version} + 1`,
+      updatedAt: new Date(),
+    }).where(eq(s.shipmentFulfillments.id, fulfillment.id));
+  }
+  return fulfillmentRows;
 }
 
 type SubmitShipmentForDispatchResult = {
@@ -187,6 +315,7 @@ export async function submitShipmentForDispatch(input: SubmitShipmentForDispatch
       priority: input.priority ?? 'NORMAL',
       vehicleNeededBy: input.vehicleNeededBy?.toISOString() ?? null,
       operationalNote: input.operationalNote?.trim() || null,
+      carrierAllocations: input.carrierAllocations ?? [],
     },
     createdBy: input.actor.userId,
     entityType: 'shipment',
@@ -198,13 +327,21 @@ export async function submitShipmentForDispatch(input: SubmitShipmentForDispatch
         .where(and(eq(s.shipments.id, input.shipmentId), isNull(s.shipments.deletedAt)))
         .for('update').limit(1);
       if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng.');
+      await assertShipmentAccountingUnlocked(tx, shipment.id);
       if (shipment.version !== input.expectedVersion) {
         throw new ApiError(409, 'Lô hàng đã thay đổi. Vui lòng tải lại.');
       }
-      if (canonicalShipmentStatus(shipment.status) !== 'NEW') {
-        throw new ApiError(409, 'Chỉ lô hàng ở trạng thái Mới tạo mới được gửi sang điều phối.');
+      if (canonicalShipmentStatus(shipment.status) !== 'READY_FOR_DISPATCH') {
+        throw new ApiError(409, 'Cần nhập ngày đóng hoặc trả hàng trước khi gửi điều phối.');
       }
       await assertIntakeReady(tx, shipment);
+
+      await persistCarrierAllocations(
+        tx,
+        shipment,
+        input.actor.userId,
+        input.carrierAllocations ?? [],
+      );
 
       const nextVersion = shipment.version + 1;
       const now = new Date();
@@ -215,21 +352,101 @@ export async function submitShipmentForDispatch(input: SubmitShipmentForDispatch
       }).where(and(
         eq(s.shipments.id, shipment.id),
         eq(s.shipments.version, shipment.version),
-        eq(s.shipments.status, 'NEW'),
+        eq(s.shipments.status, shipment.status ?? 'READY_FOR_DISPATCH'),
       )).returning();
       if (!updatedShipment) throw new ApiError(409, 'Lô hàng đã được gửi bởi người khác.');
-      const [handoff] = await tx.insert(s.dispatchHandoffs).values({
-        shipmentId: shipment.id,
-        handlerId: null,
-        priority: input.priority ?? 'NORMAL',
-        vehicleNeededBy: input.vehicleNeededBy ?? null,
-        operationalNote: input.operationalNote?.trim() || null,
-        status: 'UNSEEN',
-        handoffVersion: nextVersion,
-        createdBy: input.actor.userId,
-      }).returning();
+      const [existingHandoff] = await tx.select().from(s.dispatchHandoffs)
+        .where(and(
+          eq(s.dispatchHandoffs.shipmentId, shipment.id),
+          sql`${s.dispatchHandoffs.status} <> 'REJECTED'`,
+        ))
+        .orderBy(sql`${s.dispatchHandoffs.id} DESC`)
+        .limit(1)
+        .for('update');
+      const [handoff] = existingHandoff
+        ? await tx.update(s.dispatchHandoffs).set({
+          priority: input.priority ?? existingHandoff.priority,
+          vehicleNeededBy: input.vehicleNeededBy ?? existingHandoff.vehicleNeededBy,
+          operationalNote: input.operationalNote?.trim() || existingHandoff.operationalNote,
+          handoffVersion: nextVersion,
+          version: existingHandoff.version + 1,
+          updatedAt: now,
+        }).where(eq(s.dispatchHandoffs.id, existingHandoff.id)).returning()
+        : await tx.insert(s.dispatchHandoffs).values({
+          shipmentId: shipment.id,
+          handlerId: null,
+          priority: input.priority ?? 'NORMAL',
+          vehicleNeededBy: input.vehicleNeededBy ?? null,
+          operationalNote: input.operationalNote?.trim() || null,
+          status: 'UNSEEN',
+          handoffVersion: nextVersion,
+          createdBy: input.actor.userId,
+        }).returning();
 
       return { shipment: updatedShipment, handoff };
     },
   });
+}
+
+export async function assignShipmentCarriers(input: AssignShipmentCarriersCommand) {
+  if (![Role.ADMIN, Role.MANAGER, Role.CLERK].includes(input.actor.role)) {
+    throw new ApiError(403, 'Bạn không có quyền gán nhà xe cho lô hàng.');
+  }
+  const execute = async (tx: Tx) => {
+    await assertActorCanAccessShipment(tx, input.shipmentId, input.actor, { write: true });
+    const [shipment] = await tx.select().from(s.shipments)
+      .where(and(eq(s.shipments.id, input.shipmentId), isNull(s.shipments.deletedAt)))
+      .for('update')
+      .limit(1);
+    if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng.');
+    await assertShipmentAccountingUnlocked(tx, shipment.id);
+    if (shipment.version !== input.expectedVersion) {
+      throw new ApiError(409, 'Lô hàng đã thay đổi. Vui lòng tải lại.');
+    }
+    if (canonicalShipmentStatus(shipment.status) !== 'READY_FOR_DISPATCH') {
+      throw new ApiError(409, 'Chỉ được gán lại nhà xe khi lô đang sẵn sàng điều xe.');
+    }
+    const [issuedOrder] = await tx.select({ id: s.trips.id }).from(s.trips)
+      .where(and(
+        eq(s.trips.shipmentId, shipment.id),
+        isNull(s.trips.deletedAt),
+      ))
+      .limit(1);
+    if (issuedOrder) {
+      throw new ApiError(409, 'Không thể đổi nhà xe sau khi đã phát hành lệnh điều xe.');
+    }
+
+    await persistCarrierAllocations(tx, shipment, input.actor.userId, input.carrierAllocations);
+    const nextVersion = shipment.version + 1;
+    const now = new Date();
+    const [updatedShipment] = await tx.update(s.shipments).set({
+      version: nextVersion,
+      updatedBy: input.actor.userId,
+      updatedAt: now,
+    }).where(and(
+      eq(s.shipments.id, shipment.id),
+      eq(s.shipments.version, shipment.version),
+    )).returning();
+    if (!updatedShipment) throw new ApiError(409, 'Lô hàng đã được cập nhật bởi người khác.');
+    await tx.update(s.dispatchHandoffs).set({
+      handoffVersion: nextVersion,
+      version: sql`${s.dispatchHandoffs.version} + 1`,
+      updatedAt: now,
+    }).where(and(
+      eq(s.dispatchHandoffs.shipmentId, shipment.id),
+      inArray(s.dispatchHandoffs.status, ['UNSEEN', 'SEEN', 'ACCEPTED']),
+    ));
+    const assignments = await tx.select({
+      fulfillmentId: s.shipmentFulfillments.id,
+      shipmentContainerId: s.shipmentFulfillments.shipmentContainerId,
+      plannedCarrierType: s.shipmentFulfillments.plannedCarrierType,
+      plannedExternalCarrierId: s.shipmentFulfillments.plannedExternalCarrierId,
+      version: s.shipmentFulfillments.version,
+    }).from(s.shipmentFulfillments).where(and(
+      eq(s.shipmentFulfillments.shipmentId, shipment.id),
+      isNull(s.shipmentFulfillments.canceledAt),
+    )).orderBy(asc(s.shipmentFulfillments.id));
+    return { shipment: updatedShipment, assignments };
+  };
+  return input.transaction ? execute(input.transaction) : db.transaction(execute);
 }

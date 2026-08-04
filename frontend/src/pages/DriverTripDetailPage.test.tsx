@@ -90,7 +90,7 @@ vi.mock('../features/driver/useOfflineCommandQueue', () => ({
 
 import DriverTripDetailPage from './DriverTripDetailPage';
 
-function makeTaskDetail() {
+function makeTaskDetail(overrides: Record<string, unknown> = {}) {
   return {
     id: 55,
     version: 3,
@@ -159,6 +159,8 @@ function makeTaskDetail() {
       files: [],
     },
     podHistory: [],
+    accountingLock: null,
+    ...overrides,
   };
 }
 
@@ -220,6 +222,27 @@ describe('DriverTripDetailPage', () => {
     expect(screen.getByText('Đã hạ bãi / Giao hàng xong')).toBeTruthy();
     expect(screen.getByRole('button', { name: /Gửi chờ duyệt phí/ }).hasAttribute('disabled')).toBe(true);
     expect(screen.getByText(/Thiếu biên bản giao nhận có ký nhận/)).toBeTruthy();
+  });
+
+  it('shows the accounting lock and disables field actions', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        accountingLock: {
+          billingDocumentId: 91,
+          activatedAt: '2026-08-04T08:00:00.000Z',
+          activatedByName: 'Kế toán Demo',
+          reason: 'Đã chốt công nợ tháng 07/2026.',
+        },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+
+    expect(await screen.findByText(/Đã khóa kế toán · Debit Note #91/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Đã nhận lệnh gốc/ }).matches(':disabled')).toBe(true);
+    expect(screen.getByRole('button', { name: /Gửi chờ duyệt phí/ }).matches(':disabled')).toBe(true);
   });
 
   it('queues the next available milestone with the trip version and fulfillment id', async () => {

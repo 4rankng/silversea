@@ -6,7 +6,7 @@ import {
 import { ApiError } from '../lib/api';
 import { PageHeader } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
-import { EmptyState } from '../design-system';
+import { EmptyState, SelectField, TextField } from '../design-system';
 import {
   SHIPMENT_STATUS_LABELS,
   SHIPMENT_DOCUMENT_TYPE_LABELS,
@@ -18,11 +18,16 @@ import { usePageAnimations } from '../hooks/animations';
 import { useAuth } from '../hooks/useAuth';
 import {
   getShipmentDetail as getShipmentDetailRequest,
+  activateShipmentAccountingLock,
   type ShipmentDetail as ShipmentDetailData,
   type ShipmentPodReviewItem,
+  type ShipmentCarrierAllocationGroup,
 } from '../api/shipmentClient';
+import { financialClient } from '../api/financialClient';
+import type { BillingDocument } from '@tingting/shared';
 import { ShipmentCoordinationPanel } from '../components/shipment/ShipmentCoordinationPanel';
 import { TripPodReviewPanel } from '../components/shipment/TripPodReviewPanel';
+import { CarrierAllocationSummary } from '../components/shipment/CarrierAllocationSummary';
 import './WorkflowFinance.css';
 import './ShipmentDetailPage.css';
 
@@ -97,6 +102,8 @@ interface ShipmentStatusHistoryRow {
 
 const STATUS_DOT_CLASS: Record<ShipmentStatus, string> = {
   NEW: 'shipment-detail__dot--draft',
+  PENDING_DATE: 'shipment-detail__dot--draft',
+  READY_FOR_DISPATCH: 'shipment-detail__dot--warning',
   DISPATCHED: 'shipment-detail__dot--info',
   IN_TRANSIT: 'shipment-detail__dot--info',
   PENDING_EXPENSE_APPROVAL: 'shipment-detail__dot--warning',
@@ -123,6 +130,30 @@ function formatVnd(value: number | null | undefined): string {
   return `${Math.round(value).toLocaleString('vi-VN')} ₫`;
 }
 
+function allocationSummaryFromDetail(data: ShipmentDetailData): ShipmentCarrierAllocationGroup[] {
+  const grouped = new Map<string, ShipmentCarrierAllocationGroup>();
+  const containerById = new Map(data.containers.map((container) => [container.id, container]));
+  for (const assignment of data.carrierAssignments) {
+    if (!assignment.carrierType || assignment.shipmentContainerId == null) continue;
+    const container = containerById.get(assignment.shipmentContainerId);
+    if (!container) continue;
+    const rawLabel = `${assignment.containerTypeCode ?? ''} ${assignment.containerTypeName ?? ''}`.toUpperCase();
+    const bucket = rawLabel.includes('20') ? 'count20' : rawLabel.includes('40') ? 'count40' : null;
+    if (!bucket) continue;
+    const key = `${assignment.carrierType}:${assignment.externalCarrierId ?? 'own'}`;
+    const current = grouped.get(key) ?? {
+      carrierType: assignment.carrierType,
+      externalCarrierId: assignment.externalCarrierId,
+      carrierName: assignment.carrierType === 'OWN' ? 'Đội xe nội bộ SilverSea' : assignment.externalCarrierName,
+      count20: 0,
+      count40: 0,
+    };
+    current[bucket] += 1;
+    grouped.set(key, current);
+  }
+  return [...grouped.values()];
+}
+
 export default function ShipmentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -140,6 +171,11 @@ export default function ShipmentDetailPage() {
   const [data, setData] = useState<ShipmentDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [debitNotes, setDebitNotes] = useState<BillingDocument[]>([]);
+  const [selectedDebitNoteId, setSelectedDebitNoteId] = useState('');
+  const [lockReasonInput, setLockReasonInput] = useState('Đã phát hành Debit Note và chốt công nợ với khách hàng.');
+  const [lockSubmitting, setLockSubmitting] = useState(false);
+  const [lockMessage, setLockMessage] = useState<string | null>(null);
 
   // Stale-response guard: when navigating from /shipments/1 to /shipments/2
   // while the first request is in flight, the first response must NOT
@@ -177,6 +213,44 @@ export default function ShipmentDetailPage() {
 
   useEffect(() => { void fetchDetail(); }, [fetchDetail]);
 
+  useEffect(() => {
+    if (user?.role !== Role.ACCOUNTANT || !data || data.accountingLock) return;
+    let cancelled = false;
+    void financialClient.listBillingDocuments('CUSTOMER', data.shipment.customerId, 'DEBIT_NOTE')
+      .then((documents) => {
+        if (cancelled) return;
+        const eligible = documents.filter((document) => (
+          ['SENT', 'PENDING_CONFIRM', 'CONFIRMED', 'PARTIAL_PAID', 'PAID'].includes(document.debitNoteStatus ?? '')
+          && (document.authorityState ?? 'CURRENT') === 'CURRENT'
+        ));
+        setDebitNotes(eligible);
+        setSelectedDebitNoteId((current) => current || (eligible[0] ? String(eligible[0].id) : ''));
+      })
+      .catch(() => {
+        if (!cancelled) setLockMessage('Không thể tải danh sách Debit Note đã phát hành.');
+      });
+    return () => { cancelled = true; };
+  }, [data, user?.role]);
+
+  const handleAccountingLock = useCallback(async () => {
+    if (!data || !selectedDebitNoteId || !lockReasonInput.trim()) return;
+    setLockSubmitting(true);
+    setLockMessage(null);
+    try {
+      await activateShipmentAccountingLock(data.shipment.id, {
+        expectedVersion: data.shipment.version,
+        billingDocumentId: Number(selectedDebitNoteId),
+        reason: lockReasonInput.trim(),
+      });
+      await fetchDetail();
+      setLockMessage('Đã khóa lô. Mọi thay đổi vận hành hiện đã bị vô hiệu hóa.');
+    } catch (reason) {
+      setLockMessage(reason instanceof Error ? reason.message : 'Không thể khóa lô.');
+    } finally {
+      setLockSubmitting(false);
+    }
+  }, [data, fetchDetail, lockReasonInput, selectedDebitNoteId]);
+
   if (loading) {
     return (
       <div className="shipment-detail shipment-detail--loading">
@@ -205,6 +279,14 @@ export default function ShipmentDetailPage() {
   const { shipment, containers, documents, declarations, statusHistory, podReviews } = data;
   const shipmentLabel = shipment.shipmentCode?.trim() || 'Chưa có mã lô hàng';
   const customerLabel = shipment.customerName?.trim() || 'Chưa có tên khách hàng';
+  const accountingLock = data.accountingLock ?? null;
+  const carrierAllocationSummary = allocationSummaryFromDetail(data);
+  const carrierAssignmentByContainerId = new Map(data.carrierAssignments
+    .filter((assignment) => assignment.shipmentContainerId != null)
+    .map((assignment) => [assignment.shipmentContainerId as number, assignment]));
+  const lockReason = accountingLock
+    ? `Đã khóa bởi Kế toán${accountingLock.activatedByName ? ` ${accountingLock.activatedByName}` : ''}${accountingLock.activatedAt ? ` lúc ${formatDateTime(accountingLock.activatedAt)}` : ''}. ${accountingLock.reason}`
+    : null;
 
   return (
     <div className="shipment-detail page-anim" ref={rootRef}>
@@ -218,13 +300,20 @@ export default function ShipmentDetailPage() {
         description={`Trạng thái: ${SHIPMENT_STATUS_LABELS[shipment.status]}`}
         onBack={() => navigate('/shipments')}
         action={canOperate ? (
-          <Link
-            to={`/clerk/shipments/${shipment.id}/docs`}
-            className="btn btn--primary shipment-detail__operate"
-          >
-            <ClipboardPenLine size={18} aria-hidden="true" />
-            Cập nhật &amp; điều xe
-          </Link>
+          accountingLock ? (
+            <button type="button" className="btn btn--secondary shipment-detail__operate" disabled title={lockReason ?? undefined}>
+              <ClipboardPenLine size={18} aria-hidden="true" />
+              Đã khóa bởi Kế toán
+            </button>
+          ) : (
+            <Link
+              to={`/clerk/shipments/${shipment.id}/docs`}
+              className="btn btn--primary shipment-detail__operate"
+            >
+              <ClipboardPenLine size={18} aria-hidden="true" />
+              Cập nhật &amp; điều xe
+            </Link>
+          )
         ) : undefined}
       />
 
@@ -261,6 +350,12 @@ export default function ShipmentDetailPage() {
             )}
             <div><dt>Cước dự kiến</dt><dd>{formatVnd(shipment.pricingProjection?.freightPrice)}</dd></div>
             <div><dt>Phụ phí nhiên liệu dự kiến</dt><dd>{formatVnd(shipment.pricingProjection?.expectedFuelSurcharge)}</dd></div>
+            {accountingLock && (
+              <div className="shipment-detail__field--wide">
+                <dt>Khóa lô</dt>
+                <dd>{lockReason}</dd>
+              </div>
+            )}
             <div className="shipment-detail__field--wide"><dt>Ghi chú vận hành</dt><dd>{shipment.operationalNotes ?? '—'}</dd></div>
           </dl>
           <div style={{ marginTop: 16, borderTop: '1px solid var(--border-2)', paddingTop: 16, display: 'grid', gap: 8 }}>
@@ -275,6 +370,61 @@ export default function ShipmentDetailPage() {
             )}
           </div>
         </section>
+
+        <section className="shipment-detail__card">
+          <h3 className="shipment-detail__section-title">
+            <Container size={16} /> Nhà xe đã gán
+          </h3>
+          <CarrierAllocationSummary
+            allocations={carrierAllocationSummary.map((row) => ({
+              carrierType: row.carrierType,
+              externalCarrierId: row.externalCarrierId,
+              carrierLabel: row.carrierName?.trim() || (row.carrierType === 'OWN' ? 'Đội xe nội bộ SilverSea' : 'Nhà xe chưa xác định'),
+              count20: row.count20,
+              count40: row.count40,
+            }))}
+            emptyLabel="Chưa có dữ liệu gán nhà xe cho lô hàng này."
+          />
+        </section>
+
+        {user?.role === Role.ACCOUNTANT && !accountingLock && (
+          <section className="shipment-detail__card" aria-labelledby="accounting-lock-title">
+            <h3 id="accounting-lock-title" className="shipment-detail__section-title">
+              Khóa lô sau khi xuất Debit Note
+            </h3>
+            <p>Khóa lô sẽ vô hiệu hóa toàn bộ chỉnh sửa vận hành. Các sai lệch sau đó phải xử lý bằng chứng từ điều chỉnh.</p>
+            <div style={{ display: 'grid', gap: 12 }}>
+              <SelectField
+                label="Debit Note đã phát hành"
+                value={selectedDebitNoteId}
+                onChange={(event) => setSelectedDebitNoteId(event.target.value)}
+                disabled={lockSubmitting}
+              >
+                <option value="">— Chọn Debit Note —</option>
+                {debitNotes.map((document) => (
+                  <option key={document.id} value={document.id}>
+                    Debit Note #{document.id} · {document.rangeFrom} – {document.rangeTo}
+                  </option>
+                ))}
+              </SelectField>
+              <TextField
+                label="Lý do khóa"
+                value={lockReasonInput}
+                onChange={(event) => setLockReasonInput(event.target.value)}
+                disabled={lockSubmitting}
+              />
+              {lockMessage && <p role="status" style={{ margin: 0 }}>{lockMessage}</p>}
+              <button
+                type="button"
+                className="btn btn--primary"
+                onClick={() => void handleAccountingLock()}
+                disabled={lockSubmitting || !selectedDebitNoteId || !lockReasonInput.trim()}
+              >
+                {lockSubmitting ? 'Đang khóa…' : 'Khóa lô'}
+              </button>
+            </div>
+          </section>
+        )}
 
         {canSeePodReview && (
           <TripPodReviewPanel
@@ -304,7 +454,10 @@ export default function ShipmentDetailPage() {
             <table className="shipment-detail__table">
               <thead>
                 <tr>
+                  <th>Loại</th>
                   <th>Số container</th>
+                  <th>Nhà xe đã gán</th>
+                  <th>Xe đã gán</th>
                   <th>Số seal</th>
                   <th>Trọng lượng (kg)</th>
                   <th>Ghi chú</th>
@@ -313,7 +466,16 @@ export default function ShipmentDetailPage() {
               <tbody>
                 {containers.map((c) => (
                   <tr key={c.id}>
+                    <td>{c.containerTypeName ?? c.containerTypeCode ?? '—'}</td>
                     <td>{c.containerNumber ?? '—'}</td>
+                    <td>{(() => {
+                      const assignment = carrierAssignmentByContainerId.get(c.id);
+                      if (!assignment?.carrierType) return '—';
+                      return assignment.carrierType === 'OWN'
+                        ? 'Đội xe nội bộ SilverSea'
+                        : assignment.externalCarrierName ?? 'Nhà xe chưa xác định';
+                    })()}</td>
+                    <td>{c.plannedVehiclePlate ?? '—'}</td>
                     <td>{c.sealNumber ?? '—'}</td>
                     <td>{c.cargoWeightKg ?? '—'}</td>
                     <td>{c.notes ?? '—'}</td>

@@ -63,11 +63,24 @@ interface ShipmentListResponse {
   limit: number;
 }
 
-type StatusFilter = 'all' | ShipmentStatus;
+type StatusFilter =
+  | 'all'
+  | ShipmentStatus.PENDING_DATE
+  | ShipmentStatus.READY_FOR_DISPATCH
+  | ShipmentStatus.DISPATCHED
+  | ShipmentStatus.IN_TRANSIT
+  | ShipmentStatus.PENDING_EXPENSE_APPROVAL
+  | ShipmentStatus.COMPLETED
+  | ShipmentStatus.CANCELED;
+
+function displayShipmentStatus(status: ShipmentStatus): ShipmentStatus {
+  return status === ShipmentStatus.NEW ? ShipmentStatus.PENDING_DATE : status;
+}
 
 const STATUS_FILTER_ORDER = [
   'all',
-  ShipmentStatus.NEW,
+  ShipmentStatus.PENDING_DATE,
+  ShipmentStatus.READY_FOR_DISPATCH,
   ShipmentStatus.DISPATCHED,
   ShipmentStatus.IN_TRANSIT,
   ShipmentStatus.PENDING_EXPENSE_APPROVAL,
@@ -83,6 +96,8 @@ const STATUS_FILTER_LABELS: Record<StatusFilter, string> = {
 // Status → StatusPill variant (mirrors the trip status-color pattern).
 const STATUS_PILL_VARIANT: Record<ShipmentStatus, 'neutral' | 'info' | 'success' | 'danger'> = {
   NEW: 'neutral',
+  PENDING_DATE: 'neutral',
+  READY_FOR_DISPATCH: 'info',
   DISPATCHED: 'info',
   IN_TRANSIT: 'info',
   PENDING_EXPENSE_APPROVAL: 'info',
@@ -156,9 +171,12 @@ export default function ShipmentsPage() {
   // Filter state is mirrored in the URL query string so reloads / deep links
   // preserve the view.
   const rawStatusFilter = searchParams.get('status');
-  const statusFilter: StatusFilter = rawStatusFilter
-    && STATUS_FILTER_ORDER.includes(rawStatusFilter as StatusFilter)
-    ? rawStatusFilter as StatusFilter
+  const normalizedStatusFilter = rawStatusFilter === ShipmentStatus.NEW
+    ? ShipmentStatus.PENDING_DATE
+    : rawStatusFilter;
+  const statusFilter: StatusFilter = normalizedStatusFilter
+    && STATUS_FILTER_ORDER.includes(normalizedStatusFilter as StatusFilter)
+    ? normalizedStatusFilter as StatusFilter
     : 'all';
   const rawPage = searchParams.get('page');
   const parsedPage = rawPage && /^\d+$/.test(rawPage) ? Number(rawPage) : 1;
@@ -376,8 +394,8 @@ export default function ShipmentsPage() {
                       </span>
                       <span className="shipments-page__card-customer">{customerLabel(s)}</span>
                     </div>
-                    <StatusPill variant={STATUS_PILL_VARIANT[s.status]}>
-                      {SHIPMENT_STATUS_LABELS[s.status]}
+                    <StatusPill variant={STATUS_PILL_VARIANT[displayShipmentStatus(s.status)]}>
+                      {SHIPMENT_STATUS_LABELS[displayShipmentStatus(s.status)]}
                     </StatusPill>
                   </div>
 
@@ -528,8 +546,8 @@ export default function ShipmentsPage() {
                           : <span className="shipments-page__muted">—</span>}
                       </td>
                       <td className="shipments-page__td">
-                        <StatusPill variant={STATUS_PILL_VARIANT[s.status]}>
-                          {SHIPMENT_STATUS_LABELS[s.status]}
+                        <StatusPill variant={STATUS_PILL_VARIANT[displayShipmentStatus(s.status)]}>
+                          {SHIPMENT_STATUS_LABELS[displayShipmentStatus(s.status)]}
                         </StatusPill>
                       </td>
                       <td className="shipments-page__td shipments-page__td--chev">

@@ -8,7 +8,7 @@ import {
   RotateCcw,
   XCircle,
 } from 'lucide-react';
-import { TripPodStatus } from '@tingting/shared';
+import { ShipmentStatus, TripPodStatus } from '@tingting/shared';
 import {
   downloadShipmentPodFile,
   cancelShipmentFulfillment,
@@ -22,7 +22,7 @@ import { Modal } from '../UI';
 export interface TripPodReviewPanelProps {
   shipmentId: number;
   shipmentVersion: number;
-  shipmentStatus: 'NEW' | 'DISPATCHED' | 'IN_TRANSIT' | 'PENDING_EXPENSE_APPROVAL' | 'COMPLETED' | 'CANCELED';
+  shipmentStatus: ShipmentStatus;
   items: ShipmentPodReviewItem[];
   canReview: boolean;
   canComplete: boolean;

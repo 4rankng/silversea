@@ -11,6 +11,7 @@ import { Money } from '../components/shared/Money';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { TripStatus } from '@tingting/shared';
+import { AccountingLockBanner } from '../components/shipment/AccountingLockBanner';
 
 // Feature: logic (.ts) + UI (.tsx)
 import { useTripDetailPage } from '../features/trip-detail';
@@ -62,6 +63,22 @@ export default function TripDetailPage() {
   if (!page.trip) return null;
 
   const { trip, derived, permissions, ui, fuelPriceConfig, adjustments } = page;
+  const accountingLock = trip.accountingLock ?? null;
+  const effectivePermissions = accountingLock
+    ? {
+        ...permissions,
+        canEdit: false,
+        canEditActuals: false,
+        canCancel: false,
+        canDispatch: false,
+        canComplete: false,
+        canReassign: false,
+        canAdjust: false,
+        canChangeDate: false,
+        needsPhotos: false,
+        readOnly: true,
+      }
+    : permissions;
   const liveVehicle = liveFleet?.vehicles.find((v) => v.tripId === trip.id) ?? null;
   const displayError = ui.actionError || page.error;
 
@@ -81,7 +98,7 @@ export default function TripDetailPage() {
       />
       <TripHeader
         trip={trip}
-        permissions={permissions}
+        permissions={effectivePermissions}
         actionLoading={ui.actionLoading}
         onBack={handleBack}
         onEdit={() => navigate(`/trips/${trip.id}/edit`)}
@@ -97,6 +114,10 @@ export default function TripDetailPage() {
         onReassign={page.openReassign}
         onAdjust={page.openAdjust}
       />
+
+      {accountingLock && <AccountingLockBanner lock={accountingLock} />}
+
+      <fieldset disabled={Boolean(accountingLock)} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
 
       <Modal
         isOpen={governanceIntent !== null}
@@ -169,7 +190,7 @@ export default function TripDetailPage() {
           )}
 
           <div className="anim d3 tdp-card tdp-m2">
-            <ServiceCostsCard tripId={trip.id} readOnly={permissions.readOnly} />
+            <ServiceCostsCard tripId={trip.id} readOnly={effectivePermissions.readOnly} />
           </div>
 
           <div className="anim d3 tdp-card tdp-m3">
@@ -394,6 +415,7 @@ export default function TripDetailPage() {
           </div>
         )}
       </Drawer>
+      </fieldset>
       {page.confirmDialog}
     </div>
   );

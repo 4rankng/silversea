@@ -18,6 +18,7 @@ import {
   type TripPairSnapshot,
 } from './trip-pairing.service';
 import type { Tx } from './trip-shared';
+import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 
 interface TripRowForPairing {
   id: number;
@@ -342,6 +343,15 @@ export async function createTripPair(
   transaction?: Tx,
 ): Promise<TripPairRecord> {
   const execute = async (tx: Tx) => {
+    const tripReferences = await tx.select({ shipmentId: s.trips.shipmentId })
+      .from(s.trips)
+      .where(and(inArray(s.trips.id, [input.firstTripId, input.secondTripId]), isNull(s.trips.deletedAt)));
+    const shipmentIds = [...new Set(tripReferences
+      .map((trip) => trip.shipmentId)
+      .filter((id): id is number => id != null))].sort((a, b) => a - b);
+    for (const shipmentId of shipmentIds) {
+      await assertShipmentAccountingUnlocked(tx, shipmentId);
+    }
     const locked = await loadTripsForPairing(tx, [input.firstTripId, input.secondTripId]);
     const routeDistances = await loadRouteDistances(tx, [locked.first.routeId, locked.second.routeId]);
     locked.first.routeDistanceKm = routeDistances.get(locked.first.routeId) ?? null;

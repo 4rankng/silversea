@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { TripPodFileType, TripPodStatus } from '@tingting/shared';
+import { ShipmentStatus, TripPodFileType, TripPodStatus } from '@tingting/shared';
 
 const {
   downloadShipmentPodFileMock,
@@ -96,7 +96,7 @@ describe('TripPodReviewPanel', () => {
       <TripPodReviewPanel
         shipmentId={42}
         shipmentVersion={7}
-        shipmentStatus="PENDING_EXPENSE_APPROVAL"
+        shipmentStatus={ShipmentStatus.PENDING_EXPENSE_APPROVAL}
         items={[makeItem()]}
         canReview
         canComplete
@@ -132,7 +132,7 @@ describe('TripPodReviewPanel', () => {
       <TripPodReviewPanel
         shipmentId={42}
         shipmentVersion={7}
-        shipmentStatus="PENDING_EXPENSE_APPROVAL"
+        shipmentStatus={ShipmentStatus.PENDING_EXPENSE_APPROVAL}
         items={[makeItem({
           currentSubmission: null,
           tripStatus: 'CREATED',
@@ -171,7 +171,7 @@ describe('TripPodReviewPanel', () => {
       <TripPodReviewPanel
         shipmentId={42}
         shipmentVersion={7}
-        shipmentStatus="PENDING_EXPENSE_APPROVAL"
+        shipmentStatus={ShipmentStatus.PENDING_EXPENSE_APPROVAL}
         items={[makeItem({ tripStatus: 'IN_TRANSIT', tripVersion: 3 })]}
         canReview
         canComplete
@@ -210,7 +210,7 @@ describe('TripPodReviewPanel', () => {
       <TripPodReviewPanel
         shipmentId={42}
         shipmentVersion={7}
-        shipmentStatus="PENDING_EXPENSE_APPROVAL"
+        shipmentStatus={ShipmentStatus.PENDING_EXPENSE_APPROVAL}
         items={[makeItem({ tripStatus: 'IN_TRANSIT', tripVersion: 3 })]}
         canReview
         canComplete
@@ -243,7 +243,7 @@ describe('TripPodReviewPanel', () => {
       <TripPodReviewPanel
         shipmentId={42}
         shipmentVersion={7}
-        shipmentStatus="PENDING_EXPENSE_APPROVAL"
+        shipmentStatus={ShipmentStatus.PENDING_EXPENSE_APPROVAL}
         items={[makeItem({ tripStatus: 'IN_TRANSIT' })]}
         canReview
         canComplete={false}
