@@ -253,6 +253,12 @@ class NepoTestContext:
             page.wait_for_timeout(500)
             if token:
                 page.evaluate(f'localStorage.setItem("token", "{token}")')
+                # The API login above is authoritative. Under a loaded E2E run,
+                # the UI redirect can still be pending after the fixed wait;
+                # re-enter the app so it observes the token we just installed.
+                if '/login' in page.url:
+                    page.goto(BASE_URL)
+                    page.wait_for_load_state('networkidle')
         return page, token, user
 
     def screenshot(self, page: Page, name: str):
