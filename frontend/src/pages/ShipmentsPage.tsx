@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, type MouseEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   Package,
@@ -7,10 +7,9 @@ import {
   Loader2,
   ChevronRight,
   CalendarClock,
-  MapPin,
-  User,
-  ArrowRight,
   Plus,
+  SlidersHorizontal,
+  Save,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { ApiError } from '../lib/api';
@@ -22,6 +21,7 @@ import { Role, SHIPMENT_STATUS_LABELS, ShipmentStatus } from '@tingting/shared';
 import { usePageAnimations } from '../hooks/animations';
 import { useAuth } from '../hooks/useAuth';
 import { routes } from '../lib/routes';
+import { updateShipment } from '../api/shipmentClient';
 import './ShipmentsPage.css';
 
 // ─── Types (local; the API responses are not yet in @tingting/shared types) ──
@@ -51,6 +51,12 @@ interface ShipmentRow {
   customsCutoffAt?: string | null;
   closingAt?: string | null;
   plannedReturnAt?: string | null;
+  packageCount?: number | null;
+  packageType?: string | null;
+  cargoSummary?: string | null;
+  shippingLineSummary?: string | null;
+  carrierSummary?: string | null;
+  vehiclePlateSummary?: string | null;
   version: number;
   createdAt: string;
   updatedAt: string;
@@ -70,8 +76,39 @@ type StatusFilter =
   | ShipmentStatus.DISPATCHED
   | ShipmentStatus.IN_TRANSIT
   | ShipmentStatus.PENDING_EXPENSE_APPROVAL
-  | ShipmentStatus.COMPLETED
-  | ShipmentStatus.CANCELED;
+  | ShipmentStatus.COMPLETED;
+
+type ShipmentColumnId =
+  | 'shipment'
+  | 'customer'
+  | 'direction'
+  | 'cargo'
+  | 'shippingLine'
+  | 'carrier'
+  | 'vehiclePlate'
+  | 'delivery'
+  | 'status'
+  | 'blNumber'
+  | 'bookingRef'
+  | 'route';
+
+const COLUMN_STORAGE_KEY = 'silversea:shipments:columns:v1';
+const REQUIRED_COLUMNS = new Set<ShipmentColumnId>(['shipment', 'customer', 'delivery', 'status']);
+const OPTIONAL_COLUMNS: Array<{ id: ShipmentColumnId; label: string; defaultVisible: boolean }> = [
+  { id: 'direction', label: 'Loại hàng (Xuất/Nhập)', defaultVisible: true },
+  { id: 'cargo', label: 'Số Cont/Số lượng', defaultVisible: true },
+  { id: 'shippingLine', label: 'Hãng tàu', defaultVisible: true },
+  { id: 'carrier', label: 'Nhà xe', defaultVisible: true },
+  { id: 'vehiclePlate', label: 'Biển số xe', defaultVisible: true },
+  { id: 'blNumber', label: 'Số B/L', defaultVisible: false },
+  { id: 'bookingRef', label: 'Mã đặt chỗ', defaultVisible: false },
+  { id: 'route', label: 'Tuyến vận chuyển', defaultVisible: false },
+];
+
+const DEFAULT_VISIBLE_COLUMNS = new Set<ShipmentColumnId>([
+  ...REQUIRED_COLUMNS,
+  ...OPTIONAL_COLUMNS.filter((column) => column.defaultVisible).map((column) => column.id),
+]);
 
 function displayShipmentStatus(status: ShipmentStatus): ShipmentStatus {
   return status === ShipmentStatus.NEW ? ShipmentStatus.PENDING_DATE : status;
@@ -85,12 +122,16 @@ const STATUS_FILTER_ORDER = [
   ShipmentStatus.IN_TRANSIT,
   ShipmentStatus.PENDING_EXPENSE_APPROVAL,
   ShipmentStatus.COMPLETED,
-  ShipmentStatus.CANCELED,
 ] as const satisfies readonly StatusFilter[];
 
 const STATUS_FILTER_LABELS: Record<StatusFilter, string> = {
   all: 'Tất cả',
-  ...SHIPMENT_STATUS_LABELS,
+  [ShipmentStatus.PENDING_DATE]: 'Chờ chốt lịch',
+  [ShipmentStatus.READY_FOR_DISPATCH]: 'Sẵn sàng điều xe',
+  [ShipmentStatus.DISPATCHED]: 'Đã điều xe',
+  [ShipmentStatus.IN_TRANSIT]: 'Đang chạy',
+  [ShipmentStatus.PENDING_EXPENSE_APPROVAL]: 'Chờ duyệt phí',
+  [ShipmentStatus.COMPLETED]: 'Hoàn thành',
 };
 
 // Status → StatusPill variant (mirrors the trip status-color pattern).
@@ -130,35 +171,46 @@ function formatDeliveryDate(iso: string | null): string {
   return d.toLocaleDateString('vi-VN');
 }
 
-function formatMilestoneDate(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  return iso.length > 10
-    ? date.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
-    : date.toLocaleDateString('vi-VN');
-}
-
-function nextMilestone(shipment: ShipmentRow): { label: string; value: string } | null {
-  const candidates = [
-    { label: 'Cut-off', value: shipment.customsCutoffAt },
-    { label: 'Closing', value: shipment.closingAt },
-    { label: 'Trả cont', value: shipment.plannedReturnAt },
-    { label: 'Giao dự kiến', value: shipment.expectedDeliveryDate },
-  ].filter((item): item is { label: string; value: string } => Boolean(item.value));
-  if (candidates.length === 0) return null;
-  return candidates
-    .map((item) => ({ ...item, time: new Date(item.value).getTime() }))
-    .sort((a, b) => {
-      if (Number.isNaN(a.time)) return 1;
-      if (Number.isNaN(b.time)) return -1;
-      return a.time - b.time;
-    })[0];
-}
-
 function cargoModeLabel(shipment: ShipmentRow): string | null {
   if (shipment.cargoMode === 'FCL') return 'FCL';
   if (shipment.cargoMode === 'LCL') return 'LCL';
   return null;
+}
+
+function shipmentStatusLabel(status: ShipmentStatus): string {
+  const displayed = displayShipmentStatus(status);
+  return displayed === ShipmentStatus.PENDING_DATE
+    ? 'Chờ chốt lịch'
+    : SHIPMENT_STATUS_LABELS[displayed];
+}
+
+function tradeDirectionLabel(shipment: ShipmentRow): string {
+  if (shipment.tradeDirection === 'IMPORT') return 'Nhập';
+  if (shipment.tradeDirection === 'EXPORT') return 'Xuất';
+  return '—';
+}
+
+function cargoSummary(shipment: ShipmentRow): string {
+  if (shipment.cargoSummary?.trim()) return shipment.cargoSummary;
+  if (shipment.cargoMode === 'LCL' && shipment.packageCount != null) {
+    return `${shipment.packageCount} ${shipment.packageType?.trim() || 'kiện'}`;
+  }
+  return cargoModeLabel(shipment) ?? '—';
+}
+
+function readVisibleColumns(): Set<ShipmentColumnId> {
+  if (typeof window === 'undefined') return new Set(DEFAULT_VISIBLE_COLUMNS);
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(COLUMN_STORAGE_KEY) ?? 'null');
+    if (!Array.isArray(stored)) return new Set(DEFAULT_VISIBLE_COLUMNS);
+    const allowed = new Set(OPTIONAL_COLUMNS.map((column) => column.id));
+    return new Set<ShipmentColumnId>([
+      ...REQUIRED_COLUMNS,
+      ...stored.filter((id): id is ShipmentColumnId => typeof id === 'string' && allowed.has(id as ShipmentColumnId)),
+    ]);
+  } catch {
+    return new Set(DEFAULT_VISIBLE_COLUMNS);
+  }
 }
 
 const PAGE_SIZE = 20;
@@ -167,6 +219,7 @@ export default function ShipmentsPage() {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const canCreate = user?.role === Role.ADMIN || user?.role === Role.MANAGER;
+  const canInlineEdit = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.CLERK;
 
   // Filter state is mirrored in the URL query string so reloads / deep links
   // preserve the view.
@@ -187,6 +240,14 @@ export default function ShipmentsPage() {
   const [data, setData] = useState<ShipmentListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [visibleColumns, setVisibleColumns] = useState<Set<ShipmentColumnId>>(() => readVisibleColumns());
+  const [editingDate, setEditingDate] = useState<{
+    shipmentId: number;
+    value: string;
+    saving: boolean;
+    error: string | null;
+  } | null>(null);
   const requestSequence = useRef(0);
 
   const { rootRef: pageAnimRef } = usePageAnimations({ ready: !loading });
@@ -247,11 +308,73 @@ export default function ShipmentsPage() {
 
   useEffect(() => { void fetchData(); }, [fetchData]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const optional = OPTIONAL_COLUMNS
+        .map((column) => column.id)
+        .filter((id) => visibleColumns.has(id));
+      window.localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(optional));
+    } catch {
+      // Storage may be disabled by browser privacy settings. Column selection
+      // still works for the current page session.
+    }
+  }, [visibleColumns]);
+
+  const toggleColumn = useCallback((columnId: ShipmentColumnId) => {
+    if (REQUIRED_COLUMNS.has(columnId)) return;
+    setVisibleColumns((current) => {
+      const next = new Set(current);
+      if (next.has(columnId)) next.delete(columnId);
+      else next.add(columnId);
+      return next;
+    });
+  }, []);
+
+  const startDateEdit = useCallback((shipment: ShipmentRow) => {
+    if (!canInlineEdit) return;
+    setNotice(null);
+    setEditingDate({
+      shipmentId: shipment.id,
+      value: shipment.expectedDeliveryDate?.slice(0, 10) ?? '',
+      saving: false,
+      error: null,
+    });
+  }, [canInlineEdit]);
+
+  const cancelDateEdit = useCallback((event: MouseEvent<HTMLButtonElement>) => {
+    // Clearing the editor unmounts its parent form immediately, so the button
+    // must stop the event itself before ClickableCard can navigate the row.
+    event.preventDefault();
+    event.stopPropagation();
+    setEditingDate(null);
+  }, []);
+
+  const saveExpectedDeliveryDate = useCallback(async (shipment: ShipmentRow) => {
+    if (!editingDate || editingDate.shipmentId !== shipment.id || !editingDate.value) return;
+    setEditingDate((current) => current ? { ...current, saving: true, error: null } : current);
+    try {
+      const updated = await updateShipment(shipment.id, {
+        expectedVersion: shipment.version,
+        expectedDeliveryDate: editingDate.value,
+      });
+      setEditingDate(null);
+      setNotice(updated.message ?? (updated.changeMode === 'REQUESTED'
+        ? 'Đã gửi yêu cầu đổi ngày giao dự kiến để phê duyệt.'
+        : 'Đã cập nhật ngày giao dự kiến.'));
+      await fetchData();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Không thể cập nhật ngày giao dự kiến';
+      setEditingDate((current) => current ? { ...current, saving: false, error: message } : current);
+    }
+  }, [editingDate, fetchData]);
+
   const q = searchQueryParam.trim().toLowerCase();
   const visibleItems = useMemo(() => data?.items ?? [], [data?.items]);
 
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const desktopColumnCount = [...visibleColumns].length + 1;
   const hasBlockingError = Boolean(error && !data);
   const currentViewLabel = statusFilter === 'all'
     ? 'Tất cả lô hàng'
@@ -315,27 +438,66 @@ export default function ShipmentsPage() {
             ))}
           </div>
 
-          <div className="shipments-page__search">
-            <Search size={18} className="shipments-page__search-icon" aria-hidden="true" />
-            <input
-              type="search"
-              className="shipments-page__search-input"
-              maxLength={100}
-              placeholder="Tìm mã lô, số B/L, mã đặt chỗ"
-              aria-label="Tìm lô hàng theo mã, số B/L, hoặc mã đặt chỗ"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-            />
-            {searchInput && (
-              <button
-                type="button"
-                className="shipments-page__search-clear"
-                onClick={() => { setSearchInput(''); updateFilter('q', null); }}
-                aria-label="Xóa tìm kiếm"
-              >
-                <X size={16} aria-hidden="true" />
-              </button>
-            )}
+          <div className="shipments-page__toolbar-actions">
+            <div className="shipments-page__search">
+              <Search size={18} className="shipments-page__search-icon" aria-hidden="true" />
+              <input
+                type="search"
+                className="shipments-page__search-input"
+                maxLength={100}
+                placeholder="Tìm mã lô, khách hàng, hãng tàu"
+                aria-label="Tìm lô hàng theo mã, số B/L, mã đặt chỗ, khách hàng hoặc hãng tàu"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+              />
+              {searchInput && (
+                <button
+                  type="button"
+                  className="shipments-page__search-clear"
+                  onClick={() => { setSearchInput(''); updateFilter('q', null); }}
+                  aria-label="Xóa tìm kiếm"
+                >
+                  <X size={16} aria-hidden="true" />
+                </button>
+              )}
+            </div>
+            <details className="shipments-page__columns desktop-only">
+              <summary className="btn btn--secondary shipments-page__columns-trigger">
+                <SlidersHorizontal size={17} aria-hidden="true" />
+                Hiển thị cột
+              </summary>
+              <div className="shipments-page__columns-menu" role="group" aria-label="Chọn cột hiển thị">
+                <p>Cột hiển thị</p>
+                {[
+                  { id: 'shipment' as const, label: 'Lô hàng' },
+                  { id: 'customer' as const, label: 'Khách hàng' },
+                  { id: 'delivery' as const, label: 'Ngày giao dự kiến' },
+                  { id: 'status' as const, label: 'Trạng thái' },
+                ].map((column) => (
+                  <label key={column.id}>
+                    <input type="checkbox" checked disabled />
+                    <span>{column.label} <small>Luôn hiển thị</small></span>
+                  </label>
+                ))}
+                {OPTIONAL_COLUMNS.map((column) => (
+                  <label key={column.id}>
+                    <input
+                      type="checkbox"
+                      checked={visibleColumns.has(column.id)}
+                      onChange={() => toggleColumn(column.id)}
+                    />
+                    <span>{column.label}</span>
+                  </label>
+                ))}
+                <button
+                  type="button"
+                  className="shipments-page__columns-reset"
+                  onClick={() => setVisibleColumns(new Set(DEFAULT_VISIBLE_COLUMNS))}
+                >
+                  Khôi phục mặc định
+                </button>
+              </div>
+            </details>
           </div>
         </div>
 
@@ -360,6 +522,14 @@ export default function ShipmentsPage() {
             </button>
           </div>
         )}
+        {notice && (
+          <div className="shipments-page__notice" role="status">
+            <span>{notice}</span>
+            <button type="button" onClick={() => setNotice(null)} aria-label="Đóng thông báo">
+              <X size={16} aria-hidden="true" />
+            </button>
+          </div>
+        )}
 
         {/* ── Mobile card list (≤820px) ────────────────────────────────── */}
         <div className="mobile-only shipments-page__mobile">
@@ -380,12 +550,9 @@ export default function ShipmentsPage() {
           ) : (
             <div className="shipments-page__card-list">
               {visibleItems.map((s) => (
-                <ClickableCard
+                <article
                   key={s.id}
-                  as="article"
-                  className="shipments-page__card"
-                  to={`/shipments/${s.id}`}
-                  ariaLabel={shipmentLabel(s)}
+                  className={`shipments-page__card${displayShipmentStatus(s.status) === ShipmentStatus.PENDING_DATE && !s.expectedDeliveryDate ? ' is-missing-date' : ''}`}
                 >
                   <div className="shipments-page__card-top">
                     <div className="shipments-page__card-identity">
@@ -395,52 +562,113 @@ export default function ShipmentsPage() {
                       <span className="shipments-page__card-customer">{customerLabel(s)}</span>
                     </div>
                     <StatusPill variant={STATUS_PILL_VARIANT[displayShipmentStatus(s.status)]}>
-                      {SHIPMENT_STATUS_LABELS[displayShipmentStatus(s.status)]}
+                      {shipmentStatusLabel(s.status)}
                     </StatusPill>
                   </div>
 
-                  <div className="shipments-page__card-refs">
+                  <div className="shipments-page__card-facts">
                     <div>
-                      <span>Số B/L</span>
-                      <strong>{s.blNumber ?? '—'}</strong>
+                      <span>Loại hàng (Xuất/Nhập)</span>
+                      <strong>{tradeDirectionLabel(s)}</strong>
                     </div>
                     <div>
-                      <span>Mã đặt chỗ</span>
-                      <strong>{s.bookingRef ?? '—'}</strong>
+                      <span>Số Cont/Số lượng</span>
+                      <strong>{cargoSummary(s)}</strong>
+                    </div>
+                    <div>
+                      <span>Hãng tàu</span>
+                      <strong>{s.shippingLineSummary ?? s.shippingLineName ?? '—'}</strong>
+                    </div>
+                    <div>
+                      <span>Nhà xe</span>
+                      <strong>{s.carrierSummary ?? '—'}</strong>
+                    </div>
+                    <div>
+                      <span>Biển số xe</span>
+                      <strong>{s.vehiclePlateSummary ?? '—'}</strong>
+                    </div>
+                    <div>
+                      <span>Ngày giao dự kiến</span>
+                      <strong>{formatDeliveryDate(s.expectedDeliveryDate)}</strong>
                     </div>
                   </div>
 
-                  {(s.factoryName || cargoModeLabel(s) || s.shippingLineName) && (
-                    <div className="shipments-page__card-ops">
-                      {cargoModeLabel(s) && <strong>{cargoModeLabel(s)}</strong>}
-                      {s.factoryName && <span>{s.factoryName}</span>}
-                      {s.shippingLineName && <span>{s.shippingLineName}</span>}
+                  {(s.blNumber || s.bookingRef) && (
+                    <div className="shipments-page__card-refs">
+                      <div>
+                        <span>Số B/L</span>
+                        <strong>{s.blNumber ?? '—'}</strong>
+                      </div>
+                      <div>
+                        <span>Mã đặt chỗ</span>
+                        <strong>{s.bookingRef ?? '—'}</strong>
+                      </div>
                     </div>
                   )}
 
-                  {formatRoute(s) && (
-                    <div className="shipments-page__card-route">
-                      <MapPin size={16} aria-hidden="true" />
-                      <span>{formatRoute(s)}</span>
+                  {displayShipmentStatus(s.status) === ShipmentStatus.PENDING_DATE && !s.expectedDeliveryDate && (
+                    <div className="shipments-page__warning" role="note">
+                      <CalendarClock size={16} aria-hidden="true" />
+                      <span>Thiếu ngày giao dự kiến</span>
                     </div>
+                  )}
+
+                  {editingDate?.shipmentId === s.id && (
+                    <form
+                      className="shipments-page__date-editor shipments-page__date-editor--mobile"
+                      aria-busy={editingDate.saving}
+                      onClick={(event) => event.stopPropagation()}
+                      onSubmit={(event) => { event.preventDefault(); event.stopPropagation(); void saveExpectedDeliveryDate(s); }}
+                      onKeyDown={(event) => {
+                        event.stopPropagation();
+                        if (event.key === 'Escape') setEditingDate(null);
+                      }}
+                    >
+                      <label htmlFor={`mobile-delivery-date-${s.id}`}>Ngày giao dự kiến</label>
+                      <div>
+                        <input
+                          id={`mobile-delivery-date-${s.id}`}
+                          name="expectedDeliveryDate"
+                          type="date"
+                          required
+                          value={editingDate.value}
+                          disabled={editingDate.saving}
+                          onChange={(event) => setEditingDate((current) => current ? { ...current, value: event.target.value, error: null } : current)}
+                        />
+                        <button type="submit" disabled={editingDate.saving || !editingDate.value} aria-label="Lưu ngày giao dự kiến">
+                          {editingDate.saving ? <Loader2 size={17} className="spin" aria-hidden="true" /> : <Save size={17} aria-hidden="true" />}
+                          <span>Lưu</span>
+                        </button>
+                        <button type="button" disabled={editingDate.saving} onClick={cancelDateEdit} aria-label="Hủy chỉnh sửa ngày giao">
+                          <X size={17} aria-hidden="true" />
+                          <span>Hủy</span>
+                        </button>
+                      </div>
+                      {editingDate.error && <p role="alert">{editingDate.error}</p>}
+                    </form>
                   )}
 
                   <div className="shipments-page__card-foot">
-                    <span>
-                      {nextMilestone(s) ? (
-                        <><CalendarClock size={15} aria-hidden="true" /> {nextMilestone(s)!.label} {formatMilestoneDate(nextMilestone(s)!.value)}</>
-                      ) : s.contactName ? (
-                        <><User size={15} aria-hidden="true" /> {s.contactName}</>
-                      ) : (
-                        <><User size={15} aria-hidden="true" /> {customerLabel(s)}</>
-                      )}
-                    </span>
-                    <span className="shipments-page__card-cta">
+                    {canInlineEdit && editingDate?.shipmentId !== s.id && (
+                      <button
+                        type="button"
+                        className="shipments-page__mobile-date-action"
+                        onClick={(event) => { event.preventDefault(); event.stopPropagation(); startDateEdit(s); }}
+                      >
+                        <CalendarClock size={16} aria-hidden="true" />
+                        {s.expectedDeliveryDate ? 'Đổi ngày giao' : 'Chọn ngày giao'}
+                      </button>
+                    )}
+                    <Link
+                      to={`/shipments/${s.id}`}
+                      className="shipments-page__card-cta"
+                      aria-label={`Xem chi tiết ${shipmentLabel(s)}`}
+                    >
                       Xem chi tiết
                       <ChevronRight size={16} aria-hidden="true" />
-                    </span>
+                    </Link>
                   </div>
-                </ClickableCard>
+                </article>
               ))}
             </div>
           )}
@@ -460,102 +688,133 @@ export default function ShipmentsPage() {
         <div className="desktop-only shipments-page__desktop">
           <div className="shipments-page__table-scroll">
             <table className="shipments-page__table" aria-label="Danh sách lô hàng">
-              <colgroup>
-                <col className="shipments-page__col--shipment" />
-                <col className="shipments-page__col--bl" />
-                <col className="shipments-page__col--booking" />
-                <col className="shipments-page__col--route" />
-                <col className="shipments-page__col--delivery" />
-                <col className="shipments-page__col--status" />
-                <col className="shipments-page__col--chevron" />
-              </colgroup>
+              <caption className="sr-only">Danh sách lô hàng và thông tin điều phối</caption>
               <thead>
                 <tr>
-                  {['Lô hàng', 'Số B/L', 'Mã đặt chỗ', 'Tuyến vận chuyển', 'Giao dự kiến', 'Trạng thái'].map((h) => (
-                    <th key={h} className="shipments-page__th">{h}</th>
-                  ))}
+                  {visibleColumns.has('shipment') && <th className="shipments-page__th">Lô hàng</th>}
+                  {visibleColumns.has('customer') && <th className="shipments-page__th">Khách hàng</th>}
+                  {visibleColumns.has('direction') && <th className="shipments-page__th">Loại hàng (Xuất/Nhập)</th>}
+                  {visibleColumns.has('cargo') && <th className="shipments-page__th">Số Cont/Số lượng</th>}
+                  {visibleColumns.has('shippingLine') && <th className="shipments-page__th">Hãng tàu</th>}
+                  {visibleColumns.has('carrier') && <th className="shipments-page__th">Nhà xe</th>}
+                  {visibleColumns.has('vehiclePlate') && <th className="shipments-page__th">Biển số xe</th>}
+                  {visibleColumns.has('blNumber') && <th className="shipments-page__th">Số B/L</th>}
+                  {visibleColumns.has('bookingRef') && <th className="shipments-page__th">Mã đặt chỗ</th>}
+                  {visibleColumns.has('route') && <th className="shipments-page__th">Tuyến vận chuyển</th>}
+                  {visibleColumns.has('delivery') && <th className="shipments-page__th">Ngày giao dự kiến</th>}
+                  {visibleColumns.has('status') && <th className="shipments-page__th">Trạng thái</th>}
                   <th aria-label="Mở chi tiết" />
                 </tr>
               </thead>
               <tbody>
                 {loading && (
-                  <tr><td colSpan={7} className="shipments-page__cell-msg">
+                  <tr><td colSpan={desktopColumnCount} className="shipments-page__cell-msg">
                     <Loader2 size={22} className="spin" />
                     <p>Đang tải lô hàng…</p>
                   </td></tr>
                 )}
                 {!loading && !hasBlockingError && visibleItems.length === 0 && (
-                  <tr><td colSpan={7} className="shipments-page__cell-msg">
+                  <tr><td colSpan={desktopColumnCount} className="shipments-page__cell-msg">
                     <Package size={28} aria-hidden="true" />
                     <p>{q ? 'Không tìm thấy lô hàng phù hợp' : 'Chưa có lô hàng nào'}</p>
                   </td></tr>
                 )}
-                {!loading && !hasBlockingError && visibleItems.map((s) => {
-                  const milestone = nextMilestone(s);
-                  const milestoneValue = milestone
-                    ? formatMilestoneDate(milestone.value)
-                    : null;
-                  const milestoneLabel = milestone?.label ?? null;
-                  const milestoneText = milestoneLabel && milestoneValue
-                    ? `${milestoneLabel} ${milestoneValue}`
-                    : null;
-
-                  return (
+                {!loading && !hasBlockingError && visibleItems.map((s) => (
                     <ClickableCard
                       key={s.id}
                       as="tr"
-                      className="shipments-page__tr"
+                      className={`shipments-page__tr${displayShipmentStatus(s.status) === ShipmentStatus.PENDING_DATE && !s.expectedDeliveryDate ? ' is-missing-date' : ''}`}
                       to={`/shipments/${s.id}`}
                       ariaLabel={shipmentLabel(s)}
                     >
-                      <td className="shipments-page__td shipments-page__td--code">
+                      {visibleColumns.has('shipment') && <td className="shipments-page__td shipments-page__td--code">
                         <span className="shipments-page__code">{shipmentLabel(s)}</span>
-                        <span className="shipments-page__sub">{customerLabel(s)}</span>
                         {s.factoryName && <span className="shipments-page__sub">{s.factoryName}</span>}
-                      </td>
-                      <td className="shipments-page__td shipments-page__td--mono" title={s.blNumber ?? undefined}>
+                      </td>}
+                      {visibleColumns.has('customer') && <td className="shipments-page__td" title={customerLabel(s)}>{customerLabel(s)}</td>}
+                      {visibleColumns.has('direction') && <td className="shipments-page__td">{tradeDirectionLabel(s)}</td>}
+                      {visibleColumns.has('cargo') && <td className="shipments-page__td">{cargoSummary(s)}</td>}
+                      {visibleColumns.has('shippingLine') && <td className="shipments-page__td">{s.shippingLineSummary ?? s.shippingLineName ?? <span className="shipments-page__muted">—</span>}</td>}
+                      {visibleColumns.has('carrier') && <td className="shipments-page__td">{s.carrierSummary ?? <span className="shipments-page__muted">—</span>}</td>}
+                      {visibleColumns.has('vehiclePlate') && <td className="shipments-page__td shipments-page__td--mono">{s.vehiclePlateSummary ?? <span className="shipments-page__muted">—</span>}</td>}
+                      {visibleColumns.has('blNumber') && <td className="shipments-page__td shipments-page__td--mono" title={s.blNumber ?? undefined}>
                         {s.blNumber ?? <span className="shipments-page__muted">—</span>}
-                      </td>
-                      <td className="shipments-page__td shipments-page__td--mono" title={s.bookingRef ?? undefined}>
+                      </td>}
+                      {visibleColumns.has('bookingRef') && <td className="shipments-page__td shipments-page__td--mono" title={s.bookingRef ?? undefined}>
                         {s.bookingRef ?? <span className="shipments-page__muted">—</span>}
-                        {cargoModeLabel(s) && <span className="shipments-page__mode">{cargoModeLabel(s)}</span>}
-                      </td>
-                      <td className="shipments-page__td">
+                      </td>}
+                      {visibleColumns.has('route') && <td className="shipments-page__td">
                         {formatRoute(s)
-                          ? (
-                            <span className="shipments-page__route" title={formatRoute(s) ?? undefined}>
-                              <MapPin size={15} aria-hidden="true" />
-                              <span>{s.pickupLocation ?? '—'}</span>
-                              <ArrowRight size={14} aria-hidden="true" />
-                              <span>{s.deliveryLocation ?? '—'}</span>
-                            </span>
-                          )
+                          ? <span className="shipments-page__route" title={formatRoute(s) ?? undefined}>{formatRoute(s)}</span>
                           : <span className="shipments-page__muted">Chưa cập nhật</span>}
-                      </td>
-                      <td className="shipments-page__td shipments-page__td--date">
-                        {milestoneText
-                          ? (
-                            <span className="shipments-page__milestone" title={milestoneText}>
-                              <CalendarClock size={15} aria-hidden="true" />
-                              <span className="shipments-page__milestone-text">
-                                <span>{milestoneLabel}</span>
-                                <strong>{milestoneValue}</strong>
-                              </span>
-                            </span>
-                          )
-                          : <span className="shipments-page__muted">—</span>}
-                      </td>
-                      <td className="shipments-page__td">
+                      </td>}
+                      {visibleColumns.has('delivery') && <td className="shipments-page__td shipments-page__td--date">
+                        {editingDate?.shipmentId === s.id ? (
+                          <form
+                            className="shipments-page__date-editor"
+                            aria-busy={editingDate.saving}
+                            onClick={(event) => event.stopPropagation()}
+                            onSubmit={(event) => { event.preventDefault(); event.stopPropagation(); void saveExpectedDeliveryDate(s); }}
+                            onKeyDown={(event) => {
+                              event.stopPropagation();
+                              if (event.key === 'Escape') setEditingDate(null);
+                            }}
+                          >
+                            <label className="sr-only" htmlFor={`delivery-date-${s.id}`}>Ngày giao dự kiến của {shipmentLabel(s)}</label>
+                            <input
+                              id={`delivery-date-${s.id}`}
+                              name="expectedDeliveryDate"
+                              type="date"
+                              required
+                              value={editingDate.value}
+                              disabled={editingDate.saving}
+                              onChange={(event) => setEditingDate((current) => current ? { ...current, value: event.target.value, error: null } : current)}
+                            />
+                            <button type="submit" disabled={editingDate.saving || !editingDate.value} aria-label="Lưu ngày giao dự kiến">
+                              {editingDate.saving ? <Loader2 size={17} className="spin" aria-hidden="true" /> : <Save size={17} aria-hidden="true" />}
+                            </button>
+                            <button type="button" disabled={editingDate.saving} onClick={cancelDateEdit} aria-label="Hủy chỉnh sửa ngày giao">
+                              <X size={17} aria-hidden="true" />
+                            </button>
+                            {editingDate.error && <p role="alert">{editingDate.error}</p>}
+                          </form>
+                        ) : canInlineEdit ? (
+                          <button
+                            type="button"
+                            className="shipments-page__date-trigger"
+                            title="Nhấp đúp để cập nhật ngày giao dự kiến"
+                            aria-keyshortcuts="Enter F2"
+                            onClick={(event) => { event.preventDefault(); event.stopPropagation(); }}
+                            onDoubleClick={(event) => { event.preventDefault(); event.stopPropagation(); startDateEdit(s); }}
+                            onKeyDown={(event) => {
+                              event.stopPropagation();
+                              if (event.key === 'Enter' || event.key === 'F2') {
+                                event.preventDefault();
+                                startDateEdit(s);
+                              }
+                            }}
+                          >
+                            <CalendarClock size={16} aria-hidden="true" />
+                            <span>{formatDeliveryDate(s.expectedDeliveryDate)}</span>
+                            {displayShipmentStatus(s.status) === ShipmentStatus.PENDING_DATE && !s.expectedDeliveryDate && <small>Thiếu ngày giao dự kiến</small>}
+                          </button>
+                        ) : (
+                          <span className="shipments-page__delivery-readonly">
+                            {formatDeliveryDate(s.expectedDeliveryDate)}
+                            {displayShipmentStatus(s.status) === ShipmentStatus.PENDING_DATE && !s.expectedDeliveryDate && <small>Thiếu ngày giao dự kiến</small>}
+                          </span>
+                        )}
+                      </td>}
+                      {visibleColumns.has('status') && <td className="shipments-page__td">
                         <StatusPill variant={STATUS_PILL_VARIANT[displayShipmentStatus(s.status)]}>
-                          {SHIPMENT_STATUS_LABELS[displayShipmentStatus(s.status)]}
+                          {shipmentStatusLabel(s.status)}
                         </StatusPill>
-                      </td>
+                      </td>}
                       <td className="shipments-page__td shipments-page__td--chev">
                         <ChevronRight size={18} aria-hidden="true" />
                       </td>
                     </ClickableCard>
-                  );
-                })}
+                ))}
               </tbody>
             </table>
           </div>

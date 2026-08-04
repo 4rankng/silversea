@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { render, screen, waitFor, fireEvent, within, act } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { ShipmentStatus } from '@tingting/shared';
 
@@ -10,13 +10,14 @@ const shipmentsPageCss = readFileSync(resolve(process.cwd(), 'src/pages/Shipment
 // accessible inside the factory. (Vitest hoists vi.mock above all top-level
 // declarations — referencing a plain const from the factory throws
 // ReferenceError.)
-const { apiGet, authState } = vi.hoisted(() => ({
+const { apiGet, apiPut, authState } = vi.hoisted(() => ({
   apiGet: vi.fn(),
+  apiPut: vi.fn(),
   authState: { role: 'ACCOUNTANT' },
 }));
 
 vi.mock('../lib/api', () => ({
-  api: { get: apiGet },
+  api: { get: apiGet, put: apiPut },
   ApiError: class ApiError extends Error {
     status: number;
     constructor(status: number, _body: unknown, message: string) {
@@ -42,8 +43,14 @@ function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <ShipmentsPage />
+      <CurrentPath />
     </MemoryRouter>,
   );
+}
+
+function CurrentPath() {
+  const location = useLocation();
+  return <span hidden data-testid="current-path">{location.pathname}</span>;
 }
 
 // Page title appears in BOTH the breadcrumb trail AND the PageHeader <h1>.
@@ -81,7 +88,18 @@ function mobileSurface() {
 describe('ShipmentsPage — shipment manifest workspace', () => {
   beforeEach(() => {
     apiGet.mockReset();
+    apiPut.mockReset();
     authState.role = 'ACCOUNTANT';
+    const stored: Record<string, string> = {};
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: (key: string) => stored[key] ?? null,
+        setItem: (key: string, value: string) => { stored[key] = value; },
+        removeItem: (key: string) => { delete stored[key]; },
+        clear: () => { Object.keys(stored).forEach((key) => delete stored[key]); },
+      },
+    });
   });
 
   it('renders the page header and toolbar', async () => {
@@ -92,11 +110,15 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
     // lifecycle labels would otherwise collide.
     const tb = toolbar();
     expect(tb.getByText(/Tất cả/)).toBeTruthy();
-    expect(tb.getByText('Chờ ngày đóng/trả hàng')).toBeTruthy();
+    expect(tb.getByText('Chờ chốt lịch')).toBeTruthy();
     expect(tb.getByText('Sẵn sàng điều xe')).toBeTruthy();
     expect(tb.getByText('Đã điều xe')).toBeTruthy();
+    expect(tb.getByText('Đang chạy')).toBeTruthy();
+    expect(tb.getByText('Chờ duyệt phí')).toBeTruthy();
+    expect(tb.getByText('Hoàn thành')).toBeTruthy();
+    expect(tb.queryByText('Đã hủy')).toBeNull();
     expect(tb.getByRole('button', { name: /Tất cả/ }).getAttribute('aria-pressed')).toBe('true');
-    expect(tb.getByRole('button', { name: /^Chờ ngày đóng\/trả hàng/ }).getAttribute('aria-pressed')).toBe('false');
+    expect(tb.getByRole('button', { name: /^Chờ chốt lịch/ }).getAttribute('aria-pressed')).toBe('false');
     await waitFor(() => expect(apiGet).toHaveBeenCalled());
   });
 
@@ -127,7 +149,7 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
     );
   });
 
-  it('keeps long milestone text inside the delivery column', async () => {
+  it('renders the actual expected delivery date instead of an earlier milestone', async () => {
     apiGet.mockResolvedValue({
       items: [{
         id: 1,
@@ -138,6 +160,7 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
         bookingRef: 'BK-1',
         blNumber: 'BL-1',
         expectedDeliveryDate: '2026-08-15',
+        closingAt: '2026-08-05T08:00:00Z',
         pickupLocation: null,
         deliveryLocation: null,
         contactName: null,
@@ -153,16 +176,8 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
 
     renderAt('/shipments');
     const desktop = desktopSurface();
-    const milestone = await desktop.findByTitle('Giao dự kiến 15/8/2026');
-    expect(milestone.classList.contains('shipments-page__milestone')).toBe(true);
-    expect(within(milestone).getByText('Giao dự kiến')).toBeTruthy();
-    expect(within(milestone).getByText('15/8/2026')).toBeTruthy();
-    expect(shipmentsPageCss).toMatch(
-      /\.shipments-page__td--date\s*\{[\s\S]*?overflow:\s*hidden;/,
-    );
-    expect(shipmentsPageCss).toMatch(
-      /\.shipments-page__milestone-text > span,\s*\.shipments-page__milestone-text > strong\s*\{[\s\S]*?text-overflow:\s*ellipsis;/,
-    );
+    await waitFor(() => expect(desktop.getByText('15/8/2026')).toBeTruthy());
+    expect(desktop.queryByText('5/8/2026')).toBeNull();
   });
 
   it('renders the empty state when the API returns no shipments', async () => {
@@ -205,7 +220,7 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
     expect(desktop.getByText('Công ty CP Vận tải ABC')).toBeTruthy();
     // Status labels render in the row pills. Scoped to the desktop table to
     // avoid colliding with the mobile card pills.
-    expect(desktop.getAllByText('Chờ ngày đóng/trả hàng').length).toBeGreaterThanOrEqual(1);
+    expect(desktop.getAllByText('Chờ chốt lịch').length).toBeGreaterThanOrEqual(1);
     expect(desktop.getAllByText('Đã điều xe').length).toBeGreaterThanOrEqual(1);
     expect(desktop.getByText((_, element) => Boolean(
       element?.classList.contains('shipments-page__td--date')
@@ -368,5 +383,179 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
       expect(lastCall).toMatch(/status=PENDING_EXPENSE_APPROVAL/);
       expect(lastCall).not.toMatch(/page=3/);
     });
+  });
+
+  it('shows the required operational columns by default and persists optional visibility', async () => {
+    apiGet.mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 });
+    renderAt('/shipments');
+    const desktop = desktopSurface();
+    for (const heading of ['Lô hàng', 'Khách hàng', 'Loại hàng (Xuất/Nhập)', 'Số Cont/Số lượng', 'Hãng tàu', 'Nhà xe', 'Biển số xe', 'Ngày giao dự kiến', 'Trạng thái']) {
+      expect(desktop.getByRole('columnheader', { name: heading })).toBeTruthy();
+    }
+    expect(desktop.queryByRole('columnheader', { name: 'Số B/L' })).toBeNull();
+
+    // The column menu is a <details>/<summary>. The summary's text also
+    // appears in the ancestor <details>'s aggregate textContent, so a text
+    // query matches twice — toggle the trigger by its class instead.
+    const columnsTrigger = document.querySelector('.shipments-page__columns-trigger') as HTMLElement;
+    expect(columnsTrigger).toBeTruthy();
+    fireEvent.click(columnsTrigger);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Số B/L' }));
+    expect(desktop.getByRole('columnheader', { name: 'Số B/L' })).toBeTruthy();
+    expect(JSON.parse(window.localStorage.getItem('silversea:shipments:columns:v1') ?? '[]')).toContain('blNumber');
+  });
+
+  it('marks pending shipments without a delivery date with an explicit warning', async () => {
+    apiGet.mockResolvedValue({
+      items: [{
+        id: 81, shipmentCode: 'SHP-MISSING', customerId: 7, customerName: 'Khách hàng A',
+        status: ShipmentStatus.PENDING_DATE, bookingRef: null, blNumber: null,
+        expectedDeliveryDate: null, pickupLocation: null, deliveryLocation: null,
+        contactName: null, contactPhone: null, version: 1, createdAt: '', updatedAt: '',
+      }],
+      total: 1, page: 1, limit: 20,
+    });
+    renderAt('/shipments');
+    const desktop = desktopSurface();
+    await waitFor(() => expect(desktop.getByText('SHP-MISSING')).toBeTruthy());
+    expect(desktop.getByText('Thiếu ngày giao dự kiến')).toBeTruthy();
+    expect(desktop.getByText('SHP-MISSING').closest('tr')?.classList.contains('is-missing-date')).toBe(true);
+  });
+
+  it('lets a clerk double-click and save the expected delivery date inline', async () => {
+    authState.role = 'CLERK';
+    const row = {
+      id: 91, shipmentCode: 'SHP-EDIT', customerId: 7, customerName: 'Khách hàng B',
+      status: ShipmentStatus.PENDING_DATE, bookingRef: null, blNumber: null,
+      expectedDeliveryDate: null, pickupLocation: null, deliveryLocation: null,
+      contactName: null, contactPhone: null, version: 4, createdAt: '', updatedAt: '',
+    };
+    apiGet.mockResolvedValue({ items: [row], total: 1, page: 1, limit: 20 });
+    apiPut.mockResolvedValue({ ...row, expectedDeliveryDate: '2026-08-18', version: 5, changeMode: 'DIRECT', changeRequestId: null });
+    renderAt('/shipments');
+    const desktop = desktopSurface();
+    const dateButton = await desktop.findByRole('button', { name: /Thiếu ngày giao dự kiến/ });
+    fireEvent.doubleClick(dateButton);
+    const input = desktop.getByLabelText('Ngày giao dự kiến của SHP-EDIT');
+    fireEvent.change(input, { target: { value: '2026-08-18' } });
+    fireEvent.click(desktop.getByRole('button', { name: 'Lưu ngày giao dự kiến' }));
+    await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/91', {
+      expectedVersion: 4,
+      expectedDeliveryDate: '2026-08-18',
+    }));
+    await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Đã cập nhật ngày giao dự kiến'));
+    expect(screen.getByTestId('current-path').textContent).toBe('/shipments');
+  });
+
+  it('keeps date actions on the list for mouse and keyboard interaction', async () => {
+    authState.role = 'CLERK';
+    apiGet.mockResolvedValue({
+      items: [{
+        id: 92, shipmentCode: 'SHP-CANCEL', customerId: 7, customerName: 'Khách hàng B',
+        status: ShipmentStatus.PENDING_DATE, bookingRef: null, blNumber: null,
+        expectedDeliveryDate: '2026-08-04', pickupLocation: null, deliveryLocation: null,
+        contactName: null, contactPhone: null, version: 1, createdAt: '', updatedAt: '',
+      }],
+      total: 1, page: 1, limit: 20,
+    });
+
+    renderAt('/shipments');
+    const desktop = desktopSurface();
+    const desktopDate = await desktop.findByRole('button', { name: '4/8/2026' });
+
+    fireEvent.keyDown(desktopDate, { key: ' ' });
+    expect(screen.getByTestId('current-path').textContent).toBe('/shipments');
+
+    fireEvent.keyDown(desktopDate, { key: 'Enter' });
+    expect(desktop.getByLabelText('Ngày giao dự kiến của SHP-CANCEL')).toBeTruthy();
+    fireEvent.click(desktop.getByRole('button', { name: 'Hủy chỉnh sửa ngày giao' }));
+    expect(screen.getByTestId('current-path').textContent).toBe('/shipments');
+    expect(desktop.queryByLabelText('Ngày giao dự kiến của SHP-CANCEL')).toBeNull();
+
+    const mobile = mobileSurface();
+    const mobileAction = mobile.getByRole('button', { name: 'Đổi ngày giao' });
+    fireEvent.keyDown(mobileAction, { key: 'Enter' });
+    fireEvent.click(mobileAction);
+    expect(mobile.getByLabelText('Ngày giao dự kiến')).toBeTruthy();
+    expect(screen.getByTestId('current-path').textContent).toBe('/shipments');
+  });
+
+  it('retains the inline editor and entered date when the update fails', async () => {
+    authState.role = 'CLERK';
+    apiGet.mockResolvedValue({
+      items: [{
+        id: 93, shipmentCode: 'SHP-CONFLICT', customerId: 7, customerName: 'Khách hàng C',
+        status: ShipmentStatus.PENDING_DATE, bookingRef: null, blNumber: null,
+        expectedDeliveryDate: null, pickupLocation: null, deliveryLocation: null,
+        contactName: null, contactPhone: null, version: 4, createdAt: '', updatedAt: '',
+      }],
+      total: 1, page: 1, limit: 20,
+    });
+    apiPut.mockRejectedValue(new Error('Dữ liệu đã thay đổi, vui lòng tải lại'));
+
+    renderAt('/shipments');
+    const desktop = desktopSurface();
+    fireEvent.doubleClick(await desktop.findByRole('button', { name: /Thiếu ngày giao dự kiến/ }));
+    const input = desktop.getByLabelText('Ngày giao dự kiến của SHP-CONFLICT') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '2026-08-18' } });
+    fireEvent.click(desktop.getByRole('button', { name: 'Lưu ngày giao dự kiến' }));
+
+    await waitFor(() => expect(desktop.getByRole('alert').textContent).toContain('Dữ liệu đã thay đổi'));
+    expect(input.value).toBe('2026-08-18');
+    expect(screen.getByTestId('current-path').textContent).toBe('/shipments');
+  });
+
+  it('announces a requested change without implying a direct update', async () => {
+    authState.role = 'CLERK';
+    const row = {
+      id: 94, shipmentCode: 'SHP-REQUESTED', customerId: 7, customerName: 'Khách hàng D',
+      status: ShipmentStatus.DISPATCHED, bookingRef: null, blNumber: null,
+      expectedDeliveryDate: '2026-08-04', pickupLocation: null, deliveryLocation: null,
+      contactName: null, contactPhone: null, version: 2, createdAt: '', updatedAt: '',
+    };
+    apiGet.mockResolvedValue({ items: [row], total: 1, page: 1, limit: 20 });
+    apiPut.mockResolvedValue({ ...row, changeMode: 'REQUESTED', changeRequestId: 15 });
+
+    renderAt('/shipments');
+    const desktop = desktopSurface();
+    fireEvent.doubleClick(await desktop.findByRole('button', { name: '4/8/2026' }));
+    const input = desktop.getByLabelText('Ngày giao dự kiến của SHP-REQUESTED');
+    fireEvent.change(input, { target: { value: '2026-08-19' } });
+    fireEvent.click(desktop.getByRole('button', { name: 'Lưu ngày giao dự kiến' }));
+
+    await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Đã gửi yêu cầu đổi ngày giao dự kiến'));
+  });
+
+  it('falls back to default columns when browser storage is unavailable', async () => {
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: () => { throw new Error('storage disabled'); },
+        setItem: () => { throw new Error('storage disabled'); },
+        removeItem: () => undefined,
+        clear: () => undefined,
+      },
+    });
+    apiGet.mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 });
+
+    renderAt('/shipments');
+    await waitFor(() => expect(apiGet).toHaveBeenCalled());
+    expect(desktopSurface().getByRole('columnheader', { name: 'Nhà xe' })).toBeTruthy();
+    expect(desktopSurface().queryByRole('columnheader', { name: 'Số B/L' })).toBeNull();
+  });
+
+  it('keeps the inline date control read-only for accountants', async () => {
+    apiGet.mockResolvedValue({
+      items: [{
+        id: 101, shipmentCode: 'SHP-READONLY', customerId: 7, customerName: 'Khách hàng C',
+        status: ShipmentStatus.PENDING_DATE, bookingRef: null, blNumber: null,
+        expectedDeliveryDate: null, pickupLocation: null, deliveryLocation: null,
+        contactName: null, contactPhone: null, version: 1, createdAt: '', updatedAt: '',
+      }],
+      total: 1, page: 1, limit: 20,
+    });
+    renderAt('/shipments');
+    await waitFor(() => expect(desktopSurface().getByText('SHP-READONLY')).toBeTruthy());
+    expect(desktopSurface().queryByTitle('Nhấp đúp để cập nhật ngày giao dự kiến')).toBeNull();
   });
 });

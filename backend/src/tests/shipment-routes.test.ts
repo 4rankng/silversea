@@ -1067,6 +1067,18 @@ describe('PUT /:id', () => {
     assert.equal(r.status, 400);
   });
 
+  test('rejects malformed and impossible expected delivery dates with 400', async () => {
+    const shipment = await mkShipmentViaService();
+    for (const expectedDeliveryDate of ['04/08/2026', '2026-02-30']) {
+      const r = await testFetch(`/${shipment.id}`, {
+        method: 'PUT',
+        token: adminToken,
+        body: { expectedVersion: shipment.version, expectedDeliveryDate },
+      });
+      assert.equal(r.status, 400);
+    }
+  });
+
   test('CLERK can update (write allowed)', async () => {
     const shipment = await mkClerkScopedShipmentViaService();
     const r = await testFetch(`/${shipment.id}`, {

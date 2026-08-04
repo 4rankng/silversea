@@ -36,6 +36,15 @@
   border-bottom: 1px solid var(--line);
 }
 
+.shipments-page__toolbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: min(100%, 430px);
+  margin-left: auto;
+}
+
 .shipments-page__filters {
   display: flex;
   align-items: center;
@@ -95,6 +104,100 @@
   border-radius: var(--radius-sm);
   background: var(--surface);
   transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+
+.shipments-page__columns {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.shipments-page__columns > summary {
+  list-style: none;
+}
+
+.shipments-page__columns > summary::-webkit-details-marker {
+  display: none;
+}
+
+.shipments-page__columns-trigger {
+  min-height: 44px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.shipments-page__columns-menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  width: 270px;
+  max-height: min(520px, 70vh);
+  overflow-y: auto;
+  padding: 8px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--ink) 12%, transparent);
+}
+
+.shipments-page__columns-menu > p {
+  margin: 4px 8px 6px;
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+}
+
+.shipments-page__columns-menu label {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  color: var(--ink-2);
+  cursor: pointer;
+  font-size: var(--fs-sm);
+}
+
+.shipments-page__columns-menu label:hover {
+  background: var(--surface-2);
+}
+
+.shipments-page__columns-menu label:has(input:disabled) {
+  cursor: default;
+}
+
+.shipments-page__columns-menu input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent-2);
+}
+
+.shipments-page__columns-menu small {
+  display: block;
+  color: var(--ink-4);
+  font-size: var(--fs-2xs);
+}
+
+.shipments-page__columns-reset {
+  min-height: 44px;
+  margin-top: 6px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: transparent;
+  color: var(--accent-2);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  text-align: left;
+}
+
+.shipments-page__columns-reset:focus-visible,
+.shipments-page__columns-trigger:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
 }
 
 .shipments-page__search:focus-within {
@@ -209,6 +312,34 @@
   font-size: var(--fs-sm);
 }
 
+.shipments-page__notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 20px 16px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--success) 24%, var(--line));
+  border-radius: var(--radius-sm);
+  background: var(--success-soft);
+  color: var(--success-text);
+  font-size: var(--fs-sm);
+}
+
+.shipments-page__notice button {
+  display: inline-grid;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
 .shipments-page__loading {
   display: flex;
   min-height: 240px;
@@ -226,16 +357,17 @@
 }
 
 .shipments-page__table-scroll {
+  max-width: 100%;
+  min-width: 0;
   overflow-x: auto;
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--accent-2) 24%, transparent) transparent;
 }
 
 .shipments-page__table {
-  width: 100%;
-  min-width: 1040px;
+  width: max-content;
+  min-width: 100%;
   border-collapse: collapse;
-  table-layout: fixed;
   font-size: var(--fs-sm);
 }
 
@@ -249,6 +381,7 @@
 
 .shipments-page__th,
 .shipments-page__table thead th {
+  min-width: 112px;
   padding: 11px 16px;
   border-bottom: 1px solid var(--line);
   background: var(--surface-2);
@@ -262,6 +395,8 @@
 }
 
 .shipments-page__td {
+  min-width: 112px;
+  max-width: 220px;
   height: 68px;
   padding: 12px 16px;
   border-bottom: 1px solid var(--line);
@@ -276,6 +411,14 @@
 
 .shipments-page__tr:hover {
   background: color-mix(in srgb, var(--accent-soft) 42%, var(--surface));
+}
+
+.shipments-page__tr.is-missing-date {
+  box-shadow: inset 3px 0 var(--warning);
+}
+
+.shipments-page__tr.is-missing-date .shipments-page__td--date {
+  background: var(--warning-soft);
 }
 
 .shipments-page__tr:focus-visible {
@@ -346,7 +489,108 @@
 }
 
 .shipments-page__td--date {
-  overflow: hidden;
+  min-width: 168px;
+}
+
+.shipments-page__date-trigger {
+  display: grid;
+  min-width: 150px;
+  min-height: 44px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  padding: 5px 7px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.shipments-page__date-trigger:hover {
+  border-color: var(--line-2);
+  background: var(--surface);
+}
+
+.shipments-page__date-trigger:focus-visible {
+  border-color: var(--accent-2);
+  outline: 2px solid var(--accent-2);
+  outline-offset: 1px;
+}
+
+.shipments-page__date-trigger svg {
+  color: var(--accent-2);
+}
+
+.shipments-page__date-trigger small,
+.shipments-page__delivery-readonly small {
+  grid-column: 1 / -1;
+  display: block;
+  color: var(--warning-text);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  white-space: normal;
+}
+
+.shipments-page__delivery-readonly {
+  display: grid;
+  gap: 4px;
+}
+
+.shipments-page__date-editor {
+  display: grid;
+  min-width: 330px;
+  grid-template-columns: minmax(150px, 1fr) 44px 44px;
+  gap: 6px;
+  align-items: center;
+}
+
+.shipments-page__date-editor input {
+  min-width: 0;
+  min-height: 44px;
+  padding: 6px 9px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+}
+
+.shipments-page__date-editor button {
+  display: inline-flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.shipments-page__date-editor button[type='submit'] {
+  border-color: var(--accent-2);
+  background: var(--accent-2);
+  color: var(--surface);
+}
+
+.shipments-page__date-editor button:disabled {
+  cursor: not-allowed;
+  opacity: .6;
+}
+
+.shipments-page__date-editor p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--danger-text);
+  font-size: var(--fs-xs);
+  white-space: normal;
 }
 
 .shipments-page__milestone {
@@ -439,7 +683,11 @@
   border-bottom: 1px solid var(--line);
   background: transparent;
   color: var(--ink);
-  cursor: pointer;
+  cursor: default;
+}
+
+.shipments-page__card.is-missing-date {
+  box-shadow: inset 3px 0 var(--warning);
 }
 
 .shipments-page__card:last-child {
@@ -469,6 +717,89 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.shipments-page__card-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+}
+
+.shipments-page__card-facts > div {
+  min-width: 0;
+}
+
+.shipments-page__card-facts span,
+.shipments-page__card-facts strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.shipments-page__card-facts span {
+  margin-bottom: 3px;
+  color: var(--ink-3);
+  font-size: var(--fs-2xs);
+}
+
+.shipments-page__card-facts strong {
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+}
+
+.shipments-page__warning {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border-left: 3px solid var(--warning);
+  border-radius: var(--radius-sm);
+  background: var(--warning-soft);
+  color: var(--warning-text);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+}
+
+.shipments-page__mobile-date-action {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--accent-2);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+}
+
+.shipments-page__date-editor--mobile {
+  min-width: 0;
+  grid-template-columns: 1fr;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.shipments-page__date-editor--mobile > label {
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+}
+
+.shipments-page__date-editor--mobile > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 6px;
+}
+
+.shipments-page__date-editor--mobile button {
+  padding: 0 10px;
 }
 
 .shipments-page__card-code {
@@ -553,9 +884,14 @@
 }
 
 .shipments-page__card-cta {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 6px;
   flex-shrink: 0;
   color: var(--accent-2);
   font-weight: var(--fw-semibold);
+  text-decoration: none;
 }
 
 .shipments-page__mobile > .ds-pagination {
@@ -577,6 +913,11 @@
   .shipments-page__search {
     width: 100%;
     max-width: none;
+    margin-left: 0;
+  }
+
+  .shipments-page__toolbar-actions {
+    width: 100%;
     margin-left: 0;
   }
 
@@ -608,6 +949,10 @@
   .shipments-page__toolbar {
     gap: 10px;
     padding: 12px;
+  }
+
+  .shipments-page__search-input {
+    font-size: 16px;
   }
 
   .shipments-page__filters {
@@ -690,6 +1035,18 @@
   .shipments-page__card-foot {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .shipments-page__card-facts {
+    grid-template-columns: 1fr;
+  }
+
+  .shipments-page__date-editor--mobile > div {
+    grid-template-columns: 1fr 44px 44px;
+  }
+
+  .shipments-page__date-editor--mobile button span {
+    display: none;
   }
 }
 

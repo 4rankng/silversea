@@ -18,6 +18,7 @@
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eq, inArray } from 'drizzle-orm';
+import { Role } from '@tingting/shared';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
@@ -25,6 +26,7 @@ import {
   createShipment,
   getShipment,
   listShipments,
+  listShipmentsPaginated,
   updateShipment,
   transitionShipmentStatus,
   softDeleteShipment,
@@ -42,6 +44,9 @@ const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
 const createdContainerTypeIds: number[] = [];
 const createdTripContainerIds: number[] = [];
+const createdTruckIds: number[] = [];
+const createdUserIds: number[] = [];
+const createdBusinessUnitIds: number[] = [];
 
 async function mkCustomer() {
   const [c] = await db.insert(s.customers)
@@ -51,15 +56,31 @@ async function mkCustomer() {
   return c;
 }
 
-async function mkTrip(customerId: number) {
-  // Minimal scaffolding: a route + cargo type are required (NOT NULL) on trips.
+async function mkCarrierCustomer() {
+  const [c] = await db.insert(s.customers)
+    .values({
+      name: `ShipmentSvc carrier ${suffix}-${createdCustomerIds.length}`,
+      isCarrier: true,
+      status: 'ACTIVE',
+    })
+    .returning();
+  createdCustomerIds.push(c.id);
+  return c;
+}
+
+async function mkRouteAndCargo() {
   const [route] = await db.insert(s.routes)
     .values({ name: `ShipmentSvc route ${suffix}-${createdRouteIds.length}` }).returning();
   createdRouteIds.push(route.id);
   const [cargoType] = await db.insert(s.cargoTypes)
     .values({ name: `ShipmentSvc cargo ${suffix}-${createdCargoTypeIds.length}` }).returning();
   createdCargoTypeIds.push(cargoType.id);
+  return { route, cargoType };
+}
 
+async function mkTrip(customerId: number) {
+  // Minimal scaffolding: a route + cargo type are required (NOT NULL) on trips.
+  const { route, cargoType } = await mkRouteAndCargo();
   const [trip] = await db.insert(s.trips).values({
     tripCode: `SS-${suffix}-${createdTripIds.length}`.slice(0, 50),
     customerId,
@@ -73,6 +94,83 @@ async function mkTrip(customerId: number) {
   return trip;
 }
 
+async function mkTripForShipment(input: {
+  customerId: number;
+  shipmentId: number;
+  fulfillmentId?: number | null;
+  carrierType?: 'OWN' | 'EXTERNAL';
+  truckId?: number | null;
+  externalCarrierId?: number | null;
+  externalPlateNumber?: string | null;
+  status?: 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELED';
+}) {
+  const { route, cargoType } = await mkRouteAndCargo();
+  const carrierType = input.carrierType ?? 'OWN';
+  const [trip] = await db.insert(s.trips).values({
+    tripCode: `SS-${suffix}-${createdTripIds.length}`.slice(0, 50),
+    customerId: input.customerId,
+    routeId: route.id,
+    cargoTypeId: cargoType.id,
+    shipmentId: input.shipmentId,
+    fulfillmentId: input.fulfillmentId ?? null,
+    status: input.status ?? 'CREATED',
+    departureDate: '2026-08-04',
+    carrierType,
+    truckId: carrierType === 'OWN' ? input.truckId ?? null : null,
+    externalEntityId: carrierType === 'EXTERNAL' ? input.externalCarrierId ?? null : null,
+    externalEntityType: carrierType === 'EXTERNAL' && input.externalCarrierId != null ? 'CUSTOMER' : null,
+    externalPlateNumber: carrierType === 'EXTERNAL' ? input.externalPlateNumber ?? null : null,
+  }).returning();
+  createdTripIds.push(trip.id);
+  return trip;
+}
+
+async function mkTruck() {
+  const [truck] = await db.insert(s.trucks)
+    .values({
+      licensePlate: `51C-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+      status: 'ACTIVE',
+    })
+    .returning();
+  createdTruckIds.push(truck.id);
+  return truck;
+}
+
+async function mkBusinessUnit() {
+  const [unit] = await db.insert(s.businessUnits)
+    .values({
+      code: `SS-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+      name: `ShipmentSvc unit ${suffix}-${createdBusinessUnitIds.length}`,
+      status: 'ACTIVE',
+    })
+    .returning();
+  createdBusinessUnitIds.push(unit.id);
+  return unit;
+}
+
+async function mkScopedClerk(customerId: number, businessUnitId: number) {
+  const [user] = await db.insert(s.users).values({
+    username: `shipment-svc-clerk-${suffix}-${createdUserIds.length}`,
+    passwordHash: 'test-hash',
+    role: Role.CLERK,
+    status: 'ACTIVE',
+  }).returning();
+  createdUserIds.push(user.id);
+
+  await db.insert(s.userCustomerLinks).values({ userId: user.id, customerId });
+  await db.insert(s.userBusinessUnitLinks).values({ userId: user.id, businessUnitId });
+
+  return {
+    userId: user.id,
+    username: user.username,
+    email: null,
+    fullName: null,
+    role: Role.CLERK,
+    customerId,
+    customerIds: [customerId],
+  };
+}
+
 after(async () => {
   // Reverse FK order: snapshot rows → trips → shipment children → shipment → catalogs → customer.
   if (createdTripContainerIds.length > 0) {
@@ -84,6 +182,8 @@ after(async () => {
     await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
   }
   if (createdShipmentIds.length > 0) {
+    await db.delete(s.shipmentFulfillments)
+      .where(inArray(s.shipmentFulfillments.shipmentId, createdShipmentIds));
     await db.delete(s.shipmentStatusHistory)
       .where(inArray(s.shipmentStatusHistory.shipmentId, createdShipmentIds));
     await db.delete(s.shipmentContainers)
@@ -102,6 +202,18 @@ after(async () => {
   }
   if (createdContainerTypeIds.length > 0) {
     await db.delete(s.containerTypes).where(inArray(s.containerTypes.id, createdContainerTypeIds));
+  }
+  if (createdTruckIds.length > 0) {
+    await db.delete(s.trucks).where(inArray(s.trucks.id, createdTruckIds));
+  }
+  if (createdUserIds.length > 0) {
+    await db.delete(s.userBusinessUnitLinks).where(inArray(s.userBusinessUnitLinks.userId, createdUserIds));
+    await db.delete(s.userCustomerLinks).where(inArray(s.userCustomerLinks.userId, createdUserIds));
+    await db.delete(s.userShipmentLinks).where(inArray(s.userShipmentLinks.userId, createdUserIds));
+    await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
+  }
+  if (createdBusinessUnitIds.length > 0) {
+    await db.delete(s.businessUnits).where(inArray(s.businessUnits.id, createdBusinessUnitIds));
   }
   if (createdCustomerIds.length > 0) {
     await db.delete(s.customers).where(inArray(s.customers.id, createdCustomerIds));
@@ -242,6 +354,293 @@ describe('getShipment / listShipments', () => {
       assert.ok(result.some((row) => row.id === target.id), 'target shipment is searchable');
       assert.ok(!result.every((row) => row.id === other.id), 'search is not pinned to the distractor');
     }
+  });
+});
+
+describe('listShipmentsPaginated', () => {
+  test('includes legacy NEW rows in the PENDING_DATE filter bucket', async () => {
+    const customer = await mkCustomer();
+    const shipment = await createShipment({ customerId: customer.id });
+    createdShipmentIds.push(shipment.id);
+    await db.update(s.shipments).set({ status: 'NEW' }).where(eq(s.shipments.id, shipment.id));
+
+    const result = await listShipmentsPaginated({
+      customerId: customer.id,
+      status: 'PENDING_DATE',
+      page: 1,
+      limit: 20,
+    });
+
+    assert.deepEqual(result.items.map((row) => row.id), [shipment.id]);
+    assert.equal(result.total, 1);
+  });
+
+  test('projects deterministic FCL summaries from containers, fulfillments, and live trips', async () => {
+    const customer = await mkCustomer();
+    const carrierA = await mkCarrierCustomer();
+    const carrierB = await mkCarrierCustomer();
+    const truck = await mkTruck();
+    const shipment = await createShipment({
+      customerId: customer.id,
+      cargoMode: 'FCL',
+      shippingLineName: `Main Line ${suffix}`,
+    });
+    createdShipmentIds.push(shipment.id);
+
+    const containers = await db.insert(s.shipmentContainers).values([
+      {
+        shipmentId: shipment.id,
+        containerNumber: `MSKU${String(Date.now()).slice(-6)}1`,
+        shippingLineName: `Main Line ${suffix}`,
+      },
+      {
+        shipmentId: shipment.id,
+        containerNumber: `TCLU${String(Date.now()).slice(-6)}2`,
+        shippingLineName: `Line B ${suffix}`,
+      },
+    ]).returning();
+
+    const [ownFulfillment, externalFulfillment, canceledFulfillment] = await db.insert(s.shipmentFulfillments).values([
+      {
+        shipmentId: shipment.id,
+        fulfillmentType: 'FCL_CONTAINER',
+        cargoMode: 'FCL',
+        shipmentContainerId: containers[0]!.id,
+        sourceShipmentVersion: shipment.version,
+        siteSnapshot: {},
+        plannedCarrierType: 'OWN',
+      },
+      {
+        shipmentId: shipment.id,
+        fulfillmentType: 'FCL_CONTAINER',
+        cargoMode: 'FCL',
+        shipmentContainerId: containers[1]!.id,
+        sourceShipmentVersion: shipment.version,
+        siteSnapshot: {},
+        plannedCarrierType: 'EXTERNAL',
+        plannedExternalCarrierId: carrierA.id,
+      },
+      {
+        shipmentId: shipment.id,
+        fulfillmentType: 'FCL_CONTAINER',
+        cargoMode: 'FCL',
+        sourceShipmentVersion: shipment.version,
+        siteSnapshot: {},
+        plannedCarrierType: 'EXTERNAL',
+        plannedExternalCarrierId: carrierB.id,
+        canceledAt: new Date('2026-08-04T08:00:00Z'),
+      },
+    ]).returning();
+
+    await mkTripForShipment({
+      customerId: customer.id,
+      shipmentId: shipment.id,
+      fulfillmentId: ownFulfillment.id,
+      carrierType: 'OWN',
+      truckId: truck.id,
+      status: 'CREATED',
+    });
+    await mkTripForShipment({
+      customerId: customer.id,
+      shipmentId: shipment.id,
+      fulfillmentId: externalFulfillment.id,
+      carrierType: 'EXTERNAL',
+      externalCarrierId: carrierA.id,
+      externalPlateNumber: '51H-222.22',
+      status: 'IN_TRANSIT',
+    });
+    await mkTripForShipment({
+      customerId: customer.id,
+      shipmentId: shipment.id,
+      fulfillmentId: canceledFulfillment.id,
+      carrierType: 'EXTERNAL',
+      externalCarrierId: carrierB.id,
+      externalPlateNumber: '51H-999.99',
+      // Deliberately inconsistent legacy state: the fulfillment is canceled
+      // but its trip is still live. The list must trust the fulfillment.
+      status: 'CREATED',
+    });
+    await mkTripForShipment({
+      customerId: customer.id,
+      shipmentId: shipment.id,
+      carrierType: 'EXTERNAL',
+      externalCarrierId: carrierB.id,
+      externalPlateNumber: '51H-333.33',
+      status: 'CREATED',
+    });
+
+    const result = await listShipmentsPaginated({ customerId: customer.id, page: 1, limit: 20 });
+    const row = result.items.find((item) => item.id === shipment.id);
+    assert.ok(row, 'shipment appears exactly once in the paginated list');
+    assert.equal(result.items.filter((item) => item.id === shipment.id).length, 1);
+    assert.equal(row!.cargoSummary, `2 cont: ${containers[0]!.containerNumber}, ${containers[1]!.containerNumber}`);
+    assert.equal(row!.shippingLineSummary, `Main Line ${suffix}, Line B ${suffix}`);
+    assert.equal(row!.carrierSummary, `SilverSea, ${carrierA.name}, ${carrierB.name}`);
+    assert.equal(row!.vehiclePlateSummary, `${truck.licensePlate}, 51H-222.22, 51H-333.33`);
+  });
+
+  test('projects LCL package summary and falls back to planned carrier authority when unassigned', async () => {
+    const customer = await mkCustomer();
+    const carrier = await mkCarrierCustomer();
+    const shipment = await createShipment({
+      customerId: customer.id,
+      cargoMode: 'LCL',
+      packageCount: 12,
+      packageType: 'Pallet',
+      shippingLineName: `LCL Line ${suffix}`,
+    });
+    createdShipmentIds.push(shipment.id);
+
+    await db.insert(s.shipmentFulfillments).values([
+      {
+        shipmentId: shipment.id,
+        fulfillmentType: 'LCL_SHIPMENT',
+        cargoMode: 'LCL',
+        sourceShipmentVersion: shipment.version,
+        siteSnapshot: {},
+        plannedCarrierType: 'EXTERNAL',
+        plannedExternalCarrierId: carrier.id,
+      },
+      {
+        shipmentId: shipment.id,
+        fulfillmentType: 'LCL_SHIPMENT',
+        cargoMode: 'LCL',
+        sourceShipmentVersion: shipment.version,
+        siteSnapshot: {},
+        plannedCarrierType: 'OWN',
+        canceledAt: new Date('2026-08-04T09:00:00Z'),
+      },
+    ]);
+
+    const result = await listShipmentsPaginated({ customerId: customer.id, page: 1, limit: 20 });
+    const row = result.items.find((item) => item.id === shipment.id);
+    assert.ok(row);
+    assert.equal(row!.cargoSummary, '12 Pallet');
+    assert.equal(row!.shippingLineSummary, `LCL Line ${suffix}`);
+    assert.equal(row!.carrierSummary, carrier.name);
+    assert.equal(row!.vehiclePlateSummary, null);
+  });
+
+  test('preserves clerk scope filtering even when projected rows have multiple related records', async () => {
+    const scopedCustomer = await mkCustomer();
+    const otherCustomer = await mkCustomer();
+    const scopedUnit = await mkBusinessUnit();
+    const otherUnit = await mkBusinessUnit();
+    const truck = await mkTruck();
+    const actor = await mkScopedClerk(scopedCustomer.id, scopedUnit.id);
+
+    const visible = await createShipment({
+      customerId: scopedCustomer.id,
+      responsibleUnitId: scopedUnit.id,
+      cargoMode: 'FCL',
+    });
+    const hiddenWrongUnit = await createShipment({
+      customerId: scopedCustomer.id,
+      responsibleUnitId: otherUnit.id,
+    });
+    const hiddenWrongCustomer = await createShipment({
+      customerId: otherCustomer.id,
+      responsibleUnitId: scopedUnit.id,
+    });
+    createdShipmentIds.push(visible.id, hiddenWrongUnit.id, hiddenWrongCustomer.id);
+
+    const visibleContainers = await db.insert(s.shipmentContainers).values([
+      { shipmentId: visible.id, containerNumber: `CLERK-${Math.random().toString(36).slice(2, 7)}A` },
+      { shipmentId: visible.id, containerNumber: `CLERK-${Math.random().toString(36).slice(2, 7)}B` },
+    ]).returning();
+    const [firstFulfillment, secondFulfillment] = await db.insert(s.shipmentFulfillments).values([
+      {
+        shipmentId: visible.id,
+        fulfillmentType: 'FCL_CONTAINER',
+        cargoMode: 'FCL',
+        shipmentContainerId: visibleContainers[0]!.id,
+        sourceShipmentVersion: visible.version,
+        siteSnapshot: {},
+        plannedCarrierType: 'OWN',
+      },
+      {
+        shipmentId: visible.id,
+        fulfillmentType: 'FCL_CONTAINER',
+        cargoMode: 'FCL',
+        shipmentContainerId: visibleContainers[1]!.id,
+        sourceShipmentVersion: visible.version,
+        siteSnapshot: {},
+        plannedCarrierType: 'OWN',
+      },
+    ]).returning();
+    await mkTripForShipment({
+      customerId: scopedCustomer.id,
+      shipmentId: visible.id,
+      fulfillmentId: firstFulfillment.id,
+      carrierType: 'OWN',
+      truckId: truck.id,
+    });
+    await mkTripForShipment({
+      customerId: scopedCustomer.id,
+      shipmentId: visible.id,
+      fulfillmentId: secondFulfillment.id,
+      carrierType: 'OWN',
+      truckId: truck.id,
+    });
+
+    const result = await listShipmentsPaginated({ actor, page: 1, limit: 10 });
+    assert.equal(result.total, 1);
+    assert.equal(result.items.length, 1);
+    assert.equal(result.items[0]!.id, visible.id);
+  });
+
+  test('keeps pagination totals and page boundaries stable with multi-row projections', async () => {
+    const customer = await mkCustomer();
+    const truck = await mkTruck();
+    const first = await createShipment({ customerId: customer.id, cargoMode: 'FCL' });
+    const second = await createShipment({ customerId: customer.id });
+    const third = await createShipment({ customerId: customer.id });
+    createdShipmentIds.push(first.id, second.id, third.id);
+
+    const firstContainers = await db.insert(s.shipmentContainers).values([
+      { shipmentId: first.id, containerNumber: `PAGE-${Math.random().toString(36).slice(2, 7)}1` },
+      { shipmentId: first.id, containerNumber: `PAGE-${Math.random().toString(36).slice(2, 7)}2` },
+    ]).returning();
+    const fulfillments = await db.insert(s.shipmentFulfillments).values([
+      {
+        shipmentId: first.id,
+        fulfillmentType: 'FCL_CONTAINER',
+        cargoMode: 'FCL',
+        shipmentContainerId: firstContainers[0]!.id,
+        sourceShipmentVersion: first.version,
+        siteSnapshot: {},
+        plannedCarrierType: 'OWN',
+      },
+      {
+        shipmentId: first.id,
+        fulfillmentType: 'FCL_CONTAINER',
+        cargoMode: 'FCL',
+        shipmentContainerId: firstContainers[1]!.id,
+        sourceShipmentVersion: first.version,
+        siteSnapshot: {},
+        plannedCarrierType: 'OWN',
+      },
+    ]).returning();
+    for (const fulfillment of fulfillments) {
+      await mkTripForShipment({
+        customerId: customer.id,
+        shipmentId: first.id,
+        fulfillmentId: fulfillment.id,
+        carrierType: 'OWN',
+        truckId: truck.id,
+      });
+    }
+
+    const page1 = await listShipmentsPaginated({ customerId: customer.id, page: 1, limit: 2 });
+    const page2 = await listShipmentsPaginated({ customerId: customer.id, page: 2, limit: 2 });
+
+    assert.equal(page1.total, 3);
+    assert.equal(page1.items.length, 2);
+    assert.equal(new Set(page1.items.map((item) => item.id)).size, page1.items.length);
+    assert.equal(page2.total, 3);
+    assert.equal(page2.items.length, 1);
+    assert.equal(new Set(page2.items.map((item) => item.id)).size, page2.items.length);
+    assert.equal(new Set([...page1.items, ...page2.items].map((item) => item.id)).size, 3);
   });
 });
 
