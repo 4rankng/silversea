@@ -560,6 +560,32 @@ export async function listOperationalSites(customerId: number): Promise<Operatio
   return response.items;
 }
 
+/** Body for `POST /api/shipments/operational-sites`. Optional fields may be null. */
+export interface CreateOperationalSiteBody {
+  customerId: number;
+  code: string;
+  name: string;
+  siteType: 'FACTORY' | 'WAREHOUSE';
+  address: string;
+  googleMapsUrl?: string | null;
+  contactName?: string | null;
+  contactPhone?: string | null;
+  liftFeeInvoiceName?: string | null;
+  liftFeeInvoiceAddress?: string | null;
+  liftFeeTaxCode?: string | null;
+  strictRules?: string | null;
+}
+
+/**
+ * Create a customer-owned factory/warehouse from the intake form so a user is
+ * never blocked by an empty dropdown. Mirrors the operational-site schema on
+ * the backend; the service reconciles by `(customerId, code)` so re-submitting
+ * the same code updates the live master row.
+ */
+export async function createOperationalSite(body: CreateOperationalSiteBody): Promise<OperationalSite> {
+  return api.post<OperationalSite>('/shipments/operational-sites', body);
+}
+
 export async function submitShipmentForDispatch(
   id: number,
   body: {

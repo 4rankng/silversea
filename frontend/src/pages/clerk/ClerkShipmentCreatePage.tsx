@@ -17,6 +17,7 @@ import {
 } from '../../api/shipmentClient';
 import { localDateTimeToIso } from '../../lib/shipment-operations';
 import { OperationalSiteDetailsDialog } from '../../components/shipment/OperationalSiteDetailsDialog';
+import { OperationalSiteCreateDialog } from '../../components/shipment/OperationalSiteCreateDialog';
 import {
   CarrierAllocationDialog,
 } from '../../components/shipment/CarrierAllocationDialog';
@@ -147,6 +148,8 @@ interface SearchableFieldProps {
   placeholder: string;
   disabled?: boolean;
   required?: boolean;
+  /** Optional helper text rendered under the select (e.g. empty-state guidance). */
+  hint?: React.ReactNode;
 }
 
 function SearchableField({
@@ -158,6 +161,7 @@ function SearchableField({
   placeholder,
   disabled,
   required,
+  hint,
 }: SearchableFieldProps) {
   return (
     <label htmlFor={id} style={{ display: 'grid', gap: 8, alignContent: 'start', fontSize: 14, fontWeight: 600 }}>
@@ -171,6 +175,7 @@ function SearchableField({
         disabled={disabled}
         required={required}
       />
+      {hint && <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--fg-3)' }}>{hint}</span>}
     </label>
   );
 }
@@ -188,6 +193,10 @@ export default function ClerkShipmentCreatePage() {
   const [saving, setSaving] = useState<SaveIntent | null>(null);
   const saveAttemptRef = useRef<SaveAttempt | null>(null);
   const [detailSite, setDetailSite] = useState<OperationalSite | null>(null);
+  const [createSiteDialog, setCreateSiteDialog] = useState<{ open: boolean; siteType: 'FACTORY' | 'WAREHOUSE' }>({ open: false, siteType: 'FACTORY' });
+  // Bumped after a site is created in-dialog so the operational-sites effect
+  // re-fetches and the new row appears in the dropdown without a full reload.
+  const [sitesVersion, setSitesVersion] = useState(0);
   const [pricingProjection, setPricingProjection] = useState<ShipmentPricingProjection | null>(null);
   const [pricingLoading, setPricingLoading] = useState(false);
   const [pricingError, setPricingError] = useState<string | null>(null);
@@ -212,7 +221,7 @@ export default function ClerkShipmentCreatePage() {
       .catch(() => { if (!cancelled) setSubmitError('Không thể tải danh sách nhà máy của khách hàng'); })
       .finally(() => { if (!cancelled) setSitesLoading(false); });
     return () => { cancelled = true; };
-  }, [form.customerId]);
+  }, [form.customerId, sitesVersion]);
 
   useEffect(() => {
     if (!form.customerId || !form.routeId) {
@@ -330,6 +339,21 @@ export default function ClerkShipmentCreatePage() {
     update('operationalSiteId', value);
     const selected = sites.find((site) => String(site.id) === value) ?? null;
     if (selected) setDetailSite(selected);
+  }
+
+  /**
+   * Called when the in-form "Thêm nhà máy/kho" dialog successfully creates a
+   * site. Forces a re-fetch (so the new row is present) and auto-selects it
+   * so the user can continue the intake without re-opening the dropdown.
+   */
+  function handleSiteCreated(site: OperationalSite) {
+    setCreateSiteDialog({ open: false, siteType: site.siteType });
+    setSitesVersion((version) => version + 1);
+    if (site.siteType === 'FACTORY') {
+      update('operationalSiteId', String(site.id));
+    } else {
+      update('pickupWarehouseSiteId', String(site.id));
+    }
   }
 
   function changeMode(next: CargoMode) {
@@ -542,10 +566,17 @@ export default function ClerkShipmentCreatePage() {
                 value={form.operationalSiteId}
                 onChange={selectOperationalSite}
                 options={operationalSites.map((site) => ({ value: String(site.id), label: site.name, searchText: site.address ?? '' }))}
-                placeholder={sitesLoading ? 'Đang tải…' : 'Chọn nhà máy'}
+                placeholder={sitesLoading ? 'Đang tải…' : !form.customerId ? 'Chọn khách hàng trước' : 'Chọn nhà máy'}
                 disabled={!form.customerId || sitesLoading || Boolean(saving)}
+                hint={!form.customerId
+                  ? 'Vui lòng chọn khách hàng để tải danh sách nhà máy.'
+                  : (form.customerId && !sitesLoading && operationalSites.length === 0
+                    ? <>Chưa có nhà máy cho khách hàng này.{' '}<button type="button" onClick={() => setCreateSiteDialog({ open: true, siteType: 'FACTORY' })} disabled={Boolean(saving)} style={{ border: 0, background: 'none', padding: 0, color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>Thêm nhà máy</button></>
+                    : undefined)}
               />
-              {form.operationalSiteId && <button type="button" onClick={() => setDetailSite(sites.find((site) => String(site.id) === form.operationalSiteId) ?? null)} style={{ alignSelf: 'end', minHeight: 44, border: '1px solid var(--border-2)', borderRadius: 8, background: 'var(--surface-1)', color: 'var(--fg-1)', fontWeight: 600, cursor: 'pointer' }}><Eye size={17} style={{ verticalAlign: 'middle', marginRight: 7 }} />Xem thông tin nhà máy</button>}
+              {form.operationalSiteId
+                ? <button type="button" onClick={() => setDetailSite(sites.find((site) => String(site.id) === form.operationalSiteId) ?? null)} style={{ alignSelf: 'end', minHeight: 44, border: '1px solid var(--border-2)', borderRadius: 8, background: 'var(--surface-1)', color: 'var(--fg-1)', fontWeight: 600, cursor: 'pointer' }}><Eye size={17} style={{ verticalAlign: 'middle', marginRight: 7 }} />Xem thông tin nhà máy</button>
+                : (form.customerId && !sitesLoading && <button type="button" onClick={() => setCreateSiteDialog({ open: true, siteType: 'FACTORY' })} disabled={Boolean(saving)} style={{ alignSelf: 'end', minHeight: 44, border: '1px dashed var(--border-2)', borderRadius: 8, background: 'transparent', color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer' }}><Plus size={17} style={{ verticalAlign: 'middle', marginRight: 7 }} />Thêm nhà máy</button>)}
             </div>
           )}
         </section>
@@ -581,7 +612,7 @@ export default function ClerkShipmentCreatePage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><strong>Container {index + 1}</strong>{containers.length > 1 && <button type="button" aria-label={`Xóa container ${index + 1}`} onClick={() => setContainers((current) => current.filter((item) => item.key !== row.key))} style={{ minWidth: 44, minHeight: 44, border: 0, background: 'none', color: 'var(--danger)', cursor: 'pointer' }}><Trash2 size={18} /></button>}</div>
                   <div style={gridStyle}>
                     <TextField label="Số container" value={row.containerNumber} onChange={(event) => updateContainer(row.key, 'containerNumber', event.target.value.toUpperCase())} disabled={Boolean(saving)} />
-                    <SelectField label="Loại container" value={row.containerTypeId} onChange={(event) => updateContainer(row.key, 'containerTypeId', event.target.value)} disabled={Boolean(saving)}><option value="">— Chọn loại —</option>{(catalogs.containerTypes ?? []).map((item) => <option key={item.id} value={item.id}>{item.code} — {item.name}</option>)}</SelectField>
+                    <SelectField label="Loại container" required value={row.containerTypeId} onChange={(event) => updateContainer(row.key, 'containerTypeId', event.target.value)} disabled={Boolean(saving)}><option value="">— Chọn loại —</option>{(catalogs.containerTypes ?? []).map((item) => <option key={item.id} value={item.id}>{item.code} — {item.name}</option>)}</SelectField>
                     <TextField label="Hãng tàu" value={row.shippingLineName} onChange={(event) => updateContainer(row.key, 'shippingLineName', event.target.value)} disabled={Boolean(saving)} />
                     <SearchableField id={`container-${row.key}-pickup-port`} label="Cảng nâng" value={row.pickupPortId} onChange={(value) => updateContainer(row.key, 'pickupPortId', value)} options={(catalogs.ports ?? []).map((item) => ({ value: String(item.id), label: item.name }))} placeholder="Chọn cảng nâng" disabled={Boolean(saving)} />
                     <SearchableField id={`container-${row.key}-dropoff-port`} label="Cảng hạ" value={row.dropoffPortId} onChange={(value) => updateContainer(row.key, 'dropoffPortId', value)} options={(catalogs.ports ?? []).map((item) => ({ value: String(item.id), label: item.name }))} placeholder="Chọn cảng hạ" disabled={Boolean(saving)} />
@@ -593,11 +624,25 @@ export default function ClerkShipmentCreatePage() {
             </div>
           ) : (
             <div style={gridStyle}>
-              <SearchableField id="shipment-pickup-warehouse" label="Kho lấy hàng" value={form.pickupWarehouseSiteId} onChange={(value) => update('pickupWarehouseSiteId', value)} options={warehouseSites.map((site) => ({ value: String(site.id), label: site.name, searchText: site.address ?? '' }))} placeholder="Chọn kho lấy hàng" disabled={sitesLoading || Boolean(saving)} />
+              <SearchableField
+                id="shipment-pickup-warehouse"
+                label="Kho lấy hàng"
+                value={form.pickupWarehouseSiteId}
+                onChange={(value) => update('pickupWarehouseSiteId', value)}
+                options={warehouseSites.map((site) => ({ value: String(site.id), label: site.name, searchText: site.address ?? '' }))}
+                placeholder={sitesLoading ? 'Đang tải…' : !form.customerId ? 'Chọn khách hàng trước' : 'Chọn kho lấy hàng'}
+                disabled={!form.customerId || sitesLoading || Boolean(saving)}
+                hint={!form.customerId
+                  ? 'Vui lòng chọn khách hàng để tải danh sách kho.'
+                  : (form.customerId && !sitesLoading && warehouseSites.length === 0
+                    ? <>Chưa có kho cho khách hàng này.{' '}<button type="button" onClick={() => setCreateSiteDialog({ open: true, siteType: 'WAREHOUSE' })} disabled={Boolean(saving)} style={{ border: 0, background: 'none', padding: 0, color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>Thêm kho</button></>
+                    : undefined)}
+              />
               <TextField label="Quy cách đóng gói" value={form.packageType} onChange={(event) => update('packageType', event.target.value)} placeholder="Pallet, carton…" disabled={Boolean(saving)} />
               <TextField label="Số lượng" type="number" min="1" step="1" value={form.packageCount} onChange={(event) => update('packageCount', event.target.value)} disabled={Boolean(saving)} />
               <TextField label="Trọng lượng (kg)" type="number" min="0" step="0.01" value={form.cargoWeightKg} onChange={(event) => update('cargoWeightKg', event.target.value)} disabled={Boolean(saving)} />
               <TextField label="Thể tích (CBM)" type="number" min="0" step="0.001" value={form.cargoVolumeCbm} onChange={(event) => update('cargoVolumeCbm', event.target.value)} disabled={Boolean(saving)} />
+              {form.customerId && !form.pickupWarehouseSiteId && !sitesLoading && <button type="button" onClick={() => setCreateSiteDialog({ open: true, siteType: 'WAREHOUSE' })} disabled={Boolean(saving)} style={{ alignSelf: 'end', minHeight: 44, border: '1px dashed var(--border-2)', borderRadius: 8, background: 'transparent', color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer' }}><Plus size={17} style={{ verticalAlign: 'middle', marginRight: 7 }} />Thêm kho</button>}
             </div>
           )}
         </section>
@@ -699,6 +744,13 @@ export default function ClerkShipmentCreatePage() {
         </div>
       </form>
       <OperationalSiteDetailsDialog site={detailSite} isOpen={Boolean(detailSite)} onClose={() => setDetailSite(null)} />
+      <OperationalSiteCreateDialog
+        isOpen={createSiteDialog.open && Boolean(form.customerId)}
+        customerId={Number(form.customerId)}
+        defaultSiteType={createSiteDialog.siteType}
+        onClose={() => setCreateSiteDialog((current) => ({ ...current, open: false }))}
+        onCreated={handleSiteCreated}
+      />
       <CarrierAllocationDialog
         isOpen={carrierAllocationDialogOpen}
         title="Gán nhà xe"

@@ -39,6 +39,7 @@ import {
   shipmentAccountingLockSchema,
   carrierFleetVehicleSchema,
   assignShipmentCarriersSchema,
+  operationalSiteSchema,
 } from '@tingting/shared';
 import {
   createShipment,
@@ -86,7 +87,7 @@ import {
   markSeen,
   resolveHandoff,
 } from '../services/dispatch-handoff.service';
-import { assignShipmentCarriers, listOperationalSitesForIntake, submitShipmentForDispatch } from '../services/shipment-intake.service';
+import { assignShipmentCarriers, createOperationalSiteForIntake, listOperationalSitesForIntake, submitShipmentForDispatch } from '../services/shipment-intake.service';
 import {
   acceptDispatchHandoff,
   issueFulfillmentDispatchOrder,
@@ -128,6 +129,9 @@ registerAuditEvent('POST', '/api/shipments/', '/change-requests/', AuditEvent.SH
 registerAuditEvent('PUT', '/api/shipments/', '/containers', AuditEvent.SHIPMENT_CONTAINERS_UPDATED);
 registerAuditEvent('PUT', '/api/shipments/', '', AuditEvent.SHIPMENT_UPDATED);
 registerAuditEvent('DELETE', '/api/shipments/', '', AuditEvent.SHIPMENT_DELETED);
+// Master-data CRUD: creating a factory/warehouse from the intake form is an
+// entity-level change, not a shipment-lifecycle event, so it uses ENTITY_*.
+registerAuditEvent('POST', '/api/shipments/operational-sites', AuditEvent.ENTITY_CREATED);
 
 const shipmentDeclarationSchema = z.object({
   declarationNumber: z.string().trim().max(50).optional().nullable(),
@@ -631,6 +635,20 @@ router.get(
       throw new ApiError(400, 'customerId không hợp lệ.');
     }
     res.json({ items: await listOperationalSitesForIntake(customerId, getUser(req)) });
+  }),
+);
+
+// Create a customer-owned factory/warehouse from the clerk intake form so a
+// user is never blocked by an empty "Nhà máy" dropdown. Matches the GET
+// guard; the service additionally enforces CLERK customer-scope.
+router.post(
+  '/operational-sites',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CLERK),
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = operationalSiteSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const site = await createOperationalSiteForIntake(parsed.data, getUser(req));
+    res.status(201).json(site);
   }),
 );
 

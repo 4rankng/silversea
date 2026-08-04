@@ -16,6 +16,77 @@ import { getRenewalReminders } from './expense.service';
 import { getTreasuryPositions } from './treasury.service';
 import { getProfitabilityReport } from './profitability.service';
 
+/**
+ * O2C flow-congestion thresholds (Step 4 Dev Notes — "Dashboard cảnh báo tắc
+ * nghẽn luồng"). These flag parallel-branch stall conditions so the dispatcher
+ * can act before a shipment misses its yard/cutoff window. MVP constants;
+ * candidates for a config row once the threshold needs per-customer tuning.
+ */
+export const DISPATCH_NO_ORDER_STALL_HOURS = 24;
+export const YARD_EXPIRY_WINDOW_HOURS = 48;
+
+/**
+ * Read-only count of parallel-branch stall conditions (exported for direct
+ * testing without the dashboard cache). Returns the inputs buildDecisionItems
+ * needs to emit the two congestion alerts.
+ */
+export async function getCongestionAlertCounts(): Promise<{
+  stalledDispatchedNoOrder: number;
+  stalledOrderNoTruck: number;
+  stalledOrderNoTruckOverdue: number;
+}> {
+  const [stallNoOrderResult, stallYardExpiryResult] = await Promise.all([
+    // Stall A: dispatched (truck assigned) but Ops order-exchange not done for
+    // over DISPATCH_NO_ORDER_STALL_HOURS. Branch 1 complete, Branch 2 stuck.
+    db.select({
+      count: sql<number>`count(distinct ${s.shipments.id})::int`,
+    }).from(s.shipments)
+      .innerJoin(s.trips, and(
+        eq(s.trips.shipmentId, s.shipments.id),
+        isNull(s.trips.deletedAt),
+        sql`${s.trips.status} <> 'CANCELED'`,
+        sql`${s.trips.truckId} IS NOT NULL`,
+      ))
+      .where(and(
+        isNull(s.shipments.deletedAt),
+        sql`${s.shipments.status} IN ('READY_FOR_DISPATCH','DISPATCHED')`,
+        sql`${s.shipments.orderExchangeCompletedAt} IS NULL`,
+        sql`${s.trips.createdAt} < now() - (${DISPATCH_NO_ORDER_STALL_HOURS} || ' hours')::interval`,
+      )),
+    // Stall B: order-exchange done but no truck yet, and the customs cutoff is
+    // within YARD_EXPIRY_WINDOW_HOURS or already past. Also reports how many
+    // are already past-due so the decision can escalate to critical.
+    db.select({
+      count: sql<number>`count(distinct ${s.shipments.id})::int`,
+      overdue: sql<number>`count(distinct ${s.shipments.id}) filter (where ${s.shipments.customsCutoffAt} < now())::int`,
+    }).from(s.shipments)
+      .leftJoin(s.trips, and(
+        eq(s.trips.shipmentId, s.shipments.id),
+        isNull(s.trips.deletedAt),
+        sql`${s.trips.status} <> 'CANCELED'`,
+      ))
+      .where(and(
+        isNull(s.shipments.deletedAt),
+        sql`${s.shipments.status} IN ('READY_FOR_DISPATCH','DISPATCHED')`,
+        sql`${s.shipments.orderExchangeCompletedAt} IS NOT NULL`,
+        sql`${s.shipments.customsCutoffAt} IS NOT NULL`,
+        sql`NOT EXISTS (
+          SELECT 1 FROM trips dispatched
+          WHERE dispatched.shipment_id = ${s.shipments.id}
+            AND dispatched.deleted_at IS NULL
+            AND dispatched.status <> 'CANCELED'
+            AND dispatched.truck_id IS NOT NULL
+        )`,
+        sql`${s.shipments.customsCutoffAt} <= now() + (${YARD_EXPIRY_WINDOW_HOURS} || ' hours')::interval`,
+      )),
+  ]);
+  return {
+    stalledDispatchedNoOrder: Number(stallNoOrderResult[0]?.count || 0),
+    stalledOrderNoTruck: Number(stallYardExpiryResult[0]?.count || 0),
+    stalledOrderNoTruckOverdue: Number(stallYardExpiryResult[0]?.overdue || 0),
+  };
+}
+
 export async function getDashboardStats(options: { includeExecutive?: boolean } = {}) {
   const includeExecutive = options.includeExecutive === true;
   return cacheGet(includeExecutive ? 'reports:dashboard:executive' : 'reports:dashboard', 30, async () => {
@@ -119,6 +190,7 @@ export async function getDashboardStats(options: { includeExecutive?: boolean } 
     const revenue = Number(pnlReport.totalRevenue || 0);
     const costs = Number(pnlReport.totalCosts || 0);
     const grossProfit = Number(pnlReport.grossProfit || 0);
+    const congestionCounts = await getCongestionAlertCounts();
     const decisionItems = buildDecisionItems({
       year,
       month,
@@ -133,6 +205,7 @@ export async function getDashboardStats(options: { includeExecutive?: boolean } 
       completedTripsForLock,
       completedPhotoRows,
       fuelWarningTrips: countFuelWarningTrips(fuelCheckRows, fuelConfig),
+      ...congestionCounts,
     });
 
     let executive: Record<string, unknown> | undefined;
@@ -237,6 +310,9 @@ function buildDecisionItems(input: {
   completedTripsForLock: Array<{ id: number }>;
   completedPhotoRows: Array<{ tripId: number; count: number }>;
   fuelWarningTrips: number;
+  stalledDispatchedNoOrder: number;
+  stalledOrderNoTruck: number;
+  stalledOrderNoTruckOverdue: number;
 }): DashboardDecisionItem[] {
   const items: DashboardDecisionItem[] = [];
 
@@ -263,6 +339,34 @@ function buildDecisionItems(input: {
       actionLabel: 'Phân xe',
       route: '/dispatch',
       priority: 90,
+    });
+  }
+
+  // O2C Step 4 — flow-congestion alerts (parallel-branch stalls).
+  if (input.stalledDispatchedNoOrder > 0) {
+    items.push({
+      id: 'dispatch-stall-no-order',
+      kind: 'dispatch',
+      severity: 'warning',
+      title: `${input.stalledDispatchedNoOrder} lô đã phân xe chờ đổi lệnh`,
+      subtitle: 'Xe đã gán nhưng Ops chưa hoàn tất đổi lệnh quá lâu',
+      actionLabel: 'Xem điều vận',
+      route: '/dispatch',
+      priority: 88,
+    });
+  }
+
+  if (input.stalledOrderNoTruck > 0) {
+    const overdue = input.stalledOrderNoTruckOverdue > 0;
+    items.push({
+      id: 'dispatch-stall-no-truck-near-cutoff',
+      kind: 'dispatch',
+      severity: overdue ? 'critical' : 'warning',
+      title: `${input.stalledOrderNoTruck} lô đổi lệnh xong sắp hết hạn lưu bãi${overdue ? ' (đã quá hạn)' : ''}`,
+      subtitle: 'Đã đổi lệnh nhưng chưa phân xe, hạn lưu bãi sắp tới',
+      actionLabel: 'Phân xe gấp',
+      route: '/dispatch',
+      priority: overdue ? 92 : 84,
     });
   }
 

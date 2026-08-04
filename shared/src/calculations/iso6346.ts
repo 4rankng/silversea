@@ -3,6 +3,16 @@
  *
  * Ported (faithfully) from vantaiphucloc `app/utils/iso6346.py`.
  *
+ * THIS MODULE IS THE SOURCE OF TRUTH (DEF-20260804-005).
+ * Earlier docs referenced Wikipedia's ISO 6346 mapping (A=10, B=12, C=14, …)
+ * but the app's behaviour diverges: it skips multiples of 11 in the letter
+ * map (A=10, B=12, C=13, D=14, …) so no character yields a zero remainder
+ * in mod 11. The Wikipedia mapping is *not* what the app validates against.
+ *
+ * Container numbers that validate under THIS module:
+ *   - MSKU1234565
+ *   - TGHU1234565
+ *
  * Format: XXXXNNNNNNN
  *   - XXXX    : 4 letters (owner code)
  *   - NNNNNNN : 7 digits (6 serial + 1 check digit)

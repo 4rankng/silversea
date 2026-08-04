@@ -1,5 +1,6 @@
 import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
-import { canonicalShipmentStatus, Role } from '@tingting/shared';
+import { canonicalShipmentStatus, OperationalSiteType, Role } from '@tingting/shared';
+import type { OperationalSiteInput } from '@tingting/shared';
 
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -205,6 +206,91 @@ export async function listOperationalSitesForIntake(customerId: number, actor: A
   }
 
   return sites;
+}
+
+/**
+ * Create a customer-owned operational site (factory or warehouse) from the
+ * clerk intake form. Mirrors the RBAC + CLERK-scope rules of
+ * {@link listOperationalSitesForIntake} and the insert logic of the
+ * master-data importer, so the REST path and the Excel import path cannot
+ * drift apart. The (customerId, code) partial unique index makes this an
+ * upsert-by-code: re-submitting the same code updates the live master row
+ * instead of erroring, matching how the importer reconciles workbooks.
+ */
+export async function createOperationalSiteForIntake(
+  input: OperationalSiteInput,
+  actor: AuthUser,
+) {
+  if (![Role.ADMIN, Role.MANAGER, Role.CLERK].includes(actor.role)) {
+    throw new ApiError(403, 'Bạn không có quyền thêm điểm vận hành.');
+  }
+  if (actor.role === Role.CLERK) {
+    const scope = await loadClerkShipmentScope(actor.userId);
+    if (scope.businessUnitIds.length === 0 || !scope.customerIds.includes(input.customerId)) {
+      throw new ApiError(404, 'Không tìm thấy khách hàng.');
+    }
+  }
+  const [customer] = await db.select({ id: s.customers.id }).from(s.customers)
+    .where(and(eq(s.customers.id, input.customerId), isNull(s.customers.deletedAt))).limit(1);
+  if (!customer) throw new ApiError(404, 'Không tìm thấy khách hàng.');
+
+  return db.transaction(async (tx) => {
+    const [existing] = await tx.select().from(s.operationalSites).where(and(
+      eq(s.operationalSites.customerId, input.customerId),
+      eq(s.operationalSites.code, input.code),
+      isNull(s.operationalSites.deletedAt),
+    )).limit(1);
+    if (existing && !existing.isActive) {
+      throw new ApiError(409, 'Điểm vận hành đang ngưng hoạt động; không tự động kích hoạt lại.');
+    }
+    const values = {
+      customerId: input.customerId,
+      code: input.code,
+      name: input.name,
+      siteType: input.siteType,
+      address: input.address,
+      googleMapsUrl: input.googleMapsUrl ?? null,
+      contactName: input.contactName ?? null,
+      contactPhone: input.contactPhone ?? null,
+      liftFeeInvoiceName: input.liftFeeInvoiceName ?? null,
+      liftFeeInvoiceAddress: input.liftFeeInvoiceAddress ?? null,
+      liftFeeTaxCode: input.liftFeeTaxCode ?? null,
+      strictRules: input.strictRules ?? null,
+      isActive: input.isActive ?? true,
+      updatedBy: actor.userId,
+      updatedAt: new Date(),
+    };
+    const [row] = existing
+      ? await tx.update(s.operationalSites)
+        .set({ ...values, version: sql`${s.operationalSites.version} + 1` })
+        .where(eq(s.operationalSites.id, existing.id))
+        .returning()
+      : await tx.insert(s.operationalSites)
+        .values({ ...values, createdBy: actor.userId })
+        .returning();
+    if (!row) throw new Error('Không thể lưu điểm vận hành.');
+    return {
+      id: row.id,
+      customerId: row.customerId,
+      code: row.code,
+      name: row.name,
+      siteType: row.siteType,
+      address: row.address,
+      googleMapsUrl: row.googleMapsUrl,
+      contactName: row.contactName,
+      contactPhone: row.contactPhone,
+      liftFeeInvoiceName: row.liftFeeInvoiceName,
+      liftFeeInvoiceAddress: row.liftFeeInvoiceAddress,
+      liftFeeTaxCode: row.liftFeeTaxCode,
+      strictRules: row.strictRules,
+      version: row.version,
+    };
+  });
+}
+
+/** Narrow the enum so the intake form only offers the two site types it understands. */
+export function isValidIntakeSiteType(value: string): value is OperationalSiteType {
+  return value === OperationalSiteType.FACTORY || value === OperationalSiteType.WAREHOUSE;
 }
 
 async function assertReferenceIsActive(

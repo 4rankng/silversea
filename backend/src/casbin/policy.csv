@@ -30,8 +30,6 @@ p, ACCOUNTANT, audit_logs, read
 p, ACCOUNTANT, maps, read
 p, ACCOUNTANT, upload, write
 p, ACCOUNTANT, photos, read
-p, ACCOUNTANT, users, read
-p, ACCOUNTANT, users, write
 p, DRIVER, driver_portal, read
 p, DRIVER, maps, read
 p, DRIVER, photos, read

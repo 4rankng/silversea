@@ -24,6 +24,7 @@ import { seedCustomers } from './seed/seed-customers';
 import { seedReference } from './seed/seed-reference';
 import { seedLiftPricing } from './seed/seed-lift-pricing';
 import { seedPricingTables } from './seed/seed-pricing-tables';
+import { seedOperationalSites } from './seed/seed-operational-sites';
 
 export async function seed() {
   const passwordHash = await bcrypt.hash('Abc123', 10);
@@ -591,6 +592,9 @@ export async function seed() {
   await seedLiftPricing(reference);
   const seededCustomers = await seedCustomers();
   await seedPricingTables(reference, seededCustomers);
+  // Seed operational sites (factories + warehouses) after customers so the
+  // shipment intake "Nhà máy"/"Kho lấy hàng" dropdowns are never empty.
+  await seedOperationalSites();
   await seedShipments(passwordHash);
   await seedClerkScope();
 }

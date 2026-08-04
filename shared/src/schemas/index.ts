@@ -1396,7 +1396,11 @@ export const shipmentContainerBatchSchema = z.object({
   version: z.number().int().nonnegative('version là bắt buộc để kiểm soát đồng thời').optional(),
   containers: z.array(z.object({
     id: z.coerce.number().int().positive().optional(),
-    containerTypeId: z.coerce.number().int().positive().optional().nullable(),
+    // DEF-20260804-003: containerTypeId is required (not nullable) for any
+    // shipment container reconciliation. Carrier-allocation downstream needs
+    // the size bucket (20/40/45) — null causes "20' 0/0, 40' 0/0" mismatch
+    // even when containerNumber + ISO check digit are valid.
+    containerTypeId: z.coerce.number().int().positive('Loại container là bắt buộc'),
     containerNumber: z.string().max(50, 'Số container không được quá 50 ký tự').optional().nullable()
       .transform(v => (v === '' ? null : v)),
     sealNumber: z.string().max(50).optional().nullable().transform(v => (v === '' ? null : v)),
