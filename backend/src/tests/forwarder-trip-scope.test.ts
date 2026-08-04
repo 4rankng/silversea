@@ -30,6 +30,7 @@ let forwarderA: number;
 let forwarderB: number;
 let shipmentA: number;
 let shipmentB: number;
+let shipmentPreTrip: number;
 let tripA: number;
 let tripB: number;
 
@@ -74,9 +75,17 @@ before(async () => {
       status: 'IN_TRANSIT',
     },
     { shipmentCode: `FS-B-${suffix}`, customerId: customer.id, cargoTypeId: cargoType.id },
+    {
+      shipmentCode: `FS-PRE-${suffix}`,
+      customerId: customer.id,
+      cargoTypeId: cargoType.id,
+      routeId: route.id,
+      expectedDeliveryDate: '2026-07-27',
+      status: 'READY_FOR_DISPATCH',
+    },
   ]).returning({ id: s.shipments.id });
-  [shipmentA, shipmentB] = shipments.map((row) => row.id);
-  ids.shipments.push(shipmentA, shipmentB);
+  [shipmentA, shipmentB, shipmentPreTrip] = shipments.map((row) => row.id);
+  ids.shipments.push(shipmentA, shipmentB, shipmentPreTrip);
   await db.insert(s.shipmentDeclarations).values({
     shipmentId: shipmentA,
     declarationNumber: `TK-A-${suffix}`,
@@ -109,6 +118,7 @@ before(async () => {
   await db.insert(s.userShipmentLinks).values([
     { userId: forwarderA, shipmentId: shipmentA },
     { userId: forwarderB, shipmentId: shipmentB },
+    { userId: forwarderA, shipmentId: shipmentPreTrip },
   ]);
 });
 
@@ -214,10 +224,11 @@ describe('forwarder shipment scope', () => {
         /chưa kết thúc/,
       );
     } finally {
-      await db.update(s.shipments).set({ status: 'NEW' }).where(eq(s.shipments.id, shipmentA));
+      await db.update(s.shipments).set({ status: 'IN_TRANSIT' }).where(eq(s.shipments.id, shipmentA));
       await db.delete(s.userShipmentLinks).where(inArray(s.userShipmentLinks.userId, [forwarderA, forwarderB]));
       await db.insert(s.userShipmentLinks).values([
         { userId: forwarderA, shipmentId: shipmentA },
+        { userId: forwarderA, shipmentId: shipmentPreTrip },
         { userId: forwarderB, shipmentId: shipmentB },
       ]);
     }
@@ -236,6 +247,16 @@ describe('forwarder shipment scope', () => {
         && error.statusCode === 404
       ),
     );
+  });
+
+  test('lists a ready assigned shipment before dispatch creates a trip', async () => {
+    const row = (await getForwarderTrips(forwarderA)).find((item) => item.shipmentId === shipmentPreTrip);
+    assert.ok(row);
+    assert.equal(row.tripId, null);
+    assert.equal(row.id, null);
+    assert.equal(row.departureDate, '2026-07-27');
+    assert.equal(row.orderExchangeStatus, 'PENDING');
+    assert.equal(row.workItemKey, `shipment:${shipmentPreTrip}:trip:0`);
   });
 
   test('list and detail project persisted bill facts and keep expanded search scope-safe', async () => {
@@ -299,7 +320,7 @@ describe('forwarder shipment scope', () => {
       }),
       /chưa kết thúc/,
     );
-    await db.update(s.shipments).set({ status: 'NEW' }).where(inArray(s.shipments.id, [shipmentA]));
+    await db.update(s.shipments).set({ status: 'IN_TRANSIT' }).where(inArray(s.shipments.id, [shipmentA]));
   });
 
   test('mutable-scope validation serializes a concurrent terminal shipment transition', async () => {
@@ -333,7 +354,7 @@ describe('forwarder shipment scope', () => {
     await guardedMutation;
     await terminalTransition;
     assert.equal(transitionCompleted, true);
-    await db.update(s.shipments).set({ status: 'NEW' }).where(eq(s.shipments.id, shipmentA));
+    await db.update(s.shipments).set({ status: 'IN_TRANSIT' }).where(eq(s.shipments.id, shipmentA));
   });
 
   test('shared assignment allows trip visibility but only the owner can edit each expense', async () => {

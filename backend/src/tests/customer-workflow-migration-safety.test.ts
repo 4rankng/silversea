@@ -132,6 +132,7 @@ describe('customer workflow migration safety', () => {
   it('keeps the O2C baseline fence and orders additive readiness migrations', async () => {
     const { readFile } = await import('node:fs/promises');
     const migrationSql = await readFile(new URL('../../drizzle/0000_flexible-baseline.sql', import.meta.url), 'utf8');
+    const orderExchangeSql = await readFile(new URL('../../drizzle/0003_majestic_clea.sql', import.meta.url), 'utf8');
     const journal = JSON.parse(await readFile(new URL('../../drizzle/meta/_journal.json', import.meta.url), 'utf8')) as {
       entries: Array<{ idx: number; version: string; when: number; tag: string; breakpoints: boolean }>;
     };
@@ -139,8 +140,12 @@ describe('customer workflow migration safety', () => {
       { idx: 0, tag: '0000_flexible-baseline' },
       { idx: 1, tag: '0001_backfill_shipment_readiness' },
       { idx: 2, tag: '0002_carrier_readiness_authorities' },
+      { idx: 3, tag: '0003_majestic_clea' },
     ]);
     assert.match(migrationSql, /CREATE UNIQUE INDEX "lift_pricing_port_type_state_dir_date_uniq"/);
     assert.doesNotMatch(migrationSql, /FOREIGN KEY|\bCHECK\s*\(/i);
+    assert.match(orderExchangeSql, /ADD COLUMN "order_exchange_started_at" timestamp with time zone/);
+    assert.match(orderExchangeSql, /ADD COLUMN "order_exchange_completed_at" timestamp with time zone/);
+    assert.doesNotMatch(orderExchangeSql, /DROP|NOT NULL|FOREIGN KEY|\bCHECK\s*\(/i);
   });
 });

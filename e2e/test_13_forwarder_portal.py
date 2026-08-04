@@ -287,7 +287,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
     else:
         results.skip('TC-1311', 'Empty state', f'Trips exist ({len(fwd_trips)} found)')
 
-    # TC-1312: Click card → detail
+    # TC-1312: Click card → embedded bill workspace
     if trip_id:
         page = ctx.new_page()
         ctx.login_as('forwarder', page)
@@ -300,18 +300,17 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
             first_card.click(timeout=3000)
             page.wait_for_load_state('networkidle')
             page.wait_for_timeout(1000)
-            if f'/my-forwarder-trips/' in page.url and str(trip_id) in page.url:
-                results.pass_('TC-1312', f'Click card → detail (trip {trip_id})')
-            elif '/my-forwarder-trips/' in page.url:
-                results.pass_('TC-1312', f'Navigated to trip detail')
+            embedded_detail = page.locator('.ops-bill-detail:visible').count()
+            if page.url.rstrip('/').endswith('/my-forwarder-trips') and embedded_detail == 1:
+                results.pass_('TC-1312', f'Click card → embedded bill workspace (trip {trip_id})')
             else:
-                results.fail('TC-1312', 'Click card → detail', f'Card click stayed at {page.url}')
+                results.fail('TC-1312', 'Click card → embedded bill workspace', f'URL={page.url}, visible workspace={embedded_detail}')
         except Exception as err:
-            results.fail('TC-1312', 'Click card → detail', f'No usable detail link: {err}')
+            results.fail('TC-1312', 'Click card → embedded bill workspace', f'No usable Bill card: {err}')
         ctx.screenshot(page, 'TC-1312_trip_detail_nav')
         page.close()
     else:
-        results.skip('TC-1312', 'Click card → detail', 'No trips available')
+        results.skip('TC-1312', 'Click card → embedded bill workspace', 'No trips available')
 
     # TC-1313: No financial fields in API
     if fwd_trips:
@@ -479,7 +478,15 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         page.wait_for_timeout(1000)
         container_count = page.locator('[class*="container"], [class*="Container"]').count()
         container_visible = container_count > 0 or assert_text_visible(page, 'Số Container / Seal', timeout=5000)
-        if container_visible:
+        detail_payload = api_fwd.get(f'/api/forwarder/me/trips/{trip_id}')
+        detail_data = detail_payload.get('data', {}) if detail_payload.get('status') == 200 else {}
+        detail_containers = detail_data.get('containers', []) if isinstance(detail_data, dict) else []
+        synthetic_lcl_only = bool(detail_containers) and all(
+            not str(container.get('containerNumber') or '').strip()
+            and str(container.get('notes') or '').startswith('__fulfillment_lcl:')
+            for container in detail_containers
+        )
+        if container_visible or synthetic_lcl_only:
             results.pass_('TC-1325', f'Container section visible ({container_count} matching elements)')
         else:
             results.fail('TC-1325', 'Container section', 'No container section found on trip detail')

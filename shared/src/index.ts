@@ -45,7 +45,7 @@ export type {
   ProfitabilityReportRow, ProfitabilityReport, LowMarginState, DashboardWidgets, DashboardFleetAttentionItem,
   SalaryPeriod, SalaryPeriodRange, PnlTruck, PnlMaintenanceItem, PnlTripDetail, PnlReport,
   Supplier, ExpenseCategory, Expense, ExpenseWithRefs, PayableSummary, PayablesCategory, SupplierStatement, RenewalReminder, VendorPaymentRequest,
-  TripContainer, TripExpense, TripExpenseWithRefs, ForwarderTripSummary, ForwarderTripDetail, TripExpenseWithSupplier,
+  TripContainer, TripExpense, TripExpenseWithRefs, ForwarderTripSummary, ForwarderTripDetail, ShipmentOrderExchangeStatus, TripExpenseWithSupplier,
   NoInvoicePolicySnapshot,
   AdvanceRequest, AdvanceRequestWithRefs, AdvanceSettlement, AdvanceSettlementWithRefs,
   ContainerType, Port, SealType,

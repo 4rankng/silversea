@@ -28,6 +28,14 @@ export const forwarderClient = {
     return api.post(`/forwarder/me/trips/${tripId}/paper-order-collection`, { expectedVersion });
   },
 
+  startOrderExchange: async (shipmentId: number, expectedVersion: number) => {
+    return api.post(FORWARDER.ORDER_EXCHANGE_START(shipmentId), { expectedVersion });
+  },
+
+  completeOrderExchange: async (shipmentId: number, expectedVersion: number) => {
+    return api.post(FORWARDER.ORDER_EXCHANGE_COMPLETE(shipmentId), { expectedVersion });
+  },
+
   listSuppliers: async () => {
     return api.get<{ items: Array<{ id: number; name: string; contactPerson: string | null; phone: string | null }> }>(FORWARDER.SUPPLIERS);
   },

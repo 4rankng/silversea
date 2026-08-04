@@ -911,6 +911,38 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
         forwarder_api = login_api("forwarder")
     results.pass_("TC-1713B", "Admin assigns the shipment to Ops", f"shipment#{shipment_id}")
 
+    shipment_detail = admin_api.get(f"/api/shipments/{shipment_id}")
+    shipment_payload = shipment_detail.get("data", shipment_detail)
+    shipment_exchange_version = shipment_payload.get("shipment", {}).get("version")
+    if not isinstance(shipment_exchange_version, int):
+        results.fail("TC-1713C", "Ops reads the shipment version before order exchange", str(shipment_detail))
+        return
+    exchange_start_status, exchange_start_body = request_json(
+        forwarder_api,
+        "POST",
+        f"/api/forwarder/me/shipments/{shipment_id}/order-exchange/start",
+        {"expectedVersion": shipment_exchange_version},
+        headers={"Idempotency-Key": f"{BOOKING_PREFIX}-order-exchange-start"},
+    )
+    if exchange_start_status != 200 or not isinstance(exchange_start_body.get("version"), int):
+        results.fail("TC-1713C", "Ops starts the parallel order exchange", api_failure_detail(exchange_start_body))
+        return
+    shipment_exchange_version = exchange_start_body["version"]
+    results.pass_("TC-1713C", "Ops starts the parallel order exchange", f"shipment#{shipment_id} version={shipment_exchange_version}")
+
+    exchange_complete_status, exchange_complete_body = request_json(
+        forwarder_api,
+        "POST",
+        f"/api/forwarder/me/shipments/{shipment_id}/order-exchange/complete",
+        {"expectedVersion": shipment_exchange_version},
+        headers={"Idempotency-Key": f"{BOOKING_PREFIX}-order-exchange-complete"},
+    )
+    if exchange_complete_status != 200 or not isinstance(exchange_complete_body.get("version"), int):
+        results.fail("TC-1713D", "Ops completes the parallel order exchange", api_failure_detail(exchange_complete_body))
+        return
+    shipment_exchange_version = exchange_complete_body["version"]
+    results.pass_("TC-1713D", "Ops completes the parallel order exchange", f"shipment#{shipment_id} version={shipment_exchange_version}")
+
     paper_order_status, paper_order_body = request_json(
         forwarder_api,
         "POST",
@@ -919,10 +951,10 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
         headers={"Idempotency-Key": f"{BOOKING_PREFIX}-paper-order-handover"},
     )
     if paper_order_status != 200 or not isinstance(paper_order_body.get("version"), int):
-        results.fail("TC-1713C", "Ops hands the original paper order to the driver", api_failure_detail(paper_order_body))
+        results.fail("TC-1713E", "Ops hands the original paper order to the driver", api_failure_detail(paper_order_body))
         return
     trip_version = paper_order_body["version"]
-    results.pass_("TC-1713C", "Ops hands the original paper order to the driver", f"trip#{trip_id} version={trip_version}")
+    results.pass_("TC-1713E", "Ops hands the original paper order to the driver", f"trip#{trip_id} version={trip_version}")
 
     progress_events = [
         ("ORDER_RECEIVED", "Đã nhận lệnh gốc", 1),

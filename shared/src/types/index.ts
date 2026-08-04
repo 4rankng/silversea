@@ -924,15 +924,21 @@ export interface AdvanceSettlementWithRefs extends AdvanceSettlement {
 }
 
 /** Scope-safe row returned by the forwarder GET /trips endpoint. */
+export type ShipmentOrderExchangeStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+
 export interface ForwarderTripSummary {
-  id: number;
+  /** Stable selection key, including shipments that do not have a trip yet. */
+  workItemKey: string;
+  id: number | null;
+  tripId: number | null;
   tripCode: string | null;
-  shipmentId: number | null;
+  shipmentId: number;
+  shipmentVersion: number;
   shipmentCode: string | null;
-  departureDate: string;
+  departureDate: string | null;
   /** Backward-compatible trip lifecycle field retained for existing clients. */
-  status: TripStatus;
-  tripStatus: TripStatus;
+  status: TripStatus | null;
+  tripStatus: TripStatus | null;
   shipmentStatus: ShipmentStatus | null;
   routeName: string | null;
   truckPlate: string | null;
@@ -950,6 +956,11 @@ export interface ForwarderTripSummary {
   expenseScopesCompleted: number;
   expenseScopesTotal: number;
   statusColor: 'paid' | 'pending' | 'none';
+  orderExchangeStatus: ShipmentOrderExchangeStatus;
+  orderExchangeStartedAt: string | null;
+  orderExchangeStartedBy: number | null;
+  orderExchangeCompletedAt: string | null;
+  orderExchangeCompletedBy: number | null;
 }
 
 /** Trip detail projection returned by the forwarder GET /trips/:id endpoint. */
@@ -979,6 +990,12 @@ export interface ForwarderTripDetail {
   paperOrderCollectedAt?: string | null;
   paperOrderCollectedBy?: number | null;
   paperOrderCollectedByName?: string | null;
+  shipmentVersion: number;
+  orderExchangeStatus: ShipmentOrderExchangeStatus;
+  orderExchangeStartedAt: string | null;
+  orderExchangeStartedBy: number | null;
+  orderExchangeCompletedAt: string | null;
+  orderExchangeCompletedBy: number | null;
   accountingLock: ShipmentAccountingLockSummary | null;
   /** Manager-authored contact + delivery guidance. null when no row exists. */
   instructions: TripInstruction | null;

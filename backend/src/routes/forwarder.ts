@@ -8,6 +8,7 @@ import {
   getForwarderTripDetail,
   assertForwarderTripScope,
   assertForwarderMutableTripScope,
+  assertForwarderMutableShipmentScope,
   createTripExpense,
   deleteTripExpenseInTx,
   listUnlinkedTripExpenses,
@@ -54,6 +55,10 @@ import {
   type StorageCleanupGuardLease,
 } from '../services/durable-effect.service';
 import { resolveLiftPrice } from '../services/pricing.service';
+import {
+  assertShipmentAccountingUnlocked,
+  assertTripShipmentAccountingUnlocked,
+} from '../services/shipment-accounting-lock.service';
 import { z } from 'zod';
 
 const expensePhotoUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
@@ -86,6 +91,8 @@ export const FORWARDER_IDEMPOTENCY_ENDPOINTS = {
   EXPENSE_PHOTO_CREATE: 'forwarder.expense-photos.create',
   EXPENSE_PHOTO_DELETE: 'forwarder.expense-photos.delete',
   PAPER_ORDER_COLLECTION: 'forwarder.paper-order.collection',
+  ORDER_EXCHANGE_START: 'forwarder.order-exchange.start',
+  ORDER_EXCHANGE_COMPLETE: 'forwarder.order-exchange.complete',
 } as const;
 
 let expensePhotoAfterUploadHookForTest: null | (() => void | Promise<void>) = null;
@@ -229,6 +236,10 @@ const paperOrderCollectionSchema = z.object({
   expectedVersion: z.number().int().positive().optional(),
 });
 
+const orderExchangeSchema = z.object({
+  expectedVersion: z.number().int().positive(),
+});
+
 // Resolve forwarder profile once for all routes — handlers access req.forwarder
 router.use(resolveForwarder);
 
@@ -254,6 +265,92 @@ router.get('/trips/:id', asyncHandler(async (req: Request, res: Response) => {
   if (!trip) return res.status(404).json({ error: 'Không tìm thấy chuyến đi' });
   res.json(trip);
 }));
+
+async function updateOrderExchange(
+  req: Request,
+  res: Response,
+  action: 'start' | 'complete',
+) {
+  const forwarder = req.forwarder!;
+  const shipmentId = parseInt(req.params.shipmentId as string, 10);
+  if (!Number.isInteger(shipmentId) || shipmentId <= 0) {
+    throw new ApiError(400, 'ID lô hàng không hợp lệ.');
+  }
+  const parsed = orderExchangeSchema.safeParse(req.body ?? {});
+  if (!parsed.success) throwValidation(parsed.error);
+  const endpoint = action === 'start'
+    ? FORWARDER_IDEMPOTENCY_ENDPOINTS.ORDER_EXCHANGE_START
+    : FORWARDER_IDEMPOTENCY_ENDPOINTS.ORDER_EXCHANGE_COMPLETE;
+  const idempotencyKey = requireForwarderIdempotencyKey(req);
+  const outcome = await withMaterialWriteAuditContext(req, res, endpoint, () => runIdempotent({
+    endpoint,
+    idempotencyKey,
+    payload: { shipmentId, forwarderId: forwarder.id, expectedVersion: parsed.data.expectedVersion },
+    createdBy: forwarder.id,
+    entityType: 'shipment',
+    responseStatusCode: 200,
+    create: async (tx) => {
+      await assertForwarderMutableShipmentScope(shipmentId, forwarder.id, tx);
+      await assertShipmentAccountingUnlocked(tx, shipmentId);
+      const [shipment] = await tx.select({
+        id: s.shipments.id,
+        version: s.shipments.version,
+        orderExchangeStartedAt: s.shipments.orderExchangeStartedAt,
+        orderExchangeStartedBy: s.shipments.orderExchangeStartedBy,
+        orderExchangeCompletedAt: s.shipments.orderExchangeCompletedAt,
+        orderExchangeCompletedBy: s.shipments.orderExchangeCompletedBy,
+      }).from(s.shipments)
+        .where(eq(s.shipments.id, shipmentId))
+        .limit(1)
+        .for('update');
+      if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng.');
+      const alreadyDone = action === 'start'
+        ? shipment.orderExchangeStartedAt != null
+        : shipment.orderExchangeCompletedAt != null;
+      if (alreadyDone) return shipment;
+      if (shipment.version !== parsed.data.expectedVersion) {
+        throw new ApiError(409, 'Lô hàng đã thay đổi. Vui lòng tải lại.');
+      }
+      if (action === 'complete' && !shipment.orderExchangeStartedAt) {
+        throw new ApiError(409, 'Cần bắt đầu đổi lệnh trước khi xác nhận hoàn tất.');
+      }
+      const now = new Date();
+      const [updated] = await tx.update(s.shipments)
+        .set(action === 'start' ? {
+          orderExchangeStartedAt: now,
+          orderExchangeStartedBy: forwarder.id,
+          version: sql`${s.shipments.version} + 1`,
+          updatedAt: now,
+          updatedBy: forwarder.id,
+        } : {
+          orderExchangeCompletedAt: now,
+          orderExchangeCompletedBy: forwarder.id,
+          version: sql`${s.shipments.version} + 1`,
+          updatedAt: now,
+          updatedBy: forwarder.id,
+        })
+        .where(eq(s.shipments.id, shipmentId))
+        .returning({
+          id: s.shipments.id,
+          version: s.shipments.version,
+          orderExchangeStartedAt: s.shipments.orderExchangeStartedAt,
+          orderExchangeStartedBy: s.shipments.orderExchangeStartedBy,
+          orderExchangeCompletedAt: s.shipments.orderExchangeCompletedAt,
+          orderExchangeCompletedBy: s.shipments.orderExchangeCompletedBy,
+        });
+      return updated;
+    },
+  }));
+  res.json(outcome.result);
+}
+
+router.post('/shipments/:shipmentId/order-exchange/start', asyncHandler(
+  async (req: Request, res: Response) => updateOrderExchange(req, res, 'start'),
+));
+
+router.post('/shipments/:shipmentId/order-exchange/complete', asyncHandler(
+  async (req: Request, res: Response) => updateOrderExchange(req, res, 'complete'),
+));
 
 router.post('/trips/:tripId/paper-order-collection', asyncHandler(async (req: Request, res: Response) => {
   const forwarder = req.forwarder!;
@@ -281,12 +378,17 @@ router.post('/trips/:tripId/paper-order-collection', asyncHandler(async (req: Re
       responseStatusCode: 200,
       create: async (tx) => {
         await assertForwarderMutableTripScope(tripId, forwarder.id, tx);
+        await assertTripShipmentAccountingUnlocked(tx, tripId);
         const [trip] = await tx.select({
           id: s.trips.id,
           version: s.trips.version,
+          truckId: s.trips.truckId,
+          shipmentId: s.trips.shipmentId,
+          orderExchangeCompletedAt: s.shipments.orderExchangeCompletedAt,
           paperOrderCollectedAt: s.trips.paperOrderCollectedAt,
           paperOrderCollectedBy: s.trips.paperOrderCollectedBy,
         }).from(s.trips)
+          .innerJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
           .where(eq(s.trips.id, tripId))
           .limit(1)
           .for('update');
@@ -295,6 +397,12 @@ router.post('/trips/:tripId/paper-order-collection', asyncHandler(async (req: Re
         }
         if (parsed.data.expectedVersion != null && trip.version !== parsed.data.expectedVersion) {
           throw new ApiError(409, 'Chuyến đi đã thay đổi. Vui lòng tải lại.');
+        }
+        if (!trip.truckId) {
+          throw new ApiError(409, 'Chưa thể bàn giao lệnh gốc khi điều vận chưa phân xe.');
+        }
+        if (!trip.orderExchangeCompletedAt) {
+          throw new ApiError(409, 'Chưa thể bàn giao lệnh gốc khi Ops chưa hoàn tất đổi lệnh.');
         }
         if (trip.paperOrderCollectedAt || trip.paperOrderCollectedBy) {
           throw new ApiError(409, 'Lệnh gốc đã được giao nhận xác nhận trước đó.');

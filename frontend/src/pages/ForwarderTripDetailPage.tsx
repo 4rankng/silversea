@@ -497,7 +497,7 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
     >
       {dialog}
       {/* Back button + Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 0 8px' }}>
+      <div className="fwd-detail-hero">
         {!embedded && (
           <button
             className="btn btn--ghost btn--icon"
@@ -508,20 +508,20 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
             <ArrowLeft size={20} />
           </button>
         )}
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg-1)', margin: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <img src="/assets/icons/03-trip-log-so-chuyen-chuyen-xe.png" alt="" style={{ width: 32, height: 32, flexShrink: 0 }} />
+        <div className="fwd-detail-hero__content">
+          <span className="fwd-detail-hero__eyebrow">Chi tiết chuyến xe</span>
+          <div className="fwd-detail-hero__title-row">
+            <h1 className="fwd-detail-hero__title">
               {trip.billNumber || trip.bookingNumber || trip.shipmentCode || trip.routeName || 'Chuyến đi'}
             </h1>
             <StatusPill variant={tripStatusVariant(trip.status)}>
               {TRIP_STATUS_LABELS[trip.status as TripStatus] || trip.status}
             </StatusPill>
             {trip.tripCode && (
-              <span style={{ fontSize: 12, color: 'var(--fg-3)', fontFamily: 'var(--font-mono)' }}>{trip.tripCode}</span>
+              <span className="fwd-detail-hero__trip-code">{trip.tripCode}</span>
             )}
           </div>
-          <p style={{ fontSize: 13, color: 'var(--fg-3)', margin: '4px 0 0' }}>
+          <p className="fwd-detail-hero__subtitle">
             {[trip.customerName, trip.factoryName, trip.routeName].filter(Boolean).join(' · ')}
           </p>
         </div>
@@ -532,13 +532,13 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
       <fieldset disabled={Boolean(trip.accountingLock)} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
 
       {/* Trip Info Card */}
-      <div className="panel" style={{ marginBottom: 16 }}>
-        <div style={{ padding: '4px 20px 4px', borderBottom: '1px solid var(--border-1)' }}>
-          <span style={{ fontSize: 12, lineHeight: 1.35, fontWeight: 600, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+      <div className="panel fwd-order-panel">
+        <div className="fwd-order-panel__header">
+          <span>
             Thông tin lệnh vận chuyển
           </span>
         </div>
-        <div style={{ padding: '0 20px' }}>
+        <div className="fwd-order-panel__body">
           <div className="info-row">
             <span className="info-row__icon"><Truck size={16} /></span>
             <div className="info-row__body">
@@ -592,16 +592,20 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
             <div style={{ fontSize: 14, color: 'var(--fg-1)', fontWeight: 600 }}>
               {trip.paperOrderCollectedAt
                 ? `${trip.paperOrderCollectedByName || 'Ops'} đã giao lúc ${formatDate(trip.paperOrderCollectedAt)}`
-                : 'Chưa xác nhận giao lệnh gốc cho tài xế'}
+                : trip.orderExchangeStatus !== 'COMPLETED'
+                  ? 'Chưa thể bàn giao: Ops chưa hoàn tất đổi lệnh'
+                  : !trip.truckPlate
+                    ? 'Chưa thể bàn giao: điều vận chưa phân xe'
+                    : 'Đã đổi lệnh và phân xe; sẵn sàng bàn giao lệnh gốc'}
             </div>
             <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--fg-3)' }}>
-              Tài xế chỉ được bấm “Đã nhận lệnh gốc” sau khi Ops xác nhận bước này.
+              Đổi lệnh: {trip.orderExchangeStatus === 'COMPLETED' ? 'Đã đổi lệnh' : trip.orderExchangeStatus === 'IN_PROGRESS' ? 'Đang đổi lệnh' : 'Chờ đổi lệnh'}. Tài xế chỉ được bấm “Đã nhận lệnh gốc” sau khi Ops xác nhận bàn giao.
             </p>
           </div>
           <button
             className="btn btn--primary btn--sm"
             onClick={() => void handleCollectPaperOrder()}
-            disabled={paperOrderSubmitting || Boolean(trip.paperOrderCollectedAt)}
+            disabled={paperOrderSubmitting || Boolean(trip.paperOrderCollectedAt) || trip.orderExchangeStatus !== 'COMPLETED' || !trip.truckPlate}
           >
             {paperOrderSubmitting ? 'Đang lưu…' : trip.paperOrderCollectedAt ? 'Đã bàn giao' : 'Xác nhận giao lệnh gốc'}
           </button>

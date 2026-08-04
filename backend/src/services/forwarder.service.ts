@@ -18,6 +18,7 @@ export {
   getForwarderTripDetail,
   assertForwarderTripScope,
   assertForwarderMutableTripScope,
+  assertForwarderMutableShipmentScope,
 } from './forwarder-trip-query.service';
 export {
   derivePrimarySealNumber,

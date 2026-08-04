@@ -185,6 +185,8 @@ export const DRIVER = {
 export const FORWARDER = {
   TRIPS: '/forwarder/me/trips',
   TRIP_DETAIL: (id: number) => `/forwarder/me/trips/${id}`,
+  ORDER_EXCHANGE_START: (shipmentId: number) => `/forwarder/me/shipments/${shipmentId}/order-exchange/start`,
+  ORDER_EXCHANGE_COMPLETE: (shipmentId: number) => `/forwarder/me/shipments/${shipmentId}/order-exchange/complete`,
   CONTAINERS: (tripId: number) => `/forwarder/me/trips/${tripId}/containers`,
   EXPENSES: '/forwarder/me/expenses',
   EXPENSE: (id: number) => `/forwarder/me/expenses/${id}`,

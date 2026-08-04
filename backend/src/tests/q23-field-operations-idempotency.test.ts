@@ -45,6 +45,7 @@ let routeId = 0;
 let cargoTypeId = 0;
 let liftPortId = 0;
 let liftContainerTypeId = 0;
+let truckId = 0;
 let server: http.Server;
 let baseUrl = '';
 let imageBuffer: Buffer;
@@ -231,8 +232,13 @@ before(async () => {
     shipmentCode: `Q23-FIELD-SHP-${suffix}`.slice(0, 50),
     customerId,
     cargoTypeId,
+    status: 'READY_FOR_DISPATCH',
   }).returning({ id: s.shipments.id });
   shipmentId = shipment.id;
+  const [truck] = await db.insert(s.trucks).values({
+    licensePlate: `Q23-${Date.now()}`.slice(0, 20),
+  }).returning({ id: s.trucks.id });
+  truckId = truck.id;
   const [trip] = await db.insert(s.trips).values({
     tripCode: `Q23-FIELD-${suffix}`,
     shipmentId,
@@ -240,6 +246,7 @@ before(async () => {
     routeId,
     cargoTypeId,
     driverId,
+    truckId,
     departureDate: '2026-07-28',
     status: 'IN_TRANSIT',
   }).returning({ id: s.trips.id });
@@ -420,6 +427,7 @@ after(async () => {
   await db.delete(s.tripExpenses).where(eq(s.tripExpenses.tripId, tripId));
   await db.delete(s.liftPricing).where(eq(s.liftPricing.portId, liftPortId));
   await db.delete(s.trips).where(eq(s.trips.id, tripId));
+  await db.delete(s.trucks).where(eq(s.trucks.id, truckId));
   await db.delete(s.userShipmentLinks).where(eq(s.userShipmentLinks.shipmentId, shipmentId));
   await db.delete(s.shipments).where(eq(s.shipments.id, shipmentId));
   await db.delete(s.cargoTypes).where(eq(s.cargoTypes.id, cargoTypeId));
@@ -437,6 +445,88 @@ after(async () => {
 });
 
 describe('Q23 field operations replay boundary', () => {
+  it('persists the parallel order-exchange workflow and gates original-order handoff', async () => {
+    const [initial] = await db.select({ version: s.shipments.version })
+      .from(s.shipments).where(eq(s.shipments.id, shipmentId));
+    const startKey = `q23-order-exchange-start-${suffix}`;
+    const started = await jsonRequest(`/api/forwarder/me/shipments/${shipmentId}/order-exchange/start`, {
+      method: 'POST', idempotencyKey: startKey, body: { expectedVersion: initial.version },
+    });
+    const startedReplay = await jsonRequest(`/api/forwarder/me/shipments/${shipmentId}/order-exchange/start`, {
+      method: 'POST', idempotencyKey: startKey, body: { expectedVersion: initial.version },
+    });
+    assert.equal(started.status, 200, JSON.stringify(started.body));
+    assert.deepEqual(startedReplay, started);
+
+    const [tripBefore] = await db.select({ version: s.trips.version }).from(s.trips).where(eq(s.trips.id, tripId));
+    const earlyHandoff = await jsonRequest(`/api/forwarder/me/trips/${tripId}/paper-order-collection`, {
+      method: 'POST',
+      idempotencyKey: `q23-paper-order-early-${suffix}`,
+      body: { expectedVersion: tripBefore.version },
+    });
+    assert.equal(earlyHandoff.status, 409);
+
+    const completeKey = `q23-order-exchange-complete-${suffix}`;
+    const completed = await jsonRequest(`/api/forwarder/me/shipments/${shipmentId}/order-exchange/complete`, {
+      method: 'POST', idempotencyKey: completeKey, body: { expectedVersion: Number(started.body.version) },
+    });
+    const completedReplay = await jsonRequest(`/api/forwarder/me/shipments/${shipmentId}/order-exchange/complete`, {
+      method: 'POST', idempotencyKey: completeKey, body: { expectedVersion: Number(started.body.version) },
+    });
+    assert.equal(completed.status, 200, JSON.stringify(completed.body));
+    assert.deepEqual(completedReplay, completed);
+
+    const handoffKey = `q23-paper-order-after-exchange-${suffix}`;
+    const handoff = await jsonRequest(`/api/forwarder/me/trips/${tripId}/paper-order-collection`, {
+      method: 'POST', idempotencyKey: handoffKey, body: { expectedVersion: tripBefore.version },
+    });
+    const handoffReplay = await jsonRequest(`/api/forwarder/me/trips/${tripId}/paper-order-collection`, {
+      method: 'POST', idempotencyKey: handoffKey, body: { expectedVersion: tripBefore.version },
+    });
+    assert.equal(handoff.status, 200, JSON.stringify(handoff.body));
+    assert.deepEqual(handoffReplay, handoff);
+
+    const [shipmentBeforeLock] = await db.select({ version: s.shipments.version })
+      .from(s.shipments).where(eq(s.shipments.id, shipmentId));
+    const [billingDocument] = await db.insert(s.billingDocuments).values({
+      type: 'DEBIT_NOTE',
+      entityType: 'CUSTOMER',
+      entityId: customerId,
+      entityName: `Q23 Customer ${suffix}`,
+      rangeFrom: '2026-08-01',
+      rangeTo: '2026-08-31',
+      totalInclVat: '0',
+      debitNoteStatus: 'SENT',
+      issuedAt: new Date(),
+      createdBy: adminUserId,
+    }).returning();
+    await db.insert(s.shipmentAccountingLocks).values({
+      shipmentId,
+      billingDocumentId: billingDocument.id,
+      billingDocumentVersion: billingDocument.version,
+      billingPeriodSnapshot: {
+        rangeFrom: billingDocument.rangeFrom,
+        rangeTo: billingDocument.rangeTo,
+        issuedAt: billingDocument.issuedAt!.toISOString(),
+      },
+      shipmentVersionAtLock: shipmentBeforeLock.version,
+      reason: 'Q23 verifies the aggregate write guard.',
+      activatedBy: adminUserId,
+    });
+    try {
+      const lockedExchange = await jsonRequest(`/api/forwarder/me/shipments/${shipmentId}/order-exchange/start`, {
+        method: 'POST',
+        idempotencyKey: `q23-order-exchange-locked-${suffix}`,
+        body: { expectedVersion: shipmentBeforeLock.version },
+      });
+      assert.equal(lockedExchange.status, 409);
+      assert.match(String(lockedExchange.body.error), /Kế toán khóa/);
+    } finally {
+      await db.delete(s.shipmentAccountingLocks).where(eq(s.shipmentAccountingLocks.shipmentId, shipmentId));
+      await db.delete(s.billingDocuments).where(eq(s.billingDocuments.id, billingDocument.id));
+    }
+  });
+
   it('replays driver container creation and rejects same-key payload drift', async () => {
     const key = `q23-driver-container-create-${suffix}`;
     const first = await jsonRequest(`/api/driver/me/trips/${tripId}/containers`, {

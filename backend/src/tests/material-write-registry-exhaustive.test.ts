@@ -98,6 +98,14 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     serviceFile: path.resolve(process.cwd(), 'src/routes/forwarder.ts'),
     marker: 'FORWARDER_IDEMPOTENCY_ENDPOINTS.PAPER_ORDER_COLLECTION',
   }],
+  ['forwarder.ts|POST|/shipments/:shipmentId/order-exchange/start', {
+    serviceFile: path.resolve(process.cwd(), 'src/routes/forwarder.ts'),
+    marker: 'FORWARDER_IDEMPOTENCY_ENDPOINTS.ORDER_EXCHANGE_START',
+  }],
+  ['forwarder.ts|POST|/shipments/:shipmentId/order-exchange/complete', {
+    serviceFile: path.resolve(process.cwd(), 'src/routes/forwarder.ts'),
+    marker: 'FORWARDER_IDEMPOTENCY_ENDPOINTS.ORDER_EXCHANGE_COMPLETE',
+  }],
   ['financial/payments.routes.ts|POST|/finance/treasury/accounts/setup', {
     serviceFile: path.resolve(process.cwd(), 'src/services/treasury.service.ts'),
     marker: 'export async function requestTreasuryAccountSetup(',

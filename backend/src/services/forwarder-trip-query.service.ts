@@ -1,6 +1,6 @@
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq, and, isNull, desc, sql, count, gte, lte, or } from 'drizzle-orm';
+import { eq, and, isNull, desc, sql, count, or } from 'drizzle-orm';
 import { getTripInstructions } from './trip-instructions.service';
 import type { Tx } from './trip-shared';
 import { ApiError } from '../errors';
@@ -108,12 +108,49 @@ export async function assertForwarderMutableTripScope(
   }
 }
 
+export async function assertForwarderMutableShipmentScope(
+  shipmentId: number,
+  forwarderId: number,
+  client: QueryClient = db,
+): Promise<void> {
+  const [shipment] = await client.select({
+    id: s.shipments.id,
+    status: s.shipments.status,
+  }).from(s.shipments)
+    .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
+    .limit(1)
+    .for('share');
+  if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
+
+  const [assignment] = await client.select({ shipmentId: s.userShipmentLinks.shipmentId })
+    .from(s.userShipmentLinks)
+    .where(and(
+      eq(s.userShipmentLinks.userId, forwarderId),
+      eq(s.userShipmentLinks.shipmentId, shipmentId),
+    ))
+    .limit(1)
+    .for('update');
+  if (!assignment) throw new ApiError(404, 'Không tìm thấy lô hàng');
+  if (shipment.status === 'NEW' || shipment.status === 'PENDING_DATE') {
+    throw new ApiError(409, 'Lô hàng chưa sẵn sàng để đổi lệnh');
+  }
+  if (shipment.status === 'COMPLETED' || shipment.status === 'CANCELED') {
+    throw new ApiError(409, 'Không thể cập nhật lô hàng đã kết thúc');
+  }
+}
+
 export async function getForwarderTrips(
   forwarderId: number,
   status?: string,
   filters?: { search?: string; dateFrom?: string; dateTo?: string },
 ) {
-  const conditions = [isNull(s.trips.deletedAt), withinForwarderScope(forwarderId)];
+  const conditions = [
+    eq(s.userShipmentLinks.userId, forwarderId),
+    isNull(s.shipments.deletedAt),
+    sql`${s.shipments.status} <> 'PENDING_DATE'`,
+    sql`${s.shipments.status} <> 'NEW'`,
+    sql`${s.shipments.status} <> 'CANCELED'`,
+  ];
   if (status) {
     conditions.push(eq(s.trips.status, status as 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELED'));
   }
@@ -141,18 +178,21 @@ export async function getForwarderTrips(
     )!);
   }
   if (filters?.dateFrom) {
-    conditions.push(gte(s.trips.departureDate, filters.dateFrom));
+    conditions.push(sql`coalesce(${s.trips.departureDate}, ${s.shipments.expectedDeliveryDate}) >= ${filters.dateFrom}`);
   }
   if (filters?.dateTo) {
-    conditions.push(lte(s.trips.departureDate, filters.dateTo));
+    conditions.push(sql`coalesce(${s.trips.departureDate}, ${s.shipments.expectedDeliveryDate}) <= ${filters.dateTo}`);
   }
 
   return db.select({
+    workItemKey: sql<string>`concat('shipment:', ${s.shipments.id}, ':trip:', coalesce(${s.trips.id}, 0))`,
     id: s.trips.id,
+    tripId: s.trips.id,
     tripCode: s.trips.tripCode,
-    shipmentId: s.trips.shipmentId,
+    shipmentId: s.shipments.id,
+    shipmentVersion: s.shipments.version,
     shipmentCode: s.shipments.shipmentCode,
-    departureDate: s.trips.departureDate,
+    departureDate: sql<string | null>`coalesce(${s.trips.departureDate}, ${s.shipments.expectedDeliveryDate})`,
     status: s.trips.status,
     tripStatus: s.trips.status,
     shipmentStatus: s.shipments.status,
@@ -214,14 +254,28 @@ export async function getForwarderTrips(
       WHEN ${hasPendingExpenseOrSettlement(forwarderId)} THEN 'pending'
       ELSE 'none'
     END`,
-  }).from(s.trips)
-    .innerJoin(s.shipments, eq(s.trips.shipmentId, s.shipments.id))
-    .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
+    orderExchangeStatus: sql<'PENDING' | 'IN_PROGRESS' | 'COMPLETED'>`CASE
+      WHEN ${s.shipments.orderExchangeCompletedAt} IS NOT NULL THEN 'COMPLETED'
+      WHEN ${s.shipments.orderExchangeStartedAt} IS NOT NULL THEN 'IN_PROGRESS'
+      ELSE 'PENDING'
+    END`,
+    orderExchangeStartedAt: s.shipments.orderExchangeStartedAt,
+    orderExchangeStartedBy: s.shipments.orderExchangeStartedBy,
+    orderExchangeCompletedAt: s.shipments.orderExchangeCompletedAt,
+    orderExchangeCompletedBy: s.shipments.orderExchangeCompletedBy,
+  }).from(s.userShipmentLinks)
+    .innerJoin(s.shipments, eq(s.userShipmentLinks.shipmentId, s.shipments.id))
+    .leftJoin(s.trips, and(
+      eq(s.trips.shipmentId, s.shipments.id),
+      isNull(s.trips.deletedAt),
+      sql`${s.trips.status} <> 'CANCELED'`,
+    ))
+    .leftJoin(s.routes, sql`${s.routes.id} = coalesce(${s.trips.routeId}, ${s.shipments.routeId})`)
     .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
-    .leftJoin(s.customers, eq(s.trips.customerId, s.customers.id))
-    .leftJoin(s.cargoTypes, eq(s.trips.cargoTypeId, s.cargoTypes.id))
+    .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
+    .leftJoin(s.cargoTypes, eq(s.shipments.cargoTypeId, s.cargoTypes.id))
     .where(and(...conditions))
-    .orderBy(desc(s.trips.departureDate));
+    .orderBy(desc(sql`coalesce(${s.trips.departureDate}, ${s.shipments.expectedDeliveryDate})`), desc(s.shipments.id));
 }
 
 export async function latestTripPhotoKey(
@@ -311,6 +365,16 @@ export async function getForwarderTripDetail(tripId: number, forwarderId: number
     paperOrderCollectedAt: s.trips.paperOrderCollectedAt,
     paperOrderCollectedBy: s.trips.paperOrderCollectedBy,
     paperOrderCollectedByName: s.users.fullName,
+    shipmentVersion: s.shipments.version,
+    orderExchangeStatus: sql<'PENDING' | 'IN_PROGRESS' | 'COMPLETED'>`CASE
+      WHEN ${s.shipments.orderExchangeCompletedAt} IS NOT NULL THEN 'COMPLETED'
+      WHEN ${s.shipments.orderExchangeStartedAt} IS NOT NULL THEN 'IN_PROGRESS'
+      ELSE 'PENDING'
+    END`,
+    orderExchangeStartedAt: s.shipments.orderExchangeStartedAt,
+    orderExchangeStartedBy: s.shipments.orderExchangeStartedBy,
+    orderExchangeCompletedAt: s.shipments.orderExchangeCompletedAt,
+    orderExchangeCompletedBy: s.shipments.orderExchangeCompletedBy,
   }).from(s.trips)
     .innerJoin(s.shipments, eq(s.trips.shipmentId, s.shipments.id))
     .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))

@@ -239,6 +239,8 @@ const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   { method: 'POST', endpoint: 'forwarder.expense-photos.create', pattern: /^\/api\/forwarder\/me\/expenses\/[^/]+\/photos$/ },
   { method: 'DELETE', endpoint: 'forwarder.expense-photos.delete', pattern: /^\/api\/forwarder\/me\/expense-photos\/[^/]+$/ },
   { method: 'POST', endpoint: 'forwarder.paper-order.collection', pattern: /^\/api\/forwarder\/me\/trips\/[^/]+\/paper-order-collection$/ },
+  { method: 'POST', endpoint: 'forwarder.order-exchange.start', pattern: /^\/api\/forwarder\/me\/shipments\/[^/]+\/order-exchange\/start$/ },
+  { method: 'POST', endpoint: 'forwarder.order-exchange.complete', pattern: /^\/api\/forwarder\/me\/shipments\/[^/]+\/order-exchange\/complete$/ },
   { method: 'POST', endpoint: 'config.tires.install', pattern: /^\/api\/fleet\/tires\/[^/]+\/install$/ },
   { method: 'POST', endpoint: 'config.tires.remove', pattern: /^\/api\/fleet\/tires\/[^/]+\/remove$/ },
   { method: 'POST', endpoint: 'config.tires.dispose', pattern: /^\/api\/fleet\/tires\/[^/]+\/dispose$/ },
