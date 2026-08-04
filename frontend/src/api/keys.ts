@@ -175,6 +175,13 @@ export const qk = {
     /** Broad prefix — matches all forwarder-trip-detail queries. */
     tripDetailAll: ['forwarder-trip-detail'] as const,
     suppliers: ['forwarder-suppliers'],
+    liftPrice: (params: {
+      portId: string;
+      containerTypeId: string;
+      direction: 'LIFT_UP' | 'LIFT_DOWN';
+      loadState: 'LOADED' | 'EMPTY';
+      expenseDate: string;
+    }) => ['forwarder', 'lift-price', params] as const,
     advanceRequests: (status?: string) =>
       ['forwarder-advance-requests', status] as const,
     eligibleAdvanceRequests: ['forwarder-advance-requests', 'eligible-for-settlement'] as const,

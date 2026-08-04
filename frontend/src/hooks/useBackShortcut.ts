@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react';
 import { isOverlayOpen } from '../lib/overlayState';
 
 export interface BackShortcutOptions {
+  /** Set false for embedded workspaces that must not own the page-level Escape key. */
+  enabled?: boolean;
   /** Returns true when the current page has unsaved data that would be lost. */
   isDirty?: () => boolean;
   /**
@@ -47,6 +49,7 @@ export function useBackShortcut(onBack: () => void, opts?: BackShortcutOptions):
   useEffect(() => {
     const handler = async (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
+      if (optsRef.current?.enabled === false) return;
       // Let the open overlay/dropdown consume this ESC instead of navigating.
       if (isOverlayOpen()) return;
       // ESC inside a field/date-picker keeps its native meaning — don't navigate.

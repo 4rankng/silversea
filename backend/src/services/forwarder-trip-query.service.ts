@@ -121,6 +121,19 @@ export async function getForwarderTrips(
     const term = `%${filters.search.replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
     conditions.push(or(
       sql`unaccent(${s.customers.name}) ILIKE unaccent(${term})`,
+      sql`${s.shipments.shipmentCode} ILIKE ${term}`,
+      sql`${s.shipments.blNumber} ILIKE ${term}`,
+      sql`${s.shipments.bookingRef} ILIKE ${term}`,
+      sql`EXISTS (
+        SELECT 1 FROM shipment_declarations sd
+        WHERE sd.shipment_id = ${s.shipments.id}
+          AND sd.declaration_number ILIKE ${term}
+      )`,
+      sql`EXISTS (
+        SELECT 1 FROM shipment_containers sc
+        WHERE sc.shipment_id = ${s.shipments.id}
+          AND sc.container_number ILIKE ${term}
+      )`,
       sql`EXISTS (
         SELECT 1 FROM trip_containers tc
         WHERE tc.trip_id = ${s.trips.id} AND tc.container_number ILIKE ${term}
@@ -137,17 +150,53 @@ export async function getForwarderTrips(
   return db.select({
     id: s.trips.id,
     tripCode: s.trips.tripCode,
+    shipmentId: s.trips.shipmentId,
+    shipmentCode: s.shipments.shipmentCode,
     departureDate: s.trips.departureDate,
     status: s.trips.status,
+    tripStatus: s.trips.status,
+    shipmentStatus: s.shipments.status,
     routeName: s.routes.name,
     truckPlate: s.trucks.licensePlate,
     customerName: s.customers.name,
     customerReference: s.trips.customerReference,
-    containerCount: s.trips.containerCount,
-    containerNumbers: sql<string | null>`(
-      SELECT string_agg(tc.container_number, ', ' ORDER BY tc.id)
-      FROM trip_containers tc
-      WHERE tc.trip_id = ${s.trips.id}
+    billNumber: s.shipments.blNumber,
+    bookingNumber: s.shipments.bookingRef,
+    factoryName: s.shipments.factoryName,
+    tradeDirection: s.shipments.tradeDirection,
+    declarationNumbers: sql<string | null>`(
+      SELECT string_agg(sd.declaration_number, ', ' ORDER BY sd.id)
+      FROM shipment_declarations sd
+      WHERE sd.shipment_id = ${s.shipments.id}
+        AND sd.declaration_number IS NOT NULL
+    )`,
+    containerTypeSummary: sql<string | null>`(
+      SELECT string_agg(container_group.label, ', ' ORDER BY container_group.label)
+      FROM (
+        SELECT concat(count(*)::int, '×', coalesce(ct.code, ct.name, 'Chưa rõ')) AS label
+        FROM shipment_containers sc
+        LEFT JOIN container_types ct ON ct.id = sc.container_type_id
+        WHERE sc.shipment_id = ${s.shipments.id}
+        GROUP BY ct.code, ct.name
+      ) container_group
+    )`,
+    containerCount: sql<number>`(
+      SELECT count(*)::int FROM shipment_containers sc
+      WHERE sc.shipment_id = ${s.shipments.id}
+    )`,
+    containerNumbers: sql<string | null>`coalesce(
+      (
+        SELECT string_agg(sc.container_number, ', ' ORDER BY sc.id)
+        FROM shipment_containers sc
+        WHERE sc.shipment_id = ${s.shipments.id}
+          AND sc.container_number IS NOT NULL
+      ),
+      (
+        SELECT string_agg(tc.container_number, ', ' ORDER BY tc.id)
+        FROM trip_containers tc
+        WHERE tc.trip_id = ${s.trips.id}
+          AND tc.container_number IS NOT NULL
+      )
     )`,
     cargoTypeName: s.cargoTypes.name,
     expenseScopesCompleted: sql<number>`(
@@ -166,6 +215,7 @@ export async function getForwarderTrips(
       ELSE 'none'
     END`,
   }).from(s.trips)
+    .innerJoin(s.shipments, eq(s.trips.shipmentId, s.shipments.id))
     .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
     .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
     .leftJoin(s.customers, eq(s.trips.customerId, s.customers.id))
@@ -224,6 +274,28 @@ export async function getForwarderTripDetail(tripId: number, forwarderId: number
     truckPlate: s.trucks.licensePlate,
     customerName: s.customers.name,
     customerReference: s.trips.customerReference,
+    shipmentCode: s.shipments.shipmentCode,
+    billNumber: s.shipments.blNumber,
+    bookingNumber: s.shipments.bookingRef,
+    factoryName: s.shipments.factoryName,
+    tradeDirection: s.shipments.tradeDirection,
+    shipmentStatus: s.shipments.status,
+    declarationNumbers: sql<string | null>`(
+      SELECT string_agg(sd.declaration_number, ', ' ORDER BY sd.id)
+      FROM shipment_declarations sd
+      WHERE sd.shipment_id = ${s.shipments.id}
+        AND sd.declaration_number IS NOT NULL
+    )`,
+    containerTypeSummary: sql<string | null>`(
+      SELECT string_agg(container_group.label, ', ' ORDER BY container_group.label)
+      FROM (
+        SELECT concat(count(*)::int, '×', coalesce(ct.code, ct.name, 'Chưa rõ')) AS label
+        FROM shipment_containers sc
+        LEFT JOIN container_types ct ON ct.id = sc.container_type_id
+        WHERE sc.shipment_id = ${s.shipments.id}
+        GROUP BY ct.code, ct.name
+      ) container_group
+    )`,
     containerCount: s.trips.containerCount,
     cargoTypeName: s.cargoTypes.name,
     shipmentSourceVersion: sql<number | null>`coalesce(
@@ -240,6 +312,7 @@ export async function getForwarderTripDetail(tripId: number, forwarderId: number
     paperOrderCollectedBy: s.trips.paperOrderCollectedBy,
     paperOrderCollectedByName: s.users.fullName,
   }).from(s.trips)
+    .innerJoin(s.shipments, eq(s.trips.shipmentId, s.shipments.id))
     .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
     .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
     .leftJoin(s.customers, eq(s.trips.customerId, s.customers.id))

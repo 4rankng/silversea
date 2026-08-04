@@ -12,6 +12,8 @@ const {
   createExpenseMock,
   geotagSubmitMock,
   toastMock,
+  confirmMock,
+  deleteExpenseMock,
   renderHistory,
 } = vi.hoisted(() => ({
   awaitAccurateSampleMock: vi.fn(),
@@ -22,6 +24,8 @@ const {
   createExpenseMock: vi.fn(),
   geotagSubmitMock: vi.fn(),
   toastMock: vi.fn(),
+  confirmMock: vi.fn(),
+  deleteExpenseMock: vi.fn(),
   renderHistory: [] as Array<number | null>,
 }));
 
@@ -71,6 +75,7 @@ vi.mock('../hooks/useQueries', () => ({
           settlementMethod: 'FORWARDER_ADVANCE',
           canEdit: true,
           activeSettlementId: null,
+          updatedAt: '2026-08-04T10:00:00.000Z',
         },
       ],
     },
@@ -79,7 +84,7 @@ vi.mock('../hooks/useQueries', () => ({
   }),
   useCreateForwarderContainer: () => ({ mutate: vi.fn(), isPending: false }),
   useCreateForwarderExpense: () => ({ mutate: createExpenseMock, isPending: false }),
-  useDeleteForwarderExpense: () => ({ mutate: vi.fn(), isPending: false }),
+  useDeleteForwarderExpense: () => ({ mutate: deleteExpenseMock, isPending: false }),
 }));
 
 vi.mock('../hooks/useForwarderQueries', () => ({
@@ -121,7 +126,7 @@ vi.mock('../components/shared/Toast', () => ({
 vi.mock('../components/UI', () => ({
   StatusPill: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   FormGroup: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  useConfirm: () => ({ confirm: vi.fn(), dialog: null }),
+  useConfirm: () => ({ confirm: confirmMock, dialog: null }),
 }));
 
 vi.mock('../components/trip/TripLegsPanel', () => ({
@@ -139,10 +144,12 @@ vi.mock('./forwarder-trip-detail-sections', async (importOriginal) => {
       exp,
       uploadingExpenseId,
       onUpload,
+      onDelete,
     }: {
       exp: { id: number };
       uploadingExpenseId: number | null;
       onUpload: (expenseId: number, file: File) => void;
+      onDelete: (expenseId: number) => void;
     }) => {
       renderHistory.push(uploadingExpenseId);
       return (
@@ -150,6 +157,7 @@ vi.mock('./forwarder-trip-detail-sections', async (importOriginal) => {
           <button type="button" onClick={() => onUpload(exp.id, new File(['photo'], 'proof.jpg', { type: 'image/jpeg' }))}>
             Tải ảnh chứng từ
           </button>
+          <button type="button" onClick={() => onDelete(exp.id)}>Xóa chi phí thử nghiệm</button>
           <span>{uploadingExpenseId === exp.id ? 'Đang tải ảnh' : 'Sẵn sàng'}</span>
         </div>
       );
@@ -188,6 +196,8 @@ describe('ForwarderTripDetailPage photo upload geolocation recovery', () => {
     createExpenseMock.mockReset();
     geotagSubmitMock.mockReset();
     toastMock.mockReset();
+    confirmMock.mockReset();
+    deleteExpenseMock.mockReset();
     renderHistory.splice(0, renderHistory.length);
     listSuppliersMock.mockResolvedValue({ items: [] });
     resolveLiftPriceMock.mockResolvedValue({
@@ -198,6 +208,22 @@ describe('ForwarderTripDetailPage photo upload geolocation recovery', () => {
     });
     createExpenseMock.mockImplementation((_payload, options) => options?.onSuccess?.());
     apiGetMock.mockResolvedValue({ items: [] });
+  });
+
+  it('requires confirmation before deleting and preserves the concurrency token', async () => {
+    confirmMock.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa chi phí thử nghiệm' }));
+    await waitFor(() => expect(confirmMock).toHaveBeenCalledTimes(1));
+    expect(deleteExpenseMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa chi phí thử nghiệm' }));
+    await waitFor(() => expect(deleteExpenseMock).toHaveBeenCalledWith({
+      id: 44,
+      tripId: 15,
+      expectedUpdatedAt: '2026-08-04T10:00:00.000Z',
+    }));
   });
 
   it('fills the lift buy amount from the selected port and container matrix', async () => {

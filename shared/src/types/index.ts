@@ -1,5 +1,5 @@
 import type {
-  CustomerAccountType, TripStatus, FuelMode, LoadingType, Role, TxnType,
+  CustomerAccountType, TripStatus, ShipmentStatus, FuelMode, LoadingType, Role, TxnType,
   TrailerType, TruckStatus, TrailerStatus, DriverStatus, CustomerStatus, PenaltyStatus,
   AdvanceRequestStatus, AdvanceSettlementStatus, ExpenseEntryStatus,
   TireStatus, TruckCapRole, SupplierType, NoInvoiceEvidenceType, NoInvoiceApprovalTitle,
@@ -923,6 +923,35 @@ export interface AdvanceSettlementWithRefs extends AdvanceSettlement {
   }>;
 }
 
+/** Scope-safe row returned by the forwarder GET /trips endpoint. */
+export interface ForwarderTripSummary {
+  id: number;
+  tripCode: string | null;
+  shipmentId: number | null;
+  shipmentCode: string | null;
+  departureDate: string;
+  /** Backward-compatible trip lifecycle field retained for existing clients. */
+  status: TripStatus;
+  tripStatus: TripStatus;
+  shipmentStatus: ShipmentStatus | null;
+  routeName: string | null;
+  truckPlate: string | null;
+  customerName: string | null;
+  customerReference: string | null;
+  billNumber: string | null;
+  bookingNumber: string | null;
+  factoryName: string | null;
+  tradeDirection: 'IMPORT' | 'EXPORT' | null;
+  declarationNumbers: string | null;
+  containerTypeSummary: string | null;
+  containerCount: number | null;
+  containerNumbers: string | null;
+  cargoTypeName: string | null;
+  expenseScopesCompleted: number;
+  expenseScopesTotal: number;
+  statusColor: 'paid' | 'pending' | 'none';
+}
+
 /** Trip detail projection returned by the forwarder GET /trips/:id endpoint. */
 export interface ForwarderTripDetail {
   id: number;
@@ -936,6 +965,14 @@ export interface ForwarderTripDetail {
   truckPlate: string | null;
   customerName: string | null;
   customerReference: string | null;
+  shipmentCode: string | null;
+  billNumber: string | null;
+  bookingNumber: string | null;
+  factoryName: string | null;
+  tradeDirection: 'IMPORT' | 'EXPORT' | null;
+  shipmentStatus: ShipmentStatus | null;
+  declarationNumbers: string | null;
+  containerTypeSummary: string | null;
   containerCount: number | null;
   cargoTypeName: string | null;
   notes: string | null;

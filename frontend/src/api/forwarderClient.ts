@@ -3,6 +3,7 @@ import { toQuery } from '../lib/http/query';
 import { FORWARDER, FINANCIAL } from '@tingting/shared';
 import type {
   ForwarderTripDetail,
+  ForwarderTripSummary,
   AdvanceRequestWithRefs,
   AdvanceSettlementWithRefs,
   TripExpenseWithSupplier,
@@ -14,21 +15,7 @@ export const forwarderClient = {
     filters?: { search?: string; dateFrom?: string; dateTo?: string },
   ) => {
     return api.get<{
-      items: Array<{
-        id: number;
-        tripCode: string | null;
-        departureDate: string;
-        status: string;
-        routeName: string | null;
-        truckPlate: string | null;
-        customerName: string | null;
-        customerReference: string | null;
-        containerCount: number | null;
-        containerNumbers: string | null;
-        cargoTypeName: string | null;
-        /** N4: derived payment/approval state for row coloring. */
-        statusColor: 'paid' | 'pending' | 'none';
-      }>;
+      items: ForwarderTripSummary[];
       counts: Record<string, number>;
     }>(`${FORWARDER.TRIPS}${toQuery({ status, search: filters?.search, dateFrom: filters?.dateFrom, dateTo: filters?.dateTo })}`);
   },

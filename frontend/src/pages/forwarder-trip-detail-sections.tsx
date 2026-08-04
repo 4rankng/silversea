@@ -1,7 +1,7 @@
 import { AlertCircle, ArrowLeft, Camera, DollarSign, Loader2, Package, Pencil, Plus, Trash2 } from 'lucide-react';
-import { FORWARDER_EXPENSE_TYPE_DEFAULTS } from '@tingting/shared';
+import { FORWARDER_EXPENSE_TYPE_DEFAULTS, SETTLEMENT_METHOD_LABELS, SettlementMethod } from '@tingting/shared';
 import { FormGroup } from '../components/UI';
-import { formatCurrency } from '../lib/format';
+import { formatCurrency, formatDate } from '../lib/format';
 import type { useForwarderTripDetail } from '../hooks/useQueries';
 
 export interface ForwarderContainer {
@@ -164,10 +164,10 @@ export function ForwarderExpenseRow({ exp, expenseTypeOptions: forwarderExpenseT
  const expensePhotos: Record<number, string[]> = photos ? { [exp.id]: photos } : {};
  const deleteExpenseMut = { isPending: deletePending };
  return <>
-                <div key={exp.id} style={{ padding: '10px 20px', borderBottom: '1px solid var(--border-1)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div key={exp.id} className="fwd-expense-record">
+                  <div className="fwd-expense-record__layout">
                     <DollarSign size={14} style={{ color: 'var(--brand)', flexShrink: 0 }} />
-                    <div style={{ flex: 1 }}>
+                    <div className="fwd-expense-record__main">
                       <span style={{ fontWeight: 600, fontSize: 13 }}>
                         {FORWARDER_EXPENSE_TYPE_DEFAULTS[exp.expenseType]?.name || forwarderExpenseTypeOptions.find(t => t.code === exp.expenseType)?.name || exp.expenseType}
                       </span>
@@ -192,18 +192,21 @@ export function ForwarderExpenseRow({ exp, expenseTypeOptions: forwarderExpenseT
                           {exp.payeeName && <span>Người nhận {exp.payeeName}</span>}
                         </div>
                       )}
+                      <dl className="fwd-expense-record__facts">
+                        <div><dt>Container</dt><dd>{exp.containerNumber || 'Chi phí chung'}</dd></div>
+                        <div><dt>Hình thức chi</dt><dd>{SETTLEMENT_METHOD_LABELS[exp.settlementMethod as SettlementMethod] || exp.settlementMethod}</dd></div>
+                        <div><dt>Số hóa đơn</dt><dd>{exp.invoiceNumber || 'Không có hóa đơn'}</dd></div>
+                        <div><dt>Ngày hóa đơn</dt><dd>{exp.invoiceDate ? formatDate(exp.invoiceDate) : '—'}</dd></div>
+                      </dl>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
+                    <div className="fwd-expense-record__amount">
                       <div style={{ fontWeight: 600, fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
                         {formatCurrency(exp.buyAmount)}
                       </div>
-                      {exp.settlementMethod === 'COMPANY_DIRECT' && (
-                        <div style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--fg-3)' }}>Công ty trả</div>
-                      )}
                     </div>
                     {/* Photo upload button */}
                     <label
-                      className="icon-btn"
+                      className="icon-btn fwd-expense-action"
                       title="Thêm ảnh chứng từ"
                       style={{ color: 'var(--fg-3)', opacity: 0.7, padding: 4, cursor: 'pointer' }}
                     >
@@ -233,7 +236,7 @@ export function ForwarderExpenseRow({ exp, expenseTypeOptions: forwarderExpenseT
                     </button>
                     <button
                       className="icon-btn fwd-expense-action"
-                      onClick={() => handleDeleteExpense(exp.id)}
+                      onClick={() => void handleDeleteExpense(exp.id)}
                       disabled={deleteExpenseMut.isPending || Boolean(exp.activeSettlementId) || !exp.canEdit}
                       title="Xóa chi phí"
                       style={{ color: 'var(--danger)', opacity: 0.6, padding: 4 }}

@@ -1,273 +1,187 @@
-import { useState, useRef, useEffect } from 'react';
-import { Truck, Calendar, ArrowRight, Loader2, Package, Search } from 'lucide-react';
-import { formatDate } from '../lib/format';
-import { TripStatus, TRIP_STATUS_LABELS, TRIP_STATUS_COLORS } from '@tingting/shared';
-import { PageHeader, Panel } from '../components/UI';
-import { ClickableCard } from '../components/shared/ClickableCard';
-import { StatusStrip } from '../components/shared/StatusStrip';
-import { useForwarderTrips } from '../hooks/useQueries';
-import { usePageAnimations, useListAnimations, useCounterAnimation } from '../hooks/animations';
-import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { CalendarDays, ChevronRight, Loader2, Plus, Search } from 'lucide-react';
+import type { ForwarderTripSummary } from '@tingting/shared';
+import { SHIPMENT_STATUS_LABELS } from '@tingting/shared';
+import { PageHeader } from '../components/UI';
 import { useDebouncedValue } from '../design-system';
+import { formatDate } from '../lib/format';
+import { useForwarderTrips } from '../hooks/useQueries';
+import { ForwarderTripWorkspace } from './ForwarderTripDetailPage';
 import './ForwarderTripsPage.css';
-import '../components/shared/HeroKpiRow.css';
-import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
 
-interface TripSummary {
-  id: number;
-  tripCode: string | null;
-  departureDate: string;
-  status: TripStatus;
-  routeName: string | null;
-  truckPlate: string | null;
-  customerName: string | null;
-  containerCount: number | null;
-  containerNumbers: string | null;
-  /** N4: derived payment/approval state for row coloring. */
-  statusColor: 'paid' | 'pending' | 'none';
+function billLabel(trip: ForwarderTripSummary): string {
+  return trip.billNumber || trip.bookingNumber || trip.shipmentCode || trip.tripCode || `Chuyến #${trip.id}`;
 }
 
-type StatusFilter = '' | TripStatus;
+function directionLabel(direction: ForwarderTripSummary['tradeDirection']): string {
+  if (direction === 'IMPORT') return 'Nhập';
+  if (direction === 'EXPORT') return 'Xuất';
+  return '—';
+}
 
-const FORWARDER_STATUS_COLORS: Record<TripStatus, string> = {
-  ...TRIP_STATUS_COLORS,
-  [TripStatus.CREATED]: '#0284C7',
-};
+function shipmentStatusLabel(status: ForwarderTripSummary['shipmentStatus']): string {
+  if (!status) return 'Chưa xác định';
+  return SHIPMENT_STATUS_LABELS[status];
+}
 
-/** Build the className suffix for a row from its derived statusColor. */
-function rowColorClass(statusColor: TripSummary['statusColor']): string {
-  if (statusColor === 'paid') return 'fwd-row--paid';
-  if (statusColor === 'pending') return 'fwd-row--pending';
-  return '';
+function selectionClass(trip: ForwarderTripSummary, selected: boolean): string {
+  return [
+    'ops-bill-row',
+    'ftrip-card',
+    selected ? 'is-selected' : '',
+    trip.statusColor === 'paid' ? 'is-paid' : '',
+    trip.statusColor === 'pending' ? 'is-pending' : '',
+  ].filter(Boolean).join(' ');
 }
 
 export default function ForwarderTripsPage() {
-  const [activeFilter, setActiveFilter] = useState<StatusFilter>('');
-  // N4: search + date-range filters. Passed into the trips query so the
-  // backend filters (ilike on container/customer + departure_date range).
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-
-  // Debounce the free-text search so we don't fire a backend query per keystroke
-  // (matches the TripListPage pattern). Date pickers are discrete — no debounce.
+  const [selectedTripId, setSelectedTripId] = useState<number | null>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
   const debouncedSearch = useDebouncedValue(search, 300);
 
-  const { data, isLoading: loading, error: queryError } = useForwarderTrips(
-    activeFilter || undefined,
-    {
-      search: debouncedSearch || undefined,
-      dateFrom: dateFrom || undefined,
-      dateTo: dateTo || undefined,
-    },
-  );
-  const trips = (data?.items ?? []) as TripSummary[];
-  const counts = data?.counts ?? {};
-  const error = queryError ? 'Không thể tải danh sách chuyến đi' : null;
-
-  const totalTrips = Object.values(counts).reduce((sum: number, c) => sum + c, 0);
-  const totalContainers = trips.reduce((sum, t) => sum + (t.containerCount ?? 0), 0);
-  const hasPaymentHighlights = trips.some((trip) => trip.statusColor === 'paid' || trip.statusColor === 'pending');
-
-  /* ── Page entrance animation ── */
-  const { rootRef } = usePageAnimations({
-    ready: !loading,
-    selectors: ['.page-header', '.hero-kpi-row', '.fwd-filter-pills', '.ftrip-card'],
+  const { data, isLoading, error } = useForwarderTrips(undefined, {
+    search: debouncedSearch || undefined,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
   });
-
-  /* ── List stagger animation ── */
-  const { rootRef: listRef } = useListAnimations({
-    itemSelector: '.ftrip-card',
-    mode: 'cards',
-    deps: [trips],
-  });
-
-  /* ── Counter animation ── */
-  const prefersReduced = usePrefersReducedMotion();
-  const { animateCounters } = useCounterAnimation({ duration: 1200, delay: 400 });
-  const heroTotalRef = useRef<HTMLSpanElement>(null);
-  const heroContainersRef = useRef<HTMLSpanElement>(null);
+  const trips = useMemo(() => data?.items ?? [], [data?.items]);
 
   useEffect(() => {
-    if (loading || totalTrips === 0 || prefersReduced) return;
-    animateCounters(
-      [
-        { el: heroTotalRef.current, value: totalTrips, suffix: ' chuyến' },
-        { el: heroContainersRef.current, value: totalContainers, suffix: ' cont' },
-      ],
-    );
-  }, [loading, totalTrips, totalContainers, animateCounters, prefersReduced]);
+    if (trips.length === 0) {
+      setSelectedTripId(null);
+      return;
+    }
+    if (!selectedTripId || !trips.some((trip) => trip.id === selectedTripId)) {
+      setSelectedTripId(trips[0].id);
+    }
+  }, [selectedTripId, trips]);
 
-  if (loading) return (
-    <Panel>
-      <div style={{ padding: 32, textAlign: 'center', color: 'var(--fg-3)' }}>
-        <Loader2 size={20} className="spin" style={{ display: 'inline-block' }} />
-        <p style={{ marginTop: 8 }}>Đang tải danh sách chuyến đi…</p>
-      </div>
-    </Panel>
-  );
-
-  if (error) return (
-    <Panel><div style={{ padding: 20, textAlign: 'center', color: 'var(--danger)' }}>{error}</div></Panel>
-  );
-
-  if (totalTrips === 0) return (
-    <div>
-      <PageHeader title="Chuyến đi" description="Danh sách chuyến đi vận chuyển" />
-      <div className="empty-state">
-        <img src={resolveEmptyIllustration('empty-forwarder')} alt="No trips" />
-        <h3 className="empty-state-title">Chưa có chuyến đi nào</h3>
-        <p className="empty-state-desc">
-          Hiện chưa có chuyến đi nào trong hệ thống. Khi có chuyến đi mới, thông tin sẽ xuất hiện tại đây.
-        </p>
-      </div>
-    </div>
-  );
+  const selectTrip = (tripId: number) => {
+    setSelectedTripId(tripId);
+    if (window.matchMedia('(max-width: 767px)').matches) {
+      window.requestAnimationFrame(() => detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    }
+  };
 
   return (
-    <div ref={rootRef}>
-      <PageHeader title="Chuyến đi" description="Danh sách chuyến đi vận chuyển" />
+    <div className="ops-bill-page">
+      <PageHeader
+        title="Chi phí hiện trường"
+        description="Tìm lệnh theo Bill, kiểm tra thông tin vận chuyển và ghi nhận khoản chi thực tế"
+        action={(
+          <a className="btn btn--secondary ops-bill-page__advance" href="/my-advances">
+            <Plus size={16} /> Yêu cầu tạm ứng
+          </a>
+        )}
+      />
 
-      {/* ── Hero KPI Row ── */}
-      <div className="hero-kpi-row">
-        <div className="hero-kpi-card">
-          <span className="hero-kpi-card__eyebrow">Tổng chuyến đi</span>
-          <span className="hero-kpi-card__amount" ref={heroTotalRef}>0 chuyến</span>
-          <span className="hero-kpi-card__subtitle">Danh sách chuyến đi vận chuyển</span>
-          <Truck size={72} className="hero-kpi-card__watermark" aria-hidden="true" />
-        </div>
-        <div className="hero-kpi-stack">
-          <div className="hero-kpi-mini hero-kpi-mini--accent">
-            <div className="hero-kpi-mini__body">
-              <span className="hero-kpi-mini__value" ref={heroContainersRef}>0</span>
-              <span className="hero-kpi-mini__label">container</span>
-            </div>
-            <Package size={40} className="hero-kpi-mini__watermark" aria-hidden="true" />
-          </div>
-        </div>
-      </div>
-
-      {/* ── Search + date-range filter (N4) ── */}
-      <div className="fwd-trip-filters">
-        <div className="fwd-trip-filters__search">
-          <Search size={14} />
+      <section className="ops-bill-toolbar" aria-label="Tìm và lọc lệnh vận chuyển">
+        <label className="ops-bill-search">
+          <span className="sr-only">Tìm theo Bill hoặc thông tin lô hàng</span>
+          <Search size={18} aria-hidden="true" />
           <input
-            type="text"
-            placeholder="Tìm theo container, khách hàng..."
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Nhập số Bill, Booking, tờ khai, container hoặc khách hàng"
           />
-        </div>
-        <div className="fwd-trip-filters__dates">
-          <label className="fwd-trip-filters__date">
+        </label>
+        <div className="ops-bill-date-range">
+          <CalendarDays size={17} aria-hidden="true" />
+          <label>
             <span>Từ ngày</span>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={e => setDateFrom(e.target.value)}
-            />
+            <input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
           </label>
-          <label className="fwd-trip-filters__date">
+          <span className="ops-bill-date-range__separator">đến</span>
+          <label>
             <span>Đến ngày</span>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={e => setDateTo(e.target.value)}
-            />
+            <input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
           </label>
         </div>
-      </div>
+      </section>
 
-      {/* ── Clickable status filter pills ── */}
-      <div className="fwd-filter-pills">
-        <button
-          className={`fwd-filter-pill ${activeFilter === '' ? 'fwd-filter-pill--active' : ''}`}
-          onClick={() => setActiveFilter('')}
-        >
-          Tất cả
-          <span className="fwd-filter-pill__count">{totalTrips}</span>
-        </button>
-        {(Object.entries(TRIP_STATUS_LABELS) as [TripStatus, string][]).map(([status, label]) => {
-          const count = counts[status] ?? 0;
-          if (count === 0) return null;
-          return (
-            <button
-              key={status}
-              className={`fwd-filter-pill ${activeFilter === status ? 'fwd-filter-pill--active' : ''}`}
-              data-status={status}
-              onClick={() => setActiveFilter(prev => prev === status ? '' : status)}
-            >
-              <span className="fwd-filter-pill__dot" style={{ background: FORWARDER_STATUS_COLORS[status] }} />
-              {label}
-              <span className="fwd-filter-pill__count">{count}</span>
-            </button>
-          );
-        })}
-      </div>
+      {isLoading ? (
+        <div className="ops-bill-state"><Loader2 className="spin" size={22} /> Đang tải lệnh vận chuyển…</div>
+      ) : error ? (
+        <div className="ops-bill-state ops-bill-state--error" role="alert">Không thể tải danh sách lệnh vận chuyển.</div>
+      ) : trips.length === 0 ? (
+        <div className="ops-bill-state">Không tìm thấy lệnh phù hợp. Hãy kiểm tra số Bill hoặc khoảng ngày.</div>
+      ) : (
+        <>
+          <div className="ops-bill-result-bar">
+            <strong>{trips.length} lệnh</strong>
+            <span>Chọn một dòng để xem và ghi nhận chi phí</span>
+          </div>
 
-      {hasPaymentHighlights && (
-        <div className="fwd-row-legend" aria-label="Giải thích màu thẻ chuyến đi">
-          <span className="fwd-row-legend__label">Màu thẻ</span>
-          <span className="fwd-row-legend__item">
-            <span className="fwd-row-legend__swatch fwd-row-legend__swatch--pending" />
-            Chờ duyệt chi phí / phiếu thanh toán
-          </span>
-          <span className="fwd-row-legend__item">
-            <span className="fwd-row-legend__swatch fwd-row-legend__swatch--paid" />
-            Đã duyệt thanh toán
-          </span>
-        </div>
+          <div className="ops-bill-table-wrap">
+            <table className="ops-bill-table">
+              <thead>
+                <tr>
+                  <th>Ngày vận chuyển</th>
+                  <th>Khách hàng</th>
+                  <th>Số Bill / Booking</th>
+                  <th>Số tờ khai</th>
+                  <th>Nhập / Xuất</th>
+                  <th>Loại cont</th>
+                  <th>Số container</th>
+                  <th>Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trips.map((trip) => (
+                  <tr
+                    key={trip.id}
+                    className={selectionClass(trip, trip.id === selectedTripId)}
+                    aria-selected={trip.id === selectedTripId}
+                    onClick={() => selectTrip(trip.id)}
+                  >
+                    <td>{formatDate(trip.departureDate)}</td>
+                    <td><strong>{trip.customerName || '—'}</strong><small>{trip.factoryName || trip.routeName || '—'}</small></td>
+                    <td><button type="button" onClick={() => selectTrip(trip.id)}>{billLabel(trip)}</button></td>
+                    <td>{trip.declarationNumbers || '—'}</td>
+                    <td>{directionLabel(trip.tradeDirection)}</td>
+                    <td>{trip.containerTypeSummary || trip.cargoTypeName || '—'}</td>
+                    <td>{trip.containerNumbers || '—'}</td>
+                    <td><span className="ops-bill-status">{shipmentStatusLabel(trip.shipmentStatus)}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="ops-bill-mobile-list" aria-label="Danh sách lệnh vận chuyển">
+            {trips.map((trip) => (
+              <button
+                type="button"
+                key={trip.id}
+                className={selectionClass(trip, trip.id === selectedTripId)}
+                onClick={() => selectTrip(trip.id)}
+                aria-pressed={trip.id === selectedTripId}
+              >
+                <span className="ops-bill-mobile-list__head">
+                  <strong>{billLabel(trip)}</strong>
+                  <ChevronRight size={18} aria-hidden="true" />
+                </span>
+                <span className="ops-bill-mobile-list__status">{shipmentStatusLabel(trip.shipmentStatus)}</span>
+                <span className="ops-bill-mobile-list__facts">
+                  <span><small>Ngày vận chuyển</small>{formatDate(trip.departureDate)}</span>
+                  <span><small>Khách hàng</small>{trip.customerName || '—'}</span>
+                  <span><small>Nhà máy</small>{trip.factoryName || '—'}</span>
+                  <span><small>Container</small>{trip.containerTypeSummary || trip.containerNumbers || '—'}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {selectedTripId && (
+            <section ref={detailRef} className="ops-bill-detail" aria-label="Chi tiết lệnh và chi phí">
+              <ForwarderTripWorkspace key={selectedTripId} tripId={selectedTripId} embedded />
+            </section>
+          )}
+        </>
       )}
-
-      {/* ── Trip card list ── */}
-      <div ref={listRef} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {trips.map((trip, idx) => (
-          <ClickableCard
-            key={trip.id}
-            to={`/my-forwarder-trips/${trip.id}`}
-            className={`ftrip-card fade-up ${rowColorClass(trip.statusColor)}`}
-            style={{
-              position: 'relative',
-              overflow: 'hidden',
-              animationDelay: `${idx * 40}ms`,
-            }}
-          >
-            <StatusStrip color={FORWARDER_STATUS_COLORS[trip.status]} />
-            <div className="driver-trip-card__body">
-              <div className="ftrip-card__icon"><Truck size={16} /></div>
-              <div className="driver-trip-card__main">
-                <div className="driver-trip-card__head">
-                  <span className="driver-trip-card__route">
-                    {trip.routeName || 'Tuyến không xác định'}
-                  </span>
-                </div>
-                <div className="driver-trip-card__meta">
-                  <span className="driver-trip-card__plate-badge">
-                    <Truck size={12} />
-                    <span className="driver-trip-card__badge-text">{trip.truckPlate || '—'}</span>
-                  </span>
-                  {trip.containerNumbers && (
-                    <span className="driver-trip-card__plate-badge">
-                      <Package size={12} />
-                      <span className="driver-trip-card__badge-text">{trip.containerNumbers}</span>
-                    </span>
-                  )}
-                  <span className="driver-trip-card__meta-item">
-                    <Calendar size={12} />
-                    {formatDate(trip.departureDate)}
-                  </span>
-                  {trip.customerName && (
-                    <span className="driver-trip-card__meta-item">
-                      {trip.customerName}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <ArrowRight size={16} className="driver-trip-card__arrow" />
-            </div>
-          </ClickableCard>
-        ))}
-      </div>
     </div>
   );
 }

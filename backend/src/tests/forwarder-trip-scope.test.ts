@@ -24,6 +24,7 @@ const ids = {
   customers: [] as number[],
   routes: [] as number[],
   cargoTypes: [] as number[],
+  containerTypes: [] as number[],
 };
 let forwarderA: number;
 let forwarderB: number;
@@ -42,6 +43,9 @@ before(async () => {
   const [cargoType] = await db.insert(s.cargoTypes)
     .values({ name: `Forwarder scope cargo ${suffix}` }).returning();
   ids.cargoTypes.push(cargoType.id);
+  const [containerType] = await db.insert(s.containerTypes)
+    .values({ code: `40HC-${suffix}`.slice(0, 20), name: `40HC ${suffix}`.slice(0, 50) }).returning();
+  ids.containerTypes.push(containerType.id);
   const users = await db.insert(s.users).values([
     {
       username: `forwarder-scope-a-${suffix}`,
@@ -59,11 +63,28 @@ before(async () => {
   [forwarderA, forwarderB] = users.map((row) => row.id);
   ids.users.push(forwarderA, forwarderB);
   const shipments = await db.insert(s.shipments).values([
-    { shipmentCode: `FS-A-${suffix}`, customerId: customer.id, cargoTypeId: cargoType.id },
+    {
+      shipmentCode: `FS-A-${suffix}`,
+      customerId: customer.id,
+      cargoTypeId: cargoType.id,
+      blNumber: `BL-A-${suffix}`,
+      bookingRef: `BOOK-A-${suffix}`,
+      factoryName: `Nhà máy A ${suffix}`,
+      tradeDirection: 'EXPORT',
+      status: 'IN_TRANSIT',
+    },
     { shipmentCode: `FS-B-${suffix}`, customerId: customer.id, cargoTypeId: cargoType.id },
   ]).returning({ id: s.shipments.id });
   [shipmentA, shipmentB] = shipments.map((row) => row.id);
   ids.shipments.push(shipmentA, shipmentB);
+  await db.insert(s.shipmentDeclarations).values({
+    shipmentId: shipmentA,
+    declarationNumber: `TK-A-${suffix}`,
+  });
+  await db.insert(s.shipmentContainers).values([
+    { shipmentId: shipmentA, containerTypeId: containerType.id, containerNumber: `MSBU-${suffix}-1` },
+    { shipmentId: shipmentA, containerTypeId: containerType.id, containerNumber: `MSBU-${suffix}-2` },
+  ]);
   const trips = await db.insert(s.trips).values([
     {
       tripCode: `FS-TRIP-A-${suffix}`,
@@ -72,6 +93,7 @@ before(async () => {
       routeId: route.id,
       cargoTypeId: cargoType.id,
       departureDate: '2026-07-28',
+      customerReference: `REF-A-${suffix}`,
     },
     {
       tripCode: `FS-TRIP-B-${suffix}`,
@@ -94,9 +116,12 @@ after(async () => {
   await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.tripId, ids.trips));
   await db.delete(s.userShipmentLinks).where(inArray(s.userShipmentLinks.userId, ids.users));
   await db.delete(s.trips).where(inArray(s.trips.id, ids.trips));
+  await db.delete(s.shipmentDeclarations).where(inArray(s.shipmentDeclarations.shipmentId, ids.shipments));
+  await db.delete(s.shipmentContainers).where(inArray(s.shipmentContainers.shipmentId, ids.shipments));
   await db.delete(s.shipments).where(inArray(s.shipments.id, ids.shipments));
   await db.delete(s.users).where(inArray(s.users.id, ids.users));
   await db.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, ids.cargoTypes));
+  await db.delete(s.containerTypes).where(inArray(s.containerTypes.id, ids.containerTypes));
   await db.delete(s.routes).where(inArray(s.routes.id, ids.routes));
   await db.delete(s.customers).where(inArray(s.customers.id, ids.customers));
   await client.end();
@@ -211,6 +236,36 @@ describe('forwarder shipment scope', () => {
         && error.statusCode === 404
       ),
     );
+  });
+
+  test('list and detail project persisted bill facts and keep expanded search scope-safe', async () => {
+    await db.update(s.shipments).set({ status: 'IN_TRANSIT' }).where(eq(s.shipments.id, shipmentA));
+    const [row] = (await getForwarderTrips(forwarderA)).filter((trip) => trip.id === tripA);
+    assert.ok(row);
+    assert.equal(row.billNumber, `BL-A-${suffix}`);
+    assert.equal(row.bookingNumber, `BOOK-A-${suffix}`);
+    assert.equal(row.factoryName, `Nhà máy A ${suffix}`);
+    assert.equal(row.tradeDirection, 'EXPORT');
+    assert.equal(row.status, 'CREATED');
+    assert.equal(row.tripStatus, 'CREATED');
+    assert.equal(row.customerReference, `REF-A-${suffix}`);
+    assert.equal(row.declarationNumbers, `TK-A-${suffix}`);
+    assert.equal(row.containerCount, 2);
+    assert.match(row.containerTypeSummary ?? '', /^2×40HC-/);
+    assert.match(row.containerNumbers ?? '', new RegExp(`MSBU-${suffix}-1`));
+
+    const byBill = await getForwarderTrips(forwarderA, undefined, { search: `BL-A-${suffix}` });
+    const byDeclaration = await getForwarderTrips(forwarderA, undefined, { search: `TK-A-${suffix}` });
+    const outOfScope = await getForwarderTrips(forwarderB, undefined, { search: `BL-A-${suffix}` });
+    assert.ok(byBill.some((trip) => trip.id === tripA));
+    assert.ok(byDeclaration.some((trip) => trip.id === tripA));
+    assert.ok(!outOfScope.some((trip) => trip.id === tripA));
+
+    const detail = await getForwarderTripDetail(tripA, forwarderA);
+    assert.ok(detail);
+    assert.equal(detail.shipmentCode, `FS-A-${suffix}`);
+    assert.equal(detail.shipmentStatus, 'IN_TRANSIT');
+    assert.equal(detail.declarationNumbers, `TK-A-${suffix}`);
   });
 
   test('scope revocation and terminal shipment state deny mutations immediately', async () => {

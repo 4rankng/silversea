@@ -93,10 +93,14 @@ function expensePhotoUploadErrorMessage(error: unknown): string {
     : 'Không thể tải ảnh chứng từ. Vui lòng thử lại.';
 }
 
-export default function ForwarderTripDetailPage() {
-  const { id } = useParams<{ id: string }>();
+interface ForwarderTripWorkspaceProps {
+  tripId: number;
+  embedded?: boolean;
+  onClose?: () => void;
+}
+
+export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: ForwarderTripWorkspaceProps) {
   const navigate = useNavigate();
-  const tripId = parseInt(id || '0', 10);
 
   const { data: trip, isLoading: loading, error: queryError } = useForwarderTripDetail(tripId);
   const queryClient = useQueryClient();
@@ -140,16 +144,16 @@ export default function ForwarderTripDetailPage() {
 
   // Expense photo state: maps expenseId → photo URLs
   const [expensePhotos, setExpensePhotos] = useState<Record<number, string[]>>({});
-  const [expensePhotoMeta, setExpensePhotoMeta] = useState<Record<number, Array<{ id: number; url: string }>>>({});
   const [uploadingExpenseId, setUploadingExpenseId] = useState<number | null>(null);
   const [paperOrderSubmitting, setPaperOrderSubmitting] = useState(false);
   const { confirm, dialog } = useConfirm();
   const { toast } = useToast();
-  const handleBack = () => navigate('/my-forwarder-trips');
+  const handleBack = () => embedded ? onClose?.() : navigate('/my-forwarder-trips');
   const isDirty = () =>
     (showContainerForm && Boolean(containerForm.containerNumber || containerForm.sealNumber || containerForm.notes)) ||
     (showExpenseForm && JSON.stringify(expenseForm) !== JSON.stringify(expenseFormBaseline));
   useBackShortcut(handleBack, {
+    enabled: !embedded,
     isDirty,
     confirmDiscard: () => confirm('Thoát mà không lưu? Các thay đổi chưa lưu sẽ bị mất.', { variant: 'warning', confirmLabel: 'Thoát' }),
   });
@@ -162,7 +166,6 @@ export default function ForwarderTripDetailPage() {
         url: `/api/photos/${encodeURIComponent(p.storageKey)}`,
       }));
       const urls = items.map((item) => item.url);
-      setExpensePhotoMeta(prev => ({ ...prev, [expenseId]: items }));
       setExpensePhotos(prev => ({ ...prev, [expenseId]: urls }));
     } catch { /* ignore */ }
   }
@@ -213,15 +216,13 @@ export default function ForwarderTripDetailPage() {
   const isLiftExpense = expenseForm.expenseType === 'LIFTING' || expenseForm.expenseType === 'LOWERING';
   const liftDirection = expenseForm.expenseType === 'LOWERING' ? 'LIFT_DOWN' as const : 'LIFT_UP' as const;
   const liftPriceQuery = useQuery({
-    queryKey: [
-      'forwarder',
-      'lift-price',
-      expenseForm.portId,
-      expenseForm.containerTypeId,
-      liftDirection,
-      expenseForm.loadState,
-      expenseForm.expenseDate,
-    ],
+    queryKey: qk.forwarder.liftPrice({
+      portId: expenseForm.portId,
+      containerTypeId: expenseForm.containerTypeId,
+      direction: liftDirection,
+      loadState: expenseForm.loadState,
+      expenseDate: expenseForm.expenseDate,
+    }),
     queryFn: () => forwarderClient.resolveLiftPrice({
       portId: Number(expenseForm.portId),
       containerTypeId: Number(expenseForm.containerTypeId),
@@ -385,9 +386,14 @@ export default function ForwarderTripDetailPage() {
     );
   };
 
-  const handleDeleteExpense = (expenseId: number) => {
+  const handleDeleteExpense = async (expenseId: number) => {
     const expense = expenses.find(item => item.id === expenseId);
     if (!expense) return;
+    const accepted = await confirm('Xóa khoản chi này? Dữ liệu và ảnh chứng từ liên quan sẽ không còn trong danh sách Ops.', {
+      variant: 'danger',
+      confirmLabel: 'Xóa khoản chi',
+    });
+    if (!accepted) return;
     deleteExpenseMut.mutate({ id: expenseId, tripId, expectedUpdatedAt: expense.updatedAt });
   };
 
@@ -484,23 +490,29 @@ export default function ForwarderTripDetailPage() {
   }
 
   return (
-    <div ref={rootRef} style={{ maxWidth: 700, margin: '0 auto', paddingBottom: 40 }}>
+    <div
+      ref={rootRef}
+      className={embedded ? 'fwd-detail fwd-detail--embedded' : 'fwd-detail'}
+      style={{ maxWidth: embedded ? 'none' : 700, margin: '0 auto', paddingBottom: embedded ? 8 : 40 }}
+    >
       {dialog}
       {/* Back button + Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 0 8px' }}>
-        <button
-          className="btn btn--ghost btn--icon"
-          onClick={handleBack}
-          aria-label="Quay lại"
-          style={{ width: 40, height: 40, borderRadius: '50%' }}
-        >
-          <ArrowLeft size={20} />
-        </button>
+        {!embedded && (
+          <button
+            className="btn btn--ghost btn--icon"
+            onClick={handleBack}
+            aria-label="Quay lại"
+            style={{ width: 40, height: 40, borderRadius: '50%' }}
+          >
+            <ArrowLeft size={20} />
+          </button>
+        )}
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg-1)', margin: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
               <img src="/assets/icons/03-trip-log-so-chuyen-chuyen-xe.png" alt="" style={{ width: 32, height: 32, flexShrink: 0 }} />
-              {trip.routeName || 'Chuyến đi'}
+              {trip.billNumber || trip.bookingNumber || trip.shipmentCode || trip.routeName || 'Chuyến đi'}
             </h1>
             <StatusPill variant={tripStatusVariant(trip.status)}>
               {TRIP_STATUS_LABELS[trip.status as TripStatus] || trip.status}
@@ -509,9 +521,9 @@ export default function ForwarderTripDetailPage() {
               <span style={{ fontSize: 12, color: 'var(--fg-3)', fontFamily: 'var(--font-mono)' }}>{trip.tripCode}</span>
             )}
           </div>
-          {trip.customerName && (
-            <p style={{ fontSize: 13, color: 'var(--fg-3)', margin: '4px 0 0' }}>{trip.customerName}</p>
-          )}
+          <p style={{ fontSize: 13, color: 'var(--fg-3)', margin: '4px 0 0' }}>
+            {[trip.customerName, trip.factoryName, trip.routeName].filter(Boolean).join(' · ')}
+          </p>
         </div>
       </div>
 
@@ -523,7 +535,7 @@ export default function ForwarderTripDetailPage() {
       <div className="panel" style={{ marginBottom: 16 }}>
         <div style={{ padding: '4px 20px 4px', borderBottom: '1px solid var(--border-1)' }}>
           <span style={{ fontSize: 12, lineHeight: 1.35, fontWeight: 600, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            Thông tin chuyến
+            Thông tin lệnh vận chuyển
           </span>
         </div>
         <div style={{ padding: '0 20px' }}>
@@ -533,6 +545,12 @@ export default function ForwarderTripDetailPage() {
               <div className="info-row__label">Xe đầu kéo</div>
               <div className="info-row__value">{trip.truckPlate || '—'}</div>
             </div>
+          </div>
+          <div className="fwd-order-facts">
+            <div><span>Số Bill / Booking</span><strong>{trip.billNumber || trip.bookingNumber || '—'}</strong></div>
+            <div><span>Số tờ khai</span><strong>{trip.declarationNumbers || '—'}</strong></div>
+            <div><span>Nhập / Xuất</span><strong>{trip.tradeDirection === 'IMPORT' ? 'Nhập' : trip.tradeDirection === 'EXPORT' ? 'Xuất' : '—'}</strong></div>
+            <div><span>Loại container</span><strong>{trip.containerTypeSummary || trip.cargoTypeName || '—'}</strong></div>
           </div>
           <div className="info-row">
             <span className="info-row__icon"><Calendar size={16} /></span>
@@ -1044,4 +1062,9 @@ export default function ForwarderTripDetailPage() {
       </fieldset>
     </div>
   );
+}
+
+export default function ForwarderTripDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  return <ForwarderTripWorkspace tripId={parseInt(id || '0', 10)} />;
 }
