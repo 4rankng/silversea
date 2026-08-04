@@ -43,7 +43,7 @@ after(async () => {
 });
 
 describe('application-owned user and business-unit identity', () => {
-  test('serializes concurrent canonical username creation without a DB unique constraint', async () => {
+  test('returns a semantic conflict before the database uniqueness fence on concurrent usernames', async () => {
     const token = uniqueToken();
     const attempts = await Promise.allSettled([
       createInactiveManager({ username: `app-user-${token}` }),

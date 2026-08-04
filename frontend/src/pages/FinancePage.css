@@ -147,6 +147,31 @@
 .pnl-kpi--profit .pnl-kpi__value { color: var(--success, #10b981); }
 .pnl-kpi--net    .pnl-kpi__value { color: var(--brand,   #22c55e); }
 
+.finance-allocation-alert {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.finance-allocation-alert__headline {
+  font-weight: 700;
+  color: var(--fg-1);
+}
+
+.finance-allocation-alert__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  font-size: var(--fs-xs);
+  color: var(--fg-2);
+}
+
+.finance-allocation-alert__note {
+  font-size: var(--fs-xs);
+  color: var(--fg-2);
+  line-height: 1.45;
+}
+
 @media (max-width: 640px) {
   .finance-page .finance-charts-row {
     flex-direction: column;
@@ -323,6 +348,18 @@
   font-size: var(--fs-2xs);
 }
 .truck-details-panel__intro strong { color: var(--fg-1); }
+.truck-allocation-note {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--fs-xs);
+  color: var(--ink-2);
+}
 .truck-trip-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--line);

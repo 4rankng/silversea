@@ -774,8 +774,8 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
     assert_ok(
         results,
         "TC-1710",
-        "Manager cannot review a non-existent POD",
-        manager_forbidden_review_status == 404,
+        "Manager cannot review POD submissions",
+        manager_forbidden_review_status == 403,
         api_failure_detail(manager_forbidden_review_body),
     )
 
@@ -852,6 +852,54 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
         results.fail("TC-1713", "Driver trip list includes the issued trip", str(driver_trips[:3]))
         return
     results.pass_("TC-1713", "Driver sees the dispatched trip", f"trip#{trip_id} assigned to driver#{driver_record_id}")
+
+    users_payload = admin_api.get("/api/auth/users")
+    user_rows = first_items(users_payload)
+    forwarder_user = next(
+        (row for row in user_rows if row.get("username") == "giaonhan"),
+        None,
+    )
+    if not forwarder_user:
+        results.fail("TC-1713B", "Ops forwarder account is available", str(users_payload))
+        return
+    current_shipment_ids = list(forwarder_user.get("shipmentIds") or [])
+    if shipment_id not in current_shipment_ids:
+        assignable_shipment_ids = []
+        for assigned_shipment_id in current_shipment_ids:
+            assigned_detail = admin_api.get(f"/api/shipments/{assigned_shipment_id}")
+            assigned_payload = assigned_detail.get("data", assigned_detail)
+            assigned_status = assigned_payload.get("shipment", {}).get("status")
+            if assigned_status not in ("COMPLETED", "CANCELED"):
+                assignable_shipment_ids.append(assigned_shipment_id)
+        assign_status, assign_body = request_json(
+            admin_api,
+            "PATCH",
+            f"/api/auth/users/{forwarder_user['id']}",
+            {"shipmentIds": [*assignable_shipment_ids, shipment_id]},
+            headers={
+                "If-Unmodified-Since": forwarder_user["updatedAt"],
+                "Idempotency-Key": f"{BOOKING_PREFIX}-forwarder-scope",
+            },
+        )
+        if assign_status != 200:
+            results.fail("TC-1713B", "Admin assigns the shipment to Ops", api_failure_detail(assign_body))
+            return
+        # Assignment changes invalidate the previous account token.
+        forwarder_api = login_api("forwarder")
+    results.pass_("TC-1713B", "Admin assigns the shipment to Ops", f"shipment#{shipment_id}")
+
+    paper_order_status, paper_order_body = request_json(
+        forwarder_api,
+        "POST",
+        f"/api/forwarder/me/trips/{trip_id}/paper-order-collection",
+        {"expectedVersion": trip_version},
+        headers={"Idempotency-Key": f"{BOOKING_PREFIX}-paper-order-handover"},
+    )
+    if paper_order_status != 200 or not isinstance(paper_order_body.get("version"), int):
+        results.fail("TC-1713C", "Ops hands the original paper order to the driver", api_failure_detail(paper_order_body))
+        return
+    trip_version = paper_order_body["version"]
+    results.pass_("TC-1713C", "Ops hands the original paper order to the driver", f"trip#{trip_id} version={trip_version}")
 
     progress_events = [
         ("ORDER_RECEIVED", "Đã nhận lệnh gốc", 1),
@@ -965,37 +1013,6 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
     if isinstance(complete_body, dict) and isinstance(complete_body.get("version"), int):
         trip_version = complete_body["version"]
 
-    users_payload = admin_api.get("/api/auth/users")
-    user_rows = first_items(users_payload)
-    forwarder_user = next(
-        (row for row in user_rows if row.get("username") == "giaonhan"),
-        None,
-    )
-    if not forwarder_user:
-        results.fail("TC-1718B", "Ops forwarder account is available", str(users_payload))
-        return
-    current_shipment_ids = list(forwarder_user.get("shipmentIds") or [])
-    if shipment_id not in current_shipment_ids:
-        assignable_shipment_ids = []
-        for assigned_shipment_id in current_shipment_ids:
-            assigned_detail = admin_api.get(f"/api/shipments/{assigned_shipment_id}")
-            assigned_payload = assigned_detail.get("data", assigned_detail)
-            assigned_status = assigned_payload.get("shipment", {}).get("status")
-            if assigned_status not in ("COMPLETED", "CANCELED"):
-                assignable_shipment_ids.append(assigned_shipment_id)
-        assign_status, assign_body = request_json(
-            admin_api,
-            "PATCH",
-            f"/api/auth/users/{forwarder_user['id']}",
-            {"shipmentIds": [*assignable_shipment_ids, shipment_id]},
-            headers={
-                "If-Unmodified-Since": forwarder_user["updatedAt"],
-                "Idempotency-Key": f"{BOOKING_PREFIX}-forwarder-scope",
-            },
-        )
-        if assign_status != 200:
-            results.fail("TC-1718B", "Admin assigns the shipment to Ops", api_failure_detail(assign_body))
-            return
     completion_status, completion_body = request_json(
         forwarder_api,
         "PUT",
@@ -1103,8 +1120,8 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
     assert_ok(
         results,
         "TC-1721",
-        "Second POD approval is rejected after lock",
-        manager_replay_status == 409,
+        "Manager remains blocked after POD approval",
+        manager_replay_status == 403,
         api_failure_detail(manager_replay_body),
     )
 

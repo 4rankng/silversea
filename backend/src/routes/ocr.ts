@@ -4,10 +4,12 @@ import multer from 'multer';
 import type { Request, Response } from 'express';
 import { eq, and } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
+import { z } from 'zod';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { getUser } from '../middleware/auth';
+import { requireRoles } from '../middleware/casbin';
 import { sniffImageType } from '../lib/format';
 import {
   insertTripPhotoRecord,
@@ -35,12 +37,22 @@ import {
 } from '../services/durable-effect.service';
 import { getOcrSettings, ocrHasAvailableKey } from '../services/ocr-settings.service';
 import { OCR_DISABLED_ERROR } from '../services/ocr.service';
+import {
+  decideFuelEvidenceReview,
+  listFuelEvidenceReviewsForOffice,
+} from '../services/fuel-evidence-review.service';
 
 // auth + Casbin ('ocr') applied at mount point in index.ts. Both routes below
 // inherit casbinAuthz('ocr') from that single mount — no per-route policy.
 const router = Router();
 const OCR_PUMP_ENDPOINT = 'ocr.pump';
+const FUEL_EVIDENCE_DECISION_ENDPOINT = 'ocr.fuel-evidence-reviews.decision';
 let extractPumpReadingHandler = extractPumpReading;
+const fuelEvidenceDecisionSchema = z.object({
+  expectedVersion: z.number().int().positive(),
+  decision: z.enum(['CONFIRMED', 'REJECTED']),
+  reviewNote: z.string().trim().max(1000).optional().nullable(),
+});
 
 async function assertOcrRecognitionEnabled(): Promise<void> {
   const settings = await getOcrSettings();
@@ -405,6 +417,7 @@ router.post('/pump', upload.single('file'), asyncHandler(async (req: Request, re
       const result = await extractPumpReadingHandler(file.buffer, mimeType);
       return {
         ok: result.success,
+        outcome: result.outcome,
         litres: result.litres,
         unitPrice: result.unitPrice,
         total: result.total,
@@ -416,6 +429,65 @@ router.post('/pump', upload.single('file'), asyncHandler(async (req: Request, re
     },
   });
 
+  res.status(outcome.statusCode).json(outcome.result);
+}));
+
+router.get('/fuel-evidence-reviews', requireRoles(Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+  const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+  const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+  const page = typeof req.query.page === 'string' ? parseInt(req.query.page, 10) : undefined;
+  const limit = typeof req.query.limit === 'string' ? parseInt(req.query.limit, 10) : undefined;
+  if (
+    status !== undefined
+    && status !== 'PENDING'
+    && status !== 'CONFIRMED'
+    && status !== 'REJECTED'
+  ) {
+    throw new ApiError(400, 'Trạng thái duyệt OCR không hợp lệ.');
+  }
+  if (page !== undefined && (!Number.isInteger(page) || page <= 0)) {
+    throw new ApiError(400, 'Số trang không hợp lệ.');
+  }
+  if (limit !== undefined && (!Number.isInteger(limit) || limit <= 0 || limit > 100)) {
+    throw new ApiError(400, 'Giới hạn bản ghi không hợp lệ.');
+  }
+  const result = await listFuelEvidenceReviewsForOffice({
+    status,
+    search,
+    page,
+    limit,
+  });
+  res.json(result);
+}));
+
+router.post('/fuel-evidence-reviews/:id/decision', requireRoles(Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+  const reviewId = parseInt(req.params.id as string, 10);
+  if (!Number.isInteger(reviewId) || reviewId <= 0) {
+    throw new ApiError(400, 'ID kết quả OCR không hợp lệ.');
+  }
+  const parsed = fuelEvidenceDecisionSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    throw new ApiError(400, parsed.error.issues.map((issue) => issue.message).join('; '));
+  }
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const outcome = await withMaterialWriteAuditContext(
+    req,
+    res,
+    FUEL_EVIDENCE_DECISION_ENDPOINT,
+    () => runIdempotent({
+      endpoint: FUEL_EVIDENCE_DECISION_ENDPOINT,
+      idempotencyKey,
+      payload: { reviewId, ...parsed.data },
+      createdBy: getUser(req).userId,
+      create: (tx) => decideFuelEvidenceReview({
+        reviewId,
+        reviewerId: getUser(req).userId,
+        expectedVersion: parsed.data.expectedVersion,
+        decision: parsed.data.decision,
+        reviewNote: parsed.data.reviewNote,
+      }, tx),
+    }),
+  );
   res.status(outcome.statusCode).json(outcome.result);
 }));
 

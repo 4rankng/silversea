@@ -7,6 +7,7 @@ import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import { assertCanMakeGovernanceAction } from './governance-policy';
 import type { GovernanceApplyResult, GovernanceActionRow } from './governance-transition.service';
+import { lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
 
 export interface ExpenseCreateInput {
   expenseDate: string;
@@ -46,23 +47,74 @@ export interface ExpenseListFilters {
   pageSize?: number;
 }
 
-async function validateExpenseInput(tx: Tx, data: ExpenseCreateInput) {
+async function lockAndValidateExpenseReferences(tx: Tx, data: Pick<
+  ExpenseCreateInput,
+  'supplierId' | 'categoryId' | 'truckId' | 'vehicleComponent'
+>) {
+  const vehicleComponent = data.truckId == null ? null : (data.vehicleComponent ?? 'TRUCK');
+  await lockApplicationOwnedUniquenessSet(tx, [
+    { scope: 'relationship.supplier', parts: [data.supplierId] },
+    { scope: 'relationship.expense-category', parts: [data.categoryId] },
+    ...(data.truckId == null || vehicleComponent == null ? [] : [{
+      scope: vehicleComponent === 'TRAILER' ? 'relationship.trailer' : 'relationship.truck',
+      parts: [data.truckId],
+    }]),
+  ]);
+
   const [supplier] = await tx.select({ id: s.suppliers.id })
     .from(s.suppliers)
-    .where(and(eq(s.suppliers.id, data.supplierId), isNull(s.suppliers.deletedAt)))
-    .limit(1);
+    .where(and(
+      eq(s.suppliers.id, data.supplierId),
+      eq(s.suppliers.status, 'ACTIVE'),
+      isNull(s.suppliers.deletedAt),
+    ))
+    .limit(1)
+    .for('share');
   if (!supplier) {
-    throw new ApiError(400, 'Nhà cung cấp không tồn tại');
+    throw new ApiError(400, 'Nhà cung cấp không tồn tại hoặc đã ngưng dùng');
   }
 
   const [category] = await tx.select()
     .from(s.expenseCategories)
-    .where(eq(s.expenseCategories.id, data.categoryId))
-    .limit(1);
+    .where(and(
+      eq(s.expenseCategories.id, data.categoryId),
+      eq(s.expenseCategories.status, 'ACTIVE'),
+      isNull(s.expenseCategories.deletedAt),
+    ))
+    .limit(1)
+    .for('share');
 
   if (!category) {
-    throw new ApiError(400, 'Danh mục chi phí không tồn tại');
+    throw new ApiError(400, 'Danh mục chi phí không tồn tại hoặc đã ngưng dùng');
   }
+
+  if (data.truckId != null) {
+    const vehicle = vehicleComponent === 'TRAILER'
+      ? await tx.select({ id: s.trailers.id }).from(s.trailers).where(and(
+        eq(s.trailers.id, data.truckId),
+        eq(s.trailers.status, 'ACTIVE'),
+        isNull(s.trailers.deletedAt),
+      )).limit(1).for('share')
+      : await tx.select({ id: s.trucks.id }).from(s.trucks).where(and(
+        eq(s.trucks.id, data.truckId),
+        eq(s.trucks.status, 'ACTIVE'),
+        isNull(s.trucks.deletedAt),
+      )).limit(1).for('share');
+    if (!vehicle[0]) {
+      throw new ApiError(
+        400,
+        vehicleComponent === 'TRAILER'
+          ? 'Rơ-moóc không tồn tại hoặc đã ngưng dùng'
+          : 'Xe đầu kéo không tồn tại hoặc đã ngưng dùng',
+      );
+    }
+  }
+
+  return category;
+}
+
+async function validateExpenseInput(tx: Tx, data: ExpenseCreateInput) {
+  const category = await lockAndValidateExpenseReferences(tx, data);
 
   if (category.isRenewable && !data.validTo) {
     throw new ApiError(400, 'Chi phí có thời hạn cần ngày hết hạn (validTo)');
@@ -97,9 +149,8 @@ export async function createExpense(
   // The expenses table only has truck_id (no trailer_id column yet) —
   // we discriminate truck vs rơ-moóc via the vehicleComponent enum. The
   // ID column holds either trucks.id or trailers.id depending on
-  // vehicleComponent. (FK constraint nominally points at trucks; in
-  // practice trailer IDs land here too and the join-by-component logic
-  // in the list query handles the lookup.)
+  // vehicleComponent. Application-owned relationship validation above
+  // resolves the ID against the selected parent table before persistence.
   const [expense] = await tx.insert(s.expenses).values({
     expenseDate: data.expenseDate,
     supplierId: data.supplierId,
@@ -297,15 +348,20 @@ export async function updateExpense(
     );
   }
 
-  if (data.supplierId !== undefined) {
-    const [supplier] = await tx.select({ id: s.suppliers.id })
-      .from(s.suppliers)
-      .where(and(eq(s.suppliers.id, data.supplierId), isNull(s.suppliers.deletedAt)))
-      .limit(1);
-    if (!supplier) {
-      throw new ApiError(400, 'Nhà cung cấp không tồn tại');
-    }
-  }
+  const relationshipChanged = data.supplierId !== undefined
+    || data.categoryId !== undefined
+    || data.truckId !== undefined
+    || data.vehicleComponent !== undefined;
+  const validatedCategory = relationshipChanged
+    ? await lockAndValidateExpenseReferences(tx, {
+      supplierId: data.supplierId ?? existing.supplierId,
+      categoryId: data.categoryId ?? existing.categoryId,
+      truckId: data.truckId !== undefined ? data.truckId : existing.truckId,
+      vehicleComponent: data.vehicleComponent !== undefined
+        ? data.vehicleComponent
+        : existing.vehicleComponent,
+    })
+    : null;
 
   const originalAmount = Number(existing.amount);
   const wasUnpaid = existing.paymentStatus === 'UNPAID';
@@ -330,17 +386,8 @@ export async function updateExpense(
     });
   }
 
-  if (data.categoryId) {
-    const [category] = await tx.select()
-      .from(s.expenseCategories)
-      .where(eq(s.expenseCategories.id, data.categoryId))
-      .limit(1);
-
-    if (!category) {
-      throw new ApiError(400, 'Danh mục chi phí không tồn tại');
-    }
-
-    if (category.isRenewable && !data.validTo && !existing.validTo) {
+  if (validatedCategory) {
+    if (validatedCategory.isRenewable && !data.validTo && !existing.validTo) {
       throw new ApiError(400, 'Chi phí có thời hạn cần ngày hết hạn (validTo)');
     }
   }

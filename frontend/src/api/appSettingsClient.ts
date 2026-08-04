@@ -12,7 +12,7 @@ import type {
   FinancialReportingPolicyState,
   TruckFinancialProfileRequest,
   TruckFinancialProfileState,
-} from '@tingting/shared/src/schemas/financial-reporting-policy';
+} from '@tingting/shared';
 import { toQuery } from '../lib/http/query';
 
 const APP_SETTINGS_PATH = '/admin/app-settings';

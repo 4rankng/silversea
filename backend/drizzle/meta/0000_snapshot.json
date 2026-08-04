@@ -1,5 +1,5 @@
 {
-  "id": "5b5081ea-63ec-4833-a372-31e99e8f9e36",
+  "id": "f395e2f4-0203-40ac-81da-cba9f7d72837",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -128,7 +128,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -267,7 +267,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -282,7 +282,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"advance_settlements\".\"auto_offset_expense_id\" IS NOT NULL",
           "concurrently": false,
           "method": "btree",
@@ -798,7 +798,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -1111,7 +1111,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"billing_document_recoverable_claims\".\"released_at\" is null",
           "concurrently": false,
           "method": "btree",
@@ -1187,7 +1187,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -1316,7 +1316,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"billing_document_trip_claims\".\"released_at\" is null",
           "concurrently": false,
           "method": "btree",
@@ -1636,7 +1636,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"billing_documents\".\"deleted_at\" IS NULL AND \"billing_documents\".\"type\" = 'DEBIT_NOTE'",
           "concurrently": false,
           "method": "btree",
@@ -1705,7 +1705,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -1773,7 +1773,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -1796,7 +1796,15 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "business_units_code_unique": {
+          "name": "business_units_code_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "code"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -1971,7 +1979,15 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "container_types_code_unique": {
+          "name": "container_types_code_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "code"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -2231,7 +2247,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"credit_override_requests\".\"shipment_id\" is not null and \"credit_override_requests\".\"status\" in ('PENDING', 'APPROVED')",
           "concurrently": false,
           "method": "btree",
@@ -2476,7 +2492,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -2491,7 +2507,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -2627,7 +2643,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -2642,7 +2658,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"customer_visible_events\".\"supersedes_event_id\" is not null",
           "concurrently": false,
           "method": "btree",
@@ -2858,7 +2874,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"customers\".\"deleted_at\" is null",
           "concurrently": false,
           "method": "btree",
@@ -2874,7 +2890,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"customers\".\"deleted_at\" is null and nullif(btrim(\"customers\".\"tax_code\"), '') is not null",
           "concurrently": false,
           "method": "btree",
@@ -3511,7 +3527,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"dispatch_handoffs\".\"status\" IN ('UNSEEN', 'SEEN')",
           "concurrently": false,
           "method": "btree",
@@ -3527,7 +3543,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"dispatch_handoffs\".\"supersedes_handoff_id\" is not null",
           "concurrently": false,
           "method": "btree",
@@ -3886,7 +3902,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -4000,7 +4016,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"drivers\".\"user_id\" is not null and \"drivers\".\"deleted_at\" is null",
           "concurrently": false,
           "method": "btree",
@@ -4133,7 +4149,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -4671,7 +4687,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -4686,7 +4702,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -4863,7 +4879,15 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "forwarder_expense_types_code_unique": {
+          "name": "forwarder_expense_types_code_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "code"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -5078,7 +5102,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"fuel_invoice_allocations\".\"trip_expense_id\" is not null",
           "concurrently": false,
           "method": "btree",
@@ -5106,7 +5130,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -5262,7 +5286,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -5463,7 +5487,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -5679,7 +5703,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -5787,7 +5811,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"fuel_surcharge_configs\".\"deleted_at\" is null",
           "concurrently": false,
           "method": "btree",
@@ -6142,7 +6166,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"governance_actions\".\"subject_key\" is not null and \"governance_actions\".\"status\" in ('PENDING_CHECK', 'PENDING_APPROVAL', 'RETURNED_FOR_EVIDENCE')",
           "concurrently": false,
           "method": "btree",
@@ -6176,7 +6200,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"governance_actions\".\"subject_id\" is not null and \"governance_actions\".\"action_kind\" not in ('TRIP_AR_ADJUSTMENT', 'TRIP_REOPEN') and \"governance_actions\".\"status\" in ('PENDING_CHECK', 'PENDING_APPROVAL', 'RETURNED_FOR_EVIDENCE')",
           "concurrently": false,
           "method": "btree",
@@ -6274,7 +6298,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -6636,7 +6660,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"ledger\".\"txn_type\" = 'FORWARDER_SETTLEMENT'",
           "concurrently": false,
           "method": "btree",
@@ -6766,7 +6790,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -6935,7 +6959,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -7055,7 +7079,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -7347,7 +7371,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"operational_sites\".\"deleted_at\" is null",
           "concurrently": false,
           "method": "btree",
@@ -7369,7 +7393,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -7464,7 +7488,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -7690,7 +7714,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"payment_allocations\".\"payment_receipt_id\" is not null",
           "concurrently": false,
           "method": "btree",
@@ -7724,7 +7748,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"payment_allocations\".\"payment_receipt_id\" is not null",
           "concurrently": false,
           "method": "btree",
@@ -7854,7 +7878,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -7959,7 +7983,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -8291,7 +8315,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -8457,7 +8481,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -8535,7 +8559,15 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "ports_code_unique": {
+          "name": "ports_code_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "code"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -8631,7 +8663,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"pricing_tables\".\"container_type_id\" is null and \"pricing_tables\".\"rate_key\" is null",
           "concurrently": false,
           "method": "btree",
@@ -8665,7 +8697,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"pricing_tables\".\"container_type_id\" is not null and \"pricing_tables\".\"rate_key\" is null",
           "concurrently": false,
           "method": "btree",
@@ -8699,7 +8731,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"pricing_tables\".\"container_type_id\" is null and \"pricing_tables\".\"rate_key\" is not null",
           "concurrently": false,
           "method": "btree",
@@ -8778,7 +8810,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -8896,7 +8928,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -8990,7 +9022,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -9084,7 +9116,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -9247,7 +9279,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -9427,7 +9459,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -9517,7 +9549,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -9737,7 +9769,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -9921,7 +9953,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"salesperson_assignments\".\"shipment_id\" is null and \"salesperson_assignments\".\"effective_to\" is null",
           "concurrently": false,
           "method": "btree",
@@ -9937,7 +9969,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"salesperson_assignments\".\"shipment_id\" is not null and \"salesperson_assignments\".\"effective_to\" is null",
           "concurrently": false,
           "method": "btree",
@@ -9953,7 +9985,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"salesperson_assignments\".\"supersedes_assignment_id\" is not null",
           "concurrently": false,
           "method": "btree",
@@ -10232,7 +10264,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -10375,7 +10407,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -10474,7 +10506,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -10655,7 +10687,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -10972,7 +11004,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -11002,7 +11034,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"shipment_fulfillments\".\"shipment_container_id\" is not null and \"shipment_fulfillments\".\"canceled_at\" is null",
           "concurrently": false,
           "method": "btree",
@@ -11018,7 +11050,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"shipment_fulfillments\".\"fulfillment_type\" = 'LCL_SHIPMENT' and \"shipment_fulfillments\".\"canceled_at\" is null",
           "concurrently": false,
           "method": "btree",
@@ -11034,7 +11066,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"shipment_fulfillments\".\"replacement_fulfillment_id\" is not null",
           "concurrently": false,
           "method": "btree",
@@ -11146,7 +11178,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"shipment_milestones\".\"trip_id\" is not null",
           "concurrently": false,
           "method": "btree",
@@ -11462,7 +11494,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -11572,7 +11604,15 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "shipments_shipment_code_unique": {
+          "name": "shipments_shipment_code_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "shipment_code"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -11766,7 +11806,15 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "tire_positions_name_unique": {
+          "name": "tire_positions_name_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "name"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -11916,7 +11964,15 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "tires_serial_unique": {
+          "name": "tires_serial_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "serial"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -11974,7 +12030,15 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "trailers_license_plate_unique": {
+          "name": "trailers_license_plate_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "license_plate"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -12103,7 +12167,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -12270,7 +12334,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"treasury_movements\".\"status\" = 'POSTED'",
           "concurrently": false,
           "method": "btree",
@@ -12286,7 +12350,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"treasury_movements\".\"payment_receipt_id\" is not null and \"treasury_movements\".\"status\" = 'POSTED' and \"treasury_movements\".\"reversal_of_id\" is null",
           "concurrently": false,
           "method": "btree",
@@ -12302,7 +12366,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"treasury_movements\".\"ledger_entry_id\" is not null and \"treasury_movements\".\"status\" = 'POSTED' and \"treasury_movements\".\"reversal_of_id\" is null",
           "concurrently": false,
           "method": "btree",
@@ -12324,7 +12388,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"treasury_movements\".\"reversal_of_id\" is not null",
           "concurrently": false,
           "method": "btree",
@@ -12660,7 +12724,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"trip_expense_completion_scopes\".\"trip_container_id\" IS NOT NULL",
           "concurrently": false,
           "method": "btree",
@@ -12676,7 +12740,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"trip_expense_completion_scopes\".\"trip_container_id\" IS NULL",
           "concurrently": false,
           "method": "btree",
@@ -12744,6 +12808,372 @@
       "indexes": {
         "trip_expense_photos_storage_key_idx": {
           "name": "trip_expense_photos_storage_key_idx",
+          "columns": [
+            {
+              "expression": "storage_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.fuel_evidence_reviews": {
+      "name": "fuel_evidence_reviews",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "trip_id": {
+          "name": "trip_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "owner_driver_id": {
+          "name": "owner_driver_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "owner_user_id": {
+          "name": "owner_user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "storage_key": {
+          "name": "storage_key",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "storage_hash": {
+          "name": "storage_hash",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "original_file_name": {
+          "name": "original_file_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mime_type": {
+          "name": "mime_type",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "size_bytes": {
+          "name": "size_bytes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "captured_at": {
+          "name": "captured_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "latitude": {
+          "name": "latitude",
+          "type": "numeric(10, 7)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "longitude": {
+          "name": "longitude",
+          "type": "numeric(10, 7)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gps_accuracy": {
+          "name": "gps_accuracy",
+          "type": "numeric(8, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gps_altitude": {
+          "name": "gps_altitude",
+          "type": "numeric(8, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gps_at": {
+          "name": "gps_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "geotag_source": {
+          "name": "geotag_source",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "geotag_sample_count": {
+          "name": "geotag_sample_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "geotag_best_accuracy": {
+          "name": "geotag_best_accuracy",
+          "type": "numeric(8, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "geotag_elapsed_ms": {
+          "name": "geotag_elapsed_ms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ocr_outcome": {
+          "name": "ocr_outcome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "review_status": {
+          "name": "review_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PENDING'"
+        },
+        "confidence": {
+          "name": "confidence",
+          "type": "numeric(5, 4)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "review_required": {
+          "name": "review_required",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "litres": {
+          "name": "litres",
+          "type": "numeric(12, 3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "unit_price": {
+          "name": "unit_price",
+          "type": "numeric(15, 0)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "total_amount": {
+          "name": "total_amount",
+          "type": "numeric(15, 0)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "computed_total": {
+          "name": "computed_total",
+          "type": "numeric(15, 0)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mismatch": {
+          "name": "mismatch",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "anomaly_code": {
+          "name": "anomaly_code",
+          "type": "varchar(40)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "anomaly_reason": {
+          "name": "anomaly_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ocr_provider": {
+          "name": "ocr_provider",
+          "type": "varchar(40)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ocr_model": {
+          "name": "ocr_model",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ocr_error": {
+          "name": "ocr_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reviewer_id": {
+          "name": "reviewer_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reviewed_at": {
+          "name": "reviewed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "review_note": {
+          "name": "review_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        }
+      },
+      "indexes": {
+        "fuel_evidence_reviews_trip_owner_hash_uniq": {
+          "name": "fuel_evidence_reviews_trip_owner_hash_uniq",
+          "columns": [
+            {
+              "expression": "trip_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "owner_driver_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "storage_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "fuel_evidence_reviews_trip_idx": {
+          "name": "fuel_evidence_reviews_trip_idx",
+          "columns": [
+            {
+              "expression": "trip_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "review_status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "fuel_evidence_reviews_owner_idx": {
+          "name": "fuel_evidence_reviews_owner_idx",
+          "columns": [
+            {
+              "expression": "owner_driver_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "fuel_evidence_reviews_review_queue_idx": {
+          "name": "fuel_evidence_reviews_review_queue_idx",
+          "columns": [
+            {
+              "expression": "review_status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "fuel_evidence_reviews_storage_key_idx": {
+          "name": "fuel_evidence_reviews_storage_key_idx",
           "columns": [
             {
               "expression": "storage_key",
@@ -13149,7 +13579,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -13164,7 +13594,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"trip_financial_postings\".\"status\" = 'ACTIVE'",
           "concurrently": false,
           "method": "btree",
@@ -13180,7 +13610,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"trip_financial_postings\".\"supersedes_id\" is not null",
           "concurrently": false,
           "method": "btree",
@@ -13308,7 +13738,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -13459,7 +13889,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -13574,7 +14004,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -13783,7 +14213,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -13966,7 +14396,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -13987,7 +14417,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"trip_pod_files\".\"file_type\" <> 'TOLL_TICKET'",
           "concurrently": false,
           "method": "btree",
@@ -14132,7 +14562,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -14153,7 +14583,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -14168,7 +14598,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"trip_pod_submissions\".\"supersedes_submission_id\" is not null",
           "concurrently": false,
           "method": "btree",
@@ -14184,7 +14614,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"trip_pod_submissions\".\"status\" in ('DRAFT', 'SUBMITTED')",
           "concurrently": false,
           "method": "btree",
@@ -14200,7 +14630,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"trip_pod_submissions\".\"status\" = 'ACCEPTED'",
           "concurrently": false,
           "method": "btree",
@@ -14806,6 +15236,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "paper_order_collected_by": {
+          "name": "paper_order_collected_by",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "driver_order_accepted_at": {
           "name": "driver_order_accepted_at",
           "type": "timestamp with time zone",
@@ -14931,7 +15367,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"trips\".\"active_trip_pair_id\" is not null",
           "concurrently": false,
           "method": "btree",
@@ -14983,7 +15419,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -14998,7 +15434,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"trips\".\"fulfillment_id\" is not null and \"trips\".\"status\" <> 'CANCELED'",
           "concurrently": false,
           "method": "btree",
@@ -15014,7 +15450,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"trips\".\"shipment_id\" is not null and \"trips\".\"fulfillment_id\" is null and \"trips\".\"status\" <> 'CANCELED'",
           "concurrently": false,
           "method": "btree",
@@ -15023,7 +15459,15 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "trips_trip_code_unique": {
+          "name": "trips_trip_code_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "trip_code"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -15204,7 +15648,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -15219,7 +15663,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -15342,7 +15786,15 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "trucks_license_plate_unique": {
+          "name": "trucks_license_plate_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "license_plate"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -15401,7 +15853,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -15498,7 +15950,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -15595,7 +16047,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -15729,7 +16181,29 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "users_username_unique": {
+          "name": "users_username_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "username"
+          ]
+        },
+        "users_email_unique": {
+          "name": "users_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        },
+        "users_phone_unique": {
+          "name": "users_phone_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "phone"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false

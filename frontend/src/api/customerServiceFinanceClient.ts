@@ -1,4 +1,5 @@
 import { api } from '../lib/api';
+import type { ProfitabilityDimension, ProfitabilityReport } from '@tingting/shared';
 import type {
   AccountingTransportOwnership,
   AccountingTransportReadiness,
@@ -51,31 +52,7 @@ export interface TreasuryPosition {
   }>;
 }
 
-export type ProfitabilityDimension = 'CUSTOMER' | 'ROUTE' | 'TRUCK' | 'DISPATCHER' | 'SALESPERSON' | 'MONTH' | 'YEAR' | 'CONTAINER';
-
-export interface ProfitabilityReport {
-  requestedPeriod: { month: number; year: number };
-  asOf: string;
-  definitionVersion: string;
-  dimension: ProfitabilityDimension;
-  page: number;
-  limit: number;
-  totalGroups: number;
-  totalPages: number;
-  items: Array<{
-    key: string;
-    label: string | null;
-    attributionStatus: 'ATTRIBUTED' | 'MISSING';
-    revenue: string;
-    directCost: string;
-    sharedOverhead: string;
-    profit: string;
-    tripCount: number;
-  }>;
-  totals: { revenue: number; directCost: number; sharedOverhead: number; profit: number };
-  sourceCoverage: { snapshottedTrips: number; pnlTrips: number; missingAttribution: number };
-  reconciliation: { difference: number; status: 'RECONCILED' | 'PARTIAL'; note: string };
-}
+export type { ProfitabilityDimension, ProfitabilityReport } from '@tingting/shared';
 
 export interface CustomerVisibleEvent {
   id: number;
@@ -129,12 +106,20 @@ export const customerServiceFinanceClient = {
     return api.post(`/recoverable-costs/${id}/request`, body, { headers: { 'Idempotency-Key': idempotencyKey } });
   },
   getTreasuryPosition: () => api.get<TreasuryPosition>('/finance/treasury/position'),
-  getProfitability(params: { month: number; year: number; dimension: ProfitabilityDimension; page?: number }) {
+  getProfitability(params: { month: number; year: number; dimension: ProfitabilityDimension; page?: number; lowMarginOnly?: boolean }) {
     const query = new URLSearchParams({
       month: String(params.month), year: String(params.year), dimension: params.dimension,
       page: String(params.page ?? 1), limit: '50',
     });
+    if (params.lowMarginOnly) query.set('alert', 'LOW_MARGIN');
     return api.get<ProfitabilityReport>(`/reports/profitability?${query}`);
+  },
+  exportProfitability(params: { month: number; year: number; dimension: ProfitabilityDimension; lowMarginOnly?: boolean }) {
+    const query = new URLSearchParams({
+      month: String(params.month), year: String(params.year), dimension: params.dimension,
+    });
+    if (params.lowMarginOnly) query.set('alert', 'LOW_MARGIN');
+    return api.getBlob(`/reports/profitability/export?${query}`);
   },
   listShipmentEvents: (shipmentId: number) => api.get<{ items: CustomerVisibleEvent[] }>(`/shipments/${shipmentId}/customer-events`),
   createShipmentEvent: (

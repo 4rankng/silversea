@@ -5,6 +5,7 @@ import * as s from '../db/schema';
 import { and, eq, like, inArray } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 import { authorizeExpensePhoto } from '../services/photo-authz.service';
+import { isProtectedPhotoStorageKey } from '../routes/upload';
 import {
   getForwarderOwnedExpenseId,
   deleteExpensePhoto,
@@ -31,6 +32,7 @@ const KEY = {
   tripOwnedF2: `${NS}/trip-owned-f2.jpg`,
   collision: `${NS}/collision.jpg`,
   companyOnly: `${NS}/company-only.jpg`,
+  fuelOwned: `${NS}/fuel-owned.jpg`,
   nothing: `${NS}/nothing.jpg`,
 };
 
@@ -43,6 +45,7 @@ let fwdActive: number; // FORWARDER, ACTIVE — owns E1
 let fwdInactive: number; // FORWARDER, DISABLED — owns E3
 let accountantId: number;
 let driverId: number;
+let driverProfileId: number;
 let expenseE1: number; // forwarderId = fwdActive
 let expenseE2: number; // forwarderId = NULL (accountant-created)
 let expenseE3: number; // forwarderId = fwdInactive
@@ -130,6 +133,11 @@ before(async () => {
   fwdInactive = await ensureUser('photoauthz_fwd2', Role.FORWARDER, 'DISABLED');
   accountantId = await ensureUser('photoauthz_acct', Role.ACCOUNTANT, 'ACTIVE');
   driverId = await ensureUser('photoauthz_drv', Role.DRIVER, 'ACTIVE');
+  const [driverProfile] = await db.insert(s.drivers).values({
+    userId: driverId,
+    name: `${NS} driver`,
+  }).returning({ id: s.drivers.id });
+  driverProfileId = driverProfile.id;
   await db.insert(s.userShipmentLinks).values([
     { userId: fwdActive, shipmentId },
     { userId: fwdInactive, shipmentId },
@@ -154,10 +162,24 @@ before(async () => {
     { expenseId: companyExpenseId, storageKey: KEY.collision },
     { expenseId: companyExpenseId, storageKey: KEY.companyOnly },
   ]);
+  await db.insert(s.fuelEvidenceReviews).values({
+    tripId,
+    ownerDriverId: driverProfileId,
+    ownerUserId: driverId,
+    storageKey: KEY.fuelOwned,
+    storageHash: 'photoauthz-fuel-hash',
+    originalFileName: 'fuel.jpg',
+    mimeType: 'image/jpeg',
+    sizeBytes: 1234,
+    ocrOutcome: 'ACCEPTED',
+    reviewStatus: 'PENDING',
+    createdBy: driverId,
+  });
 });
 
 after(async () => {
   try {
+    await db.delete(s.fuelEvidenceReviews).where(eq(s.fuelEvidenceReviews.storageKey, KEY.fuelOwned));
     await db.delete(s.tripExpensePhotos).where(like(s.tripExpensePhotos.storageKey, `${NS}/%`));
     await db.delete(s.expensePhotos).where(like(s.expensePhotos.storageKey, `${NS}/%`));
     await db.delete(s.tripExpenses).where(eq(s.tripExpenses.note, NS));
@@ -165,6 +187,7 @@ after(async () => {
       await db.delete(s.expenses).where(eq(s.expenses.note, NS));
     }
     await db.delete(s.userShipmentLinks).where(inArray(s.userShipmentLinks.userId, [fwdActive, fwdInactive]));
+    await db.delete(s.drivers).where(eq(s.drivers.id, driverProfileId));
     await db.delete(s.trips).where(eq(s.trips.id, tripId));
     await db.delete(s.shipments).where(eq(s.shipments.id, shipmentId));
     await db.delete(s.users).where(like(s.users.username, `${NS}_%`));
@@ -191,12 +214,34 @@ test('not_found: key in neither table → 404 for every role', async () => {
   }
 });
 
+test('fuel evidence keys pass the protected photo route allowlist', () => {
+  assert.strictEqual(isProtectedPhotoStorageKey('fuel-evidence/12/34/abc.jpg'), true);
+  assert.strictEqual(isProtectedPhotoStorageKey('fuel-evidence/not-a-trip/34/abc.jpg'), false);
+});
+
 test('DRIVER is denied every receipt key (drivers never read expense receipts)', async () => {
   for (const key of [KEY.tripOwnedF1, KEY.companyOnly, KEY.collision]) {
     const d = await authorizeExpensePhoto(key, { userId: driverId, role: Role.DRIVER });
     assert.strictEqual(d.allow, false);
     assert.notStrictEqual(d.reason, 'not_found'); // exists, just forbidden
   }
+});
+
+test('DRIVER owner reads own fuel evidence image', async () => {
+  const d = await authorizeExpensePhoto(KEY.fuelOwned, { userId: driverId, role: Role.DRIVER });
+  assert.strictEqual(d.allow, true);
+});
+
+test('DRIVER fuel evidence access is revoked when the user or driver profile is inactive', async () => {
+  await db.update(s.drivers).set({ status: 'INACTIVE' }).where(eq(s.drivers.id, driverProfileId));
+  const inactiveDriver = await authorizeExpensePhoto(KEY.fuelOwned, { userId: driverId, role: Role.DRIVER });
+  assert.strictEqual(inactiveDriver.allow, false);
+  await db.update(s.drivers).set({ status: 'ACTIVE' }).where(eq(s.drivers.id, driverProfileId));
+
+  await db.update(s.users).set({ status: 'DISABLED' }).where(eq(s.users.id, driverId));
+  const inactiveUser = await authorizeExpensePhoto(KEY.fuelOwned, { userId: driverId, role: Role.DRIVER });
+  assert.strictEqual(inactiveUser.allow, false);
+  await db.update(s.users).set({ status: 'ACTIVE' }).where(eq(s.users.id, driverId));
 });
 
 test('FORWARDER (ACTIVE, owns) reads own trip-expense receipt', async () => {
@@ -252,7 +297,7 @@ test('collision (key in BOTH tables): forwarder denied with collision reason (st
 });
 
 test('ACCOUNTANT reads trip-expense receipts, company receipts, and even a colliding key', async () => {
-  for (const key of [KEY.tripOwnedF1, KEY.companyOnly, KEY.collision, KEY.tripOwnedF2]) {
+  for (const key of [KEY.tripOwnedF1, KEY.companyOnly, KEY.collision, KEY.tripOwnedF2, KEY.fuelOwned]) {
     const d = await authorizeExpensePhoto(key, { userId: accountantId, role: Role.ACCOUNTANT });
     assert.strictEqual(d.allow, true, `accountant should read ${key}`);
   }

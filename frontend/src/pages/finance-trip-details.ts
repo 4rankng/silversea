@@ -1,22 +1,6 @@
 import { TripStatus, type PnlTripDetail, type TripDetail } from '@tingting/shared';
 
-export interface FinanceTripDetail {
-  id: number;
-  tripCode: string;
-  departureDate: string;
-  routeName: string;
-  revenue: number;
-  customerCommission: number;
-  fuelOrHireCost: number;
-  roadAllowance: number;
-  tollAndCompanyTickets: number;
-  driverAndAllowances: number;
-  totalCost: number;
-  profit: number;
-  costDifference: number;
-  costMatches: boolean;
-  isExternal: boolean;
-}
+export type FinanceTripDetail = PnlTripDetail;
 
 export function groupFinanceTripDetails(
   trips: TripDetail[],
@@ -85,9 +69,13 @@ export function toFinanceTripDetail(trip: TripDetail): FinanceTripDetail {
     tollAndCompanyTickets,
     driverAndAllowances,
     totalCost,
+    allocatedFleetFixedCost: 0,
+    totalCostWithFleetFixedCost: totalCost,
     profit: revenue - totalCost,
+    netProfitAfterFleetFixedCost: revenue - totalCost,
     costDifference,
     costMatches: Math.abs(costDifference) <= 1,
     isExternal,
+    vehicleBucketId: financeVehicleBucketId(trip),
   };
 }

@@ -211,7 +211,15 @@ export const qk = {
   dashboard: {
     main: ['dashboard'],
     pnl: (month: number, year: number) => ['pnl', month, year] as const,
+    widgets: (month: number, year: number) => ['dashboard-widgets', month, year] as const,
     yearlyPnl: (year: number) => ['yearly-pnl', year] as const,
+    profitability: (params: {
+      month: number;
+      year: number;
+      dimension: string;
+      page: number;
+      lowMarginOnly: boolean;
+    }) => ['profitability-report', params] as const,
     renewalReminders: ['renewal-reminders'],
     distributionHistory: ['distribution-history'],
     receivablesSummary: ['receivables-summary'],

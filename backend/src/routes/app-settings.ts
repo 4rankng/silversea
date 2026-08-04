@@ -12,7 +12,7 @@ import {
   truckFinancialProfileRequestSchema,
   type FinancialReportingPolicyState,
   type TruckFinancialProfileState,
-} from '@tingting/shared/src/schemas/financial-reporting-policy';
+} from '@tingting/shared';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { requireRoles } from '../middleware/casbin';
 import { db } from '../db';

@@ -85,6 +85,7 @@ export const FORWARDER_IDEMPOTENCY_ENDPOINTS = {
   EXPENSE_COMPLETION: 'forwarder.expense-completion.update',
   EXPENSE_PHOTO_CREATE: 'forwarder.expense-photos.create',
   EXPENSE_PHOTO_DELETE: 'forwarder.expense-photos.delete',
+  PAPER_ORDER_COLLECTION: 'forwarder.paper-order.collection',
 } as const;
 
 let expensePhotoAfterUploadHookForTest: null | (() => void | Promise<void>) = null;
@@ -177,6 +178,7 @@ async function deleteForwarderExpensePhotoCommand(
   forwarderId: number,
   expectedUpdatedAt: Date | undefined,
 ): Promise<ForwarderExpensePhotoDeleteCommand | null> {
+  await client.execute(sql`SELECT pg_advisory_xact_lock(6111, ${photoId})`);
   const [photo] = await client.select({
       id: s.tripExpensePhotos.id,
       tripExpenseId: s.tripExpensePhotos.tripExpenseId,
@@ -223,6 +225,10 @@ export const forwarderTripContainerSchema = tripContainerSchema.refine(
   },
 );
 
+const paperOrderCollectionSchema = z.object({
+  expectedVersion: z.number().int().positive().optional(),
+});
+
 // Resolve forwarder profile once for all routes — handlers access req.forwarder
 router.use(resolveForwarder);
 
@@ -247,6 +253,71 @@ router.get('/trips/:id', asyncHandler(async (req: Request, res: Response) => {
   const trip = await getForwarderTripDetail(parseInt(req.params.id as string, 10), forwarder.id);
   if (!trip) return res.status(404).json({ error: 'Không tìm thấy chuyến đi' });
   res.json(trip);
+}));
+
+router.post('/trips/:tripId/paper-order-collection', asyncHandler(async (req: Request, res: Response) => {
+  const forwarder = req.forwarder!;
+  const tripId = parseInt(req.params.tripId as string, 10);
+  if (!Number.isInteger(tripId) || tripId <= 0) {
+    throw new ApiError(400, 'ID chuyến đi không hợp lệ.');
+  }
+  const parsed = paperOrderCollectionSchema.safeParse(req.body ?? {});
+  if (!parsed.success) throwValidation(parsed.error);
+  const idempotencyKey = requireForwarderIdempotencyKey(req);
+  const outcome = await withMaterialWriteAuditContext(
+    req,
+    res,
+    FORWARDER_IDEMPOTENCY_ENDPOINTS.PAPER_ORDER_COLLECTION,
+    () => runIdempotent({
+      endpoint: FORWARDER_IDEMPOTENCY_ENDPOINTS.PAPER_ORDER_COLLECTION,
+      idempotencyKey,
+      payload: {
+        tripId,
+        forwarderId: forwarder.id,
+        expectedVersion: parsed.data.expectedVersion ?? null,
+      },
+      createdBy: forwarder.id,
+      entityType: 'trip',
+      responseStatusCode: 200,
+      create: async (tx) => {
+        await assertForwarderMutableTripScope(tripId, forwarder.id, tx);
+        const [trip] = await tx.select({
+          id: s.trips.id,
+          version: s.trips.version,
+          paperOrderCollectedAt: s.trips.paperOrderCollectedAt,
+          paperOrderCollectedBy: s.trips.paperOrderCollectedBy,
+        }).from(s.trips)
+          .where(eq(s.trips.id, tripId))
+          .limit(1)
+          .for('update');
+        if (!trip) {
+          throw new ApiError(404, 'Không tìm thấy chuyến đi.');
+        }
+        if (parsed.data.expectedVersion != null && trip.version !== parsed.data.expectedVersion) {
+          throw new ApiError(409, 'Chuyến đi đã thay đổi. Vui lòng tải lại.');
+        }
+        if (trip.paperOrderCollectedAt || trip.paperOrderCollectedBy) {
+          throw new ApiError(409, 'Lệnh gốc đã được giao nhận xác nhận trước đó.');
+        }
+        const [updated] = await tx.update(s.trips)
+          .set({
+            paperOrderCollectedAt: new Date(),
+            paperOrderCollectedBy: forwarder.id,
+            version: sql`${s.trips.version} + 1`,
+            updatedAt: new Date(),
+          })
+          .where(eq(s.trips.id, tripId))
+          .returning({
+            tripId: s.trips.id,
+            version: s.trips.version,
+            paperOrderCollectedAt: s.trips.paperOrderCollectedAt,
+            paperOrderCollectedBy: s.trips.paperOrderCollectedBy,
+          });
+        return updated;
+      },
+    }),
+  );
+  res.json(outcome.result);
 }));
 
 router.post('/trips/:tripId/containers', asyncHandler(async (req: Request, res: Response) => {
@@ -587,6 +658,7 @@ router.delete('/expenses/:id', asyncHandler(async (req: Request, res: Response) 
     createdBy: forwarder.id,
     responseStatusCode: 200,
     create: async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(6102, ${expenseId})`);
       const expense = await getTripExpenseAuditInfo(expenseId, tx);
       const result = await deleteTripExpenseInTx(tx, expenseId, forwarder.id, expectedUpdatedAt);
       if (result === null) throw new ApiError(404, 'Không tìm thấy chi phí');

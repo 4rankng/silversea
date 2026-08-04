@@ -16,7 +16,7 @@ import { qk } from '../api/keys';
 import { useForwarderTripDetail, useCreateForwarderContainer, useCreateForwarderExpense, useDeleteForwarderExpense } from '../hooks/useQueries';
 import { useUpdateForwarderExpense, useSetForwarderExpenseCompletion } from '../hooks/useForwarderQueries';
 import { useCatalogs } from '../hooks/useCatalogs';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { forwarderClient } from '../api/forwarderClient';
 import { geotagClient } from '../api/geotagClient';
 import { useToast } from '../components/shared/Toast';
@@ -98,6 +98,7 @@ export default function ForwarderTripDetailPage() {
   const tripId = parseInt(id || '0', 10);
 
   const { data: trip, isLoading: loading, error: queryError } = useForwarderTripDetail(tripId);
+  const queryClient = useQueryClient();
   const { rootRef } = usePageAnimations({ ready: !loading });
 
   const createContainerMut = useCreateForwarderContainer();
@@ -138,8 +139,9 @@ export default function ForwarderTripDetailPage() {
 
   // Expense photo state: maps expenseId → photo URLs
   const [expensePhotos, setExpensePhotos] = useState<Record<number, string[]>>({});
+  const [expensePhotoMeta, setExpensePhotoMeta] = useState<Record<number, Array<{ id: number; url: string }>>>({});
   const [uploadingExpenseId, setUploadingExpenseId] = useState<number | null>(null);
-
+  const [paperOrderSubmitting, setPaperOrderSubmitting] = useState(false);
   const { confirm, dialog } = useConfirm();
   const { toast } = useToast();
   const handleBack = () => navigate('/my-forwarder-trips');
@@ -154,7 +156,12 @@ export default function ForwarderTripDetailPage() {
   async function loadExpensePhotos(expenseId: number) {
     try {
       const res = await api.get<{ items: Array<{ id: number; storageKey: string }> }>(`/forwarder/me/expenses/${expenseId}/photos`);
-      const urls = res.items.map((p) => `/api/photos/${encodeURIComponent(p.storageKey)}`);
+      const items = res.items.map((p) => ({
+        id: p.id,
+        url: `/api/photos/${encodeURIComponent(p.storageKey)}`,
+      }));
+      const urls = items.map((item) => item.url);
+      setExpensePhotoMeta(prev => ({ ...prev, [expenseId]: items }));
       setExpensePhotos(prev => ({ ...prev, [expenseId]: urls }));
     } catch { /* ignore */ }
   }
@@ -458,6 +465,23 @@ export default function ForwarderTripDetailPage() {
       : []),
   ];
 
+  async function handleCollectPaperOrder() {
+    if (!trip) return;
+    setPaperOrderSubmitting(true);
+    try {
+      await forwarderClient.collectPaperOrder(tripId, trip.version);
+      await queryClient.invalidateQueries({ queryKey: qk.forwarder.tripDetail(tripId) });
+      toast({ kind: 'success', message: 'Đã xác nhận giao lệnh gốc cho tài xế.' });
+    } catch (error) {
+      toast({
+        kind: 'error',
+        message: error instanceof Error ? error.message : 'Không thể xác nhận giao lệnh gốc.',
+      });
+    } finally {
+      setPaperOrderSubmitting(false);
+    }
+  }
+
   return (
     <div ref={rootRef} style={{ maxWidth: 700, margin: '0 auto', paddingBottom: 40 }}>
       {dialog}
@@ -535,6 +559,31 @@ export default function ForwarderTripDetailPage() {
 
       {/* Containers Section */}
       <ForwarderContainersSection containers={(trip.containers ?? []) as ForwarderContainer[]} show={showContainerForm} setShow={setShowContainerForm} form={containerForm} setForm={setContainerForm} onAdd={handleAddContainer} pending={createContainerMut.isPending} selectedContainerId={expenseForm.tripContainerId} onSelectContainer={(tripContainerId) => setExpenseForm(prev => ({ ...prev, tripContainerId }))} />
+
+      <div className="panel" style={{ marginBottom: 16 }}>
+        <div style={{ padding: '12px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontSize: 12, lineHeight: 1.35, fontWeight: 600, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+              Bàn giao lệnh gốc
+            </div>
+            <div style={{ fontSize: 14, color: 'var(--fg-1)', fontWeight: 600 }}>
+              {trip.paperOrderCollectedAt
+                ? `${trip.paperOrderCollectedByName || 'Ops'} đã giao lúc ${formatDate(trip.paperOrderCollectedAt)}`
+                : 'Chưa xác nhận giao lệnh gốc cho tài xế'}
+            </div>
+            <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--fg-3)' }}>
+              Tài xế chỉ được bấm “Đã nhận lệnh gốc” sau khi Ops xác nhận bước này.
+            </p>
+          </div>
+          <button
+            className="btn btn--primary btn--sm"
+            onClick={() => void handleCollectPaperOrder()}
+            disabled={paperOrderSubmitting || Boolean(trip.paperOrderCollectedAt)}
+          >
+            {paperOrderSubmitting ? 'Đang lưu…' : trip.paperOrderCollectedAt ? 'Đã bàn giao' : 'Xác nhận giao lệnh gốc'}
+          </button>
+        </div>
+      </div>
 
       {/* Expenses Section */}
       <div className="panel panel--solid" style={{ marginBottom: 16 }}>
@@ -933,9 +982,13 @@ export default function ForwarderTripDetailPage() {
                   </button>
                 </div>
                 {group.expenses.length === 0 && <div className="fwd-expense-group__empty">Chưa có khoản chi nào trong nhóm này</div>}
-                {group.expenses.map((exp) => (
-              <ForwarderExpenseRow exp={exp} expenseTypeOptions={forwarderExpenseTypeOptions} uploadingExpenseId={uploadingExpenseId} photos={expensePhotos[exp.id]} onUpload={handleUploadPhoto} onEdit={openExpenseEditor} onDelete={handleDeleteExpense} deletePending={deleteExpenseMut.isPending} onLoadPhotos={loadExpensePhotos} />
-                ))}
+                {group.expenses.map((exp) => {
+                  return (
+                    <div key={exp.id}>
+                      <ForwarderExpenseRow exp={exp} expenseTypeOptions={forwarderExpenseTypeOptions} uploadingExpenseId={uploadingExpenseId} photos={expensePhotos[exp.id]} onUpload={handleUploadPhoto} onEdit={openExpenseEditor} onDelete={handleDeleteExpense} deletePending={deleteExpenseMut.isPending} onLoadPhotos={loadExpensePhotos} />
+                    </div>
+                  );
+                })}
               </section>;
             })}
           </div>

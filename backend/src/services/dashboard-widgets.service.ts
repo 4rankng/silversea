@@ -12,35 +12,10 @@
 import { db } from '../db';
 import * as s from '../db/schema';
 import { and, eq, sql, isNull, gte, lte, desc, count, ne } from 'drizzle-orm';
-import { TripStatus } from '@tingting/shared';
+import { TripStatus, computeVehicleAlerts, type DashboardWidgets } from '@tingting/shared';
 import { getPnlReport } from './pnl.service';
 import { cacheGet } from '../lib/redis';
 import { salaryPeriodDateRange, tripCompletionBusinessDateSql } from './reporting-shared';
-
-export interface DashboardWidgets {
-  twoWayCargoRatio: {
-    /** % of billable trips this month with return cargo (0-100). */
-    percentage: number;
-    tripsWithReturnCargo: number;
-    totalBillableTrips: number;
-  };
-  fleetAttention: Array<{
-    truckId: number;
-    licensePlate: string;
-    status: string;
-    /** Days since the truck's last completed trip (null = never). */
-    daysSinceLastTrip: number | null;
-    reason: string;
-  }>;
-  periodOverPeriod: {
-    currentRevenue: number;
-    previousRevenue: number;
-    revenueChangePct: number;
-    currentProfit: number;
-    previousProfit: number;
-    profitChangePct: number;
-  };
-}
 
 export async function getDashboardWidgets(month?: number, year?: number, skipCache = false): Promise<DashboardWidgets> {
   const compute = async (): Promise<DashboardWidgets> => {
@@ -76,6 +51,7 @@ export async function getDashboardWidgets(month?: number, year?: number, skipCac
       id: s.trucks.id,
       licensePlate: s.trucks.licensePlate,
       status: s.trucks.status,
+      nextInspectionDate: s.trucks.nextInspectionDate,
     }).from(s.trucks).where(isNull(s.trucks.deletedAt));
 
     // Last completed trip date per truck.
@@ -96,24 +72,32 @@ export async function getDashboardWidgets(month?: number, year?: number, skipCac
       const daysSince = lastDate
         ? Math.floor((now.getTime() - new Date(lastDate).getTime()) / (1000 * 60 * 60 * 24))
         : null;
+      const inspectionAlert = computeVehicleAlerts({
+        nextInspectionDate: truck.nextInspectionDate,
+      }, now, 30).find((alert) => alert.field === 'nextInspectionDate');
+      const reasonParts: string[] = [];
 
       if (truck.status === 'MAINTENANCE') {
-        fleetAttention.push({
-          truckId: truck.id, licensePlate: truck.licensePlate,
-          status: truck.status, daysSinceLastTrip: daysSince,
-          reason: 'Đang bảo dưỡng',
-        });
+        reasonParts.push('Đang bảo dưỡng');
       } else if (truck.status === 'INACTIVE') {
-        fleetAttention.push({
-          truckId: truck.id, licensePlate: truck.licensePlate,
-          status: truck.status, daysSinceLastTrip: daysSince,
-          reason: 'Ngừng hoạt động',
-        });
+        reasonParts.push('Ngừng hoạt động');
       } else if (truck.status === 'ACTIVE' && (daysSince === null || daysSince > 7)) {
+        reasonParts.push(daysSince === null ? 'Chưa có chuyến' : `Không hoạt động ${daysSince} ngày`);
+      }
+
+      if (inspectionAlert) {
+        reasonParts.push(
+          inspectionAlert.status === 'overdue'
+            ? `Đăng kiểm quá hạn ${Math.abs(inspectionAlert.daysUntil)} ngày`
+            : `Đăng kiểm còn ${inspectionAlert.daysUntil} ngày`,
+        );
+      }
+
+      if (reasonParts.length > 0) {
         fleetAttention.push({
           truckId: truck.id, licensePlate: truck.licensePlate,
-          status: truck.status, daysSinceLastTrip: daysSince,
-          reason: daysSince === null ? 'Chưa có chuyến' : `Không hoạt động ${daysSince} ngày`,
+          status: truck.status ?? 'ACTIVE', daysSinceLastTrip: daysSince,
+          reason: reasonParts.join(' · '),
         });
       }
     }

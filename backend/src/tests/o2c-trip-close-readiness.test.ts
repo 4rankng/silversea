@@ -256,7 +256,7 @@ async function createExpenseScopeRecomputeFixture(args: {
     status: args.submissionStatus,
     submittedBy: userIds[0],
     submittedAt: new Date(),
-    reviewedBy: args.submissionStatus === 'ACCEPTED' ? userIds[1] : null,
+    reviewedBy: args.submissionStatus === 'ACCEPTED' ? userIds[2] : null,
     reviewedAt: args.submissionStatus === 'ACCEPTED' ? new Date() : null,
   });
   await db.insert(s.tripExpenseCompletionScopes).values({
@@ -567,16 +567,20 @@ describe('O2C trip close readiness authority', () => {
 
   test('direct shipment close rejects the same account that checked the POD dossier', async () => {
     await prepareReadyForDirectClose();
-    await replacePod('ACCEPTED', 1, userIds[1]);
+    await replacePod('ACCEPTED', 1, userIds[2]);
+    const [currentShipment] = await db.select({ version: s.shipments.version })
+      .from(s.shipments)
+      .where(eq(s.shipments.id, shipmentId))
+      .limit(1);
 
     await assert.rejects(() => completeShipmentDirect({
       shipmentId,
-      expectedVersion: 1,
+      expectedVersion: currentShipment!.version,
       vatRate: 0.08,
       trips: [{ tripId, expectedVersion: 1 }],
       idempotencyKey: `same-account-close-${Date.now()}`,
       actor: {
-        userId: userIds[1],
+        userId: userIds[2],
         username: 'close-reviewer',
         email: null,
         fullName: 'Close Reviewer',
@@ -632,7 +636,7 @@ describe('O2C trip close readiness authority', () => {
       status: 'ACCEPTED',
       submittedBy: userIds[0],
       submittedAt: new Date(),
-      reviewedBy: userIds[1],
+      reviewedBy: userIds[2],
       reviewedAt: new Date(),
     });
     await db.insert(s.tripExpenseCompletionScopes).values([

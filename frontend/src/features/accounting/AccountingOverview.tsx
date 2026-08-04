@@ -4,6 +4,7 @@ import {
   CalendarDays,
   ChartNoAxesCombined,
   CircleDollarSign,
+  Fuel,
   FileCheck2,
   ReceiptText,
   Truck,
@@ -127,6 +128,13 @@ export function AccountingOverview({
           metric={`${
             profitability.data?.sourceCoverage.missingAttribution ?? 0
           } nguồn thiếu phân bổ`}
+        />
+        <WorkflowLink
+          to={routes.accountingFuelEvidence}
+          icon={Fuel}
+          title="Soát OCR nhiên liệu"
+          description="Kế toán xác nhận hoặc từ chối ảnh màn hình bơm trước khi đối chiếu nhiên liệu."
+          metric="Mở hàng đợi OCR"
         />
         <WorkflowLink
           to={routes.governanceActions}

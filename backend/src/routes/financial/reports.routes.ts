@@ -19,7 +19,7 @@ import {
   PROFIT_DISTRIBUTION_TRANSACTION_OPTIONS,
   runProfitDistributionWithSerializationRetry,
 } from '../../services/profit-distribution.service';
-import { getProfitabilityReport, PROFITABILITY_DIMENSIONS } from '../../services/profitability.service';
+import { exportProfitabilityReport, getProfitabilityReport, PROFITABILITY_DIMENSIONS } from '../../services/profitability.service';
 
 const router = Router();
 
@@ -58,13 +58,42 @@ router.get('/reports/profitability', requireRoles(Role.ADMIN, Role.MANAGER, Role
     return res.status(400).json({ error: 'Chiều báo cáo lợi nhuận không hợp lệ' });
   }
   const { page, limit } = parsePagination(req, { limit: 50, maxLimit: 100 });
+  const lowMarginOnly = req.query.alert === 'LOW_MARGIN';
+  if (req.query.alert != null && !['ALL', 'LOW_MARGIN'].includes(String(req.query.alert))) {
+    return res.status(400).json({ error: 'Bộ lọc cảnh báo biên lợi nhuận không hợp lệ' });
+  }
   res.json(await getProfitabilityReport({
     month,
     year,
     dimension: requestedDimension as typeof PROFITABILITY_DIMENSIONS[number] | 'VEHICLE',
     page,
     limit,
+    lowMarginOnly,
   }));
+}));
+
+router.get('/reports/profitability/export', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+  const month = Number(req.query.month);
+  const year = Number(req.query.year) || new Date().getFullYear();
+  const requestedDimension = String(req.query.dimension ?? 'CUSTOMER').toUpperCase();
+  const validDimension = requestedDimension === 'VEHICLE'
+    || PROFITABILITY_DIMENSIONS.includes(requestedDimension as typeof PROFITABILITY_DIMENSIONS[number]);
+  if (!Number.isInteger(month) || month < 1 || month > 12 || !Number.isInteger(year) || !validDimension) {
+    return res.status(400).json({ error: 'Kỳ hoặc chiều báo cáo lợi nhuận không hợp lệ' });
+  }
+  const lowMarginOnly = req.query.alert === 'LOW_MARGIN';
+  if (req.query.alert != null && !['ALL', 'LOW_MARGIN'].includes(String(req.query.alert))) {
+    return res.status(400).json({ error: 'Bộ lọc cảnh báo biên lợi nhuận không hợp lệ' });
+  }
+  const buffer = await exportProfitabilityReport({
+    month,
+    year,
+    dimension: requestedDimension as typeof PROFITABILITY_DIMENSIONS[number] | 'VEHICLE',
+    lowMarginOnly,
+  });
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', attachmentDisposition(`loi-nhuan-${year}-${String(month).padStart(2, '0')}.xlsx`));
+  res.send(buffer);
 }));
 
 // ─── Receivables summary ──────────────────────────────────────────────────────

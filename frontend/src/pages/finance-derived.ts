@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { getActiveCapTable } from '../lib/cap-table';
-import type { TripDetail, CapTableHistory } from '@tingting/shared';
+import type { TripDetail, CapTableHistory, PnlTruck } from '@tingting/shared';
 import type { PnlReport } from '../hooks/useQueries';
 
 export const EMPTY_TRIPS: TripDetail[] = [];
@@ -44,26 +44,60 @@ interface FinanceDerivedInput {
   chartView: 'day' | 'month';
 }
 
+export function deriveTripCostBreakdown(report?: PnlReport) {
+  const tripDetails = report?.tripDetails ?? [];
+  const fuelCost = tripDetails.reduce((sum, trip) => sum + (trip.fuelOrHireCost ?? 0), 0);
+  const roadCost = tripDetails.reduce((sum, trip) => sum + (trip.roadAllowance ?? 0), 0);
+  const driverCost = tripDetails.reduce((sum, trip) => sum + (trip.driverAndAllowances ?? 0), 0);
+  const tollAndTicketsCost = tripDetails.reduce((sum, trip) => sum + (trip.tollAndCompanyTickets ?? 0), 0);
+  const maintenanceCost = report?.maintenanceExpensesTotal ?? 0;
+  const fleetDepreciationCost = report?.fleetDepreciationTotal ?? 0;
+  const fleetFixedCost = report?.fleetMonthlyFixedCostTotal ?? 0;
+  const companyExpenses = report?.companyExpenses ?? 0;
+  const otherTripCost = Math.round(
+    (report?.totalCosts ?? 0)
+      - fuelCost
+      - roadCost
+      - driverCost
+      - tollAndTicketsCost
+      - maintenanceCost
+      - fleetDepreciationCost
+      - fleetFixedCost,
+  );
+  return {
+    fuelCost,
+    roadCost,
+    driverCost,
+    tollAndTicketsCost,
+    maintenanceCost,
+    fleetDepreciationCost,
+    fleetFixedCost,
+    otherTripCost,
+    companyExpenses,
+  };
+}
+
 export function useFinanceDerived({ allTrips, report, prevReport, capTableRaw, yearlyData, month, chartView }: FinanceDerivedInput) {
 
     const {
-      fuelCost, roadCost, driverCost, maintenanceCost, companyExpenses,
+      fuelCost, roadCost, driverCost, tollAndTicketsCost, maintenanceCost, fleetDepreciationCost, fleetFixedCost, otherTripCost, companyExpenses,
       totalRevenue, otherRevenue, transRevenue, totalCosts, grossProfit, netProfit,
       totalRevenueLY, otherRevenueLY, transRevenueLY, totalCostsLY, grossProfitLY, companyExpensesLY, netProfitLY,
       activeCapTable, revenueChartData, costPieData, topTrucks, categoryBreakdown, truckBreakdown,
     } = useMemo(() => {
       const activeTrips = allTrips.filter((t: TripDetail) => t.status !== 'CANCELED');
-      const realFuelCost = activeTrips.reduce((s, t) => s + parseFloat(t.totalFuelCost || '0'), 0);
-      const realRoadCost = activeTrips.reduce((s, t) => s + parseFloat(t.totalRoadAllowance || '0'), 0);
-      const realDriverCost = activeTrips.reduce((s, t) => s + parseFloat(t.driverSalary || '0'), 0);
       const totalCosts = report?.totalCosts ?? 0;
-
-      const hasRealCosts = realFuelCost + realRoadCost + realDriverCost > 0;
-      const fuelCost   = hasRealCosts ? realFuelCost   : Math.round(totalCosts * 0.55);
-      const roadCost   = hasRealCosts ? realRoadCost   : Math.round(totalCosts * 0.25);
-      const driverCost = hasRealCosts ? realDriverCost : Math.round(totalCosts * 0.20);
-      const maintenanceCost = report?.maintenanceExpensesTotal ?? 0;
-      const companyExpenses = report?.companyExpenses ?? 0;
+      const {
+        fuelCost,
+        roadCost,
+        driverCost,
+        tollAndTicketsCost,
+        maintenanceCost,
+        fleetDepreciationCost,
+        fleetFixedCost,
+        otherTripCost,
+        companyExpenses,
+      } = deriveTripCostBreakdown(report);
 
       const operatingRevenue = report?.totalRevenue ?? 0;
       const otherRevenue = report?.otherIncome ?? 0;
@@ -97,9 +131,13 @@ export function useFinanceDerived({ allTrips, report, prevReport, capTableRaw, y
 
       const costPieData = [
         { name: 'Nhiên liệu', value: fuelCost, fill: '#059669' },
-        { name: 'Tiền đi đường', value: roadCost, fill: '#D97706' },
+        { name: 'Phụ cấp đường', value: roadCost, fill: '#D97706' },
         { name: 'Lương lái xe', value: driverCost, fill: '#2563EB' },
+        { name: 'Vé cầu đường · phí công ty', value: tollAndTicketsCost, fill: '#0EA5E9' },
+        { name: 'Chi phí chuyến khác · điều chỉnh', value: otherTripCost, fill: '#64748B' },
         { name: 'Bảo dưỡng', value: maintenanceCost, fill: '#DC2626' },
+        { name: 'Khấu hao', value: fleetDepreciationCost, fill: '#7C3AED' },
+        { name: 'Cố định đội xe', value: fleetFixedCost, fill: '#0F766E' },
       ].filter(d => d.value > 0.5);
 
       const categoryBreakdown: Array<{ categoryName: string; total: number }> =
@@ -125,26 +163,37 @@ export function useFinanceDerived({ allTrips, report, prevReport, capTableRaw, y
       // stale denormalized `trips.grossProfit`, and (c) fail to reconcile with
       // the P&L totals shown elsewhere on the page. Fall back to derivation only
       // when the report is not yet loaded.
-      let truckBreakdown: Array<{ id: number; plate: string; trips: number; revenue: number; costs: number; profit: number }>;
+      let truckBreakdown: PnlTruck[];
       if (report?.trucks?.length) {
         truckBreakdown = report.trucks
           .filter(t => t.id !== 0) // "Xe ngoài" rendered as its own row below; keep own+unassigned together
-          .map(t => ({
-            id: t.id,
-            plate: t.plate,
-            trips: t.trips,
-            revenue: t.revenue,
-            costs: t.costs,
-            profit: t.profit,
-          }));
+          .map(t => ({ ...t }));
         // Re-append the external bucket last, if present, to preserve "own first" ordering.
         const ext = report.trucks.find(t => t.id === 0);
         if (ext) {
-          truckBreakdown.push({ id: ext.id, plate: ext.plate, trips: ext.trips, revenue: ext.revenue, costs: ext.costs, profit: ext.profit });
+          truckBreakdown.push({ ...ext });
         }
         truckBreakdown.sort((a, b) => b.profit - a.profit);
       } else {
-        const truckMap = new Map<number, { id: number; plate: string; trips: number; revenue: number; costs: number; profit: number }>();
+        const truckMap = new Map<number, {
+          id: number;
+          plate: string;
+          trips: number;
+          revenue: number;
+          costs: number;
+          profit: number;
+          maintenanceExpenses: number;
+          variableTripCosts: number;
+          allocatedFleetFixedCost: number;
+          unallocatedFleetFixedCost: number;
+          monthlyDepreciation: number;
+          monthlyFixedCost: number;
+          eligibleRevenue: number;
+          allocationReasonCodes: PnlTruck['allocationReasonCodes'];
+          profileVersionId: null;
+          profileEffectiveFrom: null;
+          profileSource: 'UNCONFIGURED';
+        }>();
         for (const t of activeTrips) {
           const isExternal = t.carrierType === 'EXTERNAL';
           const key = isExternal ? 0 : (t.truckId ?? -1);
@@ -158,15 +207,34 @@ export function useFinanceDerived({ allTrips, report, prevReport, capTableRaw, y
             existing.revenue += rev;
             existing.costs += cost;
             existing.profit += gp;
+            existing.variableTripCosts += cost;
           } else {
-            truckMap.set(key, { id: key, plate, trips: 1, revenue: rev, costs: cost, profit: gp });
+            truckMap.set(key, {
+              id: key,
+              plate,
+              trips: 1,
+              revenue: rev,
+              costs: cost,
+              profit: gp,
+              maintenanceExpenses: 0,
+              variableTripCosts: cost,
+              allocatedFleetFixedCost: 0,
+              unallocatedFleetFixedCost: 0,
+              monthlyDepreciation: 0,
+              monthlyFixedCost: 0,
+              eligibleRevenue: 0,
+              allocationReasonCodes: [],
+              profileVersionId: null,
+              profileEffectiveFrom: null,
+              profileSource: 'UNCONFIGURED',
+            });
           }
         }
         truckBreakdown = [...truckMap.values()].sort((a, b) => b.profit - a.profit);
       }
 
       return {
-        fuelCost, roadCost, driverCost, maintenanceCost, companyExpenses,
+        fuelCost, roadCost, driverCost, tollAndTicketsCost, maintenanceCost, fleetDepreciationCost, fleetFixedCost, otherTripCost, companyExpenses,
         totalRevenue, otherRevenue, transRevenue, totalCosts, grossProfit, netProfit,
         totalRevenueLY, otherRevenueLY, transRevenueLY, totalCostsLY, grossProfitLY, companyExpensesLY, netProfitLY,
         activeCapTable, revenueChartData, costPieData, topTrucks, categoryBreakdown, truckBreakdown,
@@ -226,7 +294,7 @@ export function useFinanceDerived({ allTrips, report, prevReport, capTableRaw, y
 
     const hasChartData = chartView === 'day' ? dailyChartData.labels.length > 0 : trimmedChartData.length > 0;
   return {
-    fuelCost, roadCost, driverCost, maintenanceCost, companyExpenses,
+    fuelCost, roadCost, driverCost, tollAndTicketsCost, maintenanceCost, fleetDepreciationCost, fleetFixedCost, otherTripCost, companyExpenses,
     totalRevenue, otherRevenue, transRevenue, totalCosts, grossProfit, netProfit,
     totalRevenueLY, otherRevenueLY, transRevenueLY, totalCostsLY, grossProfitLY,
     companyExpensesLY, netProfitLY, activeCapTable, revenueChartData, costPieData,

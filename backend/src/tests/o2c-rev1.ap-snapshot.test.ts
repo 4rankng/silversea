@@ -5,6 +5,7 @@ import { FuelMode, Role, TripStatus, TxnType } from '@tingting/shared';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
+import { ApiError } from '../errors';
 import {
   approveGovernanceAction,
   checkGovernanceAction,
@@ -357,7 +358,7 @@ describe('O2C rev1 Phase 4 — AP snapshot dirtying', () => {
     assert.equal(updated?.apSnapshotDirty, false);
   });
 
-  test('a real PostgreSQL statement failure during AP capture degrades without aborting completion', async () => {
+  test('a real PostgreSQL statement failure aborts governed close because AP capture is strict', async () => {
     const { trip } = await createTripFixture();
     const originalCapture = ApSnapshotService.captureSnapshot;
     ApSnapshotService.captureSnapshot = (async (
@@ -368,17 +369,21 @@ describe('O2C rev1 Phase 4 — AP snapshot dirtying', () => {
     }) as typeof ApSnapshotService.captureSnapshot;
 
     try {
-      const completed = await completeTripGoverned(trip.id, trip.version);
-      assert.equal(completed.status, TripStatus.COMPLETED);
+      await assert.rejects(
+        () => completeTripGoverned(trip.id, trip.version),
+        (error: unknown) => error instanceof ApiError
+          && error.statusCode === 500
+          && /Không thể ghi nhận AP/.test(error.message),
+      );
 
       const [updated] = await db.select({
         status: s.trips.status,
         apCostHash: s.trips.apCostHash,
         apSnapshotDirty: s.trips.apSnapshotDirty,
       }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
-      assert.equal(updated?.status, TripStatus.COMPLETED);
+      assert.equal(updated?.status, TripStatus.IN_TRANSIT);
       assert.equal(updated?.apCostHash, null);
-      assert.equal(updated?.apSnapshotDirty, true);
+      assert.equal(updated?.apSnapshotDirty, false);
     } finally {
       ApSnapshotService.captureSnapshot = originalCapture;
     }

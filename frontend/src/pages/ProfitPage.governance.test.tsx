@@ -32,6 +32,7 @@ vi.mock('../hooks/useQueries', () => ({
     isLoading: false,
     error: null,
   }),
+  useDashboardWidgets: () => ({ data: { fleetAttention: [] } }),
   useCapTable: () => ({ data: [], error: null }),
   useDistributionHistory: () => ({ data: [], refetch: refetchHistoryMock }),
 }));

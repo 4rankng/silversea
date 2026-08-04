@@ -6,7 +6,6 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { eq, inArray, like } from 'drizzle-orm';
-import { Role } from '@tingting/shared';
 
 import { config } from '../config';
 import { initEnforcer } from '../casbin/enforcer';
@@ -342,6 +341,7 @@ describe('Q23 singleton config routes', () => {
     assert.equal(fuelChecked.status, 200);
     const fuelApproved = await approveAction(Number(fuelFirst.body.id), Number(fuelChecked.body.version));
     assert.equal(fuelApproved.status, 200);
+    await invalidateSingletonCaches();
     const fuelAfterApproval = await requestJson('/api/fuel-config', { token: makerToken });
     assert.equal(fuelAfterApproval.body.unitPrice, fuelPayload.unitPrice);
 

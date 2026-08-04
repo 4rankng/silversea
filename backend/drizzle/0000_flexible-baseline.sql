@@ -1,5 +1,7 @@
-CREATE EXTENSION IF NOT EXISTS "vector";--> statement-breakpoint
-CREATE EXTENSION IF NOT EXISTS "unaccent";--> statement-breakpoint
+CREATE EXTENSION IF NOT EXISTS "vector";
+--> statement-breakpoint
+CREATE EXTENSION IF NOT EXISTS "unaccent";
+--> statement-breakpoint
 CREATE TABLE "advance_requests" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"version" integer DEFAULT 1 NOT NULL,
@@ -227,7 +229,8 @@ CREATE TABLE "business_units" (
 	"name" varchar(255) NOT NULL,
 	"status" varchar(20) DEFAULT 'ACTIVE' NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "business_units_code_unique" UNIQUE("code")
 );
 --> statement-breakpoint
 CREATE TABLE "cap_table_history" (
@@ -257,7 +260,8 @@ CREATE TABLE "container_types" (
 	"notes" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
-	"deleted_at" timestamp
+	"deleted_at" timestamp,
+	CONSTRAINT "container_types_code_unique" UNIQUE("code")
 );
 --> statement-breakpoint
 CREATE TABLE "credit_override_requests" (
@@ -608,7 +612,8 @@ CREATE TABLE "forwarder_expense_types" (
 	"vat_rate" numeric(5, 3) DEFAULT '0.080' NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
-	"deleted_at" timestamp
+	"deleted_at" timestamp,
+	CONSTRAINT "forwarder_expense_types_code_unique" UNIQUE("code")
 );
 --> statement-breakpoint
 CREATE TABLE "fuel_config" (
@@ -1026,7 +1031,8 @@ CREATE TABLE "ports" (
 	"notes" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
-	"deleted_at" timestamp
+	"deleted_at" timestamp,
+	CONSTRAINT "ports_code_unique" UNIQUE("code")
 );
 --> statement-breakpoint
 CREATE TABLE "pricing_tables" (
@@ -1380,7 +1386,8 @@ CREATE TABLE "shipments" (
 	"updated_by" integer,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
-	"deleted_at" timestamp
+	"deleted_at" timestamp,
+	CONSTRAINT "shipments_shipment_code_unique" UNIQUE("shipment_code")
 );
 --> statement-breakpoint
 CREATE TABLE "suppliers" (
@@ -1410,7 +1417,8 @@ CREATE TABLE "tire_positions" (
 	"status" varchar(20) DEFAULT 'ACTIVE' NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
-	"deleted_at" timestamp
+	"deleted_at" timestamp,
+	CONSTRAINT "tire_positions_name_unique" UNIQUE("name")
 );
 --> statement-breakpoint
 CREATE TABLE "tires" (
@@ -1430,7 +1438,8 @@ CREATE TABLE "tires" (
 	"disposal_reason" varchar(120),
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
-	"deleted_at" timestamp
+	"deleted_at" timestamp,
+	CONSTRAINT "tires_serial_unique" UNIQUE("serial")
 );
 --> statement-breakpoint
 CREATE TABLE "trailers" (
@@ -1440,7 +1449,8 @@ CREATE TABLE "trailers" (
 	"status" text DEFAULT 'ACTIVE' NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
-	"deleted_at" timestamp
+	"deleted_at" timestamp,
+	CONSTRAINT "trailers_license_plate_unique" UNIQUE("license_plate")
 );
 --> statement-breakpoint
 CREATE TABLE "treasury_accounts" (
@@ -1532,6 +1542,49 @@ CREATE TABLE "trip_expense_photos" (
 	"storage_key" varchar(255) NOT NULL,
 	"uploaded_by" integer,
 	"uploaded_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "fuel_evidence_reviews" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"trip_id" integer NOT NULL,
+	"owner_driver_id" integer NOT NULL,
+	"owner_user_id" integer NOT NULL,
+	"storage_key" varchar(255) NOT NULL,
+	"storage_hash" varchar(64) NOT NULL,
+	"original_file_name" varchar(255),
+	"mime_type" varchar(120) NOT NULL,
+	"size_bytes" integer NOT NULL,
+	"captured_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"latitude" numeric(10, 7),
+	"longitude" numeric(10, 7),
+	"gps_accuracy" numeric(8, 2),
+	"gps_altitude" numeric(8, 2),
+	"gps_at" timestamp with time zone,
+	"geotag_source" varchar(20),
+	"geotag_sample_count" integer,
+	"geotag_best_accuracy" numeric(8, 2),
+	"geotag_elapsed_ms" integer,
+	"ocr_outcome" text NOT NULL,
+	"review_status" text DEFAULT 'PENDING' NOT NULL,
+	"confidence" numeric(5, 4),
+	"review_required" boolean DEFAULT true NOT NULL,
+	"litres" numeric(12, 3),
+	"unit_price" numeric(15, 0),
+	"total_amount" numeric(15, 0),
+	"computed_total" numeric(15, 0),
+	"mismatch" boolean DEFAULT false NOT NULL,
+	"anomaly_code" varchar(40),
+	"anomaly_reason" text,
+	"ocr_provider" varchar(40),
+	"ocr_model" varchar(100),
+	"ocr_error" text,
+	"reviewer_id" integer,
+	"reviewed_at" timestamp with time zone,
+	"review_note" text,
+	"created_by" integer NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"version" integer DEFAULT 1 NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "trip_expenses" (
@@ -1792,10 +1845,12 @@ CREATE TABLE "trips" (
 	"ap_snapshot_changed_at" timestamp with time zone,
 	"pnl_snapshot_gross_profit" numeric(15, 0),
 	"paper_order_collected_at" timestamp with time zone,
+	"paper_order_collected_by" integer,
 	"driver_order_accepted_at" timestamp with time zone,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
-	"deleted_at" timestamp
+	"deleted_at" timestamp,
+	CONSTRAINT "trips_trip_code_unique" UNIQUE("trip_code")
 );
 --> statement-breakpoint
 CREATE TABLE "truck_cap_table" (
@@ -1835,7 +1890,8 @@ CREATE TABLE "trucks" (
 	"last_oil_service_date" date,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
-	"deleted_at" timestamp
+	"deleted_at" timestamp,
+	CONSTRAINT "trucks_license_plate_unique" UNIQUE("license_plate")
 );
 --> statement-breakpoint
 CREATE TABLE "user_business_unit_links" (
@@ -1875,7 +1931,10 @@ CREATE TABLE "users" (
 	"customer_account_type" text DEFAULT 'SINGLE_ENTITY' NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
-	"deleted_at" timestamp
+	"deleted_at" timestamp,
+	CONSTRAINT "users_username_unique" UNIQUE("username"),
+	CONSTRAINT "users_email_unique" UNIQUE("email"),
+	CONSTRAINT "users_phone_unique" UNIQUE("phone")
 );
 --> statement-breakpoint
 CREATE TABLE "vehicle_last_positions" (
@@ -1908,45 +1967,45 @@ CREATE TABLE "weight_pricing_tiers" (
 	"deleted_at" timestamp
 );
 --> statement-breakpoint
-CREATE INDEX "adv_settlement_req_unique_idx" ON "advance_settlement_requests" USING btree ("settlement_id","advance_request_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "adv_settlement_req_unique_idx" ON "advance_settlement_requests" USING btree ("settlement_id","advance_request_id");--> statement-breakpoint
 CREATE INDEX "adv_settlement_req_request_idx" ON "advance_settlement_requests" USING btree ("advance_request_id");--> statement-breakpoint
-CREATE INDEX "advance_settlements_code_unique_idx" ON "advance_settlements" USING btree ("code");--> statement-breakpoint
-CREATE INDEX "advance_settlements_auto_offset_expense_uniq" ON "advance_settlements" USING btree ("auto_offset_expense_id") WHERE "advance_settlements"."auto_offset_expense_id" IS NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "advance_settlements_code_unique_idx" ON "advance_settlements" USING btree ("code");--> statement-breakpoint
+CREATE UNIQUE INDEX "advance_settlements_auto_offset_expense_uniq" ON "advance_settlements" USING btree ("auto_offset_expense_id") WHERE "advance_settlements"."auto_offset_expense_id" IS NOT NULL;--> statement-breakpoint
 CREATE INDEX "agent_conversations_user_updated_idx" ON "agent_conversations" USING btree ("user_id","updated_at");--> statement-breakpoint
 CREATE INDEX "agent_messages_conversation_idx" ON "agent_messages" USING btree ("conversation_id");--> statement-breakpoint
 CREATE INDEX "ancillary_revenue_customer_date_idx" ON "ancillary_revenue" USING btree ("customer_id","date");--> statement-breakpoint
 CREATE INDEX "ancillary_revenue_shipment_idx" ON "ancillary_revenue" USING btree ("shipment_id");--> statement-breakpoint
 CREATE INDEX "ancillary_revenue_trip_idx" ON "ancillary_revenue" USING btree ("trip_id");--> statement-breakpoint
-CREATE INDEX "billing_document_disputes_idempotency_uniq" ON "billing_document_disputes" USING btree ("idempotency_key");--> statement-breakpoint
+CREATE UNIQUE INDEX "billing_document_disputes_idempotency_uniq" ON "billing_document_disputes" USING btree ("idempotency_key");--> statement-breakpoint
 CREATE INDEX "billing_document_disputes_document_idx" ON "billing_document_disputes" USING btree ("document_id","disputed_at");--> statement-breakpoint
 CREATE INDEX "billing_document_lines_doc_idx" ON "billing_document_lines" USING btree ("document_id");--> statement-breakpoint
-CREATE INDEX "billing_document_recoverable_claims_expense_active_uniq" ON "billing_document_recoverable_claims" USING btree ("expense_id") WHERE "billing_document_recoverable_claims"."released_at" is null;--> statement-breakpoint
+CREATE UNIQUE INDEX "billing_document_recoverable_claims_expense_active_uniq" ON "billing_document_recoverable_claims" USING btree ("expense_id") WHERE "billing_document_recoverable_claims"."released_at" is null;--> statement-breakpoint
 CREATE INDEX "billing_document_recoverable_claims_document_idx" ON "billing_document_recoverable_claims" USING btree ("document_id");--> statement-breakpoint
-CREATE INDEX "billing_document_source_period_locks_doc_period_uniq" ON "billing_document_source_period_locks" USING btree ("document_id","period_lock_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "billing_document_source_period_locks_doc_period_uniq" ON "billing_document_source_period_locks" USING btree ("document_id","period_lock_id");--> statement-breakpoint
 CREATE INDEX "billing_document_source_period_locks_period_idx" ON "billing_document_source_period_locks" USING btree ("period_lock_id");--> statement-breakpoint
-CREATE INDEX "billing_document_trip_claims_document_trip_active_uniq" ON "billing_document_trip_claims" USING btree ("document_id","trip_id") WHERE "billing_document_trip_claims"."released_at" is null;--> statement-breakpoint
+CREATE UNIQUE INDEX "billing_document_trip_claims_document_trip_active_uniq" ON "billing_document_trip_claims" USING btree ("document_id","trip_id") WHERE "billing_document_trip_claims"."released_at" is null;--> statement-breakpoint
 CREATE INDEX "billing_document_trip_claims_document_idx" ON "billing_document_trip_claims" USING btree ("document_id");--> statement-breakpoint
 CREATE INDEX "billing_document_trip_claims_trip_idx" ON "billing_document_trip_claims" USING btree ("trip_id");--> statement-breakpoint
 CREATE INDEX "billing_documents_entity_idx" ON "billing_documents" USING btree ("entity_type","entity_id");--> statement-breakpoint
-CREATE INDEX "billing_documents_active_period_unique" ON "billing_documents" USING btree ("type","entity_type","entity_id","range_from","range_to") WHERE "billing_documents"."deleted_at" IS NULL AND "billing_documents"."type" = 'DEBIT_NOTE';--> statement-breakpoint
-CREATE INDEX "business_calendar_days_date_uniq_idx" ON "business_calendar_days" USING btree ("calendar_date");--> statement-breakpoint
-CREATE INDEX "business_units_name_uniq_idx" ON "business_units" USING btree ("name");--> statement-breakpoint
+CREATE UNIQUE INDEX "billing_documents_active_period_unique" ON "billing_documents" USING btree ("type","entity_type","entity_id","range_from","range_to") WHERE "billing_documents"."deleted_at" IS NULL AND "billing_documents"."type" = 'DEBIT_NOTE';--> statement-breakpoint
+CREATE UNIQUE INDEX "business_calendar_days_date_uniq_idx" ON "business_calendar_days" USING btree ("calendar_date");--> statement-breakpoint
+CREATE UNIQUE INDEX "business_units_name_uniq_idx" ON "business_units" USING btree ("name");--> statement-breakpoint
 CREATE INDEX "business_units_status_idx" ON "business_units" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "credit_override_requests_customer_idx" ON "credit_override_requests" USING btree ("customer_id","status","created_at");--> statement-breakpoint
 CREATE INDEX "credit_override_requests_shipment_idx" ON "credit_override_requests" USING btree ("shipment_id","status");--> statement-breakpoint
-CREATE INDEX "credit_override_requests_active_shipment_uniq" ON "credit_override_requests" USING btree ("shipment_id") WHERE "credit_override_requests"."shipment_id" is not null and "credit_override_requests"."status" in ('PENDING', 'APPROVED');--> statement-breakpoint
+CREATE UNIQUE INDEX "credit_override_requests_active_shipment_uniq" ON "credit_override_requests" USING btree ("shipment_id") WHERE "credit_override_requests"."shipment_id" is not null and "credit_override_requests"."status" in ('PENDING', 'APPROVED');--> statement-breakpoint
 CREATE INDEX "customer_email_logs_customer_idx" ON "customer_email_logs" USING btree ("customer_id","status");--> statement-breakpoint
 CREATE INDEX "customer_email_logs_status_idx" ON "customer_email_logs" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "customer_email_logs_visible_event_idx" ON "customer_email_logs" USING btree ("customer_visible_event_id");--> statement-breakpoint
-CREATE INDEX "customer_event_ack_actor_kind_uniq" ON "customer_event_acknowledgements" USING btree ("event_id","acknowledged_by","kind");--> statement-breakpoint
-CREATE INDEX "customer_event_ack_idempotency_uniq" ON "customer_event_acknowledgements" USING btree ("idempotency_key");--> statement-breakpoint
+CREATE UNIQUE INDEX "customer_event_ack_actor_kind_uniq" ON "customer_event_acknowledgements" USING btree ("event_id","acknowledged_by","kind");--> statement-breakpoint
+CREATE UNIQUE INDEX "customer_event_ack_idempotency_uniq" ON "customer_event_acknowledgements" USING btree ("idempotency_key");--> statement-breakpoint
 CREATE INDEX "customer_event_ack_customer_idx" ON "customer_event_acknowledgements" USING btree ("customer_id","acknowledged_at");--> statement-breakpoint
-CREATE INDEX "customer_visible_events_key_version_uniq" ON "customer_visible_events" USING btree ("event_key","content_version");--> statement-breakpoint
-CREATE INDEX "customer_visible_events_supersedes_uniq" ON "customer_visible_events" USING btree ("supersedes_event_id") WHERE "customer_visible_events"."supersedes_event_id" is not null;--> statement-breakpoint
+CREATE UNIQUE INDEX "customer_visible_events_key_version_uniq" ON "customer_visible_events" USING btree ("event_key","content_version");--> statement-breakpoint
+CREATE UNIQUE INDEX "customer_visible_events_supersedes_uniq" ON "customer_visible_events" USING btree ("supersedes_event_id") WHERE "customer_visible_events"."supersedes_event_id" is not null;--> statement-breakpoint
 CREATE INDEX "customer_visible_events_shipment_idx" ON "customer_visible_events" USING btree ("shipment_id","occurred_at");--> statement-breakpoint
 CREATE INDEX "customer_visible_events_customer_idx" ON "customer_visible_events" USING btree ("customer_id","occurred_at");--> statement-breakpoint
-CREATE INDEX "customers_active_name_tax_code_uniq_idx" ON "customers" USING btree (lower(btrim("name")),coalesce(nullif(lower(btrim("tax_code")), ''), '')) WHERE "customers"."deleted_at" is null;--> statement-breakpoint
-CREATE INDEX "customers_active_tax_code_uniq_idx" ON "customers" USING btree (lower(btrim("tax_code"))) WHERE "customers"."deleted_at" is null and nullif(btrim("customers"."tax_code"), '') is not null;--> statement-breakpoint
+CREATE UNIQUE INDEX "customers_active_name_tax_code_uniq_idx" ON "customers" USING btree (lower(btrim("name")),coalesce(nullif(lower(btrim("tax_code")), ''), '')) WHERE "customers"."deleted_at" is null;--> statement-breakpoint
+CREATE UNIQUE INDEX "customers_active_tax_code_uniq_idx" ON "customers" USING btree (lower(btrim("tax_code"))) WHERE "customers"."deleted_at" is null and nullif(btrim("customers"."tax_code"), '') is not null;--> statement-breakpoint
 CREATE INDEX "customers_partner_idx" ON "customers" USING btree ("partner_id");--> statement-breakpoint
 CREATE INDEX "debt_offsets_customer_idx" ON "debt_offsets" USING btree ("customer_id");--> statement-breakpoint
 CREATE INDEX "debt_offsets_supplier_idx" ON "debt_offsets" USING btree ("supplier_id");--> statement-breakpoint
@@ -1955,16 +2014,16 @@ CREATE INDEX "delete_requests_status_idx" ON "delete_requests" USING btree ("sta
 CREATE INDEX "dispatch_handoffs_shipment_idx" ON "dispatch_handoffs" USING btree ("shipment_id");--> statement-breakpoint
 CREATE INDEX "dispatch_handoffs_handler_idx" ON "dispatch_handoffs" USING btree ("handler_id");--> statement-breakpoint
 CREATE INDEX "dispatch_handoffs_status_idx" ON "dispatch_handoffs" USING btree ("status");--> statement-breakpoint
-CREATE INDEX "dispatch_handoffs_shipment_active_uniq" ON "dispatch_handoffs" USING btree ("shipment_id") WHERE "dispatch_handoffs"."status" IN ('UNSEEN', 'SEEN');--> statement-breakpoint
-CREATE INDEX "dispatch_handoffs_supersedes_uniq" ON "dispatch_handoffs" USING btree ("supersedes_handoff_id") WHERE "dispatch_handoffs"."supersedes_handoff_id" is not null;--> statement-breakpoint
+CREATE UNIQUE INDEX "dispatch_handoffs_shipment_active_uniq" ON "dispatch_handoffs" USING btree ("shipment_id") WHERE "dispatch_handoffs"."status" IN ('UNSEEN', 'SEEN');--> statement-breakpoint
+CREATE UNIQUE INDEX "dispatch_handoffs_supersedes_uniq" ON "dispatch_handoffs" USING btree ("supersedes_handoff_id") WHERE "dispatch_handoffs"."supersedes_handoff_id" is not null;--> statement-breakpoint
 CREATE INDEX "driver_incidental_costs_trip_idx" ON "driver_incidental_costs" USING btree ("trip_id","occurred_at");--> statement-breakpoint
 CREATE INDEX "driver_incidental_costs_driver_idx" ON "driver_incidental_costs" USING btree ("driver_id");--> statement-breakpoint
 CREATE INDEX "driver_progress_events_trip_idx" ON "driver_progress_events" USING btree ("trip_id","occurred_at");--> statement-breakpoint
 CREATE INDEX "driver_progress_events_driver_idx" ON "driver_progress_events" USING btree ("driver_id");--> statement-breakpoint
-CREATE INDEX "driver_work_days_driver_date_idx" ON "driver_work_days" USING btree ("driver_id","date");--> statement-breakpoint
+CREATE UNIQUE INDEX "driver_work_days_driver_date_idx" ON "driver_work_days" USING btree ("driver_id","date");--> statement-breakpoint
 CREATE INDEX "driver_work_days_driver_idx" ON "driver_work_days" USING btree ("driver_id");--> statement-breakpoint
-CREATE INDEX "drivers_active_user_uniq_idx" ON "drivers" USING btree ("user_id") WHERE "drivers"."user_id" is not null and "drivers"."deleted_at" is null;--> statement-breakpoint
-CREATE INDEX "durable_effect_jobs_kind_dedupe_uniq_idx" ON "durable_effect_jobs" USING btree ("kind","dedupe_key");--> statement-breakpoint
+CREATE UNIQUE INDEX "drivers_active_user_uniq_idx" ON "drivers" USING btree ("user_id") WHERE "drivers"."user_id" is not null and "drivers"."deleted_at" is null;--> statement-breakpoint
+CREATE UNIQUE INDEX "durable_effect_jobs_kind_dedupe_uniq_idx" ON "durable_effect_jobs" USING btree ("kind","dedupe_key");--> statement-breakpoint
 CREATE INDEX "durable_effect_jobs_due_idx" ON "durable_effect_jobs" USING btree ("status","next_attempt_at","id");--> statement-breakpoint
 CREATE INDEX "durable_effect_jobs_lease_idx" ON "durable_effect_jobs" USING btree ("status","lease_expires_at");--> statement-breakpoint
 CREATE INDEX "expense_photos_storage_key_idx" ON "expense_photos" USING btree ("storage_key");--> statement-breakpoint
@@ -1972,104 +2031,104 @@ CREATE INDEX "expenses_date_idx" ON "expenses" USING btree ("expense_date");--> 
 CREATE INDEX "expenses_supplier_idx" ON "expenses" USING btree ("supplier_id");--> statement-breakpoint
 CREATE INDEX "expenses_category_idx" ON "expenses" USING btree ("category_id");--> statement-breakpoint
 CREATE INDEX "expenses_vehicle_idx" ON "expenses" USING btree ("truck_id","vehicle_component");--> statement-breakpoint
-CREATE INDEX "financial_reporting_policy_versions_effective_from_uniq" ON "financial_reporting_policy_versions" USING btree ("effective_from");--> statement-breakpoint
-CREATE INDEX "financial_reporting_policy_versions_governance_action_uniq" ON "financial_reporting_policy_versions" USING btree ("governance_action_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "financial_reporting_policy_versions_effective_from_uniq" ON "financial_reporting_policy_versions" USING btree ("effective_from");--> statement-breakpoint
+CREATE UNIQUE INDEX "financial_reporting_policy_versions_governance_action_uniq" ON "financial_reporting_policy_versions" USING btree ("governance_action_id");--> statement-breakpoint
 CREATE INDEX "financial_reporting_policy_versions_effective_lookup_idx" ON "financial_reporting_policy_versions" USING btree ("effective_from","created_at");--> statement-breakpoint
 CREATE INDEX "fuel_invoice_allocations_invoice_idx" ON "fuel_invoice_allocations" USING btree ("fuel_invoice_id");--> statement-breakpoint
 CREATE INDEX "fuel_invoice_allocations_truck_idx" ON "fuel_invoice_allocations" USING btree ("truck_id","voucher_date");--> statement-breakpoint
-CREATE INDEX "fuel_invoice_allocations_trip_expense_uniq_idx" ON "fuel_invoice_allocations" USING btree ("trip_expense_id") WHERE "fuel_invoice_allocations"."trip_expense_id" is not null;--> statement-breakpoint
-CREATE INDEX "fuel_invoice_allocations_invoice_voucher_uniq_idx" ON "fuel_invoice_allocations" USING btree ("fuel_invoice_id","trip_id","voucher_reference");--> statement-breakpoint
+CREATE UNIQUE INDEX "fuel_invoice_allocations_trip_expense_uniq_idx" ON "fuel_invoice_allocations" USING btree ("trip_expense_id") WHERE "fuel_invoice_allocations"."trip_expense_id" is not null;--> statement-breakpoint
+CREATE UNIQUE INDEX "fuel_invoice_allocations_invoice_voucher_uniq_idx" ON "fuel_invoice_allocations" USING btree ("fuel_invoice_id","trip_id","voucher_reference");--> statement-breakpoint
 CREATE INDEX "fuel_invoices_supplier_idx" ON "fuel_invoices" USING btree ("supplier_id","invoice_date");--> statement-breakpoint
-CREATE INDEX "fuel_invoices_supplier_invoice_uniq_idx" ON "fuel_invoices" USING btree ("supplier_id",lower(btrim("invoice_number")),"invoice_date");--> statement-breakpoint
+CREATE UNIQUE INDEX "fuel_invoices_supplier_invoice_uniq_idx" ON "fuel_invoices" USING btree ("supplier_id",lower(btrim("invoice_number")),"invoice_date");--> statement-breakpoint
 CREATE INDEX "fuel_norms_route_truck_date_idx" ON "fuel_norms" USING btree ("route_id","truck_id","effective_date");--> statement-breakpoint
-CREATE INDEX "fuel_period_adjustments_action_source_uniq" ON "fuel_period_adjustments" USING btree ("governance_action_id","source_period_lock_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "fuel_period_adjustments_action_source_uniq" ON "fuel_period_adjustments" USING btree ("governance_action_id","source_period_lock_id");--> statement-breakpoint
 CREATE INDEX "fuel_period_adjustments_invoice_idx" ON "fuel_period_adjustments" USING btree ("fuel_invoice_id","created_at");--> statement-breakpoint
 CREATE INDEX "fuel_period_adjustments_source_idx" ON "fuel_period_adjustments" USING btree ("source_period","created_at");--> statement-breakpoint
 CREATE INDEX "fuel_period_adjustments_target_idx" ON "fuel_period_adjustments" USING btree ("target_period","created_at");--> statement-breakpoint
-CREATE INDEX "fuel_recon_explanations_supplier_period_uniq" ON "fuel_recon_explanations" USING btree ("supplier_id","period_from","period_to");--> statement-breakpoint
+CREATE UNIQUE INDEX "fuel_recon_explanations_supplier_period_uniq" ON "fuel_recon_explanations" USING btree ("supplier_id","period_from","period_to");--> statement-breakpoint
 CREATE INDEX "fuel_recon_explanations_supplier_idx" ON "fuel_recon_explanations" USING btree ("supplier_id");--> statement-breakpoint
-CREATE INDEX "fuel_surcharge_customer_active_uniq" ON "fuel_surcharge_configs" USING btree ("customer_id") WHERE "fuel_surcharge_configs"."deleted_at" is null;--> statement-breakpoint
+CREATE UNIQUE INDEX "fuel_surcharge_customer_active_uniq" ON "fuel_surcharge_configs" USING btree ("customer_id") WHERE "fuel_surcharge_configs"."deleted_at" is null;--> statement-breakpoint
 CREATE INDEX "governance_actions_subject_idx" ON "governance_actions" USING btree ("subject_type","subject_id","created_at");--> statement-breakpoint
 CREATE INDEX "governance_actions_subject_key_idx" ON "governance_actions" USING btree ("subject_type","subject_key","created_at");--> statement-breakpoint
 CREATE INDEX "governance_actions_status_idx" ON "governance_actions" USING btree ("status","created_at");--> statement-breakpoint
-CREATE INDEX "governance_actions_active_subject_key_uniq" ON "governance_actions" USING btree ("subject_type","subject_key","action_kind","original_version") WHERE "governance_actions"."subject_key" is not null and "governance_actions"."status" in ('PENDING_CHECK', 'PENDING_APPROVAL', 'RETURNED_FOR_EVIDENCE');--> statement-breakpoint
-CREATE INDEX "governance_actions_active_subject_id_uniq" ON "governance_actions" USING btree ("subject_type","subject_id","action_kind","original_version") WHERE "governance_actions"."subject_id" is not null and "governance_actions"."action_kind" not in ('TRIP_AR_ADJUSTMENT', 'TRIP_REOPEN') and "governance_actions"."status" in ('PENDING_CHECK', 'PENDING_APPROVAL', 'RETURNED_FOR_EVIDENCE');--> statement-breakpoint
-CREATE INDEX "idempotency_keys_endpoint_key_uniq" ON "idempotency_keys" USING btree ("endpoint","idempotency_key");--> statement-breakpoint
+CREATE UNIQUE INDEX "governance_actions_active_subject_key_uniq" ON "governance_actions" USING btree ("subject_type","subject_key","action_kind","original_version") WHERE "governance_actions"."subject_key" is not null and "governance_actions"."status" in ('PENDING_CHECK', 'PENDING_APPROVAL', 'RETURNED_FOR_EVIDENCE');--> statement-breakpoint
+CREATE UNIQUE INDEX "governance_actions_active_subject_id_uniq" ON "governance_actions" USING btree ("subject_type","subject_id","action_kind","original_version") WHERE "governance_actions"."subject_id" is not null and "governance_actions"."action_kind" not in ('TRIP_AR_ADJUSTMENT', 'TRIP_REOPEN') and "governance_actions"."status" in ('PENDING_CHECK', 'PENDING_APPROVAL', 'RETURNED_FOR_EVIDENCE');--> statement-breakpoint
+CREATE UNIQUE INDEX "idempotency_keys_endpoint_key_uniq" ON "idempotency_keys" USING btree ("endpoint","idempotency_key");--> statement-breakpoint
 CREATE INDEX "idempotency_keys_entity_idx" ON "idempotency_keys" USING btree ("entity_type","entity_id");--> statement-breakpoint
 CREATE INDEX "knowledge_chunks_source_idx" ON "knowledge_chunks" USING btree ("source_type","source_path");--> statement-breakpoint
 CREATE INDEX "ledger_entity_entity_idx" ON "ledger" USING btree ("entity_type","entity_id");--> statement-breakpoint
 CREATE INDEX "ledger_entity_entity_id_idx" ON "ledger" USING btree ("entity_type","entity_id","id");--> statement-breakpoint
 CREATE INDEX "ledger_entity_txn_timestamp_idx" ON "ledger" USING btree ("entity_type","txn_type","timestamp");--> statement-breakpoint
 CREATE INDEX "ledger_financial_posting_idx" ON "ledger" USING btree ("financial_posting_id");--> statement-breakpoint
-CREATE INDEX "ledger_forwarder_settlement_once_idx" ON "ledger" USING btree ("txn_type","txn_id","entity_type","entity_id") WHERE "ledger"."txn_type" = 'FORWARDER_SETTLEMENT';--> statement-breakpoint
-CREATE INDEX "lift_pricing_port_type_state_dir_date_uniq" ON "lift_pricing" USING btree ("port_id","container_type_id","direction","load_state","effective_date");--> statement-breakpoint
-CREATE INDEX "master_import_batches_hash_parser_uniq_idx" ON "master_import_batches" USING btree ("source_file_hash","parser_version");--> statement-breakpoint
-CREATE INDEX "master_import_rows_batch_sheet_row_uniq_idx" ON "master_import_row_results" USING btree ("batch_id","sheet_name","row_number");--> statement-breakpoint
+CREATE UNIQUE INDEX "ledger_forwarder_settlement_once_idx" ON "ledger" USING btree ("txn_type","txn_id","entity_type","entity_id") WHERE "ledger"."txn_type" = 'FORWARDER_SETTLEMENT';--> statement-breakpoint
+CREATE UNIQUE INDEX "lift_pricing_port_type_state_dir_date_uniq" ON "lift_pricing" USING btree ("port_id","container_type_id","direction","load_state","effective_date");--> statement-breakpoint
+CREATE UNIQUE INDEX "master_import_batches_hash_parser_uniq_idx" ON "master_import_batches" USING btree ("source_file_hash","parser_version");--> statement-breakpoint
+CREATE UNIQUE INDEX "master_import_rows_batch_sheet_row_uniq_idx" ON "master_import_row_results" USING btree ("batch_id","sheet_name","row_number");--> statement-breakpoint
 CREATE INDEX "master_import_rows_batch_class_idx" ON "master_import_row_results" USING btree ("batch_id","classification");--> statement-breakpoint
 CREATE INDEX "notifications_user_unread_idx" ON "notifications" USING btree ("user_id","is_read");--> statement-breakpoint
 CREATE INDEX "notifications_user_created_idx" ON "notifications" USING btree ("user_id","created_at");--> statement-breakpoint
-CREATE INDEX "operational_sites_customer_code_uniq_idx" ON "operational_sites" USING btree ("customer_id","code") WHERE "operational_sites"."deleted_at" is null;--> statement-breakpoint
-CREATE INDEX "operational_sites_customer_id_id_uniq_idx" ON "operational_sites" USING btree ("customer_id","id");--> statement-breakpoint
+CREATE UNIQUE INDEX "operational_sites_customer_code_uniq_idx" ON "operational_sites" USING btree ("customer_id","code") WHERE "operational_sites"."deleted_at" is null;--> statement-breakpoint
+CREATE UNIQUE INDEX "operational_sites_customer_id_id_uniq_idx" ON "operational_sites" USING btree ("customer_id","id");--> statement-breakpoint
 CREATE INDEX "operational_sites_customer_type_idx" ON "operational_sites" USING btree ("customer_id","site_type","is_active");--> statement-breakpoint
-CREATE INDEX "partners_normalized_tax_code_uniq_idx" ON "partners" USING btree ("normalized_tax_code");--> statement-breakpoint
+CREATE UNIQUE INDEX "partners_normalized_tax_code_uniq_idx" ON "partners" USING btree ("normalized_tax_code");--> statement-breakpoint
 CREATE INDEX "payment_allocations_customer_idx" ON "payment_allocations" USING btree ("customer_id");--> statement-breakpoint
 CREATE INDEX "payment_allocations_target_idx" ON "payment_allocations" USING btree ("target_type","target_id");--> statement-breakpoint
 CREATE INDEX "payment_allocations_document_idx" ON "payment_allocations" USING btree ("billing_document_id","created_at");--> statement-breakpoint
 CREATE INDEX "payment_allocations_source_trip_idx" ON "payment_allocations" USING btree ("source_trip_id","created_at");--> statement-breakpoint
 CREATE INDEX "payment_allocations_receipt_idx" ON "payment_allocations" USING btree ("receipt_id");--> statement-breakpoint
-CREATE INDEX "payment_allocations_receipt_order_uniq" ON "payment_allocations" USING btree ("payment_receipt_id","allocation_order") WHERE "payment_allocations"."payment_receipt_id" is not null;--> statement-breakpoint
-CREATE INDEX "payment_allocations_receipt_target_uniq" ON "payment_allocations" USING btree ("payment_receipt_id","target_type","target_id",coalesce("source_trip_id", 0)) WHERE "payment_allocations"."payment_receipt_id" is not null;--> statement-breakpoint
-CREATE INDEX "payment_receipts_receipt_id_uniq" ON "payment_receipts" USING btree ("receipt_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "payment_allocations_receipt_order_uniq" ON "payment_allocations" USING btree ("payment_receipt_id","allocation_order") WHERE "payment_allocations"."payment_receipt_id" is not null;--> statement-breakpoint
+CREATE UNIQUE INDEX "payment_allocations_receipt_target_uniq" ON "payment_allocations" USING btree ("payment_receipt_id","target_type","target_id",coalesce("source_trip_id", 0)) WHERE "payment_allocations"."payment_receipt_id" is not null;--> statement-breakpoint
+CREATE UNIQUE INDEX "payment_receipts_receipt_id_uniq" ON "payment_receipts" USING btree ("receipt_id");--> statement-breakpoint
 CREATE INDEX "payment_receipts_customer_created_idx" ON "payment_receipts" USING btree ("customer_id","created_at");--> statement-breakpoint
-CREATE INDEX "payment_refunds_governance_action_uniq" ON "payment_refunds" USING btree ("governance_action_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "payment_refunds_governance_action_uniq" ON "payment_refunds" USING btree ("governance_action_id");--> statement-breakpoint
 CREATE INDEX "payment_refunds_receipt_created_idx" ON "payment_refunds" USING btree ("payment_receipt_id","created_at");--> statement-breakpoint
 CREATE INDEX "penalties_date_idx" ON "penalties" USING btree ("date");--> statement-breakpoint
-CREATE INDEX "period_locks_domain_scope_period_uniq" ON "period_locks" USING btree ("domain","scope_type","scope_id","period_key");--> statement-breakpoint
+CREATE UNIQUE INDEX "period_locks_domain_scope_period_uniq" ON "period_locks" USING btree ("domain","scope_type","scope_id","period_key");--> statement-breakpoint
 CREATE INDEX "period_locks_lookup_idx" ON "period_locks" USING btree ("domain","scope_type","scope_id","status","period_start","period_end");--> statement-breakpoint
-CREATE INDEX "photo_geotags_entity_uniq" ON "photo_geotags" USING btree ("entity_type","entity_id");--> statement-breakpoint
-CREATE INDEX "pricing_tables_general_date_idx" ON "pricing_tables" USING btree ("customer_id","route_id","effective_date") WHERE "pricing_tables"."container_type_id" is null and "pricing_tables"."rate_key" is null;--> statement-breakpoint
-CREATE INDEX "pricing_tables_container_date_idx" ON "pricing_tables" USING btree ("customer_id","route_id","container_type_id","effective_date") WHERE "pricing_tables"."container_type_id" is not null and "pricing_tables"."rate_key" is null;--> statement-breakpoint
-CREATE INDEX "pricing_tables_rate_key_date_idx" ON "pricing_tables" USING btree ("customer_id","route_id","rate_key","effective_date") WHERE "pricing_tables"."container_type_id" is null and "pricing_tables"."rate_key" is not null;--> statement-breakpoint
-CREATE INDEX "profitability_snapshot_dimensions_uniq" ON "profitability_snapshot_dimensions" USING btree ("snapshot_id","dimension");--> statement-breakpoint
+CREATE UNIQUE INDEX "photo_geotags_entity_uniq" ON "photo_geotags" USING btree ("entity_type","entity_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "pricing_tables_general_date_idx" ON "pricing_tables" USING btree ("customer_id","route_id","effective_date") WHERE "pricing_tables"."container_type_id" is null and "pricing_tables"."rate_key" is null;--> statement-breakpoint
+CREATE UNIQUE INDEX "pricing_tables_container_date_idx" ON "pricing_tables" USING btree ("customer_id","route_id","container_type_id","effective_date") WHERE "pricing_tables"."container_type_id" is not null and "pricing_tables"."rate_key" is null;--> statement-breakpoint
+CREATE UNIQUE INDEX "pricing_tables_rate_key_date_idx" ON "pricing_tables" USING btree ("customer_id","route_id","rate_key","effective_date") WHERE "pricing_tables"."container_type_id" is null and "pricing_tables"."rate_key" is not null;--> statement-breakpoint
+CREATE UNIQUE INDEX "profitability_snapshot_dimensions_uniq" ON "profitability_snapshot_dimensions" USING btree ("snapshot_id","dimension");--> statement-breakpoint
 CREATE INDEX "profitability_snapshot_dimensions_lookup_idx" ON "profitability_snapshot_dimensions" USING btree ("dimension","dimension_key");--> statement-breakpoint
-CREATE INDEX "profitability_snapshots_posting_uniq" ON "profitability_snapshots" USING btree ("financial_posting_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "profitability_snapshots_posting_uniq" ON "profitability_snapshots" USING btree ("financial_posting_id");--> statement-breakpoint
 CREATE INDEX "profitability_snapshots_business_date_idx" ON "profitability_snapshots" USING btree ("completed_business_date");--> statement-breakpoint
-CREATE INDEX "push_sub_user_endpoint_idx" ON "push_subscriptions" USING btree ("user_id","endpoint");--> statement-breakpoint
+CREATE UNIQUE INDEX "push_sub_user_endpoint_idx" ON "push_subscriptions" USING btree ("user_id","endpoint");--> statement-breakpoint
 CREATE INDEX "push_sub_user_idx" ON "push_subscriptions" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "road_allowances_route_type_idx" ON "road_allowances" USING btree ("route_id","trailer_type");--> statement-breakpoint
-CREATE INDEX "route_polylines_uniq_idx" ON "route_polylines" USING btree ("origin_cleaned","destination_cleaned");--> statement-breakpoint
-CREATE INDEX "salary_confirmations_driver_period_idx" ON "salary_confirmations" USING btree ("driver_id","year","month");--> statement-breakpoint
-CREATE INDEX "salary_period_adjustments_action_uniq" ON "salary_period_adjustments" USING btree ("governance_action_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "road_allowances_route_type_idx" ON "road_allowances" USING btree ("route_id","trailer_type");--> statement-breakpoint
+CREATE UNIQUE INDEX "route_polylines_uniq_idx" ON "route_polylines" USING btree ("origin_cleaned","destination_cleaned");--> statement-breakpoint
+CREATE UNIQUE INDEX "salary_confirmations_driver_period_idx" ON "salary_confirmations" USING btree ("driver_id","year","month");--> statement-breakpoint
+CREATE UNIQUE INDEX "salary_period_adjustments_action_uniq" ON "salary_period_adjustments" USING btree ("governance_action_id");--> statement-breakpoint
 CREATE INDEX "salary_period_adjustments_target_driver_idx" ON "salary_period_adjustments" USING btree ("target_period","driver_id","created_at");--> statement-breakpoint
 CREATE INDEX "salary_period_adjustments_source_driver_idx" ON "salary_period_adjustments" USING btree ("source_period","driver_id","created_at");--> statement-breakpoint
-CREATE INDEX "salary_period_closes_period_uniq" ON "salary_period_closes" USING btree ("period");--> statement-breakpoint
-CREATE INDEX "salesperson_assignments_customer_default_active_uniq" ON "salesperson_assignments" USING btree ("customer_id") WHERE "salesperson_assignments"."shipment_id" is null and "salesperson_assignments"."effective_to" is null;--> statement-breakpoint
-CREATE INDEX "salesperson_assignments_shipment_active_uniq" ON "salesperson_assignments" USING btree ("shipment_id") WHERE "salesperson_assignments"."shipment_id" is not null and "salesperson_assignments"."effective_to" is null;--> statement-breakpoint
-CREATE INDEX "salesperson_assignments_supersedes_uniq" ON "salesperson_assignments" USING btree ("supersedes_assignment_id") WHERE "salesperson_assignments"."supersedes_assignment_id" is not null;--> statement-breakpoint
+CREATE UNIQUE INDEX "salary_period_closes_period_uniq" ON "salary_period_closes" USING btree ("period");--> statement-breakpoint
+CREATE UNIQUE INDEX "salesperson_assignments_customer_default_active_uniq" ON "salesperson_assignments" USING btree ("customer_id") WHERE "salesperson_assignments"."shipment_id" is null and "salesperson_assignments"."effective_to" is null;--> statement-breakpoint
+CREATE UNIQUE INDEX "salesperson_assignments_shipment_active_uniq" ON "salesperson_assignments" USING btree ("shipment_id") WHERE "salesperson_assignments"."shipment_id" is not null and "salesperson_assignments"."effective_to" is null;--> statement-breakpoint
+CREATE UNIQUE INDEX "salesperson_assignments_supersedes_uniq" ON "salesperson_assignments" USING btree ("supersedes_assignment_id") WHERE "salesperson_assignments"."supersedes_assignment_id" is not null;--> statement-breakpoint
 CREATE INDEX "salesperson_assignments_lookup_idx" ON "salesperson_assignments" USING btree ("customer_id","shipment_id","effective_from");--> statement-breakpoint
 CREATE INDEX "scheduler_run_logs_job_started_idx" ON "scheduler_run_logs" USING btree ("job_name","started_at");--> statement-breakpoint
-CREATE INDEX "settlement_expense_adjustments_link_sequence_uniq" ON "settlement_expense_adjustments" USING btree ("settlement_expense_id","sequence");--> statement-breakpoint
+CREATE UNIQUE INDEX "settlement_expense_adjustments_link_sequence_uniq" ON "settlement_expense_adjustments" USING btree ("settlement_expense_id","sequence");--> statement-breakpoint
 CREATE INDEX "settlement_expense_adjustments_settlement_idx" ON "settlement_expense_adjustments" USING btree ("settlement_id","adjusted_at");--> statement-breakpoint
 CREATE INDEX "settlement_expense_adjustments_expense_idx" ON "settlement_expense_adjustments" USING btree ("trip_expense_id","adjusted_at");--> statement-breakpoint
-CREATE INDEX "settlement_expense_unique_idx" ON "settlement_expenses" USING btree ("settlement_id","trip_expense_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "settlement_expense_unique_idx" ON "settlement_expenses" USING btree ("settlement_id","trip_expense_id");--> statement-breakpoint
 CREATE INDEX "settlement_expense_trip_expense_idx" ON "settlement_expenses" USING btree ("trip_expense_id");--> statement-breakpoint
-CREATE INDEX "shipment_change_requests_shipment_version_uniq_idx" ON "shipment_change_requests" USING btree ("shipment_id","source_version");--> statement-breakpoint
+CREATE UNIQUE INDEX "shipment_change_requests_shipment_version_uniq_idx" ON "shipment_change_requests" USING btree ("shipment_id","source_version");--> statement-breakpoint
 CREATE INDEX "shipment_change_requests_shipment_created_idx" ON "shipment_change_requests" USING btree ("shipment_id","created_at");--> statement-breakpoint
 CREATE INDEX "shipment_containers_shipment_id_idx" ON "shipment_containers" USING btree ("shipment_id");--> statement-breakpoint
 CREATE INDEX "shipment_containers_pickup_port_idx" ON "shipment_containers" USING btree ("pickup_port_id");--> statement-breakpoint
 CREATE INDEX "shipment_containers_dropoff_port_idx" ON "shipment_containers" USING btree ("dropoff_port_id");--> statement-breakpoint
-CREATE INDEX "shipment_containers_shipment_id_id_uniq_idx" ON "shipment_containers" USING btree ("shipment_id","id");--> statement-breakpoint
+CREATE UNIQUE INDEX "shipment_containers_shipment_id_id_uniq_idx" ON "shipment_containers" USING btree ("shipment_id","id");--> statement-breakpoint
 CREATE INDEX "shipment_declarations_shipment_id_idx" ON "shipment_declarations" USING btree ("shipment_id");--> statement-breakpoint
 CREATE INDEX "shipment_documents_shipment_id_idx" ON "shipment_documents" USING btree ("shipment_id");--> statement-breakpoint
-CREATE INDEX "shipment_fulfillments_shipment_id_id_uniq_idx" ON "shipment_fulfillments" USING btree ("shipment_id","id");--> statement-breakpoint
+CREATE UNIQUE INDEX "shipment_fulfillments_shipment_id_id_uniq_idx" ON "shipment_fulfillments" USING btree ("shipment_id","id");--> statement-breakpoint
 CREATE INDEX "shipment_fulfillments_shipment_idx" ON "shipment_fulfillments" USING btree ("shipment_id");--> statement-breakpoint
-CREATE INDEX "shipment_fulfillments_active_container_uniq_idx" ON "shipment_fulfillments" USING btree ("shipment_container_id") WHERE "shipment_fulfillments"."shipment_container_id" is not null and "shipment_fulfillments"."canceled_at" is null;--> statement-breakpoint
-CREATE INDEX "shipment_fulfillments_active_lcl_uniq_idx" ON "shipment_fulfillments" USING btree ("shipment_id") WHERE "shipment_fulfillments"."fulfillment_type" = 'LCL_SHIPMENT' and "shipment_fulfillments"."canceled_at" is null;--> statement-breakpoint
-CREATE INDEX "shipment_fulfillments_replacement_uniq_idx" ON "shipment_fulfillments" USING btree ("replacement_fulfillment_id") WHERE "shipment_fulfillments"."replacement_fulfillment_id" is not null;--> statement-breakpoint
+CREATE UNIQUE INDEX "shipment_fulfillments_active_container_uniq_idx" ON "shipment_fulfillments" USING btree ("shipment_container_id") WHERE "shipment_fulfillments"."shipment_container_id" is not null and "shipment_fulfillments"."canceled_at" is null;--> statement-breakpoint
+CREATE UNIQUE INDEX "shipment_fulfillments_active_lcl_uniq_idx" ON "shipment_fulfillments" USING btree ("shipment_id") WHERE "shipment_fulfillments"."fulfillment_type" = 'LCL_SHIPMENT' and "shipment_fulfillments"."canceled_at" is null;--> statement-breakpoint
+CREATE UNIQUE INDEX "shipment_fulfillments_replacement_uniq_idx" ON "shipment_fulfillments" USING btree ("replacement_fulfillment_id") WHERE "shipment_fulfillments"."replacement_fulfillment_id" is not null;--> statement-breakpoint
 CREATE INDEX "shipment_milestones_shipment_idx" ON "shipment_milestones" USING btree ("shipment_id","occurred_at");--> statement-breakpoint
-CREATE INDEX "shipment_milestones_trip_type_uniq" ON "shipment_milestones" USING btree ("shipment_id","trip_id","type") WHERE "shipment_milestones"."trip_id" is not null;--> statement-breakpoint
+CREATE UNIQUE INDEX "shipment_milestones_trip_type_uniq" ON "shipment_milestones" USING btree ("shipment_id","trip_id","type") WHERE "shipment_milestones"."trip_id" is not null;--> statement-breakpoint
 CREATE INDEX "shipment_status_history_shipment_id_idx" ON "shipment_status_history" USING btree ("shipment_id");--> statement-breakpoint
-CREATE INDEX "shipments_id_cargo_mode_uniq_idx" ON "shipments" USING btree ("id","cargo_mode");--> statement-breakpoint
+CREATE UNIQUE INDEX "shipments_id_cargo_mode_uniq_idx" ON "shipments" USING btree ("id","cargo_mode");--> statement-breakpoint
 CREATE INDEX "shipments_customer_status_idx" ON "shipments" USING btree ("customer_id","status");--> statement-breakpoint
 CREATE INDEX "shipments_route_idx" ON "shipments" USING btree ("route_id");--> statement-breakpoint
 CREATE INDEX "shipments_responsible_unit_idx" ON "shipments" USING btree ("responsible_unit_id","status");--> statement-breakpoint
@@ -2079,69 +2138,74 @@ CREATE INDEX "shipments_pickup_warehouse_idx" ON "shipments" USING btree ("picku
 CREATE INDEX "suppliers_partner_idx" ON "suppliers" USING btree ("partner_id");--> statement-breakpoint
 CREATE INDEX "tires_truck_id_idx" ON "tires" USING btree ("truck_id");--> statement-breakpoint
 CREATE INDEX "tires_trailer_id_idx" ON "tires" USING btree ("trailer_id");--> statement-breakpoint
-CREATE INDEX "treasury_accounts_code_uniq" ON "treasury_accounts" USING btree ("code");--> statement-breakpoint
+CREATE UNIQUE INDEX "treasury_accounts_code_uniq" ON "treasury_accounts" USING btree ("code");--> statement-breakpoint
 CREATE INDEX "treasury_accounts_type_status_idx" ON "treasury_accounts" USING btree ("type","status");--> statement-breakpoint
-CREATE INDEX "treasury_movements_physical_posted_uniq" ON "treasury_movements" USING btree ("treasury_account_id","direction","physical_reference") WHERE "treasury_movements"."status" = 'POSTED';--> statement-breakpoint
-CREATE INDEX "treasury_movements_receipt_posted_uniq" ON "treasury_movements" USING btree ("payment_receipt_id") WHERE "treasury_movements"."payment_receipt_id" is not null and "treasury_movements"."status" = 'POSTED' and "treasury_movements"."reversal_of_id" is null;--> statement-breakpoint
-CREATE INDEX "treasury_movements_ledger_posted_uniq" ON "treasury_movements" USING btree ("ledger_entry_id") WHERE "treasury_movements"."ledger_entry_id" is not null and "treasury_movements"."status" = 'POSTED' and "treasury_movements"."reversal_of_id" is null;--> statement-breakpoint
-CREATE INDEX "treasury_movements_reversal_uniq" ON "treasury_movements" USING btree ("reversal_of_id","source_version") WHERE "treasury_movements"."reversal_of_id" is not null;--> statement-breakpoint
+CREATE UNIQUE INDEX "treasury_movements_physical_posted_uniq" ON "treasury_movements" USING btree ("treasury_account_id","direction","physical_reference") WHERE "treasury_movements"."status" = 'POSTED';--> statement-breakpoint
+CREATE UNIQUE INDEX "treasury_movements_receipt_posted_uniq" ON "treasury_movements" USING btree ("payment_receipt_id") WHERE "treasury_movements"."payment_receipt_id" is not null and "treasury_movements"."status" = 'POSTED' and "treasury_movements"."reversal_of_id" is null;--> statement-breakpoint
+CREATE UNIQUE INDEX "treasury_movements_ledger_posted_uniq" ON "treasury_movements" USING btree ("ledger_entry_id") WHERE "treasury_movements"."ledger_entry_id" is not null and "treasury_movements"."status" = 'POSTED' and "treasury_movements"."reversal_of_id" is null;--> statement-breakpoint
+CREATE UNIQUE INDEX "treasury_movements_reversal_uniq" ON "treasury_movements" USING btree ("reversal_of_id","source_version") WHERE "treasury_movements"."reversal_of_id" is not null;--> statement-breakpoint
 CREATE INDEX "treasury_movements_account_date_idx" ON "treasury_movements" USING btree ("treasury_account_id","value_date");--> statement-breakpoint
 CREATE INDEX "trip_container_seals_container_idx" ON "trip_container_seals" USING btree ("trip_container_id");--> statement-breakpoint
 CREATE INDEX "trip_containers_trip_id_idx" ON "trip_containers" USING btree ("trip_id");--> statement-breakpoint
 CREATE INDEX "trip_containers_shipment_source_idx" ON "trip_containers" USING btree ("source_shipment_id","source_shipment_container_id");--> statement-breakpoint
-CREATE INDEX "trip_expense_scope_container_unq" ON "trip_expense_completion_scopes" USING btree ("trip_container_id") WHERE "trip_expense_completion_scopes"."trip_container_id" IS NOT NULL;--> statement-breakpoint
-CREATE INDEX "trip_expense_scope_general_unq" ON "trip_expense_completion_scopes" USING btree ("trip_id") WHERE "trip_expense_completion_scopes"."trip_container_id" IS NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "trip_expense_scope_container_unq" ON "trip_expense_completion_scopes" USING btree ("trip_container_id") WHERE "trip_expense_completion_scopes"."trip_container_id" IS NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "trip_expense_scope_general_unq" ON "trip_expense_completion_scopes" USING btree ("trip_id") WHERE "trip_expense_completion_scopes"."trip_container_id" IS NULL;--> statement-breakpoint
 CREATE INDEX "trip_expense_scope_trip_idx" ON "trip_expense_completion_scopes" USING btree ("trip_id");--> statement-breakpoint
 CREATE INDEX "trip_expense_photos_storage_key_idx" ON "trip_expense_photos" USING btree ("storage_key");--> statement-breakpoint
+CREATE UNIQUE INDEX "fuel_evidence_reviews_trip_owner_hash_uniq" ON "fuel_evidence_reviews" USING btree ("trip_id","owner_driver_id","storage_hash");--> statement-breakpoint
+CREATE INDEX "fuel_evidence_reviews_trip_idx" ON "fuel_evidence_reviews" USING btree ("trip_id","review_status");--> statement-breakpoint
+CREATE INDEX "fuel_evidence_reviews_owner_idx" ON "fuel_evidence_reviews" USING btree ("owner_driver_id","created_at");--> statement-breakpoint
+CREATE INDEX "fuel_evidence_reviews_review_queue_idx" ON "fuel_evidence_reviews" USING btree ("review_status","created_at");--> statement-breakpoint
+CREATE INDEX "fuel_evidence_reviews_storage_key_idx" ON "fuel_evidence_reviews" USING btree ("storage_key");--> statement-breakpoint
 CREATE INDEX "trip_expenses_trip_id_idx" ON "trip_expenses" USING btree ("trip_id");--> statement-breakpoint
 CREATE INDEX "trip_expenses_container_idx" ON "trip_expenses" USING btree ("container_number");--> statement-breakpoint
 CREATE INDEX "trip_expenses_trip_container_id_idx" ON "trip_expenses" USING btree ("trip_container_id");--> statement-breakpoint
 CREATE INDEX "trip_expenses_lift_pricing_id_idx" ON "trip_expenses" USING btree ("lift_pricing_id");--> statement-breakpoint
 CREATE INDEX "trip_expenses_no_invoice_aggregate_idx" ON "trip_expenses" USING btree ("expense_type","expense_date","payee_name");--> statement-breakpoint
-CREATE INDEX "trip_financial_postings_trip_version_uniq" ON "trip_financial_postings" USING btree ("trip_id","version");--> statement-breakpoint
-CREATE INDEX "trip_financial_postings_trip_active_uniq" ON "trip_financial_postings" USING btree ("trip_id") WHERE "trip_financial_postings"."status" = 'ACTIVE';--> statement-breakpoint
-CREATE INDEX "trip_financial_postings_supersedes_uniq" ON "trip_financial_postings" USING btree ("supersedes_id") WHERE "trip_financial_postings"."supersedes_id" is not null;--> statement-breakpoint
+CREATE UNIQUE INDEX "trip_financial_postings_trip_version_uniq" ON "trip_financial_postings" USING btree ("trip_id","version");--> statement-breakpoint
+CREATE UNIQUE INDEX "trip_financial_postings_trip_active_uniq" ON "trip_financial_postings" USING btree ("trip_id") WHERE "trip_financial_postings"."status" = 'ACTIVE';--> statement-breakpoint
+CREATE UNIQUE INDEX "trip_financial_postings_supersedes_uniq" ON "trip_financial_postings" USING btree ("supersedes_id") WHERE "trip_financial_postings"."supersedes_id" is not null;--> statement-breakpoint
 CREATE INDEX "trip_financial_postings_trip_status_idx" ON "trip_financial_postings" USING btree ("trip_id","status");--> statement-breakpoint
-CREATE INDEX "trip_gps_capture_jobs_action_uniq_idx" ON "trip_gps_capture_jobs" USING btree ("governance_action_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "trip_gps_capture_jobs_action_uniq_idx" ON "trip_gps_capture_jobs" USING btree ("governance_action_id");--> statement-breakpoint
 CREATE INDEX "trip_gps_capture_jobs_retry_idx" ON "trip_gps_capture_jobs" USING btree ("status","next_attempt_at");--> statement-breakpoint
-CREATE INDEX "trip_gps_tracks_trip_uniq_idx" ON "trip_gps_tracks" USING btree ("trip_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "trip_gps_tracks_trip_uniq_idx" ON "trip_gps_tracks" USING btree ("trip_id");--> statement-breakpoint
 CREATE INDEX "trip_gps_tracks_route_idx" ON "trip_gps_tracks" USING btree ("route_id");--> statement-breakpoint
 CREATE INDEX "trip_gps_tracks_truck_ended_idx" ON "trip_gps_tracks" USING btree ("truck_id","ended_at");--> statement-breakpoint
-CREATE INDEX "trip_instructions_trip_id_unq" ON "trip_instructions" USING btree ("trip_id");--> statement-breakpoint
-CREATE INDEX "trip_pairs_trip_order_uniq_idx" ON "trip_pairs" USING btree ("first_trip_id","second_trip_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "trip_instructions_trip_id_unq" ON "trip_instructions" USING btree ("trip_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "trip_pairs_trip_order_uniq_idx" ON "trip_pairs" USING btree ("first_trip_id","second_trip_id");--> statement-breakpoint
 CREATE INDEX "trip_pairs_status_idx" ON "trip_pairs" USING btree ("status","created_at");--> statement-breakpoint
 CREATE INDEX "trip_photos_trip_container_id_idx" ON "trip_photos" USING btree ("trip_container_id");--> statement-breakpoint
-CREATE INDEX "trip_pod_files_storage_key_uniq_idx" ON "trip_pod_files" USING btree ("storage_key");--> statement-breakpoint
-CREATE INDEX "trip_pod_files_required_slot_uniq_idx" ON "trip_pod_files" USING btree ("submission_id","file_type") WHERE "trip_pod_files"."file_type" <> 'TOLL_TICKET';--> statement-breakpoint
+CREATE UNIQUE INDEX "trip_pod_files_storage_key_uniq_idx" ON "trip_pod_files" USING btree ("storage_key");--> statement-breakpoint
+CREATE UNIQUE INDEX "trip_pod_files_required_slot_uniq_idx" ON "trip_pod_files" USING btree ("submission_id","file_type") WHERE "trip_pod_files"."file_type" <> 'TOLL_TICKET';--> statement-breakpoint
 CREATE INDEX "trip_pod_files_submission_idx" ON "trip_pod_files" USING btree ("submission_id");--> statement-breakpoint
-CREATE INDEX "trip_pod_submissions_trip_id_id_uniq_idx" ON "trip_pod_submissions" USING btree ("trip_id","id");--> statement-breakpoint
-CREATE INDEX "trip_pod_submissions_trip_version_uniq_idx" ON "trip_pod_submissions" USING btree ("trip_id","submission_version");--> statement-breakpoint
-CREATE INDEX "trip_pod_submissions_supersedes_uniq_idx" ON "trip_pod_submissions" USING btree ("supersedes_submission_id") WHERE "trip_pod_submissions"."supersedes_submission_id" is not null;--> statement-breakpoint
-CREATE INDEX "trip_pod_submissions_open_uniq_idx" ON "trip_pod_submissions" USING btree ("trip_id") WHERE "trip_pod_submissions"."status" in ('DRAFT', 'SUBMITTED');--> statement-breakpoint
-CREATE INDEX "trip_pod_submissions_accepted_uniq_idx" ON "trip_pod_submissions" USING btree ("trip_id") WHERE "trip_pod_submissions"."status" = 'ACCEPTED';--> statement-breakpoint
+CREATE UNIQUE INDEX "trip_pod_submissions_trip_id_id_uniq_idx" ON "trip_pod_submissions" USING btree ("trip_id","id");--> statement-breakpoint
+CREATE UNIQUE INDEX "trip_pod_submissions_trip_version_uniq_idx" ON "trip_pod_submissions" USING btree ("trip_id","submission_version");--> statement-breakpoint
+CREATE UNIQUE INDEX "trip_pod_submissions_supersedes_uniq_idx" ON "trip_pod_submissions" USING btree ("supersedes_submission_id") WHERE "trip_pod_submissions"."supersedes_submission_id" is not null;--> statement-breakpoint
+CREATE UNIQUE INDEX "trip_pod_submissions_open_uniq_idx" ON "trip_pod_submissions" USING btree ("trip_id") WHERE "trip_pod_submissions"."status" in ('DRAFT', 'SUBMITTED');--> statement-breakpoint
+CREATE UNIQUE INDEX "trip_pod_submissions_accepted_uniq_idx" ON "trip_pod_submissions" USING btree ("trip_id") WHERE "trip_pod_submissions"."status" = 'ACCEPTED';--> statement-breakpoint
 CREATE INDEX "trip_pod_submissions_fulfillment_status_idx" ON "trip_pod_submissions" USING btree ("fulfillment_id","status");--> statement-breakpoint
 CREATE INDEX "trips_trailer_id_idx" ON "trips" USING btree ("trailer_id");--> statement-breakpoint
 CREATE INDEX "trips_status_idx" ON "trips" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "trips_departure_date_idx" ON "trips" USING btree ("departure_date");--> statement-breakpoint
 CREATE INDEX "trips_customer_departure_idx" ON "trips" USING btree ("customer_id","departure_date");--> statement-breakpoint
 CREATE INDEX "trips_active_trip_pair_idx" ON "trips" USING btree ("active_trip_pair_id");--> statement-breakpoint
-CREATE INDEX "trips_active_trip_pair_order_uniq" ON "trips" USING btree ("active_trip_pair_id","active_trip_pair_order") WHERE "trips"."active_trip_pair_id" is not null;--> statement-breakpoint
+CREATE UNIQUE INDEX "trips_active_trip_pair_order_uniq" ON "trips" USING btree ("active_trip_pair_id","active_trip_pair_order") WHERE "trips"."active_trip_pair_id" is not null;--> statement-breakpoint
 CREATE INDEX "trips_shipment_id_idx" ON "trips" USING btree ("shipment_id");--> statement-breakpoint
 CREATE INDEX "trips_fulfillment_id_idx" ON "trips" USING btree ("fulfillment_id");--> statement-breakpoint
-CREATE INDEX "trips_id_fulfillment_uniq_idx" ON "trips" USING btree ("id","fulfillment_id");--> statement-breakpoint
-CREATE INDEX "trips_fulfillment_id_live_uniq" ON "trips" USING btree ("fulfillment_id") WHERE "trips"."fulfillment_id" is not null and "trips"."status" <> 'CANCELED';--> statement-breakpoint
-CREATE INDEX "trips_shipment_without_fulfillment_live_uniq" ON "trips" USING btree ("shipment_id") WHERE "trips"."shipment_id" is not null and "trips"."fulfillment_id" is null and "trips"."status" <> 'CANCELED';--> statement-breakpoint
+CREATE UNIQUE INDEX "trips_id_fulfillment_uniq_idx" ON "trips" USING btree ("id","fulfillment_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "trips_fulfillment_id_live_uniq" ON "trips" USING btree ("fulfillment_id") WHERE "trips"."fulfillment_id" is not null and "trips"."status" <> 'CANCELED';--> statement-breakpoint
+CREATE UNIQUE INDEX "trips_shipment_without_fulfillment_live_uniq" ON "trips" USING btree ("shipment_id") WHERE "trips"."shipment_id" is not null and "trips"."fulfillment_id" is null and "trips"."status" <> 'CANCELED';--> statement-breakpoint
 CREATE INDEX "truck_cap_table_truck_effective_idx" ON "truck_cap_table" USING btree ("truck_id","effective_date");--> statement-breakpoint
-CREATE INDEX "truck_financial_profile_versions_truck_month_uniq" ON "truck_financial_profile_versions" USING btree ("truck_id","effective_from");--> statement-breakpoint
-CREATE INDEX "truck_financial_profile_versions_governance_action_uniq" ON "truck_financial_profile_versions" USING btree ("governance_action_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "truck_financial_profile_versions_truck_month_uniq" ON "truck_financial_profile_versions" USING btree ("truck_id","effective_from");--> statement-breakpoint
+CREATE UNIQUE INDEX "truck_financial_profile_versions_governance_action_uniq" ON "truck_financial_profile_versions" USING btree ("governance_action_id");--> statement-breakpoint
 CREATE INDEX "truck_financial_profile_versions_lookup_idx" ON "truck_financial_profile_versions" USING btree ("truck_id","effective_from","created_at");--> statement-breakpoint
-CREATE INDEX "user_business_unit_links_user_unit_uniq_idx" ON "user_business_unit_links" USING btree ("user_id","business_unit_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "user_business_unit_links_user_unit_uniq_idx" ON "user_business_unit_links" USING btree ("user_id","business_unit_id");--> statement-breakpoint
 CREATE INDEX "user_business_unit_links_user_idx" ON "user_business_unit_links" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "user_business_unit_links_business_unit_idx" ON "user_business_unit_links" USING btree ("business_unit_id");--> statement-breakpoint
-CREATE INDEX "user_customer_links_user_customer_uniq_idx" ON "user_customer_links" USING btree ("user_id","customer_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "user_customer_links_user_customer_uniq_idx" ON "user_customer_links" USING btree ("user_id","customer_id");--> statement-breakpoint
 CREATE INDEX "user_customer_links_user_idx" ON "user_customer_links" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "user_customer_links_customer_idx" ON "user_customer_links" USING btree ("customer_id");--> statement-breakpoint
-CREATE INDEX "user_shipment_links_user_shipment_uniq_idx" ON "user_shipment_links" USING btree ("user_id","shipment_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "user_shipment_links_user_shipment_uniq_idx" ON "user_shipment_links" USING btree ("user_id","shipment_id");--> statement-breakpoint
 CREATE INDEX "user_shipment_links_user_idx" ON "user_shipment_links" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "user_shipment_links_shipment_idx" ON "user_shipment_links" USING btree ("shipment_id");--> statement-breakpoint
 CREATE INDEX "weight_pricing_tiers_route_cargo_date_idx" ON "weight_pricing_tiers" USING btree ("route_id","cargo_type_id","effective_date");

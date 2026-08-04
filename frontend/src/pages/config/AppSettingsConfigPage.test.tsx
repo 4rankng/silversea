@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   FinancialReportingPolicyState,
   TruckFinancialProfileState,
-} from '@tingting/shared/src/schemas/financial-reporting-policy';
+} from '@tingting/shared';
 
 const mocks = vi.hoisted(() => ({
   saveAppSettings: vi.fn(),

@@ -158,6 +158,8 @@ async function createOwnedFulfillmentTrip(
     driverSalary: '250000',
     totalFuelCost: '0',
     carrierType: 'OWN',
+    paperOrderCollectedAt: new Date('2026-08-01T07:30:00.000Z'),
+    paperOrderCollectedBy: 900001,
   }).returning();
   createdTripIds.push(trip.id);
   await db.insert(s.tripExpenseCompletionScopes).values({
@@ -356,6 +358,30 @@ describe('Phase 4 driver fulfillment execution', () => {
       .from(s.driverProgressEvents)
       .where(eq(s.driverProgressEvents.tripId, trip.id));
     assert.equal(Number(total ?? 0), 1);
+  });
+
+  test('driver cannot confirm order receipt before Ops hands over the paper order', async () => {
+    const actor = await createDriverPrincipal('paper-order-gate');
+    const { fulfillment, trip } = await createOwnedFulfillmentTrip(actor.driver.id);
+
+    await db.update(s.trips)
+      .set({
+        paperOrderCollectedAt: null,
+        paperOrderCollectedBy: null,
+      })
+      .where(eq(s.trips.id, trip.id));
+
+    await assertApiError(409, () => recordDriverFulfillmentProgress({
+      fulfillmentId: fulfillment.id,
+      driverId: actor.driver.id,
+      recordedBy: actor.user.id,
+      idempotencyKey: `paper-order-gate-${suffix}`,
+      input: {
+        eventType: DriverProgressEventType.ORDER_RECEIVED,
+        occurredAt: '2026-08-01T08:05:00.000Z',
+        expectedVersion: trip.version,
+      },
+    }), /Ops chưa xác nhận giao lệnh gốc/);
   });
 
   test('receiving an assigned order starts the driver-owned fulfillment', async () => {

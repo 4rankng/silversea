@@ -569,8 +569,8 @@ describe('Q15 shared governance foundation', () => {
     assert.equal(listed[0]!.subjectKey, targetSubjectKey);
   });
 
-  it('keeps database actor separation as a final invariant', async () => {
-    await assert.rejects(db.insert(s.governanceActions).values({
+  it('keeps application-owned actor separation as the final invariant', async () => {
+    const [action] = await db.insert(s.governanceActions).values({
       subjectType: 'TRIP',
       subjectId: nextSubjectId++,
       actionKind: 'TRIP_AR_ADJUSTMENT',
@@ -580,13 +580,20 @@ describe('Q15 shared governance foundation', () => {
       afterSnapshot: {},
       makerId: actors[0]!.id,
       makerRole: Role.ACCOUNTANT,
-      checkerId: actors[0]!.id,
-      checkerRole: Role.ACCOUNTANT,
-    }), (error: unknown) => {
-      const cause = (error as { cause?: { message?: string } }).cause;
-      assert.match(cause?.message ?? '', /governance_actions_distinct_checker_check/);
-      return true;
-    });
+    }).returning();
+    actionIds.push(action.id);
+
+    await assert.rejects(
+      () => checkGovernanceAction({
+        actionId: action.id,
+        checkerId: actors[0]!.id,
+        checkerRole: Role.ACCOUNTANT,
+        expectedVersion: action.version,
+      }),
+      (error: unknown) => error instanceof ApiError
+        && error.statusCode === 403
+        && /người (tạo|lập)/i.test(error.message),
+    );
   });
 
   it('prevents duplicate active proposals for future subject-id action kinds', async () => {

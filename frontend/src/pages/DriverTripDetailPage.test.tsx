@@ -20,6 +20,7 @@ const {
   useDriverTaskDetailMock,
   useDriverTaskProgressMock,
   useDriverEvidenceStatusMock,
+  awaitAccurateSampleMock,
   commandsMock,
   enqueueMock,
   drainMock,
@@ -28,6 +29,7 @@ const {
   useDriverTaskDetailMock: vi.fn(),
   useDriverTaskProgressMock: vi.fn(),
   useDriverEvidenceStatusMock: vi.fn(),
+  awaitAccurateSampleMock: vi.fn(),
   commandsMock: vi.fn<() => MockOfflineCommand[]>(() => []),
   enqueueMock: vi.fn(),
   drainMock: vi.fn(),
@@ -50,6 +52,12 @@ vi.mock('../hooks/useBackShortcut', () => ({
 
 vi.mock('../hooks/useOnline', () => ({
   useOnline: () => true,
+}));
+
+vi.mock('../hooks/useGeolocation', () => ({
+  useGeolocation: () => ({
+    awaitAccurateSample: awaitAccurateSampleMock,
+  }),
 }));
 
 vi.mock('../hooks/useAuth', () => ({
@@ -108,6 +116,10 @@ function makeTaskDetail() {
       contactPhone: '0909000001',
       notes: 'Vào cổng số 2',
     },
+    fuelEvidenceReviews: [],
+    paperOrderCollectedAt: '2026-08-01T07:45:00.000Z',
+    paperOrderCollectedBy: 12,
+    paperOrderCollectedByName: 'Ops điều độ',
     containers: [{ id: 1, containerNumber: 'MSCU1234561', sealNumber: 'SEAL-9', containerTypeId: 1, containerTypeName: '40FT', containerTypeCode: '40G1', cargoWeightKg: null }],
     legs: [],
     fulfillment: {
@@ -167,6 +179,13 @@ describe('DriverTripDetailPage', () => {
     enqueueMock.mockReset();
     drainMock.mockReset();
     toastMock.mockReset();
+    awaitAccurateSampleMock.mockReset();
+    awaitAccurateSampleMock.mockResolvedValue({
+      lat: 10.77,
+      lng: 106.69,
+      accuracy: 12,
+      timestamp: Date.now(),
+    });
     drainMock.mockResolvedValue({ done: 0, failed: 0, conflicts: 0 });
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail(),

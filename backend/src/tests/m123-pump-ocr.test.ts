@@ -8,7 +8,7 @@
  */
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { crossCheckPumpReading } from '../services/ocr.service';
+import { classifyPumpReadingValues, crossCheckPumpReading } from '../services/ocr.service';
 
 describe('M12.3 — crossCheckPumpReading', () => {
   test('exact match → no mismatch', () => {
@@ -65,5 +65,24 @@ describe('M12.3 — crossCheckPumpReading', () => {
     const { mismatch } = crossCheckPumpReading(42.04, 25000, 1_000_000);
     // 42.04 × 25000 = 1,051,000
     assert.equal(mismatch, true, '5.1% exceeds tolerance');
+  });
+
+  test('partial readings are anomalies, not accepted OCR', () => {
+    const result = classifyPumpReadingValues(50, 25000, null);
+    assert.equal(result.outcome, 'ANOMALY');
+    assert.equal(result.success, true);
+    assert.equal(result.litres, 50);
+    assert.equal(result.unitPrice, 25000);
+    assert.equal(result.total, null);
+  });
+
+  test('non-positive numeric values are anomalies, not accepted OCR', () => {
+    const zeroTotal = classifyPumpReadingValues(50, 25000, 0);
+    assert.equal(zeroTotal.outcome, 'ANOMALY');
+    assert.equal(zeroTotal.success, true);
+
+    const negativeLitres = classifyPumpReadingValues(-1, 25000, 1000);
+    assert.equal(negativeLitres.outcome, 'ANOMALY');
+    assert.equal(negativeLitres.success, true);
   });
 });

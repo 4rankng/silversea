@@ -39,7 +39,7 @@ describe('treasury authority invariants', () => {
     );
   });
 
-  it('current schema keeps canonical source uniqueness while versioning append-only reversals', async () => {
+  it('current schema keeps canonical source uniqueness without a database-owned relationship', async () => {
     const indexRows = await client<{ indexname: string; indexdef: string }[]>`
       select indexname, indexdef
       from pg_indexes
@@ -82,8 +82,8 @@ describe('treasury authority invariants', () => {
     `;
     assert.equal(
       constraintRows.length,
-      1,
-      'expected treasury reversal rows to stay fenced by the self-referential FK',
+      0,
+      'treasury reversal relationships are application-owned and must not create a foreign key',
     );
   });
 });

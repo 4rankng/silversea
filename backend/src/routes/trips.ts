@@ -584,23 +584,15 @@ router.post('/:id/pod-recovered', requireRoles(Role.ACCOUNTANT, Role.CLERK), asy
 // ─── O2C field-ops hand-off timestamps (phase-04) ────────────────────────────
 // Ops (FORWARDER) records the paper-order hand-off; Driver confirms order receipt.
 router.post('/:id/paper-order-collected', requireRoles(Role.FORWARDER), asyncHandler(async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id as string);
-  const [updated] = await db.update(s.trips).set({
-    paperOrderCollectedAt: new Date(),
-    updatedAt: new Date(),
-  }).where(eq(s.trips.id, id)).returning();
-  if (!updated) throw new ApiError(404, 'Không tìm thấy chuyến đi');
-  res.json({ tripId: updated.id, paperOrderCollectedAt: updated.paperOrderCollectedAt });
+  res.status(410).json({
+    error: 'Đường dẫn này đã ngừng dùng. Vui lòng dùng xác nhận bàn giao lệnh gốc trong cổng FORWARDER theo chuyến được giao.',
+  });
 }));
 
 router.post('/:id/driver-order-accepted', requireRoles(Role.DRIVER), asyncHandler(async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id as string);
-  const [updated] = await db.update(s.trips).set({
-    driverOrderAcceptedAt: new Date(),
-    updatedAt: new Date(),
-  }).where(eq(s.trips.id, id)).returning();
-  if (!updated) throw new ApiError(404, 'Không tìm thấy chuyến đi');
-  res.json({ tripId: updated.id, driverOrderAcceptedAt: updated.driverOrderAcceptedAt });
+  res.status(410).json({
+    error: 'Đường dẫn này đã ngừng dùng. Tài xế phải dùng mốc "Đã nhận lệnh gốc" trong cổng DRIVER để ghi nhận theo chuỗi chuẩn.',
+  });
 }));
 
 // Reassign truck/driver (only for CREATED trips)

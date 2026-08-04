@@ -5,11 +5,30 @@ import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import { recordedTripRevenue, getPnlReport } from './pnl.service';
+import { resolveFinancialReportingPolicyForMonth } from './financial-reporting-policy.service';
 
 export const PROFITABILITY_DIMENSIONS = [
   'CUSTOMER', 'ROUTE', 'TRUCK', 'DISPATCHER', 'SALESPERSON', 'MONTH', 'YEAR', 'CONTAINER',
 ] as const;
 export type ProfitabilityDimension = typeof PROFITABILITY_DIMENSIONS[number];
+export type LowMarginState = 'LOW_MARGIN' | 'OK' | 'UNCONFIGURED' | 'NOT_COMPARABLE';
+const MAX_PROFITABILITY_GROUPS = 5_000;
+
+export function classifyLowMargin(input: {
+  revenue: number;
+  profit: number;
+  thresholdRatio: number | null;
+}): { marginRatio: number | null; alertState: LowMarginState } {
+  if (!Number.isFinite(input.revenue) || input.revenue <= 0) {
+    return { marginRatio: null, alertState: 'NOT_COMPARABLE' };
+  }
+  const marginRatio = input.profit / input.revenue;
+  if (input.thresholdRatio == null) return { marginRatio, alertState: 'UNCONFIGURED' };
+  return {
+    marginRatio,
+    alertState: marginRatio < input.thresholdRatio ? 'LOW_MARGIN' : 'OK',
+  };
+}
 
 function vietnamBusinessDate(value: Date): string {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -182,21 +201,27 @@ export async function getProfitabilityReport(input: {
   dimension: ProfitabilityDimension | 'VEHICLE';
   page?: number;
   limit?: number;
-}) {
+  lowMarginOnly?: boolean;
+  /** Internal export override; HTTP callers remain capped by route pagination. */
+  internalLimit?: number;
+}, q: typeof db | Tx = db) {
   const dimension = input.dimension === 'VEHICLE' ? 'TRUCK' : input.dimension;
   if (!PROFITABILITY_DIMENSIONS.includes(dimension)) throw new ApiError(400, 'Chiều báo cáo lợi nhuận không hợp lệ');
   const page = Math.max(1, input.page ?? 1);
-  const limit = Math.min(100, Math.max(1, input.limit ?? 50));
+  const maximumLimit = input.internalLimit ?? 100;
+  const limit = Math.min(maximumLimit, Math.max(1, input.limit ?? 50));
   const start = `${input.year}-${String(input.month).padStart(2, '0')}-01`;
   const nextMonth = input.month === 12 ? 1 : input.month + 1;
   const nextYear = input.month === 12 ? input.year + 1 : input.year;
   const end = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
+  const policy = await resolveFinancialReportingPolicyForMonth({ month: input.month, year: input.year }, q);
+  const thresholdRatio = policy.lowMarginThresholdRatio;
   const reportScope = and(
     eq(s.profitabilitySnapshotDimensions.dimension, dimension),
     gte(s.profitabilitySnapshots.completedBusinessDate, start),
     lt(s.profitabilitySnapshots.completedBusinessDate, end),
   );
-  const rows = await db.select({
+  const groupedRows = await q.select({
     key: s.profitabilitySnapshotDimensions.dimensionKey,
     label: s.profitabilitySnapshotDimensions.dimensionLabel,
     attributionStatus: s.profitabilitySnapshotDimensions.attributionStatus,
@@ -205,6 +230,7 @@ export async function getProfitabilityReport(input: {
     sharedOverhead: sql<string>`sum(${s.profitabilitySnapshots.sharedOverhead}::numeric)`,
     profit: sql<string>`sum(${s.profitabilitySnapshots.profit}::numeric)`,
     tripCount: sql<number>`count(*)`,
+    tripIds: sql<number[]>`array_agg(distinct ${s.profitabilitySnapshots.tripId})`,
   }).from(s.profitabilitySnapshots)
     .innerJoin(s.profitabilitySnapshotDimensions, eq(s.profitabilitySnapshotDimensions.snapshotId, s.profitabilitySnapshots.id))
     .innerJoin(s.tripFinancialPostings, and(
@@ -217,14 +243,11 @@ export async function getProfitabilityReport(input: {
       s.profitabilitySnapshotDimensions.dimensionLabel,
       s.profitabilitySnapshotDimensions.attributionStatus,
     )
-    .orderBy(
-      desc(sql`sum(${s.profitabilitySnapshots.profit}::numeric)`),
-      asc(s.profitabilitySnapshotDimensions.dimensionKey),
-      asc(s.profitabilitySnapshotDimensions.dimensionLabel),
-      asc(s.profitabilitySnapshotDimensions.attributionStatus),
-    )
-    .limit(limit).offset((page - 1) * limit);
-  const [aggregate] = await db.select({
+    .limit(MAX_PROFITABILITY_GROUPS + 1);
+  if (groupedRows.length > MAX_PROFITABILITY_GROUPS) {
+    throw new ApiError(409, `Báo cáo vượt quá ${MAX_PROFITABILITY_GROUPS.toLocaleString('vi-VN')} nhóm. Vui lòng thu hẹp kỳ hoặc chiều phân tích.`);
+  }
+  const [aggregate] = await q.select({
     revenue: sql<string>`coalesce(sum(${s.profitabilitySnapshots.revenue}::numeric), 0)`,
     directCost: sql<string>`coalesce(sum(${s.profitabilitySnapshots.directCost}::numeric), 0)`,
     sharedOverhead: sql<string>`coalesce(sum(${s.profitabilitySnapshots.sharedOverhead}::numeric), 0)`,
@@ -239,16 +262,56 @@ export async function getProfitabilityReport(input: {
       eq(s.tripFinancialPostings.status, 'ACTIVE'),
     ))
     .where(reportScope);
-  const pnl = await getPnlReport(input.month, input.year);
+  const pnl = await getPnlReport(input.month, input.year, q);
+  const fleetAllocationByTrip = new Map(
+    pnl.tripDetails.map((trip) => [trip.id, Number(trip.allocatedFleetFixedCost ?? 0)]),
+  );
+  const projectedRows = groupedRows.map((row) => {
+    const allocatedFleetFixedCost = row.tripIds.reduce(
+      (sum, tripId) => sum + (fleetAllocationByTrip.get(Number(tripId)) ?? 0),
+      0,
+    );
+    const revenue = Number(row.revenue);
+    const directCost = Number(row.directCost);
+    const sharedOverhead = Number(row.sharedOverhead) + allocatedFleetFixedCost;
+    const profit = Number(row.profit) - allocatedFleetFixedCost;
+    return {
+      key: row.key,
+      label: row.label,
+      attributionStatus: row.attributionStatus,
+      revenue,
+      directCost,
+      sharedOverhead,
+      allocatedFleetFixedCost,
+      profit,
+      tripCount: Number(row.tripCount),
+      sourceTripIds: row.tripIds.map(Number).sort((a, b) => a - b).slice(0, 20),
+      ...classifyLowMargin({ revenue, profit, thresholdRatio }),
+      attributionNote: row.attributionStatus === 'MISSING'
+        ? 'Thiếu chiều phân bổ nguồn; số liệu vẫn giữ đúng chuyến và chi phí đội xe đã phân bổ.'
+        : 'Biên lợi nhuận gồm chi phí trực tiếp và chi phí đội xe được phân bổ theo doanh thu chuyến đã ghi nhận.',
+    };
+  }).sort((a, b) => (
+    b.profit - a.profit
+    || String(a.key).localeCompare(String(b.key))
+    || String(a.label).localeCompare(String(b.label))
+    || String(a.attributionStatus).localeCompare(String(b.attributionStatus))
+  ));
+  const filteredRows = input.lowMarginOnly
+    ? (thresholdRatio == null ? [] : projectedRows.filter((row) => row.alertState === 'LOW_MARGIN'))
+    : projectedRows;
+  const rows = filteredRows.slice((page - 1) * limit, page * limit);
+  const allocatedFleetFixedCost = projectedRows.reduce((sum, row) => sum + row.allocatedFleetFixedCost, 0);
   const totals = {
     revenue: Number(aggregate?.revenue ?? 0),
     directCost: Number(aggregate?.directCost ?? 0),
-    sharedOverhead: Number(aggregate?.sharedOverhead ?? 0),
-    profit: Number(aggregate?.profit ?? 0),
+    sharedOverhead: Number(aggregate?.sharedOverhead ?? 0) + allocatedFleetFixedCost,
+    profit: Number(aggregate?.profit ?? 0) - allocatedFleetFixedCost,
   };
-  const totalGroups = Number(aggregate?.totalGroups ?? 0);
+  const totalGroups = filteredRows.length;
   const unallocatedSharedOverhead = Number(pnl.maintenanceExpensesTotal ?? 0)
-    + Number(pnl.companyExpenses ?? 0);
+    + Number(pnl.companyExpenses ?? 0)
+    + Number(pnl.unallocatedFleetFixedCostTotal ?? 0);
   const otherIncome = Number(pnl.otherIncome ?? 0);
   const reportedNetProfit = totals.profit - unallocatedSharedOverhead + otherIncome;
   const expectedNetProfit = Number(pnl.netProfit);
@@ -260,13 +323,36 @@ export async function getProfitabilityReport(input: {
     limit,
     totalGroups,
     totalPages: Math.max(1, Math.ceil(totalGroups / limit)),
-    items: rows.map(row => ({ ...row, tripCount: Number(row.tripCount) })),
+    items: rows,
     totals,
+    lowMarginPolicy: {
+      status: policy.status,
+      source: policy.source,
+      policyVersionId: policy.policyVersionId,
+      publicVersion: policy.publicVersion,
+      effectiveFrom: policy.effectiveFrom,
+      thresholdRatio,
+      thresholdPercent: policy.lowMarginThresholdPercent,
+      filter: input.lowMarginOnly ? 'LOW_MARGIN' : 'ALL',
+      totals: classifyLowMargin({
+        revenue: totals.revenue,
+        profit: totals.profit,
+        thresholdRatio,
+      }),
+      note: policy.status === 'UNCONFIGURED'
+        ? 'Chưa cấu hình ngưỡng cảnh báo biên lợi nhuận cho kỳ báo cáo.'
+        : 'Cảnh báo chỉ phân loại báo cáo; không thay đổi doanh thu, chi phí hoặc lợi nhuận đã ghi nhận.',
+    },
     unallocated: {
       key: 'SHARED_OVERHEAD',
       label: 'Chi phí dùng chung chưa phân bổ',
       amount: unallocatedSharedOverhead,
       otherIncome,
+      components: {
+        maintenance: Number(pnl.maintenanceExpensesTotal ?? 0),
+        companyExpenses: Number(pnl.companyExpenses ?? 0),
+        fleetFixedCost: Number(pnl.unallocatedFleetFixedCostTotal ?? 0),
+      },
     },
     sourceCoverage: {
       snapshottedTrips: Number(aggregate?.snapshottedTrips ?? 0),
@@ -278,10 +364,10 @@ export async function getProfitabilityReport(input: {
       reportedNetProfit,
       difference: reportedNetProfit - expectedNetProfit,
       status: Math.abs(reportedNetProfit - expectedNetProfit) <= 1 ? 'RECONCILED' : 'PARTIAL',
-      note: 'Chi phí dùng chung được giữ trong nhóm SHARED_OVERHEAD, không phân bổ vào chiều trực tiếp.',
+      note: 'Chi phí đội xe phân bổ theo doanh thu chuyến nằm trong từng nhóm; phần chưa phân bổ, bảo dưỡng và chi phí công ty được giữ riêng.',
     },
   };
-  const definitionVersion = 'profitability-v2';
+  const definitionVersion = 'profitability-v4';
   return {
     ...payload,
     asOf: new Date().toISOString(),
@@ -292,4 +378,71 @@ export async function getProfitabilityReport(input: {
       .update(JSON.stringify({ definitionVersion, payload }))
       .digest('hex'),
   };
+}
+
+export async function exportProfitabilityReport(input: {
+  month: number;
+  year: number;
+  dimension: ProfitabilityDimension | 'VEHICLE';
+  lowMarginOnly?: boolean;
+}): Promise<Buffer> {
+  const first = await db.transaction(async (tx) => getProfitabilityReport({
+      ...input,
+      page: 1,
+      limit: MAX_PROFITABILITY_GROUPS,
+      internalLimit: MAX_PROFITABILITY_GROUPS,
+    }, tx), { isolationLevel: 'repeatable read', accessMode: 'read only' });
+  const items = first.items;
+
+  const ExcelJSModule = await import('exceljs');
+  const ExcelJS = (ExcelJSModule as unknown as { default?: typeof ExcelJSModule }).default ?? ExcelJSModule;
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('Lợi nhuận');
+  sheet.columns = [
+    { header: 'Nhóm phân tích', key: 'label', width: 28 },
+    { header: 'Số chuyến', key: 'tripCount', width: 14 },
+    { header: 'Mã chuyến nguồn', key: 'sourceTripIds', width: 28 },
+    { header: 'Doanh thu', key: 'revenue', width: 20 },
+    { header: 'Chi phí trực tiếp', key: 'directCost', width: 20 },
+    { header: 'Chi phí đội xe phân bổ', key: 'allocatedFleetFixedCost', width: 22 },
+    { header: 'Lợi nhuận', key: 'profit', width: 20 },
+    { header: 'Biên lợi nhuận', key: 'marginRatio', width: 18 },
+    { header: 'Phân loại cảnh báo', key: 'alertState', width: 24 },
+    { header: 'Tình trạng phân bổ', key: 'attributionStatus', width: 22 },
+    { header: 'Ghi chú nguồn', key: 'attributionNote', width: 48 },
+  ];
+  for (const item of items) {
+    sheet.addRow({
+      label: item.label ?? 'Thiếu phân bổ',
+      tripCount: item.tripCount,
+      sourceTripIds: item.sourceTripIds.join(', '),
+      revenue: Number(item.revenue),
+      directCost: Number(item.directCost),
+      allocatedFleetFixedCost: item.allocatedFleetFixedCost,
+      profit: Number(item.profit),
+      marginRatio: item.marginRatio,
+      alertState: ({
+        LOW_MARGIN: 'Biên lợi nhuận thấp',
+        OK: 'Đạt ngưỡng',
+        UNCONFIGURED: 'Chưa cấu hình ngưỡng',
+        NOT_COMPARABLE: 'Không thể so sánh',
+      } as const)[item.alertState],
+      attributionStatus: item.attributionStatus === 'MISSING' ? 'Thiếu phân bổ' : 'Đã phân bổ',
+      attributionNote: item.attributionNote,
+    });
+  }
+  sheet.getRow(1).font = { bold: true };
+  sheet.getColumn('revenue').numFmt = '#,##0';
+  sheet.getColumn('directCost').numFmt = '#,##0';
+  sheet.getColumn('allocatedFleetFixedCost').numFmt = '#,##0';
+  sheet.getColumn('profit').numFmt = '#,##0';
+  sheet.getColumn('marginRatio').numFmt = '0.0%';
+  sheet.addRow([]);
+  sheet.addRow(['Ngưỡng cảnh báo', first.lowMarginPolicy.thresholdRatio]);
+  sheet.addRow(['Phiên bản chính sách', first.lowMarginPolicy.publicVersion ?? 'Chưa cấu hình']);
+  sheet.addRow(['Phiên bản định nghĩa', first.definitionVersion]);
+  sheet.addRow(['Thời điểm dữ liệu', first.asOf]);
+  sheet.addRow(['Mã đối chiếu', first.checksum]);
+  sheet.addRow(['Ghi chú', first.lowMarginPolicy.note]);
+  return Buffer.from(await workbook.xlsx.writeBuffer());
 }

@@ -4,6 +4,7 @@ import { eq, and, isNull, desc, sql, count, gte, lte, or } from 'drizzle-orm';
 import { getTripInstructions } from './trip-instructions.service';
 import type { Tx } from './trip-shared';
 import { ApiError } from '../errors';
+import { listFuelEvidenceReviewsForTrip } from './fuel-evidence-review.service';
 
 /**
  * Derived payment/approval status for a forwarder trip row, used for row
@@ -215,6 +216,7 @@ export async function getForwarderTripDetail(tripId: number, forwarderId: number
     id: s.trips.id,
     tripCode: s.trips.tripCode,
     shipmentId: s.trips.shipmentId,
+    version: s.trips.version,
     departureDate: s.trips.departureDate,
     status: s.trips.status,
     routeName: s.routes.name,
@@ -233,11 +235,15 @@ export async function getForwarderTripDetail(tripId: number, forwarderId: number
       )
     )`,
     notes: s.trips.notes,
+    paperOrderCollectedAt: s.trips.paperOrderCollectedAt,
+    paperOrderCollectedBy: s.trips.paperOrderCollectedBy,
+    paperOrderCollectedByName: s.users.fullName,
   }).from(s.trips)
     .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
     .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
     .leftJoin(s.customers, eq(s.trips.customerId, s.customers.id))
     .leftJoin(s.cargoTypes, eq(s.trips.cargoTypeId, s.cargoTypes.id))
+    .leftJoin(s.users, eq(s.users.id, s.trips.paperOrderCollectedBy))
     .where(and(
       eq(s.trips.id, tripId),
       isNull(s.trips.deletedAt),
@@ -311,7 +317,10 @@ export async function getForwarderTripDetail(tripId: number, forwarderId: number
     .where(eq(s.tripExpenses.tripId, tripId))
     .orderBy(desc(s.tripExpenses.createdAt));
 
-  const instructions = await getTripInstructions(tripId);
+  const [instructions, fuelEvidenceReviews] = await Promise.all([
+    getTripInstructions(tripId),
+    listFuelEvidenceReviewsForTrip(tripId),
+  ]);
 
   const storedScopes = await db.select({
     tripId: s.tripExpenseCompletionScopes.tripId,
@@ -348,5 +357,5 @@ export async function getForwarderTripDetail(tripId: number, forwarderId: number
     total: containers.length,
   };
 
-  return { ...trip, legs, containers, expenses, completionScopes, completionProgress, instructions };
+  return { ...trip, legs, containers, expenses, completionScopes, completionProgress, instructions, fuelEvidenceReviews };
 }

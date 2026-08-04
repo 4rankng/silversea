@@ -8,7 +8,7 @@ import {
   type FinancialReportingPolicyState,
   type TruckFinancialProfileRequest,
   type TruckFinancialProfileState,
-} from '@tingting/shared/src/schemas/financial-reporting-policy';
+} from '@tingting/shared';
 import { ApiError } from '../errors';
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -56,6 +56,29 @@ export function currentVietnamMonthStart(now: Date = new Date()): string {
   return `${year}-${String(month).padStart(2, '0')}-01`;
 }
 
+export interface FinancialReportMonthRef {
+  month: number;
+  year: number;
+}
+
+export interface FinancialReportingPolicyForMonth {
+  reportMonth: FinancialReportMonthRef;
+  reportMonthStart: string;
+  status: 'CONFIGURED' | 'UNCONFIGURED';
+  source: 'APPROVED_GOVERNANCE' | 'UNCONFIGURED';
+  publicVersion: string | null;
+  policyVersionId: number | null;
+  effectiveFrom: string | null;
+  lowMarginThresholdRatio: number | null;
+  lowMarginThresholdPercent: number | null;
+  depreciationMethod: 'STRAIGHT_LINE' | null;
+  allocationBasis: 'COMPLETED_TRIP_REVENUE_SHARE' | null;
+}
+
+function monthStartFromPeriod(period: FinancialReportMonthRef): string {
+  return `${period.year}-${String(period.month).padStart(2, '0')}-01`;
+}
+
 function monthKey(date: string): { year: number; month: number } {
   return {
     year: Number(date.slice(0, 4)),
@@ -100,19 +123,42 @@ function truckSubjectKey(truckId: number, effectiveFrom: string): string {
   return `${TRUCK_FINANCIAL_PROFILE_RESOURCE}:${truckId}:${effectiveFrom}`;
 }
 
-function reportingCacheEffects(actionId: number, effectiveFrom: string): DurableEffectInput[] {
-  const { month, year } = monthKey(effectiveFrom);
-  const keys = [
+export const REPORTING_CACHE_INVALIDATION_HORIZON_MONTHS = 36;
+
+function addMonths(monthStart: string, delta: number): string {
+  const year = Number(monthStart.slice(0, 4));
+  const monthIndex = Number(monthStart.slice(5, 7)) - 1;
+  const totalMonths = (year * 12) + monthIndex + delta;
+  const nextYear = Math.floor(totalMonths / 12);
+  const nextMonth = (totalMonths % 12) + 1;
+  return `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
+}
+
+export function reportingCacheKeysFrom(
+  effectiveFrom: string,
+  horizonMonths: number = REPORTING_CACHE_INVALIDATION_HORIZON_MONTHS,
+  now: Date = new Date(),
+): string[] {
+  const keys = new Set<string>([
     'reports:dashboard',
     'reports:dashboard:executive',
-    `reports:pnl:${month}:${year}`,
-    `reports:fuel-variance:${month}:${year}`,
-    `reports:dashboard-widgets:${month}:${year}`,
-  ];
-  if (effectiveFrom === currentVietnamMonthStart()) {
-    keys.push('reports:dashboard-widgets:current:');
+  ]);
+  const totalMonths = Math.max(1, horizonMonths);
+  for (let offset = 0; offset < totalMonths; offset += 1) {
+    const targetMonthStart = addMonths(effectiveFrom, offset);
+    const { month, year } = monthKey(targetMonthStart);
+    keys.add(`reports:pnl:${month}:${year}`);
+    keys.add(`reports:fuel-variance:${month}:${year}`);
+    keys.add(`reports:dashboard-widgets:${month}:${year}`);
   }
-  return keys.map((key) => ({
+  if (effectiveFrom === currentVietnamMonthStart(now)) {
+    keys.add('reports:dashboard-widgets:current:');
+  }
+  return [...keys];
+}
+
+export function reportingCacheEffects(actionId: number, effectiveFrom: string): DurableEffectInput[] {
+  return reportingCacheKeysFrom(effectiveFrom).map((key) => ({
     kind: DURABLE_EFFECT_KIND.CACHE_INVALIDATE,
     payloadVersion: 1,
     dedupeKey: `cache-invalidate:${key}:governance-action:${actionId}`,
@@ -221,6 +267,48 @@ export async function getFinancialReportingPolicyState(
     history,
     pendingRequest,
   });
+}
+
+export async function resolveFinancialReportingPolicyForMonth(
+  period: FinancialReportMonthRef,
+  q: typeof db | Tx = db,
+): Promise<FinancialReportingPolicyForMonth> {
+  const reportMonthStart = monthStartFromPeriod(period);
+  const rows = await q.select({
+    id: s.financialReportingPolicyVersions.id,
+    effectiveFrom: s.financialReportingPolicyVersions.effectiveFrom,
+    lowMarginThresholdRatio: s.financialReportingPolicyVersions.lowMarginThresholdRatio,
+    depreciationMethod: s.financialReportingPolicyVersions.depreciationMethod,
+    allocationBasis: s.financialReportingPolicyVersions.allocationBasis,
+    createdAt: s.financialReportingPolicyVersions.createdAt,
+  })
+    .from(s.financialReportingPolicyVersions)
+    .orderBy(
+      desc(s.financialReportingPolicyVersions.effectiveFrom),
+      desc(s.financialReportingPolicyVersions.createdAt),
+    );
+
+  const resolved = rows.find((row) => row.effectiveFrom <= reportMonthStart) ?? null;
+
+  return {
+    reportMonth: period,
+    reportMonthStart,
+    status: resolved ? 'CONFIGURED' : 'UNCONFIGURED',
+    source: resolved ? 'APPROVED_GOVERNANCE' : 'UNCONFIGURED',
+    publicVersion: resolved?.createdAt?.toISOString() ?? null,
+    policyVersionId: resolved?.id ?? null,
+    effectiveFrom: resolved?.effectiveFrom ?? null,
+    lowMarginThresholdRatio: resolved?.lowMarginThresholdRatio == null
+      ? null
+      : Number(resolved.lowMarginThresholdRatio),
+    lowMarginThresholdPercent: toNullablePercent(resolved?.lowMarginThresholdRatio ?? null),
+    depreciationMethod: resolved?.depreciationMethod === 'STRAIGHT_LINE'
+      ? 'STRAIGHT_LINE'
+      : null,
+    allocationBasis: resolved?.allocationBasis === 'COMPLETED_TRIP_REVENUE_SHARE'
+      ? 'COMPLETED_TRIP_REVENUE_SHARE'
+      : null,
+  };
 }
 
 export async function getTruckFinancialProfileState(

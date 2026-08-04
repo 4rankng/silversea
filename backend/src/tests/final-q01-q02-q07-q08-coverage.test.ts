@@ -319,7 +319,7 @@ after(async () => {
 
 describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
   test('Q01 persists global default and customer override into live credit override snapshots', async () => {
-    const readSettings = await request<Awaited<ReturnType<typeof getAppSettings>> & { updatedAt: string }>(
+    const readSettings = await request<Awaited<ReturnType<typeof getAppSettings>> & { updatedAt: string | null }>(
       '/api/admin/app-settings/',
       {
       token: adminToken,
@@ -331,7 +331,7 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
       method: 'PUT',
       token: adminToken,
       idempotencyKey: addIdempotencyKey(`final-q01-settings-${suffix}`),
-      expectedUpdatedAt: String(readSettings.body.updatedAt),
+      expectedUpdatedAt: readSettings.body.updatedAt ?? undefined,
       body: {
         ...originalSettings,
         creditWarningThresholdDefault: 0.67,

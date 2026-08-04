@@ -28,6 +28,7 @@ const REVIEWED_NON_MATERIAL_MUTATIONS = new Map<string, string>([
   ['financial/reports.routes.ts|POST|/reports/distribute-profit/preview', 'Read-only calculation preview.'],
   ['financial/billing-documents.routes.ts|POST|/finance/billing-documents/generate', 'Read-only draft generation preview.'],
   ['forwarder.ts|POST|/advance-settlements/preview', 'Read-only settlement calculation preview.'],
+  ['shipments.ts|POST|/pricing-preview', 'Read-only shipment pricing calculation preview.'],
   ['notifications.ts|POST|/:id/read', 'Per-user notification read marker.'],
   ['notifications.ts|POST|/read-all', 'Per-user notification read markers.'],
   ['notifications.ts|POST|/subscribe', 'Replaceable per-user browser push subscription.'],
@@ -89,6 +90,14 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     serviceFile: path.resolve(process.cwd(), 'src/services/driver.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_INCIDENTAL_COST',
   }],
+  ['driver.ts|POST|/trips/:tripId/fuel-evidence', {
+    serviceFile: path.resolve(process.cwd(), 'src/routes/driver.ts'),
+    marker: 'DRIVER_IDEMPOTENCY_ENDPOINTS.FUEL_EVIDENCE_CREATE',
+  }],
+  ['forwarder.ts|POST|/trips/:tripId/paper-order-collection', {
+    serviceFile: path.resolve(process.cwd(), 'src/routes/forwarder.ts'),
+    marker: 'FORWARDER_IDEMPOTENCY_ENDPOINTS.PAPER_ORDER_COLLECTION',
+  }],
   ['financial/payments.routes.ts|POST|/finance/treasury/accounts/setup', {
     serviceFile: path.resolve(process.cwd(), 'src/services/treasury.service.ts'),
     marker: 'export async function requestTreasuryAccountSetup(',
@@ -104,6 +113,10 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
   ['portal/index.ts|POST|/shipments/:id/customer-events/:eventId/acknowledge', {
     serviceFile: path.resolve(process.cwd(), 'src/services/shipment-coordination.service.ts'),
     marker: 'export async function acknowledgeCustomerVisibleEvent(',
+  }],
+  ['ocr.ts|POST|/fuel-evidence-reviews/:id/decision', {
+    serviceFile: path.resolve(process.cwd(), 'src/routes/ocr.ts'),
+    marker: 'ocr.fuel-evidence-reviews.decision',
   }],
   ['shipments.ts|POST|/:id/customer-events', {
     serviceFile: path.resolve(process.cwd(), 'src/services/shipment-coordination.service.ts'),

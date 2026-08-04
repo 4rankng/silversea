@@ -89,6 +89,12 @@ export const milestoneTypeEnum = applicationEnum([
 export const emailStatusEnum = applicationEnum([
   'PENDING', 'SENT', 'FAILED', 'OPENED',
 ]);
+export const fuelEvidenceOcrOutcomeEnum = applicationEnum([
+  'ACCEPTED', 'UNREADABLE', 'MULTI_SCREEN', 'NON_PUMP', 'ANOMALY',
+]);
+export const fuelEvidenceReviewStatusEnum = applicationEnum([
+  'PENDING', 'CONFIRMED', 'REJECTED',
+]);
 
 // ─── Config tables ───────────────────────────────────────────────────────────
 
@@ -168,7 +174,7 @@ export const drivers = pgTable('drivers', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
 }, (table) => [
-  index('drivers_active_user_uniq_idx')
+  uniqueIndex('drivers_active_user_uniq_idx')
     .on(table.userId)
     .where(sql`${table.userId} is not null and ${table.deletedAt} is null`),
 ]);
@@ -181,7 +187,7 @@ export const partners = pgTable('partners', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
-  index('partners_normalized_tax_code_uniq_idx').on(table.normalizedTaxCode),
+  uniqueIndex('partners_normalized_tax_code_uniq_idx').on(table.normalizedTaxCode),
 ]);
 
 // Defined before customers to allow customers.linkedSupplierId to reference suppliers.id directly.
@@ -296,13 +302,13 @@ export const customers = pgTable('customers', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
 }, (table) => [
-  index('customers_active_name_tax_code_uniq_idx')
+  uniqueIndex('customers_active_name_tax_code_uniq_idx')
     .on(
       sql`lower(btrim(${table.name}))`,
       sql`coalesce(nullif(lower(btrim(${table.taxCode})), ''), '')`,
     )
     .where(sql`${table.deletedAt} is null`),
-  index('customers_active_tax_code_uniq_idx')
+  uniqueIndex('customers_active_tax_code_uniq_idx')
     .on(sql`lower(btrim(${table.taxCode}))`)
     .where(sql`${table.deletedAt} is null and nullif(btrim(${table.taxCode}), '') is not null`),
   index('customers_partner_idx').on(table.partnerId),
@@ -323,7 +329,7 @@ export const businessCalendarDays = pgTable('business_calendar_days', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
-  index('business_calendar_days_date_uniq_idx').on(table.calendarDate),
+  uniqueIndex('business_calendar_days_date_uniq_idx').on(table.calendarDate),
 ]);
 
 export const userCustomerLinks = pgTable('user_customer_links', {
@@ -333,7 +339,7 @@ export const userCustomerLinks = pgTable('user_customer_links', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
-  index('user_customer_links_user_customer_uniq_idx').on(table.userId, table.customerId),
+  uniqueIndex('user_customer_links_user_customer_uniq_idx').on(table.userId, table.customerId),
   index('user_customer_links_user_idx').on(table.userId),
   index('user_customer_links_customer_idx').on(table.customerId),
 ]);
@@ -346,7 +352,7 @@ export const businessUnits = pgTable('business_units', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
-  index('business_units_name_uniq_idx').on(table.name),
+  uniqueIndex('business_units_name_uniq_idx').on(table.name),
   index('business_units_status_idx').on(table.status),
 ]);
 
@@ -358,7 +364,7 @@ export const userBusinessUnitLinks = pgTable('user_business_unit_links', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
-  index('user_business_unit_links_user_unit_uniq_idx').on(table.userId, table.businessUnitId),
+  uniqueIndex('user_business_unit_links_user_unit_uniq_idx').on(table.userId, table.businessUnitId),
   index('user_business_unit_links_user_idx').on(table.userId),
   index('user_business_unit_links_business_unit_idx').on(table.businessUnitId),
 ]);
@@ -402,13 +408,13 @@ export const pricingTables = pgTable('pricing_tables', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
 }, (table) => [
-  index('pricing_tables_general_date_idx')
+  uniqueIndex('pricing_tables_general_date_idx')
     .on(table.customerId, table.routeId, table.effectiveDate)
     .where(sql`${table.containerTypeId} is null and ${table.rateKey} is null`),
-  index('pricing_tables_container_date_idx')
+  uniqueIndex('pricing_tables_container_date_idx')
     .on(table.customerId, table.routeId, table.containerTypeId, table.effectiveDate)
     .where(sql`${table.containerTypeId} is not null and ${table.rateKey} is null`),
-  index('pricing_tables_rate_key_date_idx')
+  uniqueIndex('pricing_tables_rate_key_date_idx')
     .on(table.customerId, table.routeId, table.rateKey, table.effectiveDate)
     .where(sql`${table.containerTypeId} is null and ${table.rateKey} is not null`),
 ]);
@@ -422,7 +428,7 @@ export const roadAllowances = pgTable('road_allowances', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
 }, (table) => [
-  index('road_allowances_route_type_idx').on(table.routeId, table.trailerType),
+  uniqueIndex('road_allowances_route_type_idx').on(table.routeId, table.trailerType),
 ]);
 
 export const fuelConfig = pgTable('fuel_config', {
@@ -503,7 +509,7 @@ export const liftPricing = pgTable('lift_pricing', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
 }, (table) => [
-  index('lift_pricing_port_type_state_dir_date_uniq').on(table.portId, table.containerTypeId, table.direction, table.loadState, table.effectiveDate),
+  uniqueIndex('lift_pricing_port_type_state_dir_date_uniq').on(table.portId, table.containerTypeId, table.direction, table.loadState, table.effectiveDate),
 ]);
 
 // M2.5: ancillary (non-transport) revenue. Each entry is recorded exactly
@@ -552,7 +558,7 @@ export const fuelSurchargeConfigs = pgTable('fuel_surcharge_configs', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
 }, (table) => [
-  index('fuel_surcharge_customer_active_uniq').on(table.customerId).where(sql`${table.deletedAt} is null`),
+  uniqueIndex('fuel_surcharge_customer_active_uniq').on(table.customerId).where(sql`${table.deletedAt} is null`),
 ]);
 
 // M12.1: per-route / per-truck fuel norms. Replaces the singleton fuel_config
@@ -741,6 +747,7 @@ export const trips = pgTable('trips', {
   // O2C field ops hand-off timestamps (Phase 4): Ops paper-order collected +
   // Driver order-accepted. Nullable; populated by the FORWARDER/DRIVER endpoints.
   paperOrderCollectedAt: timestamp('paper_order_collected_at', { withTimezone: true }),
+  paperOrderCollectedBy: integer('paper_order_collected_by'),
   driverOrderAcceptedAt: timestamp('driver_order_accepted_at', { withTimezone: true }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -752,23 +759,23 @@ export const trips = pgTable('trips', {
   index('trips_departure_date_idx').on(table.departureDate),
   index('trips_customer_departure_idx').on(table.customerId, table.departureDate),
   index('trips_active_trip_pair_idx').on(table.activeTripPairId),
-  index('trips_active_trip_pair_order_uniq')
+  uniqueIndex('trips_active_trip_pair_order_uniq')
     .on(table.activeTripPairId, table.activeTripPairOrder)
     .where(sql`${table.activeTripPairId} is not null`),
   // Wave 0: look up a shipment's trips.
   index('trips_shipment_id_idx').on(table.shipmentId),
   index('trips_fulfillment_id_idx').on(table.fulfillmentId),
-  index('trips_id_fulfillment_uniq_idx').on(table.id, table.fulfillmentId),
+  uniqueIndex('trips_id_fulfillment_uniq_idx').on(table.id, table.fulfillmentId),
   // A fulfillment is the independently dispatchable authority. Multiple live
   // trips may belong to one shipment only when they reference distinct
   // fulfillments; canceled history does not prevent a governed replacement.
-  index('trips_fulfillment_id_live_uniq')
+  uniqueIndex('trips_fulfillment_id_live_uniq')
     .on(table.fulfillmentId)
     .where(sql`${table.fulfillmentId} is not null and ${table.status} <> 'CANCELED'`),
   // Until every trip-create surface supplies a fulfillment, an unassigned
   // live trip still reserves the shipment. This prevents the nullable column
   // from bypassing the one-active-trip-per-dispatch-unit invariant.
-  index('trips_shipment_without_fulfillment_live_uniq')
+  uniqueIndex('trips_shipment_without_fulfillment_live_uniq')
     .on(table.shipmentId)
     .where(sql`${table.shipmentId} is not null and ${table.fulfillmentId} is null and ${table.status} <> 'CANCELED'`),
 ]);
@@ -791,7 +798,7 @@ export const tripPairs = pgTable('trip_pairs', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
-  index('trip_pairs_trip_order_uniq_idx').on(table.firstTripId, table.secondTripId),
+  uniqueIndex('trip_pairs_trip_order_uniq_idx').on(table.firstTripId, table.secondTripId),
   index('trip_pairs_status_idx').on(table.status, table.createdAt),
 ]);
 
@@ -823,11 +830,11 @@ export const tripFinancialPostings = pgTable('trip_financial_postings', {
   effectiveAt: timestamp('effective_at', { withTimezone: true }).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
-  index('trip_financial_postings_trip_version_uniq').on(table.tripId, table.version),
-  index('trip_financial_postings_trip_active_uniq')
+  uniqueIndex('trip_financial_postings_trip_version_uniq').on(table.tripId, table.version),
+  uniqueIndex('trip_financial_postings_trip_active_uniq')
     .on(table.tripId)
     .where(sql`${table.status} = 'ACTIVE'`),
-  index('trip_financial_postings_supersedes_uniq')
+  uniqueIndex('trip_financial_postings_supersedes_uniq')
     .on(table.supersedesId)
     .where(sql`${table.supersedesId} is not null`),
   index('trip_financial_postings_trip_status_idx').on(table.tripId, table.status),
@@ -862,7 +869,7 @@ export const ledger = pgTable('ledger', {
   index('ledger_entity_entity_id_idx').on(table.entityType, table.entityId, table.id),
   index('ledger_entity_txn_timestamp_idx').on(table.entityType, table.txnType, table.timestamp),
   index('ledger_financial_posting_idx').on(table.financialPostingId),
-  index('ledger_forwarder_settlement_once_idx')
+  uniqueIndex('ledger_forwarder_settlement_once_idx')
     .on(table.txnType, table.txnId, table.entityType, table.entityId)
     .where(sql`${table.txnType} = 'FORWARDER_SETTLEMENT'`),
 ]);
@@ -979,7 +986,7 @@ export const billingDocuments = pgTable('billing_documents', {
   deletedAt: timestamp('deleted_at'),
 }, (table) => [
   index('billing_documents_entity_idx').on(table.entityType, table.entityId),
-  index('billing_documents_active_period_unique')
+  uniqueIndex('billing_documents_active_period_unique')
     .on(table.type, table.entityType, table.entityId, table.rangeFrom, table.rangeTo)
     .where(sql`${table.deletedAt} IS NULL AND ${table.type} = 'DEBIT_NOTE'`),
 ]);
@@ -1005,7 +1012,7 @@ export const periodLocks = pgTable('period_locks', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
-  index('period_locks_domain_scope_period_uniq')
+  uniqueIndex('period_locks_domain_scope_period_uniq')
     .on(table.domain, table.scopeType, table.scopeId, table.periodKey),
   index('period_locks_lookup_idx').on(
     table.domain,
@@ -1072,10 +1079,10 @@ export const governanceActions = pgTable('governance_actions', {
     table.createdAt,
   ),
   index('governance_actions_status_idx').on(table.status, table.createdAt),
-  index('governance_actions_active_subject_key_uniq')
+  uniqueIndex('governance_actions_active_subject_key_uniq')
     .on(table.subjectType, table.subjectKey, table.actionKind, table.originalVersion)
     .where(sql`${table.subjectKey} is not null and ${table.status} in ('PENDING_CHECK', 'PENDING_APPROVAL', 'RETURNED_FOR_EVIDENCE')`),
-  index('governance_actions_active_subject_id_uniq')
+  uniqueIndex('governance_actions_active_subject_id_uniq')
     .on(table.subjectType, table.subjectId, table.actionKind, table.originalVersion)
     .where(sql`${table.subjectId} is not null and ${table.actionKind} not in ('TRIP_AR_ADJUSTMENT', 'TRIP_REOPEN') and ${table.status} in ('PENDING_CHECK', 'PENDING_APPROVAL', 'RETURNED_FOR_EVIDENCE')`),
 ]);
@@ -1094,9 +1101,9 @@ export const financialReportingPolicyVersions = pgTable('financial_reporting_pol
     .notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
-  index('financial_reporting_policy_versions_effective_from_uniq')
+  uniqueIndex('financial_reporting_policy_versions_effective_from_uniq')
     .on(table.effectiveFrom),
-  index('financial_reporting_policy_versions_governance_action_uniq')
+  uniqueIndex('financial_reporting_policy_versions_governance_action_uniq')
     .on(table.governanceActionId),
   index('financial_reporting_policy_versions_effective_lookup_idx')
     .on(table.effectiveFrom, table.createdAt),
@@ -1121,9 +1128,9 @@ export const truckFinancialProfileVersions = pgTable('truck_financial_profile_ve
     .notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
-  index('truck_financial_profile_versions_truck_month_uniq')
+  uniqueIndex('truck_financial_profile_versions_truck_month_uniq')
     .on(table.truckId, table.effectiveFrom),
-  index('truck_financial_profile_versions_governance_action_uniq')
+  uniqueIndex('truck_financial_profile_versions_governance_action_uniq')
     .on(table.governanceActionId),
   index('truck_financial_profile_versions_lookup_idx')
     .on(table.truckId, table.effectiveFrom, table.createdAt),
@@ -1142,7 +1149,7 @@ export const billingDocumentSourcePeriodLocks = pgTable('billing_document_source
     .notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => [
-  index('billing_document_source_period_locks_doc_period_uniq')
+  uniqueIndex('billing_document_source_period_locks_doc_period_uniq')
     .on(table.documentId, table.periodLockId),
   index('billing_document_source_period_locks_period_idx').on(table.periodLockId),
 ]);
@@ -1173,7 +1180,7 @@ export const billingDocumentTripClaims = pgTable('billing_document_trip_claims',
   releasedBy: integer('released_by'),
   releaseReason: varchar('release_reason', { length: 32 }),
 }, (table) => [
-  index('billing_document_trip_claims_document_trip_active_uniq')
+  uniqueIndex('billing_document_trip_claims_document_trip_active_uniq')
     .on(table.documentId, table.tripId)
     .where(sql`${table.releasedAt} is null`),
   index('billing_document_trip_claims_document_idx').on(table.documentId),
@@ -1230,7 +1237,7 @@ export const billingDocumentRecoverableClaims = pgTable('billing_document_recove
   releasedBy: integer('released_by'),
   releaseReason: varchar('release_reason', { length: 32 }),
 }, (table) => [
-  index('billing_document_recoverable_claims_expense_active_uniq')
+  uniqueIndex('billing_document_recoverable_claims_expense_active_uniq')
     .on(table.expenseId)
     .where(sql`${table.releasedAt} is null`),
   index('billing_document_recoverable_claims_document_idx').on(table.documentId),
@@ -1247,7 +1254,7 @@ export const billingDocumentDisputes = pgTable('billing_document_disputes', {
   idempotencyKey: varchar('idempotency_key', { length: 100 }).notNull(),
   disputedAt: timestamp('disputed_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
-  index('billing_document_disputes_idempotency_uniq').on(table.idempotencyKey),
+  uniqueIndex('billing_document_disputes_idempotency_uniq').on(table.idempotencyKey),
   index('billing_document_disputes_document_idx').on(table.documentId, table.disputedAt),
 ]);
 
@@ -1363,7 +1370,7 @@ export const salaryConfirmations = pgTable('salary_confirmations', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
-  index('salary_confirmations_driver_period_idx').on(table.driverId, table.year, table.month),
+  uniqueIndex('salary_confirmations_driver_period_idx').on(table.driverId, table.year, table.month),
 ]);
 
 export const salaryPeriods = pgTable('salary_periods', {
@@ -1573,7 +1580,7 @@ export const tripInstructions = pgTable('trip_instructions', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
-  index('trip_instructions_trip_id_unq').on(table.tripId),
+  uniqueIndex('trip_instructions_trip_id_unq').on(table.tripId),
 ]);
 
 export const tripExpenses = pgTable('trip_expenses', {
@@ -1660,7 +1667,7 @@ export const fuelInvoices = pgTable('fuel_invoices', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
   index('fuel_invoices_supplier_idx').on(table.supplierId, table.invoiceDate),
-  index('fuel_invoices_supplier_invoice_uniq_idx')
+  uniqueIndex('fuel_invoices_supplier_invoice_uniq_idx')
     .on(
       table.supplierId,
       sql`lower(btrim(${table.invoiceNumber}))`,
@@ -1686,10 +1693,10 @@ export const fuelInvoiceAllocations = pgTable('fuel_invoice_allocations', {
 }, (table) => [
   index('fuel_invoice_allocations_invoice_idx').on(table.fuelInvoiceId),
   index('fuel_invoice_allocations_truck_idx').on(table.truckId, table.voucherDate),
-  index('fuel_invoice_allocations_trip_expense_uniq_idx')
+  uniqueIndex('fuel_invoice_allocations_trip_expense_uniq_idx')
     .on(table.tripExpenseId)
     .where(sql`${table.tripExpenseId} is not null`),
-  index('fuel_invoice_allocations_invoice_voucher_uniq_idx')
+  uniqueIndex('fuel_invoice_allocations_invoice_voucher_uniq_idx')
     .on(table.fuelInvoiceId, table.tripId, table.voucherReference),
 ]);
 
@@ -1705,6 +1712,55 @@ export const tripExpensePhotos = pgTable('trip_expense_photos', {
   index('trip_expense_photos_storage_key_idx').on(table.storageKey),
 ]);
 
+export const fuelEvidenceReviews = pgTable('fuel_evidence_reviews', {
+  id: serial('id').primaryKey(),
+  tripId: integer('trip_id').notNull(),
+  ownerDriverId: integer('owner_driver_id').notNull(),
+  ownerUserId: integer('owner_user_id').notNull(),
+  storageKey: varchar('storage_key', { length: 255 }).notNull(),
+  storageHash: varchar('storage_hash', { length: 64 }).notNull(),
+  originalFileName: varchar('original_file_name', { length: 255 }),
+  mimeType: varchar('mime_type', { length: 120 }).notNull(),
+  sizeBytes: integer('size_bytes').notNull(),
+  capturedAt: timestamp('captured_at', { withTimezone: true }).defaultNow().notNull(),
+  latitude: numeric('latitude', { precision: 10, scale: 7 }),
+  longitude: numeric('longitude', { precision: 10, scale: 7 }),
+  gpsAccuracy: numeric('gps_accuracy', { precision: 8, scale: 2 }),
+  gpsAltitude: numeric('gps_altitude', { precision: 8, scale: 2 }),
+  gpsAt: timestamp('gps_at', { withTimezone: true }),
+  geotagSource: varchar('geotag_source', { length: 20 }),
+  geotagSampleCount: integer('geotag_sample_count'),
+  geotagBestAccuracy: numeric('geotag_best_accuracy', { precision: 8, scale: 2 }),
+  geotagElapsedMs: integer('geotag_elapsed_ms'),
+  ocrOutcome: fuelEvidenceOcrOutcomeEnum('ocr_outcome').notNull(),
+  reviewStatus: fuelEvidenceReviewStatusEnum('review_status').notNull().default('PENDING'),
+  confidence: numeric('confidence', { precision: 5, scale: 4 }),
+  reviewRequired: boolean('review_required').notNull().default(true),
+  litres: numeric('litres', { precision: 12, scale: 3 }),
+  unitPrice: numeric('unit_price', { precision: 15, scale: 0 }),
+  totalAmount: numeric('total_amount', { precision: 15, scale: 0 }),
+  computedTotal: numeric('computed_total', { precision: 15, scale: 0 }),
+  mismatch: boolean('mismatch').notNull().default(false),
+  anomalyCode: varchar('anomaly_code', { length: 40 }),
+  anomalyReason: text('anomaly_reason'),
+  ocrProvider: varchar('ocr_provider', { length: 40 }),
+  ocrModel: varchar('ocr_model', { length: 100 }),
+  ocrError: text('ocr_error'),
+  reviewerId: integer('reviewer_id'),
+  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+  reviewNote: text('review_note'),
+  createdBy: integer('created_by').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  version: integer('version').notNull().default(1),
+}, (table) => [
+  uniqueIndex('fuel_evidence_reviews_trip_owner_hash_uniq').on(table.tripId, table.ownerDriverId, table.storageHash),
+  index('fuel_evidence_reviews_trip_idx').on(table.tripId, table.reviewStatus),
+  index('fuel_evidence_reviews_owner_idx').on(table.ownerDriverId, table.createdAt),
+  index('fuel_evidence_reviews_review_queue_idx').on(table.reviewStatus, table.createdAt),
+  index('fuel_evidence_reviews_storage_key_idx').on(table.storageKey),
+]);
+
 export const tripExpenseCompletionScopes = pgTable('trip_expense_completion_scopes', {
   id: serial('id').primaryKey(),
   tripId: integer('trip_id').notNull(),
@@ -1716,8 +1772,8 @@ export const tripExpenseCompletionScopes = pgTable('trip_expense_completion_scop
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
-  index('trip_expense_scope_container_unq').on(table.tripContainerId).where(sql`${table.tripContainerId} IS NOT NULL`),
-  index('trip_expense_scope_general_unq').on(table.tripId).where(sql`${table.tripContainerId} IS NULL`),
+  uniqueIndex('trip_expense_scope_container_unq').on(table.tripContainerId).where(sql`${table.tripContainerId} IS NOT NULL`),
+  uniqueIndex('trip_expense_scope_general_unq').on(table.tripId).where(sql`${table.tripContainerId} IS NULL`),
   index('trip_expense_scope_trip_idx').on(table.tripId),
 ]);
 
@@ -1754,8 +1810,8 @@ export const advanceSettlements = pgTable('advance_settlements', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
-  index('advance_settlements_code_unique_idx').on(table.code),
-  index('advance_settlements_auto_offset_expense_uniq')
+  uniqueIndex('advance_settlements_code_unique_idx').on(table.code),
+  uniqueIndex('advance_settlements_auto_offset_expense_uniq')
     .on(table.autoOffsetExpenseId)
     .where(sql`${table.autoOffsetExpenseId} IS NOT NULL`),
 ]);
@@ -1768,7 +1824,7 @@ export const advanceSettlementRequests = pgTable('advance_settlement_requests', 
   // settlements while its unallocated residual remains outstanding.
   allocatedAmount: numeric('allocated_amount', { precision: 15, scale: 0 }).default('0').notNull(),
 }, (table) => [
-  index('adv_settlement_req_unique_idx').on(table.settlementId, table.advanceRequestId),
+  uniqueIndex('adv_settlement_req_unique_idx').on(table.settlementId, table.advanceRequestId),
   index('adv_settlement_req_request_idx').on(table.advanceRequestId),
 ]);
 
@@ -1785,7 +1841,7 @@ export const settlementExpenses = pgTable('settlement_expenses', {
   adjustedBy: integer('adjusted_by'),
   adjustedAt: timestamp('adjusted_at'),
 }, (table) => [
-  index('settlement_expense_unique_idx').on(table.settlementId, table.tripExpenseId),
+  uniqueIndex('settlement_expense_unique_idx').on(table.settlementId, table.tripExpenseId),
   index('settlement_expense_trip_expense_idx').on(table.tripExpenseId),
 ]);
 
@@ -1814,7 +1870,7 @@ export const settlementExpenseAdjustments = pgTable('settlement_expense_adjustme
   approvedBy: integer('approved_by'),
   approvedAt: timestamp('approved_at', { withTimezone: true }),
 }, (table) => [
-  index('settlement_expense_adjustments_link_sequence_uniq')
+  uniqueIndex('settlement_expense_adjustments_link_sequence_uniq')
     .on(table.settlementExpenseId, table.sequence),
   index('settlement_expense_adjustments_settlement_idx')
     .on(table.settlementId, table.adjustedAt),
@@ -1835,7 +1891,7 @@ export const driverWorkDays = pgTable('driver_work_days', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
-  index('driver_work_days_driver_date_idx').on(table.driverId, table.date),
+  uniqueIndex('driver_work_days_driver_date_idx').on(table.driverId, table.date),
   index('driver_work_days_driver_idx').on(table.driverId),
 ]);
 
@@ -1916,7 +1972,7 @@ export const routePolylines = pgTable('route_polylines', {
   derivedAt: timestamp('derived_at', { withTimezone: true }).defaultNow().notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
-  index('route_polylines_uniq_idx').on(table.originCleaned, table.destinationCleaned),
+  uniqueIndex('route_polylines_uniq_idx').on(table.originCleaned, table.destinationCleaned),
 ]);
 
 /**
@@ -1951,7 +2007,7 @@ export const tripGpsTracks = pgTable('trip_gps_tracks', {
   capturedAt: timestamp('captured_at', { withTimezone: true }).defaultNow().notNull(),
   errorKind: varchar('error_kind', { length: 32 }),
 }, (table) => [
-  index('trip_gps_tracks_trip_uniq_idx').on(table.tripId),
+  uniqueIndex('trip_gps_tracks_trip_uniq_idx').on(table.tripId),
   index('trip_gps_tracks_route_idx').on(table.routeId),
   index('trip_gps_tracks_truck_ended_idx').on(table.truckId, table.endedAt),
 ]);
@@ -1978,7 +2034,7 @@ export const tripGpsCaptureJobs = pgTable('trip_gps_capture_jobs', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
-  index('trip_gps_capture_jobs_action_uniq_idx').on(table.governanceActionId),
+  uniqueIndex('trip_gps_capture_jobs_action_uniq_idx').on(table.governanceActionId),
   index('trip_gps_capture_jobs_retry_idx').on(table.status, table.nextAttemptAt),
 ]);
 
@@ -2004,7 +2060,7 @@ export const durableEffectJobs = pgTable('durable_effect_jobs', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
-  index('durable_effect_jobs_kind_dedupe_uniq_idx').on(table.kind, table.dedupeKey),
+  uniqueIndex('durable_effect_jobs_kind_dedupe_uniq_idx').on(table.kind, table.dedupeKey),
   index('durable_effect_jobs_due_idx').on(table.status, table.nextAttemptAt, table.id),
   index('durable_effect_jobs_lease_idx').on(table.status, table.leaseExpiresAt),
 ]);
@@ -2063,7 +2119,7 @@ export const pushSubscriptions = pgTable('push_subscriptions', {
   deviceType: varchar('device_type', { length: 20 }).default('web').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => [
-  index('push_sub_user_endpoint_idx').on(table.userId, table.endpoint),
+  uniqueIndex('push_sub_user_endpoint_idx').on(table.userId, table.endpoint),
   index('push_sub_user_idx').on(table.userId),
 ]);
 
@@ -2209,7 +2265,7 @@ export const photoGeotags = pgTable('photo_geotags', {
 }, (table) => [
   // Application locking plus lookup enforces one geotag per photo and keeps
   // resubmission idempotent.
-  index('photo_geotags_entity_uniq').on(table.entityType, table.entityId),
+  uniqueIndex('photo_geotags_entity_uniq').on(table.entityType, table.entityId),
 ]);
 
 // ─── Scheduler (Wave 0) ─────────────────────────────────────────────────────
@@ -2318,10 +2374,10 @@ export const operationalSites = pgTable('operational_sites', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
 }, (table) => [
-  index('operational_sites_customer_code_uniq_idx')
+  uniqueIndex('operational_sites_customer_code_uniq_idx')
     .on(table.customerId, table.code)
     .where(sql`${table.deletedAt} is null`),
-  index('operational_sites_customer_id_id_uniq_idx').on(table.customerId, table.id),
+  uniqueIndex('operational_sites_customer_id_id_uniq_idx').on(table.customerId, table.id),
   index('operational_sites_customer_type_idx').on(table.customerId, table.siteType, table.isActive),
 ]);
 
@@ -2342,7 +2398,7 @@ export const masterImportBatches = pgTable('master_import_batches', {
   analyzedAt: timestamp('analyzed_at', { withTimezone: true }).defaultNow().notNull(),
   appliedAt: timestamp('applied_at', { withTimezone: true }),
 }, (table) => [
-  index('master_import_batches_hash_parser_uniq_idx')
+  uniqueIndex('master_import_batches_hash_parser_uniq_idx')
     .on(table.sourceFileHash, table.parserVersion),
 ]);
 
@@ -2362,7 +2418,7 @@ export const masterImportRowResults = pgTable('master_import_row_results', {
   appliedEntityId: integer('applied_entity_id'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
-  index('master_import_rows_batch_sheet_row_uniq_idx')
+  uniqueIndex('master_import_rows_batch_sheet_row_uniq_idx')
     .on(table.batchId, table.sheetName, table.rowNumber),
   index('master_import_rows_batch_class_idx').on(table.batchId, table.classification),
 ]);
@@ -2409,7 +2465,7 @@ export const shipments = pgTable('shipments', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
 }, (table) => [
-  index('shipments_id_cargo_mode_uniq_idx').on(table.id, table.cargoMode),
+  uniqueIndex('shipments_id_cargo_mode_uniq_idx').on(table.id, table.cargoMode),
   index('shipments_customer_status_idx').on(table.customerId, table.status),
   index('shipments_route_idx').on(table.routeId),
   index('shipments_responsible_unit_idx').on(table.responsibleUnitId, table.status),
@@ -2503,7 +2559,7 @@ export const shipmentContainers = pgTable('shipment_containers', {
   index('shipment_containers_shipment_id_idx').on(table.shipmentId),
   index('shipment_containers_pickup_port_idx').on(table.pickupPortId),
   index('shipment_containers_dropoff_port_idx').on(table.dropoffPortId),
-  index('shipment_containers_shipment_id_id_uniq_idx').on(table.shipmentId, table.id),
+  uniqueIndex('shipment_containers_shipment_id_id_uniq_idx').on(table.shipmentId, table.id),
 ]);
 
 // Independently dispatchable unit derived from one shipment. Execution state
@@ -2532,15 +2588,15 @@ export const shipmentFulfillments = pgTable('shipment_fulfillments', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
-  index('shipment_fulfillments_shipment_id_id_uniq_idx').on(table.shipmentId, table.id),
+  uniqueIndex('shipment_fulfillments_shipment_id_id_uniq_idx').on(table.shipmentId, table.id),
   index('shipment_fulfillments_shipment_idx').on(table.shipmentId),
-  index('shipment_fulfillments_active_container_uniq_idx')
+  uniqueIndex('shipment_fulfillments_active_container_uniq_idx')
     .on(table.shipmentContainerId)
     .where(sql`${table.shipmentContainerId} is not null and ${table.canceledAt} is null`),
-  index('shipment_fulfillments_active_lcl_uniq_idx')
+  uniqueIndex('shipment_fulfillments_active_lcl_uniq_idx')
     .on(table.shipmentId)
     .where(sql`${table.fulfillmentType} = 'LCL_SHIPMENT' and ${table.canceledAt} is null`),
-  index('shipment_fulfillments_replacement_uniq_idx')
+  uniqueIndex('shipment_fulfillments_replacement_uniq_idx')
     .on(table.replacementFulfillmentId)
     .where(sql`${table.replacementFulfillmentId} is not null`),
 ]);
@@ -2567,16 +2623,16 @@ export const tripPodSubmissions = pgTable('trip_pod_submissions', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
-  index('trip_pod_submissions_trip_id_id_uniq_idx').on(table.tripId, table.id),
-  index('trip_pod_submissions_trip_version_uniq_idx')
+  uniqueIndex('trip_pod_submissions_trip_id_id_uniq_idx').on(table.tripId, table.id),
+  uniqueIndex('trip_pod_submissions_trip_version_uniq_idx')
     .on(table.tripId, table.submissionVersion),
-  index('trip_pod_submissions_supersedes_uniq_idx')
+  uniqueIndex('trip_pod_submissions_supersedes_uniq_idx')
     .on(table.supersedesSubmissionId)
     .where(sql`${table.supersedesSubmissionId} is not null`),
-  index('trip_pod_submissions_open_uniq_idx')
+  uniqueIndex('trip_pod_submissions_open_uniq_idx')
     .on(table.tripId)
     .where(sql`${table.status} in ('DRAFT', 'SUBMITTED')`),
-  index('trip_pod_submissions_accepted_uniq_idx')
+  uniqueIndex('trip_pod_submissions_accepted_uniq_idx')
     .on(table.tripId)
     .where(sql`${table.status} = 'ACCEPTED'`),
   index('trip_pod_submissions_fulfillment_status_idx').on(table.fulfillmentId, table.status),
@@ -2595,8 +2651,8 @@ export const tripPodFiles = pgTable('trip_pod_files', {
   uploadedBy: integer('uploaded_by').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
-  index('trip_pod_files_storage_key_uniq_idx').on(table.storageKey),
-  index('trip_pod_files_required_slot_uniq_idx')
+  uniqueIndex('trip_pod_files_storage_key_uniq_idx').on(table.storageKey),
+  uniqueIndex('trip_pod_files_required_slot_uniq_idx')
     .on(table.submissionId, table.fileType)
     .where(sql`${table.fileType} <> 'TOLL_TICKET'`),
   index('trip_pod_files_submission_idx').on(table.submissionId),
@@ -2609,7 +2665,7 @@ export const userShipmentLinks = pgTable('user_shipment_links', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
-  index('user_shipment_links_user_shipment_uniq_idx').on(table.userId, table.shipmentId),
+  uniqueIndex('user_shipment_links_user_shipment_uniq_idx').on(table.userId, table.shipmentId),
   index('user_shipment_links_user_idx').on(table.userId),
   index('user_shipment_links_shipment_idx').on(table.shipmentId),
 ]);
@@ -2630,13 +2686,13 @@ export const salespersonAssignments = pgTable('salesperson_assignments', {
   changedBy: integer('changed_by').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
-  index('salesperson_assignments_customer_default_active_uniq')
+  uniqueIndex('salesperson_assignments_customer_default_active_uniq')
     .on(table.customerId)
     .where(sql`${table.shipmentId} is null and ${table.effectiveTo} is null`),
-  index('salesperson_assignments_shipment_active_uniq')
+  uniqueIndex('salesperson_assignments_shipment_active_uniq')
     .on(table.shipmentId)
     .where(sql`${table.shipmentId} is not null and ${table.effectiveTo} is null`),
-  index('salesperson_assignments_supersedes_uniq')
+  uniqueIndex('salesperson_assignments_supersedes_uniq')
     .on(table.supersedesAssignmentId)
     .where(sql`${table.supersedesAssignmentId} is not null`),
   index('salesperson_assignments_lookup_idx').on(table.customerId, table.shipmentId, table.effectiveFrom),
@@ -2653,7 +2709,7 @@ export const shipmentChangeRequests = pgTable('shipment_change_requests', {
   afterSnapshot: jsonb('after_snapshot').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
-  index('shipment_change_requests_shipment_version_uniq_idx')
+  uniqueIndex('shipment_change_requests_shipment_version_uniq_idx')
     .on(table.shipmentId, table.sourceVersion),
   index('shipment_change_requests_shipment_created_idx').on(table.shipmentId, table.createdAt),
 ]);
@@ -2682,7 +2738,7 @@ export const shipmentMilestones = pgTable('shipment_milestones', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => [
   index('shipment_milestones_shipment_idx').on(table.shipmentId, table.occurredAt),
-  index('shipment_milestones_trip_type_uniq')
+  uniqueIndex('shipment_milestones_trip_type_uniq')
     .on(table.shipmentId, table.tripId, table.type)
     .where(sql`${table.tripId} is not null`),
 ]);
@@ -2711,8 +2767,8 @@ export const customerVisibleEvents = pgTable('customer_visible_events', {
   occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
-  index('customer_visible_events_key_version_uniq').on(table.eventKey, table.contentVersion),
-  index('customer_visible_events_supersedes_uniq')
+  uniqueIndex('customer_visible_events_key_version_uniq').on(table.eventKey, table.contentVersion),
+  uniqueIndex('customer_visible_events_supersedes_uniq')
     .on(table.supersedesEventId)
     .where(sql`${table.supersedesEventId} is not null`),
   index('customer_visible_events_shipment_idx').on(table.shipmentId, table.occurredAt),
@@ -2730,8 +2786,8 @@ export const customerEventAcknowledgements = pgTable('customer_event_acknowledge
   idempotencyKey: varchar('idempotency_key', { length: 100 }).notNull(),
   acknowledgedAt: timestamp('acknowledged_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
-  index('customer_event_ack_actor_kind_uniq').on(table.eventId, table.acknowledgedBy, table.kind),
-  index('customer_event_ack_idempotency_uniq').on(table.idempotencyKey),
+  uniqueIndex('customer_event_ack_actor_kind_uniq').on(table.eventId, table.acknowledgedBy, table.kind),
+  uniqueIndex('customer_event_ack_idempotency_uniq').on(table.idempotencyKey),
   index('customer_event_ack_customer_idx').on(table.customerId, table.acknowledgedAt),
 ]);
 
@@ -2801,7 +2857,7 @@ export const creditOverrideRequests = pgTable('credit_override_requests', {
 }, (table) => [
   index('credit_override_requests_customer_idx').on(table.customerId, table.status, table.createdAt),
   index('credit_override_requests_shipment_idx').on(table.shipmentId, table.status),
-  index('credit_override_requests_active_shipment_uniq')
+  uniqueIndex('credit_override_requests_active_shipment_uniq')
     .on(table.shipmentId)
     .where(sql`${table.shipmentId} is not null and ${table.status} in ('PENDING', 'APPROVED')`),
 ]);
@@ -2827,7 +2883,7 @@ export const treasuryAccounts = pgTable('treasury_accounts', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
-  index('treasury_accounts_code_uniq').on(table.code),
+  uniqueIndex('treasury_accounts_code_uniq').on(table.code),
   index('treasury_accounts_type_status_idx').on(table.type, table.status),
 ]);
 
@@ -2849,7 +2905,7 @@ export const paymentReceipts = pgTable('payment_receipts', {
   version: integer('version').notNull().default(1),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => [
-  index('payment_receipts_receipt_id_uniq').on(table.receiptId),
+  uniqueIndex('payment_receipts_receipt_id_uniq').on(table.receiptId),
   index('payment_receipts_customer_created_idx').on(table.customerId, table.createdAt),
 ]);
 
@@ -2874,16 +2930,16 @@ export const treasuryMovements = pgTable('treasury_movements', {
   createdBy: integer('created_by').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
-  index('treasury_movements_physical_posted_uniq')
+  uniqueIndex('treasury_movements_physical_posted_uniq')
     .on(table.treasuryAccountId, table.direction, table.physicalReference)
     .where(sql`${table.status} = 'POSTED'`),
-  index('treasury_movements_receipt_posted_uniq')
+  uniqueIndex('treasury_movements_receipt_posted_uniq')
     .on(table.paymentReceiptId)
     .where(sql`${table.paymentReceiptId} is not null and ${table.status} = 'POSTED' and ${table.reversalOfId} is null`),
-  index('treasury_movements_ledger_posted_uniq')
+  uniqueIndex('treasury_movements_ledger_posted_uniq')
     .on(table.ledgerEntryId)
     .where(sql`${table.ledgerEntryId} is not null and ${table.status} = 'POSTED' and ${table.reversalOfId} is null`),
-  index('treasury_movements_reversal_uniq')
+  uniqueIndex('treasury_movements_reversal_uniq')
     .on(table.reversalOfId, table.sourceVersion)
     .where(sql`${table.reversalOfId} is not null`),
   index('treasury_movements_account_date_idx').on(table.treasuryAccountId, table.valueDate),
@@ -2919,10 +2975,10 @@ export const paymentAllocations = pgTable('payment_allocations', {
   index('payment_allocations_document_idx').on(table.billingDocumentId, table.createdAt),
   index('payment_allocations_source_trip_idx').on(table.sourceTripId, table.createdAt),
   index('payment_allocations_receipt_idx').on(table.receiptId),
-  index('payment_allocations_receipt_order_uniq')
+  uniqueIndex('payment_allocations_receipt_order_uniq')
     .on(table.paymentReceiptId, table.allocationOrder)
     .where(sql`${table.paymentReceiptId} is not null`),
-  index('payment_allocations_receipt_target_uniq')
+  uniqueIndex('payment_allocations_receipt_target_uniq')
     .on(
       table.paymentReceiptId,
       table.targetType,
@@ -2947,7 +3003,7 @@ export const paymentRefunds = pgTable('payment_refunds', {
   ledgerEntryId: integer('ledger_entry_id').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
-  index('payment_refunds_governance_action_uniq').on(table.governanceActionId),
+  uniqueIndex('payment_refunds_governance_action_uniq').on(table.governanceActionId),
   index('payment_refunds_receipt_created_idx').on(table.paymentReceiptId, table.createdAt),
 ]);
 
@@ -2983,7 +3039,7 @@ export const salaryPeriodCloses = pgTable('salary_period_closes', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
-  index('salary_period_closes_period_uniq').on(table.period),
+  uniqueIndex('salary_period_closes_period_uniq').on(table.period),
 ]);
 
 export const salaryPeriodAdjustments = pgTable('salary_period_adjustments', {
@@ -3000,7 +3056,7 @@ export const salaryPeriodAdjustments = pgTable('salary_period_adjustments', {
   approvedAt: timestamp('approved_at', { withTimezone: true }).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
-  index('salary_period_adjustments_action_uniq').on(table.governanceActionId),
+  uniqueIndex('salary_period_adjustments_action_uniq').on(table.governanceActionId),
   index('salary_period_adjustments_target_driver_idx').on(table.targetPeriod, table.driverId, table.createdAt),
   index('salary_period_adjustments_source_driver_idx').on(table.sourcePeriod, table.driverId, table.createdAt),
 ]);
@@ -3020,7 +3076,7 @@ export const fuelPeriodAdjustments = pgTable('fuel_period_adjustments', {
   targetPeriod: varchar('target_period', { length: 7 }).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
-  index('fuel_period_adjustments_action_source_uniq')
+  uniqueIndex('fuel_period_adjustments_action_source_uniq')
     .on(table.governanceActionId, table.sourcePeriodLockId),
   index('fuel_period_adjustments_invoice_idx').on(table.fuelInvoiceId, table.createdAt),
   index('fuel_period_adjustments_source_idx').on(table.sourcePeriod, table.createdAt),
@@ -3051,7 +3107,7 @@ export const fuelReconExplanations = pgTable('fuel_recon_explanations', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
-  index('fuel_recon_explanations_supplier_period_uniq')
+  uniqueIndex('fuel_recon_explanations_supplier_period_uniq')
     .on(table.supplierId, table.periodFrom, table.periodTo),
   index('fuel_recon_explanations_supplier_idx').on(table.supplierId),
 ]);
@@ -3111,10 +3167,10 @@ export const dispatchHandoffs = pgTable('dispatch_handoffs', {
   // One active handoff per shipment at a time (UNSEEN or SEEN). ACCEPTED/
   // REJECTED rows are historical; a new handoff can be created after one
   // is resolved.
-  index('dispatch_handoffs_shipment_active_uniq')
+  uniqueIndex('dispatch_handoffs_shipment_active_uniq')
     .on(table.shipmentId)
     .where(sql`${table.status} IN ('UNSEEN', 'SEEN')`),
-  index('dispatch_handoffs_supersedes_uniq')
+  uniqueIndex('dispatch_handoffs_supersedes_uniq')
     .on(table.supersedesHandoffId)
     .where(sql`${table.supersedesHandoffId} is not null`),
 ]);
@@ -3133,7 +3189,7 @@ export const profitabilitySnapshots = pgTable('profitability_snapshots', {
   attributionStatus: varchar('attribution_status', { length: 30 }).notNull(),
   capturedAt: timestamp('captured_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
-  index('profitability_snapshots_posting_uniq').on(table.financialPostingId),
+  uniqueIndex('profitability_snapshots_posting_uniq').on(table.financialPostingId),
   index('profitability_snapshots_business_date_idx').on(table.completedBusinessDate),
 ]);
 
@@ -3147,7 +3203,7 @@ export const profitabilitySnapshotDimensions = pgTable('profitability_snapshot_d
   attributionStatus: varchar('attribution_status', { length: 30 }).notNull(),
   metadata: jsonb('metadata').$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
 }, (table) => [
-  index('profitability_snapshot_dimensions_uniq').on(table.snapshotId, table.dimension),
+  uniqueIndex('profitability_snapshot_dimensions_uniq').on(table.snapshotId, table.dimension),
   index('profitability_snapshot_dimensions_lookup_idx').on(table.dimension, table.dimensionKey),
 ]);
 
@@ -3195,7 +3251,7 @@ export const idempotencyKeys = pgTable('idempotency_keys', {
   createdBy: integer('created_by'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => [
-  index('idempotency_keys_endpoint_key_uniq')
+  uniqueIndex('idempotency_keys_endpoint_key_uniq')
     .on(table.endpoint, table.idempotencyKey),
   index('idempotency_keys_entity_idx').on(table.entityType, table.entityId),
 ]);

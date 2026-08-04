@@ -32,6 +32,7 @@ const TripDetailPage = lazy(() => import('./pages/TripDetailPage'));
 const TripEditPage = lazy(() => import('./pages/TripEditPage'));
 const FinancePage = lazy(() => import('./pages/FinancePage'));
 const AccountingWorkspacePage = lazy(() => import('./pages/AccountingWorkspacePage'));
+const FuelEvidenceReviewPage = lazy(() => import('./pages/FuelEvidenceReviewPage'));
 const TreasuryPositionPage = lazy(() => import('./pages/TreasuryPositionPage'));
 const RecoverableCostsPage = lazy(() => import('./pages/RecoverableCostsPage'));
 const DebtListPage = lazy(() => import('./pages/DebtListPage'));
@@ -165,6 +166,7 @@ export function AppRoutes() {
   );
   // /users is the single home for everyone; accountants get scoped (driver-only) access.
   const officeStaffOnly = (el: ReactElement) => (isAdmin || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT ? el : <Navigate to={homeRedirect} replace />);
+  const accountantOnly = (el: ReactElement) => (user?.role === Role.ACCOUNTANT ? el : <Navigate to={homeRedirect} replace />);
   const shipmentReaderOnly = (el: ReactElement) => (
     canReadShipmentRoutes(user?.role)
       ? el
@@ -228,6 +230,7 @@ export function AppRoutes() {
           <Route path="/trips/:id/edit" element={adminOnly(page(<TripEditPage />))} />
           <Route path="/finance" element={adminOnly(page(<FinancePage />))} />
           <Route path="/accounting" element={officeStaffOnly(page(<AccountingWorkspacePage />))} />
+          <Route path="/accounting/fuel-evidence" element={accountantOnly(page(<FuelEvidenceReviewPage />))} />
           <Route path="/finance/treasury" element={capabilityOnly('treasury.read', financeReaderOnly(page(<TreasuryPositionPage />)))} />
           <Route path="/recoverable-costs" element={capabilityOnly('recoverable_costs.read', recoverableCostOnly(page(<RecoverableCostsPage />)))} />
           <Route path="/profit" element={financeReaderOnly(page(<ProfitPage />))} />

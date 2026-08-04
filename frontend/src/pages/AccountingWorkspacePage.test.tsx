@@ -87,6 +87,7 @@ describe('AccountingWorkspacePage', () => {
     expect(screen.getByRole('link', { name: /Công nợ phải thu/ }).getAttribute('href')).toBe('/debt');
     expect(screen.getByRole('link', { name: /Công nợ phải trả/ }).getAttribute('href')).toBe('/payables');
     expect(screen.getByRole('link', { name: /Báo cáo lãi lỗ/ }).getAttribute('href')).toBe('/finance');
+    expect(screen.getByRole('link', { name: /Soát OCR nhiên liệu/ }).getAttribute('href')).toBe('/accounting/fuel-evidence');
 
     await waitFor(() => expect(screen.getAllByText('15.000.000 ₫').length).toBeGreaterThan(0));
     expect(screen.getByText('3.000.000 ₫')).toBeTruthy();

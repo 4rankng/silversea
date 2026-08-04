@@ -218,6 +218,8 @@ async function createFulfillmentTrip(args: {
     carrierType: 'OWN',
     podRecoveredAt: new Date(),
     podRecoveredBy: args.driverId,
+    paperOrderCollectedAt: new Date('2026-08-01T07:30:00.000Z'),
+    paperOrderCollectedBy: 900001,
   }).returning();
   createdTripIds.push(trip.id);
   await db.insert(s.tripExpenseCompletionScopes).values({
@@ -461,13 +463,17 @@ describe('trip pod review workflow', () => {
 
   test('an unresolved canceled fulfillment blocks closure until a manager marks it not required', async () => {
     const managerUser = await createUser(Role.MANAGER, 'cancel');
+    const clerkUser = await createUser(Role.CLERK, 'cancel');
+    const businessUnit = await createBusinessUnit('cancel');
     const { user: driverUser, driver } = await createDriverPrincipal('cancel');
     const fixture = await createShipmentFixture({
       tag: 'cancel',
       cargoMode: 'FCL',
+      responsibleUnitId: businessUnit.id,
       containerCount: 2,
       fulfillmentCount: 2,
     });
+    await assignClerkScope(clerkUser.id, fixture.customer.id, businessUnit.id);
     const trip = await createFulfillmentTrip({
       tag: 'cancel',
       shipmentId: fixture.shipment.id,
@@ -492,7 +498,7 @@ describe('trip pod review workflow', () => {
       resolution: 'ACCEPT',
       podRecovered: true,
       idempotencyKey: `phase5-review-cancel-${suffix}`,
-      actor: actorFromUser(managerUser),
+      actor: actorFromUser(clerkUser),
     });
     assert.equal(accepted.shipment.status, 'DISPATCHED');
 
@@ -554,12 +560,16 @@ describe('trip pod review workflow', () => {
 
   test('POD approval and fulfillment cancellation serialize without deadlock', async () => {
     const managerUser = await createUser(Role.MANAGER, 'approve-cancel-race');
+    const clerkUser = await createUser(Role.CLERK, 'approve-cancel-race');
+    const businessUnit = await createBusinessUnit('approve-cancel-race');
     const { user: driverUser, driver } = await createDriverPrincipal('approve-cancel-race');
     const fixture = await createShipmentFixture({
       tag: 'approve-cancel-race',
       cargoMode: 'LCL',
+      responsibleUnitId: businessUnit.id,
       fulfillmentCount: 1,
     });
+    await assignClerkScope(clerkUser.id, fixture.customer.id, businessUnit.id);
     const trip = await createFulfillmentTrip({
       tag: 'approve-cancel-race',
       shipmentId: fixture.shipment.id,
@@ -589,9 +599,9 @@ describe('trip pod review workflow', () => {
         submissionId: submitted.id,
         expectedVersion: submitted.version,
         resolution: 'ACCEPT',
-      podRecovered: true,
+        podRecovered: true,
         idempotencyKey: `phase5-review-race-${suffix}`,
-        actor: actorFromUser(managerUser),
+        actor: actorFromUser(clerkUser),
       }),
       cancelShipmentFulfillment({
         shipmentId: fixture.shipment.id,

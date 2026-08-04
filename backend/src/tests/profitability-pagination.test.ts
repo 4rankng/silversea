@@ -10,6 +10,7 @@ const customerIds: number[] = [];
 const tripIds: number[] = [];
 const postingIds: number[] = [];
 const snapshotIds: number[] = [];
+const policyIds: number[] = [];
 let routeId = 0;
 let cargoTypeId = 0;
 
@@ -19,6 +20,16 @@ before(async () => {
   const [cargo] = await db.insert(s.cargoTypes).values({ name: `Profit page cargo ${suffix}` }).returning();
   routeId = route.id;
   cargoTypeId = cargo.id;
+
+  const [policy] = await db.insert(s.financialReportingPolicyVersions).values({
+    effectiveFrom: '2039-01-01',
+    depreciationMethod: 'STRAIGHT_LINE',
+    allocationBasis: 'COMPLETED_TRIP_REVENUE_SHARE',
+    lowMarginThresholdRatio: '0.6500',
+    governanceActionId: 2_000_000_000 + Math.floor(Math.random() * 100_000_000),
+    createdBy: 2_000_000_000,
+  }).returning({ id: s.financialReportingPolicyVersions.id });
+  policyIds.push(policy.id);
 
   const customers = await db.insert(s.customers).values(Array.from({ length: 51 }, (_, index) => ({
     name: `Profit page customer ${String(index + 1).padStart(2, '0')} ${suffix}`,
@@ -124,6 +135,7 @@ after(async () => {
     if (postingIds.length) await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.id, postingIds));
     if (tripIds.length) await db.delete(s.trips).where(inArray(s.trips.id, tripIds));
     if (customerIds.length) await db.delete(s.customers).where(inArray(s.customers.id, customerIds));
+    if (policyIds.length) await db.delete(s.financialReportingPolicyVersions).where(inArray(s.financialReportingPolicyVersions.id, policyIds));
     if (routeId) await db.delete(s.routes).where(inArray(s.routes.id, [routeId]));
     if (cargoTypeId) await db.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, [cargoTypeId]));
   } finally {
@@ -145,15 +157,40 @@ describe('profitability pagination authority', () => {
     assert.deepEqual(second.sourceCoverage, first.sourceCoverage);
     assert.deepEqual(second.reconciliation, first.reconciliation);
     assert.equal(first.timezone, 'Asia/Ho_Chi_Minh');
-    assert.equal(first.definitionVersion, 'profitability-v2');
+    assert.equal(first.definitionVersion, 'profitability-v4');
     assert.equal(first.consistency, 'BEST_EFFORT');
     assert.match(first.checksum, /^[a-f0-9]{64}$/);
     assert.equal(first.sourceCoverage.snapshottedTrips, 52);
     assert.equal(first.totals.revenue, 52_000_000);
     assert.equal(first.totals.profit, 31_200_000);
+    assert.equal(first.lowMarginPolicy.status, 'CONFIGURED');
+    assert.equal(first.lowMarginPolicy.thresholdRatio, 0.65);
+    assert.ok(first.items.every((item) => item.alertState === 'LOW_MARGIN'));
     assert.equal(
       [...first.items, ...second.items].filter(item => item.key === String(customerIds[0])).length,
       2,
     );
+  });
+
+  test('applies the same configured low-margin filter across bounded pages', async () => {
+    const first = await getProfitabilityReport({
+      month: 1, year: 2040, dimension: 'CUSTOMER', page: 1, limit: 50, lowMarginOnly: true,
+    });
+    const second = await getProfitabilityReport({
+      month: 1, year: 2040, dimension: 'CUSTOMER', page: 2, limit: 50, lowMarginOnly: true,
+    });
+    assert.equal(first.totalGroups, 52);
+    assert.equal(first.items.length, 50);
+    assert.equal(second.items.length, 2);
+    assert.ok([...first.items, ...second.items].every((item) => item.alertState === 'LOW_MARGIN'));
+  });
+
+  test('keeps the filtered count authoritative on an empty out-of-range page', async () => {
+    const report = await getProfitabilityReport({
+      month: 1, year: 2040, dimension: 'CUSTOMER', page: 3, limit: 50, lowMarginOnly: true,
+    });
+    assert.equal(report.items.length, 0);
+    assert.equal(report.totalGroups, 52);
+    assert.equal(report.totalPages, 2);
   });
 });

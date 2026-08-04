@@ -676,6 +676,12 @@ export async function extractContainerAndSeal(
 
 const PUMP_PROMPT = `Role: You are an expert OCR assistant specializing in fuel pump displays at Vietnamese petrol stations. Examine the image and extract the fuel pump reading.
 
+First classify the image into exactly one outcome:
+- ACCEPTED: a single fuel-pump display is visible and readable enough to extract a real reading.
+- UNREADABLE: the image is too blurry, dark, cropped, or obstructed to read reliably.
+- MULTI_SCREEN: more than one pump display / receipt-like numeric screen is visible, so the reading is ambiguous.
+- NON_PUMP: the image is not a fuel-pump display.
+
 Extract these values from the pump display:
 - litres: the volume of fuel dispensed (in litres)
 - unit_price: the price per litre (in VND)
@@ -685,20 +691,25 @@ Important notes:
 - Vietnamese pump displays may show amounts with dots as thousand separators (e.g. "25.000" means 25000).
 - Some pumps may not show all three values. Extract only what is visible.
 - Numbers may be partially obscured or blurry — extract the best reading you can.
+- For MULTI_SCREEN, NON_PUMP, or UNREADABLE return null for all numeric fields.
 
-Output: Return ONLY a clean JSON object: {"litres": number, "unit_price": number, "total": number}. Use null for any value that cannot be read. Do not include any conversational text.`;
+Output: Return ONLY a clean JSON object: {"outcome":"ACCEPTED|UNREADABLE|MULTI_SCREEN|NON_PUMP","litres":number|null,"unit_price":number|null,"total":number|null}. Do not include any conversational text.`;
 
 const PUMP_SCHEMA = {
   type: 'object',
   properties: {
+    outcome: { type: 'string' },
     litres: { type: 'number' },
     unit_price: { type: 'number' },
     total: { type: 'number' },
   },
 };
 
+export type PumpReadingOutcome = 'ACCEPTED' | 'UNREADABLE' | 'MULTI_SCREEN' | 'NON_PUMP' | 'ANOMALY';
+
 export interface PumpReading {
   success: boolean;
+  outcome: PumpReadingOutcome;
   litres: number | null;
   unitPrice: number | null;
   total: number | null;
@@ -729,6 +740,78 @@ export function crossCheckPumpReading(
   return { mismatch: deviation > 0.05, computedTotal: computed };
 }
 
+function parsePumpNumber(value: unknown): number | null {
+  if (value == null) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+export function classifyPumpReadingValues(
+  litres: number | null,
+  unitPrice: number | null,
+  total: number | null,
+): {
+  outcome: PumpReadingOutcome;
+  success: boolean;
+  litres: number | null;
+  unitPrice: number | null;
+  total: number | null;
+  mismatch: boolean;
+  computedTotal: number | null;
+} {
+  if (litres == null && unitPrice == null && total == null) {
+    return {
+      outcome: 'UNREADABLE',
+      success: false,
+      litres: null,
+      unitPrice: null,
+      total: null,
+      mismatch: false,
+      computedTotal: null,
+    };
+  }
+
+  const hasNonPositiveValue = [litres, unitPrice, total].some((value) => value != null && value <= 0);
+  const hasMissingValue = litres == null || unitPrice == null || total == null;
+  const { mismatch, computedTotal } = crossCheckPumpReading(litres, unitPrice, total);
+
+  if (hasNonPositiveValue || hasMissingValue) {
+    return {
+      outcome: 'ANOMALY',
+      success: litres != null || unitPrice != null || total != null,
+      litres,
+      unitPrice,
+      total,
+      mismatch: false,
+      computedTotal,
+    };
+  }
+
+  return {
+    outcome: mismatch ? 'ANOMALY' : 'ACCEPTED',
+    success: true,
+    litres,
+    unitPrice,
+    total,
+    mismatch,
+    computedTotal,
+  };
+}
+
+function normalizePumpReadingOutcome(value: unknown): Exclude<PumpReadingOutcome, 'ANOMALY'> | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toUpperCase();
+  if (
+    normalized === 'ACCEPTED'
+    || normalized === 'UNREADABLE'
+    || normalized === 'MULTI_SCREEN'
+    || normalized === 'NON_PUMP'
+  ) {
+    return normalized;
+  }
+  return null;
+}
+
 /**
  * Extract litres, unit_price, and total from a fuel-pump display photo.
  * Uses the same Gemini/OpenRouter vision pipeline as container/seal OCR.
@@ -751,6 +834,7 @@ export async function extractPumpReading(
 
   if (!settings.enabled) {
     return {
+      outcome: 'UNREADABLE',
       success: false, litres: null, unitPrice: null, total: null,
       mismatch: false, computedTotal: null,
       error: OCR_DISABLED_ERROR,
@@ -761,6 +845,7 @@ export async function extractPumpReading(
   const providers = orderedProviders(settings);
   if (!ocrHasAvailableKey(settings) || providers.length === 0) {
     return {
+      outcome: 'UNREADABLE',
       success: false, litres: null, unitPrice: null, total: null,
       mismatch: false, computedTotal: null,
       error: OCR_MISSING_KEY_ERROR,
@@ -784,20 +869,42 @@ export async function extractPumpReading(
 
     try {
       const parsed = JSON.parse(result.text);
-      const litres = parsed.litres != null ? Number(parsed.litres) : null;
-      const unitPrice = parsed.unit_price != null ? Number(parsed.unit_price) : null;
-      const total = parsed.total != null ? Number(parsed.total) : null;
+      const rawOutcome = normalizePumpReadingOutcome(parsed.outcome);
+      const litres = parsePumpNumber(parsed.litres);
+      const unitPrice = parsePumpNumber(parsed.unit_price);
+      const total = parsePumpNumber(parsed.total);
+      const structuralOutcome = rawOutcome ?? (litres == null && unitPrice == null && total == null ? 'UNREADABLE' : 'ACCEPTED');
+
+      if (structuralOutcome !== 'ACCEPTED') {
+        return {
+          success: false,
+          outcome: structuralOutcome,
+          litres: null,
+          unitPrice: null,
+          total: null,
+          mismatch: false,
+          computedTotal: null,
+          error: null,
+          provider: name,
+          model: result.model,
+        };
+      }
 
       if (litres == null && unitPrice == null && total == null) {
         lastError = 'Không đọc được giá trị nào từ ảnh';
         continue;
       }
 
-      const { mismatch, computedTotal } = crossCheckPumpReading(litres, unitPrice, total);
+      const classified = classifyPumpReadingValues(litres, unitPrice, total);
 
       return {
-        success: true, litres, unitPrice, total,
-        mismatch, computedTotal,
+        outcome: classified.outcome,
+        success: classified.success,
+        litres: classified.litres,
+        unitPrice: classified.unitPrice,
+        total: classified.total,
+        mismatch: classified.mismatch,
+        computedTotal: classified.computedTotal,
         error: null, provider: name, model: result.model,
       };
     } catch {
@@ -807,6 +914,7 @@ export async function extractPumpReading(
   }
 
   return {
+    outcome: 'UNREADABLE',
     success: false, litres: null, unitPrice: null, total: null,
     mismatch: false, computedTotal: null,
     error: lastError ?? 'Tất cả provider đều thất bại',

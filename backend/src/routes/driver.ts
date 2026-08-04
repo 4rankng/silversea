@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { getUser } from '../middleware/auth';
 import {
+  assertTripOwnedByDriver,
   completeOwnedFulfillmentTrip,
   getDriverByUserId,
   getDriverFulfillmentDetail,
@@ -25,6 +26,12 @@ import {
   getDriverPayslipPeriods,
   getCompletionEvidenceStatus,
 } from '../services/driver.service';
+import {
+  extractFuelEvidencePumpValues,
+  persistFuelEvidenceReviewForDriver,
+  type FuelEvidenceReviewView,
+  type PersistFuelEvidenceReviewOutcome,
+} from '../services/fuel-evidence-review.service';
 import {
   attachPodFile,
   createPodSubmission,
@@ -50,17 +57,26 @@ import {
 } from '@tingting/shared';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { ApiError } from '../errors';
-import { db } from '../db';
 import * as s from '../db/schema';
 import { and, eq, inArray } from 'drizzle-orm';
+import { sniffImageType } from '../lib/format';
 import { getRequestIdempotencyKey } from './utils/idempotency';
-import { runIdempotent } from '../services/idempotency.service';
+import {
+  findIdempotencyRecord,
+  runIdempotent,
+  waitForIdempotencyRecord,
+} from '../services/idempotency.service';
 import type { Tx } from '../services/trip-shared';
 import { runWithAuditRequestContext } from '../services/audit.service';
 import {
+  armStorageCleanupGuard,
+  cancelStorageCleanupGuard,
   enqueueStorageDelete,
+  releaseStorageCleanupGuard,
   STORAGE_DELETE_MODE,
+  type StorageCleanupGuardLease,
 } from '../services/durable-effect.service';
+import { storageService } from '../services/storage.service';
 
 const router = Router();
 
@@ -69,12 +85,26 @@ const DRIVER_IDEMPOTENCY_ENDPOINTS = {
   CONTAINER_UPDATE: 'driver.containers.update',
   CONTAINER_SEALS_REPLACE: 'driver.containers.seals.replace',
   PHOTO_DELETE: 'driver.trip-photos.delete',
+  FUEL_EVIDENCE_CREATE: 'driver.fuel-evidence.create',
 } as const;
 
 const podUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 15 * 1024 * 1024 },
 });
+
+const fuelEvidenceUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024 },
+});
+
+let fuelEvidenceAfterUploadHookForTest: null | (() => void | Promise<void>) = null;
+
+export function setDriverFuelEvidenceAfterUploadHookForTest(
+  hook: null | (() => void | Promise<void>),
+) {
+  fuelEvidenceAfterUploadHookForTest = hook;
+}
 
 const driverFulfillmentProgressSchema = driverProgressSchema.extend({
   expectedVersion: z.coerce.number().int().positive(),
@@ -87,6 +117,18 @@ const driverFulfillmentVersionSchema = z.object({
 const driverPodFileAttachSchema = z.object({
   expectedVersion: z.coerce.number().int().positive(),
   fileType: z.nativeEnum(TripPodFileType),
+});
+
+const driverFuelEvidenceMetadataSchema = z.object({
+  lat: z.coerce.number().finite().optional(),
+  lng: z.coerce.number().finite().optional(),
+  accuracy: z.coerce.number().finite().optional(),
+  altitude: z.coerce.number().finite().optional(),
+  gpsAt: z.coerce.number().int().positive().optional(),
+  source: z.string().trim().max(20).optional(),
+  sampleCount: z.coerce.number().int().positive().optional(),
+  bestAccuracy: z.coerce.number().finite().optional(),
+  elapsedMs: z.coerce.number().int().nonnegative().optional(),
 });
 
 function withMaterialWriteAuditContext<T>(
@@ -120,6 +162,60 @@ function readExpectedUpdatedAt(req: Request): Date | undefined {
     throw new ApiError(400, 'Phiên bản dữ liệu không hợp lệ.');
   }
   return expected;
+}
+
+function formatDecimal(value: number | undefined): string | null {
+  return value == null || !Number.isFinite(value) ? null : String(value);
+}
+
+function fuelEvidenceExtensionForMime(mimeType: string): string {
+  if (mimeType === 'image/png') return 'png';
+  if (mimeType === 'image/webp') return 'webp';
+  if (mimeType === 'image/heic') return 'heic';
+  return 'jpg';
+}
+
+async function acquireDriverFuelEvidenceCleanupGuard(args: {
+  idempotencyKey: string;
+  storageKey: string;
+  tripId: number;
+  driverId: number;
+}): Promise<StorageCleanupGuardLease | null> {
+  const endpoint = DRIVER_IDEMPOTENCY_ENDPOINTS.FUEL_EVIDENCE_CREATE;
+  const existingIdempotency = await findIdempotencyRecord(endpoint, args.idempotencyKey);
+  if (existingIdempotency) return null;
+  const storageKeyHash = createHash('sha256').update(args.storageKey).digest('hex').slice(0, 32);
+  try {
+    return await armStorageCleanupGuard({
+      dedupeKey: `driver-fuel-evidence-orphan:${args.driverId}:${storageKeyHash}:${args.idempotencyKey}`,
+      storageKey: args.storageKey,
+      entityType: 'fuel_evidence_reviews',
+      entityId: args.tripId,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('storage cleanup guard already leased')) {
+      const committed = await waitForIdempotencyRecord(endpoint, args.idempotencyKey);
+      if (committed) return null;
+      throw new ApiError(409, 'Ảnh nhiên liệu đang được xử lý. Vui lòng thử lại.');
+    }
+    throw error;
+  }
+}
+
+async function releaseDriverFuelEvidenceCleanupGuard(
+  lease: StorageCleanupGuardLease | null,
+  error: unknown,
+): Promise<void> {
+  if (!lease) return;
+  try {
+    await releaseStorageCleanupGuard(lease, error);
+  } catch (releaseError) {
+    console.warn(
+      `[driver.fuel-evidence.create] failed to release cleanup guard ${lease.dedupeKey}:`,
+      releaseError instanceof Error ? releaseError.message : releaseError,
+    );
+  }
 }
 
 function requireExpectedUpdatedAt(req: Request, message: string): Date {
@@ -476,6 +572,131 @@ router.get('/trips/:tripId/incidental-costs', asyncHandler(async (req: Request, 
   res.json({ items });
 }));
 
+router.post('/trips/:tripId/fuel-evidence', fuelEvidenceUpload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+  const tripId = parseInt(req.params.tripId as string, 10);
+  if (!Number.isInteger(tripId) || tripId <= 0) {
+    throw new ApiError(400, 'ID chuyến đi không hợp lệ');
+  }
+  const driver = await getDriverByUserId(getUser(req).userId);
+  await assertTripOwnedByDriver(tripId, driver.id);
+
+  if (!req.file || req.file.size <= 0) {
+    throw new ApiError(400, 'Cần tải lên ảnh màn hình bơm.');
+  }
+  const mimeType = sniffImageType(req.file.buffer);
+  if (!mimeType) {
+    throw new ApiError(400, 'Ảnh nhiên liệu phải là JPEG, PNG, WEBP hoặc HEIC hợp lệ.');
+  }
+  const parsedMeta = driverFuelEvidenceMetadataSchema.safeParse(req.body ?? {});
+  if (!parsedMeta.success) {
+    throw new ApiError(400, parsedMeta.error.issues.map((issue) => issue.message).join('; '));
+  }
+
+  const metadata = parsedMeta.data;
+  const idempotencyKey = requireDriverIdempotencyKey(req);
+  const storageHash = createHash('sha256').update(req.file.buffer).digest('hex');
+  const requestHash = createHash('sha256')
+    .update(`driver-fuel-evidence:${driver.id}:${idempotencyKey}`)
+    .digest('hex')
+    .slice(0, 32);
+  const storageKey = [
+    'fuel-evidence',
+    String(tripId),
+    String(driver.id),
+    `${storageHash}-${requestHash}.${fuelEvidenceExtensionForMime(mimeType)}`,
+  ].join('/');
+  const cleanupGuard = await acquireDriverFuelEvidenceCleanupGuard({
+    idempotencyKey,
+    storageKey,
+    tripId,
+    driverId: driver.id,
+  });
+
+  let ocr: Awaited<ReturnType<typeof extractFuelEvidencePumpValues>> | null = null;
+  if (cleanupGuard) {
+    try {
+      await storageService.upload(req.file.buffer, storageKey);
+      if (fuelEvidenceAfterUploadHookForTest) {
+        await fuelEvidenceAfterUploadHookForTest();
+      }
+      ocr = await extractFuelEvidencePumpValues(req.file.buffer, mimeType);
+    } catch (error) {
+      await releaseDriverFuelEvidenceCleanupGuard(cleanupGuard, error);
+      throw error;
+    }
+  }
+
+  try {
+    const outcome = await withMaterialWriteAuditContext(
+      req,
+      res,
+      DRIVER_IDEMPOTENCY_ENDPOINTS.FUEL_EVIDENCE_CREATE,
+      () => runIdempotent<PersistFuelEvidenceReviewOutcome>({
+        endpoint: DRIVER_IDEMPOTENCY_ENDPOINTS.FUEL_EVIDENCE_CREATE,
+        idempotencyKey,
+        payload: {
+          tripId,
+          driverId: driver.id,
+          storageHash,
+        },
+        createdBy: getUser(req).userId,
+        responseStatusCode: 201,
+        create: async (tx) => {
+          if (!cleanupGuard || !ocr) {
+            throw new ApiError(409, 'Ảnh nhiên liệu đang được xử lý. Vui lòng thử lại.');
+          }
+          const persisted = await persistFuelEvidenceReviewForDriver({
+            tripId,
+            ownerDriverId: driver.id,
+            ownerUserId: getUser(req).userId,
+            storageKey,
+            storageHash,
+            originalFileName: req.file?.originalname ?? null,
+            mimeType,
+            sizeBytes: req.file?.size ?? req.file?.buffer.length ?? 0,
+            capturedAt: new Date(),
+            latitude: formatDecimal(metadata.lat),
+            longitude: formatDecimal(metadata.lng),
+            gpsAccuracy: formatDecimal(metadata.accuracy),
+            gpsAltitude: formatDecimal(metadata.altitude),
+            gpsAt: metadata.gpsAt ? new Date(metadata.gpsAt) : null,
+            geotagSource: metadata.source ?? null,
+            geotagSampleCount: metadata.sampleCount ?? null,
+            geotagBestAccuracy: formatDecimal(metadata.bestAccuracy),
+            geotagElapsedMs: metadata.elapsedMs ?? null,
+            ocr,
+            createdBy: getUser(req).userId,
+          }, tx);
+          if (persisted.ownsStorageKey) {
+            const cancelled = await cancelStorageCleanupGuard(tx, cleanupGuard);
+            if (!cancelled) {
+              throw new ApiError(409, 'Ảnh nhiên liệu đang được xử lý. Vui lòng thử lại.');
+            }
+          }
+          return persisted;
+        },
+        getEntityId: (value) => value.review.id,
+        serializeResult: (value) => value.review,
+        deserializeResult: (snapshot) => ({
+          review: snapshot as FuelEvidenceReviewView,
+          ownsStorageKey: false,
+        }),
+      }),
+    );
+
+    if (cleanupGuard && !outcome.result.ownsStorageKey) {
+      await releaseDriverFuelEvidenceCleanupGuard(
+        cleanupGuard,
+        new Error('duplicate fuel evidence content uses the existing durable image'),
+      );
+    }
+    res.status(outcome.statusCode).json(outcome.result.review);
+  } catch (error) {
+    await releaseDriverFuelEvidenceCleanupGuard(cleanupGuard, error);
+    throw error;
+  }
+}));
+
 // M8.6 — driver payslip periods (own issued salary periods with earnings).
 // Read-only; RBAC inherits the driver_portal mount (DRIVER read).
 router.get('/payslips', asyncHandler(async (req: Request, res: Response) => {
@@ -591,7 +812,7 @@ router.patch('/trips/:tripId/containers/:containerId', asyncHandler(async (req: 
   // The container must belong to THIS driver's trip. Ownership above only
   // proves the driver owns `tripId`; without this check a driver who owns any
   // single trip could patch any container row by guessing its id (IDOR).
-  if (!trip.containers.some(c => c.id === containerId)) {
+  if (!trip.containers.some((c: { id: number }) => c.id === containerId)) {
     return res.status(404).json({ error: 'Không tìm thấy số cont' });
   }
 
@@ -637,7 +858,7 @@ router.put('/trips/:tripId/containers/:containerId/seals', asyncHandler(async (r
   const containerId = parseInt(req.params.containerId as string, 10);
   const trip = await getDriverTripDetail(driver.id, tripId);
   if (!trip) return res.status(404).json({ error: 'Không tìm thấy chuyến đi' });
-  if (!trip.containers.some(c => c.id === containerId)) {
+  if (!trip.containers.some((c: { id: number }) => c.id === containerId)) {
     return res.status(404).json({ error: 'Không tìm thấy số cont' });
   }
 
@@ -704,7 +925,7 @@ router.delete('/trips/:tripId/photos/:type', asyncHandler(async (req: Request, r
     if (isNaN(containerId)) {
       return res.status(400).json({ error: 'container_id không hợp lệ' });
     }
-    if (!trip.containers.some(c => c.id === containerId)) {
+    if (!trip.containers.some((c: { id: number }) => c.id === containerId)) {
       return res.status(404).json({ error: 'Không tìm thấy số cont' });
     }
   }

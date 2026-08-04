@@ -30,6 +30,7 @@ export {
 import { SnapshotServices } from './snapshot-services';
 import { recomputeShipmentCompletion } from './shipment.service';
 import { lockTripCloseAggregate } from './trip-close-readiness.service';
+import { lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
 
 /**
  * Either the singleton db client or an in-flight transaction client. Both
@@ -230,66 +231,144 @@ function validateNoInvoiceExpenseState(
   }
 }
 
+type TripExpenseCreateInput = {
+  tripId: number;
+  forwarderId: number | null;
+  createdBy?: number | null;
+  expenseType: string;
+  buyAmount: string;
+  sellAmount?: string;
+  settlementMethod?: string;
+  supplierId?: number | null;
+  approvalStatus?: string;
+  expenseDate?: string | null;
+  payeeName?: string | null;
+  invoiceNumber?: string | null;
+  invoiceDate?: string | null;
+  declarationNumber?: string | null;
+  containerNumber?: string | null;
+  tripContainerId?: number | null;
+  liftPricingId?: number | null;
+  liftPricingSnapshot?: LiftPricingSnapshot | null;
+  note: string | null;
+  noInvoiceEvidenceTypes?: string[] | null;
+};
 
-export async function createTripExpense(
-  txOrDb: DbOrTx,
-  data: {
-    tripId: number;
-    forwarderId: number | null;
-    createdBy?: number | null;
-    expenseType: string;
-    buyAmount: string;
-    sellAmount?: string;
-    settlementMethod?: string;
-    supplierId?: number | null;
-    approvalStatus?: string;
-    expenseDate?: string | null;
-    payeeName?: string | null;
-    invoiceNumber?: string | null;
-    invoiceDate?: string | null;
-    declarationNumber?: string | null;
-    containerNumber?: string | null;
-    /** B5: authoritative container FK. When set, the loose containerNumber is
-     *  mirrored from this row so settlement grouping never drifts. */
-    tripContainerId?: number | null;
-    liftPricingId?: number | null;
-    liftPricingSnapshot?: LiftPricingSnapshot | null;
-    note: string | null;
-    noInvoiceEvidenceTypes?: string[] | null;
-  },
+async function lockTripExpenseCreateRelationships(
+  tx: Tx,
+  data: TripExpenseCreateInput,
 ) {
-  // O2C: costs stay editable after COMPLETED (no hard-freeze). CANCELED trips
-  // remain immutable. A cost edit on a completed trip re-evaluates both
-  // reconciliation snapshots so AR/AP queues stay honest.
-  const [trip] = await txOrDb.select({ status: s.trips.status })
-    .from(s.trips).where(eq(s.trips.id, data.tripId)).limit(1);
-  if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
-  if (trip.status === 'CANCELED') {
-    throw new ApiError(409, 'Không thể thêm chi phí cho chuyến đã hủy');
+  const tripContainerId = data.tripContainerId ?? null;
+  const supplierId = data.supplierId ?? null;
+  const liftPricingId = data.liftPricingId ?? null;
+  const userIds = [...new Set(
+    [data.forwarderId, data.createdBy ?? null]
+      .filter((id): id is number => id != null),
+  )];
+
+  await lockApplicationOwnedUniquenessSet(tx, [
+    { scope: 'relationship.trip', parts: [data.tripId] },
+    ...userIds.map((id) => ({ scope: 'relationship.user', parts: [id] })),
+    ...(supplierId == null ? [] : [{ scope: 'relationship.supplier', parts: [supplierId] }]),
+    ...(tripContainerId == null ? [] : [{ scope: 'relationship.trip-container', parts: [tripContainerId] }]),
+    ...(liftPricingId == null ? [] : [{ scope: 'relationship.lift-pricing', parts: [liftPricingId] }]),
+  ]);
+
+  const [trip] = await tx.select({
+    status: s.trips.status,
+    deletedAt: s.trips.deletedAt,
+  }).from(s.trips)
+    .where(eq(s.trips.id, data.tripId))
+    .limit(1)
+    .for('share');
+  if (!trip || trip.deletedAt != null) {
+    throw new ApiError(404, 'Không tìm thấy chuyến đi');
   }
 
-  // B5: resolve an authoritative container FK when provided. The container must
-  // belong to this trip; we also mirror its label into the (deprecated)
-  // free-text column so legacy grouping keeps working until fully migrated.
-  const tripContainerId = data.tripContainerId ?? null;
+  if (userIds.length > 0) {
+    const users = await tx.select({
+      id: s.users.id,
+      role: s.users.role,
+      status: s.users.status,
+      deletedAt: s.users.deletedAt,
+    }).from(s.users)
+      .where(inArray(s.users.id, userIds))
+      .for('share');
+    const usersById = new Map(users.map((user) => [user.id, user]));
+    const creator = data.createdBy == null ? null : usersById.get(data.createdBy);
+    if (data.createdBy != null && (!creator || creator.deletedAt != null)) {
+      throw new ApiError(400, 'Người tạo chi phí không tồn tại');
+    }
+    const forwarder = data.forwarderId == null ? null : usersById.get(data.forwarderId);
+    if (
+      data.forwarderId != null
+      && (!forwarder || forwarder.deletedAt != null || forwarder.status !== 'ACTIVE' || forwarder.role !== 'FORWARDER')
+    ) {
+      throw new ApiError(400, 'Nhân viên giao nhận không tồn tại hoặc đã ngưng hoạt động');
+    }
+  }
+
+  if (supplierId != null) {
+    const [supplier] = await tx.select({
+      status: s.suppliers.status,
+      deletedAt: s.suppliers.deletedAt,
+    }).from(s.suppliers)
+      .where(eq(s.suppliers.id, supplierId))
+      .limit(1)
+      .for('share');
+    if (!supplier || supplier.deletedAt != null || supplier.status !== 'ACTIVE') {
+      throw new ApiError(400, 'Nhà cung cấp không tồn tại hoặc đã ngưng dùng');
+    }
+  }
+
   let containerLabel = data.containerNumber ?? null;
   if (tripContainerId != null) {
-    const [container] = await txOrDb
-      .select({
-        id: s.tripContainers.id,
-        cTripId: s.tripContainers.tripId,
-        containerNumber: s.tripContainers.containerNumber,
-      })
-      .from(s.tripContainers)
+    const [container] = await tx.select({
+      tripId: s.tripContainers.tripId,
+      containerNumber: s.tripContainers.containerNumber,
+    }).from(s.tripContainers)
       .where(eq(s.tripContainers.id, tripContainerId))
-      .limit(1);
-    if (!container || container.cTripId !== data.tripId) {
+      .limit(1)
+      .for('share');
+    if (!container || container.tripId !== data.tripId) {
       throw new ApiError(400, 'Container không thuộc chuyến này');
     }
     containerLabel = container.containerNumber;
   }
+
+  if (liftPricingId != null) {
+    const [liftPricing] = await tx.select({ deletedAt: s.liftPricing.deletedAt })
+      .from(s.liftPricing)
+      .where(eq(s.liftPricing.id, liftPricingId))
+      .limit(1)
+      .for('share');
+    if (!liftPricing || liftPricing.deletedAt != null) {
+      throw new ApiError(400, 'Biểu phí nâng hạ không tồn tại hoặc đã ngưng dùng');
+    }
+  }
+
+  return { trip, tripContainerId, containerLabel };
+}
+
+
+export async function createTripExpense(
+  txOrDb: DbOrTx,
+  data: TripExpenseCreateInput,
+): Promise<typeof s.tripExpenses.$inferSelect> {
+  if (txOrDb === db) {
+    return db.transaction((tx) => createTripExpense(tx, data));
+  }
+  const tx = txOrDb as Tx;
+  // O2C: costs stay editable after COMPLETED (no hard-freeze). CANCELED trips
+  // remain immutable. A cost edit on a completed trip re-evaluates both
+  // reconciliation snapshots so AR/AP queues stay honest.
+  const { trip, tripContainerId, containerLabel } = await lockTripExpenseCreateRelationships(tx, data);
+  if (trip.status === 'CANCELED') {
+    throw new ApiError(409, 'Không thể thêm chi phí cho chuyến đã hủy');
+  }
+
   const scopeKey = tripContainerId ?? -data.tripId;
-  await txOrDb.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(6103, ${scopeKey})`);
 
   // Null counterparties remain allowed for receivables-only fees. Approved
   // COMPANY_DIRECT rows with a supplier now also feed supplier AP at completion.
@@ -301,7 +380,7 @@ export async function createTripExpense(
   // payable counterparty.
   const approvalStatus = data.approvalStatus
     ?? (data.createdBy != null || data.forwarderId != null ? 'PENDING' : 'APPROVED');
-  const noInvoicePolicySnapshot = await buildNoInvoicePolicySnapshotForExpenseInput(txOrDb, {
+  const noInvoicePolicySnapshot = await buildNoInvoicePolicySnapshotForExpenseInput(tx, {
     expenseType: data.expenseType,
     invoiceNumber: data.invoiceNumber ?? null,
   });
@@ -312,7 +391,7 @@ export async function createTripExpense(
     evidenceTypes: data.noInvoiceEvidenceTypes ?? [],
   });
 
-  const [inserted] = await txOrDb.insert(s.tripExpenses).values({
+  const [inserted] = await tx.insert(s.tripExpenses).values({
     tripId: data.tripId,
     forwarderId: data.forwarderId,
     createdBy: data.createdBy ?? null,
@@ -339,12 +418,12 @@ export async function createTripExpense(
     returnedForEvidenceBy: null,
   }).returning();
   if (data.forwarderId != null) {
-    await resetExpenseScope(txOrDb, data.tripId, tripContainerId);
+    await resetExpenseScope(tx, data.tripId, tripContainerId);
   }
   // O2C: a cost edit on a completed trip re-evaluates both reconciliation
   // snapshots. No-op for non-completed trips.
   if (trip.status === 'COMPLETED') {
-    await SnapshotServices.markBothDirty(data.tripId, txOrDb);
+    await SnapshotServices.markBothDirty(data.tripId, tx);
   }
   return inserted;
 }

@@ -14,6 +14,7 @@ import { resolveSalaryPeriodDateRange } from '../services/salary-period.service'
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 const createdTripIds: number[] = [];
+const createdPostingIds: number[] = [];
 const createdTripLegIds: number[] = [];
 const createdExpenseIds: number[] = [];
 const createdTruckCapIds: number[] = [];
@@ -27,6 +28,7 @@ type TripRow = {
   id: number;
   tripCode: string | null;
   truckId: number | null;
+  version: number;
 };
 
 let dashboardBefore: Awaited<ReturnType<typeof getDashboardStats>>;
@@ -143,8 +145,20 @@ async function mkTrip(input: {
     id: s.trips.id,
     tripCode: s.trips.tripCode,
     truckId: s.trips.truckId,
+    version: s.trips.version,
   });
   createdTripIds.push(row.id);
+  if (input.status === 'COMPLETED' && input.completedAt) {
+    const [posting] = await db.insert(s.tripFinancialPostings).values({
+      tripId: row.id,
+      version: 1,
+      tripVersion: row.version,
+      status: 'ACTIVE',
+      reason: 'COMPLETION',
+      effectiveAt: input.completedAt,
+    }).returning({ id: s.tripFinancialPostings.id });
+    createdPostingIds.push(posting.id);
+  }
   return row;
 }
 
@@ -399,6 +413,9 @@ after(async () => {
     }
     if (createdTruckCapIds.length > 0) {
       await db.delete(s.truckCapTable).where(inArray(s.truckCapTable.id, createdTruckCapIds));
+    }
+    if (createdPostingIds.length > 0) {
+      await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.id, createdPostingIds));
     }
     if (createdTripIds.length > 0) {
       await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));

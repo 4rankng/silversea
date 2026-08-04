@@ -229,6 +229,7 @@ describe('A8 — P&L invariants (integration, dev DB)', () => {
     const testYear = 2098;
     const testMonth = 7;
     const createdTripIds: number[] = [];
+    const createdPostingIds: number[] = [];
     let customerId: number | null = null;
     let routeId: number | null = null;
     let cargoTypeId: number | null = null;
@@ -296,8 +297,18 @@ describe('A8 — P&L invariants (integration, dev DB)', () => {
           totalCost: '1',
           carrierType: 'OWN',
         },
-      ]).returning({ id: s.trips.id });
+      ]).returning({ id: s.trips.id, version: s.trips.version });
       createdTripIds.push(...inserted.map(trip => trip.id));
+
+      const postings = await db.insert(s.tripFinancialPostings).values(inserted.slice(0, 2).map((trip) => ({
+        tripId: trip.id,
+        version: 1,
+        tripVersion: trip.version,
+        status: 'ACTIVE',
+        reason: 'COMPLETION',
+        effectiveAt: new Date('2098-07-15T05:00:00.000Z'),
+      }))).returning({ id: s.tripFinancialPostings.id });
+      createdPostingIds.push(...postings.map((posting) => posting.id));
 
       await cacheInvalidate(`reports:pnl:${testMonth}:${testYear}`);
       const fixtureReport = await getPnlReport(testMonth, testYear) as PnlReport & { tripCount: number };
@@ -334,6 +345,9 @@ describe('A8 — P&L invariants (integration, dev DB)', () => {
       );
     } finally {
       await cacheInvalidate(`reports:pnl:${testMonth}:${testYear}`);
+      if (createdPostingIds.length > 0) {
+        await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.id, createdPostingIds));
+      }
       if (createdTripIds.length > 0) {
         await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
       }

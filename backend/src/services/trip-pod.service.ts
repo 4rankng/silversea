@@ -107,6 +107,8 @@ export interface OwnedFulfillmentTrip {
   tripCode: string | null;
   tripStatus: typeof s.trips.$inferSelect.status;
   tripVersion: number;
+  paperOrderCollectedAt: Date | null;
+  paperOrderCollectedBy: number | null;
   fulfillmentId: number;
   shipmentId: number;
   driverId: number;
@@ -270,6 +272,8 @@ export async function loadOwnedFulfillmentTrip(
     tripCode: s.trips.tripCode,
     tripStatus: s.trips.status,
     tripVersion: s.trips.version,
+    paperOrderCollectedAt: s.trips.paperOrderCollectedAt,
+    paperOrderCollectedBy: s.trips.paperOrderCollectedBy,
     fulfillmentId: s.shipmentFulfillments.id,
     shipmentId: s.shipmentFulfillments.shipmentId,
     driverId: s.trips.driverId,

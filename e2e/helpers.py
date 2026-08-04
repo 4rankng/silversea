@@ -24,7 +24,11 @@ DEMO_ACCOUNTS = {
     'driver':    {'identifier': 'laixe',    'password': 'Abc123', 'role': 'DRIVER',     'home': '/my-trips'},
     'forwarder': {'identifier': 'giaonhan', 'password': 'Abc123', 'role': 'FORWARDER',  'home': '/my-forwarder-trips'},
     'customer':  {
-        'identifier': os.environ.get('NEPO_CUSTOMER_USERNAME', 'e2e-customer'),
+        # Use a run-scoped local fixture. A database rebuild intentionally
+        # preserves old user rows but clears their discarded customer links,
+        # so reusing a historical E2E username can authenticate successfully
+        # while no longer owning a customer scope.
+        'identifier': os.environ.get('NEPO_CUSTOMER_USERNAME', f'e2e-customer-{os.getpid()}'),
         'password': os.environ.get('NEPO_CUSTOMER_PASSWORD', 'Abc123'),
         'role': 'CUSTOMER',
         'home': '/portal/shipments',

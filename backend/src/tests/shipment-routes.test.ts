@@ -566,7 +566,7 @@ async function createReadyDirectCloseFixture() {
     status: 'ACCEPTED',
     submittedBy: driverUserId,
     submittedAt: new Date(),
-    reviewedBy: accountantUserId,
+    reviewedBy: clerkUserId,
     reviewedAt: new Date(),
   });
   await db.insert(s.tripExpenseCompletionScopes).values([

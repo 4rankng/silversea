@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Building2,
   CalendarClock,
+  Camera,
   CheckCircle2,
   Clock3,
   FileCheck2,
@@ -29,6 +30,8 @@ import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } fro
 import { ApiError } from '../lib/api';
 import { formatCurrency } from '../lib/format';
 import { useOnline } from '../hooks/useOnline';
+import { useGeolocation } from '../hooks/useGeolocation';
+import { getLocationPermissionIssue, type GeolocationError } from '../lib/gps/geolocation';
 import {
   buildOfflineCommandKey,
   type OfflineCommand,
@@ -99,6 +102,20 @@ const MILESTONES: Array<{
   },
 ];
 
+const FUEL_EVIDENCE_OUTCOME_LABELS = {
+  ACCEPTED: 'Ảnh bơm hợp lệ',
+  UNREADABLE: 'Ảnh mờ hoặc không đọc được',
+  MULTI_SCREEN: 'Ảnh có nhiều màn hình',
+  NON_PUMP: 'Ảnh không phải màn hình bơm',
+  ANOMALY: 'Số liệu cần kế toán soát',
+} as const;
+
+const FUEL_EVIDENCE_REVIEW_LABELS = {
+  PENDING: 'Chờ kế toán xác nhận',
+  CONFIRMED: 'Kế toán đã xác nhận',
+  REJECTED: 'Kế toán từ chối',
+} as const;
+
 function tripStatusVariant(status: TripStatus): 'neutral' | 'info' | 'warn' | 'success' | 'danger' {
   switch (status) {
     case 'IN_TRANSIT':
@@ -143,6 +160,35 @@ function classifyCommandError(error: unknown): OfflineCommandSendResult {
   }
   const message = error instanceof Error ? error.message : 'Không thể đồng bộ lệnh.';
   return { ok: false, kind: 'network', message };
+}
+
+function isGeolocationError(error: unknown): error is GeolocationError {
+  return typeof error === 'object'
+    && error !== null
+    && 'code' in error
+    && typeof (error as { code: unknown }).code === 'number';
+}
+
+function fuelEvidenceUploadErrorMessage(error: unknown): string {
+  if (isGeolocationError(error)) {
+    const issue = getLocationPermissionIssue(error);
+    switch (issue.type) {
+      case 'denied':
+        return 'Chưa được cấp quyền vị trí. Hãy cho phép GPS rồi chụp lại ảnh nhiên liệu.';
+      case 'timeout':
+        return 'GPS phản hồi chậm. Vui lòng thử lại khi thiết bị bắt vị trí tốt hơn.';
+      case 'unavailable':
+        return 'Thiết bị chưa bắt được GPS. Vui lòng thử lại ở nơi có tín hiệu tốt hơn.';
+      case 'inaccurate':
+        return 'GPS chưa đủ chính xác để lưu ảnh nhiên liệu. Vui lòng thử lại.';
+      default:
+        return 'Thiết bị không hỗ trợ GPS để lưu ảnh nhiên liệu.';
+    }
+  }
+  if (error instanceof ApiError) return error.message;
+  return error instanceof Error && error.message
+    ? error.message
+    : 'Không thể tải ảnh nhiên liệu. Vui lòng thử lại.';
 }
 
 function getLatestMilestoneEvent(
@@ -238,8 +284,10 @@ export default function DriverTripDetailPage() {
   const { toast } = useToast();
   const { user } = useAuth();
   const online = useOnline();
+  const geolocation = useGeolocation();
   const [creatingDraft, setCreatingDraft] = useState(false);
   const [uploadingPod, setUploadingPod] = useState(false);
+  const [uploadingFuelEvidence, setUploadingFuelEvidence] = useState(false);
 
   const fulfillmentId = Number(id);
   const validFulfillmentId = Number.isInteger(fulfillmentId) && fulfillmentId > 0 ? fulfillmentId : undefined;
@@ -478,6 +526,35 @@ export default function DriverTripDetailPage() {
     await runDrain('Chuyến đã chuyển sang chờ kế toán/CUS duyệt phí.');
   }
 
+  async function handleUploadFuelEvidence(file: File) {
+    if (!trip) return;
+    if (!online) {
+      toast({ kind: 'warning', message: 'Cần có mạng để gửi ảnh nhiên liệu cho kế toán.' });
+      return;
+    }
+    setUploadingFuelEvidence(true);
+    try {
+      const location = await geolocation.awaitAccurateSample();
+      await driverClient.uploadFuelEvidence({
+        tripId: trip.id,
+        file,
+        location: {
+          lat: location.lat,
+          lng: location.lng,
+          accuracy: location.accuracy,
+          timestamp: location.timestamp,
+          source: 'phone',
+        },
+      });
+      await refreshAll();
+      toast({ kind: 'success', message: 'Đã lưu ảnh nhiên liệu và chuyển kế toán soát OCR.' });
+    } catch (error) {
+      toast({ kind: 'error', message: fuelEvidenceUploadErrorMessage(error) });
+    } finally {
+      setUploadingFuelEvidence(false);
+    }
+  }
+
   if (!validFulfillmentId) {
     return (
       <div className="driver-task-screen driver-task-screen--feedback">
@@ -529,6 +606,8 @@ export default function DriverTripDetailPage() {
     && getLatestMilestoneEvent(progress.data, DriverProgressEventType.DELIVERED) != null;
   const completionBlocked = trip.status !== 'IN_TRANSIT' || !completionReady;
   const completionReasons = evidence.data?.missingItems ?? [];
+  const paperOrderReady = Boolean(trip.paperOrderCollectedAt && trip.paperOrderCollectedBy);
+  const latestFuelEvidence = trip.fuelEvidenceReviews?.[0] ?? null;
 
   return (
     <div ref={rootRef} className="driver-task-screen">
@@ -616,12 +695,29 @@ export default function DriverTripDetailPage() {
         <div className="driver-task-section__head">
           <span>Bốn mốc thực hiện</span>
         </div>
+        <div
+          style={{
+            marginBottom: 12,
+            padding: '12px 14px',
+            borderRadius: 12,
+            border: '1px solid var(--border-1)',
+            background: paperOrderReady ? 'var(--bg-2)' : 'rgba(245, 158, 11, 0.08)',
+          }}
+        >
+          <strong style={{ display: 'block', marginBottom: 4, color: 'var(--fg-1)' }}>Bước 1 cần Ops bàn giao lệnh gốc</strong>
+          <span style={{ fontSize: 13, color: 'var(--fg-3)' }}>
+            {paperOrderReady
+              ? `${trip.paperOrderCollectedByName || 'Ops'} đã xác nhận bàn giao lúc ${formatDateTime(trip.paperOrderCollectedAt)}.`
+              : 'Ops chưa xác nhận bàn giao lệnh gốc, nên bạn chưa thể bấm “Đã nhận lệnh gốc”.'}
+          </span>
+        </div>
         <div className="driver-task-timeline">
           {MILESTONES.map((milestone, index) => {
             const event = getLatestMilestoneEvent(progress.data, milestone.eventType);
             const command = commandStateForMilestone(tripCommands, trip.fulfillment?.id ?? validFulfillmentId, milestone.eventType);
             const state = timelineState(Boolean(event), command, nextMilestoneIndex, index);
-            const clickable = state === 'available' || state === 'retry';
+            const clickable = (state === 'available' || state === 'retry')
+              && (milestone.eventType !== DriverProgressEventType.ORDER_RECEIVED || paperOrderReady);
             return (
               <button
                 type="button"
@@ -641,7 +737,10 @@ export default function DriverTripDetailPage() {
                 ) : null}
                 <div className="driver-task-step__foot">
                   <span>{event ? formatDateTime(event.occurredAt) : 'Chưa ghi nhận'}</span>
-                  {state === 'available' && <span>Nhấn để xác nhận</span>}
+                  {state === 'available' && milestone.eventType === DriverProgressEventType.ORDER_RECEIVED && !paperOrderReady && (
+                    <span>Chờ Ops bàn giao</span>
+                  )}
+                  {state === 'available' && (milestone.eventType !== DriverProgressEventType.ORDER_RECEIVED || paperOrderReady) && <span>Nhấn để xác nhận</span>}
                   {state === 'retry' && <span>Nhấn để gửi lại</span>}
                   {state === 'conflict' && <span>Tải lại dữ liệu chuyến</span>}
                 </div>
@@ -668,6 +767,84 @@ export default function DriverTripDetailPage() {
           onUploadFile={handleUploadPodFile}
           onSubmit={handleSubmitPod}
         />
+      </section>
+
+      <section className="driver-task-section">
+        <div className="driver-task-section__head">
+          <span>Ảnh nhiên liệu</span>
+        </div>
+        <div style={{ display: 'grid', gap: 14 }}>
+          <div
+            style={{
+              border: '1px solid var(--border-1)',
+              borderRadius: 14,
+              padding: 14,
+              background: 'var(--bg-2)',
+              display: 'grid',
+              gap: 12,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+              <div>
+                <strong style={{ display: 'block', marginBottom: 4 }}>Chụp màn hình bơm gần nhất</strong>
+                <div style={{ fontSize: 13, color: 'var(--fg-3)' }}>
+                  {latestFuelEvidence
+                    ? `${FUEL_EVIDENCE_OUTCOME_LABELS[latestFuelEvidence.ocrOutcome]} · ${FUEL_EVIDENCE_REVIEW_LABELS[latestFuelEvidence.reviewStatus]}`
+                    : 'Chưa có ảnh nhiên liệu nào cho chuyến này.'}
+                </div>
+              </div>
+              <label className={`btn btn--secondary btn--sm${uploadingFuelEvidence ? ' is-loading' : ''}`} style={{ cursor: uploadingFuelEvidence ? 'wait' : 'pointer' }}>
+                <Camera size={16} />
+                <span>{latestFuelEvidence ? 'Chụp lại ảnh mới' : 'Chụp ảnh nhiên liệu'}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  style={{ display: 'none' }}
+                  disabled={uploadingFuelEvidence}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    event.currentTarget.value = '';
+                    if (file) void handleUploadFuelEvidence(file);
+                  }}
+                />
+              </label>
+            </div>
+
+            {!online && (
+              <div style={{ fontSize: 13, color: 'var(--warn, #b45309)' }}>
+                Thiết bị đang ngoại tuyến. Ảnh nhiên liệu chỉ gửi được khi có mạng.
+              </div>
+            )}
+
+            {latestFuelEvidence && (
+              <div style={{ display: 'grid', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+                  <img
+                    src={latestFuelEvidence.photoUrl}
+                    alt={`Ảnh nhiên liệu ${trip.tripCode ?? trip.id}`}
+                    style={{ width: '100%', borderRadius: 12, border: '1px solid var(--border-1)', objectFit: 'cover' }}
+                  />
+                  <div style={{ display: 'grid', gap: 8, fontSize: 13 }}>
+                    <div><strong>Thời điểm chụp:</strong> {formatDateTime(latestFuelEvidence.capturedAt)}</div>
+                    <div><strong>Lít:</strong> {latestFuelEvidence.litres ?? '—'}</div>
+                    <div><strong>Đơn giá:</strong> {latestFuelEvidence.unitPrice ? formatCurrency(latestFuelEvidence.unitPrice) : '—'}</div>
+                    <div><strong>Thành tiền:</strong> {latestFuelEvidence.totalAmount ? formatCurrency(latestFuelEvidence.totalAmount) : '—'}</div>
+                    <div><strong>Tính lại:</strong> {latestFuelEvidence.computedTotal ? formatCurrency(latestFuelEvidence.computedTotal) : '—'}</div>
+                    <div><strong>GPS:</strong> {latestFuelEvidence.latitude && latestFuelEvidence.longitude ? `${latestFuelEvidence.latitude}, ${latestFuelEvidence.longitude}` : 'Chưa có'}</div>
+                  </div>
+                </div>
+                {(latestFuelEvidence.anomalyReason || latestFuelEvidence.ocrError || latestFuelEvidence.reviewNote) && (
+                  <div style={{ padding: 12, borderRadius: 12, background: 'rgba(15, 23, 42, 0.04)', fontSize: 13, color: 'var(--fg-2)' }}>
+                    {latestFuelEvidence.anomalyReason && <div><strong>Lưu ý OCR:</strong> {latestFuelEvidence.anomalyReason}</div>}
+                    {latestFuelEvidence.ocrError && <div><strong>Lỗi OCR:</strong> {latestFuelEvidence.ocrError}</div>}
+                    {latestFuelEvidence.reviewNote && <div><strong>Ghi chú kế toán:</strong> {latestFuelEvidence.reviewNote}</div>}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </section>
 
       <section className="driver-task-section">

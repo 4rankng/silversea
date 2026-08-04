@@ -37,6 +37,10 @@ export const forwarderClient = {
     return api.get<ForwarderTripDetail>(FORWARDER.TRIP_DETAIL(id));
   },
 
+  collectPaperOrder: async (tripId: number, expectedVersion: number) => {
+    return api.post(`/forwarder/me/trips/${tripId}/paper-order-collection`, { expectedVersion });
+  },
+
   listSuppliers: async () => {
     return api.get<{ items: Array<{ id: number; name: string; contactPerson: string | null; phone: string | null }> }>(FORWARDER.SUPPLIERS);
   },

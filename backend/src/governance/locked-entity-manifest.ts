@@ -561,8 +561,8 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
     entity: 'FUEL_INVOICE',
     terminalStates: ['APPROVED', 'REJECTED'],
     stateAuthority: source(
-      'db/schema.ts',
-      'fuelInvoices',
+      'routes/financial/fuel-invoices.routes.ts',
+      'listSchema',
       "'PENDING'",
       "'APPROVED'",
       "'REJECTED'",
@@ -762,11 +762,16 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
   {
     entity: 'PERIOD_LOCK',
     terminalStates: ['CLOSED'],
-    stateAuthority: source('db/schema.ts', 'periodLocks', "'CLOSED'", "'REOPENED'"),
+    stateAuthority: source(
+      'services/period-lock.service.ts',
+      'PERIOD_LOCK_STATUS',
+      "'CLOSED'",
+      "'REOPENED'",
+    ),
     directMutationBoundary: source(
       'services/period-lock.service.ts',
       'reopenPeriodLock',
-      "existing.status === 'REOPENED'",
+      'existing.status === PERIOD_LOCK_STATUS.REOPENED',
       'assertDebitNotePeriodCanReopen',
       'throw new ApiError',
     ),

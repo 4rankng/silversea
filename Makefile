@@ -38,20 +38,16 @@ infra: ## Start only db and redis (+ adminer)
 DB_CONTAINER := silversea-db
 DB_NAME      := silversea
 DB_USER      := postgres
-MIGRATION_SQL := $(shell ls backend/drizzle/0000_*.sql 2>/dev/null | head -1)
 
 migrate: ## Run database migrations (drizzle-kit)
 	cd backend && npx drizzle-kit migrate
 
-# Apply the baseline migration SQL directly. Drizzle-kit's interactive spinner
-# hangs on large schemas; the direct psql apply is reliable. Applied twice
-# because drizzle generates FK constraints before the unique indexes they depend
-# on — the first pass creates tables + indexes, the second resolves the FKs.
+# Apply the single baseline through Drizzle so the migration journal remains
+# authoritative. The baseline creates its required extensions and has no
+# foreign-key ordering dependency.
 migrate-sql:
-	@docker exec -i $(DB_CONTAINER) psql -U $(DB_USER) -d $(DB_NAME) -c "CREATE EXTENSION IF NOT EXISTS vector;" >/dev/null 2>&1
-	@docker exec -i $(DB_CONTAINER) psql -U $(DB_USER) -d $(DB_NAME) -q < $(MIGRATION_SQL) >/dev/null 2>&1
-	@docker exec -i $(DB_CONTAINER) psql -U $(DB_USER) -d $(DB_NAME) -q < $(MIGRATION_SQL) >/dev/null 2>&1
-	@echo "✅ Migration applied (2-pass for FK ordering)"
+	@cd backend && DATABASE_URL=postgres://$(DB_USER):postgres@localhost:5441/$(DB_NAME) npx drizzle-kit migrate
+	@echo "✅ Single baseline migration applied"
 
 # Drop and recreate the database from scratch (dev/staging — loses all data).
 db-recreate:

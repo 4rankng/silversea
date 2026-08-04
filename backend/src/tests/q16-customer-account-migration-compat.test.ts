@@ -90,8 +90,8 @@ test('squashed baseline persists the customer-account-type contract while histor
   `;
   assert.deepEqual(
     enumRows.map((row) => row.enumlabel),
-    ['SINGLE_ENTITY', 'CORPORATE_GROUP', 'AGENCY'],
-    'expected the canonical customer-account-type enum labels in the current schema',
+    [],
+    'customer account types are application-owned rather than a PostgreSQL enum',
   );
   const [columnRow] = await client<{
     column_default: string | null;
@@ -106,10 +106,10 @@ test('squashed baseline persists the customer-account-type contract while histor
   `;
   assert.ok(columnRow, 'expected users.customer_account_type to exist in the current schema');
   assert.equal(columnRow.is_nullable, 'NO');
-  assert.equal(columnRow.udt_name, 'customer_account_type');
+  assert.equal(columnRow.udt_name, 'text');
   assert.match(
     columnRow.column_default ?? '',
-    /'SINGLE_ENTITY'::customer_account_type/i,
+    /'SINGLE_ENTITY'::text/i,
   );
 
   const singleEntityUser = await loadPersistedCustomerAccountType(singleEntityUserId);

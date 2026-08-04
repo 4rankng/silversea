@@ -1,17 +1,16 @@
 /**
  * Wave 1 — Pricing & Fuel Data Layer schema validation test.
  *
- * Verifies the 4 new tables + 3 new enums + 2 column additions created by
- * migration 0117 are correctly structured. Uses the real DB (mirrors
+ * Verifies the pricing/fuel tables, application-owned values, and columns in
+ * the consolidated baseline. Uses the real DB (mirrors
  * scheduler.test.ts's lightweight DB-backed pattern) — no service-layer
  * calls, just raw schema introspection.
  *
  * Coverage:
  *   - All 4 tables exist with the expected columns.
- *   - All 3 enums have the expected values.
+ *   - Application enum values stay available while PostgreSQL stores text.
  *   - cargoTypes.isBulk column exists with default false.
  *   - trips.pricingSource / pricingFormula / pricingSnapshot columns exist.
- *   - FK constraints are in place.
  *   - Indexes are in place.
  *   - A round-trip insert+select on each table works (no NOT NULL gaps).
  */
@@ -19,6 +18,7 @@ import { test, describe, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { sql } from 'drizzle-orm';
 import { db, client } from '../db';
+import * as s from '../db/schema';
 
 after(async () => {
   await client.end();
@@ -88,15 +88,16 @@ describe('Wave 1 — Pricing & Fuel schema: tables exist', () => {
   });
 });
 
-describe('Wave 1 — Pricing & Fuel schema: enums', () => {
-  test('lift_direction enum has LIFT_UP and LIFT_DOWN', async () => {
+describe('Wave 1 — Pricing & Fuel schema: application-owned values', () => {
+  test('lift direction values stay in the application schema and the DB column stays text', async () => {
     const vals = await db.execute(sql`
       SELECT enumlabel FROM pg_enum
       WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = 'lift_direction')
       ORDER BY enumsortorder
     `);
     const labels = vals.map((r: Record<string, unknown>) => r["enumlabel"] as string);
-    assert.deepEqual(labels, ['LIFT_UP', 'LIFT_DOWN']);
+    assert.deepEqual(labels, []);
+    assert.deepEqual([...s.liftDirectionEnum.enumValues], ['LIFT_UP', 'LIFT_DOWN']);
   });
 
   test('ancillary_revenue_type enum has the 4 expected values', async () => {
@@ -106,7 +107,8 @@ describe('Wave 1 — Pricing & Fuel schema: enums', () => {
       ORDER BY enumsortorder
     `);
     const labels = vals.map((r: Record<string, unknown>) => r["enumlabel"] as string);
-    assert.deepEqual(labels, ['LCL', 'CONSOLIDATION', 'SERVICE_DIFF', 'OTHER']);
+    assert.deepEqual(labels, []);
+    assert.deepEqual([...s.ancillaryRevenueTypeEnum.enumValues], ['LCL', 'CONSOLIDATION', 'SERVICE_DIFF', 'OTHER']);
   });
 
   test('pricing_source enum has TIER, TABLE, MANUAL', async () => {
@@ -116,7 +118,8 @@ describe('Wave 1 — Pricing & Fuel schema: enums', () => {
       ORDER BY enumsortorder
     `);
     const labels = vals.map((r: Record<string, unknown>) => r["enumlabel"] as string);
-    assert.deepEqual(labels, ['TIER', 'TABLE', 'MANUAL']);
+    assert.deepEqual(labels, []);
+    assert.deepEqual([...s.pricingSourceEnum.enumValues], ['TIER', 'TABLE', 'MANUAL']);
   });
 });
 

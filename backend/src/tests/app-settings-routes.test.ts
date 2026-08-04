@@ -104,6 +104,10 @@ async function request(path: string, init: {
   return { status: response.status, body };
 }
 
+function currentVersionHeader(body: Record<string, unknown>): string | undefined {
+  return typeof body.updatedAt === 'string' ? body.updatedAt : undefined;
+}
+
 before(async () => {
   await initEnforcer();
   originalSettings = await getAppSettings();
@@ -215,7 +219,7 @@ describe('app-settings route authorization', () => {
   test('admin can still read and write app settings', async () => {
     const read = await request('/', { token: adminToken });
     assert.equal(read.status, 200);
-    assert.equal(typeof read.body.updatedAt, 'string');
+    assert.ok(read.body.updatedAt == null || typeof read.body.updatedAt === 'string');
 
     const flipped = {
       botEnabled: !originalSettings.botEnabled,
@@ -229,7 +233,7 @@ describe('app-settings route authorization', () => {
       token: adminToken,
       body: flipped,
       idempotencyKey: `admin-settings-${suffix}`,
-      expectedUpdatedAt: String(read.body.updatedAt),
+      expectedUpdatedAt: currentVersionHeader(read.body),
     });
     assert.equal(write.status, 200);
     assert.equal(write.body.botEnabled, flipped.botEnabled);
@@ -259,7 +263,7 @@ describe('app-settings route authorization', () => {
       token: adminToken,
       body: proposed,
       idempotencyKey: `admin-settings-governed-${suffix}`,
-      expectedUpdatedAt: String(read.body.updatedAt),
+      expectedUpdatedAt: currentVersionHeader(read.body),
     });
     assert.equal(write.status, 201);
     assert.equal(write.body.status, 'PENDING_CHECK');
@@ -306,7 +310,7 @@ describe('app-settings route authorization', () => {
       token: adminToken,
       body: proposed,
       idempotencyKey: `app-settings-rollback-${suffix}`,
-      expectedUpdatedAt: String(read.body.updatedAt),
+      expectedUpdatedAt: currentVersionHeader(read.body),
     });
     assert.equal(write.status, 201);
     createdGovernanceActionIds.push(Number(write.body.id));

@@ -486,7 +486,8 @@ describe('M5.3/Q02 overrides + canonical createTrip enforcement', () => {
         creditApprovalRequestId: pending.id,
         createdBy: requester.id,
       }),
-      (error: unknown) => error instanceof Error && /đã được sử dụng/i.test(error.message),
+      (error: unknown) => error instanceof Error
+        && /đã được sử dụng|đã được gắn vào một chuyến khác/i.test(error.message),
     );
   });
 });

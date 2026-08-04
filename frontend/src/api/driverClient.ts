@@ -9,6 +9,7 @@ import {
   type VehicleAlert,
 } from '@tingting/shared';
 import { fileCommandFingerprint } from '../lib/api';
+import type { FuelEvidenceReviewRecord } from './fuelEvidenceClient';
 
 type DriverMilestoneEventType = DriverProgressEventType;
 
@@ -47,6 +48,7 @@ export interface DriverTaskTwoOrdersView {
 const DRIVER_TASK = {
   DETAIL: (fulfillmentId: number) => `/driver/me/fulfillments/${fulfillmentId}`,
   PROGRESS: (fulfillmentId: number) => `/driver/me/fulfillments/${fulfillmentId}/progress`,
+  FUEL_EVIDENCE: (tripId: number) => `/driver/me/trips/${tripId}/fuel-evidence`,
   EVIDENCE: (fulfillmentId: number) => `/driver/me/fulfillments/${fulfillmentId}/evidence-status`,
   PODS: (fulfillmentId: number) => `/driver/me/fulfillments/${fulfillmentId}/pod`,
   POD_FILES: (fulfillmentId: number, submissionId: number) => `/driver/me/fulfillments/${fulfillmentId}/pod/${submissionId}/files`,
@@ -147,11 +149,15 @@ export interface DriverTaskDetail {
   hasReturnCargo: boolean | null;
   notes: string | null;
   customerReference: string | null;
+  paperOrderCollectedAt?: string | null;
+  paperOrderCollectedBy?: number | null;
+  paperOrderCollectedByName?: string | null;
   instructions?: {
     contactName: string | null;
     contactPhone: string | null;
     notes: string | null;
   } | null;
+  fuelEvidenceReviews?: FuelEvidenceReviewRecord[];
   containers: DriverTaskContainer[];
   legs: DriverTaskLeg[];
   fulfillment?: {
@@ -365,6 +371,44 @@ export const driverClient = {
       hasDeliveredMilestone: wire.hasDeliveredMilestone,
       hasSubmittedPod: wire.hasSubmittedPod,
     };
+  },
+
+  uploadFuelEvidence: async (args: {
+    tripId: number;
+    file: File;
+    location?: {
+      lat: number;
+      lng: number;
+      accuracy?: number;
+      altitude?: number;
+      timestamp?: number;
+      source?: string;
+      sampleCount?: number;
+      bestAccuracy?: number;
+      elapsedMs?: number;
+    } | null;
+  }) => {
+    const formData = new FormData();
+    formData.append('file', args.file);
+    if (args.location) {
+      formData.append('lat', String(args.location.lat));
+      formData.append('lng', String(args.location.lng));
+      if (args.location.accuracy != null) formData.append('accuracy', String(args.location.accuracy));
+      if (args.location.altitude != null) formData.append('altitude', String(args.location.altitude));
+      if (args.location.timestamp != null) formData.append('gpsAt', String(args.location.timestamp));
+      if (args.location.source) formData.append('source', args.location.source);
+      if (args.location.sampleCount != null) formData.append('sampleCount', String(args.location.sampleCount));
+      if (args.location.bestAccuracy != null) formData.append('bestAccuracy', String(args.location.bestAccuracy));
+      if (args.location.elapsedMs != null) formData.append('elapsedMs', String(args.location.elapsedMs));
+    }
+    const retryFingerprint = [
+      'driver-fuel-evidence',
+      fileCommandFingerprint(args.file),
+      args.tripId,
+    ].join(':');
+    return api.upload(DRIVER_TASK.FUEL_EVIDENCE(args.tripId), formData, {
+      retryFingerprint,
+    }) as Promise<FuelEvidenceReviewRecord>;
   },
 
   createPodSubmission: async (

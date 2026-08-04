@@ -208,14 +208,14 @@ async function createInTransitTripWithFees(
     createdSupplierIds.push(supplierId);
   }
   if (fees.some(f => f.settlementMethod === 'FORWARDER_ADVANCE')) {
-    // Users table is the home of forwarders; role DRIVER is a safe lower-priv
-    // slot. We only need a row with an id to satisfy the FK.
+    // Application-owned relationship validation requires an active FORWARDER
+    // account, matching the real expense-entry boundary.
     const [fwd] = await db.insert(s.users)
       .values({
         username: `chiho-fwd-${suffix}`.slice(0, 50),
         passwordHash: 'x',
         fullName: `ChiHo forwarder ${suffix}`,
-        role: 'DRIVER',
+        role: 'FORWARDER',
         status: 'ACTIVE',
       }).returning();
     forwarderId = fwd.id;

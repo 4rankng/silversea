@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   saveContainers: vi.fn(),
   submit: vi.fn(),
   createDeclaration: vi.fn(),
+  pricingPreview: vi.fn(),
 }));
 
 vi.mock('../../api/tripClient', () => ({ tripClient: { getBootstrap: mocks.bootstrap } }));
@@ -18,6 +19,7 @@ vi.mock('../../api/shipmentClient', () => ({
   saveShipmentContainers: mocks.saveContainers,
   submitShipmentForDispatch: mocks.submit,
   createShipmentDeclaration: mocks.createDeclaration,
+  getShipmentPricingPreview: mocks.pricingPreview,
 }));
 
 import ClerkShipmentCreatePage from './ClerkShipmentCreatePage';
@@ -27,6 +29,7 @@ const bootstrap = {
   routes: [{ id: 11, name: 'Cát Lái — Sóng Thần' }],
   ports: [{ id: 21, name: 'Cảng Cát Lái' }, { id: 22, name: 'Cảng ICD Sóng Thần' }],
   containerTypes: [{ id: 31, code: '40HC', name: 'Container 40 feet cao' }],
+  cargoTypes: [{ id: 32, code: 'LCL', name: 'Hàng lẻ' }],
 };
 
 const sites = [
@@ -72,6 +75,17 @@ describe('ClerkShipmentCreatePage', () => {
     mocks.saveContainers.mockResolvedValue({ shipmentVersion: 2, items: [], upsertedIds: [], changeMode: 'DIRECT', changeRequestId: null });
     mocks.submit.mockResolvedValue({ shipment: { id: 90 }, handoff: { id: 1, status: 'UNSEEN' }, replayed: false });
     mocks.createDeclaration.mockResolvedValue({ id: 1 });
+    mocks.pricingPreview.mockResolvedValue({
+      readiness: 'MISSING_AUTHORITY',
+      message: 'Chưa có bảng giá phù hợp.',
+      freightPrice: null,
+      freightSource: null,
+      freightFormula: null,
+      expectedFuelSurcharge: null,
+      expectedFuelLiters: null,
+      estimationDate: null,
+      breakdown: [],
+    });
   });
 
   it('loads customer master data and blocks a draft without customer', async () => {
@@ -119,7 +133,9 @@ describe('ClerkShipmentCreatePage', () => {
     fireEvent.change(screen.getByLabelText('Hãng tàu'), { target: { value: 'MSC' } });
     choose('Cảng nâng', '21');
     choose('Cảng hạ', '22');
-    fireEvent.click(screen.getByRole('button', { name: /Gửi sang điều phối/ }));
+    const submitButton = screen.getByRole('button', { name: /Gửi sang điều phối/ }) as HTMLButtonElement;
+    await waitFor(() => expect(submitButton.disabled).toBe(false));
+    fireEvent.click(submitButton);
     await waitFor(() => expect(mocks.saveContainers).toHaveBeenCalledTimes(1));
     expect(mocks.saveContainers.mock.calls[0][1].containers[0]).toMatchObject({ containerNumber: 'MSCU6639870', shippingLineName: 'MSC', pickupPortId: 21, dropoffPortId: 22 });
     expect(mocks.submit).toHaveBeenCalledWith(90, expect.objectContaining({ expectedVersion: 2 }), expect.any(String));
@@ -135,13 +151,16 @@ describe('ClerkShipmentCreatePage', () => {
     fireEvent.click(screen.getByLabelText('Đóng'));
     fireEvent.change(screen.getByLabelText('Số booking'), { target: { value: 'BK-LCL' } });
     choose('Loại lô hàng', 'LCL');
+    choose('Loại hàng', '32');
     choose('Kho lấy hàng', '42');
     fireEvent.change(screen.getByLabelText('Quy cách đóng gói'), { target: { value: 'Pallet' } });
     fireEvent.change(screen.getByLabelText('Số lượng'), { target: { value: '12' } });
     fireEvent.change(screen.getByLabelText('Trọng lượng (kg)'), { target: { value: '1250' } });
     fireEvent.change(screen.getByLabelText('Thể tích (CBM)'), { target: { value: '8.5' } });
     fireEvent.change(screen.getByLabelText('Ngày giao dự kiến'), { target: { value: '2026-08-03' } });
-    fireEvent.click(screen.getByRole('button', { name: /Gửi sang điều phối/ }));
+    const submitButton = screen.getByRole('button', { name: /Gửi sang điều phối/ }) as HTMLButtonElement;
+    await waitFor(() => expect(submitButton.disabled).toBe(false));
+    fireEvent.click(submitButton);
     await waitFor(() => expect(mocks.submit).toHaveBeenCalledTimes(1));
     expect(mocks.quickCreate.mock.calls[0][0]).toMatchObject({ cargoMode: 'LCL', pickupWarehouseSiteId: 42, packageType: 'Pallet', packageCount: 12, cargoWeightKg: '1250', cargoVolumeCbm: '8.5', expectedDeliveryDate: '2026-08-03' });
     expect(mocks.saveContainers).not.toHaveBeenCalled();

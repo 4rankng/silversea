@@ -926,6 +926,7 @@ export interface AdvanceSettlementWithRefs extends AdvanceSettlement {
 /** Trip detail projection returned by the forwarder GET /trips/:id endpoint. */
 export interface ForwarderTripDetail {
   id: number;
+  version: number;
   tripCode: string | null;
   shipmentId: number | null;
   shipmentSourceVersion: number | null;
@@ -938,6 +939,9 @@ export interface ForwarderTripDetail {
   containerCount: number | null;
   cargoTypeName: string | null;
   notes: string | null;
+  paperOrderCollectedAt?: string | null;
+  paperOrderCollectedBy?: number | null;
+  paperOrderCollectedByName?: string | null;
   /** Manager-authored contact + delivery guidance. null when no row exists. */
   instructions: TripInstruction | null;
   legs: TripLeg[];
@@ -985,6 +989,49 @@ export interface ForwarderTripDetail {
     createdAt: string;
     updatedAt: string;
     forwarderName: string | null;
+  }>;
+  fuelEvidenceReviews?: Array<{
+    id: number;
+    tripId: number;
+    tripCode: string | null;
+    ownerDriverId: number;
+    ownerUserId: number;
+    ownerName: string | null;
+    photoUrl: string;
+    originalFileName: string | null;
+    mimeType: string;
+    sizeBytes: number;
+    capturedAt: string;
+    latitude: string | null;
+    longitude: string | null;
+    gpsAccuracy: string | null;
+    gpsAltitude: string | null;
+    gpsAt: string | null;
+    geotagSource: string | null;
+    geotagSampleCount: number | null;
+    geotagBestAccuracy: string | null;
+    geotagElapsedMs: number | null;
+    ocrOutcome: 'ACCEPTED' | 'UNREADABLE' | 'MULTI_SCREEN' | 'NON_PUMP' | 'ANOMALY';
+    reviewStatus: 'PENDING' | 'CONFIRMED' | 'REJECTED';
+    confidence: string | null;
+    reviewRequired: boolean;
+    litres: string | null;
+    unitPrice: string | null;
+    totalAmount: string | null;
+    computedTotal: string | null;
+    mismatch: boolean;
+    anomalyCode: string | null;
+    anomalyReason: string | null;
+    ocrProvider: string | null;
+    ocrModel: string | null;
+    ocrError: string | null;
+    reviewerId: number | null;
+    reviewerName: string | null;
+    reviewedAt: string | null;
+    reviewNote: string | null;
+    version: number;
+    createdAt: string;
+    updatedAt: string;
   }>;
 }
 
@@ -1359,25 +1406,114 @@ export interface RecoverableCostEligibility {
 }
 
 export interface ProfitabilityReportRow {
-  dimensionKey: string;
-  dimensionLabel: string;
+  key: string;
+  label: string | null;
+  attributionStatus: 'ATTRIBUTED' | 'MISSING';
   revenue: number;
   directCost: number;
   sharedOverhead: number;
+  allocatedFleetFixedCost: number;
   profit: number;
-  marginPercent: number | null;
-  attributionStatus: 'ATTRIBUTED' | 'MISSING';
+  tripCount: number;
+  sourceTripIds: number[];
+  marginRatio: number | null;
+  alertState: LowMarginState;
+  attributionNote: string;
+}
+
+export type LowMarginState = 'LOW_MARGIN' | 'OK' | 'UNCONFIGURED' | 'NOT_COMPARABLE';
+
+export interface ProfitabilityReportPeriod {
+  month: number;
+  year: number;
 }
 
 export interface ProfitabilityReport {
-  dimension: 'CUSTOMER' | 'ROUTE' | 'TRUCK' | 'DISPATCHER' | 'SALESPERSON' | 'MONTH' | 'YEAR' | 'CONTAINER';
-  from: string;
-  to: string;
+  requestedPeriod: ProfitabilityReportPeriod;
+  resolvedPeriod: {
+    start: string;
+    endExclusive: string;
+  };
+  dimension: 'CUSTOMER' | 'ROUTE' | 'TRUCK' | 'DISPATCHER' | 'SALESPERSON' | 'MONTH' | 'YEAR' | 'CONTAINER' | 'VEHICLE';
+  page: number;
+  limit: number;
+  totalGroups: number;
+  totalPages: number;
+  items: ProfitabilityReportRow[];
+  totals: {
+    revenue: number;
+    directCost: number;
+    sharedOverhead: number;
+    profit: number;
+  };
+  lowMarginPolicy: {
+    status: 'CONFIGURED' | 'UNCONFIGURED';
+    source: 'APPROVED_GOVERNANCE' | 'UNCONFIGURED';
+    policyVersionId: number | null;
+    publicVersion: string | null;
+    effectiveFrom: string | null;
+    thresholdRatio: number | null;
+    thresholdPercent: number | null;
+    filter: 'ALL' | 'LOW_MARGIN';
+    totals: {
+      marginRatio: number | null;
+      alertState: LowMarginState;
+    };
+    note: string;
+  };
+  unallocated: {
+    key: 'SHARED_OVERHEAD';
+    label: string;
+    amount: number;
+    otherIncome: number;
+    components: {
+      maintenance: number;
+      companyExpenses: number;
+      fleetFixedCost: number;
+    };
+  };
+  sourceCoverage: {
+    snapshottedTrips: number;
+    pnlTrips: number;
+    missingAttribution: number;
+  };
+  reconciliation: {
+    expectedNetProfit: number;
+    reportedNetProfit: number;
+    difference: number;
+    status: 'RECONCILED' | 'PARTIAL';
+    note: string;
+  };
   asOf: string;
-  definitionVersion: 1;
-  totals: Omit<ProfitabilityReportRow, 'dimensionKey' | 'dimensionLabel' | 'attributionStatus'>;
-  rows: ProfitabilityReportRow[];
-  missingAttributionCount: number;
+  timezone: string;
+  definitionVersion: string;
+  consistency: 'BEST_EFFORT';
+  checksum: string;
+}
+
+export interface DashboardFleetAttentionItem {
+  truckId: number;
+  licensePlate: string;
+  status: string;
+  daysSinceLastTrip: number | null;
+  reason: string;
+}
+
+export interface DashboardWidgets {
+  twoWayCargoRatio: {
+    percentage: number;
+    tripsWithReturnCargo: number;
+    totalBillableTrips: number;
+  };
+  fleetAttention: DashboardFleetAttentionItem[];
+  periodOverPeriod: {
+    currentRevenue: number;
+    previousRevenue: number;
+    revenueChangePct: number;
+    currentProfit: number;
+    previousProfit: number;
+    profitChangePct: number;
+  };
 }
 
 export type DashboardDecisionSeverity = 'critical' | 'warning' | 'info' | 'success';
@@ -1822,6 +1958,28 @@ export interface DebitNoteTemplateSnapshot {
 
 // ─── Reports ────────────────────────────────────────────────────────────────────
 
+export type PnlAllocationReasonCode =
+  | 'UNCONFIGURED_POLICY'
+  | 'UNCONFIGURED_PROFILE'
+  | 'NOT_IN_SERVICE'
+  | 'FULLY_DEPRECIATED'
+  | 'ZERO_ELIGIBLE_REVENUE'
+  | 'MISSING_TRUCK_ATTRIBUTION';
+
+export interface PnlFinancialPolicy {
+  reportMonth: { month: number; year: number };
+  reportMonthStart: string;
+  status: 'CONFIGURED' | 'UNCONFIGURED';
+  source: 'APPROVED_GOVERNANCE' | 'UNCONFIGURED';
+  publicVersion: string | null;
+  policyVersionId: number | null;
+  effectiveFrom: string | null;
+  lowMarginThresholdRatio: number | null;
+  lowMarginThresholdPercent: number | null;
+  depreciationMethod: 'STRAIGHT_LINE' | null;
+  allocationBasis: 'COMPLETED_TRIP_REVENUE_SHARE' | null;
+}
+
 export interface PnlTruck {
   id: number;
   plate: string;
@@ -1830,6 +1988,16 @@ export interface PnlTruck {
   profit: number;
   trips: number;
   maintenanceExpenses: number;
+  variableTripCosts: number;
+  allocatedFleetFixedCost: number;
+  unallocatedFleetFixedCost: number;
+  monthlyDepreciation: number;
+  monthlyFixedCost: number;
+  eligibleRevenue: number;
+  allocationReasonCodes: PnlAllocationReasonCode[];
+  profileVersionId: number | null;
+  profileEffectiveFrom: string | null;
+  profileSource: FinancialReportingSource;
   serviceMargin?: number;
   externalMargin?: number;
 }
@@ -1846,6 +2014,8 @@ export interface PnlMaintenanceItem {
 
 export interface PnlTripDetail {
   id: number;
+  financialPostingVersionId?: number | null;
+  financialPostingVersion?: number | null;
   tripCode: string;
   departureDate: string;
   routeName: string;
@@ -1856,7 +2026,10 @@ export interface PnlTripDetail {
   tollAndCompanyTickets: number;
   driverAndAllowances: number;
   totalCost: number;
+  allocatedFleetFixedCost: number;
+  totalCostWithFleetFixedCost: number;
   profit: number;
+  netProfitAfterFleetFixedCost: number;
   costDifference: number;
   costMatches: boolean;
   isExternal: boolean;
@@ -1883,6 +2056,11 @@ export interface PnlReport {
   serviceMarginTotal?: number;
   externalMarginTotal?: number;
   externalTripsCount?: number;
+  financialPolicy?: PnlFinancialPolicy;
+  fleetDepreciationTotal?: number;
+  fleetMonthlyFixedCostTotal?: number;
+  allocatedFleetFixedCostTotal?: number;
+  unallocatedFleetFixedCostTotal?: number;
 }
 
 // ─── Salary Period ─────────────────────────────────────────────────────────────

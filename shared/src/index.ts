@@ -42,7 +42,7 @@ export type {
   PaymentReceiptResult, PaymentReceiptResponse, CreatePenaltyRequest, CreateAdjustmentRequest,
   LoginResponse, PaginatedResponse, CursorPaginatedResponse, DashboardStats, DashboardDecisionItem, DashboardDecisionKind, DashboardDecisionSeverity, CustomerStatement, AgingBucket, UnpaidTrip, PeriodSummary,
   TreasuryAccountPosition, TreasuryPosition, CustomerVisibleEventDto, RecoverableCostEligibility,
-  ProfitabilityReportRow, ProfitabilityReport,
+  ProfitabilityReportRow, ProfitabilityReport, LowMarginState, DashboardWidgets, DashboardFleetAttentionItem,
   SalaryPeriod, SalaryPeriodRange, PnlTruck, PnlMaintenanceItem, PnlTripDetail, PnlReport,
   Supplier, ExpenseCategory, Expense, ExpenseWithRefs, PayableSummary, PayablesCategory, SupplierStatement, RenewalReminder, VendorPaymentRequest,
   TripContainer, TripExpense, TripExpenseWithRefs, ForwarderTripDetail, TripExpenseWithSupplier,
@@ -68,6 +68,19 @@ export { parseThreshold } from './types';
 
 export { canonicalFreightDescription } from './calculations/billingDocument';
 export { isCompanyInfoConfigured } from './company-info';
+
+export {
+  financialReportingPolicyRequestSchema,
+  financialReportingPolicyStateSchema,
+  truckFinancialProfileRequestSchema,
+  truckFinancialProfileStateSchema,
+} from './schemas/financial-reporting-policy';
+export type {
+  FinancialReportingPolicyRequest,
+  FinancialReportingPolicyState,
+  TruckFinancialProfileRequest,
+  TruckFinancialProfileState,
+} from './schemas/financial-reporting-policy';
 
 // ─── Navigation catalog (single source for SPA paths/titles + agent search) ──
 export { PAGE_CATALOG } from './navigation/pageCatalog';

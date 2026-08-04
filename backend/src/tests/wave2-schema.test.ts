@@ -1,13 +1,14 @@
 /**
  * Wave 2 — schema validation test.
  *
- * Verifies the new tables + enums + columns created by migration 0118.
+ * Verifies the tables, application-owned values, and columns in the consolidated baseline.
  */
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { sql } from 'drizzle-orm';
 import { client } from '../db';
 import { db } from '../db';
+import * as s from '../db/schema';
 
 after(async () => { await client.end(); });
 
@@ -39,37 +40,38 @@ describe('Wave 2 — CUS Core schema', () => {
     assert.ok(names.includes('provider_message_id'));
   });
 
-  test('debit_note_status enum has 8 values', async () => {
+  test('debit-note statuses are application-owned values', async () => {
     const vals = await db.execute(sql`
       SELECT enumlabel FROM pg_enum
       WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = 'debit_note_status')
       ORDER BY enumsortorder
     `);
     const labels = vals.map((r: Record<string, unknown>) => r['enumlabel']);
-    assert.equal(labels.length, 8);
-    assert.deepEqual(labels, ['DRAFT', 'SENT', 'PENDING_CONFIRM', 'CONFIRMED', 'PARTIAL_PAID', 'PAID', 'REJECTED', 'CANCELED']);
+    assert.deepEqual(labels, []);
+    assert.deepEqual([...s.debitNoteStatusEnum.enumValues], ['DRAFT', 'SENT', 'PENDING_CONFIRM', 'CONFIRMED', 'PARTIAL_PAID', 'PAID', 'REJECTED', 'CANCELED']);
   });
 
-  test('milestone_type enum has 7 values', async () => {
+  test('milestone types are application-owned values', async () => {
     const vals = await db.execute(sql`
       SELECT enumlabel FROM pg_enum
       WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = 'milestone_type')
       ORDER BY enumsortorder
     `);
     const labels = vals.map((r: Record<string, unknown>) => r['enumlabel']);
-    assert.equal(labels.length, 7);
-    assert.ok(labels.includes('DELIVERED'));
-    assert.ok(labels.includes('MANUAL'));
+    assert.deepEqual(labels, []);
+    assert.ok(s.milestoneTypeEnum.enumValues.includes('DELIVERED'));
+    assert.ok(s.milestoneTypeEnum.enumValues.includes('MANUAL'));
   });
 
-  test('email_status enum has 4 values', async () => {
+  test('email statuses are application-owned values', async () => {
     const vals = await db.execute(sql`
       SELECT enumlabel FROM pg_enum
       WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = 'email_status')
       ORDER BY enumsortorder
     `);
     const labels = vals.map((r: Record<string, unknown>) => r['enumlabel']);
-    assert.deepEqual(labels, ['PENDING', 'SENT', 'FAILED', 'OPENED']);
+    assert.deepEqual(labels, []);
+    assert.deepEqual([...s.emailStatusEnum.enumValues], ['PENDING', 'SENT', 'FAILED', 'OPENED']);
   });
 
   test('billing_documents.debit_note_status column exists with default DRAFT', async () => {

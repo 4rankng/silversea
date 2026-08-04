@@ -1,6 +1,6 @@
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq, ne, and, isNull, isNotNull, or, desc, asc, gte, lte, sql, inArray } from 'drizzle-orm';
+import { eq, ne, and, isNull, isNotNull, or, desc, asc, gte, lte, sql, inArray, aliasedTable } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import {
   computeVehicleAlerts,
@@ -16,6 +16,7 @@ import {
 } from '@tingting/shared';
 
 import { computeSalary } from './attendance.service';
+import { listFuelEvidenceReviewsForTrip } from './fuel-evidence-review.service';
 import { LedgerService } from './ledger.service';
 import { listTripContainers, listTripPhotoKeys } from './forwarder.service';
 import { getTripInstructions } from './trip-instructions.service';
@@ -431,6 +432,7 @@ export async function getDriverTwoOrdersView(driverId: number): Promise<DriverTw
  * Get a single trip detail for a driver (ownership-enforced).
  */
 export async function getDriverTripDetail(driverId: number, tripId: number) {
+  const paperCollector = aliasedTable(s.users, 'driver_trip_paper_collector');
   const [trip] = await db.select({
     id: s.trips.id,
     tripCode: s.trips.tripCode,
@@ -451,6 +453,9 @@ export async function getDriverTripDetail(driverId: number, tripId: number) {
     customerName: s.customers.name,
     cargoTypeName: s.cargoTypes.name,
     fuelSupplierName: s.suppliers.name,
+    paperOrderCollectedAt: s.trips.paperOrderCollectedAt,
+    paperOrderCollectedBy: s.trips.paperOrderCollectedBy,
+    paperOrderCollectedByName: paperCollector.fullName,
   }).from(s.trips)
     .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
     .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
@@ -458,6 +463,7 @@ export async function getDriverTripDetail(driverId: number, tripId: number) {
     .leftJoin(s.customers, eq(s.trips.customerId, s.customers.id))
     .leftJoin(s.cargoTypes, eq(s.trips.cargoTypeId, s.cargoTypes.id))
     .leftJoin(s.suppliers, eq(s.trips.fuelSupplierId, s.suppliers.id))
+    .leftJoin(paperCollector, eq(paperCollector.id, s.trips.paperOrderCollectedBy))
     .where(and(eq(s.trips.id, tripId), eq(s.trips.driverId, driverId), isNull(s.trips.deletedAt)))
     .limit(1);
 
@@ -476,10 +482,11 @@ export async function getDriverTripDetail(driverId: number, tripId: number) {
   // list (newest first) so the driver UI can surface every captured photo,
   // not just the latest. Singular fields kept for back-compat with the
   // existing driver app build; contPhotoKeys[0] === contPhotoKey.
-  const [contPhotoKeysRaw, sealPhotoKeysRaw, instructions] = await Promise.all([
+  const [contPhotoKeysRaw, sealPhotoKeysRaw, instructions, fuelEvidenceReviews] = await Promise.all([
     listTripPhotoKeys(tripId, 'CONTAINER'),
     listTripPhotoKeys(tripId, 'SEAL'),
     getTripInstructions(tripId),
+    listFuelEvidenceReviewsForTrip(tripId),
   ]);
   const [contPhotoKeys, sealPhotoKeys] = await Promise.all([
     existingStorageKeys(contPhotoKeysRaw),
@@ -488,7 +495,17 @@ export async function getDriverTripDetail(driverId: number, tripId: number) {
   const contPhotoKey = contPhotoKeys[0] ?? null;
   const sealPhotoKey = sealPhotoKeys[0] ?? null;
 
-  return { ...trip, legs, containers, contPhotoKey, sealPhotoKey, contPhotoKeys, sealPhotoKeys, instructions };
+  return {
+    ...trip,
+    legs,
+    containers,
+    contPhotoKey,
+    sealPhotoKey,
+    contPhotoKeys,
+    sealPhotoKeys,
+    instructions,
+    fuelEvidenceReviews,
+  };
 }
 
 function isDriverFulfillmentMilestone(
@@ -799,7 +816,7 @@ export interface DriverProgressEvent {
  * trip is missing, 403 if it belongs to a different driver. Used by both the
  * create and list paths so ownership is enforced consistently.
  */
-async function assertTripOwnedByDriver(tripId: number, driverId: number) {
+export async function assertTripOwnedByDriver(tripId: number, driverId: number) {
   const [trip] = await db.select({ id: s.trips.id, driverId: s.trips.driverId, deletedAt: s.trips.deletedAt })
     .from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
   if (!trip || trip.deletedAt) {
@@ -947,6 +964,12 @@ export async function recordDriverFulfillmentProgress(args: {
       const next = nextDriverFulfillmentMilestone(recorded);
       if (next == null || eventType !== next) {
         throw new ApiError(409, buildDriverFulfillmentSequenceError(recorded, eventType));
+      }
+      if (
+        eventType === DriverProgressEventType.ORDER_RECEIVED
+        && (!ownedTrip.paperOrderCollectedAt || !ownedTrip.paperOrderCollectedBy)
+      ) {
+        throw new ApiError(409, 'Ops chưa xác nhận giao lệnh gốc cho chuyến này.');
       }
       const event = await insertDriverProgressEventTx(tx, ownedTrip.tripId, args.driverId, args.input, args.recordedBy);
       if (eventType === DriverProgressEventType.ORDER_RECEIVED && ownedTrip.tripStatus === TripStatus.CREATED) {

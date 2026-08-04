@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { reportClient } from '../api/reportClient';
 import { qk } from '../api/keys';
 import type { ExtendedDashboardStats } from '../api/reportClient';
-import type { PnlReport, RenewalReminder } from '@tingting/shared';
+import type { DashboardWidgets, PnlReport, RenewalReminder } from '@tingting/shared';
 
 export type { PnlReport, PnlTruck } from '@tingting/shared';
 export type { ExtendedDashboardStats };
@@ -22,6 +22,14 @@ export function usePnlReport(month: number, year: number) {
     queryKey: qk.dashboard.pnl(month, year),
     queryFn: () => reportClient.getPnl(month, year),
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useDashboardWidgets(month: number, year: number) {
+  return useQuery<DashboardWidgets>({
+    queryKey: qk.dashboard.widgets(month, year),
+    queryFn: () => reportClient.getDashboardWidgets(month, year),
+    staleTime: 60 * 1000,
   });
 }
 

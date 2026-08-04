@@ -5,6 +5,11 @@ import { ApiError } from '../errors';
 import { resolveSalaryPeriodDateRange } from './salary-period.service';
 import type { Tx } from './trip-shared';
 
+export const PERIOD_LOCK_STATUS = {
+  CLOSED: 'CLOSED',
+  REOPENED: 'REOPENED',
+} as const;
+
 export type PeriodLockDomain = 'SALARY' | 'FUEL' | 'DEBIT_NOTE';
 export type PeriodLockScopeType = 'GLOBAL' | 'CUSTOMER';
 export type PeriodLockCycle = 'MONTHLY' | 'WEEKLY';
@@ -192,7 +197,7 @@ export async function closePeriodLock(
   note?: string | null,
 ): Promise<typeof s.periodLocks.$inferSelect> {
   const existing = await readPeriodLock(tx, ref);
-  if (existing?.status === 'CLOSED') {
+  if (existing?.status === PERIOD_LOCK_STATUS.CLOSED) {
     return existing;
   }
   if (existing) {
@@ -201,7 +206,7 @@ export async function closePeriodLock(
         cycle: ref.cycle,
         periodStart: ref.periodStart,
         periodEnd: ref.periodEnd,
-        status: 'CLOSED',
+        status: PERIOD_LOCK_STATUS.CLOSED,
         closedBy: actorId,
         closedAt: new Date(),
         reopenedBy: null,
@@ -223,7 +228,7 @@ export async function closePeriodLock(
     periodKey: ref.periodKey,
     periodStart: ref.periodStart,
     periodEnd: ref.periodEnd,
-    status: 'CLOSED',
+    status: PERIOD_LOCK_STATUS.CLOSED,
     closedBy: actorId,
     note: note ?? null,
   }).returning();
@@ -285,7 +290,7 @@ export async function reopenPeriodLock(
   if (!existing) {
     throw new ApiError(404, `Kỳ ${ref.periodKey} chưa được khóa`);
   }
-  if (existing.status === 'REOPENED') {
+  if (existing.status === PERIOD_LOCK_STATUS.REOPENED) {
     return existing;
   }
   if (existing.domain === 'FUEL') {
@@ -299,7 +304,7 @@ export async function reopenPeriodLock(
   }
   const [updated] = await tx.update(s.periodLocks)
     .set({
-      status: 'REOPENED',
+      status: PERIOD_LOCK_STATUS.REOPENED,
       reopenedBy: actorId,
       reopenedAt: new Date(),
       reopenNote: note ?? null,

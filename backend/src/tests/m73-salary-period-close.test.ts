@@ -49,6 +49,11 @@ const createdTripIds: number[] = [];
 const createdLedgerIds: number[] = [];
 const createdGovernanceActionIds: number[] = [];
 const createdClosePeriods = new Set<string>();
+let testCatalogs: {
+  customer: { id: number };
+  route: { id: number };
+  cargoType: { id: number };
+} | null = null;
 
 async function mkUser(role: 'ADMIN' | 'ACCOUNTANT' | 'MANAGER' | 'DRIVER', tag: string) {
   const [user] = await db.insert(s.users).values({
@@ -74,19 +79,21 @@ async function mkDriver(tag: string) {
 }
 
 async function mkCatalogs() {
-  const [customer] = await db.select({ id: s.customers.id }).from(s.customers).limit(1);
-  if (!customer) {
-    throw new Error('No seeded customer available for M73 test');
-  }
-  const [route] = await db.select({ id: s.routes.id }).from(s.routes).limit(1);
-  if (!route) {
-    throw new Error('No seeded route available for M73 test');
-  }
-  const [cargoType] = await db.select({ id: s.cargoTypes.id }).from(s.cargoTypes).limit(1);
-  if (!cargoType) {
-    throw new Error('No seeded cargo type available for M73 test');
-  }
-  return { customer, route, cargoType };
+  if (testCatalogs) return testCatalogs;
+  const [customer] = await db.insert(s.customers)
+    .values({ name: `M73 customer ${suffix}` })
+    .returning({ id: s.customers.id });
+  createdCustomerIds.push(customer.id);
+  const [route] = await db.insert(s.routes)
+    .values({ name: `M73 route ${suffix}` })
+    .returning({ id: s.routes.id });
+  createdRouteIds.push(route.id);
+  const [cargoType] = await db.insert(s.cargoTypes)
+    .values({ name: `M73 cargo ${suffix}` })
+    .returning({ id: s.cargoTypes.id });
+  createdCargoTypeIds.push(cargoType.id);
+  testCatalogs = { customer, route, cargoType };
+  return testCatalogs;
 }
 
 async function mkTrip(

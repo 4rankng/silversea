@@ -10,6 +10,7 @@ import { Role } from '@tingting/shared';
  * The prefix is shared by two independent serial sequences:
  *   - company receipts   → expense_photos        (keyed by expenses.id)
  *   - forwarder receipts → trip_expense_photos   (keyed by trip_expenses.id)
+ *   - driver fuel OCR    → fuel_evidence_reviews (driver-owned source image)
  * These sequences can collide numerically, so a request CANNOT be authorized by
  * parsing the id from the path. This helper resolves the domain by EXACT
  * `storage_key` match against BOTH tables, then applies STRICTEST-MATCH: access
@@ -42,7 +43,7 @@ export async function authorizeExpensePhoto(
   user: { userId: number; role: Role },
 ): Promise<PhotoAuthDecision> {
   // 1. Parallel exact-storage_key lookups against both receipt tables.
-  const [tripRows, expenseRows] = await Promise.all([
+  const [tripRows, expenseRows, fuelRows] = await Promise.all([
     db.select({
       forwarderId: s.tripExpenses.forwarderId,
       ownerStatus: s.users.status,
@@ -68,11 +69,22 @@ export async function authorizeExpensePhoto(
       .from(s.expensePhotos)
       .where(eq(s.expensePhotos.storageKey, storageKey))
       .limit(1),
+    db.select({
+      ownerUserId: s.fuelEvidenceReviews.ownerUserId,
+      driverStatus: s.drivers.status,
+      ownerUserStatus: s.users.status,
+    })
+      .from(s.fuelEvidenceReviews)
+      .innerJoin(s.drivers, eq(s.fuelEvidenceReviews.ownerDriverId, s.drivers.id))
+      .innerJoin(s.users, eq(s.fuelEvidenceReviews.ownerUserId, s.users.id))
+      .where(eq(s.fuelEvidenceReviews.storageKey, storageKey))
+      .limit(1),
   ]);
 
   const tripMatch = tripRows.length > 0;
   const expenseMatch = expenseRows.length > 0;
-  if (!tripMatch && !expenseMatch) return { allow: false, reason: 'not_found' };
+  const fuelMatch = fuelRows.length > 0;
+  if (!tripMatch && !expenseMatch && !fuelMatch) return { allow: false, reason: 'not_found' };
 
   // 2. Per-table authorization, then 3. STRICTEST-MATCH: allow only if
   // authorized under every matching table.
@@ -88,10 +100,18 @@ export async function authorizeExpensePhoto(
       && tripRows[0].ownerStatus === 'ACTIVE'
       && tripRows[0].hasCurrentAssignment);
   const okExpense = !expenseMatch || FINANCE_ROLES.has(user.role);
-  const allow = okTrip && okExpense;
+  const okFuel = !fuelMatch
+    || FINANCE_ROLES.has(user.role)
+    || (user.role === Role.DRIVER
+      && fuelRows[0].ownerUserId === user.userId
+      && fuelRows[0].driverStatus === 'ACTIVE'
+      && fuelRows[0].ownerUserStatus === 'ACTIVE');
+  const allow = okTrip && okExpense && okFuel;
 
   if (allow) return { allow: true, reason: 'allowed' };
   // A both-tables match that denies is a write-path integrity signal (N6).
-  if (tripMatch && expenseMatch) return { allow: false, reason: 'collision' };
+  if ([tripMatch, expenseMatch, fuelMatch].filter(Boolean).length > 1) {
+    return { allow: false, reason: 'collision' };
+  }
   return { allow: false, reason: 'forbidden' };
 }

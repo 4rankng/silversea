@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { newEnforcer } from 'casbin';
+import ExcelJS from 'exceljs';
 import { eq, inArray } from 'drizzle-orm';
 
-import { Role } from '@tingting/shared';
+import { Role, TripPodFileType } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
@@ -15,6 +16,13 @@ import {
   isFulfillmentRequired,
 } from '../services/shipment-fulfillment.service';
 import { assertDispatchableDriverPrincipal } from '../services/driver.service';
+import { cancelShipmentFulfillment, updateShipment } from '../services/shipment.service';
+import { attachPodFile, createPodSubmission } from '../services/trip-pod.service';
+import {
+  analyzeMasterWorkbook,
+  MASTER_IMPORT_XLSX_MIME,
+} from '../services/master-data-import.service';
+import { storageService } from '../services/storage.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const shipmentIds: number[] = [];
@@ -74,10 +82,10 @@ function expectApiConflict(error: unknown): boolean {
   return error instanceof ApiError && error.statusCode === 409;
 }
 
-function expectDatabaseConstraint(error: unknown): boolean {
+function expectDatabaseUnique(error: unknown): boolean {
   const code = (error as { code?: string; cause?: { code?: string } })?.code
     ?? (error as { cause?: { code?: string } })?.cause?.code;
-  return code === '23505' || code === '23503' || code === '23514';
+  return code === '23505';
 }
 
 describe('shipment fulfillment decomposition authority', () => {
@@ -252,7 +260,7 @@ describe('database cardinality and scope constraints', () => {
     assert.match(JSON.stringify(stored.siteSnapshot), /Private Contact|Private Billing Entity/);
   });
 
-  test('rejects an operational site owned by another customer', async () => {
+  test('fulfillment creation rejects an operational site owned by another customer', async () => {
     const actor = await createActor();
     const shipmentCustomer = await createCustomer();
     const otherCustomer = await createCustomer();
@@ -266,108 +274,85 @@ describe('database cardinality and scope constraints', () => {
     }).returning();
     operationalSiteIds.push(site.id);
 
-    await assert.rejects(
-      db.insert(s.shipments).values({
-        customerId: shipmentCustomer.id,
-        cargoMode: 'LCL',
-        shipmentCode: `SITE-SCOPE-${suffix}`,
-        operationalSiteId: site.id,
-        createdBy: actor.id,
-      }),
-      expectDatabaseConstraint,
-    );
+    const [shipment] = await db.insert(s.shipments).values({
+      customerId: shipmentCustomer.id,
+      cargoMode: 'LCL',
+      shipmentCode: `SITE-SCOPE-${suffix}`,
+      operationalSiteId: site.id,
+      createdBy: actor.id,
+    }).returning();
+    shipmentIds.push(shipment.id);
+    await assert.rejects(() => createShipmentFulfillments({
+      shipmentId: shipment.id,
+      expectedVersion: shipment.version,
+      idempotencyKey: `site-scope-${suffix}`,
+      actorId: actor.id,
+    }), expectApiConflict);
   });
 
-  test('rejects duplicate active FCL/LCL fulfillments and cross-shipment container links', async () => {
+  test('service decomposition reuses canonical FCL/LCL rows and never crosses shipment containers', async () => {
     const actor = await createActor();
     const customer = await createCustomer();
     const first = await createShipmentFixture('FCL', actor.id, customer.id, 1);
     const second = await createShipmentFixture('FCL', actor.id, customer.id, 1);
     const lcl = await createShipmentFixture('LCL', actor.id, customer.id);
-    await createShipmentFulfillments({
+    const firstResult = await createShipmentFulfillments({
       shipmentId: first.shipment.id,
       expectedVersion: first.shipment.version,
       idempotencyKey: `constraint-fcl-${suffix}`,
       actorId: actor.id,
     });
-    await createShipmentFulfillments({
+    const lclResult = await createShipmentFulfillments({
       shipmentId: lcl.shipment.id,
       expectedVersion: lcl.shipment.version,
       idempotencyKey: `constraint-lcl-${suffix}`,
       actorId: actor.id,
     });
 
-    await assert.rejects(
-      db.insert(s.shipmentFulfillments).values({
-        shipmentId: first.shipment.id,
-        fulfillmentType: 'FCL_CONTAINER',
-        cargoMode: 'FCL',
-        shipmentContainerId: first.containers[0]!.id,
-        sourceShipmentVersion: first.shipment.version,
-        createdBy: actor.id,
-      }),
-      expectDatabaseConstraint,
-    );
-    await assert.rejects(
-      db.insert(s.shipmentFulfillments).values({
-        shipmentId: lcl.shipment.id,
-        fulfillmentType: 'LCL_SHIPMENT',
-        cargoMode: 'LCL',
-        sourceShipmentVersion: lcl.shipment.version,
-        createdBy: actor.id,
-      }),
-      expectDatabaseConstraint,
-    );
-    await assert.rejects(
-      db.insert(s.shipmentFulfillments).values({
-        shipmentId: first.shipment.id,
-        fulfillmentType: 'FCL_CONTAINER',
-        cargoMode: 'FCL',
-        shipmentContainerId: second.containers[0]!.id,
-        sourceShipmentVersion: first.shipment.version,
-        createdBy: actor.id,
-      }),
-      expectDatabaseConstraint,
-    );
+    const firstReplay = await createShipmentFulfillments({
+      shipmentId: first.shipment.id,
+      expectedVersion: first.shipment.version,
+      idempotencyKey: `constraint-fcl-replay-${suffix}`,
+      actorId: actor.id,
+    });
+    const lclReplay = await createShipmentFulfillments({
+      shipmentId: lcl.shipment.id,
+      expectedVersion: lcl.shipment.version,
+      idempotencyKey: `constraint-lcl-replay-${suffix}`,
+      actorId: actor.id,
+    });
+    assert.deepEqual(firstReplay.result.map((row) => row.id), firstResult.result.map((row) => row.id));
+    assert.deepEqual(lclReplay.result.map((row) => row.id), lclResult.result.map((row) => row.id));
+    assert.deepEqual(firstResult.result.map((row) => row.shipmentContainerId), [first.containers[0]!.id]);
+    assert.ok(firstResult.result.every((row) => row.shipmentContainerId !== second.containers[0]!.id));
   });
 
-  test('enforces shipment cargo mode at the database boundary and blocks mode drift', async () => {
+  test('derives fulfillment cargo mode in the service and blocks mode drift', async () => {
     const actor = await createActor();
     const customer = await createCustomer();
     const fcl = await createShipmentFixture('FCL', actor.id, customer.id, 1);
     const lcl = await createShipmentFixture('LCL', actor.id, customer.id);
 
-    await assert.rejects(
-      db.insert(s.shipmentFulfillments).values({
-        shipmentId: fcl.shipment.id,
-        cargoMode: 'LCL',
-        fulfillmentType: 'LCL_SHIPMENT',
-        sourceShipmentVersion: fcl.shipment.version,
-        createdBy: actor.id,
-      }),
-      expectDatabaseConstraint,
-    );
-    await assert.rejects(
-      db.insert(s.shipmentFulfillments).values({
-        shipmentId: lcl.shipment.id,
-        cargoMode: 'FCL',
-        fulfillmentType: 'FCL_CONTAINER',
-        shipmentContainerId: fcl.containers[0]!.id,
-        sourceShipmentVersion: lcl.shipment.version,
-        createdBy: actor.id,
-      }),
-      expectDatabaseConstraint,
-    );
-
-    await createShipmentFulfillments({
+    const fclResult = await createShipmentFulfillments({
       shipmentId: fcl.shipment.id,
       expectedVersion: fcl.shipment.version,
       idempotencyKey: `mode-drift-${suffix}`,
       actorId: actor.id,
     });
+    const lclResult = await createShipmentFulfillments({
+      shipmentId: lcl.shipment.id,
+      expectedVersion: lcl.shipment.version,
+      idempotencyKey: `mode-lcl-${suffix}`,
+      actorId: actor.id,
+    });
+    assert.ok(fclResult.result.every((row) => row.cargoMode === 'FCL' && row.fulfillmentType === 'FCL_CONTAINER'));
+    assert.ok(lclResult.result.every((row) => row.cargoMode === 'LCL' && row.fulfillmentType === 'LCL_SHIPMENT'));
     await assert.rejects(
-      db.update(s.shipments).set({ cargoMode: 'LCL' }).where(eq(s.shipments.id, fcl.shipment.id)),
-      expectDatabaseConstraint,
+      () => updateShipment(fcl.shipment.id, {
+        expectedVersion: fcl.shipment.version,
+        cargoMode: 'LCL',
+      }),
+      expectApiConflict,
     );
   });
 
@@ -401,7 +386,7 @@ describe('database cardinality and scope constraints', () => {
     assert.equal(trips.length, 2);
     await assert.rejects(
       db.insert(s.trips).values({ ...base, fulfillmentId: decomposition.result[0]!.id }),
-      expectDatabaseConstraint,
+      expectDatabaseUnique,
     );
   });
 
@@ -411,7 +396,7 @@ describe('database cardinality and scope constraints', () => {
     driverIds.push(driver.id);
     await assert.rejects(
       db.insert(s.drivers).values({ userId: actor.id, name: `Duplicate driver ${suffix}` }),
-      expectDatabaseConstraint,
+      expectDatabaseUnique,
     );
     assert.equal((await assertDispatchableDriverPrincipal(driver.id)).id, driver.id);
   });
@@ -475,34 +460,35 @@ describe('database cardinality and scope constraints', () => {
     }), false);
   });
 
-  test('rejects a replacement fulfillment from another shipment', async () => {
+  test('replacement cancellation creates the replacement inside the same shipment', async () => {
     const actor = await createActor();
     const customer = await createCustomer();
     const first = await createShipmentFixture('LCL', actor.id, customer.id);
-    const second = await createShipmentFixture('LCL', actor.id, customer.id);
     const firstResult = await createShipmentFulfillments({
       shipmentId: first.shipment.id,
       expectedVersion: first.shipment.version,
       idempotencyKey: `replacement-first-${suffix}`,
       actorId: actor.id,
     });
-    const secondResult = await createShipmentFulfillments({
-      shipmentId: second.shipment.id,
-      expectedVersion: second.shipment.version,
-      idempotencyKey: `replacement-second-${suffix}`,
-      actorId: actor.id,
+    const canceled = await cancelShipmentFulfillment({
+      shipmentId: first.shipment.id,
+      fulfillmentId: firstResult.result[0]!.id,
+      expectedVersion: firstResult.result[0]!.version,
+      disposition: 'REPLACED',
+      reason: 'Thay thế tác vụ thử nghiệm',
+      actor: {
+        userId: actor.id,
+        username: actor.username,
+        email: actor.email,
+        fullName: actor.fullName,
+        role: Role.ADMIN,
+      },
+      idempotencyKey: `replacement-service-${suffix}`,
     });
-
-    await assert.rejects(
-      db.update(s.shipmentFulfillments).set({
-        canceledAt: new Date(),
-        canceledBy: actor.id,
-        cancellationReason: 'Thay thế tác vụ thử nghiệm',
-        cancellationDisposition: 'REPLACED',
-        replacementFulfillmentId: secondResult.result[0]!.id,
-      }).where(eq(s.shipmentFulfillments.id, firstResult.result[0]!.id)),
-      expectDatabaseConstraint,
-    );
+    assert.ok(canceled.replacementFulfillmentId);
+    const [replacement] = await db.select().from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.id, canceled.replacementFulfillmentId!));
+    assert.equal(replacement?.shipmentId, first.shipment.id);
   });
 });
 
@@ -527,6 +513,13 @@ describe('dispatch workflow role matrix', () => {
 describe('e-POD and master import authority constraints', () => {
   test('keeps one open POD, binds it to the trip fulfillment, and protects required evidence slots', async () => {
     const actor = await createActor(Role.ADMIN);
+    const driverUser = await createActor(Role.DRIVER);
+    const [driver] = await db.insert(s.drivers).values({
+      userId: driverUser.id,
+      name: `POD driver ${suffix}`,
+      status: 'ACTIVE',
+    }).returning();
+    driverIds.push(driver.id);
     const customer = await createCustomer();
     const { shipment } = await createShipmentFixture('FCL', actor.id, customer.id, 2);
     const decomposition = await createShipmentFulfillments({
@@ -546,14 +539,23 @@ describe('e-POD and master import authority constraints', () => {
       departureDate: '2026-08-01',
       shipmentId: shipment.id,
       fulfillmentId: decomposition.result[0]!.id,
+      driverId: driver.id,
       createdBy: actor.id,
     }).returning();
-    const [submission] = await db.insert(s.tripPodSubmissions).values({
-      tripId: trip.id,
+    const created = await createPodSubmission({
+      driverId: driver.id,
+      actorUserId: driverUser.id,
       fulfillmentId: decomposition.result[0]!.id,
-      submissionVersion: 1,
-      sourceTripVersion: trip.version,
-    }).returning();
+      expectedVersion: trip.version,
+      idempotencyKey: `pod-create-${suffix}`,
+    });
+    await assert.rejects(() => createPodSubmission({
+      driverId: driver.id,
+      actorUserId: driverUser.id,
+      fulfillmentId: decomposition.result[0]!.id,
+      expectedVersion: trip.version,
+      idempotencyKey: `pod-create-second-${suffix}`,
+    }), expectApiConflict);
 
     const [secondTrip] = await db.insert(s.trips).values({
       customerId: customer.id,
@@ -562,107 +564,96 @@ describe('e-POD and master import authority constraints', () => {
       departureDate: '2026-08-01',
       shipmentId: shipment.id,
       fulfillmentId: decomposition.result[1]!.id,
+      driverId: driver.id,
       createdBy: actor.id,
     }).returning();
     await assert.rejects(
-      db.insert(s.tripPodSubmissions).values({
-        tripId: secondTrip.id,
+      () => attachPodFile({
+        driverId: driver.id,
+        actorUserId: driverUser.id,
         fulfillmentId: decomposition.result[1]!.id,
-        submissionVersion: 2,
-        sourceTripVersion: secondTrip.version,
-        supersedesSubmissionId: submission.id,
+        submissionId: created.submission.id,
+        expectedVersion: created.submission.version,
+        idempotencyKey: `pod-cross-fulfillment-${suffix}`,
+        fileType: TripPodFileType.SIGNED_DELIVERY_NOTE,
+        file: {
+          buffer: Buffer.from('%PDF-1.4\n%%EOF\n'),
+          mimetype: 'application/pdf',
+          originalname: 'cross.pdf',
+          size: 16,
+        },
       }),
-      expectDatabaseConstraint,
+      (error: unknown) => error instanceof ApiError && error.statusCode === 404,
     );
 
-    await assert.rejects(
-      db.insert(s.tripPodSubmissions).values({
-        tripId: trip.id,
-        fulfillmentId: decomposition.result[0]!.id,
-        submissionVersion: 2,
-        sourceTripVersion: trip.version,
-        supersedesSubmissionId: submission.id,
-      }),
-      expectDatabaseConstraint,
+    const firstFile = await attachPodFile({
+      driverId: driver.id,
+      actorUserId: driverUser.id,
+      fulfillmentId: decomposition.result[0]!.id,
+      submissionId: created.submission.id,
+      expectedVersion: created.submission.version,
+      idempotencyKey: `pod-required-first-${suffix}`,
+      fileType: TripPodFileType.SIGNED_DELIVERY_NOTE,
+      file: {
+        buffer: Buffer.from('%PDF-1.4\n% first\n%%EOF\n'),
+        mimetype: 'application/pdf',
+        originalname: 'first.pdf',
+        size: 24,
+      },
+    });
+    const replacedFile = await attachPodFile({
+      driverId: driver.id,
+      actorUserId: driverUser.id,
+      fulfillmentId: decomposition.result[0]!.id,
+      submissionId: created.submission.id,
+      expectedVersion: firstFile.submission.version,
+      idempotencyKey: `pod-required-replace-${suffix}`,
+      fileType: TripPodFileType.SIGNED_DELIVERY_NOTE,
+      file: {
+        buffer: Buffer.from('%PDF-1.4\n% replacement\n%%EOF\n'),
+        mimetype: 'application/pdf',
+        originalname: 'replacement.pdf',
+        size: 30,
+      },
+    });
+    const requiredFiles = await db.select().from(s.tripPodFiles).where(eq(
+      s.tripPodFiles.submissionId,
+      created.submission.id,
+    ));
+    assert.equal(requiredFiles.filter((file) => file.fileType === TripPodFileType.SIGNED_DELIVERY_NOTE).length, 1);
+    assert.equal(
+      requiredFiles.find((file) => file.fileType === TripPodFileType.SIGNED_DELIVERY_NOTE)?.originalFileName,
+      'replacement.pdf',
     );
-    await assert.rejects(
-      db.insert(s.tripPodSubmissions).values({
-        tripId: trip.id,
-        fulfillmentId: decomposition.result[1]!.id,
-        submissionVersion: 2,
-        sourceTripVersion: trip.version,
-        supersedesSubmissionId: submission.id,
-        status: 'REJECTED',
-        submittedBy: actor.id,
-        submittedAt: new Date(),
-        reviewedBy: actor.id,
-        reviewedAt: new Date(),
-        rejectionReason: 'Sai tác vụ',
-      }),
-      expectDatabaseConstraint,
-    );
-    const file = {
-      submissionId: submission.id,
-      fileType: 'SIGNED_DELIVERY_NOTE' as const,
-      storageKey: `pod/${suffix}/signed-1.jpg`,
-      originalFileName: 'bien-ban-giao-nhan.jpg',
-      mimeType: 'image/jpeg',
-      sizeBytes: 128,
-      sha256: 'a'.repeat(64),
-      uploadedBy: actor.id,
-    };
-    await db.insert(s.tripPodFiles).values(file);
-    await assert.rejects(
-      db.insert(s.tripPodFiles).values({
-        ...file,
-        storageKey: `pod/${suffix}/signed-2.jpg`,
-        sha256: 'b'.repeat(64),
-      }),
-      expectDatabaseConstraint,
-    );
+    assert.equal(replacedFile.submission.id, created.submission.id);
+    assert.equal(secondTrip.fulfillmentId, decomposition.result[1]!.id);
   });
 
   test('deduplicates import sources and persists only redacted blocked-row reasons', async () => {
     const actor = await createActor();
-    const sourceFileHash = 'c'.repeat(64);
-    const [batch] = await db.insert(s.masterImportBatches).values({
-      sourceFileName: 'master-data.xlsx',
-      sourceFileHash,
-      parserVersion: 'v1',
-      analyzedBy: actor.id,
-    }).returning();
-    masterImportBatchIds.push(batch.id);
-
-    await assert.rejects(
-      db.insert(s.masterImportBatches).values({
-        sourceFileName: 'renamed.xlsx',
-        sourceFileHash,
-        parserVersion: 'v1',
-        analyzedBy: actor.id,
-      }),
-      expectDatabaseConstraint,
+    const workbook = new ExcelJS.Workbook();
+    workbook.addWorksheet(`UNKNOWN-${suffix.slice(-6)}`).addRow(['private raw value']);
+    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+    const file = {
+      buffer,
+      originalname: 'master-data.xlsx',
+      mimetype: MASTER_IMPORT_XLSX_MIME,
+      size: buffer.length,
+    };
+    const first = await analyzeMasterWorkbook(file, { userId: actor.id, role: Role.ADMIN });
+    masterImportBatchIds.push(first.batch.id);
+    const replay = await analyzeMasterWorkbook(
+      { ...file, originalname: 'renamed.xlsx' },
+      { userId: actor.id, role: Role.ADMIN },
     );
-    await assert.rejects(
-      db.insert(s.masterImportRowResults).values({
-        batchId: batch.id,
-        sheetName: 'Drivers',
-        rowNumber: 2,
-        entityType: 'driver',
-        classification: 'BLOCKED',
-      }),
-      expectDatabaseConstraint,
-    );
-    const [blocked] = await db.insert(s.masterImportRowResults).values({
-      batchId: batch.id,
-      sheetName: 'Drivers',
-      rowNumber: 2,
-      entityType: 'driver',
-      classification: 'BLOCKED',
-      reasonCode: 'INVALID_PHONE',
-      redactedReason: 'Số điện thoại không hợp lệ',
-    }).returning();
-    assert.equal(blocked.redactedReason, 'Số điện thoại không hợp lệ');
-    assert.equal('rawPayload' in blocked, false);
+    assert.equal(first.replayed, false);
+    assert.equal(replay.replayed, true);
+    assert.equal(replay.batch.id, first.batch.id);
+    const blocked = first.batch.rows.filter((row) => row.classification === 'BLOCKED');
+    assert.ok(blocked.length > 0);
+    assert.ok(blocked.every((row) => Boolean(row.reasonCode) && Boolean(row.redactedReason)));
+    assert.equal(JSON.stringify(first.batch.rows).includes('private raw value'), false);
+    assert.equal(JSON.stringify(first.batch.rows).includes('rawPayload'), false);
   });
 });
 
@@ -674,6 +665,29 @@ after(async () => {
         .where(inArray(s.shipmentFulfillments.shipmentId, shipmentIds));
       const fulfillmentIds = fulfillmentRows.map((row) => row.id);
       if (fulfillmentIds.length > 0) {
+        const podSubmissions = await db.select({ id: s.tripPodSubmissions.id })
+          .from(s.tripPodSubmissions)
+          .where(inArray(s.tripPodSubmissions.fulfillmentId, fulfillmentIds));
+        const podSubmissionIds = podSubmissions.map((row) => row.id);
+        if (podSubmissionIds.length > 0) {
+          const podFiles = await db.select({ id: s.tripPodFiles.id, storageKey: s.tripPodFiles.storageKey })
+            .from(s.tripPodFiles)
+            .where(inArray(s.tripPodFiles.submissionId, podSubmissionIds));
+          const podFileIds = new Set(podFiles.map((file) => file.id));
+          const durableJobs = await db.select({ id: s.durableEffectJobs.id, payload: s.durableEffectJobs.payload })
+            .from(s.durableEffectJobs);
+          const ownedJobIds = durableJobs.filter((job) => (
+            job.payload.entityType === 'trip_pod_files'
+            && typeof job.payload.entityId === 'number'
+            && podFileIds.has(job.payload.entityId)
+          )).map((job) => job.id);
+          if (ownedJobIds.length > 0) {
+            await db.delete(s.durableEffectJobs).where(inArray(s.durableEffectJobs.id, ownedJobIds));
+          }
+          await db.delete(s.tripPodFiles).where(inArray(s.tripPodFiles.submissionId, podSubmissionIds));
+          await db.delete(s.tripPodSubmissions).where(inArray(s.tripPodSubmissions.id, podSubmissionIds));
+          await Promise.allSettled(podFiles.map((file) => storageService.delete(file.storageKey)));
+        }
         await db.delete(s.trips).where(inArray(s.trips.fulfillmentId, fulfillmentIds));
       }
       await db.delete(s.idempotencyKeys)
@@ -689,7 +703,25 @@ after(async () => {
       await db.delete(s.operationalSites).where(inArray(s.operationalSites.id, operationalSiteIds));
     }
     if (masterImportBatchIds.length > 0) {
+      const sources = await db.select({ key: s.masterImportBatches.privateStorageKey })
+        .from(s.masterImportBatches)
+        .where(inArray(s.masterImportBatches.id, masterImportBatchIds));
+      await db.delete(s.masterImportRowResults)
+        .where(inArray(s.masterImportRowResults.batchId, masterImportBatchIds));
+      const batchIdSet = new Set(masterImportBatchIds);
+      const durableJobs = await db.select({ id: s.durableEffectJobs.id, payload: s.durableEffectJobs.payload })
+        .from(s.durableEffectJobs);
+      const ownedJobIds = durableJobs.filter((job) => (
+        job.payload.entityType === 'master_import_batches'
+        && typeof job.payload.entityId === 'number'
+        && batchIdSet.has(job.payload.entityId)
+      )).map((job) => job.id);
+      if (ownedJobIds.length > 0) {
+        await db.delete(s.durableEffectJobs).where(inArray(s.durableEffectJobs.id, ownedJobIds));
+      }
       await db.delete(s.masterImportBatches).where(inArray(s.masterImportBatches.id, masterImportBatchIds));
+      await Promise.allSettled(sources.filter((source) => source.key != null)
+        .map((source) => storageService.delete(source.key!)));
     }
     if (routeIds.length > 0) await db.delete(s.routes).where(inArray(s.routes.id, routeIds));
     if (cargoTypeIds.length > 0) await db.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, cargoTypeIds));

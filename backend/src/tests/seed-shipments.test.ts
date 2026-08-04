@@ -45,7 +45,7 @@ const CUSTOMER_USERNAME = 'customer';
 const preExistingShipmentIds = new Set<number>();
 const preExistingCustomerIds = new Set<number>();
 const preExistingCustomerUser: {
-  value: Pick<typeof s.users.$inferSelect, 'id' | 'email'> | null;
+  value: Pick<typeof s.users.$inferSelect, 'id' | 'email' | 'customerId'> | null;
 } = { value: null };
 
 async function findSeedShipments(): Promise<{ id: number; bookingRef: string | null }[]> {
@@ -64,7 +64,11 @@ before(async () => {
   // Snapshot existing seed rows so cleanup can avoid touching them.
   for (const sh of await findSeedShipments()) preExistingShipmentIds.add(sh.id);
   for (const c of await findSampleCustomers()) preExistingCustomerIds.add(c.id);
-  const [existingUser] = await db.select({ id: s.users.id, email: s.users.email })
+  const [existingUser] = await db.select({
+    id: s.users.id,
+    email: s.users.email,
+    customerId: s.users.customerId,
+  })
     .from(s.users)
     .where(eq(s.users.username, CUSTOMER_USERNAME));
   preExistingCustomerUser.value = existingUser ?? null;
@@ -131,7 +135,15 @@ describe('seedShipments — Wave 0 shipment + CUSTOMER seed', () => {
       preExistingCustomerUser.value?.email ?? 'customer@nepo.vn',
       'seeding preserves an existing account email and only supplies the canonical email for a new account',
     );
-    assert.ok(u.customerId, 'CUSTOMER demo user is linked to an AR customer for portal row scope');
+    if (preExistingCustomerUser.value) {
+      assert.equal(
+        u.customerId,
+        preExistingCustomerUser.value.customerId,
+        'seeding does not rewrite a preserved account relationship field',
+      );
+    } else {
+      assert.ok(u.customerId, 'a newly created CUSTOMER demo account receives its initial portal scope');
+    }
   });
 
   test('creates 3 sample shipments across NEW / DISPATCHED / PENDING_EXPENSE_APPROVAL', async () => {

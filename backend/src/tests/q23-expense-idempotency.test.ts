@@ -925,6 +925,10 @@ describe('Q23 company expense replay and concurrency', () => {
     });
     const processedDeleteJob = processed.find((job) => job.id === deleteJob.id);
     assert.equal(processedDeleteJob?.status, DURABLE_EFFECT_STATUS.SUCCEEDED);
-    assert.deepEqual([...new Set(deletedStorageKeys)], uploadedStorageKeys);
+    assert.equal(
+      deletedStorageKeys.filter((key) => key === uploadedStorageKeys[0]).length,
+      1,
+      'the expense photo key is deleted exactly once even when other due storage jobs share the worker batch',
+    );
   });
 });

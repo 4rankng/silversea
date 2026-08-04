@@ -5,14 +5,15 @@ import type { AddressInfo } from 'node:net';
 import { after, before, describe, it } from 'node:test';
 import express from 'express';
 import sharp from 'sharp';
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { disconnectRedis } from '../lib/redis';
-import driverRoutes from '../routes/driver';
+import driverRoutes, { setDriverFuelEvidenceAfterUploadHookForTest } from '../routes/driver';
 import forwarderRoutes, { setForwarderExpensePhotoAfterUploadHookForTest } from '../routes/forwarder';
 import ocrRoutes, { setExtractPumpReadingHandlerForTest } from '../routes/ocr';
+import { photosRouter } from '../routes/upload';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import {
   DURABLE_EFFECT_KIND,
@@ -21,6 +22,7 @@ import {
   STORAGE_DELETE_MODE,
 } from '../services/durable-effect.service';
 import { createTripContainer } from '../services/forwarder-container.service';
+import { setFuelEvidencePumpReadingHandlerForTest } from '../services/fuel-evidence-review.service';
 import { storageService } from '../services/storage.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -30,7 +32,10 @@ const storageKeys = new Set<string>();
 let adminUserId = 0;
 let driverUserId = 0;
 let driverId = 0;
+let otherDriverUserId = 0;
+let otherDriverId = 0;
 let forwarderUserId = 0;
+let managerUserId = 0;
 let tripId = 0;
 let tripContainerId = 0;
 let tripExpenseId = 0;
@@ -52,6 +57,7 @@ async function jsonRequest(
     body?: Record<string, unknown>;
     idempotencyKey?: string;
     expectedUpdatedAt?: string;
+    actor?: 'driver-owner' | 'driver-other' | 'forwarder' | 'accountant' | 'admin' | 'manager';
   } = {},
 ) {
   if (options.idempotencyKey) idempotencyKeys.push(options.idempotencyKey);
@@ -61,6 +67,7 @@ async function jsonRequest(
       'Content-Type': 'application/json',
       ...(options.idempotencyKey ? { 'Idempotency-Key': options.idempotencyKey } : {}),
       ...(options.expectedUpdatedAt ? { 'If-Unmodified-Since': options.expectedUpdatedAt } : {}),
+      ...(options.actor ? { 'X-Test-Actor': options.actor } : {}),
     },
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
@@ -76,6 +83,7 @@ async function multipartRequest(
   options: {
     idempotencyKey?: string;
     expectedUpdatedAt?: string;
+    actor?: 'driver-owner' | 'driver-other' | 'forwarder' | 'accountant' | 'admin' | 'manager';
   } = {},
 ) {
   if (options.idempotencyKey) idempotencyKeys.push(options.idempotencyKey);
@@ -84,6 +92,7 @@ async function multipartRequest(
     headers: {
       ...(options.idempotencyKey ? { 'Idempotency-Key': options.idempotencyKey } : {}),
       ...(options.expectedUpdatedAt ? { 'If-Unmodified-Since': options.expectedUpdatedAt } : {}),
+      ...(options.actor ? { 'X-Test-Actor': options.actor } : {}),
     },
     body: form,
   });
@@ -110,11 +119,11 @@ async function seedDriverPhotos(keys: string[]) {
   return rows;
 }
 
-async function createForwarderExpensePhoto(storageKey: string) {
+async function createForwarderExpensePhoto(storageKey: string, expenseId = tripExpenseId) {
   storageKeys.add(storageKey);
   await storageService.upload(Buffer.from('forwarder-photo'), storageKey);
   const [row] = await db.insert(s.tripExpensePhotos).values({
-    tripExpenseId,
+    tripExpenseId: expenseId,
     storageKey,
     uploadedBy: forwarderUserId,
   }).returning();
@@ -127,7 +136,7 @@ async function listStorageDeleteJobs() {
 }
 
 before(async () => {
-  const [admin, driverUser, forwarderUser] = await db.insert(s.users).values([
+  const [admin, driverUser, otherDriverUser, forwarderUser, managerUser] = await db.insert(s.users).values([
     {
       username: `q23-field-admin-${suffix}`,
       passwordHash: 'x',
@@ -141,21 +150,42 @@ before(async () => {
       status: 'ACTIVE',
     },
     {
+      username: `q23-field-driver-other-${suffix}`,
+      passwordHash: 'x',
+      role: Role.DRIVER,
+      status: 'ACTIVE',
+    },
+    {
       username: `q23-field-forwarder-${suffix}`,
       passwordHash: 'x',
       role: Role.FORWARDER,
       status: 'ACTIVE',
     },
+    {
+      username: `q23-field-manager-${suffix}`,
+      passwordHash: 'x',
+      role: Role.MANAGER,
+      status: 'ACTIVE',
+    },
   ]).returning({ id: s.users.id });
   adminUserId = admin.id;
   driverUserId = driverUser.id;
+  otherDriverUserId = otherDriverUser.id;
   forwarderUserId = forwarderUser.id;
+  managerUserId = managerUser.id;
 
-  const [driver] = await db.insert(s.drivers).values({
-    userId: driverUserId,
-    name: `Q23 Driver ${suffix}`,
-  }).returning({ id: s.drivers.id });
+  const [driver, otherDriver] = await db.insert(s.drivers).values([
+    {
+      userId: driverUserId,
+      name: `Q23 Driver ${suffix}`,
+    },
+    {
+      userId: otherDriverUserId,
+      name: `Q23 Driver Other ${suffix}`,
+    },
+  ]).returning({ id: s.drivers.id });
   driverId = driver.id;
+  otherDriverId = otherDriver.id;
 
   const [customer] = await db.insert(s.customers).values({
     name: `Q23 Field Customer ${suffix}`,
@@ -247,6 +277,19 @@ before(async () => {
 
   setExtractPumpReadingHandlerForTest(async () => ({
     success: true,
+    outcome: 'ACCEPTED',
+    litres: 50,
+    unitPrice: 25000,
+    total: 1250000,
+    mismatch: false,
+    computedTotal: 1250000,
+    provider: null,
+    model: 'test-model',
+    error: null,
+  }));
+  setFuelEvidencePumpReadingHandlerForTest(async () => ({
+    success: true,
+    outcome: 'ACCEPTED',
     litres: 50,
     unitPrice: 25000,
     total: 1250000,
@@ -260,7 +303,40 @@ before(async () => {
   const app = express();
   app.use(express.json());
   app.use((req, _res, next) => {
-    if (req.path.startsWith('/api/driver/me')) {
+    const actor = req.header('X-Test-Actor');
+    if (actor === 'driver-owner') {
+      req.user = {
+        userId: driverUserId,
+        username: `q23-field-driver-${suffix}`,
+        email: null,
+        fullName: null,
+        role: Role.DRIVER,
+      };
+    } else if (actor === 'driver-other') {
+      req.user = {
+        userId: otherDriverUserId,
+        username: `q23-field-driver-other-${suffix}`,
+        email: null,
+        fullName: null,
+        role: Role.DRIVER,
+      };
+    } else if (actor === 'accountant') {
+      req.user = {
+        userId: adminUserId,
+        username: `q23-field-accountant-${suffix}`,
+        email: null,
+        fullName: null,
+        role: Role.ACCOUNTANT,
+      };
+    } else if (actor === 'manager') {
+      req.user = {
+        userId: managerUserId,
+        username: `q23-field-manager-${suffix}`,
+        email: null,
+        fullName: null,
+        role: Role.MANAGER,
+      };
+    } else if (req.path.startsWith('/api/driver/me')) {
       req.user = {
         userId: driverUserId,
         username: `q23-field-driver-${suffix}`,
@@ -276,6 +352,14 @@ before(async () => {
         fullName: null,
         role: Role.FORWARDER,
       };
+    } else if (req.path.startsWith('/api/ocr')) {
+      req.user = {
+        userId: adminUserId,
+        username: `q23-field-accountant-${suffix}`,
+        email: null,
+        fullName: null,
+        role: Role.ACCOUNTANT,
+      };
     } else {
       req.user = {
         userId: adminUserId,
@@ -290,6 +374,7 @@ before(async () => {
   app.use('/api/driver/me', driverRoutes);
   app.use('/api/forwarder/me', forwarderRoutes);
   app.use('/api/ocr', ocrRoutes);
+  app.use('/api/photos', photosRouter);
   app.use(globalErrorHandler);
 
   server = http.createServer(app);
@@ -299,6 +384,8 @@ before(async () => {
 
 after(async () => {
   setExtractPumpReadingHandlerForTest(null);
+  setFuelEvidencePumpReadingHandlerForTest(null);
+  setDriverFuelEvidenceAfterUploadHookForTest(null);
   storageService.delete = originalStorageDelete;
   server.closeAllConnections();
   await new Promise<void>((resolve, reject) => {
@@ -309,8 +396,9 @@ after(async () => {
       .where(inArray(s.idempotencyKeys.idempotencyKey, [...new Set(idempotencyKeys)]));
   }
   await db.delete(s.auditLogs)
-    .where(inArray(s.auditLogs.userId, [adminUserId, driverUserId, forwarderUserId]));
+    .where(inArray(s.auditLogs.userId, [adminUserId, driverUserId, otherDriverUserId, forwarderUserId, managerUserId]));
   setForwarderExpensePhotoAfterUploadHookForTest(null);
+  await db.delete(s.fuelEvidenceReviews).where(eq(s.fuelEvidenceReviews.tripId, tripId));
   await db.delete(s.tripExpensePhotos).where(eq(s.tripExpensePhotos.tripExpenseId, tripExpenseId));
   await db.delete(s.tripPhotos).where(eq(s.tripPhotos.tripId, tripId));
   const scopedDurableJobs = (await db.select({
@@ -339,8 +427,8 @@ after(async () => {
   await db.delete(s.containerTypes).where(eq(s.containerTypes.id, liftContainerTypeId));
   await db.delete(s.routes).where(eq(s.routes.id, routeId));
   await db.delete(s.customers).where(eq(s.customers.id, customerId));
-  await db.delete(s.drivers).where(eq(s.drivers.id, driverId));
-  await db.delete(s.users).where(inArray(s.users.id, [adminUserId, driverUserId, forwarderUserId]));
+  await db.delete(s.drivers).where(inArray(s.drivers.id, [driverId, otherDriverId]));
+  await db.delete(s.users).where(inArray(s.users.id, [adminUserId, driverUserId, otherDriverUserId, forwarderUserId, managerUserId]));
   for (const key of storageKeys) {
     await storageService.delete(key).catch(() => undefined);
   }
@@ -849,5 +937,173 @@ describe('Q23 field operations replay boundary', () => {
     changedForm.set('file', new Blob([new Uint8Array(changed)], { type: 'image/jpeg' }), 'pump.jpg');
     const conflict = await multipartRequest('/api/ocr/pump', changedForm, { idempotencyKey: key });
     assert.equal(conflict.status, 409);
+  });
+
+  it('durably cleans a driver fuel image when processing fails after upload', async () => {
+    const idempotencyKey = `q23-fuel-evidence-fail-${suffix}`;
+    const storageHash = createHash('sha256').update(imageBuffer).digest('hex');
+    const requestHash = createHash('sha256')
+      .update(`driver-fuel-evidence:${driverId}:${idempotencyKey}`)
+      .digest('hex')
+      .slice(0, 32);
+    const expectedStorageKey = `fuel-evidence/${tripId}/${driverId}/${storageHash}-${requestHash}.jpg`;
+    storageKeys.add(expectedStorageKey);
+    setDriverFuelEvidenceAfterUploadHookForTest(() => {
+      throw new Error('injected driver fuel evidence processing failure');
+    });
+    try {
+      const form = new FormData();
+      form.set('file', new Blob([new Uint8Array(imageBuffer)], { type: 'image/jpeg' }), 'pump.jpg');
+      const failed = await multipartRequest(`/api/driver/me/trips/${tripId}/fuel-evidence`, form, {
+        idempotencyKey,
+        actor: 'driver-owner',
+      });
+      assert.equal(failed.status, 500, JSON.stringify(failed.body));
+      assert.equal(await storageService.exists(expectedStorageKey), true);
+
+      const [cleanupJob] = (await listStorageDeleteJobs()).filter((row) =>
+        (row.payload as Record<string, unknown>).storageKey === expectedStorageKey,
+      );
+      assert.ok(cleanupJob);
+      assert.equal(cleanupJob.status, DURABLE_EFFECT_STATUS.RETRY);
+      assert.equal((cleanupJob.payload as Record<string, unknown>).mode, STORAGE_DELETE_MODE.ORPHAN_GUARD);
+      await db.update(s.durableEffectJobs)
+        .set({ nextAttemptAt: new Date(0) })
+        .where(eq(s.durableEffectJobs.id, cleanupJob.id));
+      const cleanupPass = await processDueDurableEffectJobs(100, {
+        now: () => new Date(Date.now() + 5 * 60_000),
+      });
+      assert.equal(cleanupPass.find((job) => job.id === cleanupJob.id)?.status, DURABLE_EFFECT_STATUS.SUCCEEDED);
+      assert.equal(await storageService.exists(expectedStorageKey), false);
+    } finally {
+      setDriverFuelEvidenceAfterUploadHookForTest(null);
+    }
+  });
+
+  it('serializes driver fuel evidence creation, enforces owner-only upload, and validates office filters', async () => {
+    const fuelHash = createHash('sha256').update(imageBuffer).digest('hex');
+    const makeFuelForm = () => {
+      const form = new FormData();
+      form.set('file', new Blob([new Uint8Array(imageBuffer)], { type: 'image/jpeg' }), 'pump.jpg');
+      form.set('lat', '10.77');
+      form.set('lng', '106.69');
+      form.set('accuracy', '12');
+      form.set('gpsAt', String(Date.now()));
+      form.set('source', 'phone');
+      return form;
+    };
+    const firstKey = `q23-fuel-evidence-create-a-${suffix}`;
+    const secondKey = `q23-fuel-evidence-create-b-${suffix}`;
+    const fuelStorageKeys: string[] = [];
+    for (const key of [firstKey, secondKey]) {
+      const requestHash = createHash('sha256')
+        .update(`driver-fuel-evidence:${driverId}:${key}`)
+        .digest('hex')
+        .slice(0, 32);
+      const keyForRequest = `fuel-evidence/${tripId}/${driverId}/${fuelHash}-${requestHash}.jpg`;
+      fuelStorageKeys.push(keyForRequest);
+      storageKeys.add(keyForRequest);
+    }
+    const [first, second] = await Promise.all([
+      multipartRequest(`/api/driver/me/trips/${tripId}/fuel-evidence`, makeFuelForm(), {
+        idempotencyKey: firstKey,
+        actor: 'driver-owner',
+      }),
+      multipartRequest(`/api/driver/me/trips/${tripId}/fuel-evidence`, makeFuelForm(), {
+        idempotencyKey: secondKey,
+        actor: 'driver-owner',
+      }),
+    ]);
+    assert.equal(first.status, 201, JSON.stringify(first.body));
+    assert.equal(second.status, 201, JSON.stringify(second.body));
+    assert.equal(first.body.id, second.body.id);
+    const photoUrl = String(first.body.photoUrl);
+    const ownerPhoto = await fetch(`${baseUrl}${photoUrl}`, { headers: { 'X-Test-Actor': 'driver-owner' } });
+    assert.equal(ownerPhoto.status, 200);
+    const accountantPhoto = await fetch(`${baseUrl}${photoUrl}`, { headers: { 'X-Test-Actor': 'accountant' } });
+    assert.equal(accountantPhoto.status, 200);
+    const otherDriverPhoto = await fetch(`${baseUrl}${photoUrl}`, { headers: { 'X-Test-Actor': 'driver-other' } });
+    assert.equal(otherDriverPhoto.status, 403);
+    const winningStorageKey = decodeURIComponent(photoUrl.replace('/api/photos/', ''));
+    const losingStorageKey = fuelStorageKeys.find((key) => key !== winningStorageKey);
+    assert.ok(losingStorageKey);
+    const losingCleanupJob = (await listStorageDeleteJobs()).find((row) =>
+      (row.payload as Record<string, unknown>).storageKey === losingStorageKey,
+    );
+    assert.ok(losingCleanupJob);
+    assert.equal(losingCleanupJob.status, DURABLE_EFFECT_STATUS.RETRY);
+    await db.update(s.durableEffectJobs)
+      .set({ nextAttemptAt: new Date(0) })
+      .where(eq(s.durableEffectJobs.id, losingCleanupJob.id));
+    const cleanupPass = await processDueDurableEffectJobs(100, {
+      now: () => new Date(Date.now() + 5 * 60_000),
+    });
+    assert.equal(cleanupPass.find((job) => job.id === losingCleanupJob.id)?.status, DURABLE_EFFECT_STATUS.SUCCEEDED);
+    assert.equal(await storageService.exists(losingStorageKey), false);
+
+    const [storedReviewCount] = await db.select({ total: sql<number>`count(*)::int` })
+      .from(s.fuelEvidenceReviews)
+      .where(and(
+        eq(s.fuelEvidenceReviews.tripId, tripId),
+        eq(s.fuelEvidenceReviews.ownerDriverId, driverId),
+        eq(s.fuelEvidenceReviews.storageHash, fuelHash),
+      ));
+    assert.equal(Number(storedReviewCount?.total ?? 0), 1);
+
+    const otherDriverDenied = await multipartRequest(`/api/driver/me/trips/${tripId}/fuel-evidence`, makeFuelForm(), {
+      idempotencyKey: `q23-fuel-evidence-other-driver-${suffix}`,
+      actor: 'driver-other',
+    });
+    assert.equal(otherDriverDenied.status, 403);
+
+    const managerDenied = await multipartRequest(`/api/driver/me/trips/${tripId}/fuel-evidence`, makeFuelForm(), {
+      idempotencyKey: `q23-fuel-evidence-manager-${suffix}`,
+      actor: 'manager',
+    });
+    assert.equal(managerDenied.status, 404);
+
+    const invalidFilter = await jsonRequest('/api/ocr/fuel-evidence-reviews?status=INVALID', {
+      method: 'GET',
+    });
+    assert.equal(invalidFilter.status, 400);
+
+    const listed = await jsonRequest('/api/ocr/fuel-evidence-reviews?status=PENDING', {
+      method: 'GET',
+    });
+    assert.equal(listed.status, 200, JSON.stringify(listed.body));
+    const review = ((listed.body.items as Array<Record<string, unknown>>) ?? [])
+      .find((item) => Number(item.tripId) === tripId && Number(item.ownerDriverId) === driverId);
+    assert.ok(review);
+
+    const decided = await jsonRequest(`/api/ocr/fuel-evidence-reviews/${review!.id}/decision`, {
+      method: 'POST',
+      idempotencyKey: `q23-fuel-evidence-decision-${suffix}`,
+      body: {
+        expectedVersion: Number(review!.version),
+        decision: 'CONFIRMED',
+      },
+    });
+    assert.equal(decided.status, 200, JSON.stringify(decided.body));
+    assert.equal(decided.body.reviewStatus, 'CONFIRMED');
+
+    const replayedDecision = await jsonRequest(`/api/ocr/fuel-evidence-reviews/${review!.id}/decision`, {
+      method: 'POST',
+      idempotencyKey: `q23-fuel-evidence-decision-${suffix}`,
+      body: {
+        expectedVersion: Number(review!.version),
+        decision: 'CONFIRMED',
+      },
+    });
+    assert.deepEqual(replayedDecision, decided);
+
+    const changedDecision = await jsonRequest(`/api/ocr/fuel-evidence-reviews/${review!.id}/decision`, {
+      method: 'POST',
+      idempotencyKey: `q23-fuel-evidence-decision-${suffix}`,
+      body: {
+        expectedVersion: Number(review!.version),
+        decision: 'REJECTED',
+      },
+    });
+    assert.equal(changedDecision.status, 409);
   });
 });

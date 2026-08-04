@@ -28,6 +28,12 @@ const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
 const createdCustomerIds: number[] = [];
 
+function isoDateFromToday(deltaDays: number): string {
+  const value = new Date();
+  value.setDate(value.getDate() + deltaDays);
+  return value.toISOString().slice(0, 10);
+}
+
 async function mkCatalogs() {
   const [customer] = await db.insert(s.customers).values({ name: `M115 cust ${suffix}` }).returning();
   createdCustomerIds.push(customer.id);
@@ -84,6 +90,20 @@ describe('M11.5 — dashboard widgets', () => {
     const found = w.fleetAttention.find((t) => t.truckId === truck.id);
     assert.ok(found, 'ACTIVE truck with no trips in attention list');
     assert.match(found!.reason, /Chưa có chuyến|Không hoạt động/);
+  });
+
+  test('fleetAttention: inspection due date is included in Vietnamese reminder text', async () => {
+    const [truck] = await db.insert(s.trucks).values({
+      licensePlate: `M115D${tripCounter}`,
+      status: 'ACTIVE',
+      nextInspectionDate: isoDateFromToday(-3),
+    }).returning();
+    createdTruckIds.push(truck.id);
+
+    const w = await getDashboardWidgets(m, y, true);
+    const found = w.fleetAttention.find((t) => t.truckId === truck.id);
+    assert.ok(found, 'truck with overdue inspection in attention list');
+    assert.match(found!.reason, /Đăng kiểm quá hạn \d+ ngày/);
   });
 
   test('periodOverPeriod: shape present with numeric values', async () => {

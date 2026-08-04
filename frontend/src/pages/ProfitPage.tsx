@@ -4,7 +4,8 @@ import {
   Users,
   CheckSquare,
   Eye,
-  AlertCircle
+  AlertCircle,
+  AlertTriangle,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { getActiveCapTable } from '../lib/cap-table';
@@ -14,7 +15,7 @@ import { Alert } from '../components/shared/Alert';
 import { formatCurrency as formatVND } from '../lib/format';
 import { getProfitPreviewEmptyMessage } from '../lib/profit-preview';
 import { Money } from '../components/shared/Money';
-import { useCapTable, useDistributionHistory, usePnlReport } from '../hooks/useQueries';
+import { useCapTable, useDashboardWidgets, useDistributionHistory, usePnlReport } from '../hooks/useQueries';
 import { useToast } from '../components/shared/Toast';
 import { useMonth } from '../hooks/useMonth';
 import { usePageAnimations, useCounterAnimation } from '../hooks/animations';
@@ -94,6 +95,7 @@ export default function ProfitPage() {
   const [previewing, setPreviewing] = useState(false);
 
   const { data: report, isLoading: loading, error: reportError } = usePnlReport(selectedMonth, selectedYear);
+  const { data: dashboardWidgets } = useDashboardWidgets(selectedMonth, selectedYear);
 
   const { data: capTable = [], error: capError } = useCapTable();
   const { data: history = [] } = useDistributionHistory();
@@ -186,6 +188,13 @@ export default function ProfitPage() {
 
   const activeCapTable = getDisplayCapTable();
   const previewEmptyMessage = preview ? getProfitPreviewEmptyMessage(preview) : null;
+  const inspectionAlerts = (dashboardWidgets?.fleetAttention ?? [])
+    .filter((item) => item.reason.includes('Đăng kiểm'))
+    .sort((a, b) => a.licensePlate.localeCompare(b.licensePlate));
+  const variableTripCosts = report?.trucks?.reduce((sum, truck) => sum + (truck.variableTripCosts ?? 0), 0) ?? 0;
+  const maintenanceCosts = report?.maintenanceExpensesTotal ?? 0;
+  const fleetDepreciationCosts = report?.fleetDepreciationTotal ?? 0;
+  const fleetFixedCosts = report?.fleetMonthlyFixedCostTotal ?? 0;
 
   return (
     <div ref={rootRef} style={{ paddingBottom: 40 }}>
@@ -210,6 +219,21 @@ export default function ProfitPage() {
       {error && (
         <Alert variant="error" style="soft" icon={<AlertCircle size={16} />} className="mb-5">
           {error}
+        </Alert>
+      )}
+
+      {inspectionAlerts.length > 0 && (
+        <Alert variant="warning" style="soft" icon={<AlertTriangle size={16} />} className="mb-5">
+          <div style={{ display: 'grid', gap: 6 }}>
+            <strong>Cần xử lý đăng kiểm đội xe trong tháng {selectedMonth}/{selectedYear}</strong>
+            <span>
+              {inspectionAlerts.length} xe đang có nhắc việc đăng kiểm trên báo cáo quản trị dùng chung cho quản lý và kế toán.
+            </span>
+            <span>
+              {inspectionAlerts.slice(0, 4).map((item) => `${item.licensePlate}: ${item.reason}`).join(' · ')}
+              {inspectionAlerts.length > 4 ? ` · +${inspectionAlerts.length - 4} xe khác` : ''}
+            </span>
+          </div>
         </Alert>
       )}
 
@@ -255,23 +279,41 @@ export default function ProfitPage() {
                 <div className="calc-row">
                   <div className="calc-row__label">
                     <span className="calc-row__op">-</span>
-                    Chi phí vận hành đội xe
+                    Chi phí biến đổi chuyến
                   </div>
-                  <div className="calc-row__value calc-row__value--neg"><Money value={report?.totalCosts || 0} sign="-" /></div>
+                  <div className="calc-row__value calc-row__value--neg"><Money value={variableTripCosts} sign="-" /></div>
                 </div>
+                {maintenanceCosts > 0 && (
+                  <div className="calc-row">
+                    <div className="calc-row__label">
+                      <span className="calc-row__op">-</span>
+                      Bảo dưỡng và đăng kiểm
+                    </div>
+                    <div className="calc-row__value calc-row__value--neg"><Money value={maintenanceCosts} sign="-" /></div>
+                  </div>
+                )}
+                {fleetDepreciationCosts > 0 && (
+                  <div className="calc-row">
+                    <div className="calc-row__label">
+                      <span className="calc-row__op">-</span>
+                      Khấu hao đội xe
+                    </div>
+                    <div className="calc-row__value calc-row__value--neg"><Money value={fleetDepreciationCosts} sign="-" /></div>
+                  </div>
+                )}
+                {fleetFixedCosts > 0 && (
+                  <div className="calc-row">
+                    <div className="calc-row__label">
+                      <span className="calc-row__op">-</span>
+                      Chi phí cố định đội xe
+                    </div>
+                    <div className="calc-row__value calc-row__value--neg"><Money value={fleetFixedCosts} sign="-" /></div>
+                  </div>
+                )}
                 <div className="calc-row calc-row--total">
                   <div className="calc-row__label calc-row__label--bold">Lợi nhuận gộp hoạt động</div>
                   <div className="calc-row__value"><Money value={report?.grossProfit || 0} /></div>
                 </div>
-                {((report?.maintenanceExpensesTotal ?? 0) > 0) && (
-                  <div className="calc-row">
-                    <div className="calc-row__label">
-                      <span className="calc-row__op">-</span>
-                      Chi phí bảo dưỡng, đăng kiểm xe
-                    </div>
-                    <div className="calc-row__value calc-row__value--neg"><Money value={report?.maintenanceExpensesTotal || 0} sign="-" /></div>
-                  </div>
-                )}
                 <div className="calc-row">
                   <div className="calc-row__label">
                     <span className="calc-row__op">-</span>

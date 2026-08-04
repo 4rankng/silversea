@@ -1,14 +1,15 @@
 /**
  * Wave 4 — dispatch_handoffs schema test.
  *
- * Verifies the table exists with expected columns, the handoff_status enum,
-  the unique-active-handoff partial index, and the FK to shipments.
+ * Verifies the table, application-owned lifecycle values, uniqueness fence,
+ * performance indexes, and absence of a database-owned shipment relationship.
  */
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { sql } from 'drizzle-orm';
 
 import { db, client } from '../db';
+import { handoffStatusEnum } from '../db/schema';
 
 after(async () => { await client.end(); });
 
@@ -30,10 +31,11 @@ describe('Wave 4 — dispatch_handoffs schema', () => {
     assert.ok(names.includes('reject_reason'));
   });
 
-  test('handoff_status enum has the 4 lifecycle values', async () => {
+  test('handoff statuses are application-owned values', async () => {
     const rows = await db.execute(sql`SELECT enumlabel FROM pg_enum WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = 'handoff_status') ORDER BY enumsortorder`);
     const labels = rows.map((r: Record<string, unknown>) => r['enumlabel']);
-    assert.deepEqual(labels, ['UNSEEN', 'SEEN', 'ACCEPTED', 'REJECTED']);
+    assert.deepEqual(labels, []);
+    assert.deepEqual([...handoffStatusEnum.enumValues], ['UNSEEN', 'SEEN', 'ACCEPTED', 'REJECTED']);
   });
 
   test('unique-active-handoff partial index exists', async () => {
@@ -51,13 +53,12 @@ describe('Wave 4 — dispatch_handoffs schema', () => {
     assert.ok(idx.length > 0);
   });
 
-  test('FK to shipments with ON DELETE CASCADE', async () => {
+  test('shipment relationship is not owned by a database foreign key', async () => {
     const [fk] = await db.execute(sql`
       SELECT delete_rule FROM information_schema.referential_constraints
       WHERE constraint_name = 'dispatch_handoffs_shipment_id_shipments_id_fk'
     `);
-    assert.ok(fk, 'FK exists');
-    assert.equal((fk as Record<string, unknown>)['delete_rule'], 'CASCADE');
+    assert.equal(fk, undefined);
   });
 
   test('status defaults to UNSEEN', async () => {

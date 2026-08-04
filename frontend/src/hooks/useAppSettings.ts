@@ -6,7 +6,7 @@ import type {
 import type {
   FinancialReportingPolicyRequest,
   TruckFinancialProfileRequest,
-} from '@tingting/shared/src/schemas/financial-reporting-policy';
+} from '@tingting/shared';
 import { appSettingsClient } from '../api/appSettingsClient';
 import { qk } from '../api/keys';
 

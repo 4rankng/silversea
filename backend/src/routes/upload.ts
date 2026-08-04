@@ -649,6 +649,14 @@ export function isCompanyLogoStorageKey(key: string): boolean {
   return /^company-assets\/logo-[^/]+\.png$/.test(key);
 }
 
+export function isProtectedPhotoStorageKey(key: string): boolean {
+  return /^trips\/\d+\//.test(key)
+    || /^expense-photos\/\d+\//.test(key)
+    || /^fuel-evidence\/\d+\/\d+\//.test(key)
+    || /^debit-note-templates\/\d+\//.test(key)
+    || isCompanyLogoStorageKey(key);
+}
+
 photosRouter.get('/{*path}', asyncHandler(async (req: Request, res: Response) => {
   // Express types `{*path}` params as string | string[]; collapse to a single path.
   const rawKey = Array.isArray(req.params.path) ? req.params.path.join('/') : (req.params.path ?? '');
@@ -660,14 +668,14 @@ photosRouter.get('/{*path}', asyncHandler(async (req: Request, res: Response) =>
     return res.status(400).json({ error: 'Đường dẫn ảnh không hợp lệ' });
   }
 
-  // Valid key shapes: trip photos, expense receipt photos, debit-note template
-  // logos, and the own-company logo. Trip photos get a driver ownership check;
-  // receipt photos delegate to strict storage-key authz below.
+  // Valid key shapes: trip photos, expense/fuel evidence photos, debit-note
+  // template logos, and the own-company logo. Trip photos get a driver
+  // ownership check; financial evidence delegates to exact-key authz below.
   const tripMatch = key.match(/^trips\/(\d+)\//);
   const expenseMatch = key.match(/^expense-photos\/(\d+)\//);
+  const fuelEvidenceMatch = key.match(/^fuel-evidence\/(\d+)\/(\d+)\//);
   const templateLogoMatch = key.match(/^debit-note-templates\/(\d+)\//);
-  const companyLogoMatch = isCompanyLogoStorageKey(key);
-  if (!tripMatch && !expenseMatch && !templateLogoMatch && !companyLogoMatch) {
+  if (!isProtectedPhotoStorageKey(key)) {
     return res.status(400).json({ error: 'Đường dẫn ảnh không hợp lệ' });
   }
 
@@ -692,7 +700,7 @@ photosRouter.get('/{*path}', asyncHandler(async (req: Request, res: Response) =>
         return res.status(403).json({ error: 'Không có quyền truy cập ảnh của chuyến đi này' });
       }
     }
-  } else if (expenseMatch) {
+  } else if (expenseMatch || fuelEvidenceMatch) {
     // Expense receipt photos are financial evidence. The `expense-photos/<id>/`
     // prefix is SHARED by two pipelines (company receipts → expense_photos, and
     // forwarder receipts → trip_expense_photos), so <id> alone is ambiguous.
