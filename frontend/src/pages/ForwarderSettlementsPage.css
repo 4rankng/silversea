@@ -12,6 +12,36 @@
   gap: 10px;
 }
 
+/* The page header already owns the single primary action. Keep the empty
+ * surface informative and compact instead of repeating the same CTA inside it. */
+.fset-empty-state {
+  min-height: 0;
+  padding: 28px 24px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: none;
+}
+
+.fset-empty-state .ds-empty-state__message {
+  gap: 6px;
+}
+
+.fset-empty-state .ds-empty-state__icon {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 4px;
+  border-radius: 14px;
+}
+
+.fset-empty-state .ds-empty-state__title {
+  color: var(--ink);
+}
+
+.fset-empty-state .ds-empty-state__description {
+  max-width: 34ch;
+}
+
 /* ── Settlement card — matches driver-trip-card pattern ─────────────────── */
 .fset-card {
   background: rgba(255, 255, 255, 0.85);
@@ -869,6 +899,10 @@
  * RESPONSIVE
  * ══════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 640px) {
+  .fset-empty-state {
+    padding: 24px 20px;
+  }
+
   .fset-card__body {
     padding: 14px 16px;
     gap: 12px;

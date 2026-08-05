@@ -211,10 +211,10 @@ export default function ForwarderSettlementsPage() {
       {/* Empty state */}
       {settlements.length === 0 ? (
         <EmptyState
-          className="fade-up"
+          className="fset-empty-state fade-up"
+          icon={FileText}
           title="Chưa có phiếu thanh toán"
-          description="Lập phiếu thanh toán tạm ứng đầu tiên của bạn."
-          action={<button className="btn btn--primary" onClick={() => navigate('/my-settlements/new')}><Plus size={16} /> Thêm phiếu</button>}
+          description="Tạo phiếu đầu tiên bằng nút Thêm phiếu ở trên."
         />
       ) : (
         <div ref={listRef} className="fset-list">

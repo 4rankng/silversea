@@ -182,7 +182,7 @@ export default function ForwarderAdvancesPage() {
               <p className="fadv-form-panel__hint">Điền số tiền và lý do để gửi yêu cầu đến bộ phận duyệt.</p>
             </div>
             <button
-              className="btn btn--ghost btn--sm"
+              className="btn btn--ghost btn--sm fadv-form-panel__close"
               onClick={() => { setShowForm(false); setForm({ amount: '', reason: '' }); }}
               aria-label="Đóng biểu mẫu yêu cầu tạm ứng"
             >
