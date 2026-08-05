@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SearchableSelect } from './SearchableSelect';
 
 const ROUTES = [
@@ -10,6 +10,19 @@ const ROUTES = [
 ];
 
 describe('SearchableSelect', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function useMobileViewport() {
+    vi.stubGlobal('matchMedia', vi.fn().mockImplementation((query: string) => ({
+      matches: query === '(max-width: 640px)',
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })));
+  }
+
   it('filters Vietnamese labels without requiring diacritics', () => {
     render(
       <SearchableSelect
@@ -70,6 +83,57 @@ describe('SearchableSelect', () => {
     fireEvent.click(trigger);
     fireEvent.click(screen.getAllByRole('button', { name: 'Đóng danh sách lựa chọn' }).at(-1)!);
 
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+  });
+
+  it('uses a top-level mobile sheet that closes on selection, close, backdrop, and Escape', async () => {
+    useMobileViewport();
+    function ControlledSelect() {
+      const [value, setValue] = useState('');
+      return (
+        <label htmlFor="routeId">
+          Tuyến đường
+          <SearchableSelect id="routeId" value={value} onChange={setValue} options={ROUTES} />
+        </label>
+      );
+    }
+
+    render(<ControlledSelect />);
+    const trigger = screen.getByRole('button', { name: 'Tuyến đường' });
+    expect(trigger.getAttribute('aria-haspopup')).toBe('dialog');
+    fireEvent.click(trigger);
+    expect(screen.getByRole('dialog').parentElement).toBe(document.body);
+    fireEvent.click(screen.getByRole('option', { name: /Bản Bo/ }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Đóng danh sách lựa chọn' }).at(-1)!);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+
+    fireEvent.click(trigger);
+    fireEvent.pointerDown(document.querySelector<HTMLElement>('.searchable-select__backdrop')!);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+
+    fireEvent.click(trigger);
+    fireEvent.click(document.querySelector<HTMLElement>('.searchable-select__backdrop')!);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+
+    fireEvent.click(trigger);
+    const closeButton = screen.getAllByRole('button', { name: 'Đóng danh sách lựa chọn' }).at(-1)!;
+    closeButton.focus();
+    fireEvent.keyDown(closeButton, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+
+    fireEvent.click(trigger);
+    const option = screen.getByRole('option', { name: /Bản Bo/ });
+    option.focus();
+    fireEvent.keyDown(option, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
     await waitFor(() => expect(document.activeElement).toBe(trigger));
   });
 

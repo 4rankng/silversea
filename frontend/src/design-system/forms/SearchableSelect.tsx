@@ -7,6 +7,7 @@ import {
   useState,
   type KeyboardEvent,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, ChevronDown, Search, X } from 'lucide-react';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import './SearchableSelect.css';
@@ -71,6 +72,7 @@ export function SearchableSelect({
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
 
   const selectedOption = options.find((option) => option.value === value);
   const normalizedQuery = normalizeSearchText(query);
@@ -99,9 +101,18 @@ export function SearchableSelect({
     return () => { document.body.style.overflow = previousOverflow; };
   }, [isOpen]);
 
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const media = window.matchMedia('(max-width: 640px)');
+    const sync = () => setIsMobile(media.matches);
+    sync();
+    media.addEventListener('change', sync);
+    return () => media.removeEventListener('change', sync);
+  }, []);
+
   useClickOutside(containerRef, close, {
     escapeKey: true,
-    enabled: isOpen,
+    enabled: isOpen && !isMobile,
   });
 
   useEffect(() => {
@@ -135,6 +146,11 @@ export function SearchableSelect({
   };
 
   const trapDialogFocus = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      close();
+      return;
+    }
     if (event.key !== 'Tab') return;
     const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(
       'button:not([disabled]), input:not([disabled]), [href]',
@@ -176,6 +192,94 @@ export function SearchableSelect({
 
   const rootClassName = ['searchable-select', className].filter(Boolean).join(' ');
 
+  const selectorOverlay = isOpen ? (
+    <>
+      <button
+        type="button"
+        className="searchable-select__backdrop"
+        aria-label="Đóng danh sách lựa chọn"
+        onPointerDown={(event) => {
+          event.preventDefault();
+          close();
+        }}
+        onClick={close}
+      />
+      <div className="searchable-select__popover" role="dialog" aria-modal="true" aria-label={`Chọn ${placeholder}`} onKeyDown={trapDialogFocus}>
+        <div className="searchable-select__search">
+          <Search size={16} aria-hidden="true" />
+          <input
+            ref={searchInputRef}
+            type="search"
+            className="searchable-select__search-input"
+            value={query}
+            placeholder={searchPlaceholder}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setActiveIndex(0);
+            }}
+            onKeyDown={handleSearchKeyDown}
+            role="combobox"
+            aria-label={searchPlaceholder}
+            aria-autocomplete="list"
+            aria-expanded="true"
+            aria-controls={listboxId}
+            aria-activedescendant={
+              filteredOptions[activeIndex]
+                ? `${listboxId}-option-${filteredOptions[activeIndex].value}`
+                : undefined
+            }
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <button type="button" className="searchable-select__close" onClick={close} aria-label="Đóng danh sách lựa chọn">
+            <X size={18} aria-hidden="true" />
+          </button>
+        </div>
+
+        <ul id={listboxId} className="searchable-select__list" role="listbox">
+          {filteredOptions.length > 0 ? (
+            filteredOptions.map((option, index) => {
+              const isSelected = option.value === value;
+              const isActive = index === activeIndex;
+              return (
+                <li key={option.value} role="presentation">
+                  <button
+                    id={`${listboxId}-option-${option.value}`}
+                    type="button"
+                    role="option"
+                    aria-selected={isSelected}
+                    className={`searchable-select__option${isActive ? ' searchable-select__option--active' : ''}`}
+                    onMouseEnter={() => setActiveIndex(index)}
+                    onClick={() => selectOption(option)}
+                  >
+                    <span className="searchable-select__check" aria-hidden="true">
+                      {isSelected ? <Check size={15} /> : null}
+                    </span>
+                    <span>{option.label}</span>
+                  </button>
+                </li>
+              );
+            })
+          ) : (
+            <li className="searchable-select__empty">{emptyMessage}</li>
+          )}
+          {hasMore && onLoadMore ? (
+            <li className="searchable-select__load-more" role="presentation">
+              <button
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={onLoadMore}
+                disabled={loadingMore}
+              >
+                {loadingMore ? 'Đang tải…' : 'Tải thêm kết quả'}
+              </button>
+            </li>
+          ) : null}
+        </ul>
+      </div>
+    </>
+  ) : null;
+
   return (
     <div ref={containerRef} className={rootClassName}>
       <button
@@ -185,7 +289,7 @@ export function SearchableSelect({
         className={`input searchable-select__trigger${isOpen ? ' searchable-select__trigger--open' : ''}`}
         onClick={() => (isOpen ? close() : open())}
         disabled={disabled}
-        aria-haspopup="listbox"
+        aria-haspopup={isMobile ? 'dialog' : 'listbox'}
         aria-expanded={isOpen}
         aria-controls={isOpen ? listboxId : undefined}
         aria-required={required}
@@ -202,88 +306,9 @@ export function SearchableSelect({
 
       {name ? <input type="hidden" name={name} value={value} /> : null}
 
-      {isOpen ? (
-        <>
-          <button
-            type="button"
-            className="searchable-select__backdrop"
-            aria-label="Đóng danh sách lựa chọn"
-            onClick={close}
-          />
-          <div className="searchable-select__popover" role="dialog" aria-modal="true" aria-label={`Chọn ${placeholder}`} onKeyDown={trapDialogFocus}>
-          <div className="searchable-select__search">
-            <Search size={16} aria-hidden="true" />
-            <input
-              ref={searchInputRef}
-              type="search"
-              className="searchable-select__search-input"
-              value={query}
-              placeholder={searchPlaceholder}
-              onChange={(event) => {
-                setQuery(event.target.value);
-                setActiveIndex(0);
-              }}
-              onKeyDown={handleSearchKeyDown}
-              role="combobox"
-              aria-label={searchPlaceholder}
-              aria-autocomplete="list"
-              aria-expanded="true"
-              aria-controls={listboxId}
-              aria-activedescendant={
-                filteredOptions[activeIndex]
-                  ? `${listboxId}-option-${filteredOptions[activeIndex].value}`
-                  : undefined
-              }
-              autoComplete="off"
-              spellCheck={false}
-            />
-            <button type="button" className="searchable-select__close" onClick={close} aria-label="Đóng danh sách lựa chọn">
-              <X size={18} aria-hidden="true" />
-            </button>
-          </div>
-
-          <ul id={listboxId} className="searchable-select__list" role="listbox">
-            {filteredOptions.length > 0 ? (
-              filteredOptions.map((option, index) => {
-                const isSelected = option.value === value;
-                const isActive = index === activeIndex;
-                return (
-                  <li
-                    id={`${listboxId}-option-${option.value}`}
-                    key={option.value}
-                    role="option"
-                    aria-selected={isSelected}
-                    className={`searchable-select__option${isActive ? ' searchable-select__option--active' : ''}`}
-                    onMouseEnter={() => setActiveIndex(index)}
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => selectOption(option)}
-                  >
-                    <span className="searchable-select__check" aria-hidden="true">
-                      {isSelected ? <Check size={15} /> : null}
-                    </span>
-                    <span>{option.label}</span>
-                  </li>
-                );
-              })
-            ) : (
-              <li className="searchable-select__empty">{emptyMessage}</li>
-            )}
-            {hasMore && onLoadMore ? (
-              <li className="searchable-select__load-more" role="presentation">
-                <button
-                  type="button"
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={onLoadMore}
-                  disabled={loadingMore}
-                >
-                  {loadingMore ? 'Đang tải…' : 'Tải thêm kết quả'}
-                </button>
-              </li>
-            ) : null}
-          </ul>
-          </div>
-        </>
-      ) : null}
+      {isMobile && typeof document !== 'undefined'
+        ? createPortal(selectorOverlay, document.body)
+        : selectorOverlay}
     </div>
   );
 }

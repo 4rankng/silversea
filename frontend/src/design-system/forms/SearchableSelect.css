@@ -97,11 +97,16 @@
 .searchable-select__option {
   display: flex;
   align-items: flex-start;
+  width: 100%;
   min-height: 42px;
   padding: 10px 10px 10px 6px;
   color: var(--ink-2);
+  font: inherit;
   font-size: var(--fs-sm);
   line-height: 1.4;
+  text-align: left;
+  background: transparent;
+  border: 0;
   border-radius: var(--r-sm);
   cursor: pointer;
 }
