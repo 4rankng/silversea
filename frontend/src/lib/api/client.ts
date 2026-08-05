@@ -203,11 +203,16 @@ class ApiClient {
       return;
     }
 
-    const rememberRow = (row: unknown, fallbackPath: string) => {
+    const rememberRow = (row: unknown, fallbackPath: string, includeIdInKey: boolean) => {
       if (!row || typeof row !== 'object') return;
       const record = row as Record<string, unknown>;
       if (typeof record.updatedAt !== 'string') return;
-      const rowPath = typeof record.id === 'number'
+      // For list items we cache at the row path (`<base>/<id>`) so a follow-up
+      // mutation on the same row hits the cache. For a single object we
+      // cache at the request path itself — both the read and the subsequent
+      // mutation hit the same path, so adding the id would create a key the
+      // mutation never looks up.
+      const rowPath = includeIdInKey && typeof record.id === 'number'
         ? `${fallbackPath}/${record.id}`
         : fallbackPath;
       this.updatedAtByPath.set(this.normalizePath(rowPath), record.updatedAt);
@@ -215,11 +220,13 @@ class ApiClient {
 
     if (result && typeof result === 'object' && Array.isArray((result as { items?: unknown }).items)) {
       for (const row of (result as { items: unknown[] }).items) {
-        rememberRow(row, normalizedPath);
+        rememberRow(row, normalizedPath, true);
       }
       return;
     }
-    rememberRow(result, normalizedPath.replace(/\/\d+$/, ''));
+    // Single object: use the request path directly (do NOT strip a trailing
+    // id, and do NOT append one — the subsequent mutation uses the same path).
+    rememberRow(result, normalizedPath, false);
   }
 
   /**

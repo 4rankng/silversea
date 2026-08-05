@@ -241,6 +241,38 @@ describe('API mutation transaction keys', () => {
     expect(updateHeaders['If-Unmodified-Since']).toBe(originalUpdatedAt);
     expect(deleteHeaders['If-Unmodified-Since']).toBe(nextUpdatedAt);
   });
+
+  it('propagates single-object versions from reads to base-path updates (fuel-config, company-info)', async () => {
+    // GET /api/fuel-config returns a single object with `id` and `updatedAt`,
+    // while PUT goes to the same base path (no id). The previous cache logic
+    // stored the version under `/api/fuel-config/1` and the PUT lookup against
+    // `/api/fuel-config` always missed — backend then rejected with
+    // "Thiếu phiên bản cấu hình nhiên liệu".
+    const originalUpdatedAt = '2026-08-03T16:40:36.116Z';
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        id: 1,
+        loadedNorm: '35.00',
+        emptyNorm: '22.00',
+        updatedAt: originalUpdatedAt,
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        actionKind: 'PRICE_CONFIG_CHANGE',
+        status: 'PENDING_CHECK',
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }));
+
+    await api.get('/fuel-config');
+    await api.put('/fuel-config', { loadedNorm: 35, emptyNorm: 22 });
+
+    const putHeaders = vi.mocked(fetch).mock.calls[1]?.[1]?.headers as Record<string, string>;
+    expect(putHeaders['If-Unmodified-Since']).toBe(originalUpdatedAt);
+  });
 });
 
 describe('Vitest infrastructure', () => {
