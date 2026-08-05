@@ -724,48 +724,52 @@ export default function ClerkShipmentCreatePage() {
               <button type="button" onClick={() => setContainers((current) => [...current, newContainer()])} disabled={Boolean(saving)} style={{ minHeight: 44, border: '1px dashed var(--border-2)', borderRadius: 8, background: 'transparent', color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer' }}><Plus size={18} style={{ verticalAlign: 'middle', marginRight: 7 }} />Thêm container</button>
             </div>
           ) : (
-            <div style={gridStyle}>
-              <SearchableField
-                id="shipment-pickup-warehouse"
-                label="Kho lấy hàng"
-                value={form.pickupWarehouseSiteId}
-                onChange={(value) => update('pickupWarehouseSiteId', value)}
-                options={warehouseSites.map((site) => ({ value: String(site.id), label: site.name, searchText: site.address ?? '' }))}
-                placeholder={sitesLoading ? 'Đang tải…' : !form.customerId ? 'Chọn khách hàng trước' : 'Chọn kho lấy hàng'}
-                disabled={!form.customerId || sitesLoading || Boolean(saving)}
-                hint={!form.customerId
-                  ? 'Vui lòng chọn khách hàng để tải danh sách kho.'
-                  : (form.customerId && !sitesLoading && warehouseSites.length === 0
-                    ? <>Chưa có kho cho khách hàng này.{' '}<button type="button" onClick={() => openCreateSiteDialog('WAREHOUSE')} disabled={Boolean(saving)} style={{ border: 0, background: 'none', padding: 0, color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>Thêm kho</button></>
-                    : undefined)}
-              />
-              <TextField label="Quy cách đóng gói" value={form.packageType} onChange={(event) => update('packageType', event.target.value)} placeholder="Pallet, carton…" disabled={Boolean(saving)} />
-              <TextField label="Số lượng" type="number" min="1" step="1" value={form.packageCount} onChange={(event) => update('packageCount', event.target.value)} disabled={Boolean(saving)} />
-              <TextField label="Trọng lượng (kg)" type="number" min="0" step="0.01" value={form.cargoWeightKg} onChange={(event) => update('cargoWeightKg', event.target.value)} disabled={Boolean(saving)} />
-              <TextField label="Thể tích (CBM)" type="number" min="0" step="0.001" value={form.cargoVolumeCbm} onChange={(event) => update('cargoVolumeCbm', event.target.value)} disabled={Boolean(saving)} />
-              {!sitesLoading ? (
-                <button
-                  type="button"
-                  onClick={() => openCreateSiteDialog('WAREHOUSE')}
-                  disabled={Boolean(saving)}
-                  style={{
-                    alignSelf: 'end',
-                    minHeight: 44,
-                    padding: '0 14px',
-                    border: '1px dashed var(--border-2)',
-                    borderRadius: 8,
-                    background: 'transparent',
-                    color: 'var(--accent, #2563eb)',
-                    fontWeight: 700,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    cursor: 'pointer',
-                  }}
-                >
-                  <Plus size={16} aria-hidden="true" />Thêm kho
-                </button>
-              ) : null}
+            <div style={{ display: 'grid', gap: 12 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignSelf: 'stretch' }}>
+                <SearchableField
+                  id="shipment-pickup-warehouse"
+                  label="Kho lấy hàng"
+                  value={form.pickupWarehouseSiteId}
+                  onChange={(value) => update('pickupWarehouseSiteId', value)}
+                  options={warehouseSites.map((site) => ({ value: String(site.id), label: site.name, searchText: site.address ?? '' }))}
+                  placeholder={sitesLoading ? 'Đang tải…' : !form.customerId ? 'Chọn khách hàng trước' : 'Chọn kho lấy hàng'}
+                  disabled={!form.customerId || sitesLoading || Boolean(saving)}
+                  hint={!form.customerId
+                    ? 'Vui lòng chọn khách hàng để tải danh sách kho.'
+                    : (form.customerId && !sitesLoading && warehouseSites.length === 0
+                      ? <>Chưa có kho cho khách hàng này.{' '}<button type="button" onClick={() => openCreateSiteDialog('WAREHOUSE')} disabled={Boolean(saving)} style={{ border: 0, background: 'none', padding: 0, color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>Thêm kho</button></>
+                      : undefined)}
+                />
+                {!sitesLoading && form.customerId ? (
+                  <button
+                    type="button"
+                    onClick={() => openCreateSiteDialog('WAREHOUSE')}
+                    disabled={Boolean(saving)}
+                    style={{
+                      alignSelf: 'start',
+                      minHeight: 40,
+                      padding: '0 14px',
+                      border: '1px dashed var(--border-2)',
+                      borderRadius: 8,
+                      background: 'transparent',
+                      color: 'var(--accent, #2563eb)',
+                      fontWeight: 700,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Plus size={15} aria-hidden="true" />Thêm kho
+                  </button>
+                ) : null}
+              </div>
+              <div style={gridStyle}>
+                <TextField label="Quy cách đóng gói" value={form.packageType} onChange={(event) => update('packageType', event.target.value)} placeholder="Pallet, carton…" disabled={Boolean(saving)} />
+                <TextField label="Số lượng" type="number" min="1" step="1" value={form.packageCount} onChange={(event) => update('packageCount', event.target.value)} disabled={Boolean(saving)} />
+                <TextField label="Trọng lượng (kg)" type="number" min="0" step="0.01" value={form.cargoWeightKg} onChange={(event) => update('cargoWeightKg', event.target.value)} disabled={Boolean(saving)} />
+                <TextField label="Thể tích (CBM)" type="number" min="0" step="0.001" value={form.cargoVolumeCbm} onChange={(event) => update('cargoVolumeCbm', event.target.value)} disabled={Boolean(saving)} />
+              </div>
             </div>
           )}
         </section>
