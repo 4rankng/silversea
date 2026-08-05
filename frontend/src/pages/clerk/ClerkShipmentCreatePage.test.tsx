@@ -106,13 +106,16 @@ describe('ClerkShipmentCreatePage', () => {
     expect(mocks.quickCreate).not.toHaveBeenCalled();
   });
 
-  it('shows the selected factory rules and Google Maps link without a live map', async () => {
+  it('keeps factory rules visible without automatically opening the details dialog', async () => {
     renderPage();
     await screen.findByText('Thông tin chung');
     choose('Khách hàng', '7');
     await waitFor(() => expect(mocks.sites).toHaveBeenCalledWith(7));
     choose('Nhà máy', '41');
-    expect(await screen.findByText('Gọi điện trước khi vào')).toBeTruthy();
+    expect(screen.getByText('Gọi điện trước khi vào')).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /Mở vị trí trên Google Maps/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Xem thông tin nhà máy/ }));
+    expect((await screen.findAllByText('Gọi điện trước khi vào')).length).toBe(2);
     expect(screen.getByRole('link', { name: /Mở vị trí trên Google Maps/ }).getAttribute('href')).toBe('https://maps.google.com/example');
     expect(screen.queryByText(/theo dõi trực tiếp/i)).toBeNull();
   });
@@ -157,6 +160,7 @@ describe('ClerkShipmentCreatePage', () => {
     choose('Tuyến đường', '11');
     await waitFor(() => expect(mocks.sites).toHaveBeenCalledWith(7));
     choose('Nhà máy', '41');
+    fireEvent.click(screen.getByRole('button', { name: /Xem thông tin nhà máy/ }));
     fireEvent.click(screen.getByLabelText('Đóng'));
     fireEvent.change(screen.getByLabelText('Số booking'), { target: { value: 'BK-FCL' } });
     fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'MSCU6639870' } });
@@ -200,6 +204,7 @@ describe('ClerkShipmentCreatePage', () => {
     choose('Tuyến đường', '11');
     await waitFor(() => expect(mocks.sites).toHaveBeenCalledWith(7));
     choose('Nhà máy', '41');
+    fireEvent.click(screen.getByRole('button', { name: /Xem thông tin nhà máy/ }));
     fireEvent.click(screen.getByLabelText('Đóng'));
     fireEvent.change(screen.getByLabelText('Số booking'), { target: { value: 'BK-RETRY' } });
     fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'MSCU6639870' } });
@@ -244,6 +249,7 @@ describe('ClerkShipmentCreatePage', () => {
     choose('Tuyến đường', '11');
     await waitFor(() => expect(mocks.sites).toHaveBeenCalledWith(7));
     choose('Nhà máy', '41');
+    fireEvent.click(screen.getByRole('button', { name: /Xem thông tin nhà máy/ }));
     fireEvent.click(screen.getByLabelText('Đóng'));
     fireEvent.change(screen.getByLabelText('Số booking'), { target: { value: 'BK-MODE-RETRY' } });
     fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'MSCU6639870' } });
@@ -286,6 +292,7 @@ describe('ClerkShipmentCreatePage', () => {
     choose('Tuyến đường', '11');
     await waitFor(() => expect(mocks.sites).toHaveBeenCalledWith(7));
     choose('Nhà máy', '41');
+    fireEvent.click(screen.getByRole('button', { name: /Xem thông tin nhà máy/ }));
     fireEvent.click(screen.getByLabelText('Đóng'));
     fireEvent.change(screen.getByLabelText('Số booking'), { target: { value: 'BK-LCL' } });
     choose('Loại lô hàng', 'LCL');

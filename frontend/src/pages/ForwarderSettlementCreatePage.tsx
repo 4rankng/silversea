@@ -245,8 +245,8 @@ export default function ForwarderSettlementCreatePage() {
           <StepHeader step={1} title="Chọn tạm ứng chưa quyết toán" icon={Wallet} />
           <div className="fset-step-body">
             {approvedRequests.length === 0 ? (
-              <div className="fset-empty-inline">
-                <EmptyIllustration name="empty-matching" className="fset-empty-inline__asset" />
+              <div className="fset-empty-inline fset-empty-inline--advance">
+                <EmptyIllustration name="/assets/illustrations/forwarder-approved-advance-v1.png" className="fset-empty-inline__asset" />
                 <span>Không có tạm ứng đã duyệt nào chưa quyết toán</span>
               </div>
             ) : (
@@ -288,8 +288,8 @@ export default function ForwarderSettlementCreatePage() {
           <StepHeader step={2} title="Chọn chi phí phát sinh" icon={Receipt} />
           <div className="fset-step-body">
             {unlinkedExpenses.length === 0 ? (
-              <div className="fset-empty-inline">
-                <EmptyIllustration name="empty-matching" className="fset-empty-inline__asset" />
+              <div className="fset-empty-inline fset-empty-inline--expense">
+                <EmptyIllustration name="/assets/illustrations/forwarder-unmatched-expense-v1.png" className="fset-empty-inline__asset" />
                 <span>Không có chi phí nào chưa thanh toán. Các chi phí đã nằm trong phiếu khác sẽ không hiện ở đây.</span>
               </div>
             ) : (

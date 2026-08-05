@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, CalendarDays, Check, ChevronRight, Loader2, Plus, Search } from 'lucide-react';
+import { ArrowLeft, Check, ChevronRight, FileSearch, Loader2, Plus, Search } from 'lucide-react';
 import type { ForwarderTripSummary } from '@tingting/shared';
 import { SHIPMENT_STATUS_LABELS } from '@tingting/shared';
 import { PageHeader } from '../components/UI';
@@ -11,6 +11,7 @@ import { forwarderClient } from '../api/forwarderClient';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '../components/shared/Toast';
 import './ForwarderTripsPage.css';
+import { ForwarderTripDateRangePicker } from './ForwarderTripDateRangePicker';
 
 function billLabel(trip: ForwarderTripSummary): string {
   return trip.billNumber || trip.bookingNumber || trip.shipmentCode || trip.tripCode || `Lô hàng #${trip.shipmentId}`;
@@ -179,18 +180,14 @@ export default function ForwarderTripsPage() {
             placeholder="Tìm Bill, Booking hoặc tờ khai..."
           />
         </label>
-        <div className="ops-bill-date-range">
-          <CalendarDays size={17} aria-hidden="true" />
-          <label>
-            <span>Từ ngày</span>
-            <input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
-          </label>
-          <span className="ops-bill-date-range__separator">đến</span>
-          <label>
-            <span>Đến ngày</span>
-            <input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
-          </label>
-        </div>
+        <ForwarderTripDateRangePicker
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          onChange={({ dateFrom: nextDateFrom, dateTo: nextDateTo }) => {
+            setDateFrom(nextDateFrom);
+            setDateTo(nextDateTo);
+          }}
+        />
       </section>
 
       {isLoading ? (
@@ -198,7 +195,18 @@ export default function ForwarderTripsPage() {
       ) : error ? (
         <div className="ops-bill-state ops-bill-state--error" role="alert">Không thể tải danh sách lệnh vận chuyển.</div>
       ) : trips.length === 0 ? (
-        <div className="ops-bill-state">Không tìm thấy lệnh phù hợp. Hãy kiểm tra số Bill hoặc khoảng ngày.</div>
+        <div className="ops-bill-state ops-bill-state--empty">
+          <FileSearch size={28} aria-hidden="true" />
+          <div>
+            <strong>Chưa có lệnh phù hợp</strong>
+            <p>Kiểm tra số Bill hoặc khoảng ngày, rồi thử lại.</p>
+          </div>
+          {(search || dateFrom || dateTo) && (
+            <button type="button" onClick={() => { setSearch(''); setDateFrom(''); setDateTo(''); }}>
+              Xóa bộ lọc
+            </button>
+          )}
+        </div>
       ) : (
         <>
           <div className="ops-bill-result-bar">

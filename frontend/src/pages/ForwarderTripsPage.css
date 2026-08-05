@@ -1,6 +1,8 @@
 .ops-bill-page {
   min-width: 0;
   --ops-control-height: 46px;
+  --ops-surface: var(--surface);
+  --ops-surface-muted: var(--surface-2);
 }
 
 .ops-bill-page .page-header {
@@ -14,6 +16,7 @@
 .ops-bill-page__advance {
   min-height: 44px;
   border-color: color-mix(in srgb, var(--brand) 32%, var(--border-2));
+  background: var(--ops-surface);
   color: var(--brand);
 }
 
@@ -26,7 +29,7 @@
   padding: 8px;
   border: 1px solid var(--border-1);
   border-radius: 12px;
-  background: var(--bg-2);
+  background: var(--ops-surface);
 }
 
 .ops-bill-search {
@@ -38,7 +41,7 @@
   padding: 0 13px;
   border: 1px solid var(--border-2);
   border-radius: 9px;
-  background: var(--bg-1);
+  background: var(--ops-surface-muted);
   color: var(--fg-3);
   transition: border-color 120ms ease, box-shadow 120ms ease;
 }
@@ -57,57 +60,6 @@
   color: var(--fg-1);
   font: inherit;
   font-size: 14px;
-}
-
-.ops-bill-date-range {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: var(--ops-control-height);
-  padding: 4px 6px 4px 10px;
-  border: 1px solid var(--border-2);
-  border-radius: 9px;
-  background: var(--bg-1);
-  color: var(--fg-3);
-}
-
-.ops-bill-date-range > svg { flex: none; }
-
-.ops-bill-date-range label {
-  display: grid;
-  grid-template-columns: auto minmax(120px, 1fr);
-  align-items: center;
-  gap: 6px;
-}
-
-.ops-bill-date-range label span {
-  color: var(--fg-3);
-  font-size: 11px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.ops-bill-date-range input {
-  width: 136px;
-  min-width: 0;
-  min-height: 36px;
-  padding: 0 7px;
-  border: 0;
-  border-radius: 6px;
-  outline: 0;
-  background: var(--bg-2);
-  color: var(--fg-1);
-  font: inherit;
-  font-size: 13px;
-}
-
-.ops-bill-date-range input:focus-visible {
-  box-shadow: 0 0 0 2px var(--brand-subtle);
-}
-
-.ops-bill-date-range__separator {
-  color: var(--fg-3);
-  font-size: 11px;
 }
 
 .ops-bill-result-bar {
@@ -136,19 +88,46 @@
   padding: 20px;
   border: 1px dashed var(--border-2);
   border-radius: 10px;
-  background: var(--bg-2);
+  background: var(--ops-surface);
   color: var(--fg-3);
   text-align: center;
 }
 
 .ops-bill-state--error { color: var(--danger); }
 
+.ops-bill-state--empty {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  justify-content: stretch;
+  min-height: 132px;
+  padding: 20px 24px;
+  border-style: solid;
+  background: var(--ops-surface);
+  text-align: left;
+}
+
+.ops-bill-state--empty > svg { color: var(--brand); }
+.ops-bill-state--empty strong { display: block; color: var(--fg-1); font-size: 15px; }
+.ops-bill-state--empty p { margin: 4px 0 0; color: var(--fg-3); font-size: 13px; line-height: 1.45; }
+.ops-bill-state--empty button {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--border-2);
+  border-radius: 8px;
+  background: var(--ops-surface-muted);
+  color: var(--brand);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .ops-bill-table-wrap {
   overflow: auto;
   max-height: 420px;
   border: 1px solid var(--border-1);
   border-radius: 10px;
-  background: var(--bg-1);
+  background: var(--ops-surface);
 }
 
 .ops-bill-table {
@@ -176,7 +155,7 @@
   z-index: 1;
   padding: 10px 11px;
   border-bottom: 1px solid var(--border-2);
-  background: var(--bg-2);
+  background: var(--ops-surface);
   color: var(--fg-3);
   text-align: left;
   font-size: 10px;
@@ -227,7 +206,7 @@
   transition: background-color 120ms ease, box-shadow 120ms ease;
 }
 
-.ops-bill-row:hover { background: var(--bg-2); }
+.ops-bill-row:hover { background: var(--ops-surface-muted); }
 .ops-bill-row.is-selected {
   background: var(--brand-subtle);
   box-shadow: inset 3px 0 0 var(--brand), inset 0 0 0 1px color-mix(in srgb, var(--brand) 24%, transparent);
@@ -271,7 +250,7 @@
   padding: 16px 18px;
   border: 1px solid var(--border-1);
   border-radius: 12px;
-  background: var(--bg-1);
+  background: var(--ops-surface);
 }
 
 .ops-order-exchange__heading {
@@ -339,7 +318,7 @@
   flex: none;
   border: 1px solid var(--border-2);
   border-radius: 50%;
-  background: var(--bg-1);
+  background: var(--ops-surface);
   font-size: 11px;
   font-weight: 800;
 }
@@ -361,9 +340,6 @@
 
 @media (max-width: 1023px) {
   .ops-bill-toolbar { grid-template-columns: minmax(0, 1fr); }
-  .ops-bill-date-range { width: 100%; }
-  .ops-bill-date-range label { flex: 1; }
-  .ops-bill-date-range input { width: 100%; }
 }
 
 @media (min-width: 768px) and (max-width: 1023px) {
@@ -406,42 +382,7 @@
   }
 
   .ops-bill-search { min-width: 0; border-radius: 10px; }
-  .ops-bill-search input,
-  .ops-bill-date-range input { font-size: 16px; }
-
-  .ops-bill-date-range {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    padding: 0;
-    border: 0;
-    background: transparent;
-  }
-
-  .ops-bill-date-range > svg,
-  .ops-bill-date-range__separator { display: none; }
-
-  .ops-bill-date-range label {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 4px;
-    min-width: 0;
-  }
-
-  .ops-bill-date-range label span {
-    display: block;
-    padding-left: 2px;
-    font-size: 11px;
-  }
-
-  .ops-bill-date-range input {
-    width: 100%;
-    min-height: 48px;
-    padding: 0 10px;
-    border: 1px solid var(--border-2);
-    border-radius: 10px;
-    background: var(--bg-1);
-  }
+  .ops-bill-search input { font-size: 16px; }
 
   .ops-bill-result-bar {
     align-items: baseline;
@@ -465,7 +406,7 @@
     padding: 12px 13px;
     border: 1px solid var(--border-1);
     border-radius: 12px;
-    background: var(--bg-1);
+    background: var(--ops-surface);
     color: var(--fg-1);
     font: inherit;
     text-align: left;
@@ -517,7 +458,7 @@
     min-height: 24px;
     padding: 3px 8px;
     border-radius: 999px;
-    background: var(--bg-2);
+    background: var(--ops-surface-muted);
     color: var(--fg-2);
     font-size: 10px;
     font-weight: 750;
@@ -525,7 +466,7 @@
 
   .ops-bill-mobile-list__status--shipment {
     border: 1px solid var(--border-1);
-    background: var(--bg-1);
+    background: var(--ops-surface-muted);
   }
 
   .ops-bill-mobile-list__facts {
@@ -568,6 +509,14 @@
     font-weight: 750;
     cursor: pointer;
   }
+
+  .ops-bill-state--empty {
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 12px;
+    padding: 18px;
+  }
+
+  .ops-bill-state--empty button { grid-column: 2; justify-self: start; margin-top: 2px; }
 
   .ops-bill-detail__mobile-back:focus-visible {
     outline: 2px solid var(--brand);

@@ -173,15 +173,20 @@ export default function ForwarderAdvancesPage() {
       {showForm && (
         <div className="fadv-form-panel fade-up">
           <div className="fadv-form-panel__head">
-            <span className="fadv-form-panel__title">
-              <Wallet size={16} style={{ verticalAlign: -2, marginRight: 6, opacity: 0.7 }} />
-              Tạo yêu cầu tạm ứng
-            </span>
+            <div>
+              <span className="fadv-form-panel__eyebrow">Yêu cầu mới</span>
+              <h2 className="fadv-form-panel__title">
+                <Wallet size={16} aria-hidden="true" />
+                Tạo yêu cầu tạm ứng
+              </h2>
+              <p className="fadv-form-panel__hint">Điền số tiền và lý do để gửi yêu cầu đến bộ phận duyệt.</p>
+            </div>
             <button
               className="btn btn--ghost btn--sm"
               onClick={() => { setShowForm(false); setForm({ amount: '', reason: '' }); }}
+              aria-label="Đóng biểu mẫu yêu cầu tạm ứng"
             >
-              <X size={16} />
+              <X size={16} aria-hidden="true" />
             </button>
           </div>
 

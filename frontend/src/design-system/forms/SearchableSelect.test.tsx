@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { SearchableSelect } from './SearchableSelect';
 
@@ -53,6 +53,24 @@ describe('SearchableSelect', () => {
 
     expect(screen.getByRole('button').textContent).toContain('Hải Phòng - Bản Bo, Lai Châu');
     expect(screen.queryByRole('combobox')).toBeNull();
+  });
+
+  it('returns focus to its trigger after the selection sheet is dismissed', async () => {
+    render(
+      <SearchableSelect
+        id="routeId"
+        value=""
+        onChange={() => {}}
+        options={ROUTES}
+        searchPlaceholder="Tìm tuyến đường…"
+      />,
+    );
+
+    const trigger = screen.getByRole('button', { name: /Chọn một mục/ });
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Đóng danh sách lựa chọn' }).at(-1)!);
+
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
   });
 
   it('supports arrow-key and Enter selection', () => {

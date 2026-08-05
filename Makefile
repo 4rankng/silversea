@@ -23,6 +23,13 @@ dev: ## Start everything (db, redis, backend, frontend)
 	@echo "  Backend:  http://localhost:3001/api/health"
 	@echo "  Adminer:  http://localhost:8083  (DB: silversea · user/pass: postgres/postgres)"
 	@echo "  (Ctrl-C stops backend + frontend; db/redis keep running)"
+	@pid=$$(lsof -ti tcp:7174 -sTCP:LISTEN 2>/dev/null); \
+	if [ -n "$$pid" ]; then \
+		echo "Port 7174 in use (stale PID $$pid) — freeing..."; \
+		kill $$pid 2>/dev/null || true; \
+		sleep 1; \
+		kill -9 $$pid 2>/dev/null || true; \
+	fi
 	@bash -c '\
 		trap "kill 0" EXIT; \
 		(cd backend && pnpm dev) & \

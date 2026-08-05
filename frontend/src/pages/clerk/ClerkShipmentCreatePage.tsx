@@ -29,6 +29,7 @@ import {
   type CarrierAllocationValue,
   validateCarrierAllocations,
 } from '../../components/shipment/CarrierAllocationSummary';
+import './ClerkShipmentCreatePage.css';
 
 type CargoMode = 'FCL' | 'LCL';
 type SaveIntent = 'DRAFT' | 'SUBMIT';
@@ -284,6 +285,10 @@ export default function ClerkShipmentCreatePage() {
   ]);
 
   const operationalSites = useMemo(() => sites.filter((site) => site.siteType === 'FACTORY'), [sites]);
+  const selectedOperationalSite = useMemo(
+    () => operationalSites.find((site) => String(site.id) === form.operationalSiteId) ?? null,
+    [form.operationalSiteId, operationalSites],
+  );
   const warehouseSites = useMemo(() => sites.filter((site) => site.siteType === 'WAREHOUSE'), [sites]);
   const carrierOptions = useMemo(() => {
     const externalCarriers = catalogs?.externalCarriers ?? [];
@@ -337,8 +342,6 @@ export default function ClerkShipmentCreatePage() {
 
   function selectOperationalSite(value: string) {
     update('operationalSiteId', value);
-    const selected = sites.find((site) => String(site.id) === value) ?? null;
-    if (selected) setDetailSite(selected);
   }
 
   /**
@@ -512,15 +515,15 @@ export default function ClerkShipmentCreatePage() {
   if (!catalogs?.customers.length) return <EmptyState title="Chưa có khách hàng" description="Cần ít nhất một khách hàng trước khi tạo lô hàng." />;
 
   return (
-    <div style={{ padding: 16, maxWidth: 1120, margin: '0 auto', minWidth: 0 }}>
+    <div className="csc-page" style={{ padding: 16, maxWidth: 1120, margin: '0 auto', minWidth: 0 }}>
       <button type="button" onClick={() => navigate(-1)} aria-label="Quay lại" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44, padding: '8px 4px', border: 0, background: 'none', color: 'var(--fg-2)', cursor: 'pointer' }}>
         <ArrowLeft size={18} /> Quay lại
       </button>
       <h1 style={{ fontSize: 24, margin: '8px 0 4px' }}>Tạo lô hàng mới</h1>
       <p style={{ color: 'var(--fg-3)', margin: '0 0 20px' }}>Lưu nháp để bổ sung sau, hoặc nhập đủ thông tin và gửi sang bảng điều phối.</p>
 
-      <form onSubmit={(event) => { event.preventDefault(); void save('DRAFT'); }} style={{ display: 'grid', gap: 16 }}>
-        <section style={sectionStyle}>
+      <form onSubmit={(event) => { event.preventDefault(); void save('DRAFT'); }} className="csc-form" style={{ display: 'grid', gap: 16 }}>
+        <section style={sectionStyle} className="csc-section">
           <h2 style={{ fontSize: 17, margin: 0 }}>Thông tin chung</h2>
           <div style={gridStyle}>
             <SearchableField
@@ -559,6 +562,7 @@ export default function ClerkShipmentCreatePage() {
             </SelectField>
           </div>
           {form.cargoMode === 'FCL' && (
+            <>
             <div style={gridStyle}>
               <SearchableField
                 id="shipment-operational-site"
@@ -575,13 +579,20 @@ export default function ClerkShipmentCreatePage() {
                     : undefined)}
               />
               {form.operationalSiteId
-                ? <button type="button" onClick={() => setDetailSite(sites.find((site) => String(site.id) === form.operationalSiteId) ?? null)} style={{ alignSelf: 'end', minHeight: 44, border: '1px solid var(--border-2)', borderRadius: 8, background: 'var(--surface-1)', color: 'var(--fg-1)', fontWeight: 600, cursor: 'pointer' }}><Eye size={17} style={{ verticalAlign: 'middle', marginRight: 7 }} />Xem thông tin nhà máy</button>
+                ? <button type="button" onClick={() => setDetailSite(selectedOperationalSite)} style={{ alignSelf: 'end', minHeight: 44, border: '1px solid var(--border-2)', borderRadius: 8, background: 'var(--surface-1)', color: 'var(--fg-1)', fontWeight: 600, cursor: 'pointer' }}><Eye size={17} style={{ verticalAlign: 'middle', marginRight: 7 }} />Xem thông tin nhà máy</button>
                 : (form.customerId && !sitesLoading && <button type="button" onClick={() => setCreateSiteDialog({ open: true, siteType: 'FACTORY' })} disabled={Boolean(saving)} style={{ alignSelf: 'end', minHeight: 44, border: '1px dashed var(--border-2)', borderRadius: 8, background: 'transparent', color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer' }}><Plus size={17} style={{ verticalAlign: 'middle', marginRight: 7 }} />Thêm nhà máy</button>)}
             </div>
+            {selectedOperationalSite?.strictRules && (
+              <aside className="csc-site-guidance" role="note">
+                <strong>Lưu ý tại nhà máy</strong>
+                <p>{selectedOperationalSite.strictRules}</p>
+              </aside>
+            )}
+            </>
           )}
         </section>
 
-        <section style={sectionStyle}>
+        <section style={sectionStyle} className="csc-section">
           <h2 style={{ fontSize: 17, margin: 0 }}>Hình thức hàng</h2>
           <SelectField label="Loại lô hàng" value={form.cargoMode} onChange={(event) => changeMode(event.target.value as CargoMode)} disabled={Boolean(saving)}>
             <option value="FCL">Hàng nguyên container (FCL)</option><option value="LCL">Hàng lẻ (LCL)</option>
@@ -608,7 +619,7 @@ export default function ClerkShipmentCreatePage() {
                 </button>
               </div>
               {containers.map((row, index) => (
-                <div key={row.key} style={{ border: '1px solid var(--border-2)', borderRadius: 8, padding: 14, display: 'grid', gap: 12, minWidth: 0 }}>
+                <div key={row.key} className="csc-container-record" style={{ border: '1px solid var(--border-2)', borderRadius: 8, padding: 14, display: 'grid', gap: 12, minWidth: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><strong>Container {index + 1}</strong>{containers.length > 1 && <button type="button" aria-label={`Xóa container ${index + 1}`} onClick={() => setContainers((current) => current.filter((item) => item.key !== row.key))} style={{ minWidth: 44, minHeight: 44, border: 0, background: 'none', color: 'var(--danger)', cursor: 'pointer' }}><Trash2 size={18} /></button>}</div>
                   <div style={gridStyle}>
                     <TextField label="Số container" value={row.containerNumber} onChange={(event) => updateContainer(row.key, 'containerNumber', event.target.value.toUpperCase())} disabled={Boolean(saving)} />
@@ -647,7 +658,7 @@ export default function ClerkShipmentCreatePage() {
           )}
         </section>
 
-        <section style={sectionStyle}>
+        <section style={sectionStyle} className="csc-section">
           <h2 style={{ fontSize: 17, margin: 0 }}>Mốc thời gian và lưu ý</h2>
           <div style={gridStyle}>
             <TextField label="Cut-off tờ khai" type="datetime-local" value={form.customsCutoffAt} onChange={(event) => update('customsCutoffAt', event.target.value)} disabled={Boolean(saving)} />
@@ -658,7 +669,7 @@ export default function ClerkShipmentCreatePage() {
           <label style={{ display: 'grid', gap: 8, fontSize: 14, fontWeight: 600 }}>Ghi chú điều xe<textarea value={form.operationalNotes} onChange={(event) => update('operationalNotes', event.target.value)} rows={4} maxLength={2000} disabled={Boolean(saving)} style={{ width: '100%', minHeight: 96, resize: 'vertical', border: '1px solid var(--border-2)', borderRadius: 8, padding: 12, color: 'var(--fg-1)', background: 'var(--surface-1)', font: 'inherit' }} /></label>
         </section>
 
-        <section style={sectionStyle}>
+        <section style={sectionStyle} className="csc-section">
           <h2 style={{ fontSize: 17, margin: 0 }}>Cước dự kiến theo cấu hình</h2>
           <div
             style={{
@@ -738,7 +749,7 @@ export default function ClerkShipmentCreatePage() {
         </section>
 
         {submitError && <div role="alert" style={{ color: 'var(--danger)', background: 'var(--danger-bg, rgba(220,38,38,.08))', padding: '12px 16px', borderRadius: 8 }}>{submitError}</div>}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: 12 }}>
+        <div className="csc-actions" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: 12 }}>
           <button type="submit" disabled={Boolean(saving)} style={{ minHeight: 48, border: '1px solid var(--border-2)', borderRadius: 8, background: 'var(--surface-1)', color: 'var(--fg-1)', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer' }}><Check size={18} style={{ verticalAlign: 'middle', marginRight: 8 }} />{saving === 'DRAFT' ? 'Đang lưu…' : 'Lưu bản nháp'}</button>
           <button type="button" onClick={() => void save('SUBMIT')} disabled={Boolean(saving)} style={{ minHeight: 48, border: 0, borderRadius: 8, background: 'var(--accent, #2563eb)', color: '#fff', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer' }}><Send size={18} style={{ verticalAlign: 'middle', marginRight: 8 }} />{saving === 'SUBMIT' ? 'Đang gửi…' : 'Gửi sang điều phối'}</button>
         </div>

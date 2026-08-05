@@ -7,7 +7,7 @@ import {
   useState,
   type KeyboardEvent,
 } from 'react';
-import { Check, ChevronDown, Search } from 'lucide-react';
+import { Check, ChevronDown, Search, X } from 'lucide-react';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import './SearchableSelect.css';
 
@@ -66,6 +66,7 @@ export function SearchableSelect({
 }: SearchableSelectProps) {
   const listboxId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -88,7 +89,15 @@ export function SearchableSelect({
     setIsOpen(false);
     setQuery('');
     setActiveIndex(0);
+    window.requestAnimationFrame(() => triggerRef.current?.focus({ preventScroll: true }));
   }, []);
+
+  useEffect(() => {
+    if (!isOpen || typeof window.matchMedia !== 'function' || !window.matchMedia('(max-width: 640px)').matches) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, [isOpen]);
 
   useClickOutside(containerRef, close, {
     escapeKey: true,
@@ -125,6 +134,23 @@ export function SearchableSelect({
     close();
   };
 
+  const trapDialogFocus = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Tab') return;
+    const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), [href]',
+    ));
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
   const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'ArrowDown') {
       event.preventDefault();
@@ -153,6 +179,7 @@ export function SearchableSelect({
   return (
     <div ref={containerRef} className={rootClassName}>
       <button
+        ref={triggerRef}
         id={id}
         type="button"
         className={`input searchable-select__trigger${isOpen ? ' searchable-select__trigger--open' : ''}`}
@@ -176,7 +203,14 @@ export function SearchableSelect({
       {name ? <input type="hidden" name={name} value={value} /> : null}
 
       {isOpen ? (
-        <div className="searchable-select__popover">
+        <>
+          <button
+            type="button"
+            className="searchable-select__backdrop"
+            aria-label="Đóng danh sách lựa chọn"
+            onClick={close}
+          />
+          <div className="searchable-select__popover" role="dialog" aria-modal="true" aria-label={`Chọn ${placeholder}`} onKeyDown={trapDialogFocus}>
           <div className="searchable-select__search">
             <Search size={16} aria-hidden="true" />
             <input
@@ -203,6 +237,9 @@ export function SearchableSelect({
               autoComplete="off"
               spellCheck={false}
             />
+            <button type="button" className="searchable-select__close" onClick={close} aria-label="Đóng danh sách lựa chọn">
+              <X size={18} aria-hidden="true" />
+            </button>
           </div>
 
           <ul id={listboxId} className="searchable-select__list" role="listbox">
@@ -244,7 +281,8 @@ export function SearchableSelect({
               </li>
             ) : null}
           </ul>
-        </div>
+          </div>
+        </>
       ) : null}
     </div>
   );

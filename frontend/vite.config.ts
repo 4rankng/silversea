@@ -15,6 +15,9 @@ export default defineConfig({
   },
   server: {
     port: 7174,
+    // Fail loudly if 7174 is taken instead of silently moving to 7175/7176,
+    // which would desync the browser from the /api + /socket.io proxy.
+    strictPort: true,
     proxy: {
       '/api': {
         target: apiProxyTarget,
