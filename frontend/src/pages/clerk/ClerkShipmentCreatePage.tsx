@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check, Eye, Plus, Send, Trash2 } from 'lucide-react';
 import { EmptyState, SearchableSelect, SelectField, TextField } from '../../design-system';
+import { useToast } from '../../components/shared/Toast';
 import { tripClient, type CatalogData } from '../../api/tripClient';
 import {
   listOperationalSites,
@@ -193,6 +194,7 @@ export default function ClerkShipmentCreatePage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [saving, setSaving] = useState<SaveIntent | null>(null);
   const saveAttemptRef = useRef<SaveAttempt | null>(null);
+  const { toast } = useToast();
   const [detailSite, setDetailSite] = useState<OperationalSite | null>(null);
   const [createSiteDialog, setCreateSiteDialog] = useState<{ open: boolean; siteType: 'FACTORY' | 'WAREHOUSE' }>({ open: false, siteType: 'FACTORY' });
   // Bumped after a site is created in-dialog so the operational-sites effect
@@ -342,6 +344,48 @@ export default function ClerkShipmentCreatePage() {
 
   function selectOperationalSite(value: string) {
     update('operationalSiteId', value);
+  }
+
+  /**
+   * Click handler for the in-form "Thêm nhà máy" / "Thêm kho" buttons.
+   *
+   * Customer support reported (2026-08-05) that the factory dropdown looked
+   * empty AND the "add new" button felt broken. The actual root cause: the
+   * add buttons were rendered only AFTER a customer had been picked, so a
+   * user landing on the intake form could not see any way forward before
+   * scrolling up to fill the customer field. Worse, the create dialog's
+   * own guard (`isOpen && form.customerId`) silently rejected the click if
+   * no customer was set, so even a "sticky" click did nothing.
+   *
+   * Now we render the add button always and route through this handler: if
+   * no customer is selected, surface a toast and scroll/focus the customer
+   * field. Otherwise open the create dialog. Either way the user gets
+   * visible feedback and a clear next step.
+   */
+  function openCreateSiteDialog(siteType: 'FACTORY' | 'WAREHOUSE') {
+    if (!form.customerId) {
+      toast({
+        kind: 'warning',
+        message: 'Vui lòng chọn khách hàng trước khi thêm nhà máy hoặc kho mới.',
+        duration: 6000,
+      });
+      const wrap = document.querySelector('[data-field="shipment-customer"]');
+      if (wrap instanceof HTMLElement) {
+        // jsdom (and older test environments) don't implement scrollIntoView;
+        // it's also a no-op when the element is already on-screen, so guard
+        // both cases instead of letting the test crash.
+        const scrollIntoView = (wrap as HTMLElement & { scrollIntoView?: (options?: ScrollIntoViewOptions) => void }).scrollIntoView;
+        if (typeof scrollIntoView === 'function') {
+          scrollIntoView.call(wrap, { behavior: 'smooth', block: 'center' });
+        }
+        const trigger = wrap.querySelector('button:not([disabled])');
+        if (trigger instanceof HTMLElement) {
+          window.setTimeout(() => trigger.focus(), 280);
+        }
+      }
+      return;
+    }
+    setCreateSiteDialog({ open: true, siteType });
   }
 
   /**
@@ -526,16 +570,18 @@ export default function ClerkShipmentCreatePage() {
         <section style={sectionStyle} className="csc-section">
           <h2 style={{ fontSize: 17, margin: 0 }}>Thông tin chung</h2>
           <div style={gridStyle}>
-            <SearchableField
-              id="shipment-customer"
-              label="Khách hàng"
-              required
-              value={form.customerId}
-              onChange={selectCustomer}
-              options={catalogs.customers.map((item) => ({ value: String(item.id), label: item.name }))}
-              placeholder="Chọn khách hàng"
-              disabled={Boolean(saving)}
-            />
+            <div data-field="shipment-customer">
+              <SearchableField
+                id="shipment-customer"
+                label="Khách hàng"
+                required
+                value={form.customerId}
+                onChange={selectCustomer}
+                options={catalogs.customers.map((item) => ({ value: String(item.id), label: item.name }))}
+                placeholder="Chọn khách hàng"
+                disabled={Boolean(saving)}
+              />
+            </div>
             <SearchableField
               id="shipment-route"
               label="Tuyến đường"
@@ -575,12 +621,17 @@ export default function ClerkShipmentCreatePage() {
                 hint={!form.customerId
                   ? 'Vui lòng chọn khách hàng để tải danh sách nhà máy.'
                   : (form.customerId && !sitesLoading && operationalSites.length === 0
-                    ? <>Chưa có nhà máy cho khách hàng này.{' '}<button type="button" onClick={() => setCreateSiteDialog({ open: true, siteType: 'FACTORY' })} disabled={Boolean(saving)} style={{ border: 0, background: 'none', padding: 0, color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>Thêm nhà máy</button></>
+                    ? <>Chưa có nhà máy cho khách hàng này.{' '}<button type="button" onClick={() => openCreateSiteDialog('FACTORY')} disabled={Boolean(saving)} style={{ border: 0, background: 'none', padding: 0, color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>Thêm nhà máy</button></>
                     : undefined)}
               />
-              {form.operationalSiteId
-                ? <button type="button" onClick={() => setDetailSite(selectedOperationalSite)} style={{ alignSelf: 'end', minHeight: 44, border: '1px solid var(--border-2)', borderRadius: 8, background: 'var(--surface-1)', color: 'var(--fg-1)', fontWeight: 600, cursor: 'pointer' }}><Eye size={17} style={{ verticalAlign: 'middle', marginRight: 7 }} />Xem thông tin nhà máy</button>
-                : (form.customerId && !sitesLoading && <button type="button" onClick={() => setCreateSiteDialog({ open: true, siteType: 'FACTORY' })} disabled={Boolean(saving)} style={{ alignSelf: 'end', minHeight: 44, border: '1px dashed var(--border-2)', borderRadius: 8, background: 'transparent', color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer' }}><Plus size={17} style={{ verticalAlign: 'middle', marginRight: 7 }} />Thêm nhà máy</button>)}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignSelf: 'end' }}>
+                {form.operationalSiteId ? (
+                  <button type="button" onClick={() => setDetailSite(selectedOperationalSite)} style={{ minHeight: 44, border: '1px solid var(--border-2)', borderRadius: 8, background: 'var(--surface-1)', color: 'var(--fg-1)', fontWeight: 600, cursor: 'pointer' }}><Eye size={17} style={{ verticalAlign: 'middle', marginRight: 7 }} />Xem thông tin nhà máy</button>
+                ) : null}
+                {!sitesLoading ? (
+                  <button type="button" onClick={() => openCreateSiteDialog('FACTORY')} disabled={Boolean(saving)} style={{ minHeight: 44, border: '1px dashed var(--border-2)', borderRadius: 8, background: 'transparent', color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer' }}><Plus size={17} style={{ verticalAlign: 'middle', marginRight: 7 }} />Thêm nhà máy</button>
+                ) : null}
+              </div>
             </div>
             {selectedOperationalSite?.strictRules && (
               <aside className="csc-site-guidance" role="note">
@@ -646,14 +697,16 @@ export default function ClerkShipmentCreatePage() {
                 hint={!form.customerId
                   ? 'Vui lòng chọn khách hàng để tải danh sách kho.'
                   : (form.customerId && !sitesLoading && warehouseSites.length === 0
-                    ? <>Chưa có kho cho khách hàng này.{' '}<button type="button" onClick={() => setCreateSiteDialog({ open: true, siteType: 'WAREHOUSE' })} disabled={Boolean(saving)} style={{ border: 0, background: 'none', padding: 0, color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>Thêm kho</button></>
+                    ? <>Chưa có kho cho khách hàng này.{' '}<button type="button" onClick={() => openCreateSiteDialog('WAREHOUSE')} disabled={Boolean(saving)} style={{ border: 0, background: 'none', padding: 0, color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>Thêm kho</button></>
                     : undefined)}
               />
               <TextField label="Quy cách đóng gói" value={form.packageType} onChange={(event) => update('packageType', event.target.value)} placeholder="Pallet, carton…" disabled={Boolean(saving)} />
               <TextField label="Số lượng" type="number" min="1" step="1" value={form.packageCount} onChange={(event) => update('packageCount', event.target.value)} disabled={Boolean(saving)} />
               <TextField label="Trọng lượng (kg)" type="number" min="0" step="0.01" value={form.cargoWeightKg} onChange={(event) => update('cargoWeightKg', event.target.value)} disabled={Boolean(saving)} />
               <TextField label="Thể tích (CBM)" type="number" min="0" step="0.001" value={form.cargoVolumeCbm} onChange={(event) => update('cargoVolumeCbm', event.target.value)} disabled={Boolean(saving)} />
-              {form.customerId && !form.pickupWarehouseSiteId && !sitesLoading && <button type="button" onClick={() => setCreateSiteDialog({ open: true, siteType: 'WAREHOUSE' })} disabled={Boolean(saving)} style={{ alignSelf: 'end', minHeight: 44, border: '1px dashed var(--border-2)', borderRadius: 8, background: 'transparent', color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer' }}><Plus size={17} style={{ verticalAlign: 'middle', marginRight: 7 }} />Thêm kho</button>}
+              {!sitesLoading ? (
+                <button type="button" onClick={() => openCreateSiteDialog('WAREHOUSE')} disabled={Boolean(saving)} style={{ alignSelf: 'end', minHeight: 44, border: '1px dashed var(--border-2)', borderRadius: 8, background: 'transparent', color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer' }}><Plus size={17} style={{ verticalAlign: 'middle', marginRight: 7 }} />Thêm kho</button>
+              ) : null}
             </div>
           )}
         </section>

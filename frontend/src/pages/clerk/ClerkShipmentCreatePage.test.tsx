@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ToastProvider } from '../../components/shared/Toast';
 
 const mocks = vi.hoisted(() => ({
   bootstrap: vi.fn(),
@@ -47,10 +48,12 @@ const sites = [
 function renderPage() {
   return render(
     <MemoryRouter initialEntries={['/clerk/shipments/new']}>
-      <Routes>
-        <Route path="/clerk/shipments/new" element={<ClerkShipmentCreatePage />} />
-        <Route path="/clerk/shipments/:id/docs" element={<div data-testid="dossier" />} />
-      </Routes>
+      <ToastProvider>
+        <Routes>
+          <Route path="/clerk/shipments/new" element={<ClerkShipmentCreatePage />} />
+          <Route path="/clerk/shipments/:id/docs" element={<div data-testid="dossier" />} />
+        </Routes>
+      </ToastProvider>
     </MemoryRouter>,
   );
 }
@@ -309,5 +312,50 @@ describe('ClerkShipmentCreatePage', () => {
     await waitFor(() => expect(mocks.submit).toHaveBeenCalledTimes(1));
     expect(mocks.quickCreate.mock.calls[0][0]).toMatchObject({ cargoMode: 'LCL', pickupWarehouseSiteId: 42, packageType: 'Pallet', packageCount: 12, cargoWeightKg: '1250', cargoVolumeCbm: '8.5', expectedDeliveryDate: '2026-08-03' });
     expect(mocks.saveContainers).not.toHaveBeenCalled();
+  });
+
+  it('surfaces a warning toast when "Thêm nhà máy" is clicked before a customer is selected', async () => {
+    renderPage();
+    await screen.findByText('Thông tin chung');
+    // No customer selected — the "Thêm nhà máy" button must still be visible
+    // so the user has a discoverable next step. Clicking it should NOT silently
+    // no-op; it should explain what's missing.
+    const addButton = screen.getAllByRole('button', { name: /Thêm nhà máy/ })[0];
+    fireEvent.click(addButton);
+    // The toast renders a .toast element. The animation may keep opacity:0 in
+    // jsdom but the message is still in the DOM, so query by class+text.
+    await waitFor(() => {
+      const container = document.querySelector('.toast-container');
+      expect(container?.textContent).toContain('Vui lòng chọn khách hàng trước khi thêm nhà máy');
+    });
+    // Dialog must NOT have opened because customer is missing.
+    expect(screen.queryByLabelText('Mã điểm vận hành')).toBeNull();
+  });
+
+  it('opens the operational-site dialog when "Thêm nhà máy" is clicked with a customer selected', async () => {
+    renderPage();
+    await screen.findByText('Thông tin chung');
+    choose('Khách hàng', '7');
+    await waitFor(() => expect(mocks.sites).toHaveBeenCalledWith(7));
+    const addButton = screen.getAllByRole('button', { name: /Thêm nhà máy/ })[0];
+    fireEvent.click(addButton);
+    // The dialog renders the unique "Mã điểm vận hành" input field.
+    expect(await screen.findByLabelText('Mã điểm vận hành')).toBeTruthy();
+  });
+
+  it('keeps the "Thêm nhà máy" action available after a factory is already selected', async () => {
+    renderPage();
+    await screen.findByText('Thông tin chung');
+    choose('Khách hàng', '7');
+    await waitFor(() => expect(mocks.sites).toHaveBeenCalledWith(7));
+    choose('Nhà máy', '41');
+    // "Xem thông tin nhà máy" should appear once a factory is picked.
+    expect(screen.getByRole('button', { name: /Xem thông tin nhà máy/ })).toBeTruthy();
+    // And "Thêm nhà máy" must still be available so the user can add another
+    // factory for the same customer without leaving the form.
+    const addButtons = screen.getAllByRole('button', { name: /Thêm nhà máy/ });
+    expect(addButtons.length).toBeGreaterThan(0);
+    fireEvent.click(addButtons[0]);
+    expect(await screen.findByLabelText('Mã điểm vận hành')).toBeTruthy();
   });
 });
