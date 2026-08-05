@@ -35,6 +35,15 @@ export interface SearchableSelectProps {
   hasMore?: boolean;
   loadingMore?: boolean;
   onLoadMore?: () => void;
+  /**
+   * Whether to expose a "Bỏ chọn" item at the top of the popover so a user
+   * can clear a previously-selected value. Defaults to `true` for any field
+   * that is not required; required fields always get a clear option too
+   * (the parent decides whether to allow empty submission).
+   */
+  clearable?: boolean;
+  /** Label for the clear item. Override for context-specific wording. */
+  clearLabel?: string;
 }
 
 function normalizeSearchText(value: string): string {
@@ -64,6 +73,8 @@ export function SearchableSelect({
   hasMore = false,
   loadingMore = false,
   onLoadMore,
+  clearable = true,
+  clearLabel = 'Bỏ chọn',
 }: SearchableSelectProps) {
   const listboxId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -144,6 +155,13 @@ export function SearchableSelect({
     onChange(option.value);
     close();
   };
+
+  const clearSelection = () => {
+    onChange('');
+    close();
+  };
+
+  const showClear = clearable && value !== '';
 
   const trapDialogFocus = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Escape') {
@@ -237,6 +255,19 @@ export function SearchableSelect({
         </div>
 
         <ul id={listboxId} className="searchable-select__list" role="listbox">
+          {showClear ? (
+            <li className="searchable-select__clear" role="presentation">
+              <button
+                type="button"
+                className="searchable-select__clear-button"
+                onClick={clearSelection}
+                data-testid={`${id}-clear`}
+              >
+                <X size={14} aria-hidden="true" />
+                <span>{clearLabel}</span>
+              </button>
+            </li>
+          ) : null}
           {filteredOptions.length > 0 ? (
             filteredOptions.map((option, index) => {
               const isSelected = option.value === value;

@@ -624,12 +624,51 @@ export default function ClerkShipmentCreatePage() {
                     ? <>Chưa có nhà máy cho khách hàng này.{' '}<button type="button" onClick={() => openCreateSiteDialog('FACTORY')} disabled={Boolean(saving)} style={{ border: 0, background: 'none', padding: 0, color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>Thêm nhà máy</button></>
                     : undefined)}
               />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignSelf: 'end' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignSelf: 'end' }}>
                 {form.operationalSiteId ? (
-                  <button type="button" onClick={() => setDetailSite(selectedOperationalSite)} style={{ minHeight: 44, border: '1px solid var(--border-2)', borderRadius: 8, background: 'var(--surface-1)', color: 'var(--fg-1)', fontWeight: 600, cursor: 'pointer' }}><Eye size={17} style={{ verticalAlign: 'middle', marginRight: 7 }} />Xem thông tin nhà máy</button>
+                  <button
+                    type="button"
+                    onClick={() => setDetailSite(selectedOperationalSite)}
+                    style={{
+                      minHeight: 36,
+                      padding: '6px 12px',
+                      border: 0,
+                      borderRadius: 8,
+                      background: 'transparent',
+                      color: 'var(--fg-2)',
+                      fontWeight: 600,
+                      fontSize: 13,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      cursor: 'pointer',
+                    }}
+                    aria-label="Xem chi tiết nhà máy đã chọn"
+                  >
+                    <Eye size={15} aria-hidden="true" />Xem chi tiết
+                  </button>
                 ) : null}
                 {!sitesLoading ? (
-                  <button type="button" onClick={() => openCreateSiteDialog('FACTORY')} disabled={Boolean(saving)} style={{ minHeight: 44, border: '1px dashed var(--border-2)', borderRadius: 8, background: 'transparent', color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer' }}><Plus size={17} style={{ verticalAlign: 'middle', marginRight: 7 }} />Thêm nhà máy</button>
+                  <button
+                    type="button"
+                    onClick={() => openCreateSiteDialog('FACTORY')}
+                    disabled={Boolean(saving)}
+                    style={{
+                      minHeight: 44,
+                      padding: '0 14px',
+                      border: '1px dashed var(--border-2)',
+                      borderRadius: 8,
+                      background: 'transparent',
+                      color: 'var(--accent, #2563eb)',
+                      fontWeight: 700,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Plus size={16} aria-hidden="true" />Thêm nhà máy
+                  </button>
                 ) : null}
               </div>
             </div>
@@ -705,7 +744,27 @@ export default function ClerkShipmentCreatePage() {
               <TextField label="Trọng lượng (kg)" type="number" min="0" step="0.01" value={form.cargoWeightKg} onChange={(event) => update('cargoWeightKg', event.target.value)} disabled={Boolean(saving)} />
               <TextField label="Thể tích (CBM)" type="number" min="0" step="0.001" value={form.cargoVolumeCbm} onChange={(event) => update('cargoVolumeCbm', event.target.value)} disabled={Boolean(saving)} />
               {!sitesLoading ? (
-                <button type="button" onClick={() => openCreateSiteDialog('WAREHOUSE')} disabled={Boolean(saving)} style={{ alignSelf: 'end', minHeight: 44, border: '1px dashed var(--border-2)', borderRadius: 8, background: 'transparent', color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer' }}><Plus size={17} style={{ verticalAlign: 'middle', marginRight: 7 }} />Thêm kho</button>
+                <button
+                  type="button"
+                  onClick={() => openCreateSiteDialog('WAREHOUSE')}
+                  disabled={Boolean(saving)}
+                  style={{
+                    alignSelf: 'end',
+                    minHeight: 44,
+                    padding: '0 14px',
+                    border: '1px dashed var(--border-2)',
+                    borderRadius: 8,
+                    background: 'transparent',
+                    color: 'var(--accent, #2563eb)',
+                    fontWeight: 700,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Plus size={16} aria-hidden="true" />Thêm kho
+                </button>
               ) : null}
             </div>
           )}

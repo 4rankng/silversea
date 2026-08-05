@@ -197,4 +197,86 @@ describe('SearchableSelect', () => {
     expect(onLoadMore).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('combobox')).toBeTruthy();
   });
+
+  it('does not show a clear item when the value is empty', () => {
+    render(
+      <SearchableSelect
+        id="routeId"
+        value=""
+        onChange={() => {}}
+        options={ROUTES}
+        searchPlaceholder="Tìm tuyến đường…"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button'));
+
+    expect(screen.queryByRole('button', { name: 'Bỏ chọn' })).toBeNull();
+  });
+
+  it('clears the selected value via the "Bỏ chọn" item', () => {
+    function ControlledSelect() {
+      const [value, setValue] = useState('2');
+      return (
+        <SearchableSelect
+          id="routeId"
+          value={value}
+          onChange={setValue}
+          options={ROUTES}
+          searchPlaceholder="Tìm tuyến đường…"
+        />
+      );
+    }
+
+    render(<ControlledSelect />);
+    expect(screen.getByRole('button').textContent).toContain('Hải Phòng - Bản Bo, Lai Châu');
+
+    fireEvent.click(screen.getByRole('button'));
+    fireEvent.click(screen.getByRole('button', { name: 'Bỏ chọn' }));
+
+    // After clearing, the trigger falls back to its placeholder.
+    expect(screen.getByRole('button').textContent).not.toContain('Hải Phòng - Bản Bo');
+    // And the popover closes.
+    expect(screen.queryByRole('combobox')).toBeNull();
+  });
+
+  it('hides the clear item when `clearable={false}`', () => {
+    render(
+      <SearchableSelect
+        id="routeId"
+        value="1"
+        onChange={() => {}}
+        options={ROUTES}
+        searchPlaceholder="Tìm tuyến đường…"
+        clearable={false}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button'));
+
+    expect(screen.queryByRole('button', { name: 'Bỏ chọn' })).toBeNull();
+  });
+
+  it('keeps the clear item visible while the user is searching', () => {
+    function ControlledSelect() {
+      const [value, setValue] = useState('1');
+      return (
+        <SearchableSelect
+          id="routeId"
+          value={value}
+          onChange={setValue}
+          options={ROUTES}
+          searchPlaceholder="Tìm tuyến đường…"
+        />
+      );
+    }
+
+    render(<ControlledSelect />);
+    fireEvent.click(screen.getByRole('button'));
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'ban' } });
+
+    // The clear action must remain reachable even when the user is typing —
+    // otherwise an unhelpful search could trap them in a chosen value.
+    expect(screen.getByRole('button', { name: 'Bỏ chọn' })).toBeTruthy();
+  });
 });
