@@ -889,7 +889,11 @@ export const companyInfoSchema = z.object({
   address: z.string().trim().min(1, 'Địa chỉ là bắt buộc'),
   taxCode: z.string().trim().min(1, 'Mã số thuế là bắt buộc'),
   representative: z.string().trim().min(1, 'Người đại diện là bắt buộc'),
-  representativeTitle: z.string().trim().min(1, 'Chức vụ là bắt buộc'),
+  // Chức vụ is optional: a sole-proprietor or one-person company may not have
+  // a separate representative title, and the seed `company.representative`
+  // row is intentionally created without a title. The dashboard banner
+  // should not nag the admin to fill a field the schema does not require.
+  representativeTitle: z.string().trim().default(''),
   bankAccount: z.string().trim().min(1, 'Số tài khoản là bắt buộc'),
   bankName: z.string().trim().min(1, 'Ngân hàng là bắt buộc'),
   phone: z.string().trim().default(''),

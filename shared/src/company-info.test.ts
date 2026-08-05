@@ -37,4 +37,14 @@ describe('isCompanyInfoConfigured', () => {
     assert.equal(isCompanyInfoConfigured(undefined), false);
     assert.equal(isCompanyInfoConfigured(null), false);
   });
+
+  test('accepts an empty representativeTitle (sole-proprietor case — title is not legally required)', () => {
+    // The seed `company.representative_title` row is intentionally absent so
+    // a sole-proprietor / one-person company can mark the profile complete
+    // without a separate representative title.
+    assert.equal(isCompanyInfoConfigured({
+      ...completeCompanyInfo,
+      representativeTitle: '',
+    }), true);
+  });
 });
