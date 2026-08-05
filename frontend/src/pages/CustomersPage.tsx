@@ -10,6 +10,7 @@ import { labelStyle } from '../utils/formStyles';
 import { PageHeader, KPI, FilterPill, StatusPill, Modal } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { EmptyState } from '../design-system';
+import { useToast } from '../components/shared/Toast';
 import { formatCurrency, formatNumber } from '../lib/format';
 import {
   buildCustomerDebitNoteModeOptions,
@@ -284,6 +285,7 @@ function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, suppliers }
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CustomersPage() {
+  const { toast } = useToast();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterKey>('all');
@@ -364,7 +366,23 @@ export default function CustomersPage() {
   async function doCreate(body: Record<string, unknown>) {
     setSaving(true);
     try {
-      await api.post('/customers', body);
+      // Customer create goes through PRICE_CONFIG_CHANGE governance because it
+      // affects credit terms and AR aging. The API returns the governance
+      // action, NOT the customer record. We must surface that to the user,
+      // otherwise the modal closes and the customer "vanishes" from the list
+      // (it actually exists as a PENDING_CHECK approval elsewhere).
+      const result = await api.post<{ actionKind?: string; status?: string; reason?: string }>('/customers', body);
+      if (result && typeof result === 'object' && 'actionKind' in result && result.actionKind === 'PRICE_CONFIG_CHANGE') {
+        toast({
+          kind: 'info',
+          message: result.status === 'PENDING_CHECK'
+            ? 'Yêu cầu tạo khách hàng đã gửi — đang chờ phê duyệt. Khách hàng sẽ xuất hiện trong danh sách sau khi được duyệt.'
+            : 'Yêu cầu tạo khách hàng đã được ghi nhận và đang chờ kiểm tra.',
+          duration: 7000,
+        });
+      } else {
+        toast({ kind: 'success', message: 'Đã tạo khách hàng' });
+      }
       setShowAddForm(false);
       await refetchCustomers();
     } catch (e: unknown) { setMutationError(e instanceof Error ? e.message : 'Lỗi lưu'); } finally { setSaving(false); }
@@ -373,7 +391,19 @@ export default function CustomersPage() {
   async function doUpdate(id: number, body: Record<string, unknown>) {
     setSaving(true);
     try {
-      await api.put(`/customers/${id}`, body);
+      // Edits to credit-bearing fields also go through PRICE_CONFIG_CHANGE
+      // approval — same caveat as doCreate. Show a toast so the user knows
+      // the change is pending, not silently lost.
+      const result = await api.put<{ actionKind?: string; status?: string }>(`/customers/${id}`, body);
+      if (result && typeof result === 'object' && 'actionKind' in result && result.actionKind === 'PRICE_CONFIG_CHANGE') {
+        toast({
+          kind: 'info',
+          message: 'Yêu cầu cập nhật khách hàng đã gửi — đang chờ phê duyệt.',
+          duration: 7000,
+        });
+      } else {
+        toast({ kind: 'success', message: 'Đã cập nhật khách hàng' });
+      }
       await refetchCustomers();
       setEditingId(null);
       setMenuOpenId(null);
