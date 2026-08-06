@@ -258,6 +258,12 @@ export function AppRoutes() {
           <Route path="/shipments/new" element={shipmentOperatorOnly(page(<ClerkShipmentCreatePage />))} />
           <Route path="/shipments/:id" element={shipmentReaderOnly(page(<ShipmentDetailPage />))} />
           <Route path={routes.vehicleAllocation} element={dispatchOnly(page(<VehicleAllocationPage />))} />
+          {/* W5 20260805_04: dispatcher sidebar links to /dispatch/master-plan and
+              /dispatch/detailed-plan — these are the W5-spec tabs "Kế hoạch Tổng
+              quát" / "Kế hoạch Chi tiết". The VehicleAllocationPage already has
+              the right Tabs, so we mount it on both routes. */}
+          <Route path="/dispatch/master-plan" element={dispatchOnly(page(<VehicleAllocationPage initialTab="summary" />))} />
+          <Route path="/dispatch/detailed-plan" element={dispatchOnly(page(<VehicleAllocationPage initialTab="detail" />))} />
           <Route path="/routes" element={<Navigate to="/config/routes" replace />} />
           <Route path="/trucks" element={<Navigate to="/fleet" replace />} />
           <Route path="/drivers" element={<Navigate to="/fleet" replace />} />

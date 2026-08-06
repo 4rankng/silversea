@@ -389,10 +389,15 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
     apiGet.mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 });
     renderAt('/shipments');
     const desktop = desktopSurface();
-    for (const heading of ['Lô hàng', 'Khách hàng', 'Loại hàng (Xuất/Nhập)', 'Số Cont/Số lượng', 'Hãng tàu', 'Nhà xe', 'Biển số xe', 'Ngày vận chuyển', 'Trạng thái']) {
+    // W4 20260805_03: all 18 required columns render by default.
+    for (const heading of [
+      'Lô hàng', 'Khách hàng', 'Nhà máy', 'Số B/L', 'Số Bill/Book',
+      'Hãng tàu', 'Tuyến đường', 'Loại hàng (Xuất/Nhập)', 'Số Cont/Số lượng',
+      'Nhà xe', 'Biển số xe', 'Ngày vận chuyển', 'Giờ đóng/trả', 'Ngày đóng/trả',
+      'Trạng thái', 'Ghi chú',
+    ]) {
       expect(desktop.getByRole('columnheader', { name: heading })).toBeTruthy();
     }
-    expect(desktop.queryByRole('columnheader', { name: 'Số B/L' })).toBeNull();
 
     // The column menu is a <details>/<summary>. The summary's text also
     // appears in the ancestor <details>'s aggregate textContent, so a text
@@ -400,9 +405,10 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
     const columnsTrigger = document.querySelector('.shipments-page__columns-trigger') as HTMLElement;
     expect(columnsTrigger).toBeTruthy();
     fireEvent.click(columnsTrigger);
+    // Toggle a currently-visible column off and verify it disappears.
     fireEvent.click(screen.getByRole('checkbox', { name: 'Số B/L' }));
-    expect(desktop.getByRole('columnheader', { name: 'Số B/L' })).toBeTruthy();
-    expect(JSON.parse(window.localStorage.getItem('silversea:shipments:columns:v1') ?? '[]')).toContain('blNumber');
+    expect(desktop.queryByRole('columnheader', { name: 'Số B/L' })).toBeNull();
+    expect(JSON.parse(window.localStorage.getItem('silversea:shipments:columns:v1') ?? '[]')).not.toContain('blNumber');
   });
 
   it('marks pending shipments without a delivery date with an explicit warning', async () => {
@@ -541,7 +547,8 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
     renderAt('/shipments');
     await waitFor(() => expect(apiGet).toHaveBeenCalled());
     expect(desktopSurface().getByRole('columnheader', { name: 'Nhà xe' })).toBeTruthy();
-    expect(desktopSurface().queryByRole('columnheader', { name: 'Số B/L' })).toBeNull();
+    // W4 20260805_03: Số B/L is now default-visible.
+    expect(desktopSurface().getByRole('columnheader', { name: 'Số B/L' })).toBeTruthy();
   });
 
   it('keeps the inline date control read-only for accountants', async () => {

@@ -46,9 +46,9 @@ interface AllocationResponse {
   limit: number;
 }
 
-export default function VehicleAllocationPage() {
+export default function VehicleAllocationPage({ initialTab = 'summary' as VehicleTab }: { initialTab?: VehicleTab } = {}) {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<VehicleTab>('summary');
+  const [activeTab, setActiveTab] = useState<VehicleTab>(initialTab);
   const [data, setData] = useState<AllocationResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

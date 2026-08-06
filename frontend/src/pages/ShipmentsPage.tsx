@@ -57,6 +57,7 @@ interface ShipmentRow {
   shippingLineSummary?: string | null;
   carrierSummary?: string | null;
   vehiclePlateSummary?: string | null;
+  operationalNotes?: string | null;
   version: number;
   createdAt: string;
   updatedAt: string;
@@ -90,7 +91,11 @@ type ShipmentColumnId =
   | 'status'
   | 'blNumber'
   | 'bookingRef'
-  | 'route';
+  | 'route'
+  | 'factory'
+  | 'cutoffTime'
+  | 'cutoffDate'
+  | 'notes';
 
 const COLUMN_STORAGE_KEY = 'silversea:shipments:columns:v1';
 const REQUIRED_COLUMNS = new Set<ShipmentColumnId>(['shipment', 'customer', 'delivery', 'status']);
@@ -100,9 +105,13 @@ const OPTIONAL_COLUMNS: Array<{ id: ShipmentColumnId; label: string; defaultVisi
   { id: 'shippingLine', label: 'Hãng tàu', defaultVisible: true },
   { id: 'carrier', label: 'Nhà xe', defaultVisible: true },
   { id: 'vehiclePlate', label: 'Biển số xe', defaultVisible: true },
-  { id: 'blNumber', label: 'Số B/L', defaultVisible: false },
-  { id: 'bookingRef', label: 'Mã đặt chỗ', defaultVisible: false },
-  { id: 'route', label: 'Tuyến vận chuyển', defaultVisible: false },
+  { id: 'factory', label: 'Nhà máy', defaultVisible: true },
+  { id: 'blNumber', label: 'Số B/L', defaultVisible: true },
+  { id: 'bookingRef', label: 'Số Bill/Book', defaultVisible: true },
+  { id: 'route', label: 'Tuyến đường', defaultVisible: true },
+  { id: 'cutoffTime', label: 'Giờ đóng/trả', defaultVisible: true },
+  { id: 'cutoffDate', label: 'Ngày đóng/trả', defaultVisible: true },
+  { id: 'notes', label: 'Ghi chú', defaultVisible: true },
 ];
 
 const DEFAULT_VISIBLE_COLUMNS = new Set<ShipmentColumnId>([
@@ -169,6 +178,25 @@ function formatDeliveryDate(iso: string | null): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
   return d.toLocaleDateString('vi-VN');
+}
+
+function formatClosingTime(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatCutoffDate(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function truncate(text: string | null | undefined, max: number): string {
+  if (!text) return '—';
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
 
 function cargoModeLabel(shipment: ShipmentRow): string | null {
@@ -588,8 +616,24 @@ export default function ShipmentsPage() {
                       <strong>{s.vehiclePlateSummary ?? '—'}</strong>
                     </div>
                     <div>
+                      <span>Nhà máy</span>
+                      <strong>{s.factoryName ?? '—'}</strong>
+                    </div>
+                    <div>
                       <span>Ngày vận chuyển</span>
                       <strong>{formatDeliveryDate(s.expectedDeliveryDate)}</strong>
+                    </div>
+                    <div>
+                      <span>Giờ đóng/trả</span>
+                      <strong>{formatClosingTime(s.closingAt)}</strong>
+                    </div>
+                    <div>
+                      <span>Ngày đóng/trả</span>
+                      <strong>{formatCutoffDate(s.customsCutoffAt)}</strong>
+                    </div>
+                    <div>
+                      <span>Tuyến đường</span>
+                      <strong>{formatRoute(s) ?? '—'}</strong>
                     </div>
                   </div>
 
@@ -600,9 +644,15 @@ export default function ShipmentsPage() {
                         <strong>{s.blNumber ?? '—'}</strong>
                       </div>
                       <div>
-                        <span>Mã đặt chỗ</span>
+                        <span>Số Bill/Book</span>
                         <strong>{s.bookingRef ?? '—'}</strong>
                       </div>
+                    </div>
+                  )}
+                  {s.operationalNotes && (
+                    <div className="shipments-page__card-notes">
+                      <span>Ghi chú</span>
+                      <strong title={s.operationalNotes}>{truncate(s.operationalNotes, 80)}</strong>
                     </div>
                   )}
 
@@ -698,11 +748,15 @@ export default function ShipmentsPage() {
                   {visibleColumns.has('shippingLine') && <th className="shipments-page__th">Hãng tàu</th>}
                   {visibleColumns.has('carrier') && <th className="shipments-page__th">Nhà xe</th>}
                   {visibleColumns.has('vehiclePlate') && <th className="shipments-page__th">Biển số xe</th>}
+                  {visibleColumns.has('factory') && <th className="shipments-page__th">Nhà máy</th>}
                   {visibleColumns.has('blNumber') && <th className="shipments-page__th">Số B/L</th>}
-                  {visibleColumns.has('bookingRef') && <th className="shipments-page__th">Mã đặt chỗ</th>}
-                  {visibleColumns.has('route') && <th className="shipments-page__th">Tuyến vận chuyển</th>}
+                  {visibleColumns.has('bookingRef') && <th className="shipments-page__th">Số Bill/Book</th>}
+                  {visibleColumns.has('route') && <th className="shipments-page__th">Tuyến đường</th>}
                   {visibleColumns.has('delivery') && <th className="shipments-page__th">Ngày vận chuyển</th>}
+                  {visibleColumns.has('cutoffTime') && <th className="shipments-page__th">Giờ đóng/trả</th>}
+                  {visibleColumns.has('cutoffDate') && <th className="shipments-page__th">Ngày đóng/trả</th>}
                   {visibleColumns.has('status') && <th className="shipments-page__th">Trạng thái</th>}
+                  {visibleColumns.has('notes') && <th className="shipments-page__th">Ghi chú</th>}
                   <th aria-label="Mở chi tiết" />
                 </tr>
               </thead>
@@ -737,6 +791,7 @@ export default function ShipmentsPage() {
                       {visibleColumns.has('shippingLine') && <td className="shipments-page__td">{s.shippingLineSummary ?? s.shippingLineName ?? <span className="shipments-page__muted">—</span>}</td>}
                       {visibleColumns.has('carrier') && <td className="shipments-page__td">{s.carrierSummary ?? <span className="shipments-page__muted">—</span>}</td>}
                       {visibleColumns.has('vehiclePlate') && <td className="shipments-page__td shipments-page__td--mono">{s.vehiclePlateSummary ?? <span className="shipments-page__muted">—</span>}</td>}
+                      {visibleColumns.has('factory') && <td className="shipments-page__td">{s.factoryName ?? <span className="shipments-page__muted">—</span>}</td>}
                       {visibleColumns.has('blNumber') && <td className="shipments-page__td shipments-page__td--mono" title={s.blNumber ?? undefined}>
                         {s.blNumber ?? <span className="shipments-page__muted">—</span>}
                       </td>}
@@ -748,6 +803,9 @@ export default function ShipmentsPage() {
                           ? <span className="shipments-page__route" title={formatRoute(s) ?? undefined}>{formatRoute(s)}</span>
                           : <span className="shipments-page__muted">Chưa cập nhật</span>}
                       </td>}
+                      {visibleColumns.has('cutoffTime') && <td className="shipments-page__td shipments-page__td--mono">{formatClosingTime(s.closingAt)}</td>}
+                      {visibleColumns.has('cutoffDate') && <td className="shipments-page__td shipments-page__td--mono">{formatCutoffDate(s.customsCutoffAt)}</td>}
+                      {visibleColumns.has('notes') && <td className="shipments-page__td" title={s.operationalNotes ?? undefined}>{truncate(s.operationalNotes, 60)}</td>}
                       {visibleColumns.has('delivery') && <td className="shipments-page__td shipments-page__td--date">
                         {editingDate?.shipmentId === s.id ? (
                           <form
