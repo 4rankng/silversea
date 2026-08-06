@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { Role } from '@tingting/shared';
 import { Sidebar } from './Sidebar';
-import type { NavItem, NavSection } from './types';
+import type { NavItem, NavSection, SectionName } from './types';
 
 vi.mock('../../hooks/useSidebarAnimations', () => ({
   useSidebarAnimations: () => ({ current: null }),
@@ -12,12 +12,12 @@ vi.mock('../../hooks/useSidebarAnimations', () => ({
 const TestIcon = () => <svg aria-hidden="true" />;
 const navItems: NavItem[] = [
   { key: 'accounting', label: 'Tổng Quan', path: '/accounting', icon: TestIcon },
-  { key: 'debt', label: 'Công nợ phải thu', path: '/debt', icon: TestIcon, section: 'financials' },
-  { key: 'finance', label: 'Báo cáo lãi lỗ', path: '/finance', icon: TestIcon, section: 'oversight' },
+  { key: 'debt', label: 'Công nợ phải thu', path: '/debt', icon: TestIcon, section: 'financials' as SectionName },
+  { key: 'finance', label: 'Báo cáo lãi lỗ', path: '/finance', icon: TestIcon, section: 'oversight' as SectionName },
 ];
 const navSections: NavSection[] = [
-  { key: 'financials', label: 'Công nợ & dòng tiền' },
-  { key: 'oversight', label: 'Báo cáo & phê duyệt' },
+  { key: 'financials' as SectionName, label: 'Công nợ & dòng tiền' },
+  { key: 'oversight' as SectionName, label: 'Báo cáo & phê duyệt' },
 ];
 
 function renderSidebar(overrides: Partial<Parameters<typeof Sidebar>[0]> = {}) {

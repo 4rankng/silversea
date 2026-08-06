@@ -44,6 +44,7 @@ const CustomersPage = lazy(() => import('./pages/CustomersPage'));
 // ships in Wave 2.
 const ShipmentsPage = lazy(() => import('./pages/ShipmentsPage'));
 const ShipmentDetailPage = lazy(() => import('./pages/ShipmentDetailPage'));
+const VehicleAllocationPage = lazy(() => import('./pages/VehicleAllocationPage'));
 // Wave 2: Customer portal pages.
 const PortalShipmentsPage = lazy(() => import('./pages/portal/PortalShipmentsPage'));
 const PortalShipmentDetailPage = lazy(() => import('./pages/portal/PortalShipmentDetailPage'));
@@ -154,16 +155,19 @@ export function AppRoutes() {
         : isClerk
           ? clerkHome
           : defaultHome;
-  const adminOnly = (el: ReactElement) => (isPortalUser || isCustomer || isClerk || isDispatcher ? <Navigate to={homeRedirect} replace /> : el);
+  const adminOnly = (el: ReactElement) => (isPortalUser || isCustomer || isClerk || isDispatcher || user?.role === Role.ACCOUNTANT ? <Navigate to={homeRedirect} replace /> : el);
   const driverOnly = (el: ReactElement) => (isDriver ? el : <Navigate to={homeRedirect} replace />);
   const forwarderOnly = (el: ReactElement) => (isForwarder ? el : <Navigate to={homeRedirect} replace />);
   const customerOnly = (el: ReactElement) => (isCustomer ? el : <Navigate to={homeRedirect} replace />);
   const managerOrAdminOnly = (el: ReactElement) => (isAdmin || user?.role === Role.MANAGER ? el : <Navigate to={homeRedirect} replace />);
+  // Accountant cannot access dispatch pages
   const dispatchOnly = (el: ReactElement) => (
     isAdmin || user?.role === Role.MANAGER || isDispatcher
       ? el
       : <Navigate to={homeRedirect} replace />
   );
+  // Accountant-blocked routes (per specification)
+  const accountantBlocked = (el: ReactElement) => (user?.role === Role.ACCOUNTANT ? <Navigate to={homeRedirect} replace /> : el);
   // /users is the single home for everyone; accountants get scoped (driver-only) access.
   const officeStaffOnly = (el: ReactElement) => (isAdmin || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT ? el : <Navigate to={homeRedirect} replace />);
   const accountantOnly = (el: ReactElement) => (user?.role === Role.ACCOUNTANT ? el : <Navigate to={homeRedirect} replace />);
@@ -218,7 +222,7 @@ export function AppRoutes() {
           <Route path="/" element={<Navigate to={defaultHome} replace />} />
           <Route
             path="/dashboard"
-            element={isPortalUser || isCustomer || isClerk || isDispatcher || accountantWithoutExecutiveDashboard ? <Navigate to={homeRedirect} replace /> : page(<DashboardPage />)}
+            element={isPortalUser || isCustomer || isClerk || isDispatcher || user?.role === Role.ACCOUNTANT ? <Navigate to={homeRedirect} replace /> : page(<DashboardPage />)}
           />
           <Route path="/dispatch" element={dispatchOnly(page(<DispatchPage />))} />
           <Route path="/fleet" element={adminOnly(page(<FleetPage />))} />
@@ -253,6 +257,7 @@ export function AppRoutes() {
           <Route path="/shipments" element={shipmentReaderOnly(page(<ShipmentsPage />))} />
           <Route path="/shipments/new" element={shipmentOperatorOnly(page(<ClerkShipmentCreatePage />))} />
           <Route path="/shipments/:id" element={shipmentReaderOnly(page(<ShipmentDetailPage />))} />
+          <Route path={routes.vehicleAllocation} element={dispatchOnly(page(<VehicleAllocationPage />))} />
           <Route path="/routes" element={<Navigate to="/config/routes" replace />} />
           <Route path="/trucks" element={<Navigate to="/fleet" replace />} />
           <Route path="/drivers" element={<Navigate to="/fleet" replace />} />

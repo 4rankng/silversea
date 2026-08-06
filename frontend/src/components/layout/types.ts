@@ -12,11 +12,17 @@ export interface NavItem {
 
 export type SectionName =
   | 'operations'
-  | 'hr'
+  | 'reports'
   | 'financials'
-  | 'oversight'
+  | 'hr'
   | 'master-data'
-  | 'system';
+  | 'system'
+  | 'dispatch-planning'
+  | 'resources'
+  | 'document-ops'
+  | 'reconciliation'
+  | 'my-work'
+  | 'portal';
 
 export interface NavSection {
   key: SectionName;

@@ -66,6 +66,7 @@ export const routes = {
   /* ── Config (catalog admin) ─────────────────────────────────────────── */
 
   config: PAGE_CATALOG.config.path,
+  configFactories: '/config/factories',
   configTrailers: PAGE_CATALOG.configTrailers.path,
   configTrucks: PAGE_CATALOG.configTrucks.path,
   configTruckOwners: (truckId: number | string) => PAGE_CATALOG.configTruckOwners.path({ truckId }),
@@ -95,12 +96,20 @@ export const routes = {
 
   /* ── Forwarder portal ──────────────────────────────────────────────── */
 
+  myOrders: '/my-orders',
   myForwarderTrips: PAGE_CATALOG.myForwarderTrips.path,
   myForwarderTripDetail: (id: number | string) => PAGE_CATALOG.myForwarderTripDetail.path({ id }),
   myAdvances: PAGE_CATALOG.myAdvances.path,
   mySettlements: PAGE_CATALOG.mySettlements.path,
   mySettlementNew: PAGE_CATALOG.mySettlementNew.path,
   mySettlementDetail: (id: number | string) => PAGE_CATALOG.mySettlementDetail.path({ id }),
+
+  /* ── Dispatch planning ───────────────────────────────────────────────── */
+
+  dispatchMasterPlan: '/dispatch/master-plan',
+  dispatchDetailedPlan: '/dispatch/detailed-plan',
+  dispatchLiveTracking: '/dispatch/live-tracking',
+  vehicleAllocation: '/vehicle-allocation',
 
   /* ── Customer portal (Wave 2) ─────────────────────────────────────── */
 
@@ -130,11 +139,11 @@ export const routes = {
 /** Resolve a "home" route for a given role — used after login + on 404. */
 export function homeForRole(role: 'DRIVER' | 'FORWARDER' | string): string {
   if (role === 'DRIVER') return routes.myTrips;
-  if (role === 'FORWARDER') return routes.myForwarderTrips;
+  if (role === 'FORWARDER') return routes.myOrders;
   if (role === 'CUSTOMER') return routes.portalShipments;
   if (role === 'CLERK') return routes.shipments;
   if (role === 'ACCOUNTANT') return routes.accounting;
-  if (role === 'DISPATCHER') return routes.dispatch;
+  if (role === 'DISPATCHER') return routes.dispatchMasterPlan;
   return routes.dashboard;
 }
 

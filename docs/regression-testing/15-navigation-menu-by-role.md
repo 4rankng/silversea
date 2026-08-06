@@ -1,6 +1,6 @@
 # Điều hướng & Menu theo vai trò (Navigation by Role)
 
-> **Phân hệ xuyên suốt.** Nguồn PRD: `docs/prd/sidebar-organization-by-role.txt` (cập nhật 01/08/2026).
+> **Phân hệ xuyên suốt.** Nguồn PRD: `docs/prd/sidebar-organization-by-role.txt` (cập nhật 06/08/2026).
 > Bộ ca này kiểm thử **sự sắp xếp menu, đường dẫn, trang bắt đầu và quyền truy cập** cho từng vai trò,
 > trên cả máy tính và điện thoại.
 >
@@ -10,8 +10,8 @@
 >
 > **Tiêu chí nghiệm thu toàn phân hệ:** `NAV-HT-01` … `NAV-HT-10` (xem `00-cross-cutting.md`).
 >
-> **7 vai trò:** Quản trị viên (ADMIN), Quản lý (MANAGER), Kế toán (ACCOUNTANT), Lái xe (DRIVER), Nhân
-> viên giao nhận (FORWARDER), Nhân viên chứng từ (CLERK), Khách hàng (CUSTOMER).
+> **8 vai trò:** Quản trị viên (ADMIN), Quản lý (MANAGER), Kế toán (ACCOUNTANT), Điều vận (DISPATCHER),
+> Nhân viên chứng từ/CUS (CLERK), Nhân viên hiện trường/Ops (FORWARDER), Lái xe (DRIVER), Khách hàng (CUSTOMER).
 
 ---
 
@@ -101,30 +101,32 @@ Các nguyên tắc sau đây là **điểm kiểm soát** PRD yêu cầu — m�
 
 | Nhóm                | Mục                                | Đường dẫn                  |
 | ------------------- | ---------------------------------- | -------------------------- |
-| Trang bắt đầu       | Tổng quan                          | `/dashboard`               |
-| Vận hành            | Đội xe                             | `/fleet`                   |
-|                     | Phân xe                            | `/dispatch`                |
+| Trang bắt đầu       | Tổng quan Quản trị                 | `/dashboard`               |
+| Vận hành            | Lô hàng                            | `/shipments`               |
+|                     | Phân bổ Phương tiện (Điều vận)     | `/dispatch`                |
 |                     | Sổ chuyến đi                       | `/trips`                   |
-|                     | Lô hàng                            | `/shipments`               |
-| Công nợ & Dòng tiền | Công nợ phải thu                   | `/debt`                    |
-|                     | Công nợ phải trả                   | `/payables`                |
-|                     | Sổ quỹ / ngân hàng                 | `/finance/treasury` *(cq)* |
-|                     | Chi phí phát sinh                  | `/expenses`                |
-|                     | Tạm ứng & hoàn ứng                 | `/advances`                |
-| Báo cáo & Phê duyệt | Lợi nhuận                          | `/profit`                  |
-|                     | Báo cáo lãi lỗ                     | `/finance`                 |
+|                     | Quản lý Đội xe (Fleet)             | `/fleet`                   |
+| Báo cáo & Phê duyệt | Báo cáo Lãi lỗ                     | `/finance`                 |
+|                     | Báo cáo Lợi nhuận                  | `/profit`                  |
 |                     | Duyệt vượt hạn mức                 | `/credit-overrides`        |
-|                     | Trung tâm phê duyệt                | `/governance-actions`      |
+|                     | Trung tâm phê duyệt (Approve Hub)  | `/governance-actions`      |
+| Công nợ & Dòng tiền | Sổ quỹ / Ngân hàng                 | `/finance/treasury` *(cq)* |
+|                     | Công nợ phải thu (AR)              | `/debt`                    |
+|                     | Công nợ phải trả (AP)              | `/payables`                |
+|                     | Chi phí phát sinh                  | `/expenses`                |
+|                     | Tạm ứng & Hoàn ứng                 | `/advances`                |
 | Nhân sự             | Lương & Chấm công                  | `/salary`                  |
 |                     | Kỷ luật                            | `/penalties`               |
 | Danh mục            | Khách hàng                         | `/customers`               |
-|                     | Nhà cung cấp                       | `/suppliers`               |
+|                     | Nhà cung cấp / Nhà xe              | `/suppliers`               |
 |                     | Tuyến đường                        | `/config/routes`           |
-| Quản trị            | Người dùng                         | `/users`                   |
+|                     | Nhà máy                            | `/config/factories`        |
+|                     | Cảng / Bãi & Biểu phí             | `/config/ports`            |
+|                     | Bảng giá cước                      | `/config/pricing-tables`   |
+| Hệ thống            | Quản lý Người dùng                 | `/users`                   |
+|                     | Nhật ký hệ thống (Audit Logs)      | `/audit-logs`              |
+|                     | Cấu hình chung                     | `/config`                  |
 |                     | Cài đặt ứng dụng                   | `/config/app-settings`     |
-|                     | Giám sát Chatbot                   | `/chatbot-monitoring`      |
-|                     | Nhật ký người dùng                 | `/audit-logs`              |
-|                     | Cấu hình                           | `/config`                  |
 
 > *(cq)* = chỉ hiển thị khi tài khoản được cấp quyền xem sổ quỹ.
 
@@ -210,7 +212,44 @@ Cấu trúc giống ADMIN nhưng:
 
 ---
 
-## 4. ACCOUNTANT (Kế toán)
+## 4. DISPATCHER (Điều vận)
+
+**Trang bắt đầu:** `/dispatch/master-plan`
+
+| Nhóm                  | Mục                           | Đường dẫn                    |
+| --------------------- | ----------------------------- | ---------------------------- |
+| Điều độ Phương tiện   | Kế hoạch Tổng quát (Gán Nhà xe) | `/dispatch/master-plan`     |
+|                       | Kế hoạch Chi tiết (Gán BKS)   | `/dispatch/detailed-plan`   |
+|                       | Theo dõi Lộ trình              | `/dispatch/live-tracking`    |
+| Quản lý Tài nguyên   | Danh mục Xe nội bộ            | `/fleet/vehicles`            |
+|                       | Danh mục Tài xế                | `/fleet/drivers`             |
+|                       | Nhà thầu phụ (Subcontractors)  | `/suppliers`                 |
+
+### TC-NAV-DISPATCHER-01 — Trang bắt đầu + nhóm Điều độ Phương tiện
+
+- **Mã PRD:** DISPATCHER — Trang bắt đầu + nhóm
+- **Vai trò:** `dieuvan`
+- **Các bước:**
+  1. Đăng nhập `dieuvan`.
+  2. Kiểm tra URL bắt đầu = `/dispatch/master-plan`.
+  3. Kiểm tra nhóm "Điều độ Phương tiện": 3 mục đúng.
+  4. Kiểm tra nhóm "Quản lý Tài nguyên": 3 mục đúng.
+- **Kết quả mong đợi (Pass):**
+  - Bắt đầu `/dispatch/master-plan`.
+  - 6 mục đúng tên và đường dẫn.
+- **Bằng chứng:** ảnh trang bắt đầu + menu đầy đủ.
+
+### TC-NAV-DISPATCHER-02 — DISPATCHER không truy cập trang khác
+
+- **Mã PRD:** DISPATCHER — RBAC
+- **Vai trò:** `dieuvan`
+- **Các bước:** thử `/dashboard`, `/debt`, `/accounting`, `/salary`, `/config`.
+- **Kết quả mong đợi (Pass):** redirect về `/dispatch/master-plan` hoặc 403.
+- **Bằng chứng:** ảnh redirect.
+
+---
+
+## 5. ACCOUNTANT (Kế toán)
 
 **Trang bắt đầu:** `/accounting` (Tổng Quan kế toán — **không phải** `/dashboard`)
 
@@ -357,37 +396,37 @@ năng chính nằm ở **thanh menu phía dưới** (bottom navigation).
 
 ---
 
-## 6. FORWARDER (Nhân viên giao nhận)
+## 6. FORWARDER (Nhân viên hiện trường / Giao nhận - Ops)
 
-**Trang bắt đầu:** `/my-forwarder-trips`
+**Trang bắt đầu:** `/my-orders`
 
 Nhóm "Công việc của tôi":
 
-| Mục              | Đường dẫn            |
-| ---------------- | -------------------- |
-| Chuyến đi        | `/my-forwarder-trips`|
-| Tạm ứng          | `/my-advances`       |
-| Phiếu thanh toán | `/my-settlements`    |
+| Mục                   | Đường dẫn        |
+| --------------------- | ---------------- |
+| Lệnh giao nhận (Đổi lệnh) | `/my-orders`   |
+| Yêu cầu Tạm ứng      | `/my-advances`   |
+| Phiếu thanh toán / Hoàn ứng | `/my-settlements` |
 
 ### TC-NAV-FWD-01 — Trang bắt đầu + 3 mục
 
 - **Mã PRD:** FORWARDER — Trang bắt đầu + nhóm
-- **Vai trò:** `giaonhan`
+- **Vai trò:** `ops` hoặc `giaonhan`
 - **Các bước:**
-  1. Đăng nhập `giaonhan`.
-  2. Kiểm tra URL bắt đầu = `/my-forwarder-trips`.
-  3. Kiểm tra 3 mục: Chuyến đi, Tạm ứng, Phiếu thanh toán.
+  1. Đăng nhập `ops`.
+  2. Kiểm tra URL bắt đầu = `/my-orders`.
+  3. Kiểm tra 3 mục: Lệnh giao nhận, Yêu cầu Tạm ứng, Phiếu thanh toán.
 - **Kết quả mong đợi (Pass):**
-  - Bắt đầu `/my-forwarder-trips`.
-  - 3 mục đúng.
+  - Bắt đầu `/my-orders`.
+  - 3 mục đúng tên và đường dẫn.
 - **Bằng chứng:** ảnh trang bắt đầu + menu.
 
 ### TC-NAV-FWD-02 — FORWARDER không truy cập trang nội bộ
 
 - **Mã PRD:** FORWARDER — RBAC
-- **Vai trò:** `giaonhan`
+- **Vai trò:** `ops`
 - **Các bước:** thử `/dashboard`, `/debt`, `/dispatch`, `/salary`, `/payables`.
-- **Kết quả mong đợi (Pass):** redirect về `/my-forwarder-trips` hoặc 403.
+- **Kết quả mong đợi (Pass):** redirect về `/my-orders` hoặc 403.
 - **Bằng chứng:** ảnh redirect.
 
 ---
@@ -496,23 +535,24 @@ Khách hàng dùng **menu riêng** của Cổng khách hàng (NP-08):
 ### TC-NAV-X-01 — Bảng tổng hợp trang bắt đầu từng vai trò
 
 - **Mã PRD:** PRD — Trang bắt đầu của từng vai trò
-- **Vai trò:** tất cả 7 vai trò
+- **Vai trò:** tất cả 8 vai trò
 - **Các bước:**
-  1. Đăng nhập lần lượt 7 vai trò: admin, giamdoc, ketoan, laixe, giaonhan, clerk, customer.
+  1. Đăng nhập lần lượt 8 vai trò: admin, manager, accountant, dispatcher, clerk, ops, driver, customer.
   2. Ghi nhận URL bắt đầu của mỗi vai trò.
 - **Kết quả mong đợi (Pass):**
 
-  | Vai trò            | URL bắt đầu            |
-  | ------------------ | ---------------------- |
-  | Quản trị viên      | `/dashboard`           |
-  | Quản lý            | `/dashboard`           |
-  | Kế toán            | `/accounting`          |
-  | Lái xe             | `/my-trips`            |
-  | Nhân viên giao nhận| `/my-forwarder-trips`  |
-  | Nhân viên chứng từ | `/shipments`           |
-  | Khách hàng         | `/portal/shipments`    |
+  | Vai trò                  | URL bắt đầu               |
+  | ------------------------ | ------------------------- |
+  | Quản trị viên (ADMIN)    | `/dashboard`              |
+  | Quản lý (MANAGER)        | `/dashboard`              |
+  | Kế toán (ACCOUNTANT)     | `/accounting`             |
+  | Điều vận (DISPATCHER)    | `/dispatch/master-plan`   |
+  | Nhân viên chứng từ (CLERK) | `/shipments`             |
+  | Nhân viên hiện trường (FORWARDER/Ops) | `/my-orders` |
+  | Lái xe (DRIVER)          | `/my-trips`               |
+  | Khách hàng (CUSTOMER)    | `/portal/shipments`       |
 
-- **Bằng chứng:** bảng ảnh 7 trang bắt đầu.
+- **Bằng chứng:** bảng ảnh 8 trang bắt đầu.
 
 ### TC-NAV-X-02 — Phân quyền URL trực tiếp (negative path) tổng hợp
 
