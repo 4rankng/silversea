@@ -393,11 +393,11 @@ export default function ShipmentsPage() {
         className="shipments-page__crumbs"
         items={[
           { label: 'Tổng quan', to: '/dashboard' },
-          { label: 'Lô hàng' },
+          { label: 'Quản lý Lô hàng' },
         ]}
       />
       <PageHeader
-        title="Lô hàng"
+        title="Quản lý Lô hàng"
         iconName="cargo"
         description="Theo dõi hồ sơ, tuyến vận chuyển và tiến độ giao nhận"
         action={canCreate ? (

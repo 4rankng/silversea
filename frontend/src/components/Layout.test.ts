@@ -7,7 +7,7 @@ describe('getNavItems', () => {
   it.each([
     [Role.ADMIN, [
       ['Tổng quan', '/dashboard'], ['Đội xe', '/fleet'], ['Phân xe', '/dispatch'],
-      ['Sổ chuyến đi', '/trips'], ['Lô hàng', '/shipments'], ['Lương & Chấm công', '/salary'],
+      ['Sổ chuyến đi', '/trips'], ['Quản lý Lô hàng', '/shipments'], ['Lương & Chấm công', '/salary'],
       ['Kỷ luật', '/penalties'], ['Công nợ phải thu', '/debt'], ['Công nợ phải trả', '/payables'],
       ['Sổ quỹ / ngân hàng', '/finance/treasury'], ['Chi phí phát sinh', '/expenses'],
       ['Tạm ứng & hoàn ứng', '/advances'], ['Lợi nhuận', '/profit'], ['Báo cáo lãi lỗ', '/finance'],
@@ -18,7 +18,7 @@ describe('getNavItems', () => {
     ]],
     [Role.MANAGER, [
       ['Tổng quan', '/dashboard'], ['Đội xe', '/fleet'], ['Phân xe', '/dispatch'],
-      ['Sổ chuyến đi', '/trips'], ['Lô hàng', '/shipments'], ['Lương & Chấm công', '/salary'],
+      ['Sổ chuyến đi', '/trips'], ['Quản lý Lô hàng', '/shipments'], ['Lương & Chấm công', '/salary'],
       ['Kỷ luật', '/penalties'], ['Công nợ phải thu', '/debt'], ['Công nợ phải trả', '/payables'],
       ['Sổ quỹ / ngân hàng', '/finance/treasury'], ['Chi phí phát sinh', '/expenses'],
       ['Tạm ứng & hoàn ứng', '/advances'], ['Lợi nhuận', '/profit'], ['Báo cáo lãi lỗ', '/finance'],
@@ -28,7 +28,7 @@ describe('getNavItems', () => {
     ]],
     [Role.ACCOUNTANT, [
       ['Tổng Quan', '/accounting'], ['Đội xe', '/fleet'], ['Sổ chuyến đi', '/trips'],
-      ['Lô hàng', '/shipments'], ['Lương & Chấm công', '/salary'], ['Kỷ luật', '/penalties'],
+      ['Quản lý Lô hàng', '/shipments'], ['Lương & Chấm công', '/salary'], ['Kỷ luật', '/penalties'],
       ['Công nợ phải thu', '/debt'], ['Công nợ phải trả', '/payables'],
       ['Sổ quỹ / ngân hàng', '/finance/treasury'], ['Chi phí phát sinh', '/expenses'],
       ['Tạm ứng & hoàn ứng', '/advances'], ['Lợi nhuận', '/profit'], ['Báo cáo lãi lỗ', '/finance'],
@@ -38,8 +38,8 @@ describe('getNavItems', () => {
     ]],
     [Role.DRIVER, [['Hành trình', '/my-trips'], ['Thu nhập', '/my-earnings'], ['Kỷ luật', '/my-penalties']]],
     [Role.FORWARDER, [['Chuyến đi', '/my-forwarder-trips'], ['Tạm ứng', '/my-advances'], ['Phiếu thanh toán', '/my-settlements']]],
-    [Role.CLERK, [['Lô hàng được giao', '/shipments'], ['Tạo lô hàng', '/clerk/shipments/new'], ['Chi phí cần kiểm tra', '/recoverable-costs']]],
-    [Role.DISPATCHER, [['Phân xe', '/dispatch'], ['Lô hàng', '/shipments']]],
+    [Role.CLERK, [['Quản lý Lô hàng', '/shipments'], ['Tạo lô hàng', '/clerk/shipments/new'], ['Chi phí cần kiểm tra', '/recoverable-costs']]],
+    [Role.DISPATCHER, [['Phân xe', '/dispatch'], ['Quản lý Lô hàng', '/shipments']]],
     [Role.CUSTOMER, [['Lô hàng của tôi', '/portal/shipments'], ['Giấy báo nợ', '/portal/debit-notes'], ['Sao kê công nợ', '/portal/statement']]],
   ] as const)('matches the approved exact label and path matrix for %s', (role, expected) => {
     const actual = getNavItems(role, undefined, undefined, ['treasury.read', 'recoverable_costs.read'])

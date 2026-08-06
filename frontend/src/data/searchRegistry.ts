@@ -39,7 +39,7 @@ const ADMIN_BASE_ITEMS: SearchItem[] = [
   { id: 'dispatch', type: 'page', label: 'Phân xe',                 path: '/dispatch',  iconName: 'dispatch' },
   { id: 'fleet',    type: 'page', label: 'Đội xe',                  path: '/fleet',     iconName: 'tractor-head' },
   { id: 'trips',    type: 'page', label: 'Sổ chuyến đi',            path: '/trips',     iconName: 'trip-log' },
-  { id: 'shipments',type: 'page', label: 'Lô hàng',                  path: '/shipments', iconName: 'cargo' },
+  { id: 'shipments',type: 'page', label: 'Quản lý Lô hàng',                  path: '/shipments', iconName: 'cargo' },
   { id: 'salary',   type: 'page', label: 'Lương & Chấm công',       path: '/salary',    iconName: 'payroll' },
   { id: 'penalties',type: 'page', label: 'Kỷ luật',                 path: '/penalties', iconName: 'alert' },
   { id: 'finance',  type: 'page', label: 'Báo cáo lãi lỗ',          path: '/finance',   iconName: 'analytics' },
