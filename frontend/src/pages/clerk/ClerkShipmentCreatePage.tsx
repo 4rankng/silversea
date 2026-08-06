@@ -567,9 +567,11 @@ export default function ClerkShipmentCreatePage() {
       <p style={{ color: 'var(--fg-3)', margin: '0 0 20px' }}>Lưu nháp để bổ sung sau, hoặc nhập đủ thông tin và gửi sang bảng điều phối.</p>
 
       <form onSubmit={(event) => { event.preventDefault(); void save('DRAFT'); }} className="csc-form" style={{ display: 'grid', gap: 16 }}>
+        {/* PHẦN 1: THÔNG TIN CHUNG (Luôn hiển thị) */}
         <section style={sectionStyle} className="csc-section">
           <h2 style={{ fontSize: 17, margin: 0 }}>Thông tin chung</h2>
           <div style={gridStyle}>
+            {/* KHÁCH HÀNG */}
             <div data-field="shipment-customer">
               <SearchableField
                 id="shipment-customer"
@@ -578,107 +580,85 @@ export default function ClerkShipmentCreatePage() {
                 value={form.customerId}
                 onChange={selectCustomer}
                 options={catalogs.customers.map((item) => ({ value: String(item.id), label: item.name }))}
-                placeholder="Chọn khách hàng"
+                placeholder="Gõ để tìm kiếm"
                 disabled={Boolean(saving)}
               />
             </div>
-            <SearchableField
-              id="shipment-route"
-              label="Tuyến đường"
-              value={form.routeId}
-              onChange={(value) => update('routeId', value)}
-              options={(catalogs.routes ?? []).map((item) => ({ value: String(item.id), label: item.name }))}
-              placeholder="Chọn tuyến đường"
-              disabled={Boolean(saving)}
-            />
-            <SearchableField
-              id="shipment-cargo-type"
-              label="Loại hàng"
-              value={form.cargoTypeId}
-              onChange={(value) => update('cargoTypeId', value)}
-              options={(catalogs.cargoTypes ?? []).map((item) => ({ value: String(item.id), label: item.name }))}
-              placeholder="Chọn loại hàng"
-              disabled={Boolean(saving)}
-            />
-            <TextField label="Số booking" value={form.bookingRef} onChange={(event) => update('bookingRef', event.target.value)} maxLength={100} disabled={Boolean(saving)} />
-            <TextField label="Số vận đơn (B/L)" value={form.blNumber} onChange={(event) => update('blNumber', event.target.value)} maxLength={100} disabled={Boolean(saving)} />
+
+            {/* BILL LÔ HÀNG */}
+            <TextField label="Số Bill/Book" value={form.bookingRef || form.blNumber || ''} onChange={(event) => update('bookingRef', event.target.value)} maxLength={100} placeholder="Nhập số Bill hoặc Booking" disabled={Boolean(saving)} />
+
+            {/* SỐ TỜ KHAI */}
             <TextField label="Số tờ khai" value={form.declarationNumber} onChange={(event) => update('declarationNumber', event.target.value)} maxLength={100} disabled={Boolean(saving)} />
-            <SelectField label="Chiều hàng" value={form.tradeDirection} onChange={(event) => update('tradeDirection', event.target.value as FormState['tradeDirection'])} disabled={Boolean(saving)}>
-              <option value="">— Chọn chiều hàng —</option><option value="IMPORT">Nhập khẩu</option><option value="EXPORT">Xuất khẩu</option>
-            </SelectField>
-          </div>
-          {form.cargoMode === 'FCL' && (
-            <>
-            <div style={gridStyle}>
+
+            {/* NHÀ MÁY với [CHI TIẾT] button */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'end' }}>
               <SearchableField
                 id="shipment-operational-site"
                 label="Nhà máy"
                 value={form.operationalSiteId}
                 onChange={selectOperationalSite}
                 options={operationalSites.map((site) => ({ value: String(site.id), label: site.name, searchText: site.address ?? '' }))}
-                placeholder={sitesLoading ? 'Đang tải…' : !form.customerId ? 'Chọn khách hàng trước' : 'Chọn nhà máy'}
+                placeholder={sitesLoading ? 'Đang tải…' : !form.customerId ? 'Chọn khách hàng trước' : 'Gõ chọn'}
                 disabled={!form.customerId || sitesLoading || Boolean(saving)}
                 hint={!form.customerId
-                  ? 'Vui lòng chọn khách hàng để tải danh sách nhà máy.'
+                  ? 'Vui lòng chọn khách hàng để tải danh sách.'
                   : (form.customerId && !sitesLoading && operationalSites.length === 0
-                    ? <>Chưa có nhà máy cho khách hàng này.{' '}<button type="button" onClick={() => openCreateSiteDialog('FACTORY')} disabled={Boolean(saving)} style={{ border: 0, background: 'none', padding: 0, color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>Thêm nhà máy</button></>
+                    ? <>Chưa có nhà máy.{' '}<button type="button" onClick={(e) => { e.preventDefault(); openCreateSiteDialog('FACTORY'); }} disabled={Boolean(saving)} style={{ border: 0, background: 'none', padding: 0, color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>Thêm mới</button></>
                     : undefined)}
               />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignSelf: 'end' }}>
-                {form.operationalSiteId ? (
-                  <button
-                    type="button"
-                    onClick={() => setDetailSite(selectedOperationalSite)}
-                    style={{
-                      minHeight: 36,
-                      padding: '6px 12px',
-                      border: 0,
-                      borderRadius: 8,
-                      background: 'transparent',
-                      color: 'var(--fg-2)',
-                      fontWeight: 600,
-                      fontSize: 13,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      cursor: 'pointer',
-                    }}
-                    aria-label="Xem chi tiết nhà máy đã chọn"
-                  >
-                    <Eye size={15} aria-hidden="true" />Xem chi tiết
-                  </button>
-                ) : null}
-                {!sitesLoading ? (
-                  <button
-                    type="button"
-                    onClick={() => openCreateSiteDialog('FACTORY')}
-                    disabled={Boolean(saving)}
-                    style={{
-                      minHeight: 44,
-                      padding: '0 14px',
-                      border: '1px dashed var(--border-2)',
-                      borderRadius: 8,
-                      background: 'transparent',
-                      color: 'var(--accent, #2563eb)',
-                      fontWeight: 700,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <Plus size={16} aria-hidden="true" />Thêm nhà máy
-                  </button>
-                ) : null}
-              </div>
+              {form.operationalSiteId && (
+                <button
+                  type="button"
+                  onClick={() => setDetailSite(selectedOperationalSite)}
+                  style={{
+                    minHeight: 44,
+                    padding: '8px 16px',
+                    border: '1px solid var(--border-2)',
+                    borderRadius: 8,
+                    background: 'var(--surface-1)',
+                    color: 'var(--fg-2)',
+                    fontWeight: 600,
+                    fontSize: 13,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    cursor: 'pointer',
+                  }}
+                  title="Xem chi tiết nhà máy"
+                >
+                  <Eye size={15} aria-hidden="true" />Chi tiết
+                </button>
+              )}
             </div>
-            {selectedOperationalSite?.strictRules && (
-              <aside className="csc-site-guidance" role="note">
-                <strong>Lưu ý tại nhà máy</strong>
-                <p>{selectedOperationalSite.strictRules}</p>
-              </aside>
-            )}
-            </>
+
+            {/* TUYẾN ĐƯỜNG */}
+            <SearchableField
+              id="shipment-route"
+              label="Tuyến đường"
+              value={form.routeId}
+              onChange={(value) => update('routeId', value)}
+              options={(catalogs.routes ?? []).map((item) => ({ value: String(item.id), label: item.name }))}
+              placeholder="Gõ chọn"
+              disabled={Boolean(saving)}
+            />
+
+            {/* HÌNH THỨC */}
+            <SelectField label="Hình thức" value={form.tradeDirection} onChange={(event) => update('tradeDirection', event.target.value as FormState['tradeDirection'])} disabled={Boolean(saving)}>
+              <option value="">— Chọn hình thức —</option><option value="IMPORT">Nhập</option><option value="EXPORT">Xuất</option>
+            </SelectField>
+
+            {/* LOẠI HÀNG - Trigger for Part 2 */}
+            <SelectField label="Loại hàng" value={form.cargoMode} onChange={(event) => changeMode(event.target.value as CargoMode)} disabled={Boolean(saving)}>
+              <option value="FCL">Hàng CONT (FCL)</option><option value="LCL">Hàng lẻ (LCL)</option>
+            </SelectField>
+          </div>
+
+          {selectedOperationalSite?.strictRules && (
+            <aside className="csc-site-guidance" role="note">
+              <strong>Lưu ý tại nhà máy</strong>
+              <p>{selectedOperationalSite.strictRules}</p>
+            </aside>
           )}
         </section>
 
