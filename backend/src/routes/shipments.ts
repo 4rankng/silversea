@@ -317,12 +317,40 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     status = statusVal as ShipmentStatus;
   }
 
+  // W4 20260805_03 §"Bổ sung các trường Filter tìm kiếm": trade direction,
+  // Ngày đóng/trả range, Số Bill/Book.
+  const tradeDirection = req.query.tradeDirection === 'IMPORT' || req.query.tradeDirection === 'EXPORT'
+    ? (req.query.tradeDirection as 'IMPORT' | 'EXPORT')
+    : undefined;
+  const blNumber = typeof req.query.blNumber === 'string' && req.query.blNumber.trim().length > 0
+    ? req.query.blNumber.trim()
+    : undefined;
+  if (blNumber && blNumber.length > 50) {
+    return res.status(400).json({ error: 'Số B/L không được vượt quá 50 ký tự' });
+  }
+  const dateFrom = typeof req.query.dateFrom === 'string' && req.query.dateFrom.trim().length > 0
+    ? req.query.dateFrom.trim()
+    : undefined;
+  const dateTo = typeof req.query.dateTo === 'string' && req.query.dateTo.trim().length > 0
+    ? req.query.dateTo.trim()
+    : undefined;
+  if (dateFrom && isNaN(new Date(dateFrom).getTime())) {
+    return res.status(400).json({ error: 'dateFrom không hợp lệ' });
+  }
+  if (dateTo && isNaN(new Date(dateTo).getTime())) {
+    return res.status(400).json({ error: 'dateTo không hợp lệ' });
+  }
+
   const result = await listShipmentsPaginated({
     page,
     limit,
     customerId: customerIdVal ? parseInt(customerIdVal, 10) : undefined,
     status,
     q,
+    tradeDirection,
+    blNumber,
+    dateFrom,
+    dateTo,
     actor: getUser(req),
   });
   res.json(result);

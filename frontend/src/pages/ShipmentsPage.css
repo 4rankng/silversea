@@ -909,6 +909,68 @@
   display: none;
 }
 
+/* W4 20260805_03 §"Bổ sung các trường Filter tìm kiếm" */
+.shipments-page__advanced-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0 10px;
+  border-top: 1px dashed var(--line);
+  margin-top: 4px;
+}
+
+.shipments-page__filter-select,
+.shipments-page__filter-bl,
+.shipments-page__filter-date-input {
+  appearance: none;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-1, #fff);
+  color: var(--fg-1, inherit);
+  font-size: 14px;
+}
+
+.shipments-page__filter-select { min-width: 180px; }
+.shipments-page__filter-bl { min-width: 200px; }
+.shipments-page__filter-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fg-2, #555);
+  font-size: 13px;
+}
+.shipments-page__filter-date-input { min-width: 130px; }
+
+@media (max-width: 700px) {
+  .shipments-page__filter-select,
+  .shipments-page__filter-bl { width: 100%; }
+  .shipments-page__filter-date { flex-wrap: wrap; }
+}
+
+/* W4 20260805_03 §Cấu trúc Cột dữ liệu: UX note "Dev vui lòng Freeze/Ghim cố
+   định 3 cột đầu tiên để khi người dùng scroll ngang xem các cột cuối không
+   bị mất context" */
+@media (min-width: 821px) {
+  .shipments-page__table thead th:nth-child(-n+3),
+  .shipments-page__table tbody td:nth-child(-n+3) {
+    position: sticky;
+    z-index: 2;
+    background: var(--bg-1, #fff);
+  }
+  .shipments-page__table thead th:nth-child(1),
+  .shipments-page__table tbody td:nth-child(1) { left: 0; }
+  .shipments-page__table thead th:nth-child(2),
+  .shipments-page__table tbody td:nth-child(2) { left: 180px; }
+  .shipments-page__table thead th:nth-child(3),
+  .shipments-page__table tbody td:nth-child(3) { left: 320px; }
+  .shipments-page__table thead th:nth-child(-n+3) { z-index: 3; }
+  .shipments-page__table { position: relative; }
+  .shipments-page__table-scroll { overflow-x: auto; }
+}
+
 @media (max-width: 1100px) {
   .shipments-page__toolbar {
     align-items: stretch;

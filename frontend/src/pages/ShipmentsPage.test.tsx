@@ -389,9 +389,10 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
     apiGet.mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 });
     renderAt('/shipments');
     const desktop = desktopSurface();
-    // W4 20260805_03: all 18 required columns render by default.
+    // W4 20260805_03: 17 columns render by default (Nâng / Hạ / Kết hợp /
+    // Note thu khách are tracked separately — see QA_REPORT follow-ups).
     for (const heading of [
-      'Lô hàng', 'Khách hàng', 'Nhà máy', 'Số B/L', 'Số Bill/Book',
+      'Lô hàng', 'Khách hàng', 'Nhà máy', 'Số B/L', 'Số Bill/Book', 'Số tờ khai',
       'Hãng tàu', 'Tuyến đường', 'Loại hàng (Xuất/Nhập)', 'Số Cont/Số lượng',
       'Nhà xe', 'Biển số xe', 'Ngày vận chuyển', 'Giờ đóng/trả', 'Ngày đóng/trả',
       'Trạng thái', 'Ghi chú',

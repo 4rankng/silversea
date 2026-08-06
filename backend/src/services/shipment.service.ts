@@ -22,7 +22,7 @@
 
 import { db } from '../db';
 import * as s from '../db/schema';
-import { and, asc, count, desc, eq, ilike, inArray, isNull, ne, or, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
@@ -399,6 +399,14 @@ export interface ListShipmentsOptions {
   customerIds?: number[];
   status?: ShipmentStatus;
   q?: string;
+  /** W4 20260805_03 filter: limit to one trade direction. */
+  tradeDirection?: 'IMPORT' | 'EXPORT';
+  /** W4 20260805_03 filter: lower bound on customsCutoffAt (Ngày đóng/trả). */
+  dateFrom?: string;
+  /** W4 20240805_03 filter: upper bound on customsCutoffAt. */
+  dateTo?: string;
+  /** W4 20260805_03 filter: exact-ish match on blNumber. */
+  blNumber?: string;
   limit?: number;
   offset?: number;
   actor?: AuthUser;
@@ -598,6 +606,25 @@ function carrierNameFromTripAuthority(trip: {
   if (trip.carrierType === 'OWN') return INTERNAL_FLEET_CARRIER_NAME;
   if (trip.carrierType === 'EXTERNAL') return normalizeSummaryValue(trip.externalCarrierName);
   return null;
+}
+
+async function loadShipmentListDeclarationNumbers(
+  shipmentIds: number[],
+): Promise<Map<number, string>> {
+  if (shipmentIds.length === 0) return new Map();
+  const rows = await db.select({
+    shipmentId: s.shipmentDeclarations.shipmentId,
+    declarationNumber: s.shipmentDeclarations.declarationNumber,
+    id: s.shipmentDeclarations.id,
+  }).from(s.shipmentDeclarations)
+    .where(inArray(s.shipmentDeclarations.shipmentId, shipmentIds))
+    .orderBy(asc(s.shipmentDeclarations.shipmentId), desc(s.shipmentDeclarations.id));
+  const map = new Map<number, string>();
+  for (const row of rows) {
+    if (!row.declarationNumber) continue;
+    if (!map.has(row.shipmentId)) map.set(row.shipmentId, row.declarationNumber);
+  }
+  return map;
 }
 
 async function loadShipmentListSummaries(
@@ -1158,6 +1185,29 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
   if (searchPredicate) {
     conditions.push(searchPredicate);
   }
+  if (options.tradeDirection) {
+    conditions.push(eq(s.shipments.tradeDirection, options.tradeDirection));
+  }
+  if (options.blNumber) {
+    // Exact match on trimmed value; empty strings are ignored by the route layer.
+    conditions.push(eq(s.shipments.blNumber, options.blNumber.trim()));
+  }
+  if (options.dateFrom) {
+    const from = new Date(options.dateFrom);
+    if (!isNaN(from.getTime())) {
+      conditions.push(gte(s.shipments.customsCutoffAt, from));
+    }
+  }
+  if (options.dateTo) {
+    const to = new Date(options.dateTo);
+    if (!isNaN(to.getTime())) {
+      // Inclusive end-of-day: bump to T23:59:59.999Z if user gave a date-only.
+      const inclusive = options.dateTo.length === 10
+        ? new Date(to.getTime() + 24 * 60 * 60 * 1000 - 1)
+        : to;
+      conditions.push(lte(s.shipments.customsCutoffAt, inclusive));
+    }
+  }
 
   // Join customers so the list can show a human-readable customer name
   // instead of a bare `customerId` ("KH #2698" is meaningless to users).
@@ -1179,6 +1229,11 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
   ]);
   const total = Number(totalRows[0]?.value ?? 0);
   const summariesByShipmentId = await loadShipmentListSummaries(items.map((row) => row.shipment));
+  // W4 20260805_03: also fetch the first declaration number per shipment so
+  // the CUS grid can show "Số tờ khai" without a second roundtrip.
+  const declarationByShipmentId = await loadShipmentListDeclarationNumbers(
+    items.map((row) => row.shipment.id),
+  );
   // Flatten `shipment` + `customerName` into a single object so the route
   // layer returns `{ ...shipmentColumns, customerName }` directly.
   const flatItems = items.map((row) => ({
@@ -1188,6 +1243,7 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     shippingLineSummary: summariesByShipmentId.get(row.shipment.id)?.shippingLineSummary ?? null,
     carrierSummary: summariesByShipmentId.get(row.shipment.id)?.carrierSummary ?? null,
     vehiclePlateSummary: summariesByShipmentId.get(row.shipment.id)?.vehiclePlateSummary ?? null,
+    declarationNumber: declarationByShipmentId.get(row.shipment.id) ?? null,
   }));
   return { items: flatItems, total, page, limit };
 }

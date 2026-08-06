@@ -58,6 +58,7 @@ interface ShipmentRow {
   carrierSummary?: string | null;
   vehiclePlateSummary?: string | null;
   operationalNotes?: string | null;
+  declarationNumber?: string | null;
   version: number;
   createdAt: string;
   updatedAt: string;
@@ -95,7 +96,8 @@ type ShipmentColumnId =
   | 'factory'
   | 'cutoffTime'
   | 'cutoffDate'
-  | 'notes';
+  | 'notes'
+  | 'declarationNumber';
 
 const COLUMN_STORAGE_KEY = 'silversea:shipments:columns:v1';
 const REQUIRED_COLUMNS = new Set<ShipmentColumnId>(['shipment', 'customer', 'delivery', 'status']);
@@ -108,6 +110,7 @@ const OPTIONAL_COLUMNS: Array<{ id: ShipmentColumnId; label: string; defaultVisi
   { id: 'factory', label: 'Nhà máy', defaultVisible: true },
   { id: 'blNumber', label: 'Số B/L', defaultVisible: true },
   { id: 'bookingRef', label: 'Số Bill/Book', defaultVisible: true },
+  { id: 'declarationNumber', label: 'Số tờ khai', defaultVisible: true },
   { id: 'route', label: 'Tuyến đường', defaultVisible: true },
   { id: 'cutoffTime', label: 'Giờ đóng/trả', defaultVisible: true },
   { id: 'cutoffDate', label: 'Ngày đóng/trả', defaultVisible: true },
@@ -466,6 +469,53 @@ export default function ShipmentsPage() {
             ))}
           </div>
 
+          {/* W4 20260805_03 §"Bổ sung các trường Filter tìm kiếm": trade direction
+              + Ngày đóng/trả range + Số Bill/Book. Khách hàng + Trạng thái lô
+              hàng are already covered by the customer search box and the
+              status pills above. */}
+          <div className="shipments-page__advanced-filters" role="group" aria-label="Bộ lọc nâng cao">
+            <select
+              className="shipments-page__filter-select"
+              value={searchParams.get('tradeDirection') ?? ''}
+              onChange={(e) => updateFilter('tradeDirection', e.target.value || null)}
+              aria-label="Lọc theo Nhập / Xuất"
+            >
+              <option value="">Nhập / Xuất (tất cả)</option>
+              <option value="EXPORT">Xuất</option>
+              <option value="IMPORT">Nhập</option>
+            </select>
+            <label className="shipments-page__filter-date">
+              <span>Ngày đóng/trả</span>
+              <input
+                type="date"
+                className="shipments-page__filter-date-input"
+                value={searchParams.get('dateFrom') ?? ''}
+                onChange={(e) => updateFilter('dateFrom', e.target.value || null)}
+                aria-label="Từ ngày đóng/trả"
+              />
+              <span aria-hidden="true">→</span>
+              <input
+                type="date"
+                className="shipments-page__filter-date-input"
+                value={searchParams.get('dateTo') ?? ''}
+                onChange={(e) => updateFilter('dateTo', e.target.value || null)}
+                aria-label="Đến ngày đóng/trả"
+              />
+            </label>
+            <input
+              type="search"
+              className="shipments-page__filter-bl"
+              maxLength={50}
+              placeholder="Số Bill/Book"
+              aria-label="Lọc theo số Bill/Book"
+              defaultValue={searchParams.get('blNumber') ?? ''}
+              onBlur={(e) => updateFilter('blNumber', e.target.value.trim() || null)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') updateFilter('blNumber', (e.target as HTMLInputElement).value.trim() || null);
+              }}
+            />
+          </div>
+
           <div className="shipments-page__toolbar-actions">
             <div className="shipments-page__search">
               <Search size={18} className="shipments-page__search-icon" aria-hidden="true" />
@@ -751,6 +801,7 @@ export default function ShipmentsPage() {
                   {visibleColumns.has('factory') && <th className="shipments-page__th">Nhà máy</th>}
                   {visibleColumns.has('blNumber') && <th className="shipments-page__th">Số B/L</th>}
                   {visibleColumns.has('bookingRef') && <th className="shipments-page__th">Số Bill/Book</th>}
+                  {visibleColumns.has('declarationNumber') && <th className="shipments-page__th">Số tờ khai</th>}
                   {visibleColumns.has('route') && <th className="shipments-page__th">Tuyến đường</th>}
                   {visibleColumns.has('delivery') && <th className="shipments-page__th">Ngày vận chuyển</th>}
                   {visibleColumns.has('cutoffTime') && <th className="shipments-page__th">Giờ đóng/trả</th>}
@@ -797,6 +848,9 @@ export default function ShipmentsPage() {
                       </td>}
                       {visibleColumns.has('bookingRef') && <td className="shipments-page__td shipments-page__td--mono" title={s.bookingRef ?? undefined}>
                         {s.bookingRef ?? <span className="shipments-page__muted">—</span>}
+                      </td>}
+                      {visibleColumns.has('declarationNumber') && <td className="shipments-page__td shipments-page__td--mono" title={s.declarationNumber ?? undefined}>
+                        {s.declarationNumber ?? <span className="shipments-page__muted">—</span>}
                       </td>}
                       {visibleColumns.has('route') && <td className="shipments-page__td">
                         {formatRoute(s)
