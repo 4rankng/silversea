@@ -1,7 +1,7 @@
 # ── Stage 1: Build ────────────────────────────────────────────────────────────
 FROM node:22-alpine AS build
 
-ARG NODE_OPTIONS=--max-old-space-size=4096
+ARG NODE_OPTIONS=--max-old-space-size=8192
 ENV NODE_OPTIONS=${NODE_OPTIONS}
 # Root-level Puppeteer is for local visual QA; Vite does not require Chromium.
 ENV PUPPETEER_SKIP_DOWNLOAD=true
