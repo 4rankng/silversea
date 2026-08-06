@@ -19,9 +19,8 @@ coverage/
 dist/
 **/dist/
 backend/src/tests/
-frontend/src/**/*.test.ts
-frontend/src/**/*.test.tsx
-shared/src/**/*.test.ts
+**/*.test.ts
+**/*.test.tsx
 backend/drizzle/meta/*_snapshot.json
 scripts/
 backend/scripts/

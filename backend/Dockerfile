@@ -1,7 +1,7 @@
 # ── Build ─────────────────────────────────────────────────────────────────────
 FROM node:22-alpine AS builder
 
-ARG NODE_OPTIONS=--max-old-space-size=2048
+ARG NODE_OPTIONS=--max-old-space-size=4096
 ENV NODE_OPTIONS=${NODE_OPTIONS}
 # Puppeteer belongs to root-level visual QA tooling, not the backend build.
 ENV PUPPETEER_SKIP_DOWNLOAD=true
