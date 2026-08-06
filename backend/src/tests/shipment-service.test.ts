@@ -673,6 +673,25 @@ describe('updateShipment (optimistic lock)', () => {
     );
   });
 
+  test('promotes a pending shipment when its transport date is added', async () => {
+    const customer = await mkCustomer();
+    const shipment = await createShipment({ customerId: customer.id });
+    createdShipmentIds.push(shipment.id);
+
+    const updated = await updateShipment(shipment.id, {
+      version: shipment.version,
+      expectedDeliveryDate: '2026-08-18',
+    });
+
+    assert.equal(updated.expectedDeliveryDate, '2026-08-18');
+    assert.equal(updated.status, 'READY_FOR_DISPATCH');
+
+    const [handoff] = await db.select({ id: s.dispatchHandoffs.id })
+      .from(s.dispatchHandoffs)
+      .where(eq(s.dispatchHandoffs.shipmentId, shipment.id));
+    assert.ok(handoff, 'a ready shipment has an active dispatch handoff');
+  });
+
   test('throws 404 for a missing shipment', async () => {
     await assert.rejects(
       () => updateShipment(99_999_999, { version: 1 }),

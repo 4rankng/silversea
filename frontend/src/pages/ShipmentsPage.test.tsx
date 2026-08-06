@@ -389,7 +389,7 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
     apiGet.mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 });
     renderAt('/shipments');
     const desktop = desktopSurface();
-    for (const heading of ['Lô hàng', 'Khách hàng', 'Loại hàng (Xuất/Nhập)', 'Số Cont/Số lượng', 'Hãng tàu', 'Nhà xe', 'Biển số xe', 'Ngày giao dự kiến', 'Trạng thái']) {
+    for (const heading of ['Lô hàng', 'Khách hàng', 'Loại hàng (Xuất/Nhập)', 'Số Cont/Số lượng', 'Hãng tàu', 'Nhà xe', 'Biển số xe', 'Ngày vận chuyển', 'Trạng thái']) {
       expect(desktop.getByRole('columnheader', { name: heading })).toBeTruthy();
     }
     expect(desktop.queryByRole('columnheader', { name: 'Số B/L' })).toBeNull();
@@ -418,11 +418,11 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
     renderAt('/shipments');
     const desktop = desktopSurface();
     await waitFor(() => expect(desktop.getByText('SHP-MISSING')).toBeTruthy());
-    expect(desktop.getByText('Thiếu ngày giao dự kiến')).toBeTruthy();
+    expect(desktop.getByText('Thiếu ngày vận chuyển')).toBeTruthy();
     expect(desktop.getByText('SHP-MISSING').closest('tr')?.classList.contains('is-missing-date')).toBe(true);
   });
 
-  it('lets a clerk double-click and save the expected delivery date inline', async () => {
+  it('lets a clerk select and save the transport date inline with one click', async () => {
     authState.role = 'CLERK';
     const row = {
       id: 91, shipmentCode: 'SHP-EDIT', customerId: 7, customerName: 'Khách hàng B',
@@ -434,16 +434,16 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
     apiPut.mockResolvedValue({ ...row, expectedDeliveryDate: '2026-08-18', version: 5, changeMode: 'DIRECT', changeRequestId: null });
     renderAt('/shipments');
     const desktop = desktopSurface();
-    const dateButton = await desktop.findByRole('button', { name: /Thiếu ngày giao dự kiến/ });
-    fireEvent.doubleClick(dateButton);
-    const input = desktop.getByLabelText('Ngày giao dự kiến của SHP-EDIT');
+    const dateButton = await desktop.findByRole('button', { name: /Thiếu ngày vận chuyển/ });
+    fireEvent.click(dateButton);
+    const input = desktop.getByLabelText('Ngày vận chuyển của SHP-EDIT');
     fireEvent.change(input, { target: { value: '2026-08-18' } });
-    fireEvent.click(desktop.getByRole('button', { name: 'Lưu ngày giao dự kiến' }));
+    fireEvent.click(desktop.getByRole('button', { name: 'Lưu ngày vận chuyển' }));
     await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/91', {
       expectedVersion: 4,
       expectedDeliveryDate: '2026-08-18',
     }));
-    await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Đã cập nhật ngày giao dự kiến'));
+    await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Đã cập nhật ngày vận chuyển'));
     expect(screen.getByTestId('current-path').textContent).toBe('/shipments');
   });
 
@@ -467,16 +467,16 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
     expect(screen.getByTestId('current-path').textContent).toBe('/shipments');
 
     fireEvent.keyDown(desktopDate, { key: 'Enter' });
-    expect(desktop.getByLabelText('Ngày giao dự kiến của SHP-CANCEL')).toBeTruthy();
-    fireEvent.click(desktop.getByRole('button', { name: 'Hủy chỉnh sửa ngày giao' }));
+    expect(desktop.getByLabelText('Ngày vận chuyển của SHP-CANCEL')).toBeTruthy();
+    fireEvent.click(desktop.getByRole('button', { name: 'Hủy chỉnh sửa ngày vận chuyển' }));
     expect(screen.getByTestId('current-path').textContent).toBe('/shipments');
-    expect(desktop.queryByLabelText('Ngày giao dự kiến của SHP-CANCEL')).toBeNull();
+    expect(desktop.queryByLabelText('Ngày vận chuyển của SHP-CANCEL')).toBeNull();
 
     const mobile = mobileSurface();
-    const mobileAction = mobile.getByRole('button', { name: 'Đổi ngày giao' });
+    const mobileAction = mobile.getByRole('button', { name: 'Đổi ngày vận chuyển' });
     fireEvent.keyDown(mobileAction, { key: 'Enter' });
     fireEvent.click(mobileAction);
-    expect(mobile.getByLabelText('Ngày giao dự kiến')).toBeTruthy();
+    expect(mobile.getByLabelText('Ngày vận chuyển')).toBeTruthy();
     expect(screen.getByTestId('current-path').textContent).toBe('/shipments');
   });
 
@@ -495,10 +495,10 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
 
     renderAt('/shipments');
     const desktop = desktopSurface();
-    fireEvent.doubleClick(await desktop.findByRole('button', { name: /Thiếu ngày giao dự kiến/ }));
-    const input = desktop.getByLabelText('Ngày giao dự kiến của SHP-CONFLICT') as HTMLInputElement;
+    fireEvent.click(await desktop.findByRole('button', { name: /Thiếu ngày vận chuyển/ }));
+    const input = desktop.getByLabelText('Ngày vận chuyển của SHP-CONFLICT') as HTMLInputElement;
     fireEvent.change(input, { target: { value: '2026-08-18' } });
-    fireEvent.click(desktop.getByRole('button', { name: 'Lưu ngày giao dự kiến' }));
+    fireEvent.click(desktop.getByRole('button', { name: 'Lưu ngày vận chuyển' }));
 
     await waitFor(() => expect(desktop.getByRole('alert').textContent).toContain('Dữ liệu đã thay đổi'));
     expect(input.value).toBe('2026-08-18');
@@ -518,12 +518,12 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
 
     renderAt('/shipments');
     const desktop = desktopSurface();
-    fireEvent.doubleClick(await desktop.findByRole('button', { name: '4/8/2026' }));
-    const input = desktop.getByLabelText('Ngày giao dự kiến của SHP-REQUESTED');
+    fireEvent.click(await desktop.findByRole('button', { name: '4/8/2026' }));
+    const input = desktop.getByLabelText('Ngày vận chuyển của SHP-REQUESTED');
     fireEvent.change(input, { target: { value: '2026-08-19' } });
-    fireEvent.click(desktop.getByRole('button', { name: 'Lưu ngày giao dự kiến' }));
+    fireEvent.click(desktop.getByRole('button', { name: 'Lưu ngày vận chuyển' }));
 
-    await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Đã gửi yêu cầu đổi ngày giao dự kiến'));
+    await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Đã gửi yêu cầu đổi ngày vận chuyển'));
   });
 
   it('falls back to default columns when browser storage is unavailable', async () => {
@@ -556,6 +556,6 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
     });
     renderAt('/shipments');
     await waitFor(() => expect(desktopSurface().getByText('SHP-READONLY')).toBeTruthy());
-    expect(desktopSurface().queryByTitle('Nhấp đúp để cập nhật ngày giao dự kiến')).toBeNull();
+    expect(desktopSurface().queryByTitle('Chọn hoặc cập nhật ngày vận chuyển')).toBeNull();
   });
 });

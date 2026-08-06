@@ -130,8 +130,8 @@ function normalizeShipmentStatusValue(status: string | null | undefined): Shipme
   return canonicalShipmentStatus(status);
 }
 
-function hasDispatchDate(shipment: Pick<typeof s.shipments.$inferSelect, 'closingAt' | 'plannedReturnAt'>): boolean {
-  return shipment.closingAt != null || shipment.plannedReturnAt != null;
+function hasDispatchDate(shipment: Pick<typeof s.shipments.$inferSelect, 'expectedDeliveryDate' | 'closingAt' | 'plannedReturnAt'>): boolean {
+  return shipment.expectedDeliveryDate != null || shipment.closingAt != null || shipment.plannedReturnAt != null;
 }
 
 function isDirectlyEditableIntakeStatus(status: string | null | undefined): boolean {
@@ -141,7 +141,7 @@ function isDirectlyEditableIntakeStatus(status: string | null | undefined): bool
 
 async function ensureReadyShipmentHandoff(
   tx: Tx,
-  shipment: Pick<typeof s.shipments.$inferSelect, 'id' | 'version' | 'closingAt' | 'plannedReturnAt'>,
+  shipment: Pick<typeof s.shipments.$inferSelect, 'id' | 'version' | 'expectedDeliveryDate' | 'closingAt' | 'plannedReturnAt'>,
   createdBy: number | null,
 ) {
   if (!hasDispatchDate(shipment)) return;
@@ -981,7 +981,7 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
 
   const closingAt = toNullableTimestamp(input.closingAt, 'Giờ closing');
   const plannedReturnAt = toNullableTimestamp(input.plannedReturnAt, 'Ngày trả rỗng kế hoạch');
-  const initialStatus: ShipmentStatus = closingAt != null || plannedReturnAt != null
+  const initialStatus: ShipmentStatus = input.expectedDeliveryDate != null || closingAt != null || plannedReturnAt != null
     ? 'READY_FOR_DISPATCH'
     : 'PENDING_DATE';
 
@@ -1326,6 +1326,9 @@ export async function updateShipment(
       }
     }
 
+    const nextExpectedDeliveryDate = input.expectedDeliveryDate !== undefined
+      ? input.expectedDeliveryDate
+      : existing.expectedDeliveryDate;
     const nextClosingAt = input.closingAt !== undefined
       ? toNullableTimestamp(input.closingAt, 'Giờ closing')
       : existing.closingAt;
@@ -1333,11 +1336,19 @@ export async function updateShipment(
       ? toNullableTimestamp(input.plannedReturnAt, 'Ngày trả rỗng kế hoạch')
       : existing.plannedReturnAt;
     const currentCanonicalStatus = canonicalShipmentStatus(existing.status);
-    if (currentCanonicalStatus === 'READY_FOR_DISPATCH' && nextClosingAt == null && nextPlannedReturnAt == null) {
-      throw new ApiError(409, 'Lô hàng đã sẵn sàng điều xe nên phải giữ ít nhất một ngày đóng hoặc trả hàng.');
+    if (currentCanonicalStatus === 'READY_FOR_DISPATCH' && !hasDispatchDate({
+      expectedDeliveryDate: nextExpectedDeliveryDate,
+      closingAt: nextClosingAt,
+      plannedReturnAt: nextPlannedReturnAt,
+    })) {
+      throw new ApiError(409, 'Lô hàng đã sẵn sàng điều xe nên phải giữ ngày vận chuyển, giờ đóng hoặc thời gian trả hàng.');
     }
     const becomesReady = currentCanonicalStatus === 'PENDING_DATE'
-      && (nextClosingAt != null || nextPlannedReturnAt != null);
+      && hasDispatchDate({
+        expectedDeliveryDate: nextExpectedDeliveryDate,
+        closingAt: nextClosingAt,
+        plannedReturnAt: nextPlannedReturnAt,
+      });
     const nextVersion = existing.version + 1;
     const [updated] = await tx.update(s.shipments).set({
       version: nextVersion,
@@ -1382,7 +1393,7 @@ export async function updateShipment(
         shipmentId: id,
         fromStatus: existing.status ?? 'PENDING_DATE',
         toStatus: 'READY_FOR_DISPATCH',
-        reason: 'Đã bổ sung ngày đóng/trả hàng và sẵn sàng điều xe.',
+        reason: 'Đã bổ sung ngày vận chuyển, giờ đóng hoặc thời gian trả hàng và sẵn sàng điều xe.',
         changedBy: input.updatedBy ?? actor?.userId ?? null,
       });
       await ensureReadyShipmentHandoff(tx, updated, input.updatedBy ?? actor?.userId ?? null);
@@ -1435,7 +1446,7 @@ export async function transitionShipmentStatus(
     if (currentStatus === targetStatus) return shipment;
 
     if (targetStatus === 'READY_FOR_DISPATCH' && !hasDispatchDate(shipment)) {
-      throw new ApiError(409, 'Cần nhập ngày đóng hoặc trả hàng trước khi sẵn sàng điều xe.');
+      throw new ApiError(409, 'Cần nhập ngày vận chuyển, giờ đóng hoặc thời gian trả hàng trước khi sẵn sàng điều xe.');
     }
 
     assertLegalTransition(currentStatus, targetStatus);

@@ -711,12 +711,16 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
         results.fail("TC-1707", "Clerk creates a new shipment", api_failure_detail(create_body))
         return
     shipment = create_body
-    if shipment.get("status") != "PENDING_DATE":
-        results.fail("TC-1707", "New shipment status", str(shipment))
+    if shipment.get("status") != "READY_FOR_DISPATCH":
+        results.fail("TC-1707", "Transport date makes the new shipment ready for dispatch", str(shipment))
         return
     shipment_id = shipment["id"]
     shipment_version = shipment["version"]
-    results.pass_("TC-1707", "Clerk creates a new shipment", f"shipment#{shipment_id} version={shipment_version}")
+    results.pass_(
+        "TC-1707",
+        "Transport date makes the new shipment ready for dispatch",
+        f"shipment#{shipment_id} version={shipment_version}",
+    )
 
     readiness_status, readiness_body = request_json(
         clerk_api,
@@ -729,15 +733,15 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
         headers={"Idempotency-Key": f"{BOOKING_PREFIX}-set-closing-at"},
     )
     if readiness_status != 200:
-        results.fail("TC-1707B", "Clerk enters the closing time", api_failure_detail(readiness_body))
+        results.fail("TC-1707B", "Clerk adds a closing time after the transport date", api_failure_detail(readiness_body))
         return
     shipment_version = readiness_body["version"]
     if readiness_body.get("status") != "READY_FOR_DISPATCH":
-        results.fail("TC-1707B", "Shipment becomes ready for dispatch", str(readiness_body))
+        results.fail("TC-1707B", "Shipment remains ready after adding the closing time", str(readiness_body))
         return
     results.pass_(
         "TC-1707B",
-        "Closing time makes the shipment ready for dispatch",
+        "Shipment remains ready after adding the closing time",
         f"shipment#{shipment_id} version={shipment_version}",
     )
 

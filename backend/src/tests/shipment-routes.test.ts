@@ -1079,6 +1079,23 @@ describe('PUT /:id', () => {
     }
   });
 
+  test('CLERK transport-date update makes a pending shipment ready for dispatch', async () => {
+    const shipment = await mkClerkScopedShipmentViaService();
+    const r = await testFetch(`/${shipment.id}`, {
+      method: 'PUT',
+      token: clerkToken,
+      body: { expectedVersion: shipment.version, expectedDeliveryDate: '2026-08-18' },
+    });
+    assert.equal(r.status, 200);
+    assert.equal(r.data.expectedDeliveryDate, '2026-08-18');
+    assert.equal(r.data.status, ShipmentStatus.READY_FOR_DISPATCH);
+
+    const [handoff] = await db.select({ id: s.dispatchHandoffs.id })
+      .from(s.dispatchHandoffs)
+      .where(eq(s.dispatchHandoffs.shipmentId, shipment.id));
+    assert.ok(handoff, 'a dispatch-ready shipment has an active handoff');
+  });
+
   test('CLERK can update (write allowed)', async () => {
     const shipment = await mkClerkScopedShipmentViaService();
     const r = await testFetch(`/${shipment.id}`, {

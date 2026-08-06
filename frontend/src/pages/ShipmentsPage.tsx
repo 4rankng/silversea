@@ -360,11 +360,11 @@ export default function ShipmentsPage() {
       });
       setEditingDate(null);
       setNotice(updated.message ?? (updated.changeMode === 'REQUESTED'
-        ? 'Đã gửi yêu cầu đổi ngày giao dự kiến để phê duyệt.'
-        : 'Đã cập nhật ngày giao dự kiến.'));
+        ? 'Đã gửi yêu cầu đổi ngày vận chuyển để phê duyệt.'
+        : 'Đã cập nhật ngày vận chuyển.'));
       await fetchData();
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Không thể cập nhật ngày giao dự kiến';
+      const message = err instanceof Error ? err.message : 'Không thể cập nhật ngày vận chuyển';
       setEditingDate((current) => current ? { ...current, saving: false, error: message } : current);
     }
   }, [editingDate, fetchData]);
@@ -471,7 +471,7 @@ export default function ShipmentsPage() {
                 {[
                   { id: 'shipment' as const, label: 'Lô hàng' },
                   { id: 'customer' as const, label: 'Khách hàng' },
-                  { id: 'delivery' as const, label: 'Ngày giao dự kiến' },
+                  { id: 'delivery' as const, label: 'Ngày vận chuyển' },
                   { id: 'status' as const, label: 'Trạng thái' },
                 ].map((column) => (
                   <label key={column.id}>
@@ -588,7 +588,7 @@ export default function ShipmentsPage() {
                       <strong>{s.vehiclePlateSummary ?? '—'}</strong>
                     </div>
                     <div>
-                      <span>Ngày giao dự kiến</span>
+                      <span>Ngày vận chuyển</span>
                       <strong>{formatDeliveryDate(s.expectedDeliveryDate)}</strong>
                     </div>
                   </div>
@@ -609,7 +609,7 @@ export default function ShipmentsPage() {
                   {displayShipmentStatus(s.status) === ShipmentStatus.PENDING_DATE && !s.expectedDeliveryDate && (
                     <div className="shipments-page__warning" role="note">
                       <CalendarClock size={16} aria-hidden="true" />
-                      <span>Thiếu ngày giao dự kiến</span>
+                      <span>Thiếu ngày vận chuyển</span>
                     </div>
                   )}
 
@@ -624,7 +624,7 @@ export default function ShipmentsPage() {
                         if (event.key === 'Escape') setEditingDate(null);
                       }}
                     >
-                      <label htmlFor={`mobile-delivery-date-${s.id}`}>Ngày giao dự kiến</label>
+                      <label htmlFor={`mobile-delivery-date-${s.id}`}>Ngày vận chuyển</label>
                       <div>
                         <input
                           id={`mobile-delivery-date-${s.id}`}
@@ -635,11 +635,11 @@ export default function ShipmentsPage() {
                           disabled={editingDate.saving}
                           onChange={(event) => setEditingDate((current) => current ? { ...current, value: event.target.value, error: null } : current)}
                         />
-                        <button type="submit" disabled={editingDate.saving || !editingDate.value} aria-label="Lưu ngày giao dự kiến">
+                        <button type="submit" disabled={editingDate.saving || !editingDate.value} aria-label="Lưu ngày vận chuyển">
                           {editingDate.saving ? <Loader2 size={17} className="spin" aria-hidden="true" /> : <Save size={17} aria-hidden="true" />}
                           <span>Lưu</span>
                         </button>
-                        <button type="button" disabled={editingDate.saving} onClick={cancelDateEdit} aria-label="Hủy chỉnh sửa ngày giao">
+                        <button type="button" disabled={editingDate.saving} onClick={cancelDateEdit} aria-label="Hủy chỉnh sửa ngày vận chuyển">
                           <X size={17} aria-hidden="true" />
                           <span>Hủy</span>
                         </button>
@@ -656,7 +656,7 @@ export default function ShipmentsPage() {
                         onClick={(event) => { event.preventDefault(); event.stopPropagation(); startDateEdit(s); }}
                       >
                         <CalendarClock size={16} aria-hidden="true" />
-                        {s.expectedDeliveryDate ? 'Đổi ngày giao' : 'Chọn ngày giao'}
+                        {s.expectedDeliveryDate ? 'Đổi ngày vận chuyển' : 'Chọn ngày vận chuyển'}
                       </button>
                     )}
                     <Link
@@ -701,7 +701,7 @@ export default function ShipmentsPage() {
                   {visibleColumns.has('blNumber') && <th className="shipments-page__th">Số B/L</th>}
                   {visibleColumns.has('bookingRef') && <th className="shipments-page__th">Mã đặt chỗ</th>}
                   {visibleColumns.has('route') && <th className="shipments-page__th">Tuyến vận chuyển</th>}
-                  {visibleColumns.has('delivery') && <th className="shipments-page__th">Ngày giao dự kiến</th>}
+                  {visibleColumns.has('delivery') && <th className="shipments-page__th">Ngày vận chuyển</th>}
                   {visibleColumns.has('status') && <th className="shipments-page__th">Trạng thái</th>}
                   <th aria-label="Mở chi tiết" />
                 </tr>
@@ -760,7 +760,7 @@ export default function ShipmentsPage() {
                               if (event.key === 'Escape') setEditingDate(null);
                             }}
                           >
-                            <label className="sr-only" htmlFor={`delivery-date-${s.id}`}>Ngày giao dự kiến của {shipmentLabel(s)}</label>
+                            <label className="sr-only" htmlFor={`delivery-date-${s.id}`}>Ngày vận chuyển của {shipmentLabel(s)}</label>
                             <input
                               id={`delivery-date-${s.id}`}
                               name="expectedDeliveryDate"
@@ -770,10 +770,10 @@ export default function ShipmentsPage() {
                               disabled={editingDate.saving}
                               onChange={(event) => setEditingDate((current) => current ? { ...current, value: event.target.value, error: null } : current)}
                             />
-                            <button type="submit" disabled={editingDate.saving || !editingDate.value} aria-label="Lưu ngày giao dự kiến">
+                            <button type="submit" disabled={editingDate.saving || !editingDate.value} aria-label="Lưu ngày vận chuyển">
                               {editingDate.saving ? <Loader2 size={17} className="spin" aria-hidden="true" /> : <Save size={17} aria-hidden="true" />}
                             </button>
-                            <button type="button" disabled={editingDate.saving} onClick={cancelDateEdit} aria-label="Hủy chỉnh sửa ngày giao">
+                            <button type="button" disabled={editingDate.saving} onClick={cancelDateEdit} aria-label="Hủy chỉnh sửa ngày vận chuyển">
                               <X size={17} aria-hidden="true" />
                             </button>
                             {editingDate.error && <p role="alert">{editingDate.error}</p>}
@@ -782,10 +782,9 @@ export default function ShipmentsPage() {
                           <button
                             type="button"
                             className="shipments-page__date-trigger"
-                            title="Nhấp đúp để cập nhật ngày giao dự kiến"
+                            title="Chọn hoặc cập nhật ngày vận chuyển"
                             aria-keyshortcuts="Enter F2"
-                            onClick={(event) => { event.preventDefault(); event.stopPropagation(); }}
-                            onDoubleClick={(event) => { event.preventDefault(); event.stopPropagation(); startDateEdit(s); }}
+                            onClick={(event) => { event.preventDefault(); event.stopPropagation(); startDateEdit(s); }}
                             onKeyDown={(event) => {
                               event.stopPropagation();
                               if (event.key === 'Enter' || event.key === 'F2') {
@@ -796,12 +795,12 @@ export default function ShipmentsPage() {
                           >
                             <CalendarClock size={16} aria-hidden="true" />
                             <span>{formatDeliveryDate(s.expectedDeliveryDate)}</span>
-                            {displayShipmentStatus(s.status) === ShipmentStatus.PENDING_DATE && !s.expectedDeliveryDate && <small>Thiếu ngày giao dự kiến</small>}
+                            {displayShipmentStatus(s.status) === ShipmentStatus.PENDING_DATE && !s.expectedDeliveryDate && <small>Thiếu ngày vận chuyển</small>}
                           </button>
                         ) : (
                           <span className="shipments-page__delivery-readonly">
                             {formatDeliveryDate(s.expectedDeliveryDate)}
-                            {displayShipmentStatus(s.status) === ShipmentStatus.PENDING_DATE && !s.expectedDeliveryDate && <small>Thiếu ngày giao dự kiến</small>}
+                            {displayShipmentStatus(s.status) === ShipmentStatus.PENDING_DATE && !s.expectedDeliveryDate && <small>Thiếu ngày vận chuyển</small>}
                           </span>
                         )}
                       </td>}
