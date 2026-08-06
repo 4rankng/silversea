@@ -1,0 +1,6 @@
+# E2E Test Fixtures
+
+This directory contains test fixtures for E2E tests:
+- sample-pod.png: Sample Proof of Delivery document for upload tests
+
+Note: For actual testing, use a minimal valid PNG (100x100px or larger).

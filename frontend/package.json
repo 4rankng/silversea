@@ -9,6 +9,9 @@
     "build:strict": "tsc -b && node scripts/check-size.mjs && vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug",
     "size-check": "node scripts/check-size.mjs",
     "generate:brand": "node scripts/generate-transting-brand-assets.mjs",
     "check:ui": "node scripts/check-ui-contract.mjs && node scripts/check-brand-contract.mjs",
@@ -34,6 +37,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/vite": "^4.1.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
