@@ -30,7 +30,7 @@ test.describe('Finance Workflows', () => {
 
   test('FIN-003: Track AR and aging', async ({ page }) => {
     // Login as ACCOUNTANT
-    await page.fill('input[name="identifier"]', USERS.accountant);
+    await page.fill('input[name="username"]', USERS.accountant);
     await page.fill('input[name="password"]', PASSWORD);
     await page.click('button[type="submit"]');
 
@@ -47,7 +47,7 @@ test.describe('Finance Workflows', () => {
 
   test('FIN-005: Confirm or dispute Debit Note', async ({ page }) => {
     // Login as CUSTOMER
-    await page.fill('input[name="identifier"]', USERS.customer);
+    await page.fill('input[name="username"]', USERS.customer);
     await page.fill('input[name="password"]', PASSWORD);
     await page.click('button[type="submit"]');
 
@@ -71,7 +71,7 @@ test.describe('Finance Workflows', () => {
 
   test('FIN-006: Track AP and vendor payment deadlines', async ({ page }) => {
     // Login as ACCOUNTANT
-    await page.fill('input[name="identifier"]', USERS.accountant);
+    await page.fill('input[name="username"]', USERS.accountant);
     await page.fill('input[name="password"]', PASSWORD);
     await page.click('button[type="submit"]');
 
@@ -85,7 +85,7 @@ test.describe('Finance Workflows', () => {
 
   test('FIN-008: Request, approve, and settle advance', async ({ page }) => {
     // Login as FORWARDER
-    await page.fill('input[name="identifier"]', USERS.forwarder);
+    await page.fill('input[name="username"]', USERS.forwarder);
     await page.fill('input[name="password"]', PASSWORD);
     await page.click('button[type="submit"]');
 
@@ -105,7 +105,7 @@ test.describe('Finance Workflows', () => {
 
     // Login as MANAGER to approve
     await page.goto('/');
-    await page.fill('input[name="identifier"]', USERS.manager);
+    await page.fill('input[name="username"]', USERS.manager);
     await page.fill('input[name="password"]', PASSWORD);
     await page.click('button[type="submit"]');
 
@@ -125,7 +125,7 @@ test.describe('Finance Workflows', () => {
 
   test('FIN-015: Lock shipment and unlock by same person', async ({ page }) => {
     // Login as ACCOUNTANT
-    await page.fill('input[name="identifier"]', USERS.accountant);
+    await page.fill('input[name="username"]', USERS.accountant);
     await page.fill('input[name="password"]', PASSWORD);
     await page.click('button[type="submit"]');
 
@@ -152,7 +152,7 @@ test.describe('Finance Workflows', () => {
 
   test('FIN-010: Approval queue by separated roles', async ({ page }) => {
     // Login as MANAGER
-    await page.fill('input[name="identifier"]', USERS.manager);
+    await page.fill('input[name="username"]', USERS.manager);
     await page.fill('input[name="password"]', PASSWORD);
     await page.click('button[type="submit"]');
 

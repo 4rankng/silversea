@@ -30,15 +30,15 @@ test.describe('O2C Lifecycle', () => {
 
   test('OPS-002: Create LCL shipment and transition to ready by date', async ({ page }) => {
     // Login as CUS/CLERK
-    await page.fill('input[name="identifier"]', USERS.clerk);
+    await page.fill('input[name="username"]', USERS.clerk);
     await page.fill('input[name="password"]', PASSWORD);
     await page.click('button[type="submit"]');
 
     // Wait for navigation to dashboard
-    await page.waitForURL('/clerk/shipments');
+    await page.waitForURL('/shipments');
 
-    // Click "Tạo lô mới" (Create new shipment)
-    await page.click('text=Tạo lô mới');
+    // Click "Tạo lô hàng" (Create new shipment)
+    await page.click('text=Tạo lô hàng');
     await page.waitForURL('/clerk/shipments/new');
 
     // Fill LCL shipment form
@@ -64,12 +64,12 @@ test.describe('O2C Lifecycle', () => {
 
   test('OPS-004: Complete documents and activate dispatch date', async ({ page }) => {
     // Login as CUS
-    await page.fill('input[name="identifier"]', USERS.clerk);
+    await page.fill('input[name="username"]', USERS.clerk);
     await page.fill('input[name="password"]', PASSWORD);
     await page.click('button[type="submit"]');
 
     // Navigate to an existing PENDING_DATE shipment
-    await page.goto('/clerk/shipments');
+    await page.goto('/shipments');
     await page.click('text=Chờ ngày điều vận').first();
 
     // Fill in B/L and container details
@@ -88,12 +88,12 @@ test.describe('O2C Lifecycle', () => {
 
   test('OPS-006: Assign carriers by quantity and split FCL by container', async ({ page }) => {
     // Login as CUS
-    await page.fill('input[name="identifier"]', USERS.clerk);
+    await page.fill('input[name="username"]', USERS.clerk);
     await page.fill('input[name="password"]', PASSWORD);
     await page.click('button[type="submit"]');
 
     // Navigate to a READY_FOR_DISPATCH shipment with multiple containers
-    await page.goto('/clerk/shipments?status=READY_FOR_DISPATCH');
+    await page.goto('/shipments?status=READY_FOR_DISPATCH');
     await page.click('text=Chi tiết').first();
 
     // Click "Gán nhà xe" (Assign carriers)
@@ -121,7 +121,7 @@ test.describe('O2C Lifecycle', () => {
 
   test('OPS-007: Select vehicle from assigned carrier', async ({ page }) => {
     // Login as DISPATCHER
-    await page.fill('input[name="identifier"]', USERS.dispatcher);
+    await page.fill('input[name="username"]', USERS.dispatcher);
     await page.fill('input[name="password"]', PASSWORD);
     await page.click('button[type="submit"]');
 
@@ -151,7 +151,7 @@ test.describe('O2C Lifecycle', () => {
 
   test('OPS-008: Block conflicting vehicle, driver, and schedule', async ({ page }) => {
     // Login as DISPATCHER
-    await page.fill('input[name="identifier"]', USERS.dispatcher);
+    await page.fill('input[name="username"]', USERS.dispatcher);
     await page.fill('input[name="password"]', PASSWORD);
     await page.click('button[type="submit"]');
 
@@ -170,7 +170,7 @@ test.describe('O2C Lifecycle', () => {
 
   test('OPS-010: Issue dispatch order and transition to DISPATCHED', async ({ page }) => {
     // Login as DISPATCHER
-    await page.fill('input[name="identifier"]', USERS.dispatcher);
+    await page.fill('input[name="username"]', USERS.dispatcher);
     await page.fill('input[name="password"]', PASSWORD);
     await page.click('button[type="submit"]');
 
@@ -192,7 +192,7 @@ test.describe('O2C Lifecycle', () => {
 
   test('OPS-011: Driver starts transport and updates milestones in order', async ({ page }) => {
     // Login as DRIVER
-    await page.fill('input[name="identifier"]', USERS.driver);
+    await page.fill('input[name="username"]', USERS.driver);
     await page.fill('input[name="password"]', PASSWORD);
     await page.click('button[type="submit"]');
 
@@ -216,7 +216,7 @@ test.describe('O2C Lifecycle', () => {
 
   test('OPS-012: Submit complete e-POD for each fulfillment', async ({ page }) => {
     // Login as DRIVER
-    await page.fill('input[name="identifier"]', USERS.driver);
+    await page.fill('input[name="username"]', USERS.driver);
     await page.fill('input[name="password"]', PASSWORD);
     await page.click('button[type="submit"]');
 
