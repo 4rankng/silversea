@@ -29,7 +29,7 @@ COPY shared/src shared/src
 COPY shared/fix-esm-imports.js shared/fix-esm-imports.js
 
 # Build shared first (Vite resolves @tingting/shared via alias to ../shared/src)
-RUN --mount=type=cache,target=/app/shared/.tsbuildinfo,id=shared-tsbuild-frontend \
+RUN --mount=type=cache,target=/tmp/.tscache-frontend,id=shared-tsbuild-frontend \
     cd shared && pnpm build
 
 # Copy frontend source
@@ -40,9 +40,8 @@ COPY frontend/public frontend/public
 COPY frontend/src frontend/src
 
 # Build frontend (vite build → frontend/dist)
-RUN --mount=type=cache,target=/app/frontend/.vite,id=frontend-vite \
-    --mount=type=cache,target=/app/frontend/node_modules/.vite,id=frontend-vite-deps \
-    cd frontend && pnpm build
+RUN --mount=type=cache,target=/tmp/.vite-cache,id=frontend-vite \
+    cd frontend && NODE_OPTIONS="--max-old-space-size=8192" pnpm build
 
 # ── Stage 2: Serve ───────────────────────────────────────────────────────────
 FROM nginx:alpine

@@ -6,4 +6,5 @@ export * from './pricing.js';
 export * from './samples.js';
 export * from './factories.js';
 export * from './vehicles.js';
-export { ports as portsFromExcel, PortFromExcelSeed } from './ports-from-excel.js';
+export { ports as portsFromExcel } from './ports-from-excel.js';
+export type { PortFromExcelSeed } from './ports-from-excel.js';

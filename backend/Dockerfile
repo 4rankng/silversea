@@ -34,8 +34,7 @@ COPY shared/fix-esm-imports.js shared/fix-esm-imports.js
 
 # Compile TypeScript — fails fast if type errors exist
 # Then rewrite bare imports for Node.js ESM compatibility
-RUN --mount=type=cache,target=/app/backend/.tsbuildinfo,id=backend-tsbuild \
-    --mount=type=cache,target=/app/shared/.tsbuildinfo,id=shared-tsbuild \
+RUN --mount=type=cache,target=/tmp/.tscache,id=backend-tsbuild \
     pnpm --filter @tingting/shared build && pnpm --filter backend build
 
 # Produce a self-contained production dependency tree for the backend package.
