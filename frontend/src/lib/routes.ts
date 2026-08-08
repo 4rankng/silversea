@@ -136,15 +136,39 @@ export const routes = {
   },
 } as const;
 
-/** Resolve a "home" route for a given role — used after login + on 404. */
-export function homeForRole(role: 'DRIVER' | 'OPS' | string): string {
-  if (role === 'DRIVER') return routes.myTrips;
-  if (role === 'OPS') return routes.myOrders; // formerly FORWARDER
-  if (role === 'CUSTOMER') return routes.portalShipments;
-  if (role === 'CUS') return routes.shipments; // formerly CLERK
-  if (role === 'ACCOUNTANT') return routes.accounting;
-  if (role === 'DISPATCHER') return routes.dispatchMasterPlan;
-  return routes.dashboard;
+/**
+ * Resolve a "home" route for a given role — used after login + on 404.
+ *
+ * Role → Route mappings per O2C workflow specification:
+ * - ADMIN/Manager → /dashboard
+ * - ACCOUNTANT → /accounting
+ * - DISPATCHER → /dispatch/master-plan
+ * - CLERK/CUS → /shipments
+ * - FORWARDER/OPS → /my-orders
+ * - DRIVER → /my-trips
+ * - CUSTOMER → /portal/shipments
+ */
+export function homeForRole(role: string): string {
+  switch (role) {
+    case 'DRIVER':
+      return routes.myTrips;
+    case 'OPS':
+    case 'FORWARDER':
+      return routes.myOrders;
+    case 'CUSTOMER':
+      return routes.portalShipments;
+    case 'CUS':
+    case 'CLERK':
+      return routes.shipments;
+    case 'ACCOUNTANT':
+      return routes.accounting;
+    case 'DISPATCHER':
+      return routes.dispatchMasterPlan;
+    case 'ADMIN':
+    case 'MANAGER':
+    default:
+      return routes.dashboard;
+  }
 }
 
 type TitleRule = {
