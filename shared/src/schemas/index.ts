@@ -1133,7 +1133,7 @@ export const baseTripExpenseSchema = z.object({
   expenseType: z.enum(ANCILLARY_EXPENSE_TYPES),
   buyAmount: z.number().positive(),
   sellAmount: z.number().min(0).optional().default(0),
-  settlementMethod: z.enum(['COMPANY_DIRECT', 'FORWARDER_ADVANCE']).default('FORWARDER_ADVANCE'),
+  settlementMethod: z.enum(['COMPANY_DIRECT', 'OPS_ADVANCE']).default('OPS_ADVANCE'),
   supplierId: z.number().int().positive().optional(),
   forwarderId: z.number().int().positive().optional(),
   expenseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày chi không hợp lệ').optional(),
@@ -1156,7 +1156,7 @@ export const baseTripExpenseSchema = z.object({
 });
 
 export const tripExpenseSchema = baseTripExpenseSchema.superRefine((data, ctx) => {
-  if (data.settlementMethod === 'FORWARDER_ADVANCE' && !data.forwarderId) {
+  if (data.settlementMethod === 'OPS_ADVANCE' && !data.forwarderId) {
     ctx.addIssue({
       code: 'custom',
       path: ['forwarderId'],

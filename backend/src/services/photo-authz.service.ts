@@ -95,7 +95,7 @@ export async function authorizeExpensePhoto(
   //   - expense side: finance only (company receipts are B1-confidential).
   const okTrip = !tripMatch
     || FINANCE_ROLES.has(user.role)
-    || (user.role === Role.FORWARDER
+    || (user.role === Role.OPS
       && tripRows[0].forwarderId === user.userId
       && tripRows[0].ownerStatus === 'ACTIVE'
       && tripRows[0].hasCurrentAssignment);

@@ -424,7 +424,7 @@ async function prepareCompanyLogo(
 // to app_settings via PUT /api/config/company-info.
 uploadRouter.post('/company-logo', upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
   const role = getUser(req).role;
-  if (role === Role.DRIVER || role === Role.FORWARDER) {
+  if (role === Role.DRIVER || role === Role.OPS) {
     return res.status(403).json({ error: 'Không có quyền tải logo công ty' });
   }
   const file = req.file;

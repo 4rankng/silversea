@@ -179,7 +179,7 @@ describe('customer account linkage', () => {
       createUser({
         username: `clerk-unscoped-${suffix}`,
         password: 'admin123',
-        role: Role.CLERK,
+        role: Role.CUS,
       }),
       /Nhân viên chứng từ ACTIVE phải có ít nhất một đơn vị phụ trách/,
     );
@@ -190,7 +190,7 @@ describe('customer account linkage', () => {
       createUser({
         username: `clerk-non-admin-${suffix}`,
         password: 'admin123',
-        role: Role.CLERK,
+        role: Role.CUS,
         customerIds: [customerId],
         businessUnitIds: [businessUnitId],
         assignmentAdminOnly: true,
@@ -365,7 +365,7 @@ describe('customer account linkage', () => {
     const clerk = await createUser({
       username: `scoped-clerk-${suffix}`,
       password: 'admin123',
-      role: Role.CLERK,
+      role: Role.CUS,
       customerIds: [customerId],
       businessUnitIds: [businessUnitId],
     });
@@ -381,7 +381,7 @@ describe('customer account linkage', () => {
     const clerkToken = jwt.sign({
       userId: clerkUserId,
       username: `scoped-clerk-${suffix}`,
-      role: Role.CLERK,
+      role: Role.CUS,
       customerId,
       customerIds: [customerId],
     }, config.jwtSecret);
@@ -432,7 +432,7 @@ describe('customer account linkage', () => {
     const token = jwt.sign({
       userId: clerkUserId,
       username: `scoped-clerk-${suffix}`,
-      role: Role.CLERK,
+      role: Role.CUS,
       customerId,
       customerIds: [customerId],
     }, config.jwtSecret);
@@ -483,7 +483,7 @@ describe('customer account linkage', () => {
       : await createUser({
         username: `scoped-clerk-list-${suffix}`,
         password: 'admin123',
-        role: Role.CLERK,
+        role: Role.CUS,
         customerIds: [customerId],
         businessUnitIds: [businessUnitId],
       });
@@ -513,7 +513,7 @@ describe('customer account linkage', () => {
     const clerk = await createUser({
       username: `clerk-unit-lifecycle-${suffix}`,
       password: 'admin123',
-      role: Role.CLERK,
+      role: Role.CUS,
       customerIds: [customerId],
       businessUnitIds: [primaryUnit.id],
     });
@@ -572,7 +572,7 @@ describe('customer account linkage', () => {
     const clerk = await createUser({
       username: `clerk-unit-race-${suffix}`,
       password: 'admin123',
-      role: Role.CLERK,
+      role: Role.CUS,
       customerIds: [customerId],
       businessUnitIds: unitIds,
     });

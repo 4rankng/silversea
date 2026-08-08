@@ -158,7 +158,7 @@ export async function transitionTripStatus(
         throw new ApiError(409, 'Chỉ có thể hoàn thành chuyến đi đang chạy');
       }
       const canComplete = routineShipmentClose
-        ? userRole === Role.ACCOUNTANT || userRole === Role.CLERK
+        ? userRole === Role.ACCOUNTANT || userRole === Role.CUS
         : userRole === Role.ADMIN || userRole === Role.MANAGER;
       if (!canComplete) {
         throw new ApiError(

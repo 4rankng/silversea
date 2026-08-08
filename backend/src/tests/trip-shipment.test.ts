@@ -203,7 +203,7 @@ describe('createTrip with shipmentId', () => {
     const [forwarder] = await db.insert(s.users).values({
       username: `trip-shipment-forwarder-${suffix}`,
       passwordHash: 'test-only',
-      role: Role.FORWARDER,
+      role: Role.OPS,
       status: 'ACTIVE',
     }).returning({ id: s.users.id });
     createdUserIds.push(forwarder.id);

@@ -62,7 +62,7 @@ export const forwarderClient = {
     expenseType: string;
     buyAmount: number;
     sellAmount?: number;
-    settlementMethod?: 'COMPANY_DIRECT' | 'FORWARDER_ADVANCE';
+    settlementMethod?: 'COMPANY_DIRECT' | 'OPS_ADVANCE';
     supplierId?: number;
     expenseDate?: string;
     payeeName?: string;
@@ -85,7 +85,7 @@ export const forwarderClient = {
     expenseType: string;
     buyAmount: number;
     sellAmount?: number;
-    settlementMethod?: 'COMPANY_DIRECT' | 'FORWARDER_ADVANCE';
+    settlementMethod?: 'COMPANY_DIRECT' | 'OPS_ADVANCE';
     supplierId?: number | null;
     expenseDate?: string | null;
     payeeName?: string | null;

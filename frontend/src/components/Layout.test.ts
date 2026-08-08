@@ -6,41 +6,39 @@ import { getNavItems, getNavSections } from './Layout';
 describe('getNavItems', () => {
   it.each([
     [Role.ADMIN, [
-      ['Tổng quan', '/dashboard'], ['Đội xe', '/fleet'], ['Phân xe', '/dispatch'],
-      ['Sổ chuyến đi', '/trips'], ['Quản lý Lô hàng', '/shipments'], ['Lương & Chấm công', '/salary'],
-      ['Kỷ luật', '/penalties'], ['Công nợ phải thu', '/debt'], ['Công nợ phải trả', '/payables'],
-      ['Sổ quỹ / ngân hàng', '/finance/treasury'], ['Chi phí phát sinh', '/expenses'],
-      ['Tạm ứng & hoàn ứng', '/advances'], ['Lợi nhuận', '/profit'], ['Báo cáo lãi lỗ', '/finance'],
-      ['Duyệt vượt hạn mức', '/credit-overrides'], ['Trung tâm phê duyệt', '/governance-actions'],
+      ['Tổng quan', '/dashboard'], ['Quản lý Lô hàng', '/shipments'], ['Điều vận', '/dispatch'],
+      ['Sổ chuyến đi', '/trips'], ['Đội xe', '/fleet'], ['Báo cáo lãi lỗ', '/finance'],
+      ['Báo cáo lợi nhuận', '/profit'], ['Duyệt vượt hạn mức', '/credit-overrides'], ['Trung tâm phê duyệt', '/governance-actions'],
+      ['Công nợ phải thu', '/debt'], ['Công nợ phải trả', '/payables'], ['Chi phí phát sinh', '/expenses'],
+      ['Tạm ứng & Hoàn ứng', '/advances'], ['Lương & Chấm công', '/salary'], ['Kỷ luật', '/penalties'],
       ['Khách hàng', '/customers'], ['Nhà cung cấp', '/suppliers'], ['Tuyến đường', '/config/routes'],
-      ['Người dùng', '/users'], ['Cài đặt ứng dụng', '/config/app-settings'],
-      ['Nhật ký người dùng', '/audit-logs'], ['Cấu hình', '/config'],
+      ['Nhà máy', '/config/factories'], ['Cảng / Bãi & Biểu phí', '/config/ports'], ['Bảng giá cước', '/config/pricing-tables'],
+      ['Quản lý người dùng', '/users'], ['Nhật ký hệ thống', '/audit-logs'], ['Cài đặt ứng dụng', '/config/app-settings'], ['Cấu hình', '/config'],
     ]],
     [Role.MANAGER, [
-      ['Tổng quan', '/dashboard'], ['Đội xe', '/fleet'], ['Phân xe', '/dispatch'],
-      ['Sổ chuyến đi', '/trips'], ['Quản lý Lô hàng', '/shipments'], ['Lương & Chấm công', '/salary'],
-      ['Kỷ luật', '/penalties'], ['Công nợ phải thu', '/debt'], ['Công nợ phải trả', '/payables'],
-      ['Sổ quỹ / ngân hàng', '/finance/treasury'], ['Chi phí phát sinh', '/expenses'],
-      ['Tạm ứng & hoàn ứng', '/advances'], ['Lợi nhuận', '/profit'], ['Báo cáo lãi lỗ', '/finance'],
-      ['Duyệt vượt hạn mức', '/credit-overrides'], ['Trung tâm phê duyệt', '/governance-actions'],
+      ['Tổng quan', '/dashboard'], ['Quản lý Lô hàng', '/shipments'], ['Điều vận', '/dispatch'],
+      ['Sổ chuyến đi', '/trips'], ['Đội xe', '/fleet'], ['Báo cáo lãi lỗ', '/finance'],
+      ['Báo cáo lợi nhuận', '/profit'], ['Duyệt vượt hạn mức', '/credit-overrides'], ['Trung tâm phê duyệt', '/governance-actions'],
+      ['Công nợ phải thu', '/debt'], ['Công nợ phải trả', '/payables'], ['Chi phí phát sinh', '/expenses'],
+      ['Tạm ứng & Hoàn ứng', '/advances'], ['Lương & Chấm công', '/salary'], ['Kỷ luật', '/penalties'],
       ['Khách hàng', '/customers'], ['Nhà cung cấp', '/suppliers'], ['Tuyến đường', '/config/routes'],
-      ['Người dùng', '/users'], ['Nhật ký người dùng', '/audit-logs'], ['Cấu hình', '/config'],
+      ['Nhà máy', '/config/factories'], ['Cảng / Bãi & Biểu phí', '/config/ports'], ['Bảng giá cước', '/config/pricing-tables'],
+      ['Quản lý người dùng', '/users'], ['Nhật ký hệ thống', '/audit-logs'], ['Cấu hình', '/config'],
     ]],
     [Role.ACCOUNTANT, [
-      ['Tổng Quan', '/accounting'], ['Đội xe', '/fleet'], ['Sổ chuyến đi', '/trips'],
-      ['Quản lý Lô hàng', '/shipments'], ['Lương & Chấm công', '/salary'], ['Kỷ luật', '/penalties'],
-      ['Công nợ phải thu', '/debt'], ['Công nợ phải trả', '/payables'],
-      ['Sổ quỹ / ngân hàng', '/finance/treasury'], ['Chi phí phát sinh', '/expenses'],
-      ['Tạm ứng & hoàn ứng', '/advances'], ['Lợi nhuận', '/profit'], ['Báo cáo lãi lỗ', '/finance'],
-      ['Duyệt vượt hạn mức', '/credit-overrides'], ['Trung tâm phê duyệt', '/governance-actions'],
-      ['Khách hàng', '/customers'], ['Nhà cung cấp', '/suppliers'], ['Tuyến đường', '/config/routes'],
-      ['Người dùng', '/users'], ['Nhật ký người dùng', '/audit-logs'], ['Cấu hình', '/config'],
+      ['Tổng Quan', '/accounting'], ['Công nợ phải thu', '/debt'], ['Công nợ phải trả', '/payables'],
+      ['Chi phí phát sinh', '/expenses'], ['Tạm ứng & Hoàn ứng', '/advances'], ['Báo cáo lãi lỗ', '/finance'],
+      ['Báo cáo lợi nhuận', '/profit'], ['Duyệt vượt hạn mức', '/credit-overrides'], ['Trung tâm phê duyệt', '/governance-actions'],
+      ['Đội xe', '/fleet'], ['Sổ chuyến đi', '/trips'], ['Quản lý Lô hàng', '/shipments'],
+      ['Lương & Chấm công', '/salary'], ['Kỷ luật', '/penalties'],
+      ['Khách hàng', '/customers'], ['Nhà cung cấp', '/suppliers'], ['Bảng giá cước', '/config/pricing-tables'],
+      ['Nhật ký hệ thống', '/audit-logs'],
     ]],
     [Role.DRIVER, [['Hành trình', '/my-trips'], ['Thu nhập', '/my-earnings'], ['Kỷ luật', '/my-penalties']]],
-    [Role.FORWARDER, [['Chuyến đi', '/my-forwarder-trips'], ['Tạm ứng', '/my-advances'], ['Phiếu thanh toán', '/my-settlements']]],
-    [Role.CLERK, [['Quản lý Lô hàng', '/shipments'], ['Tạo lô hàng', '/clerk/shipments/new'], ['Chi phí cần kiểm tra', '/recoverable-costs']]],
-    [Role.DISPATCHER, [['Phân xe', '/dispatch'], ['Quản lý Lô hàng', '/shipments']]],
-    [Role.CUSTOMER, [['Lô hàng của tôi', '/portal/shipments'], ['Giấy báo nợ', '/portal/debit-notes'], ['Sao kê công nợ', '/portal/statement']]],
+    [Role.OPS, [['Lệnh giao nhận (Đổi lệnh)', '/my-orders'], ['Yêu cầu Tạm ứng', '/my-advances'], ['Phiếu thanh toán / Hoàn ứng', '/my-settlements']]],
+    [Role.CUS, [['Quản lý Lô hàng', '/shipments'], ['Chi phí cần kiểm tra', '/recoverable-costs']]],
+    [Role.DISPATCHER, [['Điều vận', '/dispatch'], ['Quản lý Lô hàng', '/shipments']]],
+    [Role.CUSTOMER, [['Lô hàng của tôi', '/portal/shipments'], ['Giấy báo nợ (Debit Notes)', '/portal/debit-notes'], ['Sao kê công nợ', '/portal/statement']]],
   ] as const)('matches the approved exact label and path matrix for %s', (role, expected) => {
     const actual = getNavItems(role, undefined, undefined, ['treasury.read', 'recoverable_costs.read'])
       .map(({ label, path }) => [label, path]);
@@ -134,8 +132,8 @@ describe('getNavItems', () => {
     expect(items.some((item) => item.key === 'app-settings')).toBe(false);
   });
 
-  it('gives CLERK a shipment-first scoped workflow without broad finance links', () => {
-    const items = getNavItems(Role.CLERK, undefined, undefined, ['recoverable_costs.read']);
+  it('gives CUS a shipment-first scoped workflow without broad finance links', () => {
+    const items = getNavItems(Role.CUS, undefined, undefined, ['recoverable_costs.read']);
     expect(items[0]).toEqual(expect.objectContaining({ key: 'shipments', path: '/shipments' }));
     expect(items.some((item) => item.key === 'recoverable-costs')).toBe(true);
     expect(items.some((item) => ['debt', 'payables', 'treasury', 'profit'].includes(item.key))).toBe(false);

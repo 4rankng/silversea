@@ -159,7 +159,7 @@ before(async () => {
     {
       username: `q23-field-forwarder-${suffix}`,
       passwordHash: 'x',
-      role: Role.FORWARDER,
+      role: Role.OPS,
       status: 'ACTIVE',
     },
     {
@@ -357,7 +357,7 @@ before(async () => {
         username: `q23-field-forwarder-${suffix}`,
         email: null,
         fullName: null,
-        role: Role.FORWARDER,
+        role: Role.OPS,
       };
     } else if (req.path.startsWith('/api/ocr')) {
       req.user = {

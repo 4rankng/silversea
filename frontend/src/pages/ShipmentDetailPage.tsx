@@ -159,8 +159,8 @@ export default function ShipmentDetailPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const shipmentId = Number(id);
-  const canOperate = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.CLERK;
-  const canReviewPod = user?.role === Role.CLERK;
+  const canOperate = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.CUS;
+  const canReviewPod = user?.role === Role.CUS;
   const canCompleteShipment = user?.role === Role.ACCOUNTANT;
   const canSeePodReview = canReviewPod || canCompleteShipment || user?.role === Role.ADMIN || user?.role === Role.MANAGER;
   const canResolveCancellation = user?.role === Role.ADMIN || user?.role === Role.MANAGER;

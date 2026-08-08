@@ -213,15 +213,16 @@ export enum Role {
   MANAGER = 'MANAGER',
   ACCOUNTANT = 'ACCOUNTANT',
   DRIVER = 'DRIVER',
-  FORWARDER = 'FORWARDER',
+  OPS = 'OPS', // formerly FORWARDER — renamed 2024-08 for role migration
   // Wave 0: customer-portal user (M3 customer portal, ships Wave 2). Row-scoped
   // to their own shipments via scopedByCustomer. Today has no UI; the role +
   // `p, CUSTOMER, customer_portal, read` policy row are the forward-looking gate.
   CUSTOMER = 'CUSTOMER',
-  // Wave 0: nhân viên chứng từ (M10 document clerk). Creates/edits shipments
+  // Wave 0: nhân viên CSKH (M10 customer service). Creates/edits shipments
   // and their docs/declarations; cannot dispatch or post to ledger. Gets
   // `shipments read|write` + `customer_portal read` per phase-01 architecture.
-  CLERK = 'CLERK',
+  // Formerly CLERK — renamed 2024-08 for role migration.
+  CUS = 'CUS',
   DISPATCHER = 'DISPATCHER',
 }
 
@@ -242,8 +243,8 @@ export enum TxnType {
   DRIVER_SALARY = 'DRIVER_SALARY',
   VENDOR_EXPENSE = 'VENDOR_EXPENSE',
   VENDOR_PAYMENT = 'VENDOR_PAYMENT',
-  FORWARDER_ADVANCE = 'FORWARDER_ADVANCE',
-  FORWARDER_SETTLEMENT = 'FORWARDER_SETTLEMENT',
+  OPS_ADVANCE = 'OPS_ADVANCE',
+  OPS_SETTLEMENT = 'OPS_SETTLEMENT',
   EXTERNAL_CARRIER_COST = 'EXTERNAL_CARRIER_COST',
   FUEL_EXPENSE = 'FUEL_EXPENSE',
   UNLOCK_REVERSAL = 'UNLOCK_REVERSAL',
@@ -259,7 +260,7 @@ export enum CarrierType {
 
 export enum SettlementMethod {
   COMPANY_DIRECT = 'COMPANY_DIRECT',
-  FORWARDER_ADVANCE = 'FORWARDER_ADVANCE',
+  OPS_ADVANCE = 'OPS_ADVANCE',
 }
 
 export enum ApprovalStatus {
@@ -343,10 +344,10 @@ export const ROLE_LABELS: Record<Role, string> = {
   [Role.MANAGER]: 'Quản lý',
   [Role.ACCOUNTANT]: 'Kế toán',
   [Role.DRIVER]: 'Lái xe',
-  [Role.FORWARDER]: 'Giao nhận',
+  [Role.OPS]: 'Nhân viên vận hành', // formerly 'Giao nhận'
   [Role.CUSTOMER]: 'Khách hàng',
   [Role.DISPATCHER]: 'Điều vận',
-  [Role.CLERK]: 'Nhân viên chứng từ',
+  [Role.CUS]: 'Nhân viên CSKH', // formerly 'Nhân viên chứng từ'
 };
 
 export const FUEL_MODE_LABELS: Record<FuelMode, string> = {
@@ -370,7 +371,7 @@ export const PENALTY_STATUS_LABELS: Record<PenaltyStatus, string> = {
 };
 
 /** Default seeds for forwarder_expense_types config table. */
-export const FORWARDER_EXPENSE_TYPE_DEFAULTS: Record<string, { name: string; defaultMarkup: boolean; billingLabel: string }> = {
+export const OPS_EXPENSE_TYPE_DEFAULTS: Record<string, { name: string; defaultMarkup: boolean; billingLabel: string }> = {
   LIFTING:        { name: 'Phí nâng container',        defaultMarkup: false, billingLabel: 'Phí nâng container' },
   LOWERING:       { name: 'Phí hạ container',           defaultMarkup: false, billingLabel: 'Phí hạ container' },
   WEIGHING:       { name: 'Phí cân hàng',               defaultMarkup: false, billingLabel: 'Phí cân hàng' },
@@ -461,7 +462,7 @@ export const CARRIER_TYPE_LABELS: Record<CarrierType, string> = {
 
 export const SETTLEMENT_METHOD_LABELS: Record<SettlementMethod, string> = {
   [SettlementMethod.COMPANY_DIRECT]: 'Công ty trả trực tiếp',
-  [SettlementMethod.FORWARDER_ADVANCE]: 'Chi hộ tạm ứng',
+  [SettlementMethod.OPS_ADVANCE]: 'Chi hộ tạm ứng',
 };
 
 export const APPROVAL_STATUS_LABELS: Record<ApprovalStatus, string> = {

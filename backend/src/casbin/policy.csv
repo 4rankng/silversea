@@ -33,19 +33,19 @@ p, ACCOUNTANT, photos, read
 p, DRIVER, driver_portal, read
 p, DRIVER, maps, read
 p, DRIVER, photos, read
-p, FORWARDER, forwarder_portal, read
-p, FORWARDER, forwarder_portal, write
-p, FORWARDER, forwarder_portal, delete
-p, FORWARDER, maps, read
-p, FORWARDER, photos, read
+p, OPS, operations_portal, read
+p, OPS, operations_portal, write
+p, OPS, operations_portal, delete
+p, OPS, maps, read
+p, OPS, photos, read
 p, MANAGER, notifications, read
 p, MANAGER, notifications, write
 p, ACCOUNTANT, notifications, read
 p, ACCOUNTANT, notifications, write
 p, DRIVER, notifications, read
 p, DRIVER, notifications, write
-p, FORWARDER, notifications, read
-p, FORWARDER, notifications, write
+p, OPS, notifications, read
+p, OPS, notifications, write
 p, ADMIN, salary, read
 p, ADMIN, salary, write
 p, MANAGER, salary, read
@@ -65,22 +65,22 @@ p, ACCOUNTANT, agent, read
 p, ACCOUNTANT, agent, write
 p, DRIVER, geotag, write
 p, DRIVER, geotag, read
-p, FORWARDER, geotag, write
-p, FORWARDER, geotag, read
+p, OPS, geotag, write
+p, OPS, geotag, read
 p, MANAGER, geotag, write
 p, MANAGER, geotag, read
 p, ACCOUNTANT, geotag, write
 p, ACCOUNTANT, geotag, read
 p, CUSTOMER, customer_portal, read
 p, CUSTOMER, customer_portal, write
-p, CLERK, shipments, read
-p, CLERK, shipments, write
-p, CLERK, customer_portal, read
+p, CUS, shipments, read
+p, CUS, shipments, write
+p, CUS, customer_portal, read
 // Wave 0 shipments RBAC — operator-side access to the shipment entity.
 // ADMIN is wildcard (line 1). MANAGER gets full CRUD; ACCOUNTANT gets read
 // (accountants view shipments for debit-note work but do not mutate them);
-// CLERK rows above were added in the earlier Wave 0 roles slice.
-// CUSTOMER/DRIVER/FORWARDER are deliberately absent — they have no shipments
+// CUS rows above were added in the earlier Wave 0 roles slice.
+// CUSTOMER/DRIVER/OPS are deliberately absent — they have no shipments
 // access (the customer portal ships its own row-scoped surface in Wave 2).
 p, MANAGER, shipments, read
 p, MANAGER, shipments, write
@@ -93,20 +93,20 @@ p, DISPATCHER, shipments, write
 // accidentally authorize dispatch, driver execution, or e-POD review.
 p, MANAGER, shipment_fulfillments, read
 p, MANAGER, shipment_fulfillments, write
-p, CLERK, shipment_fulfillments, read
+p, CUS, shipment_fulfillments, read
 p, ACCOUNTANT, shipment_fulfillments, read
 p, DISPATCHER, shipment_fulfillments, read
 p, DISPATCHER, shipment_fulfillments, write
 p, MANAGER, epod_review, read
 p, MANAGER, epod_review, write
-p, CLERK, epod_review, read
-p, CLERK, epod_review, write
+p, CUS, epod_review, read
+p, CUS, epod_review, write
 p, ACCOUNTANT, epod_review, read
 p, DRIVER, driver_fulfillments, read
 p, DRIVER, driver_fulfillments, write
 p, MANAGER, driver_fulfillments, read
-p, CLERK, recoverable_costs, read
-p, CLERK, recoverable_costs, write
+p, CUS, recoverable_costs, read
+p, CUS, recoverable_costs, write
 p, ACCOUNTANT, recoverable_costs, read
 p, ACCOUNTANT, recoverable_costs, write
 p, MANAGER, recoverable_costs, read
@@ -115,3 +115,23 @@ p, ACCOUNTANT, treasury, read
 p, ACCOUNTANT, treasury, write
 p, MANAGER, treasury, read
 p, MANAGER, treasury, write
+
+// Expanded permissions for OPS (formerly FORWARDER)
+p, OPS, dispatch, read
+p, OPS, trips, read
+p, OPS, notifications, read
+p, OPS, notifications, write
+p, OPS, geotag, read
+p, OPS, geotag, write
+p, OPS, maps, read
+p, OPS, photos, read
+
+// Expanded permissions for CUS (formerly CLERK)
+p, CUS, recoverable_costs, read
+p, CUS, recoverable_costs, write
+p, CUS, shipments, read
+p, CUS, shipments, write
+p, CUS, shipment_fulfillments, read
+p, CUS, epod_review, read
+p, CUS, epod_review, write
+p, CUS, customer_portal, read

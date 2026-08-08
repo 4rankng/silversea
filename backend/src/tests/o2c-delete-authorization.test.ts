@@ -61,26 +61,26 @@ describe('canDelete — O2C delete-authorization matrix', () => {
 
   test('approvedAt != null blocks non-manager deletion in any session', () => {
     const r = row({ approvedAt: new Date(), createdBy: 100, createdAt: IN_SESSION_AGO });
-    const outcome = canDelete(r, actor(100, Role.CLERK), NOW);
+    const outcome = canDelete(r, actor(100, Role.CUS), NOW);
     assert.equal(outcome.allowed, false);
     assert.equal(deniedReason(outcome), 'approved');
   });
 
   test('creator can delete own in-session, un-approved row', () => {
     const r = row({ createdBy: 100, approvedAt: null, createdAt: IN_SESSION_AGO });
-    assert.equal(canDelete(r, actor(100, Role.CLERK), NOW).allowed, true);
+    assert.equal(canDelete(r, actor(100, Role.CUS), NOW).allowed, true);
   });
 
   test('creator cannot delete own out-of-session row (routes to queue)', () => {
     const r = row({ createdBy: 100, approvedAt: null, createdAt: OUT_OF_SESSION_AGO });
-    const outcome = canDelete(r, actor(100, Role.CLERK), NOW);
+    const outcome = canDelete(r, actor(100, Role.CUS), NOW);
     assert.equal(outcome.allowed, false);
     assert.equal(deniedReason(outcome), 'out_of_session');
   });
 
   test('cannot delete a row created by someone else', () => {
     const r = row({ createdBy: 200, approvedAt: null, createdAt: IN_SESSION_AGO });
-    const outcome = canDelete(r, actor(100, Role.CLERK), NOW);
+    const outcome = canDelete(r, actor(100, Role.CUS), NOW);
     assert.equal(outcome.allowed, false);
     assert.equal(deniedReason(outcome), 'not_owner');
   });

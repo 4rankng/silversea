@@ -74,9 +74,9 @@ before(async () => {
     Role.MANAGER,
     Role.ACCOUNTANT,
     Role.DRIVER,
-    Role.FORWARDER,
+    Role.OPS,
     Role.CUSTOMER,
-    Role.CLERK,
+    Role.CUS,
   ];
   const users = await db.insert(s.users).values(roles.map((role) => ({
       username: `q03-route-${role.toLowerCase()}-${suffix}`,
@@ -173,7 +173,7 @@ test('Q03 refund HTTP boundary enforces RBAC, validation, replay, conflict, and 
   );
   assert.equal(malformed.status, 400);
 
-  for (const role of [Role.DRIVER, Role.FORWARDER, Role.CUSTOMER, Role.CLERK]) {
+  for (const role of [Role.DRIVER, Role.OPS, Role.CUSTOMER, Role.CUS]) {
     const deniedReceipt = await createReceipt(`denied-${role.toLowerCase()}`);
     const denied = await request(
       deniedReceipt.id,

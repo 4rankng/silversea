@@ -52,9 +52,9 @@ const AVATAR_CLS: Record<Role, string> = {
   [Role.MANAGER]: 'user-avatar--manager',
   [Role.ACCOUNTANT]: 'user-avatar--accountant',
   [Role.DRIVER]: 'user-avatar--driver',
-  [Role.FORWARDER]: 'user-avatar--forwarder',
+  [Role.OPS]: 'user-avatar--forwarder',
   [Role.CUSTOMER]: 'user-avatar--forwarder',
-  [Role.CLERK]: 'user-avatar--accountant',
+  [Role.CUS]: 'user-avatar--accountant',
   [Role.DISPATCHER]: 'user-avatar--manager',
 };
 
@@ -63,9 +63,9 @@ const AVATAR_ICON: Record<Role, typeof Users> = {
   [Role.MANAGER]: UserCog,
   [Role.ACCOUNTANT]: KeyRound,
   [Role.DRIVER]: Users,
-  [Role.FORWARDER]: UserCog,
+  [Role.OPS]: UserCog,
   [Role.CUSTOMER]: Users,
-  [Role.CLERK]: UserCog,
+  [Role.CUS]: UserCog,
   [Role.DISPATCHER]: UserCog,
 };
 
@@ -74,9 +74,9 @@ const ROLE_FILTER_CLS: Record<string, string> = {
   [Role.MANAGER]: 'filter-pill--manager',
   [Role.ACCOUNTANT]: 'filter-pill--accountant',
   [Role.DRIVER]: 'filter-pill--driver',
-  [Role.FORWARDER]: 'filter-pill--forwarder',
+  [Role.OPS]: 'filter-pill--forwarder',
   [Role.CUSTOMER]: 'filter-pill--forwarder',
-  [Role.CLERK]: 'filter-pill--accountant',
+  [Role.CUS]: 'filter-pill--accountant',
   [Role.DISPATCHER]: 'filter-pill--manager',
 };
 
@@ -114,7 +114,7 @@ function getClerkScopeLabel(
   customerMap?: Map<number, string>,
   businessUnitMap?: Map<number, string>,
 ) {
-  if (u.role !== Role.CLERK) return undefined;
+  if (u.role !== Role.CUS) return undefined;
   const parts: string[] = [];
   const unitIds = u.businessUnitIds ?? [];
   if (unitIds.length > 0) {

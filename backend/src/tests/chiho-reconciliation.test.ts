@@ -210,7 +210,7 @@ async function closeTripThroughGovernance(tripId: number, expectedVersion: numbe
 interface FeeSpec {
   buyAmount: number;
   sellAmount: number;
-  settlementMethod: 'COMPANY_DIRECT' | 'FORWARDER_ADVANCE';
+  settlementMethod: 'COMPANY_DIRECT' | 'OPS_ADVANCE';
   supplierId?: number;
   forwarderId?: number;
   approvalStatus?: string;
@@ -266,7 +266,7 @@ async function createCompletedTripWithFees(spec: TripSpec) {
     supplierId = supplier.id;
     createdSupplierIds.push(supplierId);
   }
-  if (spec.fees.some(f => f.settlementMethod === 'FORWARDER_ADVANCE')) {
+  if (spec.fees.some(f => f.settlementMethod === 'OPS_ADVANCE')) {
     const [fwd] = await db.insert(s.users)
       .values({
         username: `recon-fwd-${suffix}`.slice(0, 50),
@@ -308,7 +308,7 @@ async function createCompletedTripWithFees(spec: TripSpec) {
   for (const fee of spec.fees) {
     const [row] = await db.insert(s.tripExpenses).values({
       tripId: trip.id,
-      forwarderId: fee.settlementMethod === 'FORWARDER_ADVANCE' ? (fee.forwarderId ?? forwarderId!) : null,
+      forwarderId: fee.settlementMethod === 'OPS_ADVANCE' ? (fee.forwarderId ?? forwarderId!) : null,
       expenseType: fee.expenseType ?? 'CHI_HO',
       buyAmount: String(fee.buyAmount),
       sellAmount: String(fee.sellAmount),
@@ -391,7 +391,7 @@ describe('US-007 chi hộ reconciliation: ledger AR == debit-note total', () => 
       revenue: 5_000_000,
       departureDate: '2026-06-15',
       fees: [
-        { buyAmount: 100_000, sellAmount: 120_000, settlementMethod: 'FORWARDER_ADVANCE' },
+        { buyAmount: 100_000, sellAmount: 120_000, settlementMethod: 'OPS_ADVANCE' },
         { buyAmount: 80_000, sellAmount: 95_000, settlementMethod: 'COMPANY_DIRECT' },
       ],
     });
@@ -703,7 +703,7 @@ describe('US-007 COMPLETED-editability model (O2C: costs stay editable after com
     }).returning();
     createdTripIds.push(canceledTrip.id);
 
-    // A forwarder principal so FORWARDER_ADVANCE fees don't require the
+    // A forwarder principal so OPS_ADVANCE fees don't require the
     // no-invoice disbursement config (orthogonal to the trip-status invariant).
     const [forwarder] = await db.insert(s.users).values({
       username: `recon-upd-fwd-${suffix}`.slice(0, 50),
@@ -722,7 +722,7 @@ describe('US-007 COMPLETED-editability model (O2C: costs stay editable after com
       sellAmount: '70000',
       expenseDate: '2026-06-18',
       invoiceNumber: `INV-UPD-C-${suffix}`,
-      settlementMethod: 'FORWARDER_ADVANCE',
+      settlementMethod: 'OPS_ADVANCE',
       approvalStatus: 'PENDING',
     }).returning();
     createdExpenseIds.push(completedFee.id);
@@ -734,7 +734,7 @@ describe('US-007 COMPLETED-editability model (O2C: costs stay editable after com
       sellAmount: '70000',
       expenseDate: '2026-06-18',
       invoiceNumber: `INV-UPD-X-${suffix}`,
-      settlementMethod: 'FORWARDER_ADVANCE',
+      settlementMethod: 'OPS_ADVANCE',
       approvalStatus: 'PENDING',
     }).returning();
     createdExpenseIds.push(canceledFee.id);

@@ -10,7 +10,7 @@ describe('customer-service finance capabilities', () => {
   });
 
   test('exposes only the role-authorized workflow capabilities', async () => {
-    const clerk = await getCapabilities(Role.CLERK);
+    const clerk = await getCapabilities(Role.CUS);
     assert.ok(clerk.includes('shipments.read'));
     assert.ok(clerk.includes('shipments.write'));
     assert.ok(clerk.includes('recoverable_costs.read'));

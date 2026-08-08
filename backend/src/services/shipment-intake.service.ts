@@ -156,10 +156,10 @@ type SubmitShipmentForDispatchResult = {
 };
 
 export async function listOperationalSitesForIntake(customerId: number, actor: AuthUser) {
-  if (![Role.ADMIN, Role.MANAGER, Role.CLERK, Role.ACCOUNTANT].includes(actor.role)) {
+  if (![Role.ADMIN, Role.MANAGER, Role.CUS, Role.ACCOUNTANT].includes(actor.role)) {
     throw new ApiError(403, 'Bạn không có quyền xem điểm vận hành.');
   }
-  if (actor.role === Role.CLERK) {
+  if (actor.role === Role.CUS) {
     const scope = await loadClerkShipmentScope(actor.userId);
     if (scope.businessUnitIds.length === 0 || !scope.customerIds.includes(customerId)) {
       throw new ApiError(404, 'Không tìm thấy khách hàng.');
@@ -221,10 +221,10 @@ export async function createOperationalSiteForIntake(
   input: OperationalSiteInput,
   actor: AuthUser,
 ) {
-  if (![Role.ADMIN, Role.MANAGER, Role.CLERK].includes(actor.role)) {
+  if (![Role.ADMIN, Role.MANAGER, Role.CUS].includes(actor.role)) {
     throw new ApiError(403, 'Bạn không có quyền thêm điểm vận hành.');
   }
-  if (actor.role === Role.CLERK) {
+  if (actor.role === Role.CUS) {
     const scope = await loadClerkShipmentScope(actor.userId);
     if (scope.businessUnitIds.length === 0 || !scope.customerIds.includes(input.customerId)) {
       throw new ApiError(404, 'Không tìm thấy khách hàng.');
@@ -381,7 +381,7 @@ async function assertIntakeReady(
 }
 
 export async function submitShipmentForDispatch(input: SubmitShipmentForDispatchInput) {
-  if (![Role.ADMIN, Role.MANAGER, Role.CLERK].includes(input.actor.role)) {
+  if (![Role.ADMIN, Role.MANAGER, Role.CUS].includes(input.actor.role)) {
     throw new ApiError(403, 'Bạn không có quyền gửi lô hàng sang điều phối.');
   }
   // Authorization is evaluated before idempotency replay so a CLERK who has
@@ -475,7 +475,7 @@ export async function submitShipmentForDispatch(input: SubmitShipmentForDispatch
 }
 
 export async function assignShipmentCarriers(input: AssignShipmentCarriersCommand) {
-  if (![Role.ADMIN, Role.MANAGER, Role.CLERK].includes(input.actor.role)) {
+  if (![Role.ADMIN, Role.MANAGER, Role.CUS].includes(input.actor.role)) {
     throw new ApiError(403, 'Bạn không có quyền gán nhà xe cho lô hàng.');
   }
   const execute = async (tx: Tx) => {

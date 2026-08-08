@@ -22,7 +22,7 @@ declare global {
  * and attaches it to `req.forwarder`. Eliminates repeated lookups per handler.
  *
  * Must be mounted AFTER authMiddleware (requires req.user).
- * Throws 404 via NoForwarderProfileError if user has no FORWARDER role/profile.
+ * Throws 404 via NoForwarderProfileError if user has no OPS role (formerly FORWARDER) profile.
  */
 export async function resolveForwarder(req: Request, _res: Response, next: NextFunction) {
   try {

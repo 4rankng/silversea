@@ -41,7 +41,7 @@ function makeCreateData(overrides: Partial<CreateData> = {}): CreateData {
     email: 'forwarder@example.com',
     phone: '0900000000',
     fullName: 'Forwarder User',
-    role: Role.FORWARDER,
+    role: Role.OPS,
     password: 'Abc12345',
     ...overrides,
   };
@@ -53,7 +53,7 @@ function makeEditData(overrides: Partial<EditData> = {}): EditData {
     email: 'scope@example.com',
     phone: '0900000000',
     fullName: 'Scope User',
-    role: Role.FORWARDER,
+    role: Role.OPS,
     status: 'ACTIVE',
     password: '',
     ...overrides,
@@ -80,7 +80,7 @@ describe('useUserMutations shipment scope payloads', () => {
     });
 
     expect(createUserMock).toHaveBeenCalledWith(expect.objectContaining({
-      role: Role.FORWARDER,
+      role: Role.OPS,
       shipmentIds: [14, 19],
     }));
     expect(refetch).toHaveBeenCalledTimes(1);
@@ -101,7 +101,7 @@ describe('useUserMutations shipment scope payloads', () => {
     });
 
     expect(updateUserMock).toHaveBeenCalledWith(42, expect.objectContaining({
-      role: Role.FORWARDER,
+      role: Role.OPS,
       status: 'ACTIVE',
       shipmentIds: [23, 7],
     }));
@@ -117,7 +117,7 @@ describe('useUserMutations shipment scope payloads', () => {
 
     await act(async () => {
       await result.current.doUpdate(7, makeEditData({
-        role: Role.CLERK,
+        role: Role.CUS,
         businessUnitIds: [5, 0, 5, 8],
         customerIds: [31, 31, -4],
         shipmentIds: [101, 0, 101, 103],
@@ -125,7 +125,7 @@ describe('useUserMutations shipment scope payloads', () => {
     });
 
     expect(updateUserMock).toHaveBeenCalledWith(7, expect.objectContaining({
-      role: Role.CLERK,
+      role: Role.CUS,
       businessUnitIds: [5, 8],
       customerIds: [31],
       customerId: 31,

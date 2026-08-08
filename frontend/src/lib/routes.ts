@@ -137,11 +137,11 @@ export const routes = {
 } as const;
 
 /** Resolve a "home" route for a given role — used after login + on 404. */
-export function homeForRole(role: 'DRIVER' | 'FORWARDER' | string): string {
+export function homeForRole(role: 'DRIVER' | 'OPS' | string): string {
   if (role === 'DRIVER') return routes.myTrips;
-  if (role === 'FORWARDER') return routes.myOrders;
+  if (role === 'OPS') return routes.myOrders; // formerly FORWARDER
   if (role === 'CUSTOMER') return routes.portalShipments;
-  if (role === 'CLERK') return routes.shipments;
+  if (role === 'CUS') return routes.shipments; // formerly CLERK
   if (role === 'ACCOUNTANT') return routes.accounting;
   if (role === 'DISPATCHER') return routes.dispatchMasterPlan;
   return routes.dashboard;

@@ -248,10 +248,10 @@ before(async () => {
   const admin = await mkUser(`sr-admin-${suffix}`, Role.ADMIN);
   const manager = await mkUser(`sr-manager-${suffix}`, Role.MANAGER);
   const accountant = await mkUser(`sr-acct-${suffix}`, Role.ACCOUNTANT);
-  const clerk = await mkUser(`sr-clerk-${suffix}`, Role.CLERK);
+  const clerk = await mkUser(`sr-clerk-${suffix}`, Role.CUS);
   const customer = await mkUser(`sr-cust-${suffix}`, Role.CUSTOMER);
   const driver = await mkUser(`sr-driver-${suffix}`, Role.DRIVER);
-  const forwarder = await mkUser(`sr-fwd-${suffix}`, Role.FORWARDER);
+  const forwarder = await mkUser(`sr-fwd-${suffix}`, Role.OPS);
 
   adminToken = sign(admin);
   managerToken = sign(manager);

@@ -53,7 +53,7 @@ export async function recordFieldCost(args: {
       expenseType: args.expenseType,
       buyAmount: args.buyAmount,
       sellAmount: args.sellAmount,
-      settlementMethod: args.settlementMethod ?? 'FORWARDER_ADVANCE',
+      settlementMethod: args.settlementMethod ?? 'OPS_ADVANCE',
       supplierId: args.supplierId ?? null,
       note: args.note ?? null,
       approvalStatus: 'PENDING',

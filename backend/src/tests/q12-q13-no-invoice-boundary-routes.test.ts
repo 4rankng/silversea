@@ -147,9 +147,9 @@ before(async () => {
   adminToken = sign(await mkUser(`q12q13-admin-${suffix}`, Role.ADMIN));
   accountantToken = sign(await mkUser(`q12q13-accountant-${suffix}`, Role.ACCOUNTANT));
   managerToken = sign(await mkUser(`q12q13-manager-${suffix}`, Role.MANAGER));
-  forwarderToken = sign(await mkUser(`q12q13-forwarder-${suffix}`, Role.FORWARDER));
+  forwarderToken = sign(await mkUser(`q12q13-forwarder-${suffix}`, Role.OPS));
 
-  const clerk = await mkUser(`q12q13-clerk-${suffix}`, Role.CLERK);
+  const clerk = await mkUser(`q12q13-clerk-${suffix}`, Role.CUS);
   clerkToken = sign(clerk);
   const scopedCustomer = await mkCustomer(`Q12Q13 scoped customer ${suffix}`);
   const hiddenCustomer = await mkCustomer(`Q12Q13 hidden customer ${suffix}`);
@@ -161,7 +161,7 @@ before(async () => {
     {
       userId: clerk.id,
       username: clerk.username ?? `user-${clerk.id}`,
-      role: Role.CLERK,
+      role: Role.CUS,
       customerId: scopedCustomer.id,
       customerIds: [scopedCustomer.id],
     },
@@ -240,7 +240,7 @@ describe('Q12/Q13 no-invoice route boundaries', () => {
   });
 
   test('clerk bootstrap returns empty scoped lists when no customer or unit is assigned', async () => {
-    const unassignedClerkToken = sign(await mkUser(`q12q13-clerk-empty-${suffix}`, Role.CLERK));
+    const unassignedClerkToken = sign(await mkUser(`q12q13-clerk-empty-${suffix}`, Role.CUS));
     const response = await request('/api/catalogs/bootstrap', { token: unassignedClerkToken });
     assert.equal(response.status, 200);
     assert.deepEqual(response.body.customers, []);

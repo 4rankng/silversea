@@ -268,8 +268,8 @@ describe('Q15 shared governance foundation', () => {
 
   it('assigns O2C close creation to Accounting/CUS with an independent finance checker and manager approver', () => {
     assert.doesNotThrow(() => assertCanMakeGovernanceAction('TRIP_FINANCIAL_CLOSE', Role.ACCOUNTANT));
-    assert.doesNotThrow(() => assertCanMakeGovernanceAction('TRIP_FINANCIAL_CLOSE', Role.CLERK));
-    for (const role of [Role.ADMIN, Role.MANAGER, Role.DRIVER, Role.FORWARDER, Role.DISPATCHER]) {
+    assert.doesNotThrow(() => assertCanMakeGovernanceAction('TRIP_FINANCIAL_CLOSE', Role.CUS));
+    for (const role of [Role.ADMIN, Role.MANAGER, Role.DRIVER, Role.OPS, Role.DISPATCHER]) {
       assert.throws(
         () => assertCanMakeGovernanceAction('TRIP_FINANCIAL_CLOSE', role),
         (error: unknown) => error instanceof ApiError && error.statusCode === 403,

@@ -28,7 +28,7 @@ export interface ArSplitReport {
 }
 
 const FREIGHT_TYPES = ['TRIP_REVENUE', 'FUEL_EXPENSE'];
-const DISBURSEMENT_TYPES = ['SERVICE_FEE', 'EXTERNAL_CARRIER_COST', 'FORWARDER_ADVANCE'];
+const DISBURSEMENT_TYPES = ['SERVICE_FEE', 'EXTERNAL_CARRIER_COST', 'OPS_ADVANCE'];
 // All other txnTypes fall into 'other'.
 
 /**

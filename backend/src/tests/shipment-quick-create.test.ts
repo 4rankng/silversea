@@ -184,10 +184,10 @@ before(async () => {
   const admin = await mkUser(`qc-admin-${suffix}`, Role.ADMIN);
   const manager = await mkUser(`qc-manager-${suffix}`, Role.MANAGER);
   const accountant = await mkUser(`qc-acct-${suffix}`, Role.ACCOUNTANT);
-  const clerk = await mkUser(`qc-clerk-${suffix}`, Role.CLERK);
+  const clerk = await mkUser(`qc-clerk-${suffix}`, Role.CUS);
   const customer = await mkUser(`qc-cust-${suffix}`, Role.CUSTOMER);
   const driver = await mkUser(`qc-driver-${suffix}`, Role.DRIVER);
-  const forwarder = await mkUser(`qc-fwd-${suffix}`, Role.FORWARDER);
+  const forwarder = await mkUser(`qc-fwd-${suffix}`, Role.OPS);
 
   adminToken = sign(admin);
   managerToken = sign(manager);
@@ -207,7 +207,7 @@ before(async () => {
     {
       userId: clerk.id,
       username: clerk.username,
-      role: Role.CLERK,
+      role: Role.CUS,
       customerIds: [customerId],
     },
     config.jwtSecret,

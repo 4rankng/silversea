@@ -30,7 +30,7 @@ describe('O2C AR snapshot — canonical cost hash', () => {
     customerCommission: round2dp(1_000_000),
     totalCost: round2dp(15_000_000),
     expenses: [
-      { id: 1, buyAmount: round2dp(2_000_000), sellAmount: round2dp(2_500_000), settlementMethod: 'FORWARDER_ADVANCE', supplierId: null, forwarderId: 5, approvalStatus: 'APPROVED' },
+      { id: 1, buyAmount: round2dp(2_000_000), sellAmount: round2dp(2_500_000), settlementMethod: 'OPS_ADVANCE', supplierId: null, forwarderId: 5, approvalStatus: 'APPROVED' },
       { id: 2, buyAmount: round2dp(500_000), sellAmount: round2dp(600_000), settlementMethod: 'CASH', supplierId: 7, forwarderId: null, approvalStatus: 'PENDING' },
     ],
   };

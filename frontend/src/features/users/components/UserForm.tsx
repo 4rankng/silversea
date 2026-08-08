@@ -343,8 +343,8 @@ export function EditPanel({
   const pwValid = password.length >= 6;
   const pwError = password.length > 0 && !pwValid;
   const customerScopeRequired = role === Role.CUSTOMER && status !== 'INACTIVE';
-  const clerkScopeRequired = role === Role.CLERK && status !== 'INACTIVE';
-  const forwarderScopeRequired = role === Role.FORWARDER && status !== 'INACTIVE';
+  const clerkScopeRequired = role === Role.CUS && status !== 'INACTIVE';
+  const forwarderScopeRequired = role === Role.OPS && status !== 'INACTIVE';
   const clerkScopeInvalid = clerkScopeRequired && (
     businessUnitIds.length === 0 || (customerIds.length === 0 && shipmentIds.length === 0)
   );
@@ -366,9 +366,9 @@ export function EditPanel({
       : `Khách hàng chưa có tên · ${shipment.status}`,
   }));
   const roleOptions = Object.values(Role).filter((candidateRole) =>
-    canManageClerkScope || candidateRole !== Role.CLERK || user.role === Role.CLERK,
+    canManageClerkScope || candidateRole !== Role.CUS || user.role === Role.CUS,
   );
-  const roleSelectDisabled = canEditDriversOnly || (!canManageClerkScope && user.role === Role.CLERK);
+  const roleSelectDisabled = canEditDriversOnly || (!canManageClerkScope && user.role === Role.CUS);
 
   const handleSubmit = async () => {
     if (customerScopeInvalid) return;
@@ -386,13 +386,13 @@ export function EditPanel({
       payload.customerId = customerIds[0] ?? null;
       if (canManageClerkScope) payload.customerAccountType = customerAccountType;
     }
-    if (role === Role.CLERK) {
+    if (role === Role.CUS) {
       payload.customerIds = customerIds;
       payload.customerId = customerIds[0] ?? null;
       payload.businessUnitIds = businessUnitIds;
       payload.shipmentIds = shipmentIds;
     }
-    if (role === Role.FORWARDER && canManageClerkScope) {
+    if (role === Role.OPS && canManageClerkScope) {
       payload.shipmentIds = shipmentIds;
     }
     if (role === Role.ACCOUNTANT && canManageClerkScope) {
@@ -571,7 +571,7 @@ export function EditPanel({
         <div className="users-error-banner">Chỉ quản trị viên mới có thể chỉnh phạm vi khách hàng của kế toán.</div>
       )}
 
-      {role === Role.FORWARDER && !canEditDriversOnly && canManageClerkScope && (
+      {role === Role.OPS && !canEditDriversOnly && canManageClerkScope && (
         <SelectionScopeFields
           title="Lô hàng được giao"
           icon={<Package size={12} />}
@@ -587,11 +587,11 @@ export function EditPanel({
           summaryLabel="Đã chọn"
         />
       )}
-      {role === Role.FORWARDER && !canEditDriversOnly && !canManageClerkScope && (
+      {role === Role.OPS && !canEditDriversOnly && !canManageClerkScope && (
         <div className="users-error-banner">Chỉ quản trị viên mới có thể chỉnh lô hàng của nhân viên giao nhận.</div>
       )}
 
-      {role === Role.CLERK && !canEditDriversOnly && canManageClerkScope && (
+      {role === Role.CUS && !canEditDriversOnly && canManageClerkScope && (
         <>
           <SelectionScopeFields
             title="Đơn vị phụ trách"
@@ -635,7 +635,7 @@ export function EditPanel({
           )}
         </>
       )}
-      {role === Role.CLERK && !canEditDriversOnly && !canManageClerkScope && (
+      {role === Role.CUS && !canEditDriversOnly && !canManageClerkScope && (
         <div className="users-error-banner">Chỉ quản trị viên mới có thể chỉnh phạm vi nhân viên chứng từ.</div>
       )}
 
@@ -730,10 +730,10 @@ export function AddPanel({
   const phoneError = phone.trim().length > 0 && !/^[\d\s+()-]{8,}$/.test(phone);
   const pwValid = password.length >= 6;
   const pwError = password.length > 0 && !pwValid;
-  const clerkScopeInvalid = role === Role.CLERK && (
+  const clerkScopeInvalid = role === Role.CUS && (
     businessUnitIds.length === 0 || (customerIds.length === 0 && shipmentIds.length === 0)
   );
-  const forwarderScopeInvalid = role === Role.FORWARDER && shipmentIds.length === 0;
+  const forwarderScopeInvalid = role === Role.OPS && shipmentIds.length === 0;
   const customerScopeInvalid = role === Role.CUSTOMER && (
     customerIds.length === 0
     || (customerAccountType === CustomerAccountType.SINGLE_ENTITY && customerIds.length > 1)
@@ -751,7 +751,7 @@ export function AddPanel({
       : `Khách hàng chưa có tên · ${shipment.status}`,
   }));
   const roleOptions = Object.values(Role).filter((candidateRole) =>
-    canManageClerkScope || candidateRole !== Role.CLERK,
+    canManageClerkScope || candidateRole !== Role.CUS,
   );
 
   const handleSubmit = async () => {
@@ -770,13 +770,13 @@ export function AddPanel({
       payload.customerId = customerIds[0] ?? null;
       payload.customerAccountType = customerAccountType;
     }
-    if (role === Role.CLERK) {
+    if (role === Role.CUS) {
       payload.customerIds = customerIds;
       payload.customerId = customerIds[0] ?? null;
       payload.businessUnitIds = businessUnitIds;
       payload.shipmentIds = shipmentIds;
     }
-    if (role === Role.FORWARDER && canManageClerkScope) {
+    if (role === Role.OPS && canManageClerkScope) {
       payload.shipmentIds = shipmentIds;
     }
     if (role === Role.ACCOUNTANT && canManageClerkScope) {
@@ -969,7 +969,7 @@ export function AddPanel({
         <div className="users-error-banner">Chỉ quản trị viên mới có thể gán phạm vi khách hàng cho kế toán.</div>
       )}
 
-      {role === Role.FORWARDER && canManageClerkScope && (
+      {role === Role.OPS && canManageClerkScope && (
         <SelectionScopeFields
           title="Lô hàng được giao"
           icon={<Package size={12} />}
@@ -985,11 +985,11 @@ export function AddPanel({
           summaryLabel="Đã chọn"
         />
       )}
-      {role === Role.FORWARDER && !canManageClerkScope && (
+      {role === Role.OPS && !canManageClerkScope && (
         <div className="users-error-banner">Chỉ quản trị viên mới có thể gán lô hàng cho nhân viên giao nhận.</div>
       )}
 
-      {role === Role.CLERK && canManageClerkScope && (
+      {role === Role.CUS && canManageClerkScope && (
         <>
           <SelectionScopeFields
             title="Đơn vị phụ trách"
@@ -1033,7 +1033,7 @@ export function AddPanel({
           )}
         </>
       )}
-      {role === Role.CLERK && !canManageClerkScope && (
+      {role === Role.CUS && !canManageClerkScope && (
         <div className="users-error-banner">Chỉ quản trị viên mới có thể tạo hoặc gán phạm vi cho nhân viên chứng từ.</div>
       )}
     </Drawer>

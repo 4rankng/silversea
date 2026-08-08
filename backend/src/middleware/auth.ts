@@ -50,7 +50,7 @@ function sameCustomerScope(currentIds: number[], tokenIds: number[], payload: Au
 }
 
 function roleUsesCustomerScope(role: string): boolean {
-  return role === Role.CUSTOMER || role === Role.CLERK || role === Role.ACCOUNTANT;
+  return role === Role.CUSTOMER || role === Role.CUS || role === Role.ACCOUNTANT;
 }
 
 export interface AuthUser {
@@ -66,7 +66,7 @@ export interface AuthUser {
    */
   customerId?: number | null;
   /**
-   * Wave 0: full customer link set for CUSTOMER, CLERK and scoped ACCOUNTANT
+   * Wave 0: full customer link set for CUSTOMER, CUS (formerly CLERK) and scoped ACCOUNTANT
    * users. Used by scoped routes and token revalidation when assignments
    * change.
    */

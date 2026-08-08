@@ -306,7 +306,7 @@ async function createSubmittedPod(args: {
 
 describe('trip pod review workflow', () => {
   test('scoped clerk approval accepts evidence and moves the shipment to pending expense approval', async () => {
-    const clerkUser = await createUser(Role.CLERK, 'approve');
+    const clerkUser = await createUser(Role.CUS, 'approve');
     const businessUnit = await createBusinessUnit('approve');
     const { user: driverUser, driver } = await createDriverPrincipal('approve');
     const fixture = await createShipmentFixture({
@@ -384,7 +384,7 @@ describe('trip pod review workflow', () => {
 
   test('accountant is denied routine e-POD review for the shipment dossier', async () => {
     const accountantUser = await createUser(Role.ACCOUNTANT, 'deny-review');
-    const clerkUser = await createUser(Role.CLERK, 'deny-review');
+    const clerkUser = await createUser(Role.CUS, 'deny-review');
     const businessUnit = await createBusinessUnit('deny-review');
     const { user: driverUser, driver } = await createDriverPrincipal('deny-review');
     const fixture = await createShipmentFixture({
@@ -463,7 +463,7 @@ describe('trip pod review workflow', () => {
 
   test('an unresolved canceled fulfillment blocks closure until a manager marks it not required', async () => {
     const managerUser = await createUser(Role.MANAGER, 'cancel');
-    const clerkUser = await createUser(Role.CLERK, 'cancel');
+    const clerkUser = await createUser(Role.CUS, 'cancel');
     const businessUnit = await createBusinessUnit('cancel');
     const { user: driverUser, driver } = await createDriverPrincipal('cancel');
     const fixture = await createShipmentFixture({
@@ -560,7 +560,7 @@ describe('trip pod review workflow', () => {
 
   test('POD approval and fulfillment cancellation serialize without deadlock', async () => {
     const managerUser = await createUser(Role.MANAGER, 'approve-cancel-race');
-    const clerkUser = await createUser(Role.CLERK, 'approve-cancel-race');
+    const clerkUser = await createUser(Role.CUS, 'approve-cancel-race');
     const businessUnit = await createBusinessUnit('approve-cancel-race');
     const { user: driverUser, driver } = await createDriverPrincipal('approve-cancel-race');
     const fixture = await createShipmentFixture({

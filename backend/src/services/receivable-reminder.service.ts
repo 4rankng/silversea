@@ -59,7 +59,7 @@ const REMINDER_RETRY_STALE_GRACE_MS = 5_000;
 // The product language calls this team "CUS". This repository models that
 // operational customer-service/documentation team as CLERK, so terminal
 // delivery failures must reach CLERK as well as the finance fallback owners.
-const REMINDER_TERMINAL_ESCALATION_ROLES = [Role.CLERK, Role.ADMIN, Role.ACCOUNTANT] as const;
+const REMINDER_TERMINAL_ESCALATION_ROLES = [Role.CUS, Role.ADMIN, Role.ACCOUNTANT] as const;
 const REMINDER_PORTAL_FALLBACK_PENDING_MARKER = '[REMINDER_PORTAL_FALLBACK_PENDING]';
 const REMINDER_OCCURRENCE_MARKER_PREFIX = '\u2063';
 const REMINDER_OCCURRENCE_MARKER_SEPARATOR = '\u200D';
@@ -1316,12 +1316,12 @@ function normalizeUserRoles(input: readonly Role[]): UserRoleValue[] {
           return 'ACCOUNTANT';
         case 'DRIVER':
           return 'DRIVER';
-        case 'FORWARDER':
-          return 'FORWARDER';
+        case 'OPS':
+          return 'OPS';
         case 'CUSTOMER':
           return 'CUSTOMER';
-        case 'CLERK':
-          return 'CLERK';
+        case 'CUS':
+          return 'CUS';
         case 'DISPATCHER':
           return 'DISPATCHER';
         default:

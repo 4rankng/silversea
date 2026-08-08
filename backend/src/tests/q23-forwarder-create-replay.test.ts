@@ -69,7 +69,7 @@ before(async () => {
     {
       username: `q23-fwd-user-${suffix}`,
       passwordHash: 'x',
-      role: Role.FORWARDER,
+      role: Role.OPS,
       status: 'ACTIVE',
     },
   ]).returning({ id: s.users.id });
@@ -141,7 +141,7 @@ before(async () => {
       username: `q23-fwd-user-${suffix}`,
       email: null,
       fullName: null,
-      role: Role.FORWARDER,
+      role: Role.OPS,
     };
     next();
   });

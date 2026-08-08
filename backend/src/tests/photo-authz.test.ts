@@ -129,8 +129,8 @@ before(async () => {
   }).returning({ id: s.trips.id });
   tripId = trip.id;
 
-  fwdActive = await ensureUser('photoauthz_fwd1', Role.FORWARDER, 'ACTIVE');
-  fwdInactive = await ensureUser('photoauthz_fwd2', Role.FORWARDER, 'DISABLED');
+  fwdActive = await ensureUser('photoauthz_fwd1', Role.OPS, 'ACTIVE');
+  fwdInactive = await ensureUser('photoauthz_fwd2', Role.OPS, 'DISABLED');
   accountantId = await ensureUser('photoauthz_acct', Role.ACCOUNTANT, 'ACTIVE');
   driverId = await ensureUser('photoauthz_drv', Role.DRIVER, 'ACTIVE');
   const [driverProfile] = await db.insert(s.drivers).values({
@@ -205,7 +205,7 @@ after(async () => {
 test('not_found: key in neither table → 404 for every role', async () => {
   for (const user of [
     { userId: driverId, role: Role.DRIVER },
-    { userId: fwdActive, role: Role.FORWARDER },
+    { userId: fwdActive, role: Role.OPS },
     { userId: accountantId, role: Role.ACCOUNTANT },
   ]) {
     const d = await authorizeExpensePhoto(KEY.nothing, user);
@@ -245,7 +245,7 @@ test('DRIVER fuel evidence access is revoked when the user or driver profile is 
 });
 
 test('FORWARDER (ACTIVE, owns) reads own trip-expense receipt', async () => {
-  const d = await authorizeExpensePhoto(KEY.tripOwnedF1, { userId: fwdActive, role: Role.FORWARDER });
+  const d = await authorizeExpensePhoto(KEY.tripOwnedF1, { userId: fwdActive, role: Role.OPS });
   assert.strictEqual(d.allow, true);
 });
 
@@ -256,7 +256,7 @@ test('FORWARDER loses receipt access immediately when shipment assignment is rev
   ));
   const denied = await authorizeExpensePhoto(KEY.tripOwnedF1, {
     userId: fwdActive,
-    role: Role.FORWARDER,
+    role: Role.OPS,
   });
   assert.strictEqual(denied.allow, false);
   assert.strictEqual(denied.reason, 'forbidden');
@@ -264,13 +264,13 @@ test('FORWARDER loses receipt access immediately when shipment assignment is rev
 });
 
 test('FORWARDER (ACTIVE) is denied a company-only receipt (B1 confidentiality preserved)', async () => {
-  const d = await authorizeExpensePhoto(KEY.companyOnly, { userId: fwdActive, role: Role.FORWARDER });
+  const d = await authorizeExpensePhoto(KEY.companyOnly, { userId: fwdActive, role: Role.OPS });
   assert.strictEqual(d.allow, false);
   assert.strictEqual(d.reason, 'forbidden');
 });
 
 test('FORWARDER (ACTIVE) is denied another forwarder’s receipt', async () => {
-  const d = await authorizeExpensePhoto(KEY.tripOwnedF2, { userId: fwdActive, role: Role.FORWARDER });
+  const d = await authorizeExpensePhoto(KEY.tripOwnedF2, { userId: fwdActive, role: Role.OPS });
   assert.strictEqual(d.allow, false);
   assert.strictEqual(d.reason, 'forbidden');
 });
@@ -278,19 +278,19 @@ test('FORWARDER (ACTIVE) is denied another forwarder’s receipt', async () => {
 test('NULL-forwarderId (accountant-created) receipt is denied to a forwarder (N3)', async () => {
   // The nullable FK makes ownership genuinely ambiguous; forwarderId===userId
   // denies it naturally. Pending the §4c product decision, default = DENY.
-  const d = await authorizeExpensePhoto(KEY.tripNullFwd, { userId: fwdActive, role: Role.FORWARDER });
+  const d = await authorizeExpensePhoto(KEY.tripNullFwd, { userId: fwdActive, role: Role.OPS });
   assert.strictEqual(d.allow, false);
   assert.strictEqual(d.reason, 'forbidden');
 });
 
 test('FORWARDER (DISABLED) is denied own receipt even though it matches (closes JWT bypass, N5)', async () => {
-  const d = await authorizeExpensePhoto(KEY.tripOwnedF2, { userId: fwdInactive, role: Role.FORWARDER });
+  const d = await authorizeExpensePhoto(KEY.tripOwnedF2, { userId: fwdInactive, role: Role.OPS });
   assert.strictEqual(d.allow, false);
   assert.strictEqual(d.reason, 'forbidden');
 });
 
 test('collision (key in BOTH tables): forwarder denied with collision reason (strictest-match + N6 signal)', async () => {
-  const d = await authorizeExpensePhoto(KEY.collision, { userId: fwdActive, role: Role.FORWARDER });
+  const d = await authorizeExpensePhoto(KEY.collision, { userId: fwdActive, role: Role.OPS });
   // Fwd owns the trip side but not the company side → strictest-match denies.
   assert.strictEqual(d.allow, false);
   assert.strictEqual(d.reason, 'collision');

@@ -152,7 +152,7 @@ async function mkScopedClerk(customerId: number, businessUnitId: number) {
   const [user] = await db.insert(s.users).values({
     username: `shipment-svc-clerk-${suffix}-${createdUserIds.length}`,
     passwordHash: 'test-hash',
-    role: Role.CLERK,
+    role: Role.CUS,
     status: 'ACTIVE',
   }).returning();
   createdUserIds.push(user.id);
@@ -165,7 +165,7 @@ async function mkScopedClerk(customerId: number, businessUnitId: number) {
     username: user.username,
     email: null,
     fullName: null,
-    role: Role.CLERK,
+    role: Role.CUS,
     customerId,
     customerIds: [customerId],
   };

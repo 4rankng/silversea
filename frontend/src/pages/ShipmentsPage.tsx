@@ -250,7 +250,7 @@ export default function ShipmentsPage() {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const canCreate = user?.role === Role.ADMIN || user?.role === Role.MANAGER;
-  const canInlineEdit = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.CLERK;
+  const canInlineEdit = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.CUS;
 
   // Filter state is mirrored in the URL query string so reloads / deep links
   // preserve the view.

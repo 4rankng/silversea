@@ -37,7 +37,7 @@ function expenseInput(overrides: Partial<Parameters<typeof createTripExpense>[1]
     expenseType: expenseTypeCode,
     buyAmount: '100000',
     sellAmount: '0',
-    settlementMethod: 'FORWARDER_ADVANCE',
+    settlementMethod: 'OPS_ADVANCE',
     supplierId,
     expenseDate: '2026-08-03',
     invoiceNumber: `INV-${suffix}`,

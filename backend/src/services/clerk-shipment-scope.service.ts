@@ -19,7 +19,7 @@ function normalizeIds(values: Array<number | null | undefined>): number[] {
 }
 
 export function isClerkScopedUser(actor: Pick<AuthUser, 'role'> | null | undefined): boolean {
-  return actor?.role === Role.CLERK;
+  return actor?.role === Role.CUS;
 }
 
 export async function loadClerkShipmentScope(

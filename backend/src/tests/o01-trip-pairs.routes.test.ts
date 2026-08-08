@@ -157,7 +157,7 @@ before(async () => {
 
   const admin = await mkUser(`pair-admin-${suffix}`, Role.ADMIN);
   const manager = await mkUser(`pair-manager-${suffix}`, Role.MANAGER);
-  const forwarder = await mkUser(`pair-forwarder-${suffix}`, Role.FORWARDER);
+  const forwarder = await mkUser(`pair-forwarder-${suffix}`, Role.OPS);
   adminToken = sign(admin);
   managerToken = sign(manager);
   forwarderToken = sign(forwarder);

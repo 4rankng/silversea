@@ -184,7 +184,7 @@ export default function SettlementPrintPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isPortal = user?.role === 'FORWARDER' || user?.role === 'DRIVER';
+  const isPortal = user?.role === 'OPS' || user?.role === 'DRIVER';
   
   const fwdQuery = useForwarderSettlementDetail(isPortal ? Number(id) : 0);
   const admQuery = useAdminSettlementDetail(!isPortal ? Number(id) : 0);

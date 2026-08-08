@@ -61,7 +61,7 @@ before(async () => {
   const [forwarder] = await db.insert(s.users).values({
     username: `q23-forwarder-durable-${suffix}`,
     passwordHash: 'x',
-    role: Role.FORWARDER,
+    role: Role.OPS,
     status: 'ACTIVE',
   }).returning({ id: s.users.id });
   forwarderUserId = forwarder.id;
@@ -126,7 +126,7 @@ before(async () => {
       username: `q23-forwarder-durable-${suffix}`,
       email: null,
       fullName: null,
-      role: Role.FORWARDER,
+      role: Role.OPS,
     };
     next();
   });

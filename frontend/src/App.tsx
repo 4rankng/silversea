@@ -133,14 +133,14 @@ export function AppRoutes() {
   );
 
   const isDriver = user?.role === Role.DRIVER;
-  const isForwarder = user?.role === Role.FORWARDER;
-  const isClerk = user?.role === Role.CLERK;
+  const isOps = user?.role === Role.OPS; // formerly FORWARDER
+  const isCus = user?.role === Role.CUS; // formerly CLERK
   const isAdmin = user?.role === Role.ADMIN;
   const isDispatcher = user?.role === Role.DISPATCHER;
   const driverHome = routes.myTrips;
-  const forwarderHome = routes.myForwarderTrips;
-  const clerkHome = routes.shipments;
-  const isPortalUser = isDriver || isForwarder;
+  const opsHome = routes.myOrders; // formerly forwarderHome
+  const cusHome = routes.shipments; // formerly clerkHome
+  const isPortalUser = isDriver || isOps; // updated to use isOps
   const customerHome = routes.portalShipments;
   const isCustomer = user?.role === Role.CUSTOMER;
   const accountantWithoutExecutiveDashboard = user?.role === Role.ACCOUNTANT
@@ -148,16 +148,16 @@ export function AppRoutes() {
   const defaultHome = homeForRole(user?.role ?? '');
   const homeRedirect = isDriver
     ? driverHome
-    : isForwarder
-      ? forwarderHome
+    : isOps
+      ? opsHome
       : isCustomer
         ? customerHome
-        : isClerk
-          ? clerkHome
+        : isCus
+          ? cusHome
           : defaultHome;
-  const adminOnly = (el: ReactElement) => (isPortalUser || isCustomer || isClerk || isDispatcher || user?.role === Role.ACCOUNTANT ? <Navigate to={homeRedirect} replace /> : el);
+  const adminOnly = (el: ReactElement) => (isPortalUser || isCustomer || isCus || isDispatcher || user?.role === Role.ACCOUNTANT ? <Navigate to={homeRedirect} replace /> : el);
   const driverOnly = (el: ReactElement) => (isDriver ? el : <Navigate to={homeRedirect} replace />);
-  const forwarderOnly = (el: ReactElement) => (isForwarder ? el : <Navigate to={homeRedirect} replace />);
+  const opsOnly = (el: ReactElement) => (isOps ? el : <Navigate to={homeRedirect} replace />); // formerly forwarderOnly
   const customerOnly = (el: ReactElement) => (isCustomer ? el : <Navigate to={homeRedirect} replace />);
   const managerOrAdminOnly = (el: ReactElement) => (isAdmin || user?.role === Role.MANAGER ? el : <Navigate to={homeRedirect} replace />);
   // Accountant cannot access dispatch pages
@@ -187,16 +187,16 @@ export function AppRoutes() {
       : <Navigate to={homeRedirect} replace />
   );
   const recoverableCostOnly = (el: ReactElement) => (
-    isAdmin || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT || isClerk
+    isAdmin || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT || isCus
       ? el
       : <Navigate to={homeRedirect} replace />
   );
-  // M10.1: CLERK (nhân viên chứng từ) mobile surfaces. ADMIN is admitted as
-  // superuser; every other role is bounced to its own home. CLERK's home is
-  // the create page itself until a clerk landing page ships.
-  const clerkOrAdminOnly = (el: ReactElement) => (isAdmin || isClerk ? el : <Navigate to={homeRedirect} replace />);
+  // M10.1: CUS (nhân viên CSKH) mobile surfaces. ADMIN is admitted as
+  // superuser; every other role is bounced to its own home. CUS's home is
+  // the create page itself until a CUS landing page ships.
+  const cusOrAdminOnly = (el: ReactElement) => (isAdmin || isCus ? el : <Navigate to={homeRedirect} replace />); // formerly clerkOrAdminOnly
   const shipmentOperatorOnly = (el: ReactElement) => (
-    isAdmin || isClerk || user?.role === Role.MANAGER
+    isAdmin || isCus || user?.role === Role.MANAGER
       ? el
       : <Navigate to={homeRedirect} replace />
   );
@@ -222,7 +222,7 @@ export function AppRoutes() {
           <Route path="/" element={<Navigate to={defaultHome} replace />} />
           <Route
             path="/dashboard"
-            element={isPortalUser || isCustomer || isClerk || isDispatcher || user?.role === Role.ACCOUNTANT ? <Navigate to={homeRedirect} replace /> : page(<DashboardPage />)}
+            element={isPortalUser || isCustomer || isCus || isDispatcher || user?.role === Role.ACCOUNTANT ? <Navigate to={homeRedirect} replace /> : page(<DashboardPage />)}
           />
           <Route path="/dispatch" element={dispatchOnly(page(<DispatchPage />))} />
           <Route path="/fleet" element={adminOnly(page(<FleetPage />))} />
@@ -321,12 +321,12 @@ export function AppRoutes() {
           <Route path="/my-trips/:id" element={driverOnly(page(<DriverTripDetailPage />))} />
           <Route path="/my-earnings" element={driverOnly(page(<DriverEarningsPage />))} />
           <Route path="/my-payslips" element={driverOnly(page(<DriverPayslipsPage />))} />
-          <Route path="/my-forwarder-trips" element={forwarderOnly(page(<ForwarderTripsPage />))} />
-          <Route path="/my-forwarder-trips/:id" element={forwarderOnly(page(<ForwarderTripDetailPage />))} />
-          <Route path="/my-advances" element={forwarderOnly(page(<ForwarderAdvancesPage />))} />
-          <Route path="/my-settlements" element={forwarderOnly(page(<ForwarderSettlementsPage />))} />
-          <Route path="/my-settlements/new" element={forwarderOnly(page(<ForwarderSettlementCreatePage />))} />
-          <Route path="/my-settlements/:id" element={forwarderOnly(page(<SettlementPrintPage />))} />
+          <Route path="/my-forwarder-trips" element={opsOnly(page(<ForwarderTripsPage />))} />
+          <Route path="/my-forwarder-trips/:id" element={opsOnly(page(<ForwarderTripDetailPage />))} />
+          <Route path="/my-advances" element={opsOnly(page(<ForwarderAdvancesPage />))} />
+          <Route path="/my-settlements" element={opsOnly(page(<ForwarderSettlementsPage />))} />
+          <Route path="/my-settlements/new" element={opsOnly(page(<ForwarderSettlementCreatePage />))} />
+          <Route path="/my-settlements/:id" element={opsOnly(page(<SettlementPrintPage />))} />
           <Route path="/settlements/:id" element={officeStaffOnly(page(<SettlementPrintPage />))} />
           {/* Wave 2: Customer portal routes. Only CUSTOMER role can access. */}
           <Route path="/portal/shipments" element={customerOnly(page(<PortalShipmentsPage />))} />
@@ -336,7 +336,7 @@ export function AppRoutes() {
           {/* Wave 4 M10.1: CLERK mobile quick-shipment-create. ADMIN is
               admitted as superuser; the clerk home is this create page until
               a clerk landing page ships. */}
-          <Route path="/clerk/shipments/new" element={clerkOrAdminOnly(page(<ClerkShipmentCreatePage />))} />
+          <Route path="/clerk/shipments/new" element={cusOrAdminOnly(page(<ClerkShipmentCreatePage />))} />
           {/* Wave 4 M10.2: clerk doc-entry page (BL + containers + dispatch-readiness). */}
           <Route path="/clerk/shipments/:id/docs" element={shipmentOperatorOnly(page(<ClerkShipmentDocsPage />))} />
           <Route path="*" element={<Navigate to={defaultHome} replace />} />

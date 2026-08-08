@@ -9,7 +9,7 @@ describe('shipment route role access', () => {
 
   it('keeps portal-only roles outside office shipment routes', () => {
     expect(canReadShipmentRoutes(Role.DRIVER)).toBe(false);
-    expect(canReadShipmentRoutes(Role.FORWARDER)).toBe(false);
+    expect(canReadShipmentRoutes(Role.OPS)).toBe(false);
     expect(canReadShipmentRoutes(Role.CUSTOMER)).toBe(false);
   });
 });

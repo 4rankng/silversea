@@ -6,7 +6,7 @@ import { api, fileCommandFingerprint } from '../lib/api';
 import {
   DEFAULT_NO_INVOICE_EVIDENCE_TYPES,
   ExpenseEntryStatus,
-  FORWARDER_EXPENSE_TYPE_DEFAULTS,
+  OPS_EXPENSE_TYPE_DEFAULTS,
   NO_INVOICE_EVIDENCE_TYPE_LABELS,
 } from '@tingting/shared';
 import { TRIP_STATUS_LABELS, type TripStatus } from '@tingting/shared';
@@ -49,7 +49,7 @@ const newExpenseForm = () => ({
   expenseType: 'LIFTING' as string,
   buyAmount: '',
   sellAmount: '',
-  settlementMethod: 'FORWARDER_ADVANCE' as 'FORWARDER_ADVANCE' | 'COMPANY_DIRECT',
+  settlementMethod: 'OPS_ADVANCE' as 'OPS_ADVANCE' | 'COMPANY_DIRECT',
   supplierId: '',
   tripContainerId: '',
   portId: '',
@@ -253,7 +253,7 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
       || lastAppliedLiftSuggestionKey.current === suggestionKey
     ) return;
     const value = String(suggestedPrice);
-    const hasMarkup = FORWARDER_EXPENSE_TYPE_DEFAULTS[expenseForm.expenseType]?.defaultMarkup ?? false;
+    const hasMarkup = OPS_EXPENSE_TYPE_DEFAULTS[expenseForm.expenseType]?.defaultMarkup ?? false;
     setExpenseForm((current) => ({
       ...current,
       buyAmount: value,
@@ -282,7 +282,7 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
   };
 
   const handleExpenseTypeChange = (newType: string) => {
-    const hasMarkup = FORWARDER_EXPENSE_TYPE_DEFAULTS[newType]?.defaultMarkup ?? false;
+    const hasMarkup = OPS_EXPENSE_TYPE_DEFAULTS[newType]?.defaultMarkup ?? false;
     setExpenseForm(f => ({
       ...f,
       expenseType: newType,
@@ -293,7 +293,7 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
   };
 
   const handleBuyAmountChange = (val: string) => {
-    const hasMarkup = FORWARDER_EXPENSE_TYPE_DEFAULTS[expenseForm.expenseType]?.defaultMarkup ?? false;
+    const hasMarkup = OPS_EXPENSE_TYPE_DEFAULTS[expenseForm.expenseType]?.defaultMarkup ?? false;
     setExpenseForm(f => ({
       ...f,
       buyAmount: val,
@@ -437,7 +437,7 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
       expenseType: exp.expenseType,
       buyAmount: String(exp.buyAmount),
       sellAmount: String(exp.sellAmount ?? ''),
-      settlementMethod: exp.settlementMethod === 'COMPANY_DIRECT' ? 'COMPANY_DIRECT' : 'FORWARDER_ADVANCE',
+      settlementMethod: exp.settlementMethod === 'COMPANY_DIRECT' ? 'COMPANY_DIRECT' : 'OPS_ADVANCE',
       supplierId: exp.supplierId ? String(exp.supplierId) : '',
       tripContainerId: exp.tripContainerId ? String(exp.tripContainerId) : '',
       portId: '',
@@ -639,7 +639,7 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
                 >
                   {(forwarderExpenseTypeOptions.length > 0
                     ? forwarderExpenseTypeOptions.map((type) => [type.code, { name: type.name }] as const)
-                    : Object.entries(FORWARDER_EXPENSE_TYPE_DEFAULTS)
+                    : Object.entries(OPS_EXPENSE_TYPE_DEFAULTS)
                   ).map(([code, cfg]) => (
                     <option key={code} value={code}>{cfg.name}</option>
                   ))}
@@ -694,9 +694,9 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
                   onChange={e => setExpenseForm(f => ({ ...f, sellAmount: e.target.value }))}
                   placeholder="0"
                   min="0"
-                  readOnly={!FORWARDER_EXPENSE_TYPE_DEFAULTS[expenseForm.expenseType]?.defaultMarkup}
+                  readOnly={!OPS_EXPENSE_TYPE_DEFAULTS[expenseForm.expenseType]?.defaultMarkup}
                   style={
-                    !FORWARDER_EXPENSE_TYPE_DEFAULTS[expenseForm.expenseType]?.defaultMarkup
+                    !OPS_EXPENSE_TYPE_DEFAULTS[expenseForm.expenseType]?.defaultMarkup
                       ? { background: 'var(--bg-3)', color: 'var(--fg-3)' }
                       : undefined
                   }
@@ -708,8 +708,8 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
                   className="input"
                   value={expenseForm.settlementMethod}
                   onChange={e => {
-                    const v = e.target.value as 'FORWARDER_ADVANCE' | 'COMPANY_DIRECT';
-                    setExpenseForm(f => ({ ...f, settlementMethod: v, supplierId: v === 'FORWARDER_ADVANCE' ? '' : f.supplierId }));
+                    const v = e.target.value as 'OPS_ADVANCE' | 'COMPANY_DIRECT';
+                    setExpenseForm(f => ({ ...f, settlementMethod: v, supplierId: v === 'OPS_ADVANCE' ? '' : f.supplierId }));
                     if (expenseErrors.supplierId) setExpenseErrors(e => ({ ...e, supplierId: undefined }));
                   }}
                 >

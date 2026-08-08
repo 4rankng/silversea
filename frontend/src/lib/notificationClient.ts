@@ -8,12 +8,12 @@ export function resolveNotificationRoute(notification: Notification, role: strin
   switch (notification.relatedEntityType) {
     case 'trips':
       if (role === 'DRIVER') return id ? routes.myTripDetail(id) : routes.myTrips;
-      if (role === 'FORWARDER') return id ? routes.myForwarderTripDetail(id) : routes.myForwarderTrips;
+      if (role === 'OPS') return id ? routes.myForwarderTripDetail(id) : routes.myForwarderTrips;
       return id ? routes.tripDetail(id) : routes.trips;
     case 'shipment_fulfillments':
       return role === 'DRIVER' && id ? routes.myTripDetail(id) : null;
     case 'advance_settlements':
-      if (role === 'FORWARDER') return id ? routes.mySettlementDetail(id) : routes.mySettlements;
+      if (role === 'OPS') return id ? routes.mySettlementDetail(id) : routes.mySettlements;
       return id ? `/settlements/${id}` : '/payables/forwarder-advances';
     case 'shipments':
       return id ? `/dispatch?shipmentId=${id}` : routes.dispatch;

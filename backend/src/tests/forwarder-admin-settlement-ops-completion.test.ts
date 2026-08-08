@@ -35,7 +35,7 @@ describe('forwarder admin settlement ops completion summaries', () => {
       expenseType: 'LIFTING',
       buyAmount: '100000',
       sellAmount: '100000',
-      settlementMethod: 'FORWARDER_ADVANCE',
+      settlementMethod: 'OPS_ADVANCE',
       approvalStatus: 'PENDING',
       tripContainerId: options.tripContainerId ?? null,
       containerNumber: options.containerNumber ?? null,
@@ -121,7 +121,7 @@ describe('forwarder admin settlement ops completion summaries', () => {
   after(async () => {
     if (ids.settlements.length) {
       await db.delete(s.ledger).where(and(
-        eq(s.ledger.txnType, TxnType.FORWARDER_SETTLEMENT),
+        eq(s.ledger.txnType, TxnType.OPS_SETTLEMENT),
         inArray(s.ledger.txnId, ids.settlements),
       ));
       await db.delete(s.settlementExpenses).where(inArray(s.settlementExpenses.settlementId, ids.settlements));

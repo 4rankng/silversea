@@ -79,9 +79,9 @@ describe('M5.4 — getArSplitReport', () => {
     assert.equal(report.invariantHolds, true);
   });
 
-  test('FORWARDER_ADVANCE goes to disbursement', async () => {
+  test('OPS_ADVANCE goes to disbursement', async () => {
     const c = await mkCustomer();
-    await mkLedger(c.id, 'FORWARDER_ADVANCE', 400_000);
+    await mkLedger(c.id, 'OPS_ADVANCE', 400_000);
     const report = await getArSplitReport(c.id);
     assert.equal(report.disbursement, 400_000);
     assert.equal(report.freight, 0);

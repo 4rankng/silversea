@@ -250,7 +250,7 @@ describe('customer account scope', () => {
     });
   });
 
-  it('requires a CLERK to have at least one business unit and one customer or shipment', async () => {
+  it('requires a CUS to have at least one business unit and one customer or shipment', async () => {
     const onSave = vi.fn().mockResolvedValue(true);
 
     render(
@@ -268,7 +268,7 @@ describe('customer account scope', () => {
     );
 
     fireEvent.change(screen.getByText('Vai trò').closest('label')!.querySelector('select')!, {
-      target: { value: Role.CLERK },
+      target: { value: Role.CUS },
     });
 
     const submitButton = screen.getByRole('button', { name: 'Tạo tài khoản' });
@@ -286,7 +286,7 @@ describe('customer account scope', () => {
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
-        role: Role.CLERK,
+        role: Role.CUS,
         businessUnitIds: [11],
         shipmentIds: [101],
         customerIds: [],
@@ -324,7 +324,7 @@ describe('customer account scope', () => {
     });
   });
 
-  it('loads and updates an existing CLERK assignment set', async () => {
+  it('loads and updates an existing CUS assignment set', async () => {
     const onSave = vi.fn().mockResolvedValue(true);
     const user: UserRow = {
       id: 52,
@@ -332,7 +332,7 @@ describe('customer account scope', () => {
       fullName: 'Nhân viên chứng từ',
       email: 'clerk@example.com',
       phone: '0901000000',
-      role: Role.CLERK,
+      role: Role.CUS,
       status: 'ACTIVE',
       createdAt: '2026-07-27T00:00:00.000Z',
       customerId: 7,
@@ -368,7 +368,7 @@ describe('customer account scope', () => {
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith(52, expect.objectContaining({
-        role: Role.CLERK,
+        role: Role.CUS,
         businessUnitIds: [11, 12],
         shipmentIds: [101],
         customerIds: [],

@@ -159,7 +159,7 @@ function Topbar({
     [user.capabilities, user.role],
   );
   const matchedItems = React.useMemo(() => filterItems(roleItems, searchQuery), [roleItems, searchQuery]);
-  const canUseNotifications = ['ADMIN', 'MANAGER', 'ACCOUNTANT', 'DRIVER', 'FORWARDER'].includes(user.role);
+  const canUseNotifications = ['ADMIN', 'MANAGER', 'ACCOUNTANT', 'DRIVER', 'OPS'].includes(user.role);
 
   React.useEffect(() => { setActiveIndex(0); }, [searchQuery]);
 

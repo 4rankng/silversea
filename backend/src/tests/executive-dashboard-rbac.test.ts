@@ -39,7 +39,7 @@ after(async () => {
 });
 
 describe('executive dashboard route authority', () => {
-  for (const role of [Role.ACCOUNTANT, Role.CLERK, Role.CUSTOMER, Role.DRIVER, Role.FORWARDER]) {
+  for (const role of [Role.ACCOUNTANT, Role.CUS, Role.CUSTOMER, Role.DRIVER, Role.OPS]) {
     test(`denies ${role} before loading executive financial data`, async () => {
       const response = await fetch(`${baseUrl}/api/reports/dashboard`, {
         headers: { 'X-Test-Role': role },

@@ -4,13 +4,13 @@ import { accountantSettlementExpensePatchSchema, tripExpensePatchSchema, tripExp
 import { getTripExpenseRequiredFieldError } from '../services/forwarder.service';
 
 describe('forwarder expense validation', () => {
-  test('accepts FORWARDER_ADVANCE when the route injects the authenticated forwarder id', () => {
+  test('accepts OPS_ADVANCE when the route injects the authenticated forwarder id', () => {
     const parsed = tripExpenseSchema.safeParse({
       tripId: 1,
       expenseType: 'LIFTING',
       buyAmount: 1_500_000,
       sellAmount: 1_500_000,
-      settlementMethod: 'FORWARDER_ADVANCE',
+      settlementMethod: 'OPS_ADVANCE',
       forwarderId: 42,
       invoiceNumber: '1664',
       invoiceDate: '2026-06-28',
@@ -22,13 +22,13 @@ describe('forwarder expense validation', () => {
     assert.equal(parsed.data.forwarderId, 42);
   });
 
-  test('still rejects FORWARDER_ADVANCE without a forwarder counterparty', () => {
+  test('still rejects OPS_ADVANCE without a forwarder counterparty', () => {
     const parsed = tripExpenseSchema.safeParse({
       tripId: 1,
       expenseType: 'LIFTING',
       buyAmount: 1_500_000,
       sellAmount: 1_500_000,
-      settlementMethod: 'FORWARDER_ADVANCE',
+      settlementMethod: 'OPS_ADVANCE',
     });
 
     assert.equal(parsed.success, false);
@@ -69,7 +69,7 @@ describe('forwarder expense validation', () => {
       expenseType: 'LIFTING',
       buyAmount: 1_782_000,
       sellAmount: 1_782_000,
-      settlementMethod: 'FORWARDER_ADVANCE',
+      settlementMethod: 'OPS_ADVANCE',
       supplierId: null,
       invoiceNumber: null,
       invoiceDate: null,

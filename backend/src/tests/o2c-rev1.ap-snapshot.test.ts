@@ -77,7 +77,7 @@ after(async () => {
 
 async function createTripFixture(overrides?: {
   buyAmount?: string;
-  settlementMethod?: 'COMPANY_DIRECT' | 'FORWARDER_ADVANCE';
+  settlementMethod?: 'COMPANY_DIRECT' | 'OPS_ADVANCE';
   approvalStatus?: 'APPROVED' | 'PENDING';
   sellAmount?: string;
   supplierId?: number | null;
@@ -216,7 +216,7 @@ describe('O2C rev1 Phase 4 — AP snapshot dirtying', () => {
 
   test('supplier-tagged but non-payable fees do not dirty AP when they change', async () => {
     const { trip, expense } = await createTripFixture({
-      settlementMethod: 'FORWARDER_ADVANCE',
+      settlementMethod: 'OPS_ADVANCE',
     });
     await completeTripGoverned(trip.id, trip.version);
 

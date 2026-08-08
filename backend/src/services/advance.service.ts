@@ -395,7 +395,7 @@ export async function approveAdvanceRequest(
     if (!updated) throw new AdvanceError(409, 'Request was modified by another operation');
 
     await LedgerService.postEntry(tx, {
-      txnType: TxnType.FORWARDER_ADVANCE,
+      txnType: TxnType.OPS_ADVANCE,
       txnId: request.id,
       entityType: 'FORWARDER',
       entityId: request.requesterId,
@@ -588,7 +588,7 @@ export async function createAdvanceSettlement(
  *
  * Fires on every trip-expense approval (called from propagateExpenseApproval in
  * source-change.service.ts). Auto-creates an APPROVED settlement that FIFO-links
- * the forwarder's outstanding advances and posts the FORWARDER_SETTLEMENT offset
+ * the forwarder's outstanding advances and posts the OPS_SETTLEMENT offset
  * — no second human approval (PRD: "tự động sinh"). The four required pieces for
  * getOutstandingAdvanceBalance to drop are created: APPROVED settlement +
  * advance-request link + expense link + ledger debit.
@@ -596,7 +596,7 @@ export async function createAdvanceSettlement(
  * Guarded so it never double-posts:
  *  - skips when the expense is already linked to a non-dead settlement (the
  *    manual batch flow approves expenses via the same hook);
- *  - skips unless settlementMethod = FORWARDER_ADVANCE with a forwarderId
+ *  - skips unless settlementMethod = OPS_ADVANCE with a forwarderId
  *    (COMPANY_DIRECT expenses were never fronted by Ops; drivers have no
  *    advances today — PRD's "Lái xe" is forwarder-scoped here);
  *  - skips when the forwarder has no outstanding advance (nothing to offset).
@@ -610,7 +610,7 @@ export async function autoOffsetExpenseApproval(tx: Tx, expenseId: number): Prom
 
   if (!initialExpense) return;
   if (initialExpense.approvalStatus !== 'APPROVED') return;
-  if (initialExpense.settlementMethod !== 'FORWARDER_ADVANCE') return;
+  if (initialExpense.settlementMethod !== 'OPS_ADVANCE') return;
   const initialForwarderId = initialExpense.forwarderId ?? initialExpense.createdBy;
   if (!initialForwarderId) return;
 
@@ -638,7 +638,7 @@ export async function autoOffsetExpenseApproval(tx: Tx, expenseId: number): Prom
     .from(s.tripExpenses).where(eq(s.tripExpenses.id, expenseId)).limit(1);
   if (!expense) return;
   if (expense.approvalStatus !== 'APPROVED') return;
-  if (expense.settlementMethod !== 'FORWARDER_ADVANCE') return;
+  if (expense.settlementMethod !== 'OPS_ADVANCE') return;
   const forwarderId = expense.forwarderId ?? expense.createdBy;
   if (!forwarderId || forwarderId !== initialForwarderId) return;
   const amount = round2dp(Number(expense.buyAmount));
@@ -758,7 +758,7 @@ export async function autoOffsetExpenseApproval(tx: Tx, expenseId: number): Prom
   // Post the offset ledger entry — mirrors the manual settlement posting shape
   // (advance.service.ts:1166-1174) so the forwarder balance behaves identically.
   await LedgerService.postEntry(tx, {
-    txnType: TxnType.FORWARDER_SETTLEMENT,
+    txnType: TxnType.OPS_SETTLEMENT,
     txnId: settlement.id,
     entityType: 'FORWARDER',
     entityId: forwarderId,
@@ -1353,7 +1353,7 @@ export async function approveAdvanceSettlement(
 
     const totalAmount = totalExpenseAmount + Number(settlement.refundAmount);
     await LedgerService.postEntry(tx, {
-      txnType: TxnType.FORWARDER_SETTLEMENT,
+      txnType: TxnType.OPS_SETTLEMENT,
       txnId: settlement.id,
       entityType: 'FORWARDER',
       entityId: settlement.forwarderId,

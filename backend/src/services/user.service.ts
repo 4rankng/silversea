@@ -143,7 +143,7 @@ function driverBusinessUnitIds(
   role: string,
   businessUnitIds: number[],
 ): number[] {
-  return role === Role.CLERK || role === Role.DRIVER ? businessUnitIds : [];
+  return role === Role.CUS || role === Role.DRIVER ? businessUnitIds : [];
 }
 
 function canonicalIdentity(value: string | null | undefined): string | null {
@@ -538,7 +538,7 @@ export async function createUserWithTx(tx: Tx, data: {
   const businessUnitIds = [...new Set((data.businessUnitIds ?? []).filter((id): id is number => Number.isInteger(id) && id > 0))].sort((a, b) => a - b);
   const shipmentIds = [...new Set((data.shipmentIds ?? []).filter((id): id is number => Number.isInteger(id) && id > 0))].sort((a, b) => a - b);
   if (data.role !== Role.CUSTOMER && customerIds.length > 0) {
-    if (data.role !== Role.CLERK && data.role !== Role.ACCOUNTANT) {
+    if (data.role !== Role.CUS && data.role !== Role.ACCOUNTANT) {
       throw new ApiError(400, 'Chỉ tài khoản khách hàng, nhân viên chứng từ hoặc kế toán mới được liên kết khách hàng');
     }
   }
@@ -555,7 +555,7 @@ export async function createUserWithTx(tx: Tx, data: {
       throw new ApiError(400, 'Tài khoản khách hàng ACTIVE phải có ít nhất một khách hàng liên kết');
     }
     await validateCustomerIds(tx, customerIds);
-  } else if (data.role === Role.CLERK) {
+  } else if (data.role === Role.CUS) {
     if (data.assignmentAdminOnly && (customerIds.length > 0 || businessUnitIds.length > 0 || shipmentIds.length > 0)) {
       throw new ApiError(403, 'Chỉ quản trị viên mới có thể quản lý phạm vi nhân viên chứng từ');
     }
@@ -581,7 +581,7 @@ export async function createUserWithTx(tx: Tx, data: {
     if (shipmentIds.length > 0) {
       throw new ApiError(400, 'Lái xe không được liên kết lô hàng');
     }
-  } else if (data.role === Role.FORWARDER) {
+  } else if (data.role === Role.OPS) {
     if (data.assignmentAdminOnly && shipmentIds.length > 0) {
       throw new ApiError(403, 'Chỉ quản trị viên mới có thể quản lý lô hàng của nhân viên giao nhận');
     }
@@ -607,7 +607,7 @@ export async function createUserWithTx(tx: Tx, data: {
     passwordHash,
     role: data.role as (typeof users.role.enumValues)[number],
     status: data.status ?? 'ACTIVE',
-    customerId: data.role === Role.CUSTOMER || data.role === Role.CLERK ? customerIds[0] ?? null : null,
+    customerId: data.role === Role.CUSTOMER || data.role === Role.CUS ? customerIds[0] ?? null : null,
     customerAccountType: data.role === Role.CUSTOMER
       ? data.customerAccountType ?? CustomerAccountType.SINGLE_ENTITY
       : CustomerAccountType.SINGLE_ENTITY,
@@ -616,7 +616,7 @@ export async function createUserWithTx(tx: Tx, data: {
   await syncCustomerLinks(
     tx,
     created.id,
-    data.role === Role.CUSTOMER || data.role === Role.CLERK || data.role === Role.ACCOUNTANT
+    data.role === Role.CUSTOMER || data.role === Role.CUS || data.role === Role.ACCOUNTANT
       ? customerIds
       : [],
   );
@@ -624,7 +624,7 @@ export async function createUserWithTx(tx: Tx, data: {
   await syncShipmentLinks(
     tx,
     created.id,
-    data.role === Role.CLERK || data.role === Role.FORWARDER ? shipmentIds : [],
+    data.role === Role.CUS || data.role === Role.OPS ? shipmentIds : [],
   );
 
   const [withDriver] = await selectUserWithDriver(tx, eq(users.id, created.id)).limit(1);
@@ -734,10 +734,10 @@ export async function updateUserWithTx(id: number, data: {
 
   if (
     effectiveRole !== Role.CUSTOMER
-    && effectiveRole !== Role.CLERK
+    && effectiveRole !== Role.CUS
     && effectiveRole !== Role.ACCOUNTANT
     && effectiveRole !== Role.DRIVER
-    && effectiveRole !== Role.FORWARDER
+    && effectiveRole !== Role.OPS
   ) {
     if (explicitCustomerLinkUpdate && normalizeCustomerIds(data).length > 0) {
       throw new ApiError(400, 'Chỉ tài khoản khách hàng, nhân viên chứng từ hoặc kế toán mới được liên kết khách hàng');
@@ -809,7 +809,7 @@ export async function updateUserWithTx(id: number, data: {
       if (explicitShipmentUpdate && (data.shipmentIds ?? []).length > 0) {
         throw new ApiError(400, 'Lái xe không được liên kết lô hàng');
       }
-    } else if (effectiveRole === Role.FORWARDER) {
+    } else if (effectiveRole === Role.OPS) {
       nextCustomerIds = [];
       nextBusinessUnitIds = [];
       if (explicitCustomerLinkUpdate && normalizeCustomerIds(data).length > 0) {
@@ -848,7 +848,7 @@ export async function updateUserWithTx(id: number, data: {
       nextShipmentIds = [...new Set((data.shipmentIds ?? []).filter((value): value is number => Number.isInteger(value) && value > 0))].sort((a, b) => a - b);
     }
     await validateShipmentIds(tx, nextShipmentIds, { businessUnitIds: nextBusinessUnitIds });
-    const existingActiveLegacyClerk = existing.role === Role.CLERK
+    const existingActiveLegacyClerk = existing.role === Role.CUS
       && existing.status !== 'INACTIVE'
       && !hasActiveClerkScope(existingBusinessUnitIds, existingCustomerIds, existingShipmentIds);
     const scopeOrRoleTouched = explicitCustomerLinkUpdate
@@ -873,7 +873,7 @@ export async function updateUserWithTx(id: number, data: {
   if (data.fullName !== undefined) updates.fullName = data.fullName || null;
   if (data.email !== undefined) updates.email = data.email || null;
   if (data.phone !== undefined) updates.phone = data.phone || null;
-  updates.customerId = effectiveRole === Role.CUSTOMER || effectiveRole === Role.CLERK ? nextCustomerIds[0] ?? null : null;
+  updates.customerId = effectiveRole === Role.CUSTOMER || effectiveRole === Role.CUS ? nextCustomerIds[0] ?? null : null;
   updates.customerAccountType = effectiveCustomerAccountType;
 
   await assertUserIdentityAvailable(tx, {
@@ -892,7 +892,7 @@ export async function updateUserWithTx(id: number, data: {
   await syncShipmentLinks(
     tx,
     id,
-    effectiveRole === Role.CLERK || effectiveRole === Role.FORWARDER ? nextShipmentIds : [],
+    effectiveRole === Role.CUS || effectiveRole === Role.OPS ? nextShipmentIds : [],
   );
 
   if (effectiveRole === Role.DRIVER) {
@@ -1078,7 +1078,7 @@ export async function getCapabilities(role: string): Promise<string[]> {
   if (await enforcer.enforce(role, 'shipments', 'write')) capabilities.push('shipments.write');
   if (role === Role.CUSTOMER) capabilities.push('customer_portal');
   if (role === Role.DRIVER) capabilities.push('driver_portal');
-  if (role === Role.FORWARDER) capabilities.push('forwarder_portal');
+  if (role === Role.OPS) capabilities.push('forwarder_portal');
 
   if (await enforcer.enforce(role, 'recoverable_costs', 'read')) capabilities.push('recoverable_costs.read');
   if (await enforcer.enforce(role, 'recoverable_costs', 'write')) capabilities.push('recoverable_costs.request');
@@ -1140,7 +1140,7 @@ export async function updateBusinessUnitWithTx(
         .innerJoin(users, eq(userBusinessUnitLinks.userId, users.id))
         .where(and(
           eq(userBusinessUnitLinks.businessUnitId, id),
-          eq(users.role, Role.CLERK),
+          eq(users.role, Role.CUS),
           eq(users.status, 'ACTIVE'),
           isNull(users.deletedAt),
         ));

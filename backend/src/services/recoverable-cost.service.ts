@@ -371,7 +371,7 @@ export async function requestRecoverableCostDecision(input: {
     .limit(1)
     .for('update');
   if (!source || source.shipmentId == null) throw new ApiError(404, 'Không tìm thấy chi phí thu hộ');
-  if (input.actor.role === Role.CLERK) {
+  if (input.actor.role === Role.CUS) {
     const scope = await loadClerkShipmentScope(input.actor.userId, input.transaction);
     assertClerkCanAccessShipment(scope, {
       id: source.shipmentId,

@@ -51,13 +51,13 @@ before(async () => {
     {
       username: `forwarder-scope-a-${suffix}`,
       passwordHash: 'test-only',
-      role: Role.FORWARDER,
+      role: Role.OPS,
       status: 'ACTIVE',
     },
     {
       username: `forwarder-scope-b-${suffix}`,
       passwordHash: 'test-only',
-      role: Role.FORWARDER,
+      role: Role.OPS,
       status: 'ACTIVE',
     },
   ]).returning({ id: s.users.id });
@@ -188,7 +188,7 @@ describe('forwarder shipment scope', () => {
       () => createUser({
         username: `forwarder-unassigned-${suffix}`,
         password: 'test-only-password',
-        role: Role.FORWARDER,
+        role: Role.OPS,
         status: 'ACTIVE',
       }),
       /ít nhất một lô hàng/,
@@ -196,7 +196,7 @@ describe('forwarder shipment scope', () => {
     const assigned = await createUser({
       username: `forwarder-assigned-${suffix}`,
       password: 'test-only-password',
-      role: Role.FORWARDER,
+      role: Role.OPS,
       status: 'ACTIVE',
       shipmentIds: [shipmentA],
     });
@@ -314,7 +314,7 @@ describe('forwarder shipment scope', () => {
       () => createUser({
         username: `forwarder-terminal-${suffix}`,
         password: 'test-only-password',
-        role: Role.FORWARDER,
+        role: Role.OPS,
         status: 'ACTIVE',
         shipmentIds: [shipmentA],
       }),

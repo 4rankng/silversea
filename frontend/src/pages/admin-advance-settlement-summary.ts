@@ -1,4 +1,4 @@
-import { FORWARDER_EXPENSE_TYPE_DEFAULTS } from '@tingting/shared';
+import { OPS_EXPENSE_TYPE_DEFAULTS } from '@tingting/shared';
 
 export interface SettlementExpenseSummaryItem {
   tripId: number;
@@ -99,7 +99,7 @@ export function groupSettlementExpensesByTrip(
     const current = row.categories.get(expense.expenseType);
     row.categories.set(expense.expenseType, {
       label: expense.expenseTypeName?.trim()
-        || FORWARDER_EXPENSE_TYPE_DEFAULTS[expense.expenseType]?.name
+        || OPS_EXPENSE_TYPE_DEFAULTS[expense.expenseType]?.name
         || expense.expenseType,
       amount: (current?.amount ?? 0) + amount,
     });

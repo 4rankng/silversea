@@ -729,7 +729,7 @@ export async function propagateExpenseApproval(tx: Tx, input: {
   // duyệt, hệ thống tự động sinh bút toán cấn trừ"). Lazy import avoids the
   // advance.service ↔ source-change.service module cycle; the function is
   // internally guarded against double-posting (manual batch flow uses the same
-  // hook) and skips non-FORWARDER_ADVANCE / driver expenses.
+  // hook) and skips non-OPS_ADVANCE / driver expenses.
   const { autoOffsetExpenseApproval } = await import('./advance.service.js');
   await autoOffsetExpenseApproval(tx, input.expenseId);
   const desired = await buildExpenseDraftLineTx(tx, input.expenseId);

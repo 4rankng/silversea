@@ -79,7 +79,7 @@ describe('forwarder settlement streamlined workflow', () => {
       buyAmount: String(options.buyAmount ?? 100_000),
       sellAmount: String(options.sellAmount ?? 120_000),
       expenseDate: options.expenseDate ?? '2026-07-11',
-      settlementMethod: 'FORWARDER_ADVANCE',
+      settlementMethod: 'OPS_ADVANCE',
       approvalStatus: options.approvalStatus ?? 'PENDING',
       tripContainerId: options.tripContainerId ?? null,
     }).returning();
@@ -188,7 +188,7 @@ describe('forwarder settlement streamlined workflow', () => {
     if (ids.settlements.length) {
       await db.delete(s.ledger).where(and(
         eq(s.ledger.entityType, 'FORWARDER'),
-        inArray(s.ledger.txnType, [TxnType.FORWARDER_SETTLEMENT, TxnType.ADJUSTMENT]),
+        inArray(s.ledger.txnType, [TxnType.OPS_SETTLEMENT, TxnType.ADJUSTMENT]),
         inArray(s.ledger.txnId, ids.settlements),
       ));
       await db.delete(s.settlementExpenseAdjustments)
@@ -557,7 +557,7 @@ describe('forwarder settlement streamlined workflow', () => {
 
     const [savedSettlement] = await db.select().from(s.advanceSettlements).where(eq(s.advanceSettlements.id, settlement.id));
     const ledgerRows = await db.select().from(s.ledger).where(and(
-      eq(s.ledger.txnType, TxnType.FORWARDER_SETTLEMENT), eq(s.ledger.txnId, settlement.id),
+      eq(s.ledger.txnType, TxnType.OPS_SETTLEMENT), eq(s.ledger.txnId, settlement.id),
     ));
     assert.equal(savedSettlement.status, 'REJECTED');
     assert.equal(savedSettlement.checkedBy, accountantId);
@@ -579,7 +579,7 @@ describe('forwarder settlement streamlined workflow', () => {
     const [savedSettlement] = await db.select().from(s.advanceSettlements).where(eq(s.advanceSettlements.id, settlement.id));
     const [savedExpense] = await db.select().from(s.tripExpenses).where(eq(s.tripExpenses.id, expense.id));
     const ledgerRows = await db.select().from(s.ledger).where(and(
-      eq(s.ledger.txnType, TxnType.FORWARDER_SETTLEMENT), eq(s.ledger.txnId, settlement.id),
+      eq(s.ledger.txnType, TxnType.OPS_SETTLEMENT), eq(s.ledger.txnId, settlement.id),
     ));
     assert.equal(savedSettlement.status, 'APPROVED');
     assert.equal(savedSettlement.checkedBy, accountantId);
@@ -590,7 +590,7 @@ describe('forwarder settlement streamlined workflow', () => {
 
     await assert.rejects(() => approveAdvanceSettlement(settlement.id, approverId), /Cannot approve settlement with status APPROVED/);
     const ledgerRowsAfterRetry = await db.select().from(s.ledger).where(and(
-      eq(s.ledger.txnType, TxnType.FORWARDER_SETTLEMENT), eq(s.ledger.txnId, settlement.id),
+      eq(s.ledger.txnType, TxnType.OPS_SETTLEMENT), eq(s.ledger.txnId, settlement.id),
     ));
     assert.equal(ledgerRowsAfterRetry.length, 1);
     await assert.rejects(
@@ -838,7 +838,7 @@ describe('forwarder settlement streamlined workflow', () => {
     const [saved] = await db.select().from(s.advanceSettlements)
       .where(eq(s.advanceSettlements.id, settlement.id));
     const ledgerRows = await db.select().from(s.ledger).where(and(
-      eq(s.ledger.txnType, TxnType.FORWARDER_SETTLEMENT),
+      eq(s.ledger.txnType, TxnType.OPS_SETTLEMENT),
       eq(s.ledger.txnId, settlement.id),
     ));
     assert.equal(saved.status, 'APPROVED');

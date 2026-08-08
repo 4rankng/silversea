@@ -79,7 +79,7 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
       expenseType: fee.expenseType as AncillaryExpenseType,
       buyAmount: fee.buyAmount ? String(fee.buyAmount) : '',
       sellAmount: fee.sellAmount ? String(fee.sellAmount) : '',
-      settlementMethod: fee.settlementMethod as 'COMPANY_DIRECT' | 'FORWARDER_ADVANCE',
+      settlementMethod: fee.settlementMethod as 'COMPANY_DIRECT' | 'OPS_ADVANCE',
       supplierId: fee.supplierId ? String(fee.supplierId) : '',
       forwarderId: fee.forwarderId ? String(fee.forwarderId) : '',
       containerNumber: fee.containerNumber || '',

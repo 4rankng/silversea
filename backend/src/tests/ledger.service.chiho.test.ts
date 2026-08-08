@@ -48,7 +48,7 @@ after(async () => {
   }
   cleanupStep = 'ledger';
   // Ledger rows reference both trip ids (TRIP_REVENUE) and expense ids
-  // (SERVICE_FEE / VENDOR_EXPENSE / FORWARDER_ADVANCE) via txnId.
+  // (SERVICE_FEE / VENDOR_EXPENSE / OPS_ADVANCE) via txnId.
   const allTxnIds = [...createdTripIds, ...createdExpenseIds];
   if (allTxnIds.length > 0) {
     await db.delete(s.ledger).where(inArray(s.ledger.txnId, allTxnIds));
@@ -176,7 +176,7 @@ async function completeTripGoverned(tripId: number, expectedVersion: number) {
 interface FeeSpec {
   buyAmount: number;
   sellAmount: number;
-  settlementMethod: 'COMPANY_DIRECT' | 'FORWARDER_ADVANCE';
+  settlementMethod: 'COMPANY_DIRECT' | 'OPS_ADVANCE';
   supplierId?: number;
   forwarderId?: number;
   approvalStatus?: string;
@@ -207,7 +207,7 @@ async function createInTransitTripWithFees(
     supplierId = supplier.id;
     createdSupplierIds.push(supplierId);
   }
-  if (fees.some(f => f.settlementMethod === 'FORWARDER_ADVANCE')) {
+  if (fees.some(f => f.settlementMethod === 'OPS_ADVANCE')) {
     // Application-owned relationship validation requires an active FORWARDER
     // account, matching the real expense-entry boundary.
     const [fwd] = await db.insert(s.users)
@@ -249,7 +249,7 @@ async function createInTransitTripWithFees(
   for (const fee of fees) {
     const [row] = await db.insert(s.tripExpenses).values({
       tripId: trip.id,
-      forwarderId: fee.settlementMethod === 'FORWARDER_ADVANCE' ? (fee.forwarderId ?? forwarderId!) : null,
+      forwarderId: fee.settlementMethod === 'OPS_ADVANCE' ? (fee.forwarderId ?? forwarderId!) : null,
       expenseType: fee.expenseType ?? 'CHI_HO',
       buyAmount: String(fee.buyAmount),
       sellAmount: String(fee.sellAmount),
@@ -283,7 +283,7 @@ async function insertRawFee(
   overrides: {
     buyAmount: number;
     sellAmount: number;
-    settlementMethod: 'COMPANY_DIRECT' | 'FORWARDER_ADVANCE';
+    settlementMethod: 'COMPANY_DIRECT' | 'OPS_ADVANCE';
     forwarderId?: number | null;
     supplierId?: number | null;
     approvalStatus?: string;
@@ -309,8 +309,8 @@ describe('chi hộ (service-fee) sell-side AR ledger posting', () => {
     const { trip, customer, expenseRows } = await createInTransitTripWithFees(
       { revenue },
       [
-        // FORWARDER_ADVANCE fee: buy 100k, sell 120k
-        { buyAmount: 100_000, sellAmount: 120_000, settlementMethod: 'FORWARDER_ADVANCE' },
+        // OPS_ADVANCE fee: buy 100k, sell 120k
+        { buyAmount: 100_000, sellAmount: 120_000, settlementMethod: 'OPS_ADVANCE' },
         // COMPANY_DIRECT fee: buy 80k, sell 95k
         { buyAmount: 80_000, sellAmount: 95_000, settlementMethod: 'COMPANY_DIRECT' },
       ],
@@ -432,7 +432,7 @@ describe('chi hộ (service-fee) sell-side AR ledger posting', () => {
     const { trip, customer } = await createInTransitTripWithFees(
       { revenue },
       [
-        { buyAmount: 100_000, sellAmount: 120_000, settlementMethod: 'FORWARDER_ADVANCE' },
+        { buyAmount: 100_000, sellAmount: 120_000, settlementMethod: 'OPS_ADVANCE' },
         { buyAmount: 80_000, sellAmount: 95_000, settlementMethod: 'COMPANY_DIRECT' },
       ],
     );
@@ -482,7 +482,7 @@ describe('chi hộ (service-fee) sell-side AR ledger posting', () => {
     const fee = await insertRawFee(trip.id, {
       buyAmount: 100_000,
       sellAmount: 120_000,
-      settlementMethod: 'FORWARDER_ADVANCE',
+      settlementMethod: 'OPS_ADVANCE',
       forwarderId: null,
       supplierId: null,
       approvalStatus: 'APPROVED',
@@ -532,7 +532,7 @@ describe('chi hộ (service-fee) sell-side AR ledger posting', () => {
     const fee = await insertRawFee(trip.id, {
       buyAmount: 100_000,
       sellAmount: 120_000,
-      settlementMethod: 'FORWARDER_ADVANCE',
+      settlementMethod: 'OPS_ADVANCE',
       forwarderId: null,
       supplierId: null,
       approvalStatus: 'APPROVED',
@@ -556,7 +556,7 @@ describe('chi hộ (service-fee) sell-side AR ledger posting', () => {
               id: fee.id,
               buyAmount: '100000',
               sellAmount: '120000',
-              settlementMethod: 'FORWARDER_ADVANCE',
+              settlementMethod: 'OPS_ADVANCE',
               supplierId: null,
               forwarderId: null,
               approvalStatus: 'APPROVED',
@@ -595,7 +595,7 @@ describe('chi hộ (service-fee) sell-side AR ledger posting', () => {
   // D2: forwarder.service createTripExpense counterparty guard
   // ─────────────────────────────────────────────────────────────────────────
 
-  test('createTripExpense accepts a FORWARDER_ADVANCE fee with no forwarder', async () => {
+  test('createTripExpense accepts a OPS_ADVANCE fee with no forwarder', async () => {
     const { trip } = await createInTransitTripWithFees({ revenue: 1_000_000 }, []);
     const inserted = await createTripExpense(db, {
       tripId: trip.id,
@@ -604,7 +604,7 @@ describe('chi hộ (service-fee) sell-side AR ledger posting', () => {
       buyAmount: '100000',
       sellAmount: '120000',
       invoiceNumber: 'CHI-HO-TEST',
-      settlementMethod: 'FORWARDER_ADVANCE',
+      settlementMethod: 'OPS_ADVANCE',
       supplierId: null,
       note: null,
     });
@@ -633,12 +633,12 @@ describe('chi hộ (service-fee) sell-side AR ledger posting', () => {
     createdExpenseIds.push(inserted.id);
   });
 
-  test('createTripExpense accepts a balanced FORWARDER_ADVANCE fee with a forwarder', async () => {
+  test('createTripExpense accepts a balanced OPS_ADVANCE fee with a forwarder', async () => {
     // createInTransitTripWithFees creates a forwarder user when asked for a
-    // FORWARDER_ADVANCE fee; we reuse that forwarderId here.
+    // OPS_ADVANCE fee; we reuse that forwarderId here.
     const { trip, forwarderId } = await createInTransitTripWithFees(
       { revenue: 1_000_000 },
-      [{ buyAmount: 1, sellAmount: 1, settlementMethod: 'FORWARDER_ADVANCE' }],
+      [{ buyAmount: 1, sellAmount: 1, settlementMethod: 'OPS_ADVANCE' }],
     );
     assert.ok(forwarderId, 'helper created a forwarder');
 
@@ -649,7 +649,7 @@ describe('chi hộ (service-fee) sell-side AR ledger posting', () => {
       buyAmount: '100000',
       sellAmount: '120000',
       invoiceNumber: 'CHI-HO-TEST',
-      settlementMethod: 'FORWARDER_ADVANCE',
+      settlementMethod: 'OPS_ADVANCE',
       supplierId: null,
       note: null,
     });
@@ -659,10 +659,10 @@ describe('chi hộ (service-fee) sell-side AR ledger posting', () => {
     createdExpenseIds.push(inserted.id);
   });
 
-  test('createTripExpense accepts an office-approved FORWARDER_ADVANCE fee with a forwarder', async () => {
+  test('createTripExpense accepts an office-approved OPS_ADVANCE fee with a forwarder', async () => {
     const { trip, forwarderId } = await createInTransitTripWithFees(
       { revenue: 1_000_000 },
-      [{ buyAmount: 1, sellAmount: 1, settlementMethod: 'FORWARDER_ADVANCE' }],
+      [{ buyAmount: 1, sellAmount: 1, settlementMethod: 'OPS_ADVANCE' }],
     );
     assert.ok(forwarderId, 'helper created a forwarder');
 
@@ -673,7 +673,7 @@ describe('chi hộ (service-fee) sell-side AR ledger posting', () => {
       buyAmount: '100000',
       sellAmount: '120000',
       invoiceNumber: 'CHI-HO-TEST',
-      settlementMethod: 'FORWARDER_ADVANCE',
+      settlementMethod: 'OPS_ADVANCE',
       supplierId: null,
       approvalStatus: 'APPROVED',
       note: null,

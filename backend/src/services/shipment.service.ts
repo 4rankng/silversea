@@ -1553,7 +1553,7 @@ export async function transitionShipmentStatus(
 }
 
 function isPodReviewWriter(actor: AuthUser): boolean {
-  return actor.role === Role.CLERK;
+  return actor.role === Role.CUS;
 }
 
 function isRoutineShipmentCloseWriter(actor: AuthUser): boolean {
@@ -1646,7 +1646,7 @@ async function assertRoutineShipmentCloseCheckerSeparation(
     if (checker?.reviewedBy == null) {
       throw new ApiError(409, 'Chuyến chưa có người CUS/CLERK kiểm tra POD và hồ sơ chi phí.');
     }
-    if (checker.reviewerRole !== Role.CLERK) {
+    if (checker.reviewerRole !== Role.CUS) {
       throw new ApiError(409, 'Người kiểm tra POD và hồ sơ chi phí phải là CUS/CLERK.');
     }
     if (checker.reviewedBy === completerUserId) {
@@ -2746,7 +2746,7 @@ export async function downloadShipmentPodFile(
   try {
     await getShipmentDetail(shipmentId, actor);
   } catch (error) {
-    if (actor?.role === Role.CLERK && error instanceof ApiError && error.statusCode === 403) {
+    if (actor?.role === Role.CUS && error instanceof ApiError && error.statusCode === 403) {
       throw new ApiError(404, 'Không tìm thấy tệp e-POD.');
     }
     throw error;

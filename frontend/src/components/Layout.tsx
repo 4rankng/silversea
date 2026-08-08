@@ -224,9 +224,9 @@ export function getNavItems(
     }
 
     /* ─────────────────────────────────────────────────────────────────────────
-       CLERK (CUS - Customer Service): Document operations
+       CUS (Customer Service): Document operations
        ───────────────────────────────────────────────────────────────────────── */
-    case 'CLERK': {
+    case 'CUS': {
       return [
         // Nghiệp vụ Chứng từ (Document Operations)
         { key: 'shipments', label: 'Quản lý Lô hàng', path: routes.shipments, icon: Package, section: 'document-ops' as SectionName },
@@ -239,9 +239,9 @@ export function getNavItems(
     }
 
     /* ─────────────────────────────────────────────────────────────────────────
-       FORWARDER (Ops - Field Staff): My Work focus
+       OPS (Field Staff): My Work focus
        ───────────────────────────────────────────────────────────────────────── */
-    case 'FORWARDER': {
+    case 'OPS': {
       return [
         // Công việc của tôi (My Work)
         { key: 'my-orders', label: 'Lệnh giao nhận (Đổi lệnh)', path: routes.myOrders, icon: Package, section: 'my-work' as SectionName },
@@ -313,12 +313,12 @@ export function getNavSections(role: Role): NavSection[] {
         { key: 'dispatch-planning', label: 'Điều độ Phương tiện' },
         { key: 'resources', label: 'Quản lý Tài nguyên' },
       ];
-    case Role.CLERK:
+    case Role.CUS:
       return [
         { key: 'document-ops', label: 'Nghiệp vụ Chứng từ' },
         { key: 'reconciliation', label: 'Đối soát' },
       ];
-    case Role.FORWARDER:
+    case Role.OPS:
       return [{ key: 'my-work', label: 'Công việc của tôi' }];
     case Role.DRIVER:
       return [{ key: 'my-work', label: 'Công việc của tôi' }];

@@ -3,7 +3,7 @@ import { db } from './db';
 import * as schema from './db/schema';
 import {
   DEFAULT_NO_INVOICE_EVIDENCE_TYPES,
-  FORWARDER_EXPENSE_TYPE_DEFAULTS,
+  OPS_EXPENSE_TYPE_DEFAULTS,
   NO_INVOICE_POLICY_DEFAULTS,
   Role,
 } from '@tingting/shared';
@@ -33,10 +33,10 @@ export async function seed() {
     { username: 'admin', email: 'admin@nepo.vn', phone: '0900000000', passwordHash, role: Role.ADMIN, fullName: 'Trần Văn Admin' },
     { username: 'giamdoc', email: 'giamdoc@nepo.vn', phone: '0900000001', passwordHash, role: Role.MANAGER, fullName: 'Lê Văn Tỉnh' },
     { username: 'ketoan', email: 'ketoan@nepo.vn', phone: '0900000002', passwordHash, role: Role.ACCOUNTANT, fullName: 'Nguyễn Thị Mai' },
-    { username: 'cus', email: 'cus@nepo.vn', phone: '0900000005', passwordHash, role: Role.CLERK, fullName: 'Nhân viên CUS Demo' },
+    { username: 'cus', email: 'cus@nepo.vn', phone: '0900000005', passwordHash, role: Role.CUS, fullName: 'Nhân viên CUS Demo' },
     { username: 'dieuvan', email: 'dieuvan@nepo.vn', phone: '0900000006', passwordHash, role: Role.DISPATCHER, fullName: 'Nhân viên Điều vận Demo' },
     { username: 'laixe', email: 'laixe@nepo.vn', phone: '0900000003', passwordHash, role: Role.DRIVER, fullName: 'Phạm Văn Hùng' },
-    { username: 'giaonhan', email: 'giaonhan@nepo.vn', phone: '0900000004', passwordHash, role: Role.FORWARDER, fullName: 'Nguyễn Văn Giao' },
+    { username: 'giaonhan', email: 'giaonhan@nepo.vn', phone: '0900000004', passwordHash, role: Role.OPS, fullName: 'Nguyễn Văn Giao' },
     { username: 'thu', email: 'thu@nepo.vn', phone: '0900000010', passwordHash, role: Role.DRIVER, fullName: 'Nguyễn Văn Thụ' },
     { username: 'pho', email: 'pho@nepo.vn', phone: '0900000011', passwordHash, role: Role.DRIVER, fullName: 'Nguyễn Văn Phố' },
     { username: 'quyet', email: 'quyet@nepo.vn', phone: '0900000012', passwordHash, role: Role.DRIVER, fullName: 'Lê Văn Quyết' },
@@ -526,7 +526,7 @@ export async function seed() {
       .filter((row) => row.code)
       .map((row) => [normalizeSeedText(row.code), row.id] as const),
   );
-  for (const [code, meta] of Object.entries(FORWARDER_EXPENSE_TYPE_DEFAULTS)) {
+  for (const [code, meta] of Object.entries(OPS_EXPENSE_TYPE_DEFAULTS)) {
     const substituteEvidenceAllowed = defaultNoInvoiceCodes.has(code);
     const values = {
       code,
@@ -601,7 +601,7 @@ export async function seed() {
 
 export async function seedClerkScope(): Promise<void> {
   const [clerk] = await db.select({ id: schema.users.id }).from(schema.users)
-    .where(and(eq(schema.users.username, 'cus'), eq(schema.users.role, Role.CLERK), isNull(schema.users.deletedAt)))
+    .where(and(eq(schema.users.username, 'cus'), eq(schema.users.role, Role.CUS), isNull(schema.users.deletedAt)))
     .limit(1);
   if (!clerk) throw new Error('Không tìm thấy tài khoản CUS demo sau khi seed');
 

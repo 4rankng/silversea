@@ -264,7 +264,7 @@ describe('shipment intake submission', () => {
 
   test('denies ACCOUNTANT and an unscoped CLERK without mutation', async () => {
     const accountant = await actor(Role.ACCOUNTANT);
-    const clerk = await actor(Role.CLERK);
+    const clerk = await actor(Role.CUS);
     const ref = await references();
     const [shipment] = await db.insert(s.shipments).values({
       customerId: ref.customer.id,

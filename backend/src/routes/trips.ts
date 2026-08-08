@@ -564,7 +564,7 @@ router.post('/:id/cancel', asyncHandler(async (req: Request, res: Response) => {
 // Records physical paper return ("Đã thu hồi chứng từ gốc / POD mộc đỏ").
 // Distinct from digital e-POD acceptance. The IN_TRANSIT → COMPLETED transition
 // throws if this is null; only ACCOUNTANT or CLERK may set it.
-router.post('/:id/pod-recovered', requireRoles(Role.ACCOUNTANT, Role.CLERK), asyncHandler(async (req: Request, res: Response) => {
+router.post('/:id/pod-recovered', requireRoles(Role.ACCOUNTANT, Role.CUS), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
   const expectedVersion = getExpectedVersion(req.body);
   const user = getUser(req);
@@ -583,7 +583,7 @@ router.post('/:id/pod-recovered', requireRoles(Role.ACCOUNTANT, Role.CLERK), asy
 
 // ─── O2C field-ops hand-off timestamps (phase-04) ────────────────────────────
 // Ops (FORWARDER) records the paper-order hand-off; Driver confirms order receipt.
-router.post('/:id/paper-order-collected', requireRoles(Role.FORWARDER), asyncHandler(async (req: Request, res: Response) => {
+router.post('/:id/paper-order-collected', requireRoles(Role.OPS), asyncHandler(async (req: Request, res: Response) => {
   res.status(410).json({
     error: 'Đường dẫn này đã ngừng dùng. Vui lòng dùng xác nhận bàn giao lệnh gốc trong cổng FORWARDER theo chuyến được giao.',
   });
@@ -853,7 +853,7 @@ router.post('/:id/expenses', asyncHandler(async (req: Request, res: Response) =>
     entityType: 'trip_expense',
     create: (tx) => createTripExpense(tx, {
       tripId,
-      forwarderId: parsed.data.settlementMethod === 'FORWARDER_ADVANCE'
+      forwarderId: parsed.data.settlementMethod === 'OPS_ADVANCE'
         ? (parsed.data.forwarderId ?? null)
         : null,
       createdBy: user.userId,

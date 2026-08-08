@@ -681,7 +681,7 @@ export async function getDriverEarnings(driverId: number, month: number, year: n
   // UNLOCK_REVERSAL reverses a DRIVER_SALARY credit and is also excluded.
   //
   // No separate driver-advance txn type exists (advances are recorded as
-  // DRIVER_PAYOUT with method=CASH; forwarder advances are FORWARDER_ADVANCE on
+  // DRIVER_PAYOUT with method=CASH; forwarder advances are OPS_ADVANCE on
   // the FORWARDER ledger, not this one).
   const [driverLedgerAgg] = await db.select({
     paidOrAdvanced: sql<string>`coalesce(sum(

@@ -79,7 +79,7 @@ export async function authorizeGeotag(
 
   if (entityType === 'trip_expense_photo') {
     // trip_expense_photos → trip_expenses (forwarderId === caller for FORWARDER).
-    if (user.role !== Role.FORWARDER) throw new ApiError(404, 'Không tìm thấy chứng từ');
+    if (user.role !== Role.OPS) throw new ApiError(404, 'Không tìm thấy chứng từ');
     const [row] = await dbOrTx.select({ forwarderId: s.tripExpenses.forwarderId })
       .from(s.tripExpensePhotos)
       .innerJoin(s.tripExpenses, eq(s.tripExpensePhotos.tripExpenseId, s.tripExpenses.id))

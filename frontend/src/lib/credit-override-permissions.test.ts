@@ -10,7 +10,7 @@ describe('canDecideCreditOverride', () => {
     expect(canDecideCreditOverride(Role.ACCOUNTANT, 'DIRECTOR')).toBe(false);
     expect(canDecideCreditOverride(Role.MANAGER, 'FINANCE_TIER_1')).toBe(false);
     expect(canDecideCreditOverride(Role.MANAGER, 'DIRECTOR')).toBe(true);
-    expect(canDecideCreditOverride(Role.CLERK, 'FINANCE_TIER_1')).toBe(false);
+    expect(canDecideCreditOverride(Role.CUS, 'FINANCE_TIER_1')).toBe(false);
     expect(canDecideCreditOverride(Role.CUSTOMER, 'DIRECTOR')).toBe(false);
   });
 });

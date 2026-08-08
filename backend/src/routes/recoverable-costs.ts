@@ -17,7 +17,7 @@ import {
 import { getRequestIdempotencyKey } from './utils/idempotency';
 
 const router = Router();
-const ROLES = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CLERK] as const;
+const ROLES = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS] as const;
 
 router.use(requireRoles(...ROLES));
 

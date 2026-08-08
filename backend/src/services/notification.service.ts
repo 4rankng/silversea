@@ -49,12 +49,12 @@ function normalizeUserRoles(input: readonly string[] | null | undefined): UserRo
           return 'ACCOUNTANT';
         case 'DRIVER':
           return 'DRIVER';
-        case 'FORWARDER':
-          return 'FORWARDER';
+        case 'OPS':
+          return 'OPS';
         case 'CUSTOMER':
           return 'CUSTOMER';
-        case 'CLERK':
-          return 'CLERK';
+        case 'CUS':
+          return 'CUS';
         case 'DISPATCHER':
           return 'DISPATCHER';
         default:
@@ -304,7 +304,7 @@ export function notificationUrlForRole(payload: NotificationPayload, role: Role)
   switch (payload.relatedEntityType) {
     case 'trips':
       if (role === Role.DRIVER) return id ? `/my-trips/${id}` : '/my-trips';
-      if (role === Role.FORWARDER) return id ? `/my-forwarder-trips/${id}` : '/my-forwarder-trips';
+      if (role === Role.OPS) return id ? `/my-forwarder-trips/${id}` : '/my-forwarder-trips';
       return id ? `/trips/${id}` : '/trips';
     case 'shipment_fulfillments':
       return role === Role.DRIVER ? (id ? `/my-trips/${id}` : '/my-trips') : undefined;
@@ -313,7 +313,7 @@ export function notificationUrlForRole(payload: NotificationPayload, role: Role)
     case 'payments':
       return role === Role.DRIVER ? '/my-earnings' : '/finance';
     case 'advance_settlements':
-      return role === Role.FORWARDER
+      return role === Role.OPS
         ? (id ? `/my-settlements/${id}` : '/my-settlements')
         : (id ? `/settlements/${id}` : '/payables/forwarder-advances');
     case 'shipments':

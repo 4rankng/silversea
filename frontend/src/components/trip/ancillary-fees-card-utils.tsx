@@ -1,5 +1,5 @@
 import React from 'react';
-import { FORWARDER_EXPENSE_TYPE_DEFAULTS } from '@tingting/shared';
+import { OPS_EXPENSE_TYPE_DEFAULTS } from '@tingting/shared';
 import type { AncillaryExpenseType } from '@tingting/shared';
 import { formatNumber } from '../../lib/format';
 import type { CatalogData } from '../../hooks/useCatalogs';
@@ -49,7 +49,7 @@ export interface AncillaryFeesCardProps {
 }
 
 export const EXPENSE_TYPE_LABELS: Record<string, string> = Object.fromEntries(
-  Object.entries(FORWARDER_EXPENSE_TYPE_DEFAULTS).map(([k, v]) => [k, v.name])
+  Object.entries(OPS_EXPENSE_TYPE_DEFAULTS).map(([k, v]) => [k, v.name])
 );
 
 export function feeTypeLabel(code: string): string {
@@ -73,14 +73,14 @@ export function resolveMarkupConfig(
   code: string,
 ): boolean {
   const fromCatalog = catalogTypes?.find(t => t.code === code)?.defaultMarkup;
-  return fromCatalog ?? (FORWARDER_EXPENSE_TYPE_DEFAULTS[code]?.defaultMarkup ?? false);
+  return fromCatalog ?? (OPS_EXPENSE_TYPE_DEFAULTS[code]?.defaultMarkup ?? false);
 }
 
 export const EMPTY_FORM = {
   expenseType: 'LIFTING' as AncillaryExpenseType,
   buyAmount: '',
   sellAmount: '',
-  settlementMethod: 'FORWARDER_ADVANCE' as 'COMPANY_DIRECT' | 'FORWARDER_ADVANCE',
+  settlementMethod: 'OPS_ADVANCE' as 'COMPANY_DIRECT' | 'OPS_ADVANCE',
   supplierId: '',
   forwarderId: '',
   containerNumber: '',

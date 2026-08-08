@@ -40,7 +40,7 @@ export function useCreateForwarderExpense() {
       expenseType: string;
       buyAmount: number;
       sellAmount?: number;
-      settlementMethod?: 'COMPANY_DIRECT' | 'FORWARDER_ADVANCE';
+      settlementMethod?: 'COMPANY_DIRECT' | 'OPS_ADVANCE';
       supplierId?: number;
       expenseDate?: string;
       payeeName?: string;
@@ -65,7 +65,7 @@ export function useUpdateForwarderExpense() {
   return useMutation({
     mutationFn: ({ id, tripId: _tripId, expectedUpdatedAt, ...data }: {
       id: number; tripId: number; expectedUpdatedAt: string; expenseType: string; buyAmount: number; sellAmount?: number;
-      settlementMethod?: 'COMPANY_DIRECT' | 'FORWARDER_ADVANCE'; supplierId?: number | null;
+      settlementMethod?: 'COMPANY_DIRECT' | 'OPS_ADVANCE'; supplierId?: number | null;
       expenseDate?: string | null; payeeName?: string | null;
       invoiceNumber?: string | null; invoiceDate?: string | null; declarationNumber?: string | null;
       tripContainerId?: number | null; note?: string | null; noInvoiceEvidenceTypes?: string[] | null;

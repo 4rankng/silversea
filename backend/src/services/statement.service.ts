@@ -1,7 +1,7 @@
 import { db } from '../db';
 import * as s from '../db/schema';
 import { and, eq, gte, inArray, lte, or, sql } from 'drizzle-orm';
-import { TxnType, computeFifoAging, FORWARDER_EXPENSE_TYPE_DEFAULTS } from '@tingting/shared';
+import { TxnType, computeFifoAging, OPS_EXPENSE_TYPE_DEFAULTS } from '@tingting/shared';
 import type { PeriodSummary } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
 import { ApiError } from '../errors';
@@ -340,7 +340,7 @@ function serviceFeeLabel(expenseType: string, billingLabel?: string | null, name
   return (
     billingLabel?.trim()
     || name?.trim()
-    || FORWARDER_EXPENSE_TYPE_DEFAULTS[expenseType]?.billingLabel
+    || OPS_EXPENSE_TYPE_DEFAULTS[expenseType]?.billingLabel
     || expenseType
   );
 }

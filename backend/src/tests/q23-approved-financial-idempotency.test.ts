@@ -407,7 +407,7 @@ after(async () => {
   }
   if (advanceRequestIds.length > 0) {
     await db.delete(s.ledger).where(and(
-      eq(s.ledger.txnType, TxnType.FORWARDER_ADVANCE),
+      eq(s.ledger.txnType, TxnType.OPS_ADVANCE),
       inArray(s.ledger.txnId, advanceRequestIds),
     ));
     await db.delete(s.advanceRequests).where(inArray(s.advanceRequests.id, advanceRequestIds));
@@ -479,7 +479,7 @@ after(async () => {
 
 describe('Q23 approved financial route idempotency', () => {
   test('advance settlement update replays the original snapshot and rejects same-key changed payloads', async () => {
-    const requester = await createUser(Role.FORWARDER, 'q23-forwarder');
+    const requester = await createUser(Role.OPS, 'q23-forwarder');
     const request = await createApprovedAdvanceRequest(requester.id, 500000);
     const settlement = await createSettlement(requester.id, [request.id], 'seed pending');
 
@@ -545,7 +545,7 @@ describe('Q23 approved financial route idempotency', () => {
   });
 
   test('advance request approval is first-winner under concurrent distinct keys', async () => {
-    const requester = await createUser(Role.FORWARDER, 'q23-approve-forwarder');
+    const requester = await createUser(Role.OPS, 'q23-approve-forwarder');
     const request = await createPendingAdvanceRequest(requester.id, 275000);
     const requested = await requestJson(`/advance-requests/${request.id}/approve`, {
       body: { expectedVersion: request.version, reason: 'Trình duyệt tạm ứng' },
@@ -600,7 +600,7 @@ describe('Q23 approved financial route idempotency', () => {
     const ledgerRows = await db.select({ id: s.ledger.id })
       .from(s.ledger)
       .where(and(
-        eq(s.ledger.txnType, TxnType.FORWARDER_ADVANCE),
+        eq(s.ledger.txnType, TxnType.OPS_ADVANCE),
         eq(s.ledger.txnId, request.id),
       ));
     ledgerIds.push(...ledgerRows.map((row) => row.id));
@@ -608,7 +608,7 @@ describe('Q23 approved financial route idempotency', () => {
   });
 
   test('advance request rejection is governed by three actors and has no ledger effect', async () => {
-    const requester = await createUser(Role.FORWARDER, 'q15-reject-forwarder');
+    const requester = await createUser(Role.OPS, 'q15-reject-forwarder');
     const request = await createPendingAdvanceRequest(requester.id, 315000);
     const requested = await requestJson(`/advance-requests/${request.id}/reject`, {
       body: { expectedVersion: request.version, reason: 'Chứng từ tạm ứng không hợp lệ' },
@@ -624,7 +624,7 @@ describe('Q23 approved financial route idempotency', () => {
     assert.equal(beforeCheck.status, 'PENDING');
     assert.equal(beforeCheck.approvedBy, null);
     const ledgerBefore = await db.select().from(s.ledger).where(and(
-      eq(s.ledger.txnType, TxnType.FORWARDER_ADVANCE),
+      eq(s.ledger.txnType, TxnType.OPS_ADVANCE),
       eq(s.ledger.txnId, request.id),
     ));
     assert.equal(ledgerBefore.length, 0);
@@ -663,7 +663,7 @@ describe('Q23 approved financial route idempotency', () => {
     assert.equal(rejected.status, 'REJECTED');
     assert.equal(new Set([action.makerId, action.checkerId, action.approverId]).size, 3);
     const ledgerAfter = await db.select().from(s.ledger).where(and(
-      eq(s.ledger.txnType, TxnType.FORWARDER_ADVANCE),
+      eq(s.ledger.txnType, TxnType.OPS_ADVANCE),
       eq(s.ledger.txnId, request.id),
     ));
     assert.equal(ledgerAfter.length, 0);

@@ -1067,10 +1067,10 @@ catalogBootstrapRouter.get('/catalogs/bootstrap', asyncHandler(async (req: Reque
   const data = await getBootstrapData();
   const actor = getUser(req);
   const role = actor.role;
-  if (role === Role.DRIVER || role === Role.FORWARDER) {
+  if (role === Role.DRIVER || role === Role.OPS) {
     return res.json(portalBootstrap(data));
   }
-  if (role === Role.CLERK) {
+  if (role === Role.CUS) {
     return res.json(await clerkBootstrap(data, actor.userId));
   }
   res.json(data);

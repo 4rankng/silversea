@@ -201,7 +201,7 @@ export async function getForwarderByUserId(userId: number) {
     fullName: s.users.fullName,
     role: s.users.role,
   }).from(s.users)
-    .where(and(eq(s.users.id, userId), eq(s.users.role, 'FORWARDER'), eq(s.users.status, 'ACTIVE')))
+    .where(and(eq(s.users.id, userId), eq(s.users.role, 'OPS'), eq(s.users.status, 'ACTIVE')))
     .limit(1);
   if (!user) throw new NoForwarderProfileError();
   return user;
@@ -304,7 +304,7 @@ async function lockTripExpenseCreateRelationships(
     const forwarder = data.forwarderId == null ? null : usersById.get(data.forwarderId);
     if (
       data.forwarderId != null
-      && (!forwarder || forwarder.deletedAt != null || forwarder.status !== 'ACTIVE' || forwarder.role !== 'FORWARDER')
+      && (!forwarder || forwarder.deletedAt != null || forwarder.status !== 'ACTIVE' || forwarder.role !== 'OPS')
     ) {
       throw new ApiError(400, 'Nhân viên giao nhận không tồn tại hoặc đã ngưng hoạt động');
     }
@@ -401,7 +401,7 @@ export async function createTripExpense(
     expenseType: data.expenseType,
     buyAmount: data.buyAmount,
     sellAmount: data.sellAmount ?? '0',
-    settlementMethod: data.settlementMethod ?? 'FORWARDER_ADVANCE',
+    settlementMethod: data.settlementMethod ?? 'OPS_ADVANCE',
     supplierId: data.supplierId ?? null,
     expenseDate: data.expenseDate ?? null,
     payeeName: data.payeeName?.trim() || null,

@@ -58,10 +58,10 @@ const ROLE_CAPABILITIES: Readonly<Record<Role, ReadonlySet<GovernanceCapability>
     'TREASURY_OPERATE',
   ]),
   [Role.DRIVER]: new Set(),
-  [Role.FORWARDER]: new Set(),
+  [Role.OPS]: new Set(),
   [Role.CUSTOMER]: new Set(),
   [Role.DISPATCHER]: new Set(),
-  [Role.CLERK]: new Set(['RECOVERABLE_COST_REQUEST', 'TRIP_CLOSE_REQUEST']),
+  [Role.CUS]: new Set(['RECOVERABLE_COST_REQUEST', 'TRIP_CLOSE_REQUEST']),
 };
 
 export const GOVERNANCE_POLICY_CATALOG: Readonly<
@@ -443,7 +443,7 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
     makerCapability: 'TRIP_CLOSE_REQUEST',
     checkerCapability: 'FINANCE_CHECK',
     approverCapability: 'FINANCE_APPROVE_DIRECTOR',
-    makerRoles: [Role.ACCOUNTANT, Role.CLERK],
+    makerRoles: [Role.ACCOUNTANT, Role.CUS],
     checkerRoles: [Role.ACCOUNTANT, Role.MANAGER, Role.ADMIN],
     approverRoles: [Role.MANAGER, Role.ADMIN],
     requiresReason: true,

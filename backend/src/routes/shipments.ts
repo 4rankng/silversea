@@ -417,7 +417,7 @@ router.get(
 
 router.get(
   '/carrier-fleet-vehicles',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.CLERK),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const carrierId = Number(req.query.carrierId);
     if (!Number.isInteger(carrierId) || carrierId <= 0) throw new ApiError(400, 'carrierId không hợp lệ.');
@@ -489,7 +489,7 @@ router.get('/:id/customer-events', asyncHandler(async (req: Request, res: Respon
 
 router.post(
   '/:id/submit-for-dispatch',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.CLERK),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
@@ -512,7 +512,7 @@ router.post(
 
 router.post(
   '/:id/carrier-allocations',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.CLERK),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
@@ -574,7 +574,7 @@ router.post(
 
 router.post(
   '/:id/customer-events',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.CLERK),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
@@ -600,7 +600,7 @@ router.get('/:id/dispatch-handoff', asyncHandler(async (req: Request, res: Respo
 
 router.post(
   '/:id/dispatch-handoffs',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.CLERK),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
@@ -656,7 +656,7 @@ router.post(
 
 router.get(
   '/operational-sites',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CLERK),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const customerId = Number(req.query.customerId);
     if (!Number.isInteger(customerId) || customerId < 1) {
@@ -671,7 +671,7 @@ router.get(
 // guard; the service additionally enforces CLERK customer-scope.
 router.post(
   '/operational-sites',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.CLERK),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const parsed = operationalSiteSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
@@ -682,7 +682,7 @@ router.post(
 
 router.post(
   '/pricing-preview',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CLERK),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const parsed = shipmentPricingPreviewSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
@@ -702,7 +702,7 @@ router.post(
 // ─── POST / — create draft shipment ────────────────────────────────────────
 router.post(
   '/',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.CLERK),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const parsed = createShipmentSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
@@ -745,7 +745,7 @@ router.post(
 // CUSTOMER/DRIVER/FORWARDER remain denied at the mount.
 router.post(
   '/quick',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.CLERK),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const parsed = quickCreateShipmentSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
@@ -815,7 +815,7 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
 
 router.get(
   '/:id/pod-files/:fileId',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CLERK),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
@@ -834,7 +834,7 @@ router.get(
 // ─── PUT /:id — update with optimistic-lock version ────────────────────────
 router.put(
   '/:id',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.CLERK),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const id = parseId(req, res);
     if (id === null) return;
@@ -959,7 +959,7 @@ router.post(
 
 router.post(
   '/:id/pod-reviews/:submissionId/review',
-  requireRoles(Role.CLERK),
+  requireRoles(Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
@@ -1057,7 +1057,7 @@ router.post(
 // portal variant may accept multipart directly.
 router.post(
   '/:id/documents',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.CLERK),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const id = parseId(req, res);
     if (id === null) return;
@@ -1089,7 +1089,7 @@ router.post(
 
 router.post(
   '/:id/documents/:documentId/replace',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.CLERK),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
@@ -1127,7 +1127,7 @@ router.post(
 
 router.post(
   '/:id/declarations',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.CLERK),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
@@ -1161,7 +1161,7 @@ router.post(
 
 router.put(
   '/:id/declarations/:declarationId',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.CLERK),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
@@ -1212,7 +1212,7 @@ router.get('/:id/containers', asyncHandler(async (req: Request, res: Response) =
 // ─── PUT /:id/containers — full reconcile of shipment containers ───────────
 router.put(
   '/:id/containers',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.CLERK),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const id = parseId(req, res);
     if (id === null) return;

@@ -76,8 +76,8 @@ describe('homeForRole', () => {
     expect(homeForRole('CUSTOMER')).toBe('/portal/shipments');
   });
 
-  it('routes CLERK users to their assigned shipment queue', () => {
-    expect(homeForRole('CLERK')).toBe('/shipments');
+  it('routes CUS users to their assigned shipment queue', () => {
+    expect(homeForRole('CUS')).toBe('/shipments');
   });
 
   it('routes ACCOUNTANT users to the dedicated accounting workspace', () => {
@@ -85,7 +85,7 @@ describe('homeForRole', () => {
   });
 
   it('routes DISPATCHER users to the dispatch workspace', () => {
-    expect(homeForRole('DISPATCHER')).toBe('/dispatch');
+    expect(homeForRole('DISPATCHER')).toBe('/dispatch/master-plan');
   });
 });
 

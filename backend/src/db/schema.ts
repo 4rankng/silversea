@@ -30,9 +30,9 @@ function applicationEnum<const Values extends readonly [string, ...string[]]>(va
 export const tripStatusEnum = applicationEnum(['CREATED', 'IN_TRANSIT', 'COMPLETED', 'CANCELED']);
 export const fuelModeEnum = applicationEnum(['AUTO', 'FLAT_RATE']);
 export const loadingTypeEnum = applicationEnum(['HANG', 'VO']);
-export const roleEnum = applicationEnum(['ADMIN', 'MANAGER', 'ACCOUNTANT', 'DRIVER', 'FORWARDER', 'CUSTOMER', 'CLERK', 'DISPATCHER']);
+export const roleEnum = applicationEnum(['ADMIN', 'MANAGER', 'ACCOUNTANT', 'DRIVER', 'OPS', 'CUSTOMER', 'CUS', 'DISPATCHER']);
 export const customerAccountTypeEnum = applicationEnum(['SINGLE_ENTITY', 'CORPORATE_GROUP', 'AGENCY']);
-export const txnTypeEnum = applicationEnum(['TRIP_REVENUE', 'PAYMENT_RECEIVED', 'PENALTY', 'MANAGEMENT_FEE', 'ADJUSTMENT', 'DRIVER_SALARY', 'VENDOR_EXPENSE', 'VENDOR_PAYMENT', 'FORWARDER_ADVANCE', 'FORWARDER_SETTLEMENT', 'EXTERNAL_CARRIER_COST', 'FUEL_EXPENSE', 'UNLOCK_REVERSAL', 'COMMISSION', 'DRIVER_PAYOUT', 'SERVICE_FEE']);
+export const txnTypeEnum = applicationEnum(['TRIP_REVENUE', 'PAYMENT_RECEIVED', 'PENALTY', 'MANAGEMENT_FEE', 'ADJUSTMENT', 'DRIVER_SALARY', 'VENDOR_EXPENSE', 'VENDOR_PAYMENT', 'OPS_ADVANCE', 'OPS_SETTLEMENT', 'EXTERNAL_CARRIER_COST', 'FUEL_EXPENSE', 'UNLOCK_REVERSAL', 'COMMISSION', 'DRIVER_PAYOUT', 'SERVICE_FEE']);
 export const trailerTypeEnum = applicationEnum(['20FT', '40FT']);
 export const truckStatusEnum = applicationEnum(['ACTIVE', 'MAINTENANCE', 'INACTIVE']);
 export const driverStatusEnum = applicationEnum(['ACTIVE', 'INACTIVE']);
@@ -746,7 +746,7 @@ export const trips = pgTable('trips', {
   // in-progress trips; set by captureSnapshot at IN_TRANSIT → COMPLETED.
   pnlSnapshotGrossProfit: numeric('pnl_snapshot_gross_profit', { precision: 15, scale: 0 }),
   // O2C field ops hand-off timestamps (Phase 4): Ops paper-order collected +
-  // Driver order-accepted. Nullable; populated by the FORWARDER/DRIVER endpoints.
+  // Driver order-accepted. Nullable; populated by the OPS/DRIVER endpoints.
   paperOrderCollectedAt: timestamp('paper_order_collected_at', { withTimezone: true }),
   paperOrderCollectedBy: integer('paper_order_collected_by'),
   driverOrderAcceptedAt: timestamp('driver_order_accepted_at', { withTimezone: true }),
@@ -873,7 +873,7 @@ export const ledger = pgTable('ledger', {
   index('ledger_financial_posting_idx').on(table.financialPostingId),
   uniqueIndex('ledger_forwarder_settlement_once_idx')
     .on(table.txnType, table.txnId, table.entityType, table.entityId)
-    .where(sql`${table.txnType} = 'FORWARDER_SETTLEMENT'`),
+    .where(sql`${table.txnType} = 'OPS_SETTLEMENT'`),
 ]);
 
 // ─── Billing Documents (debit notes + payment statements) ─────────────────────
@@ -1601,7 +1601,7 @@ export const tripExpenses = pgTable('trip_expenses', {
   // from buy amount/markup.
   recoverablePrincipalAmount: numeric('recoverable_principal_amount', { precision: 15, scale: 0 }),
   serviceFeeAmount: numeric('service_fee_amount', { precision: 15, scale: 0 }),
-  settlementMethod: varchar('settlement_method', { length: 20 }).notNull().default('FORWARDER_ADVANCE'),
+  settlementMethod: varchar('settlement_method', { length: 20 }).notNull().default('OPS_ADVANCE'),
   supplierId: integer('supplier_id'),
   expenseDate: date('expense_date'),
   payeeName: varchar('payee_name', { length: 200 }),

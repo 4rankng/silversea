@@ -68,7 +68,7 @@ export function tripRouteAuthz() {
     const isCloseRequest = req.method === 'POST'
       && /^\/\d+\/complete\/?$/.test(req.path);
     if (isCloseRequest) {
-      const closeMakerRoles = [Role.ACCOUNTANT, Role.CLERK];
+      const closeMakerRoles = [Role.ACCOUNTANT, Role.CUS];
       if (req.user && closeMakerRoles.includes(req.user.role as Role)) {
         next();
         return;

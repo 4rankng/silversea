@@ -845,10 +845,10 @@ describe('M5.7 — retry delivery', () => {
   const todayBusinessDate = businessDateNow();
   const runAtBusinessMorning = atVnTime(todayBusinessDate, 9);
 
-  test('retries at 15m / 2h / 24h and alerts CUS/CLERK plus finance after terminal failure', async () => {
+  test('retries at 15m / 2h / 24h and alerts CUS plus finance after terminal failure', async () => {
     const admin = await mkUser('ADMIN');
     const accountant = await mkUser('ACCOUNTANT');
-    const clerk = await mkUser('CLERK');
+    const clerk = await mkUser('CUS');
     const c = await mkCustomer();
     const r = await mkRoute(); const cg = await mkCargo();
     const t = await mkOverdueTrip(c.id, r.id, cg.id);

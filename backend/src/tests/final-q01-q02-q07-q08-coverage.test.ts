@@ -234,8 +234,8 @@ before(async () => {
   const accountant = await mkUser(Role.ACCOUNTANT);
   const customer = await mkUser(Role.CUSTOMER, { customerId: scopedCustomer.id });
   const driver = await mkUser(Role.DRIVER);
-  const forwarder = await mkUser(Role.FORWARDER);
-  const clerk = await mkUser(Role.CLERK);
+  const forwarder = await mkUser(Role.OPS);
+  const clerk = await mkUser(Role.CUS);
 
   adminToken = sign(admin);
   managerToken = sign(manager);

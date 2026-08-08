@@ -27,7 +27,7 @@ describe('company-info route-mount RBAC', () => {
   });
 
   test('portal roles cannot submit company information', async () => {
-    for (const role of [Role.DRIVER, Role.FORWARDER, Role.CUSTOMER, Role.CLERK]) {
+    for (const role of [Role.DRIVER, Role.OPS, Role.CUSTOMER, Role.CUS]) {
       assert.equal(await canWriteCompanyInfo(role), false, `${role} must not have config write access`);
       assert.throws(
         () => assertCanMakeGovernanceAction('PRICE_CONFIG_CHANGE', role),

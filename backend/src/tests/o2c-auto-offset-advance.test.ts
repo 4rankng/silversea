@@ -14,7 +14,7 @@ import { propagateExpenseApproval } from '../services/source-change.service';
  * O2C Bước 4 — "Ranh giới Tạm ứng" (O2C Flow.md:72 / O2C dev-rev1.md:87):
  * "Ngay khi phí chi hộ được Kế toán duyệt, hệ thống tự động sinh bút toán cấn
  * trừ vào dư nợ tạm ứng." These tests pin the auto-offset fired on expense
- * approval: it consumes outstanding advances FIFO, posts the FORWARDER_SETTLEMENT
+ * approval: it consumes outstanding advances FIFO, posts the OPS_SETTLEMENT
  * debit, drops the outstanding balance, and never double-posts.
  */
 describe('O2C auto advance-offset on chi hộ approval', () => {
@@ -59,7 +59,7 @@ describe('O2C auto advance-offset on chi hộ approval', () => {
       buyAmount: String(options.buyAmount ?? 100_000),
       sellAmount: '120000',
       expenseDate: '2026-07-11',
-      settlementMethod: (options.settlementMethod ?? 'FORWARDER_ADVANCE') as 'FORWARDER_ADVANCE' | 'COMPANY_DIRECT',
+      settlementMethod: (options.settlementMethod ?? 'OPS_ADVANCE') as 'OPS_ADVANCE' | 'COMPANY_DIRECT',
       approvalStatus: options.approvalStatus ?? 'APPROVED',
     }).returning();
     ids.expenses.push(expense.id);
@@ -160,7 +160,7 @@ describe('O2C auto advance-offset on chi hộ approval', () => {
     const [posting] = await db.select({ debit: s.ledger.debit })
       .from(s.ledger)
       .where(and(
-        eq(s.ledger.txnType, 'FORWARDER_SETTLEMENT'),
+        eq(s.ledger.txnType, 'OPS_SETTLEMENT'),
         eq(s.ledger.txnId, link.settlementId),
       ))
       .limit(1);
@@ -272,7 +272,7 @@ describe('O2C auto advance-offset on chi hộ approval', () => {
     const postings = await db.select({ id: s.ledger.id })
       .from(s.ledger)
       .where(and(
-        eq(s.ledger.txnType, 'FORWARDER_SETTLEMENT'),
+        eq(s.ledger.txnType, 'OPS_SETTLEMENT'),
         inArray(s.ledger.txnId, links.map((row) => row.settlementId)),
       ));
     assert.equal(postings.length, 1, 'exactly one financial posting may exist for the expense');

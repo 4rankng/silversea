@@ -1,5 +1,5 @@
 import { AlertCircle, ArrowLeft, Camera, DollarSign, Loader2, Package, Pencil, Plus, Trash2 } from 'lucide-react';
-import { FORWARDER_EXPENSE_TYPE_DEFAULTS, SETTLEMENT_METHOD_LABELS, SettlementMethod } from '@tingting/shared';
+import { OPS_EXPENSE_TYPE_DEFAULTS, SETTLEMENT_METHOD_LABELS, SettlementMethod } from '@tingting/shared';
 import { FormGroup } from '../components/UI';
 import { formatCurrency, formatDate } from '../lib/format';
 import type { useForwarderTripDetail } from '../hooks/useQueries';
@@ -169,7 +169,7 @@ export function ForwarderExpenseRow({ exp, expenseTypeOptions: forwarderExpenseT
                     <DollarSign size={14} style={{ color: 'var(--brand)', flexShrink: 0 }} />
                     <div className="fwd-expense-record__main">
                       <span style={{ fontWeight: 600, fontSize: 13 }}>
-                        {FORWARDER_EXPENSE_TYPE_DEFAULTS[exp.expenseType]?.name || forwarderExpenseTypeOptions.find(t => t.code === exp.expenseType)?.name || exp.expenseType}
+                        {OPS_EXPENSE_TYPE_DEFAULTS[exp.expenseType]?.name || forwarderExpenseTypeOptions.find(t => t.code === exp.expenseType)?.name || exp.expenseType}
                       </span>
                       {exp.activeSettlementId && (
                         <span style={{
@@ -229,7 +229,7 @@ export function ForwarderExpenseRow({ exp, expenseTypeOptions: forwarderExpenseT
                       className="icon-btn fwd-expense-action"
                       onClick={() => openExpenseEditor(exp)}
                       disabled={Boolean(exp.activeSettlementId) || !exp.canEdit}
-                      aria-label={`Điều chỉnh ${FORWARDER_EXPENSE_TYPE_DEFAULTS[exp.expenseType]?.name || exp.expenseType}`}
+                      aria-label={`Điều chỉnh ${OPS_EXPENSE_TYPE_DEFAULTS[exp.expenseType]?.name || exp.expenseType}`}
                       title={exp.activeSettlementId ? 'Khoản chi đã gửi kế toán' : !exp.canEdit ? 'Khoản chi do Ops khác kê' : 'Điều chỉnh chi phí'}
                     >
                       <Pencil size={16} />
