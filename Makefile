@@ -131,7 +131,7 @@ DEMO_COMPOSE := docker compose -f deploy/docker-compose.prod.yml
 demo: ## Deploy silversea to demo (vantai.tingting.vip) — keeps existing DB
 	@echo "=== Deploying silversea to $(DEMO_SERVER) ==="
 	@echo ""
-	@echo "1/3  Building + pushing images to GHCR..."
+	@echo "1/3  Building + pushing images to GHCR (with BuildKit cache)..."
 	@cd backend && $(MAKE) push
 	@cd frontend && $(MAKE) push
 	@echo ""
@@ -150,6 +150,16 @@ demo: ## Deploy silversea to demo (vantai.tingting.vip) — keeps existing DB
 demo-push: ## Build + push demo images only (no server-side changes)
 	@cd backend && $(MAKE) push
 	@cd frontend && $(MAKE) push
+
+demo-local: ## Build images locally only (fast, native platform, no push)
+	@cd backend && $(MAKE) build-local
+	@cd frontend && $(MAKE) build-local
+	@echo ""
+	@echo "✅ Local builds complete:"
+	@echo "   Backend: ghcr.io/4rankng/transting-backend:local"
+	@echo "   Frontend: ghcr.io/4rankng/transting-frontend:local"
+	@echo ""
+	@echo "Run with: docker compose -f deploy/docker-compose.prod.yml up -d backend frontend"
 
 demo-deploy: ## Pull + restart + migrate on the demo server (no rebuild)
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) pull backend frontend"
