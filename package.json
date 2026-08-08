@@ -8,7 +8,9 @@
     "lint": "eslint .",
     "context": "node scripts/context-for.mjs",
     "context:check": "node scripts/context-for.mjs --check",
-    "context:test": "node --test scripts/context-for.test.mjs"
+    "context:test": "node --test scripts/context-for.test.mjs",
+    "seed:generate": "node tools/generate-seed-data.mjs",
+    "seed:extract": "node tools/extract-excel-data.mjs"
   },
   "pnpm": {
     "overrides": {
@@ -30,7 +32,8 @@
   "devDependencies": {
     "eslint": "^10.4.1",
     "puppeteer-core": "^25.3.0",
-    "typescript-eslint": "^8.61.0"
+    "typescript-eslint": "^8.61.0",
+    "xlsx": "^0.18.5"
   },
   "packageManager": "pnpm@10.33.0+sha512.10568bb4a6afb58c9eb3630da90cc9516417abebd3fabbe6739f0ae795728da1491e9db5a544c76ad8eb7570f5c4bb3d6c637b2cb41bfdcdb47fa823c8649319"
 }
