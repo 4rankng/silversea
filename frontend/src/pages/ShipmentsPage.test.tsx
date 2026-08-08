@@ -105,7 +105,7 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
   it('renders the page header and toolbar', async () => {
     apiGet.mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 });
     renderAt('/shipments');
-    expect(pageTitleH1()?.textContent).toBe('Lô hàng');
+    expect(pageTitleH1()?.textContent).toBe('Quản lý Lô hàng');
     // Filter pills render the catalogue. Scope to the toolbar — KPI labels
     // lifecycle labels would otherwise collide.
     const tb = toolbar();
@@ -146,6 +146,15 @@ describe('ShipmentsPage — shipment manifest workspace', () => {
     );
     expect(shipmentsPageCss).toMatch(
       /\.shipments-page__filters \.filter-pill\s*\{[\s\S]*?min-height:\s*44px;/,
+    );
+  });
+
+  it('gives advanced filters their own toolbar row before controls can collide', () => {
+    expect(shipmentsPageCss).toMatch(
+      /grid-template-areas:\s*[\s\S]*?"filters filters"[\s\S]*?"advanced advanced"[\s\S]*?"actions actions";/,
+    );
+    expect(shipmentsPageCss).toMatch(
+      /@media \(max-width: 1100px\)[\s\S]*?grid-template-areas:\s*[\s\S]*?"actions"[\s\S]*?"filters"[\s\S]*?"advanced";/,
     );
   });
 

@@ -3,10 +3,17 @@ import path from "node:path";
 import puppeteer from "puppeteer";
 
 const ROLE_GUARDS = Object.freeze({
-  STAFF: new Set(["ADMIN", "MANAGER", "ACCOUNTANT"]),
+  STAFF: new Set(["ADMIN", "MANAGER"]),
   OFFICE: new Set(["ADMIN", "MANAGER", "ACCOUNTANT"]),
+  FINANCE_READER: new Set(["ADMIN", "MANAGER", "ACCOUNTANT"]),
   STRICT_ADMIN: new Set(["ADMIN"]),
   MANAGER_ADMIN: new Set(["ADMIN", "MANAGER"]),
+  DISPATCH: new Set(["ADMIN", "MANAGER", "DISPATCHER"]),
+  ACCOUNTANT: new Set(["ACCOUNTANT"]),
+  CUS_ADMIN: new Set(["ADMIN", "CUS"]),
+  SHIPMENT_OPERATOR: new Set(["ADMIN", "MANAGER", "CUS"]),
+  SHIPMENT_READER: new Set(["ADMIN", "MANAGER", "ACCOUNTANT", "DISPATCHER", "CUS"]),
+  RECOVERABLE_COST: new Set(["ADMIN", "MANAGER", "ACCOUNTANT", "CUS"]),
   DRIVER: new Set(["DRIVER"]),
   FORWARDER: new Set(["FORWARDER"]),
   CUSTOMER: new Set(["CUSTOMER"]),
@@ -24,19 +31,19 @@ export const ROUTES = Object.freeze([
   { path: "/trips/:id", guard: "STAFF" },
   { path: "/trips/:id/edit", guard: "STAFF" },
   { path: "/finance", guard: "STAFF" },
-  { path: "/profit", guard: "STAFF" },
+  { path: "/profit", guard: "FINANCE_READER" },
   { path: "/debt", guard: "STAFF" },
   { path: "/debt/:id", guard: "STAFF" },
   { path: "/debt/:id/billing/new", guard: "STAFF" },
   { path: "/penalties", guard: "STAFF" },
   { path: "/advances", guard: "STAFF" },
-  { path: "/admin/advance-settlements", guard: "OFFICE" },
   { path: "/my-penalties", guard: "DRIVER" },
   { path: "/customers", guard: "STAFF" },
   { path: "/customers/:id", guard: "STAFF" },
   { path: "/customers/:id/billing/new", guard: "STAFF" },
-  { path: "/shipments", guard: "OFFICE" },
-  { path: "/shipments/:id", guard: "OFFICE" },
+  { path: "/shipments", guard: "SHIPMENT_READER" },
+  { path: "/shipments/new", guard: "SHIPMENT_OPERATOR" },
+  { path: "/shipments/:id", guard: "SHIPMENT_READER" },
   { path: "/config", guard: "STAFF" },
   { path: "/config/trailers", guard: "STAFF" },
   { path: "/config/trucks", guard: "STAFF" },
@@ -52,8 +59,8 @@ export const ROUTES = Object.freeze([
   { path: "/config/weight-pricing-tiers", guard: "STAFF" },
   { path: "/config/lift-pricing", guard: "STAFF" },
   { path: "/config/ancillary-revenue", guard: "STAFF" },
-  { path: "/config/faq-entries", guard: "STRICT_ADMIN" },
   { path: "/config/app-settings", guard: "STRICT_ADMIN" },
+  { path: "/config/master-data-import", guard: "STRICT_ADMIN" },
   { path: "/config/company-info", guard: "STAFF" },
   { path: "/config/trip-expense", guard: "STAFF" },
   { path: "/config/cap-table", guard: "STAFF" },
@@ -76,13 +83,19 @@ export const ROUTES = Object.freeze([
   { path: "/credit-overrides", guard: "OFFICE" },
   { path: "/governance-actions", guard: "OFFICE" },
   { path: "/users", guard: "OFFICE" },
-  { path: "/chatbot-monitoring", guard: "STRICT_ADMIN" },
   { path: "/audit-logs", guard: "OFFICE" },
+  { path: "/accounting", guard: "OFFICE" },
+  { path: "/accounting/fuel-evidence", guard: "ACCOUNTANT" },
+  { path: "/finance/treasury", guard: "ACCOUNTANT" },
+  { path: "/recoverable-costs", guard: "RECOVERABLE_COST" },
+  { path: "/dispatch/master-plan", guard: "DISPATCH" },
+  { path: "/dispatch/detailed-plan", guard: "DISPATCH" },
   { path: "/my-trips", guard: "DRIVER" },
   { path: "/my-trips/two-orders", guard: "DRIVER" },
   { path: "/my-trips/:id", guard: "DRIVER" },
   { path: "/my-earnings", guard: "DRIVER" },
   { path: "/my-payslips", guard: "DRIVER" },
+  { path: "/my-orders", guard: "FORWARDER" },
   { path: "/my-forwarder-trips", guard: "FORWARDER" },
   { path: "/my-forwarder-trips/:id", guard: "FORWARDER" },
   { path: "/my-advances", guard: "FORWARDER" },
@@ -94,18 +107,18 @@ export const ROUTES = Object.freeze([
   { path: "/portal/shipments/:id", guard: "CUSTOMER" },
   { path: "/portal/debit-notes", guard: "CUSTOMER" },
   { path: "/portal/statement", guard: "CUSTOMER" },
-  { path: "/clerk/shipments/new", guard: "CLERK_ADMIN" },
-  { path: "/clerk/shipments/:id/docs", guard: "CLERK_ADMIN" },
+  { path: "/clerk/shipments/new", guard: "CUS_ADMIN" },
+  { path: "/clerk/shipments/:id/docs", guard: "SHIPMENT_OPERATOR" },
 ]);
 
 const REDIRECT_ROUTES = new Set([
   "/",
+  "/admin/advance-settlements",
   "/routes",
   "/trucks",
   "/drivers",
   "/trailers",
   "/config/llm-settings",
-  "/config/onboarding-settings",
   "/config/management-fees",
   "/config/container-types",
   "/config/seal-types",
@@ -126,10 +139,11 @@ const DEFAULT_ACCOUNTS = Object.freeze({
   ADMIN: "admin",
   MANAGER: "giamdoc",
   ACCOUNTANT: "ketoan",
+  DISPATCHER: "dieuvan",
+  CUS: "cus",
   DRIVER: "laixe",
   FORWARDER: "giaonhan",
-  CUSTOMER: "khachhang",
-  CLERK: "qa_clerk",
+  CUSTOMER: "customer",
 });
 
 const delay = (milliseconds) =>
@@ -278,6 +292,7 @@ async function auditRoute({
       pathname: window.location.pathname,
       clientWidth: root.clientWidth,
       scrollWidth: root.scrollWidth,
+      mainText: document.querySelector("main")?.innerText.trim() ?? "",
       bodyText: document.body.innerText.slice(0, 20_000),
       links: [...document.querySelectorAll("a[href]")]
         .map((link) => link.getAttribute("href"))
@@ -308,6 +323,7 @@ async function auditRoute({
   if (state.scrollWidth > state.clientWidth) {
     failures.push(`horizontal overflow: ${state.scrollWidth} > ${state.clientWidth}`);
   }
+  if (!state.mainText) failures.push("blank main content");
   if (isRuntimeErrorText(state.bodyText)) failures.push("visible runtime error boundary");
   if (runtime.console.length) failures.push(`console: ${runtime.console.join(" | ")}`);
   if (runtime.page.length) failures.push(`pageerror: ${runtime.page.join(" | ")}`);

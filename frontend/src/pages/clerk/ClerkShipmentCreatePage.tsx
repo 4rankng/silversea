@@ -591,7 +591,7 @@ export default function ClerkShipmentCreatePage() {
             {/* SỐ TỜ KHAI */}
             <TextField label="Số tờ khai" value={form.declarationNumber} onChange={(event) => update('declarationNumber', event.target.value)} maxLength={100} disabled={Boolean(saving)} />
 
-            {/* NHÀ MÁY với [CHI TIẾT] button */}
+            {/* NHÀ MÁY with the detail and add-factory actions always reachable. */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'end' }}>
               <SearchableField
                 id="shipment-operational-site"
@@ -607,29 +607,51 @@ export default function ClerkShipmentCreatePage() {
                     ? <>Chưa có nhà máy.{' '}<button type="button" onClick={(e) => { e.preventDefault(); openCreateSiteDialog('FACTORY'); }} disabled={Boolean(saving)} style={{ border: 0, background: 'none', padding: 0, color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>Thêm mới</button></>
                     : undefined)}
               />
-              {form.operationalSiteId && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-end' }}>
+                {form.operationalSiteId && (
+                  <button
+                    type="button"
+                    onClick={() => setDetailSite(selectedOperationalSite)}
+                    style={{
+                      minHeight: 44,
+                      padding: '8px 16px',
+                      border: '1px solid var(--border-2)',
+                      borderRadius: 8,
+                      background: 'var(--surface-1)',
+                      color: 'var(--fg-2)',
+                      fontWeight: 600,
+                      fontSize: 13,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Eye size={15} aria-hidden="true" />Xem chi tiết
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={() => setDetailSite(selectedOperationalSite)}
+                  onClick={() => openCreateSiteDialog('FACTORY')}
+                  disabled={Boolean(saving)}
                   style={{
                     minHeight: 44,
                     padding: '8px 16px',
-                    border: '1px solid var(--border-2)',
+                    border: '1px dashed var(--border-2)',
                     borderRadius: 8,
-                    background: 'var(--surface-1)',
-                    color: 'var(--fg-2)',
-                    fontWeight: 600,
+                    background: 'transparent',
+                    color: 'var(--accent, #2563eb)',
+                    fontWeight: 700,
                     fontSize: 13,
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 6,
-                    cursor: 'pointer',
+                    cursor: saving ? 'not-allowed' : 'pointer',
                   }}
-                  title="Xem chi tiết nhà máy"
                 >
-                  <Eye size={15} aria-hidden="true" />Chi tiết
+                  <Plus size={15} aria-hidden="true" />Thêm nhà máy
                 </button>
-              )}
+              </div>
             </div>
 
             {/* TUYẾN ĐƯỜNG */}
@@ -648,10 +670,15 @@ export default function ClerkShipmentCreatePage() {
               <option value="">— Chọn hình thức —</option><option value="IMPORT">Nhập</option><option value="EXPORT">Xuất</option>
             </SelectField>
 
-            {/* LOẠI HÀNG - Trigger for Part 2 */}
-            <SelectField label="Loại hàng" value={form.cargoMode} onChange={(event) => changeMode(event.target.value as CargoMode)} disabled={Boolean(saving)}>
-              <option value="FCL">Hàng CONT (FCL)</option><option value="LCL">Hàng lẻ (LCL)</option>
-            </SelectField>
+            <SearchableField
+              id="shipment-cargo-type"
+              label="Loại hàng"
+              value={form.cargoTypeId}
+              onChange={(value) => update('cargoTypeId', value)}
+              options={(catalogs.cargoTypes ?? []).map((item) => ({ value: String(item.id), label: item.name }))}
+              placeholder="Gõ chọn"
+              disabled={Boolean(saving)}
+            />
           </div>
 
           {selectedOperationalSite?.strictRules && (

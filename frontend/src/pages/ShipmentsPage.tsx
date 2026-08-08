@@ -20,6 +20,7 @@ import { ClickableCard } from '../components/shared/ClickableCard';
 import { Role, SHIPMENT_STATUS_LABELS, ShipmentStatus } from '@tingting/shared';
 import { usePageAnimations } from '../hooks/animations';
 import { useAuth } from '../hooks/useAuth';
+import { getModernRole } from '../lib/role-helpers';
 import { routes } from '../lib/routes';
 import { updateShipment } from '../api/shipmentClient';
 import './ShipmentsPage.css';
@@ -249,8 +250,9 @@ const PAGE_SIZE = 20;
 export default function ShipmentsPage() {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const canCreate = user?.role === Role.ADMIN || user?.role === Role.MANAGER;
-  const canInlineEdit = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.CUS;
+  const currentRole = getModernRole(user?.role ?? '');
+  const canCreate = currentRole === Role.ADMIN || currentRole === Role.MANAGER;
+  const canInlineEdit = currentRole === Role.ADMIN || currentRole === Role.MANAGER || currentRole === Role.CUS;
 
   // Filter state is mirrored in the URL query string so reloads / deep links
   // preserve the view.

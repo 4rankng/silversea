@@ -228,13 +228,13 @@ def tc_q16_customer_scope(ctx: VisualTestContext):
 
 # ─── Q17: Clerk editable surface + scope ────────────────────────────────
 
-@tc("TC-Q17-CLERK-SCOPE", roles=["CLERK"], url="/clerk/shipments/new",
-    title="WF Q17 — Clerk create page reachable (limited scope)")
-def tc_q17_clerk_scope(ctx: VisualTestContext):
-    """Q17 (accepted): clerk creates/edits shipments, BL, containers,
+@tc("TC-Q17-CUS-SCOPE", roles=["CUS"], url="/clerk/shipments/new",
+    title="WF Q17 — CUS create page reachable (limited scope)")
+def tc_q17_cus_scope(ctx: VisualTestContext):
+    """Q17 (accepted): CUS creates/edits shipments, BL, containers,
     seals, declarations, delivery orders, points. Pre-dispatch editable;
     post-dispatch add-only. No price/cost/debt/salary edit."""
-    ctx.login("CLERK")
+    ctx.login("CUS")
     ctx.goto("/clerk/shipments/new")
     body = ctx.page.inner_text("body")
     if len(body.strip()) < 50:

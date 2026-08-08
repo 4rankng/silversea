@@ -322,7 +322,7 @@ def tc_m01_07_01(ctx: VisualTestContext):
 def tc_m01_07_04(ctx: VisualTestContext):
     ctx.login("FORWARDER")
     ctx.goto("/dispatch")
-    ctx.expect_url_contains("/my-forwarder-trips")
+    ctx.expect_url_contains("/my-orders")
 
 
 # ─── 1.8 Trip close (lock) ────────────────────────────────────────────────

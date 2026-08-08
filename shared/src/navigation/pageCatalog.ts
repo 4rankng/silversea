@@ -408,6 +408,10 @@ export const PAGE_CATALOG = {
 
   /* ── Forwarder portal ──────────────────────────────────────────────── */
 
+  myOrders: {
+    title: 'Lệnh giao nhận',
+    path: '/my-orders',
+  },
   myForwarderTrips: {
     title: 'Chuyến đi',
     path: '/my-forwarder-trips',

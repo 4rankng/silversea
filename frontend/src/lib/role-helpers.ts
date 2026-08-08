@@ -60,14 +60,14 @@ export function isLegacyRole(role: Role | string): boolean {
  * getModernRole(Role.OPS) // returns 'OPS'
  * getModernRole(Role.ADMIN) // returns 'ADMIN'
  */
-export function getModernRole(role: Role): string {
-  switch (role) {
-    case Role.CUS:
-      return 'CUS';
-    case Role.OPS:
-      return 'OPS';
+export function getModernRole(role: Role | string): string {
+  switch (String(role)) {
+    case 'CLERK':
+      return Role.CUS;
+    case 'FORWARDER':
+      return Role.OPS;
     default:
-      return role;
+      return String(role);
   }
 }
 
@@ -87,5 +87,6 @@ export const ROLE_CATEGORIES = {
  * Check if role belongs to a specific category
  */
 export function isRoleInCategory(role: Role, category: keyof typeof ROLE_CATEGORIES): boolean {
-  return (ROLE_CATEGORIES[category] as readonly Role[]).includes(role);
+  const roles = ROLE_CATEGORIES[category];
+  return roles ? (roles as readonly Role[]).includes(role) : false;
 }

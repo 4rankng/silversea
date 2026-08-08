@@ -84,6 +84,11 @@ describe('role-helpers', () => {
   });
 
   describe('getModernRole', () => {
+    it('maps legacy role names to their canonical role', () => {
+      expect(getModernRole('CLERK')).toBe(Role.CUS);
+      expect(getModernRole('FORWARDER')).toBe(Role.OPS);
+    });
+
     it('converts CUS enum to CUS string', () => {
       expect(getModernRole(Role.CUS)).toBe('CUS');
     });

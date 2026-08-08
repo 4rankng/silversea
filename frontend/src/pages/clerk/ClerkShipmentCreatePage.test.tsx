@@ -127,7 +127,7 @@ describe('ClerkShipmentCreatePage', () => {
     renderPage();
     await screen.findByText('Thông tin chung');
     choose('Khách hàng', '7');
-    fireEvent.change(screen.getByLabelText('Số booking'), { target: { value: 'BK-001' } });
+    fireEvent.change(screen.getByLabelText('Số Bill/Book'), { target: { value: 'BK-001' } });
     fireEvent.click(screen.getByRole('button', { name: /Lưu bản nháp/ }));
     await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledTimes(1));
     expect(mocks.quickCreate.mock.calls[0][0]).toMatchObject({ customerId: 7, bookingRef: 'BK-001', cargoMode: 'FCL' });
@@ -165,7 +165,7 @@ describe('ClerkShipmentCreatePage', () => {
     choose('Nhà máy', '41');
     fireEvent.click(screen.getByRole('button', { name: /Xem chi tiết/ }));
     fireEvent.click(screen.getByLabelText('Đóng'));
-    fireEvent.change(screen.getByLabelText('Số booking'), { target: { value: 'BK-FCL' } });
+    fireEvent.change(screen.getByLabelText('Số Bill/Book'), { target: { value: 'BK-FCL' } });
     fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'MSCU6639870' } });
     choose('Loại container', '31');
     fireEvent.change(screen.getByLabelText('Hãng tàu'), { target: { value: 'MSC' } });
@@ -209,7 +209,7 @@ describe('ClerkShipmentCreatePage', () => {
     choose('Nhà máy', '41');
     fireEvent.click(screen.getByRole('button', { name: /Xem chi tiết/ }));
     fireEvent.click(screen.getByLabelText('Đóng'));
-    fireEvent.change(screen.getByLabelText('Số booking'), { target: { value: 'BK-RETRY' } });
+    fireEvent.change(screen.getByLabelText('Số Bill/Book'), { target: { value: 'BK-RETRY' } });
     fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'MSCU6639870' } });
     choose('Loại container', '31');
     fireEvent.change(screen.getByLabelText('Hãng tàu'), { target: { value: 'MSC' } });
@@ -254,7 +254,7 @@ describe('ClerkShipmentCreatePage', () => {
     choose('Nhà máy', '41');
     fireEvent.click(screen.getByRole('button', { name: /Xem chi tiết/ }));
     fireEvent.click(screen.getByLabelText('Đóng'));
-    fireEvent.change(screen.getByLabelText('Số booking'), { target: { value: 'BK-MODE-RETRY' } });
+    fireEvent.change(screen.getByLabelText('Số Bill/Book'), { target: { value: 'BK-MODE-RETRY' } });
     fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'MSCU6639870' } });
     choose('Loại container', '31');
     fireEvent.change(screen.getByLabelText('Hãng tàu'), { target: { value: 'MSC' } });
@@ -297,7 +297,7 @@ describe('ClerkShipmentCreatePage', () => {
     choose('Nhà máy', '41');
     fireEvent.click(screen.getByRole('button', { name: /Xem chi tiết/ }));
     fireEvent.click(screen.getByLabelText('Đóng'));
-    fireEvent.change(screen.getByLabelText('Số booking'), { target: { value: 'BK-LCL' } });
+    fireEvent.change(screen.getByLabelText('Số Bill/Book'), { target: { value: 'BK-LCL' } });
     choose('Loại lô hàng', 'LCL');
     choose('Loại hàng', '32');
     choose('Kho lấy hàng', '42');

@@ -8,16 +8,16 @@ describe('getNavItems', () => {
     [Role.ADMIN, [
       ['Tổng quan Quản trị', '/dashboard'],
       ['Quản lý Lô hàng', '/shipments'],
-      ['Phân bổ Phương tiện (Điều vận)', '/dispatch'],
+      ['Điều vận', '/dispatch'],
       ['Sổ chuyến đi', '/trips'],
-      ['Quản lý Đội xe (Fleet)', '/fleet'],
+      ['Đội xe', '/fleet'],
       ['Báo cáo Lãi lỗ', '/finance'],
       ['Báo cáo Lợi nhuận', '/profit'],
       ['Duyệt vượt hạn mức', '/credit-overrides'],
-      ['Trung tâm phê duyệt (Approve Hub)', '/governance-actions'],
+      ['Trung tâm phê duyệt', '/governance-actions'],
       ['Sổ quỹ / Ngân hàng', '/finance/treasury'],
-      ['Công nợ phải thu (AR)', '/debt'],
-      ['Công nợ phải trả (AP)', '/payables'],
+      ['Công nợ phải thu', '/debt'],
+      ['Công nợ phải trả', '/payables'],
       ['Chi phí phát sinh', '/expenses'],
       ['Tạm ứng & Hoàn ứng', '/advances'],
       ['Lương & Chấm công', '/salary'],
@@ -29,23 +29,23 @@ describe('getNavItems', () => {
       ['Cảng / Bãi & Biểu phí', '/config/ports'],
       ['Bảng giá cước', '/config/pricing-tables'],
       ['Quản lý Người dùng', '/users'],
-      ['Nhật ký hệ thống (Audit Logs)', '/audit-logs'],
+      ['Nhật ký hệ thống', '/audit-logs'],
       ['Cài đặt ứng dụng', '/config/app-settings'],
       ['Cấu hình chung', '/config'],
     ]],
     [Role.MANAGER, [
       ['Tổng quan Quản trị', '/dashboard'],
       ['Quản lý Lô hàng', '/shipments'],
-      ['Phân bổ Phương tiện (Điều vận)', '/dispatch'],
+      ['Điều vận', '/dispatch'],
       ['Sổ chuyến đi', '/trips'],
-      ['Quản lý Đội xe (Fleet)', '/fleet'],
+      ['Đội xe', '/fleet'],
       ['Báo cáo Lãi lỗ', '/finance'],
       ['Báo cáo Lợi nhuận', '/profit'],
       ['Duyệt vượt hạn mức', '/credit-overrides'],
-      ['Trung tâm phê duyệt (Approve Hub)', '/governance-actions'],
+      ['Trung tâm phê duyệt', '/governance-actions'],
       ['Sổ quỹ / Ngân hàng', '/finance/treasury'],
-      ['Công nợ phải thu (AR)', '/debt'],
-      ['Công nợ phải trả (AP)', '/payables'],
+      ['Công nợ phải thu', '/debt'],
+      ['Công nợ phải trả', '/payables'],
       ['Chi phí phát sinh', '/expenses'],
       ['Tạm ứng & Hoàn ứng', '/advances'],
       ['Lương & Chấm công', '/salary'],
@@ -57,20 +57,20 @@ describe('getNavItems', () => {
       ['Cảng / Bãi & Biểu phí', '/config/ports'],
       ['Bảng giá cước', '/config/pricing-tables'],
       ['Quản lý Người dùng', '/users'],
-      ['Nhật ký hệ thống (Audit Logs)', '/audit-logs'],
+      ['Nhật ký hệ thống', '/audit-logs'],
       ['Cấu hình chung', '/config'],
     ]],
     [Role.ACCOUNTANT, [
       ['Tổng Quan Kế Toán', '/accounting'],
       ['Sổ quỹ / Ngân hàng', '/finance/treasury'],
-      ['Công nợ phải thu (AR)', '/debt'],
-      ['Công nợ phải trả (AP)', '/payables'],
+      ['Công nợ phải thu', '/debt'],
+      ['Công nợ phải trả', '/payables'],
       ['Chi phí phát sinh', '/expenses'],
       ['Tạm ứng & Hoàn ứng', '/advances'],
       ['Báo cáo Lãi lỗ', '/finance'],
       ['Báo cáo Lợi nhuận', '/profit'],
       ['Duyệt vượt hạn mức', '/credit-overrides'],
-      ['Trung tâm phê duyệt (Approve Hub)', '/governance-actions'],
+      ['Trung tâm phê duyệt', '/governance-actions'],
       ['Quản lý Lô hàng', '/shipments'],
       ['Sổ chuyến đi', '/trips'],
       ['Đội xe', '/fleet'],
@@ -79,7 +79,7 @@ describe('getNavItems', () => {
       ['Khách hàng', '/customers'],
       ['Nhà cung cấp / Nhà xe', '/suppliers'],
       ['Bảng giá cước', '/config/pricing-tables'],
-      ['Nhật ký hệ thống (Audit Logs)', '/audit-logs'],
+      ['Nhật ký hệ thống', '/audit-logs'],
     ]],
     [Role.DRIVER, [
       ['Hành trình của tôi', '/my-trips'],
@@ -87,7 +87,7 @@ describe('getNavItems', () => {
       ['Kỷ luật', '/my-penalties'],
     ]],
     [Role.OPS, [
-      ['Lệnh giao nhận (Đổi lệnh)', '/my-orders'],
+      ['Lệnh giao nhận', '/my-orders'],
       ['Yêu cầu Tạm ứng', '/my-advances'],
       ['Phiếu thanh toán / Hoàn ứng', '/my-settlements'],
     ]],
@@ -96,22 +96,28 @@ describe('getNavItems', () => {
       ['Chi phí cần kiểm tra', '/recoverable-costs'],
     ]],
     [Role.DISPATCHER, [
-      ['Kế hoạch Tổng quát (Gán Nhà xe)', '/dispatch/master-plan'],
-      ['Kế hoạch Chi tiết (Gán BKS)', '/dispatch/detailed-plan'],
+      ['Kế hoạch tổng quát', '/dispatch/master-plan'],
+      ['Kế hoạch chi tiết', '/dispatch/detailed-plan'],
       ['Theo dõi Lộ trình', '/dispatch/live-tracking'],
       ['Danh mục Xe nội bộ', '/fleet/vehicles'],
       ['Danh mục Tài xế', '/fleet/drivers'],
-      ['Nhà thầu phụ (Subcontractors)', '/suppliers'],
+      ['Nhà thầu phụ', '/suppliers'],
     ]],
     [Role.CUSTOMER, [
       ['Lô hàng của tôi', '/portal/shipments'],
-      ['Giấy báo nợ (Debit Notes)', '/portal/debit-notes'],
+      ['Giấy báo nợ', '/portal/debit-notes'],
       ['Sao kê công nợ', '/portal/statement'],
     ]],
   ] as const)('matches the approved exact label and path matrix for %s', (role, expected) => {
     const actual = getNavItems(role, undefined, undefined, ['treasury.read', 'recoverable_costs.read'])
       .map(({ label, path }) => [label, path]);
     expect(actual).toEqual(expected);
+  });
+
+  it('keeps the Ops navigation usable for legacy FORWARDER sessions', () => {
+    expect(getNavItems('FORWARDER')).toEqual(getNavItems(Role.OPS));
+    expect(getNavSections('FORWARDER')).toEqual(getNavSections(Role.OPS));
+    expect(getDefaultOpenSection('FORWARDER')).toBe('my-work');
   });
 
   it('puts the dedicated accounting home first for ACCOUNTANT', () => {
@@ -164,6 +170,15 @@ describe('getNavItems', () => {
     }
   });
 
+  it('keeps every sidebar label Vietnamese-only without parenthetical aliases', () => {
+    for (const role of Object.values(Role)) {
+      const labels = getNavItems(role, undefined, undefined, ['treasury.read', 'recoverable_costs.read'])
+        .map((item) => item.label);
+      expect(labels.some((label) => /[()]/.test(label)), role).toBe(false);
+      expect(labels.some((label) => /\b(Fleet|Approve|Audit|Subcontractors|Debit Notes)\b/i.test(label)), role).toBe(false);
+    }
+  });
+
   it('keeps Tổng Quan Kế Toán as the accountant’s only sidebar home', () => {
     const items = getNavItems(Role.ACCOUNTANT, undefined, undefined, ['executive_dashboard.read']);
     expect(items.filter((item) => !item.section).map((item) => item.label)).toEqual(['Tổng Quan Kế Toán']);
@@ -181,8 +196,7 @@ describe('getNavItems', () => {
   });
 
   it('includes the governance inbox for office roles only with spec-compliant label', () => {
-    // Spec §III.1/III.2 — "Trung tâm phê duyệt (Approve Hub)"
-    const expectedLabel = 'Trung tâm phê duyệt (Approve Hub)';
+    const expectedLabel = 'Trung tâm phê duyệt';
     expect(getNavItems(Role.ADMIN).some((item) => (
       item.key === 'governance-actions'
       && item.path === '/governance-actions'

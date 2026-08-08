@@ -22,7 +22,7 @@ SECTION_TITLES = {
     "s07_payroll":           "07 — Lương, chấm công, kỷ luật (M07)",
     "s08_driver_app":        "08 — App lái xe (M08, mobile)",
     "s09_field_app":         "09 — App nhân viên hiện trường (M09, mobile)",
-    "s10_clerk_app":         "10 — App nhân viên chứng từ (M10, mobile)",
+    "s10_clerk_app":         "10 — App nhân viên chứng từ (CUS, M10, mobile)",
     "s11_finance_pnl":       "11 — Báo cáo tài chính & lãi lỗ (M11)",
     "s12_fuel":              "12 — Nhiên liệu & số hóa (M12)",
 }

@@ -116,7 +116,7 @@ def tc_m05_01_04_driver(ctx: VisualTestContext):
 def tc_m05_01_04_forwarder(ctx: VisualTestContext):
     ctx.login("FORWARDER")
     ctx.goto("/debt")
-    ctx.expect_url_contains("/my-forwarder-trips")
+    ctx.expect_url_contains("/my-orders")
 
 
 # ─── 5.2 Aging ─────────────────────────────────────────────────────────────

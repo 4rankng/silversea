@@ -12,6 +12,7 @@ import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { ToastProvider } from './components/shared/Toast';
 import { homeForRole, routes } from './lib/routes';
 import { canReadShipmentRoutes } from './lib/role-access';
+import { getModernRole } from './lib/role-helpers';
 
 export function legacyAdvanceSettlementsTarget(search: string): string {
   const params = new URLSearchParams(search);
@@ -132,20 +133,21 @@ export function AppRoutes() {
     </>
   );
 
-  const isDriver = user?.role === Role.DRIVER;
-  const isOps = user?.role === Role.OPS; // formerly FORWARDER
-  const isCus = user?.role === Role.CUS; // formerly CLERK
-  const isAdmin = user?.role === Role.ADMIN;
-  const isDispatcher = user?.role === Role.DISPATCHER;
+  const currentRole = getModernRole(user?.role ?? '');
+  const isDriver = currentRole === Role.DRIVER;
+  const isOps = currentRole === Role.OPS;
+  const isCus = currentRole === Role.CUS;
+  const isAdmin = currentRole === Role.ADMIN;
+  const isDispatcher = currentRole === Role.DISPATCHER;
   const driverHome = routes.myTrips;
   const opsHome = routes.myOrders; // formerly forwarderHome
   const cusHome = routes.shipments; // formerly clerkHome
   const isPortalUser = isDriver || isOps; // updated to use isOps
   const customerHome = routes.portalShipments;
-  const isCustomer = user?.role === Role.CUSTOMER;
-  const accountantWithoutExecutiveDashboard = user?.role === Role.ACCOUNTANT
-    && !user.capabilities?.includes('executive_dashboard.read');
-  const defaultHome = homeForRole(user?.role ?? '');
+  const isCustomer = currentRole === Role.CUSTOMER;
+  const accountantWithoutExecutiveDashboard = currentRole === Role.ACCOUNTANT
+    && !user?.capabilities?.includes('executive_dashboard.read');
+  const defaultHome = homeForRole(currentRole);
   const homeRedirect = isDriver
     ? driverHome
     : isOps
@@ -155,29 +157,29 @@ export function AppRoutes() {
         : isCus
           ? cusHome
           : defaultHome;
-  const adminOnly = (el: ReactElement) => (isPortalUser || isCustomer || isCus || isDispatcher || user?.role === Role.ACCOUNTANT ? <Navigate to={homeRedirect} replace /> : el);
+  const adminOnly = (el: ReactElement) => (isPortalUser || isCustomer || isCus || isDispatcher || currentRole === Role.ACCOUNTANT ? <Navigate to={homeRedirect} replace /> : el);
   const driverOnly = (el: ReactElement) => (isDriver ? el : <Navigate to={homeRedirect} replace />);
   const opsOnly = (el: ReactElement) => (isOps ? el : <Navigate to={homeRedirect} replace />); // formerly forwarderOnly
   const customerOnly = (el: ReactElement) => (isCustomer ? el : <Navigate to={homeRedirect} replace />);
-  const managerOrAdminOnly = (el: ReactElement) => (isAdmin || user?.role === Role.MANAGER ? el : <Navigate to={homeRedirect} replace />);
+  const managerOrAdminOnly = (el: ReactElement) => (isAdmin || currentRole === Role.MANAGER ? el : <Navigate to={homeRedirect} replace />);
   // Accountant cannot access dispatch pages
   const dispatchOnly = (el: ReactElement) => (
-    isAdmin || user?.role === Role.MANAGER || isDispatcher
+    isAdmin || currentRole === Role.MANAGER || isDispatcher
       ? el
       : <Navigate to={homeRedirect} replace />
   );
   // Accountant-blocked routes (per specification)
-  const accountantBlocked = (el: ReactElement) => (user?.role === Role.ACCOUNTANT ? <Navigate to={homeRedirect} replace /> : el);
+  const accountantBlocked = (el: ReactElement) => (currentRole === Role.ACCOUNTANT ? <Navigate to={homeRedirect} replace /> : el);
   // /users is the single home for everyone; accountants get scoped (driver-only) access.
-  const officeStaffOnly = (el: ReactElement) => (isAdmin || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT ? el : <Navigate to={homeRedirect} replace />);
-  const accountantOnly = (el: ReactElement) => (user?.role === Role.ACCOUNTANT ? el : <Navigate to={homeRedirect} replace />);
+  const officeStaffOnly = (el: ReactElement) => (isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT ? el : <Navigate to={homeRedirect} replace />);
+  const accountantOnly = (el: ReactElement) => (currentRole === Role.ACCOUNTANT ? el : <Navigate to={homeRedirect} replace />);
   const shipmentReaderOnly = (el: ReactElement) => (
-    canReadShipmentRoutes(user?.role)
+    canReadShipmentRoutes(currentRole)
       ? el
       : <Navigate to={homeRedirect} replace />
   );
   const financeReaderOnly = (el: ReactElement) => (
-    isAdmin || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT
+    isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT
       ? el
       : <Navigate to={homeRedirect} replace />
   );
@@ -187,7 +189,7 @@ export function AppRoutes() {
       : <Navigate to={homeRedirect} replace />
   );
   const recoverableCostOnly = (el: ReactElement) => (
-    isAdmin || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT || isCus
+    isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT || isCus
       ? el
       : <Navigate to={homeRedirect} replace />
   );
@@ -196,14 +198,14 @@ export function AppRoutes() {
   // the create page itself until a CUS landing page ships.
   const cusOrAdminOnly = (el: ReactElement) => (isAdmin || isCus ? el : <Navigate to={homeRedirect} replace />); // formerly clerkOrAdminOnly
   const shipmentOperatorOnly = (el: ReactElement) => (
-    isAdmin || isCus || user?.role === Role.MANAGER
+    isAdmin || isCus || currentRole === Role.MANAGER
       ? el
       : <Navigate to={homeRedirect} replace />
   );
   // Strict ADMIN-only — chatbot monitoring exposes raw turns and must never
   // be reachable by MANAGER/ACCOUNTANT. Mirrors managerOrAdminOnly's shape:
   // admit only when the role matches, else bounce to the portal or staff home.
-  const strictAdminOnly = (el: ReactElement) => (user?.role === Role.ADMIN ? el : <Navigate to={homeRedirect} replace />);
+  const strictAdminOnly = (el: ReactElement) => (isAdmin ? el : <Navigate to={homeRedirect} replace />);
 
   // Wrap each page in its own ErrorBoundary so a crash in one route
   // doesn't block navigation to other routes.
@@ -222,7 +224,7 @@ export function AppRoutes() {
           <Route path="/" element={<Navigate to={defaultHome} replace />} />
           <Route
             path="/dashboard"
-            element={isPortalUser || isCustomer || isCus || isDispatcher || user?.role === Role.ACCOUNTANT ? <Navigate to={homeRedirect} replace /> : page(<DashboardPage />)}
+            element={isPortalUser || isCustomer || isCus || isDispatcher || currentRole === Role.ACCOUNTANT ? <Navigate to={homeRedirect} replace /> : page(<DashboardPage />)}
           />
           <Route path="/dispatch" element={dispatchOnly(page(<DispatchPage />))} />
           <Route path="/fleet" element={adminOnly(page(<FleetPage />))} />
@@ -321,6 +323,7 @@ export function AppRoutes() {
           <Route path="/my-trips/:id" element={driverOnly(page(<DriverTripDetailPage />))} />
           <Route path="/my-earnings" element={driverOnly(page(<DriverEarningsPage />))} />
           <Route path="/my-payslips" element={driverOnly(page(<DriverPayslipsPage />))} />
+          <Route path="/my-orders" element={opsOnly(page(<ForwarderTripsPage />))} />
           <Route path="/my-forwarder-trips" element={opsOnly(page(<ForwarderTripsPage />))} />
           <Route path="/my-forwarder-trips/:id" element={opsOnly(page(<ForwarderTripDetailPage />))} />
           <Route path="/my-advances" element={opsOnly(page(<ForwarderAdvancesPage />))} />

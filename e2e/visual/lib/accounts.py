@@ -1,41 +1,38 @@
-"""Demo accounts for visual regression testing on localhost + staging.
+"""Environment-configured accounts for visual regression testing.
 
-Staging (vantai.tingting.vip) uses password `123456`; localhost uses
-`Abc123`. Set VISUAL_PASSWORD env var to override, or rely on the
-default `Abc123` for localhost.
-
-The runner uses `khachhang` as the primary CUSTOMER account (matches
-staging) and falls back to `customer` if `khachhang` is not seeded.
+Set ``VISUAL_PASSWORD`` outside the repository. Environment-specific account
+identifiers may be overridden without embedding credentials in test evidence.
 """
 from __future__ import annotations
 
 import os
 
-# Default password for the localhost dev stack. Staging (vantai.tingting.vip)
-# uses "123456" — override at runtime by setting the VISUAL_PASSWORD env var
-# rather than editing this file, so the same code works in both environments.
-DEFAULT_PASSWORD = os.environ.get("VISUAL_PASSWORD", "Abc123")
+DEFAULT_PASSWORD = os.environ.get("VISUAL_PASSWORD", "")
 
 # role_key -> identifier. The role_key doubles as the canonical RBAC role
 # name used throughout the regression docs. Every entry must authenticate as
 # that exact role; substituting a broader account would make RBAC evidence a
-# false positive. Environments without a CLERK fixture must fail preflight
-# instead of silently running the scenario as an administrator.
+# false positive.
 ACCOUNTS = {
     "ADMIN":     {"identifier": "admin",     "home": "/dashboard"},
     "MANAGER":   {"identifier": "giamdoc",   "home": "/dashboard"},
     "ACCOUNTANT":{"identifier": "ketoan",    "home": "/accounting"},
+    "CUS":       {"identifier": os.environ.get("VISUAL_CUS_IDENTIFIER", "cus"), "home": "/shipments"},
     "DRIVER":    {"identifier": "laixe",     "home": "/my-trips"},
-    "FORWARDER": {"identifier": "giaonhan",  "home": "/my-forwarder-trips"},
-    "CUSTOMER":  {"identifier": "khachhang", "home": "/portal/shipments"},
-    "CLERK":     {
-        "identifier": os.environ.get("VISUAL_CLERK_IDENTIFIER", "clerk"),
-        "home": "/clerk/shipments/new",
+    "FORWARDER": {"identifier": "giaonhan",  "home": "/my-orders"},
+    "CUSTOMER":  {
+        "identifier": os.environ.get("VISUAL_CUSTOMER_IDENTIFIER", "customer"),
+        "home": "/portal/shipments",
     },
 }
+
+if legacy_clerk_identifier := os.environ.get("VISUAL_LEGACY_CLERK_IDENTIFIER"):
+    ACCOUNTS["CLERK"] = {"identifier": legacy_clerk_identifier, "home": "/clerk/shipments/new"}
 
 
 def resolve(role: str) -> tuple[str, str]:
     """Return (identifier, password) for a role key. Raises KeyError if unknown."""
+    if not DEFAULT_PASSWORD:
+        raise RuntimeError("VISUAL_PASSWORD must be configured outside the repository")
     acct = ACCOUNTS[role]
     return acct["identifier"], DEFAULT_PASSWORD

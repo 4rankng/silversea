@@ -16,7 +16,7 @@ describe('resolveNotificationRoute', () => {
     }, 'DRIVER')).toBe('/my-trips/88');
   });
 
-  it('routes forwarder settlement notifications to the forwarder portal', () => {
+  it.each(['FORWARDER', 'OPS'])('routes %s settlement notifications to the Ops portal', (role) => {
     expect(resolveNotificationRoute({
       id: 2,
       userId: 8,
@@ -27,6 +27,6 @@ describe('resolveNotificationRoute', () => {
       relatedEntityId: 91,
       isRead: false,
       createdAt: '2026-08-01T03:00:00.000Z',
-    }, 'FORWARDER')).toBe('/my-settlements/91');
+    }, role)).toBe('/my-settlements/91');
   });
 });

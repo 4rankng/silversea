@@ -44,7 +44,7 @@ def tc_m07_01_01b_driver(ctx: VisualTestContext):
 def tc_m07_01_04_forwarder(ctx: VisualTestContext):
     ctx.login("FORWARDER")
     ctx.goto("/salary")
-    ctx.expect_url_contains("/my-forwarder-trips")
+    ctx.expect_url_contains("/my-orders")
 
 
 # ─── 7.2 Attendance ────────────────────────────────────────────────────────
@@ -138,4 +138,4 @@ def tc_m07_04_04_driver_block(ctx: VisualTestContext):
 def tc_m07_04_04_forwarder(ctx: VisualTestContext):
     ctx.login("FORWARDER")
     ctx.goto("/penalties")
-    ctx.expect_url_contains("/my-forwarder-trips")
+    ctx.expect_url_contains("/my-orders")

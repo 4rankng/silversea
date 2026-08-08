@@ -109,7 +109,9 @@ def tc_m03_01_01b(ctx: VisualTestContext):
 def tc_m03_01_05_forwarder(ctx: VisualTestContext):
     ctx.login("FORWARDER")
     ctx.goto("/shipments")
-    ctx.expect_url_contains("/my-forwarder-trips")
+    ctx.expect_url_contains("/my-orders")
+    if "Lệnh hiện trường" not in ctx.page.inner_text("body"):
+        raise AssertionError("Ops redirect did not render the order-exchange workspace")
 
 
 @tc("TC-M03-01-05-customer", roles=["CUSTOMER"], url="/shipments",
@@ -201,7 +203,9 @@ def tc_m03_05_01(ctx: VisualTestContext):
 def tc_m03_05_06_forwarder(ctx: VisualTestContext):
     ctx.login("FORWARDER")
     ctx.goto("/customers/1")
-    ctx.expect_url_contains("/my-forwarder-trips")
+    ctx.expect_url_contains("/my-orders")
+    if "Lệnh hiện trường" not in ctx.page.inner_text("body"):
+        raise AssertionError("Ops customer redirect did not render the order-exchange workspace")
 
 
 @tc("TC-M03-05-06-customer", roles=["CUSTOMER"], url="/customers/1",

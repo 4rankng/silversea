@@ -64,7 +64,7 @@ def parse_file(path: Path) -> list[TCSpec]:
         if stripped.startswith("- **Vai trò"):
             current.role_line = stripped
             # Extract role names inside backticks.
-            current.roles = re.findall(r"`(ADMIN|MANAGER|ACCOUNTANT|DRIVER|FORWARDER|CUSTOMER|CLERK)`", stripped)
+            current.roles = re.findall(r"`(ADMIN|MANAGER|ACCOUNTANT|DISPATCHER|DRIVER|OPS|FORWARDER|CUS|CUSTOMER|CLERK)`", stripped)
         elif stripped.startswith("- **Mã PRD"):
             mm = _PRD_RE.search(stripped)
             if mm:

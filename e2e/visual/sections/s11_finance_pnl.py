@@ -60,7 +60,7 @@ def tc_m11_01_04_customer(ctx: VisualTestContext):
 def tc_m11_01_04_forwarder(ctx: VisualTestContext):
     ctx.login("FORWARDER")
     ctx.goto("/finance")
-    ctx.expect_url_contains("/my-forwarder-trips")
+    ctx.expect_url_contains("/my-orders")
 
 
 # ─── 11.2 Per-truck P&L ──────────────────────────────────────────────────

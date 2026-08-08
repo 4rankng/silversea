@@ -54,6 +54,7 @@ describe('titleForPath (catalog-sourced, parity with pre-refactor behavior)', ()
     '/my-trips': 'Hành trình',
     '/my-trips/3': 'Hành trình',
     '/my-earnings': 'Thu nhập',
+    '/my-orders': 'Lệnh giao nhận',
     '/my-forwarder-trips': 'Chuyến đi',
     '/my-advances': 'Tạm ứng',
     '/my-settlements': 'Phiếu thanh toán',
@@ -86,6 +87,11 @@ describe('homeForRole', () => {
 
   it('routes DISPATCHER users to the dispatch workspace', () => {
     expect(homeForRole('DISPATCHER')).toBe('/dispatch/master-plan');
+  });
+
+  it('routes OPS and legacy FORWARDER users to the order-exchange workspace', () => {
+    expect(homeForRole('OPS')).toBe('/my-orders');
+    expect(homeForRole('FORWARDER')).toBe('/my-orders');
   });
 });
 

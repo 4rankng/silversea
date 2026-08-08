@@ -163,6 +163,9 @@ interface ExpenseRowProps { exp: Expense; expenseTypeOptions: Array<{ code: stri
 export function ForwarderExpenseRow({ exp, expenseTypeOptions: forwarderExpenseTypeOptions, uploadingExpenseId, photos, onUpload: handleUploadPhoto, onEdit: openExpenseEditor, onDelete: handleDeleteExpense, deletePending, onLoadPhotos: loadExpensePhotos }: ExpenseRowProps) {
  const expensePhotos: Record<number, string[]> = photos ? { [exp.id]: photos } : {};
  const deleteExpenseMut = { isPending: deletePending };
+ const settlementMethodLabel = exp.settlementMethod === 'FORWARDER_ADVANCE'
+   ? 'Chi hộ tạm ứng'
+   : SETTLEMENT_METHOD_LABELS[exp.settlementMethod as SettlementMethod] || exp.settlementMethod;
  return <>
                 <div key={exp.id} className="fwd-expense-record">
                   <div className="fwd-expense-record__layout">
@@ -194,7 +197,7 @@ export function ForwarderExpenseRow({ exp, expenseTypeOptions: forwarderExpenseT
                       )}
                       <dl className="fwd-expense-record__facts">
                         <div><dt>Container</dt><dd>{exp.containerNumber || 'Chi phí chung'}</dd></div>
-                        <div><dt>Hình thức chi</dt><dd>{SETTLEMENT_METHOD_LABELS[exp.settlementMethod as SettlementMethod] || exp.settlementMethod}</dd></div>
+                        <div><dt>Hình thức chi</dt><dd>{settlementMethodLabel}</dd></div>
                         <div><dt>Số hóa đơn</dt><dd>{exp.invoiceNumber || 'Không có hóa đơn'}</dd></div>
                         <div><dt>Ngày hóa đơn</dt><dd>{exp.invoiceDate ? formatDate(exp.invoiceDate) : '—'}</dd></div>
                       </dl>

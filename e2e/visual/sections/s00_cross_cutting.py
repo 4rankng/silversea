@@ -79,7 +79,7 @@ def tc_ht_02b(ctx: VisualTestContext):
 def tc_ht_02c(ctx: VisualTestContext):
     ctx.login("FORWARDER")
     ctx.goto("/salary")
-    ctx.expect_url_contains("/my-forwarder-trips")
+    ctx.expect_url_contains("/my-orders")
 
 
 # ─── HT-03: Audit log ─────────────────────────────────────────────────────

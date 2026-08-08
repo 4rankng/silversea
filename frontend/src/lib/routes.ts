@@ -96,7 +96,7 @@ export const routes = {
 
   /* ── Forwarder portal ──────────────────────────────────────────────── */
 
-  myOrders: '/my-orders',
+  myOrders: PAGE_CATALOG.myOrders.path,
   myForwarderTrips: PAGE_CATALOG.myForwarderTrips.path,
   myForwarderTripDetail: (id: number | string) => PAGE_CATALOG.myForwarderTripDetail.path({ id }),
   myAdvances: PAGE_CATALOG.myAdvances.path,
@@ -219,6 +219,7 @@ const titleRules: TitleRule[] = [
   { test: p => p.startsWith(routes.clerkShipmentNew), title: 'Tạo lô hàng' },
   { test: p => p.startsWith(routes.myTrips), title: PAGE_CATALOG.myTrips.title },
   { test: p => p.startsWith(routes.myEarnings), title: PAGE_CATALOG.myEarnings.title },
+  { test: p => p.startsWith(routes.myOrders), title: PAGE_CATALOG.myOrders.title },
   { test: p => p.startsWith(routes.myForwarderTrips), title: PAGE_CATALOG.myForwarderTrips.title },
   { test: p => p.startsWith(routes.myAdvances), title: PAGE_CATALOG.myAdvances.title },
   { test: p => /^\/my-settlements\/\d+$/.test(p), title: PAGE_CATALOG.mySettlementDetail.title },
