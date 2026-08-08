@@ -47,6 +47,36 @@ import { BRAND } from '../brand';
 
 // ─── Navigation config ────────────────────────────────────────────────────
 
+/**
+ * Per-role primary section that should be expanded by default when the user
+ * lands on their start page (e.g. /dashboard for ADMIN/MANAGER, /accounting for
+ * ACCOUNTANT, /dispatch/master-plan for DISPATCHER, /my-trips for DRIVER, etc.).
+ *
+ * Per the O2C spec (Sidebar_update.md §II):
+ *   "Khi truy cập trang bắt đầu, nhóm công việc trọng yếu nhất của vai trò đó
+ *    sẽ được mở/sổ xuống (Expanded) mặc định."
+ *
+ * This is also the fallback used when the active route is the ungrouped home
+ * page (Dashboard, Tổng Quan Kế Toán) — those items have no `section` so we
+ * pick the role's primary section explicitly instead of relying on the array
+ * order of `getNavSections()`.
+ */
+export const PRIMARY_SECTION_BY_ROLE: Record<string, SectionName | undefined> = {
+  ADMIN: 'operations',
+  MANAGER: 'operations',
+  ACCOUNTANT: 'financials',
+  DISPATCHER: 'dispatch-planning',
+  CUS: 'document-ops',
+  OPS: 'my-work',
+  DRIVER: 'my-work',
+  CUSTOMER: 'portal',
+};
+
+export function getDefaultOpenSection(role: Role | string | undefined): SectionName | undefined {
+  if (!role) return undefined;
+  return PRIMARY_SECTION_BY_ROLE[String(role).toUpperCase()];
+}
+
 export function getNavItems(
   role: Role,
   dispatchCount?: number,
@@ -62,24 +92,24 @@ export function getNavItems(
        ───────────────────────────────────────────────────────────────────────── */
     case 'ADMIN': {
       return [
-        // Vận hành (Operations)
+        // Vận hành (Operations) — O2C flow per spec
         { key: 'shipments', label: 'Quản lý Lô hàng', path: routes.shipments, icon: Package, section: 'operations' as SectionName },
-        { key: 'dispatch', label: 'Điều vận', path: routes.dispatch, icon: Compass, section: 'operations' as SectionName, count: dispatchCount },
+        { key: 'dispatch', label: 'Phân bổ Phương tiện (Điều vận)', path: routes.dispatch, icon: Compass, section: 'operations' as SectionName, count: dispatchCount },
         { key: 'trips', label: 'Sổ chuyến đi', path: routes.trips, icon: Truck, section: 'operations' as SectionName },
-        { key: 'fleet', label: 'Đội xe', path: routes.fleet, icon: Layers, section: 'operations' as SectionName },
+        { key: 'fleet', label: 'Quản lý Đội xe (Fleet)', path: routes.fleet, icon: Layers, section: 'operations' as SectionName },
 
-        // Báo cáo & Phê duyệt (Reports & Approvals)
-        { key: 'finance', label: 'Báo cáo lãi lỗ', path: routes.finance, icon: Wallet, section: 'reports' as SectionName },
-        { key: 'profit', label: 'Báo cáo lợi nhuận', path: routes.profit, icon: DollarSign, section: 'reports' as SectionName },
+        // Báo cáo & Phê duyệt (Reports & Approvals) per spec
+        { key: 'finance', label: 'Báo cáo Lãi lỗ', path: routes.finance, icon: Wallet, section: 'reports' as SectionName },
+        { key: 'profit', label: 'Báo cáo Lợi nhuận', path: routes.profit, icon: DollarSign, section: 'reports' as SectionName },
         { key: 'credit-overrides', label: 'Duyệt vượt hạn mức', path: routes.creditOverrides, icon: Shield, section: 'reports' as SectionName },
-        { key: 'governance-actions', label: 'Trung tâm phê duyệt', path: routes.governanceActions, icon: ClipboardCheck, section: 'reports' as SectionName },
+        { key: 'governance-actions', label: 'Trung tâm phê duyệt (Approve Hub)', path: routes.governanceActions, icon: ClipboardCheck, section: 'reports' as SectionName },
 
-        // Công nợ & Dòng tiền (AR/AP)
+        // Công nợ & Dòng tiền (AR/AP) per spec
         ...(hasCapability('treasury.read') ? [
-          { key: 'treasury', label: 'Sổ quỹ / ngân hàng', path: routes.treasury, icon: Landmark, section: 'financials' as SectionName },
+          { key: 'treasury', label: 'Sổ quỹ / Ngân hàng', path: routes.treasury, icon: Landmark, section: 'financials' as SectionName },
         ] : []),
-        { key: 'debt', label: 'Công nợ phải thu', path: routes.debt, icon: Receipt, section: 'financials' as SectionName },
-        { key: 'payables', label: 'Công nợ phải trả', path: routes.payables, icon: Receipt, section: 'financials' as SectionName },
+        { key: 'debt', label: 'Công nợ phải thu (AR)', path: routes.debt, icon: Receipt, section: 'financials' as SectionName },
+        { key: 'payables', label: 'Công nợ phải trả (AP)', path: routes.payables, icon: Receipt, section: 'financials' as SectionName },
         { key: 'expenses', label: 'Chi phí phát sinh', path: routes.expenses, icon: FileText, section: 'financials' as SectionName },
         { key: 'advances', label: 'Tạm ứng & Hoàn ứng', path: routes.advances, icon: Wallet, section: 'financials' as SectionName },
 
@@ -87,24 +117,23 @@ export function getNavItems(
         { key: 'salary', label: 'Lương & Chấm công', path: routes.salary, icon: CalendarDays, section: 'hr' as SectionName },
         { key: 'penalties', label: 'Kỷ luật', path: routes.penalties, icon: AlertTriangle, section: 'hr' as SectionName, count: penaltiesCount },
 
-        // Danh mục (Master Data)
+        // Danh mục (Master Data) per spec
         { key: 'customers', label: 'Khách hàng', path: routes.customers, icon: Users, section: 'master-data' as SectionName },
-        { key: 'suppliers', label: 'Nhà cung cấp', path: routes.suppliers, icon: Store, section: 'master-data' as SectionName },
+        { key: 'suppliers', label: 'Nhà cung cấp / Nhà xe', path: routes.suppliers, icon: Store, section: 'master-data' as SectionName },
         { key: 'config-routes', label: 'Tuyến đường', path: routes.configRoutes, icon: Route, section: 'master-data' as SectionName },
         { key: 'config-factories', label: 'Nhà máy', path: routes.configFactories, icon: Store, section: 'master-data' as SectionName },
         { key: 'config-ports', label: 'Cảng / Bãi & Biểu phí', path: routes.configPorts, icon: Anchor, section: 'master-data' as SectionName },
         { key: 'config-pricing', label: 'Bảng giá cước', path: routes.configPricingTables, icon: DollarSign, section: 'master-data' as SectionName },
 
-        // Hệ thống (System)
-        { key: 'users', label: 'Quản lý người dùng', path: routes.users, icon: Users, section: 'system' as SectionName },
-        { key: 'audit-logs', label: 'Nhật ký hệ thống', path: routes.auditLogs, icon: ScrollText, section: 'system' as SectionName },
+        // Hệ thống (System) per spec
+        { key: 'users', label: 'Quản lý Người dùng', path: routes.users, icon: Users, section: 'system' as SectionName },
+        { key: 'audit-logs', label: 'Nhật ký hệ thống (Audit Logs)', path: routes.auditLogs, icon: ScrollText, section: 'system' as SectionName },
         { key: 'app-settings', label: 'Cài đặt ứng dụng', path: '/config/app-settings', icon: SlidersHorizontal, section: 'system' as SectionName },
         { key: 'config', label: 'Cấu hình chung', path: routes.config, icon: Settings, section: 'system' as SectionName },
 
-        // Tổng quan (Dashboard) - first item
-        { key: 'dashboard', label: 'Tổng quan', path: routes.dashboard, icon: LayoutDashboard, section: undefined },
+        // Tổng quan (Dashboard) - first item, per spec: "Tổng quan Quản trị"
+        { key: 'dashboard', label: 'Tổng quan Quản trị', path: routes.dashboard, icon: LayoutDashboard, section: undefined },
       ].sort((a, b) => {
-        // Keep dashboard at top, then sort by section
         if (a.key === 'dashboard') return -1;
         if (b.key === 'dashboard') return 1;
         return 0;
@@ -113,24 +142,24 @@ export function getNavItems(
 
     case 'MANAGER': {
       return [
-        // Vận hành (Operations)
+        // Vận hành (Operations) — O2C flow per spec
         { key: 'shipments', label: 'Quản lý Lô hàng', path: routes.shipments, icon: Package, section: 'operations' as SectionName },
-        { key: 'dispatch', label: 'Điều vận', path: routes.dispatch, icon: Compass, section: 'operations' as SectionName, count: dispatchCount },
+        { key: 'dispatch', label: 'Phân bổ Phương tiện (Điều vận)', path: routes.dispatch, icon: Compass, section: 'operations' as SectionName, count: dispatchCount },
         { key: 'trips', label: 'Sổ chuyến đi', path: routes.trips, icon: Truck, section: 'operations' as SectionName },
-        { key: 'fleet', label: 'Đội xe', path: routes.fleet, icon: Layers, section: 'operations' as SectionName },
+        { key: 'fleet', label: 'Quản lý Đội xe (Fleet)', path: routes.fleet, icon: Layers, section: 'operations' as SectionName },
 
-        // Báo cáo & Phê duyệt (Reports & Approvals)
-        { key: 'finance', label: 'Báo cáo lãi lỗ', path: routes.finance, icon: Wallet, section: 'reports' as SectionName },
-        { key: 'profit', label: 'Báo cáo lợi nhuận', path: routes.profit, icon: DollarSign, section: 'reports' as SectionName },
+        // Báo cáo & Phê duyệt (Reports & Approvals) per spec
+        { key: 'finance', label: 'Báo cáo Lãi lỗ', path: routes.finance, icon: Wallet, section: 'reports' as SectionName },
+        { key: 'profit', label: 'Báo cáo Lợi nhuận', path: routes.profit, icon: DollarSign, section: 'reports' as SectionName },
         { key: 'credit-overrides', label: 'Duyệt vượt hạn mức', path: routes.creditOverrides, icon: Shield, section: 'reports' as SectionName },
-        { key: 'governance-actions', label: 'Trung tâm phê duyệt', path: routes.governanceActions, icon: ClipboardCheck, section: 'reports' as SectionName },
+        { key: 'governance-actions', label: 'Trung tâm phê duyệt (Approve Hub)', path: routes.governanceActions, icon: ClipboardCheck, section: 'reports' as SectionName },
 
-        // Công nợ & Dòng tiền (AR/AP)
+        // Công nợ & Dòng tiền (AR/AP) per spec
         ...(hasCapability('treasury.read') ? [
-          { key: 'treasury', label: 'Sổ quỹ / ngân hàng', path: routes.treasury, icon: Landmark, section: 'financials' as SectionName },
+          { key: 'treasury', label: 'Sổ quỹ / Ngân hàng', path: routes.treasury, icon: Landmark, section: 'financials' as SectionName },
         ] : []),
-        { key: 'debt', label: 'Công nợ phải thu', path: routes.debt, icon: Receipt, section: 'financials' as SectionName },
-        { key: 'payables', label: 'Công nợ phải trả', path: routes.payables, icon: Receipt, section: 'financials' as SectionName },
+        { key: 'debt', label: 'Công nợ phải thu (AR)', path: routes.debt, icon: Receipt, section: 'financials' as SectionName },
+        { key: 'payables', label: 'Công nợ phải trả (AP)', path: routes.payables, icon: Receipt, section: 'financials' as SectionName },
         { key: 'expenses', label: 'Chi phí phát sinh', path: routes.expenses, icon: FileText, section: 'financials' as SectionName },
         { key: 'advances', label: 'Tạm ứng & Hoàn ứng', path: routes.advances, icon: Wallet, section: 'financials' as SectionName },
 
@@ -138,21 +167,21 @@ export function getNavItems(
         { key: 'salary', label: 'Lương & Chấm công', path: routes.salary, icon: CalendarDays, section: 'hr' as SectionName },
         { key: 'penalties', label: 'Kỷ luật', path: routes.penalties, icon: AlertTriangle, section: 'hr' as SectionName, count: penaltiesCount },
 
-        // Danh mục (Master Data)
+        // Danh mục (Master Data) per spec
         { key: 'customers', label: 'Khách hàng', path: routes.customers, icon: Users, section: 'master-data' as SectionName },
-        { key: 'suppliers', label: 'Nhà cung cấp', path: routes.suppliers, icon: Store, section: 'master-data' as SectionName },
+        { key: 'suppliers', label: 'Nhà cung cấp / Nhà xe', path: routes.suppliers, icon: Store, section: 'master-data' as SectionName },
         { key: 'config-routes', label: 'Tuyến đường', path: routes.configRoutes, icon: Route, section: 'master-data' as SectionName },
         { key: 'config-factories', label: 'Nhà máy', path: routes.configFactories, icon: Store, section: 'master-data' as SectionName },
         { key: 'config-ports', label: 'Cảng / Bãi & Biểu phí', path: routes.configPorts, icon: Anchor, section: 'master-data' as SectionName },
         { key: 'config-pricing', label: 'Bảng giá cước', path: routes.configPricingTables, icon: DollarSign, section: 'master-data' as SectionName },
 
-        // Hệ thống (System)
-        { key: 'users', label: 'Quản lý người dùng', path: routes.users, icon: Users, section: 'system' as SectionName },
-        { key: 'audit-logs', label: 'Nhật ký hệ thống', path: routes.auditLogs, icon: ScrollText, section: 'system' as SectionName },
+        // Hệ thống (System) per spec (MANAGER excludes app-settings + master-data import)
+        { key: 'users', label: 'Quản lý Người dùng', path: routes.users, icon: Users, section: 'system' as SectionName },
+        { key: 'audit-logs', label: 'Nhật ký hệ thống (Audit Logs)', path: routes.auditLogs, icon: ScrollText, section: 'system' as SectionName },
         { key: 'config', label: 'Cấu hình chung', path: routes.config, icon: Settings, section: 'system' as SectionName },
 
-        // Tổng quan (Dashboard) - first item
-        { key: 'dashboard', label: 'Tổng quan', path: routes.dashboard, icon: LayoutDashboard, section: undefined },
+        // Tổng quan (Dashboard) - first item, per spec: "Tổng quan Quản trị"
+        { key: 'dashboard', label: 'Tổng quan Quản trị', path: routes.dashboard, icon: LayoutDashboard, section: undefined },
       ].sort((a, b) => {
         if (a.key === 'dashboard') return -1;
         if (b.key === 'dashboard') return 1;
@@ -165,25 +194,25 @@ export function getNavItems(
        ───────────────────────────────────────────────────────────────────────── */
     case 'ACCOUNTANT': {
       return [
-        // Tổng Quan Kế Toán (Accounting Dashboard) - first item
+        // Tổng Quan Kế Toán (Accounting Dashboard) - first item, per spec
         { key: 'accounting', label: 'Tổng Quan Kế Toán', path: routes.accounting, icon: Calculator, section: undefined },
 
-        // Công nợ & Dòng tiền (AR/AP) - PRIMARY SECTION
+        // Công nợ & Dòng tiền (AR/AP) - PRIMARY SECTION per spec
         ...(hasCapability('treasury.read') ? [
-          { key: 'treasury', label: 'Sổ quỹ / ngân hàng', path: routes.treasury, icon: Landmark, section: 'financials' as SectionName },
+          { key: 'treasury', label: 'Sổ quỹ / Ngân hàng', path: routes.treasury, icon: Landmark, section: 'financials' as SectionName },
         ] : []),
-        { key: 'debt', label: 'Công nợ phải thu', path: routes.debt, icon: Receipt, section: 'financials' as SectionName },
-        { key: 'payables', label: 'Công nợ phải trả', path: routes.payables, icon: Receipt, section: 'financials' as SectionName },
+        { key: 'debt', label: 'Công nợ phải thu (AR)', path: routes.debt, icon: Receipt, section: 'financials' as SectionName },
+        { key: 'payables', label: 'Công nợ phải trả (AP)', path: routes.payables, icon: Receipt, section: 'financials' as SectionName },
         { key: 'expenses', label: 'Chi phí phát sinh', path: routes.expenses, icon: FileText, section: 'financials' as SectionName },
         { key: 'advances', label: 'Tạm ứng & Hoàn ứng', path: routes.advances, icon: Wallet, section: 'financials' as SectionName },
 
-        // Báo cáo & Phê duyệt (Reports & Approvals)
-        { key: 'finance', label: 'Báo cáo lãi lỗ', path: routes.finance, icon: Wallet, section: 'reports' as SectionName },
-        { key: 'profit', label: 'Báo cáo lợi nhuận', path: routes.profit, icon: DollarSign, section: 'reports' as SectionName },
+        // Báo cáo & Phê duyệt (Reports & Approvals) per spec
+        { key: 'finance', label: 'Báo cáo Lãi lỗ', path: routes.finance, icon: Wallet, section: 'reports' as SectionName },
+        { key: 'profit', label: 'Báo cáo Lợi nhuận', path: routes.profit, icon: DollarSign, section: 'reports' as SectionName },
         { key: 'credit-overrides', label: 'Duyệt vượt hạn mức', path: routes.creditOverrides, icon: Shield, section: 'reports' as SectionName },
-        { key: 'governance-actions', label: 'Trung tâm phê duyệt', path: routes.governanceActions, icon: ClipboardCheck, section: 'reports' as SectionName },
+        { key: 'governance-actions', label: 'Trung tâm phê duyệt (Approve Hub)', path: routes.governanceActions, icon: ClipboardCheck, section: 'reports' as SectionName },
 
-        // Vận hành liên quan (Operations - View-only/Audit)
+        // Vận hành liên quan (Operations - View-only/Audit) per spec
         { key: 'shipments', label: 'Quản lý Lô hàng', path: routes.shipments, icon: Package, section: 'operations' as SectionName },
         { key: 'trips', label: 'Sổ chuyến đi', path: routes.trips, icon: Truck, section: 'operations' as SectionName },
         { key: 'fleet', label: 'Đội xe', path: routes.fleet, icon: Layers, section: 'operations' as SectionName },
@@ -192,13 +221,13 @@ export function getNavItems(
         { key: 'salary', label: 'Lương & Chấm công', path: routes.salary, icon: CalendarDays, section: 'hr' as SectionName },
         { key: 'penalties', label: 'Kỷ luật', path: routes.penalties, icon: AlertTriangle, section: 'hr' as SectionName, count: penaltiesCount },
 
-        // Danh mục (Master Data)
+        // Danh mục (Master Data) per spec
         { key: 'customers', label: 'Khách hàng', path: routes.customers, icon: Users, section: 'master-data' as SectionName },
-        { key: 'suppliers', label: 'Nhà cung cấp', path: routes.suppliers, icon: Store, section: 'master-data' as SectionName },
+        { key: 'suppliers', label: 'Nhà cung cấp / Nhà xe', path: routes.suppliers, icon: Store, section: 'master-data' as SectionName },
         { key: 'config-pricing', label: 'Bảng giá cước', path: routes.configPricingTables, icon: DollarSign, section: 'master-data' as SectionName },
 
-        // Hệ thống (System)
-        { key: 'audit-logs', label: 'Nhật ký hệ thống', path: routes.auditLogs, icon: ScrollText, section: 'system' as SectionName },
+        // Hệ thống (System) per spec — accountant has ONLY audit-logs in this section
+        { key: 'audit-logs', label: 'Nhật ký hệ thống (Audit Logs)', path: routes.auditLogs, icon: ScrollText, section: 'system' as SectionName },
       ].sort((a, b) => {
         if (a.key === 'accounting') return -1;
         if (b.key === 'accounting') return 1;
@@ -207,19 +236,19 @@ export function getNavItems(
     }
 
     /* ─────────────────────────────────────────────────────────────────────────
-       DISPATCHER: Resource allocation focus
+       DISPATCHER: Resource allocation focus, default = /dispatch/master-plan
        ───────────────────────────────────────────────────────────────────────── */
     case 'DISPATCHER': {
       return [
-        // Điều độ Phương tiện (Dispatch Planning) - PRIMARY SECTION
+        // Điều độ Phương tiện (Dispatch Planning) - PRIMARY SECTION per spec
         { key: 'dispatch-master-plan', label: 'Kế hoạch Tổng quát (Gán Nhà xe)', path: routes.dispatchMasterPlan, icon: Compass, section: 'dispatch-planning' as SectionName },
         { key: 'dispatch-detailed-plan', label: 'Kế hoạch Chi tiết (Gán BKS)', path: routes.dispatchDetailedPlan, icon: Route, section: 'dispatch-planning' as SectionName },
         { key: 'dispatch-live-tracking', label: 'Theo dõi Lộ trình', path: routes.dispatchLiveTracking, icon: Package, section: 'dispatch-planning' as SectionName },
 
-        // Quản lý Tài nguyên (Resources)
+        // Quản lý Tài nguyên (Resources) per spec
         { key: 'fleet-vehicles', label: 'Danh mục Xe nội bộ', path: '/fleet/vehicles', icon: Truck, section: 'resources' as SectionName },
         { key: 'fleet-drivers', label: 'Danh mục Tài xế', path: '/fleet/drivers', icon: Users, section: 'resources' as SectionName },
-        { key: 'suppliers', label: 'Nhà thầu phụ', path: routes.suppliers, icon: Store, section: 'resources' as SectionName },
+        { key: 'suppliers', label: 'Nhà thầu phụ (Subcontractors)', path: routes.suppliers, icon: Store, section: 'resources' as SectionName },
       ];
     }
 
@@ -478,7 +507,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const pageTitle = getPageTitle(location.pathname);
   const activeSection = navItems.find(i => i.key === activeKey)?.section;
-  const preferredOpenSection = activeSection ?? navSections[0]?.key;
+  // When the active item is the ungrouped start page (e.g. /dashboard,
+  // /accounting), fall back to the role's primary section per spec rather than
+  // blindly taking the first section in the list.
+  const primarySection = getDefaultOpenSection(user?.role);
+  const preferredOpenSection = activeSection ?? primarySection ?? navSections[0]?.key;
 
   // Sidebar navigation handler
   const handleNavigate = useCallback((path: string) => {

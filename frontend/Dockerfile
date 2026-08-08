@@ -18,7 +18,9 @@ COPY frontend/package.json frontend/package.json
 # Resolve frontend + transitive workspace dependencies. The shared root store
 # exists only in this disposable builder; Chromium download is disabled and no
 # Node workspace is copied into the nginx runtime image.
-RUN pnpm install --frozen-lockfile --filter @tingting/frontend...
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store,sharing=locked \
+    --mount=type=cache,target=/tmp/pnpm-verify,id=pnpm-verify-frontend \
+    pnpm install --frozen-lockfile --filter @tingting/frontend...
 
 # Copy source after install — code changes don't bust the install cache
 COPY tsconfig.base.json tsconfig.base.json
@@ -27,7 +29,8 @@ COPY shared/src shared/src
 COPY shared/fix-esm-imports.js shared/fix-esm-imports.js
 
 # Build shared first (Vite resolves @tingting/shared via alias to ../shared/src)
-RUN cd shared && pnpm build
+RUN --mount=type=cache,target=/app/shared/.tsbuildinfo,id=shared-tsbuild-frontend \
+    cd shared && pnpm build
 
 # Copy frontend source
 COPY frontend/index.html frontend/index.html
@@ -37,7 +40,9 @@ COPY frontend/public frontend/public
 COPY frontend/src frontend/src
 
 # Build frontend (vite build → frontend/dist)
-RUN cd frontend && pnpm build
+RUN --mount=type=cache,target=/app/frontend/.vite,id=frontend-vite \
+    --mount=type=cache,target=/app/frontend/node_modules/.vite,id=frontend-vite-deps \
+    cd frontend && pnpm build
 
 # ── Stage 2: Serve ───────────────────────────────────────────────────────────
 FROM nginx:alpine

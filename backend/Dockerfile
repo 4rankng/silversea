@@ -18,7 +18,9 @@ COPY backend/package.json backend/package.json
 # Resolve the backend and its transitive workspace dependencies. pnpm still
 # materializes the shared root store in this disposable stage, but Chromium
 # download is disabled above and the runtime is assembled from `pnpm deploy`.
-RUN pnpm install --frozen-lockfile --filter @tingting/backend...
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store,sharing=locked \
+    --mount=type=cache,target=/tmp/pnpm-verify,id=pnpm-verify \
+    pnpm install --frozen-lockfile --filter @tingting/backend...
 
 # Copy source after install — code changes don't bust the install cache
 COPY tsconfig.base.json tsconfig.base.json
@@ -32,7 +34,9 @@ COPY shared/fix-esm-imports.js shared/fix-esm-imports.js
 
 # Compile TypeScript — fails fast if type errors exist
 # Then rewrite bare imports for Node.js ESM compatibility
-RUN pnpm --filter @tingting/shared build && pnpm --filter backend build
+RUN --mount=type=cache,target=/app/backend/.tsbuildinfo,id=backend-tsbuild \
+    --mount=type=cache,target=/app/shared/.tsbuildinfo,id=shared-tsbuild \
+    pnpm --filter @tingting/shared build && pnpm --filter backend build
 
 # Produce a self-contained production dependency tree for the backend package.
 # This excludes root-only QA tooling even though the monorepo shares a lockfile.
