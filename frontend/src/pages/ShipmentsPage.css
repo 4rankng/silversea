@@ -1,8 +1,15 @@
 .shipments-page {
   display: grid;
-  gap: 20px;
+  gap: 16px;
   min-width: 0;
   padding-bottom: 40px;
+}
+
+/* This is an operational ledger, not a reading page. Keep the title close to
+   the workspace so the first row stays useful on a normal desktop viewport. */
+.shipments-page > .page-header {
+  margin-bottom: 0;
+  padding-bottom: 0;
 }
 
 /* Operational ledgers need the complete app canvas. This page intentionally
@@ -205,16 +212,8 @@
 }
 
 .cus-master-scroll {
-  max-height: min(68vh, 760px);
   min-width: 0;
   overflow-x: clip;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-
-.cus-master-scroll:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
 }
 
 .cus-master-table {
@@ -231,32 +230,32 @@
   font-size: 12px;
 }
 
-.cus-master-table__col-documents { width: 13%; }
-.cus-master-table__col-customer-route { width: 20%; }
+.cus-master-table__col-documents { width: 11%; }
+.cus-master-table__col-customer-route { width: 22%; }
 .cus-master-table__col-container-schedule { width: 14%; }
 .cus-master-table__col-status { width: 14%; }
-.cus-master-table__col-finance { width: 18%; }
+.cus-master-table__col-finance { width: 19%; }
 .cus-master-table__col-records { width: 13%; }
-.cus-master-table__col-action { width: 8%; }
+.cus-master-table__col-action { width: 7%; }
 
-.cus-master-table--columns-6.cus-master-table--has-container .cus-master-table__col-documents { width: 14%; }
-.cus-master-table--columns-6.cus-master-table--has-container .cus-master-table__col-customer-route { width: 23%; }
-.cus-master-table--columns-6.cus-master-table--has-container .cus-master-table__col-container-schedule { width: 16%; }
+.cus-master-table--columns-6.cus-master-table--has-container .cus-master-table__col-documents { width: 12%; }
+.cus-master-table--columns-6.cus-master-table--has-container .cus-master-table__col-customer-route { width: 25%; }
+.cus-master-table--columns-6.cus-master-table--has-container .cus-master-table__col-container-schedule { width: 17%; }
 .cus-master-table--columns-6.cus-master-table--has-container .cus-master-table__col-status { width: 16%; }
 .cus-master-table--columns-6.cus-master-table--has-container .cus-master-table__col-finance { width: 21%; }
-.cus-master-table--columns-6.cus-master-table--has-container .cus-master-table__col-action { width: 10%; }
+.cus-master-table--columns-6.cus-master-table--has-container .cus-master-table__col-action { width: 9%; }
 
-.cus-master-table--columns-6.cus-master-table--has-records .cus-master-table__col-documents { width: 14%; }
-.cus-master-table--columns-6.cus-master-table--has-records .cus-master-table__col-customer-route { width: 23%; }
+.cus-master-table--columns-6.cus-master-table--has-records .cus-master-table__col-documents { width: 12%; }
+.cus-master-table--columns-6.cus-master-table--has-records .cus-master-table__col-customer-route { width: 26%; }
 .cus-master-table--columns-6.cus-master-table--has-records .cus-master-table__col-status { width: 16%; }
 .cus-master-table--columns-6.cus-master-table--has-records .cus-master-table__col-finance { width: 22%; }
 .cus-master-table--columns-6.cus-master-table--has-records .cus-master-table__col-records { width: 15%; }
-.cus-master-table--columns-6.cus-master-table--has-records .cus-master-table__col-action { width: 10%; }
+.cus-master-table--columns-6.cus-master-table--has-records .cus-master-table__col-action { width: 9%; }
 
-.cus-master-table--columns-5 .cus-master-table__col-documents { width: 18%; }
-.cus-master-table--columns-5 .cus-master-table__col-customer-route { width: 27%; }
+.cus-master-table--columns-5 .cus-master-table__col-documents { width: 13%; }
+.cus-master-table--columns-5 .cus-master-table__col-customer-route { width: 29%; }
 .cus-master-table--columns-5 .cus-master-table__col-status { width: 19%; }
-.cus-master-table--columns-5 .cus-master-table__col-finance { width: 25%; }
+.cus-master-table--columns-5 .cus-master-table__col-finance { width: 28%; }
 .cus-master-table--columns-5 .cus-master-table__col-action { width: 11%; }
 
 .cus-master-table th,
@@ -278,7 +277,7 @@
   top: 0;
   background: var(--surface-2);
   color: var(--ink-2);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: var(--fw-semibold);
   letter-spacing: 0.015em;
   line-height: 1.35;
@@ -337,7 +336,7 @@
 
 .cus-cell-stack {
   display: grid;
-  gap: 6px;
+  gap: 5px;
   margin: 0;
   min-width: 0;
   max-width: 100%;
@@ -351,16 +350,17 @@
 
 .cus-cell-stack dt {
   color: var(--ink-3);
-  font-size: 10px;
-  font-weight: var(--fw-semibold);
-  line-height: 1.3;
+  font-size: 11px;
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-normal);
 }
 
 .cus-cell-stack dd {
   min-width: 0;
   max-width: 100%;
   margin: 0;
-  line-height: 1.4;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-snug);
   white-space: normal;
   overflow-wrap: anywhere;
 }
@@ -379,10 +379,10 @@
 }
 
 .cus-cell-note {
-  margin: 6px 0 0;
+  margin: 5px 0 0;
   color: var(--ink-3);
-  font-size: 11px;
-  line-height: 1.4;
+  font-size: var(--fs-xs);
+  line-height: var(--lh-normal);
   white-space: normal;
   overflow-wrap: anywhere;
 }
@@ -402,7 +402,7 @@
   width: max-content;
   padding: 3px 7px;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: 11px;
   font-style: normal;
   font-weight: var(--fw-semibold);
   line-height: 1.3;
@@ -920,7 +920,7 @@
   }
 
   .cus-master-table {
-    font-size: 11px;
+    font-size: var(--fs-xs);
   }
 
   .cus-master-table th,
@@ -934,14 +934,14 @@
 
   .cus-cell-stack dt,
   .cus-action-unavailable {
-    font-size: 9px;
+    font-size: 10px;
   }
 
   .cus-signal,
   .cus-bucket {
     width: auto;
     padding: 2px 5px;
-    font-size: 9px;
+    font-size: 10px;
   }
 
   .cus-row-action .btn {

@@ -25,6 +25,11 @@ customer content.
 
 - High-volume ledgers may opt out of the global reading-width cap and use the
   full app canvas while retaining shell padding and responsive behavior.
+- Do not cap the height of a normal paginated master table. Let the page own
+  vertical scrolling; add an inner scroller only for an intentionally
+  independent, bounded workspace such as a map or side-by-side queue.
+- In dense ledger cells, keep metadata at 10–11px and primary values at 13–14px;
+  do not shrink either to unreadable single-digit text at tablet widths.
 - Prefer whole-row pointer interaction plus a semantic in-cell keyboard control
   over a dedicated chevron column that consumes table width.
 - Buttons, links, selects, menus, and other controls inside a clickable row must

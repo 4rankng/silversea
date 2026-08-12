@@ -1018,7 +1018,7 @@ export default function ShipmentsPage() {
           />
         ) : (
           <>
-            <div className="cus-master-scroll" role="region" aria-label="Bảng tổng hợp lô hàng" tabIndex={0}>
+            <div className="cus-master-scroll" role="region" aria-label="Bảng tổng hợp lô hàng">
               <table className={`cus-master-table cus-master-table--${workspaceLayout} cus-master-table--columns-${desktopColumnCount}${showContainerSchedule ? ' cus-master-table--has-container' : ''}${showRecords ? ' cus-master-table--has-records' : ''}`}>
                 <colgroup>
                   <col className="cus-master-table__col-documents" />

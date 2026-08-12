@@ -548,10 +548,14 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     randomUUID.mockRestore();
   });
 
-  it('uses a fixed-width wrapping ledger and container-aware card mode', () => {
-    expect(css).toMatch(/\.cus-master-scroll\s*\{[\s\S]*?overflow-x:\s*clip;/);
+  it('uses a page-scrolling wrapping ledger and container-aware card mode', () => {
+    expect(css).toMatch(/\.cus-master-scroll\s*\{[^}]*overflow-x:\s*clip;/);
+    expect(css).not.toMatch(/\.cus-master-scroll\s*\{[^}]*max-height:/);
+    expect(css).not.toMatch(/\.cus-master-scroll\s*\{[^}]*overflow-y:\s*auto;/);
     expect(css).toMatch(/\.cus-master-table\s*\{[\s\S]*?width:\s*0;[\s\S]*?min-width:\s*100%;[\s\S]*?table-layout:\s*fixed;/);
     expect(css).toMatch(/\.cus-cell-stack\s*\{[\s\S]*?display:\s*grid;/);
+    expect(css).toMatch(/\.cus-cell-stack dt\s*\{[\s\S]*?font-size:\s*11px;/);
+    expect(css).toMatch(/\.cus-cell-stack dd\s*\{[\s\S]*?font-size:\s*var\(--fs-sm\);/);
     expect(css).not.toMatch(/\.cus-master-table\s*\{[\s\S]*?min-width:\s*2300px;/);
     expect(css).toMatch(/\.cus-workspace\[data-layout='cards'\] \.cus-master-scroll\s*\{\s*display:\s*none;/);
     expect(css).toMatch(/\.cus-workspace\[data-layout='cards'\] \.cus-mobile-list\s*\{[\s\S]*?display:\s*grid;/);
