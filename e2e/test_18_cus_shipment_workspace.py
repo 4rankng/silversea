@@ -326,15 +326,26 @@ def main() -> bool:
                     master_row = page.locator("tr.cus-master-row").filter(has_text=f"BLCUS{BOOK_SUFFIX_STORED}")
                     expand_button = master_row.locator("button.cus-row-toggle")
                     expand_button.focus()
+                    controls = expand_button.get_attribute("aria-controls")
                     page.keyboard.press("Enter")
+                    dialog = page.get_by_role("dialog")
+                    dialog.wait_for(timeout=10_000)
                     page.get_by_text("Cước đầu ra", exact=True).wait_for(timeout=10_000)
-                    expanded_by_keyboard = expand_button.get_attribute("aria-expanded") == "true"
-                    page.keyboard.press("Enter")
+                    controlled_region_exists = bool(controls) and page.locator(f"#{controls}").count() == 1
+                    page.keyboard.press("Escape")
+                    page.wait_for_function(
+                        "document.querySelectorAll('[role=\"dialog\"]').length === 0",
+                        timeout=2_500,
+                    )
+                    focus_restored = page.evaluate(
+                        "document.activeElement?.classList.contains('cus-row-toggle') === true"
+                    )
                     check(
                         results,
                         "TC-1812",
                         "Mở chi tiết container bằng bàn phím",
-                        expanded_by_keyboard,
+                        controlled_region_exists and focus_restored,
+                        f"ariaControls={controls}, focusRestored={focus_restored}",
                     )
 
                 if width == 390:
@@ -347,9 +358,13 @@ def main() -> bool:
                     focus_moved_inside = page.evaluate("document.activeElement?.getAttribute('aria-label') === 'Đóng'")
                     page.get_by_text("Cước đầu ra", exact=True).wait_for(timeout=10_000)
                     page.wait_for_function(
-                        "document.querySelector('.cus-mobile-drawer')?.getBoundingClientRect().left <= 1",
-                        timeout=2_000,
+                        """() => {
+                            const rect = document.querySelector('[role="dialog"]')?.getBoundingClientRect();
+                            return Boolean(rect && rect.left >= -1 && rect.right <= window.innerWidth + 1);
+                        }""",
+                        timeout=3_000,
                     )
+                    drawer_inside_viewport = True
                     ctx.screenshot(page, "TC-1813_mobile_detail_drawer")
                     page.keyboard.press("Escape")
                     page.wait_for_function(
@@ -361,8 +376,8 @@ def main() -> bool:
                         results,
                         "TC-1813",
                         "Drawer mobile giữ và trả focus khi đóng bằng Escape",
-                        focus_moved_inside and focus_restored,
-                        f"focusMoved={focus_moved_inside}, focusRestored={focus_restored}",
+                        focus_moved_inside and focus_restored and drawer_inside_viewport,
+                        f"focusMoved={focus_moved_inside}, focusRestored={focus_restored}, insideViewport={drawer_inside_viewport}",
                     )
 
                 ctx.screenshot(page, f"TC-1811_{label}_{width}")

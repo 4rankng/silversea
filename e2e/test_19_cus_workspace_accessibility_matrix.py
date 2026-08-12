@@ -370,13 +370,13 @@ def verify_role_viewport_matrix(ctx: NepoTestContext, results: TestResults):
                 if workspace_layout == "cards":
                     card = page.locator("article.cus-mobile-card").filter(has_text=f"BLCUS{SEARCH_SUFFIX}").first
                     card.locator("button.cus-mobile-card__reference").click()
-                    dialog = page.get_by_role("dialog")
-                    dialog.wait_for(timeout=10_000)
-                    button = dialog.get_by_role("button", name=expectation["ui_button"]).first
-                    reason_visible = dialog.get_by_text(expectation["ui_reason"], exact=False).count() > 0
                 else:
-                    button = page.get_by_role("button", name=expectation["ui_button"]).first
-                    reason_visible = page.get_by_text(expectation["ui_reason"], exact=False).count() > 0
+                    row = page.locator("tr.cus-master-row").filter(has_text=f"BLCUS{SEARCH_SUFFIX}").first
+                    row.locator("button.cus-row-toggle").click()
+                dialog = page.get_by_role("dialog")
+                dialog.wait_for(timeout=10_000)
+                button = dialog.get_by_role("button", name=expectation["ui_button"]).first
+                reason_visible = dialog.get_by_text(expectation["ui_reason"], exact=False).count() > 0
                 button.wait_for(state="visible", timeout=10_000)
                 condition = (
                     visible_fixture
@@ -455,16 +455,22 @@ def verify_responsive_cus_surface(ctx: NepoTestContext, results: TestResults):
                 expand_button.focus()
                 controls = expand_button.get_attribute("aria-controls")
                 page.keyboard.press("Enter")
+                dialog = page.get_by_role("dialog")
+                dialog.wait_for(timeout=10_000)
                 page.get_by_text("Cước đầu ra", exact=True).wait_for(timeout=10_000)
-                expanded = expand_button.get_attribute("aria-expanded") == "true"
-                page.keyboard.press("Enter")
-                collapsed = expand_button.get_attribute("aria-expanded") == "false"
+                controlled_region_exists = bool(controls) and page.locator(f"#{controls}").count() == 1
+                page.keyboard.press("Escape")
+                page.wait_for_function(
+                    "document.querySelectorAll('[role=\"dialog\"]').length === 0",
+                    timeout=2_500,
+                )
+                focus_restored = active_has_class(page, "cus-row-toggle")
                 check(
                     results,
                     "TC-1930",
-                    "Desktop keyboard mở/đóng đúng aria-expanded và aria-controls",
-                    bool(controls) and expanded and collapsed,
-                    f"ariaControls={controls}, console={console_errors}, pageErrors={page_errors}",
+                    "Desktop keyboard mở/đóng drawer và trả focus đúng aria-controls",
+                    controlled_region_exists and focus_restored,
+                    f"ariaControls={controls}, focusRestored={focus_restored}, console={console_errors}, pageErrors={page_errors}",
                 )
 
             if width in (390, 320):

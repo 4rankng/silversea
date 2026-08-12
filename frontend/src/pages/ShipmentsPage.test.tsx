@@ -176,9 +176,9 @@ function masterRow(): HTMLTableRowElement {
   return element;
 }
 
-function masterRowToggle(): HTMLButtonElement {
+function masterRowDetailButton(): HTMLButtonElement {
   const element = document.querySelector('button.cus-row-toggle');
-  if (!(element instanceof HTMLButtonElement)) throw new Error('shipment row toggle not rendered');
+  if (!(element instanceof HTMLButtonElement)) throw new Error('shipment detail button not rendered');
   return element;
 }
 
@@ -192,18 +192,18 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     apiPost.mockResolvedValue({ replayed: false });
   });
 
-  it('renders the active CUS tab and disabled combined-invoice placeholder', async () => {
+  it('renders one focused shipment workspace without unfinished navigation', async () => {
     renderPage();
     expect(await screen.findByRole('heading', { name: 'Quản lý lô hàng' })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: /Tất cả lô hàng/ }).getAttribute('aria-selected')).toBe('true');
-    expect((screen.getByRole('tab', { name: 'Hóa đơn kết hợp' }) as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getByLabelText('4-5 ký tự cuối Bill/Book hoặc tờ khai').getAttribute('inputmode')).toBe('text');
+    expect(screen.queryByRole('tab')).toBeNull();
+    expect(screen.queryByText('Hóa đơn kết hợp')).toBeNull();
+    expect(screen.getByLabelText('Bill/Book hoặc tờ khai').getAttribute('inputmode')).toBe('text');
   });
 
   it('rejects invalid suffixes locally and sends the exact mixed-case alphanumeric suffix', async () => {
     renderPage();
     await screen.findAllByText('Công ty Silver Sea');
-    const input = screen.getByLabelText('4-5 ký tự cuối Bill/Book hoặc tờ khai');
+    const input = screen.getByLabelText('Bill/Book hoặc tờ khai');
 
     fireEvent.change(input, { target: { value: 'A12' } });
     fireEvent.click(screen.getByRole('button', { name: 'Tìm kiếm' }));
@@ -222,67 +222,80 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('searchSuffix=aB12C')));
   });
 
-  it('shows grouped master evidence, full currency, and non-color-only risk signals', async () => {
+  it('keeps the master index compact and moves complete finance evidence into the drawer', async () => {
     renderPage();
     const table = await screen.findByRole('table');
     const surface = within(table);
-    expect(surface.getByText('Tài chính')).toBeTruthy();
-    expect(surface.getByText('Có hóa đơn')).toBeTruthy();
-    expect(surface.getByText('Không hóa đơn')).toBeTruthy();
-    expect(surface.getByText('Tổng chi')).toBeTruthy();
-    expect(surface.getByText('12.000.000')).toBeTruthy();
-    expect(surface.getByText('14.000.000')).toBeTruthy();
-    expect(surface.getByText('Loại hàng')).toBeTruthy();
-    expect(surface.getByText('Nhập')).toBeTruthy();
-    expect(surface.queryByText('Nhập · Đơn lẻ')).toBeNull();
-    expect(surface.getAllByText('Lỗ')).toHaveLength(2);
-    expect(surface.getByText('Còn tiền treo')).toBeTruthy();
-    expect(surface.getByText(/Đã xác nhận:/)).toBeTruthy();
+    expect(surface.getByRole('columnheader', { name: 'Lô hàng' })).toBeTruthy();
+    expect(surface.getByRole('columnheader', { name: 'Khách hàng / tuyến' })).toBeTruthy();
+    expect(surface.getByRole('columnheader', { name: 'Kế hoạch' })).toBeTruthy();
+    expect(surface.getByRole('columnheader', { name: 'Đối soát' })).toBeTruthy();
+    expect(surface.queryByRole('columnheader', { name: /Trạng thái/ })).toBeNull();
+    expect(surface.queryByText('Có hóa đơn')).toBeNull();
+    expect(surface.queryByText('Tổng chi')).toBeNull();
+    expect(surface.queryByText('12.000.000')).toBeNull();
+    expect(surface.getByLabelText('Thu có hóa đơn: 12.000.000 đồng')).toBeTruthy();
+    expect(surface.getByLabelText('Thu không hóa đơn: 1.500.000 đồng')).toBeTruthy();
+    expect(surface.getByLabelText('Tổng chi: 14.000.000 đồng')).toBeTruthy();
+    expect(screen.getByLabelText('Chú thích tài chính')).toBeTruthy();
+    expect(screen.getByLabelText('Chú thích trạng thái lô hàng')).toBeTruthy();
+    expect(surface.getByText('Lỗ')).toBeTruthy();
+    expect(surface.getByText('Chờ thu hồi')).toBeTruthy();
+    expect(surface.queryByText('Không cảnh báo')).toBeNull();
     expect((surface.getByRole('button', { name: 'Khóa lô' }) as HTMLButtonElement).disabled).toBe(false);
-    fireEvent.click(surface.getByLabelText('Trạng thái phơi phiếu của Công ty Silver Sea'));
-    expect(masterRowToggle().getAttribute('aria-expanded')).toBe('false');
-    expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
+
+    fireEvent.click(masterRowDetailButton());
+    const drawer = await screen.findByRole('dialog');
+    expect(within(drawer).getByText('Đối soát và chứng từ')).toBeTruthy();
+    expect(within(drawer).getByText('12.000.000 ₫')).toBeTruthy();
+    expect(within(drawer).getByText('14.000.000 ₫')).toBeTruthy();
+    expect(within(drawer).getByText(/Đã xác nhận:/)).toBeTruthy();
 
     const mobileList = document.querySelector('.cus-mobile-list');
     expect(mobileList).not.toBeNull();
     const mobileSurface = within(mobileList as HTMLElement);
-    expect(mobileSurface.getByText('Loại hàng')).toBeTruthy();
-    expect(mobileSurface.getByText('Nhập')).toBeTruthy();
-    expect(mobileSurface.queryByText('Nhập · Đơn lẻ')).toBeNull();
+    expect(mobileSurface.getByText('Container')).toBeTruthy();
+    expect(mobileSurface.getByText('2x40HC · Nhập')).toBeTruthy();
   });
 
-  it('offers independently persisted optional ledger columns', async () => {
-    window.localStorage.removeItem('silversea:cus-shipments:columns:v2');
-    renderPage();
+  it('shows active filters and clears the suffix from the visible chip', async () => {
+    renderPage('/shipments?searchSuffix=AB12');
     await screen.findByRole('table');
+    const chip = screen.getByRole('button', { name: 'Xóa bộ lọc Mã: AB12' });
+    expect(chip).toBeTruthy();
 
-    // Radix opens a dropdown from either pointer interaction or its keyboard
-    // contract. Using ArrowDown keeps this assertion independent of jsdom's
-    // incomplete PointerEvent implementation.
-    fireEvent.keyDown(screen.getByRole('button', { name: 'Cột hiển thị' }), { key: 'ArrowDown' });
-    const containerColumn = await screen.findByRole('menuitemcheckbox', { name: 'Container & lịch' });
-    const recordsColumn = screen.getByRole('menuitemcheckbox', { name: 'Hồ sơ & xác nhận' });
-    expect(containerColumn.getAttribute('data-state')).toBe('checked');
-    expect(recordsColumn.getAttribute('data-state')).toBe('checked');
-
-    fireEvent.click(containerColumn);
-    await waitFor(() => expect(JSON.parse(window.localStorage.getItem('silversea:cus-shipments:columns:v2') ?? '{}')).toEqual({
-      wide: ['records'],
-      compact: ['records'],
-    }));
+    fireEvent.click(chip);
+    await waitFor(() => {
+      const latestUrl = String(apiGet.mock.calls.at(-1)?.[0] ?? '');
+      expect(latestUrl).not.toContain('searchSuffix=');
+    });
+    expect((screen.getByLabelText('Bill/Book hoặc tờ khai') as HTMLInputElement).value).toBe('');
   });
 
-  it('keeps the current column choice when browser storage is unavailable', async () => {
-    const setItem = window.localStorage.setItem;
-    window.localStorage.setItem = vi.fn(() => { throw new Error('Storage unavailable'); });
-    renderPage();
+  it('clears an applied suffix immediately from the search-field control', async () => {
+    renderPage('/shipments?searchSuffix=AB12');
     await screen.findByRole('table');
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa tìm kiếm' }));
 
-    fireEvent.keyDown(screen.getByRole('button', { name: 'Cột hiển thị' }), { key: 'ArrowDown' });
-    fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Container & lịch' }));
-    await waitFor(() => expect(screen.queryByRole('columnheader', { name: 'Container & lịch' })).toBeNull());
+    await waitFor(() => {
+      const latestUrl = String(apiGet.mock.calls.at(-1)?.[0] ?? '');
+      expect(latestUrl).not.toContain('searchSuffix=');
+    });
+    expect(screen.queryByRole('button', { name: 'Xóa bộ lọc Mã: AB12' })).toBeNull();
+  });
 
-    window.localStorage.setItem = setItem;
+  it('offers a co-located reset action from the filtered no-results state', async () => {
+    apiGet.mockResolvedValue(listResponse([]));
+    renderPage('/shipments?searchSuffix=ZZZZ9');
+
+    expect(await screen.findByText('Không có lô hàng phù hợp')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Xóa bộ lọc Mã: ZZZZ9' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /^Xóa bộ lọc$/ }));
+
+    await waitFor(() => {
+      const latestUrl = String(apiGet.mock.calls.at(-1)?.[0] ?? '');
+      expect(latestUrl).not.toContain('searchSuffix=');
+    });
   });
 
   it('renders the drawer custody control in card composition', async () => {
@@ -329,6 +342,30 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     window.ResizeObserver = originalResizeObserver;
   });
 
+  it('uses compact direct actions on tablet cards only when the action is enabled', async () => {
+    class TabletLayoutObserver {
+      constructor(private callback: ResizeObserverCallback) {}
+      observe() {
+        this.callback([{ contentRect: { width: 900 } } as ResizeObserverEntry], this as unknown as ResizeObserver);
+      }
+      disconnect() {}
+      unobserve() {}
+    }
+    const originalResizeObserver = window.ResizeObserver;
+    window.ResizeObserver = TabletLayoutObserver as unknown as typeof ResizeObserver;
+
+    renderPage();
+    await screen.findAllByText('Công ty Silver Sea');
+    const mobileList = await waitFor(() => {
+      const element = document.querySelector('.cus-mobile-list');
+      expect(element).not.toBeNull();
+      return element as HTMLElement;
+    });
+    expect(await within(mobileList).findByRole('button', { name: 'Khóa lô' })).toBeTruthy();
+
+    window.ResizeObserver = originalResizeObserver;
+  });
+
   it('states unavailable financial confirmation honestly instead of presenting it as pending', async () => {
     apiGet.mockResolvedValueOnce(listResponse([{
       ...row,
@@ -348,8 +385,11 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
     renderPage();
     const table = await screen.findByRole('table');
-    expect(within(table).getByText('Chưa đủ dữ liệu xác nhận')).toBeTruthy();
-    expect(within(table).queryByText('Chờ xác nhận')).toBeNull();
+    expect(within(table).queryByText('Chưa đủ dữ liệu xác nhận')).toBeNull();
+    fireEvent.click(masterRowDetailButton());
+    const drawer = await screen.findByRole('dialog');
+    expect(within(drawer).getByText('Chưa đủ dữ liệu xác nhận')).toBeTruthy();
+    expect(within(drawer).queryByText('Chờ xác nhận')).toBeNull();
   });
 
   it('shows the reason for a disabled consequential action without relying on a tooltip', async () => {
@@ -365,8 +405,11 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
     renderPage();
     const table = await screen.findByRole('table');
-    expect(within(table).getByText('Xác nhận Kế toán đã hết hiệu lực.')).toBeTruthy();
+    expect(within(table).getByText('Chờ Kế toán')).toBeTruthy();
+    expect(within(table).queryByText('Xác nhận Kế toán đã hết hiệu lực.')).toBeNull();
     expect((within(table).getByRole('button', { name: 'Khóa lô' }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(masterRowDetailButton());
+    expect(within(await screen.findByRole('dialog')).getByText('Xác nhận Kế toán đã hết hiệu lực.')).toBeTruthy();
   });
 
   it('loads container detail lazily and renders all three grouped charge sections', async () => {
@@ -375,21 +418,14 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
 
     const rowElement = masterRow();
-    const rowToggle = masterRowToggle();
-    expect(rowToggle.getAttribute('aria-expanded')).toBe('false');
-    fireEvent.click(within(rowElement).getByText('Nhà máy Hải Phòng'));
+    fireEvent.click(rowElement);
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/1'));
-    expect(rowToggle.getAttribute('aria-expanded')).toBe('true');
+    expect(await screen.findByRole('dialog')).toBeTruthy();
     expect(await screen.findByText('MSKU1234567')).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Cước đầu ra' })).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Cước đầu vào' })).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Phí chi hộ' })).toBeTruthy();
     expect(screen.getAllByText('Chưa thu hồi sửa chữa').length).toBeGreaterThan(0);
-
-    fireEvent.click(rowToggle);
-    expect(rowToggle.getAttribute('aria-expanded')).toBe('false');
-    fireEvent.click(rowToggle);
-    expect(rowToggle.getAttribute('aria-expanded')).toBe('true');
   });
 
   it('saves only the server-permitted container fields with optimistic versions', async () => {
@@ -495,7 +531,6 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     const table = await screen.findByRole('table');
     fireEvent.click(within(table).getByRole('button', { name: 'Khóa lô' }));
-    expect(masterRowToggle().getAttribute('aria-expanded')).toBe('false');
     expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
 
     const dialog = await screen.findByRole('dialog');
@@ -553,11 +588,14 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).not.toMatch(/\.cus-master-scroll\s*\{[^}]*max-height:/);
     expect(css).not.toMatch(/\.cus-master-scroll\s*\{[^}]*overflow-y:\s*auto;/);
     expect(css).toMatch(/\.cus-master-table\s*\{[\s\S]*?width:\s*0;[\s\S]*?min-width:\s*100%;[\s\S]*?table-layout:\s*fixed;/);
-    expect(css).toMatch(/\.cus-master-table__col-documents\s*\{\s*width:\s*10%;\s*\}/);
-    expect(css).toMatch(/\.cus-master-table__col-action\s*\{\s*width:\s*10%;\s*\}/);
-    expect(css).toMatch(/\.cus-cell-stack\s*\{[\s\S]*?display:\s*grid;/);
-    expect(css).toMatch(/\.cus-cell-stack dt\s*\{[\s\S]*?font-size:\s*11px;/);
-    expect(css).toMatch(/\.cus-cell-stack dd\s*\{[\s\S]*?font-size:\s*var\(--fs-sm\);/);
+    expect(css).toMatch(/\.cus-master-table__col-shipment\s*\{\s*width:\s*24%;\s*\}/);
+    expect(css).toMatch(/\.cus-master-table__col-finance\s*\{\s*width:\s*28%;\s*\}/);
+    expect(css).not.toMatch(/\.cus-master-table__col-status/);
+    expect(css).not.toMatch(/\.cus-master-table__col-action/);
+    expect(css).toMatch(/\.cus-index-cell\s*\{[\s\S]*?display:\s*grid;/);
+    expect(css).toMatch(/\.cus-index-cell > strong,[\s\S]*?font-family:\s*var\(--font-body\);/);
+    expect(css).not.toMatch(/\.cus-cell-stack/);
+    expect(css).toMatch(/\.cus-master-row:hover \.cus-row-hover-action,[\s\S]*?\.cus-master-row:focus-within \.cus-row-hover-action/);
     expect(css).not.toMatch(/\.cus-master-table\s*\{[\s\S]*?min-width:\s*2300px;/);
     expect(css).toMatch(/\.cus-workspace\[data-layout='cards'\] \.cus-master-scroll\s*\{\s*display:\s*none;/);
     expect(css).toMatch(/\.cus-workspace\[data-layout='cards'\] \.cus-mobile-list\s*\{[\s\S]*?display:\s*grid;/);
@@ -566,6 +604,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).toMatch(/\.cus-workspace\[data-layout='cards'\] \.cus-toolbar\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
     expect(css).toMatch(/padding:\s*16px 0 max\(16px, env\(safe-area-inset-bottom\)\)/);
     expect(css).toMatch(/\.app-main:not\(\.driver-mode\) \.app-body > \.shipments-page\s*\{[\s\S]*?width:\s*100%;[\s\S]*?max-width:\s*none;/);
+    expect(css).toMatch(/\.cus-detail-facts\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
     expect(css).not.toMatch(/cus-master-table__col-expand|cus-expand-button|cus-mobile-card__open/);
   });
 });

@@ -2,13 +2,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
+  CircleCheck,
   CircleDollarSign,
+  FileMinus2,
   FileLock2,
   Loader2,
+  ReceiptText,
   RotateCcw,
   Save,
   Search,
-  SlidersHorizontal,
+  WalletCards,
   X,
 } from 'lucide-react';
 import {
@@ -23,15 +26,9 @@ import {
 } from '@tingting/shared';
 import { ApiError } from '../lib/api';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
+import { StatusStrip, StatusSwatch } from '../components/shared/StatusStrip';
 import { Drawer, Modal, PageHeader } from '../components/UI';
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from '../components/ui/DropdownMenu';
-import { EmptyState, Pagination, SearchableSelect, Tabs } from '../design-system';
+import { EmptyState, Pagination, SearchableSelect } from '../design-system';
 import {
   getCusShipmentWorkspaceDetail,
   confirmCusShipmentFinance,
@@ -46,38 +43,13 @@ import './ShipmentsPage.css';
 const PAGE_SIZE = 20;
 const SEARCH_PATTERN = /^[A-Za-z0-9]{4,5}$/;
 const BUCKETS = Object.values(ShipmentCusBucket);
-const CUS_COLUMN_PREFERENCE_KEY = 'silversea:cus-shipments:columns:v2';
-const OPTIONAL_CUS_COLUMNS = ['containerSchedule', 'records'] as const;
-type OptionalCusColumn = (typeof OPTIONAL_CUS_COLUMNS)[number];
-type CusWorkspaceLayout = 'wide' | 'compact' | 'cards';
-
-interface CusColumnPreferences {
-  wide: OptionalCusColumn[];
-  compact: OptionalCusColumn[];
-}
-
-const DEFAULT_CUS_COLUMN_PREFERENCES: CusColumnPreferences = {
-  wide: ['containerSchedule', 'records'],
-  compact: ['records'],
+const SHIPMENT_BUCKET_COLORS: Record<ShipmentCusBucket, string> = {
+  [ShipmentCusBucket.NEW]: 'var(--ink-3)',
+  [ShipmentCusBucket.RUNNING]: 'var(--accent)',
+  [ShipmentCusBucket.PENDING_LOCK]: 'var(--warning)',
+  [ShipmentCusBucket.LOCKED]: 'var(--success)',
 };
-
-function readCusColumnPreferences(): CusColumnPreferences {
-  if (typeof window === 'undefined') return DEFAULT_CUS_COLUMN_PREFERENCES;
-  try {
-    const stored = JSON.parse(window.localStorage.getItem(CUS_COLUMN_PREFERENCE_KEY) ?? '{}') as Partial<CusColumnPreferences>;
-    const normalize = (values: unknown, fallback: OptionalCusColumn[]) => (
-      Array.isArray(values)
-        ? OPTIONAL_CUS_COLUMNS.filter((column): column is OptionalCusColumn => values.includes(column))
-        : fallback
-    );
-    return {
-      wide: normalize(stored.wide, DEFAULT_CUS_COLUMN_PREFERENCES.wide),
-      compact: normalize(stored.compact, DEFAULT_CUS_COLUMN_PREFERENCES.compact),
-    };
-  } catch {
-    return DEFAULT_CUS_COLUMN_PREFERENCES;
-  }
-}
+type CusWorkspaceLayout = 'wide' | 'compact' | 'cards';
 
 function formatMoney(value: string | null): string {
   if (value == null) return '—';
@@ -113,6 +85,35 @@ function directionLabel(direction: ShipmentCusWorkspaceListItem['direction']): s
   if (direction === 'IMPORT') return 'Nhập';
   if (direction === 'EXPORT') return 'Xuất';
   return '—';
+}
+
+function FinanceEvidence({ item }: { item: ShipmentCusWorkspaceListItem }) {
+  const confirmationIsCurrent = item.accountingConfirmation.status === 'CONFIRMED';
+  return (
+    <div className="cus-finance-evidence">
+      <span className="cus-finance-metric" aria-label={`Thu có hóa đơn: ${formatMoney(item.finance.customerInvoiceTotal)} đồng`} title="Thu có hóa đơn">
+        <ReceiptText size={14} aria-hidden="true" />
+        <strong>{formatMoney(item.finance.customerInvoiceTotal)} ₫</strong>
+      </span>
+      <span className="cus-finance-metric" aria-label={`Thu không hóa đơn: ${formatMoney(item.finance.customerNoInvoiceTotal)} đồng`} title="Thu không hóa đơn">
+        <FileMinus2 size={14} aria-hidden="true" />
+        <strong>{formatMoney(item.finance.customerNoInvoiceTotal)} ₫</strong>
+      </span>
+      <span className="cus-finance-metric" aria-label={`Tổng chi: ${formatMoney(item.finance.totalCost)} đồng`} title="Tổng chi">
+        <WalletCards size={14} aria-hidden="true" />
+        <strong>{formatMoney(item.finance.totalCost)} ₫</strong>
+      </span>
+      <span
+        className={`cus-finance-confirmation cus-finance-confirmation--${confirmationIsCurrent ? 'confirmed' : 'attention'}`}
+        aria-label={accountingConfirmationLabel(item.accountingConfirmation)}
+        title={accountingConfirmationLabel(item.accountingConfirmation)}
+      >
+        {confirmationIsCurrent
+          ? <CircleCheck size={15} aria-hidden="true" />
+          : <AlertTriangle size={15} aria-hidden="true" />}
+      </span>
+    </div>
+  );
 }
 
 function isInteractiveRowTarget(target: EventTarget | null): boolean {
@@ -587,14 +588,106 @@ function ContainerLedger({
   );
 }
 
+type ShipmentSignalTone = 'danger' | 'warning' | 'info';
+
+interface ShipmentSignal {
+  key: string;
+  label: string;
+  tone: ShipmentSignalTone;
+  icon: typeof AlertTriangle;
+}
+
+function deriveShipmentSignals(item: ShipmentCusWorkspaceListItem): ShipmentSignal[] {
+  const signals: ShipmentSignal[] = [];
+  if (item.finance.isLoss) {
+    signals.push({ key: 'loss', label: 'Lỗ', tone: 'danger', icon: AlertTriangle });
+  }
+  if (item.finance.hasPendingRecovery) {
+    signals.push({ key: 'recovery', label: 'Chờ thu hồi', tone: 'warning', icon: CircleDollarSign });
+  }
+  if (item.documentCustody.status === ShipmentDocumentCustody.OPS_HOLDING) {
+    signals.push({ key: 'custody', label: 'Phơi phiếu', tone: 'warning', icon: FileLock2 });
+  }
+  if (item.accountingConfirmation.status === 'STALE') {
+    signals.push({ key: 'confirmation', label: 'Xác nhận hết hạn', tone: 'warning', icon: AlertTriangle });
+  }
+  if (item.action.kind === 'CONFIRM_FINANCE' && !item.debitNote.available) {
+    signals.push({ key: 'debit-note', label: 'Chưa có Debit Note', tone: 'info', icon: FileLock2 });
+  }
+  if (!item.action.enabled && item.action.kind !== 'NONE' && !signals.some((signal) => signal.key === 'confirmation' || signal.key === 'debit-note')) {
+    const label = item.action.kind === 'LOCK'
+      ? 'Chờ Kế toán'
+      : item.action.kind === 'CONFIRM_FINANCE'
+        ? 'Chưa thể xác nhận'
+        : 'Chưa thể điều chỉnh';
+    signals.push({ key: 'blocked-action', label, tone: 'info', icon: FileLock2 });
+  }
+  return signals;
+}
+
 function ShipmentSignals({ item }: { item: ShipmentCusWorkspaceListItem }) {
+  const signals = deriveShipmentSignals(item);
+  if (signals.length === 0) return null;
   return (
-    <div className="cus-signals" aria-label="Cảnh báo lô hàng">
-      {item.finance.isLoss && (
-        <span className="cus-signal cus-signal--loss"><AlertTriangle size={15} aria-hidden="true" /> Lỗ</span>
-      )}
-      {item.finance.hasPendingRecovery && (
-        <span className="cus-signal cus-signal--pending"><CircleDollarSign size={15} aria-hidden="true" /> Còn tiền treo</span>
+    <div className="cus-signals" aria-label="Ngoại lệ cần xử lý">
+      {signals.map((signal) => {
+        const Icon = signal.icon;
+        return (
+          <span key={signal.key} className={`cus-signal cus-signal--${signal.tone}`}>
+            <Icon size={14} aria-hidden="true" /> {signal.label}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+function ShipmentDetailSummary({ item }: { item: ShipmentCusWorkspaceListItem }) {
+  return (
+    <div className="cus-drawer-summary">
+      <section className="cus-drawer-section" aria-labelledby={`cus-overview-${item.id}`}>
+        <h3 id={`cus-overview-${item.id}`}>Tổng quan</h3>
+        <dl className="cus-detail-facts">
+          <div><dt>Bill/Book</dt><dd>{item.billOrBookNumber || '—'}</dd></div>
+          <div><dt>Tờ khai</dt><dd>{item.declarationNumber || '—'}</dd></div>
+          <div><dt>Hãng tàu</dt><dd>{item.shippingLineName || '—'}</dd></div>
+          <div><dt>Loại hàng</dt><dd>{directionLabel(item.direction)}</dd></div>
+          <div><dt>Nhà máy</dt><dd>{item.factoryName || '—'}</dd></div>
+          <div><dt>Tuyến</dt><dd>{item.routeName || '—'}</dd></div>
+          <div><dt>Ngày vận chuyển</dt><dd>{formatDate(item.transportDate)}</dd></div>
+          <div><dt>Container</dt><dd>{item.containerSummary}</dd></div>
+          <div><dt>Khối lượng</dt><dd>{formatQuantity(item.weightKg)} kg</dd></div>
+          <div><dt>Thể tích</dt><dd>{formatQuantity(item.volumeCbm, 3)} CBM</dd></div>
+        </dl>
+      </section>
+
+      <section className="cus-drawer-section" aria-labelledby={`cus-reconciliation-${item.id}`}>
+        <div className="cus-drawer-section__heading">
+          <h3 id={`cus-reconciliation-${item.id}`}>Đối soát và chứng từ</h3>
+          <ShipmentSignals item={item} />
+        </div>
+        <dl className="cus-detail-facts cus-detail-facts--finance">
+          <div><dt>Có hóa đơn</dt><dd>{item.finance.customerChargeTotalsAvailable ? `${formatMoney(item.finance.customerInvoiceTotal)} ₫` : 'Chưa có dữ liệu'}</dd></div>
+          <div><dt>Không hóa đơn</dt><dd>{item.finance.customerChargeTotalsAvailable ? `${formatMoney(item.finance.customerNoInvoiceTotal)} ₫` : 'Chưa có dữ liệu'}</dd></div>
+          <div><dt>Tổng chi</dt><dd>{item.finance.totalCostAvailable ? `${formatMoney(item.finance.totalCost)} ₫` : 'Chưa có dữ liệu'}</dd></div>
+          <div><dt>Debit Note</dt><dd>{item.debitNote.documentNumber || item.debitNote.disabledReason || 'Chưa có'}</dd></div>
+          <div><dt>Kế toán</dt><dd>{accountingConfirmationLabel(item.accountingConfirmation)}</dd></div>
+          <div><dt>Phơi phiếu</dt><dd>{item.documentCustody.label || 'Chưa xác định'}</dd></div>
+        </dl>
+      </section>
+
+      {(item.note || item.activeLock) && (
+        <section className="cus-drawer-section" aria-labelledby={`cus-context-${item.id}`}>
+          <h3 id={`cus-context-${item.id}`}>Ghi chú và khóa lô</h3>
+          {item.note && <p className="cus-drawer-note">{item.note}</p>}
+          {item.activeLock && (
+            <dl className="cus-detail-facts">
+              <div><dt>Người khóa</dt><dd>{item.activeLock.activatedByName || '—'}</dd></div>
+              <div><dt>Thời điểm khóa</dt><dd>{formatDateTime(item.activeLock.activatedAt)}</dd></div>
+              <div className="cus-detail-facts__wide"><dt>Lý do</dt><dd>{item.activeLock.reason}</dd></div>
+            </dl>
+          )}
+        </section>
       )}
     </div>
   );
@@ -618,7 +711,6 @@ export default function ShipmentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [expandedId, setExpandedId] = useState<number | null>(null);
   const [drawerId, setDrawerId] = useState<number | null>(null);
   const [details, setDetails] = useState<Record<number, ShipmentCusWorkspaceDetail>>({});
   const [detailLoadingId, setDetailLoadingId] = useState<number | null>(null);
@@ -628,7 +720,6 @@ export default function ShipmentsPage() {
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [workspaceLayout, setWorkspaceLayout] = useState<CusWorkspaceLayout>('wide');
-  const [columnPreferences, setColumnPreferences] = useState<CusColumnPreferences>(readCusColumnPreferences);
   const requestSequence = useRef(0);
   const idempotencyKeysRef = useRef<Record<string, string>>({});
 
@@ -662,22 +753,13 @@ export default function ShipmentsPage() {
 
     const updateLayout = () => {
       const availableWidth = element.getBoundingClientRect().width;
-      setWorkspaceLayout(availableWidth >= 1040 ? 'wide' : availableWidth >= 760 ? 'compact' : 'cards');
+      setWorkspaceLayout(availableWidth >= 1040 ? 'wide' : 'cards');
     };
     const observer = new ResizeObserver(updateLayout);
     updateLayout();
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(CUS_COLUMN_PREFERENCE_KEY, JSON.stringify(columnPreferences));
-    } catch {
-      // The current in-memory choice remains usable when the browser blocks
-      // storage (private mode, quota policy, or an embedded application).
-    }
-  }, [columnPreferences]);
 
   const loadList = useCallback(async () => {
     const requestId = ++requestSequence.current;
@@ -741,12 +823,7 @@ export default function ShipmentsPage() {
     setNotice('Đã lưu dữ liệu container. Xác nhận Kế toán cũ (nếu có) sẽ được kiểm tra lại theo nguồn mới.');
   }, []);
 
-  const toggleExpanded = useCallback((shipmentId: number) => {
-    setExpandedId((current) => current === shipmentId ? null : shipmentId);
-    if (expandedId !== shipmentId) void loadDetail(shipmentId);
-  }, [expandedId, loadDetail]);
-
-  const openMobileDetail = useCallback((shipmentId: number) => {
+  const openDetail = useCallback((shipmentId: number) => {
     setDrawerId(shipmentId);
     void loadDetail(shipmentId);
   }, [loadDetail]);
@@ -765,7 +842,11 @@ export default function ShipmentsPage() {
   const clearFilters = () => {
     setSearchInput('');
     setSearchError(null);
-    setSearchParams({}, { replace: true });
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      ['searchSuffix', 'transportDateFrom', 'transportDateTo', 'bucket', 'page'].forEach((key) => next.delete(key));
+      return next;
+    }, { replace: true });
   };
 
   const updateCustody = async (item: ShipmentCusWorkspaceListItem, status: ShipmentDocumentCustody) => {
@@ -794,6 +875,28 @@ export default function ShipmentsPage() {
         : mode === 'lock'
           ? 'CUS xác nhận khóa lô sau khi Kế toán duyệt.'
           : '',
+    );
+  };
+
+  const shipmentActionButton = (item: ShipmentCusWorkspaceListItem, className: string) => {
+    if (item.action.kind === 'NONE') return null;
+    const mode = item.action.kind === 'CONFIRM_FINANCE'
+      ? 'confirm'
+      : item.action.kind === 'LOCK'
+        ? 'lock'
+        : 'reopen';
+    return (
+      <button
+        type="button"
+        className={className}
+        disabled={!item.action.enabled}
+        aria-label={item.action.label}
+        title={!item.action.enabled ? item.action.disabledReason || undefined : undefined}
+        onClick={() => openAction(item, mode)}
+      >
+        {item.action.kind === 'LOCK' && <FileLock2 size={16} aria-hidden="true" />}
+        {item.action.label}
+      </button>
     );
   };
 
@@ -873,25 +976,12 @@ export default function ShipmentsPage() {
     if (error && !data) return 'Không thể tải dữ liệu';
     return `${total.toLocaleString('vi-VN')} lô hàng`;
   }, [data, error, loading, total]);
-
-  const visibleOptionalColumns = workspaceLayout === 'wide'
-    ? columnPreferences.wide
-    : columnPreferences.compact;
-  const showContainerSchedule = visibleOptionalColumns.includes('containerSchedule');
-  const showRecords = visibleOptionalColumns.includes('records');
-  const desktopColumnCount = 5 + Number(showContainerSchedule) + Number(showRecords);
-
-  const toggleOptionalColumn = (column: OptionalCusColumn) => {
-    if (workspaceLayout === 'cards') return;
-    const preferenceKey = workspaceLayout === 'wide' ? 'wide' : 'compact';
-    setColumnPreferences((current) => {
-      const currentColumns = current[preferenceKey];
-      const nextColumns = currentColumns.includes(column)
-        ? currentColumns.filter((currentColumn) => currentColumn !== column)
-        : [...currentColumns, column];
-      return { ...current, [preferenceKey]: nextColumns };
-    });
-  };
+  const filterChips = useMemo(() => [
+    suffixParam ? { key: 'searchSuffix', label: `Mã: ${suffixParam}` } : null,
+    dateFrom ? { key: 'transportDateFrom', label: `Từ ${formatDate(dateFrom)}` } : null,
+    dateTo ? { key: 'transportDateTo', label: `Đến ${formatDate(dateTo)}` } : null,
+    bucket ? { key: 'bucket', label: SHIPMENT_CUS_BUCKET_LABELS[bucket] } : null,
+  ].filter((chip): chip is { key: string; label: string } => chip != null), [bucket, dateFrom, dateTo, suffixParam]);
 
   return (
     <div className="shipments-page">
@@ -899,25 +989,14 @@ export default function ShipmentsPage() {
       <PageHeader
         title="Quản lý lô hàng"
         iconName="cargo"
-        description="Đối soát vận hành, chi phí và khóa lô sau khi Kế toán xác nhận"
+        description="Theo dõi tiến độ, xử lý ngoại lệ và hoàn tất khóa lô"
       />
 
       <section ref={workspaceRef} className="cus-workspace" data-layout={workspaceLayout} aria-labelledby="cus-workspace-title" aria-busy={loading}>
         <h2 id="cus-workspace-title" className="sr-only">Không gian quản lý lô hàng CUS</h2>
-        <Tabs
-          tabs={[
-            { id: 'all', label: 'Tất cả lô hàng', count: total },
-            { id: 'combined-invoices', label: 'Hóa đơn kết hợp', disabled: true },
-          ]}
-          value="all"
-          onChange={() => undefined}
-          ariaLabel="Chức năng quản lý lô hàng"
-          variant="bordered"
-        />
-
         <form className="cus-toolbar" onSubmit={submitSearch} noValidate>
           <div className="cus-search-field">
-            <label htmlFor="cus-shipment-search">4-5 ký tự cuối Bill/Book hoặc tờ khai</label>
+            <label htmlFor="cus-shipment-search">Bill/Book hoặc tờ khai</label>
             <div className="cus-search-field__control">
               <Search size={18} aria-hidden="true" />
               <input
@@ -932,12 +1011,21 @@ export default function ShipmentsPage() {
                   setSearchInput(event.target.value);
                   setSearchError(null);
                 }}
-                placeholder="Ví dụ: AB12C"
+                placeholder="Nhập 4–5 ký tự cuối"
                 aria-invalid={Boolean(searchError)}
                 aria-describedby={searchError ? 'cus-search-error' : undefined}
               />
               {searchInput && (
-                <button type="button" className="cus-icon-button" onClick={() => setSearchInput('')} aria-label="Xóa nội dung tìm kiếm">
+                <button
+                  type="button"
+                  className="cus-icon-button"
+                  onClick={() => {
+                    setSearchInput('');
+                    setSearchError(null);
+                    updateParam('searchSuffix', null);
+                  }}
+                  aria-label="Xóa tìm kiếm"
+                >
                   <X size={16} aria-hidden="true" />
                 </button>
               )}
@@ -966,38 +1054,46 @@ export default function ShipmentsPage() {
             {hasFilters && (
               <button className="btn btn--ghost" type="button" onClick={clearFilters}><RotateCcw size={17} aria-hidden="true" /> Xóa lọc</button>
             )}
-            {workspaceLayout !== 'cards' && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="btn btn--ghost" type="button" aria-label="Cột hiển thị">
-                    <SlidersHorizontal size={17} aria-hidden="true" /> Cột hiển thị
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="cus-column-menu">
-                  <DropdownMenuLabel>Cột tùy chọn</DropdownMenuLabel>
-                  <DropdownMenuCheckboxItem
-                    checked={showContainerSchedule}
-                    onCheckedChange={() => toggleOptionalColumn('containerSchedule')}
-                    onSelect={(event) => event.preventDefault()}
-                  >
-                    Container &amp; lịch
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem
-                    checked={showRecords}
-                    onCheckedChange={() => toggleOptionalColumn('records')}
-                    onSelect={(event) => event.preventDefault()}
-                  >
-                    Hồ sơ &amp; xác nhận
-                  </DropdownMenuCheckboxItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
           </div>
         </form>
 
+        {filterChips.length > 0 && (
+          <div className="cus-active-filters" aria-label="Bộ lọc đang áp dụng">
+            <span className="cus-active-filters__label">Đang lọc</span>
+            {filterChips.map((chip) => (
+              <button
+                key={chip.key}
+                type="button"
+                className="cus-filter-chip"
+                onClick={() => {
+                  if (chip.key === 'searchSuffix') setSearchInput('');
+                  updateParam(chip.key, null);
+                }}
+                aria-label={`Xóa bộ lọc ${chip.label}`}
+              >
+                {chip.label} <X size={13} aria-hidden="true" />
+              </button>
+            ))}
+            {filterChips.length > 1 && <button type="button" className="cus-clear-filters" onClick={clearFilters}>Xóa tất cả</button>}
+          </div>
+        )}
+
         <div className="cus-workspace__summary" role="status" aria-live="polite">
           <span>{resultLabel}</span>
-          <span>Chi tiết container chỉ tải khi mở lô hàng</span>
+          <div className="cus-summary-legends">
+            <div className="cus-status-legend" aria-label="Chú thích trạng thái lô hàng">
+              {BUCKETS.map((value) => (
+                <span key={value}><StatusSwatch color={SHIPMENT_BUCKET_COLORS[value]} /> {SHIPMENT_CUS_BUCKET_LABELS[value]}</span>
+              ))}
+            </div>
+            <div className="cus-finance-legend" aria-label="Chú thích tài chính">
+              <span><ReceiptText size={13} aria-hidden="true" /> Thu có HĐ</span>
+              <span><FileMinus2 size={13} aria-hidden="true" /> Thu không HĐ</span>
+              <span><WalletCards size={13} aria-hidden="true" /> Tổng chi</span>
+              <span><CircleCheck size={13} aria-hidden="true" /> Đã xác nhận</span>
+              <span><AlertTriangle size={13} aria-hidden="true" /> Cần xử lý</span>
+            </div>
+          </div>
         </div>
 
         {notice && <div className="cus-notice cus-notice--success" role="status">{notice}</div>}
@@ -1014,163 +1110,78 @@ export default function ShipmentsPage() {
           <EmptyState
             icon={Search}
             title={hasFilters ? 'Không có lô hàng phù hợp' : 'Chưa có lô hàng'}
-            description={hasFilters ? 'Thử thay đổi số tìm kiếm, ngày vận chuyển hoặc trạng thái.' : 'Dữ liệu lô hàng sẽ xuất hiện tại đây.'}
+            description={hasFilters ? 'Điều chỉnh hoặc xóa bộ lọc để xem lại danh sách.' : 'Dữ liệu lô hàng sẽ xuất hiện tại đây.'}
+            action={hasFilters ? <button type="button" className="btn btn--secondary" onClick={clearFilters}><RotateCcw size={17} aria-hidden="true" /> Xóa bộ lọc</button> : undefined}
           />
         ) : (
           <>
             <div className="cus-master-scroll" role="region" aria-label="Bảng tổng hợp lô hàng">
-              <table className={`cus-master-table cus-master-table--${workspaceLayout} cus-master-table--columns-${desktopColumnCount}${showContainerSchedule ? ' cus-master-table--has-container' : ''}${showRecords ? ' cus-master-table--has-records' : ''}`}>
+              <table className={`cus-master-table cus-master-table--${workspaceLayout}`}>
                 <colgroup>
-                  <col className="cus-master-table__col-documents" />
+                  <col className="cus-master-table__col-shipment" />
                   <col className="cus-master-table__col-customer-route" />
-                  {showContainerSchedule && <col className="cus-master-table__col-container-schedule" />}
-                  <col className="cus-master-table__col-status" />
+                  <col className="cus-master-table__col-plan" />
                   <col className="cus-master-table__col-finance" />
-                  {showRecords && <col className="cus-master-table__col-records" />}
-                  <col className="cus-master-table__col-action" />
                 </colgroup>
                 <thead>
                   <tr>
-                    <th scope="col">Hồ sơ</th>
-                    <th scope="col">Khách hàng &amp; tuyến</th>
-                    {showContainerSchedule && <th scope="col">Container &amp; lịch</th>}
-                    <th scope="col">Trạng thái &amp; rủi ro</th>
-                    <th scope="col">Tài chính</th>
-                    {showRecords && <th scope="col">Hồ sơ &amp; xác nhận</th>}
-                    <th scope="col">Hành động</th>
+                    <th scope="col">Lô hàng</th>
+                    <th scope="col">Khách hàng / tuyến</th>
+                    <th scope="col">Kế hoạch</th>
+                    <th scope="col">Đối soát</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((item) => {
-                    const isExpanded = expandedId === item.id;
-                    const isLocked = item.bucket === ShipmentCusBucket.LOCKED;
-                    return [
+                  {items.map((item) => (
                       <tr
                         key={`master-${item.id}`}
-                        className={`cus-master-row${isExpanded ? ' cus-master-row--expanded' : ''}${item.finance.isLoss ? ' cus-master-row--loss' : ''}${item.finance.hasPendingRecovery ? ' cus-master-row--pending' : ''}`}
+                        className="cus-master-row"
                         onClick={(event) => {
                           if (isInteractiveRowTarget(event.target)) return;
-                          toggleExpanded(item.id);
+                          openDetail(item.id);
                         }}
                       >
                         <td>
-                          <dl className="cus-cell-stack">
-                            <div>
-                              <dt>Bill/Book</dt>
-                              <dd>
-                                <button
-                                  type="button"
-                                  className="cus-row-toggle"
-                                  aria-expanded={isExpanded}
-                                  aria-controls={`cus-detail-${item.id}`}
-                                  onClick={() => toggleExpanded(item.id)}
-                                >
-                                  {item.billOrBookNumber || '—'}
-                                  <span className="sr-only"> — {isExpanded ? 'Thu gọn' : 'Mở'} chi tiết lô hàng của {item.customerName || 'khách hàng'}</span>
-                                </button>
-                              </dd>
-                            </div>
-                            <div><dt>Tờ khai</dt><dd>{item.declarationNumber || '—'}</dd></div>
-                            <div><dt>Hãng tàu</dt><dd>{item.shippingLineName || '—'}</dd></div>
-                          </dl>
+                          <StatusStrip color={SHIPMENT_BUCKET_COLORS[item.bucket]} />
+                          <div className="cus-index-cell">
+                            <button
+                              type="button"
+                              className="cus-row-toggle"
+                              aria-haspopup="dialog"
+                              aria-controls={`cus-detail-drawer-${item.id}`}
+                              onClick={() => openDetail(item.id)}
+                            >
+                              {item.billOrBookNumber || item.declarationNumber || 'Chưa có mã lô'}
+                              <span className="sr-only"> — Mở chi tiết lô hàng của {item.customerName || 'khách hàng'}</span>
+                            </button>
+                            <span>{item.declarationNumber ? `Tờ khai ${item.declarationNumber}` : item.shippingLineName || 'Chưa có tờ khai'}</span>
+                            <ShipmentSignals item={item} />
+                          </div>
                         </td>
                         <td>
-                          <dl className="cus-cell-stack">
-                            <div><dt>Khách hàng</dt><dd><strong>{item.customerName || 'Chưa có khách hàng'}</strong></dd></div>
-                            <div><dt>Nhà máy</dt><dd>{item.factoryName || '—'}</dd></div>
-                            <div><dt>Tuyến</dt><dd>{item.routeName || '—'}</dd></div>
-                          </dl>
-                        </td>
-                        {showContainerSchedule && (
-                          <td>
-                            <dl className="cus-cell-stack cus-cell-stack--metrics">
-                              <div><dt>Số lượng</dt><dd>{item.containerSummary}</dd></div>
-                              <div><dt>Khối lượng</dt><dd>{formatQuantity(item.weightKg)} kg</dd></div>
-                              <div><dt>Thể tích</dt><dd>{formatQuantity(item.volumeCbm, 3)} CBM</dd></div>
-                              <div><dt>Lịch chạy</dt><dd>{formatDate(item.transportDate)}</dd></div>
-                              <div><dt>Loại hàng</dt><dd>{directionLabel(item.direction)}</dd></div>
-                            </dl>
-                          </td>
-                        )}
-                        <td>
-                          <span className={`cus-bucket cus-bucket--${item.bucket.toLowerCase()}`}>{item.bucketLabel}</span>
-                          <ShipmentSignals item={item} />
-                          {item.note && <p className="cus-cell-note">{item.note}</p>}
+                          <div className="cus-index-cell">
+                            <strong>{item.customerName || 'Chưa có khách hàng'}</strong>
+                            <span>{item.routeName || item.factoryName || 'Chưa xác định tuyến'}</span>
+                          </div>
                         </td>
                         <td>
-                          <dl className="cus-cell-stack cus-cell-stack--money">
-                            <div><dt>Có hóa đơn</dt><dd>{item.finance.customerChargeTotalsAvailable ? formatMoney(item.finance.customerInvoiceTotal) : <span className="cus-money-unavailable">Chưa có dữ liệu</span>}</dd></div>
-                            <div><dt>Không hóa đơn</dt><dd>{item.finance.customerChargeTotalsAvailable ? formatMoney(item.finance.customerNoInvoiceTotal) : <span className="cus-money-unavailable">Chưa có dữ liệu</span>}</dd></div>
-                            <div><dt>Tổng chi</dt><dd>{item.finance.totalCostAvailable ? formatMoney(item.finance.totalCost) : <span className="cus-money-unavailable">Chưa có dữ liệu</span>}</dd></div>
-                            <div><dt>Trạng thái đối soát</dt><dd>{item.finance.isLoss ? 'Lỗ' : item.finance.hasPendingRecovery ? 'Còn tiền treo' : 'Không cảnh báo'}</dd></div>
-                          </dl>
+                          <div className="cus-index-cell">
+                            <strong className="cus-index-cell__date">{formatDate(item.transportDate)}</strong>
+                            <span>{item.containerSummary} · {directionLabel(item.direction)}</span>
+                          </div>
                         </td>
-                        {showRecords && (
-                          <td>
-                            <dl className="cus-cell-stack">
-                              <div>
-                                <dt>Phơi phiếu</dt>
-                                <dd>
-                                  <select
-                                    className="cus-custody-select"
-                                    data-row-interactive
-                                    value={item.documentCustody.status ?? ''}
-                                    disabled={isLocked || !item.documentCustody.available || !item.documentCustody.editable}
-                                    aria-label={`Trạng thái phơi phiếu của ${item.customerName || 'lô hàng'}`}
-                                    onChange={(event) => void updateCustody(item, event.target.value as ShipmentDocumentCustody)}
-                                  >
-                                    <option value="" disabled>Chưa xác định</option>
-                                    {Object.values(ShipmentDocumentCustody).map((status) => (
-                                      <option value={status} key={status}>{SHIPMENT_DOCUMENT_CUSTODY_LABELS[status]}</option>
-                                    ))}
-                                  </select>
-                                </dd>
+                        <td>
+                          <div className="cus-finance-cell">
+                            <FinanceEvidence item={item} />
+                            {item.action.kind !== 'NONE' && (
+                              <div className="cus-row-hover-action" data-row-interactive>
+                                {shipmentActionButton(item, 'btn btn--primary btn--sm')}
                               </div>
-                              <div><dt>Kế toán</dt><dd><span className={`cus-confirmation${item.accountingConfirmation.status === 'CONFIRMED' ? ' cus-confirmation--done' : ''}`}>{accountingConfirmationLabel(item.accountingConfirmation)}</span></dd></div>
-                            </dl>
-                          </td>
-                        )}
-                        <td className="cus-master-table__action" data-row-interactive>
-                          <div className="cus-row-action">
-                            {item.action.kind === 'CONFIRM_FINANCE' ? (
-                              <button type="button" className="btn btn--primary btn--sm" disabled={!item.action.enabled} onClick={() => openAction(item, 'confirm')}>
-                                Xác nhận chi phí
-                              </button>
-                            ) : item.action.kind === 'LOCK' ? (
-                              <button type="button" className="btn btn--primary btn--sm" disabled={!item.action.enabled} onClick={() => openAction(item, 'lock')}>
-                                <FileLock2 size={16} aria-hidden="true" /> Khóa lô
-                              </button>
-                            ) : item.action.kind === 'REQUEST_REOPEN' ? (
-                              <button type="button" className="btn btn--secondary btn--sm" disabled={!item.action.enabled} onClick={() => openAction(item, 'reopen')}>
-                                Đề nghị điều chỉnh
-                              </button>
-                            ) : <span className="cus-action-unavailable">{item.action.disabledReason || 'Chỉ xem'}</span>}
-                            {item.action.kind !== 'NONE' && !item.action.enabled && item.action.disabledReason && (
-                              <span className="cus-action-unavailable">{item.action.disabledReason}</span>
                             )}
                           </div>
                         </td>
-                      </tr>,
-                      isExpanded && (
-                        <tr key={`detail-${item.id}`} id={`cus-detail-${item.id}`} className="cus-master-detail-row">
-                          <td colSpan={desktopColumnCount}>
-                            {detailLoadingId === item.id && !details[item.id] ? (
-                              <div className="cus-detail-loading"><Loader2 className="spin" aria-hidden="true" /> Đang tải chi tiết container…</div>
-                            ) : detailErrors[item.id] ? (
-                              <div className="cus-inline-error" role="alert"><span>{detailErrors[item.id]}</span><button type="button" onClick={() => void loadDetail(item.id, true)}>Thử lại</button></div>
-                            ) : details[item.id] ? (
-                              <ContainerLedger
-                                detail={details[item.id]}
-                                onLineSaved={(line) => applySavedContainerLine(item.id, line)}
-                                getIdempotencyKey={getIdempotencyKey}
-                                clearIdempotencyKey={clearIdempotencyKey}
-                              />
-                            ) : null}
-                          </td>
-                        </tr>
-                      ),
-                    ];
-                  })}
+                      </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -1182,9 +1193,10 @@ export default function ShipmentsPage() {
                   className={`cus-mobile-card cus-mobile-card--interactive${item.finance.isLoss ? ' cus-mobile-card--loss' : ''}${item.finance.hasPendingRecovery ? ' cus-mobile-card--pending' : ''}`}
                   onClick={(event) => {
                     if (isInteractiveRowTarget(event.target)) return;
-                    openMobileDetail(item.id);
+                    openDetail(item.id);
                   }}
                 >
+                  <StatusStrip color={SHIPMENT_BUCKET_COLORS[item.bucket]} />
                   <header>
                     <div>
                       <h3>{item.customerName || 'Chưa có khách hàng'}</h3>
@@ -1194,24 +1206,25 @@ export default function ShipmentsPage() {
                         aria-haspopup="dialog"
                         aria-controls={`cus-detail-drawer-${item.id}`}
                         aria-label={`Mở chi tiết lô hàng của ${item.customerName || 'khách hàng'}`}
-                        onClick={() => openMobileDetail(item.id)}
+                        onClick={() => openDetail(item.id)}
                       >
                         {item.billOrBookNumber || item.declarationNumber || 'Chưa có Bill/Tờ khai'}
                         <span className="sr-only"> — Mở chi tiết lô hàng</span>
                       </button>
                     </div>
-                    <span className={`cus-bucket cus-bucket--${item.bucket.toLowerCase()}`}>{item.bucketLabel}</span>
                   </header>
                   <ShipmentSignals item={item} />
+                  <FinanceEvidence item={item} />
                   <dl>
-                    <div><dt>Nhà máy</dt><dd>{item.factoryName || '—'}</dd></div>
+                    <div className="cus-mobile-card__wide"><dt>Tuyến</dt><dd>{item.routeName || item.factoryName || 'Chưa xác định'}</dd></div>
                     <div><dt>Ngày vận chuyển</dt><dd>{formatDate(item.transportDate)}</dd></div>
-                    <div><dt>Container</dt><dd>{item.containerSummary}</dd></div>
-                    <div><dt>Loại hàng</dt><dd>{directionLabel(item.direction)}</dd></div>
-                    <div><dt>Tổng thu</dt><dd>{item.finance.customerChargeTotalsAvailable ? formatMoney(item.finance.customerInvoiceTotal) : 'Chưa có dữ liệu'}</dd></div>
-                    <div><dt>Tổng chi</dt><dd>{item.finance.totalCostAvailable ? formatMoney(item.finance.totalCost) : 'Chưa có dữ liệu'}</dd></div>
-                    <div><dt>Kế toán</dt><dd>{accountingConfirmationLabel(item.accountingConfirmation)}</dd></div>
+                    <div><dt>Container</dt><dd>{item.containerSummary} · {directionLabel(item.direction)}</dd></div>
                   </dl>
+                  {item.action.enabled && item.action.kind !== 'NONE' && (
+                    <footer className="cus-mobile-card__action" data-row-interactive>
+                      {shipmentActionButton(item, 'btn btn--primary btn--sm')}
+                    </footer>
+                  )}
                 </article>
               ))}
             </div>
@@ -1234,11 +1247,12 @@ export default function ShipmentsPage() {
         onClose={() => setDrawerId(null)}
         title={drawerItem?.customerName || 'Chi tiết lô hàng'}
         subtitle={drawerItem?.billOrBookNumber || drawerItem?.declarationNumber || undefined}
-        className="cus-mobile-drawer"
+        className="cus-shipment-drawer"
       >
         <div id={drawerItem ? `cus-detail-drawer-${drawerItem.id}` : undefined}>
+          {drawerItem && <ShipmentDetailSummary item={drawerItem} />}
           {drawerId != null && detailLoadingId === drawerId && !details[drawerId] ? (
-            <div className="cus-detail-loading"><Loader2 className="spin" aria-hidden="true" /> Đang tải chi tiết container…</div>
+            <div className="cus-detail-loading"><Loader2 className="spin" aria-hidden="true" /> Đang tải dữ liệu container…</div>
           ) : drawerId != null && detailErrors[drawerId] ? (
             <div className="cus-inline-error" role="alert"><span>{detailErrors[drawerId]}</span><button type="button" onClick={() => void loadDetail(drawerId, true)}>Thử lại</button></div>
           ) : drawerId != null && details[drawerId] ? (
